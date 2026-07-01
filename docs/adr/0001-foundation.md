@@ -52,8 +52,10 @@ Default: each app is a **single container** serving the static SPA + its
 tRPC/REST API + streaming on one Node process — the shared **Fastify**
 `createAppServer` factory in `packages/backend-kit` serves the built SPA bundle
 (`@fastify/static`, with SPA fallback) and mounts the tRPC handler; each app's
-thin entrypoint calls it with its router + real `Store` + `staticDir` (a TanStack
-Start opt-in app serves its Nitro server instead). WebSockets, when an app
+thin entrypoint calls it with its router + real `Store` + `staticDir` + a
+`healthCheck` closure over its own `Store` — the factory is generic over the
+app's `Store`, so the deep `/health` (§13) is injected, not reached into (a
+TanStack Start opt-in app serves its Nitro server instead). WebSockets, when an app
 escalates to them, use `@fastify/websocket`. This is the cheapest, simplest shape
 on Fly and matches `hosting.md`. **Streaming/SSE stays in the single container** —
 it does not force a split.

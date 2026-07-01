@@ -12,6 +12,12 @@ boundary of deployed infrastructure.
 
 - Work top-down by phase. Within a phase, tasks marked **∥ parallel** can run
   concurrently; each declares the files/dirs it **owns** so agents don't collide.
+- **Integration workflow for parallel tasks:** one branch per task; merge
+  sequentially (any order). Dir ownership keeps source files disjoint, but the
+  root **`pnpm-lock.yaml`** (and occasionally root `package.json` / `turbo.json`)
+  is shared — on a rebase/merge conflict, keep both sides' `package.json` changes
+  and **regenerate the lockfile with `pnpm install`; never hand-merge it**. Re-run
+  the verify loop (lint / typecheck / test) after every rebase.
 - Every task is **done** only when: its acceptance tests pass (written first,
   red → green), `pnpm lint` + `pnpm typecheck` are green, and its README/scoped
   `CLAUDE.md` is current.
@@ -87,7 +93,9 @@ plus `apps/hub`, running in simulator mode. No Dockerfile, no deployed infra.*
 > - `@hoe/db`: Drizzle client **factory with driver swap** (`postgres` |
 >   `pglite`), proven to run PGlite **both Node-side and in-browser (WASM)**; one
 >   tiny `health` schema; migration applied at PGlite instance creation.
-> - `@hoe/backend-kit`: `Store` interface; base handler class; the **tRPC
+> - `@hoe/backend-kit`: `Store` interface; base handler class; a throwaway
+>   console `Logger` (stand-in for the frozen `Logger` interface until
+>   `@hoe/logger` lands in T2.3); the **tRPC
 >   router**; a wiring that injects a PGlite-backed `Store` into the tRPC context,
 >   reusable **two ways** — (a) a Vite dev-server middleware (dev simulator mode),
 >   (b) an in-browser dispatcher the test-kit drives via `page.route`.
@@ -174,7 +182,10 @@ plus `apps/hub`, running in simulator mode. No Dockerfile, no deployed infra.*
 >   router: AppRouter
 >   createContext: (req: Request) => AppContext<unknown>   // the per-request factory above; <unknown> is deliberate
 >   staticDir: string; logger: Logger                      // type-erasure at the transport boundary (router carries its own ctx type)
-> }): { listen(port: number): Promise<void> } // Fastify: @fastify/static + tRPC adapter + a deep /health route
+>   healthCheck: () => Promise<{ ok: true }>               // deep /health = await this. The app closes it over its own
+> }): { listen(port: number): Promise<void> } //   Store impl (the type-erased factory can't reach an app-defined Store).
+>                                             //   Fastify: @fastify/static + tRPC adapter + the deep /health route
+>                                             //   (real Store round-trip — ADR 0001 §13/§14).
 >
 > // ── @hoe/test-kit ────────────────────────────────────────────────────────────
 > type SeedFn = (db: DbClient<unknown>) => Promise<void>    // seeding runs against the test DbClient
@@ -210,7 +221,8 @@ frozen** — in-browser bundle vs ephemeral server (the spike outcome) — and (
 human confirms `Store` (app-defined) + `DbClient`, `BlobStore`, `Logger`,
 `AppContext` (incl. the `auth` + `now()` seams), the handler base, the
 `createContext` injection seam, the `FailureRule` link, the `dispatchRequest`
-in-browser seam, `createAppServer`, `@hoe/db`'s `createDbClient`/`freshTestDb`, and
+in-browser seam, `createAppServer` (incl. its `healthCheck` deep-health seam),
+`@hoe/db`'s `createDbClient`/`freshTestDb`, and
 `@hoe/test-kit`'s `BasePage`/`SeedFn`/`MountedApp`/`mountApp`. **Phase 2 does not
 start until this passes.** Changes after sign-off are follow-up tasks, not silent
 edits.
@@ -231,7 +243,8 @@ against the Phase 1 contract.*
 > once at startup); driver-swap finalised so `@electric-sql/pglite` is **excluded
 > from production bundles**.
 > **Acceptance:** migrations apply on both drivers; round-trip test on PGlite
-> (Node and browser); same suite runnable against a real PG (used in T3.3); a
+> (Node and browser); same suite runnable against a real PG (a **local Docker
+> Postgres** — local containers don't touch the deployed-infra gate; used in T3.3); a
 > build assertion that `pglite` is absent from a prod build; **an enumerated list
 > of the Postgres features apps may rely on** (e.g. `gen_random_uuid`, JSON/JSONB
 > operators, transactions, constraints/`ON CONFLICT`, and `LISTEN/NOTIFY` if used)
@@ -249,7 +262,7 @@ against the Phase 1 contract.*
 > **domain-error → tRPC-error-code → HTTP** mapping (the error taxonomy, applied
 > consistently so apps don't each invent one); the **`Store`-injection wiring**
 > reused two ways (Vite dev middleware + in-browser `dispatchRequest`); the prod
-> **`createAppServer({ router, createContext, staticDir, logger })`** factory on
+> **`createAppServer({ router, createContext, staticDir, logger, healthCheck })`** factory on
 > **Fastify** (`@fastify/static` for the SPA bundle + SPA
 > fallback, tRPC Fastify adapter for the API; `@fastify/websocket` left as the
 > documented WS-escalation path, not wired); the **test-only failure-injection
@@ -258,7 +271,7 @@ against the Phase 1 contract.*
 > **Acceptance:** handler runs identically against real-vs-fake injected store; a
 > blob round-trip on the in-memory fake; the **same router** serves all three
 > transports — Vite middleware, in-browser dispatcher, and `createAppServer`
-> (static + tRPC, with a `/health` route) verified locally.
+> (static + tRPC, `/health` awaiting the injected `healthCheck`) verified locally.
 > **DoD:** README covers handler authoring, DI, the tRPC router, `createAppServer`,
 > and the simulator wiring.
 
@@ -278,8 +291,11 @@ against the Phase 1 contract.*
 > **in-browser PGlite** (`page.route` dispatch); fresh-PGlite-per-test reset;
 > seed + failure-injection helpers; extension-routing so Vitest owns `*.test` and
 > Playwright owns `*.iwft`/`*.e2e`.
-> **Acceptance:** a sample `.iwft` against `hub` runs green through the kit;
-> Vitest and Playwright don't pick up each other's files.
+> **Acceptance:** `hub`'s existing T1.1 `.iwft` runs green through the kit —
+> T2.4 has **shared ownership of that one file** (may extend it in place). Do
+> **not** import `apps/hub` from inside `packages/test-kit`: that's a package→app
+> dependency and a cycle (hub's tests already depend on test-kit). Vitest and
+> Playwright don't pick up each other's files.
 > **DoD:** README documents writing `.iwft` tests + POM conventions.
 
 ---
@@ -297,7 +313,10 @@ locally. Completing this phase = **the agent end goal**.*
 > Postgres `Store` + `staticDir` + logger); SCSS modules; fuller `.iwft` coverage
 > via POM; scoped `CLAUDE.md` + README.
 > **Acceptance:** `pnpm dev --filter=hub` (simulator) works; `pnpm test
-> --filter=hub` green (`.test` + `.iwft`).
+> --filter=hub` green (`.test` + `.iwft`), incl. **at least one `.iwft` that
+> injects a failure (`mountApp({ failures: [...] })`) and asserts the UI error
+> state** — the end-to-end proof of the failure-injection link (frozen T1.1,
+> link T2.2, helpers T2.4).
 > **DoD:** `hub` is a clean, copyable template for "adding an app".
 
 > **T3.2 — Dockerfile + `fly.toml` for `hub`** · ∥ (with T3.3) · **owns:**
@@ -356,7 +375,8 @@ locally. Completing this phase = **the agent end goal**.*
 > **depends:** T3.1–T3.4
 > **Goal:** prove the template path.
 > **Deliver:** walk the `CLAUDE.md` checklist against `hub`; correct any drift in
-> README/`CLAUDE.md`/ADR.
+> README/`CLAUDE.md`/ADR; **author the Phase 4 runbooks** — the exact commands
+> for G4.1–G4.5, ready for the human to execute.
 > **Acceptance:** checklist is sufficient to stand up a second app locally (do a
 > throwaway copy, run it in simulator mode, then discard).
 > **DoD:** docs accurate; **all local-only code is ready.**
