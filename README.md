@@ -100,8 +100,7 @@ checklist in [`CLAUDE.md`](CLAUDE.md) and [ADR 0001 §11](docs/adr/0001-foundati
 CI deploys changed apps to Fly on merge to `main` (migrations via `fly.toml`
 `release_command`, then a `/health` smoke check). Initial infrastructure setup
 (Fly apps, Managed Postgres, Cloudflare DNS, GitHub secrets) is done by a human
-following the runbooks in the
-[implementation plan](docs/plans/0001-foundation-implementation-plan.md#phase-4--infrastructure-human-in-the-loop).
+following [docs/runbooks/phase-4-go-live.md](docs/runbooks/phase-4-go-live.md).
 
 ## Documentation map
 

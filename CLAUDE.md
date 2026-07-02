@@ -74,8 +74,8 @@ pnpm lint | pnpm typecheck
 
 Do **not** run commands that create or mutate deployed infrastructure (`fly apps
 create`, `fly mpg`, `fly secrets set`, `fly deploy`, Cloudflare DNS/cert changes).
-Stop and hand these to the human with the relevant runbook from the
-[implementation plan](docs/plans/0001-foundation-implementation-plan.md#phase-4--infrastructure-human-in-the-loop).
+Stop and hand these to the human with the relevant runbook —
+[docs/runbooks/phase-4-go-live.md](docs/runbooks/phase-4-go-live.md).
 Writing Dockerfiles, `fly.toml`, compose files, and CI workflows is fine —
 *applying* them to real infra is not.
 
@@ -85,12 +85,16 @@ Copy `apps/hub`, then change each wiring touchpoint:
 
 1. **App name** — `apps/<name>`, `package.json` name.
 2. **Subdomain** — `<name>.homeofed.com` (apex `homeofed.com` = `hub`).
-3. **Port** — unique local dev port.
+3. **Ports** — unique local dev port (`package.json` dev script) **and** CT
+   port (`playwright-ct.config.ts` `ctPort`).
 4. **Fly app** — `fly.toml` app name (human runs `fly apps create`).
 5. **Cloudflare** — proxied CNAME `<name> → <flyapp>.fly.dev`, Full (strict) TLS,
    Fly cert (human-run).
 6. **Postgres** — its own database in the Fly MPG cluster + connection secret.
-7. **CI** — add the app's path to the deploy filter.
+7. **CI** — copy the `deploy-hub` job in `.github/workflows/deploy.yml`
+   (app name in the affected check, fly.toml path, smoke URL).
+8. **Docker stack** — copy the two services in `compose.yml` (app + its DB;
+   fresh host port).
 
 Default to a **single container** (UI + API + streaming). Split to a separate Fly
 app only for WebSockets / independent scaling / isolation; multi-process for
