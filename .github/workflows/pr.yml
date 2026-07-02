@@ -1,0 +1,98 @@
+# PR verification — two jobs:
+#
+#   verify    turbo-affected lint/typecheck/build/test (vitest + Playwright CT
+#             .iwft) against the PR's base branch. Affected needs full history
+#             (fetch-depth: 0) so turbo can diff against origin/<base>.
+#
+#   postgres  the @hoe/db suite against a REAL Postgres service on EVERY PR —
+#             deliberately not path-gated: a handler bug that depends on a
+#             PG-vs-PGlite semantic difference need not touch db/schema files,
+#             so a path filter is exactly the blind spot. One container is
+#             cheap; this is the expected CI long pole. If PR latency ever
+#             bites, affected-gate it to *any package* — never path-gate to db.
+name: PR
+
+on:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4 # version comes from package.json packageManager
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright chromium (for *.iwft CT runs)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Affected lint / typecheck / build / test
+        run: pnpm exec turbo run lint typecheck build test --affected
+        env:
+          TURBO_SCM_BASE: origin/${{ github.base_ref }}
+
+  postgres:
+    name: real-Postgres suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      # Activates the env-gated real-PG legs (migrations, journal-tracked
+      # migrator, the evidence-based feature suite). App handler suites run on
+      # PGlite; the PG-vs-PGlite gap is bounded by this feature suite.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright chromium (@hoe/db has a browser CT test)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: db suite against real Postgres
+        run: pnpm exec turbo run test --filter=@hoe/db --force
