@@ -50,3 +50,9 @@ does and blur package boundaries.
   acceptable at this scale; **revisit project references if typecheck times
   grow**. Internal packages are not individually publishable (not a goal).
 - `turbo.json` `typecheck`/`test` need no `^build` dependency.
+- Source-exported code is sometimes loaded by **native Node ESM with
+  type-stripping** (e.g. `vite.config.ts` importing the simulator wiring), so
+  **relative imports must carry explicit `.ts`/`.tsx` extensions**
+  (`allowImportingTsExtensions` is set in the base tsconfig) and package code
+  must stick to erasable TypeScript syntax (no enums/namespaces, **no
+  constructor parameter properties** — declare fields explicitly).

@@ -1,0 +1,15 @@
+.home {
+  display: grid;
+  place-content: center;
+  min-height: 100dvh;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+
+  h1 {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.health {
+  color: #3a7d44;
+}
