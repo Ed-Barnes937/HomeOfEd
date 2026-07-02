@@ -1,18 +1,52 @@
-import { DISPATCHER_WINDOW_KEY, type WireDispatch, type WireRequest } from '@hoe/backend-kit'
+import {
+  DISPATCHER_WINDOW_KEY,
+  type FailureRule,
+  type User,
+  type WireDispatch,
+  type WireRequest,
+} from '@hoe/backend-kit'
 import type { Page } from '@playwright/test'
+
+import { injectedFailureResponse, matchFailureRule } from './failures.ts'
+import { testUserHeaders } from './protocol.ts'
+
+export interface TrpcRouteOptions {
+  endpoint?: string
+  /** Applied Node-side, before the request reaches the in-page dispatcher. */
+  failures?: FailureRule[]
+  /** Sent as the well-known test-user header on every trampolined request. */
+  user?: User | null
+}
 
 /**
  * Node side of the .iwft transport: intercept the app's tRPC HTTP calls with
  * page.route and trampoline each request into the page, where the app harness
  * has exposed the real router over in-browser PGlite (exposeDispatcher).
+ * Failure rules short-circuit at this layer; the test user rides along as a
+ * header for the harness's auth seam.
  */
-export async function routeTrpcToPage(page: Page, endpoint = '/api/trpc'): Promise<void> {
+export async function installTrpcRoute(page: Page, opts: TrpcRouteOptions = {}): Promise<void> {
+  const endpoint = opts.endpoint ?? '/api/trpc'
   await page.route(`**${endpoint}/**`, async (route) => {
     const req = route.request()
+    const url = req.url()
+
+    const rule = matchFailureRule(url, endpoint, opts.failures ?? [])
+    if (rule?.mode === 'network') {
+      return route.abort('failed')
+    }
+    if (rule?.mode === 'error') {
+      const { status, contentType, body } = injectedFailureResponse(url, endpoint)
+      return route.fulfill({ status, contentType, body })
+    }
+    if (rule?.mode === 'latency') {
+      await new Promise((resolve) => setTimeout(resolve, rule.ms ?? 0))
+    }
+
     const wire: WireRequest = {
       method: req.method(),
-      url: req.url(),
-      headers: await req.allHeaders(),
+      url,
+      headers: { ...(await req.allHeaders()), ...testUserHeaders(opts.user ?? null) },
       body: req.postData() ?? undefined,
     }
     const res = await page.evaluate(
@@ -24,4 +58,9 @@ export async function routeTrpcToPage(page: Page, endpoint = '/api/trpc'): Promi
     )
     await route.fulfill({ status: res.status, headers: res.headers, body: res.body })
   })
+}
+
+/** T1.1-frozen signature — the plain trampoline with no failures/user. */
+export async function routeTrpcToPage(page: Page, endpoint = '/api/trpc'): Promise<void> {
+  return installTrpcRoute(page, { endpoint })
 }

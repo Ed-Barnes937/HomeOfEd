@@ -35,13 +35,45 @@ export async function createDbClient<S extends DbSchema>(
   return drizzle(new PGlite(opts.dataDir), { schema: opts.schema })
 }
 
-/** Apply SQL migrations in order. T2.1 replaces hand-written SQL with a generate+apply runner. */
+/**
+ * Convert a map of migration-file name → file contents (e.g. from Vite's
+ * `import.meta.glob('./migrations/*.sql', { query: '?raw', ... })` in the
+ * browser, or `loadMigrationsFromDir` from `@hoe/db/node`) into the ordered
+ * statement list `applyMigrations` expects. Files are ordered by name
+ * (drizzle-kit prefixes are zero-padded) and split on drizzle-kit's
+ * `--> statement-breakpoint` markers.
+ */
+export function migrationsFromFiles(files: Record<string, string>): readonly string[] {
+  return Object.entries(files)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .flatMap(([, contents]) =>
+      contents
+        .split('--> statement-breakpoint')
+        .map((statement) => statement.trim())
+        .filter((statement) => statement.length > 0),
+    )
+}
+
+/** Apply SQL migrations (one statement per string) in order. */
 export async function applyMigrations(
   db: DbClient<DbSchema>,
   migrations: readonly string[],
 ): Promise<void> {
   for (const statement of migrations) {
     await db.execute(sql.raw(statement))
+  }
+}
+
+/** A seed step: any async function that writes through the Drizzle client. */
+export type SeedFn<S extends DbSchema> = (db: DbClient<S>) => Promise<void>
+
+/** Run seed functions against a client, in order. No framework — just calls. */
+export async function seedDb<S extends DbSchema>(
+  db: DbClient<S>,
+  ...seeds: readonly SeedFn<S>[]
+): Promise<void> {
+  for (const seed of seeds) {
+    await seed(db)
   }
 }
 
