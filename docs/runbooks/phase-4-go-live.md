@@ -48,12 +48,12 @@ releases is staged; it applies on the first deploy.
 ## G4.2 — GitHub deploy secret
 
 ```bash
-# A deploy-scoped token (preferred over a personal token):
-fly tokens create deploy --app hoe-hub
-
-# Add it to the repo so .github/workflows/deploy.yml comes alive:
-gh secret set FLY_API_TOKEN --repo Ed-Barnes937/HomeOfEd
-# (paste the token when prompted — including the "FlyV1 " prefix)
+# A deploy-scoped token (preferred over a personal token), piped straight
+# into the repo secret so .github/workflows/deploy.yml comes alive. Pipe it —
+# the token contains a space after "FlyV1", which breaks passing it as a
+# shell argument, and piping keeps it out of shell history:
+fly tokens create deploy --app hoe-hub |
+  gh secret set FLY_API_TOKEN --repo Ed-Barnes937/HomeOfEd
 ```
 
 The deploy workflow is inert until this secret exists; afterwards every merge
@@ -84,21 +84,46 @@ open  https://hoe-hub.fly.dev                     # the landing page
 
 In the Cloudflare dashboard for `homeofed.com`:
 
-1. **DNS → Records → Add record**: type `CNAME`, name `@` (the apex),
+1. **Delete any existing `A` records** for the apex (and `www`) — Cloudflare
+   won't allow a CNAME at a name that already has an A record. Check what the
+   old IP serves before deleting.
+2. **DNS → Records → Add record**: type `CNAME`, name `@` (the apex),
    target `hoe-hub.fly.dev`, **Proxied** (orange cloud). Cloudflare flattens
    the apex CNAME automatically.
-2. **SSL/TLS → Overview**: set encryption mode to **Full (strict)**.
+3. **SSL/TLS → Overview**: set encryption mode to **Full (strict)**.
 
-Then issue the Fly certificate so Fly terminates TLS for the custom domain:
+Then request the Fly certificate and add its validation records:
 
 ```bash
 fly certs add homeofed.com --app hoe-hub
-fly certs check homeofed.com --app hoe-hub   # wait until it shows Issued
+fly certs setup homeofed.com --app hoe-hub   # prints the records below
 ```
 
-(`fly certs add` prints an ACME validation record if it needs one — add it in
-Cloudflare DNS as instructed, **DNS-only/grey cloud** for the validation
-record.)
+Because the domain is proxied, Fly can't see it pointing at the app (it
+resolves to Cloudflare's IPs) and the ACME HTTP challenge can't reach Fly —
+so **both** "additional" records from the setup output are required, added in
+Cloudflare as **DNS-only (grey cloud)**, names entered *without* the domain
+suffix (Cloudflare appends it):
+
+| Type | Name | Content |
+| --- | --- | --- |
+| TXT | `_fly-ownership` | `app-<id>` (from the setup output) |
+| CNAME | `_acme-challenge` | `homeofed.com.<id>.flydns.net` |
+
+```bash
+fly certs check homeofed.com --app hoe-hub   # re-checks; wait for Issued
+```
+
+If it sits at not-verified, `dig +short TXT _fly-ownership.homeofed.com @1.1.1.1`
+(and the CNAME equivalent) — empty output means the records aren't live:
+check for truncated names/values and the grey cloud.
+
+**`www`** gets no Fly cert: keep a proxied CNAME `www → homeofed.com` and add
+the Cloudflare Redirect Rule template **"Redirect from WWW to Root"**
+(Rules → Redirect Rules). The redirect happens at Cloudflare's edge, so
+`www` traffic never reaches Fly. (Without the rule, `www` returns a 525 under
+Full (strict) — Cloudflare can't handshake with an origin that has no cert
+for it.)
 
 ## G4.5 — Verify end-to-end
 
@@ -108,8 +133,9 @@ curl -fsSI https://homeofed.com | head -5      # 200, served over TLS
 open https://homeofed.com                      # the hub landing page
 ```
 
-Done — the foundation is live. Adding the next app = the checklist in root
-`CLAUDE.md` + repeating G4.1 (`fly apps create <flyapp>` then
-`fly postgres attach hoe-pg --app <flyapp> --database-name <name>`), the CNAME
-step of G4.4 with `<name>` instead of `@`, and `fly certs add
-<name>.homeofed.com`.
+Done — the foundation is live (2026-07-02). Adding the next app = the
+checklist in root `CLAUDE.md` + repeating G4.1 (`fly apps create <flyapp>`
+then `fly postgres attach hoe-pg --app <flyapp> --database-name <name>`), the
+CNAME step of G4.4 with `<name>` instead of `@`, and `fly certs add
+<name>.homeofed.com` — proxied subdomains need their own validation records
+too (`fly certs setup <name>.homeofed.com` prints them).
