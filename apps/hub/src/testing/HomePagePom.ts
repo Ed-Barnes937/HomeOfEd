@@ -11,4 +11,9 @@ export class HomePagePom extends BasePage {
   async verifyHealthValue(value: string): Promise<void> {
     await expect(this.healthValue).toHaveText(value)
   }
+
+  /** Generous timeout: React Query retries 3x (~7s) before settling on error. */
+  async verifyHealthError(): Promise<void> {
+    await expect(this.healthValue).toHaveText('health check failed', { timeout: 15_000 })
+  }
 }
