@@ -158,6 +158,9 @@ importers:
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../backend-kit
+      '@hoe/db':
+        specifier: workspace:*
+        version: link:../db
       '@playwright/experimental-ct-react':
         specifier: 1.61.1
         version: 1.61.1(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0))
@@ -174,6 +177,9 @@ importers:
       '@types/node':
         specifier: ^22
         version: 22.20.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
       eslint:
         specifier: ^9.39.2
         version: 9.39.4
@@ -186,6 +192,9 @@ importers:
       vite:
         specifier: ^6.4.3
         version: 6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.0)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0))
 
 packages:
 
