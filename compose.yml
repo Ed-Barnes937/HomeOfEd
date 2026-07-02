@@ -1,0 +1,40 @@
+# Docker-stack mode: the real Fly image against real Postgres, locally.
+#
+#   docker compose up hub        # one app + its DB (depends_on pulls hub-db in)
+#   docker compose up            # everything
+#
+# Local dev credentials are hardcoded — they never leave this machine. Real
+# secrets (anything beyond the throwaway local DB) belong in a gitignored
+# .env consumed via `env_file`, never committed. Per-app: copy the two
+# services, swap the app name/port/db, point at the app's Dockerfile.
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: apps/hub/Dockerfile
+    # Locally we run the release step (migrations) then the server — the same
+    # two commands fly.toml splits into release_command and CMD.
+    command: sh -c "node src/server/migrate.ts && node src/server/main.ts"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@hub-db:5432/hub
+    ports:
+      - '8080:8080'
+    depends_on:
+      hub-db:
+        condition: service_healthy
+
+  hub-db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hub
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d hub']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - hub-db-data:/var/lib/postgresql/data
+
+volumes:
+  hub-db-data:

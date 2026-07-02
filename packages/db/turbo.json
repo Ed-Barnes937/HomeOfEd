@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // @hoe/db devDepends on @hoe/test-kit (its browser CT test) while
+    // test-kit depends on @hoe/db (SeedFn) — a dev-only cycle pnpm is fine
+    // with, but it breaks turbo's default `build: dependsOn ^build` graph.
+    // db has no build script, so its (no-op) build depends on nothing.
+    "build": {
+      "dependsOn": []
+    }
+  }
+}

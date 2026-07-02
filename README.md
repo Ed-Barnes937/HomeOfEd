@@ -63,6 +63,21 @@ pnpm install
 Simulator mode is for almost all work. Use docker-stack to verify the real
 artifact before a deploy and to catch any PGlite-vs-Postgres gaps.
 
+#### Docker stack
+
+```bash
+docker compose up hub       # one app + its DB (depends_on starts hub-db)
+docker compose up           # everything
+```
+
+Builds each app's real Fly Dockerfile (from the repo root — turbo-pruned,
+prod-deps-only, no pglite/test code) and runs it against a `postgres:17`
+service. The app container runs the same two steps as a Fly deploy: the
+journal-tracked migrate entrypoint (`release_command` locally), then the
+server. Hub: <http://localhost:8080>, deep health at `/health`. Local DB
+credentials are hardcoded in `compose.yml`; anything genuinely secret belongs
+in a gitignored `.env` via `env_file`, never in the file.
+
 ### Test, lint, typecheck
 
 ```bash
@@ -85,8 +100,7 @@ checklist in [`CLAUDE.md`](CLAUDE.md) and [ADR 0001 §11](docs/adr/0001-foundati
 CI deploys changed apps to Fly on merge to `main` (migrations via `fly.toml`
 `release_command`, then a `/health` smoke check). Initial infrastructure setup
 (Fly apps, Managed Postgres, Cloudflare DNS, GitHub secrets) is done by a human
-following the runbooks in the
-[implementation plan](docs/plans/0001-foundation-implementation-plan.md#phase-4--infrastructure-human-in-the-loop).
+following [docs/runbooks/phase-4-go-live.md](docs/runbooks/phase-4-go-live.md).
 
 ## Documentation map
 

@@ -1,6 +1,15 @@
-// Hand-written tracer-bullet migration (+ seed row so the health value is
-// DB-sourced). T2.1 replaces this with a real generate+apply migration runner.
-export const migrations: readonly string[] = [
-  `create table if not exists health (id serial primary key, value text not null)`,
-  `insert into health (value) values ('hello from pglite')`,
-]
+// The generated migrations (drizzle-kit, `pnpm generate`) as the ordered
+// statement list `applyMigrations`/`freshTestDb` expect. This loader uses
+// Vite's `?raw` glob, so it works anywhere Vite transforms code (the .iwft
+// browser bundle, vitest). Node contexts outside Vite (the dev simulator via
+// vite.config.ts, prod's migrate entrypoint) load the same folder with
+// `@hoe/db/node` instead.
+import { migrationsFromFiles } from '@hoe/db'
+
+const files = import.meta.glob<string>('./migrations/*.sql', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+})
+
+export const migrations: readonly string[] = migrationsFromFiles(files)

@@ -56,3 +56,9 @@ does and blur package boundaries.
   (`allowImportingTsExtensions` is set in the base tsconfig) and package code
   must stick to erasable TypeScript syntax (no enums/namespaces, **no
   constructor parameter properties** — declare fields explicitly).
+- **Production images must keep workspace packages as symlink targets outside
+  `node_modules`** (the pruned-monorepo layout: `/app/packages/*` +
+  `node_modules/@hoe/* → symlink`). Node refuses to type-strip real files
+  under `node_modules`, which rules out `pnpm deploy`'s materialised copy;
+  and bundling the server instead breaks transitive-dep resolution under
+  pnpm's isolated layout. See `apps/hub/Dockerfile` for the canonical stages.

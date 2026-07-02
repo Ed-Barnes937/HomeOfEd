@@ -1,0 +1,15 @@
+# Keep the docker build context (repo root — see apps/*/Dockerfile) small and
+# hermetic: installs happen inside the build, artifacts never leak in.
+.git
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/playwright-report
+**/test-results
+**/playwright/.cache
+.env
+.env.*
+!.env.example
+*.log
