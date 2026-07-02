@@ -36,6 +36,7 @@ function seedDb<S>(db: DbClient<S>, ...seeds: readonly SeedFn<S>[]): Promise<voi
 
 // '@hoe/db/node' — Node-only (fs)
 function loadMigrationsFromDir(dir: string): Promise<readonly string[]>
+function migratePostgres(url: string, migrationsFolder: string): Promise<void>
 
 // '@hoe/db/env' — Node-only (process.env)
 const dbEnvSchema: ZodObject // { DATABASE_URL: postgres URL }
@@ -92,9 +93,18 @@ const migrations = migrationsFromFiles(files)
 Both order files by name (drizzle-kit's zero-padded prefixes) and split on
 drizzle-kit's `--> statement-breakpoint` markers.
 
-**Apply** with the frozen `applyMigrations(db, migrations)` — identical on both
-drivers (proven in `migrations.test.ts` for PGlite and `postgres.test.ts` for
-real Postgres).
+**Apply** — two seams for two jobs:
+
+- **Fresh databases** (tests, simulator): the frozen `applyMigrations(db,
+  migrations)` executes every statement, in order, identically on both drivers
+  (proven in `migrations.test.ts` for PGlite and `postgres.test.ts` for real
+  Postgres). `freshTestDb` wraps it.
+- **Deploys** (`release_command`): `migratePostgres(url, migrationsFolder)`
+  from `@hoe/db/node` — drizzle's journal-tracked migrator (ledger in
+  `drizzle.__drizzle_migrations`), so running it on every deploy is safe:
+  already-applied entries are skipped (proven in `migrator.test.ts`, incl. the
+  re-run no-op). It needs the folder's `meta/` journal — another reason the
+  whole `out/` dir is committed.
 
 ### Migration policy — forward-only / expand-contract
 

@@ -5,9 +5,11 @@ import {
   InMemoryBlobStore,
   type Dispatch,
 } from '@hoe/backend-kit'
-import { freshTestDb } from '@hoe/db'
+import { fileURLToPath } from 'node:url'
 
-import { migrations } from './migrations.ts'
+import { freshTestDb } from '@hoe/db'
+import { loadMigrationsFromDir } from '@hoe/db/node'
+
 import { appRouter } from './router.ts'
 import { hubSchema } from './schema.ts'
 import { DrizzleHealthStore } from './store.ts'
@@ -18,6 +20,11 @@ import { DrizzleHealthStore } from './store.ts'
  * and by .iwft (in-browser PGlite-WASM via exposeDispatcher).
  */
 export async function createSimulatorDispatch(): Promise<Dispatch> {
+  // fs-based loader, not ./migrations.ts: this file is imported by
+  // vite.config.ts in native Node, where Vite's import.meta.glob doesn't exist.
+  const migrations = await loadMigrationsFromDir(
+    fileURLToPath(new URL('./migrations', import.meta.url)),
+  )
   const db = await freshTestDb(hubSchema, migrations)
   const store = new DrizzleHealthStore(db)
   return createDispatcher({

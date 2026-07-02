@@ -5,7 +5,7 @@ test('home page renders the health value served by the in-browser backend', asyn
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  await root.verifyHealthValue('hello from pglite')
+  await root.verifyHealthValue('hello from postgres')
 })
 
 test('a seeded row is what the page renders', async ({ mountApp }) => {
