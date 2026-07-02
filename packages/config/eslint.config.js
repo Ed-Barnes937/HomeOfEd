@@ -13,7 +13,16 @@ import tseslint from 'typescript-eslint'
  * the consuming package's tsconfig.json automatically.
  */
 export const baseConfig = tseslint.config(
-  { ignores: ['dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'playwright-report/**',
+      'test-results/**',
+      'playwright/.cache/**',
+      '.turbo/**',
+    ],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {

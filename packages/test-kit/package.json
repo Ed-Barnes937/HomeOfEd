@@ -1,0 +1,29 @@
+{
+  "name": "@hoe/test-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "prettier": "@hoe/config/prettier",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ct-config": "./src/ctConfig.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hoe/backend-kit": "workspace:*",
+    "@playwright/experimental-ct-react": "1.61.1",
+    "@playwright/test": "1.61.1",
+    "@vitejs/plugin-react": "^5.2.0"
+  },
+  "devDependencies": {
+    "@hoe/config": "workspace:*",
+    "@types/node": "^22",
+    "eslint": "^9.39.2",
+    "prettier": "^3.8.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3"
+  }
+}
