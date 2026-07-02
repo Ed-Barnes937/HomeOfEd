@@ -5,22 +5,39 @@
   "type": "module",
   "prettier": "@hoe/config/prettier",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts",
+    "./env": "./src/env.ts"
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && playwright test -c playwright-ct.config.ts",
+    "generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@electric-sql/pglite": "0.5.3",
     "drizzle-orm": "0.45.2",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.3",
     "@hoe/config": "workspace:*",
+    "@hoe/test-kit": "workspace:*",
+    "@playwright/experimental-ct-react": "1.61.1",
+    "@playwright/test": "1.61.1",
+    "@types/node": "^22",
     "@types/pg": "^8.15.6",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "drizzle-kit": "0.31.10",
     "eslint": "^9.39.2",
     "prettier": "^3.8.0",
-    "typescript": "^5.9.3"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.9"
   }
 }
