@@ -46,7 +46,9 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright chromium (for *.iwft CT runs)
-        run: pnpm exec playwright install --with-deps chromium
+        # Via a package that declares playwright — it isn't a root dep, so the
+        # binary isn't in the root .bin.
+        run: pnpm --filter hub exec playwright install --with-deps chromium
 
       - name: Affected lint / typecheck / build / test
         run: pnpm exec turbo run lint typecheck build test --affected
@@ -92,7 +94,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright chromium (@hoe/db has a browser CT test)
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm --filter @hoe/db exec playwright install --with-deps chromium
 
       - name: db suite against real Postgres
         run: pnpm exec turbo run test --filter=@hoe/db --force
