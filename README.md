@@ -15,7 +15,7 @@ baseline is [ADR 0001](docs/adr/0001-foundation.md); hosting is
 
 - **Frontend:** React SPA — TanStack Router + TanStack Query + tRPC client, SCSS modules. TanStack Start (SSR) is opt-in per app ([ADR 0003](docs/adr/0003-spa-default-tanstack-start-opt-in.md)).
 - **Backend:** TypeScript, layered + dependency injection, tRPC preferred (REST where it fits).
-- **Database:** Drizzle on Fly Managed Postgres (LHR); PGlite as the in-memory fake.
+- **Database:** Drizzle on Fly Postgres (LHR, unmanaged — [ADR 0005](docs/adr/0005-unmanaged-fly-postgres.md)); PGlite as the in-memory fake.
 - **Monorepo:** pnpm workspaces + Turborepo.
 - **Tests:** Vitest (unit) + Playwright (isolated whole-frontend).
 
@@ -99,7 +99,7 @@ checklist in [`CLAUDE.md`](CLAUDE.md) and [ADR 0001 §11](docs/adr/0001-foundati
 
 CI deploys changed apps to Fly on merge to `main` (migrations via `fly.toml`
 `release_command`, then a `/health` smoke check). Initial infrastructure setup
-(Fly apps, Managed Postgres, Cloudflare DNS, GitHub secrets) is done by a human
+(Fly apps, Postgres, Cloudflare DNS, GitHub secrets) is done by a human
 following [docs/runbooks/phase-4-go-live.md](docs/runbooks/phase-4-go-live.md).
 
 ## Documentation map

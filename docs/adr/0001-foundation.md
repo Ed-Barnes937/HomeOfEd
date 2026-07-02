@@ -155,7 +155,10 @@ heavier full-server harness — deferred until the first such app.)
   drivers).
 - **Fly Managed Postgres (LHR)** in production: keeps data in-region (residency
   for the child-safe app) and inside Fly (one network, simplest compliance
-  story). One **database per app** for isolation.
+  story). One **database per app** for isolation. *(Revised by
+  [ADR 0005](0005-unmanaged-fly-postgres.md): unmanaged Fly Postgres for now —
+  MPG's pricing floor isn't justified while all data is reproducible from
+  migrations. One-database-per-app stands.)*
 
 ### 7. Database packaging
 

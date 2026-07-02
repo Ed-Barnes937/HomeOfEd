@@ -47,7 +47,7 @@ its contracts.
 
 Agents may author Dockerfiles, `fly.toml`, compose files, and CI workflows, but
 **must not apply changes to deployed infrastructure**: creating Fly apps,
-provisioning Managed Postgres, setting secrets, deploying, or changing Cloudflare
+provisioning Postgres, setting secrets, deploying, or changing Cloudflare
 DNS/certificates. These are done by a human following runbooks, both to keep
 control of production and so the operator learns the setup. The agent-delivered
 end state is **all local-only code ready**; the human gates are the release.

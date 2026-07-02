@@ -86,8 +86,10 @@ them). The question was only whether either is needed on Fly at this scale.
 
 ## Open questions
 
-- ~~**Fly Postgres vs Upstash/Supabase**~~ — **Resolved:** Fly Managed Postgres
-  (LHR), one database per app — see [ADR 0001 §6](adr/0001-foundation.md).
+- ~~**Fly Postgres vs Upstash/Supabase**~~ — **Resolved:** Fly Postgres (LHR),
+  one database per app — see [ADR 0001 §6](adr/0001-foundation.md). Unmanaged
+  for now; Managed Postgres when backups/replication matter — see
+  [ADR 0005](adr/0005-unmanaged-fly-postgres.md).
 - **Streaming design for the LLM eval app** — if an eval needs the *whole*
   response before judging, streaming is lost (buffer then send); if evals run
   per-chunk, it can stream through live. App-design decision, not hosting.

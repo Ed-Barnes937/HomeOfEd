@@ -73,7 +73,8 @@ pnpm lint | pnpm typecheck
 ## Infrastructure is human-gated
 
 Do **not** run commands that create or mutate deployed infrastructure (`fly apps
-create`, `fly mpg`, `fly secrets set`, `fly deploy`, Cloudflare DNS/cert changes).
+create`, `fly postgres`, `fly mpg`, `fly secrets set`, `fly deploy`, Cloudflare
+DNS/cert changes).
 Stop and hand these to the human with the relevant runbook —
 [docs/runbooks/phase-4-go-live.md](docs/runbooks/phase-4-go-live.md).
 Writing Dockerfiles, `fly.toml`, compose files, and CI workflows is fine —
@@ -90,7 +91,8 @@ Copy `apps/hub`, then change each wiring touchpoint:
 4. **Fly app** — `fly.toml` app name (human runs `fly apps create`).
 5. **Cloudflare** — proxied CNAME `<name> → <flyapp>.fly.dev`, Full (strict) TLS,
    Fly cert (human-run).
-6. **Postgres** — its own database in the Fly MPG cluster + connection secret.
+6. **Postgres** — its own database in the shared `hoe-pg` cluster + connection
+   secret (human runs `fly postgres attach` — see the runbook).
 7. **CI** — copy the `deploy-hub` job in `.github/workflows/deploy.yml`
    (app name in the affected check, fly.toml path, smoke URL).
 8. **Docker stack** — copy the two services in `compose.yml` (app + its DB;

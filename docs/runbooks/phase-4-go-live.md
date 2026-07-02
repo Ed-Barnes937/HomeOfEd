@@ -13,39 +13,37 @@ Values used throughout (change if you picked different names):
 | --- | --- |
 | Fly app | `hoe-hub` (must match `apps/hub/fly.toml`) |
 | Fly region | `lhr` (London) |
-| MPG cluster name | `hoe-pg` |
+| Postgres cluster (unmanaged) | `hoe-pg` |
 | hub's database | `hub` |
 | Apex domain | `homeofed.com` |
 
 ---
 
-## G4.1 — Fly app + Managed Postgres
+## G4.1 — Fly app + Postgres
+
+Unmanaged Fly Postgres, not Managed Postgres — see
+[ADR 0005](../adr/0005-unmanaged-fly-postgres.md) for why and for the later
+migration plan to MPG.
 
 ```bash
 # The app shell (no deploy yet). --name must match fly.toml.
 fly apps create hoe-hub
 
-# Managed Postgres cluster in London. Pick the smallest plan to start —
-# it can be scaled later. Interactive: choose org, region lhr, plan.
-fly mpg create --name hoe-pg --region lhr
+# Unmanaged Postgres cluster in London (plain Fly Machines billed as compute).
+# Pick the Development single-node configuration — it can be scaled later.
+fly postgres create --name hoe-pg --region lhr
 
-# Create hub's own database in the cluster (one DB per app — ADR 0001).
-fly mpg connect --cluster hoe-pg
-#   ...in the psql prompt:
-#   CREATE DATABASE hub;
-#   \q
+# Create hub's database (one DB per app — ADR 0001), a scoped user, AND set
+# hub's DATABASE_URL secret, all in one step:
+fly postgres attach hoe-pg --app hoe-hub --database-name hub
 
-# Get the connection string (shown by the dashboard or):
-fly mpg status hoe-pg   # note the connection URI / credentials
-
-# Set hub's secret — replace user/pass/host with the values from above and
-# make sure the path is /hub (the database just created):
-fly secrets set --app hoe-hub \
-  DATABASE_URL='postgres://<user>:<password>@<mpg-host>.flympg.net:5432/hub'
+# Sanity-check the secret exists (value stays hidden):
+fly secrets list --app hoe-hub
 ```
 
-Note: `fly secrets set` on an app with no releases stages the secret; it
-applies on the first deploy.
+Notes: the attach-set secret uses the private `hoe-pg.flycast` host, which the
+app reaches over Fly's internal network. A secret set on an app with no
+releases is staged; it applies on the first deploy.
 
 ## G4.2 — GitHub deploy secret
 
@@ -111,5 +109,7 @@ open https://homeofed.com                      # the hub landing page
 ```
 
 Done — the foundation is live. Adding the next app = the checklist in root
-`CLAUDE.md` + repeating G4.1 (create app + database + secret), the CNAME step
-of G4.4 with `<name>` instead of `@`, and `fly certs add <name>.homeofed.com`.
+`CLAUDE.md` + repeating G4.1 (`fly apps create <flyapp>` then
+`fly postgres attach hoe-pg --app <flyapp> --database-name <name>`), the CNAME
+step of G4.4 with `<name>` instead of `@`, and `fly certs add
+<name>.homeofed.com`.

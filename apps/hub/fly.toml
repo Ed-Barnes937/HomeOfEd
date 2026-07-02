@@ -4,8 +4,8 @@
 #   fly deploy -c apps/hub/fly.toml
 #
 # Per-app values when copying this file: `app` (unique per Fly app), the
-# DATABASE_URL secret (its own database in the MPG cluster — set via
-# `fly secrets set`, never here), and nothing else in the usual case.
+# DATABASE_URL secret (its own database in the shared Postgres cluster — set
+# via `fly postgres attach`, never here), and nothing else in the usual case.
 app = 'hoe-hub'
 primary_region = 'lhr'
 
