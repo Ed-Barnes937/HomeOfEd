@@ -56,4 +56,34 @@ describe('SpatialHash', () => {
     hash.clear()
     expect(hash.queryRadius(50, 50, 10)).toEqual([])
   })
+
+  describe('queryRadiusInto', () => {
+    it('fills the out array with the same matches queryRadius returns', () => {
+      const hash = build(20, 200, 200, [
+        [50, 50],
+        [55, 50],
+        [65, 50],
+        [50, 58],
+        [150, 150],
+      ])
+      const out: number[] = []
+      const found = hash.queryRadiusInto(50, 50, 10, out)
+      expect(found).toBe(3)
+      expect([...out].sort()).toEqual([0, 1, 3])
+    })
+
+    it('truncates stale entries left over from a previous, larger query', () => {
+      const hash = build(20, 200, 200, [
+        [50, 50],
+        [55, 50],
+        [190, 190],
+      ])
+      const out: number[] = []
+      hash.queryRadiusInto(50, 50, 10, out)
+      expect(out).toHaveLength(2)
+      const found = hash.queryRadiusInto(190, 190, 5, out)
+      expect(found).toBe(1)
+      expect(out).toEqual([2])
+    })
+  })
 })

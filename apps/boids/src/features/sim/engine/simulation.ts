@@ -1,6 +1,5 @@
 import { clampParams, type SimParams } from './params.ts'
 import { SpatialHash } from './spatialHash.ts'
-import { add, limit, scale, setMagnitude, sub, type Vec2 } from './vector.ts'
 
 /** [0,1) — prod injects Math.random, tests inject a seeded generator. */
 export type Rng = () => number
@@ -39,6 +38,10 @@ export class Simulation {
   private readonly rng: Rng
   private hash: SpatialHash
   private readonly boidList: Boid[] = []
+  // Per-step scratch, reused across frames so step() allocates nothing.
+  private forceX = new Float64Array(0)
+  private forceY = new Float64Array(0)
+  private readonly neighbourScratch: number[] = []
 
   constructor(opts: { width: number; height: number; params: SimParams; rng: Rng }) {
     this.width = opts.width
@@ -78,18 +81,31 @@ export class Simulation {
     const visionRadius = this.params.vision
     const separationRadius = visionRadius * SEPARATION_RADIUS_FACTOR
 
+    const boids = this.boidList
+    const n = boids.length
+
     this.hash.clear()
-    this.boidList.forEach((b, i) => this.hash.insert(i, b.x, b.y))
+    for (let i = 0; i < n; i++) {
+      const b = boids[i]
+      if (b) this.hash.insert(i, b.x, b.y)
+    }
 
-    const pairs = this.boidList.map((boid, i) => ({
-      boid,
-      force: this.steerFor(boid, i, { visionRadius, separationRadius, maxSpeed, maxForce }),
-    }))
+    if (this.forceX.length < n) {
+      this.forceX = new Float64Array(n)
+      this.forceY = new Float64Array(n)
+    }
 
-    pairs.forEach(({ boid, force }) => {
-      let vx = boid.vx + force.x * dt
-      let vy = boid.vy + force.y * dt
-      const speed = Math.hypot(vx, vy)
+    // Steer everyone from the same position/velocity snapshot, then integrate.
+    for (let i = 0; i < n; i++) {
+      this.steerFor(i, visionRadius, separationRadius, maxSpeed, maxForce)
+    }
+
+    for (let i = 0; i < n; i++) {
+      const boid = boids[i]
+      if (!boid) continue
+      let vx = boid.vx + (this.forceX[i] ?? 0) * dt
+      let vy = boid.vy + (this.forceY[i] ?? 0) * dt
+      const speed = Math.sqrt(vx * vx + vy * vy)
       if (speed > 0) {
         const clamped = Math.min(maxSpeed, Math.max(minSpeed, speed))
         vx = (vx / speed) * clamped
@@ -99,60 +115,110 @@ export class Simulation {
       boid.vy = vy
       boid.x = wrap(boid.x + vx * dt, this.width)
       boid.y = wrap(boid.y + vy * dt, this.height)
-    })
+    }
   }
 
+  /** Writes the combined steering force for boid `index` into forceX/forceY. */
   private steerFor(
-    boid: Boid,
     index: number,
-    opts: { visionRadius: number; separationRadius: number; maxSpeed: number; maxForce: number },
-  ): Vec2 {
-    const velocity: Vec2 = { x: boid.vx, y: boid.vy }
-    const neighbours = this.hash
-      .queryRadius(boid.x, boid.y, opts.visionRadius)
-      .filter((j) => j !== index)
+    visionRadius: number,
+    separationRadius: number,
+    maxSpeed: number,
+    maxForce: number,
+  ): void {
+    this.forceX[index] = 0
+    this.forceY[index] = 0
+    const boid = this.boidList[index]
+    if (!boid) return
+    const neighbourCount = this.hash.queryRadiusInto(
+      boid.x,
+      boid.y,
+      visionRadius,
+      this.neighbourScratch,
+    )
+    const separationRadiusSq = separationRadius * separationRadius
 
-    let separationSum: Vec2 = { x: 0, y: 0 }
+    let separationX = 0
+    let separationY = 0
     let separationCount = 0
-    let velocitySum: Vec2 = { x: 0, y: 0 }
-    let positionDeltaSum: Vec2 = { x: 0, y: 0 }
+    let velocitySumX = 0
+    let velocitySumY = 0
+    let positionDeltaX = 0
+    let positionDeltaY = 0
     let flockCount = 0
 
-    for (const j of neighbours) {
+    for (let k = 0; k < neighbourCount; k++) {
+      const j = this.neighbourScratch[k]
+      if (j === index || j === undefined) continue
       const other = this.boidList[j]
       if (!other) continue
       const dx = wrappedAxisDelta(boid.x, other.x, this.width)
       const dy = wrappedAxisDelta(boid.y, other.y, this.height)
-      const dist = Math.hypot(dx, dy)
+      const distSq = dx * dx + dy * dy
 
       flockCount++
-      velocitySum = add(velocitySum, { x: other.vx, y: other.vy })
-      positionDeltaSum = add(positionDeltaSum, { x: dx, y: dy })
+      velocitySumX += other.vx
+      velocitySumY += other.vy
+      positionDeltaX += dx
+      positionDeltaY += dy
 
-      if (dist > 0 && dist <= opts.separationRadius) {
-        separationSum = add(separationSum, scale({ x: dx, y: dy }, -1 / (dist * dist)))
+      if (distSq > 0 && distSq <= separationRadiusSq) {
+        separationX -= dx / distSq
+        separationY -= dy / distSq
         separationCount++
       }
     }
 
-    const rawSeparation =
-      separationCount > 0
-        ? sub(setMagnitude(separationSum, opts.maxSpeed), velocity)
-        : { x: 0, y: 0 }
-    const rawAlignment =
-      flockCount > 0
-        ? sub(setMagnitude(scale(velocitySum, 1 / flockCount), opts.maxSpeed), velocity)
-        : { x: 0, y: 0 }
-    const rawCohesion =
-      flockCount > 0
-        ? sub(setMagnitude(scale(positionDeltaSum, 1 / flockCount), opts.maxSpeed), velocity)
-        : { x: 0, y: 0 }
+    if (separationCount > 0) {
+      this.addSteer(index, separationX, separationY, this.params.separation, maxSpeed, maxForce)
+    }
+    if (flockCount > 0) {
+      this.addSteer(
+        index,
+        velocitySumX / flockCount,
+        velocitySumY / flockCount,
+        this.params.alignment,
+        maxSpeed,
+        maxForce,
+      )
+      this.addSteer(
+        index,
+        positionDeltaX / flockCount,
+        positionDeltaY / flockCount,
+        this.params.cohesion,
+        maxSpeed,
+        maxForce,
+      )
+    }
+  }
 
-    const separationForce = limit(scale(rawSeparation, this.params.separation), opts.maxForce)
-    const alignmentForce = limit(scale(rawAlignment, this.params.alignment), opts.maxForce)
-    const cohesionForce = limit(scale(rawCohesion, this.params.cohesion), opts.maxForce)
-
-    return add(add(separationForce, alignmentForce), cohesionForce)
+  /**
+   * One Reynolds rule, scalarised: steer = limit(weight × (setMag(sum,
+   * maxSpeed) − velocity), maxForce), accumulated into forceX/forceY.
+   */
+  private addSteer(
+    index: number,
+    sumX: number,
+    sumY: number,
+    weight: number,
+    maxSpeed: number,
+    maxForce: number,
+  ): void {
+    const boid = this.boidList[index]
+    if (!boid) return
+    const mag = Math.sqrt(sumX * sumX + sumY * sumY)
+    // setMagnitude leaves the zero vector at zero, so raw = −velocity there.
+    let fx = (mag > 0 ? (sumX / mag) * maxSpeed : 0) - boid.vx
+    let fy = (mag > 0 ? (sumY / mag) * maxSpeed : 0) - boid.vy
+    fx *= weight
+    fy *= weight
+    const forceMag = Math.sqrt(fx * fx + fy * fy)
+    if (forceMag > maxForce) {
+      fx = (fx / forceMag) * maxForce
+      fy = (fy / forceMag) * maxForce
+    }
+    this.forceX[index] = (this.forceX[index] ?? 0) + fx
+    this.forceY[index] = (this.forceY[index] ?? 0) + fy
   }
 
   /** Grow/shrink the flock to `count`, appending or truncating — never resets survivors. */

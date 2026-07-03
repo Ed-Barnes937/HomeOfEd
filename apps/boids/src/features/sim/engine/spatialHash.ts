@@ -4,6 +4,10 @@
  * nearby cells (including cells reached by wrapping around an edge) and then
  * filtered by an exact wrapped distance check, so results are precise, not
  * an approximation of the grid.
+ *
+ * Internals are allocation-free per step: buckets are flat arrays reused
+ * across `clear()` calls, cell addressing is numeric (no string keys), and
+ * `queryRadiusInto` writes matches into a caller-owned scratch array.
  */
 function wrapIndex(i: number, n: number): number {
   return ((i % n) + n) % n
@@ -20,8 +24,10 @@ function wrappedDelta(a: number, b: number, size: number): number {
 export class SpatialHash {
   private readonly cols: number
   private readonly rows: number
-  private readonly cells = new Map<string, number[]>()
-  private readonly positions = new Map<number, { x: number; y: number }>()
+  /** cols × rows buckets of point indices, emptied in place by clear(). */
+  private readonly buckets: number[][]
+  private readonly posX: number[] = []
+  private readonly posY: number[] = []
 
   constructor(
     private readonly cellSize: number,
@@ -30,51 +36,57 @@ export class SpatialHash {
   ) {
     this.cols = Math.max(1, Math.ceil(width / cellSize))
     this.rows = Math.max(1, Math.ceil(height / cellSize))
+    this.buckets = Array.from({ length: this.cols * this.rows }, () => [])
   }
 
   clear(): void {
-    this.cells.clear()
-    this.positions.clear()
+    for (const bucket of this.buckets) bucket.length = 0
   }
 
   insert(index: number, x: number, y: number): void {
-    const key = this.cellKeyFor(x, y)
-    const bucket = this.cells.get(key)
-    if (bucket) bucket.push(index)
-    else this.cells.set(key, [index])
-    this.positions.set(index, { x, y })
+    const cx = wrapIndex(Math.floor(x / this.cellSize), this.cols)
+    const cy = wrapIndex(Math.floor(y / this.cellSize), this.rows)
+    this.buckets[cx + cy * this.cols]?.push(index)
+    this.posX[index] = x
+    this.posY[index] = y
   }
 
   /** Indices of every inserted point within `radius` of (x, y), wrap-aware. */
   queryRadius(x: number, y: number, radius: number): number[] {
-    const cellRadius = Math.max(1, Math.ceil(radius / this.cellSize))
-    const cx0 = Math.floor(x / this.cellSize)
-    const cy0 = Math.floor(y / this.cellSize)
-    const found: number[] = []
-    const seenCells = new Set<string>()
+    const out: number[] = []
+    this.queryRadiusInto(x, y, radius, out)
+    return out
+  }
 
-    for (let dx = -cellRadius; dx <= cellRadius; dx++) {
-      for (let dy = -cellRadius; dy <= cellRadius; dy++) {
-        const key = `${wrapIndex(cx0 + dx, this.cols)},${wrapIndex(cy0 + dy, this.rows)}`
-        if (seenCells.has(key)) continue
-        seenCells.add(key)
-        const bucket = this.cells.get(key)
+  /**
+   * As `queryRadius`, but fills (and truncates) the caller-owned `out`
+   * array instead of allocating. Returns the match count.
+   */
+  queryRadiusInto(x: number, y: number, radius: number, out: number[]): number {
+    const cellRadius = Math.max(1, Math.ceil(radius / this.cellSize))
+    const cx0 = Math.floor(x / this.cellSize) - cellRadius
+    const cy0 = Math.floor(y / this.cellSize) - cellRadius
+    const radiusSq = radius * radius
+    // Wrapped spans, deduped: a span capped at the axis cell count visits
+    // each cell on that axis exactly once (replaces the old seen-cells Set).
+    const spanX = Math.min(2 * cellRadius + 1, this.cols)
+    const spanY = Math.min(2 * cellRadius + 1, this.rows)
+    let found = 0
+
+    for (let ix = 0; ix < spanX; ix++) {
+      const cx = wrapIndex(cx0 + ix, this.cols)
+      for (let iy = 0; iy < spanY; iy++) {
+        const cy = wrapIndex(cy0 + iy, this.rows)
+        const bucket = this.buckets[cx + cy * this.cols]
         if (!bucket) continue
         for (const index of bucket) {
-          const pos = this.positions.get(index)
-          if (!pos) continue
-          const ddx = wrappedDelta(x, pos.x, this.width)
-          const ddy = wrappedDelta(y, pos.y, this.height)
-          if (Math.hypot(ddx, ddy) <= radius) found.push(index)
+          const ddx = wrappedDelta(x, this.posX[index] ?? 0, this.width)
+          const ddy = wrappedDelta(y, this.posY[index] ?? 0, this.height)
+          if (ddx * ddx + ddy * ddy <= radiusSq) out[found++] = index
         }
       }
     }
+    out.length = found
     return found
-  }
-
-  private cellKeyFor(x: number, y: number): string {
-    const cx = wrapIndex(Math.floor(x / this.cellSize), this.cols)
-    const cy = wrapIndex(Math.floor(y / this.cellSize), this.rows)
-    return `${cx},${cy}`
   }
 }
