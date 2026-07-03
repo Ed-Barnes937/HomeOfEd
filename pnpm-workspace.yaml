@@ -1,3 +1,6 @@
 packages:
   - apps/*
   - packages/*
+  # The copy base for new apps (ADR 0006). Not an app — never deployed — but
+  # linted/typechecked/tested/built by turbo every PR so it can't rot.
+  - templates/*

@@ -22,7 +22,8 @@ baseline is [ADR 0001](docs/adr/0001-foundation.md); hosting is
 ## Repository structure
 
 ```
-apps/*            leaf-node apps; own their UI/styles. hub = landing + reference app.
+apps/*            leaf-node apps; own their UI/styles. hub = launcher/landing.
+templates/starter minimal, stateless copy base for new apps (ADR 0006; not deployed).
 packages/
   config          tsconfig / eslint / prettier base
   db              drizzle client, Postgres↔PGlite driver swap, migration runner
@@ -92,8 +93,11 @@ deferred). TDD red → green → refactor.
 
 ### Add an app
 
-No generator — **copy `apps/hub`** and change each wiring touchpoint. See the
-checklist in [`CLAUDE.md`](CLAUDE.md) and [ADR 0001 §11](docs/adr/0001-foundation.md).
+No generator — **copy `templates/starter`** (the stateless baseline) and change
+each wiring touchpoint; a database is an additive step. See the checklist in
+[`CLAUDE.md`](CLAUDE.md), [ADR 0006](docs/adr/0006-reference-starter-app.md)
+(starter vs launcher) and [ADR 0007](docs/adr/0007-apps-without-a-database.md)
+(no-DB apps).
 
 ### Deploy
 

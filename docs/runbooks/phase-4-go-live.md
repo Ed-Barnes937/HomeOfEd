@@ -25,6 +25,13 @@ Unmanaged Fly Postgres, not Managed Postgres — see
 [ADR 0005](../adr/0005-unmanaged-fly-postgres.md) for why and for the later
 migration plan to MPG.
 
+> **Stateless apps skip Postgres.** An app with no database
+> ([ADR 0007](../adr/0007-apps-without-a-database.md)) runs only
+> `fly apps create <flyapp>` here — no `fly postgres attach`, no `DATABASE_URL`
+> secret — and drops the `release_command` from its `fly.toml`. Its `/health` is
+> a shallow liveness check; the deploy smoke still fetches the SPA index + an
+> asset. The steps below assume a DB-backed app.
+
 ```bash
 # The app shell (no deploy yet). --name must match fly.toml.
 fly apps create hoe-hub
@@ -109,7 +116,8 @@ open https://homeofed.com                      # the hub landing page
 ```
 
 Done — the foundation is live. Adding the next app = the checklist in root
-`CLAUDE.md` + repeating G4.1 (`fly apps create <flyapp>` then
-`fly postgres attach hoe-pg --app <flyapp> --database-name <name>`), the CNAME
-step of G4.4 with `<name>` instead of `@`, and `fly certs add
-<name>.homeofed.com`.
+`CLAUDE.md` + repeating G4.1 (`fly apps create <flyapp>`, then — **DB-backed apps
+only** — `fly postgres attach hoe-pg --app <flyapp> --database-name <name>`), the
+CNAME step of G4.4 with `<name>` instead of `@`, and `fly certs add
+<name>.homeofed.com`. A stateless app ([ADR 0007](../adr/0007-apps-without-a-database.md))
+omits the `fly postgres attach` step.
