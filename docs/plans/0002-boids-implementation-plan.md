@@ -113,13 +113,16 @@ sliders map 1:1:
 
 | Param | Range (step) | Default | Consumed by |
 | --- | --- | --- | --- |
-| `count` | 20 – 400 (1) | 150 | engine |
+| `count` | 20 – 1000 (1) (†) | 150 | engine |
 | `speed` | 0.5 – 6 (0.1) | 2.6 | engine + renderer (streak length) |
 | `separation` | 0 – 3 (0.05) | 1.3 | engine |
 | `alignment` | 0 – 3 (0.05) | 1.0 | engine |
 | `cohesion` | 0 – 3 (0.05) | 0.9 | engine |
 | `vision` (px) | 20 – 140 (1) | 66 | engine |
 | `trail` | 0 – 1 (0.01) | 0.42 | renderer only (streak length) |
+
+(†) The handoff caps `count` at 400; the max was raised to 1000 at Ed's
+request (2026-07-03) alongside a renderer/engine performance pass.
 
 All seven live in `SimParams` (1:1 with the panel and `localStorage`); the
 engine ignores `trail`. `shape` (`'triangle' | 'dot' | 'line'`, default
@@ -359,8 +362,8 @@ pnpm test --filter=boids` (plus `--filter=hub` for B6).
   with the flock animating on neon defaults. *Verify:* iwft — page mounts,
   canvas sized, sim advances (expose boid positions on the POM via a test
   seam, assert they change between frames); by eye via `pnpm dev` against
-  `screenshot.png` — **perf gate: 60 fps at count=400 (the max) on a dev
-  laptop**; if `shadowBlur` can't hold that, swap the glow for a
+  `screenshot.png` — **perf gate: 60 fps at count=1000 (the max, see §4 †) on
+  a dev laptop**; if `shadowBlur` can't hold that, swap the glow for a
   `globalCompositeOperation:'lighter'` double-draw and note it in the ADR.
 - **B4 — Controls + persistence.** The panel per §5 (header, collapse↔FAB,
   sliders), `settings.ts`. Unit: clamping, load/save round-trip,

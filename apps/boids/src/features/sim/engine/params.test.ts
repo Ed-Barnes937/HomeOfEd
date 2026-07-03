@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { clampParams, DEFAULT_PARAMS, PARAM_RANGES, type SimParams } from './params.ts'
 
 describe('PARAM_RANGES / DEFAULT_PARAMS', () => {
-  it('matches the design handoff spec exactly', () => {
+  it('matches the design handoff spec exactly (count max raised to 1000 per spec §4)', () => {
     expect(PARAM_RANGES).toEqual({
-      count: { min: 20, max: 400, step: 1 },
+      count: { min: 20, max: 1000, step: 1 },
       speed: { min: 0.5, max: 6, step: 0.1 },
       separation: { min: 0, max: 3, step: 0.05 },
       alignment: { min: 0, max: 3, step: 0.05 },
@@ -31,9 +31,9 @@ describe('clampParams', () => {
   })
 
   it('clamps out-of-range values to the nearest bound', () => {
-    expect(clampParams({ ...DEFAULT_PARAMS, count: 1000, vision: 1 })).toEqual({
+    expect(clampParams({ ...DEFAULT_PARAMS, count: 2500, vision: 1 })).toEqual({
       ...DEFAULT_PARAMS,
-      count: 400,
+      count: 1000,
       vision: 20,
     })
     expect(clampParams({ ...DEFAULT_PARAMS, separation: -5 })).toEqual({

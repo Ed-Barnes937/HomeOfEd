@@ -16,7 +16,7 @@ export interface ParamRange {
 }
 
 export const PARAM_RANGES: Record<keyof SimParams, ParamRange> = {
-  count: { min: 20, max: 400, step: 1 },
+  count: { min: 20, max: 1000, step: 1 },
   speed: { min: 0.5, max: 6, step: 0.1 },
   separation: { min: 0, max: 3, step: 0.05 },
   alignment: { min: 0, max: 3, step: 0.05 },

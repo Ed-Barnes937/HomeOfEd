@@ -37,7 +37,7 @@ describe('loadSettings', () => {
       STORAGE_KEY,
       JSON.stringify({ theme: 'neon', shape: 'triangle', params: { ...DEFAULT_PARAMS, count: 9999 } }),
     )
-    expect(loadSettings(storage).params.count).toBe(400)
+    expect(loadSettings(storage).params.count).toBe(1000)
   })
 
   it('falls back to default theme/shape for unknown ids', () => {
