@@ -10,6 +10,13 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByText('independent little apps, one roof.')).toBeVisible()
   }
 
+  async verifyBoidsLink(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'boids' })).toHaveAttribute(
+      'href',
+      'https://boids.homeofed.com',
+    )
+  }
+
   async verifyHealthValue(value: string): Promise<void> {
     await expect(this.healthValue).toHaveText(value)
     await expect(this.statusDot).toHaveAttribute('data-status', 'ok')
