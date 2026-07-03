@@ -1,0 +1,14 @@
+:global(html),
+:global(body) {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
