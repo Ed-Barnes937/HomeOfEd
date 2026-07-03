@@ -91,7 +91,11 @@ function buildGlowSprite(
   stroke: boolean,
   dpr: number,
 ): GlowSprite {
-  const size = 2 * (BODY_RADIUS + 2 * glow)
+  // Pad = the blur's support: sigma is shadowBlur/2, so the glow is gone by
+  // ~3 sigma = 1.5 × glow past the body silhouette (which BODY_RADIUS already
+  // covers). The blended quad area is the renderer's dominant cost on
+  // software-rasterised canvases — keep the quad tight.
+  const size = Math.ceil(2 * (BODY_RADIUS + 1.5 * glow))
   const scale = dpr * SUPERSAMPLE
   const canvas = document.createElement('canvas')
   canvas.width = size * scale
