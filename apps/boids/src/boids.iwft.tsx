@@ -36,3 +36,35 @@ test('a slider change is persisted for the next reload to restore', async ({ mou
   await root.verifySliderValue('vision', '100px')
   await root.verifyPersistedParam('vision', 100)
 })
+
+test('clicking a theme chip flips data-theme, marks it selected, and persists', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectTheme('retro')
+
+  await root.verifyThemeSelected('retro')
+  await root.verifyPersistedTheme('retro')
+})
+
+test('shape buttons toggle aria-pressed and persist', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectShape('Dot boids')
+
+  await root.verifyShapeSelected('Dot boids')
+  await root.verifyPersistedShape('dot')
+})
+
+test('prefers-reduced-motion renders a static frame instead of animating', async ({
+  mountApp,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyStaticFrame()
+})

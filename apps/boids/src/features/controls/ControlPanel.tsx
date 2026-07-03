@@ -1,8 +1,12 @@
 import { useState } from 'react'
 
 import { PARAM_RANGES, type SimParams } from '../sim/engine/params.ts'
+import type { BoidShape } from '../sim/render/renderer.ts'
+import type { ThemeId } from '../sim/settings.ts'
 import styles from './ControlPanel.module.scss'
+import { ShapePicker } from './ShapePicker.tsx'
 import { Slider } from './Slider.tsx'
+import { ThemePicker } from './ThemePicker.tsx'
 
 interface SliderSpec {
   key: keyof SimParams
@@ -22,16 +26,23 @@ const SLIDER_SPECS: SliderSpec[] = [
 ]
 
 export interface ControlPanelProps {
+  theme: ThemeId
+  onThemeChange: (theme: ThemeId) => void
+  shape: BoidShape
+  onShapeChange: (shape: BoidShape) => void
   params: SimParams
   onParamsChange: (params: SimParams) => void
 }
 
-/**
- * The frosted-glass settings panel: header, collapse↔FAB, and the seven
- * behaviour sliders. THEME/SHAPE groups (design order: header → theme →
- * shape → hairline → sliders) land in B5.
- */
-export function ControlPanel({ params, onParamsChange }: ControlPanelProps) {
+/** The frosted-glass settings panel: header, theme, shape, sliders, collapse↔FAB. */
+export function ControlPanel({
+  theme,
+  onThemeChange,
+  shape,
+  onShapeChange,
+  params,
+  onParamsChange,
+}: ControlPanelProps) {
   const [collapsed, setCollapsed] = useState(false)
 
   if (collapsed) {
@@ -74,6 +85,14 @@ export function ControlPanel({ params, onParamsChange }: ControlPanelProps) {
           </svg>
         </button>
       </div>
+
+      <div className={styles.groupLabel}>theme</div>
+      <ThemePicker value={theme} onChange={onThemeChange} />
+
+      <div className={styles.groupLabel} style={{ marginTop: 22 }}>
+        shape
+      </div>
+      <ShapePicker value={shape} onChange={onShapeChange} />
 
       <div className={styles.hairline} />
 

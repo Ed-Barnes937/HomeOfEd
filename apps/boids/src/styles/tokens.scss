@@ -1,6 +1,7 @@
 /* Design tokens, ported from docs/reference/boids-design/styles.css.
- * :root holds the neon (default) theme's values + the shared tokens.
- * B5 adds [data-theme="retro|asteroids|autumnal"] override blocks here. */
+ * :root holds the neon (default) theme's values + the shared tokens; the
+ * [data-theme] blocks below override only what changes per theme. Boid
+ * palettes are canvas-only and live in features/sim/themes.ts. */
 :root {
   --bg: #08080c;
   --accent: #00e6ff;
@@ -25,4 +26,36 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --shadow-panel: 0 28px 80px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='retro'] {
+  --bg: #221436;
+  --accent: #ff5d8f;
+}
+
+[data-theme='asteroids'] {
+  --bg: #000000;
+  --accent: #ffffff;
+}
+
+/* The one light theme. */
+[data-theme='autumnal'] {
+  --bg: #f2ece0;
+  --accent: #b8451f;
+  --text: #2a221d;
+  --sub: rgba(42, 34, 29, 0.55);
+  --val: #2a221d;
+  --group: rgba(42, 34, 29, 0.45);
+  --hairline: rgba(42, 34, 29, 0.1);
+  --track: rgba(42, 34, 29, 0.16);
+  --thumb-ring: rgba(242, 236, 224, 0.96);
+  --panel-bg: rgba(250, 246, 239, 0.7);
+  --panel-border: rgba(42, 34, 29, 0.1);
+  --soft: rgba(42, 34, 29, 0.04);
+  --idle-border: rgba(42, 34, 29, 0.08);
+}
+
+body {
+  background: var(--bg);
+  transition: background 0.2s ease;
 }

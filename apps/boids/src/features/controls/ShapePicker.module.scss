@@ -1,0 +1,25 @@
+.seg {
+  display: flex;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 0;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  border: 1px solid var(--idle-border);
+  background: transparent;
+  color: var(--sub);
+  transition: 0.15s;
+
+  &[aria-pressed='true'] {
+    border-color: var(--accent);
+    background: var(--soft);
+    color: var(--text);
+  }
+}

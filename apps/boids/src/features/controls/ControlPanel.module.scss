@@ -41,6 +41,13 @@
   color: var(--sub);
 }
 
+.groupLabel {
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--group);
+}
+
 .collapseButton {
   width: 26px;
   height: 26px;

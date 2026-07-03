@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { ControlPanel } from '../features/controls/ControlPanel.tsx'
 import type { SimParams } from '../features/sim/engine/params.ts'
-import { loadSettings, saveSettings } from '../features/sim/settings.ts'
-import { neonTheme } from '../features/sim/themes.ts'
+import type { BoidShape } from '../features/sim/render/renderer.ts'
+import { loadSettings, saveSettings, type ThemeId } from '../features/sim/settings.ts'
+import { getTheme } from '../features/sim/themes.ts'
 import { useSimulationLoop } from '../features/sim/useSimulationLoop.ts'
 import styles from './BoidsPage.module.scss'
 
@@ -11,28 +12,47 @@ export function BoidsPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [settings, setSettings] = useState(() => loadSettings(window.localStorage))
 
-  // Theme picking (ThemePicker/ShapePicker, data-theme wiring) lands in B5 —
-  // neonTheme is fixed for now; settings.shape/theme are already persisted
-  // even though there's no control for them yet.
   useSimulationLoop({
     canvasRef,
-    theme: neonTheme,
+    theme: getTheme(settings.theme),
     shape: settings.shape,
     params: settings.params,
   })
 
+  // Theme swap sets data-theme on <html>, which flips every CSS token
+  // (panel/controls); the canvas palette follows via getTheme() above.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', settings.theme)
+  }, [settings.theme])
+
+  function persist(next: typeof settings): void {
+    setSettings(next)
+    saveSettings(next, window.localStorage)
+  }
+
+  function handleThemeChange(theme: ThemeId): void {
+    persist({ ...settings, theme })
+  }
+
+  function handleShapeChange(shape: BoidShape): void {
+    persist({ ...settings, shape })
+  }
+
   function handleParamsChange(params: SimParams): void {
-    setSettings((prev) => {
-      const next = { ...prev, params }
-      saveSettings(next, window.localStorage)
-      return next
-    })
+    persist({ ...settings, params })
   }
 
   return (
     <>
       <canvas ref={canvasRef} data-testid="boids-page" className={styles.canvas} />
-      <ControlPanel params={settings.params} onParamsChange={handleParamsChange} />
+      <ControlPanel
+        theme={settings.theme}
+        onThemeChange={handleThemeChange}
+        shape={settings.shape}
+        onShapeChange={handleShapeChange}
+        params={settings.params}
+        onParamsChange={handleParamsChange}
+      />
     </>
   )
 }

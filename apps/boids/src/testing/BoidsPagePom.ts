@@ -3,6 +3,12 @@ import { expect } from '@playwright/experimental-ct-react'
 
 import { TEST_SEAM_KEY, type BoidsTestSeam } from '../features/sim/useSimulationLoop.ts'
 
+interface PersistedSettings {
+  theme?: string
+  shape?: string
+  params?: Record<string, number>
+}
+
 export class BoidsPagePom extends BasePage {
   private readonly canvas = this.page.getByTestId('boids-page')
   private readonly panel = this.page.getByRole('dialog', { name: 'Simulation settings' })
@@ -83,18 +89,53 @@ export class BoidsPagePom extends BasePage {
       .toBe(expected)
   }
 
-  private async readPersistedSettings(): Promise<{
-    theme?: string
-    shape?: string
-    params?: Record<string, number>
-  } | null> {
+  async verifyPersistedTheme(expected: string): Promise<void> {
+    await expect.poll(async () => (await this.readPersistedSettings())?.theme).toBe(expected)
+  }
+
+  async verifyPersistedShape(expected: string): Promise<void> {
+    await expect.poll(async () => (await this.readPersistedSettings())?.shape).toBe(expected)
+  }
+
+  async selectTheme(name: string): Promise<void> {
+    await this.page.getByRole('button', { name, exact: true }).click()
+  }
+
+  async verifyThemeSelected(id: string): Promise<void> {
+    await expect(this.page.getByRole('button', { name: id, exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect
+      .poll(() => this.page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+      .toBe(id)
+  }
+
+  async selectShape(label: string): Promise<void> {
+    await this.page.getByRole('button', { name: label }).click()
+  }
+
+  async verifyShapeSelected(label: string): Promise<void> {
+    await expect(this.page.getByRole('button', { name: label })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  }
+
+  /** Positions must NOT change between frames — the reduced-motion static frame. */
+  async verifyStaticFrame(): Promise<void> {
+    const before = await this.getBoidPositions()
+    await this.page.waitForTimeout(150)
+    const after = await this.getBoidPositions()
+    expect(after).toEqual(before)
+  }
+
+  private async readPersistedSettings(): Promise<PersistedSettings | null> {
     const raw = await this.page.evaluate(
       (k: string) => window.localStorage.getItem(k),
       'boids:settings:v1',
     )
-    return raw
-      ? (JSON.parse(raw) as { theme?: string; shape?: string; params?: Record<string, number> })
-      : null
+    return raw ? (JSON.parse(raw) as PersistedSettings) : null
   }
 
   private getBoidPositions(): Promise<{ x: number; y: number }[]> {
