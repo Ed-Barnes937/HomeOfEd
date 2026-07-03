@@ -36,5 +36,14 @@ services:
     volumes:
       - hub-db-data:/var/lib/postgresql/data
 
+  # boids has no database (ADR 0006) — one service, no depends_on, no migrate step.
+  boids:
+    build:
+      context: .
+      dockerfile: apps/boids/Dockerfile
+    command: node src/server/main.ts
+    ports:
+      - '8081:8080'
+
 volumes:
   hub-db-data:

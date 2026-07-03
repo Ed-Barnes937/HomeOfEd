@@ -113,3 +113,33 @@ Done — the foundation is live. Adding the next app = the checklist in root
 `fly postgres attach hoe-pg --app <flyapp> --database-name <name>`), the CNAME
 step of G4.4 with `<name>` instead of `@`, and `fly certs add
 <name>.homeofed.com`.
+
+## G4.6 — boids (DB-less app, go-live)
+
+boids (`apps/boids`, [0002-boids-implementation-plan.md](../plans/0002-boids-implementation-plan.md))
+has no database — see [ADR 0006](../adr/0006-db-less-apps.md) — so this is
+shorter than G4.1–G4.4: no `fly postgres attach`, no release_command.
+
+```bash
+fly apps create hoe-boids          # must match apps/boids/fly.toml
+# NO fly postgres attach — ADR 0006
+fly certs add boids.homeofed.com --app hoe-boids   # after first deploy
+```
+
+Cloudflare: proxied CNAME `boids → hoe-boids.fly.dev` (Full-strict TLS is
+zone-wide already, set in G4.4); grey-cloud any ACME validation record
+`fly certs add` asks for.
+
+> **⚠ Deploy-token gotcha:** the existing `FLY_API_TOKEN` GitHub secret (G4.2)
+> was minted with `fly tokens create deploy --app hoe-hub` — it is **scoped to
+> hoe-hub** and cannot deploy `hoe-boids`. Before deploying boids, mint a
+> token that covers both apps (e.g. an org-scoped deploy token) and replace
+> the repo secret, or the `deploy-boids` job will fail auth.
+
+Verify:
+
+```bash
+curl -fsS https://hoe-boids.fly.dev/health           # → {"ok":true} — in-memory ping, not a DB round-trip
+curl -fsS https://boids.homeofed.com/health          # same, through Cloudflare
+open  https://boids.homeofed.com                     # push some sliders
+```
