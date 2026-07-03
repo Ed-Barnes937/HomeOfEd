@@ -1,10 +1,13 @@
-# 0006 — Split the launcher from the reference/starter app
+# 0007 — Split the launcher from the reference/starter app
 
 - **Status:** Accepted
 - **Date:** 2026-07-02
 - **Revises:** [0001-foundation.md](0001-foundation.md) §10 ("Tracer bullet —
-  `apps/hub`") and §11 ("Adding an app — copy, no generator").
-- **Related:** [0007-apps-without-a-database.md](0007-apps-without-a-database.md).
+  `apps/hub`") and §11 ("Adding an app — copy, no generator"); and
+  [0006-db-less-apps.md](0006-db-less-apps.md)'s position that "`hub` remains the
+  DB-backed reference app… it does not change the default copy target" — this ADR
+  makes `templates/starter` the copy target instead.
+- **Related:** [0008-apps-without-a-database.md](0008-apps-without-a-database.md).
 
 ## Context
 
@@ -40,7 +43,7 @@ Separate the two roles.
     against it on every PR. This is the anti-rot mechanism: a template that must
     stay green cannot silently drift from reality — which was §11's whole
     objection to a `_template`.
-  - **It is the no-DB baseline** (see [ADR 0007](0007-apps-without-a-database.md)).
+  - **It is the no-DB baseline** (see [ADR 0008](0008-apps-without-a-database.md)).
     A database is an *additive* step in the "adding an app" checklist, not
     something you delete.
 - **No code generator yet.** A Turborepo generator (`turbo gen`) remains the
@@ -58,6 +61,6 @@ Separate the two roles.
   rotting.
 - **Built:** `templates/starter` exists — hub minus its DB layer and launcher
   UI, wired into workspace `lint`/`typecheck`/`test`/`build` (it's a stateless
-  app per [ADR 0007](0007-apps-without-a-database.md)). The root `CLAUDE.md`
+  app per [ADR 0008](0008-apps-without-a-database.md)). The root `CLAUDE.md`
   checklist, `README.md`, and hub's docs now point at it as the copy base.
 - **Revisit** `turbo gen` when copying the starter becomes repetitive.

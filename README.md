@@ -23,7 +23,7 @@ baseline is [ADR 0001](docs/adr/0001-foundation.md); hosting is
 
 ```
 apps/*            leaf-node apps; own their UI/styles. hub = launcher/landing.
-templates/starter minimal, stateless copy base for new apps (ADR 0006; not deployed).
+templates/starter minimal, stateless copy base for new apps (ADR 0007; not deployed).
 packages/
   config          tsconfig / eslint / prettier base
   db              drizzle client, Postgres↔PGlite driver swap, migration runner
@@ -97,8 +97,8 @@ No generator — **copy `templates/starter`** (the stateless baseline) and chang
 each wiring touchpoint; a database is an additive step. Full procedure:
 **[docs/how-to/adding-an-app.md](docs/how-to/adding-an-app.md)** (decide DB →
 create → add DB → verify → deploy). Rationale in
-[ADR 0006](docs/adr/0006-reference-starter-app.md) (starter vs launcher) and
-[ADR 0007](docs/adr/0007-apps-without-a-database.md) (no-DB apps).
+[ADR 0007](docs/adr/0007-reference-starter-app.md) (starter vs launcher) and
+[ADR 0008](docs/adr/0008-apps-without-a-database.md) (no-DB apps).
 
 ### Deploy
 

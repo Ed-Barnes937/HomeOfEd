@@ -1,0 +1,39 @@
+# boids — a DB-less leaf app (ADR 0006). Deploy FROM THE REPO ROOT so the
+# docker build context contains the whole monorepo:
+#
+#   fly deploy -c apps/boids/fly.toml
+#
+# Per-app values when copying this file: `app` (unique per Fly app), the
+# DATABASE_URL secret (its own database in the shared Postgres cluster — set
+# via `fly postgres attach`, never here), and nothing else in the usual case.
+# boids has no database, so it has neither a release_command nor a
+# DATABASE_URL secret — see ADR 0006.
+app = 'hoe-boids'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  # Gimmick app — accepts a cold-start pause after idle (flip to 1 if that annoys).
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    # Liveness only: an in-memory ping (createAppServer's injected
+    # healthCheck), not a Postgres round-trip — boids has no database.
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

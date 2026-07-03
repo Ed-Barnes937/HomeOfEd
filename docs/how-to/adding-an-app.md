@@ -15,8 +15,8 @@ in PascalCase (e.g. `Weather`).
 
 The rules in [root `CLAUDE.md`](../../CLAUDE.md) still apply — leaf nodes, no
 shared UI, layered backend + DI, tRPC-only, TDD. This guide is *how*; the ADRs
-are *why* ([0001](../adr/0001-foundation.md), [0006](../adr/0006-reference-starter-app.md),
-[0007](../adr/0007-apps-without-a-database.md)).
+are *why* ([0001](../adr/0001-foundation.md), [0007](../adr/0007-reference-starter-app.md),
+[0008](../adr/0008-apps-without-a-database.md)).
 
 ---
 
@@ -45,7 +45,7 @@ Do this first — it determines whether you run §2. Output: **stateless** or
 **Tie-breakers:**
 
 - **Auth does not require a database.** Auth is decentralised (a central identity
-  provider verified through the `ctx.auth` seam — [ADR 0007](../adr/0007-apps-without-a-database.md)),
+  provider verified through the `ctx.auth` seam — [ADR 0008](../adr/0008-apps-without-a-database.md)),
   so a login-gated app can still be stateless.
 - **Caching an external response is not persistence.** If losing the cache on
   restart is harmless, stay stateless.
@@ -356,7 +356,7 @@ DB-backed app) → post-deploy smoke gates the rollout.
 
 ## When copying gets tedious
 
-This is a copy-based flow by decision ([ADR 0006](../adr/0006-reference-starter-app.md)),
+This is a copy-based flow by decision ([ADR 0007](../adr/0007-reference-starter-app.md)),
 not a generator. If following §1/§2 by hand becomes a repeated chore — or an
 agent keeps missing the same touchpoints — that is the trigger to build a
 `turbo gen` generator. Revisit then, not before.

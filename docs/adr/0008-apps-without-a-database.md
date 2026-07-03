@@ -1,11 +1,18 @@
-# 0007 — Apps without a database
+# 0008 — Apps without a database
 
 - **Status:** Accepted
 - **Date:** 2026-07-02
 - **Revises:** [0001-foundation.md](0001-foundation.md) §4 (persistence seam
   "trivial apps adopt it too"), §6 ("one database per app"), and §13 (deep
   `/health` does a real `Store` round-trip) — for the no-DB case.
-- **Related:** [0006-reference-starter-app.md](0006-reference-starter-app.md),
+- **Supersedes:** [0006-db-less-apps.md](0006-db-less-apps.md) as the policy for
+  new no-DB apps. 0006 established the pattern (layered skeleton, drop
+  persistence) and `apps/boids` implements it; this ADR generalises it —
+  stateless is the *baseline* (not a variant), the copy base is
+  `templates/starter` (not `hub`), and the persistence seam is `void` (no
+  `Store`) rather than a placeholder `InMemoryStatusStore`. 0006 stays as the
+  record of boids' implementation; see [Reconciling boids](#reconciling-boids).
+- **Related:** [0007-reference-starter-app.md](0007-reference-starter-app.md),
   [0005-unmanaged-fly-postgres.md](0005-unmanaged-fly-postgres.md).
 - **How-to:** the procedure this ADR informs —
   [docs/how-to/adding-an-app.md](../how-to/adding-an-app.md) (the DB decision
@@ -32,7 +39,7 @@ that apps verify through the already-frozen `ctx.auth.getUser()` seam (ADR 0001
 ## Decision
 
 **A stateless app is the baseline; a database is opt-in.** The reference starter
-(ADR 0006) ships with no DB; adding one is an additive step.
+(ADR 0007) ships with no DB; adding one is an additive step.
 
 ### What a no-DB app keeps (unchanged from ADR 0001)
 
@@ -77,9 +84,28 @@ half is dropped.
   additive checklist section + a normal migration) — there is no teardown to
   undo.
 
+## Reconciling boids
+
+`apps/boids` shipped ([ADR 0006](0006-db-less-apps.md)) before this ADR and the
+`templates/starter` copy base existed, so it uses the older idiom:
+
+- a `StatusStore` interface with a placeholder `InMemoryStatusStore` impl, rather
+  than the `void` no-`Store` seam this ADR adopts;
+- it was hand-built, not copied from `templates/starter`.
+
+Both are valid no-DB apps and boids works — this is an **idiom divergence, not a
+bug**. Boids is deliberately **left as-is** here (retrofitting a shipped app is
+out of scope for the ADR that sets the going-forward rule). Aligning boids to the
+`templates/starter` idiom, if wanted, is a separate mechanical task: drop
+`StatusStore`/`InMemoryStatusStore`, switch its router to `createTRPC<void>()`,
+and inject `store: undefined`. New no-DB apps follow `templates/starter` and the
+[how-to](../how-to/adding-an-app.md), not boids.
+
 ## Non-goals / deferred
 
 - **The decentralised auth design itself** — the identity service, token format,
   and which routes are gated — is a separate future ADR. This ADR records only
   that the `ctx.auth` seam is database-independent, so a no-DB app can still
   serve authed routes.
+- **Retrofitting `apps/boids`** to the `void` idiom — see
+  [Reconciling boids](#reconciling-boids) above; left as a possible follow-up.

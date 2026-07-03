@@ -93,7 +93,7 @@ persistence    Store + BlobStore INTERFACES
 The **same handler classes** run in production and in the simulator; only the
 injected `Store`/`BlobStore` implementation changes. This is a hard convention —
 trivial apps adopt it too, so any app can use standalone-run and `.iwft` tests.
-*(Refined by [ADR 0007](0007-apps-without-a-database.md): the transport→domain
+*(Refined by [ADR 0008](0008-apps-without-a-database.md): the transport→domain
 layering and the clock/auth seams stay mandatory, but the `Store`/`BlobStore`
 persistence seam is opt-in — a stateless app has no `Store`.)*
 
@@ -162,7 +162,7 @@ heavier full-server harness — deferred until the first such app.)
   [ADR 0005](0005-unmanaged-fly-postgres.md): unmanaged Fly Postgres for now —
   MPG's pricing floor isn't justified while all data is reproducible from
   migrations. One-database-per-app stands. Further refined by
-  [ADR 0007](0007-apps-without-a-database.md): a database is opt-in — stateless
+  [ADR 0008](0008-apps-without-a-database.md): a database is opt-in — stateless
   apps have none; "one database per app" applies to the apps that have one.)*
 
 ### 7. Database packaging
@@ -197,7 +197,7 @@ pipeline end-to-end (monorepo → tRPC → Postgres → Dockerfile → Fly → C
 CI) and doubles as the **reference app** that new apps are copied from. As the
 site's landing page it is also where navigation out to the other apps will live.
 (Named `hub` rather than `www` — there is no `www.` subdomain; it serves the
-apex.) *(Revised by [ADR 0006](0006-reference-starter-app.md): hub's
+apex.) *(Revised by [ADR 0007](0007-reference-starter-app.md): hub's
 reference-app role is split off to a minimal `templates/starter`; hub keeps the
 launcher role and grows freely.)*
 
@@ -206,7 +206,7 @@ launcher role and grows freely.)*
 No code generator and no separate `_template`. A new app is **copied from
 `hub`**, guided by an "adding an app" checklist in `CLAUDE.md`. Revisit a
 generator only if copying becomes a real chore. *(Revised by
-[ADR 0006](0006-reference-starter-app.md): copying hub became a chore as it grew
+[ADR 0007](0007-reference-starter-app.md): copying hub became a chore as it grew
 as a launcher, so the copy base moves to a minimal, workspace-linted
 `templates/starter`. A generator is still deferred.)*
 
@@ -243,7 +243,7 @@ mode — PGlite covers the inner loop.
   in CI — `/health` does a real `Store` round-trip to Postgres, and the smoke also
   fetches the SPA index + one static asset (proves the artifact serves, not just
   that the process booted). Add `*.e2e` per app when its critical flows justify it.
-  *(Refined by [ADR 0007](0007-apps-without-a-database.md): a stateless app's
+  *(Refined by [ADR 0008](0008-apps-without-a-database.md): a stateless app's
   `/health` is a shallow liveness check with no `Store` round-trip; the SPA
   index + asset fetch is unchanged.)*
 - Pages are modelled with **Page Object Models**; base POM lives in

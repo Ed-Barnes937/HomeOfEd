@@ -10,7 +10,7 @@ import { appRouter } from './router.ts'
 
 /**
  * The backendSimulator for a stateless app: the REAL router + handlers with no
- * Store injected (ADR 0007). Reused by dev simulator mode (Vite middleware) and
+ * Store injected (ADR 0008). Reused by dev simulator mode (Vite middleware) and
  * sharing the router with .iwft. No PGlite, no migrations — nothing to persist.
  *
  * Returns a Promise to match the `createDispatch` contract (a DB-backed app

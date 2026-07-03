@@ -11,6 +11,11 @@ export function HomePage() {
       <section className={styles.hero}>
         <h1>home of ed</h1>
         <p className={styles.tagline}>independent little apps, one roof.</p>
+        <nav className={styles.apps} aria-label="apps">
+          <a className={styles.appCard} href="https://boids.homeofed.com">
+            boids
+          </a>
+        </nav>
       </section>
       <footer className={styles.status}>
         <span className={styles.dot} data-status={status} aria-hidden="true" />

@@ -6,7 +6,7 @@ export interface GreetingResult {
 }
 
 /**
- * Stateless handler: no Store (ADR 0007). It reads the auth seam — which stays
+ * Stateless handler: no Store (ADR 0008). It reads the auth seam — which stays
  * frozen and is database-independent — and otherwise just computes. The Store
  * type parameter is `void`; `ctx.store` is never touched. Adding a database
  * later = give this a `<..., YourStore>` and read `ctx.store`.

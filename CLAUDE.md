@@ -88,13 +88,13 @@ in-context summary.
 
 Copy the minimal reference app, then change each wiring touchpoint. The copy base
 is **`templates/starter`** — the stateless baseline
-([ADR 0006](docs/adr/0006-reference-starter-app.md)); `hub` is the launcher, not
+([ADR 0007](docs/adr/0007-reference-starter-app.md)); `hub` is the launcher, not
 the copy base.
 
 **Does it need a database?** Yes if data must survive restarts/redeploys, is
 shared across sessions, or is queried server-side. No (stateless) if it's pure
 compute, a proxy over external APIs, or client-only state. Auth does **not**
-imply a DB (decentralised — [ADR 0007](docs/adr/0007-apps-without-a-database.md)).
+imply a DB (decentralised — [ADR 0008](docs/adr/0008-apps-without-a-database.md)).
 Unsure → start stateless; a DB is additive.
 
 Every app:
@@ -111,7 +111,7 @@ Every app:
 7. **Docker stack** — copy the app service in `compose.yml` (fresh host port).
 
 **Only if the app persists data** (skip for stateless apps —
-[ADR 0007](docs/adr/0007-apps-without-a-database.md)):
+[ADR 0008](docs/adr/0008-apps-without-a-database.md)):
 
 8. **Postgres** — its own database in the shared `hoe-pg` cluster + connection
    secret (human runs `fly postgres attach` — see the runbook).

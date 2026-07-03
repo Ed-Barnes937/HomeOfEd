@@ -1,8 +1,8 @@
 # templates/starter — the copy base for new apps
 
 The minimal reference app new apps are copied from
-([ADR 0006](../../docs/adr/0006-reference-starter-app.md)). It is **stateless** —
-no database ([ADR 0007](../../docs/adr/0007-apps-without-a-database.md)) — and it
+([ADR 0007](../../docs/adr/0007-reference-starter-app.md)). It is **stateless** —
+no database ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) — and it
 is **never deployed**: it lives in `templates/` so `turbo` lints / typechecks /
 tests / builds it every PR (that is what stops it rotting), but no CI deploy job
 targets it.
@@ -57,4 +57,4 @@ from `apps/hub`) only if the app gains a database.
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only)
   — copy the DB layer from `apps/hub`, swap the `void` Store type params for your
   Store interface, inject it per transport, deepen `/health`, and add the
-  `release_command`. Rationale: [ADR 0007](../../docs/adr/0007-apps-without-a-database.md).
+  `release_command`. Rationale: [ADR 0008](../../docs/adr/0008-apps-without-a-database.md).

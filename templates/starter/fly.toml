@@ -1,8 +1,8 @@
-# starter — the stateless reference app (ADR 0006). It is NOT deployed; this is
+# starter — the stateless reference app (ADR 0007). It is NOT deployed; this is
 # a template. Copy to apps/<name>, set `app` to a unique Fly app name, and follow
 # the "adding an app" checklist in the root CLAUDE.md.
 #
-# A stateless app (ADR 0007) has NO release_command (no migrations) and a shallow
+# A stateless app (ADR 0008) has NO release_command (no migrations) and a shallow
 # /health. If the app gains a database, add both back — see apps/hub/fly.toml for
 # the release_command and the deep-health check.
 app = 'hoe-starter'
@@ -24,7 +24,7 @@ primary_region = 'lhr'
 
   [[http_service.checks]]
     # Shallow health: liveness only — a stateless app has no Store to round-trip
-    # (ADR 0007). A DB-backed app injects a real round-trip via createAppServer.
+    # (ADR 0008). A DB-backed app injects a real round-trip via createAppServer.
     interval = '30s'
     timeout = '5s'
     grace_period = '10s'

@@ -1,8 +1,8 @@
 # starter
 
-The copy base for new apps ([ADR 0006](../../docs/adr/0006-reference-starter-app.md)):
+The copy base for new apps ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)):
 a deliberately minimal, **stateless** app
-([ADR 0007](../../docs/adr/0007-apps-without-a-database.md)). It is never
+([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)). It is never
 deployed — it lives in `templates/` so CI keeps it green, and you copy it to
 `apps/<name>` to start a new app.
 

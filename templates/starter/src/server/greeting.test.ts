@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import { GreetingHandler } from './handlers/greetingHandler.ts'
 
-// No Store (ADR 0007): the context still carries the frozen seams; this
+// No Store (ADR 0008): the context still carries the frozen seams; this
 // exercises the auth seam the handler reads. store is `void`.
 function makeCtx(auth: AuthProvider): AppContext<void> {
   return {
