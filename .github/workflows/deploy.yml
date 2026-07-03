@@ -6,12 +6,14 @@
 # notice, and exits green.
 #
 # Flow per app: is the app turbo-affected by this push? → flyctl deploy
-# (fly.toml's release_command runs the journal-tracked migrations first;
-# Fly's health checks gate the rollout, so a failing deep /health keeps the
-# previous healthy release serving traffic — safe because migrations are
-# expand-contract, see packages/db/README.md) → post-deploy smoke: deep
-# /health (real Store→Postgres round-trip) + the SPA index + one hashed
-# static asset, proving the artifact actually serves.
+# (a DB-backed app's fly.toml release_command runs its journal-tracked
+# migrations first; Fly's health checks gate the rollout, so a failing
+# /health keeps the previous healthy release serving traffic — safe because
+# migrations are expand-contract, see packages/db/README.md; a DB-less app
+# per ADR 0006, e.g. boids, has no release_command) → post-deploy smoke:
+# /health (a real Store round-trip for a DB-backed app, an in-memory
+# liveness ping for a DB-less one) + the SPA index + one hashed static
+# asset, proving the artifact actually serves.
 #
 # Required secrets (G4.2): FLY_API_TOKEN
 name: Deploy

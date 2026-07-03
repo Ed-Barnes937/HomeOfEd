@@ -115,6 +115,36 @@ describe('Simulation', () => {
       expect(a.vx).toBeGreaterThan(0) // pulled right, toward b
       expect(b.vx).toBeLessThan(0) // pulled left, toward a
     })
+
+    it('steers across the toroidal seam via the short path, not the long way around', () => {
+      const sim = makeSim({ separation: 0, alignment: 0, cohesion: 1, vision: 66 })
+      isolate(sim, [0, 1])
+      const a = boidAt(sim, 0)
+      const b = boidAt(sim, 1)
+      // 2 and 398 in a 400-wide world are 4px apart across the x=0/400 seam,
+      // but 396px apart the "long way" through the middle — and land in
+      // spatial-hash cells (cellSize = vision = 66) that are wrap-adjacent,
+      // so the neighbour query finds this pair only via wrap-aware cell
+      // indexing too, not just a wrap-aware distance check.
+      a.x = 2
+      a.y = 100
+      a.vx = 0
+      a.vy = 0
+      b.x = 398
+      b.y = 100
+      b.vx = 0
+      b.vy = 0
+
+      sim.step(16)
+
+      // Correct (wrapped) cohesion pulls each boid toward the other through
+      // the seam: a left (toward x=0, wrapping to meet b), b right (toward
+      // x=400, wrapping to meet a). A naive, non-wrapped delta (398 - 2 =
+      // 396) would pull them the opposite way — toward the distant long
+      // path through the middle of the world — flipping both signs below.
+      expect(a.vx).toBeLessThan(0)
+      expect(b.vx).toBeGreaterThan(0)
+    })
   })
 
   it('applies no steering to a boid with no neighbours (just wraps position)', () => {
