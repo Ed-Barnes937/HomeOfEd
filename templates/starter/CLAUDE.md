@@ -53,10 +53,8 @@ from `apps/hub`) only if the app gains a database.
   erasable TS syntax (ADR 0004) — `simulator.ts`/`main.ts` run under native Node.
 - Ports: dev 3001, CT 3101 — a copied app must pick fresh ones (root CLAUDE.md
   checklist).
-- **Adding a database?** Copy the DB layer from `apps/hub`
-  (`schema.ts`/`store.ts`/`migrations`/`migrate.ts`, the `@hoe/db` dep, the
-  `generate`/`migrate` scripts), swap `createTRPC<void>()` and the `void` Store
-  type params for your Store interface, inject it in `simulator.ts`/`main.ts`,
-  give `/health` a real Store round-trip, and add the `release_command` +
-  deep-health check to `fly.toml`. See
-  [ADR 0007](../../docs/adr/0007-apps-without-a-database.md).
+- **Adding a database?** Follow the step-by-step in
+  [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only)
+  — copy the DB layer from `apps/hub`, swap the `void` Store type params for your
+  Store interface, inject it per transport, deepen `/health`, and add the
+  `release_command`. Rationale: [ADR 0007](../../docs/adr/0007-apps-without-a-database.md).

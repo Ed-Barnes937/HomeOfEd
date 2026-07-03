@@ -82,10 +82,20 @@ Writing Dockerfiles, `fly.toml`, compose files, and CI workflows is fine —
 
 ## Adding an app
 
+Full agent-followable procedure: **[docs/how-to/adding-an-app.md](docs/how-to/adding-an-app.md)**
+(decide DB → create → add DB → verify → deploy). The checklist below is the
+in-context summary.
+
 Copy the minimal reference app, then change each wiring touchpoint. The copy base
 is **`templates/starter`** — the stateless baseline
 ([ADR 0006](docs/adr/0006-reference-starter-app.md)); `hub` is the launcher, not
 the copy base.
+
+**Does it need a database?** Yes if data must survive restarts/redeploys, is
+shared across sessions, or is queried server-side. No (stateless) if it's pure
+compute, a proxy over external APIs, or client-only state. Auth does **not**
+imply a DB (decentralised — [ADR 0007](docs/adr/0007-apps-without-a-database.md)).
+Unsure → start stateless; a DB is additive.
 
 Every app:
 
@@ -108,6 +118,7 @@ Every app:
 9. **DB wiring** — add the `@hoe/db` layer (schema, migrations, Store, `migrate.ts`),
    the `release_command` in `fly.toml`, and the app's DB service in `compose.yml`.
    A stateless app instead has a shallow `/health` (no `Store` round-trip).
+   Full step-by-step: [the how-to §2](docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only).
 
 Default to a **single container** (UI + API + streaming). Split to a separate Fly
 app only for WebSockets / independent scaling / isolation; multi-process for

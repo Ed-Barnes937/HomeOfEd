@@ -94,10 +94,11 @@ deferred). TDD red → green → refactor.
 ### Add an app
 
 No generator — **copy `templates/starter`** (the stateless baseline) and change
-each wiring touchpoint; a database is an additive step. See the checklist in
-[`CLAUDE.md`](CLAUDE.md), [ADR 0006](docs/adr/0006-reference-starter-app.md)
-(starter vs launcher) and [ADR 0007](docs/adr/0007-apps-without-a-database.md)
-(no-DB apps).
+each wiring touchpoint; a database is an additive step. Full procedure:
+**[docs/how-to/adding-an-app.md](docs/how-to/adding-an-app.md)** (decide DB →
+create → add DB → verify → deploy). Rationale in
+[ADR 0006](docs/adr/0006-reference-starter-app.md) (starter vs launcher) and
+[ADR 0007](docs/adr/0007-apps-without-a-database.md) (no-DB apps).
 
 ### Deploy
 

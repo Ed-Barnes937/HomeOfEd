@@ -7,6 +7,9 @@
   `/health` does a real `Store` round-trip) — for the no-DB case.
 - **Related:** [0006-reference-starter-app.md](0006-reference-starter-app.md),
   [0005-unmanaged-fly-postgres.md](0005-unmanaged-fly-postgres.md).
+- **How-to:** the procedure this ADR informs —
+  [docs/how-to/adding-an-app.md](../how-to/adding-an-app.md) (the DB decision
+  rule in §0, the opt-in DB steps in §2).
 
 ## Context
 
