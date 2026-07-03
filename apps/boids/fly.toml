@@ -1,0 +1,43 @@
+# hub — the apex app (homeofed.com). Deploy FROM THE REPO ROOT so the docker
+# build context contains the whole monorepo:
+#
+#   fly deploy -c apps/hub/fly.toml
+#
+# Per-app values when copying this file: `app` (unique per Fly app), the
+# DATABASE_URL secret (its own database in the shared Postgres cluster — set
+# via `fly postgres attach`, never here), and nothing else in the usual case.
+app = 'hoe-hub'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  # Journal-tracked run-once migrations (@hoe/db migratePostgres) — safe on
+  # every deploy. Destructive migrations are human-gated and never shipped
+  # through this path (see packages/db/README.md migration policy).
+  release_command = 'node src/server/migrate.ts'
+
+[env]
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  # The apex landing page stays warm; per-app choice.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    # Deep health: a real Store round-trip to Postgres (createAppServer's
+    # injected healthCheck), not just "process is up".
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
