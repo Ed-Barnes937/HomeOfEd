@@ -93,6 +93,9 @@ persistence    Store + BlobStore INTERFACES
 The **same handler classes** run in production and in the simulator; only the
 injected `Store`/`BlobStore` implementation changes. This is a hard convention —
 trivial apps adopt it too, so any app can use standalone-run and `.iwft` tests.
+*(Refined by [ADR 0008](0008-apps-without-a-database.md): the transport→domain
+layering and the clock/auth seams stay mandatory, but the `Store`/`BlobStore`
+persistence seam is opt-in — a stateless app has no `Store`.)*
 
 **All data access goes through the tRPC router — one DI path.** With the SPA
 default ([ADR 0003](0003-spa-default-tanstack-start-opt-in.md)) the browser
@@ -158,7 +161,9 @@ heavier full-server harness — deferred until the first such app.)
   story). One **database per app** for isolation. *(Revised by
   [ADR 0005](0005-unmanaged-fly-postgres.md): unmanaged Fly Postgres for now —
   MPG's pricing floor isn't justified while all data is reproducible from
-  migrations. One-database-per-app stands.)*
+  migrations. One-database-per-app stands. Further refined by
+  [ADR 0008](0008-apps-without-a-database.md): a database is opt-in — stateless
+  apps have none; "one database per app" applies to the apps that have one.)*
 
 ### 7. Database packaging
 
@@ -192,13 +197,18 @@ pipeline end-to-end (monorepo → tRPC → Postgres → Dockerfile → Fly → C
 CI) and doubles as the **reference app** that new apps are copied from. As the
 site's landing page it is also where navigation out to the other apps will live.
 (Named `hub` rather than `www` — there is no `www.` subdomain; it serves the
-apex.)
+apex.) *(Revised by [ADR 0007](0007-reference-starter-app.md): hub's
+reference-app role is split off to a minimal `templates/starter`; hub keeps the
+launcher role and grows freely.)*
 
 ### 11. Adding an app — copy, no generator
 
 No code generator and no separate `_template`. A new app is **copied from
 `hub`**, guided by an "adding an app" checklist in `CLAUDE.md`. Revisit a
-generator only if copying becomes a real chore.
+generator only if copying becomes a real chore. *(Revised by
+[ADR 0007](0007-reference-starter-app.md): copying hub became a chore as it grew
+as a launcher, so the copy base moves to a minimal, workspace-linted
+`templates/starter`. A generator is still deferred.)*
 
 ### 12. Local dev — two run modes
 
@@ -233,6 +243,9 @@ mode — PGlite covers the inner loop.
   in CI — `/health` does a real `Store` round-trip to Postgres, and the smoke also
   fetches the SPA index + one static asset (proves the artifact serves, not just
   that the process booted). Add `*.e2e` per app when its critical flows justify it.
+  *(Refined by [ADR 0008](0008-apps-without-a-database.md): a stateless app's
+  `/health` is a shallow liveness check with no `Store` round-trip; the SPA
+  index + asset fetch is unchanged.)*
 - Pages are modelled with **Page Object Models**; base POM lives in
   `packages/test-kit`.
 - TDD red/green is the agentic workflow.

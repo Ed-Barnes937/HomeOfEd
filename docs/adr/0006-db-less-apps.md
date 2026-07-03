@@ -1,6 +1,10 @@
 # 0006 — DB-less apps keep the layered skeleton, drop persistence
 
-- **Status:** Accepted
+- **Status:** Superseded (as policy) by
+  [0008-apps-without-a-database.md](0008-apps-without-a-database.md). This ADR
+  remains the record of `apps/boids`' implementation; new no-DB apps follow 0008
+  (stateless is the baseline, `templates/starter` is the copy base, `void`
+  persistence seam). See [0008 → Reconciling boids](0008-apps-without-a-database.md#reconciling-boids).
 - **Date:** 2026-07-02
 - **Related:** [ADR 0001](0001-foundation.md) §4 (layered backend + DI),
   [0002-boids-implementation-plan.md](../plans/0002-boids-implementation-plan.md)
