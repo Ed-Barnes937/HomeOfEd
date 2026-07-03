@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react'
 
-import { DEFAULT_PARAMS, type SimParams } from './engine/params.ts'
+import type { SimParams } from './engine/params.ts'
 import { Simulation } from './engine/simulation.ts'
 import { CanvasRenderer, type BoidShape } from './render/renderer.ts'
 import type { Theme } from './themes.ts'
@@ -12,9 +12,11 @@ export interface UseSimulationLoopOptions {
   params: SimParams
 }
 
-/** A boid position snapshot, read from outside React — see TEST_SEAM_KEY. */
+/** Read from outside React — see TEST_SEAM_KEY. */
 export interface BoidsTestSeam {
   getPositions(): { x: number; y: number }[]
+  /** The params the engine is actually running with, not just the UI readout. */
+  getParams(): SimParams
 }
 
 /**
@@ -69,7 +71,7 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
     const sim = new Simulation({
       width,
       height,
-      params: paramsRef.current ?? DEFAULT_PARAMS,
+      params: paramsRef.current,
       rng: Math.random,
     })
     simRef.current = sim
@@ -77,6 +79,7 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
 
     ;(canvas as unknown as Record<string, BoidsTestSeam>)[TEST_SEAM_KEY] = {
       getPositions: () => sim.boids.map((b) => ({ x: b.x, y: b.y })),
+      getParams: () => paramsRef.current,
     }
 
     const draw = () => renderer.draw(sim, themeRef.current, shapeRef.current, paramsRef.current)

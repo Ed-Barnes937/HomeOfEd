@@ -5,12 +5,16 @@ import { TEST_SEAM_KEY, type BoidsTestSeam } from '../features/sim/useSimulation
 
 export class BoidsPagePom extends BasePage {
   private readonly canvas = this.page.getByTestId('boids-page')
+  private readonly panel = this.page.getByRole('dialog', { name: 'Simulation settings' })
+  private readonly fab = this.page.getByRole('button', { name: 'Open settings' })
+  private readonly collapseButton = this.page.getByRole('button', { name: 'Collapse settings' })
 
   async verifyIsShown(): Promise<void> {
     await expect(this.canvas).toBeVisible()
     const box = await this.canvas.boundingBox()
     expect(box?.width).toBeGreaterThan(0)
     expect(box?.height).toBeGreaterThan(0)
+    await expect(this.panel).toBeVisible()
   }
 
   /** Asserts the flock is actually animating, not a static frame. */
@@ -19,6 +23,78 @@ export class BoidsPagePom extends BasePage {
     await expect
       .poll(async () => JSON.stringify(await this.getBoidPositions()) !== JSON.stringify(before))
       .toBe(true)
+  }
+
+  async verifySliderValue(label: string, expected: string): Promise<void> {
+    await expect(this.page.getByTestId(`slider-${label}-value`)).toHaveText(expected)
+  }
+
+  /** Confirms the change reached the running engine, not just the readout. */
+  async verifyEngineParam(key: string, expected: number): Promise<void> {
+    await expect
+      .poll(async () => {
+        const params = await this.canvas.evaluate((el, seamKey) => {
+          const seam = (el as unknown as Record<string, BoidsTestSeam>)[seamKey]
+          return seam?.getParams()
+        }, TEST_SEAM_KEY)
+        return (params as Record<string, number> | undefined)?.[key]
+      })
+      .toBe(expected)
+  }
+
+  /** Sets a range input's value the way a real drag would: native setter + input/change events. */
+  async dragSlider(label: string, value: number): Promise<void> {
+    await this.page.getByRole('slider', { name: label }).evaluate((el, v) => {
+      const input = el as HTMLInputElement
+      const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')
+      descriptor?.set?.call(input, String(v))
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    }, value)
+  }
+
+  async collapsePanel(): Promise<void> {
+    await this.collapseButton.click()
+  }
+
+  async expandPanel(): Promise<void> {
+    await this.fab.click()
+  }
+
+  async verifyCollapsed(): Promise<void> {
+    await expect(this.panel).toBeHidden()
+    await expect(this.fab).toBeVisible()
+  }
+
+  async verifyExpanded(): Promise<void> {
+    await expect(this.panel).toBeVisible()
+    await expect(this.fab).toBeHidden()
+  }
+
+  /**
+   * Confirms a change was written to the localStorage key a reload would
+   * read from. (Playwright CT can't cleanly reload a mounted component —
+   * see boids.iwft.tsx; that a fresh load *reads* this key correctly is
+   * covered by settings.test.ts's round-trip test.)
+   */
+  async verifyPersistedParam(key: string, expected: number): Promise<void> {
+    await expect
+      .poll(async () => (await this.readPersistedSettings())?.params?.[key])
+      .toBe(expected)
+  }
+
+  private async readPersistedSettings(): Promise<{
+    theme?: string
+    shape?: string
+    params?: Record<string, number>
+  } | null> {
+    const raw = await this.page.evaluate(
+      (k: string) => window.localStorage.getItem(k),
+      'boids:settings:v1',
+    )
+    return raw
+      ? (JSON.parse(raw) as { theme?: string; shape?: string; params?: Record<string, number> })
+      : null
   }
 
   private getBoidPositions(): Promise<{ x: number; y: number }[]> {

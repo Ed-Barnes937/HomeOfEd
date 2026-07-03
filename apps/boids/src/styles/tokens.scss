@@ -1,0 +1,28 @@
+/* Design tokens, ported from docs/reference/boids-design/styles.css.
+ * :root holds the neon (default) theme's values + the shared tokens.
+ * B5 adds [data-theme="retro|asteroids|autumnal"] override blocks here. */
+:root {
+  --bg: #08080c;
+  --accent: #00e6ff;
+  --text: rgba(255, 255, 255, 0.93);
+  --sub: rgba(255, 255, 255, 0.5);
+  --val: rgba(255, 255, 255, 0.86);
+  --group: rgba(255, 255, 255, 0.38);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --track: rgba(255, 255, 255, 0.14);
+  --thumb-ring: rgba(18, 18, 24, 0.92);
+  --panel-bg: rgba(15, 15, 21, 0.62);
+  --panel-border: rgba(255, 255, 255, 0.09);
+  --soft: rgba(255, 255, 255, 0.05);
+  --idle-border: rgba(255, 255, 255, 0.08);
+
+  --radius-panel: 20px;
+  --radius-chip: 13px;
+  --radius-btn: 11px;
+  --radius-sm: 9px;
+  --panel-w: 296px;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --shadow-panel: 0 28px 80px rgba(0, 0, 0, 0.5);
+  --shadow-fab: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
