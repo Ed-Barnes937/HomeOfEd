@@ -151,3 +151,49 @@ curl -fsS https://hoe-boids.fly.dev/health           # → {"ok":true} — in-me
 curl -fsS https://boids.homeofed.com/health          # same, through Cloudflare
 open  https://boids.homeofed.com                     # push some sliders
 ```
+
+## G4.7 — fridge (go-live A: stateless)
+
+fridge (`apps/fridge`, [0003-fridge-implementation-plan.md](../plans/0003-fridge-implementation-plan.md))
+ships in two go-lives. **Go-live A** is the stateless app (local saves only —
+[ADR 0008](../adr/0008-apps-without-a-database.md)): no `fly postgres attach`,
+no release_command. **Go-live B** (G4.8) adds the shared-boards database in
+phase 3 of the plan.
+
+```bash
+fly apps create hoe-fridge         # must match apps/fridge/fly.toml
+# NO fly postgres attach yet — that is go-live B
+fly certs add fridge.homeofed.com --app hoe-fridge   # after first deploy
+```
+
+Cloudflare: proxied CNAME `fridge → hoe-fridge.fly.dev` (Full-strict TLS is
+zone-wide already); grey-cloud any ACME validation record `fly certs add`
+asks for.
+
+> **⚠ Deploy-token gotcha (same as boids):** `FLY_API_TOKEN` must cover
+> `hoe-fridge`. If the org-scoped token from the boids go-live is in place,
+> nothing to do; an app-scoped token will fail the `deploy-fridge` job.
+
+Verify:
+
+```bash
+curl -fsS https://hoe-fridge.fly.dev/health          # → {"ok":true} — process liveness, no DB yet
+curl -fsS https://fridge.homeofed.com/health         # same, through Cloudflare
+open  https://fridge.homeofed.com                    # drag some magnets; save a fridge; reload
+```
+
+## G4.8 — fridge (go-live B: shared boards database)
+
+Run only after phase 3 of the plan (DB wiring + share handlers) is merged.
+
+```bash
+fly postgres attach hoe-pg --app hoe-fridge --database-name fridge
+```
+
+Then merge/deploy: the `release_command` added in phase 3 runs the
+migrations. Verify:
+
+```bash
+curl -fsS https://fridge.homeofed.com/health         # now a DEEP check — round-trips the Store
+# share a board from one browser, open the /b/<id> link in another
+```
