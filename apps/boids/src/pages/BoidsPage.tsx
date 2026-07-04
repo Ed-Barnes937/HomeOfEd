@@ -4,7 +4,7 @@ import { ControlPanel } from '../features/controls/ControlPanel.tsx'
 import type { SimParams } from '../features/sim/engine/params.ts'
 import type { BoidShape } from '../features/sim/render/renderer.ts'
 import { loadSettings, saveSettings, type ThemeId } from '../features/sim/settings.ts'
-import { getTheme } from '../features/sim/themes.ts'
+import { getTheme, THEMES } from '../features/sim/themes.ts'
 import { useSimulationLoop } from '../features/sim/useSimulationLoop.ts'
 import styles from './BoidsPage.module.scss'
 
@@ -30,8 +30,11 @@ export function BoidsPage() {
     saveSettings(next, window.localStorage)
   }
 
+  // Themes with a signature shape (space→rocket, duck season→duck) switch to it
+  // on selection; the shape picker can still override afterwards.
   function handleThemeChange(theme: ThemeId): void {
-    persist({ ...settings, theme })
+    const shape = THEMES[theme].shape
+    persist({ ...settings, theme, ...(shape ? { shape } : {}) })
   }
 
   function handleShapeChange(shape: BoidShape): void {
