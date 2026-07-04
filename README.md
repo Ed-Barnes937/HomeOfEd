@@ -4,7 +4,8 @@ A personal production home on `homeofed.com` for a range of independent apps —
 gimmick apps, larger apps, possibly a blog. Each app is self-contained and routed
 by subdomain (`app.homeofed.com`). Hosting is Fly.io (London) + Cloudflare.
 
-> **Status:** foundation in progress. See the
+> **Status:** live — <https://homeofed.com> (since 2026-07-02). The foundation
+> was built from the
 > [implementation plan](docs/plans/0001-foundation-implementation-plan.md).
 
 Decisions and their rationale live in [`docs/adr/`](docs/adr/). The architecture
