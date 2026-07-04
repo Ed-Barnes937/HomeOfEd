@@ -159,6 +159,20 @@ test('creatures glyph switches berry/cat by sign and vanishes when off', async (
   await root.verifyGlyphAbsent()
 })
 
+test('the native cursor is hidden over the canvas only while a glyph is shown', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyCanvasCursorHidden(false) // no glyph yet (cursor force off)
+
+  await root.dragSlider('cursor attraction', 1.5)
+  await root.verifyCanvasCursorHidden(true) // ring glyph now replaces the pointer
+
+  await root.selectCursorIcon('No cursor icon')
+  await root.verifyCanvasCursorHidden(false) // icon off → native cursor returns
+})
+
 test('prefers-reduced-motion renders a static frame instead of animating', async ({
   mountApp,
   page,

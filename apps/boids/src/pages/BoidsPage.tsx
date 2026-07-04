@@ -65,7 +65,12 @@ export function BoidsPage() {
 
   return (
     <>
-      <canvas ref={canvasRef} data-testid="boids-page" className={styles.canvas} />
+      <canvas
+        ref={canvasRef}
+        data-testid="boids-page"
+        className={styles.canvas}
+        data-hide-cursor={variant ? 'true' : 'false'}
+      />
       {/* Field + glyph, moved as a unit by useSimulationLoop (transform on this
           node); children self-centre. --cursor-radius feeds the field size from
           the engine constant so the ring matches the physics exactly. */}

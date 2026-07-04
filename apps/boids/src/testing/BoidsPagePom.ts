@@ -178,6 +178,11 @@ export class BoidsPagePom extends BasePage {
     await expect(this.cursorGlyph).toHaveCount(0)
   }
 
+  /** The canvas hides the OS cursor (`cursor: none`) only while a glyph is drawn. */
+  async verifyCanvasCursorHidden(hidden: boolean): Promise<void> {
+    await expect(this.canvas).toHaveCSS('cursor', hidden ? 'none' : 'auto')
+  }
+
   async verifyFieldSign(sign: 'attract' | 'repel'): Promise<void> {
     await expect(this.cursorField).toHaveAttribute('data-sign', sign)
   }

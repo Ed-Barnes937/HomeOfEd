@@ -11,6 +11,11 @@
   display: block;
   width: 100vw;
   height: 100vh;
+
+  /* Hide the OS pointer while our glyph stands in for it (icon on + force on). */
+  &[data-hide-cursor='true'] {
+    cursor: none;
+  }
 }
 
 /* Positioned to the pointer by JS (transform on this node), so it carries no
