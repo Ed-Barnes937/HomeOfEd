@@ -1,0 +1,71 @@
+.door {
+  position: relative;
+  width: min(1060px, 92vw);
+  height: 100%;
+  max-height: 648px;
+  border-radius: var(--r-fridge);
+  background: var(--finish-steel);
+  box-shadow: var(--shadow-fridge);
+  border: 1px solid rgba(120, 124, 128, 0.5);
+  overflow: hidden;
+}
+
+// Finish overlay: steel is the bare door (transparent); white/red/mint paint
+// over it with a soft top-highlight + bottom-shade. Transitions on change.
+.finish {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition:
+    opacity 0.3s,
+    background 0.3s;
+
+  &[data-finish='white'],
+  &[data-finish='red'],
+  &[data-finish='mint'] {
+    opacity: 1;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -30px 60px rgba(0, 0, 0, 0.08);
+  }
+
+  &[data-finish='white'] {
+    background: var(--finish-white);
+  }
+
+  &[data-finish='red'] {
+    background: var(--finish-red);
+  }
+
+  &[data-finish='mint'] {
+    background: var(--finish-mint);
+  }
+}
+
+// The draggable area: magnets are absolutely positioned within this element.
+.surface {
+  position: absolute;
+  inset: 7px;
+  border-radius: var(--r-surface);
+  overflow: hidden;
+  z-index: 5;
+}
+
+// Vertical chrome handle, top-right.
+.handle {
+  position: absolute;
+  top: 13%;
+  right: 26px;
+  width: 14px;
+  height: 74%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #9ba0a4, #eaedee 42%, #c2c6c9 60%, #8d9296);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  z-index: 8;
+  pointer-events: none;
+}

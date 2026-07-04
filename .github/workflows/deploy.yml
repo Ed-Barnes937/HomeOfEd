@@ -164,3 +164,72 @@ jobs:
           test -n "$asset"
           curl -fsS "$APP_URL/$asset" > /dev/null
           echo "smoke OK"
+
+  deploy-fridge:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP_URL: https://hoe-fridge.fly.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gate on deploy token (inert until Phase 4)
+        id: gate
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.gate.outputs.ready == 'true'
+
+      - name: Is fridge affected by this push?
+        id: affected
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TURBO_SCM_BASE: ${{ github.event.before }}
+        run: |
+          if pnpm exec turbo ls --affected --output=json | jq -e '.packages.items[] | select(.name == "fridge")' > /dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::fridge not affected by this push — skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.affected.outputs.deploy == 'true'
+
+      - name: Deploy fridge
+        if: steps.affected.outputs.deploy == 'true'
+        # From the repo root: the Dockerfile needs the whole monorepo as its
+        # build context (turbo prune).
+        run: flyctl deploy --config apps/fridge/fly.toml --remote-only
+
+      - name: Post-deploy smoke
+        if: steps.affected.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          echo "/health (process liveness only — fridge has no database yet, ADR 0008)"
+          curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
+          echo "one hashed static asset"
+          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          curl -fsS "$APP_URL/$asset" > /dev/null
+          echo "smoke OK"

@@ -1,0 +1,40 @@
+.state {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  font-family: var(--font-ui);
+  background: var(--wall);
+  color: var(--text);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--text-strong);
+}
+
+.body {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.home {
+  margin-top: 6px;
+  padding: 9px 15px;
+  border-radius: var(--r-control);
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-primary);
+}
