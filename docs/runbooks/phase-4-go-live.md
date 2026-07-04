@@ -197,3 +197,26 @@ migrations. Verify:
 curl -fsS https://fridge.homeofed.com/health         # now a DEEP check — round-trips the Store
 # share a board from one browser, open the /b/<id> link in another
 ```
+
+## G4.9 — scripted go-live (`scripts/go-live.sh`)
+
+Everything above from "create the app" onward is now one idempotent script
+([ADR 0011](../adr/0011-scripted-go-live.md)) — still **human-run**, under
+your own credentials:
+
+```bash
+fly auth login                                     # once
+export CLOUDFLARE_API_TOKEN=...                    # Zone.DNS:Edit on homeofed.com
+                                                   # (dashboard → My Profile → API Tokens
+                                                   #  → Create Token → "Edit zone DNS")
+
+scripts/go-live.sh <app>            # stateless app (ADR 0008)
+scripts/go-live.sh <app> --db       # DB-backed: also attaches hoe-pg
+scripts/go-live.sh <app> --dry-run  # print every mutating command, run nothing
+```
+
+It creates the fly app, deploys, adds the CNAME **grey-cloud** (so the Fly
+cert validates), waits for Issued, flips the record to proxied, and runs the
+health/index verification. Safe to re-run after a partial failure — every
+step skips what already exists. G4.1–G4.8 above remain the manual reference
+for what the script does.

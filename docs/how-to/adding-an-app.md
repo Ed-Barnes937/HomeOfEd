@@ -335,7 +335,14 @@ create or mutate real infrastructure and are **run by a human, never an agent**
 whether it's stateless or database-backed, and a pointer to
 [`docs/runbooks/phase-4-go-live.md`](../runbooks/phase-4-go-live.md).
 
-The human runs (full commands in the runbook):
+The human runs the whole sequence as one command (runbook G4.9,
+[ADR 0011](../adr/0011-scripted-go-live.md)):
+
+```bash
+scripts/go-live.sh <name>        # stateless; add --db for database-backed
+```
+
+Or manually (full commands in the runbook):
 
 ```bash
 fly apps create <flyapp>
