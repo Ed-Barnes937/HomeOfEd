@@ -1,70 +1,295 @@
-.home {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  min-height: 100dvh;
-  font-family: system-ui, sans-serif;
-  color: #1c1c1c;
-  background: #fafaf7;
-}
-
-.hero {
-  place-self: center;
-  text-align: center;
-  padding: 2rem;
-
-  h1 {
-    margin: 0 0 0.5rem;
-    font-size: clamp(2.5rem, 8vw, 4.5rem);
-    font-weight: 650;
-    letter-spacing: -0.03em;
-  }
-}
-
-.tagline {
+:global(body) {
   margin: 0;
-  color: #6b6b66;
-  font-size: 1.125rem;
 }
 
-.apps {
-  margin-top: 1.5rem;
-}
+.home {
+  // Warm paper ramp — soft, desaturated oat/cream. Light default.
+  // A touch deeper than a whisper so it survives the paper texture lightening it.
+  --bg: #ded3cb;
+  --fg: #26302f;
+  --muted: #6f7d7b;
+  --faint: #a3b2b0;
+  --accent: #b36a2e;
+  --line: rgba(38, 48, 47, 0.12);
 
-.appCard {
-  display: inline-block;
-  padding: 0.5rem 1.25rem;
-  border: 1px solid #d8d8d2;
-  border-radius: 999px;
-  color: #1c1c1c;
-  text-decoration: none;
-  font-size: 0.9375rem;
+  // Handmade-paper texture strength (intensity ~3, "tactile"). Dial these down
+  // to soften; set to 0 to remove the texture entirely.
+  --paper-grain: 0.68;
+  --paper-fleck: 0.16;
 
-  &:hover {
-    border-color: #1c1c1c;
+  &[data-theme='dark'] {
+    // Dark duck egg — deep desaturated teal-slate. Nothing pure black.
+    --bg: #101817;
+    --fg: #cdd6d4;
+    --muted: #78827f;
+    --faint: #454e4c;
+    --accent: #b36a2e;
+    --line: rgba(205, 214, 212, 0.09);
+
+    --paper-grain: 0.26;
+    --paper-fleck: 0.05;
   }
+
+  position: relative;
+  display: flex;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Familjen Grotesk', system-ui, sans-serif;
+  transition:
+    background 0.5s ease,
+    color 0.5s ease;
 }
 
-.status {
+// Real handmade-paper photo used as a tonal mask (not colour): desaturated and
+// pulled toward mid-grey, then soft-light borrows the paper's fibre + pulp
+// mottle over the tinted base. Works for both themes from one image.
+.home::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url('/paper.webp');
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(1) brightness(0.58) contrast(1.18);
+  mix-blend-mode: soft-light;
+  opacity: var(--paper-grain);
+  pointer-events: none;
+}
+
+// Real coloured inclusions: a second, colour-kept pass of the same photo,
+// aligned with the structure layer so flecks land where the pulp actually dips.
+// Saturation is boosted so the specks read while the near-neutral base stays
+// quiet. Multiply sits colour into the light paper; screen shows it on dark.
+.home::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url('/paper.webp');
+  background-size: cover;
+  background-position: center;
+  filter: saturate(1.35);
+  mix-blend-mode: multiply;
+  opacity: var(--paper-fleck);
+  pointer-events: none;
+}
+
+.home[data-theme='dark']::after {
+  mix-blend-mode: screen;
+}
+
+.toggle {
+  position: absolute;
+  top: 24px;
+  right: 26px;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.4s;
+}
+
+.intro {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  padding: 0 58px;
+}
+
+.wordmark {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  margin: 0;
+  font-weight: 700;
+  font-size: 76px;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--fg);
+}
+
+.letter,
+.gap,
+.of {
+  display: inline-block;
+}
+
+.letter,
+.of {
+  transform-origin: center bottom;
+}
+
+.gap {
+  width: 0.62em;
+}
+
+.of {
+  position: absolute;
+  left: 0;
+  bottom: 0.06em;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.lede {
+  max-width: 280px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.apps {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 340px;
+  padding: 0 40px;
+  border-left: 1px solid var(--line);
+}
+
+.app {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg);
+  text-decoration: none;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.soon {
+    color: var(--muted);
+  }
+}
+
+.name {
+  font-weight: 600;
+  font-size: 16px;
+
+  .soon & {
+    font-weight: 500;
+  }
+}
+
+// Leader line between name and status; draws in from the name on hover.
+// Soft accent for linked apps, muted for the "soon" placeholders.
+.line {
+  flex: 1;
+  align-self: center;
+  height: 1px;
+  margin: 0 12px;
+  background-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.35s cubic-bezier(0.45, 0.05, 0.4, 1);
+
+  .app:hover & {
+    transform: scaleX(1);
+  }
+
+  .soon & {
+    background-color: var(--muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line {
+    transition: none;
+  }
+}
+
+.statusLabel {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+
+  .soon & {
+    color: var(--faint);
+  }
+}
+
+// Quiet health indicator — the launcher's DB round-trip, kept understated.
+.status {
+  position: absolute;
+  z-index: 1;
+  bottom: 20px;
+  left: 58px;
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
-  padding: 1rem;
-  font-size: 0.875rem;
-  color: #6b6b66;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
 }
 
 .dot {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #b0b0aa; // pending
+  background: var(--faint); // pending
 
   &[data-status='ok'] {
-    background: #3a7d44;
+    background: var(--accent);
   }
 
   &[data-status='error'] {
-    background: #c0392b;
+    background: #c0603b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .of {
+    opacity: 1;
+  }
+}
+
+// Stack the two columns on narrow viewports.
+@media (max-width: 720px) {
+  .home {
+    flex-direction: column;
+    justify-content: center;
+    gap: 32px;
+    padding: 88px 0 64px;
+  }
+
+  .intro {
+    flex: none;
+    gap: 16px;
+    padding: 0 32px;
+  }
+
+  .wordmark {
+    font-size: 56px;
+  }
+
+  .apps {
+    width: auto;
+    padding: 0 32px;
+    border-left: none;
+  }
+
+  .status {
+    left: 32px;
   }
 }
