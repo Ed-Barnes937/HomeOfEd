@@ -170,6 +170,9 @@ export class CanvasRenderer {
         : []
 
     const trailWidth = shape === 'dot' ? 2.6 : 1.6
+    // Per-boid body scale. Trails are drawn before this is applied, so their
+    // length/width stay governed by the trail/speed sliders, not size.
+    const bodyScale = params.size
 
     for (const boid of sim.boids) {
       const angle = Math.atan2(boid.vy, boid.vx)
@@ -189,6 +192,10 @@ export class CanvasRenderer {
         ctx.lineTo(-streak, 0)
         ctx.stroke()
       }
+
+      // Scale the body (and its glow sprite) about the boid origin. setTransform
+      // resets the matrix each iteration, so this never leaks to the next boid.
+      if (bodyScale !== 1) ctx.scale(bodyScale, bodyScale)
 
       const sprite = sprites[ci]
       if (sprite) {

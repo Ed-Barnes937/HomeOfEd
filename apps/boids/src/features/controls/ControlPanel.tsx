@@ -2,8 +2,9 @@ import { useState } from 'react'
 
 import { PARAM_RANGES, type SimParams } from '../sim/engine/params.ts'
 import type { BoidShape } from '../sim/render/renderer.ts'
-import type { ThemeId } from '../sim/settings.ts'
+import type { CursorIcon, ThemeId } from '../sim/settings.ts'
 import styles from './ControlPanel.module.scss'
+import { CursorIconPicker } from './CursorIconPicker.tsx'
 import { ShapePicker } from './ShapePicker.tsx'
 import { Slider } from './Slider.tsx'
 import { ThemePicker } from './ThemePicker.tsx'
@@ -23,6 +24,12 @@ const SLIDER_SPECS: SliderSpec[] = [
   { key: 'cohesion', label: 'cohesion', format: (v) => v.toFixed(2) },
   { key: 'vision', label: 'vision', format: (v) => `${Math.round(v)}px` },
   { key: 'trail', label: 'trail', format: (v) => `${Math.round(v * 100)}%` },
+  { key: 'size', label: 'boid size', format: (v) => `${v.toFixed(1)}×` },
+  {
+    key: 'cursor',
+    label: 'cursor attraction',
+    format: (v) => (v === 0 ? 'off' : `${v > 0 ? '+' : ''}${v.toFixed(2)}`),
+  },
 ]
 
 export interface ControlPanelProps {
@@ -30,16 +37,20 @@ export interface ControlPanelProps {
   onThemeChange: (theme: ThemeId) => void
   shape: BoidShape
   onShapeChange: (shape: BoidShape) => void
+  cursorIcon: CursorIcon
+  onCursorIconChange: (icon: CursorIcon) => void
   params: SimParams
   onParamsChange: (params: SimParams) => void
 }
 
-/** The frosted-glass settings panel: header, theme, shape, sliders, collapse↔FAB. */
+/** The frosted-glass settings panel: header, theme, shape, cursor, sliders, collapse↔FAB. */
 export function ControlPanel({
   theme,
   onThemeChange,
   shape,
   onShapeChange,
+  cursorIcon,
+  onCursorIconChange,
   params,
   onParamsChange,
 }: ControlPanelProps) {
@@ -93,6 +104,11 @@ export function ControlPanel({
         shape
       </div>
       <ShapePicker value={shape} onChange={onShapeChange} />
+
+      <div className={styles.groupLabel} style={{ marginTop: 22 }}>
+        cursor icon
+      </div>
+      <CursorIconPicker value={cursorIcon} onChange={onCursorIconChange} />
 
       <div className={styles.hairline} />
 

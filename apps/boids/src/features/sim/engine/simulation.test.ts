@@ -147,6 +147,69 @@ describe('Simulation', () => {
     })
   })
 
+  describe('cursor force', () => {
+    // Flocking off so the pointer is the only influence; boid parked still.
+    const flat = { separation: 0, alignment: 0, cohesion: 0 } as const
+    function loneBoid(cursor: number) {
+      const sim = makeSim({ ...flat, cursor })
+      isolate(sim, [0])
+      const a = boidAt(sim, 0)
+      a.x = 100
+      a.y = 100
+      a.vx = 0
+      a.vy = 0
+      return { sim, a }
+    }
+
+    it('pulls a boid toward the pointer when cursor is positive', () => {
+      const { sim, a } = loneBoid(2)
+      sim.setPointer({ x: 200, y: 100 }) // 100px to the right, inside CURSOR_RADIUS
+      sim.step(16)
+      expect(a.vx).toBeGreaterThan(0) // steered toward the pointer (+x)
+    })
+
+    it('pushes a boid away from the pointer when cursor is negative', () => {
+      const { sim, a } = loneBoid(-2)
+      sim.setPointer({ x: 200, y: 100 })
+      sim.step(16)
+      expect(a.vx).toBeLessThan(0) // steered away from the pointer (−x)
+    })
+
+    it('closes the gap to the pointer over several steps when attracting', () => {
+      const { sim, a } = loneBoid(2)
+      const pointer = { x: 250, y: 100 }
+      sim.setPointer(pointer)
+      const before = Math.hypot(a.x - pointer.x, a.y - pointer.y)
+      for (let i = 0; i < 5; i++) sim.step(16)
+      const after = Math.hypot(a.x - pointer.x, a.y - pointer.y)
+      expect(after).toBeLessThan(before)
+    })
+
+    it('applies no force when cursor is zero, even with a pointer set', () => {
+      const { sim, a } = loneBoid(0)
+      sim.setPointer({ x: 200, y: 100 })
+      sim.step(16)
+      expect(a.vx).toBe(0)
+      expect(a.vy).toBe(0)
+    })
+
+    it('applies no force when no pointer is set', () => {
+      const { sim, a } = loneBoid(2)
+      // no setPointer call
+      sim.step(16)
+      expect(a.vx).toBe(0)
+      expect(a.vy).toBe(0)
+    })
+
+    it('applies no force to a boid well beyond CURSOR_RADIUS', () => {
+      const { sim, a } = loneBoid(2)
+      sim.setPointer({ x: 350, y: 100 }) // 250px away — outside CURSOR_RADIUS (180)
+      sim.step(16)
+      expect(a.vx).toBe(0)
+      expect(a.vy).toBe(0)
+    })
+  })
+
   it('applies no steering to a boid with no neighbours (just wraps position)', () => {
     const sim = makeSim({ vision: 66 })
     isolate(sim, [0])

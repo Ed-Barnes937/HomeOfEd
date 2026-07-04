@@ -7,6 +7,8 @@ import type { Theme } from './themes.ts'
 
 export interface UseSimulationLoopOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
+  /** The cursor overlay (field + glyph); positioned imperatively to the pointer. */
+  overlayRef: RefObject<HTMLElement | null>
   theme: Theme
   shape: BoidShape
   params: SimParams
@@ -17,6 +19,8 @@ export interface BoidsTestSeam {
   getPositions(): { x: number; y: number }[]
   /** The params the engine is actually running with, not just the UI readout. */
   getParams(): SimParams
+  /** The pointer the cursor force is steering to, or null when off-canvas. */
+  getPointer(): { x: number; y: number } | null
 }
 
 /**
@@ -80,7 +84,31 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
     ;(canvas as unknown as Record<string, BoidsTestSeam>)[TEST_SEAM_KEY] = {
       getPositions: () => sim.boids.map((b) => ({ x: b.x, y: b.y })),
       getParams: () => paramsRef.current,
+      getPointer: () => sim.getPointer(),
     }
+
+    // Pointer capture: one listener drives both the physics (via pointerRef,
+    // read each frame) and the overlay position (imperatively, no re-render).
+    // World coords are canvas-relative; the overlay is position:fixed so it
+    // takes raw client coords — equal here only because the canvas is pinned to
+    // the viewport origin.
+    const pointerRef = { current: null as { x: number; y: number } | null }
+    const onPointerMove = (event: PointerEvent): void => {
+      const rect = canvas.getBoundingClientRect()
+      pointerRef.current = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+      const el = opts.overlayRef.current
+      if (el) {
+        el.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`
+        el.dataset.active = 'true'
+      }
+    }
+    const onPointerLeave = (): void => {
+      pointerRef.current = null
+      const el = opts.overlayRef.current
+      if (el) el.dataset.active = 'false'
+    }
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerleave', onPointerLeave)
 
     const draw = () => renderer.draw(sim, themeRef.current, shapeRef.current, paramsRef.current)
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -101,12 +129,14 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
     function frame(time: number): void {
       const dt = time - lastTime
       lastTime = time
+      sim.setPointer(pointerRef.current)
       sim.step(dt)
       draw()
       rafId = requestAnimationFrame(frame)
     }
 
     if (reducedMotion) {
+      sim.setPointer(pointerRef.current)
       sim.step(16)
       draw()
     } else {
@@ -115,6 +145,8 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
 
     return () => {
       resizeObserver.disconnect()
+      canvas.removeEventListener('pointermove', onPointerMove)
+      canvas.removeEventListener('pointerleave', onPointerLeave)
       if (rafId) cancelAnimationFrame(rafId)
       redrawIfStaticRef.current = null
       simRef.current = null

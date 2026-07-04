@@ -6,6 +6,7 @@ import { TEST_SEAM_KEY, type BoidsTestSeam } from '../features/sim/useSimulation
 interface PersistedSettings {
   theme?: string
   shape?: string
+  cursorIcon?: string
   params?: Record<string, number>
 }
 
@@ -14,6 +15,9 @@ export class BoidsPagePom extends BasePage {
   private readonly panel = this.page.getByRole('dialog', { name: 'Simulation settings' })
   private readonly fab = this.page.getByRole('button', { name: 'Open settings' })
   private readonly collapseButton = this.page.getByRole('button', { name: 'Collapse settings' })
+  private readonly cursorOverlay = this.page.getByTestId('cursor-overlay')
+  private readonly cursorField = this.page.getByTestId('cursor-field')
+  private readonly cursorGlyph = this.page.getByTestId('cursor-glyph')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.canvas).toBeVisible()
@@ -120,6 +124,53 @@ export class BoidsPagePom extends BasePage {
       'aria-pressed',
       'true',
     )
+  }
+
+  async selectCursorIcon(label: string): Promise<void> {
+    await this.page.getByRole('button', { name: label }).click()
+  }
+
+  async verifyCursorIconSelected(label: string): Promise<void> {
+    await expect(this.page.getByRole('button', { name: label })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  }
+
+  async verifyPersistedCursorIcon(expected: string): Promise<void> {
+    await expect.poll(async () => (await this.readPersistedSettings())?.cursorIcon).toBe(expected)
+  }
+
+  /** Fire a pointermove at viewport coords straight at the canvas (bypasses
+   * whatever's painted on top — the handler reads clientX/Y itself). */
+  async movePointer(clientX: number, clientY: number): Promise<void> {
+    await this.canvas.dispatchEvent('pointermove', { clientX, clientY, bubbles: true })
+  }
+
+  async leaveCanvas(): Promise<void> {
+    await this.canvas.dispatchEvent('pointerleave', { bubbles: true })
+  }
+
+  /** The overlay is opacity-hidden (which Playwright still counts as visible),
+   * so assert the data-active flag the pointer handler toggles. */
+  async verifyOverlayActive(active: boolean): Promise<void> {
+    await expect(this.cursorOverlay).toHaveAttribute('data-active', String(active))
+  }
+
+  async verifyGlyphVariant(variant: string): Promise<void> {
+    await expect(this.cursorGlyph).toHaveAttribute('data-variant', variant)
+  }
+
+  async verifyGlyphAbsent(): Promise<void> {
+    await expect(this.cursorGlyph).toHaveCount(0)
+  }
+
+  async verifyFieldSign(sign: 'attract' | 'repel'): Promise<void> {
+    await expect(this.cursorField).toHaveAttribute('data-sign', sign)
+  }
+
+  async verifyFieldAbsent(): Promise<void> {
+    await expect(this.cursorField).toHaveCount(0)
   }
 
   /** Positions must NOT change between frames — the reduced-motion static frame. */
