@@ -48,6 +48,52 @@
   color: var(--group);
 }
 
+/* A collapsible subsection: spacing + a hairline divider above its header. */
+.section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+}
+
+.sectionHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Section header text — brighter/larger than groupLabel, sets off a subsection. */
+.sectionTitle {
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+
+.chevron,
+.chevronOpen {
+  color: var(--sub);
+  transition: transform 0.18s ease;
+}
+
+.chevron {
+  transform: rotate(-90deg);
+}
+
+.chevronOpen {
+  transform: rotate(0deg);
+}
+
+/* Collapses with the first child's own top margin, so slider rows keep their
+ * 17px rhythm while a bare label (cursor icon) still clears the header. */
+.sectionBody {
+  margin-top: 8px;
+}
+
 .collapseButton {
   width: 26px;
   height: 26px;
@@ -59,12 +105,6 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-}
-
-.hairline {
-  height: 1px;
-  background: var(--hairline);
-  margin: 22px 0 4px;
 }
 
 .fab {

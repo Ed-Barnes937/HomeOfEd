@@ -1,19 +1,30 @@
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 import { ControlPanel } from '../features/controls/ControlPanel.tsx'
+import { CursorGlyph, type CursorGlyphVariant } from '../features/controls/CursorGlyph.tsx'
 import type { SimParams } from '../features/sim/engine/params.ts'
 import type { BoidShape } from '../features/sim/render/renderer.ts'
-import { loadSettings, saveSettings, type ThemeId } from '../features/sim/settings.ts'
+import { CURSOR_RADIUS } from '../features/sim/engine/simulation.ts'
+import { loadSettings, saveSettings, type CursorIcon, type ThemeId } from '../features/sim/settings.ts'
 import { getTheme, THEMES } from '../features/sim/themes.ts'
 import { useSimulationLoop } from '../features/sim/useSimulationLoop.ts'
 import styles from './BoidsPage.module.scss'
 
+/** null = draw no glyph (icon off, or no active force so 'creatures' has no sign). */
+function glyphVariant(icon: CursorIcon, cursor: number): CursorGlyphVariant | null {
+  if (icon === 'off' || cursor === 0) return null
+  if (icon === 'ring') return 'ring'
+  return cursor > 0 ? 'berry' : 'cat'
+}
+
 export function BoidsPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
   const [settings, setSettings] = useState(() => loadSettings(window.localStorage))
 
   useSimulationLoop({
     canvasRef,
+    overlayRef,
     theme: getTheme(settings.theme),
     shape: settings.shape,
     params: settings.params,
@@ -41,18 +52,59 @@ export function BoidsPage() {
     persist({ ...settings, shape })
   }
 
+  function handleCursorIconChange(cursorIcon: CursorIcon): void {
+    persist({ ...settings, cursorIcon })
+  }
+
   function handleParamsChange(params: SimParams): void {
     persist({ ...settings, params })
   }
 
+  const cursor = settings.params.cursor
+  const variant = glyphVariant(settings.cursorIcon, cursor)
+
   return (
     <>
-      <canvas ref={canvasRef} data-testid="boids-page" className={styles.canvas} />
+      <canvas
+        ref={canvasRef}
+        data-testid="boids-page"
+        className={styles.canvas}
+        data-hide-cursor={variant ? 'true' : 'false'}
+      />
+      {/* Field + glyph, moved as a unit by useSimulationLoop (transform on this
+          node); children self-centre. --cursor-radius feeds the field size from
+          the engine constant so the ring matches the physics exactly. */}
+      <div
+        ref={overlayRef}
+        className={styles.cursorOverlay}
+        data-testid="cursor-overlay"
+        data-active="false"
+        aria-hidden="true"
+        style={{ '--cursor-radius': `${CURSOR_RADIUS}px` } as CSSProperties}
+      >
+        {cursor !== 0 && (
+          <div
+            className={styles.cursorField}
+            data-testid="cursor-field"
+            data-sign={cursor > 0 ? 'attract' : 'repel'}
+          />
+        )}
+        {variant && (
+          <CursorGlyph
+            className={styles.cursorGlyph}
+            variant={variant}
+            data-testid="cursor-glyph"
+            data-variant={variant}
+          />
+        )}
+      </div>
       <ControlPanel
         theme={settings.theme}
         onThemeChange={handleThemeChange}
         shape={settings.shape}
         onShapeChange={handleShapeChange}
+        cursorIcon={settings.cursorIcon}
+        onCursorIconChange={handleCursorIconChange}
         params={settings.params}
         onParamsChange={handleParamsChange}
       />

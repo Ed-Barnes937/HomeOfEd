@@ -3,15 +3,20 @@ import type { BoidShape } from './render/renderer.ts'
 
 export type ThemeId = 'neon' | 'retro' | 'asteroids' | 'autumnal' | 'space' | 'duckSeason'
 
+/** Cursor-follow glyph: off, a plain ring, or the sign-aware creatures (berry/cat). */
+export type CursorIcon = 'off' | 'ring' | 'creatures'
+
 export interface Settings {
   theme: ThemeId
   shape: BoidShape
+  cursorIcon: CursorIcon
   params: SimParams
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'neon',
   shape: 'triangle',
+  cursorIcon: 'ring',
   params: DEFAULT_PARAMS,
 }
 
@@ -25,6 +30,7 @@ const THEME_IDS: readonly ThemeId[] = [
   'duckSeason',
 ]
 const SHAPES: readonly BoidShape[] = ['triangle', 'dot', 'line', 'rocket', 'duck']
+const CURSOR_ICONS: readonly CursorIcon[] = ['off', 'ring', 'creatures']
 
 function isThemeId(value: unknown): value is ThemeId {
   return typeof value === 'string' && (THEME_IDS as readonly string[]).includes(value)
@@ -32,6 +38,10 @@ function isThemeId(value: unknown): value is ThemeId {
 
 function isShape(value: unknown): value is BoidShape {
   return typeof value === 'string' && (SHAPES as readonly string[]).includes(value)
+}
+
+function isCursorIcon(value: unknown): value is CursorIcon {
+  return typeof value === 'string' && (CURSOR_ICONS as readonly string[]).includes(value)
 }
 
 /** Minimal read/write surface — the caller passes `window.localStorage`. */
@@ -57,6 +67,7 @@ export function loadSettings(storage: SettingsStorage): Settings {
   return {
     theme: isThemeId(record.theme) ? record.theme : DEFAULT_SETTINGS.theme,
     shape: isShape(record.shape) ? record.shape : DEFAULT_SETTINGS.shape,
+    cursorIcon: isCursorIcon(record.cursorIcon) ? record.cursorIcon : DEFAULT_SETTINGS.cursorIcon,
     params: clampParams(record.params ?? {}),
   }
 }
