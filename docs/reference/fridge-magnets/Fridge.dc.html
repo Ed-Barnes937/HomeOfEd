@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%}
+  *{box-sizing:border-box}
+  .mag{touch-action:none;-webkit-user-select:none;user-select:none}
+  .mag *{pointer-events:none}
+  input::placeholder{color:rgba(0,0,0,.35)}
+  ::-webkit-scrollbar{height:8px;width:8px}
+  ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:8px}
+  .tbtn{transition:transform .12s ease, box-shadow .12s ease}
+  .tbtn:hover{transform:translateY(-2px);box-shadow:0 5px 12px rgba(0,0,0,.18)!important}
+  .tbtn:active{transform:translateY(0)}
+  .ttab{transition:transform .1s ease, background .15s ease}
+  .ttab:hover{transform:translateY(-1px)}
+  .swatch{transition:transform .12s ease}
+  .swatch:hover{transform:scale(1.14)}
+</style>
+</helmet>
+<div style="position:fixed;inset:0;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(180deg,#efe9df 0%,#e6dfd3 58%,#dcd4c6 100%)">
+
+  <div style="{{ wallOverlayStyle }}"></div>
+
+  <div style="position:absolute;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:15px 22px;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:11px">
+      <span style="font-family:Fredoka,system-ui,sans-serif;font-weight:700;font-size:23px;color:#33312c;letter-spacing:.3px">the fridge</span>
+      <span style="font-size:12.5px;color:rgba(0,0,0,.42);font-weight:500">drag to bump · click to rotate · double-click to remove</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input value="{{ saveName }}" onChange="{{ onSaveName }}" placeholder="name this fridge…" style="padding:8px 12px;border-radius:9px;border:1px solid rgba(0,0,0,.14);background:rgba(255,255,255,.82);font-size:13px;outline:none;width:150px;color:#33312c" />
+      <button onClick="{{ saveCurrent }}" style="background:#25303f;color:#fff;border:none;padding:9px 15px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.22)">Save</button>
+      <button onClick="{{ newFridge }}" style="background:rgba(255,255,255,.72);color:#3a3a38;border:1px solid rgba(0,0,0,.12);padding:9px 13px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">New</button>
+      <button onClick="{{ clearAll }}" style="background:rgba(255,255,255,.72);color:#8a4a42;border:1px solid rgba(0,0,0,.12);padding:9px 13px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">Clear</button>
+    </div>
+  </div>
+
+  <div style="position:absolute;top:58px;left:22px;right:22px;z-index:29">{{ savedChips }}</div>
+
+  <div style="position:absolute;top:98px;left:0;right:0;bottom:214px;display:flex;align-items:center;justify-content:center;z-index:10;padding:6px 26px">
+    <div style="position:relative;width:min(1060px,92vw);height:100%;max-height:648px;border-radius:24px;background:linear-gradient(96deg,#c9cdd0 0%,#eef1f2 9%,#d4d8db 17%,#eef1f2 27%,#c9cdd0 41%,#f0f2f3 56%,#d0d4d7 71%,#eceff0 84%,#cdd1d4 100%);box-shadow:0 34px 64px -22px rgba(0,0,0,.5),0 8px 22px rgba(0,0,0,.2),inset 0 2px 0 rgba(255,255,255,.75),inset 0 -4px 10px rgba(0,0,0,.14);border:1px solid rgba(120,124,128,.5);overflow:hidden">
+      <div style="{{ finishOverlayStyle }}"></div>
+      <div ref="{{ surfaceRef }}" onPointerDown="{{ onSurfaceDown }}" style="position:absolute;inset:7px;border-radius:19px;overflow:hidden;z-index:5">{{ magnetEls }}{{ selectionEl }}</div>
+      <div style="position:absolute;top:13%;right:26px;width:14px;height:74%;border-radius:8px;background:linear-gradient(90deg,#9ba0a4,#eaedee 42%,#c2c6c9 60%,#8d9296);box-shadow:0 4px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.65);z-index:8;pointer-events:none"></div>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:210px;z-index:20;padding:15px 22px 18px;background:linear-gradient(180deg,rgba(246,243,237,.55),rgba(231,226,217,.96));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid rgba(0,0,0,.09);box-shadow:0 -6px 22px rgba(0,0,0,.08)">
+    <div style="max-width:1060px;margin:0 auto;height:100%">{{ trayInner }}</div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;fridgeFinish&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;steel&quot;,&quot;white&quot;,&quot;red&quot;,&quot;mint&quot;],&quot;default&quot;:&quot;mint&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Fridge&quot;},&quot;wallShade&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;warm&quot;,&quot;cool&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;warm&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Fridge&quot;},&quot;magnetGloss&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Magnets&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.surfaceRef = React.createRef();
+    this.state = { magnets:[], tab:'letters', newWord:'', saveName:'', saved:[], activeName:'My Fridge', surfW:0, surfH:0, dragId:null, selId:null, pick:null,
+      finish: this.props.fridgeFinish || 'steel', wall: this.props.wallShade || 'warm' };
+    this.nid = 100; this.zTop = 10; this._ci = 0; this._drag = null; this._rot = null;
+    this.COLORS = [
+      {main:'#e8503a',dark:'#a12b1d',light:'#ff9179'},
+      {main:'#2f7fd6',dark:'#194f8f',light:'#83bdf5'},
+      {main:'#3fae6b',dark:'#1f7343',light:'#8ee2ab'},
+      {main:'#f0b429',dark:'#a9760f',light:'#ffdd7a'},
+      {main:'#ef8a35',dark:'#a9560f',light:'#ffc389'},
+      {main:'#8a5cd1',dark:'#553497',light:'#c4a6f2'}
+    ];
+    this.WORDS = ['love','always','dream','coffee','tiny','maybe','soft','honey','wander','remember','sunday','breathe','home','glow','ok'];
+  }
+
+  componentDidMount(){
+    this._onResize = () => this.measure(true);
+    window.addEventListener('resize', this._onResize);
+    requestAnimationFrame(() => this.measure(false, () => this.load()));
+  }
+  componentWillUnmount(){ window.removeEventListener('resize', this._onResize); }
+  componentDidUpdate(prev){
+    if(prev.fridgeFinish !== this.props.fridgeFinish && this.props.fridgeFinish) this.setState({finish:this.props.fridgeFinish});
+    if(prev.wallShade !== this.props.wallShade && this.props.wallShade) this.setState({wall:this.props.wallShade});
+  }
+
+  measure(clamp, cb){
+    const el = this.surfaceRef.current; if(!el){ if(cb) cb(); return; }
+    const r = el.getBoundingClientRect();
+    this.setState({ surfW:r.width, surfH:r.height }, () => { if(clamp) this.clampAll(); if(cb) cb(); });
+  }
+
+  load(){
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem('fridge:v1') || 'null'); } catch(e){}
+    if(data && Array.isArray(data.magnets)){
+      this.nid = data.nid || 100; this.zTop = data.zTop || 10;
+      const patch = { magnets:data.magnets, saved:data.saved || [], activeName:data.activeName || 'My Fridge' };
+      if(data.finish) patch.finish = data.finish;
+      if(data.wall) patch.wall = data.wall;
+      this.setState(patch, ()=>this.clampAll());
+    } else {
+      this.seed();
+    }
+  }
+  persist(){
+    const s = this.state;
+    try { localStorage.setItem('fridge:v1', JSON.stringify({ magnets:s.magnets, saved:s.saved, activeName:s.activeName, finish:s.finish, wall:s.wall, nid:this.nid, zTop:this.zTop })); } catch(e){}
+  }
+
+  // ---- geometry ----
+  sizeFor(type,label){
+    if(type==='fraction') return {w:64,h:64};
+    if(type==='word') return {w:Math.max(56,(label||'').length*9+22), h:34};
+    if(type==='number') return {w:50,h:60};
+    return {w:52,h:60};
+  }
+  clampOne(m,W,H){ m.x = Math.max(0, Math.min((W||9999)-m.w, m.x)); m.y = Math.max(0, Math.min((H||9999)-m.h, m.y)); }
+  clampAll(){ this.setState(s=>{ const ms=s.magnets.map(m=>({...m})); ms.forEach(m=>this.clampOne(m,s.surfW,s.surfH)); return {magnets:ms}; }); }
+
+  push(a,b,ax,amt,sign,active){
+    const aA = a.id===active, bA = b.id===active;
+    if(bA){ a[ax] -= sign*amt; }
+    else if(aA){ b[ax] += sign*amt; }
+    else { a[ax] -= sign*amt/2; b[ax] += sign*amt/2; }
+  }
+  relax(ms,active,W,H){
+    for(let p=0;p<7;p++){
+      for(let i=0;i<ms.length;i++){
+        for(let j=i+1;j<ms.length;j++){
+          const a=ms[i], b=ms[j];
+          const ox = Math.min(a.x+a.w,b.x+b.w) - Math.max(a.x,b.x);
+          const oy = Math.min(a.y+a.h,b.y+b.h) - Math.max(a.y,b.y);
+          if(ox>0 && oy>0){
+            if(ox<oy){ const sign=(a.x+a.w/2)<(b.x+b.w/2)?1:-1; this.push(a,b,'x',ox,sign,active); }
+            else { const sign=(a.y+a.h/2)<(b.y+b.h/2)?1:-1; this.push(a,b,'y',oy,sign,active); }
+          }
+        }
+      }
+      for(const m of ms) this.clampOne(m,W,H);
+    }
+  }
+
+  // ---- drag ----
+  onDown(e,id){
+    e.stopPropagation();
+    const surf = this.surfaceRef.current.getBoundingClientRect();
+    const m = this.state.magnets.find(x=>x.id===id); if(!m) return;
+    this._drag = { id, dx: e.clientX-(surf.left+m.x), dy: e.clientY-(surf.top+m.y) };
+    this.zTop++;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
+    this.setState(s=>({ dragId:id, selId:id, magnets:s.magnets.map(x=>x.id===id?{...x,z:this.zTop}:x) }));
+  }
+  onMove(e){
+    if(!this._drag) return;
+    const surf = this.surfaceRef.current.getBoundingClientRect();
+    const nx = e.clientX - surf.left - this._drag.dx;
+    const ny = e.clientY - surf.top - this._drag.dy;
+    const id = this._drag.id;
+    this.setState(s=>{
+      const ms = s.magnets.map(x=>({...x}));
+      const a = ms.find(x=>x.id===id); if(!a) return null;
+      a.x = nx; a.y = ny; this.clampOne(a,s.surfW,s.surfH);
+      this.relax(ms, id, s.surfW, s.surfH);
+      return { magnets:ms };
+    });
+  }
+  onUp(){ if(!this._drag) return; this._drag=null; this.setState({dragId:null}, ()=>this.persist()); }
+  onDbl(id){ this.setState(s=>({magnets:s.magnets.filter(m=>m.id!==id), selId:s.selId===id?null:s.selId}), ()=>this.persist()); }
+  onSurfaceDown(){ if(this.state.selId) this.setState({selId:null}); }
+
+  // ---- rotation ----
+  onWheelRot(e,id){ this.setState({selId:id}); this.rotateBy(id, e.deltaY>0?7:-7); }
+  rotateBy(id,d){ this.setState(s=>({magnets:s.magnets.map(m=>m.id===id?{...m,rot:m.rot+d}:m)}), ()=>this.persist()); }
+  rotDown(e,id){
+    e.stopPropagation();
+    const m = this.state.magnets.find(x=>x.id===id); if(!m) return;
+    const surf = this.surfaceRef.current.getBoundingClientRect();
+    this._rot = { id, cx:surf.left+m.x+m.w/2, cy:surf.top+m.y+m.h/2 };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
+  }
+  rotMove(e){
+    if(!this._rot) return;
+    const ang = Math.atan2(e.clientY-this._rot.cy, e.clientX-this._rot.cx)*180/Math.PI;
+    const rot = ang + 90;
+    this.setState(s=>({magnets:s.magnets.map(m=>m.id===this._rot.id?{...m,rot}:m)}));
+  }
+  rotUp(){
+    if(!this._rot) return;
+    this.setState(s=>({magnets:s.magnets.map(m=>{
+      if(m.id!==this._rot.id) return m;
+      let r = ((m.rot%360)+360)%360;
+      const near = Math.round(r/90)*90;
+      const snapped = Math.abs(r-near)<7 ? (near%360) : r;
+      return {...m, rot:snapped};
+    })}), ()=>this.persist());
+    this._rot = null;
+  }
+
+  // ---- add ----
+  nextColor(){ this._ci = (this._ci+1) % this.COLORS.length; return this.COLORS[this._ci]; }
+  pickColor(){ return this.state.pick!=null ? this.COLORS[this.state.pick] : this.nextColor(); }
+  spawnMagnet(o){
+    const size = this.sizeFor(o.type, o.label);
+    const W = this.state.surfW||600, H = this.state.surfH||400;
+    const m = {
+      id:'m'+(this.nid++), type:o.type, label:o.label||'', color:(o.color!==undefined?o.color:this.COLORS[0]),
+      deg:o.deg||0, w:size.w, h:size.h, rot:(Math.random()*14-7), z:++this.zTop,
+      x: Math.max(0, Math.min(W-size.w, W/2-size.w/2 + (Math.random()*90-45))),
+      y: Math.max(0, Math.min(H-size.h, H*0.16 + Math.random()*46))
+    };
+    this.setState(s=>{ const ms=[...s.magnets.map(x=>({...x})), m]; this.relax(ms, m.id, s.surfW, s.surfH); return {magnets:ms, selId:m.id}; }, ()=>this.persist());
+  }
+  addLetter(ch){ this.spawnMagnet({type:'letter',label:ch,color:this.pickColor()}); }
+  addNumber(d){ this.spawnMagnet({type:'number',label:d,color:this.pickColor()}); }
+  addWord(w){ this.spawnMagnet({type:'word',label:w,color:null}); }
+  addFraction(deg){ this.spawnMagnet({type:'fraction',deg,color:this.pickColor()}); }
+  addWordFromInput(){ const w=(this.state.newWord||'').trim(); if(!w) return; this.spawnMagnet({type:'word',label:w,color:null}); this.setState({newWord:''}); }
+
+  // ---- appearance ----
+  setFinish(f){ this.setState({finish:f}, ()=>this.persist()); }
+  setWall(w){ this.setState({wall:w}, ()=>this.persist()); }
+  setPick(i){ this.setState({pick:i}); }
+
+  // ---- fridges ----
+  saveCurrent(){
+    this.setState(s=>{
+      const name = (s.saveName||s.activeName||('Fridge '+(s.saved.length+1))).trim();
+      const others = s.saved.filter(f=>f.name!==name);
+      return { saved:[...others,{name, magnets:s.magnets.map(m=>({...m})), finish:s.finish, wall:s.wall}], activeName:name, saveName:'' };
+    }, ()=>this.persist());
+  }
+  loadFridge(name){
+    const f = this.state.saved.find(x=>x.name===name); if(!f) return;
+    const patch = { magnets:f.magnets.map(m=>({...m})), activeName:name, selId:null };
+    if(f.finish) patch.finish = f.finish;
+    if(f.wall) patch.wall = f.wall;
+    this.setState(patch, ()=>{ this.clampAll(); this.persist(); });
+  }
+  deleteFridge(name){ this.setState(s=>({saved:s.saved.filter(f=>f.name!==name)}), ()=>this.persist()); }
+  newFridge(){ this.setState({ magnets:[], activeName:'New Fridge', selId:null }, ()=>this.persist()); }
+  clearAll(){ this.setState({ magnets:[], selId:null }, ()=>this.persist()); }
+
+  seed(){
+    const W=this.state.surfW, H=this.state.surfH; if(!W){ return; }
+    const mk=(o)=>({ id:'m'+(this.nid++), rot:(Math.random()*12-6), z:++this.zTop, deg:0, label:'', color:this.COLORS[0], ...o });
+    const arr=[];
+    const word='HELLO'.split(''); const bw=56;
+    const startX=Math.max(10, W/2 - word.length*bw/2), ty=Math.max(24, H*0.13);
+    word.forEach((ch,i)=>arr.push(mk({type:'letter',label:ch,color:this.COLORS[i%this.COLORS.length],x:startX+i*bw,y:ty,w:52,h:60})));
+    const wl="you're the coolest"; const ww=Math.max(56, wl.length*9+22);
+    arr.push(mk({type:'word',label:wl,color:null,x:W/2-ww/2,y:H*0.46,w:ww,h:34}));
+    arr.push(mk({type:'fraction',deg:120,color:this.COLORS[3],x:W*0.6,y:H*0.6,w:64,h:64}));
+    arr.push(mk({type:'fraction',deg:270,color:this.COLORS[1],x:W*0.6+72,y:H*0.6,w:64,h:64}));
+    arr.push(mk({type:'number',label:'3',color:this.COLORS[2],x:W*0.28,y:H*0.62,w:50,h:60}));
+    this.relax(arr,null,W,H);
+    this.setState({magnets:arr}, ()=>this.persist());
+  }
+
+  // ---- rendering helpers ----
+  buildFace(m,gloss){
+    const el=React.createElement; const c=m.color||this.COLORS[0];
+    if(m.type==='letter'||m.type==='number'){
+      const fs = m.type==='number'?46:48;
+      const base = { fontFamily:'Fredoka, system-ui, sans-serif', fontWeight:700, fontSize:fs+'px', lineHeight:'1', textAlign:'center', width:'100%' };
+      if(gloss){
+        return el('div',{style:{...base, background:`linear-gradient(160deg, ${c.light}, ${c.main} 60%)`, WebkitBackgroundClip:'text', backgroundClip:'text', WebkitTextFillColor:'transparent', color:'transparent', textShadow:`0 2px 0 ${c.dark}, 0 3px 0 ${c.dark}, 0 5px 7px rgba(0,0,0,.3)`, filter:'drop-shadow(0 3px 2px rgba(0,0,0,.22))'}}, m.label);
+      }
+      return el('div',{style:{...base, color:c.main, textShadow:`0 2px 0 ${c.dark}, 0 4px 5px rgba(0,0,0,.25)`}}, m.label);
+    }
+    if(m.type==='word'){
+      return el('div',{style:{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(180deg,#ffffff,#efeee7)',borderRadius:'3px',border:'1px solid rgba(0,0,0,.12)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.9), 0 3px 5px rgba(0,0,0,.28)',fontFamily:'Georgia, "Times New Roman", serif',fontSize:'15px',fontWeight:600,color:'#2a2a28',letterSpacing:'.2px',padding:'0 8px',whiteSpace:'nowrap'}}, m.label);
+    }
+    // fraction
+    return el('div',{style:{position:'relative',width:'100%',height:'100%',borderRadius:'50%',background:`conic-gradient(${c.light} 0 ${m.deg}deg, ${c.main} ${m.deg}deg 360deg)`,boxShadow:'0 3px 6px rgba(0,0,0,.32), inset 0 2px 4px rgba(255,255,255,.55), inset 0 -4px 8px rgba(0,0,0,.28)'}},
+      gloss ? el('div',{style:{position:'absolute',left:'16%',top:'12%',width:'44%',height:'34%',borderRadius:'50%',background:'radial-gradient(circle at 42% 40%, rgba(255,255,255,.9), rgba(255,255,255,0) 72%)'}}) : null);
+  }
+  renderMagnet(m,gloss){
+    const el=React.createElement;
+    const active = this.state.dragId===m.id;
+    const style = {
+      position:'absolute', left:m.x+'px', top:m.y+'px', width:m.w+'px', height:m.h+'px',
+      transform:`rotate(${m.rot}deg)`+(active?' scale(1.08)':''), transformOrigin:'50% 50%',
+      zIndex: active?9999:(m.z||1), cursor: active?'grabbing':'grab', display:'grid', placeItems:'center',
+      transition: active?'none':'left .13s cubic-bezier(.2,.9,.3,1.15), top .13s cubic-bezier(.2,.9,.3,1.15), transform .12s ease',
+      willChange:'left,top', touchAction:'none'
+    };
+    return el('div',{ key:m.id, className:'mag', style,
+      onPointerDown:(e)=>this.onDown(e,m.id), onPointerMove:(e)=>this.onMove(e), onPointerUp:()=>this.onUp(),
+      onWheel:(e)=>this.onWheelRot(e,m.id), onDoubleClick:()=>this.onDbl(m.id), title:'drag to move · click then use the knob (or scroll) to rotate · double-click to remove'
+    }, this.buildFace(m,gloss));
+  }
+
+  buildSelection(){
+    const el=React.createElement; const s=this.state;
+    if(!s.selId) return null;
+    const m = s.magnets.find(x=>x.id===s.selId); if(!m) return null;
+    const active = s.dragId===m.id;
+    const round = m.type==='fraction' ? '50%' : '12px';
+    const wrap = {
+      position:'absolute', left:m.x+'px', top:m.y+'px', width:m.w+'px', height:m.h+'px',
+      transform:`rotate(${m.rot}deg)`+(active?' scale(1.08)':''), transformOrigin:'50% 50%',
+      zIndex:10001, pointerEvents:'none',
+      transition: active?'none':'left .13s cubic-bezier(.2,.9,.3,1.15), top .13s cubic-bezier(.2,.9,.3,1.15), transform .12s ease'
+    };
+    const ring = el('div',{style:{position:'absolute',inset:'-5px',border:'1.5px dashed rgba(37,48,63,.75)',borderRadius:round,pointerEvents:'none'}});
+    const stalk = el('div',{style:{position:'absolute',left:'50%',top:'-24px',width:'2px',height:'19px',background:'rgba(37,48,63,.55)',transform:'translateX(-50%)',pointerEvents:'none'}});
+    const knob = el('div',{ onPointerDown:(e)=>this.rotDown(e,m.id), onPointerMove:(e)=>this.rotMove(e), onPointerUp:()=>this.rotUp(), title:'drag to rotate',
+      style:{position:'absolute',left:'50%',top:'-35px',width:'20px',height:'20px',borderRadius:'50%',transform:'translateX(-50%)',background:'radial-gradient(circle at 38% 32%, #fff, #e4e6ea)',border:'1.5px solid #25303f',boxShadow:'0 2px 5px rgba(0,0,0,.28)',cursor:'grab',pointerEvents:'auto'}},
+      el('div',{style:{position:'absolute',inset:'5px',borderRadius:'50%',border:'1.5px solid rgba(37,48,63,.5)',borderTopColor:'transparent'}}));
+    const del = el('div',{ onPointerDown:(e)=>{e.stopPropagation();}, onClick:(e)=>{e.stopPropagation(); this.onDbl(m.id);}, title:'remove',
+      style:{position:'absolute',right:'-11px',top:'-11px',width:'20px',height:'20px',borderRadius:'50%',background:'#e8503a',color:'#fff',fontSize:'14px',fontWeight:700,lineHeight:'18px',textAlign:'center',boxShadow:'0 2px 5px rgba(0,0,0,.3)',cursor:'pointer',pointerEvents:'auto'}}, '×');
+    return el('div',{key:'sel',style:wrap}, ring, stalk, knob, del);
+  }
+
+  cap(text){ return React.createElement('div',{style:{fontSize:'10px',fontWeight:700,letterSpacing:'.7px',textTransform:'uppercase',color:'rgba(0,0,0,.42)'}}, text); }
+  swatch(bg,active,onClick,size){ const d=(size||26)+'px'; return React.createElement('button',{className:'swatch',onClick,style:{width:d,height:d,borderRadius:'50%',border:active?'2px solid #25303f':'1px solid rgba(0,0,0,.2)',background:bg,cursor:'pointer',padding:0,boxShadow:active?'inset 0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.22)':'0 1px 2px rgba(0,0,0,.15)'}}); }
+  tabBtn(active){ return {padding:'6px 13px',borderRadius:'8px',border:'none',cursor:'pointer',fontSize:'13px',fontWeight:600,fontFamily:'system-ui,sans-serif',background:active?'#25303f':'rgba(255,255,255,.6)',color:active?'#fff':'#555',boxShadow:active?'0 2px 5px rgba(0,0,0,.22)':'inset 0 0 0 1px rgba(0,0,0,.08)'}; }
+  pBtn(glyph,onClick,kind){ const el=React.createElement; return el('button',{key:kind+glyph,className:'tbtn',onClick,style:{aspectRatio:'1',minHeight:'36px',borderRadius:'9px',border:'1px solid rgba(0,0,0,.08)',background:'linear-gradient(180deg,#fff,#f0efe9)',cursor:'pointer',fontFamily:kind==='word'?'Georgia,serif':'Fredoka, system-ui, sans-serif',fontWeight:700,fontSize:'18px',color:'#3a3a38',boxShadow:'0 1px 2px rgba(0,0,0,.1)',display:'grid',placeItems:'center'}}, glyph); }
+
+  buildTray(){
+    const el=React.createElement; const s=this.state;
+
+    // ---- Appearance column ----
+    const finishes=[['steel','linear-gradient(120deg,#cfd3d6,#eef1f2,#cdd1d4)'],['white','#f4f4f2'],['red','#d1442f'],['mint','#bfe3d5']];
+    const lights=[['warm','radial-gradient(circle at 40% 35%,#ffe3a6,#f0c26a)'],['cool','radial-gradient(circle at 40% 35%,#c3ddf0,#8fb4d6)'],['dark','radial-gradient(circle at 40% 35%,#4a5262,#2a2f3a)']];
+    const appearance = el('div',{style:{width:'190px',flexShrink:0,borderRight:'1px solid rgba(0,0,0,.1)',paddingRight:'18px',display:'flex',flexDirection:'column',gap:'14px'}},
+      el('div',{}, this.cap('Fridge finish'), el('div',{style:{display:'flex',gap:'10px',marginTop:'8px'}}, finishes.map(([k,bg])=>el('div',{key:k,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'3px'}}, this.swatch(bg, s.finish===k, ()=>this.setFinish(k)), el('span',{style:{fontSize:'9px',color:'rgba(0,0,0,.4)',textTransform:'capitalize'}}, k))))),
+      el('div',{}, this.cap('Kitchen light'), el('div',{style:{display:'flex',gap:'10px',marginTop:'8px'}}, lights.map(([k,bg])=>el('div',{key:k,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'3px'}}, this.swatch(bg, s.wall===k, ()=>this.setWall(k)), el('span',{style:{fontSize:'9px',color:'rgba(0,0,0,.4)',textTransform:'capitalize'}}, k==='dark'?'night':k)))))
+    );
+
+    // ---- Add column ----
+    const tabs=[['letters','A B C'],['numbers','1 2 3'],['words','Words'],['shapes','Shapes']];
+    const tabBar=el('div',{style:{display:'flex',gap:'6px',flexShrink:0}}, tabs.map(([k,l])=>el('button',{key:k,className:'ttab',onClick:()=>this.setState({tab:k}),style:this.tabBtn(k===s.tab)},l)));
+
+    let picker;
+    if(s.tab==='words'){
+      picker = el('span',{style:{fontSize:'11px',color:'rgba(0,0,0,.42)',fontStyle:'italic'}}, 'word tiles are always white');
+    } else {
+      const autoChip = el('button',{onClick:()=>this.setPick(null),style:{padding:'4px 10px',borderRadius:'20px',fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:'system-ui,sans-serif',background:s.pick===null?'#25303f':'rgba(255,255,255,.7)',color:s.pick===null?'#fff':'#666',border:'1px solid rgba(0,0,0,.12)'}}, 'auto');
+      picker = el('div',{style:{display:'flex',alignItems:'center',gap:'7px'}}, this.cap('Color'), autoChip, this.COLORS.map((c,i)=>this.swatch(c.main, s.pick===i, ()=>this.setPick(i), 20)));
+    }
+    const topRow = el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'14px',flexWrap:'wrap'}}, tabBar, picker);
+
+    let body;
+    const gridStyle={display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(38px,1fr))',gap:'7px'};
+    if(s.tab==='letters'){
+      body=el('div',{style:gridStyle}, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(ch=>this.pBtn(ch,()=>this.addLetter(ch),'letter')));
+    } else if(s.tab==='numbers'){
+      body=el('div',{style:gridStyle}, '0123456789'.split('').map(d=>this.pBtn(d,()=>this.addNumber(d),'letter')));
+    } else if(s.tab==='words'){
+      const inputRow=el('div',{style:{display:'flex',gap:'8px',marginBottom:'11px',maxWidth:'420px'}},
+        el('input',{value:s.newWord,onChange:(e)=>this.setState({newWord:e.target.value}),onKeyDown:(e)=>{if(e.key==='Enter')this.addWordFromInput();},placeholder:'type any word…',style:{flex:1,padding:'8px 12px',borderRadius:'8px',border:'1px solid rgba(0,0,0,.15)',fontSize:'14px',fontFamily:'Georgia,serif',outline:'none',color:'#2a2a28'}}),
+        el('button',{onClick:()=>this.addWordFromInput(),style:{background:'#25303f',color:'#fff',border:'none',padding:'0 16px',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer'}},'Add'));
+      const chips=el('div',{style:{display:'flex',flexWrap:'wrap',gap:'7px'}}, this.WORDS.map(w=>el('button',{key:w,className:'tbtn',onClick:()=>this.addWord(w),style:{padding:'6px 11px',borderRadius:'4px',border:'1px solid rgba(0,0,0,.12)',background:'linear-gradient(180deg,#fff,#efeee9)',fontFamily:'Georgia,serif',fontSize:'13.5px',color:'#2a2a28',cursor:'pointer',boxShadow:'0 1px 2px rgba(0,0,0,.1)'}},w)));
+      body=el('div',{}, inputRow, chips);
+    } else {
+      body=el('div',{style:{display:'flex',gap:'12px',flexWrap:'wrap'}}, [['¼',90],['⅓',120],['½',180],['¾',270],['●',360]].map(([g,deg])=>el('button',{key:g,className:'tbtn',onClick:()=>this.addFraction(deg),style:{width:'50px',height:'50px',borderRadius:'9px',border:'1px solid rgba(0,0,0,.08)',background:'linear-gradient(180deg,#fff,#f0efe9)',cursor:'pointer',fontSize:'22px',color:'#3a3a38',boxShadow:'0 1px 2px rgba(0,0,0,.1)',display:'grid',placeItems:'center'}},g)));
+    }
+    const hint = el('div',{style:{fontSize:'11px',color:'rgba(0,0,0,.4)',flexShrink:0}}, 'Tap to add · drag on the fridge to bump neighbours · click a magnet, then spin the knob or scroll to rotate');
+    const addCol = el('div',{style:{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:'9px'}}, topRow, el('div',{style:{flex:1,overflowY:'auto',overflowX:'hidden'}}, body), hint);
+
+    return el('div',{style:{display:'flex',gap:'20px',height:'100%'}}, appearance, addCol);
+  }
+
+  buildChips(){
+    const el=React.createElement; const s=this.state;
+    if(!s.saved.length) return el('span',{style:{fontSize:'12px',color:'rgba(0,0,0,.4)'}}, 'No saved fridges yet — arrange some magnets and hit Save.');
+    return el('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center'}}, s.saved.map(f=>{
+      const active=f.name===s.activeName;
+      return el('div',{key:f.name,onClick:()=>this.loadFridge(f.name),style:{display:'flex',alignItems:'center',gap:'7px',padding:'5px 10px',borderRadius:'20px',cursor:'pointer',fontSize:'12.5px',fontWeight:600,background:active?'#25303f':'rgba(255,255,255,.72)',color:active?'#fff':'#3a3a38',border:'1px solid rgba(0,0,0,.12)',boxShadow:'0 1px 2px rgba(0,0,0,.08)'}},
+        el('span',{},f.name),
+        el('span',{onClick:(e)=>{e.stopPropagation();this.deleteFridge(f.name);},style:{opacity:.55,fontSize:'15px',lineHeight:1}},'×'));
+    }));
+  }
+
+  finishStyle(){
+    const f=this.state.finish||'steel';
+    const base={position:'absolute',inset:0,borderRadius:'inherit',pointerEvents:'none',transition:'opacity .3s, background .3s',zIndex:2};
+    if(f==='steel') return {...base,opacity:0};
+    let bg;
+    if(f==='white') bg='linear-gradient(100deg,#f6f6f4,#ffffff 32%,#ececeb 70%,#f6f6f4)';
+    else if(f==='red') bg='linear-gradient(100deg,#c8402f,#e05a48 34%,#bb3626 72%,#cf4634)';
+    else bg='linear-gradient(100deg,#bfe3d5,#d6efe6 34%,#aed9c9 72%,#c7e8dc)';
+    return {...base, background:bg, boxShadow:'inset 0 2px 0 rgba(255,255,255,.5), inset 0 -30px 60px rgba(0,0,0,.08)'};
+  }
+  wallStyle(){
+    const w=this.state.wall||'warm';
+    const base={position:'absolute',inset:0,pointerEvents:'none',transition:'opacity .35s, background .35s',zIndex:1};
+    if(w==='warm') return {...base,opacity:0};
+    if(w==='cool') return {...base,background:'linear-gradient(180deg, rgba(118,148,175,.3), rgba(88,118,150,.36))'};
+    return {...base,background:'linear-gradient(180deg, rgba(20,22,26,.5), rgba(10,12,16,.62))'};
+  }
+
+  renderVals(){
+    const gloss = this.props.magnetGloss !== false;
+    return {
+      surfaceRef: this.surfaceRef,
+      magnetEls: this.state.magnets.map(m=>this.renderMagnet(m,gloss)),
+      selectionEl: this.buildSelection(),
+      trayInner: this.buildTray(),
+      savedChips: this.buildChips(),
+      saveName: this.state.saveName,
+      onSaveName: (e)=>this.setState({saveName:e.target.value}),
+      saveCurrent: ()=>this.saveCurrent(),
+      newFridge: ()=>this.newFridge(),
+      clearAll: ()=>this.clearAll(),
+      onSurfaceDown: ()=>this.onSurfaceDown(),
+      finishOverlayStyle: this.finishStyle(),
+      wallOverlayStyle: this.wallStyle()
+    };
+  }
+}
+</script>
+</body>
+</html>
