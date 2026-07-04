@@ -56,8 +56,8 @@ FLY_APP="$(sed -n "s/^app = ['\"]\(.*\)['\"]$/\1/p" "$FLY_TOML")"
 [[ -n "$FLY_APP" ]] || { echo "could not parse app name from $FLY_TOML" >&2; exit 1; }
 echo "   app=$APP  fly-app=$FLY_APP  host=$HOST  db=$WITH_DB  dry-run=$DRY_RUN"
 
-for bin in fly jq curl; do
-  command -v "$bin" >/dev/null || { echo "$bin not found on PATH (jq: try 'asdf set -u jq 1.7' or brew install jq)" >&2; exit 1; }
+for bin in fly jq curl dig; do
+  command -v "$bin" >/dev/null || { echo "$bin not found on PATH (jq: try 'asdf set -u jq 1.7' or brew install jq; dig: brew install bind / apt install dnsutils)" >&2; exit 1; }
 done
 
 if ! $DRY_RUN; then
@@ -143,12 +143,28 @@ cf_mutate PATCH "/zones/$ZONE_ID/dns_records/${RECORD_ID:-<record-id>}" '{"proxi
 # ── 6. verify ────────────────────────────────────────────────────────────────
 say "6/6 verify"
 if $DRY_RUN; then
-  printf '   $ curl -fsS https://%s.fly.dev/health\n   $ curl -fsS https://%s/health\n' "$FLY_APP" "$HOST"
+  printf '   $ curl -fsS https://%s.fly.dev/health\n   $ dig +short %s @1.1.1.1\n   $ curl -fsS --resolve %s:443:<public-ip> https://%s/health\n' "$FLY_APP" "$HOST" "$HOST" "$HOST"
 else
-  # generous retries: cold-start (min_machines_running=0) + proxy propagation
-  curl -fsS --retry 8 --retry-delay 5 --retry-all-errors "https://$FLY_APP.fly.dev/health" >/dev/null && echo "   fly.dev /health ok"
-  curl -fsS --retry 8 --retry-delay 5 --retry-all-errors "https://$HOST/health" >/dev/null && echo "   $HOST /health ok"
-  curl -fsS "https://$HOST/" | grep -q '<div id="root">' && echo "   SPA index ok"
+  # generous retries: cold-start (min_machines_running=0) + proxy propagation.
+  # Every check is fatal — a green go-live must not paper over a failed probe.
+  curl -fsS --retry 8 --retry-delay 5 --retry-all-errors "https://$FLY_APP.fly.dev/health" >/dev/null \
+    || { echo "FAILED: https://$FLY_APP.fly.dev/health did not return OK" >&2; exit 1; }
+  echo "   fly.dev /health ok"
+
+  # Custom host: resolve via a public resolver (1.1.1.1) and pin curl to that IP,
+  # so a stale local DNS cache (e.g. an NXDOMAIN cached before the record went
+  # live) can't fail an otherwise-good go-live.
+  HOST_IP="$(dig +short "$HOST" @1.1.1.1 | grep -Em1 '^[0-9]+(\.[0-9]+){3}$' || true)"
+  [[ -n "$HOST_IP" ]] || { echo "FAILED: $HOST does not resolve at 1.1.1.1 yet — DNS not propagated" >&2; exit 1; }
+  echo "   $HOST → $HOST_IP (via 1.1.1.1); if your browser/curl still can't reach it, flush your DNS cache (macOS: sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder)"
+
+  curl -fsS --resolve "$HOST:443:$HOST_IP" --retry 8 --retry-delay 5 --retry-all-errors "https://$HOST/health" >/dev/null \
+    || { echo "FAILED: https://$HOST/health did not return OK" >&2; exit 1; }
+  echo "   $HOST /health ok"
+
+  curl -fsS --resolve "$HOST:443:$HOST_IP" "https://$HOST/" | grep -q '<div id="root">' \
+    || { echo "FAILED: https://$HOST/ did not serve the SPA index" >&2; exit 1; }
+  echo "   SPA index ok"
 fi
 
 say "done — https://$HOST"
