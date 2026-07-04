@@ -1,8 +1,9 @@
 # apps/hub — scoped rules
 
-The launcher/landing app at the apex `homeofed.com`. Currently tiny: one page,
-one `trpc.health()` call that reads a DB-sourced value; it grows freely as the
-launcher (nav, app links). New apps are **not** copied from here — the copy base
+The launcher/landing app at the apex `homeofed.com`. One page: the wordmark and
+the app rail (nav, links). The `trpc.health()` DB round-trip stays wired
+server-side (router → handler → Store) as the worked example, but the current
+page no longer surfaces it. New apps are **not** copied from here — the copy base
 is `templates/starter` ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)).
 hub keeps the DB layer as the worked example of a database-backed app; the
 stateless baseline lives in the starter

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HomeOfEd — Index (2b) reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e6e7ea; --fg:#292c31; --muted:#7d828b; --faint:#aeb2ba;
+    --accent:#556479; --line:rgba(41,44,49,.11);
+  }
+  [data-theme="dark"]{
+    --bg:#111316; --fg:#cdd0d6; --muted:#787d86; --faint:#4b4f56;
+    --accent:#7f92a8; --line:rgba(205,208,214,.09);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    display:flex; align-items:center; justify-content:center;
+    background:#d7d9dd; font-family:'Familjen Grotesk',system-ui,sans-serif;
+  }
+  /* The homepage. On a real site this becomes the full viewport (100vw/100vh). */
+  .home{
+    position:relative; width:1000px; height:640px; overflow:hidden;
+    background:var(--bg); color:var(--fg); display:flex;
+    transition:background .5s ease, color .5s ease;
+    box-shadow:0 12px 50px rgba(0,0,0,.18); border-radius:12px;
+  }
+  .toggle{
+    position:absolute; top:24px; right:26px; z-index:3;
+    width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--line); background:transparent;
+    color:var(--muted); font-size:14px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:color .4s;
+  }
+  .intro{
+    flex:1; display:flex; flex-direction:column; justify-content:center;
+    padding:0 58px; gap:20px;
+  }
+  .eyebrow{
+    font-size:12px; font-weight:600; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--faint);
+  }
+  .wordmark{
+    position:relative; margin:0; font-weight:700; font-size:76px;
+    letter-spacing:-.04em; line-height:1;
+    display:inline-flex; align-items:baseline; color:var(--fg);
+  }
+  .wordmark .letter,.wordmark .gap,.wordmark .of{display:inline-block}
+  .wordmark .letter,.wordmark .of{transform-origin:center bottom}
+  .wordmark .gap{width:.62em}
+  .wordmark .of{
+    position:absolute; left:0; bottom:.06em; color:var(--accent); opacity:0;
+  }
+  .lede{margin:0; max-width:280px; font-size:15px; line-height:1.55; color:var(--muted)}
+  .apps{
+    width:340px; border-left:1px solid var(--line);
+    display:flex; flex-direction:column; justify-content:center; padding:0 40px;
+  }
+  .app{
+    display:flex; justify-content:space-between; align-items:baseline;
+    text-decoration:none; color:var(--fg); padding:16px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .app:last-child{border-bottom:none}
+  .app .name{font-weight:600; font-size:16px}
+  .app.soon{color:var(--muted)}
+  .app.soon .name{font-weight:500}
+  .app .status{font-size:11px; letter-spacing:.14em; color:var(--accent)}
+  .app.soon .status{color:var(--faint)}
+  @media (prefers-reduced-motion: reduce){ .wordmark .of{opacity:1} }
+</style>
+</head>
+<body>
+  <main class="home" data-home>
+    <button class="toggle" data-toggle aria-label="Toggle light/dark">☾</button>
+
+    <section class="intro">
+      <span class="eyebrow">01 — index</span>
+      <h1 class="wordmark" data-hop aria-label="home of ed">
+        <span class="letter h" aria-hidden="true">h</span><span class="letter o" aria-hidden="true">o</span><span class="letter m" aria-hidden="true">m</span><span class="letter e" aria-hidden="true">e</span><span class="gap" aria-hidden="true"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true">of</span>
+      </h1>
+      <p class="lede">A quiet index of the things I build, and the ones still taking shape.</p>
+    </section>
+
+    <nav class="apps">
+      <a class="app" href="#"><span class="name">Boids</span><span class="status">LIVE</span></a>
+      <span class="app soon"><span class="name">fridge magnets</span><span class="status">SOON</span></span>
+      <span class="app soon"><span class="name">HEIG</span><span class="status">SOON</span></span>
+      <span class="app soon"><span class="name">WOTD</span><span class="status">SOON</span></span>
+    </nav>
+  </main>
+
+<script>
+/* ---- Theme: default to system, manual toggle ---- */
+(function(){
+  var home = document.querySelector('[data-home]');
+  var btn  = document.querySelector('[data-toggle]');
+  function set(mode){
+    home.setAttribute('data-theme', mode);
+    btn.textContent = mode === 'dark' ? '☀' : '☾';
+  }
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  set(prefersDark ? 'dark' : 'light');
+  btn.addEventListener('click', function(){
+    set(home.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+})();
+
+/* ---- "of" hop animation: plays ONCE on load, then rests parked in the gap ----
+   The "of" travels across the tops of h-o-m-e, squashing on each landing,
+   while each landed letter gives a tiny dip. Built by measuring letter
+   centres at runtime so it stays correct at any font size. ---- */
+(function(){
+  var CONFIG = {
+    duration: '4.2s', easing: 'cubic-bezier(.45,.05,.4,1)',
+    ofScale: 0.5, landY: -0.40, squashY: -0.40, squashScale: [0.54, 0.44],
+    apexY: -0.92, enterY: -1.15, restY: 0, restSquashScale: [0.56, 0.42],
+    land: { h: 6, o: 18, m: 30, e: 42, gap: 56 },
+    squashOffset: 3, apexOffset: -6, restSquashAt: 59, restEndAt: 63,
+    enterVisibleAt: 3, dipDepth: 0.05, dipScale: [1.02, 0.93], dipSpan: 9, dipPeakOffset: 4
+  };
+  var title = document.querySelector('[data-hop]');
+  if(!title) return;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var styleTag = document.createElement('style'); document.head.appendChild(styleTag);
+
+  function build(){
+    var C = CONFIG, of = title.querySelector('.of'); if(!of) return;
+    title.setAttribute('data-measuring','');
+    var fs = parseFloat(getComputedStyle(title).fontSize);
+    var t = title.getBoundingClientRect();
+    function centre(el){ var r = el.getBoundingClientRect(); return (r.left + r.width/2 - t.left)/fs; }
+    function q(s){ return title.querySelector(s); }
+    var halfOf = of.getBoundingClientRect().width/2/fs;
+    var c = { h:centre(q('.h')), o:centre(q('.o')), m:centre(q('.m')), e:centre(q('.e')), gap:centre(q('.gap')) };
+    title.removeAttribute('data-measuring');
+    var x = {}; for(var k in c) x[k] = c[k] - halfOf;
+
+    var fmt = function(n){ return Number(n.toFixed(4)) + 'em'; };
+    var scale = function(s){ return Array.isArray(s) ? 'scale('+s[0]+','+s[1]+')' : 'scale('+s+')'; };
+    var tf = function(xe,ye,s){ return 'translate('+fmt(xe)+', '+fmt(ye)+') '+scale(s); };
+
+    if(reduce){ styleTag.textContent = '.of{opacity:1;transform:'+tf(x.gap,C.restY,C.ofScale)+'}'; return; }
+
+    var L = C.land, order = ['h','o','m','e','gap'], seq = [];
+    seq.push([0, 'opacity:0; transform:'+tf(x.h, C.enterY, C.ofScale)]);
+    seq.push([C.enterVisibleAt, 'opacity:1; transform:'+tf(x.h, C.enterY+0.2, C.ofScale)]);
+    order.forEach(function(k,i){
+      var p = L[k];
+      var landY = k==='gap'?C.restY:C.landY, squashY = k==='gap'?C.restY:C.squashY;
+      var sq = k==='gap'?C.restSquashScale:C.squashScale;
+      if(i>0){ var prev=order[i-1]; seq.push([p+C.apexOffset, 'transform:'+tf((x[prev]+x[k])/2, C.apexY, C.ofScale)]); }
+      seq.push([p, 'transform:'+tf(x[k], landY, C.ofScale)]);
+      seq.push([k==='gap'?C.restSquashAt:p+C.squashOffset, 'transform:'+tf(x[k], squashY, sq)]);
+    });
+    seq.push([C.restEndAt, 'transform:'+tf(x.gap, C.restY, C.ofScale)]);
+    seq.push([100, 'opacity:1; transform:'+tf(x.gap, C.restY, C.ofScale)]);
+    seq.sort(function(a,b){ return a[0]-b[0]; });
+
+    var hop = '@keyframes hop{\n' + seq.map(function(s){ return '  '+s[0]+'%{'+s[1]+'}'; }).join('\n') + '\n}';
+    var dips = ['h','o','m','e'].map(function(k){
+      var p = L[k], start=p, end=p+C.dipSpan, peak=p+C.dipPeakOffset;
+      return '@keyframes dip'+k+'{\n  0%,'+start+'%,'+end+'%,100%{transform:none}\n  '+peak+'%{transform:translateY('+fmt(C.dipDepth)+') '+scale(C.dipScale)+'}\n}';
+    }).join('\n');
+    var wiring = '[data-measuring] .letter,[data-measuring] .of{animation:none!important;transform:none!important}\n'
+      + '.of{animation:hop '+C.duration+' '+C.easing+' 1 both}\n'
+      + ['h','o','m','e'].map(function(k){ return '.letter.'+k+'{animation:dip'+k+' '+C.duration+' ease-in-out 1 both}'; }).join('\n');
+    styleTag.textContent = [hop, dips, wiring].join('\n\n');
+  }
+
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(build);
+  else build();
+  setTimeout(build, 350);
+  var t; window.addEventListener('resize', function(){ clearTimeout(t); t = setTimeout(build, 200); });
+})();
+</script>
+</body>
+</html>

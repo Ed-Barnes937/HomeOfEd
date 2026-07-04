@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&family=Hanken+Grotesk:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Newsreader:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Familjen+Grotesk:wght@400;500;600;700&family=Spectral:ital,wght@0,300;0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#dcd6c8;font-family:system-ui,sans-serif}
+  .dv-turn{padding:44px 48px 36px;scroll-margin-top:16px}
+  .dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 24px}
+  .dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+  .dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#2a2519}
+  .dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+  .dv-opt{flex:none;display:flex;flex-direction:column;gap:11px;scroll-margin-top:16px}
+  .dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#1a1a1a;border-radius:5px;text-decoration:none}
+  .dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.52)}
+  .dv-card{background:#000;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.14);overflow:hidden}
+  .dv-opt:target .dv-oid{background:#a9602f;color:#fff}
+  .dv-next{margin:26px 0 0;font:12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t3">
+  <div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Paper backgrounds — four handmade textures (real images, blend into light &amp; dark) · Index layout from 2b</span></div>
+  <div class="dv-opts">
+
+    <!-- 3a Cotton rag -->
+    <div class="dv-opt" id="3a">
+      <div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Cotton rag · fine even mottle · warm ink</div>
+      <div class="dv-card">
+        <div data-card="i" style="--bg:#e7e3da;--fg:#2c2a24;--muted:#847e70;--faint:#b1a996;--accent:#8a6f4b;--line:rgba(44,42,36,.11);position:relative;width:1000px;height:640px;overflow:hidden;color:var(--fg);display:flex;transition:color .5s ease;font-family:'Familjen Grotesk',sans-serif;background-color:var(--bg);background-image:url('textures/paper1.png');background-size:cover;background-blend-mode:soft-light">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 58px;gap:20px">
+            <span style="font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)">01 — index</span>
+            <h1 data-hop data-anim="i" aria-label="home of ed" style="position:relative;margin:0;font-weight:700;font-size:76px;letter-spacing:-.04em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg)"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;max-width:280px;font-size:15px;line-height:1.55;color:var(--muted)">A quiet index of the things I build, and the ones still taking shape.</p>
+          </div>
+          <div style="width:340px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:0 40px;gap:0">
+            <a href="#" style="display:flex;justify-content:space-between;align-items:baseline;text-decoration:none;color:var(--fg);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:600;font-size:16px">Boids</span><span style="font-size:11px;letter-spacing:.14em;color:var(--accent)">LIVE</span></a>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">fridge magnets</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">HEIG</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0"><span style="font-weight:500;font-size:16px">WOTD</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3b Cold-press watercolor -->
+    <div class="dv-opt" id="3b">
+      <div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Cold-press watercolor · big soft cells · slate blue</div>
+      <div class="dv-card">
+        <div data-card="j" style="--bg:#e6e7ea;--fg:#292c31;--muted:#7d828b;--faint:#aeb2ba;--accent:#556479;--line:rgba(41,44,49,.11);position:relative;width:1000px;height:640px;overflow:hidden;color:var(--fg);display:flex;transition:color .5s ease;font-family:'Familjen Grotesk',sans-serif;background-color:var(--bg);background-image:url('textures/paper2.png');background-size:cover;background-blend-mode:soft-light">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 58px;gap:20px">
+            <span style="font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)">01 — index</span>
+            <h1 data-hop data-anim="j" aria-label="home of ed" style="position:relative;margin:0;font-weight:700;font-size:76px;letter-spacing:-.04em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg)"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;max-width:280px;font-size:15px;line-height:1.55;color:var(--muted)">A quiet index of the things I build, and the ones still taking shape.</p>
+          </div>
+          <div style="width:340px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:0 40px;gap:0">
+            <a href="#" style="display:flex;justify-content:space-between;align-items:baseline;text-decoration:none;color:var(--fg);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:600;font-size:16px">Boids</span><span style="font-size:11px;letter-spacing:.14em;color:var(--accent)">LIVE</span></a>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">fridge magnets</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">HEIG</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0"><span style="font-weight:500;font-size:16px">WOTD</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3c Fibrous handmade -->
+    <div class="dv-opt" id="3c">
+      <div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Fibrous handmade · fibers &amp; flecks · warm ochre</div>
+      <div class="dv-card">
+        <div data-card="k" style="--bg:#e9e4dc;--fg:#2b2925;--muted:#867f72;--faint:#b0a794;--accent:#7d7256;--line:rgba(43,41,37,.12);position:relative;width:1000px;height:640px;overflow:hidden;color:var(--fg);display:flex;transition:color .5s ease;font-family:'Familjen Grotesk',sans-serif;background-color:var(--bg);background-image:url('textures/paper3.png');background-size:cover;background-blend-mode:soft-light">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 58px;gap:20px">
+            <span style="font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)">01 — index</span>
+            <h1 data-hop data-anim="k" aria-label="home of ed" style="position:relative;margin:0;font-weight:700;font-size:76px;letter-spacing:-.04em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg)"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;max-width:280px;font-size:15px;line-height:1.55;color:var(--muted)">A quiet index of the things I build, and the ones still taking shape.</p>
+          </div>
+          <div style="width:340px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:0 40px;gap:0">
+            <a href="#" style="display:flex;justify-content:space-between;align-items:baseline;text-decoration:none;color:var(--fg);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:600;font-size:16px">Boids</span><span style="font-size:11px;letter-spacing:.14em;color:var(--accent)">LIVE</span></a>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">fridge magnets</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">HEIG</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0"><span style="font-weight:500;font-size:16px">WOTD</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3d Laid / deckle -->
+    <div class="dv-opt" id="3d">
+      <div class="dv-olabel"><a class="dv-oid" href="#3d">3d</a>Laid paper · fine laid &amp; chain lines · sea slate</div>
+      <div class="dv-card">
+        <div data-card="l" style="--bg:#e5e6e6;--fg:#272a2b;--muted:#7c817f;--faint:#aab0ad;--accent:#5c7079;--line:rgba(39,42,43,.11);position:relative;width:1000px;height:640px;overflow:hidden;color:var(--fg);display:flex;transition:color .5s ease;font-family:'Familjen Grotesk',sans-serif;background-color:var(--bg);background-image:url('textures/paper4.png');background-size:cover;background-blend-mode:soft-light">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 58px;gap:20px">
+            <span style="font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)">01 — index</span>
+            <h1 data-hop data-anim="l" aria-label="home of ed" style="position:relative;margin:0;font-weight:700;font-size:76px;letter-spacing:-.04em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg)"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;max-width:280px;font-size:15px;line-height:1.55;color:var(--muted)">A quiet index of the things I build, and the ones still taking shape.</p>
+          </div>
+          <div style="width:340px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:0 40px;gap:0">
+            <a href="#" style="display:flex;justify-content:space-between;align-items:baseline;text-decoration:none;color:var(--fg);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:600;font-size:16px">Boids</span><span style="font-size:11px;letter-spacing:.14em;color:var(--accent)">LIVE</span></a>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">fridge magnets</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">HEIG</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0"><span style="font-weight:500;font-size:16px">WOTD</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">These are real image textures (fixed the earlier broken inline-SVG). Try: "3c but stronger fibers" · "warm the paper on 3a" · "apply 3b texture to option 2a" · "make the winner the full page"</p>
+</section>
+
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Calm &amp; minimal — beyond zen · four fresh directions · each toggles light/dark</span></div>
+  <div class="dv-opts">
+
+    <!-- ============ 2a — Paper (Scandinavian warmth + Instrument Serif) ============ -->
+    <div class="dv-opt" id="2a">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Paper · warm Scandinavian · Instrument Serif · caramel</div>
+      <div class="dv-card">
+        <div data-card="e" style="--bg:#ece7df;--fg:#33302a;--muted:#8c8578;--faint:#b5ac9c;--accent:#b0794f;--line:rgba(51,48,42,.1);position:relative;width:1000px;height:640px;overflow:hidden;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:background .5s ease,color .5s ease">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <span style="position:absolute;top:26px;left:30px;z-index:2;font-family:'Instrument Serif',serif;font-style:italic;font-size:17px;color:var(--faint)">est. two thousand twenty-six</span>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:26px">
+            <h1 data-hop data-anim="e" aria-label="home of ed" style="position:relative;margin:0;font-weight:400;font-size:82px;letter-spacing:-.01em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg);font-family:'Instrument Serif',serif"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <div style="width:44px;height:1px;background:var(--line)"></div>
+            <p style="margin:0;font-family:'Instrument Serif',serif;font-size:19px;letter-spacing:.01em;color:var(--muted)">a small studio of unhurried things</p>
+          </div>
+          <nav style="position:absolute;left:0;right:0;bottom:44px;z-index:2;display:flex;gap:30px;align-items:baseline;justify-content:center;flex-wrap:wrap;font-family:'Instrument Serif',serif;font-size:20px">
+            <a href="#" style="color:var(--fg);text-decoration:none;border-bottom:1px solid var(--accent);padding-bottom:2px">Boids</a>
+            <span style="color:var(--muted)">fridge magnets <span style="font-style:italic;color:var(--faint);font-size:15px">soon</span></span>
+            <span style="color:var(--muted)">HEIG <span style="font-style:italic;color:var(--faint);font-size:15px">soon</span></span>
+            <span style="color:var(--muted)">WOTD <span style="font-style:italic;color:var(--faint);font-size:15px">soon</span></span>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2b — Index (editorial grid + Familjen Grotesk) ============ -->
+    <div class="dv-opt" id="2b">
+      <div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Index · editorial grid · Familjen Grotesk · slate blue</div>
+      <div class="dv-card">
+        <div data-card="f" style="--bg:#e6e7ea;--fg:#292c31;--muted:#7d828b;--faint:#aeb2ba;--accent:#556479;--line:rgba(41,44,49,.11);position:relative;width:1000px;height:640px;overflow:hidden;color:var(--fg);display:flex;transition:color .5s ease;font-family:'Familjen Grotesk',sans-serif;background-color:var(--bg);background-image:url(&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.085' numOctaves='2' seed='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='linear' slope='0.34' intercept='0.33'/><feFuncG type='linear' slope='0.34' intercept='0.33'/><feFuncB type='linear' slope='0.34' intercept='0.33'/></feComponentTransfer></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>&quot;),url(&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='620' height='620'><filter id='c'><feTurbulence type='fractalNoise' baseFrequency='0.009' numOctaves='2' seed='13' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='linear' slope='0.5' intercept='0.25'/><feFuncG type='linear' slope='0.5' intercept='0.25'/><feFuncB type='linear' slope='0.5' intercept='0.25'/></feComponentTransfer></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>&quot;),radial-gradient(130% 110% at 25% 0%,rgba(255,255,255,.06),transparent 60%);background-size:240px 240px,620px 620px,auto;background-repeat:repeat,repeat,no-repeat;background-blend-mode:soft-light,soft-light,normal">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 58px;gap:20px">
+            <span style="font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)">01 — index</span>
+            <h1 data-hop data-anim="f" aria-label="home of ed" style="position:relative;margin:0;font-weight:700;font-size:76px;letter-spacing:-.04em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg)"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;max-width:280px;font-size:15px;line-height:1.55;color:var(--muted)">A quiet index of the things I build, and the ones still taking shape.</p>
+          </div>
+          <div style="width:340px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:0 40px;gap:0">
+            <a href="#" style="display:flex;justify-content:space-between;align-items:baseline;text-decoration:none;color:var(--fg);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:600;font-size:16px">Boids</span><span style="font-size:11px;letter-spacing:.14em;color:var(--accent)">LIVE</span></a>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">fridge magnets</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0;border-bottom:1px solid var(--line)"><span style="font-weight:500;font-size:16px">HEIG</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding:16px 0"><span style="font-weight:500;font-size:16px">WOTD</span><span style="font-size:11px;letter-spacing:.14em;color:var(--faint)">SOON</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2c — Dawn (atmospheric soft gradient + Spectral) ============ -->
+    <div class="dv-opt" id="2c">
+      <div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Dawn · soft atmosphere · Spectral · dusty rose</div>
+      <div class="dv-card">
+        <div data-card="g" style="--bg:#ece2e0;--bg2:#e3d7dd;--fg:#332a2c;--muted:#928086;--faint:#bcabb0;--accent:#a86f78;--line:rgba(51,42,44,.09);position:relative;width:1000px;height:640px;overflow:hidden;color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:color .5s ease;background:radial-gradient(120% 100% at 50% 0%,var(--bg2),var(--bg) 62%)">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:22px">
+            <h1 data-hop data-anim="g" aria-label="home of ed" style="position:relative;margin:0;font-weight:400;font-size:72px;letter-spacing:-.015em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg);font-family:'Spectral',serif"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;font-family:'Spectral',serif;font-style:italic;font-weight:300;font-size:18px;letter-spacing:.01em;color:var(--muted)">quiet mornings, small experiments</p>
+          </div>
+          <nav style="position:absolute;left:0;right:0;bottom:46px;z-index:2;display:flex;gap:28px;align-items:baseline;justify-content:center;flex-wrap:wrap;font-family:'Spectral',serif;font-size:15px;letter-spacing:.02em">
+            <a href="#" style="color:var(--fg);text-decoration:none;border-bottom:1px solid var(--accent);padding-bottom:2px">Boids</a>
+            <span style="color:var(--muted)">fridge magnets <span style="color:var(--faint);font-size:12px">soon</span></span>
+            <span style="color:var(--muted)">HEIG <span style="color:var(--faint);font-size:12px">soon</span></span>
+            <span style="color:var(--muted)">WOTD <span style="color:var(--faint);font-size:12px">soon</span></span>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2d — Ledger (quiet mono index + dotted leaders) ============ -->
+    <div class="dv-opt" id="2d">
+      <div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>Ledger · mono index · IBM Plex Mono · olive</div>
+      <div class="dv-card">
+        <div data-card="h" style="--bg:#e8e6dd;--fg:#2c2b25;--muted:#87836f;--faint:#b2ad97;--accent:#7f7a4d;--line:rgba(44,43,37,.13);position:relative;width:1000px;height:640px;overflow:hidden;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;justify-content:center;padding:0 72px;gap:34px;transition:background .5s ease,color .5s ease;font-family:'IBM Plex Mono',monospace">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <span style="font-size:11px;letter-spacing:.2em;color:var(--faint)">// HOMEOFED</span>
+            <h1 data-hop data-anim="h" aria-label="home of ed" style="position:relative;margin:0;font-weight:500;font-size:58px;letter-spacing:-.03em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg)"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0;font-size:13px">
+            <a href="#" style="display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:12px;text-decoration:none;color:var(--fg);padding:13px 0;border-top:1px solid var(--line)"><span>Boids</span><span style="border-bottom:1px dotted var(--line);transform:translateY(-4px)"></span><span style="color:var(--accent)">[open]</span></a>
+            <span style="display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:12px;color:var(--muted);padding:13px 0;border-top:1px solid var(--line)"><span>fridge_magnets</span><span style="border-bottom:1px dotted var(--line);transform:translateY(-4px)"></span><span style="color:var(--faint)">soon</span></span>
+            <span style="display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:12px;color:var(--muted);padding:13px 0;border-top:1px solid var(--line)"><span>HEIG</span><span style="border-bottom:1px dotted var(--line);transform:translateY(-4px)"></span><span style="color:var(--faint)">soon</span></span>
+            <span style="display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:12px;color:var(--muted);padding:13px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><span>WOTD</span><span style="border-bottom:1px dotted var(--line);transform:translateY(-4px)"></span><span style="color:var(--faint)">soon</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">Turn 1 (below) holds the four zen directions. Try: "push <a class="dv-oid" href="#2c">2c</a> darker &amp; moodier" · "combine <a class="dv-oid" href="#2b">2b</a> layout with <a class="dv-oid" href="#2a">2a</a> serif" · "make one full-bleed page"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">HomeOfEd — zen sand homepage · four directions · each toggles light/dark</span></div>
+  <div class="dv-opts">
+
+    <!-- ============ 1a — Suna (raked sand + quiet serif) ============ -->
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Suna · raked sand · Shippori Mincho · terracotta</div>
+      <div class="dv-card">
+        <div data-card="a" style="--bg:#e9e2d2;--fg:#2b2619;--muted:#8b8372;--faint:#b3aa97;--accent:#a9602f;--line:rgba(43,38,25,.09);--stone:#cfc6b2;position:relative;width:1000px;height:640px;overflow:hidden;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:background .5s ease,color .5s ease">
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 25px,var(--line) 25px 26px);opacity:.9;pointer-events:none"></div>
+          <div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 42%,transparent 55%,rgba(0,0,0,.05));pointer-events:none"></div>
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:22px;right:24px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:20px">
+            <h1 data-hop data-anim="a" aria-label="home of ed" style="position:relative;margin:0;font-weight:600;font-size:68px;letter-spacing:-.02em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg);font-family:'Shippori Mincho',serif"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;font-family:'Shippori Mincho',serif;font-size:15px;letter-spacing:.02em;color:var(--muted)">small things, made slowly.</p>
+          </div>
+          <nav style="position:absolute;left:0;right:0;bottom:40px;z-index:2;display:flex;gap:26px;align-items:baseline;justify-content:center;flex-wrap:wrap;font-family:'Shippori Mincho',serif;font-size:14px">
+            <a href="#" style="color:var(--fg);text-decoration:none;border-bottom:1px solid var(--accent);padding-bottom:2px">Boids</a>
+            <span style="color:var(--muted)">fridge magnets <span style="color:var(--faint);font-size:11px;letter-spacing:.06em">· soon</span></span>
+            <span style="color:var(--muted)">HEIG <span style="color:var(--faint);font-size:11px;letter-spacing:.06em">· soon</span></span>
+            <span style="color:var(--muted)">WOTD <span style="color:var(--faint);font-size:11px;letter-spacing:.06em">· soon</span></span>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1b — Ensō (brush circle + geometric sans) ============ -->
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Ensō · brush circle · Hanken Grotesk · moss</div>
+      <div class="dv-card">
+        <div data-card="b" style="--bg:#e7e5dc;--fg:#262a20;--muted:#7f8574;--faint:#adb0a0;--accent:#6e7f57;--line:rgba(38,42,32,.08);--stone:#cdd0c0;position:relative;width:1000px;height:640px;overflow:hidden;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:background .5s ease,color .5s ease">
+          <div style="position:absolute;top:50%;left:50%;width:400px;height:400px;transform:translate(-50%,-54%) rotate(-38deg);border:15px solid var(--accent);border-radius:50%;border-right-color:transparent;opacity:.16;pointer-events:none"></div>
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:22px;right:24px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:22px">
+            <h1 data-hop data-anim="b" aria-label="home of ed" style="position:relative;margin:0;font-weight:600;font-size:64px;letter-spacing:-.035em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg);font-family:'Hanken Grotesk',sans-serif"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;font-family:'Hanken Grotesk',sans-serif;font-weight:500;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)">a quiet place for small apps</p>
+          </div>
+          <nav style="position:absolute;left:0;right:0;bottom:42px;z-index:2;display:flex;gap:14px;align-items:stretch;justify-content:center;flex-wrap:wrap;font-family:'Hanken Grotesk',sans-serif">
+            <a href="#" style="display:flex;flex-direction:column;gap:2px;padding:9px 16px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--fg);font-weight:600;font-size:13px">Boids<span style="font-weight:400;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)">live</span></a>
+            <span style="display:flex;flex-direction:column;gap:2px;padding:9px 16px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-weight:600;font-size:13px">fridge magnets<span style="font-weight:400;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)">soon</span></span>
+            <span style="display:flex;flex-direction:column;gap:2px;padding:9px 16px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-weight:600;font-size:13px">HEIG<span style="font-weight:400;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)">soon</span></span>
+            <span style="display:flex;flex-direction:column;gap:2px;padding:9px 16px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-weight:600;font-size:13px">WOTD<span style="font-weight:400;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)">soon</span></span>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1c — Ishi (stones + ripples + Japanese sans) ============ -->
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Ishi · stones &amp; ripples · Zen Kaku Gothic · slate</div>
+      <div class="dv-card">
+        <div data-card="c" style="--bg:#e4e6e6;--fg:#23282b;--muted:#79817f;--faint:#a7adaa;--accent:#5a7180;--line:rgba(35,40,43,.09);--stone:#c4c9c9;position:relative;width:1000px;height:640px;overflow:hidden;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;transition:background .5s ease,color .5s ease">
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:22px;right:24px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:18px;margin-top:118px">
+            <h1 data-hop data-anim="c" aria-label="home of ed" style="position:relative;margin:0;font-weight:500;font-size:66px;letter-spacing:-.01em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg);font-family:'Zen Kaku Gothic New',sans-serif"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;font-family:'Zen Kaku Gothic New',sans-serif;font-size:14px;letter-spacing:.03em;color:var(--muted)">静けさ &nbsp;·&nbsp; small things, made slowly</p>
+          </div>
+          <!-- stones with ripples along the lower sand -->
+          <div style="position:absolute;left:0;right:0;bottom:118px;z-index:1;display:flex;align-items:flex-end;justify-content:center;gap:150px;pointer-events:none">
+            <div style="width:96px;height:40px;border-radius:50%;background:var(--stone);box-shadow:0 0 0 1px var(--line),0 0 0 20px transparent,0 0 0 21px var(--line),0 0 0 42px transparent,0 0 0 43px var(--line)"></div>
+            <div style="width:132px;height:54px;border-radius:50%;background:var(--stone);box-shadow:0 0 0 1px var(--line),0 0 0 24px transparent,0 0 0 25px var(--line),0 0 0 50px transparent,0 0 0 51px var(--line)"></div>
+            <div style="width:80px;height:34px;border-radius:50%;background:var(--stone);box-shadow:0 0 0 1px var(--line),0 0 0 18px transparent,0 0 0 19px var(--line)"></div>
+          </div>
+          <nav style="position:absolute;left:0;right:0;bottom:40px;z-index:2;display:flex;gap:24px;align-items:baseline;justify-content:center;flex-wrap:wrap;font-family:'Zen Kaku Gothic New',sans-serif;font-size:13px;letter-spacing:.02em">
+            <a href="#" style="color:var(--fg);text-decoration:none;border-bottom:1px solid var(--accent);padding-bottom:2px">Boids</a>
+            <span style="color:var(--muted)">fridge magnets <span style="color:var(--faint);font-size:11px">soon</span></span>
+            <span style="color:var(--muted)">HEIG <span style="color:var(--faint);font-size:11px">soon</span></span>
+            <span style="color:var(--muted)">WOTD <span style="color:var(--faint);font-size:11px">soon</span></span>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1d — Ma (negative space + mono) ============ -->
+    <div class="dv-opt" id="1d">
+      <div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Ma · negative space · Newsreader + Space Mono · clay</div>
+      <div class="dv-card">
+        <div data-card="d" style="--bg:#eae4de;--fg:#2a2420;--muted:#897f77;--faint:#b3a89f;--accent:#9c5b4d;--line:rgba(42,36,32,.09);--stone:#d0c6bd;position:relative;width:1000px;height:640px;overflow:hidden;background:var(--bg);color:var(--fg);transition:background .5s ease,color .5s ease">
+          <div style="position:absolute;left:64px;right:64px;top:62%;height:1px;background:var(--line);pointer-events:none"></div>
+          <button data-toggle onclick="{{ toggleTheme }}" aria-label="Toggle theme" style="position:absolute;top:24px;right:26px;z-index:3;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .4s">☾</button>
+          <span style="position:absolute;top:26px;left:30px;z-index:2;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.14em;color:var(--faint)">35.0116° N, 135.7681° E</span>
+          <div style="position:absolute;left:64px;top:34%;transform:translateY(-50%);z-index:2;display:flex;flex-direction:column;gap:22px;align-items:flex-start">
+            <h1 data-hop data-anim="d" aria-label="home of ed" style="position:relative;margin:0;font-weight:500;font-size:70px;letter-spacing:-.02em;line-height:1;display:inline-flex;align-items:baseline;color:var(--fg);font-family:'Newsreader',serif"><span class="letter h" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">h</span><span class="letter o" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">o</span><span class="letter m" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">m</span><span class="letter e" aria-hidden="true" style="display:inline-block;transform-origin:center bottom">e</span><span class="gap" aria-hidden="true" style="display:inline-block;width:.62em"></span><span aria-hidden="true">ed</span><span class="of" aria-hidden="true" style="position:absolute;left:0;bottom:.06em;color:var(--accent);transform-origin:center bottom;opacity:0">of</span></h1>
+            <p style="margin:0;max-width:300px;font-family:'Newsreader',serif;font-style:italic;font-size:16px;line-height:1.5;color:var(--muted)">a small, unhurried corner for the things I make.</p>
+          </div>
+          <div style="position:absolute;left:64px;right:64px;bottom:44px;z-index:2;display:flex;flex-direction:column;gap:11px;font-family:'Space Mono',monospace;font-size:12px">
+            <a href="#" style="display:flex;justify-content:space-between;align-items:baseline;text-decoration:none;color:var(--fg);border-bottom:1px solid var(--line);padding-bottom:9px"><span>Boids</span><span style="color:var(--accent);font-size:10px;letter-spacing:.14em">OPEN →</span></a>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:9px"><span>fridge magnets</span><span style="color:var(--faint);font-size:10px;letter-spacing:.14em">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:9px"><span>HEIG</span><span style="color:var(--faint);font-size:10px;letter-spacing:.14em">SOON</span></span>
+            <span style="display:flex;justify-content:space-between;align-items:baseline;color:var(--muted);padding-bottom:2px"><span>WOTD</span><span style="color:var(--faint);font-size:10px;letter-spacing:.14em">SOON</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">Try next: "make <a class="dv-oid" href="#1a">1a</a> full-bleed like a real page" · "use <a class="dv-oid" href="#1c">1c</a> stones but the serif from <a class="dv-oid" href="#1a">1a</a>" · "warmer dark mode on <a class="dv-oid" href="#1b">1b</a>" · "new directions"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  CONFIG = {
+    duration: '4.2s',
+    easing: 'cubic-bezier(.45,.05,.4,1)',
+    ofScale: 0.5,
+    landY: -0.40, squashY: -0.40, squashScale: [0.54, 0.44],
+    apexY: -0.92, enterY: -1.15, restY: 0, restSquashScale: [0.56, 0.42],
+    land: { h: 6, o: 18, m: 30, e: 42, gap: 56 },
+    squashOffset: 3, apexOffset: -6, restSquashAt: 59, restEndAt: 63,
+    enterVisibleAt: 3,
+    dipDepth: 0.05, dipScale: [1.02, 0.93], dipSpan: 9, dipPeakOffset: 4,
+  };
+
+  palettes = {
+    a: {
+      light: { '--bg':'#e9e2d2','--fg':'#2b2619','--muted':'#8b8372','--faint':'#b3aa97','--accent':'#a9602f','--line':'rgba(43,38,25,.09)','--stone':'#cfc6b2' },
+      dark:  { '--bg':'#14120f','--fg':'#d7cfbd','--muted':'#857d6c','--faint':'#55503f','--accent':'#c67c46','--line':'rgba(215,207,189,.08)','--stone':'#2a271f' },
+    },
+    b: {
+      light: { '--bg':'#e7e5dc','--fg':'#262a20','--muted':'#7f8574','--faint':'#adb0a0','--accent':'#6e7f57','--line':'rgba(38,42,32,.08)','--stone':'#cdd0c0' },
+      dark:  { '--bg':'#12140f','--fg':'#ccd2bf','--muted':'#7a806c','--faint':'#4f523f','--accent':'#8ea06f','--line':'rgba(204,210,191,.08)','--stone':'#232619' },
+    },
+    c: {
+      light: { '--bg':'#e4e6e6','--fg':'#23282b','--muted':'#79817f','--faint':'#a7adaa','--accent':'#5a7180','--line':'rgba(35,40,43,.09)','--stone':'#c4c9c9' },
+      dark:  { '--bg':'#101314','--fg':'#c6cdcd','--muted':'#737b7a','--faint':'#4a4f4f','--accent':'#7e97a6','--line':'rgba(198,205,205,.08)','--stone':'#1e2223' },
+    },
+    d: {
+      light: { '--bg':'#eae4de','--fg':'#2a2420','--muted':'#897f77','--faint':'#b3a89f','--accent':'#9c5b4d','--line':'rgba(42,36,32,.09)','--stone':'#d0c6bd' },
+      dark:  { '--bg':'#14110f','--fg':'#d6ccc3','--muted':'#857a71','--faint':'#544c45','--accent':'#bd7867','--line':'rgba(214,204,195,.08)','--stone':'#26201c' },
+    },
+    e: {
+      light: { '--bg':'#ece7df','--fg':'#33302a','--muted':'#8c8578','--faint':'#b5ac9c','--accent':'#b0794f','--line':'rgba(51,48,42,.1)' },
+      dark:  { '--bg':'#16140f','--fg':'#d9d2c4','--muted':'#8a8271','--faint':'#565042','--accent':'#c8935f','--line':'rgba(217,210,196,.08)' },
+    },
+    f: {
+      light: { '--bg':'#e6e7ea','--fg':'#292c31','--muted':'#7d828b','--faint':'#aeb2ba','--accent':'#556479','--line':'rgba(41,44,49,.11)' },
+      dark:  { '--bg':'#111316','--fg':'#cdd0d6','--muted':'#787d86','--faint':'#4b4f56','--accent':'#7f92a8','--line':'rgba(205,208,214,.09)' },
+    },
+    g: {
+      light: { '--bg':'#ece2e0','--bg2':'#e3d7dd','--fg':'#332a2c','--muted':'#928086','--faint':'#bcabb0','--accent':'#a86f78','--line':'rgba(51,42,44,.09)' },
+      dark:  { '--bg':'#151013','--bg2':'#20161c','--fg':'#d8cace','--muted':'#8c7a80','--faint':'#5a4c51','--accent':'#c48f97','--line':'rgba(216,202,206,.08)' },
+    },
+    h: {
+      light: { '--bg':'#e8e6dd','--fg':'#2c2b25','--muted':'#87836f','--faint':'#b2ad97','--accent':'#7f7a4d','--line':'rgba(44,43,37,.13)' },
+      dark:  { '--bg':'#131209','--fg':'#d3d0bd','--muted':'#87836b','--faint':'#565241','--accent':'#a8a266','--line':'rgba(211,208,189,.1)' },
+    },
+    i: { light:{ '--bg':'#e7e3da','--fg':'#2c2a24','--muted':'#847e70','--faint':'#b1a996','--accent':'#8a6f4b','--line':'rgba(44,42,36,.11)' }, dark:{ '--bg':'#15130e','--fg':'#d7d0c1','--muted':'#877f6d','--faint':'#544d40','--accent':'#bd9361','--line':'rgba(215,208,193,.08)' } },
+    j: { light:{ '--bg':'#e6e7ea','--fg':'#292c31','--muted':'#7d828b','--faint':'#aeb2ba','--accent':'#556479','--line':'rgba(41,44,49,.11)' }, dark:{ '--bg':'#111316','--fg':'#cdd0d6','--muted':'#787d86','--faint':'#4b4f56','--accent':'#7f92a8','--line':'rgba(205,208,214,.09)' } },
+    k: { light:{ '--bg':'#e9e4dc','--fg':'#2b2925','--muted':'#867f72','--faint':'#b0a794','--accent':'#7d7256','--line':'rgba(43,41,37,.12)' }, dark:{ '--bg':'#14120d','--fg':'#d6cfbf','--muted':'#867e6c','--faint':'#524b3e','--accent':'#a99873','--line':'rgba(214,207,191,.09)' } },
+    l: { light:{ '--bg':'#e5e6e6','--fg':'#272a2b','--muted':'#7c817f','--faint':'#aab0ad','--accent':'#5c7079','--line':'rgba(39,42,43,.11)' }, dark:{ '--bg':'#101312','--fg':'#c9cfce','--muted':'#767c7a','--faint':'#4a4f4e','--accent':'#809699','--line':'rgba(201,207,206,.09)' } },
+  };
+
+  renderVals() {
+    return { toggleTheme: (e) => this.toggleTheme(e) };
+  }
+
+  componentDidMount() {
+    this.styleTag = document.getElementById('hop-kf');
+    if (!this.styleTag) {
+      this.styleTag = document.createElement('style');
+      this.styleTag.id = 'hop-kf';
+      document.head.appendChild(this.styleTag);
+    }
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.querySelectorAll('[data-card]').forEach(card => {
+      this.setTheme(card, prefersDark ? 'dark' : 'light');
+    });
+    const run = () => this.animateAll();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(run);
+    else run();
+    setTimeout(run, 350);
+    this._rs = () => { clearTimeout(this._t); this._t = setTimeout(run, 200); };
+    window.addEventListener('resize', this._rs);
+  }
+
+  componentWillUnmount() {
+    if (this._rs) window.removeEventListener('resize', this._rs);
+  }
+
+  setTheme(card, mode) {
+    const p = this.palettes[card.getAttribute('data-card')][mode];
+    for (const k in p) card.style.setProperty(k, p[k]);
+    card.setAttribute('data-theme', mode);
+    const btn = card.querySelector('[data-toggle]');
+    if (btn) btn.textContent = mode === 'dark' ? '☀' : '☾';
+  }
+
+  toggleTheme(e) {
+    const card = e.currentTarget.closest('[data-card]');
+    const cur = card.getAttribute('data-theme') || 'light';
+    this.setTheme(card, cur === 'dark' ? 'light' : 'dark');
+  }
+
+  animateAll() {
+    if (!this.styleTag) return;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const titles = [...document.querySelectorAll('[data-hop]')];
+    let css = '[data-measuring] .letter,[data-measuring] .of{animation:none !important;transform:none !important}\n';
+    titles.forEach(title => { css += this.buildFor(title, reduce) + '\n'; });
+    this.styleTag.textContent = css;
+  }
+
+  buildFor(title, reduce) {
+    const C = this.CONFIG;
+    const id = title.getAttribute('data-anim');
+    const of = title.querySelector('.of');
+    if (!of) return '';
+    title.setAttribute('data-measuring', '');
+    void title.offsetWidth;
+    const fs = parseFloat(getComputedStyle(title).fontSize);
+    const t = title.getBoundingClientRect();
+    const centre = el => { const r = el.getBoundingClientRect(); return (r.left + r.width / 2 - t.left) / fs; };
+    const q = s => title.querySelector(s);
+    const halfOf = of.getBoundingClientRect().width / 2 / fs;
+    const c = { h: centre(q('.h')), o: centre(q('.o')), m: centre(q('.m')), e: centre(q('.e')), gap: centre(q('.gap')) };
+    title.removeAttribute('data-measuring');
+
+    const x = {};
+    for (const k in c) x[k] = c[k] - halfOf;
+
+    const fmt = n => Number(n.toFixed(4)) + 'em';
+    const scale = s => Array.isArray(s) ? `scale(${s[0]},${s[1]})` : `scale(${s})`;
+    const tf = (xEm, yEm, s) => `translate(${fmt(xEm)}, ${fmt(yEm)}) ${scale(s)}`;
+
+    if (reduce) {
+      return `[data-anim="${id}"] .of{opacity:1;transform:${tf(x.gap, C.restY, C.ofScale)}}`;
+    }
+
+    const L = C.land;
+    const order = ['h', 'o', 'm', 'e', 'gap'];
+    const seq = [];
+    seq.push([0, `opacity:0; transform:${tf(x.h, C.enterY, C.ofScale)}`]);
+    seq.push([C.enterVisibleAt, `opacity:1; transform:${tf(x.h, C.enterY + 0.2, C.ofScale)}`]);
+    order.forEach((k, i) => {
+      const p = L[k];
+      const landY = k === 'gap' ? C.restY : C.landY;
+      const squashY = k === 'gap' ? C.restY : C.squashY;
+      const sq = k === 'gap' ? C.restSquashScale : C.squashScale;
+      if (i > 0) {
+        const prev = order[i - 1];
+        const apexP = p + C.apexOffset;
+        const apexX = (x[prev] + x[k]) / 2;
+        seq.push([apexP, `transform:${tf(apexX, C.apexY, C.ofScale)}`]);
+      }
+      seq.push([p, `transform:${tf(x[k], landY, C.ofScale)}`]);
+      const sqP = k === 'gap' ? C.restSquashAt : p + C.squashOffset;
+      seq.push([sqP, `transform:${tf(x[k], squashY, sq)}`]);
+    });
+    seq.push([C.restEndAt, `transform:${tf(x.gap, C.restY, C.ofScale)}`]);
+    seq.push([100, `opacity:1; transform:${tf(x.gap, C.restY, C.ofScale)}`]);
+    seq.sort((a, b) => a[0] - b[0]);
+
+    const hop = `@keyframes hop_${id}{\n` + seq.map(([p, b]) => `  ${p}%{${b}}`).join('\n') + `\n}`;
+
+    const dips = ['h', 'o', 'm', 'e'].map(k => {
+      const p = L[k];
+      const start = p, end = p + C.dipSpan, peak = p + C.dipPeakOffset;
+      return `@keyframes dip${k}_${id}{\n  0%,${start}%,${end}%,100%{transform:none}\n  ${peak}%{transform:translateY(${fmt(C.dipDepth)}) ${scale(C.dipScale)}}\n}`;
+    }).join('\n');
+
+    const wiring =
+      `[data-anim="${id}"] .of{animation:hop_${id} ${C.duration} ${C.easing} 1 both;}\n` +
+      ['h', 'o', 'm', 'e'].map(k => `[data-anim="${id}"] .letter.${k}{animation:dip${k}_${id} ${C.duration} ease-in-out 1 both;}`).join('\n');
+
+    return [hop, dips, wiring].join('\n\n');
+  }
+}
+</script>
+</body>
+</html>
