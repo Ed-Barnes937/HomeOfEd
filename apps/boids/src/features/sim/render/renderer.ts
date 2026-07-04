@@ -1,9 +1,10 @@
 import type { SimParams } from '../engine/params.ts'
 import type { Simulation } from '../engine/simulation.ts'
 import type { Theme } from '../themes.ts'
+import { generateStars } from './backdrop.ts'
 import { KeyedColourCache } from './spriteCache.ts'
 
-export type BoidShape = 'triangle' | 'dot' | 'line'
+export type BoidShape = 'triangle' | 'dot' | 'line' | 'rocket' | 'duck'
 
 /** Trail streak length in px — the reference's `6 + trail*46 + speed*3`. */
 export function streakLength(params: SimParams): number {
@@ -52,6 +53,38 @@ function drawShapeAtOrigin(
     ctx.beginPath()
     ctx.arc(6, 0, stroke ? 1.5 : 2, 0, Math.PI * 2)
     ctx.fillStyle = col
+    if (stroke) ctx.stroke()
+    else ctx.fill()
+  } else if (shape === 'rocket') {
+    // Hull pointing +x (nose at x=8), two swept fins at the tail.
+    ctx.beginPath()
+    ctx.moveTo(8, 0)
+    ctx.lineTo(2.5, 2.6)
+    ctx.lineTo(-4, 2.6)
+    ctx.lineTo(-4, -2.6)
+    ctx.lineTo(2.5, -2.6)
+    ctx.closePath()
+    ctx.moveTo(-4, 2.6)
+    ctx.lineTo(-7.5, 5)
+    ctx.lineTo(-4, 0.6)
+    ctx.moveTo(-4, -2.6)
+    ctx.lineTo(-7.5, -5)
+    ctx.lineTo(-4, -0.6)
+    if (stroke) ctx.stroke()
+    else ctx.fill()
+  } else if (shape === 'duck') {
+    // Body + head + beak silhouette, facing +x.
+    ctx.beginPath()
+    ctx.ellipse(-1.5, 1, 5.5, 3.6, 0, 0, Math.PI * 2)
+    ctx.moveTo(6.6, -2.2)
+    ctx.arc(4.2, -2.2, 2.4, 0, Math.PI * 2)
+    ctx.moveTo(6.2, -2.8)
+    ctx.lineTo(9.2, -1.8)
+    ctx.lineTo(6.2, -1)
+    ctx.closePath()
+    ctx.moveTo(-6.5, 0.4)
+    ctx.lineTo(-8.2, -1.6)
+    ctx.lineTo(-5.5, -0.4)
     if (stroke) ctx.stroke()
     else ctx.fill()
   } else {
@@ -127,6 +160,7 @@ export class CanvasRenderer {
   private dpr = 1
   private readonly glowSprites = new KeyedColourCache<GlowSprite>()
   private readonly trailGradients = new KeyedColourCache<CanvasGradient>()
+  private starfield: { key: string; canvas: HTMLCanvasElement } | null = null
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d')
@@ -149,8 +183,7 @@ export class CanvasRenderer {
     const dpr = this.dpr
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, this.width, this.height)
-    ctx.fillStyle = theme.background
-    ctx.fillRect(0, 0, this.width, this.height)
+    this.paintBackground(theme)
 
     const stroke = theme.drawMode === 'stroke'
     const palette = theme.palette
@@ -217,5 +250,54 @@ export class CanvasRenderer {
     gradient.addColorStop(0, rgba(col, stroke ? 0.5 : 0.42))
     gradient.addColorStop(1, rgba(col, 0))
     return gradient
+  }
+
+  /**
+   * Fill the frame: a flat `background`, a vertical gradient down to
+   * `backdrop.to`, or the flat fill plus a cached static starfield.
+   * Runs under the dpr transform, so coordinates are CSS px.
+   */
+  private paintBackground(theme: Theme): void {
+    const ctx = this.ctx
+    const backdrop = theme.backdrop
+    if (backdrop?.kind === 'gradient') {
+      const gradient = ctx.createLinearGradient(0, 0, 0, this.height)
+      gradient.addColorStop(0, theme.background)
+      gradient.addColorStop(1, backdrop.to)
+      ctx.fillStyle = gradient
+    } else {
+      ctx.fillStyle = theme.background
+    }
+    ctx.fillRect(0, 0, this.width, this.height)
+
+    if (backdrop?.kind === 'stars') {
+      ctx.drawImage(this.starfieldCanvas(theme.id), 0, 0, this.width, this.height)
+    }
+  }
+
+  /**
+   * A transparent overlay of stars, pre-rendered at backing resolution and
+   * cached until the theme or viewport changes — the field is static, so this
+   * is one drawImage per frame rather than hundreds of arcs.
+   */
+  private starfieldCanvas(themeId: string): HTMLCanvasElement {
+    const key = `${themeId}|${this.width}x${this.height}|${this.dpr}`
+    if (this.starfield?.key === key) return this.starfield.canvas
+
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(this.width * this.dpr))
+    canvas.height = Math.max(1, Math.round(this.height * this.dpr))
+    const sctx = canvas.getContext('2d')
+    if (!sctx) throw new Error('2D canvas context unavailable')
+    sctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+    sctx.fillStyle = '#ffffff'
+    for (const star of generateStars(this.width, this.height)) {
+      sctx.globalAlpha = star.a
+      sctx.beginPath()
+      sctx.arc(star.x, star.y, star.r, 0, Math.PI * 2)
+      sctx.fill()
+    }
+    this.starfield = { key, canvas }
+    return canvas
   }
 }

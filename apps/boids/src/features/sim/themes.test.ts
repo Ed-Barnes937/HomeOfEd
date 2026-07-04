@@ -36,10 +36,42 @@ describe('THEMES', () => {
       glow: 0,
       drawMode: 'fill',
     })
+    expect(THEMES.space).toEqual({
+      id: 'space',
+      name: 'space',
+      background: '#060a18',
+      palette: ['#e6ecff', '#ff6b6b', '#ffd166'],
+      glow: 8,
+      drawMode: 'fill',
+      shape: 'rocket',
+      backdrop: { kind: 'stars' },
+    })
+    expect(THEMES.duckSeason).toEqual({
+      id: 'duckSeason',
+      name: 'duck season',
+      background: '#cdeef7',
+      palette: ['#f4c542', '#e2913a', '#8a5a2b'],
+      glow: 0,
+      drawMode: 'fill',
+      shape: 'duck',
+      backdrop: { kind: 'gradient', to: '#8fd0d8' },
+    })
   })
 
-  it('defines the display order neon, retro, asteroids, autumnal', () => {
-    expect(THEME_ORDER).toEqual(['neon', 'retro', 'asteroids', 'autumnal'])
+  it('defines the display order neon, retro, asteroids, autumnal, space, duck season', () => {
+    expect(THEME_ORDER).toEqual([
+      'neon',
+      'retro',
+      'asteroids',
+      'autumnal',
+      'space',
+      'duckSeason',
+    ])
+  })
+
+  it('gives the space and duck themes a signature boid shape', () => {
+    expect(THEMES.space.shape).toBe('rocket')
+    expect(THEMES.duckSeason.shape).toBe('duck')
   })
 })
 

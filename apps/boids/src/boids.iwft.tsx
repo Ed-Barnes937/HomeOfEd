@@ -49,6 +49,17 @@ test('clicking a theme chip flips data-theme, marks it selected, and persists', 
   await root.verifyPersistedTheme('retro')
 })
 
+test('the space theme switches boids to its signature rocket shape', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectTheme('space')
+
+  await root.verifyThemeSelected('space')
+  await root.verifyShapeSelected('Rocket boids')
+  await root.verifyPersistedShape('rocket')
+})
+
 test('shape buttons toggle aria-pressed and persist', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

@@ -1,7 +1,7 @@
 import { clampParams, DEFAULT_PARAMS, type SimParams } from './engine/params.ts'
 import type { BoidShape } from './render/renderer.ts'
 
-export type ThemeId = 'neon' | 'retro' | 'asteroids' | 'autumnal'
+export type ThemeId = 'neon' | 'retro' | 'asteroids' | 'autumnal' | 'space' | 'duckSeason'
 
 /** Cursor-follow glyph: off, a plain ring, or the sign-aware creatures (berry/cat). */
 export type CursorIcon = 'off' | 'ring' | 'creatures'
@@ -21,8 +21,15 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 const STORAGE_KEY = 'boids:settings:v1'
-const THEME_IDS: readonly ThemeId[] = ['neon', 'retro', 'asteroids', 'autumnal']
-const SHAPES: readonly BoidShape[] = ['triangle', 'dot', 'line']
+const THEME_IDS: readonly ThemeId[] = [
+  'neon',
+  'retro',
+  'asteroids',
+  'autumnal',
+  'space',
+  'duckSeason',
+]
+const SHAPES: readonly BoidShape[] = ['triangle', 'dot', 'line', 'rocket', 'duck']
 const CURSOR_ICONS: readonly CursorIcon[] = ['off', 'ring', 'creatures']
 
 function isThemeId(value: unknown): value is ThemeId {
