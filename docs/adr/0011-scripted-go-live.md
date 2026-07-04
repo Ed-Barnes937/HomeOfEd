@@ -1,15 +1,15 @@
-# 0009 — Scripted go-live, human-triggered
+# 0011 — Scripted go-live, human-triggered
 
 - **Status:** Accepted
 - **Date:** 2026-07-03
 - **Related:** [ADR 0001 §9/§14](0001-foundation.md), [ADR 0008](0008-apps-without-a-database.md),
-  [runbook G4.7](../runbooks/phase-4-go-live.md#g47--scripted-go-live-scriptsgo-livesh),
+  [runbook G4.9](../runbooks/phase-4-go-live.md#g49--scripted-go-live-scriptsgo-livesh),
   [how-to §4](../how-to/adding-an-app.md)
 
 ## Context
 
 Taking a new app live is ~6 manual steps across two dashboards and two CLIs
-(runbook G4.1–G4.6). Doing it by hand for boids surfaced two failure modes:
+(runbook G4.1–G4.8). Doing it by hand for boids surfaced two failure modes:
 an app-scoped deploy token that couldn't deploy the second app, and the
 Cloudflare-proxy / Fly-cert chicken-and-egg (a proxied CNAME breaks
 Let's Encrypt validation). Every step has an API, so full automation is

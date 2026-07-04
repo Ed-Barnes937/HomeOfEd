@@ -15,6 +15,9 @@ export function HomePage() {
           <a className={styles.appCard} href="https://boids.homeofed.com">
             boids
           </a>
+          <a className={styles.appCard} href="https://fridge.homeofed.com">
+            fridge
+          </a>
         </nav>
       </section>
       <footer className={styles.status}>

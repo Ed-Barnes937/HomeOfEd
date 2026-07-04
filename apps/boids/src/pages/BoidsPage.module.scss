@@ -11,4 +11,67 @@
   display: block;
   width: 100vw;
   height: 100vh;
+
+  /* Hide the OS pointer while our glyph stands in for it (icon on + force on). */
+  &[data-hide-cursor='true'] {
+    cursor: none;
+  }
 }
+
+/* Positioned to the pointer by JS (transform on this node), so it carries no
+ * transform of its own — the children self-centre. Must never eat pointer
+ * events or the canvas listeners break. Hidden until the pointer enters. */
+.cursorOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  will-change: transform;
+
+  &[data-active='true'] {
+    opacity: 1;
+  }
+}
+
+/* The gentle pull-range field: a soft radial disc sized to the engine's
+ * CURSOR_RADIUS, fading to nothing before the edge (mirrors the physics linear
+ * falloff). Warm for attract, cool for repel. */
+.cursorField {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--cursor-radius) * 2);
+  height: calc(var(--cursor-radius) * 2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+
+  &[data-sign='attract'] {
+    background: radial-gradient(
+      circle,
+      rgba(255, 120, 90, 0.18) 0%,
+      rgba(255, 120, 90, 0.08) 45%,
+      transparent 72%
+    );
+  }
+
+  &[data-sign='repel'] {
+    background: radial-gradient(
+      circle,
+      rgba(90, 170, 255, 0.18) 0%,
+      rgba(90, 170, 255, 0.08) 45%,
+      transparent 72%
+    );
+  }
+}
+
+.cursorGlyph {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  color: var(--accent);
+}
+

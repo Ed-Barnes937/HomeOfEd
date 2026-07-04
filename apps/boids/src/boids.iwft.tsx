@@ -49,6 +49,17 @@ test('clicking a theme chip flips data-theme, marks it selected, and persists', 
   await root.verifyPersistedTheme('retro')
 })
 
+test('the space theme switches boids to its signature rocket shape', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectTheme('space')
+
+  await root.verifyThemeSelected('space')
+  await root.verifyShapeSelected('Rocket boids')
+  await root.verifyPersistedShape('rocket')
+})
+
 test('shape buttons toggle aria-pressed and persist', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
@@ -57,6 +68,109 @@ test('shape buttons toggle aria-pressed and persist', async ({ mountApp }) => {
 
   await root.verifyShapeSelected('Dot boids')
   await root.verifyPersistedShape('dot')
+})
+
+test('dragging the cursor slider updates its bipolar readout and the engine', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.dragSlider('cursor attraction', 1.5)
+
+  await root.verifySliderValue('cursor attraction', '+1.50')
+  await root.verifyEngineParam('cursor', 1.5)
+})
+
+test('dragging the boid-size slider updates its readout and the engine', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.dragSlider('boid size', 2)
+
+  await root.verifySliderValue('boid size', '2.0×')
+  await root.verifyEngineParam('size', 2)
+})
+
+test('a section header collapses and expands its contents', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifySliderVisible('boids')
+
+  await root.toggleSection('boid options')
+  await root.verifySliderHidden('boids')
+
+  await root.toggleSection('boid options')
+  await root.verifySliderVisible('boids')
+})
+
+test('the cursor-icon picker toggles aria-pressed and persists', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectCursorIcon('Creature cursor icon')
+
+  await root.verifyCursorIconSelected('Creature cursor icon')
+  await root.verifyPersistedCursorIcon('creatures')
+})
+
+test('the cursor overlay follows the pointer and hides when it leaves', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyOverlayActive(false)
+
+  await root.movePointer(400, 300)
+  await root.verifyOverlayActive(true)
+
+  await root.leaveCanvas()
+  await root.verifyOverlayActive(false)
+})
+
+test('the pull-range field appears with a sign only while the force is on', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyFieldAbsent() // cursor defaults to 0 (off)
+
+  await root.dragSlider('cursor attraction', 1.5)
+  await root.verifyFieldSign('attract')
+
+  await root.dragSlider('cursor attraction', -1.5)
+  await root.verifyFieldSign('repel')
+
+  await root.dragSlider('cursor attraction', 0)
+  await root.verifyFieldAbsent()
+})
+
+test('creatures glyph switches berry/cat by sign and vanishes when off', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectCursorIcon('Creature cursor icon')
+  await root.verifyGlyphAbsent() // no glyph while cursor is 0
+
+  await root.dragSlider('cursor attraction', 2)
+  await root.verifyGlyphVariant('berry')
+
+  await root.dragSlider('cursor attraction', -2)
+  await root.verifyGlyphVariant('cat')
+
+  await root.selectCursorIcon('No cursor icon')
+  await root.verifyGlyphAbsent()
+})
+
+test('the native cursor is hidden over the canvas only while a glyph is shown', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyCanvasCursorHidden(false) // no glyph yet (cursor force off)
+
+  await root.dragSlider('cursor attraction', 1.5)
+  await root.verifyCanvasCursorHidden(true) // ring glyph now replaces the pointer
+
+  await root.selectCursorIcon('No cursor icon')
+  await root.verifyCanvasCursorHidden(false) // icon off → native cursor returns
 })
 
 test('prefers-reduced-motion renders a static frame instead of animating', async ({

@@ -18,6 +18,12 @@ const MIN_SPEED_FACTOR = 0.4
 /** maxForce = maxSpeed * this. Tuned so a boid can fully redirect in ~1/3s. */
 const MAX_FORCE_FACTOR = 3
 const MAX_DT_MS = 33
+/**
+ * Cursor-force influence radius in world (CSS) px, with linear falloff to 0 at
+ * the edge. Exported so the pull-range overlay sizes itself to the exact same
+ * number the physics uses (no visual/physics drift).
+ */
+export const CURSOR_RADIUS = 180
 
 function wrap(value: number, size: number): number {
   return ((value % size) + size) % size
@@ -37,6 +43,8 @@ export class Simulation {
   private params: SimParams
   private readonly rng: Rng
   private hash: SpatialHash
+  /** Pointer position in world px, or null when off-canvas. Fed each frame. */
+  private pointer: { x: number; y: number } | null = null
   private readonly boidList: Boid[] = []
   // Per-step scratch, reused across frames so step() allocates nothing.
   private forceX = new Float64Array(0)
@@ -54,6 +62,15 @@ export class Simulation {
 
   get boids(): ReadonlyArray<Boid> {
     return this.boidList
+  }
+
+  /** Set (or clear, with null) the pointer the cursor force steers toward/away. */
+  setPointer(pointer: { x: number; y: number } | null): void {
+    this.pointer = pointer
+  }
+
+  getPointer(): { x: number; y: number } | null {
+    return this.pointer
   }
 
   setParams(params: SimParams): void {
@@ -189,6 +206,29 @@ export class Simulation {
         maxSpeed,
         maxForce,
       )
+    }
+
+    // Cursor force: steer toward the pointer (attract, cursor > 0) or away
+    // (repel, cursor < 0), with linear falloff to 0 at CURSOR_RADIUS. Direct
+    // (non-wrapped) delta — the pointer is a screen-anchored point. Runs inside
+    // steerFor so it shares the snapshot and accumulates via addSteer like every
+    // other rule; depends only on the pointer + this boid, never neighbours.
+    if (this.pointer && this.params.cursor !== 0) {
+      const dx = this.pointer.x - boid.x
+      const dy = this.pointer.y - boid.y
+      const dist = Math.hypot(dx, dy)
+      if (dist > 0 && dist < CURSOR_RADIUS) {
+        const falloff = 1 - dist / CURSOR_RADIUS
+        const sign = Math.sign(this.params.cursor)
+        this.addSteer(
+          index,
+          dx * sign,
+          dy * sign,
+          Math.abs(this.params.cursor) * falloff,
+          maxSpeed,
+          maxForce,
+        )
+      }
     }
   }
 

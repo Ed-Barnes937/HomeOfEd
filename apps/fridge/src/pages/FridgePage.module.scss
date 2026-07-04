@@ -1,0 +1,41 @@
+.root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  background: var(--wall);
+}
+
+// Kitchen-light overlay: sits above the wall but below the fridge (z1), so it
+// tints the room around the door, not the door itself. Warm is transparent.
+.light {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transition:
+    opacity 0.35s,
+    background 0.35s;
+
+  &[data-wall='cool'] {
+    background: var(--light-cool);
+  }
+
+  &[data-wall='dark'] {
+    background: var(--light-night);
+  }
+}
+
+// Fridge stage: centres the door between the toolbar and the tray.
+.stage {
+  position: absolute;
+  top: 98px;
+  left: 0;
+  right: 0;
+  bottom: 214px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 26px;
+}

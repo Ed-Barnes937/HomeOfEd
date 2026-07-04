@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# go-live.sh — one-command go-live for a new app (runbook G4.7, ADR 0009).
+# go-live.sh — one-command go-live for a new app (runbook G4.9, ADR 0011).
 #
 #   CLOUDFLARE_API_TOKEN=... scripts/go-live.sh <app> [--db] [--dry-run]
 #

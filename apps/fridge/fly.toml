@@ -1,0 +1,41 @@
+# fridge — the fridge-magnets app. Database-backed as of phase 3: shared boards
+# in Postgres (ADR 0010; docs/plans/0003-fridge-implementation-plan.md §8).
+# Deploy FROM THE REPO ROOT so the docker build context contains the whole
+# monorepo:
+#
+#   fly deploy -c apps/fridge/fly.toml
+#
+# The release_command runs migrations once per deploy; /health is a deep Store
+# round-trip (main.ts). Postgres is attached by a human (how-to §4).
+app = 'hoe-fridge'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  release_command = 'node src/server/migrate.ts'
+
+[env]
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  # Gimmick app — accepts a cold-start pause after idle.
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    # Deep health: main.ts's healthCheck round-trips the Store to Postgres
+    # (ADR 0010), so a green check means the DB is reachable, not just liveness.
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

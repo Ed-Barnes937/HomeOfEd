@@ -7,6 +7,7 @@ test('home page renders the health value served by the in-browser backend', asyn
   await root.verifyIsShown()
   await root.verifyHealthValue('hello from postgres')
   await root.verifyBoidsLink()
+  await root.verifyFridgeLink()
 })
 
 test('a seeded row is what the page renders', async ({ mountApp }) => {

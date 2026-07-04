@@ -1,0 +1,107 @@
+// Design tokens ported from docs/reference/fridge-magnets/styles/tokens.css.
+// Values are copied; the word-tile tokens (--font-tile, --r-tile, --text-tile)
+// are dropped — the Words tab is not in v1 (plan §2/§6). This file is a global
+// side-effect stylesheet: it defines :root custom properties, self-hosts
+// Fredoka, and resets html/body. Imported once from FridgePage.
+
+// Fredoka — self-hosted per fonts/FONTS.md (no runtime Google Fonts). The latin
+// subset ships as one variable woff2 covering weights 500–700.
+@font-face {
+  font-family: 'Fredoka';
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url('/fonts/fredoka-latin.woff2') format('woff2');
+}
+
+:root {
+  // Type
+  --font-display: 'Fredoka', system-ui, sans-serif;
+  --font-ui: system-ui, -apple-system, sans-serif;
+
+  // Neutrals / ink
+  --ink: #25303f;
+  --text-strong: #33312c;
+  --text: #3a3a38;
+  --text-muted: rgba(0, 0, 0, 0.42);
+  --danger: #e8503a;
+  --danger-text: #8a4a42;
+
+  // Kitchen wall (page background)
+  --wall: linear-gradient(180deg, #efe9df 0%, #e6dfd3 58%, #dcd4c6 100%);
+
+  // Light overlays (sit on top of the wall, pointer-events none)
+  --light-warm: transparent;
+  --light-cool: linear-gradient(180deg, rgba(118, 148, 175, 0.3), rgba(88, 118, 150, 0.36));
+  --light-night: linear-gradient(180deg, rgba(20, 22, 26, 0.5), rgba(10, 12, 16, 0.62));
+
+  // Fridge door finishes (steel is the base; the rest render as an overlay)
+  --finish-steel: linear-gradient(
+    96deg,
+    #c9cdd0 0%,
+    #eef1f2 9%,
+    #d4d8db 17%,
+    #eef1f2 27%,
+    #c9cdd0 41%,
+    #f0f2f3 56%,
+    #d0d4d7 71%,
+    #eceff0 84%,
+    #cdd1d4 100%
+  );
+  --finish-white: linear-gradient(100deg, #f6f6f4, #ffffff 32%, #ececeb 70%, #f6f6f4);
+  --finish-red: linear-gradient(100deg, #c8402f, #e05a48 34%, #bb3626 72%, #cf4634);
+  --finish-mint: linear-gradient(100deg, #bfe3d5, #d6efe6 34%, #aed9c9 72%, #c7e8dc);
+
+  // Tray (bottom drawer)
+  --tray-bg: linear-gradient(180deg, rgba(246, 243, 237, 0.55), rgba(231, 226, 217, 0.96));
+
+  // Radii
+  --r-fridge: 24px;
+  --r-surface: 19px;
+  --r-control: 9px;
+  --r-tab: 8px;
+  --r-pill: 20px;
+
+  // Shadows
+  --shadow-fridge: 0 34px 64px -22px rgba(0, 0, 0, 0.5), 0 8px 22px rgba(0, 0, 0, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.75), inset 0 -4px 10px rgba(0, 0, 0, 0.14);
+  --shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-btn-hover: 0 5px 12px rgba(0, 0, 0, 0.18);
+  --shadow-primary: 0 2px 6px rgba(0, 0, 0, 0.22);
+
+  // Magnet colour palette — six shades (main / dark / light), cycled in order.
+  --mag-red-main: #e8503a;
+  --mag-red-dark: #a12b1d;
+  --mag-red-light: #ff9179;
+  --mag-blue-main: #2f7fd6;
+  --mag-blue-dark: #194f8f;
+  --mag-blue-light: #83bdf5;
+  --mag-green-main: #3fae6b;
+  --mag-green-dark: #1f7343;
+  --mag-green-light: #8ee2ab;
+  --mag-yellow-main: #f0b429;
+  --mag-yellow-dark: #a9760f;
+  --mag-yellow-light: #ffdd7a;
+  --mag-orange-main: #ef8a35;
+  --mag-orange-dark: #a9560f;
+  --mag-orange-light: #ffc389;
+  --mag-purple-main: #8a5cd1;
+  --mag-purple-dark: #553497;
+  --mag-purple-light: #c4a6f2;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#root {
+  height: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}

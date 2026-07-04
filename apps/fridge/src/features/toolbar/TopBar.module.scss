@@ -1,0 +1,87 @@
+.bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 22px;
+  // The bar's own box can be taller than the chips row's top offset expects
+  // (region B starts at a fixed 58px). Its padding/gaps shouldn't block
+  // clicks meant for whatever sits underneath — only its actual content
+  // (.left/.right, given pointer-events back below) should.
+  pointer-events: none;
+}
+
+.left {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  pointer-events: auto;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 23px;
+  letter-spacing: 0.3px;
+  color: var(--text-strong);
+}
+
+.helper {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.name {
+  width: 150px;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: var(--r-control);
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  color: var(--text-strong);
+  outline: none;
+
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.35);
+  }
+}
+
+.save {
+  padding: 9px 15px;
+  border: none;
+  border-radius: var(--r-control);
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-primary);
+}
+
+.ghost {
+  padding: 9px 13px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: var(--r-control);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clear {
+  color: var(--danger-text);
+}

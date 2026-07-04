@@ -12,6 +12,8 @@ describe('PARAM_RANGES / DEFAULT_PARAMS', () => {
       cohesion: { min: 0, max: 3, step: 0.05 },
       vision: { min: 20, max: 140, step: 1 },
       trail: { min: 0, max: 1, step: 0.01 },
+      size: { min: 0.5, max: 2.5, step: 0.1 },
+      cursor: { min: -3, max: 3, step: 0.05 },
     })
     expect(DEFAULT_PARAMS).toEqual({
       count: 150,
@@ -21,6 +23,8 @@ describe('PARAM_RANGES / DEFAULT_PARAMS', () => {
       cohesion: 0.9,
       vision: 66,
       trail: 0.42,
+      size: 1,
+      cursor: 0,
     })
   })
 })
@@ -40,6 +44,16 @@ describe('clampParams', () => {
       ...DEFAULT_PARAMS,
       separation: 0,
     })
+  })
+
+  it('clamps the signed cursor param to both bounds', () => {
+    expect(clampParams({ ...DEFAULT_PARAMS, cursor: -9 }).cursor).toBe(-3)
+    expect(clampParams({ ...DEFAULT_PARAMS, cursor: 9 }).cursor).toBe(3)
+  })
+
+  it('clamps boid size to its bounds', () => {
+    expect(clampParams({ ...DEFAULT_PARAMS, size: 0.1 }).size).toBe(0.5)
+    expect(clampParams({ ...DEFAULT_PARAMS, size: 5 }).size).toBe(2.5)
   })
 
   it('falls back to the default for missing or non-numeric values', () => {

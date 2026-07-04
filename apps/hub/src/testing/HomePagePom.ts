@@ -17,6 +17,13 @@ export class HomePagePom extends BasePage {
     )
   }
 
+  async verifyFridgeLink(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'fridge' })).toHaveAttribute(
+      'href',
+      'https://fridge.homeofed.com',
+    )
+  }
+
   async verifyHealthValue(value: string): Promise<void> {
     await expect(this.healthValue).toHaveText(value)
     await expect(this.statusDot).toHaveAttribute('data-status', 'ok')

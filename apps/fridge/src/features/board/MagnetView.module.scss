@@ -1,0 +1,51 @@
+.magnet {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  transform-origin: 50% 50%;
+  touch-action: none;
+  user-select: none;
+  // Non-dragged magnets slide when bumped; the dragged one drops this in F5.
+  // left/top ONLY (handoff §Interactions): a transform transition would animate
+  // the knob's 270°↔−90° angle wrap as a full reverse spin.
+  transition:
+    left 0.13s cubic-bezier(0.2, 0.9, 0.3, 1.15),
+    top 0.13s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+// Matte plastic letter/number: flat fill + a stacked-shadow extrude.
+.letter,
+.number {
+  width: 100%;
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  color: var(--mag-main);
+  text-shadow:
+    0 2px 0 var(--mag-dark),
+    0 4px 5px rgba(0, 0, 0, 0.25);
+}
+
+.letter {
+  font-size: 48px;
+}
+
+.number {
+  font-size: 46px;
+}
+
+// Fraction disc: a lighter wedge (--deg wide) on a glossy circle.
+.fraction {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--mag-light) 0 var(--deg),
+    var(--mag-main) var(--deg) 360deg
+  );
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.32),
+    inset 0 2px 4px rgba(255, 255, 255, 0.55),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.28);
+}

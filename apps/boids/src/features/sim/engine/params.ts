@@ -1,4 +1,8 @@
-/** The seven flocking parameters — 1:1 with the design handoff's slider spec. */
+/**
+ * The flocking parameters — the design handoff's seven sliders plus `size`
+ * (a per-boid render scale) and `cursor`, the bipolar pointer-force slider
+ * (negative = repel, positive = attract).
+ */
 export interface SimParams {
   count: number
   speed: number
@@ -7,6 +11,8 @@ export interface SimParams {
   cohesion: number
   vision: number
   trail: number
+  size: number
+  cursor: number
 }
 
 export interface ParamRange {
@@ -23,6 +29,8 @@ export const PARAM_RANGES: Record<keyof SimParams, ParamRange> = {
   cohesion: { min: 0, max: 3, step: 0.05 },
   vision: { min: 20, max: 140, step: 1 },
   trail: { min: 0, max: 1, step: 0.01 },
+  size: { min: 0.5, max: 2.5, step: 0.1 },
+  cursor: { min: -3, max: 3, step: 0.05 },
 }
 
 export const DEFAULT_PARAMS: SimParams = {
@@ -33,6 +41,8 @@ export const DEFAULT_PARAMS: SimParams = {
   cohesion: 0.9,
   vision: 66,
   trail: 0.42,
+  size: 1,
+  cursor: 0,
 }
 
 const PARAM_KEYS = Object.keys(DEFAULT_PARAMS) as (keyof SimParams)[]

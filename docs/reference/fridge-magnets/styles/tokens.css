@@ -1,0 +1,107 @@
+/* ============================================================
+   FRIDGE MAGNETS — DESIGN TOKENS
+   Extracted verbatim from the Fridge.dc.html prototype.
+   These are the exact values used in the mock. Port them into
+   your app's token system (CSS vars, Tailwind theme, etc.).
+   ============================================================ */
+
+:root {
+  /* ---- Type ---------------------------------------------- */
+  --font-display: "Fredoka", system-ui, sans-serif;   /* letters, numbers, brand wordmark */
+  --font-tile:    Georgia, "Times New Roman", serif;  /* word/poetry tiles + word chips */
+  --font-ui:      system-ui, -apple-system, sans-serif;/* all chrome / controls */
+
+  /* ---- Neutrals / ink ------------------------------------ */
+  --ink:          #25303f;   /* primary buttons, active tabs/chips, selection ring */
+  --text-strong:  #33312c;
+  --text:         #3a3a38;
+  --text-tile:    #2a2a28;
+  --text-muted:   rgba(0,0,0,.42);
+  --danger:       #e8503a;   /* delete affordance */
+  --danger-text:  #8a4a42;   /* "Clear" button label */
+
+  /* ---- Kitchen wall (page background) -------------------- */
+  --wall:         linear-gradient(180deg,#efe9df 0%,#e6dfd3 58%,#dcd4c6 100%);
+  /* Light overlays sit ON TOP of the wall & fridge, pointer-events:none */
+  --light-warm:   transparent;                                              /* default */
+  --light-cool:   linear-gradient(180deg, rgba(118,148,175,.30), rgba(88,118,150,.36));
+  --light-night:  linear-gradient(180deg, rgba(20,22,26,.50), rgba(10,12,16,.62));
+
+  /* ---- Fridge door finishes ------------------------------ */
+  --finish-steel: linear-gradient(96deg,#c9cdd0 0%,#eef1f2 9%,#d4d8db 17%,#eef1f2 27%,#c9cdd0 41%,#f0f2f3 56%,#d0d4d7 71%,#eceff0 84%,#cdd1d4 100%);
+  --finish-white: linear-gradient(100deg,#f6f6f4,#ffffff 32%,#ececeb 70%,#f6f6f4);
+  --finish-red:   linear-gradient(100deg,#c8402f,#e05a48 34%,#bb3626 72%,#cf4634);
+  --finish-mint:  linear-gradient(100deg,#bfe3d5,#d6efe6 34%,#aed9c9 72%,#c7e8dc);
+  /* Steel is the base door; white/red/mint render as an overlay layer on top. */
+
+  /* ---- Tray (bottom drawer) ------------------------------ */
+  --tray-bg:      linear-gradient(180deg,rgba(246,243,237,.55),rgba(231,226,217,.96));
+
+  /* ---- Radii --------------------------------------------- */
+  --r-fridge:     24px;
+  --r-surface:    19px;
+  --r-control:    9px;   /* palette tiles, inputs */
+  --r-tab:        8px;
+  --r-tile:       3px;   /* word magnet */
+  --r-pill:       20px;  /* saved-fridge chips, "auto" chip */
+
+  /* ---- Shadows ------------------------------------------- */
+  --shadow-fridge: 0 34px 64px -22px rgba(0,0,0,.5), 0 8px 22px rgba(0,0,0,.2),
+                   inset 0 2px 0 rgba(255,255,255,.75), inset 0 -4px 10px rgba(0,0,0,.14);
+  --shadow-btn:    0 1px 2px rgba(0,0,0,.1);
+  --shadow-btn-hover: 0 5px 12px rgba(0,0,0,.18);
+  --shadow-primary:0 2px 6px rgba(0,0,0,.22);
+}
+
+/* ============================================================
+   MAGNET COLOUR PALETTE
+   Each magnet colour has three shades:
+     main  – the glossy top face / flat fill
+     dark  – the extruded side (stacked text-shadow) + rim
+     light – the top-highlight in the gloss gradient
+   Palette is cycled in order when "auto" colour is selected.
+   ============================================================ */
+:root {
+  --mag-red-main:#e8503a;    --mag-red-dark:#a12b1d;    --mag-red-light:#ff9179;
+  --mag-blue-main:#2f7fd6;   --mag-blue-dark:#194f8f;   --mag-blue-light:#83bdf5;
+  --mag-green-main:#3fae6b;  --mag-green-dark:#1f7343;  --mag-green-light:#8ee2ab;
+  --mag-yellow-main:#f0b429; --mag-yellow-dark:#a9760f; --mag-yellow-light:#ffdd7a;
+  --mag-orange-main:#ef8a35; --mag-orange-dark:#a9560f; --mag-orange-light:#ffc389;
+  --mag-purple-main:#8a5cd1; --mag-purple-dark:#553497; --mag-purple-light:#c4a6f2;
+}
+
+/* ---- Recipe: glossy plastic LETTER / NUMBER ----------------
+   font: var(--font-display) 700, ~48px (numbers ~46px)
+   The 3D look = gradient-filled glyph + stacked shadow "extrude": */
+.magnet-letter--glossy {
+  font-family: var(--font-display); font-weight: 700; line-height: 1;
+  background: linear-gradient(160deg, var(--light), var(--main) 60%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  text-shadow: 0 2px 0 var(--dark), 0 3px 0 var(--dark), 0 5px 7px rgba(0,0,0,.30);
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,.22));
+}
+/* matte variant (gloss OFF): flat fill + smaller extrude */
+.magnet-letter--matte {
+  color: var(--main);
+  text-shadow: 0 2px 0 var(--dark), 0 4px 5px rgba(0,0,0,.25);
+}
+
+/* ---- Recipe: WORD / poetry TILE --------------------------- */
+.magnet-word {
+  background: linear-gradient(180deg,#ffffff,#efeee7);
+  border: 1px solid rgba(0,0,0,.12); border-radius: var(--r-tile);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 3px 5px rgba(0,0,0,.28);
+  font-family: var(--font-tile); font-weight: 600; font-size: 15px;
+  color: var(--text-tile); letter-spacing: .2px; padding: 0 8px; white-space: nowrap;
+}
+
+/* ---- Recipe: FRACTION disc -------------------------------- */
+/* deg = fraction * 360 ; lighter wedge on a full glossy disc */
+.magnet-fraction {
+  border-radius: 50%;
+  background: conic-gradient(var(--light) 0 var(--deg), var(--main) var(--deg) 360deg);
+  box-shadow: 0 3px 6px rgba(0,0,0,.32),
+              inset 0 2px 4px rgba(255,255,255,.55),
+              inset 0 -4px 8px rgba(0,0,0,.28);
+}
