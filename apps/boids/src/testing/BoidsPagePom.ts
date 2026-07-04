@@ -126,6 +126,19 @@ export class BoidsPagePom extends BasePage {
     )
   }
 
+  /** Click a collapsible section header (e.g. "boid options") to toggle it. */
+  async toggleSection(title: string): Promise<void> {
+    await this.page.getByRole('button', { name: title, exact: true }).click()
+  }
+
+  async verifySliderHidden(label: string): Promise<void> {
+    await expect(this.page.getByRole('slider', { name: label })).toHaveCount(0)
+  }
+
+  async verifySliderVisible(label: string): Promise<void> {
+    await expect(this.page.getByRole('slider', { name: label })).toBeVisible()
+  }
+
   async selectCursorIcon(label: string): Promise<void> {
     await this.page.getByRole('button', { name: label }).click()
   }

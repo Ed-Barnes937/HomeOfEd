@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { PARAM_RANGES, type SimParams } from '../sim/engine/params.ts'
 import type { BoidShape } from '../sim/render/renderer.ts'
@@ -15,8 +15,8 @@ interface SliderSpec {
   format: (value: number) => string
 }
 
-// Order + formatting per the design handoff's SLIDERS spec.
-const SLIDER_SPECS: SliderSpec[] = [
+// Boid-options sliders: order + formatting per the design handoff's SLIDERS spec.
+const BOID_SLIDER_SPECS: SliderSpec[] = [
   { key: 'count', label: 'boids', format: (v) => String(Math.round(v)) },
   { key: 'speed', label: 'speed', format: (v) => v.toFixed(1) },
   { key: 'separation', label: 'separation', format: (v) => v.toFixed(2) },
@@ -25,12 +25,48 @@ const SLIDER_SPECS: SliderSpec[] = [
   { key: 'vision', label: 'vision', format: (v) => `${Math.round(v)}px` },
   { key: 'trail', label: 'trail', format: (v) => `${Math.round(v * 100)}%` },
   { key: 'size', label: 'boid size', format: (v) => `${v.toFixed(1)}×` },
-  {
-    key: 'cursor',
-    label: 'cursor attraction',
-    format: (v) => (v === 0 ? 'off' : `${v > 0 ? '+' : ''}${v.toFixed(2)}`),
-  },
 ]
+
+// Cursor-options slider: the bipolar pointer force.
+const CURSOR_SLIDER_SPEC: SliderSpec = {
+  key: 'cursor',
+  label: 'cursor attraction',
+  format: (v) => (v === 0 ? 'off' : `${v > 0 ? '+' : ''}${v.toFixed(2)}`),
+}
+
+/** A titled, collapsible subsection. Header toggles the body; open by default. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className={styles.section}>
+      <button
+        type="button"
+        className={styles.sectionHeader}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={styles.sectionTitle}>{title}</span>
+        <svg
+          className={open ? styles.chevronOpen : styles.chevron}
+          width="11"
+          height="11"
+          viewBox="0 0 11 11"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M3 4.2l2.5 2.6L8 4.2"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open && <div className={styles.sectionBody}>{children}</div>}
+    </div>
+  )
+}
 
 export interface ControlPanelProps {
   theme: ThemeId
@@ -55,6 +91,19 @@ export function ControlPanel({
   onParamsChange,
 }: ControlPanelProps) {
   const [collapsed, setCollapsed] = useState(false)
+
+  const renderSlider = (spec: SliderSpec) => (
+    <Slider
+      key={spec.key}
+      label={spec.label}
+      value={params[spec.key]}
+      min={PARAM_RANGES[spec.key].min}
+      max={PARAM_RANGES[spec.key].max}
+      step={PARAM_RANGES[spec.key].step}
+      format={spec.format}
+      onChange={(value) => onParamsChange({ ...params, [spec.key]: value })}
+    />
+  )
 
   if (collapsed) {
     return (
@@ -105,25 +154,13 @@ export function ControlPanel({
       </div>
       <ShapePicker value={shape} onChange={onShapeChange} />
 
-      <div className={styles.groupLabel} style={{ marginTop: 22 }}>
-        cursor icon
-      </div>
-      <CursorIconPicker value={cursorIcon} onChange={onCursorIconChange} />
+      <Section title="boid options">{BOID_SLIDER_SPECS.map(renderSlider)}</Section>
 
-      <div className={styles.hairline} />
-
-      {SLIDER_SPECS.map((spec) => (
-        <Slider
-          key={spec.key}
-          label={spec.label}
-          value={params[spec.key]}
-          min={PARAM_RANGES[spec.key].min}
-          max={PARAM_RANGES[spec.key].max}
-          step={PARAM_RANGES[spec.key].step}
-          format={spec.format}
-          onChange={(value) => onParamsChange({ ...params, [spec.key]: value })}
-        />
-      ))}
+      <Section title="cursor options">
+        <div className={styles.groupLabel}>cursor icon</div>
+        <CursorIconPicker value={cursorIcon} onChange={onCursorIconChange} />
+        {renderSlider(CURSOR_SLIDER_SPEC)}
+      </Section>
     </aside>
   )
 }

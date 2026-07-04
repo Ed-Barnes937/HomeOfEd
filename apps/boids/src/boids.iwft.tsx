@@ -81,6 +81,18 @@ test('dragging the boid-size slider updates its readout and the engine', async (
   await root.verifyEngineParam('size', 2)
 })
 
+test('a section header collapses and expands its contents', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifySliderVisible('boids')
+
+  await root.toggleSection('boid options')
+  await root.verifySliderHidden('boids')
+
+  await root.toggleSection('boid options')
+  await root.verifySliderVisible('boids')
+})
+
 test('the cursor-icon picker toggles aria-pressed and persists', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
