@@ -1,0 +1,86 @@
+// Selection chrome (handoff §C). Sits over the selected magnet and matches its
+// slide transition; the wrapper is pointer-transparent so only the knob/× act.
+.wrap {
+  position: absolute;
+  transform-origin: 50% 50%;
+  z-index: 10001;
+  pointer-events: none;
+  // left/top ONLY — a transform transition would spin the ring the long way
+  // round when the knob angle wraps at 270°/−90°.
+  transition:
+    left 0.13s cubic-bezier(0.2, 0.9, 0.3, 1.15),
+    top 0.13s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+
+  &[data-active='true'] {
+    transition: none;
+  }
+}
+
+.ring {
+  position: absolute;
+  inset: -5px;
+  border: 1.5px dashed rgba(37, 48, 63, 0.75);
+  pointer-events: none;
+
+  &[data-round='box'] {
+    border-radius: 12px;
+  }
+  &[data-round='circle'] {
+    border-radius: 50%;
+  }
+}
+
+.stalk {
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  width: 2px;
+  height: 19px;
+  background: rgba(37, 48, 63, 0.55);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.knob {
+  position: absolute;
+  left: 50%;
+  top: -35px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle at 38% 32%, #fff, #e4e6ea);
+  border: 1.5px solid #25303f;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.28);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.knobMark {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(37, 48, 63, 0.5);
+  border-top-color: transparent;
+}
+
+.del {
+  position: absolute;
+  right: -11px;
+  top: -11px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #e8503a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  pointer-events: auto;
+}
