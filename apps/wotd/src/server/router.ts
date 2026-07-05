@@ -1,15 +1,29 @@
 import { createTRPC } from '@hoe/backend-kit'
 
 import { GreetingHandler } from './handlers/greetingHandler.ts'
+import { GetTodayWordsHandler } from './handlers/todayWordsHandler.ts'
+import type { WotdStore } from './store.ts'
+import type { WordGenerator } from './wordGenerator.ts'
 
-// No Store: this app persists nothing (ADR 0008), so the Store type parameter
-// is `void`. Adding a database later = swap `void` for your Store interface and
-// inject it in simulator.ts / main.ts.
-const t = createTRPC<void>()
+const t = createTRPC<WotdStore>()
 
-export const appRouter = t.router({
-  greeting: t.procedure.query(({ ctx }) => new GreetingHandler().run(undefined, ctx)),
-})
+/**
+ * Router factory. The Store is injected per transport via the tRPC context; the
+ * WordGenerator is injected here — fake in dev/.iwft, Anthropic in prod (the
+ * generator seam). Both handlers run unchanged across all transports.
+ */
+export function createAppRouter(generator: WordGenerator) {
+  return t.router({
+    // Greeting demo (stateless — handed a store-less context). Removed once the
+    // wotd UI covers the app.
+    greeting: t.procedure.query(({ ctx }) =>
+      new GreetingHandler().run(undefined, { ...ctx, store: undefined }),
+    ),
+    todayWords: t.procedure.query(({ ctx }) =>
+      new GetTodayWordsHandler(generator).run(undefined, ctx),
+    ),
+  })
+}
 
 /** Exported for the client and all transports. */
-export type AppRouter = typeof appRouter
+export type AppRouter = ReturnType<typeof createAppRouter>

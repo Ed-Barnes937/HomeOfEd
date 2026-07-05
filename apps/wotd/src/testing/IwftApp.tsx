@@ -1,11 +1,6 @@
-// Browser side of the .iwft harness: pull the real backend (router + handlers)
-// into the CT bundle and expose its dispatcher for the page.route trampoline.
-// Module init runs once per test page.
-//
-// No database (ADR 0008): the harness wires the real router with NO Store — no
-// PGlite, no seeding. It still wires the test-auth seam so mountApp({ user })
-// exercises auth without a DB, which is exactly ADR 0008's point: auth is
-// decentralised, not backed by each app's own database.
+// Browser side of the .iwft harness: pull the real backend (router + PGlite WASM
+// + FakeWordGenerator) into the CT bundle and expose its dispatcher for the
+// page.route trampoline. Module init runs once per test page = fresh DB per test.
 import {
   ConsoleLogger,
   createContext,
@@ -13,21 +8,31 @@ import {
   exposeDispatcher,
   InMemoryBlobStore,
 } from '@hoe/backend-kit'
-import { testUserAuth } from '@hoe/test-kit/browser'
+import { freshTestDb } from '@hoe/db'
+import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
-import { appRouter } from '../server/router.ts'
+import { createAppRouter } from '../server/router.ts'
+import { migrations } from '../server/migrations.ts'
+import { wotdSchema } from '../server/schema.ts'
+import { DrizzleWotdStore } from '../server/store.ts'
+import { FakeWordGenerator } from './fakeWordGenerator.ts'
 
 exposeDispatcher(
-  createDispatcher({
-    router: appRouter,
-    createContext: createContext<void>({
-      store: undefined,
-      blobs: new InMemoryBlobStore(),
-      logger: new ConsoleLogger({ app: 'starter', mode: 'iwft' }),
-      auth: testUserAuth,
-    }),
-  }),
+  (async () => {
+    // Fresh PGlite, migrated, then any stashed seed — all before the dispatcher
+    // exists, so seeding always precedes the app's first query.
+    const db = await applyPendingSeed(await freshTestDb(wotdSchema, migrations))
+    return createDispatcher({
+      router: createAppRouter(new FakeWordGenerator()),
+      createContext: createContext({
+        store: new DrizzleWotdStore(db),
+        blobs: new InMemoryBlobStore(),
+        logger: new ConsoleLogger({ app: 'wotd', mode: 'iwft' }),
+        auth: testUserAuth,
+      }),
+    })
+  })(),
 )
 
 export function IwftApp() {
