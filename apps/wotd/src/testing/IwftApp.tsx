@@ -28,6 +28,8 @@ exposeDispatcher(
       createContext: createContext({
         store: new DrizzleWotdStore(db),
         blobs: new InMemoryBlobStore(),
+        // Fixed "today" so .iwft seeds (for_date = 2026-07-05) are deterministic.
+        now: () => new Date('2026-07-05T00:00:00Z'),
         logger: new ConsoleLogger({ app: 'wotd', mode: 'iwft' }),
         auth: testUserAuth,
       }),
