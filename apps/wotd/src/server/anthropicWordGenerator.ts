@@ -122,7 +122,13 @@ export function parseGeneratedWords(toolInput: unknown): GeneratedWord[] {
  * missing API key never crashes boot — only /wotd's lazy generation fails.
  */
 export class AnthropicWordGenerator implements WordGenerator {
-  constructor(private readonly options: AnthropicWordGeneratorOptions) {}
+  // Explicit field assignment, not a parameter property: prod runs the TS source
+  // under Node's strip-only mode (ADR 0004), which rejects parameter properties.
+  private readonly options: AnthropicWordGeneratorOptions
+
+  constructor(options: AnthropicWordGeneratorOptions) {
+    this.options = options
+  }
 
   async generateDailyWords(): Promise<GeneratedWord[]> {
     const client = new Anthropic({ apiKey: this.options.apiKey })

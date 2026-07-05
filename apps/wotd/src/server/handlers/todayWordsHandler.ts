@@ -29,8 +29,13 @@ function isComplete(rows: WordRow[]): boolean {
  * throws if the store is still incomplete after a fresh generation + insert.
  */
 export class GetTodayWordsHandler extends Handler<void, WordOfTheDay[], WotdStore> {
-  constructor(private readonly generator: WordGenerator) {
+  // Explicit field assignment, not a parameter property: prod runs the TS source
+  // under Node's strip-only mode (ADR 0004), which rejects parameter properties.
+  private readonly generator: WordGenerator
+
+  constructor(generator: WordGenerator) {
     super()
+    this.generator = generator
   }
 
   async run(_input: void, ctx: AppContext<WotdStore>): Promise<WordOfTheDay[]> {
