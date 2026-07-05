@@ -1,0 +1,19 @@
+.header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid #e4e4de;
+}
+
+.wordmark {
+  display: inline-flex;
+  text-decoration: none;
+  color: #1c1c1c;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

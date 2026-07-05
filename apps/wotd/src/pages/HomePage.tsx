@@ -1,27 +1,19 @@
-import { useQuery } from '@tanstack/react-query'
-
-import { greetingQueryOptions } from '../features/greeting/greetingQuery.ts'
+import { LevelCard } from '../components/LevelCard.tsx'
+import { Typography } from '../components/Typography.tsx'
+import { DIFFICULTIES } from '../server/wordGenerator.ts'
 import styles from './HomePage.module.scss'
 
 export function HomePage() {
-  const greeting = useQuery(greetingQueryOptions)
-  const status = greeting.isPending ? 'pending' : greeting.isError ? 'error' : 'ok'
   return (
-    <main className={styles.home}>
-      <section className={styles.hero}>
-        <h1>starter</h1>
-        <p className={styles.tagline}>a stateless app, ready to copy.</p>
-      </section>
-      <footer className={styles.status}>
-        <span className={styles.dot} data-status={status} aria-hidden="true" />
-        <span data-testid="greeting-value">
-          {greeting.isPending
-            ? 'loading…'
-            : greeting.isError
-              ? 'request failed'
-              : greeting.data.value}
-        </span>
-      </footer>
+    <main className={styles.home} data-testid="home-page">
+      <Typography variant="h2" className={styles.heading}>
+        Pick a level, any level!
+      </Typography>
+      <div className={styles.grid}>
+        {DIFFICULTIES.map((level) => (
+          <LevelCard key={level} level={level} />
+        ))}
+      </div>
     </main>
   )
 }

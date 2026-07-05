@@ -57,7 +57,7 @@ COPY --from=builder /app/apps/wotd/dist ./apps/wotd/dist
 # stowaways: pglite (@hoe/db's dev/test driver — only the pglite path imports it,
 # never runs in prod) and typescript (@trpc/server's types-only peer). The
 # dev-only workspace stubs (test-kit/config package.json) go too.
-RUN rm -rf apps/wotd/src/testing apps/wotd/src/greeting.iwft.tsx \
+RUN rm -rf apps/wotd/src/testing apps/wotd/src/wotd.iwft.tsx \
   packages/test-kit packages/config \
   node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node
