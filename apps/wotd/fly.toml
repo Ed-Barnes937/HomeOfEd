@@ -1,15 +1,21 @@
-# starter — the stateless reference app (ADR 0007). It is NOT deployed; this is
-# a template. Copy to apps/<name>, set `app` to a unique Fly app name, and follow
-# the "adding an app" checklist in the root CLAUDE.md.
+# wotd — word-of-the-day at wotd.homeofed.com. Database-backed: its own `wotd`
+# database in the shared hoe-pg cluster. Deploy FROM THE REPO ROOT so the docker
+# build context contains the whole monorepo:
 #
-# A stateless app (ADR 0008) has NO release_command (no migrations) and a shallow
-# /health. If the app gains a database, add both back — see apps/hub/fly.toml for
-# the release_command and the deep-health check.
+#   fly deploy -c apps/wotd/fly.toml
+#
+# The release_command runs journal-tracked migrations once per deploy; /health is
+# a deep Store round-trip (main.ts). Postgres is attached by a human (how-to §4).
 app = 'hoe-wotd'
 primary_region = 'lhr'
 
 [build]
   dockerfile = 'Dockerfile'
+
+[deploy]
+  # Journal-tracked run-once migrations (@hoe/db migratePostgres) — safe on
+  # every deploy.
+  release_command = 'node src/server/migrate.ts'
 
 [env]
   PORT = '8080'
@@ -23,8 +29,8 @@ primary_region = 'lhr'
   min_machines_running = 0
 
   [[http_service.checks]]
-    # Shallow health: liveness only — a stateless app has no Store to round-trip
-    # (ADR 0008). A DB-backed app injects a real round-trip via createAppServer.
+    # Deep health: a real Store round-trip to Postgres (createAppServer's
+    # injected healthCheck), not just "process is up".
     interval = '30s'
     timeout = '5s'
     grace_period = '10s'

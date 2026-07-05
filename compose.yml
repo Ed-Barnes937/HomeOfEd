@@ -45,14 +45,36 @@ services:
     ports:
       - '8081:8080'
 
-  # wotd has no database — one service, no depends_on, no migrate step.
+  # wotd is database-backed (words shared across users, survive redeploys). Two
+  # services: the app runs migrations then the server, backed by its own db.
+  # ANTHROPIC_API_KEY is a real secret — supply it via a gitignored .env if you
+  # want live generation locally; without it, /wotd's lazy generation errors but
+  # /health and seeded reads still work.
   wotd:
     build:
       context: .
       dockerfile: apps/wotd/Dockerfile
-    command: node src/server/main.ts
+    command: sh -c "node src/server/migrate.ts && node src/server/main.ts"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@wotd-db:5432/wotd
     ports:
       - '8083:8080'
+    depends_on:
+      wotd-db:
+        condition: service_healthy
+
+  wotd-db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: wotd
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d wotd']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - wotd-db-data:/var/lib/postgresql/data
 
   # fridge is database-backed as of phase 3 (ADR 0010 — shared boards). Two
   # services: the app runs migrations then the server, backed by its own db.
@@ -85,3 +107,4 @@ services:
 volumes:
   hub-db-data:
   fridge-db-data:
+  wotd-db-data:

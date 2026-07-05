@@ -7,17 +7,22 @@
   "scripts": {
     "dev": "vite --port 3003",
     "build": "vite build",
+    "generate": "drizzle-kit generate",
     "start": "node src/server/main.ts",
+    "migrate": "node src/server/migrate.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@hoe/backend-kit": "workspace:*",
+    "@hoe/db": "workspace:*",
     "@hoe/logger": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",
     "@trpc/client": "11.18.0",
+    "drizzle-orm": "0.45.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
@@ -29,6 +34,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
+    "drizzle-kit": "0.31.10",
     "eslint": "^9.39.2",
     "prettier": "^3.8.0",
     "sass-embedded": "^1.100.0",
