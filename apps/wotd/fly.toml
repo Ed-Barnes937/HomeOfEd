@@ -1,0 +1,42 @@
+# wotd — word-of-the-day at wotd.homeofed.com. Database-backed: its own `wotd`
+# database in the shared hoe-pg cluster. Deploy FROM THE REPO ROOT so the docker
+# build context contains the whole monorepo:
+#
+#   fly deploy -c apps/wotd/fly.toml
+#
+# The release_command runs journal-tracked migrations once per deploy; /health is
+# a deep Store round-trip (main.ts). Postgres is attached by a human (how-to §4).
+app = 'hoe-wotd'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  # Journal-tracked run-once migrations (@hoe/db migratePostgres) — safe on
+  # every deploy.
+  release_command = 'node src/server/migrate.ts'
+
+[env]
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  # Scale to zero when idle — a copied app raises this if it must stay warm.
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    # Deep health: a real Store round-trip to Postgres (createAppServer's
+    # injected healthCheck), not just "process is up".
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
