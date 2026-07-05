@@ -7,8 +7,8 @@ type AppLink = { name: string; status: string; href?: string }
 const APPS: AppLink[] = [
   { name: 'Boids', status: 'LIVE', href: 'https://boids.homeofed.com' },
   { name: 'fridge magnets', status: 'LIVE', href: 'https://fridge.homeofed.com' },
+  { name: 'WOTD', status: 'LIVE', href: 'https://wotd.homeofed.com' },
   { name: 'HEIG', status: 'SOON' },
-  { name: 'WOTD', status: 'SOON' },
 ]
 
 export function HomePage() {
