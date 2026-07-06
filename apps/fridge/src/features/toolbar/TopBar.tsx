@@ -14,7 +14,7 @@ interface TopBarProps {
 
 /**
  * Top toolbar (region A): brand wordmark + helper text on the left, the
- * name input and Save/New/Clear buttons on the right. The name input is
+ * name input and Save/New/Empty buttons on the right. The name input is
  * controlled by the active board's name; Save upserts it into the saved
  * chips (falling back to "Fridge N" when empty — see useFridgeBoard.save).
  */
@@ -40,7 +40,7 @@ export function TopBar({ name, onNameChange, onSave, onNew, onClear, shareSlot }
           New
         </button>
         <button type="button" className={`${styles.ghost} ${styles.clear}`} onClick={onClear}>
-          Clear
+          Empty the fridge
         </button>
       </div>
     </div>

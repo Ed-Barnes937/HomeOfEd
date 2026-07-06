@@ -155,7 +155,7 @@ export class FridgePagePom extends BasePage {
   }
 
   async clickClear(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Clear' }).click()
+    await this.page.getByRole('button', { name: 'Empty the fridge' }).click()
   }
 
   async verifyChip(name: string): Promise<void> {
