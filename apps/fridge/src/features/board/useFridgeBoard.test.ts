@@ -133,6 +133,23 @@ describe('sweep', () => {
     expect(s.sweeping).toBe(false)
     expect(s.magnets).toHaveLength(0)
   })
+
+  it('the board is read-only while sweeping: add is a no-op', () => {
+    let s = add(emptyBoard(), { type: 'letter', label: 'A', deg: 0 })
+    s = boardReducer(s, { type: 'startSweep' })
+    const after = add(s, { type: 'letter', label: 'B', deg: 0 })
+    expect(after.magnets).toHaveLength(1) // B never lands; the sweep is emptying
+  })
+
+  it('the board is read-only while sweeping: loadBoard is a no-op', () => {
+    let s = add(emptyBoard(), { type: 'letter', label: 'A', deg: 0 })
+    s = boardReducer(s, { type: 'startSweep' })
+    const other: Magnet[] = [
+      { id: 5, type: 'number', label: '5', color: 'blue', deg: 0, x: 3, y: 3, w: 50, h: 60, rot: 0, z: 5 },
+    ]
+    const after = boardReducer(s, { type: 'loadBoard', magnets: other, finish: 'red', wall: 'dark', name: 'Other' })
+    expect(after).toBe(s) // load ignored until the sweep finishes
+  })
 })
 
 describe('name / loadBoard', () => {

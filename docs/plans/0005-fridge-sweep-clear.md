@@ -148,3 +148,24 @@ pnpm test --filter=fridge
 
 All three green; the new hook tests and the `.iwft` pass; no cross-app imports,
 no shared UI, no data-fetching server functions (this is client-only state).
+
+## 8. Follow-up: lock the board while sweeping
+
+Because magnets stay in state during the ~1s sweep (they animate out before
+`clear()` fires), every board-mutating control reads a board that's about to be
+emptied. The clearest bug: **Save** mid-sweep snapshots the full board into a
+chip, so the chip and the emptied screen disagree. Same window also exposed
+Share (publishes the full board), tray tiles (spawns a magnet the pending
+`clear()` deletes), and chip-load (loads a board `clear()` then wipes).
+
+Rule: **while `sweeping`, the board is read-only.** Two layers:
+
+- **Data-integrity guards.** Reducer `add`/`loadBoard` no-op when `sweeping`;
+  the hook's `save()` (not a reducer action) no-ops too. Covers non-UI callers.
+- **UI feedback.** `sweeping` disables Save (`TopBar`), Share (`ShareButton`
+  `disabled` extended), tray tiles (`Tray`→`PaletteGrid`), and chips
+  (`SavedChips`). `New` stays enabled — it empties the board anyway, so the late
+  `clear()` is a harmless no-op.
+
+**Tests:** reducer no-op tests for `add`/`loadBoard` while sweeping; one `.iwft`
+asserts Save/Share/tile/chip are all disabled mid-sweep.

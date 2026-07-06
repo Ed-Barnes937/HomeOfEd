@@ -37,13 +37,20 @@ export function FridgePage() {
         onNew={board.newBoard}
         onClear={board.startSweep}
         clearDisabled={state.magnets.length === 0}
-        shareSlot={<ShareButton board={storedBoard} disabled={state.magnets.length === 0} />}
+        saveDisabled={state.sweeping}
+        shareSlot={
+          <ShareButton
+            board={storedBoard}
+            disabled={state.magnets.length === 0 || state.sweeping}
+          />
+        }
       />
       <SavedChips
         saved={board.saved}
         activeName={state.name}
         onLoad={board.loadSaved}
         onDelete={board.deleteSaved}
+        disabled={state.sweeping}
       />
       <div className={styles.stage}>
         <FridgeDoor
@@ -82,6 +89,7 @@ export function FridgePage() {
         onAdd={board.add}
         onFinish={board.setFinish}
         onWall={board.setWall}
+        disabled={state.sweeping}
       />
     </div>
   )

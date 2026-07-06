@@ -6,6 +6,8 @@ interface SavedChipsProps {
   activeName: string
   onLoad: (name: string) => void
   onDelete: (name: string) => void
+  /** Locks chip load/delete while the board sweeps out. */
+  disabled?: boolean
 }
 
 /**
@@ -14,7 +16,7 @@ interface SavedChipsProps {
  * (stopPropagation so it doesn't also load). The active chip — the one
  * matching the current board's name — renders filled (handoff's recipe).
  */
-export function SavedChips({ saved, activeName, onLoad, onDelete }: SavedChipsProps) {
+export function SavedChips({ saved, activeName, onLoad, onDelete, disabled = false }: SavedChipsProps) {
   if (saved.length === 0) {
     return (
       <div className={styles.row}>
@@ -34,6 +36,7 @@ export function SavedChips({ saved, activeName, onLoad, onDelete }: SavedChipsPr
           data-testid="saved-chip"
           data-active={board.name === activeName}
           className={`${styles.chip} ${board.name === activeName ? styles.active : ''}`}
+          disabled={disabled}
           onClick={() => onLoad(board.name)}
         >
           {board.name}

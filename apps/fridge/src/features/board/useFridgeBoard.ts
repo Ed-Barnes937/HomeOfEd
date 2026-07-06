@@ -106,6 +106,9 @@ export function boardReducer(state: BoardState, action: Action): BoardState {
       return { ...state, surfW: action.w, surfH: action.h, magnets }
     }
     case 'add': {
+      // The board is read-only while it sweeps out — a magnet added now would
+      // just be wiped by the pending clear(). See startSweep.
+      if (state.sweeping) return state
       const size = sizeFor(action.opts.type)
       const { color, colorCursor } = resolveColor(state)
       const id = state.nextId
@@ -191,6 +194,9 @@ export function boardReducer(state: BoardState, action: Action): BoardState {
     case 'setName':
       return { ...state, name: action.name }
     case 'loadBoard': {
+      // Read-only mid-sweep: loading now would flash a board the pending
+      // clear() then wipes. Ignore until the sweep finishes.
+      if (state.sweeping) return state
       const { nextId, zTop } = idAndZTop(action.magnets)
       return {
         ...state,
@@ -370,6 +376,10 @@ export function useFridgeBoard(options?: {
   /** Upserts the current arrangement under the typed name (by name), falling
    * back to the active name, else "Fridge N" — matches the reference. */
   const save = useCallback((typedName: string) => {
+    // Don't snapshot a board that's mid-sweep — it would save the magnets that
+    // are about to be cleared. The Save button is also disabled while sweeping;
+    // this guards non-UI callers.
+    if (stateRef.current.sweeping) return
     const trimmed = typedName.trim()
     const resolvedName = trimmed || `Fridge ${savedRef.current.length + 1}`
     const board = toStoredBoard(

@@ -10,6 +10,8 @@ interface TopBarProps {
   onClear: () => void
   /** Disable "Empty the fridge" when the board is empty (a no-op sweep looks broken). */
   clearDisabled?: boolean
+  /** Disable Save while the board sweeps out — it would snapshot magnets about to clear. */
+  saveDisabled?: boolean
   /** The share affordance (features/share) — a slot so the toolbar stays presentational. */
   shareSlot?: ReactNode
 }
@@ -27,6 +29,7 @@ export function TopBar({
   onNew,
   onClear,
   clearDisabled = false,
+  saveDisabled = false,
   shareSlot,
 }: TopBarProps) {
   return (
@@ -42,7 +45,7 @@ export function TopBar({
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
         />
-        <button type="button" className={styles.save} onClick={onSave}>
+        <button type="button" className={styles.save} onClick={onSave} disabled={saveDisabled}>
           Save
         </button>
         {shareSlot}
