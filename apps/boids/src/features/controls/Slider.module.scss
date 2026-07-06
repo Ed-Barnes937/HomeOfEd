@@ -10,10 +10,38 @@
 }
 
 .label {
+  position: relative;
   font: 400 11px/1 var(--font-mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--sub);
+  cursor: help;
+}
+
+/* Heading explainer: hidden until the label is hovered or keyboard-focused. */
+.tooltip {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 9px);
+  z-index: 20;
+  width: max-content;
+  max-width: 216px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow-fab);
+  color: var(--val);
+  font: 400 11px/1.45 var(--font-mono);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  pointer-events: none;
+}
+
+.label:hover .tooltip,
+.label:focus-visible .tooltip {
+  display: block;
 }
 
 .value {
