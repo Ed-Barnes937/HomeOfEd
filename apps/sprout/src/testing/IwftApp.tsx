@@ -18,15 +18,22 @@ import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
 import { migrations } from '../server/migrations.ts'
-import { appRouter } from '../server/router.ts'
+import { createAppRouter } from '../server/router.ts'
 import { sproutSchema } from '../server/schema.ts'
 import { DrizzleSproutStore } from '../server/store.ts'
+import { testHasher } from '../server/testing/testHasher.ts'
 
 exposeDispatcher(
   (async () => {
     // Fresh PGlite, migrated, then any stashed seed — all before the
     // dispatcher exists, so seeding always precedes the app's first query.
     const db = await applyPendingSeed(await freshTestDb(sproutSchema, migrations))
+    // Browser-safe hasher (scrypt can't run in the CT browser); the summariser
+    // is not exercised by any current `.iwft` flow (conversations is a P3b stub).
+    const appRouter = createAppRouter({
+      hasher: testHasher,
+      summarise: () => Promise.reject(new Error('pipeline summariser not wired yet (P5)')),
+    })
     return createDispatcher({
       router: appRouter,
       createContext: createContext({

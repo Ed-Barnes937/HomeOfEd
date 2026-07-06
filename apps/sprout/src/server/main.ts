@@ -10,7 +10,8 @@ import { loadDbEnv } from '@hoe/db/env'
 import { createLogger, requestLogger } from '@hoe/logger'
 
 import { childAuthProvider } from './auth/index.ts'
-import { appRouter } from './router.ts'
+import { scryptHasher } from './password.ts'
+import { createAppRouter } from './router.ts'
 import { sproutSchema } from './schema.ts'
 import { DrizzleSproutStore } from './store.ts'
 
@@ -47,6 +48,12 @@ const makeContext = createContext({
 //      routers, keeping the child provider above for child-scoped routers.
 //      Provider selection is per-router and is finalised in P3/P5.
 //   3. Set `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` from the environment.
+
+const appRouter = createAppRouter({
+  hasher: scryptHasher,
+  // TODO(P5): wire the real pipeline summariser (HTTP over the private network).
+  summarise: () => Promise.reject(new Error('pipeline summariser not wired yet (P5)')),
+})
 
 const server = createAppServer({
   router: appRouter,

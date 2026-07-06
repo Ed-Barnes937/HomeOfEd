@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url'
 import { freshTestDb } from '@hoe/db'
 import { loadMigrationsFromDir } from '@hoe/db/node'
 
-import { appRouter } from './router.ts'
+import { scryptHasher } from './password.ts'
+import { createAppRouter } from './router.ts'
 import { sproutSchema } from './schema.ts'
 import { DrizzleSproutStore } from './store.ts'
 
@@ -27,6 +28,11 @@ export async function createSimulatorDispatch(): Promise<Dispatch> {
   )
   const db = await freshTestDb(sproutSchema, migrations)
   const store = new DrizzleSproutStore(db)
+  const appRouter = createAppRouter({
+    hasher: scryptHasher,
+    // TODO(P5): wire the real pipeline summariser (HTTP over the private network).
+    summarise: () => Promise.reject(new Error('pipeline summariser not wired yet (P5)')),
+  })
   return createDispatcher({
     router: appRouter,
     createContext: createContext({

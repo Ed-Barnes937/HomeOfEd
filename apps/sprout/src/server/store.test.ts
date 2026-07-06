@@ -83,8 +83,12 @@ describe('DrizzleSproutStore over PGlite with the generated migrations', () => {
     await store.recordBehaviouralEvent({ childId: child.id, kind: 'message', createdAt: recent })
 
     const since = new Date('2026-01-01T00:00:00Z')
-    await expect(store.countBehaviouralEvents(child.id, 'pin_fail', since)).resolves.toBe(1)
-    await expect(store.countBehaviouralEvents(child.id, 'message', since)).resolves.toBe(1)
+    await expect(
+      store.countBehaviouralEvents({ childId: child.id, kind: 'pin_fail', since }),
+    ).resolves.toBe(1)
+    await expect(
+      store.countBehaviouralEvents({ childId: child.id, kind: 'message', since }),
+    ).resolves.toBe(1)
   })
 
   // Feature check 3 — unique-constraint conflict (children.username is unique).
