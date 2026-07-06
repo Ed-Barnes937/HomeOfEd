@@ -33,6 +33,11 @@ exposeDispatcher(
     const appRouter = createAppRouter({
       hasher: testHasher,
       summarise: () => Promise.reject(new Error('pipeline summariser not wired yet (P5)')),
+      // Browser-safe fake minter — a deterministic non-crypto string. This is
+      // what keeps node:crypto (auth/childToken.ts) out of the CT bundle. In
+      // `.iwft`, child identity comes from the test-user header via
+      // testUserAuth, not by verifying this token, so a fake string suffices.
+      mintChildToken: (claims) => `test-child-token:${claims.childId}`,
     })
     return createDispatcher({
       router: appRouter,

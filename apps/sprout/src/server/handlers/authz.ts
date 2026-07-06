@@ -12,6 +12,7 @@ import type { ChildUser, ParentUser, SproutUser } from '../auth/providers.ts'
 import type { SproutStore } from '../store.ts'
 
 type ChildRow = Awaited<ReturnType<SproutStore['getChild']>>
+type ConversationRow = Awaited<ReturnType<SproutStore['getConversation']>>
 
 /**
  * Narrow `ctx.auth` to an authenticated parent. Throws `UnauthorizedError`
@@ -51,4 +52,29 @@ export async function verifyChildOwnership(
   if (!child) throw new NotFoundError('child not found')
   if (child.parentId !== parent.id) throw new ForbiddenError('not your child')
   return { parent, child }
+}
+
+/**
+ * The conversation-scoped ownership check (P3b / plan §5.1): a conversation is
+ * owned via its child, so this loads the conversation then delegates to
+ * `verifyChildOwnership` for the actual cross-family 403 guard. Throws
+ * `NotFoundError` (404) if the conversation itself doesn't exist. This is the
+ * PARENT-side check (dashboard actions); several conversation procedures are
+ * also self-served by the conversation's own child (chat history/writes) —
+ * that dual-role branching lives per-handler in
+ * `handlers/conversations/access.ts`, not here, so this helper stays a single,
+ * unambiguous "does this parent own this conversation" primitive.
+ */
+export async function verifyConversationOwnership(
+  ctx: AppContext<SproutStore>,
+  conversationId: string,
+): Promise<{
+  parent: ParentUser
+  child: NonNullable<ChildRow>
+  conversation: NonNullable<ConversationRow>
+}> {
+  const conversation = await ctx.store.getConversation(conversationId)
+  if (!conversation) throw new NotFoundError('conversation not found')
+  const { parent, child } = await verifyChildOwnership(ctx, conversation.childId)
+  return { parent, child, conversation }
 }

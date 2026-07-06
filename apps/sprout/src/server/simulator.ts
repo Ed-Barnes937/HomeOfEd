@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { freshTestDb } from '@hoe/db'
 import { loadMigrationsFromDir } from '@hoe/db/node'
 
+import { mintChildToken } from './auth/childToken.ts'
 import { scryptHasher } from './password.ts'
 import { createAppRouter } from './router.ts'
 import { sproutSchema } from './schema.ts'
@@ -32,6 +33,10 @@ export async function createSimulatorDispatch(): Promise<Dispatch> {
     hasher: scryptHasher,
     // TODO(P5): wire the real pipeline summariser (HTTP over the private network).
     summarise: () => Promise.reject(new Error('pipeline summariser not wired yet (P5)')),
+    // Dev/.iwft-adjacent Node minter: real HMAC over a dev-only secret (there is
+    // no persistence in the simulator, so a fixed insecure secret is fine).
+    mintChildToken: (claims) =>
+      mintChildToken(claims, process.env.CHILD_SESSION_SECRET ?? 'dev-insecure-child-session-secret'),
   })
   return createDispatcher({
     router: appRouter,

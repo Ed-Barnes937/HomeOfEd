@@ -1,52 +1,67 @@
-// childAuth.* — STUB for P3b. Empty router keeps types clean; fill it by
-// copying the children group's shape (Handler class + zod input + wire here).
+// childAuth.* — the device-login/PIN/changePassword/device-picker surface
+// (plan §5.1). A factory: it injects `deps.hasher` (verify a password/PIN —
+// node:crypto, browser-unsafe) and `deps.mintChildToken` (the token-minting
+// port, plan §5.2), like children.ts.
 //
-// Source: apps/web/src/server/api-handlers.ts (handleChildLoginWithPassword,
-// handleChildLoginWithPin, handleChangeChildPassword, handleGetChildrenForDevice).
+// IMPORTANT ownership/identity note: these are the CHILD-auth procedures —
+// they run BEFORE a child session exists (login) or to bootstrap one, so they
+// are PUBLIC (no requireParent / no child session yet). They must NOT trust
+// any parentId from input; identity is proven against the Store from the
+// input credentials instead. On successful login, the handler mints a signed
+// child token via `deps.mintChildToken` and returns it — setting it as the
+// `CHILD_SESSION_COOKIE` (auth/providers.ts) is a P5/transport decision.
 //
-// IMPORTANT ownership/identity note: these are the CHILD-auth procedures — they
-// run BEFORE a child session exists (login) or to bootstrap one, so they are
-// PUBLIC (no requireParent / no child session yet). They must NOT trust any
-// parentId from input. On successful login, the handler mints a signed child
-// token (auth/childToken.ts `mintChildToken`) — the transport sets it as the
-// `CHILD_SESSION_COOKIE` (auth/providers.ts). Returning the raw token vs setting
-// a cookie is a P5/transport decision; the handler produces the identity.
-//
-// Procedures to implement:
-//
-//  loginPassword — input { username, password, deviceToken }
-//    Store: getChildByUsername → verifySecret(password, child.passwordHash);
-//           getDeviceByToken → if absent, createDevice({ parentId: child.parentId, deviceToken }).
-//    Out: the child profile { id, displayName, username, presetName, parentId,
-//         mustChangePassword } (+ a minted child token). Invalid creds → throw
-//         UnauthorizedError (source returned a generic "Invalid username or
-//         password." — keep the message generic; do not leak which field failed).
-//    password.ts: import { verifySecret } from '../password.ts'.
-//
-//  loginPin — input { childId, pin, deviceToken }
-//    Store: getChild(childId). PIN brute-force lockout via behavioural-limits.ts:
-//           evaluatePinAttempt(ctx.store, { childId }, ctx.now) → if locked, throw
-//           (source used a friendly "Too many incorrect PIN attempts" — map to a
-//           domain error, e.g. ForbiddenError/ValidationError). On a wrong/missing
-//           pinHash: recordEvent(ctx.store, { kind: 'pin_fail', childId, deviceToken })
-//           then throw UnauthorizedError('Incorrect PIN.'). On success return the
-//           child profile (+ minted token).
-//
-//  changePassword — input { childId, newPassword, password?, pin? }
-//    First-login forced change (mustChangePassword must be set, else reject —
-//    this endpoint cannot overwrite an established child's password). Prove
-//    identity with the temp password OR the PIN (verifySecret). Enforce
-//    MIN_PASSWORD_LENGTH (6) and newPassword !== username → ValidationError.
-//    Store: getChild → updateChild(childId, { passwordHash: hashSecret(newPassword),
-//           mustChangePassword: false }). Out: the updated child profile.
-//
-//  deviceChildren — input { deviceToken }  (PUBLIC — the device-picker screen)
-//    Store: getDeviceByToken → if none, { children: [] }; else
-//           listChildrenByParent(device.parentId) → { children: [{ id, displayName,
-//           presetName }] }. No auth: a device token is the bearer here.
-//
-// All Store methods above are ALREADY declared on SproutStore and implemented in
-// DrizzleSproutStore + FakeSproutStore — do NOT edit store.ts / fakeSproutStore.ts.
-import { router } from './trpc.ts'
+// The signing secret and node:crypto live behind the `mintChildToken` seam
+// (router/deps.ts + auth/childTokenPort.ts): the composition root closes the
+// concrete Node minter over `CHILD_SESSION_SECRET`, so neither this file nor
+// the handler graph touches `process.env` or crypto — the same DI seam
+// `PasswordHasher` uses for password.ts, which keeps node:crypto out of the
+// browser `.iwft` bundle.
+import {
+  ChangePasswordHandler,
+  changePasswordInputSchema,
+} from '../handlers/childAuth/changePasswordHandler.ts'
+import {
+  DeviceChildrenHandler,
+  deviceChildrenInputSchema,
+} from '../handlers/childAuth/deviceChildrenHandler.ts'
+import {
+  LoginPasswordHandler,
+  loginPasswordInputSchema,
+} from '../handlers/childAuth/loginPasswordHandler.ts'
+import { LoginPinHandler, loginPinInputSchema } from '../handlers/childAuth/loginPinHandler.ts'
+import type { RouterDeps } from './deps.ts'
+import { publicProcedure, router } from './trpc.ts'
 
-export const childAuthRouter = router({})
+// A factory (not a const) so the composition root injects the PasswordHasher
+// (verify/hash a password/PIN — node:crypto, browser-unsafe) and the
+// child-token minter (node:crypto + the signing secret), same reason as
+// children.ts.
+export function createChildAuthRouter(deps: RouterDeps) {
+  return router({
+    loginPassword: publicProcedure
+      .input(loginPasswordInputSchema)
+      .mutation(({ input, ctx }) =>
+        new LoginPasswordHandler({
+          hasher: deps.hasher,
+          mintChildToken: deps.mintChildToken,
+        }).run(input, ctx),
+      ),
+    loginPin: publicProcedure
+      .input(loginPinInputSchema)
+      .mutation(({ input, ctx }) =>
+        new LoginPinHandler({ hasher: deps.hasher, mintChildToken: deps.mintChildToken }).run(
+          input,
+          ctx,
+        ),
+      ),
+    changePassword: publicProcedure
+      .input(changePasswordInputSchema)
+      .mutation(({ input, ctx }) =>
+        new ChangePasswordHandler({ hasher: deps.hasher }).run(input, ctx),
+      ),
+    deviceChildren: publicProcedure
+      .input(deviceChildrenInputSchema)
+      .query(({ input, ctx }) => new DeviceChildrenHandler().run(input, ctx)),
+  })
+}

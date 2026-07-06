@@ -9,6 +9,7 @@ import { createDbClient } from '@hoe/db'
 import { loadDbEnv } from '@hoe/db/env'
 import { createLogger, requestLogger } from '@hoe/logger'
 
+import { mintChildToken } from './auth/childToken.ts'
 import { childAuthProvider } from './auth/index.ts'
 import { scryptHasher } from './password.ts'
 import { createAppRouter } from './router.ts'
@@ -53,6 +54,10 @@ const appRouter = createAppRouter({
   hasher: scryptHasher,
   // TODO(P5): wire the real pipeline summariser (HTTP over the private network).
   summarise: () => Promise.reject(new Error('pipeline summariser not wired yet (P5)')),
+  // Concrete Node minter, closed over the dedicated signing secret (plan §5.2).
+  // node:crypto lives behind this seam — the same env var childAuthProvider
+  // verifies on the reading side.
+  mintChildToken: (claims) => mintChildToken(claims, childSessionSecret),
 })
 
 const server = createAppServer({

@@ -1,59 +1,80 @@
-// conversations.* — STUB for P3b. Empty router keeps types clean; copy the
-// children group's shape to fill it.
+// conversations.* — the child chat surface + the dashboard's conversation
+// reads (plan §5.1). REFERENCE: `router/children.ts` for the factory shape.
 //
-// Source: apps/web/src/server/api-handlers.ts (handleCreateConversation,
-// handleGetConversations, handleGetConversationMessages, handleSaveMessage,
-// handleGetConversationSummary, handleSummariseAndPurge, handleDeleteConversation).
+// WIRING — this is a factory (needs `deps.summarise` for summariseAndPurge),
+// exactly like `children`. The orchestrator composing `router.ts` must change
+// ONE line, from:
+//   conversations: conversationsRouter,
+// to:
+//   conversations: createConversationsRouter(deps),
+// (and drop the now-unused `conversationsRouter` import).
 //
-// OWNERSHIP RULE (plan §5.1 — add `verifyConversationOwnership` to handlers/authz.ts):
-// a conversation is owned via its child. Implement, mirroring verifyChildOwnership:
-//   load getConversation(id) → if null NotFoundError; then reuse
-//   verifyChildOwnership(ctx, convo.childId) so the authenticated parent must own
-//   the child. Use it in get/messages/summary/delete/summariseAndPurge.
-// NB in the source these ran WITHOUT auth (a known gap #35) — closing it is the
-// point of this migration. Decide per procedure whether the caller is the PARENT
-// (dashboard: list/summary/delete) or the CHILD (chat: create/saveMessage). For a
-// child-scoped procedure, use requireChild(ctx) and check convo.childId === childUser.id.
-//
-// Procedures to implement:
-//
-//  create — input { childId, title? } → the child creates a conversation.
-//    Auth: requireChild; childId must equal the authenticated child. Store:
-//    createConversation({ childId, title }). Out: { id, childId, title,
-//    createdAt, updatedAt } (ISO strings).
-//
-//  list — input { childId } → conversations newest-first.
-//    Auth: parent (verifyChildOwnership) OR child (self). Store:
-//    listConversationsByChild(childId). Out: [{ id, title, summary, createdAt,
-//    updatedAt }] (ISO strings).
-//
-//  messages — input { conversationId } → ordered oldest-first.
-//    Auth: verifyConversationOwnership. Store: listMessages(conversationId).
-//    Out: [{ id, conversationId, role, content, flagged, createdAt }].
-//
-//  saveMessage — input { conversationId, role, content, flagged? }.
-//    Auth: the child in that conversation. Store: addMessage(...) then
-//    touchConversation(conversationId) (bumps updatedAt). Out: the saved message.
-//
-//  summary — input { conversationId } → { summary: string | null }.
-//    Auth: verifyConversationOwnership. Store: getConversation → .summary.
-//
-//  summariseAndPurge — input { conversationId } → { summary: string }.
-//    PIPELINE DEPENDENCY (plan §5.1 / §5.5): this calls the pipeline's
-//    /summarise over the private network. For P3 DO NOT make the HTTP call —
-//    inject a summariser seam (e.g. constructor arg `summarise: (msgs) =>
-//    Promise<string>`), the same pattern as CreateChildHandler's username seam,
-//    and leave a TODO(P5) to wire the real pipeline client in main.ts/chat-sse.
-//    Logic: listMessages(conversationId); if empty return the existing summary
-//    (getConversation); else summary = await summarise(messages); then
-//    ctx.store.summariseAndPurgeConversation(conversationId, summary) — the Store
-//    method sets the summary and deletes the messages ATOMICALLY (was a db.tx).
-//
-//  delete — input { conversationId } → { success: true }.
-//    Auth: verifyConversationOwnership. Store: deleteConversation(conversationId).
-//
-// All Store methods above are ALREADY declared/implemented — do NOT edit
-// store.ts / fakeSproutStore.ts / trpc.ts / router.ts / makeCtx.
-import { router } from './trpc.ts'
+// AUTH SHAPE (see handlers/conversations/access.ts + handlers/authz.ts):
+//   - create, saveMessage: CHILD-scoped, `childId` derived from `ctx.auth`
+//     only, never input (#36) — the source endpoints trusted a client-supplied
+//     `childId` with no auth at all.
+//   - list, messages, summary: dual-role reads — the owning PARENT
+//     (dashboard) OR the conversation's own CHILD (chat history) — source's
+//     `useChat` (child) and the parent conversation-detail page hit the same
+//     underlying endpoints.
+//   - delete: dual-role too (see the handler doc — source's delete button is
+//     child-only in practice, kept open to the owning parent as well).
+//   - summariseAndPurge: PARENT-only (`verifyConversationOwnership`) — no
+//     caller evidence in source either way; kept conservative as a
+//     destructive/compliance action.
+import {
+  CreateConversationHandler,
+  createConversationInputSchema,
+} from '../handlers/conversations/createConversationHandler.ts'
+import {
+  DeleteConversationHandler,
+  deleteConversationInputSchema,
+} from '../handlers/conversations/deleteConversationHandler.ts'
+import {
+  GetConversationSummaryHandler,
+  getConversationSummaryInputSchema,
+} from '../handlers/conversations/getConversationSummaryHandler.ts'
+import {
+  ListConversationsHandler,
+  listConversationsInputSchema,
+} from '../handlers/conversations/listConversationsHandler.ts'
+import {
+  ListMessagesHandler,
+  listMessagesInputSchema,
+} from '../handlers/conversations/listMessagesHandler.ts'
+import {
+  SaveMessageHandler,
+  saveMessageInputSchema,
+} from '../handlers/conversations/saveMessageHandler.ts'
+import {
+  SummariseAndPurgeHandler,
+  summariseAndPurgeInputSchema,
+} from '../handlers/conversations/summariseAndPurgeHandler.ts'
+import type { RouterDeps } from './deps.ts'
+import { publicProcedure, router } from './trpc.ts'
 
-export const conversationsRouter = router({})
+export function createConversationsRouter(deps: RouterDeps) {
+  return router({
+    create: publicProcedure
+      .input(createConversationInputSchema)
+      .mutation(({ input, ctx }) => new CreateConversationHandler().run(input, ctx)),
+    list: publicProcedure
+      .input(listConversationsInputSchema)
+      .query(({ input, ctx }) => new ListConversationsHandler().run(input, ctx)),
+    messages: publicProcedure
+      .input(listMessagesInputSchema)
+      .query(({ input, ctx }) => new ListMessagesHandler().run(input, ctx)),
+    saveMessage: publicProcedure
+      .input(saveMessageInputSchema)
+      .mutation(({ input, ctx }) => new SaveMessageHandler().run(input, ctx)),
+    summary: publicProcedure
+      .input(getConversationSummaryInputSchema)
+      .query(({ input, ctx }) => new GetConversationSummaryHandler().run(input, ctx)),
+    summariseAndPurge: publicProcedure
+      .input(summariseAndPurgeInputSchema)
+      .mutation(({ input, ctx }) => new SummariseAndPurgeHandler(deps.summarise).run(input, ctx)),
+    delete: publicProcedure
+      .input(deleteConversationInputSchema)
+      .mutation(({ input, ctx }) => new DeleteConversationHandler().run(input, ctx)),
+  })
+}

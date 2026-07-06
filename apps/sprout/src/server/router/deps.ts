@@ -1,9 +1,11 @@
 // Services the router injects into handlers at the composition root (plan §5.1).
 // These are the dependencies that CANNOT come from `ctx` (the frozen
-// AppContext<Store> seam): the password hasher (node:crypto, browser-unsafe) and
-// the pipeline summariser (an HTTP call, stubbed until P5). The composition
-// roots (main.ts / simulator.ts / IwftApp.tsx) build a `RouterDeps` and pass it
-// to `createAppRouter`.
+// AppContext<Store> seam): the password hasher (node:crypto, browser-unsafe),
+// the child-token minter (node:crypto + the dedicated signing secret, also
+// browser-unsafe) and the pipeline summariser (an HTTP call, stubbed until P5).
+// The composition roots (main.ts / simulator.ts / IwftApp.tsx) build a
+// `RouterDeps` and pass it to `createAppRouter`.
+import type { ChildTokenMinter } from '../auth/childTokenPort.ts'
 import type { PasswordHasher } from '../password.ts'
 
 /**
@@ -17,4 +19,11 @@ export type Summariser = (messages: { role: string; content: string }[]) => Prom
 export interface RouterDeps {
   hasher: PasswordHasher
   summarise: Summariser
+  /**
+   * Mints a signed child-session token at child login (childAuth.loginPassword
+   * / loginPin). The concrete Node impl closes over the dedicated
+   * CHILD_SESSION_SECRET; the `.iwft` harness passes a browser-safe fake so
+   * node:crypto never reaches the CT bundle.
+   */
+  mintChildToken: ChildTokenMinter
 }
