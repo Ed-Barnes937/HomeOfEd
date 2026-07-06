@@ -1,0 +1,27 @@
+{
+  "name": "sprout-pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "prettier": "@hoe/config/prettier",
+  "scripts": {
+    "dev": "PORT=3005 node --watch src/index.ts",
+    "start": "node src/index.ts",
+    "build": "echo 'sprout-pipeline: no build step — headless service runs TS via native node (ADR 0004)'",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hoe/logger": "workspace:*",
+    "fastify": "^5.9.0"
+  },
+  "devDependencies": {
+    "@hoe/config": "workspace:*",
+    "@types/node": "^22",
+    "eslint": "^9.39.2",
+    "prettier": "^3.8.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9"
+  }
+}

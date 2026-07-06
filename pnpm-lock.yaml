@@ -231,6 +231,98 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.0)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
 
+  apps/sprout:
+    dependencies:
+      '@hoe/backend-kit':
+        specifier: workspace:*
+        version: link:../../packages/backend-kit
+      '@hoe/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@tanstack/react-query':
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
+      '@tanstack/react-router':
+        specifier: ^1.170.16
+        version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@trpc/client':
+        specifier: 11.18.0
+        version: 11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
+    devDependencies:
+      '@hoe/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@hoe/test-kit':
+        specifier: workspace:*
+        version: link:../../packages/test-kit
+      '@playwright/experimental-ct-react':
+        specifier: 1.61.1
+        version: 1.61.1(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
+      '@playwright/test':
+        specifier: 1.61.1
+        version: 1.61.1
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      '@vitejs/plugin-react':
+        specifier: ^5.2.0
+        version: 5.2.0(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.4
+      prettier:
+        specifier: ^3.8.0
+        version: 3.9.4
+      sass-embedded:
+        specifier: ^1.100.0
+        version: 1.100.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.4.3
+        version: 6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.0)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
+
+  apps/sprout-pipeline:
+    dependencies:
+      '@hoe/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      fastify:
+        specifier: ^5.9.0
+        version: 5.9.0
+    devDependencies:
+      '@hoe/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@types/node':
+        specifier: ^22
+        version: 22.20.0
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.4
+      prettier:
+        specifier: ^3.8.0
+        version: 3.9.4
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.0)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
+
   apps/wotd:
     dependencies:
       '@anthropic-ai/sdk':
