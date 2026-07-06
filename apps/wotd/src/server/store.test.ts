@@ -77,6 +77,29 @@ describe('DrizzleWotdStore over PGlite with the generated migrations', () => {
     ])
   })
 
+  it('getRecentWords returns distinct words on or after the cutoff date', async () => {
+    const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
+    await store.insertWords([
+      row({ forDate: '2026-04-01', difficulty: 'beginner', word: 'old' }),
+      row({ forDate: '2026-07-01', difficulty: 'beginner', word: 'recent-a' }),
+      row({ forDate: '2026-07-01', difficulty: 'intermediate', word: 'recent-b' }),
+      row({ forDate: '2026-07-05', difficulty: 'beginner', word: 'today' }),
+    ])
+
+    const words = await store.getRecentWords('2026-06-01')
+    expect([...words].sort()).toEqual(['recent-a', 'recent-b', 'today'])
+  })
+
+  it('getRecentWords de-duplicates words repeated across dates', async () => {
+    const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
+    await store.insertWords([
+      row({ forDate: '2026-07-01', difficulty: 'beginner', word: 'dup' }),
+      row({ forDate: '2026-07-02', difficulty: 'beginner', word: 'dup' }),
+    ])
+
+    await expect(store.getRecentWords('2026-06-01')).resolves.toEqual(['dup'])
+  })
+
   it('ping resolves against a live database', async () => {
     const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
     await expect(store.ping()).resolves.toBeUndefined()
