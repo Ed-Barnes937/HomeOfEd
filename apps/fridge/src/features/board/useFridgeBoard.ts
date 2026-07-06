@@ -47,6 +47,7 @@ export interface BoardState {
   zTop: number
   colorCursor: number // last auto colour index; -1 so the first auto pick is red
   name: string // the active (not necessarily yet-saved) board's name
+  sweeping: boolean // true while the "empty the fridge" sweep animates out
 }
 
 type Action =
@@ -60,6 +61,7 @@ type Action =
   | { type: 'snapRot'; id: number }
   | { type: 'wheelRot'; id: number; deltaY: number }
   | { type: 'remove'; id: number }
+  | { type: 'startSweep' }
   | { type: 'clear' }
   | { type: 'setFinish'; finish: Finish }
   | { type: 'setWall'; wall: Wall }
@@ -104,6 +106,9 @@ export function boardReducer(state: BoardState, action: Action): BoardState {
       return { ...state, surfW: action.w, surfH: action.h, magnets }
     }
     case 'add': {
+      // The board is read-only while it sweeps out — a magnet added now would
+      // just be wiped by the pending clear(). See startSweep.
+      if (state.sweeping) return state
       const size = sizeFor(action.opts.type)
       const { color, colorCursor } = resolveColor(state)
       const id = state.nextId
@@ -170,8 +175,16 @@ export function boardReducer(state: BoardState, action: Action): BoardState {
         dragId: state.dragId === action.id ? null : state.dragId,
       }
     }
+    case 'startSweep':
+      // No-op on an empty board (a no-op sweep looks broken) or while a sweep
+      // is already running (guards double-trigger). Magnets stay on the board;
+      // they animate out and clear() empties them when the motion finishes.
+      if (state.magnets.length === 0 || state.sweeping) return state
+      return { ...state, sweeping: true, selId: null }
     case 'clear':
-      return { ...state, magnets: [], selId: null, dragId: null }
+      // Ends any in-flight sweep — this is what the sweep's completion calls,
+      // and New/clear must not strand the flag.
+      return { ...state, magnets: [], selId: null, dragId: null, sweeping: false }
     case 'setFinish':
       return { ...state, finish: action.finish }
     case 'setWall':
@@ -181,6 +194,9 @@ export function boardReducer(state: BoardState, action: Action): BoardState {
     case 'setName':
       return { ...state, name: action.name }
     case 'loadBoard': {
+      // Read-only mid-sweep: loading now would flash a board the pending
+      // clear() then wipes. Ignore until the sweep finishes.
+      if (state.sweeping) return state
       const { nextId, zTop } = idAndZTop(action.magnets)
       return {
         ...state,
@@ -220,6 +236,7 @@ export function initialBoardState(
     zTop,
     colorCursor: -1,
     name,
+    sweeping: false,
   }
 }
 
@@ -229,6 +246,7 @@ export interface UseFridgeBoard {
   surfaceRef: React.RefObject<HTMLDivElement | null>
   add: (opts: SpawnOpts) => void
   clear: () => void
+  startSweep: () => void
   setPick: (pick: number | null) => void
   setFinish: (finish: Finish) => void
   setWall: (wall: Wall) => void
@@ -288,6 +306,7 @@ export function useFridgeBoard(options?: {
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<{ id: number; dx: number; dy: number } | null>(null)
   const rotRef = useRef<{ id: number; cx: number; cy: number } | null>(null)
+  const sweepTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Latest state for event handlers, so they can stay stable (empty deps)
   // without reading stale surface size / magnet positions.
   const stateRef = useRef(state)
@@ -321,6 +340,34 @@ export function useFridgeBoard(options?: {
     [rng],
   )
   const clear = useCallback(() => dispatch({ type: 'clear' }), [])
+
+  // "Empty the fridge": sweep the magnets off the bottom edge, then clear.
+  // The sweep is a CSS transition on each MagnetView (see its `departing`
+  // state); completion is driven off a single timer sized to the longest
+  // magnet's stagger + duration (~960ms, see plan 0005 §4), rounded to 1000ms.
+  // No per-element transitionend listener — the timer is the mechanism, so a
+  // magnet already at opacity:0 (no transition fired) can't strand the sweep.
+  const startSweep = useCallback(() => {
+    if (stateRef.current.magnets.length === 0 || stateRef.current.sweeping) return
+    // Respect reduced motion: skip the animation, empty immediately (today's
+    // instant behaviour).
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      dispatch({ type: 'clear' })
+      return
+    }
+    dispatch({ type: 'startSweep' })
+    sweepTimer.current = setTimeout(() => {
+      sweepTimer.current = null
+      dispatch({ type: 'clear' })
+    }, 1000)
+  }, [])
+
+  // Cancel an in-flight sweep timer on unmount so it can't fire after teardown.
+  useEffect(() => {
+    return () => {
+      if (sweepTimer.current) clearTimeout(sweepTimer.current)
+    }
+  }, [])
   const setPick = useCallback((pick: number | null) => dispatch({ type: 'setPick', pick }), [])
   const setFinish = useCallback((finish: Finish) => dispatch({ type: 'setFinish', finish }), [])
   const setWall = useCallback((wall: Wall) => dispatch({ type: 'setWall', wall }), [])
@@ -329,6 +376,10 @@ export function useFridgeBoard(options?: {
   /** Upserts the current arrangement under the typed name (by name), falling
    * back to the active name, else "Fridge N" — matches the reference. */
   const save = useCallback((typedName: string) => {
+    // Don't snapshot a board that's mid-sweep — it would save the magnets that
+    // are about to be cleared. The Save button is also disabled while sweeping;
+    // this guards non-UI callers.
+    if (stateRef.current.sweeping) return
     const trimmed = typedName.trim()
     const resolvedName = trimmed || `Fridge ${savedRef.current.length + 1}`
     const board = toStoredBoard(
@@ -435,6 +486,7 @@ export function useFridgeBoard(options?: {
     surfaceRef,
     add,
     clear,
+    startSweep,
     setPick,
     setFinish,
     setWall,

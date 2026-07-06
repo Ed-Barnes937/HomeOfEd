@@ -11,7 +11,15 @@ const NUMBERS = '0123456789'.split('')
  * number tiles, or the 5 shape discs. Tapping a tile spawns that magnet via
  * `onAdd` — the board hook places it with the engine and settles the scene.
  */
-export function PaletteGrid({ tab, onAdd }: { tab: TabKey; onAdd: (opts: SpawnOpts) => void }) {
+export function PaletteGrid({
+  tab,
+  onAdd,
+  disabled = false,
+}: {
+  tab: TabKey
+  onAdd: (opts: SpawnOpts) => void
+  disabled?: boolean
+}) {
   if (tab === 'shapes') {
     return (
       <div className={styles.shapes}>
@@ -20,6 +28,7 @@ export function PaletteGrid({ tab, onAdd }: { tab: TabKey; onAdd: (opts: SpawnOp
             key={f.glyph}
             type="button"
             className={styles.shape}
+            disabled={disabled}
             onClick={() => onAdd({ type: 'fraction', label: '', deg: f.deg })}
           >
             {f.glyph}
@@ -38,6 +47,7 @@ export function PaletteGrid({ tab, onAdd }: { tab: TabKey; onAdd: (opts: SpawnOp
           key={ch}
           type="button"
           className={styles.tile}
+          disabled={disabled}
           onClick={() => onAdd({ type, label: ch, deg: 0 })}
         >
           {ch}

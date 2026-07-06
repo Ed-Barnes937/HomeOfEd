@@ -158,6 +158,31 @@ export class FridgePagePom extends BasePage {
     await this.page.getByRole('button', { name: 'Empty the fridge' }).click()
   }
 
+  async verifyClearDisabled(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Empty the fridge' })).toBeDisabled()
+  }
+
+  async verifyClearEnabled(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Empty the fridge' })).toBeEnabled()
+  }
+
+  /** Emulate `prefers-reduced-motion: reduce` (read by startSweep at click time). */
+  async emulateReducedMotion(): Promise<void> {
+    await this.page.emulateMedia({ reducedMotion: 'reduce' })
+  }
+
+  /**
+   * Assert the board is locked mid-sweep: Save, Share, a tray tile, and a saved
+   * chip are all disabled. Called immediately after clickClear so the checks
+   * land inside the ~1s sweep window.
+   */
+  async verifyLockedWhileSweeping(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Save' })).toBeDisabled()
+    await expect(this.page.getByTestId('share-button')).toBeDisabled()
+    await expect(this.page.getByRole('button', { name: 'A', exact: true })).toBeDisabled()
+    await expect(this.page.getByTestId('saved-chip').first()).toBeDisabled()
+  }
+
   async verifyChip(name: string): Promise<void> {
     await expect(this.chip(name)).toBeVisible()
   }

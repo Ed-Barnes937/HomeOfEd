@@ -69,6 +69,11 @@
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--shadow-primary);
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .ghost {
@@ -80,6 +85,11 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .clear {
