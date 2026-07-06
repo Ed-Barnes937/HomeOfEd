@@ -112,6 +112,7 @@ test('the × on a chip deletes it', async ({ mountApp }) => {
 test('clicking a chip loads its board, finish, and name', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.clickClear()
+  await root.verifyMagnetCount(0) // wait for the sweep to finish before saving
   await root.setNameInput('Empty One')
   await root.clickSave()
   await root.clickNew()
@@ -132,10 +133,28 @@ test('New starts an empty, unnamed board', async ({ mountApp }) => {
   await root.verifyNameInputValue('')
 })
 
-test('Clear empties the board but keeps its name', async ({ mountApp }) => {
+test('Empty the fridge sweeps the board clear but keeps its name', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.setNameInput('Keep Me')
   await root.clickClear()
-  await root.verifyMagnetCount(0)
+  await root.verifyMagnetCount(0) // the sweep animates out, then empties the board
   await root.verifyNameInputValue('Keep Me')
+})
+
+test('Empty the fridge is disabled once the board is empty', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyClearEnabled() // demo board has magnets
+  await root.clickClear()
+  await root.verifyMagnetCount(0)
+  await root.verifyClearDisabled() // a no-op sweep on an empty board would look broken
+})
+
+test('Empty the fridge skips the sweep and empties instantly under reduced motion', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.emulateReducedMotion()
+  await root.verifyMagnetCount(8)
+  await root.clickClear()
+  await root.verifyMagnetCount(0) // no sweep animation — cleared in place
 })

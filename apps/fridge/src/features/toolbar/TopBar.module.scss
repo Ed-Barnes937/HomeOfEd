@@ -80,6 +80,11 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .clear {

@@ -158,6 +158,19 @@ export class FridgePagePom extends BasePage {
     await this.page.getByRole('button', { name: 'Empty the fridge' }).click()
   }
 
+  async verifyClearDisabled(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Empty the fridge' })).toBeDisabled()
+  }
+
+  async verifyClearEnabled(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Empty the fridge' })).toBeEnabled()
+  }
+
+  /** Emulate `prefers-reduced-motion: reduce` (read by startSweep at click time). */
+  async emulateReducedMotion(): Promise<void> {
+    await this.page.emulateMedia({ reducedMotion: 'reduce' })
+  }
+
   async verifyChip(name: string): Promise<void> {
     await expect(this.chip(name)).toBeVisible()
   }

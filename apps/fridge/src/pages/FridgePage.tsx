@@ -35,7 +35,8 @@ export function FridgePage() {
         onNameChange={board.setName}
         onSave={() => board.save(state.name)}
         onNew={board.newBoard}
-        onClear={board.clear}
+        onClear={board.startSweep}
+        clearDisabled={state.magnets.length === 0}
         shareSlot={<ShareButton board={storedBoard} disabled={state.magnets.length === 0} />}
       />
       <SavedChips
@@ -55,6 +56,9 @@ export function FridgePage() {
               key={m.id}
               magnet={m}
               active={state.dragId === m.id}
+              departing={state.sweeping}
+              surfW={state.surfW}
+              surfH={state.surfH}
               handlers={magnetHandlers}
             />
           ))}
