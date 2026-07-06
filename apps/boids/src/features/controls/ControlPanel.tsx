@@ -13,18 +13,61 @@ interface SliderSpec {
   key: keyof SimParams
   label: string
   format: (value: number) => string
+  /** Plain-english note on what the term does to the flock, shown on heading hover. */
+  tooltip: string
 }
 
 // Boid-options sliders: order + formatting per the design handoff's SLIDERS spec.
 const BOID_SLIDER_SPECS: SliderSpec[] = [
-  { key: 'count', label: 'boids', format: (v) => String(Math.round(v)) },
-  { key: 'speed', label: 'speed', format: (v) => v.toFixed(1) },
-  { key: 'separation', label: 'separation', format: (v) => v.toFixed(2) },
-  { key: 'alignment', label: 'alignment', format: (v) => v.toFixed(2) },
-  { key: 'cohesion', label: 'cohesion', format: (v) => v.toFixed(2) },
-  { key: 'vision', label: 'vision', format: (v) => `${Math.round(v)}px` },
-  { key: 'trail', label: 'trail', format: (v) => `${Math.round(v * 100)}%` },
-  { key: 'size', label: 'boid size', format: (v) => `${v.toFixed(1)}×` },
+  {
+    key: 'count',
+    label: 'boids',
+    format: (v) => String(Math.round(v)),
+    tooltip: 'How many boids are in the flock. More boids means a denser, busier crowd.',
+  },
+  {
+    key: 'speed',
+    label: 'speed',
+    format: (v) => v.toFixed(1),
+    tooltip: 'How fast every boid travels. Higher speeds make the flock dart around more frantically.',
+  },
+  {
+    key: 'separation',
+    label: 'separation',
+    format: (v) => v.toFixed(2),
+    tooltip:
+      'How hard boids steer away from close neighbours. Higher keeps them spaced out; lower lets them bunch up.',
+  },
+  {
+    key: 'alignment',
+    label: 'alignment',
+    format: (v) => v.toFixed(2),
+    tooltip: 'How strongly boids match the heading of nearby neighbours. Higher makes the flock move as one.',
+  },
+  {
+    key: 'cohesion',
+    label: 'cohesion',
+    format: (v) => v.toFixed(2),
+    tooltip: 'How strongly boids pull toward the centre of nearby neighbours. Higher forms tight clusters.',
+  },
+  {
+    key: 'vision',
+    label: 'vision',
+    format: (v) => `${Math.round(v)}px`,
+    tooltip: 'How far each boid can see its neighbours. A larger radius builds bigger, more coordinated groups.',
+  },
+  {
+    key: 'trail',
+    label: 'trail',
+    format: (v) => `${Math.round(v * 100)}%`,
+    tooltip: 'How long the fading motion trail behind each boid lingers. Higher leaves longer streaks.',
+  },
+  {
+    key: 'size',
+    label: 'boid size',
+    format: (v) => `${v.toFixed(1)}×`,
+    tooltip: 'The on-screen scale of each boid. Purely visual — it does not change the flocking.',
+  },
 ]
 
 // Cursor-options slider: the bipolar pointer force.
@@ -32,6 +75,8 @@ const CURSOR_SLIDER_SPEC: SliderSpec = {
   key: 'cursor',
   label: 'cursor attraction',
   format: (v) => (v === 0 ? 'off' : `${v > 0 ? '+' : ''}${v.toFixed(2)}`),
+  tooltip:
+    'Pulls boids toward your pointer when positive, pushes them away when negative. Zero switches the force off.',
 }
 
 /** A titled, collapsible subsection. Header toggles the body; open by default. */
@@ -101,6 +146,7 @@ export function ControlPanel({
       max={PARAM_RANGES[spec.key].max}
       step={PARAM_RANGES[spec.key].step}
       format={spec.format}
+      tooltip={spec.tooltip}
       onChange={(value) => onParamsChange({ ...params, [spec.key]: value })}
     />
   )

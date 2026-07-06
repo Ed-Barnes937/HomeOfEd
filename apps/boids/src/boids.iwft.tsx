@@ -92,6 +92,16 @@ test('dragging the boid-size slider updates its readout and the engine', async (
   await root.verifyEngineParam('size', 2)
 })
 
+test('hovering a slider heading reveals a tooltip explaining the term', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyTooltipHidden('separation')
+
+  await root.hoverSliderHeading('separation')
+  await root.verifyTooltip('separation', 'steer away')
+})
+
 test('a section header collapses and expands its contents', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

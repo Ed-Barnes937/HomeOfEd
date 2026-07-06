@@ -39,6 +39,21 @@ export class BoidsPagePom extends BasePage {
     await expect(this.page.getByTestId(`slider-${label}-value`)).toHaveText(expected)
   }
 
+  async hoverSliderHeading(label: string): Promise<void> {
+    await this.page.getByTestId(`slider-${label}-label`).hover()
+  }
+
+  /** The heading tooltip is display:none until hover/focus — assert it surfaced with the right gist. */
+  async verifyTooltip(label: string, contains: string): Promise<void> {
+    const tooltip = this.page.getByTestId(`slider-${label}-tooltip`)
+    await expect(tooltip).toBeVisible()
+    await expect(tooltip).toContainText(contains)
+  }
+
+  async verifyTooltipHidden(label: string): Promise<void> {
+    await expect(this.page.getByTestId(`slider-${label}-tooltip`)).toBeHidden()
+  }
+
   /** Confirms the change reached the running engine, not just the readout. */
   async verifyEngineParam(key: string, expected: number): Promise<void> {
     await expect
