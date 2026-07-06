@@ -5,27 +5,34 @@ import {
   InMemoryBlobStore,
   type Dispatch,
 } from '@hoe/backend-kit'
+import { fileURLToPath } from 'node:url'
+
+import { freshTestDb } from '@hoe/db'
+import { loadMigrationsFromDir } from '@hoe/db/node'
 
 import { appRouter } from './router.ts'
+import { sproutSchema } from './schema.ts'
+import { DrizzleSproutStore } from './store.ts'
 
 /**
- * The backendSimulator for a stateless app: the REAL router + handlers with no
- * Store injected (ADR 0008). Reused by dev simulator mode (Vite middleware) and
- * sharing the router with .iwft. No PGlite, no migrations — nothing to persist.
- *
- * Returns a Promise to match the `createDispatch` contract (a DB-backed app
- * awaits PGlite creation + migration here); the stateless case has nothing to
- * await, so it isn't `async`.
+ * The backendSimulator: the REAL router + handlers with a PGlite-backed Store
+ * injected (plan §6). Reused by dev simulator mode (Vite middleware, Node-side
+ * PGlite) and shared with .iwft's in-browser PGlite-WASM harness.
  */
-export function createSimulatorDispatch(): Promise<Dispatch> {
-  return Promise.resolve(
-    createDispatcher({
-      router: appRouter,
-      createContext: createContext<void>({
-        store: undefined,
-        blobs: new InMemoryBlobStore(),
-        logger: new ConsoleLogger({ app: 'sprout', mode: 'simulator' }),
-      }),
-    }),
+export async function createSimulatorDispatch(): Promise<Dispatch> {
+  // fs-based loader, not ./migrations.ts: this file is imported by
+  // vite.config.ts in native Node, where Vite's import.meta.glob doesn't exist.
+  const migrations = await loadMigrationsFromDir(
+    fileURLToPath(new URL('./migrations', import.meta.url)),
   )
+  const db = await freshTestDb(sproutSchema, migrations)
+  const store = new DrizzleSproutStore(db)
+  return createDispatcher({
+    router: appRouter,
+    createContext: createContext({
+      store,
+      blobs: new InMemoryBlobStore(),
+      logger: new ConsoleLogger({ app: 'sprout', mode: 'simulator' }),
+    }),
+  })
 }

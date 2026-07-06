@@ -1,11 +1,11 @@
-// Browser side of the .iwft harness: pull the real backend (router + handlers)
-// into the CT bundle and expose its dispatcher for the page.route trampoline.
-// Module init runs once per test page.
+// Browser side of the .iwft harness: pull the real backend (router + PGlite
+// WASM + in-memory blobs) into the CT bundle and expose its dispatcher for the
+// page.route trampoline. Module init runs once per test page = fresh DB per test.
 //
-// No database (ADR 0008): the harness wires the real router with NO Store — no
-// PGlite, no seeding. It still wires the test-auth seam so mountApp({ user })
-// exercises auth without a DB, which is exactly ADR 0008's point: auth is
-// decentralised, not backed by each app's own database.
+// Unlike dev's createSimulatorDispatch(), the harness wires the backend itself:
+// it needs the DbClient handle (to run mountApp({ seed }) before the first
+// query) and the test-auth seam (mountApp({ user }) header → ctx.auth), which
+// the simulator's dispatch-only factory deliberately doesn't expose.
 import {
   ConsoleLogger,
   createContext,
@@ -13,21 +13,30 @@ import {
   exposeDispatcher,
   InMemoryBlobStore,
 } from '@hoe/backend-kit'
-import { testUserAuth } from '@hoe/test-kit/browser'
+import { freshTestDb } from '@hoe/db'
+import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
+import { migrations } from '../server/migrations.ts'
 import { appRouter } from '../server/router.ts'
+import { sproutSchema } from '../server/schema.ts'
+import { DrizzleSproutStore } from '../server/store.ts'
 
 exposeDispatcher(
-  createDispatcher({
-    router: appRouter,
-    createContext: createContext<void>({
-      store: undefined,
-      blobs: new InMemoryBlobStore(),
-      logger: new ConsoleLogger({ app: 'sprout', mode: 'iwft' }),
-      auth: testUserAuth,
-    }),
-  }),
+  (async () => {
+    // Fresh PGlite, migrated, then any stashed seed — all before the
+    // dispatcher exists, so seeding always precedes the app's first query.
+    const db = await applyPendingSeed(await freshTestDb(sproutSchema, migrations))
+    return createDispatcher({
+      router: appRouter,
+      createContext: createContext({
+        store: new DrizzleSproutStore(db),
+        blobs: new InMemoryBlobStore(),
+        logger: new ConsoleLogger({ app: 'sprout', mode: 'iwft' }),
+        auth: testUserAuth,
+      }),
+    })
+  })(),
 )
 
 export function IwftApp() {

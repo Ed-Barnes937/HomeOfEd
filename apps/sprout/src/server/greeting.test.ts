@@ -7,12 +7,16 @@ import {
 import { describe, expect, it } from 'vitest'
 
 import { GreetingHandler } from './handlers/greetingHandler.ts'
+import type { SproutStore } from './store.ts'
 
-// No Store (ADR 0008): the context still carries the frozen seams; this
-// exercises the auth seam the handler reads. store is `void`.
-function makeCtx(auth: AuthProvider): AppContext<void> {
+// The greeting demo never touches the store, so an unused stub is fine here —
+// this test exercises only the auth seam the handler reads. Real handler tests
+// (P3) inject a proper FakeSproutStore.
+const unusedStore = {} as unknown as SproutStore
+
+function makeCtx(auth: AuthProvider): AppContext<SproutStore> {
   return {
-    store: undefined,
+    store: unusedStore,
     blobs: new InMemoryBlobStore(),
     auth,
     now: () => new Date('2026-01-01T00:00:00Z'),
