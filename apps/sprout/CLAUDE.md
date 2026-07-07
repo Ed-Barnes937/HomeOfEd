@@ -1,69 +1,74 @@
 # apps/sprout
 
-The child-safe LLM web app, being migrated into the hub per
+The child-safe LLM web app, migrated into the hub per
 [`docs/plans/0004-sprout-migration-plan.md`](../../docs/plans/0004-sprout-migration-plan.md).
+The build (P0–P10) is complete; go-live (P11) is human-gated — see
+[`docs/go-live.md`](docs/go-live.md). Sibling: [`apps/sprout-pipeline`](../sprout-pipeline)
+is the headless safety service this app calls.
 
-**Current phase: P5 done (streaming).** P0–P4 (scaffold, DB, auth, tRPC backend,
-Vite SPA) plus the first streaming transport are in. `main.tsx`→`App.tsx`→
-`router.tsx` (TanStack Router, no Start), the tRPC client (`trpcClient.ts`),
-`features/*` factories, and the real parent + child screens under `pages/`.
+It is a Vite SPA (`main.tsx`→`App.tsx`→`router.tsx`, TanStack Router, no Start —
+[D6](../../docs/adr/0003-spa-default-tanstack-start-opt-in.md)) over a tRPC client
+(`trpcClient.ts`), with `features/*` query/mutation factories and the parent +
+child screens under `pages/`. Styling is SCSS modules (`*.module.scss` +
+`styles/tokens.scss`; the `components/ui/*` primitives are plain markup, no
+Tailwind, no `cva`).
 
-**P5 additions (streaming + the two P2/P4 carry-overs):**
+**How the moving parts fit:**
 - **Chat SSE route** (`server/chat-sse.ts`): a plain `text/event-stream` Fastify
-  route `POST /api/chat/stream`, mounted via the new backend-kit `registerRoutes`
-  hook (D9). It authenticates the child from the signed cookie (never the body,
-  #34/#35), loads guardrail config server-side by the authenticated `childId`
-  (#36), calls the pipeline over an **injected `PipelineClient` seam**, streams
-  tokens, and **persists `flag` events to the DB** as they arrive. The child + AI
-  MESSAGES are still persisted client-side via tRPC (`conversations.saveMessage`).
+  route `POST /api/chat/stream`, mounted via the backend-kit `registerRoutes` hook
+  ([ADR 0015](../../docs/adr/0015-createappserver-route-hook.md), D9). It
+  authenticates the child from the signed cookie (never the body, #34/#35), loads
+  guardrail config server-side by the authenticated `childId` (#36), calls the
+  pipeline over an **injected `PipelineClient` seam**, streams tokens, and
+  **persists `flag` events to the DB** as they arrive. Child + AI MESSAGES are
+  persisted client-side via tRPC (`conversations.saveMessage`).
 - **PipelineClient seam** (`server/pipeline/pipelineClient.ts`): interface +
   `createHttpPipelineClient` (real Node fetch to `hoe-sprout-pipeline.flycast`
-  with `x-pipeline-key`) + `createHttpSummariser`. The real pipeline app is P6;
-  this is only the sprout side that calls it — exercised end-to-end at P6/deploy.
-- **`/api/auth/*` mounted** (`main.ts`, discharges the P2 TODO): Better Auth's
-  handler is forwarded through a Fastify route; an `onRequest` hook resolves the
-  Better Auth cookie session per tRPC request and stamps a **server-trusted**
-  `x-sprout-parent` header (any inbound value is stripped first) that the one
-  `authSeam` reads to pick `fixedAuthProvider(parent)` vs the child provider.
-  Parent login/register/sign-out are now round-trippable in prod/docker.
-- **Child-session cookie:** the signed token minted at child login is set
+  with `x-pipeline-key`) + `createHttpSummariser`. The private-network call is
+  exercised end-to-end in docker-stack / at deploy.
+- **Two identities behind one `ctx.auth` seam**
+  ([ADR 0012](../../docs/adr/0012-sprout-app-owned-auth.md)): parent (Better Auth
+  cookie session; `/api/auth/*` forwarded through Fastify, an `onRequest` hook
+  stamps a server-trusted `x-sprout-parent` header — any inbound value stripped
+  first) and child (a signed `sprout_child_session` token). The `authSeam` picks
+  the provider per request; handlers derive identity only from `ctx.auth`.
+- **Child-session cookie:** the HMAC-signed token minted at child login is set
   CLIENT-side as the same-origin `sprout_child_session` cookie
-  (`lib/childSession.setChildSessionCookie`) — not httpOnly (an SPA can't set
-  that and the frozen tRPC context seam can't reach the response), but tampering
-  is caught by the server-side HMAC check, which is what #34 required.
+  (`lib/childSession.setChildSessionCookie`) — not httpOnly (an SPA can't set that
+  and the frozen tRPC context seam can't reach the response), but tampering is
+  caught by the server-side HMAC check (#34).
 - **`children.myConfig`**: a child-scoped tRPC read of the child's OWN sliders +
-  calibration (`requireChild`), powering the chat client's session-limit banner /
-  intent gate. Shares `loadChildConfig` with the parent-scoped `children.config`
-  and the SSE route (#36).
-- **`useChat` completed:** the buffered SSE reader (`lib/sseFrames.readSseStream`
-  → `lib/chatStream.streamChat`) drives the transcript; **the frame-boundary bug
-  is fixed** (partial `data:` frames buffer across `reader.read()` boundaries, so
-  no dropped tokens — see `lib/sseFrames.test.ts`), and an `AbortController`
-  cancels the stream on unmount.
-
-**P4 decisions / carry-overs:**
-- **Styling is P7.** Ported components keep the source's Tailwind class strings
-  verbatim; `components/ui/*` are minimal plain-markup primitives (Button, Card,
-  Input, Label, Slider, Switch, Textarea) preserving the import surface. No SCSS
-  modules, no `@base-ui`/`cva` — that conversion is the P7 workstream.
-- **Parent auth gate is a tRPC probe.** `features/parentAuth` gates parent
-  screens by probing `children.list` (throws UNAUTHORIZED when not a parent) —
-  there is no `me` procedure. The Better Auth mount + parent-session resolution
-  landed in P5, so parent login/register/sign-out now round-trip.
+  calibration (`requireChild`), powering the chat session-limit banner / intent
+  gate. Shares `loadChildConfig` with parent-scoped `children.config` and the SSE
+  route (#36).
+- **`useChat`**: the buffered SSE reader (`lib/sseFrames.readSseStream` →
+  `lib/chatStream.streamChat`); partial `data:` frames buffer across
+  `reader.read()` boundaries so no tokens drop (`lib/sseFrames.test.ts`), and an
+  `AbortController` cancels on unmount.
+- **Retention worker** (`server/worker.ts`,
+  [ADR 0014](../../docs/adr/0014-worker-process-scheduled-work.md), D8): a
+  `setInterval` loop around a pure `runRetentionSweep(deps)` over the same `Store`,
+  run as the Fly `worker` process group from the same image. Prunes conversations +
+  behavioural events past their retention windows (`RETENTION_DAYS` /
+  `BEHAVIOURAL_EVENT_RETENTION_DAYS` / `WORKER_INTERVAL_MS`).
+- **Parent auth gate is a tRPC probe.** `features/parentAuth` gates parent screens
+  by probing `children.list` (throws UNAUTHORIZED when not a parent) — there is no
+  `me` procedure.
 - **Client-facing domain constants** (`PRESET_DEFINITIONS`, `CALIBRATION_QUESTIONS`,
-  `PresetName`/`PresetSliders`/`CalibrationAnswer` types) now come from
-  `@hoe/sprout-shared` (the P6a extraction — also consumed by
-  `apps/sprout-pipeline`). `server/domain/presets.ts` keeps only `SLIDER_KEYS`,
-  the server-side slider-key allow-list, which is sprout-only and never
-  crosses into the pipeline.
+  `PresetName`/`PresetSliders`/`CalibrationAnswer`) come from `@hoe/sprout-shared`
+  (also consumed by `apps/sprout-pipeline`). `server/domain/presets.ts` keeps only
+  `SLIDER_KEYS`, the sprout-only server-side slider allow-list.
 
 **`.iwft` auth seam:** the harness header carries only `user.id`, so role rides
 inside an encoded id — `testing/users.ts` `asParent(id)`/`asChild(id, parentId)`,
 decoded by `IwftApp.tsx`. Seed UUIDs must be valid v4 (zod `.uuid()` rejects
 arbitrary hex); seeds are self-contained (no closures over module scope).
 
-Landing here in a later phase: SSE streaming (P5), the pipeline (P6), and SCSS
-styling (P7) are not built yet.
+**Product-legal / safeguarding.** This app carries a child-safeguarding posture
+that gates *release* (not merge): the [safeguarding runbook](docs/safeguarding/csam-grooming-escalation.md),
+the [launch-readiness gate](docs/launch-readiness.md), and the product's own
+[legal/guardrail ADRs](docs/product-legal-adrs.md). An agent must not tick the
+counsel/legal items in those docs.
 
 ## Layout
 
