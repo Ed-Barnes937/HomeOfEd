@@ -176,7 +176,11 @@ services:
     command: node src/index.ts
     environment:
       PIPELINE_API_KEY: dev-pipeline-key
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # The OpenAI SDK throws at construction on a MISSING OR EMPTY key, so the
+      # pipeline needs a non-empty value to boot. A dummy default lets the stack
+      # come up out of the box (/health + the x-pipeline-key 401 guard work);
+      # live model calls 401 against OpenRouter until you export a real key.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-dev-openrouter-key}
     ports:
       - '8085:8080'
 
