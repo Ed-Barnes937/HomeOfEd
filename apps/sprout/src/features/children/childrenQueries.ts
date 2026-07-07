@@ -33,6 +33,11 @@ export function childStatsQueryOptions(childId: string) {
   })
 }
 
+/** children.myConfig — the authenticated CHILD's own guardrail config
+ * (sliders + calibration), for the chat client's session-limit gate (#36). */
+export type MyConfig = Awaited<ReturnType<typeof trpcClient.children.myConfig.query>>
+export const fetchMyConfig = () => trpcClient.children.myConfig.query()
+
 export const createChild = (input: CreateChildInput) => trpcClient.children.create.mutate(input)
 export const updateChild = (input: UpdateChildInput) => trpcClient.children.update.mutate(input)
 export const updatePreset = (input: UpdatePresetInput) => trpcClient.children.preset.mutate(input)

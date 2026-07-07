@@ -20,7 +20,7 @@ import {
   loginWithPassword,
   loginWithPin,
 } from '../features/childAuth/childAuth.ts'
-import { setChildSession } from '../lib/childSession.ts'
+import { setChildSession, setChildSessionCookie } from '../lib/childSession.ts'
 import { generateDeviceToken, getDeviceToken, setDeviceToken } from '../lib/deviceToken.ts'
 
 interface ChildProfile {
@@ -46,7 +46,12 @@ export function ChildLoginPage() {
     childId: string
     password?: string
     pin?: string
+    // The device token (for setDeviceToken after the change).
     token?: string
+    // The signed child-session token from the initial login — still valid after
+    // a password change (it carries no password), so we set the cookie with it
+    // once onboarding completes.
+    childToken?: string
   } | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -82,10 +87,11 @@ export function ChildLoginPage() {
       try {
         const result = await loginWithPin({ childId: selectedChild.id, pin, deviceToken })
         if (result.child.mustChangePassword) {
-          setPendingChange({ childId: result.child.id, pin })
+          setPendingChange({ childId: result.child.id, pin, childToken: result.token })
           setLoading(false)
           return
         }
+        setChildSessionCookie(result.token)
         setChildSession(result.child)
         void navigate({ to: '/child/home' })
       } catch (err) {
@@ -104,12 +110,13 @@ export function ChildLoginPage() {
       try {
         const result = await loginWithPassword({ username, password, deviceToken: token })
         if (result.child.mustChangePassword) {
-          setPendingChange({ childId: result.child.id, password, token })
+          setPendingChange({ childId: result.child.id, password, token, childToken: result.token })
           setLoading(false)
           return
         }
         setDeviceToken(token)
         setDeviceTokenState(token)
+        setChildSessionCookie(result.token)
         setChildSession(result.child)
         void navigate({ to: '/child/home' })
       } catch (err) {
@@ -144,6 +151,8 @@ export function ChildLoginPage() {
           setDeviceToken(pendingChange.token)
           setDeviceTokenState(pendingChange.token)
         }
+        // The initial-login token is still valid after the password change.
+        if (pendingChange.childToken) setChildSessionCookie(pendingChange.childToken)
         setChildSession(result.child)
         void navigate({ to: '/child/home' })
       } catch (err) {

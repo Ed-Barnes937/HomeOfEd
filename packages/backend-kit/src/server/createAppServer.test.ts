@@ -106,6 +106,79 @@ describe('createAppServer (Fastify prod transport)', () => {
     expect(response.json()).toEqual({ ok: false })
     await sick.close()
   })
+
+  it('without registerRoutes, an unknown non-API GET still falls back to the SPA', async () => {
+    // Regression guard for D9: apps that omit the hook behave exactly as before.
+    const noHook = await makeServer()
+    const response = await noHook.inject({ method: 'GET', url: '/streamy' })
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toContain('fixture spa')
+    await noHook.close()
+  })
+})
+
+describe('createAppServer registerRoutes hook (D9)', () => {
+  it('mounts a registered route that is reachable and precedes the SPA fallback', async () => {
+    const withHook = await buildAppServer({
+      router: fixtureRouter,
+      createContext: fixtureContext(await freshDrizzleNotesStore()),
+      staticDir: await makeStaticDir(),
+      logger: new NoopLogger(),
+      healthCheck: () => Promise.resolve({ ok: true }),
+      registerRoutes: (app) => {
+        // A non-API GET path that the SPA notFound fallback would otherwise
+        // serve index.html for — proves the hook wins over the catch-all.
+        app.get('/streamy', async () => ({ streamed: true }))
+        // An /api route beside the tRPC plugin.
+        app.post('/api/echo', async (req) => ({ echoed: req.body }))
+      },
+    })
+    try {
+      const streamy = await withHook.inject({ method: 'GET', url: '/streamy' })
+      expect(streamy.statusCode).toBe(200)
+      expect(streamy.json()).toEqual({ streamed: true })
+      expect(streamy.body).not.toContain('fixture spa')
+
+      const echo = await withHook.inject({
+        method: 'POST',
+        url: '/api/echo',
+        headers: { 'content-type': 'application/json' },
+        payload: '{"hello":"world"}',
+      })
+      expect(echo.statusCode).toBe(200)
+      expect(echo.json()).toEqual({ echoed: { hello: 'world' } })
+    } finally {
+      await withHook.close()
+    }
+  })
+
+  it('does not disturb the existing tRPC / static / SPA pipeline', async () => {
+    const withHook = await buildAppServer({
+      router: fixtureRouter,
+      createContext: fixtureContext(await freshDrizzleNotesStore()),
+      staticDir: await makeStaticDir(),
+      logger: new NoopLogger(),
+      healthCheck: () => Promise.resolve({ ok: true }),
+      registerRoutes: (app) => {
+        app.get('/custom', async () => ({ ok: true }))
+      },
+    })
+    try {
+      const trpc = await withHook.inject({
+        method: 'POST',
+        url: '/api/trpc/addNote',
+        headers: { 'content-type': 'application/json' },
+        payload: '"buy milk"',
+      })
+      expect(trpc.statusCode).toBe(200)
+
+      const spa = await withHook.inject({ method: 'GET', url: '/some/client/route' })
+      expect(spa.statusCode).toBe(200)
+      expect(spa.body).toContain('fixture spa')
+    } finally {
+      await withHook.close()
+    }
+  })
 })
 
 describe('createAppServer().listen (frozen wrapper)', () => {

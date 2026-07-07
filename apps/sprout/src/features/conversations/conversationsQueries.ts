@@ -26,5 +26,18 @@ export function conversationMessagesQueryOptions(conversationId: string) {
   })
 }
 
+export type CreateConversationInput = Parameters<typeof trpcClient.conversations.create.mutate>[0]
+export type SaveMessageInput = Parameters<typeof trpcClient.conversations.saveMessage.mutate>[0]
+
+/** conversations.create — the authenticated child starts a conversation
+ * (childId is derived server-side from ctx.auth, never sent). */
+export const createConversation = (input: CreateConversationInput) =>
+  trpcClient.conversations.create.mutate(input)
+
+/** conversations.saveMessage — append a child/ai message to the child's own
+ * conversation (ownership checked server-side). */
+export const saveMessage = (input: SaveMessageInput) =>
+  trpcClient.conversations.saveMessage.mutate(input)
+
 export const deleteConversation = (conversationId: string) =>
   trpcClient.conversations.delete.mutate({ conversationId })

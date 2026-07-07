@@ -18,6 +18,7 @@ import {
 } from '../handlers/children/getChildStatsHandler.ts'
 import { ListChildrenHandler } from '../handlers/children/listChildrenHandler.ts'
 import { ListTopicsHandler, listTopicsInputSchema } from '../handlers/children/listTopicsHandler.ts'
+import { MyConfigHandler } from '../handlers/children/myConfigHandler.ts'
 import {
   RemoveTopicHandler,
   removeTopicInputSchema,
@@ -54,6 +55,9 @@ export function createChildrenRouter(deps: RouterDeps) {
     config: publicProcedure
       .input(getChildConfigInputSchema)
       .query(({ input, ctx }) => new GetChildConfigHandler().run(input, ctx)),
+    // Child-scoped self-read (#36): the authenticated child's own config, for
+    // the chat client's session-limit gate. No input — identity is ctx.auth.
+    myConfig: publicProcedure.query(({ ctx }) => new MyConfigHandler().run(undefined, ctx)),
     stats: publicProcedure
       .input(getChildStatsInputSchema)
       .query(({ input, ctx }) => new GetChildStatsHandler().run(input, ctx)),

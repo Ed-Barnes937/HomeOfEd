@@ -15,3 +15,11 @@ export const flagsQueryOptions = queryOptions({
 
 export const reviewFlag = (flagId: string, reviewed: boolean) =>
   trpcClient.flags.review.mutate({ flagId, reviewed })
+
+export type CreateFlagInput = Parameters<typeof trpcClient.flags.create.mutate>[0]
+
+/** flags.create — the child-scoped write. Chat guardrail flags are persisted
+ * SERVER-side by the SSE route now; this remains for the child's own 'reported'
+ * flags (the "Report this answer" button). Child-scoped: `childId` must match
+ * the authenticated child. */
+export const createFlag = (input: CreateFlagInput) => trpcClient.flags.create.mutate(input)

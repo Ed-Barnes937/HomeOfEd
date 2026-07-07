@@ -31,8 +31,10 @@ export async function createSimulatorDispatch(): Promise<Dispatch> {
   const store = new DrizzleSproutStore(db)
   const appRouter = createAppRouter({
     hasher: scryptHasher,
-    // TODO(P5): wire the real pipeline summariser (HTTP over the private network).
-    summarise: () => Promise.reject(new Error('pipeline summariser not wired yet (P5)')),
+    // Dev simulator + `.iwft` reach no pipeline (chat streaming / summarise run
+    // only in prod/docker against hoe-sprout-pipeline — plan §5.4). A rejecting
+    // stub keeps the seam honest; no dev/.iwft flow exercises it.
+    summarise: () => Promise.reject(new Error('pipeline summariser unavailable in the simulator')),
     // Dev/.iwft-adjacent Node minter: real HMAC over a dev-only secret (there is
     // no persistence in the simulator, so a fixed insecure secret is fine).
     mintChildToken: (claims) =>

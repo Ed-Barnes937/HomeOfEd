@@ -7,6 +7,18 @@ import type { PresetName } from '../server/domain/presets.ts'
 
 const CHILD_SESSION_KEY = 'sprout-child-session'
 
+// Name of the cookie carrying the SIGNED child-session token (mirrors
+// CHILD_SESSION_COOKIE in server/auth/providers.ts — duplicated here rather than
+// imported because that module transitively pulls in node:crypto, which must
+// not enter the browser bundle). The token is minted + HMAC-signed server-side
+// at login; the SPA sets it as a same-origin cookie so the SSE route and the
+// child-scoped tRPC calls authenticate. Not httpOnly (an SPA can't set that,
+// and the tRPC context seam can't reach the response) — but tampering is
+// detected by the server-side signature check (auth/childToken.ts), which is
+// the property #34 required.
+const CHILD_SESSION_COOKIE = 'sprout_child_session'
+const CHILD_COOKIE_MAX_AGE_S = 30 * 24 * 60 * 60
+
 export interface ChildSession {
   id: string
   displayName: string
@@ -32,4 +44,19 @@ export function setChildSession(session: ChildSession): void {
 
 export function clearChildSession(): void {
   localStorage.removeItem(CHILD_SESSION_KEY)
+  clearChildSessionCookie()
+}
+
+/** Set the signed child-session cookie from the token minted at login. The
+ * server's child AuthProvider reads + verifies it on the SSE + child-scoped
+ * tRPC paths. */
+export function setChildSessionCookie(token: string): void {
+  if (typeof document === 'undefined') return
+  const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? '; secure' : ''
+  document.cookie = `${CHILD_SESSION_COOKIE}=${token}; path=/; max-age=${CHILD_COOKIE_MAX_AGE_S}; samesite=lax${secure}`
+}
+
+export function clearChildSessionCookie(): void {
+  if (typeof document === 'undefined') return
+  document.cookie = `${CHILD_SESSION_COOKIE}=; path=/; max-age=0; samesite=lax`
 }
