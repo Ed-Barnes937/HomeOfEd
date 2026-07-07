@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { speak, speechSupported } from '../features/speech/speak.ts'
 import { todayWordsQueryOptions } from '../features/wotd/todayWordsQuery.ts'
 import type { Difficulty } from '../server/wordGenerator.ts'
 import { Button } from './Button.tsx'
+import { SpeakerIcon } from './icons.tsx'
 import styles from './WOTDCard.module.scss'
 import { WOTDDefinition } from './WOTDDefinition.tsx'
 import { WOTDSentence } from './WOTDSentence.tsx'
@@ -21,9 +23,22 @@ export function WOTDCard({ level }: WOTDCardProps) {
       {isError && <p>Something went wrong.</p>}
       {word && (
         <>
-          <p className={styles.word} data-testid="wotd-word">
-            {word.word}
-          </p>
+          <div className={styles.wordRow}>
+            <p className={styles.word} data-testid="wotd-word">
+              {word.word}
+            </p>
+            {speechSupported() && (
+              <Button
+                variant="ghost"
+                className={styles.speak}
+                onClick={() => speak(word.word)}
+                aria-label={`Play the word ${word.word}`}
+                data-testid="wotd-speak"
+              >
+                <SpeakerIcon size={28} />
+              </Button>
+            )}
+          </div>
           <Button className={styles.toggle} onClick={() => setShowDefinition((showing) => !showing)}>
             {showDefinition ? 'Hide Definition' : 'Show Definition'}
           </Button>
