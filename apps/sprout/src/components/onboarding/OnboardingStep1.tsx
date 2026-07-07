@@ -4,10 +4,12 @@ import { useState } from 'react'
 
 import { PRESET_LIST, type PresetName } from '@hoe/sprout-shared'
 
+import { cn } from '../../lib/utils.ts'
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
 import { Input } from '../ui/input.tsx'
 import { Label } from '../ui/label.tsx'
+import styles from './OnboardingStep1.module.scss'
 import type { OnboardingData } from './types.ts'
 
 interface OnboardingStep1Props {
@@ -38,14 +40,14 @@ export function OnboardingStep1({ data, onNext }: OnboardingStep1Props) {
   }
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Add a child</CardTitle>
+    <Card className={styles.card}>
+      <CardHeader className={styles.headerCenter}>
+        <CardTitle className={styles.title}>Add a child</CardTitle>
         <CardDescription>Give them a name, pick a starting preset, and set a PIN.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleNext} className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
+        <form onSubmit={handleNext} className={styles.form}>
+          <div className={styles.field}>
             <Label htmlFor="displayName">Child&apos;s name</Label>
             <Input
               id="displayName"
@@ -57,28 +59,29 @@ export function OnboardingStep1({ data, onNext }: OnboardingStep1Props) {
             />
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className={styles.presetField}>
             <Label>Preset</Label>
-            <div className="grid gap-2">
+            <div className={styles.presetGrid}>
               {PRESET_LIST.map((preset) => (
                 <button
                   type="button"
                   key={preset.name}
                   onClick={() => setSelectedPreset(preset.name)}
-                  className={`rounded-lg border p-3 text-left transition-colors ${
+                  className={cn(
+                    styles.presetButton,
                     selectedPreset === preset.name
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  }`}
+                      ? styles.presetButtonSelected
+                      : styles.presetButtonUnselected,
+                  )}
                 >
-                  <p className="font-medium">{preset.label}</p>
-                  <p className="text-muted-foreground text-sm">{preset.description}</p>
+                  <p className={styles.presetLabel}>{preset.label}</p>
+                  <p className={styles.presetDescription}>{preset.description}</p>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className={styles.field}>
             <Label htmlFor="pin">4-digit PIN</Label>
             <Input
               id="pin"
@@ -91,12 +94,12 @@ export function OnboardingStep1({ data, onNext }: OnboardingStep1Props) {
               onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
               required
             />
-            <p className="text-muted-foreground text-xs">
+            <p className={styles.hint}>
               Your child will use this PIN to log in on shared devices.
             </p>
           </div>
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && <p className={styles.error}>{error}</p>}
 
           <Button type="submit" size="lg">
             Next

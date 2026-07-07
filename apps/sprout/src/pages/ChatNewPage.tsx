@@ -16,6 +16,7 @@ import {
   INTENT_CATEGORIES,
   RESTRICTED_INTERACTION_THRESHOLD,
 } from '../lib/chatConfig.ts'
+import styles from './ChatNewPage.module.scss'
 
 export function ChatNewPage() {
   const navigate = useNavigate()
@@ -69,40 +70,37 @@ export function ChatNewPage() {
 
   if (showIntentSelection) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <header className="border-border flex items-center justify-between border-b px-4 py-3">
+      <div className={styles.page}>
+        <header className={styles.header}>
           <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/child/home' })}>
             Back
           </Button>
-          <h1 className="text-sm font-medium">What would you like to do?</h1>
-          <div className="w-16" />
+          <h1 className={styles.headerTitle}>What would you like to do?</h1>
+          <div className={styles.spacer} />
         </header>
 
-        <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
-          <div className="mx-auto grid w-full max-w-md gap-3">
+        <div className={styles.intentBody}>
+          <div className={styles.intentGrid}>
             {INTENT_CATEGORIES.map((intent) => (
               <button
                 key={intent.id}
                 data-testid={`intent-${intent.id}`}
                 onClick={() => handleIntentSelect(intent.prompt)}
-                className="bg-card hover:bg-accent border-border flex items-center gap-3 rounded-xl border p-4 text-left transition-colors"
+                className={styles.intentButton}
               >
-                <span className="text-2xl">{intent.emoji}</span>
-                <span className="text-sm font-medium">{intent.label}</span>
+                <span className={styles.intentEmoji}>{intent.emoji}</span>
+                <span className={styles.intentLabel}>{intent.label}</span>
               </button>
             ))}
           </div>
 
-          <div className="mt-6">
+          <div className={styles.inspireWrap}>
             <Button variant="outline" data-testid="inspire-me" onClick={handleInspireMe}>
               Inspire me
             </Button>
           </div>
 
-          <button
-            className="text-muted-foreground mt-4 text-sm underline"
-            onClick={() => setDismissedIntent(true)}
-          >
+          <button className={styles.typeOwnButton} onClick={() => setDismissedIntent(true)}>
             Or just type your own question
           </button>
         </div>
@@ -111,13 +109,13 @@ export function ChatNewPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-border flex items-center justify-between border-b px-4 py-3">
+    <div className={styles.page}>
+      <header className={styles.header}>
         <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/child/home' })}>
           Back
         </Button>
-        <h1 className="text-sm font-medium">New conversation</h1>
-        <div className="w-16" />
+        <h1 className={styles.headerTitle}>New conversation</h1>
+        <div className={styles.spacer} />
       </header>
 
       <ChatTranscript
@@ -129,9 +127,7 @@ export function ChatNewPage() {
         isAtLimit={isAtLimit}
         messagesEndRef={messagesEndRef}
         emptyState={
-          <p className="text-muted-foreground text-center">
-            Ask me anything! I&apos;m here to help you learn.
-          </p>
+          <p className={styles.emptyText}>Ask me anything! I&apos;m here to help you learn.</p>
         }
       />
 

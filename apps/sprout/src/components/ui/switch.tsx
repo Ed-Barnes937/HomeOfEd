@@ -1,7 +1,12 @@
-// Minimal switch primitive (an ARIA switch button). The source used an @base-ui
-// switch; the styled reimplementation is P7 (plan §8). Same prop surface the
-// ported settings screen uses.
+// Switch primitive (P7a). Styled wrapper over @base-ui/react's accessible switch
+// (role="switch", aria-checked, keyboard support). Keeps the exact P4 prop
+// surface (checked / onCheckedChange(boolean) / disabled / aria-label) so the
+// settings screen and its .iwft flow (getByRole('switch') + aria-checked) still
+// pass and P7b stays mechanical.
+import { Switch as SwitchPrimitive } from '@base-ui/react/switch'
+
 import { cn } from '../../lib/utils.ts'
+import styles from './switch.module.scss'
 
 export interface SwitchProps {
   checked: boolean
@@ -13,15 +18,14 @@ export interface SwitchProps {
 
 export function Switch({ checked, onCheckedChange, disabled, className, ...aria }: SwitchProps) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={aria['aria-label']}
+    <SwitchPrimitive.Root
+      className={cn(styles.root, className)}
+      checked={checked}
       disabled={disabled}
-      className={cn('switch', className)}
-      data-state={checked ? 'checked' : 'unchecked'}
-      onClick={() => onCheckedChange(!checked)}
-    />
+      aria-label={aria['aria-label']}
+      onCheckedChange={(next) => onCheckedChange(next)}
+    >
+      <SwitchPrimitive.Thumb className={styles.thumb} />
+    </SwitchPrimitive.Root>
   )
 }

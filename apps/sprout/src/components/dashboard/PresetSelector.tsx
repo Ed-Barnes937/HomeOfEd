@@ -1,5 +1,7 @@
-// Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
 import { PRESET_LIST, type PresetName } from '@hoe/sprout-shared'
+
+import { cn } from '../../lib/utils.ts'
+import styles from './PresetSelector.module.scss'
 
 interface PresetSelectorProps {
   value: PresetName
@@ -9,7 +11,7 @@ interface PresetSelectorProps {
 
 export function PresetSelector({ value, onChange, disabled }: PresetSelectorProps) {
   return (
-    <div className="grid gap-2">
+    <div className={styles.grid}>
       {PRESET_LIST.map((preset) => {
         const isSelected = value === preset.name
         return (
@@ -19,12 +21,14 @@ export function PresetSelector({ value, onChange, disabled }: PresetSelectorProp
             onClick={() => onChange(preset.name)}
             disabled={disabled}
             aria-pressed={isSelected}
-            className={`rounded-lg border p-3 text-left transition-colors ${
-              isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-            } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+            className={cn(
+              styles.preset,
+              isSelected && styles.presetSelected,
+              disabled && styles.presetDisabled,
+            )}
           >
-            <p className="font-medium">{preset.label}</p>
-            <p className="text-muted-foreground text-sm">{preset.description}</p>
+            <p className={styles.label}>{preset.label}</p>
+            <p className={styles.description}>{preset.description}</p>
           </button>
         )
       })}

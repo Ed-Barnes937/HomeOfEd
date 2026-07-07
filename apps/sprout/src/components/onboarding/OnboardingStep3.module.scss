@@ -1,0 +1,128 @@
+// Onboarding step 3 styles (P7b). Tokens come from styles/tokens.scss.
+
+.card {
+  width: 100%;
+  max-width: 32rem;
+}
+
+.headerCenter {
+  text-align: center;
+}
+
+.title {
+  font-size: 1.5rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.reviewRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reviewLabel {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.reviewValue {
+  margin: 0;
+  font-weight: 500;
+}
+
+.reviewValueMono {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 500;
+}
+
+.editButton {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sliderPanel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.sliderToggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sliderToggleLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.sliderToggleState {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.sliderList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.75rem 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.sliderItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.sliderHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sliderLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.sliderValue {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.sliderScale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.flex1 {
+  flex: 1;
+}

@@ -1,0 +1,50 @@
+// Slider primitive styles (P7a). Styled over @base-ui/react's accessible slider;
+// selectors key off base-ui's data attributes (horizontal orientation).
+.root {
+  width: 100%;
+}
+
+.control {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  touch-action: none;
+  user-select: none;
+
+  &[data-disabled] {
+    opacity: 0.5;
+  }
+}
+
+.track {
+  position: relative;
+  flex-grow: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--muted);
+}
+
+.indicator {
+  height: 100%;
+  background: var(--primary);
+}
+
+.thumb {
+  display: block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--ring);
+  border-radius: 9999px;
+  background: #fff;
+  transition: box-shadow 0.15s ease;
+  outline: none;
+
+  &:hover,
+  &:focus-visible,
+  &:active {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+}

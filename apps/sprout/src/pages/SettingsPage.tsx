@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Label } from '../components/ui/label.tsx'
 import { Switch } from '../components/ui/switch.tsx'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
+import styles from './SettingsPage.module.scss'
 
 const NOTIFICATIONS_STORAGE_KEY = 'sprout-settings-notifications'
 const THEME_STORAGE_KEY = 'sprout-settings-theme'
@@ -64,8 +65,8 @@ export function SettingsPage() {
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.mutedText}>Loading...</p>
       </div>
     )
   }
@@ -73,24 +74,24 @@ export function SettingsPage() {
   if (!session.data) return null
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <div className={styles.page}>
       <Link to="/parent/dashboard" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
         Back to dashboard
       </Link>
 
-      <h1 className="mt-6 text-2xl font-bold">Settings</h1>
-      <p className="text-muted-foreground mt-1">
+      <h1 className={styles.heading}>Settings</h1>
+      <p className={styles.subtitle}>
         Manage your notification, display, and privacy preferences.
       </p>
 
-      <div className="mt-8 space-y-6">
+      <div className={styles.sections}>
         <Card>
           <CardHeader>
             <CardTitle>Notification preferences</CardTitle>
             <CardDescription>Choose which notifications you receive.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+          <CardContent className={styles.contentStack4}>
+            <div className={styles.row}>
               <Label>Flag notifications</Label>
               <Switch
                 aria-label="Flag notifications"
@@ -100,7 +101,7 @@ export function SettingsPage() {
                 }
               />
             </div>
-            <div className="flex items-center justify-between">
+            <div className={styles.row}>
               <Label>Session limit notifications</Label>
               <Switch
                 aria-label="Session limit notifications"
@@ -119,7 +120,7 @@ export function SettingsPage() {
             <CardDescription>Customise the app appearance.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
+            <div className={styles.row}>
               <Label>Dark mode</Label>
               <Switch
                 aria-label="Dark mode"
@@ -134,11 +135,11 @@ export function SettingsPage() {
           <CardHeader>
             <CardTitle>Legal</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <a href="#" className="text-primary hover:underline block text-sm" aria-label="Privacy Policy">
+          <CardContent className={styles.contentStack2}>
+            <a href="#" className={styles.legalLink} aria-label="Privacy Policy">
               Privacy Policy
             </a>
-            <a href="#" className="text-primary hover:underline block text-sm" aria-label="Terms of Service">
+            <a href="#" className={styles.legalLink} aria-label="Terms of Service">
               Terms of Service
             </a>
           </CardContent>

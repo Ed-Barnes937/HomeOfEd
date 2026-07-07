@@ -22,6 +22,7 @@ import {
 } from '../features/childAuth/childAuth.ts'
 import { setChildSession, setChildSessionCookie } from '../lib/childSession.ts'
 import { generateDeviceToken, getDeviceToken, setDeviceToken } from '../lib/deviceToken.ts'
+import styles from './ChildLoginPage.module.scss'
 
 interface ChildProfile {
   id: string
@@ -164,15 +165,15 @@ export function ChildLoginPage() {
 
   if (pendingChange) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Set a new password</CardTitle>
+      <div className={styles.centerPage}>
+        <Card className={styles.cardSm}>
+          <CardHeader className={styles.headerCenter}>
+            <CardTitle className={styles.title}>Set a new password</CardTitle>
             <CardDescription>Pick a new password before you start.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleChangePasswordSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
+            <form onSubmit={handleChangePasswordSubmit} className={styles.form}>
+              <div className={styles.field}>
                 <Label htmlFor="new-password">New password</Label>
                 <Input
                   id="new-password"
@@ -183,7 +184,7 @@ export function ChildLoginPage() {
                   required
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className={styles.field}>
                 <Label htmlFor="confirm-password">Confirm password</Label>
                 <Input
                   id="confirm-password"
@@ -193,7 +194,7 @@ export function ChildLoginPage() {
                   required
                 />
               </div>
-              {error && <p className="text-destructive text-sm">{error}</p>}
+              {error && <p className={styles.errorText}>{error}</p>}
               <Button type="submit" size="lg" disabled={loading}>
                 {loading ? 'Saving...' : 'Save and continue'}
               </Button>
@@ -206,37 +207,37 @@ export function ChildLoginPage() {
 
   if (loadingProfiles) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.mutedText}>Loading...</p>
       </div>
     )
   }
 
   if (mode === 'profiles' && profiles.length > 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome back!</CardTitle>
+      <div className={styles.centerPage}>
+        <Card className={styles.cardMd}>
+          <CardHeader className={styles.headerCenter}>
+            <CardTitle className={styles.title}>Welcome back!</CardTitle>
             <CardDescription>Pick your name to get started.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className={styles.contentStack}>
             {profiles.map((child) => (
               <button
                 key={child.id}
                 onClick={() => handleSelectChild(child)}
-                className="border-border hover:border-primary/50 w-full rounded-lg border p-4 text-left transition-colors"
+                className={styles.profileButton}
               >
-                <p className="text-lg font-medium">{child.displayName}</p>
-                <p className="text-muted-foreground text-sm capitalize">
+                <p className={styles.profileName}>{child.displayName}</p>
+                <p className={styles.profilePreset}>
                   {child.presetName.replace(/-/g, ' ')}
                 </p>
               </button>
             ))}
-            <div className="pt-2 text-center">
+            <div className={styles.altWrap}>
               <button
                 onClick={() => setModeOverride('password')}
-                className="text-muted-foreground text-sm underline underline-offset-4"
+                className={styles.linkButton}
               >
                 Log in with username instead
               </button>
@@ -249,14 +250,14 @@ export function ChildLoginPage() {
 
   if (mode === 'pin' && selectedChild) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Hi, {selectedChild.displayName}!</CardTitle>
+      <div className={styles.centerPage}>
+        <Card className={styles.cardSm}>
+          <CardHeader className={styles.headerCenter}>
+            <CardTitle className={styles.title}>Hi, {selectedChild.displayName}!</CardTitle>
             <CardDescription>Enter your PIN.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handlePinSubmit} className="flex flex-col gap-4">
+            <form onSubmit={handlePinSubmit} className={styles.form}>
               <Input
                 type="text"
                 inputMode="numeric"
@@ -265,11 +266,11 @@ export function ChildLoginPage() {
                 placeholder="****"
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                className="text-center text-2xl tracking-[0.5em]"
+                className={styles.pinInput}
                 autoFocus
                 required
               />
-              {error && <p className="text-destructive text-center text-sm">{error}</p>}
+              {error && <p className={styles.errorTextCenter}>{error}</p>}
               <Button type="submit" size="lg" disabled={loading}>
                 {loading ? 'Checking...' : 'Go'}
               </Button>
@@ -279,7 +280,7 @@ export function ChildLoginPage() {
                   setModeOverride(null)
                   setError('')
                 }}
-                className="text-muted-foreground text-sm underline underline-offset-4"
+                className={styles.linkButton}
               >
                 Not you? Pick a different name
               </button>
@@ -291,15 +292,15 @@ export function ChildLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Log in</CardTitle>
+    <div className={styles.centerPage}>
+      <Card className={styles.cardMd}>
+        <CardHeader className={styles.headerCenter}>
+          <CardTitle className={styles.title}>Log in</CardTitle>
           <CardDescription>Enter your username and password.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
+          <form onSubmit={handlePasswordSubmit} className={styles.form}>
+            <div className={styles.field}>
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
@@ -309,7 +310,7 @@ export function ChildLoginPage() {
                 required
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className={styles.field}>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
@@ -319,12 +320,12 @@ export function ChildLoginPage() {
                 required
               />
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className={styles.errorText}>{error}</p>}
             <Button type="submit" size="lg" disabled={loading}>
               {loading ? 'Logging in...' : 'Log in'}
             </Button>
-            <p className="text-muted-foreground text-center text-sm">
-              <Link to="/" className="text-primary underline underline-offset-4">
+            <p className={styles.footerText}>
+              <Link to="/" className={styles.primaryLink}>
                 Back to home
               </Link>
             </p>

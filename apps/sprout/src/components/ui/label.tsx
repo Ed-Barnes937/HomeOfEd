@@ -1,8 +1,9 @@
-// Minimal label primitive (plain <label>). Styling is P7 (plan §8).
+// Label primitive (plain <label> + SCSS module, P7a). Same import surface as P4.
 import type { LabelHTMLAttributes } from 'react'
 
 import { cn } from '../../lib/utils.ts'
+import styles from './label.module.scss'
 
 export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn('label', className)} {...props} />
+  return <label className={cn(styles.label, className)} {...props} />
 }

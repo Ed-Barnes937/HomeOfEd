@@ -1,0 +1,91 @@
+// New-conversation chat screen (P7b) — ported from the source's Tailwind classes.
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.spacer {
+  width: 4rem;
+}
+
+.intentBody {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.intentGrid {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.intentButton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  color: inherit;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--accent);
+  }
+}
+
+.intentEmoji {
+  font-size: 1.5rem;
+}
+
+.intentLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.inspireWrap {
+  margin-top: 1.5rem;
+}
+
+.typeOwnButton {
+  margin-top: 1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted-foreground);
+  font-family: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--muted-foreground);
+  text-align: center;
+}

@@ -1,9 +1,10 @@
-// Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
 import { useQuery } from '@tanstack/react-query'
 
 import { childStatsQueryOptions } from '../../features/children/childrenQueries.ts'
+import { cn } from '../../lib/utils.ts'
 import { buttonVariants } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
+import styles from './ChildSummaryPanel.module.scss'
 
 interface ChildSummaryPanelProps {
   childId: string
@@ -13,10 +14,10 @@ interface ChildSummaryPanelProps {
 function LoadingSkeleton() {
   return (
     <Card data-testid="child-summary-loading">
-      <CardContent className="space-y-4 py-6">
-        <div className="bg-muted h-4 w-32 animate-pulse rounded" />
-        <div className="bg-muted h-4 w-48 animate-pulse rounded" />
-        <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+      <CardContent className={styles.loadingContent}>
+        <div className={cn(styles.skeleton, styles.skeletonMd)} />
+        <div className={cn(styles.skeleton, styles.skeletonLg)} />
+        <div className={cn(styles.skeleton, styles.skeletonSm)} />
       </CardContent>
     </Card>
   )
@@ -30,8 +31,8 @@ function EmptyState({ presetLabel }: { presetLabel?: string }) {
           <CardDescription>{presetLabel}</CardDescription>
         </CardHeader>
       )}
-      <CardContent className="py-8 text-center">
-        <p className="text-muted-foreground">
+      <CardContent className={styles.emptyContent}>
+        <p className={styles.emptyText}>
           No activity yet. This child hasn&apos;t started any conversations.
         </p>
       </CardContent>
@@ -64,24 +65,24 @@ export function ChildSummaryPanel({ childId, presetLabel }: ChildSummaryPanelPro
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Activity summary</CardTitle>
+        <CardTitle>Activity summary</CardTitle>
         <CardDescription>
           {presetLabel && <span>{presetLabel}</span>}
           {presetLabel && stats.lastActive && <span> &middot; </span>}
           {stats.lastActive ? `Last active: ${formatLastActive(stats.lastActive)}` : null}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+      <CardContent className={styles.content}>
+        <div className={styles.statsGrid}>
           <div>
-            <p className="text-muted-foreground text-sm">Messages</p>
-            <p className="text-lg font-semibold">
+            <p className={styles.statLabel}>Messages</p>
+            <p className={styles.statValue}>
               {pluralise(stats.messageCount, 'message', 'messages')}
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground text-sm">Conversations</p>
-            <p className="text-lg font-semibold">
+            <p className={styles.statLabel}>Conversations</p>
+            <p className={styles.statValue}>
               {pluralise(stats.conversationCount, 'conversation', 'conversations')}
             </p>
           </div>
@@ -89,13 +90,10 @@ export function ChildSummaryPanel({ childId, presetLabel }: ChildSummaryPanelPro
 
         {stats.topTopics.length > 0 && (
           <div>
-            <p className="text-muted-foreground mb-2 text-sm">Topics</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className={styles.topicsLabel}>Topics</p>
+            <div className={styles.topicList}>
               {stats.topTopics.map((topic) => (
-                <span
-                  key={topic}
-                  className="bg-secondary text-secondary-foreground rounded-full px-2.5 py-0.5 text-xs"
-                >
+                <span key={topic} className={styles.topicBadge}>
                   {topic}
                 </span>
               ))}
@@ -103,10 +101,10 @@ export function ChildSummaryPanel({ childId, presetLabel }: ChildSummaryPanelPro
           </div>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className={styles.flagsRow}>
           <div>
-            <p className="text-muted-foreground text-sm">Flags</p>
-            <p className="text-lg font-semibold">
+            <p className={styles.statLabel}>Flags</p>
+            <p className={styles.statValue}>
               {pluralise(stats.flagCount, 'unreviewed flag', 'unreviewed flags')}
             </p>
           </div>

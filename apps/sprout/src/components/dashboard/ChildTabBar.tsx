@@ -1,9 +1,9 @@
-// Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
 import type { KeyboardEvent } from 'react'
 import { useCallback, useRef } from 'react'
 
 import type { ChildSummary } from '../../features/children/childrenQueries.ts'
 import { cn } from '../../lib/utils.ts'
+import styles from './ChildTabBar.module.scss'
 
 interface ChildTabBarProps {
   children: ChildSummary[]
@@ -38,7 +38,7 @@ export function ChildTabBar({ children, selectedChildId, onSelect }: ChildTabBar
   )
 
   return (
-    <div ref={tablistRef} role="tablist" className="flex gap-1 border-b" onKeyDown={handleKeyDown}>
+    <div ref={tablistRef} role="tablist" className={styles.tablist} onKeyDown={handleKeyDown}>
       {children.map((child) => {
         const isSelected = child.id === selectedChildId
         return (
@@ -50,12 +50,7 @@ export function ChildTabBar({ children, selectedChildId, onSelect }: ChildTabBar
             tabIndex={isSelected ? 0 : -1}
             id={`tab-${child.id}`}
             onClick={() => onSelect(child.id)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium transition-colors rounded-t-md border-b-2',
-              isSelected
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
+            className={cn(styles.tab, isSelected && styles.tabSelected)}
           >
             {child.displayName}
           </button>

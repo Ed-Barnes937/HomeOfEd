@@ -10,6 +10,7 @@ import { FlagListItem } from '../components/dashboard/FlagListItem.tsx'
 import { childrenQueryOptions } from '../features/children/childrenQueries.ts'
 import { flagsQueryOptions, reviewFlag } from '../features/flags/flagsQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
+import styles from './FlagsPage.module.scss'
 
 export function FlagsPage() {
   const queryClient = useQueryClient()
@@ -33,8 +34,8 @@ export function FlagsPage() {
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.mutedText}>Loading...</p>
       </div>
     )
   }
@@ -58,39 +59,36 @@ export function FlagsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Flagged Conversations</h1>
-        <Link to="/parent/dashboard" className="text-sm text-blue-600 hover:underline">
+    <div className={styles.page}>
+      <div className={styles.headerRow}>
+        <h1 className={styles.heading}>Flagged Conversations</h1>
+        <Link to="/parent/dashboard" className={styles.backLink}>
           Back to dashboard
         </Link>
       </div>
 
-      <p className="text-muted-foreground mt-2 text-sm">
+      <p className={styles.intro}>
         A record of what the safety checks flagged — and whether each reply was blocked before your
         child saw it or shown to them.
       </p>
 
-      <div
-        data-testid="safety-disclosure"
-        className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
-      >
-        <p className="font-medium">What this can and can&apos;t do</p>
-        <p className="mt-1">
+      <div data-testid="safety-disclosure" className={styles.disclosure}>
+        <p className={styles.disclosureTitle}>What this can and can&apos;t do</p>
+        <p className={styles.disclosureBody}>
           No safety system is perfect. These guardrails lower the risk of unsafe or inappropriate
           content — they don&apos;t remove it. Treat this log as a record to review, not a
           guarantee, and stay involved in your child&apos;s conversations.
         </p>
       </div>
 
-      <div className="mt-4">
-        <label htmlFor="child-filter" className="sr-only">
+      <div className={styles.filterWrap}>
+        <label htmlFor="child-filter" className={styles.srOnly}>
           Filter by child
         </label>
         <select
           id="child-filter"
           data-testid="child-filter"
-          className="border-input bg-background rounded-md border px-3 py-2 text-sm"
+          className={styles.select}
           value={selectedChildId ?? ''}
           onChange={handleFilterChange}
         >
@@ -103,18 +101,18 @@ export function FlagsPage() {
         </select>
       </div>
 
-      <div className="mt-6 space-y-3">
+      <div className={styles.flagList}>
         {loadingFlags ? (
-          <p className="text-muted-foreground text-sm">Loading flags...</p>
+          <p className={styles.mutedTextSm}>Loading flags...</p>
         ) : flagsError ? (
-          <div className="py-8 text-center">
-            <p className="text-destructive text-sm" data-testid="error-state">
+          <div className={styles.emptyState}>
+            <p className={styles.errorText} data-testid="error-state">
               Couldn&apos;t load flagged conversations. Please try again.
             </p>
           </div>
         ) : !flags || flags.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-muted-foreground" data-testid="empty-state">
+          <div className={styles.emptyState}>
+            <p className={styles.mutedText} data-testid="empty-state">
               No flagged conversations found.
             </p>
           </div>
@@ -125,7 +123,7 @@ export function FlagsPage() {
                 key={flag.id}
                 to="/parent/conversations/$conversationId"
                 params={{ conversationId: flag.conversationId }}
-                className="block"
+                className={styles.blockLink}
                 data-testid="flag-link"
               >
                 <FlagListItem flag={flag} onMarkReviewed={(id) => markReviewed.mutate(id)} />

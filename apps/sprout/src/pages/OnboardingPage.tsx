@@ -12,6 +12,7 @@ import { Button } from '../components/ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card.tsx'
 import { createChild } from '../features/children/childrenQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
+import styles from './OnboardingPage.module.scss'
 
 export function OnboardingPage() {
   const navigate = useNavigate()
@@ -30,8 +31,8 @@ export function OnboardingPage() {
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.loadingText}>Loading...</p>
       </div>
     )
   }
@@ -55,28 +56,28 @@ export function OnboardingPage() {
 
   if (result) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">{result.displayName}&apos;s account is ready!</CardTitle>
+      <div className={styles.resultWrap}>
+        <Card className={styles.card}>
+          <CardHeader className={styles.headerCenter}>
+            <CardTitle className={styles.title}>{result.displayName}&apos;s account is ready!</CardTitle>
             <CardDescription>Here are the details you&apos;ll need.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-muted rounded-lg p-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Username</span>
-                <span className="font-mono font-bold">{result.username}</span>
+          <CardContent className={styles.content}>
+            <div className={styles.detailBox}>
+              <div className={styles.detailRow}>
+                <span className={styles.muted}>Username</span>
+                <span className={styles.monoBold}>{result.username}</span>
               </div>
-              <div className="mt-2 flex justify-between text-sm">
-                <span className="text-muted-foreground">Password</span>
-                <span className="font-mono font-bold">{result.username}</span>
+              <div className={styles.detailRow}>
+                <span className={styles.muted}>Password</span>
+                <span className={styles.monoBold}>{result.username}</span>
               </div>
             </div>
-            <p className="text-muted-foreground text-center text-sm">
+            <p className={styles.note}>
               On a new device, your child logs in with their username and password. On a shared
               family device, they just pick their name and enter their PIN.
             </p>
-            <Button className="w-full" size="lg" onClick={() => void navigate({ to: '/parent/dashboard' })}>
+            <Button className={styles.fullButton} size="lg" onClick={() => void navigate({ to: '/parent/dashboard' })}>
               Go to dashboard
             </Button>
           </CardContent>
@@ -86,7 +87,7 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+    <div className={styles.wizardWrap}>
       {step === 0 && (
         <OnboardingStep1
           data={data}
@@ -118,7 +119,7 @@ export function OnboardingPage() {
             onSliderChange={(overrides) => updateData({ sliderOverrides: overrides })}
             isSubmitting={createChildMutation.isPending}
           />
-          {error && <p className="text-destructive mt-2 text-center text-sm">{error}</p>}
+          {error && <p className={styles.errorText}>{error}</p>}
         </>
       )}
     </div>

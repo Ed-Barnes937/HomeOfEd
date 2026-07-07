@@ -7,6 +7,7 @@ import { ChatInput } from '../components/chat/ChatInput.tsx'
 import { ChatTranscript } from '../components/chat/ChatTranscript.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { useChat } from '../features/chat/useChat.ts'
+import styles from './ChatContinuePage.module.scss'
 
 const route = getRouteApi('/child/chat/$conversationId')
 
@@ -31,32 +32,32 @@ export function ChatContinuePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading conversation...</p>
+      <div className={styles.loadingPage}>
+        <p className={styles.loadingText}>Loading conversation...</p>
       </div>
     )
   }
 
   if (summary && messages.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <header className="border-border flex items-center justify-between border-b px-4 py-3">
+      <div className={styles.page}>
+        <header className={styles.header}>
           <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/child/home' })}>
             Back
           </Button>
-          <h1 className="text-sm font-medium">Conversation summary</h1>
-          <div className="w-16" />
+          <h1 className={styles.headerTitle}>Conversation summary</h1>
+          <div className={styles.spacer} />
         </header>
 
-        <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
-          <div className="mx-auto w-full max-w-lg">
-            <div data-testid="conversation-summary" className="bg-muted rounded-xl p-6">
-              <p className="text-sm leading-relaxed">{summary}</p>
+        <div className={styles.summaryBody}>
+          <div className={styles.summaryContainer}>
+            <div data-testid="conversation-summary" className={styles.summaryCard}>
+              <p className={styles.summaryText}>{summary}</p>
             </div>
-            <p className="text-muted-foreground mt-4 text-center text-xs">
+            <p className={styles.summaryNote}>
               The full conversation has been summarised to save space.
             </p>
-            <div className="mt-6 flex justify-center">
+            <div className={styles.deleteRow}>
               <Button
                 variant="destructive"
                 size="sm"
@@ -73,13 +74,13 @@ export function ChatContinuePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-border flex items-center justify-between border-b px-4 py-3">
+    <div className={styles.page}>
+      <header className={styles.header}>
         <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/child/home' })}>
           Back
         </Button>
-        <h1 className="text-sm font-medium">Conversation</h1>
-        <div className="w-16" />
+        <h1 className={styles.headerTitle}>Conversation</h1>
+        <div className={styles.spacer} />
       </header>
 
       <ChatTranscript

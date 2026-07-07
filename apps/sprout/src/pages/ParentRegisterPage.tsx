@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input.tsx'
 import { Label } from '../components/ui/label.tsx'
 import { parentAuth } from '../features/parentAuth/parentAuth.ts'
+import styles from './ParentRegisterPage.module.scss'
 
 export function ParentRegisterPage() {
   const navigate = useNavigate()
@@ -45,15 +46,15 @@ export function ParentRegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Create your account</CardTitle>
+    <div className={styles.page}>
+      <Card className={styles.card}>
+        <CardHeader className={styles.header}>
+          <CardTitle className={styles.title}>Create your account</CardTitle>
           <CardDescription>Set up your parent account to get started.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.field}>
               <Label htmlFor="name">Your name</Label>
               <Input
                 id="name"
@@ -64,7 +65,7 @@ export function ParentRegisterPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className={styles.field}>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -75,7 +76,7 @@ export function ParentRegisterPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className={styles.field}>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
@@ -86,7 +87,7 @@ export function ParentRegisterPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className={styles.field}>
               <Label htmlFor="confirmPassword">Confirm password</Label>
               <Input
                 id="confirmPassword"
@@ -97,15 +98,15 @@ export function ParentRegisterPage() {
               />
             </div>
 
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
             <Button type="submit" size="lg" disabled={loading}>
               {loading ? 'Creating account...' : 'Create account'}
             </Button>
 
-            <p className="text-muted-foreground text-center text-sm">
+            <p className={styles.footer}>
               Already have an account?{' '}
-              <Link to="/parent/login" className="text-primary underline underline-offset-4">
+              <Link to="/parent/login" className={styles.link}>
                 Log in
               </Link>
             </p>

@@ -18,6 +18,7 @@ import { Card, CardContent } from '../components/ui/card.tsx'
 import { childrenQueryOptions } from '../features/children/childrenQueries.ts'
 import { parentAuth } from '../features/parentAuth/parentAuth.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
+import styles from './DashboardPage.module.scss'
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -36,8 +37,8 @@ export function DashboardPage() {
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.muted}>Loading...</p>
       </div>
     )
   }
@@ -45,9 +46,9 @@ export function DashboardPage() {
   if (!session.data) return null
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Parent Dashboard</h1>
+    <div className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Parent Dashboard</h1>
         <Button
           variant="outline"
           size="sm"
@@ -61,9 +62,9 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      <p className="text-muted-foreground mt-2">Welcome back.</p>
+      <p className={styles.welcome}>Welcome back.</p>
 
-      <div className="mt-6 flex items-center gap-2">
+      <div className={styles.actions}>
         <Link to="/parent/onboarding" className={buttonVariants({ size: 'sm' })}>
           Add child
         </Link>
@@ -72,13 +73,13 @@ export function DashboardPage() {
         </Link>
       </div>
 
-      <div className="mt-8 space-y-4">
+      <div className={styles.list}>
         {loadingKids ? (
-          <p className="text-muted-foreground text-sm">Loading...</p>
+          <p className={styles.mutedSm}>Loading...</p>
         ) : !kids || kids.length === 0 ? (
           <Card>
-            <CardContent className="py-8 text-center">
-              <p className="text-muted-foreground">
+            <CardContent className={styles.emptyContent}>
+              <p className={styles.muted}>
                 No children yet. Add your first child to get started.
               </p>
             </CardContent>

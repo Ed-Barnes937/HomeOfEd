@@ -2,9 +2,11 @@
 import { CALIBRATION_QUESTIONS, type CalibrationAnswer } from '@hoe/sprout-shared'
 import { useState } from 'react'
 
+import { cn } from '../../lib/utils.ts'
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
 import { Textarea } from '../ui/textarea.tsx'
+import styles from './OnboardingStep2.module.scss'
 import type { OnboardingData } from './types.ts'
 
 interface OnboardingStep2Props {
@@ -77,34 +79,35 @@ export function OnboardingStep2({ data, onNext, onBack }: OnboardingStep2Props) 
     state.selectedLevel !== null || (state.showCustom && state.customAnswer.trim() !== '')
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Sensitive topic calibration</CardTitle>
+    <Card className={styles.card}>
+      <CardHeader className={styles.headerCenter}>
+        <CardTitle className={styles.title}>Sensitive topic calibration</CardTitle>
         <CardDescription>
           How should the AI handle tricky questions? Pick the answer style that feels right for your
           child.
         </CardDescription>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <p className={styles.questionCount}>
           Question {currentQuestion + 1} of {CALIBRATION_QUESTIONS.length}
         </p>
       </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1">
-          <p className="text-lg font-semibold">&ldquo;{question.question}&rdquo;</p>
-          <p className="text-muted-foreground text-sm">{question.context}</p>
+      <CardContent className={styles.content}>
+        <div className={styles.questionBlock}>
+          <p className={styles.questionText}>&ldquo;{question.question}&rdquo;</p>
+          <p className={styles.questionContext}>{question.context}</p>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className={styles.options}>
           {question.options.map((option) => (
             <button
               key={option.level}
               type="button"
               onClick={() => updateState(question.id, { selectedLevel: option.level, showCustom: false })}
-              className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+              className={cn(
+                styles.optionButton,
                 state.selectedLevel === option.level && !state.showCustom
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/50'
-              }`}
+                  ? styles.optionButtonSelected
+                  : styles.optionButtonUnselected,
+              )}
             >
               {option.text}
             </button>
@@ -114,12 +117,12 @@ export function OnboardingStep2({ data, onNext, onBack }: OnboardingStep2Props) 
             <button
               type="button"
               onClick={() => updateState(question.id, { showCustom: true, selectedLevel: null })}
-              className="border-border hover:border-primary/50 rounded-lg border border-dashed p-3 text-left text-sm transition-colors"
+              className={styles.customButton}
             >
               Write your own answer...
             </button>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className={styles.customWrap}>
               <Textarea
                 placeholder="Write how you'd like the AI to respond..."
                 value={state.customAnswer}
@@ -129,7 +132,7 @@ export function OnboardingStep2({ data, onNext, onBack }: OnboardingStep2Props) 
               <button
                 type="button"
                 onClick={() => updateState(question.id, { showCustom: false, customAnswer: '' })}
-                className="text-muted-foreground text-left text-xs underline"
+                className={styles.cancelCustom}
               >
                 Cancel custom answer
               </button>
@@ -137,22 +140,22 @@ export function OnboardingStep2({ data, onNext, onBack }: OnboardingStep2Props) 
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className={styles.nav}>
           {currentQuestion > 0 ? (
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              className={styles.flex1}
               onClick={() => setCurrentQuestion((prev) => prev - 1)}
             >
               Previous
             </Button>
           ) : (
-            <Button type="button" variant="outline" className="flex-1" onClick={onBack}>
+            <Button type="button" variant="outline" className={styles.flex1} onClick={onBack}>
               Back
             </Button>
           )}
-          <Button type="button" className="flex-1" onClick={handleNextQuestion} disabled={!hasAnswer}>
+          <Button type="button" className={styles.flex1} onClick={handleNextQuestion} disabled={!hasAnswer}>
             {isLast ? 'Next' : 'Next question'}
           </Button>
         </div>
@@ -160,7 +163,7 @@ export function OnboardingStep2({ data, onNext, onBack }: OnboardingStep2Props) 
         <button
           type="button"
           onClick={() => onNext({ calibrationAnswers: [] })}
-          className="text-muted-foreground text-center text-sm underline"
+          className={styles.skip}
         >
           Skip calibration — use defaults
         </button>

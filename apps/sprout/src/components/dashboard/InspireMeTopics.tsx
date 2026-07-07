@@ -1,10 +1,10 @@
-// Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
 import type { KeyboardEvent } from 'react'
 import { useState } from 'react'
 
 import type { ParentSeededTopic } from '../../features/topics/topicsQueries.ts'
 import { Button } from '../ui/button.tsx'
 import { Input } from '../ui/input.tsx'
+import styles from './InspireMeTopics.module.scss'
 
 interface InspireMeTopicsProps {
   topics: ParentSeededTopic[]
@@ -31,23 +31,18 @@ export function InspireMeTopics({ topics, onAdd, onDelete, isAdding }: InspireMe
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={styles.container}>
       {topics.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No topics yet. Add some to inspire conversations.
-        </p>
+        <p className={styles.empty}>No topics yet. Add some to inspire conversations.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className={styles.list}>
           {topics.map((topic) => (
-            <li
-              key={topic.id}
-              className="flex items-center justify-between rounded-lg border px-3 py-2"
-            >
-              <span className="text-sm">{topic.topic}</span>
+            <li key={topic.id} className={styles.item}>
+              <span className={styles.topic}>{topic.topic}</span>
               <button
                 type="button"
                 onClick={() => onDelete(topic.id)}
-                className="text-muted-foreground hover:text-destructive ml-2 text-sm"
+                className={styles.delete}
                 aria-label={`Delete topic ${topic.topic}`}
               >
                 X
@@ -57,7 +52,7 @@ export function InspireMeTopics({ topics, onAdd, onDelete, isAdding }: InspireMe
         </ul>
       )}
 
-      <div className="flex gap-2">
+      <div className={styles.inputRow}>
         <Input
           type="text"
           placeholder="e.g. Dinosaurs, Space, Cooking"

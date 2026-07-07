@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button.tsx'
 import { conversationMessagesQueryOptions } from '../features/conversations/conversationsQueries.ts'
 import { flagsQueryOptions } from '../features/flags/flagsQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
+import styles from './ConversationDetailPage.module.scss'
 
 const route = getRouteApi('/parent/conversations/$conversationId')
 
@@ -39,8 +40,8 @@ export function ConversationDetailPage() {
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.mutedText}>Loading...</p>
       </div>
     )
   }
@@ -48,9 +49,9 @@ export function ConversationDetailPage() {
   if (!session.data) return null
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col px-4 py-12">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold" data-testid="conversation-title">
+    <div className={styles.page}>
+      <div className={styles.headerRow}>
+        <h1 className={styles.heading} data-testid="conversation-title">
           {conversationTitle}
         </h1>
         <Link to="/parent/flags">
@@ -60,12 +61,12 @@ export function ConversationDetailPage() {
         </Link>
       </div>
 
-      <div className="mt-6">
+      <div className={styles.body}>
         {loadingMessages ? (
-          <p className="text-muted-foreground text-sm">Loading messages...</p>
+          <p className={styles.mutedTextSm}>Loading messages...</p>
         ) : messages.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-muted-foreground">No messages found for this conversation.</p>
+          <div className={styles.emptyState}>
+            <p className={styles.mutedText}>No messages found for this conversation.</p>
           </div>
         ) : (
           <ReadOnlyTranscript messages={messages} flaggedMessageIds={flaggedMessageIds} />

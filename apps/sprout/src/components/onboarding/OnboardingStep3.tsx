@@ -12,6 +12,7 @@ import { SLIDER_KEYS } from '../../server/domain/presets.ts'
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
 import { Slider } from '../ui/slider.tsx'
+import styles from './OnboardingStep3.module.scss'
 import type { OnboardingData } from './types.ts'
 
 interface OnboardingStep3Props {
@@ -48,78 +49,78 @@ export function OnboardingStep3({
   }
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Review &amp; confirm</CardTitle>
+    <Card className={styles.card}>
+      <CardHeader className={styles.headerCenter}>
+        <CardTitle className={styles.title}>Review &amp; confirm</CardTitle>
         <CardDescription>
           Check everything looks right before creating {data.displayName}&apos;s account.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        <div className="flex items-center justify-between">
+      <CardContent className={styles.content}>
+        <div className={styles.reviewRow}>
           <div>
-            <p className="text-muted-foreground text-sm">Name</p>
-            <p className="font-medium">{data.displayName}</p>
+            <p className={styles.reviewLabel}>Name</p>
+            <p className={styles.reviewValue}>{data.displayName}</p>
           </div>
-          <button type="button" onClick={() => onEdit(0)} className="text-primary text-sm underline">
+          <button type="button" onClick={() => onEdit(0)} className={styles.editButton}>
             Edit
           </button>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className={styles.reviewRow}>
           <div>
-            <p className="text-muted-foreground text-sm">Preset</p>
-            <p className="font-medium">{preset.label}</p>
+            <p className={styles.reviewLabel}>Preset</p>
+            <p className={styles.reviewValue}>{preset.label}</p>
           </div>
-          <button type="button" onClick={() => onEdit(0)} className="text-primary text-sm underline">
+          <button type="button" onClick={() => onEdit(0)} className={styles.editButton}>
             Edit
           </button>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className={styles.reviewRow}>
           <div>
-            <p className="text-muted-foreground text-sm">PIN</p>
-            <p className="font-mono font-medium">{'*'.repeat(data.pin.length)}</p>
+            <p className={styles.reviewLabel}>PIN</p>
+            <p className={styles.reviewValueMono}>{'*'.repeat(data.pin.length)}</p>
           </div>
-          <button type="button" onClick={() => onEdit(0)} className="text-primary text-sm underline">
+          <button type="button" onClick={() => onEdit(0)} className={styles.editButton}>
             Edit
           </button>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className={styles.reviewRow}>
           <div>
-            <p className="text-muted-foreground text-sm">Sensitive topic calibration</p>
-            <p className="font-medium">
+            <p className={styles.reviewLabel}>Sensitive topic calibration</p>
+            <p className={styles.reviewValue}>
               {hasCalibration
                 ? `${data.calibrationAnswers.length} of ${CALIBRATION_QUESTIONS.length} questions answered`
                 : 'Skipped — using defaults'}
             </p>
           </div>
-          <button type="button" onClick={() => onEdit(1)} className="text-primary text-sm underline">
+          <button type="button" onClick={() => onEdit(1)} className={styles.editButton}>
             Edit
           </button>
         </div>
 
-        <div className="border-border rounded-lg border">
+        <div className={styles.sliderPanel}>
           <button
             type="button"
             onClick={() => setShowSliders(!showSliders)}
-            className="flex w-full items-center justify-between p-3 text-left"
+            className={styles.sliderToggle}
           >
-            <span className="text-sm font-medium">Customise guardrail sliders</span>
-            <span className="text-muted-foreground text-sm">{showSliders ? 'Hide' : 'Show'}</span>
+            <span className={styles.sliderToggleLabel}>Customise guardrail sliders</span>
+            <span className={styles.sliderToggleState}>{showSliders ? 'Hide' : 'Show'}</span>
           </button>
 
           {showSliders && (
-            <div className="flex flex-col gap-4 border-t px-3 pb-4 pt-3">
+            <div className={styles.sliderList}>
               {SLIDER_KEYS.map((key) => {
                 const meta = SLIDER_LABELS[key]
                 const value = effectiveSliders[key]
                 return (
-                  <div key={key} className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">{meta.label}</label>
-                      <span className="text-muted-foreground text-xs">{value} / 5</span>
+                  <div key={key} className={styles.sliderItem}>
+                    <div className={styles.sliderHeader}>
+                      <label className={styles.sliderLabel}>{meta.label}</label>
+                      <span className={styles.sliderValue}>{value} / 5</span>
                     </div>
                     <Slider
                       min={1}
@@ -128,7 +129,7 @@ export function OnboardingStep3({
                       value={[value]}
                       onValueChange={(newValue) => handleSliderValueChange(key, newValue)}
                     />
-                    <div className="text-muted-foreground flex justify-between text-xs">
+                    <div className={styles.sliderScale}>
                       <span>{meta.low}</span>
                       <span>{meta.high}</span>
                     </div>
@@ -139,11 +140,11 @@ export function OnboardingStep3({
           )}
         </div>
 
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" className="flex-1" onClick={onBack}>
+        <div className={styles.nav}>
+          <Button type="button" variant="outline" className={styles.flex1} onClick={onBack}>
             Back
           </Button>
-          <Button type="button" className="flex-1" onClick={onSubmit} disabled={isSubmitting}>
+          <Button type="button" className={styles.flex1} onClick={onSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Creating account...' : `Create ${data.displayName}'s account`}
           </Button>
         </div>

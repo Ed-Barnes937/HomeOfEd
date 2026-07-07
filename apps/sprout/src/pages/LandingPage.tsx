@@ -1,19 +1,20 @@
-// Ported from the source `routes/index.tsx`. Tailwind classes retained; SCSS is P7.
+// Ported from the source `routes/index.tsx`. Styled via SCSS module (P7b).
 import { Link } from '@tanstack/react-router'
 
 import { buttonVariants } from '../components/ui/button.tsx'
+import styles from './LandingPage.module.scss'
 
 export function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-4">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-4xl font-bold tracking-tight">sprout</h1>
-        <p className="text-muted-foreground max-w-md text-lg">
+    <div className={styles.page}>
+      <div className={styles.intro}>
+        <h1 className={styles.title}>sprout</h1>
+        <p className={styles.tagline}>
           A safe, parent-controlled AI chat experience for children.
         </p>
       </div>
 
-      <div className="flex w-full max-w-xs flex-col gap-3">
+      <div className={styles.actions}>
         <Link to="/parent/login" className={buttonVariants({ size: 'lg' })}>
           I&apos;m a parent
         </Link>
@@ -22,9 +23,9 @@ export function LandingPage() {
         </Link>
       </div>
 
-      <p className="text-muted-foreground text-sm">
+      <p className={styles.footer}>
         New here?{' '}
-        <Link to="/parent/register" className="text-primary underline underline-offset-4">
+        <Link to="/parent/register" className={styles.link}>
           Create an account
         </Link>
       </p>

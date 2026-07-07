@@ -15,6 +15,7 @@
     "migrate": "node src/server/migrate.ts"
   },
   "dependencies": {
+    "@base-ui/react": "^1.6.0",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/db": "workspace:*",
     "@hoe/logger": "workspace:*",

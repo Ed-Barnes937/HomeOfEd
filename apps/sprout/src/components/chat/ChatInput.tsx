@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 
 import { Button } from '../ui/button.tsx'
 import { Input } from '../ui/input.tsx'
+import styles from './ChatInput.module.scss'
 
 interface ChatInputProps {
   value: string
@@ -27,8 +28,8 @@ export function ChatInput({
   }
 
   return (
-    <div className="border-border border-t px-4 py-3">
-      <form onSubmit={handleSubmit} className="mx-auto flex max-w-lg gap-2">
+    <div className={styles.container}>
+      <form onSubmit={handleSubmit} className={styles.form}>
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}

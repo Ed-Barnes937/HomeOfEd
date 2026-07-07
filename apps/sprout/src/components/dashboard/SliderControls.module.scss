@@ -1,0 +1,35 @@
+// Slider group (P7b) — ported from the source's Tailwind slider controls.
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.value {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.range {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}

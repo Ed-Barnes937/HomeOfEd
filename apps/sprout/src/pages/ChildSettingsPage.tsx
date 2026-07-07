@@ -18,6 +18,7 @@ import {
 } from '../features/children/childrenQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
 import { addTopic, removeTopic, topicsQueryOptions } from '../features/topics/topicsQueries.ts'
+import styles from './ChildSettingsPage.module.scss'
 
 const route = getRouteApi('/parent/children/$childId')
 
@@ -78,8 +79,8 @@ export function ChildSettingsPage() {
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.mutedText}>Loading...</p>
       </div>
     )
   }
@@ -88,9 +89,9 @@ export function ChildSettingsPage() {
 
   if (!child) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-muted-foreground">Child not found.</p>
-        <Link to="/parent/children" className="text-primary mt-2 inline-block text-sm underline">
+      <div className={styles.page}>
+        <p className={styles.mutedText}>Child not found.</p>
+        <Link to="/parent/children" className={styles.notFoundLink}>
           Back to children
         </Link>
       </div>
@@ -139,20 +140,17 @@ export function ChildSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <Link
-        to="/parent/children"
-        className="text-muted-foreground mb-4 inline-block text-sm underline"
-      >
+    <div className={styles.page}>
+      <Link to="/parent/children" className={styles.backLink}>
         Back to children
       </Link>
 
-      <h1 className="text-2xl font-bold">{child.displayName}&apos;s Settings</h1>
+      <h1 className={styles.heading}>{child.displayName}&apos;s Settings</h1>
 
-      <div className="mt-6 space-y-6">
+      <div className={styles.sections}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Preset</CardTitle>
+            <CardTitle className={styles.cardTitle}>Preset</CardTitle>
           </CardHeader>
           <CardContent>
             <PresetSelector
@@ -160,13 +158,13 @@ export function ChildSettingsPage() {
               onChange={handlePresetChange}
               disabled={updateChildMutation.isPending}
             />
-            {presetSaved && <p className="text-sm text-green-600 mt-2">Preset saved</p>}
+            {presetSaved && <p className={styles.savedMessage}>Preset saved</p>}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Guardrail Sliders</CardTitle>
+            <CardTitle className={styles.cardTitle}>Guardrail Sliders</CardTitle>
           </CardHeader>
           <CardContent>
             {sliderValues ? (
@@ -177,17 +175,17 @@ export function ChildSettingsPage() {
                   onCommit={handleSliderCommit}
                   disabled={updatePresetMutation.isPending}
                 />
-                {slidersSaved && <p className="text-sm text-green-600 mt-2">Sliders saved</p>}
+                {slidersSaved && <p className={styles.savedMessage}>Sliders saved</p>}
               </>
             ) : (
-              <p className="text-muted-foreground text-sm">Loading...</p>
+              <p className={styles.mutedTextSm}>Loading...</p>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Inspire Me Topics</CardTitle>
+            <CardTitle className={styles.cardTitle}>Inspire Me Topics</CardTitle>
           </CardHeader>
           <CardContent>
             <InspireMeTopics
@@ -201,10 +199,10 @@ export function ChildSettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">PIN Management</CardTitle>
+            <CardTitle className={styles.cardTitle}>PIN Management</CardTitle>
           </CardHeader>
           <CardContent>
-            {pinSaved && <p className="text-sm text-green-600 mb-2">PIN updated</p>}
+            {pinSaved && <p className={styles.savedMessageTop}>PIN updated</p>}
             {!showPinReset ? (
               <Button
                 variant="outline"
@@ -216,7 +214,7 @@ export function ChildSettingsPage() {
                 Reset PIN
               </Button>
             ) : (
-              <div className="flex gap-2">
+              <div className={styles.pinRow}>
                 <Input
                   type="text"
                   inputMode="numeric"

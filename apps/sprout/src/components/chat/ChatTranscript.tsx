@@ -3,6 +3,8 @@
 import type { ReactNode, RefObject } from 'react'
 
 import type { ChatMessage } from '../../features/chat/useChat.ts'
+import { cn } from '../../lib/utils.ts'
+import styles from './ChatTranscript.module.scss'
 
 interface ChatTranscriptProps {
   messages: ChatMessage[]
@@ -26,37 +28,36 @@ export function ChatTranscript({
   emptyState,
 }: ChatTranscriptProps) {
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4">
+    <div className={styles.scroll}>
       {messages.length === 0 && emptyState && (
-        <div className="flex h-full items-center justify-center">{emptyState}</div>
+        <div className={styles.empty}>{emptyState}</div>
       )}
 
-      <div className="mx-auto max-w-lg space-y-3">
+      <div className={styles.list}>
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex ${msg.role === 'child' ? 'justify-end' : 'justify-start'}`}
+            className={cn(styles.row, msg.role === 'child' ? styles.rowChild : styles.rowOther)}
           >
-            <div className="max-w-[80%]">
+            <div className={styles.bubbleWrap}>
               <div
                 data-testid={msg.role === 'ai' ? 'ai-message' : undefined}
-                className={`rounded-2xl px-4 py-2 ${
-                  msg.role === 'child'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}
+                className={cn(
+                  styles.bubble,
+                  msg.role === 'child' ? styles.bubbleChild : styles.bubbleOther,
+                )}
               >
-                <p className="whitespace-pre-wrap text-sm">
+                <p className={styles.messageText}>
                   {msg.content || (streaming && i === messages.length - 1 ? '...' : '')}
                 </p>
               </div>
               {msg.role === 'ai' && msg.content && !streaming && (
-                <div className="mt-1 flex justify-start">
+                <div className={styles.reportRow}>
                   <button
                     data-testid="report-button"
                     onClick={() => onReport(i)}
                     disabled={reportedMessages.has(i)}
-                    className="text-muted-foreground hover:text-destructive text-xs disabled:opacity-50"
+                    className={styles.reportButton}
                   >
                     {reportedMessages.has(i) ? 'Reported' : 'Report this answer'}
                   </button>
@@ -67,19 +68,13 @@ export function ChatTranscript({
         ))}
 
         {isNearLimit && (
-          <div
-            data-testid="session-warning"
-            className="rounded-lg bg-yellow-50 p-3 text-center text-sm text-yellow-800"
-          >
+          <div data-testid="session-warning" className={styles.warningBanner}>
             You&apos;re getting close to your session limit. Try to wrap up soon!
           </div>
         )}
 
         {isAtLimit && (
-          <div
-            data-testid="session-limit"
-            className="rounded-lg bg-orange-50 p-3 text-center text-sm text-orange-800"
-          >
+          <div data-testid="session-limit" className={styles.limitBanner}>
             You&apos;ve reached your session limit. Time for a break!
           </div>
         )}

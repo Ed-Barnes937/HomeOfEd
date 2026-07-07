@@ -9,6 +9,7 @@ import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { conversationsQueryOptions } from '../features/conversations/conversationsQueries.ts'
 import { getRandomTopic, INSPIRE_SESSION_KEY } from '../lib/chatConfig.ts'
 import { clearChildSession, getChildSession } from '../lib/childSession.ts'
+import styles from './ChildHomePage.module.scss'
 
 export function ChildHomePage() {
   const navigate = useNavigate()
@@ -37,16 +38,16 @@ export function ChildHomePage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg flex-col px-4 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Hi, {childName}!</h1>
+    <div className={styles.page}>
+      <div className={styles.headerRow}>
+        <h1 className={styles.heading}>Hi, {childName}!</h1>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
           Log out
         </Button>
       </div>
 
-      <div className="mt-8 flex flex-col gap-4">
-        <div className="flex gap-2">
+      <div className={styles.main}>
+        <div className={styles.actions}>
           <Link to="/child/chat/new" className={buttonVariants({ size: 'lg' })}>
             Start a new conversation
           </Link>
@@ -56,19 +57,19 @@ export function ChildHomePage() {
         </div>
 
         {conversations.length > 0 && (
-          <div className="mt-4">
-            <h2 className="mb-3 text-lg font-semibold">Previous conversations</h2>
-            <div className="space-y-2">
+          <div className={styles.section}>
+            <h2 className={styles.sectionHeading}>Previous conversations</h2>
+            <div className={styles.convoList}>
               {conversations.map((convo) => (
                 <Link
                   key={convo.id}
                   to="/child/chat/$conversationId"
                   params={{ conversationId: convo.id }}
-                  className="bg-card hover:bg-accent border-border block rounded-lg border p-3 transition-colors"
+                  className={styles.convoItem}
                   data-testid="conversation-item"
                 >
-                  <p className="text-sm font-medium">{convo.title ?? 'Untitled'}</p>
-                  <p className="text-muted-foreground text-xs">
+                  <p className={styles.convoTitle}>{convo.title ?? 'Untitled'}</p>
+                  <p className={styles.convoDate}>
                     {new Date(convo.updatedAt).toLocaleDateString()}
                   </p>
                 </Link>
@@ -78,7 +79,7 @@ export function ChildHomePage() {
         )}
 
         {conversations.length === 0 && (
-          <p className="text-muted-foreground mt-8 text-center text-lg">
+          <p className={styles.emptyMessage}>
             What would you like to talk about?
           </p>
         )}

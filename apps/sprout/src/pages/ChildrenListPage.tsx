@@ -7,6 +7,7 @@ import { buttonVariants } from '../components/ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card.tsx'
 import { childrenQueryOptions } from '../features/children/childrenQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
+import styles from './ChildrenListPage.module.scss'
 
 export function ChildrenListPage() {
   const session = useRequireParent()
@@ -17,8 +18,8 @@ export function ChildrenListPage() {
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className={styles.loading}>
+        <p className={styles.muted}>Loading...</p>
       </div>
     )
   }
@@ -26,28 +27,25 @@ export function ChildrenListPage() {
   if (!session.data) return null
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Children</h1>
+    <div className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Children</h1>
         <Link to="/parent/onboarding" className={buttonVariants({ size: 'sm' })}>
           Add child
         </Link>
       </div>
 
-      <Link
-        to="/parent/dashboard"
-        className="text-muted-foreground mt-2 inline-block text-sm underline"
-      >
+      <Link to="/parent/dashboard" className={styles.backLink}>
         Back to dashboard
       </Link>
 
-      <div className="mt-6 space-y-3">
+      <div className={styles.list}>
         {loadingKids ? (
-          <p className="text-muted-foreground text-sm">Loading...</p>
+          <p className={styles.mutedSm}>Loading...</p>
         ) : !kids || kids.length === 0 ? (
           <Card>
-            <CardContent className="py-8 text-center">
-              <p className="text-muted-foreground">
+            <CardContent className={styles.emptyContent}>
+              <p className={styles.muted}>
                 No children yet. Add your first child to get started.
               </p>
             </CardContent>
@@ -58,17 +56,17 @@ export function ChildrenListPage() {
               key={child.id}
               to="/parent/children/$childId"
               params={{ childId: child.id }}
-              className="block"
+              className={styles.childLink}
             >
-              <Card className="transition-colors hover:border-primary/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{child.displayName}</CardTitle>
+              <Card className={styles.childCard}>
+                <CardHeader className={styles.cardHeaderTight}>
+                  <CardTitle>{child.displayName}</CardTitle>
                   <CardDescription>
                     {PRESET_DEFINITIONS[child.presetName]?.label ?? child.presetName}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground text-sm">Tap to manage settings</p>
+                  <p className={styles.mutedSm}>Tap to manage settings</p>
                 </CardContent>
               </Card>
             </Link>

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input.tsx'
 import { Label } from '../components/ui/label.tsx'
 import { parentAuth } from '../features/parentAuth/parentAuth.ts'
+import styles from './ParentLoginPage.module.scss'
 
 export function ParentLoginPage() {
   const navigate = useNavigate()
@@ -34,15 +35,15 @@ export function ParentLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Parent login</CardTitle>
+    <div className={styles.page}>
+      <Card className={styles.card}>
+        <CardHeader className={styles.header}>
+          <CardTitle className={styles.title}>Parent login</CardTitle>
           <CardDescription>Log in to manage your children&apos;s experience.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.field}>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -53,7 +54,7 @@ export function ParentLoginPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className={styles.field}>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
@@ -64,15 +65,15 @@ export function ParentLoginPage() {
               />
             </div>
 
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
             <Button type="submit" size="lg" disabled={loading}>
               {loading ? 'Logging in...' : 'Log in'}
             </Button>
 
-            <p className="text-muted-foreground text-center text-sm">
+            <p className={styles.footer}>
               Don&apos;t have an account?{' '}
-              <Link to="/parent/register" className="text-primary underline underline-offset-4">
+              <Link to="/parent/register" className={styles.link}>
                 Sign up
               </Link>
             </p>

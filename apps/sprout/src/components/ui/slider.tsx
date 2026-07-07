@@ -1,9 +1,11 @@
-// Minimal slider primitive over a native range input. The source used an
-// @base-ui slider; the styled reimplementation is P7 (plan §8). It keeps a
-// single-value `value` array (the ported controls pass `[n]`), but emits a
-// single number to `onValueChange` (live) / `onValueCommitted` (on release).
-// `onInput` fires live, `onChange` fires on commit for a range input.
+// Slider primitive (P7a). Styled wrapper over @base-ui/react's accessible slider
+// for keyboard/ARIA behaviour, keeping the exact P4 prop surface: single-value
+// `value` array in, a single number out via `onValueChange` (live) /
+// `onValueCommitted` (on release). API unchanged so P7b stays mechanical.
+import { Slider as SliderPrimitive } from '@base-ui/react/slider'
+
 import { cn } from '../../lib/utils.ts'
+import styles from './slider.module.scss'
 
 export interface SliderProps {
   min?: number
@@ -30,18 +32,25 @@ export function Slider({
   ...aria
 }: SliderProps) {
   return (
-    <input
-      type="range"
-      className={cn('slider', className)}
+    <SliderPrimitive.Root
+      className={cn(styles.root, className)}
       min={min}
       max={max}
       step={step}
       value={value[0] ?? min}
       disabled={disabled}
+      thumbAlignment="edge"
       aria-labelledby={aria['aria-labelledby']}
       aria-label={aria['aria-label']}
-      onInput={(e) => onValueChange?.(Number((e.target as HTMLInputElement).value))}
-      onChange={(e) => onValueCommitted?.(Number(e.target.value))}
-    />
+      onValueChange={(next) => onValueChange?.(next)}
+      onValueCommitted={(next) => onValueCommitted?.(next)}
+    >
+      <SliderPrimitive.Control className={styles.control}>
+        <SliderPrimitive.Track className={styles.track}>
+          <SliderPrimitive.Indicator className={styles.indicator} />
+        </SliderPrimitive.Track>
+        <SliderPrimitive.Thumb className={styles.thumb} />
+      </SliderPrimitive.Control>
+    </SliderPrimitive.Root>
   )
 }

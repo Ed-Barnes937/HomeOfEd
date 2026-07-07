@@ -1,8 +1,8 @@
-// Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
 import { SLIDER_LABELS, type PresetSliders } from '@hoe/sprout-shared'
 
 import { SLIDER_KEYS } from '../../server/domain/presets.ts'
 import { Slider } from '../ui/slider.tsx'
+import styles from './SliderControls.module.scss'
 
 interface SliderControlsProps {
   values: PresetSliders
@@ -13,18 +13,18 @@ interface SliderControlsProps {
 
 export function SliderControls({ values, onChange, onCommit, disabled }: SliderControlsProps) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className={styles.container}>
       {SLIDER_KEYS.map((key) => {
         const meta = SLIDER_LABELS[key]
         const value = values[key]
         const labelId = `slider-label-${key}`
         return (
-          <div key={key} className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label id={labelId} className="text-sm font-medium">
+          <div key={key} className={styles.group}>
+            <div className={styles.header}>
+              <label id={labelId} className={styles.label}>
                 {meta.label}
               </label>
-              <span className="text-muted-foreground text-xs">{value} / 5</span>
+              <span className={styles.value}>{value} / 5</span>
             </div>
             <Slider
               min={1}
@@ -36,7 +36,7 @@ export function SliderControls({ values, onChange, onCommit, disabled }: SliderC
               onValueChange={(newValue) => onChange(key, newValue)}
               onValueCommitted={(newValue) => onCommit?.(key, newValue)}
             />
-            <div className="text-muted-foreground flex justify-between text-xs">
+            <div className={styles.range}>
               <span>{meta.low}</span>
               <span>{meta.high}</span>
             </div>
