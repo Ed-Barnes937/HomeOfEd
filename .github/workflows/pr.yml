@@ -55,20 +55,6 @@ jobs:
         env:
           TURBO_SCM_BASE: origin/${{ github.base_ref }}
 
-      # TEMP DIAGNOSTIC (sprout PR): on failure, upload Playwright CT traces +
-      # error-context snapshots so the Linux-only fridge/wotd break can be
-      # inspected. Remove this step once the bundling issue is fixed.
-      - name: Upload Playwright CT artifacts on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ct-artifacts
-          path: |
-            apps/**/test-results/**
-            apps/**/playwright-report/**
-          if-no-files-found: ignore
-          retention-days: 3
-
   postgres:
     name: real-Postgres suite
     runs-on: ubuntu-latest

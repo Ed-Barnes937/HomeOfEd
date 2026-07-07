@@ -44,13 +44,6 @@ export interface IwftAppDefinition<Root extends BasePage> {
 export function createIwftTest<Root extends BasePage>(def: IwftAppDefinition<Root>) {
   return ctBase.extend<{ mountApp: MountApp<Root> }>({
     mountApp: async ({ mount, page }, use) => {
-      // TEMP DIAGNOSTIC (sprout PR): surface browser-side failures directly in
-      // the CI log so the Linux-only fridge/wotd CT break is visible without
-      // downloading traces. Revert once the bundling issue is fixed.
-      page.on('pageerror', (err) => console.error('[iwft pageerror]', err.message))
-      page.on('console', (msg) => {
-        if (msg.type() === 'error') console.error('[iwft console.error]', msg.text())
-      })
       await use(async (opts: MountAppOpts = {}) => {
         if (opts.seed) {
           // Ship the SeedFn across the Node→browser boundary as source text;
