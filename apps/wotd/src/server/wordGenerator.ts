@@ -37,6 +37,8 @@ export interface WordGenerator {
   /**
    * Produce one word per difficulty. Validates it got exactly one word per
    * difficulty and throws otherwise — the handler never sees a partial set.
+   * `exclusions` are recently-used words the generator should avoid (best
+   * effort — the handler enforces non-repetition on top of this).
    */
-  generateDailyWords(): Promise<GeneratedWord[]>
+  generateDailyWords(exclusions: string[]): Promise<GeneratedWord[]>
 }

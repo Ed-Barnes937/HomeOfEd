@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseGeneratedWords } from './anthropicWordGenerator.ts'
+import { buildUserMessage, parseGeneratedWords } from './anthropicWordGenerator.ts'
 
 function rawEntry(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -23,6 +23,25 @@ function validPayload() {
     ],
   }
 }
+
+describe('buildUserMessage', () => {
+  it('lists the difficulty personas', () => {
+    const message = buildUserMessage([])
+    expect(message).toContain('beginner')
+    expect(message).toContain('expert')
+  })
+
+  it('appends an exclusion clause naming each recent word when the list is non-empty', () => {
+    const message = buildUserMessage(['happy', 'curious'])
+    expect(message).toContain('happy')
+    expect(message).toContain('curious')
+    expect(message.toLowerCase()).toContain('do not')
+  })
+
+  it('omits the exclusion clause when there are no recent words', () => {
+    expect(buildUserMessage([]).toLowerCase()).not.toContain('do not')
+  })
+})
 
 describe('parseGeneratedWords', () => {
   it('maps a valid 4-difficulty payload to GeneratedWord[], normalizing field names', () => {

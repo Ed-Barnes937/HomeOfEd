@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm'
+import { eq, gte, sql } from 'drizzle-orm'
 import type { DbClient } from '@hoe/db'
 
 import { wordsTable, type WotdSchema } from './schema.ts'
@@ -15,6 +15,8 @@ export type NewWordRow = typeof wordsTable.$inferInsert
  */
 export interface WotdStore {
   getWordsForDate(date: string): Promise<WordRow[]>
+  /** Distinct words used on or after `sinceDate` — the no-repeat exclusion set. */
+  getRecentWords(sinceDate: string): Promise<string[]>
   /** Insert daily words; on conflict (for_date, difficulty) do nothing. */
   insertWords(rows: NewWordRow[]): Promise<void>
   /** Liveness round-trip for the deep /health check. */
@@ -30,6 +32,14 @@ export class DrizzleWotdStore implements WotdStore {
 
   getWordsForDate(date: string): Promise<WordRow[]> {
     return this.db.select().from(wordsTable).where(eq(wordsTable.forDate, date))
+  }
+
+  async getRecentWords(sinceDate: string): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ word: wordsTable.word })
+      .from(wordsTable)
+      .where(gte(wordsTable.forDate, sinceDate))
+    return rows.map((r) => r.word)
   }
 
   async insertWords(rows: NewWordRow[]): Promise<void> {

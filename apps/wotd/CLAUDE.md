@@ -22,6 +22,15 @@ set is *still* incomplete. On a day with no visitors, no words are generated —
 nothing reads them, so that's fine. A generator failure propagates; the next
 request retries.
 
+**No repeats within 90 days.** Before generating, the handler loads distinct
+words used in the last `HISTORY_WINDOW_DAYS` (90) via `store.getRecentWords` and
+passes them to the generator as exclusions (the prod prompt lists them; see
+`buildUserMessage`). It then checks the result for any repeat — of a recent word
+or a duplicate within the batch, case-insensitively — and regenerates up to
+`MAX_GENERATION_ATTEMPTS` (3) times. If it still repeats after that, the set is
+accepted anyway rather than blocking the user. No schema change — this reads the
+existing `word`/`for_date` columns.
+
 **The generator is a seam, injected per transport.** `WordGenerator`
 (`src/server/wordGenerator.ts`) is an interface. The router is a
 `createAppRouter(generator)` factory: dev (`simulator.ts`) and `.iwft`

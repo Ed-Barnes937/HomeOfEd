@@ -19,6 +19,17 @@ const DIFFICULTY_PERSONAS = [
   'expert: an expert English speaker, typically young adult onwards, aged 16+',
 ]
 
+/**
+ * Builds the user message: the difficulty personas, plus an exclusion clause
+ * listing recently-used words when any exist. Pure so it's unit-testable
+ * without the API.
+ */
+export function buildUserMessage(exclusions: string[]): string {
+  const base = DIFFICULTY_PERSONAS.join('\n')
+  if (exclusions.length === 0) return base
+  return `${base}\n\nDo not use any of these recently-used words: ${exclusions.join(', ')}`
+}
+
 const GENERATE_WORDS_TOOL: Anthropic.Tool = {
   name: 'generate_words',
   strict: true,
@@ -130,7 +141,7 @@ export class AnthropicWordGenerator implements WordGenerator {
     this.options = options
   }
 
-  async generateDailyWords(): Promise<GeneratedWord[]> {
+  async generateDailyWords(exclusions: string[]): Promise<GeneratedWord[]> {
     const client = new Anthropic({ apiKey: this.options.apiKey })
     const model = this.options.model ?? DEFAULT_MODEL
 
@@ -138,7 +149,7 @@ export class AnthropicWordGenerator implements WordGenerator {
       model,
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: DIFFICULTY_PERSONAS.join('\n') }],
+      messages: [{ role: 'user', content: buildUserMessage(exclusions) }],
       tools: [GENERATE_WORDS_TOOL],
       tool_choice: { type: 'tool', name: 'generate_words' },
     })
