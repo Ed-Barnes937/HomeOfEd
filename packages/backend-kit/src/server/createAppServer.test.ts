@@ -128,9 +128,9 @@ describe('createAppServer registerRoutes hook (D9)', () => {
       registerRoutes: (app) => {
         // A non-API GET path that the SPA notFound fallback would otherwise
         // serve index.html for — proves the hook wins over the catch-all.
-        app.get('/streamy', async () => ({ streamed: true }))
+        app.get('/streamy', () => ({ streamed: true }))
         // An /api route beside the tRPC plugin.
-        app.post('/api/echo', async (req) => ({ echoed: req.body }))
+        app.post('/api/echo', (req) => ({ echoed: req.body }))
       },
     })
     try {
@@ -160,7 +160,7 @@ describe('createAppServer registerRoutes hook (D9)', () => {
       logger: new NoopLogger(),
       healthCheck: () => Promise.resolve({ ok: true }),
       registerRoutes: (app) => {
-        app.get('/custom', async () => ({ ok: true }))
+        app.get('/custom', () => ({ ok: true }))
       },
     })
     try {
