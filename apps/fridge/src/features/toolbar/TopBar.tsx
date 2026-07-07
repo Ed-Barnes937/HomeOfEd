@@ -8,6 +8,10 @@ interface TopBarProps {
   onSave: () => void
   onNew: () => void
   onClear: () => void
+  /** Disable "Empty the fridge" when the board is empty (a no-op sweep looks broken). */
+  clearDisabled?: boolean
+  /** Disable Save while the board sweeps out — it would snapshot magnets about to clear. */
+  saveDisabled?: boolean
   /** The share affordance (features/share) — a slot so the toolbar stays presentational. */
   shareSlot?: ReactNode
 }
@@ -18,7 +22,16 @@ interface TopBarProps {
  * controlled by the active board's name; Save upserts it into the saved
  * chips (falling back to "Fridge N" when empty — see useFridgeBoard.save).
  */
-export function TopBar({ name, onNameChange, onSave, onNew, onClear, shareSlot }: TopBarProps) {
+export function TopBar({
+  name,
+  onNameChange,
+  onSave,
+  onNew,
+  onClear,
+  clearDisabled = false,
+  saveDisabled = false,
+  shareSlot,
+}: TopBarProps) {
   return (
     <div className={styles.bar}>
       <div className={styles.left}>
@@ -32,14 +45,19 @@ export function TopBar({ name, onNameChange, onSave, onNew, onClear, shareSlot }
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
         />
-        <button type="button" className={styles.save} onClick={onSave}>
+        <button type="button" className={styles.save} onClick={onSave} disabled={saveDisabled}>
           Save
         </button>
         {shareSlot}
         <button type="button" className={styles.ghost} onClick={onNew}>
           New
         </button>
-        <button type="button" className={`${styles.ghost} ${styles.clear}`} onClick={onClear}>
+        <button
+          type="button"
+          className={`${styles.ghost} ${styles.clear}`}
+          onClick={onClear}
+          disabled={clearDisabled}
+        >
           Empty the fridge
         </button>
       </div>

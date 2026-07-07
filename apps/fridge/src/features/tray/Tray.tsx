@@ -21,6 +21,7 @@ export function Tray({
   onAdd,
   onFinish,
   onWall,
+  disabled = false,
 }: {
   finish: Finish
   wall: Wall
@@ -29,6 +30,8 @@ export function Tray({
   onAdd: (opts: SpawnOpts) => void
   onFinish: (finish: Finish) => void
   onWall: (wall: Wall) => void
+  /** Locks tile spawning while the board sweeps out. */
+  disabled?: boolean
 }) {
   const [tab, setTab] = useState<TabKey>('letters')
 
@@ -42,7 +45,7 @@ export function Tray({
             <ColorPicker pick={pick} onPick={onPick} />
           </div>
           <div className={styles.body}>
-            <PaletteGrid tab={tab} onAdd={onAdd} />
+            <PaletteGrid tab={tab} onAdd={onAdd} disabled={disabled} />
           </div>
           <div className={styles.hint}>
             Tap to add · drag on the fridge to bump neighbours · click a magnet, then spin the knob

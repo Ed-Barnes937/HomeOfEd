@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0}
+  *{box-sizing:border-box}
+  a{color:#2f7fd6;text-decoration:none}
+  a:hover{color:#194f8f}
+  .card{transition:transform .18s ease, box-shadow .18s ease}
+  .replay{cursor:pointer;font-size:11.5px;font-weight:600;color:rgba(0,0,0,.4)}
+  .replay:hover{color:#8a4a42}
+  .sweepbtn{position:relative;overflow:hidden;transition:transform .12s ease, box-shadow .12s ease, filter .12s ease}
+  .sweepbtn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(200,64,47,.35)!important}
+  .sweepbtn:active{transform:translateY(0)}
+  .sweepbtn::after{content:"";position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-18deg);transition:left .5s ease}
+  .sweepbtn:hover::after{left:130%}
+  .magbtn{transition:transform .12s ease, box-shadow .12s ease}
+  .magbtn:hover{transform:translateY(-2px) rotate(-2deg)}
+  .magbtn:active{transform:translateY(1px) scale(.97)}
+  .handlehit{transition:transform .1s ease}
+  .handlehit:hover{transform:translateX(2px)}
+  .switch{transition:background .3s ease}
+  .knob{transition:transform .35s cubic-bezier(.5,.05,.4,1.3), background .3s ease}
+  @keyframes shakeFridge{
+    0%,100%{transform:translateX(0) rotate(0)}
+    12%{transform:translateX(-7px) rotate(-1.4deg)}
+    28%{transform:translateX(6px) rotate(1.2deg)}
+    45%{transform:translateX(-5px) rotate(-1deg)}
+    62%{transform:translateX(4px) rotate(.8deg)}
+    80%{transform:translateX(-2px) rotate(-.4deg)}
+  }
+  .shakeAnim{animation:shakeFridge .45s ease}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:40px 44px 64px;font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(180deg,#efe9df 0%,#e6dfd3 60%,#dcd4c6 100%)">
+
+  <div style="max-width:1180px;margin:0 auto 30px">
+    <span style="font-family:Fredoka,system-ui,sans-serif;font-weight:700;font-size:15px;letter-spacing:1.4px;text-transform:uppercase;color:#8a4a42">the fridge · clear-the-board</span>
+    <h1 style="font-family:Fredoka,system-ui,sans-serif;font-weight:700;font-size:34px;color:#33312c;margin:6px 0 8px;letter-spacing:.2px">Empty the fridge — button ideas</h1>
+    <p style="font-size:14.5px;line-height:1.55;color:rgba(0,0,0,.55);max-width:640px;margin:0">Five ways to sweep every magnet off the door — one clean stylised button, four playful ones. Each demo below is live: press the control to watch it clear, then hit <span style="font-weight:600;color:rgba(0,0,0,.45)">↺ replay</span> to bring the magnets back.</p>
+  </div>
+
+  <section id="1" style="max-width:1180px;margin:0 auto">
+    <div style="display:flex;flex-wrap:wrap;gap:22px">
+
+      <div id="1a" class="card" style="width:352px;background:rgba(255,255,255,.5);border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:16px 16px 18px;box-shadow:0 12px 30px -18px rgba(0,0,0,.4)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-family:Fredoka,sans-serif;font-weight:700;font-size:11px;color:#fff;background:#25303f;border-radius:6px;padding:2px 7px;letter-spacing:.5px">1a</span>
+          <span style="font-weight:700;font-size:15px;color:#33312c">The stylised button</span>
+        </div>
+        <p style="font-size:12px;color:rgba(0,0,0,.5);margin:0 0 12px;line-height:1.4">The safe, shippable pick — a confident danger-filled pill with a sheen sweep. Magnets poof away in a quick stagger.</p>
+        {{ doorClean }}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:13px">
+          <button onClick="{{ emptyClean }}" class="sweepbtn" style="border:none;cursor:pointer;font-family:Fredoka,system-ui,sans-serif;font-weight:600;font-size:13.5px;letter-spacing:.2px;color:#fff;padding:11px 18px;border-radius:11px;background:linear-gradient(180deg,#ef5f4a,#c8402f);box-shadow:0 3px 8px rgba(200,64,47,.4),inset 0 1px 0 rgba(255,255,255,.35)">Empty the fridge</button>
+          <span class="replay" onClick="{{ replayClean }}">↺ replay</span>
+        </div>
+      </div>
+
+      <div id="1b" class="card" style="width:352px;background:rgba(255,255,255,.5);border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:16px 16px 18px;box-shadow:0 12px 30px -18px rgba(0,0,0,.4)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-family:Fredoka,sans-serif;font-weight:700;font-size:11px;color:#fff;background:#25303f;border-radius:6px;padding:2px 7px;letter-spacing:.5px">1b</span>
+          <span style="font-weight:700;font-size:15px;color:#33312c">Pull the handle</span>
+        </div>
+        <p style="font-size:12px;color:rgba(0,0,0,.5);margin:0 0 12px;line-height:1.4">Whimsical. Grab the fridge's own chrome handle — the door "swings open" and every magnet slides off the bottom.</p>
+        {{ doorHandle }}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:13px">
+          <span onClick="{{ pullHandle }}" class="handlehit" style="cursor:grab;display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:#3a3a38;background:rgba(255,255,255,.72);border:1px solid rgba(0,0,0,.12);padding:9px 14px;border-radius:11px;box-shadow:0 1px 2px rgba(0,0,0,.1)"><span style="width:5px;height:22px;border-radius:3px;background:linear-gradient(90deg,#9ba0a4,#eaedee,#8d9296);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)"></span>Pull to open →</span>
+          <span class="replay" onClick="{{ replayHandle }}">↺ replay</span>
+        </div>
+      </div>
+
+      <div id="1c" class="card" style="width:352px;background:rgba(255,255,255,.5);border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:16px 16px 18px;box-shadow:0 12px 30px -18px rgba(0,0,0,.4)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-family:Fredoka,sans-serif;font-weight:700;font-size:11px;color:#fff;background:#25303f;border-radius:6px;padding:2px 7px;letter-spacing:.5px">1c</span>
+          <span style="font-weight:700;font-size:15px;color:#33312c">Shake it off</span>
+        </div>
+        <p style="font-size:12px;color:rgba(0,0,0,.5);margin:0 0 12px;line-height:1.4">Whimsical. The button is itself a magnet. Press it and the whole fridge shudders — the magnets rattle loose and tumble off.</p>
+        {{ doorShake }}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:13px">
+          <button onClick="{{ shakeOff }}" class="magbtn" style="cursor:pointer;border:none;font-family:Fredoka,system-ui,sans-serif;font-weight:700;font-size:14px;letter-spacing:1px;color:#fff;padding:11px 18px;border-radius:12px;background:linear-gradient(160deg,#83bdf5,#2f7fd6 62%);box-shadow:0 3px 0 #194f8f,0 6px 10px rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.4)">SHAKE</button>
+          <span class="replay" onClick="{{ replayShake }}">↺ replay</span>
+        </div>
+      </div>
+
+      <div id="1d" class="card" style="width:352px;background:rgba(255,255,255,.5);border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:16px 16px 18px;box-shadow:0 12px 30px -18px rgba(0,0,0,.4)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-family:Fredoka,sans-serif;font-weight:700;font-size:11px;color:#fff;background:#25303f;border-radius:6px;padding:2px 7px;letter-spacing:.5px">1d</span>
+          <span style="font-weight:700;font-size:15px;color:#33312c">Defrost sweep</span>
+        </div>
+        <p style="font-size:12px;color:rgba(0,0,0,.5);margin:0 0 12px;line-height:1.4">Whimsical. Flip the defrost switch and a frost blade wipes left-to-right across the door, clearing magnets in its wake.</p>
+        {{ doorDefrost }}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:13px">
+          <span onClick="{{ defrost }}" style="cursor:pointer;display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:13px;color:#3a3a38">
+            <span class="switch" style="{{ switchTrack }}"><span class="knob" style="{{ switchKnob }}"></span></span>
+            Defrost
+          </span>
+          <span class="replay" onClick="{{ replayDefrost }}">↺ replay</span>
+        </div>
+      </div>
+
+      <div id="1e" class="card" style="width:352px;background:rgba(255,255,255,.5);border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:16px 16px 18px;box-shadow:0 12px 30px -18px rgba(0,0,0,.4)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-family:Fredoka,sans-serif;font-weight:700;font-size:11px;color:#fff;background:#25303f;border-radius:6px;padding:2px 7px;letter-spacing:.5px">1e</span>
+          <span style="font-weight:700;font-size:15px;color:#33312c">Sweep it off</span>
+        </div>
+        <p style="font-size:12px;color:rgba(0,0,0,.5);margin:0 0 12px;line-height:1.4">Whimsical. One swipe pushes the magnets across the door left-to-right and they tumble off the bottom edge — like sweeping crumbs off a counter.</p>
+        {{ doorBin }}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:13px">
+          <button onClick="{{ toss }}" class="magbtn" style="cursor:pointer;border:1px solid rgba(0,0,0,.12);font-family:system-ui,sans-serif;font-weight:600;font-size:13px;color:#3a3a38;padding:10px 15px;border-radius:11px;background:rgba(255,255,255,.8);box-shadow:0 1px 2px rgba(0,0,0,.1)">Sweep it off</button>
+          <span class="replay" onClick="{{ replayBin }}">↺ replay</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1260,&quot;height&quot;:720}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.DW = 288; this.DH = 188;
+    this.COLORS = [
+      {main:'#e8503a',dark:'#a12b1d',light:'#ff9179'},
+      {main:'#2f7fd6',dark:'#194f8f',light:'#83bdf5'},
+      {main:'#3fae6b',dark:'#1f7343',light:'#8ee2ab'},
+      {main:'#f0b429',dark:'#a9760f',light:'#ffdd7a'},
+      {main:'#ef8a35',dark:'#a9560f',light:'#ffc389'},
+      {main:'#8a5cd1',dark:'#553497',light:'#c4a6f2'}
+    ];
+    // Shared demo board — five colored letters, a number, a fraction disc.
+    this.MAGS = [
+      {id:'H',type:'letter',label:'H',c:0,x:20, y:26, w:38,h:44,rot:-5,z:2},
+      {id:'E',type:'letter',label:'E',c:1,x:62, y:22, w:38,h:44,rot:4, z:3},
+      {id:'L1',type:'letter',label:'L',c:2,x:104,y:27, w:38,h:44,rot:-3,z:4},
+      {id:'L2',type:'letter',label:'L',c:3,x:146,y:23, w:38,h:44,rot:6, z:5},
+      {id:'O',type:'letter',label:'O',c:4,x:188,y:27, w:38,h:44,rot:-4,z:6},
+      {id:'N3',type:'number',label:'3',c:5,x:36, y:104,w:32,h:42,rot:3, z:2},
+      {id:'FR',type:'fraction',deg:270,c:0,x:150,y:100,w:44,h:44,rot:-6,z:2}
+    ];
+    this.state = { phase:{ clean:'idle', handle:'idle', shake:'idle', defrost:'idle', bin:'idle' } };
+  }
+
+  set(card,val){ this.setState(s=>({phase:{...s.phase,[card]:val}})); }
+
+  // ---- magnet face (matte, matching the app) ----
+  face(m){
+    const el=React.createElement; const c=this.COLORS[m.c];
+    if(m.type==='letter'||m.type==='number'){
+      const fs = m.type==='number'?34:36;
+      return el('div',{style:{fontFamily:'Fredoka, system-ui, sans-serif',fontWeight:700,fontSize:fs+'px',lineHeight:1,textAlign:'center',width:'100%',color:c.main,textShadow:`0 2px 0 ${c.dark}, 0 4px 5px rgba(0,0,0,.25)`}}, m.label);
+    }
+    return el('div',{style:{position:'relative',width:'100%',height:'100%',borderRadius:'50%',background:`conic-gradient(${c.light} 0 ${m.deg}deg, ${c.main} ${m.deg}deg 360deg)`,boxShadow:'0 3px 6px rgba(0,0,0,.32), inset 0 2px 4px rgba(255,255,255,.55), inset 0 -4px 8px rgba(0,0,0,.28)'}});
+  }
+
+  magStyle(card,m,i){
+    const ph=this.state.phase[card]; const DW=this.DW, DH=this.DH;
+    let transform=`rotate(${m.rot}deg)`, opacity=1, transition='', delay=0;
+    if(card==='clean'){
+      transition='transform .5s cubic-bezier(.55,-0.4,.5,1), opacity .45s ease'; delay=i*55;
+      if(ph==='gone'){ transform=`rotate(${m.rot}deg) scale(.12) translateY(-14px)`; opacity=0; }
+    } else if(card==='handle'){
+      transition='transform .8s cubic-bezier(.5,.02,.6,1), opacity .8s ease'; delay=i*45;
+      if(ph==='open'){ const dir=(i%2?1:-1); transform=`translateY(${DH+80}px) rotate(${dir*38+m.rot}deg)`; opacity=.2; }
+    } else if(card==='shake'){
+      transition='transform .6s cubic-bezier(.4,.9,.35,1), opacity .6s ease'; delay=i*40;
+      if(ph==='dropped'){ const dir=(i%2?1:-1); transform=`translateY(${DH+100}px) rotate(${dir*70+m.rot}deg)`; opacity=0; }
+    } else if(card==='defrost'){
+      transition='opacity .3s ease, transform .3s ease'; delay=Math.round((m.x/DW)*620);
+      if(ph==='wiping'){ transform=`rotate(${m.rot}deg) scale(.8)`; opacity=0; }
+    } else if(card==='bin'){
+      // Sweep left-to-right: magnets nearest the left go first, drift right and tumble off the bottom.
+      transition='transform .7s cubic-bezier(.45,.05,.6,1), opacity .7s ease'; delay=Math.round((m.x/DW)*260);
+      if(ph==='tossed'){ transform=`translate(${34+m.rot}px, ${DH+110}px) rotate(${m.rot+55}deg)`; opacity=0; }
+    }
+    return { position:'absolute', left:m.x+'px', top:m.y+'px', width:m.w+'px', height:m.h+'px',
+      transform, opacity, transformOrigin:'50% 50%', display:'grid', placeItems:'center',
+      zIndex:m.z, transition, transitionDelay:delay+'ms', willChange:'transform,opacity' };
+  }
+
+  magnets(card){
+    return this.MAGS.map((m,i)=>React.createElement('div',{key:m.id,style:this.magStyle(card,m,i)}, this.face(m)));
+  }
+
+  // ---- the fridge door shell (steel + chrome handle + surface) ----
+  door(card, extras, opts){
+    opts=opts||{};
+    const el=React.createElement;
+    const surfaceKids=[ el('div',{key:'wrap',className:opts.wrapClass||'',style:{position:'absolute',inset:0}}, this.magnets(card)) ];
+    if(extras) surfaceKids.push(extras);
+    const handleStyle={ position:'absolute', top:'22px', right:'14px', width:'12px', bottom:'22px', borderRadius:'7px',
+      background:'linear-gradient(90deg,#9ba0a4,#eaedee 42%,#c2c6c9 60%,#8d9296)', boxShadow:'0 4px 9px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.65)',
+      zIndex:8, transition:'transform .5s cubic-bezier(.4,.1,.3,1)', transform: opts.handlePulled?'translateX(4px) scaleY(1.03)':'none',
+      cursor: opts.onHandle?'grab':'default' };
+    const handleProps={ key:'handle', className:'handlehit', style:handleStyle };
+    if(opts.onHandle) handleProps.onClick=opts.onHandle;
+    return el('div',{style:{position:'relative',width:'300px',height:'200px',borderRadius:'18px',
+        background:'linear-gradient(96deg,#c9cdd0 0%,#eef1f2 9%,#d4d8db 17%,#eef1f2 27%,#c9cdd0 41%,#f0f2f3 56%,#d0d4d7 71%,#eceff0 84%,#cdd1d4 100%)',
+        boxShadow:'0 20px 36px -18px rgba(0,0,0,.5),0 5px 14px rgba(0,0,0,.18),inset 0 2px 0 rgba(255,255,255,.75),inset 0 -4px 9px rgba(0,0,0,.14)',
+        border:'1px solid rgba(120,124,128,.5)',overflow:'hidden'}},
+      el('div',{key:'surf',style:{position:'absolute',inset:'6px',borderRadius:'13px',overflow:'hidden',zIndex:5}}, surfaceKids),
+      el('div',handleProps)
+    );
+  }
+
+  // ---- per-card extras ----
+  frostBar(active){
+    const el=React.createElement; const DW=this.DW;
+    return el('div',{key:'frost',style:{position:'absolute',top:0,bottom:0,left:0,width:'64px',zIndex:20,pointerEvents:'none',
+      background:'linear-gradient(90deg, rgba(220,235,245,0), rgba(240,250,255,.9) 40%, rgba(255,255,255,.95) 55%, rgba(220,235,245,0))',
+      boxShadow:'0 0 22px 8px rgba(230,245,255,.6)', filter:'blur(.4px)',
+      transform:`translateX(${active?(DW+70):-70}px)`, transition:active?'transform .95s linear':'none'}});
+  }
+  bin(open){
+    const el=React.createElement;
+    const lid=el('div',{key:'lid',style:{position:'absolute',left:'-4px',top:'-7px',width:'46px',height:'7px',borderRadius:'3px',
+      background:'linear-gradient(180deg,#5b6472,#3a4250)',transformOrigin:'left bottom',
+      transform:open?'rotate(-52deg)':'rotate(0)',transition:'transform .4s cubic-bezier(.5,.05,.4,1.2)',boxShadow:'0 2px 4px rgba(0,0,0,.3)'}});
+    const body=el('div',{key:'body',style:{position:'absolute',left:'2px',top:'0',width:'34px',height:'32px',borderRadius:'3px 3px 5px 5px',
+      background:'linear-gradient(180deg,#4a5262,#333a47)',clipPath:'polygon(6% 0,94% 0,86% 100%,14% 100%)',
+      boxShadow:'inset 0 2px 3px rgba(255,255,255,.12), 0 3px 6px rgba(0,0,0,.3)'}},
+      el('div',{style:{position:'absolute',left:'22%',top:'12%',width:'8%',height:'82%',background:'rgba(255,255,255,.09)'}}),
+      el('div',{style:{position:'absolute',left:'48%',top:'12%',width:'8%',height:'82%',background:'rgba(255,255,255,.09)'}}),
+      el('div',{style:{position:'absolute',left:'74%',top:'12%',width:'8%',height:'82%',background:'rgba(255,255,255,.09)'}}));
+    return el('div',{key:'bin',style:{position:'absolute',right:'12px',bottom:'10px',width:'40px',height:'34px',zIndex:15,pointerEvents:'none'}}, lid, body);
+  }
+
+  renderVals(){
+    const ph=this.state.phase;
+    // defrost switch visuals
+    const on = ph.defrost==='wiping';
+    const switchTrack = `width:38px;height:22px;border-radius:20px;padding:2px;display:inline-flex;align-items:center;background:${on?'#2f7fd6':'rgba(0,0,0,.2)'}`;
+    const switchKnob = `width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transform:translateX(${on?16:0}px)`;
+    return {
+      doorClean: this.door('clean'),
+      doorHandle: this.door('handle', null, { onHandle:()=>this.set('handle','open'), handlePulled: ph.handle==='open' }),
+      doorShake: this.door('shake', null, { wrapClass: ph.shake==='shaking'?'shakeAnim':'' }),
+      doorDefrost: this.door('defrost', this.frostBar(ph.defrost==='wiping')),
+      doorBin: this.door('bin'),
+
+      emptyClean: ()=>this.set('clean','gone'),
+      pullHandle: ()=>this.set('handle','open'),
+      shakeOff: ()=>{ this.set('shake','shaking'); setTimeout(()=>this.set('shake','dropped'),430); },
+      defrost: ()=>this.set('defrost','wiping'),
+      toss: ()=>this.set('bin','tossed'),
+
+      replayClean: ()=>this.set('clean','idle'),
+      replayHandle: ()=>this.set('handle','idle'),
+      replayShake: ()=>this.set('shake','idle'),
+      replayDefrost: ()=>this.set('defrost','idle'),
+      replayBin: ()=>this.set('bin','idle'),
+
+      switchTrack, switchKnob
+    };
+  }
+}
+</script>
+</body>
+</html>
