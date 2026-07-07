@@ -136,6 +136,13 @@ export interface SproutStore {
   touchConversation(id: string): Promise<void>
   /** Set the summary and purge all messages atomically (summariseAndPurge / worker). */
   summariseAndPurgeConversation(id: string, summary: string): Promise<void>
+  /**
+   * Retention worker (P9): conversations whose `updatedAt` predates `before`
+   * that STILL have messages — i.e. due for summarise+purge. Already-purged
+   * conversations (summary set, no messages) are excluded so a repeated sweep
+   * never re-processes them.
+   */
+  listConversationsForRetention(before: Date): Promise<ConversationRow[]>
 
   // --- conversations.{messages,saveMessage} + children.stats (messages) ----
   addMessage(input: MessageInsert): Promise<MessageRow>
@@ -165,6 +172,12 @@ export interface SproutStore {
     deviceToken?: string
     before: Date
   }): Promise<void>
+  /**
+   * Retention worker (P9): drop ALL behavioural events older than `before`,
+   * regardless of child/device key — a global compliance sweep, distinct from
+   * the per-key write-path prune above (which only touches the acting key).
+   */
+  pruneBehaviouralEventsBefore(before: Date): Promise<void>
 }
 
 export class DrizzleSproutStore implements SproutStore {
@@ -348,6 +361,23 @@ export class DrizzleSproutStore implements SproutStore {
     })
   }
 
+  async listConversationsForRetention(before: Date): Promise<ConversationRow[]> {
+    // INNER JOIN on messages + DISTINCT keeps only conversations that still have
+    // messages (already-purged rows have none), so a sweep never re-processes them.
+    return this.db
+      .selectDistinct({
+        id: conversations.id,
+        childId: conversations.childId,
+        title: conversations.title,
+        summary: conversations.summary,
+        createdAt: conversations.createdAt,
+        updatedAt: conversations.updatedAt,
+      })
+      .from(conversations)
+      .innerJoin(messages, eq(messages.conversationId, conversations.id))
+      .where(lt(conversations.updatedAt, before))
+  }
+
   // --- Messages -------------------------------------------------------------
 
   async addMessage(input: MessageInsert): Promise<MessageRow> {
@@ -461,5 +491,9 @@ export class DrizzleSproutStore implements SproutStore {
           ),
         )
     }
+  }
+
+  async pruneBehaviouralEventsBefore(before: Date): Promise<void> {
+    await this.db.delete(behaviouralEvents).where(lt(behaviouralEvents.createdAt, before))
   }
 }

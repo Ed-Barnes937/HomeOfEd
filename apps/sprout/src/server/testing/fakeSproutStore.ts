@@ -333,6 +333,15 @@ export class FakeSproutStore implements SproutStore {
     return Promise.resolve()
   }
 
+  listConversationsForRetention(before: Date): Promise<ConversationRow[]> {
+    const withMessages = new Set([...this.messageRows.values()].map((m) => m.conversationId))
+    return Promise.resolve(
+      [...this.conversationRows.values()].filter(
+        (c) => c.updatedAt.getTime() < before.getTime() && withMessages.has(c.id),
+      ),
+    )
+  }
+
   // --- Messages -------------------------------------------------------------
 
   addMessage(input: MessageInsert): Promise<MessageRow> {
@@ -453,6 +462,11 @@ export class FakeSproutStore implements SproutStore {
       }
       return true
     })
+    return Promise.resolve()
+  }
+
+  pruneBehaviouralEventsBefore(before: Date): Promise<void> {
+    this.events = this.events.filter((e) => e.createdAt.getTime() >= before.getTime())
     return Promise.resolve()
   }
 }
