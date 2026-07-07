@@ -65,6 +65,31 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('wotd-definition')).toHaveCount(0)
   }
 
+  /**
+   * Replaces `speechSynthesis.speak` with a recorder so the CT browser plays no
+   * real audio, and stubs `cancel` (called before every speak). Call before
+   * clicking the speak button.
+   */
+  async stubSpeech(): Promise<void> {
+    await this.page.evaluate(() => {
+      const spoken: string[] = []
+      ;(window as unknown as { __spoken: string[] }).__spoken = spoken
+      window.speechSynthesis.speak = (u: SpeechSynthesisUtterance) => spoken.push(u.text)
+      window.speechSynthesis.cancel = () => {}
+    })
+  }
+
+  async clickSpeak(): Promise<void> {
+    await this.page.getByTestId('wotd-speak').click()
+  }
+
+  /** Asserts the word passed through the stubbed Web Speech API. */
+  async verifySpoken(word: string): Promise<void> {
+    await expect
+      .poll(() => this.page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken))
+      .toContain(word)
+  }
+
   /** Client-side navigate to a route (no reload); popstate drives the router. */
   async gotoPath(path: string): Promise<void> {
     await this.page.evaluate((p) => {

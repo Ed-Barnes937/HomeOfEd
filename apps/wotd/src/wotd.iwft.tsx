@@ -31,6 +31,15 @@ test('clicking a level card shows that level\'s seeded word', async ({ mountApp 
   await root.verifySynonyms(['tough', 'hardy', 'adaptable'])
 })
 
+test('the speak button plays the word through the Web Speech API', async ({ mountApp }) => {
+  const { root } = await mountApp({ seed })
+  await root.clickLevel('advanced')
+  await root.verifyWotdPageIsShown()
+  await root.stubSpeech()
+  await root.clickSpeak()
+  await root.verifySpoken('resilient')
+})
+
 test('an invalid level in the URL falls back to beginner', async ({ mountApp }) => {
   const { root } = await mountApp({ seed })
   await root.gotoPath('/wotd?level=bogus')

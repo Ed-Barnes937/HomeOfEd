@@ -80,6 +80,20 @@ export function ArrowRightIcon(props: IconProps) {
   )
 }
 
+export function SpeakerIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path
+        d="M4 9v6h4l5 4V5L8 9H4Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function BookOpenIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
