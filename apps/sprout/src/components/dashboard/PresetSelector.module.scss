@@ -1,0 +1,44 @@
+// Preset picker (P7b) — ported from the source's Tailwind option cards.
+.grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.preset {
+  appearance: none;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &:not(.presetSelected):hover {
+    border-color: color-mix(in oklab, var(--primary) 50%, transparent);
+  }
+}
+
+.presetSelected {
+  border-color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 5%, transparent);
+}
+
+.presetDisabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.label {
+  margin: 0;
+  font-weight: 500;
+}
+
+.description {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}

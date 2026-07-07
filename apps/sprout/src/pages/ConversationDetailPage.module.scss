@@ -1,0 +1,46 @@
+// ConversationDetailPage styles (P7b) — SCSS-module port of the source's inert
+// Tailwind class strings. Tokens come from styles/tokens.scss.
+
+.loading {
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+}
+
+.mutedText {
+  color: var(--muted-foreground);
+}
+
+.mutedTextSm {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  margin-inline: auto;
+  max-width: 42rem;
+  padding: 3rem 1rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.body {
+  margin-top: 1.5rem;
+}
+
+.emptyState {
+  padding: 2rem 0;
+  text-align: center;
+}

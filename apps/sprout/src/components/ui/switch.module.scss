@@ -1,0 +1,45 @@
+// Switch primitive styles (P7a). Styled over @base-ui/react's accessible switch;
+// selectors key off base-ui's data-checked / data-disabled attributes.
+.root {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 32px;
+  height: 18.4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background: var(--input);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+  outline: none;
+
+  &[data-checked] {
+    background: var(--primary);
+  }
+
+  &:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  &[data-disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--background);
+  transition: transform 0.15s ease;
+  transform: translateX(1px);
+}
+
+.root[data-checked] .thumb {
+  transform: translateX(calc(100% - 1px));
+}

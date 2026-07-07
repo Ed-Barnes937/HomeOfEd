@@ -1,0 +1,59 @@
+# sprout-pipeline — the headless LLM safety service (plan 0004 §5.5 / §9.1, D7).
+# Deploy FROM THE REPO ROOT so the docker build context contains the whole
+# monorepo:
+#
+#   fly deploy -c apps/sprout-pipeline/fly.toml
+#
+# PRIVATE-ONLY app: it is reached by hoe-sprout over Fly's private network
+# (hoe-sprout-pipeline.flycast:8080), never from the public internet, and gets
+# NO Cloudflare CNAME / cert (plan §3, §9.3, §10 — LLM keys live only here). It
+# therefore has NO `[http_service]` and NO `[[services]]` public binding: with
+# neither, Fly assigns no public IPs / edge hostname, and the app is only
+# resolvable on the org's 6PN private network via .flycast. Stateless (no
+# database), so there is NO [deploy] release_command.
+app = 'hoe-sprout-pipeline'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  PORT = '8080'
+
+# Machine lifecycle without a public service: keep min 1 running so the private
+# .flycast endpoint is always reachable when the web app calls it. (No
+# auto_stop/auto_start — those are http_service concerns; this app has none.)
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
+
+# NOTE: Fly's TCP-level health checks (`[[services.tcp_checks]]`) require a
+# `[[services]]` block, which would allocate a public binding. To stay strictly
+# private we rely on the platform's process liveness + the web app's own
+# fail-closed behaviour if the pipeline is unreachable (plan §12). The service
+# still exposes a shallow GET /health on 8080 for private-network probes
+# (`fly ssh` / an internal curl) — see src/index.ts.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HUMAN GO-LIVE NOTES (P11 — plan §9.3 / §10). An agent must NOT run these.
+#
+# 1. NO PUBLIC HOSTNAME. Do NOT run `scripts/go-live.sh`'s CNAME/cert flow for
+#    this app, and do NOT `fly ips allocate`. It must remain private (.flycast).
+#    The CNAME/cert flow applies ONLY to hoe-sprout.
+#
+# 2. ORG-SCOPED DEPLOY TOKEN. Same as hoe-sprout: the app-scoped hoe-hub
+#    FLY_API_TOKEN cannot deploy this app — an ORG-scoped token is required.
+#
+# 3. SECRETS (set on THIS app, hoe-sprout-pipeline):
+#        fly secrets set --app hoe-sprout-pipeline \
+#          OPENROUTER_API_KEY=…  PIPELINE_API_KEY=…
+#    - OPENROUTER_API_KEY lives ONLY here (the LLM key — secret isolation, the
+#      reason this is a separate app). index.ts constructs the OpenAI client at
+#      boot and will crash without it.
+#    - PIPELINE_API_KEY is the shared service-to-service key; set the SAME value
+#      on hoe-sprout (the caller sends it as x-pipeline-key). index.ts refuses
+#      to start in prod without it.
+#
+# 4. PRIVATE NETWORKING. Confirm hoe-sprout reaches hoe-sprout-pipeline.flycast
+#    (same Fly org / 6PN). No firewall/allowlist config needed beyond that.
+# ─────────────────────────────────────────────────────────────────────────────

@@ -63,6 +63,11 @@ export function createIwftTest<Root extends BasePage>(def: IwftAppDefinition<Roo
         await mount(def.harness)
         return { page, root: def.createRoot(page) }
       })
+      // Teardown: a request the app fired near the end of the test can still be
+      // trampolining when the page closes, surfacing a "Test ended" route-handler
+      // error unrelated to the assertions. Drain in-flight route handlers and
+      // ignore their teardown errors (Playwright's recommended pattern).
+      await page.unrouteAll({ behavior: 'ignoreErrors' })
     },
   })
 }

@@ -23,7 +23,21 @@ export interface CreateAppServerOpts {
   logger: Logger
   /** Deep health: the app closes this over its own Store (real round-trip). */
   healthCheck: () => Promise<{ ok: true }>
+  /**
+   * Optional route-registration hook (ADR D9 — sprout migration plan §5.4).
+   * Called with the configured Fastify instance AFTER the tRPC plugin + /health
+   * but BEFORE @fastify/static and the SPA notFound fallback, so app-owned
+   * routes (e.g. a plain SSE stream at `/api/chat/stream`, a Better Auth handler
+   * at `/api/auth/*`) win over the SPA catch-all. Purely additive: apps that
+   * omit it get the exact same pipeline as before. Apps type this with the
+   * `FastifyInstance` re-exported below (so they need no direct `fastify` dep).
+   */
+  registerRoutes?: (app: FastifyInstance) => void | Promise<void>
 }
+
+// Re-exported so consumers can type their `registerRoutes` hook (and the routes
+// it registers) without adding a direct `fastify` dependency.
+export type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 
 /** The app's per-request context factory takes a fetch Request; Fastify hands
  * us its own request type — bridge the headers/method/url across. (The body
@@ -69,6 +83,10 @@ export async function buildAppServer(opts: CreateAppServerOpts): Promise<Fastify
       return reply.status(503).send({ ok: false })
     }
   })
+
+  // App-owned routes (D9): mounted here so they take precedence over the static
+  // handler and the SPA notFound fallback registered below.
+  await opts.registerRoutes?.(app)
 
   await app.register(fastifyStatic, { root: opts.staticDir })
 

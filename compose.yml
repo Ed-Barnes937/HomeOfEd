@@ -104,7 +104,88 @@ services:
     volumes:
       - fridge-db-data:/var/lib/postgresql/data
 
+  # sprout is database-backed (plan 0004). Like the other DB apps it runs
+  # migrations then the server, backed by its own db. It ALSO talks to the
+  # headless sprout-pipeline service over the compose network (PIPELINE_URL),
+  # sharing PIPELINE_API_KEY — the local stand-in for Fly's private .flycast
+  # networking. The image runs under NODE_ENV=production, so the prod boot
+  # guards apply: CHILD_SESSION_SECRET and PIPELINE_API_KEY must be present.
+  # These are throwaway LOCAL values; real secrets come from Fly. OPENROUTER_
+  # API_KEY (real LLM key) is passed through from your shell/.env if you want
+  # live generation locally — without it, /health and DB reads still work.
+  sprout:
+    build:
+      context: .
+      dockerfile: apps/sprout/Dockerfile
+    command: sh -c "node src/server/migrate.ts && node src/server/main.ts"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@sprout-db:5432/sprout
+      CHILD_SESSION_SECRET: dev-child-session-secret
+      BETTER_AUTH_SECRET: dev-better-auth-secret
+      BETTER_AUTH_URL: http://localhost:8084
+      PIPELINE_URL: http://sprout-pipeline:8080
+      PIPELINE_API_KEY: dev-pipeline-key
+    ports:
+      - '8084:8080'
+    depends_on:
+      sprout-db:
+        condition: service_healthy
+      sprout-pipeline:
+        condition: service_started
+
+  # The retention/purge worker (plan §9.2 / D8) — the same image as sprout,
+  # started with the worker command instead. Local parity for the Fly
+  # [processes] web + worker split. Shares the db + pipeline; no host port
+  # (headless). WORKER_INTERVAL_MS is shortened here so the loop is observable.
+  sprout-worker:
+    build:
+      context: .
+      dockerfile: apps/sprout/Dockerfile
+    command: node src/server/worker.ts
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@sprout-db:5432/sprout
+      PIPELINE_URL: http://sprout-pipeline:8080
+      PIPELINE_API_KEY: dev-pipeline-key
+      WORKER_INTERVAL_MS: '60000'
+    depends_on:
+      sprout:
+        condition: service_started
+      sprout-db:
+        condition: service_healthy
+
+  sprout-db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sprout
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d sprout']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - sprout-db-data:/var/lib/postgresql/data
+
+  # sprout-pipeline is the headless safety service (ADR 0008; no db, no SPA).
+  # One service. In prod it is NOT publicly routed; locally it gets a host port
+  # so you can curl /health directly. PIPELINE_API_KEY matches sprout's.
+  sprout-pipeline:
+    build:
+      context: .
+      dockerfile: apps/sprout-pipeline/Dockerfile
+    command: node src/index.ts
+    environment:
+      PIPELINE_API_KEY: dev-pipeline-key
+      # The OpenAI SDK throws at construction on a MISSING OR EMPTY key, so the
+      # pipeline needs a non-empty value to boot. A dummy default lets the stack
+      # come up out of the box (/health + the x-pipeline-key 401 guard work);
+      # live model calls 401 against OpenRouter until you export a real key.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-dev-openrouter-key}
+    ports:
+      - '8085:8080'
+
 volumes:
   hub-db-data:
   fridge-db-data:
   wotd-db-data:
+  sprout-db-data:

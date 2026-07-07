@@ -1,0 +1,73 @@
+// ChildSettingsPage styles (P7b) — SCSS-module port of the source's inert
+// Tailwind class strings. Tokens come from styles/tokens.scss.
+
+.loading {
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+}
+
+.mutedText {
+  color: var(--muted-foreground);
+}
+
+.mutedTextSm {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.page {
+  margin-inline: auto;
+  max-width: 42rem;
+  padding: 3rem 1rem;
+}
+
+.notFoundLink {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--primary);
+  font-size: 0.875rem;
+  text-decoration: underline;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  text-decoration: underline;
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.cardTitle {
+  font-size: 1.125rem;
+}
+
+.savedMessage {
+  margin-top: 0.5rem;
+  color: #16a34a;
+  font-size: 0.875rem;
+}
+
+.savedMessageTop {
+  margin-bottom: 0.5rem;
+  color: #16a34a;
+  font-size: 0.875rem;
+}
+
+.pinRow {
+  display: flex;
+  gap: 0.5rem;
+}

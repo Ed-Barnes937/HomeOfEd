@@ -16,8 +16,17 @@ export function defineIwftConfig(opts: {
   return defineConfig({
     testDir: './src',
     testMatch: '**/*.iwft.tsx',
+    // Per-test budget above the default 30s to absorb the same cold start.
+    timeout: 60_000,
+    // The first trampolined query per test pays the in-browser PGlite cold
+    // start (WASM init + migrations); on a loaded CI runner that can run into
+    // several seconds — well past Playwright's 5s default. Give assertions and
+    // actions a generous window so these WASM-DB-backed tests aren't flaky
+    // under CI load (the default is fine on a fast dev box, tight on CI).
+    expect: { timeout: 20_000 },
     use: {
       ctPort: opts.ctPort,
+      actionTimeout: 20_000,
       ctViteConfig: {
         plugins: [react()],
         optimizeDeps: {

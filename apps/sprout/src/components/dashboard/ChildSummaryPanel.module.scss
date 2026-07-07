@@ -1,0 +1,92 @@
+// Child activity summary (P7b) — ported from the source's Tailwind card body.
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loadingContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem 1rem;
+}
+
+.skeleton {
+  height: 1rem;
+  border-radius: 0.25rem;
+  background: var(--muted);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.skeletonSm {
+  width: 6rem;
+}
+
+.skeletonMd {
+  width: 8rem;
+}
+
+.skeletonLg {
+  width: 12rem;
+}
+
+.emptyContent {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.statLabel {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.statValue {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.topicsLabel {
+  margin: 0 0 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.topicList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.topicBadge {
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 0.75rem;
+}
+
+.flagsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

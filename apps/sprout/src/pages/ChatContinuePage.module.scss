@@ -1,0 +1,76 @@
+// Continue-conversation chat screen (P7b) — ported from the source's Tailwind classes.
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.spacer {
+  width: 4rem;
+}
+
+.loadingPage {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.loadingText {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.summaryBody {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.summaryContainer {
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+.summaryCard {
+  padding: 1.5rem;
+  border-radius: var(--radius-xl);
+  background: var(--muted);
+}
+
+.summaryText {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+
+.summaryNote {
+  margin: 1rem 0 0;
+  color: var(--muted-foreground);
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+.deleteRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}

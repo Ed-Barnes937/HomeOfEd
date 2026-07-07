@@ -1,0 +1,82 @@
+// ChildHomePage styles (P7b) — SCSS-module port of the source's inert Tailwind
+// class strings. Tokens come from styles/tokens.scss.
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  margin-inline: auto;
+  max-width: 32rem;
+  padding: 2rem 1rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.section {
+  margin-top: 1rem;
+}
+
+.sectionHeading {
+  margin-bottom: 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.convoList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.convoItem {
+  display: block;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--accent);
+  }
+}
+
+.convoTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.convoDate {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.emptyMessage {
+  margin-top: 2rem;
+  color: var(--muted-foreground);
+  text-align: center;
+  font-size: 1.125rem;
+}

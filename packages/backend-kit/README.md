@@ -80,6 +80,7 @@ function createAppServer(opts: {
   staticDir: string
   logger: Logger
   healthCheck: () => Promise<{ ok: true }>   // deep /health — app closes over its own Store
+  registerRoutes?: (app: FastifyInstance) => void | Promise<void>  // additive; non-tRPC transports only (ADR 0015)
 }): { listen(port: number): Promise<void> }
 ```
 
@@ -194,6 +195,34 @@ createAppServer({
 
 Node-only: import it from `@hoe/backend-kit/server` **only** in the server
 entrypoint, never from code Vite bundles.
+
+### `registerRoutes` — non-tRPC transports beside tRPC (ADR 0015)
+
+Optional hook for the transport shapes tRPC cannot express (SSE token streams,
+an OAuth-style auth handler). It runs **after** the tRPC plugin + `/health` and
+**before** `@fastify/static` and the SPA fallback, so app routes are reachable
+without shadowing tRPC/`/health` and the fallback still catches everything else.
+`FastifyInstance`/`FastifyReply`/`FastifyRequest` are re-exported from
+`@hoe/backend-kit/server` so the hook needs no direct `fastify` dep.
+
+```ts
+createAppServer({
+  router: appRouter,
+  createContext,
+  staticDir,
+  logger,
+  healthCheck: () => store.ping(),
+  registerRoutes: (app) => {
+    app.post('/api/chat/stream', chatSseHandler)   // text/event-stream
+    app.all('/api/auth/*', betterAuthHandler)
+  },
+}).listen(3000)
+```
+
+**Not a REST escape hatch.** Hard rule 4 stands — application data goes through
+tRPC + the injected `Store`. Route bodies still resolve identity via `ctx.auth`
+and read/write through `Store`; the hook is for transports, not for bypassing
+the DI seam. (First consumer: `apps/sprout` — the SSE chat route + Better Auth.)
 
 ## The three transports, one router
 

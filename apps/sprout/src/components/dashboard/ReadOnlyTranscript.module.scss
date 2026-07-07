@@ -1,0 +1,60 @@
+// Read-only transcript (P7b) — ported from the source's Tailwind chat bubbles.
+.scrollArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.rowChild {
+  justify-content: flex-end;
+}
+
+.bubbleWrap {
+  max-width: 80%;
+}
+
+.bubble {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-2xl);
+}
+
+.bubbleChild {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.bubbleOther {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.bubbleFlagged {
+  border-left: 4px solid #ef4444;
+  background: #fef2f2;
+  color: var(--foreground);
+}
+
+.text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+}
+
+.timestamp {
+  margin-top: 0.125rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
