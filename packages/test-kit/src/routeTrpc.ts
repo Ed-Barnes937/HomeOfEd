@@ -56,7 +56,16 @@ export async function installTrpcRoute(page: Page, opts: TrpcRouteOptions = {}):
       },
       { wire, key: DISPATCHER_WINDOW_KEY },
     )
-    await route.fulfill({ status: res.status, headers: res.headers, body: res.body })
+    // The dispatch is async; if the page navigated away or the test ended (its
+    // teardown unroutes) while we were awaiting it, the route is already
+    // resolved and fulfilling again throws. That's a moot request, not a test
+    // failure — swallow only those teardown/navigation races.
+    try {
+      await route.fulfill({ status: res.status, headers: res.headers, body: res.body })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!/already handled|closed|Target page/i.test(msg)) throw err
+    }
   })
 }
 
