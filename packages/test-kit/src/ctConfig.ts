@@ -18,6 +18,10 @@ export function defineIwftConfig(opts: {
     testMatch: '**/*.iwft.tsx',
     use: {
       ctPort: opts.ctPort,
+      // TEMP DIAGNOSTIC (sprout PR): capture a trace + screenshot on failure so
+      // the Linux-only fridge/wotd CT break can be inspected. Revert once fixed.
+      trace: 'retain-on-failure',
+      screenshot: 'only-on-failure',
       ctViteConfig: {
         plugins: [react()],
         optimizeDeps: {
