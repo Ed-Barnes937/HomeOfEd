@@ -1,6 +1,6 @@
 // Chat UI constants: inspire-me topics, intent categories, session-limit map.
 // Ported verbatim (behaviour) from the source `lib/chat-config.ts`.
-import type { PresetSliders } from '../server/domain/presets.ts'
+import type { PresetSliders } from '@hoe/sprout-shared'
 
 const INSPIRE_ME_TOPICS = [
   'How do volcanoes work?',

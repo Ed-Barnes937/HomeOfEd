@@ -9,8 +9,8 @@
 // NB the pipeline APP is built in P6. This is only the sprout SIDE that calls
 // it; the real call is exercised end-to-end once P6 + deploy land (a running
 // `hoe-sprout-pipeline` reachable over flycast, PIPELINE_API_KEY set on both).
-import type { CalibrationAnswer } from '../domain/calibration.ts'
-import type { PresetName, PresetSliders } from '../domain/presets.ts'
+import type { CalibrationAnswer, PresetName, PresetSliders } from '@hoe/sprout-shared'
+
 import type { Summariser } from '../router/deps.ts'
 import { readSseStream } from '../../lib/sseFrames.ts'
 import type { ChatStreamChunk, PipelineFlag } from '../../lib/chatStream.ts'

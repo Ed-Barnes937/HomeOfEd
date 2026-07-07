@@ -1,7 +1,7 @@
 import { Handler, type AppContext } from '@hoe/backend-kit'
+import type { CalibrationAnswer } from '@hoe/sprout-shared'
 import { z } from 'zod'
 
-import type { CalibrationAnswer } from '../../domain/calibration.ts'
 import type { SproutStore } from '../../store.ts'
 import { verifyChildOwnership } from '../authz.ts'
 import { calibrationAnswerSchema } from './schemas.ts'

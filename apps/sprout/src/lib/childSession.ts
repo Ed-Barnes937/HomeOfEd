@@ -3,7 +3,7 @@
 // childAuth procedures) travels in an httpOnly cookie the server sets — that
 // transport is P5. This localStorage record is the UI-facing profile (name,
 // preset, childId) the child screens read; it is NOT the auth credential.
-import type { PresetName } from '../server/domain/presets.ts'
+import type { PresetName } from '@hoe/sprout-shared'
 
 const CHILD_SESSION_KEY = 'sprout-child-session'
 

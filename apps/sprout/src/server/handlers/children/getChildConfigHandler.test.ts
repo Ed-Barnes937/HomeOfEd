@@ -1,6 +1,6 @@
+import { PRESET_DEFINITIONS } from '@hoe/sprout-shared'
 import { describe, expect, it } from 'vitest'
 
-import { PRESET_DEFINITIONS } from '../../domain/presets.ts'
 import { FakeSproutStore } from '../../testing/fakeSproutStore.ts'
 import { makeCtx, parentUser } from '../../testing/makeCtx.ts'
 import { GetChildConfigHandler } from './getChildConfigHandler.ts'

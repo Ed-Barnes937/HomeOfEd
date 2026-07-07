@@ -1,6 +1,7 @@
-// Sensitive-topic calibration model + question bank (plan §5.6). Ported from the
-// source `packages/shared/src/calibration.ts`, adjusted to repo lint. See the
-// home note in `presets.ts` — extract to `packages/sprout-shared` in P6.
+// Sensitive-topic calibration model + question bank. Ported from the source
+// `packages/shared/src/calibration.ts` (plan §5.6) — consumed by BOTH
+// apps/sprout (onboarding UI + prompt building) and apps/sprout-pipeline
+// (system-prompt construction).
 
 export interface CalibrationOption {
   level: number // 1 = most cautious, 3 = most open
@@ -71,7 +72,7 @@ export const CALIBRATION_QUESTIONS: CalibrationQuestion[] = [
       },
       {
         level: 2,
-        text: 'Swear words are words considered rude, offensive, or inappropriate in most situations. They often relate to body parts, bodily functions, or are used to insult people. Different cultures have different swear words. Most people avoid them in polite conversation because they can hurt people\'s feelings or make others uncomfortable.',
+        text: "Swear words are words considered rude, offensive, or inappropriate in most situations. They often relate to body parts, bodily functions, or are used to insult people. Different cultures have different swear words. Most people avoid them in polite conversation because they can hurt people's feelings or make others uncomfortable.",
       },
       {
         level: 3,

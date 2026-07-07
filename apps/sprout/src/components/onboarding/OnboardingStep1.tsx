@@ -2,7 +2,8 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 
-import { PRESET_LIST, type PresetName } from '../../server/domain/presets.ts'
+import { PRESET_LIST, type PresetName } from '@hoe/sprout-shared'
+
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
 import { Input } from '../ui/input.tsx'

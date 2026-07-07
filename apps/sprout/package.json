@@ -18,6 +18,7 @@
     "@hoe/backend-kit": "workspace:*",
     "@hoe/db": "workspace:*",
     "@hoe/logger": "workspace:*",
+    "@hoe/sprout-shared": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",
     "@trpc/client": "11.18.0",

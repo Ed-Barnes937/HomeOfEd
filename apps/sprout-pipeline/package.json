@@ -10,11 +10,17 @@
     "build": "echo 'sprout-pipeline: no build step — headless service runs TS via native node (ADR 0004)'",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:eval": "vitest run src/eval"
   },
   "dependencies": {
     "@hoe/logger": "workspace:*",
-    "fastify": "^5.9.0"
+    "@hoe/sprout-shared": "workspace:*",
+    "confusables": "^1.1.1",
+    "fastify": "^5.9.0",
+    "libphonenumber-js": "^1.12.41",
+    "obscenity": "^0.4.6",
+    "openai": "^6.34.0"
   },
   "devDependencies": {
     "@hoe/config": "workspace:*",

@@ -1,12 +1,12 @@
 // Ported from the source `routes/parent/children.tsx`.
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { PRESET_DEFINITIONS } from '@hoe/sprout-shared'
 
 import { buttonVariants } from '../components/ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card.tsx'
 import { childrenQueryOptions } from '../features/children/childrenQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
-import { PRESET_DEFINITIONS } from '../server/domain/presets.ts'
 
 export function ChildrenListPage() {
   const session = useRequireParent()

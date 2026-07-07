@@ -2,7 +2,7 @@ import { Handler, UnauthorizedError, type AppContext } from '@hoe/backend-kit'
 import { z } from 'zod'
 
 import type { ChildTokenMinter } from '../../auth/childTokenPort.ts'
-import type { PresetName } from '../../domain/presets.ts'
+import type { PresetName } from '@hoe/sprout-shared'
 import type { PasswordHasher } from '../../password.ts'
 import type { SproutStore } from '../../store.ts'
 import type { ChildAuthProfile } from './schemas.ts'

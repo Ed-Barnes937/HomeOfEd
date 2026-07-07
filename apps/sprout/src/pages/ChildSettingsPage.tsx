@@ -1,6 +1,7 @@
 // Ported from the source `routes/parent/children.$childId.tsx`.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
+import { PRESET_DEFINITIONS, type PresetName, type PresetSliders } from '@hoe/sprout-shared'
 import { useMemo, useState } from 'react'
 
 import { InspireMeTopics } from '../components/dashboard/InspireMeTopics.tsx'
@@ -17,11 +18,6 @@ import {
 } from '../features/children/childrenQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
 import { addTopic, removeTopic, topicsQueryOptions } from '../features/topics/topicsQueries.ts'
-import {
-  PRESET_DEFINITIONS,
-  type PresetName,
-  type PresetSliders,
-} from '../server/domain/presets.ts'
 
 const route = getRouteApi('/parent/children/$childId')
 

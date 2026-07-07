@@ -1,5 +1,7 @@
 // Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
-import { SLIDER_KEYS, SLIDER_LABELS, type PresetSliders } from '../../server/domain/presets.ts'
+import { SLIDER_LABELS, type PresetSliders } from '@hoe/sprout-shared'
+
+import { SLIDER_KEYS } from '../../server/domain/presets.ts'
 import { Slider } from '../ui/slider.tsx'
 
 interface SliderControlsProps {

@@ -1,6 +1,6 @@
 // Shared output shape for the childAuth login/changePassword procedures — the
 // child profile a device needs to run the chat UI + read parent-set guardrails.
-import type { PresetName } from '../../domain/presets.ts'
+import type { PresetName } from '@hoe/sprout-shared'
 
 export interface ChildAuthProfile {
   id: string

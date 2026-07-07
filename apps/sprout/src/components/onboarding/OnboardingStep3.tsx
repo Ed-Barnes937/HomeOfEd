@@ -1,13 +1,14 @@
 // Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
 import { useState } from 'react'
 
-import { CALIBRATION_QUESTIONS } from '../../server/domain/calibration.ts'
 import {
+  CALIBRATION_QUESTIONS,
   PRESET_DEFINITIONS,
-  SLIDER_KEYS,
   SLIDER_LABELS,
   type PresetSliders,
-} from '../../server/domain/presets.ts'
+} from '@hoe/sprout-shared'
+
+import { SLIDER_KEYS } from '../../server/domain/presets.ts'
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
 import { Slider } from '../ui/slider.tsx'

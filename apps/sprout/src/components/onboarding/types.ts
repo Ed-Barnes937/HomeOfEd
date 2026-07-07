@@ -1,5 +1,4 @@
-import type { CalibrationAnswer } from '../../server/domain/calibration.ts'
-import type { PresetName, PresetSliders } from '../../server/domain/presets.ts'
+import type { CalibrationAnswer, PresetName, PresetSliders } from '@hoe/sprout-shared'
 
 export interface OnboardingData {
   displayName: string

@@ -51,8 +51,11 @@ Vite SPA) plus the first streaming transport are in. `main.tsx`→`App.tsx`→
   there is no `me` procedure. The Better Auth mount + parent-session resolution
   landed in P5, so parent login/register/sign-out now round-trip.
 - **Client-facing domain constants** (`PRESET_DEFINITIONS`, `CALIBRATION_QUESTIONS`,
-  types) are imported from `server/domain/*` (pure, browser-safe) until the
-  P6 `packages/sprout-shared` extraction.
+  `PresetName`/`PresetSliders`/`CalibrationAnswer` types) now come from
+  `@hoe/sprout-shared` (the P6a extraction — also consumed by
+  `apps/sprout-pipeline`). `server/domain/presets.ts` keeps only `SLIDER_KEYS`,
+  the server-side slider-key allow-list, which is sprout-only and never
+  crosses into the pipeline.
 
 **`.iwft` auth seam:** the harness header carries only `user.id`, so role rides
 inside an encoded id — `testing/users.ts` `asParent(id)`/`asChild(id, parentId)`,

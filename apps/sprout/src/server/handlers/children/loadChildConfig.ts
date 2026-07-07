@@ -4,8 +4,8 @@
 //   - children.myConfig     (child-scoped, the chat client's session-limit gate)
 //   - the chat SSE route    (server-side, by the authenticated childId)
 // so the client never authors guardrail config on the chat path.
-import type { CalibrationAnswer } from '../../domain/calibration.ts'
-import { PRESET_DEFINITIONS, type PresetSliders } from '../../domain/presets.ts'
+import { PRESET_DEFINITIONS, type CalibrationAnswer, type PresetSliders } from '@hoe/sprout-shared'
+
 import type { SproutStore } from '../../store.ts'
 
 export interface ChildConfig {

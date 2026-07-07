@@ -8,6 +8,7 @@
 // session/me procedure lands.
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { PRESET_DEFINITIONS, type PresetName } from '@hoe/sprout-shared'
 import { useMemo, useState } from 'react'
 
 import { ChildSummaryPanel } from '../components/dashboard/ChildSummaryPanel.tsx'
@@ -17,7 +18,6 @@ import { Card, CardContent } from '../components/ui/card.tsx'
 import { childrenQueryOptions } from '../features/children/childrenQueries.ts'
 import { parentAuth } from '../features/parentAuth/parentAuth.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
-import { PRESET_DEFINITIONS, type PresetName } from '../server/domain/presets.ts'
 
 export function DashboardPage() {
   const navigate = useNavigate()

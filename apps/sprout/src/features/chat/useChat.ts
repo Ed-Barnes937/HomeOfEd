@@ -1,11 +1,12 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { PresetSliders } from '@hoe/sprout-shared'
+
 import { getSessionLimit, MAX_CONVERSATION_TITLE_LEN } from '../../lib/chatConfig.ts'
 import { getChildSession, type ChildSession } from '../../lib/childSession.ts'
 import { streamChat } from '../../lib/chatStream.ts'
 import { getDeviceToken } from '../../lib/deviceToken.ts'
-import type { PresetSliders } from '../../server/domain/presets.ts'
 import { fetchMyConfig } from '../children/childrenQueries.ts'
 import {
   createConversation,

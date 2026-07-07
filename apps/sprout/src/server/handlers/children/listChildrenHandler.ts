@@ -1,6 +1,6 @@
 import { Handler, type AppContext } from '@hoe/backend-kit'
 
-import type { PresetName } from '../../domain/presets.ts'
+import type { PresetName } from '@hoe/sprout-shared'
 import type { SproutStore } from '../../store.ts'
 import { requireParent } from '../authz.ts'
 

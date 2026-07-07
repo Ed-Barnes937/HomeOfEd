@@ -1,7 +1,7 @@
 import { Handler, ValidationError, type AppContext } from '@hoe/backend-kit'
+import { PRESET_DEFINITIONS } from '@hoe/sprout-shared'
 import { z } from 'zod'
 
-import { PRESET_DEFINITIONS } from '../../domain/presets.ts'
 import type { PasswordHasher } from '../../password.ts'
 import type { SproutStore } from '../../store.ts'
 import { requireParent } from '../authz.ts'

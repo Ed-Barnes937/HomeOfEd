@@ -1,7 +1,7 @@
 // Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
+import { CALIBRATION_QUESTIONS, type CalibrationAnswer } from '@hoe/sprout-shared'
 import { useState } from 'react'
 
-import { CALIBRATION_QUESTIONS, type CalibrationAnswer } from '../../server/domain/calibration.ts'
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
 import { Textarea } from '../ui/textarea.tsx'

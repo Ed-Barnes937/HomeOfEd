@@ -1,5 +1,5 @@
 // Ported from the source (behaviour/markup). Tailwind classes retained; SCSS is P7.
-import { PRESET_LIST, type PresetName } from '../../server/domain/presets.ts'
+import { PRESET_LIST, type PresetName } from '@hoe/sprout-shared'
 
 interface PresetSelectorProps {
   value: PresetName

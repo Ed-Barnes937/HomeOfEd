@@ -1,0 +1,21 @@
+{
+  "name": "@hoe/sprout-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "prettier": "@hoe/config/prettier",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@hoe/config": "workspace:*",
+    "@types/node": "^22",
+    "eslint": "^9.39.2",
+    "prettier": "^3.8.0",
+    "typescript": "^5.9.3"
+  }
+}

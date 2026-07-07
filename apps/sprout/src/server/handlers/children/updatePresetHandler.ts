@@ -1,7 +1,7 @@
 import { Handler, NotFoundError, type AppContext } from '@hoe/backend-kit'
+import type { PresetSliders } from '@hoe/sprout-shared'
 import { z } from 'zod'
 
-import type { PresetSliders } from '../../domain/presets.ts'
 import type { PresetSliderPatch, SproutStore } from '../../store.ts'
 import { verifyChildOwnership } from '../authz.ts'
 import { slidersSchema } from './schemas.ts'

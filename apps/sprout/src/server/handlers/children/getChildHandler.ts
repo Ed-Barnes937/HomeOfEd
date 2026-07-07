@@ -1,7 +1,7 @@
 import { Handler, type AppContext } from '@hoe/backend-kit'
 import { z } from 'zod'
 
-import type { PresetName } from '../../domain/presets.ts'
+import type { PresetName } from '@hoe/sprout-shared'
 import type { SproutStore } from '../../store.ts'
 import { verifyChildOwnership } from '../authz.ts'
 import type { ChildSummary } from './listChildrenHandler.ts'

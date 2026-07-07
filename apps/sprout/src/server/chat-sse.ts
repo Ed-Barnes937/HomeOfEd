@@ -22,7 +22,7 @@ import { evaluateChatRequest, pruneOldEvents, recordEvent } from './behavioural-
 import { loadChildConfig } from './handlers/children/loadChildConfig.ts'
 import type { PipelineClient } from './pipeline/pipelineClient.ts'
 import type { SproutStore } from './store.ts'
-import type { PresetName } from './domain/presets.ts'
+import type { PresetName } from '@hoe/sprout-shared'
 import type { PipelineFlag } from '../lib/chatStream.ts'
 
 export const chatStreamBodySchema = z.object({
