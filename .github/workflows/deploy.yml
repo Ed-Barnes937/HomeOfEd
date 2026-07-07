@@ -5,6 +5,12 @@
 # as a repo secret (runbook G4.2). Until then the workflow runs, prints a
 # notice, and exits green.
 #
+# The deploy-sprout* jobs carry an EXTRA gate: the repo variable SPROUT_GO_LIVE
+# must be "true". FLY_API_TOKEN already exists (hub is live) but is hoe-hub
+# app-scoped and the sprout Fly apps don't exist until P11, so without this gate
+# a merge to main would attempt — and fail — a sprout deploy. A human flips
+# SPROUT_GO_LIVE=true at go-live (sprout go-live runbook, step 4).
+#
 # Flow per app: is the app turbo-affected by this push? → flyctl deploy
 # (a DB-backed app's fly.toml release_command runs its journal-tracked
 # migrations first; Fly's health checks gate the rollout, so a failing
@@ -325,10 +331,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gate on deploy token (inert until Phase 4)
+      - name: Gate on go-live (P11) + deploy token
         id: gate
+        env:
+          GO_LIVE: ${{ vars.SPROUT_GO_LIVE }}
         run: |
-          if [ -n "$FLY_API_TOKEN" ]; then
+          if [ "$GO_LIVE" != "true" ]; then
+            echo "::notice::sprout not live yet — set repo variable SPROUT_GO_LIVE=true at go-live (P11, runbook step 4)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$FLY_API_TOKEN" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."
@@ -403,10 +414,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gate on deploy token (inert until Phase 4)
+      - name: Gate on go-live (P11) + deploy token
         id: gate
+        env:
+          GO_LIVE: ${{ vars.SPROUT_GO_LIVE }}
         run: |
-          if [ -n "$FLY_API_TOKEN" ]; then
+          if [ "$GO_LIVE" != "true" ]; then
+            echo "::notice::sprout not live yet — set repo variable SPROUT_GO_LIVE=true at go-live (P11, runbook step 4)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$FLY_API_TOKEN" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."

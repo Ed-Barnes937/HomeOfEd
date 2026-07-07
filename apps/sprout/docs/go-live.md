@@ -89,12 +89,24 @@ reason it is a separate app ([ADR 0013](../../../docs/adr/0013-headless-service-
 `PIPELINE_URL` defaults to `http://hoe-sprout-pipeline.flycast:8080`; override only
 if the pipeline app is renamed.
 
-### 4. Org-scoped deploy token
+### 4. Org-scoped deploy token + enable the deploy jobs
 
 Mint an org-scoped token and set it as the `FLY_API_TOKEN` repo secret (replacing
 the hoe-hub app-scoped one), so `deploy-sprout` and `deploy-sprout-pipeline` in
 `.github/workflows/deploy.yml` can run. Confirm the hub deploy still works with the
 org token.
+
+Then flip the go-live gate so those two jobs stop no-op'ing (until now they exit
+green without deploying — this is what keeps merges clean before the Fly apps
+exist):
+
+```bash
+gh variable set SPROUT_GO_LIVE --body true
+```
+
+Do this only **after** steps 1–3 (apps, Postgres, secrets) exist, or the first
+post-merge deploy will fail. To pause auto-deploys again, delete the variable
+(`gh variable delete SPROUT_GO_LIVE`).
 
 ### 5. First deploy
 
