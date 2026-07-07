@@ -2,20 +2,23 @@ import { useEffect, useRef } from 'react'
 import styles from './HomePage.module.scss'
 import { useColourTheme } from './useColourTheme'
 
-type AppLink = { name: string; status: string; href?: string }
+type PreviewKind = 'boids' | 'magnets' | 'word' | 'idle'
+type AppLink = { name: string; status: 'LIVE' | 'SOON'; kind: PreviewKind; href?: string }
 
 const APPS: AppLink[] = [
-  { name: 'Boids', status: 'LIVE', href: 'https://boids.homeofed.com' },
-  { name: 'fridge magnets', status: 'LIVE', href: 'https://fridge.homeofed.com' },
-  { name: 'WOTD', status: 'LIVE', href: 'https://wotd.homeofed.com' },
-  { name: 'HEIG', status: 'SOON' },
+  { name: 'Boids', status: 'LIVE', kind: 'boids', href: 'https://boids.homeofed.com' },
+  { name: 'fridge magnets', status: 'LIVE', kind: 'magnets', href: 'https://fridge.homeofed.com' },
+  { name: 'WOTD', status: 'LIVE', kind: 'word', href: 'https://wotd.homeofed.com' },
+  { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
 
 export function HomePage() {
   const [theme, setTheme] = useColourTheme()
   const wordmarkRef = useRef<HTMLHeadingElement>(null)
+  const galleryRef = useRef<HTMLDivElement>(null)
 
   useHopAnimation(wordmarkRef)
+  usePreviews(galleryRef, theme)
 
   return (
     <main className={styles.home} data-theme={theme} data-home>
@@ -25,7 +28,7 @@ export function HomePage() {
         aria-label="Toggle light/dark theme"
         onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
       >
-        {theme === 'dark' ? '☀' : '☾'}
+        <span className={theme === 'dark' ? styles.sun : styles.moon} aria-hidden="true" />
       </button>
 
       <section className={styles.intro}>
@@ -51,25 +54,39 @@ export function HomePage() {
         <p className={styles.lede}>A quiet corner, full of little ideas</p>
       </section>
 
-      <nav className={styles.apps} aria-label="apps">
-        {APPS.map((app) =>
-          app.href ? (
-            <a key={app.name} className={styles.app} href={app.href}>
-              <span className={styles.name}>{app.name}</span>
-              <span className={styles.line} aria-hidden="true" />
-              <span className={styles.statusLabel}>{app.status}</span>
-            </a>
-          ) : (
-            <span key={app.name} className={`${styles.app} ${styles.soon}`}>
-              <span className={styles.name}>{app.name}</span>
-              <span className={styles.line} aria-hidden="true" />
-              <span className={styles.statusLabel}>{app.status}</span>
-            </span>
-          ),
-        )}
-      </nav>
-
       <footer className={styles.status}>Made with {`<3`}</footer>
+
+      <nav className={styles.apps} aria-label="apps">
+        <div className={styles.gallery} ref={galleryRef}>
+          {APPS.map((app) => {
+            const inner = (
+              <>
+                <canvas className={styles.preview} data-kind={app.kind} aria-hidden="true" />
+                <div className={styles.cardFoot}>
+                  <span className={styles.name}>{app.name}</span>
+                  {app.status === 'LIVE' ? (
+                    <span className={styles.live}>
+                      <span className={styles.dot} aria-hidden="true" />
+                      LIVE
+                    </span>
+                  ) : (
+                    <span className={styles.soonLabel}>SOON</span>
+                  )}
+                </div>
+              </>
+            )
+            return app.href ? (
+              <a key={app.name} className={styles.card} href={app.href}>
+                {inner}
+              </a>
+            ) : (
+              <span key={app.name} className={`${styles.card} ${styles.soon}`}>
+                {inner}
+              </span>
+            )
+          })}
+        </div>
+      </nav>
     </main>
   )
 }
@@ -225,4 +242,246 @@ function useHopAnimation(ref: React.RefObject<HTMLHeadingElement | null>): void 
       styleTag.remove()
     }
   }, [ref])
+}
+
+/**
+ * Each app card carries a small live <canvas> preview of what the app does.
+ * The drawers are ported from the homepage-v2 design reference
+ * (reference/home-page-v2/home-of-ed.html). They read the current theme through
+ * a ref every frame, so a theme toggle recolours the loops without restarting
+ * them; the loops themselves start once on mount and stop on unmount.
+ */
+type DarkRef = { current: boolean }
+
+function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string): void {
+  const darkRef = useRef(theme === 'dark')
+  useEffect(() => {
+    darkRef.current = theme === 'dark'
+  }, [theme])
+
+  useEffect(() => {
+    const root = ref.current
+    if (!root) return
+    const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('canvas[data-kind]'))
+    const stops: Array<() => void> = []
+    // Delay so each canvas has its laid-out CSS size before we scale for DPR.
+    const start = setTimeout(() => {
+      for (const cv of canvases) {
+        const kind = cv.dataset.kind
+        if (kind === 'boids') stops.push(drawBoids(cv, darkRef))
+        else if (kind === 'magnets') stops.push(drawMagnets(cv))
+        else if (kind === 'word') stops.push(drawWord(cv, darkRef))
+        else stops.push(drawIdle(cv, darkRef))
+      }
+    }, 90)
+
+    return () => {
+      clearTimeout(start)
+      for (const stop of stops) stop()
+    }
+  }, [ref])
+}
+
+type Ctx = { ctx: CanvasRenderingContext2D; w: number; h: number }
+
+function cvctx(cv: HTMLCanvasElement): Ctx {
+  const w = cv.clientWidth
+  const h = cv.clientHeight
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  cv.width = w * dpr
+  cv.height = h * dpr
+  const ctx = cv.getContext('2d')!
+  ctx.scale(dpr, dpr)
+  return { ctx, w, h }
+}
+
+const ACCENT = { light: '#c07a35', dark: '#e0955f' }
+
+function drawBoids(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const N = 11
+  const B = Array.from({ length: N }, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    vx: (Math.random() - 0.5) * 1.2,
+    vy: (Math.random() - 0.5) * 1.2,
+  }))
+  let raf = 0
+  const step = (): void => {
+    ctx.clearRect(0, 0, w, h)
+    const col = darkRef.current ? ACCENT.dark : ACCENT.light
+    for (let i = 0; i < N; i++) {
+      const b = B[i]!
+      let cx = 0
+      let cy = 0
+      let ax = 0
+      let ay = 0
+      let n = 0
+      for (let j = 0; j < N; j++) {
+        if (i === j) continue
+        const o = B[j]!
+        const dx = o.x - b.x
+        const dy = o.y - b.y
+        const d = Math.hypot(dx, dy)
+        if (d < 46) {
+          cx += o.x
+          cy += o.y
+          ax += o.vx
+          ay += o.vy
+          n++
+          if (d < 16 && d > 0) {
+            b.vx -= (dx / d) * 0.06
+            b.vy -= (dy / d) * 0.06
+          }
+        }
+      }
+      if (n > 0) {
+        b.vx += (ax / n - b.vx) * 0.04 + (cx / n - b.x) * 0.001
+        b.vy += (ay / n - b.vy) * 0.04 + (cy / n - b.y) * 0.001
+      }
+      b.vx += (Math.random() - 0.5) * 0.04
+      b.vy += (Math.random() - 0.5) * 0.04
+      const sp = Math.hypot(b.vx, b.vy)
+      if (sp > 1.5) {
+        b.vx = (b.vx / sp) * 1.5
+        b.vy = (b.vy / sp) * 1.5
+      }
+      b.x += b.vx
+      b.y += b.vy
+      if (b.x < 0) b.x = w
+      if (b.x > w) b.x = 0
+      if (b.y < 0) b.y = h
+      if (b.y > h) b.y = 0
+      const ang = Math.atan2(b.vy, b.vx)
+      ctx.save()
+      ctx.translate(b.x, b.y)
+      ctx.rotate(ang)
+      ctx.fillStyle = col
+      ctx.beginPath()
+      ctx.moveTo(5, 0)
+      ctx.lineTo(-3, 2.4)
+      ctx.lineTo(-3, -2.4)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
+}
+
+function drawMagnets(cv: HTMLCanvasElement): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const cols = ['#d98a5b', '#7fa99b', '#c96a58', '#8b93b0']
+  const chars = ['w', 'o', 'r', 'd']
+  const n = 4
+  const gap = w / (n + 1)
+  const tiles = Array.from({ length: n }, (_, i) => ({
+    x: gap * (i + 1),
+    y: h / 2,
+    ph: i * 1.3,
+    ch: chars[i]!,
+    col: cols[i]!,
+  }))
+  let raf = 0
+  let t = 0
+  const step = (): void => {
+    ctx.clearRect(0, 0, w, h)
+    t += 0.03
+    for (const s of tiles) {
+      const y = s.y + Math.sin(t + s.ph) * 5
+      const rot = Math.sin(t * 0.8 + s.ph) * 0.13
+      ctx.save()
+      ctx.translate(s.x, y)
+      ctx.rotate(rot)
+      ctx.fillStyle = s.col
+      ctx.beginPath()
+      ctx.roundRect(-12, -12, 24, 24, 4)
+      ctx.fill()
+      ctx.fillStyle = '#2c322e'
+      ctx.font = "700 14px 'Space Grotesk',sans-serif"
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(s.ch, 0, 1)
+      ctx.restore()
+    }
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
+}
+
+function drawWord(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const words = ['petrichor', 'gossamer', 'susurrus', 'limerence']
+  let wi = 0
+  let ci = 0
+  let phase: 'type' | 'hold' | 'erase' = 'type'
+  let hold = 0
+  const iv = setInterval(() => {
+    if (phase === 'type') {
+      ci++
+      if (ci >= words[wi]!.length) {
+        phase = 'hold'
+        hold = 0
+      }
+    } else if (phase === 'hold') {
+      hold++
+      if (hold > 9) phase = 'erase'
+    } else {
+      ci--
+      if (ci <= 0) {
+        phase = 'type'
+        wi = (wi + 1) % words.length
+      }
+    }
+  }, 120)
+  let raf = 0
+  const loop = (): void => {
+    const dark = darkRef.current
+    ctx.clearRect(0, 0, w, h)
+    ctx.fillStyle = dark ? 'rgba(236,229,218,0.5)' : '#a6a69b'
+    ctx.font = "600 8px 'Space Grotesk',sans-serif"
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('W O R D · O F · T H E · D A Y', w / 2, h / 2 - 18)
+    const cur = Math.floor(Date.now() / 450) % 2 ? '_' : ' '
+    ctx.fillStyle = dark ? '#ece5da' : '#2c322e'
+    ctx.font = "700 17px 'Space Grotesk',sans-serif"
+    ctx.fillText(words[wi]!.slice(0, ci) + cur, w / 2, h / 2 + 4)
+    raf = requestAnimationFrame(loop)
+  }
+  loop()
+  return () => {
+    clearInterval(iv)
+    cancelAnimationFrame(raf)
+  }
+}
+
+function drawIdle(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  let raf = 0
+  let t = 0
+  const step = (): void => {
+    const dark = darkRef.current
+    ctx.clearRect(0, 0, w, h)
+    t += 0.02
+    const r = 9 + Math.sin(t) * 3
+    ctx.strokeStyle = dark ? 'rgba(236,229,218,0.28)' : 'rgba(44,50,46,0.2)'
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([3, 4])
+    ctx.beginPath()
+    ctx.arc(w / 2, h / 2 - 4, r, 0, 6.28)
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.fillStyle = dark ? 'rgba(236,229,218,0.4)' : 'rgba(44,50,46,0.28)'
+    ctx.font = "600 8px 'Space Grotesk',sans-serif"
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('IN THE WORKS', w / 2, h / 2 + 20)
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
 }

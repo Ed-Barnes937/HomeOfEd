@@ -3,28 +3,48 @@
 }
 
 .home {
-  // Warm paper ramp — soft, desaturated oat/cream. Light default.
-  // A touch deeper than a whisper so it survives the paper texture lightening it.
-  --bg: #ded3cb;
-  --fg: #26302f;
-  --muted: #6f7d7b;
-  --faint: #a3b2b0;
-  --accent: #b36a2e;
-  --line: rgba(38, 48, 47, 0.12);
+  // Warm paper palette, from the homepage-v2 design reference. Light default.
+  --bg: #e9e1d6;
+  --fg: #2c322e;
+  --muted: #6f7570;
+  --faint: #9a9a8f;
+  --accent: #c07a35;
+  --line: rgba(44, 50, 46, 0.12);
 
-  // Handmade-paper texture strength (intensity ~3, "tactile"). Dial these down
-  // to soften; set to 0 to remove the texture entirely.
+  --card-bg: #f3ede2;
+  --card-border: rgba(44, 50, 46, 0.12);
+  --card-shadow: 0 6px 16px -8px rgba(44, 50, 46, 0.35);
+  --card-shadow-hover: 0 14px 26px -10px rgba(0, 0, 0, 0.4);
+  --canvas-bg: rgba(44, 50, 46, 0.03);
+  --live: #4f7d6f;
+  --soon: #a6a69b;
+  --divider: rgba(44, 50, 46, 0.14);
+  --toggle-border: rgba(44, 50, 46, 0.3);
+  --toggle-fill: #2c322e;
+
+  // Handmade-paper texture strength (carried over from the previous homepage).
+  // Dial these down to soften; set to 0 to remove the texture entirely.
   --paper-grain: 0.68;
   --paper-fleck: 0.16;
 
   &[data-theme='dark'] {
-    // Dark duck egg — deep desaturated teal-slate. Nothing pure black.
-    --bg: #101817;
-    --fg: #cdd6d4;
-    --muted: #78827f;
-    --faint: #454e4c;
-    --accent: #b36a2e;
-    --line: rgba(205, 214, 212, 0.09);
+    --bg: #23241f;
+    --fg: #ece5da;
+    --muted: #9a978d;
+    --faint: #67655c;
+    --accent: #e0955f;
+    --line: rgba(236, 229, 218, 0.11);
+
+    --card-bg: #2b2d27;
+    --card-border: rgba(236, 229, 218, 0.11);
+    --card-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.55);
+    --card-shadow-hover: 0 14px 26px -10px rgba(0, 0, 0, 0.6);
+    --canvas-bg: rgba(236, 229, 218, 0.03);
+    --live: #7dc0a0;
+    --soon: #6f6d63;
+    --divider: rgba(236, 229, 218, 0.12);
+    --toggle-border: rgba(236, 229, 218, 0.35);
+    --toggle-fill: #ece5da;
 
     --paper-grain: 0.26;
     --paper-fleck: 0.05;
@@ -36,7 +56,7 @@
   overflow: hidden;
   background: var(--bg);
   color: var(--fg);
-  font-family: 'Familjen Grotesk', system-ui, sans-serif;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
   transition:
     background 0.5s ease,
     color 0.5s ease;
@@ -61,8 +81,6 @@
 
 // Real coloured inclusions: a second, colour-kept pass of the same photo,
 // aligned with the structure layer so flecks land where the pulp actually dips.
-// Saturation is boosted so the specks read while the near-neutral base stays
-// quiet. Multiply sits colour into the light paper; screen shows it on dark.
 .home::after {
   content: '';
   position: absolute;
@@ -83,32 +101,51 @@
 
 .toggle {
   position: absolute;
-  top: 24px;
-  right: 26px;
+  top: 32px;
+  left: 36px;
   z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 34px;
   height: 34px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--toggle-border);
   border-radius: 50%;
   background: transparent;
-  color: var(--muted);
-  font-size: 14px;
   cursor: pointer;
-  transition: color 0.4s;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: rotate(-18deg);
+  }
 }
 
+// Light mode shows a crescent moon (drawn with an inset shadow); dark mode a
+// filled sun disc. Which one renders is chosen in React from the theme.
+.moon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset -6px -3px 0 0 var(--toggle-fill);
+}
+
+.sun {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--toggle-fill);
+}
+
+// Main area: wordmark + lede anchored toward the bottom-left.
 .intro {
   position: relative;
   z-index: 1;
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-  padding: 0 58px;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 56px 108px;
 }
 
 .wordmark {
@@ -118,8 +155,8 @@
   margin: 0;
   font-weight: 700;
   font-size: 76px;
-  letter-spacing: -0.04em;
-  line-height: 1;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
   color: var(--fg);
 }
 
@@ -138,123 +175,133 @@
   width: 0.62em;
 }
 
+// The "of" accent: Instrument Serif italic, driven by the hop animation
+// (opacity + transform come from the runtime-generated keyframes).
 .of {
   position: absolute;
   left: 0;
   bottom: 0.06em;
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-weight: 400;
   color: var(--accent);
   opacity: 0;
 }
 
 .lede {
-  max-width: 280px;
   margin: 0;
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 19px;
+  line-height: 1.5;
   color: var(--muted);
 }
 
-.apps {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  width: 340px;
-  padding: 0 40px;
-  border-left: 1px solid var(--line);
-}
-
-.app {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--fg);
-  text-decoration: none;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &.soon {
-    color: var(--muted);
-  }
-}
-
-.name {
-  font-weight: 600;
-  font-size: 16px;
-
-  .soon & {
-    font-weight: 500;
-  }
-}
-
-// Leader line between name and status; draws in from the name on hover.
-// Soft accent for linked apps, muted for the "soon" placeholders.
-.line {
-  flex: 1;
-  align-self: center;
-  height: 1px;
-  margin: 0 12px;
-  background-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 0.35s cubic-bezier(0.45, 0.05, 0.4, 1);
-
-  .app:hover & {
-    transform: scaleX(1);
-  }
-
-  .soon & {
-    background-color: var(--muted);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .line {
-    transition: none;
-  }
-}
-
-.statusLabel {
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  color: var(--accent);
-
-  .soon & {
-    color: var(--faint);
-  }
-}
-
-// Quiet health indicator — the launcher's DB round-trip, kept understated.
 .status {
   position: absolute;
   z-index: 1;
-  bottom: 20px;
-  left: 58px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  bottom: 30px;
+  left: 56px;
+  font-size: 13px;
   color: var(--faint);
 }
 
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--faint); // pending
+// Right rail: the gallery of app cards.
+.apps {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 540px;
+  padding: 0 56px;
+  border-left: 1px solid var(--divider);
+  transition: border-color 0.45s ease;
+}
 
-  &[data-status='ok'] {
-    background: var(--accent);
+.gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.card {
+  display: block;
+  overflow: hidden;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 11px;
+  box-shadow: var(--card-shadow);
+  text-decoration: none;
+  transition:
+    background 0.45s ease,
+    border-color 0.45s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
   }
 
-  &[data-status='error'] {
-    background: #c0603b;
+  &.soon {
+    opacity: 0.55;
+  }
+}
+
+.preview {
+  display: block;
+  width: 100%;
+  height: 96px;
+  background: var(--canvas-bg);
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+}
+
+.name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--fg);
+}
+
+.live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--live);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--live);
+  animation: livePulse 1.6s ease infinite;
+}
+
+.soonLabel {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--soon);
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.72);
   }
 }
 
@@ -262,20 +309,23 @@
   .of {
     opacity: 1;
   }
+
+  .dot {
+    animation: none;
+  }
 }
 
 // Stack the two columns on narrow viewports.
 @media (max-width: 720px) {
   .home {
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 32px;
-    padding: 88px 0 64px;
+    padding: 88px 0 72px;
   }
 
   .intro {
     flex: none;
-    gap: 16px;
     padding: 0 32px;
   }
 
@@ -283,13 +333,14 @@
     font-size: 56px;
   }
 
+  .status {
+    left: 32px;
+    bottom: 12px;
+  }
+
   .apps {
     width: auto;
     padding: 0 32px;
     border-left: none;
-  }
-
-  .status {
-    left: 32px;
   }
 }
