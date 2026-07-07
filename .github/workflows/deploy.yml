@@ -302,3 +302,155 @@ jobs:
           test -n "$asset"
           curl -fsS "$APP_URL/$asset" > /dev/null
           echo "smoke OK"
+
+  # sprout — database-backed web app (plan 0004). Deploys the `web` + `worker`
+  # process groups from one image; release_command runs migrations first.
+  #
+  # Deploy ordering vs sprout-pipeline: INDEPENDENT (plan §9.1's second option).
+  # sprout's /health is a deep Store→Postgres round-trip that does NOT touch the
+  # pipeline, and chat fails closed if the pipeline is momentarily unreachable
+  # (plan §12), so the web smoke never depends on the pipeline being up. Each
+  # app therefore keeps its own independent affected-gated job (matching every
+  # other app here) — no cross-job `needs`.
+  #
+  # NOTE (P11, plan §9.3): requires an ORG-scoped FLY_API_TOKEN — the existing
+  # hoe-hub app-scoped token cannot deploy hoe-sprout.
+  deploy-sprout:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP_URL: https://hoe-sprout.fly.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gate on deploy token (inert until Phase 4)
+        id: gate
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.gate.outputs.ready == 'true'
+
+      - name: Is sprout affected by this push?
+        id: affected
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TURBO_SCM_BASE: ${{ github.event.before }}
+        run: |
+          if pnpm exec turbo ls --affected --output=json | jq -e '.packages.items[] | select(.name == "sprout")' > /dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::sprout not affected by this push — skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.affected.outputs.deploy == 'true'
+
+      - name: Deploy sprout (release_command runs migrations)
+        if: steps.affected.outputs.deploy == 'true'
+        # From the repo root: the Dockerfile needs the whole monorepo as its
+        # build context (turbo prune).
+        run: flyctl deploy --config apps/sprout/fly.toml --remote-only
+
+      - name: Post-deploy smoke
+        if: steps.affected.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          echo "deep /health (real Store → Postgres round-trip)"
+          curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
+          echo "one hashed static asset"
+          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          curl -fsS "$APP_URL/$asset" > /dev/null
+          echo "smoke OK"
+
+  # sprout-pipeline — headless, PRIVATE safety service (plan 0004 §5.5 / §9.3).
+  # No public hostname, so there is NO public /health to curl. The deploy step
+  # is itself the smoke: the machine only becomes healthy if index.ts boots, and
+  # index.ts fails closed at boot without OPENROUTER_API_KEY (client
+  # construction) and PIPELINE_API_KEY (prod guard) — a bad release aborts the
+  # rollout. (node:22-slim ships no curl, so an in-container HTTP probe isn't
+  # available either; `flyctl status` prints the machine health for the log.)
+  #
+  # NOTE (P11): ORG-scoped FLY_API_TOKEN required (same as sprout). Do NOT add a
+  # Cloudflare CNAME/cert for this app — it stays private (.flycast).
+  deploy-sprout-pipeline:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gate on deploy token (inert until Phase 4)
+        id: gate
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.gate.outputs.ready == 'true'
+
+      - name: Is sprout-pipeline affected by this push?
+        id: affected
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TURBO_SCM_BASE: ${{ github.event.before }}
+        run: |
+          if pnpm exec turbo ls --affected --output=json | jq -e '.packages.items[] | select(.name == "sprout-pipeline")' > /dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::sprout-pipeline not affected by this push — skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.affected.outputs.deploy == 'true'
+
+      - name: Deploy sprout-pipeline (no release_command — stateless)
+        if: steps.affected.outputs.deploy == 'true'
+        # From the repo root: the Dockerfile needs the whole monorepo as its
+        # build context (turbo prune).
+        run: flyctl deploy --config apps/sprout-pipeline/fly.toml --remote-only
+
+      - name: Post-deploy status (no public smoke — private .flycast service)
+        if: steps.affected.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          echo "sprout-pipeline is private (no public hostname) — the deploy above"
+          echo "gates the rollout on the machine booting healthy. Machine status:"
+          flyctl status --config apps/sprout-pipeline/fly.toml

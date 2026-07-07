@@ -1,36 +1,92 @@
-# starter — the stateless reference app (ADR 0007). It is NOT deployed; this is
-# a template. Copy to apps/<name>, set `app` to a unique Fly app name, and follow
-# the "adding an app" checklist in the root CLAUDE.md.
+# sprout — the child-safe LLM web app at sprout.homeofed.com. Database-backed
+# (plan 0004 §9.1). Deploy FROM THE REPO ROOT so the docker build context
+# contains the whole monorepo:
 #
-# A stateless app (ADR 0008) has NO release_command (no migrations) and a shallow
-# /health. If the app gains a database, add both back — see apps/hub/fly.toml for
-# the release_command and the deep-health check.
-app = 'hoe-starter'
+#   fly deploy -c apps/sprout/fly.toml
+#
+# The release_command runs journal-tracked migrations once per deploy; /health
+# is a deep Store round-trip (main.ts). See the HUMAN GO-LIVE NOTES at the
+# bottom of this file for the manual infra steps P8 does NOT perform.
+app = 'hoe-sprout'
 primary_region = 'lhr'
 
 [build]
   dockerfile = 'Dockerfile'
 
+[deploy]
+  # Journal-tracked run-once migrations (@hoe/db migratePostgres) — safe on
+  # every deploy; runs once per release regardless of process group.
+  release_command = 'node src/server/migrate.ts'
+
 [env]
   PORT = '8080'
+
+# Two process groups from ONE image (plan D8 / ADR 0001 §3). `web` serves HTTP;
+# `worker` is the headless retention/purge loop (no HTTP). Fly runs one machine
+# per group; the command overrides the Dockerfile CMD per machine.
+[processes]
+  web = 'node src/server/main.ts'
+  worker = 'node src/server/worker.ts'
 
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  # Scale to zero when idle — a copied app raises this if it must stay warm.
-  min_machines_running = 0
+  # The authed app stays warm on the web group.
+  min_machines_running = 1
+  # Only the `web` group sits behind the public HTTP service + health check.
+  # The `worker` group has no HTTP surface, so it is NOT listed here and the
+  # /health check never targets it.
+  processes = ['web']
 
   [[http_service.checks]]
-    # Shallow health: liveness only — a stateless app has no Store to round-trip
-    # (ADR 0008). A DB-backed app injects a real round-trip via createAppServer.
+    # Deep health: a real Store round-trip to Postgres (createAppServer's
+    # injected healthCheck), not just "process is up". Applies to `web` only.
     interval = '30s'
     timeout = '5s'
     grace_period = '10s'
     method = 'GET'
     path = '/health'
 
+# One VM spec for both process groups.
 [[vm]]
   size = 'shared-cpu-1x'
   memory = '512mb'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HUMAN GO-LIVE NOTES (P11 — plan §9.3 / §10). An agent must NOT run these;
+# they create or mutate real infrastructure (root CLAUDE.md).
+#
+# 1. WORKER MACHINE COUNT. `min_machines_running` above governs the `web` group
+#    only (it is an http_service setting). The `worker` group has no HTTP, so it
+#    never auto-stops, but its machine count is set out of band. After the first
+#    deploy, guarantee exactly one always-on worker:
+#        fly scale count worker=1 web=1 --app hoe-sprout
+#
+# 2. MANAGED POSTGRES (D10 / ADR 0005 / plan §10). sprout uses MANAGED Fly
+#    Postgres (backups + PITR for compliance weight) — NOT the shared UNMANAGED
+#    `hoe-pg` cluster that `scripts/go-live.sh --db` and the runbook attach to.
+#    Provision MPG in `lhr` and set DATABASE_URL manually; do NOT run the
+#    standard `fly postgres attach hoe-pg` path for this app.
+#
+# 3. ORG-SCOPED DEPLOY TOKEN. The existing FLY_API_TOKEN was minted
+#    `--app hoe-hub` (app-scoped) and CANNOT deploy hoe-sprout /
+#    hoe-sprout-pipeline. Mint an ORG-scoped token and set it as the
+#    FLY_API_TOKEN repo secret before the deploy-sprout* jobs run.
+#
+# 4. SECRETS (set on THIS app, hoe-sprout):
+#        fly secrets set --app hoe-sprout \
+#          BETTER_AUTH_SECRET=…  BETTER_AUTH_URL=https://sprout.homeofed.com \
+#          CHILD_SESSION_SECRET=…  PIPELINE_API_KEY=…
+#    DATABASE_URL comes from the MPG provisioning (note 2). PIPELINE_URL
+#    defaults to http://hoe-sprout-pipeline.flycast:8080 (private network) —
+#    override only if the pipeline app name changes. PIPELINE_API_KEY must
+#    match the value set on hoe-sprout-pipeline (shared service-to-service key).
+#    main.ts + worker.ts REFUSE to boot in prod without CHILD_SESSION_SECRET /
+#    PIPELINE_API_KEY.
+#
+# 5. CLOUDFLARE. Proxied CNAME sprout → hoe-sprout.fly.dev, Full (strict) TLS,
+#    Fly cert for sprout.homeofed.com. (The pipeline app gets NO public
+#    hostname — see apps/sprout-pipeline/fly.toml.)
+# ─────────────────────────────────────────────────────────────────────────────
