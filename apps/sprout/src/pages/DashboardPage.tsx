@@ -105,6 +105,15 @@ export function DashboardPage() {
                     ]?.label
                   }
                 />
+                <div className={styles.childActions}>
+                  <Link
+                    to="/child/login"
+                    search={{ child: activeChildId }}
+                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                  >
+                    Log in as {kids.find((k) => k.id === activeChildId)?.displayName}
+                  </Link>
+                </div>
               </div>
             )}
           </>

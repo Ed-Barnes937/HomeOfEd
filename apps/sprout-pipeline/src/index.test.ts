@@ -29,7 +29,7 @@ type ChatCompletion = OpenAI.Chat.Completions.ChatCompletion
 /** A fake OpenAI client. `respond(model)` returns the assistant content for a
  * given model id, or throws to simulate an OpenRouter failure. Model ids:
  * `openai/gpt-4o-mini` (generation + summarise), `openai/gpt-4.1-nano` (R5
- * judge), `meta-llama/llama-guard-3-8b` (R3 guard). */
+ * judge), `meta-llama/llama-guard-4-12b` (R3 guard). */
 function fakeOpenAI(respond: (model: string) => string): OpenAI {
   const create = (params: CreateParams): Promise<ChatCompletion> => {
     const content = respond(params.model)
@@ -46,7 +46,7 @@ const allClear =
   (generation: string) =>
   (model: string): string => {
     if (model === 'openai/gpt-4.1-nano') return 'APPROPRIATE: fine for a child'
-    if (model === 'meta-llama/llama-guard-3-8b') return 'safe'
+    if (model === 'meta-llama/llama-guard-4-12b') return 'safe'
     return generation
   }
 

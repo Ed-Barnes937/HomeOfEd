@@ -54,6 +54,29 @@ test('dashboard shows a tab per child and the first child summary', async ({ mou
   await root.expectText('space')
 })
 
+test('dashboard links to the child login for the active child, pre-selected', async ({
+  mountApp,
+}) => {
+  const { root, page } = await mountApp({ user: asParent('p1'), seed: seedDashboard })
+  await root.goto('/parent/dashboard')
+
+  await root.verifyTabSelected('Ben')
+  const benLink = page.getByRole('link', { name: 'Log in as Ben' })
+  await expect(benLink).toBeVisible({ timeout: 10_000 })
+  await expect(benLink).toHaveAttribute(
+    'href',
+    '/child/login?child=11111111-1111-4111-8111-111111111111',
+  )
+
+  // The link follows the active child.
+  await root.selectChildTab('Clara')
+  const claraLink = page.getByRole('link', { name: 'Log in as Clara' })
+  await expect(claraLink).toHaveAttribute(
+    'href',
+    '/child/login?child=22222222-2222-4222-8222-222222222222',
+  )
+})
+
 test('switching tabs changes the summary panel', async ({ mountApp }) => {
   const { root } = await mountApp({ user: asParent('p1'), seed: seedDashboard })
   await root.goto('/parent/dashboard')

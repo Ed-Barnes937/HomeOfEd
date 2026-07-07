@@ -6,9 +6,9 @@
 // server in P5 (so subsequent child-scoped tRPC calls only authenticate once
 // that transport lands — flagged).
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import type { FormEvent } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '../components/ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card.tsx'
@@ -17,10 +17,10 @@ import { Label } from '../components/ui/label.tsx'
 import {
   changePassword,
   deviceChildrenQueryOptions,
+  establishChildSession,
   loginWithPassword,
   loginWithPin,
 } from '../features/childAuth/childAuth.ts'
-import { setChildSession, setChildSessionCookie } from '../lib/childSession.ts'
 import { generateDeviceToken, getDeviceToken, setDeviceToken } from '../lib/deviceToken.ts'
 import styles from './ChildLoginPage.module.scss'
 
@@ -30,11 +30,14 @@ interface ChildProfile {
   presetName: string
 }
 
+const routeApi = getRouteApi('/child/login')
+
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : 'Something went wrong.'
 
 export function ChildLoginPage() {
   const navigate = useNavigate()
+  const { child: preselectChildId } = routeApi.useSearch()
   const [deviceToken, setDeviceTokenState] = useState<string | null>(() => getDeviceToken())
   const [modeOverride, setModeOverride] = useState<'pin' | 'password' | null>(null)
   const [selectedChild, setSelectedChild] = useState<ChildProfile | null>(null)
@@ -79,6 +82,16 @@ export function ChildLoginPage() {
     setModeOverride('pin')
   }
 
+  // Deep-link pre-selection: the parent dashboard links here with ?child=<id>.
+  // If the device already knows that child (they've logged in here before),
+  // jump straight to the PIN screen; an unknown device has no matching profile,
+  // so this is a no-op and the normal username/password login shows.
+  useEffect(() => {
+    if (!preselectChildId || selectedChild || modeOverride) return
+    const match = profiles.find((p) => p.id === preselectChildId)
+    if (match) handleSelectChild(match)
+  }, [preselectChildId, profiles, selectedChild, modeOverride])
+
   const handlePinSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!selectedChild || !deviceToken) return
@@ -92,8 +105,7 @@ export function ChildLoginPage() {
           setLoading(false)
           return
         }
-        setChildSessionCookie(result.token)
-        setChildSession(result.child)
+        await establishChildSession(result.child, result.token)
         void navigate({ to: '/child/home' })
       } catch (err) {
         setError(errorMessage(err))
@@ -117,8 +129,7 @@ export function ChildLoginPage() {
         }
         setDeviceToken(token)
         setDeviceTokenState(token)
-        setChildSessionCookie(result.token)
-        setChildSession(result.child)
+        await establishChildSession(result.child, result.token)
         void navigate({ to: '/child/home' })
       } catch (err) {
         setError(errorMessage(err))
@@ -153,8 +164,7 @@ export function ChildLoginPage() {
           setDeviceTokenState(pendingChange.token)
         }
         // The initial-login token is still valid after the password change.
-        if (pendingChange.childToken) setChildSessionCookie(pendingChange.childToken)
-        setChildSession(result.child)
+        await establishChildSession(result.child, pendingChange.childToken)
         void navigate({ to: '/child/home' })
       } catch (err) {
         setError(errorMessage(err))

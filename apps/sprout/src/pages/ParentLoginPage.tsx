@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input.tsx'
 import { Label } from '../components/ui/label.tsx'
 import { parentAuth } from '../features/parentAuth/parentAuth.ts'
+import { clearChildSession } from '../lib/childSession.ts'
 import styles from './ParentLoginPage.module.scss'
 
 export function ParentLoginPage() {
@@ -30,6 +31,9 @@ export function ParentLoginPage() {
         setLoading(false)
         return
       }
+      // One identity per browser: drop any co-resident child session so it
+      // can't linger and reactivate when the parent later signs out.
+      clearChildSession()
       void navigate({ to: '/parent/dashboard' })
     })()
   }

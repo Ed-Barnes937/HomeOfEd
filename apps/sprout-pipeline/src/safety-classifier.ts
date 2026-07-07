@@ -25,10 +25,12 @@ export interface SafetyClassifierResult {
   reason: string
 }
 
-// Llama Guard 3 8B on OpenRouter. The model is chat-templated by the provider:
+// Llama Guard 4 12B on OpenRouter. The model is chat-templated by the provider:
 // we pass the conversation turns and it classifies the final (assistant) turn,
-// returning "safe" or "unsafe\n<comma-separated category codes>".
-const LLAMA_GUARD_MODEL = 'meta-llama/llama-guard-3-8b'
+// returning "safe" or "unsafe\n<comma-separated category codes>". (Guard 3 8B
+// was retired from OpenRouter — "No endpoints found" 404 — and Guard 4 is the
+// drop-in successor: same MLCommons S-code taxonomy, same output format.)
+const LLAMA_GUARD_MODEL = 'meta-llama/llama-guard-4-12b'
 
 export const parseLlamaGuardResponse = (response: string): SafetyClassifierResult => {
   const trimmed = response.trim()

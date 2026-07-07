@@ -76,3 +76,26 @@ test('an established child can log in by password then by PIN on the now-known d
   await root.expectText('Hi, Alex!')
   await root.expectText('Start a new conversation')
 })
+
+test('a deep link with a pre-selected child on a known device jumps straight to PIN', async ({
+  mountApp,
+}) => {
+  const { root, page } = await mountApp({ seed: seedEstablishedChild })
+  await root.goto('/child/login')
+
+  // First password login registers the device (device token in localStorage).
+  await expect(page.getByLabel('Username')).toBeVisible({ timeout: 10_000 })
+  await root.fillByLabel('Username', 'alex1234')
+  await root.fillByLabel('Password', 'realpass')
+  await root.clickButton('Log in')
+  await root.expectText('Start a new conversation')
+
+  // The dashboard's deep link (?child=<id>) skips the profile picker and lands
+  // straight on the PIN screen for that child.
+  await root.goto('/child/login?child=11111111-1111-4111-8111-111111111111')
+  await root.expectText('Enter your PIN.')
+  await root.fillByPlaceholder('****', '5678')
+  await root.clickButton('Go')
+
+  await root.expectText('Hi, Alex!')
+})
