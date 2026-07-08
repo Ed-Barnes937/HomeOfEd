@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#efe9df;font-family:"Instrument Sans",system-ui,sans-serif}
+  a{color:#9c6b3f;text-decoration:none}
+  a:hover{color:#7d5330}
+  .dv-turn{padding:44px 48px 40px;scroll-margin-top:16px}
+  .dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 26px}
+  .dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#2a211a;color:#fff;border-radius:4px;text-decoration:none}
+  .dv-tname{font:600 13px/1.2 "Instrument Sans",sans-serif;color:#2a211a}
+  .dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+  .dv-opt{flex:none;display:flex;flex-direction:column;gap:11px;scroll-margin-top:16px}
+  .dv-olabel{display:flex;align-items:baseline;gap:9px;font:400 11.5px/1.3 "Instrument Sans",sans-serif;color:rgba(42,33,26,.55)}
+  .dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(42,33,26,.1);color:#2a211a;border-radius:5px;text-decoration:none}
+  .dv-opt:target .dv-oid{background:#9c6b3f;color:#fff}
+  .dv-next{margin:26px 0 0;font:12px/1.6 "Instrument Sans",sans-serif;color:rgba(42,33,26,.55);max-width:760px}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#c9a24b;border:2px solid #fdf8ee;box-shadow:0 1px 3px rgba(0,0,0,.35);cursor:pointer}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">1c, sand-rendering study — making the rake read as real combed sand</span></div>
+  <div class="dv-opts">
+
+    <!-- ============ 2a — MULTI-TINE RAKE ============ -->
+    <div class="dv-opt" id="2a">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a> Multi-tine rake — 4 parallel grooves + carved ridge/furrow shading (the classic rake head)</div>
+      <div style="width:472px;height:560px;border-radius:20px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(60,40,20,.5);background:radial-gradient(circle at 50% 40%,#f6efe0,#e6d6ba);position:relative;font-family:'Instrument Sans',sans-serif;display:flex;flex-direction:column;align-items:center">
+        <div style="position:relative;z-index:1;text-align:center;padding:24px 0 4px">
+          <div style="font:500 8.5px 'Instrument Sans';letter-spacing:.32em;text-transform:uppercase;color:#b08a54">4 tines · wide comb</div>
+        </div>
+        <div style="position:relative;z-index:1;margin-top:10px;width:404px;height:404px;border-radius:50%;padding:20px;background:linear-gradient(160deg,#a5764a,#7a5230);box-shadow:0 22px 44px -20px rgba(0,0,0,.5),inset 0 3px 8px rgba(255,255,255,.22),inset 0 -5px 14px rgba(0,0,0,.4)">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;box-shadow:inset 0 2px 10px rgba(0,0,0,.35)">
+            <canvas id="c2a" width="400" height="400" style="display:block;width:100%;height:100%"></canvas>
+          </div>
+        </div>
+        <div style="position:relative;z-index:1;font:400 11px/1.5 'Instrument Sans';color:#8a6c45;max-width:340px;text-align:center;margin-top:20px">Rake head = 4 pins. Each traces the hypotrochoid, offset along its normal, so the pattern is a ribbon of parallel troughs — not a wire.</div>
+      </div>
+    </div>
+
+    <!-- ============ 2b — DEEP RELIEF ============ -->
+    <div class="dv-opt" id="2b">
+      <div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a> Deep relief — 3 bold tines, strong raking light, sand piled into high ridges</div>
+      <div style="width:472px;height:560px;border-radius:20px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(60,40,20,.5);background:radial-gradient(circle at 50% 40%,#f4ecdb,#e2d0b0);position:relative;font-family:'Instrument Sans',sans-serif;display:flex;flex-direction:column;align-items:center">
+        <div style="position:relative;z-index:1;text-align:center;padding:24px 0 4px">
+          <div style="font:500 8.5px 'Instrument Sans';letter-spacing:.32em;text-transform:uppercase;color:#b08a54">3 tines · deep furrow</div>
+        </div>
+        <div style="position:relative;z-index:1;margin-top:10px;width:404px;height:404px;border-radius:50%;padding:20px;background:linear-gradient(160deg,#a5764a,#7a5230);box-shadow:0 22px 44px -20px rgba(0,0,0,.5),inset 0 3px 8px rgba(255,255,255,.22),inset 0 -5px 14px rgba(0,0,0,.4)">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;box-shadow:inset 0 2px 10px rgba(0,0,0,.35)">
+            <canvas id="c2b" width="400" height="400" style="display:block;width:100%;height:100%"></canvas>
+          </div>
+        </div>
+        <div style="position:relative;z-index:1;font:400 11px/1.5 'Instrument Sans';color:#8a6c45;max-width:340px;text-align:center;margin-top:20px">Fewer, deeper grooves. Low-angle light casts a hard shadow on one wall and a bright lip on the other — sculptural, most physical.</div>
+      </div>
+    </div>
+
+    <!-- ============ 2c — FINE COMB ============ -->
+    <div class="dv-opt" id="2c">
+      <div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a> Fine comb — 7 close tines, thin lines, moiré where passes overlap (most meditative)</div>
+      <div style="width:472px;height:560px;border-radius:20px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(60,40,20,.5);background:radial-gradient(circle at 50% 40%,#f6efe0,#e6d6ba);position:relative;font-family:'Instrument Sans',sans-serif;display:flex;flex-direction:column;align-items:center">
+        <div style="position:relative;z-index:1;text-align:center;padding:24px 0 4px">
+          <div style="font:500 8.5px 'Instrument Sans';letter-spacing:.32em;text-transform:uppercase;color:#b08a54">7 tines · fine comb</div>
+        </div>
+        <div style="position:relative;z-index:1;margin-top:10px;width:404px;height:404px;border-radius:50%;padding:20px;background:linear-gradient(160deg,#a5764a,#7a5230);box-shadow:0 22px 44px -20px rgba(0,0,0,.5),inset 0 3px 8px rgba(255,255,255,.22),inset 0 -5px 14px rgba(0,0,0,.4)">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;box-shadow:inset 0 2px 10px rgba(0,0,0,.35)">
+            <canvas id="c2c" width="400" height="400" style="display:block;width:100%;height:100%"></canvas>
+          </div>
+        </div>
+        <div style="position:relative;z-index:1;font:400 11px/1.5 'Instrument Sans';color:#8a6c45;max-width:340px;text-align:center;margin-top:20px">Many fine tines packed close. Where the curve crosses itself the combs interfere into shimmering moiré fields — very calm, very "sand".</div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">These are the same bowl from <a class="dv-oid" href="#1c">1c</a>, only the sand rendering differs. Try next: "build <a class="dv-oid" href="#2a">2a</a> fully interactive" · "2b but 5 tines" · "add drifting grain / footprints between grooves" · "cooler sand tone"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Zen Gear Garden — three layout &amp; style directions</span></div>
+  <div class="dv-opts">
+
+    <!-- ============ 1a — SAND-FORWARD WORKBENCH ============ -->
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a> Sand-forward workbench — the tray is the hero, tools on a slim birch rail</div>
+      <div style="width:1024px;height:704px;border-radius:20px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(60,40,20,.55);background:linear-gradient(150deg,#e9d3ac,#dcc196);position:relative;display:flex;font-family:'Instrument Sans',sans-serif">
+        <!-- plywood body texture -->
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(92deg,rgba(150,110,60,.05) 0 3px,rgba(120,85,45,.09) 3px 4px,rgba(180,140,90,.04) 4px 9px);pointer-events:none"></div>
+        <!-- LEFT: sand tray -->
+        <div style="flex:1;padding:34px 20px 34px 34px;position:relative;z-index:1">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0d9a8,#b98c4a);box-shadow:inset 0 0 0 3px rgba(255,255,255,.25)"></div>
+            <div style="font:600 15px 'Spectral',serif;letter-spacing:.02em;color:#3a2c1c">枯山水 &nbsp;Karesansui</div>
+          </div>
+          <div style="border-radius:14px;padding:16px;background:linear-gradient(160deg,#8a5f37,#6f4a29);box-shadow:inset 0 2px 6px rgba(255,255,255,.18),inset 0 -3px 10px rgba(0,0,0,.35),0 10px 24px -12px rgba(0,0,0,.5)">
+            <canvas id="c1a" width="600" height="560" style="display:block;width:100%;border-radius:8px"></canvas>
+          </div>
+        </div>
+        <!-- RIGHT: birch control rail -->
+        <div style="width:296px;flex:none;background:linear-gradient(155deg,#f3e6cd,#e8d5b0);border-left:2px solid rgba(120,85,45,.25);padding:30px 26px;position:relative;z-index:1;display:flex;flex-direction:column;gap:22px;box-shadow:inset 3px 0 12px rgba(120,85,45,.14)">
+          <div>
+            <div style="font:500 10px 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:#a07a4a;margin-bottom:12px">Gear train</div>
+            <div style="display:flex;gap:12px;align-items:flex-end">
+              <div style="text-align:center"><div style="width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#57c2b8,#2f877f);margin:0 auto;box-shadow:0 3px 6px rgba(0,0,0,.25),inset 0 0 0 8px rgba(255,255,255,.12)"></div><div style="font:500 10px 'Instrument Sans';color:#6b5335;margin-top:5px">96 teeth</div></div>
+              <div style="text-align:center"><div style="width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0906d,#d1553a);margin:0 auto;box-shadow:0 3px 6px rgba(0,0,0,.25),inset 0 0 0 6px rgba(255,255,255,.12)"></div><div style="font:500 10px 'Instrument Sans';color:#6b5335;margin-top:5px">52</div></div>
+              <div style="text-align:center"><div style="width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0c85a,#c99a2c);margin:0 auto;box-shadow:0 3px 6px rgba(0,0,0,.25),inset 0 0 0 5px rgba(255,255,255,.12)"></div><div style="font:500 10px 'Instrument Sans';color:#6b5335;margin-top:5px">32</div></div>
+              <div style="width:30px;height:30px;border-radius:50%;border:1.5px dashed #bfa madre;border-color:#c3a675;color:#c3a675;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer">+</div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font:500 10px 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:#a07a4a;margin-bottom:9px"><span>Rake offset</span><span style="color:#3a2c1c;letter-spacing:0">0.72 r</span></div>
+            <input type="range" min="0" max="100" value="72" style="width:100%;background:linear-gradient(90deg,#c9a24b 72%,rgba(120,85,45,.2) 72%)">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font:500 10px 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:#a07a4a;margin-bottom:9px"><span>Speed</span><span style="color:#3a2c1c;letter-spacing:0">slow</span></div>
+            <input type="range" min="0" max="100" value="30" style="width:100%;background:linear-gradient(90deg,#c9a24b 30%,rgba(120,85,45,.2) 30%)">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font:500 10px 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:#a07a4a;margin-bottom:9px"><span>Rotations</span></div>
+            <div style="display:flex;align-items:center;gap:0;border:1.5px solid rgba(120,85,45,.28);border-radius:9px;overflow:hidden;width:fit-content">
+              <div style="width:34px;height:32px;display:flex;align-items:center;justify-content:center;color:#8a5f37;font-size:17px;cursor:pointer">−</div>
+              <div style="width:44px;text-align:center;font:600 14px 'Spectral',serif;color:#3a2c1c;border-left:1.5px solid rgba(120,85,45,.28);border-right:1.5px solid rgba(120,85,45,.28);height:32px;line-height:32px">14</div>
+              <div style="width:34px;height:32px;display:flex;align-items:center;justify-content:center;color:#8a5f37;font-size:17px;cursor:pointer">+</div>
+            </div>
+          </div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+            <button style="border:none;cursor:pointer;border-radius:11px;padding:14px;font:600 14px 'Instrument Sans';color:#fff;background:linear-gradient(160deg,#3a2c1c,#241a10);box-shadow:0 6px 14px -6px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;gap:8px" style-hover="filter:brightness(1.15)">▶ &nbsp;Turn the crank</button>
+            <div style="display:flex;gap:9px">
+              <button style="flex:1;border:1.5px solid rgba(120,85,45,.28);background:rgba(255,255,255,.4);cursor:pointer;border-radius:10px;padding:10px;font:500 12px 'Instrument Sans';color:#6b5335" style-hover="background:rgba(255,255,255,.7)">Smooth</button>
+              <button style="flex:1;border:1.5px solid rgba(120,85,45,.28);background:rgba(255,255,255,.4);cursor:pointer;border-radius:10px;padding:10px;font:500 12px 'Instrument Sans';color:#6b5335" style-hover="background:rgba(255,255,255,.7)">Save</button>
+              <button style="flex:1;border:1.5px solid rgba(120,85,45,.28);background:rgba(255,255,255,.4);cursor:pointer;border-radius:10px;padding:10px;font:500 12px 'Instrument Sans';color:#6b5335" style-hover="background:rgba(255,255,255,.7)">↓</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1b — MECHANISM-FORWARD MACHINE VIEW ============ -->
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a> Mechanism-forward — walnut machine, gears exposed beside the sand window</div>
+      <div style="width:1024px;height:704px;border-radius:20px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(40,25,12,.6);background:linear-gradient(150deg,#4a3320,#372413);position:relative;font-family:'Instrument Sans',sans-serif;display:flex;flex-direction:column">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(88deg,rgba(255,220,170,.03) 0 2px,rgba(0,0,0,.14) 2px 3px,rgba(255,220,170,.02) 3px 7px);pointer-events:none"></div>
+        <!-- top bar -->
+        <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid rgba(255,220,170,.12)">
+          <div style="display:flex;align-items:center;gap:11px">
+            <div style="width:26px;height:26px;border-radius:6px;background:linear-gradient(140deg,#c9a24b,#8a6a24);box-shadow:inset 0 1px 2px rgba(255,255,255,.4)"></div>
+            <div style="font:500 15px 'Spectral',serif;color:#f0e2c8;letter-spacing:.03em">The Sand Engine</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button style="border:1px solid rgba(255,220,170,.2);background:rgba(255,220,170,.06);color:#e8d6b4;cursor:pointer;border-radius:8px;padding:8px 14px;font:500 12px 'Instrument Sans'" style-hover="background:rgba(255,220,170,.14)">Smooth sand</button>
+            <button style="border:1px solid rgba(255,220,170,.2);background:rgba(255,220,170,.06);color:#e8d6b4;cursor:pointer;border-radius:8px;padding:8px 14px;font:500 12px 'Instrument Sans'" style-hover="background:rgba(255,220,170,.14)">Presets</button>
+            <button style="border:1px solid rgba(255,220,170,.2);background:rgba(255,220,170,.06);color:#e8d6b4;cursor:pointer;border-radius:8px;padding:8px 14px;font:500 12px 'Instrument Sans'" style-hover="background:rgba(255,220,170,.14)">↓ Export</button>
+          </div>
+        </div>
+        <div style="position:relative;z-index:1;flex:1;display:flex">
+          <!-- LEFT exposed mechanism -->
+          <div style="width:392px;flex:none;padding:26px;display:flex;flex-direction:column">
+            <div style="font:500 10px 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:#c9a24b;margin-bottom:14px">The works</div>
+            <div style="flex:1;border-radius:14px;background:radial-gradient(circle at 50% 42%,#5a4028,#2e1e10);box-shadow:inset 0 3px 14px rgba(0,0,0,.55);position:relative;overflow:hidden">
+              <canvas id="c1b_gears" width="700" height="620" style="display:block;width:100%;height:100%;object-fit:cover"></canvas>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <div style="flex:1;background:rgba(255,220,170,.06);border:1px solid rgba(255,220,170,.14);border-radius:9px;padding:9px 11px">
+                <div style="font:500 9px 'Instrument Sans';letter-spacing:.12em;text-transform:uppercase;color:#b89a5e;margin-bottom:4px">Ring</div>
+                <div style="font:600 15px 'Spectral',serif;color:#f0e2c8">96</div>
+              </div>
+              <div style="flex:1;background:rgba(255,220,170,.06);border:1px solid rgba(255,220,170,.14);border-radius:9px;padding:9px 11px">
+                <div style="font:500 9px 'Instrument Sans';letter-spacing:.12em;text-transform:uppercase;color:#b89a5e;margin-bottom:4px">Wheel</div>
+                <div style="font:600 15px 'Spectral',serif;color:#f0e2c8">44</div>
+              </div>
+              <div style="flex:1;background:rgba(255,220,170,.06);border:1px solid rgba(255,220,170,.14);border-radius:9px;padding:9px 11px">
+                <div style="font:500 9px 'Instrument Sans';letter-spacing:.12em;text-transform:uppercase;color:#b89a5e;margin-bottom:4px">Pen</div>
+                <div style="font:600 15px 'Spectral',serif;color:#f0e2c8">0.8</div>
+              </div>
+            </div>
+          </div>
+          <!-- RIGHT sand window -->
+          <div style="flex:1;padding:26px 26px 26px 0;display:flex;flex-direction:column">
+            <div style="flex:1;border-radius:14px;padding:14px;background:linear-gradient(160deg,#c9a24b,#96742a);box-shadow:0 10px 26px -14px rgba(0,0,0,.6)">
+              <canvas id="c1b_sand" width="560" height="500" style="display:block;width:100%;height:100%;border-radius:7px"></canvas>
+            </div>
+            <div style="display:flex;gap:20px;align-items:center;margin-top:16px">
+              <div style="flex:1">
+                <div style="display:flex;justify-content:space-between;font:500 10px 'Instrument Sans';letter-spacing:.12em;text-transform:uppercase;color:#c9a24b;margin-bottom:8px"><span>Speed</span></div>
+                <input type="range" min="0" max="100" value="55" style="width:100%;background:linear-gradient(90deg,#c9a24b 55%,rgba(255,220,170,.16) 55%)">
+              </div>
+              <div style="flex:1">
+                <div style="display:flex;justify-content:space-between;font:500 10px 'Instrument Sans';letter-spacing:.12em;text-transform:uppercase;color:#c9a24b;margin-bottom:8px"><span>Rotations</span><span style="color:#f0e2c8;letter-spacing:0">22</span></div>
+                <input type="range" min="0" max="100" value="60" style="width:100%;background:linear-gradient(90deg,#c9a24b 60%,rgba(255,220,170,.16) 60%)">
+              </div>
+              <button style="border:none;cursor:pointer;border-radius:11px;padding:13px 26px;font:600 13px 'Instrument Sans';color:#2e1e10;background:linear-gradient(160deg,#f0d18a,#c9a24b);box-shadow:0 6px 14px -6px rgba(0,0,0,.6)" style-hover="filter:brightness(1.08)">▶ Run</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1c — RITUAL BOWL ============ -->
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a> Ritual bowl — round tray centered, radial tools, most negative space &amp; calm</div>
+      <div style="width:1024px;height:704px;border-radius:20px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(60,40,20,.5);background:radial-gradient(circle at 50% 40%,#f6efe0,#e6d6ba);position:relative;font-family:'Instrument Sans',sans-serif;display:flex;flex-direction:column;align-items:center">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(150,110,60,.03) 0 4px,rgba(120,85,45,.05) 4px 5px,rgba(180,140,90,.02) 5px 11px);pointer-events:none"></div>
+        <!-- header -->
+        <div style="position:relative;z-index:1;text-align:center;padding:26px 0 6px">
+          <div style="font:500 9px 'Instrument Sans';letter-spacing:.34em;text-transform:uppercase;color:#b08a54">Zen Gear Garden</div>
+          <div style="font:300 26px 'Spectral',serif;color:#3a2c1c;margin-top:4px;letter-spacing:.01em">Turn the gears. Rake the calm.</div>
+        </div>
+        <!-- bowl -->
+        <div style="position:relative;z-index:1;margin-top:6px;width:452px;height:452px;border-radius:50%;padding:22px;background:linear-gradient(160deg,#a5764a,#7a5230);box-shadow:0 22px 44px -20px rgba(0,0,0,.5),inset 0 3px 8px rgba(255,255,255,.22),inset 0 -5px 14px rgba(0,0,0,.4)">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;box-shadow:inset 0 2px 10px rgba(0,0,0,.35)">
+            <canvas id="c1c" width="440" height="440" style="display:block;width:100%;height:100%"></canvas>
+          </div>
+        </div>
+        <!-- radial tool dock -->
+        <div style="position:relative;z-index:1;display:flex;align-items:center;gap:26px;margin-top:26px">
+          <div style="text-align:center">
+            <div style="font:500 9px 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:#b08a54;margin-bottom:9px">Gears</div>
+            <div style="display:flex;gap:9px;align-items:center">
+              <div style="width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#57c2b8,#2f877f);box-shadow:0 3px 6px rgba(0,0,0,.22),inset 0 0 0 6px rgba(255,255,255,.12);cursor:pointer"></div>
+              <div style="width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0906d,#d1553a);box-shadow:0 3px 6px rgba(0,0,0,.22),inset 0 0 0 5px rgba(255,255,255,.12);cursor:pointer"></div>
+              <div style="width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0c85a,#c99a2c);box-shadow:0 3px 6px rgba(0,0,0,.22),inset 0 0 0 4px rgba(255,255,255,.12);cursor:pointer"></div>
+            </div>
+          </div>
+          <div style="width:1px;height:56px;background:rgba(120,85,45,.2)"></div>
+          <div style="text-align:center">
+            <div style="font:500 9px 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:#b08a54;margin-bottom:11px">Rake offset</div>
+            <input type="range" min="0" max="100" value="64" style="width:150px;background:linear-gradient(90deg,#c9a24b 64%,rgba(120,85,45,.18) 64%)">
+          </div>
+          <div style="width:1px;height:56px;background:rgba(120,85,45,.2)"></div>
+          <button style="border:none;cursor:pointer;width:70px;height:70px;border-radius:50%;font:600 12px 'Instrument Sans';color:#fff;background:radial-gradient(circle at 38% 32%,#4a3826,#241a10);box-shadow:0 8px 18px -8px rgba(0,0,0,.65),inset 0 0 0 4px rgba(201,162,75,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px" style-hover="filter:brightness(1.2)"><span style="font-size:16px">▶</span><span style="font-size:9px;letter-spacing:.08em">RUN</span></button>
+          <div style="width:1px;height:56px;background:rgba(120,85,45,.2)"></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button style="border:1.5px solid rgba(120,85,45,.25);background:transparent;cursor:pointer;border-radius:9px;padding:9px 15px;font:500 11px 'Instrument Sans';color:#6b5335" style-hover="background:rgba(255,255,255,.5)">Smooth</button>
+            <button style="border:1.5px solid rgba(120,85,45,.25);background:transparent;cursor:pointer;border-radius:9px;padding:9px 15px;font:500 11px 'Instrument Sans';color:#6b5335" style-hover="background:rgba(255,255,255,.5)">Save · ↓</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">Try next: "build <a class="dv-oid" href="#1a">1a</a> fully interactive" · "make <a class="dv-oid" href="#1c">1c</a> but with 1b's exposed gears" · "warmer / darker wood" · "new directions"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    // wait a tick so canvases are laid out
+    requestAnimationFrame(() => this.drawAll());
+  }
+
+  gcd(a, b) { return b ? this.gcd(b, a % b) : a; }
+
+  shade(hex, amt) {
+    const n = parseInt(hex.slice(1), 16);
+    let r = (n >> 16) + amt, g = ((n >> 8) & 255) + amt, b = (n & 255) + amt;
+    r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
+
+  drawGear(ctx, cx, cy, R, teeth, color, rot, alpha) {
+    const td = R * 0.15;      // tooth height
+    const inner = R - td;
+    const hub = inner * 0.52;
+    const bore = inner * 0.16;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    // toothed body
+    ctx.beginPath();
+    const u = (Math.PI * 2) / teeth;
+    for (let i = 0; i < teeth; i++) {
+      const b = i * u;
+      const p = [
+        [inner, b],
+        [R, b + u * 0.16],
+        [R, b + u * 0.34],
+        [inner, b + u * 0.5],
+        [inner, b + u]
+      ];
+      for (let k = 0; k < p.length; k++) {
+        const x = Math.cos(p[k][1]) * p[k][0], y = Math.sin(p[k][1]) * p[k][0];
+        if (i === 0 && k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+    const g = ctx.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.1, 0, 0, R);
+    g.addColorStop(0, this.shade(color, 34));
+    g.addColorStop(0.6, color);
+    g.addColorStop(1, this.shade(color, -34));
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = R * 0.03;
+    ctx.strokeStyle = this.shade(color, -55);
+    ctx.stroke();
+    // hub
+    ctx.beginPath();
+    ctx.arc(0, 0, hub, 0, Math.PI * 2);
+    ctx.fillStyle = this.shade(color, -22);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.25)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    // spoke holes
+    const holes = Math.max(4, Math.round(teeth / 8));
+    for (let i = 0; i < holes; i++) {
+      const a = (i / holes) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * hub * 0.62, Math.sin(a) * hub * 0.62, hub * 0.16, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,.22)";
+      ctx.fill();
+    }
+    // bore
+    ctx.beginPath();
+    ctx.arc(0, 0, bore, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(20,12,6,.55)";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // hypotrochoid raked into the sand
+  drawSpiro(ctx, cx, cy, boardR, R, r, penFrac, grooveColor) {
+    const g = this.gcd(R, r);
+    const loops = r / g;
+    const tMax = Math.PI * 2 * loops;
+    const scale = boardR / (R - r + penFrac * r + 2);
+    const d = penFrac * r;
+    const pts = [];
+    const step = tMax / (R * 6);
+    for (let t = 0; t <= tMax + step; t += step) {
+      const k = (R - r) / r;
+      const x = ((R - r) * Math.cos(t) + d * Math.cos(k * t)) * scale;
+      const y = ((R - r) * Math.sin(t) - d * Math.sin(k * t)) * scale;
+      pts.push([cx + x, cy + y]);
+    }
+    // carved-groove look: dark trench + light lip
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    // shadow trench
+    ctx.save();
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(pts[i][0], pts[i][1] + 1.4); else ctx.moveTo(pts[i][0], pts[i][1] + 1.4); }
+    ctx.strokeStyle = "rgba(90,66,36,.28)";
+    ctx.lineWidth = 3.2;
+    ctx.stroke();
+    ctx.restore();
+    // highlight lip
+    ctx.save();
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(pts[i][0], pts[i][1] - 1); else ctx.moveTo(pts[i][0], pts[i][1] - 1); }
+    ctx.strokeStyle = "rgba(255,248,232,.5)";
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+    ctx.restore();
+    // main groove
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(pts[i][0], pts[i][1]); else ctx.moveTo(pts[i][0], pts[i][1]); }
+    ctx.strokeStyle = grooveColor;
+    ctx.lineWidth = 1.7;
+    ctx.stroke();
+    return pts;
+  }
+
+  // hypotrochoid points, centered + scaled to fit boardR
+  spiroPts(cx, cy, boardR, R, r, penFrac) {
+    const g = this.gcd(R, r);
+    const loops = r / g;
+    const tMax = Math.PI * 2 * loops;
+    const d = penFrac * r;
+    const scale = boardR / (R - r + d + 2);
+    const k = (R - r) / r;
+    const pts = [];
+    const step = tMax / (R * 9);
+    for (let t = 0; t <= tMax + step; t += step) {
+      const x = ((R - r) * Math.cos(t) + d * Math.cos(k * t)) * scale;
+      const y = ((R - r) * Math.sin(t) - d * Math.sin(k * t)) * scale;
+      pts.push([cx + x, cy + y]);
+    }
+    return pts;
+  }
+
+  // unit normals along a polyline
+  normals(pts) {
+    const N = pts.length, out = [];
+    for (let i = 0; i < N; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(N - 1, i + 1)];
+      let dx = b[0] - a[0], dy = b[1] - a[1];
+      const len = Math.hypot(dx, dy) || 1;
+      out.push([-dy / len, dx / len]);
+    }
+    return out;
+  }
+
+  trace(ctx, line, ox, oy) {
+    for (let i = 0; i < line.length; i++) {
+      const x = line[i][0] + ox, y = line[i][1] + oy;
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+  }
+
+  // one carved groove: shadow wall, bright lip, dark trough — lit from top-left
+  emboss(ctx, line, o) {
+    const lx = o.light, ly = o.light;
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    // sand shoulder shadow (down-right)
+    ctx.beginPath(); this.trace(ctx, line, lx, ly);
+    ctx.strokeStyle = o.shadow; ctx.lineWidth = o.lw + o.spread; ctx.stroke();
+    // bright lip (up-left)
+    ctx.beginPath(); this.trace(ctx, line, -lx * 0.7, -ly * 0.7);
+    ctx.strokeStyle = o.highlight; ctx.lineWidth = o.lw * 0.72; ctx.stroke();
+    // trough
+    ctx.beginPath(); this.trace(ctx, line, 0, 0);
+    ctx.strokeStyle = o.groove; ctx.lineWidth = o.lw; ctx.stroke();
+  }
+
+  // rake head: N tines offset along the path normal
+  drawRake(ctx, pts, tines, spacing, o) {
+    const norm = this.normals(pts);
+    const half = (tines - 1) / 2;
+    for (let t = 0; t < tines; t++) {
+      const off = (t - half) * spacing;
+      const line = pts.map((p, i) => [p[0] + norm[i][0] * off, p[1] + norm[i][1] * off]);
+      this.emboss(ctx, line, o);
+    }
+  }
+
+  sandFill(ctx, w, h, base, edge) {
+    const g = ctx.createRadialGradient(w * 0.42, h * 0.4, w * 0.1, w * 0.5, h * 0.5, w * 0.72);
+    g.addColorStop(0, base);
+    g.addColorStop(1, edge);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    // faint sand speckle
+    for (let i = 0; i < 900; i++) {
+      ctx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,.05)" : "rgba(90,66,36,.05)";
+      ctx.fillRect(Math.random() * w, Math.random() * h, 1.2, 1.2);
+    }
+  }
+
+  setup(id) {
+    const c = document.getElementById(id);
+    if (!c) return null;
+    const ctx = c.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = c.width, h = c.height;
+    c.width = w * dpr; c.height = h * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+
+  bowlSand(ctx, w, h, base, edge) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2); ctx.clip();
+    this.sandFill(ctx, w, h, base, edge);
+    ctx.restore();
+  }
+
+  drawStudies() {
+    // ---- 2a: 4-tine wide comb ----
+    let s = this.setup("c2a");
+    if (s) {
+      const { ctx, w, h } = s;
+      this.bowlSand(ctx, w, h, "#efe0bd", "#d8c092");
+      const pts = this.spiroPts(w / 2, h / 2, w * 0.415, 96, 52, 0.66);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, w / 2 - 2, 0, Math.PI * 2); ctx.clip();
+      this.drawRake(ctx, pts, 4, 4.6, {
+        lw: 2.1, spread: 1.6, light: 0.9,
+        groove: "rgba(120,92,53,.85)", shadow: "rgba(92,66,34,.32)", highlight: "rgba(255,249,233,.6)"
+      });
+      ctx.restore();
+    }
+
+    // ---- 2b: 3-tine deep relief ----
+    s = this.setup("c2b");
+    if (s) {
+      const { ctx, w, h } = s;
+      this.bowlSand(ctx, w, h, "#ecdbb4", "#d3b988");
+      const pts = this.spiroPts(w / 2, h / 2, w * 0.415, 96, 52, 0.66);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, w / 2 - 2, 0, Math.PI * 2); ctx.clip();
+      this.drawRake(ctx, pts, 3, 8, {
+        lw: 3.4, spread: 3.2, light: 1.7,
+        groove: "rgba(104,76,40,.92)", shadow: "rgba(74,50,24,.42)", highlight: "rgba(255,250,236,.78)"
+      });
+      ctx.restore();
+    }
+
+    // ---- 2c: 7-tine fine comb ----
+    s = this.setup("c2c");
+    if (s) {
+      const { ctx, w, h } = s;
+      this.bowlSand(ctx, w, h, "#efe0bd", "#d8c092");
+      const pts = this.spiroPts(w / 2, h / 2, w * 0.415, 96, 52, 0.66);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, w / 2 - 2, 0, Math.PI * 2); ctx.clip();
+      this.drawRake(ctx, pts, 7, 2.7, {
+        lw: 1.15, spread: 0.9, light: 0.6,
+        groove: "rgba(122,94,55,.7)", shadow: "rgba(92,66,34,.24)", highlight: "rgba(255,249,233,.5)"
+      });
+      ctx.restore();
+    }
+  }
+
+  drawAll() {
+    this.drawStudies();
+    // ---- 1a: sand board, gears faint beneath ----
+    let s = this.setup("c1a");
+    if (s) {
+      const { ctx, w, h } = s;
+      this.sandFill(ctx, w, h, "#e4d3ac", "#c9b184");
+      const cx = w / 2, cy = h / 2;
+      // gears beneath (faint, as if under sand)
+      this.drawGear(ctx, cx, cy, w * 0.30, 96, "#3aa89f", 0.2, 0.16);
+      this.drawGear(ctx, cx + w * 0.30 + w * 0.145, cy, w * 0.145, 46, "#d1553a", -0.4, 0.16);
+      // raked pattern
+      this.drawSpiro(ctx, cx, cy, w * 0.40, 96, 52, 0.72, "rgba(120,92,53,.85)");
+    }
+
+    // ---- 1b: exposed gears (bright) ----
+    s = this.setup("c1b_gears");
+    if (s) {
+      const { ctx, w, h } = s;
+      const cx = w / 2, cy = h / 2;
+      this.drawGear(ctx, cx - w * 0.02, cy + h * 0.05, w * 0.27, 96, "#3aa89f", 0.1, 1);
+      this.drawGear(ctx, cx + w * 0.27 + w * 0.135, cy - h * 0.08, w * 0.135, 44, "#e0a92e", -0.3, 1);
+      this.drawGear(ctx, cx - w * 0.30, cy - h * 0.22, w * 0.10, 30, "#d1553a", 0.6, 1);
+      // rake arm from wheel center with pin
+      const wcx = cx + w * 0.27 + w * 0.135, wcy = cy - h * 0.08;
+      ctx.strokeStyle = "rgba(20,12,6,.5)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(wcx, wcy); ctx.lineTo(wcx - w * 0.09, wcy + h * 0.05); ctx.stroke();
+      ctx.beginPath(); ctx.arc(wcx - w * 0.09, wcy + h * 0.05, 7, 0, Math.PI * 2);
+      ctx.fillStyle = "#f0e2c8"; ctx.fill(); ctx.strokeStyle = "#8a6a24"; ctx.lineWidth = 2; ctx.stroke();
+    }
+    // ---- 1b: sand result ----
+    s = this.setup("c1b_sand");
+    if (s) {
+      const { ctx, w, h } = s;
+      this.sandFill(ctx, w, h, "#efdcb0", "#d8bd86");
+      this.drawSpiro(ctx, w / 2, h / 2, w * 0.42, 96, 44, 0.8, "rgba(110,82,44,.9)");
+    }
+
+    // ---- 1c: round bowl ----
+    s = this.setup("c1c");
+    if (s) {
+      const { ctx, w, h } = s;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2); ctx.clip();
+      this.sandFill(ctx, w, h, "#f0e2c2", "#dcc characters"?"#dcc79a":"#dcc79a");
+      const cx = w / 2, cy = h / 2;
+      this.drawGear(ctx, cx, cy, w * 0.24, 90, "#3aa89f", 0.3, 0.12);
+      this.drawGear(ctx, cx + w * 0.24 + w * 0.11, cy, w * 0.11, 40, "#d1553a", -0.5, 0.12);
+      this.drawSpiro(ctx, cx, cy, w * 0.42, 90, 58, 0.64, "rgba(120,92,53,.82)");
+      ctx.restore();
+    }
+  }
+}
+</script>
+</body>
+</html>
