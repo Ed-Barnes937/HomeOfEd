@@ -248,6 +248,10 @@ for what the script does.
 
 ## G4.10 — espy (DB-less app, go-live)
 
+> **✅ Done (2026-07-09).** espy is live — `https://espy.homeofed.com/health`
+> returns `{"ok":true}` and the SPA serves. The steps below are kept as the
+> record of what was run.
+
 espy (`apps/espy`) is a calm client-side doodling toy with no database
 ([ADR 0008](../adr/0008-apps-without-a-database.md)) — same shape as boids
 (G4.6): no `fly postgres attach`, no release_command.
