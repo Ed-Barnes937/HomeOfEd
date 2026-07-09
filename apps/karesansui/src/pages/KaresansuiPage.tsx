@@ -1,21 +1,21 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { ActionButtons } from '../features/controls/ActionButtons.tsx'
+import { ClearingRakeToggle } from '../features/controls/ClearingRakeToggle.tsx'
 import { GearTrain } from '../features/controls/GearTrain.tsx'
+import { PresetsMenu } from '../features/controls/PresetsMenu.tsx'
 import { PreviewToggle } from '../features/controls/PreviewToggle.tsx'
-import { RakePicker } from '../features/controls/RakePicker.tsx'
 import { RingPicker } from '../features/controls/RingPicker.tsx'
-import { SavedTray } from '../features/controls/SavedTray.tsx'
 import { TunePopover } from '../features/controls/TunePopover.tsx'
-import { fullTurns, MAX_GEARS, prettyTurns } from '../features/garden/engine/gears.ts'
+import { MAX_GEARS } from '../features/garden/engine/gears.ts'
+import { clampOffset, clampSpeed, DEFAULT_CONFIG, type GardenConfig } from '../features/garden/engine/state.ts'
 import {
-  clampOffset,
-  clampSpeed,
-  DEFAULT_CONFIG,
-  type GardenConfig,
-  type RakeId,
-} from '../features/garden/engine/state.ts'
-import { deletePreset, loadPresets, savePreset, type Preset } from '../features/garden/settings.ts'
+  deletePreset,
+  loadPresets,
+  renamePreset,
+  savePreset,
+  type Preset,
+} from '../features/garden/settings.ts'
 import { useRakeLoop } from '../features/garden/useRakeLoop.ts'
 import styles from './KaresansuiPage.module.scss'
 
@@ -25,11 +25,11 @@ export function KaresansuiPage() {
 
   const [config, setConfig] = useState<GardenConfig>(DEFAULT_CONFIG)
   const [running, setRunning] = useState(false)
-  // A carve has begun but isn't currently running — distinguishes "paused" from
-  // "idle" for the Run button label (the hook itself holds the real elapsed
-  // time; this just mirrors it for the label).
+  // A draw has begun but isn't currently running — distinguishes "paused" from
+  // "idle" for the Play button label (the hook holds the real elapsed time;
+  // this just mirrors it for the label).
   const [carveStarted, setCarveStarted] = useState(false)
-  const [smoothing, setSmoothing] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [presets, setPresets] = useState<Preset[]>(() => loadPresets(window.localStorage))
 
   const handleCarveComplete = useCallback(() => {
@@ -37,9 +37,9 @@ export function KaresansuiPage() {
     setCarveStarted(false)
   }, [])
 
-  // Not destructured: `smooth`/`exportPNG` are method-shaped on the hook's
-  // return type, so extracting bare references trips unbound-method lint —
-  // call them through `rakeLoop.` instead.
+  // Not destructured: `clear`/`exportPNG` are method-shaped on the hook's return
+  // type, so extracting bare references trips unbound-method lint — call them
+  // through `rakeLoop.` instead.
   const rakeLoop = useRakeLoop({
     sandRef,
     mechRef,
@@ -48,7 +48,7 @@ export function KaresansuiPage() {
     onCarveComplete: handleCarveComplete,
   })
 
-  /** Abort any run, reset run/pause/smoothing, apply `patch` — the reference `invalidate`. */
+  /** Abort any run, reset play/pause/clearing, apply `patch` — the reference `invalidate`. */
   function invalidate(patch: Partial<GardenConfig>): void {
     setRunning(false)
     setCarveStarted(false)
@@ -56,44 +56,40 @@ export function KaresansuiPage() {
   }
 
   function setRing(ring: number): void {
-    invalidate({ ring, turns: prettyTurns(ring, config.wheels) })
+    invalidate({ ring })
   }
 
   function addWheel(teeth: number): void {
     if (config.wheels.length >= MAX_GEARS) return
-    const wheels = [...config.wheels, teeth]
-    invalidate({ wheels, turns: prettyTurns(config.ring, wheels) })
+    invalidate({ wheels: [...config.wheels, teeth] })
   }
 
   function removeWheel(index: number): void {
     if (config.wheels.length <= 1) return
-    const wheels = config.wheels.filter((_, i) => i !== index)
-    invalidate({ wheels, turns: prettyTurns(config.ring, wheels) })
+    invalidate({ wheels: config.wheels.filter((_, i) => i !== index) })
   }
 
   function setOffset(raw: number): void {
     invalidate({ offset: clampOffset(raw / 100) })
   }
 
-  function setRake(rake: RakeId): void {
-    invalidate({ rake })
-  }
-
-  function setTurns(turns: number): void {
-    invalidate({ turns })
-  }
-
   function setShowPreview(showPreview: boolean): void {
     invalidate({ showPreview })
   }
 
-  // Speed only changes the next run's carve duration — no invalidate.
+  // The clearing rake is read at the next phase boundary — no invalidate, so it
+  // can be toggled without resetting the bed.
+  function setClearingRake(clearingRake: boolean): void {
+    setConfig((prev) => ({ ...prev, clearingRake }))
+  }
+
+  // Speed only changes the next run's draw duration — no invalidate.
   function setSpeed(speed: number): void {
     setConfig((prev) => ({ ...prev, speed: clampSpeed(speed) }))
   }
 
-  function handleRun(): void {
-    if (smoothing) return
+  function handlePlay(): void {
+    if (clearing) return
     if (!carveStarted) {
       setCarveStarted(true)
       setRunning(true)
@@ -102,13 +98,13 @@ export function KaresansuiPage() {
     setRunning((r) => !r)
   }
 
-  function handleSmooth(): void {
-    if (running || smoothing) return
-    setSmoothing(true)
-    rakeLoop.smooth()
+  function handleClear(): void {
+    if (running || clearing) return
+    setClearing(true)
+    rakeLoop.clear()
     // Mirrors the hook's internal sweep duration — there's no completion
-    // callback from `smooth()`, so the label/Run-lock times out alongside it.
-    setTimeout(() => setSmoothing(false), 1550)
+    // callback from `clear()`, so the label/Play-lock times out alongside it.
+    setTimeout(() => setClearing(false), 1800)
   }
 
   function handleSave(): void {
@@ -123,18 +119,18 @@ export function KaresansuiPage() {
       ring: preset.ring,
       wheels: preset.wheels,
       offset: preset.offset,
-      rake: preset.rake,
       speed: preset.speed,
-      turns: Math.max(1, Math.min(preset.turns, fullTurns(preset.ring, preset.wheels))),
     }))
+  }
+
+  function handleRenamePreset(index: number, name: string): void {
+    setPresets((prev) => renamePreset(index, name, prev, window.localStorage))
   }
 
   function handleDeletePreset(index: number): void {
     setPresets((prev) => deletePreset(index, prev, window.localStorage))
   }
 
-  const full = fullTurns(config.ring, config.wheels)
-  const turns = Math.min(config.turns, full)
   const patternLabel = `${config.ring}-tooth ring · ${config.wheels.join('·')} cog train`
   const paused = !running && carveStarted
 
@@ -168,7 +164,7 @@ export function KaresansuiPage() {
                 data-testid="sand-canvas"
                 className={styles.sandCanvas}
                 role="img"
-                aria-label={`Sand garden raked from a ${patternLabel}`}
+                aria-label={`Sand garden grooved by a ${patternLabel}`}
               />
             </div>
           </div>
@@ -181,17 +177,16 @@ export function KaresansuiPage() {
           <span className={styles.divider} aria-hidden="true" />
           <GearTrain wheels={config.wheels} onAdd={addWheel} onRemove={removeWheel} />
           <span className={styles.divider} aria-hidden="true" />
-          <RakePicker rake={config.rake} onChange={setRake} />
-          <span className={styles.divider} aria-hidden="true" />
           <div className={styles.tuneGroup}>
             <TunePopover
               offset={config.offset}
               speed={config.speed}
-              turns={turns}
-              fullTurns={full}
               onOffset={setOffset}
               onSpeed={setSpeed}
-              onRotations={setTurns}
+            />
+            <ClearingRakeToggle
+              checked={config.clearingRake}
+              onChange={() => setClearingRake(!config.clearingRake)}
             />
             <PreviewToggle
               checked={config.showPreview}
@@ -204,15 +199,19 @@ export function KaresansuiPage() {
           <ActionButtons
             running={running}
             paused={paused}
-            smoothing={smoothing}
-            onRun={handleRun}
-            onSmooth={handleSmooth}
+            clearing={clearing}
+            onPlay={handlePlay}
+            onClear={handleClear}
             onSave={handleSave}
-            onExport={() => rakeLoop.exportPNG()}
+            onDownload={() => rakeLoop.exportPNG()}
+          />
+          <PresetsMenu
+            presets={presets}
+            onLoad={handleLoadPreset}
+            onRename={handleRenamePreset}
+            onDelete={handleDeletePreset}
           />
         </div>
-
-        <SavedTray presets={presets} onLoad={handleLoadPreset} onDelete={handleDeletePreset} />
       </footer>
     </main>
   )

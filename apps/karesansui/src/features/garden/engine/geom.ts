@@ -32,7 +32,9 @@ export function geom(config: GardenConfig, boardR: number): Geom {
     a: d * w * Math.pow(0.56, i),
   }))
   const full = fullTurns(R, W)
-  const revs = Math.max(0.04, Math.min(config.turns, full))
+  // The summed-cosine curve is retained only for reference / the N=1 regression
+  // anchor (plan 0008 D2); it always draws the full closed period now.
+  const revs = full
   const tMax = Math.PI * 2 * revs
   const maxF = terms.reduce((m, t) => Math.max(m, Math.abs(t.f)), 1)
   const n = Math.max(400, Math.min(8000, Math.round(revs * Math.max(150, R * 1.7, maxF * 60))))

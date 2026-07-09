@@ -1,13 +1,16 @@
 # apps/karesansui — scoped rules
 
-枯山水 Karesansui, "Zen Gear Garden": a spirograph-as-zen-garden canvas toy at
-`karesansui.homeofed.com`. Build a gear train, pick a rake head, turn the crank
-— a rake carves a hypotrochoid-family pattern into a circular sand bed rendered
-on canvas with carved-groove shading. **No database** (ADR 0008) — presets live
-in `localStorage`. Visual reference: `reference/karasensui/project/Zen Gear
-Garden Studio.dc.html` (read it before touching anything under
-`features/garden/engine/` or `features/garden/render/`; `Zen Gear Garden.dc.html`
-in the same folder is unrelated exploration — see the fidelity rule below).
+枯山水 Karesansui, "Zen Gear Garden": an automated zen-garden canvas toy at
+`karesansui.homeofed.com`. Build a gear train and press Play — each cog is a
+planet rolling in the ring carrying its own single marble, and each marble
+grooves its own line into a flat sand bed rendered on canvas with carved-groove
+shading. N cogs → N overlapping rosettes ("many pens, one garden" — plan 0008 /
+ADR 0020). An optional **clearing rake** sweeps the bed smooth and draws again
+forever. **No database** (ADR 0008) — presets live in `localStorage`. Visual
+reference: `reference/karasensui/project/Zen Gear Garden Studio.dc.html` (the
+gear/ring/groove drawing primitives) plus the "Many pens" section of the
+layout-spikes artifact (the current model); `Zen Gear Garden.dc.html` in the
+same folder is unrelated exploration — see the fidelity rule below.
 
 ## Layout
 
@@ -22,17 +25,17 @@ src/
     health.test.ts       Vitest unit — handler with a hand-written Store fake
   features/garden/
     engine/               PURE TS — no React, no DOM, no Canvas
-      state.ts            GardenConfig type, DEFAULT_CONFIG, offset/speed clamp helpers
-      gears.ts            ring/wheel opts, MAX_GEARS, gearPalette, gcd/lcm, fullTurns/prettyTurns, shade
-      geom.ts             geom(config, boardR) → {pts,tMax,full}; normals(pts) — the summed-cosine curve
-      rake.ts             RakeId + rakePresets (marble/wide/deep/fine → tines/spacing/lw/spread/light)
+      state.ts            GardenConfig type (ring/wheels/offset/speed/showPreview/clearingRake), DEFAULT_CONFIG, offset/speed clamps
+      gears.ts            ring/wheel opts, MAX_GEARS (4), gearPalette, gcd/lcm, fullTurns/prettyTurns, shade
+      garden.ts           gardenCurves(config, boardR) → {curves: CogCurve[], scale} — one rosette per cog (the sand's source of truth)
+      geom.ts             geom(config, boardR) → {pts,tMax,full,scale}; normals(pts) — retained only for reference / the N=1 anchor
     render/                canvas classes — own the <canvas>, never touched by engine code
-      sand.ts             pure draw helpers: sandFill, clipCircle, trace, emboss, rakeStyle, rakeSegment
-      SandRenderer.ts     resize / renderStatic / beginCarve+carveTo / smoothStep / finishCarve / toDataURL
-      MechRenderer.ts     resize / setPattern(config) / draw(progress) — Level-2 pen-fidelity mechanism
-    settings.ts            Preset type; load/save/delete presets in localStorage (`karesansui:presets:v1`)
-    useRakeLoop.ts         owns the rAF loop + both canvases: carve/pause/resume/smooth/export, resize rebuild
-  features/controls/       RingPicker, GearTrain, RakePicker, Slider, PreviewToggle, ActionButtons, TunePopover, SavedTray
+      sand.ts             pure draw helpers: clipCircle, gardenBed, drawGroove, drawMarble, clearingSweep
+      SandRenderer.ts     resize / renderStatic / beginCarve+carveTo / clearTo / finishCarve / toDataURL
+      MechRenderer.ts     resize / setPattern(config) / draw(progress) — planetary: N cogs + marbles; getMarbles()
+    settings.ts            Preset type; load/save/rename/delete presets in localStorage (`karesansui:presets:v2`, v1→v2 migration)
+    useRakeLoop.ts         owns the rAF loop + both canvases: draw / pause / resume / clear / perpetual loop / export, resize rebuild
+  features/controls/       RingPicker, GearTrain, Slider, PreviewToggle, ClearingRakeToggle, ActionButtons, TunePopover, PresetsMenu
   pages/KaresansuiPage.tsx  holds GardenConfig state, wires useRakeLoop; room → wordmark → stage → dim console; sand-hero-first reflow at ~760px
   testing/                  IwftApp harness + KaresansuiPagePom
   karesansui.iwft.tsx
@@ -58,17 +61,17 @@ playwright-ct.config.ts    defineIwftConfig({ ctPort: 3107 })
   `ResizeObserver`. `KaresansuiPage` holds `GardenConfig` in React state and
   pushes changes into the loop imperatively via refs — no engine state lives
   in React, no per-frame re-render. Mirrors boids' engine/React split.
-- **Geometry fidelity:** the `geom()`/rake/emboss math in `engine/` and
-  `render/sand.ts`, and `drawGear`/`drawRing`/the multi-cog cluster in
-  `MechRenderer`, are ported **verbatim** from the Studio reference — don't
-  "clean up" or re-derive the formulas. The mechanism is **Level-2 pen-fidelity**
-  (ADR 0018 amended, ADR 0019): its pen sits on the *true* `geom()` point every
-  frame (1 cog = an honest single-wheel spirograph; 2–3 cogs = the illustrative
-  cluster with an arm to the exact pen). It builds its own `geom()` at the mech
-  bowl radius, so the pen matches the sand groove's *shape* at a smaller *scale*.
-  See [ADR 0018](../../docs/adr/0018-karesansui-geometry-fidelity.md). The
-  `spiroPts`/`drawSpiro` formula in `Zen Gear Garden.dc.html` is a *different*,
-  unused exploration — never port it.
+- **Geometry fidelity:** the single-wheel spirograph maths (`gardenCurves` in
+  `engine/garden.ts`), the groove/marble/bed drawing in `render/sand.ts`, and
+  `drawGear`/`drawRing` in `MechRenderer`, follow the Studio reference — don't
+  "clean up" or re-derive the formulas. The current model is **many pens, one
+  garden** (plan 0008 / [ADR 0020](../../docs/adr/0020-karesansui-many-pens-model.md)):
+  each cog is an independent planet (`carrierAmp = R−wᵢ`, `a = offset·wᵢ`,
+  `f = (R−wᵢ)/wᵢ`, phase `i·2π/N`) carrying one marble; the mechanism draws N
+  cogs + marbles, each marble on its own gear. The **summed-cosine `geom()` and
+  the epicycle arm-chain are retired** (superseded parts of ADR 0018/0019);
+  `geom()` survives only as the N=1 reference. The `spiroPts`/`drawSpiro` formula
+  in `Zen Gear Garden.dc.html` is a *different*, unused exploration — never port it.
 - Server code changes go through TDD: unit test against `StatusStore` fake
   first, `.iwft` only for whole-page behaviour (keep it thin). Relative imports
   carry explicit `.ts`/`.tsx` extensions; server code sticks to erasable TS

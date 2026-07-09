@@ -11,35 +11,22 @@ function speedLabel(speed: number): string {
 }
 
 export interface TunePopoverProps {
-  /** Pin offset, 0..1. */
+  /** Global pin offset, 0..1 — scales every marble (plan 0008 D9). */
   offset: number
   /** Speed, 0..100. */
   speed: number
-  /** Current rotations (already clamped to `fullTurns`). */
-  turns: number
-  /** Maximum rotations for the current ring + train. */
-  fullTurns: number
   /** Receives the raw slider value 0..100 (the page clamps to 0.08..0.94). */
   onOffset: (raw: number) => void
   onSpeed: (value: number) => void
-  onRotations: (value: number) => void
 }
 
 /**
- * The `tune ▾` disclosure: keeps the low-frequency dials (offset / speed /
- * rotations) one reach away without cluttering the resting console. A proper
- * disclosure — `aria-expanded`/`aria-controls`, Escape and outside-click close,
- * focus returns to the button on close. Not a focus trap.
+ * The `tune ▾` disclosure: keeps the low-frequency dials (offset / speed) one
+ * reach away without cluttering the resting console. A proper disclosure —
+ * `aria-expanded`/`aria-controls`, Escape and outside-click close, focus returns
+ * to the button on close. Not a focus trap.
  */
-export function TunePopover({
-  offset,
-  speed,
-  turns,
-  fullTurns,
-  onOffset,
-  onSpeed,
-  onRotations,
-}: TunePopoverProps) {
+export function TunePopover({ offset, speed, onOffset, onSpeed }: TunePopoverProps) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -113,15 +100,6 @@ export function TunePopover({
             max={100}
             value={speed}
             onChange={onSpeed}
-          />
-          <Slider
-            label="Rotations"
-            testId="slider-rotations"
-            valueText={`${turns} of ${fullTurns}`}
-            min={1}
-            max={fullTurns}
-            value={turns}
-            onChange={onRotations}
           />
         </div>
       )}

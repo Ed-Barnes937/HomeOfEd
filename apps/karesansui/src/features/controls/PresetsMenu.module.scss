@@ -1,0 +1,147 @@
+.wrap {
+  position: relative;
+}
+
+.burger {
+  cursor: pointer;
+  border: 1px solid var(--chip-line);
+  background: var(--chip-bg);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 8px 13px;
+  font: 500 11px var(--font-sans);
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background: var(--chip-bg-hover);
+    border-color: var(--accent);
+  }
+
+  &[aria-expanded='true'] {
+    border-color: var(--accent);
+    color: var(--accent-soft);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.lines {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+
+  span {
+    display: block;
+    width: 13px;
+    height: 1.5px;
+    border-radius: 1px;
+    background: currentColor;
+  }
+}
+
+.count {
+  min-width: 16px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--track);
+  color: var(--label);
+  font: 600 10px var(--font-sans);
+  text-align: center;
+}
+
+.panel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  width: 244px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #221b13, #171009);
+  border: 1px solid var(--chip-line);
+  box-shadow: 0 24px 50px -20px rgba(0, 0, 0, 0.85);
+  z-index: 20;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font: 500 12px var(--font-sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--accent-soft);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -1px;
+  }
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--chip-bg);
+  color: var(--text);
+  font: 500 12px var(--font-sans);
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+}
+
+.action {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  color: var(--label);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -1px;
+  }
+}

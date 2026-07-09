@@ -17,8 +17,8 @@ export function wheelOpts(): number[] {
   return [24, 30, 36, 45, 52, 63]
 }
 
-/** Maximum wheels in a train. */
-export const MAX_GEARS = 3
+/** Maximum wheels in a train (each cog is its own pen — plan 0008 D10). */
+export const MAX_GEARS = 4
 
 const PALETTE: Record<number, [string, string]> = {
   24: ['#57c2b8', '#2f877f'],

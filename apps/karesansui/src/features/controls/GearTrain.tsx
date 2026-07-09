@@ -15,7 +15,7 @@ export function GearTrain({ wheels, onAdd, onRemove }: GearTrainProps) {
       <div className={styles.head}>
         <span className={styles.label}>Gear train</span>
         <span className={styles.value}>
-          {wheels.length} {wheels.length === 1 ? 'cog' : 'cogs'}
+          {wheels.length === 1 ? '1 cog · 1 marble' : `${wheels.length} cogs · ${wheels.length} marbles`}
         </span>
       </div>
       <div className={styles.chips}>
@@ -44,7 +44,7 @@ export function GearTrain({ wheels, onAdd, onRemove }: GearTrainProps) {
         })}
       </div>
       <div className={styles.hint}>
-        {atMax ? 'Max 3 cogs — remove one to add' : 'Tap to add a cog to the train'}
+        {atMax ? 'Max 4 cogs — remove one to add' : 'Tap to add a cog — each draws its own line'}
       </div>
       <div className={styles.dock}>
         {wheelOpts().map((teeth) => {

@@ -90,8 +90,9 @@
   // Focus ring — an ink outline is invisible on dark, so focus is amber.
   --focus-ring: var(--accent-bright);
 
-  // Sand bowl (warm, lit — the hero; unchanged spirit, restated for the dark frame)
-  --sand-bowl-bg: radial-gradient(circle at 50% 40%, #c8975c 0%, #a5703f 60%, #6e4a29 100%);
+  // Sand bowl (warm, lit — the hero). Single flat frame colour behind the bed
+  // (plan 0008 D7): the bed's own shading lives on the canvas, not the frame.
+  --sand-bowl-bg: #8f6435;
   --sand-bowl-shadow: 0 46px 80px -30px rgba(0, 0, 0, 0.85), inset 0 4px 12px rgba(255, 225, 180, 0.3),
     inset 0 -12px 30px rgba(40, 22, 8, 0.6), 0 0 0 1px rgba(255, 210, 150, 0.08);
   --sand-canvas-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.4);

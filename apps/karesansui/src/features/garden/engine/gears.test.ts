@@ -16,7 +16,7 @@ describe('options / constants', () => {
   it('exposes the reference ring and wheel option sets', () => {
     expect(ringOpts()).toEqual([96, 120, 144])
     expect(wheelOpts()).toEqual([24, 30, 36, 45, 52, 63])
-    expect(MAX_GEARS).toBe(3)
+    expect(MAX_GEARS).toBe(4)
   })
 })
 
