@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;700&family=Caveat:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html,body{height:100%;margin:0}
+  x-dc{display:block;height:100%}
+  a{color:#8a6d3b}a:hover{color:#5c4a28}
+  *{box-sizing:border-box}
+</style>
+</helmet>
+<div style="height:100%;display:flex;flex-direction:column;background:{{ t.paper }};color:{{ t.text }};font-family:{{ t.font }};overflow:hidden">
+
+  <header style="flex:none;padding:20px 26px 12px;display:flex;align-items:baseline;justify-content:space-between;gap:16px">
+    <div>
+      <div style="font-family:{{ t.headFont }};font-weight:700;font-size:{{ t.titleSize }};line-height:1;letter-spacing:{{ t.titleTrack }};color:{{ t.text }}">inksplat<span style="font-size:0.5em;margin-left:12px;letter-spacing:0.02em;opacity:0.75">Inksplat</span></div>
+      <div style="margin-top:8px;font-size:14px;color:{{ t.sub }};max-width:52ch;line-height:1.5">Add a few lines — legs, a tail, whiskers, a smile. Then give it eyes, and the ink comes alive.</div>
+    </div>
+    <div style="font-size:12px;color:{{ t.sub }};text-align:right;line-height:1.5;flex:none">{{ modeHint }}</div>
+  </header>
+
+  <main style="flex:1;min-height:0;padding:6px 26px 8px;display:flex">
+    <div style="flex:1;position:relative;background:{{ t.card }};border:{{ t.cardBorder }};border-radius:{{ t.cardRadius }};box-shadow:{{ t.cardShadow }};overflow:hidden">
+      <canvas ref="{{ canvasRef }}" onPointerDown="{{ onDown }}" onPointerMove="{{ onMove }}" onPointerUp="{{ onUp }}" onPointerLeave="{{ onUp }}" style="display:block;width:100%;height:100%;touch-action:none;cursor:{{ cursor }}"></canvas>
+    </div>
+  </main>
+
+  <footer style="flex:none;padding:14px 26px 22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div style="display:flex;gap:6px;padding:5px;background:{{ t.chrome }};border:{{ t.chromeBorder }};border-radius:{{ t.groupRadius }};box-shadow:{{ t.chromeShadow }}">
+      <button onClick="{{ pickPen }}" style="{{ penBtn }}" style-hover="{{ penBtnHover }}">✎&nbsp;&nbsp;Pen</button>
+      <button onClick="{{ pickEyes }}" style="{{ eyeBtn }}" style-hover="{{ eyeBtnHover }}">◉&nbsp;&nbsp;Eyes</button>
+    </div>
+
+    <div style="{{ clusterStyle }}">
+      <span style="{{ clusterLabel }}">Nib</span>
+      <sc-for list="{{ nibs }}" as="n" hint-placeholder-count="4">
+        <button onClick="{{ n.pick }}" style="{{ n.btnStyle }}"><span style="{{ n.dotStyle }}"></span></button>
+      </sc-for>
+    </div>
+
+    <div style="{{ clusterStyle }}">
+      <span style="{{ clusterLabel }}">Ink</span>
+      <sc-for list="{{ inks }}" as="k" hint-placeholder-count="4">
+        <button onClick="{{ k.pick }}" style="{{ k.sw }}"></button>
+      </sc-for>
+    </div>
+
+    <div style="flex:1"></div>
+
+    <button onClick="{{ undo }}" style="{{ ghostBtn }}" style-hover="{{ ghostBtnHover }}">Undo</button>
+    <button onClick="{{ regenerate }}" style="{{ ghostBtn }}" style-hover="{{ ghostBtnHover }}">{{ newLabel }}</button>
+    <button onClick="{{ download }}" style="{{ primaryBtn }}" style-hover="{{ primaryBtnHover }}">Save PNG</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:960,&quot;height&quot;:680},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;zen&quot;,&quot;options&quot;:[&quot;zen&quot;,&quot;sketchbook&quot;,&quot;modern&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Style&quot;},&quot;regenMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;single&quot;,&quot;options&quot;:[&quot;single&quot;,&quot;shuffle&quot;,&quot;infinite&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Style&quot;},&quot;inkTone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;ink&quot;,&quot;options&quot;:[&quot;ink&quot;,&quot;sumi&quot;,&quot;sepia&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Ink&quot;},&quot;eyeSizePx&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:12,&quot;min&quot;:6,&quot;max&quot;:22,&quot;step&quot;:1,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Tools&quot;}}">
+class Component extends DCLogic {
+  state = { tool: 'pen', hist: 0, nib: 3.2, penColor: null };
+
+  themes() {
+    return {
+      zen: {
+        paper:'#f2eee4', text:'#2a2620', sub:'#9a9182',
+        font:"'Nunito', system-ui, sans-serif", headFont:"'Shippori Mincho', serif",
+        titleSize:'34px', titleTrack:'0.04em',
+        card:'#f6f2e9', cardBorder:'1px solid rgba(0,0,0,0.06)', cardRadius:'3px',
+        cardShadow:'inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.04)',
+        chrome:'transparent', chromeBorder:'1px solid rgba(0,0,0,0.1)', chromeShadow:'none',
+        groupRadius:'4px', accent:'#2a2620'
+      },
+      sketchbook: {
+        paper:'#f7efdc', text:'#3b3327', sub:'#b0a488',
+        font:"'Nunito', system-ui, sans-serif", headFont:"'Caveat', cursive",
+        titleSize:'44px', titleTrack:'0',
+        card:'#fffdf4', cardBorder:'2px dashed #d9cba7', cardRadius:'12px',
+        cardShadow:'0 14px 34px rgba(80,60,20,0.12), 0 3px 0 #eaddbe',
+        chrome:'#fffaef', chromeBorder:'2px solid #eaddbe', chromeShadow:'0 3px 0 #eaddbe',
+        groupRadius:'14px', accent:'#e07a45'
+      },
+      modern: {
+        paper:'#f4f6f9', text:'#12141a', sub:'#8b919d',
+        font:"'Manrope', system-ui, sans-serif", headFont:"'Manrope', system-ui, sans-serif",
+        titleSize:'30px', titleTrack:'-0.02em',
+        card:'#ffffff', cardBorder:'1px solid #e6e9ef', cardRadius:'20px',
+        cardShadow:'0 16px 44px rgba(18,20,26,0.09)',
+        chrome:'#ffffff', chromeBorder:'1px solid #e6e9ef', chromeShadow:'0 4px 16px rgba(18,20,26,0.06)',
+        groupRadius:'999px', accent:'#3b5bdb'
+      }
+    };
+  }
+  T() { return this.themes()[this.props.theme] || this.themes().zen; }
+  regen() { return this.props.regenMode || 'single'; }
+  inkColor() { return ({ink:'#171717', sumi:'#1a1f2b', sepia:'#3a2716'})[this.props.inkTone] || '#171717'; }
+  penStroke() { return this.state.penColor || this.inkColor(); }
+  eyeBase() { return this.props.eyeSizePx || 12; }
+
+  renderVals() {
+    const t = this.T();
+    const active = this.state.tool;
+    const btnBase = {
+      border:'none', cursor:'pointer', fontFamily:t.font, fontWeight:'700', fontSize:'14px',
+      padding:'9px 16px', borderRadius: t.groupRadius==='999px' ? '999px' : (parseInt(t.groupRadius)-2)+'px',
+      background:'transparent', color:t.sub, transition:'all .15s ease', lineHeight:1
+    };
+    const on = { background:t.accent, color: this.props.theme==='zen'?'#f6f2e9':'#fff', boxShadow:'0 2px 8px rgba(0,0,0,0.12)' };
+    const penBtn = active==='pen' ? {...btnBase, ...on} : btnBase;
+    const eyeBtn = active==='eyes' ? {...btnBase, ...on} : btnBase;
+
+    const ghost = {
+      border:t.chromeBorder, cursor:'pointer', fontFamily:t.font, fontWeight:'700', fontSize:'14px',
+      padding:'10px 18px', borderRadius:t.groupRadius==='999px'?'999px':'10px',
+      background:t.chrome, color:t.text, transition:'all .15s ease', boxShadow:t.chromeShadow
+    };
+    const primary = {
+      border:'none', cursor:'pointer', fontFamily:t.font, fontWeight:'800', fontSize:'14px',
+      padding:'11px 20px', borderRadius:t.groupRadius==='999px'?'999px':'10px',
+      background:t.accent, color:this.props.theme==='zen'?'#f6f2e9':'#fff', transition:'all .15s ease',
+      boxShadow:'0 4px 14px rgba(0,0,0,0.16)'
+    };
+
+    const invert = this.props.theme==='zen' ? '#f6f2e9' : '#fff';
+    const nibBtn = (isOn)=>({ border:'none', cursor:'pointer', width:'34px', height:'30px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius: t.groupRadius==='999px'?'999px':'8px', background: isOn ? t.accent : 'transparent', transition:'all .15s ease' });
+    const nibDefs = [{size:1.6,d:4},{size:3.2,d:7},{size:6,d:11},{size:10,d:15}];
+    const nibs = nibDefs.map(n=>({
+      pick: ()=>this.setState({nib:n.size}),
+      btnStyle: nibBtn(this.state.nib===n.size),
+      dotStyle: { width:n.d+'px', height:n.d+'px', borderRadius:'50%', background: this.state.nib===n.size ? invert : t.text, transition:'all .15s ease' }
+    }));
+    const pen = this.penStroke();
+    const inkDefs = ['#171717','#1a1f2b','#3a2716','#7a7266'];
+    const inks = inkDefs.map(c=>({
+      pick: ()=>this.setState({penColor:c}),
+      sw: { width:'22px', height:'22px', borderRadius:'50%', cursor:'pointer', padding:0, background:c, border:'none', outline: pen===c ? ('2px solid '+t.accent) : '2px solid transparent', outlineOffset:'2px', boxShadow:'inset 0 0 0 1px rgba(255,255,255,0.25)', transition:'all .15s ease' }
+    }));
+    const clusterStyle = { display:'flex', alignItems:'center', gap:'6px', padding:'5px 10px', background:t.chrome, border:t.chromeBorder, borderRadius:t.groupRadius, boxShadow:t.chromeShadow };
+    const clusterLabel = { fontSize:'10px', fontWeight:'800', color:t.sub, letterSpacing:'0.1em', textTransform:'uppercase', marginRight:'2px' };
+
+    const labels = { single:'New blot', shuffle:'Shuffle page', infinite:'Add blots' };
+    const hints = {
+      single:'One blot, one creature.\nMake it, then draw the next.',
+      shuffle:'A fresh page of ink each time.\nFill it with a little zoo.',
+      infinite:'Keep adding blots to the field.\nNever runs out.'
+    };
+
+    return {
+      t,
+      cursor: active==='eyes' ? 'pointer' : 'crosshair',
+      canvasRef: (el)=>{ this._c = el; },
+      onDown: (e)=>this.onDown(e),
+      onMove: (e)=>this.onMove(e),
+      onUp: ()=>{ this._drawing = false; },
+      pickPen: ()=>this.setState({tool:'pen'}),
+      pickEyes: ()=>this.setState({tool:'eyes'}),
+      undo: ()=>this.undo(),
+      regenerate: ()=>this.generate(false),
+      download: ()=>this.download(),
+      newLabel: labels[this.regen()],
+      modeHint: hints[this.regen()],
+      nibs, inks, clusterStyle, clusterLabel,
+      penBtn, eyeBtn, ghostBtn: ghost, primaryBtn: primary,
+      penBtnHover: active==='pen'?{}:{ background:'rgba(0,0,0,0.05)', color:t.text },
+      eyeBtnHover: active==='eyes'?{}:{ background:'rgba(0,0,0,0.05)', color:t.text },
+      ghostBtnHover: { transform:'translateY(-1px)' },
+      primaryBtnHover: { transform:'translateY(-1px)', boxShadow:'0 6px 18px rgba(0,0,0,0.22)' }
+    };
+  }
+
+  componentDidMount() { this._hist = []; requestAnimationFrame(()=>this.initCanvas()); }
+
+  initCanvas() {
+    const c = this._c; if (!c) return;
+    const r = c.getBoundingClientRect();
+    const w = Math.round(r.width), h = Math.round(r.height);
+    if (w < 4 || h < 4) { requestAnimationFrame(()=>this.initCanvas()); return; }
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = w * dpr; c.height = h * dpr;
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    this._ctx = ctx; this._w = w; this._h = h;
+    this.paintPaper();
+    this.generate(true);
+  }
+
+  paintPaper() {
+    const ctx = this._ctx; if (!ctx) return;
+    ctx.fillStyle = this.T().card;
+    ctx.fillRect(0,0,this._w,this._h);
+  }
+
+  // ---- blot rendering ----
+  drawBlob(cx, cy, r) {
+    const ctx = this._ctx;
+    const n = 9 + Math.floor(Math.random()*5);
+    const pts = [];
+    for (let i=0;i<n;i++){
+      const a = i/n*Math.PI*2;
+      const rr = r*(0.62 + Math.random()*0.62);
+      pts.push([cx+Math.cos(a)*rr, cy+Math.sin(a)*rr]);
+    }
+    ctx.beginPath();
+    const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+    let s = mid(pts[n-1], pts[0]);
+    ctx.moveTo(s[0],s[1]);
+    for (let i=0;i<n;i++){
+      const cur=pts[i], nx=pts[(i+1)%n], m=mid(cur,nx);
+      ctx.quadraticCurveTo(cur[0],cur[1],m[0],m[1]);
+    }
+    ctx.closePath();
+    ctx.fillStyle = this.inkColor();
+    ctx.fill();
+    // satellite droplets
+    const sat = Math.floor(Math.random()*3);
+    for (let i=0;i<sat;i++){
+      const a = Math.random()*Math.PI*2, d = r*(1.05+Math.random()*0.5);
+      ctx.beginPath();
+      ctx.arc(cx+Math.cos(a)*d, cy+Math.sin(a)*d, r*(0.05+Math.random()*0.12), 0, 7);
+      ctx.fill();
+    }
+  }
+
+  generate(initial) {
+    if (!this._ctx) return;
+    const W=this._w, H=this._h, min=Math.min(W,H);
+    const mode = this.regen();
+    if (!initial) this.pushHist();
+    if (mode === 'single') {
+      this.paintPaper();
+      this.drawBlob(W/2 + (Math.random()-0.5)*W*0.12, H/2 + (Math.random()-0.5)*H*0.12, min*0.28);
+    } else if (mode === 'shuffle') {
+      this.paintPaper();
+      const N = 6 + Math.floor(Math.random()*4);
+      const cs = [], mg = min*0.14;
+      let tries = 0;
+      while (cs.length < N && tries < 400) {
+        tries++;
+        const r = min*(0.07+Math.random()*0.06);
+        const x = mg + Math.random()*(W-2*mg), y = mg + Math.random()*(H-2*mg);
+        if (cs.every(c=>Math.hypot(c.x-x,c.y-y) > (c.r+r)*1.15)) { cs.push({x,y,r}); this.drawBlob(x,y,r); }
+      }
+    } else {
+      if (initial) this.paintPaper();
+      const N = 3 + Math.floor(Math.random()*3), mg = min*0.1;
+      for (let i=0;i<N;i++){
+        const r = min*(0.05+Math.random()*0.06);
+        this.drawBlob(mg + Math.random()*(W-2*mg), mg + Math.random()*(H-2*mg), r);
+      }
+    }
+    this.setState(s=>({hist:s.hist+1}));
+  }
+
+  // ---- pointer / drawing ----
+  pt(e){ const r=this._c.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+  onDown(e){
+    if (!this._ctx) return;
+    e.preventDefault();
+    try { this._c.setPointerCapture(e.pointerId); } catch(_){}
+    const p = this.pt(e);
+    this.pushHist();
+    if (this.state.tool === 'eyes') { this.stampEye(p.x,p.y); this._drawing=false; }
+    else { this._drawing=true; this._last=p; }
+  }
+  onMove(e){
+    if (!this._drawing || this.state.tool!=='pen' || !this._ctx) return;
+    const p=this.pt(e), ctx=this._ctx;
+    ctx.strokeStyle=this.penStroke(); ctx.lineWidth=this.state.nib; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath(); ctx.moveTo(this._last.x,this._last.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    this._last=p;
+  }
+  stampEye(x,y){
+    const ctx=this._ctx, s=this.eyeBase()*(0.85+Math.random()*0.4);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x,y,s,0,7); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.lineWidth=Math.max(1,s*0.14); ctx.strokeStyle='#141414'; ctx.stroke();
+    const a=Math.random()*Math.PI*2, pd=s*0.3;
+    const px=x+Math.cos(a)*pd, py=y+Math.sin(a)*pd;
+    ctx.beginPath(); ctx.arc(px,py,s*0.55,0,7); ctx.fillStyle='#141414'; ctx.fill();
+    ctx.beginPath(); ctx.arc(px-s*0.2,py-s*0.2,s*0.17,0,7); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.restore();
+  }
+
+  pushHist(){
+    if (!this._c) return;
+    this._hist = this._hist || [];
+    if (this._hist.length > 24) this._hist.shift();
+    try { this._hist.push(this._c.toDataURL('image/png')); } catch(_){}
+  }
+  undo(){
+    if (!this._hist || !this._hist.length) return;
+    const url = this._hist.pop();
+    const img = new Image();
+    img.onload = ()=>{ const ctx=this._ctx; ctx.clearRect(0,0,this._w,this._h); ctx.drawImage(img,0,0,this._w,this._h); };
+    img.src = url;
+    this.setState(s=>({hist:s.hist-1}));
+  }
+  download(){
+    const a=document.createElement('a');
+    a.download='inksplat.png';
+    a.href=this._c.toDataURL('image/png');
+    a.click();
+  }
+}
+</script>
+</body>
+</html>

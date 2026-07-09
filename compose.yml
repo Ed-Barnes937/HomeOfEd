@@ -45,11 +45,11 @@ services:
     ports:
       - '8081:8080'
 
-  # hirameki has no database (ADR 0008) — one service, no depends_on, no migrate step.
-  hirameki:
+  # inksplat has no database (ADR 0008) — one service, no depends_on, no migrate step.
+  inksplat:
     build:
       context: .
-      dockerfile: apps/hirameki/Dockerfile
+      dockerfile: apps/inksplat/Dockerfile
     command: node src/server/main.ts
     ports:
       - '8086:8080'

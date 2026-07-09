@@ -1,0 +1,28 @@
+/* Design tokens for the chrome (buttons, panel, text) — spec §11.3. Canvas
+ * colours (paper/ink/eye) are literals in theme.ts instead, since canvas
+ * can't read CSS custom properties. No theme switcher — one fixed direction. */
+:root {
+  --inksplat-paper: #f7efdc;
+  --inksplat-card: #fffdf4;
+  --inksplat-text: #3b3327;
+  --inksplat-muted: #b0a488;
+  --inksplat-accent: #e07a45;
+  --inksplat-chrome: #fffaef;
+  --inksplat-chrome-border: #eaddbe;
+  --inksplat-card-border: #d9cba7;
+  --inksplat-radius-card: 12px;
+  --inksplat-radius-chrome: 14px;
+  --inksplat-shadow-card: 0 14px 34px rgba(80, 60, 20, 0.12), 0 3px 0 #eaddbe;
+  --inksplat-shadow-chrome: 0 3px 0 #eaddbe;
+  --inksplat-font-display: 'Caveat', cursive;
+  --inksplat-font-ui: 'Nunito', system-ui, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  background: var(--inksplat-paper);
+}
