@@ -1,0 +1,30 @@
+.seg {
+  display: flex;
+  gap: 6px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--espy-radius-chrome);
+  border: 1px solid var(--espy-chrome-border);
+  background: var(--espy-chrome);
+  color: var(--espy-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: var(--espy-accent);
+    background: var(--espy-accent);
+    color: #fff;
+  }
+}
+
+.glyph {
+  font-size: 15px;
+  line-height: 1;
+}

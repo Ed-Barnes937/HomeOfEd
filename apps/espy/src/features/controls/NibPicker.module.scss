@@ -1,0 +1,30 @@
+.seg {
+  display: flex;
+  gap: 6px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--espy-radius-chrome);
+  border: 1px solid var(--espy-chrome-border);
+  background: var(--espy-chrome);
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: var(--espy-accent);
+    background: var(--espy-accent);
+
+    .dot {
+      background: #fff;
+    }
+  }
+}
+
+.dot {
+  border-radius: 50%;
+  background: var(--espy-text);
+}
