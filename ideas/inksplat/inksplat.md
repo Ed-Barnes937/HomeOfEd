@@ -1,10 +1,10 @@
-# Hirameki — blot-drawing app
+# Inksplat — blot-drawing app
 
-**App:** `apps/hirameki` (new)
+**App:** `apps/inksplat` (new)
 
 ## Idea
 
-A digital take on the *Hirameki* art form: the screen shows random blots/dots,
+A digital take on the *Inksplat* art form: the screen shows random blots/dots,
 and the user draws lines and doodles on top to turn each blot into a picture —
 whatever they imagine (a face, an animal, a scene).
 

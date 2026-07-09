@@ -231,6 +231,73 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.0)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
 
+  apps/inksplat:
+    dependencies:
+      '@fontsource/caveat':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/nunito':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@hoe/backend-kit':
+        specifier: workspace:*
+        version: link:../../packages/backend-kit
+      '@hoe/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@tanstack/react-query':
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
+      '@tanstack/react-router':
+        specifier: ^1.170.16
+        version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
+    devDependencies:
+      '@hoe/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@hoe/test-kit':
+        specifier: workspace:*
+        version: link:../../packages/test-kit
+      '@playwright/experimental-ct-react':
+        specifier: 1.61.1
+        version: 1.61.1(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
+      '@playwright/test':
+        specifier: 1.61.1
+        version: 1.61.1
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      '@vitejs/plugin-react':
+        specifier: ^5.2.0
+        version: 5.2.0(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.4
+      prettier:
+        specifier: ^3.8.0
+        version: 3.9.4
+      sass-embedded:
+        specifier: ^1.100.0
+        version: 1.100.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.4.3
+        version: 6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.0)(vite@6.4.3(@types/node@22.20.0)(sass-embedded@1.100.0)(sass@1.100.0)(tsx@4.22.4))
+
   apps/sprout:
     dependencies:
       '@base-ui/react':
@@ -1482,11 +1549,17 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
+  '@fontsource/caveat@5.2.8':
+    resolution: {integrity: sha512-9fUUfFE2IQFKbx+xOcaeQxxmh8iJguEb8z+j1PeueO4UUx+XfT4pRm/B04ZDvFA794/iRxY/IibmP8ZKtIf4rw==}
+
   '@fontsource/ibm-plex-mono@5.2.7':
     resolution: {integrity: sha512-MKAb8qV+CaiMQn2B0dIi1OV3565NYzp3WN5b4oT6LTkk+F0jR6j0ZN+5BKJiIhffDC3rtBULsYZE65+0018z9w==}
 
   '@fontsource/ibm-plex-sans@5.2.8':
     resolution: {integrity: sha512-eztSXjDhPhcpxNIiGTgMebdLP9qS4rWkysuE1V7c+DjOR0qiezaiDaTwQE7bTnG5HxAY/8M43XKDvs3cYq6ZYQ==}
+
+  '@fontsource/nunito@5.2.7':
+    resolution: {integrity: sha512-pmtBq0H9ex9nk+RtJYEJOD9pag393iHETnl/PVKleF4i06cd0ttngK5ZCTgYb5eOqR3Xdlrjtev8m7bmgYprew==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -3862,9 +3935,13 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
+  '@fontsource/caveat@5.2.8': {}
+
   '@fontsource/ibm-plex-mono@5.2.7': {}
 
   '@fontsource/ibm-plex-sans@5.2.8': {}
+
+  '@fontsource/nunito@5.2.7': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
