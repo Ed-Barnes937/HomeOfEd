@@ -15,10 +15,11 @@ import { makeEye, EYE_BASE } from './engine/eye.ts'
 import { generateField } from './engine/field.ts'
 import { currentViewBox, History } from './engine/history.ts'
 import type { Point, ViewBox } from './engine/types.ts'
+import { DIFFUSE_MS } from './render/diffusion.ts'
 import { DoodleSurface } from './render/surface.ts'
 import { loadSession, saveSession } from './session.ts'
 import { SKETCHBOOK } from './theme.ts'
-import { BLOOM_MS, bloomAlpha, initialOps } from './useDoodle.helpers.ts'
+import { initialOps } from './useDoodle.helpers.ts'
 
 export type Tool = 'pen' | 'eyes'
 
@@ -112,9 +113,11 @@ export function useDoodle(): UseDoodle {
       ;(canvas as unknown as Record<string, DoodleTestSeam>)[DOODLE_SEAM_KEY] = seam
     }
 
-    const render = (h: History, alpha = 1): void => surface.renderOps(h.ops, SKETCHBOOK, alpha)
+    const render = (h: History, phase = 1): void => surface.renderOps(h.ops, SKETCHBOOK, phase)
 
-    /** One-shot alpha ramp (spec §7); reduced-motion renders the final frame once. */
+    /** One-shot ink-in-water entrance (diffusion.ts); reduced-motion renders the
+     * settled frame once. `phase` ramps 0→1; surface.ts turns it into each
+     * blot's grow/fade. */
     const bloom = (h: History): void => {
       if (bloomRaf) cancelAnimationFrame(bloomRaf)
       if (reducedMotion) {
@@ -124,12 +127,12 @@ export function useDoodle(): UseDoodle {
       const start = performance.now()
       const step = (now: number): void => {
         const elapsed = now - start
-        if (elapsed >= BLOOM_MS) {
+        if (elapsed >= DIFFUSE_MS) {
           render(h, 1)
           bloomRaf = 0
           return
         }
-        render(h, bloomAlpha(elapsed))
+        render(h, elapsed / DIFFUSE_MS)
         bloomRaf = requestAnimationFrame(step)
       }
       bloomRaf = requestAnimationFrame(step)

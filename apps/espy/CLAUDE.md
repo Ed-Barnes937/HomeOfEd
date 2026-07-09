@@ -29,11 +29,12 @@ src/
       layout.ts                 blobCount(w,h) / blobRadiusFraction(count)
       history.ts                History (push/undo/floor), visibleOps(), currentViewBox()
       coords.ts                 computeFit(viewBox,cssW,cssH) + toLogical/toDevice
-    render/surface.ts           DoodleSurface — the ONLY module that touches ctx
+    render/surface.ts           DoodleSurface — the ONLY module that touches ctx; watercolour tone (bleed rings + gradient core)
+    render/diffusion.ts         PURE TS — ink-in-water entrance maths (phase → per-blot grow/fade), no canvas
     theme.ts                    SKETCHBOOK canvas colour literals (single fixed direction)
     session.ts                  load/save current Op[] ↔ localStorage (single slot)
     useDoodle.ts                hook: sizing, pointer, history, bloom, save, seam
-    useDoodle.helpers.ts        pure glue (bloomAlpha, initialOps) — unit-testable, no DOM
+    useDoodle.helpers.ts        pure glue (initialOps) — unit-testable, no DOM
   features/intro/
     IntroSplash.tsx / .module.scss   one-shot "espy" definition splash on load
                                      (~1.5s, pointer-events:none, reduced-motion aware)

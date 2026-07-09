@@ -1,23 +1,10 @@
 /**
- * Pure glue for the `useDoodle` hook (spec §7, §8) — extracted so it can be
+ * Pure glue for the `useDoodle` hook (spec §8) — extracted so it can be
  * unit-tested in the node vitest env without React/DOM. No React, no Canvas.
+ * The bloom entrance maths live in `render/diffusion.ts`.
  */
 import { generateField } from './engine/field.ts'
 import type { Op, Rng } from './engine/types.ts'
-
-/** Bloom ramp duration in ms (spec §7 — "~250ms ease-out"). */
-export const BLOOM_MS = 250
-
-/**
- * Bloom alpha at `elapsed` ms into a `duration`-ms ease-out ramp, clamped to
- * [0, 1]. Ease-out cubic — fast then settling, reinforcing "ink settling".
- */
-export function bloomAlpha(elapsed: number, duration: number = BLOOM_MS): number {
-  if (elapsed <= 0) return 0
-  if (elapsed >= duration) return 1
-  const t = elapsed / duration
-  return 1 - Math.pow(1 - t, 3)
-}
 
 export interface InitialOps {
   ops: Op[]

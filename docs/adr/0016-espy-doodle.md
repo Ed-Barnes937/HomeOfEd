@@ -77,12 +77,17 @@ them so the reasoning isn't lost once the guide itself is forgotten.
    user-agent/device-type switch.
 
 6. **Sensory-safe as a first-class principle**, not an afterthought pass. The
-   one-shot bloom-in ramp (`useDoodle.ts`, `useDoodle.helpers.ts`) checks
-   `prefers-reduced-motion` up front and renders the final frame once instead
-   of animating; nothing else moves, sounds, or interrupts; New page and any
-   drawing action are always fully undoable (no confirmation dialogs); touch
-   targets are ≥44px. This threads through the whole feature rather than
-   living in one component.
+   one-shot ink-in-water entrance — each blot grows from a seed while its tone
+   settles, blots staggered so drops land at different moments (`render/diffusion.ts`
+   maths, driven by `useDoodle.ts`, drawn by `render/surface.ts`) — checks
+   `prefers-reduced-motion` up front and renders the settled frame once instead
+   of animating; the ramp is a calm ~850ms ease-out with no fast motion. The
+   also-added watercolour tone (translucent bleed rings + a radial-gradient
+   core) carries its opacity in the fill colours, never `globalAlpha`, so it is
+   present at rest and unaffected by the reduced-motion skip. Nothing else
+   moves, sounds, or interrupts; New page and any drawing action are always
+   fully undoable (no confirmation dialogs); touch targets are ≥44px. This
+   threads through the whole feature rather than living in one component.
 
 ## Consequences
 

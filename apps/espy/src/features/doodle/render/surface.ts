@@ -7,17 +7,42 @@
  * from the design guide's `drawBlob`/`stampEye` — the maths, not the file. Every
  * op already stores RESOLVED geometry (rolled once at creation), so replay is
  * deterministic; this module re-rolls nothing.
+ *
+ * Blots render with a soft watercolour tone (translucent bleed rings + a
+ * radial-gradient core) and bloom in via `phase` — the ink-in-water entrance
+ * whose pure maths live in `diffusion.ts`. Tone opacity rides in the fill
+ * colours (rgba), never `globalAlpha`, so `globalAlpha` is used solely for the
+ * entrance fade.
  */
 import type { Fit } from '../engine/coords.ts'
 import { computeFit } from '../engine/coords.ts'
 import { currentViewBox, visibleOps } from '../engine/history.ts'
 import type { Blot, Eye, Op, Point, Stroke } from '../engine/types.ts'
 import type { SketchbookTheme } from '../theme.ts'
+import { blotProgress, growScale, layerAlpha } from './diffusion.ts'
 
 const TAU = Math.PI * 2
 
+/** Translucent bleed halo around each blot, outermost first (watercolour edge). */
+const BLEED_RINGS = [
+  { scale: 1.3, alpha: 0.05 },
+  { scale: 1.15, alpha: 0.1 },
+]
+
+/** Radial-gradient core: solid interior easing to a slightly softer edge. */
+const CORE_EDGE_ALPHA = 0.8
+
 function midpoint(a: Point, b: Point): Point {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ]
 }
 
 export class DoodleSurface {
@@ -51,19 +76,21 @@ export class DoodleSurface {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
   }
 
-  /** Full projection: paint paper, then replay the visible ops within the fit. */
-  renderOps(ops: readonly Op[], theme: SketchbookTheme, alpha = 1): void {
+  /**
+   * Full projection: paint paper, then replay the visible ops within the fit.
+   * `phase` is the ink-in-water entrance progress (0 = nothing, 1 = settled);
+   * only `field` blots animate, so strokes/eyes always draw fully opaque.
+   */
+  renderOps(ops: readonly Op[], theme: SketchbookTheme, phase = 1): void {
     const ctx = this.ctx
     this.paintPaper(theme.paper)
 
     const fit = computeFit(currentViewBox(ops), this.cssW, this.cssH)
     this.applyFit(fit)
-    // Bloom (§7): the whole art layer eases in; paper stays opaque.
-    ctx.globalAlpha = alpha
 
     for (const op of visibleOps(ops)) {
       if (op.type === 'field') {
-        for (const blot of op.blots) this.drawBlot(blot, theme)
+        op.blots.forEach((blot, i) => this.drawBlot(blot, theme, blotProgress(phase, i, op.blots.length)))
       } else if (op.type === 'stroke') {
         this.drawStroke(op.stroke)
       } else {
@@ -99,31 +126,70 @@ export class DoodleSurface {
     this.ctx.setTransform(s * fit.scale, 0, 0, s * fit.scale, s * fit.offsetX, s * fit.offsetY)
   }
 
-  /** Midpoint-quadratic closed fill of the resolved outline, plus satellites. */
-  private drawBlot(blot: Blot, theme: SketchbookTheme): void {
+  /** Trace the midpoint-quadratic closed outline through `pts`. */
+  private traceOutline(pts: Point[]): void {
+    const ctx = this.ctx
+    const n = pts.length
+    const start = midpoint(pts[n - 1]!, pts[0]!)
+    ctx.beginPath()
+    ctx.moveTo(start.x, start.y)
+    for (let i = 0; i < n; i++) {
+      const cur = pts[i]!
+      const next = pts[(i + 1) % n]!
+      const m = midpoint(cur, next)
+      ctx.quadraticCurveTo(cur.x, cur.y, m.x, m.y)
+    }
+    ctx.closePath()
+  }
+
+  /**
+   * Watercolour blot: translucent bleed rings, then a radial-gradient core, plus
+   * satellite droplets — all grown from a seed and faded in per `localPhase`
+   * (the ink-in-water entrance). Tone opacity lives in the fill colours; the
+   * only `globalAlpha` write is the entrance fade.
+   */
+  private drawBlot(blot: Blot, theme: SketchbookTheme, localPhase: number): void {
     const ctx = this.ctx
     const pts = blot.points
-    const n = pts.length
-    if (n >= 2) {
-      const start = midpoint(pts[n - 1]!, pts[0]!)
-      ctx.beginPath()
-      ctx.moveTo(start.x, start.y)
-      for (let i = 0; i < n; i++) {
-        const cur = pts[i]!
-        const next = pts[(i + 1) % n]!
-        const m = midpoint(cur, next)
-        ctx.quadraticCurveTo(cur.x, cur.y, m.x, m.y)
-      }
-      ctx.closePath()
-      ctx.fillStyle = theme.ink
+    if (pts.length < 2) return
+
+    const { cx, cy, r } = blot
+    const grow = growScale(localPhase)
+    const [ri, gi, bi] = hexToRgb(theme.ink)
+    const rgba = (a: number): string => `rgba(${ri}, ${gi}, ${bi}, ${a})`
+    const scaled = (k: number): Point[] =>
+      pts.map((p) => ({ x: cx + (p.x - cx) * grow * k, y: cy + (p.y - cy) * grow * k }))
+
+    ctx.globalAlpha = layerAlpha(localPhase)
+
+    // Soft bleed halo (outermost, faintest first).
+    for (const ring of BLEED_RINGS) {
+      this.traceOutline(scaled(ring.scale))
+      ctx.fillStyle = rgba(ring.alpha)
       ctx.fill()
     }
+
+    // Radial-gradient core: solid interior, gently softer edge.
+    const coreR = Math.max(r * grow, 0.01)
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR)
+    gradient.addColorStop(0, rgba(1))
+    gradient.addColorStop(0.65, rgba(1))
+    gradient.addColorStop(1, rgba(CORE_EDGE_ALPHA))
+    this.traceOutline(scaled(1))
+    ctx.fillStyle = gradient
+    ctx.fill()
+
+    // Satellite droplets — flung out and grown with the body.
     for (const sat of blot.satellites) {
+      const sx = cx + (sat.x - cx) * grow
+      const sy = cy + (sat.y - cy) * grow
       ctx.beginPath()
-      ctx.arc(sat.x, sat.y, sat.r, 0, TAU)
-      ctx.fillStyle = theme.ink
+      ctx.arc(sx, sy, sat.r * grow, 0, TAU)
+      ctx.fillStyle = rgba(1)
       ctx.fill()
     }
+
+    ctx.globalAlpha = 1
   }
 
   /** Round-capped/joined polyline; a single-point stroke renders a round dot. */
@@ -131,6 +197,7 @@ export class DoodleSurface {
     const ctx = this.ctx
     const pts = stroke.points
     if (pts.length === 0) return
+    ctx.globalAlpha = 1
     ctx.strokeStyle = stroke.color
     ctx.lineWidth = stroke.width
     ctx.lineCap = 'round'
@@ -149,6 +216,7 @@ export class DoodleSurface {
   private drawEye(eye: Eye, theme: SketchbookTheme): void {
     const ctx = this.ctx
     const { x, y, size: s, pupilAngle } = eye
+    ctx.globalAlpha = 1
 
     ctx.beginPath()
     ctx.arc(x, y, s, 0, TAU)

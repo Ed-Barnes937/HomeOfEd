@@ -52,6 +52,10 @@ function recordingContext() {
     arc: rec('arc'),
     closePath: rec('closePath'),
     fill: rec('fill'),
+    createRadialGradient(...args: unknown[]) {
+      calls.push({ m: 'createRadialGradient', args })
+      return { addColorStop: (): void => {} }
+    },
     stroke(): void {
       calls.push({ m: 'stroke', args: [], lineCap: ctx.lineCap, lineJoin: ctx.lineJoin })
     },
@@ -99,7 +103,7 @@ describe('DoodleSurface', () => {
     expect(firstDraw?.args).toEqual([0, 0, 800, 600])
   })
 
-  it('draws N blots as N closed-path fills plus one arc/fill per satellite', () => {
+  it('draws each blot as 2 bleed rings + 1 gradient core, plus one arc/fill per satellite', () => {
     const ctx = recordingContext()
     const surface = new DoodleSurface(fakeCanvas(ctx))
     surface.resize(720, 850, 1)
@@ -112,10 +116,14 @@ describe('DoodleSurface', () => {
     const closes = ctx.calls.filter((c) => c.m === 'closePath').length
     const fills = ctx.calls.filter((c) => c.m === 'fill').length
     const arcs = ctx.calls.filter((c) => c.m === 'arc').length
+    const gradients = ctx.calls.filter((c) => c.m === 'createRadialGradient').length
 
-    expect(closes).toBe(blots.length) // one closed outline per blot
+    // 3 closed outlines per blot: 2 translucent bleed rings + 1 gradient core.
+    expect(closes).toBe(blots.length * 3)
+    expect(gradients).toBe(blots.length) // one radial-gradient core per blot
     expect(arcs).toBe(satTotal) // arcs are only satellites in a pure field
-    expect(fills).toBe(blots.length + satTotal) // one blot fill + one per satellite
+    // 3 body fills per blot + one fill per satellite.
+    expect(fills).toBe(blots.length * 3 + satTotal)
   })
 
   it('strokes each stroke op once with round cap and join', () => {
@@ -147,19 +155,19 @@ describe('DoodleSurface', () => {
     expect(ctx.calls.filter((c) => c.m === 'stroke')).toHaveLength(1)
   })
 
-  it('sets globalAlpha to the bloom value for the art layer', () => {
+  it('fades a blot in mid-bloom — a partial phase writes a fractional globalAlpha', () => {
     const ctx = recordingContext()
     const surface = new DoodleSurface(fakeCanvas(ctx))
     surface.resize(400, 300, 1)
     surface.renderOps([fieldOp(400, 300, 7)], SKETCHBOOK, 0.5)
-    expect(ctx.alphaWrites).toContain(0.5)
+    expect(ctx.alphaWrites.some((a) => a > 0 && a < 1)).toBe(true)
   })
 
-  it('leaves the art layer opaque by default (no bloom alpha write)', () => {
+  it('leaves blots fully opaque once settled (phase 1 — no fractional alpha)', () => {
     const ctx = recordingContext()
     const surface = new DoodleSurface(fakeCanvas(ctx))
     surface.resize(400, 300, 1)
     surface.renderOps([fieldOp(400, 300, 7)], SKETCHBOOK)
-    expect(ctx.alphaWrites).not.toContain(0.5)
+    expect(ctx.alphaWrites.every((a) => a === 1)).toBe(true)
   })
 })
