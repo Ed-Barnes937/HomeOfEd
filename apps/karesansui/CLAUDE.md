@@ -35,8 +35,8 @@ src/
       MechRenderer.ts     resize / setPattern(config) / draw(progress) — planetary: N cogs + marbles; getMarbles()
     settings.ts            Preset type; load/save/rename/delete presets in localStorage (`karesansui:presets:v2`, v1→v2 migration)
     useRakeLoop.ts         owns the rAF loop + both canvases: draw / pause / resume / clear / perpetual loop / export, resize rebuild
-  features/controls/       RingPicker, GearTrain, Slider, PreviewToggle, ClearingRakeToggle, ActionButtons, TunePopover, PresetsMenu
-  pages/KaresansuiPage.tsx  holds GardenConfig state, wires useRakeLoop; room → wordmark → stage → dim console; sand-hero-first reflow at ~760px
+  features/controls/       StripCycle (Ring/Rake/Preview), StripRange (Offset/Speed), CogDots, ActionButtons, PresetsMenu — shared Strip.module.scss (minimal console, ADR 0021)
+  pages/KaresansuiPage.tsx  holds GardenConfig state, wires useRakeLoop; room → wordmark → stage → dim console strip; sand-hero-first reflow at ~760px
   testing/                  IwftApp harness + KaresansuiPagePom
   karesansui.iwft.tsx
 vite.config.ts             react + simulatorPlugin (dev simulator mode)

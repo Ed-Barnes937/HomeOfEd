@@ -1,13 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { ActionButtons } from '../features/controls/ActionButtons.tsx'
-import { ClearingRakeToggle } from '../features/controls/ClearingRakeToggle.tsx'
-import { GearTrain } from '../features/controls/GearTrain.tsx'
+import { CogDots } from '../features/controls/CogDots.tsx'
 import { PresetsMenu } from '../features/controls/PresetsMenu.tsx'
-import { PreviewToggle } from '../features/controls/PreviewToggle.tsx'
-import { RingPicker } from '../features/controls/RingPicker.tsx'
-import { TunePopover } from '../features/controls/TunePopover.tsx'
-import { MAX_GEARS } from '../features/garden/engine/gears.ts'
+import { StripCycle } from '../features/controls/StripCycle.tsx'
+import { StripRange } from '../features/controls/StripRange.tsx'
+import { MAX_GEARS, ringOpts, wheelOpts } from '../features/garden/engine/gears.ts'
 import { clampOffset, clampSpeed, DEFAULT_CONFIG, type GardenConfig } from '../features/garden/engine/state.ts'
 import {
   deletePreset,
@@ -18,6 +16,13 @@ import {
 } from '../features/garden/settings.ts'
 import { useRakeLoop } from '../features/garden/useRakeLoop.ts'
 import styles from './KaresansuiPage.module.scss'
+
+/** Speed reads as a mood, not a number — matches the reference `speedLabel`. */
+function speedLabel(speed: number): string {
+  if (speed < 33) return 'slow'
+  if (speed < 67) return 'steady'
+  return 'brisk'
+}
 
 export function KaresansuiPage() {
   const sandRef = useRef<HTMLCanvasElement>(null)
@@ -55,12 +60,19 @@ export function KaresansuiPage() {
     setConfig((prev) => ({ ...prev, ...patch }))
   }
 
-  function setRing(ring: number): void {
-    invalidate({ ring })
+  // Ring cycles through the three annulus sizes (plan 0008 / ADR 0021).
+  function cycleRing(): void {
+    const opts = ringOpts()
+    const next = opts[(opts.indexOf(config.ring) + 1) % opts.length] ?? config.ring
+    invalidate({ ring: next })
   }
 
-  function addWheel(teeth: number): void {
+  // The `+` adds a cog; teeth are auto-picked from the wheel palette by position,
+  // so each cog reads a different colour (the strip has no per-cog teeth picker).
+  function addWheel(): void {
     if (config.wheels.length >= MAX_GEARS) return
+    const opts = wheelOpts()
+    const teeth = opts[config.wheels.length % opts.length] ?? 30
     invalidate({ wheels: [...config.wheels, teeth] })
   }
 
@@ -172,30 +184,61 @@ export function KaresansuiPage() {
       </section>
 
       <footer className={styles.console} data-testid="console">
-        <div className={styles.controls}>
-          <RingPicker ring={config.ring} onChange={setRing} />
-          <span className={styles.divider} aria-hidden="true" />
-          <GearTrain wheels={config.wheels} onAdd={addWheel} onRemove={removeWheel} />
-          <span className={styles.divider} aria-hidden="true" />
-          <div className={styles.tuneGroup}>
-            <TunePopover
-              offset={config.offset}
-              speed={config.speed}
-              onOffset={setOffset}
-              onSpeed={setSpeed}
-            />
-            <ClearingRakeToggle
-              checked={config.clearingRake}
-              onChange={() => setClearingRake(!config.clearingRake)}
-            />
-            <PreviewToggle
-              checked={config.showPreview}
-              onChange={() => setShowPreview(!config.showPreview)}
-            />
-          </div>
-        </div>
+        <div className={styles.strip}>
+          <StripCycle
+            label="Ring"
+            value={String(config.ring)}
+            onCycle={cycleRing}
+            testId="ring-cycle"
+            ariaLabel={`Ring: ${config.ring} teeth — click to change`}
+          />
 
-        <div className={styles.actions}>
+          <span className={styles.divit} aria-hidden="true" />
+
+          <CogDots wheels={config.wheels} onAdd={addWheel} onRemove={removeWheel} />
+
+          <span className={styles.divit} aria-hidden="true" />
+
+          <StripRange
+            label="Offset"
+            valueText={config.offset.toFixed(2)}
+            value={Math.round(config.offset * 100)}
+            min={8}
+            max={94}
+            onChange={setOffset}
+            testId="offset"
+          />
+          <StripRange
+            label="Speed"
+            valueText={speedLabel(config.speed)}
+            value={config.speed}
+            min={0}
+            max={100}
+            onChange={setSpeed}
+            testId="speed"
+          />
+
+          <span className={styles.divit} aria-hidden="true" />
+
+          <StripCycle
+            label="Rake"
+            value={config.clearingRake ? 'on' : 'off'}
+            checked={config.clearingRake}
+            onCycle={() => setClearingRake(!config.clearingRake)}
+            testId="rake-cycle"
+            ariaLabel="Clearing rake"
+          />
+          <StripCycle
+            label="Preview"
+            value={config.showPreview ? 'on' : 'off'}
+            checked={config.showPreview}
+            onCycle={() => setShowPreview(!config.showPreview)}
+            testId="preview-cycle"
+            ariaLabel="Preview line"
+          />
+
+          <span className={styles.divit} aria-hidden="true" />
+
           <ActionButtons
             running={running}
             paused={paused}

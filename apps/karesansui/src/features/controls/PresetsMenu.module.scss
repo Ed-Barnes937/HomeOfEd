@@ -2,57 +2,57 @@
   position: relative;
 }
 
-.burger {
-  cursor: pointer;
-  border: 1px solid var(--chip-line);
-  background: var(--chip-bg);
-  color: var(--text);
-  border-radius: var(--radius-sm);
-  padding: 8px 13px;
-  font: 500 11px var(--font-sans);
-  letter-spacing: 0.04em;
+// A bare text link matching the strip's other items — no box (ADR 0021).
+.trigger {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin: 0;
+  padding: 3px 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: 400 12.5px var(--font-sans);
+  color: var(--label);
+  opacity: 0.72;
+  transition: opacity 0.2s ease, color 0.2s ease;
 
   &:hover {
-    background: var(--chip-bg-hover);
-    border-color: var(--accent);
+    opacity: 1;
+    color: var(--text);
   }
 
   &[aria-expanded='true'] {
-    border-color: var(--accent);
+    opacity: 1;
     color: var(--accent-soft);
   }
 
   &:focus-visible {
     outline: 2.5px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-}
-
-.lines {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 3px;
-
-  span {
-    display: block;
-    width: 13px;
-    height: 1.5px;
-    border-radius: 1px;
-    background: currentColor;
+    outline-offset: 3px;
+    border-radius: 3px;
+    opacity: 1;
+    color: var(--text);
   }
 }
 
 .count {
-  min-width: 16px;
-  padding: 1px 5px;
-  border-radius: 8px;
+  min-width: 15px;
+  padding: 1px 4px;
+  border-radius: 7px;
   background: var(--track);
   color: var(--label);
-  font: 600 10px var(--font-sans);
+  font: 600 9.5px var(--font-sans);
   text-align: center;
+}
+
+.caret {
+  font-size: 9px;
+  transition: transform 0.2s ease;
+
+  &[data-open='true'] {
+    transform: rotate(180deg);
+  }
 }
 
 .panel {

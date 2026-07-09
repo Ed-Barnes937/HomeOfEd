@@ -6,20 +6,20 @@ import { RAKE_TEST_SEAM_KEY, type RakeTestSeam } from '../features/garden/useRak
 
 const STORAGE_KEY = 'karesansui:presets:v2'
 
-/** Whole-page POM for the studio — every control + the sand canvas' test seam. */
+/** Whole-page POM for the minimal-console studio — every strip control + the sand seam. */
 export class KaresansuiPagePom extends BasePage {
   private readonly root = this.page.getByTestId('karesansui-page')
   private readonly console = this.page.getByTestId('console')
   private readonly sandCanvas = this.page.getByTestId('sand-canvas')
   private readonly mechCanvas = this.page.getByTestId('mech-canvas')
+  private readonly ringCycle = this.page.getByTestId('ring-cycle')
+  private readonly cogAdd = this.page.getByTestId('cog-add')
   private readonly playButton = this.page.getByTestId('play')
   private readonly clearButton = this.page.getByTestId('clear-button')
   private readonly saveButton = this.page.getByTestId('save-button')
   private readonly downloadButton = this.page.getByTestId('download-button')
-  private readonly previewToggle = this.page.getByTestId('preview-toggle')
-  private readonly clearingRakeToggle = this.page.getByTestId('clearing-rake-toggle')
-  private readonly tuneButton = this.page.getByTestId('tune-button')
-  private readonly tunePanel = this.page.getByTestId('tune-panel')
+  private readonly previewCycle = this.page.getByTestId('preview-cycle')
+  private readonly rakeCycle = this.page.getByTestId('rake-cycle')
   private readonly presetsMenu = this.page.getByTestId('presets-menu')
 
   async verifyIsShown(): Promise<void> {
@@ -48,66 +48,63 @@ export class KaresansuiPagePom extends BasePage {
     await expect(this.mechCanvas).toHaveAttribute('aria-hidden', 'true')
   }
 
-  // ---------- ring ----------
+  // ---------- ring (a single item that cycles 96 → 120 → 144) ----------
 
-  async selectRing(teeth: number): Promise<void> {
-    await this.page.getByTestId(`ring-${teeth}`).click()
+  async cycleRing(): Promise<void> {
+    await this.ringCycle.click()
   }
 
-  async verifyRingLabel(teeth: number): Promise<void> {
-    await expect(this.page.getByText(`${teeth} teeth`, { exact: true })).toBeVisible()
+  async verifyRingValue(teeth: number): Promise<void> {
+    await expect(this.ringCycle).toContainText(String(teeth))
   }
 
-  // ---------- gear train (each cog is a pen) ----------
+  // ---------- gear train (cog dots — each cog is a pen) ----------
 
-  async addWheel(teeth: number): Promise<void> {
-    await this.page.getByTestId(`wheel-${teeth}`).click()
+  /** The `+` adds a cog (teeth auto-picked); absent once the train is at MAX_GEARS. */
+  async addCog(): Promise<void> {
+    await this.cogAdd.click()
   }
 
-  async removeWheel(index: number): Promise<void> {
-    await this.page.getByTestId(`train-chip-remove-${index}`).click()
+  /** Click a cog dot to remove it (the last dot is disabled). */
+  async removeCog(index: number): Promise<void> {
+    await this.page.getByTestId(`cog-dot-${index}`).click()
   }
 
-  async verifyTrainLabel(cogs: number): Promise<void> {
-    const text = cogs === 1 ? '1 cog · 1 marble' : `${cogs} cogs · ${cogs} marbles`
-    await expect(this.page.getByText(text, { exact: true })).toBeVisible()
+  async verifyCogCount(count: number): Promise<void> {
+    await expect(this.page.locator('[data-testid^="cog-dot-"]')).toHaveCount(count)
   }
 
-  async verifyNoTrainChip(index: number): Promise<void> {
-    await expect(this.page.getByTestId(`train-chip-${index}`)).toHaveCount(0)
+  async verifyNoCogDot(index: number): Promise<void> {
+    await expect(this.page.getByTestId(`cog-dot-${index}`)).toHaveCount(0)
   }
 
-  /** Wheel dock chips dim to opacity 0.32 and disable once the train is at MAX_GEARS. */
-  async verifyWheelDisabled(teeth: number): Promise<void> {
-    const wheel = this.page.getByTestId(`wheel-${teeth}`)
-    await expect(wheel).toBeDisabled()
-    await expect(wheel).toHaveCSS('opacity', '0.32')
+  /** At MAX_GEARS the `+` disappears (remove a cog to add). */
+  async verifyAddCogHidden(): Promise<void> {
+    await expect(this.cogAdd).toHaveCount(0)
   }
 
-  // ---------- tune popover (holds the offset / speed sliders) ----------
+  // ---------- offset / speed (a value that reveals a hairline slider on click) ----------
 
-  /** Ensure the Tune popover is open — a real toggle, so only click when closed. */
-  async openTune(): Promise<void> {
-    if ((await this.tunePanel.count()) === 0) await this.tuneButton.click()
-    await expect(this.tunePanel).toBeVisible()
+  /** Ensure a field's slider popover is open — the field is a real toggle. */
+  async openField(name: 'offset' | 'speed'): Promise<void> {
+    if ((await this.page.getByTestId(`${name}-slider`).count()) === 0) {
+      await this.page.getByTestId(name).click()
+    }
+    await expect(this.page.getByTestId(`${name}-slider`)).toBeVisible()
   }
 
   async pressEscape(): Promise<void> {
     await this.page.keyboard.press('Escape')
   }
 
-  async verifyTuneOpen(): Promise<void> {
-    await expect(this.tunePanel).toBeVisible()
-    await expect(this.tuneButton).toHaveAttribute('aria-expanded', 'true')
+  async verifyFieldOpen(name: 'offset' | 'speed'): Promise<void> {
+    await expect(this.page.getByTestId(`${name}-slider`)).toBeVisible()
+    await expect(this.page.getByTestId(name)).toHaveAttribute('aria-expanded', 'true')
   }
 
-  async verifyTuneClosed(): Promise<void> {
-    await expect(this.tunePanel).toHaveCount(0)
-    await expect(this.tuneButton).toHaveAttribute('aria-expanded', 'false')
-  }
-
-  async verifyTuneButtonFocused(): Promise<void> {
-    await expect(this.tuneButton).toBeFocused()
+  async verifyFieldClosed(name: 'offset' | 'speed'): Promise<void> {
+    await expect(this.page.getByTestId(`${name}-slider`)).toHaveCount(0)
+    await expect(this.page.getByTestId(name)).toHaveAttribute('aria-expanded', 'false')
   }
 
   /** Click somewhere neutral (the wordmark) to dismiss any open popover. */
@@ -115,12 +112,10 @@ export class KaresansuiPagePom extends BasePage {
     await this.page.getByText('Karesansui', { exact: true }).click()
   }
 
-  // ---------- sliders (offset / speed) ----------
-
   /** Sets a range input's value the way a real drag would: native setter + input/change events. */
   async dragSlider(name: 'offset' | 'speed', value: number): Promise<void> {
-    await this.openTune()
-    await this.page.getByTestId(`slider-${name}`).evaluate((el, v) => {
+    await this.openField(name)
+    await this.page.getByTestId(`${name}-slider`).evaluate((el, v) => {
       const input = el as HTMLInputElement
       const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')
       descriptor?.set?.call(input, String(v))
@@ -129,23 +124,23 @@ export class KaresansuiPagePom extends BasePage {
     }, value)
   }
 
+  /** The readout lives on the field button, so it's assertable without opening. */
   async verifySliderValue(name: 'offset' | 'speed', expected: string): Promise<void> {
-    await this.openTune() // an intervening control click may have dismissed the popover
-    await expect(this.page.getByTestId(`slider-${name}-value`)).toHaveText(expected)
+    await expect(this.page.getByTestId(`${name}-value`)).toHaveText(expected)
   }
 
-  // ---------- preview / clearing-rake toggles ----------
+  // ---------- preview / clearing-rake (cycle items: on ↔ off, exposed as switches) ----------
 
   async togglePreview(): Promise<void> {
-    await this.previewToggle.click()
+    await this.previewCycle.click()
   }
 
   async toggleClearingRake(): Promise<void> {
-    await this.clearingRakeToggle.click()
+    await this.rakeCycle.click()
   }
 
   async verifyClearingRakeChecked(checked: boolean): Promise<void> {
-    await expect(this.clearingRakeToggle).toHaveAttribute('aria-checked', String(checked))
+    await expect(this.rakeCycle).toHaveAttribute('aria-checked', String(checked))
   }
 
   // ---------- play / draw (via the RAKE_TEST_SEAM_KEY seam on the sand canvas) ----------
@@ -189,13 +184,13 @@ export class KaresansuiPagePom extends BasePage {
     await expect(this.clearButton).toBeEnabled()
   }
 
-  // ---------- save / load / rename / delete presets (burger menu) ----------
+  // ---------- save / load / rename / delete presets (Presets ▾ menu) ----------
 
   async clickSave(): Promise<void> {
     await this.saveButton.click()
   }
 
-  /** Open the presets burger — present only once a preset exists. */
+  /** Open the presets menu — present only once a preset exists. */
   async openMenu(): Promise<void> {
     if ((await this.presetsMenu.count()) === 0) return
     if ((await this.presetsMenu.getAttribute('aria-expanded')) !== 'true') await this.presetsMenu.click()
@@ -267,7 +262,7 @@ export class KaresansuiPagePom extends BasePage {
 
   /** Tabbing to a console control lights the whole console (focus-within → opacity 1). */
   async verifyConsoleRevealsOnFocus(): Promise<void> {
-    await this.tuneButton.focus()
+    await this.ringCycle.focus()
     await expect(this.console).toHaveCSS('opacity', '1')
   }
 
