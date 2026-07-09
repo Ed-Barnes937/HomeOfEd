@@ -13,7 +13,10 @@ export interface ActionButtonsProps {
   onDownload: () => void
 }
 
-/** Play/Pause primary button + Clear / Save / Download secondaries (plan 0008 D5). */
+/**
+ * The strip's actions (ADR 0021): one amber `▸ Play` — the only accent in the
+ * console — followed by dimmer `Clear · Save · ↓` text links. No button boxes.
+ */
 export function ActionButtons({
   running,
   paused,
@@ -23,25 +26,32 @@ export function ActionButtons({
   onSave,
   onDownload,
 }: ActionButtonsProps) {
-  const playLabel = running ? '❚❚  Pause' : paused ? '▸  Resume' : '▸  Play'
+  const playWord = running ? 'Pause' : paused ? 'Resume' : 'Play'
+  const playGlyph = running ? '❚❚' : '▸'
   const clearLabel = clearing ? 'Clearing…' : 'Clear'
 
   return (
     <>
       <button
         type="button"
-        className={styles.run}
+        className={styles.play}
         data-testid="play"
-        aria-label={playLabel}
+        aria-label={playWord}
         disabled={clearing}
         onClick={onPlay}
       >
-        {playLabel}
+        <span className={styles.glyph} aria-hidden="true">
+          {playGlyph}
+        </span>
+        {playWord}
       </button>
-      <div className={styles.row}>
+
+      <span className={styles.sep} aria-hidden="true" />
+
+      <div className={styles.links}>
         <button
           type="button"
-          className={styles.secondary}
+          className={styles.link}
           data-testid="clear-button"
           aria-label={clearLabel}
           disabled={running || clearing}
@@ -49,23 +59,29 @@ export function ActionButtons({
         >
           {clearLabel}
         </button>
+        <span className={styles.dot} aria-hidden="true">
+          ·
+        </span>
         <button
           type="button"
-          className={styles.secondary}
+          className={styles.link}
           data-testid="save-button"
           aria-label="Save garden"
           onClick={onSave}
         >
           Save
         </button>
+        <span className={styles.dot} aria-hidden="true">
+          ·
+        </span>
         <button
           type="button"
-          className={styles.secondary}
+          className={styles.link}
           data-testid="download-button"
           aria-label="Download PNG"
           onClick={onDownload}
         >
-          ↓ Download
+          ↓
         </button>
       </div>
     </>

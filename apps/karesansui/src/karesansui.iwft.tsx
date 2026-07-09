@@ -7,57 +7,57 @@ test('the karesansui studio page renders sized sand + mech canvases', async ({ m
   await root.verifyIsShown()
 })
 
-test('selecting a different ring updates the readout', async ({ mountApp }) => {
+test('cycling the ring item advances the readout', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.selectRing(120)
-
-  await root.verifyRingLabel(120)
+  await root.verifyRingValue(96)
+  await root.cycleRing()
+  await root.verifyRingValue(120)
 })
 
-test('adding a cog updates the train label; a 4th cog maxes out the dock', async ({ mountApp }) => {
+test('adding cogs grows the dot train; a 4th cog hides the add control', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.addWheel(30)
-  await root.verifyTrainLabel(2)
+  await root.verifyCogCount(1)
 
-  await root.addWheel(24)
-  await root.verifyTrainLabel(3)
+  await root.addCog()
+  await root.verifyCogCount(2)
 
-  await root.addWheel(36)
-  await root.verifyTrainLabel(4)
-  await root.verifyWheelDisabled(45)
-  await root.verifyNoTrainChip(4) // no 5th chip — the train stays capped at 4
+  await root.addCog()
+  await root.addCog()
+  await root.verifyCogCount(4)
+  await root.verifyAddCogHidden() // train capped at 4 — no add control
+  await root.verifyNoCogDot(4) // no 5th dot
 
-  await root.removeWheel(0)
-  await root.verifyTrainLabel(3)
+  await root.removeCog(0)
+  await root.verifyCogCount(3)
 })
 
 test('each cog carries its own marble (one pen per cog)', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.addWheel(30)
-  await root.addWheel(24)
+  await root.addCog()
+  await root.addCog()
 
   // 3 cogs ⇒ the mechanism draws 3 marbles (settles after the repaint).
   await expect.poll(() => root.getMarbleCount()).toBe(3)
 })
 
-test('dragging offset/speed sliders updates their readouts', async ({ mountApp }) => {
+test('the offset/speed fields reveal a slider whose readout updates', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
   await root.dragSlider('offset', 50)
-  await root.verifySliderValue('offset', '0.50 r')
+  await root.verifySliderValue('offset', '0.50')
 
   await root.dragSlider('speed', 80)
   await root.verifySliderValue('speed', 'brisk')
 })
 
-test('the clearing-rake toggle flips its checked state', async ({ mountApp }) => {
+test('the clearing-rake item flips its checked state', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
@@ -115,11 +115,11 @@ test('loading a preset restores its saved offset', async ({ mountApp }) => {
   await root.dragSlider('offset', 30) // distinctive, off the 0.66 default
   await root.clickSave()
 
-  await root.selectRing(120) // change the config away from the saved preset
+  await root.cycleRing() // change the config away from the saved preset
 
   await root.loadPreset(0)
 
-  await root.verifySliderValue('offset', '0.30 r')
+  await root.verifySliderValue('offset', '0.30')
 })
 
 test('renaming a preset updates its label', async ({ mountApp }) => {
@@ -186,31 +186,28 @@ test('the stage reflows to a sand-hero-first column below 760px', async ({ mount
   await root.verifyStageStacked() // sand hero above the mechanism
 })
 
-test('the Tune popover opens on click and closes on Escape, focus back on the button', async ({
-  mountApp,
-}) => {
+test('an offset/speed field opens on click and closes on Escape', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.openTune()
-  await root.verifyTuneOpen()
+  await root.openField('offset')
+  await root.verifyFieldOpen('offset')
 
   await root.pressEscape()
 
-  await root.verifyTuneClosed()
-  await root.verifyTuneButtonFocused()
+  await root.verifyFieldClosed('offset')
 })
 
-test('the Tune popover closes on an outside click', async ({ mountApp }) => {
+test('an offset/speed field closes on an outside click', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.openTune()
-  await root.verifyTuneOpen()
+  await root.openField('offset')
+  await root.verifyFieldOpen('offset')
 
   await root.clickOutside()
 
-  await root.verifyTuneClosed()
+  await root.verifyFieldClosed('offset')
 })
 
 test('the presets menu is absent until a preset exists, then reveals the entry', async ({

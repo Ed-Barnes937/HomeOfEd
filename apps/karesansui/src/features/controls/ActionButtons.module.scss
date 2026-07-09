@@ -1,58 +1,94 @@
-.run {
-  border: none;
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  padding: 13px 22px;
-  font: 600 13.5px var(--font-sans);
-  color: var(--on-accent);
-  background: linear-gradient(160deg, var(--accent-bright), var(--accent));
-  box-shadow: 0 8px 22px -10px var(--accent-glow);
+// The minimal console's actions (ADR 0021): Play is bare amber text + triangle,
+// no box; Clear / Save / ↓ are dim text links. The one accent, and the quiet rest.
+
+.play {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-
-  &:hover:not(:disabled) {
-    filter: brightness(1.06);
-  }
-
-  &:focus-visible {
-    outline: 2.5px solid var(--focus-ring);
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.55;
-  }
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-}
-
-.secondary {
-  border: 1px solid var(--chip-line);
-  background: var(--chip-bg);
+  gap: 7px;
+  margin: 0;
+  padding: 3px 4px;
+  border: none;
+  background: none;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  padding: 11px 16px;
-  font: 500 12px var(--font-sans);
-  color: var(--text);
+  font: 500 14px var(--font-serif);
+  letter-spacing: 0.02em;
+  color: var(--accent-soft);
+  transition: color 0.2s ease, filter 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: var(--chip-bg-hover);
-    border-color: var(--accent);
+    color: var(--accent-bright);
+    filter: brightness(1.08);
   }
 
   &:focus-visible {
     outline: 2.5px solid var(--focus-ring);
-    outline-offset: 2px;
+    outline-offset: 3px;
+    border-radius: 3px;
   }
 
   &:disabled {
     cursor: default;
     opacity: 0.5;
+  }
+}
+
+.glyph {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+// A short vertical hairline separating Play from the secondary links.
+.sep {
+  width: 1px;
+  height: 20px;
+  background: var(--hairline);
+}
+
+.links {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link {
+  margin: 0;
+  padding: 3px 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: 400 12.5px var(--font-sans);
+  color: var(--label);
+  opacity: 0.72;
+  transition: opacity 0.2s ease, color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    opacity: 1;
+    color: var(--text);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 3px;
+    border-radius: 3px;
+    opacity: 1;
+    color: var(--text);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}
+
+.dot {
+  color: var(--label-dim);
+  opacity: 0.5;
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play,
+  .link {
+    transition: none;
   }
 }

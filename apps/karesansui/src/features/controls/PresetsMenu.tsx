@@ -55,20 +55,18 @@ export function PresetsMenu({ presets, onLoad, onRename, onDelete }: PresetsMenu
     <div className={styles.wrap} ref={wrapRef}>
       <button
         type="button"
-        className={styles.burger}
+        className={styles.trigger}
         data-testid="presets-menu"
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Saved gardens"
         onClick={() => setOpen((o) => !o)}
       >
-        <span className={styles.lines} aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </span>
-        <span className={styles.label}>Saved</span>
+        Presets
         <span className={styles.count}>{presets.length}</span>
+        <span className={styles.caret} data-open={open} aria-hidden="true">
+          ▾
+        </span>
       </button>
 
       {open && (

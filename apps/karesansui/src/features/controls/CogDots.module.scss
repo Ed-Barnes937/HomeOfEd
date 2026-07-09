@@ -1,0 +1,78 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  opacity: 0.82;
+  transition: opacity 0.2s ease;
+
+  &:hover,
+  &:focus-within {
+    opacity: 1;
+  }
+}
+
+.dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// One cog = one gear-coloured dot. A button so it can be removed by click; the
+// last dot is disabled (min 1 cog) but stays fully visible.
+.dot {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.14), 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform 0.15s ease;
+
+  &:not(:disabled):hover {
+    transform: scale(1.15);
+  }
+  &:disabled {
+    cursor: default;
+  }
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+// The ghost `+` — an amber-hinted outline circle.
+.add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px dashed var(--chip-line);
+  border-radius: 50%;
+  background: none;
+  color: var(--accent-soft);
+  font: 400 12px var(--font-sans);
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.15);
+  }
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .dot,
+  .add {
+    transition: none;
+  }
+}

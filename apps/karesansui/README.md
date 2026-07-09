@@ -11,10 +11,12 @@ compute, no accounts, no server data. Lives at `karesansui.homeofed.com`.
 
 The UI is a dark, quiet "room": the warm sand bowl is spotlit as the hero, a
 smaller lit **mechanism** bowl sits beside it, and the controls dissolve into a
-dim bottom console that brightens on hover and keyboard focus. See
-[ADR 0019](../../docs/adr/0019-karesansui-architectural-redesign.md) /
-[plan 0007](../../docs/plans/0007-karesansui-architectural-redesign.md). Original
-design reference: `reference/karasensui/project/Zen Gear Garden Studio.dc.html`.
+single dim **strip** of bare `LABEL value` items along the bottom that brightens
+on hover and keyboard focus. See
+[ADR 0019](../../docs/adr/0019-karesansui-architectural-redesign.md) (the room)
+and [ADR 0021](../../docs/adr/0021-karesansui-minimal-console.md) (the minimal
+console) / [plan 0007](../../docs/plans/0007-karesansui-architectural-redesign.md).
+Original design reference: `reference/karasensui/project/Zen Gear Garden Studio.dc.html`.
 
 **No database** — see [ADR 0008](../../docs/adr/0008-apps-without-a-database.md).
 The layered backend skeleton (tRPC → handler → `StatusStore`) is kept for
@@ -35,23 +37,27 @@ commands, and scoped rules.
 
 ## Features
 
-- **Ring picker** — 3 annulus sizes (96 / 120 / 144 teeth).
-- **Gear train** — dock up to 4 cogs; **each cog is a pen** — it adds its own
-  groove to the bed and its own gear + marble to the mechanism.
-- **Tune popover** — a `Tune ▾` disclosure holding the global pin-offset and
-  speed sliders. Offset scales every marble; speed sets the draw's pace
-  (brisk ≈1.5s → meditative ≈31s). Each cog runs its full period.
-- **Clearing rake** — a toggle; when on, the machine draws, sweeps the bed
-  smooth, and draws again forever. Off by default (draw once and hold).
-- **Preview toggle** — a faint guide line of every cog's path under the bed.
-- **Play / Pause** — draw the pattern; pause and resume mid-draw.
-- **Clear** — one clearing-rake pass, sweeping the sand level again.
-- **Save + presets menu** — save up to 8 setups (persisted to `localStorage`);
-  they appear in a burger menu, load on tap, rename inline (✎), delete with ×.
-- **Download** — downloads the sand bed as `karesansui.png`.
+The console is one flat strip of bare `LABEL value` items
+([ADR 0021](../../docs/adr/0021-karesansui-minimal-console.md)):
+
+- **Ring** — click cycles the 3 annulus sizes (96 / 120 / 144 teeth).
+- **Cogs** — one gear-coloured dot per cog (click a dot to remove; `+` to add,
+  up to 4). **Each cog is a pen** — it adds its own groove to the bed and its
+  own gear + marble to the mechanism.
+- **Offset / Speed** — click the value to reveal a hairline slider. Offset scales
+  every marble; speed sets the draw's pace (brisk ≈1.5s → meditative ≈31s), read
+  as a word. Each cog runs its full period.
+- **Rake** — clicks flip the clearing rake on/off; when on, the machine draws,
+  sweeps the bed smooth, and draws again forever. Off by default (draw once).
+- **Preview** — clicks flip a faint guide line of every cog's path under the bed.
+- **Play** — draw the pattern (`▸ Play`, the strip's one amber accent); pause and
+  resume mid-draw.
+- **Clear · Save · ↓ · Presets** — text links: one clearing pass; save up to 8
+  setups (`localStorage`); download the bed as `karesansui.png`; saved gardens in
+  a `Presets ▾` menu that loads on tap, renames inline (✎), deletes with ×.
 
 Below ~760px the stage stacks to a single column, **sand hero first**, and the
-Tune popover becomes a bottom sheet.
+strip wraps.
 
 ## Fidelity
 
