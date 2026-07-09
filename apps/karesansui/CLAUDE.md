@@ -29,11 +29,11 @@ src/
     render/                canvas classes — own the <canvas>, never touched by engine code
       sand.ts             pure draw helpers: sandFill, clipCircle, trace, emboss, rakeStyle, rakeSegment
       SandRenderer.ts     resize / renderStatic / beginCarve+carveTo / smoothStep / finishCarve / toDataURL
-      MechRenderer.ts     resize / draw(config, carrierT) — the illustrative gear-cluster drawing
+      MechRenderer.ts     resize / setPattern(config) / draw(progress) — Level-2 pen-fidelity mechanism
     settings.ts            Preset type; load/save/delete presets in localStorage (`karesansui:presets:v1`)
     useRakeLoop.ts         owns the rAF loop + both canvases: carve/pause/resume/smooth/export, resize rebuild
-  features/controls/       RingPicker, GearTrain, RakePicker, Slider, PreviewToggle, ActionButtons, SavedGardens
-  pages/KaresansuiPage.tsx  holds GardenConfig state, wires useRakeLoop, the 3-col → 1-col reflow at ~900px
+  features/controls/       RingPicker, GearTrain, RakePicker, Slider, PreviewToggle, ActionButtons, TunePopover, SavedTray
+  pages/KaresansuiPage.tsx  holds GardenConfig state, wires useRakeLoop; room → wordmark → stage → dim console; sand-hero-first reflow at ~760px
   testing/                  IwftApp harness + KaresansuiPagePom
   karesansui.iwft.tsx
 vite.config.ts             react + simulatorPlugin (dev simulator mode)
@@ -59,12 +59,14 @@ playwright-ct.config.ts    defineIwftConfig({ ctPort: 3107 })
   pushes changes into the loop imperatively via refs — no engine state lives
   in React, no per-frame re-render. Mirrors boids' engine/React split.
 - **Geometry fidelity:** the `geom()`/rake/emboss math in `engine/` and
-  `render/sand.ts`, and the `drawMech` cluster in `MechRenderer`, are ported
-  **verbatim** from the Studio reference for a pixel-accurate visual match —
-  don't "clean up" or re-derive the formulas. The mechanism drawing is
-  illustrative, not physically-accurate gearing: it does not use the same pin
-  formula as `geom`, and syncs to the carve only via progress `t`. See
-  [ADR 0016](../../docs/adr/0016-karesansui-geometry-fidelity.md). The
+  `render/sand.ts`, and `drawGear`/`drawRing`/the multi-cog cluster in
+  `MechRenderer`, are ported **verbatim** from the Studio reference — don't
+  "clean up" or re-derive the formulas. The mechanism is **Level-2 pen-fidelity**
+  (ADR 0016 amended, ADR 0017): its pen sits on the *true* `geom()` point every
+  frame (1 cog = an honest single-wheel spirograph; 2–3 cogs = the illustrative
+  cluster with an arm to the exact pen). It builds its own `geom()` at the mech
+  bowl radius, so the pen matches the sand groove's *shape* at a smaller *scale*.
+  See [ADR 0016](../../docs/adr/0016-karesansui-geometry-fidelity.md). The
   `spiroPts`/`drawSpiro` formula in `Zen Gear Garden.dc.html` is a *different*,
   unused exploration — never port it.
 - Server code changes go through TDD: unit test against `StatusStore` fake

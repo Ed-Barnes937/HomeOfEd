@@ -5,8 +5,8 @@ import { GearTrain } from '../features/controls/GearTrain.tsx'
 import { PreviewToggle } from '../features/controls/PreviewToggle.tsx'
 import { RakePicker } from '../features/controls/RakePicker.tsx'
 import { RingPicker } from '../features/controls/RingPicker.tsx'
-import { SavedGardens } from '../features/controls/SavedGardens.tsx'
-import { Slider } from '../features/controls/Slider.tsx'
+import { SavedTray } from '../features/controls/SavedTray.tsx'
+import { TunePopover } from '../features/controls/TunePopover.tsx'
 import { fullTurns, MAX_GEARS, prettyTurns } from '../features/garden/engine/gears.ts'
 import {
   clampOffset,
@@ -18,13 +18,6 @@ import {
 import { deletePreset, loadPresets, savePreset, type Preset } from '../features/garden/settings.ts'
 import { useRakeLoop } from '../features/garden/useRakeLoop.ts'
 import styles from './KaresansuiPage.module.scss'
-
-/** Speed reads as a mood, not a number — matches the reference `speedLabel`. */
-function speedLabel(speed: number): string {
-  if (speed < 33) return 'slow'
-  if (speed < 67) return 'steady'
-  return 'brisk'
-}
 
 export function KaresansuiPage() {
   const sandRef = useRef<HTMLCanvasElement>(null)
@@ -146,79 +139,68 @@ export function KaresansuiPage() {
   const paused = !running && carveStarted
 
   return (
-    <main className={styles.page} data-testid="karesansui-page">
-      <div className={styles.device}>
-        <div className={styles.plywood} aria-hidden="true" />
+    <main className={styles.room} data-testid="karesansui-page">
+      <header className={styles.wordmark}>
+        <span className={styles.mark}>枯山水</span>
+        <span className={styles.sep} aria-hidden="true" />
+        <span className={styles.word}>Karesansui</span>
+        <span className={styles.tagline}>Zen Gear Garden</span>
+      </header>
 
-        <div className={styles.mechColumn}>
-          <div className={styles.wordmark}>
-            <span className={styles.wordmarkDot} aria-hidden="true" />
-            <div>
-              <div className={styles.wordmarkTitle}>枯山水 Karesansui</div>
-              <div className={styles.wordmarkSub}>Zen Gear Garden</div>
+      <section className={styles.stage}>
+        <figure className={styles.mechCompanion}>
+          <div className={styles.mechBowl}>
+            <canvas
+              ref={mechRef}
+              data-testid="mech-canvas"
+              className={styles.mechCanvas}
+              aria-hidden="true"
+            />
+          </div>
+          <figcaption className={styles.caption}>The mechanism</figcaption>
+        </figure>
+
+        <figure className={styles.sandHero}>
+          <div className={styles.sandBowl}>
+            <div className={styles.sandInner}>
+              <canvas
+                ref={sandRef}
+                data-testid="sand-canvas"
+                className={styles.sandCanvas}
+                role="img"
+                aria-label={`Sand garden raked from a ${patternLabel}`}
+              />
             </div>
           </div>
+        </figure>
+      </section>
 
-          <div>
-            <div className={styles.colhd}>The mechanism</div>
-            <div className={styles.mechBowl}>
-              <canvas ref={mechRef} data-testid="mech-canvas" className={styles.mechCanvas} />
-            </div>
-          </div>
-
+      <footer className={styles.console} data-testid="console">
+        <div className={styles.controls}>
           <RingPicker ring={config.ring} onChange={setRing} />
+          <span className={styles.divider} aria-hidden="true" />
           <GearTrain wheels={config.wheels} onAdd={addWheel} onRemove={removeWheel} />
-        </div>
-
-        <div className={styles.sandColumn}>
-          <div className={styles.heading}>
-            <div className={styles.title}>Turn the gears. Rake the calm.</div>
-            <div className={styles.subtitle}>{patternLabel}</div>
-          </div>
-          <div className={styles.sandStage}>
-            <div className={styles.sandBowl}>
-              <div className={styles.sandInner}>
-                <canvas ref={sandRef} data-testid="sand-canvas" className={styles.sandCanvas} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.rakeColumn}>
+          <span className={styles.divider} aria-hidden="true" />
           <RakePicker rake={config.rake} onChange={setRake} />
+          <span className={styles.divider} aria-hidden="true" />
+          <div className={styles.tuneGroup}>
+            <TunePopover
+              offset={config.offset}
+              speed={config.speed}
+              turns={turns}
+              fullTurns={full}
+              onOffset={setOffset}
+              onSpeed={setSpeed}
+              onRotations={setTurns}
+            />
+            <PreviewToggle
+              checked={config.showPreview}
+              onChange={() => setShowPreview(!config.showPreview)}
+            />
+          </div>
+        </div>
 
-          <Slider
-            label="Pin offset"
-            testId="slider-offset"
-            valueText={`${config.offset.toFixed(2)} r`}
-            min={8}
-            max={94}
-            value={Math.round(config.offset * 100)}
-            onChange={setOffset}
-          />
-
-          <Slider
-            label="Speed"
-            testId="slider-speed"
-            valueText={speedLabel(config.speed)}
-            min={0}
-            max={100}
-            value={config.speed}
-            onChange={setSpeed}
-          />
-
-          <Slider
-            label="Rotations"
-            testId="slider-rotations"
-            valueText={`${turns} of ${full}`}
-            min={1}
-            max={full}
-            value={turns}
-            onChange={setTurns}
-          />
-
-          <PreviewToggle checked={config.showPreview} onChange={() => setShowPreview(!config.showPreview)} />
-
+        <div className={styles.actions}>
           <ActionButtons
             running={running}
             paused={paused}
@@ -228,10 +210,10 @@ export function KaresansuiPage() {
             onSave={handleSave}
             onExport={() => rakeLoop.exportPNG()}
           />
-
-          <SavedGardens presets={presets} onLoad={handleLoadPreset} onDelete={handleDeletePreset} />
         </div>
-      </div>
+
+        <SavedTray presets={presets} onLoad={handleLoadPreset} onDelete={handleDeletePreset} />
+      </footer>
     </main>
   )
 }

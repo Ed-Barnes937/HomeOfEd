@@ -5,7 +5,7 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 10px;
+  margin-bottom: 9px;
 }
 
 .label {
@@ -17,7 +17,7 @@
 
 .value {
   font: 600 11px var(--font-serif);
-  color: var(--ink);
+  color: var(--text);
 }
 
 .range {
@@ -43,17 +43,29 @@
     height: 18px;
     border-radius: 50%;
     background: var(--accent);
-    border: 2px solid #fdf8ee;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    border: 2px solid #241a10;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
     cursor: pointer;
   }
 
   &::-moz-range-thumb {
     width: 16px;
     height: 16px;
-    border: 2px solid #fdf8ee;
+    border: 2px solid #241a10;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
+  }
+
+  // `outline: none` above strips the native ring; give keyboard focus a
+  // deliberate amber halo on the thumb instead (never on mouse/drag).
+  &:focus-visible {
+    &::-webkit-slider-thumb {
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    &::-moz-range-thumb {
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
   }
 }

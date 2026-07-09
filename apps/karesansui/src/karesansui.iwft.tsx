@@ -138,15 +138,96 @@ test('Export triggers a karesansui.png download', async ({ mountApp }) => {
   await root.verifyExportDownloadsPng()
 })
 
-test('the layout reflows to a single column (sand → mech → rake) below 900px', async ({
+test('the sand canvas is exposed as a labelled image; the mech canvas is hidden', async ({
   mountApp,
-  page,
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  await root.verifyColumnLayout() // desktop CT viewport: mech | sand | rake
+
+  await root.verifySandCanvasLabelled()
+  await root.verifyMechCanvasHidden()
+})
+
+test('under prefers-reduced-motion, Run lands the finished pattern without animating', async ({
+  mountApp,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Default speed would animate for ~8s; reduced motion completes at once.
+  await root.clickRun()
+  await root.verifyCarveCompletes()
+})
+
+test('the stage reflows to a sand-hero-first column below 760px', async ({ mountApp, page }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyStageRow() // desktop CT viewport: mechanism companion | sand hero
 
   await page.setViewportSize({ width: 420, height: 900 })
 
-  await root.verifyStackedLayout()
+  await root.verifyStageStacked() // sand hero above the mechanism
+})
+
+test('the Tune popover opens on click and closes on Escape, focus back on the button', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openTune()
+  await root.verifyTuneOpen()
+
+  await root.pressEscape()
+
+  await root.verifyTuneClosed()
+  await root.verifyTuneButtonFocused()
+})
+
+test('the Tune popover closes on an outside click', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openTune()
+  await root.verifyTuneOpen()
+
+  await root.clickOutside()
+
+  await root.verifyTuneClosed()
+})
+
+test('the Saved tray is absent until a preset exists, then reveals the pill', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyTrayAbsent()
+
+  await root.clickSave()
+
+  await root.verifyPresetVisible(0) // openTray + pill visible
+})
+
+test('the console brightens when a control is focused (D8 keyboard reveal)', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyConsoleRevealsOnFocus()
+})
+
+test('the mechanism pen tracks the carve (Level-2 coupling)', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.dragSlider('speed', 100) // brisk carve keeps the test quick
+  const penBefore = await root.getMechPen()
+
+  await root.clickRun()
+
+  await root.verifyMechPenMovedFrom(penBefore)
 })

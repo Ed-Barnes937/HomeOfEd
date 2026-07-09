@@ -26,6 +26,8 @@ export interface RakeTestSeam {
   getConfig(): GardenConfig
   /** True once a carve has run to completion. */
   isCarved(): boolean
+  /** The mechanism's last-drawn pen point — asserts the mech tracks the carve. */
+  getMechPen(): [number, number]
 }
 
 /**
@@ -38,8 +40,9 @@ export interface RakeTestSeam {
  * renderers — the hook owns lifecycle, timing, and the carve/pause/smooth state
  * machine only.
  *
- * Follows the reference's parity: no `prefers-reduced-motion` handling — the
- * mock has none, and the carve/smooth animations are the whole point.
+ * Under `prefers-reduced-motion: reduce` the carve and smooth animations jump
+ * straight to their finished state instead of sweeping — the pattern is the
+ * point, the motion is not.
  */
 export function useRakeLoop(opts: UseRakeLoopOptions): {
   smooth(): void
@@ -90,6 +93,9 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
     let smoothing = false
     let rafId = 0
 
+    const reducedMotion = (): boolean =>
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
     const dpr = (): number => Math.min(window.devicePixelRatio || 1, 2)
     const cssSize = (): number =>
       sandCanvas.clientWidth || sandCanvas.getBoundingClientRect().width || 0
@@ -105,7 +111,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       if (!currentGeom) return
       const config = configRef.current
       sand.renderStatic(currentGeom, config.showPreview)
-      mech.draw(config, 0)
+      mech.draw(0)
       progress = 0
     }
 
@@ -116,7 +122,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       sand.beginCarve(currentGeom, config.rake)
       sand.carveTo(1)
       sand.finishCarve()
-      mech.draw(config, currentGeom.tMax)
+      mech.draw(1)
       progress = 1
     }
 
@@ -129,6 +135,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
     const rebuild = (size: number): void => {
       boardR = size * 0.46
       sand.resize(size, dpr())
+      mech.setPattern(configRef.current)
       mech.resize(size, dpr())
       currentGeom = geom(configRef.current, boardR)
     }
@@ -139,7 +146,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       carve.lastTs = ts
       progress = Math.min(1, carve.elapsed / carve.duration)
       sand.carveTo(progress)
-      mech.draw(configRef.current, carve.geom.tMax * progress)
+      mech.draw(progress)
       if (progress < 1) {
         rafId = requestAnimationFrame(carveFrame)
       } else {
@@ -158,6 +165,16 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       sand.beginCarve(currentGeom, config.rake)
       carved = false
       progress = 0
+      // Reduced motion: skip the sweep, land on the finished pattern at once.
+      if (reducedMotion()) {
+        sand.carveTo(1)
+        sand.finishCarve()
+        mech.draw(1)
+        progress = 1
+        carved = true
+        onCompleteRef.current()
+        return
+      }
       // brisk ≈ 1.5s → meditative ≈ 31s (reference startRake curve).
       carve = {
         geom: currentGeom,
@@ -214,6 +231,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
         carved = false
         boardR = cssSize() * 0.46
         currentGeom = geom(next, boardR)
+        mech.setPattern(next)
         drawStatic()
         return
       }
@@ -230,6 +248,11 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       if (smoothing) return
       abortCarve()
       carved = false
+      // Reduced motion: settle the bed flat immediately, no sweep.
+      if (reducedMotion()) {
+        sand.smoothStep(1)
+        return
+      }
       smoothing = true
       const dur = 1550
       const start = performance.now()
@@ -263,6 +286,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       getProgress: () => progress,
       getConfig: () => configRef.current,
       isCarved: () => carved,
+      getMechPen: () => mech.getPenPoint(),
     }
     ;(sandCanvas as unknown as Record<string, RakeTestSeam>)[RAKE_TEST_SEAM_KEY] = seam
 

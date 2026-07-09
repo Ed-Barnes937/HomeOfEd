@@ -1,9 +1,10 @@
 # 0016 — karesansui: port the reference geometry verbatim, treat the mechanism as decorative
 
-- **Status:** Accepted
+- **Status:** Accepted — **amended 2026-07-09** (see [Amendment](#amendment-2026-07-09--plan-0007--adr-0017-level-2-pen-fidelity): the mechanism pen is no longer purely decorative; it now rides the true `geom()` point).
 - **Date:** 2026-07-09
 - **Related:** [0006-karesansui-implementation-plan.md](../plans/0006-karesansui-implementation-plan.md)
-  §1 (D3, D4), §5 (reference-porting map); [0008-apps-without-a-database.md](0008-apps-without-a-database.md)
+  §1 (D3, D4), §5 (reference-porting map); [0008-apps-without-a-database.md](0008-apps-without-a-database.md);
+  amended by [0007-karesansui-architectural-redesign.md](../plans/0007-karesansui-architectural-redesign.md) / ADR 0017
 
 ## Context
 
@@ -73,3 +74,28 @@ If undertaken, it's additive: a new engine module alongside (or replacing)
 cosmetic progress value. The existing `geom()`/`drawMech` port would either be
 kept as a "classic" mode or retired once the new engine matches the current
 look closely enough.
+
+## Amendment (2026-07-09) — plan 0007 / ADR 0017: Level-2 pen-fidelity
+
+The architectural redesign ([plan 0007](../plans/0007-karesansui-architectural-redesign.md),
+ADR 0017) upgrades the mechanism from *fully* decorative to **Level-2
+pen-fidelity**, and changes `MechRenderer`'s API from `draw(config, carrierT)`
+to `setPattern(config)` + `draw(progress)`.
+
+- **The pen is now honest.** `MechRenderer` builds its own `geom()` fit to the
+  mech bowl radius and places the pen on the **true `geom()` point** every frame
+  (indexed by carve progress). The pen visibly leads the *same curve* the sand
+  carves — same shape, smaller scale (the mech bowl is smaller than the sand
+  bowl; captions say "same curve", not "same size").
+- **1 cog → an honest single-wheel spirograph.** A wheel of radius `W0` at the
+  real carrier position `(R−W0)·(cos t, sin t)`, spun by `−(R/W0)·t`, on the same
+  scale as the pen path — so the pen genuinely sits on that wheel.
+- **2–3 cogs → the cluster stays illustrative.** For a multi-term summed-cosine
+  curve there is no single rolling wheel to draw, so the ported abstract cluster
+  is kept and an **arm is drawn to the exact `geom()` pen point**. The cluster is
+  decorative; the pen is exact. Full physical honesty for multi-cog trains (the
+  "nested carriers" idea above) remains the deferred next step.
+
+What is unchanged: `geom()`, the rake/emboss shading, and `drawGear`/`drawRing`
+are still the verbatim port (D3); the engine is untouched. `Zen Gear Garden.dc.html`'s
+`spiroPts`/`drawSpiro` is still off-limits.

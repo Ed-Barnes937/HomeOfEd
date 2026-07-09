@@ -3,36 +3,47 @@
 
 .colhd {
   font: 500 9px var(--font-sans);
-  letter-spacing: 0.28em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--label-strong);
-  margin-bottom: 14px;
+  color: var(--label);
+  margin-bottom: 9px;
 }
 
 .row {
   display: flex;
-  gap: 7px;
+  gap: 6px;
 }
 
 .card {
-  flex: 1;
+  width: 52px;
   cursor: pointer;
   border-radius: var(--radius-md);
-  padding: 13px 4px 10px;
+  padding: 9px 4px 8px;
   text-align: center;
-  background: var(--card-bg);
-  border: 1.5px solid var(--border-btn);
-  color: var(--sub);
-  transition: all 0.15s;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-line);
+  color: var(--label);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+
+  &:hover {
+    background: var(--chip-bg-hover);
+  }
 
   &[aria-pressed='true'] {
-    background: var(--dark-fill);
-    border-color: var(--ink-soft);
+    background: rgba(217, 162, 75, 0.16);
+    border-color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
   }
 }
 
 .glyph {
-  height: 26px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -40,11 +51,11 @@
 
 .marble {
   display: block;
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff6e0, var(--sub-soft));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  background: radial-gradient(circle at 35% 30%, #fff6e0, var(--label));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .card[aria-pressed='true'] .marble {
@@ -58,9 +69,9 @@
 }
 
 .bar {
-  width: 22px;
+  width: 20px;
   border-radius: 2px;
-  background: var(--sub-soft);
+  background: var(--label);
 }
 
 .card[aria-pressed='true'] .bar {
@@ -69,21 +80,22 @@
 
 .name {
   display: block;
-  font: 600 10.5px var(--font-sans);
-  color: var(--sub);
-  margin-top: 8px;
+  font: 600 10px var(--font-sans);
+  color: var(--label);
+  margin-top: 6px;
 }
 
 .card[aria-pressed='true'] .name {
-  color: var(--cream);
+  color: var(--text);
 }
 
 .tines {
   display: block;
-  font: 400 8.5px var(--font-sans);
-  color: var(--label);
+  font: 400 8px var(--font-sans);
+  color: var(--label-dim);
+  margin-top: 1px;
 }
 
 .card[aria-pressed='true'] .tines {
-  color: rgba(244, 230, 198, 0.7);
+  color: var(--accent-soft);
 }

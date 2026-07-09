@@ -23,7 +23,7 @@ export function ActionButtons({
   onSave,
   onExport,
 }: ActionButtonsProps) {
-  const runLabel = running ? '❚❚  Pause' : paused ? '▶  Resume raking' : '▶  Turn the crank'
+  const runLabel = running ? '❚❚  Pause' : paused ? '▸  Resume raking' : '▸  Rake the sand'
   const smoothLabel = smoothing ? 'Smoothing…' : 'Smooth'
 
   return (

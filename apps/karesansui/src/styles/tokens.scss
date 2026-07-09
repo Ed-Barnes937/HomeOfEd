@@ -1,7 +1,7 @@
-// Design tokens ported from the Studio reference's inline styles
-// (`reference/karasensui/project/Zen Gear Garden Studio.dc.html`). One warm-sand
-// theme, no dark mode (plan D11) — a global side-effect stylesheet, imported
-// once from main.tsx (boids' convention).
+// Design tokens for the architectural redesign (plan 0007 / ADR 0017): a single
+// DARK room theme — no light mode, no toggle. The warm sand bowl stays lit and
+// warm (its bowl/canvas shading is unchanged); only the room around it is dark.
+// A global side-effect stylesheet, imported once from main.tsx (boids' convention).
 
 // Spectral + Instrument Sans, self-hosted per plan T4.1 (no runtime Google
 // Fonts). Static per-weight latin subsets.
@@ -60,60 +60,59 @@
   --font-serif: 'Spectral', serif;
   --font-sans: 'Instrument Sans', system-ui, sans-serif;
 
-  // Ink + labels
-  --ink: #3a2c1c;
-  --ink-soft: #241a10;
-  --label: #a07a4a;
-  --label-strong: #b08a54;
-  --sub: #6b5335;
-  --sub-soft: #8a6c45;
-  --accent: #c9a24b;
-  --accent-soft: #e0b968;
-  --cream: #f4e6c6;
+  // Room — the dark spotlit space the composition sits in.
+  --room-bg: radial-gradient(90% 80% at 50% 34%, #2c231a 0%, #1c1712 55%, #120e0a 100%);
 
-  // Hairlines / borders
-  --border: rgba(120, 85, 45, 0.18);
-  --border-soft: rgba(120, 85, 45, 0.22);
-  --border-btn: rgba(120, 85, 45, 0.28);
-  --track: rgba(120, 85, 45, 0.2);
+  // Ink on dark. Each is verified ≥ AA on the room bg (see plan §7 / D7); the
+  // console rests slightly dimmed (opacity), so these must pass at full colour
+  // AND survive that dim — opacity is emphasis, never a way to hide low contrast.
+  --text: #ece4d4; // primary readouts
+  --text-word: #d0c5ad; // wordmark
+  --label: #bcb29a; // console labels at REST
+  --label-dim: #aca291; // faintest allowed resting text — clears AA at 0.82 console opacity over the whole room (D7)
+  --sub: #cfc6b2; // secondary body text (pills, hints)
 
-  // Page + device shell
-  --page-bg: radial-gradient(circle at 50% 30%, #efe7d8, #ddd0ba);
-  --device-bg: linear-gradient(150deg, #f3e7cf, #e7d6b4);
-  --device-shadow: 0 40px 90px -40px rgba(60, 40, 20, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  --plywood: repeating-linear-gradient(
-    91deg,
-    rgba(150, 110, 60, 0.045) 0 3px,
-    rgba(120, 85, 45, 0.08) 3px 4px,
-    rgba(180, 140, 90, 0.035) 4px 9px
-  );
-  --panel-left-bg: linear-gradient(160deg, rgba(255, 250, 240, 0.55), rgba(240, 224, 193, 0.35));
-  --panel-right-bg: linear-gradient(200deg, rgba(255, 250, 240, 0.55), rgba(240, 224, 193, 0.35));
+  // Accent — the one colour. Amber.
+  --accent: #d9a24b;
+  --accent-bright: #e6b45c;
+  --accent-soft: #eec27a;
+  --accent-glow: rgba(217, 162, 75, 0.5);
+  --on-accent: #241a10; // ink used ON an amber fill
 
-  // Mechanism bowl
-  --mech-bowl-bg: radial-gradient(circle at 50% 42%, #5a4028, #2e1e10);
-  --mech-bowl-shadow: inset 0 3px 16px rgba(0, 0, 0, 0.55), 0 6px 14px -8px rgba(0, 0, 0, 0.4);
+  // Hairlines / surfaces on dark
+  --hairline: rgba(255, 220, 170, 0.14);
+  --chip-line: rgba(255, 220, 170, 0.22);
+  --chip-bg: rgba(255, 234, 205, 0.05);
+  --chip-bg-hover: rgba(255, 234, 205, 0.1);
+  --pill-bg: rgba(255, 234, 205, 0.06);
+  --track: rgba(255, 220, 170, 0.16);
 
-  // Sand bowl
-  --sand-bowl-bg: linear-gradient(160deg, #a5764a, #7a5230);
-  --sand-bowl-shadow: 0 26px 50px -22px rgba(0, 0, 0, 0.5), inset 0 3px 8px rgba(255, 255, 255, 0.22),
-    inset 0 -6px 16px rgba(0, 0, 0, 0.4);
-  --sand-canvas-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.35);
+  // Focus ring — an ink outline is invisible on dark, so focus is amber.
+  --focus-ring: var(--accent-bright);
 
-  // Controls
-  --card-bg: rgba(255, 255, 255, 0.42);
-  --card-bg-hover: rgba(255, 255, 255, 0.75);
-  --chip-bg: rgba(255, 255, 255, 0.6);
-  --pill-bg: rgba(255, 255, 255, 0.5);
-  --dark-fill: linear-gradient(160deg, #3a2c1c, #241a10);
-  --dark-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.6);
+  // Sand bowl (warm, lit — the hero; unchanged spirit, restated for the dark frame)
+  --sand-bowl-bg: radial-gradient(circle at 50% 40%, #c8975c 0%, #a5703f 60%, #6e4a29 100%);
+  --sand-bowl-shadow: 0 46px 80px -30px rgba(0, 0, 0, 0.85), inset 0 4px 12px rgba(255, 225, 180, 0.3),
+    inset 0 -12px 30px rgba(40, 22, 8, 0.6), 0 0 0 1px rgba(255, 210, 150, 0.08);
+  --sand-canvas-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.4);
 
-  --radius-lg: 22px;
-  --radius-md: 13px;
-  --radius-sm: 11px;
+  // Mechanism bowl (a smaller lit companion beside the hero)
+  --mech-bowl-bg: radial-gradient(circle at 50% 40%, #3a2c1c 0%, #160f09 100%);
+  --mech-bowl-shadow: 0 0 40px -8px rgba(217, 162, 75, 0.22), inset 0 3px 14px rgba(0, 0, 0, 0.6);
+
+  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
 }
 
+// Keyboard-focus treatment on dark: an offset AMBER outline, applied per control
+// via `:focus-visible` (keyboard only, never on click). Repeated in each CSS
+// module — they compile in isolation, so a shared placeholder can't reach them.
+// Standard form:  &:focus-visible { outline: 2.5px solid var(--focus-ring); outline-offset: 2px; }
+// Sliders can't outline the thumb, so they ring it: box-shadow 0 0 0 3px var(--accent-glow).
+
 body {
-  background: var(--page-bg);
+  background: var(--room-bg);
+  color: var(--text);
   font-family: var(--font-sans);
 }

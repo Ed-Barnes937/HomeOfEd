@@ -3,79 +3,101 @@
 
 .head {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 9px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .label {
-  font: 500 9.5px var(--font-sans);
-  letter-spacing: 0.16em;
+  font: 500 9px var(--font-sans);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--label);
 }
 
 .value {
-  font: 600 11px var(--font-serif);
-  color: var(--ink);
+  font: 500 11px var(--font-serif);
+  color: var(--accent-soft);
 }
 
 .chips {
   display: flex;
-  gap: 7px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 13px;
-  min-height: 30px;
+  margin-bottom: 8px;
+  min-height: 28px;
 }
 
 .chip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: var(--chip-bg);
-  border: 1.5px solid var(--border-soft);
-  border-radius: 18px;
-  padding: 4px 5px 4px 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--chip-line);
+  border-radius: 16px;
+  padding: 3px 5px 3px 4px;
 }
 
 .dot {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
 .teeth {
   font: 600 10px var(--font-sans);
-  color: var(--ink);
+  color: var(--text);
 }
 
 .remove {
+  position: relative;
   cursor: pointer;
   width: 15px;
   height: 15px;
   border-radius: 50%;
   border: none;
-  background: rgba(120, 85, 45, 0.16);
-  color: var(--sub);
+  background: rgba(255, 220, 170, 0.14);
+  color: var(--label);
   font-size: 11px;
   line-height: 14px;
   text-align: center;
   padding: 0;
+
+  // Keep the dot small (15px) but grow the clickable area to the 24px min
+  // (WCAG 2.5.8) with a transparent overlay centred on the dot.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+  }
+
+  &:hover {
+    background: rgba(255, 220, 170, 0.24);
+    color: var(--text);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 .hint {
-  font: 500 8.5px var(--font-sans);
+  font: 500 8px var(--font-sans);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--label);
-  margin-bottom: 9px;
+  color: var(--label-dim);
+  margin-bottom: 8px;
 }
 
 .dock {
   display: flex;
-  gap: 8px;
+  gap: 7px;
   align-items: flex-end;
   flex-wrap: wrap;
 }
@@ -89,20 +111,26 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 3px;
+  border-radius: var(--radius-sm);
 
   &:disabled {
     cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
   }
 }
 
 .wheelDot {
   border-radius: 50%;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
   display: block;
 }
 
 .wheelTeeth {
   font: 500 9px var(--font-sans);
-  color: var(--sub);
-  margin-top: 3px;
+  color: var(--label-dim);
 }

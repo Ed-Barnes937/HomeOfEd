@@ -11,6 +11,9 @@ export interface Geom {
   pts: [number, number][]
   tMax: number
   full: number
+  /** The fit factor applied to the raw curve (`boardR / (maxReach·1.03)`), so a
+   * renderer can reconstruct intermediate epicycle joints on the same scale. */
+  scale: number
 }
 
 /**
@@ -49,7 +52,7 @@ export function geom(config: GardenConfig, boardR: number): Geom {
   }
   const scale = boardR / (maxReach * 1.03)
   const pts = raw.map((p) => [p[0] * scale, p[1] * scale] as [number, number])
-  return { pts, tMax, full }
+  return { pts, tMax, full, scale }
 }
 
 /**
