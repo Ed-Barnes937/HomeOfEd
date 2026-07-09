@@ -35,6 +35,13 @@ export class HomePagePom extends BasePage {
     )
   }
 
+  async verifyKaresansuiLink(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'karesansui' })).toHaveAttribute(
+      'href',
+      'https://karesansui.homeofed.com',
+    )
+  }
+
   async verifyHeigIsComingSoon(): Promise<void> {
     await expect(this.page.getByText('HEIG')).toBeVisible()
     await expect(this.page.getByRole('link', { name: 'HEIG' })).toHaveCount(0)
@@ -42,6 +49,6 @@ export class HomePagePom extends BasePage {
 
   // Each app is a gallery card with a live <canvas> preview — one per app.
   async verifyPreviewsRender(): Promise<void> {
-    await expect(this.page.locator('canvas')).toHaveCount(5)
+    await expect(this.page.locator('canvas')).toHaveCount(6)
   }
 }

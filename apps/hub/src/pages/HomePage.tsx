@@ -3,7 +3,7 @@ import styles from './HomePage.module.scss'
 import { isNew } from './isNew.ts'
 import { useColourTheme } from './useColourTheme'
 
-type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'idle'
+type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'idle'
 type AppLink = {
   name: string
   status: 'LIVE' | 'SOON'
@@ -23,6 +23,13 @@ const APPS: AppLink[] = [
     kind: 'ink',
     href: 'https://espy.homeofed.com',
     deployedAt: '2026-07-09',
+  },
+  {
+    name: 'karesansui',
+    status: 'LIVE',
+    kind: 'garden',
+    href: 'https://karesansui.homeofed.com',
+    deployedAt: '2026-07-10',
   },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
@@ -290,6 +297,7 @@ function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string)
         else if (kind === 'magnets') stops.push(drawMagnets(cv))
         else if (kind === 'word') stops.push(drawWord(cv, darkRef))
         else if (kind === 'ink') stops.push(drawInk(cv, darkRef))
+        else if (kind === 'garden') stops.push(drawGarden(cv, darkRef))
         else stops.push(drawIdle(cv, darkRef))
       }
     }, 90)
@@ -536,6 +544,86 @@ function drawInk(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     eye(-8)
     eye(9)
     ctx.restore()
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
+}
+
+// karesansui: a single marble grooves a gold rosette into a round sand bed, holds,
+// then fades away (the clearing rake) and redraws — the "many pens, one garden"
+// app in miniature. Groove colour tracks the hub theme.
+function drawGarden(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const cx = w / 2
+  const cy = h / 2
+  const bedR = Math.min(w, h) * 0.4
+  const carrierR = bedR * 0.5
+  const penR = bedR * 0.33
+  const FREQ = 5 // integer ⇒ the rosette closes in one carrier turn
+  const STEPS = 240
+  const point = (t: number): [number, number] => [
+    cx + carrierR * Math.cos(t) + penR * Math.cos(FREQ * t),
+    cy + carrierR * Math.sin(t) - penR * Math.sin(FREQ * t),
+  ]
+  let raf = 0
+  let prog = 0
+  let phase: 'draw' | 'hold' | 'fade' = 'draw'
+  let hold = 0
+  let alpha = 1
+  const step = (): void => {
+    const dark = darkRef.current
+    const groove = dark ? ACCENT.dark : ACCENT.light
+    const rim = dark ? 'rgba(236,229,218,0.14)' : 'rgba(44,50,46,0.12)'
+    ctx.clearRect(0, 0, w, h)
+    // The sand bed.
+    ctx.strokeStyle = rim
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(cx, cy, bedR, 0, 6.28)
+    ctx.stroke()
+    // The groove traced so far.
+    const upto = Math.floor(STEPS * prog)
+    ctx.globalAlpha = alpha
+    ctx.strokeStyle = groove
+    ctx.lineWidth = 1.6
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    for (let i = 0; i <= upto; i++) {
+      const [x, y] = point((i / STEPS) * Math.PI * 2)
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+    // The marble at the tip while it's still carving.
+    if (phase === 'draw' && upto > 0) {
+      const [mx, my] = point((upto / STEPS) * Math.PI * 2)
+      ctx.globalAlpha = 1
+      ctx.fillStyle = '#f0c85a'
+      ctx.beginPath()
+      ctx.arc(mx, my, 2.6, 0, 6.28)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
+    if (phase === 'draw') {
+      prog += 0.015
+      if (prog >= 1) {
+        prog = 1
+        phase = 'hold'
+        hold = 0
+      }
+    } else if (phase === 'hold') {
+      hold++
+      if (hold > 50) phase = 'fade'
+    } else {
+      alpha -= 0.02
+      if (alpha <= 0) {
+        alpha = 1
+        prog = 0
+        phase = 'draw'
+      }
+    }
     raf = requestAnimationFrame(step)
   }
   step()
