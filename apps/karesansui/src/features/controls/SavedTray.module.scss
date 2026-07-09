@@ -1,0 +1,127 @@
+.tray {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.handle {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--chip-line);
+  background: var(--chip-bg);
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: var(--label);
+
+  &:hover {
+    background: var(--chip-bg-hover);
+    color: var(--text);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.handleLabel {
+  font: 500 9px var(--font-sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.count {
+  font: 600 10px var(--font-sans);
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 9px;
+  min-width: 18px;
+  padding: 1px 5px;
+  text-align: center;
+}
+
+.caret {
+  font-size: 9px;
+  color: var(--label-dim);
+  transition: transform 0.18s;
+
+  &[data-open='true'] {
+    transform: rotate(180deg);
+  }
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--pill-bg);
+  border: 1px solid var(--chip-line);
+  border-radius: 20px;
+  padding: 5px 6px 5px 12px;
+}
+
+.name {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  font: 500 11px var(--font-sans);
+  color: var(--text);
+  border-radius: 4px;
+
+  &:hover {
+    color: var(--accent-soft);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.remove {
+  position: relative;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 220, 170, 0.14);
+  color: var(--label);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  padding: 0;
+
+  // Keep the 16px dot but grow the target to the 24px min (WCAG 2.5.8).
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+  }
+
+  &:hover {
+    background: rgba(255, 220, 170, 0.24);
+    color: var(--text);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}

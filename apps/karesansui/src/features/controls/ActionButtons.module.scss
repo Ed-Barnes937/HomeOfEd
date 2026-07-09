@@ -1,0 +1,58 @@
+.run {
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  padding: 13px 22px;
+  font: 600 13.5px var(--font-sans);
+  color: var(--on-accent);
+  background: linear-gradient(160deg, var(--accent-bright), var(--accent));
+  box-shadow: 0 8px 22px -10px var(--accent-glow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.secondary {
+  border: 1px solid var(--chip-line);
+  background: var(--chip-bg);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 11px 16px;
+  font: 500 12px var(--font-sans);
+  color: var(--text);
+
+  &:hover:not(:disabled) {
+    background: var(--chip-bg-hover);
+    border-color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}

@@ -283,3 +283,67 @@ curl -fsS https://hoe-espy.fly.dev/health           # → {"ok":true} — in-mem
 curl -fsS https://espy.homeofed.com/health          # same, through Cloudflare
 open  https://espy.homeofed.com                      # a blot blooms; draw, add eyes, save
 ```
+
+## G4.11 — karesansui (go-live, DB-less)
+
+karesansui (`apps/karesansui`, "Zen Gear Garden" —
+[0006-karesansui-implementation-plan.md](../plans/0006-karesansui-implementation-plan.md))
+is a stateless app: presets live in the browser's localStorage
+([ADR 0008](../adr/0008-apps-without-a-database.md)), so — like boids — there is
+no `fly postgres attach`, no `DATABASE_URL`, and no `release_command`. Its
+`/health` is an in-memory liveness ping.
+
+### The one-command path (recommended)
+
+```bash
+fly auth login                                     # once, if not already
+export CLOUDFLARE_API_TOKEN=...                    # Zone.DNS:Edit on homeofed.com
+scripts/go-live.sh karesansui                      # NO --db (stateless)
+# scripts/go-live.sh karesansui --dry-run          # preview every command first
+```
+
+That creates `hoe-karesansui`, deploys it, adds the `karesansui` CNAME
+grey-cloud, waits for the Fly cert to be Issued, flips the record to proxied,
+and verifies `/health` + the SPA index. Idempotent — safe to re-run.
+
+> **⚠ Deploy-token gotcha (same as boids/fridge):** the GitHub
+> `FLY_API_TOKEN` secret must cover `hoe-karesansui`. The original token was
+> minted `--app hoe-hub` (hub-scoped). If you have not already replaced it with
+> an org-scoped deploy token during a previous app's go-live, do so now, or the
+> `deploy-karesansui` CI job will fail auth:
+>
+> ```bash
+> fly tokens create org --name hoe-deploy |
+>   gh secret set FLY_API_TOKEN --repo Ed-Barnes937/HomeOfEd
+> ```
+>
+> (The script's own `fly deploy` uses your logged-in `flyctl` session and is
+> unaffected — this only bites the CI-driven deploy on future merges to `main`.)
+
+### Manual fallback (what the script does)
+
+```bash
+fly apps create hoe-karesansui                     # must match apps/karesansui/fly.toml
+# NO fly postgres attach — stateless (ADR 0008)
+fly deploy --config apps/karesansui/fly.toml --remote-only   # from the repo root
+fly certs add karesansui.homeofed.com --app hoe-karesansui   # after the first deploy
+```
+
+Cloudflare (dashboard): proxied CNAME `karesansui → hoe-karesansui.fly.dev`
+(Full-strict TLS is zone-wide already, set in G4.4). Grey-cloud any ACME
+validation record `fly certs add` prints, then:
+
+```bash
+fly certs check karesansui.homeofed.com --app hoe-karesansui   # wait for Issued
+```
+
+### Verify end-to-end
+
+```bash
+curl -fsS https://hoe-karesansui.fly.dev/health    # → {"ok":true} — in-memory ping, no DB round-trip
+curl -fsS https://karesansui.homeofed.com/health   # same, through Cloudflare
+open  https://karesansui.homeofed.com              # build a gear train, turn the crank, Save a garden, reload
+```
+
+The Save/reload check exercises localStorage persistence — there is no
+server-side state to verify.

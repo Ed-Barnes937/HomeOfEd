@@ -1,0 +1,193 @@
+.room {
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 34px 24px 26px;
+  background: var(--room-bg);
+}
+
+// ---------- wordmark ----------
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--text-word);
+}
+
+.mark {
+  font: 300 22px var(--font-serif);
+  letter-spacing: 0.16em;
+}
+
+.sep {
+  align-self: center;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.word {
+  font: 300 15px var(--font-serif);
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+
+.tagline {
+  font: 500 9px var(--font-sans);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--label-dim);
+}
+
+// ---------- stage ----------
+.stage {
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 5vw, 64px);
+  flex-wrap: wrap;
+}
+
+.mechCompanion,
+.sandHero {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.mechBowl {
+  width: clamp(180px, 24vw, 250px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--mech-bowl-bg);
+  box-shadow: var(--mech-bowl-shadow);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mechCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.caption {
+  font: 500 9px var(--font-sans);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--label-dim);
+}
+
+.sandHero {
+  gap: 0;
+}
+
+.sandBowl {
+  width: clamp(300px, 46vw, 460px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 20px;
+  box-sizing: border-box;
+  background: var(--sand-bowl-bg);
+  box-shadow: var(--sand-bowl-shadow);
+}
+
+.sandInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: var(--sand-canvas-shadow);
+}
+
+.sandCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// ---------- console ----------
+.console {
+  width: 100%;
+  max-width: 940px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding-top: 6px;
+  opacity: 0.82;
+  transition: opacity 0.3s ease;
+
+  &:hover,
+  &:focus-within {
+    opacity: 1;
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--hairline);
+}
+
+.tuneGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .stage {
+    flex-direction: column;
+  }
+
+  // Sand hero first on narrow (matches the prior reflow decision).
+  .sandHero {
+    order: -1;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  .controls {
+    gap: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console {
+    transition: none;
+  }
+}

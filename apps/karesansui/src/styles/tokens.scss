@@ -1,0 +1,118 @@
+// Design tokens for the architectural redesign (plan 0007 / ADR 0017): a single
+// DARK room theme — no light mode, no toggle. The warm sand bowl stays lit and
+// warm (its bowl/canvas shading is unchanged); only the room around it is dark.
+// A global side-effect stylesheet, imported once from main.tsx (boids' convention).
+
+// Spectral + Instrument Sans, self-hosted per plan T4.1 (no runtime Google
+// Fonts). Static per-weight latin subsets.
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/spectral-300.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/spectral-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/spectral-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/spectral-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/instrument-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/instrument-sans-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/instrument-sans-600.woff2') format('woff2');
+}
+
+:root {
+  // Type
+  --font-serif: 'Spectral', serif;
+  --font-sans: 'Instrument Sans', system-ui, sans-serif;
+
+  // Room — the dark spotlit space the composition sits in.
+  --room-bg: radial-gradient(90% 80% at 50% 34%, #2c231a 0%, #1c1712 55%, #120e0a 100%);
+
+  // Ink on dark. Each is verified ≥ AA on the room bg (see plan §7 / D7); the
+  // console rests slightly dimmed (opacity), so these must pass at full colour
+  // AND survive that dim — opacity is emphasis, never a way to hide low contrast.
+  --text: #ece4d4; // primary readouts
+  --text-word: #d0c5ad; // wordmark
+  --label: #bcb29a; // console labels at REST
+  --label-dim: #aca291; // faintest allowed resting text — clears AA at 0.82 console opacity over the whole room (D7)
+  --sub: #cfc6b2; // secondary body text (pills, hints)
+
+  // Accent — the one colour. Amber.
+  --accent: #d9a24b;
+  --accent-bright: #e6b45c;
+  --accent-soft: #eec27a;
+  --accent-glow: rgba(217, 162, 75, 0.5);
+  --on-accent: #241a10; // ink used ON an amber fill
+
+  // Hairlines / surfaces on dark
+  --hairline: rgba(255, 220, 170, 0.14);
+  --chip-line: rgba(255, 220, 170, 0.22);
+  --chip-bg: rgba(255, 234, 205, 0.05);
+  --chip-bg-hover: rgba(255, 234, 205, 0.1);
+  --pill-bg: rgba(255, 234, 205, 0.06);
+  --track: rgba(255, 220, 170, 0.16);
+
+  // Focus ring — an ink outline is invisible on dark, so focus is amber.
+  --focus-ring: var(--accent-bright);
+
+  // Sand bowl (warm, lit — the hero; unchanged spirit, restated for the dark frame)
+  --sand-bowl-bg: radial-gradient(circle at 50% 40%, #c8975c 0%, #a5703f 60%, #6e4a29 100%);
+  --sand-bowl-shadow: 0 46px 80px -30px rgba(0, 0, 0, 0.85), inset 0 4px 12px rgba(255, 225, 180, 0.3),
+    inset 0 -12px 30px rgba(40, 22, 8, 0.6), 0 0 0 1px rgba(255, 210, 150, 0.08);
+  --sand-canvas-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.4);
+
+  // Mechanism bowl (a smaller lit companion beside the hero)
+  --mech-bowl-bg: radial-gradient(circle at 50% 40%, #3a2c1c 0%, #160f09 100%);
+  --mech-bowl-shadow: 0 0 40px -8px rgba(217, 162, 75, 0.22), inset 0 3px 14px rgba(0, 0, 0, 0.6);
+
+  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+}
+
+// Keyboard-focus treatment on dark: an offset AMBER outline, applied per control
+// via `:focus-visible` (keyboard only, never on click). Repeated in each CSS
+// module — they compile in isolation, so a shared placeholder can't reach them.
+// Standard form:  &:focus-visible { outline: 2.5px solid var(--focus-ring); outline-offset: 2px; }
+// Sliders can't outline the thumb, so they ring it: box-shadow 0 0 0 3px var(--accent-glow).
+
+body {
+  background: var(--room-bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}

@@ -102,7 +102,9 @@ Every app:
 1. **App name** — `apps/<name>`, `package.json` name.
 2. **Subdomain** — `<name>.homeofed.com` (apex `homeofed.com` = `hub`).
 3. **Ports** — unique local dev port (`package.json` dev script) **and** CT
-   port (`playwright-ct.config.ts` `ctPort`).
+   port (`playwright-ct.config.ts` `ctPort`). Take the next-free row from the
+   port registry in [the how-to](docs/how-to/adding-an-app.md#1-create-the-app-both-paths)
+   and add your app to it — don't grep-and-guess (parallel branches collide).
 4. **Fly app** — `fly.toml` app name (human runs `fly apps create`).
 5. **Cloudflare** — proxied CNAME `<name> → <flyapp>.fly.dev`, Full (strict) TLS,
    Fly cert (human-run).

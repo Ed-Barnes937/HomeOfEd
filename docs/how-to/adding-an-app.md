@@ -75,8 +75,30 @@ Then change each touchpoint:
 | 6 | `compose.yml` (repo root) | Copy the `starter` service pattern as a new `<name>` service (build context `.`, dockerfile `apps/<name>/Dockerfile`, fresh host port). A stateless app has **one** service, `command: node src/server/main.ts`, no `DATABASE_URL`, no `depends_on`. |
 | 7 | `.github/workflows/deploy.yml` | Copy the `deploy-hub` job → `deploy-<name>`: the `APP_URL`, the affected check (`select(.name == "<name>")`), the `flyctl deploy --config apps/<name>/fly.toml` path, and the smoke `APP_URL`. |
 
-**Ports must be unique across all apps.** In use: hub `3000`/`3100`, starter
-`3001`/`3101`. Pick the next free pair (e.g. `3002`/`3102`).
+**Ports must be unique across all apps.** This registry is the single source of
+truth — read it, take the **next free** row, and add your app to it in the same
+PR. Do **not** grep the tree for "next free" and guess: two apps built on
+parallel branches will grep the same number and collide on merge (this is how
+`karesansui` and `hirameki` both landed on 3006 — see the ⚠ below).
+
+| App | dev | CT (`ctPort`) | compose host |
+|---|---|---|---|
+| `templates/starter` (copy base, never run live) | 3001 | 3101 | — |
+| `hub` | 3000 | 3100 | 8080 |
+| `boids` | 3001 | 3102 | 8081 |
+| `fridge` | 3002 | 3103 | 8082 |
+| `wotd` | 3003 | 3104 | 8083 |
+| `sprout` | 3004 | 3105 | 8084 |
+| `sprout-pipeline` (headless) | 3005 | — | 8085 |
+| `hirameki` | 3006 | 3106 | 8086 |
+| `karesansui` | 3007 | 3107 | 8087 |
+| **next free** | **3008** | **3108** | **8088** |
+
+> **⚠ Check unmerged branches too.** A port is "taken" the moment another
+> in-flight branch claims it, not just when it reaches `main`. Before taking the
+> next-free row, `git worktree list` / check open PRs for an app that grabbed it
+> first. When you add your app, bump the **next free** row so the following app
+> starts from the right number.
 
 The starter ships a `greeting` demo (handler, router, query, page, `.iwft` +
 unit test) so the copy is immediately testable. Replace it with your app's real
