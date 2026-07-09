@@ -38,10 +38,9 @@
 }
 
 .subtitle {
-  flex: 1 1 100%;
+  flex: 1 1 100%; // always its own (second) row
   margin: 8px 0 0;
-  max-width: 52ch;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--hirameki-muted);
 }
@@ -72,7 +71,13 @@
   overflow: hidden;
 }
 
+// Absolutely positioned so the canvas's intrinsic (backing-store) size never
+// feeds back into flex layout. In normal flow, growing `canvas.height` on a
+// resize can grow the page, which re-fires the ResizeObserver at a larger box
+// and ratchets the size up on the way back — taking it out of flow breaks that.
 .canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -84,9 +89,12 @@
   }
 }
 
-// --- Toolbar footer: padding wrapper; Toolbar.tsx owns the internal layout. ---
+// --- Toolbar footer: padding wrapper; Toolbar.tsx owns the internal layout.
+// `container-type: inline-size` lets the toolbar's `?` help hint mirror the
+// subtitle's visibility off the same 480px width threshold (spec §11.1). ---
 
 .toolbar {
+  container-type: inline-size;
   flex: none;
   padding: 14px 26px 22px;
 }

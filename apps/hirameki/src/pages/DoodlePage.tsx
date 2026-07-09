@@ -2,6 +2,12 @@ import { Toolbar } from '../features/controls/Toolbar.tsx'
 import { useDoodle } from '../features/doodle/useDoodle.ts'
 import styles from './DoodlePage.module.scss'
 
+/** The one-line "how to play" hint. Shown as the header subtitle on wider
+ * viewports; surfaced through the toolbar's `?` tooltip when the subtitle is
+ * hidden (narrow viewports). Single source so the two never drift. */
+export const HINT_TEXT =
+  'Add a few lines - legs, a tail, whiskers, a smile. Then give it eyes, and the ink comes alive.'
+
 /** Sketchbook shell (spec §11.1): header → canvas card → toolbar footer. */
 export function DoodlePage() {
   const { canvasRef, tool, setTool, nib, setNib, newPage, undo, canUndo, save } = useDoodle()
@@ -13,9 +19,8 @@ export function DoodlePage() {
           <h1 className={styles.wordmark}>
             ひらめき<span className={styles.label}>Hirameki</span>
           </h1>
-          <p className={styles.subtitle}>
-            Add a few lines — legs, a tail, whiskers, a smile. Then give it eyes, and the ink
-            comes alive.
+          <p className={styles.subtitle} data-testid="hint-subtitle">
+            {HINT_TEXT}
           </p>
         </div>
       </header>
@@ -41,6 +46,7 @@ export function DoodlePage() {
           undo={undo}
           canUndo={canUndo}
           save={save}
+          hint={HINT_TEXT}
         />
       </footer>
     </main>

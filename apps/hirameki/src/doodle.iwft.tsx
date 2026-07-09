@@ -132,6 +132,28 @@ test('prefers-reduced-motion renders the initial field immediately, without an a
   expect(alphaLog.every((alpha) => alpha === 1)).toBe(true)
 })
 
+test('wide viewport shows the subtitle and hides the ? help hint', async ({ mountApp, page }) => {
+  await page.setViewportSize({ width: 1000, height: 720 })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifySubtitleShown()
+  await root.verifyHelpHintHidden()
+})
+
+test('narrow viewport hides the subtitle and reveals the hint via the ? tooltip', async ({
+  mountApp,
+  page,
+}) => {
+  await page.setViewportSize({ width: 380, height: 720 })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifySubtitleHidden()
+  await root.verifyHelpHintShown()
+  await root.openHelpHintAndVerify('Add a few lines')
+})
+
 test('Save downloads the drawing via an anchor when the Web Share API is unavailable', async ({
   mountApp,
   page,

@@ -9,6 +9,9 @@ const SESSION_KEY = 'hirameki:doodle:v1'
 
 export class DoodlePagePom extends BasePage {
   private readonly canvas = this.page.getByTestId('doodle-canvas')
+  private readonly subtitle = this.page.getByTestId('hint-subtitle')
+  private readonly helpButton = this.page.getByRole('button', { name: 'How to play' })
+  private readonly tooltip = this.page.getByRole('tooltip')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.canvas).toBeVisible()
@@ -87,6 +90,31 @@ export class DoodlePagePom extends BasePage {
       'aria-disabled',
       'true',
     )
+  }
+
+  /** The header subtitle is hidden (via container query) on narrow viewports. */
+  async verifySubtitleHidden(): Promise<void> {
+    await expect(this.subtitle).toBeHidden()
+  }
+
+  async verifySubtitleShown(): Promise<void> {
+    await expect(this.subtitle).toBeVisible()
+  }
+
+  /** The `?` help button only renders when the subtitle is hidden. */
+  async verifyHelpHintShown(): Promise<void> {
+    await expect(this.helpButton).toBeVisible()
+  }
+
+  async verifyHelpHintHidden(): Promise<void> {
+    await expect(this.helpButton).toBeHidden()
+  }
+
+  /** Click the `?` and confirm its tooltip reveals the hint copy. */
+  async openHelpHintAndVerify(snippet: string): Promise<void> {
+    await this.helpButton.click()
+    await expect(this.tooltip).toBeVisible()
+    await expect(this.tooltip).toContainText(snippet)
   }
 
   /** Reads the localStorage session key a reload would restore from. */
