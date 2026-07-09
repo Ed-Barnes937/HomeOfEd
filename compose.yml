@@ -45,6 +45,16 @@ services:
     ports:
       - '8081:8080'
 
+  # karesansui has no database (ADR 0008) — one service, no depends_on, no
+  # migrate step. Pure client-side compute (plan 0006).
+  karesansui:
+    build:
+      context: .
+      dockerfile: apps/karesansui/Dockerfile
+    command: node src/server/main.ts
+    ports:
+      - '8086:8080'
+
   # wotd is database-backed (words shared across users, survive redeploys). Two
   # services: the app runs migrations then the server, backed by its own db.
   # ANTHROPIC_API_KEY is a real secret — supply it via a gitignored .env if you

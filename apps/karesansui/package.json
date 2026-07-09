@@ -1,0 +1,39 @@
+{
+  "name": "karesansui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "prettier": "@hoe/config/prettier",
+  "scripts": {
+    "dev": "vite --port 3006",
+    "build": "vite build",
+    "start": "node src/server/main.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && playwright test -c playwright-ct.config.ts"
+  },
+  "dependencies": {
+    "@hoe/backend-kit": "workspace:*",
+    "@hoe/logger": "workspace:*",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "^1.170.16",
+    "@trpc/client": "11.18.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@hoe/config": "workspace:*",
+    "@hoe/test-kit": "workspace:*",
+    "@playwright/experimental-ct-react": "1.61.1",
+    "@playwright/test": "1.61.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "eslint": "^9.39.2",
+    "prettier": "^3.8.0",
+    "sass-embedded": "^1.100.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.9"
+  }
+}

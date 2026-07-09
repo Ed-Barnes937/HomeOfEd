@@ -1,0 +1,48 @@
+.run {
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font: 600 14px var(--font-sans);
+  color: #fff;
+  background: var(--dark-fill);
+  box-shadow: var(--dark-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.18);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}
+
+.row {
+  display: flex;
+  gap: 9px;
+}
+
+.secondary {
+  flex: 1;
+  border: 1.5px solid var(--border-btn);
+  background: var(--card-bg);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 11px;
+  font: 500 12px var(--font-sans);
+  color: var(--sub);
+
+  &:hover:not(:disabled) {
+    background: var(--card-bg-hover);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}

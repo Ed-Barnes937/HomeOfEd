@@ -1,0 +1,55 @@
+.wrap {
+  margin-top: auto;
+}
+
+.label {
+  font: 500 9.5px var(--font-sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--label);
+  margin-bottom: 10px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--pill-bg);
+  border: 1.5px solid var(--border-soft);
+  border-radius: 20px;
+  padding: 5px 6px 5px 11px;
+}
+
+.name {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  font: 500 11px var(--font-sans);
+  color: var(--sub);
+}
+
+.remove {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(120, 85, 45, 0.14);
+  color: var(--sub-soft);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  padding: 0;
+}
+
+.empty {
+  font: 400 11px/1.5 var(--font-sans);
+  color: rgba(120, 85, 45, 0.6);
+}
