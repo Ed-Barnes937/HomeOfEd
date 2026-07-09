@@ -246,36 +246,36 @@ health/index verification. Safe to re-run after a partial failure — every
 step skips what already exists. G4.1–G4.8 above remain the manual reference
 for what the script does.
 
-## G4.10 — inksplat (DB-less app, go-live)
+## G4.10 — espy (DB-less app, go-live)
 
-inksplat (`apps/inksplat`) is a calm client-side doodling toy with no database
+espy (`apps/espy`) is a calm client-side doodling toy with no database
 ([ADR 0008](../adr/0008-apps-without-a-database.md)) — same shape as boids
 (G4.6): no `fly postgres attach`, no release_command.
 
-> **ℹ Temporary name.** `inksplat` is a placeholder (the original name was a
-> trademark risk). Rename the app, subdomain (`inksplat.homeofed.com`), and Fly
-> app (`hoe-inksplat`) before any public launch.
+> **ℹ Temporary name.** `espy` is a placeholder (the original name was a
+> trademark risk). Rename the app, subdomain (`espy.homeofed.com`), and Fly
+> app (`hoe-espy`) before any public launch.
 
 ```bash
-scripts/go-live.sh inksplat        # the scripted path (G4.9)
+scripts/go-live.sh espy        # the scripted path (G4.9)
 ```
 
 Or the manual equivalent:
 
 ```bash
-fly apps create hoe-inksplat       # must match apps/inksplat/fly.toml
-fly certs add inksplat.homeofed.com --app hoe-inksplat   # after first deploy
+fly apps create hoe-espy       # must match apps/espy/fly.toml
+fly certs add espy.homeofed.com --app hoe-espy   # after first deploy
 ```
 
-Cloudflare: proxied CNAME `inksplat → hoe-inksplat.fly.dev` (Full-strict TLS is
+Cloudflare: proxied CNAME `espy → hoe-espy.fly.dev` (Full-strict TLS is
 zone-wide already); grey-cloud any ACME record `fly certs add` asks for.
-`FLY_API_TOKEN` must cover `hoe-inksplat` (the org-scoped token from the boids
-go-live does; an app-scoped `hoe-hub` token fails the `deploy-inksplat` job).
+`FLY_API_TOKEN` must cover `hoe-espy` (the org-scoped token from the boids
+go-live does; an app-scoped `hoe-hub` token fails the `deploy-espy` job).
 
 Verify:
 
 ```bash
-curl -fsS https://hoe-inksplat.fly.dev/health           # → {"ok":true} — in-memory liveness, no DB
-curl -fsS https://inksplat.homeofed.com/health          # same, through Cloudflare
-open  https://inksplat.homeofed.com                      # a blot blooms; draw, add eyes, save
+curl -fsS https://hoe-espy.fly.dev/health           # → {"ok":true} — in-memory liveness, no DB
+curl -fsS https://espy.homeofed.com/health          # same, through Cloudflare
+open  https://espy.homeofed.com                      # a blot blooms; draw, add eyes, save
 ```
