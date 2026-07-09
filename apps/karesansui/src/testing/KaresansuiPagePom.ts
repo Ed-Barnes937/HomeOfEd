@@ -265,11 +265,11 @@ export class KaresansuiPagePom extends BasePage {
 
   // ---------- coupling (the mechanism pen rides the real geom curve) ----------
 
-  /** The mechanism's last-drawn pen point (mech canvas coords), via the seam. */
+  /** The mechanism's first cog marble point (mech canvas coords), via the seam. */
   async getMechPen(): Promise<[number, number]> {
     return this.sandCanvas.evaluate((el, key) => {
       const seam = (el as unknown as Record<string, RakeTestSeam>)[key]
-      return seam ? seam.getMechPen() : [0, 0]
+      return seam?.getMarblePens()[0] ?? [0, 0]
     }, RAKE_TEST_SEAM_KEY)
   }
 

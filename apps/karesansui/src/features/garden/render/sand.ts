@@ -1,37 +1,14 @@
 /**
- * Pure sand-drawing helpers — ported verbatim from the Studio reference
- * (`sandFill`, `clipCircle`, `trace`, `emboss`, `rakeStyle`, `rakeSegment`).
- * Each takes a `CanvasRenderingContext2D` and draws in CSS-pixel coordinates;
- * the caller owns the DPR transform and the clip lifecycle. No React.
- *
- * `shade` is not redefined here — the engine owns it (`engine/gears.ts`).
+ * Pure sand-drawing helpers for the "many pens, one garden" model (plan 0008),
+ * ported from the validated layout-spikes artifact. A flat single-colour bed
+ * (D7), one groove per cog (shadow + highlight + core — no tines), a gold marble
+ * at each groove's tip, and an optional clearing-rake wedge sweep. Each takes a
+ * `CanvasRenderingContext2D` and draws in CSS-pixel coordinates; the caller owns
+ * the DPR transform and the clip lifecycle. No React.
  */
-import type { RakePreset } from '../engine/rake.ts'
-
 type Point = [number, number]
 
-/** The three stroke colours + widths that make a carved groove read as embossed. */
-export interface EmbossStyle {
-  lw: number
-  spread: number
-  light: number
-  groove: string
-  shadow: string
-  highlight: string
-}
-
-/** Radial sand gradient plus ~1400 speckle grains, filling the whole canvas. */
-export function sandFill(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const g = ctx.createRadialGradient(w * 0.42, h * 0.4, w * 0.1, w * 0.5, h * 0.5, w * 0.72)
-  g.addColorStop(0, '#efe0bd')
-  g.addColorStop(1, '#d3b787')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, w, h)
-  for (let i = 0; i < 1400; i++) {
-    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,.045)' : 'rgba(90,66,36,.05)'
-    ctx.fillRect(Math.random() * w, Math.random() * h, 1.3, 1.3)
-  }
-}
+const TAU = Math.PI * 2
 
 /** Clip subsequent drawing to the circular sand bed inset 1px from the edge. */
 export function clipCircle(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -40,94 +17,119 @@ export function clipCircle(ctx: CanvasRenderingContext2D, w: number, h: number):
   ctx.clip()
 }
 
-/** Append a polyline (offset by `ox,oy`, centred at `cx,cy`) to the current path. */
-export function trace(
-  ctx: CanvasRenderingContext2D,
-  line: Point[],
-  ox: number,
-  oy: number,
-  cx: number,
-  cy: number,
-): void {
-  let started = false
-  for (const p of line) {
-    const x = p[0] + cx + ox
-    const y = p[1] + cy + oy
-    if (started) ctx.lineTo(x, y)
-    else {
-      ctx.moveTo(x, y)
-      started = true
-    }
-  }
-}
-
-/** Draw one groove as shadow + highlight + groove strokes for a carved look. */
-export function emboss(
-  ctx: CanvasRenderingContext2D,
-  line: Point[],
-  o: EmbossStyle,
-  cx: number,
-  cy: number,
-): void {
-  const L = o.light
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
+/**
+ * The flat single-colour sand bed (D7) — a warm sand fill with a touch of radial
+ * shading for depth only. Drawn large enough to cover the clip circle.
+ */
+export function gardenBed(ctx: CanvasRenderingContext2D, cx: number, cy: number, boardR: number): void {
+  const bg = ctx.createRadialGradient(cx, cy - boardR * 0.2, boardR * 0.1, cx, cy, boardR * 1.06)
+  bg.addColorStop(0, '#c89a5e')
+  bg.addColorStop(1, '#8f6435')
   ctx.beginPath()
-  trace(ctx, line, L, L, cx, cy)
-  ctx.strokeStyle = o.shadow
-  ctx.lineWidth = o.lw + o.spread
-  ctx.stroke()
-  ctx.beginPath()
-  trace(ctx, line, -L * 0.7, -L * 0.7, cx, cy)
-  ctx.strokeStyle = o.highlight
-  ctx.lineWidth = o.lw * 0.72
-  ctx.stroke()
-  ctx.beginPath()
-  trace(ctx, line, 0, 0, cx, cy)
-  ctx.strokeStyle = o.groove
-  ctx.lineWidth = o.lw
-  ctx.stroke()
-}
-
-/** Emboss colours for a rake preset — the fixed groove/shadow/highlight tones. */
-export function rakeStyle(rake: RakePreset): EmbossStyle {
-  return {
-    lw: rake.lw,
-    spread: rake.spread,
-    light: rake.light,
-    groove: 'rgba(118,90,52,.86)',
-    shadow: 'rgba(90,64,32,.34)',
-    highlight: 'rgba(255,249,233,.62)',
-  }
+  ctx.arc(cx, cy, boardR * 1.12, 0, TAU)
+  ctx.fillStyle = bg
+  ctx.fill()
 }
 
 /**
- * Carve the pattern between point indices `a..b` with the rake's `tines`
- * fingers, each offset along the per-point normal by `(t - half) * spacing`.
- * Starts one point before `a` so consecutive segments join seamlessly.
+ * One cog's groove, drawn from the start up to point index `upto` — three
+ * offset strokes (shadow, highlight, core) so it reads as a carved single line.
  */
-export function rakeSegment(
+export function drawGroove(
   ctx: CanvasRenderingContext2D,
   pts: Point[],
-  norm: Point[],
-  rake: RakePreset,
-  a: number,
-  b: number,
+  upto: number,
   cx: number,
   cy: number,
 ): void {
-  const o = rakeStyle(rake)
-  const half = (rake.tines - 1) / 2
-  const s = Math.max(0, a - 1)
-  for (let t = 0; t < rake.tines; t++) {
-    const off = (t - half) * rake.spacing
-    const line: Point[] = []
-    for (let i = s; i <= b; i++) {
-      const p = pts[i]
-      const nrm = norm[i]
-      if (!p || !nrm) continue
-      line.push([p[0] + nrm[0] * off, p[1] + nrm[1] * off])
+  const stroke = (dx: number, dy: number, col: string, lw: number): void => {
+    ctx.beginPath()
+    for (let i = 0; i <= upto; i++) {
+      const q = pts[i]
+      if (!q) continue
+      const x = q[0] + cx + dx
+      const y = q[1] + cy + dy
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
     }
-    emboss(ctx, line, o, cx, cy)
+    ctx.strokeStyle = col
+    ctx.lineWidth = lw
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.stroke()
+  }
+  stroke(0.7, 0.9, 'rgba(60,36,14,0.5)', 2.0) // groove shadow
+  stroke(-0.5, -0.6, 'rgba(255,240,212,0.38)', 1.1) // groove highlight
+  stroke(0, 0, 'rgba(60,36,14,0.4)', 0.8) // groove core
+}
+
+/** A single gold marble — one pen per cog, sitting at its groove's tip. */
+export function drawMarble(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.beginPath()
+  ctx.arc(x, y, 6.5, 0, TAU)
+  ctx.fillStyle = 'rgba(255,235,190,.22)'
+  ctx.fill()
+  const g = ctx.createRadialGradient(x - 1.5, y - 1.5, 0.5, x, y, 5)
+  g.addColorStop(0, '#fff3d8')
+  g.addColorStop(1, '#d9a24b')
+  ctx.beginPath()
+  ctx.arc(x, y, 4.6, 0, TAU)
+  ctx.fillStyle = g
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(30,18,6,.5)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+}
+
+/**
+ * The clearing rake (plan 0008 D4): a comb sweeping clockwise from the top,
+ * wiping the bed smooth behind it. `sweep` ∈ [0, 1] is the fraction of a full
+ * turn covered so far. Re-fills the swept wedge with fresh bed, then draws the
+ * comb head at the leading edge. Caller has already drawn the full grooves.
+ */
+export function clearingSweep(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  boardR: number,
+  sweep: number,
+): void {
+  const startA = -Math.PI / 2
+  const endA = startA + sweep * TAU
+  ctx.save()
+  ctx.beginPath()
+  ctx.moveTo(cx, cy)
+  ctx.arc(cx, cy, boardR * 1.08, startA, endA)
+  ctx.closePath()
+  ctx.clip()
+  gardenBed(ctx, cx, cy, boardR)
+  ctx.restore()
+  // The rake head at the leading edge.
+  const ux = Math.cos(endA)
+  const uy = Math.sin(endA)
+  const px = -uy
+  const py = ux
+  const r0 = boardR * 0.05
+  const r1 = boardR * 1.02
+  ctx.beginPath()
+  ctx.moveTo(cx + ux * r0, cy + uy * r0)
+  ctx.lineTo(cx + ux * r1, cy + uy * r1)
+  ctx.strokeStyle = 'rgba(40,24,8,.55)'
+  ctx.lineWidth = 3
+  ctx.lineCap = 'round'
+  ctx.stroke()
+  ctx.strokeStyle = 'rgba(255,236,192,.5)'
+  ctx.lineWidth = 1.2
+  ctx.stroke()
+  for (let k = 0; k < 5; k++) {
+    const rr = r0 + (r1 - r0) * (0.5 + k * 0.11)
+    const bx = cx + ux * rr
+    const by = cy + uy * rr
+    ctx.beginPath()
+    ctx.moveTo(bx - px * 5, by - py * 5)
+    ctx.lineTo(bx + px * 5, by + py * 5)
+    ctx.strokeStyle = 'rgba(40,24,8,.4)'
+    ctx.lineWidth = 1.4
+    ctx.stroke()
   }
 }

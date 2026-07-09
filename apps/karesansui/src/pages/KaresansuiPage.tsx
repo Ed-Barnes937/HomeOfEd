@@ -105,10 +105,10 @@ export function KaresansuiPage() {
   function handleSmooth(): void {
     if (running || smoothing) return
     setSmoothing(true)
-    rakeLoop.smooth()
+    rakeLoop.clear()
     // Mirrors the hook's internal sweep duration — there's no completion
-    // callback from `smooth()`, so the label/Run-lock times out alongside it.
-    setTimeout(() => setSmoothing(false), 1550)
+    // callback from `clear()`, so the label/Run-lock times out alongside it.
+    setTimeout(() => setSmoothing(false), 1800)
   }
 
   function handleSave(): void {

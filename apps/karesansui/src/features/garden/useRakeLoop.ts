@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
 
-import { geom } from './engine/geom.ts'
-import type { Geom } from './engine/geom.ts'
+import { gardenCurves, type Garden } from './engine/garden.ts'
 import type { GardenConfig } from './engine/state.ts'
 import { MechRenderer } from './render/MechRenderer.ts'
 import { SandRenderer } from './render/SandRenderer.ts'
@@ -10,9 +9,9 @@ export interface UseRakeLoopOptions {
   sandRef: RefObject<HTMLCanvasElement | null>
   mechRef: RefObject<HTMLCanvasElement | null>
   config: GardenConfig
-  /** Run/Pause button state from the page. */
+  /** Play/Pause button state from the page. */
   running: boolean
-  /** Called when a carve finishes so the page flips `running` back to false. */
+  /** Called when a (non-perpetual) draw finishes so the page flips `running` back. */
   onCarveComplete: () => void
 }
 
@@ -21,31 +20,32 @@ export const RAKE_TEST_SEAM_KEY = '__karesansuiTestSeam'
 
 /** Read from outside React — see RAKE_TEST_SEAM_KEY. */
 export interface RakeTestSeam {
-  /** Carve progress 0..1, for the `.iwft` to assert the carve advances. */
+  /** Draw progress 0..1, for the `.iwft` to assert the carve advances. */
   getProgress(): number
   getConfig(): GardenConfig
-  /** True once a carve has run to completion. */
+  /** True once a draw has run to completion (and is holding). */
   isCarved(): boolean
-  /** The mechanism's last-drawn pen point — asserts the mech tracks the carve. */
-  getMechPen(): [number, number]
+  /** Each cog's last-drawn marble point — asserts per-cog coupling (plan 0008). */
+  getMarblePens(): [number, number][]
 }
+
+/** Clearing-rake sweep duration (ms) — one comb pass over the bed. */
+const CLEAR_DUR = 1800
 
 /**
  * Owns the rAF loop and both canvases. Instantiates a `SandRenderer` +
  * `MechRenderer` in one canvas-keyed effect; React pushes `config`/`running`
- * changes in imperatively via refs (never by restarting the loop), exactly like
- * boids' `useSimulationLoop`.
+ * changes in imperatively via refs (never by restarting the loop), like boids'
+ * `useSimulationLoop`.
  *
- * All geometry and drawing is delegated to the engine (`geom`) and the
- * renderers — the hook owns lifecycle, timing, and the carve/pause/smooth state
- * machine only.
- *
- * Under `prefers-reduced-motion: reduce` the carve and smooth animations jump
- * straight to their finished state instead of sweeping — the pattern is the
- * point, the motion is not.
+ * The "many pens" state machine (plan 0008): **Play** draws all cogs' grooves;
+ * with the **clearing rake off** it holds the finished pattern; with it **on**
+ * it runs a perpetual draw → sweep-clear → redraw loop. **Clear** runs one
+ * clearing pass. Under `prefers-reduced-motion` the draw lands complete, the
+ * clear flattens instantly, and there is no perpetual loop.
  */
 export function useRakeLoop(opts: UseRakeLoopOptions): {
-  smooth(): void
+  clear(): void
   exportPNG(): void
 } {
   const configRef = useRef<GardenConfig>(opts.config)
@@ -55,7 +55,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
   // Closures wired up inside the canvas effect; null before the renderers exist.
   const applyRunningRef = useRef<((running: boolean) => void) | null>(null)
   const applyConfigRef = useRef<((config: GardenConfig) => void) | null>(null)
-  const smoothRef = useRef<(() => void) | null>(null)
+  const clearRef = useRef<(() => void) | null>(null)
   const exportRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
@@ -68,7 +68,6 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
   }, [opts.running])
 
   useEffect(() => {
-    // applyConfig updates configRef and decides invalidate vs. speed-only.
     applyConfigRef.current?.(opts.config)
   }, [opts.config])
 
@@ -84,13 +83,14 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
 
     // --- machine state (effect-local; the seam and closures read these) ---
     let boardR = 0
-    let currentGeom: Geom | null = null
-    // Carve in progress (begun, not yet complete): non-null while running or
-    // paused, null when idle or completed. Holds the elapsed time for resume.
-    let carve: { geom: Geom; duration: number; elapsed: number; lastTs: number } | null = null
+    let currentGarden: Garden | null = null
+    // A draw in progress: non-null while running or paused, null when idle/done.
+    let carve: { duration: number; elapsed: number; lastTs: number } | null = null
+    // A clearing sweep in progress. `loop` distinguishes the perpetual clear
+    // (redraws after) from a one-off manual Clear.
+    let clear: { duration: number; elapsed: number; lastTs: number; loop: boolean } | null = null
     let progress = 0
     let carved = false
-    let smoothing = false
     let rafId = 0
 
     const reducedMotion = (): boolean =>
@@ -108,25 +108,23 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
     }
 
     const drawStatic = (): void => {
-      if (!currentGeom) return
-      const config = configRef.current
-      sand.renderStatic(currentGeom, config.showPreview)
+      if (!currentGarden) return
+      sand.renderStatic(currentGarden, configRef.current.showPreview)
       mech.draw(0)
       progress = 0
     }
 
     // Reproduce a completed pattern in one pass — no animation (D6 resize).
     const drawCarvedFinal = (): void => {
-      if (!currentGeom) return
-      const config = configRef.current
-      sand.beginCarve(currentGeom, config.rake)
+      if (!currentGarden) return
+      sand.beginCarve(currentGarden)
       sand.carveTo(1)
       sand.finishCarve()
       mech.draw(1)
       progress = 1
+      carved = true
     }
 
-    // Repaint whatever the bed currently shows, without re-animating.
     const redrawCurrent = (): void => {
       if (carved) drawCarvedFinal()
       else drawStatic()
@@ -137,11 +135,13 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       sand.resize(size, dpr())
       mech.setPattern(configRef.current)
       mech.resize(size, dpr())
-      currentGeom = geom(configRef.current, boardR)
+      currentGarden = gardenCurves(configRef.current, boardR)
     }
 
+    // ---- draw phase ----
+
     const carveFrame = (ts: number): void => {
-      if (!carve || !currentGeom) return
+      if (!carve || !currentGarden) return
       carve.elapsed += ts - carve.lastTs
       carve.lastTs = ts
       progress = Math.min(1, carve.elapsed / carve.duration)
@@ -149,23 +149,27 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       mech.draw(progress)
       if (progress < 1) {
         rafId = requestAnimationFrame(carveFrame)
+        return
+      }
+      sand.finishCarve()
+      rafId = 0
+      carve = null
+      carved = true
+      // Clearing rake on ⇒ sweep the bed and draw again, forever.
+      if (configRef.current.clearingRake && runningRef.current) {
+        beginClear(true)
       } else {
-        sand.finishCarve()
-        rafId = 0
-        carve = null
-        carved = true
         onCompleteRef.current()
       }
     }
 
     const startCarve = (): void => {
-      if (!currentGeom) return
+      if (!currentGarden) return
       stopRaf()
-      const config = configRef.current
-      sand.beginCarve(currentGeom, config.rake)
+      sand.beginCarve(currentGarden)
       carved = false
       progress = 0
-      // Reduced motion: skip the sweep, land on the finished pattern at once.
+      // Reduced motion: land the finished pattern at once, no perpetual loop.
       if (reducedMotion()) {
         sand.carveTo(1)
         sand.finishCarve()
@@ -177,8 +181,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       }
       // brisk ≈ 1.5s → meditative ≈ 31s (reference startRake curve).
       carve = {
-        geom: currentGeom,
-        duration: 1500 + Math.pow((100 - config.speed) / 100, 1.7) * 30000,
+        duration: 1500 + Math.pow((100 - configRef.current.speed) / 100, 1.7) * 30000,
         elapsed: 0,
         lastTs: performance.now(),
       }
@@ -191,27 +194,67 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       rafId = requestAnimationFrame(carveFrame)
     }
 
-    // Cancel the loop but keep `carve` (held elapsed) for a later resume.
-    const pauseCarve = (): void => {
-      stopRaf()
+    // ---- clear phase ----
+
+    function clearFrame(ts: number): void {
+      if (!clear) return
+      clear.elapsed += ts - clear.lastTs
+      clear.lastTs = ts
+      const sweep = Math.min(1, clear.elapsed / clear.duration)
+      sand.clearTo(sweep)
+      mech.draw(1)
+      if (sweep < 1) {
+        rafId = requestAnimationFrame(clearFrame)
+        return
+      }
+      rafId = 0
+      const loop = clear.loop
+      clear = null
+      carved = false
+      if (loop && runningRef.current) {
+        startCarve()
+      } else {
+        drawStatic()
+      }
     }
 
-    // Cancel and discard the carve, popping the ctx save/clip beginCarve pushed.
+    function beginClear(loop: boolean): void {
+      stopRaf()
+      if (reducedMotion()) {
+        sand.clearTo(1)
+        carved = false
+        clear = null
+        if (loop && runningRef.current) startCarve()
+        else drawStatic()
+        return
+      }
+      clear = { duration: CLEAR_DUR, elapsed: 0, lastTs: performance.now(), loop }
+      rafId = requestAnimationFrame(clearFrame)
+    }
+
+    const resumeClear = (): void => {
+      if (!clear) return
+      clear.lastTs = performance.now()
+      rafId = requestAnimationFrame(clearFrame)
+    }
+
+    // Cancel and discard any in-flight draw/clear.
     const abortCarve = (): void => {
       stopRaf()
       if (carve) {
         sand.finishCarve()
         carve = null
       }
+      clear = null
     }
 
     applyRunningRef.current = (running: boolean): void => {
-      if (smoothing) return // Run is inert while a smoothing sweep is playing
       if (running) {
-        if (carve) resumeCarve()
+        if (clear) resumeClear()
+        else if (carve) resumeCarve()
         else startCarve()
-      } else if (carve) {
-        pauseCarve()
+      } else {
+        stopRaf() // keep carve/clear for a later resume
       }
     }
 
@@ -221,52 +264,28 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       const patternChanged =
         prev.ring !== next.ring ||
         prev.offset !== next.offset ||
-        prev.turns !== next.turns ||
-        prev.rake !== next.rake ||
         prev.wheels.length !== next.wheels.length ||
         prev.wheels.some((w, i) => w !== next.wheels[i])
       if (patternChanged) {
         abortCarve()
-        smoothing = false
         carved = false
         boardR = cssSize() * 0.46
-        currentGeom = geom(next, boardR)
+        currentGarden = gardenCurves(next, boardR)
         mech.setPattern(next)
         drawStatic()
         return
       }
-      // showPreview only affects the faint guide line drawn under the
-      // static/carved bed — never carveTo's drawing — so a running/paused
-      // carve is left untouched. Idle/carved beds get repainted to reflect it.
-      // Speed-only changes fall through here too: nothing to redraw.
-      if (prev.showPreview !== next.showPreview && !carve) {
+      // showPreview only affects the faint guide line — repaint idle/carved beds.
+      // Speed / clearingRake changes are read at the next phase boundary.
+      if (prev.showPreview !== next.showPreview && !carve && !clear) {
         redrawCurrent()
       }
     }
 
-    smoothRef.current = (): void => {
-      if (smoothing) return
+    clearRef.current = (): void => {
+      if (clear) return
       abortCarve()
-      carved = false
-      // Reduced motion: settle the bed flat immediately, no sweep.
-      if (reducedMotion()) {
-        sand.smoothStep(1)
-        return
-      }
-      smoothing = true
-      const dur = 1550
-      const start = performance.now()
-      const step = (now: number): void => {
-        const p = Math.min(1, (now - start) / dur)
-        sand.smoothStep(p)
-        if (p < 1) {
-          rafId = requestAnimationFrame(step)
-        } else {
-          rafId = 0
-          smoothing = false
-        }
-      }
-      rafId = requestAnimationFrame(step)
+      beginClear(false)
     }
 
     exportRef.current = (): void => {
@@ -286,16 +305,15 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       getProgress: () => progress,
       getConfig: () => configRef.current,
       isCarved: () => carved,
-      getMechPen: () => mech.getPenPoint(),
+      getMarblePens: () => mech.getMarbles(),
     }
     ;(sandCanvas as unknown as Record<string, RakeTestSeam>)[RAKE_TEST_SEAM_KEY] = seam
 
     const resizeObserver = new ResizeObserver((entries) => {
       const size = entries[0]?.contentRect.width
       if (!size) return
-      // A resize mid-carve would tear the clipped bed; abort and repaint the
-      // current state statically — resize never re-animates (D6).
-      if (carve) {
+      // A resize mid-draw would tear the bed; abort and repaint statically (D6).
+      if (carve || clear) {
         abortCarve()
         carved = false
       }
@@ -312,13 +330,13 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
       stopRaf()
       applyRunningRef.current = null
       applyConfigRef.current = null
-      smoothRef.current = null
+      clearRef.current = null
       exportRef.current = null
       delete (sandCanvas as unknown as Record<string, RakeTestSeam>)[RAKE_TEST_SEAM_KEY]
     }
   }, [opts.sandRef, opts.mechRef])
 
-  const smooth = useCallback((): void => smoothRef.current?.(), [])
+  const clear = useCallback((): void => clearRef.current?.(), [])
   const exportPNG = useCallback((): void => exportRef.current?.(), [])
-  return { smooth, exportPNG }
+  return { clear, exportPNG }
 }

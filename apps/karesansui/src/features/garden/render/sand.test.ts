@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { rakePresets } from '../engine/rake.ts'
-import { rakeSegment } from './sand.ts'
+import { gardenCurves } from '../engine/garden.ts'
+import { DEFAULT_CONFIG } from '../engine/state.ts'
+import { clearingSweep, drawGroove, drawMarble, gardenBed } from './sand.ts'
 import { SandRenderer } from './SandRenderer.ts'
 
 type Point = [number, number]
@@ -13,11 +14,14 @@ type Point = [number, number]
  */
 interface Recorder {
   strokes: number
+  fills: number
   beginPaths: number
+  clips: number
 }
 
 function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { strokes: 0, beginPaths: 0 }
+  const rec: Recorder = { strokes: 0, fills: 0, beginPaths: 0, clips: 0 }
+  const grad = { addColorStop: () => {} }
   const ctx = {
     lineJoin: '',
     lineCap: '',
@@ -29,35 +33,59 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     },
     moveTo: () => {},
     lineTo: () => {},
+    arc: () => {},
+    closePath: () => {},
     stroke: () => {
       rec.strokes++
     },
+    fill: () => {
+      rec.fills++
+    },
+    clip: () => {
+      rec.clips++
+    },
+    save: () => {},
+    restore: () => {},
     setTransform: () => {},
+    clearRect: () => {},
+    createRadialGradient: () => grad,
   } as unknown as CanvasRenderingContext2D
   return { ctx, rec }
 }
 
-describe('rakeSegment', () => {
+describe('drawGroove', () => {
   const pts: Point[] = Array.from({ length: 20 }, (_, i) => [i, i * 0.5])
-  const norm: Point[] = Array.from({ length: 20 }, () => [0, 1])
 
-  it('emboss-strokes each tine three times (shadow + highlight + groove)', () => {
-    for (const [id, preset] of Object.entries(rakePresets())) {
-      const { ctx, rec } = makeCtx()
-      rakeSegment(ctx, pts, norm, preset, 0, 19, 0, 0)
-      expect(rec.strokes, `rake=${id}`).toBe(preset.tines * 3)
-      expect(rec.beginPaths, `rake=${id}`).toBe(preset.tines * 3)
-    }
+  it('strokes a groove three times (shadow + highlight + core)', () => {
+    const { ctx, rec } = makeCtx()
+    drawGroove(ctx, pts, 19, 0, 0)
+    expect(rec.strokes).toBe(3)
+    expect(rec.beginPaths).toBe(3)
+  })
+})
+
+describe('gardenBed / drawMarble', () => {
+  it('gardenBed fills one radial bed', () => {
+    const { ctx, rec } = makeCtx()
+    gardenBed(ctx, 100, 100, 90)
+    expect(rec.fills).toBe(1)
   })
 
-  it('draws one polyline per tine (marble=1, wide=4, deep=3, fine=7)', () => {
-    const counts = { marble: 1, wide: 4, deep: 3, fine: 7 } as const
-    const presets = rakePresets()
-    for (const [id, tines] of Object.entries(counts)) {
-      const { ctx, rec } = makeCtx()
-      rakeSegment(ctx, pts, norm, presets[id as keyof typeof presets], 0, 19, 0, 0)
-      expect(rec.strokes / 3, `rake=${id}`).toBe(tines)
-    }
+  it('drawMarble fills two arcs (halo + ball) and strokes the rim', () => {
+    const { ctx, rec } = makeCtx()
+    drawMarble(ctx, 50, 50)
+    expect(rec.fills).toBe(2)
+    expect(rec.strokes).toBe(1)
+  })
+})
+
+describe('clearingSweep', () => {
+  it('clips the swept wedge, re-fills the bed, and combs the leading edge', () => {
+    const { ctx, rec } = makeCtx()
+    clearingSweep(ctx, 100, 100, 90, 0.5)
+    expect(rec.clips).toBe(1)
+    expect(rec.fills).toBe(1) // the re-filled bed wedge
+    expect(rec.strokes).toBeGreaterThan(0) // the comb head + teeth
   })
 })
 
@@ -86,6 +114,16 @@ describe('SandRenderer', () => {
     const renderer = new SandRenderer(canvas)
     renderer.resize(300, 3)
     expect(canvas.width).toBe(Math.round(300 * 2))
+  })
+
+  it('carveTo draws one groove per cog', () => {
+    const canvas = makeCanvas()
+    const renderer = new SandRenderer(canvas)
+    renderer.resize(500, 1)
+    const garden = gardenCurves({ ...DEFAULT_CONFIG, wheels: [52, 30, 24] }, 230)
+    renderer.beginCarve(garden)
+    renderer.carveTo(0.5)
+    expect(garden.curves.length).toBe(3)
   })
 
   it('toDataURL returns a PNG data url', () => {

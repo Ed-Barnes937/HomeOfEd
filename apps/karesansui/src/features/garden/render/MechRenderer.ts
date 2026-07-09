@@ -1,23 +1,16 @@
 /**
  * The mechanism canvas — a smaller lit companion beside the sand hero.
  *
- * Level-2 pen-fidelity (ADR 0018 amended, plan 0007 D4): the pen always sits on
- * the *true* `geom()` point, so it visibly leads the same curve the sand carves.
- *  - **1 cog** → an honest single-wheel spirograph: a wheel of radius `W0` at the
- *    real carrier position `(R−W0)·(cos t, sin t)`, spun by `−(R/W0)·t`, with the
- *    pen pinned at the geom point (which, for one wheel, lies on that wheel).
- *  - **2–3 cogs** → an honest epicycle arm-chain: `geom()` is a carrier plus one
- *    rotating term per wheel, so the mechanism is that same chain of arms with a
- *    pivot cog at each stage and the pen at the tip of the last arm — the pen is
- *    genuinely the end of the visible mechanism, not a point drawn beside it.
+ * Planetary model (plan 0008, ADR 0020): N cogs roll inside the ring, each on
+ * its own carrier and rigidly rotated by its phase, and each carries a single
+ * marble (its pen). The mechanism is the honest picture of the "many pens"
+ * garden — one gear + one marble per groove. It builds its cogs at the mech bowl
+ * radius, so the marbles trace the same *shape* as the sand grooves at a smaller
+ * *scale*. Owns its canvas + context; no React.
  *
- * The mechanism owns its own `geom()` fit to its bowl radius, so the pen path
- * fills the mech bowl — same *shape* as the sand groove, different *size*. Owns
- * its canvas + context; no React.
+ * `drawGear`/`drawRing` are ported verbatim from the Studio reference.
  */
-import { geom, type Geom } from '../engine/geom.ts'
-import { gearPalette, shade } from '../engine/gears.ts'
-import { rakePresets } from '../engine/rake.ts'
+import { gearPalette, fullTurns, shade } from '../engine/gears.ts'
 import type { GardenConfig } from '../engine/state.ts'
 import { clipCircle } from './sand.ts'
 
@@ -25,16 +18,27 @@ type Point = [number, number]
 
 const TAU = Math.PI * 2
 
+/** One cog's rolling geometry at the mech scale (rebuilt on config/resize). */
+interface Cog {
+  w: number
+  carrierAmp: number
+  a: number
+  f: number
+  cos: number
+  sin: number
+  tMax: number
+}
+
 export class MechRenderer {
   private readonly canvas: HTMLCanvasElement
   private readonly ctx: CanvasRenderingContext2D
   private cssSize = 0
   private mechR = 0
-  private penBoardR = 0
+  private scale = 1
   private cfg: GardenConfig | null = null
-  private penGeom: Geom | null = null
-  /** Last-drawn pen point (mech canvas coords) — read via the test seam. */
-  private lastPen: Point = [0, 0]
+  private cogs: Cog[] = []
+  /** Last-drawn marble points (mech canvas coords) — read via the test seam. */
+  private lastMarbles: Point[] = []
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d')
@@ -53,246 +57,95 @@ export class MechRenderer {
     this.refit()
   }
 
-  /** Cache the config and (re)build the mech-scale pen path. */
+  /** Cache the config and (re)build each cog's mech-scale rolling geometry. */
   setPattern(config: GardenConfig): void {
     this.cfg = config
     this.refit()
   }
 
-  /** The last pen point drawn, for the `.iwft` to assert the mech tracks the carve. */
-  getPenPoint(): Point {
-    return this.lastPen
+  /** The last marble points drawn — the `.iwft` asserts per-cog coupling. */
+  getMarbles(): Point[] {
+    return this.lastMarbles
   }
 
   private refit(): void {
     if (!this.cfg || this.cssSize <= 0) return
     this.mechR = this.cssSize * 0.46
-    // Fit the pen path comfortably inside the ring's inner radius (0.82·mechR).
-    this.penBoardR = this.mechR * 0.8
-    this.penGeom = geom(this.cfg, this.penBoardR)
+    const R = this.cfg.ring
+    const d = this.cfg.offset
+    const N = this.cfg.wheels.length
+    this.scale = this.mechR / R
+    this.cogs = this.cfg.wheels.map((w, i) => {
+      const phase = (i * TAU) / N
+      return {
+        w,
+        carrierAmp: R - w,
+        a: d * w,
+        f: (R - w) / w,
+        cos: Math.cos(phase),
+        sin: Math.sin(phase),
+        tMax: TAU * fullTurns(R, [w]),
+      }
+    })
   }
 
-  /**
-   * Draw the ring, the ghost + active pen path, the gear(s), and the arm + pen
-   * (with the rake-head indicator) at carve `progress` ∈ [0, 1].
-   */
+  /** The wheel centre for cog `c` at wheel-angle `tt`, in canvas coords. */
+  private wheelCentre(c: Cog, tt: number, cx: number, cy: number): Point {
+    const x = c.carrierAmp * Math.cos(tt)
+    const y = c.carrierAmp * Math.sin(tt)
+    return [cx + (x * c.cos - y * c.sin) * this.scale, cy + (x * c.sin + y * c.cos) * this.scale]
+  }
+
+  /** The marble (pen) for cog `c` at wheel-angle `tt`, in canvas coords. */
+  private marble(c: Cog, tt: number, cx: number, cy: number): Point {
+    const x = c.carrierAmp * Math.cos(tt) + c.a * Math.cos(c.f * tt)
+    const y = c.carrierAmp * Math.sin(tt) - c.a * Math.sin(c.f * tt)
+    return [cx + (x * c.cos - y * c.sin) * this.scale, cy + (x * c.sin + y * c.cos) * this.scale]
+  }
+
+  /** Draw the ring and each cog (gear + spoke + marble) at carve `progress`. */
   draw(progress: number): void {
     const ctx = this.ctx
     const w = this.cssSize
     ctx.clearRect(0, 0, w, w)
-    if (!this.cfg || !this.penGeom || this.penGeom.pts.length === 0) return
+    if (!this.cfg || this.cogs.length === 0) return
     const p = Math.max(0, Math.min(1, progress))
-    ctx.save()
-    clipCircle(ctx, w, w)
     const cx = w / 2
     const cy = w / 2
-
-    this.drawRing(ctx, cx, cy, this.mechR, this.cfg.ring, '#8a5f37')
-    this.drawPenPath(ctx, cx, cy, p)
-
-    if (this.cfg.wheels.length === 1) {
-      const pen = this.penPointAt(p)
-      this.lastPen = pen
-      const origin = this.drawSingleWheel(ctx, cx, cy, p)
-      this.drawArmAndPen(ctx, origin, pen)
-    } else {
-      this.lastPen = this.drawArmChain(ctx, cx, cy, p)
-    }
-
-    ctx.restore()
-  }
-
-  /** The true geom pen point at progress `p`, in canvas coords. */
-  private penPointAt(p: number): Point {
-    const pts = this.penGeom?.pts ?? []
-    const idx = Math.max(0, Math.min(pts.length - 1, Math.round(p * (pts.length - 1))))
-    const q = pts[idx] ?? [0, 0]
-    return [this.cssSize / 2 + q[0], this.cssSize / 2 + q[1]]
-  }
-
-  /** Faint full pen path (ghost) + the amber active path up to `p`. */
-  private drawPenPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, p: number): void {
-    const pts = this.penGeom?.pts ?? []
-    ctx.beginPath()
-    for (let i = 0; i < pts.length; i++) {
-      const q = pts[i] ?? [0, 0]
-      if (i === 0) ctx.moveTo(cx + q[0], cy + q[1])
-      else ctx.lineTo(cx + q[0], cy + q[1])
-    }
-    ctx.strokeStyle = 'rgba(230,180,92,0.13)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-
-    const upto = Math.max(1, Math.round(p * (pts.length - 1)))
-    ctx.beginPath()
-    for (let i = 0; i <= upto; i++) {
-      const q = pts[i] ?? [0, 0]
-      if (i === 0) ctx.moveTo(cx + q[0], cy + q[1])
-      else ctx.lineTo(cx + q[0], cy + q[1])
-    }
-    ctx.strokeStyle = 'rgba(230,180,92,0.5)'
-    ctx.lineWidth = 1.3
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.stroke()
-  }
-
-  /**
-   * One rolling wheel at the real carrier position, on the same scale as the pen
-   * path (so the pen sits on its rim). Returns the wheel centre for the arm.
-   */
-  private drawSingleWheel(ctx: CanvasRenderingContext2D, cx: number, cy: number, p: number): Point {
-    const cfg = this.cfg
-    const geomC = this.penGeom
-    if (!cfg || !geomC) return [cx, cy]
-    const R = cfg.ring
-    const W0 = cfg.wheels[0] ?? 1
-    const carrierAmp = R - W0
-    const a = cfg.offset * W0
-    // geom() scaled `raw / (maxReach·1.03)`; for one wheel maxReach = carrierAmp+a
-    // (at t=0), so this is exactly the scale it used — wheel + pen stay aligned.
-    const scale = this.penBoardR / ((carrierAmp + a) * 1.03)
-    const t = geomC.tMax * p
-    const wx = cx + carrierAmp * scale * Math.cos(t)
-    const wy = cy + carrierAmp * scale * Math.sin(t)
-    const wheelR = W0 * scale
-    const [, dark] = gearPalette(W0)
-    this.drawGear(ctx, wx, wy, wheelR, W0, dark, -(R / W0) * t)
-    return [wx, wy]
-  }
-
-  /**
-   * The honest epicycle arm-chain for 2–3 cogs. `geom()` is a sum of rotating
-   * vectors — a carrier plus one term per wheel — so the mechanism that draws it
-   * is that same chain of arms: wheel 0 rolls in the ring, and each further wheel
-   * adds a term whose pivot sits on the tip of the one before. The pen rides the
-   * tip of the last arm, so it is genuinely the end of the visible mechanism (no
-   * cheat arm to a separate point). Uses `geom()`'s own fit `scale`, so the pen
-   * lands exactly on the drawn pen path. Returns the pen point.
-   */
-  private drawArmChain(ctx: CanvasRenderingContext2D, cx: number, cy: number, p: number): Point {
-    const cfg = this.cfg
-    const geomC = this.penGeom
-    if (!cfg || !geomC) return [cx, cy]
-    const scale = geomC.scale
-    const R = cfg.ring
-    const W = cfg.wheels
-    const d = cfg.offset
-    const t = geomC.tMax * p
-
-    // Carrier arm: swings wheel 0 around inside the ring.
-    const W0 = W[0] ?? 1
-    let jx = cx + (R - W0) * scale * Math.cos(t)
-    let jy = cy + (R - W0) * scale * Math.sin(t)
-    this.drawArm(ctx, cx, cy, jx, jy)
-    const [, dark0] = gearPalette(W0)
-    this.drawGear(ctx, jx, jy, W0 * scale, W0, dark0, -(R / W0) * t)
-
-    // Each wheel adds one term (amplitude d·Wᵢ·0.56ⁱ, frequency ±(R−Wᵢ)/Wᵢ),
-    // matching geom() verbatim; term i pivots on the tip of term i−1.
-    let prevx = jx
-    let prevy = jy
-    for (let i = 0; i < W.length; i++) {
-      const wi = W[i] ?? 1
-      const f = ((R - wi) / wi) * (i % 2 === 0 ? 1 : -1)
-      const a = d * wi * Math.pow(0.56, i) * scale
-      // Stages after the first show a small pivot cog on the previous tip, so the
-      // chain reads as connected gearing rather than free-floating arms.
-      if (i >= 1) {
-        const [, dark] = gearPalette(wi)
-        this.drawGear(ctx, jx, jy, Math.max(a, 7), wi, dark, f * t)
-      }
-      const nx = jx + a * Math.cos(f * t)
-      const ny = jy - a * Math.sin(f * t)
-      this.drawArm(ctx, jx, jy, nx, ny)
-      prevx = jx
-      prevy = jy
-      jx = nx
-      jy = ny
-    }
-
-    const pen: Point = [jx, jy]
-    this.drawRakeHead(ctx, pen[0], pen[1], Math.atan2(jy - prevy, jx - prevx))
-    return pen
-  }
-
-  /** A single amber mechanism arm between two joints. */
-  private drawArm(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {
-    ctx.beginPath()
-    ctx.moveTo(x0, y0)
-    ctx.lineTo(x1, y1)
-    ctx.strokeStyle = 'rgba(255,220,170,0.45)'
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.stroke()
-  }
-
-  /** Arm from the driving cog to the true pen point, then the rake-head glyph. */
-  private drawArmAndPen(ctx: CanvasRenderingContext2D, origin: Point, pen: Point): void {
-    this.drawArm(ctx, origin[0], origin[1], pen[0], pen[1])
-    const dir = Math.atan2(pen[1] - origin[1], pen[0] - origin[0])
-    this.drawRakeHead(ctx, pen[0], pen[1], dir)
-  }
-
-  /** The rake-head indicator at the pen — a marble dot or a tine bar (ported). */
-  private drawRakeHead(ctx: CanvasRenderingContext2D, pinx: number, piny: number, dir: number): void {
-    const tn = rakePresets()[this.cfg?.rake ?? 'wide'].tines
     ctx.save()
-    ctx.beginPath()
-    ctx.arc(pinx, piny, 9, 0, TAU)
-    ctx.fillStyle = 'rgba(240,214,158,.16)'
-    ctx.fill()
-    ctx.restore()
-    if (tn === 1) {
-      const g = ctx.createRadialGradient(pinx - 1.6, piny - 1.6, 0.6, pinx, piny, 5.2)
-      g.addColorStop(0, '#fff8ea')
-      g.addColorStop(1, '#e6b45c')
+    clipCircle(ctx, w, w)
+    this.drawRing(ctx, cx, cy, this.mechR, this.cfg.ring, '#8a5f37')
+
+    const marbles: Point[] = []
+    for (const c of this.cogs) {
+      const tt = c.tMax * p
+      const wc = this.wheelCentre(c, tt, cx, cy)
+      const pen = this.marble(c, tt, cx, cy)
+      const [, dark] = gearPalette(c.w)
+      this.drawGear(ctx, wc[0], wc[1], c.w * this.scale, c.w, dark, -(this.cfg.ring / c.w) * tt)
+      // Spoke from the wheel centre to its marble.
       ctx.beginPath()
-      ctx.arc(pinx, piny, 5.2, 0, TAU)
+      ctx.moveTo(wc[0], wc[1])
+      ctx.lineTo(pen[0], pen[1])
+      ctx.strokeStyle = 'rgba(255,220,170,.4)'
+      ctx.lineWidth = 1.6
+      ctx.lineCap = 'round'
+      ctx.stroke()
+      // The marble.
+      const g = ctx.createRadialGradient(pen[0] - 1, pen[1] - 1, 0.4, pen[0], pen[1], 3.8)
+      g.addColorStop(0, '#fff3d8')
+      g.addColorStop(1, '#d9a24b')
+      ctx.beginPath()
+      ctx.arc(pen[0], pen[1], 3.4, 0, TAU)
       ctx.fillStyle = g
       ctx.fill()
-      ctx.strokeStyle = '#241a10'
-      ctx.lineWidth = 1.2
+      ctx.strokeStyle = 'rgba(30,18,6,.5)'
+      ctx.lineWidth = 0.9
       ctx.stroke()
-      return
+      marbles.push(pen)
     }
-    const showN = Math.min(tn, 5)
-    const bx = Math.cos(dir + Math.PI / 2)
-    const by = Math.sin(dir + Math.PI / 2)
-    const tx = Math.cos(dir)
-    const ty = Math.sin(dir)
-    const barL = 5 + showN * 3.1
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.moveTo(pinx - (bx * barL) / 2, piny - (by * barL) / 2)
-    ctx.lineTo(pinx + (bx * barL) / 2, piny + (by * barL) / 2)
-    ctx.strokeStyle = '#241a10'
-    ctx.lineWidth = 3.6
-    ctx.stroke()
-    ctx.strokeStyle = '#f4e6c6'
-    ctx.lineWidth = 1.9
-    ctx.stroke()
-    for (let i = 0; i < showN; i++) {
-      const f = showN === 1 ? 0 : i / (showN - 1) - 0.5
-      const ox = pinx + bx * barL * f
-      const oy = piny + by * barL * f
-      ctx.beginPath()
-      ctx.moveTo(ox, oy)
-      ctx.lineTo(ox + tx * 4.6, oy + ty * 4.6)
-      ctx.strokeStyle = '#241a10'
-      ctx.lineWidth = 2.4
-      ctx.stroke()
-      ctx.strokeStyle = '#e0b968'
-      ctx.lineWidth = 1.2
-      ctx.stroke()
-    }
-    ctx.beginPath()
-    ctx.arc(pinx, piny, 2.4, 0, TAU)
-    ctx.fillStyle = '#e0b968'
-    ctx.fill()
-    ctx.strokeStyle = '#241a10'
-    ctx.lineWidth = 1
-    ctx.stroke()
+    this.lastMarbles = marbles
+    ctx.restore()
   }
 
   /** One meshing cog: toothed rim, radial-gradient fill, hub, bolt holes, bore. */
