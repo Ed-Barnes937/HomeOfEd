@@ -38,13 +38,21 @@ them so the reasoning isn't lost once the guide itself is forgotten.
    and the first-touch experience unambiguous. A switcher is a future, not a
    v1, concern.
 
-3. **Blot variety enhancement — rotation + anisotropy.** `engine/blot.ts`
-   generation adds a random angular rotation offset (`theta0`) and independent
-   x/y scale factors (`0.82–1.18`) on top of the guide's jittered-radius
-   outline, so consecutive shuffles read as visibly different shapes. This was
-   necessary to clear the "divergent thinking" quality bar the product vision
-   demands and is asserted directly in `blot.test.ts` (point-count spread,
-   satellite-count spread, anisotropy ratio spread across a sample).
+3. **Blot variety — four archetypes with per-type knobs.** `engine/blot.ts`
+   picks one of four shape archetypes per blot — `blob` (organic round),
+   `streak` (elongated smear), `splatter` (compact core flinging many
+   droplets), `cluster` (core plus large overlapping lobes) — each with its own
+   named knob block in the exported `SHAPES` record (point count, radial
+   jitter, per-axis anisotropy, satellite/lobe ranges) so a single shape can be
+   dialled independently later without touching the others. A random rotation
+   offset (`theta0`) orients each shape's anisotropic frame. This supersedes
+   the original rotation-plus-mild-anisotropy-only enhancement: post-launch
+   feedback was that pages of near-uniform round blobs "look like faces", so the
+   generator now produces drastically different shapes on the same page.
+   `blot.test.ts` asserts each archetype's contract and cross-sample spread
+   (point count, satellite count, elongation). The `Blot` type, `render/surface.ts`,
+   and `session.ts` are unchanged — archetypes only change *how* the outline and
+   satellites are rolled, not the resolved shape they produce.
 
 4. **Session restore of the current drawing** — the one softening of
    "ephemeral." `session.ts` mirrors the live `Op[]` to a single `localStorage`
@@ -60,10 +68,13 @@ them so the reasoning isn't lost once the guide itself is forgotten.
    (`[1, 9]`, inverse size coupling) rather than switching at phone/tablet/
    desktop breakpoints; the header subtitle drops via a **container query**
    keyed to the header's own width (`DoodlePage.module.scss`), not an
-   `is-mobile` media query; and `useDoodle.save()` branches on
-   `navigator.canShare?.(...)` (Web Share if available, else an anchor
-   download) rather than on user-agent/device type. One continuous rule per
-   concern, not two discrete modes.
+   `is-mobile` media query; and `useDoodle.save()` branches on capability —
+   `navigator.maxTouchPoints > 0 && navigator.canShare?.(...)` for the native
+   share sheet, else an anchor download. The `maxTouchPoints` gate was added
+   after launch: on desktop (Mac/Windows) the share sheet offers no download
+   option, so touch-primary devices (phones, tablets) get Share and desktop
+   gets a direct download. One continuous capability rule per concern, not a
+   user-agent/device-type switch.
 
 6. **Sensory-safe as a first-class principle**, not an afterthought pass. The
    one-shot bloom-in ramp (`useDoodle.ts`, `useDoodle.helpers.ts`) checks

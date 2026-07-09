@@ -214,6 +214,7 @@ export function useDoodle(): UseDoodle {
       const viewBox: ViewBox = { width: cssSize.w, height: cssSize.h }
       history.push({ type: 'field', viewBox, blots: generateField(viewBox, Math.random) })
       bloom(history)
+      setToolState('pen') // a fresh page always starts on the pen (feedback)
       setCanUndo(history.canUndo)
       flushSave(history)
     }
@@ -235,7 +236,12 @@ export function useDoodle(): UseDoodle {
       if (!blob) return
       const file = new File([blob], 'espy.png', { type: 'image/png' })
       try {
-        if (navigator.canShare?.({ files: [file] })) {
+        // Prefer the native share sheet only on touch-primary devices (phones,
+        // tablets), where it offers Save-to-Files/Photos. On desktop (Mac,
+        // Windows) the share sheet has no download option — go straight to an
+        // anchor download instead (feedback: Mac save dialog can't download).
+        const canShareFiles = navigator.maxTouchPoints > 0 && navigator.canShare?.({ files: [file] })
+        if (canShareFiles) {
           await navigator.share({ files: [file], title: 'Espy' })
         } else {
           const url = URL.createObjectURL(blob)

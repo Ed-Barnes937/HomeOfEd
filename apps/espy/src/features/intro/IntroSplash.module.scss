@@ -1,0 +1,55 @@
+// Full-screen intro overlay. Never blocks input (pointer-events: none) so the
+// canvas warms underneath and an eager tap draws straight through.
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--espy-paper);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 400ms ease-out;
+}
+
+.leaving {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash {
+    transition: none;
+  }
+}
+
+.entry {
+  max-width: 30rem;
+  text-align: center;
+  color: var(--espy-text);
+}
+
+.word {
+  margin: 0;
+  font-family: var(--espy-font-display);
+  font-weight: 700;
+  font-size: 72px;
+  line-height: 1;
+}
+
+.pronunciation {
+  margin: 10px 0 0;
+  font-family: var(--espy-font-ui);
+  font-size: 18px;
+  color: var(--espy-muted);
+  font-style: italic;
+}
+
+.definition {
+  margin: 18px 0 0;
+  font-family: var(--espy-font-ui);
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--espy-text);
+}

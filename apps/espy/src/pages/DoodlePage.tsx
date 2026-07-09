@@ -1,5 +1,6 @@
 import { Toolbar } from '../features/controls/Toolbar.tsx'
 import { useDoodle } from '../features/doodle/useDoodle.ts'
+import { IntroSplash } from '../features/intro/IntroSplash.tsx'
 import styles from './DoodlePage.module.scss'
 
 /** The one-line "how to play" hint. Shown as the header subtitle on wider
@@ -14,6 +15,7 @@ export function DoodlePage() {
 
   return (
     <main className={styles.page}>
+      <IntroSplash />
       <header className={styles.header}>
         <div className={styles.titleBlock}>
           <h1 className={styles.wordmark}>espy</h1>

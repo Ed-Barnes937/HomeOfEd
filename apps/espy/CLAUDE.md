@@ -23,7 +23,7 @@ src/
     engine/                     PURE TS — no React, no DOM, no Canvas
       types.ts                  Op / Blot / Stroke / Eye / Point / ViewBox / Rng
       rng.ts                    mulberry32 seedable generator (deterministic tests)
-      blot.ts                   generateBlot(cx,cy,r,rng) — rotation + anisotropy
+      blot.ts                   generateBlot(cx,cy,r,rng[,archetype]) — 4 archetypes (blob/streak/splatter/cluster), per-type knobs in SHAPES
       field.ts                  generateField(viewBox,rng) — count/size/non-overlap placement
       eye.ts                    makeEye(x,y,base,rng)
       layout.ts                 blobCount(w,h) / blobRadiusFraction(count)
@@ -34,7 +34,10 @@ src/
     session.ts                  load/save current Op[] ↔ localStorage (single slot)
     useDoodle.ts                hook: sizing, pointer, history, bloom, save, seam
     useDoodle.helpers.ts        pure glue (bloomAlpha, initialOps) — unit-testable, no DOM
-  pages/DoodlePage.tsx / .module.scss   header → canvas card → toolbar footer
+  features/intro/
+    IntroSplash.tsx / .module.scss   one-shot "espy" definition splash on load
+                                     (~1.5s, pointer-events:none, reduced-motion aware)
+  pages/DoodlePage.tsx / .module.scss   intro splash → header → canvas card → toolbar footer
   features/controls/
     Toolbar.tsx / .module.scss
     ToolToggle.tsx               Pen | Eyes
