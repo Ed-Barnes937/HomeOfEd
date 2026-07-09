@@ -14,6 +14,7 @@ export interface GardenConfig {
   speed: number // 0..100 (maps to carve duration)
   turns: number // 1..fullTurns
   showPreview: boolean
+  clearingRake: boolean // when on, the loop draws → sweep-clears → redraws forever (plan 0008 D4)
 }
 
 export const DEFAULT_CONFIG: GardenConfig = {
@@ -24,6 +25,7 @@ export const DEFAULT_CONFIG: GardenConfig = {
   speed: 58,
   turns: 13,
   showPreview: true,
+  clearingRake: false,
 }
 
 /** Pin offset slider bounds (reference range 8..94, stored as 0.08..0.94). */

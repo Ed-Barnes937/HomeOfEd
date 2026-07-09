@@ -21,7 +21,7 @@ test('selecting a different ring updates the readout and resets rotations', asyn
   await root.verifySliderValue('rotations', `${prettyTurns(120, [52])} of ${full}`)
 })
 
-test('adding a cog updates the train label; a 3rd cog maxes out the dock', async ({ mountApp }) => {
+test('adding a cog updates the train label; a 4th cog maxes out the dock', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
@@ -30,11 +30,14 @@ test('adding a cog updates the train label; a 3rd cog maxes out the dock', async
 
   await root.addWheel(24)
   await root.verifyTrainLabel(3)
-  await root.verifyWheelDisabled(36)
-  await root.verifyNoTrainChip(3) // no 4th chip — the train stays capped at 3
+
+  await root.addWheel(36)
+  await root.verifyTrainLabel(4)
+  await root.verifyWheelDisabled(45)
+  await root.verifyNoTrainChip(4) // no 5th chip — the train stays capped at 4
 
   await root.removeWheel(0)
-  await root.verifyTrainLabel(2)
+  await root.verifyTrainLabel(3)
 })
 
 test('dragging offset/speed/rotations sliders updates their readouts', async ({ mountApp }) => {
