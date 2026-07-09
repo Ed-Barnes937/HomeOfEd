@@ -58,9 +58,8 @@ describe('gardenCurves', () => {
     // spirograph. Unscale both curves and compare the raw parametric points.
     const wheel = 52
     const config: GardenConfig = { ...DEFAULT_CONFIG, ring: 96, wheels: [wheel] }
-    const full = fullTurns(config.ring, [wheel])
     const garden = gardenCurves(config, BOARD_R)
-    const single = geom({ ...config, turns: full }, BOARD_R)
+    const single = geom(config, BOARD_R)
     const gc = garden.curves[0]!
     expect(gc.pts.length).toBe(single.pts.length)
     for (let i = 0; i < gc.pts.length; i += 41) {

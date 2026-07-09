@@ -1,10 +1,13 @@
 # karesansui
 
-枯山水 Karesansui — "Zen Gear Garden." A spirograph-as-zen-garden canvas toy:
-assemble a gear train (a ring + up to 3 wheels), pick a rake head, and turn the
-crank — a rake carves a hypotrochoid-family pattern into a circular sand bed,
-rendered on canvas with carved-groove shading. Pure client-side compute, no
-accounts, no server data. Lives at `karesansui.homeofed.com`.
+枯山水 Karesansui — "Zen Gear Garden." An automated zen-garden canvas toy:
+assemble a gear train (a ring + up to 4 cogs) and press Play — each cog is a
+planet rolling in the ring carrying its own single marble, and each marble
+grooves its own line into a circular sand bed, rendered on canvas with
+carved-groove shading. N cogs → N overlapping rosettes ("many pens, one garden"
+— [plan 0008](../../docs/plans/0008-karesansui-many-pens-model.md) /
+[ADR 0020](../../docs/adr/0020-karesansui-many-pens-model.md)). Pure client-side
+compute, no accounts, no server data. Lives at `karesansui.homeofed.com`.
 
 The UI is a dark, quiet "room": the warm sand bowl is spotlit as the hero, a
 smaller lit **mechanism** bowl sits beside it, and the controls dissolve into a
@@ -33,34 +36,33 @@ commands, and scoped rules.
 ## Features
 
 - **Ring picker** — 3 annulus sizes (96 / 120 / 144 teeth).
-- **Gear train** — dock up to 3 wheels; each adds a term to the pattern and a
-  colour to the mechanism.
-- **4 rake heads** — marble, wide, deep, fine — each a different tine count/
-  spacing/groove-depth preset.
-- **Tune popover** — a `Tune ▾` disclosure holding the pin-offset, speed, and
-  rotations sliders. Offset shapes the pattern, speed sets the carve's pace
-  (brisk ≈1.5s → meditative ≈31s), rotations caps how many carrier revolutions
-  are drawn (a legible default, up to the pattern's true period).
-- **Preview toggle** — a faint guide line under the uncarved bed.
-- **Run / Pause** — carve the pattern; pause and resume mid-carve.
-- **Smooth** — sweep the sand level again, ready for a fresh carve.
-- **Save + Saved tray** — save up to 8 setups (persisted to `localStorage`);
-  they appear in a slide-up tray at the bottom edge, load on tap, delete with ×.
-- **Export PNG** — downloads the sand bed as `karesansui.png`.
+- **Gear train** — dock up to 4 cogs; **each cog is a pen** — it adds its own
+  groove to the bed and its own gear + marble to the mechanism.
+- **Tune popover** — a `Tune ▾` disclosure holding the global pin-offset and
+  speed sliders. Offset scales every marble; speed sets the draw's pace
+  (brisk ≈1.5s → meditative ≈31s). Each cog runs its full period.
+- **Clearing rake** — a toggle; when on, the machine draws, sweeps the bed
+  smooth, and draws again forever. Off by default (draw once and hold).
+- **Preview toggle** — a faint guide line of every cog's path under the bed.
+- **Play / Pause** — draw the pattern; pause and resume mid-draw.
+- **Clear** — one clearing-rake pass, sweeping the sand level again.
+- **Save + presets menu** — save up to 8 setups (persisted to `localStorage`);
+  they appear in a burger menu, load on tap, rename inline (✎), delete with ×.
+- **Download** — downloads the sand bed as `karesansui.png`.
 
 Below ~760px the stage stacks to a single column, **sand hero first**, and the
 Tune popover becomes a bottom sheet.
 
 ## Fidelity
 
-The pattern math (`geom()`), rake/emboss shading, and `drawGear`/`drawRing`/the
-multi-cog cluster are ported verbatim from the Studio reference for a
-pixel-accurate match. The mechanism is **Level-2 pen-fidelity**: its pen rides
-the *true* `geom()` point every frame (1 cog = an honest single-wheel
-spirograph; 2–3 cogs = the illustrative cluster with an arm to the exact pen), so
-the pen matches the sand groove's shape at a smaller scale. Full physical gearing
-for multi-cog trains is still deferred. See
-[ADR 0018](../../docs/adr/0018-karesansui-geometry-fidelity.md) (amended),
-[ADR 0019](../../docs/adr/0019-karesansui-architectural-redesign.md), and the
-plans [0006](../../docs/plans/0006-karesansui-implementation-plan.md) /
-[0007](../../docs/plans/0007-karesansui-architectural-redesign.md).
+The single-wheel spirograph maths (`gardenCurves`), the groove/marble/bed
+drawing, and `drawGear`/`drawRing` follow the Studio reference. The model is
+**many pens, one garden** ([ADR 0020](../../docs/adr/0020-karesansui-many-pens-model.md)):
+each cog is an independent planet carrying one marble, and the mechanism draws N
+cogs + marbles — every marble sits on its own gear. The earlier summed-cosine
+`geom()` and epicycle arm-chain are retired (superseded parts of ADR 0018/0019);
+`geom()` survives only as the N=1 reference. Full physical cog-on-cog compound
+gearing is a possible future model. See the plans
+[0006](../../docs/plans/0006-karesansui-implementation-plan.md) /
+[0007](../../docs/plans/0007-karesansui-architectural-redesign.md) /
+[0008](../../docs/plans/0008-karesansui-many-pens-model.md).

@@ -1,4 +1,5 @@
-import { fullTurns, prettyTurns } from './features/garden/engine/gears.ts'
+import { expect } from '@playwright/experimental-ct-react'
+
 import { test } from './testing/iwftTest.tsx'
 
 test('the karesansui studio page renders sized sand + mech canvases', async ({ mountApp }) => {
@@ -6,19 +7,13 @@ test('the karesansui studio page renders sized sand + mech canvases', async ({ m
   await root.verifyIsShown()
 })
 
-test('selecting a different ring updates the readout and resets rotations', async ({ mountApp }) => {
+test('selecting a different ring updates the readout', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-
-  // Move rotations off its default first so the ring change's reset is observable.
-  await root.dragSlider('rotations', 5)
-  await root.verifySliderValue('rotations', `5 of ${fullTurns(96, [52])}`)
 
   await root.selectRing(120)
 
   await root.verifyRingLabel(120)
-  const full = fullTurns(120, [52])
-  await root.verifySliderValue('rotations', `${prettyTurns(120, [52])} of ${full}`)
 })
 
 test('adding a cog updates the train label; a 4th cog maxes out the dock', async ({ mountApp }) => {
@@ -40,7 +35,18 @@ test('adding a cog updates the train label; a 4th cog maxes out the dock', async
   await root.verifyTrainLabel(3)
 })
 
-test('dragging offset/speed/rotations sliders updates their readouts', async ({ mountApp }) => {
+test('each cog carries its own marble (one pen per cog)', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.addWheel(30)
+  await root.addWheel(24)
+
+  // 3 cogs ⇒ the mechanism draws 3 marbles (settles after the repaint).
+  await expect.poll(() => root.getMarbleCount()).toBe(3)
+})
+
+test('dragging offset/speed sliders updates their readouts', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
@@ -49,53 +55,50 @@ test('dragging offset/speed/rotations sliders updates their readouts', async ({ 
 
   await root.dragSlider('speed', 80)
   await root.verifySliderValue('speed', 'brisk')
-
-  await root.dragSlider('rotations', 7)
-  await root.verifySliderValue('rotations', `7 of ${fullTurns(96, [52])}`)
 })
 
-test('picking a rake head marks it selected and deselects the others', async ({ mountApp }) => {
+test('the clearing-rake toggle flips its checked state', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.selectRake('deep')
-
-  await root.verifyRakeSelected('deep')
+  await root.verifyClearingRakeChecked(false)
+  await root.toggleClearingRake()
+  await root.verifyClearingRakeChecked(true)
 })
 
-test('Run advances the carve to completion', async ({ mountApp }) => {
+test('Play advances the draw to completion', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.dragSlider('speed', 100) // brisk ≈1.5s carve — keeps the test quick
-  await root.clickRun()
+  await root.dragSlider('speed', 100) // brisk ≈1.5s draw — keeps the test quick
+  await root.clickPlay()
 
   await root.verifyProgressAdvancesPast(0)
   await root.verifyCarveCompletes()
 })
 
-test('toggling the preview during a carve does not abort it (fix #4)', async ({ mountApp }) => {
+test('toggling the preview during a draw does not abort it (fix #4)', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.clickRun() // default speed — several seconds of runway
+  await root.clickPlay() // default speed — several seconds of runway
   const advanced = await root.verifyProgressAdvancesPast(0)
 
   await root.togglePreview()
 
-  // The carve must keep advancing past where it was, not reset or stall.
+  // The draw must keep advancing past where it was, not reset or stall.
   await root.verifyProgressAdvancesPast(advanced)
 })
 
-test('Smooth runs without error and re-enables the button afterward', async ({ mountApp }) => {
+test('Clear runs without error and re-enables the button afterward', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.clickSmooth()
-  await root.verifySmoothEnabled()
+  await root.clickClear()
+  await root.verifyClearEnabled()
 })
 
-test('Save adds a preset pill and persists it to localStorage', async ({ mountApp }) => {
+test('Save adds a preset and persists it to localStorage', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
@@ -105,24 +108,33 @@ test('Save adds a preset pill and persists it to localStorage', async ({ mountAp
   await root.verifyPersistedPresetCount(1)
 })
 
-test('loading a preset restores its saved rotations, not a re-derived value (fix #3)', async ({
-  mountApp,
-}) => {
+test('loading a preset restores its saved offset', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.dragSlider('rotations', 5) // distinctive — below prettyTurns(96,[52])'s 13
+  await root.dragSlider('offset', 30) // distinctive, off the 0.66 default
   await root.clickSave()
 
   await root.selectRing(120) // change the config away from the saved preset
 
   await root.loadPreset(0)
 
-  // Saved turns (5), not prettyTurns(96,[52]) (13) which the bug re-derived.
-  await root.verifySliderValue('rotations', `5 of ${fullTurns(96, [52])}`)
+  await root.verifySliderValue('offset', '0.30 r')
 })
 
-test('deleting a preset removes its pill', async ({ mountApp }) => {
+test('renaming a preset updates its label', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.clickSave()
+  await root.verifyPresetVisible(0)
+
+  await root.renamePreset(0, 'Morning garden')
+
+  await root.verifyPresetName(0, 'Morning garden')
+})
+
+test('deleting a preset removes it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
@@ -134,11 +146,11 @@ test('deleting a preset removes its pill', async ({ mountApp }) => {
   await root.verifyPresetAbsent(0)
 })
 
-test('Export triggers a karesansui.png download', async ({ mountApp }) => {
+test('Download triggers a karesansui.png download', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.verifyExportDownloadsPng()
+  await root.verifyDownloadDownloadsPng()
 })
 
 test('the sand canvas is exposed as a labelled image; the mech canvas is hidden', async ({
@@ -151,7 +163,7 @@ test('the sand canvas is exposed as a labelled image; the mech canvas is hidden'
   await root.verifyMechCanvasHidden()
 })
 
-test('under prefers-reduced-motion, Run lands the finished pattern without animating', async ({
+test('under prefers-reduced-motion, Play lands the finished pattern without animating', async ({
   mountApp,
   page,
 }) => {
@@ -160,7 +172,7 @@ test('under prefers-reduced-motion, Run lands the finished pattern without anima
   await root.verifyIsShown()
 
   // Default speed would animate for ~8s; reduced motion completes at once.
-  await root.clickRun()
+  await root.clickPlay()
   await root.verifyCarveCompletes()
 })
 
@@ -201,17 +213,17 @@ test('the Tune popover closes on an outside click', async ({ mountApp }) => {
   await root.verifyTuneClosed()
 })
 
-test('the Saved tray is absent until a preset exists, then reveals the pill', async ({
+test('the presets menu is absent until a preset exists, then reveals the entry', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.verifyTrayAbsent()
+  await root.verifyMenuAbsent()
 
   await root.clickSave()
 
-  await root.verifyPresetVisible(0) // openTray + pill visible
+  await root.verifyPresetVisible(0) // openMenu + entry visible
 })
 
 test('the console brightens when a control is focused (D8 keyboard reveal)', async ({
@@ -223,14 +235,14 @@ test('the console brightens when a control is focused (D8 keyboard reveal)', asy
   await root.verifyConsoleRevealsOnFocus()
 })
 
-test('the mechanism pen tracks the carve (Level-2 coupling)', async ({ mountApp }) => {
+test('each cog marble tracks the draw (per-cog coupling)', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.dragSlider('speed', 100) // brisk carve keeps the test quick
+  await root.dragSlider('speed', 100) // brisk draw keeps the test quick
   const penBefore = await root.getMechPen()
 
-  await root.clickRun()
+  await root.clickPlay()
 
   await root.verifyMechPenMovedFrom(penBefore)
 })

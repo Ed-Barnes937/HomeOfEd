@@ -1,6 +1,6 @@
 # 0008 — karesansui: "many pens, one garden" model (automated zen garden)
 
-- **Status:** Accepted (2026-07-09) — all §9 decisions confirmed; implementing in its own PR, stacked on [0007](0007-karesansui-architectural-redesign.md)/#28.
+- **Status:** Implemented (2026-07-09) — all §9 decisions confirmed; shipped in PR #32 (ADR [0020](../adr/0020-karesansui-many-pens-model.md)).
 - **Date:** 2026-07-09
 - **Validated by:** the "Many pens" section of the layout-spikes artifact
   (draw → clearing-rake sweep → settle).

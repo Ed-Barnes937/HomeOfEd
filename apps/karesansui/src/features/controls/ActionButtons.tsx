@@ -1,53 +1,53 @@
 import styles from './ActionButtons.module.scss'
 
 export interface ActionButtonsProps {
-  /** Actively carving (drives the rAF loop right now). */
+  /** Actively drawing (drives the rAF loop right now). */
   running: boolean
-  /** A carve has started but is not currently running (paused, awaiting resume). */
+  /** A draw has started but is not currently running (paused, awaiting resume). */
   paused: boolean
-  /** A smoothing sweep is in flight — Run is inert until it finishes. */
-  smoothing: boolean
-  onRun: () => void
-  onSmooth: () => void
+  /** A clearing sweep is in flight — Play is inert until it finishes. */
+  clearing: boolean
+  onPlay: () => void
+  onClear: () => void
   onSave: () => void
-  onExport: () => void
+  onDownload: () => void
 }
 
-/** Run/Pause primary button + Smooth / Save / Export secondaries. */
+/** Play/Pause primary button + Clear / Save / Download secondaries (plan 0008 D5). */
 export function ActionButtons({
   running,
   paused,
-  smoothing,
-  onRun,
-  onSmooth,
+  clearing,
+  onPlay,
+  onClear,
   onSave,
-  onExport,
+  onDownload,
 }: ActionButtonsProps) {
-  const runLabel = running ? '❚❚  Pause' : paused ? '▸  Resume raking' : '▸  Rake the sand'
-  const smoothLabel = smoothing ? 'Smoothing…' : 'Smooth'
+  const playLabel = running ? '❚❚  Pause' : paused ? '▸  Resume' : '▸  Play'
+  const clearLabel = clearing ? 'Clearing…' : 'Clear'
 
   return (
     <>
       <button
         type="button"
         className={styles.run}
-        data-testid="run-button"
-        aria-label={runLabel}
-        disabled={smoothing}
-        onClick={onRun}
+        data-testid="play"
+        aria-label={playLabel}
+        disabled={clearing}
+        onClick={onPlay}
       >
-        {runLabel}
+        {playLabel}
       </button>
       <div className={styles.row}>
         <button
           type="button"
           className={styles.secondary}
-          data-testid="smooth-button"
-          aria-label={smoothLabel}
-          disabled={running || smoothing}
-          onClick={onSmooth}
+          data-testid="clear-button"
+          aria-label={clearLabel}
+          disabled={running || clearing}
+          onClick={onClear}
         >
-          {smoothLabel}
+          {clearLabel}
         </button>
         <button
           type="button"
@@ -61,11 +61,11 @@ export function ActionButtons({
         <button
           type="button"
           className={styles.secondary}
-          data-testid="export-button"
-          aria-label="Export PNG"
-          onClick={onExport}
+          data-testid="download-button"
+          aria-label="Download PNG"
+          onClick={onDownload}
         >
-          ↓ PNG
+          ↓ Download
         </button>
       </div>
     </>

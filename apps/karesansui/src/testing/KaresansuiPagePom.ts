@@ -2,11 +2,9 @@ import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 import type { Locator } from '@playwright/test'
 
-import type { RakeId } from '../features/garden/engine/state.ts'
 import { RAKE_TEST_SEAM_KEY, type RakeTestSeam } from '../features/garden/useRakeLoop.ts'
 
-const RAKE_IDS: RakeId[] = ['marble', 'wide', 'deep', 'fine']
-const STORAGE_KEY = 'karesansui:presets:v1'
+const STORAGE_KEY = 'karesansui:presets:v2'
 
 /** Whole-page POM for the studio — every control + the sand canvas' test seam. */
 export class KaresansuiPagePom extends BasePage {
@@ -14,14 +12,15 @@ export class KaresansuiPagePom extends BasePage {
   private readonly console = this.page.getByTestId('console')
   private readonly sandCanvas = this.page.getByTestId('sand-canvas')
   private readonly mechCanvas = this.page.getByTestId('mech-canvas')
-  private readonly runButton = this.page.getByTestId('run-button')
-  private readonly smoothButton = this.page.getByTestId('smooth-button')
+  private readonly playButton = this.page.getByTestId('play')
+  private readonly clearButton = this.page.getByTestId('clear-button')
   private readonly saveButton = this.page.getByTestId('save-button')
-  private readonly exportButton = this.page.getByTestId('export-button')
+  private readonly downloadButton = this.page.getByTestId('download-button')
   private readonly previewToggle = this.page.getByTestId('preview-toggle')
+  private readonly clearingRakeToggle = this.page.getByTestId('clearing-rake-toggle')
   private readonly tuneButton = this.page.getByTestId('tune-button')
   private readonly tunePanel = this.page.getByTestId('tune-panel')
-  private readonly trayToggle = this.page.getByTestId('tray-toggle')
+  private readonly presetsMenu = this.page.getByTestId('presets-menu')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.root).toBeVisible()
@@ -41,7 +40,7 @@ export class KaresansuiPagePom extends BasePage {
   /** The sand output is the app's result — it must carry an image role + label. */
   async verifySandCanvasLabelled(): Promise<void> {
     await expect(this.sandCanvas).toHaveAttribute('role', 'img')
-    await expect(this.sandCanvas).toHaveAttribute('aria-label', /sand garden raked from/i)
+    await expect(this.sandCanvas).toHaveAttribute('aria-label', /sand garden grooved by/i)
   }
 
   /** The mechanism canvas is decorative — hidden from assistive tech. */
@@ -59,7 +58,7 @@ export class KaresansuiPagePom extends BasePage {
     await expect(this.page.getByText(`${teeth} teeth`, { exact: true })).toBeVisible()
   }
 
-  // ---------- gear train ----------
+  // ---------- gear train (each cog is a pen) ----------
 
   async addWheel(teeth: number): Promise<void> {
     await this.page.getByTestId(`wheel-${teeth}`).click()
@@ -70,7 +69,7 @@ export class KaresansuiPagePom extends BasePage {
   }
 
   async verifyTrainLabel(cogs: number): Promise<void> {
-    const text = cogs === 1 ? '1 cog' : `${cogs} cogs`
+    const text = cogs === 1 ? '1 cog · 1 marble' : `${cogs} cogs · ${cogs} marbles`
     await expect(this.page.getByText(text, { exact: true })).toBeVisible()
   }
 
@@ -85,7 +84,7 @@ export class KaresansuiPagePom extends BasePage {
     await expect(wheel).toHaveCSS('opacity', '0.32')
   }
 
-  // ---------- tune popover (holds the offset / speed / rotations sliders) ----------
+  // ---------- tune popover (holds the offset / speed sliders) ----------
 
   /** Ensure the Tune popover is open — a real toggle, so only click when closed. */
   async openTune(): Promise<void> {
@@ -116,10 +115,10 @@ export class KaresansuiPagePom extends BasePage {
     await this.page.getByText('Karesansui', { exact: true }).click()
   }
 
-  // ---------- sliders (offset / speed / rotations) ----------
+  // ---------- sliders (offset / speed) ----------
 
   /** Sets a range input's value the way a real drag would: native setter + input/change events. */
-  async dragSlider(name: 'offset' | 'speed' | 'rotations', value: number): Promise<void> {
+  async dragSlider(name: 'offset' | 'speed', value: number): Promise<void> {
     await this.openTune()
     await this.page.getByTestId(`slider-${name}`).evaluate((el, v) => {
       const input = el as HTMLInputElement
@@ -130,36 +129,29 @@ export class KaresansuiPagePom extends BasePage {
     }, value)
   }
 
-  async verifySliderValue(name: 'offset' | 'speed' | 'rotations', expected: string): Promise<void> {
+  async verifySliderValue(name: 'offset' | 'speed', expected: string): Promise<void> {
     await this.openTune() // an intervening control click may have dismissed the popover
     await expect(this.page.getByTestId(`slider-${name}-value`)).toHaveText(expected)
   }
 
-  // ---------- rake picker ----------
-
-  async selectRake(id: RakeId): Promise<void> {
-    await this.page.getByTestId(`rake-${id}`).click()
-  }
-
-  async verifyRakeSelected(id: RakeId): Promise<void> {
-    for (const other of RAKE_IDS) {
-      await expect(this.page.getByTestId(`rake-${other}`)).toHaveAttribute(
-        'aria-pressed',
-        String(other === id),
-      )
-    }
-  }
-
-  // ---------- preview toggle ----------
+  // ---------- preview / clearing-rake toggles ----------
 
   async togglePreview(): Promise<void> {
     await this.previewToggle.click()
   }
 
-  // ---------- run / carve (via the RAKE_TEST_SEAM_KEY seam on the sand canvas) ----------
+  async toggleClearingRake(): Promise<void> {
+    await this.clearingRakeToggle.click()
+  }
 
-  async clickRun(): Promise<void> {
-    await this.runButton.click()
+  async verifyClearingRakeChecked(checked: boolean): Promise<void> {
+    await expect(this.clearingRakeToggle).toHaveAttribute('aria-checked', String(checked))
+  }
+
+  // ---------- play / draw (via the RAKE_TEST_SEAM_KEY seam on the sand canvas) ----------
+
+  async clickPlay(): Promise<void> {
+    await this.playButton.click()
   }
 
   async getProgress(): Promise<number> {
@@ -176,7 +168,7 @@ export class KaresansuiPagePom extends BasePage {
     }, RAKE_TEST_SEAM_KEY)
   }
 
-  /** Asserts the carve is actually advancing, not stalled — returns the observed progress. */
+  /** Asserts the draw is actually advancing, not stalled — returns the observed progress. */
   async verifyProgressAdvancesPast(previous: number): Promise<number> {
     await expect.poll(() => this.getProgress()).toBeGreaterThan(previous)
     return this.getProgress()
@@ -187,34 +179,34 @@ export class KaresansuiPagePom extends BasePage {
     await expect.poll(() => this.getProgress()).toBeGreaterThanOrEqual(0.99)
   }
 
-  // ---------- smooth ----------
+  // ---------- clear ----------
 
-  async clickSmooth(): Promise<void> {
-    await this.smoothButton.click()
+  async clickClear(): Promise<void> {
+    await this.clearButton.click()
   }
 
-  async verifySmoothEnabled(): Promise<void> {
-    await expect(this.smoothButton).toBeEnabled()
+  async verifyClearEnabled(): Promise<void> {
+    await expect(this.clearButton).toBeEnabled()
   }
 
-  // ---------- save / load / delete presets ----------
+  // ---------- save / load / rename / delete presets (burger menu) ----------
 
   async clickSave(): Promise<void> {
     await this.saveButton.click()
   }
 
-  /** Expand the Saved tray — a real disclosure, present only once a preset exists. */
-  async openTray(): Promise<void> {
-    if ((await this.trayToggle.count()) === 0) return
-    if ((await this.trayToggle.getAttribute('aria-expanded')) !== 'true') await this.trayToggle.click()
+  /** Open the presets burger — present only once a preset exists. */
+  async openMenu(): Promise<void> {
+    if ((await this.presetsMenu.count()) === 0) return
+    if ((await this.presetsMenu.getAttribute('aria-expanded')) !== 'true') await this.presetsMenu.click()
   }
 
-  async verifyTrayAbsent(): Promise<void> {
-    await expect(this.trayToggle).toHaveCount(0)
+  async verifyMenuAbsent(): Promise<void> {
+    await expect(this.presetsMenu).toHaveCount(0)
   }
 
   async verifyPresetVisible(index: number): Promise<void> {
-    await this.openTray()
+    await this.openMenu()
     await expect(this.page.getByTestId(`preset-${index}`)).toBeVisible()
   }
 
@@ -222,14 +214,27 @@ export class KaresansuiPagePom extends BasePage {
     await expect(this.page.getByTestId(`preset-${index}`)).toHaveCount(0)
   }
 
-  /** Clicks the pill's name (load), not its `×` (delete) — the two share a pill container. */
+  async verifyPresetName(index: number, name: string): Promise<void> {
+    await this.openMenu()
+    await expect(this.page.getByTestId(`preset-${index}`).locator('button').first()).toHaveText(name)
+  }
+
+  /** Clicks the entry's name (load), not its ✎/× actions. */
   async loadPreset(index: number): Promise<void> {
-    await this.openTray()
+    await this.openMenu()
     await this.page.getByTestId(`preset-${index}`).locator('button').first().click()
   }
 
+  async renamePreset(index: number, name: string): Promise<void> {
+    await this.openMenu()
+    await this.page.getByTestId(`preset-rename-${index}`).click()
+    const input = this.page.getByTestId(`preset-rename-input-${index}`)
+    await input.fill(name)
+    await input.press('Enter')
+  }
+
   async deletePreset(index: number): Promise<void> {
-    await this.openTray()
+    await this.openMenu()
     await this.page.getByTestId(`preset-delete-${index}`).click()
   }
 
@@ -248,10 +253,13 @@ export class KaresansuiPagePom extends BasePage {
     return raw ? (JSON.parse(raw) as unknown[]) : []
   }
 
-  // ---------- export ----------
+  // ---------- download ----------
 
-  async verifyExportDownloadsPng(): Promise<void> {
-    const [download] = await Promise.all([this.page.waitForEvent('download'), this.exportButton.click()])
+  async verifyDownloadDownloadsPng(): Promise<void> {
+    const [download] = await Promise.all([
+      this.page.waitForEvent('download'),
+      this.downloadButton.click(),
+    ])
     expect(download.suggestedFilename()).toBe('karesansui.png')
   }
 
@@ -263,7 +271,7 @@ export class KaresansuiPagePom extends BasePage {
     await expect(this.console).toHaveCSS('opacity', '1')
   }
 
-  // ---------- coupling (the mechanism pen rides the real geom curve) ----------
+  // ---------- coupling (each cog's marble rides its own groove) ----------
 
   /** The mechanism's first cog marble point (mech canvas coords), via the seam. */
   async getMechPen(): Promise<[number, number]> {
@@ -273,7 +281,15 @@ export class KaresansuiPagePom extends BasePage {
     }, RAKE_TEST_SEAM_KEY)
   }
 
-  /** Asserts the mech pen has moved from `previous` — proof it tracks the carve. */
+  /** The number of marbles the mechanism last drew (one per cog). */
+  async getMarbleCount(): Promise<number> {
+    return this.sandCanvas.evaluate((el, key) => {
+      const seam = (el as unknown as Record<string, RakeTestSeam>)[key]
+      return seam?.getMarblePens().length ?? 0
+    }, RAKE_TEST_SEAM_KEY)
+  }
+
+  /** Asserts a marble has moved from `previous` — proof it tracks the draw. */
   async verifyMechPenMovedFrom(previous: [number, number]): Promise<void> {
     await expect
       .poll(async () => {

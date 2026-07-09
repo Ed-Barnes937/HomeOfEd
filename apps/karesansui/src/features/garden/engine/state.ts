@@ -1,18 +1,14 @@
 /**
  * The garden's configuration — the "device" the user assembles: a ring, a gear
- * train (1..3 wheels), the pin offset, a rake head, and the run parameters.
- * Pure data + fixed-range clamp helpers. No React, no DOM. The setters that
- * apply these clamps (and re-derive `turns`) live in the page layer.
+ * train (1..4 cogs, each its own pen), the global pin offset, the draw speed,
+ * and whether the clearing rake loops. Pure data + fixed-range clamp helpers.
+ * No React, no DOM. The setters that apply these clamps live in the page layer.
  */
-export type RakeId = 'marble' | 'wide' | 'deep' | 'fine'
-
 export interface GardenConfig {
   ring: number // one of ringOpts(): 96 | 120 | 144
-  wheels: number[] // 1..3 entries, each in wheelOpts()
-  offset: number // pin offset, 0.08..0.94 (the "r" value)
-  rake: RakeId
-  speed: number // 0..100 (maps to carve duration)
-  turns: number // 1..fullTurns
+  wheels: number[] // 1..4 entries, each in wheelOpts() — one marble per cog
+  offset: number // global pin offset, 0.08..0.94 (scales every marble)
+  speed: number // 0..100 (maps to draw duration)
   showPreview: boolean
   clearingRake: boolean // when on, the loop draws → sweep-clears → redraws forever (plan 0008 D4)
 }
@@ -21,9 +17,7 @@ export const DEFAULT_CONFIG: GardenConfig = {
   ring: 96,
   wheels: [52],
   offset: 0.66,
-  rake: 'wide',
   speed: 58,
-  turns: 13,
   showPreview: true,
   clearingRake: false,
 }
