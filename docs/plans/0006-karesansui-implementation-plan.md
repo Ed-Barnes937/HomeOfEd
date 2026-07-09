@@ -44,15 +44,15 @@ text keeps `枯山水 Karesansui`.
 | Touchpoint | Value |
 |---|---|
 | App dir / package name | `karesansui` |
-| Dev port (`package.json` dev script) | **3006** |
-| CT port (`playwright-ct.config.ts` `ctPort`) | **3106** |
-| Compose host port | **8086**`:8080` |
+| Dev port (`package.json` dev script) | **3007** |
+| CT port (`playwright-ct.config.ts` `ctPort`) | **3107** |
+| Compose host port | **8087**`:8080` |
 | Fly app (`fly.toml` `app`) | `hoe-karesansui` |
 | Subdomain | `karesansui.homeofed.com` |
 | localStorage key | `karesansui:presets:v1` |
 
 Ports in use today: dev `3000–3005`, CT `3100–3105`, compose host `8080–8085`.
-3006 / 3106 / 8086 are the next free.
+3007 / 3107 / 8087 are the next free.
 
 ---
 
@@ -64,11 +64,11 @@ owns state and pushes changes imperatively.
 
 ```
 apps/karesansui/
-  package.json            name=karesansui, dev --port 3006
+  package.json            name=karesansui, dev --port 3007
   index.html              <title>Zen Gear Garden</title>, self-host font <link> removed (use @font-face)
   fly.toml                app='hoe-karesansui'
   Dockerfile              filters swapped starter→karesansui
-  playwright-ct.config.ts ctPort:3106
+  playwright-ct.config.ts ctPort:3107
   vite.config.ts          react + simulatorPlugin (unchanged from starter)
   vitest.config.ts        (unchanged)
   eslint.config.js        (unchanged)
@@ -284,8 +284,8 @@ pnpm lint && pnpm typecheck && pnpm test --filter=karesansui
 ### Phase 0 — Scaffold to a green baseline · **Owner: Sonnet** · deps: none
 
 **T0.1 Copy + rename.** `cp -r templates/starter apps/karesansui`, then apply
-every touchpoint in §2 (package.json name+`--port 3006`, index.html `<title>`,
-playwright-ct `ctPort:3106`, fly.toml `app='hoe-karesansui'`, Dockerfile
+every touchpoint in §2 (package.json name+`--port 3007`, index.html `<title>`,
+playwright-ct `ctPort:3107`, fly.toml `app='hoe-karesansui'`, Dockerfile
 filters/paths `starter`→`karesansui`).
 
 **T0.2 Health skeleton (replace the greeting demo).** Copy boids'
@@ -297,7 +297,7 @@ health check. Delete the greeting handler/query/test/page bits. Keep
 
 **T0.3 Deploy wiring.** Add `compose.yml` `karesansui` service (context `.`,
 `apps/karesansui/Dockerfile`, `command: node src/server/main.ts`, port
-`8086:8080`, no DB). Add `.github/workflows/deploy.yml` `deploy-karesansui` job
+`8087:8080`, no DB). Add `.github/workflows/deploy.yml` `deploy-karesansui` job
 by cloning `deploy-boids` (swap `APP_URL=https://hoe-karesansui.fly.dev`, the
 affected `select(.name == "karesansui")`, `--config apps/karesansui/fly.toml`).
 
@@ -398,7 +398,7 @@ one column with DOM/visual order **sand → mechanism → rake** (use grid
 via `aspect-ratio:1` + `max-width` caps (bowl 524, mech 262); a `ResizeObserver`
 (in the hook) keeps backing store in sync.
 
-**DoD:** `pnpm dev --filter=karesansui` on :3006 renders the studio, all controls
+**DoD:** `pnpm dev --filter=karesansui` on :3007 renders the studio, all controls
 work, Run carves, Smooth/Save/Export/presets work, resizing the window reflows
 and keeps the pattern.
 
@@ -422,7 +422,7 @@ with sand first**.
 ### Phase 6 — Docs + ADR · **Owner: Sonnet** · deps: all
 
 **T6.1 Scoped docs.** `apps/karesansui/CLAUDE.md` (engine/React boundary, ports
-3006/3106, no-DB reminder, reference pointer, V2 note) and `README.md`
+3007/3107, no-DB reminder, reference pointer, V2 note) and `README.md`
 (commands, layout, what it is).
 
 **T6.2 ADR 0016.** `docs/adr/0016-karesansui-geometry-fidelity.md` (MADR-lite):

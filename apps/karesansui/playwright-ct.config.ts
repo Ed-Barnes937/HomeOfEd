@@ -1,3 +1,3 @@
 import { defineIwftConfig } from '@hoe/test-kit/ct-config'
 
-export default defineIwftConfig({ ctPort: 3106 })
+export default defineIwftConfig({ ctPort: 3107 })

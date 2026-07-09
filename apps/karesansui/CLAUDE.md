@@ -37,12 +37,12 @@ src/
   testing/                  IwftApp harness + KaresansuiPagePom
   karesansui.iwft.tsx
 vite.config.ts             react + simulatorPlugin (dev simulator mode)
-playwright-ct.config.ts    defineIwftConfig({ ctPort: 3106 })
+playwright-ct.config.ts    defineIwftConfig({ ctPort: 3107 })
 ```
 
 ## Commands
 
-- `pnpm dev --filter=karesansui` — simulator mode on port **3006** (real
+- `pnpm dev --filter=karesansui` — simulator mode on port **3007** (real
   router, in-memory store; restart to pick up server changes).
 - `pnpm test --filter=karesansui` — Vitest (`*.test.ts`) then Playwright CT
   (`*.iwft.tsx`).
@@ -71,7 +71,7 @@ playwright-ct.config.ts    defineIwftConfig({ ctPort: 3106 })
   first, `.iwft` only for whole-page behaviour (keep it thin). Relative imports
   carry explicit `.ts`/`.tsx` extensions; server code sticks to erasable TS
   syntax (ADR 0004) — `simulator.ts`/`main.ts` run under native Node.
-- Ports: dev 3006, CT 3106, compose host 8086 — a copied app must pick fresh
+- Ports: dev 3007, CT 3107, compose host 8087 — a copied app must pick fresh
   ones (root `CLAUDE.md` checklist).
 - No database, no migrations, no `@hoe/db` — see
   [ADR 0008](../../docs/adr/0008-apps-without-a-database.md). The `StatusStore`
