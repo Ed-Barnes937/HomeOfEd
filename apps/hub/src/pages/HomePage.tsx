@@ -1,14 +1,29 @@
 import { useEffect, useRef } from 'react'
 import styles from './HomePage.module.scss'
+import { isNew } from './isNew.ts'
 import { useColourTheme } from './useColourTheme'
 
-type PreviewKind = 'boids' | 'magnets' | 'word' | 'idle'
-type AppLink = { name: string; status: 'LIVE' | 'SOON'; kind: PreviewKind; href?: string }
+type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'idle'
+type AppLink = {
+  name: string
+  status: 'LIVE' | 'SOON'
+  kind: PreviewKind
+  href?: string
+  // ISO date the app went live; drives the "New" pill (see isNew.ts).
+  deployedAt?: string
+}
 
 const APPS: AppLink[] = [
   { name: 'Boids', status: 'LIVE', kind: 'boids', href: 'https://boids.homeofed.com' },
   { name: 'fridge magnets', status: 'LIVE', kind: 'magnets', href: 'https://fridge.homeofed.com' },
   { name: 'WOTD', status: 'LIVE', kind: 'word', href: 'https://wotd.homeofed.com' },
+  {
+    name: 'espy',
+    status: 'LIVE',
+    kind: 'ink',
+    href: 'https://espy.homeofed.com',
+    deployedAt: '2026-07-09',
+  },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
 
@@ -19,6 +34,8 @@ export function HomePage() {
 
   useHopAnimation(wordmarkRef)
   usePreviews(galleryRef, theme)
+
+  const now = new Date()
 
   return (
     <main className={styles.home} data-theme={theme} data-home>
@@ -61,6 +78,7 @@ export function HomePage() {
           {APPS.map((app) => {
             const inner = (
               <>
+                {isNew(app.deployedAt, now) && <span className={styles.newPill}>New</span>}
                 <canvas className={styles.preview} data-kind={app.kind} aria-hidden="true" />
                 <div className={styles.cardFoot}>
                   <span className={styles.name}>{app.name}</span>
@@ -271,6 +289,7 @@ function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string)
         if (kind === 'boids') stops.push(drawBoids(cv, darkRef))
         else if (kind === 'magnets') stops.push(drawMagnets(cv))
         else if (kind === 'word') stops.push(drawWord(cv, darkRef))
+        else if (kind === 'ink') stops.push(drawInk(cv, darkRef))
         else stops.push(drawIdle(cv, darkRef))
       }
     }, 90)
@@ -457,6 +476,70 @@ function drawWord(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     clearInterval(iv)
     cancelAnimationFrame(raf)
   }
+}
+
+// espy: an ink blot that breathes gently, with a couple of stray splats and a
+// pair of eyes — the app in miniature. Ink + eye colours track the hub theme so
+// the blot reads on the card in both light and dark.
+function drawInk(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const cx = w / 2
+  const cy = h / 2 + 2
+  const N = 16
+  const R = 25
+  const blob = Array.from({ length: N }, (_, i) => ({
+    a: (i / N) * Math.PI * 2,
+    r: R * (0.82 + Math.random() * 0.34),
+  }))
+  const splats = Array.from({ length: 3 }, () => ({
+    dx: (Math.random() - 0.5) * 78,
+    dy: (Math.random() - 0.5) * 46,
+    r: 1.5 + Math.random() * 3,
+  }))
+  let raf = 0
+  let t = 0
+  const step = (): void => {
+    const dark = darkRef.current
+    const ink = dark ? '#ece5da' : '#2c322e'
+    const sclera = dark ? '#2b2d27' : '#f3ede2'
+    ctx.clearRect(0, 0, w, h)
+    t += 0.02
+    const breathe = 1 + Math.sin(t) * 0.03
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.scale(breathe, breathe)
+    ctx.fillStyle = ink
+    ctx.beginPath()
+    blob.forEach((p, i) => {
+      const x = Math.cos(p.a) * p.r
+      const y = Math.sin(p.a) * p.r
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.closePath()
+    ctx.fill()
+    for (const s of splats) {
+      ctx.beginPath()
+      ctx.arc(s.dx, s.dy, s.r, 0, 6.28)
+      ctx.fill()
+    }
+    const eye = (ex: number): void => {
+      ctx.fillStyle = sclera
+      ctx.beginPath()
+      ctx.arc(ex, -6, 5, 0, 6.28)
+      ctx.fill()
+      ctx.fillStyle = ink
+      ctx.beginPath()
+      ctx.arc(ex + 1, -5, 2, 0, 6.28)
+      ctx.fill()
+    }
+    eye(-8)
+    eye(9)
+    ctx.restore()
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
 }
 
 function drawIdle(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {

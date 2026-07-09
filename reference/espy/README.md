@@ -1,7 +1,7 @@
-# Handoff: Hirameki Doodling — "Sketchbook" direction (1b)
+# Handoff: Espy Doodling — "Sketchbook" direction (1b)
 
 ## Overview
-Hirameki ("flash of inspiration") is a calming doodling activity: the app draws random
+Espy ("flash of inspiration") is a calming doodling activity: the app draws random
 black ink **blots**, and the user adds a few lines — legs, whiskers, a tail — then places
 **eyes** to turn each blot into a little creature. It's built for both kids and adults as a
 regulation / relaxation tool, so the interaction is low-pressure and forgiving (unlimited
@@ -42,8 +42,8 @@ There is a single screen. Layout is a full-height vertical stack: **header → c
 - **Components**:
 
   **Title block** (header, left)
-  - Line 1: `ひらめき` in Caveat 44px / weight 700, color `#3b3327`, line-height 1. Followed by
-    a smaller inline label `Hirameki` at 0.5em (~22px), `margin-left:12px`, `opacity:0.75`.
+  - Line 1: `espy` in Caveat 44px / weight 700, color `#3b3327`, line-height 1. Followed by
+    a smaller inline label `Espy` at 0.5em (~22px), `margin-left:12px`, `opacity:0.75`.
   - Line 2 (subtitle): `margin-top:8px`, Nunito 14px, color `#b0a488`, line-height 1.5, `max-width:52ch`.
     Copy: **"Add a few lines — legs, a tail, whiskers, a smile. Then give it eyes, and the ink comes alive."**
 
@@ -149,7 +149,7 @@ Other directions (for context; not this one): "single" clears and draws one big 
 - **Undo** pops the last snapshot and redraws it (clear canvas, `drawImage` the restored bitmap).
 
 ### Save PNG
-- Creates an `<a download="hirameki.png" href={canvas.toDataURL('image/png')}>` and clicks it.
+- Creates an `<a download="espy.png" href={canvas.toDataURL('image/png')}>` and clicks it.
   Because the paper color is painted onto the canvas, the export is a complete image on paper.
 
 ### Responsive / sizing
@@ -209,9 +209,9 @@ Data fetching: **none.** Everything is local and ephemeral (no persistence, no a
   All artwork (blots, eyes) is drawn at runtime on canvas.
 
 ## Files
-- `Hirameki.dc.html` — the working prototype (the reusable engine; theme/behavior are props).
+- `Espy.dc.html` — the working prototype (the reusable engine; theme/behavior are props).
   This direction = props `theme:"sketchbook"`, `regenMode:"shuffle"`, `inkTone:"ink"`.
-- `Hirameki - Directions.dc.html` — the comparison page showing 1b alongside the other directions
+- `Espy - Directions.dc.html` — the comparison page showing 1b alongside the other directions
   (included for context; not needed to implement 1b).
 
 > Note: `.dc.html` is a self-contained HTML prototype format. Open it in a browser to interact

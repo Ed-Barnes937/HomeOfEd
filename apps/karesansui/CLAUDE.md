@@ -62,11 +62,11 @@ playwright-ct.config.ts    defineIwftConfig({ ctPort: 3107 })
   `render/sand.ts`, and `drawGear`/`drawRing`/the multi-cog cluster in
   `MechRenderer`, are ported **verbatim** from the Studio reference — don't
   "clean up" or re-derive the formulas. The mechanism is **Level-2 pen-fidelity**
-  (ADR 0016 amended, ADR 0017): its pen sits on the *true* `geom()` point every
+  (ADR 0018 amended, ADR 0019): its pen sits on the *true* `geom()` point every
   frame (1 cog = an honest single-wheel spirograph; 2–3 cogs = the illustrative
   cluster with an arm to the exact pen). It builds its own `geom()` at the mech
   bowl radius, so the pen matches the sand groove's *shape* at a smaller *scale*.
-  See [ADR 0016](../../docs/adr/0016-karesansui-geometry-fidelity.md). The
+  See [ADR 0018](../../docs/adr/0018-karesansui-geometry-fidelity.md). The
   `spiroPts`/`drawSpiro` formula in `Zen Gear Garden.dc.html` is a *different*,
   unused exploration — never port it.
 - Server code changes go through TDD: unit test against `StatusStore` fake

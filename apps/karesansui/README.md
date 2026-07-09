@@ -9,7 +9,7 @@ accounts, no server data. Lives at `karesansui.homeofed.com`.
 The UI is a dark, quiet "room": the warm sand bowl is spotlit as the hero, a
 smaller lit **mechanism** bowl sits beside it, and the controls dissolve into a
 dim bottom console that brightens on hover and keyboard focus. See
-[ADR 0017](../../docs/adr/0017-karesansui-architectural-redesign.md) /
+[ADR 0019](../../docs/adr/0019-karesansui-architectural-redesign.md) /
 [plan 0007](../../docs/plans/0007-karesansui-architectural-redesign.md). Original
 design reference: `reference/karasensui/project/Zen Gear Garden Studio.dc.html`.
 
@@ -60,7 +60,7 @@ the *true* `geom()` point every frame (1 cog = an honest single-wheel
 spirograph; 2–3 cogs = the illustrative cluster with an arm to the exact pen), so
 the pen matches the sand groove's shape at a smaller scale. Full physical gearing
 for multi-cog trains is still deferred. See
-[ADR 0016](../../docs/adr/0016-karesansui-geometry-fidelity.md) (amended),
-[ADR 0017](../../docs/adr/0017-karesansui-architectural-redesign.md), and the
+[ADR 0018](../../docs/adr/0018-karesansui-geometry-fidelity.md) (amended),
+[ADR 0019](../../docs/adr/0019-karesansui-architectural-redesign.md), and the
 plans [0006](../../docs/plans/0006-karesansui-implementation-plan.md) /
 [0007](../../docs/plans/0007-karesansui-architectural-redesign.md).

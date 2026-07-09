@@ -425,7 +425,7 @@ with sand first**.
 3007/3107, no-DB reminder, reference pointer, V2 note) and `README.md`
 (commands, layout, what it is).
 
-**T6.2 ADR 0016.** `docs/adr/0016-karesansui-geometry-fidelity.md` (MADR-lite):
+**T6.2 ADR 0018.** `docs/adr/0018-karesansui-geometry-fidelity.md` (MADR-lite):
 decision to port the reference epicyclic math verbatim for visual fidelity and
 treat the mechanism drawing as illustrative; **V2** option = model physically
 accurate gear meshing so the sand curve derives from true ratios; consequences /

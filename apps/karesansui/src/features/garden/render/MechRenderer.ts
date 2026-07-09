@@ -1,7 +1,7 @@
 /**
  * The mechanism canvas — a smaller lit companion beside the sand hero.
  *
- * Level-2 pen-fidelity (ADR 0016 amended, plan 0007 D4): the pen always sits on
+ * Level-2 pen-fidelity (ADR 0018 amended, plan 0007 D4): the pen always sits on
  * the *true* `geom()` point, so it visibly leads the same curve the sand carves.
  *  - **1 cog** → an honest single-wheel spirograph: a wheel of radius `W0` at the
  *    real carrier position `(R−W0)·(cos t, sin t)`, spun by `−(R/W0)·t`, with the

@@ -1,4 +1,4 @@
-# 0017 — karesansui: architectural redesign (dark room, minimal console) + single dark theme
+# 0019 — karesansui: architectural redesign (dark room, minimal console) + single dark theme
 
 - **Status:** Accepted
 - **Date:** 2026-07-09
@@ -6,7 +6,7 @@
   (the implementation plan); supersedes in part
   [0006-karesansui-implementation-plan.md](../plans/0006-karesansui-implementation-plan.md)
   §1 D11 (single warm-light theme → single **dark** theme); amends
-  [0016-karesansui-geometry-fidelity.md](0016-karesansui-geometry-fidelity.md)
+  [0018-karesansui-geometry-fidelity.md](0018-karesansui-geometry-fidelity.md)
   (Level-2 pen-fidelity); [0008-apps-without-a-database.md](0008-apps-without-a-database.md)
 
 ## Context
@@ -39,7 +39,7 @@ calm and its minimal resting surface.
   hover-reveal also fires on focus; focus rings are amber (an ink outline is
   invisible on dark); the popover and tray are full keyboard disclosures.
 - **Mechanism upgraded to Level-2 pen-fidelity** — see the amendment to
-  [ADR 0016](0016-karesansui-geometry-fidelity.md).
+  [ADR 0018](0018-karesansui-geometry-fidelity.md).
 
 ## Consequences
 

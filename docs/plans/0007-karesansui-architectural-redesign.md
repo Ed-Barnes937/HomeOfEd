@@ -1,11 +1,11 @@
 # 0007 — karesansui: architectural redesign (dark room, minimal console, Level-2 coupling)
 
-- **Status:** Implemented (2026-07-09) — ADR 0017 accepted, ADR 0016 amended.
+- **Status:** Implemented (2026-07-09) — ADR 0019 accepted, ADR 0018 amended.
 - **Date:** 2026-07-09
 - **Supersedes (in part):** [0006](0006-karesansui-implementation-plan.md) §1 D11 (single
   warm-light theme → single **dark** theme), and the layout/controls in §3–§4.
-- **Related ADRs:** new **0017** (architectural redesign + dark single-theme);
-  amend **[0016](../adr/0016-karesansui-geometry-fidelity.md)** (mechanism pen
+- **Related ADRs:** new **0019** (architectural redesign + dark single-theme);
+  amend **[0018](../adr/0018-karesansui-geometry-fidelity.md)** (mechanism pen
   upgraded from decorative to Level-2 pen-fidelity).
 - **Engine untouched:** `engine/*` (`geom`, `gears`, `rake`, `state`) and
   `render/sand.ts` + `SandRenderer` keep their ported math and warm sand look.
@@ -48,7 +48,7 @@ tray), and `MechRenderer` (coupling).
 | **D1** | **Single dark theme** replaces the single warm-light theme. No light mode, no toggle. | The direction *is* the dark room; a light variant would be a different design. Supersedes 0006 D11 (which chose single warm-light). Still single-theme — just dark. |
 | **D2** | **Hybrid controls.** Ring, cogs, rake operate **inline** in the console; offset, speed, rotations live behind a single **`tune ▾` popover**. | Keeps the periphery calm (the point of this direction) while everything stays one reach away. |
 | **D3** | **Bottom saved-gardens tray.** Rake / Smooth as the action pair; Save + Export as icons; Preview line a tiny toggle; saved presets in a slim tray that slides up from the bottom edge, present only when presets exist. | Low-frequency surfaces stay out of the resting composition. |
-| **D4** | **Level-2 pen-fidelity coupling.** The mechanism pen is placed on the true `geom()` point every frame. 1 cog → a true spirograph (ring + rolling wheel + pen). 2–3 cogs → a plausible gear cluster with an arm to the exact pen. | The pen (the thing being drawn) is always honest; the surrounding cluster stays illustrative for multi-term sums, per amended ADR 0016. Cheapest honest option. |
+| **D4** | **Level-2 pen-fidelity coupling.** The mechanism pen is placed on the true `geom()` point every frame. 1 cog → a true spirograph (ring + rolling wheel + pen). 2–3 cogs → a plausible gear cluster with an arm to the exact pen. | The pen (the thing being drawn) is always honest; the surrounding cluster stays illustrative for multi-term sums, per amended ADR 0018. Cheapest honest option. |
 | **D5** | **Cogs capped at 3** (`MAX_GEARS = 3`, unchanged). | As before. |
 | **D6** | **Preserve `data-testid`s** on all controls (`ring-<n>`, `wheel-<n>`, `train-chip-remove-<i>`, `rake-<id>`, `slider-offset\|speed\|rotations`, `run-button`, `smooth-button`, `save-button`, `export-button`, `preview-toggle`, `preset-<i>`, `preset-delete-<i>`, `sand-canvas`, `mech-canvas`, `karesansui-page`). | Minimises iwft churn; only the *steps to reach* a control change (open the tune popover, expand the tray), not the selectors. |
 | **D7** | **Resting dim ≠ sub-threshold.** The "dim until hovered" console must, at rest, still meet AA contrast; hover/focus adds *emphasis* (brightness/opacity lift), it does not rescue legibility. | A calm look must not become an a11y regression. |
@@ -309,8 +309,8 @@ apps/karesansui/src/
   karesansui.iwft.tsx                    UPDATE (new scenarios §8)
   CLAUDE.md                              UPDATE (layout/controls section)
   README.md                              UPDATE
-docs/adr/0017-karesansui-architectural-redesign.md   NEW
-docs/adr/0016-karesansui-geometry-fidelity.md        AMEND (Level-2 pen-fidelity)
+docs/adr/0019-karesansui-architectural-redesign.md   NEW
+docs/adr/0018-karesansui-geometry-fidelity.md        AMEND (Level-2 pen-fidelity)
 ```
 
 Untouched: `engine/*`, `render/sand.ts`, `render/SandRenderer.ts`, `settings.ts`,
@@ -322,7 +322,7 @@ Untouched: `engine/*`, `render/sand.ts`, `render/SandRenderer.ts`, `settings.ts`
 
 | Phase | Work | Owner | Depends on |
 |-------|------|-------|-----------|
-| **P0** | ADRs (0017 new; 0016 amend); dark tokens (§3); a bare room/stage/console skeleton (static, no controls wired) so the shell compiles | Sonnet | — |
+| **P0** | ADRs (0019 new; 0018 amend); dark tokens (§3); a bare room/stage/console skeleton (static, no controls wired) so the shell compiles | Sonnet | — |
 | **P1** | `MechRenderer` Level-2 coupling (§5.1) + `useRakeLoop` wiring + mech seam; unit/iwft for pen tracking | **Opus** | P0 tokens |
 | **P2** | Compact control restyles (Ring, Gear, Rake, Slider, Preview, ActionButtons) for dark + strip; **preserve testids** (D6) | Sonnet | P0 |
 | **P3** | `TuneButton`/`TunePopover`, `SavedTray`, and `KaresansuiPage` console assembly + responsive reflow + hover/focus reveal | **Opus** | P2 |
@@ -346,7 +346,7 @@ Untouched: `engine/*`, `render/sand.ts`, `render/SandRenderer.ts`, `settings.ts`
   curve", not "same size". Don't try to overlay them 1:1.
 - **2–3 cog honesty:** the cluster is illustrative for multi-term sums (D4). If a
   future reviewer wants full physical honesty, that's the deferred "nested
-  carriers" option — record it in the amended ADR 0016 as the next step.
+  carriers" option — record it in the amended ADR 0018 as the next step.
 - **Tune popover on mobile:** bottom-sheet variant adds layout work in P3; keep it
   a plain disclosure that repositions, not a separate component.
 - **Test churn:** kept low by preserving `data-testid`s (D6); the reflow tests are
@@ -355,7 +355,7 @@ Untouched: `engine/*`, `render/sand.ts`, `render/SandRenderer.ts`, `settings.ts`
 ## 12. Out of scope
 
 - Any engine/`geom` change, new rake types, or new ring/wheel options.
-- Real physical gear simulation (nested carriers) — deferred (ADR 0016).
+- Real physical gear simulation (nested carriers) — deferred (ADR 0018).
 - Infra: ports, `fly.toml`, Dockerfile, CI, compose — all unchanged (the app's
   shape and subdomain don't change).
 - Persistence/DB — still stateless (ADR 0008); presets stay in localStorage.

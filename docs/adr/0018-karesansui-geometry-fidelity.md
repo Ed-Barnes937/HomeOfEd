@@ -1,10 +1,10 @@
-# 0016 — karesansui: port the reference geometry verbatim, treat the mechanism as decorative
+# 0018 — karesansui: port the reference geometry verbatim, treat the mechanism as decorative
 
-- **Status:** Accepted — **amended 2026-07-09** (see [Amendment](#amendment-2026-07-09--plan-0007--adr-0017-level-2-pen-fidelity): the mechanism pen is no longer purely decorative; it now rides the true `geom()` point).
+- **Status:** Accepted — **amended 2026-07-09** (see [Amendment](#amendment-2026-07-09--plan-0007--adr-0019-level-2-pen-fidelity): the mechanism pen is no longer purely decorative; it now rides the true `geom()` point).
 - **Date:** 2026-07-09
 - **Related:** [0006-karesansui-implementation-plan.md](../plans/0006-karesansui-implementation-plan.md)
   §1 (D3, D4), §5 (reference-porting map); [0008-apps-without-a-database.md](0008-apps-without-a-database.md);
-  amended by [0007-karesansui-architectural-redesign.md](../plans/0007-karesansui-architectural-redesign.md) / ADR 0017
+  amended by [0007-karesansui-architectural-redesign.md](../plans/0007-karesansui-architectural-redesign.md) / ADR 0019
 
 ## Context
 
@@ -75,10 +75,10 @@ cosmetic progress value. The existing `geom()`/`drawMech` port would either be
 kept as a "classic" mode or retired once the new engine matches the current
 look closely enough.
 
-## Amendment (2026-07-09) — plan 0007 / ADR 0017: Level-2 pen-fidelity
+## Amendment (2026-07-09) — plan 0007 / ADR 0019: Level-2 pen-fidelity
 
 The architectural redesign ([plan 0007](../plans/0007-karesansui-architectural-redesign.md),
-ADR 0017) upgrades the mechanism from *fully* decorative to **Level-2
+ADR 0019) upgrades the mechanism from *fully* decorative to **Level-2
 pen-fidelity**, and changes `MechRenderer`'s API from `draw(config, carrierT)`
 to `setPattern(config)` + `draw(progress)`.
 

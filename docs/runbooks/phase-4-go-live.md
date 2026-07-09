@@ -246,7 +246,45 @@ health/index verification. Safe to re-run after a partial failure — every
 step skips what already exists. G4.1–G4.8 above remain the manual reference
 for what the script does.
 
-## G4.10 — karesansui (go-live, DB-less)
+## G4.10 — espy (DB-less app, go-live)
+
+> **✅ Done (2026-07-09).** espy is live — `https://espy.homeofed.com/health`
+> returns `{"ok":true}` and the SPA serves. The steps below are kept as the
+> record of what was run.
+
+espy (`apps/espy`) is a calm client-side doodling toy with no database
+([ADR 0008](../adr/0008-apps-without-a-database.md)) — same shape as boids
+(G4.6): no `fly postgres attach`, no release_command.
+
+> **ℹ Temporary name.** `espy` is a placeholder (the original name was a
+> trademark risk). Rename the app, subdomain (`espy.homeofed.com`), and Fly
+> app (`hoe-espy`) before any public launch.
+
+```bash
+scripts/go-live.sh espy        # the scripted path (G4.9)
+```
+
+Or the manual equivalent:
+
+```bash
+fly apps create hoe-espy       # must match apps/espy/fly.toml
+fly certs add espy.homeofed.com --app hoe-espy   # after first deploy
+```
+
+Cloudflare: proxied CNAME `espy → hoe-espy.fly.dev` (Full-strict TLS is
+zone-wide already); grey-cloud any ACME record `fly certs add` asks for.
+`FLY_API_TOKEN` must cover `hoe-espy` (the org-scoped token from the boids
+go-live does; an app-scoped `hoe-hub` token fails the `deploy-espy` job).
+
+Verify:
+
+```bash
+curl -fsS https://hoe-espy.fly.dev/health           # → {"ok":true} — in-memory liveness, no DB
+curl -fsS https://espy.homeofed.com/health          # same, through Cloudflare
+open  https://espy.homeofed.com                      # a blot blooms; draw, add eyes, save
+```
+
+## G4.11 — karesansui (go-live, DB-less)
 
 karesansui (`apps/karesansui`, "Zen Gear Garden" —
 [0006-karesansui-implementation-plan.md](../plans/0006-karesansui-implementation-plan.md))
