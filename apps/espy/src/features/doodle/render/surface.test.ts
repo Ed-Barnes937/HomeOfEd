@@ -45,6 +45,7 @@ function recordingContext() {
     },
     setTransform: rec('setTransform'),
     fillRect: rec('fillRect'),
+    drawImage: rec('drawImage'),
     beginPath: rec('beginPath'),
     moveTo: rec('moveTo'),
     lineTo: rec('lineTo'),
@@ -75,7 +76,7 @@ function fieldOp(width: number, height: number, seed: number): Op {
   return { type: 'field', viewBox: vb, blots: generateField(vb, mulberry32(seed)) }
 }
 
-const DRAW_METHODS = ['fillRect', 'fill', 'stroke', 'arc', 'quadraticCurveTo', 'lineTo']
+const DRAW_METHODS = ['fillRect', 'drawImage', 'fill', 'stroke', 'arc', 'quadraticCurveTo', 'lineTo']
 
 describe('DoodleSurface', () => {
   it('sizes the backing store to css × min(dpr, 2)', () => {
@@ -99,14 +100,29 @@ describe('DoodleSurface', () => {
     expect(firstDraw?.args).toEqual([0, 0, 800, 600])
   })
 
-  it('draws N blots as N closed-path fills plus one arc/fill per satellite', () => {
+  it('blits the baked field raster once when one is supplied, tracing no blots', () => {
+    const ctx = recordingContext()
+    const surface = new DoodleSurface(fakeCanvas(ctx))
+    surface.resize(720, 850, 1)
+    const field = fieldOp(720, 850, 42)
+    const bakedImage = { width: 720, height: 850 } as unknown as CanvasImageSource
+    surface.renderOps([field], SKETCHBOOK, bakedImage)
+
+    const draws = ctx.calls.filter((c) => c.m === 'drawImage')
+    expect(draws).toHaveLength(1)
+    expect(draws[0]?.args).toEqual([bakedImage, 0, 0, 720, 850])
+    // The raster IS the field — no outline tracing when it's present.
+    expect(ctx.calls.some((c) => c.m === 'closePath')).toBe(false)
+  })
+
+  it('falls back to a plain blot fill (one outline + one fill per blot, plus satellites)', () => {
     const ctx = recordingContext()
     const surface = new DoodleSurface(fakeCanvas(ctx))
     surface.resize(720, 850, 1)
     const field = fieldOp(720, 850, 42)
     const blots = field.type === 'field' ? field.blots : []
     expect(blots.length).toBeGreaterThan(1)
-    surface.renderOps([field], SKETCHBOOK)
+    surface.renderOps([field], SKETCHBOOK) // no baked image → fallback
 
     const satTotal = blots.reduce((n, b) => n + b.satellites.length, 0)
     const closes = ctx.calls.filter((c) => c.m === 'closePath').length
@@ -115,7 +131,8 @@ describe('DoodleSurface', () => {
 
     expect(closes).toBe(blots.length) // one closed outline per blot
     expect(arcs).toBe(satTotal) // arcs are only satellites in a pure field
-    expect(fills).toBe(blots.length + satTotal) // one blot fill + one per satellite
+    expect(fills).toBe(blots.length + satTotal) // one per blot + one per satellite
+    expect(ctx.calls.some((c) => c.m === 'drawImage')).toBe(false)
   })
 
   it('strokes each stroke op once with round cap and join', () => {
@@ -147,19 +164,12 @@ describe('DoodleSurface', () => {
     expect(ctx.calls.filter((c) => c.m === 'stroke')).toHaveLength(1)
   })
 
-  it('sets globalAlpha to the bloom value for the art layer', () => {
-    const ctx = recordingContext()
-    const surface = new DoodleSurface(fakeCanvas(ctx))
-    surface.resize(400, 300, 1)
-    surface.renderOps([fieldOp(400, 300, 7)], SKETCHBOOK, 0.5)
-    expect(ctx.alphaWrites).toContain(0.5)
-  })
-
-  it('leaves the art layer opaque by default (no bloom alpha write)', () => {
+  it('never writes a fractional globalAlpha (the field is baked, not bloomed on the 2D canvas)', () => {
     const ctx = recordingContext()
     const surface = new DoodleSurface(fakeCanvas(ctx))
     surface.resize(400, 300, 1)
     surface.renderOps([fieldOp(400, 300, 7)], SKETCHBOOK)
-    expect(ctx.alphaWrites).not.toContain(0.5)
+    expect(ctx.alphaWrites.length).toBeGreaterThan(0)
+    expect(ctx.alphaWrites.every((a) => a === 1)).toBe(true)
   })
 })

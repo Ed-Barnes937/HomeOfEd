@@ -1,15 +1,16 @@
 /**
- * The projection layer (spec §6). The ONLY module in the render/engine layers
- * allowed to touch a `CanvasRenderingContext2D`. It projects an `Op[]` onto the
- * canvas under the current contain-fit, drawing the blot/stroke/eye primitives.
+ * The projection layer (spec §6). The ONLY 2D-canvas module: it projects an
+ * `Op[]` onto the canvas under the current contain-fit, drawing the field,
+ * strokes and eyes.
  *
- * The blot outline (midpoint-quadratic closed fill) and eye geometry are ported
- * from the design guide's `drawBlob`/`stampEye` — the maths, not the file. Every
- * op already stores RESOLVED geometry (rolled once at creation), so replay is
- * deterministic; this module re-rolls nothing.
+ * The field is an ink-in-water raster baked by the WebGL sim (`fluid.ts`) and
+ * handed in as `fieldImage`; this module just blits it under the fit. When no
+ * baked image is available yet (the sim is still running, WebGL is absent, or a
+ * restored session's raster is still decoding) it falls back to a plain filled
+ * blot outline so the field is never blank.
  */
-import type { Fit } from '../engine/coords.ts'
 import { computeFit } from '../engine/coords.ts'
+import type { Fit } from '../engine/coords.ts'
 import { currentViewBox, visibleOps } from '../engine/history.ts'
 import type { Blot, Eye, Op, Point, Stroke } from '../engine/types.ts'
 import type { SketchbookTheme } from '../theme.ts'
@@ -51,19 +52,30 @@ export class DoodleSurface {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
   }
 
-  /** Full projection: paint paper, then replay the visible ops within the fit. */
-  renderOps(ops: readonly Op[], theme: SketchbookTheme, alpha = 1): void {
+  /**
+   * Full projection: paint paper, then replay the visible ops within the fit.
+   * `fieldImage`, when present, is the baked ink-in-water raster drawn in place
+   * of the field's blots; otherwise the blots draw as a plain fallback fill.
+   */
+  renderOps(
+    ops: readonly Op[],
+    theme: SketchbookTheme,
+    fieldImage?: CanvasImageSource | null,
+  ): void {
     const ctx = this.ctx
     this.paintPaper(theme.paper)
 
-    const fit = computeFit(currentViewBox(ops), this.cssW, this.cssH)
+    const vb = currentViewBox(ops)
+    const fit = computeFit(vb, this.cssW, this.cssH)
     this.applyFit(fit)
-    // Bloom (§7): the whole art layer eases in; paper stays opaque.
-    ctx.globalAlpha = alpha
 
     for (const op of visibleOps(ops)) {
       if (op.type === 'field') {
-        for (const blot of op.blots) this.drawBlot(blot, theme)
+        if (fieldImage) {
+          ctx.drawImage(fieldImage, 0, 0, vb.width, vb.height)
+        } else {
+          for (const blot of op.blots) this.drawBlot(blot, theme)
+        }
       } else if (op.type === 'stroke') {
         this.drawStroke(op.stroke)
       } else {
@@ -99,29 +111,40 @@ export class DoodleSurface {
     this.ctx.setTransform(s * fit.scale, 0, 0, s * fit.scale, s * fit.offsetX, s * fit.offsetY)
   }
 
-  /** Midpoint-quadratic closed fill of the resolved outline, plus satellites. */
+  /** Trace the midpoint-quadratic closed outline through `pts`. */
+  private traceOutline(pts: readonly Point[]): void {
+    const ctx = this.ctx
+    const n = pts.length
+    const start = midpoint(pts[n - 1]!, pts[0]!)
+    ctx.beginPath()
+    ctx.moveTo(start.x, start.y)
+    for (let i = 0; i < n; i++) {
+      const cur = pts[i]!
+      const next = pts[(i + 1) % n]!
+      const m = midpoint(cur, next)
+      ctx.quadraticCurveTo(cur.x, cur.y, m.x, m.y)
+    }
+    ctx.closePath()
+  }
+
+  /**
+   * Fallback blot: a plain solid fill of the outline plus its satellite
+   * droplets. Only used when the baked ink raster isn't available (no WebGL /
+   * still decoding); the fluid sim is the real field look.
+   */
   private drawBlot(blot: Blot, theme: SketchbookTheme): void {
     const ctx = this.ctx
     const pts = blot.points
-    const n = pts.length
-    if (n >= 2) {
-      const start = midpoint(pts[n - 1]!, pts[0]!)
-      ctx.beginPath()
-      ctx.moveTo(start.x, start.y)
-      for (let i = 0; i < n; i++) {
-        const cur = pts[i]!
-        const next = pts[(i + 1) % n]!
-        const m = midpoint(cur, next)
-        ctx.quadraticCurveTo(cur.x, cur.y, m.x, m.y)
-      }
-      ctx.closePath()
-      ctx.fillStyle = theme.ink
-      ctx.fill()
-    }
+    if (pts.length < 2) return
+    ctx.globalAlpha = 1
+    ctx.fillStyle = theme.ink
+
+    this.traceOutline(pts)
+    ctx.fill()
+
     for (const sat of blot.satellites) {
       ctx.beginPath()
       ctx.arc(sat.x, sat.y, sat.r, 0, TAU)
-      ctx.fillStyle = theme.ink
       ctx.fill()
     }
   }
@@ -131,6 +154,7 @@ export class DoodleSurface {
     const ctx = this.ctx
     const pts = stroke.points
     if (pts.length === 0) return
+    ctx.globalAlpha = 1
     ctx.strokeStyle = stroke.color
     ctx.lineWidth = stroke.width
     ctx.lineCap = 'round'
@@ -149,6 +173,7 @@ export class DoodleSurface {
   private drawEye(eye: Eye, theme: SketchbookTheme): void {
     const ctx = this.ctx
     const { x, y, size: s, pupilAngle } = eye
+    ctx.globalAlpha = 1
 
     ctx.beginPath()
     ctx.arc(x, y, s, 0, TAU)

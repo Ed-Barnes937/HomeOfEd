@@ -70,7 +70,12 @@ function isOp(value: unknown): value is Op {
   const op = value as Record<string, unknown>
   switch (op.type) {
     case 'field':
-      return isViewBox(op.viewBox) && Array.isArray(op.blots) && op.blots.every(isBlot)
+      return (
+        isViewBox(op.viewBox) &&
+        Array.isArray(op.blots) &&
+        op.blots.every(isBlot) &&
+        (op.baked === undefined || isString(op.baked))
+      )
     case 'stroke':
       return isStroke(op.stroke)
     case 'eye':
@@ -84,12 +89,43 @@ function isOpArray(value: unknown): value is Op[] {
   return Array.isArray(value) && value.every(isOp)
 }
 
+/** Drop the baked raster from every field op except the current (last) one — the
+ * only field whose bitmap the restore needs; older ones fall back to plain blots. */
+function stripOldBaked(ops: readonly Op[]): Op[] {
+  let lastField = -1
+  ops.forEach((op, i) => {
+    if (op.type === 'field') lastField = i
+  })
+  return ops.map((op, i) =>
+    op.type === 'field' && i !== lastField && op.baked !== undefined
+      ? { ...op, baked: undefined }
+      : op,
+  )
+}
+
 export function saveSession(ops: readonly Op[], storage: Pick<Storage, 'setItem'>): void {
-  storage.setItem(KEY, JSON.stringify(ops))
+  try {
+    storage.setItem(KEY, JSON.stringify(ops))
+    return
+  } catch {
+    // Over quota (many baked fields pile up in the undo history) — retry with
+    // only the current field's raster.
+  }
+  try {
+    storage.setItem(KEY, JSON.stringify(stripOldBaked(ops)))
+  } catch {
+    // Still failing (quota or storage unavailable) — drop the save rather than
+    // throw; an accidental reload just regenerates the field.
+  }
 }
 
 export function loadSession(storage: Pick<Storage, 'getItem'>): Op[] | null {
-  const raw = storage.getItem(KEY)
+  let raw: string | null
+  try {
+    raw = storage.getItem(KEY)
+  } catch {
+    return null // storage unavailable (e.g. disabled) — start fresh
+  }
   if (!raw) return null
 
   let parsed: unknown

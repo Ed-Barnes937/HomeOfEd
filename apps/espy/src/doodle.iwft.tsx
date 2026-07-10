@@ -49,6 +49,25 @@ test('New page starts a fresh field, and undo restores the prior counts', async 
   expect(afterUndo).toEqual(before)
 })
 
+test('New page resets the active tool back to the pen', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectTool('Eyes')
+  await root.verifyToolActive('Eyes')
+
+  await root.clickNewPage()
+
+  await root.verifyToolActive('Pen')
+})
+
+test('shows the espy definition splash on load, then reveals the canvas', async ({ mountApp }) => {
+  const { root } = await mountApp()
+
+  await root.verifyIntroShown()
+  await root.verifyIntroGone()
+})
+
 test('undo never drops below the initial field', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
@@ -152,6 +171,37 @@ test('narrow viewport hides the subtitle and reveals the hint via the ? tooltip'
   await root.verifySubtitleHidden()
   await root.verifyHelpHintShown()
   await root.openHelpHintAndVerify('Add a few lines')
+})
+
+test('Save uses the native share sheet on a touch-primary device', async ({ mountApp, page }) => {
+  // page.addInitScript() only fires on navigation, which already happened
+  // before this test body ran — patch the already-loaded page directly.
+  await page.evaluate(() => {
+    // A phone/tablet: touch-primary + Web Share with files. Both are stubbed so
+    // the test doesn't depend on what headless Chromium implements.
+    Object.defineProperty(window.navigator, 'maxTouchPoints', { value: 5, configurable: true })
+    Object.defineProperty(window.navigator, 'canShare', { value: () => true, configurable: true })
+    const shares: string[][] = []
+    ;(window as unknown as { __shareCalls: string[][] }).__shareCalls = shares
+    Object.defineProperty(window.navigator, 'share', {
+      value: (data: { files?: File[] }) => {
+        shares.push((data.files ?? []).map((f) => f.name))
+        return Promise.resolve()
+      },
+      configurable: true,
+    })
+  })
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.clickSave()
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { __shareCalls: string[][] }).__shareCalls),
+    )
+    .toEqual([['espy.png']])
 })
 
 test('Save downloads the drawing via an anchor when the Web Share API is unavailable', async ({

@@ -2,26 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { mulberry32 } from './engine/rng.ts'
 import type { Op } from './engine/types.ts'
-import { BLOOM_MS, bloomAlpha, initialOps } from './useDoodle.helpers.ts'
-
-describe('bloomAlpha', () => {
-  it('clamps to 0 at/below the start and 1 at/after the end', () => {
-    expect(bloomAlpha(-10)).toBe(0)
-    expect(bloomAlpha(0)).toBe(0)
-    expect(bloomAlpha(BLOOM_MS)).toBe(1)
-    expect(bloomAlpha(BLOOM_MS + 50)).toBe(1)
-  })
-
-  it('is monotonic increasing and eased-out (past the linear midpoint)', () => {
-    const a = bloomAlpha(BLOOM_MS * 0.25)
-    const b = bloomAlpha(BLOOM_MS * 0.5)
-    const c = bloomAlpha(BLOOM_MS * 0.75)
-    expect(a).toBeLessThan(b)
-    expect(b).toBeLessThan(c)
-    // ease-out: halfway through time we're already more than halfway through alpha.
-    expect(b).toBeGreaterThan(0.5)
-  })
-})
+import { initialOps } from './useDoodle.helpers.ts'
 
 describe('initialOps', () => {
   const css = { w: 800, h: 600 }

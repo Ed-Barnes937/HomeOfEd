@@ -9,6 +9,7 @@ const SESSION_KEY = 'espy:doodle:v1'
 
 export class DoodlePagePom extends BasePage {
   private readonly canvas = this.page.getByTestId('doodle-canvas')
+  private readonly intro = this.page.getByTestId('intro-splash')
   private readonly subtitle = this.page.getByTestId('hint-subtitle')
   private readonly helpButton = this.page.getByRole('button', { name: 'How to play' })
   private readonly tooltip = this.page.getByRole('tooltip')
@@ -60,6 +61,24 @@ export class DoodlePagePom extends BasePage {
 
   async selectTool(name: string): Promise<void> {
     await this.page.getByRole('button', { name, exact: true }).click()
+  }
+
+  /** Assert which tool is active (segmented toggle reflects it via aria-pressed). */
+  async verifyToolActive(name: string): Promise<void> {
+    await expect(this.page.getByRole('button', { name, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  }
+
+  /** The intro definition splash shows on load and then unmounts. */
+  async verifyIntroShown(): Promise<void> {
+    await expect(this.intro).toBeVisible()
+    await expect(this.intro).toContainText('espy')
+  }
+
+  async verifyIntroGone(): Promise<void> {
+    await expect(this.intro).toBeHidden()
   }
 
   async selectNib(label: string): Promise<void> {

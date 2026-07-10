@@ -23,18 +23,26 @@ src/
     engine/                     PURE TS — no React, no DOM, no Canvas
       types.ts                  Op / Blot / Stroke / Eye / Point / ViewBox / Rng
       rng.ts                    mulberry32 seedable generator (deterministic tests)
-      blot.ts                   generateBlot(cx,cy,r,rng) — rotation + anisotropy
+      blot.ts                   generateBlot(cx,cy,r,rng[,archetype]) — 4 archetypes (blob/streak/splatter/cluster), per-type knobs in SHAPES
       field.ts                  generateField(viewBox,rng) — count/size/non-overlap placement
       eye.ts                    makeEye(x,y,base,rng)
       layout.ts                 blobCount(w,h) / blobRadiusFraction(count)
       history.ts                History (push/undo/floor), visibleOps(), currentViewBox()
       coords.ts                 computeFit(viewBox,cssW,cssH) + toLogical/toDevice
-    render/surface.ts           DoodleSurface — the ONLY module that touches ctx
+    render/surface.ts           DoodleSurface — the ONLY 2D-canvas module; blits the baked fluid raster (plain outline fallback)
+    render/fluid.ts             WebGL2 stable-fluids sim — blooms seeded ink then bakes the field raster (render-layer: touches GL)
+    render/fluid.helpers.ts     PURE TS — blot→splat mapping + brush archetypes (dot/peanut/bean/clump/spike/arch), no GL
+    render/fluid.color.ts       PURE TS — hex→rgb01 palette helper
+    render/fluid.tuning.ts      TEMP (tech debt) — tunable look knobs (DEFAULT_TUNING = shipped look) + ?tune live state
+    FluidTuner.tsx/.module.scss TEMP (tech debt) — ?tune-only debug panel (live knobs + one-of-each grid)
     theme.ts                    SKETCHBOOK canvas colour literals (single fixed direction)
-    session.ts                  load/save current Op[] ↔ localStorage (single slot)
-    useDoodle.ts                hook: sizing, pointer, history, bloom, save, seam
-    useDoodle.helpers.ts        pure glue (bloomAlpha, initialOps) — unit-testable, no DOM
-  pages/DoodlePage.tsx / .module.scss   header → canvas card → toolbar footer
+    session.ts                  load/save current Op[] ↔ localStorage (single slot; quota-safe, never throws)
+    useDoodle.ts                hook: sizing, pointer, history, fluid bloom+bake, save, seam
+    useDoodle.helpers.ts        pure glue (initialOps) — unit-testable, no DOM
+  features/intro/
+    IntroSplash.tsx / .module.scss   one-shot "espy" definition splash on load
+                                     (~1.5s, pointer-events:none, reduced-motion aware)
+  pages/DoodlePage.tsx / .module.scss   intro splash → header → canvas card → toolbar footer
   features/controls/
     Toolbar.tsx / .module.scss
     ToolToggle.tsx               Pen | Eyes
@@ -61,8 +69,9 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
 ## Rules
 
 - **The one hard boundary** (spec §2, root CLAUDE §3): `features/doodle/engine/*`
-  and `render/surface.ts` are pure TS — no React, no DOM, no Canvas access.
-  Only `render/surface.ts` and `useDoodle.ts` may touch a canvas/DOM. The
+  and the fluid pure helpers (`render/fluid.helpers.ts`, `render/fluid.color.ts`)
+  are pure TS — no React, no DOM, no Canvas/GL access. Only `render/surface.ts`
+  (2D), `render/fluid.ts` (WebGL), and `useDoodle.ts` may touch a canvas/DOM. The
   drawing itself is **not** React state (it lives in refs, projected
   imperatively) — React holds only `tool`/`nib`/`canUndo`, so a stroke never
   triggers a re-render.
@@ -81,3 +90,13 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
 - Ports: dev 3006, CT 3106.
 - No database, no migrations, no `@hoe/db` — see
   [ADR 0008](../../docs/adr/0008-apps-without-a-database.md).
+
+## Tech debt
+
+- **`?tune` fluid tuner is still in.** `render/fluid.tuning.ts` +
+  `features/doodle/FluidTuner.{tsx,module.scss}` are dev-only tooling for dialling
+  in the ink-field look; the panel and the `liveDebug` grid mode mount only with
+  `?tune` in the URL, so they're inert in normal use. The shipped look lives in
+  `DEFAULT_TUNING`. Left in deliberately for future tuning — when the look is
+  final, delete those files and fold the numbers into plain consts in
+  `render/fluid.ts` / `render/fluid.helpers.ts`.
