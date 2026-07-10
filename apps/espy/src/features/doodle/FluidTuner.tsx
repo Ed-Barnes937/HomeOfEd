@@ -34,6 +34,7 @@ const RANGES: Record<NumKey, [number, number, number]> = {
   spikeKick: [0, 0.5, 0.01],
   archSpan: [1, 3.5, 0.05],
   archLeg: [0.8, 3, 0.05],
+  fluidMs: [400, 3000, 50],
   vorticity: [0, 40, 0.5],
   densityDissipation: [0, 1, 0.01],
   velocityDissipation: [0, 4, 0.05],
@@ -51,7 +52,7 @@ const SECTIONS: { title: string; keys: NumKey[] }[] = [
   { title: 'Peanut / Bean / Clump', keys: ['peanutSep', 'beanBend', 'clumpSpread'] },
   { title: 'Spike', keys: ['spikeArms', 'spikeArmLen', 'spikeKick'] },
   { title: 'Arch', keys: ['archSpan', 'archLeg'] },
-  { title: 'Sim', keys: ['vorticity', 'densityDissipation', 'velocityDissipation'] },
+  { title: 'Sim', keys: ['fluidMs', 'vorticity', 'densityDissipation', 'velocityDissipation'] },
   {
     title: 'Display',
     keys: ['threshold', 'smoothTexels', 'edgeGain', 'rimBand', 'washMax', 'grainAmount', 'grainScale'],

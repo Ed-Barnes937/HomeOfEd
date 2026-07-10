@@ -32,6 +32,8 @@ export interface FluidTuning {
   archLeg: number
 
   // Sim.
+  /** Bloom duration before the field freezes and bakes (ms). */
+  fluidMs: number
   vorticity: number
   densityDissipation: number
   velocityDissipation: number
@@ -47,14 +49,14 @@ export interface FluidTuning {
 }
 
 export const DEFAULT_TUNING: FluidTuning = {
-  weights: { dot: 2, peanut: 3, bean: 3, clump: 2, spike: 2, arch: 2 },
+  weights: { dot: 1, peanut: 1, bean: 1, clump: 1, spike: 1, arch: 1 },
 
-  radiusScale: 0.62,
+  radiusScale: 0.45,
   wobble: 0.275,
   trailDye: 0.84,
 
-  peanutSep: 2.65,
-  beanBend: 0.75,
+  peanutSep: 1.8,
+  beanBend: 2.5,
   clumpSpread: 1.5,
   spikeArms: 4,
   spikeArmLen: 1.05,
@@ -62,6 +64,7 @@ export const DEFAULT_TUNING: FluidTuning = {
   archSpan: 2.3,
   archLeg: 1.2,
 
+  fluidMs: 1500,
   vorticity: 16,
   densityDissipation: 0.03,
   velocityDissipation: 1.7,
@@ -69,9 +72,9 @@ export const DEFAULT_TUNING: FluidTuning = {
   threshold: 0.4,
   smoothTexels: 2.8,
   edgeGain: 0.14,
-  rimBand: 0.1,
-  washMax: 0.4,
-  grainAmount: 0.12,
+  rimBand: 0.08,
+  washMax: 0.42,
+  grainAmount: 0.09,
   grainScale: 50,
 }
 

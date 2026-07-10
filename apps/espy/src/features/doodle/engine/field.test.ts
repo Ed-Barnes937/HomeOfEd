@@ -49,6 +49,28 @@ describe('generateField', () => {
     }
   })
 
+  it('anchors the first blot near centre for a multi-blot field', () => {
+    expect(blobCount(DESKTOP.width, DESKTOP.height)).toBeGreaterThan(1)
+    for (let seed = 0; seed < 20; seed++) {
+      const first = generateField(DESKTOP, mulberry32(seed))[0]!
+      // Same ±0.06 window as the single-blot case.
+      expect(Math.abs(first.cx - DESKTOP.width / 2)).toBeLessThanOrEqual(0.06 * DESKTOP.width + 1e-9)
+      expect(Math.abs(first.cy - DESKTOP.height / 2)).toBeLessThanOrEqual(0.06 * DESKTOP.height + 1e-9)
+    }
+  })
+
+  it('spreads a multi-blot field across the canvas (best-candidate, not clumped)', () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const blots = generateField(DESKTOP, mulberry32(seed))
+      const xs = blots.map((b) => b.cx)
+      const ys = blots.map((b) => b.cy)
+      const xSpan = Math.max(...xs) - Math.min(...xs)
+      const ySpan = Math.max(...ys) - Math.min(...ys)
+      expect(xSpan).toBeGreaterThan(0.45 * DESKTOP.width)
+      expect(ySpan).toBeGreaterThan(0.3 * DESKTOP.height)
+    }
+  })
+
   it('generates resolved blot geometry (points + satellites)', () => {
     const blots = generateField(DESKTOP, mulberry32(3))
     for (const b of blots) {

@@ -71,12 +71,12 @@ describe('archetype geometry', () => {
     expect(s[0]!.dye).toBe(1)
   })
 
-  it('peanut is two lobes set far enough apart to leave a waist', () => {
+  it('peanut is two distinct lobes offset along an axis (a neck forms)', () => {
     const s = shape('peanut')
     expect(s).toHaveLength(2)
-    // Centres sit farther apart than their two radii sum, so the bloom necks
-    // between them into a dumbbell rather than fusing into one oval.
-    expect(dist(s[0]!, s[1]!)).toBeGreaterThan(s[0]!.radius + s[1]!.radius)
+    // Centres are separated by more than the larger lobe's radius, so the two
+    // gaussians read as a necked dumbbell rather than one concentric blob.
+    expect(dist(s[0]!, s[1]!)).toBeGreaterThan(Math.max(s[0]!.radius, s[1]!.radius))
   })
 
   it('bean is three lobes that taper fat→thin and curve off-axis', () => {

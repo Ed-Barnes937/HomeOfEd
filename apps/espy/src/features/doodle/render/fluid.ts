@@ -4,8 +4,8 @@
  * vorticity → project → advect dye) run as a TRANSIENT overlay canvas.
  *
  * The generated blots seed dye drops with a small velocity kick; the sim blooms
- * them for ~`FLUID_MS`, then FREEZES and bakes the final frame to a plain 2D
- * canvas that the caller keeps as the field art. Nothing simulates after the
+ * them for ~`tuning.fluidMs`, then FREEZES and bakes the final frame to a plain
+ * 2D canvas that the caller keeps as the field art. Nothing simulates after the
  * bake — undo/resize/save just redraw the baked bitmap — so the emergent shape
  * is fixed the moment it settles.
  *
@@ -16,9 +16,6 @@
 import { hexToRgb01 } from './fluid.color.ts'
 import { buildSplats, splatRng, type Brush, type FluidSeed } from './fluid.helpers.ts'
 import { DEFAULT_TUNING, type FluidTuning } from './fluid.tuning.ts'
-
-/** Bloom duration before the field freezes and bakes (ms). */
-export const FLUID_MS = 1800
 
 // Sim grid resolutions (velocity is coarse; dye carries the visible detail).
 const SIM_RES = 128
@@ -504,7 +501,7 @@ export function runFluidField(opts: FluidFieldOptions): Promise<HTMLCanvasElemen
     blit(null)
   }
 
-  const totalSteps = Math.max(1, Math.round(FLUID_MS / (DT * 1000)))
+  const totalSteps = Math.max(1, Math.round(tuning.fluidMs / (DT * 1000)))
 
   const cleanup = (): void => {
     canvas.remove()

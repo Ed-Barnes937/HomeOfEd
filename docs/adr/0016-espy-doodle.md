@@ -93,7 +93,7 @@ them so the reasoning isn't lost once the guide itself is forgotten.
    as artificial, so `render/fluid.ts` now runs a compact WebGL2 stable-fluids
    solver (Stam-style: advect → curl → vorticity → pressure-project → advect
    dye) as a transient overlay: the blots seed dye + velocity splats, the sim
-   blooms for ~1.8s (`FLUID_MS`), then the settled frame is **baked** to a plain
+   blooms for ~1.8s (the `fluidMs` tuning knob), then the settled frame is **baked** to a plain
    2D canvas the app keeps as the field art. Nothing simulates after the bake —
    undo/resize/reload just blit the baked bitmap — so the emergent shape is
    fixed the moment it settles, and `render/surface.ts` stays the only 2D-canvas

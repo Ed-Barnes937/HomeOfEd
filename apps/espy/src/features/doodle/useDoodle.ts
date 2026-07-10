@@ -15,6 +15,7 @@ import { computeFit, toLogical, type Fit } from './engine/coords.ts'
 import { makeEye, EYE_BASE } from './engine/eye.ts'
 import { generateField } from './engine/field.ts'
 import { currentViewBox, History, visibleOps } from './engine/history.ts'
+import { blobRadiusFraction } from './engine/layout.ts'
 import type { Blot, Op, Point, ViewBox } from './engine/types.ts'
 import { BRUSH_ORDER } from './render/fluid.helpers.ts'
 import { fluidSupported, runFluidField } from './render/fluid.ts'
@@ -85,7 +86,8 @@ function currentField(ops: readonly Op[]): (Op & { type: 'field' }) | null {
 function debugGridBlots(w: number, h: number): Blot[] {
   const colX = [0.13, 0.39, 0.65] // fractions of width — left of the panel
   const rowY = [0.3, 0.72]
-  const r = Math.min(w, h) * 0.1
+  // Match a real 6-blot field's blot size so the grid previews true-to-app marks.
+  const r = Math.min(w, h) * blobRadiusFraction(BRUSH_ORDER.length)
   return BRUSH_ORDER.map((_, i) => ({
     cx: w * colX[i % colX.length]!,
     cy: h * rowY[Math.floor(i / colX.length)]!,
