@@ -1,21 +1,24 @@
 /**
  * The integration keystone (spec §8). Owns the canvas lifecycle, pointer
- * handling, history, session restore, the bloom animation, save/share, the
- * Cmd/Ctrl-Z shortcut, and the test seam.
+ * handling, history, session restore, the ink-in-water field bloom, save/share,
+ * the Cmd/Ctrl-Z shortcut, and the test seam.
  *
  * React holds ONLY `tool`/`nib`/`canUndo` as state. The drawing itself is NOT
  * React state — it lives in refs and is projected imperatively onto the canvas,
  * so a stroke never triggers a re-render (spec §8, root CLAUDE §3). This and
- * `render/surface.ts` are the only modules allowed to touch a canvas/DOM.
+ * `render/surface.ts`/`render/fluid.ts` are the only modules allowed to touch a
+ * canvas/DOM.
  */
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import { computeFit, toLogical, type Fit } from './engine/coords.ts'
 import { makeEye, EYE_BASE } from './engine/eye.ts'
 import { generateField } from './engine/field.ts'
-import { currentViewBox, History } from './engine/history.ts'
-import type { Point, ViewBox } from './engine/types.ts'
-import { DIFFUSE_MS } from './render/diffusion.ts'
+import { currentViewBox, History, visibleOps } from './engine/history.ts'
+import type { Blot, Op, Point, ViewBox } from './engine/types.ts'
+import { BRUSH_ORDER } from './render/fluid.helpers.ts'
+import { fluidSupported, runFluidField } from './render/fluid.ts'
+import { cloneTuning, liveDebug, liveTuning } from './render/fluid.tuning.ts'
 import { DoodleSurface } from './render/surface.ts'
 import { loadSession, saveSession } from './session.ts'
 import { SKETCHBOOK } from './theme.ts'
@@ -44,6 +47,9 @@ const SAVE_DEBOUNCE_MS = 300
 /** Minimum CSS extent before the canvas is considered laid out (spec §8). */
 const MIN_CSS_PX = 4
 
+/** Longest edge of the persisted field raster — keeps the localStorage copy small. */
+const PERSIST_CAP_PX = 1024
+
 // --- Test seam (spec §8.1) --------------------------------------------------
 
 export const DOODLE_SEAM_KEY = '__espyTestSeam'
@@ -65,6 +71,39 @@ const NOOP_OPS: Ops = {
   newPage: () => {},
   undo: () => {},
   save: () => Promise.resolve(),
+}
+
+/** The current field op (the last one) — the field the canvas is showing. */
+function currentField(ops: readonly Op[]): (Op & { type: 'field' }) | null {
+  const f = visibleOps(ops)[0]
+  return f && f.type === 'field' ? f : null
+}
+
+/** TEMPORARY (`?tune` grid): a fixed 3×2 layout, one blot per brush archetype in
+ * `BRUSH_ORDER`, so the sim can be forced to one-of-each in stable positions.
+ * Columns are kept in the left ~70% so the rightmost mark clears the tuner panel. */
+function debugGridBlots(w: number, h: number): Blot[] {
+  const colX = [0.13, 0.39, 0.65] // fractions of width — left of the panel
+  const rowY = [0.3, 0.72]
+  const r = Math.min(w, h) * 0.1
+  return BRUSH_ORDER.map((_, i) => ({
+    cx: w * colX[i % colX.length]!,
+    cy: h * rowY[Math.floor(i / colX.length)]!,
+    r,
+    points: [],
+    satellites: [],
+  }))
+}
+
+/** Downscale the baked field to a small JPEG data URL for session restore. */
+function toPersistDataURL(baked: HTMLCanvasElement): string {
+  const longest = Math.max(baked.width, baked.height)
+  const scale = Math.min(1, PERSIST_CAP_PX / longest)
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(baked.width * scale))
+  c.height = Math.max(1, Math.round(baked.height * scale))
+  c.getContext('2d')!.drawImage(baked, 0, 0, c.width, c.height)
+  return c.toDataURL('image/jpeg', 0.82)
 }
 
 export function useDoodle(): UseDoodle {
@@ -97,8 +136,13 @@ export function useDoodle(): UseDoodle {
 
     let history: History | null = null
     let sizeRaf = 0
-    let bloomRaf = 0
     let saveTimer = 0
+    // The baked ink-in-water raster per field op (undo across pages needs each).
+    const fieldImages = new Map<Op, CanvasImageSource>()
+    // The field whose sim is still running — drawn as bare paper (the GL overlay
+    // shows the bloom on top) until its raster bakes.
+    let pendingField: Op | null = null
+    let fluidAbort: AbortController | null = null
     // Per-stroke drag state.
     let activePointerId: number | null = null
     let draft: Point[] | null = null
@@ -113,29 +157,75 @@ export function useDoodle(): UseDoodle {
       ;(canvas as unknown as Record<string, DoodleTestSeam>)[DOODLE_SEAM_KEY] = seam
     }
 
-    const render = (h: History, phase = 1): void => surface.renderOps(h.ops, SKETCHBOOK, phase)
-
-    /** One-shot ink-in-water entrance (diffusion.ts); reduced-motion renders the
-     * settled frame once. `phase` ramps 0→1; surface.ts turns it into each
-     * blot's grow/fade. */
-    const bloom = (h: History): void => {
-      if (bloomRaf) cancelAnimationFrame(bloomRaf)
-      if (reducedMotion) {
-        render(h, 1)
+    const render = (h: History): void => {
+      const field = currentField(h.ops)
+      if (field && field === pendingField && !fieldImages.has(field)) {
+        // Sim in flight for this field — leave bare paper under the GL overlay.
+        surface.paintPaper(SKETCHBOOK.paper)
         return
       }
-      const start = performance.now()
-      const step = (now: number): void => {
-        const elapsed = now - start
-        if (elapsed >= DIFFUSE_MS) {
-          render(h, 1)
-          bloomRaf = 0
-          return
-        }
-        render(h, elapsed / DIFFUSE_MS)
-        bloomRaf = requestAnimationFrame(step)
+      surface.renderOps(h.ops, SKETCHBOOK, field ? fieldImages.get(field) ?? null : null)
+    }
+
+    /** Decode a restored field's baked raster (if any) and repaint once ready. */
+    const ensureFieldImage = (h: History): void => {
+      const field = currentField(h.ops)
+      if (!field || fieldImages.has(field) || !field.baked) return
+      const img = new Image()
+      img.onload = (): void => {
+        fieldImages.set(field, img)
+        render(h)
       }
-      bloomRaf = requestAnimationFrame(step)
+      img.src = field.baked
+    }
+
+    /** Run the ink-in-water sim for `field`, bake it, and repaint. */
+    const startFluid = (h: History, field: Op & { type: 'field' }): void => {
+      fluidAbort?.abort()
+      if (!fluidSupported()) {
+        pendingField = null
+        render(h) // no WebGL → plain blot fallback
+        return
+      }
+      fluidAbort = new AbortController()
+      pendingField = field
+      render(h) // bare paper; the overlay carries the bloom
+
+      let run: Promise<HTMLCanvasElement>
+      try {
+        run = runFluidField({
+          overCanvas: canvas,
+          cssW: cssSize.w,
+          cssH: cssSize.h,
+          dpr: window.devicePixelRatio || 1,
+          seeds: field.blots.map((b) => ({ x: b.cx, y: b.cy, r: b.r })),
+          paper: SKETCHBOOK.paper,
+          ink: SKETCHBOOK.ink,
+          rngSeed: liveDebug.grid ? 1 : Math.floor(Math.random() * 0xffffffff),
+          animate: !reducedMotion,
+          tuning: cloneTuning(liveTuning.current), // frozen per run (debug: ?tune)
+          forceBrushes: liveDebug.grid ? BRUSH_ORDER : undefined,
+          signal: fluidAbort.signal,
+        })
+      } catch {
+        if (pendingField === field) pendingField = null
+        render(h)
+        return
+      }
+
+      run
+        .then((baked) => {
+          fieldImages.set(field, baked)
+          field.baked = toPersistDataURL(baked)
+          if (pendingField === field) pendingField = null
+          render(h)
+          flushSave(h)
+        })
+        .catch((error: unknown) => {
+          if ((error as Error | undefined)?.name === 'AbortError') return
+          if (pendingField === field) pendingField = null
+          render(h) // sim failed → plain blot fallback
+        })
     }
 
     const scheduleSave = (h: History): void => {
@@ -215,16 +305,24 @@ export function useDoodle(): UseDoodle {
     const doNewPage = (): void => {
       if (!history) return
       const viewBox: ViewBox = { width: cssSize.w, height: cssSize.h }
-      history.push({ type: 'field', viewBox, blots: generateField(viewBox, Math.random) })
-      bloom(history)
+      const field: Op & { type: 'field' } = {
+        type: 'field',
+        viewBox,
+        blots: liveDebug.grid
+          ? debugGridBlots(cssSize.w, cssSize.h)
+          : generateField(viewBox, Math.random),
+      }
+      history.push(field)
       setToolState('pen') // a fresh page always starts on the pen (feedback)
       setCanUndo(history.canUndo)
-      flushSave(history)
+      flushSave(history) // persist the seeds now; the baked raster follows
+      startFluid(history, field)
     }
 
     const doUndo = (): void => {
       if (!history) return
       history.undo()
+      ensureFieldImage(history) // the revealed field may need its raster decoded
       render(history)
       setCanUndo(history.canUndo)
       flushSave(history)
@@ -232,7 +330,7 @@ export function useDoodle(): UseDoodle {
 
     const doSave = async (): Promise<void> => {
       if (!history) return
-      render(history) // ensure a crisp, fully-bloomed final frame
+      render(history) // ensure the settled field frame is on the canvas
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/png'),
       )
@@ -302,14 +400,20 @@ export function useDoodle(): UseDoodle {
       history = new History(decision.ops)
       attachSeam(history)
       setCanUndo(history.canUndo)
-      if (decision.bloom) bloom(history)
-      else render(history)
+      if (decision.bloom) {
+        const field = currentField(history.ops)
+        if (field) startFluid(history, field)
+        else render(history)
+      } else {
+        render(history) // restore: plain blots first, then the baked raster
+        ensureFieldImage(history)
+      }
     }
     init()
 
     return () => {
       if (sizeRaf) cancelAnimationFrame(sizeRaf)
-      if (bloomRaf) cancelAnimationFrame(bloomRaf)
+      fluidAbort?.abort()
       if (saveTimer) clearTimeout(saveTimer)
       resizeObserver.disconnect()
       canvas.removeEventListener('pointerdown', onPointerDown)

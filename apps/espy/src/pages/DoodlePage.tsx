@@ -1,7 +1,12 @@
 import { Toolbar } from '../features/controls/Toolbar.tsx'
+import { FluidTuner } from '../features/doodle/FluidTuner.tsx'
 import { useDoodle } from '../features/doodle/useDoodle.ts'
 import { IntroSplash } from '../features/intro/IntroSplash.tsx'
 import styles from './DoodlePage.module.scss'
+
+/** TEMPORARY: show the fluid tuner only when the URL has `?tune`. */
+const TUNE =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('tune')
 
 /** The one-line "how to play" hint. Shown as the header subtitle on wider
  * viewports; surfaced through the toolbar's `?` tooltip when the subtitle is
@@ -15,6 +20,7 @@ export function DoodlePage() {
 
   return (
     <main className={styles.page}>
+      {TUNE && <FluidTuner onRegenerate={newPage} />}
       <IntroSplash />
       <header className={styles.header}>
         <div className={styles.titleBlock}>

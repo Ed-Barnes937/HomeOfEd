@@ -1,7 +1,6 @@
 /**
  * Pure glue for the `useDoodle` hook (spec §8) — extracted so it can be
  * unit-tested in the node vitest env without React/DOM. No React, no Canvas.
- * The bloom entrance maths live in `render/diffusion.ts`.
  */
 import { generateField } from './engine/field.ts'
 import type { Op, Rng } from './engine/types.ts'

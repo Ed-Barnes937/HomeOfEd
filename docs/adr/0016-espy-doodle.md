@@ -17,7 +17,7 @@ stateless baseline (ADR 0008) and SPA default (ADR 0003) without change — this
 ADR is not about those. It builds from a `reference/espy/` design-guide
 bundle that the epic explicitly treats as **a design guide, not a spec**:
 "match its look/feel, treat its internals as non-binding." During the
-`/grill-me` alignment session and implementation, six points were deliberately
+`/grill-me` alignment session and implementation, seven points were deliberately
 settled differently from what that guide assumes or implies. This ADR records
 them so the reasoning isn't lost once the guide itself is forgotten.
 
@@ -77,17 +77,43 @@ them so the reasoning isn't lost once the guide itself is forgotten.
    user-agent/device-type switch.
 
 6. **Sensory-safe as a first-class principle**, not an afterthought pass. The
-   one-shot ink-in-water entrance — each blot grows from a seed while its tone
-   settles, blots staggered so drops land at different moments (`render/diffusion.ts`
-   maths, driven by `useDoodle.ts`, drawn by `render/surface.ts`) — checks
-   `prefers-reduced-motion` up front and renders the settled frame once instead
-   of animating; the ramp is a calm ~850ms ease-out with no fast motion. The
-   also-added watercolour tone (translucent bleed rings + a radial-gradient
-   core) carries its opacity in the fill colours, never `globalAlpha`, so it is
-   present at rest and unaffected by the reduced-motion skip. Nothing else
-   moves, sounds, or interrupts; New page and any drawing action are always
-   fully undoable (no confirmation dialogs); touch targets are ≥44px. This
-   threads through the whole feature rather than living in one component.
+   one-shot ink-in-water entrance — the field blooms from seeded ink and settles
+   (the WebGL fluid sim of divergence 7, `render/fluid.ts`, driven by
+   `useDoodle.ts`) — checks `prefers-reduced-motion` up front and bakes the
+   settled frame once instead of animating; the bloom is a calm ~1.8s settle
+   with no fast motion. The watercolour tone is baked into the field raster (its
+   wash carried in the pixel colours, never `globalAlpha`), so it is present at
+   rest and unaffected by the reduced-motion skip. Nothing else moves, sounds,
+   or interrupts; New page and any drawing action are always fully undoable (no
+   confirmation dialogs); touch targets are ≥44px. This threads through the
+   whole feature rather than living in one component.
+
+7. **The procedural ink field is a baked WebGL fluid sim, not 2D-canvas
+   diffusion.** Post-launch the earlier procedural/watercolour blots still read
+   as artificial, so `render/fluid.ts` now runs a compact WebGL2 stable-fluids
+   solver (Stam-style: advect → curl → vorticity → pressure-project → advect
+   dye) as a transient overlay: the blots seed dye + velocity splats, the sim
+   blooms for ~1.8s (`FLUID_MS`), then the settled frame is **baked** to a plain
+   2D canvas the app keeps as the field art. Nothing simulates after the bake —
+   undo/resize/reload just blit the baked bitmap — so the emergent shape is
+   fixed the moment it settles, and `render/surface.ts` stays the only 2D-canvas
+   module (it blits the raster; a plain filled outline is the fallback until the
+   raster exists). The pure blot→splat mapping lives in `render/fluid.helpers.ts`
+   (unit-tested in node), the palette conversion in `render/fluid.color.ts`, and
+   the watercolour display shader thresholds the diffused dye into a crisp
+   silhouette with a pooled edge-darkening rim and granulation — monochrome per
+   divergence 2. Crucially the silhouette comes from **geometry, not advection**:
+   each puddle is a small set of gaussian lobes of different sizes placed so
+   their union is a distinct mark, chosen from six weighted brush archetypes —
+   `dot / peanut / bean / clump / spike / arch` — where the rounded marks
+   dominate and the "hard" marks (a pointed star, a concave arch) are accents.
+   `fluid.helpers.test.ts` asserts each archetype's lobe contract (peanut waist,
+   bean taper, spike arms/directions, arch notch). This supersedes the deleted
+   `render/diffusion.ts` and the old 2D watercolour tone referenced in
+   divergence 6. **Tech debt:** a dev-only `?tune` panel
+   (`features/doodle/FluidTuner.tsx` + `render/fluid.tuning.ts`) that live-edits
+   the look and forces a one-of-each debug grid is deliberately left in — inert
+   unless `?tune` is in the URL; the signed-off numbers live in `DEFAULT_TUNING`.
 
 ## Consequences
 
@@ -106,3 +132,8 @@ them so the reasoning isn't lost once the guide itself is forgotten.
 - Divergence 2 (single fixed direction) means adding a second visual theme
   later is a new feature, not a flag flip — there is no theme engine to plug
   into yet.
+- The render layer (divergence 7) now carries a WebGL2 fluid solver alongside
+  the 2D projection — a second GPU-touching module (`render/fluid.ts`) and a
+  hard capability gate (`fluidSupported()`), with a plain-outline fallback when
+  WebGL2 float targets are absent. The engine stays pure; only the blot→splat
+  mapping moved into a (still pure, tested) `render/fluid.helpers.ts`.

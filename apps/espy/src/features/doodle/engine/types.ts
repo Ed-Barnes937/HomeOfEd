@@ -40,7 +40,10 @@ export interface Eye {
 }
 
 export type Op =
-  | { type: 'field'; viewBox: ViewBox; blots: Blot[] } // clears + lays a fresh field
+  // clears + lays a fresh field. `blots` seed the ink-in-water sim; `baked` is
+  // the settled field raster (PNG/JPEG data URL) once the sim has frozen — the
+  // render layer blits it, and it round-trips through session restore.
+  | { type: 'field'; viewBox: ViewBox; blots: Blot[]; baked?: string }
   | { type: 'stroke'; stroke: Stroke }
   | { type: 'eye'; eye: Eye }
 

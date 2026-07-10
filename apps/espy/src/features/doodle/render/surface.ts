@@ -1,48 +1,24 @@
 /**
- * The projection layer (spec §6). The ONLY module in the render/engine layers
- * allowed to touch a `CanvasRenderingContext2D`. It projects an `Op[]` onto the
- * canvas under the current contain-fit, drawing the blot/stroke/eye primitives.
+ * The projection layer (spec §6). The ONLY 2D-canvas module: it projects an
+ * `Op[]` onto the canvas under the current contain-fit, drawing the field,
+ * strokes and eyes.
  *
- * The blot outline (midpoint-quadratic closed fill) and eye geometry are ported
- * from the design guide's `drawBlob`/`stampEye` — the maths, not the file. Every
- * op already stores RESOLVED geometry (rolled once at creation), so replay is
- * deterministic; this module re-rolls nothing.
- *
- * Blots render with a soft watercolour tone (translucent bleed rings + a
- * radial-gradient core) and bloom in via `phase` — the ink-in-water entrance
- * whose pure maths live in `diffusion.ts`. Tone opacity rides in the fill
- * colours (rgba), never `globalAlpha`, so `globalAlpha` is used solely for the
- * entrance fade.
+ * The field is an ink-in-water raster baked by the WebGL sim (`fluid.ts`) and
+ * handed in as `fieldImage`; this module just blits it under the fit. When no
+ * baked image is available yet (the sim is still running, WebGL is absent, or a
+ * restored session's raster is still decoding) it falls back to a plain filled
+ * blot outline so the field is never blank.
  */
-import type { Fit } from '../engine/coords.ts'
 import { computeFit } from '../engine/coords.ts'
+import type { Fit } from '../engine/coords.ts'
 import { currentViewBox, visibleOps } from '../engine/history.ts'
 import type { Blot, Eye, Op, Point, Stroke } from '../engine/types.ts'
 import type { SketchbookTheme } from '../theme.ts'
-import { blotProgress, growScale, layerAlpha } from './diffusion.ts'
 
 const TAU = Math.PI * 2
 
-/** Translucent bleed halo around each blot, outermost first (watercolour edge). */
-const BLEED_RINGS = [
-  { scale: 1.3, alpha: 0.05 },
-  { scale: 1.15, alpha: 0.1 },
-]
-
-/** Radial-gradient core: solid interior easing to a slightly softer edge. */
-const CORE_EDGE_ALPHA = 0.8
-
 function midpoint(a: Point, b: Point): Point {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '')
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ]
 }
 
 export class DoodleSurface {
@@ -78,19 +54,28 @@ export class DoodleSurface {
 
   /**
    * Full projection: paint paper, then replay the visible ops within the fit.
-   * `phase` is the ink-in-water entrance progress (0 = nothing, 1 = settled);
-   * only `field` blots animate, so strokes/eyes always draw fully opaque.
+   * `fieldImage`, when present, is the baked ink-in-water raster drawn in place
+   * of the field's blots; otherwise the blots draw as a plain fallback fill.
    */
-  renderOps(ops: readonly Op[], theme: SketchbookTheme, phase = 1): void {
+  renderOps(
+    ops: readonly Op[],
+    theme: SketchbookTheme,
+    fieldImage?: CanvasImageSource | null,
+  ): void {
     const ctx = this.ctx
     this.paintPaper(theme.paper)
 
-    const fit = computeFit(currentViewBox(ops), this.cssW, this.cssH)
+    const vb = currentViewBox(ops)
+    const fit = computeFit(vb, this.cssW, this.cssH)
     this.applyFit(fit)
 
     for (const op of visibleOps(ops)) {
       if (op.type === 'field') {
-        op.blots.forEach((blot, i) => this.drawBlot(blot, theme, blotProgress(phase, i, op.blots.length)))
+        if (fieldImage) {
+          ctx.drawImage(fieldImage, 0, 0, vb.width, vb.height)
+        } else {
+          for (const blot of op.blots) this.drawBlot(blot, theme)
+        }
       } else if (op.type === 'stroke') {
         this.drawStroke(op.stroke)
       } else {
@@ -127,7 +112,7 @@ export class DoodleSurface {
   }
 
   /** Trace the midpoint-quadratic closed outline through `pts`. */
-  private traceOutline(pts: Point[]): void {
+  private traceOutline(pts: readonly Point[]): void {
     const ctx = this.ctx
     const n = pts.length
     const start = midpoint(pts[n - 1]!, pts[0]!)
@@ -143,53 +128,25 @@ export class DoodleSurface {
   }
 
   /**
-   * Watercolour blot: translucent bleed rings, then a radial-gradient core, plus
-   * satellite droplets — all grown from a seed and faded in per `localPhase`
-   * (the ink-in-water entrance). Tone opacity lives in the fill colours; the
-   * only `globalAlpha` write is the entrance fade.
+   * Fallback blot: a plain solid fill of the outline plus its satellite
+   * droplets. Only used when the baked ink raster isn't available (no WebGL /
+   * still decoding); the fluid sim is the real field look.
    */
-  private drawBlot(blot: Blot, theme: SketchbookTheme, localPhase: number): void {
+  private drawBlot(blot: Blot, theme: SketchbookTheme): void {
     const ctx = this.ctx
     const pts = blot.points
     if (pts.length < 2) return
+    ctx.globalAlpha = 1
+    ctx.fillStyle = theme.ink
 
-    const { cx, cy, r } = blot
-    const grow = growScale(localPhase)
-    const [ri, gi, bi] = hexToRgb(theme.ink)
-    const rgba = (a: number): string => `rgba(${ri}, ${gi}, ${bi}, ${a})`
-    const scaled = (k: number): Point[] =>
-      pts.map((p) => ({ x: cx + (p.x - cx) * grow * k, y: cy + (p.y - cy) * grow * k }))
-
-    ctx.globalAlpha = layerAlpha(localPhase)
-
-    // Soft bleed halo (outermost, faintest first).
-    for (const ring of BLEED_RINGS) {
-      this.traceOutline(scaled(ring.scale))
-      ctx.fillStyle = rgba(ring.alpha)
-      ctx.fill()
-    }
-
-    // Radial-gradient core: solid interior, gently softer edge.
-    const coreR = Math.max(r * grow, 0.01)
-    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR)
-    gradient.addColorStop(0, rgba(1))
-    gradient.addColorStop(0.65, rgba(1))
-    gradient.addColorStop(1, rgba(CORE_EDGE_ALPHA))
-    this.traceOutline(scaled(1))
-    ctx.fillStyle = gradient
+    this.traceOutline(pts)
     ctx.fill()
 
-    // Satellite droplets — flung out and grown with the body.
     for (const sat of blot.satellites) {
-      const sx = cx + (sat.x - cx) * grow
-      const sy = cy + (sat.y - cy) * grow
       ctx.beginPath()
-      ctx.arc(sx, sy, sat.r * grow, 0, TAU)
-      ctx.fillStyle = rgba(1)
+      ctx.arc(sat.x, sat.y, sat.r, 0, TAU)
       ctx.fill()
     }
-
-    ctx.globalAlpha = 1
   }
 
   /** Round-capped/joined polyline; a single-point stroke renders a round dot. */

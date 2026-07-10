@@ -34,15 +34,24 @@ export function IntroSplash() {
     <div
       className={`${styles.splash} ${phase === 'leaving' ? styles.leaving : ''}`}
       data-testid="intro-splash"
-      role="presentation"
-      aria-hidden="true"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
     >
+      {/* Announced to assistive tech; the visible copy below is decorative flavour. */}
+      <span className={styles.srOnly}>Loading espy…</span>
       <div className={styles.entry}>
         <h1 className={styles.word}>espy</h1>
         <p className={styles.pronunciation}>/ɪˈspʌɪ/ &middot; verb</p>
         <p className={styles.definition}>
           catch sight of; suddenly notice something, especially something distant or partly hidden.
         </p>
+        {/* Gentle "still working" motion for sighted users; hidden from AT. */}
+        <div className={styles.dots} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
       </div>
     </div>
   )

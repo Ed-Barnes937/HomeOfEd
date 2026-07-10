@@ -15,6 +15,31 @@ class FakeStorage {
   }
 }
 
+/** Rejects any write whose serialised value exceeds `limit` chars, mimicking a
+ * localStorage quota (0 = every write fails). */
+class QuotaStorage {
+  readonly store = new Map<string, string>()
+  constructor(private readonly limit: number) {}
+  getItem(key: string): string | null {
+    return this.store.get(key) ?? null
+  }
+  setItem(key: string, value: string): void {
+    if (value.length > this.limit) {
+      const err = new Error('quota exceeded')
+      err.name = 'QuotaExceededError'
+      throw err
+    }
+    this.store.set(key, value)
+  }
+}
+
+const field = (baked?: string): Op => ({
+  type: 'field',
+  viewBox: { width: 10, height: 10 },
+  blots: [{ cx: 1, cy: 1, r: 1, points: [{ x: 0, y: 0 }], satellites: [] }],
+  ...(baked === undefined ? {} : { baked }),
+})
+
 const SAMPLE_OPS: Op[] = [
   {
     type: 'field',
@@ -94,6 +119,37 @@ describe('saveSession / loadSession', () => {
       STORAGE_KEY,
       JSON.stringify([{ type: 'eye', eye: { x: 1, y: 2, size: 'big', pupilAngle: 0 } }]),
     )
+    expect(loadSession(storage)).toBeNull()
+  })
+
+  it('never throws when the storage is over quota', () => {
+    const storage = new QuotaStorage(0) // every write fails
+    expect(() => saveSession(SAMPLE_OPS, storage)).not.toThrow()
+    expect(storage.store.size).toBe(0) // nothing persisted, but no crash
+  })
+
+  it('on quota, retries keeping only the current field’s baked raster', () => {
+    const big = 'x'.repeat(2000)
+    const ops: Op[] = [field(big), SAMPLE_OPS[1]!, field(big)]
+    // Full payload (two bakeds) is rejected; the stripped one (one baked) fits.
+    const storage = new QuotaStorage(3000)
+
+    expect(() => saveSession(ops, storage)).not.toThrow()
+
+    const loaded = loadSession(storage)
+    expect(loaded).not.toBeNull()
+    expect(loaded![0]).toMatchObject({ type: 'field' })
+    expect((loaded![0] as { baked?: string }).baked).toBeUndefined() // older field trimmed
+    expect((loaded![2] as { baked?: string }).baked).toBe(big) // current field kept
+  })
+
+  it('loadSession returns null (never throws) when getItem throws', () => {
+    const storage = {
+      getItem(): string {
+        throw new Error('storage disabled')
+      },
+    }
+    expect(() => loadSession(storage)).not.toThrow()
     expect(loadSession(storage)).toBeNull()
   })
 })
