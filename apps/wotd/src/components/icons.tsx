@@ -80,6 +80,14 @@ export function ArrowRightIcon(props: IconProps) {
   )
 }
 
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M20 12H4M10 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function SpeakerIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
