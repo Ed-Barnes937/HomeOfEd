@@ -31,6 +31,14 @@ test('clicking a level card shows that level\'s seeded word', async ({ mountApp 
   await root.verifySynonyms(['tough', 'hardy', 'adaptable'])
 })
 
+test('the back link returns from the word page to the level picker', async ({ mountApp }) => {
+  const { root } = await mountApp({ seed })
+  await root.clickLevel('advanced')
+  await root.verifyWotdPageIsShown()
+  await root.clickBack()
+  await root.verifyIsShown()
+})
+
 test('the speak button plays the word through the Web Speech API', async ({ mountApp }) => {
   const { root } = await mountApp({ seed })
   await root.clickLevel('advanced')

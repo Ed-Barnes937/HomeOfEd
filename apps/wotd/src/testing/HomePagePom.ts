@@ -37,6 +37,11 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('wotd-page')).toBeVisible()
   }
 
+  /** Clicks the back link on the word page to return to the level picker. */
+  async clickBack(): Promise<void> {
+    await this.page.getByTestId('wotd-back').click()
+  }
+
   async verifyWord(word: string): Promise<void> {
     await expect(this.page.getByTestId('wotd-word')).toHaveText(word)
   }
