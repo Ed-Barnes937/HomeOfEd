@@ -42,7 +42,11 @@
   inset: 0;
   display: block;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
+
+  /* A touch-drag steers the flock; claim the gesture so the browser doesn't
+   * pan/pinch-zoom or pull-to-refresh over the full-screen canvas. */
+  touch-action: none;
 
   /* Hide the OS pointer while our glyph stands in for it (icon on + force on). */
   &[data-hide-cursor='true'] {
