@@ -12,10 +12,42 @@
 .header {
   container-type: inline-size;
   flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
   padding: 20px 26px 12px;
 }
 
+// Back to the hub (home of ed): a chrome button matching the toolbar's look,
+// sitting to the left of the wordmark.
+.back {
+  flex: none;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--espy-radius-chrome);
+  background: var(--espy-chrome);
+  border: 1px solid var(--espy-chrome-border);
+  box-shadow: var(--espy-shadow-chrome);
+  color: var(--espy-muted);
+  transition: color 0.18s ease;
+
+  &:hover {
+    color: var(--espy-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--espy-accent);
+    outline-offset: 2px;
+  }
+}
+
 .titleBlock {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;

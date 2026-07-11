@@ -15,6 +15,7 @@ import {
   type Preset,
 } from '../features/garden/settings.ts'
 import { useRakeLoop } from '../features/garden/useRakeLoop.ts'
+import { hubUrl } from '../hubUrl.ts'
 import styles from './KaresansuiPage.module.scss'
 
 /** Speed reads as a mood, not a number — matches the reference `speedLabel`. */
@@ -148,6 +149,26 @@ export function KaresansuiPage() {
 
   return (
     <main className={styles.room} data-testid="karesansui-page">
+      <a
+        className={styles.back}
+        href={hubUrl(window.location.hostname)}
+        aria-label="Back to home of ed"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+      </a>
       <header className={styles.wordmark}>
         <span className={styles.mark}>枯山水</span>
         <span className={styles.sep} aria-hidden="true" />

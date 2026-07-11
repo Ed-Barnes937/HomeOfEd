@@ -8,6 +8,7 @@ import { CURSOR_RADIUS } from '../features/sim/engine/simulation.ts'
 import { loadSettings, saveSettings, type CursorIcon, type ThemeId } from '../features/sim/settings.ts'
 import { getTheme, THEMES } from '../features/sim/themes.ts'
 import { useSimulationLoop } from '../features/sim/useSimulationLoop.ts'
+import { hubUrl } from '../hubUrl.ts'
 import styles from './BoidsPage.module.scss'
 
 /** null = draw no glyph (icon off, or no active force so 'creatures' has no sign). */
@@ -65,6 +66,26 @@ export function BoidsPage() {
 
   return (
     <>
+      <a
+        className={styles.back}
+        href={hubUrl(window.location.hostname)}
+        aria-label="Back to home of ed"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+      </a>
       <canvas
         ref={canvasRef}
         data-testid="boids-page"

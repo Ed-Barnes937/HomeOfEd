@@ -1,5 +1,6 @@
 // LandingPage styles (P7b) — SCSS-module port of the source `routes/index.tsx`.
 .page {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -7,6 +8,34 @@
   gap: 2rem;
   min-height: 100dvh;
   padding-inline: 1rem;
+}
+
+// Back to the hub (home of ed): tucked in the top-left corner, muted until
+// hover so it stays out of the way of the landing choices.
+.back {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+
+  &:hover {
+    color: var(--foreground);
+    background: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 2px;
+  }
 }
 
 .intro {

@@ -1,9 +1,33 @@
 .header {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 1.25rem 1rem;
   border-bottom: 1px solid #e4e4de;
+}
+
+// Back to the hub (home of ed): pinned to the left edge, clear of the centred
+// wordmark. Muted ink that darkens on hover to match the clean paper header.
+.back {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b6b66;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #1c1c1c;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1c1c1c;
+    outline-offset: 2px;
+  }
 }
 
 .wordmark {

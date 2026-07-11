@@ -2,6 +2,7 @@ import { Toolbar } from '../features/controls/Toolbar.tsx'
 import { FluidTuner } from '../features/doodle/FluidTuner.tsx'
 import { useDoodle } from '../features/doodle/useDoodle.ts'
 import { IntroSplash } from '../features/intro/IntroSplash.tsx'
+import { hubUrl } from '../hubUrl.ts'
 import styles from './DoodlePage.module.scss'
 
 /** TEMPORARY: show the fluid tuner only when the URL has `?tune`. */
@@ -23,6 +24,26 @@ export function DoodlePage() {
       {TUNE && <FluidTuner onRegenerate={newPage} />}
       <IntroSplash />
       <header className={styles.header}>
+        <a
+          className={styles.back}
+          href={hubUrl(window.location.hostname)}
+          aria-label="Back to home of ed"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7" />
+          </svg>
+        </a>
         <div className={styles.titleBlock}>
           <h1 className={styles.wordmark}>espy</h1>
           <p className={styles.subtitle} data-testid="hint-subtitle">

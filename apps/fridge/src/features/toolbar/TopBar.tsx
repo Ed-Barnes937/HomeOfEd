@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { hubUrl } from '../../hubUrl.ts'
 import styles from './TopBar.module.scss'
 
 interface TopBarProps {
@@ -35,6 +36,26 @@ export function TopBar({
   return (
     <div className={styles.bar}>
       <div className={styles.left}>
+        <a
+          className={styles.back}
+          href={hubUrl(window.location.hostname)}
+          aria-label="Back to home of ed"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7" />
+          </svg>
+        </a>
         <span className={styles.wordmark}>the fridge</span>
         <span className={styles.helper}>drag to bump · click to rotate · double-click to remove</span>
       </div>
