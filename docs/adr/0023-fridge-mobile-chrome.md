@@ -1,6 +1,6 @@
 # 0023 — fridge: responsive mobile chrome (icon bar + FAB add-overlay)
 
-- **Status:** Accepted
+- **Status:** Accepted (breakpoint revised 2026-07-11 — see *Revision* below)
 - **Date:** 2026-07-11
 - **Related:** [0022-fridge-cross-device-board-consistency.md](0022-fridge-cross-device-board-consistency.md)
   (the fixed logical canvas + scale-to-fit this builds on — the board scales
@@ -23,10 +23,10 @@ layout/chrome problem.
 
 ## Decision
 
-Adopt the owner-chosen **"icon bar + add overlay"** design, **gated at a mobile
-breakpoint (`max-width: 640px`)**. Above the breakpoint the layout is
-**pixel-identical to today** — the desktop chrome is unchanged and the mobile
-chrome is not mounted.
+Adopt the owner-chosen **"icon bar + add overlay"** design, gated by the
+**mobile rule** in the *Revision* below (touch device **or** narrow viewport).
+When the rule does not match the layout is **pixel-identical to today** — the
+desktop chrome is unchanged and the mobile chrome is not mounted.
 
 1. **Top bar → slim 52px icon strip.** Back icon, a compact "the fridge"
    wordmark, a Save icon button, and an overflow "⋯" menu holding name editing,
@@ -49,7 +49,7 @@ chrome is not mounted.
    clear of the FAB.
 
 **Mechanism.** Which chrome renders is chosen by a `useIsMobile()` matchMedia
-hook (`max-width: 640px`), read synchronously on first render so there is no
+hook (the mobile rule below), read synchronously on first render so there is no
 layout flash. Conditional *rendering* (rather than CSS `display` toggling of
 duplicated markup) keeps desktop's DOM — and its test-ids / accessibility tree —
 completely untouched, and avoids duplicate-testid collisions. The stage offset
@@ -69,9 +69,10 @@ change is a plain CSS `@media` query at the same breakpoint.
 
 ## Consequences
 
-- **Desktop is untouched** — same components, same CSS, same DOM above 640px.
-  The existing `.iwft` suite runs at the default desktop viewport and stays
-  green, which is the regression guard.
+- **Desktop is untouched** — same components, same CSS, same DOM on a
+  fine-pointer viewport ≥1024px. The existing `.iwft` suite runs at the default
+  desktop viewport (1280×720, fine pointer) and stays green, which is the
+  regression guard.
 - **No board/model/share change.** Coordinates, `StoredBoard`, and `clampOne`'s
   constant bounds are all exactly as 0022 left them. This ADR is chrome only.
 - **Tray components are now shared by two hosts** (desktop `Tray`, mobile
@@ -88,5 +89,39 @@ change is a plain CSS `@media` query at the same breakpoint.
 
 - Whether the add overlay should become a partial bottom sheet so the board
   stays visible while adding. Deferred — current full-screen is per owner.
-- Tablet breakpoint tuning (640px is phone-oriented); tablets currently get the
-  desktop chrome.
+
+## Revision (2026-07-11) — breakpoint rule
+
+The original `max-width: 640px` gate was too narrow. On a portrait tablet or
+large phone (viewport 641–1023px) the app fell through to the **desktop** chrome,
+which overflows at those widths: the TopBar's wordmark/helper text collide with
+the floating saved-fridges row, and the inline tray overruns. A pure width
+breakpoint also can't tell a touch tablet from a small desktop window.
+
+**Revised rule** — the compact chrome is used when **either**:
+
+```
+(pointer: coarse), (max-width: 1023px)
+```
+
+i.e. **any touch device** (`pointer: coarse` — phones and tablets, at any width)
+**or** any viewport **narrow enough that the desktop chrome would overflow**
+(`max-width: 1023px`, covering resized desktop windows and non-touch narrow
+displays). The desktop chrome therefore renders **only on a fine-pointer
+viewport ≥1024px** — which is where it was already designed to fit, so it stays
+pixel-identical there. `max-width: 1023px` was chosen as the boundary because the
+desktop TopBar's full control row needs ~1024px before it wraps/overlaps.
+
+The rule lives in one place — `useIsMobile.MOBILE_QUERY` — and is mirrored by the
+stage-offset `@media (pointer: coarse), (max-width: 1023px)` query in
+`FridgePage.module.scss`. The default `.iwft` suite (1280×720, fine pointer, no
+touch) matches neither clause and keeps the desktop regression guard; new cases
+cover a portrait-tablet width (810px → compact chrome) and the overflow-menu
+layout. This supersedes the earlier "tablets currently get the desktop chrome"
+open question.
+
+Also fixed alongside: the saved-fridges row (`SavedChips`) is absolutely
+positioned for its desktop home (region B, floating under the TopBar). Reused
+inside the mobile overflow menu that positioning leaked, pinning the row to the
+menu's top-left so it overlapped the Share/name items. `SavedChips` now takes an
+`inline` prop (set by `MobileBar`) that lays the row out in normal flow.

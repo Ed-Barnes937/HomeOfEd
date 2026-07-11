@@ -292,6 +292,25 @@ export class FridgePagePom extends BasePage {
     await expect(this.page.getByTestId('add-overlay')).toHaveCount(0)
   }
 
+  async openMobileMenu(): Promise<void> {
+    await this.page.getByTestId('mobile-menu-button').click()
+    await expect(this.page.getByTestId('mobile-menu')).toBeVisible()
+  }
+
+  /**
+   * The overflow menu's saved-fridges list flows *below* its "Saved fridges"
+   * caption rather than floating on top of the other items (region B's absolute
+   * positioning must not leak into the menu — ADR 0023).
+   */
+  async verifyMobileMenuLaysOutCleanly(): Promise<void> {
+    const caption = this.page.getByText('Saved fridges', { exact: true })
+    const empty = this.page.getByText(/no saved fridges yet/i)
+    const capBox = await caption.boundingBox()
+    const emptyBox = await empty.boundingBox()
+    if (!capBox || !emptyBox) throw new Error('mobile menu caption/empty not measurable')
+    expect(emptyBox.y).toBeGreaterThanOrEqual(capBox.y + capBox.height)
+  }
+
   /** Assert the page doesn't scroll sideways (no chrome spills past the edge). */
   async verifyNoHorizontalOverflow(): Promise<void> {
     const overflow = await this.page.evaluate(

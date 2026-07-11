@@ -10,6 +10,14 @@
   gap: 8px;
 }
 
+// Hosted in the mobile overflow menu (ADR 0023): drop the region-B floating and
+// flow as a normal full-width flex child so it sits below its caption rather
+// than pinning itself to the menu's top-left and overlapping the other items.
+.inline {
+  position: static;
+  z-index: auto;
+}
+
 .empty {
   font-size: 12px;
   color: var(--text-muted);

@@ -109,7 +109,7 @@ export function MobileBar({
             Empty the fridge
           </button>
           <div className={styles.savedCap}>Saved fridges</div>
-          <SavedChips saved={saved} activeName={name} onLoad={onLoad} onDelete={onDelete} />
+          <SavedChips saved={saved} activeName={name} onLoad={onLoad} onDelete={onDelete} inline />
         </div>
       )}
     </div>
