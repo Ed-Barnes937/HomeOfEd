@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { blobCount, blobRadiusFraction } from './layout.ts'
+import { blobCount, blobRadiusFraction, MIN_BLOBS } from './layout.ts'
 
 describe('blobCount', () => {
-  it('clamps a tiny area to 1', () => {
-    expect(blobCount(10, 10)).toBe(1)
-    expect(blobCount(360, 520)).toBe(1) // phone
+  it('floors small canvases to MIN_BLOBS (3)', () => {
+    expect(MIN_BLOBS).toBe(3)
+    expect(blobCount(10, 10)).toBe(MIN_BLOBS)
+    // Phones sit under the 190k density's 3-mark point, so they all floor to 3.
+    expect(blobCount(360, 780)).toBe(3) // small phone
+    expect(blobCount(390, 844)).toBe(3) // iPhone 14
+    expect(blobCount(430, 932)).toBe(3) // Pro Max
   })
 
   it('clamps a huge area to 8', () => {
@@ -13,15 +17,15 @@ describe('blobCount', () => {
     expect(blobCount(3440, 1440)).toBe(8) // ultrawide
   })
 
-  it('scales continuously with area for mid sizes', () => {
+  it('scales continuously with area above the floor (tablet/desktop unchanged)', () => {
     expect(blobCount(720, 850)).toBe(3) // tablet ~3
     expect(blobCount(1550, 760)).toBe(6) // desktop ~6
   })
 
-  it('rounds area / 190_000', () => {
-    // 190_000 css-px² -> 1 ; 760_000 -> 4
-    expect(blobCount(500, 380)).toBe(1)
+  it('rounds area / 190_000 above the floor', () => {
+    // 760_000 -> 4 ; 1_140_000 -> 6
     expect(blobCount(950, 800)).toBe(4)
+    expect(blobCount(1140, 1000)).toBe(6)
   })
 })
 
