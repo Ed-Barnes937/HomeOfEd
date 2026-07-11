@@ -1,5 +1,6 @@
 import {
   clampOne,
+  findOpenPlacement,
   knobRotation,
   type Placement,
   relax,
@@ -88,7 +89,12 @@ function resolveColor(state: BoardState): { color: PaletteKey; colorCursor: numb
  * reducer — and so tests can drive spawn+relax with a seeded rng.
  */
 export function buildAddAction(state: BoardState, opts: SpawnOpts, rng: () => number): Action {
-  const placement = spawnPlacement(state.surfW, state.surfH, sizeFor(opts.type), rng)
+  const size = sizeFor(opts.type)
+  // Prefer an open spot so a new magnet doesn't shove ones already placed;
+  // findOpenPlacement falls back to the raw spawn point on a full board, where
+  // the reducer's relax() then shoves neighbours as before.
+  const preferred = spawnPlacement(state.surfW, state.surfH, size, rng)
+  const placement = findOpenPlacement(state.magnets, state.surfW, state.surfH, size, preferred)
   return { type: 'add', opts, placement }
 }
 

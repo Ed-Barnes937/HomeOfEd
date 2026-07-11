@@ -71,6 +71,37 @@ describe('add', () => {
     expect(s.magnets[0]!.color).toBe('green')
     expect(s.colorCursor).toBe(-1)
   })
+
+  it('does not move magnets already placed when there is open space', () => {
+    // A magnet sitting under the top-centre spawn point; the board is otherwise
+    // empty, so the newcomer should find a gap rather than shove this one.
+    const existing: Magnet[] = [
+      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 274, y: 87, w: 52, h: 60, rot: 0, z: 1 },
+    ]
+    const s0 = boardReducer(initialBoardState(existing), { type: 'setSurface', w: W, h: H })
+    const before = { x: s0.magnets[0]!.x, y: s0.magnets[0]!.y }
+    const s1 = add(s0, { type: 'letter', label: 'B', deg: 0 })
+    expect(s1.magnets).toHaveLength(2)
+    expect(s1.magnets[0]).toMatchObject(before) // untouched
+  })
+
+  it('still adds (via the spawn-point fallback + relax) when the board is full', () => {
+    // A surface exactly one magnet wide/tall: no open gap exists, so
+    // findOpenPlacement falls back to the raw spawn point and relax() runs —
+    // the newcomer is still added and kept in bounds rather than dropped.
+    const existing: Magnet[] = [
+      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 0, y: 0, w: 52, h: 60, rot: 0, z: 1 },
+    ]
+    const s0 = boardReducer(initialBoardState(existing), { type: 'setSurface', w: 52, h: 60 })
+    const s1 = add(s0, { type: 'letter', label: 'B', deg: 0 })
+    expect(s1.magnets).toHaveLength(2)
+    for (const m of s1.magnets) {
+      expect(m.x).toBeGreaterThanOrEqual(0)
+      expect(m.y).toBeGreaterThanOrEqual(0)
+      expect(m.x).toBeLessThanOrEqual(52 - m.w)
+      expect(m.y).toBeLessThanOrEqual(60 - m.h)
+    }
+  })
 })
 
 describe('remove / clear', () => {
