@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { CANVAS_H, CANVAS_W } from './canvas.ts'
 import type { Magnet } from './model.ts'
 import {
   type BoardState,
@@ -21,16 +22,18 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-const W = 600
-const H = 400
+// Coordinates are bound to the fixed logical canvas (ADR 0022), not a measured
+// surface — so the bounds are the canvas constants everywhere.
+const W = CANVAS_W
+const H = CANVAS_H
 
-/** An empty board with a measured surface — the usual test starting point. */
+/** An empty board — the usual test starting point. */
 function emptyBoard(): BoardState {
-  return boardReducer(initialBoardState([]), { type: 'setSurface', w: W, h: H })
+  return initialBoardState([])
 }
 
 function add(state: BoardState, opts: SpawnOpts, rng: () => number = () => 0.5): BoardState {
-  return boardReducer(state, buildAddAction(state, opts, rng))
+  return boardReducer(state, buildAddAction(opts, rng))
 }
 
 describe('add', () => {
@@ -180,12 +183,10 @@ describe('name / loadBoard', () => {
 })
 
 describe('rotation', () => {
-  const withMagnet = (rot: number): BoardState => {
-    const base = initialBoardState([
+  const withMagnet = (rot: number): BoardState =>
+    initialBoardState([
       { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 100, y: 100, w: 52, h: 60, rot, z: 1 },
     ])
-    return { ...base, surfW: W, surfH: H }
-  }
 
   it('wheelRot adds/subtracts a step by scroll direction and selects the magnet', () => {
     let s = withMagnet(10)
@@ -214,7 +215,7 @@ describe('drag + bump', () => {
       { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 100, y: 100, w: 52, h: 60, rot: 0, z: 1 },
       { id: 2, type: 'letter', label: 'B', color: 'blue', deg: 0, x: 300, y: 100, w: 52, h: 60, rot: 0, z: 2 },
     ]
-    const s0 = { ...initialBoardState(magnets), surfW: W, surfH: H }
+    const s0 = initialBoardState(magnets)
     // Drag A right on top of B's position → B must be shoved aside.
     const s1 = boardReducer(s0, { type: 'moveDrag', id: 1, x: 300, y: 100 })
     const a = s1.magnets.find((m) => m.id === 1)!
@@ -229,14 +230,32 @@ describe('drag + bump', () => {
   })
 })
 
-describe('setSurface', () => {
-  it('re-clamps every magnet into the new bounds', () => {
+describe('fixed logical canvas (ADR 0022)', () => {
+  it('bounds a dragged magnet against the fixed canvas, never a measured stage', () => {
     const magnets: Magnet[] = [
-      { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 500, y: 300, w: 52, h: 60, rot: 0, z: 1 },
+      { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 0, y: 0, w: 52, h: 60, rot: 0, z: 1 },
     ]
-    const s = boardReducer(initialBoardState(magnets), { type: 'setSurface', w: 200, h: 200 })
+    // Drag it way past the far corner — it stops at the canvas edge, not at
+    // whatever some device's surface happened to measure.
+    const s = boardReducer(initialBoardState(magnets), { type: 'moveDrag', id: 1, x: 9999, y: 9999 })
     const m = s.magnets[0]!
-    expect(m.x).toBe(200 - 52)
-    expect(m.y).toBe(200 - 60)
+    expect(m.x).toBe(CANVAS_W - 52)
+    expect(m.y).toBe(CANVAS_H - 60)
+  })
+
+  it('keeps a magnet that fits the canvas exactly where it was stored (no per-device reflow)', () => {
+    // x=1000,y=650 fits inside 1080×720; loading it must not clamp or move it —
+    // this is the cross-device drift the old measured-surface clamp caused.
+    const magnets: Magnet[] = [
+      { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 1000, y: 650, w: 52, h: 60, rot: 0, z: 1 },
+    ]
+    const s = boardReducer(initialBoardState([]), {
+      type: 'loadBoard',
+      magnets,
+      finish: 'mint',
+      wall: 'warm',
+      name: 'Wide',
+    })
+    expect(s.magnets[0]).toMatchObject({ x: 1000, y: 650 })
   })
 })
