@@ -8,9 +8,12 @@ import { toStoredBoard } from '../features/board/serialize.ts'
 import { useBoardView } from '../features/board/useBoardView.ts'
 import { useFridgeBoard } from '../features/board/useFridgeBoard.ts'
 import { ShareButton } from '../features/share/ShareButton.tsx'
+import { MobileBar } from '../features/toolbar/MobileBar.tsx'
 import { SavedChips } from '../features/toolbar/SavedChips.tsx'
 import { TopBar } from '../features/toolbar/TopBar.tsx'
+import { AddPanel } from '../features/tray/AddPanel.tsx'
 import { Tray } from '../features/tray/Tray.tsx'
+import { useIsMobile } from '../useIsMobile.ts'
 import styles from './FridgePage.module.scss'
 
 export function FridgePage() {
@@ -18,9 +21,14 @@ export function FridgePage() {
   // load / corrupt storage) from localStorage itself — see serialize.ts.
   const board = useFridgeBoard()
   const view = useBoardView()
+  const mobile = useIsMobile()
   const { state } = board
   const selected = state.selId !== null ? state.magnets.find((m) => m.id === state.selId) : undefined
   const storedBoard = toStoredBoard(state.name, state.magnets, state.finish, state.wall)
+
+  const shareButton = (
+    <ShareButton board={storedBoard} disabled={state.magnets.length === 0 || state.sweeping} />
+  )
 
   const magnetHandlers = {
     onPointerDown: board.onMagnetPointerDown,
@@ -33,28 +41,41 @@ export function FridgePage() {
   return (
     <div className={styles.root} data-testid="fridge-page">
       <div className={styles.light} data-wall={state.wall} />
-      <TopBar
-        name={state.name}
-        onNameChange={board.setName}
-        onSave={() => board.save(state.name)}
-        onNew={board.newBoard}
-        onClear={board.startSweep}
-        clearDisabled={state.magnets.length === 0}
-        saveDisabled={state.sweeping}
-        shareSlot={
-          <ShareButton
-            board={storedBoard}
-            disabled={state.magnets.length === 0 || state.sweeping}
+      {mobile ? (
+        <MobileBar
+          name={state.name}
+          onNameChange={board.setName}
+          onSave={() => board.save(state.name)}
+          onNew={board.newBoard}
+          onClear={board.startSweep}
+          clearDisabled={state.magnets.length === 0}
+          saveDisabled={state.sweeping}
+          shareSlot={shareButton}
+          saved={board.saved}
+          onLoad={board.loadSaved}
+          onDelete={board.deleteSaved}
+        />
+      ) : (
+        <>
+          <TopBar
+            name={state.name}
+            onNameChange={board.setName}
+            onSave={() => board.save(state.name)}
+            onNew={board.newBoard}
+            onClear={board.startSweep}
+            clearDisabled={state.magnets.length === 0}
+            saveDisabled={state.sweeping}
+            shareSlot={shareButton}
           />
-        }
-      />
-      <SavedChips
-        saved={board.saved}
-        activeName={state.name}
-        onLoad={board.loadSaved}
-        onDelete={board.deleteSaved}
-        disabled={state.sweeping}
-      />
+          <SavedChips
+            saved={board.saved}
+            activeName={state.name}
+            onLoad={board.loadSaved}
+            onDelete={board.deleteSaved}
+            disabled={state.sweeping}
+          />
+        </>
+      )}
       <div
         className={styles.stage}
         ref={view.stageRef}
@@ -96,16 +117,29 @@ export function FridgePage() {
           </button>
         )}
       </div>
-      <Tray
-        finish={state.finish}
-        wall={state.wall}
-        pick={state.pick}
-        onPick={board.setPick}
-        onAdd={board.add}
-        onFinish={board.setFinish}
-        onWall={board.setWall}
-        disabled={state.sweeping}
-      />
+      {mobile ? (
+        <AddPanel
+          finish={state.finish}
+          wall={state.wall}
+          pick={state.pick}
+          onPick={board.setPick}
+          onAdd={board.add}
+          onFinish={board.setFinish}
+          onWall={board.setWall}
+          disabled={state.sweeping}
+        />
+      ) : (
+        <Tray
+          finish={state.finish}
+          wall={state.wall}
+          pick={state.pick}
+          onPick={board.setPick}
+          onAdd={board.add}
+          onFinish={board.setFinish}
+          onWall={board.setWall}
+          disabled={state.sweeping}
+        />
+      )}
       <LandscapeNudge />
     </div>
   )

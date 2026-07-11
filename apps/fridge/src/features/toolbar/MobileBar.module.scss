@@ -1,0 +1,122 @@
+// Slim mobile icon strip (ADR 0023). Fixed 52px tall; the stage top offset
+// matches it (FridgePage.module.scss mobile query).
+.bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  background: var(--tray-bg);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+}
+
+// Every tap target is ≥44px.
+.icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--text-strong);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.wordmark {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--text-strong);
+}
+
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+// Overflow menu: a sheet anchored under the strip, right-aligned.
+.menu {
+  position: absolute;
+  top: 56px;
+  right: 8px;
+  left: 8px;
+  max-width: 340px;
+  margin-left: auto;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #fbfaf7;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+
+.name {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: var(--r-control);
+  background: #fff;
+  font-size: 15px;
+  color: var(--text-strong);
+  outline: none;
+
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.35);
+  }
+}
+
+.item {
+  min-height: 44px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: var(--r-control);
+  background: #fff;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.danger {
+  color: var(--danger-text);
+}
+
+// The share slot's own button should fill the row and meet the tap-target min.
+.shareRow :global(button) {
+  width: 100%;
+  min-height: 44px;
+}
+
+.savedCap {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}

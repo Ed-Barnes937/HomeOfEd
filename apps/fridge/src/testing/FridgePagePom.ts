@@ -267,4 +267,36 @@ export class FridgePagePom extends BasePage {
     const url = await this.page.getByTestId('share-url').inputValue()
     return url.slice(url.lastIndexOf('/b/') + '/b/'.length)
   }
+
+  // ---- mobile chrome (ADR 0023) ----
+
+  async verifyMobileBarShown(): Promise<void> {
+    await expect(this.page.getByTestId('mobile-bar')).toBeVisible()
+  }
+
+  /** On mobile the inline tray is gone — adding happens via the FAB overlay. */
+  async verifyNoInlineTray(): Promise<void> {
+    await expect(this.page.getByTestId('fridge-tray')).toHaveCount(0)
+  }
+
+  async openAddOverlay(): Promise<void> {
+    await this.page.getByTestId('add-fab').click()
+  }
+
+  async verifyAddOverlayShown(): Promise<void> {
+    await expect(this.page.getByTestId('add-overlay')).toBeVisible()
+  }
+
+  async closeAddOverlay(): Promise<void> {
+    await this.page.getByTestId('add-overlay-close').click()
+    await expect(this.page.getByTestId('add-overlay')).toHaveCount(0)
+  }
+
+  /** Assert the page doesn't scroll sideways (no chrome spills past the edge). */
+  async verifyNoHorizontalOverflow(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  }
 }

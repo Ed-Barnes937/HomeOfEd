@@ -1,10 +1,13 @@
 // Dismissible portrait-phone hint (ADR 0022). Pinned above the tray, non-
 // blocking, pointer-events only on itself.
+// Sits low-centre, above the add FAB (ADR 0023 — the inline tray is gone on
+// mobile, so the board is unobstructed but portrait is still width-bound and
+// landscape genuinely roomier; the nudge is kept, just repositioned).
 .nudge {
   position: fixed;
-  left: 50%;
-  bottom: 224px;
-  transform: translateX(-50%);
+  left: 16px;
+  right: 76px; // clear of the 56px FAB + its 16px inset
+  bottom: 20px;
   z-index: 40;
   display: flex;
   align-items: center;

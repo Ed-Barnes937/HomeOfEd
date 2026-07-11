@@ -71,3 +71,21 @@
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
+
+// Mobile (ADR 0023): the chrome is a slim 52px icon strip and a floating FAB,
+// so the board's fixed offsets shrink to just the strip at top and 0 at bottom
+// — the #42 scale-to-fit math then grows the board to fill the freed space.
+// Gated by the breakpoint; desktop is untouched. Placed last so these win over
+// the base rules at ≤640px.
+@media (max-width: 640px) {
+  .stage {
+    top: 52px;
+    bottom: 0;
+  }
+
+  // Avoid colliding with the bottom-right add FAB.
+  .reset {
+    right: auto;
+    left: 14px;
+  }
+}
