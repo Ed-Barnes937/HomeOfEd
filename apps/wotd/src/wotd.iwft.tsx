@@ -56,6 +56,22 @@ test('the speak button plays the word through the Web Speech API', async ({ moun
   await root.verifySpoken('resilient')
 })
 
+// A deliberately long, unbroken word to stress the card's overflow-wrap.
+const longWordSeed = async (db: { execute: (sql: string) => Promise<unknown> }) => {
+  await db.execute(`insert into words (word, definition, example_sentence, alternatives, difficulty, for_date) values
+    ('pneumonoultramicroscopicsilicovolcanoconiosis','a lung disease','The long word filled the card.', ARRAY['long'], 'beginner', '2026-07-05')`)
+}
+
+for (const width of [320, 390]) {
+  test(`the word page has no horizontal overflow at ${width}px`, async ({ mountApp, page }) => {
+    await page.setViewportSize({ width, height: 780 })
+    const { root } = await mountApp({ seed: longWordSeed })
+    await root.gotoPath('/wotd?level=beginner')
+    await root.verifyWotdPageIsShown()
+    await root.verifyNoHorizontalOverflow()
+  })
+}
+
 test('an invalid level in the URL falls back to beginner', async ({ mountApp }) => {
   const { root } = await mountApp({ seed })
   await root.gotoPath('/wotd?level=bogus')
