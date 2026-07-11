@@ -1,0 +1,72 @@
+// Bottom-right add FAB (ADR 0023). ≥44px (56px here), floats over the board.
+.fab {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 35;
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+// Full-screen add overlay: the tray content, stacked and scrollable.
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background: var(--tray-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-strong);
+}
+
+.done {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: var(--r-control);
+  background: var(--ink);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-primary);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

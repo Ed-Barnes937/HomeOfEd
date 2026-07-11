@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { CANVAS_H, CANVAS_W } from './canvas.ts'
 import type { Magnet } from './model.ts'
 import {
   type BoardState,
@@ -21,16 +22,18 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-const W = 600
-const H = 400
+// Coordinates are bound to the fixed logical canvas (ADR 0022), not a measured
+// surface — so the bounds are the canvas constants everywhere.
+const W = CANVAS_W
+const H = CANVAS_H
 
-/** An empty board with a measured surface — the usual test starting point. */
+/** An empty board — the usual test starting point. */
 function emptyBoard(): BoardState {
-  return boardReducer(initialBoardState([]), { type: 'setSurface', w: W, h: H })
+  return initialBoardState([])
 }
 
 function add(state: BoardState, opts: SpawnOpts, rng: () => number = () => 0.5): BoardState {
-  return boardReducer(state, buildAddAction(state, opts, rng))
+  return boardReducer(state, buildAddAction(state.magnets, opts, rng))
 }
 
 describe('add', () => {
@@ -73,34 +76,40 @@ describe('add', () => {
   })
 
   it('does not move magnets already placed when there is open space', () => {
-    // A magnet sitting under the top-centre spawn point; the board is otherwise
-    // empty, so the newcomer should find a gap rather than shove this one.
+    // A magnet sitting on the top-centre spawn point (514,138 for the default
+    // rng on the fixed 1080×720 canvas); the board is otherwise empty, so the
+    // newcomer finds a gap via findOpenPlacement and this one is left untouched.
     const existing: Magnet[] = [
-      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 274, y: 87, w: 52, h: 60, rot: 0, z: 1 },
+      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 514, y: 138, w: 52, h: 60, rot: 0, z: 1 },
     ]
-    const s0 = boardReducer(initialBoardState(existing), { type: 'setSurface', w: W, h: H })
+    const s0 = initialBoardState(existing)
     const before = { x: s0.magnets[0]!.x, y: s0.magnets[0]!.y }
     const s1 = add(s0, { type: 'letter', label: 'B', deg: 0 })
     expect(s1.magnets).toHaveLength(2)
     expect(s1.magnets[0]).toMatchObject(before) // untouched
   })
 
-  it('still adds (via the spawn-point fallback + relax) when the board is full', () => {
-    // A surface exactly one magnet wide/tall: no open gap exists, so
-    // findOpenPlacement falls back to the raw spawn point and relax() runs —
-    // the newcomer is still added and kept in bounds rather than dropped.
-    const existing: Magnet[] = [
-      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 0, y: 0, w: 52, h: 60, rot: 0, z: 1 },
+  it('relocates the newcomer to a clear, in-bounds spot when the spawn point is blocked', () => {
+    // The spawn point is occupied, so findOpenPlacement must move the newcomer
+    // into a nearby gap rather than land it on top. (The no-gap full-board
+    // fallback is unit-tested in magnet-kit's place.test.ts; on the fixed
+    // 1080×720 canvas the app path always has room, so this asserts the gap
+    // search is wired in and stays within the canvas bounds.)
+    const blocker: Magnet[] = [
+      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 514, y: 138, w: 52, h: 60, rot: 0, z: 1 },
     ]
-    const s0 = boardReducer(initialBoardState(existing), { type: 'setSurface', w: 52, h: 60 })
-    const s1 = add(s0, { type: 'letter', label: 'B', deg: 0 })
+    const s1 = add(initialBoardState(blocker), { type: 'letter', label: 'B', deg: 0 })
     expect(s1.magnets).toHaveLength(2)
-    for (const m of s1.magnets) {
-      expect(m.x).toBeGreaterThanOrEqual(0)
-      expect(m.y).toBeGreaterThanOrEqual(0)
-      expect(m.x).toBeLessThanOrEqual(52 - m.w)
-      expect(m.y).toBeLessThanOrEqual(60 - m.h)
-    }
+    const b = s1.magnets[1]!
+    // In bounds…
+    expect(b.x).toBeGreaterThanOrEqual(0)
+    expect(b.y).toBeGreaterThanOrEqual(0)
+    expect(b.x).toBeLessThanOrEqual(W - b.w)
+    expect(b.y).toBeLessThanOrEqual(H - b.h)
+    // …and not sitting on the blocker.
+    const a = s1.magnets[0]!
+    const overlaps = b.x < a.x + a.w && b.x + b.w > a.x && b.y < a.y + a.h && b.y + b.h > a.y
+    expect(overlaps).toBe(false)
   })
 })
 
@@ -211,12 +220,10 @@ describe('name / loadBoard', () => {
 })
 
 describe('rotation', () => {
-  const withMagnet = (rot: number): BoardState => {
-    const base = initialBoardState([
+  const withMagnet = (rot: number): BoardState =>
+    initialBoardState([
       { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 100, y: 100, w: 52, h: 60, rot, z: 1 },
     ])
-    return { ...base, surfW: W, surfH: H }
-  }
 
   it('wheelRot adds/subtracts a step by scroll direction and selects the magnet', () => {
     let s = withMagnet(10)
@@ -245,7 +252,7 @@ describe('drag + bump', () => {
       { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 100, y: 100, w: 52, h: 60, rot: 0, z: 1 },
       { id: 2, type: 'letter', label: 'B', color: 'blue', deg: 0, x: 300, y: 100, w: 52, h: 60, rot: 0, z: 2 },
     ]
-    const s0 = { ...initialBoardState(magnets), surfW: W, surfH: H }
+    const s0 = initialBoardState(magnets)
     // Drag A right on top of B's position → B must be shoved aside.
     const s1 = boardReducer(s0, { type: 'moveDrag', id: 1, x: 300, y: 100 })
     const a = s1.magnets.find((m) => m.id === 1)!
@@ -260,14 +267,32 @@ describe('drag + bump', () => {
   })
 })
 
-describe('setSurface', () => {
-  it('re-clamps every magnet into the new bounds', () => {
+describe('fixed logical canvas (ADR 0022)', () => {
+  it('bounds a dragged magnet against the fixed canvas, never a measured stage', () => {
     const magnets: Magnet[] = [
-      { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 500, y: 300, w: 52, h: 60, rot: 0, z: 1 },
+      { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 0, y: 0, w: 52, h: 60, rot: 0, z: 1 },
     ]
-    const s = boardReducer(initialBoardState(magnets), { type: 'setSurface', w: 200, h: 200 })
+    // Drag it way past the far corner — it stops at the canvas edge, not at
+    // whatever some device's surface happened to measure.
+    const s = boardReducer(initialBoardState(magnets), { type: 'moveDrag', id: 1, x: 9999, y: 9999 })
     const m = s.magnets[0]!
-    expect(m.x).toBe(200 - 52)
-    expect(m.y).toBe(200 - 60)
+    expect(m.x).toBe(CANVAS_W - 52)
+    expect(m.y).toBe(CANVAS_H - 60)
+  })
+
+  it('keeps a magnet that fits the canvas exactly where it was stored (no per-device reflow)', () => {
+    // x=1000,y=650 fits inside 1080×720; loading it must not clamp or move it —
+    // this is the cross-device drift the old measured-surface clamp caused.
+    const magnets: Magnet[] = [
+      { id: 1, type: 'letter', label: 'A', color: 'red', deg: 0, x: 1000, y: 650, w: 52, h: 60, rot: 0, z: 1 },
+    ]
+    const s = boardReducer(initialBoardState([]), {
+      type: 'loadBoard',
+      magnets,
+      finish: 'mint',
+      wall: 'warm',
+      name: 'Wide',
+    })
+    expect(s.magnets[0]).toMatchObject({ x: 1000, y: 650 })
   })
 })

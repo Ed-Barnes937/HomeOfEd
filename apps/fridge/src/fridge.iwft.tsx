@@ -178,3 +178,45 @@ test('Empty the fridge skips the sweep and empties instantly under reduced motio
   await root.clickClear()
   await root.verifyMagnetCount(0) // no sweep animation — cleared in place
 })
+
+test('mobile: slim icon bar + FAB add-overlay replace the inline tray', async ({
+  mountApp,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 }) // phone, portrait
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyMobileBarShown()
+  await root.verifyNoInlineTray() // (a) no inline tray on mobile
+  await root.verifyMagnetCount(8)
+
+  await root.openAddOverlay() // (b) FAB opens the add overlay
+  await root.verifyAddOverlayShown()
+  await root.tapTile('A') // (c) adding from the overlay lands on the board
+  await root.verifyMagnetCount(9)
+  await root.closeAddOverlay()
+
+  await root.verifyNoHorizontalOverflow() // (d) no sideways scroll
+})
+
+test('mobile: a portrait-tablet width still gets the compact chrome, not desktop', async ({
+  mountApp,
+  page,
+}) => {
+  await page.setViewportSize({ width: 810, height: 1080 }) // portrait tablet
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyMobileBarShown() // compact chrome, not the desktop TopBar
+  await root.verifyNoInlineTray()
+  await root.verifyNoHorizontalOverflow() // desktop chrome would overflow here
+})
+
+test('mobile: the overflow menu saved list flows below its caption without overlap', async ({
+  mountApp,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const { root } = await mountApp()
+  await root.openMobileMenu()
+  await root.verifyMobileMenuLaysOutCleanly()
+})

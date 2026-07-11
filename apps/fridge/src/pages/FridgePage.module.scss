@@ -26,7 +26,10 @@
   }
 }
 
-// Fridge stage: centres the door between the toolbar and the tray.
+// Fridge stage: the frame the door scales into, between toolbar and tray.
+// overflow:hidden so a zoomed/panned board is clipped to the frame; the door
+// is scale-to-fit centred here (ADR 0022), letterboxed when aspect ratios
+// differ.
 .stage {
   position: absolute;
   top: 98px;
@@ -37,5 +40,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 26px;
+  overflow: hidden;
+  touch-action: none; // pinch/pan are handled in JS, not by the browser
+}
+
+// The scale-to-fit wrapper: fixed logical door size (1094×734), transformed
+// (scale·zoom + pan) by useBoardView. transform-origin centre keeps it centred.
+.scaler {
+  width: 1094px;
+  height: 734px;
+  flex: none;
+  transform-origin: center;
+  will-change: transform;
+}
+
+// Return-to-fit control, shown only while the view is zoomed/panned.
+.reset {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 20;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.86);
+  color: #23282c;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+// Mobile (ADR 0023): the chrome is a slim 52px icon strip and a floating FAB,
+// so the board's fixed offsets shrink to just the strip at top and 0 at bottom
+// — the #42 scale-to-fit math then grows the board to fill the freed space.
+// Gated by the same rule as useIsMobile's MOBILE_QUERY (any touch device, or a
+// viewport too narrow for the desktop chrome); desktop is untouched. Placed
+// last so these win over the base rules when the rule matches.
+@media (pointer: coarse), (max-width: 1023px) {
+  .stage {
+    top: 52px;
+    bottom: 0;
+  }
+
+  // Avoid colliding with the bottom-right add FAB.
+  .reset {
+    right: auto;
+    left: 14px;
+  }
 }

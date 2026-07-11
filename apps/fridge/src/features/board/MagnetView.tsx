@@ -1,5 +1,6 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 
+import { CANVAS_H, CANVAS_W } from './canvas.ts'
 import { type Magnet, PALETTE } from './model.ts'
 import styles from './MagnetView.module.scss'
 
@@ -26,34 +27,30 @@ export interface MagnetHandlers {
  * When `departing` (the "empty the fridge" sweep, see plan 0005 §4) it slides
  * down and off the bottom edge with a staggered left-to-right delay and a
  * tumble, then fades. The surface's `overflow:hidden` clips it as it passes the
- * edge. `surfW`/`surfH` are the measured surface dims the departure maths needs.
+ * edge. The departure maths uses the fixed logical canvas dims (ADR 0022).
  */
 export function MagnetView({
   magnet,
   active = false,
   departing = false,
-  surfW,
-  surfH,
   handlers,
 }: {
   magnet: Magnet
   active?: boolean
   departing?: boolean
-  surfW: number
-  surfH: number
   handlers?: MagnetHandlers
 }) {
   const shades = PALETTE[magnet.color]
 
   // Departure transform: a rightward drift + a drop clear of the bottom edge +
   // a modest tumble, staggered by the magnet's x so the sweep reads left-to-
-  // right. surfW>0 because the surface is measured before any magnet renders.
+  // right. Distances are in logical canvas px (CANVAS_W×CANVAS_H).
   const departingStyle: CSSProperties = departing
     ? {
-        transform: `translate(${surfW * 0.11 + magnet.rot}px, ${surfH + 120}px) rotate(${magnet.rot + 55}deg)`,
+        transform: `translate(${CANVAS_W * 0.11 + magnet.rot}px, ${CANVAS_H + 120}px) rotate(${magnet.rot + 55}deg)`,
         opacity: 0,
         transition: 'transform 700ms cubic-bezier(.45,.05,.6,1), opacity 700ms ease',
-        transitionDelay: `${surfW > 0 ? Math.round((magnet.x / surfW) * 260) : 0}ms`,
+        transitionDelay: `${Math.round((magnet.x / CANVAS_W) * 260)}ms`,
       }
     : {}
 

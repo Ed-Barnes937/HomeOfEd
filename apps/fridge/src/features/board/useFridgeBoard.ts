@@ -11,6 +11,7 @@ import {
 import { type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
+import { CANVAS_H, CANVAS_W, toLogical } from './canvas.ts'
 import {
   type Finish,
   type Magnet,
@@ -34,6 +35,11 @@ export interface SpawnOpts {
  * rather than in refs so the reducer stays pure and deterministic — the plan's
  * F5 reducer tests depend on that, and StrictMode double-invokes reducers.
  * Transient gesture data (drag grab-offset, rotation centre) stays in refs.
+ *
+ * Coordinates are bound to the fixed logical canvas (CANVAS_W×CANVAS_H, see
+ * canvas.ts / ADR 0022), never a measured DOM surface — so a board is
+ * pixel-identical on every device. The stage measurement drives only the
+ * render scale (useBoardView), not the coordinate space.
  */
 export interface BoardState {
   magnets: Magnet[]
@@ -42,8 +48,6 @@ export interface BoardState {
   finish: Finish
   wall: Wall
   pick: number | null // palette index, or null = auto-cycle
-  surfW: number
-  surfH: number
   nextId: number
   zTop: number
   colorCursor: number // last auto colour index; -1 so the first auto pick is red
@@ -52,7 +56,6 @@ export interface BoardState {
 }
 
 type Action =
-  | { type: 'setSurface'; w: number; h: number }
   | { type: 'add'; opts: SpawnOpts; placement: Placement }
   | { type: 'startDrag'; id: number }
   | { type: 'moveDrag'; id: number; x: number; y: number }
@@ -88,13 +91,15 @@ function resolveColor(state: BoardState): { color: PaletteKey; colorCursor: numb
  * happens in the event handler — not inside the pure, StrictMode-doubled
  * reducer — and so tests can drive spawn+relax with a seeded rng.
  */
-export function buildAddAction(state: BoardState, opts: SpawnOpts, rng: () => number): Action {
+export function buildAddAction(magnets: Magnet[], opts: SpawnOpts, rng: () => number): Action {
   const size = sizeFor(opts.type)
-  // Prefer an open spot so a new magnet doesn't shove ones already placed;
+  // Prefer an open spot so a new magnet doesn't shove ones already placed (#43);
   // findOpenPlacement falls back to the raw spawn point on a full board, where
-  // the reducer's relax() then shoves neighbours as before.
-  const preferred = spawnPlacement(state.surfW, state.surfH, size, rng)
-  const placement = findOpenPlacement(state.magnets, state.surfW, state.surfH, size, preferred)
+  // the reducer's relax() then shoves neighbours as before. Bounds are the fixed
+  // logical canvas (ADR 0022), not a measured surface — so where a magnet lands
+  // is device-independent, matching the coordinate model.
+  const preferred = spawnPlacement(CANVAS_W, CANVAS_H, size, rng)
+  const placement = findOpenPlacement(magnets, CANVAS_W, CANVAS_H, size, preferred)
   return { type: 'add', opts, placement }
 }
 
@@ -106,11 +111,6 @@ function idAndZTop(magnets: Magnet[]): { nextId: number; zTop: number } {
 
 export function boardReducer(state: BoardState, action: Action): BoardState {
   switch (action.type) {
-    case 'setSurface': {
-      const magnets = clone(state.magnets)
-      for (const m of magnets) clampOne(m, action.w, action.h)
-      return { ...state, surfW: action.w, surfH: action.h, magnets }
-    }
     case 'add': {
       // The board is read-only while it sweeps out — a magnet added now would
       // just be wiped by the pending clear(). See startSweep.
@@ -134,7 +134,7 @@ export function boardReducer(state: BoardState, action: Action): BoardState {
       }
       const magnets = clone(state.magnets)
       magnets.push(magnet)
-      relax(magnets, id, state.surfW, state.surfH)
+      relax(magnets, id, CANVAS_W, CANVAS_H)
       return { ...state, magnets, selId: id, nextId: id + 1, zTop: z, colorCursor }
     }
     case 'startDrag': {
@@ -148,8 +148,8 @@ export function boardReducer(state: BoardState, action: Action): BoardState {
       if (!a) return state
       a.x = action.x
       a.y = action.y
-      clampOne(a, state.surfW, state.surfH)
-      relax(magnets, action.id, state.surfW, state.surfH)
+      clampOne(a, CANVAS_W, CANVAS_H)
+      relax(magnets, action.id, CANVAS_W, CANVAS_H)
       return { ...state, magnets }
     }
     case 'endDrag':
@@ -236,8 +236,6 @@ export function initialBoardState(
     finish,
     wall,
     pick: null,
-    surfW: 0,
-    surfH: 0,
     nextId,
     zTop,
     colorCursor: -1,
@@ -309,7 +307,11 @@ export function useFridgeBoard(options?: {
   )
   const [saved, setSaved] = useState<StoredBoard[]>(initial.saved)
 
+  // Measured for pointer→logical conversion only: its on-screen rect reflects
+  // the fit scale + any view zoom/pan, so `toLogical` divides by rect.width /
+  // CANVAS_W to track the cursor exactly (ADR 0022). It no longer drives bounds.
   const surfaceRef = useRef<HTMLDivElement | null>(null)
+  // Drag grab-offset and rotation centre are both kept in LOGICAL canvas px.
   const dragRef = useRef<{ id: number; dx: number; dy: number } | null>(null)
   const rotRef = useRef<{ id: number; cx: number; cy: number } | null>(null)
   const sweepTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -320,19 +322,6 @@ export function useFridgeBoard(options?: {
   const savedRef = useRef(saved)
   savedRef.current = saved
 
-  // Measure the surface on mount and whenever it resizes; re-clamp on change.
-  useEffect(() => {
-    const el = surfaceRef.current
-    if (!el) return
-    const measure = () => dispatch({ type: 'setSurface', w: el.clientWidth, h: el.clientHeight })
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => {
-      ro.disconnect()
-    }
-  }, [])
-
   // Persist the current board + saved list on every mutation (the
   // reference's "serialized on every mutation") — an effect because this is
   // useReducer-backed, unlike boids' useState-based settings persistence.
@@ -342,7 +331,7 @@ export function useFridgeBoard(options?: {
   }, [state.magnets, state.finish, state.wall, state.name, saved])
 
   const add = useCallback(
-    (opts: SpawnOpts) => dispatch(buildAddAction(stateRef.current, opts, rng)),
+    (opts: SpawnOpts) => dispatch(buildAddAction(stateRef.current.magnets, opts, rng)),
     [rng],
   )
   const clear = useCallback(() => dispatch({ type: 'clear' }), [])
@@ -421,10 +410,12 @@ export function useFridgeBoard(options?: {
 
   const onMagnetPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>, id: number) => {
     e.stopPropagation()
-    const surf = surfaceRef.current?.getBoundingClientRect()
+    const el = surfaceRef.current
     const m = stateRef.current.magnets.find((x) => x.id === id)
-    if (!surf || !m) return
-    dragRef.current = { id, dx: e.clientX - (surf.left + m.x), dy: e.clientY - (surf.top + m.y) }
+    if (!el || !m) return
+    // Grab-offset in logical px: toLogical divides out the render scale/zoom.
+    const l = toLogical(el.getBoundingClientRect(), e.clientX, e.clientY)
+    dragRef.current = { id, dx: l.x - m.x, dy: l.y - m.y }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -436,14 +427,10 @@ export function useFridgeBoard(options?: {
   const onMagnetPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     if (!drag) return
-    const surf = surfaceRef.current?.getBoundingClientRect()
-    if (!surf) return
-    dispatch({
-      type: 'moveDrag',
-      id: drag.id,
-      x: e.clientX - surf.left - drag.dx,
-      y: e.clientY - surf.top - drag.dy,
-    })
+    const el = surfaceRef.current
+    if (!el) return
+    const l = toLogical(el.getBoundingClientRect(), e.clientX, e.clientY)
+    dispatch({ type: 'moveDrag', id: drag.id, x: l.x - drag.dx, y: l.y - drag.dy })
   }, [])
 
   const onMagnetPointerUp = useCallback(() => {
@@ -462,10 +449,11 @@ export function useFridgeBoard(options?: {
 
   const onKnobPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>, id: number) => {
     e.stopPropagation()
-    const surf = surfaceRef.current?.getBoundingClientRect()
     const m = stateRef.current.magnets.find((x) => x.id === id)
-    if (!surf || !m) return
-    rotRef.current = { id, cx: surf.left + m.x + m.w / 2, cy: surf.top + m.y + m.h / 2 }
+    if (!m) return
+    // Rotation centre in logical px; the pointer is converted to logical on
+    // move, so the angle is correct at any render scale/zoom.
+    rotRef.current = { id, cx: m.x + m.w / 2, cy: m.y + m.h / 2 }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -476,7 +464,10 @@ export function useFridgeBoard(options?: {
   const onKnobPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     const rot = rotRef.current
     if (!rot) return
-    dispatch({ type: 'setRot', id: rot.id, rot: knobRotation(rot.cx, rot.cy, e.clientX, e.clientY) })
+    const el = surfaceRef.current
+    if (!el) return
+    const p = toLogical(el.getBoundingClientRect(), e.clientX, e.clientY)
+    dispatch({ type: 'setRot', id: rot.id, rot: knobRotation(rot.cx, rot.cy, p.x, p.y) })
   }, [])
 
   const onKnobPointerUp = useCallback(() => {
