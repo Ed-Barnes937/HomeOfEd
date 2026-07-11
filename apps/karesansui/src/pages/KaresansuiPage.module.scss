@@ -191,6 +191,13 @@
     flex-direction: column;
   }
 
+  // The back button (absolute, top-left, reaching ~62px in) sits over the
+  // wordmark's row. Inset the centered wordmark so 枯 can't slip under the
+  // chip when the row is wide enough to fill the narrow viewport.
+  .wordmark {
+    padding-inline: 44px;
+  }
+
   // Sand hero first on narrow (matches the prior reflow decision).
   .sandHero {
     order: -1;
