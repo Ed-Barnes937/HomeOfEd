@@ -1,4 +1,5 @@
 .room {
+  position: relative;
   min-height: 100dvh;
   box-sizing: border-box;
   display: flex;
@@ -7,6 +8,39 @@
   gap: 28px;
   padding: 34px 24px 26px;
   background: var(--room-bg);
+}
+
+// Back to the hub (home of ed): a quiet amber-on-dark control in the top-left
+// corner of the room, matching the console's hairline chips.
+.back {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  color: var(--label);
+  border: 1px solid var(--hairline);
+  background: var(--chip-bg);
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+
+  &:hover {
+    color: var(--accent);
+    border-color: var(--chip-line);
+    background: var(--chip-bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 // ---------- wordmark ----------

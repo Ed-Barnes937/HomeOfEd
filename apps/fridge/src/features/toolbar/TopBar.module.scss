@@ -23,6 +23,26 @@
   pointer-events: auto;
 }
 
+// Back to the hub (home of ed): sits ahead of the wordmark in the toolbar,
+// muted ink that darkens on hover like the other toolbar affordances.
+.back {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: var(--text-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--text-strong);
+    outline-offset: 2px;
+  }
+}
+
 .wordmark {
   font-family: var(--font-display);
   font-weight: 700;
