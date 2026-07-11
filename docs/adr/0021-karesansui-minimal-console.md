@@ -61,3 +61,18 @@ adopts that — the controls recede to text so the bowls carry the screen.
 - Every control stays a real, keyboard-operable element (cycle buttons announce
   via `aria-label`; toggles are `switch`es; the hairline sliders are native
   ranges) — minimal look, full accessibility.
+
+## Amendment (2026-07-11) — invisible touch targets
+
+The strip's glyphs are deliberately tiny, so on touch they fell below the 44px
+minimum. Each control (strip `.item`, `CogDots` dots + `+`, `ActionButtons` Play
+and links, `PresetsMenu` actions) now carries an invisible, centered `::before`
+hit area of ≥44px, and the hairline slider uses a 44px-tall grab strip collapsed
+by a symmetric negative margin. These expand the tap area only — the **visible
+glyph size, spacing, and the minimal aesthetic are unchanged** on every viewport.
+
+One deliberate exception: the `CogDots` train sits on a ~20px pitch, so its dots
+get the full 44px of **height** but a pitch-capped **width** — a 44px-wide area
+would overlap the neighbouring dot's centre and steal its tap. Properly finger-
+sized cogs are part of the fuller mobile-only redesign (bottom sheet / larger
+visible controls), which is a separate, deferred change.

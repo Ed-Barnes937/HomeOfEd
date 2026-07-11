@@ -23,8 +23,11 @@
   appearance: none;
   -webkit-appearance: none;
   width: 148px;
-  height: 14px;
-  margin: 0;
+  // A 44px-tall grab strip for touch; the symmetric negative margin collapses its
+  // footprint back to the original 14px so the popover and the visually-centered
+  // 1px track + thumb are unchanged (ADR 0021 amendment).
+  height: 44px;
+  margin: -15px 0;
   background: none;
   cursor: pointer;
 
