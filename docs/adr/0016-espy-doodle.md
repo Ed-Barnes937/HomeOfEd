@@ -137,3 +137,15 @@ them so the reasoning isn't lost once the guide itself is forgotten.
   hard capability gate (`fluidSupported()`), with a plain-outline fallback when
   WebGL2 float targets are absent. The engine stays pure; only the blot→splat
   mapping moved into a (still pure, tested) `render/fluid.helpers.ts`.
+- **Small-canvas blot-count floor (mobile tuning).** Blot density scales with
+  absolute canvas area (`blobCount ≈ area / 190k`), so a phone-sized canvas
+  (~150–400k css-px²) fell to a *single* large blot: sparse, and — because the
+  fluid's distortion kick is a fixed magnitude in normalised space — a big lone
+  mark distorts proportionally too little to read as one of the "funky" shapes
+  small desktop marks produce. `layout.ts` now floors the count at `MIN_BLOBS`
+  (3), so phones get a small varied field. Above the floor the 190k density is
+  unchanged, so tablet/desktop composition is exactly as before. The floor is a
+  single named constant, trivial to tune or revert. Deferred (not taken here):
+  scaling the distortion kick by mark radius so any lone large mark stays funky —
+  kept as a follow-up in case the floor alone doesn't read richly enough on a
+  phone.
