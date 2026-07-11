@@ -20,6 +20,7 @@
 // One cog = one gear-coloured dot. A button so it can be removed by click; the
 // last dot is disabled (min 1 cog) but stays fully visible.
 .dot {
+  position: relative;
   width: 14px;
   height: 14px;
   padding: 0;
@@ -43,6 +44,7 @@
 
 // The ghost `+` — an amber-hinted outline circle.
 .add {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,6 +69,21 @@
     outline: 2.5px solid var(--focus-ring);
     outline-offset: 2px;
   }
+}
+
+// Invisible 44px-tall touch target centered on each 14px control (ADR 0021
+// amendment). The dot train sits on a ~20px pitch, so the width is capped to
+// that pitch: a full 44px-wide area would overlap the neighbouring dot's centre
+// and steal its tap. Height (the room a fingertip needs) still reaches 44px.
+.dot::before,
+.add::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 44px;
 }
 
 @media (prefers-reduced-motion: reduce) {

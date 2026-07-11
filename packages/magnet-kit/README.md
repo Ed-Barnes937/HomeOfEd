@@ -12,13 +12,15 @@ first (the app does, per React state rules).
 ## Usage
 
 ```ts
-import { relax, spawnPlacement, clampOne, knobRotation, snapRotation, wheelRotation } from '@hoe/magnet-kit'
+import { relax, spawnPlacement, findOpenPlacement, clampOne, knobRotation, snapRotation, wheelRotation } from '@hoe/magnet-kit'
 import type { Box } from '@hoe/magnet-kit'
 
-// Add a magnet, then settle the scene so nothing overlaps.
-const p = spawnPlacement(W, H, { w: 52, h: 60 }, Math.random)
-const boxes: Box[] = [...existing, { id: nextId, x: p.x, y: p.y, w: 52, h: 60 }]
-relax(boxes, nextId, W, H) // the new magnet is `active` → it shoves neighbours
+// Add a magnet in open space so placed magnets don't move; relax is then a
+// no-op on a clear spot, and falls back to shoving only when the board is full.
+const size = { w: 52, h: 60 }
+const p = findOpenPlacement(existing, W, H, size, spawnPlacement(W, H, size, Math.random))
+const boxes: Box[] = [...existing, { id: nextId, x: p.x, y: p.y, ...size }]
+relax(boxes, nextId, W, H)
 ```
 
 ## API
@@ -28,6 +30,7 @@ relax(boxes, nextId, W, H) // the new magnet is `active` → it shoves neighbour
 | `clampOne(b, W, H)` | Clamp one box into bounds in place: `x → [0, W-w]`, `y → [0, H-h]`. |
 | `relax(boxes, activeId, W, H, passes=7)` | Separate every overlapping pair for `passes` iterations, clamping after each pass. Mutates in place. |
 | `spawnPlacement(W, H, size, rng)` | Where a new magnet appears (top-centre, jittered, ±7° tilt). Returns **unclamped** coords — run `relax` right after. |
+| `findOpenPlacement(boxes, W, H, size, preferred, gap=6)` | Relocate `preferred` to the nearest gap that clears every box by `gap`, so a new magnet doesn't shove placed ones. Pure (no mutation). Falls back to `preferred` verbatim on a full board, where the caller's `relax` then shoves (ADR 0022). |
 | `knobRotation(cx, cy, px, py)` | Angle (deg) from a magnet's centre to the pointer; knob straight up = 0°. |
 | `snapRotation(rot, within=7)` | Normalise to `[0,360)`, then snap to the nearest 90° when the delta is strictly `< within`. |
 | `wheelRotation(rot, deltaY, step=7)` | `rot + step * Math.sign(deltaY)`. |

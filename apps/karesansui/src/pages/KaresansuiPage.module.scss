@@ -131,7 +131,7 @@
 }
 
 .sandBowl {
-  width: clamp(300px, 46vw, 460px);
+  width: clamp(240px, 46vw, 460px);
   aspect-ratio: 1;
   border-radius: 50%;
   padding: 20px;
@@ -189,6 +189,13 @@
 @media (max-width: 760px) {
   .stage {
     flex-direction: column;
+  }
+
+  // The back button (absolute, top-left, reaching ~62px in) sits over the
+  // wordmark's row. Inset the centered wordmark so 枯 can't slip under the
+  // chip when the row is wide enough to fill the narrow viewport.
+  .wordmark {
+    padding-inline: 44px;
   }
 
   // Sand hero first on narrow (matches the prior reflow decision).

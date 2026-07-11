@@ -33,7 +33,7 @@ function emptyBoard(): BoardState {
 }
 
 function add(state: BoardState, opts: SpawnOpts, rng: () => number = () => 0.5): BoardState {
-  return boardReducer(state, buildAddAction(opts, rng))
+  return boardReducer(state, buildAddAction(state.magnets, opts, rng))
 }
 
 describe('add', () => {
@@ -73,6 +73,43 @@ describe('add', () => {
     s = add(s, { type: 'letter', label: 'X', deg: 0 })
     expect(s.magnets[0]!.color).toBe('green')
     expect(s.colorCursor).toBe(-1)
+  })
+
+  it('does not move magnets already placed when there is open space', () => {
+    // A magnet sitting on the top-centre spawn point (514,138 for the default
+    // rng on the fixed 1080×720 canvas); the board is otherwise empty, so the
+    // newcomer finds a gap via findOpenPlacement and this one is left untouched.
+    const existing: Magnet[] = [
+      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 514, y: 138, w: 52, h: 60, rot: 0, z: 1 },
+    ]
+    const s0 = initialBoardState(existing)
+    const before = { x: s0.magnets[0]!.x, y: s0.magnets[0]!.y }
+    const s1 = add(s0, { type: 'letter', label: 'B', deg: 0 })
+    expect(s1.magnets).toHaveLength(2)
+    expect(s1.magnets[0]).toMatchObject(before) // untouched
+  })
+
+  it('relocates the newcomer to a clear, in-bounds spot when the spawn point is blocked', () => {
+    // The spawn point is occupied, so findOpenPlacement must move the newcomer
+    // into a nearby gap rather than land it on top. (The no-gap full-board
+    // fallback is unit-tested in magnet-kit's place.test.ts; on the fixed
+    // 1080×720 canvas the app path always has room, so this asserts the gap
+    // search is wired in and stays within the canvas bounds.)
+    const blocker: Magnet[] = [
+      { id: 1, type: 'letter', label: 'A', deg: 0, color: 'red', x: 514, y: 138, w: 52, h: 60, rot: 0, z: 1 },
+    ]
+    const s1 = add(initialBoardState(blocker), { type: 'letter', label: 'B', deg: 0 })
+    expect(s1.magnets).toHaveLength(2)
+    const b = s1.magnets[1]!
+    // In bounds…
+    expect(b.x).toBeGreaterThanOrEqual(0)
+    expect(b.y).toBeGreaterThanOrEqual(0)
+    expect(b.x).toBeLessThanOrEqual(W - b.w)
+    expect(b.y).toBeLessThanOrEqual(H - b.h)
+    // …and not sitting on the blocker.
+    const a = s1.magnets[0]!
+    const overlaps = b.x < a.x + a.w && b.x + b.w > a.x && b.y < a.y + a.h && b.y + b.h > a.y
+    expect(overlaps).toBe(false)
   })
 })
 

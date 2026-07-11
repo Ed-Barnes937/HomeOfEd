@@ -15,7 +15,8 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 20px 26px 12px;
+  padding: calc(20px + env(safe-area-inset-top)) calc(26px + env(safe-area-inset-right)) 12px
+    calc(26px + env(safe-area-inset-left));
 }
 
 // Back to the hub (home of ed): a chrome button matching the toolbar's look,
@@ -121,5 +122,6 @@
 .toolbar {
   container-type: inline-size;
   flex: none;
-  padding: 14px 26px 22px;
+  padding: 14px calc(26px + env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom))
+    calc(26px + env(safe-area-inset-left));
 }

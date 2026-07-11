@@ -1,5 +1,6 @@
 import {
   clampOne,
+  findOpenPlacement,
   knobRotation,
   type Placement,
   relax,
@@ -90,8 +91,15 @@ function resolveColor(state: BoardState): { color: PaletteKey; colorCursor: numb
  * happens in the event handler — not inside the pure, StrictMode-doubled
  * reducer — and so tests can drive spawn+relax with a seeded rng.
  */
-export function buildAddAction(opts: SpawnOpts, rng: () => number): Action {
-  const placement = spawnPlacement(CANVAS_W, CANVAS_H, sizeFor(opts.type), rng)
+export function buildAddAction(magnets: Magnet[], opts: SpawnOpts, rng: () => number): Action {
+  const size = sizeFor(opts.type)
+  // Prefer an open spot so a new magnet doesn't shove ones already placed (#43);
+  // findOpenPlacement falls back to the raw spawn point on a full board, where
+  // the reducer's relax() then shoves neighbours as before. Bounds are the fixed
+  // logical canvas (ADR 0022), not a measured surface — so where a magnet lands
+  // is device-independent, matching the coordinate model.
+  const preferred = spawnPlacement(CANVAS_W, CANVAS_H, size, rng)
+  const placement = findOpenPlacement(magnets, CANVAS_W, CANVAS_H, size, preferred)
   return { type: 'add', opts, placement }
 }
 
@@ -322,7 +330,10 @@ export function useFridgeBoard(options?: {
     saveState(window.localStorage, current, saved)
   }, [state.magnets, state.finish, state.wall, state.name, saved])
 
-  const add = useCallback((opts: SpawnOpts) => dispatch(buildAddAction(opts, rng)), [rng])
+  const add = useCallback(
+    (opts: SpawnOpts) => dispatch(buildAddAction(stateRef.current.magnets, opts, rng)),
+    [rng],
+  )
   const clear = useCallback(() => dispatch({ type: 'clear' }), [])
 
   // "Empty the fridge": sweep the magnets off the bottom edge, then clear.

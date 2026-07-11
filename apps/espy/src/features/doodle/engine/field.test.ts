@@ -6,21 +6,22 @@ import { mulberry32 } from './rng.ts'
 import type { ViewBox } from './types.ts'
 
 const DESKTOP: ViewBox = { width: 1550, height: 760 }
-const SINGLE: ViewBox = { width: 400, height: 520 }
+const PHONE: ViewBox = { width: 334, height: 562 } // iPhone-14 canvas card
 
 describe('generateField', () => {
-  it('lays exactly one centre-ish blot for a single-blot viewBox', () => {
-    expect(blobCount(SINGLE.width, SINGLE.height)).toBe(1)
+  it('floors a phone-sized viewBox to a small varied field, first blot centre-ish', () => {
+    const target = blobCount(PHONE.width, PHONE.height)
+    expect(target).toBe(3) // small-canvas floor, not a lone blot
     for (let seed = 0; seed < 20; seed++) {
-      const blots = generateField(SINGLE, mulberry32(seed))
-      expect(blots.length).toBe(1)
+      const blots = generateField(PHONE, mulberry32(seed))
+      expect(blots.length).toBe(target)
       const b = blots[0]!
       // centre-ish: within the ±0.06 jitter window of the middle
-      expect(Math.abs(b.cx - SINGLE.width / 2)).toBeLessThanOrEqual(
-        0.06 * SINGLE.width + 1e-9,
+      expect(Math.abs(b.cx - PHONE.width / 2)).toBeLessThanOrEqual(
+        0.06 * PHONE.width + 1e-9,
       )
-      expect(Math.abs(b.cy - SINGLE.height / 2)).toBeLessThanOrEqual(
-        0.06 * SINGLE.height + 1e-9,
+      expect(Math.abs(b.cy - PHONE.height / 2)).toBeLessThanOrEqual(
+        0.06 * PHONE.height + 1e-9,
       )
     }
   })

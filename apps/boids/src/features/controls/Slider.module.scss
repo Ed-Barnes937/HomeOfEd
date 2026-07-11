@@ -39,8 +39,10 @@
   pointer-events: none;
 }
 
+/* :focus (not just :focus-visible) so a touch tap on the focusable heading
+ * surfaces the tooltip — focus-visible doesn't match pointer focus. */
 .label:hover .tooltip,
-.label:focus-visible .tooltip {
+.label:focus .tooltip {
   display: block;
 }
 
@@ -53,6 +55,7 @@
   appearance: none;
   width: 100%;
   height: 3px;
+  margin: 0;
   border-radius: 3px;
   outline: none;
   cursor: pointer;
@@ -70,15 +73,26 @@
     background: transparent;
   }
 
+  /* A 21x44 transparent tap target; the visible 15px disc + 3px ring is painted
+   * with a radial gradient so the touch area grows without changing the look
+   * (a bigger opaque thumb would). drop-shadow follows the painted shape. Width
+   * is held to the 21px ring diameter, not wider: the browser insets the thumb's
+   * travel by half its width, so a wider thumb keeps the disc from reaching the
+   * track ends at 0/100%. Height stays 44px for the vertical tap target. */
   &::-webkit-slider-thumb {
     appearance: none;
-    margin-top: -6px;
-    height: 15px;
-    width: 15px;
+    box-sizing: border-box;
+    margin-top: -20.5px;
+    height: 44px;
+    width: 21px;
     border-radius: 50%;
-    background: var(--accent);
-    border: 3px solid var(--thumb-ring);
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+    background: radial-gradient(
+      circle,
+      var(--accent) 0 7.5px,
+      var(--thumb-ring) 7.5px 10.5px,
+      transparent 10.5px
+    );
+    filter: drop-shadow(0 1px 5px rgba(0, 0, 0, 0.45));
     cursor: pointer;
     transition: transform 0.12s;
 
@@ -94,11 +108,17 @@
   }
 
   &::-moz-range-thumb {
-    height: 15px;
-    width: 15px;
+    box-sizing: border-box;
+    height: 44px;
+    width: 21px;
+    border: none;
     border-radius: 50%;
-    background: var(--accent);
-    border: 3px solid var(--thumb-ring);
+    background: radial-gradient(
+      circle,
+      var(--accent) 0 7.5px,
+      var(--thumb-ring) 7.5px 10.5px,
+      transparent 10.5px
+    );
     cursor: pointer;
   }
 }
