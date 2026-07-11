@@ -1,5 +1,6 @@
 export type { Box, Size, Placement } from './types.ts'
 export { clampOne } from './clamp.ts'
+export { findOpenPlacement } from './place.ts'
 export { relax } from './relax.ts'
 export { spawnPlacement } from './spawn.ts'
 export { knobRotation, snapRotation, wheelRotation } from './rotation.ts'
