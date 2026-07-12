@@ -51,14 +51,40 @@ export const BRUSH_ORDER: readonly Brush[] = ['dot', 'peanut', 'bean', 'clump', 
  * dominate; the "hard" marks (spike/arch — pointed arms and a concave notch) are
  * accents. Weights are tunable (`fluid.tuning.ts`). */
 export function pickBrush(rng: Rng, weights: Record<Brush, number> = DEFAULT_TUNING.weights): Brush {
+  return weightedPick(BRUSH_ORDER, rng, weights)
+}
+
+/** Weighted pick among a subset of archetypes (those not in `used`) — one rng
+ * draw, same as `pickBrush`. Used to draw a field's marks WITHOUT replacement so
+ * a sparse field (a phone's floored 3 marks) can't repeat an archetype or omit
+ * an accent like `arch`; falls back to the full set once every archetype is
+ * used. See `DISTINCT_FIELD_MAX` and `buildSplats`. */
+export function pickBrushExcluding(
+  rng: Rng,
+  used: ReadonlySet<Brush>,
+  weights: Record<Brush, number> = DEFAULT_TUNING.weights,
+): Brush {
+  const remaining = BRUSH_ORDER.filter((b) => !used.has(b))
+  return weightedPick(remaining.length ? remaining : BRUSH_ORDER, rng, weights)
+}
+
+/** One weighted draw over `pool` (consumes exactly one rng value). */
+function weightedPick(pool: readonly Brush[], rng: Rng, weights: Record<Brush, number>): Brush {
   let total = 0
-  for (const b of BRUSH_ORDER) total += weights[b]
+  for (const b of pool) total += weights[b]
   let r = rng() * total
-  for (const b of BRUSH_ORDER) {
+  for (const b of pool) {
     if ((r -= weights[b]) < 0) return b
   }
-  return BRUSH_ORDER[BRUSH_ORDER.length - 1]!
+  return pool[pool.length - 1]!
 }
+
+/** At or below this many marks a field is "sparse": its archetypes are drawn
+ * WITHOUT replacement (see `pickBrushExcluding`) so the few marks are always
+ * distinct — this is the phone/portrait-tablet case (floored to 3 marks). Larger
+ * fields (desktop, ~5+) keep independent weighted picks, so their behaviour is
+ * unchanged. Below the archetype count (6), so distinctness is always reachable. */
+export const DISTINCT_FIELD_MAX = 3
 
 /**
  * Map blot seeds to sim splats — one brush-archetype puddle per seed. `rng` is
@@ -76,6 +102,15 @@ export function buildSplats(
 ): Splat[] {
   const short = Math.min(w, h) || 1
   const splats: Splat[] = []
+
+  // Sparse fields (a phone's floored ~3 marks) draw archetypes without
+  // replacement so they're always distinct — otherwise the few marks can repeat
+  // and leave accents like `arch` off the page. Desktop-scale fields keep the
+  // independent weighted pick, unchanged. `forceBrushes` (the ?tune grid) opts
+  // out entirely. The pick stays inside the loop so the rng draw ORDER — and
+  // thus every larger field's baked look — is untouched.
+  const distinct = !forceBrushes?.length && seeds.length <= DISTINCT_FIELD_MAX
+  const used = new Set<Brush>()
 
   for (let si = 0; si < seeds.length; si++) {
     const seed = seeds[si]!
@@ -111,7 +146,12 @@ export function buildSplats(
       drop(along, perp, radius, dye, Math.cos(a) * m, Math.sin(a) * m)
     }
 
-    const brush = forceBrushes?.length ? forceBrushes[si % forceBrushes.length]! : pickBrush(rng, tuning.weights)
+    const brush = forceBrushes?.length
+      ? forceBrushes[si % forceBrushes.length]!
+      : distinct
+        ? pickBrushExcluding(rng, used, tuning.weights)
+        : pickBrush(rng, tuning.weights)
+    if (distinct) used.add(brush)
     switch (brush) {
       case 'dot': {
         // A small, compact ROUND puddle — the plain one. Kept deliberately

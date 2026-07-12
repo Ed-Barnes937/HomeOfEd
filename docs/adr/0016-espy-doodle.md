@@ -149,3 +149,14 @@ them so the reasoning isn't lost once the guide itself is forgotten.
   scaling the distortion kick by mark radius so any lone large mark stays funky —
   kept as a follow-up in case the floor alone doesn't read richly enough on a
   phone.
+- **Sparse fields draw archetypes without replacement.** Brush archetypes are
+  picked per mark at equal weight (1/6 each), independent of size/aspect/index —
+  there is no bias against any archetype. But with only ~3 marks a phone page
+  samples with replacement, so archetypes repeat and an accent like `arch` lands
+  on only ~42% of pages (vs ~60% on a 5-mark desktop page). At or below
+  `DISTINCT_FIELD_MAX` (3) marks a field now draws WITHOUT replacement
+  (`pickBrushExcluding`), so a phone's marks are always distinct and every
+  archetype appears on ~50% of pages, balanced and none excluded. The pick stays
+  interleaved in `buildSplats` so the rng draw order — and thus every larger
+  (desktop) field's baked look — is byte-identical; `DEFAULT_TUNING`/weights are
+  untouched.
