@@ -15,3 +15,8 @@ test('home page renders a live preview canvas for every app card', async ({ moun
   const { root } = await mountApp()
   await root.verifyPreviewsRender()
 })
+
+test('home page keeps the wordmark reachable on a narrow phone viewport', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyWordmarkReachableOnNarrowViewport()
+})
