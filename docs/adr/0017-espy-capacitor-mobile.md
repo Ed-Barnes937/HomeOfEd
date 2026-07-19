@@ -1,6 +1,6 @@
 # 0017 — espy mobile: Capacitor over the existing web build
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-07-19)
 - **Date:** 2026-07-09
 - **Related:** [ADR 0003](0003-spa-default-tanstack-start-opt-in.md) (SPA
   default), [ADR 0008](0008-apps-without-a-database.md) (stateless baseline),
@@ -99,7 +99,6 @@ The step-by-step lives in [plan 0006](../plans/0006-espy-capacitor-plan.md).
   Developer account and Play Console account (paid), privacy declarations,
   age-rating, review latency, and native app icons/splash assets. These are
   real, human-owned, and out of scope for the initial PR.
-- The placeholder name (ADR 0016, still `espy`) now also seeds the
-  **bundle identifier** `com.homeofed.espy`. A bundle ID is hard to change
-  after a store listing exists — so the final name must be settled *before* the
-  human runs the store-submission follow-up, not merely before web launch.
+- The name seeds the **bundle identifier** `com.homeofed.espy`. A bundle ID is
+  hard to change after a store listing exists — **espy was confirmed as the
+  final name on 2026-07-19**, so `com.homeofed.espy` is safe to bake in.

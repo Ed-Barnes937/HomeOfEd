@@ -37,6 +37,8 @@ src/
     FluidTuner.tsx/.module.scss TEMP (tech debt) — ?tune-only debug panel (live knobs + one-of-each grid)
     theme.ts                    SKETCHBOOK canvas colour literals (single fixed direction)
     session.ts                  load/save current Op[] ↔ localStorage (single slot; quota-safe, never throws)
+    save.ts                     PURE TS — save-target selection over injected SaveCaps (native/share/download)
+    save.native.ts              the ONLY module importing Capacitor plugins (Filesystem+Share); lazy-loaded
     useDoodle.ts                hook: sizing, pointer, history, fluid bloom+bake, save, seam
     useDoodle.helpers.ts        pure glue (initialOps) — unit-testable, no DOM
   features/intro/
@@ -51,7 +53,8 @@ src/
   testing/                      IwftApp harness + iwft fixture + DoodlePagePom
   doodle.iwft.tsx               whole-frontend tests via the in-browser backend + seam
   App.tsx / main.tsx / router.tsx
-vite.config.ts                  react + simulatorPlugin (dev simulator mode)
+vite.config.ts                  react + simulatorPlugin (dev simulator mode); base:'' for Capacitor
+capacitor.config.ts             native shell (ADR 0017) — com.homeofed.espy, webDir:'dist', offline
 playwright-ct.config.ts         defineIwftConfig({ ctPort: 3106 })
 ```
 
@@ -90,6 +93,17 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
 - Ports: dev 3006, CT 3106.
 - No database, no migrations, no `@hoe/db` — see
   [ADR 0008](../../docs/adr/0008-apps-without-a-database.md).
+- **Mobile (Capacitor, [ADR 0017](../../docs/adr/0017-espy-capacitor-mobile.md)):**
+  the native app wraps this app's own `dist/` — never fork the UI or add a
+  `server` block to `capacitor.config.ts`. Capacitor plugin imports live only
+  in `save.native.ts`, reached via dynamic import behind the `isNative` cap —
+  keep them out of the web bundle's runtime path. `npx cap add` / native builds
+  / store submission are **human-gated** (like Fly/Cloudflare infra); agents
+  stop before `cap add`. `ios/`/`android/` are gitignored.
+- **`base: ''` constraint:** vite uses relative asset URLs so the same `dist/`
+  loads in the WebView. Safe only while the router has a single `/` route — a
+  deep-linked non-root path would resolve `./assets/...` wrongly on the web.
+  If you ever add a second route, revisit `base` first.
 
 ## Tech debt
 
