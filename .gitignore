@@ -18,6 +18,9 @@ test-results/
 .env.*
 !.env.example
 
+# local issue tracker (mattpocock/skills) — specs and tickets stay local
+.scratch/
+
 # misc
 *.log
 .DS_Store
