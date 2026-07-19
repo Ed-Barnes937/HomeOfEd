@@ -125,3 +125,25 @@ Every app:
 Default to a **single container** (UI + API + streaming). Split to a separate Fly
 app only for WebSockets / independent scaling / isolation; multi-process for
 background work. See [ADR 0001 §3](docs/adr/0001-foundation.md).
+
+## Agent skills
+
+### Code review
+
+Use the repo-level `code-review` skill (`.claude/skills/code-review/`), not the
+built-in `/code-review`.
+
+### Issue tracker
+
+Issues and specs live as local markdown under `.scratch/<feature-slug>/`.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles are used verbatim (`needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context: root `CONTEXT-MAP.md` points at per-app/package `CONTEXT.md`
+files; all ADRs stay centralized in `docs/adr/`. See `docs/agents/domain.md`.
