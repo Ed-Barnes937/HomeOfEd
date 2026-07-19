@@ -9,6 +9,7 @@
  * `render/surface.ts`/`render/fluid.ts` are the only modules allowed to touch a
  * canvas/DOM.
  */
+import { Capacitor } from '@capacitor/core'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import { computeFit, toLogical, type Fit } from './engine/coords.ts'
@@ -21,6 +22,7 @@ import { BRUSH_ORDER } from './render/fluid.helpers.ts'
 import { fluidSupported, runFluidField } from './render/fluid.ts'
 import { cloneTuning, liveDebug, liveTuning } from './render/fluid.tuning.ts'
 import { DoodleSurface } from './render/surface.ts'
+import { saveImage, type SaveCaps } from './save.ts'
 import { loadSession, saveSession } from './session.ts'
 import { SKETCHBOOK } from './theme.ts'
 import { initialOps } from './useDoodle.helpers.ts'
@@ -72,6 +74,37 @@ const NOOP_OPS: Ops = {
   newPage: () => {},
   undo: () => {},
   save: () => Promise.resolve(),
+}
+
+/**
+ * Runtime wiring for the save seam (`save.ts`). Lives here because only this
+ * module (plus render/*) may touch the DOM. Under the Capacitor shell the
+ * native share sheet is used (ADR 0017 §4). On the web, the share sheet is
+ * preferred only on touch-primary devices (phones, tablets), where it offers
+ * Save-to-Files/Photos; on desktop (Mac, Windows) it has no download option —
+ * go straight to an anchor download (feedback: Mac save dialog can't download).
+ */
+function saveCaps(): SaveCaps {
+  return {
+    isNative: Capacitor.isNativePlatform(),
+    canShareFiles: (file) =>
+      navigator.maxTouchPoints > 0 && (navigator.canShare?.({ files: [file] }) ?? false),
+    shareFiles: async (file, title) => {
+      await navigator.share({ files: [file], title })
+    },
+    download: (blob, filename) => {
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      anchor.click()
+      URL.revokeObjectURL(url)
+    },
+    // Lazy import: the Capacitor plugins never load on the web, where
+    // isNative is false and this cap is unreachable.
+    nativeShare: (blob, filename) =>
+      import('./save.native.ts').then((m) => m.nativeShare(blob, filename)),
+  }
 }
 
 /** The current field op (the last one) — the field the canvas is showing. */
@@ -337,26 +370,7 @@ export function useDoodle(): UseDoodle {
         canvas.toBlob(resolve, 'image/png'),
       )
       if (!blob) return
-      const file = new File([blob], 'espy.png', { type: 'image/png' })
-      try {
-        // Prefer the native share sheet only on touch-primary devices (phones,
-        // tablets), where it offers Save-to-Files/Photos. On desktop (Mac,
-        // Windows) the share sheet has no download option — go straight to an
-        // anchor download instead (feedback: Mac save dialog can't download).
-        const canShareFiles = navigator.maxTouchPoints > 0 && navigator.canShare?.({ files: [file] })
-        if (canShareFiles) {
-          await navigator.share({ files: [file], title: 'Espy' })
-        } else {
-          const url = URL.createObjectURL(blob)
-          const anchor = document.createElement('a')
-          anchor.href = url
-          anchor.download = 'espy.png'
-          anchor.click()
-          URL.revokeObjectURL(url)
-        }
-      } catch (error) {
-        if ((error as Error | undefined)?.name !== 'AbortError') throw error
-      }
+      await saveImage(blob, 'espy.png', 'Espy', saveCaps())
     }
 
     opsRef.current = { newPage: doNewPage, undo: doUndo, save: doSave }

@@ -1,6 +1,6 @@
 # 0006 — espy mobile (Capacitor): initial-PR plan
 
-- **Status:** Proposed
+- **Status:** Implemented (2026-07-19) — C1–C5 done; §7 remains human-gated.
 - **Date:** 2026-07-09
 - **Related:** [ADR 0017](../adr/0017-espy-capacitor-mobile.md) (the
   decision this plan implements), [ADR 0016](../adr/0016-espy-doodle.md),
@@ -181,6 +181,6 @@ Then, human-owned and out of any agent's scope:
 - **Finalise the product name** before the listing is created — the bundle ID
   `com.homeofed.espy` is hard to change afterwards.
 
-> **ℹ Still a placeholder.** `espy` / `com.homeofed.espy` are temporary
-> (ADR 0016). Unlike the web subdomain, a store bundle ID cannot be renamed
-> after publish — settle the name before this follow-up runs.
+> **ℹ Name settled.** `espy` was confirmed as the final product name on
+> 2026-07-19, so the bundle ID `com.homeofed.espy` is final and this follow-up
+> is unblocked on naming.

@@ -46,3 +46,40 @@ history, session restore, the bloom-in animation, and save/share, and exposes
 `newPage()` / `undo()` / `save()` plus `tool`/`nib` state to `DoodlePage.tsx`.
 See [`CLAUDE.md`](CLAUDE.md) for the full layout map, commands, ports, and
 scoped rules.
+
+## Mobile (Capacitor)
+
+The iOS/Android app is the **same `vite build` output** wrapped in a Capacitor
+WebView — no fork, no second UI, assets bundled and offline
+([ADR 0017](../../docs/adr/0017-espy-capacitor-mobile.md)). The web deploy
+(Fly/Cloudflare/CI) is untouched.
+
+What's in this repo:
+
+- `capacitor.config.ts` — `com.homeofed.espy` / "Espy" / `webDir: 'dist'`.
+- The save bridge: `save()` routes through `src/features/doodle/save.ts`
+  (injected capabilities); under the native shell it writes the PNG to the
+  Filesystem cache and opens the OS share sheet
+  (`src/features/doodle/save.native.ts`, lazy-loaded so the web bundle's
+  runtime path is unchanged).
+- Scripts: `cap:sync` (copy `dist/` + plugins into the native projects),
+  `cap:ios` / `cap:android` (open Xcode / Android Studio). All three require
+  the native projects to exist first — see below.
+
+**Generating the native projects is human-gated** (ADR 0017 §6), like Fly and
+Cloudflare infra. Agents stop before `cap add`. On a Mac with Xcode /
+Android Studio:
+
+```bash
+pnpm build --filter=espy      # produce dist/
+cd apps/espy
+npx cap add ios               # generates ios/   (gitignored for now)
+npx cap add android           # generates android/
+npx cap sync
+npx cap open ios              # build/run in Xcode
+npx cap open android          # build/run in Android Studio
+```
+
+Icons/splash (`@capacitor/assets`), signing, and the App Store / Play Console
+listings are also human-owned — see
+[plan 0006 §7](../../docs/plans/0006-espy-capacitor-plan.md).
