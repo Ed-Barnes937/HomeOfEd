@@ -178,6 +178,7 @@ Then, human-owned and out of any agent's scope:
 - **Store listings**: App Store Connect + Google Play Console — privacy
   declarations, age rating, screenshots, review submission.
 - **Decide `ios/`/`android/` commit-vs-ignore** (ADR 0017 §7) once they exist.
+  *Decided 2026-07-20: committed (see the ADR §7 note).*
 - **Finalise the product name** before the listing is created — the bundle ID
   `com.homeofed.espy` is hard to change afterwards.
 
