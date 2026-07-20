@@ -80,6 +80,13 @@ The step-by-step lives in [plan 0006](../plans/0006-espy-capacitor-plan.md).
    `fly.toml`) or keep regenerating is deferred to the follow-up that runs
    `cap add` — flagged, not decided here.
 
+   > **Decided 2026-07-20:** committed. Once `cap add` ran and the apps built
+   > on-device, the native projects became source, not artifacts — Xcode/IDE
+   > changes (signing mode, plists, icon sets) would be lost on regeneration.
+   > Capacitor's own nested `.gitignore` files keep the regenerated bulk
+   > (Pods/SPM checkouts, Gradle `build/`, the synced `public/` copy of
+   > `dist/`) out of git, so only template + config files are tracked.
+
 ## Consequences
 
 - The web app carries a few new devDependencies (`@capacitor/cli`,

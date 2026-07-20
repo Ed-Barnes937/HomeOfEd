@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Espy</string>
+    <string name="title_activity_main">Espy</string>
+    <string name="package_name">com.homeofed.espy</string>
+    <string name="custom_url_scheme">com.homeofed.espy</string>
+</resources>

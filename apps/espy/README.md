@@ -66,20 +66,30 @@ What's in this repo:
   `cap:ios` / `cap:android` (open Xcode / Android Studio). All three require
   the native projects to exist first — see below.
 
-**Generating the native projects is human-gated** (ADR 0017 §6), like Fly and
-Cloudflare infra. Agents stop before `cap add`. On a Mac with Xcode /
-Android Studio:
+**The native projects (`ios/`, `android/`) are committed** (ADR 0017 §7,
+decided 2026-07-20) — they were generated once with `npx cap add` and are now
+source, like `fly.toml`. Capacitor's nested `.gitignore` files keep the
+regenerated bulk (SPM/Pods, Gradle `build/`, the synced `public/`) out of git.
+Don't re-run `cap add`.
+
+Day-to-day loop after any web change — the WebView only sees `dist/` as of
+the last sync:
 
 ```bash
 pnpm build --filter=espy      # produce dist/
 cd apps/espy
-npx cap add ios               # generates ios/   (gitignored for now)
-npx cap add android           # generates android/
-npx cap sync
-npx cap open ios              # build/run in Xcode
-npx cap open android          # build/run in Android Studio
+npx cap sync                  # copy dist/ + plugin wiring into ios/ + android/
+npx cap open ios              # build/run in Xcode      (or: pnpm cap:ios)
+npx cap open android          # build/run in Android Studio (pnpm cap:android)
 ```
 
-Icons/splash (`@capacitor/assets`), signing, and the App Store / Play Console
-listings are also human-owned — see
-[plan 0006 §7](../../docs/plans/0006-espy-capacitor-plan.md).
+Still human-owned (ADR 0017 §6,
+[plan 0006 §7](../../docs/plans/0006-espy-capacitor-plan.md)): on-device
+builds/signing and the App Store / Play Console listings. Real icons + splash
+screens (replacing the Capacitor template placeholders) come from a
+1024×1024 source logo:
+
+```bash
+cd apps/espy                  # with assets/logo.png in place
+npx @capacitor/assets generate
+```

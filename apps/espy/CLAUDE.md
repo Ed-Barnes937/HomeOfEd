@@ -97,9 +97,11 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
   the native app wraps this app's own `dist/` — never fork the UI or add a
   `server` block to `capacitor.config.ts`. Capacitor plugin imports live only
   in `save.native.ts`, reached via dynamic import behind the `isNative` cap —
-  keep them out of the web bundle's runtime path. `npx cap add` / native builds
-  / store submission are **human-gated** (like Fly/Cloudflare infra); agents
-  stop before `cap add`. `ios/`/`android/` are gitignored.
+  keep them out of the web bundle's runtime path. Native builds / signing /
+  store submission are **human-gated** (like Fly/Cloudflare infra).
+  `ios/`/`android/` are **committed** (ADR 0017 §7) — never re-run `cap add`;
+  after web changes run `pnpm build` + `npx cap sync` to refresh the WebView's
+  copy of `dist/` (the synced `public/` stays gitignored).
 - **`base: ''` constraint:** vite uses relative asset URLs so the same `dist/`
   loads in the WebView. Safe only while the router has a single `/` route — a
   deep-linked non-root path would resolve `./assets/...` wrongly on the web.
