@@ -14,7 +14,7 @@ type WOTDCardProps = { level: Difficulty }
 
 export function WOTDCard({ level }: WOTDCardProps) {
   const { data, isPending, isError } = useQuery(todayWordsQueryOptions)
-  const [showDefinition, setShowDefinition] = useState(true)
+  const [showDefinition, setShowDefinition] = useState(false)
   const word = data?.find((entry) => entry.difficulty === level)
 
   return (
