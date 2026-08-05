@@ -1,12 +1,43 @@
-import type { Archetype, MovementApi } from './types.ts'
+import { EMPTY, WALL } from './elements.ts'
+import type { Archetype, Fluid, MovementApi } from './types.ts'
 
-/** The shape both fluid archetypes share; `Archetype` owns the real types. */
-type Fluid = { dispersion: number; move?: number }
+function occupied(api: MovementApi, dx: number, dy: number): boolean {
+  const cell = api.get(dx, dy)
+  return cell !== EMPTY && cell !== WALL
+}
 
-/** Whether any of the steps `fluid` would try is open to this cell. */
+/**
+ * A stray cell: nothing resting on it and no more of the same liquid beside it.
+ *
+ * Sideways is the only move with no gravity behind it, and a *body* of liquid
+ * needs it — unconditional lateral flow is what levels a pool properly, and
+ * every weaker rule tried here left pools mounded like a powder. A lone droplet
+ * has no such claim, and it is the one case that misbehaves: ungated it slides
+ * a fresh `dispersion` cells every tick forever, so its chunk never sleeps.
+ * Stopping strays is therefore the whole gate.
+ *
+ * `-dy` is "up" for a liquid and "down" for a gas, so this reads upside down
+ * for something that rises, which is correct.
+ */
+function isStray(api: MovementApi, dy: number): boolean {
+  const self = api.get(0, 0)
+  return !occupied(api, 0, -dy) && api.get(-1, 0) !== self && api.get(1, 0) !== self
+}
+
+/** Whether stepping `dx`-ward is both possible and worth doing. */
+function wouldSpread(api: MovementApi, dx: number, dy: number): boolean {
+  return api.canMove(dx, 0) && !isStray(api, dy)
+}
+
+/**
+ * Whether any step `fluid` would try is open to this cell. Must stay in step
+ * with the kernel below — the sealed-pocket and mid-fall cases in
+ * `liquids.test.ts` are what pin the two together.
+ */
 function canFlow(api: MovementApi, spec: Fluid, dy: number): boolean {
   if (api.canMove(0, dy) || api.canMove(-1, dy) || api.canMove(1, dy)) return true
-  return spec.dispersion > 0 && (api.canMove(-1, 0) || api.canMove(1, 0))
+  if (spec.dispersion === 0) return false
+  return wouldSpread(api, -1, dy) || wouldSpread(api, 1, dy)
 }
 
 /**
@@ -36,7 +67,8 @@ function powder(api: MovementApi, slide: number): void {
  * `move` gates the whole step, so lava oozes without needing a velocity field.
  * `dispersion` is walked one validated cell at a time rather than as a single
  * long swap: each step is checked against the world as it stands, so a liquid
- * can never skate through something that arrived mid-tick.
+ * can never skate through something that arrived mid-tick. The sideways step
+ * additionally needs weight above it — see `underPressure`.
  */
 function fluid(api: MovementApi, spec: Fluid, dy: number): void {
   if (spec.move !== undefined && api.rand() >= spec.move) {
@@ -53,22 +85,28 @@ function fluid(api: MovementApi, spec: Fluid, dy: number): void {
   if (api.tryMove(first, dy)) return
   if (api.tryMove(-first, dy)) return
 
+  if (spec.dispersion === 0) return
+
   // Both directions, like the powder's two diagonals: the coin picks the order,
   // not the opportunity. Giving up after one blocked side would leave a cell
   // that wrote nothing, and its chunk would sleep with the puddle still uneven.
   const along = api.randInt(2) === 0 ? -1 : 1
-  if (!spread(api, along, spec.dispersion)) spread(api, -along, spec.dispersion)
+  if (!spread(api, along, dy, spec.dispersion)) spread(api, -along, dy, spec.dispersion)
 }
 
 /** Sideways travel, one validated cell at a time. True if the cell moved. */
-function spread(api: MovementApi, dx: number, dispersion: number): boolean {
+function spread(api: MovementApi, dx: number, dy: number, dispersion: number): boolean {
+  if (!wouldSpread(api, dx, dy)) return false
+
   for (let step = 0; step < dispersion; step++) {
-    if (!api.tryMove(dx, 0)) return step > 0
+    // The first step is guaranteed by `wouldSpread`; a later one can be blocked
+    // by whatever the walk revealed, and the cell has still moved.
+    if (!api.tryMove(dx, 0)) return true
     // A queued cross-chunk move left the cursor behind; the spread stops at the
     // chunk edge and resumes next tick rather than queuing the same cell twice.
     if (api.deferred) return true
   }
-  return dispersion > 0
+  return true
 }
 
 /**

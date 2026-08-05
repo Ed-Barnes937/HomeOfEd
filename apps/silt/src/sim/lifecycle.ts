@@ -39,14 +39,12 @@ export function applyReactions(api: Api, registry: ElementRegistry): void {
   }
 }
 
-/** Countdowns are one byte, so nothing can be seeded with a longer life. */
-const MAX_TICKS = 255
-
 /**
  * Engine-managed decay in `ra` (spec §5.1) — an element with a `lifetime` never
  * writes the byte itself. Zero means "not seeded yet": a cell painted or spawned
  * mid-run starts its countdown on the first tick that sees it, jittered from the
- * sim PRNG so a batch spawned together does not expire in one frame.
+ * sim PRNG so a batch spawned together does not expire in one frame. The
+ * registry has already refused any roster whose seed could overflow the byte.
  *
  * Returns whether the cell survived. Writing `ra` also marks the chunk dirty,
  * which is what keeps a decaying cell awake in an otherwise settled corner.
@@ -54,8 +52,7 @@ const MAX_TICKS = 255
 export function applyLifetime(api: Api, lifetime: ResolvedLifetime): boolean {
   let remaining = api.ra
   if (remaining === 0) {
-    const jitter = lifetime.jitter > 0 ? api.randInt(lifetime.jitter + 1) : 0
-    remaining = Math.min(lifetime.ticks + jitter, MAX_TICKS)
+    remaining = lifetime.ticks + (lifetime.jitter > 0 ? api.randInt(lifetime.jitter + 1) : 0)
   }
 
   remaining--

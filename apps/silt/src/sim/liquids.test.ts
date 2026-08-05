@@ -66,6 +66,21 @@ describe('liquid movement', () => {
     expect(span).toBeGreaterThan(1)
   })
 
+  it('flattens to one layer on open ground and lets the world go quiet', () => {
+    const sim = withDirtFloor(new Sim({ seed: 1 }))
+    pourColumn(sim, 150, 12, WATER)
+
+    for (let i = 0; i < 400; i++) sim.tick()
+
+    const water = cellsOf(sim, WATER)
+    expect(water).toHaveLength(12)
+    expect(water.every((c) => c.y === FLOOR - 1)).toBe(true)
+    // Unconfined liquid never goes perfectly still — cells that still have a
+    // neighbour keep shuffling. What must hold is that the *world* sleeps: a
+    // handful of live cells, not the 60 000 in the grid.
+    expect(sim.scannedLastTick).toBeLessThan(100)
+  })
+
   it('does not displace an equally dense neighbour', () => {
     // Two water cells stacked on the floor must not trade places forever.
     const sim = withDirtFloor(new Sim({ seed: 1 }))
@@ -106,6 +121,31 @@ describe('move probability', () => {
     // move: 0.15 — roughly one or two steps in ten ticks, never ten.
     const fell = cellsOf(lava, LAVA)[0]!.y
     expect(fell).toBeLessThan(5)
+  })
+
+  /**
+   * These two pin `canFlow` to what the kernel actually tries: one case where a
+   * declined step *was* available, one where it was not. Let them drift apart
+   * and a slow liquid either freezes in mid-air or never lets its chunk sleep.
+   */
+  it('keeps its chunk awake while it has somewhere left to go', () => {
+    const sim = new Sim({ seed: 1 })
+    sim.paint(10, 100, LAVA)
+
+    for (let i = 0; i < 30; i++) sim.tick()
+
+    expect(sim.scannedLastTick).toBeGreaterThan(0)
+    expect(cellsOf(sim, LAVA)[0]!.y).toBeGreaterThan(100)
+  })
+
+  it('lets its chunk sleep once it is walled in', () => {
+    const sim = wellAt(new Sim({ seed: 1 }), 150, 4)
+    sim.paint(150, FLOOR - 1, LAVA)
+
+    for (let i = 0; i < 30; i++) sim.tick()
+
+    expect(sim.speciesAt(150, FLOOR - 1)).toBe(LAVA)
+    expect(sim.scannedLastTick).toBe(0)
   })
 
   it('still reaches the floor eventually', () => {

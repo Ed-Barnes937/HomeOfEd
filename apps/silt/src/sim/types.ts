@@ -9,7 +9,7 @@
  * the per-step probability that it moves at all. `move` is what makes lava a
  * "slow liquid" — a probability, never a velocity field.
  */
-interface Fluid {
+export interface Fluid {
   density: number
   dispersion: number
   move?: number

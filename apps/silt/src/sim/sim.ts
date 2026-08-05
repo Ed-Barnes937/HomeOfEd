@@ -186,7 +186,7 @@ export class Sim {
         this.#api.moveTo(x, y, clock)
         applyArchetype(this.#api, def.archetype)
         this.#scanned++
-        this.#settle(def, species)
+        this.#afterMovement(def)
       }
     }
   }
@@ -201,13 +201,13 @@ export class Sim {
    * cursor is wherever movement left it (or where it started, if the move was
    * only queued), so all of this is relative to the cell's new home.
    */
-  #settle(def: ElementDef, species: number): void {
+  #afterMovement(def: ElementDef): void {
     const api = this.#api
 
     applyReactions(api, this.registry)
-    if (api.get(0, 0) !== species) return
+    if (api.get(0, 0) !== def.id) return
 
-    const lifetime = this.registry.lifetimeOf(species)
+    const lifetime = this.registry.lifetimeOf(def.id)
     if (lifetime && !applyLifetime(api, lifetime)) return
 
     def.onTick?.(api)

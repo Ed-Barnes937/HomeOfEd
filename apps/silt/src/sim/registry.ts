@@ -1,4 +1,5 @@
 import { EMPTY, WALL } from './elements.ts'
+import { MAX_LIFETIME_TICKS } from './constants.ts'
 import type { Archetype, ElementDef, ReactionRow } from './types.ts'
 
 /**
@@ -227,6 +228,11 @@ export function createRegistry(
     if (!(lifetime.ticks > 0)) fail('lifetime.ticks must be positive')
     if (lifetime.jitter !== undefined && !(lifetime.jitter >= 0)) {
       fail('lifetime.jitter must be non-negative')
+    }
+    // The countdown lives in one byte, so a longer life is not a long life —
+    // it is a silently clamped one. Say so at boot rather than at runtime.
+    if (lifetime.ticks + (lifetime.jitter ?? 0) > MAX_LIFETIME_TICKS) {
+      fail(`lifetime.ticks + jitter must not exceed ${MAX_LIFETIME_TICKS} — it lives in one byte`)
     }
     if (lifetime.becomes !== null && !byName.has(lifetime.becomes)) {
       fail(`lifetime.becomes names unknown element ${lifetime.becomes}`)

@@ -30,6 +30,13 @@ export const CHUNK_SIZE = 32
  */
 export const CHUNK_MARGIN = 2
 
+/**
+ * Longest life an element may declare, `ticks + jitter`. The countdown lives in
+ * the one `ra` byte, so this is a hard ceiling the registry enforces at boot —
+ * not a clamp applied behind the author's back.
+ */
+export const MAX_LIFETIME_TICKS = 255
+
 /** Sim steps per second; the tick is fixed-timestep and render-independent. */
 export const TICKS_PER_SECOND = 60
 export const MS_PER_TICK = 1000 / TICKS_PER_SECOND

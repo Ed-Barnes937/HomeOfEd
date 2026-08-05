@@ -50,7 +50,7 @@ const lava: ElementDef = {
   id: LAVA,
   name: 'lava',
   colours: ['#d4622a'],
-  tags: ['liquid', 'hot'],
+  tags: ['liquid'],
   // The "slow liquid" (spec §4): it acts on roughly one tick in seven, and
   // spreads two cells rather than five when it does, so it oozes.
   archetype: { kind: 'liquid', density: 45, dispersion: 2, move: 0.15 },

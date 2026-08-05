@@ -57,6 +57,12 @@ describe('createRegistry', () => {
     expect(() => createRegistry([dirt, decaying])).toThrow(/steam/)
   })
 
+  it('rejects a lifetime too long for the byte it lives in', () => {
+    const immortal: ElementDef = { ...sand, lifetime: { ticks: 200, jitter: 100, becomes: null } }
+
+    expect(() => createRegistry([immortal])).toThrow(/one byte/i)
+  })
+
   it('rejects a reaction naming an unknown target', () => {
     expect(() =>
       createRegistry(

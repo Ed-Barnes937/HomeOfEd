@@ -74,6 +74,11 @@ settle can leave the pair permanently unreacted, because the chunk sleeps. This
 is fine for the one v1 row (`p: 1`) and is a real constraint on any future
 probabilistic row — such a row wants its element to keep its chunk awake (§7).
 
+Two limits of the tag expansion, worth knowing before a second row lands: tags
+resolve against the authored roster, so the engine's own `wall`/`empty`
+pseudo-elements can never be matched by a tag side even though `wall` carries
+`solid`; and where an element name and a tag collide, the name wins silently.
+
 ### 5. The reaction table is flattened to id pairs at boot
 
 The authored table stays tag-keyed, which is what stops it growing with the
@@ -86,11 +91,11 @@ reaches first. Where two rows cover the same pair, the earlier row wins.
 never registered, rather than re-checked every tick. It is read as a constraint
 on **both** participating cells.
 
-### 6. Dispersion is a walk of validated single steps, not one long swap
+### 6. Dispersion is a walk of validated single steps, and only strays stop
 
 `liquid`/`gas` take up to `dispersion` sideways cells in a tick. Each cell is a
 separate, separately-validated swap rather than one long jump, so a liquid can
-never skate through something that arrived mid-tick. Two consequences:
+never skate through something that arrived mid-tick.
 
 - Both sideways directions are tried, like the powder's two diagonals — the coin
   picks the order, not the opportunity. Trying only one would leave a cell that
@@ -99,6 +104,19 @@ never skate through something that arrived mid-tick. Two consequences:
 - A step that crosses a chunk edge is queued rather than committed, and the
   cursor does not follow, so the spread **stops at the chunk edge** and resumes
   next tick. `MovementApi.deferred` is how a kernel sees this.
+- Sideways is the one move with no gravity behind it, and it is the one that
+  refuses to settle: a lone cell on open ground slides a fresh `dispersion`
+  cells every tick forever, and nothing near it ever sleeps. **The gate is
+  strays only** — a cell with nothing resting on it and no more of the same
+  liquid either side does not spread. Weaker-looking gates were tried and
+  rejected: gating on weight above, or on weight plus a reachable drop, both
+  leave pools **mounded like a powder** instead of level, which fails the point
+  of having a liquid archetype at all.
+
+Consequence: an unconfined body of liquid never goes perfectly still — cells
+that still have a neighbour keep shuffling. That is bounded and cheap (tens of
+cells, ~0.02ms/tick in a scene with a full basin) because everything else in the
+world does sleep, and it is the price of pools that actually level.
 
 ### 7. A cell that declines to move must say so: `keepAwake()`
 
@@ -117,13 +135,17 @@ moves into empty space, and rises because everything above it sinks *past* it.
 This keeps one displacement rule shared by the in-chunk and deferred move paths,
 where a direction-aware rule would need both to agree about "up".
 
-### 9. Lifetime is seeded lazily, on the cell's first tick
+### 9. Lifetime is seeded lazily, and the byte ceiling is a boot error
 
 `ra == 0` means "not seeded yet". A cell painted or spawned mid-run starts its
 countdown on the first tick that sees it, jittered from the sim PRNG so a batch
-spawned together does not expire in one frame; the count is then decremented
-every tick and clamped to the one byte it lives in. Writing `ra` also marks the
-chunk dirty, which is what keeps a decaying cell awake in a settled corner.
+spawned together does not expire in one frame. Writing `ra` also marks the chunk
+dirty, which is what keeps a decaying cell awake in a settled corner.
+
+`ticks + jitter` must fit in the byte, and the registry **refuses the roster**
+if it does not. Clamping at runtime instead would give the author a shorter life
+than they asked for and never say so — the same class of bad value as the
+unknown `becomes` targets that already fail at load.
 
 ### 10. Obsidian's colour is invented
 
