@@ -1,6 +1,5 @@
-// Transport bar geometry from the design handoff. Ticket 13 only builds the
-// play/pause control; tempo and clear-grid land in later tickets, so the bar
-// currently holds just the play button.
+// Transport bar geometry from the design handoff. Ticket 16 adds the tempo
+// slider; clear-grid lands in a later ticket.
 .bar {
   margin-top: 16px;
   height: 84px;
@@ -68,4 +67,94 @@
   height: 22px;
   border-radius: 2px;
   background: var(--ink-dark);
+}
+
+.tempo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tempoHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tempoLabel {
+  font: 800 15px var(--font-display);
+  color: var(--ink);
+}
+
+.tempoReadout {
+  font: 600 13px var(--font-mono);
+  color: rgba(242, 239, 230, 0.5);
+}
+
+.tempoTrackRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tempoEndpoint {
+  flex: none;
+  font: 600 13px var(--font-display);
+  color: rgba(242, 239, 230, 0.5);
+
+  &:first-child {
+    width: 34px;
+  }
+
+  &:last-child {
+    width: 30px;
+    text-align: right;
+  }
+}
+
+// A native <input type="range"> re-skinned to the handoff's track/fill/thumb.
+// --tempo-percent (set inline from bpmToPercent) drives both the fill and the
+// thumb position, so track and thumb always agree.
+.tempoSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    rgba(242, 239, 230, 0.4) var(--tempo-percent),
+    rgba(255, 255, 255, 0.11) var(--tempo-percent)
+  );
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-thumb {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-track {
+    height: 10px;
+    border-radius: 5px;
+    background: transparent;
+  }
+
+  &::-moz-range-progress {
+    height: 10px;
+    border-radius: 5px 0 0 5px;
+    background: rgba(242, 239, 230, 0.4);
+  }
 }

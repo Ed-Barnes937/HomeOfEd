@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
-import type { Pattern } from '../engine/sequencerEngine.ts'
+import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { Grid } from '../features/grid/Grid.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
@@ -18,14 +18,17 @@ export function HomePage() {
   const engine = useEngine()
   const [pattern, setPattern] = useState<Pattern | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [bpm, setBpm] = useState(DEFAULT_BPM)
 
   useEffect(() => {
     if (!engine) return
     setPattern(engine.getPattern())
     setIsPlaying(engine.isPlaying())
+    setBpm(engine.getTempo())
     return engine.onTransport((event) => {
       if (event.type === 'started') setIsPlaying(true)
       if (event.type === 'stopped') setIsPlaying(false)
+      if (event.type === 'tempoChanged') setBpm(event.bpm)
     })
   }, [engine])
 
@@ -49,6 +52,14 @@ export function HomePage() {
     }
   }, [engine])
 
+  const changeTempo = useCallback(
+    (nextBpm: number) => {
+      if (!engine) return
+      engine.setTempo(nextBpm)
+    },
+    [engine],
+  )
+
   if (!engine || !pattern) {
     return (
       <main className={styles.stage}>
@@ -61,7 +72,7 @@ export function HomePage() {
     <main className={styles.stage}>
       <TopBar />
       <Grid kit={engine.kit} pattern={pattern} onToggleCell={toggleCell} />
-      <Transport isPlaying={isPlaying} onToggle={togglePlay} />
+      <Transport isPlaying={isPlaying} onToggle={togglePlay} bpm={bpm} onTempoChange={changeTempo} />
     </main>
   )
 }

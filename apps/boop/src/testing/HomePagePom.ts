@@ -7,6 +7,8 @@ import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 /** The root page object for boop's grid app — tap cells, play/pause, and drive the fake audio clock. */
 export class HomePagePom extends BasePage {
   private readonly playButton = this.page.getByTestId('play-button')
+  private readonly tempoSlider = this.page.getByTestId('tempo-slider')
+  private readonly tempoReadout = this.page.getByTestId('tempo-readout')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
@@ -39,6 +41,15 @@ export class HomePagePom extends BasePage {
 
   async verifyPaused(): Promise<void> {
     await expect(this.playButton).toHaveAttribute('aria-pressed', 'false')
+  }
+
+  /** Drag the tempo slider to a given position on its 0–100 percent track. */
+  async setTempoPercent(percent: number): Promise<void> {
+    await this.tempoSlider.fill(String(percent))
+  }
+
+  async verifyTempo(bpm: number): Promise<void> {
+    await expect(this.tempoReadout).toHaveText(`${bpm} BPM`)
   }
 
   /** Fire one scheduled step on the in-page FakeAudioDriver's hand-cranked clock. */

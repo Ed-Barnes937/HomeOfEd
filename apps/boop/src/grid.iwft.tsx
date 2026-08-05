@@ -48,3 +48,20 @@ test('edits made while playing are heard on the next pass, not the current one',
 
   await root.verifyPlayed([{ instrumentId: 'boop', audioTime: 0.1 }])
 })
+
+test('the tempo slider starts at the default 100 BPM and changes the loop speed live', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyTempo(100)
+
+  await root.pressPlay()
+  await root.verifyPlaying()
+
+  await root.setTempoPercent(100)
+  await root.verifyTempo(200)
+
+  await root.setTempoPercent(0)
+  await root.verifyTempo(60)
+})
