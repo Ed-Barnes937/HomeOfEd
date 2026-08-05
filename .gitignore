@@ -26,6 +26,7 @@ test-results/
 .scratch/*/*
 !.scratch/*/map.md
 !.scratch/*/spec.md
+!.scratch/*/design-brief.md
 !.scratch/*/issues/
 
 # misc

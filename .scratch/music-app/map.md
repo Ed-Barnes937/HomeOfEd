@@ -107,10 +107,18 @@ runner prototypes together retired that premise.*
   export demoted (versioned encoding, mobile-Safari verification early,
   first cut candidate).
 
+- [Design brief](issues/08-design-brief.md) — **brief delivered at
+  [`design-brief.md`](design-brief.md)**, ready to paste into a design tool:
+  tone, the four regions of the single main screen, the six-instrument
+  character set, fixed interactions, per-breakpoint layout (small-phone 6×16
+  treatment left as the designer's one hard call), bounded motion rules, a
+  deliverables list, and prior-art reference points.
+
 ## Not yet specified
 
-*(empty — all fog resolved; the [design brief](issues/08-design-brief.md) is
-the last open ticket, now unblocked)*
+*(empty — no open tickets. **The map is complete**: the destination — spec +
+design brief — is delivered at [`spec.md`](spec.md) and
+[`design-brief.md`](design-brief.md).)*
 
 ## Out of scope
 
