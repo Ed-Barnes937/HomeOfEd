@@ -7,7 +7,7 @@ touchpoint is in place so later tickets only add features. Copy base is
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] `apps/boop` exists, copied from `templates/starter`, package name set
 - [ ] Port registry row claimed (dev port + CT port) per the adding-an-app

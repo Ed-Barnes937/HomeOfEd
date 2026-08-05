@@ -7,7 +7,7 @@ links nowhere harmful) — it announces boop before it exists.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] boop card on the hub home page, styled consistently with the existing
       app cards (hub owns its own UI — no shared components)
