@@ -5,6 +5,14 @@ grid under a prefilled playful generated name ("Groove 3") — typing optional;
 tap an entry to load it; rename is available; delete sits behind a confirm.
 No cap on list size.
 
+**Design:** the handoff (`docs/reference/boop-design/README.md`) specifies
+the light paper card on the dark stage, list rows with dot-matrix
+thumbnails, rename/delete icon buttons, the delete confirm copy ("Throw away
+Groove 2?" / "You can't get it back.") in the shared confirm shape, and the
+save moment: the card reads "Saved it" with the generated name in a focused
+field — **the save has already happened; the field is a rename, not a
+gate**.
+
 **Blocked by:** 19 — Autosave (the creation save format).
 
 **Status:** ready-for-agent

@@ -21,4 +21,10 @@ touchpoint is in place so later tickets only add features. Copy base is
 - [ ] `apps/boop/CLAUDE.md` scoped rules and `CONTEXT.md` seeded with the
       domain terms (beat event, tick vs step, hit, songPos, kit manifest,
       role)
+- [ ] Styles scaffolding per the design handoff
+      (`docs/reference/boop-design/README.md`): `src/styles/tokens.scss`
+      carrying the handoff's design tokens (stage/well/ink/instrument hues,
+      radii, shadows), SCSS modules organised like `apps/fridge`
+- [ ] Chivo + Chivo Mono self-hosted (house rule — no runtime Google Fonts;
+      follow the fridge's Fredoka pattern)
 - [ ] `pnpm lint`, `pnpm typecheck`, and the app's tests green

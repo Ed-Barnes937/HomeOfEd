@@ -2,8 +2,13 @@
 
 **What to build:** An optional "?" control that opens a single static hint
 sheet — one screen, few words, picture-led. No tooltips machinery, no forced
-steps, nothing that interrupts play. Final illustration style waits for
-design; this ticket ships the mechanism and first-pass content.
+steps, nothing that interrupts play.
+
+**Design:** the hint-sheet content is the one deliverable the handoff
+(`docs/reference/boop-design/README.md`) does **not** cover — ship the
+mechanism with first-pass content styled on the paper tokens, and flag the
+content for design follow-up. On phone this lives in the "⋯" menu as "How
+boop works" (menu built in ticket 27).
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 

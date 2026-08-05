@@ -7,6 +7,13 @@ independently. Toggling a cell on while stopped plays its sound. Steps read
 in groups of 4, and a clear-all control (with a confirm step) empties the
 grid by touch.
 
+**Design:** the handoff (`docs/reference/boop-design/README.md`) fixes the
+group tint alternation (even/odd bar backgrounds + 18px vs 8px gutters at
+laptop), the edit-pop motion (scale 0.9 → 1, 140ms), the clear-grid button
+(dashed coral — never mistakable for play-from-the-top) and the confirm copy
+("Clear the whole grid?" / "Every step comes off. Saved grooves stay." →
+*Keep playing* / *Clear it*) with the shared confirm-card shape.
+
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
 **Status:** ready-for-agent

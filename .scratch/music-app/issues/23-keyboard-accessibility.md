@@ -5,6 +5,11 @@ accessible contract is self-describing. Arrow keys move around the grid,
 Enter/Backspace toggle and remove, spacebar toggles play from anywhere on the
 page, and keyboard users see focus rings.
 
+**Design:** focus-ring visuals are explicitly **not yet designed** (called
+out in the handoff, `docs/reference/boop-design/README.md`). Use a treatment
+consistent with the tokens (`--cyan-solid` is the design's focus border on
+paper) and flag it for design review rather than inventing a new idiom.
+
 **Blocked by:** 15 — Grid feel.
 
 **Status:** ready-for-agent
