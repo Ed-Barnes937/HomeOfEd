@@ -43,8 +43,10 @@ Pure TypeScript, no DOM, no `Math.random()` — see `.scratch/sand-sim/spec.md` 
 constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick rate,
               CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
-elements.ts   pinned species ids + the registered roster (dirt, sand)
-registry.ts   createRegistry — boot-time validation; refuses a bad roster
+elements.ts   pinned species ids + the v1 roster (dirt, sand, water, lava,
+              obsidian) and v1Reactions — pure config, zero behavioural code
+registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
+              flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
               also the one chokepoint keeping chunk dirty rects + counts true
 chunks.ts     Chunk / ChunkMap — two dirty rects swapped at frame end, 2-cell
@@ -52,14 +54,26 @@ chunks.ts     Chunk / ChunkMap — two dirty rects swapped at frame end, 2-cell
 moves.ts      DeferredMoves — the cross-chunk move queue and its PRNG tie-break
 api.ts        CellApi — the chunk-relative (dx, dy) surface, one reused cursor
 kernels.ts    applyArchetype — the only code that moves cells
+lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
+              has moved; neither moves anything
 sim.ts        the world: chunk scan order, the clock guard, paint/tick
 loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
 ```
 
+Engine decisions that are not in the spec are in
+[ADR 0024](../../docs/adr/0024-silt-simulation-engine.md).
+
 Rules that are easy to break by accident:
 
 - **Archetypes own movement, hooks own transmutation.** An element that needs
-  new *motion* is a bug against the archetype set, not a new hook.
+  new *motion* is a bug against the archetype set (closed at four, held closed
+  by an exhaustive switch), not a new hook. Reactions are rows in the table, not
+  element code.
+- **Per-cell order is movement → reactions → lifetime → `onTick`**, each gated
+  on the last, so an element's code never runs on a cell it no longer is.
+- **A cell that should keep acting must write, or call `api.keepAwake()`.**
+  Chunk sleeping is driven by writes, so a `move` probability that does not come
+  up would otherwise freeze a liquid in mid-air.
 - **No `Math.random()` under `src/sim`.** Randomness comes from the sim's `Rng`
   via `api.rand()` / `api.randInt()`; the determinism test guards this.
 - **`Api` is `(dx, dy)`-relative only**, never absolute — chunked iteration
@@ -72,8 +86,9 @@ Rules that are easy to break by accident:
   clock. Drop that pass and the 256-tick byte wrap starts skipping cells.
 - **`Grid.stamp` must never mark a chunk dirty** — it runs on every occupied
   cell each tick, so nothing would ever sleep.
-- **Byte ownership**: `lifetime` owns `ra`, colour variant owns `rb`. New
-  per-cell fields are parallel grids; the cell never widens past 4 bytes.
+- **Byte ownership**: `lifetime` owns `ra` (engine-managed — an element never
+  writes it; `0` means "not seeded yet"), colour variant owns `rb`. New per-cell
+  fields are parallel grids; the cell never widens past 4 bytes.
 - **Species ids are pinned** — they go straight into localStorage scenes.
 
 ## Commands

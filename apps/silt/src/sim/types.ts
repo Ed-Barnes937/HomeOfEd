@@ -5,17 +5,34 @@
  */
 
 /**
- * Engine-owned, closed set of motion kernels. The spec closes it at four;
- * `liquid` and `gas` arrive with ticket 06. `applyArchetype` switches
- * exhaustively, so adding a variant here is a compile error until its kernel
- * exists.
+ * How far a fluid may travel sideways in one tick when it can go no lower, and
+ * the per-step probability that it moves at all. `move` is what makes lava a
+ * "slow liquid" — a probability, never a velocity field.
  */
-export type Archetype = { kind: 'static' } | { kind: 'powder'; density: number; slide: number }
+interface Fluid {
+  density: number
+  dispersion: number
+  move?: number
+}
+
+/**
+ * Engine-owned, **closed** set of four motion kernels (spec §5.2). Density
+ * orders displacement; a gas has a negative density, which is what makes
+ * everything else sink past it rather than the gas push its way up.
+ *
+ * `applyArchetype` switches exhaustively, so a fifth variant cannot be added
+ * here without its kernel landing in the same change.
+ */
+export type Archetype =
+  | { kind: 'static' }
+  | { kind: 'powder'; density: number; slide: number }
+  | ({ kind: 'liquid' } & Fluid)
+  | ({ kind: 'gas' } & Fluid)
 
 /**
  * Engine-managed decay. Countdown lives in `ra` — see the byte-ownership rule
- * on `Api`. Executed in ticket 06; declared here so the registry can validate
- * `becomes` against the roster at boot.
+ * on `Api`. The engine seeds it on the cell's first tick and decrements it
+ * every tick after, so an element never writes it itself.
  */
 export interface Lifetime {
   ticks: number
@@ -27,7 +44,12 @@ export interface Lifetime {
 
 /**
  * A tag-keyed pair rule: `a` and `b` are element names *or* tags, which is what
- * keeps the table from going O(n²). Applied in ticket 06; validated at boot now.
+ * keeps the table from going O(n²). Rules live here, never in element code —
+ * water + lava → obsidian is one row of data.
+ *
+ * The table is symmetric: the scan reaches one of the two cells first, and
+ * either way the same pair matches with the `becomes` sides swapped to suit.
+ * Where two rows match a pair, the earlier row wins.
  */
 export interface ReactionRow {
   a: string
@@ -37,7 +59,7 @@ export interface ReactionRow {
   /** Element name the `a` side becomes, or `null` to clear the cell. */
   aBecomes: string | null
   bBecomes: string | null
-  /** Only affects cells at or below this hardness. */
+  /** Only matches when *both* cells are at or below this hardness. */
   maxHardness?: number
 }
 
@@ -57,7 +79,8 @@ export interface ElementDef {
   lifetime?: Lifetime
   /**
    * At most one hook, run strictly *after* archetype movement so it can never
-   * corrupt the movement invariant. Executed from ticket 06.
+   * corrupt the movement invariant — and after reactions and decay, so it never
+   * runs on a cell that is no longer this element.
    */
   onTick?: (api: Api) => void
 }
@@ -103,4 +126,20 @@ export interface Api {
 export interface MovementApi extends Api {
   /** Move into the offset if it is empty or holds something less dense. */
   tryMove(dx: number, dy: number): boolean
+  /** Whether `tryMove` to the offset would succeed, without taking the step. */
+  canMove(dx: number, dy: number): boolean
+  /**
+   * Keep this cell's chunk awake for the next tick without changing anything.
+   * A cell that *could* move and declined — a `move` probability that did not
+   * come up — writes nothing, and the chunk would otherwise sleep with the cell
+   * still in mid-air.
+   */
+  keepAwake(): void
+  /**
+   * Whether the last successful `tryMove` merely *queued* a cross-chunk move
+   * rather than committing it. The cursor did not follow, so a kernel that
+   * takes several steps in one tick must stop here — a second step would queue
+   * the same cell again.
+   */
+  readonly deferred: boolean
 }

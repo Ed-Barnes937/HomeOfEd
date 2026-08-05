@@ -11,9 +11,24 @@ export {
   SPECIES_OFFSET,
   TICKS_PER_SECOND,
 } from './constants.ts'
-export { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, WALL, WATER, v1Elements } from './elements.ts'
+export {
+  DIRT,
+  EMPTY,
+  LAVA,
+  OBSIDIAN,
+  SAND,
+  WALL,
+  WATER,
+  v1Elements,
+  v1Reactions,
+} from './elements.ts'
 export { FixedTimestep } from './loop.ts'
-export { createRegistry, type ElementRegistry } from './registry.ts'
+export {
+  createRegistry,
+  type ElementRegistry,
+  type Reaction,
+  type ResolvedLifetime,
+} from './registry.ts'
 export { Rng } from './rng.ts'
 export { Sim, type SimOptions } from './sim.ts'
 export type { Api, Archetype, ElementDef, Lifetime, ReactionRow } from './types.ts'

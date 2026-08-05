@@ -21,6 +21,7 @@ export class CellApi implements MovementApi {
   #x = 0
   #y = 0
   #clock = 0
+  #deferred = false
 
   constructor(grid: Grid, registry: ElementRegistry, rng: Rng, moves: DeferredMoves) {
     this.#grid = grid
@@ -34,6 +35,12 @@ export class CellApi implements MovementApi {
     this.#x = x
     this.#y = y
     this.#clock = clock
+    this.#deferred = false
+  }
+
+  /** See `MovementApi.deferred` — set by the last `swap`, read by the kernels. */
+  get deferred(): boolean {
+    return this.#deferred
   }
 
   get(dx: number, dy: number): number {
@@ -53,12 +60,14 @@ export class CellApi implements MovementApi {
   swap(dx: number, dy: number): void {
     const tx = this.#x + dx
     const ty = this.#y + dy
+    this.#deferred = false
     if (!this.#grid.inBounds(tx, ty)) return
 
     const chunks = this.#grid.chunks
     if (chunks.indexAt(tx, ty) !== chunks.indexAt(this.#x, this.#y)) {
       const grid = this.#grid
       this.#moves.push(grid.indexOf(this.#x, this.#y), grid.indexOf(tx, ty), this.get(0, 0))
+      this.#deferred = true
       return
     }
 
@@ -106,8 +115,16 @@ export class CellApi implements MovementApi {
    * is queuing several candidates and letting a cell arrive twice.
    */
   tryMove(dx: number, dy: number): boolean {
-    if (!canDisplace(this.#registry, this.get(0, 0), this.get(dx, dy))) return false
+    if (!this.canMove(dx, dy)) return false
     this.swap(dx, dy)
     return true
+  }
+
+  canMove(dx: number, dy: number): boolean {
+    return canDisplace(this.#registry, this.get(0, 0), this.get(dx, dy))
+  }
+
+  keepAwake(): void {
+    this.#grid.chunks.touch(this.#x, this.#y)
   }
 }

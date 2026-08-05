@@ -1,9 +1,10 @@
 import { CellApi } from './api.ts'
-import { EMPTY, v1Elements } from './elements.ts'
+import { EMPTY, v1Elements, v1Reactions } from './elements.ts'
 import { GRID_HEIGHT, GRID_WIDTH } from './constants.ts'
 import { DeferredMoves } from './moves.ts'
 import { Grid } from './grid.ts'
 import { applyArchetype } from './kernels.ts'
+import { applyLifetime, applyReactions } from './lifecycle.ts'
 import { createRegistry, type ElementRegistry } from './registry.ts'
 import { Rng } from './rng.ts'
 import type { Chunk } from './chunks.ts'
@@ -51,7 +52,7 @@ export class Sim {
   #scanned = 0
 
   constructor(options: SimOptions = {}) {
-    const { seed = 1, elements = v1Elements, reactions = [] } = options
+    const { seed = 1, elements = v1Elements, reactions = v1Reactions } = options
     this.registry = createRegistry(elements, reactions)
     this.#grid = new Grid(GRID_WIDTH, GRID_HEIGHT)
     this.#seed = seed
@@ -185,9 +186,31 @@ export class Sim {
         this.#api.moveTo(x, y, clock)
         applyArchetype(this.#api, def.archetype)
         this.#scanned++
-        // `def.onTick` runs here, strictly after movement — ticket 06.
+        this.#settle(def, species)
       }
     }
+  }
+
+  /**
+   * Everything that happens to a cell once its archetype has had its turn:
+   * react with a neighbour, then age, then run the element's own hook. None of
+   * these move anything, which is what makes running them after movement safe.
+   *
+   * Each step can transmute the cell, and a cell that is no longer this element
+   * must not go on running its code — so each step is gated on the last. The
+   * cursor is wherever movement left it (or where it started, if the move was
+   * only queued), so all of this is relative to the cell's new home.
+   */
+  #settle(def: ElementDef, species: number): void {
+    const api = this.#api
+
+    applyReactions(api, this.registry)
+    if (api.get(0, 0) !== species) return
+
+    const lifetime = this.registry.lifetimeOf(species)
+    if (lifetime && !applyLifetime(api, lifetime)) return
+
+    def.onTick?.(api)
   }
 
   #nextClock(): number {

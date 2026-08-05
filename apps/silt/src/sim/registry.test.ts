@@ -75,6 +75,46 @@ describe('createRegistry', () => {
     ).toThrow(/probability/i)
   })
 
+  it('rejects a liquid with a bad dispersion or move probability', () => {
+    const base = { ...sand, archetype: { kind: 'liquid', density: 3, dispersion: 2 } } as ElementDef
+
+    expect(() =>
+      createRegistry([{ ...base, archetype: { kind: 'liquid', density: 3, dispersion: -1 } }]),
+    ).toThrow(/dispersion/i)
+    expect(() =>
+      createRegistry([
+        { ...base, archetype: { kind: 'liquid', density: 3, dispersion: 2, move: 0 } },
+      ]),
+    ).toThrow(/move/i)
+  })
+
+  it('rejects a gas that is not lighter than nothing', () => {
+    const balloon = { ...sand, archetype: { kind: 'gas', density: 3, dispersion: 2 } } as ElementDef
+
+    expect(() => createRegistry([balloon])).toThrow(/density/i)
+  })
+
+  it('resolves a tag-keyed reaction to every element carrying the tag', () => {
+    const registry = createRegistry(
+      [dirt, sand],
+      [{ a: 'dirt', b: 'powder', p: 1, aBecomes: null, bBecomes: 'dirt' }],
+    )
+
+    expect(registry.reactionFor(DIRT, SAND)).toMatchObject({ aBecomes: 0, bBecomes: DIRT })
+    // Symmetric: the pair matches whichever side the scan reaches first.
+    expect(registry.reactionFor(SAND, DIRT)).toMatchObject({ aBecomes: DIRT, bBecomes: 0 })
+    expect(registry.reactionFor(DIRT, DIRT)).toBeUndefined()
+  })
+
+  it('drops a pair whose hardness the row cannot touch', () => {
+    const registry = createRegistry(
+      [{ ...dirt, hardness: 4 }, sand],
+      [{ a: 'dirt', b: 'sand', p: 1, aBecomes: null, bBecomes: null, maxHardness: 2 }],
+    )
+
+    expect(registry.reactionFor(DIRT, SAND)).toBeUndefined()
+  })
+
   it('reports every problem at once', () => {
     expect(() => createRegistry([dirt, { ...sand, id: DIRT, name: 'dirt' }])).toThrow(
       /duplicate id[\s\S]*duplicate name/i,

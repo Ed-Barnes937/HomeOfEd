@@ -1,13 +1,34 @@
 import { EMPTY, WALL } from './elements.ts'
 import type { Archetype, ElementDef, ReactionRow } from './types.ts'
 
+/**
+ * A `ReactionRow` with its names and tags resolved to species ids, which is the
+ * form the scan uses: one map lookup per neighbour, no tag matching at runtime.
+ */
+export interface Reaction {
+  p: number
+  /** What the cell being scanned becomes; `EMPTY` clears it. */
+  aBecomes: number
+  /** What its neighbour becomes. */
+  bBecomes: number
+}
+
+/** A `Lifetime` with `becomes` resolved and `jitter` defaulted. */
+export interface ResolvedLifetime {
+  ticks: number
+  jitter: number
+  becomes: number
+}
+
 export interface ElementRegistry {
   /** `undefined` for ids nothing is registered under. */
   get(id: number): ElementDef | undefined
   has(id: number, tag: string): boolean
   /** `undefined` for archetypes that cannot be displaced (static, wall). */
   density(id: number): number | undefined
-  readonly reactions: readonly ReactionRow[]
+  /** The rule for this ordered pair of species, if the table holds one. */
+  reactionFor(a: number, b: number): Reaction | undefined
+  lifetimeOf(id: number): ResolvedLifetime | undefined
 }
 
 /**
@@ -44,7 +65,7 @@ const wall: ElementDef = {
 }
 
 function densityOf(archetype: Archetype): number | undefined {
-  return archetype.kind === 'powder' ? archetype.density : undefined
+  return archetype.kind === 'static' ? undefined : archetype.density
 }
 
 function checkArchetype(archetype: Archetype, fail: (message: string) => void): void {
@@ -57,11 +78,96 @@ function checkArchetype(archetype: Archetype, fail: (message: string) => void): 
         fail('slide must be a probability in [0, 1]')
       }
       return
+    case 'liquid':
+    case 'gas':
+      if (!Number.isFinite(archetype.density)) fail('density must be a number')
+      // A gas floats because nothing is lighter than it, not because it pushes:
+      // the sign is what makes every other archetype sink past it.
+      if (archetype.kind === 'gas' && !(archetype.density < 0)) {
+        fail('gas density must be negative')
+      }
+      if (!(Number.isInteger(archetype.dispersion) && archetype.dispersion >= 0)) {
+        fail('dispersion must be a non-negative whole number of cells')
+      }
+      if (archetype.move !== undefined && !(archetype.move > 0 && archetype.move <= 1)) {
+        fail('move must be a probability in (0, 1]')
+      }
+      return
     default: {
       const exhaustive: never = archetype
       fail(`unknown archetype ${JSON.stringify(exhaustive)}`)
     }
   }
+}
+
+type ByName = ReadonlyMap<string, ElementDef>
+
+/** Species ids fit in a byte, so an ordered pair fits in one integer key. */
+function pairKey(a: number, b: number): number {
+  return (a << 8) | b
+}
+
+/** Every element a reaction side names — one by name, or all carrying the tag. */
+function sidesOf(defs: readonly ElementDef[], byName: ByName, side: string): ElementDef[] {
+  const named = byName.get(side)
+  return named ? [named] : defs.filter((def) => def.tags.includes(side))
+}
+
+/**
+ * Flattens the tag-keyed table into an id-pair lookup, once, at boot. Tags buy
+ * a table that does not grow with the roster; expanding them here buys an O(1)
+ * lookup per neighbour. Both entries of a pair are stored, with the `becomes`
+ * sides swapped, so the answer does not depend on which cell the scan reaches
+ * first. Where two rows cover the same pair the earlier row wins.
+ */
+function resolvePairs(
+  defs: readonly ElementDef[],
+  byName: ByName,
+  reactions: readonly ReactionRow[],
+): Map<number, Reaction> {
+  const pairs = new Map<number, Reaction>()
+  const speciesOf = (name: string | null) => (name === null ? EMPTY : byName.get(name)!.id)
+  const add = (a: number, b: number, reaction: Reaction) => {
+    const key = pairKey(a, b)
+    if (!pairs.has(key)) pairs.set(key, reaction)
+  }
+
+  for (const row of reactions) {
+    const aBecomes = speciesOf(row.aBecomes)
+    const bBecomes = speciesOf(row.bBecomes)
+
+    for (const a of sidesOf(defs, byName, row.a)) {
+      for (const b of sidesOf(defs, byName, row.b)) {
+        // Hardness is fixed per element, so a pair the row is too weak to touch
+        // is simply never registered rather than re-checked every tick.
+        if (row.maxHardness !== undefined) {
+          const limit = row.maxHardness
+          if ((a.hardness ?? 0) > limit || (b.hardness ?? 0) > limit) continue
+        }
+        add(a.id, b.id, { p: row.p, aBecomes, bBecomes })
+        add(b.id, a.id, { p: row.p, aBecomes: bBecomes, bBecomes: aBecomes })
+      }
+    }
+  }
+
+  return pairs
+}
+
+function resolveLifetimes(
+  defs: readonly ElementDef[],
+  byName: ByName,
+): Map<number, ResolvedLifetime> {
+  const lifetimes = new Map<number, ResolvedLifetime>()
+  for (const def of defs) {
+    const { lifetime } = def
+    if (!lifetime) continue
+    lifetimes.set(def.id, {
+      ticks: lifetime.ticks,
+      jitter: lifetime.jitter ?? 0,
+      becomes: lifetime.becomes === null ? EMPTY : byName.get(lifetime.becomes)!.id,
+    })
+  }
+  return lifetimes
 }
 
 /**
@@ -161,10 +267,14 @@ export function createRegistry(
     densityById.set(id, densityOf(def.archetype))
   }
 
+  const pairs = resolvePairs(defs, byName, reactions)
+  const lifetimes = resolveLifetimes(defs, byName)
+
   return {
     get: (id) => byId.get(id),
     has: (id, tag) => tagsById.get(id)?.has(tag) ?? false,
     density: (id) => densityById.get(id),
-    reactions,
+    reactionFor: (a, b) => pairs.get(pairKey(a, b)),
+    lifetimeOf: (id) => lifetimes.get(id),
   }
 }
