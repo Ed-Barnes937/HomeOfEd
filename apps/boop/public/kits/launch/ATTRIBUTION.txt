@@ -1,12 +1,56 @@
-Launch kit — placeholder assets (ticket 12). Ticket 18 ships the real kit.
+Launch kit — real kit content (ticket 18).
 
 artwork/*.svg
   Placeholder icons from game-icons.net, CC BY 3.0, taken from the design
-  handoff bundle (docs/reference/boop-design/assets/instruments/). Icons made
-  by Lorc, Delapouite and other game-icons.net contributors — full contributor
-  list in docs/reference/boop-design/ATTRIBUTION.txt.
+  handoff bundle (docs/reference/boop-design/assets/instruments/). Final
+  artwork replacing these is ticket 28. Per-icon author, verified against the
+  upstream game-icons/icons source tree (github.com/game-icons/icons):
+
+    drum.svg        — Delapouite  (icons/delapouite/drum.svg)
+    drum-kit.svg    — Caro Asercion (icons/caro-asercion/drum-kit.svg)
+    gong.svg        — Delapouite  (icons/delapouite/gong.svg)
+    tambourine.svg  — Delapouite  (icons/delapouite/tambourine.svg)
+    xylophone.svg   — Delapouite  (icons/delapouite/xylophone.svg)
+    boombox.svg     — Delapouite  (icons/delapouite/boombox.svg)
+
+  Icons made by Delapouite and Caro Asercion. Full game-icons.net contributor
+  list and the CC BY 3.0 terms: docs/reference/boop-design/ATTRIBUTION.txt.
+  (The design brief's broader credit list — Lorc and Skoll among them — covers
+  game-icons.net contributors generally; verified per-file authorship above is
+  the accurate attribution for the six files actually shipped here.)
 
 sounds/*.wav
-  Synthesized in this repo by scripts/generatePlaceholderSamples.mjs. No
-  third-party audio; regenerate with
-  `node apps/boop/scripts/generatePlaceholderSamples.mjs`.
+  Synthesized in this repo — original work, no third-party audio, no
+  attribution owed. Real CC0-sourced one-shots were the first choice (per the
+  ticket's sourcing guidance) but weren't reachable from this environment:
+
+    - freesound.org: search/browse works without auth, but every sound's
+      actual audio file (including CC0-licensed ones, e.g.
+      people/deadrobotmusic/sounds/737300 "Lil Lofi Snare 9", CC0) sits behind
+      a login-gated download endpoint — confirmed by fetching the download URL
+      directly, which returns the HTML login page rather than audio data, no
+      API token available in this environment.
+    - opengameart.org "CC0 Sound Effects": browsed the pack; no kick / snare /
+      hi-hat / tom / marimba-ish / synth-hit content in it — mostly retro UI
+      bleeps, creature and ambience sounds.
+    - kenney.nl audio packs: CC0 and directly downloadable, but built for UI /
+      sci-fi / RPG sound effects, not tuned percussive or pitched one-shots —
+      using them would misrepresent the instruments in the design brief.
+
+  Six voices synthesized with the same gain-staging budget as the ticket-12
+  placeholder generator (peak 0.5 per voice, ~1.8 raw combined worst case —
+  see apps/boop/src/engine/toneAudioDriver.ts's MASTER_GAIN/Limiter comment):
+
+    kick    — sine pitch sweep 150→48 Hz + a 20ms noise click for attack.
+    snare   — noise body + two short tonal snaps (330→210 Hz, 200→170 Hz).
+    hat     — three inharmonic high partials + a touch of high-passed noise,
+              for a metallic tick rather than plain hiss.
+    tom     — sine pitch sweep 200→85 Hz, longer and lower than the kick.
+    marimba — fundamental (C5, 523.25 Hz) + a bright overtone + a 15ms click
+              for mallet attack.
+    boop    — two slightly detuned sine sweeps (660→520 Hz, 666→524 Hz) for a
+              chorused, electronic, cheeky character.
+
+  No third-party audio. Regeneration script kept out of the repo (kit data
+  only, per ticket 18's discipline) — see the ticket's PR/report for the
+  generator source if it needs to be reproduced.
