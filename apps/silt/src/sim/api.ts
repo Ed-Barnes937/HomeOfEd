@@ -1,6 +1,6 @@
-import { EMPTY, WALL } from './elements.ts'
+import { canDisplace, type ElementRegistry } from './registry.ts'
+import type { DeferredMoves } from './moves.ts'
 import type { Grid } from './grid.ts'
-import type { ElementRegistry } from './registry.ts'
 import type { Rng } from './rng.ts'
 import type { MovementApi } from './types.ts'
 
@@ -17,14 +17,16 @@ export class CellApi implements MovementApi {
   #grid: Grid
   #registry: ElementRegistry
   #rng: Rng
+  #moves: DeferredMoves
   #x = 0
   #y = 0
   #clock = 0
 
-  constructor(grid: Grid, registry: ElementRegistry, rng: Rng) {
+  constructor(grid: Grid, registry: ElementRegistry, rng: Rng, moves: DeferredMoves) {
     this.#grid = grid
     this.#registry = registry
     this.#rng = rng
+    this.#moves = moves
   }
 
   /** Point the cursor at a cell before dispatching its archetype. */
@@ -42,10 +44,24 @@ export class CellApi implements MovementApi {
     this.#grid.write(this.#x + dx, this.#y + dy, species, this.#clock)
   }
 
+  /**
+   * In-chunk moves land immediately and carry the cursor. A move that would
+   * leave the chunk is **queued instead** (spec §5.3) and committed once every
+   * chunk has run — so the cursor stays put, and a queued move can still be
+   * dropped if it loses the destination or the world moves under it.
+   */
   swap(dx: number, dy: number): void {
     const tx = this.#x + dx
     const ty = this.#y + dy
     if (!this.#grid.inBounds(tx, ty)) return
+
+    const chunks = this.#grid.chunks
+    if (chunks.indexAt(tx, ty) !== chunks.indexAt(this.#x, this.#y)) {
+      const grid = this.#grid
+      this.#moves.push(grid.indexOf(this.#x, this.#y), grid.indexOf(tx, ty), this.get(0, 0))
+      return
+    }
+
     this.#grid.swap(this.#x, this.#y, tx, ty, this.#clock)
     this.#x = tx
     this.#y = ty
@@ -83,20 +99,14 @@ export class CellApi implements MovementApi {
     return this.#rng.randInt(maxExclusive)
   }
 
+  /**
+   * True also for a move that was only *queued* because it left the chunk — the
+   * kernel has committed to it and stops looking, and a queued move that later
+   * loses its destination costs the cell that tick. Accepted: the alternative
+   * is queuing several candidates and letting a cell arrive twice.
+   */
   tryMove(dx: number, dy: number): boolean {
-    const target = this.get(dx, dy)
-    if (target === WALL) return false
-
-    if (target !== EMPTY) {
-      // Displacement is strictly density-ordered: equal densities never swap,
-      // or two neighbours would trade places forever.
-      const mine = this.#registry.density(this.get(0, 0))
-      const theirs = this.#registry.density(target)
-      if (mine === undefined || theirs === undefined || mine <= theirs) {
-        return false
-      }
-    }
-
+    if (!canDisplace(this.#registry, this.get(0, 0), this.get(dx, dy))) return false
     this.swap(dx, dy)
     return true
   }

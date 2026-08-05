@@ -1,10 +1,12 @@
 import { CellApi } from './api.ts'
 import { EMPTY, v1Elements } from './elements.ts'
 import { GRID_HEIGHT, GRID_WIDTH } from './constants.ts'
+import { DeferredMoves } from './moves.ts'
 import { Grid } from './grid.ts'
 import { applyArchetype } from './kernels.ts'
 import { createRegistry, type ElementRegistry } from './registry.ts'
 import { Rng } from './rng.ts'
+import type { Chunk } from './chunks.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
 
 export interface SimOptions {
@@ -26,6 +28,14 @@ export interface SimOptions {
  * already carrying it. Cells that are visited but do not move are stamped too,
  * which keeps every occupied cell on the same value at tick boundaries — so the
  * byte wrapping every 256 ticks can never make the scan skip a settled cell.
+ *
+ * Chunk sleeping (ticket 05) would break that invariant on its own: a cell in a
+ * sleeping chunk goes unstamped for as long as it sleeps, and 256 ticks later
+ * its stale value could collide with the live one. So each tick opens with a
+ * pass that stamps every cell it is about to scan with the settled clock — the
+ * invariant is restored on wake rather than maintained while asleep, and the
+ * pass runs over *all* awake chunks before *any* of them is scanned, so it can
+ * never un-stamp a cell that an earlier chunk just moved.
  */
 export class Sim {
   readonly width = GRID_WIDTH
@@ -35,8 +45,10 @@ export class Sim {
   #grid: Grid
   #seed: number
   #rng: Rng
+  #moves: DeferredMoves
   #api: CellApi
   #generation = 0
+  #scanned = 0
 
   constructor(options: SimOptions = {}) {
     const { seed = 1, elements = v1Elements, reactions = [] } = options
@@ -44,7 +56,8 @@ export class Sim {
     this.#grid = new Grid(GRID_WIDTH, GRID_HEIGHT)
     this.#seed = seed
     this.#rng = new Rng(seed)
-    this.#api = new CellApi(this.#grid, this.registry, this.#rng)
+    this.#moves = new DeferredMoves()
+    this.#api = new CellApi(this.#grid, this.registry, this.#rng, this.#moves)
   }
 
   /** Ticks completed. Also the parity that flips the horizontal scan. */
@@ -67,6 +80,15 @@ export class Sim {
   }
 
   /**
+   * Cells the last tick actually visited. Chunk sleeping leaves no trace in the
+   * grid, so this is how the skip path is asserted — it is observability, not
+   * simulation state.
+   */
+  get scannedLastTick(): number {
+    return this.#scanned
+  }
+
+  /**
    * Stamped with the settled-cell clock so the next tick still considers it —
    * painting between ticks must not cost the grain a tick of falling.
    */
@@ -75,6 +97,9 @@ export class Sim {
       throw new Error(`unknown species ${species}`)
     }
     this.#grid.write(x, y, species, this.#settledClock())
+    // `write` only marks the chunk dirty for the *next* tick; a paint lands
+    // between ticks, so it has to wake the chunk for the one about to run.
+    this.#grid.chunks.activate(x, y)
   }
 
   /**
@@ -85,26 +110,70 @@ export class Sim {
    */
   clear(): void {
     this.#grid.clear()
+    this.#moves.clear()
     this.#generation = 0
+    this.#scanned = 0
     this.#rng.reset(this.#seed)
   }
 
   /**
-   * One fixed-timestep step. Rows run bottom-up so a falling grain travels one
-   * cell per tick rather than being carried along by the scan; the horizontal
-   * direction alternates by generation, which buys left/right fairness without
-   * spending RNG on it.
+   * One fixed-timestep step, chunk by chunk.
    *
-   * Chunked iteration (ticket 05) replaces the loop below and nothing else.
+   * Chunk rows run bottom-up and cell rows within a chunk run bottom-up, so a
+   * falling grain still travels exactly one cell per tick rather than being
+   * carried along by the scan. Horizontal direction alternates by generation —
+   * across chunks *and* within one — which buys left/right fairness without
+   * spending RNG on it. **The order is fixed for a given generation**: a
+   * row-major array of chunks, indexed arithmetically. Nothing iterates a hash.
+   *
+   * Chunks with no occupied cells, or with nothing dirty near them, are skipped
+   * outright. Moves that leave a chunk are queued and committed at the end —
+   * see `DeferredMoves` for the PRNG tie-break.
    */
   tick(): void {
     const clock = this.#nextClock()
-    const grid = this.#grid
+    const chunks = this.#grid.chunks
     const rightToLeft = this.#generation % 2 === 0
 
-    for (let y = this.height - 1; y >= 0; y--) {
-      for (let i = 0; i < this.width; i++) {
-        const x = rightToLeft ? this.width - 1 - i : i
+    this.#restoreClockGuard()
+
+    this.#scanned = 0
+    for (let cy = chunks.rows - 1; cy >= 0; cy--) {
+      for (let i = 0; i < chunks.cols; i++) {
+        const cx = rightToLeft ? chunks.cols - 1 - i : i
+        this.#scanChunk(chunks.at(cx, cy), clock, rightToLeft)
+      }
+    }
+
+    this.#moves.resolve(this.#grid, this.registry, this.#rng, clock)
+    chunks.endFrame()
+    this.#generation++
+  }
+
+  /** See the class comment: stamp everything about to be scanned, first. */
+  #restoreClockGuard(): void {
+    const settled = this.#settledClock()
+    for (const chunk of this.#grid.chunks.all) {
+      if (!chunk.awake) continue
+      const area = chunk.active
+      for (let y = area.minY; y <= area.maxY; y++) {
+        for (let x = area.minX; x <= area.maxX; x++) {
+          this.#grid.stamp(x, y, settled)
+        }
+      }
+    }
+  }
+
+  #scanChunk(chunk: Chunk, clock: number, rightToLeft: boolean): void {
+    if (!chunk.awake) return
+
+    const grid = this.#grid
+    const area = chunk.active
+    const width = area.maxX - area.minX + 1
+
+    for (let y = area.maxY; y >= area.minY; y--) {
+      for (let i = 0; i < width; i++) {
+        const x = rightToLeft ? area.maxX - i : area.minX + i
         const species = grid.speciesAt(x, y)
         if (species === EMPTY) continue
         if (grid.clockAt(x, y) === clock) continue
@@ -115,11 +184,10 @@ export class Sim {
         grid.stamp(x, y, clock)
         this.#api.moveTo(x, y, clock)
         applyArchetype(this.#api, def.archetype)
+        this.#scanned++
         // `def.onTick` runs here, strictly after movement — ticket 06.
       }
     }
-
-    this.#generation++
   }
 
   #nextClock(): number {

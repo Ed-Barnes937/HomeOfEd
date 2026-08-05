@@ -10,6 +10,20 @@ export interface ElementRegistry {
   readonly reactions: readonly ReactionRow[]
 }
 
+/**
+ * The displacement rule, in one place. Strictly density-ordered: equal
+ * densities never swap, or two neighbours would trade places forever. Both the
+ * in-chunk path (`CellApi.tryMove`) and the deferred cross-chunk path
+ * (`DeferredMoves`) ask this, so the two can never disagree.
+ */
+export function canDisplace(registry: ElementRegistry, mover: number, target: number): boolean {
+  if (target === WALL) return false
+  if (target === EMPTY) return true
+  const mine = registry.density(mover)
+  const theirs = registry.density(target)
+  return mine !== undefined && theirs !== undefined && mine > theirs
+}
+
 const HEX = /^#[0-9a-f]{6}$/i
 
 /** Engine-owned pseudo-elements. Registering them keeps every lookup total. */

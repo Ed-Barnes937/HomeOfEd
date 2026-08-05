@@ -40,14 +40,19 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
 Pure TypeScript, no DOM, no `Math.random()` — see `.scratch/sand-sim/spec.md` §5–6.
 
 ```
-constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick rate
+constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick rate,
+              CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
 elements.ts   pinned species ids + the registered roster (dirt, sand)
 registry.ts   createRegistry — boot-time validation; refuses a bad roster
-grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell
+grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
+              also the one chokepoint keeping chunk dirty rects + counts true
+chunks.ts     Chunk / ChunkMap — two dirty rects swapped at frame end, 2-cell
+              margin, filled-cell count; `all` is the fixed row-major order
+moves.ts      DeferredMoves — the cross-chunk move queue and its PRNG tie-break
 api.ts        CellApi — the chunk-relative (dx, dy) surface, one reused cursor
 kernels.ts    applyArchetype — the only code that moves cells
-sim.ts        the world: scan order, the clock guard, paint/tick
+sim.ts        the world: chunk scan order, the clock guard, paint/tick
 loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
 ```
 
@@ -58,7 +63,15 @@ Rules that are easy to break by accident:
 - **No `Math.random()` under `src/sim`.** Randomness comes from the sim's `Rng`
   via `api.rand()` / `api.randInt()`; the determinism test guards this.
 - **`Api` is `(dx, dy)`-relative only**, never absolute — chunked iteration
-  (ticket 05) depends on it. Out of bounds reads the WALL sentinel.
+  depends on it. Out of bounds reads the WALL sentinel.
+- **Chunking must not touch determinism.** The two traps: cross-chunk
+  destination contention is broken by `rng.randInt`, never by arrival order,
+  and chunk order is a row-major array indexed arithmetically — never a `Map`.
+- **Chunk sleeping and the clock guard.** Sleeping cells go unstamped, so each
+  tick opens by re-stamping everything it is about to scan with the settled
+  clock. Drop that pass and the 256-tick byte wrap starts skipping cells.
+- **`Grid.stamp` must never mark a chunk dirty** — it runs on every occupied
+  cell each tick, so nothing would ever sleep.
 - **Byte ownership**: `lifetime` owns `ra`, colour variant owns `rb`. New
   per-cell fields are parallel grids; the cell never widens past 4 bytes.
 - **Species ids are pinned** — they go straight into localStorage scenes.
