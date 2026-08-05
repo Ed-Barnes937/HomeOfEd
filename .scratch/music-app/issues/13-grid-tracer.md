@@ -13,7 +13,7 @@ button styles. The small-phone treatment is a separate ticket (27).
 
 **Blocked by:** 12 — SequencerEngine + Tone.js implementation.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] 6 × 16 grid renders to the design geometry at laptop and tablet
       breakpoints; tap toggles a cell on/off

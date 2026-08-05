@@ -9,23 +9,39 @@ The full contract is in the beat-event system ticket
 
 **Blocked by:** 11 — Scaffold `apps/boop`.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] `SequencerEngine` interface; Tone.js never leaks through it
-- [ ] Schedule-time beat events are the canonical seam; a draw-time
+- [x] `SequencerEngine` interface; Tone.js never leaks through it
+- [x] Schedule-time beat events are the canonical seam; a draw-time
       convenience subscription also exists
-- [ ] Payload `{ tick, step, audioTime, hits: [{ instrumentId }] }`, one
+- [x] Payload `{ tick, step, audioTime, hits: [{ instrumentId }] }`, one
       event per step including empty steps; `tick` monotonic, `step` = tick
       mod 16
-- [ ] `songPos()` continuous query, re-anchored each scheduled beat
-- [ ] Transport events `started`/`stopped` and `tempoChanged { bpm }`
-- [ ] Pattern is readable state, not an edit stream; audition-on-toggle is
+- [x] `songPos()` continuous query, re-anchored each scheduled beat
+- [x] Transport events `started`/`stopped` and `tempoChanged { bpm }`
+- [x] Pattern is readable state, not an edit stream; audition-on-toggle is
       engine-internal (plays the sample when a cell is turned on while
       stopped)
-- [ ] Kit loaded from a JSON manifest (opaque `instrumentId`, display name,
+- [x] Kit loaded from a JSON manifest (opaque `instrumentId`, display name,
       artwork ref, sound file, optional `role`); six placeholder one-shots
       ship so the engine is audible
-- [ ] Gesture-gated audio start; iPad `interrupted` AudioContext state
+- [x] Gesture-gated audio start; iPad `interrupted` AudioContext state
       handled; no DOM work in scheduler callbacks
-- [ ] Engine contract unit-tested (`*.test`): event payloads, tick
+- [x] Engine contract unit-tested (`*.test`): event payloads, tick
       monotonicity, tempo change, transport, audition
+
+## Comments
+
+Resolved 2026-08-05 (agent, Opus). Landed in `8dba93b` on `music-app`.
+`SequencerEngine` interface + `createSequencerEngine` with an inner
+`AudioDriver` seam: `toneAudioDriver.ts` is the only file importing `tone`;
+the contract is unit-tested against a hand-cranked `fakeAudioDriver` (no
+AudioContext). Kit manifest (versioned JSON, opaque ids, optional role) with
+six synthesized placeholder one-shots + handoff placeholder artwork.
+Decisions in ADR 0024 (notably: stop is a pause — monotonic tick never
+rewinds). Code review fixed four real songPos/tempo/draw-cancel faults, and
+added a master gain + limiter so six simultaneous voices don't clip.
+Deviations kept: `setPattern()` + 60–200 BPM clamping (needed by presets/
+grooves/share links); synthesized rather than sourced placeholders (ticket
+18 replaces them). Gate re-verified by orchestrator: lint/typecheck clean,
+vitest 48/48, playwright CT 3/3.

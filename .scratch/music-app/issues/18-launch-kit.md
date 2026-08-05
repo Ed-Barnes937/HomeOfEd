@@ -14,7 +14,7 @@ Final artwork is ticket 28.
 
 **Blocked by:** 12 — SequencerEngine + Tone.js implementation.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Six CC0 / openly-licensed one-shots sourced, licences recorded
 - [ ] Short one-shots, no long tails, clean at 200 BPM
