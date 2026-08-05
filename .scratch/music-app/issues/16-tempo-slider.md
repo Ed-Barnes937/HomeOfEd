@@ -12,13 +12,24 @@ thumb/readout styles, and the play-button press motion (2px, 90ms).
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Slider labelled "Tempo" with "Slow" and "Fast" endpoints
-- [ ] Logarithmic mapping per the design formula over 60–200; integer BPM
+- [x] Slider labelled "Tempo" with "Slow" and "Fast" endpoints
+- [x] Logarithmic mapping per the design formula over 60–200; integer BPM
       after rounding; default 100 BPM
-- [ ] Small live BPM readout beside the label
-- [ ] Engine `tempoChanged` fires; tempo changes audibly while playing
-- [ ] No swing control anywhere
-- [ ] Mapping unit-tested; slider interaction covered in a whole-frontend
+- [x] Small live BPM readout beside the label
+- [x] Engine `tempoChanged` fires; tempo changes audibly while playing
+- [x] No swing control anywhere
+- [x] Mapping unit-tested; slider interaction covered in a whole-frontend
       test
+
+## Comments
+
+Resolved 2026-08-05 (agent, Sonnet). Landed in `5a25576` on `music-app`.
+Pure `tempoScale.ts` (bpmToPercent/percentToBpm, design log formula, clamp
+60-200, integer rounding, default 100 -> 42%) unit-tested 9/9; native range
+input re-skinned to the handoff's track/fill/thumb values via a
+`--tempo-percent` custom property; live BPM readout beside the "Tempo"
+label; Slow/Fast endpoints; wired to the existing setTempo/tempoChanged
+contract, no engine changes. No swing control. Gate re-verified by
+orchestrator: lint/typecheck clean, vitest 60/60, playwright CT 5/5.

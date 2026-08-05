@@ -16,7 +16,7 @@ laptop), the edit-pop motion (scale 0.9 → 1, 140ms), the clear-grid button
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Pointer-down decides add-or-remove from that cell's state; the whole
       drag repeats that decision

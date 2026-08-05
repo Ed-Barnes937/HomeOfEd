@@ -10,7 +10,7 @@ codec both build on.
 
 **Blocked by:** 13 — First sound grid; 16 — Tempo slider.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Edits (cells and tempo) autosave debounced to localStorage
 - [ ] Reload restores the working grid exactly — pattern and tempo
