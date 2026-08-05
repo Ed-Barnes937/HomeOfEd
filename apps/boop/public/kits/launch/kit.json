@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "kitId": "launch",
+  "name": "Launch kit",
+  "instruments": [
+    {
+      "instrumentId": "kick",
+      "name": "Kick",
+      "artwork": "/kits/launch/artwork/drum.svg",
+      "sound": "/kits/launch/sounds/kick.wav",
+      "role": "kick"
+    },
+    {
+      "instrumentId": "snare",
+      "name": "Snare",
+      "artwork": "/kits/launch/artwork/drum-kit.svg",
+      "sound": "/kits/launch/sounds/snare.wav",
+      "role": "snare"
+    },
+    {
+      "instrumentId": "hat",
+      "name": "Hi-hat",
+      "artwork": "/kits/launch/artwork/gong.svg",
+      "sound": "/kits/launch/sounds/hat.wav",
+      "role": "hat"
+    },
+    {
+      "instrumentId": "tom",
+      "name": "Tom",
+      "artwork": "/kits/launch/artwork/tambourine.svg",
+      "sound": "/kits/launch/sounds/tom.wav",
+      "role": "perc"
+    },
+    {
+      "instrumentId": "marimba",
+      "name": "Marimba",
+      "artwork": "/kits/launch/artwork/xylophone.svg",
+      "sound": "/kits/launch/sounds/marimba.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "boop",
+      "name": "Boop",
+      "artwork": "/kits/launch/artwork/boombox.svg",
+      "sound": "/kits/launch/sounds/boop.wav",
+      "role": "melodic"
+    }
+  ]
+}

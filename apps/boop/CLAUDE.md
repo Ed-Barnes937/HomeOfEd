@@ -15,15 +15,22 @@ URL-hash encoded (no server); a server-backed short-link fallback is a later
 ticket, modelled on `apps/fridge`'s `board.share`/`board.get` handlers
 (`apps/fridge/src/server/handlers/shareBoardHandler.ts`).
 
-This ticket (11) scaffolds the app only — no sequencer, no engine, no grid
-yet. Later tickets build the `SequencerEngine` (Tone.js behind a TypeScript
-interface, no `packages/*` extraction — the spec is explicit this stays
-in-app), the grid UI, transport, kit manifest, and persistence.
+The `SequencerEngine` and the launch kit manifest have landed (ticket 12) —
+Tone.js behind a TypeScript interface, no `packages/*` extraction (the spec is
+explicit this stays in-app). No UI consumes it yet: the grid, transport, and
+persistence are later tickets.
 
 ## Layout
 
 ```
 src/
+  engine/           the SequencerEngine: contract, implementation, kit manifest
+    sequencerEngine.ts   the interface + payload types (no Tone.js in here)
+    createSequencerEngine.ts  the implementation: ticks, hits, songPos, events
+    audioDriver.ts    the seam to the audio library
+    toneAudioDriver.ts  the only file importing Tone.js
+    kitManifest.ts    manifest parse/load (kits are pure data)
+    testing/fakeAudioDriver.ts  hand-cranked clock the contract tests use
   server/           the app's backend (runs in Node for dev/prod, in-browser for .iwft)
     handlers/       Handler classes — business logic, AppContext only, no Store
     router.ts       tRPC router; createTRPC<void>() (no Store); exports AppRouter
@@ -37,6 +44,9 @@ src/
   testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
   greeting.iwft.tsx placeholder whole-frontend test via the in-browser backend
 public/fonts/       self-hosted Chivo + Chivo Mono (latin-subset variable woff2)
+public/kits/launch/ the V1 kit: kit.json manifest, placeholder one-shots and
+                    artwork (both replaced by ticket 18)
+scripts/            generatePlaceholderSamples.mjs — synthesizes those one-shots
 vite.config.ts      react + simulatorPlugin (dev simulator mode)
 playwright-ct.config.ts  defineIwftConfig({ ctPort: 3108 })
 ```
@@ -72,11 +82,18 @@ share-link snapshot.
   variable woff2 each) — no runtime Google Fonts, per
   [`docs/reference/fridge-magnets/fonts/FONTS.md`](../../docs/reference/fridge-magnets/fonts/FONTS.md)'s
   house rule and fridge's Fredoka pattern.
-- **`SequencerEngine`** (future tickets): a TypeScript interface inside this
-  app, Tone.js implementation behind it. Schedule-time beat events are the
-  canonical seam (`{ tick, step, audioTime, hits: [{ instrumentId }] }`);
-  pattern edits are readable state, not an event stream. Full contract in the
-  spec's Architecture section.
+- **`SequencerEngine`** ([ADR 0024](../../docs/adr/0024-boop-sequencer-engine-seam.md)).
+  The contract lives in `src/engine/sequencerEngine.ts`
+  and Tone.js must never leak through it — only `toneAudioDriver.ts` imports
+  `tone`, with named imports so the bundle stays tree-shaken. Schedule-time
+  beat events are the canonical seam
+  (`{ tick, step, audioTime, hits: [{ instrumentId }] }`) and must do no DOM
+  work; UI subscribes via `onDrawBeat`. Pattern edits are readable state, not
+  an event stream, and audition-on-toggle is the engine's job. Test engine
+  behaviour against `FakeAudioDriver`, never a real AudioContext.
+- **Kits are pure data.** Adding or swapping instruments means editing
+  `public/kits/<kit>/kit.json` and dropping in files — never touching the
+  engine. Nothing outside the manifest may enumerate instrument ids.
 - **Adding a database?** Follow
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only) —
   this is only expected for the share-link snapshot store, not the toy itself.

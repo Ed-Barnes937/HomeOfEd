@@ -19,7 +19,8 @@
     "@tanstack/react-router": "^1.170.16",
     "@trpc/client": "11.18.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "tone": "^15.1.22"
   },
   "devDependencies": {
     "@hoe/config": "workspace:*",

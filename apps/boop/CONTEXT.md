@@ -36,7 +36,30 @@ _Avoid_: Note, trigger.
 A continuous query on the `SequencerEngine` for the current playhead position,
 re-anchored at each scheduled beat. Distinct from `step`: `step` is discrete
 (which column), `songPos()` is continuous (where within the loop right now).
+It reads in **tick space** — a fractional tick, so `songPos() % 16` is the grid
+column — and freezes where it was while the transport is stopped.
 _Avoid_: Playhead position (fine as UI language, not as the engine method name).
+
+**Audition**:
+The single sample the engine plays when a cell is turned **on while stopped**,
+so an edit is always heard. Engine-internal: callers toggle cells and never
+trigger sound themselves. Turning a cell off, or editing while the loop runs,
+does not audition (the step itself will sound it).
+_Avoid_: Preview, echo.
+
+**`AudioDriver`**:
+The seam between the engine's logic (ticks, hits, anchoring, event fan-out) and
+the audio library (AudioContext, the sixteenth-note clock, sample playback).
+`ToneAudioDriver` is the only file that imports Tone.js; `FakeAudioDriver` is
+the hand-cranked clock the contract tests run against.
+_Avoid_: Audio backend, adapter.
+
+**Audio state**:
+Whether the engine can be heard: `locked` (no unlocking gesture yet),
+`running`, or `interrupted` — iPadOS Safari's non-standard state after a call
+or a lock, which needs another `start()` gesture. Entering a non-running state
+while playing stops the transport, so the UI never shows a silent playhead.
+_Avoid_: Muted, suspended.
 
 **Kit manifest**:
 The pure-data JSON description of a kit: one entry per instrument with its
@@ -58,7 +81,9 @@ ever carries this id.
 _Avoid_: Instrument name, row id.
 
 **Pattern**:
-The single working grid of on/off cells, `boolean[6][16]`. V1 has exactly one
+The single working grid of on/off cells, `boolean[6][16]` — exposed by the
+engine as one row per kit instrument, in kit order, each carrying its
+`instrumentId`. V1 has exactly one
 pattern per creation; chaining several patterns into a song is the confirmed
 V2 direction the save format is already shaped for.
 _Avoid_: Song (a pattern is not yet a song in V1), sequence.

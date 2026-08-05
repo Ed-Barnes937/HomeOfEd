@@ -1,0 +1,12 @@
+Launch kit — placeholder assets (ticket 12). Ticket 18 ships the real kit.
+
+artwork/*.svg
+  Placeholder icons from game-icons.net, CC BY 3.0, taken from the design
+  handoff bundle (docs/reference/boop-design/assets/instruments/). Icons made
+  by Lorc, Delapouite and other game-icons.net contributors — full contributor
+  list in docs/reference/boop-design/ATTRIBUTION.txt.
+
+sounds/*.wav
+  Synthesized in this repo by scripts/generatePlaceholderSamples.mjs. No
+  third-party audio; regenerate with
+  `node apps/boop/scripts/generatePlaceholderSamples.mjs`.
