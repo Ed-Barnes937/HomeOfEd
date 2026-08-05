@@ -13,16 +13,29 @@ button styles. The small-phone treatment is a separate ticket (27).
 
 **Blocked by:** 12 — SequencerEngine + Tone.js implementation.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] 6 × 16 grid renders to the design geometry at laptop and tablet
+- [x] 6 × 16 grid renders to the design geometry at laptop and tablet
       breakpoints; tap toggles a cell on/off
-- [ ] Row labels come from the kit manifest (real instrument names +
+- [x] Row labels come from the kit manifest (real instrument names +
       row-colour-tinted artwork plates)
-- [ ] One play/pause button; loop is unconditional — no stop, restart, or
+- [x] One play/pause button; loop is unconditional — no stop, restart, or
       record, and nothing that resets the pattern
-- [ ] First press satisfies the gesture-gated audio start
-- [ ] Grid state drives the engine pattern; edits while playing are heard on
+- [x] First press satisfies the gesture-gated audio start
+- [x] Grid state drives the engine pattern; edits while playing are heard on
       the next pass
-- [ ] Whole-frontend test (`*.iwft`): toggle cells, play, verify the loop
+- [x] Whole-frontend test (`*.iwft`): toggle cells, play, verify the loop
       fires beat events / audible hits
+
+## Comments
+
+Resolved 2026-08-05 (agent, Sonnet). Landed in `e4fa9ad` on `music-app`.
+Tracer bullet: 6x16 grid + play/pause wired to the engine via a new
+`EngineProvider` (injectable AudioDriver — iwft tests hand-crank a
+`FakeAudioDriver` through `page.evaluate`). TopBar (fridge back-glyph,
+wordmark, inert My grooves/Share/? chrome with aria-disabled), grid well to
+the handoff geometry at laptop/tablet (1280px breakpoint), transport bar
+with just play/pause. Greeting demo UI removed; backend layer kept.
+Known limitation flagged: row colours are positional until kit.json carries
+a colour field (ticket 18). Gate re-verified by orchestrator: lint/typecheck
+clean, vitest 48/48, playwright CT 4/4.

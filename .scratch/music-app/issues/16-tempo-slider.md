@@ -12,7 +12,7 @@ thumb/readout styles, and the play-button press motion (2px, 90ms).
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Slider labelled "Tempo" with "Slow" and "Fast" endpoints
 - [ ] Logarithmic mapping per the design formula over 60–200; integer BPM
