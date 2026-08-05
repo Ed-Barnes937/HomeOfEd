@@ -9,7 +9,7 @@ The full contract is in the beat-event system ticket
 
 **Blocked by:** 11 — Scaffold `apps/boop`.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] `SequencerEngine` interface; Tone.js never leaks through it
 - [ ] Schedule-time beat events are the canonical seam; a draw-time
