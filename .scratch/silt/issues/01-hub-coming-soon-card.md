@@ -13,9 +13,18 @@ the hub, not Silt itself).
 
 **Blocked by:** None — can start immediately
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Silt appears in the hub's app gallery with a `SOON` label and no link
-- [ ] The card carries a looping falling-sand canvas animation in the style of the existing previews
-- [ ] The animation tracks the theme toggle (recolours without restarting) and respects the existing preview lifecycle (starts on mount, stops on unmount)
-- [ ] Hub tests stay green (`pnpm lint`, `pnpm typecheck`, hub test suite)
+- [x] Silt appears in the hub's app gallery with a `SOON` label and no link
+- [x] The card carries a looping falling-sand canvas animation in the style of the existing previews
+- [x] The animation tracks the theme toggle (recolours without restarting) and respects the existing preview lifecycle (starts on mount, stops on unmount)
+- [x] Hub tests stay green (`pnpm lint`, `pnpm typecheck`, hub test suite)
+
+## Comments
+
+Resolved in commit `c667ae7` (Sonnet agent). Silt added to the hub `APPS` array as
+an unlinked `SOON` card with a new `drawSilt` preview drawer — a 22×16 coarse
+falling-sand automaton that reads the theme ref every frame (recolours without
+restart) and resets when the pile nears the top (loops). Tests: POM
+`verifySiltIsComingSoon()` + canvas count 6→7. Orchestrator re-ran the gate:
+hub lint/typecheck clean, vitest 8/8, playwright CT 2/2. No deviations.
