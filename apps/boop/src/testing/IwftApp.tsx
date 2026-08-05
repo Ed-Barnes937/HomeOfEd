@@ -16,7 +16,9 @@ import {
 import { testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
+import { FakeAudioDriver } from '../engine/testing/fakeAudioDriver.ts'
 import { appRouter } from '../server/router.ts'
+import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 
 exposeDispatcher(
   createDispatcher({
@@ -30,6 +32,12 @@ exposeDispatcher(
   }),
 )
 
+// The fake audio driver, hand-cranked from the Node side of the test via
+// `page.evaluate` — see BOOP_AUDIO_DRIVER_KEY in gridProtocol.ts. Fakes over
+// mocks: the same FakeAudioDriver the engine's own unit tests run against.
+const audioDriver = new FakeAudioDriver()
+;(globalThis as unknown as Record<string, unknown>)[BOOP_AUDIO_DRIVER_KEY] = audioDriver
+
 export function IwftApp() {
-  return <App />
+  return <App driver={audioDriver} />
 }

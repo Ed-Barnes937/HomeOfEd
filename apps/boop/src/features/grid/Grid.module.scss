@@ -1,0 +1,203 @@
+// Grid-well geometry from the design handoff (docs/reference/boop-design/README.md,
+// "Grid well" / "Cell geometry and state"). Breakpoint at 1280px splits the
+// laptop and tablet number sets; the small-phone scroll-window treatment is a
+// separate ticket (27). No playhead yet (ticket 13), so cells only carry the
+// empty/active states — the "under playhead" variants land with the playhead.
+.well {
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  background: var(--well);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  @media (max-width: 1279px) {
+    padding: 16px;
+    border-radius: 20px;
+  }
+}
+
+.barNumerals {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 8px;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+}
+
+.railSpacer {
+  flex: none;
+  width: 160px;
+
+  @media (max-width: 1279px) {
+    width: 124px;
+  }
+}
+
+.barNumeral {
+  flex: none;
+  width: 272px; // 4 × cellW(62) + 3 × gap(18)
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: rgba(242, 239, 230, 0.28);
+
+  @media (max-width: 1279px) {
+    width: 186px; // 4 × cellW(42) + 3 × gap(14)
+    font-size: 10px;
+  }
+}
+
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  @media (max-width: 1279px) {
+    gap: 8px;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+}
+
+.rail {
+  flex: none;
+  width: 160px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 1279px) {
+    width: 124px;
+    gap: 10px;
+  }
+}
+
+.plate {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 1279px) {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+}
+
+.artwork {
+  width: 40px;
+  height: 40px;
+  background: var(--row-color);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+
+  @media (max-width: 1279px) {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  white-space: nowrap;
+
+  @media (max-width: 1279px) {
+    font-size: 14px;
+  }
+}
+
+.steps {
+  display: flex;
+  gap: 18px;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+}
+
+.group {
+  display: flex;
+  gap: 8px;
+
+  @media (max-width: 1279px) {
+    gap: 6px;
+  }
+}
+
+.cell {
+  flex: none;
+  width: 62px;
+  height: 66px;
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+
+  &[data-parity='odd'] {
+    background: rgba(255, 255, 255, 0.075);
+  }
+
+  &[data-active='true'] {
+    background: var(--row-color);
+    box-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 1279px) {
+    width: 42px;
+    height: 50px;
+    border-radius: 9px;
+  }
+}
+
+.cellArtwork {
+  width: 35px;
+  height: 35px;
+  background: rgba(0, 0, 0, 0.42);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+
+  @media (max-width: 1279px) {
+    width: 24px;
+    height: 24px;
+  }
+}

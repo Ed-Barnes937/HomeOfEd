@@ -1,0 +1,71 @@
+// Transport bar geometry from the design handoff. Ticket 13 only builds the
+// play/pause control; tempo and clear-grid land in later tickets, so the bar
+// currently holds just the play button.
+.bar {
+  margin-top: 16px;
+  height: 84px;
+  padding: 0 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.045);
+  display: flex;
+  align-items: center;
+  gap: 26px;
+
+  @media (max-width: 1279px) {
+    height: 76px;
+    border-radius: 18px;
+  }
+}
+
+.play {
+  flex: none;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--play);
+  box-shadow: var(--shadow-play);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:active {
+    box-shadow: none;
+    transform: translateY(2px);
+  }
+
+  @media (max-width: 1279px) {
+    width: 56px;
+    height: 56px;
+    box-shadow: var(--shadow-play-phone);
+  }
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  margin-left: 6px;
+  border-top: 13px solid transparent;
+  border-bottom: 13px solid transparent;
+  border-left: 21px solid var(--ink-dark);
+
+  @media (max-width: 1279px) {
+    border-top-width: 12px;
+    border-bottom-width: 12px;
+    border-left-width: 19px;
+  }
+}
+
+.pause {
+  display: flex;
+  gap: 6px;
+}
+
+.pauseBar {
+  width: 7px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--ink-dark);
+}
