@@ -15,6 +15,9 @@ export class HomePagePom extends BasePage {
   private readonly confirmSafeButton = this.page.getByTestId('confirm-safe-button')
   private readonly confirmDestructiveButton = this.page.getByTestId('confirm-destructive-button')
   private readonly shareButton = this.page.getByTestId('share-button')
+  private readonly groovesButton = this.page.getByTestId('grooves-button')
+  private readonly saveGrooveButton = this.page.getByTestId('save-groove-button')
+  private readonly groovesCloseButton = this.page.getByTestId('grooves-close-button')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
@@ -223,6 +226,56 @@ export class HomePagePom extends BasePage {
       window.location.hash = fragment
     }, hash)
     await this.page.reload()
+  }
+
+  async openGrooves(): Promise<void> {
+    await this.groovesButton.click()
+  }
+
+  async closeGrooves(): Promise<void> {
+    await this.groovesCloseButton.click()
+  }
+
+  /** Saves the working grid — the save happens immediately; returns the generated name shown for renaming. */
+  async saveGroove(): Promise<string> {
+    await this.saveGrooveButton.click()
+    return this.page.getByTestId('groove-save-name-input').inputValue()
+  }
+
+  /** Dismisses the post-save "Saved it" moment, keeping whatever name is currently in the field. */
+  async finishSaving(): Promise<void> {
+    await this.page.getByTestId('groove-save-name-done').click()
+  }
+
+  grooveRow(index: number) {
+    return this.page.getByTestId(`groove-row-${index}`)
+  }
+
+  async loadGroove(index: number): Promise<void> {
+    await this.page.getByTestId(`groove-load-${index}`).click()
+  }
+
+  async verifyGrooveName(index: number, name: string): Promise<void> {
+    await expect(this.grooveRow(index)).toContainText(name)
+  }
+
+  async verifyGrooveCount(count: number): Promise<void> {
+    await expect(this.page.getByTestId(/^groove-row-\d+$/)).toHaveCount(count)
+  }
+
+  async renameGroove(index: number, name: string): Promise<void> {
+    await this.page.getByTestId(`groove-rename-button-${index}`).click()
+    const input = this.page.getByTestId(`groove-rename-${index}-input`)
+    await input.fill(name)
+    await this.page.getByTestId(`groove-rename-${index}-done`).click()
+  }
+
+  async openDeleteGrooveConfirm(index: number): Promise<void> {
+    await this.page.getByTestId(`groove-delete-button-${index}`).click()
+  }
+
+  async verifyDeleteGrooveConfirmShown(name: string): Promise<void> {
+    await expect(this.page.getByText(`Throw away ${name}?`)).toBeVisible()
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */

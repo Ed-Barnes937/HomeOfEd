@@ -15,15 +15,18 @@ export interface TopBarProps {
    * render, so encoding the grid never rides along with playback repaints.
    */
   getShareUrl: () => string
+  /** Opens the "My grooves" panel (ticket 20). */
+  onOpenGrooves: () => void
 }
 
 /**
  * The top bar: back-to-hub arrow, wordmark, and the chrome buttons from the
  * design handoff. "Share" is live (ticket 21) — the system share sheet on
  * mobile, clipboard plus a "Copied!" flip on desktop, no modal and no link
- * field. "My grooves" and "?" are still style-only placeholders.
+ * field. "My grooves" opens the grooves panel (ticket 20). "?" is still a
+ * style-only placeholder.
  */
-export function TopBar({ getShareUrl }: TopBarProps) {
+export function TopBar({ getShareUrl, onOpenGrooves }: TopBarProps) {
   const [shareState, setShareState] = useState<ShareState>('idle')
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -73,7 +76,12 @@ export function TopBar({ getShareUrl }: TopBarProps) {
       </a>
       <span className={styles.wordmark}>boop</span>
       <div className={styles.spacer} />
-      <button type="button" className={styles.ghost} aria-disabled="true">
+      <button
+        type="button"
+        className={styles.ghost}
+        onClick={onOpenGrooves}
+        data-testid="grooves-button"
+      >
         My grooves
       </button>
       <button

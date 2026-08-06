@@ -76,17 +76,22 @@ export function patternToStored(pattern: Pattern): StoredPattern {
 /** The working grid is unnamed until a child saves it into "My grooves". */
 export const WORKING_NAME = ''
 
+/** A creation snapshotting `pattern` and `tempo` under `name`. */
+export function creationFrom(kit: Kit, pattern: Pattern, tempo: number, name: string): StoredCreation {
+  return {
+    name,
+    kitId: kit.kitId,
+    tempo,
+    patterns: [patternToStored(pattern)],
+  }
+}
+
 /**
  * The creation a grid currently *is* — what the autosave writes and what a
  * share link carries, built the one way so the two can never drift.
  */
 export function workingCreation(kit: Kit, pattern: Pattern, tempo: number): StoredCreation {
-  return {
-    name: WORKING_NAME,
-    kitId: kit.kitId,
-    tempo,
-    patterns: [patternToStored(pattern)],
-  }
+  return creationFrom(kit, pattern, tempo, WORKING_NAME)
 }
 
 /**

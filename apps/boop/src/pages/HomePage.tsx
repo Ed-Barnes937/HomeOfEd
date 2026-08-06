@@ -5,11 +5,12 @@ import { useEngine } from '../engine/EngineContext.tsx'
 import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { Grid } from '../features/grid/Grid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
+import { GroovesPanel } from '../features/grooves/GroovesPanel.tsx'
 import { PresetRow } from '../features/presets/PresetRow.tsx'
 import { PRESETS, presetPattern, type PresetId } from '../features/presets/presets.ts'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
-import { workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
+import { storedToPattern, workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
 import styles from './HomePage.module.scss'
@@ -35,6 +36,7 @@ export function HomePage() {
   // Bumped on every preset load (including blank) so the grid can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
+  const [showGrooves, setShowGrooves] = useState(false)
   const motion = usePlayheadMotion(engine)
 
   // A shared groove is decoded on the first render, before the first restore,
@@ -122,6 +124,25 @@ export function HomePage() {
     )
   }, [engine])
 
+  /** Read at tap time (the Save button inside "My grooves"), same reasoning as `getShareUrl`. */
+  const getWorkingSnapshot = useCallback(() => {
+    if (!engine) throw new Error('engine not ready')
+    return { kit: engine.kit, pattern: engine.getPattern(), tempo: engine.getTempo() }
+  }, [engine])
+
+  const loadGroove = useCallback(
+    (creation: StoredCreation) => {
+      if (!engine) return
+      engine.setPattern(storedToPattern(engine.kit, creation.patterns[0]!))
+      engine.setTempo(creation.tempo)
+      setPattern(engine.getPattern())
+      setActivePreset(null)
+      setLoadToken((token) => token + 1)
+      setShowGrooves(false)
+    },
+    [engine],
+  )
+
   if (!engine || !pattern) {
     return (
       <main className={styles.stage}>
@@ -132,7 +153,7 @@ export function HomePage() {
 
   return (
     <main className={styles.stage}>
-      <TopBar getShareUrl={getShareUrl} />
+      <TopBar getShareUrl={getShareUrl} onOpenGrooves={() => setShowGrooves(true)} />
       <Grid
         kit={engine.kit}
         pattern={pattern}
@@ -150,6 +171,13 @@ export function HomePage() {
         onClearAll={clearAll}
       />
       <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+      {showGrooves && (
+        <GroovesPanel
+          onClose={() => setShowGrooves(false)}
+          onLoad={loadGroove}
+          getWorkingSnapshot={getWorkingSnapshot}
+        />
+      )}
     </main>
   )
 }
