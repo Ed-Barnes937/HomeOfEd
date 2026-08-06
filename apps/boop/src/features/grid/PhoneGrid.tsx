@@ -8,6 +8,7 @@ import styles from './PhoneGrid.module.scss'
 import { PHONE_WINDOW_WIDTH, phoneOffscreenSide } from './phoneWindow.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
 import { useDragPaint } from './useDragPaint.ts'
+import { useGridKeyboardNav } from './useGridKeyboardNav.ts'
 import { useLoadStagger } from './useLoadStagger.ts'
 
 const GROUP_SIZE = 4
@@ -49,6 +50,12 @@ export function PhoneGrid({
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: false })
   const staggerDelayFor = useLoadStagger(loadToken)
+  const keyboardNav = useGridKeyboardNav({
+    rowCount: pattern.length,
+    stepCount: STEPS_PER_PATTERN,
+    onToggleCell,
+    instrumentIdAt: (rowIndex) => pattern[rowIndex]?.instrumentId,
+  })
 
   const windowRef = useRef<HTMLDivElement>(null)
   const [scrollLeft, setScrollLeft] = useState(0)
@@ -137,9 +144,10 @@ export function PhoneGrid({
                 ))}
               </div>
               <div
+                ref={keyboardNav.containerRef}
                 className={styles.body}
                 role="application"
-                aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Swipe sideways for the other bars."
+                aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses. Swipe sideways for the other bars."
               >
                 <div className={styles.playheadLayer} aria-hidden="true">
                   {playheadStep !== null && (
@@ -188,6 +196,9 @@ export function PhoneGrid({
                                     paint.onPointerEnter(event, row.instrumentId, step, on)
                                   }
                                   onClick={(event) => paint.onClick(event, row.instrumentId, step)}
+                                  onKeyDown={(event) =>
+                                    keyboardNav.onCellKeyDown(event, rowIndex, step, row.instrumentId, on)
+                                  }
                                 >
                                   <span
                                     key={strikeEpoch}

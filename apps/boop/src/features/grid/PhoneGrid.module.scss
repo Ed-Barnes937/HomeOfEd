@@ -243,8 +243,10 @@ $row-inset: 6px;
     box-shadow: var(--shadow-cell-playhead);
   }
 
+  // See Grid.module.scss's cell rule — same `--cyan-solid` focus token, same
+  // pending-design caveat.
   &:focus-visible {
-    outline: 2px solid var(--cyan);
+    outline: 2px solid var(--cyan-solid);
     outline-offset: 2px;
   }
 }

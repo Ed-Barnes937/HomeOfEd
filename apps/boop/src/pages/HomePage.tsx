@@ -16,6 +16,7 @@ import { PRESETS, presetPattern, type PresetId } from '../features/presets/prese
 import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
+import { isEditableTarget } from '../isEditableTarget.ts'
 import { storedToPattern, workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
@@ -114,6 +115,21 @@ export function HomePage() {
       void engine.start()
     }
   }, [engine])
+
+  // Spacebar toggles play from anywhere on the page (spec: "Transport &
+  // tempo"). `preventDefault` always fires for a non-editable target, so
+  // Space never scrolls the page and never re-triggers whatever button
+  // happens to be focused — the groove rename field is the one exemption,
+  // where Space must still type a space.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.code !== 'Space' || isEditableTarget(event.target)) return
+      event.preventDefault()
+      togglePlay()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [togglePlay])
 
   const changeTempo = useCallback(
     (nextBpm: number) => {

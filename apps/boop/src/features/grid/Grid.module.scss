@@ -227,8 +227,12 @@
       0 8px 16px rgba(0, 0, 0, 0.45);
   }
 
+  // `--cyan-solid` is the handoff's designated focus-border token (`--cyan`
+  // itself is reserved for the playhead / active-preset ring). Placeholder
+  // pending design review — the handoff calls out that focus-ring visuals
+  // aren't designed yet.
   &:focus-visible {
-    outline: 2px solid var(--cyan);
+    outline: 2px solid var(--cyan-solid);
     outline-offset: 2px;
   }
 

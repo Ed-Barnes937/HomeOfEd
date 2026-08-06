@@ -5,6 +5,7 @@ import styles from './Grid.module.scss'
 import { ROW_COLOR_VARS } from './instrumentColors.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
 import { useDragPaint } from './useDragPaint.ts'
+import { useGridKeyboardNav } from './useGridKeyboardNav.ts'
 import { useLoadStagger } from './useLoadStagger.ts'
 
 const GROUP_SIZE = 4
@@ -57,6 +58,12 @@ export function Grid({
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: true })
   const staggerDelayFor = useLoadStagger(loadToken)
+  const keyboardNav = useGridKeyboardNav({
+    rowCount: pattern.length,
+    stepCount: STEPS_PER_PATTERN,
+    onToggleCell,
+    instrumentIdAt: (rowIndex) => pattern[rowIndex]?.instrumentId,
+  })
 
   const activeBar = playheadStep === null ? null : stepToBar(playheadStep)
   const playheadStyle =
@@ -83,9 +90,10 @@ export function Grid({
         ))}
       </div>
       <div
+        ref={keyboardNav.containerRef}
         className={styles.body}
         role="application"
-        aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off."
+        aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses."
       >
         {playheadStep !== null && (
           <div className={styles.playhead} style={playheadStyle} data-testid="playhead" data-step={playheadStep} />
@@ -151,6 +159,9 @@ export function Grid({
                               paint.onPointerEnter(event, row.instrumentId, step, on)
                             }
                             onClick={(event) => paint.onClick(event, row.instrumentId, step)}
+                            onKeyDown={(event) =>
+                              keyboardNav.onCellKeyDown(event, rowIndex, step, row.instrumentId, on)
+                            }
                           >
                             <span
                               key={strikeEpoch}

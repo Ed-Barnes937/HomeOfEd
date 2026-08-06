@@ -64,6 +64,37 @@ export class HomePagePom extends BasePage {
     await this.page.keyboard.press('Enter')
   }
 
+  async focusCell(instrumentId: string, step: number): Promise<void> {
+    await this.cell(instrumentId, step).focus()
+  }
+
+  async verifyCellFocused(instrumentId: string, step: number): Promise<void> {
+    await expect(this.cell(instrumentId, step)).toBeFocused()
+  }
+
+  /** Arrow-key grid navigation (spec: "Accessibility & input") — moves the focused cell. */
+  async pressArrowKey(key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): Promise<void> {
+    await this.page.keyboard.press(key)
+  }
+
+  /** Backspace removes the focused cell, distinct from Enter's toggle. */
+  async pressBackspace(): Promise<void> {
+    await this.page.keyboard.press('Backspace')
+  }
+
+  async focusClearGridButton(): Promise<void> {
+    await this.clearGridButton.focus()
+  }
+
+  /** Spacebar toggles play globally (spec: "Transport & tempo"). */
+  async pressSpaceKey(): Promise<void> {
+    await this.page.keyboard.press('Space')
+  }
+
+  async readGrooveSaveNameFieldValue(): Promise<string> {
+    return this.page.getByTestId('groove-save-name-input').inputValue()
+  }
+
   async openClearGridConfirm(): Promise<void> {
     await this.clearGridButton.click()
   }
