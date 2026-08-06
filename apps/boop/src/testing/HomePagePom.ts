@@ -18,6 +18,10 @@ export class HomePagePom extends BasePage {
   private readonly groovesButton = this.page.getByTestId('grooves-button')
   private readonly saveGrooveButton = this.page.getByTestId('save-groove-button')
   private readonly groovesCloseButton = this.page.getByTestId('grooves-close-button')
+  private readonly helpButton = this.page.getByTestId('help-button')
+  private readonly hintSheet = this.page.getByTestId('hint-sheet')
+  private readonly hintSheetOverlay = this.page.getByTestId('hint-sheet-overlay')
+  private readonly hintSheetClose = this.page.getByTestId('hint-sheet-close')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
@@ -276,6 +280,31 @@ export class HomePagePom extends BasePage {
 
   async verifyDeleteGrooveConfirmShown(name: string): Promise<void> {
     await expect(this.page.getByText(`Throw away ${name}?`)).toBeVisible()
+  }
+
+  async openHints(): Promise<void> {
+    await this.helpButton.click()
+  }
+
+  async closeHints(): Promise<void> {
+    await this.hintSheetClose.click()
+  }
+
+  /** Tap the dimmed backdrop, outside the sheet's card — the touch-easy dismiss. */
+  async dismissHintsByOutsideTap(): Promise<void> {
+    await this.hintSheetOverlay.click({ position: { x: 4, y: 4 } })
+  }
+
+  async dismissHintsByEscape(): Promise<void> {
+    await this.page.keyboard.press('Escape')
+  }
+
+  async verifyHintSheetShown(): Promise<void> {
+    await expect(this.hintSheet).toBeVisible()
+  }
+
+  async verifyHintSheetHidden(): Promise<void> {
+    await expect(this.hintSheet).toHaveCount(0)
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */
