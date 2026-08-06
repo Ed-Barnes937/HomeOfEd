@@ -266,11 +266,13 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 
 // ---- mobile: rail rotates into a bottom bar (spec §9, design brief §02) ----
 //
-// Brush and mode aren't in the mobile spec's rail contents, so they drop with
-// step (single default brush, paint mode only — v1's touch stance is "paint
-// works", not full parity). Erase needs no reordering: it's already the last
-// child after brush/mode are hidden, which puts it last in the scroll row for
-// free.
+// Only step drops (spec §9 says so explicitly); brush and mode are shipped
+// rail contents (spec §9's desktop rail description, ticket 08's spawner
+// mode) with nothing marking them droppable, so both fold into the same
+// scrolling row as compact controls — not the full desktop rail treatment,
+// just the existing brush squares / mode toggle at touch-target size. Erase
+// needs no reordering: it's already the rail's last child, which puts it
+// last in the scroll row for free.
 @media #{$mobile} {
   .body {
     grid-template-columns: 1fr;
@@ -308,7 +310,18 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   }
 
   .section {
-    display: none;
+    flex: none;
+  }
+
+  .brushButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .modeButton {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.6rem;
   }
 
   .swatchRow {
