@@ -3,15 +3,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
 import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
-import { Grid } from '../features/grid/Grid.tsx'
+import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
+import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { PresetRow } from '../features/presets/PresetRow.tsx'
 import { PRESETS, presetPattern, type PresetId } from '../features/presets/presets.ts'
+import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
 import { workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
+import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
 
 /**
@@ -36,6 +39,10 @@ export function HomePage() {
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
   const motion = usePlayheadMotion(engine)
+  // Below the tablet layout's 1024px floor the grid would have to shrink, so
+  // the pinned-rail scroll window takes over (ticket 27) — chrome and grid
+  // both, since the phone's actions live in the "⋯" menu.
+  const phone = useIsPhone()
 
   // A shared groove is decoded on the first render, before the first restore,
   // and wins over the autosaved grid. Held in a ref so the value survives the
@@ -130,24 +137,35 @@ export function HomePage() {
     )
   }
 
+  const gridProps: GridViewProps = {
+    kit: engine.kit,
+    pattern,
+    onToggleCell: toggleCell,
+    playheadStep: motion.playing ? motion.step : null,
+    cellStrikes: motion.cellStrikes,
+    rowStrikes: motion.rowStrikes,
+    loadToken,
+  }
+
   return (
     <main className={styles.stage}>
-      <TopBar getShareUrl={getShareUrl} />
-      <Grid
-        kit={engine.kit}
-        pattern={pattern}
-        onToggleCell={toggleCell}
-        playheadStep={motion.playing ? motion.step : null}
-        cellStrikes={motion.cellStrikes}
-        rowStrikes={motion.rowStrikes}
-        loadToken={loadToken}
-      />
+      {phone ? (
+        // TODO(ticket 20): pass `onSave` / `onOpenMyGrooves` once the "My
+        // grooves" panel lands. TODO(ticket 24): pass `onOpenHints` once the
+        // hint sheet lands. Until then those three menu entries render
+        // disabled rather than pretending to work.
+        <PhoneBar getShareUrl={getShareUrl} onClearGrid={clearAll} />
+      ) : (
+        <TopBar getShareUrl={getShareUrl} />
+      )}
+      {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
       <Transport
         isPlaying={isPlaying}
         onToggle={togglePlay}
         bpm={bpm}
         onTempoChange={changeTempo}
         onClearAll={clearAll}
+        showClearGrid={!phone}
       />
       <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
     </main>

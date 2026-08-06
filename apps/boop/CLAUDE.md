@@ -45,6 +45,14 @@ src/
   share/            URL-hash share links (ADR 0026) — pure, no server
     shareLink.ts      encode/decode a creation to `#g=<base64url>`; total decode
     shareAction.ts    share sheet vs clipboard, behind an injected ShareTarget
+  features/grid/    the grid well. Two renderers, one behaviour:
+                    Grid.tsx      laptop/tablet — the full 6x16 laid out flat
+                    PhoneGrid.tsx <1024px — pinned rail + snap-scrolling step
+                                  window + the "WHOLE LOOP" map (ticket 27)
+                    phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
+                    useDragPaint.ts  latched drag-paint, shared by both
+  features/topbar/  TopBar.tsx (desktop) and PhoneBar.tsx (the 52px strip +
+                    "⋯" menu); `useIsPhone.ts` picks between them
   pages/            HomePage — placeholder route (ticket 11); the grid page replaces it
   features/greeting/  placeholder query — replace once the sequencer's real routes land
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
@@ -111,6 +119,14 @@ share-link snapshot.
   save format's own validator, cleared with `replaceState` once loaded. One
   Share button: system sheet where there is one, clipboard + "Copied!"
   otherwise. Never a modal or a "copy this link" field.
+- **The grid never shrinks**
+  ([ADR 0027](../../docs/adr/0027-boop-small-phone-layout.md)). 6 x 16, always — no breakpoint may drop a row or
+  a step. Below 1024px (`useIsPhone`) the instrument rail is pinned and the 16
+  step columns scroll inside a snap-to-the-bar-line window, with the loop map
+  carrying the playhead when it is off screen. Playback must never scroll that
+  window for the child. Paint vs scroll inside it: the browser owns horizontal
+  pans (`touch-action: pan-x`), a tap toggles, and a drag paints only once it
+  crosses a cell boundary — see `PhoneGrid.tsx`'s header.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

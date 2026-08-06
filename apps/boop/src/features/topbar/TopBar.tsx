@@ -1,13 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-
 import { hubUrl } from '../../hubUrl.ts'
-import { navigatorShareTarget, shareGrooveUrl } from '../../share/shareAction.ts'
+import { useShareGroove } from '../../share/useShareGroove.ts'
 import styles from './TopBar.module.scss'
-
-/** "Copied!" holds this long, then the button goes back to resting (design §5). */
-const COPIED_HOLD_MS = 1_600
-
-type ShareState = 'idle' | 'pending' | 'copied'
 
 export interface TopBarProps {
   /**
@@ -24,33 +17,7 @@ export interface TopBarProps {
  * field. "My grooves" and "?" are still style-only placeholders.
  */
 export function TopBar({ getShareUrl }: TopBarProps) {
-  const [shareState, setShareState] = useState<ShareState>('idle')
-  const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(
-    () => () => {
-      if (revertTimer.current !== null) clearTimeout(revertTimer.current)
-    },
-    [],
-  )
-
-  const share = useCallback(() => {
-    if (shareState === 'pending') return
-    setShareState('pending')
-    void shareGrooveUrl(getShareUrl(), navigatorShareTarget(navigator)).then((outcome) => {
-      if (outcome !== 'copied') {
-        // Shared, dismissed or refused: the OS (or nothing) is the feedback.
-        setShareState('idle')
-        return
-      }
-      setShareState('copied')
-      // Tapping again mid-hold restarts the 1.6s, rather than inheriting the
-      // remainder of the previous one.
-      if (revertTimer.current !== null) clearTimeout(revertTimer.current)
-      revertTimer.current = setTimeout(() => setShareState('idle'), COPIED_HOLD_MS)
-    })
-  }, [getShareUrl, shareState])
-
+  const { shareState, share } = useShareGroove(getShareUrl)
   const copied = shareState === 'copied'
 
   return (

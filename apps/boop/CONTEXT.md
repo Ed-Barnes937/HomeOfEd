@@ -103,6 +103,22 @@ entry in the "My grooves" list. Saving into that list copies the working grid
 and gives it a name.
 _Avoid_: Current pattern, draft, session.
 
+**Step window**:
+On a phone, the horizontally scrolling viewport over the 16 step columns —
+about 6.9 of them at the 390px reference width, snapping to the four 4-step
+groups so it always settles on a bar line. It is a *view* onto the pattern, not
+a smaller pattern: the grid is still 6 x 16 and the instrument rail beside it
+never scrolls.
+_Avoid_: Viewport (that is the browser's), page, visible grid.
+
+**Loop map**:
+The 16-tick "WHOLE LOOP" band under the phone grid — one tick per step, reading
+playhead / has-notes / empty, with a bracket showing which half of the loop the
+step window is on. Because it never scrolls, the playhead is never lost: it
+moves from the grid to the map. Distinct from a preset **thumbnail**, which
+shows a whole 16 x 6 pattern rather than the loop's 16 steps.
+_Avoid_: Minimap, overview, scrollbar.
+
 **Save document**:
 The single versioned JSON object boop keeps in `localStorage` (key `boop:save`)
 — `{ version, working, creations }`. The one place the save format's version

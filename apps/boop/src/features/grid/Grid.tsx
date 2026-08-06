@@ -1,24 +1,21 @@
-import {
-  useEffect,
-  useRef,
-  type CSSProperties,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
-} from 'react'
+import type { CSSProperties } from 'react'
 
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
 import styles from './Grid.module.scss'
 import { ROW_COLOR_VARS } from './instrumentColors.ts'
-import { decidePaintMode, paintModeToOn, type PaintMode } from './paintMode.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
+import { useDragPaint } from './useDragPaint.ts'
+import { useLoadStagger } from './useLoadStagger.ts'
 
 const GROUP_SIZE = 4
 const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
 
-/** Preset-load stagger (design handoff, "Motion" — "Preset load"): 24ms per column. */
-const PRESET_LOAD_STAGGER_MS = 24
-
-interface GridProps {
+/**
+ * What either grid renderer needs. `Grid` and `PhoneGrid` are two views of the
+ * same state, chosen by `useIsPhone` — they must never diverge in what they
+ * are told, only in how they lay it out.
+ */
+export interface GridViewProps {
   kit: Kit
   pattern: Pattern
   onToggleCell: (instrumentId: string, step: number) => void
@@ -56,77 +53,10 @@ export function Grid({
   cellStrikes,
   rowStrikes,
   loadToken,
-}: GridProps) {
+}: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
-  const paintModes = useRef(new Map<number, PaintMode>())
-
-  // `isFreshLoad` is true for exactly the one render that processes a new
-  // `loadToken` — a documented React pattern (deriving from a prop change
-  // during render, without an Effect). `cellMountDelays` then makes that
-  // one-render signal "stick" for each cell's whole on-streak: a delay is
-  // recorded the moment a cell turns on during a fresh load, kept stable
-  // across later re-renders (e.g. playhead ticks) so the animation isn't cut
-  // short, and cleared the moment the cell turns off so a later manual edit
-  // of the same cell never inherits a stale stagger delay.
-  const lastLoadToken = useRef(loadToken)
-  const isFreshLoad = loadToken !== lastLoadToken.current
-  lastLoadToken.current = loadToken
-  const cellMountDelays = useRef(new Map<string, number>())
-
-  useEffect(() => {
-    const releasePointer = (event: PointerEvent) => paintModes.current.delete(event.pointerId)
-    window.addEventListener('pointerup', releasePointer)
-    window.addEventListener('pointercancel', releasePointer)
-    return () => {
-      window.removeEventListener('pointerup', releasePointer)
-      window.removeEventListener('pointercancel', releasePointer)
-    }
-  }, [])
-
-  const applyMode = (mode: PaintMode, instrumentId: string, step: number, isOn: boolean) => {
-    if (isOn !== paintModeToOn(mode)) onToggleCell(instrumentId, step)
-  }
-
-  const handlePointerDown = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-    instrumentId: string,
-    step: number,
-    isOn: boolean,
-  ) => {
-    const mode = decidePaintMode(isOn)
-    paintModes.current.set(event.pointerId, mode)
-    applyMode(mode, instrumentId, step, isOn)
-    // Touch pointers get *implicit* capture to the pointerdown target (Pointer
-    // Events spec); without releasing it, `pointerenter` never fires on
-    // sibling cells on real touch hardware and the drag can't cross cells.
-    // No-op for pointer types (mouse) that were never implicitly captured.
-    event.currentTarget.releasePointerCapture(event.pointerId)
-  }
-
-  const handlePointerEnter = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-    instrumentId: string,
-    step: number,
-    isOn: boolean,
-  ) => {
-    const mode = paintModes.current.get(event.pointerId)
-    if (!mode) return
-    applyMode(mode, instrumentId, step, isOn)
-  }
-
-  // Keyboard-triggered clicks (Enter/Space on a focused button) carry
-  // `detail: 0`; real pointer clicks carry `detail >= 1`. Pointer taps and
-  // drags are handled above (pointerdown decides, pointerenter repeats), so
-  // this only needs to catch the keyboard path and must ignore the click a
-  // pointer tap also fires after pointerup, or a tap would double-toggle.
-  const handleClick = (
-    event: ReactMouseEvent<HTMLButtonElement>,
-    instrumentId: string,
-    step: number,
-  ) => {
-    if (event.detail !== 0) return
-    onToggleCell(instrumentId, step)
-  }
+  const paint = useDragPaint({ onToggleCell, applyOnPointerDown: true })
+  const staggerDelayFor = useLoadStagger(loadToken)
 
   const activeBar = playheadStep === null ? null : stepToBar(playheadStep)
   const playheadStyle =
@@ -200,16 +130,9 @@ export function Grid({
                         const step = group * GROUP_SIZE + i
                         const on = row.steps[step] === true
                         const underPlayhead = step === playheadStep
-                        const strikeEpoch = cellStrikes[`${row.instrumentId}:${step}`] ?? 0
                         const cellKey = `${row.instrumentId}:${step}`
-                        if (on) {
-                          if (!cellMountDelays.current.has(cellKey)) {
-                            cellMountDelays.current.set(cellKey, isFreshLoad ? step * PRESET_LOAD_STAGGER_MS : 0)
-                          }
-                        } else {
-                          cellMountDelays.current.delete(cellKey)
-                        }
-                        const mountDelay = cellMountDelays.current.get(cellKey) ?? 0
+                        const strikeEpoch = cellStrikes[cellKey] ?? 0
+                        const mountDelay = staggerDelayFor(cellKey, step, on)
                         return (
                           <button
                             key={step}
@@ -222,12 +145,12 @@ export function Grid({
                             aria-pressed={on}
                             aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
                             onPointerDown={(event) =>
-                              handlePointerDown(event, row.instrumentId, step, on)
+                              paint.onPointerDown(event, row.instrumentId, step, on)
                             }
                             onPointerEnter={(event) =>
-                              handlePointerEnter(event, row.instrumentId, step, on)
+                              paint.onPointerEnter(event, row.instrumentId, step, on)
                             }
-                            onClick={(event) => handleClick(event, row.instrumentId, step)}
+                            onClick={(event) => paint.onClick(event, row.instrumentId, step)}
                           >
                             <span
                               key={strikeEpoch}

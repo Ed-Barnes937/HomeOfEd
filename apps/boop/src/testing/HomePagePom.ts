@@ -50,6 +50,12 @@ export class HomePagePom extends BasePage {
     await this.page.mouse.up()
   }
 
+  /** Toggle a cell the keyboard way — focus it, then Enter (spec: "Accessibility & input"). */
+  async toggleCellWithKeyboard(instrumentId: string, step: number): Promise<void> {
+    await this.cell(instrumentId, step).focus()
+    await this.page.keyboard.press('Enter')
+  }
+
   async openClearGridConfirm(): Promise<void> {
     await this.clearGridButton.click()
   }
@@ -223,6 +229,111 @@ export class HomePagePom extends BasePage {
       window.location.hash = fragment
     }, hash)
     await this.page.reload()
+  }
+
+  // --- Small-phone layout (ticket 27) ---
+
+  private readonly phoneMenuButton = this.page.getByTestId('phone-menu-button')
+
+  stepWindow() {
+    return this.page.getByTestId('phone-step-window')
+  }
+
+  async verifyPhoneChromeShown(): Promise<void> {
+    await expect(this.page.getByTestId('phone-bar')).toBeVisible()
+    // The desktop chrome's ghost/primary buttons are simply not mounted.
+    await expect(this.page.getByRole('button', { name: 'My grooves' })).toHaveCount(0)
+  }
+
+  async openPhoneMenu(): Promise<void> {
+    await this.phoneMenuButton.click()
+    await expect(this.page.getByTestId('phone-menu')).toBeVisible()
+  }
+
+  /** The "⋯" menu's entries, top to bottom — the order is part of the design. */
+  async verifyPhoneMenuItems(expected: string[]): Promise<void> {
+    await expect(this.page.getByTestId('phone-menu').getByRole('button')).toHaveText(expected)
+  }
+
+  /**
+   * Every tap target in the phone chrome clears 44px (design handoff, "Tap
+   * targets"). Grid cells are excluded by design — see the handoff's note on
+   * the 32 x 44 phone cell.
+   */
+  async verifyPhoneChromeTapTargets(): Promise<void> {
+    const boxes = await this.page
+      .getByTestId('phone-bar')
+      .locator('a, button')
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const { width, height } = element.getBoundingClientRect()
+          return { width, height }
+        }),
+      )
+    expect(boxes.length).toBeGreaterThan(0)
+    for (const box of boxes) {
+      expect(box.width).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+  }
+
+  async readStepWindowScroll(): Promise<number> {
+    return this.stepWindow().evaluate((element) => element.scrollLeft)
+  }
+
+  /** A real sideways swipe over the step window — the browser owns the pan. */
+  async swipeSteps(deltaX: number): Promise<void> {
+    const box = await this.stepWindow().boundingBox()
+    if (!box) throw new Error('the phone step window is not visible')
+    await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await this.page.mouse.wheel(deltaX, 0)
+  }
+
+  /** Wait for the snap to settle on a bar line at the given strip offset. */
+  async verifyStepWindowAt(offset: number): Promise<void> {
+    await expect.poll(async () => this.readStepWindowScroll()).toBe(offset)
+  }
+
+  async verifyLoopTick(step: number, state: 'playhead' | 'note' | 'empty'): Promise<void> {
+    await expect(this.page.getByTestId(`loop-tick-${step}`)).toHaveAttribute('data-state', state)
+  }
+
+  /** All 16 ticks are always drawn — that is what keeps the playhead findable. */
+  async verifyLoopMapCoversWholeLoop(): Promise<void> {
+    await expect(this.page.getByTestId('loop-map').locator('[data-state]')).toHaveCount(16)
+  }
+
+  /**
+   * Where the window bracket sits under the loop map, as a percentage of the
+   * map's width. The bracket is always a fixed half-loop wide; only its offset
+   * moves, so that is the one number worth asserting.
+   */
+  async verifyLoopWindowBracketAt(leftPercent: number): Promise<void> {
+    await expect
+      .poll(async () =>
+        this.page
+          .getByTestId('loop-window-bracket')
+          .evaluate((element: HTMLElement) =>
+            Math.round((element.offsetLeft / element.parentElement!.clientWidth) * 100),
+          ),
+      )
+      .toBe(leftPercent)
+  }
+
+  async verifyPlayheadEdgeGlow(side: 'left' | 'right'): Promise<void> {
+    await expect(this.page.getByTestId('playhead-edge-glow')).toHaveAttribute('data-side', side)
+  }
+
+  async verifyNoPlayheadEdgeGlow(): Promise<void> {
+    await expect(this.page.getByTestId('playhead-edge-glow')).toHaveCount(0)
+  }
+
+  /** No sideways scroll of the *page* — the step window is the only scroller. */
+  async verifyNoHorizontalOverflow(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */
