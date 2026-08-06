@@ -1,7 +1,14 @@
-import type { CSSProperties } from 'react'
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
 import styles from './Grid.module.scss'
+import { decidePaintMode, paintModeToOn, type PaintMode } from './paintMode.ts'
 
 const GROUP_SIZE = 4
 const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
@@ -29,9 +36,74 @@ interface GridProps {
   onToggleCell: (instrumentId: string, step: number) => void
 }
 
-/** The 6x16 grid well: bar-numeral row + instrument rows. No playhead or drag-paint yet (ticket 13). */
+/**
+ * The 6x16 grid well: bar-numeral row + instrument rows. No playhead yet
+ * (ticket 13).
+ *
+ * Touch model (ticket 15, spec: "The grid"): pointer-down on a cell decides
+ * add-or-remove from that cell's current state; the drag then repeats that
+ * decision on every cell it crosses. Mode is tracked per pointer id (not
+ * captured to one element) so multiple fingers can paint independently and
+ * `pointerenter` still fires as a pointer crosses into other cells.
+ */
 export function Grid({ kit, pattern, onToggleCell }: GridProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
+  const paintModes = useRef(new Map<number, PaintMode>())
+
+  useEffect(() => {
+    const releasePointer = (event: PointerEvent) => paintModes.current.delete(event.pointerId)
+    window.addEventListener('pointerup', releasePointer)
+    window.addEventListener('pointercancel', releasePointer)
+    return () => {
+      window.removeEventListener('pointerup', releasePointer)
+      window.removeEventListener('pointercancel', releasePointer)
+    }
+  }, [])
+
+  const applyMode = (mode: PaintMode, instrumentId: string, step: number, isOn: boolean) => {
+    if (isOn !== paintModeToOn(mode)) onToggleCell(instrumentId, step)
+  }
+
+  const handlePointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    instrumentId: string,
+    step: number,
+    isOn: boolean,
+  ) => {
+    const mode = decidePaintMode(isOn)
+    paintModes.current.set(event.pointerId, mode)
+    applyMode(mode, instrumentId, step, isOn)
+    // Touch pointers get *implicit* capture to the pointerdown target (Pointer
+    // Events spec); without releasing it, `pointerenter` never fires on
+    // sibling cells on real touch hardware and the drag can't cross cells.
+    // No-op for pointer types (mouse) that were never implicitly captured.
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const handlePointerEnter = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    instrumentId: string,
+    step: number,
+    isOn: boolean,
+  ) => {
+    const mode = paintModes.current.get(event.pointerId)
+    if (!mode) return
+    applyMode(mode, instrumentId, step, isOn)
+  }
+
+  // Keyboard-triggered clicks (Enter/Space on a focused button) carry
+  // `detail: 0`; real pointer clicks carry `detail >= 1`. Pointer taps and
+  // drags are handled above (pointerdown decides, pointerenter repeats), so
+  // this only needs to catch the keyboard path and must ignore the click a
+  // pointer tap also fires after pointerup, or a tap would double-toggle.
+  const handleClick = (
+    event: ReactMouseEvent<HTMLButtonElement>,
+    instrumentId: string,
+    step: number,
+  ) => {
+    if (event.detail !== 0) return
+    onToggleCell(instrumentId, step)
+  }
 
   return (
     <div className={styles.well}>
@@ -88,7 +160,13 @@ export function Grid({ kit, pattern, onToggleCell }: GridProps) {
                           data-testid={`cell-${row.instrumentId}-${step}`}
                           aria-pressed={on}
                           aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
-                          onClick={() => onToggleCell(row.instrumentId, step)}
+                          onPointerDown={(event) =>
+                            handlePointerDown(event, row.instrumentId, step, on)
+                          }
+                          onPointerEnter={(event) =>
+                            handlePointerEnter(event, row.instrumentId, step, on)
+                          }
+                          onClick={(event) => handleClick(event, row.instrumentId, step)}
                         >
                           {on && (
                             <span

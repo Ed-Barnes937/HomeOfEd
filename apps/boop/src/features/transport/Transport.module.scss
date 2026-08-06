@@ -1,5 +1,4 @@
-// Transport bar geometry from the design handoff. Ticket 16 adds the tempo
-// slider; clear-grid lands in a later ticket.
+// Transport bar geometry from the design handoff.
 .bar {
   margin-top: 16px;
   height: 84px;
@@ -156,5 +155,31 @@
     height: 10px;
     border-radius: 5px 0 0 5px;
     background: rgba(242, 239, 230, 0.4);
+  }
+}
+
+.divider {
+  flex: none;
+  width: 1px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+// Clear grid: dashed coral, deliberately never mistakable for "play from the
+// top" (design handoff, "Transport bar" — Clear grid).
+.clear {
+  flex: none;
+  margin-left: auto;
+  padding: 12px 18px;
+  border-radius: 9px;
+  border: 1px dashed rgba(255, 138, 122, 0.55);
+  background: transparent;
+  font: 700 14px var(--font-display);
+  color: var(--danger);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
   }
 }
