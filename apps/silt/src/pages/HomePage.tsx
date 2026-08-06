@@ -135,7 +135,7 @@ export function HomePage() {
           </button>
           <button
             type="button"
-            className={styles.headerButton}
+            className={`${styles.headerButton} ${styles.stepButton}`}
             data-testid="step"
             disabled={running}
             onClick={() => controls.step()}

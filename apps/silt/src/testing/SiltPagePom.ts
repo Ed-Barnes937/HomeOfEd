@@ -123,13 +123,47 @@ export class SiltPagePom extends BasePage {
 
   /** Paints one cell via real pointer events dispatched at the canvas — no seam bypass. */
   async paintCell(x: number, y: number): Promise<void> {
+    const { clientX, clientY } = await this.canvasClientPoint(x, y)
+    await this.canvas.dispatchEvent('pointerdown', { clientX, clientY, bubbles: true })
+    await this.canvas.dispatchEvent('pointerup', { clientX, clientY, bubbles: true })
+  }
+
+  /** Paints one cell via a real single-finger touch tap (spec §9: one finger paints). */
+  async touchPaintCell(x: number, y: number): Promise<void> {
+    const { clientX, clientY } = await this.canvasClientPoint(x, y)
+    await this.page.touchscreen.tap(clientX, clientY)
+  }
+
+  private async canvasClientPoint(x: number, y: number): Promise<{ clientX: number; clientY: number }> {
     const point = await this.gridToCanvasPoint(x, y)
     const box = await this.canvas.boundingBox()
     if (!box) throw new Error('silt-canvas has no bounding box')
-    const clientX = box.x + point.x
-    const clientY = box.y + point.y
-    await this.canvas.dispatchEvent('pointerdown', { clientX, clientY, bubbles: true })
-    await this.canvas.dispatchEvent('pointerup', { clientX, clientY, bubbles: true })
+    return { clientX: box.x + point.x, clientY: box.y + point.y }
+  }
+
+  /** Mobile bottom bar (spec §9, design brief §02): step drops off. */
+  async verifyStepHidden(): Promise<void> {
+    await expect(this.stepButton).toBeHidden()
+  }
+
+  /** Erase belongs at the tail of the same scrollable palette row, not on a separate row. */
+  async verifyEraseIsLastInPaletteRow(): Promise<void> {
+    const swatchBoxes = await this.page.getByTestId(/^element-/).all()
+    const eraseBox = await this.eraseButton.boundingBox()
+    if (!eraseBox) throw new Error('erase-tool has no bounding box')
+    for (const swatch of swatchBoxes) {
+      const box = await swatch.boundingBox()
+      if (!box) throw new Error('palette swatch has no bounding box')
+      expect(eraseBox.x).toBeGreaterThan(box.x)
+    }
+  }
+
+  /** Touch targets must be 44–48px on a side (spec §9). */
+  async verifyTouchTargetSize(testId: string): Promise<void> {
+    const box = await this.page.getByTestId(testId).boundingBox()
+    if (!box) throw new Error(`${testId} has no bounding box`)
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(44)
   }
 
   async play(): Promise<void> {

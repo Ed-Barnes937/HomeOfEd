@@ -11,6 +11,11 @@ $destructive: #e2542a;
 $font-label: 'Silkscreen', monospace;
 $font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
+// Mobile rule (spec §9, design brief §02): any touch device, or any viewport
+// narrow enough that the desktop rail would be unusable. Matches the house
+// pattern from ADR 0023 (fridge).
+$mobile: '(pointer: coarse), (max-width: 700px)';
+
 .app {
   display: grid;
   grid-template-rows: 58px 1fr;
@@ -81,6 +86,20 @@ $font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   background: $destructive;
   color: $paper;
   border-color: $ink;
+}
+
+// Step has no meaning without a keyboard, and there's no room for it once the
+// rail becomes a bottom bar — play and reset stay, sized as touch targets
+// (spec §9, design brief §02).
+@media #{$mobile} {
+  .stepButton {
+    display: none;
+  }
+
+  .headerButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 // ---- body: rail (176px) | stage ---------------------------------------
@@ -242,6 +261,80 @@ $font-mono: 'IBM Plex Mono', ui-monospace, monospace;
     background: $destructive;
     color: $paper;
     border-color: $ink;
+  }
+}
+
+// ---- mobile: rail rotates into a bottom bar (spec §9, design brief §02) ----
+//
+// Brush and mode aren't in the mobile spec's rail contents, so they drop with
+// step (single default brush, paint mode only — v1's touch stance is "paint
+// works", not full parity). Erase needs no reordering: it's already the last
+// child after brush/mode are hidden, which puts it last in the scroll row for
+// free.
+@media #{$mobile} {
+  .body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .rail {
+    grid-row: 2;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem;
+    border-right: none;
+    border-top: 2px solid $ink;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .stage {
+    grid-row: 1;
+  }
+
+  .palette {
+    flex-direction: row;
+    gap: 0.4rem;
+  }
+
+  .paletteGroup {
+    flex-direction: row;
+    gap: 0.4rem;
+  }
+
+  .groupLabel {
+    display: none;
+  }
+
+  .section {
+    display: none;
+  }
+
+  .swatchRow {
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.2rem;
+  }
+
+  .swatchName {
+    flex: none;
+    font-size: 7px;
+  }
+
+  .hotkey {
+    display: none;
+  }
+
+  .eraseButton {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
