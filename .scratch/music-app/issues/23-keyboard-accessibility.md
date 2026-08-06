@@ -12,7 +12,7 @@ paper) and flag it for design review rather than inventing a new idiom.
 
 **Blocked by:** 15 — Grid feel.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Grid container has `role="application"` and a self-describing
       `aria-label` stating the keyboard contract

@@ -14,20 +14,49 @@ menu.
 **Blocked by:** 15 — Grid feel (paint vs scroll interplay); 17 — Playhead
 (the loop map tracks it).
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Phone breakpoint uses the design's geometry: pinned 92px rail,
+- [x] Phone breakpoint uses the design's geometry: pinned 92px rail,
       snap-scrolling step window, part-cut cell kept as the scroll
       affordance
-- [ ] Scroll snaps to the 4-step group offsets; playing never auto-follows
+- [x] Scroll snaps to the 4-step group offsets; playing never auto-follows
       the playhead — a child's scroll position is never yanked
-- [ ] Whole-loop map renders all 16 ticks (playhead / note / empty heights
+- [x] Whole-loop map renders all 16 ticks (playhead / note / empty heights
       and colours per design) plus the window bracket
-- [ ] Off-screen playhead shows the edge glow on the side it's on
-- [ ] 52px chrome bar with the fridge's exact back/save/overflow glyphs;
+- [x] Off-screen playhead shows the edge glow on the side it's on
+- [x] 52px chrome bar with the fridge's exact back/save/overflow glyphs;
       every tap target ≥ 44px
-- [ ] "⋯" menu holds My grooves, Share, How boop works, then Clear grid in
+- [x] "⋯" menu holds My grooves, Share, How boop works, then Clear grid in
       the dashed-danger style
-- [ ] Drag-paint still works inside the window without fighting the scroll
-- [ ] Whole-frontend test at phone viewport: swipe to bars 3–4, paint a
+- [x] Drag-paint still works inside the window without fighting the scroll
+- [x] Whole-frontend test at phone viewport: swipe to bars 3–4, paint a
       cell, verify the loop map tracks the playhead
+
+## Comments
+
+Resolved 2026-08-06 (agent, Opus, worktree branch `t27-phone-layout`,
+commit `a7c8aef`, merged with wiring pass as `fba9c90`). PhoneGrid (pinned
+92px rail, snap-scrolling 246px window over the 605px strip, exact handoff
+geometry), LoopMap (16 ticks + sliding window bracket), PhoneBar (52px
+chrome, fridge glyphs copied not imported, "⋯" menu with dashed-danger
+Clear grid last). Paint-vs-scroll model (ADR 0027): horizontal drag =
+browser scroll (`touch-action: pan-x`), vertical drag/tap = paint;
+pointer-down cell not flipped so a swipe never leaves a note behind —
+cost: no horizontal drag-paint on phone. Playback never yanks the scroll;
+edge glow on the playhead's side (mirrored right form added beyond the
+handoff's left-only frame). Documented deviations: last snap position
+359px not 462px (geometrically forced — step 16 must be reachable);
+bracket slides continuously. `useDragPaint`/`useLoadStagger` extracted and
+shared with desktop Grid.
+
+Merge wiring pass (Opus): all three TODO menu props connected — My grooves,
+How boop works, and the save icon (saves immediately then opens
+GroovesPanel in its "Saved it" state via `saveOnOpen`; groovesPanel state
+became closed/open/saving). Merge code review caught a REAL stacking bug:
+PhoneBar (z 30/31) rendered above every overlay (z 9/10) — overlays raised
+to 40/41/42 with a regression-proven POM check. Design follow-ups recorded
+in ADR 0027: WAV export has no phone entry point; "⋯" menu dismissal
+(Escape/outside tap) unspecified by the handoff.
+
+Gate re-verified by orchestrator post-merge: lint/typecheck clean, vitest
+189/189, playwright CT 44/44.
