@@ -94,3 +94,19 @@ tempo), shaped so a V2 creation can grow to hold several chained patterns
 without a storage migration.
 _Avoid_: Groove (used informally/in copy for the same thing, but "creation" is
 the storage-shape term), save, snapshot.
+
+**Working grid**:
+The pattern and tempo a child is editing right now — an unnamed creation,
+continuously autosaved and restored on the next load. Distinct from a saved
+creation: it is one slot that always exists and is always overwritten, never an
+entry in the "My grooves" list. Saving into that list copies the working grid
+and gives it a name.
+_Avoid_: Current pattern, draft, session.
+
+**Save document**:
+The single versioned JSON object boop keeps in `localStorage` (key `boop:save`)
+— `{ version, working, creations }`. The one place the save format's version
+lives, and the shape the share-link codec is derived from. Decoding it is
+total: anything corrupt or future-versioned reads as an empty document.
+See [ADR 0025](../../docs/adr/0025-boop-save-format.md).
+_Avoid_: Save file, state blob, storage schema.

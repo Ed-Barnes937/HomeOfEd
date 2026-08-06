@@ -2,6 +2,8 @@ import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
+import { parseSaveDocument, type StoredCreation } from '../persistence/saveFormat.ts'
+import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 
 /** The root page object for boop's grid app — tap cells, play/pause, and drive the fake audio clock. */
@@ -58,6 +60,27 @@ export class HomePagePom extends BasePage {
       const driver = (globalThis as unknown as Record<string, { fireStep: () => void }>)[key]!
       driver.fireStep()
     }, BOOP_AUDIO_DRIVER_KEY)
+  }
+
+  /** The autosaved working grid a reload would restore from, or `null`. */
+  async readAutosavedGrid(): Promise<StoredCreation | null> {
+    const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)
+    return parseSaveDocument(raw).working
+  }
+
+  /**
+   * Wait for the debounced autosave to reach localStorage with a given cell on
+   * — asserting on content, not merely on the slot existing, so the wait cannot
+   * be satisfied by an earlier write of a grid that predates the edit.
+   */
+  async waitForAutosavedCell(instrumentId: string, step: number): Promise<void> {
+    await expect
+      .poll(async () => {
+        const working = await this.readAutosavedGrid()
+        const row = working?.patterns[0]?.rows.find((r) => r.instrumentId === instrumentId)
+        return row?.steps[step] === '1'
+      })
+      .toBe(true)
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */

@@ -6,6 +6,7 @@ import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { Grid } from '../features/grid/Grid.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
+import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
 import styles from './HomePage.module.scss'
 
 /**
@@ -20,8 +21,12 @@ export function HomePage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [bpm, setBpm] = useState(DEFAULT_BPM)
 
+  // Autosave restores into the engine first; the mirror below waits for it, so
+  // it reads the restored pattern and tempo rather than the empty grid.
+  const restored = useWorkingGrid(engine, pattern, bpm)
+
   useEffect(() => {
-    if (!engine) return
+    if (!engine || !restored) return
     setPattern(engine.getPattern())
     setIsPlaying(engine.isPlaying())
     setBpm(engine.getTempo())
@@ -30,7 +35,7 @@ export function HomePage() {
       if (event.type === 'stopped') setIsPlaying(false)
       if (event.type === 'tempoChanged') setBpm(event.bpm)
     })
-  }, [engine])
+  }, [engine, restored])
 
   const toggleCell = useCallback(
     (instrumentId: string, step: number) => {

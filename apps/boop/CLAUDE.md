@@ -17,8 +17,8 @@ ticket, modelled on `apps/fridge`'s `board.share`/`board.get` handlers
 
 The `SequencerEngine` and the launch kit manifest have landed (ticket 12) —
 Tone.js behind a TypeScript interface, no `packages/*` extraction (the spec is
-explicit this stays in-app). No UI consumes it yet: the grid, transport, and
-persistence are later tickets.
+explicit this stays in-app). The grid, transport and working-grid autosave now
+consume it; "My grooves" and share links are later tickets.
 
 ## Layout
 
@@ -37,6 +37,11 @@ src/
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
     main.ts         prod entrypoint: createAppServer + shallow /health
     greeting.test.ts  Vitest unit — placeholder handler exercised over the auth seam
+  persistence/      the save format + autosave (ADR 0025) — no React except the hook
+    saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
+    storage.ts        the localStorage seam; never throws
+    autosave.ts       debounced (2 s lull) writer of the working grid
+    useWorkingGrid.ts hook: restore on mount, autosave on edit, flush on pagehide
   pages/            HomePage — placeholder route (ticket 11); the grid page replaces it
   features/greeting/  placeholder query — replace once the sequencer's real routes land
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
@@ -59,7 +64,8 @@ share-link snapshot.
 ## Commands
 
 - `pnpm dev --filter=boop` — simulator mode on port **3008** (real router, no
-  persistence; restart to pick up server changes).
+  *server* persistence — the grid still autosaves to `localStorage`; restart to
+  pick up server changes).
 - `pnpm test --filter=boop` — Vitest (`*.test.ts`) then Playwright CT
   (`*.iwft.tsx`).
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).
@@ -91,6 +97,12 @@ share-link snapshot.
   work; UI subscribes via `onDrawBeat`. Pattern edits are readable state, not
   an event stream, and audition-on-toggle is the engine's job. Test engine
   behaviour against `FakeAudioDriver`, never a real AudioContext.
+- **Persistence** ([ADR 0025](../../docs/adr/0025-boop-save-format.md)). One
+  versioned save document under one `localStorage` key (`boop:save`), holding
+  the autosaved working grid and the "My grooves" list. Anything that persists
+  or shares a groove goes through `persistence/saveFormat.ts` — don't invent a
+  second encoding for share links. Decode is total: corrupt or future-versioned
+  data reads as an empty grid, never an error.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

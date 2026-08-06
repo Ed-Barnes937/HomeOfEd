@@ -49,6 +49,29 @@ test('edits made while playing are heard on the next pass, not the current one',
   await root.verifyPlayed([{ instrumentId: 'boop', audioTime: 0.1 }])
 })
 
+test('the grid and tempo are autosaved, and a reload brings them back', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+
+  await first.root.toggleCell('snare', 4)
+  await first.root.toggleCell('kick', 0)
+  await first.root.setTempoPercent(50)
+  await first.root.verifyTempo(110)
+  await first.root.waitForAutosavedCell('snare', 4)
+
+  await page.reload()
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyCellOn('snare', 4)
+  await root.verifyCellOn('kick', 0)
+  await root.verifyCellOff('boop', 15)
+  await root.verifyTempo(110)
+})
+
 test('the tempo slider starts at the default 100 BPM and changes the loop speed live', async ({
   mountApp,
 }) => {
