@@ -21,10 +21,31 @@ An `*.iwft` whole-frontend test covers the loop: paint → play → cells move.
 
 **Blocked by:** 03 — Sim core (headless)
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Painting sand while paused, then pressing play, makes it fall and pile — visibly, in the browser
-- [ ] Rendering is letterboxed, crisp (no smoothing), sharp on HiDPI, margins in the `world` colour
-- [ ] Window resize refits without disturbing the running sim
-- [ ] `*.iwft` test covers paint → play → movement
-- [ ] `pnpm lint`, `pnpm typecheck`, silt tests green
+- [x] Painting sand while paused, then pressing play, makes it fall and pile — visibly, in the browser
+- [x] Rendering is letterboxed, crisp (no smoothing), sharp on HiDPI, margins in the `world` colour
+- [x] Window resize refits without disturbing the running sim
+- [x] `*.iwft` test covers paint → play → movement
+- [x] `pnpm lint`, `pnpm typecheck`, silt tests green
+
+## Comments
+
+Resolved in commit `bef0eca` (Sonnet agent, worktree branch merged cleanly
+alongside ticket 05/06's sim work). `features/render/` — pure `letterboxFit`
+maths (unit-tested, no DOM), a `palette` LUT built from the registry, and
+`SimRenderer` drawing ImageData into a 300×200 backing canvas then blitting
+DPR-aware/letterboxed with smoothing off, reading only a narrow
+`RenderableSim` shape (the sim/renderer seam). `features/sim/useSimLoop.ts`
+owns Sim + renderer + FixedTimestep: RAF renders every frame, sim ticks only
+via the fixed timestep, refit on both ResizeObserver and a `resolution`
+media-query watcher (zoom-only DPR changes). Starter greeting placeholder
+replaced by the app shell with a minimal rail (colours read from the registry,
+not hardcoded) — the real rail is ticket 07. 4 iwft cases: paint→play→settle,
+paint-while-running, no-smoothing, resize-refits-without-disturbing-sim.
+Orchestrator gate on the merged tree (04+05+06 together): 81 vitest + 4 iwft
+green, lint/typecheck clean.
+
+Process note: the agent correctly refused to bypass commit signing on a peer's
+say-so while the 1Password agent was broken; the commit landed normally once
+signing recovered.
