@@ -4,6 +4,12 @@ $ink: #1a1714;
 $paper: #e7e2d5;
 $panel: #efeadd;
 $raised: #f5f2e9;
+$muted: #8a8478;
+$world: #181510;
+$destructive: #e2542a;
+
+$font-label: 'Silkscreen', monospace;
+$font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
 .app {
   display: grid;
@@ -11,33 +17,73 @@ $raised: #f5f2e9;
   height: 100dvh;
   background: $panel;
   color: $ink;
-  font-family: system-ui, sans-serif;
+  font-family: $font-mono;
 }
+
+// ---- header (58px) ---------------------------------------------------
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   padding: 0 1rem;
   background: $paper;
   border-bottom: 2px solid $ink;
 }
 
-.title {
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.headerLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
 }
 
-.playButton {
+.title {
+  font-family: $font-label;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sceneName {
+  font-size: 0.75rem;
+  color: $muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerControls {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.headerButton {
   border: 2px solid $ink;
   background: $raised;
   color: $ink;
   padding: 0.35rem 0.9rem;
   font: inherit;
+  font-family: $font-label;
   text-transform: uppercase;
-  font-size: 0.75rem;
+  font-size: 9px;
+  letter-spacing: 0.05em;
   cursor: pointer;
+
+  &:disabled {
+    color: $muted;
+    cursor: not-allowed;
+  }
 }
+
+.armed {
+  background: $destructive;
+  color: $paper;
+  border-color: $ink;
+}
+
+// ---- body: rail (176px) | stage ---------------------------------------
 
 .body {
   display: grid;
@@ -48,11 +94,33 @@ $raised: #f5f2e9;
 .rail {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.9rem;
   padding: 0.75rem;
   background: $panel;
   border-right: 2px solid $ink;
   overflow-y: auto;
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.paletteGroup,
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.groupLabel {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $muted;
+  padding: 0 0.25rem;
 }
 
 .swatchRow {
@@ -62,11 +130,9 @@ $raised: #f5f2e9;
   border: none;
   background: transparent;
   color: $ink;
-  padding: 0.35rem 0.5rem;
+  padding: 0.3rem 0.5rem;
   font: inherit;
   text-align: left;
-  text-transform: uppercase;
-  font-size: 0.75rem;
   cursor: pointer;
 
   &[aria-pressed='true'] {
@@ -82,6 +148,125 @@ $raised: #f5f2e9;
   flex: none;
 }
 
+.swatchName {
+  flex: 1;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hotkey {
+  font-size: 0.7rem;
+  color: $muted;
+}
+
+.swatchRow[aria-pressed='true'] .hotkey {
+  color: $paper;
+}
+
+.brushRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.25rem;
+}
+
+.brushButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: $ink;
+    background: $raised;
+  }
+}
+
+.brushSquare {
+  background: $ink;
+  display: block;
+}
+
+.modeToggle {
+  display: flex;
+  border: 2px solid $ink;
+}
+
+.modeButton {
+  flex: 1;
+  border: none;
+  background: $raised;
+  color: $ink;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-family: $font-label;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+
+  &:not(:first-child) {
+    border-left: 2px solid $ink;
+  }
+
+  &[aria-pressed='true'] {
+    background: $ink;
+    color: $paper;
+  }
+
+  &:disabled {
+    color: $muted;
+    cursor: not-allowed;
+  }
+}
+
+.eraseButton {
+  border: 2px solid $ink;
+  background: $raised;
+  color: $ink;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: $destructive;
+    color: $paper;
+    border-color: $ink;
+  }
+}
+
+// ---- stage: canvas + status bar (32px) ---------------------------------
+
+.stage {
+  display: grid;
+  grid-template-rows: 1fr 32px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.canvasWrap {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  background: $world;
+}
+
+// Paused brightens the grid rather than dimming it (spec §9) — building is a
+// first-class activity, not an interruption.
+.paused .canvas {
+  filter: brightness(1.15);
+}
+
 // The world canvas — one pixel per sim cell, scaled up letterboxed (spec §6).
 // Smoothing is also switched off on the 2D context; this CSS hint keeps the
 // browser's own upscale crisp on the rare frame drawn before that runs.
@@ -92,4 +277,85 @@ $raised: #f5f2e9;
   image-rendering: pixelated;
   cursor: crosshair;
   touch-action: none;
+}
+
+.runPill {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border: 2px solid $ink;
+  font-family: $font-label;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.running {
+  background: $ink;
+  color: $paper;
+}
+
+// Paused inverts the pill to paper (spec §9).
+.pillPaused {
+  background: $paper;
+  color: $ink;
+}
+
+.blinkDot {
+  width: 6px;
+  height: 6px;
+  background: #3ecf6b;
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.firstVisitHint {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: $paper;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.brushCursor {
+  position: absolute;
+  border: 1px solid $paper;
+  outline: 1px solid $ink;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  background: $paper;
+  border-top: 2px solid $ink;
+  font-family: $font-mono;
+  font-size: 0.68rem;
+  color: $ink;
+}
+
+.statusLeft,
+.statusRight {
+  display: flex;
+  gap: 0.9rem;
+  text-transform: uppercase;
 }

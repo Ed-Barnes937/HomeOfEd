@@ -6,6 +6,11 @@ import { TEST_SEAM_KEY, type SiltTestSeam } from '../features/sim/useSimLoop.ts'
 export class SiltPagePom extends BasePage {
   private readonly canvas = this.page.getByTestId('silt-canvas')
   private readonly playToggle = this.page.getByTestId('play-toggle')
+  private readonly stepButton = this.page.getByTestId('step')
+  private readonly resetButton = this.page.getByTestId('reset')
+  private readonly eraseButton = this.page.getByTestId('erase-tool')
+  private readonly runPill = this.page.getByTestId('run-pill')
+  private readonly firstVisitHint = this.page.getByTestId('first-visit-hint')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('SILT')).toBeVisible()
@@ -19,6 +24,67 @@ export class SiltPagePom extends BasePage {
   async isSelected(name: string): Promise<boolean> {
     const pressed = await this.page.getByTestId(`element-${name}`).getAttribute('aria-pressed')
     return pressed === 'true'
+  }
+
+  async selectBrush(index: number): Promise<void> {
+    await this.page.getByTestId(`brush-${index}`).click()
+  }
+
+  async isBrushSelected(index: number): Promise<boolean> {
+    const pressed = await this.page.getByTestId(`brush-${index}`).getAttribute('aria-pressed')
+    return pressed === 'true'
+  }
+
+  async selectErase(): Promise<void> {
+    await this.eraseButton.click()
+  }
+
+  async isEraseSelected(): Promise<boolean> {
+    const pressed = await this.eraseButton.getAttribute('aria-pressed')
+    return pressed === 'true'
+  }
+
+  async step(): Promise<void> {
+    await this.stepButton.click()
+  }
+
+  /** Clicks reset once (arms it) without confirming. */
+  async clickReset(): Promise<void> {
+    await this.resetButton.click()
+  }
+
+  /** Clicks reset twice — the required confirm (spec §3). */
+  async confirmReset(): Promise<void> {
+    await this.resetButton.click()
+    await this.resetButton.click()
+  }
+
+  async isResetArmed(): Promise<boolean> {
+    return (await this.resetButton.textContent())?.includes('confirm') ?? false
+  }
+
+  async verifyRunning(): Promise<void> {
+    await expect(this.runPill).toHaveText(/running/)
+  }
+
+  async verifyPaused(): Promise<void> {
+    await expect(this.runPill).toHaveText(/paused/)
+  }
+
+  async verifyFirstVisitHintVisible(): Promise<void> {
+    await expect(this.firstVisitHint).toBeVisible()
+  }
+
+  async verifyFirstVisitHintGone(): Promise<void> {
+    await expect(this.firstVisitHint).toHaveCount(0)
+  }
+
+  async statusText(testId: string): Promise<string> {
+    return (await this.page.getByTestId(testId).textContent()) ?? ''
+  }
+
+  async pressKey(key: string): Promise<void> {
+    await this.page.keyboard.press(key)
   }
 
   /** Paints one cell via real pointer events dispatched at the canvas — no seam bypass. */

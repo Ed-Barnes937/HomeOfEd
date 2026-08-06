@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react'
 
-import { FixedTimestep, MS_PER_TICK, Sim } from '../../sim/index.ts'
+import { FixedTimestep, GRID_WIDTH, MS_PER_TICK, Sim } from '../../sim/index.ts'
 import { SimRenderer } from '../render/renderer.ts'
 
 /**
@@ -19,12 +19,51 @@ export interface SiltTestSeam {
   gridToCanvasPoint(x: number, y: number): { x: number; y: number }
 }
 
+/** Where the pointer is, in both grid and CSS-px terms — enough to draw a
+ * brush outline over the canvas without the caller touching sim/renderer internals. */
+export interface CursorInfo {
+  cell: { x: number; y: number }
+  /** CSS-px centre of `cell` on the on-screen canvas. */
+  point: { x: number; y: number }
+  /** CSS px per cell — the fit is aspect-preserving, so one value covers both axes. */
+  cellSize: number
+}
+
 export interface UseSimLoopOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
   /** Paused = setup mode (spec §3); painting works in both states. */
   running: boolean
-  /** The species painting applies — Dirt or Sand for now (ticket 07 owns the real rail). */
+  /** The species painting applies — EMPTY when the erase tool is active. */
   selectedElement: number
+  /** Square brush width in cells (odd, so it has a centre); 1 = single cell. */
+  brushWidth: number
+  /** Fires on every paint — the caller derives "first stroke" (spec §9 hint) from it. */
+  onPaint?: () => void
+  /** Fires as the pointer moves over the canvas, `null` once it leaves. */
+  onCursorChange?: (info: CursorInfo | null) => void
+  /** Fires roughly 4x/second with the render loop's smoothed FPS (spec §9 status bar). */
+  onFps?: (fps: number) => void
+}
+
+/** `(dx, dy)` offsets covering a centred square brush of this cell width (odd, so it has a centre). */
+function brushOffsets(width: number): readonly { dx: number; dy: number }[] {
+  const half = (width - 1) / 2
+  const lo = Math.floor(half)
+  const hi = Math.ceil(half)
+  const offsets: { dx: number; dy: number }[] = []
+  for (let dy = -lo; dy <= hi; dy++) {
+    for (let dx = -lo; dx <= hi; dx++) {
+      offsets.push({ dx, dy })
+    }
+  }
+  return offsets
+}
+
+export interface UseSimLoopControls {
+  /** Advance exactly one sim tick — spec §3's step, meant for while paused. */
+  step: () => void
+  /** Back to a freshly constructed world (spec §3's reset). */
+  reset: () => void
 }
 
 /**
@@ -33,13 +72,19 @@ export interface UseSimLoopOptions {
  * ResizeObserver for CSS-size changes plus a `resolution` media-query watcher
  * for zoom-only devicePixelRatio changes — both refit the canvas only, the
  * sim is never touched), and click/drag painting. React owns
- * `running`/`selectedElement`; changes are pushed into the loop via refs,
- * never by restarting the effect, so toggling play/pause never resets the
- * world.
+ * `running`/`selectedElement`/`brushWidth`; changes are pushed into the loop
+ * via refs, never by restarting the effect, so toggling play/pause never
+ * resets the world. `step`/`reset` are exposed so the page's header buttons
+ * can reach into the same sim instance.
  */
-export function useSimLoop(opts: UseSimLoopOptions): void {
+export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   const runningRef = useRef(opts.running)
   const selectedRef = useRef(opts.selectedElement)
+  const brushRef = useRef(opts.brushWidth)
+  const onPaintRef = useRef(opts.onPaint)
+  const onCursorChangeRef = useRef(opts.onCursorChange)
+  const onFpsRef = useRef(opts.onFps)
+  const simRef = useRef<Sim | null>(null)
 
   useEffect(() => {
     runningRef.current = opts.running
@@ -49,13 +94,30 @@ export function useSimLoop(opts: UseSimLoopOptions): void {
     selectedRef.current = opts.selectedElement
   }, [opts.selectedElement])
 
-  // canvasRef identity is stable across renders; running/selectedElement are
-  // synced into the running loop by the effects above, not by re-running this one.
+  useEffect(() => {
+    brushRef.current = opts.brushWidth
+  }, [opts.brushWidth])
+
+  useEffect(() => {
+    onPaintRef.current = opts.onPaint
+  }, [opts.onPaint])
+
+  useEffect(() => {
+    onCursorChangeRef.current = opts.onCursorChange
+  }, [opts.onCursorChange])
+
+  useEffect(() => {
+    onFpsRef.current = opts.onFps
+  }, [opts.onFps])
+
+  // canvasRef identity is stable across renders; the options above are synced
+  // into the running loop by the effects above, not by re-running this one.
   useEffect(() => {
     const canvas = opts.canvasRef.current
     if (!canvas) return
 
     const sim = new Sim()
+    simRef.current = sim
     const renderer = new SimRenderer(canvas, sim.registry)
 
     const width = canvas.clientWidth || window.innerWidth
@@ -92,28 +154,53 @@ export function useSimLoop(opts: UseSimLoopOptions): void {
     }
     watchDpr()
 
+    const cellAt = (clientX: number, clientY: number): { x: number; y: number } | null => {
+      const rect = canvas.getBoundingClientRect()
+      return renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
+    }
+
     let painting = false
     const paintAt = (clientX: number, clientY: number): void => {
-      const rect = canvas.getBoundingClientRect()
-      const cell = renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
+      const cell = cellAt(clientX, clientY)
       if (!cell) return
-      sim.paint(cell.x, cell.y, selectedRef.current)
+      for (const { dx, dy } of brushOffsets(brushRef.current)) {
+        const x = cell.x + dx
+        const y = cell.y + dy
+        if (x < 0 || y < 0 || x >= sim.width || y >= sim.height) continue
+        sim.paint(x, y, selectedRef.current)
+      }
+      onPaintRef.current?.()
     }
     const onPointerDown = (event: PointerEvent): void => {
       painting = true
       paintAt(event.clientX, event.clientY)
     }
     const onPointerMove = (event: PointerEvent): void => {
-      if (!painting) return
-      paintAt(event.clientX, event.clientY)
+      if (painting) paintAt(event.clientX, event.clientY)
+
+      const cell = cellAt(event.clientX, event.clientY)
+      if (!cell) {
+        onCursorChangeRef.current?.(null)
+        return
+      }
+      const fit = renderer.getFit()
+      onCursorChangeRef.current?.({
+        cell,
+        point: renderer.gridToCanvasPoint(cell.x, cell.y),
+        cellSize: fit.width / GRID_WIDTH,
+      })
     }
     const stopPainting = (): void => {
       painting = false
     }
+    const onPointerLeave = (): void => {
+      stopPainting()
+      onCursorChangeRef.current?.(null)
+    }
     canvas.addEventListener('pointerdown', onPointerDown)
     canvas.addEventListener('pointermove', onPointerMove)
     canvas.addEventListener('pointerup', stopPainting)
-    canvas.addEventListener('pointerleave', stopPainting)
+    canvas.addEventListener('pointerleave', onPointerLeave)
 
     const timestep = new FixedTimestep(MS_PER_TICK)
 
@@ -133,23 +220,40 @@ export function useSimLoop(opts: UseSimLoopOptions): void {
 
     let rafId = 0
     let lastTime = performance.now()
+    let lastFpsSample = lastTime
+    let framesSinceSample = 0
     function frame(time: number): void {
       const dt = time - lastTime
       lastTime = time
       if (runningRef.current) timestep.advance(dt, () => sim.tick())
       renderer.draw(sim)
+
+      framesSinceSample++
+      const sinceSample = time - lastFpsSample
+      if (sinceSample >= 250) {
+        onFpsRef.current?.(Math.round((framesSinceSample * 1000) / sinceSample))
+        framesSinceSample = 0
+        lastFpsSample = time
+      }
+
       rafId = requestAnimationFrame(frame)
     }
     rafId = requestAnimationFrame(frame)
 
     return () => {
+      simRef.current = null
       resizeObserver.disconnect()
       stopWatchingDpr()
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', stopPainting)
-      canvas.removeEventListener('pointerleave', stopPainting)
+      canvas.removeEventListener('pointerleave', onPointerLeave)
       if (rafId) cancelAnimationFrame(rafId)
     }
   }, [opts.canvasRef])
+
+  return {
+    step: () => simRef.current?.tick(),
+    reset: () => simRef.current?.clear(),
+  }
 }
