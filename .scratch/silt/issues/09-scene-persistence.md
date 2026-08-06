@@ -86,5 +86,13 @@ index before freeing the blob (so a full quota broke delete), orphan thumbnail
 keys were unreclaimable, a warning-but-successful load was reported in the
 destructive tone, and auto-names could collide after deleting a middle row.
 
+Follow-up commit `45b8627` pins spec §8's "`clock` is not persisted, reset to 0
+on load" as a standing assertion — it had rested on a structural argument plus
+a manual check, which is exactly what regresses silently when someone later
+adds a fourth plane. The test asserts the source world has non-zero clock bytes
+first (so it can't pass vacuously), that the serialised envelope contains no
+"clock" string, and that every restored clock byte is 0. Verified red before
+green by making `Sim.restore` write a non-zero clock.
+
 Gate run by the orchestrator on the merged 09+10 tree: lint/typecheck clean,
 105 vitest + 23 iwft green.
