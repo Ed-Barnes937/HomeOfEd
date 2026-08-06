@@ -55,5 +55,36 @@ before the index is rewritten so a full quota is escapable, reconcile drops
 dangling index rows and adopts orphan blobs, a corrupt index survived, and a
 scene whose blob is gone is refused rather than silently read as empty.
 
+The iwft does a real `page.reload()` between save and load, so it exercises
+persistence across a page lifetime rather than a reset.
+
+Engine additions: `Sim.restore(species, ra, rb)` (clear → write → activate
+chunks per occupied cell, clock at the settled value), `ElementRegistry.all()`
+(remap-by-name needs both directions), `SimRenderer.snapshot()` → PNG data URL
+for thumbnails.
+
+Deviations, all deliberate — **worth a look at whole-branch review**:
+- Thumbnails live in their own `silt:thumb:<uuid>` key, not the index; the spec
+  pins the index shape, and a PNG there would be re-read every render. A
+  thumbnail lost to quota doesn't lose the scene.
+- **Save always creates a new row** (first unused `scene N`, renamed inline) —
+  no overwrite. Overwrite needs a reliable notion of "the scene I'm editing"
+  that the header name only approximates, and getting it wrong destroys a
+  scene. This is the deviation most worth a second opinion.
+- `Ctrl+S` (and `Cmd+S`) also opens the popover, because the save result
+  message lives there and saving with it shut would be silent — against §8's
+  "loud, never silent".
+- Popover has a close × and Escape closes it (not in §9, but a popover needs an
+  exit). Global keydown now ignores events from `<input>` so typing "1" in a
+  rename field no longer switches element.
+
+Its code review caught five real bugs, all fixed before commit — the sharpest
+being that boot `reconcile()` could throw out of a `useEffect` on a full quota,
+taking the page down and removing the only route to the delete button, i.e.
+breaking the exact escape hatch spec §8 requires. Also: `remove()` wrote the
+index before freeing the blob (so a full quota broke delete), orphan thumbnail
+keys were unreclaimable, a warning-but-successful load was reported in the
+destructive tone, and auto-names could collide after deleting a middle row.
+
 Gate run by the orchestrator on the merged 09+10 tree: lint/typecheck clean,
 105 vitest + 23 iwft green.
