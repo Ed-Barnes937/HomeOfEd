@@ -12,7 +12,7 @@ explicitly allows it) rather than shipping a desktop-only export.
 **Blocked by:** 18 — Launch kit content; 21 — URL-hash share links (the Share
 affordance it nests under).
 
-**Status:** claimed
+**Status:** resolved
 
 - [ ] Spike first: offline render + share-sheet delivery proven on real
       mobile Safari before building the full feature
@@ -49,3 +49,9 @@ Verify loop green at gate: lint/typecheck clean, vitest 172/172, CT 34/34.
      file doesn't play the pattern.
 3. On failure: invoke the ticket's cut-from-V1 clause — hide the
    affordance, record findings here. Cutting still unblocks ticket 26.
+
+2026-08-06 (orchestrator): **owner decision — device test waived.** Ed
+chose not to run the mobile-Safari verification; the feature ships as
+built (feature-detected share sheet with graceful download fallback).
+Ticket resolved on that basis. If iOS export turns out broken in the
+wild, the cut-from-V1 clause above is the playbook.

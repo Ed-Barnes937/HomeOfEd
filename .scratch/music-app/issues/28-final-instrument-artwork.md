@@ -31,3 +31,11 @@ with them and this ticket stays open.
 - [ ] Wired into the kit manifest, replacing the placeholders and their
       attribution requirement
 - [ ] Phone note mark upgraded from plain pebble to the silhouette form
+
+## Comments
+
+2026-08-06 (orchestrator): **owner decision — V1 launches on the
+attributed placeholders.** Per this ticket's own clause: the CC BY
+attribution ships with them (already in
+`apps/boop/public/kits/launch/ATTRIBUTION.txt`) and this ticket stays
+open for the real artwork. This unblocks ticket 26's artwork gate.
