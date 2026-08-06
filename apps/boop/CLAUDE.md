@@ -53,12 +53,11 @@ src/
                     useDragPaint.ts  latched drag-paint, shared by both
   features/topbar/  TopBar.tsx (desktop) and PhoneBar.tsx (the 52px strip +
                     "⋯" menu); `useIsPhone.ts` picks between them
-  pages/            HomePage — placeholder route (ticket 11); the grid page replaces it
-  features/greeting/  placeholder query — replace once the sequencer's real routes land
+  pages/            HomePage — the whole app: top bar, grid, transport, panels
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
                       hues, radii, shadows) + self-hosted Chivo / Chivo Mono
   testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
-  greeting.iwft.tsx placeholder whole-frontend test via the in-browser backend
+  *.iwft.tsx        whole-frontend suites via the in-browser backend
 public/fonts/       self-hosted Chivo + Chivo Mono (latin-subset variable woff2)
 public/kits/launch/ the V1 kit: kit.json manifest, placeholder one-shots and
                     artwork (both replaced by ticket 18)
@@ -117,8 +116,9 @@ share-link snapshot.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the
   save format's own validator, cleared with `replaceState` once loaded. One
-  Share button: system sheet where there is one, clipboard + "Copied!"
-  otherwise. Never a modal or a "copy this link" field.
+  Share button: system sheet on touch devices (`prefersShareSheet`), clipboard
+  + "Copied!" otherwise — capability alone can't decide, desktop browsers ship
+  `navigator.share` too. Never a modal or a "copy this link" field.
 - **The grid never shrinks**
   ([ADR 0027](../../docs/adr/0027-boop-small-phone-layout.md)). 6 x 16, always — no breakpoint may drop a row or
   a step. Below 1024px (`useIsPhone`) the instrument rail is pinned and the 16

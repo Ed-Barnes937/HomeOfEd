@@ -78,7 +78,7 @@ describe('shareGrooveUrl', () => {
 describe('navigatorShareTarget', () => {
   const clipboard = { writeText: () => Promise.resolve() }
 
-  it('offers the share sheet on a browser that has one (mobile)', async () => {
+  it('offers the share sheet on a touch device that has one (mobile)', async () => {
     const shared: string[] = []
     const nav = {
       share: (data: { url: string }) => {
@@ -88,12 +88,33 @@ describe('navigatorShareTarget', () => {
       clipboard,
     } as unknown as Navigator
 
-    expect(await shareGrooveUrl(URL_TO_SHARE, navigatorShareTarget(nav))).toBe('shared')
+    expect(await shareGrooveUrl(URL_TO_SHARE, navigatorShareTarget(nav, true))).toBe('shared')
     expect(shared).toEqual([URL_TO_SHARE])
   })
 
-  it('leaves the share sheet out on a browser without one (desktop)', () => {
+  it('leaves the share sheet out on a browser without one', () => {
     const nav = { clipboard } as unknown as Navigator
-    expect(navigatorShareTarget(nav).share).toBeUndefined()
+    expect(navigatorShareTarget(nav, true).share).toBeUndefined()
+  })
+
+  it('copies rather than opening the sheet on a desktop browser that ships navigator.share', async () => {
+    const shared: string[] = []
+    const written: string[] = []
+    const nav = {
+      share: (data: { url: string }) => {
+        shared.push(data.url)
+        return Promise.resolve()
+      },
+      clipboard: {
+        writeText: (text: string) => {
+          written.push(text)
+          return Promise.resolve()
+        },
+      },
+    } as unknown as Navigator
+
+    expect(await shareGrooveUrl(URL_TO_SHARE, navigatorShareTarget(nav, false))).toBe('copied')
+    expect(shared).toEqual([])
+    expect(written).toEqual([URL_TO_SHARE])
   })
 })

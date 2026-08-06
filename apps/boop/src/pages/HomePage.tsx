@@ -19,6 +19,7 @@ import { Transport } from '../features/transport/Transport.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
 import { storedToPattern, workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
+import { prefersShareSheet } from '../share/shareAction.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
@@ -178,7 +179,11 @@ export function HomePage() {
       try {
         const context = new OfflineAudioContext(1, 1, DEFAULT_SAMPLE_RATE)
         const blob = await renderGrooveWav({ kit, pattern, bpm, decode: webAudioSampleDecoder(context) })
-        await exportGrooveWav(blob, 'groove.wav', navigatorExportTarget(navigator, document))
+        await exportGrooveWav(
+          blob,
+          'groove.wav',
+          navigatorExportTarget(navigator, document, prefersShareSheet()),
+        )
       } finally {
         exporting.current = false
       }

@@ -60,3 +60,10 @@ in ADR 0027: WAV export has no phone entry point; "⋯" menu dismissal
 
 Gate re-verified by orchestrator post-merge: lint/typecheck clean, vitest
 189/189, playwright CT 44/44.
+
+Whole-branch review note (2026-08-06, out of scope — no change made): the
+~45-line cell `<button>` block (props, paint/keyboard handlers, squash span,
+testids) is near-identical in `Grid.tsx` and `PhoneGrid.tsx`, as is the rail
+row (plate/artwork/nameBob). "Two renderers, one behaviour" is the documented
+model and the hooks are shared, but a shared `Cell` component would remove
+the largest remaining duplicate if the renderers ever start drifting.

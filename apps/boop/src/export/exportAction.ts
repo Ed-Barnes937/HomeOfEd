@@ -1,8 +1,10 @@
 import { isAbort } from '../share/shareAction.ts'
 
 /**
- * The demoted "get the audio" action: the OS share sheet on a browser that
- * can share files, an object-URL download everywhere else. Follows
+ * The demoted "get the audio" action: the OS share sheet on a touch device
+ * that can share files, an object-URL download everywhere else. Capability
+ * alone can't decide — desktop Safari/Chrome can share files too, and the
+ * spec wants desktop downloading (see `shareAction.ts`). Follows
  * `shareAction.ts`'s injected-target idiom so both paths are unit-testable
  * against plain fakes rather than a real `navigator`.
  */
@@ -45,12 +47,22 @@ export async function exportGrooveWav(
   return 'downloaded'
 }
 
-/** The browser's `navigator`/`document`, narrowed to what export needs. */
-export function navigatorExportTarget(nav: Navigator, doc: Document): ExportTarget {
+/**
+ * The browser's `navigator`/`document`, narrowed to what export needs.
+ * `preferSheet` (touch device or not) is the caller's call — see the header.
+ */
+export function navigatorExportTarget(
+  nav: Navigator,
+  doc: Document,
+  preferSheet: boolean,
+): ExportTarget {
   return {
     canShareFiles:
-      typeof nav.canShare === 'function' ? (file) => nav.canShare({ files: [file] }) : undefined,
-    share: typeof nav.share === 'function' ? (data) => nav.share(data) : undefined,
+      preferSheet && typeof nav.canShare === 'function'
+        ? (file) => nav.canShare({ files: [file] })
+        : undefined,
+    share:
+      preferSheet && typeof nav.share === 'function' ? (data) => nav.share(data) : undefined,
     download: (blob, filename) => downloadBlob(blob, filename, doc),
   }
 }

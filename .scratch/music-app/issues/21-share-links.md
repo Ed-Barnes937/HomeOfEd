@@ -54,3 +54,12 @@ fragment survives the receiving app. Playwright WebKit cannot test this.
 
 Gate re-verified by orchestrator post-merge: lint/typecheck clean, vitest
 139/139, playwright CT 23/23.
+
+Whole-branch review (2026-08-06): found the "sheet on mobile, clipboard on
+desktop" gate was capability-only — `navigator.share` also ships on macOS
+Safari and Windows Chrome/Edge, so those desktops got the OS sheet and never
+the "Copied!" flip. Fixed: `navigatorShareTarget`/`navigatorExportTarget`
+now take a `preferSheet` flag driven by `prefersShareSheet()`
+(`(pointer: coarse)` at tap time); same fix applied to the WAV export path
+(sheet on touch, download otherwise). ADR 0026 and apps/boop/CLAUDE.md
+wording updated to match.

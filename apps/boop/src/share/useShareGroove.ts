@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { navigatorShareTarget, shareGrooveUrl } from './shareAction.ts'
+import { navigatorShareTarget, prefersShareSheet, shareGrooveUrl } from './shareAction.ts'
 
 /** "Copied!" holds this long, then the button goes back to resting (design §5). */
 export const COPIED_HOLD_MS = 1_600
@@ -8,7 +8,7 @@ export const COPIED_HOLD_MS = 1_600
 export type ShareState = 'idle' | 'pending' | 'copied'
 
 /**
- * The one share action (ADR 0026): the system share sheet where there is one,
+ * The one share action (ADR 0026): the system share sheet on touch devices,
  * clipboard plus a "Copied!" flip otherwise. Never a modal, never a link
  * field. Shared by the desktop top bar and the phone's "⋯" menu so both tell
  * the same story.
@@ -33,7 +33,8 @@ export function useShareGroove(getShareUrl: () => string): {
   const share = useCallback(() => {
     if (shareState === 'pending') return
     setShareState('pending')
-    void shareGrooveUrl(getShareUrl(), navigatorShareTarget(navigator)).then((outcome) => {
+    const target = navigatorShareTarget(navigator, prefersShareSheet())
+    void shareGrooveUrl(getShareUrl(), target).then((outcome) => {
       if (outcome !== 'copied') {
         // Shared, dismissed or refused: the OS (or nothing) is the feedback.
         setShareState('idle')

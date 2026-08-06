@@ -53,10 +53,12 @@ keeps what the child has since played with, rather than snapping back to the
 sender's version; and the URL in the address bar stops being a stale link to a
 groove that has since been edited.
 
-**Share affordance.** One button. `navigator.share` where it exists (the OS
-sheet on mobile), `navigator.clipboard.writeText` otherwise, with the label
-flipping to a cyan "Copied!" for 1.6s. A dismissed share sheet is reported as
-dismissed, not quietly copied. No modal, no link field.
+**Share affordance.** One button. `navigator.share` on touch devices
+(`(pointer: coarse)` — capability alone can't decide, since macOS Safari and
+Windows Chrome/Edge ship `navigator.share` too), `navigator.clipboard.writeText`
+otherwise, with the label flipping to a cyan "Copied!" for 1.6s. A dismissed
+share sheet is reported as dismissed, not quietly copied. No modal, no link
+field.
 
 ## Consequences
 
