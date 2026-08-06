@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 
 import {
   BYTES_PER_CELL,
+  CLOCK_OFFSET,
   RA_OFFSET,
   SAND,
   Sim,
@@ -40,6 +41,10 @@ it('a painted, simmed world survives encode → decode → restore pixel-identic
   }
   for (let i = 0; i < 30; i++) sim.tick()
 
+  // Thirty ticks in, the world carries real clock stamps — so the assertion
+  // further down that the load zeroed them cannot pass vacuously.
+  expect(planeOf(sim, CLOCK_OFFSET).some((value) => value > 0)).toBe(true)
+
   const spawners = [{ x: 10, y: 10, element: WATER }]
   const envelope = encodeScene(sim, spawners, sim.registry)
 
@@ -56,6 +61,12 @@ it('a painted, simmed world survives encode → decode → restore pixel-identic
   expect(planeOf(sim, RA_OFFSET).some((value) => value > 0)).toBe(true)
   expect(planeOf(loaded, RA_OFFSET)).toEqual(planeOf(sim, RA_OFFSET))
   expect(scene.spawners).toEqual(spawners)
+
+  // `clock` is runtime bookkeeping, not scene data (spec §8): the envelope has
+  // no plane for it and the load lands on a freshly cleared generation 0. A
+  // fourth plane added later must not quietly start carrying it.
+  expect(JSON.stringify(envelope)).not.toContain('clock')
+  expect(planeOf(loaded, CLOCK_OFFSET).every((value) => value === 0)).toBe(true)
 
   // A restored world is a live one, not a picture of one — restore has to wake
   // the chunks it filled or the first tick would scan nothing.
