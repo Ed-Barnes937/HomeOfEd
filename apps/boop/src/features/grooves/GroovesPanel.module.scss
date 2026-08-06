@@ -6,7 +6,9 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
-  z-index: 9;
+  // Above the phone chrome (PhoneBar's 30/31), which opens this panel and must
+  // then be dimmed and untappable like everything else behind it.
+  z-index: 40;
 }
 
 .card {

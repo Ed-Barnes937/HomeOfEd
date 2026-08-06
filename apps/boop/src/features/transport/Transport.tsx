@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 
+import { CLEAR_GRID_CONFIRM } from '../confirm/clearGridConfirm.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import { bpmToPercent, percentToBpm } from './tempoScale.ts'
 import styles from './Transport.module.scss'
@@ -10,6 +11,14 @@ interface TransportProps {
   bpm: number
   onTempoChange: (bpm: number) => void
   onClearAll: () => void
+  /**
+   * Whether Clear grid (and its divider) belong to this bar. False on the
+   * phone, where the action lives in the "⋯" menu instead — design handoff:
+   * "Everything else — My grooves, Share, help, Clear grid — lives in the
+   * '⋯' menu". Rendering it in both places would give the app two Clear
+   * buttons, not one styled differently.
+   */
+  showClearGrid?: boolean
 }
 
 /**
@@ -18,7 +27,14 @@ interface TransportProps {
  * one. Clear-grid (ticket 15) sits behind the divider, dashed and coral so it
  * is never mistakable for "play from the top" (spec: "The grid" — clear-all).
  */
-export function Transport({ isPlaying, onToggle, bpm, onTempoChange, onClearAll }: TransportProps) {
+export function Transport({
+  isPlaying,
+  onToggle,
+  bpm,
+  onTempoChange,
+  onClearAll,
+  showClearGrid = true,
+}: TransportProps) {
   const percent = bpmToPercent(bpm)
   const [confirmingClear, setConfirmingClear] = useState(false)
 
@@ -68,21 +84,22 @@ export function Transport({ isPlaying, onToggle, bpm, onTempoChange, onClearAll 
           <span className={styles.tempoEndpoint}>Fast</span>
         </div>
       </div>
-      <div className={styles.divider} aria-hidden="true" />
-      <button
-        type="button"
-        className={styles.clear}
-        onClick={() => setConfirmingClear(true)}
-        data-testid="clear-grid-button"
-      >
-        Clear grid
-      </button>
+      {showClearGrid && (
+        <>
+          <div className={styles.divider} aria-hidden="true" />
+          <button
+            type="button"
+            className={styles.clear}
+            onClick={() => setConfirmingClear(true)}
+            data-testid="clear-grid-button"
+          >
+            Clear grid
+          </button>
+        </>
+      )}
       {confirmingClear && (
         <ConfirmCard
-          title="Clear the whole grid?"
-          message="Every step comes off. Saved grooves stay."
-          safeLabel="Keep playing"
-          destructiveLabel="Clear it"
+          {...CLEAR_GRID_CONFIRM}
           onSafe={() => setConfirmingClear(false)}
           onDestructive={() => {
             onClearAll()

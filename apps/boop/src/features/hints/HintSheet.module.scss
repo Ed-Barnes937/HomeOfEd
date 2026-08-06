@@ -8,7 +8,8 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
-  z-index: 10;
+  // Above the phone chrome (PhoneBar's 30/31) — see GroovesPanel's overlay.
+  z-index: 41;
 }
 
 .card {

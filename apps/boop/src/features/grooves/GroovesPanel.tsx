@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { Kit, Pattern } from '../../engine/sequencerEngine.ts'
 import type { StoredCreation, StoredPattern } from '../../persistence/saveFormat.ts'
@@ -13,6 +13,11 @@ interface GroovesPanelProps {
   onLoad: (creation: StoredCreation) => void
   /** Read at tap time (Save button), not render time — see `TopBar`'s `getShareUrl` for the same reasoning. */
   getWorkingSnapshot: () => { kit: Kit; pattern: Pattern; tempo: number }
+  /**
+   * Open straight into the "Saved it" moment, having already saved — the phone
+   * chrome's save icon (ticket 27), which has nowhere of its own to show it.
+   */
+  saveOnOpen?: boolean
 }
 
 type Editing =
@@ -36,7 +41,7 @@ function thumbnailRows(pattern: StoredPattern) {
  * the field it puts focus in is a rename, not a gate, since the save has
  * already happened.
  */
-export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot }: GroovesPanelProps) {
+export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }: GroovesPanelProps) {
   const grooves = useGrooves()
   const [editing, setEditing] = useState<Editing>({ kind: 'none' })
 
@@ -45,6 +50,19 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot }: GroovesPan
     const { creation, index } = grooves.save(kit, pattern, tempo)
     setEditing({ kind: 'saved', index, name: creation.name })
   }
+
+  // Saves once per mount, guarded by a ref rather than by the dependency list:
+  // StrictMode runs the effect twice, and a second `save` would write a
+  // duplicate groove. `handleSave` is left out of the deps for the same reason
+  // — it is rebuilt every render, and re-running it is exactly what we don't
+  // want. The panel is unmounted on close (`HomePage`), so "once per mount" is
+  // once per time the save icon is tapped.
+  const savedOnOpen = useRef(false)
+  useEffect(() => {
+    if (saveOnOpen !== true || savedOnOpen.current) return
+    savedOnOpen.current = true
+    handleSave()
+  }, [saveOnOpen])
 
   function commitRename(index: number, name: string) {
     const trimmed = name.trim()

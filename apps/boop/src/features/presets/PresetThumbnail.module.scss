@@ -42,3 +42,12 @@
     gap: 3px;
   }
 }
+
+// Phone pitch is 6px (design handoff, "Phone preset row"); dot size
+// round(6 x 0.55) = 3px, so both the dot and the gap tighten.
+@media (max-width: 1023px) {
+  .dot {
+    width: 3px;
+    height: 3px;
+  }
+}

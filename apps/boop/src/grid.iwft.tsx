@@ -98,6 +98,20 @@ test('dragging across already-on cells paints them off, latched from the first c
   await root.verifyCellOff('tom', 2)
 })
 
+test('the keyboard can still toggle a cell straight after a drag-paint', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // A drag that ends on a different cell fires no cell `click` at all — the
+  // suppression that stops a drag undoing its own first cell must not survive
+  // into the next Enter press.
+  await root.dragPaint('tom', [0, 1, 2])
+  await root.verifyCellOn('tom', 2)
+
+  await root.toggleCellWithKeyboard('tom', 8)
+  await root.verifyCellOn('tom', 8)
+})
+
 test('clear-all is reachable by touch, behind a confirm, and never fires without it', async ({
   mountApp,
 }) => {

@@ -1,8 +1,7 @@
 // Grid-well geometry from the design handoff (docs/reference/boop-design/README.md,
 // "Grid well" / "Cell geometry and state"). Breakpoint at 1280px splits the
-// laptop and tablet number sets; the small-phone scroll-window treatment is a
-// separate ticket (27). No playhead yet (ticket 13), so cells only carry the
-// empty/active states — the "under playhead" variants land with the playhead.
+// laptop and tablet number sets; below 1024px this component is not rendered
+// at all — `PhoneGrid` and its own module take over (ticket 27, `useIsPhone`).
 .well {
   margin-top: 16px;
   padding: 18px;

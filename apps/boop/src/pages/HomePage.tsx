@@ -6,17 +6,20 @@ import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { exportGrooveWav, navigatorExportTarget } from '../export/exportAction.ts'
 import { DEFAULT_SAMPLE_RATE, renderGrooveWav } from '../export/renderGrooveWav.ts'
 import { webAudioSampleDecoder } from '../export/sampleDecoder.ts'
-import { Grid } from '../features/grid/Grid.tsx'
+import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
+import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { GroovesPanel } from '../features/grooves/GroovesPanel.tsx'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
 import { PresetRow } from '../features/presets/PresetRow.tsx'
 import { PRESETS, presetPattern, type PresetId } from '../features/presets/presets.ts'
+import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
 import { storedToPattern, workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
+import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
 
 /**
@@ -40,9 +43,16 @@ export function HomePage() {
   // Bumped on every preset load (including blank) so the grid can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
-  const [showGrooves, setShowGrooves] = useState(false)
+  // The "My grooves" panel is closed, opened for browsing, or opened straight
+  // into its just-saved state — the phone chrome's save icon (ticket 27) has no
+  // room for a "Saved it" moment of its own, so it borrows the panel's.
+  const [groovesPanel, setGroovesPanel] = useState<'closed' | 'open' | 'saving'>('closed')
   const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
+  // Below the tablet layout's 1024px floor the grid would have to shrink, so
+  // the pinned-rail scroll window takes over (ticket 27) — chrome and grid
+  // both, since the phone's actions live in the "⋯" menu.
+  const phone = useIsPhone()
 
   // A shared groove is decoded on the first render, before the first restore,
   // and wins over the autosaved grid. Held in a ref so the value survives the
@@ -167,7 +177,7 @@ export function HomePage() {
       setPattern(engine.getPattern())
       setActivePreset(null)
       setLoadToken((token) => token + 1)
-      setShowGrooves(false)
+      setGroovesPanel('closed')
     },
     [engine],
   )
@@ -180,36 +190,52 @@ export function HomePage() {
     )
   }
 
+  const gridProps: GridViewProps = {
+    kit: engine.kit,
+    pattern,
+    onToggleCell: toggleCell,
+    playheadStep: motion.playing ? motion.step : null,
+    cellStrikes: motion.cellStrikes,
+    rowStrikes: motion.rowStrikes,
+    loadToken,
+  }
+
   return (
     <main className={styles.stage}>
-      <TopBar
-        getShareUrl={getShareUrl}
-        onOpenGrooves={() => setShowGrooves(true)}
-        onOpenHints={() => setHintsOpen(true)}
-        onExportWav={exportWav}
-      />
-      <Grid
-        kit={engine.kit}
-        pattern={pattern}
-        onToggleCell={toggleCell}
-        playheadStep={motion.playing ? motion.step : null}
-        cellStrikes={motion.cellStrikes}
-        rowStrikes={motion.rowStrikes}
-        loadToken={loadToken}
-      />
+      {phone ? (
+        // The phone chrome has no room for the export link (ticket 25) — its
+        // "⋯" menu is My grooves / Share / How boop works / Clear grid.
+        <PhoneBar
+          getShareUrl={getShareUrl}
+          onClearGrid={clearAll}
+          onSave={() => setGroovesPanel('saving')}
+          onOpenMyGrooves={() => setGroovesPanel('open')}
+          onOpenHints={() => setHintsOpen(true)}
+        />
+      ) : (
+        <TopBar
+          getShareUrl={getShareUrl}
+          onOpenGrooves={() => setGroovesPanel('open')}
+          onOpenHints={() => setHintsOpen(true)}
+          onExportWav={exportWav}
+        />
+      )}
+      {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
       <Transport
         isPlaying={isPlaying}
         onToggle={togglePlay}
         bpm={bpm}
         onTempoChange={changeTempo}
         onClearAll={clearAll}
+        showClearGrid={!phone}
       />
       <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
-      {showGrooves && (
+      {groovesPanel !== 'closed' && (
         <GroovesPanel
-          onClose={() => setShowGrooves(false)}
+          onClose={() => setGroovesPanel('closed')}
           onLoad={loadGroove}
           getWorkingSnapshot={getWorkingSnapshot}
+          saveOnOpen={groovesPanel === 'saving'}
         />
       )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
