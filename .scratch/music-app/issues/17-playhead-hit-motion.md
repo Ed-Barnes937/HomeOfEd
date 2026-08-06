@@ -15,7 +15,7 @@ Honour `prefers-reduced-motion: reduce` (playhead moves, no squash).
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Cyan playhead column hard-cuts step to step, driven by the draw-time
       channel (no DOM work in scheduler callbacks); bar numerals track the

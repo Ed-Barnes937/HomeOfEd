@@ -17,7 +17,7 @@ store.** The button design applies unchanged.
 
 **Blocked by:** 19 — Autosave (encoding derives from the save format).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Whole creation encoded in the URL fragment; versioned encoding derived
       from the save format so new instruments/kits/chaining extend it
