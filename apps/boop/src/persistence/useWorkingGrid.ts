@@ -2,11 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { Pattern, SequencerEngine } from '../engine/sequencerEngine.ts'
 import { createAutosave } from './autosave.ts'
-import { patternToStored, storedToPattern } from './saveFormat.ts'
+import { storedToPattern, workingCreation, type StoredCreation } from './saveFormat.ts'
 import { loadSaveDocument } from './storage.ts'
-
-/** The working grid is unnamed until a child saves it into "My grooves". */
-const WORKING_NAME = ''
 
 /**
  * Keeps the working grid alive across reloads: restores the autosaved creation
@@ -17,11 +14,17 @@ const WORKING_NAME = ''
  * Returns `true` once the autosave has been consulted. Callers must not mirror
  * engine state into React before then, or they will mirror (and re-save) the
  * empty grid the restore is about to replace.
+ *
+ * `openedWith` (a groove arriving from a share link) takes the autosave's place
+ * as what the app opens on, and is written straight back to the autosave slot —
+ * a reload after following a link keeps the groove, not the grid it replaced.
+ * It must be stable across renders; it is read once, on restore.
  */
 export function useWorkingGrid(
   engine: SequencerEngine | null,
   pattern: Pattern | null,
   bpm: number,
+  openedWith: StoredCreation | null = null,
 ): boolean {
   const autosave = useRef<ReturnType<typeof createAutosave> | null>(null)
   autosave.current ??= createAutosave(window.localStorage)
@@ -31,15 +34,18 @@ export function useWorkingGrid(
 
   useEffect(() => {
     if (!engine) return
-    const working = loadSaveDocument(window.localStorage).working
+    const working = openedWith ?? loadSaveDocument(window.localStorage).working
     if (working) {
       // `working.kitId` is not checked: V1 ships one kit, and a creation from
       // another one degrades safely anyway — rows are matched by instrumentId.
       engine.setPattern(storedToPattern(engine.kit, working.patterns[0]!))
       engine.setTempo(working.tempo)
     }
+    // A shared groove is new state, not restored state: let the first mirror
+    // through so the autosave slot holds it too.
+    if (openedWith) sawFirstMirror.current = true
     setRestored(true)
-  }, [engine])
+  }, [engine, openedWith])
 
   useEffect(() => {
     if (!engine || !pattern || !restored) return
@@ -47,12 +53,7 @@ export function useWorkingGrid(
       sawFirstMirror.current = true
       return
     }
-    autosave.current?.schedule({
-      name: WORKING_NAME,
-      kitId: engine.kit.kitId,
-      tempo: bpm,
-      patterns: [patternToStored(pattern)],
-    })
+    autosave.current?.schedule(workingCreation(engine.kit, pattern, bpm))
   }, [engine, pattern, bpm, restored])
 
   useEffect(() => {

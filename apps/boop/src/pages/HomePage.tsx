@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
@@ -6,7 +6,9 @@ import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { Grid } from '../features/grid/Grid.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
+import { workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
+import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
 import styles from './HomePage.module.scss'
 
 /**
@@ -21,9 +23,19 @@ export function HomePage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [bpm, setBpm] = useState(DEFAULT_BPM)
 
+  // A shared groove is decoded on the first render, before the first restore,
+  // and wins over the autosaved grid. Held in a ref so the value survives the
+  // fragment being cleared below — decoding again would then find nothing.
+  const sharedGroove = useRef<StoredCreation | null | undefined>(undefined)
+  sharedGroove.current ??= decodeShareHash(window.location.hash)
+
   // Autosave restores into the engine first; the mirror below waits for it, so
   // it reads the restored pattern and tempo rather than the empty grid.
-  const restored = useWorkingGrid(engine, pattern, bpm)
+  const restored = useWorkingGrid(engine, pattern, bpm, sharedGroove.current)
+
+  useEffect(() => {
+    if (sharedGroove.current) clearShareHash(window.location, window.history)
+  }, [])
 
   useEffect(() => {
     if (!engine || !restored) return
@@ -71,6 +83,15 @@ export function HomePage() {
     setPattern(engine.getPattern())
   }, [engine])
 
+  /** Read at tap time, so the link always carries the grid as it stands. */
+  const getShareUrl = useCallback(() => {
+    if (!engine) return window.location.href
+    return buildShareUrl(
+      window.location,
+      workingCreation(engine.kit, engine.getPattern(), engine.getTempo()),
+    )
+  }, [engine])
+
   if (!engine || !pattern) {
     return (
       <main className={styles.stage}>
@@ -81,7 +102,7 @@ export function HomePage() {
 
   return (
     <main className={styles.stage}>
-      <TopBar />
+      <TopBar getShareUrl={getShareUrl} />
       <Grid kit={engine.kit} pattern={pattern} onToggleCell={toggleCell} />
       <Transport
         isPlaying={isPlaying}

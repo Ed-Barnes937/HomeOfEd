@@ -68,6 +68,9 @@
 }
 
 .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 11px 20px;
   border: none;
   border-radius: var(--r-control);
@@ -81,6 +84,32 @@
   @media (max-width: 1279px) {
     padding: 10px 16px;
     font-size: 13px;
+  }
+}
+
+// "Copied!" (design handoff §5 + the Motion table): cyan fill, check + label,
+// one pop, holds 1.6s. No toast, no modal.
+.copied {
+  background: var(--cyan-solid);
+  color: #fff;
+  animation: boopPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes boopPop {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.06);
+  }
+
+  100% {
+    transform: scale(1);
   }
 }
 
