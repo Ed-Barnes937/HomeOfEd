@@ -19,6 +19,12 @@ export interface TopBarProps {
   onOpenGrooves: () => void
   /** Opens the hint sheet (ticket 24). */
   onOpenHints: () => void
+  /**
+   * Renders the pattern to a WAV file and hands it to the share sheet
+   * (mobile) or a download (desktop) — the demoted secondary under Share
+   * (ticket 25, design handoff §5).
+   */
+  onExportWav: () => void
 }
 
 /**
@@ -28,7 +34,7 @@ export interface TopBarProps {
  * field. "My grooves" opens the grooves panel (ticket 20). "?" opens the
  * hint sheet (ticket 24).
  */
-export function TopBar({ getShareUrl, onOpenGrooves, onOpenHints }: TopBarProps) {
+export function TopBar({ getShareUrl, onOpenGrooves, onOpenHints, onExportWav }: TopBarProps) {
   const [shareState, setShareState] = useState<ShareState>('idle')
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -86,34 +92,44 @@ export function TopBar({ getShareUrl, onOpenGrooves, onOpenHints }: TopBarProps)
       >
         My grooves
       </button>
-      <button
-        type="button"
-        className={`${styles.primary}${copied ? ` ${styles.copied}` : ''}`}
-        data-testid="share-button"
-        data-share-state={shareState}
-        onClick={share}
-      >
-        {copied ? (
-          <>
-            <svg
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="m5 13 4 4L19 7" />
-            </svg>
-            Copied!
-          </>
-        ) : (
-          'Share'
-        )}
-      </button>
+      <div className={styles.shareGroup}>
+        <button
+          type="button"
+          className={`${styles.primary}${copied ? ` ${styles.copied}` : ''}`}
+          data-testid="share-button"
+          data-share-state={shareState}
+          onClick={share}
+        >
+          {copied ? (
+            <>
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m5 13 4 4L19 7" />
+              </svg>
+              Copied!
+            </>
+          ) : (
+            'Share'
+          )}
+        </button>
+        <button
+          type="button"
+          className={styles.exportLink}
+          data-testid="export-wav-button"
+          onClick={onExportWav}
+        >
+          Save the sound as a file
+        </button>
+      </div>
       <button
         type="button"
         className={styles.help}

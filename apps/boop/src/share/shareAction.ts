@@ -51,7 +51,8 @@ export function navigatorShareTarget(nav: Navigator): ShareTarget {
   }
 }
 
-function isAbort(error: unknown): boolean {
+/** A cancelled OS share sheet, on both `shareAction` and `exportAction`'s share paths. */
+export function isAbort(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&

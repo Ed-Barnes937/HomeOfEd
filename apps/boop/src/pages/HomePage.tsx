@@ -3,6 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
 import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
+import { exportGrooveWav, navigatorExportTarget } from '../export/exportAction.ts'
+import { DEFAULT_SAMPLE_RATE, renderGrooveWav } from '../export/renderGrooveWav.ts'
+import { webAudioSampleDecoder } from '../export/sampleDecoder.ts'
 import { Grid } from '../features/grid/Grid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { GroovesPanel } from '../features/grooves/GroovesPanel.tsx'
@@ -132,6 +135,30 @@ export function HomePage() {
     return { kit: engine.kit, pattern: engine.getPattern(), tempo: engine.getTempo() }
   }, [engine])
 
+  /**
+   * The demoted "Save the sound as a file" link under Share (ticket 25): an
+   * offline render of the pattern to WAV, then the share sheet on mobile or
+   * a download on desktop. `exporting` guards against a double-tap kicking
+   * off a second render while the first is still decoding.
+   */
+  const exporting = useRef(false)
+  const exportWav = useCallback(() => {
+    if (!engine || exporting.current) return
+    exporting.current = true
+    const kit = engine.kit
+    const pattern = engine.getPattern()
+    const bpm = engine.getTempo()
+    void (async () => {
+      try {
+        const context = new OfflineAudioContext(1, 1, DEFAULT_SAMPLE_RATE)
+        const blob = await renderGrooveWav({ kit, pattern, bpm, decode: webAudioSampleDecoder(context) })
+        await exportGrooveWav(blob, 'groove.wav', navigatorExportTarget(navigator, document))
+      } finally {
+        exporting.current = false
+      }
+    })()
+  }, [engine])
+
   const loadGroove = useCallback(
     (creation: StoredCreation) => {
       if (!engine) return
@@ -159,6 +186,7 @@ export function HomePage() {
         getShareUrl={getShareUrl}
         onOpenGrooves={() => setShowGrooves(true)}
         onOpenHints={() => setHintsOpen(true)}
+        onExportWav={exportWav}
       />
       <Grid
         kit={engine.kit}

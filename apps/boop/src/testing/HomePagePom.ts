@@ -15,6 +15,7 @@ export class HomePagePom extends BasePage {
   private readonly confirmSafeButton = this.page.getByTestId('confirm-safe-button')
   private readonly confirmDestructiveButton = this.page.getByTestId('confirm-destructive-button')
   private readonly shareButton = this.page.getByTestId('share-button')
+  private readonly exportWavButton = this.page.getByTestId('export-wav-button')
   private readonly groovesButton = this.page.getByTestId('grooves-button')
   private readonly saveGrooveButton = this.page.getByTestId('save-groove-button')
   private readonly groovesCloseButton = this.page.getByTestId('grooves-close-button')
@@ -212,6 +213,18 @@ export class HomePagePom extends BasePage {
   /** The link the Share button put on the clipboard. */
   async readCopiedShareLink(): Promise<string> {
     return this.page.evaluate(() => navigator.clipboard.readText())
+  }
+
+  async pressExportWav(): Promise<void> {
+    await this.exportWavButton.click()
+  }
+
+  /** The demoted export link sits below the Share button, not beside it. */
+  async verifyExportLinkBelowShare(): Promise<void> {
+    const shareBox = await this.shareButton.boundingBox()
+    const exportBox = await this.exportWavButton.boundingBox()
+    if (!shareBox || !exportBox) throw new Error('share or export button is not visible')
+    expect(exportBox.y).toBeGreaterThan(shareBox.y + shareBox.height / 2)
   }
 
   /**
