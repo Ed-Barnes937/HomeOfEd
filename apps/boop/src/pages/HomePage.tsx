@@ -5,6 +5,7 @@ import { useEngine } from '../engine/EngineContext.tsx'
 import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { Grid } from '../features/grid/Grid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
+import { HintSheet } from '../features/hints/HintSheet.tsx'
 import { PresetRow } from '../features/presets/PresetRow.tsx'
 import { PRESETS, presetPattern, type PresetId } from '../features/presets/presets.ts'
 import { TopBar } from '../features/topbar/TopBar.tsx'
@@ -35,6 +36,7 @@ export function HomePage() {
   // Bumped on every preset load (including blank) so the grid can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
+  const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
 
   // A shared groove is decoded on the first render, before the first restore,
@@ -132,7 +134,7 @@ export function HomePage() {
 
   return (
     <main className={styles.stage}>
-      <TopBar getShareUrl={getShareUrl} />
+      <TopBar getShareUrl={getShareUrl} onOpenHints={() => setHintsOpen(true)} />
       <Grid
         kit={engine.kit}
         pattern={pattern}
@@ -150,6 +152,7 @@ export function HomePage() {
         onClearAll={clearAll}
       />
       <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+      <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>
   )
 }

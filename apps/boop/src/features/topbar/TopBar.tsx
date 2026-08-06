@@ -15,15 +15,18 @@ export interface TopBarProps {
    * render, so encoding the grid never rides along with playback repaints.
    */
   getShareUrl: () => string
+  /** Opens the hint sheet (ticket 24). */
+  onOpenHints: () => void
 }
 
 /**
  * The top bar: back-to-hub arrow, wordmark, and the chrome buttons from the
  * design handoff. "Share" is live (ticket 21) — the system share sheet on
  * mobile, clipboard plus a "Copied!" flip on desktop, no modal and no link
- * field. "My grooves" and "?" are still style-only placeholders.
+ * field. "?" opens the hint sheet (ticket 24). "My grooves" is still a
+ * style-only placeholder.
  */
-export function TopBar({ getShareUrl }: TopBarProps) {
+export function TopBar({ getShareUrl, onOpenHints }: TopBarProps) {
   const [shareState, setShareState] = useState<ShareState>('idle')
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -104,7 +107,13 @@ export function TopBar({ getShareUrl }: TopBarProps) {
           'Share'
         )}
       </button>
-      <button type="button" className={styles.help} aria-label="How boop works" aria-disabled="true">
+      <button
+        type="button"
+        className={styles.help}
+        aria-label="How boop works"
+        data-testid="help-button"
+        onClick={onOpenHints}
+      >
         ?
       </button>
     </header>
