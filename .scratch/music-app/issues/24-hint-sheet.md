@@ -12,10 +12,23 @@ boop works" (menu built in ticket 27).
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] "?" affordance in a quiet corner opens the sheet; easy touch dismiss
-- [ ] One static screen, few words, picture-led (placeholder pictures fine)
-- [ ] Covers at most: paint the grid, press play, tempo, share
-- [ ] Never auto-opens; nothing else in the app depends on it
-- [ ] Open/dismiss covered by a whole-frontend test
+- [x] "?" affordance in a quiet corner opens the sheet; easy touch dismiss
+- [x] One static screen, few words, picture-led (placeholder pictures fine)
+- [x] Covers at most: paint the grid, press play, tempo, share
+- [x] Never auto-opens; nothing else in the app depends on it
+- [x] Open/dismiss covered by a whole-frontend test
+
+## Comments
+
+Resolved 2026-08-06 (agent, Sonnet, worktree branch `t24-hint-sheet`,
+commit `5ead857`, merged as `16707d9`). HintSheet component (paper tokens,
+ConfirmCard overlay idiom): one static screen, four picture-led hints
+(paint / play / tempo / share) with placeholder inline SVGs; dismiss via
+close button, backdrop tap, or Escape; never auto-opens (dedicated test).
+TopBar "?" wired live. 4 new iwft tests. Content is explicitly first-pass —
+the design handoff excludes hint-sheet content — **flagged for design
+follow-up**. Commit was delayed by the recurring 1Password signing outage;
+committed signed on recovery. Gate re-verified by orchestrator post-merge:
+lint/typecheck clean, vitest 150/150, playwright CT 33/33.

@@ -12,7 +12,7 @@ explicitly allows it) rather than shipping a desktop-only export.
 **Blocked by:** 18 — Launch kit content; 21 — URL-hash share links (the Share
 affordance it nests under).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Spike first: offline render + share-sheet delivery proven on real
       mobile Safari before building the full feature
