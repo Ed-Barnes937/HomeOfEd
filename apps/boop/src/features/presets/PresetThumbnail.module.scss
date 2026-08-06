@@ -1,0 +1,32 @@
+// Dot matrix from the design handoff ("Preset row" — "Thumbnail"): 8px pitch,
+// dot size round(8 x 0.55) = 4px at laptop, so the gap between dots is 4px.
+.matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.13);
+
+  &[data-active='true'] {
+    background: var(--dot-color);
+  }
+}
+
+// Tablet pitch drops to 7px (design handoff, "Main screen — tablet" table);
+// dot size stays round(7 x 0.55) = 4px, so only the gap tightens.
+@media (max-width: 1279px) {
+  .matrix,
+  .row {
+    gap: 3px;
+  }
+}

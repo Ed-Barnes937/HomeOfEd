@@ -65,6 +65,22 @@ export class HomePagePom extends BasePage {
     await this.confirmDestructiveButton.click()
   }
 
+  presetCard(presetId: string) {
+    return this.page.getByTestId(`preset-card-${presetId}`)
+  }
+
+  async loadPreset(presetId: string): Promise<void> {
+    await this.presetCard(presetId).click()
+  }
+
+  async verifyPresetLoaded(presetId: string): Promise<void> {
+    await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'true')
+  }
+
+  async verifyPresetNotLoaded(presetId: string): Promise<void> {
+    await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'false')
+  }
+
   async verifyCellOn(instrumentId: string, step: number): Promise<void> {
     await expect(this.cell(instrumentId, step)).toHaveAttribute('data-active', 'true')
   }
@@ -149,6 +165,12 @@ export class HomePagePom extends BasePage {
   async readAutosavedGrid(): Promise<StoredCreation | null> {
     const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)
     return parseSaveDocument(raw).working
+  }
+
+  /** The "My grooves" list — separate from the working grid a preset load may replace. */
+  async readSavedCreations(): Promise<readonly StoredCreation[]> {
+    const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)
+    return parseSaveDocument(raw).creations
   }
 
   /**

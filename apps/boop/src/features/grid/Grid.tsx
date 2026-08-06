@@ -8,28 +8,15 @@ import {
 
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
 import styles from './Grid.module.scss'
+import { ROW_COLOR_VARS } from './instrumentColors.ts'
 import { decidePaintMode, paintModeToOn, type PaintMode } from './paintMode.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
 
 const GROUP_SIZE = 4
 const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
 
-/**
- * The row colour hues from the design handoff, in the launch kit's fixed row
- * order (kick, snare, hi-hat, tom, marimba, boop). Positional, not a lookup by
- * `instrumentId` — the kit manifest has no colour field yet (kit content is a
- * separate ticket), and the engine contract must stay the only place
- * instruments are enumerated, so this indexes by row position rather than
- * naming instrument ids.
- */
-const ROW_COLOR_VARS = [
-  '--instrument-kick',
-  '--instrument-snare',
-  '--instrument-hihat',
-  '--instrument-tom',
-  '--instrument-marimba',
-  '--instrument-boop',
-] as const
+/** Preset-load stagger (design handoff, "Motion" — "Preset load"): 24ms per column. */
+const PRESET_LOAD_STAGGER_MS = 24
 
 interface GridProps {
   kit: Kit
@@ -41,6 +28,12 @@ interface GridProps {
   cellStrikes: Readonly<Record<string, number>>
   /** `instrumentId` -> strike epoch (ticket 17) — drives that row's label bob. */
   rowStrikes: Readonly<Record<string, number>>
+  /**
+   * Bumped by the caller each time a preset (including blank) is loaded —
+   * distinct from a plain edit, so the cells that land can be staggered
+   * across columns instead of all popping in at once (ticket 22).
+   */
+  loadToken: number
 }
 
 /**
@@ -55,9 +48,30 @@ interface GridProps {
  * captured to one element) so multiple fingers can paint independently and
  * `pointerenter` still fires as a pointer crosses into other cells.
  */
-export function Grid({ kit, pattern, onToggleCell, playheadStep, cellStrikes, rowStrikes }: GridProps) {
+export function Grid({
+  kit,
+  pattern,
+  onToggleCell,
+  playheadStep,
+  cellStrikes,
+  rowStrikes,
+  loadToken,
+}: GridProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
   const paintModes = useRef(new Map<number, PaintMode>())
+
+  // `isFreshLoad` is true for exactly the one render that processes a new
+  // `loadToken` — a documented React pattern (deriving from a prop change
+  // during render, without an Effect). `cellMountDelays` then makes that
+  // one-render signal "stick" for each cell's whole on-streak: a delay is
+  // recorded the moment a cell turns on during a fresh load, kept stable
+  // across later re-renders (e.g. playhead ticks) so the animation isn't cut
+  // short, and cleared the moment the cell turns off so a later manual edit
+  // of the same cell never inherits a stale stagger delay.
+  const lastLoadToken = useRef(loadToken)
+  const isFreshLoad = loadToken !== lastLoadToken.current
+  lastLoadToken.current = loadToken
+  const cellMountDelays = useRef(new Map<string, number>())
 
   useEffect(() => {
     const releasePointer = (event: PointerEvent) => paintModes.current.delete(event.pointerId)
@@ -187,6 +201,15 @@ export function Grid({ kit, pattern, onToggleCell, playheadStep, cellStrikes, ro
                         const on = row.steps[step] === true
                         const underPlayhead = step === playheadStep
                         const strikeEpoch = cellStrikes[`${row.instrumentId}:${step}`] ?? 0
+                        const cellKey = `${row.instrumentId}:${step}`
+                        if (on) {
+                          if (!cellMountDelays.current.has(cellKey)) {
+                            cellMountDelays.current.set(cellKey, isFreshLoad ? step * PRESET_LOAD_STAGGER_MS : 0)
+                          }
+                        } else {
+                          cellMountDelays.current.delete(cellKey)
+                        }
+                        const mountDelay = cellMountDelays.current.get(cellKey) ?? 0
                         return (
                           <button
                             key={step}
@@ -218,6 +241,7 @@ export function Grid({ kit, pattern, onToggleCell, playheadStep, cellStrikes, ro
                                   style={{
                                     maskImage: `url(${instrument.artwork})`,
                                     WebkitMaskImage: `url(${instrument.artwork})`,
+                                    animationDelay: mountDelay > 0 ? `${mountDelay}ms` : undefined,
                                   }}
                                 />
                               )}

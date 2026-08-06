@@ -1,0 +1,76 @@
+// Preset row from the design handoff, "Main screen — laptop" layout table
+// ("Preset row") and "Preset row" section. Small-phone's horizontally
+// scrolling variant is a separate ticket (27), matching how Grid.module.scss
+// scopes the phone treatment out of this ticket too.
+.row {
+  margin-top: 16px;
+  display: flex;
+  gap: 14px;
+}
+
+.label {
+  flex: none;
+  width: 160px;
+  padding-top: 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: rgba(242, 239, 230, 0.45);
+
+  @media (max-width: 1279px) {
+    width: 124px;
+    font-size: 11px;
+  }
+}
+
+.cards {
+  display: flex;
+  gap: 14px;
+}
+
+.card {
+  flex: none;
+  width: 168px;
+  padding: 12px;
+  border: none;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+
+  // Loaded/active (design handoff, "Preset row" — card states).
+  &[data-active='true'] {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 2px var(--cyan);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 1279px) {
+    width: 146px;
+    padding: 10px;
+  }
+}
+
+.name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+  color: rgba(242, 239, 230, 0.72);
+
+  @media (max-width: 1279px) {
+    font-size: 13px;
+  }
+}
+
+.card[data-active='true'] .name {
+  color: var(--ink);
+}
