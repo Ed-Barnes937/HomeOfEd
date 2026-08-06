@@ -15,16 +15,35 @@ Honour `prefers-reduced-motion: reduce` (playhead moves, no squash).
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Cyan playhead column hard-cuts step to step, driven by the draw-time
+- [x] Cyan playhead column hard-cuts step to step, driven by the draw-time
       channel (no DOM work in scheduler callbacks); bar numerals track the
       current bar
-- [ ] Struck cells squash per the design keyframes; row labels bob on hits
+- [x] Struck cells squash per the design keyframes; row labels bob on hits
       in their row; no strobe/flash anywhere
-- [ ] `prefers-reduced-motion` disables the squash/bob but keeps the
+- [x] `prefers-reduced-motion` disables the squash/bob but keeps the
       playhead moving
-- [ ] Playhead disappears (or rests) cleanly when stopped; play resumes
+- [x] Playhead disappears (or rests) cleanly when stopped; play resumes
       without resetting the pattern
-- [ ] Stays visually in sync after tempo changes
-- [ ] Whole-frontend test asserts the playhead advances during playback
+- [x] Stays visually in sync after tempo changes
+- [x] Whole-frontend test asserts the playhead advances during playback
+
+## Comments
+
+Resolved 2026-08-06 (agent, Sonnet). Landed in `90b3e2f` on `music-app`.
+Pure reducer (`playheadMotion.ts`, unit-tested) folds draw-time beat events
+into `{ step, cellStrikes, rowStrikes }`; `usePlayheadMotion` is the only
+onDrawBeat/onTransport subscriber — onBeat (schedule-time) is never touched
+by UI. Playhead column built to the handoff geometry per breakpoint,
+hard-cut (no transition), unmounts when stopped; squash (exact keyframes)
+and row-label bob replay via epoch-keyed remounts; both behind
+prefers-reduced-motion while the playhead keeps moving. 4 new iwft tests
+incl. a tempo-change sync test added after code review flagged the gap.
+Gate re-verified by orchestrator: lint/typecheck clean, vitest 101/101,
+playwright CT 14/14.
+
+Follow-up flagged (not in scope here): `FakeAudioDriver.fireStep` float
+drift — `clock + 0.1` accumulation makes `advanceTo`'s `<=` drop draws
+after 3+ chained fireSteps; future multi-step iwft tests will hit it.
+Candidate fix: epsilon or ms-rounding in the comparison.

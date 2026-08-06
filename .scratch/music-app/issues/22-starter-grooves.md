@@ -16,7 +16,7 @@ that `activePreset` goes back to unloaded on the first user edit.
 **Blocked by:** 13 — First sound grid; 18 — Launch kit content (presets must
 sound good on the real kit).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Preset row visible on load; blank canvas is the first item
 - [ ] The three named starter grooves authored against the launch kit —
