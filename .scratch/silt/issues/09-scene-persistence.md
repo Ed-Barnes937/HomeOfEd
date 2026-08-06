@@ -28,10 +28,32 @@ the resolved format ticket):
 
 **Blocked by:** 08 — Spawners
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Save → reload page → load restores cells (pixel-identical: `ra`/`rb` kept), spawners, entering paused
-- [ ] Round-trip, remap-unknown-element, dimension-mismatch (paste and refuse), and quota-failure behaviours covered by tests
-- [ ] Popover supports save, load, rename, second-click delete, thumbnails
-- [ ] Boot reconcile handles dangling index rows and orphan blobs
-- [ ] `*.iwft` covers paint → save → reload → load; lint/typecheck/tests green
+- [x] Save → reload page → load restores cells (pixel-identical: `ra`/`rb` kept), spawners, entering paused
+- [x] Round-trip, remap-unknown-element, dimension-mismatch (paste and refuse), and quota-failure behaviours covered by tests
+- [x] Popover supports save, load, rename, second-click delete, thumbnails
+- [x] Boot reconcile handles dangling index rows and orphan blobs
+- [x] `*.iwft` covers paint → save → reload → load; lint/typecheck/tests green
+
+## Comments
+
+Resolved in commit `5b0a9eb` (Opus agent). `features/scenes/` — `sceneCodec.ts`
+(pure, headless, DOM-free), `sceneStore.ts` (localStorage layer),
+`useScenes.ts` (React seam), `ScenesPopover.tsx`. **ADR 0025 — Silt scene
+persistence** records the decisions.
+
+Every spec §8 trap is covered by a named test: round-trip pixel-identical with
+`ra`/`rb` kept; remap by NAME not id when the registry has renumbered; unknown
+element name → empty cell + warning, load still succeeds; spawner with a gone
+element dropped and unknown spawner fields tolerated; smaller scene pasted
+bottom-centre with spawner coords offset; larger scene refused, naming both
+sizes; unparseable JSON / unknown version / short plane all refused. Storage
+side: blob written before index, quota-full reported as an actionable message
+writing nothing, a scene kept when only its thumbnail won't fit, blob freed
+before the index is rewritten so a full quota is escapable, reconcile drops
+dangling index rows and adopts orphan blobs, a corrupt index survived, and a
+scene whose blob is gone is refused rather than silently read as empty.
+
+Gate run by the orchestrator on the merged 09+10 tree: lint/typecheck clean,
+105 vitest + 23 iwft green.
