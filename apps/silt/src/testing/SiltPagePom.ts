@@ -44,6 +44,40 @@ export class SiltPagePom extends BasePage {
     return pressed === 'true'
   }
 
+  async enterSpawnerMode(): Promise<void> {
+    await this.page.getByTestId('mode-spawner').click()
+  }
+
+  async enterPaintMode(): Promise<void> {
+    await this.page.getByTestId('mode-paint').click()
+  }
+
+  async isSpawnerModeSelected(): Promise<boolean> {
+    const pressed = await this.page.getByTestId('mode-spawner').getAttribute('aria-pressed')
+    return pressed === 'true'
+  }
+
+  /** Clicks a grid cell — in spawner mode this places or removes a spawner (spec §7). */
+  async clickCell(x: number, y: number): Promise<void> {
+    await this.paintCell(x, y)
+  }
+
+  async verifySpawnerAt(x: number, y: number): Promise<void> {
+    await expect(this.page.getByTestId(`spawner-${x}-${y}`)).toBeVisible()
+  }
+
+  async verifyNoSpawnerAt(x: number, y: number): Promise<void> {
+    await expect(this.page.getByTestId(`spawner-${x}-${y}`)).toHaveCount(0)
+  }
+
+  async spawnerCount(): Promise<string> {
+    return this.statusText('status-spawners')
+  }
+
+  async modeText(): Promise<string> {
+    return this.statusText('status-mode')
+  }
+
   async step(): Promise<void> {
     await this.stepButton.click()
   }
