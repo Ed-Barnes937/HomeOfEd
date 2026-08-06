@@ -9,6 +9,9 @@ export class HomePagePom extends BasePage {
   private readonly playButton = this.page.getByTestId('play-button')
   private readonly tempoSlider = this.page.getByTestId('tempo-slider')
   private readonly tempoReadout = this.page.getByTestId('tempo-readout')
+  private readonly clearGridButton = this.page.getByTestId('clear-grid-button')
+  private readonly confirmSafeButton = this.page.getByTestId('confirm-safe-button')
+  private readonly confirmDestructiveButton = this.page.getByTestId('confirm-destructive-button')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
@@ -21,6 +24,43 @@ export class HomePagePom extends BasePage {
 
   async toggleCell(instrumentId: string, step: number): Promise<void> {
     await this.cell(instrumentId, step).click()
+  }
+
+  /**
+   * Drag-paint across a run of steps on one row, real mouse-down/move/up so
+   * the browser generates the pointerdown/pointerenter sequence the grid's
+   * latched drag-paint listens for — pointer-down on `steps[0]` decides
+   * add-or-remove, then every later step in `steps` gets that same decision.
+   */
+  async dragPaint(instrumentId: string, steps: number[]): Promise<void> {
+    const [first, ...rest] = steps
+    if (first === undefined) return
+    const startBox = await this.cell(instrumentId, first).boundingBox()
+    if (!startBox) throw new Error(`cell ${instrumentId}-${first} is not visible`)
+    await this.page.mouse.move(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2)
+    await this.page.mouse.down()
+    for (const step of rest) {
+      const box = await this.cell(instrumentId, step).boundingBox()
+      if (!box) throw new Error(`cell ${instrumentId}-${step} is not visible`)
+      await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    }
+    await this.page.mouse.up()
+  }
+
+  async openClearGridConfirm(): Promise<void> {
+    await this.clearGridButton.click()
+  }
+
+  async verifyClearGridConfirmShown(): Promise<void> {
+    await expect(this.page.getByText('Clear the whole grid?')).toBeVisible()
+  }
+
+  async keepPlaying(): Promise<void> {
+    await this.confirmSafeButton.click()
+  }
+
+  async clearIt(): Promise<void> {
+    await this.confirmDestructiveButton.click()
   }
 
   async verifyCellOn(instrumentId: string, step: number): Promise<void> {

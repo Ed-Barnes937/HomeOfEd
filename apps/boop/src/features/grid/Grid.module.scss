@@ -54,6 +54,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  // Scoped to the grid only (never document-level or user-scalable=no), so
+  // drag-paint doesn't trigger the page's touch scroll/zoom gestures while
+  // pinch-zoom elsewhere on the page keeps working.
+  touch-action: none;
 
   @media (max-width: 1279px) {
     gap: 8px;
@@ -195,9 +199,26 @@
   -webkit-mask-size: contain;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
+  // Edit-pop (design handoff, "Motion" — "Edit while stopped"): the artwork
+  // mounts fresh every time a cell turns on, so this plays once per paint —
+  // painting and hearing are one event.
+  animation: cellPop 140ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   @media (max-width: 1279px) {
     width: 24px;
     height: 24px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes cellPop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
   }
 }

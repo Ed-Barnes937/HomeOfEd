@@ -1,5 +1,6 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 
+import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import { bpmToPercent, percentToBpm } from './tempoScale.ts'
 import styles from './Transport.module.scss'
 
@@ -8,15 +9,18 @@ interface TransportProps {
   onToggle: () => void
   bpm: number
   onTempoChange: (bpm: number) => void
+  onClearAll: () => void
 }
 
 /**
- * The transport bar. Ticket 16 adds the tempo slider — clear-grid lands in a
- * later ticket. Loop is unconditional: the play/pause button is the entire
- * transport, no stop/restart/record. No swing control — never add one.
+ * The transport bar. Loop is unconditional: the play/pause button is the
+ * entire transport, no stop/restart/record. No swing control — never add
+ * one. Clear-grid (ticket 15) sits behind the divider, dashed and coral so it
+ * is never mistakable for "play from the top" (spec: "The grid" — clear-all).
  */
-export function Transport({ isPlaying, onToggle, bpm, onTempoChange }: TransportProps) {
+export function Transport({ isPlaying, onToggle, bpm, onTempoChange, onClearAll }: TransportProps) {
   const percent = bpmToPercent(bpm)
+  const [confirmingClear, setConfirmingClear] = useState(false)
 
   return (
     <div className={styles.bar}>
@@ -64,6 +68,28 @@ export function Transport({ isPlaying, onToggle, bpm, onTempoChange }: Transport
           <span className={styles.tempoEndpoint}>Fast</span>
         </div>
       </div>
+      <div className={styles.divider} aria-hidden="true" />
+      <button
+        type="button"
+        className={styles.clear}
+        onClick={() => setConfirmingClear(true)}
+        data-testid="clear-grid-button"
+      >
+        Clear grid
+      </button>
+      {confirmingClear && (
+        <ConfirmCard
+          title="Clear the whole grid?"
+          message="Every step comes off. Saved grooves stay."
+          safeLabel="Keep playing"
+          destructiveLabel="Clear it"
+          onSafe={() => setConfirmingClear(false)}
+          onDestructive={() => {
+            onClearAll()
+            setConfirmingClear(false)
+          }}
+        />
+      )}
     </div>
   )
 }

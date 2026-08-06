@@ -60,6 +60,12 @@ export function HomePage() {
     [engine],
   )
 
+  const clearAll = useCallback(() => {
+    if (!engine) return
+    engine.setPattern(engine.getPattern().map((row) => ({ ...row, steps: row.steps.map(() => false) })))
+    setPattern(engine.getPattern())
+  }, [engine])
+
   if (!engine || !pattern) {
     return (
       <main className={styles.stage}>
@@ -72,7 +78,13 @@ export function HomePage() {
     <main className={styles.stage}>
       <TopBar />
       <Grid kit={engine.kit} pattern={pattern} onToggleCell={toggleCell} />
-      <Transport isPlaying={isPlaying} onToggle={togglePlay} bpm={bpm} onTempoChange={changeTempo} />
+      <Transport
+        isPlaying={isPlaying}
+        onToggle={togglePlay}
+        bpm={bpm}
+        onTempoChange={changeTempo}
+        onClearAll={clearAll}
+      />
     </main>
   )
 }
