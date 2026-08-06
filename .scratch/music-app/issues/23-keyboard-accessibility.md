@@ -12,13 +12,30 @@ paper) and flag it for design review rather than inventing a new idiom.
 
 **Blocked by:** 15 — Grid feel.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Grid container has `role="application"` and a self-describing
+- [x] Grid container has `role="application"` and a self-describing
       `aria-label` stating the keyboard contract
-- [ ] Arrow keys move the grid cursor; Enter toggles; Backspace removes
-- [ ] Spacebar toggles play globally, with `preventDefault` so it never
+- [x] Arrow keys move the grid cursor; Enter toggles; Backspace removes
+- [x] Spacebar toggles play globally, with `preventDefault` so it never
       scrolls or re-triggers a focused button
-- [ ] Focus rings visible on keyboard use
-- [ ] No flashing imagery anywhere in the app
-- [ ] Keyboard path covered by a whole-frontend test
+- [x] Focus rings visible on keyboard use
+- [x] No flashing imagery anywhere in the app
+- [x] Keyboard path covered by a whole-frontend test
+
+## Comments
+
+Resolved 2026-08-06 (agent, Sonnet). Landed in `02b94b5` on `music-app`.
+`useGridKeyboardNav` shared by Grid and PhoneGrid: arrows move focus
+(clamped at edges, native buttons so rings follow focus — no roving
+tabindex needed), Backspace force-removes, Enter rode the existing
+click-with-detail-0 path. Global Space listener with preventDefault,
+exempting editable targets via pure `isEditableTarget` (rename field still
+types spaces — iwft-tested). aria-label now states the full keyboard
+contract on both grids. Focus ring corrected from `--cyan` to
+`--cyan-solid` (pre-existing token misuse from ticket 15; visual still
+placeholder — **flagged for design review** per the handoff's explicit
+focus-ring gap). No-flashing audit: every @keyframes in the app checked —
+all single-shot transform animations, none loop or strobe, all respect
+prefers-reduced-motion. 6 new keyboard iwft tests. Gate re-verified by
+orchestrator: lint/typecheck clean, vitest 199/199, playwright CT 50/50.
