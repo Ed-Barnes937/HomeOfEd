@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { BRUSH_WIDTHS, paletteEntries, paletteGroups } from '../features/palette/paletteGroups.ts'
+import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
+import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
 import { type Spawner } from '../features/spawners/spawners.ts'
 import { EMPTY, GRID_HEIGHT, GRID_WIDTH, SAND } from '../sim/index.ts'
@@ -26,6 +28,8 @@ export function HomePage() {
   const [cursor, setCursor] = useState<CursorInfo | null>(null)
   const [fps, setFps] = useState(0)
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
+  const [scenesOpen, setScenesOpen] = useState(false)
+  const [sceneName, setSceneName] = useState('untitled')
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
@@ -43,12 +47,27 @@ export function HomePage() {
     onSpawnersChange: setSpawners,
   })
 
+  const scenes = useScenes({
+    saveScene: controls.saveScene,
+    loadScene: controls.loadScene,
+    // A load always enters paused (spec §8), and the world it brought in is
+    // not a first visit any more.
+    onLoaded: (name) => {
+      setRunning(false)
+      setSceneName(name)
+      setHasPainted(true)
+      setScenesOpen(false)
+    },
+  })
+
   // Latest-value refs so the keydown listener below can be registered once
   // (with an empty dependency array) instead of re-binding on every render.
   const runningRef = useRef(running)
   runningRef.current = running
   const controlsRef = useRef(controls)
   controlsRef.current = controls
+  const saveSceneRef = useRef(scenes.save)
+  saveSceneRef.current = scenes.save
 
   const armReset = (): void => {
     if (!resetArmed) {
@@ -69,6 +88,19 @@ export function HomePage() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault()
+        setScenesOpen(true)
+        saveSceneRef.current()
+        return
+      }
+      // The scene rename field is a text input: single-key tools would eat
+      // what is being typed into it.
+      if (event.target instanceof HTMLInputElement) return
+      if (event.key === 'Escape') {
+        setScenesOpen(false)
+        return
+      }
       if (event.key >= '1' && event.key <= '9') {
         const entry = paletteEntries[Number(event.key) - 1]
         if (entry) {
@@ -122,7 +154,9 @@ export function HomePage() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <span className={styles.title}>SILT</span>
-          <span className={styles.sceneName}>untitled</span>
+          <span className={styles.sceneName} data-testid="scene-name">
+            {sceneName}
+          </span>
         </div>
         <div className={styles.headerControls}>
           <button
@@ -151,15 +185,28 @@ export function HomePage() {
             {resetArmed ? 'confirm?' : 'reset'}
           </button>
         </div>
-        <button
-          type="button"
-          className={styles.headerButton}
-          data-testid="scenes-button"
-          disabled
-          title="scenes (ticket 09)"
-        >
-          scenes
-        </button>
+        <div className={styles.scenesAnchor}>
+          <button
+            type="button"
+            className={styles.headerButton}
+            data-testid="scenes-button"
+            aria-expanded={scenesOpen}
+            onClick={() => setScenesOpen((open) => !open)}
+          >
+            scenes
+          </button>
+          {scenesOpen ? (
+            <ScenesPopover
+              scenes={scenes.scenes}
+              status={scenes.status}
+              onSave={scenes.save}
+              onLoad={scenes.load}
+              onRename={scenes.rename}
+              onDelete={scenes.remove}
+              onClose={() => setScenesOpen(false)}
+            />
+          ) : null}
+        </div>
       </header>
 
       <div className={styles.body}>

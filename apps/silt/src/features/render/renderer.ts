@@ -79,6 +79,15 @@ export class SimRenderer {
     return canvasPointToGrid(this.fit, GRID_WIDTH, GRID_HEIGHT, x, y)
   }
 
+  /**
+   * The world as a PNG data URL, one pixel per cell — the scene-row thumbnail
+   * (spec §9). Reads the buffer the last `draw` filled, so it costs an encode
+   * and nothing else.
+   */
+  snapshot(): string {
+    return this.buffer.toDataURL('image/png')
+  }
+
   /** Rasterise the grid into the backing buffer, then blit it scaled and letterboxed. */
   draw(sim: RenderableSim): void {
     const { cells } = sim

@@ -24,6 +24,12 @@ export interface ResolvedLifetime {
 export interface ElementRegistry {
   /** `undefined` for ids nothing is registered under. */
   get(id: number): ElementDef | undefined
+  /**
+   * The roster as registered, without the engine's `empty`/`wall`
+   * pseudo-elements. Scene persistence needs both directions of the
+   * id↔name mapping, and names are what survive an id renumbering.
+   */
+  all(): readonly ElementDef[]
   has(id: number, tag: string): boolean
   /** `undefined` for archetypes that cannot be displaced (static, wall). */
   density(id: number): number | undefined
@@ -276,8 +282,11 @@ export function createRegistry(
   const pairs = resolvePairs(defs, byName, reactions)
   const lifetimes = resolveLifetimes(defs, byName)
 
+  const roster = [...defs]
+
   return {
     get: (id) => byId.get(id),
+    all: () => roster,
     has: (id, tag) => tagsById.get(id)?.has(tag) ?? false,
     density: (id) => densityById.get(id),
     reactionFor: (a, b) => pairs.get(pairKey(a, b)),

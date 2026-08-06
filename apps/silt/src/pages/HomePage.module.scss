@@ -77,6 +77,12 @@ $font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   }
 }
 
+// Positioning context for the scenes popover, which hangs off the header
+// button rather than floating over the world.
+.scenesAnchor {
+  position: relative;
+}
+
 .armed {
   background: $destructive;
   color: $paper;

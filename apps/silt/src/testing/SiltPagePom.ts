@@ -113,6 +113,65 @@ export class SiltPagePom extends BasePage {
     await expect(this.firstVisitHint).toHaveCount(0)
   }
 
+  // ---- scenes popover (spec §9) ----------------------------------------
+
+  async openScenes(): Promise<void> {
+    await this.page.getByTestId('scenes-button').click()
+    await expect(this.page.getByTestId('scenes-popover')).toBeVisible()
+  }
+
+  async closeScenes(): Promise<void> {
+    await this.page.getByTestId('scenes-close').click()
+    await expect(this.page.getByTestId('scenes-popover')).toHaveCount(0)
+  }
+
+  async saveScene(): Promise<void> {
+    await this.page.getByTestId('scene-save').click()
+  }
+
+  async loadScene(name: string): Promise<void> {
+    await this.page.getByTestId(`scene-load-${name}`).click()
+  }
+
+  async verifySceneRow(name: string): Promise<void> {
+    await expect(this.page.getByTestId(`scene-row-${name}`)).toBeVisible()
+  }
+
+  async verifyNoSceneRow(name: string): Promise<void> {
+    await expect(this.page.getByTestId(`scene-row-${name}`)).toHaveCount(0)
+  }
+
+  async verifySceneThumbnail(name: string): Promise<void> {
+    const src = await this.page
+      .getByTestId(`scene-row-${name}`)
+      .getByTestId('scene-thumb')
+      .getAttribute('src')
+    expect(src).toMatch(/^data:image\/png;base64,/)
+  }
+
+  async renameScene(from: string, to: string): Promise<void> {
+    const field = this.page.getByTestId(`scene-name-${from}`)
+    await field.fill(to)
+    await field.press('Enter')
+  }
+
+  /** One click arms, the second deletes — the required confirm (spec §9). */
+  async deleteScene(name: string): Promise<void> {
+    const button = this.page.getByTestId(`scene-delete-${name}`)
+    await button.click()
+    await expect(button).toHaveText(/sure/)
+    await button.click()
+  }
+
+  async sceneStatus(): Promise<string> {
+    return this.statusText('scenes-status')
+  }
+
+  /** The scene name shown in the header. */
+  async headerSceneName(): Promise<string> {
+    return this.statusText('scene-name')
+  }
+
   async statusText(testId: string): Promise<string> {
     return (await this.page.getByTestId(testId).textContent()) ?? ''
   }

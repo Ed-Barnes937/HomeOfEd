@@ -26,6 +26,8 @@ src/
     main.ts         prod entrypoint: createAppServer + shallow /health
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
   pages/ features/  UI — SCSS modules, TanStack Router routes, query options
+    features/scenes/  scene persistence: sceneCodec (pure format), sceneStore
+                      (localStorage + quota), useScenes (page state), the popover
   testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
   greeting.iwft.tsx whole-frontend tests via the in-browser backend
 vite.config.ts      react + simulatorPlugin (dev simulator mode)
@@ -89,7 +91,24 @@ Rules that are easy to break by accident:
 - **Byte ownership**: `lifetime` owns `ra` (engine-managed — an element never
   writes it; `0` means "not seeded yet"), colour variant owns `rb`. New per-cell
   fields are parallel grids; the cell never widens past 4 bytes.
-- **Species ids are pinned** — they go straight into localStorage scenes.
+- **Species ids are pinned**, but scenes remap by *name*: the envelope's
+  `elements` table records what each byte meant, so renumbering an id is safe
+  and renaming an element silently empties those cells (with a warning).
+
+## Scene persistence (`src/features/scenes/`)
+
+Spec §8; the calls the spec leaves open are in
+[ADR 0025](../../docs/adr/0025-silt-scene-persistence.md).
+
+- `sceneCodec.ts` is **pure and DOM-free** — keep it that way; it is why the
+  remap, dimension-mismatch and corruption rules are vitest cases, not browser
+  ones. `decodeScene` hands back planes already sized to the current grid.
+- `sceneStore.ts` talks to `localStorage` through the `SceneStorage` interface,
+  writes the blob **before** the index, and turns quota errors into
+  "storage full, delete a scene".
+- **Never destructive on failure**: a scene that will not load keeps its blob
+  and its row, and gains an error. A load always enters paused.
+- `ra`/`rb` are persisted; `clock` is not (it is zeroed by `Sim.restore`).
 
 ## Commands
 

@@ -118,6 +118,35 @@ export class Sim {
   }
 
   /**
+   * Replace the world with saved planes (ticket 09). The three planes are
+   * full-grid and separate — `clock` is not among them, because it is
+   * bookkeeping for a tick that is not happening: everything lands on the
+   * freshly cleared generation 0. Every occupied cell is activated, so the
+   * first tick after a load scans the world it was handed rather than a
+   * sleeping one.
+   */
+  restore(species: Uint8Array, ra: Uint8Array, rb: Uint8Array): void {
+    const size = this.width * this.height
+    if (species.length !== size || ra.length !== size || rb.length !== size) {
+      throw new Error(`restore expects three planes of ${size} bytes`)
+    }
+
+    this.clear()
+    const grid = this.#grid
+    for (let i = 0; i < size; i++) {
+      const id = species[i]!
+      if (id === EMPTY) continue
+      if (!this.registry.get(id)) throw new Error(`unknown species ${id}`)
+      const x = i % this.width
+      const y = (i / this.width) | 0
+      grid.write(x, y, id, this.#settledClock())
+      grid.setRa(x, y, ra[i]!)
+      grid.setRb(x, y, rb[i]!)
+      grid.chunks.activate(x, y)
+    }
+  }
+
+  /**
    * One fixed-timestep step, chunk by chunk.
    *
    * Chunk rows run bottom-up and cell rows within a chunk run bottom-up, so a

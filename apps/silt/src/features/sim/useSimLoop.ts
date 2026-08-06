@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react'
 
 import { FixedTimestep, GRID_WIDTH, MS_PER_TICK, Sim } from '../../sim/index.ts'
 import { SimRenderer } from '../render/renderer.ts'
+import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
 import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
 
 /**
@@ -77,6 +78,15 @@ export interface UseSimLoopControls {
   gridToCanvasPoint: (x: number, y: number) => { x: number; y: number } | null
   /** CSS px per cell, matching `CursorInfo.cellSize` — for sizing spawner chrome. */
   cellSize: () => number
+  /** The world and its spawners as a scene envelope, plus a thumbnail of the last drawn frame. */
+  saveScene: () => { json: string; thumbnail: string | null }
+  /**
+   * Replace the world (and its spawners) with a saved scene. Throws
+   * `SceneLoadError` if the scene cannot be applied; otherwise returns the
+   * non-fatal warnings the load collected. The caller is responsible for
+   * entering paused — the loop never changes `running` behind React's back.
+   */
+  loadScene: (json: string) => string[]
 }
 
 /**
@@ -324,5 +334,26 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       const fit = rendererRef.current?.getFit()
       return fit ? fit.width / GRID_WIDTH : 0
     },
+    saveScene: () => {
+      const sim = requireSim(simRef.current)
+      const envelope = encodeScene(sim, spawnersRef.current, sim.registry)
+      return {
+        json: JSON.stringify(envelope),
+        thumbnail: rendererRef.current?.snapshot() ?? null,
+      }
+    },
+    loadScene: (json) => {
+      const sim = requireSim(simRef.current)
+      const scene = decodeScene(json, { width: sim.width, height: sim.height }, sim.registry)
+      sim.restore(scene.species, scene.ra, scene.rb)
+      spawnersRef.current.splice(0, spawnersRef.current.length, ...scene.spawners)
+      onSpawnersChangeRef.current?.(spawnersRef.current.slice())
+      return scene.warnings
+    },
   }
+}
+
+function requireSim(sim: Sim | null): Sim {
+  if (!sim) throw new Error('the simulation is not running yet')
+  return sim
 }
