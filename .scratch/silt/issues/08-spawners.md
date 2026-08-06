@@ -16,10 +16,32 @@
 
 **Blocked by:** 07 — UI shell: rail, header, status bar
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Place, see, and remove spawners per the brief's chrome (ghost, white outline, red-minus hover)
-- [ ] A water spawner placed while paused emits once the sim runs, and stops when paused
-- [ ] Status bar spawner count and mode readouts update
-- [ ] Reset clears spawners as well as cells
-- [ ] Behavioural test for emission; `*.iwft` for place/remove; lint/typecheck/tests green
+- [x] Place, see, and remove spawners per the brief's chrome (ghost, white outline, red-minus hover)
+- [x] A water spawner placed while paused emits once the sim runs, and stops when paused
+- [x] Status bar spawner count and mode readouts update
+- [x] Reset clears spawners as well as cells
+- [x] Behavioural test for emission; `*.iwft` for place/remove; lint/typecheck/tests green
+
+## Comments
+
+Resolved in commit `b565bda` (Sonnet agent). `features/spawners/spawners.ts`
+holds the `{x,y,element}` entity and `emitSpawners(sim, spawners)` — a plain
+function called from inside the same `timestep.advance` callback as `sim.tick`,
+gated by the existing running check, so emission stops when paused with no
+separate flag. Deliberately outside `src/sim`: spawners are feature entities,
+not engine state, and no engine file was touched. `useSimLoop` gained
+`mode: 'paint'|'spawner'`, `toggleSpawner` (click places, click on an existing
+one removes), `onSpawnersChange`, plus `gridToCanvasPoint`/`cellSize` so the
+page can draw chrome at arbitrary grid coords. Reset clears spawners.
+
+Deviations (both intentional and sound): emission only fires into an EMPTY cell,
+so a spawner can't erase a grain still on its source cell (Sandspiel Cloner
+behaviour per the prior-art doc); and selecting erase forces mode back to
+`paint` while entering spawner mode forces the tool back to `paint`. The second
+came from a real bug both code-review axes caught independently — you could
+otherwise place a spawner with `element: EMPTY` that rendered and counted like a
+working one but silently never emitted.
+
+Orchestrator gate: lint/typecheck clean, 87 vitest + 16 iwft green.
