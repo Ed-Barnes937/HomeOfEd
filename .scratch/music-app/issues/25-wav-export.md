@@ -16,8 +16,36 @@ affordance it nests under).
 
 - [ ] Spike first: offline render + share-sheet delivery proven on real
       mobile Safari before building the full feature
-- [ ] Offline render of ~4 loops at current tempo to WAV
-- [ ] Demoted placement below/behind the primary Share action
-- [ ] Share sheet on mobile, download on desktop
+- [x] Offline render of ~4 loops at current tempo to WAV
+- [x] Demoted placement below/behind the primary Share action
+- [x] Share sheet on mobile, download on desktop (built + feature-
+      detected; real-device verification outstanding)
 - [ ] If the spike fails: ticket closed as cut-from-V1 with findings
       recorded, nothing half-shipped
+
+## Comments
+
+2026-08-06 (agent, Sonnet; orchestrator note): **built, NOT resolved** —
+landed in `7f5d3f8` on `music-app`. The ticket's "spike mobile Safari
+first" step cannot be run from an agent environment, so per orchestrator
+instruction the full feature was built behind the demoted placement and
+the ship-or-cut decision is deferred to the human device test.
+
+What shipped: pure byte-tested 16-bit PCM WAV encoder; pure render/mix
+math mirroring the engine's gain staging (hard-clamp noted as NOT
+equivalent to the live Limiter); injectable decode seam; export action on
+the shareAction target idiom (canShare({files}) -> share sheet, else
+object-URL download); "Save the sound as a file" link below Share per the
+design. 27 new unit tests; export iwft drives the REAL pipeline in
+Chromium (real fetch/decode/encode/download, filename `groove.wav`).
+Verify loop green at gate: lint/typecheck clean, vitest 172/172, CT 34/34.
+
+**Outstanding HUMAN step (mobile Safari, real device):**
+1. Open boop in iOS Safari, build a short pattern.
+2. Tap "Save the sound as a file" under Share.
+   - Success: iOS share sheet opens with a playable .wav attached (or a
+     clean download fallback where canShare({files}) is false).
+   - Failure: nothing happens / silent JS error / freeze during render /
+     file doesn't play the pattern.
+3. On failure: invoke the ticket's cut-from-V1 clause — hide the
+   affordance, record findings here. Cutting still unblocks ticket 26.
