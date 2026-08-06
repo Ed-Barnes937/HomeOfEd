@@ -18,9 +18,41 @@ Agent-side after: verify `https://silt.homeofed.com` serves the app and
 **Blocked by:** 09 — Scene persistence; 10 — Mobile bottom bar and touch
 painting
 
-**Status:** claimed
+**Status:** claimed — agent half done, **blocked on the human**
 
-- [ ] Human checklist written and handed over; no infra commands run by the agent
-- [ ] CI deploys silt on merge (smoke URL passing)
-- [ ] `https://silt.homeofed.com` serves the app; `/health` ok
-- [ ] Production smoke: paint → play → save → load works in a real browser
+- [x] Human checklist written and handed over; no infra commands run by the agent
+- [ ] CI deploys silt on merge (smoke URL passing) — human
+- [ ] `https://silt.homeofed.com` serves the app; `/health` ok — human
+- [ ] Production smoke: paint → play → save → load works in a real browser — human
+
+## Comments
+
+Agent-side half complete in commit `289aac5` (Sonnet agent). Deliberately left
+**claimed, not resolved** — the remaining three boxes need the human to run
+go-live.
+
+Checklist written to **`docs/runbooks/silt-go-live.md`**, mirroring
+`phase-4-go-live.md` G4.6–G4.11 adapted to silt. Orchestrator confirmed
+`scripts/go-live.sh` exists, takes an app name and reads the Fly app from
+`fly.toml`, so the documented `scripts/go-live.sh silt` (no `--db`) is real.
+
+Config cross-check found **no defects** — nothing needed fixing, so the only
+file touched is the new runbook. `fly.toml` (`hoe-silt`, `lhr`, no
+`release_command`, shallow `/health`), the `deploy-silt` CI job (correct
+`APP_URL`, affected-check on package name `silt`, correct fly.toml path), the
+compose service (host port 8089, matching the registry) and the Dockerfile
+(turbo-prune filtered to backend-kit + logger, no `@hoe/db`) all match the
+espy/karesansui stateless shape.
+
+Container verified locally, not merely read: `docker build` succeeded,
+`docker run` served `/health` → `{"ok":true}` and the SPA index with its hashed
+asset, then torn down. Repo-wide `pnpm lint` and `pnpm typecheck` green (16/16
+each), silt tests 105 vitest + 23 CT, hub tests 8 vitest + 2 CT (ticket 01
+still fine).
+
+**Known unverifiable:** whether the `FLY_API_TOKEN` GitHub secret is org-scoped
+or still `hoe-hub`-scoped — unreadable from repo config. If it's app-scoped the
+`deploy-silt` job will fail auth; the runbook carries the remediation command.
+This matches the standing note in memory about that token.
+
+No infra commands were run.
