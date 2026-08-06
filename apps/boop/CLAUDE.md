@@ -10,10 +10,10 @@ Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
 copy base is `templates/starter`. The working grid, tempo, and saved grooves
-("My grooves") persist to `localStorage`. Sharing a groove is primarily
-URL-hash encoded (no server); a server-backed short-link fallback is a later
-ticket, modelled on `apps/fridge`'s `board.share`/`board.get` handlers
-(`apps/fridge/src/server/handlers/shareBoardHandler.ts`).
+("My grooves") persist to `localStorage`. Sharing a groove is URL-hash encoded,
+no server and no store ([ADR 0026](../../docs/adr/0026-boop-share-links.md)); a
+server-backed short link stays a possible later addition, modelled on
+`apps/fridge`'s `board.share`/`board.get` handlers.
 
 The `SequencerEngine` and the launch kit manifest have landed (ticket 12) —
 Tone.js behind a TypeScript interface, no `packages/*` extraction (the spec is
@@ -42,6 +42,9 @@ src/
     storage.ts        the localStorage seam; never throws
     autosave.ts       debounced (2 s lull) writer of the working grid
     useWorkingGrid.ts hook: restore on mount, autosave on edit, flush on pagehide
+  share/            URL-hash share links (ADR 0026) — pure, no server
+    shareLink.ts      encode/decode a creation to `#g=<base64url>`; total decode
+    shareAction.ts    share sheet vs clipboard, behind an injected ShareTarget
   pages/            HomePage — placeholder route (ticket 11); the grid page replaces it
   features/greeting/  placeholder query — replace once the sequencer's real routes land
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
@@ -103,6 +106,11 @@ share-link snapshot.
   or shares a groove goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error.
+- **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
+  whole creation lives in the fragment (`#g=<base64url>`), decoded through the
+  save format's own validator, cleared with `replaceState` once loaded. One
+  Share button: system sheet where there is one, clipboard + "Copied!"
+  otherwise. Never a modal or a "copy this link" field.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

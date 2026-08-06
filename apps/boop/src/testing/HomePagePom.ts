@@ -14,6 +14,7 @@ export class HomePagePom extends BasePage {
   private readonly clearGridButton = this.page.getByTestId('clear-grid-button')
   private readonly confirmSafeButton = this.page.getByTestId('confirm-safe-button')
   private readonly confirmDestructiveButton = this.page.getByTestId('confirm-destructive-button')
+  private readonly shareButton = this.page.getByTestId('share-button')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
@@ -186,6 +187,42 @@ export class HomePagePom extends BasePage {
         return row?.steps[step] === '1'
       })
       .toBe(true)
+  }
+
+  async pressShare(): Promise<void> {
+    await this.shareButton.click()
+  }
+
+  /** The desktop share path flips the one button's label; there is no toast. */
+  async verifyShareCopied(): Promise<void> {
+    await expect(this.shareButton).toHaveText('Copied!')
+  }
+
+  async verifyShareResting(): Promise<void> {
+    await expect(this.shareButton).toHaveText('Share')
+  }
+
+  /** The link the Share button put on the clipboard. */
+  async readCopiedShareLink(): Promise<string> {
+    return this.page.evaluate(() => navigator.clipboard.readText())
+  }
+
+  /**
+   * Forget the autosaved grid — a fresh visitor's browser. Only meaningful
+   * between a reload and the next mount: an app that is still mounted flushes
+   * its pending autosave back on the way out.
+   */
+  async clearSavedState(): Promise<void> {
+    await this.page.evaluate((key) => window.localStorage.removeItem(key), SAVE_KEY)
+  }
+
+  /** Open a share link in this page: set its fragment, then reload onto it. */
+  async openShareLink(url: string): Promise<void> {
+    const { hash } = new URL(url)
+    await this.page.evaluate((fragment) => {
+      window.location.hash = fragment
+    }, hash)
+    await this.page.reload()
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */

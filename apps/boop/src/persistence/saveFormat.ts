@@ -73,6 +73,22 @@ export function patternToStored(pattern: Pattern): StoredPattern {
   }
 }
 
+/** The working grid is unnamed until a child saves it into "My grooves". */
+export const WORKING_NAME = ''
+
+/**
+ * The creation a grid currently *is* — what the autosave writes and what a
+ * share link carries, built the one way so the two can never drift.
+ */
+export function workingCreation(kit: Kit, pattern: Pattern, tempo: number): StoredCreation {
+  return {
+    name: WORKING_NAME,
+    kitId: kit.kitId,
+    tempo,
+    patterns: [patternToStored(pattern)],
+  }
+}
+
 /**
  * Rebuild a full pattern for `kit` — one row per kit instrument, in kit order.
  * Rows the stored pattern omits come back empty and instruments the kit does
@@ -107,13 +123,15 @@ export function parseSaveDocument(raw: string | null): SaveDocument {
   if (parsed.version !== SAVE_FORMAT_VERSION) return EMPTY_DOCUMENT
 
   const working =
-    parsed.working === null || parsed.working === undefined ? null : decodeCreation(parsed.working)
+    parsed.working === null || parsed.working === undefined
+      ? null
+      : decodeStoredCreation(parsed.working)
   if (working === undefined) return EMPTY_DOCUMENT
 
   if (!Array.isArray(parsed.creations)) return EMPTY_DOCUMENT
   const creations: StoredCreation[] = []
   for (const entry of parsed.creations) {
-    const creation = decodeCreation(entry)
+    const creation = decodeStoredCreation(entry)
     if (creation === undefined) return EMPTY_DOCUMENT
     creations.push(creation)
   }
@@ -121,8 +139,12 @@ export function parseSaveDocument(raw: string | null): SaveDocument {
   return { version: SAVE_FORMAT_VERSION, working, creations }
 }
 
-/** `undefined` means "not a valid creation" — distinct from an absent one. */
-function decodeCreation(value: unknown): StoredCreation | undefined {
+/**
+ * `undefined` means "not a valid creation" — distinct from an absent one.
+ * Exported because the share codec decodes the same creation shape out of a URL
+ * fragment and must apply exactly these rules (ADR 0026).
+ */
+export function decodeStoredCreation(value: unknown): StoredCreation | undefined {
   if (!isRecord(value)) return undefined
 
   const { name, kitId, tempo, patterns } = value
