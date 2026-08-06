@@ -102,6 +102,49 @@ export class HomePagePom extends BasePage {
     }, BOOP_AUDIO_DRIVER_KEY)
   }
 
+  /**
+   * Move the fake driver's audio clock forward to a given time, releasing any
+   * due draws — the draw-time channel (`onDrawBeat`) only fires once the
+   * clock reaches a scheduled step's `audioTime`, unlike `fireStep` which
+   * only queues it.
+   */
+  async advanceDrawClock(audioTime: number): Promise<void> {
+    await this.page.evaluate(
+      ({ key, audioTime: time }) => {
+        const driver = (globalThis as unknown as Record<string, { advanceTo: (time: number) => void }>)[key]!
+        driver.advanceTo(time)
+      },
+      { key: BOOP_AUDIO_DRIVER_KEY, audioTime },
+    )
+  }
+
+  playhead() {
+    return this.page.getByTestId('playhead')
+  }
+
+  async verifyPlayheadAtStep(step: number): Promise<void> {
+    await expect(this.playhead()).toHaveAttribute('data-step', String(step))
+  }
+
+  async verifyPlayheadHidden(): Promise<void> {
+    await expect(this.playhead()).toHaveCount(0)
+  }
+
+  async verifyActiveBar(bar: number): Promise<void> {
+    await expect(this.page.getByTestId(`bar-numeral-${bar}`)).toHaveAttribute('data-active', 'true')
+  }
+
+  async verifyCellStruck(instrumentId: string, step: number): Promise<void> {
+    await expect(this.page.getByTestId(`cell-squash-${instrumentId}-${step}`)).toHaveAttribute(
+      'data-struck',
+      'true',
+    )
+  }
+
+  async verifyRowLabelStruck(instrumentId: string): Promise<void> {
+    await expect(this.page.getByTestId(`row-label-${instrumentId}`)).toHaveAttribute('data-struck', 'true')
+  }
+
   /** The autosaved working grid a reload would restore from, or `null`. */
   async readAutosavedGrid(): Promise<StoredCreation | null> {
     const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)

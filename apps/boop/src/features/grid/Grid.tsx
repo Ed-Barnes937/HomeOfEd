@@ -9,6 +9,7 @@ import {
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
 import styles from './Grid.module.scss'
 import { decidePaintMode, paintModeToOn, type PaintMode } from './paintMode.ts'
+import { stepToBar, stepToCol } from './playheadMotion.ts'
 
 const GROUP_SIZE = 4
 const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
@@ -34,11 +35,19 @@ interface GridProps {
   kit: Kit
   pattern: Pattern
   onToggleCell: (instrumentId: string, step: number) => void
+  /** The playhead's current column, or `null` to hide it cleanly (stopped). */
+  playheadStep: number | null
+  /** `${instrumentId}:${step}` -> strike epoch (ticket 17) — a cell's squash re-keys only on a real hit. */
+  cellStrikes: Readonly<Record<string, number>>
+  /** `instrumentId` -> strike epoch (ticket 17) — drives that row's label bob. */
+  rowStrikes: Readonly<Record<string, number>>
 }
 
 /**
- * The 6x16 grid well: bar-numeral row + instrument rows. No playhead yet
- * (ticket 13).
+ * The 6x16 grid well: bar-numeral row + instrument rows, a sweeping playhead
+ * column, and hit motion (squash on struck cells, bob on struck row labels) —
+ * driven entirely by state the caller derives from the engine's draw-time
+ * channel (`usePlayheadMotion`), never touched from here.
  *
  * Touch model (ticket 15, spec: "The grid"): pointer-down on a cell decides
  * add-or-remove from that cell's current state; the drag then repeats that
@@ -46,7 +55,7 @@ interface GridProps {
  * captured to one element) so multiple fingers can paint independently and
  * `pointerenter` still fires as a pointer crosses into other cells.
  */
-export function Grid({ kit, pattern, onToggleCell }: GridProps) {
+export function Grid({ kit, pattern, onToggleCell, playheadStep, cellStrikes, rowStrikes }: GridProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
   const paintModes = useRef(new Map<number, PaintMode>())
 
@@ -105,12 +114,26 @@ export function Grid({ kit, pattern, onToggleCell }: GridProps) {
     onToggleCell(instrumentId, step)
   }
 
+  const activeBar = playheadStep === null ? null : stepToBar(playheadStep)
+  const playheadStyle =
+    playheadStep === null
+      ? undefined
+      : ({
+          '--group': stepToBar(playheadStep),
+          '--col': stepToCol(playheadStep),
+        } as CSSProperties)
+
   return (
     <div className={styles.well}>
       <div className={styles.barNumerals} aria-hidden="true">
         <div className={styles.railSpacer} />
         {groups.map((group) => (
-          <div key={group} className={styles.barNumeral}>
+          <div
+            key={group}
+            className={styles.barNumeral}
+            data-active={group === activeBar}
+            data-testid={`bar-numeral-${group}`}
+          >
             {group + 1}
           </div>
         ))}
@@ -120,72 +143,95 @@ export function Grid({ kit, pattern, onToggleCell }: GridProps) {
         role="application"
         aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off."
       >
-        {pattern.map((row, rowIndex) => {
-          const instrument = kit.instruments[rowIndex]
-          if (!instrument) return null
-          const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
-          const rowStyle = { '--row-color': `var(${colorVar})` } as CSSProperties
+        {playheadStep !== null && (
+          <div className={styles.playhead} style={playheadStyle} data-testid="playhead" data-step={playheadStep} />
+        )}
+        <div className={styles.rows}>
+          {pattern.map((row, rowIndex) => {
+            const instrument = kit.instruments[rowIndex]
+            if (!instrument) return null
+            const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
+            const rowStyle = { '--row-color': `var(${colorVar})` } as CSSProperties
+            const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
 
-          return (
-            <div key={row.instrumentId} className={styles.row} style={rowStyle}>
-              <div className={styles.rail}>
-                <span className={styles.plate}>
+            return (
+              <div key={row.instrumentId} className={styles.row} style={rowStyle}>
+                <div className={styles.rail}>
+                  <span className={styles.plate}>
+                    <span
+                      className={styles.artwork}
+                      style={{
+                        maskImage: `url(${instrument.artwork})`,
+                        WebkitMaskImage: `url(${instrument.artwork})`,
+                      }}
+                    />
+                  </span>
                   <span
-                    className={styles.artwork}
-                    style={{
-                      maskImage: `url(${instrument.artwork})`,
-                      WebkitMaskImage: `url(${instrument.artwork})`,
-                    }}
-                  />
-                </span>
-                <span className={styles.name}>{instrument.name}</span>
-              </div>
-              <div className={styles.steps}>
-                {groups.map((group) => (
-                  <div
-                    key={group}
-                    className={styles.group}
-                    data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                    key={rowStrikeEpoch}
+                    className={styles.nameBob}
+                    data-struck={rowStrikeEpoch > 0}
+                    data-testid={`row-label-${row.instrumentId}`}
                   >
-                    {Array.from({ length: GROUP_SIZE }, (_, i) => {
-                      const step = group * GROUP_SIZE + i
-                      const on = row.steps[step] === true
-                      return (
-                        <button
-                          key={step}
-                          type="button"
-                          className={styles.cell}
-                          data-parity={group % 2 === 0 ? 'even' : 'odd'}
-                          data-active={on}
-                          data-testid={`cell-${row.instrumentId}-${step}`}
-                          aria-pressed={on}
-                          aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
-                          onPointerDown={(event) =>
-                            handlePointerDown(event, row.instrumentId, step, on)
-                          }
-                          onPointerEnter={(event) =>
-                            handlePointerEnter(event, row.instrumentId, step, on)
-                          }
-                          onClick={(event) => handleClick(event, row.instrumentId, step)}
-                        >
-                          {on && (
+                    <span className={styles.name}>{instrument.name}</span>
+                  </span>
+                </div>
+                <div className={styles.steps}>
+                  {groups.map((group) => (
+                    <div
+                      key={group}
+                      className={styles.group}
+                      data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                    >
+                      {Array.from({ length: GROUP_SIZE }, (_, i) => {
+                        const step = group * GROUP_SIZE + i
+                        const on = row.steps[step] === true
+                        const underPlayhead = step === playheadStep
+                        const strikeEpoch = cellStrikes[`${row.instrumentId}:${step}`] ?? 0
+                        return (
+                          <button
+                            key={step}
+                            type="button"
+                            className={styles.cell}
+                            data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                            data-active={on}
+                            data-playhead={underPlayhead}
+                            data-testid={`cell-${row.instrumentId}-${step}`}
+                            aria-pressed={on}
+                            aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
+                            onPointerDown={(event) =>
+                              handlePointerDown(event, row.instrumentId, step, on)
+                            }
+                            onPointerEnter={(event) =>
+                              handlePointerEnter(event, row.instrumentId, step, on)
+                            }
+                            onClick={(event) => handleClick(event, row.instrumentId, step)}
+                          >
                             <span
-                              className={styles.cellArtwork}
-                              style={{
-                                maskImage: `url(${instrument.artwork})`,
-                                WebkitMaskImage: `url(${instrument.artwork})`,
-                              }}
-                            />
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))}
+                              key={strikeEpoch}
+                              className={styles.squash}
+                              data-struck={strikeEpoch > 0}
+                              data-testid={`cell-squash-${row.instrumentId}-${step}`}
+                            >
+                              {on && (
+                                <span
+                                  className={styles.cellArtwork}
+                                  style={{
+                                    maskImage: `url(${instrument.artwork})`,
+                                    WebkitMaskImage: `url(${instrument.artwork})`,
+                                  }}
+                                />
+                              )}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )

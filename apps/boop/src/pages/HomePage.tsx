@@ -4,6 +4,7 @@ import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
 import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { Grid } from '../features/grid/Grid.tsx'
+import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
@@ -20,6 +21,7 @@ export function HomePage() {
   const [pattern, setPattern] = useState<Pattern | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [bpm, setBpm] = useState(DEFAULT_BPM)
+  const motion = usePlayheadMotion(engine)
 
   // Autosave restores into the engine first; the mirror below waits for it, so
   // it reads the restored pattern and tempo rather than the empty grid.
@@ -82,7 +84,14 @@ export function HomePage() {
   return (
     <main className={styles.stage}>
       <TopBar />
-      <Grid kit={engine.kit} pattern={pattern} onToggleCell={toggleCell} />
+      <Grid
+        kit={engine.kit}
+        pattern={pattern}
+        onToggleCell={toggleCell}
+        playheadStep={motion.playing ? motion.step : null}
+        cellStrikes={motion.cellStrikes}
+        rowStrikes={motion.rowStrikes}
+      />
       <Transport
         isPlaying={isPlaying}
         onToggle={togglePlay}

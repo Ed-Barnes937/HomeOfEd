@@ -43,6 +43,11 @@
   font-size: 13px;
   color: rgba(242, 239, 230, 0.28);
 
+  // The bar the playhead is currently in (design handoff, "Grid well" — bar-numeral row).
+  &[data-active='true'] {
+    color: rgba(242, 239, 230, 0.7);
+  }
+
   @media (max-width: 1279px) {
     width: 186px; // 4 × cellW(42) + 3 × gap(14)
     font-size: 10px;
@@ -51,16 +56,50 @@
 
 .body {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   // Scoped to the grid only (never document-level or user-scalable=no), so
   // drag-paint doesn't trigger the page's touch scroll/zoom gestures while
   // pinch-zoom elsewhere on the page keeps working.
   touch-action: none;
+}
+
+// Sits above the playhead column (z-index:0) per the design handoff ("Grid
+// well" — "position:relative; z-index:1 column of 6 rows").
+.rows {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
   @media (max-width: 1279px) {
     gap: 8px;
+  }
+}
+
+// The sweeping column (ticket 17, design handoff "Playhead column" +
+// "Motion"): hard-cuts step to step — no transition on position or
+// visibility, the jump itself is the rhythm. `--group`/`--col` come from the
+// step via `stepToBar`/`stepToCol`; the per-breakpoint pixel constants below
+// mirror `.steps`/`.group`/`.rail`/`.row`'s own gap(8)/gutter(18)/rail(160)/
+// railGap(18) at laptop, gap(6)/gutter(14)/rail(124)/railGap(14) at tablet.
+.playhead {
+  position: absolute;
+  z-index: 0;
+  top: -8px;
+  bottom: -8px;
+  left: calc(160px + 18px + var(--group) * (4 * 62px + 3 * 8px + 18px) + var(--col) * (62px + 8px) - 8px);
+  width: calc(62px + 2 * 8px);
+  border-radius: 19px;
+  background: linear-gradient(180deg, rgba(111, 224, 240, 0.24), rgba(111, 224, 240, 0.07));
+  box-shadow: 0 0 0 1px rgba(111, 224, 240, 0.34);
+  pointer-events: none;
+
+  @media (max-width: 1279px) {
+    top: -7px;
+    bottom: -7px;
+    left: calc(124px + 14px + var(--group) * (4 * 42px + 3 * 6px + 14px) + var(--col) * (42px + 6px) - 7px);
+    width: calc(42px + 2 * 7px);
+    border-radius: 13px;
   }
 }
 
@@ -177,6 +216,18 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.38);
   }
 
+  // Under-playhead states (design handoff, "Cell geometry and state").
+  &[data-playhead='true'] {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  &[data-active='true'][data-playhead='true'] {
+    transform: scale(1.11);
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.6),
+      0 8px 16px rgba(0, 0, 0, 0.45);
+  }
+
   &:focus-visible {
     outline: 2px solid var(--cyan);
     outline-offset: 2px;
@@ -186,6 +237,69 @@
     width: 42px;
     height: 50px;
     border-radius: 9px;
+  }
+}
+
+// Wraps a cell's content so the step-hit squash (ticket 17, design handoff
+// "Motion" — "Step hit") animates the whole cell without fighting the
+// edit-pop animation on `.cellArtwork` (a different trigger: painting vs
+// being struck by the playhead). Keyed by strike epoch in Grid.tsx so each
+// real hit remounts this element and replays the keyframes from 0%.
+.squash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+
+  &[data-struck='true'] {
+    animation: cellSquash 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+@keyframes cellSquash {
+  0% {
+    transform: scale(1, 1);
+  }
+  8% {
+    transform: scale(1.2, 0.82);
+  }
+  30% {
+    transform: scale(0.94, 1.08);
+  }
+  55%,
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+// The row label's hit bob (design handoff "Motion" — "Row character"), keyed
+// by that row's strike epoch in Grid.tsx the same way `.squash` is.
+.nameBob {
+  display: inline-block;
+
+  &[data-struck='true'] {
+    animation: rowBob 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+@keyframes rowBob {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(4px);
+  }
+  100% {
+    transform: translateY(0);
   }
 }
 
