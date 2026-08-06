@@ -1,0 +1,56 @@
+import { expect } from '@playwright/experimental-ct-react'
+
+import { DIRT, EMPTY, GRID_HEIGHT, SAND } from './sim/index.ts'
+import { test } from './testing/iwftTest.tsx'
+
+const FLOOR = GRID_HEIGHT - 1
+
+test('paint sand while paused, press play, and it falls and settles at the floor', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // sand is selected by default
+  expect(await root.isSelected('sand')).toBe(true)
+  await root.paintCell(150, FLOOR - 9)
+  await root.verifyCellIs(150, FLOOR - 9, SAND)
+
+  await root.play()
+
+  await root.verifyCellIs(150, FLOOR, SAND)
+  await root.verifyCellIs(150, FLOOR - 9, EMPTY)
+})
+
+test('painting keeps working once the sim is running', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('dirt')
+  await root.play()
+
+  const before = await root.countSpecies(DIRT)
+  await root.paintCell(20, 20)
+
+  await expect.poll(() => root.countSpecies(DIRT)).toBeGreaterThan(before)
+})
+
+test('the world canvas renders crisp (no smoothing)', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyPixelated()
+})
+
+test('a window resize refits the canvas without disturbing the sim', async ({ mountApp, page }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('dirt')
+  await root.paintCell(10, 10)
+  await root.verifyCellIs(10, 10, DIRT)
+
+  await page.setViewportSize({ width: 900, height: 700 })
+
+  // Same cell, same content: resize recomputes the letterbox fit, nothing else.
+  await root.verifyCellIs(10, 10, DIRT)
+})

@@ -3,10 +3,10 @@
 // code, so Playwright CT registers the component for the browser bundle.
 import { createIwftTest } from '@hoe/test-kit'
 
-import { HomePagePom } from './HomePagePom.ts'
 import { IwftApp } from './IwftApp.tsx'
+import { SiltPagePom } from './SiltPagePom.ts'
 
 export const test = createIwftTest({
   harness: <IwftApp />,
-  createRoot: (page) => new HomePagePom(page),
+  createRoot: (page) => new SiltPagePom(page),
 })
