@@ -14,7 +14,7 @@ menu.
 **Blocked by:** 15 — Grid feel (paint vs scroll interplay); 17 — Playhead
 (the loop map tracks it).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Phone breakpoint uses the design's geometry: pinned 92px rail,
       snap-scrolling step window, part-cut cell kept as the scroll

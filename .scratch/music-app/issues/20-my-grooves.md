@@ -15,7 +15,7 @@ gate**.
 
 **Blocked by:** 19 — Autosave (the creation save format).
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Save action snapshots pattern + tempo into the list with a generated
       playful name — no typing required

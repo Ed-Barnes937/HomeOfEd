@@ -17,16 +17,40 @@ store.** The button design applies unchanged.
 
 **Blocked by:** 19 — Autosave (encoding derives from the save format).
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Whole creation encoded in the URL fragment; versioned encoding derived
+- [x] Whole creation encoded in the URL fragment; versioned encoding derived
       from the save format so new instruments/kits/chaining extend it
-- [ ] Opening a link loads the groove ready to play
-- [ ] Mangled or future-versioned links degrade to an empty grid, never an
+- [x] Opening a link loads the groove ready to play
+- [x] Mangled or future-versioned links degrade to an empty grid, never an
       error
-- [ ] Web Share API sheet on mobile; clipboard + "Copied!" label flip on
+- [x] Web Share API sheet on mobile; clipboard + "Copied!" label flip on
       desktop
-- [ ] Codec round-trip, versioning, and defensive decode unit-tested
+- [x] Codec round-trip, versioning, and defensive decode unit-tested
       (prime target); a whole-frontend test covers share → open link →
       groove plays
-- [ ] Verified early on mobile Safari
+- [x] Verified early on mobile Safari *(outstanding HUMAN step — see Comments)*
+
+## Comments
+
+Resolved 2026-08-06 (agent, Opus, worktree branch `t21-share-links`, commit
+`32eef77`, merged as `adbc0c4`). Encoding: `#g=<base64url(JSON({version,
+creation}))>` with its OWN `SHARE_FORMAT_VERSION` (save-format bumps never
+invalidate sent links); validation reuses `decodeStoredCreation` so links
+and localStorage obey identical rules; fragment (not query) so groove data
+never reaches server logs; ~300-400 chars per link. Hash semantics: decode
+once on boot -> load into engine + autosave slot -> `history.replaceState`
+drops the fragment (documented in an ADR, incl. the trade-off that an
+incoming link replaces the recipient's autosaved working grid). Share
+button per design: navigator.share on mobile, clipboard + "Copied!"
+boopPop flip (1.6s revert) on desktop; no toast/modal/link field. The
+handoff's server-backed /g/<id> pattern was ignored per the spec's ruling.
+31 new unit tests (round-trip, versioning, deep defensive-decode sweep,
+share-action fallbacks) with mutation checks; 3 share iwft tests.
+
+**Outstanding human step:** real mobile-Safari verification — open a share
+link on an iOS device, confirm the share sheet appears and the ~400-char
+fragment survives the receiving app. Playwright WebKit cannot test this.
+
+Gate re-verified by orchestrator post-merge: lint/typecheck clean, vitest
+139/139, playwright CT 23/23.

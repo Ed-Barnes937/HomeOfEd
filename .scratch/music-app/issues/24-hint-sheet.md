@@ -12,7 +12,7 @@ boop works" (menu built in ticket 27).
 
 **Blocked by:** 13 — First sound: tap-to-toggle grid + play/pause.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] "?" affordance in a quiet corner opens the sheet; easy touch dismiss
 - [ ] One static screen, few words, picture-led (placeholder pictures fine)
