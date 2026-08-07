@@ -36,3 +36,30 @@ returns"*. Neither half holds.
 **Source:** whole-branch drift review (2026-08-06), Spec axis. Silent deviation —
 not recorded in any ticket. The existing iwft test's *name* claims the behaviour
 the spec asked for, which is part of why nobody caught it.
+
+## Comments
+
+Implemented in PR #53 (`silt/18-first-visit-hint`, squash-merged).
+
+- Persisted a `silt:seen` localStorage key (standalone — not part of any scene
+  envelope) via a new `openHintStorage()` accessor in `HomePage.tsx`, mirroring
+  the `openStorage()` guard in `features/scenes/useScenes.ts:25` so a
+  private-browsing throw on `localStorage` access can't take the page down.
+  `hintVisible` now initialises from `!hasSeenHint()`, so a returning visitor
+  never mounts the hint at all.
+- The hint no longer unmounts on the spot: it gets a `firstVisitHintFading`
+  modifier class (`opacity: 0`, `transition: opacity 400ms ease` in
+  `HomePage.module.scss`) on the first stroke or scene load, and only unmounts
+  on `onTransitionEnd`.
+- Extended `chrome.iwft.tsx`'s "the first-visit hint fades on the first stroke
+  and never returns" case with a `page.reload()` + re-`mountApp()` (mirroring
+  `scenes.iwft.tsx`'s reload pattern) to prove the hint stays gone for a
+  returning visitor, plus a fading-class assertion before it disappears.
+  Verified this addition red (failing on the fading-class assertion, for the
+  right reason — old code unmounted with no transition at all) before writing
+  the fix.
+- Went through one round of the `code-review` skill (Standards + Spec axes):
+  both independently flagged that the original `hasSeenHint`/`markHintSeen`
+  helpers duplicated the shape of `openStorage()` instead of following it;
+  folded them into the single `openHintStorage()` accessor and re-reviewed
+  clean.
