@@ -11,13 +11,11 @@ import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
 import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
 import { type Spawner } from '../features/spawners/spawners.ts'
+import { useArmedConfirm } from '../hooks/useArmedConfirm.ts'
 import { EMPTY, GRID_HEIGHT, GRID_WIDTH, SAND } from '../sim/index.ts'
 import styles from './HomePage.module.scss'
 
 type Tool = 'paint' | 'erase'
-
-/** How long a reset click stays armed before it forgets the first click (spec §3, §9). */
-const RESET_ARM_MS = 3000
 
 /** CSS px per brush cell, for the picker's "true relative scale" icons (spec §9). */
 const BRUSH_ICON_SCALE = 3
@@ -59,13 +57,12 @@ export function HomePage() {
   // mounted long enough to transition out instead of vanishing on the spot.
   const [hintVisible, setHintVisible] = useState(() => !hasSeenHint())
   const [hintFading, setHintFading] = useState(false)
-  const [resetArmed, setResetArmed] = useState(false)
   const [cursor, setCursor] = useState<CursorInfo | null>(null)
   const [fps, setFps] = useState(0)
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
   const [scenesOpen, setScenesOpen] = useState(false)
   const [sceneName, setSceneName] = useState('untitled')
-  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resetConfirm = useArmedConfirm<true>()
 
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
   const paintSpecies = tool === 'erase' ? EMPTY : selectedElement
@@ -113,21 +110,13 @@ export function HomePage() {
   saveSceneRef.current = scenes.save
 
   const armReset = (): void => {
-    if (!resetArmed) {
-      setResetArmed(true)
-      resetTimer.current = setTimeout(() => setResetArmed(false), RESET_ARM_MS)
+    if (!resetConfirm.armed) {
+      resetConfirm.arm(true)
       return
     }
-    if (resetTimer.current) clearTimeout(resetTimer.current)
-    setResetArmed(false)
+    resetConfirm.disarm()
     controls.reset()
   }
-
-  useEffect(() => {
-    return () => {
-      if (resetTimer.current) clearTimeout(resetTimer.current)
-    }
-  }, [])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -222,11 +211,11 @@ export function HomePage() {
           </button>
           <button
             type="button"
-            className={`${styles.headerButton} ${resetArmed ? styles.armed : ''}`}
+            className={`${styles.headerButton} ${resetConfirm.armed ? styles.armed : ''}`}
             data-testid="reset"
             onClick={armReset}
           >
-            {resetArmed ? 'confirm?' : 'reset'}
+            {resetConfirm.armed ? 'confirm?' : 'reset'}
           </button>
         </div>
         <div className={styles.scenesAnchor}>
