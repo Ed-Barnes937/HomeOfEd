@@ -1,4 +1,4 @@
-import { useArmedConfirm } from './useArmedConfirm.ts'
+import { useArmedConfirm } from '../hooks/useArmedConfirm.ts'
 
 /** Test-only harness for useArmedConfirm — exercised by useArmedConfirm.iwft.tsx. */
 export function ArmedConfirmProbe({ ms }: { ms: number }) {

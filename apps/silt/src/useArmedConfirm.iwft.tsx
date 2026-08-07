@@ -1,7 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { test } from '../testing/iwftTest.tsx'
-import { ArmedConfirmProbe } from './ArmedConfirmProbe.tsx'
+import { ArmedConfirmProbe } from './testing/ArmedConfirmProbe.tsx'
+import { test } from './testing/iwftTest.tsx'
 
 test('re-arming resets the auto-disarm window instead of leaking the previous timer', async ({
   mount,
