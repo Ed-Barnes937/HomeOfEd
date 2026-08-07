@@ -61,3 +61,34 @@ of the JSX block `<WorldOverlay>` would take. Decide whether the hint belongs
 inside the overlay component or stays on the page, and say which in the Comments.
 
 **Source:** whole-branch drift review (2026-08-06), Standards axis.
+
+## Comments
+
+**The first-visit hint stays on the page** (2026-08-07, ticket 17).
+
+`<WorldOverlay>` took the brush cursor, the spawner boxes and the placement
+ghost — the three things that are *positioned by the canvas fit*. The hint is
+not one of them: it is a centred banner pinned to the bottom of the canvas
+wrapper, and it never asks the fit where anything is. It also carries state
+(`hintVisible`/`hintFading`) whose lifetime is a page concern — the seen flag is
+written on first paint and on scene load, both page-owned events. Moving it into
+the overlay would mean either moving that state into a presentational component
+or threading two values and an `onTransitionEnd` callback through it, in
+exchange for nothing. So the overlay is a pure function of cursor, spawners,
+mode, brush width and the fit, and the hint stays where ticket 18 put it.
+
+Shape of the split:
+
+- `src/features/render/WorldOverlay.tsx` (+ its own `.module.scss`) — renders a
+  fragment, so the elements still position against `.canvasWrap` and DOM order
+  is unchanged. It declares its own `WorldFit` interface
+  (`gridToCanvasPoint` / `cellSize`) rather than importing `UseSimLoopControls`,
+  which would point `features/render` back at `features/sim`;
+  `UseSimLoopControls` satisfies it structurally. `hoveredSpawnerIndex` moved in
+  with it — nothing outside the overlay used it.
+- `src/hooks/useSiltHotkeys.ts` — one window listener, registered once, reading
+  the actions off a single latest-value ref synced in a dependency-array-free
+  `useEffect` (ticket 15's convention). The brush clamp stayed on the page with
+  the brush state; the hook says "-1 / +1".
+
+`HomePage.tsx` 448 → 355 lines. No test file was touched.

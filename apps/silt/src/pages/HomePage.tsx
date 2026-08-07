@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
+import { WorldOverlay } from '../features/render/WorldOverlay.tsx'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
 import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
 import { type Spawner } from '../features/spawners/spawners.ts'
 import { useArmedConfirm } from '../hooks/useArmedConfirm.ts'
+import { useSiltHotkeys } from '../hooks/useSiltHotkeys.ts'
 import { EMPTY, GRID_HEIGHT, GRID_WIDTH, SAND } from '../sim/index.ts'
 import styles from './HomePage.module.scss'
 
@@ -97,19 +99,32 @@ export function HomePage() {
     },
   })
 
-  // Latest-value refs so the keydown listener below can be registered once
-  // (with an empty dependency array) instead of re-binding on every render.
-  // Synced in an effect, not during render (ticket 15) — a render-phase write
-  // misbehaves under concurrent rendering and StrictMode double-invocation.
-  const runningRef = useRef(running)
-  const controlsRef = useRef(controls)
-  const saveSceneRef = useRef(scenes.save)
-  const paletteRef = useRef(palette)
-  useEffect(() => {
-    runningRef.current = running
-    controlsRef.current = controls
-    saveSceneRef.current = scenes.save
-    paletteRef.current = palette
+  const selectElement = (id: number): void => {
+    setTool('paint')
+    setSelectedElement(id)
+  }
+
+  const selectErase = (): void => {
+    setTool('erase')
+    setMode('paint')
+  }
+
+  useSiltHotkeys({
+    running,
+    palette,
+    onToggleRunning: () => setRunning((current) => !current),
+    onStep: () => controls.step(),
+    onSelectElement: selectElement,
+    onSelectErase: selectErase,
+    onNudgeBrush: (delta) =>
+      setBrushIndex((current) => Math.min(BRUSH_WIDTHS.length - 1, Math.max(0, current + delta))),
+    // The popover opens with the save, so the result — a new row, or a rename
+    // prompt — is on screen rather than silently behind the button.
+    onSaveScene: () => {
+      setScenesOpen(true)
+      scenes.save()
+    },
+    onCloseScenes: () => setScenesOpen(false),
   })
 
   const armReset = (): void => {
@@ -124,69 +139,7 @@ export function HomePage() {
     scenes.clearCurrentScene()
   }
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      // The scene rename field is a text input: the hotkeys would eat what is
-      // being typed into it — Ctrl+S included, which would save the world on
-      // screen over the scene being renamed.
-      if (event.target instanceof HTMLInputElement) return
-      if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault()
-        setScenesOpen(true)
-        saveSceneRef.current()
-        return
-      }
-      if (event.key === 'Escape') {
-        setScenesOpen(false)
-        return
-      }
-      if (event.key >= '1' && event.key <= '9') {
-        const entry = paletteRef.current.entries[Number(event.key) - 1]
-        if (entry) {
-          setTool('paint')
-          setSelectedElement(entry.id)
-        }
-        return
-      }
-      if (event.key === '[') {
-        setBrushIndex((current) => Math.max(0, current - 1))
-        return
-      }
-      if (event.key === ']') {
-        setBrushIndex((current) => Math.min(BRUSH_WIDTHS.length - 1, current + 1))
-        return
-      }
-      if (event.key === ' ') {
-        event.preventDefault()
-        setRunning((current) => !current)
-        return
-      }
-      if (event.key === '.') {
-        if (!runningRef.current) controlsRef.current.step()
-        return
-      }
-      if (event.key === 'e' || event.key === 'E') {
-        setTool('erase')
-        setMode('paint')
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
-
-  const selectElement = (id: number): void => {
-    setTool('paint')
-    setSelectedElement(id)
-  }
-
   const selectedName = tool === 'erase' ? 'erase' : palette.nameOf(selectedElement)
-
-  // The hovered cell, in spawner mode, may already hold a spawner — that one
-  // renders red-with-minus instead of the placement ghost (spec §7, §9).
-  const hoveredSpawnerIndex =
-    mode === 'spawner' && cursor
-      ? spawners.findIndex((spawner) => spawner.x === cursor.cell.x && spawner.y === cursor.cell.y)
-      : -1
 
   return (
     <div className={styles.app}>
@@ -339,10 +292,7 @@ export function HomePage() {
             className={styles.eraseButton}
             data-testid="erase-tool"
             aria-pressed={tool === 'erase'}
-            onClick={() => {
-              setTool('erase')
-              setMode('paint')
-            }}
+            onClick={selectErase}
           >
             erase
           </button>
@@ -370,58 +320,15 @@ export function HomePage() {
               </div>
             ) : null}
 
-            {cursor && mode === 'paint' ? (
-              <div
-                className={styles.brushCursor}
-                style={{
-                  left: cursor.point.x,
-                  top: cursor.point.y,
-                  width: cursor.cellSize * brushWidth,
-                  height: cursor.cellSize * brushWidth,
-                }}
-                aria-hidden="true"
-              />
-            ) : null}
-
-            {spawners.map((spawner, index) => {
-              const point = controls.gridToCanvasPoint(spawner.x, spawner.y)
-              if (!point) return null
-              const size = controls.cellSize()
-              const removing = index === hoveredSpawnerIndex
-              const colour = palette.colourOf(spawner.element)
-              return (
-                <div
-                  key={`${spawner.x}-${spawner.y}`}
-                  className={`${styles.spawner} ${removing ? styles.spawnerRemove : ''}`}
-                  style={{
-                    left: point.x,
-                    top: point.y,
-                    width: size,
-                    height: size,
-                    background: removing ? undefined : colour,
-                  }}
-                  data-testid={`spawner-${spawner.x}-${spawner.y}`}
-                  aria-hidden="true"
-                >
-                  {removing ? <span className={styles.spawnerMinus} aria-hidden="true" /> : null}
-                </div>
-              )
-            })}
-
-            {mode === 'spawner' && cursor && hoveredSpawnerIndex === -1 ? (
-              <div
-                className={styles.spawnerGhost}
-                style={{
-                  left: cursor.point.x,
-                  top: cursor.point.y,
-                  width: cursor.cellSize,
-                  height: cursor.cellSize,
-                  background: palette.colourOf(selectedElement),
-                }}
-                data-testid="spawner-ghost"
-                aria-hidden="true"
-              />
-            ) : null}
+            <WorldOverlay
+              cursor={cursor}
+              spawners={spawners}
+              mode={mode}
+              brushWidth={brushWidth}
+              fit={controls}
+              palette={palette}
+              selectedElement={selectedElement}
+            />
           </div>
 
           <div className={styles.statusBar} data-testid="status-bar">
