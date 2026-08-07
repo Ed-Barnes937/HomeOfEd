@@ -1,20 +1,14 @@
 import type { RailPalette } from '../palette/paletteGroups.ts'
-import type { CursorInfo, SimMode } from '../sim/useSimLoop.ts'
+import type { CursorInfo, SimMode, UseSimLoopControls } from '../sim/useSimLoop.ts'
 import type { Spawner } from '../spawners/spawners.ts'
 import styles from './WorldOverlay.module.scss'
 
 /**
  * The canvas fit, as the chrome drawn over the world needs it: where a cell
- * lands on screen, and how big a cell is. `UseSimLoopControls` satisfies this
- * structurally — declared here rather than imported so the renderer side owns
- * the shape it is asked for.
+ * lands on screen, and how big a cell is — and nothing else the loop can do.
  */
-export interface WorldFit {
-  /** Grid cell → CSS-px point on the on-screen canvas (cell centre). `null` before the canvas has a fit. */
-  gridToCanvasPoint(x: number, y: number): { x: number; y: number } | null
-  /** CSS px per cell — the fit is aspect-preserving, so one value covers both axes. */
-  cellSize(): number
-}
+export type WorldFit = Pick<UseSimLoopControls, 'gridToCanvasPoint' | 'cellSize'>
+
 
 export interface WorldOverlayProps {
   /** Where the pointer is, or `null` once it has left the canvas. */

@@ -81,14 +81,28 @@ Shape of the split:
 
 - `src/features/render/WorldOverlay.tsx` (+ its own `.module.scss`) — renders a
   fragment, so the elements still position against `.canvasWrap` and DOM order
-  is unchanged. It declares its own `WorldFit` interface
-  (`gridToCanvasPoint` / `cellSize`) rather than importing `UseSimLoopControls`,
-  which would point `features/render` back at `features/sim`;
-  `UseSimLoopControls` satisfies it structurally. `hoveredSpawnerIndex` moved in
-  with it — nothing outside the overlay used it.
+  is unchanged. `fit` is typed `WorldFit = Pick<UseSimLoopControls,
+  'gridToCanvasPoint' | 'cellSize'>` — narrow enough that the overlay cannot
+  reach the rest of the loop, without a hand-maintained second copy of the two
+  signatures. `hoveredSpawnerIndex` moved in with it — nothing outside the
+  overlay used it.
 - `src/hooks/useSiltHotkeys.ts` — one window listener, registered once, reading
   the actions off a single latest-value ref synced in a dependency-array-free
   `useEffect` (ticket 15's convention). The brush clamp stayed on the page with
   the brush state; the hook says "-1 / +1".
 
 `HomePage.tsx` 448 → 355 lines. No test file was touched.
+
+**Left for another ticket** (raised by the ticket-17 code review, not fixed here
+because both would be behaviour or API changes beyond a mechanical split):
+
+- **Two sources for one number.** `WorldOverlay` sizes the brush cursor and the
+  ghost from `cursor.cellSize` but the spawner boxes from `fit.cellSize()`.
+  They agree by construction, but `cursor.cellSize` is sampled at pointer-move
+  time and `fit.cellSize()` at render time, so they can disagree for a frame
+  mid-resize. Collapsing them means dropping `cellSize` from `CursorInfo`,
+  which is `useSimLoop`'s API, not this ticket's.
+- **A third copy of the SCSS token block.** `WorldOverlay.module.scss` repeats
+  `$ink`/`$paper`/`$destructive`, following the house pattern
+  (`ScenesPopover.module.scss` already does). Three copies is the point at which
+  a shared `_tokens.scss` would earn itself.
