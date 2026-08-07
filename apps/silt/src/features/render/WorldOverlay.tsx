@@ -9,7 +9,6 @@ import styles from './WorldOverlay.module.scss'
  */
 export type WorldFit = Pick<UseSimLoopControls, 'gridToCanvasPoint' | 'cellSize'>
 
-
 export interface WorldOverlayProps {
   /** Where the pointer is, or `null` once it has left the canvas. */
   cursor: CursorInfo | null
