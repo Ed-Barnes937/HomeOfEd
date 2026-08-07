@@ -10,7 +10,7 @@ test('home page renders the wordmark, lede, and the live app links', async ({ mo
   await root.verifyKaresansuiLink()
   await root.verifyBoopLink()
   await root.verifyHeigIsComingSoon()
-  await root.verifySiltIsComingSoon()
+  await root.verifySiltLink()
 })
 
 test('home page renders a live preview canvas for every app card', async ({ mountApp }) => {

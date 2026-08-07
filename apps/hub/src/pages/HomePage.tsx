@@ -40,7 +40,13 @@ const APPS: AppLink[] = [
     href: 'https://boop.homeofed.com',
     deployedAt: '2026-08-07',
   },
-  { name: 'Silt', status: 'SOON', kind: 'silt' },
+  {
+    name: 'Silt',
+    status: 'LIVE',
+    kind: 'silt',
+    href: 'https://silt.homeofed.com',
+    deployedAt: '2026-08-07',
+  },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
 
