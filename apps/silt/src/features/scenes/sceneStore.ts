@@ -87,7 +87,8 @@ export class SceneStore {
         typeof row === 'object' &&
         row !== null &&
         typeof (row as SceneMeta).id === 'string' &&
-        typeof (row as SceneMeta).name === 'string',
+        typeof (row as SceneMeta).name === 'string' &&
+        typeof (row as SceneMeta).updatedAt === 'number',
     )
   }
 
@@ -138,17 +139,40 @@ export class SceneStore {
   save(name: string, json: string, thumbnail: string | null): SceneMeta {
     const meta: SceneMeta = { id: this.#newId(), name, updatedAt: this.#now() }
 
-    this.#write(blobKey(meta.id), json)
-    if (thumbnail) {
-      try {
-        this.#storage.setItem(thumbKey(meta.id), thumbnail)
-      } catch {
-        // Decoration only — a scene without a thumbnail still loads.
-      }
-    }
+    this.#writeScene(meta.id, json, thumbnail)
     this.#writeIndex([...this.list(), meta])
 
     return meta
+  }
+
+  /**
+   * Re-save over an existing scene: same id, same keys, new bytes and a new
+   * `updatedAt`. Same write order as `save` — the blob is the durable part and
+   * goes first — but nothing is created, so the scene count and the quota
+   * footprint do not move however many times the world is saved.
+   */
+  update(id: string, json: string, thumbnail: string | null): void {
+    // No row to update, so no blob either: it would come back from the next
+    // boot reconcile as a "recovered scene" nobody ever saved.
+    if (!this.list().some((scene) => scene.id === id)) return
+
+    // The previous save's thumbnail goes with it when this one does not land:
+    // it pictures a world this scene no longer holds, and its bytes stay
+    // charged to the quota regardless.
+    if (!this.#writeScene(id, json, thumbnail)) this.#storage.removeItem(thumbKey(id))
+
+    this.#writeIndex(
+      this.list().map((scene) => (scene.id === id ? { ...scene, updatedAt: this.#now() } : scene)),
+    )
+  }
+
+  /**
+   * Fork a scene: the stored bytes copied under a new id. Save updates the
+   * scene you are on, so this is the way to keep the version you had before
+   * carrying on from it.
+   */
+  duplicate(id: string, name: string): SceneMeta {
+    return this.save(name, this.read(id), this.thumbnail(id))
   }
 
   read(id: string): string {
@@ -163,8 +187,13 @@ export class SceneStore {
     return this.#storage.getItem(thumbKey(id))
   }
 
+  /** A rename is a change to the row, so it moves `updatedAt` like a save does. */
   rename(id: string, name: string): void {
-    this.#writeIndex(this.list().map((scene) => (scene.id === id ? { ...scene, name } : scene)))
+    this.#writeIndex(
+      this.list().map((scene) =>
+        scene.id === id ? { ...scene, name, updatedAt: this.#now() } : scene,
+      ),
+    )
   }
 
   /**
@@ -178,6 +207,24 @@ export class SceneStore {
     this.#storage.removeItem(blobKey(id))
     this.#storage.removeItem(thumbKey(id))
     this.#writeIndex(this.list().filter((scene) => scene.id !== id))
+  }
+
+  /**
+   * The scene's own two keys, in the order spec §8 fixes: the blob is the
+   * durable part and goes first, the thumbnail is decoration and is allowed to
+   * fail. Returns whether the scene ended up with a picture. Both `save` and
+   * `update` go through here so the order can only be got right or wrong once.
+   */
+  #writeScene(id: string, json: string, thumbnail: string | null): boolean {
+    this.#write(blobKey(id), json)
+    if (!thumbnail) return false
+    try {
+      this.#storage.setItem(thumbKey(id), thumbnail)
+      return true
+    } catch {
+      // Decoration only — a scene without a thumbnail still loads.
+      return false
+    }
   }
 
   #writeIndex(scenes: readonly SceneMeta[]): void {

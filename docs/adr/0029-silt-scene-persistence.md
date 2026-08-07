@@ -51,6 +51,14 @@ written after the blob, best-effort, and dropped without complaint if they do
 not fit. A scene with no thumbnail still loads; the row shows an empty frame,
 and the boot reconcile frees thumbnails whose scene has gone.
 
+It is a third key class beyond the two spec §8 names, so it is charged to the
+same budget: **exactly one thumbnail per scene, never more**. A save writes over
+the scene's own thumbnail key rather than adding one, and a save whose picture
+will not fit removes the previous one — it shows a world the scene no longer
+holds, and its bytes would sit in the quota unclaimed. The picture is one pixel
+per cell (300×200 PNG), small beside the ~240KB blob, so §8's twenty-scene
+budget stands with the thumbnail counted in.
+
 This keeps the index exactly the `[{id, name, updatedAt}]` the spec specifies.
 
 ### 5. A partial save leaves an orphan blob on purpose
@@ -67,13 +75,38 @@ next boot reconciles away, which is the cheap failure; the other order strands
 the bytes with the escape hatch broken. For the same reason the boot reconcile
 only rewrites the index when it actually repaired something.
 
-### 6. Saving always creates a new row
+### 6. Saving updates the scene you are on
 
-There is no overwrite. `save current` writes the first unused `scene N` and the
-row is renamed inline afterwards. Overwriting needs a notion of "the scene I am currently
-editing" that the header's scene name only approximates, and getting it wrong
-destroys a scene — the expensive mistake in a feature whose whole policy is
-"never destructive".
+**Revised 2026-08-07 (silt ticket 13). This section previously read "saving
+always creates a new row"; that is reversed.**
+
+The page holds a *current scene* — an id, or none for a world that has never
+been saved. A load sets it, a first save creates a row and adopts it, and every
+save after that writes over that row: same blob key, same thumbnail key, a new
+`updatedAt`. The header names it, and follows a rename of it.
+
+The no-overwrite model was the safer-looking call, but it degenerated:
+`updatedAt` could only ever be written once, which is not what spec §8's field
+is for; §9's inline rename implies a slot you keep rather than a log of
+attempts; and §8's budget of *"~240KB worst case per scene ≈ 20 scenes"* only
+holds if re-saving replaces. Paint, save, adjust, save hit the quota wall in
+about twenty saves, and the only escape §8 gives is deleting rows the user
+never meant to create.
+
+Overwrite does need "the scene I am editing" to be right, so it is state on the
+scenes controller rather than an inference from the header text — the header
+now reads *from* it, not the other way round. Two things let go of it, because
+in both the world on screen stops being that scene: **deleting** it (the next
+save creates rather than resurrecting a deleted row) and **reset** (otherwise
+reset then Ctrl+S writes an empty world over a saved scene, with no confirm and
+no way back). Ctrl+S is likewise still barred from firing inside the rename
+field — under overwrite that would save over the scene being renamed, which is
+worse than the extra copy it used to make.
+
+Forking is what this costs, so `copy` on each row buys it back: the stored
+bytes duplicated under a new id and `<name> copy`. It leaves the current scene
+alone — you load the copy to carry on inside the fork — which keeps "which
+scene does save write to?" answerable by looking at the header.
 
 ### 7. `ElementRegistry.all()`
 
