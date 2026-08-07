@@ -52,6 +52,21 @@ test('a water spawner placed while paused emits once the sim runs, and stops whe
   expect(await root.countSpecies(WATER)).toBe(settled)
 })
 
+test('step emits from spawners, like any other tick', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('water')
+  await root.enterSpawnerMode()
+  await root.clickCell(150, 20)
+  await root.verifyCellIs(150, 20, EMPTY)
+
+  // A step is one sim tick (spec §3) and a spawner emits per tick (spec §7),
+  // so stepping a spawner scene must produce material — not sit dead until play.
+  await root.step()
+  await expect.poll(() => root.countSpecies(WATER)).toBeGreaterThan(0)
+})
+
 test('reset clears spawners along with cells', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

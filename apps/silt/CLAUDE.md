@@ -1,17 +1,21 @@
 # apps/silt — scoped rules
 
-A basic cellular-automaton sandbox at `silt.homeofed.com`. **Stateless**
-([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) — client-side
-simulation, nothing server-owned. Scaffolded from `templates/starter`
-([ADR 0007](../../docs/adr/0007-reference-starter-app.md)); the renderer and UI
-shell land in later tickets (`.scratch/silt/`).
+A falling-sand cellular-automaton playground at `silt.homeofed.com`.
+**Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
+client-side simulation, scenes in `localStorage`, nothing server-owned.
+Scaffolded from `templates/starter`
+([ADR 0007](../../docs/adr/0007-reference-starter-app.md)). Spec:
+`.scratch/sand-sim/spec.md`; tickets in `.scratch/silt/`.
 
-The simulation engine is in place (`src/sim/`, below) but nothing renders it
-yet. The only route is still the placeholder rendering `trpc.greeting()` —
-a value computed by the full layered path with no persistence:
+The whole app is one route. There is no data-fetching frontend path at all —
+the world lives in the browser, so the backend surface is `/health` plus the
+starter's `greeting` procedure, kept only as the layered-DI seam later server
+features would slot into:
 
 ```
-HomePage → TanStack Query → tRPC client → router → GreetingHandler → ctx.auth
+HomePage → useSimLoop → Sim + Renderer      (the app)
+         → useScenes  → SceneStore          (localStorage)
+router → GreetingHandler → ctx.auth         (the seam, no frontend caller)
 ```
 
 ## Layout
@@ -25,11 +29,16 @@ src/
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
     main.ts         prod entrypoint: createAppServer + shallow /health
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
-  pages/ features/  UI — SCSS modules, TanStack Router routes, query options
-    features/scenes/  scene persistence: sceneCodec (pure format), sceneStore
-                      (localStorage + quota), useScenes (page state), the popover
-  testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
-  greeting.iwft.tsx whole-frontend tests via the in-browser backend
+  pages/            HomePage — the rail, header, status bar and world overlay
+  features/         palette/ (the paintable roster + brush widths)
+                    render/  (letterboxFit, the Canvas 2D renderer, grid palette)
+                    sim/     (useSimLoop — the RAF loop, pointer painting, DPR fit)
+                    spawners/(continuous emitters — entities, not cells)
+                    scenes/  (sceneCodec: pure format; sceneStore: localStorage +
+                              quota; useScenes: page state; the popover)
+  testing/          IwftApp harness (in-browser backend) + iwft fixture + SiltPagePom
+  *.iwft.tsx        whole-frontend tests: silt (paint/render), chrome, scenes,
+                    spawners, mobile
 vite.config.ts      react + simulatorPlugin (dev simulator mode)
 playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109 })
 ```

@@ -47,5 +47,18 @@ export const paletteGroups: readonly PaletteGroup[] = GROUP_ORDER.map(({ tag, la
   entries: paletteEntries.filter((entry) => entry.tags.includes(tag)),
 })).filter((group) => group.entries.length > 0)
 
+/**
+ * Element colours and names are identical in the rail and the grid (spec §9),
+ * so callers that need one for a species look it up here rather than each
+ * re-scanning `paletteEntries` themselves.
+ */
+export function colourOf(id: number): string | undefined {
+  return paletteEntries.find((entry) => entry.id === id)?.colour
+}
+
+export function nameOf(id: number): string {
+  return paletteEntries.find((entry) => entry.id === id)?.name ?? ''
+}
+
 /** Square brush widths in cells (spec §9 "four squares at true relative scale"). */
 export const BRUSH_WIDTHS: readonly number[] = [1, 3, 5, 7]

@@ -70,3 +70,33 @@ test('scenes can be renamed inline and deleted behind a second click', async ({ 
   await root.deleteScene('dunes')
   await root.verifyNoSceneRow('dunes')
 })
+
+test('a rename says so, instead of leaving the last save on screen', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openScenes()
+  await root.saveScene()
+  expect(await root.sceneStatus()).toContain('saved scene 1')
+
+  // Every scene operation reports (spec §8 "loud, never silent") — a stale
+  // "saved scene 1" would read as if the rename had not landed.
+  await root.renameScene('scene 1', 'dunes')
+  expect(await root.sceneStatus()).toContain('dunes')
+  expect(await root.sceneStatus()).not.toContain('saved')
+})
+
+test('Ctrl+S while renaming a scene does not save a new one', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openScenes()
+  await root.saveScene()
+  await root.verifySceneRow('scene 1')
+
+  // The rename field is a text input: the hotkeys must all stay out of it,
+  // Ctrl+S included, or renaming a scene silently forks a second copy.
+  await root.typeInSceneName('scene 1', 'dun')
+  await root.pressKey('Control+s')
+  await root.verifyNoSceneRow('scene 2')
+})

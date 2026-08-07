@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { BRUSH_WIDTHS, paletteEntries, paletteGroups } from '../features/palette/paletteGroups.ts'
+import {
+  BRUSH_WIDTHS,
+  colourOf,
+  nameOf,
+  paletteEntries,
+  paletteGroups,
+} from '../features/palette/paletteGroups.ts'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
 import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
@@ -88,15 +94,16 @@ export function HomePage() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      // The scene rename field is a text input: the hotkeys would eat what is
+      // being typed into it — Ctrl+S included, which would fork a second copy
+      // of the scene being renamed.
+      if (event.target instanceof HTMLInputElement) return
       if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault()
         setScenesOpen(true)
         saveSceneRef.current()
         return
       }
-      // The scene rename field is a text input: single-key tools would eat
-      // what is being typed into it.
-      if (event.target instanceof HTMLInputElement) return
       if (event.key === 'Escape') {
         setScenesOpen(false)
         return
@@ -140,7 +147,7 @@ export function HomePage() {
     setSelectedElement(id)
   }
 
-  const selectedName = tool === 'erase' ? 'erase' : (paletteEntries.find((e) => e.id === selectedElement)?.name ?? '')
+  const selectedName = tool === 'erase' ? 'erase' : nameOf(selectedElement)
 
   // The hovered cell, in spawner mode, may already hold a spawner — that one
   // renders red-with-minus instead of the placement ghost (spec §7, §9).
@@ -344,7 +351,7 @@ export function HomePage() {
               if (!point) return null
               const size = controls.cellSize()
               const removing = index === hoveredSpawnerIndex
-              const colour = paletteEntries.find((entry) => entry.id === spawner.element)?.colour
+              const colour = colourOf(spawner.element)
               return (
                 <div
                   key={`${spawner.x}-${spawner.y}`}
@@ -372,7 +379,7 @@ export function HomePage() {
                   top: cursor.point.y,
                   width: cursor.cellSize,
                   height: cursor.cellSize,
-                  background: paletteEntries.find((entry) => entry.id === selectedElement)?.colour,
+                  background: colourOf(selectedElement),
                 }}
                 data-testid="spawner-ghost"
                 aria-hidden="true"

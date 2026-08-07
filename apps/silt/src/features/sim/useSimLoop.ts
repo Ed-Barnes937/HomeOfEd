@@ -322,7 +322,15 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   }, [opts.canvasRef])
 
   return {
-    step: () => simRef.current?.tick(),
+    // A step is exactly one sim tick (spec §3), and emission is per tick
+    // (spec §7) — so it runs here too, or a spawner scene stays dead under the
+    // step button while playing produces material.
+    step: () => {
+      const sim = simRef.current
+      if (!sim) return
+      emitSpawners(sim, spawnersRef.current)
+      sim.tick()
+    },
     // Reset clears cells and spawners together (spec §3, §7).
     reset: () => {
       simRef.current?.clear()

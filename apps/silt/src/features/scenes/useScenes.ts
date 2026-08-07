@@ -136,18 +136,22 @@ export function useScenes(options: UseScenesOptions): ScenesController {
         optionsRef.current.onLoaded(name)
       }),
 
+    // Every operation reports (spec §8 "loud, never silent") — leaving the
+    // previous op's line on screen reads as if this one had not landed.
     rename: (id, name) =>
       withStore((store) => {
         store.rename(id, name)
         refresh(store)
+        setStatus({ tone: 'ok', text: `renamed to ${name}` })
       }),
 
     remove: (id) =>
       withStore((store) => {
+        const name = store.list().find((scene) => scene.id === id)?.name ?? 'scene'
         store.remove(id)
         delete errorsRef.current[id]
         refresh(store)
-        setStatus(null)
+        setStatus({ tone: 'ok', text: `deleted ${name}` })
       }),
   }
 }

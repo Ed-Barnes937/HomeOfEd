@@ -155,6 +155,12 @@ export class SiltPagePom extends BasePage {
     await field.press('Enter')
   }
 
+  /** Types into a rename field and leaves it focused — for testing what the hotkeys do mid-edit. */
+  async typeInSceneName(from: string, text: string): Promise<void> {
+    const field = this.page.getByTestId(`scene-name-${from}`)
+    await field.fill(text)
+  }
+
   /** One click arms, the second deletes — the required confirm (spec §9). */
   async deleteScene(name: string): Promise<void> {
     const button = this.page.getByTestId(`scene-delete-${name}`)
