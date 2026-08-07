@@ -37,7 +37,7 @@ src/
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +
                               quota; useScenes: page state; the popover)
   testing/          IwftApp harness (in-browser backend) + iwft fixture + SiltPagePom
-  *.iwft.tsx        whole-frontend tests: silt (paint/render), chrome, scenes,
+  *.iwft.tsx        whole-frontend tests: render (paint/canvas), chrome, scenes,
                     spawners, mobile
 vite.config.ts      react + simulatorPlugin (dev simulator mode)
 playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109 })

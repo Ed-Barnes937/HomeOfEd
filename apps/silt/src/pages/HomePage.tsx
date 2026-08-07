@@ -242,7 +242,7 @@ export function HomePage() {
               onLoad={scenes.load}
               onRename={scenes.rename}
               onDuplicate={scenes.duplicate}
-              onDelete={scenes.remove}
+              onDelete={scenes.delete}
               onClose={() => setScenesOpen(false)}
             />
           ) : null}

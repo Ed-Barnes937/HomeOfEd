@@ -35,3 +35,28 @@ correctly *because* it isn't called `paintCell`. It's an intent-carrying alias,
 not a pointless hop.
 
 **Source:** whole-branch drift review (2026-08-06), Standards axis.
+
+## Comments
+
+- Chose `delete` as the verb (matches the ticket's own reasoning). By the time
+  this landed, `ScenesPopover.tsx` (`onDelete`) and `SiltPagePom.ts`
+  (`deleteScene`) already used it — only `useScenes.ts`'s `remove` (the
+  `ScenesController` interface member and its implementation) and the one
+  call site in `HomePage.tsx` (`scenes.remove` → `scenes.delete`) needed
+  renaming.
+- `SceneStore.remove` (`sceneStore.ts`) was **left unrenamed**. The ticket
+  scopes this to "hook, component and POM" — three layers, not four — and
+  `SceneStore`'s own vocabulary (`list`, `save`, `update`, `rename`, `read`,
+  `thumbnail`, `remove`) mirrors the underlying `SceneStorage`/`Storage` API
+  it wraps (`removeItem`), not the UI's delete affordance. Renaming it would
+  drift the store's naming away from the primitive it wraps for a
+  consistency win that wasn't asked for at that layer.
+- `silt.iwft.tsx` renamed to `render.iwft.tsx` (of the ticket's two suggested
+  options) — the suite covers both paint interaction and canvas-rendering
+  assertions, and `render` reads as the broader of the two without leaning on
+  "painting" as the primary framing.
+- Noting, not acting on (out of scope for this ticket): `useArmedConfirm.iwft.tsx`
+  (landed with ticket 14) is named after a unit under test rather than after
+  what it tests, same class of drift as `silt.iwft.tsx` was. Worth a follow-up
+  ticket if the "named after what it tests" convention is meant to hold for
+  every `.iwft.tsx` file.
