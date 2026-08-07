@@ -139,14 +139,7 @@ export class SceneStore {
   save(name: string, json: string, thumbnail: string | null): SceneMeta {
     const meta: SceneMeta = { id: this.#newId(), name, updatedAt: this.#now() }
 
-    this.#write(blobKey(meta.id), json)
-    if (thumbnail) {
-      try {
-        this.#storage.setItem(thumbKey(meta.id), thumbnail)
-      } catch {
-        // Decoration only — a scene without a thumbnail still loads.
-      }
-    }
+    this.#writeScene(meta.id, json, thumbnail)
     this.#writeIndex([...this.list(), meta])
 
     return meta
@@ -163,19 +156,10 @@ export class SceneStore {
     // boot reconcile as a "recovered scene" nobody ever saved.
     if (!this.list().some((scene) => scene.id === id)) return
 
-    this.#write(blobKey(id), json)
-    let pictured = false
-    if (thumbnail) {
-      try {
-        this.#storage.setItem(thumbKey(id), thumbnail)
-        pictured = true
-      } catch {
-        // Decoration only — a scene without a thumbnail still loads.
-      }
-    }
-    // The previous save's thumbnail goes with it: it pictures a world this
-    // scene no longer holds, and its bytes stay charged to the quota regardless.
-    if (!pictured) this.#storage.removeItem(thumbKey(id))
+    // The previous save's thumbnail goes with it when this one does not land:
+    // it pictures a world this scene no longer holds, and its bytes stay
+    // charged to the quota regardless.
+    if (!this.#writeScene(id, json, thumbnail)) this.#storage.removeItem(thumbKey(id))
 
     this.#writeIndex(
       this.list().map((scene) => (scene.id === id ? { ...scene, updatedAt: this.#now() } : scene)),
@@ -223,6 +207,24 @@ export class SceneStore {
     this.#storage.removeItem(blobKey(id))
     this.#storage.removeItem(thumbKey(id))
     this.#writeIndex(this.list().filter((scene) => scene.id !== id))
+  }
+
+  /**
+   * The scene's own two keys, in the order spec §8 fixes: the blob is the
+   * durable part and goes first, the thumbnail is decoration and is allowed to
+   * fail. Returns whether the scene ended up with a picture. Both `save` and
+   * `update` go through here so the order can only be got right or wrong once.
+   */
+  #writeScene(id: string, json: string, thumbnail: string | null): boolean {
+    this.#write(blobKey(id), json)
+    if (!thumbnail) return false
+    try {
+      this.#storage.setItem(thumbKey(id), thumbnail)
+      return true
+    } catch {
+      // Decoration only — a scene without a thumbnail still loads.
+      return false
+    }
   }
 
   #writeIndex(scenes: readonly SceneMeta[]): void {

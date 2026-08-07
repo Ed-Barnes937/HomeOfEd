@@ -151,12 +151,7 @@ export class SiltPagePom extends BasePage {
 
   /** When the row says it was last saved. */
   async sceneUpdatedAt(name: string): Promise<string> {
-    return (
-      (await this.page
-        .getByTestId(`scene-row-${name}`)
-        .getByTestId('scene-updated')
-        .textContent()) ?? ''
-    )
+    return this.statusText(`scene-updated-${name}`)
   }
 
   async verifySceneThumbnail(name: string): Promise<void> {

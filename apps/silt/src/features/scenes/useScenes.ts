@@ -23,7 +23,7 @@ export interface ScenesController {
   duplicate: (id: string) => void
   remove: (id: string) => void
   /** The world on screen is nobody's scene any more — the next save creates one. */
-  letGoOfCurrent: () => void
+  clearCurrentScene: () => void
 }
 
 /** Private browsing modes can make even *touching* localStorage throw. */
@@ -181,7 +181,7 @@ export function useScenes(options: UseScenesOptions): ScenesController {
         setStatus({ tone: 'ok', text: `renamed to ${name}` })
       }),
 
-    letGoOfCurrent: () => setCurrentId(null),
+    clearCurrentScene: () => setCurrentId(null),
 
     // Save updates in place, so this is the way to keep the version you have
     // and carry on from it — load the copy to continue in the fork.

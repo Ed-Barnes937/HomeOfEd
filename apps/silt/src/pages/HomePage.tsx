@@ -85,7 +85,7 @@ export function HomePage() {
     controls.reset()
     // An empty world is not the scene that was loaded, and saving is not the
     // moment to find that out: the next save makes a new scene instead.
-    scenes.letGoOfCurrent()
+    scenes.clearCurrentScene()
   }
 
   useEffect(() => {

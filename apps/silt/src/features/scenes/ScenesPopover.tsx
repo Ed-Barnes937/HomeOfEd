@@ -134,7 +134,7 @@ export function ScenesPopover(props: ScenesPopoverProps) {
                     }
                   }}
                 />
-                <span className={styles.updated} data-testid="scene-updated">
+                <span className={styles.updated} data-testid={`scene-updated-${scene.name}`}>
                   {formatUpdatedAt(scene.updatedAt)}
                 </span>
                 {scene.error ? (
