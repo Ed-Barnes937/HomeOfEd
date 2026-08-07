@@ -33,7 +33,13 @@ const APPS: AppLink[] = [
     href: 'https://karesansui.homeofed.com',
     deployedAt: '2026-07-10',
   },
-  { name: 'boop', status: 'SOON', kind: 'boop', soonLabel: 'Coming soon' },
+  {
+    name: 'boop',
+    status: 'LIVE',
+    kind: 'boop',
+    href: 'https://boop.homeofed.com',
+    deployedAt: '2026-08-07',
+  },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
 

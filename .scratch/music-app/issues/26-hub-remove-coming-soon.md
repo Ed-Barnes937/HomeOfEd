@@ -12,9 +12,20 @@ explicit decision to launch on attributed placeholders). Also gated on the
 human-run go-live (Fly app + Cloudflare, per the runbook) — don't remove the
 label before the app is actually reachable.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] "Coming soon" label removed
-- [ ] Card links to `boop.homeofed.com`
-- [ ] Verified against the live app before merge
-- [ ] Hub tests green
+- [x] "Coming soon" label removed
+- [x] Card links to `boop.homeofed.com`
+- [x] Verified against the live app before merge
+- [x] Hub tests green
+
+## Comments
+
+Resolved 2026-08-07 (agent, on `music-app`). Go-live confirmed first:
+`https://boop.homeofed.com/` returns 200 and `/health` -> {"ok":true}. TDD:
+POM `verifyBoopIsComingSoon` flipped to `verifyBoopLink` (href asserted +
+"Coming soon" absent), red confirmed, then the card flipped to
+`status: 'LIVE', href, deployedAt: 2026-08-07` (drives the "New" pill, same
+shape as espy/karesansui). `soonLabel` field kept — still the fallback for
+HEIG's SOON card. Verify loop green: lint, typecheck, hub vitest 8/8 +
+playwright 2/2.
