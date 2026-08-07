@@ -83,6 +83,9 @@ export function HomePage() {
     if (resetTimer.current) clearTimeout(resetTimer.current)
     setResetArmed(false)
     controls.reset()
+    // An empty world is not the scene that was loaded, and saving is not the
+    // moment to find that out: the next save makes a new scene instead.
+    scenes.letGoOfCurrent()
   }
 
   useEffect(() => {
@@ -94,8 +97,8 @@ export function HomePage() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       // The scene rename field is a text input: the hotkeys would eat what is
-      // being typed into it — Ctrl+S included, which would fork a second copy
-      // of the scene being renamed.
+      // being typed into it — Ctrl+S included, which would save the world on
+      // screen over the scene being renamed.
       if (event.target instanceof HTMLInputElement) return
       if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault()

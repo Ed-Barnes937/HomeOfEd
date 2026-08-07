@@ -80,6 +80,18 @@ describe('SceneStore', () => {
     expect([...storage.items.keys()].filter((key) => key.startsWith('silt:thumb:'))).toHaveLength(1)
   })
 
+  it('writes nothing when asked to update a scene that is not in the index', () => {
+    store.save('dunes', '{"scene":1}', null)
+    storage.writes.length = 0
+
+    store.update('gone', '{"scene":2}', null)
+
+    // No row to update, so no blob either — an orphan would come back from the
+    // next boot reconcile as a "recovered scene" nobody saved.
+    expect(storage.writes).toEqual([])
+    expect(storage.getItem(blobKey('gone'))).toBeNull()
+  })
+
   it('drops the old thumbnail when the new one will not fit, rather than showing a stale world', () => {
     const first = store.save('dunes', '{"scene":1}', 'data:image/png;base64,AA')
     storage.full = (key) => key.startsWith(thumbKey(''))

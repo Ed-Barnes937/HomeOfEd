@@ -159,6 +159,10 @@ export class SceneStore {
    * footprint do not move however many times the world is saved.
    */
   update(id: string, json: string, thumbnail: string | null): void {
+    // No row to update, so no blob either: it would come back from the next
+    // boot reconcile as a "recovered scene" nobody ever saved.
+    if (!this.list().some((scene) => scene.id === id)) return
+
     this.#write(blobKey(id), json)
     let pictured = false
     if (thumbnail) {

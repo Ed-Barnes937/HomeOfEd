@@ -129,6 +129,20 @@ rather than resurrecting the row that was just deleted. Not in the acceptance
 criteria; it falls out of "a save writes to the current scene" and there was no
 safe alternative.
 
+**Reset also lets go of the current scene** (spec-axis review finding). The
+ticket pins only load and save, but leaving the scene attached across a reset
+means reset-then-Ctrl+S writes an empty world over a saved scene with no
+confirm and no way back — the destructive move overwrite was always going to
+have to avoid. Decided rather than deferred: reset detaches, the header returns
+to `untitled`, and the next save creates a new row. iwft case included.
+
+**The Ctrl+S regression case was rewritten, not just kept.** Under overwrite it
+could no longer create `scene 2`, so `verifyNoSceneRow('scene 2')` passed for
+the wrong reason and would have stayed green with the input guard deleted. It
+now saves a world, moves the world on, presses Ctrl+S inside the rename field
+and reloads the scene to prove it still holds the world it was saved with —
+verified red by removing the guard.
+
 **Unrelated, pre-existing:** `apps/silt/src/pages/HomePage.tsx` and
 `src/testing/SiltPagePom.ts` fail `prettier --check` on `origin/basic-cellular-
 automaton` (one long line each, both untouched by this ticket). `pnpm lint`

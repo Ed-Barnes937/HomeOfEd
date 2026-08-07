@@ -95,8 +95,13 @@ never meant to create.
 
 Overwrite does need "the scene I am editing" to be right, so it is state on the
 scenes controller rather than an inference from the header text — the header
-now reads *from* it, not the other way round. Deleting the current scene clears
-it, so the next save creates rather than resurrecting a deleted row.
+now reads *from* it, not the other way round. Two things let go of it, because
+in both the world on screen stops being that scene: **deleting** it (the next
+save creates rather than resurrecting a deleted row) and **reset** (otherwise
+reset then Ctrl+S writes an empty world over a saved scene, with no confirm and
+no way back). Ctrl+S is likewise still barred from firing inside the rename
+field — under overwrite that would save over the scene being renamed, which is
+worse than the extra copy it used to make.
 
 Forking is what this costs, so `copy` on each row buys it back: the stored
 bytes duplicated under a new id and `<name> copy`. It leaves the current scene

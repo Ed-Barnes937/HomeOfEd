@@ -99,6 +99,29 @@ test('the header names the scene a save would write to, through a save and a ren
   expect(await root.headerSceneName()).toBe('dunes')
 })
 
+test('reset lets go of the scene, so the next save does not empty it', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.paintCell(150, 100)
+  await root.openScenes()
+  await root.saveScene()
+  await root.closeScenes()
+
+  // Reset clears the world, so what is on screen is nobody's scene any more —
+  // saving it must not write an empty world over the one just saved.
+  await root.confirmReset()
+  expect(await root.headerSceneName()).toBe('untitled')
+
+  await root.paintCell(160, 100)
+  await root.openScenes()
+  await root.saveScene()
+  await root.verifySceneRow('scene 2')
+
+  await root.loadScene('scene 1')
+  await root.verifyCellIs(150, 100, SAND)
+})
+
 test('a scene can be forked with duplicate, which save-over-the-current no longer does', async ({
   mountApp,
 }) => {
@@ -167,17 +190,27 @@ test('a rename says so, instead of leaving the last save on screen', async ({ mo
   expect(await root.sceneStatus()).not.toContain('saved')
 })
 
-test('Ctrl+S while renaming a scene does not save a new one', async ({ mountApp }) => {
+test('Ctrl+S while renaming a scene does not write over it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
+  await root.paintCell(150, 100)
   await root.openScenes()
   await root.saveScene()
   await root.verifySceneRow('scene 1')
 
+  // A world that has moved on since the save.
+  await root.closeScenes()
+  await root.paintCell(160, 100)
+  await root.openScenes()
+
   // The rename field is a text input: the hotkeys must all stay out of it,
-  // Ctrl+S included, or renaming a scene silently forks a second copy.
-  await root.typeInSceneName('scene 1', 'dun')
+  // Ctrl+S included, or renaming a scene silently saves over it. Same text, so
+  // the blur that follows is not itself a rename.
+  await root.typeInSceneName('scene 1', 'scene 1')
   await root.pressKey('Control+s')
-  await root.verifyNoSceneRow('scene 2')
+  expect(await root.sceneRowCount()).toBe(1)
+
+  await root.loadScene('scene 1')
+  expect(await root.countSpecies(SAND)).toBe(1)
 })
