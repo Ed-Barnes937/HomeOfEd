@@ -19,11 +19,11 @@ Also in scope, same class:
 **What to build:** Pick one verb (`delete` reads best — it's what the UI says and
 what the user is doing) and use it at all three layers. Rename `silt.iwft.tsx`.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] One verb for the delete operation across hook, component and POM
-- [ ] `silt.iwft.tsx` renamed to match its siblings' convention
-- [ ] Full suite green
+- [x] One verb for the delete operation across hook, component and POM
+- [x] `silt.iwft.tsx` renamed to match its siblings' convention
+- [x] Full suite green
 
 **Severity:** low — pure naming.
 
@@ -60,3 +60,23 @@ not a pointless hop.
   what it tests, same class of drift as `silt.iwft.tsx` was. Worth a follow-up
   ticket if the "named after what it tests" convention is meant to hold for
   every `.iwft.tsx` file.
+
+**Resolved (orchestrator, 2026-08-07) — PR #60, merged at `279c237`, CI green.**
+
+`delete` is now the verb at all three layers: `ScenesController.delete`
+(`useScenes.ts:24`, `:201`), `onDelete` on the popover and `deleteScene` on the
+POM were already there, so only the hook and its one call site in `HomePage`
+moved. `silt.iwft.tsx` → `render.iwft.tsx` via `git mv`, with the description in
+`apps/silt/CLAUDE.md` updated to match.
+
+**`SceneStore.remove` deliberately not renamed** — the ticket scopes this to
+hook, component and POM, and the store's vocabulary mirrors the `Storage`
+primitive it wraps (`removeItem`) rather than the UI's affordance. Both review
+axes independently agreed. Reasonable, and recorded here in case a later reader
+reads the remaining `store.remove(id)` call inside `delete` as a miss.
+
+**TDD, honestly reported:** pure rename, suite green before (111 + 33) and green
+after, no red-before-green claimed.
+
+`useArmedConfirm.iwft.tsx` (from ticket 14) is the same class of naming drift and
+was flagged, not touched — correct, it was out of scope.

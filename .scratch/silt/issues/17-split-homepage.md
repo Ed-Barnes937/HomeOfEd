@@ -26,7 +26,7 @@ canvas fit.
 
 Leave the selection state where it is; that genuinely belongs to the page.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Overlay markup and its positioning arithmetic live outside `HomePage`
 - [ ] The keydown map lives in its own hook
