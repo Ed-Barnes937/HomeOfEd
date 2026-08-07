@@ -22,11 +22,11 @@ constraint — the size is a free choice, so it may as well be the better one.
 **What to build:** Take the square icon chips (`.brushButton`, `.swatchRow`) to
 48×48. Leave the text-labelled buttons alone — see below.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Square icon chips are 48×48 on mobile
-- [ ] `mobile.iwft.tsx` still green; desktop layout unaffected
-- [ ] Bottom bar still fits at 390px wide without the palette row overflowing
+- [x] Square icon chips are 48×48 on mobile
+- [x] `mobile.iwft.tsx` still green; desktop layout unaffected
+- [x] Bottom bar still fits at 390px wide without the palette row overflowing
       unexpectedly (it scrolls sideways by design, but check it doesn't now
       scroll when it previously didn't)
 
@@ -89,3 +89,23 @@ is worth making explicit so this doesn't get re-flagged.
   (claiming `.modeButton`'s 44px min was changed) was a misread of unified-diff
   context lines — verified against the actual diff that `.modeButton` and
   `.eraseButton` are untouched, still 44px, as intended. Second pass: clean.
+
+**Resolved (orchestrator, 2026-08-07) — PR #56, squash-merged, CI green.**
+
+`.brushButton` and `.swatchRow` are 48×48, changed inside the `$mobile` media
+query only, so desktop is untouched — verified against the diff. The POM gained
+`verifySquareChipSize` (exact 48) beside the unchanged `verifyTouchTargetSize`
+(the 44px floor, still used for `play-toggle`/`reset`/`erase-tool`), which
+keeps the ticket's distinction between the floor and the comfortable size.
+The text-labelled buttons were correctly left alone.
+
+Red-before-green verified: `Expected: 48, Received: 44` (and `43.99998` for
+`brush-0`) against unmodified CSS.
+
+Bottom bar at 390px: `.rail` scrollWidth 607px → 639px against clientWidth
+374px. It already scrolled sideways before this change and still does — no
+regression from "fits" to "scrolls", which is what the ticket asked to check.
+
+Deviation, accepted: the worker also asserted `brush-0`, beyond the ticket's
+literal wording. The ticket's own measurement table lists `brush-0` as a 44×44
+chip, so this closes a gap in the criterion rather than widening scope.

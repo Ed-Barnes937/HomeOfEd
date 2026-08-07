@@ -21,12 +21,12 @@ actually renders), so `paletteGroups` should derive from the same registry the
 renderer uses rather than from `v1Elements`. Then either the comment is true, or
 delete it. Rename one of the two "palette" modules while you're there.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Rail and canvas colours provably come from one source
-- [ ] `palette.ts:16`'s claim is true, or gone
-- [ ] The two "palette" modules have distinguishable names
-- [ ] `paletteGroups.test.ts` still passes; full suite green
+- [x] Rail and canvas colours provably come from one source
+- [x] `palette.ts:16`'s claim is true, or gone
+- [x] The two "palette" modules have distinguishable names
+- [x] `paletteGroups.test.ts` still passes; full suite green
 
 **Source:** whole-branch drift review (2026-08-06), Standards axis.
 
@@ -54,3 +54,30 @@ rather than fixed, since removing it would mean either exporting a shared
 this ticket's scope) or delaying the rail's first paint until the sim mounts
 (a UX regression). Whoever next touches `useSimLoop.ts` or `Sim`'s defaults
 should know this pairing exists.
+
+**Resolved (orchestrator, 2026-08-07) — PR #55, squash-merged, CI green.**
+
+`render/palette.ts` is now `render/speciesPalette.ts`
+(`buildSpeciesPalette`/`SpeciesPalette`); the rail's module keeps its name but
+exposes `buildRailPalette(registry)`/`RailPalette` in place of the import-time
+constants built from `v1Elements`. `HomePage` builds the rail from
+`controls.registry`, which `useSimLoop` sets to the running `sim.registry` —
+the same object handed to the renderer. Both modules' comments now name each
+other and are true.
+
+Red-before-green was initially reported as a module-not-found error with zero
+tests executed, which proves nothing about the invariant, so the worker was
+sent back to demonstrate it properly. Mutating `buildRailPalette` to read
+`v1Elements` again gives:
+
+```
+AssertionError: expected '#8a7358' to be '#123456'
+  expect(railPalette.colourOf(DIRT)).toBe('#123456')
+```
+
+— v1's default dirt colour leaking past a registry holding `#123456`. The test
+catches the drift this ticket was filed for.
+
+`paletteGroups.test.ts` was re-pointed at the new function; every original
+assertion (roster contents, obsidian exclusion, group order, empty-group
+omission) is preserved — verified against the diff.
