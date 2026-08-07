@@ -29,9 +29,12 @@ src/
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
     main.ts         prod entrypoint: createAppServer + shallow /health
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
-  pages/            HomePage — the rail, header, status bar and world overlay
+  pages/            HomePage — the rail, header, status bar, selection state
+  hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
+                    global keydown map, given the actions it dispatches)
   features/         palette/ (the paintable roster + brush widths)
-                    render/  (letterboxFit, the Canvas 2D renderer, grid palette)
+                    render/  (letterboxFit, the Canvas 2D renderer, grid palette,
+                              WorldOverlay — the chrome drawn over the canvas)
                     sim/     (useSimLoop — the RAF loop, pointer painting, DPR fit)
                     spawners/(continuous emitters — entities, not cells)
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +

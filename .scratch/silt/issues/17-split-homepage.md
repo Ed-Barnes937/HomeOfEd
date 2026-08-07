@@ -61,3 +61,49 @@ of the JSX block `<WorldOverlay>` would take. Decide whether the hint belongs
 inside the overlay component or stays on the page, and say which in the Comments.
 
 **Source:** whole-branch drift review (2026-08-06), Standards axis.
+
+## Comments
+
+**The first-visit hint stays on the page** (2026-08-07, ticket 17).
+
+`<WorldOverlay>` took the brush cursor, the spawner boxes and the placement
+ghost — the three things that are *positioned by the canvas fit*. The hint is
+not one of them: it is a centred banner pinned to the bottom of the canvas
+wrapper, and it never asks the fit where anything is. It also carries state
+(`hintVisible`/`hintFading`) whose lifetime is a page concern — the seen flag is
+written on first paint and on scene load, both page-owned events. Moving it into
+the overlay would mean either moving that state into a presentational component
+or threading two values and an `onTransitionEnd` callback through it, in
+exchange for nothing. So the overlay is a pure function of cursor, spawners,
+mode, brush width and the fit, and the hint stays where ticket 18 put it.
+
+Shape of the split:
+
+- `src/features/render/WorldOverlay.tsx` (+ its own `.module.scss`) — renders a
+  fragment, so the elements still position against `.canvasWrap` and DOM order
+  is unchanged. `fit` is typed `WorldFit = Pick<UseSimLoopControls,
+  'gridToCanvasPoint' | 'cellSize'>` — narrow enough that the overlay cannot
+  reach the rest of the loop, without a hand-maintained second copy of the two
+  signatures. `hoveredSpawnerIndex` moved in with it — nothing outside the
+  overlay used it.
+- `src/hooks/useSiltHotkeys.ts` — one window listener, registered once, reading
+  the actions off a single latest-value ref synced in a dependency-array-free
+  `useEffect` (ticket 15's convention). It is keys in, actions out and holds no
+  state: the brush clamp, the rail order behind the digits, and the
+  paused-only gate on `.` all stayed on the page with the state they read.
+
+`HomePage.tsx` 448 → 355 lines. No test file was touched.
+
+**Left for another ticket** (raised by the ticket-17 code review, not fixed here
+because both would be behaviour or API changes beyond a mechanical split):
+
+- **Two sources for one number.** `WorldOverlay` sizes the brush cursor and the
+  ghost from `cursor.cellSize` but the spawner boxes from `fit.cellSize()`.
+  They agree by construction, but `cursor.cellSize` is sampled at pointer-move
+  time and `fit.cellSize()` at render time, so they can disagree for a frame
+  mid-resize. Collapsing them means dropping `cellSize` from `CursorInfo`,
+  which is `useSimLoop`'s API, not this ticket's.
+- **A third copy of the SCSS token block.** `WorldOverlay.module.scss` repeats
+  `$ink`/`$paper`/`$destructive`, following the house pattern
+  (`ScenesPopover.module.scss` already does). Three copies is the point at which
+  a shared `_tokens.scss` would earn itself.
