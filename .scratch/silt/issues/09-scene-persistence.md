@@ -96,3 +96,25 @@ green by making `Sim.restore` write a non-zero clock.
 
 Gate run by the orchestrator on the merged 09+10 tree: lint/typecheck clean,
 105 vitest + 23 iwft green.
+
+**Whole-branch drift review (2026-08-06).** Two fixes landed here, and the big
+open question was written up rather than answered.
+
+Fixed: (1) the Ctrl+S branch sat *above* the `HTMLInputElement` guard in the
+keydown handler, so Ctrl+S while typing in a rename field forked a second copy of
+the scene being renamed — the branch now sits below the guard, with an iwft case;
+(2) `rename` set no status while `save`/`load` did and `remove` cleared it, so a
+stale "saved scene 1" survived a rename — all four operations now report, per §8
+"loud, never silent". Both verified red before green.
+
+Not fixed — see **ticket 13**: the no-overwrite save model. The review's verdict
+is that §8 *does* imply overwrite (the field is `updatedAt`, not `createdAt`; §9's
+inline rename implies a durable slot; §8's 20-scene quota budget only works if
+re-saving replaces). `updatedAt` is currently write-once and displayed nowhere.
+That's a design call for a human, so it's a ticket rather than a fix, along with
+the header scene name never following a save or rename, the index filter
+accepting rows with no `updatedAt`, and the unbudgeted `silt:thumb:` key class.
+
+Ctrl+S also opening the popover was reviewed and **upheld** as a defensible
+reading of §8's "loud, never silent" — the popover is the only surface that shows
+the save result.

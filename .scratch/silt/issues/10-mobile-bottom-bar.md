@@ -46,3 +46,27 @@ any width — inherited ADR 0023 behaviour, not introduced here.
 
 Gate re-run by the orchestrator on the merged 09+10 tree: lint/typecheck clean,
 105 vitest + 23 iwft green.
+
+**Whole-branch drift review (2026-08-06) — independently re-reviewed, came back
+clean.** This ticket got the heaviest weighting in the drift review precisely
+because it had the least scrutiny (its own sub-agents never returned; it
+self-reviewed and failed its gate). Both axes examined it fresh and neither found
+anything beyond one cosmetic point.
+
+Standards axis: no findings — the mobile path is CSS-only, `HomePage.tsx` has
+zero mobile branching, no duplicated markup, no mobile-only state, and the
+reachability fix landed as a `display: none` removal rather than a parallel
+component. Spec axis: §9's mobile clauses all verified true in code — group order
+preserved via `GROUP_ORDER` with only a `flex-direction` flip, ≥44px targets,
+erase last, spawner mode reachable and asserted, `step` the only control dropped.
+
+One residual, filed as **ticket 19**: the square icon chips sit at 44×44, the
+accessibility floor, where §9's 44–48px would prefer 48.
+
+The review originally flagged this the other way round — that text-padded chips
+(`spawner`, `confirm?`) *exceeded* a 48px ceiling. Measuring the rendered boxes
+killed that reading: the overflow is width-only and structural (32.8px of padding
+and border before any text), and fitting `confirm?` into 48px would need an
+illegible font or a glyph instead of the word. §9's "44–48px" is a minimum in the
+sense every touch-target guideline means it, not a bound. Ticket 19 records the
+measurements and the rejected reading.

@@ -45,3 +45,11 @@ otherwise place a spawner with `element: EMPTY` that rendered and counted like a
 working one but silently never emitted.
 
 Orchestrator gate: lint/typecheck clean, 87 vitest + 16 iwft green.
+
+**Whole-branch drift review (2026-08-06) — one fix landed here.** `step` ticked
+the sim but never called `emitSpawners`, so a spawner scene advanced with `.` or
+the step button produced nothing while playing produced material. Spec §3 says a
+step is exactly one sim tick and §7 says a spawner emits per tick, so the two
+clauses only met in the RAF loop. This is a between-tickets gap: emission is
+ticket 08's, the step button is ticket 07's, and each was correct alone. Fixed in
+`useSimLoop.step`, with a new `spawners.iwft.tsx` case verified red first.
