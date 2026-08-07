@@ -228,12 +228,24 @@ export class SiltPagePom extends BasePage {
     }
   }
 
-  /** Touch targets must be 44–48px on a side (spec §9). */
-  async verifyTouchTargetSize(testId: string): Promise<void> {
+  private async boundingBoxOrThrow(testId: string): Promise<{ width: number; height: number }> {
     const box = await this.page.getByTestId(testId).boundingBox()
     if (!box) throw new Error(`${testId} has no bounding box`)
+    return box
+  }
+
+  /** Touch targets must be at least 44px on a side (spec §9's floor). */
+  async verifyTouchTargetSize(testId: string): Promise<void> {
+    const box = await this.boundingBoxOrThrow(testId)
     expect(box.width).toBeGreaterThanOrEqual(44)
     expect(box.height).toBeGreaterThanOrEqual(44)
+  }
+
+  /** Square icon chips (brush/swatch) are the comfortable 48x48, not just the 44px floor (spec §9). */
+  async verifySquareChipSize(testId: string): Promise<void> {
+    const box = await this.boundingBoxOrThrow(testId)
+    expect(box.width).toBeCloseTo(48, 0)
+    expect(box.height).toBeCloseTo(48, 0)
   }
 
   async play(): Promise<void> {

@@ -22,11 +22,11 @@ constraint — the size is a free choice, so it may as well be the better one.
 **What to build:** Take the square icon chips (`.brushButton`, `.swatchRow`) to
 48×48. Leave the text-labelled buttons alone — see below.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Square icon chips are 48×48 on mobile
-- [ ] `mobile.iwft.tsx` still green; desktop layout unaffected
-- [ ] Bottom bar still fits at 390px wide without the palette row overflowing
+- [x] Square icon chips are 48×48 on mobile
+- [x] `mobile.iwft.tsx` still green; desktop layout unaffected
+- [x] Bottom bar still fits at 390px wide without the palette row overflowing
       unexpectedly (it scrolls sideways by design, but check it doesn't now
       scroll when it previously didn't)
 
@@ -63,3 +63,49 @@ instruction in the sense every touch-target guideline uses it: at least 44,
 prefer 48. A control wider than 48px is not a defect; one narrower than 44 is.
 `docs/adr/0028`/`0029` need no change, but if spec §9 is ever revised the phrase
 is worth making explicit so this doesn't get re-flagged.
+
+## Comments
+
+- 2026-08-07: Implemented — `.brushButton`/`.swatchRow` now 48×48 in
+  `apps/silt/src/pages/HomePage.module.scss`; `SiltPagePom.verifySquareChipSize`
+  (exact 48×48, `toBeCloseTo(48, 0)`) added alongside the unchanged
+  `verifyTouchTargetSize` (44px floor, still used for the text buttons).
+  `mobile.iwft.tsx` now asserts both `element-sand` (swatch) and `brush-0`
+  (brush square). Red-before-green verified for both.
+- AC3 (bottom bar still fits at 390px): measured directly against a real
+  browser (not the CT harness, which sizes its mount iframe independently of
+  `test.use({viewport})` and gave misleading numbers — a gotcha worth knowing
+  if anyone else tries to assert on `.rail` width in an `.iwft` test). At
+  390×844 with touch: `.rail` clientWidth 374px, scrollWidth was 607px before
+  this change and 639px after — it already needed the sideways scroll before
+  the fix (by design, spec §9), and still does after; the fix adds ~32px
+  (8 square chips × 4px) to an already-overflowing row, not a new overflow.
+  No regression from "fits" to "needs scroll."
+- Code-review pass (Standards + Spec axes vs `origin/basic-cellular-automaton`)
+  ran twice. First pass found: (a) the 48×48 assertion only covered
+  `.swatchRow`, not `.brushButton` — fixed by adding a `brush-0` assertion;
+  (b) minor `boundingBox`-or-throw duplication between the two POM helpers —
+  extracted into a private `boundingBoxOrThrow`. One Standards-axis finding
+  (claiming `.modeButton`'s 44px min was changed) was a misread of unified-diff
+  context lines — verified against the actual diff that `.modeButton` and
+  `.eraseButton` are untouched, still 44px, as intended. Second pass: clean.
+
+**Resolved (orchestrator, 2026-08-07) — PR #56, squash-merged, CI green.**
+
+`.brushButton` and `.swatchRow` are 48×48, changed inside the `$mobile` media
+query only, so desktop is untouched — verified against the diff. The POM gained
+`verifySquareChipSize` (exact 48) beside the unchanged `verifyTouchTargetSize`
+(the 44px floor, still used for `play-toggle`/`reset`/`erase-tool`), which
+keeps the ticket's distinction between the floor and the comfortable size.
+The text-labelled buttons were correctly left alone.
+
+Red-before-green verified: `Expected: 48, Received: 44` (and `43.99998` for
+`brush-0`) against unmodified CSS.
+
+Bottom bar at 390px: `.rail` scrollWidth 607px → 639px against clientWidth
+374px. It already scrolled sideways before this change and still does — no
+regression from "fits" to "scrolls", which is what the ticket asked to check.
+
+Deviation, accepted: the worker also asserted `brush-0`, beyond the ticket's
+literal wording. The ticket's own measurement table lists `brush-0` as a 44×44
+chip, so this closes a gap in the criterion rather than widening scope.

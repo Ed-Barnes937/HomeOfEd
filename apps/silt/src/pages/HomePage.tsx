@@ -1,12 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import {
-  BRUSH_WIDTHS,
-  colourOf,
-  nameOf,
-  paletteEntries,
-  paletteGroups,
-} from '../features/palette/paletteGroups.ts'
+import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
 import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
@@ -87,6 +81,10 @@ export function HomePage() {
     onSpawnersChange: setSpawners,
   })
 
+  // Derived from the same registry the canvas paints from — never from
+  // `v1Elements` directly — so the rail can't drift from the grid (ticket 16).
+  const palette = useMemo(() => buildRailPalette(controls.registry), [controls.registry])
+
   const scenes = useScenes({
     saveScene: controls.saveScene,
     loadScene: controls.loadScene,
@@ -108,6 +106,8 @@ export function HomePage() {
   controlsRef.current = controls
   const saveSceneRef = useRef(scenes.save)
   saveSceneRef.current = scenes.save
+  const paletteRef = useRef(palette)
+  paletteRef.current = palette
 
   const armReset = (): void => {
     if (!resetConfirm.armed) {
@@ -135,7 +135,7 @@ export function HomePage() {
         return
       }
       if (event.key >= '1' && event.key <= '9') {
-        const entry = paletteEntries[Number(event.key) - 1]
+        const entry = paletteRef.current.entries[Number(event.key) - 1]
         if (entry) {
           setTool('paint')
           setSelectedElement(entry.id)
@@ -173,7 +173,7 @@ export function HomePage() {
     setSelectedElement(id)
   }
 
-  const selectedName = tool === 'erase' ? 'erase' : nameOf(selectedElement)
+  const selectedName = tool === 'erase' ? 'erase' : palette.nameOf(selectedElement)
 
   // The hovered cell, in spawner mode, may already hold a spawner — that one
   // renders red-with-minus instead of the placement ghost (spec §7, §9).
@@ -245,11 +245,11 @@ export function HomePage() {
       <div className={styles.body}>
         <nav className={styles.rail} aria-label="tools">
           <div className={styles.palette} data-testid="palette">
-            {paletteGroups.map((group) => (
+            {palette.groups.map((group) => (
               <div key={group.label} className={styles.paletteGroup}>
                 <span className={styles.groupLabel}>{group.label}</span>
                 {group.entries.map((entry) => {
-                  const hotkey = paletteEntries.indexOf(entry) + 1
+                  const hotkey = palette.entries.indexOf(entry) + 1
                   return (
                     <button
                       key={entry.id}
@@ -381,7 +381,7 @@ export function HomePage() {
               if (!point) return null
               const size = controls.cellSize()
               const removing = index === hoveredSpawnerIndex
-              const colour = colourOf(spawner.element)
+              const colour = palette.colourOf(spawner.element)
               return (
                 <div
                   key={`${spawner.x}-${spawner.y}`}
@@ -409,7 +409,7 @@ export function HomePage() {
                   top: cursor.point.y,
                   width: cursor.cellSize,
                   height: cursor.cellSize,
-                  background: colourOf(selectedElement),
+                  background: palette.colourOf(selectedElement),
                 }}
                 data-testid="spawner-ghost"
                 aria-hidden="true"

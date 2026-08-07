@@ -1,6 +1,15 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 
-import { FixedTimestep, GRID_WIDTH, MS_PER_TICK, Sim } from '../../sim/index.ts'
+import {
+  createRegistry,
+  FixedTimestep,
+  GRID_WIDTH,
+  MS_PER_TICK,
+  Sim,
+  v1Elements,
+  v1Reactions,
+  type ElementRegistry,
+} from '../../sim/index.ts'
 import { SimRenderer } from '../render/renderer.ts'
 import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
 import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
@@ -70,6 +79,11 @@ function brushOffsets(width: number): readonly { dx: number; dy: number }[] {
 }
 
 export interface UseSimLoopControls {
+  /** The registry the running sim renders from — the rail derives its
+   * colours from this (never `v1Elements` directly), so it can't drift from
+   * the canvas (ticket 16). Defaults to the same v1 registry `Sim` builds by
+   * default, until the mount effect below swaps in the sim's own instance. */
+  registry: ElementRegistry
   /** Advance exactly one sim tick — spec §3's step, meant for while paused. */
   step: () => void
   /** Back to a freshly constructed world, cells and spawners alike (spec §3, §7). */
@@ -112,6 +126,9 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   const simRef = useRef<Sim | null>(null)
   const rendererRef = useRef<SimRenderer | null>(null)
   const spawnersRef = useRef<Spawner[]>([])
+  // Same defaults `Sim` itself falls back to, so the rail matches the canvas
+  // from first paint — swapped for the sim's own `registry` once it mounts.
+  const [registry, setRegistry] = useState<ElementRegistry>(() => createRegistry(v1Elements, v1Reactions))
 
   useEffect(() => {
     runningRef.current = opts.running
@@ -153,6 +170,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
 
     const sim = new Sim()
     simRef.current = sim
+    setRegistry(sim.registry)
     const renderer = new SimRenderer(canvas, sim.registry)
     rendererRef.current = renderer
 
@@ -322,6 +340,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   }, [opts.canvasRef])
 
   return {
+    registry,
     // A step is exactly one sim tick (spec §3), and emission is per tick
     // (spec §7) — so it runs here too, or a spawner scene stays dead under the
     // step button while playing produces material.
