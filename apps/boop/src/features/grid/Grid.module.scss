@@ -1,0 +1,341 @@
+// Grid-well geometry from the design handoff (docs/reference/boop-design/README.md,
+// "Grid well" / "Cell geometry and state"). Breakpoint at 1280px splits the
+// laptop and tablet number sets; below 1024px this component is not rendered
+// at all — `PhoneGrid` and its own module take over (ticket 27, `useIsPhone`).
+.well {
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  background: var(--well);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  @media (max-width: 1279px) {
+    padding: 16px;
+    border-radius: 20px;
+  }
+}
+
+.barNumerals {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 8px;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+}
+
+.railSpacer {
+  flex: none;
+  width: 160px;
+
+  @media (max-width: 1279px) {
+    width: 124px;
+  }
+}
+
+.barNumeral {
+  flex: none;
+  width: 272px; // 4 × cellW(62) + 3 × gap(18)
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: rgba(242, 239, 230, 0.28);
+
+  // The bar the playhead is currently in (design handoff, "Grid well" — bar-numeral row).
+  &[data-active='true'] {
+    color: rgba(242, 239, 230, 0.7);
+  }
+
+  @media (max-width: 1279px) {
+    width: 186px; // 4 × cellW(42) + 3 × gap(14)
+    font-size: 10px;
+  }
+}
+
+.body {
+  position: relative;
+  // Scoped to the grid only (never document-level or user-scalable=no), so
+  // drag-paint doesn't trigger the page's touch scroll/zoom gestures while
+  // pinch-zoom elsewhere on the page keeps working.
+  touch-action: none;
+}
+
+// Sits above the playhead column (z-index:0) per the design handoff ("Grid
+// well" — "position:relative; z-index:1 column of 6 rows").
+.rows {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  @media (max-width: 1279px) {
+    gap: 8px;
+  }
+}
+
+// The sweeping column (ticket 17, design handoff "Playhead column" +
+// "Motion"): hard-cuts step to step — no transition on position or
+// visibility, the jump itself is the rhythm. `--group`/`--col` come from the
+// step via `stepToBar`/`stepToCol`; the per-breakpoint pixel constants below
+// mirror `.steps`/`.group`/`.rail`/`.row`'s own gap(8)/gutter(18)/rail(160)/
+// railGap(18) at laptop, gap(6)/gutter(14)/rail(124)/railGap(14) at tablet.
+.playhead {
+  position: absolute;
+  z-index: 0;
+  top: -8px;
+  bottom: -8px;
+  left: calc(160px + 18px + var(--group) * (4 * 62px + 3 * 8px + 18px) + var(--col) * (62px + 8px) - 8px);
+  width: calc(62px + 2 * 8px);
+  border-radius: 19px;
+  background: linear-gradient(180deg, rgba(111, 224, 240, 0.24), rgba(111, 224, 240, 0.07));
+  box-shadow: 0 0 0 1px rgba(111, 224, 240, 0.34);
+  pointer-events: none;
+
+  @media (max-width: 1279px) {
+    top: -7px;
+    bottom: -7px;
+    left: calc(124px + 14px + var(--group) * (4 * 42px + 3 * 6px + 14px) + var(--col) * (42px + 6px) - 7px);
+    width: calc(42px + 2 * 7px);
+    border-radius: 13px;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+}
+
+.rail {
+  flex: none;
+  width: 160px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 1279px) {
+    width: 124px;
+    gap: 10px;
+  }
+}
+
+.plate {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 1279px) {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+}
+
+.artwork {
+  width: 40px;
+  height: 40px;
+  background: var(--row-color);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+
+  @media (max-width: 1279px) {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  white-space: nowrap;
+
+  @media (max-width: 1279px) {
+    font-size: 14px;
+  }
+}
+
+.steps {
+  display: flex;
+  gap: 18px;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+}
+
+.group {
+  display: flex;
+  gap: 8px;
+
+  @media (max-width: 1279px) {
+    gap: 6px;
+  }
+}
+
+.cell {
+  flex: none;
+  width: 62px;
+  height: 66px;
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+
+  &[data-parity='odd'] {
+    background: rgba(255, 255, 255, 0.075);
+  }
+
+  &[data-active='true'] {
+    background: var(--row-color);
+    box-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  }
+
+  // Under-playhead states (design handoff, "Cell geometry and state").
+  &[data-playhead='true'] {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  &[data-active='true'][data-playhead='true'] {
+    transform: scale(1.11);
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.6),
+      0 8px 16px rgba(0, 0, 0, 0.45);
+  }
+
+  // `--cyan-solid` is the handoff's designated focus-border token (`--cyan`
+  // itself is reserved for the playhead / active-preset ring). Placeholder
+  // pending design review — the handoff calls out that focus-ring visuals
+  // aren't designed yet.
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 1279px) {
+    width: 42px;
+    height: 50px;
+    border-radius: 9px;
+  }
+}
+
+// Wraps a cell's content so the step-hit squash (ticket 17, design handoff
+// "Motion" — "Step hit") animates the whole cell without fighting the
+// edit-pop animation on `.cellArtwork` (a different trigger: painting vs
+// being struck by the playhead). Keyed by strike epoch in Grid.tsx so each
+// real hit remounts this element and replays the keyframes from 0%.
+.squash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+
+  &[data-struck='true'] {
+    animation: cellSquash 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+@keyframes cellSquash {
+  0% {
+    transform: scale(1, 1);
+  }
+  8% {
+    transform: scale(1.2, 0.82);
+  }
+  30% {
+    transform: scale(0.94, 1.08);
+  }
+  55%,
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+// The row label's hit bob (design handoff "Motion" — "Row character"), keyed
+// by that row's strike epoch in Grid.tsx the same way `.squash` is.
+.nameBob {
+  display: inline-block;
+
+  &[data-struck='true'] {
+    animation: rowBob 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+@keyframes rowBob {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(4px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.cellArtwork {
+  width: 35px;
+  height: 35px;
+  background: rgba(0, 0, 0, 0.42);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  // Edit-pop (design handoff, "Motion" — "Edit while stopped"): the artwork
+  // mounts fresh every time a cell turns on, so this plays once per paint —
+  // painting and hearing are one event.
+  animation: cellPop 140ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  @media (max-width: 1279px) {
+    width: 24px;
+    height: 24px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes cellPop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}

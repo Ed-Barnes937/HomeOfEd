@@ -47,8 +47,16 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByRole('link', { name: 'HEIG' })).toHaveCount(0)
   }
 
+  async verifyBoopLink(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'boop' })).toHaveAttribute(
+      'href',
+      'https://boop.homeofed.com',
+    )
+    await expect(this.page.getByText('Coming soon')).toHaveCount(0)
+  }
+
   // Each app is a gallery card with a live <canvas> preview — one per app.
   async verifyPreviewsRender(): Promise<void> {
-    await expect(this.page.locator('canvas')).toHaveCount(6)
+    await expect(this.page.locator('canvas')).toHaveCount(7)
   }
 }

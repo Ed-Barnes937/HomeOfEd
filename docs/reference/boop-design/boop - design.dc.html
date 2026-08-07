@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Chivo:wght@300;400;600;700;800;900&family=Chivo+Mono:wght@400;600&display=swap" rel="stylesheet"><style>
+body{margin:0;background:#E7E1D6;font-family:Chivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#14262A;text-decoration:none}
+a:hover{color:#0B7C91}
+@keyframes boopScan{0%,24%{transform:translateX(0)}25%,49%{transform:translateX(64px)}50%,74%{transform:translateX(128px)}75%,100%{transform:translateX(192px)}}
+@keyframes boopHit{0%{transform:scale(1,1)}8%{transform:scale(1.2,.82)}30%{transform:scale(.94,1.08)}55%,100%{transform:scale(1,1)}}
+@keyframes boopRing{0%{transform:scale(.7);opacity:.85}100%{transform:scale(1.9);opacity:0}}
+@keyframes boopPop{0%{transform:scale(.7);opacity:0}45%{transform:scale(1.06);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes boopBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></helmet>
+
+<section id="t1" style="padding:44px 48px 40px">
+
+<div style="display:flex;align-items:baseline;gap:12px;margin:0 0 8px">
+<a href="#t1" style="font:700 10px ui-monospace,Menlo,monospace;padding:4px 8px;background:#14262A;color:#fff;border-radius:5px">1</a>
+<span style="font:700 14px Chivo,system-ui;color:#14262A">boop — visual identity + main screen layouts</span>
+<span style="font:400 12px Chivo,system-ui;color:rgba(20,38,42,.5)">from the V1 design brief · homeofed chrome shared, own identity</span>
+</div>
+
+<div style="max-width:1512px;background:#F5F1E8;border:1px solid rgba(20,38,42,.12);border-radius:14px;padding:26px 30px;margin:0 0 34px">
+<div style="font:800 15px Chivo,system-ui;color:#14262A;margin-bottom:14px">What I assumed, and why it looks like this</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px">
+<div>
+<div style="font:700 11px ui-monospace,Menlo,monospace;color:#0B7C91;letter-spacing:.06em;margin-bottom:7px">DARK STAGE, NOT A PAGE</div>
+<div style="font:400 13.5px/1.6 Chivo,system-ui;color:#39423F;text-wrap:pretty">You asked for boop to have its own identity, so it does not inherit the fridge's warm kitchen wall. The grid sits on a slate-teal stage instead. Three reasons: six saturated instrument colours read cleanly against dark and mud against warm paper; a playhead can be light-on-dark without ever needing a flash; and a dark field makes an empty cell look like a slot waiting to be filled rather than blank paper.</div>
+</div>
+<div>
+<div style="font:700 11px ui-monospace,Menlo,monospace;color:#0B7C91;letter-spacing:.06em;margin-bottom:7px">THE ARTWORK IS A PLACEHOLDER</div>
+<div style="font:400 13.5px/1.6 Chivo,system-ui;color:#39423F;text-wrap:pretty">I cannot draw the six characters. These are open-licensed line drawings from game-icons.net (CC BY 3.0) tinted to each row's colour — real objects, one family, no emoji. They work at row-label size. They do <b>not</b> survive to note-mark size, which is the brief's strongest labelling requirement, so on phone the note mark falls back to a plain coloured pebble. See <a href="#1e">1e</a> for what the real set needs.</div>
+</div>
+<div>
+<div style="font:700 11px ui-monospace,Menlo,monospace;color:#0B7C91;letter-spacing:.06em;margin-bottom:7px">SHARED WITH THE REST OF HOMEOFED</div>
+<div style="font:400 13.5px/1.6 Chivo,system-ui;color:#39423F;text-wrap:pretty">Back-arrow to the hub, lowercase wordmark, the 52px mobile strip, 9px control radius, 44px minimum tap target — all lifted from <code style="font:400 12px ui-monospace,monospace">apps/fridge</code>. Type is Chivo (heavy, cheeky, not babyish) with Chivo Mono for the one numeric readout. Every string on screen is listed in <a href="#1f">1f</a> for you to rewrite.</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+
+<!-- ============ 1a LAPTOP ============ -->
+<div id="1a" style="flex:none;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:9px"><a href="#1a" style="font:700 10.5px ui-monospace,Menlo,monospace;padding:3px 8px;background:rgba(20,38,42,.1);color:#14262A;border-radius:5px">1a</a><span style="font:400 12px Chivo,system-ui;color:rgba(20,38,42,.6)">Laptop — 1440 × 900. The full 6 × 16 grid, nothing scrolls.</span></div>
+<div style="width:1440px;height:900px;flex:none;border-radius:22px;overflow:hidden;background:#14262A;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column;padding:0 36px 32px">
+
+  <div style="height:58px;flex:none;display:flex;align-items:center;gap:14px">
+    <div style="width:44px;height:44px;margin-left:-10px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(242,239,230,.55)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg></div>
+    <div style="font:900 31px Chivo,system-ui;color:#F2EFE6;letter-spacing:-.03em">boop</div>
+    <div style="flex:1"></div>
+    <div style="padding:11px 18px;border-radius:9px;border:1px solid rgba(242,239,230,.2);font:700 14px Chivo,system-ui;color:rgba(242,239,230,.8)">My grooves</div>
+    <div style="padding:11px 20px;border-radius:9px;background:#F2EFE6;font:800 14px Chivo,system-ui;color:#14262A">Share</div>
+    <div style="width:44px;height:44px;border-radius:50%;border:1px solid rgba(242,239,230,.2);display:flex;align-items:center;justify-content:center;font:800 17px Chivo,system-ui;color:rgba(242,239,230,.8)">?</div>
+  </div>
+
+  <div style="flex:none;margin-top:16px;background:#0E1F23;border-radius:24px;padding:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)">
+    <div style="display:flex;gap:{{ lap.railGap }}px;margin-bottom:8px">
+      <div style="width:{{ lap.rail }}px;flex:none"></div>
+      <div style="display:flex;gap:{{ lap.gutter }}px">
+        <sc-for list="{{ lap.bars }}" as="b" hint-placeholder-count="4"><div style="{{ b.style }}">{{ b.n }}</div></sc-for>
+      </div>
+    </div>
+    <div style="position:relative">
+      <div style="{{ lap.headStyle }}"></div>
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ lap.rows }}" as="r" hint-placeholder-count="6">
+          <div style="{{ r.rowStyle }}">
+            <div style="{{ r.railStyle }}">
+              <div style="{{ r.plateStyle }}"><div style="{{ r.glyphStyle }}"></div></div>
+              <div style="{{ r.labelStyle }}">{{ r.name }}</div>
+            </div>
+            <div style="{{ r.stepsStyle }}">
+              <sc-for list="{{ r.groups }}" as="g" hint-placeholder-count="4">
+                <div style="{{ g.style }}">
+                  <sc-for list="{{ g.cells }}" as="c" hint-placeholder-count="4">
+                    <div style="{{ c.style }}"><div style="{{ c.inner }}"></div></div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:none;margin-top:16px;height:84px;display:flex;align-items:center;gap:26px;background:rgba(255,255,255,.045);border-radius:20px;padding:0 22px">
+    <div style="width:62px;height:62px;flex:none;border-radius:50%;background:#FFD24A;box-shadow:0 4px 0 #C79A17,0 10px 22px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><div style="width:0;height:0;margin-left:6px;border-left:21px solid #14262A;border-top:13px solid transparent;border-bottom:13px solid transparent"></div></div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:9px">
+        <div style="font:800 15px Chivo,system-ui;color:#F2EFE6">Tempo</div>
+        <div style="font:600 13px 'Chivo Mono',ui-monospace,monospace;color:rgba(242,239,230,.5)">{{ bpm }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="font:600 13px Chivo,system-ui;color:rgba(242,239,230,.5);width:34px;flex:none">Slow</div>
+        <div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.11);position:relative">
+          <div style="{{ fillStyle }}"></div>
+          <div style="{{ thumbStyle }}"></div>
+        </div>
+        <div style="font:600 13px Chivo,system-ui;color:rgba(242,239,230,.5);width:30px;flex:none;text-align:right">Fast</div>
+      </div>
+    </div>
+    <div style="width:1px;height:44px;flex:none;background:rgba(255,255,255,.1)"></div>
+    <div style="flex:none;padding:12px 18px;border-radius:9px;border:1px dashed rgba(255,138,122,.55);font:700 14px Chivo,system-ui;color:#FF8A7A">Clear grid</div>
+  </div>
+
+  <div style="flex:none;margin-top:16px;display:flex;align-items:center;gap:14px">
+    <div style="width:{{ lap.rail }}px;flex:none;font:700 13px Chivo,system-ui;color:rgba(242,239,230,.45)">Starters</div>
+    <div style="display:flex;gap:14px">
+      <sc-for list="{{ presetsLap }}" as="p" hint-placeholder-count="4">
+        <div style="{{ p.cardStyle }}">
+          <div style="{{ p.thumbStyle }}"></div>
+          <div style="{{ p.nameStyle }}">{{ p.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ 1b TABLET ============ -->
+<div id="1b" style="flex:none;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:9px"><a href="#1b" style="font:700 10.5px ui-monospace,Menlo,monospace;padding:3px 8px;background:rgba(20,38,42,.1);color:#14262A;border-radius:5px">1b</a><span style="font:400 12px Chivo,system-ui;color:rgba(20,38,42,.6)">Tablet — 1024 × 768 landscape. The primary target.</span></div>
+<div style="width:1024px;height:768px;flex:none;border-radius:20px;overflow:hidden;background:#14262A;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column;padding:0 26px 26px">
+
+  <div style="height:54px;flex:none;display:flex;align-items:center;gap:12px">
+    <div style="width:44px;height:44px;margin-left:-10px;display:flex;align-items:center;justify-content:center;color:rgba(242,239,230,.55)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg></div>
+    <div style="font:900 26px Chivo,system-ui;color:#F2EFE6;letter-spacing:-.03em">boop</div>
+    <div style="flex:1"></div>
+    <div style="padding:10px 15px;border-radius:9px;border:1px solid rgba(242,239,230,.2);font:700 13px Chivo,system-ui;color:rgba(242,239,230,.8)">My grooves</div>
+    <div style="padding:10px 17px;border-radius:9px;background:#F2EFE6;font:800 13px Chivo,system-ui;color:#14262A">Share</div>
+    <div style="width:40px;height:40px;border-radius:50%;border:1px solid rgba(242,239,230,.2);display:flex;align-items:center;justify-content:center;font:800 15px Chivo,system-ui;color:rgba(242,239,230,.8)">?</div>
+  </div>
+
+  <div style="flex:none;margin-top:12px;background:#0E1F23;border-radius:20px;padding:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)">
+    <div style="display:flex;gap:{{ tab.railGap }}px;margin-bottom:6px">
+      <div style="width:{{ tab.rail }}px;flex:none"></div>
+      <div style="display:flex;gap:{{ tab.gutter }}px">
+        <sc-for list="{{ tab.bars }}" as="b" hint-placeholder-count="4"><div style="{{ b.style }}">{{ b.n }}</div></sc-for>
+      </div>
+    </div>
+    <div style="position:relative">
+      <div style="{{ tab.headStyle }}"></div>
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ tab.rows }}" as="r" hint-placeholder-count="6">
+          <div style="{{ r.rowStyle }}">
+            <div style="{{ r.railStyle }}">
+              <div style="{{ r.plateStyle }}"><div style="{{ r.glyphStyle }}"></div></div>
+              <div style="{{ r.labelStyle }}">{{ r.name }}</div>
+            </div>
+            <div style="{{ r.stepsStyle }}">
+              <sc-for list="{{ r.groups }}" as="g" hint-placeholder-count="4">
+                <div style="{{ g.style }}">
+                  <sc-for list="{{ g.cells }}" as="c" hint-placeholder-count="4">
+                    <div style="{{ c.style }}"><div style="{{ c.inner }}"></div></div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:none;margin-top:14px;height:76px;display:flex;align-items:center;gap:20px;background:rgba(255,255,255,.045);border-radius:18px;padding:0 18px">
+    <div style="width:56px;height:56px;flex:none;border-radius:50%;background:#FFD24A;box-shadow:0 4px 0 #C79A17,0 10px 22px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center"><div style="width:0;height:0;margin-left:5px;border-left:19px solid #14262A;border-top:12px solid transparent;border-bottom:12px solid transparent"></div></div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:8px">
+        <div style="font:800 14px Chivo,system-ui;color:#F2EFE6">Tempo</div>
+        <div style="font:600 12px 'Chivo Mono',ui-monospace,monospace;color:rgba(242,239,230,.5)">{{ bpm }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font:600 12px Chivo,system-ui;color:rgba(242,239,230,.5);width:30px;flex:none">Slow</div>
+        <div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.11);position:relative">
+          <div style="{{ fillStyle }}"></div>
+          <div style="{{ thumbStyle }}"></div>
+        </div>
+        <div style="font:600 12px Chivo,system-ui;color:rgba(242,239,230,.5);width:26px;flex:none;text-align:right">Fast</div>
+      </div>
+    </div>
+    <div style="width:1px;height:40px;flex:none;background:rgba(255,255,255,.1)"></div>
+    <div style="flex:none;padding:11px 15px;border-radius:9px;border:1px dashed rgba(255,138,122,.55);font:700 13px Chivo,system-ui;color:#FF8A7A">Clear grid</div>
+  </div>
+
+  <div style="flex:none;margin-top:14px;display:flex;align-items:center;gap:12px">
+    <div style="width:{{ tab.rail }}px;flex:none;font:700 12px Chivo,system-ui;color:rgba(242,239,230,.45)">Starters</div>
+    <div style="display:flex;gap:12px">
+      <sc-for list="{{ presetsTab }}" as="p" hint-placeholder-count="4">
+        <div style="{{ p.cardStyle }}">
+          <div style="{{ p.thumbStyle }}"></div>
+          <div style="{{ p.nameStyle }}">{{ p.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ 1c PHONE ============ -->
+<div id="1c" style="flex:none;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:9px"><a href="#1c" style="font:700 10.5px ui-monospace,Menlo,monospace;padding:3px 8px;background:rgba(20,38,42,.1);color:#14262A;border-radius:5px">1c</a><span style="font:400 12px Chivo,system-ui;color:rgba(20,38,42,.6)">Small phone — 390 × 844. Grid stays 6 × 16 and scrolls sideways; the map keeps the playhead findable.</span></div>
+<div style="display:flex;gap:24px;align-items:flex-start">
+
+  <div style="flex:none;display:flex;flex-direction:column;gap:8px">
+  <div style="font:600 11px ui-monospace,Menlo,monospace;color:rgba(20,38,42,.5)">A · bars 1–2 in view, playhead on screen</div>
+  <div style="width:390px;height:844px;flex:none;border-radius:34px;overflow:hidden;background:#14262A;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column">
+    <div style="height:52px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;background:rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.08)">
+      <div style="width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(242,239,230,.6)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg></div>
+      <div style="flex:1;font:900 20px Chivo,system-ui;color:#F2EFE6;letter-spacing:-.03em">boop</div>
+      <div style="width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(242,239,230,.75)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg></div>
+      <div style="width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(242,239,230,.75)"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;padding:12px">
+      <div style="flex:none;background:#0E1F23;border-radius:16px;padding:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden">
+        <div style="display:flex;gap:{{ ph.railGap }}px;margin-bottom:5px">
+          <div style="width:{{ ph.rail }}px;flex:none"></div>
+          <div style="width:{{ ph.win }}px;overflow:hidden"><div style="display:flex;gap:{{ ph.gutter }}px;width:{{ ph.strip }}px">
+            <sc-for list="{{ ph.bars }}" as="b" hint-placeholder-count="4"><div style="{{ b.style }}">{{ b.n }}</div></sc-for>
+          </div></div>
+        </div>
+        <div style="position:relative">
+          <div style="{{ ph.headStyle }}"></div>
+          <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ ph.rows }}" as="r" hint-placeholder-count="6">
+              <div style="{{ r.rowStyle }}">
+                <div style="{{ r.railStyle }}">
+                  <div style="{{ r.plateStyle }}"><div style="{{ r.glyphStyle }}"></div></div>
+                  <div style="{{ r.labelStyle }}">{{ r.name }}</div>
+                </div>
+                <div style="{{ r.winStyle }}"><div style="{{ r.stepsStyle }}">
+                  <sc-for list="{{ r.groups }}" as="g" hint-placeholder-count="4">
+                    <div style="{{ g.style }}">
+                      <sc-for list="{{ g.cells }}" as="c" hint-placeholder-count="4">
+                        <div style="{{ c.style }}"><div style="{{ c.inner }}"></div></div>
+                      </sc-for>
+                    </div>
+                  </sc-for>
+                </div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;margin-top:10px;height:34px;display:flex;align-items:center;gap:8px">
+        <div style="font:700 10px Chivo,system-ui;color:rgba(242,239,230,.4);letter-spacing:.06em;width:{{ ph.rail }}px;flex:none">WHOLE LOOP</div>
+        <div style="flex:1;position:relative;height:26px">
+          <div style="display:flex;gap:4px;align-items:flex-end;height:16px">
+            <sc-for list="{{ mapA }}" as="m" hint-placeholder-count="16"><div style="{{ m.style }}"></div></sc-for>
+          </div>
+          <div style="{{ winA }}"></div>
+        </div>
+      </div>
+
+      <div style="flex:none;margin-top:12px;display:flex;align-items:center;gap:14px">
+        <div style="width:72px;height:72px;flex:none;border-radius:50%;background:#FFD24A;box-shadow:0 5px 0 #C79A17,0 12px 24px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center"><div style="width:0;height:0;margin-left:7px;border-left:25px solid #14262A;border-top:16px solid transparent;border-bottom:16px solid transparent"></div></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:7px">
+            <div style="font:800 14px Chivo,system-ui;color:#F2EFE6">Tempo</div>
+            <div style="font:600 12px 'Chivo Mono',ui-monospace,monospace;color:rgba(242,239,230,.5)">{{ bpm }}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px">
+            <div style="font:600 11px Chivo,system-ui;color:rgba(242,239,230,.5);flex:none">Slow</div>
+            <div style="flex:1;height:12px;border-radius:6px;background:rgba(255,255,255,.11);position:relative">
+              <div style="{{ fillStyle }}"></div>
+              <div style="{{ thumbStylePh }}"></div>
+            </div>
+            <div style="font:600 11px Chivo,system-ui;color:rgba(242,239,230,.5);flex:none">Fast</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;margin-top:14px">
+        <div style="font:700 11px Chivo,system-ui;color:rgba(242,239,230,.45);margin-bottom:8px">Starters</div>
+        <div style="display:flex;gap:10px;overflow:hidden">
+          <sc-for list="{{ presetsPh }}" as="p" hint-placeholder-count="4">
+            <div style="{{ p.cardStyle }}">
+              <div style="{{ p.thumbStyle }}"></div>
+              <div style="{{ p.nameStyle }}">{{ p.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="flex:1"></div>
+      <div style="flex:none;display:flex;justify-content:center;padding-bottom:6px"><div style="width:130px;height:5px;border-radius:3px;background:rgba(242,239,230,.28)"></div></div>
+    </div>
+  </div>
+  </div>
+
+  <div style="flex:none;display:flex;flex-direction:column;gap:8px">
+  <div style="font:600 11px ui-monospace,Menlo,monospace;color:rgba(20,38,42,.5)">B · swiped to bars 3–4, playhead off screen behind you</div>
+  <div style="width:390px;height:600px;flex:none;border-radius:34px 34px 16px 16px;overflow:hidden;background:#14262A;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column">
+    <div style="height:52px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;background:rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.08)">
+      <div style="width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(242,239,230,.6)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg></div>
+      <div style="flex:1;font:900 20px Chivo,system-ui;color:#F2EFE6;letter-spacing:-.03em">boop</div>
+      <div style="width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(242,239,230,.75)"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></div>
+    </div>
+    <div style="flex:none;padding:12px">
+      <div style="background:#0E1F23;border-radius:16px;padding:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden;position:relative">
+        <div style="display:flex;gap:{{ ph.railGap }}px;margin-bottom:5px">
+          <div style="width:{{ ph.rail }}px;flex:none"></div>
+          <div style="width:{{ ph.win }}px;overflow:hidden"><div style="{{ ph.barsShifted }}">
+            <sc-for list="{{ ph.bars }}" as="b" hint-placeholder-count="4"><div style="{{ b.style }}">{{ b.n }}</div></sc-for>
+          </div></div>
+        </div>
+        <div style="position:relative;display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ phB.rows }}" as="r" hint-placeholder-count="6">
+            <div style="{{ r.rowStyle }}">
+              <div style="{{ r.railStyle }}">
+                <div style="{{ r.plateStyle }}"><div style="{{ r.glyphStyle }}"></div></div>
+                <div style="{{ r.labelStyle }}">{{ r.name }}</div>
+              </div>
+              <div style="{{ r.winStyle }}"><div style="{{ r.stepsStyle }}">
+                <sc-for list="{{ r.groups }}" as="g" hint-placeholder-count="4">
+                  <div style="{{ g.style }}">
+                    <sc-for list="{{ g.cells }}" as="c" hint-placeholder-count="4">
+                      <div style="{{ c.style }}"><div style="{{ c.inner }}"></div></div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="position:absolute;left:{{ ph.rail }}px;top:26px;bottom:10px;width:22px;background:linear-gradient(90deg,rgba(111,224,240,.35),rgba(111,224,240,0));border-left:3px solid #6FE0F0;border-radius:2px;pointer-events:none"></div>
+      </div>
+      <div style="margin-top:10px;height:34px;display:flex;align-items:center;gap:8px">
+        <div style="font:700 10px Chivo,system-ui;color:rgba(242,239,230,.4);letter-spacing:.06em;width:{{ ph.rail }}px;flex:none">WHOLE LOOP</div>
+        <div style="flex:1;position:relative;height:26px">
+          <div style="display:flex;gap:4px;align-items:flex-end;height:16px">
+            <sc-for list="{{ mapA }}" as="m" hint-placeholder-count="16"><div style="{{ m.style }}"></div></sc-for>
+          </div>
+          <div style="{{ winB }}"></div>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(111,224,240,.09);border:1px solid rgba(111,224,240,.25);font:400 12.5px/1.55 Chivo,system-ui;color:rgba(242,239,230,.8);text-wrap:pretty"><b style="font-weight:800">Designer's note.</b> The loop map is always visible and always shows all 16 steps, so the playhead never disappears — it just moves to the map. A cyan edge-glow on the side the playhead is on tells a child which way to swipe back. Swipes snap to the 4-step groups, so you always land on a bar line, never half a bar.</div>
+    </div>
+  </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ 1d MY GROOVES + MOMENTS ============ -->
+<div id="1d" style="flex:none;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:9px"><a href="#1d" style="font:700 10.5px ui-monospace,Menlo,monospace;padding:3px 8px;background:rgba(20,38,42,.1);color:#14262A;border-radius:5px">1d</a><span style="font:400 12px Chivo,system-ui;color:rgba(20,38,42,.6)">My grooves, and the save / rename / delete / share / clear moments.</span></div>
+<div style="width:1180px;background:#14262A;border-radius:22px;padding:30px;display:flex;flex-wrap:wrap;gap:26px;box-shadow:0 24px 60px -24px rgba(20,38,42,.55)">
+
+  <div style="flex:none;width:352px">
+    <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(111,224,240,.85);letter-spacing:.06em;margin-bottom:10px">MY GROOVES — THE LIST</div>
+    <div style="background:#F5F1E8;border-radius:16px;padding:16px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55)">
+      <div style="font:900 19px Chivo,system-ui;color:#14262A;margin-bottom:12px">My grooves</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ saved }}" as="s" hint-placeholder-count="4">
+          <div style="{{ s.rowStyle }}">
+            <div style="{{ s.thumbStyle }}"></div>
+            <div style="flex:1;min-width:0">
+              <div style="{{ s.nameStyle }}">{{ s.name }}</div>
+              <div style="font:400 11.5px Chivo,system-ui;color:rgba(20,38,42,.45)">{{ s.meta }}</div>
+            </div>
+            <div style="width:34px;height:34px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(20,38,42,.4)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></div>
+            <div style="width:34px;height:34px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center;color:rgba(138,74,66,.6)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 14h10l1-14"></path></svg></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:12px;font:400 11.5px/1.5 Chivo,system-ui;color:rgba(20,38,42,.45)">Tap a groove to open it. No limit on how many you keep.</div>
+    </div>
+  </div>
+
+  <div style="flex:none;width:352px;display:flex;flex-direction:column;gap:22px">
+    <div>
+      <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(111,224,240,.85);letter-spacing:.06em;margin-bottom:10px">SAVING — NAME IS PREFILLED, TYPING OPTIONAL</div>
+      <div style="background:#F5F1E8;border-radius:16px;padding:16px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55)">
+        <div style="font:800 15px Chivo,system-ui;color:#14262A;margin-bottom:11px">Saved it</div>
+        <div style="display:flex;gap:9px;align-items:center">
+          <div style="flex:1;min-width:0;padding:12px 13px;border-radius:9px;border:1.5px solid #0B7C91;background:#fff;font:700 15px Chivo,system-ui;color:#14262A;display:flex;align-items:center;gap:1px"><span>Groove 3</span><span style="width:2px;height:18px;background:#0B7C91;margin-left:2px"></span></div>
+          <div style="flex:none;padding:13px 18px;border-radius:9px;background:#14262A;font:800 14px Chivo,system-ui;color:#fff">Done</div>
+        </div>
+        <div style="margin-top:9px;font:400 11.5px Chivo,system-ui;color:rgba(20,38,42,.45)">Already saved. Type a new name if you want one.</div>
+      </div>
+    </div>
+    <div>
+      <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(255,138,122,.9);letter-spacing:.06em;margin-bottom:10px">TWO CONFIRMS — DELETE, AND CLEAR-ALL</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:#F5F1E8;border-radius:16px;padding:16px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55)">
+          <div style="font:800 15px Chivo,system-ui;color:#14262A;margin-bottom:4px">Throw away Groove 2?</div>
+          <div style="font:400 12.5px Chivo,system-ui;color:rgba(20,38,42,.5);margin-bottom:12px">You can't get it back.</div>
+          <div style="display:flex;gap:9px"><div style="flex:1;text-align:center;padding:13px;border-radius:9px;background:#14262A;font:800 14px Chivo,system-ui;color:#fff">Keep it</div><div style="flex:1;text-align:center;padding:13px;border-radius:9px;border:1px solid rgba(138,74,66,.4);font:800 14px Chivo,system-ui;color:#8A4A42">Throw away</div></div>
+        </div>
+        <div style="background:#F5F1E8;border-radius:16px;padding:16px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55)">
+          <div style="font:800 15px Chivo,system-ui;color:#14262A;margin-bottom:4px">Clear the whole grid?</div>
+          <div style="font:400 12.5px Chivo,system-ui;color:rgba(20,38,42,.5);margin-bottom:12px">Every step comes off. Saved grooves stay.</div>
+          <div style="display:flex;gap:9px"><div style="flex:1;text-align:center;padding:13px;border-radius:9px;background:#14262A;font:800 14px Chivo,system-ui;color:#fff">Keep playing</div><div style="flex:1;text-align:center;padding:13px;border-radius:9px;border:1px solid rgba(138,74,66,.4);font:800 14px Chivo,system-ui;color:#8A4A42">Clear it</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:none;width:352px;display:flex;flex-direction:column;gap:22px">
+    <div>
+      <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(111,224,240,.85);letter-spacing:.06em;margin-bottom:10px">SHARE — ONE ACTION, NO MODAL</div>
+      <div style="background:#F5F1E8;border-radius:16px;padding:16px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="font:600 10.5px ui-monospace,monospace;color:rgba(20,38,42,.4);margin-bottom:7px">DESKTOP · RESTING</div>
+          <div style="display:inline-block;padding:12px 22px;border-radius:9px;background:#14262A;font:800 15px Chivo,system-ui;color:#fff">Share</div>
+        </div>
+        <div>
+          <div style="font:600 10.5px ui-monospace,monospace;color:rgba(20,38,42,.4);margin-bottom:7px">DESKTOP · AFTER THE TAP (1.6s, THEN BACK)</div>
+          <div style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:9px;background:#0B7C91;font:800 15px Chivo,system-ui;color:#fff;animation:boopPop .45s cubic-bezier(.34,1.56,.64,1) both"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"></path></svg>Copied!</div>
+        </div>
+        <div style="height:1px;background:rgba(20,38,42,.12)"></div>
+        <div>
+          <div style="font:600 10.5px ui-monospace,monospace;color:rgba(20,38,42,.4);margin-bottom:7px">MOBILE · SYSTEM SHARE SHEET, NO CUSTOM UI</div>
+          <div style="font:400 12.5px/1.5 Chivo,system-ui;color:rgba(20,38,42,.55)">Same button, opens the OS sheet. No link field, ever.</div>
+        </div>
+        <div style="height:1px;background:rgba(20,38,42,.12)"></div>
+        <div>
+          <div style="font:600 10.5px ui-monospace,monospace;color:rgba(20,38,42,.4);margin-bottom:7px">DEMOTED SECONDARY</div>
+          <div style="font:700 13.5px Chivo,system-ui;color:#0B7C91;text-decoration:underline;text-underline-offset:3px">Save the sound as a file</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(111,224,240,.85);letter-spacing:.06em;margin-bottom:10px">MOBILE ⋯ MENU — WHERE THE QUIET CORNERS LIVE</div>
+      <div style="background:#F5F1E8;border-radius:14px;padding:12px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:8px">
+        <div style="min-height:44px;display:flex;align-items:center;padding:10px 12px;border:1px solid rgba(20,38,42,.12);border-radius:9px;background:#fff;font:700 14px Chivo,system-ui;color:#14262A">My grooves</div>
+        <div style="min-height:44px;display:flex;align-items:center;padding:10px 12px;border:1px solid rgba(20,38,42,.12);border-radius:9px;background:#fff;font:700 14px Chivo,system-ui;color:#14262A">Share</div>
+        <div style="min-height:44px;display:flex;align-items:center;padding:10px 12px;border:1px solid rgba(20,38,42,.12);border-radius:9px;background:#fff;font:700 14px Chivo,system-ui;color:#14262A">How boop works</div>
+        <div style="min-height:44px;display:flex;align-items:center;padding:10px 12px;border:1px dashed rgba(138,74,66,.4);border-radius:9px;background:#fff;font:700 14px Chivo,system-ui;color:#8A4A42">Clear grid</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ 1e KIT SHEET ============ -->
+<div id="1e" style="flex:none;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:9px"><a href="#1e" style="font:700 10.5px ui-monospace,Menlo,monospace;padding:3px 8px;background:rgba(20,38,42,.1);color:#14262A;border-radius:5px">1e</a><span style="font:400 12px Chivo,system-ui;color:rgba(20,38,42,.6)">The six voices, the palette, the type — and the brief for a real illustrator.</span></div>
+<div style="width:1180px;background:#14262A;border-radius:22px;padding:30px;box-shadow:0 24px 60px -24px rgba(20,38,42,.55)">
+
+  <div style="display:flex;flex-direction:column;gap:0">
+    <div style="display:flex;align-items:center;gap:20px;padding:0 0 10px;font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(242,239,230,.35);letter-spacing:.06em;border-bottom:1px solid rgba(255,255,255,.1)">
+      <div style="width:82px;flex:none">64PX</div><div style="width:52px;flex:none">40PX</div><div style="width:40px;flex:none">24PX</div><div style="width:38px;flex:none">MARK</div><div style="width:120px;flex:none">NAME</div><div style="width:96px;flex:none">HEX</div><div style="flex:1">ROLE</div>
+    </div>
+    <sc-for list="{{ kitSheet }}" as="k" hint-placeholder-count="6">
+      <div style="display:flex;align-items:center;gap:20px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+        <div style="width:82px;flex:none;display:flex"><div style="{{ k.g64 }}"></div></div>
+        <div style="width:52px;flex:none;display:flex"><div style="{{ k.g40 }}"></div></div>
+        <div style="width:40px;flex:none;display:flex"><div style="{{ k.g24 }}"></div></div>
+        <div style="width:38px;flex:none"><div style="{{ k.pebble }}"><div style="{{ k.pebbleGlyph }}"></div></div></div>
+        <div style="width:120px;flex:none;font:800 17px Chivo,system-ui;color:#F2EFE6">{{ k.name }}</div>
+        <div style="width:96px;flex:none;font:400 12px 'Chivo Mono',ui-monospace,monospace;color:rgba(242,239,230,.5)">{{ k.hex }}</div>
+        <div style="flex:1;font:400 13.5px Chivo,system-ui;color:rgba(242,239,230,.7)">{{ k.role }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:flex;gap:26px;margin-top:26px;align-items:flex-start">
+    <div style="flex:none;width:352px;padding:18px;border-radius:16px;background:rgba(255,255,255,.045)">
+      <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(242,239,230,.4);letter-spacing:.06em;margin-bottom:12px">STAGE + CHROME</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <div style="width:76px"><div style="height:44px;border-radius:9px;background:#14262A;border:1px solid rgba(255,255,255,.14)"></div><div style="font:400 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);margin-top:5px">#14262A</div></div>
+        <div style="width:76px"><div style="height:44px;border-radius:9px;background:#0E1F23;border:1px solid rgba(255,255,255,.14)"></div><div style="font:400 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);margin-top:5px">#0E1F23</div></div>
+        <div style="width:76px"><div style="height:44px;border-radius:9px;background:#F2EFE6"></div><div style="font:400 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);margin-top:5px">#F2EFE6</div></div>
+        <div style="width:76px"><div style="height:44px;border-radius:9px;background:#FFD24A"></div><div style="font:400 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);margin-top:5px">#FFD24A</div></div>
+        <div style="width:76px"><div style="height:44px;border-radius:9px;background:#6FE0F0"></div><div style="font:400 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);margin-top:5px">#6FE0F0</div></div>
+        <div style="width:76px"><div style="height:44px;border-radius:9px;background:#FF8A7A"></div><div style="font:400 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);margin-top:5px">#FF8A7A</div></div>
+      </div>
+      <div style="margin-top:12px;font:400 11.5px/1.5 Chivo,system-ui;color:rgba(242,239,230,.55)">Butter yellow is reserved for play/pause and nothing else. Cyan belongs to the playhead and to "Copied!". Coral only ever appears on clear/delete.</div>
+    </div>
+    <div style="flex:none;width:352px;padding:18px;border-radius:16px;background:rgba(255,255,255,.045)">
+      <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(242,239,230,.4);letter-spacing:.06em;margin-bottom:12px">TYPE</div>
+      <div style="font:900 46px Chivo,system-ui;color:#F2EFE6;letter-spacing:-.035em;line-height:1">boop</div>
+      <div style="font:400 11.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.45);margin-top:6px">Chivo 900 · wordmark, −0.035em</div>
+      <div style="height:1px;background:rgba(255,255,255,.1);margin:14px 0"></div>
+      <div style="font:800 17px Chivo,system-ui;color:#F2EFE6">Marimba &nbsp; Tempo &nbsp; My grooves</div>
+      <div style="font:400 11.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.45);margin-top:6px">Chivo 800 · every label, 14–17px</div>
+      <div style="height:1px;background:rgba(255,255,255,.1);margin:14px 0"></div>
+      <div style="font:600 22px 'Chivo Mono',ui-monospace,monospace;color:#F2EFE6">100</div>
+      <div style="font:400 11.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.45);margin-top:6px">Chivo Mono 600 · the BPM readout, the only number on screen</div>
+    </div>
+    <div style="flex:1;min-width:300px;padding:18px;border-radius:16px;background:rgba(255,138,122,.1);border:1px solid rgba(255,138,122,.3)">
+      <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:#FF8A7A;letter-spacing:.06em;margin-bottom:12px">BRIEF FOR THE ILLUSTRATOR — THE REAL BLOCKER</div>
+      <div style="font:400 13.5px/1.65 Chivo,system-ui;color:rgba(242,239,230,.85);text-wrap:pretty">The brief asks for one artwork asset that is both the row label and the note mark. Line art cannot do both: at 18px inside a phone cell these drawings turn to mush, which is why the phone note mark above is a bare pebble.<br><br>What the real set needs, per character: a <b>detailed form</b> for 40–64px row labels, and a <b>single-silhouette form</b> — one closed shape, no interior lines, recognisable at 18px — for the note mark. Same character, two crops. Six characters, shared DNA, distinguishable by <i>outline alone</i>.<br><br>Until then these placeholders are <span style="font:400 12px 'Chivo Mono',monospace">game-icons.net</span>, CC BY 3.0 — attribution owed to Delapouite, Lorc, Caro Asercion and Skoll if any of it ships.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ 1f COPY + MOTION ============ -->
+<div id="1f" style="flex:none;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:9px"><a href="#1f" style="font:700 10.5px ui-monospace,Menlo,monospace;padding:3px 8px;background:rgba(20,38,42,.1);color:#14262A;border-radius:5px">1f</a><span style="font:400 12px Chivo,system-ui;color:rgba(20,38,42,.6)">Every string I wrote, for you to rewrite — plus the motion spec, running live.</span></div>
+<div style="width:1180px;display:flex;gap:26px;align-items:flex-start">
+
+  <div style="flex:1;background:#F5F1E8;border:1px solid rgba(20,38,42,.12);border-radius:18px;padding:24px">
+    <div style="font:800 15px Chivo,system-ui;color:#14262A;margin-bottom:4px">Copy list — 31 words on the main screen</div>
+    <div style="font:400 12.5px Chivo,system-ui;color:rgba(20,38,42,.5);margin-bottom:16px">Instrument names and "Tempo / Slow / Fast" are fixed by the brief. Everything else is mine and replaceable.</div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <sc-for list="{{ copyList }}" as="c" hint-placeholder-count="14">
+        <div style="display:flex;gap:16px;padding:9px 0;border-top:1px solid rgba(20,38,42,.09)">
+          <div style="width:150px;flex:none;font:400 11px 'Chivo Mono',ui-monospace,monospace;color:rgba(20,38,42,.45);padding-top:2px">{{ c.where }}</div>
+          <div style="flex:1;font:700 13.5px Chivo,system-ui;color:#14262A">{{ c.text }}</div>
+          <div style="width:74px;flex:none;font:600 10px 'Chivo Mono',monospace;color:{{ c.tagColour }};text-align:right;padding-top:3px">{{ c.tag }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="flex:none;width:420px;background:#14262A;border-radius:18px;padding:24px;box-shadow:0 24px 60px -24px rgba(20,38,42,.55)">
+    <div style="font:800 15px Chivo,system-ui;color:#F2EFE6;margin-bottom:4px">Motion spec</div>
+    <div style="font:400 12.5px Chivo,system-ui;color:rgba(242,239,230,.55);margin-bottom:20px">Springy and physical. No opacity strobe, no full-screen anything, ever.</div>
+
+    <div style="font:700 10.5px ui-monospace,Menlo,monospace;color:rgba(111,224,240,.85);letter-spacing:.06em;margin-bottom:10px">PLAYHEAD + STEP HIT — LIVE</div>
+    <div style="position:relative;height:80px;background:#0E1F23;border-radius:14px;padding:10px;overflow:hidden">
+      <div style="position:absolute;left:10px;top:6px;bottom:6px;width:56px;border-radius:12px;background:linear-gradient(180deg,rgba(111,224,240,.26),rgba(111,224,240,.08));box-shadow:0 0 0 1px rgba(111,224,240,.34);animation:boopScan 2s linear infinite"></div>
+      <div style="position:relative;display:flex;gap:8px;height:100%;align-items:center">
+        <div style="width:56px;height:56px;border-radius:14px;background:#FF6B5C;box-shadow:0 2px 0 rgba(0,0,0,.4);animation:boopHit 2s linear infinite"></div>
+        <div style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)"></div>
+        <div style="width:56px;height:56px;border-radius:14px;background:#6FE0A8;box-shadow:0 2px 0 rgba(0,0,0,.4);animation:boopHit 2s linear 1s infinite"></div>
+        <div style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:0;margin-top:20px">
+      <sc-for list="{{ motion }}" as="m" hint-placeholder-count="6">
+        <div style="padding:11px 0;border-top:1px solid rgba(255,255,255,.09)">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">
+            <div style="font:800 13.5px Chivo,system-ui;color:#F2EFE6">{{ m.what }}</div>
+            <div style="font:400 11px 'Chivo Mono',ui-monospace,monospace;color:rgba(111,224,240,.8);flex:none">{{ m.spec }}</div>
+          </div>
+          <div style="font:400 12.5px/1.5 Chivo,system-ui;color:rgba(242,239,230,.6);margin-top:3px">{{ m.how }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</div>
+
+</div>
+
+<div style="margin:30px 0 0;font:400 12.5px/1.6 Chivo,system-ui;color:rgba(20,38,42,.55);max-width:900px;text-wrap:pretty">Not built yet, from the brief's deliverable list: the hint sheet ("?") content, and the keyboard focus-ring states. Try next: "make <a href="#1c">1c</a> a paged two-screens-of-8 instead" · "the stage is too dark, try it warm" · "do the hint sheet" · "tighten the copy in <a href="#1f">1f</a>"</div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;activePreset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;blank&quot;,&quot;wonky&quot;,&quot;robot&quot;,&quot;stomp&quot;],&quot;default&quot;:&quot;stomp&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Grid state&quot;},&quot;headStep&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;min&quot;:1,&quot;max&quot;:16,&quot;default&quot;:7,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Grid state&quot;},&quot;bpm&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;min&quot;:60,&quot;max&quot;:200,&quot;default&quot;:100,&quot;unit&quot;:&quot;bpm&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Grid state&quot;},&quot;cellRadius&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0.1,&quot;max&quot;:0.5,&quot;step&quot;:0.02,&quot;default&quot;:0.22,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Form&quot;}}">
+const KIT = [
+  { name: 'Kick',    c: '#FF6B5C', g: 'drum',            role: 'The heartbeat. Low and round.' },
+  { name: 'Snare',   c: '#FFB03A', g: 'drum-kit',        role: 'The backbeat. Where the clap lands.' },
+  { name: 'Hi-hat',  c: '#DCE85C', g: 'gong',            role: 'Light, ticking. Keeps time on top.' },
+  { name: 'Tom',     c: '#FF7FB0', g: 'tambourine',      role: 'Warm thump. The low fill.' },
+  { name: 'Marimba', c: '#6FE0A8', g: 'xylophone',       role: 'Pitched, woody, melodic.' },
+  { name: 'Boop',    c: '#B78BFF', g: 'boombox',         role: 'The namesake. Electronic and cheeky.' },
+];
+
+const PAT = {
+  blank: ['0000000000000000','0000000000000000','0000000000000000','0000000000000000','0000000000000000','0000000000000000'],
+  wonky: ['1001000010010000','0000100100001001','0010010010100100','0001000000010010','0100001001000010','0000010000000001'],
+  robot: ['1010000010100000','0000101000001010','1111000011110000','0000010100000101','0010100000101000','0000000100000001'],
+  stomp: ['1000001010000010','0000100000001000','1010101010101010','0000000010000001','1001001000100100','0000000000001000'],
+};
+
+const PRESETS = [
+  { id: 'blank', name: 'Blank' },
+  { id: 'wonky', name: 'Wonky Walk' },
+  { id: 'robot', name: 'Robot Hiccup' },
+  { id: 'stomp', name: 'Sunday Stomp' },
+];
+
+function mask(g) {
+  const u = `url(assets/instruments/${g}.svg) center/contain no-repeat`;
+  return `-webkit-mask:${u};mask:${u}`;
+}
+function glyph(g, size, color) {
+  return `width:${size}px;height:${size}px;flex:none;background:${color};${mask(g)}`;
+}
+
+class Component extends DCLogic {
+  renderVals() {
+    const activeId = this.props.activePreset ?? 'stomp';
+    const pat = PAT[activeId] || PAT.stomp;
+    const head = Math.min(16, Math.max(1, Math.round(this.props.headStep ?? 7)));
+    const bpm = Math.min(200, Math.max(60, Math.round(this.props.bpm ?? 100)));
+    const radFrac = this.props.cellRadius ?? 0.22;
+
+    // Logarithmic tempo position, 60–200.
+    const pct = Math.round((Math.log(bpm / 60) / Math.log(200 / 60)) * 100);
+
+    const board = (o) => {
+      const rows = KIT.map((k, ri) => {
+        const groups = [0, 1, 2, 3].map((gi) => {
+          const cells = [0, 1, 2, 3].map((ci) => {
+            const step = gi * 4 + ci;
+            const on = pat[ri][step] === '1';
+            const isHead = step === head - 1 && o.head !== false;
+            const r = Math.max(4, Math.round(o.w * radFrac));
+            let s = `width:${o.w}px;height:${o.h}px;flex:none;border-radius:${r}px;display:flex;align-items:center;justify-content:center`;
+            if (on) {
+              s += `;background:${k.c}`;
+              s += isHead
+                ? `;box-shadow:0 0 0 3px rgba(255,255,255,.6),0 8px 16px rgba(0,0,0,.45);transform:scale(1.11)`
+                : `;box-shadow:0 2px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.38)`;
+            } else {
+              const base = isHead ? 0.14 : gi % 2 ? 0.075 : 0.045;
+              s += `;background:rgba(255,255,255,${base});box-shadow:inset 0 1px 0 rgba(255,255,255,.08)`;
+            }
+            const ig = Math.round(o.w * 0.56);
+            return { style: s, inner: on && ig >= 22 ? glyph(k.g, ig, 'rgba(0,0,0,.42)') : 'display:none' };
+          });
+          return { cells, style: `display:flex;gap:${o.gap}px;flex:none` };
+        });
+        return {
+          name: k.name,
+          groups,
+          glyphStyle: glyph(k.g, o.icon, k.c),
+          plateStyle: `width:${o.plate}px;height:${o.plate}px;flex:none;border-radius:${Math.round(o.plate * 0.3)}px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center`,
+          rowStyle: `display:flex;align-items:center;gap:${o.railGap}px`,
+          railStyle: `width:${o.rail}px;flex:none;display:flex;align-items:center;gap:${o.labelGap}px`,
+          labelStyle: `font:800 ${o.label}px Chivo,system-ui;color:#F2EFE6;letter-spacing:-.015em;white-space:nowrap;overflow:hidden`,
+          stepsStyle: `display:flex;gap:${o.gutter}px;flex:none${o.shift ? `;transform:translateX(-${o.shift}px)` : ''}`,
+          winStyle: `width:${o.win}px;flex:none;overflow:hidden`,
+        };
+      });
+
+      const gi = Math.floor((head - 1) / 4);
+      const ci = (head - 1) % 4;
+      const L = o.rail + o.railGap + gi * (4 * o.w + 3 * o.gap + o.gutter) + ci * (o.w + o.gap) - (o.shift || 0);
+      const pad = Math.round(o.w * 0.09) + 3;
+
+      const bars = [0, 1, 2, 3].map((i) => ({
+        n: String(i + 1),
+        style: `width:${4 * o.w + 3 * o.gap}px;flex:none;font:700 ${Math.max(10, o.label - 4)}px 'Chivo Mono',ui-monospace,monospace;color:rgba(242,239,230,${i === gi ? '.7' : '.28'})`,
+      }));
+
+      return {
+        rows, bars,
+        rail: o.rail, railGap: o.railGap, gutter: o.gutter,
+        win: o.win, strip: 16 * o.w + 12 * o.gap + 3 * o.gutter,
+        barsShifted: `display:flex;gap:${o.gutter}px;transform:translateX(-${o.shift || 0}px)`,
+        headStyle: `position:absolute;top:-${pad}px;bottom:-${pad}px;left:${L - pad}px;width:${o.w + pad * 2}px;border-radius:${Math.round(o.w * 0.3)}px;background:linear-gradient(180deg,rgba(111,224,240,.24),rgba(111,224,240,.07));box-shadow:0 0 0 1px rgba(111,224,240,.34);pointer-events:none;z-index:0`,
+      };
+    };
+
+    const LAP = { w: 62, h: 66, gap: 8, gutter: 18, rail: 160, railGap: 18, icon: 40, plate: 52, label: 17, labelGap: 12, win: 1200 };
+    const TAB = { w: 42, h: 50, gap: 6, gutter: 14, rail: 124, railGap: 14, icon: 30, plate: 40, label: 14, labelGap: 10, win: 900 };
+    const PH  = { w: 32, h: 44, gap: 5, gutter: 11, rail: 92, railGap: 8, icon: 24, plate: 32, label: 11, labelGap: 7, win: 246 };
+
+    // Thumbnails: a 16×6 dot matrix drawn entirely with box-shadow offsets.
+    const thumb = (id, d, colour) => {
+      const p = PAT[id];
+      const parts = [];
+      for (let ri = 0; ri < 6; ri++)
+        for (let si = 0; si < 16; si++) {
+          const on = p[ri][si] === '1';
+          const c = on ? (colour === 'row' ? KIT[ri].c : colour) : 'rgba(255,255,255,.13)';
+          parts.push(`${si * d}px ${ri * d}px 0 0 ${c}`);
+        }
+      return {
+        css: parts.join(','),
+        w: 15 * d + Math.round(d * 0.55),
+        h: 5 * d + Math.round(d * 0.55),
+        dot: Math.round(d * 0.55),
+      };
+    };
+
+    const presetCards = (o) =>
+      PRESETS.map((p) => {
+        const t = thumb(p.id, o.d, 'row');
+        const active = p.id === activeId;
+        return {
+          name: p.name,
+          cardStyle: `width:${o.cw}px;flex:none;padding:${o.cp}px;border-radius:14px;background:rgba(255,255,255,${active ? '.1' : '.045'});box-shadow:${active ? 'inset 0 0 0 2px #6FE0F0' : 'inset 0 0 0 1px rgba(255,255,255,.08)'};display:flex;flex-direction:column;gap:${o.cp}px;align-items:flex-start`,
+          thumbStyle: `width:${t.dot}px;height:${t.dot}px;flex:none;border-radius:1px;box-shadow:${t.css};margin:0 0 ${t.h - t.dot}px 0`,
+          nameStyle: `font:800 ${o.fs}px Chivo,system-ui;color:${active ? '#F2EFE6' : 'rgba(242,239,230,.72)'};white-space:nowrap`,
+        };
+      });
+
+    const savedThumb = (id) => {
+      const t = thumb(id, 4, '#14262A');
+      return `width:${t.dot}px;height:${t.dot}px;flex:none;border-radius:1px;box-shadow:${t.css};margin:0 ${t.w - t.dot + 12}px ${t.h - t.dot}px 0`;
+    };
+
+    const saved = [
+      { name: 'Groove 3', meta: 'Saved today', id: 'stomp' },
+      { name: 'Groove 2', meta: 'Saved today', id: 'robot' },
+      { name: 'the loud one', meta: 'Saved yesterday', id: 'wonky' },
+      { name: 'Groove 1', meta: 'Saved yesterday', id: 'stomp' },
+    ].map((s, i) => ({
+      name: s.name,
+      meta: s.meta,
+      thumbStyle: savedThumb(s.id),
+      rowStyle: `display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:${i === 0 ? 'rgba(11,124,145,.1)' : 'rgba(20,38,42,.04)'};box-shadow:${i === 0 ? 'inset 0 0 0 1.5px rgba(11,124,145,.5)' : 'none'}`,
+      nameStyle: `font:800 15px Chivo,system-ui;color:#14262A`,
+    }));
+
+    // Loop map: one tick per step, taller when that column has notes.
+    const anyAt = (s) => pat.some((r) => r[s] === '1');
+    const mapA = Array.from({ length: 16 }, (_, s) => {
+      const isHead = s === head - 1;
+      const h = isHead ? 16 : anyAt(s) ? 12 : 5;
+      const c = isHead ? '#6FE0F0' : anyAt(s) ? 'rgba(242,239,230,.5)' : 'rgba(242,239,230,.18)';
+      return { style: `flex:1;height:${h}px;border-radius:2px;background:${c}${isHead ? ';box-shadow:0 0 8px rgba(111,224,240,.8)' : ''}` };
+    });
+    const bracket = (from) =>
+      `position:absolute;left:${from === 0 ? 0 : 50}%;width:50%;bottom:0;height:3px;border-radius:2px;background:rgba(242,239,230,.55)`;
+
+    const kitSheet = KIT.map((k) => ({
+      name: k.name,
+      hex: k.c,
+      role: k.role,
+      g64: glyph(k.g, 64, k.c),
+      g40: glyph(k.g, 40, k.c),
+      g24: glyph(k.g, 24, k.c),
+      pebble: `width:32px;height:32px;border-radius:9px;background:${k.c};box-shadow:0 2px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.38);display:flex;align-items:center;justify-content:center`,
+      pebbleGlyph: glyph(k.g, 18, 'rgba(0,0,0,.42)'),
+    }));
+
+    const FIXED = '#0B7C91';
+    const MINE = 'rgba(20,38,42,.4)';
+    const copyList = [
+      ['wordmark', 'boop', 'fixed', FIXED],
+      ['row labels', 'Kick · Snare · Hi-hat · Tom · Marimba · Boop', 'brief', FIXED],
+      ['tempo label', 'Tempo', 'brief', FIXED],
+      ['tempo ends', 'Slow / Fast', 'brief', FIXED],
+      ['clear control', 'Clear grid', 'mine', MINE],
+      ['preset row label', 'Starters', 'mine', MINE],
+      ['preset 1', 'Blank', 'mine', MINE],
+      ['preset 2', 'Wonky Walk', 'mine', MINE],
+      ['preset 3', 'Robot Hiccup', 'mine', MINE],
+      ['preset 4', 'Sunday Stomp', 'mine', MINE],
+      ['loop map label', 'Whole loop', 'mine', MINE],
+      ['save entry', 'My grooves', 'brief', FIXED],
+      ['saved-name default', 'Groove 3', 'brief', FIXED],
+      ['after saving', 'Saved it', 'mine', MINE],
+      ['save hint', "Already saved. Type a new name if you want one.", 'mine', MINE],
+      ['grooves hint', 'Tap a groove to open it. No limit on how many you keep.', 'mine', MINE],
+      ['delete confirm', 'Throw away Groove 2? / You can\u2019t get it back.', 'mine', MINE],
+      ['delete buttons', 'Keep it / Throw away', 'mine', MINE],
+      ['clear confirm', 'Clear the whole grid? / Every step comes off. Saved grooves stay.', 'mine', MINE],
+      ['clear buttons', 'Keep playing / Clear it', 'mine', MINE],
+      ['share', 'Share', 'brief', FIXED],
+      ['share done', 'Copied!', 'brief', FIXED],
+      ['audio export', 'Save the sound as a file', 'mine', MINE],
+      ['help entry', 'How boop works', 'mine', MINE],
+    ].map(([where, text, tag, tagColour]) => ({ where, text, tag, tagColour }));
+
+    const motion = [
+      { what: 'Playhead', spec: '1 step / beat', how: 'A soft cyan column, hard-cut from step to step. It never fades or pulses — the jump itself is the rhythm.' },
+      { what: 'Step hit', spec: 'squash 1.2 / 0.82, 320ms', how: 'The struck cell squashes wide then overshoots once and settles. Spring curve, no glow, no flash.' },
+      { what: 'Row character', spec: 'bob 4px, 180ms', how: 'The row label nudges down and back on every hit in its row, so a child can see which voice is speaking.' },
+      { what: 'Edit while stopped', spec: 'scale 0.9 \u2192 1, 140ms', how: 'A cell you paint pops in as its sound plays. Painting and hearing are the same event.' },
+      { what: 'Play / pause', spec: 'press 2px, 90ms', how: 'The yellow button loses its bottom shadow on press, like a real key going down.' },
+      { what: 'Preset load', spec: 'stagger 24ms / column', how: 'Cells arrive left to right across two beats, so the pattern reads as it lands.' },
+      { what: 'Copied!', spec: 'pop 1.06, 450ms', how: 'Label swaps, background goes cyan, back to normal after 1.6s. No toast, no modal.' },
+    ];
+
+    return {
+      bpm, kitSheet, copyList, motion, saved, mapA,
+      winA: bracket(0),
+      winB: bracket(8),
+      lap: board(LAP),
+      tab: board(TAB),
+      ph: board(PH),
+      phB: board({ ...PH, shift: 8 * PH.w + 6 * PH.gap + 2 * PH.gutter, head: false }),
+      presetsLap: presetCards({ cw: 168, cp: 12, d: 8, fs: 14 }),
+      presetsTab: presetCards({ cw: 146, cp: 10, d: 7, fs: 13 }),
+      presetsPh: presetCards({ cw: 118, cp: 9, d: 6, fs: 12 }),
+      fillStyle: `position:absolute;left:0;top:0;bottom:0;width:${pct}%;border-radius:5px;background:rgba(242,239,230,.4)`,
+      thumbStyle: `position:absolute;left:${pct}%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:#F2EFE6;box-shadow:0 3px 8px rgba(0,0,0,.45)`,
+      thumbStylePh: `position:absolute;left:${pct}%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:#F2EFE6;box-shadow:0 3px 8px rgba(0,0,0,.45)`,
+    };
+  }
+}
+</script>
+</body>
+</html>

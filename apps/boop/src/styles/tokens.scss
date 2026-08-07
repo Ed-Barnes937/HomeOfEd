@@ -1,0 +1,92 @@
+// Design tokens ported from docs/reference/boop-design/README.md ("Design
+// tokens" section) — the high-fidelity handoff for boop's main screen. This
+// file is a global side-effect stylesheet: it defines :root custom
+// properties, self-hosts Chivo + Chivo Mono, and resets html/body. Imported
+// once from the app's page component (fridge's pattern).
+
+// Chivo + Chivo Mono — self-hosted per the house rule (no runtime Google
+// Fonts, docs/reference/fridge-magnets/fonts/FONTS.md). Both ship as one
+// latin-subset variable woff2 each (Chivo 300–900, Chivo Mono 400–900).
+@font-face {
+  font-family: 'Chivo';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('/fonts/chivo-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Chivo Mono';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/chivo-mono-latin.woff2') format('woff2');
+}
+
+:root {
+  // Type
+  --font-display: 'Chivo', system-ui, sans-serif;
+  --font-mono: 'Chivo Mono', ui-monospace, monospace;
+
+  // Stage and chrome
+  --stage: #14262a;
+  --well: #0e1f23;
+  --ink: #f2efe6;
+  --paper: #f5f1e8;
+  --paper-input: #ffffff;
+  --ink-dark: #14262a;
+  --cyan: #6fe0f0;
+  --cyan-solid: #0b7c91;
+  --play: #ffd24a;
+  --play-shadow: #c79a17;
+  --danger: #ff8a7a;
+  --danger-text: #8a4a42;
+
+  // Instrument hues (rows 1–6: kick, snare, hi-hat, tom, marimba, boop)
+  --instrument-kick: #ff6b5c;
+  --instrument-snare: #ffb03a;
+  --instrument-hihat: #dce85c;
+  --instrument-tom: #ff7fb0;
+  --instrument-marimba: #6fe0a8;
+  --instrument-boop: #b78bff;
+
+  // Radii
+  --r-frame: 22px;
+  --r-well: 24px;
+  --r-transport: 20px;
+  --r-cell: 14px;
+  --r-plate: 16px;
+  --r-preset-card: 14px;
+  --r-control: 9px;
+  --r-popover: 16px;
+  --r-list-row: 12px;
+
+  // Shadows
+  --shadow-frame: 0 24px 60px -24px rgba(20, 38, 42, 0.55);
+  --shadow-popover: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
+  --shadow-cell-active: 0 2px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  --shadow-cell-playhead: 0 0 0 3px rgba(255, 255, 255, 0.6), 0 8px 16px rgba(0, 0, 0, 0.45);
+  --shadow-cell-empty: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-play: 0 4px 0 #c79a17, 0 10px 22px rgba(0, 0, 0, 0.35);
+  --shadow-play-phone: 0 5px 0 #c79a17, 0 12px 24px rgba(0, 0, 0, 0.4);
+  --shadow-slider-thumb: 0 3px 8px rgba(0, 0, 0, 0.45);
+  --shadow-playhead-column: 0 0 0 1px rgba(111, 224, 240, 0.34);
+  --shadow-preset-active: inset 0 0 0 2px #6fe0f0;
+  --shadow-loop-map-tick: 0 0 8px rgba(111, 224, 240, 0.8);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#root {
+  height: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}

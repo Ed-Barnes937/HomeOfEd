@@ -1,0 +1,53 @@
+// Dot matrix from the design handoff ("Preset row" — "Thumbnail"): 8px pitch,
+// dot size round(8 x 0.55) = 4px at laptop, so the gap between dots is 4px.
+.matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.13);
+
+  &[data-active='true'] {
+    background: var(--dot-color);
+  }
+}
+
+// "My grooves" list row (design handoff §4): a light paper card, so the
+// resting/active dots invert to ink-dark rather than the stage's white/hue.
+.matrix[data-tone='paper'] {
+  .dot {
+    background: rgba(20, 38, 42, 0.08);
+
+    &[data-active='true'] {
+      background: var(--ink-dark);
+    }
+  }
+}
+
+// Tablet pitch drops to 7px (design handoff, "Main screen — tablet" table);
+// dot size stays round(7 x 0.55) = 4px, so only the gap tightens.
+@media (max-width: 1279px) {
+  .matrix,
+  .row {
+    gap: 3px;
+  }
+}
+
+// Phone pitch is 6px (design handoff, "Phone preset row"); dot size
+// round(6 x 0.55) = 3px, so both the dot and the gap tighten.
+@media (max-width: 1023px) {
+  .dot {
+    width: 3px;
+    height: 3px;
+  }
+}

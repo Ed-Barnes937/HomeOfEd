@@ -6,6 +6,7 @@ file just means that context's domain model hasn't been written down yet.
 ## Apps (`apps/*`)
 
 - `apps/boids/CONTEXT.md` — not yet written
+- [`apps/boop/CONTEXT.md`](apps/boop/CONTEXT.md) — tick vs step, beat event, hit, songPos(), kit manifest, role, pattern, creation
 - `apps/espy/CONTEXT.md` — not yet written
 - `apps/fridge/CONTEXT.md` — not yet written
 - `apps/hub/CONTEXT.md` — not yet written

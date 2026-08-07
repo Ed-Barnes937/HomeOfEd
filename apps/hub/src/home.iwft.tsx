@@ -8,6 +8,7 @@ test('home page renders the wordmark, lede, and the live app links', async ({ mo
   await root.verifyWotdLink()
   await root.verifyEspyLink()
   await root.verifyKaresansuiLink()
+  await root.verifyBoopLink()
   await root.verifyHeigIsComingSoon()
 })
 
