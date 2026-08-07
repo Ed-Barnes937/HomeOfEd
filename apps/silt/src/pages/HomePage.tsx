@@ -25,18 +25,22 @@ const BRUSH_ICON_SCALE = 3
 /** Marks a returning visitor — not scene data, so it stays out of the envelope (spec §8). */
 const HINT_SEEN_KEY = 'silt:seen'
 
-/** Private browsing modes can make even *touching* localStorage throw (see useScenes.ts openStorage). */
-function hasSeenHint(): boolean {
+/** Private browsing modes can make even *touching* localStorage throw. */
+function openHintStorage(): Storage | null {
   try {
-    return window.localStorage.getItem(HINT_SEEN_KEY) !== null
+    return window.localStorage
   } catch {
-    return false
+    return null
   }
+}
+
+function hasSeenHint(): boolean {
+  return openHintStorage()?.getItem(HINT_SEEN_KEY) != null
 }
 
 function markHintSeen(): void {
   try {
-    window.localStorage.setItem(HINT_SEEN_KEY, '1')
+    openHintStorage()?.setItem(HINT_SEEN_KEY, '1')
   } catch {
     // Storage failure must not break the page — the hint just won't persist
     // across reloads for this session (ticket 18).
