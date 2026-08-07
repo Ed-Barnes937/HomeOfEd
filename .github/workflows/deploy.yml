@@ -6,10 +6,11 @@
 # notice, and exits green.
 #
 # The deploy-sprout* jobs carry an EXTRA gate: the repo variable SPROUT_GO_LIVE
-# must be "true". FLY_API_TOKEN already exists (hub is live) but is hoe-hub
-# app-scoped and the sprout Fly apps don't exist until P11, so without this gate
-# a merge to main would attempt — and fail — a sprout deploy. A human flips
-# SPROUT_GO_LIVE=true at go-live (sprout go-live runbook, step 4).
+# must be "true". FLY_API_TOKEN covers all hoe-* apps (org-scoped since the
+# fridge go-live, 2026-07) but the sprout Fly apps don't exist until P11, so
+# without this gate a merge to main would attempt — and fail — a sprout
+# deploy. A human flips SPROUT_GO_LIVE=true at go-live (sprout go-live
+# runbook, step 4).
 #
 # Flow per app: is the app turbo-affected by this push? → flyctl deploy
 # (a DB-backed app's fly.toml release_command runs its journal-tracked
