@@ -55,8 +55,17 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByText('Coming soon')).toHaveCount(0)
   }
 
+  async verifySiltLink(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Silt' })).toHaveAttribute(
+      'href',
+      'https://silt.homeofed.com',
+    )
+    // HEIG is now the only card still to come.
+    await expect(this.page.getByText('SOON')).toHaveCount(1)
+  }
+
   // Each app is a gallery card with a live <canvas> preview — one per app.
   async verifyPreviewsRender(): Promise<void> {
-    await expect(this.page.locator('canvas')).toHaveCount(7)
+    await expect(this.page.locator('canvas')).toHaveCount(8)
   }
 }
