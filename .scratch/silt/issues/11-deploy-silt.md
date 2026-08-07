@@ -18,12 +18,12 @@ Agent-side after: verify `https://silt.homeofed.com` serves the app and
 **Blocked by:** 09 — Scene persistence; 10 — Mobile bottom bar and touch
 painting
 
-**Status:** claimed — agent half done, **blocked on the human**
+**Status:** resolved
 
 - [x] Human checklist written and handed over; no infra commands run by the agent
-- [ ] CI deploys silt on merge (smoke URL passing) — human
-- [ ] `https://silt.homeofed.com` serves the app; `/health` ok — human
-- [ ] Production smoke: paint → play → save → load works in a real browser — human
+- [ ] CI deploys silt on merge (smoke URL passing) — human, after this branch merges
+- [x] `https://silt.homeofed.com` serves the app; `/health` ok — human
+- [x] Production smoke: paint → play → save → load works in a real browser — human
 
 ## Comments
 
@@ -56,3 +56,15 @@ or still `hoe-hub`-scoped — unreadable from repo config. If it's app-scoped th
 This matches the standing note in memory about that token.
 
 No infra commands were run.
+
+---
+
+**Human half done, 2026-08-07.** Ed ran go-live via a `/wizard`-generated
+script wrapping `scripts/go-live.sh silt` (no `--db`): tooling preflight, Fly
+auth, Cloudflare DNS token, `FLY_API_TOKEN` check, dry-run review, the real
+run, `/health` on both `hoe-silt.fly.dev` and `silt.homeofed.com`, then the
+paint → play → save → load smoke in a browser. All passed; silt is live.
+
+The one remaining box is CI-driven deploy on merge, which cannot be checked
+until this branch reaches `main` — that is the post-go-live follow-up the
+runbook already scopes out of this ticket, not outstanding work here.
