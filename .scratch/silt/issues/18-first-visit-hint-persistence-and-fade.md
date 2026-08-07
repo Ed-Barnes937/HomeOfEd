@@ -21,17 +21,17 @@ returns"*. Neither half holds.
 - Fade the element out rather than unmounting it — keep it mounted for the
   transition, or use a CSS animation on removal.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] The hint does not reappear after a reload once the user has painted
-- [ ] The hint fades rather than vanishing
-- [ ] `chrome.iwft.tsx` "the first-visit hint fades on the first stroke and never
+- [x] The hint does not reappear after a reload once the user has painted
+- [x] The hint fades rather than vanishing
+- [x] `chrome.iwft.tsx` "the first-visit hint fades on the first stroke and never
       returns" is extended to cover the reload case (it currently only proves the
       within-session half, which is why this slipped through)
-- [ ] Storage failure cannot break the page — private-browsing modes throw on
+- [x] Storage failure cannot break the page — private-browsing modes throw on
       `localStorage` access; follow the `openStorage()` pattern in
       `features/scenes/useScenes.ts:25`
-- [ ] Full suite green
+- [x] Full suite green
 
 **Source:** whole-branch drift review (2026-08-06), Spec axis. Silent deviation —
 not recorded in any ticket. The existing iwft test's *name* claims the behaviour
@@ -63,3 +63,33 @@ Implemented in PR #53 (`silt/18-first-visit-hint`, squash-merged).
   helpers duplicated the shape of `openStorage()` instead of following it;
   folded them into the single `openHintStorage()` accessor and re-reviewed
   clean.
+
+**Resolved (orchestrator, 2026-08-07) — PRs #53 and #58, squash-merged, CI green.**
+
+Persistence is a standalone `silt:seen` key read through `openHintStorage()`,
+which is a verbatim match for `useScenes.ts`'s `openStorage()` (same try/catch,
+same comment about private browsing), plus a second try/catch around the write.
+The key is read and written only in `HomePage.tsx` and never goes near
+`sceneCodec`/`sceneStore`/`useScenes`, so spec §8's "scene envelopes are pure
+simulation data" boundary holds — verified against the merged tree.
+
+The fade is real: `.firstVisitHint` carries `transition: opacity 400ms ease`,
+`.firstVisitHintFading` sets `opacity: 0`, and the node unmounts on
+`onTransitionEnd` rather than on the paint itself.
+
+Red-before-green verified — the extended `chrome.iwft.tsx` case failed on the
+pre-fix code with `Expected pattern: /fading/ … element(s) not found`, because
+the old code unmounted the hint instantly and never produced the class.
+
+**Two caveats, neither blocking, both worth a human glance:**
+
+1. The storage-failure criterion was met by *following* the named pattern, not
+   by a test. There is no precedent in this repo for simulating a throwing
+   `localStorage` in an `.iwft`, and `useScenes.ts`'s own `openStorage()` throw
+   path is likewise uncovered. Matching the convention was the right call over
+   inventing test infra inside a fix-up ticket, but the path stays unproven.
+2. `hasSeenHint()` calls `.getItem()` unguarded — the try/catch covers *opening*
+   storage, not reading from it. It runs inside a `useState` initialiser, so a
+   throwing `getItem` would fail the first render. The reference pattern has the
+   same shape, so this is a property of the convention rather than of this
+   change; fixing it belongs in a ticket that covers both call sites.
