@@ -113,6 +113,11 @@ export class SiltPagePom extends BasePage {
     await expect(this.firstVisitHint).toHaveCount(0)
   }
 
+  /** It stays mounted and transitions out rather than vanishing on the spot. */
+  async verifyFirstVisitHintFadingOut(): Promise<void> {
+    await expect(this.firstVisitHint).toHaveClass(/Fading/)
+  }
+
   // ---- scenes popover (spec §9) ----------------------------------------
 
   async openScenes(): Promise<void> {

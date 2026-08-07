@@ -14,6 +14,31 @@ type Tool = 'paint' | 'erase'
 /** CSS px per brush cell, for the picker's "true relative scale" icons (spec §9). */
 const BRUSH_ICON_SCALE = 3
 
+/** Marks a returning visitor — not scene data, so it stays out of the envelope (spec §8). */
+const HINT_SEEN_KEY = 'silt:seen'
+
+/** Private browsing modes can make even *touching* localStorage throw. */
+function openHintStorage(): Storage | null {
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
+function hasSeenHint(): boolean {
+  return openHintStorage()?.getItem(HINT_SEEN_KEY) != null
+}
+
+function markHintSeen(): void {
+  try {
+    openHintStorage()?.setItem(HINT_SEEN_KEY, '1')
+  } catch {
+    // Storage failure must not break the page — the hint just won't persist
+    // across reloads for this session (ticket 18).
+  }
+}
+
 export function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [running, setRunning] = useState(false)
@@ -21,7 +46,11 @@ export function HomePage() {
   const [tool, setTool] = useState<Tool>('paint')
   const [mode, setMode] = useState<SimMode>('paint')
   const [brushIndex, setBrushIndex] = useState(0)
-  const [hasPainted, setHasPainted] = useState(false)
+  // The hint is only ever shown once, ever — persisted so a reload before the
+  // first stroke doesn't bring it back (ticket 18). `hintFading` keeps it
+  // mounted long enough to transition out instead of vanishing on the spot.
+  const [hintVisible, setHintVisible] = useState(() => !hasSeenHint())
+  const [hintFading, setHintFading] = useState(false)
   const [cursor, setCursor] = useState<CursorInfo | null>(null)
   const [fps, setFps] = useState(0)
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
@@ -32,13 +61,21 @@ export function HomePage() {
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
   const paintSpecies = tool === 'erase' ? EMPTY : selectedElement
 
+  // Fires once, on the first stroke (or scene load) of a first visit; a
+  // returning visitor never has `hintVisible` true to begin with.
+  const dismissHint = (): void => {
+    if (!hintVisible || hintFading) return
+    markHintSeen()
+    setHintFading(true)
+  }
+
   const controls = useSimLoop({
     canvasRef,
     running,
     selectedElement: paintSpecies,
     brushWidth,
     mode,
-    onPaint: () => setHasPainted(true),
+    onPaint: dismissHint,
     onCursorChange: setCursor,
     onFps: setFps,
     onSpawnersChange: setSpawners,
@@ -56,7 +93,7 @@ export function HomePage() {
     onLoaded: (name) => {
       setRunning(false)
       setSceneName(name)
-      setHasPainted(true)
+      dismissHint()
       setScenesOpen(false)
     },
   })
@@ -316,8 +353,12 @@ export function HomePage() {
               {running ? 'running' : 'paused'}
             </div>
 
-            {!hasPainted ? (
-              <div className={styles.firstVisitHint} data-testid="first-visit-hint">
+            {hintVisible ? (
+              <div
+                className={`${styles.firstVisitHint} ${hintFading ? styles.firstVisitHintFading : ''}`}
+                data-testid="first-visit-hint"
+                onTransitionEnd={() => setHintVisible(false)}
+              >
                 drag to pour sand
               </div>
             ) : null}

@@ -5,17 +5,26 @@ import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
 
-test('the first-visit hint fades on the first stroke and never returns', async ({ mountApp }) => {
+test('the first-visit hint fades on the first stroke and never returns', async ({ mountApp, page }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.verifyFirstVisitHintVisible()
 
   await root.paintCell(50, 50)
+  await root.verifyFirstVisitHintFadingOut()
   await root.verifyFirstVisitHintGone()
 
   // Reset clears the world but the hint stays gone (spec §9: "never returns").
   await root.confirmReset()
   await root.verifyFirstVisitHintGone()
+
+  // "Never returns" has to hold for a returning visitor too, not just within
+  // one page load — a reload before painting again must not bring it back
+  // (ticket 18).
+  await page.reload()
+  const { root: reloaded } = await mountApp()
+  await reloaded.verifyIsShown()
+  await reloaded.verifyFirstVisitHintGone()
 })
 
 test('erase is a tool, not a palette entry, and clears painted cells', async ({ mountApp }) => {
