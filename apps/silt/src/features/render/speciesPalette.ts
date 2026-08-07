@@ -1,7 +1,7 @@
 import type { ElementRegistry } from '../../sim/index.ts'
 
 /** RGB lookup table, 3 bytes per species id (0–255). */
-export type Palette = Uint8ClampedArray
+export type SpeciesPalette = Uint8ClampedArray
 
 /** Letterbox-margin / empty-cell colour — spec §6, §9 `world` token. */
 export const WORLD_COLOUR = '#181510'
@@ -12,12 +12,13 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 /**
- * One colour per species id, straight from the registry so the rail and the
- * grid can never drift apart (spec §9). Ids the registry has nothing for
- * (there are none once EMPTY/WALL are registered, but the table stays total)
- * fall back to the world colour.
+ * One colour per species id, straight from the registry — the same registry
+ * `buildRailPalette` (../palette/paletteGroups.ts) reads for the rail, so the
+ * two can never drift apart (spec §9, ticket 16). Ids the registry has
+ * nothing for (there are none once EMPTY/WALL are registered, but the table
+ * stays total) fall back to the world colour.
  */
-export function buildPalette(registry: ElementRegistry): Palette {
+export function buildSpeciesPalette(registry: ElementRegistry): SpeciesPalette {
   const palette = new Uint8ClampedArray(256 * 3)
   const world = hexToRgb(WORLD_COLOUR)
   for (let id = 0; id < 256; id++) {
