@@ -115,6 +115,10 @@ Spec §8; the calls the spec leaves open are in
 - `sceneStore.ts` talks to `localStorage` through the `SceneStorage` interface,
   writes the blob **before** the index, and turns quota errors into
   "storage full, delete a scene".
+- **Save writes over the current scene** (`store.update`), so one scene costs
+  one blob and one thumbnail however many times it is saved; only an unsaved
+  world creates a row. `copy` is how a variant is forked. `useScenes` owns
+  which scene is current, and the header reads its name from there.
 - **Never destructive on failure**: a scene that will not load keeps its blob
   and its row, and gains an error. A load always enters paused.
 - `ra`/`rb` are persisted; `clock` is not (it is zeroed by `Sim.restore`).

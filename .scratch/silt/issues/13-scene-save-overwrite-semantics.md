@@ -108,3 +108,28 @@ with it, not before:
 finding. The no-overwrite behaviour itself is recorded in ticket 09's Comments
 and ADR 0029 and was self-flagged as "most worth a second opinion"; the
 `updatedAt` degeneration was not noticed at the time.
+
+## Comments
+
+**Duplicate affordance: built, not deferred.** Each row has a `copy` button
+(`store.duplicate` → the stored blob and thumbnail under a new id, named
+`<name> copy`, then `<name> copy 2`). Reasoning: update-in-place takes away the
+only route to a variant, and with save overwriting there is no "save as new"
+left to fall back on — the alternative to building it was a user having to
+delete-and-re-save to keep an old version, which is exactly the destructive
+move spec §8 rules out. It cost one store method that is `save(read(id))`, one
+button and one iwft case, so it earns its place in v1.
+
+The copy deliberately does **not** become the current scene: what is on screen
+still belongs to the scene you were editing, so the header keeps answering
+"which scene does save write to?". Forking is copy → load the copy → carry on.
+
+**Deleting the current scene clears it**, so the next save creates a new row
+rather than resurrecting the row that was just deleted. Not in the acceptance
+criteria; it falls out of "a save writes to the current scene" and there was no
+safe alternative.
+
+**Unrelated, pre-existing:** `apps/silt/src/pages/HomePage.tsx` and
+`src/testing/SiltPagePom.ts` fail `prettier --check` on `origin/basic-cellular-
+automaton` (one long line each, both untouched by this ticket). `pnpm lint`
+does not check formatting, so nothing is failing — left alone as out of scope.

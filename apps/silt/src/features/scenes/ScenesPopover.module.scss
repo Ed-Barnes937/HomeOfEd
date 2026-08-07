@@ -123,6 +123,14 @@ $font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   }
 }
 
+// Numbers are Plex Mono per spec §9, and this one is secondary to the name.
+.updated {
+  font-family: $font-mono;
+  font-size: 0.62rem;
+  color: $muted;
+  padding-left: 0.2rem;
+}
+
 .action {
   flex: none;
   border: 2px solid $ink;

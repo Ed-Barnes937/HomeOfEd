@@ -34,6 +34,35 @@ test('a painted world survives a save, a page reload and a load — arriving pau
   expect(await root.headerSceneName()).toBe('scene 1')
 })
 
+test('saving again writes over the scene being edited instead of forking a second one', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.paintCell(150, 100)
+  await root.openScenes()
+  await root.saveScene()
+  await root.verifySceneRow('scene 1')
+
+  await root.closeScenes()
+  await root.paintCell(160, 100)
+  await root.openScenes()
+  await root.saveScene()
+
+  // One scene, saved twice — not two scenes (the ~240KB-a-save quota bug).
+  await root.verifySceneRow('scene 1')
+  await root.verifyNoSceneRow('scene 2')
+  expect(await root.sceneRowCount()).toBe(1)
+
+  // And it is the *second* world that is now in the row.
+  await root.closeScenes()
+  await root.confirmReset()
+  await root.openScenes()
+  await root.loadScene('scene 1')
+  expect(await root.countSpecies(SAND)).toBe(2)
+})
+
 test('a loaded scene brings its spawners with it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
@@ -53,6 +82,58 @@ test('a loaded scene brings its spawners with it', async ({ mountApp }) => {
   await root.loadScene('scene 1')
   await root.verifySpawnerAt(150, 20)
   expect(await root.spawnerCount()).toContain('1')
+})
+
+test('the header names the scene a save would write to, through a save and a rename', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  expect(await root.headerSceneName()).toBe('untitled')
+
+  await root.openScenes()
+  await root.saveScene()
+  expect(await root.headerSceneName()).toBe('scene 1')
+
+  await root.renameScene('scene 1', 'dunes')
+  expect(await root.headerSceneName()).toBe('dunes')
+})
+
+test('a scene can be forked with duplicate, which save-over-the-current no longer does', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.paintCell(150, 100)
+  await root.openScenes()
+  await root.saveScene()
+
+  await root.duplicateScene('scene 1')
+  await root.verifySceneRow('scene 1 copy')
+  expect(await root.sceneRowCount()).toBe(2)
+
+  // The copy is a keepsake: what is on screen is still `scene 1`, and that is
+  // what the next save writes to.
+  expect(await root.headerSceneName()).toBe('scene 1')
+  await root.saveScene()
+  expect(await root.sceneRowCount()).toBe(2)
+
+  // Loading the copy is how you carry on inside the fork.
+  await root.loadScene('scene 1 copy')
+  expect(await root.headerSceneName()).toBe('scene 1 copy')
+})
+
+test('each row shows when it was last saved', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openScenes()
+  await root.saveScene()
+
+  // `updatedAt` is what tells you which scene you touched last, so it is on
+  // the row rather than only in storage.
+  expect(await root.sceneUpdatedAt('scene 1')).toMatch(/^\d{2}\/\d{2} \d{2}:\d{2}$/)
 })
 
 test('scenes can be renamed inline and deleted behind a second click', async ({ mountApp }) => {

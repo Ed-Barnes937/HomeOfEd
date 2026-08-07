@@ -45,12 +45,14 @@ class FakeStorage implements SceneStorage {
 
 let storage: FakeStorage
 let ids: number
+let clock: number
 let store: SceneStore
 
 beforeEach(() => {
   storage = new FakeStorage()
   ids = 0
-  store = new SceneStore(storage, { now: () => 1000, newId: () => `id-${++ids}` })
+  clock = 1000
+  store = new SceneStore(storage, { now: () => clock, newId: () => `id-${++ids}` })
 })
 
 describe('SceneStore', () => {
@@ -62,6 +64,31 @@ describe('SceneStore', () => {
     expect(store.read('id-1')).toBe('{"scene":1}')
     expect(store.thumbnail('id-1')).toBe('data:image/png;base64,AA')
     expect(store.list()).toEqual([meta])
+  })
+
+  it('updates a scene in place: one blob, one thumbnail, and updatedAt moves', () => {
+    const first = store.save('dunes', '{"scene":1}', 'data:image/png;base64,AA')
+
+    clock = 2000
+    store.update(first.id, '{"scene":2}', 'data:image/png;base64,BB')
+
+    expect(store.list()).toEqual([{ id: first.id, name: 'dunes', updatedAt: 2000 }])
+    expect(store.read(first.id)).toBe('{"scene":2}')
+    expect(store.thumbnail(first.id)).toBe('data:image/png;base64,BB')
+    // The bug this ticket exists for: a re-save must not leave a second copy.
+    expect([...storage.items.keys()].filter((key) => key.startsWith('silt:scene:'))).toHaveLength(1)
+    expect([...storage.items.keys()].filter((key) => key.startsWith('silt:thumb:'))).toHaveLength(1)
+  })
+
+  it('drops the old thumbnail when the new one will not fit, rather than showing a stale world', () => {
+    const first = store.save('dunes', '{"scene":1}', 'data:image/png;base64,AA')
+    storage.full = (key) => key.startsWith(thumbKey(''))
+
+    store.update(first.id, '{"scene":2}', 'data:image/png;base64,BB')
+
+    expect(store.thumbnail(first.id)).toBeNull()
+    expect(store.read(first.id)).toBe('{"scene":2}')
+    expect(store.list().map((scene) => scene.id)).toEqual([first.id])
   })
 
   it('reports a full quota as something the user can act on, and writes nothing', () => {
@@ -81,11 +108,26 @@ describe('SceneStore', () => {
     expect(store.thumbnail('id-1')).toBeNull()
   })
 
+  it('duplicates a scene into a row of its own, leaving the original alone', () => {
+    const first = store.save('dunes', '{"scene":1}', 'data:image/png;base64,AA')
+
+    clock = 2000
+    const copy = store.duplicate(first.id, 'dunes copy')
+
+    expect(copy).toEqual({ id: 'id-2', name: 'dunes copy', updatedAt: 2000 })
+    expect(store.list()).toEqual([first, copy])
+    expect(store.read(copy.id)).toBe('{"scene":1}')
+    expect(store.thumbnail(copy.id)).toBe('data:image/png;base64,AA')
+    expect(store.read(first.id)).toBe('{"scene":1}')
+  })
+
   it('renames and deletes, taking the blob and thumbnail with the row', () => {
     store.save('dunes', '{}', 'data:image/png;base64,AA')
 
+    clock = 2000
     store.rename('id-1', 'the dunes')
-    expect(store.list()[0]?.name).toBe('the dunes')
+    // The row changed, so the timestamp on it moves.
+    expect(store.list()[0]).toEqual({ id: 'id-1', name: 'the dunes', updatedAt: 2000 })
 
     store.remove('id-1')
     expect(store.list()).toEqual([])
@@ -141,6 +183,18 @@ describe('SceneStore', () => {
     storage.items.set(blobKey('orphan'), '{}')
 
     expect(store.reconcile().map((scene) => scene.id)).toEqual(['orphan'])
+  })
+
+  it('treats an index row with no updatedAt as malformed', () => {
+    storage.items.set(
+      INDEX_KEY,
+      JSON.stringify([
+        { id: 'id-1', name: 'dunes', updatedAt: 1000 },
+        { id: 'id-2', name: 'caves' },
+      ]),
+    )
+
+    expect(store.list().map((scene) => scene.id)).toEqual(['id-1'])
   })
 
   it('refuses to read a scene whose blob is gone rather than pretending it is empty', () => {

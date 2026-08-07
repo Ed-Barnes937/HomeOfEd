@@ -6,6 +6,16 @@ import styles from './ScenesPopover.module.scss'
 /** How long a delete click stays armed before it forgets the first click (spec §9). */
 const DELETE_ARM_MS = 3000
 
+/**
+ * `dd/mm hh:mm`, local. Short enough to sit beside the name, and stable across
+ * locales — the row is a "which one did I touch last", not a full timestamp.
+ */
+function formatUpdatedAt(updatedAt: number): string {
+  const at = new Date(updatedAt)
+  const pad = (value: number): string => String(value).padStart(2, '0')
+  return `${pad(at.getDate())}/${pad(at.getMonth() + 1)} ${pad(at.getHours())}:${pad(at.getMinutes())}`
+}
+
 export interface SceneRow extends SceneMeta {
   /** PNG data URL of the world as it was saved, or `null` if it did not fit. */
   thumbnail: string | null
@@ -20,15 +30,17 @@ export interface ScenesPopoverProps {
   onSave: () => void
   onLoad: (id: string) => void
   onRename: (id: string, name: string) => void
+  onDuplicate: (id: string) => void
   onDelete: (id: string) => void
   onClose: () => void
 }
 
 /**
- * The scenes popover (spec §9): save current at the top, then a row per saved
- * scene with its thumbnail, an inline rename and a delete that needs a second
- * click — the second click is required, because deleting is the only way out
- * of a full quota.
+ * The scenes popover (spec §9): save current at the top — it writes over the
+ * scene on screen — then a row per saved scene with its thumbnail, when it was
+ * last saved, an inline rename, a copy (the way to fork a variant now that
+ * save overwrites) and a delete that needs a second click — the second click
+ * is required, because deleting is the only way out of a full quota.
  */
 export function ScenesPopover(props: ScenesPopoverProps) {
   const [armedDelete, setArmedDelete] = useState<string | null>(null)
@@ -122,6 +134,9 @@ export function ScenesPopover(props: ScenesPopoverProps) {
                     }
                   }}
                 />
+                <span className={styles.updated} data-testid="scene-updated">
+                  {formatUpdatedAt(scene.updatedAt)}
+                </span>
                 {scene.error ? (
                   <span className={styles.error} data-testid={`scene-error-${scene.name}`}>
                     {scene.error}
@@ -136,6 +151,14 @@ export function ScenesPopover(props: ScenesPopoverProps) {
                 onClick={() => props.onLoad(scene.id)}
               >
                 load
+              </button>
+              <button
+                type="button"
+                className={styles.action}
+                data-testid={`scene-duplicate-${scene.name}`}
+                onClick={() => props.onDuplicate(scene.id)}
+              >
+                copy
               </button>
               <button
                 type="button"

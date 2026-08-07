@@ -35,7 +35,6 @@ export function HomePage() {
   const [fps, setFps] = useState(0)
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
   const [scenesOpen, setScenesOpen] = useState(false)
-  const [sceneName, setSceneName] = useState('untitled')
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
@@ -57,10 +56,10 @@ export function HomePage() {
     saveScene: controls.saveScene,
     loadScene: controls.loadScene,
     // A load always enters paused (spec §8), and the world it brought in is
-    // not a first visit any more.
-    onLoaded: (name) => {
+    // not a first visit any more. The name is the controller's — it names the
+    // scene a save would write to, whoever last changed it.
+    onLoaded: () => {
       setRunning(false)
-      setSceneName(name)
       setHasPainted(true)
       setScenesOpen(false)
     },
@@ -162,7 +161,7 @@ export function HomePage() {
         <div className={styles.headerLeft}>
           <span className={styles.title}>SILT</span>
           <span className={styles.sceneName} data-testid="scene-name">
-            {sceneName}
+            {scenes.currentName ?? 'untitled'}
           </span>
         </div>
         <div className={styles.headerControls}>
@@ -209,6 +208,7 @@ export function HomePage() {
               onSave={scenes.save}
               onLoad={scenes.load}
               onRename={scenes.rename}
+              onDuplicate={scenes.duplicate}
               onDelete={scenes.remove}
               onClose={() => setScenesOpen(false)}
             />

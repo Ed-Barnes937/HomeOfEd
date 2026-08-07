@@ -133,12 +133,30 @@ export class SiltPagePom extends BasePage {
     await this.page.getByTestId(`scene-load-${name}`).click()
   }
 
+  async duplicateScene(name: string): Promise<void> {
+    await this.page.getByTestId(`scene-duplicate-${name}`).click()
+  }
+
   async verifySceneRow(name: string): Promise<void> {
     await expect(this.page.getByTestId(`scene-row-${name}`)).toBeVisible()
   }
 
   async verifyNoSceneRow(name: string): Promise<void> {
     await expect(this.page.getByTestId(`scene-row-${name}`)).toHaveCount(0)
+  }
+
+  async sceneRowCount(): Promise<number> {
+    return this.page.getByTestId('scenes-popover').getByRole('listitem').count()
+  }
+
+  /** When the row says it was last saved. */
+  async sceneUpdatedAt(name: string): Promise<string> {
+    return (
+      (await this.page
+        .getByTestId(`scene-row-${name}`)
+        .getByTestId('scene-updated')
+        .textContent()) ?? ''
+    )
   }
 
   async verifySceneThumbnail(name: string): Promise<void> {

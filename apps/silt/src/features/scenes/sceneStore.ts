@@ -87,7 +87,8 @@ export class SceneStore {
         typeof row === 'object' &&
         row !== null &&
         typeof (row as SceneMeta).id === 'string' &&
-        typeof (row as SceneMeta).name === 'string',
+        typeof (row as SceneMeta).name === 'string' &&
+        typeof (row as SceneMeta).updatedAt === 'number',
     )
   }
 
@@ -151,6 +152,41 @@ export class SceneStore {
     return meta
   }
 
+  /**
+   * Re-save over an existing scene: same id, same keys, new bytes and a new
+   * `updatedAt`. Same write order as `save` — the blob is the durable part and
+   * goes first — but nothing is created, so the scene count and the quota
+   * footprint do not move however many times the world is saved.
+   */
+  update(id: string, json: string, thumbnail: string | null): void {
+    this.#write(blobKey(id), json)
+    let pictured = false
+    if (thumbnail) {
+      try {
+        this.#storage.setItem(thumbKey(id), thumbnail)
+        pictured = true
+      } catch {
+        // Decoration only — a scene without a thumbnail still loads.
+      }
+    }
+    // The previous save's thumbnail goes with it: it pictures a world this
+    // scene no longer holds, and its bytes stay charged to the quota regardless.
+    if (!pictured) this.#storage.removeItem(thumbKey(id))
+
+    this.#writeIndex(
+      this.list().map((scene) => (scene.id === id ? { ...scene, updatedAt: this.#now() } : scene)),
+    )
+  }
+
+  /**
+   * Fork a scene: the stored bytes copied under a new id. Save updates the
+   * scene you are on, so this is the way to keep the version you had before
+   * carrying on from it.
+   */
+  duplicate(id: string, name: string): SceneMeta {
+    return this.save(name, this.read(id), this.thumbnail(id))
+  }
+
   read(id: string): string {
     const json = this.#storage.getItem(blobKey(id))
     if (json === null) {
@@ -163,8 +199,13 @@ export class SceneStore {
     return this.#storage.getItem(thumbKey(id))
   }
 
+  /** A rename is a change to the row, so it moves `updatedAt` like a save does. */
   rename(id: string, name: string): void {
-    this.#writeIndex(this.list().map((scene) => (scene.id === id ? { ...scene, name } : scene)))
+    this.#writeIndex(
+      this.list().map((scene) =>
+        scene.id === id ? { ...scene, name, updatedAt: this.#now() } : scene,
+      ),
+    )
   }
 
   /**
