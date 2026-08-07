@@ -19,7 +19,7 @@ under concurrent rendering and StrictMode double-invocation.
 `useEffect` form is the safe default; if the eight-effect block in `useSimLoop`
 is the objection, one effect syncing all the refs is the middle ground.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] One convention across `HomePage.tsx`, `useScenes.ts`, `useSimLoop.ts`
 - [ ] The choice is written down — a line in `apps/silt/CLAUDE.md` under

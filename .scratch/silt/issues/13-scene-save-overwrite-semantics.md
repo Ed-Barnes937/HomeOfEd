@@ -22,7 +22,7 @@ ordinary use — paint, save, adjust, save — walks into the quota wall in abou
 twenty saves, and the escape is manual deletion of rows the user never meant to
 create.
 
-**Status:** claimed
+**Status:** resolved
 
 **Decided (Ed, 2026-08-07): save updates the current scene.** Of the three
 candidates — update-current, always-new-plus-per-row-overwrite, and
@@ -49,42 +49,42 @@ What that implies, and what still needs designing as part of the build:
 
 Core behaviour:
 
-- [ ] The page tracks a **current scene** (`id`, or none for an unsaved world);
+- [x] The page tracks a **current scene** (`id`, or none for an unsaved world);
       a load sets it, a save writes to it
-- [ ] Saving with **no** current scene creates a row and adopts it as current
+- [x] Saving with **no** current scene creates a row and adopts it as current
       (existing `scene N` auto-naming)
-- [ ] Saving with a current scene **replaces that row's blob and thumbnail** —
+- [x] Saving with a current scene **replaces that row's blob and thumbnail** —
       the scene count does not change, and `updatedAt` moves
-- [ ] `rename` bumps `updatedAt` too (the row changed)
-- [ ] `updatedAt` is rendered on each row in the popover
-- [ ] The header name stays in step: a save adopts it, renaming the current
+- [x] `rename` bumps `updatedAt` too (the row changed)
+- [x] `updatedAt` is rendered on each row in the popover
+- [x] The header name stays in step: a save adopts it, renaming the current
       scene updates it, a load sets it — subsumes the header bug below
 
 Storage:
 
-- [ ] The index filter requires `updatedAt`, so a row missing it is treated as
+- [x] The index filter requires `updatedAt`, so a row missing it is treated as
       malformed rather than valid (`sceneStore.ts:85-91`)
-- [ ] Re-saving one scene N times leaves **one** scene blob and **one**
+- [x] Re-saving one scene N times leaves **one** scene blob and **one**
       thumbnail — the test that proves the quota problem is gone
-- [ ] Quota accounting covers the thumbnail key class, not just the scene blob
+- [x] Quota accounting covers the thumbnail key class, not just the scene blob
 
 Duplicate affordance:
 
-- [ ] Either a per-row "duplicate" action exists, **or** a line in this ticket's
+- [x] Either a per-row "duplicate" action exists, **or** a line in this ticket's
       Comments records why it was deferred. Do not leave it undecided — without
       one, update-in-place removes the only way to fork a variant, which the old
       save-as-new behaviour gave for free.
 
 Regressions to hold:
 
-- [ ] Loads still enter paused (spec §8) — `scenes.iwft.tsx` case still green
-- [ ] Failure handling still loud and never destructive (spec §8): quota errors,
+- [x] Loads still enter paused (spec §8) — `scenes.iwft.tsx` case still green
+- [x] Failure handling still loud and never destructive (spec §8): quota errors,
       a scene that will not load keeps its blob and its row
-- [ ] Ctrl+S still saves and still doesn't fire inside the rename field
-- [ ] Every new behaviour above is verified **red before green** — the
+- [x] Ctrl+S still saves and still doesn't fire inside the rename field
+- [x] Every new behaviour above is verified **red before green** — the
       re-save-once-not-twice case especially, since that is the actual bug
-- [ ] lint / typecheck / `pnpm --filter silt run test` green
-- [ ] ADR 0029 updated — it currently records the no-overwrite model as the
+- [x] lint / typecheck / `pnpm --filter silt run test` green
+- [x] ADR 0029 updated — it currently records the no-overwrite model as the
       decision, and that is what this ticket reverses
 
 **Three smaller things that are downstream of the same decision** — fix them
@@ -147,3 +147,45 @@ verified red by removing the guard.
 `src/testing/SiltPagePom.ts` fail `prettier --check` on `origin/basic-cellular-
 automaton` (one long line each, both untouched by this ticket). `pnpm lint`
 does not check formatting, so nothing is failing — left alone as out of scope.
+
+**Resolved (orchestrator, 2026-08-07) — PR #57, squash-merged as `f9778fd`, CI green.**
+
+Verified against the merged tree, not the report:
+
+- `SceneStore.update(id, json, thumbnail)` reuses the same blob key and the same
+  thumbnail key and moves `updatedAt`, so re-saving one scene N times leaves one
+  blob and one thumbnail. Write order matches `save` — blob first.
+- The index filter now requires `typeof updatedAt === 'number'`
+  (`sceneStore.ts:91`), so a row without one is malformed rather than valid.
+- `rename` moves `updatedAt` too; `delete` drops `thumbKey(id)` with the blob.
+- Thumbnails are charged to the quota: one per scene, overwritten in place, and
+  a save whose picture will not fit removes the stale one rather than leaving
+  bytes claimed by a picture of a world the scene no longer holds.
+- ADR 0029 §6 is reversed and explicitly marked as a 2026-08-07 revision naming
+  this ticket, with the `updatedAt`/inline-rename/quota reasoning kept in the
+  document. §4 gained the thumbnail budget.
+
+Red-before-green was evidenced for twelve behaviours, including the actual bug —
+the re-save case failed on `scene 2` existing before the fix.
+
+**Duplicate affordance: built, not deferred.** A per-row `copy`. Update-in-place
+removes the only route to a variant, and with no "save as new" left the fallback
+would be delete-then-re-save — the destructive move spec §8 rules out. The copy
+is deliberately not adopted as current, so the header still answers "which scene
+does save write to?".
+
+**Three deviations beyond the criteria, all recorded in ADR 0029 §6:**
+
+1. **Reset clears the current scene.** Raised by the spec reviewer: without it,
+   reset-then-Ctrl+S writes an empty world over a saved scene with no confirm
+   and no way back. This is the one most worth a human glance — it is new
+   behaviour decided during the build, not something the ticket asked for.
+2. **Deleting the current scene clears it**, so the next save creates rather
+   than resurrecting a deleted row.
+3. **The Ctrl+S regression case was rewritten**, not merely kept — under
+   overwrite it could no longer create `scene 2`, so it had started passing for
+   the wrong reason.
+
+**Pre-existing, left alone:** `HomePage.tsx` and `SiltPagePom.ts` each fail
+`prettier --check` on one long line. `pnpm lint` does not check formatting, so
+nothing fails; out of scope for this ticket.

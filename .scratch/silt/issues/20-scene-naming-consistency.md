@@ -19,7 +19,7 @@ Also in scope, same class:
 **What to build:** Pick one verb (`delete` reads best — it's what the UI says and
 what the user is doing) and use it at all three layers. Rename `silt.iwft.tsx`.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] One verb for the delete operation across hook, component and POM
 - [ ] `silt.iwft.tsx` renamed to match its siblings' convention
