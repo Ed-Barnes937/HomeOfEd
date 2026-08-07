@@ -1,4 +1,4 @@
-import { DIRT, LAVA, SAND, WATER, v1Elements } from '../../sim/index.ts'
+import { DIRT, LAVA, SAND, WATER, type ElementRegistry } from '../../sim/index.ts'
 
 /**
  * The v1 paintable roster (spec §4) — everything in `v1Elements` except
@@ -16,12 +16,10 @@ export interface PaletteEntry {
   tags: readonly string[]
 }
 
-/** Colours and names read straight off the registry config — never hardcoded here. */
-export const paletteEntries: readonly PaletteEntry[] = PAINTABLE_IDS.map((id) => {
-  const def = v1Elements.find((element) => element.id === id)
-  if (!def) throw new Error(`palette: no element definition for id ${id}`)
-  return { id: def.id, name: def.name, colour: def.colours[0] ?? '#000000', tags: def.tags }
-})
+export interface PaletteGroup {
+  label: string
+  entries: readonly PaletteEntry[]
+}
 
 /**
  * Group labels in display order (spec §9). A group with no members is left
@@ -37,27 +35,38 @@ const GROUP_ORDER: readonly { tag: string; label: string }[] = [
   { tag: 'energy', label: 'Energy' },
 ]
 
-export interface PaletteGroup {
-  label: string
+export interface RailPalette {
   entries: readonly PaletteEntry[]
+  groups: readonly PaletteGroup[]
+  /** Element colours and names are identical in the rail and the grid (spec
+   * §9) — this is what makes that true: both read off the same registry the
+   * renderer paints from (../render/speciesPalette.ts), never `v1Elements`
+   * directly (ticket 16). */
+  colourOf(id: number): string | undefined
+  nameOf(id: number): string
 }
 
-export const paletteGroups: readonly PaletteGroup[] = GROUP_ORDER.map(({ tag, label }) => ({
-  label,
-  entries: paletteEntries.filter((entry) => entry.tags.includes(tag)),
-})).filter((group) => group.entries.length > 0)
+/** Builds the rail's view of the roster off `registry` — pass the sim's own
+ * `registry`, the same one handed to `buildSpeciesPalette`, so a non-default
+ * roster can't render one set of colours on the canvas and another in the rail. */
+export function buildRailPalette(registry: ElementRegistry): RailPalette {
+  const entries: readonly PaletteEntry[] = PAINTABLE_IDS.map((id) => {
+    const def = registry.get(id)
+    if (!def) throw new Error(`palette: no element definition for id ${id}`)
+    return { id: def.id, name: def.name, colour: def.colours[0] ?? '#000000', tags: def.tags }
+  })
 
-/**
- * Element colours and names are identical in the rail and the grid (spec §9),
- * so callers that need one for a species look it up here rather than each
- * re-scanning `paletteEntries` themselves.
- */
-export function colourOf(id: number): string | undefined {
-  return paletteEntries.find((entry) => entry.id === id)?.colour
-}
+  const groups: readonly PaletteGroup[] = GROUP_ORDER.map(({ tag, label }) => ({
+    label,
+    entries: entries.filter((entry) => entry.tags.includes(tag)),
+  })).filter((group) => group.entries.length > 0)
 
-export function nameOf(id: number): string {
-  return paletteEntries.find((entry) => entry.id === id)?.name ?? ''
+  return {
+    entries,
+    groups,
+    colourOf: (id) => entries.find((entry) => entry.id === id)?.colour,
+    nameOf: (id) => entries.find((entry) => entry.id === id)?.name ?? '',
+  }
 }
 
 /** Square brush widths in cells (spec §9 "four squares at true relative scale"). */
