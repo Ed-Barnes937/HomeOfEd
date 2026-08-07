@@ -21,7 +21,7 @@ export interface ScenesController {
   load: (id: string) => void
   rename: (id: string, name: string) => void
   duplicate: (id: string) => void
-  remove: (id: string) => void
+  delete: (id: string) => void
   /** The world on screen is nobody's scene any more — the next save creates one. */
   clearCurrentScene: () => void
 }
@@ -194,7 +194,7 @@ export function useScenes(options: UseScenesOptions): ScenesController {
         setStatus({ tone: 'ok', text: `copied to ${meta.name}` })
       }),
 
-    remove: (id) =>
+    delete: (id) =>
       withStore((store) => {
         const name = store.list().find((scene) => scene.id === id)?.name ?? 'scene'
         store.remove(id)
