@@ -21,6 +21,7 @@ test('the bottom bar replaces the rail: step drops off, play/reset stay, erase i
   await root.verifyTouchTargetSize('reset')
   await root.verifyTouchTargetSize('erase-tool')
   await root.verifySquareChipSize('element-sand')
+  await root.verifySquareChipSize('brush-0')
   await root.verifyEraseIsLastInPaletteRow()
 })
 
