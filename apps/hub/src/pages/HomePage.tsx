@@ -3,7 +3,7 @@ import styles from './HomePage.module.scss'
 import { isNew } from './isNew.ts'
 import { useColourTheme } from './useColourTheme'
 
-type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'silt' | 'idle'
+type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'idle'
 type AppLink = {
   name: string
   status: 'LIVE' | 'SOON'
@@ -11,6 +11,8 @@ type AppLink = {
   href?: string
   // ISO date the app went live; drives the "New" pill (see isNew.ts).
   deployedAt?: string
+  // Overrides the default "SOON" text for a not-yet-live card.
+  soonLabel?: string
 }
 
 const APPS: AppLink[] = [
@@ -30,6 +32,13 @@ const APPS: AppLink[] = [
     kind: 'garden',
     href: 'https://karesansui.homeofed.com',
     deployedAt: '2026-07-10',
+  },
+  {
+    name: 'boop',
+    status: 'LIVE',
+    kind: 'boop',
+    href: 'https://boop.homeofed.com',
+    deployedAt: '2026-08-07',
   },
   { name: 'Silt', status: 'SOON', kind: 'silt' },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
@@ -96,7 +105,7 @@ export function HomePage() {
                       LIVE
                     </span>
                   ) : (
-                    <span className={styles.soonLabel}>SOON</span>
+                    <span className={styles.soonLabel}>{app.soonLabel ?? 'SOON'}</span>
                   )}
                 </div>
               </>
@@ -299,6 +308,7 @@ function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string)
         else if (kind === 'word') stops.push(drawWord(cv, darkRef))
         else if (kind === 'ink') stops.push(drawInk(cv, darkRef))
         else if (kind === 'garden') stops.push(drawGarden(cv, darkRef))
+        else if (kind === 'boop') stops.push(drawBoop(cv, darkRef))
         else if (kind === 'silt') stops.push(drawSilt(cv, darkRef))
         else stops.push(drawIdle(cv, darkRef))
       }
@@ -626,6 +636,45 @@ function drawGarden(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
         phase = 'draw'
       }
     }
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
+}
+
+// boop: a tiny four-step groove — coloured note cells brighten and swell in
+// turn as an implied playhead advances, echoing the step-sequencer at boop's
+// heart. The pulse is a smooth scale/alpha curve rather than an on/off flash,
+// so the preview never strobes.
+function drawBoop(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const NOTES = ['#FF6B5C', '#FFB03A', '#6FE0A8', '#B78BFF']
+  const STEPS = NOTES.length
+  const cellW = w / (STEPS + 1)
+  const cy = h / 2
+  let raf = 0
+  let t = 0
+  const step = (): void => {
+    const dark = darkRef.current
+    ctx.clearRect(0, 0, w, h)
+    t += 0.02
+    const beat = (t / 0.9) % STEPS
+    for (let i = 0; i < STEPS; i++) {
+      const cx = cellW * (i + 1)
+      const dist = Math.min(Math.abs(beat - i), STEPS - Math.abs(beat - i))
+      const hit = Math.max(0, 1 - dist * 2.4)
+      const scale = 1 + hit * 0.35
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.scale(scale, scale)
+      ctx.globalAlpha = dark ? 0.5 + hit * 0.5 : 0.4 + hit * 0.6
+      ctx.fillStyle = NOTES[i]!
+      ctx.beginPath()
+      ctx.roundRect(-9, -9, 18, 18, 5)
+      ctx.fill()
+      ctx.restore()
+    }
+    ctx.globalAlpha = 1
     raf = requestAnimationFrame(step)
   }
   step()

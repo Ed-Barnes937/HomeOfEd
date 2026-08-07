@@ -1,0 +1,270 @@
+import type { AudioDriver } from './audioDriver.ts'
+import {
+  DEFAULT_BPM,
+  MAX_BPM,
+  MIN_BPM,
+  STEPS_PER_PATTERN,
+  type AudioState,
+  type BeatEvent,
+  type Hit,
+  type Kit,
+  type Pattern,
+  type SequencerEngine,
+  type TransportEvent,
+  type Unsubscribe,
+} from './sequencerEngine.ts'
+
+export interface SequencerEngineOptions {
+  kit: Kit
+  driver: AudioDriver
+}
+
+/**
+ * Build an engine over a loaded kit and await its samples, so the very first
+ * cell tap is audible.
+ */
+export async function createSequencerEngine({
+  kit,
+  driver,
+}: SequencerEngineOptions): Promise<SequencerEngine> {
+  const engine = new BoopSequencerEngine(kit, driver)
+  await driver.loadSamples(
+    kit.instruments.map((instrument) => ({
+      instrumentId: instrument.instrumentId,
+      url: instrument.sound,
+    })),
+  )
+  return engine
+}
+
+class BoopSequencerEngine implements SequencerEngine {
+  private readonly rows: Map<string, boolean[]>
+  private readonly beatListeners = new Set<(event: BeatEvent) => void>()
+  private readonly drawListeners = new Set<(event: BeatEvent) => void>()
+  private readonly transportListeners = new Set<(event: TransportEvent) => void>()
+  private readonly audioStateListeners = new Set<(state: AudioState) => void>()
+  private readonly offDriverState: Unsubscribe
+
+  private bpm = DEFAULT_BPM
+  private playing = false
+  private nextTick = 0
+  /**
+   * The point `songPos()` interpolates from: a position in tick space and the
+   * audio time it was true at. Replaced by every scheduled beat, and by
+   * anything else that would otherwise make the playhead jump (resume, tempo).
+   */
+  private anchor: { pos: number; audioTime: number } | null = null
+  /** Where the playhead sat when the transport last stopped. */
+  private frozenPos = 0
+
+  constructor(
+    readonly kit: Kit,
+    private readonly driver: AudioDriver,
+  ) {
+    this.rows = new Map(
+      kit.instruments.map((instrument) => [
+        instrument.instrumentId,
+        new Array<boolean>(STEPS_PER_PATTERN).fill(false),
+      ]),
+    )
+    driver.setBpm(this.bpm)
+    driver.onStep((audioTime) => this.onScheduledStep(audioTime))
+    this.offDriverState = driver.onStateChange((state) => this.onAudioStateChange(state))
+  }
+
+  getPattern(): Pattern {
+    return [...this.rows].map(([instrumentId, steps]) => ({ instrumentId, steps: [...steps] }))
+  }
+
+  setCell(instrumentId: string, step: number, on: boolean): void {
+    const steps = this.rowFor(instrumentId)
+    assertStep(step)
+    if (steps[step] === on) return
+    steps[step] = on
+    if (on && !this.playing) this.audition(instrumentId)
+  }
+
+  setPattern(pattern: Pattern): void {
+    const incoming = new Map(pattern.map((row) => [row.instrumentId, row.steps]))
+    if (incoming.size !== this.rows.size) {
+      throw new Error(
+        `pattern must have one row per kit instrument (expected ${this.rows.size}, got ${incoming.size})`,
+      )
+    }
+    // Validate every row before writing any, so a bad pattern leaves the grid alone.
+    const writes: { target: boolean[]; steps: readonly boolean[] }[] = []
+    for (const [instrumentId, target] of this.rows) {
+      const steps = incoming.get(instrumentId)
+      if (!steps) throw new Error(`pattern is missing a row for instrument "${instrumentId}"`)
+      if (steps.length !== STEPS_PER_PATTERN) {
+        throw new Error(
+          `pattern row "${instrumentId}" must have ${STEPS_PER_PATTERN} steps, got ${steps.length}`,
+        )
+      }
+      writes.push({ target, steps })
+    }
+    for (const { target, steps } of writes) {
+      for (let step = 0; step < STEPS_PER_PATTERN; step += 1) target[step] = steps[step] === true
+    }
+  }
+
+  async start(): Promise<void> {
+    if (this.playing) return
+    // Must run inside the user gesture that called us — hence unlock first.
+    await this.driver.unlock()
+    this.playing = true
+    // Anchor on resume: the playhead moves from where it paused right away,
+    // rather than sitting still until the first scheduled beat and then
+    // jumping back by one lookahead.
+    this.anchor = { pos: this.frozenPos, audioTime: this.driver.now() }
+    this.driver.startTransport()
+    this.emitTransport({ type: 'started' })
+  }
+
+  stop(): void {
+    if (!this.playing) return
+    this.frozenPos = this.rawPos()
+    this.anchor = null
+    this.playing = false
+    this.driver.stopTransport()
+    // Steps already scheduled will never sound now; their draws must not fire.
+    this.driver.cancelDraws()
+    this.emitTransport({ type: 'stopped' })
+  }
+
+  isPlaying(): boolean {
+    return this.playing
+  }
+
+  getTempo(): number {
+    return this.bpm
+  }
+
+  setTempo(bpm: number): void {
+    if (!Number.isFinite(bpm)) return
+    const clamped = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(bpm)))
+    if (clamped === this.bpm) return
+    // Re-anchor first: the seconds-per-step the old anchor was read against is
+    // about to change, and songPos() must not jump.
+    if (this.playing) {
+      this.anchor = { pos: this.rawPos(), audioTime: this.driver.now() }
+    }
+    this.bpm = clamped
+    this.driver.setBpm(clamped)
+    this.emitTransport({ type: 'tempoChanged', bpm: clamped })
+  }
+
+  songPos(): number {
+    // Clamped only here: the raw value runs slightly negative before the first
+    // step sounds (beats are scheduled a lookahead early), and re-anchoring
+    // must carry that raw value rather than a clamped one.
+    return Math.max(0, this.rawPos())
+  }
+
+  audioState(): AudioState {
+    return this.driver.state()
+  }
+
+  onBeat(listener: (event: BeatEvent) => void): Unsubscribe {
+    return subscribe(this.beatListeners, listener)
+  }
+
+  onDrawBeat(listener: (event: BeatEvent) => void): Unsubscribe {
+    return subscribe(this.drawListeners, listener)
+  }
+
+  onTransport(listener: (event: TransportEvent) => void): Unsubscribe {
+    return subscribe(this.transportListeners, listener)
+  }
+
+  onAudioState(listener: (state: AudioState) => void): Unsubscribe {
+    return subscribe(this.audioStateListeners, listener)
+  }
+
+  dispose(): void {
+    this.stop()
+    this.offDriverState()
+    this.beatListeners.clear()
+    this.drawListeners.clear()
+    this.transportListeners.clear()
+    this.audioStateListeners.clear()
+    this.driver.dispose()
+  }
+
+  /**
+   * Scheduler callback: runs ahead of the sound, off the main render path. No
+   * DOM work here — draw-time consumers are served via `scheduleDraw`.
+   */
+  private onScheduledStep(audioTime: number): void {
+    const tick = this.nextTick
+    this.nextTick += 1
+    const step = tick % STEPS_PER_PATTERN
+
+    const hits: Hit[] = []
+    for (const [instrumentId, steps] of this.rows) {
+      if (steps[step]) {
+        hits.push({ instrumentId })
+        this.driver.play(instrumentId, audioTime)
+      }
+    }
+
+    this.anchor = { pos: tick, audioTime }
+
+    const event: BeatEvent = { tick, step, audioTime, hits }
+    for (const listener of this.beatListeners) listener(event)
+    if (this.drawListeners.size > 0) {
+      this.driver.scheduleDraw(audioTime, () => {
+        for (const listener of this.drawListeners) listener(event)
+      })
+    }
+  }
+
+  private onAudioStateChange(state: AudioState): void {
+    // iPadOS parks the context in `interrupted` after a call or a lock; the
+    // loop is silently dead until another gesture, so surface it as a stop.
+    if (state !== 'running' && this.playing) this.stop()
+    for (const listener of this.audioStateListeners) listener(state)
+  }
+
+  private audition(instrumentId: string): void {
+    if (this.driver.state() === 'running') {
+      this.driver.play(instrumentId)
+      return
+    }
+    // The tap that turned the cell on is itself a gesture, so it may unlock.
+    void this.driver.unlock().then(() => this.driver.play(instrumentId))
+  }
+
+  private rowFor(instrumentId: string): boolean[] {
+    const steps = this.rows.get(instrumentId)
+    if (!steps) throw new Error(`unknown instrument "${instrumentId}" for this kit`)
+    return steps
+  }
+
+  /** `songPos()` without the zero clamp — the value re-anchoring must use. */
+  private rawPos(): number {
+    if (!this.anchor) return this.frozenPos
+    return this.anchor.pos + (this.driver.now() - this.anchor.audioTime) / this.secondsPerStep()
+  }
+
+  private secondsPerStep(): number {
+    return 60 / this.bpm / 4
+  }
+
+  private emitTransport(event: TransportEvent): void {
+    for (const listener of this.transportListeners) listener(event)
+  }
+}
+
+function assertStep(step: number): void {
+  if (!Number.isInteger(step) || step < 0 || step >= STEPS_PER_PATTERN) {
+    throw new Error(`step must be an integer in 0..${STEPS_PER_PATTERN - 1}, got ${step}`)
+  }
+}
+
+function subscribe<T>(listeners: Set<T>, listener: T): Unsubscribe {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}

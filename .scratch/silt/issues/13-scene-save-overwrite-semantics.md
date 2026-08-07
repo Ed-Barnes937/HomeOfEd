@@ -84,7 +84,7 @@ Regressions to hold:
 - [ ] Every new behaviour above is verified **red before green** — the
       re-save-once-not-twice case especially, since that is the actual bug
 - [ ] lint / typecheck / `pnpm --filter silt run test` green
-- [ ] ADR 0025 updated — it currently records the no-overwrite model as the
+- [ ] ADR 0029 updated — it currently records the no-overwrite model as the
       decision, and that is what this ticket reverses
 
 **Three smaller things that are downstream of the same decision** — fix them
@@ -101,10 +101,10 @@ with it, not before:
 - **Thumbnails are unbudgeted.** `silt:thumb:<uuid>`
   (`apps/silt/src/features/scenes/sceneStore.ts:34`, `:140-148`) is a third key
   class beyond §8's two, holding a PNG per scene. Required by §9's thumbnail
-  rows and recorded in ADR 0025, but nothing accounts for it against the quota
+  rows and recorded in ADR 0029, but nothing accounts for it against the quota
   §8 sized for 20 scenes.
 
 **Source:** whole-branch drift review (2026-08-06), highest-severity Spec-axis
 finding. The no-overwrite behaviour itself is recorded in ticket 09's Comments
-and ADR 0025 and was self-flagged as "most worth a second opinion"; the
+and ADR 0029 and was self-flagged as "most worth a second opinion"; the
 `updatedAt` degeneration was not noticed at the time.

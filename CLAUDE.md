@@ -128,6 +128,10 @@ background work. See [ADR 0001 §3](docs/adr/0001-foundation.md).
 
 ## Agent skills
 
+Skill files live in `.agents/skills/<name>/`; `.claude/skills/<name>` are
+symlinks to them. Edit under `.agents/`. Manage with `npx skills` (the set is
+pinned in `skills-lock.json`).
+
 ### Code review
 
 Use the repo-level `code-review` skill (`.claude/skills/code-review/`), not the

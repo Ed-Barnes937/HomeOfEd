@@ -12,31 +12,16 @@ updated, commit/push tracker state, and report.
 Repo: `/Users/edward.barnes@glean.co/Code/Worktrees/basic-cellular-automaton-c06ca965`
 (a worktree on `basic-cellular-automaton`; `main` is the default branch).
 
----
+The branch is pushed and up to date with `origin`, with the latest `main` merged
+in — including the `boop` app, which landed while this review was running. Two
+things about that merge you need to know:
 
-## Step 0 — before you spawn anything
-
-**The working tree has uncommitted work that the tickets depend on.** Workers
-branch from `origin/basic-cellular-automaton`, so until this is pushed they will
-not see tickets 13–20 at all.
-
-Pending: the review's own fixes (`apps/silt/src/pages/HomePage.tsx`,
-`features/sim/useSimLoop.ts`, `features/scenes/useScenes.ts`,
-`features/palette/paletteGroups.ts`, `src/scenes.iwft.tsx`,
-`src/spawners.iwft.tsx`, `src/testing/SiltPagePom.ts`, deleted
-`src/trpcClient.ts`), refreshed docs (`apps/silt/README.md`,
-`apps/silt/CLAUDE.md`, `apps/silt/fly.toml`), review notes appended to tickets
-08/09/10, and the eight new ticket files.
-
-1. Run the verify loop to confirm the tree is green before committing:
-   `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test`
-   (expect 105 vitest + 26 iwft).
-2. Commit as two commits — one `fix(silt):` for the code and docs, one
-   `chore(tracker):` for the tickets — and push.
-3. Note `.scratch/` is in `.gitignore` but issues 01–12 are tracked anyway;
-   13–20 are already staged with `git add -f`. Keep that convention.
-
-Do not proceed until `origin/basic-cellular-automaton` contains the tickets.
+- **Silt's ADRs were renumbered.** boop took 0024–0027 on main, so silt's engine
+  and persistence ADRs moved to **0028** and **0029**. Every reference in
+  `apps/silt/`, the tickets and this document is updated; if a worker cites
+  0024/0025 for silt, it is reading something stale.
+- `apps/hub` now carries both a boop card and a Silt card. The Silt card stays
+  `SOON` until ticket 12 (go-live). No worker should touch it.
 
 ---
 
@@ -62,7 +47,7 @@ Do not proceed until `origin/basic-cellular-automaton` contains the tickets.
 
 All eight tickets, 13–20. Nothing here is human-gated and nothing touches infra.
 
-Ticket 13 reverses a decision recorded in `docs/adr/0025-silt-scene-persistence.md`
+Ticket 13 reverses a decision recorded in `docs/adr/0029-silt-scene-persistence.md`
 — the ADR update is in its acceptance criteria, not optional.
 
 ---

@@ -1,0 +1,62 @@
+// The shared confirm-card shape (design handoff, "Both confirms share one
+// shape"): a light card on the dark stage, title + one-line consequence +
+// two equal buttons, safe (filled) left / destructive (outlined) right.
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  // The topmost layer: a confirm can be raised from inside "My grooves" (the
+  // delete confirm), so it has to clear that panel as well as the phone chrome.
+  z-index: 42;
+}
+
+.card {
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
+}
+
+.title {
+  margin: 0;
+  font: 800 15px var(--font-display);
+  color: var(--ink-dark);
+}
+
+.message {
+  margin: 8px 0 16px;
+  font: 400 12.5px/1.4 var(--font-display);
+  color: rgba(20, 38, 42, 0.5);
+}
+
+.actions {
+  display: flex;
+  gap: 9px;
+}
+
+.safe,
+.destructive {
+  flex: 1;
+  padding: 13px;
+  border-radius: 9px;
+  font: 800 14px var(--font-display);
+  text-align: center;
+  cursor: pointer;
+}
+
+.safe {
+  border: none;
+  background: var(--ink-dark);
+  color: #fff;
+}
+
+.destructive {
+  border: 1px solid rgba(138, 74, 66, 0.4);
+  background: transparent;
+  color: var(--danger-text);
+}

@@ -18,8 +18,8 @@ HomePage → useSimLoop → Sim (typed-array grid, chunked, seeded PRNG)
 
 The engine (`src/sim/`) is headless and DOM-free; the renderer sits behind a
 narrow seam so WebGL or a worker is a later drop-in, not a restructure. Engine
-decisions are in [ADR 0024](../../docs/adr/0024-silt-simulation-engine.md),
-persistence in [ADR 0025](../../docs/adr/0025-silt-scene-persistence.md).
+decisions are in [ADR 0028](../../docs/adr/0028-silt-simulation-engine.md),
+persistence in [ADR 0029](../../docs/adr/0029-silt-scene-persistence.md).
 
 Three ways to run it, one router:
 

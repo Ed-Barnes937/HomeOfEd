@@ -64,8 +64,18 @@ services:
     ports:
       - '8087:8080'
 
+  # boop has no database (ADR 0008) — one service, no depends_on, no migrate
+  # step. Kid-friendly step-sequencer music toy; persistence is localStorage.
+  boop:
+    build:
+      context: .
+      dockerfile: apps/boop/Dockerfile
+    command: node src/server/main.ts
+    ports:
+      - '8088:8080'
+
   # silt has no database (ADR 0008) — one service, no depends_on, no migrate
-  # step. Cellular-automaton sandbox; the sim runs client-side.
+  # step. Falling-sand playground; the sim runs client-side.
   silt:
     build:
       context: .

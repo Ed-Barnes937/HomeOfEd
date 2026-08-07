@@ -1,0 +1,64 @@
+// The "WHOLE LOOP" band (design handoff, "Main screen — small phone" →
+// "'Whole loop' map — how the playhead stays findable"): a 34px band directly
+// under the grid, its label occupying the same 92px as the instrument rail so
+// it reads as belonging to the grid.
+.map {
+  height: 34px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px; // the rail gap
+}
+
+.label {
+  flex: none;
+  width: 92px; // the phone instrument rail
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 239, 230, 0.4);
+}
+
+.track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 7px; // room for the window bracket under the ticks
+}
+
+.ticks {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.tick {
+  flex: 1;
+  border-radius: 2px;
+
+  &[data-state='empty'] {
+    height: 5px;
+    background: rgba(242, 239, 230, 0.18);
+  }
+
+  &[data-state='note'] {
+    height: 12px;
+    background: rgba(242, 239, 230, 0.5);
+  }
+
+  &[data-state='playhead'] {
+    height: 16px;
+    background: var(--cyan);
+    box-shadow: var(--shadow-loop-map-tick);
+  }
+}
+
+// Which half of the loop the step window is showing. Slides with the scroll
+// rather than jumping, so it stays honest mid-swipe.
+.bracket {
+  position: absolute;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(242, 239, 230, 0.55);
+}

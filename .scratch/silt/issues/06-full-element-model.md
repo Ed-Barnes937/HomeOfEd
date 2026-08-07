@@ -42,7 +42,7 @@ from the sim PRNG, and the single `onTick(api)` hook running strictly after
 archetype movement — both seams proven by a throwaway test-only gas element.
 Registry validation extended to reaction rows. Follow-up commit fixed a liquid
 spread gate and a lifetime overflow found by code review.
-**ADR 0024 — Silt simulation engine** records the cross-ticket engine
+**ADR 0028 — Silt simulation engine** records the cross-ticket engine
 decisions (clock-guard restore pass, within-band scan order, exhaustive
 archetype closure, reaction placement).
 Orchestrator gate: 72 vitest + 3 CT green, lint/typecheck clean.

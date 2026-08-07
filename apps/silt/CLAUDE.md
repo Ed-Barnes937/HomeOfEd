@@ -72,7 +72,7 @@ loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
 ```
 
 Engine decisions that are not in the spec are in
-[ADR 0024](../../docs/adr/0024-silt-simulation-engine.md).
+[ADR 0028](../../docs/adr/0028-silt-simulation-engine.md).
 
 Rules that are easy to break by accident:
 
@@ -107,7 +107,7 @@ Rules that are easy to break by accident:
 ## Scene persistence (`src/features/scenes/`)
 
 Spec §8; the calls the spec leaves open are in
-[ADR 0025](../../docs/adr/0025-silt-scene-persistence.md).
+[ADR 0029](../../docs/adr/0029-silt-scene-persistence.md).
 
 - `sceneCodec.ts` is **pure and DOM-free** — keep it that way; it is why the
   remap, dimension-mismatch and corruption rules are vitest cases, not browser

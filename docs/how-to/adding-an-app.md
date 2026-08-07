@@ -92,7 +92,7 @@ parallel branches will grep the same number and collide on merge (this is how
 | `sprout-pipeline` (headless) | 3005 | — | 8085 |
 | `espy` | 3006 | 3106 | 8086 |
 | `karesansui` | 3007 | 3107 | 8087 |
-| `boop` (unmerged — `music-app` branch) | 3008 | 3108 | 8088 |
+| `boop` | 3008 | 3108 | 8088 |
 | `silt` | 3009 | 3109 | 8089 |
 | **next free** | **3010** | **3110** | **8090** |
 

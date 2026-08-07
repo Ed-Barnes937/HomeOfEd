@@ -61,5 +61,5 @@ All three are worse than a wide button.
 **So the ceiling reading is rejected.** "44–48px targets" is a minimum-size
 instruction in the sense every touch-target guideline uses it: at least 44,
 prefer 48. A control wider than 48px is not a defect; one narrower than 44 is.
-`docs/adr/0024`/`0025` need no change, but if spec §9 is ever revised the phrase
+`docs/adr/0028`/`0029` need no change, but if spec §9 is ever revised the phrase
 is worth making explicit so this doesn't get re-flagged.

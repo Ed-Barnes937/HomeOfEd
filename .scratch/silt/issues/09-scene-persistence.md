@@ -40,7 +40,7 @@ the resolved format ticket):
 
 Resolved in commit `5b0a9eb` (Opus agent). `features/scenes/` — `sceneCodec.ts`
 (pure, headless, DOM-free), `sceneStore.ts` (localStorage layer),
-`useScenes.ts` (React seam), `ScenesPopover.tsx`. **ADR 0025 — Silt scene
+`useScenes.ts` (React seam), `ScenesPopover.tsx`. **ADR 0029 — Silt scene
 persistence** records the decisions.
 
 Every spec §8 trap is covered by a named test: round-trip pixel-identical with
