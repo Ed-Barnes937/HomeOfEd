@@ -110,11 +110,16 @@ export function HomePage() {
   }
 
   useSiltHotkeys({
-    running,
-    palette,
     onToggleRunning: () => setRunning((current) => !current),
-    onStep: () => controls.step(),
-    onSelectElement: selectElement,
+    // Stepping is a paused-only action, like the header button that is disabled
+    // while the sim runs.
+    onStep: () => {
+      if (!running) controls.step()
+    },
+    onSelectNth: (index) => {
+      const entry = palette.entries[index]
+      if (entry) selectElement(entry.id)
+    },
     onSelectErase: selectErase,
     onNudgeBrush: (delta) =>
       setBrushIndex((current) => Math.min(BRUSH_WIDTHS.length - 1, Math.max(0, current + delta))),

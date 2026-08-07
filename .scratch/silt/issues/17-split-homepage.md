@@ -88,8 +88,9 @@ Shape of the split:
   overlay used it.
 - `src/hooks/useSiltHotkeys.ts` — one window listener, registered once, reading
   the actions off a single latest-value ref synced in a dependency-array-free
-  `useEffect` (ticket 15's convention). The brush clamp stayed on the page with
-  the brush state; the hook says "-1 / +1".
+  `useEffect` (ticket 15's convention). It is keys in, actions out and holds no
+  state: the brush clamp, the rail order behind the digits, and the
+  paused-only gate on `.` all stayed on the page with the state they read.
 
 `HomePage.tsx` 448 → 355 lines. No test file was touched.
 

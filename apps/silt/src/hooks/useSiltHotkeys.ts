@@ -1,18 +1,12 @@
 import { useEffect, useRef } from 'react'
 
-import { type RailPalette } from '../features/palette/paletteGroups.ts'
-
 export interface UseSiltHotkeysOptions {
-  /** `.` steps only while paused, matching the header's disabled step button. */
-  running: boolean
-  /** Digits 1–9 select the nth rail entry, in rail order. */
-  palette: RailPalette
   /** Space. */
   onToggleRunning: () => void
-  /** `.` while paused. */
+  /** `.` — the caller decides whether a step is allowed right now. */
   onStep: () => void
-  /** A digit picked a species out of the rail. */
-  onSelectElement: (id: number) => void
+  /** A digit 1–9: the nth rail entry, zero-based. The caller owns rail order. */
+  onSelectNth: (index: number) => void
   /** `e`. */
   onSelectErase: () => void
   /** `[` / `]` — a step of -1 or +1 along the brush widths; the caller clamps. */
@@ -24,9 +18,9 @@ export interface UseSiltHotkeysOptions {
 }
 
 /**
- * The app's global keydown map (spec §9). One window listener, registered
- * once: the actions it dispatches are read off a latest-value ref, so a
- * re-render never re-binds the listener.
+ * The app's global keydown map (spec §9) — keys in, actions out, holding no
+ * state of its own. One window listener, registered once: the actions are read
+ * off a latest-value ref, so a re-render never re-binds the listener.
  */
 export function useSiltHotkeys(options: UseSiltHotkeysOptions): void {
   // Synced in an effect, not during render (ticket 15) — a render-phase write
@@ -53,8 +47,7 @@ export function useSiltHotkeys(options: UseSiltHotkeysOptions): void {
         return
       }
       if (event.key >= '1' && event.key <= '9') {
-        const entry = actions.palette.entries[Number(event.key) - 1]
-        if (entry) actions.onSelectElement(entry.id)
+        actions.onSelectNth(Number(event.key) - 1)
         return
       }
       if (event.key === '[') {
@@ -71,7 +64,7 @@ export function useSiltHotkeys(options: UseSiltHotkeysOptions): void {
         return
       }
       if (event.key === '.') {
-        if (!actions.running) actions.onStep()
+        actions.onStep()
         return
       }
       if (event.key === 'e' || event.key === 'E') {
