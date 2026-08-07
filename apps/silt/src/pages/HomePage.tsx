@@ -1,26 +1,43 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import {
-  BRUSH_WIDTHS,
-  colourOf,
-  nameOf,
-  paletteEntries,
-  paletteGroups,
-} from '../features/palette/paletteGroups.ts'
+import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
 import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
 import { type Spawner } from '../features/spawners/spawners.ts'
+import { useArmedConfirm } from '../hooks/useArmedConfirm.ts'
 import { EMPTY, GRID_HEIGHT, GRID_WIDTH, SAND } from '../sim/index.ts'
 import styles from './HomePage.module.scss'
 
 type Tool = 'paint' | 'erase'
 
-/** How long a reset click stays armed before it forgets the first click (spec §3, §9). */
-const RESET_ARM_MS = 3000
-
 /** CSS px per brush cell, for the picker's "true relative scale" icons (spec §9). */
 const BRUSH_ICON_SCALE = 3
+
+/** Marks a returning visitor — not scene data, so it stays out of the envelope (spec §8). */
+const HINT_SEEN_KEY = 'silt:seen'
+
+/** Private browsing modes can make even *touching* localStorage throw. */
+function openHintStorage(): Storage | null {
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
+function hasSeenHint(): boolean {
+  return openHintStorage()?.getItem(HINT_SEEN_KEY) != null
+}
+
+function markHintSeen(): void {
+  try {
+    openHintStorage()?.setItem(HINT_SEEN_KEY, '1')
+  } catch {
+    // Storage failure must not break the page — the hint just won't persist
+    // across reloads for this session (ticket 18).
+  }
+}
 
 export function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -29,16 +46,27 @@ export function HomePage() {
   const [tool, setTool] = useState<Tool>('paint')
   const [mode, setMode] = useState<SimMode>('paint')
   const [brushIndex, setBrushIndex] = useState(0)
-  const [hasPainted, setHasPainted] = useState(false)
-  const [resetArmed, setResetArmed] = useState(false)
+  // The hint is only ever shown once, ever — persisted so a reload before the
+  // first stroke doesn't bring it back (ticket 18). `hintFading` keeps it
+  // mounted long enough to transition out instead of vanishing on the spot.
+  const [hintVisible, setHintVisible] = useState(() => !hasSeenHint())
+  const [hintFading, setHintFading] = useState(false)
   const [cursor, setCursor] = useState<CursorInfo | null>(null)
   const [fps, setFps] = useState(0)
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
   const [scenesOpen, setScenesOpen] = useState(false)
-  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resetConfirm = useArmedConfirm<true>()
 
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
   const paintSpecies = tool === 'erase' ? EMPTY : selectedElement
+
+  // Fires once, on the first stroke (or scene load) of a first visit; a
+  // returning visitor never has `hintVisible` true to begin with.
+  const dismissHint = (): void => {
+    if (!hintVisible || hintFading) return
+    markHintSeen()
+    setHintFading(true)
+  }
 
   const controls = useSimLoop({
     canvasRef,
@@ -46,11 +74,15 @@ export function HomePage() {
     selectedElement: paintSpecies,
     brushWidth,
     mode,
-    onPaint: () => setHasPainted(true),
+    onPaint: dismissHint,
     onCursorChange: setCursor,
     onFps: setFps,
     onSpawnersChange: setSpawners,
   })
+
+  // Derived from the same registry the canvas paints from — never from
+  // `v1Elements` directly — so the rail can't drift from the grid (ticket 16).
+  const palette = useMemo(() => buildRailPalette(controls.registry), [controls.registry])
 
   const scenes = useScenes({
     saveScene: controls.saveScene,
@@ -60,7 +92,7 @@ export function HomePage() {
     // scene a save would write to, whoever last changed it.
     onLoaded: () => {
       setRunning(false)
-      setHasPainted(true)
+      dismissHint()
       setScenesOpen(false)
     },
   })
@@ -73,26 +105,20 @@ export function HomePage() {
   controlsRef.current = controls
   const saveSceneRef = useRef(scenes.save)
   saveSceneRef.current = scenes.save
+  const paletteRef = useRef(palette)
+  paletteRef.current = palette
 
   const armReset = (): void => {
-    if (!resetArmed) {
-      setResetArmed(true)
-      resetTimer.current = setTimeout(() => setResetArmed(false), RESET_ARM_MS)
+    if (!resetConfirm.armed) {
+      resetConfirm.arm(true)
       return
     }
-    if (resetTimer.current) clearTimeout(resetTimer.current)
-    setResetArmed(false)
+    resetConfirm.disarm()
     controls.reset()
     // An empty world is not the scene that was loaded, and saving is not the
     // moment to find that out: the next save makes a new scene instead.
     scenes.clearCurrentScene()
   }
-
-  useEffect(() => {
-    return () => {
-      if (resetTimer.current) clearTimeout(resetTimer.current)
-    }
-  }, [])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -111,7 +137,7 @@ export function HomePage() {
         return
       }
       if (event.key >= '1' && event.key <= '9') {
-        const entry = paletteEntries[Number(event.key) - 1]
+        const entry = paletteRef.current.entries[Number(event.key) - 1]
         if (entry) {
           setTool('paint')
           setSelectedElement(entry.id)
@@ -149,7 +175,7 @@ export function HomePage() {
     setSelectedElement(id)
   }
 
-  const selectedName = tool === 'erase' ? 'erase' : nameOf(selectedElement)
+  const selectedName = tool === 'erase' ? 'erase' : palette.nameOf(selectedElement)
 
   // The hovered cell, in spawner mode, may already hold a spawner — that one
   // renders red-with-minus instead of the placement ghost (spec §7, §9).
@@ -187,11 +213,11 @@ export function HomePage() {
           </button>
           <button
             type="button"
-            className={`${styles.headerButton} ${resetArmed ? styles.armed : ''}`}
+            className={`${styles.headerButton} ${resetConfirm.armed ? styles.armed : ''}`}
             data-testid="reset"
             onClick={armReset}
           >
-            {resetArmed ? 'confirm?' : 'reset'}
+            {resetConfirm.armed ? 'confirm?' : 'reset'}
           </button>
         </div>
         <div className={styles.scenesAnchor}>
@@ -222,11 +248,11 @@ export function HomePage() {
       <div className={styles.body}>
         <nav className={styles.rail} aria-label="tools">
           <div className={styles.palette} data-testid="palette">
-            {paletteGroups.map((group) => (
+            {palette.groups.map((group) => (
               <div key={group.label} className={styles.paletteGroup}>
                 <span className={styles.groupLabel}>{group.label}</span>
                 {group.entries.map((entry) => {
-                  const hotkey = paletteEntries.indexOf(entry) + 1
+                  const hotkey = palette.entries.indexOf(entry) + 1
                   return (
                     <button
                       key={entry.id}
@@ -330,8 +356,12 @@ export function HomePage() {
               {running ? 'running' : 'paused'}
             </div>
 
-            {!hasPainted ? (
-              <div className={styles.firstVisitHint} data-testid="first-visit-hint">
+            {hintVisible ? (
+              <div
+                className={`${styles.firstVisitHint} ${hintFading ? styles.firstVisitHintFading : ''}`}
+                data-testid="first-visit-hint"
+                onTransitionEnd={() => setHintVisible(false)}
+              >
                 drag to pour sand
               </div>
             ) : null}
@@ -354,7 +384,7 @@ export function HomePage() {
               if (!point) return null
               const size = controls.cellSize()
               const removing = index === hoveredSpawnerIndex
-              const colour = colourOf(spawner.element)
+              const colour = palette.colourOf(spawner.element)
               return (
                 <div
                   key={`${spawner.x}-${spawner.y}`}
@@ -382,7 +412,7 @@ export function HomePage() {
                   top: cursor.point.y,
                   width: cursor.cellSize,
                   height: cursor.cellSize,
-                  background: colourOf(selectedElement),
+                  background: palette.colourOf(selectedElement),
                 }}
                 data-testid="spawner-ghost"
                 aria-hidden="true"

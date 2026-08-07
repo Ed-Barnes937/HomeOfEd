@@ -1,10 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-
+import { useArmedConfirm } from '../../hooks/useArmedConfirm.ts'
 import type { SceneMeta } from './sceneStore.ts'
 import styles from './ScenesPopover.module.scss'
-
-/** How long a delete click stays armed before it forgets the first click (spec §9). */
-const DELETE_ARM_MS = 3000
 
 /**
  * `dd/mm hh:mm`, local. Short enough to sit beside the name, and stable across
@@ -43,24 +39,14 @@ export interface ScenesPopoverProps {
  * is required, because deleting is the only way out of a full quota.
  */
 export function ScenesPopover(props: ScenesPopoverProps) {
-  const [armedDelete, setArmedDelete] = useState<string | null>(null)
-  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (armTimer.current) clearTimeout(armTimer.current)
-    }
-  }, [])
+  const deleteConfirm = useArmedConfirm<string>()
 
   const armDelete = (id: string): void => {
-    if (armedDelete !== id) {
-      setArmedDelete(id)
-      if (armTimer.current) clearTimeout(armTimer.current)
-      armTimer.current = setTimeout(() => setArmedDelete(null), DELETE_ARM_MS)
+    if (deleteConfirm.armed !== id) {
+      deleteConfirm.arm(id)
       return
     }
-    if (armTimer.current) clearTimeout(armTimer.current)
-    setArmedDelete(null)
+    deleteConfirm.disarm()
     props.onDelete(id)
   }
 
@@ -162,11 +148,11 @@ export function ScenesPopover(props: ScenesPopoverProps) {
               </button>
               <button
                 type="button"
-                className={`${styles.action} ${armedDelete === scene.id ? styles.armed : ''}`}
+                className={`${styles.action} ${deleteConfirm.armed === scene.id ? styles.armed : ''}`}
                 data-testid={`scene-delete-${scene.name}`}
                 onClick={() => armDelete(scene.id)}
               >
-                {armedDelete === scene.id ? 'sure?' : 'delete'}
+                {deleteConfirm.armed === scene.id ? 'sure?' : 'delete'}
               </button>
             </li>
           ))}

@@ -6,7 +6,7 @@ import {
   gridToCanvasPoint,
   type Rect,
 } from './letterboxFit.ts'
-import { buildPalette, WORLD_COLOUR, type Palette } from './palette.ts'
+import { buildSpeciesPalette, WORLD_COLOUR, type SpeciesPalette } from './speciesPalette.ts'
 
 /**
  * Narrow sim → renderer seam (spec §5.5): the renderer reads only this
@@ -36,7 +36,7 @@ export class SimRenderer {
   private readonly buffer: HTMLCanvasElement
   private readonly bufferCtx: CanvasRenderingContext2D
   private readonly imageData: ImageData
-  private readonly palette: Palette
+  private readonly palette: SpeciesPalette
   private fit: Rect = { x: 0, y: 0, width: 0, height: 0 }
   private cssWidth = 0
   private cssHeight = 0
@@ -51,7 +51,7 @@ export class SimRenderer {
     this.buffer.height = GRID_HEIGHT
     this.bufferCtx = context2d(this.buffer)
     this.imageData = this.bufferCtx.createImageData(GRID_WIDTH, GRID_HEIGHT)
-    this.palette = buildPalette(registry)
+    this.palette = buildSpeciesPalette(registry)
   }
 
   /** DPR-aware backing store, re-evaluated on resize/zoom (spec §6). */
