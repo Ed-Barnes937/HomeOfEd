@@ -66,8 +66,12 @@ function messageOf(error: unknown): string {
  * that will not load keeps its row and gains an error.
  */
 export function useScenes(options: UseScenesOptions): ScenesController {
+  // Synced in an effect, not during render (ticket 15) — a render-phase write
+  // misbehaves under concurrent rendering and StrictMode double-invocation.
   const optionsRef = useRef(options)
-  optionsRef.current = options
+  useEffect(() => {
+    optionsRef.current = options
+  })
 
   const storeRef = useRef<SceneStore | null>(null)
   if (storeRef.current === null) {

@@ -130,40 +130,22 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   // from first paint — swapped for the sim's own `registry` once it mounts.
   const [registry, setRegistry] = useState<ElementRegistry>(() => createRegistry(v1Elements, v1Reactions))
 
+  // One effect syncing all the latest-value refs (ticket 15), rather than one
+  // per option — still an effect, not a render-phase write, so it doesn't
+  // misbehave under concurrent rendering and StrictMode double-invocation.
   useEffect(() => {
     runningRef.current = opts.running
-  }, [opts.running])
-
-  useEffect(() => {
     selectedRef.current = opts.selectedElement
-  }, [opts.selectedElement])
-
-  useEffect(() => {
     brushRef.current = opts.brushWidth
-  }, [opts.brushWidth])
-
-  useEffect(() => {
     modeRef.current = opts.mode
-  }, [opts.mode])
-
-  useEffect(() => {
     onPaintRef.current = opts.onPaint
-  }, [opts.onPaint])
-
-  useEffect(() => {
     onCursorChangeRef.current = opts.onCursorChange
-  }, [opts.onCursorChange])
-
-  useEffect(() => {
     onFpsRef.current = opts.onFps
-  }, [opts.onFps])
-
-  useEffect(() => {
     onSpawnersChangeRef.current = opts.onSpawnersChange
-  }, [opts.onSpawnersChange])
+  })
 
   // canvasRef identity is stable across renders; the options above are synced
-  // into the running loop by the effects above, not by re-running this one.
+  // into the running loop by the effect above, not by re-running this one.
   useEffect(() => {
     const canvas = opts.canvasRef.current
     if (!canvas) return

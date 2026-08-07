@@ -99,14 +99,18 @@ export function HomePage() {
 
   // Latest-value refs so the keydown listener below can be registered once
   // (with an empty dependency array) instead of re-binding on every render.
+  // Synced in an effect, not during render (ticket 15) — a render-phase write
+  // misbehaves under concurrent rendering and StrictMode double-invocation.
   const runningRef = useRef(running)
-  runningRef.current = running
   const controlsRef = useRef(controls)
-  controlsRef.current = controls
   const saveSceneRef = useRef(scenes.save)
-  saveSceneRef.current = scenes.save
   const paletteRef = useRef(palette)
-  paletteRef.current = palette
+  useEffect(() => {
+    runningRef.current = running
+    controlsRef.current = controls
+    saveSceneRef.current = scenes.save
+    paletteRef.current = palette
+  })
 
   const armReset = (): void => {
     if (!resetConfirm.armed) {

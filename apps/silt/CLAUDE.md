@@ -103,6 +103,12 @@ Rules that are easy to break by accident:
 - **Species ids are pinned**, but scenes remap by *name*: the envelope's
   `elements` table records what each byte meant, so renumbering an id is safe
   and renaming an element silently empties those cells (with a warning).
+- **Latest-value refs sync in a `useEffect`, never during render.** A
+  long-lived listener (keydown handler, RAF loop) that needs current React
+  values without re-binding reads them off a ref; that ref is written from one
+  `useEffect` (no dependency array, syncing every value it owns), not
+  `ref.current = x` inline in the render body — the render-phase form misbehaves
+  under concurrent rendering and StrictMode double-invocation (ticket 15).
 
 ## Scene persistence (`src/features/scenes/`)
 
