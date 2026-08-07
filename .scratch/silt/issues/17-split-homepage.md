@@ -26,13 +26,13 @@ canvas fit.
 
 Leave the selection state where it is; that genuinely belongs to the page.
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] Overlay markup and its positioning arithmetic live outside `HomePage`
-- [ ] The keydown map lives in its own hook
-- [ ] No behaviour change — `chrome.iwft.tsx`, `spawners.iwft.tsx` and
+- [x] Overlay markup and its positioning arithmetic live outside `HomePage`
+- [x] The keydown map lives in its own hook
+- [x] No behaviour change — `chrome.iwft.tsx`, `spawners.iwft.tsx` and
       `mobile.iwft.tsx` pass untouched
-- [ ] Full suite green
+- [x] Full suite green
 
 ## Sequencing — do this last
 
@@ -107,3 +107,33 @@ because both would be behaviour or API changes beyond a mechanical split):
   `$ink`/`$paper`/`$destructive`, following the house pattern
   (`ScenesPopover.module.scss` already does). Three copies is the point at which
   a shared `_tokens.scss` would earn itself.
+
+**Resolved (orchestrator, 2026-08-07) — PR #61, merged as `69c928f`, CI green.**
+
+`HomePage.tsx` 448 → 360 lines. Two extractions:
+`features/render/WorldOverlay.tsx` (+ its own module SCSS) and
+`hooks/useSiltHotkeys.ts`. The overlay returns a fragment, so DOM order under
+`.canvasWrap` is unchanged, and it takes the fit as
+`Pick<UseSimLoopControls, 'gridToCanvasPoint' | 'cellSize'>` — the renderer
+arithmetic now sits beside the renderer, which was the Feature Envy this ticket
+was filed for. Selection state stayed on the page as instructed.
+
+**The strongest evidence of "no behaviour change": no test file is in the diff
+at all** — verified by name across the merge range, not taken on trust.
+`chrome.iwft.tsx`, `spawners.iwft.tsx` and `mobile.iwft.tsx` are untouched and
+still green, which is exactly the safety net the ticket asked for.
+
+TDD reported honestly: a pure refactor under existing coverage, green baseline
+before and green after, with no red step claimed.
+
+**Hint decision (the one this ticket required): the first-visit hint stays on
+the page.** It is not positioned by the fit and never queries it, and its
+`hintVisible`/`hintFading` state is written by page-owned events (first paint,
+scene load). Moving it would push page state into a presentational component or
+thread two values plus an `onTransitionEnd` through it, for nothing. This keeps
+`WorldOverlay` a pure function of cursor, spawners, mode, brush width and fit.
+
+Two findings were deferred into this ticket's Comments rather than fixed, both
+correctly out of scope: the `cursor.cellSize` vs `fit.cellSize()` duality (would
+change `useSimLoop`'s `CursorInfo` API) and a third copy of the SCSS token block
+(matches the house pattern set by `ScenesPopover.module.scss`).
