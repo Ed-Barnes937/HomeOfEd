@@ -21,7 +21,7 @@ returns"*. Neither half holds.
 - Fade the element out rather than unmounting it — keep it mounted for the
   transition, or use a CSS animation on removal.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] The hint does not reappear after a reload once the user has painted
 - [ ] The hint fades rather than vanishing

@@ -22,7 +22,7 @@ constraint — the size is a free choice, so it may as well be the better one.
 **What to build:** Take the square icon chips (`.brushButton`, `.swatchRow`) to
 48×48. Leave the text-labelled buttons alone — see below.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Square icon chips are 48×48 on mobile
 - [ ] `mobile.iwft.tsx` still green; desktop layout unaffected

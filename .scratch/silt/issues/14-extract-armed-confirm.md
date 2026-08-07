@@ -16,7 +16,7 @@ does not. Same intent, two behaviours under repeated clicks.
 `{ armed, arm, disarm }`, used by both call sites, with the 3s constant living
 in one place. Behaviour of both confirms should be identical afterwards.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Both confirms go through one hook; the `3000` appears once
 - [ ] Repeated clicks behave the same at both sites (the `clearTimeout`

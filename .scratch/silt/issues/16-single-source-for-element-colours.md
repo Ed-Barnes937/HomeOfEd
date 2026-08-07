@@ -21,7 +21,7 @@ actually renders), so `paletteGroups` should derive from the same registry the
 renderer uses rather than from `v1Elements`. Then either the comment is true, or
 delete it. Rename one of the two "palette" modules while you're there.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Rail and canvas colours provably come from one source
 - [ ] `palette.ts:16`'s claim is true, or gone

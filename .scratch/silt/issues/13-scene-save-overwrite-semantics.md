@@ -22,7 +22,7 @@ ordinary use — paint, save, adjust, save — walks into the quota wall in abou
 twenty saves, and the escape is manual deletion of rows the user never meant to
 create.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 **Decided (Ed, 2026-08-07): save updates the current scene.** Of the three
 candidates — update-current, always-new-plus-per-row-overwrite, and
