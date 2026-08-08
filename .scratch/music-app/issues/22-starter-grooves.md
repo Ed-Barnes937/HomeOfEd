@@ -16,9 +16,25 @@ that `activePreset` goes back to unloaded on the first user edit.
 **Blocked by:** 13 — First sound grid; 18 — Launch kit content (presets must
 sound good on the real kit).
 
-**Status:** resolved
+**Status:** resolved — placement and two rules superseded by
+[36](36-new-boop-dialog.md) / [31](31-saved-state-visibility.md)
+
+> **Superseded 2026-08-07 (V1.1 feedback, grilled with Ed).** Three things below
+> change:
+> 1. **Placement.** The preset row leaves the main screen for a "New boop" dialog
+>    opened from the sticky bottom bar — [ticket 36](36-new-boop-dialog.md).
+> 2. **"App opens on an empty grid; no first-load seeding."** Reversed: a fresh
+>    browser is seeded with **Wonky Walk**, so content still does the onboarding
+>    now the row is behind a button (ticket 36). Blank stays first in the dialog,
+>    but as the "start fresh" affordance rather than as void-avoidance.
+> 3. **"The ring drops on first edit but not on a tempo change."** That exemption
+>    is removed by [ticket 31](31-saved-state-visibility.md), so boop has one
+>    definition of "changed"; the ring becomes internal to the dialog.
+>
+> "Groove" is renamed to "Boop" throughout by [ticket 35](35-rename-groove-to-boop.md).
 
 - [x] Preset row visible on load; blank canvas is the first item
+      *(placement superseded — see above)*
 - [x] The three named starter grooves authored against the launch kit —
       each genuinely groovy and tweakable (consider seeding some with
       obvious empty space to fill)
