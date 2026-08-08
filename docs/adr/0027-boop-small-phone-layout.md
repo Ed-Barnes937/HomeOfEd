@@ -71,6 +71,12 @@ only scroll affordance — is not something a six-year-old's finger can hit.
 
 ### 4. The chrome's save icon borrows the panel's "Saved it" moment
 
+> **Superseded by ticket 32 (V1.1 feedback).** The "Saved it" moment is gone:
+> "My boops" now carries an always-on, always-prefilled save form, so opening
+> the panel *is* being ready to save. The icon therefore only opens the panel —
+> it no longer saves on mount, and `saveOnOpen` is gone with it. The layering
+> below is unchanged.
+
 The 52px strip has a save icon but no room to confirm anything, and the design
 handoff's §5 "Saved it" moment — the prefilled name field, with the save already
 done — lives inside "My boops". So the icon does both: it saves and it opens

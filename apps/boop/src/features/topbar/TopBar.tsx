@@ -12,22 +12,17 @@ export interface TopBarProps {
   onOpenBoops: () => void
   /** Opens the hint sheet (ticket 24). */
   onOpenHints: () => void
-  /**
-   * Renders the pattern to a WAV file and hands it to the share sheet
-   * (mobile) or a download (desktop) — the demoted secondary under Share
-   * (ticket 25, design handoff §5).
-   */
-  onExportWav: () => void
 }
 
 /**
  * The top bar: back-to-hub arrow, wordmark, and the chrome buttons from the
  * design handoff. "Share" is live (ticket 21) — the system share sheet on
  * mobile, clipboard plus a "Copied!" flip on desktop, no modal and no link
- * field. "My boops" opens the boops panel (ticket 20). "?" opens the
- * hint sheet (ticket 24).
+ * field. "My boops" opens the boops panel (ticket 20), which is also where WAV
+ * export now lives — per saved boop, not as a link under Share (ticket 34).
+ * "?" opens the hint sheet (ticket 24).
  */
-export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, onExportWav }: TopBarProps) {
+export function TopBar({ getShareUrl, onOpenBoops, onOpenHints }: TopBarProps) {
   const { shareState, share } = useShareBoop(getShareUrl)
   const copied = shareState === 'copied'
 
@@ -59,44 +54,34 @@ export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, onExportWav }: T
       >
         My boops
       </button>
-      <div className={styles.shareGroup}>
-        <button
-          type="button"
-          className={`${styles.primary}${copied ? ` ${styles.copied}` : ''}`}
-          data-testid="share-button"
-          data-share-state={shareState}
-          onClick={share}
-        >
-          {copied ? (
-            <>
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="m5 13 4 4L19 7" />
-              </svg>
-              Copied!
-            </>
-          ) : (
-            'Share'
-          )}
-        </button>
-        <button
-          type="button"
-          className={styles.exportLink}
-          data-testid="export-wav-button"
-          onClick={onExportWav}
-        >
-          Save the sound as a file
-        </button>
-      </div>
+      <button
+        type="button"
+        className={`${styles.primary}${copied ? ` ${styles.copied}` : ''}`}
+        data-testid="share-button"
+        data-share-state={shareState}
+        onClick={share}
+      >
+        {copied ? (
+          <>
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 13 4 4L19 7" />
+            </svg>
+            Copied!
+          </>
+        ) : (
+          'Share'
+        )}
+      </button>
       <button
         type="button"
         className={styles.help}

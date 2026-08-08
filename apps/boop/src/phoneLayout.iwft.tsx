@@ -133,7 +133,7 @@ test('the "⋯" menu opens My boops and the hint sheet, closing itself behind th
   await root.verifyPhoneChromeCoveredByOverlay()
 })
 
-test('the chrome strip\'s save icon saves the boop and shows the "Saved it" moment', async ({
+test("the chrome strip's save icon opens \"My boops\" with the save form ready", async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -142,8 +142,13 @@ test('the chrome strip\'s save icon saves the boop and shows the "Saved it" mome
   await root.toggleCell('kick', 0)
   await root.pressPhoneSave()
 
-  const name = await root.verifySavedMomentShown()
-  await root.finishSaving()
+  // Nothing is saved by the tap itself (ticket 32) — and no keyboard opens over
+  // the list, because autofocus is desktop only.
+  await root.verifyBoopsPanelShown()
+  await root.verifyBoopCount(0)
+  await root.verifySaveNameFieldNotFocused()
+
+  const name = await root.saveBoop()
   await root.verifyBoopCount(1)
   await root.verifyBoopName(0, name)
 })

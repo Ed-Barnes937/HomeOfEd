@@ -67,30 +67,6 @@
   }
 }
 
-// Share's button plus its demoted secondary, stacked without changing the
-// bar's own height (design handoff §5: "underneath" the Share button).
-.shareGroup {
-  position: relative;
-}
-
-.exportLink {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 6px;
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 13.5px;
-  color: var(--cyan-solid);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
 .primary {
   display: inline-flex;
   align-items: center;

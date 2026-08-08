@@ -12,7 +12,6 @@ test('saving snapshots the grid under a generated name — no typing required', 
   await root.openBoops()
   const name = await root.saveBoop()
   expect(name).toBe('Boop 1')
-  await root.finishSaving()
 
   await root.verifyBoopCount(1)
   await root.verifyBoopName(0, 'Boop 1')
@@ -30,7 +29,6 @@ test('save, edit the grid, then load the saved boop back — the original is res
 
   await root.openBoops()
   await root.saveBoop()
-  await root.finishSaving()
   await root.closeBoops()
 
   // Edit the grid further and change the tempo — none of this touches the
@@ -54,7 +52,6 @@ test('renaming a saved boop is optional', async ({ mountApp }) => {
   await root.toggleCell('kick', 0)
   await root.openBoops()
   await root.saveBoop()
-  await root.finishSaving()
 
   await root.renameBoop(0, 'My Beat')
   await root.verifyBoopName(0, 'My Beat')
@@ -70,7 +67,6 @@ test('deleting a saved boop sits behind a confirm', async ({ mountApp }) => {
   await root.toggleCell('kick', 0)
   await root.openBoops()
   await root.saveBoop()
-  await root.finishSaving()
   await root.verifyBoopCount(1)
 
   await root.openDeleteBoopConfirm(0)
@@ -91,10 +87,7 @@ test('there is no cap on the number of saved boops', async ({ mountApp }) => {
   await root.verifyIsShown()
 
   await root.openBoops()
-  for (let i = 0; i < 12; i++) {
-    await root.saveBoop()
-    await root.finishSaving()
-  }
+  for (let i = 0; i < 12; i++) await root.saveBoop()
 
   await root.verifyBoopCount(12)
 })
@@ -107,4 +100,87 @@ test('closing "My boops" leaves no dialog behind', async ({ mountApp }) => {
   await root.closeBoops()
 
   await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+// --- The save form (ticket 32) ---
+
+test('one press saves exactly one boop; the dialog stays open and the field re-prefills', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.toggleCell('kick', 0)
+  await root.openBoops()
+
+  // The form is there from the start, prefilled — saving is one tap, no typing.
+  expect(await root.readBoopSaveNameFieldValue()).toBe('Boop 1')
+
+  await root.saveBoop()
+  await root.verifyBoopsPanelShown()
+  await root.verifyBoopCount(1)
+  await root.verifyBoopHighlighted(0)
+  // The name in the box is always the name the next save will write — which is
+  // what stops a second press duplicating the first.
+  expect(await root.readBoopSaveNameFieldValue()).toBe('Boop 2')
+
+  await root.saveBoop()
+  await root.verifyBoopCount(2)
+  await root.verifyBoopName(1, 'Boop 2')
+})
+
+test('Save is blocked only while the name field is empty', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openBoops()
+  await root.verifySaveEnabled()
+
+  await root.typeSaveName('')
+  await root.verifySaveDisabled()
+
+  await root.typeSaveName('Thunder')
+  await root.verifySaveEnabled()
+  await root.pressEnterInSaveName()
+
+  await root.verifyBoopCount(1)
+  await root.verifyBoopName(0, 'Thunder')
+})
+
+test('the name field takes focus on desktop, so Enter alone saves', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openBoops()
+  await root.verifySaveNameFieldFocused()
+})
+
+// --- Sizing (ticket 30) ---
+
+test('a long list scrolls inside the card, with the title still in view', async ({ mountApp }) => {
+  const { root, page } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openBoops()
+  for (let i = 0; i < 15; i++) await root.saveBoop()
+  await root.verifyBoopCount(15)
+
+  const viewport = page.viewportSize()!
+  const { width, height } = await root.readBoopsCardSize()
+  // clamp(352px, 44vw, 560px) — 44vw of the 1280px CT viewport is over the cap.
+  expect(Math.round(width)).toBe(560)
+  expect(Math.round(height)).toBe(viewport.height - 64)
+
+  await root.verifyBoopsTitleVisible()
+  await root.verifyBoopsListIsTheScroller()
+})
+
+test('the card is only as tall as its content when there is little to show', async ({ mountApp }) => {
+  const { root, page } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openBoops()
+  const { height } = await root.readBoopsCardSize()
+
+  expect(height).toBeLessThan(page.viewportSize()!.height - 64)
 })

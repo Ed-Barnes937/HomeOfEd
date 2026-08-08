@@ -78,15 +78,16 @@ test('spacebar toggles play from a random focus target on the page', async ({ mo
   await root.verifyPaused()
 })
 
-test('space in the boop rename field types a space instead of toggling play', async ({
+test('space in the boop name field types a space instead of toggling play', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.verifyPaused()
 
+  // The field is focused the moment the dialog opens (desktop autofocus).
   await root.openBoops()
-  const name = await root.saveBoop()
+  const name = await root.readBoopSaveNameFieldValue()
   await root.pressSpaceKey()
 
   await root.verifyPaused()

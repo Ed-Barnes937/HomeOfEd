@@ -15,10 +15,12 @@ export class HomePagePom extends BasePage {
   private readonly confirmSafeButton = this.page.getByTestId('confirm-safe-button')
   private readonly confirmDestructiveButton = this.page.getByTestId('confirm-destructive-button')
   private readonly shareButton = this.page.getByTestId('share-button')
-  private readonly exportWavButton = this.page.getByTestId('export-wav-button')
   private readonly boopsButton = this.page.getByTestId('boops-button')
   private readonly saveBoopButton = this.page.getByTestId('save-boop-button')
+  private readonly saveNameInput = this.page.getByTestId('boop-save-name-input')
   private readonly boopsCloseButton = this.page.getByTestId('boops-close-button')
+  private readonly boopsCard = this.page.getByRole('dialog', { name: 'My boops' })
+  private readonly boopsList = this.page.getByTestId('boops-list')
   private readonly helpButton = this.page.getByTestId('help-button')
   private readonly hintSheet = this.page.getByTestId('hint-sheet')
   private readonly hintSheetOverlay = this.page.getByTestId('hint-sheet-overlay')
@@ -91,8 +93,9 @@ export class HomePagePom extends BasePage {
     await this.page.keyboard.press('Space')
   }
 
+  /** The name in the save form's field — always the name the next save will write (ticket 32). */
   async readBoopSaveNameFieldValue(): Promise<string> {
-    return this.page.getByTestId('boop-save-name-input').inputValue()
+    return this.saveNameInput.inputValue()
   }
 
   async openClearGridConfirm(): Promise<void> {
@@ -252,18 +255,6 @@ export class HomePagePom extends BasePage {
     return this.page.evaluate(() => navigator.clipboard.readText())
   }
 
-  async pressExportWav(): Promise<void> {
-    await this.exportWavButton.click()
-  }
-
-  /** The demoted export link sits below the Share button, not beside it. */
-  async verifyExportLinkBelowShare(): Promise<void> {
-    const shareBox = await this.shareButton.boundingBox()
-    const exportBox = await this.exportWavButton.boundingBox()
-    if (!shareBox || !exportBox) throw new Error('share or export button is not visible')
-    expect(exportBox.y).toBeGreaterThan(shareBox.y + shareBox.height / 2)
-  }
-
   /**
    * Forget the autosaved grid — a fresh visitor's browser. Only meaningful
    * between a reload and the next mount: an app that is still mounted flushes
@@ -290,15 +281,94 @@ export class HomePagePom extends BasePage {
     await this.boopsCloseButton.click()
   }
 
-  /** Saves the working grid — the save happens immediately; returns the generated name shown for renaming. */
+  /**
+   * Presses "Save this boop" and returns the name that was written — the value
+   * that was in the field at the moment of the press (ticket 32: the box always
+   * holds the name the save will use).
+   */
   async saveBoop(): Promise<string> {
+    const name = await this.saveNameInput.inputValue()
     await this.saveBoopButton.click()
-    return this.page.getByTestId('boop-save-name-input').inputValue()
+    return name
   }
 
-  /** Dismisses the post-save "Saved it" moment, keeping whatever name is currently in the field. */
-  async finishSaving(): Promise<void> {
-    await this.page.getByTestId('boop-save-name-done').click()
+  /** Overtype the prefilled name before saving. */
+  async typeSaveName(name: string): Promise<void> {
+    await this.saveNameInput.fill(name)
+  }
+
+  /** Enter inside the name field saves, without reaching for the button. */
+  async pressEnterInSaveName(): Promise<void> {
+    await this.saveNameInput.press('Enter')
+  }
+
+  async verifySaveNameFieldFocused(): Promise<void> {
+    await expect(this.saveNameInput).toBeFocused()
+  }
+
+  async verifySaveNameFieldNotFocused(): Promise<void> {
+    await expect(this.saveNameInput).not.toBeFocused()
+  }
+
+  async verifySaveDisabled(): Promise<void> {
+    await expect(this.saveBoopButton).toBeDisabled()
+  }
+
+  async verifySaveEnabled(): Promise<void> {
+    await expect(this.saveBoopButton).toBeEnabled()
+  }
+
+  /** The brief just-saved highlight on the new row (ticket 32). */
+  async verifyBoopHighlighted(index: number): Promise<void> {
+    await expect(this.boopRow(index)).toHaveAttribute('data-highlighted', 'true')
+  }
+
+  /** Export that saved boop as a WAV — the only export path (ticket 34). */
+  async exportBoop(index: number): Promise<void> {
+    await this.page.getByTestId(`boop-export-button-${index}`).click()
+  }
+
+  /**
+   * Two taps inside one task — the impatient double-tap. React has not
+   * re-rendered the button as disabled between them, so this exercises the
+   * guard itself rather than the disabled attribute.
+   */
+  async doubleTapExport(index: number): Promise<void> {
+    await this.page
+      .getByTestId(`boop-export-button-${index}`)
+      .evaluate((element: HTMLButtonElement) => {
+        element.click()
+        element.click()
+      })
+  }
+
+  /**
+   * The card grows with its content and stops at the viewport minus the 16px
+   * gutters — width clamped to 560px, height to `100vh - 64px` (ticket 30).
+   */
+  async readBoopsCardSize(): Promise<{ width: number; height: number }> {
+    const box = await this.boopsCard.boundingBox()
+    if (!box) throw new Error('the "My boops" card is not visible')
+    return { width: box.width, height: box.height }
+  }
+
+  /** Only the list scrolls: the card itself never has content hidden above the title. */
+  async verifyBoopsListIsTheScroller(): Promise<void> {
+    const list = await this.boopsList.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    }))
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight)
+
+    const card = await this.boopsCard.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    }))
+    expect(card.scrollHeight).toBeLessThanOrEqual(card.clientHeight + 1)
+  }
+
+  async verifyBoopsTitleVisible(): Promise<void> {
+    await expect(this.boopsCard.getByText('My boops', { exact: true })).toBeInViewport()
   }
 
   boopRow(index: number) {
@@ -462,7 +532,7 @@ export class HomePagePom extends BasePage {
     expect(overflow).toBeLessThanOrEqual(0)
   }
 
-  /** The chrome strip's save icon — saves straight away and shows the boops panel's "Saved it". */
+  /** The chrome strip's save icon — opens "My boops" with the save form ready (ticket 32). */
   async pressPhoneSave(): Promise<void> {
     await this.page.getByTestId('phone-save-button').click()
   }
@@ -494,13 +564,7 @@ export class HomePagePom extends BasePage {
   }
 
   async verifyBoopsPanelShown(): Promise<void> {
-    await expect(this.page.getByRole('dialog', { name: 'My boops' })).toBeVisible()
-  }
-
-  /** The post-save moment the panel opens into, with the generated name ready to overtype. */
-  async verifySavedMomentShown(): Promise<string> {
-    await expect(this.page.getByText('Saved it')).toBeVisible()
-    return this.page.getByTestId('boop-save-name-input').inputValue()
+    await expect(this.boopsCard).toBeVisible()
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */
