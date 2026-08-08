@@ -63,3 +63,9 @@ promoting the number to a `--column-width` custom property in
 `.column` now reads `var(--column-width)`, and ticket 33's bar can do the same
 from its own module. Standards review otherwise came back clean (no hard
 violations, two very minor judgement calls noted and left as-is).
+
+Round 2 (both axes, post-fix) came back clean on Standards and Spec — no hard
+violations. Remaining judgement calls left as-is with reasons: the token/wrapper
+isn't speculative generality, it's this ticket's own stated acceptance
+criterion for ticket 33; `--column-width` having no category prefix matches
+other unprefixed tokens already in `tokens.scss` (`--stage`, `--well`, `--ink`).
