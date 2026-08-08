@@ -45,11 +45,21 @@ reusable wrapper, not baked once into `.stage`.
 ## Comments
 
 Resolved 2026-08-08 (agent, Sonnet). Added a `.column` class in
-`HomePage.module.scss` (`max-width: 1356px; margin-inline: auto`) and wrapped
-the existing stack (top bar, grid, transport, preset row) in it inside
-`.stage`, leaving `.stage`'s own padding untouched. `BoopsPanel`/`HintSheet`
+`HomePage.module.scss` (`max-width: var(--column-width); margin-inline: auto`)
+and wrapped the existing stack (top bar, grid, transport, preset row) in it
+inside `.stage`, leaving `.stage`'s own padding untouched. `BoopsPanel`/`HintSheet`
 stay outside the wrapper — both are fixed-position overlays already, so
 centring them would be a no-op. New whole-frontend test
 `wideScreenLayout.iwft.tsx` at 2560×1440 asserts equal left/right margins on
 the `stage-column` testid. Full suite green at all breakpoints (51 iwft +
 199 vitest).
+
+Code review (round 1) flagged that a page-scoped SCSS-module class isn't
+genuinely reusable by ticket 33's future sticky-bar component (its own,
+separate SCSS module, per this repo's one-module-per-component convention) —
+it would have to duplicate the `1356px` value rather than share it. Fixed by
+promoting the number to a `--column-width` custom property in
+`tokens.scss` (matching how radii/shadows/colours are already shared there);
+`.column` now reads `var(--column-width)`, and ticket 33's bar can do the same
+from its own module. Standards review otherwise came back clean (no hard
+violations, two very minor judgement calls noted and left as-is).
