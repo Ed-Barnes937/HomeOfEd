@@ -120,6 +120,60 @@ runner prototypes together retired that premise.*
 design brief — is delivered at [`spec.md`](spec.md) and
 [`design-brief.md`](design-brief.md).)*
 
+## V1.1 — post-launch feedback
+
+boop went live at `boop.homeofed.com` with tickets 11–27 (28, real artwork, still
+open). Ed's feedback on the initial release became tickets **29–37**, all
+specified with `/grilling` on 2026-08-07 — every open decision in them is settled
+in the ticket file itself, so they can be picked up in any order the sequence
+below allows.
+
+**Order and PR grouping** (seven PRs):
+
+| # | Ticket | PR |
+|---|---|---|
+| 1 | [35 — rename Groove → Boop](issues/35-rename-groove-to-boop.md) | own PR, rename only |
+| 2 | [29 — centre the column](issues/29-wide-screen-layout.md) | own PR |
+| 3 | [30 — dialog sizing](issues/30-boops-dialog-sizing.md) + [32 — save as a form](issues/32-save-as-a-form.md) + [34 — export in My boops](issues/34-export-in-my-boops.md) | **one** PR — all three rewrite `GroovesPanel`'s layout |
+| 4 | [31 — saved/edited indicator](issues/31-saved-state-visibility.md) | own PR (top bar + phone strip) |
+| 5 | [37 — layout prototype](issues/37-bottom-bar-prototype.md) | throwaway, gates 33 |
+| 6 | [33 — sticky bottom bar](issues/33-sticky-bottom-bar.md) | own PR |
+| 7 | [36 — New boop dialog](issues/36-new-boop-dialog.md) | own PR |
+
+**Branch strategy.** 35, 29, the dialog PR and 31 go **straight to main** — each is
+self-contained and benefits from being live early. 37, 33 and 36 go on the
+**`boop-feedback` epic branch**: the layout rewrite is the one that can look wrong
+on a real screen, it has a prototype gate in front of it, and a half-moved play
+button shouldn't reach anyone's browser.
+
+**What gets recorded where.** Design-handoff amendments are needed by nearly all of
+them (§1, §3, §4, §5 all move) and are made in the ticket that moves them. Only
+**33** warrants an ADR — it changes the screen architecture and touches the scroll
+model recorded in ADR 0027, so 0027 is amended or partly superseded. The save-flow
+reversal (32) and the onboarding change (36) reverse decisions recorded in the
+*handoff and the spec*, not in ADRs, so amending those documents plus the
+superseded-AC notes now on tickets [20](issues/20-my-grooves.md) and
+[22](issues/22-starter-grooves.md) is the honest record.
+
+**Decisions worth carrying forward** (the reversals, so nobody re-derives the old
+rule from the handoff):
+
+- Saving is a **name-first form**, not save-then-rename — but the name stays
+  prefilled, so it is still one tap and no keyboard for a child (32, superseding
+  handoff §5 and ticket 20).
+- **One definition of "changed"**: a tempo change counts as an edit, everywhere.
+  Ticket 22's "the ring doesn't drop on a tempo change" exemption is removed (31).
+- **A fresh browser is seeded with Wonky Walk.** The spec's "opens on an empty grid,
+  no first-load seeding" is reversed — content still has to do the onboarding once
+  the starters sit behind a button (36, superseding ticket 22).
+- **One export path**: export a *saved* boop from the dialog; the top-bar link goes
+  (34, retiring the handoff §5 demoted secondary).
+- **"Boop" is the domain and storage term**; `Creation` and `Groove` both retire.
+  The stored keys (`boop:save`, `creations`, `#g=`) deliberately do **not** change —
+  they are the ADR 0025/0026 contract (35).
+- **No tab-close guard.** The working grid is already flushed on `pagehide`; a
+  `beforeunload` prompt would warn about nothing and can't be read by a 6-year-old (31).
+
 ## Out of scope
 
 - Any reactive visual layer in V1 — abstract visuals and the procedural
