@@ -61,7 +61,8 @@ test('a double-tap on Export cannot start a second render', async ({ mountApp })
   // disabled — the guard has to hold on its own.
   await root.doubleTapExport(0)
   await expect.poll(() => downloads.length).toBe(1)
-  // Long enough for a second render started alongside the first to have landed.
-  await page.waitForTimeout(1500)
+  // The button lights up again only once the render is done, so a second render
+  // kicked off alongside the first has had its whole life by this point.
+  await root.verifyBoopExportEnabled(0)
   expect(downloads).toHaveLength(1)
 })

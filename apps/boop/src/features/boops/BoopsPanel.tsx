@@ -50,7 +50,12 @@ function thumbnailRows(pattern: StoredPattern) {
 export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: BoopsPanelProps) {
   const boops = useBoops()
   const [editing, setEditing] = useState<Editing>({ kind: 'none' })
-  const [name, setName] = useState(() => generateBoopName(boops.boops.map((b) => b.name)))
+  // `null` means "nobody has typed": the field then *derives* its name from the
+  // list, so it stays the name the next save will write however the list moves
+  // — after a save, a delete, or a rename. Typing pins a name until the next
+  // save hands the field back to the generator.
+  const [typedName, setTypedName] = useState<string | null>(null)
+  const name = typedName ?? generateBoopName(boops.boops.map((b) => b.name))
   const [highlighted, setHighlighted] = useState<number | null>(null)
   const [exportingIndex, setExportingIndex] = useState<number | null>(null)
   // A phone autofocus would open the keyboard over the list the child just
@@ -69,12 +74,15 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
     const { kit, pattern, tempo } = getWorkingSnapshot()
     const { index } = boops.save(kit, pattern, tempo, trimmed)
     setHighlighted(index)
-    setName(generateBoopName([...boops.boops.map((b) => b.name), trimmed]))
+    setTypedName(null)
   }
 
   // The double-tap guard lives in a ref, not in `exportingIndex`: two taps
   // inside one task both read the pre-render state, so only a ref can stop the
-  // second starting a render of its own. The state is what disables the button.
+  // second starting a render of its own. `exportingIndex` is only what greys
+  // the *working* row's button out — the other rows stay lit, since they are
+  // not the thing that is busy; a tap on one of them while a render is in
+  // flight is simply ignored rather than starting a second decode.
   const exporting = useRef(false)
   function handleExport(index: number, boop: StoredBoop) {
     if (exporting.current) return
@@ -134,7 +142,7 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
             <input
               className={styles.nameInput}
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => setTypedName(event.target.value)}
               aria-label="Name for this boop"
               autoFocus={!phone}
               data-testid="boop-save-name-input"
@@ -197,7 +205,7 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
                       type="button"
                       className={styles.iconButton}
                       onClick={() => handleExport(index, boop)}
-                      disabled={exportingIndex !== null}
+                      disabled={exportingIndex === index}
                       aria-label={`Export ${boop.name}`}
                       data-exporting={exportingIndex === index}
                       data-testid={`boop-export-button-${index}`}

@@ -147,6 +147,26 @@ test('Save is blocked only while the name field is empty', async ({ mountApp }) 
   await root.verifyBoopName(0, 'Thunder')
 })
 
+test('the prefilled name follows the list, so a delete cannot make it stale', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openBoops()
+  await root.saveBoop()
+  expect(await root.readBoopSaveNameFieldValue()).toBe('Boop 2')
+
+  // "Boop 1" is free again, so that is what the next save must write — the box
+  // has to say so before the press, not after it.
+  await root.openDeleteBoopConfirm(0)
+  await root.clearIt()
+  expect(await root.readBoopSaveNameFieldValue()).toBe('Boop 1')
+
+  await root.saveBoop()
+  await root.verifyBoopName(0, 'Boop 1')
+})
+
 test('the name field takes focus on desktop, so Enter alone saves', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

@@ -1,3 +1,5 @@
+import { expect } from '@playwright/experimental-ct-react'
+
 import { test } from './testing/iwftTest.tsx'
 
 // The small-phone reference viewport from the design handoff.
@@ -151,6 +153,12 @@ test("the chrome strip's save icon opens \"My boops\" with the save form ready",
   const name = await root.saveBoop()
   await root.verifyBoopCount(1)
   await root.verifyBoopName(0, name)
+
+  // The card is still the 352px phone card (ticket 30's clamp floor), and the
+  // form and the row's three icon buttons all fit inside it.
+  const { width } = await root.readBoopsCardSize()
+  expect(Math.round(width)).toBe(352)
+  await root.verifyBoopsCardHasNoOverflow()
 })
 
 test('clearing the grid from the "⋯" menu still goes through the confirm', async ({ mountApp }) => {

@@ -328,6 +328,10 @@ export class HomePagePom extends BasePage {
     await this.page.getByTestId(`boop-export-button-${index}`).click()
   }
 
+  async verifyBoopExportEnabled(index: number): Promise<void> {
+    await expect(this.page.getByTestId(`boop-export-button-${index}`)).toBeEnabled()
+  }
+
   /**
    * Two taps inside one task — the impatient double-tap. React has not
    * re-rendered the button as disabled between them, so this exercises the
@@ -365,6 +369,14 @@ export class HomePagePom extends BasePage {
       clientHeight: element.clientHeight,
     }))
     expect(card.scrollHeight).toBeLessThanOrEqual(card.clientHeight + 1)
+  }
+
+  /** Nothing in the card — the save form included — spills out sideways. */
+  async verifyBoopsCardHasNoOverflow(): Promise<void> {
+    const overflow = await this.boopsCard.evaluate(
+      (element) => element.scrollWidth - element.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
   }
 
   async verifyBoopsTitleVisible(): Promise<void> {

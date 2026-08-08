@@ -42,6 +42,9 @@ src/
     storage.ts        the localStorage seam; never throws
     autosave.ts       debounced (2 s lull) writer of the working grid
     useWorkingGrid.ts hook: restore on mount, autosave on edit, flush on pagehide
+  export/           WAV export: offline render → PCM mix → WAV encode, plus the
+                    share-sheet/download action and the slugged filename. Pure
+                    but for `sampleDecoder.ts`, the AudioContext seam.
   share/            URL-hash share links (ADR 0026) — pure, no server
     shareLink.ts      encode/decode a creation to `#g=<base64url>`; total decode
     shareAction.ts    share sheet vs clipboard, behind an injected ShareTarget
@@ -51,6 +54,8 @@ src/
                                   window + the "WHOLE LOOP" map (ticket 27)
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     useDragPaint.ts  latched drag-paint, shared by both
+  features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
+                    form (ticket 32), the list, per-row load/rename/delete/export
   features/topbar/  TopBar.tsx (desktop) and PhoneBar.tsx (the 52px strip +
                     "⋯" menu); `useIsPhone.ts` picks between them
   pages/            HomePage — the whole app: top bar, grid, transport, panels
