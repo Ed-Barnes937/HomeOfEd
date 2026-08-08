@@ -223,33 +223,35 @@ export function HomePage() {
 
   return (
     <main className={styles.stage}>
-      {phone ? (
-        // The phone's actions live in the "⋯" menu: My boops / Share / How
-        // boop works / Clear grid. Export is per saved boop, inside the dialog.
-        <PhoneBar
-          getShareUrl={getShareUrl}
-          onClearGrid={clearAll}
-          onSave={() => setBoopsOpen(true)}
-          onOpenMyBoops={() => setBoopsOpen(true)}
-          onOpenHints={() => setHintsOpen(true)}
+      <div className={styles.column} data-testid="stage-column">
+        {phone ? (
+          // The phone's actions live in the "⋯" menu: My boops / Share / How
+          // boop works / Clear grid. Export is per saved boop, inside the dialog.
+          <PhoneBar
+            getShareUrl={getShareUrl}
+            onClearGrid={clearAll}
+            onSave={() => setBoopsOpen(true)}
+            onOpenMyBoops={() => setBoopsOpen(true)}
+            onOpenHints={() => setHintsOpen(true)}
+          />
+        ) : (
+          <TopBar
+            getShareUrl={getShareUrl}
+            onOpenBoops={() => setBoopsOpen(true)}
+            onOpenHints={() => setHintsOpen(true)}
+          />
+        )}
+        {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
+        <Transport
+          isPlaying={isPlaying}
+          onToggle={togglePlay}
+          bpm={bpm}
+          onTempoChange={changeTempo}
+          onClearAll={clearAll}
+          showClearGrid={!phone}
         />
-      ) : (
-        <TopBar
-          getShareUrl={getShareUrl}
-          onOpenBoops={() => setBoopsOpen(true)}
-          onOpenHints={() => setHintsOpen(true)}
-        />
-      )}
-      {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
-      <Transport
-        isPlaying={isPlaying}
-        onToggle={togglePlay}
-        bpm={bpm}
-        onTempoChange={changeTempo}
-        onClearAll={clearAll}
-        showClearGrid={!phone}
-      />
-      <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+        <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+      </div>
       {boopsOpen && (
         <BoopsPanel
           onClose={() => setBoopsOpen(false)}

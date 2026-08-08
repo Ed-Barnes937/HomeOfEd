@@ -15,6 +15,20 @@
   }
 }
 
+// The fixed-geometry column (ticket 29): every laptop-breakpoint number in
+// the handoff is a pixel value, so the stack never grows past --column-width
+// (rail 160 + railGap 18 + steps 1142 + well padding 2×18 = 1356px, see
+// tokens.scss). `margin-inline: auto` centres it once the viewport has more
+// room than that; below 1440px there is none to spare, so this changes
+// nothing there. Kept off `.stage` itself (ticket 33's note) so a later
+// full-bleed sticky bar — its own component, its own SCSS module — can align
+// its contents to this same column via the shared token rather than a value
+// baked into this file.
+.column {
+  max-width: var(--column-width);
+  margin-inline: auto;
+}
+
 .loading {
   padding: 32px;
   font-family: var(--font-display);
