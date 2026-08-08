@@ -11,7 +11,7 @@ import {
 } from './storage.ts'
 import { FakeStorage } from './testing/fakeStorage.ts'
 
-const creation: StoredBoop = {
+const boop: StoredBoop = {
   name: '',
   kitId: 'launch',
   tempo: 120,
@@ -19,27 +19,27 @@ const creation: StoredBoop = {
 }
 
 describe('writeWorkingBoop', () => {
-  it('writes the working creation under the save key', () => {
+  it('writes the working boop under the save key', () => {
     const storage = new FakeStorage()
 
-    writeWorkingBoop(storage, creation)
+    writeWorkingBoop(storage, boop)
 
     expect(loadSaveDocument(storage)).toEqual({
       version: SAVE_FORMAT_VERSION,
-      working: creation,
+      working: boop,
       creations: [],
     })
   })
 
   it('leaves the saved creations list alone', () => {
     const storage = new FakeStorage()
-    const saved: StoredBoop = { ...creation, name: 'Boop 1' }
+    const saved: StoredBoop = { ...boop, name: 'Boop 1' }
     storage.setItem(
       SAVE_KEY,
       JSON.stringify({ version: SAVE_FORMAT_VERSION, working: null, creations: [saved] }),
     )
 
-    writeWorkingBoop(storage, creation)
+    writeWorkingBoop(storage, boop)
 
     expect(loadSaveDocument(storage).creations).toEqual([saved])
   })
@@ -48,29 +48,29 @@ describe('writeWorkingBoop', () => {
     const storage = new FakeStorage()
     storage.unavailable = true
 
-    expect(() => writeWorkingBoop(storage, creation)).not.toThrow()
+    expect(() => writeWorkingBoop(storage, boop)).not.toThrow()
   })
 })
 
 describe('saveBoop', () => {
   it('appends to the creations list, keeping the working grid intact', () => {
     const storage = new FakeStorage()
-    writeWorkingBoop(storage, creation)
-    const boop: StoredBoop = { ...creation, name: 'Boop 1' }
+    writeWorkingBoop(storage, boop)
+    const saved: StoredBoop = { ...boop, name: 'Boop 1' }
 
-    saveBoop(storage, boop)
+    saveBoop(storage, saved)
 
     expect(loadSaveDocument(storage)).toEqual({
       version: SAVE_FORMAT_VERSION,
-      working: creation,
-      creations: [boop],
+      working: boop,
+      creations: [saved],
     })
   })
 
   it('never caps the list', () => {
     const storage = new FakeStorage()
     for (let i = 0; i < 30; i++) {
-      saveBoop(storage, { ...creation, name: `Boop ${i}` })
+      saveBoop(storage, { ...boop, name: `Boop ${i}` })
     }
 
     expect(loadSaveDocument(storage).creations).toHaveLength(30)
@@ -78,10 +78,10 @@ describe('saveBoop', () => {
 })
 
 describe('renameBoop', () => {
-  it('renames the creation at the given index, leaving the others alone', () => {
+  it('renames the boop at the given index, leaving the others alone', () => {
     const storage = new FakeStorage()
-    const first: StoredBoop = { ...creation, name: 'Boop 1' }
-    const second: StoredBoop = { ...creation, name: 'Boop 2' }
+    const first: StoredBoop = { ...boop, name: 'Boop 1' }
+    const second: StoredBoop = { ...boop, name: 'Boop 2' }
     saveBoop(storage, first)
     saveBoop(storage, second)
 
@@ -92,7 +92,7 @@ describe('renameBoop', () => {
 
   it('trims the new name', () => {
     const storage = new FakeStorage()
-    saveBoop(storage, { ...creation, name: 'Boop 1' })
+    saveBoop(storage, { ...boop, name: 'Boop 1' })
 
     renameBoop(storage, 0, '  My Beat  ')
 
@@ -101,7 +101,7 @@ describe('renameBoop', () => {
 
   it('is a no-op when the new name is blank — rename is optional, never a gate', () => {
     const storage = new FakeStorage()
-    saveBoop(storage, { ...creation, name: 'Boop 1' })
+    saveBoop(storage, { ...boop, name: 'Boop 1' })
 
     renameBoop(storage, 0, '   ')
 
@@ -110,7 +110,7 @@ describe('renameBoop', () => {
 
   it('is a no-op for an index out of range', () => {
     const storage = new FakeStorage()
-    saveBoop(storage, { ...creation, name: 'Boop 1' })
+    saveBoop(storage, { ...boop, name: 'Boop 1' })
 
     expect(() => renameBoop(storage, 5, 'My Beat')).not.toThrow()
     expect(loadSaveDocument(storage).creations).toHaveLength(1)
@@ -118,10 +118,10 @@ describe('renameBoop', () => {
 })
 
 describe('deleteBoop', () => {
-  it('removes the creation at the given index, leaving the others alone', () => {
+  it('removes the boop at the given index, leaving the others alone', () => {
     const storage = new FakeStorage()
-    const first: StoredBoop = { ...creation, name: 'Boop 1' }
-    const second: StoredBoop = { ...creation, name: 'Boop 2' }
+    const first: StoredBoop = { ...boop, name: 'Boop 1' }
+    const second: StoredBoop = { ...boop, name: 'Boop 2' }
     saveBoop(storage, first)
     saveBoop(storage, second)
 

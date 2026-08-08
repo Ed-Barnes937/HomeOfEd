@@ -71,7 +71,7 @@ copy or identifiers twice.
 ## Comments
 
 Resolved 2026-08-08 (agent, Sonnet). Branch `boop/35-rename-groove-to-boop`,
-PR #TBD against `main`.
+PR #64 against `main`.
 
 **Rename.** Mechanical across `apps/boop/src`: `features/grooves/` →
 `features/boops/`, `GroovesPanel` → `BoopsPanel`, `useGrooves` → `useBoops`,
@@ -87,6 +87,16 @@ PR #TBD against `main`.
 `HomePagePom`'s methods. `useBoops`'s own returned field also renamed
 `creations` → `boops` (in-memory, not the frozen storage field) since it's
 domain-facing, not the storage shape.
+
+**Fixed on review (team-lead pass):** ticket comment's `PR #TBD` → `#64`;
+leftover `creation` locals that were not frozen names renamed to `boop` in
+`presetRow.iwft.tsx` (`savedCreation` → `savedBoop`), `saveFormat.test.ts`
+(`const creation` → `const boop`), and `storage.test.ts` (`const creation` →
+`const boop`, with the shadowing second `const boop` in the `saveBoop`
+describe block renamed to `saved` instead — the blind rename would otherwise
+have referenced itself in its own initializer). `SharePayload.creation` and
+`SaveDocument.creations` left exactly as they are, per the frozen-contract
+decision above.
 
 **Frozen contract, left alone with a comment at each site:** the
 `localStorage` key `boop:save`; the save document's `version`/`working`/

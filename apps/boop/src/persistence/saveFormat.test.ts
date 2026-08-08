@@ -29,7 +29,7 @@ function row(instrumentId: string, ...onSteps: number[]) {
 
 const pattern: Pattern = [row('kick', 0, 4), row('snare', 4)]
 
-const creation: StoredBoop = {
+const boop: StoredBoop = {
   name: 'Boop 3',
   kitId: 'launch',
   tempo: 120,
@@ -74,11 +74,11 @@ describe('storedToPattern', () => {
 })
 
 describe('round-trip', () => {
-  it('preserves the working creation and the saved list', () => {
+  it('preserves the working boop and the saved list', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
-      working: { ...creation, name: '' },
-      creations: [creation],
+      working: { ...boop, name: '' },
+      creations: [boop],
     }
 
     expect(reparse(saveDocument)).toEqual(saveDocument)
@@ -87,7 +87,7 @@ describe('round-trip', () => {
   it('survives a full trip back onto the grid', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
-      working: { ...creation, name: '' },
+      working: { ...boop, name: '' },
       creations: [],
     }
     const restored = reparse(saveDocument).working!
@@ -120,20 +120,20 @@ describe('parseSaveDocument (defensive decode)', () => {
 
   it.each([
     ['a non-object payload', JSON.stringify('nope')],
-    ['a creation with no patterns', withWorking({ ...creation, patterns: [] })],
+    ['a boop with no patterns', withWorking({ ...boop, patterns: [] })],
     [
       'a step string of the wrong length',
-      withWorking({ ...creation, patterns: [{ rows: [{ instrumentId: 'kick', steps: '101' }] }] }),
+      withWorking({ ...boop, patterns: [{ rows: [{ instrumentId: 'kick', steps: '101' }] }] }),
     ],
     [
       'step characters that are not 0 or 1',
       withWorking({
-        ...creation,
+        ...boop,
         patterns: [{ rows: [{ instrumentId: 'kick', steps: 'x'.repeat(STEPS_PER_PATTERN) }] }],
       }),
     ],
-    ['a non-numeric tempo', withWorking({ ...creation, tempo: 'fast' })],
-    ['a tempo outside the allowed range', withWorking({ ...creation, tempo: 5000 })],
+    ['a non-numeric tempo', withWorking({ ...boop, tempo: 'fast' })],
+    ['a tempo outside the allowed range', withWorking({ ...boop, tempo: 5000 })],
     [
       'a missing name',
       withWorking({ kitId: 'launch', tempo: 120, patterns: [patternToStored(pattern)] }),

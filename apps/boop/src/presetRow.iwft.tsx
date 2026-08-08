@@ -70,7 +70,7 @@ test('loading a preset never touches a saved boop, only the working grid', async
   const first = await mountApp()
   await first.root.verifyIsShown()
 
-  const savedCreation = {
+  const savedBoop = {
     name: 'My boop',
     kitId: 'launch',
     tempo: 120,
@@ -78,7 +78,7 @@ test('loading a preset never touches a saved boop, only the working grid', async
   }
   await page.evaluate(
     ({ key, doc }) => window.localStorage.setItem(key, JSON.stringify(doc)),
-    { key: SAVE_KEY, doc: { version: 1, working: null, creations: [savedCreation] } },
+    { key: SAVE_KEY, doc: { version: 1, working: null, creations: [savedBoop] } },
   )
   await page.reload()
 
@@ -90,5 +90,5 @@ test('loading a preset never touches a saved boop, only the working grid', async
   await root.waitForAutosavedCell('kick', 0) // robot's kick sits on step 0
 
   const saved = await root.readSavedBoops()
-  expect(saved).toEqual([savedCreation])
+  expect(saved).toEqual([savedBoop])
 })
