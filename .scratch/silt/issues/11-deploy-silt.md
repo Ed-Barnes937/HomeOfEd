@@ -21,7 +21,7 @@ painting
 **Status:** resolved
 
 - [x] Human checklist written and handed over; no infra commands run by the agent
-- [ ] CI deploys silt on merge (smoke URL passing) — human, after this branch merges
+- [x] CI deploys silt on merge (smoke URL passing) — human, after this branch merges
 - [x] `https://silt.homeofed.com` serves the app; `/health` ok — human
 - [x] Production smoke: paint → play → save → load works in a real browser — human
 
@@ -68,3 +68,16 @@ paint → play → save → load smoke in a browser. All passed; silt is live.
 The one remaining box is CI-driven deploy on merge, which cannot be checked
 until this branch reaches `main` — that is the post-go-live follow-up the
 runbook already scopes out of this ticket, not outstanding work here.
+
+**Last box ticked, 2026-08-08.** PR #62 merged and `deploy-silt` ran clean on
+`main` (run `31223247070`), post-deploy smoke included. Every box on this
+ticket is now done.
+
+`deploy-hub` in that same run failed twice, which is why the apex card lagged
+behind: Fly lost the ephemeral `release_command` machine — `failed to start VM
+<id>: machine not found`, then `error finding the release_command machine <id>
+exit event`. Nothing to do with silt, hub's code, or hub's migrations, which
+had nothing to apply. A third attempt ~14 hours later succeeded unchanged, and
+`homeofed.com` now serves the Silt card as LIVE. Worth knowing that a
+`release_command` fault aborts the whole deployment, so a UI-only hub change
+can be blocked by a platform hiccup.
