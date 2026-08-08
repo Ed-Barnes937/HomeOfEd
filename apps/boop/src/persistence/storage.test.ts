@@ -1,28 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
-import { EMPTY_DOCUMENT, SAVE_FORMAT_VERSION, type StoredCreation } from './saveFormat.ts'
+import { EMPTY_DOCUMENT, SAVE_FORMAT_VERSION, type StoredBoop } from './saveFormat.ts'
 import {
-  deleteCreation,
+  deleteBoop,
   loadSaveDocument,
-  renameCreation,
+  renameBoop,
   SAVE_KEY,
-  saveCreation,
-  writeWorkingCreation,
+  saveBoop,
+  writeWorkingBoop,
 } from './storage.ts'
 import { FakeStorage } from './testing/fakeStorage.ts'
 
-const creation: StoredCreation = {
+const creation: StoredBoop = {
   name: '',
   kitId: 'launch',
   tempo: 120,
   patterns: [{ rows: [{ instrumentId: 'kick', steps: '1000100010001000' }] }],
 }
 
-describe('writeWorkingCreation', () => {
+describe('writeWorkingBoop', () => {
   it('writes the working creation under the save key', () => {
     const storage = new FakeStorage()
 
-    writeWorkingCreation(storage, creation)
+    writeWorkingBoop(storage, creation)
 
     expect(loadSaveDocument(storage)).toEqual({
       version: SAVE_FORMAT_VERSION,
@@ -33,13 +33,13 @@ describe('writeWorkingCreation', () => {
 
   it('leaves the saved creations list alone', () => {
     const storage = new FakeStorage()
-    const saved: StoredCreation = { ...creation, name: 'Groove 1' }
+    const saved: StoredBoop = { ...creation, name: 'Boop 1' }
     storage.setItem(
       SAVE_KEY,
       JSON.stringify({ version: SAVE_FORMAT_VERSION, working: null, creations: [saved] }),
     )
 
-    writeWorkingCreation(storage, creation)
+    writeWorkingBoop(storage, creation)
 
     expect(loadSaveDocument(storage).creations).toEqual([saved])
   })
@@ -48,84 +48,84 @@ describe('writeWorkingCreation', () => {
     const storage = new FakeStorage()
     storage.unavailable = true
 
-    expect(() => writeWorkingCreation(storage, creation)).not.toThrow()
+    expect(() => writeWorkingBoop(storage, creation)).not.toThrow()
   })
 })
 
-describe('saveCreation', () => {
+describe('saveBoop', () => {
   it('appends to the creations list, keeping the working grid intact', () => {
     const storage = new FakeStorage()
-    writeWorkingCreation(storage, creation)
-    const groove: StoredCreation = { ...creation, name: 'Groove 1' }
+    writeWorkingBoop(storage, creation)
+    const boop: StoredBoop = { ...creation, name: 'Boop 1' }
 
-    saveCreation(storage, groove)
+    saveBoop(storage, boop)
 
     expect(loadSaveDocument(storage)).toEqual({
       version: SAVE_FORMAT_VERSION,
       working: creation,
-      creations: [groove],
+      creations: [boop],
     })
   })
 
   it('never caps the list', () => {
     const storage = new FakeStorage()
     for (let i = 0; i < 30; i++) {
-      saveCreation(storage, { ...creation, name: `Groove ${i}` })
+      saveBoop(storage, { ...creation, name: `Boop ${i}` })
     }
 
     expect(loadSaveDocument(storage).creations).toHaveLength(30)
   })
 })
 
-describe('renameCreation', () => {
+describe('renameBoop', () => {
   it('renames the creation at the given index, leaving the others alone', () => {
     const storage = new FakeStorage()
-    const first: StoredCreation = { ...creation, name: 'Groove 1' }
-    const second: StoredCreation = { ...creation, name: 'Groove 2' }
-    saveCreation(storage, first)
-    saveCreation(storage, second)
+    const first: StoredBoop = { ...creation, name: 'Boop 1' }
+    const second: StoredBoop = { ...creation, name: 'Boop 2' }
+    saveBoop(storage, first)
+    saveBoop(storage, second)
 
-    renameCreation(storage, 1, 'My Beat')
+    renameBoop(storage, 1, 'My Beat')
 
     expect(loadSaveDocument(storage).creations).toEqual([first, { ...second, name: 'My Beat' }])
   })
 
   it('trims the new name', () => {
     const storage = new FakeStorage()
-    saveCreation(storage, { ...creation, name: 'Groove 1' })
+    saveBoop(storage, { ...creation, name: 'Boop 1' })
 
-    renameCreation(storage, 0, '  My Beat  ')
+    renameBoop(storage, 0, '  My Beat  ')
 
     expect(loadSaveDocument(storage).creations[0]!.name).toBe('My Beat')
   })
 
   it('is a no-op when the new name is blank — rename is optional, never a gate', () => {
     const storage = new FakeStorage()
-    saveCreation(storage, { ...creation, name: 'Groove 1' })
+    saveBoop(storage, { ...creation, name: 'Boop 1' })
 
-    renameCreation(storage, 0, '   ')
+    renameBoop(storage, 0, '   ')
 
-    expect(loadSaveDocument(storage).creations[0]!.name).toBe('Groove 1')
+    expect(loadSaveDocument(storage).creations[0]!.name).toBe('Boop 1')
   })
 
   it('is a no-op for an index out of range', () => {
     const storage = new FakeStorage()
-    saveCreation(storage, { ...creation, name: 'Groove 1' })
+    saveBoop(storage, { ...creation, name: 'Boop 1' })
 
-    expect(() => renameCreation(storage, 5, 'My Beat')).not.toThrow()
+    expect(() => renameBoop(storage, 5, 'My Beat')).not.toThrow()
     expect(loadSaveDocument(storage).creations).toHaveLength(1)
   })
 })
 
-describe('deleteCreation', () => {
+describe('deleteBoop', () => {
   it('removes the creation at the given index, leaving the others alone', () => {
     const storage = new FakeStorage()
-    const first: StoredCreation = { ...creation, name: 'Groove 1' }
-    const second: StoredCreation = { ...creation, name: 'Groove 2' }
-    saveCreation(storage, first)
-    saveCreation(storage, second)
+    const first: StoredBoop = { ...creation, name: 'Boop 1' }
+    const second: StoredBoop = { ...creation, name: 'Boop 2' }
+    saveBoop(storage, first)
+    saveBoop(storage, second)
 
-    deleteCreation(storage, 0)
+    deleteBoop(storage, 0)
 
     expect(loadSaveDocument(storage).creations).toEqual([second])
   })

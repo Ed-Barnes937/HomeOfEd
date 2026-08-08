@@ -25,7 +25,7 @@ export interface ExportTarget {
  */
 export type ExportOutcome = 'shared' | 'downloaded' | 'dismissed'
 
-export async function exportGrooveWav(
+export async function exportBoopWav(
   blob: Blob,
   filename: string,
   target: ExportTarget,

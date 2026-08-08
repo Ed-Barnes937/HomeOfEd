@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { navigatorShareTarget, prefersShareSheet, shareGrooveUrl } from './shareAction.ts'
+import { navigatorShareTarget, prefersShareSheet, shareBoopUrl } from './shareAction.ts'
 
 /** "Copied!" holds this long, then the button goes back to resting (design §5). */
 export const COPIED_HOLD_MS = 1_600
@@ -16,7 +16,7 @@ export type ShareState = 'idle' | 'pending' | 'copied'
  * `getShareUrl` is called on tap, not on render, so encoding the grid never
  * rides along with playback repaints.
  */
-export function useShareGroove(getShareUrl: () => string): {
+export function useShareBoop(getShareUrl: () => string): {
   shareState: ShareState
   share: () => void
 } {
@@ -34,7 +34,7 @@ export function useShareGroove(getShareUrl: () => string): {
     if (shareState === 'pending') return
     setShareState('pending')
     const target = navigatorShareTarget(navigator, prefersShareSheet())
-    void shareGrooveUrl(getShareUrl(), target).then((outcome) => {
+    void shareBoopUrl(getShareUrl(), target).then((outcome) => {
       if (outcome !== 'copied') {
         // Shared, dismissed or refused: the OS (or nothing) is the feedback.
         setShareState('idle')

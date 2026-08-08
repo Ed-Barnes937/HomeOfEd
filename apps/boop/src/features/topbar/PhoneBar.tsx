@@ -1,23 +1,23 @@
 import { useState } from 'react'
 
 import { hubUrl } from '../../hubUrl.ts'
-import { useShareGroove } from '../../share/useShareGroove.ts'
+import { useShareBoop } from '../../share/useShareBoop.ts'
 import { CLEAR_GRID_CONFIRM } from '../confirm/clearGridConfirm.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import styles from './PhoneBar.module.scss'
 
 export interface PhoneBarProps {
-  /** The link for the groove as it is *right now* — called on tap, not on render. */
+  /** The link for the boop as it is *right now* — called on tap, not on render. */
   getShareUrl: () => string
   onClearGrid: () => void
   /**
-   * Save the working grid into "My grooves" (ticket 20). The chrome strip has
-   * no room for the "Saved it" moment, so this opens the grooves panel already
+   * Save the working grid into "My boops" (ticket 20). The chrome strip has
+   * no room for the "Saved it" moment, so this opens the boops panel already
    * saved — same path as its own Save button.
    */
   onSave: () => void
-  /** Open the "My grooves" panel (ticket 20). */
-  onOpenMyGrooves: () => void
+  /** Open the "My boops" panel (ticket 20). */
+  onOpenMyBoops: () => void
   /** Open the "How boop works" hint sheet (ticket 24). */
   onOpenHints: () => void
 }
@@ -53,7 +53,7 @@ const CheckIcon = () => (
 /**
  * Phone chrome (ticket 27; design handoff, "Main screen — small phone" →
  * "Chrome — the 52px strip"): back, the compact wordmark, save, and a "⋯"
- * menu holding My grooves, Share, How boop works and Clear grid. The idiom and
+ * menu holding My boops, Share, How boop works and Clear grid. The idiom and
  * the back / save / overflow glyphs are the fridge's `MobileBar` verbatim —
  * copied, never imported, since apps are leaf nodes — so boop's chrome matches
  * the rest of homeofed. Every tap target clears 44px.
@@ -62,12 +62,12 @@ export function PhoneBar({
   getShareUrl,
   onClearGrid,
   onSave,
-  onOpenMyGrooves,
+  onOpenMyBoops,
   onOpenHints,
 }: PhoneBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmingClear, setConfirmingClear] = useState(false)
-  const { shareState, share } = useShareGroove(getShareUrl)
+  const { shareState, share } = useShareBoop(getShareUrl)
   const copied = shareState === 'copied'
 
   const withClose = (fn: () => void) => () => {
@@ -86,7 +86,7 @@ export function PhoneBar({
       <button
         type="button"
         className={styles.icon}
-        aria-label="Save this groove"
+        aria-label="Save this boop"
         data-testid="phone-save-button"
         onClick={onSave}
       >
@@ -108,10 +108,10 @@ export function PhoneBar({
           <button
             type="button"
             className={styles.item}
-            data-testid="phone-menu-my-grooves"
-            onClick={withClose(onOpenMyGrooves)}
+            data-testid="phone-menu-my-boops"
+            onClick={withClose(onOpenMyBoops)}
           >
-            My grooves
+            My boops
           </button>
           {/* Share keeps the menu open so the "Copied!" flip is seen — the
               clipboard path has no other feedback, and the design forbids a

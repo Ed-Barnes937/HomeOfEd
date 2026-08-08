@@ -8,7 +8,7 @@ const DEFAULT_LOOPS = 4
 /** Matches the kit's own sample rate (`generatePlaceholderSamples.mjs`). */
 export const DEFAULT_SAMPLE_RATE = 44100
 
-export interface RenderGrooveWavOptions {
+export interface RenderBoopWavOptions {
   kit: Kit
   pattern: Pattern
   bpm: number
@@ -23,7 +23,7 @@ export interface RenderGrooveWavOptions {
  * injected so this is testable without a real (Offline)AudioContext — see
  * `sampleDecoder.ts` for the production wiring.
  */
-export async function renderGrooveWav(options: RenderGrooveWavOptions): Promise<Blob> {
+export async function renderBoopWav(options: RenderBoopWavOptions): Promise<Blob> {
   const { kit, pattern, bpm, loops = DEFAULT_LOOPS, sampleRate = DEFAULT_SAMPLE_RATE, decode } = options
 
   const decoded = await Promise.all(

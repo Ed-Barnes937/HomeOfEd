@@ -14,7 +14,7 @@ export interface Preset {
   /**
    * One entry per row, in kit order — position only, never an instrument id
    * ("Kits are pure data": apps/boop/CLAUDE.md — "Nothing outside the
-   * manifest may enumerate instrument ids"). These grooves are authored
+   * manifest may enumerate instrument ids"). These boops are authored
    * against the launch kit's fixed row order (kick, snare, hi-hat, tom,
    * marimba, boop — see the row-position constants below), the same way
    * `instrumentColors.ts` maps colours by row position rather than by name.
@@ -44,7 +44,7 @@ function rowsFrom(onStepsByRow: Partial<Record<number, readonly number[]>>): rea
 }
 
 /**
- * The starter-groove preset row (spec: "Onboarding & light education"; design
+ * The starter-boop preset row (spec: "Onboarding & light education"; design
  * handoff: "Preset row"). Card order is fixed — Blank, Wonky Walk, Robot
  * Hiccup, Sunday Stomp — callers must render them in this array's order, with
  * blank presented first so nobody meets an unexplained void.

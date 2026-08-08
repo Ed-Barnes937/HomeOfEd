@@ -23,7 +23,7 @@ export interface ShareTarget {
  */
 export type ShareOutcome = 'shared' | 'copied' | 'dismissed' | 'unavailable'
 
-export async function shareGrooveUrl(url: string, target: ShareTarget): Promise<ShareOutcome> {
+export async function shareBoopUrl(url: string, target: ShareTarget): Promise<ShareOutcome> {
   if (target.share) {
     try {
       await target.share({ title: 'boop', text: 'I made this on boop', url })

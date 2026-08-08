@@ -1,15 +1,15 @@
 /**
- * Share links: the whole creation encoded in the URL fragment, no server and no
+ * Share links: the whole boop encoded in the URL fragment, no server and no
  * account ([ADR 0026](../../../../docs/adr/0026-boop-share-links.md)).
  *
- * The payload is the save format's `StoredCreation` — one encoding for saving
+ * The payload is the save format's `StoredBoop` — one encoding for saving
  * and sharing, so new instruments, new kits and V2 pattern chaining extend both
  * at once. Decode is total, exactly as `parseSaveDocument` is: a mangled or
  * future-versioned link yields `null`, which the app treats as "no shared
- * groove" and opens an empty grid. A child never meets an error screen.
+ * boop" and opens an empty grid. A child never meets an error screen.
  */
 
-import { decodeStoredCreation, type StoredCreation } from '../persistence/saveFormat.ts'
+import { decodeStoredBoop, type StoredBoop } from '../persistence/saveFormat.ts'
 
 /**
  * The version of the *link*, deliberately its own number rather than the save
@@ -19,22 +19,31 @@ import { decodeStoredCreation, type StoredCreation } from '../persistence/saveFo
  */
 export const SHARE_FORMAT_VERSION = 1
 
-/** `#g=` — short, because the token follows it in every message a child sends. */
+/**
+ * `#g=` — short, because the token follows it in every message a child sends.
+ * Frozen (ticket 35, ADR 0026): the `g` predates this rename (it stood for
+ * "groove") but every link already shared uses it, so it stays.
+ */
 export const SHARE_HASH_PREFIX = '#g='
 
 interface SharePayload {
   version: number
-  creation: StoredCreation
+  /**
+   * Frozen key name (ticket 35): this is serialized verbatim into every
+   * share link, so renaming it to `boop` would break every link already
+   * sent, same as the save document's `creations` field.
+   */
+  creation: StoredBoop
 }
 
 /** Compact, URL-safe, and copy-pasteable without escaping. */
-export function encodeShare(creation: StoredCreation): string {
-  const payload: SharePayload = { version: SHARE_FORMAT_VERSION, creation }
+export function encodeShare(boop: StoredBoop): string {
+  const payload: SharePayload = { version: SHARE_FORMAT_VERSION, creation: boop }
   return toBase64Url(JSON.stringify(payload))
 }
 
-/** Total: any token that is not a current-version creation reads as `null`. */
-export function decodeShare(token: string | null | undefined): StoredCreation | null {
+/** Total: any token that is not a current-version boop reads as `null`. */
+export function decodeShare(token: string | null | undefined): StoredBoop | null {
   if (token === null || token === undefined || token === '') return null
 
   const json = fromBase64Url(token)
@@ -53,28 +62,28 @@ export function decodeShare(token: string | null | undefined): StoredCreation | 
   // A V2 keeps this branch and adds its own beside it — old links keep working.
   if (version !== SHARE_FORMAT_VERSION) return null
 
-  return decodeStoredCreation(creation) ?? null
+  return decodeStoredBoop(creation) ?? null
 }
 
 /**
  * The link to hand to the share sheet or the clipboard. Any query string on the
- * sender's page is deliberately left off: the groove is the whole payload.
+ * sender's page is deliberately left off: the boop is the whole payload.
  */
 export function buildShareUrl(
   location: Pick<Location, 'origin' | 'pathname'>,
-  creation: StoredCreation,
+  boop: StoredBoop,
 ): string {
-  return `${location.origin}${location.pathname}${SHARE_HASH_PREFIX}${encodeShare(creation)}`
+  return `${location.origin}${location.pathname}${SHARE_HASH_PREFIX}${encodeShare(boop)}`
 }
 
-/** Read a shared groove out of `location.hash`; `null` if there isn't a valid one. */
-export function decodeShareHash(hash: string): StoredCreation | null {
+/** Read a shared boop out of `location.hash`; `null` if there isn't a valid one. */
+export function decodeShareHash(hash: string): StoredBoop | null {
   if (!hash.startsWith(SHARE_HASH_PREFIX)) return null
   return decodeShare(hash.slice(SHARE_HASH_PREFIX.length))
 }
 
 /**
- * Drop the fragment once the groove is loaded, so a reload restores what the
+ * Drop the fragment once the boop is loaded, so a reload restores what the
  * child has since played with rather than re-opening the sender's version over
  * the top of it. `replaceState` keeps the back button pointing where it did.
  */

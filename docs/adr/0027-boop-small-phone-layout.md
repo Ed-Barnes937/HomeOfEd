@@ -73,16 +73,16 @@ only scroll affordance — is not something a six-year-old's finger can hit.
 
 The 52px strip has a save icon but no room to confirm anything, and the design
 handoff's §5 "Saved it" moment — the prefilled name field, with the save already
-done — lives inside "My grooves". So the icon does both: it saves and it opens
-the panel already in that state (`GroovesPanel`'s `saveOnOpen`). One save path,
+done — lives inside "My boops". So the icon does both: it saves and it opens
+the panel already in that state (`BoopsPanel`'s `saveOnOpen`). One save path,
 one confirmation, identical on both breakpoints; the alternative was a
 phone-only toast, which the design rules out everywhere else.
 
 This also fixes the layering the ported chrome brought with it. The strip sits
 at `z-index: 30` (its menu at 31) so it clears the grid well, but it is now what
-*opens* the overlays — so the overlays have to clear it in turn: grooves panel
+*opens* the overlays — so the overlays have to clear it in turn: boops panel
 40, hint sheet 41, confirm card 42 (topmost, since a confirm can be raised from
-inside the grooves panel).
+inside the boops panel).
 
 ## Consequences
 

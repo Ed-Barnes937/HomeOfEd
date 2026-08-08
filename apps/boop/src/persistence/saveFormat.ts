@@ -1,13 +1,13 @@
 /**
  * boop's save format — one versioned document holding the working grid and the
- * "My grooves" list (see `apps/boop/CONTEXT.md` for creation / pattern, and
+ * "My boops" list (see `apps/boop/CONTEXT.md` for boop / pattern, and
  * [ADR 0025](../../../../docs/adr/0025-boop-save-format.md) for the shape's rationale).
  *
  * Pure: types plus encode/decode over strings. Storage lives in `storage.ts`,
  * scheduling in `autosave.ts`. Decode is total — anything unparseable, mistyped
  * or from a future version degrades to `EMPTY_DOCUMENT` rather than throwing,
  * so a child never meets an error screen (and the share codec, which reuses
- * these creation shapes, inherits the same guarantee).
+ * these boop shapes, inherits the same guarantee).
  */
 
 import {
@@ -36,11 +36,11 @@ export interface StoredPattern {
 }
 
 /**
- * A creation: a named thing a child made. V1 holds exactly one pattern;
+ * A boop: a named thing a child made. V1 holds exactly one pattern;
  * chaining several into a song is the confirmed V2 direction, which this list
  * absorbs without a migration.
  */
-export interface StoredCreation {
+export interface StoredBoop {
   name: string
   kitId: string
   tempo: number
@@ -50,12 +50,16 @@ export interface StoredCreation {
 /**
  * The whole of boop's stored state. `working` is the autosaved grid — the slot
  * a reload restores — and is deliberately separate from `creations`, the
- * "My grooves" list a child saves into explicitly.
+ * "My boops" list a child saves into explicitly.
+ *
+ * `creations` keeps that field name deliberately (ticket 35): it is part of
+ * the frozen `boop:save` document shape (ADR 0025) — renaming it would break
+ * every save already on disk.
  */
 export interface SaveDocument {
   version: number
-  working: StoredCreation | null
-  creations: readonly StoredCreation[]
+  working: StoredBoop | null
+  creations: readonly StoredBoop[]
 }
 
 export const EMPTY_DOCUMENT: SaveDocument = {
@@ -73,11 +77,11 @@ export function patternToStored(pattern: Pattern): StoredPattern {
   }
 }
 
-/** The working grid is unnamed until a child saves it into "My grooves". */
+/** The working grid is unnamed until a child saves it into "My boops". */
 export const WORKING_NAME = ''
 
-/** A creation snapshotting `pattern` and `tempo` under `name`. */
-export function creationFrom(kit: Kit, pattern: Pattern, tempo: number, name: string): StoredCreation {
+/** A boop snapshotting `pattern` and `tempo` under `name`. */
+export function boopFrom(kit: Kit, pattern: Pattern, tempo: number, name: string): StoredBoop {
   return {
     name,
     kitId: kit.kitId,
@@ -87,11 +91,11 @@ export function creationFrom(kit: Kit, pattern: Pattern, tempo: number, name: st
 }
 
 /**
- * The creation a grid currently *is* — what the autosave writes and what a
+ * The boop a grid currently *is* — what the autosave writes and what a
  * share link carries, built the one way so the two can never drift.
  */
-export function workingCreation(kit: Kit, pattern: Pattern, tempo: number): StoredCreation {
-  return creationFrom(kit, pattern, tempo, WORKING_NAME)
+export function workingBoop(kit: Kit, pattern: Pattern, tempo: number): StoredBoop {
+  return boopFrom(kit, pattern, tempo, WORKING_NAME)
 }
 
 /**
@@ -130,26 +134,26 @@ export function parseSaveDocument(raw: string | null): SaveDocument {
   const working =
     parsed.working === null || parsed.working === undefined
       ? null
-      : decodeStoredCreation(parsed.working)
+      : decodeStoredBoop(parsed.working)
   if (working === undefined) return EMPTY_DOCUMENT
 
   if (!Array.isArray(parsed.creations)) return EMPTY_DOCUMENT
-  const creations: StoredCreation[] = []
+  const creations: StoredBoop[] = []
   for (const entry of parsed.creations) {
-    const creation = decodeStoredCreation(entry)
-    if (creation === undefined) return EMPTY_DOCUMENT
-    creations.push(creation)
+    const boop = decodeStoredBoop(entry)
+    if (boop === undefined) return EMPTY_DOCUMENT
+    creations.push(boop)
   }
 
   return { version: SAVE_FORMAT_VERSION, working, creations }
 }
 
 /**
- * `undefined` means "not a valid creation" — distinct from an absent one.
- * Exported because the share codec decodes the same creation shape out of a URL
+ * `undefined` means "not a valid boop" — distinct from an absent one.
+ * Exported because the share codec decodes the same boop shape out of a URL
  * fragment and must apply exactly these rules (ADR 0026).
  */
-export function decodeStoredCreation(value: unknown): StoredCreation | undefined {
+export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
   if (!isRecord(value)) return undefined
 
   const { name, kitId, tempo, patterns } = value

@@ -14,7 +14,7 @@ interface TransportProps {
   /**
    * Whether Clear grid (and its divider) belong to this bar. False on the
    * phone, where the action lives in the "⋯" menu instead — design handoff:
-   * "Everything else — My grooves, Share, help, Clear grid — lives in the
+   * "Everything else — My boops, Share, help, Clear grid — lives in the
    * '⋯' menu". Rendering it in both places would give the app two Clear
    * buttons, not one styled differently.
    */

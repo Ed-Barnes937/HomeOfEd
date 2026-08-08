@@ -8,7 +8,7 @@ interface PresetRowProps {
 }
 
 /**
- * The onboarding: a fixed row of starter grooves with the blank canvas
+ * The onboarding: a fixed row of starter boops with the blank canvas
  * presented as the first card (spec: "Onboarding & light education"; design
  * handoff: "Preset row"). Tapping a card loads it straight into the working
  * grid, ready to play — no confirmation, no wizard. "Now make it yours" stays

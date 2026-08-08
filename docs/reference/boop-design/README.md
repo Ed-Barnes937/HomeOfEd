@@ -4,14 +4,14 @@
 
 **boop** is a music toy for children aged 6+: a 6-instrument × 16-step drum grid
 that loops forever. You tap or drag to paint beats, hear every edit instantly,
-and share your groove as a link. No scores, levels, timers, or fail states.
+and share your boop as a link. No scores, levels, timers, or fail states.
 It runs in the browser at `boop.homeofed.com`. Mobile-first; tablet and laptop
 are the expected real screens, small phones a supported fallback.
 
 This bundle covers the V1 design brief's deliverables 1–5 and 7: visual
 identity, the six instrument voices, main-screen layouts at phone / tablet /
 laptop (including the chosen small-phone grid treatment), the preset row, the
-"My grooves" list with its save / rename / delete / confirm moments, and the
+"My boops" list with its save / rename / delete / confirm moments, and the
 motion spec.
 
 **Not covered — still to design:** the "?" hint-sheet content (deliverable 6)
@@ -28,7 +28,7 @@ environment**: a React SPA with TanStack Router + TanStack Query, SCSS modules,
 and a `src/styles/tokens.scss` global side-effect stylesheet per app — exactly
 the shape `apps/fridge` already has. Create `apps/boop` by copying
 `templates/starter` per `docs/how-to/adding-an-app.md`. boop needs no database
-for the grid itself (see ADR 0008, apps without a database); sharing a groove
+for the grid itself (see ADR 0008, apps without a database); sharing a boop
 by link will need a store, following the fridge's `board.share` pattern in
 `apps/fridge/src/server/handlers/shareBoardHandler.ts`.
 
@@ -72,7 +72,7 @@ save/share.
   — reuse it, do not redraw.
 - Wordmark `boop`. Chivo 900, 31px, `letter-spacing:-.03em`, `#F2EFE6`.
 - Spacer (`flex:1`).
-- "My grooves" — ghost button. `padding:11px 18px`, radius 9px,
+- "My boops" — ghost button. `padding:11px 18px`, radius 9px,
   `border:1px solid rgba(242,239,230,.2)`, Chivo 700 14px,
   `color:rgba(242,239,230,.8)`.
 - "Share" — primary button. `padding:11px 20px`, radius 9px,
@@ -291,14 +291,14 @@ Slow / 12px track / Fast (Chivo 600 11px), thumb 34px.
 `width:118px`, `padding:9px`, thumbnail pitch 6px, name Chivo 800 12px,
 in a horizontally scrolling row, `gap:10px`.
 
-Everything else — My grooves, Share, help, Clear grid — lives in the "⋯" menu.
+Everything else — My boops, Share, help, Clear grid — lives in the "⋯" menu.
 
-### 4. My grooves
+### 4. My boops
 
 A light card on the dark stage. `background:#F5F1E8`, radius 16px,
 `padding:16px`, `box-shadow: 0 18px 40px -14px rgba(0,0,0,.55)`.
-Title "My grooves" Chivo 900 19px `#14262A`, `margin-bottom:12px`.
-List `gap:8px`. Footer note "Tap a groove to open it. No limit on how many you
+Title "My boops" Chivo 900 19px `#14262A`, `margin-bottom:12px`.
+List `gap:8px`. Footer note "Tap a boop to open it. No limit on how many you
 keep." Chivo 400 11.5px/1.5 `rgba(20,38,42,.45)`.
 
 Each row: `display:flex; align-items:center; gap:12px; padding:10px 12px`,
@@ -314,7 +314,7 @@ radius 12px.
 - Delete — 34 × 34, 17px bin SVG at `rgba(138,74,66,.6)`.
   Paths: `M3 6h18`, `M8 6V4h8v2`, `M6 6l1 14h10l1-14`.
 
-Tap the row to load. No cap on saved grooves.
+Tap the row to load. No cap on saved boops.
 
 ### 5. Save, rename, delete, clear, share
 
@@ -335,9 +335,9 @@ Chivo 800 14px.
 - Destructive (right, outlined): `border:1px solid rgba(138,74,66,.4)`,
   `color:#8A4A42` — the fridge's `--danger-text`.
 
-Delete: "Throw away Groove 2?" / "You can't get it back." → *Keep it* /
+Delete: "Throw away Boop 2?" / "You can't get it back." → *Keep it* /
 *Throw away*.
-Clear: "Clear the whole grid?" / "Every step comes off. Saved grooves stay." →
+Clear: "Clear the whole grid?" / "Every step comes off. Saved boops stay." →
 *Keep playing* / *Clear it*.
 
 **Share — one action, no modal.**
@@ -353,7 +353,7 @@ Clear: "Clear the whole grid?" / "Every step comes off. Saved grooves stay." →
 **Mobile "⋯" menu.** Card radius 14px, `padding:12px`, items `gap:8px`.
 Each item `min-height:44px; padding:10px 12px`, radius 9px, `background:#fff`,
 `border:1px solid rgba(20,38,42,.12)`, Chivo 700 14px `#14262A`. In order:
-My grooves, Share, How boop works. Then "Clear grid" with
+My boops, Share, How boop works. Then "Clear grid" with
 `border:1px dashed rgba(138,74,66,.4)` and `color:#8A4A42`.
 
 ---
@@ -434,12 +434,12 @@ let the playhead move without the squash.
 | `confirm` | `null \| { kind: 'clear' } \| { kind: 'delete', id }` | Drives the two confirm cards. |
 | `shareState` | `'idle' \| 'pending' \| 'copied'` | `'copied'` auto-reverts after 1.6s. |
 
-Sharing a groove needs a server snapshot. Follow
+Sharing a boop needs a server snapshot. Follow
 `apps/fridge/src/server/handlers/shareBoardHandler.ts` and `getBoardHandler.ts`
 exactly: an immutable snapshot, a short id, a `/g/<id>` route that imports into
 the visitor's own copy.
 
-Data fetching: none for the toy itself. `share` and `getGroove` are the only
+Data fetching: none for the toy itself. `share` and `getBoop` are the only
 two calls.
 
 ---
@@ -453,7 +453,7 @@ two calls.
 | `--stage` | `#14262A` | App background, the frame |
 | `--well` | `#0E1F23` | The grid well |
 | `--ink` | `#F2EFE6` | Text and icons on the stage; the Share button fill |
-| `--paper` | `#F5F1E8` | Popovers, My grooves, confirms |
+| `--paper` | `#F5F1E8` | Popovers, My boops, confirms |
 | `--paper-input` | `#FFFFFF` | Fields and menu items on paper |
 | `--ink-dark` | `#14262A` | Text on paper; the filled safe button |
 | `--cyan` | `#6FE0F0` | Playhead, active preset ring, loop-map playhead tick |
@@ -622,7 +622,7 @@ full string list — every label, hint, confirm and button, tagged *brief* vs
 
 | File | What it is |
 |---|---|
-| `boop - design.dc.html` | The design. Open it directly in a browser. Six sections: `1a` laptop, `1b` tablet, `1c` phone (two frames), `1d` My grooves + moments, `1e` the six voices + palette + type, `1f` the full copy list + a live motion spec. |
+| `boop - design.dc.html` | The design. Open it directly in a browser. Six sections: `1a` laptop, `1b` tablet, `1c` phone (two frames), `1d` My boops + moments, `1e` the six voices + palette + type, `1f` the full copy list + a live motion spec. |
 | `support.js` | Runtime the design file needs. Keep it beside the HTML. |
 | `assets/instruments/*.svg` | The six placeholder artworks. |
 | `ATTRIBUTION.txt` | game-icons.net licence and author list. |

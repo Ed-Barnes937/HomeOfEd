@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
-  // The topmost layer: a confirm can be raised from inside "My grooves" (the
+  // The topmost layer: a confirm can be raised from inside "My boops" (the
   // delete confirm), so it has to clear that panel as well as the phone chrome.
   z-index: 42;
 }

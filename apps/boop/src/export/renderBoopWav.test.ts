@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Kit, Pattern } from '../engine/sequencerEngine.ts'
-import { renderGrooveWav } from './renderGrooveWav.ts'
+import { renderBoopWav } from './renderBoopWav.ts'
 
 const kit: Kit = {
   kitId: 'test',
@@ -20,7 +20,7 @@ function rowOf(instrumentId: string, ...onSteps: number[]) {
 
 const pattern: Pattern = [rowOf('kick', 0), rowOf('snare', 4)]
 
-describe('renderGrooveWav', () => {
+describe('renderBoopWav', () => {
   it('decodes every kit instrument by its sound url, renders, and encodes a WAV blob', async () => {
     const requested: string[] = []
     const decode = (url: string) => {
@@ -28,7 +28,7 @@ describe('renderGrooveWav', () => {
       return Promise.resolve(new Float32Array([1]))
     }
 
-    const blob = await renderGrooveWav({ kit, pattern, bpm: 120, loops: 4, sampleRate: 8000, decode })
+    const blob = await renderBoopWav({ kit, pattern, bpm: 120, loops: 4, sampleRate: 8000, decode })
 
     expect(requested.sort()).toEqual(['/kits/launch/sounds/kick.wav', '/kits/launch/sounds/snare.wav'])
     expect(blob.type).toBe('audio/wav')
@@ -38,7 +38,7 @@ describe('renderGrooveWav', () => {
 
   it('defaults to 4 loops and 44100 Hz — the engine and kit sample rate', async () => {
     const decode = () => Promise.resolve(new Float32Array(0))
-    const blob = await renderGrooveWav({ kit, pattern, bpm: 100, decode })
+    const blob = await renderBoopWav({ kit, pattern, bpm: 100, decode })
     const dv = new DataView(await blob.arrayBuffer())
 
     expect(dv.getUint32(24, true)).toBe(44100)

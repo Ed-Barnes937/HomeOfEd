@@ -84,22 +84,25 @@ _Avoid_: Instrument name, row id.
 The single working grid of on/off cells, `boolean[6][16]` — exposed by the
 engine as one row per kit instrument, in kit order, each carrying its
 `instrumentId`. V1 has exactly one
-pattern per creation; chaining several patterns into a song is the confirmed
+pattern per boop; chaining several patterns into a song is the confirmed
 V2 direction the save format is already shaped for.
 _Avoid_: Song (a pattern is not yet a song in V1), sequence.
 
-**Creation**:
-A named, saved entry in "My grooves" — currently wraps one pattern (plus
-tempo), shaped so a V2 creation can grow to hold several chained patterns
-without a storage migration.
-_Avoid_: Groove (used informally/in copy for the same thing, but "creation" is
-the storage-shape term), save, snapshot.
+**Boop**:
+A named, saved entry in "My boops" — currently wraps one pattern (plus
+tempo), shaped so a V2 boop can grow to hold several chained patterns
+without a storage migration. Both the domain term and the storage-shape
+term (ticket 35) — one word for one concept.
+_Avoid_: Groove (the pre-rename name, ticket 35 — left on old saved rows
+but never used going forward), Creation (the type-level name before ticket
+35's rename; `creations` survives only as the frozen save-document field
+name, see [ADR 0025](../../docs/adr/0025-boop-save-format.md)), save, snapshot.
 
 **Working grid**:
-The pattern and tempo a child is editing right now — an unnamed creation,
+The pattern and tempo a child is editing right now — an unnamed boop,
 continuously autosaved and restored on the next load. Distinct from a saved
-creation: it is one slot that always exists and is always overwritten, never an
-entry in the "My grooves" list. Saving into that list copies the working grid
+boop: it is one slot that always exists and is always overwritten, never an
+entry in the "My boops" list. Saving into that list copies the working grid
 and gives it a name.
 _Avoid_: Current pattern, draft, session.
 

@@ -16,7 +16,7 @@ const launchKit: Kit = {
   ],
 }
 
-describe('starter-groove presets', () => {
+describe('starter-boop presets', () => {
   it('has the four fixed cards, in the design handoff\'s order', () => {
     expect(PRESETS.map((preset) => preset.id)).toEqual(['blank', 'wonky', 'robot', 'stomp'])
     expect(PRESETS.map((preset) => preset.name)).toEqual([
@@ -57,7 +57,7 @@ describe('starter-groove presets', () => {
     expect(blank?.rows.every((row) => row.steps.every((on) => on === false))).toBe(true)
   })
 
-  it('every non-blank preset has at least one active step, so it is audibly a groove', () => {
+  it('every non-blank preset has at least one active step, so it is audibly a boop', () => {
     for (const preset of PRESETS) {
       if (preset.id === 'blank') continue
       expect(preset.rows.some((row) => row.steps.some((on) => on))).toBe(true)

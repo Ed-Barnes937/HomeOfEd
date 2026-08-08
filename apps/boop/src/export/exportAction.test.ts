@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { exportGrooveWav, navigatorExportTarget, type ExportTarget } from './exportAction.ts'
+import { exportBoopWav, navigatorExportTarget, type ExportTarget } from './exportAction.ts'
 
 const BLOB = new Blob(['fake wav bytes'], { type: 'audio/wav' })
-const FILENAME = 'groove.wav'
+const FILENAME = 'boop.wav'
 
 function fakeDownload() {
   const calls: { blob: Blob; filename: string }[] = []
   return { calls, download: (blob: Blob, filename: string) => calls.push({ blob, filename }) }
 }
 
-describe('exportGrooveWav', () => {
+describe('exportBoopWav', () => {
   it('opens the share sheet when the platform can share files, and does not also download', async () => {
     const shared: { files: File[] }[] = []
     const { calls, download } = fakeDownload()
@@ -23,7 +23,7 @@ describe('exportGrooveWav', () => {
       download,
     }
 
-    expect(await exportGrooveWav(BLOB, FILENAME, target)).toBe('shared')
+    expect(await exportBoopWav(BLOB, FILENAME, target)).toBe('shared')
     expect(shared).toHaveLength(1)
     expect(shared[0]!.files[0]!.name).toBe(FILENAME)
     expect(calls).toEqual([])
@@ -33,14 +33,14 @@ describe('exportGrooveWav', () => {
     const { calls, download } = fakeDownload()
     const target: ExportTarget = { canShareFiles: () => false, share: () => Promise.resolve(), download }
 
-    expect(await exportGrooveWav(BLOB, FILENAME, target)).toBe('downloaded')
+    expect(await exportBoopWav(BLOB, FILENAME, target)).toBe('downloaded')
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
 
   it('downloads when there is no share capability at all (desktop)', async () => {
     const { calls, download } = fakeDownload()
 
-    expect(await exportGrooveWav(BLOB, FILENAME, { download })).toBe('downloaded')
+    expect(await exportBoopWav(BLOB, FILENAME, { download })).toBe('downloaded')
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
 
@@ -52,7 +52,7 @@ describe('exportGrooveWav', () => {
       download,
     }
 
-    expect(await exportGrooveWav(BLOB, FILENAME, target)).toBe('dismissed')
+    expect(await exportBoopWav(BLOB, FILENAME, target)).toBe('dismissed')
     expect(calls).toEqual([])
   })
 
@@ -64,7 +64,7 @@ describe('exportGrooveWav', () => {
       download,
     }
 
-    expect(await exportGrooveWav(BLOB, FILENAME, target)).toBe('downloaded')
+    expect(await exportBoopWav(BLOB, FILENAME, target)).toBe('downloaded')
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
 })
@@ -104,7 +104,7 @@ describe('navigatorExportTarget', () => {
     const target = navigatorExportTarget(nav, {} as Document, false)
     target.download = download
 
-    expect(await exportGrooveWav(BLOB, FILENAME, target)).toBe('downloaded')
+    expect(await exportBoopWav(BLOB, FILENAME, target)).toBe('downloaded')
     expect(shared).toEqual([])
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
