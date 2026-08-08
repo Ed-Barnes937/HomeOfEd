@@ -109,22 +109,22 @@ test('the "⋯" menu holds every action the phone chrome drops, Clear grid last'
   await root.verifyPhoneChromeTapTargets()
 
   await root.openPhoneMenu()
-  await root.verifyPhoneMenuItems(['My grooves', 'Share', 'How boop works', 'Clear grid'])
+  await root.verifyPhoneMenuItems(['My boops', 'Share', 'How boop works', 'Clear grid'])
 })
 
-test('the "⋯" menu opens My grooves and the hint sheet, closing itself behind them', async ({
+test('the "⋯" menu opens My boops and the hint sheet, closing itself behind them', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
   await root.openPhoneMenu()
-  await root.openGroovesFromPhoneMenu()
+  await root.openBoopsFromPhoneMenu()
   await root.verifyPhoneMenuClosed()
-  await root.verifyGroovesPanelShown()
+  await root.verifyBoopsPanelShown()
   // The chrome strip is dimmed under the panel, not floating over it.
   await root.verifyPhoneChromeCoveredByOverlay()
-  await root.closeGrooves()
+  await root.closeBoops()
 
   await root.openPhoneMenu()
   await root.openHintsFromPhoneMenu()
@@ -133,7 +133,7 @@ test('the "⋯" menu opens My grooves and the hint sheet, closing itself behind 
   await root.verifyPhoneChromeCoveredByOverlay()
 })
 
-test('the chrome strip\'s save icon saves the groove and shows the "Saved it" moment', async ({
+test('the chrome strip\'s save icon saves the boop and shows the "Saved it" moment', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -144,8 +144,8 @@ test('the chrome strip\'s save icon saves the groove and shows the "Saved it" mo
 
   const name = await root.verifySavedMomentShown()
   await root.finishSaving()
-  await root.verifyGrooveCount(1)
-  await root.verifyGrooveName(0, name)
+  await root.verifyBoopCount(1)
+  await root.verifyBoopName(0, name)
 })
 
 test('clearing the grid from the "⋯" menu still goes through the confirm', async ({ mountApp }) => {

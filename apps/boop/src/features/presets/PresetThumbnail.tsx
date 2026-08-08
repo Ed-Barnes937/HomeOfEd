@@ -8,7 +8,7 @@ interface PresetThumbnailProps {
   rows: readonly PresetRowSteps[]
   /**
    * `'stage'` (default): the preset row's card on the dark stage, active dots
-   * take their row's instrument colour. `'paper'`: the "My grooves" list's
+   * take their row's instrument colour. `'paper'`: the "My boops" list's
    * light paper card (design handoff §4 — "the same dot matrix ... dots
    * `#14262A` for active steps"), one flat ink colour instead of per-row hues.
    */
@@ -17,7 +17,7 @@ interface PresetThumbnailProps {
 
 /**
  * The 16x6 dot-matrix preview from the design handoff ("Preset row" —
- * "Thumbnail"; reused for "My grooves" row thumbnails, §4): one dot per cell.
+ * "Thumbnail"; reused for "My boops" row thumbnails, §4): one dot per cell.
  * Reads straight off the preset's position-only rows, with no need to know
  * which kit is loaded.
  */

@@ -3,13 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
 import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
-import { exportGrooveWav, navigatorExportTarget } from '../export/exportAction.ts'
-import { DEFAULT_SAMPLE_RATE, renderGrooveWav } from '../export/renderGrooveWav.ts'
+import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
+import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
 import { webAudioSampleDecoder } from '../export/sampleDecoder.ts'
+import { BoopsPanel } from '../features/boops/BoopsPanel.tsx'
 import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
-import { GroovesPanel } from '../features/grooves/GroovesPanel.tsx'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
 import { PresetRow } from '../features/presets/PresetRow.tsx'
 import { PRESETS, presetPattern, type PresetId } from '../features/presets/presets.ts'
@@ -17,7 +17,7 @@ import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
-import { storedToPattern, workingCreation, type StoredCreation } from '../persistence/saveFormat.ts'
+import { storedToPattern, workingBoop, type StoredBoop } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
@@ -35,20 +35,20 @@ export function HomePage() {
   const [pattern, setPattern] = useState<Pattern | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [bpm, setBpm] = useState(DEFAULT_BPM)
-  // Which starter groove is currently loaded, if any — the loaded card's ring
+  // Which starter boop is currently loaded, if any — the loaded card's ring
   // (ticket 22). Drops to `null` on the first edit that isn't itself a preset
   // load: a cell toggle or clear-all. A tempo change alone does not drop it —
-  // nudging the tempo of the groove you just loaded doesn't stop it being
-  // that groove, and the design ties the ring's drop to "the first edit" of
+  // nudging the tempo of the boop you just loaded doesn't stop it being
+  // that boop, and the design ties the ring's drop to "the first edit" of
   // the grid, not the transport.
   const [activePreset, setActivePreset] = useState<PresetId | null>(null)
   // Bumped on every preset load (including blank) so the grid can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
-  // The "My grooves" panel is closed, opened for browsing, or opened straight
+  // The "My boops" panel is closed, opened for browsing, or opened straight
   // into its just-saved state — the phone chrome's save icon (ticket 27) has no
   // room for a "Saved it" moment of its own, so it borrows the panel's.
-  const [groovesPanel, setGroovesPanel] = useState<'closed' | 'open' | 'saving'>('closed')
+  const [boopsPanel, setBoopsPanel] = useState<'closed' | 'open' | 'saving'>('closed')
   const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
@@ -56,18 +56,18 @@ export function HomePage() {
   // both, since the phone's actions live in the "⋯" menu.
   const phone = useIsPhone()
 
-  // A shared groove is decoded on the first render, before the first restore,
+  // A shared boop is decoded on the first render, before the first restore,
   // and wins over the autosaved grid. Held in a ref so the value survives the
   // fragment being cleared below — decoding again would then find nothing.
-  const sharedGroove = useRef<StoredCreation | null | undefined>(undefined)
-  sharedGroove.current ??= decodeShareHash(window.location.hash)
+  const sharedBoop = useRef<StoredBoop | null | undefined>(undefined)
+  sharedBoop.current ??= decodeShareHash(window.location.hash)
 
   // Autosave restores into the engine first; the mirror below waits for it, so
   // it reads the restored pattern and tempo rather than the empty grid.
-  const restored = useWorkingGrid(engine, pattern, bpm, sharedGroove.current)
+  const restored = useWorkingGrid(engine, pattern, bpm, sharedBoop.current)
 
   useEffect(() => {
-    if (sharedGroove.current) clearShareHash(window.location, window.history)
+    if (sharedBoop.current) clearShareHash(window.location, window.history)
   }, [])
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export function HomePage() {
   // Spacebar toggles play from anywhere on the page (spec: "Transport &
   // tempo"). `preventDefault` always fires for a non-editable target, so
   // Space never scrolls the page and never re-triggers whatever button
-  // happens to be focused — the groove rename field is the one exemption,
+  // happens to be focused — the boop rename field is the one exemption,
   // where Space must still type a space.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -152,11 +152,11 @@ export function HomePage() {
     if (!engine) return window.location.href
     return buildShareUrl(
       window.location,
-      workingCreation(engine.kit, engine.getPattern(), engine.getTempo()),
+      workingBoop(engine.kit, engine.getPattern(), engine.getTempo()),
     )
   }, [engine])
 
-  /** Read at tap time (the Save button inside "My grooves"), same reasoning as `getShareUrl`. */
+  /** Read at tap time (the Save button inside "My boops"), same reasoning as `getShareUrl`. */
   const getWorkingSnapshot = useCallback(() => {
     if (!engine) throw new Error('engine not ready')
     return { kit: engine.kit, pattern: engine.getPattern(), tempo: engine.getTempo() }
@@ -178,10 +178,10 @@ export function HomePage() {
     void (async () => {
       try {
         const context = new OfflineAudioContext(1, 1, DEFAULT_SAMPLE_RATE)
-        const blob = await renderGrooveWav({ kit, pattern, bpm, decode: webAudioSampleDecoder(context) })
-        await exportGrooveWav(
+        const blob = await renderBoopWav({ kit, pattern, bpm, decode: webAudioSampleDecoder(context) })
+        await exportBoopWav(
           blob,
-          'groove.wav',
+          'boop.wav',
           navigatorExportTarget(navigator, document, prefersShareSheet()),
         )
       } finally {
@@ -190,15 +190,15 @@ export function HomePage() {
     })()
   }, [engine])
 
-  const loadGroove = useCallback(
-    (creation: StoredCreation) => {
+  const loadBoop = useCallback(
+    (boop: StoredBoop) => {
       if (!engine) return
-      engine.setPattern(storedToPattern(engine.kit, creation.patterns[0]!))
-      engine.setTempo(creation.tempo)
+      engine.setPattern(storedToPattern(engine.kit, boop.patterns[0]!))
+      engine.setTempo(boop.tempo)
       setPattern(engine.getPattern())
       setActivePreset(null)
       setLoadToken((token) => token + 1)
-      setGroovesPanel('closed')
+      setBoopsPanel('closed')
     },
     [engine],
   )
@@ -225,18 +225,18 @@ export function HomePage() {
     <main className={styles.stage}>
       {phone ? (
         // The phone chrome has no room for the export link (ticket 25) — its
-        // "⋯" menu is My grooves / Share / How boop works / Clear grid.
+        // "⋯" menu is My boops / Share / How boop works / Clear grid.
         <PhoneBar
           getShareUrl={getShareUrl}
           onClearGrid={clearAll}
-          onSave={() => setGroovesPanel('saving')}
-          onOpenMyGrooves={() => setGroovesPanel('open')}
+          onSave={() => setBoopsPanel('saving')}
+          onOpenMyBoops={() => setBoopsPanel('open')}
           onOpenHints={() => setHintsOpen(true)}
         />
       ) : (
         <TopBar
           getShareUrl={getShareUrl}
-          onOpenGrooves={() => setGroovesPanel('open')}
+          onOpenBoops={() => setBoopsPanel('open')}
           onOpenHints={() => setHintsOpen(true)}
           onExportWav={exportWav}
         />
@@ -251,12 +251,12 @@ export function HomePage() {
         showClearGrid={!phone}
       />
       <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
-      {groovesPanel !== 'closed' && (
-        <GroovesPanel
-          onClose={() => setGroovesPanel('closed')}
-          onLoad={loadGroove}
+      {boopsPanel !== 'closed' && (
+        <BoopsPanel
+          onClose={() => setBoopsPanel('closed')}
+          onLoad={loadBoop}
           getWorkingSnapshot={getWorkingSnapshot}
-          saveOnOpen={groovesPanel === 'saving'}
+          saveOnOpen={boopsPanel === 'saving'}
         />
       )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />

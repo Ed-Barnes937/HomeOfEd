@@ -9,8 +9,8 @@ type, spacing, radii, shadows and grid geometry are final and exact).
 Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
-copy base is `templates/starter`. The working grid, tempo, and saved grooves
-("My grooves") persist to `localStorage`. Sharing a groove is URL-hash encoded,
+copy base is `templates/starter`. The working grid, tempo, and saved boops
+("My boops") persist to `localStorage`. Sharing a boop is URL-hash encoded,
 no server and no store ([ADR 0026](../../docs/adr/0026-boop-share-links.md)); a
 server-backed short link stays a possible later addition, modelled on
 `apps/fridge`'s `board.share`/`board.get` handlers.
@@ -18,7 +18,7 @@ server-backed short link stays a possible later addition, modelled on
 The `SequencerEngine` and the launch kit manifest have landed (ticket 12) —
 Tone.js behind a TypeScript interface, no `packages/*` extraction (the spec is
 explicit this stays in-app). The grid, transport and working-grid autosave now
-consume it; "My grooves" and share links are later tickets.
+consume it; "My boops" and share links are later tickets.
 
 ## Layout
 
@@ -109,8 +109,8 @@ share-link snapshot.
   behaviour against `FakeAudioDriver`, never a real AudioContext.
 - **Persistence** ([ADR 0025](../../docs/adr/0025-boop-save-format.md)). One
   versioned save document under one `localStorage` key (`boop:save`), holding
-  the autosaved working grid and the "My grooves" list. Anything that persists
-  or shares a groove goes through `persistence/saveFormat.ts` — don't invent a
+  the autosaved working grid and the "My boops" list. Anything that persists
+  or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The

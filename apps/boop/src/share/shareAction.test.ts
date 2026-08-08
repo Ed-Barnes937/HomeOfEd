@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { navigatorShareTarget, shareGrooveUrl, type ShareTarget } from './shareAction.ts'
+import { navigatorShareTarget, shareBoopUrl, type ShareTarget } from './shareAction.ts'
 
 const URL_TO_SHARE = 'https://boop.homeofed.com/#g=abc'
 
@@ -18,7 +18,7 @@ function fakeClipboard(behaviour: 'ok' | 'reject' = 'ok') {
   }
 }
 
-describe('shareGrooveUrl', () => {
+describe('shareBoopUrl', () => {
   it('opens the system share sheet when the platform has one', async () => {
     const shared: string[] = []
     const { written, clipboard } = fakeClipboard()
@@ -30,7 +30,7 @@ describe('shareGrooveUrl', () => {
       clipboard,
     }
 
-    expect(await shareGrooveUrl(URL_TO_SHARE, target)).toBe('shared')
+    expect(await shareBoopUrl(URL_TO_SHARE, target)).toBe('shared')
     expect(shared).toEqual([URL_TO_SHARE])
     // The share sheet is the whole affordance on mobile — no silent copy too.
     expect(written).toEqual([])
@@ -39,7 +39,7 @@ describe('shareGrooveUrl', () => {
   it('copies to the clipboard when there is no share sheet', async () => {
     const { written, clipboard } = fakeClipboard()
 
-    expect(await shareGrooveUrl(URL_TO_SHARE, { clipboard })).toBe('copied')
+    expect(await shareBoopUrl(URL_TO_SHARE, { clipboard })).toBe('copied')
     expect(written).toEqual([URL_TO_SHARE])
   })
 
@@ -50,7 +50,7 @@ describe('shareGrooveUrl', () => {
       clipboard,
     }
 
-    expect(await shareGrooveUrl(URL_TO_SHARE, target)).toBe('dismissed')
+    expect(await shareBoopUrl(URL_TO_SHARE, target)).toBe('dismissed')
     expect(written).toEqual([])
   })
 
@@ -61,17 +61,17 @@ describe('shareGrooveUrl', () => {
       clipboard,
     }
 
-    expect(await shareGrooveUrl(URL_TO_SHARE, target)).toBe('copied')
+    expect(await shareBoopUrl(URL_TO_SHARE, target)).toBe('copied')
     expect(written).toEqual([URL_TO_SHARE])
   })
 
   it('reports unavailable rather than throwing when nothing can share', async () => {
-    expect(await shareGrooveUrl(URL_TO_SHARE, {})).toBe('unavailable')
+    expect(await shareBoopUrl(URL_TO_SHARE, {})).toBe('unavailable')
   })
 
   it('reports unavailable when the clipboard write is refused', async () => {
     const { clipboard } = fakeClipboard('reject')
-    expect(await shareGrooveUrl(URL_TO_SHARE, { clipboard })).toBe('unavailable')
+    expect(await shareBoopUrl(URL_TO_SHARE, { clipboard })).toBe('unavailable')
   })
 })
 
@@ -88,7 +88,7 @@ describe('navigatorShareTarget', () => {
       clipboard,
     } as unknown as Navigator
 
-    expect(await shareGrooveUrl(URL_TO_SHARE, navigatorShareTarget(nav, true))).toBe('shared')
+    expect(await shareBoopUrl(URL_TO_SHARE, navigatorShareTarget(nav, true))).toBe('shared')
     expect(shared).toEqual([URL_TO_SHARE])
   })
 
@@ -113,7 +113,7 @@ describe('navigatorShareTarget', () => {
       },
     } as unknown as Navigator
 
-    expect(await shareGrooveUrl(URL_TO_SHARE, navigatorShareTarget(nav, false))).toBe('copied')
+    expect(await shareBoopUrl(URL_TO_SHARE, navigatorShareTarget(nav, false))).toBe('copied')
     expect(shared).toEqual([])
     expect(written).toEqual([URL_TO_SHARE])
   })

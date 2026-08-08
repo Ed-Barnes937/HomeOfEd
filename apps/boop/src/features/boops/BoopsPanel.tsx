@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 
 import type { Kit, Pattern } from '../../engine/sequencerEngine.ts'
-import type { StoredCreation, StoredPattern } from '../../persistence/saveFormat.ts'
-import { useGrooves } from '../../persistence/useGrooves.ts'
+import type { StoredBoop, StoredPattern } from '../../persistence/saveFormat.ts'
+import { useBoops } from '../../persistence/useBoops.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import { PresetThumbnail } from '../presets/PresetThumbnail.tsx'
-import styles from './GroovesPanel.module.scss'
+import styles from './BoopsPanel.module.scss'
 
-interface GroovesPanelProps {
+interface BoopsPanelProps {
   onClose: () => void
-  /** Loads a saved creation into the working grid. */
-  onLoad: (creation: StoredCreation) => void
+  /** Loads a saved boop into the working grid. */
+  onLoad: (boop: StoredBoop) => void
   /** Read at tap time (Save button), not render time — see `TopBar`'s `getShareUrl` for the same reasoning. */
   getWorkingSnapshot: () => { kit: Kit; pattern: Pattern; tempo: number }
   /**
@@ -34,26 +34,26 @@ function thumbnailRows(pattern: StoredPattern) {
 }
 
 /**
- * "My grooves" (design handoff §4): a light paper card opened from the top
- * bar. Lists saved creations with a dot-matrix thumbnail, rename and delete
+ * "My boops" (design handoff §4): a light paper card opened from the top
+ * bar. Lists saved boops with a dot-matrix thumbnail, rename and delete
  * icon buttons; tapping a row loads it. Save snapshots the working grid
  * immediately under a generated name and shows the "Saved it" moment (§5) —
  * the field it puts focus in is a rename, not a gate, since the save has
  * already happened.
  */
-export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }: GroovesPanelProps) {
-  const grooves = useGrooves()
+export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }: BoopsPanelProps) {
+  const boops = useBoops()
   const [editing, setEditing] = useState<Editing>({ kind: 'none' })
 
   function handleSave() {
     const { kit, pattern, tempo } = getWorkingSnapshot()
-    const { creation, index } = grooves.save(kit, pattern, tempo)
-    setEditing({ kind: 'saved', index, name: creation.name })
+    const { boop, index } = boops.save(kit, pattern, tempo)
+    setEditing({ kind: 'saved', index, name: boop.name })
   }
 
   // Saves once per mount, guarded by a ref rather than by the dependency list:
   // StrictMode runs the effect twice, and a second `save` would write a
-  // duplicate groove. `handleSave` is left out of the deps for the same reason
+  // duplicate boop. `handleSave` is left out of the deps for the same reason
   // — it is rebuilt every render, and re-running it is exactly what we don't
   // want. The panel is unmounted on close (`HomePage`), so "once per mount" is
   // once per time the save icon is tapped.
@@ -66,11 +66,11 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }
 
   function commitRename(index: number, name: string) {
     const trimmed = name.trim()
-    if (trimmed !== '') grooves.rename(index, trimmed)
+    if (trimmed !== '') boops.rename(index, trimmed)
     setEditing({ kind: 'none' })
   }
 
-  const deletingName = editing.kind === 'deleting' ? grooves.creations[editing.index]?.name : undefined
+  const deletingName = editing.kind === 'deleting' ? boops.boops[editing.index]?.name : undefined
 
   return (
     // `ConfirmCard` renders outside the backdrop's own onClick region: nested
@@ -82,17 +82,17 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }
           className={styles.card}
           role="dialog"
           aria-modal="true"
-          aria-label="My grooves"
+          aria-label="My boops"
           onClick={(event) => event.stopPropagation()}
         >
           <div className={styles.header}>
-            <span className={styles.title}>My grooves</span>
+            <span className={styles.title}>My boops</span>
             <button
               type="button"
               className={styles.closeButton}
               onClick={onClose}
-              aria-label="Close My grooves"
-              data-testid="grooves-close-button"
+              aria-label="Close My boops"
+              data-testid="boops-close-button"
             >
               ×
             </button>
@@ -104,7 +104,7 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }
               <NameField
                 initialName={editing.name}
                 onDone={(name) => commitRename(editing.index, name)}
-                testId="groove-save-name"
+                testId="boop-save-name"
               />
               <p className={styles.savedHelper}>Already saved. Type a new name if you want one.</p>
             </div>
@@ -113,39 +113,39 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }
               type="button"
               className={styles.saveButton}
               onClick={handleSave}
-              data-testid="save-groove-button"
+              data-testid="save-boop-button"
             >
-              Save this groove
+              Save this boop
             </button>
           )}
 
           <div className={styles.list}>
-            {grooves.creations.length === 0 && <p className={styles.empty}>No grooves saved yet.</p>}
-            {grooves.creations.map((creation, index) => (
-              <div key={index} className={styles.row} data-testid={`groove-row-${index}`}>
+            {boops.boops.length === 0 && <p className={styles.empty}>No boops saved yet.</p>}
+            {boops.boops.map((boop, index) => (
+              <div key={index} className={styles.row} data-testid={`boop-row-${index}`}>
                 {editing.kind === 'renaming' && editing.index === index ? (
                   <NameField
                     initialName={editing.name}
                     onDone={(name) => commitRename(index, name)}
-                    testId={`groove-rename-${index}`}
+                    testId={`boop-rename-${index}`}
                   />
                 ) : (
                   <>
                     <button
                       type="button"
                       className={styles.rowLoad}
-                      onClick={() => onLoad(creation)}
-                      data-testid={`groove-load-${index}`}
+                      onClick={() => onLoad(boop)}
+                      data-testid={`boop-load-${index}`}
                     >
-                      <PresetThumbnail rows={thumbnailRows(creation.patterns[0]!)} tone="paper" />
-                      <span className={styles.name}>{creation.name}</span>
+                      <PresetThumbnail rows={thumbnailRows(boop.patterns[0]!)} tone="paper" />
+                      <span className={styles.name}>{boop.name}</span>
                     </button>
                     <button
                       type="button"
                       className={styles.iconButton}
-                      onClick={() => setEditing({ kind: 'renaming', index, name: creation.name })}
-                      aria-label={`Rename ${creation.name}`}
-                      data-testid={`groove-rename-button-${index}`}
+                      onClick={() => setEditing({ kind: 'renaming', index, name: boop.name })}
+                      aria-label={`Rename ${boop.name}`}
+                      data-testid={`boop-rename-button-${index}`}
                     >
                       <PencilIcon />
                     </button>
@@ -153,8 +153,8 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }
                       type="button"
                       className={styles.iconButtonDanger}
                       onClick={() => setEditing({ kind: 'deleting', index })}
-                      aria-label={`Delete ${creation.name}`}
-                      data-testid={`groove-delete-button-${index}`}
+                      aria-label={`Delete ${boop.name}`}
+                      data-testid={`boop-delete-button-${index}`}
                     >
                       <BinIcon />
                     </button>
@@ -164,7 +164,7 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }
             ))}
           </div>
 
-          <p className={styles.footer}>Tap a groove to open it. No limit on how many you keep.</p>
+          <p className={styles.footer}>Tap a boop to open it. No limit on how many you keep.</p>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ export function GroovesPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }
           destructiveLabel="Throw away"
           onSafe={() => setEditing({ kind: 'none' })}
           onDestructive={() => {
-            grooves.remove(editing.index)
+            boops.remove(editing.index)
             setEditing({ kind: 'none' })
           }}
         />

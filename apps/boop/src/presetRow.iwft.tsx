@@ -66,19 +66,19 @@ test('the loaded ring survives a tempo change, but drops on clear-all', async ({
   await root.verifyPresetNotLoaded('stomp')
 })
 
-test('loading a preset never touches a saved groove, only the working grid', async ({ mountApp, page }) => {
+test('loading a preset never touches a saved boop, only the working grid', async ({ mountApp, page }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
 
-  const savedCreation = {
-    name: 'My groove',
+  const savedBoop = {
+    name: 'My boop',
     kitId: 'launch',
     tempo: 120,
     patterns: [{ rows: [{ instrumentId: 'kick', steps: '1000000000000000' }] }],
   }
   await page.evaluate(
     ({ key, doc }) => window.localStorage.setItem(key, JSON.stringify(doc)),
-    { key: SAVE_KEY, doc: { version: 1, working: null, creations: [savedCreation] } },
+    { key: SAVE_KEY, doc: { version: 1, working: null, creations: [savedBoop] } },
   )
   await page.reload()
 
@@ -89,6 +89,6 @@ test('loading a preset never touches a saved groove, only the working grid', asy
   await root.verifyPresetLoaded('robot')
   await root.waitForAutosavedCell('kick', 0) // robot's kick sits on step 0
 
-  const saved = await root.readSavedCreations()
-  expect(saved).toEqual([savedCreation])
+  const saved = await root.readSavedBoops()
+  expect(saved).toEqual([savedBoop])
 })

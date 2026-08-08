@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AUTOSAVE_LULL_MS, AUTOSAVE_MAX_WAIT_MS, createAutosave } from './autosave.ts'
-import type { StoredCreation } from './saveFormat.ts'
+import type { StoredBoop } from './saveFormat.ts'
 import { loadSaveDocument } from './storage.ts'
 import { FakeStorage } from './testing/fakeStorage.ts'
 
-const base: StoredCreation = {
+const base: StoredBoop = {
   name: '',
   kitId: 'launch',
   tempo: 100,
   patterns: [{ rows: [{ instrumentId: 'kick', steps: '0'.repeat(16) }] }],
 }
 
-const at = (tempo: number): StoredCreation => ({ ...base, tempo })
+const at = (tempo: number): StoredBoop => ({ ...base, tempo })
 
 describe('createAutosave', () => {
   let storage: FakeStorage

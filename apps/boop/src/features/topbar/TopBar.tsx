@@ -1,15 +1,15 @@
 import { hubUrl } from '../../hubUrl.ts'
-import { useShareGroove } from '../../share/useShareGroove.ts'
+import { useShareBoop } from '../../share/useShareBoop.ts'
 import styles from './TopBar.module.scss'
 
 export interface TopBarProps {
   /**
-   * The link for the groove as it is *right now* — called on tap, not on
+   * The link for the boop as it is *right now* — called on tap, not on
    * render, so encoding the grid never rides along with playback repaints.
    */
   getShareUrl: () => string
-  /** Opens the "My grooves" panel (ticket 20). */
-  onOpenGrooves: () => void
+  /** Opens the "My boops" panel (ticket 20). */
+  onOpenBoops: () => void
   /** Opens the hint sheet (ticket 24). */
   onOpenHints: () => void
   /**
@@ -24,11 +24,11 @@ export interface TopBarProps {
  * The top bar: back-to-hub arrow, wordmark, and the chrome buttons from the
  * design handoff. "Share" is live (ticket 21) — the system share sheet on
  * mobile, clipboard plus a "Copied!" flip on desktop, no modal and no link
- * field. "My grooves" opens the grooves panel (ticket 20). "?" opens the
+ * field. "My boops" opens the boops panel (ticket 20). "?" opens the
  * hint sheet (ticket 24).
  */
-export function TopBar({ getShareUrl, onOpenGrooves, onOpenHints, onExportWav }: TopBarProps) {
-  const { shareState, share } = useShareGroove(getShareUrl)
+export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, onExportWav }: TopBarProps) {
+  const { shareState, share } = useShareBoop(getShareUrl)
   const copied = shareState === 'copied'
 
   return (
@@ -54,10 +54,10 @@ export function TopBar({ getShareUrl, onOpenGrooves, onOpenHints, onExportWav }:
       <button
         type="button"
         className={styles.ghost}
-        onClick={onOpenGrooves}
-        data-testid="grooves-button"
+        onClick={onOpenBoops}
+        data-testid="boops-button"
       >
-        My grooves
+        My boops
       </button>
       <div className={styles.shareGroup}>
         <button

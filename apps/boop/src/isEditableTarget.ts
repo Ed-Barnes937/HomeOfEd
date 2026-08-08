@@ -1,7 +1,7 @@
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
 /**
- * Whether an event target is a text-editing surface — the groove rename
+ * Whether an event target is a text-editing surface — the boop rename
  * field, chiefly — that the global spacebar-toggles-play listener (spec:
  * "Transport & tempo") must leave alone so a child typing a name can still
  * type a space.

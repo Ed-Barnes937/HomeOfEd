@@ -1,5 +1,5 @@
 /**
- * Fetches and decodes one sample's mono PCM data. The seam `renderGrooveWav`
+ * Fetches and decodes one sample's mono PCM data. The seam `renderBoopWav`
  * schedules against — injected so the render orchestration is testable
  * without a real (Offline)AudioContext.
  */

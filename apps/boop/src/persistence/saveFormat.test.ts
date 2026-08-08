@@ -9,7 +9,7 @@ import {
   serializeSaveDocument,
   storedToPattern,
   type SaveDocument,
-  type StoredCreation,
+  type StoredBoop,
 } from './saveFormat.ts'
 
 const kit: Kit = {
@@ -29,8 +29,8 @@ function row(instrumentId: string, ...onSteps: number[]) {
 
 const pattern: Pattern = [row('kick', 0, 4), row('snare', 4)]
 
-const creation: StoredCreation = {
-  name: 'Groove 3',
+const boop: StoredBoop = {
+  name: 'Boop 3',
   kitId: 'launch',
   tempo: 120,
   patterns: [patternToStored(pattern)],
@@ -74,11 +74,11 @@ describe('storedToPattern', () => {
 })
 
 describe('round-trip', () => {
-  it('preserves the working creation and the saved list', () => {
+  it('preserves the working boop and the saved list', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
-      working: { ...creation, name: '' },
-      creations: [creation],
+      working: { ...boop, name: '' },
+      creations: [boop],
     }
 
     expect(reparse(saveDocument)).toEqual(saveDocument)
@@ -87,7 +87,7 @@ describe('round-trip', () => {
   it('survives a full trip back onto the grid', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
-      working: { ...creation, name: '' },
+      working: { ...boop, name: '' },
       creations: [],
     }
     const restored = reparse(saveDocument).working!
@@ -120,20 +120,20 @@ describe('parseSaveDocument (defensive decode)', () => {
 
   it.each([
     ['a non-object payload', JSON.stringify('nope')],
-    ['a creation with no patterns', withWorking({ ...creation, patterns: [] })],
+    ['a boop with no patterns', withWorking({ ...boop, patterns: [] })],
     [
       'a step string of the wrong length',
-      withWorking({ ...creation, patterns: [{ rows: [{ instrumentId: 'kick', steps: '101' }] }] }),
+      withWorking({ ...boop, patterns: [{ rows: [{ instrumentId: 'kick', steps: '101' }] }] }),
     ],
     [
       'step characters that are not 0 or 1',
       withWorking({
-        ...creation,
+        ...boop,
         patterns: [{ rows: [{ instrumentId: 'kick', steps: 'x'.repeat(STEPS_PER_PATTERN) }] }],
       }),
     ],
-    ['a non-numeric tempo', withWorking({ ...creation, tempo: 'fast' })],
-    ['a tempo outside the allowed range', withWorking({ ...creation, tempo: 5000 })],
+    ['a non-numeric tempo', withWorking({ ...boop, tempo: 'fast' })],
+    ['a tempo outside the allowed range', withWorking({ ...boop, tempo: 5000 })],
     [
       'a missing name',
       withWorking({ kitId: 'launch', tempo: 120, patterns: [patternToStored(pattern)] }),
@@ -153,3 +153,30 @@ describe('parseSaveDocument (defensive decode)', () => {
 function withWorking(working: unknown): string {
   return JSON.stringify({ version: SAVE_FORMAT_VERSION, working, creations: [] })
 }
+
+// Ticket 35: the "groove" → "boop" rename touches types and identifiers only.
+// `boop:save`'s document shape (`version`/`working`/`creations`, and each
+// entry's `name`/`kitId`/`tempo`/`patterns`) is frozen (ADR 0025) — a document
+// written before the rename must still decode to its boops afterwards.
+describe('pre-rename compatibility (ticket 35)', () => {
+  it('decodes a save document written before the rename, "Groove N" names and all', () => {
+    const preRenameRaw = JSON.stringify({
+      version: 1,
+      working: null,
+      creations: [
+        {
+          name: 'Groove 1',
+          kitId: 'launch',
+          tempo: 120,
+          patterns: [patternToStored(pattern)],
+        },
+      ],
+    })
+
+    const decoded = parseSaveDocument(preRenameRaw)
+
+    expect(decoded.creations).toHaveLength(1)
+    expect(decoded.creations[0]!.name).toBe('Groove 1')
+    expect(storedToPattern(kit, decoded.creations[0]!.patterns[0]!)).toEqual(pattern)
+  })
+})

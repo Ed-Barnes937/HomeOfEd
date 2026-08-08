@@ -3,14 +3,21 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Related:** [ADR 0008](0008-apps-without-a-database.md) (boop is stateless),
-  [ADR 0025](0025-boop-save-format.md) (the creation shape this encodes), the
+  [ADR 0025](0025-boop-save-format.md) (the boop shape this encodes), the
   spec's "Sharing & export" section
   ([`.scratch/music-app/spec.md`](../../.scratch/music-app/spec.md)).
-  Implements ticket 21.
+  Implements ticket 21. Terminology updated by ticket 35 ("groove" → "boop");
+  the encoding itself is unchanged — see the note below.
+
+> **Ticket 35 note:** the `#g=` prefix and the payload's `{ version, creation }`
+> field names are frozen — every link already shared depends on them, and the
+> `g` and `creation` predate this rename (both stood for "groove"). Only the
+> TS type (`StoredCreation` → `StoredBoop`) and the decode function
+> (`decodeStoredCreation` → `decodeStoredBoop`) renamed.
 
 ## Context
 
-A child should be able to send a groove to someone. The
+A child should be able to send a boop to someone. The
 [spec](../../.scratch/music-app/spec.md) makes URL-hash links the primary
 sharing affordance: no server, no account, no gallery. boop is stateless
 ([ADR 0008](0008-apps-without-a-database.md)) and already has a versioned save
@@ -23,8 +30,8 @@ additive option — the codec below is what a short link would store anyway.
 ## Decision
 
 **Encoding.** `#g=<base64url(JSON({ version, creation }))>`, where `creation`
-is the save format's `StoredCreation` — the same object the autosave writes.
-The share codec calls the save format's own `decodeStoredCreation`, so pattern,
+is the save format's `StoredBoop` — the same object the autosave writes.
+The share codec calls the save format's own `decodeStoredBoop`, so pattern,
 tempo and kit id validate identically whether they arrive from `localStorage` or
 from a link, and V2 additions (more instruments, new kits, chained patterns)
 extend both at once.
@@ -39,8 +46,8 @@ to roughly 300–400 characters, which messaging apps carry fine, and the versio
 field leaves the door open to a denser V2 without breaking V1 links.
 
 **Defensive decode.** `decodeShare` returns `null` for anything that is not a
-current-version creation — bad base64, bad UTF-8, bad JSON, an unknown version,
-a malformed pattern, an out-of-range tempo. `null` means "no shared groove", and
+current-version boop — bad base64, bad UTF-8, bad JSON, an unknown version,
+a malformed pattern, an out-of-range tempo. `null` means "no shared boop", and
 the app opens its normal empty grid. It never throws and never shows an error.
 
 **Fragment, not query string.** The fragment is never sent to the server, so
@@ -51,7 +58,7 @@ the engine in place of the autosaved grid, written to the autosave slot, and
 then removed with `history.replaceState`. So: a reload after following a link
 keeps what the child has since played with, rather than snapping back to the
 sender's version; and the URL in the address bar stops being a stale link to a
-groove that has since been edited.
+boop that has since been edited.
 
 **Share affordance.** One button. `navigator.share` on touch devices
 (`(pointer: coarse)` — capability alone can't decide, since macOS Safari and
@@ -64,7 +71,7 @@ field.
 
 - Links are long-ish but self-contained and outlive any deployment of boop.
 - Nothing to run, store, moderate or expire; no privacy surface.
-- Sharing a groove replaces the recipient's working grid. Acceptable while
-  "My grooves" is the deliberate save; revisit if that changes.
+- Sharing a boop replaces the recipient's working grid. Acceptable while
+  "My boops" is the deliberate save; revisit if that changes.
 - WAV export (the demoted secondary link under Share) is a separate ticket and
   reuses none of this beyond the button's placement.

@@ -78,17 +78,17 @@ test('spacebar toggles play from a random focus target on the page', async ({ mo
   await root.verifyPaused()
 })
 
-test('space in the groove rename field types a space instead of toggling play', async ({
+test('space in the boop rename field types a space instead of toggling play', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.verifyPaused()
 
-  await root.openGrooves()
-  const name = await root.saveGroove()
+  await root.openBoops()
+  const name = await root.saveBoop()
   await root.pressSpaceKey()
 
   await root.verifyPaused()
-  expect(await root.readGrooveSaveNameFieldValue()).toBe(`${name} `)
+  expect(await root.readBoopSaveNameFieldValue()).toBe(`${name} `)
 })

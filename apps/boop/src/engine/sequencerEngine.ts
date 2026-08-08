@@ -91,7 +91,7 @@ export interface SequencerEngine {
    * that is engine-internal, callers do not trigger sound themselves.
    */
   setCell(instrumentId: string, step: number, on: boolean): void
-  /** Replace the whole grid (loading a preset, a saved groove, a share link). */
+  /** Replace the whole grid (loading a preset, a saved boop, a share link). */
   setPattern(pattern: Pattern): void
 
   /** Unlock audio (must be called from a user gesture) and start the loop. */

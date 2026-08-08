@@ -2,7 +2,7 @@ import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
-import { parseSaveDocument, type StoredCreation } from '../persistence/saveFormat.ts'
+import { parseSaveDocument, type StoredBoop } from '../persistence/saveFormat.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 
@@ -16,9 +16,9 @@ export class HomePagePom extends BasePage {
   private readonly confirmDestructiveButton = this.page.getByTestId('confirm-destructive-button')
   private readonly shareButton = this.page.getByTestId('share-button')
   private readonly exportWavButton = this.page.getByTestId('export-wav-button')
-  private readonly groovesButton = this.page.getByTestId('grooves-button')
-  private readonly saveGrooveButton = this.page.getByTestId('save-groove-button')
-  private readonly groovesCloseButton = this.page.getByTestId('grooves-close-button')
+  private readonly boopsButton = this.page.getByTestId('boops-button')
+  private readonly saveBoopButton = this.page.getByTestId('save-boop-button')
+  private readonly boopsCloseButton = this.page.getByTestId('boops-close-button')
   private readonly helpButton = this.page.getByTestId('help-button')
   private readonly hintSheet = this.page.getByTestId('hint-sheet')
   private readonly hintSheetOverlay = this.page.getByTestId('hint-sheet-overlay')
@@ -91,8 +91,8 @@ export class HomePagePom extends BasePage {
     await this.page.keyboard.press('Space')
   }
 
-  async readGrooveSaveNameFieldValue(): Promise<string> {
-    return this.page.getByTestId('groove-save-name-input').inputValue()
+  async readBoopSaveNameFieldValue(): Promise<string> {
+    return this.page.getByTestId('boop-save-name-input').inputValue()
   }
 
   async openClearGridConfirm(): Promise<void> {
@@ -208,13 +208,13 @@ export class HomePagePom extends BasePage {
   }
 
   /** The autosaved working grid a reload would restore from, or `null`. */
-  async readAutosavedGrid(): Promise<StoredCreation | null> {
+  async readAutosavedGrid(): Promise<StoredBoop | null> {
     const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)
     return parseSaveDocument(raw).working
   }
 
-  /** The "My grooves" list — separate from the working grid a preset load may replace. */
-  async readSavedCreations(): Promise<readonly StoredCreation[]> {
+  /** The "My boops" list — separate from the working grid a preset load may replace. */
+  async readSavedBoops(): Promise<readonly StoredBoop[]> {
     const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)
     return parseSaveDocument(raw).creations
   }
@@ -282,53 +282,53 @@ export class HomePagePom extends BasePage {
     await this.page.reload()
   }
 
-  async openGrooves(): Promise<void> {
-    await this.groovesButton.click()
+  async openBoops(): Promise<void> {
+    await this.boopsButton.click()
   }
 
-  async closeGrooves(): Promise<void> {
-    await this.groovesCloseButton.click()
+  async closeBoops(): Promise<void> {
+    await this.boopsCloseButton.click()
   }
 
   /** Saves the working grid — the save happens immediately; returns the generated name shown for renaming. */
-  async saveGroove(): Promise<string> {
-    await this.saveGrooveButton.click()
-    return this.page.getByTestId('groove-save-name-input').inputValue()
+  async saveBoop(): Promise<string> {
+    await this.saveBoopButton.click()
+    return this.page.getByTestId('boop-save-name-input').inputValue()
   }
 
   /** Dismisses the post-save "Saved it" moment, keeping whatever name is currently in the field. */
   async finishSaving(): Promise<void> {
-    await this.page.getByTestId('groove-save-name-done').click()
+    await this.page.getByTestId('boop-save-name-done').click()
   }
 
-  grooveRow(index: number) {
-    return this.page.getByTestId(`groove-row-${index}`)
+  boopRow(index: number) {
+    return this.page.getByTestId(`boop-row-${index}`)
   }
 
-  async loadGroove(index: number): Promise<void> {
-    await this.page.getByTestId(`groove-load-${index}`).click()
+  async loadBoop(index: number): Promise<void> {
+    await this.page.getByTestId(`boop-load-${index}`).click()
   }
 
-  async verifyGrooveName(index: number, name: string): Promise<void> {
-    await expect(this.grooveRow(index)).toContainText(name)
+  async verifyBoopName(index: number, name: string): Promise<void> {
+    await expect(this.boopRow(index)).toContainText(name)
   }
 
-  async verifyGrooveCount(count: number): Promise<void> {
-    await expect(this.page.getByTestId(/^groove-row-\d+$/)).toHaveCount(count)
+  async verifyBoopCount(count: number): Promise<void> {
+    await expect(this.page.getByTestId(/^boop-row-\d+$/)).toHaveCount(count)
   }
 
-  async renameGroove(index: number, name: string): Promise<void> {
-    await this.page.getByTestId(`groove-rename-button-${index}`).click()
-    const input = this.page.getByTestId(`groove-rename-${index}-input`)
+  async renameBoop(index: number, name: string): Promise<void> {
+    await this.page.getByTestId(`boop-rename-button-${index}`).click()
+    const input = this.page.getByTestId(`boop-rename-${index}-input`)
     await input.fill(name)
-    await this.page.getByTestId(`groove-rename-${index}-done`).click()
+    await this.page.getByTestId(`boop-rename-${index}-done`).click()
   }
 
-  async openDeleteGrooveConfirm(index: number): Promise<void> {
-    await this.page.getByTestId(`groove-delete-button-${index}`).click()
+  async openDeleteBoopConfirm(index: number): Promise<void> {
+    await this.page.getByTestId(`boop-delete-button-${index}`).click()
   }
 
-  async verifyDeleteGrooveConfirmShown(name: string): Promise<void> {
+  async verifyDeleteBoopConfirmShown(name: string): Promise<void> {
     await expect(this.page.getByText(`Throw away ${name}?`)).toBeVisible()
   }
 
@@ -368,7 +368,7 @@ export class HomePagePom extends BasePage {
   async verifyPhoneChromeShown(): Promise<void> {
     await expect(this.page.getByTestId('phone-bar')).toBeVisible()
     // The desktop chrome's ghost/primary buttons are simply not mounted.
-    await expect(this.page.getByRole('button', { name: 'My grooves' })).toHaveCount(0)
+    await expect(this.page.getByRole('button', { name: 'My boops' })).toHaveCount(0)
   }
 
   async openPhoneMenu(): Promise<void> {
@@ -462,13 +462,13 @@ export class HomePagePom extends BasePage {
     expect(overflow).toBeLessThanOrEqual(0)
   }
 
-  /** The chrome strip's save icon — saves straight away and shows the grooves panel's "Saved it". */
+  /** The chrome strip's save icon — saves straight away and shows the boops panel's "Saved it". */
   async pressPhoneSave(): Promise<void> {
     await this.page.getByTestId('phone-save-button').click()
   }
 
-  async openGroovesFromPhoneMenu(): Promise<void> {
-    await this.page.getByTestId('phone-menu-my-grooves').click()
+  async openBoopsFromPhoneMenu(): Promise<void> {
+    await this.page.getByTestId('phone-menu-my-boops').click()
   }
 
   async openHintsFromPhoneMenu(): Promise<void> {
@@ -493,14 +493,14 @@ export class HomePagePom extends BasePage {
     expect(covered).toBe(true)
   }
 
-  async verifyGroovesPanelShown(): Promise<void> {
-    await expect(this.page.getByRole('dialog', { name: 'My grooves' })).toBeVisible()
+  async verifyBoopsPanelShown(): Promise<void> {
+    await expect(this.page.getByRole('dialog', { name: 'My boops' })).toBeVisible()
   }
 
   /** The post-save moment the panel opens into, with the generated name ready to overtype. */
   async verifySavedMomentShown(): Promise<string> {
     await expect(this.page.getByText('Saved it')).toBeVisible()
-    return this.page.getByTestId('groove-save-name-input').inputValue()
+    return this.page.getByTestId('boop-save-name-input').inputValue()
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */

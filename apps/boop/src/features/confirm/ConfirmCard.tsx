@@ -14,7 +14,7 @@ interface ConfirmCardProps {
 /**
  * The shared confirm-card shape from the design handoff (docs/reference/boop-design/README.md,
  * "Save, rename, delete, clear, share" — "Both confirms share one shape"):
- * clear-grid (this ticket) and delete-groove (ticket 20) both render this.
+ * clear-grid (this ticket) and delete-boop (ticket 20) both render this.
  * No keyboard-only destructive path — every button here is a real touch target.
  */
 export function ConfirmCard({

@@ -6,7 +6,7 @@ import { test } from './testing/iwftTest.tsx'
 // the permission granted for `navigator.clipboard.readText()`.
 test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
 
-test('sharing copies a link, and opening that link loads the groove ready to play', async ({
+test('sharing copies a link, and opening that link loads the boop ready to play', async ({
   mountApp,
 }) => {
   const first = await mountApp()

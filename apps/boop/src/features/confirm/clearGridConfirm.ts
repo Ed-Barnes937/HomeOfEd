@@ -5,7 +5,7 @@
  */
 export const CLEAR_GRID_CONFIRM = {
   title: 'Clear the whole grid?',
-  message: 'Every step comes off. Saved grooves stay.',
+  message: 'Every step comes off. Saved boops stay.',
   safeLabel: 'Keep playing',
   destructiveLabel: 'Clear it',
 } as const

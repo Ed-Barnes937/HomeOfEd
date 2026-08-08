@@ -21,6 +21,6 @@ test('the demoted "Save the sound as a file" link sits below Share and downloads
   await root.pressExportWav()
   const download = await downloadPromise
 
-  expect(download.suggestedFilename()).toBe('groove.wav')
+  expect(download.suggestedFilename()).toBe('boop.wav')
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
