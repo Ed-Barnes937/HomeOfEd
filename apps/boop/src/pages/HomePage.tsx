@@ -223,34 +223,36 @@ export function HomePage() {
 
   return (
     <main className={styles.stage}>
-      {phone ? (
-        // The phone chrome has no room for the export link (ticket 25) — its
-        // "⋯" menu is My boops / Share / How boop works / Clear grid.
-        <PhoneBar
-          getShareUrl={getShareUrl}
-          onClearGrid={clearAll}
-          onSave={() => setBoopsPanel('saving')}
-          onOpenMyBoops={() => setBoopsPanel('open')}
-          onOpenHints={() => setHintsOpen(true)}
+      <div className={styles.column} data-testid="stage-column">
+        {phone ? (
+          // The phone chrome has no room for the export link (ticket 25) — its
+          // "⋯" menu is My boops / Share / How boop works / Clear grid.
+          <PhoneBar
+            getShareUrl={getShareUrl}
+            onClearGrid={clearAll}
+            onSave={() => setBoopsPanel('saving')}
+            onOpenMyBoops={() => setBoopsPanel('open')}
+            onOpenHints={() => setHintsOpen(true)}
+          />
+        ) : (
+          <TopBar
+            getShareUrl={getShareUrl}
+            onOpenBoops={() => setBoopsPanel('open')}
+            onOpenHints={() => setHintsOpen(true)}
+            onExportWav={exportWav}
+          />
+        )}
+        {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
+        <Transport
+          isPlaying={isPlaying}
+          onToggle={togglePlay}
+          bpm={bpm}
+          onTempoChange={changeTempo}
+          onClearAll={clearAll}
+          showClearGrid={!phone}
         />
-      ) : (
-        <TopBar
-          getShareUrl={getShareUrl}
-          onOpenBoops={() => setBoopsPanel('open')}
-          onOpenHints={() => setHintsOpen(true)}
-          onExportWav={exportWav}
-        />
-      )}
-      {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
-      <Transport
-        isPlaying={isPlaying}
-        onToggle={togglePlay}
-        bpm={bpm}
-        onTempoChange={changeTempo}
-        onClearAll={clearAll}
-        showClearGrid={!phone}
-      />
-      <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+        <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+      </div>
       {boopsPanel !== 'closed' && (
         <BoopsPanel
           onClose={() => setBoopsPanel('closed')}

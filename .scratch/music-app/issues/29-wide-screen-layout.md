@@ -35,9 +35,21 @@ reusable wrapper, not baked once into `.stage`.
 
 **Blocked by:** — (ships first, straight to main)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Column centred above 1440px; layout byte-identical at and below 1440px
-- [ ] Tablet (1024–1279) and phone (<1024) paths untouched
-- [ ] The centring wrapper is reusable by a full-bleed bar aligning to it
-- [ ] Whole-frontend test at 2560×1440 asserting the grid well is centred
+- [x] Column centred above 1440px; layout byte-identical at and below 1440px
+- [x] Tablet (1024–1279) and phone (<1024) paths untouched
+- [x] The centring wrapper is reusable by a full-bleed bar aligning to it
+- [x] Whole-frontend test at 2560×1440 asserting the grid well is centred
+
+## Comments
+
+Resolved 2026-08-08 (agent, Sonnet). Added a `.column` class in
+`HomePage.module.scss` (`max-width: 1356px; margin-inline: auto`) and wrapped
+the existing stack (top bar, grid, transport, preset row) in it inside
+`.stage`, leaving `.stage`'s own padding untouched. `BoopsPanel`/`HintSheet`
+stay outside the wrapper — both are fixed-position overlays already, so
+centring them would be a no-op. New whole-frontend test
+`wideScreenLayout.iwft.tsx` at 2560×1440 asserts equal left/right margins on
+the `stage-column` testid. Full suite green at all breakpoints (51 iwft +
+199 vitest).
