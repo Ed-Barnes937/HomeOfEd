@@ -503,6 +503,22 @@ export class HomePagePom extends BasePage {
     return this.page.getByTestId('boop-save-name-input').inputValue()
   }
 
+  /**
+   * The centring wrapper (ticket 29) leaves equal margins either side of the
+   * fixed-geometry column on a wide screen, instead of pinning it to the left
+   * with all the slack on the right.
+   */
+  async verifyStageColumnCentered(): Promise<void> {
+    const box = await this.page.getByTestId('stage-column').boundingBox()
+    if (!box) throw new Error('the stage column is not visible')
+    const viewportWidth = this.page.viewportSize()?.width
+    if (!viewportWidth) throw new Error('no viewport size')
+    const leftMargin = box.x
+    const rightMargin = viewportWidth - (box.x + box.width)
+    expect(box.width).toBeLessThan(viewportWidth)
+    expect(Math.abs(leftMargin - rightMargin)).toBeLessThanOrEqual(1)
+  }
+
   /** Assert the samples the fake driver has been told to play, in call order. */
   async verifyPlayed(expected: PlayedSample[]): Promise<void> {
     const played = await this.page.evaluate((key) => {

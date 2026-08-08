@@ -35,9 +35,37 @@ reusable wrapper, not baked once into `.stage`.
 
 **Blocked by:** — (ships first, straight to main)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Column centred above 1440px; layout byte-identical at and below 1440px
-- [ ] Tablet (1024–1279) and phone (<1024) paths untouched
-- [ ] The centring wrapper is reusable by a full-bleed bar aligning to it
-- [ ] Whole-frontend test at 2560×1440 asserting the grid well is centred
+- [x] Column centred above 1440px; layout byte-identical at and below 1440px
+- [x] Tablet (1024–1279) and phone (<1024) paths untouched
+- [x] The centring wrapper is reusable by a full-bleed bar aligning to it
+- [x] Whole-frontend test at 2560×1440 asserting the grid well is centred
+
+## Comments
+
+Resolved 2026-08-08 (agent, Sonnet). Added a `.column` class in
+`HomePage.module.scss` (`max-width: var(--column-width); margin-inline: auto`)
+and wrapped the existing stack (top bar, grid, transport, preset row) in it
+inside `.stage`, leaving `.stage`'s own padding untouched. `BoopsPanel`/`HintSheet`
+stay outside the wrapper — both are fixed-position overlays already, so
+centring them would be a no-op. New whole-frontend test
+`wideScreenLayout.iwft.tsx` at 2560×1440 asserts equal left/right margins on
+the `stage-column` testid. Full suite green at all breakpoints (51 iwft +
+199 vitest).
+
+Code review (round 1) flagged that a page-scoped SCSS-module class isn't
+genuinely reusable by ticket 33's future sticky-bar component (its own,
+separate SCSS module, per this repo's one-module-per-component convention) —
+it would have to duplicate the `1356px` value rather than share it. Fixed by
+promoting the number to a `--column-width` custom property in
+`tokens.scss` (matching how radii/shadows/colours are already shared there);
+`.column` now reads `var(--column-width)`, and ticket 33's bar can do the same
+from its own module. Standards review otherwise came back clean (no hard
+violations, two very minor judgement calls noted and left as-is).
+
+Round 2 (both axes, post-fix) came back clean on Standards and Spec — no hard
+violations. Remaining judgement calls left as-is with reasons: the token/wrapper
+isn't speculative generality, it's this ticket's own stated acceptance
+criterion for ticket 33; `--column-width` having no category prefix matches
+other unprefixed tokens already in `tokens.scss` (`--stage`, `--well`, `--ink`).
