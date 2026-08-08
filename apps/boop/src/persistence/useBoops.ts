@@ -10,8 +10,10 @@ export interface UseBoopsResult {
   /**
    * Snapshots `pattern` and `tempo` under `name` — the name the save form was
    * showing at the moment of the press (ticket 32), generated or overtyped.
+   * Returns the row it landed on, read off what is on disk rather than off
+   * local state, so two saves inside one task still get distinct rows.
    */
-  save: (kit: Kit, pattern: Pattern, tempo: number, name: string) => { boop: StoredBoop; index: number }
+  save: (kit: Kit, pattern: Pattern, tempo: number, name: string) => { index: number }
   rename: (index: number, name: string) => void
   remove: (index: number) => void
 }
@@ -33,10 +35,9 @@ export function useBoops(storage: SaveStorage = window.localStorage): UseBoopsRe
   const save = useCallback(
     (kit: Kit, pattern: Pattern, tempo: number, name: string) => {
       const existing = loadSaveDocument(storage).creations
-      const boop = boopFrom(kit, pattern, tempo, name)
-      saveBoop(storage, boop)
+      saveBoop(storage, boopFrom(kit, pattern, tempo, name))
       refresh()
-      return { boop, index: existing.length }
+      return { index: existing.length }
     },
     [storage, refresh],
   )

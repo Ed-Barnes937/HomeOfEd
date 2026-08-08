@@ -129,6 +129,19 @@ test('one press saves exactly one boop; the dialog stays open and the field re-p
   await root.verifyBoopName(1, 'Boop 2')
 })
 
+test('hammering Save still writes exactly one boop', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openBoops()
+  // Both presses land before React can re-prefill the field, so the re-prefill
+  // alone cannot separate them — the duplicate this whole ticket is about.
+  await root.doublePressSave()
+
+  await root.verifyBoopCount(1)
+  await root.verifyBoopName(0, 'Boop 1')
+})
+
 test('Save is blocked only while the name field is empty', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

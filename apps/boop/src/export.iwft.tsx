@@ -2,7 +2,7 @@ import { expect } from '@playwright/experimental-ct-react'
 
 import { test } from './testing/iwftTest.tsx'
 
-test('every saved boop has an Export button that downloads it as a WAV, no modal', async ({
+test('every saved boop has an Export button that downloads it as a WAV', async ({
   mountApp,
 }) => {
   const { root, page } = await mountApp()
@@ -27,6 +27,7 @@ test('every saved boop has an Export button that downloads it as a WAV, no modal
 
   // The row's own name, slugged (ticket 34).
   expect(download.suggestedFilename()).toBe('boop-1.wav')
+  // The dialog stays; exporting raises nothing else on top of it.
   await expect(page.getByRole('dialog')).toHaveCount(1)
 })
 

@@ -59,17 +59,22 @@
   cursor: pointer;
 }
 
-// The always-on save form (ticket 32): the name that will be written, then the
-// button that writes it — the same field/button shapes as the rename row.
-.saveForm {
-  flex: none;
+// The always-on save form (ticket 32) and the row's rename field are one
+// shape, stated once: field + committing button, `gap:9px` (design handoff §5).
+.saveForm,
+.nameField {
   display: flex;
   align-items: center;
   gap: 9px;
+}
+
+.saveForm {
+  flex: none;
   margin-bottom: 12px;
 }
 
-.saveButton {
+.saveButton,
+.doneButton {
   flex: none;
   padding: 13px 18px;
   border: none;
@@ -78,19 +83,13 @@
   font: 800 14px var(--font-display);
   color: #fff;
   cursor: pointer;
-
-  // Only ever disabled by an empty name — visibly so, since a child needs to
-  // see why the button stopped working.
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
 }
 
-.nameField {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+// Save is only ever disabled by an empty name — visibly so, since a child
+// needs to see why the button stopped working.
+.saveButton:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .nameInput {
@@ -106,17 +105,6 @@
   &:focus {
     outline: none;
   }
-}
-
-.doneButton {
-  flex: none;
-  padding: 13px 18px;
-  border: none;
-  border-radius: var(--r-control);
-  background: var(--ink-dark);
-  font: 800 14px var(--font-display);
-  color: #fff;
-  cursor: pointer;
 }
 
 // The one scrolling element in the card (ticket 30).

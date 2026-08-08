@@ -292,6 +292,14 @@ export class HomePagePom extends BasePage {
     return name
   }
 
+  /** Two presses inside one task — the impatient child the whole ticket is about. */
+  async doublePressSave(): Promise<void> {
+    await this.saveBoopButton.evaluate((element: HTMLButtonElement) => {
+      element.click()
+      element.click()
+    })
+  }
+
   /** Overtype the prefilled name before saving. */
   async typeSaveName(name: string): Promise<void> {
     await this.saveNameInput.fill(name)
@@ -323,13 +331,17 @@ export class HomePagePom extends BasePage {
     await expect(this.boopRow(index)).toHaveAttribute('data-highlighted', 'true')
   }
 
+  boopExportButton(index: number) {
+    return this.page.getByTestId(`boop-export-button-${index}`)
+  }
+
   /** Export that saved boop as a WAV — the only export path (ticket 34). */
   async exportBoop(index: number): Promise<void> {
-    await this.page.getByTestId(`boop-export-button-${index}`).click()
+    await this.boopExportButton(index).click()
   }
 
   async verifyBoopExportEnabled(index: number): Promise<void> {
-    await expect(this.page.getByTestId(`boop-export-button-${index}`)).toBeEnabled()
+    await expect(this.boopExportButton(index)).toBeEnabled()
   }
 
   /**
@@ -338,12 +350,10 @@ export class HomePagePom extends BasePage {
    * guard itself rather than the disabled attribute.
    */
   async doubleTapExport(index: number): Promise<void> {
-    await this.page
-      .getByTestId(`boop-export-button-${index}`)
-      .evaluate((element: HTMLButtonElement) => {
-        element.click()
-        element.click()
-      })
+    await this.boopExportButton(index).evaluate((element: HTMLButtonElement) => {
+      element.click()
+      element.click()
+    })
   }
 
   /**

@@ -56,24 +56,38 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
   // save hands the field back to the generator.
   const [typedName, setTypedName] = useState<string | null>(null)
   const name = typedName ?? generateBoopName(boops.boops.map((b) => b.name))
-  const [highlighted, setHighlighted] = useState<number | null>(null)
+  // The saved row wears its highlight for `HIGHLIGHT_MS`. Carries an `id` as
+  // well as the row: saving into the same slot twice (save, delete, save) is a
+  // fresh highlight, and without the id the timer would not restart.
+  const [highlight, setHighlight] = useState<{ index: number; id: number } | null>(null)
   const [exportingIndex, setExportingIndex] = useState<number | null>(null)
   // A phone autofocus would open the keyboard over the list the child just
   // asked to see, for a name they were not going to change (ticket 32).
   const phone = useIsPhone()
 
+  const highlightId = highlight?.id
   useEffect(() => {
-    if (highlighted === null) return
-    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS)
+    if (highlightId === undefined) return
+    const timer = setTimeout(() => setHighlight(null), HIGHLIGHT_MS)
     return () => clearTimeout(timer)
-  }, [highlighted])
+  }, [highlightId])
+
+  // One press, one row — even from a child hammering the button. Two clicks
+  // inside a single task both read the same pre-render `name`, so the
+  // re-prefill cannot separate them; only a ref can, and it is released after
+  // the render that shows what the first press made.
+  const saved = useRef(false)
+  useEffect(() => {
+    saved.current = false
+  })
 
   function handleSave() {
     const trimmed = name.trim()
-    if (trimmed === '') return
+    if (trimmed === '' || saved.current) return
+    saved.current = true
     const { kit, pattern, tempo } = getWorkingSnapshot()
     const { index } = boops.save(kit, pattern, tempo, trimmed)
-    setHighlighted(index)
+    setHighlight({ index, id: (highlight?.id ?? 0) + 1 })
     setTypedName(null)
   }
 
@@ -162,8 +176,8 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
             {boops.boops.map((boop, index) => (
               <div
                 key={index}
-                className={`${styles.row}${highlighted === index ? ` ${styles.rowHighlight}` : ''}`}
-                data-highlighted={highlighted === index}
+                className={`${styles.row}${highlight?.index === index ? ` ${styles.rowHighlight}` : ''}`}
+                data-highlighted={highlight?.index === index}
                 data-testid={`boop-row-${index}`}
               >
                 {editing.kind === 'renaming' && editing.index === index ? (
