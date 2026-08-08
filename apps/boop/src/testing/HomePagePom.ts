@@ -1,4 +1,5 @@
 import { BasePage } from '@hoe/test-kit'
+import type { Locator } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
@@ -294,10 +295,7 @@ export class HomePagePom extends BasePage {
 
   /** Two presses inside one task — the impatient child the whole ticket is about. */
   async doublePressSave(): Promise<void> {
-    await this.saveBoopButton.evaluate((element: HTMLButtonElement) => {
-      element.click()
-      element.click()
-    })
+    await doubleClickInOneTask(this.saveBoopButton)
   }
 
   /** Overtype the prefilled name before saving. */
@@ -326,6 +324,15 @@ export class HomePagePom extends BasePage {
     await expect(this.saveBoopButton).toBeEnabled()
   }
 
+  /**
+   * The row sits inside the scrolled list, not above or below its fold. Not a
+   * whole 1.0: the just-saved row's `boopPop` scales it a little past its own
+   * box mid-animation.
+   */
+  async verifyBoopRowInView(index: number): Promise<void> {
+    await expect(this.boopRow(index)).toBeInViewport({ ratio: 0.9 })
+  }
+
   /** The brief just-saved highlight on the new row (ticket 32). */
   async verifyBoopHighlighted(index: number): Promise<void> {
     await expect(this.boopRow(index)).toHaveAttribute('data-highlighted', 'true')
@@ -350,10 +357,7 @@ export class HomePagePom extends BasePage {
    * guard itself rather than the disabled attribute.
    */
   async doubleTapExport(index: number): Promise<void> {
-    await this.boopExportButton(index).evaluate((element: HTMLButtonElement) => {
-      element.click()
-      element.click()
-    })
+    await doubleClickInOneTask(this.boopExportButton(index))
   }
 
   /**
@@ -597,4 +601,16 @@ export class HomePagePom extends BasePage {
     }, BOOP_AUDIO_DRIVER_KEY)
     expect(played).toEqual(expected)
   }
+}
+
+/**
+ * Both clicks land in a single task, so React has not re-rendered between
+ * them — the impatient double-tap that only a ref guard can stop, as opposed
+ * to two `click()` actions with a round-trip in between.
+ */
+async function doubleClickInOneTask(locator: Locator): Promise<void> {
+  await locator.evaluate((element: HTMLButtonElement) => {
+    element.click()
+    element.click()
+  })
 }

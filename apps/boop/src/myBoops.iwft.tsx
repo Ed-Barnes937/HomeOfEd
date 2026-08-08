@@ -206,6 +206,12 @@ test('a long list scrolls inside the card, with the title still in view', async 
 
   await root.verifyBoopsTitleVisible()
   await root.verifyBoopsListIsTheScroller()
+
+  // The 16th save appends below the fold — a highlight nobody can see is not a
+  // confirmation, so the list scrolls to it.
+  await root.saveBoop()
+  await root.verifyBoopHighlighted(15)
+  await root.verifyBoopRowInView(15)
 })
 
 test('the card is only as tall as its content when there is little to show', async ({ mountApp }) => {

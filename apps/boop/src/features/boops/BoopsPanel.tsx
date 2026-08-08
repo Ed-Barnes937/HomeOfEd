@@ -65,9 +65,14 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
   // asked to see, for a name they were not going to change (ticket 32).
   const phone = useIsPhone()
 
+  // The new row is appended, so on a long list it lands below the fold of the
+  // one scrolling element (ticket 30) — and a highlight nobody sees is not a
+  // confirmation. Bring it into view, then run its timer.
+  const highlightedRow = useRef<HTMLDivElement | null>(null)
   const highlightId = highlight?.id
   useEffect(() => {
     if (highlightId === undefined) return
+    highlightedRow.current?.scrollIntoView({ block: 'nearest' })
     const timer = setTimeout(() => setHighlight(null), HIGHLIGHT_MS)
     return () => clearTimeout(timer)
   }, [highlightId])
@@ -91,12 +96,11 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
     setTypedName(null)
   }
 
-  // The double-tap guard lives in a ref, not in `exportingIndex`: two taps
-  // inside one task both read the pre-render state, so only a ref can stop the
-  // second starting a render of its own. `exportingIndex` is only what greys
-  // the *working* row's button out — the other rows stay lit, since they are
-  // not the thing that is busy; a tap on one of them while a render is in
-  // flight is simply ignored rather than starting a second decode.
+  // A ref for the same reason `saved` above is one — a double-tap has to be
+  // stopped before the re-render. `exportingIndex` is only what greys the
+  // *working* row's button out: the other rows stay lit, since they are not
+  // the thing that is busy, and a tap on one of them mid-render is simply
+  // ignored rather than starting a second decode.
   const exporting = useRef(false)
   function handleExport(index: number, boop: StoredBoop) {
     if (exporting.current) return
@@ -176,6 +180,7 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
             {boops.boops.map((boop, index) => (
               <div
                 key={index}
+                ref={highlight?.index === index ? highlightedRow : null}
                 className={`${styles.row}${highlight?.index === index ? ` ${styles.rowHighlight}` : ''}`}
                 data-highlighted={highlight?.index === index}
                 data-testid={`boop-row-${index}`}
