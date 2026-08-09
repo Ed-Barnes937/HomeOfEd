@@ -56,13 +56,11 @@ export function NewBoopDialog({ activePreset, onSelectPreset, onClose }: NewBoop
               onClick={() => onSelectPreset(preset.id)}
               data-testid={`preset-card-${preset.id}`}
             >
-              <PresetThumbnail rows={preset.rows} tone="paper" />
+              <PresetThumbnail rows={preset.rows} />
               <span className={styles.name}>{preset.name}</span>
             </button>
           ))}
         </div>
-
-        <p className={styles.footer}>Tap one to start. Blank gives you an empty grid.</p>
       </div>
     </div>
   )

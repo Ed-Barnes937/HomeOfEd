@@ -59,9 +59,10 @@
   cursor: pointer;
 }
 
-// Two fixed columns rather than wrapping: the card's width is a clamp, so a
-// wrapping row would pick 2, 3 or 4 across depending on the viewport and the
-// four cards would sit 3 + 1 in between. Cards scroll here, not the card.
+// Two fixed columns rather than wrapping. The card takes its width from this
+// grid, so a wrapping row would have nothing to wrap against on a wide screen
+// and would lay the four cards out in one long line. Cards scroll here, not
+// the card.
 .cards {
   min-height: 0;
   overflow-y: auto;
@@ -125,11 +126,4 @@
   @media (max-width: 1023px) {
     font-size: 12px;
   }
-}
-
-.footer {
-  flex: none;
-  margin: 12px 0 0;
-  font: 400 11.5px/1.5 var(--font-display);
-  color: rgba(20, 38, 42, 0.45);
 }

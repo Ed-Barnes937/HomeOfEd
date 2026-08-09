@@ -24,7 +24,9 @@ import { loadSaveDocument } from './storage.ts'
  * there is no autosave to restore, so rather than an empty grid the app starts
  * from a starter. Like a shared boop it is written straight back to the
  * autosave slot, so a reload shows the same thing rather than re-deciding.
- * A browser with a save document, however empty its grid, is never seeded.
+ * "Never been here" means no *working grid* — `working: null`, which is what a
+ * fresh browser reads as. A browser that has saved boops but no working grid
+ * is seeded too, and rightly: the seed replaces nothing.
  */
 export function useWorkingGrid(
   engine: SequencerEngine | null,
@@ -47,14 +49,17 @@ export function useWorkingGrid(
       // another one degrades safely anyway — rows are matched by instrumentId.
       engine.setPattern(storedToPattern(engine.kit, working.patterns[0]!))
       engine.setTempo(working.tempo)
+      // A shared boop is new state, not restored state: let the first mirror
+      // through so the autosave slot holds it too.
+      if (openedWith) sawFirstMirror.current = true
     } else if (seed) {
       const { pattern: seeded, tempo } = seed(engine.kit)
       engine.setPattern(seeded)
       engine.setTempo(tempo)
+      // Same reasoning — a seeded first visit is written straight back, so a
+      // reload shows it rather than re-deciding.
+      sawFirstMirror.current = true
     }
-    // A shared boop and a first-visit seed are both new state, not restored
-    // state: let the first mirror through so the autosave slot holds it too.
-    if (openedWith || (!working && seed)) sawFirstMirror.current = true
     setRestored(true)
   }, [engine, openedWith, seed])
 

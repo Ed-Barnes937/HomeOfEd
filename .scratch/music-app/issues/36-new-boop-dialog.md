@@ -96,9 +96,10 @@ Resolved 2026-08-09 (agent, Opus). Choices made while building:
    ringed. The ring means "you picked this, just now".
 2. **The starter cards take §4's paper palette**, keeping §1's geometry. The
    dialog reuses "My boops"'s paper shell, where §1's white-on-dark alphas are
-   invisible. Loaded state is §4's `rgba(11,124,145,.1)` + 1.5px ring; the
-   thumbnail uses `PresetThumbnail`'s existing `tone="paper"`, so the dots are
-   flat ink rather than instrument hues.
+   invisible. Loaded state is §4's `rgba(11,124,145,.1)` + 1.5px ring, and the
+   thumbnail's dots are flat ink rather than instrument hues. That leaves
+   `PresetThumbnail` with one tone, so its `tone` prop and the stage variant
+   behind it went with the preset row — nothing rendered them any more.
 3. **Two fixed columns, and the card is `width: fit-content`.** "My boops"'s
    `clamp(352px, 44vw, 560px)` left ~180px of empty margin either side of
    four fixed-width cards, and a wrapping row picked 2, 3 or 4 across

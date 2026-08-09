@@ -162,7 +162,7 @@ export class HomePagePom extends BasePage {
     await this.loadPreset('blank')
   }
 
-  /** Both ring assertions read the card, so the dialog has to be open. */
+  /** This and `verifyPresetNotLoaded` read the card, so the dialog has to be open. */
   async verifyPresetLoaded(presetId: string): Promise<void> {
     await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'true')
   }
@@ -718,14 +718,16 @@ export class HomePagePom extends BasePage {
 
   /**
    * "Fast" clears the phone's New boop button (ticket 36, carried over from
-   * 33). The overlap ticket 37 measured was 23px at 360px, so this asserts the
-   * gap the shrink fix bought back rather than merely that the bar fits.
+   * 33) — the gap the shrink fix bought back, not merely the absence of an
+   * overlap. Ticket 37 measured a 23px overlap at 360px; the bar's own
+   * `gap: 14px` is what should separate them, so anything under 10px means the
+   * tempo block has started losing the argument again.
    */
   async verifyTempoClearsNewBoopButton(): Promise<void> {
     const fast = await this.page.getByText('Fast', { exact: true }).boundingBox()
     const button = await this.newBoopButton.boundingBox()
     if (!fast || !button) throw new Error('the tempo endpoint or the New boop button is not visible')
-    expect(button.x - (fast.x + fast.width)).toBeGreaterThan(0)
+    expect(button.x - (fast.x + fast.width)).toBeGreaterThanOrEqual(10)
   }
 
   /** New boop is a 44px tap target on the phone, like the rest of the chrome. */
