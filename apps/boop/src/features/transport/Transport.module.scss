@@ -5,6 +5,9 @@
   padding: 0 22px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.045);
+  // Ticket 33: the bar is now pinned below the scrolling grid well, so it needs
+  // to read as sitting above it rather than as the last thing in the stack.
+  box-shadow: var(--shadow-transport-bar);
   display: flex;
   align-items: center;
   gap: 26px;
@@ -128,6 +131,10 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  // With New boop in the phone bar (ticket 36) the tempo block has to give way,
+  // and a flex item will not shrink below its content's intrinsic width unless
+  // told to — see `.tempoSlider` (ticket 37: 23px overlap at 360px).
+  min-width: 0;
 }
 
 .tempoEndpoint {
@@ -146,6 +153,14 @@
 
   @media (max-width: 1023px) {
     font-size: 11px;
+
+    &:first-child {
+      width: 28px;
+    }
+
+    &:last-child {
+      width: 24px;
+    }
   }
 }
 
@@ -156,6 +171,10 @@
   -webkit-appearance: none;
   appearance: none;
   flex: 1;
+  // An `<input type="range">` has an intrinsic width, which `flex: 1` alone
+  // will not shrink past — that is what pushed "Fast" into the phone bar's New
+  // boop button (ticket 37).
+  min-width: 0;
   height: 10px;
   border-radius: 5px;
   background: linear-gradient(

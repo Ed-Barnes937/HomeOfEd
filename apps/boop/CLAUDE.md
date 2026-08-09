@@ -58,7 +58,8 @@ src/
                     form (ticket 32), the list, per-row load/rename/delete/export
   features/topbar/  TopBar.tsx (desktop) and PhoneBar.tsx (the 52px strip +
                     "⋯" menu); `useIsPhone.ts` picks between them
-  pages/            HomePage — the whole app: top bar, grid, transport, panels
+  pages/            HomePage — the whole app as a fixed frame (ADR 0030):
+                    pinned chrome, the scrolling grid region, pinned transport
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
                       hues, radii, shadows) + self-hosted Chivo / Chivo Mono
   testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
@@ -132,6 +133,14 @@ share-link snapshot.
   window for the child. Paint vs scroll inside it: the browser owns horizontal
   pans (`touch-action: pan-x`), a tap toggles, and a drag paints only once it
   crosses a cell boundary — see `PhoneGrid.tsx`'s header.
+- **The stage is a fixed frame, and the grid region is the only scroller**
+  ([ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)). `.stage`
+  is a `height: 100dvh` flex column: chrome `flex: none`, the grid region
+  `flex: 1; min-height: 0; overflow-y: auto`, transport `flex: none` and inset
+  to `--column-width` (not full-bleed). Neither bar may scroll away, and the
+  loop map stays under the grid *inside* the scrolling region — never in the
+  bar, or it becomes a second transport. New main-screen content goes in the
+  scrolling region by default.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

@@ -75,3 +75,13 @@ interacts with
       AC noted there
 - [ ] Whole-frontend tests: starter loaded from the dialog; fresh-storage boot
       lands on Wonky Walk; second boot restores what was there
+- [ ] **Carried over from 33** — "Fast" clears the phone New boop button at
+      390px *and* 360px. Ticket 33 landed the shrink fix (`min-width: 0` on
+      `.tempoSlider` and `.tempoTrackRow`, 11px endpoints at 28/24px) but could
+      not verify the clearance, because the button it collides with is this
+      ticket's. Assert the gap once the button is in the bar.
+- [ ] Preset row removal: the frame's horizontal padding lives on the three
+      sections of `.stage`, not on `.stage` itself (ADR 0030), because the
+      preset strip's `-12px` phone bleed would otherwise overflow the scrolling
+      region. Removing the strip does not make that wrong, but it does make it
+      unmotivated — leave it or move it deliberately, don't drift.

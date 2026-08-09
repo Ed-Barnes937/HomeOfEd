@@ -78,6 +78,9 @@
   --shadow-playhead-column: 0 0 0 1px rgba(111, 224, 240, 0.34);
   --shadow-preset-active: inset 0 0 0 2px #6fe0f0;
   --shadow-loop-map-tick: 0 0 8px rgba(111, 224, 240, 0.8);
+  // Not in the handoff's shadow table — the pinned transport (ticket 33) needs
+  // to read as sitting over the scrolling grid well, which the flat bar did not.
+  --shadow-transport-bar: 0 -4px 20px rgba(0, 0, 0, 0.35);
 }
 
 html,

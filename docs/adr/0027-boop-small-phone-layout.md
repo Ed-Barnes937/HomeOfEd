@@ -90,6 +90,13 @@ at `z-index: 30` (its menu at 31) so it clears the grid well, but it is now what
 40, hint sheet 41, confirm card 42 (topmost, since a confirm can be raised from
 inside the boops panel).
 
+> **Amended by [ADR 0030](0030-boop-fixed-frame-one-scroller.md) (ticket 33).**
+> The step window now sits inside a *vertically* scrolling region — the stage
+> became a fixed frame with pinned chrome and a pinned transport. Everything
+> §3 decides is unchanged and is re-verified at a short phone viewport in
+> `stickyBottomBar.iwft.tsx`; the loop map stays inside that scrolling region,
+> under the grid, rather than joining the pinned bar.
+
 ## Consequences
 
 - Playback **never** scrolls the window. The loop map carries the playhead and

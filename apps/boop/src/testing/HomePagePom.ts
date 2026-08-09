@@ -609,6 +609,84 @@ export class HomePagePom extends BasePage {
     expect(Math.abs(leftMargin - rightMargin)).toBeLessThanOrEqual(1)
   }
 
+  // --- The fixed frame (ticket 33) ---
+
+  private readonly stageScroller = this.page.getByTestId('stage-scroller')
+  private readonly transportBar = this.page.getByTestId('transport-bar')
+
+  /**
+   * The grid region scrolls *vertically only*, and the document does not scroll
+   * at all — the whole point of the fixed frame. All three halves matter: a
+   * page that scrolls as well would still scroll the play button away, and
+   * `overflow-y: auto` computes the other axis to `auto` too, so anything wider
+   * than the region's padding box would silently give it a sideways scroll.
+   */
+  async verifyGridRegionIsTheOnlyScroller(): Promise<void> {
+    const region = await this.stageScroller.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+    }))
+    expect(region.scrollHeight).toBeGreaterThan(region.clientHeight)
+    expect(region.scrollWidth).toBeLessThanOrEqual(region.clientWidth)
+
+    const document_ = await this.page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      clientHeight: document.documentElement.clientHeight,
+    }))
+    expect(document_.scrollHeight).toBeLessThanOrEqual(document_.clientHeight + 1)
+  }
+
+  async scrollGridRegionToBottom(): Promise<void> {
+    await this.stageScroller.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
+    await expect
+      .poll(async () => this.stageScroller.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0)
+  }
+
+  /** Whole bar on screen, not merely intersecting it. */
+  async verifyTransportFullyInViewport(): Promise<void> {
+    await expect(this.transportBar).toBeInViewport({ ratio: 1 })
+  }
+
+  async verifyTopBarFullyInViewport(): Promise<void> {
+    await expect(this.page.getByText('boop', { exact: true })).toBeInViewport({ ratio: 1 })
+  }
+
+  /**
+   * The bar is inset to the centred column, not full-bleed — ticket 33's
+   * decision 1, reversed by the layout prototype (ticket 37).
+   */
+  async verifyTransportInsetToColumn(): Promise<void> {
+    const bar = await this.transportBar.boundingBox()
+    const column = await this.page.getByTestId('stage-column').boundingBox()
+    if (!bar || !column) throw new Error('the transport bar or the stage column is not visible')
+    expect(Math.round(bar.x)).toBe(Math.round(column.x))
+    expect(Math.round(bar.width)).toBe(Math.round(column.width))
+  }
+
+  /** Nothing inside the transport spills sideways — the phone tempo block shrinks. */
+  async verifyTransportHasNoOverflow(): Promise<void> {
+    const overflow = await this.transportBar.evaluate(
+      (element) => element.scrollWidth - element.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  }
+
+  /**
+   * The loop map is inside the scrolling region, glued under the grid — it must
+   * never migrate into the pinned bar and become a second transport (ADR 0027).
+   */
+  async verifyLoopMapInsideGridRegion(): Promise<void> {
+    const inside = await this.page
+      .getByTestId('loop-map')
+      .evaluate((element, id) => element.closest(`[data-testid="${id}"]`) !== null, 'stage-scroller')
+    expect(inside).toBe(true)
+  }
+
   /** Assert the samples the fake driver has been told to play, in call order. */
   async verifyPlayed(expected: PlayedSample[]): Promise<void> {
     const played = await this.page.evaluate((key) => {

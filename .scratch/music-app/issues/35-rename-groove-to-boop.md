@@ -52,7 +52,7 @@ copy or identifiers twice.
 
 **Blocked by:** —
 
-**Status:** ready-for-human
+**Status:** resolved
 
 - [x] `CONTEXT.md`'s Boop entry replaces Creation; both old words on its avoid list
 - [x] No user-visible "groove" left; `rg -i groove apps/boop/src` returns only the
