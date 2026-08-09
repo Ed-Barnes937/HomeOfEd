@@ -30,7 +30,7 @@ paper.
 |---|---|---|
 | chrome | `flex: none` | `TopBar` (desktop) or `PhoneBar` (phone) |
 | scroller | `flex: 1; min-height: 0; overflow-y: auto` | the grid well, then the preset row |
-| bars | `flex: none` | `Transport` |
+| transport dock | `flex: none` | `Transport` |
 
 **The grid well's region is the only scrolling region.** `min-height: 0` is
 what allows it to shrink below its content inside the flex column; without it

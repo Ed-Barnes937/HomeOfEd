@@ -7,7 +7,7 @@
   background: rgba(255, 255, 255, 0.045);
   // Ticket 33: the bar is now pinned below the scrolling grid well, so it needs
   // to read as sitting above it rather than as the last thing in the stack.
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-transport-bar);
   display: flex;
   align-items: center;
   gap: 26px;

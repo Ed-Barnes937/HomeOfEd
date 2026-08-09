@@ -142,6 +142,15 @@ scrolling to the bottom, play still working scrolled, ADR 0027's snap/paint/loop
 map at 360 × 640, and the loop map being inside the scrolling region.
 `wideScreenLayout.iwft.tsx` gained the inset-not-full-bleed assertion.
 
+**One number in decision 1 does not match the build, and was left alone.** The
+decision says the bar "keeps today's treatment exactly" and then lists
+`rgba(255,255,255,.075)` — but today's transport background is
+`rgba(255,255,255,.045)`, which is also what the design handoff §1 records as
+final. Ticket 37 repeats the same `.075`. Read as a transcription slip: "keeps
+today's treatment exactly" is the instruction, so the bar is still `.045`. If
+the bar was actually meant to lighten now that it floats over a scrolling grid,
+that is a one-line change — Ed's call.
+
 **The accepted void is real** and looks as ticket 37 described: at 1440 × 1000
 there is roughly 200px of empty stage between the starters and the pinned bar.
 Left alone, per the ticket.

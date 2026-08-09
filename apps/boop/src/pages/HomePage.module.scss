@@ -48,7 +48,7 @@
 // plus the iOS safe area on phone: the bar is inset to the column rather than
 // full-bleed (ticket 37), so its container is what has to clear the home
 // indicator.
-.bars {
+.transportDock {
   flex: none;
   padding-bottom: 32px;
   @include frame-padding;

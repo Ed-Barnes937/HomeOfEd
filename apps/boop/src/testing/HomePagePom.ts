@@ -615,16 +615,21 @@ export class HomePagePom extends BasePage {
   private readonly transportBar = this.page.getByTestId('transport-bar')
 
   /**
-   * The grid region scrolls and the document does not — the whole point of the
-   * fixed frame. Asserting both halves matters: a page that scrolls *as well*
-   * would still scroll the play button away.
+   * The grid region scrolls *vertically only*, and the document does not scroll
+   * at all — the whole point of the fixed frame. All three halves matter: a
+   * page that scrolls as well would still scroll the play button away, and
+   * `overflow-y: auto` computes the other axis to `auto` too, so anything wider
+   * than the region's padding box would silently give it a sideways scroll.
    */
   async verifyGridRegionIsTheOnlyScroller(): Promise<void> {
     const region = await this.stageScroller.evaluate((element) => ({
       scrollHeight: element.scrollHeight,
       clientHeight: element.clientHeight,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
     }))
     expect(region.scrollHeight).toBeGreaterThan(region.clientHeight)
+    expect(region.scrollWidth).toBeLessThanOrEqual(region.clientWidth)
 
     const document_ = await this.page.evaluate(() => ({
       scrollHeight: document.documentElement.scrollHeight,

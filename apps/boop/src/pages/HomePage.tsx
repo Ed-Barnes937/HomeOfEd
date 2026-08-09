@@ -257,7 +257,7 @@ export function HomePage() {
           <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
         </div>
       </div>
-      <div className={styles.bars}>
+      <div className={styles.transportDock}>
         <div className={styles.column}>
           <Transport
             isPlaying={isPlaying}
