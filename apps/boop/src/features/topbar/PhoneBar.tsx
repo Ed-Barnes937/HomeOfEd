@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { hubUrl } from '../../hubUrl.ts'
+import { isUnsaved, type LoadedBoop } from '../../savedState.ts'
 import { useShareBoop } from '../../share/useShareBoop.ts'
 import { CLEAR_GRID_CONFIRM } from '../confirm/clearGridConfirm.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
@@ -21,6 +22,8 @@ export interface PhoneBarProps {
   onOpenMyBoops: () => void
   /** Open the "How boop works" hint sheet (ticket 24). */
   onOpenHints: () => void
+  /** The saved boop this grid came from, or `null` (ticket 31) — drives the save icon's dot. */
+  loaded: LoadedBoop | null
 }
 
 const BackArrowIcon = () => (
@@ -58,6 +61,10 @@ const CheckIcon = () => (
  * the back / save / overflow glyphs are the fridge's `MobileBar` verbatim —
  * copied, never imported, since apps are leaf nodes — so boop's chrome matches
  * the rest of homeofed. Every tap target clears 44px.
+ *
+ * The saved/edited state (ticket 31) rides on the save icon as a dot rather
+ * than as words: the strip is full — back, wordmark, save, "⋯" — and the save
+ * icon is the one spot in the phone chrome that already means "saving".
  */
 export function PhoneBar({
   getShareUrl,
@@ -65,6 +72,7 @@ export function PhoneBar({
   onSave,
   onOpenMyBoops,
   onOpenHints,
+  loaded,
 }: PhoneBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmingClear, setConfirmingClear] = useState(false)
@@ -87,11 +95,20 @@ export function PhoneBar({
       <button
         type="button"
         className={styles.icon}
-        aria-label="Save this boop"
+        // The dot is the sighted half of this; the label carries the same
+        // state for anyone who cannot see it, since the phone has no room for
+        // the desktop bar's words.
+        aria-label={isUnsaved(loaded) ? 'Save this boop' : 'Save this boop (saved)'}
         data-testid="phone-save-button"
         onClick={onSave}
       >
         <SaveIcon />
+        <span
+          className={styles.savedDot}
+          data-unsaved={isUnsaved(loaded)}
+          data-testid="phone-saved-dot"
+          aria-hidden="true"
+        />
       </button>
       <button
         type="button"

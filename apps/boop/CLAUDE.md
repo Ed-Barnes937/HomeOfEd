@@ -67,6 +67,8 @@ src/
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
                       hues, radii, shadows) + self-hosted Chivo / Chivo Mono
   testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
+  savedState.ts     pure: the loaded boop, its label, and the transitions a
+                    save/rename/delete/edit puts it through (ADR 0031)
   *.iwft.tsx        whole-frontend suites via the in-browser backend
 public/fonts/       self-hosted Chivo + Chivo Mono (latin-subset variable woff2)
 public/kits/launch/ the V1 kit: kit.json manifest, placeholder one-shots and
@@ -126,6 +128,15 @@ share-link snapshot.
   grid is seeded with a starter rather than opened empty (ticket 36) — that
   lives in `useWorkingGrid`, beside the restore, and must never need a new
   field or a version bump.
+- **Saved-state visibility** ([ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md)).
+  Because nothing is ever lost, **never add a `beforeunload` guard** — it would
+  warn about nothing, in wording a 6-year-old cannot read. The chrome answers
+  the narrower, true question, "is this boop in My boops?", off the **loaded
+  boop** (`savedState.ts`, and `CONTEXT.md`): words on the desktop bar, a dot on
+  the phone's save icon, a standing ring on the row. "Edited" has one definition
+  app-wide — a cell toggle *or* a tempo change — which is also what drops the
+  starter ring. Identity is the boop's *row*, so every mutation of "My boops"
+  goes through `savedState.ts`'s transitions or the ring lands on the wrong boop.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the
   save format's own validator, cleared with `replaceState` once loaded. One

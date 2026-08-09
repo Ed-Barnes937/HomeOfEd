@@ -133,6 +133,14 @@
   background: rgba(20, 38, 42, 0.04);
 }
 
+// The row the working grid came from (handoff §4, built by ticket 31): the
+// same cyan as the just-saved highlight below, held for as long as that boop
+// is loaded. No animation — it is a standing fact, not an event.
+.rowLoaded {
+  background: rgba(11, 124, 145, 0.1);
+  box-shadow: inset 0 0 0 1.5px rgba(11, 124, 145, 0.5);
+}
+
 // The just-saved row, briefly (ticket 32): the handoff's loaded-row cyan plus
 // one boopPop. It says "that press landed, and this is what it made".
 .rowHighlight {

@@ -16,6 +16,7 @@
 
 // Every tap target clears 44px.
 .icon {
+  position: relative; // the save icon's dot badge anchors to it
   flex: none;
   width: 44px;
   height: 44px;
@@ -31,6 +32,24 @@
   &:focus-visible {
     outline: 2px solid var(--cyan);
     outline-offset: -2px;
+  }
+}
+
+// The saved/edited badge (ticket 31), tucked into the save icon's top-right:
+// filled cyan while this grid is not a row in "My boops" (or has drifted from
+// one), a hollow ring once it is. The strip has no room for the desktop's words.
+.savedDot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cyan);
+  background: transparent;
+
+  &[data-unsaved='true'] {
+    background: var(--cyan);
   }
 }
 

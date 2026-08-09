@@ -98,6 +98,15 @@ save/share.
 - "?" — 44 × 44 circle, `border:1px solid rgba(242,239,230,.2)`, Chivo 800 17px,
   `color:rgba(242,239,230,.8)`.
 
+> **Amended by ticket 31 (V1.1 feedback).** A **saved/edited indicator** sits
+> between the wordmark and the spacer: Chivo 600 13px (12px at ≤1279px),
+> `color:rgba(242,239,230,.5)`, ellipsised rather than allowed to push the
+> buttons about. It reads `Boop 3` while the grid still matches the saved boop
+> it came from, `Boop 3 • edited` once it has diverged, and `Not saved yet`
+> when the grid is not a row in "My boops" at all — a starter, a share link, a
+> cleared grid. It is quiet chrome, not a status bar, and it never warns about
+> losing work: the working grid is autosaved regardless (ADR 0025).
+
 **Grid well.** Two parts: a bar-numeral row, then the grid body.
 
 *Bar-numeral row* — `display:flex; gap:18px; margin-bottom:8px`, preceded by a
@@ -281,6 +290,13 @@ Use the fridge's exact glyphs:
 **Content padding** 12px. **Grid well** radius 16px, `padding:10px`,
 `overflow:hidden`.
 
+> **Amended by ticket 31 (V1.1 feedback).** The **save icon carries a dot
+> badge** — 8px, `top:9px; right:9px` inside its 44px button,
+> `border:1.5px solid var(--cyan)`, filled cyan when the grid is not a row in
+> "My boops" (or has drifted from one) and hollow when it is. The strip has no
+> horizontal room for §1's words, and the save icon is the one spot in the
+> phone chrome that already means "saving".
+
 > **Amended by ticket 33 (V1.1 feedback).** The phone gets §1's fixed frame
 > too: the **52px strip is pinned at the top and the transport at the bottom**,
 > with the grid well (and the "whole loop" map under it) the only scrolling
@@ -399,6 +415,11 @@ radius 12px.
 - Just saved (**amendment, ticket 32**) — for ~1.2s the new row wears the
   currently-loaded treatment (`background:rgba(11,124,145,.1)`, the same inset
   ring) plus one `boopPop`.
+- Currently loaded (**built by ticket 31**) — the treatment above is now driven
+  by real state rather than left unbuilt. The ring is held for as long as that
+  boop is loaded, and carries no animation: it is a standing fact, not an
+  event. A load sets it, a save adopts it, a rename keeps it, a delete moves it
+  up or ends it, and loading a starter or clearing the grid drops it.
 
 Tap the row to load. No cap on saved boops.
 

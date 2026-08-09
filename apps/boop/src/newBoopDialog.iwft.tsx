@@ -49,16 +49,19 @@ test('the loaded ring is internal to the dialog, and drops on the first edit', a
   await root.verifyPresetNotLoaded('robot')
 })
 
-test('the loaded ring survives a tempo change, but drops on clear-all', async ({ mountApp }) => {
+// One definition of "changed" across the app (ticket 31): the ring used to
+// survive a tempo move, and no longer does.
+test('the loaded ring drops on a tempo change, and on clear-all', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
   await root.loadPreset('stomp')
   await root.setTempoPercent(80)
   await root.openNewBoop()
-  await root.verifyPresetLoaded('stomp')
+  await root.verifyPresetNotLoaded('stomp')
   await root.closeNewBoop()
 
+  await root.loadPreset('stomp')
   await root.openClearGridConfirm()
   await root.clearIt()
   await root.openNewBoop()

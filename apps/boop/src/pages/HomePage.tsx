@@ -25,6 +25,7 @@ import { Transport } from '../features/transport/Transport.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
 import { storedToPattern, workingBoop, type StoredBoop } from '../persistence/saveFormat.ts'
 import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
+import { afterEdit, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
 import { useIsPhone } from '../useIsPhone.ts'
@@ -43,16 +44,20 @@ export function HomePage() {
   const [bpm, setBpm] = useState(DEFAULT_BPM)
   // Which starter boop is currently loaded, if any — the loaded card's ring,
   // which since ticket 36 is only ever seen inside the "New boop" dialog.
-  // Drops to `null` on the first edit that isn't itself a preset load: a cell
-  // toggle or clear-all. A tempo change alone does not drop it — nudging the
-  // tempo of the boop you just loaded doesn't stop it being that boop, and the
-  // design ties the ring's drop to "the first edit" of the grid, not the
-  // transport.
+  // Drops to `null` on the first change of any kind: a cell toggle, a tempo
+  // move, or clear-all. Ticket 31 gave the app one definition of "changed"
+  // and this follows it — the old tempo exemption is gone.
   //
   // Not restored on reload, and so deliberately not set by the first-visit
   // seed either: the ring means "you picked this, just now", and a reload of a
   // starter has never carried it.
   const [activePreset, setActivePreset] = useState<PresetId | null>(null)
+  // The saved boop the grid came from, and whether it has since diverged
+  // (ticket 31). `null` — a starter, a share link, a fresh or cleared grid —
+  // reads "Not saved yet": none of those are rows in "My boops". Like
+  // `activePreset` it is not restored on reload; the indicator describes this
+  // session's loading and saving, not the autosave, which never loses anything.
+  const [loaded, setLoaded] = useState<LoadedBoop | null>(null)
   // Bumped on every preset load (including blank) so the grid can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
@@ -96,6 +101,12 @@ export function HomePage() {
     })
   }, [engine, restored])
 
+  /** Everything the app calls a change (ticket 31): a cell toggle and a tempo move alike. */
+  const markEdited = useCallback(() => {
+    setActivePreset(null)
+    setLoaded(afterEdit)
+  }, [])
+
   const toggleCell = useCallback(
     (instrumentId: string, step: number) => {
       if (!engine) return
@@ -103,9 +114,9 @@ export function HomePage() {
       const on = row?.steps[step] !== true
       engine.setCell(instrumentId, step, on)
       setPattern(engine.getPattern())
-      setActivePreset(null)
+      markEdited()
     },
-    [engine],
+    [engine, markEdited],
   )
 
   const loadPreset = useCallback(
@@ -117,6 +128,9 @@ export function HomePage() {
       engine.setTempo(preset.tempo)
       setPattern(engine.getPattern())
       setActivePreset(presetId)
+      // A starter is never a row in "My boops", so it has no identity to
+      // carry — it reads the same as a blank grid (ticket 31).
+      setLoaded(null)
       setLoadToken((token) => token + 1)
       setNewBoopOpen(false)
     },
@@ -151,8 +165,11 @@ export function HomePage() {
     (nextBpm: number) => {
       if (!engine) return
       engine.setTempo(nextBpm)
+      // Tempo is part of a saved boop, so a boop whose tempo you moved really
+      // does differ from the one in the list (ticket 31).
+      markEdited()
     },
-    [engine],
+    [engine, markEdited],
   )
 
   const clearAll = useCallback(() => {
@@ -160,6 +177,9 @@ export function HomePage() {
     engine.setPattern(engine.getPattern().map((row) => ({ ...row, steps: row.steps.map(() => false) })))
     setPattern(engine.getPattern())
     setActivePreset(null)
+    // An empty grid is not a saved boop with things rubbed out — it is nothing,
+    // and reads "Not saved yet".
+    setLoaded(null)
   }, [engine])
 
   /** Read at tap time, so the link always carries the grid as it stands. */
@@ -205,12 +225,14 @@ export function HomePage() {
   )
 
   const loadBoop = useCallback(
-    (boop: StoredBoop) => {
+    (boop: StoredBoop, index: number) => {
       if (!engine) return
       engine.setPattern(storedToPattern(engine.kit, boop.patterns[0]!))
       engine.setTempo(boop.tempo)
       setPattern(engine.getPattern())
       setActivePreset(null)
+      // The grid *is* that row now, and matches it exactly (ticket 31).
+      setLoaded({ index, name: boop.name, edited: false })
       setLoadToken((token) => token + 1)
       setBoopsOpen(false)
     },
@@ -252,12 +274,14 @@ export function HomePage() {
               onSave={() => setBoopsOpen(true)}
               onOpenMyBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
+              loaded={loaded}
             />
           ) : (
             <TopBar
               getShareUrl={getShareUrl}
               onOpenBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
+              loaded={loaded}
             />
           )}
         </div>
@@ -289,6 +313,8 @@ export function HomePage() {
           onLoad={loadBoop}
           getWorkingSnapshot={getWorkingSnapshot}
           onExport={exportBoop}
+          loaded={loaded}
+          onLoadedChange={setLoaded}
         />
       )}
       {newBoopOpen && (
