@@ -11,6 +11,9 @@ test('sharing copies a link, and opening that link loads the boop ready to play'
 }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
+  // A fresh browser is seeded with a starter (ticket 36); share exactly the two
+  // cells this test paints, not a starter plus two.
+  await first.root.startBlank()
 
   await first.root.toggleCell('kick', 0)
   await first.root.toggleCell('snare', 4)
@@ -55,9 +58,10 @@ test('the "Copied!" flip reverts on its own, leaving no modal or link field behi
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('a mangled link opens an empty grid rather than an error', async ({ mountApp }) => {
+test('a mangled link opens like a first visit rather than an error', async ({ mountApp }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
+  await first.root.startBlank()
 
   // Truncated mid-token rather than obvious junk: a real link, mangled the way
   // a chat app wrapping a long URL would mangle it.
@@ -71,7 +75,11 @@ test('a mangled link opens an empty grid rather than an error', async ({ mountAp
   const { root } = await mountApp()
 
   await root.verifyIsShown()
-  await root.verifyCellOff('kick', 0)
+  // Nothing decodable in the fragment and nothing in this browser's storage, so
+  // the visitor is simply new: they get the first-visit starter (ticket 36),
+  // not an error and not a void.
+  await root.verifyCellOn('kick', 0)
+  await root.verifyCellOn('kick', 6)
   await root.verifyCellOff('boop', 15)
-  await root.verifyTempo(100)
+  await root.verifyTempo(92)
 })

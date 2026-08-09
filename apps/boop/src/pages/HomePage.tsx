@@ -12,8 +12,13 @@ import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
-import { PresetRow } from '../features/presets/PresetRow.tsx'
-import { PRESETS, presetPattern, type PresetId } from '../features/presets/presets.ts'
+import { NewBoopDialog } from '../features/presets/NewBoopDialog.tsx'
+import {
+  firstVisitSeed,
+  PRESETS,
+  presetPattern,
+  type PresetId,
+} from '../features/presets/presets.ts'
 import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
@@ -36,12 +41,17 @@ export function HomePage() {
   const [pattern, setPattern] = useState<Pattern | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [bpm, setBpm] = useState(DEFAULT_BPM)
-  // Which starter boop is currently loaded, if any — the loaded card's ring
-  // (ticket 22). Drops to `null` on the first edit that isn't itself a preset
-  // load: a cell toggle or clear-all. A tempo change alone does not drop it —
-  // nudging the tempo of the boop you just loaded doesn't stop it being
-  // that boop, and the design ties the ring's drop to "the first edit" of
-  // the grid, not the transport.
+  // Which starter boop is currently loaded, if any — the loaded card's ring,
+  // which since ticket 36 is only ever seen inside the "New boop" dialog.
+  // Drops to `null` on the first edit that isn't itself a preset load: a cell
+  // toggle or clear-all. A tempo change alone does not drop it — nudging the
+  // tempo of the boop you just loaded doesn't stop it being that boop, and the
+  // design ties the ring's drop to "the first edit" of the grid, not the
+  // transport.
+  //
+  // Not restored on reload, and so deliberately not set by the first-visit
+  // seed either: the ring means "you picked this, just now", and a reload of a
+  // starter has never carried it.
   const [activePreset, setActivePreset] = useState<PresetId | null>(null)
   // Bumped on every preset load (including blank) so the grid can stagger the
   // cells landing across columns instead of popping in all at once.
@@ -50,6 +60,9 @@ export function HomePage() {
   // opens the same panel: since ticket 32 the save form is always on and
   // prefilled, so "open it" *is* "get ready to save".
   const [boopsOpen, setBoopsOpen] = useState(false)
+  // The starters (ticket 36) — off the main screen, behind the bottom bar's
+  // "New boop" button.
+  const [newBoopOpen, setNewBoopOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
@@ -65,7 +78,7 @@ export function HomePage() {
 
   // Autosave restores into the engine first; the mirror below waits for it, so
   // it reads the restored pattern and tempo rather than the empty grid.
-  const restored = useWorkingGrid(engine, pattern, bpm, sharedBoop.current)
+  const restored = useWorkingGrid(engine, pattern, bpm, sharedBoop.current, firstVisitSeed)
 
   useEffect(() => {
     if (sharedBoop.current) clearShareHash(window.location, window.history)
@@ -105,6 +118,7 @@ export function HomePage() {
       setPattern(engine.getPattern())
       setActivePreset(presetId)
       setLoadToken((token) => token + 1)
+      setNewBoopOpen(false)
     },
     [engine],
   )
@@ -254,7 +268,6 @@ export function HomePage() {
               under the grid inside this region rather than joining the pinned
               bar and becoming a second transport (ADR 0027). */}
           {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
-          <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
         </div>
       </div>
       <div className={styles.transportDock}>
@@ -265,6 +278,7 @@ export function HomePage() {
             bpm={bpm}
             onTempoChange={changeTempo}
             onClearAll={clearAll}
+            onNewBoop={() => setNewBoopOpen(true)}
             showClearGrid={!phone}
           />
         </div>
@@ -275,6 +289,13 @@ export function HomePage() {
           onLoad={loadBoop}
           getWorkingSnapshot={getWorkingSnapshot}
           onExport={exportBoop}
+        />
+      )}
+      {newBoopOpen && (
+        <NewBoopDialog
+          activePreset={activePreset}
+          onSelectPreset={loadPreset}
+          onClose={() => setNewBoopOpen(false)}
         />
       )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />

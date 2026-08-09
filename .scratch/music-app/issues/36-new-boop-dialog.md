@@ -61,27 +61,56 @@ placement AC noted as superseded.
 **Blocked by:** 33 — the bottom bar the button lives in; 31 — the indicator it
 interacts with
 
-**Status:** ready-for-agent (after 33)
+**Status:** resolved
 
-- [ ] "New boop" button in the bottom bar, desktop and phone, opens the dialog
-- [ ] Four starter cards in the fixed order, Blank first, handoff geometry
-- [ ] Picking a card loads it and closes the dialog; the loaded-card ring is
+- [x] "New boop" button in the bottom bar, desktop and phone, opens the dialog
+- [x] Four starter cards in the fixed order, Blank first, handoff geometry
+- [x] Picking a card loads it and closes the dialog; the loaded-card ring is
       internal to the dialog
-- [ ] Preset row gone from the main screen
-- [ ] A fresh browser (no `working`) is seeded with Wonky Walk and autosaves it;
+- [x] Preset row gone from the main screen
+- [x] A fresh browser (no `working`) is seeded with Wonky Walk and autosaves it;
       a returning browser is never re-seeded
-- [ ] Save-format shape and version untouched
-- [ ] Handoff amended; spec onboarding paragraph amended; ticket 22's superseded
+- [x] Save-format shape and version untouched
+- [x] Handoff amended; spec onboarding paragraph amended; ticket 22's superseded
       AC noted there
-- [ ] Whole-frontend tests: starter loaded from the dialog; fresh-storage boot
+- [x] Whole-frontend tests: starter loaded from the dialog; fresh-storage boot
       lands on Wonky Walk; second boot restores what was there
-- [ ] **Carried over from 33** — "Fast" clears the phone New boop button at
+- [x] **Carried over from 33** — "Fast" clears the phone New boop button at
       390px *and* 360px. Ticket 33 landed the shrink fix (`min-width: 0` on
       `.tempoSlider` and `.tempoTrackRow`, 11px endpoints at 28/24px) but could
       not verify the clearance, because the button it collides with is this
       ticket's. Assert the gap once the button is in the bar.
-- [ ] Preset row removal: the frame's horizontal padding lives on the three
+- [x] Preset row removal: the frame's horizontal padding lives on the three
       sections of `.stage`, not on `.stage` itself (ADR 0030), because the
       preset strip's `-12px` phone bleed would otherwise overflow the scrolling
       region. Removing the strip does not make that wrong, but it does make it
       unmotivated — leave it or move it deliberately, don't drift.
+
+## Comments
+
+Resolved 2026-08-09 (agent, Opus). Choices made while building:
+
+1. **The seed does not light the dialog's ring.** `activePreset` has never
+   survived a reload, so a seeded first visit behaves exactly like reloading
+   onto a starter you loaded yesterday: the grid is Wonky Walk, no card is
+   ringed. The ring means "you picked this, just now".
+2. **The starter cards take §4's paper palette**, keeping §1's geometry. The
+   dialog reuses "My boops"'s paper shell, where §1's white-on-dark alphas are
+   invisible. Loaded state is §4's `rgba(11,124,145,.1)` + 1.5px ring; the
+   thumbnail uses `PresetThumbnail`'s existing `tone="paper"`, so the dots are
+   flat ink rather than instrument hues.
+3. **Two fixed columns, and the card is `width: fit-content`.** "My boops"'s
+   `clamp(352px, 44vw, 560px)` left ~180px of empty margin either side of
+   four fixed-width cards, and a wrapping row picked 2, 3 or 4 across
+   depending on the viewport, landing them 3 + 1.
+4. **The shell CSS is restated, not shared.** Each feature owns its SCSS module
+   in this app and there is no `@use` partial anywhere in the repo; a two-dialog
+   shell did not justify inventing that convention. Extract on the third dialog.
+5. **A mangled share link now opens on the seed**, not an empty grid — nothing
+   decodable in the fragment and nothing in storage *is* a first visit.
+   `share.iwft` was updated to assert that.
+6. **Every .iwft suite that assumed an empty opening grid now says where it
+   starts**, via a new `root.startBlank()` — New boop → Blank, the two taps a
+   child would use, rather than faking storage. `stickyBottomBar`'s phone
+   viewport dropped 640 → 560 tall: without the preset row the grid fits a
+   640px window, and a suite about scrolling needs something that does not fit.

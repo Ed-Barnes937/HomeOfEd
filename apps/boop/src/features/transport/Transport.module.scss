@@ -230,6 +230,66 @@
   }
 }
 
+// The right-hand action group (ticket 36): New boop, then the divider and
+// Clear grid. `margin-left: auto` sits here rather than on Clear grid, so the
+// group stays together when Clear grid is in the "⋯" menu instead.
+.actions {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+
+  @media (max-width: 1023px) {
+    gap: 0;
+  }
+}
+
+// The top bar's ghost treatment (design handoff §1) — New boop opens a
+// dialog, so it is chrome, not the coral warning shape Clear grid wears.
+.newBoop {
+  flex: none;
+  padding: 12px 18px;
+  border: 1px solid rgba(242, 239, 230, 0.2);
+  border-radius: var(--r-control);
+  background: transparent;
+  font: 700 14px var(--font-display);
+  color: rgba(242, 239, 230, 0.8);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  // Phone: a 44px square "+" beside the tempo block. The label would cost the
+  // slider ~80px of track on a 360px screen.
+  @media (max-width: 1023px) {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+  }
+}
+
+.newBoopGlyph {
+  display: none;
+
+  @media (max-width: 1023px) {
+    display: block;
+  }
+}
+
+.newBoopLabel {
+  @media (max-width: 1023px) {
+    display: none;
+  }
+}
+
 .divider {
   flex: none;
   width: 1px;
@@ -241,7 +301,6 @@
 // top" (design handoff, "Transport bar" — Clear grid).
 .clear {
   flex: none;
-  margin-left: auto;
   padding: 12px 18px;
   border-radius: 9px;
   border: 1px dashed rgba(255, 138, 122, 0.55);

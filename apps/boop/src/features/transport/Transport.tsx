@@ -11,6 +11,8 @@ interface TransportProps {
   bpm: number
   onTempoChange: (bpm: number) => void
   onClearAll: () => void
+  /** Opens the "New boop" dialog (ticket 36) — the only way to reach the starters. */
+  onNewBoop: () => void
   /**
    * Whether Clear grid (and its divider) belong to this bar. False on the
    * phone, where the action lives in the "⋯" menu instead — design handoff:
@@ -33,6 +35,7 @@ export function Transport({
   bpm,
   onTempoChange,
   onClearAll,
+  onNewBoop,
   showClearGrid = true,
 }: TransportProps) {
   const percent = bpmToPercent(bpm)
@@ -84,19 +87,36 @@ export function Transport({
           <span className={styles.tempoEndpoint}>Fast</span>
         </div>
       </div>
-      {showClearGrid && (
-        <>
-          <div className={styles.divider} aria-hidden="true" />
-          <button
-            type="button"
-            className={styles.clear}
-            onClick={() => setConfirmingClear(true)}
-            data-testid="clear-grid-button"
-          >
-            Clear grid
-          </button>
-        </>
-      )}
+      {/* The bar's actions, pushed right as one group. On the phone that is
+          New boop alone: Clear grid lives in the "⋯" menu, and the button
+          shrinks to a 44px "+" so the tempo block keeps its track. */}
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.newBoop}
+          onClick={onNewBoop}
+          aria-label="New boop"
+          data-testid="new-boop-button"
+        >
+          <span className={styles.newBoopLabel}>New boop</span>
+          <span className={styles.newBoopGlyph} aria-hidden="true">
+            +
+          </span>
+        </button>
+        {showClearGrid && (
+          <>
+            <div className={styles.divider} aria-hidden="true" />
+            <button
+              type="button"
+              className={styles.clear}
+              onClick={() => setConfirmingClear(true)}
+              data-testid="clear-grid-button"
+            >
+              Clear grid
+            </button>
+          </>
+        )}
+      </div>
       {confirmingClear && (
         <ConfirmCard
           {...CLEAR_GRID_CONFIRM}

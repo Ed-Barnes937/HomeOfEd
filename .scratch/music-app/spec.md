@@ -136,12 +136,25 @@ screens.
 - **No guided tour** (revised after the
   [prior-art survey](issues/10-prior-art-research.md): zero of twelve
   surveyed products ships one — content does the onboarding everywhere).
-- **Starter grooves:** a visible row of 3–4 named preset grooves, with the
-  **blank canvas presented as the first item** in that row (Groove Pizza's
-  pattern). Loading a preset drops it in the grid ready to play and tweak —
-  "now make it yours" is implicit.
+- **Starter grooves:** 3–4 named preset grooves, with the **blank canvas
+  presented first** among them (Groove Pizza's pattern). Loading a preset
+  drops it in the grid ready to play and tweak — "now make it yours" is
+  implicit.
 - The app opens on an **empty grid** with the preset row visible (no
   first-load seeding).
+
+  > **Amended by ticket 36 (V1.1 feedback).** Both halves of that sentence
+  > change, together. The starters now live behind a **"New boop" dialog**
+  > opened from the bottom bar, not in a row on the main screen — so an empty
+  > opening grid would be a void with no suggestion in sight. Instead a
+  > browser with no autosaved working grid **is seeded with `Wonky Walk`**,
+  > the first non-blank starter, and that seed autosaves like any other load.
+  > A browser that has been here before is never re-seeded, however empty its
+  > grid. This keeps the principle above — content onboards, no tour, no modal
+  > — and changes nothing about the save format. Blank stays first in the
+  > dialog: not because nobody may meet a void any more, but because "New boop
+  > → Blank" is the discoverable way to start fresh, while "Clear grid" is the
+  > destructive-feeling one.
 - An optional **"?"** opens a single static hint sheet (one screen, few
   words). No tooltips machinery, no forced steps.
 - Education is carried by vocabulary and structure only: "Tempo" + live BPM

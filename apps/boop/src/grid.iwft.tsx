@@ -1,8 +1,12 @@
 import { test } from './testing/iwftTest.tsx'
 
+// A fresh browser is seeded with a starter (ticket 36), so every test here
+// that cares about the grid it starts from says so: New boop -> Blank, the
+// same two taps a child would use.
 test('renders the 6x16 grid, empty', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
   await root.verifyCellOff('kick', 0)
   await root.verifyCellOff('boop', 15)
 })
@@ -10,6 +14,7 @@ test('renders the 6x16 grid, empty', async ({ mountApp }) => {
 test('tapping a cell toggles it on, tapping again toggles it off', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
 
   await root.toggleCell('snare', 4)
   await root.verifyCellOn('snare', 4)
@@ -23,6 +28,7 @@ test('pressing play satisfies the gesture-gated audio start and loops what is on
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
   await root.verifyPaused()
 
   await root.pressPlay()
@@ -38,6 +44,7 @@ test('edits made while playing are heard on the next pass, not the current one',
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
 
   await root.pressPlay()
   await root.verifyPlaying()
@@ -117,6 +124,7 @@ test('clear-all is reachable by touch, behind a confirm, and never fires without
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
 
   await root.toggleCell('kick', 0)
   await root.toggleCell('snare', 5)
@@ -142,6 +150,7 @@ test('the grid and tempo are autosaved, and a reload brings them back', async ({
 }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
+  await first.root.startBlank()
 
   await first.root.toggleCell('snare', 4)
   await first.root.toggleCell('kick', 0)
@@ -164,6 +173,7 @@ test('the tempo slider starts at the default 100 BPM and changes the loop speed 
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
   await root.verifyTempo(100)
 
   await root.pressPlay()

@@ -41,7 +41,8 @@ src/
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
     autosave.ts       debounced (2 s lull) writer of the working grid
-    useWorkingGrid.ts hook: restore on mount, autosave on edit, flush on pagehide
+    useWorkingGrid.ts hook: restore on mount, autosave on edit, flush on
+                      pagehide, and seed a first visit (ticket 36)
   export/           WAV export: offline render → PCM mix → WAV encode, plus the
                     share-sheet/download action and the slugged filename. Pure
                     but for `sampleDecoder.ts`, the AudioContext seam.
@@ -56,6 +57,9 @@ src/
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export
+  features/presets/ the four starters as pure data (presets.ts, incl. the
+                    first-visit seed) + NewBoopDialog.tsx, opened from the
+                    transport bar's "New boop" button (ticket 36)
   features/topbar/  TopBar.tsx (desktop) and PhoneBar.tsx (the 52px strip +
                     "⋯" menu); `useIsPhone.ts` picks between them
   pages/            HomePage — the whole app as a fixed frame (ADR 0030):
@@ -118,7 +122,10 @@ share-link snapshot.
   the autosaved working grid and the "My boops" list. Anything that persists
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
-  data reads as an empty grid, never an error.
+  data reads as an empty grid, never an error. A browser with **no** working
+  grid is seeded with a starter rather than opened empty (ticket 36) — that
+  lives in `useWorkingGrid`, beside the restore, and must never need a new
+  field or a version bump.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the
   save format's own validator, cleared with `replaceState` once loaded. One

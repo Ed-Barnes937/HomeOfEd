@@ -1,8 +1,12 @@
 // The frame's horizontal padding, from the design handoff's per-breakpoint
 // frame padding. It sits on each of the three frame sections rather than on
-// `.stage`, so the preset row's phone full-bleed strip (a `-12px` margin) still
-// bleeds into padding that belongs to the scrolling region, instead of
-// overflowing it and giving the region a sideways scroll of its own.
+// `.stage`. That was originally forced: the preset row's phone full-bleed
+// strip (a `-12px` margin) had to bleed into padding belonging to the
+// scrolling region rather than overflow it. Ticket 36 took the strip off the
+// main screen, so the constraint is gone — but per-section padding is still
+// what keeps the two pinned bars aligned with the scrolling grid, and it is
+// where the transport's `padding-bottom` safe-area inset lives (ADR 0030).
+// Left deliberately, not by drift.
 @mixin frame-padding {
   padding-inline: 36px;
 

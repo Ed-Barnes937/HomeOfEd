@@ -11,6 +11,9 @@ test('the whole 6x16 grid is still there on a phone — the rail is pinned and t
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.verifyPhoneChromeShown()
+  // A fresh browser is seeded with a starter (ticket 36); this suite is about
+  // the layout, so it starts from a known-empty grid — New boop -> Blank.
+  await root.startBlank()
 
   // Nothing is dropped: the first and last cell of the first and last row all
   // exist, even though only ~7 columns fit on screen at once.
@@ -28,6 +31,7 @@ test('swiping to bars 3-4 snaps to the bar line, and a cell painted there stays 
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
   await root.verifyStepWindowAt(0)
   await root.verifyLoopWindowBracketAt(0)
 
@@ -49,6 +53,7 @@ test('the loop map tracks the playhead, and playback never yanks the scroll posi
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
 
   await root.toggleCell('kick', 0)
   await root.swipeSteps(300)
@@ -164,6 +169,7 @@ test("the chrome strip's save icon opens \"My boops\" with the save form ready",
 test('clearing the grid from the "⋯" menu still goes through the confirm', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.startBlank()
 
   await root.toggleCell('kick', 0)
   await root.verifyCellOn('kick', 0)
