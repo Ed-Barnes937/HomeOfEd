@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { Kit, Pattern } from '../../engine/sequencerEngine.ts'
 import type { StoredBoop, StoredPattern } from '../../persistence/saveFormat.ts'
 import { useBoops } from '../../persistence/useBoops.ts'
+import { useIsPhone } from '../../useIsPhone.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import { PresetThumbnail } from '../presets/PresetThumbnail.tsx'
+import { generateBoopName } from './boopNames.ts'
 import styles from './BoopsPanel.module.scss'
 
 interface BoopsPanelProps {
@@ -13,18 +15,17 @@ interface BoopsPanelProps {
   onLoad: (boop: StoredBoop) => void
   /** Read at tap time (Save button), not render time — see `TopBar`'s `getShareUrl` for the same reasoning. */
   getWorkingSnapshot: () => { kit: Kit; pattern: Pattern; tempo: number }
-  /**
-   * Open straight into the "Saved it" moment, having already saved — the phone
-   * chrome's save icon (ticket 27), which has nowhere of its own to show it.
-   */
-  saveOnOpen?: boolean
+  /** Renders one saved boop to a WAV and hands it to the share sheet or a download (ticket 34). */
+  onExport: (boop: StoredBoop) => Promise<void>
 }
 
 type Editing =
   | { kind: 'none' }
-  | { kind: 'saved'; index: number; name: string }
   | { kind: 'renaming'; index: number; name: string }
   | { kind: 'deleting'; index: number }
+
+/** How long the freshly saved row keeps its highlight (ticket 32). */
+const HIGHLIGHT_MS = 1200
 
 /** One row's dots, read off its bitstrings — position only, matching `PresetThumbnail`'s shape. */
 function thumbnailRows(pattern: StoredPattern) {
@@ -34,38 +35,89 @@ function thumbnailRows(pattern: StoredPattern) {
 }
 
 /**
- * "My boops" (design handoff §4): a light paper card opened from the top
- * bar. Lists saved boops with a dot-matrix thumbnail, rename and delete
- * icon buttons; tapping a row loads it. Save snapshots the working grid
- * immediately under a generated name and shows the "Saved it" moment (§5) —
- * the field it puts focus in is a rename, not a gate, since the save has
- * already happened.
+ * "My boops" (design handoff §4): a light paper card opened from the top bar.
+ * Reads title, save form, list, footer note.
+ *
+ * The save form is always on and always prefilled with the generated name
+ * (ticket 32), so saving stays one tap with no keyboard; Save is blocked only
+ * while the field is empty. After a save the dialog stays open, the new row is
+ * briefly highlighted, and the field re-prefills with the *next* name — the box
+ * therefore always holds the name the next press will write, which is what
+ * stops a second press duplicating the first.
+ *
+ * Each row loads on tap and carries rename, delete and export icon buttons.
  */
-export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }: BoopsPanelProps) {
+export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: BoopsPanelProps) {
   const boops = useBoops()
   const [editing, setEditing] = useState<Editing>({ kind: 'none' })
+  // `null` means "nobody has typed": the field then *derives* its name from the
+  // list, so it stays the name the next save will write however the list moves
+  // — after a save, a delete, or a rename. Typing pins a name until the next
+  // save hands the field back to the generator.
+  const [typedName, setTypedName] = useState<string | null>(null)
+  const name = typedName ?? generateBoopName(boops.boops.map((b) => b.name))
+  // The saved row wears its highlight for `HIGHLIGHT_MS`. Carries an `id` as
+  // well as the row: saving into the same slot twice (save, delete, save) is a
+  // fresh highlight, and without the id the timer would not restart.
+  const [highlight, setHighlight] = useState<{ index: number; id: number } | null>(null)
+  const [exportingIndex, setExportingIndex] = useState<number | null>(null)
+  // A phone autofocus would open the keyboard over the list the child just
+  // asked to see, for a name they were not going to change (ticket 32).
+  const phone = useIsPhone()
+
+  // The new row is appended, so on a long list it lands below the fold of the
+  // one scrolling element (ticket 30) — and a highlight nobody sees is not a
+  // confirmation. Bring it into view, then run its timer.
+  const highlightedRow = useRef<HTMLDivElement | null>(null)
+  const highlightId = highlight?.id
+  useEffect(() => {
+    if (highlightId === undefined) return
+    highlightedRow.current?.scrollIntoView({ block: 'nearest' })
+    const timer = setTimeout(() => setHighlight(null), HIGHLIGHT_MS)
+    return () => clearTimeout(timer)
+  }, [highlightId])
+
+  // One press, one row — even from a child hammering the button. Two clicks
+  // inside a single task both read the same pre-render `name`, so the
+  // re-prefill cannot separate them; only a ref can, and it is released after
+  // the render that shows what the first press made.
+  const saved = useRef(false)
+  useEffect(() => {
+    saved.current = false
+  })
 
   function handleSave() {
+    const trimmed = name.trim()
+    if (trimmed === '' || saved.current) return
+    saved.current = true
     const { kit, pattern, tempo } = getWorkingSnapshot()
-    const { boop, index } = boops.save(kit, pattern, tempo)
-    setEditing({ kind: 'saved', index, name: boop.name })
+    const { index } = boops.save(kit, pattern, tempo, trimmed)
+    setHighlight({ index, id: (highlight?.id ?? 0) + 1 })
+    setTypedName(null)
   }
 
-  // Saves once per mount, guarded by a ref rather than by the dependency list:
-  // StrictMode runs the effect twice, and a second `save` would write a
-  // duplicate boop. `handleSave` is left out of the deps for the same reason
-  // — it is rebuilt every render, and re-running it is exactly what we don't
-  // want. The panel is unmounted on close (`HomePage`), so "once per mount" is
-  // once per time the save icon is tapped.
-  const savedOnOpen = useRef(false)
-  useEffect(() => {
-    if (saveOnOpen !== true || savedOnOpen.current) return
-    savedOnOpen.current = true
-    handleSave()
-  }, [saveOnOpen])
+  // A ref for the same reason `saved` above is one — a double-tap has to be
+  // stopped before the re-render. `exportingIndex` is only what greys the
+  // *working* row's button out: the other rows stay lit, since they are not
+  // the thing that is busy, and a tap on one of them mid-render is simply
+  // ignored rather than starting a second decode.
+  const exporting = useRef(false)
+  function handleExport(index: number, boop: StoredBoop) {
+    if (exporting.current) return
+    exporting.current = true
+    setExportingIndex(index)
+    void (async () => {
+      try {
+        await onExport(boop)
+      } finally {
+        exporting.current = false
+        setExportingIndex(null)
+      }
+    })()
+  }
 
-  function commitRename(index: number, name: string) {
-    const trimmed = name.trim()
+  function commitRename(index: number, newName: string) {
+    const trimmed = newName.trim()
     if (trimmed !== '') boops.rename(index, trimmed)
     setEditing({ kind: 'none' })
   }
@@ -98,35 +150,45 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }: 
             </button>
           </div>
 
-          {editing.kind === 'saved' ? (
-            <div className={styles.savedMoment}>
-              <p className={styles.savedTitle}>Saved it</p>
-              <NameField
-                initialName={editing.name}
-                onDone={(name) => commitRename(editing.index, name)}
-                testId="boop-save-name"
-              />
-              <p className={styles.savedHelper}>Already saved. Type a new name if you want one.</p>
-            </div>
-          ) : (
+          <form
+            className={styles.saveForm}
+            onSubmit={(event) => {
+              event.preventDefault()
+              handleSave()
+            }}
+          >
+            <input
+              className={styles.nameInput}
+              value={name}
+              onChange={(event) => setTypedName(event.target.value)}
+              aria-label="Name for this boop"
+              autoFocus={!phone}
+              data-testid="boop-save-name-input"
+            />
             <button
-              type="button"
+              type="submit"
               className={styles.saveButton}
-              onClick={handleSave}
+              disabled={name.trim() === ''}
               data-testid="save-boop-button"
             >
               Save this boop
             </button>
-          )}
+          </form>
 
-          <div className={styles.list}>
+          <div className={styles.list} data-testid="boops-list">
             {boops.boops.length === 0 && <p className={styles.empty}>No boops saved yet.</p>}
             {boops.boops.map((boop, index) => (
-              <div key={index} className={styles.row} data-testid={`boop-row-${index}`}>
+              <div
+                key={index}
+                ref={highlight?.index === index ? highlightedRow : null}
+                className={`${styles.row}${highlight?.index === index ? ` ${styles.rowHighlight}` : ''}`}
+                data-highlighted={highlight?.index === index}
+                data-testid={`boop-row-${index}`}
+              >
                 {editing.kind === 'renaming' && editing.index === index ? (
                   <NameField
                     initialName={editing.name}
-                    onDone={(name) => commitRename(index, name)}
+                    onDone={(newName) => commitRename(index, newName)}
                     testId={`boop-rename-${index}`}
                   />
                 ) : (
@@ -157,6 +219,17 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, saveOnOpen }: 
                       data-testid={`boop-delete-button-${index}`}
                     >
                       <BinIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={() => handleExport(index, boop)}
+                      disabled={exportingIndex === index}
+                      aria-label={`Export ${boop.name}`}
+                      data-exporting={exportingIndex === index}
+                      data-testid={`boop-export-button-${index}`}
+                    >
+                      <DownloadIcon />
                     </button>
                   </>
                 )}
@@ -191,7 +264,7 @@ interface NameFieldProps {
   testId: string
 }
 
-/** The focused rename field + "Done" button shared by the save moment and row rename (design handoff §5). */
+/** The focused rename field + "Done" button a row switches to when the pencil is tapped (design handoff §5). */
 function NameField({ initialName, onDone, testId }: NameFieldProps) {
   const [value, setValue] = useState(initialName)
   return (
@@ -228,6 +301,16 @@ function BinIcon() {
       <path d="M3 6h18" />
       <path d="M8 6V4h8v2" />
       <path d="M6 6l1 14h10l1-14" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3v12" />
+      <path d="m7 11 5 5 5-5" />
+      <path d="M5 21h14" />
     </svg>
   )
 }

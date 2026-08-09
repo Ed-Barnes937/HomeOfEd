@@ -48,14 +48,30 @@ a rename, not a gate" — and supersedes ticket 20's "no typing required" AC.
 
 **Blocked by:** 35 — rename
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Name field always visible, prefilled with the generated name
-- [ ] Save blocked and visibly disabled only while the field is empty
-- [ ] One press = exactly one new entry; the field re-prefills with the next name
-- [ ] Dialog stays open; the new row is briefly highlighted
-- [ ] Enter saves; autofocus desktop only
-- [ ] Phone save icon no longer saves on mount; the StrictMode guard is gone
-- [ ] Design handoff §5 amended; ticket 20's superseded AC noted there
-- [ ] Whole-frontend test: open → save → dialog still open, one new row → save
+- [x] Name field always visible, prefilled with the generated name
+- [x] Save blocked and visibly disabled only while the field is empty
+- [x] One press = exactly one new entry; the field re-prefills with the next name
+- [x] Dialog stays open; the new row is briefly highlighted
+- [x] Enter saves; autofocus desktop only
+- [x] Phone save icon no longer saves on mount; the StrictMode guard is gone
+- [x] Design handoff §5 amended; ticket 20's superseded AC noted there
+- [x] Whole-frontend test: open → save → dialog still open, one new row → save
       again → two rows, not three; clear the field → Save disabled
+
+## Comments
+
+Resolved 2026-08-08 (agent, Opus). Shipped with 30 and 34. The panel now renders
+title → save form → list → footer. The form is a real `<form>` (so Enter
+submits), prefilled from `generateBoopName`, autofocused only when `useIsPhone()`
+is false, and its Save button is `disabled` on an empty name. After a save the
+dialog stays open, the new row gets `data-highlighted` for 1.2s (loaded-row cyan
++ `boopPop`), and the field re-prefills with the next generated name.
+
+Name generation moved out of `useBoops.save` — it now takes the name the form
+was showing, since the form is what a child sees and edits before the write.
+`saveOnOpen`, its StrictMode `useRef` guard and the whole `'saving'` panel state
+are gone: with an always-on form, "open the panel" *is* "ready to save", so the
+phone save icon just opens it. ADR 0027 §4 carries a superseded note; handoff §5
+Save is rewritten; ticket 20's superseded AC was already noted there.

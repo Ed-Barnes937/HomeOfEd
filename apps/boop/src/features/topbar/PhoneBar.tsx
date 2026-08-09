@@ -11,9 +11,10 @@ export interface PhoneBarProps {
   getShareUrl: () => string
   onClearGrid: () => void
   /**
-   * Save the working grid into "My boops" (ticket 20). The chrome strip has
-   * no room for the "Saved it" moment, so this opens the boops panel already
-   * saved — same path as its own Save button.
+   * Go and save the working grid (ticket 20): opens "My boops", whose save
+   * form is always on and already prefilled (ticket 32). The strip has no room
+   * to confirm a save of its own, and since the form is the confirmation, the
+   * icon does not save anything by itself.
    */
   onSave: () => void
   /** Open the "My boops" panel (ticket 20). */

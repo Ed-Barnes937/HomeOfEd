@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
 import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
+import { boopFilename } from '../export/boopFilename.ts'
 import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
 import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
 import { webAudioSampleDecoder } from '../export/sampleDecoder.ts'
@@ -45,10 +46,10 @@ export function HomePage() {
   // Bumped on every preset load (including blank) so the grid can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
-  // The "My boops" panel is closed, opened for browsing, or opened straight
-  // into its just-saved state — the phone chrome's save icon (ticket 27) has no
-  // room for a "Saved it" moment of its own, so it borrows the panel's.
-  const [boopsPanel, setBoopsPanel] = useState<'closed' | 'open' | 'saving'>('closed')
+  // "My boops" is open or it isn't. The phone chrome's save icon (ticket 27)
+  // opens the same panel: since ticket 32 the save form is always on and
+  // prefilled, so "open it" *is* "get ready to save".
+  const [boopsOpen, setBoopsOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
@@ -163,32 +164,31 @@ export function HomePage() {
   }, [engine])
 
   /**
-   * The demoted "Save the sound as a file" link under Share (ticket 25): an
-   * offline render of the pattern to WAV, then the share sheet on mobile or
-   * a download on desktop. `exporting` guards against a double-tap kicking
-   * off a second render while the first is still decoding.
+   * Export one *saved* boop as a WAV (ticket 34): an offline render of that
+   * row's stored pattern and tempo, then the share sheet on mobile or a
+   * download on desktop. The only export path — there is no top-bar link, so
+   * exporting means "export this saved boop". The double-tap guard lives on
+   * the row, in `BoopsPanel`.
    */
-  const exporting = useRef(false)
-  const exportWav = useCallback(() => {
-    if (!engine || exporting.current) return
-    exporting.current = true
-    const kit = engine.kit
-    const pattern = engine.getPattern()
-    const bpm = engine.getTempo()
-    void (async () => {
-      try {
-        const context = new OfflineAudioContext(1, 1, DEFAULT_SAMPLE_RATE)
-        const blob = await renderBoopWav({ kit, pattern, bpm, decode: webAudioSampleDecoder(context) })
-        await exportBoopWav(
-          blob,
-          'boop.wav',
-          navigatorExportTarget(navigator, document, prefersShareSheet()),
-        )
-      } finally {
-        exporting.current = false
-      }
-    })()
-  }, [engine])
+  const exportBoop = useCallback(
+    async (boop: StoredBoop) => {
+      if (!engine) return
+      const kit = engine.kit
+      const context = new OfflineAudioContext(1, 1, DEFAULT_SAMPLE_RATE)
+      const blob = await renderBoopWav({
+        kit,
+        pattern: storedToPattern(kit, boop.patterns[0]!),
+        bpm: boop.tempo,
+        decode: webAudioSampleDecoder(context),
+      })
+      await exportBoopWav(
+        blob,
+        boopFilename(boop.name),
+        navigatorExportTarget(navigator, document, prefersShareSheet()),
+      )
+    },
+    [engine],
+  )
 
   const loadBoop = useCallback(
     (boop: StoredBoop) => {
@@ -198,7 +198,7 @@ export function HomePage() {
       setPattern(engine.getPattern())
       setActivePreset(null)
       setLoadToken((token) => token + 1)
-      setBoopsPanel('closed')
+      setBoopsOpen(false)
     },
     [engine],
   )
@@ -225,21 +225,20 @@ export function HomePage() {
     <main className={styles.stage}>
       <div className={styles.column} data-testid="stage-column">
         {phone ? (
-          // The phone chrome has no room for the export link (ticket 25) — its
-          // "⋯" menu is My boops / Share / How boop works / Clear grid.
+          // The phone's actions live in the "⋯" menu: My boops / Share / How
+          // boop works / Clear grid. Export is per saved boop, inside the dialog.
           <PhoneBar
             getShareUrl={getShareUrl}
             onClearGrid={clearAll}
-            onSave={() => setBoopsPanel('saving')}
-            onOpenMyBoops={() => setBoopsPanel('open')}
+            onSave={() => setBoopsOpen(true)}
+            onOpenMyBoops={() => setBoopsOpen(true)}
             onOpenHints={() => setHintsOpen(true)}
           />
         ) : (
           <TopBar
             getShareUrl={getShareUrl}
-            onOpenBoops={() => setBoopsPanel('open')}
+            onOpenBoops={() => setBoopsOpen(true)}
             onOpenHints={() => setHintsOpen(true)}
-            onExportWav={exportWav}
           />
         )}
         {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
@@ -253,12 +252,12 @@ export function HomePage() {
         />
         <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
       </div>
-      {boopsPanel !== 'closed' && (
+      {boopsOpen && (
         <BoopsPanel
-          onClose={() => setBoopsPanel('closed')}
+          onClose={() => setBoopsOpen(false)}
           onLoad={loadBoop}
           getWorkingSnapshot={getWorkingSnapshot}
-          saveOnOpen={boopsPanel === 'saving'}
+          onExport={exportBoop}
         />
       )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />

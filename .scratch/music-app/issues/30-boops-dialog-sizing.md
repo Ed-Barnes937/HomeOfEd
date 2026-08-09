@@ -31,11 +31,22 @@ change. Handoff amendment: the card's width is no longer a single number.
 
 **Blocked by:** 35 — rename (so the copy lands once)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Card grows with content between 352px and 560px; never wider than the
+- [x] Card grows with content between 352px and 560px; never wider than the
       viewport minus the 16px gutters
-- [ ] The list is the scrolling element; header, save form and footer stay put
-- [ ] Phone (<1024px) rendering visually unchanged
-- [ ] Whole-frontend test: with ~15 saved boops the card is at max height, the
+- [x] The list is the scrolling element; header, save form and footer stay put
+- [x] Phone (<1024px) rendering visually unchanged
+- [x] Whole-frontend test: with ~15 saved boops the card is at max height, the
       header is still visible, and the list is what scrolls
+
+## Comments
+
+Resolved 2026-08-08 (agent, Opus). Shipped with 32 and 34 on
+`boop/30-32-34-boops-dialog`. `.card` is now `clamp(352px, 44vw, 560px)` under
+the same `calc(100vw - 32px)` cap, and a `min-height: 0` flex column: header,
+save form and footer are `flex: none`, `.list` owns `overflow-y: auto`. Phone
+width is unchanged — 352px is both the clamp floor and what the old flat width
+was. Two iwft cases cover it: 15 saved boops (card at `100vh - 64px`, 560px
+wide, title in view, the list is the only scroller) and an empty list (card
+shorter than the cap). Handoff §4 carries the width/scroll amendment.

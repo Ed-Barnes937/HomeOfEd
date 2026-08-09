@@ -37,12 +37,30 @@ so reviewing them apart hides the justification (grilled).
 
 **Blocked by:** 30 — dialog width; 35 — rename (filename and copy land once)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Export button on every saved row; renders that row's pattern and tempo
-- [ ] Filename `boop-<slug>.wav`, falling back to `boop.wav`
-- [ ] Share-sheet / download behaviour unchanged from ticket 25
-- [ ] Top-bar "Save the sound as a file" link and its prop chain removed
-- [ ] Double-tap cannot start two renders
-- [ ] The export iwft moves to the dialog path and still drives the real
+- [x] Export button on every saved row; renders that row's pattern and tempo
+- [x] Filename `boop-<slug>.wav`, falling back to `boop.wav`
+- [x] Share-sheet / download behaviour unchanged from ticket 25
+- [x] Top-bar "Save the sound as a file" link and its prop chain removed
+- [x] Double-tap cannot start two renders
+- [x] The export iwft moves to the dialog path and still drives the real
       render/encode pipeline in Chromium
+
+## Comments
+
+Resolved 2026-08-08 (agent, Opus). Shipped with 30 and 32. Every saved row has a
+third icon button (34 × 34, radius 9px, 17px download glyph at
+`rgba(20,38,42,.4)`) that renders that row's stored pattern and tempo through
+`renderBoopWav` → `exportBoopWav` — unchanged share-sheet/download behaviour.
+The filename comes from the new pure `export/boopFilename.ts`: NFKD-folded,
+lowercased, non-alphanumerics collapsed to `-`, empty falls back to `boop.wav`
+(unit-tested). The top-bar link, its `onExportWav` prop chain and the
+`.shareGroup`/`.exportLink` styles are deleted.
+
+The double-tap guard is a `useRef` on the panel, not the `exportingIndex` state:
+two taps inside one task both read the pre-render state, so state alone would
+not hold. The iwft proves it by firing both `click()`s synchronously and
+asserting exactly one download — verified red by removing the guard. The export
+suite now goes through the dialog and still drives the real render/encode
+pipeline in Chromium.

@@ -301,6 +301,15 @@ Title "My boops" Chivo 900 19px `#14262A`, `margin-bottom:12px`.
 List `gap:8px`. Footer note "Tap a boop to open it. No limit on how many you
 keep." Chivo 400 11.5px/1.5 `rgba(20,38,42,.45)`.
 
+**Amendment (ticket 30).** The card's width is no longer a single number:
+`clamp(352px, 44vw, 560px)`, still capped by `calc(100vw - 32px)`. 352px is the
+phone width and the clamp floor, so phone rendering is unchanged; 560px is what
+a thumbnail, a comfortable name and three icon buttons need on one row. The
+extra width goes to the name, not the thumbnail. Height stays capped at
+`calc(100vh - 64px)` and the card is otherwise as short as its content —
+**only the list scrolls**, so the title, the save form and the footer note never
+scroll away.
+
 Each row: `display:flex; align-items:center; gap:12px; padding:10px 12px`,
 radius 12px.
 - Resting: `background:rgba(20,38,42,.04)`.
@@ -313,19 +322,37 @@ radius 12px.
   Paths: `M12 20h9` and `M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z`.
 - Delete — 34 × 34, 17px bin SVG at `rgba(138,74,66,.6)`.
   Paths: `M3 6h18`, `M8 6V4h8v2`, `M6 6l1 14h10l1-14`.
+- Export (**amendment, ticket 34**) — a third icon button, same treatment as
+  rename: 34 × 34, radius 9px, 17px download SVG at `rgba(20,38,42,.4)`.
+  Paths: `M12 3v12`, `m7 11 5 5 5-5`, `M5 21h14`. It renders *that row's*
+  pattern and tempo to a WAV. Disabled while it renders.
+- Just saved (**amendment, ticket 32**) — for ~1.2s the new row wears the
+  currently-loaded treatment (`background:rgba(11,124,145,.1)`, the same inset
+  ring) plus one `boopPop`.
 
 Tap the row to load. No cap on saved boops.
 
 ### 5. Save, rename, delete, clear, share
 
-**Save.** Snapshots the grid under a prefilled generated name; typing is
-optional. The card reads "Saved it" (Chivo 800 15px), with the name in a
-focused field — `padding:12px 13px`, radius 9px,
-`border:1.5px solid #0B7C91`, `background:#fff`, Chivo 700 15px, a 2 × 18px
-`#0B7C91` caret — and a "Done" button (`padding:13px 18px`, radius 9px,
-`background:#14262A`, Chivo 800 14px, white). Below: "Already saved. Type a new
-name if you want one." — the save has *already happened*; the field is a
-rename, not a gate.
+**Save (rewritten — ticket 32).** Save is a small always-on form directly under
+the title: the name field, then "Save this boop". The field is prefilled with
+the generated name ("Boop 3"), so saving is still one tap with no keyboard and
+no typing. Field — `padding:12px 13px`, radius 9px, `border:1.5px solid #0B7C91`,
+`background:#fff`, Chivo 700 15px, a 2 × 18px `#0B7C91` caret. Button —
+`padding:13px 18px`, radius 9px, `background:#14262A`, Chivo 800 14px, white;
+`gap:9px` between the two. Enter saves. The field autofocuses on desktop only —
+on a phone that would open the keyboard over the list.
+
+The button is enabled from the start and disables (visibly, `opacity:.35`) only
+while the field is empty. After a save the dialog **stays open**, the new row
+lands with its brief highlight (§4), and the field re-prefills with the *next*
+generated name — the box always holds the name the next press will write, which
+is what stops a second press duplicating the first.
+
+The old flow is gone: there is no "Saved it" heading, no "Already saved. Type a
+new name if you want one." helper, and the save no longer happens before the
+name is shown. Row rename (the pencil) is unchanged — that is still the field +
+"Done" pair described above.
 
 **Both confirms** share one shape: title Chivo 800 15px `#14262A`, a one-line
 consequence Chivo 400 12.5px `rgba(20,38,42,.5)`, then two equal buttons
@@ -347,8 +374,11 @@ Clear: "Clear the whole grid?" / "Every step comes off. Saved boops stay." →
   `stroke-width:3`) + "Copied!", `gap:8px`. Holds 1.6s, then reverts.
   Animation: `boopPop .45s cubic-bezier(.34,1.56,.64,1)`.
 - On mobile the same button opens the OS share sheet. **No link field, ever.**
-- Demoted secondary underneath: "Save the sound as a file" — Chivo 700 13.5px
-  `#0B7C91`, underlined, `text-underline-offset:3px`. This is the WAV export.
+- **Retired (ticket 34).** There is no demoted "Save the sound as a file"
+  secondary underneath any more. WAV export is the per-row Export button in
+  "My boops" (§4): one export path, of a *saved* boop, on every breakpoint.
+  Filename is the boop's own name, slugged and lowercased — `boop-3.wav`,
+  falling back to `boop.wav` when nothing survives slugging.
 
 **Mobile "⋯" menu.** Card radius 14px, `padding:12px`, items `gap:8px`.
 Each item `min-height:44px; padding:10px 12px`, radius 9px, `background:#fff`,
