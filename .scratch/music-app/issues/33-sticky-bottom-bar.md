@@ -81,16 +81,67 @@ than in the handoff or the spec).
 
 **Blocked by:** — (37 resolved, 29 landed)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Transport pinned to the bottom, **inset to the 1356px column** (today's
+- [x] Transport pinned to the bottom, **inset to the 1356px column** (today's
       rounded treatment, unchanged internal geometry), clear of the safe area
-- [ ] Phone: the tempo block shrinks — "Fast" clears New boop at 390px *and*
-      360px
-- [ ] Grid well is the only scrolling region; bars never scroll, on desktop and phone
-- [ ] Phone: drag-paint, the horizontal snap window and the loop map all behave
+- [x] Phone: the tempo block shrinks — "Fast" clears New boop at 390px *and*
+      360px — *the shrink fix is in; the New boop clearance itself is
+      unverifiable until ticket 36 puts that button in the bar (see Answer)*
+- [x] Grid well is the only scrolling region; bars never scroll, on desktop and phone
+- [x] Phone: drag-paint, the horizontal snap window and the loop map all behave
       exactly as before — ADR 0027's rules re-verified, not assumed
-- [ ] Loop map still sits under the grid inside the scroll region
-- [ ] Handoff §1 and §3 amended; ADR 0027 amended or partly superseded
-- [ ] Whole-frontend tests: transport visible with the grid scrolled; the existing
+- [x] Loop map still sits under the grid inside the scroll region
+- [x] Handoff §1 and §3 amended; ADR 0027 amended (new ADR 0030)
+- [x] Whole-frontend tests: transport visible with the grid scrolled; the existing
       phone paint/scroll suite still green at a short viewport
+
+## Answer
+
+**Built and green** — `pnpm --filter boop lint / typecheck / test`, 67 CT tests
+passing.
+
+**The shape.** `.stage` is now a `height: 100dvh` flex column of three sections:
+chrome (`flex: none`), the scrolling region (`flex: 1; min-height: 0;
+overflow-y: auto`), and the transport (`flex: none`). Pinning by flex layout
+rather than `position: fixed` means no z-index, no overlap with the grid, and no
+scroll padding under the bar. Each section carries the ticket-29 centring
+column, so the pinned bars line up with the grid; the transport is unchanged
+apart from a drop shadow and now sitting last.
+
+**Two decisions this ticket did not spell out.**
+
+1. **The preset row moved above the transport**, inside the scrolling region.
+   The transport has to be the last thing in the frame, so the starters had
+   nowhere else to go — and ticket 36 removes them into a dialog anyway. The
+   handoff's §1 stack table is reordered to match.
+2. **The frame's horizontal padding moved off `.stage` onto the three sections.**
+   The phone preset strip bleeds `-12px` into the frame padding; left on
+   `.stage` that bleed would have overflowed the new scrolling region and given
+   it a sideways scroll of its own.
+
+**Decision 6's acceptance criterion is only half-verifiable today.** The
+`min-width: 0` fix is in (on `.tempoSlider` and `.tempoTrackRow`, with the 11px
+endpoints at 28/24px), but the collision it fixes is with **ticket 36's New boop
+button, which does not exist yet** — at 360px the bar has slack without it, so
+no test can tell the fix from its absence. What is asserted instead is that the
+transport never overflows its own width at 360px; the "Fast" clearance itself
+should be checked when 36 lands.
+
+**Records.** New **[ADR 0030](../../../docs/adr/0030-boop-fixed-frame-one-scroller.md)**
+— the fixed frame, the inset-not-full-bleed bar, and why 0027's phone scroll
+model is wrapped rather than changed. ADR 0027 carries an amendment note
+pointing at it. Design handoff §1 and §3 both amended. `apps/boop/CLAUDE.md`
+gained the frame rule.
+
+**Tests.** New `src/stickyBottomBar.iwft.tsx`, at two deliberately *short*
+viewports (1440 × 700 and 360 × 640) so the grid genuinely does not fit — on a
+tall window the suite would pass against the old layout too. It covers: the
+region scrolls and the document does not, both bars fully in the viewport after
+scrolling to the bottom, play still working scrolled, ADR 0027's snap/paint/loop
+map at 360 × 640, and the loop map being inside the scrolling region.
+`wideScreenLayout.iwft.tsx` gained the inset-not-full-bleed assertion.
+
+**The accepted void is real** and looks as ticket 37 described: at 1440 × 1000
+there is roughly 200px of empty stage between the starters and the pinned bar.
+Left alone, per the ticket.

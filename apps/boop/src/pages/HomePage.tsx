@@ -222,35 +222,52 @@ export function HomePage() {
   }
 
   return (
+    // Three frame sections (ticket 33): pinned chrome, the one scrolling
+    // region, pinned transport. Each carries the centring column so the bars
+    // line up with the grid — the bar is inset to the column, not full-bleed
+    // (ticket 37).
     <main className={styles.stage}>
-      <div className={styles.column} data-testid="stage-column">
-        {phone ? (
-          // The phone's actions live in the "⋯" menu: My boops / Share / How
-          // boop works / Clear grid. Export is per saved boop, inside the dialog.
-          <PhoneBar
-            getShareUrl={getShareUrl}
-            onClearGrid={clearAll}
-            onSave={() => setBoopsOpen(true)}
-            onOpenMyBoops={() => setBoopsOpen(true)}
-            onOpenHints={() => setHintsOpen(true)}
+      <div className={styles.chrome}>
+        <div className={styles.column}>
+          {phone ? (
+            // The phone's actions live in the "⋯" menu: My boops / Share / How
+            // boop works / Clear grid. Export is per saved boop, inside the dialog.
+            <PhoneBar
+              getShareUrl={getShareUrl}
+              onClearGrid={clearAll}
+              onSave={() => setBoopsOpen(true)}
+              onOpenMyBoops={() => setBoopsOpen(true)}
+              onOpenHints={() => setHintsOpen(true)}
+            />
+          ) : (
+            <TopBar
+              getShareUrl={getShareUrl}
+              onOpenBoops={() => setBoopsOpen(true)}
+              onOpenHints={() => setHintsOpen(true)}
+            />
+          )}
+        </div>
+      </div>
+      <div className={styles.scroller} data-testid="stage-scroller">
+        <div className={styles.column} data-testid="stage-column">
+          {/* The loop map rides inside PhoneGrid's well, so it stays glued
+              under the grid inside this region rather than joining the pinned
+              bar and becoming a second transport (ADR 0027). */}
+          {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
+          <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+        </div>
+      </div>
+      <div className={styles.bars}>
+        <div className={styles.column}>
+          <Transport
+            isPlaying={isPlaying}
+            onToggle={togglePlay}
+            bpm={bpm}
+            onTempoChange={changeTempo}
+            onClearAll={clearAll}
+            showClearGrid={!phone}
           />
-        ) : (
-          <TopBar
-            getShareUrl={getShareUrl}
-            onOpenBoops={() => setBoopsOpen(true)}
-            onOpenHints={() => setHintsOpen(true)}
-          />
-        )}
-        {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
-        <Transport
-          isPlaying={isPlaying}
-          onToggle={togglePlay}
-          bpm={bpm}
-          onTempoChange={changeTempo}
-          onClearAll={clearAll}
-          showClearGrid={!phone}
-        />
-        <PresetRow activePreset={activePreset} onSelectPreset={loadPreset} />
+        </div>
       </div>
       {boopsOpen && (
         <BoopsPanel

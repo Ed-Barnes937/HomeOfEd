@@ -146,7 +146,7 @@ below allows.
 | 3 | [30 — dialog sizing](issues/30-boops-dialog-sizing.md) + [32 — save as a form](issues/32-save-as-a-form.md) + [34 — export in My boops](issues/34-export-in-my-boops.md) | **one** PR — all three rewrite `GroovesPanel`'s layout |
 | 4 | [31 — saved/edited indicator](issues/31-saved-state-visibility.md) | own PR (top bar + phone strip) |
 | 5 | [37 — layout prototype](issues/37-bottom-bar-prototype.md) | throwaway, gates 33 |
-| 6 | [33 — sticky bottom bar](issues/33-sticky-bottom-bar.md) | own PR |
+| 6 | [33 — sticky bottom bar](issues/33-sticky-bottom-bar.md) | own PR — **built**, ADR 0030 |
 | 7 | [36 — New boop dialog](issues/36-new-boop-dialog.md) | own PR |
 
 **Branch strategy.** 35, 29, the dialog PR and 31 go **straight to main** — each is

@@ -61,8 +61,26 @@ save/share.
 |---|---|---|
 | Top bar | 58px | flex row, `align-items:center`, `gap:14px` |
 | Grid well | auto (522px) | `margin-top:16px`, `padding:18px`, radius 24px, `background:#0E1F23`, `box-shadow: inset 0 1px 0 rgba(255,255,255,.05)` |
-| Transport bar | 84px | `margin-top:16px`, radius 20px, `background:rgba(255,255,255,.045)`, `padding:0 22px`, `gap:26px` |
 | Preset row | auto | `margin-top:16px`, flex row, `gap:14px` |
+| Transport bar | 84px | `margin-top:16px`, radius 20px, `background:rgba(255,255,255,.045)`, `padding:0 22px`, `gap:26px` |
+
+> **Amended by ticket 33 (V1.1 feedback).** "No page scroll" is now *enforced*
+> rather than intended, and the stack order above has changed: the **transport
+> is last, pinned to the bottom of the frame**, with the preset row moved above
+> it. The build only ever set `min-height:100dvh`, so on a short window the
+> whole column scrolled and the play button went with it.
+>
+> The frame is three sections — pinned top bar, a scrolling middle, pinned
+> transport — as a `height:100dvh` flex column: the middle is
+> `flex:1; min-height:0; overflow-y:auto` and the two bars are `flex:none`.
+> **The grid well is the only scrolling region.** The transport is *inset to the
+> 1356px column*, keeping the rounded treatment above exactly, plus a drop
+> shadow so it reads as sitting over the grid (a full-bleed bar was prototyped
+> and rejected — ticket 37). The `32px` bottom frame padding now belongs to the
+> transport's own container.
+>
+> Accepted cost: on a tall window the grid is short and the bar is pinned low,
+> so an empty band sits between them. Do not stretch the grid to fill it.
 
 **Top bar, left to right.**
 - Back-to-hub arrow. 44 × 44 hit area, `margin-left:-10px` so the glyph optically
@@ -231,6 +249,23 @@ Use the fridge's exact glyphs:
 
 **Content padding** 12px. **Grid well** radius 16px, `padding:10px`,
 `overflow:hidden`.
+
+> **Amended by ticket 33 (V1.1 feedback).** The phone gets §1's fixed frame
+> too: the **52px strip is pinned at the top and the transport at the bottom**,
+> with the grid well (and the "whole loop" map under it) the only scrolling
+> region between them. The phone is the screen most likely to need scrolling,
+> and a play button that scrolls away is the same complaint, worse.
+>
+> The transport's container carries `padding-bottom: calc(12px +
+> env(safe-area-inset-bottom))` so the bar clears the iOS home indicator — the
+> bar is inset to the content column, not full-bleed, so clearance is the
+> container's job.
+>
+> The **tempo block must be allowed to shrink**: `min-width:0` on the
+> `<input type="range">` and on its track row, with the 11px endpoint labels at
+> 28px / 24px. Without it the range keeps its intrinsic width and "Fast" runs
+> into the New boop button — 7px clear at 390px, a 23px overlap at 360px
+> (ticket 37).
 
 **Phone grid geometry.**
 ```

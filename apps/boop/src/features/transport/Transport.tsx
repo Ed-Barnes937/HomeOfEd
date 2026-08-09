@@ -39,7 +39,7 @@ export function Transport({
   const [confirmingClear, setConfirmingClear] = useState(false)
 
   return (
-    <div className={styles.bar}>
+    <div className={styles.bar} data-testid="transport-bar">
       <button
         type="button"
         className={styles.play}

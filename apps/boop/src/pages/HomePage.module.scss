@@ -1,17 +1,64 @@
-.stage {
-  min-height: 100dvh;
-  padding: 0 36px 32px;
-  background: var(--stage);
-  color: var(--ink);
+// The frame's horizontal padding, from the design handoff's per-breakpoint
+// frame padding. It sits on each of the three frame sections rather than on
+// `.stage`, so the preset row's phone full-bleed strip (a `-12px` margin) still
+// bleeds into padding that belongs to the scrolling region, instead of
+// overflowing it and giving the region a sideways scroll of its own.
+@mixin frame-padding {
+  padding-inline: 36px;
 
   @media (max-width: 1279px) {
-    padding: 0 26px 26px;
+    padding-inline: 26px;
   }
 
-  // Small phone (ticket 27; design handoff, "Main screen — small phone"):
-  // content padding 12px, under the full-bleed 52px chrome strip.
   @media (max-width: 1023px) {
-    padding: 0 12px 16px;
+    padding-inline: 12px;
+  }
+}
+
+// A fixed-height frame (ticket 33): chrome pinned at the top, transport pinned
+// at the bottom, the grid well the only scrolling region. This is the handoff's
+// "single fixed-height column, no page scroll" finally enforced — `min-height`
+// only ever expressed the intent, and on a short window the whole column
+// scrolled, play button included.
+.stage {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--stage);
+  color: var(--ink);
+}
+
+.chrome {
+  flex: none;
+  @include frame-padding;
+}
+
+// `min-height: 0` is what lets this shrink below its content inside the flex
+// column; without it the frame grows and the page scrolls again.
+.scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  @include frame-padding;
+}
+
+// Pinned by being a `flex: none` sibling of the scroller, not by
+// `position: fixed` — so no z-index games, and the bar can never overlap the
+// grid it is meant to sit below. The bottom padding is the frame's own gutter,
+// plus the iOS safe area on phone: the bar is inset to the column rather than
+// full-bleed (ticket 37), so its container is what has to clear the home
+// indicator.
+.bars {
+  flex: none;
+  padding-bottom: 32px;
+  @include frame-padding;
+
+  @media (max-width: 1279px) {
+    padding-bottom: 26px;
+  }
+
+  @media (max-width: 1023px) {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
 }
 
@@ -20,10 +67,8 @@
 // (rail 160 + railGap 18 + steps 1142 + well padding 2×18 = 1356px, see
 // tokens.scss). `margin-inline: auto` centres it once the viewport has more
 // room than that; below 1440px there is none to spare, so this changes
-// nothing there. Kept off `.stage` itself (ticket 33's note) so a later
-// full-bleed sticky bar — its own component, its own SCSS module — can align
-// its contents to this same column via the shared token rather than a value
-// baked into this file.
+// nothing there. Applied once per frame section so the pinned bars line up
+// with the scrolling grid.
 .column {
   max-width: var(--column-width);
   margin-inline: auto;
