@@ -95,6 +95,14 @@ export class HomePagePom extends BasePage {
       .toContain(word)
   }
 
+  /** Asserts the page has no horizontal overflow at the current viewport. */
+  async verifyNoHorizontalOverflow(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  }
+
   /** Client-side navigate to a route (no reload); popstate drives the router. */
   async gotoPath(path: string): Promise<void> {
     await this.page.evaluate((p) => {

@@ -1,0 +1,12 @@
+// Minimal global reset. Side-effect sheet imported once from main.tsx:
+// border-box sizing so widths/padding don't overflow small viewports, and a
+// zeroed body margin so the layout fills the screen edge to edge.
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
