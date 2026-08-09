@@ -107,6 +107,15 @@ runner prototypes together retired that premise.*
   export demoted (versioned encoding, mobile-Safari verification early,
   first cut candidate).
 
+- [Prototype: the new screen shape](issues/37-bottom-bar-prototype.md) — three
+  variants built (today / full-bleed bar / inset bar) at laptop-short and phone;
+  **the fixed frame and grid-only scrolling are confirmed, the full-bleed bar is
+  not** — ticket 33's decision 1 is reversed, the bar stays inset to the column
+  with today's rounded treatment, simply pinned. Two findings for 33: the phone
+  tempo block must be allowed to shrink (a 23px overlap with New boop at 360px),
+  and the frame's empty band above the bar is an accepted cost. Prototype on
+  branch `prototype/screen-shape`.
+
 - [Design brief](issues/08-design-brief.md) — **brief delivered at
   [`design-brief.md`](design-brief.md)**, ready to paste into a design tool:
   tone, the four regions of the single main screen, the six-instrument
@@ -171,6 +180,10 @@ rule from the handoff):
 - **"Boop" is the domain and storage term**; `Creation` and `Groove` both retire.
   The stored keys (`boop:save`, `creations`, `#g=`) deliberately do **not** change —
   they are the ADR 0025/0026 contract (35).
+- **The pinned transport is inset to the column, not full-bleed.** 33's grilled
+  "a bar inset to the column reads as a floating toolbar" did not survive being
+  seen on a screen (37). The bar keeps today's rounded treatment and is simply
+  pinned.
 - **No tab-close guard.** The working grid is already flushed on `pagehide`; a
   `beforeunload` prompt would warn about nothing and can't be read by a 6-year-old (31).
 

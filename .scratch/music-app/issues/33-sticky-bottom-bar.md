@@ -17,11 +17,20 @@ touches different files and carries its own onboarding decision (grilled).
 
 **Decisions (grilled 2026-08-07):**
 
-1. **Full-bleed bar, contents aligned to the centred column.** The bar spans the
-   viewport; its contents align to ticket 29's 1356px column, so the play button
-   sits directly under the instrument rail — which is the actual fix for "the
-   play button feels left-aligned in the middle of nowhere". A bar inset to the
-   column's edges was rejected: it reads as a floating toolbar, not chrome.
+1. ~~**Full-bleed bar, contents aligned to the centred column.**~~ **Reversed by
+   the [layout prototype](37-bottom-bar-prototype.md) (Ed, 2026-08-09): the bar
+   is *inset to the column*.** Seen on a screen, the inset bar does not read as a
+   "floating toolbar" the way this paper argument predicted — it reads as the
+   transport, in the place a child already knows it from. Full-bleed was heavier
+   chrome than the screen needs.
+
+   So the bar keeps today's treatment exactly — `max-width: var(--column-width)`,
+   `margin-inline: auto`, `border-radius: 20px`, `rgba(255,255,255,.075)`, its own
+   22px inset — and is simply *pinned* rather than in the flow. It needs no
+   full-bleed background, no border-top, and no trick to align its contents to
+   `--column-width`; the play circle still lands under the instrument plates
+   because the 22px inset is unchanged. Give it a drop shadow so it sits above
+   the scrolling grid.
 2. **Bar contents, left to right:** play, tempo block, divider, then **New boop**
    and **Clear grid right-aligned together**. Both of those throw away what's on
    the grid, so they group — and away from play, since the handoff is emphatic
@@ -37,12 +46,25 @@ touches different files and carries its own onboarding decision (grilled).
    must not migrate into the sticky bar, or ADR 0027's "the playhead moves from
    the grid to the map" stops being a local relationship and the map becomes a
    second, competing transport.
-5. Bar clears the iOS safe area (`env(safe-area-inset-bottom)`).
+5. Bar clears the iOS safe area — now the bar container's own bottom padding,
+   `calc(12px + env(safe-area-inset-bottom))` on phone, since the bar is inset
+   rather than full-bleed.
+6. **The phone tempo block must be allowed to shrink** (found by the prototype).
+   With New boop in the bar, "Fast" runs into the button: 7px clear at 390px and
+   a **23px overlap at 360px**. The cause is the `<input type="range">` keeping
+   its intrinsic width, so the tempo block never shrinks. Fix: `min-width: 0` on
+   the slider and on `.tempoTrackRow`, plus the handoff's 11px phone endpoint
+   labels at 28/24px widths. That holds a 14px gap at both 390 and 360.
 
 **Implementation shape:** `.stage` becomes a fixed-height flex column
 (`height: 100dvh`), with the grid wrapper `flex: 1; min-height: 0; overflow: auto`
 and the bars `flex: none`. The transport's own internal geometry (62px play
 circle, tempo block, divider, Clear grid) is unchanged.
+
+**Accepted cost** (prototype, Ed): on a tall window and on the phone the fixed
+frame leaves a large empty band between the grid and the pinned bar — the grid is
+short and, with the presets moving into ticket 36's dialog, there is nothing to
+fill it. Not a blocker; don't try to fix it by stretching the grid.
 
 **The risk to manage.** The phone grid already owns a horizontal snap-scrolling
 step window (ADR 0027: `touch-action: pan-x`, tap toggles, drag paints after a
@@ -57,12 +79,14 @@ of it with a new ADR (grilled: this is the one part of the V1.1 work that warran
 an ADR, because it is the only one whose original decision lives in an ADR rather
 than in the handoff or the spec).
 
-**Blocked by:** 37 — layout prototype (settles the shape); 29 — centred column
+**Blocked by:** — (37 resolved, 29 landed)
 
-**Status:** ready-for-agent (after 37)
+**Status:** ready-for-agent
 
-- [ ] Transport pinned to the bottom, full-bleed, contents on the 1356px column,
-      clear of the safe area, internal geometry per the handoff
+- [ ] Transport pinned to the bottom, **inset to the 1356px column** (today's
+      rounded treatment, unchanged internal geometry), clear of the safe area
+- [ ] Phone: the tempo block shrinks — "Fast" clears New boop at 390px *and*
+      360px
 - [ ] Grid well is the only scrolling region; bars never scroll, on desktop and phone
 - [ ] Phone: drag-paint, the horizontal snap window and the loop map all behave
       exactly as before — ADR 0027's rules re-verified, not assumed
