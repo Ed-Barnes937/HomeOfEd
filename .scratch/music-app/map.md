@@ -147,7 +147,7 @@ below allows.
 | 4 | [31 — saved/edited indicator](issues/31-saved-state-visibility.md) | own PR (top bar + phone strip) |
 | 5 | [37 — layout prototype](issues/37-bottom-bar-prototype.md) | throwaway, gates 33 |
 | 6 | [33 — sticky bottom bar](issues/33-sticky-bottom-bar.md) | own PR — **built**, ADR 0030 |
-| 7 | [36 — New boop dialog](issues/36-new-boop-dialog.md) | own PR |
+| 7 | [36 — New boop dialog](issues/36-new-boop-dialog.md) | own PR — **built** |
 
 **Branch strategy.** 35, 29, the dialog PR and 31 go **straight to main** — each is
 self-contained and benefits from being live early. 37, 33 and 36 go on the

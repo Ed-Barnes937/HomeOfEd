@@ -43,6 +43,7 @@ sound good on the real kit).
 - [x] Tapping a preset loads it, ready to play — no confirmation, no wizard
 - [x] App still opens on an empty grid; loading a preset never destroys a
       saved groove (working grid only)
+      *(the empty-grid half superseded — see above; the saved-boop half stands)*
 - [x] Whole-frontend test: load preset → play; tap blank → empty grid
 
 ## Comments

@@ -103,8 +103,20 @@ The pattern and tempo a child is editing right now — an unnamed boop,
 continuously autosaved and restored on the next load. Distinct from a saved
 boop: it is one slot that always exists and is always overwritten, never an
 entry in the "My boops" list. Saving into that list copies the working grid
-and gives it a name.
+and gives it a name. A browser with no working grid at all is *seeded* with a
+starter rather than opening empty (ticket 36) — see **Starter**.
 _Avoid_: Current pattern, draft, session.
+
+**Starter**:
+One of the four fixed offerings in the "New boop" dialog — Blank, Wonky Walk,
+Robot Hiccup, Sunday Stomp. Pure data, position-only rows plus a tempo, loaded
+into the working grid on a tap. A starter has no identity once loaded: it is
+never a saved boop, and the ring saying which one is loaded is internal to the
+dialog. `Wonky Walk` is also the **first-visit seed**, which is what a browser
+with no working grid opens on.
+_Avoid_: Preset (the code's name for the same thing — `presets.ts`, `PresetId`
+— kept because the design handoff says "preset row"; prefer "starter" in
+product copy and prose), template, demo.
 
 **Step window**:
 On a phone, the horizontally scrolling viewport over the 16 step columns —

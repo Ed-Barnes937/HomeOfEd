@@ -199,7 +199,7 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
                       onClick={() => onLoad(boop)}
                       data-testid={`boop-load-${index}`}
                     >
-                      <PresetThumbnail rows={thumbnailRows(boop.patterns[0]!)} tone="paper" />
+                      <PresetThumbnail rows={thumbnailRows(boop.patterns[0]!)} />
                       <span className={styles.name}>{boop.name}</span>
                     </button>
                     <button

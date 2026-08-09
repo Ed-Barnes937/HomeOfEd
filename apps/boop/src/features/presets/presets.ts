@@ -44,10 +44,12 @@ function rowsFrom(onStepsByRow: Partial<Record<number, readonly number[]>>): rea
 }
 
 /**
- * The starter-boop preset row (spec: "Onboarding & light education"; design
- * handoff: "Preset row"). Card order is fixed — Blank, Wonky Walk, Robot
- * Hiccup, Sunday Stomp — callers must render them in this array's order, with
- * blank presented first so nobody meets an unexplained void.
+ * The starter boops (spec: "Onboarding & light education"; design handoff:
+ * "Preset row", now the "New boop" dialog — ticket 36). Card order is fixed —
+ * Blank, Wonky Walk, Robot Hiccup, Sunday Stomp — callers must render them in
+ * this array's order. Blank stays first because "New boop → Blank" is the
+ * discoverable way to start fresh; nobody meets an unexplained void any more,
+ * since a first visit is seeded (`firstVisitSeed` below).
  *
  * Each preset carries its own tempo (the save shape already has one tempo per
  * creation), so loading a preset sets both the pattern and the tempo.
@@ -114,4 +116,24 @@ export function presetPattern(kit: Kit, preset: Preset): Pattern {
     instrumentId: instrument.instrumentId,
     steps: preset.rows[rowIndex]?.steps ?? Array.from({ length: STEPS_PER_PATTERN }, () => false),
   }))
+}
+
+/** The starter a browser that has never been here opens on (ticket 36). */
+export const FIRST_VISIT_PRESET_ID: PresetId = 'wonky'
+
+/**
+ * What a first visit lands on (ticket 36). The starters used to sit on the
+ * main screen, so an empty grid was still an *offered* grid; behind a dialog
+ * it would be a void with no suggestion in sight. So a browser with no
+ * autosaved working grid opens on `Wonky Walk` instead — the first non-blank
+ * card, one-lane enough to read as an invitation. Content onboards; no tour,
+ * no modal, and no change to the save format.
+ *
+ * Module-level and pure, so it is a stable dependency of the restore effect
+ * in `useWorkingGrid` — which is where the seeding happens, since it is a
+ * property of restoring the working grid, not of the dialog.
+ */
+export function firstVisitSeed(kit: Kit): { pattern: Pattern; tempo: number } {
+  const preset = PRESETS.find((p) => p.id === FIRST_VISIT_PRESET_ID)!
+  return { pattern: presetPattern(kit, preset), tempo: preset.tempo }
 }

@@ -50,6 +50,14 @@ The preset row moves *above* the transport, inside the scroller — the transpor
 has to be the last thing in the frame, and the preset row is on its way into a
 dialog anyway (ticket 36).
 
+> **Updated by ticket 36.** The preset row is gone from the main screen, so the
+> scroller now holds the grid well alone and the full-bleed strip that forced
+> per-section padding no longer exists. Per-section padding stays: it is also
+> what keeps the pinned bars aligned with the scrolling grid, and it is where
+> the transport's safe-area `padding-bottom` lives. The consequence for the
+> "empty band on a tall window" below is the one already anticipated there —
+> the band is larger, not smaller.
+
 ### 2. The bar is inset to the column, not full-bleed — decided by prototype
 
 Ticket 33 was grilled to a **full-bleed** bar with its contents aligned to the

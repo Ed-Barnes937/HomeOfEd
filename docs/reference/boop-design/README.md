@@ -61,7 +61,7 @@ save/share.
 |---|---|---|
 | Top bar | 58px | flex row, `align-items:center`, `gap:14px` |
 | Grid well | auto (522px) | `margin-top:16px`, `padding:18px`, radius 24px, `background:#0E1F23`, `box-shadow: inset 0 1px 0 rgba(255,255,255,.05)` |
-| Preset row | auto | `margin-top:16px`, flex row, `gap:14px` |
+| Preset row | auto | `margin-top:16px`, flex row, `gap:14px` — **removed by ticket 36**; see "Preset row" below |
 | Transport bar | 84px | `margin-top:16px`, radius 20px, `background:rgba(255,255,255,.045)`, `padding:0 22px`, `gap:26px` |
 
 > **Amended by ticket 33 (V1.1 feedback).** "No page scroll" is now *enforced*
@@ -195,6 +195,37 @@ Card order is fixed: **Blank first**, then Wonky Walk, Robot Hiccup, Sunday
 Stomp. Blank-first means nobody meets an unexplained void and blank stays one
 tap away.
 
+> **Amended by ticket 36 (V1.1 feedback).** **The preset row is no longer a
+> main-screen region.** The four cards moved into a **"New boop" dialog**,
+> opened from a button in the pinned transport bar; the "Starters" label
+> column goes with the row, replaced by the dialog's own title. The layout
+> table in §1 loses its "Preset row" line.
+>
+> The cards keep every number above — 168px / 146px / 118px wide, 12px
+> padding, radius 14px, the dot matrix, the fixed order — but take **§4's
+> paper palette**, because the dialog reuses §4's shell and §1's
+> white-on-dark alphas are invisible on paper: resting
+> `background:rgba(20,38,42,.04)`, loaded `background:rgba(11,124,145,.1)` with
+> `box-shadow: inset 0 0 0 1.5px rgba(11,124,145,.5)`, name `#14262A`,
+> thumbnail in §4's flat-ink tone rather than per-row instrument hues.
+>
+> The dialog is §4's overlay and paper card, sized to its content
+> (`width: fit-content`) rather than §4's clamp, since the cards are fixed
+> width and would otherwise leave a wide empty margin. Cards sit in **two
+> fixed columns** — a wrapping row would pick 2, 3 or 4 across as the viewport
+> moved and land the four cards 3 + 1.
+>
+> **"New boop" button.** Desktop/tablet: the top bar's ghost treatment
+> (`padding:12px 18px`, radius 9px, `border:1px solid rgba(242,239,230,.2)`,
+> Chivo 700 14px, `rgba(242,239,230,.8)`), right-aligned in the transport bar
+> ahead of the divider and Clear grid — the two form one right-hand group.
+> Phone: the same button as a **44 × 44 "+"** beside the tempo block, where
+> Clear grid is absent (it lives in the "⋯" menu). The label would cost the
+> slider ~80px of track at 360px.
+>
+> The loaded-card ring is **internal to the dialog**: the main screen never
+> names a starter (ticket 31).
+
 ### 2. Main screen — tablet (1024 × 768 landscape)
 
 The primary target. Identical structure, smaller numbers. Frame padding
@@ -325,6 +356,10 @@ Slow / 12px track / Fast (Chivo 600 11px), thumb 34px.
 **Phone preset row.** Label "Starters" Chivo 700 11px, then cards
 `width:118px`, `padding:9px`, thumbnail pitch 6px, name Chivo 800 12px,
 in a horizontally scrolling row, `gap:10px`.
+
+> **Amended by ticket 36.** No phone preset row either — the cards keep the
+> 118px / 9px / 6px numbers, but inside the "New boop" dialog, two columns at
+> `gap:10px`. See the amendment under §1's "Preset row".
 
 Everything else — My boops, Share, help, Clear grid — lives in the "⋯" menu.
 

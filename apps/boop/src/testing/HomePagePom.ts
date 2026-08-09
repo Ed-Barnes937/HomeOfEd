@@ -115,14 +115,54 @@ export class HomePagePom extends BasePage {
     await this.confirmDestructiveButton.click()
   }
 
+  // --- The "New boop" dialog (ticket 36) ---
+
+  private readonly newBoopButton = this.page.getByTestId('new-boop-button')
+  private readonly newBoopCard = this.page.getByRole('dialog', { name: 'New boop' })
+
   presetCard(presetId: string) {
     return this.page.getByTestId(`preset-card-${presetId}`)
   }
 
-  async loadPreset(presetId: string): Promise<void> {
-    await this.presetCard(presetId).click()
+  async openNewBoop(): Promise<void> {
+    await this.newBoopButton.click()
+    await expect(this.newBoopCard).toBeVisible()
   }
 
+  async closeNewBoop(): Promise<void> {
+    await this.page.getByTestId('new-boop-close-button').click()
+  }
+
+  async verifyNewBoopDialogShown(): Promise<void> {
+    await expect(this.newBoopCard).toBeVisible()
+  }
+
+  async verifyNewBoopDialogClosed(): Promise<void> {
+    await expect(this.newBoopCard).toHaveCount(0)
+  }
+
+  /** The starter cards, top-left to bottom-right — the order is part of the design. */
+  async verifyStarterOrder(expected: string[]): Promise<void> {
+    await expect(this.page.getByTestId('starter-cards').getByRole('button')).toHaveText(expected)
+  }
+
+  /** The starters are only reachable through the dialog now — open it, pick one, it closes. */
+  async loadPreset(presetId: string): Promise<void> {
+    await this.openNewBoop()
+    await this.presetCard(presetId).click()
+    await this.verifyNewBoopDialogClosed()
+  }
+
+  /**
+   * Start from an empty grid, the way a child would: New boop → Blank. A fresh
+   * browser is seeded with `Wonky Walk` (ticket 36), so a suite that is about
+   * grid behaviour rather than onboarding has to say where it starts.
+   */
+  async startBlank(): Promise<void> {
+    await this.loadPreset('blank')
+  }
+
+  /** This and `verifyPresetNotLoaded` read the card, so the dialog has to be open. */
   async verifyPresetLoaded(presetId: string): Promise<void> {
     await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'true')
   }
@@ -674,6 +714,28 @@ export class HomePagePom extends BasePage {
       (element) => element.scrollWidth - element.clientWidth,
     )
     expect(overflow).toBeLessThanOrEqual(0)
+  }
+
+  /**
+   * "Fast" clears the phone's New boop button (ticket 36, carried over from
+   * 33) — the gap the shrink fix bought back, not merely the absence of an
+   * overlap. Ticket 37 measured a 23px overlap at 360px; the bar's own
+   * `gap: 14px` is what should separate them, so anything under 10px means the
+   * tempo block has started losing the argument again.
+   */
+  async verifyTempoClearsNewBoopButton(): Promise<void> {
+    const fast = await this.page.getByText('Fast', { exact: true }).boundingBox()
+    const button = await this.newBoopButton.boundingBox()
+    if (!fast || !button) throw new Error('the tempo endpoint or the New boop button is not visible')
+    expect(button.x - (fast.x + fast.width)).toBeGreaterThanOrEqual(10)
+  }
+
+  /** New boop is a 44px tap target on the phone, like the rest of the chrome. */
+  async verifyNewBoopButtonTapTarget(): Promise<void> {
+    const box = await this.newBoopButton.boundingBox()
+    if (!box) throw new Error('the New boop button is not visible')
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(44)
   }
 
   /**

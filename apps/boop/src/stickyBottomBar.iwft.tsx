@@ -35,8 +35,11 @@ test.describe('laptop, short window', () => {
 })
 
 test.describe('small phone, short window', () => {
-  // 360 x 640: the narrowest phone the design covers and short enough to scroll.
-  test.use({ viewport: { width: 360, height: 640 } })
+  // 360 wide: the narrowest phone the design covers. 560 tall rather than 640
+  // since ticket 36 — with the preset row off the main screen the grid fits a
+  // 640px window, and a suite about scrolling has to be given something that
+  // genuinely does not fit.
+  test.use({ viewport: { width: 360, height: 560 } })
 
   test('the phone gets the same frame — strip and transport pinned, grid scrolling between', async ({
     mountApp,
@@ -69,6 +72,9 @@ test.describe('small phone, short window', () => {
   }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    // A fresh browser is seeded with a starter (ticket 36) whose hat already
+    // has step 9 on; this test paints its own cells, so start from Blank.
+    await root.startBlank()
 
     // The step window is still its own horizontal scroller, snapping to bar lines.
     await root.verifyStepWindowAt(0)

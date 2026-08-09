@@ -1,46 +1,30 @@
-import type { CSSProperties } from 'react'
-
-import { ROW_COLOR_VARS } from '../grid/instrumentColors.ts'
 import type { PresetRowSteps } from './presets.ts'
 import styles from './PresetThumbnail.module.scss'
 
 interface PresetThumbnailProps {
   rows: readonly PresetRowSteps[]
-  /**
-   * `'stage'` (default): the preset row's card on the dark stage, active dots
-   * take their row's instrument colour. `'paper'`: the "My boops" list's
-   * light paper card (design handoff §4 — "the same dot matrix ... dots
-   * `#14262A` for active steps"), one flat ink colour instead of per-row hues.
-   */
-  tone?: 'stage' | 'paper'
 }
 
 /**
- * The 16x6 dot-matrix preview from the design handoff ("Preset row" —
- * "Thumbnail"; reused for "My boops" row thumbnails, §4): one dot per cell.
- * Reads straight off the preset's position-only rows, with no need to know
- * which kit is loaded.
+ * The 16x6 dot-matrix preview from the design handoff (§4 — "the same dot
+ * matrix ... dots `#14262A` for active steps"): one dot per cell. Reads
+ * straight off position-only rows, with no need to know which kit is loaded.
+ *
+ * Ink on paper, one flat colour, because both places it appears are now paper
+ * cards: the "My boops" list and — since ticket 36 — the starter cards, which
+ * left the dark stage for the "New boop" dialog. The stage variant, whose
+ * active dots took their row's instrument hue, went with the preset row.
  */
-export function PresetThumbnail({ rows, tone = 'stage' }: PresetThumbnailProps) {
+export function PresetThumbnail({ rows }: PresetThumbnailProps) {
   return (
-    <div className={styles.matrix} data-tone={tone} aria-hidden="true">
-      {rows.map((row, rowIndex) => {
-        const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
-        return (
-          <div key={rowIndex} className={styles.row}>
-            {row.steps.map((on, step) => (
-              <span
-                key={step}
-                className={styles.dot}
-                data-active={on}
-                style={
-                  on && tone === 'stage' ? ({ '--dot-color': `var(${colorVar})` } as CSSProperties) : undefined
-                }
-              />
-            ))}
-          </div>
-        )
-      })}
+    <div className={styles.matrix} aria-hidden="true">
+      {rows.map((row, rowIndex) => (
+        <div key={rowIndex} className={styles.row}>
+          {row.steps.map((on, step) => (
+            <span key={step} className={styles.dot} data-active={on} />
+          ))}
+        </div>
+      ))}
     </div>
   )
 }
