@@ -46,6 +46,25 @@
   }
 }
 
+// The saved/edited indicator (ticket 31). Quiet chrome, not a status bar: half
+// ink, small, and it truncates rather than pushing the buttons about — a child
+// can type a very long boop name.
+.savedState {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(242, 239, 230, 0.5);
+
+  @media (max-width: 1279px) {
+    font-size: 12px;
+  }
+}
+
 .spacer {
   flex: 1;
 }

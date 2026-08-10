@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Kit, Pattern } from '../../engine/sequencerEngine.ts'
 import type { StoredBoop, StoredPattern } from '../../persistence/saveFormat.ts'
 import { useBoops } from '../../persistence/useBoops.ts'
+import { afterDelete, afterRename, afterSave, type LoadedBoop } from '../../savedState.ts'
 import { useIsPhone } from '../../useIsPhone.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import { PresetThumbnail } from '../presets/PresetThumbnail.tsx'
@@ -11,8 +12,16 @@ import styles from './BoopsPanel.module.scss'
 
 interface BoopsPanelProps {
   onClose: () => void
-  /** Loads a saved boop into the working grid. */
-  onLoad: (boop: StoredBoop) => void
+  /** Loads a saved boop into the working grid; the row becomes the loaded one (ticket 31). */
+  onLoad: (boop: StoredBoop, index: number) => void
+  /** Which row the working grid came from, if any — that row wears the loaded ring. */
+  loaded: LoadedBoop | null
+  /**
+   * Reports where the loaded boop has moved to (ticket 31). This dialog owns
+   * every mutation of the list, so it is the only place that can keep the
+   * identity honest — the transitions themselves live in `savedState.ts`.
+   */
+  onLoadedChange: (loaded: LoadedBoop | null) => void
   /** Read at tap time (Save button), not render time — see `TopBar`'s `getShareUrl` for the same reasoning. */
   getWorkingSnapshot: () => { kit: Kit; pattern: Pattern; tempo: number }
   /** Renders one saved boop to a WAV and hands it to the share sheet or a download (ticket 34). */
@@ -46,8 +55,17 @@ function thumbnailRows(pattern: StoredPattern) {
  * stops a second press duplicating the first.
  *
  * Each row loads on tap and carries rename, delete and export icon buttons.
+ * The row the working grid currently *is* wears a persistent cyan ring
+ * (handoff §4) — the same colour as the just-saved highlight, without its pop.
  */
-export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: BoopsPanelProps) {
+export function BoopsPanel({
+  onClose,
+  onLoad,
+  getWorkingSnapshot,
+  onExport,
+  loaded,
+  onLoadedChange,
+}: BoopsPanelProps) {
   const boops = useBoops()
   const [editing, setEditing] = useState<Editing>({ kind: 'none' })
   // `null` means "nobody has typed": the field then *derives* its name from the
@@ -94,6 +112,7 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
     const { index } = boops.save(kit, pattern, tempo, trimmed)
     setHighlight({ index, id: (highlight?.id ?? 0) + 1 })
     setTypedName(null)
+    onLoadedChange(afterSave(index, trimmed))
   }
 
   // A ref for the same reason `saved` above is one — a double-tap has to be
@@ -118,8 +137,16 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
 
   function commitRename(index: number, newName: string) {
     const trimmed = newName.trim()
-    if (trimmed !== '') boops.rename(index, trimmed)
+    if (trimmed !== '') {
+      boops.rename(index, trimmed)
+      onLoadedChange(afterRename(loaded, index, trimmed))
+    }
     setEditing({ kind: 'none' })
+  }
+
+  function commitDelete(index: number) {
+    boops.remove(index)
+    onLoadedChange(afterDelete(loaded, index))
   }
 
   const deletingName = editing.kind === 'deleting' ? boops.boops[editing.index]?.name : undefined
@@ -181,8 +208,9 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
               <div
                 key={index}
                 ref={highlight?.index === index ? highlightedRow : null}
-                className={`${styles.row}${highlight?.index === index ? ` ${styles.rowHighlight}` : ''}`}
+                className={`${styles.row}${loaded?.index === index ? ` ${styles.rowLoaded}` : ''}${highlight?.index === index ? ` ${styles.rowHighlight}` : ''}`}
                 data-highlighted={highlight?.index === index}
+                data-loaded={loaded?.index === index}
                 data-testid={`boop-row-${index}`}
               >
                 {editing.kind === 'renaming' && editing.index === index ? (
@@ -196,7 +224,7 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
                     <button
                       type="button"
                       className={styles.rowLoad}
-                      onClick={() => onLoad(boop)}
+                      onClick={() => onLoad(boop, index)}
                       data-testid={`boop-load-${index}`}
                     >
                       <PresetThumbnail rows={thumbnailRows(boop.patterns[0]!)} />
@@ -249,7 +277,7 @@ export function BoopsPanel({ onClose, onLoad, getWorkingSnapshot, onExport }: Bo
           destructiveLabel="Throw away"
           onSafe={() => setEditing({ kind: 'none' })}
           onDestructive={() => {
-            boops.remove(editing.index)
+            commitDelete(editing.index)
             setEditing({ kind: 'none' })
           }}
         />

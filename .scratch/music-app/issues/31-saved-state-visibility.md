@@ -49,16 +49,35 @@ region and the phone strip's save icon.
 
 **Blocked by:** 32 — the save form (it defines the moment this clears); 35 — rename
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Loaded-boop identity tracked; set on load, cleared by Clear grid and by
+- [x] Loaded-boop identity tracked; set on load, cleared by Clear grid and by
       loading a starter, adopted by a fresh save
-- [ ] Indicator reads `<name> • edited` / `Not saved yet` on desktop; dot badge
+- [x] Indicator reads `<name> • edited` / `Not saved yet` on desktop; dot badge
       on the phone save icon
-- [ ] Any cell toggle **or tempo change** marks edited; the old starter-ring
+- [x] Any cell toggle **or tempo change** marks edited; the old starter-ring
       tempo exemption is removed, not left alongside
-- [ ] "Currently loaded" row treatment in the dialog, per handoff §4
-- [ ] No `beforeunload` handler anywhere; a test proves a plain autosaved grid
+- [x] "Currently loaded" row treatment in the dialog, per handoff §4
+- [x] No `beforeunload` handler anywhere; a test proves a plain autosaved grid
       raises no browser prompt
-- [ ] Whole-frontend test: save → indicator clears → toggle a cell → `• edited`
+- [x] Whole-frontend test: save → indicator clears → toggle a cell → `• edited`
       → change tempo only → still `• edited` → reload the saved boop → clears
+
+## Comments
+
+**Built (2026-08-09).** `src/savedState.ts` is the pure seam — a `LoadedBoop`
+(`{ index, name, edited }`), the label, the dot's `isUnsaved`, and the four
+transitions (`afterEdit` / `afterSave` / `afterRename` / `afterDelete`), all
+unit-tested. `HomePage` owns the state; `BoopsPanel` applies the transitions,
+since it is the only place the list mutates.
+
+One thing beyond the checklist, and it is a consequence of keying identity on
+the row rather than the name: a rename of the loaded boop has to keep it, a
+delete of it has to end it, and a delete above it has to shift it up one.
+Recorded, with what will break first, in
+[ADR 0031](../../../docs/adr/0031-boop-saved-state-visibility.md).
+
+The row ring is a separate class from ticket 32's just-saved highlight — same
+cyan, no `boopPop`, held rather than timed. Handoff amendments landed under §1
+(top bar), the small-phone chrome, and §4 (the "Currently loaded" treatment is
+now driven by real state).

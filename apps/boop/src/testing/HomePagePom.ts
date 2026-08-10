@@ -441,6 +441,44 @@ export class HomePagePom extends BasePage {
     return this.page.getByTestId(`boop-row-${index}`)
   }
 
+  // --- The saved/edited indicator (ticket 31) ---
+
+  /** The whole of the desktop indicator's text — `Boop 1`, `Boop 1 • edited`, or `Not saved yet`. */
+  async verifySavedState(text: string): Promise<void> {
+    await expect(this.page.getByTestId('saved-state')).toHaveText(text)
+  }
+
+  /** The phone's dot badge: filled when this grid is not a row in "My boops", hollow when it is. */
+  async verifyPhoneSavedDot(unsaved: boolean): Promise<void> {
+    await expect(this.page.getByTestId('phone-saved-dot')).toHaveAttribute(
+      'data-unsaved',
+      String(unsaved),
+    )
+  }
+
+  /** The standing "this is the one you're playing" ring on a row (handoff §4). */
+  async verifyBoopRowLoaded(index: number): Promise<void> {
+    await expect(this.boopRow(index)).toHaveAttribute('data-loaded', 'true')
+  }
+
+  async verifyBoopRowNotLoaded(index: number): Promise<void> {
+    await expect(this.boopRow(index)).toHaveAttribute('data-loaded', 'false')
+  }
+
+  /**
+   * Closing the tab raises no browser confirm (ticket 31, decision 5). Covers
+   * both ways of asking for one: a listener that cancels a real `beforeunload`
+   * — what the browser itself checks — and the legacy `window.onbeforeunload`
+   * property, whose returned string prompts without ever cancelling.
+   */
+  async verifyNoUnloadPrompt(): Promise<void> {
+    const asked = await this.page.evaluate(() => ({
+      cancelled: !window.dispatchEvent(new Event('beforeunload', { cancelable: true })),
+      legacyHandler: window.onbeforeunload !== null,
+    }))
+    expect(asked).toEqual({ cancelled: false, legacyHandler: false })
+  }
+
   async loadBoop(index: number): Promise<void> {
     await this.page.getByTestId(`boop-load-${index}`).click()
   }

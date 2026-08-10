@@ -107,6 +107,18 @@ and gives it a name. A browser with no working grid at all is *seeded* with a
 starter rather than opening empty (ticket 36) — see **Starter**.
 _Avoid_: Current pattern, draft, session.
 
+**Loaded boop**:
+The saved boop the working grid came from, while it is still recognisably that
+boop — its row in "My boops" plus whether the grid has since diverged
+(ticket 31). Set by loading a row, adopted by a save, dropped by Clear grid and
+by loading a starter, and never restored on reload: it describes this session's
+loading and saving, not what is on disk. It drives the chrome's saved/edited
+indicator and the loaded row's ring. "Edited" has exactly one meaning across
+the app — a cell toggle *or* a tempo change. See
+[ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md).
+_Avoid_: Unsaved changes, dirty (nothing is ever lost — the working grid is
+autosaved), current boop.
+
 **Starter**:
 One of the four fixed offerings in the "New boop" dialog — Blank, Wonky Walk,
 Robot Hiccup, Sunday Stomp. Pure data, position-only rows plus a tempo, loaded
