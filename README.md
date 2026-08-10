@@ -1,122 +1,168 @@
-# App Hub
+# HomeOfEd
 
-A personal production home on `homeofed.com` for a range of independent apps —
-gimmick apps, larger apps, possibly a blog. Each app is self-contained and routed
-by subdomain (`app.homeofed.com`). Hosting is Fly.io (London) + Cloudflare.
+[![Deploy](https://github.com/Ed-Barnes937/HomeOfEd/actions/workflows/deploy.yml/badge.svg)](https://github.com/Ed-Barnes937/HomeOfEd/actions/workflows/deploy.yml)
+[![Site](https://img.shields.io/website?url=https%3A%2F%2Fhomeofed.com&label=homeofed.com)](https://homeofed.com)
+[![Node](https://img.shields.io/badge/node-22-339933?logo=node.js&logoColor=white)](.nvmrc)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](packages/config)
+[![Fly.io](https://img.shields.io/badge/Fly.io-London-8b5cf6?logo=flydotio&logoColor=white)](docs/hosting.md)
 
-> **Status:** live — <https://homeofed.com> (since 2026-07-02). The foundation
-> was built from the
-> [implementation plan](docs/plans/0001-foundation-implementation-plan.md).
+My personal corner of the internet: a monorepo of small, self-contained web apps
+that each get their own subdomain. Some are toys, some are for my kids, some are
+excuses to try an idea out properly. They all share the same plumbing and the
+same deployment path, and nothing else.
 
-Decisions and their rationale live in [`docs/adr/`](docs/adr/). The architecture
-baseline is [ADR 0001](docs/adr/0001-foundation.md); hosting is
-[`docs/hosting.md`](docs/hosting.md).
+### 👉 [**homeofed.com**](https://homeofed.com)
 
-## Tech stack
+Live since 2 July 2026, hosted on Fly.io in London behind Cloudflare.
 
-- **Frontend:** React SPA — TanStack Router + TanStack Query + tRPC client, SCSS modules. TanStack Start (SSR) is opt-in per app ([ADR 0003](docs/adr/0003-spa-default-tanstack-start-opt-in.md)).
-- **Backend:** TypeScript, layered + dependency injection, tRPC preferred (REST where it fits).
-- **Database:** Drizzle on Fly Postgres (LHR, unmanaged — [ADR 0005](docs/adr/0005-unmanaged-fly-postgres.md)); PGlite as the in-memory fake.
-- **Monorepo:** pnpm workspaces + Turborepo.
-- **Tests:** Vitest (unit) + Playwright (isolated whole-frontend).
+| App | What it is | Status |
+|---|---|---|
+| [homeofed.com](https://homeofed.com) | The launcher. A card for every app. | ✅ Live |
+| [boids](https://boids.homeofed.com) | Reynolds flocking on a full-screen canvas, with knobs to fiddle with. | ✅ Live |
+| [boop](https://boop.homeofed.com) | A 6-instrument, 16-step sequencer for children. Tap to paint a beat. | ✅ Live |
+| [espy](https://espy.homeofed.com) | Ink blots on warm paper that you doodle into little creatures. | ✅ Live |
+| [fridge](https://fridge.homeofed.com) | Fridge magnets that shove each other out of the way as you drag them. | ✅ Live |
+| [karesansui](https://karesansui.homeofed.com) | 枯山水. Build a gear train, press play, watch it rake a zen garden. | ✅ Live |
+| [silt](https://silt.homeofed.com) | A falling-sand playground. | ✅ Live |
+| [wotd](https://wotd.homeofed.com) | Word of the day, at four difficulty levels. | ✅ Live |
+| `sprout` | A child-safe LLM chat app for children. | 🚧 Built, awaiting DNS |
 
-## Repository structure
+## How it is put together
+
+Every app is a leaf node. It owns its own UI, its own styles and its own
+backend handlers, and it never imports from another app. Anything genuinely
+shared moves into a package instead. That rule is the whole reason the repo
+stays workable as it grows.
+
+Apps are React SPAs (TanStack Router, TanStack Query, a tRPC client, SCSS
+modules). Data always travels over tRPC, never through server functions,
+because tRPC is where the dependency-injection seam lives. Behind the
+transport, handlers talk to `Store` and `BlobStore` interfaces rather than to a
+database, so the same handler code runs in production against Postgres and in
+development against an in-memory PGlite. Server-side rendering is available via
+TanStack Start, but you have to opt in and have a reason.
+
+Underneath: TypeScript throughout, Drizzle over Fly Postgres, pnpm workspaces
+with Turborepo, Vitest for units and Playwright for whole-frontend tests.
+
+The reasoning for all of the above is written down in
+[`docs/adr/`](docs/adr/). [ADR 0001](docs/adr/0001-foundation.md) is the
+architectural baseline and the right place to start.
+
+## Layout
 
 ```
-apps/*            leaf-node apps; own their UI/styles. hub = launcher/landing.
-templates/starter minimal, stateless copy base for new apps (ADR 0007; not deployed).
+apps/*              the apps. hub is the launcher.
+templates/starter   stateless copy base for a new app (not deployed)
 packages/
-  config          tsconfig / eslint / prettier base
-  db              drizzle client, Postgres↔PGlite driver swap, migration runner
-  backend-kit     handler base, transport adapters, Store/BlobStore interfaces,
-                  fakes, the backendSimulator harness, DI
-  logger          structured JSON logging
-  test-kit        playwright fixtures, base Page Object Model, iwft↔simulator glue
+  config            tsconfig / eslint / prettier base
+  db                drizzle client, Postgres↔PGlite swap, migration runner
+  backend-kit       handler base, transports, Store/BlobStore, fakes, simulator, DI
+  logger            structured JSON logging
+  test-kit          playwright fixtures, base page objects, simulator glue
 docs/
-  adr/            numbered MADR-lite decision records
-  plans/          implementation plans
-  reference/      background studies (e.g. the backend-simulator pattern)
-  hosting.md      hosting & infrastructure decision
-CLAUDE.md         agent + contributor working rules
+  adr/              numbered decision records
+  plans/            implementation plans
+  how-to/           procedures, e.g. adding an app
+  runbooks/         human-run infrastructure steps
+  hosting.md        hosting and infrastructure
+CLAUDE.md           working rules for contributors and agents
 ```
 
-Every package ships its own `README.md` (purpose, public API, usage, testing).
-Every app ships a scoped `CLAUDE.md` and a `README.md`.
+Each package has a `README.md` covering its purpose, public API and tests. Each
+app has a `README.md` and a scoped `CLAUDE.md`.
 
 ## Getting started
 
-**Prerequisites:** Node (see `.nvmrc`), pnpm (via `corepack enable`), Docker
-(for docker-stack mode), and the Fly CLI (`flyctl`) for deploys.
+You need Node 22 (`.nvmrc`), pnpm via corepack, Docker if you want the
+container stack, and `flyctl` if you are deploying.
 
 ```bash
 corepack enable
 pnpm install
+pnpm dev --filter=hub
 ```
 
-## Standard procedures
+That last command is how you will spend nearly all of your time. It runs the
+frontend, the real backend handlers, PGlite and an in-memory blob store in one
+process, with hot reload and no Docker. It is also exactly what the Playwright
+tests run against, so a green test suite means something.
 
-### Run locally — two modes
-
-| Mode | Command | What runs |
-|---|---|---|
-| **Simulator** (daily driver) | `pnpm dev --filter=<app>` | Frontend + real handlers + **PGlite** + in-memory blob. HMR, no Docker, no DB server. Same backend the `.iwft` tests use. |
-| **Docker stack** (parity / integration) | `docker compose up` | The **actual Fly Dockerfiles** + a real Postgres container. Verifies the real artifact, transport, networking, env/secrets, migrations. |
-
-Simulator mode is for almost all work. Use docker-stack to verify the real
-artifact before a deploy and to catch any PGlite-vs-Postgres gaps.
-
-#### Docker stack
+The other mode exists to check the real artefact:
 
 ```bash
-docker compose up hub       # one app + its DB (depends_on starts hub-db)
-docker compose up           # everything
+docker compose up hub     # one app plus its database
+docker compose up         # everything
 ```
 
-Builds each app's real Fly Dockerfile (from the repo root — turbo-pruned,
-prod-deps-only, no pglite/test code) and runs it against a `postgres:17`
-service. The app container runs the same two steps as a Fly deploy: the
-journal-tracked migrate entrypoint (`release_command` locally), then the
-server. Hub: <http://localhost:8080>, deep health at `/health`. Local DB
-credentials are hardcoded in `compose.yml`; anything genuinely secret belongs
-in a gitignored `.env` via `env_file`, never in the file.
+This builds each app's actual Fly Dockerfile (turbo-pruned, production
+dependencies only) and runs it against a `postgres:17` container, executing the
+same two steps as a real deploy: migrate, then serve. Hub lands on
+<http://localhost:8080> with a deep health check at `/health`. Use it before a
+deploy and when you suspect a PGlite-versus-Postgres difference. The database
+credentials in `compose.yml` are local throwaways; real secrets go in a
+gitignored `.env`.
 
-### Test, lint, typecheck
+## Checks
 
 ```bash
-pnpm test --filter=<app|pkg>      # vitest (*.test) + playwright iwft (*.iwft)
+pnpm test --filter=<app|package>
 pnpm lint
 pnpm typecheck
 ```
 
-Test layers: `*.test.ts(x)` (Vitest unit/integration), `*.iwft.ts(x)` (Playwright
-whole-frontend, POM-driven, simulator-backed), `*.e2e.ts(x)` (full stack —
-deferred). TDD red → green → refactor.
+Three test layers, by suffix. `*.test.ts(x)` is Vitest, for units and
+integration. `*.iwft.ts(x)` is Playwright driving the whole frontend against
+the simulator, through page objects. `*.e2e.ts(x)` is the full stack and is
+currently deferred. Development is test-first: red, green, refactor.
 
-### Add an app
+## Adding an app
 
-No generator — **copy `templates/starter`** (the stateless baseline) and change
-each wiring touchpoint; a database is an additive step. Full procedure:
-**[docs/how-to/adding-an-app.md](docs/how-to/adding-an-app.md)** (decide DB →
-create → add DB → verify → deploy). Rationale in
-[ADR 0007](docs/adr/0007-reference-starter-app.md) (starter vs launcher) and
-[ADR 0008](docs/adr/0008-apps-without-a-database.md) (no-DB apps).
+There is no generator, on purpose. You copy `templates/starter` and change each
+wiring touchpoint by hand: name, subdomain, ports, Fly app, Cloudflare record,
+CI job, compose service. A database is a separate additive step and plenty of
+apps never need one.
 
-### Deploy
+The full procedure is in
+[docs/how-to/adding-an-app.md](docs/how-to/adding-an-app.md). The rationale is
+in [ADR 0007](docs/adr/0007-reference-starter-app.md) and
+[ADR 0008](docs/adr/0008-apps-without-a-database.md).
 
-CI deploys changed apps to Fly on merge to `main` (migrations via `fly.toml`
-`release_command`, then a `/health` smoke check). Initial infrastructure setup
-(Fly apps, Postgres, Cloudflare DNS, GitHub secrets) is done by a human
-following [docs/runbooks/phase-4-go-live.md](docs/runbooks/phase-4-go-live.md).
+## Deploying
 
-## Documentation map
+Merging to `main` deploys whichever apps changed. CI runs migrations through the
+`release_command` in each `fly.toml`, then smoke-tests `/health`.
 
-| Doc | Purpose |
+Standing up a *brand new* app's infrastructure is scripted, but a human runs it,
+because it creates real Fly apps and edits real DNS:
+
+```bash
+fly auth login
+CLOUDFLARE_API_TOKEN=... scripts/go-live.sh <app> [--db] [--dry-run]
+```
+
+Give it the directory name under `apps/`, which is also the subdomain. Add
+`--db` if the app needs a database in the shared `hoe-pg` cluster, and
+`--dry-run` to print every mutating command without running it. The script is
+idempotent, so if a step fails you can fix the cause and re-run from the top.
+It also handles the awkward part of the certificate dance for you: the CNAME
+goes in DNS-only so Let's Encrypt can see Fly directly, then flips to proxied
+once the certificate is issued.
+
+The token needs `Zone.DNS:Edit` on the `homeofed.com` zone, and nothing more.
+[docs/runbooks/phase-4-go-live.md](docs/runbooks/phase-4-go-live.md) covers the
+manual equivalent and the GitHub secrets, which are still set by hand.
+
+## Where to find things
+
+| Path | What is in it |
 |---|---|
-| `README.md` | This file — overview + standard procedures. |
-| `CLAUDE.md` | Working rules for agents/contributors; the "adding an app" checklist. |
-| `docs/adr/*` | Numbered decision records (rationale). |
-| `docs/plans/*` | Implementation plans. |
-| `docs/reference/*` | Background studies informing decisions (e.g. the backend-simulator pattern). |
-| `docs/hosting.md` | Hosting & infrastructure decision. |
-| `packages/*/README.md` | Per-package purpose, API, usage. |
-| `apps/*/CLAUDE.md` | Per-app specifics. |
+| [`CLAUDE.md`](CLAUDE.md) | Working rules, and the add-an-app checklist. |
+| [`docs/adr/`](docs/adr/) | Numbered decision records. The why. |
+| [`docs/how-to/`](docs/how-to/) | Step-by-step procedures. |
+| [`docs/runbooks/`](docs/runbooks/) | Things only a human can do. |
+| [`docs/plans/`](docs/plans/) | Implementation plans. |
+| [`docs/reference/`](docs/reference/) | Background studies behind the decisions. |
+| [`docs/hosting.md`](docs/hosting.md) | Hosting and infrastructure. |
+| `packages/*/README.md` | Per-package API and usage. |
+| `apps/*/README.md` | Per-app specifics. |
