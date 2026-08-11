@@ -29,11 +29,11 @@ export function SiteHeader() {
         </svg>
       </a>
       <Link to="/" className={styles.wordmark}>
+        <BookOpenIcon size={32} />
         <Typography variant="h1" className={styles.title}>
-          <BookOpenIcon size={32} />
-          Word of the Day!
-          <BookOpenIcon size={32} />
+          Word of the Day
         </Typography>
+        <BookOpenIcon size={32} />
       </Link>
     </header>
   )

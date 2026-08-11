@@ -19,7 +19,7 @@ export class HomePagePom extends BasePage {
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByTestId('home-page')).toBeVisible()
-    await expect(this.page.getByRole('heading', { name: 'Pick a level, any level!' })).toBeVisible()
+    await expect(this.page.getByRole('heading', { name: 'Pick a level!' })).toBeVisible()
   }
 
   /** Asserts a level card is visible with its age (key-stage) hint. */
