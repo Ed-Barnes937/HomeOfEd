@@ -7,7 +7,7 @@ export function HomePage() {
   return (
     <main className={styles.home} data-testid="home-page">
       <Typography variant="h2" className={styles.heading}>
-        Pick a level, any level!
+        Pick a level!
       </Typography>
       <div className={styles.grid}>
         {DIFFICULTIES.map((level) => (
