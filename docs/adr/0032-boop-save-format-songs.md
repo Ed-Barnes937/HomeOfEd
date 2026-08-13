@@ -90,4 +90,7 @@ position in `patterns`, so old documents decode to today's cycling colours).
 New clips and copies take the lowest unused tint, which keeps the
 one-tint-per-clip uniqueness of ticket 01 after deletes. Same additive rules
 as everything above: no version bump, strict decode (an out-of-range or
-duplicate `tint` invalidates the boop).
+duplicate `tint` invalidates the boop). Uniqueness is checked on **effective**
+tints — an absent `tint` counts as the pattern's position — so a stated tint
+colliding with another pattern's default is also invalid; the single writer
+never mixes stated and defaulted tints, so a mix that collides is corruption.

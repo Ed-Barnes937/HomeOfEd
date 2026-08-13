@@ -30,6 +30,21 @@ describe('encodeShare / decodeShare', () => {
     expect(decodeShare(encodeShare(boop))).toEqual(boop)
   })
 
+  // Ticket 13 / ADR 0032: the share codec inherits the save format's decoder,
+  // so a whole song travels in a link with no SHARE_FORMAT_VERSION bump.
+  it('round-trips a whole song — clips, names, tints, placements, gridClip', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: [
+        { ...boop.patterns[0]!, name: 'Drums', tint: 4 },
+        { ...boop.patterns[0]!, name: 'More drums', tint: 0 },
+      ],
+      placements: '1112..2211......',
+      gridClip: 1,
+    }
+    expect(decodeShare(encodeShare(song))).toEqual(song)
+  })
+
   it('round-trips a name with non-latin characters', () => {
     const named = { ...boop, name: 'ドラム 🥁' }
     expect(decodeShare(encodeShare(named))).toEqual(named)
@@ -75,6 +90,16 @@ describe('decodeShare is total', () => {
       JSON.stringify({
         version: SHARE_FORMAT_VERSION,
         creation: { ...boop, patterns: [{ rows: [{ instrumentId: 'kick', steps: '10' }] }] },
+      }),
+    ).toString('base64url')
+    expect(decodeShare(bad)).toBeNull()
+  })
+
+  it('returns null for a song whose placements point past its clips', () => {
+    const bad = Buffer.from(
+      JSON.stringify({
+        version: SHARE_FORMAT_VERSION,
+        creation: { ...boop, placements: '2...............' },
       }),
     ).toString('base64url')
     expect(decodeShare(bad)).toBeNull()
@@ -128,12 +153,30 @@ describe('decodeShareHash', () => {
 // (ADR 0026) — a link built before the rename must still load afterwards.
 describe('pre-rename compatibility (ticket 35)', () => {
   it('loads a share link built before the rename', () => {
-    const preRenameToken = Buffer.from(JSON.stringify({ version: SHARE_FORMAT_VERSION, creation: boop })).toString(
-      'base64url',
-    )
+    const preRenameToken = Buffer.from(
+      JSON.stringify({ version: SHARE_FORMAT_VERSION, creation: boop }),
+    ).toString('base64url')
     const hash = `${SHARE_HASH_PREFIX}${preRenameToken}`
 
     expect(decodeShareHash(hash)).toEqual(boop)
+  })
+})
+
+// Ticket 13 / ADR 0032: old links must open as a one-clip song with an empty
+// song bar — the decoder adds nothing the child didn't make.
+describe('pre-song compatibility (ticket 13)', () => {
+  it('decodes an old link as a one-clip song with no song fields added', () => {
+    const oldToken = Buffer.from(
+      JSON.stringify({ version: SHARE_FORMAT_VERSION, creation: boop }),
+    ).toString('base64url')
+
+    const decoded = decodeShare(oldToken)!
+
+    expect(decoded.patterns).toHaveLength(1)
+    expect('placements' in decoded).toBe(false)
+    expect('gridClip' in decoded).toBe(false)
+    expect('name' in decoded.patterns[0]!).toBe(false)
+    expect('tint' in decoded.patterns[0]!).toBe(false)
   })
 })
 

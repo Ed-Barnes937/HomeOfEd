@@ -21,6 +21,15 @@ import {
 /** Bumped only for a breaking shape change; an unknown version reads as empty. */
 export const SAVE_FORMAT_VERSION = 1
 
+/** The fixed tint list has exactly this many colours; `tint` indexes into it. */
+export const TINT_COUNT = 5
+
+/** Hard cap on clips per boop — one per tint (ADR 0032, spec §2). */
+export const MAX_CLIPS = TINT_COUNT
+
+/** A song is fixed at 16 positions; `placements` is one character per position. */
+export const SONG_POSITIONS = 16
+
 /** One instrument's 16 cells as a bitstring, e.g. `1000100010001000`. */
 export interface StoredRow {
   instrumentId: string
@@ -28,23 +37,37 @@ export interface StoredRow {
 }
 
 /**
- * One pattern. An object rather than a bare row array so V2 can add per-pattern
- * fields (repeats, a name) without another version bump.
+ * One pattern — the storage shape of a **clip** (ADR 0032: the field keeps its
+ * frozen V1 name while the domain says Clip). `name` and `tint` are optional
+ * and additive: the decoder passes them through when present and adds nothing
+ * when absent — defaults ("Clip N", tint = position) are the reader's job, so
+ * an old document round-trips byte-honest.
  */
 export interface StoredPattern {
   rows: readonly StoredRow[]
+  name?: string
+  /** Index into the fixed 5-tint list (0–4), unique per clip. */
+  tint?: number
 }
 
 /**
- * A boop: a named thing a child made. V1 holds exactly one pattern;
- * chaining several into a song is the confirmed V2 direction, which this list
- * absorbs without a migration.
+ * A boop: a named thing a child made — since ADR 0032, a whole **song**.
+ * `patterns` is the clip list (1–5, order is lane order). `placements` and
+ * `gridClip` are optional and additive: absent on every pre-song document,
+ * which therefore decodes as a one-clip song with an empty song bar.
  */
 export interface StoredBoop {
   name: string
   kitId: string
   tempo: number
   patterns: readonly StoredPattern[]
+  /**
+   * One character per song position: `.` empty, `1`–`5` a 1-based clip index
+   * (e.g. `"1112..3311......"`). Always exactly 16 characters when present.
+   */
+  placements?: string
+  /** Which clip is on the grid (0-based index into `patterns`), default 0. */
+  gridClip?: number
 }
 
 /**
@@ -161,6 +184,7 @@ export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
   if (typeof tempo !== 'number' || !Number.isFinite(tempo)) return undefined
   if (tempo < MIN_BPM || tempo > MAX_BPM) return undefined
   if (!Array.isArray(patterns) || patterns.length === 0) return undefined
+  if (patterns.length > MAX_CLIPS) return undefined
 
   const decoded: StoredPattern[] = []
   for (const entry of patterns) {
@@ -169,7 +193,31 @@ export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
     decoded.push(pattern)
   }
 
-  return { name, kitId, tempo, patterns: decoded }
+  // One tint per clip (ADR 0032 amendment). An absent tint defaults to the
+  // pattern's own position, so uniqueness is checked on the effective values.
+  const tints = decoded.map((pattern, index) => pattern.tint ?? index)
+  if (new Set(tints).size !== tints.length) return undefined
+
+  const boop: StoredBoop = { name, kitId, tempo, patterns: decoded }
+
+  if (value.placements !== undefined) {
+    if (typeof value.placements !== 'string') return undefined
+    if (value.placements.length !== SONG_POSITIONS) return undefined
+    if (!/^[.1-5]+$/.test(value.placements)) return undefined
+    // A digit past the clip list is dangling — a bug or corruption, not data.
+    for (const char of value.placements) {
+      if (char !== '.' && Number(char) > decoded.length) return undefined
+    }
+    boop.placements = value.placements
+  }
+
+  if (value.gridClip !== undefined) {
+    if (typeof value.gridClip !== 'number' || !Number.isInteger(value.gridClip)) return undefined
+    if (value.gridClip < 0 || value.gridClip >= decoded.length) return undefined
+    boop.gridClip = value.gridClip
+  }
+
+  return boop
 }
 
 function decodePattern(value: unknown): StoredPattern | undefined {
@@ -184,7 +232,17 @@ function decodePattern(value: unknown): StoredPattern | undefined {
     rows.push({ instrumentId, steps })
   }
 
-  return { rows }
+  const pattern: StoredPattern = { rows }
+  if (value.name !== undefined) {
+    if (typeof value.name !== 'string') return undefined
+    pattern.name = value.name
+  }
+  if (value.tint !== undefined) {
+    if (typeof value.tint !== 'number' || !Number.isInteger(value.tint)) return undefined
+    if (value.tint < 0 || value.tint >= TINT_COUNT) return undefined
+    pattern.tint = value.tint
+  }
+  return pattern
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

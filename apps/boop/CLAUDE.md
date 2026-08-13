@@ -119,9 +119,13 @@ share-link snapshot.
   work; UI subscribes via `onDrawBeat`. Pattern edits are readable state, not
   an event stream, and audition-on-toggle is the engine's job. Test engine
   behaviour against `FakeAudioDriver`, never a real AudioContext.
-- **Persistence** ([ADR 0025](../../docs/adr/0025-boop-save-format.md)). One
+- **Persistence** ([ADR 0025](../../docs/adr/0025-boop-save-format.md), extended
+  for songs by [ADR 0032](../../docs/adr/0032-boop-save-format-songs.md)). One
   versioned save document under one `localStorage` key (`boop:save`), holding
-  the autosaved working grid and the "My boops" list. Anything that persists
+  the autosaved working grid and the "My boops" list. A stored boop is a whole
+  song: `patterns` is the clip list (≤5, optional `name`/`tint` per clip), plus
+  optional `placements` (16-char string) and `gridClip` — all additive, still
+  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. Anything that persists
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error. A browser with **no** working
