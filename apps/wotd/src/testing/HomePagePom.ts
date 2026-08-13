@@ -95,6 +95,18 @@ export class HomePagePom extends BasePage {
       .toContain(word)
   }
 
+  /** Clicks the sun/moon pill in the top bar. */
+  async toggleTheme(): Promise<void> {
+    await this.page.getByTestId('theme-toggle').click()
+  }
+
+  /** Asserts the document root is painted with the given theme. */
+  async verifyTheme(theme: 'light' | 'dark'): Promise<void> {
+    await expect
+      .poll(() => this.page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+      .toBe(theme)
+  }
+
   /** Asserts the page has no horizontal overflow at the current viewport. */
   async verifyNoHorizontalOverflow(): Promise<void> {
     const overflow = await this.page.evaluate(

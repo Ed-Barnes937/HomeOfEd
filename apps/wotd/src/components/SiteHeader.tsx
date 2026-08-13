@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { hubUrl } from '../hubUrl.ts'
 import { BookOpenIcon } from './icons.tsx'
 import styles from './SiteHeader.module.scss'
+import { ThemeToggle } from './ThemeToggle.tsx'
 import { Typography } from './Typography.tsx'
 
 export function SiteHeader() {
@@ -35,6 +36,9 @@ export function SiteHeader() {
           <BookOpenIcon size={32} />
         </Typography>
       </Link>
+      <div className={styles.toggle}>
+        <ThemeToggle />
+      </div>
     </header>
   )
 }

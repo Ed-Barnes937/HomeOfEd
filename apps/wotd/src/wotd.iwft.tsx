@@ -74,6 +74,32 @@ for (const width of [320, 390]) {
   })
 }
 
+test('the theme toggle flips the theme and the choice survives a reload', async ({
+  mountApp,
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'light' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyTheme('light')
+  await root.toggleTheme()
+  await root.verifyTheme('dark')
+  await page.reload()
+  const { root: reloaded } = await mountApp()
+  await reloaded.verifyIsShown()
+  await reloaded.verifyTheme('dark')
+})
+
+test('a first visit with no stored choice follows the system preference', async ({
+  mountApp,
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'dark' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyTheme('dark')
+})
+
 test('an invalid level in the URL falls back to beginner', async ({ mountApp }) => {
   const { root } = await mountApp({ seed })
   await root.gotoPath('/wotd?level=bogus')

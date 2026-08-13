@@ -1,0 +1,42 @@
+// Handoff "Theme toggle (all screens)": a 2px-bordered pill of two 26px
+// circular segments; the active one is filled ink-on-page. All colours come
+// from the theme tokens, so the same rules paint both palettes.
+.toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 2px solid var(--rule);
+  background: var(--surface);
+  cursor: pointer;
+
+  // The pill draws 36px tall; an invisible halo keeps the hit target at the
+  // handoff's ≥44px without changing the visual.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+  }
+}
+
+.segment,
+.activeSegment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+}
+
+.segment {
+  color: var(--label-dim);
+}
+
+.activeSegment {
+  background: var(--ink);
+  color: var(--page);
+}

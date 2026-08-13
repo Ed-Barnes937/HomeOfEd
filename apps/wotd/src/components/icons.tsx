@@ -102,6 +102,34 @@ export function SpeakerIcon(props: IconProps) {
   )
 }
 
+export function SunIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M12 3v1.6M12 19.4V21M5.2 5.2l1.1 1.1M17.7 17.7l1.1 1.1M3 12h1.6M19.4 12H21M5.2 18.8l1.1-1.1M17.7 6.3l1.1-1.1"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+export function MoonIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path
+        d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function BookOpenIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

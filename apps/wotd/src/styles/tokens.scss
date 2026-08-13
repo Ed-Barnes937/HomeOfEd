@@ -1,0 +1,101 @@
+/**
+ * Paper & ink design tokens — values from the handoff token tables
+ * (reference/wotd-polish/README.md) and the reference HTML. The fill-hover
+ * steps are the HTML's exact values; the solid-hover steps only appear there
+ * for the expert level (±0.07 lightness), so the other three extrapolate
+ * that pattern per the README's hover rule. `data-theme` on <html> picks the
+ * palette; the light set doubles as the default so an unset attribute still
+ * paints.
+ */
+
+:root,
+:root[data-theme='light'] {
+  --font-display: 'Newsreader', georgia, serif;
+  --font-ui: 'Nunito', system-ui, sans-serif;
+
+  --page: #fdfbf4;
+  --surface: #ffffff;
+  --surface-guess: #fbf7ec;
+  --ink: #1b1a17;
+  --body-muted: #7c7669;
+  --label-dim: #a89f86;
+  --text-secondary: #8a867c;
+  --rule: #e8dfc9;
+  --rule-card: #efe7d4;
+  --rule-dashed: #e4dac2;
+  --button-hover-fill: #f3eddd;
+  --example-text: #3d3a33;
+  --accent: oklch(0.72 0.16 70);
+
+  --level-beginner-solid: oklch(0.55 0.13 155);
+  --level-beginner-solid-hover: oklch(0.48 0.13 155);
+  --level-beginner-border: oklch(0.86 0.075 155);
+  --level-beginner-fill: oklch(0.965 0.03 155);
+  --level-beginner-fill-hover: oklch(0.94 0.05 155);
+  --level-beginner-text: oklch(0.35 0.09 155);
+
+  --level-intermediate-solid: oklch(0.55 0.13 265);
+  --level-intermediate-solid-hover: oklch(0.48 0.13 265);
+  --level-intermediate-border: oklch(0.86 0.075 265);
+  --level-intermediate-fill: oklch(0.965 0.03 265);
+  --level-intermediate-fill-hover: oklch(0.94 0.05 265);
+  --level-intermediate-text: oklch(0.35 0.09 265);
+
+  --level-advanced-solid: oklch(0.58 0.13 70);
+  --level-advanced-solid-hover: oklch(0.51 0.13 70);
+  --level-advanced-border: oklch(0.86 0.075 70);
+  --level-advanced-fill: oklch(0.965 0.03 70);
+  --level-advanced-fill-hover: oklch(0.94 0.05 70);
+  --level-advanced-text: oklch(0.35 0.09 70);
+
+  --level-expert-solid: oklch(0.55 0.16 20);
+  --level-expert-solid-hover: oklch(0.48 0.16 20);
+  --level-expert-border: oklch(0.86 0.075 20);
+  --level-expert-fill: oklch(0.965 0.03 20);
+  --level-expert-fill-hover: oklch(0.94 0.05 20);
+  --level-expert-text: oklch(0.35 0.09 20);
+}
+
+:root[data-theme='dark'] {
+  --page: #15140f;
+  --surface: #1d1b15;
+  --surface-guess: #1b1a14;
+  --ink: #f4f0e4;
+  --body-muted: #a29b8a;
+  --label-dim: #7c7566;
+  --text-secondary: #9a9384;
+  --rule: #322f26;
+  --rule-card: #322f26;
+  --rule-dashed: #3a3629;
+  --button-hover-fill: #262319;
+  --example-text: #d8d2c2;
+  --accent: oklch(0.82 0.15 70);
+
+  --level-beginner-solid: oklch(0.78 0.14 155);
+  --level-beginner-solid-hover: oklch(0.85 0.14 155);
+  --level-beginner-border: oklch(0.42 0.06 155);
+  --level-beginner-fill: oklch(0.28 0.035 155);
+  --level-beginner-fill-hover: oklch(0.34 0.05 155);
+  --level-beginner-text: oklch(0.9 0.09 155);
+
+  --level-intermediate-solid: oklch(0.74 0.14 265);
+  --level-intermediate-solid-hover: oklch(0.81 0.14 265);
+  --level-intermediate-border: oklch(0.42 0.07 265);
+  --level-intermediate-fill: oklch(0.28 0.04 265);
+  --level-intermediate-fill-hover: oklch(0.34 0.06 265);
+  --level-intermediate-text: oklch(0.9 0.09 265);
+
+  --level-advanced-solid: oklch(0.82 0.14 70);
+  --level-advanced-solid-hover: oklch(0.89 0.14 70);
+  --level-advanced-border: oklch(0.44 0.07 70);
+  --level-advanced-fill: oklch(0.29 0.04 70);
+  --level-advanced-fill-hover: oklch(0.35 0.055 70);
+  --level-advanced-text: oklch(0.9 0.09 70);
+
+  --level-expert-solid: oklch(0.72 0.16 20);
+  --level-expert-solid-hover: oklch(0.79 0.15 20);
+  --level-expert-border: oklch(0.43 0.08 20);
+  --level-expert-fill: oklch(0.29 0.05 20);
+  --level-expert-fill-hover: oklch(0.35 0.07 20);
+  --level-expert-text: oklch(0.9 0.09 20);
+}

@@ -12,6 +12,7 @@ import { freshTestDb } from '@hoe/db'
 import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
+import { bootTheme } from '../features/theme/theme.ts'
 import { createAppRouter } from '../server/router.ts'
 import { migrations } from '../server/migrations.ts'
 import { wotdSchema } from '../server/schema.ts'
@@ -36,6 +37,10 @@ exposeDispatcher(
     })
   })(),
 )
+
+// The CT bundle never runs main.tsx, so the harness paints the initial theme
+// itself — same pre-render call, same behaviour under test.
+bootTheme()
 
 export function IwftApp() {
   return <App />

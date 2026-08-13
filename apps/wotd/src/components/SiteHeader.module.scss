@@ -30,6 +30,15 @@
   }
 }
 
+// Theme toggle: pinned to the right edge, mirroring the back button.
+.toggle {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+}
+
 .wordmark {
   display: inline-flex;
   text-decoration: none;
