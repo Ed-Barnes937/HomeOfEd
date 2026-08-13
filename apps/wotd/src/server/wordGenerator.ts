@@ -28,6 +28,17 @@ export type WordOfTheDay = {
   respelling: string | null
 }
 
+/**
+ * Wire contract (tRPC `yesterdayWord` output) — the Yesterday strip's data.
+ * Null on the wire when yesterday has no word for the requested level.
+ */
+export type YesterdayWord = {
+  word: string
+  /** e.g. "noun" — null for rows stored before the redesign (no backfill). */
+  wordType: string | null
+  definition: string
+}
+
 /** Generator contract. `synonyms` is exactly 3. */
 export type GeneratedWord = {
   difficulty: Difficulty

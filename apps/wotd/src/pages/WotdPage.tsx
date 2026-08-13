@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { SpeakerIcon } from '../components/icons.tsx'
+import { ArrowRightIcon, SpeakerIcon } from '../components/icons.tsx'
 import { WordHeader } from '../components/WordHeader.tsx'
 import { speak, speechSupported } from '../features/speech/speak.ts'
 import { todayWordsQueryOptions } from '../features/wotd/todayWordsQuery.ts'
+import { yesterdayWordQueryOptions } from '../features/wotd/yesterdayWordQuery.ts'
 import { formatShortDate } from '../formatDate.ts'
-import type { Difficulty, WordOfTheDay } from '../server/wordGenerator.ts'
+import type { Difficulty, WordOfTheDay, YesterdayWord } from '../server/wordGenerator.ts'
 import styles from './WotdPage.module.scss'
 
 export function WotdPage() {
@@ -28,6 +29,7 @@ export function WotdPage() {
  */
 function WordScreen({ level }: { level: Difficulty }) {
   const { data, isPending, isError } = useQuery(todayWordsQueryOptions)
+  const { data: yesterday } = useQuery(yesterdayWordQueryOptions(level))
   const [revealed, setRevealed] = useState(false)
   // Hide animates the guess block back in — but not on first paint.
   const [hasRevealed, setHasRevealed] = useState(false)
@@ -104,8 +106,35 @@ function WordScreen({ level }: { level: Difficulty }) {
             )}
           </div>
         )}
+        {yesterday && <YesterdayStrip entry={yesterday} />}
       </main>
     </>
+  )
+}
+
+/**
+ * The dashed Yesterday strip — display-only (the design's chevron is a static
+ * glyph, not a navigation affordance). Pinned to the bottom on mobile via the
+ * slot's margin-top:auto; spans the content column beneath the grid on
+ * desktop, where the definition also appears inline.
+ */
+function YesterdayStrip({ entry }: { entry: YesterdayWord }) {
+  return (
+    <div className={styles.yesterdaySlot}>
+      <div className={styles.yesterday} data-testid="wotd-yesterday">
+        <span className={styles.yesterdayLabel}>Yesterday</span>
+        <span className={styles.yesterdayWord} data-testid="wotd-yesterday-word">
+          {entry.word}
+        </span>
+        {entry.wordType && (
+          <span className={styles.yesterdayType} data-testid="wotd-yesterday-type">
+            {entry.wordType}
+          </span>
+        )}
+        <span className={styles.yesterdayDefinition}>{entry.definition}</span>
+        <ArrowRightIcon size={16} strokeWidth={2.2} className={styles.yesterdayChevron} />
+      </div>
+    </div>
   )
 }
 

@@ -186,6 +186,18 @@ export class HomePagePom extends BasePage {
       .toContain(word)
   }
 
+  /** Asserts the Yesterday strip shows the given word and type. */
+  async verifyYesterdayStrip(word: string, wordType: string): Promise<void> {
+    const strip = this.page.getByTestId('wotd-yesterday')
+    await expect(strip.getByTestId('wotd-yesterday-word')).toHaveText(word)
+    await expect(strip.getByTestId('wotd-yesterday-type')).toHaveText(wordType)
+  }
+
+  /** Asserts the strip is not rendered at all (no yesterday row, no placeholder). */
+  async verifyYesterdayStripAbsent(): Promise<void> {
+    await expect(this.page.getByTestId('wotd-yesterday')).toHaveCount(0)
+  }
+
   /** Clicks the sun/moon pill in the top bar. */
   async toggleTheme(): Promise<void> {
     await this.page.getByTestId('theme-toggle').click()

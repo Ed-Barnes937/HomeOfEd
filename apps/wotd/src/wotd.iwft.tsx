@@ -149,6 +149,42 @@ test('a word stored without type or respelling renders cleanly without either', 
   await root.verifyNoWordTypeOrRespelling()
 })
 
+// Yesterday rows (for_date one day before the harness's pinned 2026-07-05),
+// alongside today's set so the word page renders normally.
+const yesterdaySeed = async (db: { execute: (sql: string) => Promise<unknown> }) => {
+  await db.execute(`insert into words (word, definition, example_sentence, alternatives, difficulty, for_date, word_type, respelling) values
+    ('brave','showing courage','The brave child spoke up.', ARRAY['bold','fearless','daring'], 'beginner', '2026-07-05', 'adjective', 'BRAYV'),
+    ('resilient','recovers quickly','A resilient team bounces back.', ARRAY['tough','hardy','adaptable'], 'advanced', '2026-07-05', 'adjective', 'rih·ZIL·yuhnt'),
+    ('mirth','great merriment or laughter','The room filled with mirth.', ARRAY['glee','cheer','joy'], 'beginner', '2026-07-04', 'noun', 'MURTH'),
+    ('lucid','clearly expressed','A lucid answer.', ARRAY['clear','plain','simple'], 'advanced', '2026-07-04', 'adjective', 'LOO·sid')`)
+}
+
+test("a seeded yesterday row shows the strip with yesterday's word and type", async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp({ seed: yesterdaySeed })
+  await root.gotoPath('/wotd?level=beginner')
+  await root.verifyWord('brave')
+  await root.verifyYesterdayStrip('mirth', 'noun')
+})
+
+test("switching level switches the strip to that level's yesterday word", async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp({ seed: yesterdaySeed })
+  await root.gotoPath('/wotd?level=beginner')
+  await root.verifyYesterdayStrip('mirth', 'noun')
+  await root.gotoPath('/wotd?level=advanced')
+  await root.verifyYesterdayStrip('lucid', 'adjective')
+})
+
+test('no yesterday row for the level hides the strip entirely', async ({ mountApp }) => {
+  const { root } = await mountApp({ seed })
+  await root.gotoPath('/wotd?level=beginner')
+  await root.verifyWord('brave')
+  await root.verifyYesterdayStripAbsent()
+})
+
 test('the theme toggle flips the theme and the choice survives a reload', async ({
   mountApp,
   page,

@@ -516,6 +516,82 @@
   }
 }
 
+// The Yesterday strip (frames 5a/5b + §4's inline definition). The slot pins
+// it to the bottom (margin-top:auto in the .wotd flex column) while its
+// padding keeps a minimum gap when the content is taller than the viewport.
+// The reference HTML draws the dashed border in the plain rule colour, not
+// --rule-dashed.
+.yesterdaySlot {
+  margin-top: auto;
+  padding-top: 28px;
+}
+
+.yesterday {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 16px;
+  border-radius: 16px;
+  border: 2px dashed var(--rule);
+
+  @media (min-width: 45rem) {
+    gap: 14px;
+    padding: 16px 22px;
+    border-radius: 18px;
+  }
+}
+
+.yesterdayLabel {
+  font: 800 11px/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--label-dim);
+
+  @media (min-width: 45rem) {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+  }
+}
+
+.yesterdayWord {
+  font: 400 18px/1.1 var(--font-display);
+
+  @media (min-width: 45rem) {
+    font-size: 22px;
+  }
+}
+
+.yesterdayType {
+  font: italic 400 14px/1.2 var(--font-display);
+  color: var(--text-secondary);
+
+  @media (min-width: 45rem) {
+    font-size: 16px;
+  }
+}
+
+// Desktop-only inline definition (handoff §4); mobile keeps the strip terse.
+.yesterdayDefinition {
+  display: none;
+
+  @media (min-width: 45rem) {
+    display: inline;
+    font: 600 14.5px/1.2 var(--font-ui);
+    color: var(--body-muted);
+  }
+}
+
+.yesterdayChevron {
+  flex: none;
+  margin-left: auto;
+  color: var(--label-dim);
+
+  @media (min-width: 45rem) {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 // The reveal transition: 200ms ease-out fade + 8px rise on the pieces that
 // appear, suppressed under reduced motion.
 .reveal {
