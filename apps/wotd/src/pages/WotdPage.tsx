@@ -4,12 +4,10 @@ import { useState } from 'react'
 
 import { SpeakerIcon } from '../components/icons.tsx'
 import { WordHeader } from '../components/WordHeader.tsx'
-import { WOTDDefinition } from '../components/WOTDDefinition.tsx'
-import { WOTDSentence } from '../components/WOTDSentence.tsx'
 import { speak, speechSupported } from '../features/speech/speak.ts'
 import { todayWordsQueryOptions } from '../features/wotd/todayWordsQuery.ts'
 import { formatShortDate } from '../formatDate.ts'
-import type { Difficulty } from '../server/wordGenerator.ts'
+import type { Difficulty, WordOfTheDay } from '../server/wordGenerator.ts'
 import styles from './WotdPage.module.scss'
 
 export function WotdPage() {
@@ -19,21 +17,31 @@ export function WotdPage() {
 }
 
 /**
- * The word screen (frames 5b/5e). Mobile: a single column — date, the word at
- * 56px, type + respelling, "Hear it", then the guess block under a rule.
- * Desktop: a two-column grid — the word at 92px on the left, the dashed guess
- * card on the right. The level's colour carries the pill, badge and primary
- * button via the data-level binding.
+ * The word screen (frames 5b/5c/5e/5f). Pre-reveal it shows the word with a
+ * guess prompt; "Show Definition" reveals the entry card in place. The two
+ * breakpoints place the revealed pieces differently — mobile puts the
+ * synonyms inside the card, a circular audio button in the type row and a
+ * full-width hide button below; desktop keeps the "Hear it" pill, adds a
+ * ghost "Hide definition" beside it and the synonyms under a rule in the
+ * left column. Both variants are rendered and the stylesheet shows the one
+ * the breakpoint wants.
  */
 function WordScreen({ level }: { level: Difficulty }) {
   const { data, isPending, isError } = useQuery(todayWordsQueryOptions)
   const [revealed, setRevealed] = useState(false)
+  // Hide animates the guess block back in — but not on first paint.
+  const [hasRevealed, setHasRevealed] = useState(false)
   const word = data?.find((entry) => entry.difficulty === level)
 
   return (
     <>
       <WordHeader level={level} />
-      <main className={styles.wotd} data-level={level} data-testid="wotd-page">
+      <main
+        className={styles.wotd}
+        data-level={level}
+        data-revealed={revealed || undefined}
+        data-testid="wotd-page"
+      >
         {isPending && <p className={styles.status}>Loading…</p>}
         {isError && <p className={styles.status}>Something went wrong.</p>}
         {word && (
@@ -43,7 +51,7 @@ function WordScreen({ level }: { level: Difficulty }) {
               <h1 className={styles.word} data-testid="wotd-word">
                 {word.word}
               </h1>
-              {(word.wordType || word.respelling) && (
+              {(word.wordType || word.respelling || revealed) && (
                 <p className={styles.typeRow}>
                   {word.wordType && (
                     <span className={styles.wordType} data-testid="wotd-word-type">
@@ -55,32 +63,41 @@ function WordScreen({ level }: { level: Difficulty }) {
                       {word.respelling}
                     </span>
                   )}
+                  {revealed && <HearItButton word={word.word} variant="circle" />}
                 </p>
               )}
-              <HearItButton word={word.word} />
+              <div className={styles.actions}>
+                <HearItButton word={word.word} variant="pill" />
+                {revealed && (
+                  <button
+                    className={`${styles.hideGhost} ${styles.reveal}`}
+                    onClick={() => setRevealed(false)}
+                  >
+                    Hide definition
+                  </button>
+                )}
+              </div>
+              {revealed && (
+                <div className={`${styles.synonymsBlock} ${styles.reveal}`}>
+                  <SynonymPills synonyms={word.synonyms} />
+                </div>
+              )}
             </div>
             {revealed ? (
-              // Functional reveal only — ticket 05 restyles this as the entry card.
-              <div className={styles.entry}>
-                <WOTDDefinition definition={word.definition} />
-                <WOTDSentence sentence={word.exampleSentence} />
-                <p className={styles.synonymsLabel}>Synonyms</p>
-                <ul className={styles.synonyms} data-testid="wotd-synonyms">
-                  {word.synonyms.map((synonym) => (
-                    <li key={synonym}>{synonym}</li>
-                  ))}
-                </ul>
-                <button className={styles.hide} onClick={() => setRevealed(false)}>
-                  Hide Definition
-                </button>
-              </div>
+              <EntryCard word={word} onHide={() => setRevealed(false)} />
             ) : (
-              <div className={styles.guess}>
+              <div className={hasRevealed ? `${styles.guess} ${styles.reveal}` : styles.guess}>
                 <p className={styles.prompt}>Have a guess first — what do you think it means?</p>
                 <p className={styles.promptSub}>
                   Say it out loud, or write it down, then check how close you got.
                 </p>
-                <button className={styles.show} onClick={() => setRevealed(true)}>
+                <button
+                  className={styles.show}
+                  onClick={() => {
+                    setRevealed(true)
+                    setHasRevealed(true)
+                  }}
+                >
                   Show Definition
                 </button>
               </div>
@@ -92,13 +109,59 @@ function WordScreen({ level }: { level: Difficulty }) {
   )
 }
 
-/** The "Hear it" pill; the speaker icon pulses while the word plays. */
-function HearItButton({ word }: { word: string }) {
+/**
+ * The revealed entry (frames 5c/5f): Definition and Example groups with
+ * eyebrow labels; the synonyms group and the full-width hide button are the
+ * mobile layout's — desktop hides them and uses the left column's instead.
+ */
+function EntryCard({ word, onHide }: { word: WordOfTheDay; onHide: () => void }) {
+  return (
+    <div className={`${styles.entryColumn} ${styles.reveal}`}>
+      <div className={styles.entry}>
+        <div className={styles.entryGroup} data-testid="wotd-definition">
+          <p className={styles.entryLabel}>Definition</p>
+          <p className={styles.definitionBody}>{word.definition}</p>
+        </div>
+        <div className={styles.entryGroup} data-testid="wotd-sentence">
+          <p className={styles.entryLabel}>Example</p>
+          <p className={styles.exampleBody}>{word.exampleSentence}</p>
+        </div>
+        <div className={`${styles.entryGroup} ${styles.entrySynonyms}`}>
+          <SynonymPills synonyms={word.synonyms} />
+        </div>
+      </div>
+      <button className={styles.hide} onClick={onHide}>
+        Hide Definition
+      </button>
+    </div>
+  )
+}
+
+/** Eyebrow label + level-tinted pills; used by both breakpoint layouts. */
+function SynonymPills({ synonyms }: { synonyms: string[] }) {
+  return (
+    <>
+      <p className={styles.entryLabel}>Synonyms</p>
+      <ul className={styles.synonyms} data-testid="wotd-synonyms">
+        {synonyms.map((synonym) => (
+          <li key={synonym}>{synonym}</li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+/**
+ * The "Hear it" control; the speaker icon pulses while the word plays. The
+ * pill form sits under the type row (hidden on mobile once revealed); the
+ * circle form is the mobile revealed type-row button (hidden on desktop).
+ */
+function HearItButton({ word, variant }: { word: string; variant: 'pill' | 'circle' }) {
   const [playing, setPlaying] = useState(false)
   if (!speechSupported()) return null
   return (
     <button
-      className={styles.hearIt}
+      className={variant === 'pill' ? styles.hearIt : styles.hearItCircle}
       data-playing={playing || undefined}
       onClick={() =>
         speak(word, { onStart: () => setPlaying(true), onEnd: () => setPlaying(false) })
@@ -106,8 +169,12 @@ function HearItButton({ word }: { word: string }) {
       aria-label={`Play the word ${word}`}
       data-testid="wotd-speak"
     >
-      <SpeakerIcon size={19} strokeWidth={1.8} className={styles.hearItIcon} />
-      Hear it
+      <SpeakerIcon
+        size={variant === 'pill' ? 19 : 17}
+        strokeWidth={1.8}
+        className={styles.hearItIcon}
+      />
+      {variant === 'pill' && 'Hear it'}
     </button>
   )
 }

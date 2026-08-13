@@ -3,9 +3,11 @@
  * (reference/wotd-polish/README.md) and the reference HTML. The fill-hover
  * steps are the HTML's exact values; the solid-hover steps only appear there
  * for the expert level (±0.07 lightness), so the other three extrapolate
- * that pattern per the README's hover rule. `data-theme` on <html> picks the
- * palette; the light set doubles as the default so an unset attribute still
- * paints.
+ * that pattern per the README's hover rule. Likewise the reveal tokens
+ * (example-rule, syn-*) appear in the HTML only on the expert frames (5c/5f);
+ * the other hues extrapolate the same lightness/chroma. `data-theme` on
+ * <html> picks the palette; the light set doubles as the default so an unset
+ * attribute still paints.
  */
 
 :root,
@@ -24,6 +26,7 @@
   --rule-card: #efe7d4;
   --rule-dashed: #e4dac2;
   --button-hover-fill: #f3eddd;
+  --button-ghost-hover-fill: #f3eddd;
   --button-outline-text: #57534a;
   --example-text: #3d3a33;
   --accent: oklch(0.72 0.16 70);
@@ -40,6 +43,10 @@
   --level-beginner-start: oklch(0.45 0.1 155);
   --level-beginner-pill-bg: oklch(0.95 0.04 155);
   --level-beginner-pill-text: oklch(0.42 0.12 155);
+  --level-beginner-example-rule: oklch(0.7 0.12 155);
+  --level-beginner-syn-bg: oklch(0.96 0.03 155);
+  --level-beginner-syn-border: oklch(0.89 0.05 155);
+  --level-beginner-syn-text: oklch(0.4 0.1 155);
 
   --level-intermediate-solid: oklch(0.55 0.13 265);
   --level-intermediate-solid-hover: oklch(0.48 0.13 265);
@@ -53,6 +60,10 @@
   --level-intermediate-start: oklch(0.45 0.1 265);
   --level-intermediate-pill-bg: oklch(0.95 0.04 265);
   --level-intermediate-pill-text: oklch(0.42 0.12 265);
+  --level-intermediate-example-rule: oklch(0.7 0.12 265);
+  --level-intermediate-syn-bg: oklch(0.96 0.03 265);
+  --level-intermediate-syn-border: oklch(0.89 0.05 265);
+  --level-intermediate-syn-text: oklch(0.4 0.1 265);
 
   --level-advanced-solid: oklch(0.58 0.13 70);
   --level-advanced-solid-hover: oklch(0.51 0.13 70);
@@ -66,6 +77,10 @@
   --level-advanced-start: oklch(0.45 0.09 70);
   --level-advanced-pill-bg: oklch(0.95 0.04 70);
   --level-advanced-pill-text: oklch(0.42 0.12 70);
+  --level-advanced-example-rule: oklch(0.7 0.12 70);
+  --level-advanced-syn-bg: oklch(0.96 0.03 70);
+  --level-advanced-syn-border: oklch(0.89 0.05 70);
+  --level-advanced-syn-text: oklch(0.4 0.1 70);
 
   --level-expert-solid: oklch(0.55 0.16 20);
   --level-expert-solid-hover: oklch(0.48 0.16 20);
@@ -79,6 +94,10 @@
   --level-expert-start: oklch(0.45 0.12 20);
   --level-expert-pill-bg: oklch(0.95 0.04 20);
   --level-expert-pill-text: oklch(0.42 0.12 20);
+  --level-expert-example-rule: oklch(0.7 0.12 20);
+  --level-expert-syn-bg: oklch(0.96 0.03 20);
+  --level-expert-syn-border: oklch(0.89 0.05 20);
+  --level-expert-syn-text: oklch(0.4 0.1 20);
 }
 
 :root[data-theme='dark'] {
@@ -93,6 +112,7 @@
   --rule-card: #322f26;
   --rule-dashed: #3a3629;
   --button-hover-fill: #262319;
+  --button-ghost-hover-fill: #201e18;
   --button-outline-text: #cfc8b7;
   --example-text: #d8d2c2;
   --accent: oklch(0.82 0.15 70);
@@ -109,6 +129,10 @@
   --level-beginner-start: oklch(0.8 0.1 155);
   --level-beginner-pill-bg: oklch(0.28 0.035 155);
   --level-beginner-pill-text: oklch(0.85 0.09 155);
+  --level-beginner-example-rule: oklch(0.78 0.14 155);
+  --level-beginner-syn-bg: oklch(0.31 0.05 155);
+  --level-beginner-syn-border: oklch(0.45 0.08 155);
+  --level-beginner-syn-text: oklch(0.88 0.09 155);
 
   --level-intermediate-solid: oklch(0.74 0.14 265);
   --level-intermediate-solid-hover: oklch(0.81 0.14 265);
@@ -122,6 +146,10 @@
   --level-intermediate-start: oklch(0.8 0.1 265);
   --level-intermediate-pill-bg: oklch(0.28 0.04 265);
   --level-intermediate-pill-text: oklch(0.85 0.09 265);
+  --level-intermediate-example-rule: oklch(0.74 0.14 265);
+  --level-intermediate-syn-bg: oklch(0.31 0.05 265);
+  --level-intermediate-syn-border: oklch(0.45 0.08 265);
+  --level-intermediate-syn-text: oklch(0.88 0.09 265);
 
   --level-advanced-solid: oklch(0.82 0.14 70);
   --level-advanced-solid-hover: oklch(0.89 0.14 70);
@@ -135,6 +163,10 @@
   --level-advanced-start: oklch(0.84 0.1 70);
   --level-advanced-pill-bg: oklch(0.29 0.04 70);
   --level-advanced-pill-text: oklch(0.85 0.09 70);
+  --level-advanced-example-rule: oklch(0.82 0.14 70);
+  --level-advanced-syn-bg: oklch(0.31 0.05 70);
+  --level-advanced-syn-border: oklch(0.45 0.08 70);
+  --level-advanced-syn-text: oklch(0.88 0.09 70);
 
   --level-expert-solid: oklch(0.72 0.16 20);
   --level-expert-solid-hover: oklch(0.79 0.15 20);
@@ -148,4 +180,8 @@
   --level-expert-start: oklch(0.8 0.12 20);
   --level-expert-pill-bg: oklch(0.29 0.05 20);
   --level-expert-pill-text: oklch(0.85 0.09 20);
+  --level-expert-example-rule: oklch(0.72 0.16 20);
+  --level-expert-syn-bg: oklch(0.31 0.05 20);
+  --level-expert-syn-border: oklch(0.45 0.08 20);
+  --level-expert-syn-text: oklch(0.88 0.09 20);
 }

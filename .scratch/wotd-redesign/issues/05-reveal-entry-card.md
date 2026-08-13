@@ -17,10 +17,10 @@ Spec: `.scratch/wotd-redesign/spec.md` · measurements in the handoff README §3
 `WOTD - Dark Mode.html` (5c/5f and their light pairs). The entry card is Definition + Example +
 Synonyms only — no origin section.
 
-- [ ] Mobile revealed state matches design frame 5c (light and dark), including the word shrink and circular audio button
-- [ ] Desktop revealed state matches design frame 5f (light and dark); the word does not move on reveal
-- [ ] Example rule and synonym pills take the level colour, for all four levels
-- [ ] Hide returns to the pre-reveal state; reveal state resets when the level changes
-- [ ] Transition is 200ms ease-out fade + 8px rise and is disabled under `prefers-reduced-motion`
-- [ ] `.iwft` coverage: reveal shows definition/example/synonyms, hide restores the guess state
-- [ ] Manual side-by-side against the reference HTML in both themes at 390×720 and 1280×800
+- [x] Mobile revealed state matches design frame 5c (light and dark), including the word shrink and circular audio button
+- [x] Desktop revealed state matches design frame 5f (light and dark); the word does not move on reveal
+- [x] Example rule and synonym pills take the level colour, for all four levels
+- [x] Hide returns to the pre-reveal state; reveal state resets when the level changes
+- [x] Transition is 200ms ease-out fade + 8px rise and is disabled under `prefers-reduced-motion`
+- [x] `.iwft` coverage: reveal shows definition/example/synonyms, hide restores the guess state
+- [x] Manual side-by-side against the reference HTML in both themes at 390×720 and 1280×800

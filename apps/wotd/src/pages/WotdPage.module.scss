@@ -1,7 +1,7 @@
-// Word screen, pre-reveal (frames 5b/5e). Mobile: single column, 44px 20px
-// 18px padding. Desktop (≥45rem): 1.05fr/0.95fr grid, 64px gap, centred
-// 1120px column. Level palette binds to local vars via data-level; layout
-// rules read only the local vars.
+// Word screen (frames 5b/5c/5e/5f). Mobile: single column, 44px 20px 18px
+// padding (26px top once revealed). Desktop (≥45rem): 1.05fr/0.95fr grid,
+// 64px gap, centred 1120px column. Level palette binds to local vars via
+// data-level; layout rules read only the local vars.
 .wotd {
   flex: 1;
   display: flex;
@@ -13,6 +13,10 @@
       --lv-solid: var(--level-#{$level}-solid);
       --lv-solid-hover: var(--level-#{$level}-solid-hover);
       --lv-badge-text: var(--level-#{$level}-badge-text);
+      --lv-example-rule: var(--level-#{$level}-example-rule);
+      --lv-syn-bg: var(--level-#{$level}-syn-bg);
+      --lv-syn-border: var(--level-#{$level}-syn-border);
+      --lv-syn-text: var(--level-#{$level}-syn-text);
     }
   }
 
@@ -21,6 +25,41 @@
     max-width: 1120px;
     margin: 0 auto;
     padding: 72px 40px 32px;
+  }
+}
+
+// Mobile revealed state (frame 5c): the date line goes, the word drops to
+// 44px, the type row tightens and centres around the circular audio button,
+// and the "Hear it" pill row disappears (the circle takes over). Guarded by
+// max-width so the desktop rules below stay in charge at ≥45rem.
+@media (max-width: 44.9375rem) {
+  .wotd[data-revealed] {
+    padding-top: 26px;
+
+    .date {
+      display: none;
+    }
+
+    .word {
+      font-size: 44px;
+    }
+
+    .typeRow {
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .wordType {
+      font-size: 17px;
+    }
+
+    .respelling {
+      font-size: 13px;
+    }
+
+    .actions {
+      display: none;
+    }
   }
 }
 
@@ -103,12 +142,26 @@
   }
 }
 
-.hearIt {
+// "Hear it" (and, once revealed, "Hide definition") row. Hidden entirely when
+// speech support removes its only child pre-reveal.
+.actions {
+  display: flex;
+  gap: 12px;
   margin: 20px 0 0;
+
+  &:empty {
+    display: none;
+  }
+
+  @media (min-width: 45rem) {
+    margin: 26px 0 0;
+  }
+}
+
+.hearIt {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  align-self: flex-start;
   min-height: 46px;
   padding: 10px 18px 10px 14px;
   border: 2px solid var(--rule);
@@ -130,7 +183,6 @@
   }
 
   @media (min-width: 45rem) {
-    margin: 26px 0 0;
     gap: 10px;
     min-height: 48px;
     padding: 11px 20px 11px 16px;
@@ -145,8 +197,45 @@
   }
 }
 
+// The 36px circular audio button in the revealed mobile type row.
+.hearItCircle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border: 2px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--button-outline-text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--button-hover-fill);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  // Its icon keeps the mobile 17px size; undo the pill icon's desktop bump.
+  .hearItIcon {
+    width: 17px;
+    height: 17px;
+  }
+
+  @media (min-width: 45rem) {
+    display: none;
+  }
+}
+
 // Playing state: the speaker icon pulses while the word plays.
-.hearIt[data-playing] .hearItIcon {
+.hearIt[data-playing] .hearItIcon,
+.hearItCircle[data-playing] .hearItIcon {
   animation: pulse 0.9s ease-in-out infinite;
 
   @media (prefers-reduced-motion: reduce) {
@@ -162,6 +251,58 @@
 
   50% {
     opacity: 0.35;
+  }
+}
+
+// Desktop-only ghost pill beside "Hear it" (frame 5f).
+.hideGhost {
+  display: none;
+
+  @media (min-width: 45rem) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 11px 20px;
+    border: 2px solid var(--rule);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--button-outline-text);
+    font: 700 15px/1 var(--font-ui);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:hover {
+      background: var(--button-ghost-hover-fill);
+      color: var(--ink);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// Desktop-only synonyms block under a rule in the left column (frame 5f).
+.synonymsBlock {
+  display: none;
+
+  @media (min-width: 45rem) {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 40px;
+    padding-top: 26px;
+    border-top: 2px solid var(--rule);
+
+    .synonyms {
+      gap: 10px;
+
+      li {
+        padding: 9px 16px;
+        font-size: 15px;
+      }
+    }
   }
 }
 
@@ -242,28 +383,88 @@
   }
 }
 
-// Functional reveal only — ticket 05 restyles this as the designed entry card.
-.entry {
+// The revealed entry card and (mobile) its full-width hide button.
+.entryColumn {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 40px;
-  padding: 20px;
-  border-radius: 20px;
-  border: 2px solid var(--rule-card);
-  background: var(--surface);
+  margin-top: 22px;
 
   @media (min-width: 45rem) {
     margin-top: 0;
   }
 }
 
-.synonymsLabel {
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  border-radius: 20px;
+  border: 2px solid var(--rule-card);
+  background: var(--surface);
+
+  @media (min-width: 45rem) {
+    gap: 28px;
+    padding: 34px 32px;
+    border-radius: 24px;
+  }
+}
+
+.entryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  @media (min-width: 45rem) {
+    gap: 9px;
+  }
+}
+
+// Mobile keeps the synonyms inside the card; desktop uses the left column's.
+.entrySynonyms {
+  gap: 10px;
+
+  @media (min-width: 45rem) {
+    display: none;
+  }
+}
+
+.entryLabel {
   margin: 0;
   font: 800 11px/1 var(--font-ui);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--label-dim);
+
+  @media (min-width: 45rem) {
+    font-size: 11.5px;
+  }
+}
+
+.definitionBody {
+  margin: 0;
+  font: 400 21px/1.4 var(--font-display);
+  text-wrap: pretty;
+
+  @media (min-width: 45rem) {
+    font-size: 30px;
+    line-height: 1.32;
+  }
+}
+
+.exampleBody {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 4px solid var(--lv-example-rule);
+  font: italic 400 17px/1.5 var(--font-display);
+  color: var(--example-text);
+  text-wrap: pretty;
+
+  @media (min-width: 45rem) {
+    padding-left: 18px;
+    border-left-width: 5px;
+    font-size: 21px;
+  }
 }
 
 .synonyms {
@@ -277,17 +478,21 @@
   li {
     padding: 7px 14px;
     border-radius: 999px;
-    border: 2px solid var(--rule);
-    font: 700 14px/1 var(--font-ui);
+    border: 2px solid var(--lv-syn-border);
+    background: var(--lv-syn-bg);
+    color: var(--lv-syn-text);
+    font: 700 14px/1.2 var(--font-ui);
   }
 }
 
+// Mobile full-width hide button below the card; desktop uses the ghost pill.
 .hide {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 50px;
+  margin: 16px 0 0;
   border: 2px solid var(--rule);
   border-radius: 18px;
   background: transparent;
@@ -297,12 +502,33 @@
   transition: background 0.15s ease, color 0.15s ease;
 
   &:hover {
-    background: var(--button-hover-fill);
+    background: var(--button-ghost-hover-fill);
     color: var(--ink);
   }
 
   &:focus-visible {
     outline: 2px solid var(--ink);
     outline-offset: 2px;
+  }
+
+  @media (min-width: 45rem) {
+    display: none;
+  }
+}
+
+// The reveal transition: 200ms ease-out fade + 8px rise on the pieces that
+// appear, suppressed under reduced motion.
+.reveal {
+  animation: rise-in 0.2s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
 }

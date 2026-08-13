@@ -43,6 +43,29 @@ test('clicking a level card shows that level\'s seeded word', async ({ mountApp 
   await root.verifySynonyms(['tough', 'hardy', 'adaptable'])
 })
 
+test('hiding the definition restores the guess state', async ({ mountApp }) => {
+  const { root } = await mountApp({ seed })
+  await root.clickLevel('advanced')
+  await root.verifyWotdPageIsShown()
+  await root.toggleDefinition()
+  await root.verifyDefinition('recovers quickly')
+  await root.toggleDefinition()
+  await root.verifyDefinitionHidden()
+  await root.verifyGuessShown()
+})
+
+test('the reveal state resets when the level changes', async ({ mountApp }) => {
+  const { root } = await mountApp({ seed })
+  await root.gotoPath('/wotd?level=advanced')
+  await root.verifyWotdPageIsShown()
+  await root.toggleDefinition()
+  await root.verifyDefinition('recovers quickly')
+  await root.gotoPath('/wotd?level=expert')
+  await root.verifyWord('ephemeral')
+  await root.verifyDefinitionHidden()
+  await root.verifyGuessShown()
+})
+
 test('the back link returns from the word page to the level picker', async ({ mountApp }) => {
   const { root } = await mountApp({ seed })
   await root.clickLevel('advanced')

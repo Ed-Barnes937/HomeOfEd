@@ -68,20 +68,35 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('wotd-sentence')).toContainText(sentence)
   }
 
+  /**
+   * Two synonym lists exist when revealed (one per breakpoint layout); assert
+   * against the one the current viewport shows.
+   */
   async verifySynonyms(synonyms: string[]): Promise<void> {
-    const list = this.page.getByTestId('wotd-synonyms')
+    const list = this.page.getByTestId('wotd-synonyms').filter({ visible: true })
     for (const synonym of synonyms) {
       await expect(list).toContainText(synonym)
     }
   }
 
-  /** Toggles the show/hide-definition button on the word card. */
+  /**
+   * Toggles the show/hide-definition button on the word card. The hide control
+   * differs per breakpoint, so target whichever is visible.
+   */
   async toggleDefinition(): Promise<void> {
-    await this.page.getByRole('button', { name: /Definition/ }).click()
+    await this.page
+      .getByRole('button', { name: /definition/i })
+      .filter({ visible: true })
+      .click()
   }
 
   async verifyDefinitionHidden(): Promise<void> {
     await expect(this.page.getByTestId('wotd-definition')).toHaveCount(0)
+  }
+
+  /** Asserts the pre-reveal guess prompt is back on screen. */
+  async verifyGuessShown(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Show Definition' })).toBeVisible()
   }
 
   /**
