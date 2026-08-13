@@ -5,6 +5,9 @@ import { speak, speechSupported } from './speak.ts'
 /** Records the utterances handed to a stubbed Web Speech API. */
 class FakeUtterance {
   lang = ''
+  onstart: (() => void) | null = null
+  onend: (() => void) | null = null
+  onerror: (() => void) | null = null
   constructor(public text: string) {}
 }
 
@@ -55,5 +58,28 @@ describe('speak', () => {
   it('does nothing when speech is unsupported', () => {
     vi.stubGlobal('window', {})
     expect(() => speak('brave')).not.toThrow()
+  })
+
+  it('reports playback start and end through the callbacks', () => {
+    const { speakSpy } = installSpeech()
+    const onStart = vi.fn()
+    const onEnd = vi.fn()
+    speak('brave', { onStart, onEnd })
+    const utterance = speakSpy.mock.calls[0]![0] as FakeUtterance
+    expect(onStart).not.toHaveBeenCalled()
+    utterance.onstart!()
+    expect(onStart).toHaveBeenCalledTimes(1)
+    expect(onEnd).not.toHaveBeenCalled()
+    utterance.onend!()
+    expect(onEnd).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a playback error as an end, so a playing state always clears', () => {
+    const { speakSpy } = installSpeech()
+    const onEnd = vi.fn()
+    speak('brave', { onEnd })
+    const utterance = speakSpy.mock.calls[0]![0] as FakeUtterance
+    utterance.onerror!()
+    expect(onEnd).toHaveBeenCalledTimes(1)
   })
 })

@@ -85,17 +85,79 @@ export class HomePagePom extends BasePage {
   }
 
   /**
+   * Asserts the level is wired through the word screen: the top-bar pill
+   * carries the level and its number, and the page container binds the
+   * level's palette (data-level) for the badge and primary button.
+   */
+  async verifyLevelColourCarryThrough(level: Difficulty, number: number): Promise<void> {
+    const pill = this.page.getByTestId('level-pill')
+    await expect(pill).toHaveAttribute('data-level', level)
+    await expect(pill).toContainText(String(number))
+    await expect(pill).toContainText(level)
+    await expect(this.page.getByTestId('wotd-page')).toHaveAttribute('data-level', level)
+    await expect(this.page.getByRole('button', { name: 'Show Definition' })).toBeVisible()
+  }
+
+  /**
    * Replaces `speechSynthesis.speak` with a recorder so the CT browser plays no
-   * real audio, and stubs `cancel` (called before every speak). Call before
-   * clicking the speak button.
+   * real audio, and stubs `cancel` (called before every speak). Utterances are
+   * kept so tests can fire their start/end events. Call before clicking the
+   * speak button.
    */
   async stubSpeech(): Promise<void> {
     await this.page.evaluate(() => {
       const spoken: string[] = []
-      ;(window as unknown as { __spoken: string[] }).__spoken = spoken
-      window.speechSynthesis.speak = (u: SpeechSynthesisUtterance) => spoken.push(u.text)
+      const utterances: SpeechSynthesisUtterance[] = []
+      const win = window as unknown as {
+        __spoken: string[]
+        __utterances: SpeechSynthesisUtterance[]
+      }
+      win.__spoken = spoken
+      win.__utterances = utterances
+      window.speechSynthesis.speak = (u: SpeechSynthesisUtterance) => {
+        spoken.push(u.text)
+        utterances.push(u)
+      }
       window.speechSynthesis.cancel = () => {}
     })
+  }
+
+  /** Removes the Web Speech API so `speechSupported()` reports false. */
+  async disableSpeech(): Promise<void> {
+    await this.page.evaluate(() => {
+      delete (Window.prototype as { speechSynthesis?: unknown }).speechSynthesis
+      delete (window as { speechSynthesis?: unknown }).speechSynthesis
+    })
+  }
+
+  async verifySpeakAbsent(): Promise<void> {
+    await expect(this.page.getByTestId('wotd-speak')).toHaveCount(0)
+  }
+
+  /** Fires the last stubbed utterance's start event (playback has begun). */
+  async beginPlayback(): Promise<void> {
+    await this.page.evaluate(() => {
+      const u = (window as unknown as { __utterances: SpeechSynthesisUtterance[] }).__utterances.at(-1)
+      u?.onstart?.(new Event('start') as SpeechSynthesisEvent)
+    })
+  }
+
+  /** Fires the last stubbed utterance's end event (playback has finished). */
+  async finishPlayback(): Promise<void> {
+    await this.page.evaluate(() => {
+      const u = (window as unknown as { __utterances: SpeechSynthesisUtterance[] }).__utterances.at(-1)
+      u?.onend?.(new Event('end') as SpeechSynthesisEvent)
+    })
+  }
+
+  /** Asserts whether the hear-it button is in its playing state. */
+  async verifyPlayingState(playing: boolean): Promise<void> {
+    const button = this.page.getByTestId('wotd-speak')
+    if (playing) {
+      await expect(button).toHaveAttribute('data-playing', 'true')
+    } else {
+      await expect(button).not.toHaveAttribute('data-playing')
+    }
   }
 
   async clickSpeak(): Promise<void> {

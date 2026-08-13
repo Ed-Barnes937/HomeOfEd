@@ -60,6 +60,39 @@ test('the speak button plays the word through the Web Speech API', async ({ moun
   await root.verifySpoken('resilient')
 })
 
+test('the speaker icon shows a playing state while the word plays', async ({ mountApp }) => {
+  const { root } = await mountApp({ seed })
+  await root.clickLevel('advanced')
+  await root.verifyWotdPageIsShown()
+  await root.stubSpeech()
+  await root.clickSpeak()
+  await root.verifyPlayingState(false)
+  await root.beginPlayback()
+  await root.verifyPlayingState(true)
+  await root.finishPlayback()
+  await root.verifyPlayingState(false)
+})
+
+test('the hear-it button is absent when speech is unsupported', async ({ mountApp }) => {
+  const { root } = await mountApp({ seed })
+  await root.verifyIsShown()
+  await root.disableSpeech()
+  await root.gotoPath('/wotd?level=beginner')
+  await root.verifyWord('brave')
+  await root.verifySpeakAbsent()
+})
+
+test('the level colour carries through the pill, badge and primary button', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp({ seed })
+  const levels = ['beginner', 'intermediate', 'advanced', 'expert'] as const
+  for (const [index, level] of levels.entries()) {
+    await root.gotoPath(`/wotd?level=${level}`)
+    await root.verifyLevelColourCarryThrough(level, index + 1)
+  }
+})
+
 // A deliberately long, unbroken word to stress the card's overflow-wrap.
 const longWordSeed = async (db: { execute: (sql: string) => Promise<unknown> }) => {
   await db.execute(`insert into words (word, definition, example_sentence, alternatives, difficulty, for_date) values

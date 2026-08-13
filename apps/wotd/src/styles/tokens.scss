@@ -24,6 +24,7 @@
   --rule-card: #efe7d4;
   --rule-dashed: #e4dac2;
   --button-hover-fill: #f3eddd;
+  --button-outline-text: #57534a;
   --example-text: #3d3a33;
   --accent: oklch(0.72 0.16 70);
 
@@ -37,6 +38,8 @@
   --level-beginner-sublabel: oklch(0.48 0.05 155);
   --level-beginner-chevron: oklch(0.6 0.1 155);
   --level-beginner-start: oklch(0.45 0.1 155);
+  --level-beginner-pill-bg: oklch(0.95 0.04 155);
+  --level-beginner-pill-text: oklch(0.42 0.12 155);
 
   --level-intermediate-solid: oklch(0.55 0.13 265);
   --level-intermediate-solid-hover: oklch(0.48 0.13 265);
@@ -48,6 +51,8 @@
   --level-intermediate-sublabel: oklch(0.48 0.05 265);
   --level-intermediate-chevron: oklch(0.6 0.1 265);
   --level-intermediate-start: oklch(0.45 0.1 265);
+  --level-intermediate-pill-bg: oklch(0.95 0.04 265);
+  --level-intermediate-pill-text: oklch(0.42 0.12 265);
 
   --level-advanced-solid: oklch(0.58 0.13 70);
   --level-advanced-solid-hover: oklch(0.51 0.13 70);
@@ -59,6 +64,8 @@
   --level-advanced-sublabel: oklch(0.48 0.05 70);
   --level-advanced-chevron: oklch(0.6 0.1 70);
   --level-advanced-start: oklch(0.45 0.09 70);
+  --level-advanced-pill-bg: oklch(0.95 0.04 70);
+  --level-advanced-pill-text: oklch(0.42 0.12 70);
 
   --level-expert-solid: oklch(0.55 0.16 20);
   --level-expert-solid-hover: oklch(0.48 0.16 20);
@@ -70,6 +77,8 @@
   --level-expert-sublabel: oklch(0.48 0.06 20);
   --level-expert-chevron: oklch(0.6 0.12 20);
   --level-expert-start: oklch(0.45 0.12 20);
+  --level-expert-pill-bg: oklch(0.95 0.04 20);
+  --level-expert-pill-text: oklch(0.42 0.12 20);
 }
 
 :root[data-theme='dark'] {
@@ -84,6 +93,7 @@
   --rule-card: #322f26;
   --rule-dashed: #3a3629;
   --button-hover-fill: #262319;
+  --button-outline-text: #cfc8b7;
   --example-text: #d8d2c2;
   --accent: oklch(0.82 0.15 70);
 
@@ -97,6 +107,8 @@
   --level-beginner-sublabel: oklch(0.72 0.05 155);
   --level-beginner-chevron: oklch(0.75 0.1 155);
   --level-beginner-start: oklch(0.8 0.1 155);
+  --level-beginner-pill-bg: oklch(0.28 0.035 155);
+  --level-beginner-pill-text: oklch(0.85 0.09 155);
 
   --level-intermediate-solid: oklch(0.74 0.14 265);
   --level-intermediate-solid-hover: oklch(0.81 0.14 265);
@@ -108,6 +120,8 @@
   --level-intermediate-sublabel: oklch(0.72 0.05 265);
   --level-intermediate-chevron: oklch(0.75 0.1 265);
   --level-intermediate-start: oklch(0.8 0.1 265);
+  --level-intermediate-pill-bg: oklch(0.28 0.04 265);
+  --level-intermediate-pill-text: oklch(0.85 0.09 265);
 
   --level-advanced-solid: oklch(0.82 0.14 70);
   --level-advanced-solid-hover: oklch(0.89 0.14 70);
@@ -119,6 +133,8 @@
   --level-advanced-sublabel: oklch(0.74 0.05 70);
   --level-advanced-chevron: oklch(0.78 0.1 70);
   --level-advanced-start: oklch(0.84 0.1 70);
+  --level-advanced-pill-bg: oklch(0.29 0.04 70);
+  --level-advanced-pill-text: oklch(0.85 0.09 70);
 
   --level-expert-solid: oklch(0.72 0.16 20);
   --level-expert-solid-hover: oklch(0.79 0.15 20);
@@ -130,4 +146,6 @@
   --level-expert-sublabel: oklch(0.73 0.06 20);
   --level-expert-chevron: oklch(0.76 0.12 20);
   --level-expert-start: oklch(0.8 0.12 20);
+  --level-expert-pill-bg: oklch(0.29 0.05 20);
+  --level-expert-pill-text: oklch(0.85 0.09 20);
 }
