@@ -40,9 +40,13 @@ src/
   persistence/      the save format + autosave (ADR 0025) — no React except the hook
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
-    autosave.ts       debounced (2 s lull) writer of the working grid
-    useWorkingGrid.ts hook: restore on mount, autosave on edit, flush on
-                      pagehide, and seed a first visit (ticket 36)
+    autosave.ts       debounced (2 s lull) writer of the working song
+    useWorkingSong.ts hook: restore the whole song on mount, autosave on edit,
+                      flush on pagehide, and seed a first visit (ticket 36)
+  song/             the working-song domain (ticket 14) — pure, no React
+    song.ts           Song/Clip types, StoredBoop↔Song conversions, and the
+                      mutation kinds (placement, add/delete/rename clip, lane
+                      reorder) later tickets wire to UI
   export/           WAV export: offline render → PCM mix → WAV encode, plus the
                     share-sheet/download action and the slugged filename. Pure
                     but for `sampleDecoder.ts`, the AudioContext seam.
@@ -138,8 +142,9 @@ share-link snapshot.
   the narrower, true question, "is this boop in My boops?", off the **loaded
   boop** (`savedState.ts`, and `CONTEXT.md`): words on the desktop bar, a dot on
   the phone's save icon, a standing ring on the row. "Edited" has one definition
-  app-wide — a cell toggle *or* a tempo change — which is also what drops the
-  starter ring. Identity is the boop's *row*, so every mutation of "My boops"
+  app-wide — any mutation of the song: a cell toggle, a speed change, a
+  placement change, clip add/delete/rename, or a lane reorder (ADR 0031, as
+  amended) — which is also what drops the starter ring. Identity is the boop's *row*, so every mutation of "My boops"
   goes through `savedState.ts`'s transitions or the ring lands on the wrong boop.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the

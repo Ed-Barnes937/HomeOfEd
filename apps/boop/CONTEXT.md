@@ -138,13 +138,14 @@ but never used going forward), Creation (the type-level name before ticket
 name, see [ADR 0025](../../docs/adr/0025-boop-save-format.md)), save, snapshot.
 
 **Working grid**:
-The pattern and tempo a child is editing right now — an unnamed boop,
-continuously autosaved and restored on the next load. Distinct from a saved
-boop: it is one slot that always exists and is always overwritten, never an
-entry in the "My boops" list. Saving into that list copies the working grid
-and gives it a name. A browser with no working grid at all is *seeded* with a
-one-clip song built from a sample clip rather than opening empty — see
-**Sample clip**.
+What a child is editing right now — an unnamed boop, continuously autosaved
+and restored on the next load. Since boop-loops ticket 14 the slot holds the
+whole **song** (clips, placements, one bpm, and which clip is on the grid), so
+a reload lands on the clip the child was editing. Distinct from a saved boop:
+it is one slot that always exists and is always overwritten, never an entry in
+the "My boops" list. Saving into that list copies the working song and gives
+it a name. A browser with no working song at all is *seeded* with a one-clip
+song built from a sample clip rather than opening empty — see **Sample clip**.
 _Avoid_: Current pattern, draft, session.
 
 **Loaded boop**:
@@ -155,8 +156,9 @@ reset (Clear grid is clip-scoped and counts as an *edit* instead — boop-loops
 ticket 07), and never restored on reload: it describes this session's
 loading and saving, not what is on disk. It drives the chrome's saved/edited
 indicator and the loaded row's ring. "Edited" has exactly one meaning across
-the app — a cell toggle *or* a tempo change. See
-[ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md).
+the app — any mutation of the song: a cell toggle, a speed change, a placement
+change, clip add, clip delete, clip rename, or a lane reorder. See
+[ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md), as amended.
 _Avoid_: Unsaved changes, dirty (nothing is ever lost — the working grid is
 autosaved), current boop.
 

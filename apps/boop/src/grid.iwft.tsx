@@ -1,3 +1,6 @@
+import { expect } from '@playwright/experimental-ct-react'
+
+import { SAVE_KEY } from './persistence/storage.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // A fresh browser is seeded with a starter (ticket 36), so every test here
@@ -166,6 +169,60 @@ test('the grid and tempo are autosaved, and a reload brings them back', async ({
   await root.verifyCellOn('kick', 0)
   await root.verifyCellOff('boop', 15)
   await root.verifyTempo(110)
+})
+
+test('a multi-clip working song survives a reload, landing on the clip being edited', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+
+  // A two-clip song with placements, edited on clip 2 (ticket 14). Written
+  // straight into the slot: no UI makes clips yet — that is the point of the
+  // expand step.
+  const working = {
+    name: '',
+    kitId: 'launch',
+    tempo: 120,
+    patterns: [
+      { rows: [{ instrumentId: 'kick', steps: '1000000000000000' }], name: 'Clip 1', tint: 0 },
+      { rows: [{ instrumentId: 'snare', steps: '0010000000000000' }], name: 'Drums', tint: 3 },
+    ],
+    placements: '112.............',
+    gridClip: 1,
+  }
+  // Seeded *after* the reload: the outgoing page flushes its pending autosave
+  // on the way out, so seeding first would only be overwritten.
+  await page.reload()
+  await page.evaluate(
+    ({ key, doc }) => window.localStorage.setItem(key, JSON.stringify(doc)),
+    { key: SAVE_KEY, doc: { version: 1, working, creations: [] } },
+  )
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // The grid shows the clip the child was editing — clip 2, not clip 1.
+  await root.verifyCellOn('snare', 2)
+  await root.verifyCellOff('kick', 0)
+  await root.verifyTempo(120)
+
+  // An edit autosaves the *whole* song back: both clips, names, tints,
+  // placements and the active clip all still there.
+  await root.toggleCell('snare', 4)
+  await root.waitForAutosavedCell('snare', 4, 1)
+
+  const saved = await root.readAutosavedGrid()
+  expect(saved?.patterns.map((p) => ({ name: p.name, tint: p.tint }))).toEqual([
+    { name: 'Clip 1', tint: 0 },
+    { name: 'Drums', tint: 3 },
+  ])
+  expect(saved?.patterns[0]?.rows.find((r) => r.instrumentId === 'kick')?.steps).toBe(
+    '1000000000000000',
+  )
+  expect(saved?.placements).toBe('112.............')
+  expect(saved?.gridClip).toBe(1)
 })
 
 test('the tempo slider starts at the default 100 BPM and changes the loop speed live', async ({

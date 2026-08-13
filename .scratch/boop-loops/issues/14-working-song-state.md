@@ -20,10 +20,24 @@ Spec: §2 (state shape), §13 (saved/edited).
 
 **Blocked by:** 13 — Save format v2.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The working grid state is a song; the grid and transport edit the active clip and the song's one bpm, exactly as today from the child's view
-- [ ] Autosave and restore round-trip clips, tints, names, placements, and the active clip; first load of an old working slot behaves as a one-clip song
-- [ ] Saving to My boops, loading a row, renaming, deleting, and sharing all carry the whole song
-- [ ] Every song mutation kind marks the loaded boop edited via the saved-state transitions, covered by unit tests
-- [ ] Existing `*.iwft` suites still pass — no visible behaviour change
+- [x] The working grid state is a song; the grid and transport edit the active clip and the song's one bpm, exactly as today from the child's view
+- [x] Autosave and restore round-trip clips, tints, names, placements, and the active clip; first load of an old working slot behaves as a one-clip song
+- [x] Saving to My boops, loading a row, renaming, deleting, and sharing all carry the whole song
+- [x] Every song mutation kind marks the loaded boop edited via the saved-state transitions, covered by unit tests
+- [x] Existing `*.iwft` suites still pass — no visible behaviour change
+
+**Resolution.** The song domain lives in `src/song/song.ts` (pure): `Song`/
+`Clip`, `StoredBoop`↔`Song` conversions applying ADR 0032's defaults, and the
+mutation kinds later tickets wire to UI (`withPlacement`, `addClip`,
+`deleteClip`, `renameClip`, `moveClip` — placements rewritten atomically).
+`useWorkingGrid` became `useWorkingSong`: it restores the whole song (landing
+on `gridClip`) and autosaves it via the one builder `storedBoopFromSong`,
+which the share link and the save form also use. `HomePage` holds the song;
+the engine still holds only the active clip's pattern and the tempo. Song
+mutations go through `updateSong`, which marks the loaded boop edited only
+when the mutation really changed the song (ADR 0031, as amended); tempo
+arrives via the engine's `tempoChanged` event, with `changeTempo` marking
+edited itself, and `loadPreset`/`loadBoop`/`clearAll` replace the song with
+their own loaded-state rules, as today.

@@ -266,13 +266,14 @@ export class HomePagePom extends BasePage {
   /**
    * Wait for the debounced autosave to reach localStorage with a given cell on
    * — asserting on content, not merely on the slot existing, so the wait cannot
-   * be satisfied by an earlier write of a grid that predates the edit.
+   * be satisfied by an earlier write of a grid that predates the edit. `clip`
+   * says which clip of the working song the cell belongs to (ticket 14).
    */
-  async waitForAutosavedCell(instrumentId: string, step: number): Promise<void> {
+  async waitForAutosavedCell(instrumentId: string, step: number, clip = 0): Promise<void> {
     await expect
       .poll(async () => {
         const working = await this.readAutosavedGrid()
-        const row = working?.patterns[0]?.rows.find((r) => r.instrumentId === instrumentId)
+        const row = working?.patterns[clip]?.rows.find((r) => r.instrumentId === instrumentId)
         return row?.steps[step] === '1'
       })
       .toBe(true)

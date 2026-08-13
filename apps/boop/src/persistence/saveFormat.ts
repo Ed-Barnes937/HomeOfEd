@@ -100,26 +100,13 @@ export function patternToStored(pattern: Pattern): StoredPattern {
   }
 }
 
-/** The working grid is unnamed until a child saves it into "My boops". */
-export const WORKING_NAME = ''
-
-/** A boop snapshotting `pattern` and `tempo` under `name`. */
-export function boopFrom(kit: Kit, pattern: Pattern, tempo: number, name: string): StoredBoop {
-  return {
-    name,
-    kitId: kit.kitId,
-    tempo,
-    patterns: [patternToStored(pattern)],
-  }
-}
-
 /**
- * The boop a grid currently *is* — what the autosave writes and what a
- * share link carries, built the one way so the two can never drift.
+ * The working song is unnamed until a child saves it into "My boops".
+ * Building a `StoredBoop` from the working song is `storedBoopFromSong`
+ * (`src/song/song.ts`) — the one way, shared by the autosave, the save form
+ * and the share link so the three can never drift.
  */
-export function workingBoop(kit: Kit, pattern: Pattern, tempo: number): StoredBoop {
-  return boopFrom(kit, pattern, tempo, WORKING_NAME)
-}
+export const WORKING_NAME = ''
 
 /**
  * Rebuild a full pattern for `kit` — one row per kit instrument, in kit order.

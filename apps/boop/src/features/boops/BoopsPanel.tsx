@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { Kit, Pattern } from '../../engine/sequencerEngine.ts'
 import type { StoredBoop, StoredPattern } from '../../persistence/saveFormat.ts'
 import { useBoops } from '../../persistence/useBoops.ts'
 import { afterDelete, afterRename, afterSave, type LoadedBoop } from '../../savedState.ts'
@@ -22,8 +21,12 @@ interface BoopsPanelProps {
    * identity honest — the transitions themselves live in `savedState.ts`.
    */
   onLoadedChange: (loaded: LoadedBoop | null) => void
-  /** Read at tap time (Save button), not render time — see `TopBar`'s `getShareUrl` for the same reasoning. */
-  getWorkingSnapshot: () => { kit: Kit; pattern: Pattern; tempo: number }
+  /**
+   * The whole working song as a `StoredBoop` under `name` — read at tap time
+   * (Save button), not render time; see `TopBar`'s `getShareUrl` for the same
+   * reasoning.
+   */
+  getWorkingBoop: (name: string) => StoredBoop
   /** Renders one saved boop to a WAV and hands it to the share sheet or a download (ticket 34). */
   onExport: (boop: StoredBoop) => Promise<void>
 }
@@ -61,7 +64,7 @@ function thumbnailRows(pattern: StoredPattern) {
 export function BoopsPanel({
   onClose,
   onLoad,
-  getWorkingSnapshot,
+  getWorkingBoop,
   onExport,
   loaded,
   onLoadedChange,
@@ -108,8 +111,7 @@ export function BoopsPanel({
     const trimmed = name.trim()
     if (trimmed === '' || saved.current) return
     saved.current = true
-    const { kit, pattern, tempo } = getWorkingSnapshot()
-    const { index } = boops.save(kit, pattern, tempo, trimmed)
+    const { index } = boops.save(getWorkingBoop(trimmed))
     setHighlight({ index, id: (highlight?.id ?? 0) + 1 })
     setTypedName(null)
     onLoadedChange(afterSave(index, trimmed))

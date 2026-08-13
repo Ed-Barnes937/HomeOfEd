@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
-import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { boopFilename } from '../export/boopFilename.ts'
 import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
 import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
@@ -23,25 +22,34 @@ import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
-import { storedToPattern, workingBoop, type StoredBoop } from '../persistence/saveFormat.ts'
-import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
+import { storedToPattern, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
+import { useWorkingSong } from '../persistence/useWorkingSong.ts'
 import { afterEdit, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
+import {
+  activeClip,
+  singleClipSong,
+  songFromStored,
+  storedBoopFromSong,
+  withActivePattern,
+  withBpm,
+  type Song,
+} from '../song/song.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
 
 /**
- * The whole app (ticket 13 — first sound): top bar, the 6x16 grid, and
- * play/pause. Grid state drives the engine's pattern directly; the engine is
- * the source of truth (`getPattern()`), mirrored into local state so toggling
- * a cell re-renders.
+ * The whole app: top bar, the 6x16 grid, and play/pause. The working state is
+ * a *song* (ticket 14) — clips, placements, one bpm, and the active clip the
+ * grid edits. The engine holds only that active clip's pattern and the tempo;
+ * they are the source of truth for what sounds, mirrored into the song after
+ * every edit so a toggle re-renders and the autosave sees the whole song.
  */
 export function HomePage() {
   const engine = useEngine()
-  const [pattern, setPattern] = useState<Pattern | null>(null)
+  const [song, setSong] = useState<Song | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [bpm, setBpm] = useState(DEFAULT_BPM)
   // Which starter boop is currently loaded, if any — the loaded card's ring,
   // which since ticket 36 is only ever seen inside the "New boop" dialog.
   // Drops to `null` on the first change of any kind: a cell toggle, a tempo
@@ -81,31 +89,58 @@ export function HomePage() {
   const sharedBoop = useRef<StoredBoop | null | undefined>(undefined)
   sharedBoop.current ??= decodeShareHash(window.location.hash)
 
-  // Autosave restores into the engine first; the mirror below waits for it, so
-  // it reads the restored pattern and tempo rather than the empty grid.
-  const restored = useWorkingGrid(engine, pattern, bpm, sharedBoop.current, firstVisitSeed)
+  // The restore hands back the whole autosaved song, its active clip and tempo
+  // already in the engine; adopting it here is what un-gates the render below.
+  const restoredSong = useWorkingSong(engine, song, sharedBoop.current, firstVisitSeed)
+
+  useEffect(() => {
+    if (restoredSong) setSong(restoredSong)
+  }, [restoredSong])
+
+  // Tap-time reads (share, save) go through the ref so their callbacks keep a
+  // stable identity while always seeing the song as it stands.
+  const songRef = useRef<Song | null>(null)
+  songRef.current = song
 
   useEffect(() => {
     if (sharedBoop.current) clearShareHash(window.location, window.history)
   }, [])
 
   useEffect(() => {
-    if (!engine || !restored) return
-    setPattern(engine.getPattern())
+    if (!engine) return
     setIsPlaying(engine.isPlaying())
-    setBpm(engine.getTempo())
     return engine.onTransport((event) => {
       if (event.type === 'started') setIsPlaying(true)
       if (event.type === 'stopped') setIsPlaying(false)
-      if (event.type === 'tempoChanged') setBpm(event.bpm)
+      if (event.type === 'tempoChanged') setSong((s) => (s ? withBpm(s, event.bpm) : s))
     })
-  }, [engine, restored])
+  }, [engine])
 
-  /** Everything the app calls a change (ticket 31): a cell toggle and a tempo move alike. */
+  /** Everything the app calls a change (ADR 0031, as amended): any mutation of the song. */
   const markEdited = useCallback(() => {
     setActivePreset(null)
     setLoaded(afterEdit)
   }, [])
+
+  /**
+   * The path a song mutation takes: apply it, and — if it really changed
+   * something — mark the loaded boop edited. A refused no-op (deleting the
+   * last clip, adding past the cap) is not a mutation and marks nothing.
+   * Tempo is the one mutation that arrives elsewhere (the engine's
+   * `tempoChanged` event above); `changeTempo` marks edited itself.
+   */
+  const updateSong = useCallback(
+    (mutate: (song: Song) => Song) => {
+      const current = songRef.current
+      if (!current) return
+      const next = mutate(current)
+      if (next === current) return
+      songRef.current = next
+      setSong(next)
+      markEdited()
+    },
+    [markEdited],
+  )
 
   const toggleCell = useCallback(
     (instrumentId: string, step: number) => {
@@ -113,10 +148,9 @@ export function HomePage() {
       const row = engine.getPattern().find((r) => r.instrumentId === instrumentId)
       const on = row?.steps[step] !== true
       engine.setCell(instrumentId, step, on)
-      setPattern(engine.getPattern())
-      markEdited()
+      updateSong((s) => withActivePattern(s, engine.getPattern()))
     },
-    [engine, markEdited],
+    [engine, updateSong],
   )
 
   const loadPreset = useCallback(
@@ -126,7 +160,8 @@ export function HomePage() {
       if (!preset) return
       engine.setPattern(presetPattern(engine.kit, preset))
       engine.setTempo(preset.tempo)
-      setPattern(engine.getPattern())
+      // A starter replaces the whole working slot: a fresh one-clip song.
+      setSong(singleClipSong(engine.getPattern(), engine.getTempo()))
       setActivePreset(presetId)
       // A starter is never a row in "My boops", so it has no identity to
       // carry — it reads the same as a blank grid (ticket 31).
@@ -175,27 +210,30 @@ export function HomePage() {
   const clearAll = useCallback(() => {
     if (!engine) return
     engine.setPattern(engine.getPattern().map((row) => ({ ...row, steps: row.steps.map(() => false) })))
-    setPattern(engine.getPattern())
+    setSong((s) => (s ? withActivePattern(s, engine.getPattern()) : s))
     setActivePreset(null)
     // An empty grid is not a saved boop with things rubbed out — it is nothing,
     // and reads "Not saved yet".
     setLoaded(null)
   }, [engine])
 
-  /** Read at tap time, so the link always carries the grid as it stands. */
+  /** Read at tap time, so the link always carries the whole song as it stands. */
   const getShareUrl = useCallback(() => {
-    if (!engine) return window.location.href
+    if (!engine || !songRef.current) return window.location.href
     return buildShareUrl(
       window.location,
-      workingBoop(engine.kit, engine.getPattern(), engine.getTempo()),
+      storedBoopFromSong(engine.kit, songRef.current, WORKING_NAME),
     )
   }, [engine])
 
   /** Read at tap time (the Save button inside "My boops"), same reasoning as `getShareUrl`. */
-  const getWorkingSnapshot = useCallback(() => {
-    if (!engine) throw new Error('engine not ready')
-    return { kit: engine.kit, pattern: engine.getPattern(), tempo: engine.getTempo() }
-  }, [engine])
+  const getWorkingBoop = useCallback(
+    (name: string) => {
+      if (!engine || !songRef.current) throw new Error('engine not ready')
+      return storedBoopFromSong(engine.kit, songRef.current, name)
+    },
+    [engine],
+  )
 
   /**
    * Export one *saved* boop as a WAV (ticket 34): an offline render of that
@@ -227,9 +265,11 @@ export function HomePage() {
   const loadBoop = useCallback(
     (boop: StoredBoop, index: number) => {
       if (!engine) return
-      engine.setPattern(storedToPattern(engine.kit, boop.patterns[0]!))
-      engine.setTempo(boop.tempo)
-      setPattern(engine.getPattern())
+      const loadedSong = songFromStored(engine.kit, boop)
+      engine.setPattern(activeClip(loadedSong).pattern)
+      engine.setTempo(loadedSong.bpm)
+      // The engine rounds and clamps the tempo; keep its number, as the restore does.
+      setSong({ ...loadedSong, bpm: engine.getTempo() })
       setActivePreset(null)
       // The grid *is* that row now, and matches it exactly (ticket 31).
       setLoaded({ index, name: boop.name, edited: false })
@@ -239,7 +279,7 @@ export function HomePage() {
     [engine],
   )
 
-  if (!engine || !pattern) {
+  if (!engine || !song) {
     return (
       <main className={styles.stage}>
         <p className={styles.loading}>Loading…</p>
@@ -249,7 +289,7 @@ export function HomePage() {
 
   const gridProps: GridViewProps = {
     kit: engine.kit,
-    pattern,
+    pattern: activeClip(song).pattern,
     onToggleCell: toggleCell,
     playheadStep: motion.playing ? motion.step : null,
     cellStrikes: motion.cellStrikes,
@@ -299,7 +339,7 @@ export function HomePage() {
           <Transport
             isPlaying={isPlaying}
             onToggle={togglePlay}
-            bpm={bpm}
+            bpm={song.bpm}
             onTempoChange={changeTempo}
             onClearAll={clearAll}
             onNewBoop={() => setNewBoopOpen(true)}
@@ -311,7 +351,7 @@ export function HomePage() {
         <BoopsPanel
           onClose={() => setBoopsOpen(false)}
           onLoad={loadBoop}
-          getWorkingSnapshot={getWorkingSnapshot}
+          getWorkingBoop={getWorkingBoop}
           onExport={exportBoop}
           loaded={loaded}
           onLoadedChange={setLoaded}
