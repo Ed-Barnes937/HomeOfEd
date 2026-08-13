@@ -46,6 +46,20 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('wotd-word')).toHaveText(word)
   }
 
+  async verifyWordType(wordType: string): Promise<void> {
+    await expect(this.page.getByTestId('wotd-word-type')).toHaveText(wordType)
+  }
+
+  async verifyRespelling(respelling: string): Promise<void> {
+    await expect(this.page.getByTestId('wotd-respelling')).toHaveText(respelling)
+  }
+
+  /** Asserts neither type nor respelling is rendered (pre-redesign rows). */
+  async verifyNoWordTypeOrRespelling(): Promise<void> {
+    await expect(this.page.getByTestId('wotd-word-type')).toHaveCount(0)
+    await expect(this.page.getByTestId('wotd-respelling')).toHaveCount(0)
+  }
+
   async verifyDefinition(definition: string): Promise<void> {
     await expect(this.page.getByTestId('wotd-definition')).toContainText(definition)
   }

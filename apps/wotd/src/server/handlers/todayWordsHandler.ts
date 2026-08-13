@@ -38,6 +38,8 @@ export function toWire(row: WordRow): WordOfTheDay {
     definition: row.definition,
     exampleSentence: row.exampleSentence,
     synonyms: row.alternatives,
+    wordType: row.wordType,
+    respelling: row.respelling,
   }
 }
 
@@ -85,6 +87,8 @@ export class GetTodayWordsHandler extends Handler<void, WordOfTheDay[], WotdStor
       definition: g.definition,
       exampleSentence: g.exampleSentence,
       alternatives: g.synonyms,
+      wordType: g.wordType,
+      respelling: g.respelling,
       difficulty: g.difficulty,
       forDate: today,
     }))

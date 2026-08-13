@@ -12,11 +12,11 @@ test('shows a back-to-hub link pointing at home of ed', async ({ mountApp, page 
 // boundary — no imports/closures, raw SQL only). `for_date` matches the
 // harness's pinned `ctx.now()` (2026-07-05T00:00:00Z).
 const seed = async (db: { execute: (sql: string) => Promise<unknown> }) => {
-  await db.execute(`insert into words (word, definition, example_sentence, alternatives, difficulty, for_date) values
-    ('brave','showing courage','The brave child spoke up.', ARRAY['bold','fearless','daring'], 'beginner', '2026-07-05'),
-    ('curious','eager to learn','A curious mind asks questions.', ARRAY['inquisitive','keen','nosy'], 'intermediate', '2026-07-05'),
-    ('resilient','recovers quickly','A resilient team bounces back.', ARRAY['tough','hardy','adaptable'], 'advanced', '2026-07-05'),
-    ('ephemeral','lasting briefly','The ephemeral mist lifted.', ARRAY['fleeting','transient','brief'], 'expert', '2026-07-05')`)
+  await db.execute(`insert into words (word, definition, example_sentence, alternatives, difficulty, for_date, word_type, respelling) values
+    ('brave','showing courage','The brave child spoke up.', ARRAY['bold','fearless','daring'], 'beginner', '2026-07-05', 'adjective', 'BRAYV'),
+    ('curious','eager to learn','A curious mind asks questions.', ARRAY['inquisitive','keen','nosy'], 'intermediate', '2026-07-05', 'adjective', 'KYOOR·ee·uhs'),
+    ('resilient','recovers quickly','A resilient team bounces back.', ARRAY['tough','hardy','adaptable'], 'advanced', '2026-07-05', 'adjective', 'rih·ZIL·yuhnt'),
+    ('ephemeral','lasting briefly','The ephemeral mist lifted.', ARRAY['fleeting','transient','brief'], 'expert', '2026-07-05', 'adjective', 'ih·FEM·er·uhl')`)
 }
 
 test('home page shows four level cards, each with its age hint', async ({ mountApp }) => {
@@ -34,6 +34,8 @@ test('clicking a level card shows that level\'s seeded word', async ({ mountApp 
   await root.clickLevel('advanced')
   await root.verifyWotdPageIsShown()
   await root.verifyWord('resilient')
+  await root.verifyWordType('adjective')
+  await root.verifyRespelling('rih·ZIL·yuhnt')
   await root.verifyDefinitionHidden()
   await root.toggleDefinition()
   await root.verifyDefinition('recovers quickly')
@@ -73,6 +75,23 @@ for (const width of [320, 390]) {
     await root.verifyNoHorizontalOverflow()
   })
 }
+
+// A pre-redesign row: no word_type / respelling columns — the page must render
+// the word without either (and without empty separators).
+const nullFieldsSeed = async (db: { execute: (sql: string) => Promise<unknown> }) => {
+  await db.execute(`insert into words (word, definition, example_sentence, alternatives, difficulty, for_date) values
+    ('brave','showing courage','The brave child spoke up.', ARRAY['bold','fearless','daring'], 'beginner', '2026-07-05')`)
+}
+
+test('a word stored without type or respelling renders cleanly without either', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp({ seed: nullFieldsSeed })
+  await root.gotoPath('/wotd?level=beginner')
+  await root.verifyWotdPageIsShown()
+  await root.verifyWord('brave')
+  await root.verifyNoWordTypeOrRespelling()
+})
 
 test('the theme toggle flips the theme and the choice survives a reload', async ({
   mountApp,

@@ -39,6 +39,20 @@ export function WOTDCard({ level }: WOTDCardProps) {
               </Button>
             )}
           </div>
+          {(word.wordType || word.respelling) && (
+            <p className={styles.typeRow}>
+              {word.wordType && (
+                <span className={styles.wordType} data-testid="wotd-word-type">
+                  {word.wordType}
+                </span>
+              )}
+              {word.respelling && (
+                <span className={styles.respelling} data-testid="wotd-respelling">
+                  {word.respelling}
+                </span>
+              )}
+            </p>
+          )}
           <Button className={styles.toggle} onClick={() => setShowDefinition((showing) => !showing)}>
             {showDefinition ? 'Hide Definition' : 'Show Definition'}
           </Button>

@@ -52,6 +52,29 @@
   color: #fff;
 }
 
+// Type + respelling beneath the word (spec: type in the display face italic,
+// respelling in the UI face). Each half renders only when present.
+.typeRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  margin: -0.75rem 0 1.25rem;
+}
+
+.wordType {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.1875rem;
+  opacity: 0.85;
+}
+
+.respelling {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
 .toggle {
   margin-bottom: 1rem;
 }

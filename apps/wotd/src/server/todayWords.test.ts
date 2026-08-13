@@ -25,6 +25,8 @@ function generatedWord(overrides: Partial<GeneratedWord> = {}): GeneratedWord {
     definition: 'lasting a very short time',
     exampleSentence: 'The ephemeral bloom faded by noon.',
     synonyms: ['fleeting', 'transient', 'momentary'],
+    wordType: 'adjective',
+    respelling: 'ih·FEM·er·uhl',
     ...overrides,
   }
 }
@@ -98,6 +100,31 @@ describe('GetTodayWordsHandler', () => {
 
     const persisted = await store.getWordsForDate('2026-07-05')
     expect(persisted).toHaveLength(4)
+  })
+
+  it('carries wordType and respelling from generation to the wire', async () => {
+    const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
+    const generator = new CountingGenerator(allFourGenerated())
+
+    const result = await new GetTodayWordsHandler(generator).run(undefined, makeCtx(store))
+
+    for (const word of result) {
+      expect(word.wordType).toBe('adjective')
+      expect(word.respelling).toBe('ih·FEM·er·uhl')
+    }
+  })
+
+  it('returns null wordType and respelling for rows stored before the redesign', async () => {
+    const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
+    await store.insertWords(DIFFICULTIES.map((difficulty) => seedRow({ difficulty })))
+
+    const generator = new CountingGenerator(allFourGenerated())
+    const result = await new GetTodayWordsHandler(generator).run(undefined, makeCtx(store))
+
+    for (const word of result) {
+      expect(word.wordType).toBeNull()
+      expect(word.respelling).toBeNull()
+    }
   })
 
   it('keeps a pre-seeded row on a lost race and still returns the complete set', async () => {

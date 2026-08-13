@@ -6,14 +6,14 @@ change simply omit both — the page renders cleanly without them.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 Spec: `.scratch/wotd-redesign/spec.md`. Origin is deliberately **not** added — it was dropped from
 the design.
 
-- [ ] A migration adds nullable word-type and respelling columns to the words table; no backfill
-- [ ] The wire contract and generator contract both carry the two new optional fields
-- [ ] The Anthropic generator's prompt and tool schema request both fields; parsing is covered by unit tests at the existing parse seam
-- [ ] The fake generator emits both fields so dev and CI exercise the full shape
-- [ ] The word page shows type and respelling beneath the word; a row with null values renders without either (no empty separators)
-- [ ] Handler/unit coverage follows the existing today-words test patterns; `.iwft` covers the null-field degradation
+- [x] A migration adds nullable word-type and respelling columns to the words table; no backfill
+- [x] The wire contract and generator contract both carry the two new optional fields
+- [x] The Anthropic generator's prompt and tool schema request both fields; parsing is covered by unit tests at the existing parse seam
+- [x] The fake generator emits both fields so dev and CI exercise the full shape
+- [x] The word page shows type and respelling beneath the word; a row with null values renders without either (no empty separators)
+- [x] Handler/unit coverage follows the existing today-words test patterns; `.iwft` covers the null-field degradation
