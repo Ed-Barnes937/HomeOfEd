@@ -14,10 +14,10 @@ the right, headline row with the right-aligned intro paragraph, and a 4-column c
 Spec: `.scratch/wotd-redesign/spec.md` · measurements in the handoff README §1 and §4; visuals in
 `WOTD - Dark Mode.html` (5a/5d and their light pairs).
 
-- [ ] Mobile picker matches design frame 5a (light and dark): layout, type, spacing, 2px borders, level colours
-- [ ] Desktop picker matches design frame 5d (light and dark), content column max-width 1120px
-- [ ] The grid collapses to a single column below ~720px
-- [ ] No yesterday strip and no "Past words" pill anywhere on the picker (both out of scope / moved)
-- [ ] Level rows/cards navigate to the word page for that level; hit targets ≥44px
-- [ ] Existing `.iwft` picker coverage still passes (navigation, four levels shown)
+- [x] Mobile picker matches design frame 5a (light and dark): layout, type, spacing, 2px borders, level colours
+- [x] Desktop picker matches design frame 5d (light and dark), content column max-width 1120px
+- [x] The grid collapses to a single column below ~720px
+- [x] No yesterday strip and no "Past words" pill anywhere on the picker (both out of scope / moved)
+- [x] Level rows/cards navigate to the word page for that level; hit targets ≥44px
+- [x] Existing `.iwft` picker coverage still passes (navigation, four levels shown)
 - [ ] Manual side-by-side against the reference HTML in both themes at 390×720 and 1280×800

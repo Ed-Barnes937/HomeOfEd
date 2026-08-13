@@ -1,52 +1,125 @@
+// Design top bar: mobile 18px 20px padding, desktop 20px 40px; 2px bottom
+// rule in both. The breakpoint (45rem = ~720px) matches the picker grid's
+// single-column collapse.
 .header {
-  position: relative;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 1.25rem 1rem;
-  border-bottom: 1px solid #e4e4de;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 2px solid var(--rule);
+
+  @media (min-width: 45rem) {
+    padding: 20px 40px;
+  }
 }
 
-// Back to the hub (home of ed): pinned to the left edge, clear of the centred
-// wordmark. Muted ink that darkens on hover to match the clean paper header.
-.back {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+// Mobile back-to-hub: the 34px circular arrow button. An invisible halo keeps
+// the hit target at ≥44px without changing the visual (same trick as the
+// theme toggle).
+.backMobile {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #6b6b66;
-  transition: color 0.15s ease;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 2px solid var(--rule);
+  color: var(--text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+  }
 
   &:hover {
-    color: #1c1c1c;
+    background: var(--button-hover-fill);
+    color: var(--ink);
   }
 
   &:focus-visible {
-    outline: 2px solid #1c1c1c;
+    outline: 2px solid var(--ink);
     outline-offset: 2px;
+  }
+
+  @media (min-width: 45rem) {
+    display: none;
   }
 }
 
-// Theme toggle: pinned to the right edge, mirroring the back button.
-.toggle {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+.brand {
   display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// Desktop back-to-hub: the inverted-fill "W" mark. The halo keeps its hit
+// target ≥44px without changing the 28px visual.
+.mark {
+  position: relative;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: var(--page);
+  font: 800 13px/1 var(--font-ui);
+  text-decoration: none;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  @media (min-width: 45rem) {
+    display: inline-flex;
+  }
 }
 
 .wordmark {
-  display: inline-flex;
+  font: 800 12px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
   text-decoration: none;
-  color: #1c1c1c;
+
+  &:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  @media (min-width: 45rem) {
+    font-size: 13px;
+    letter-spacing: 0.16em;
+  }
 }
 
-.title {
-  display: flex;
+.right {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 22px;
+}
+
+// Top-bar date is a desktop-only element; mobile shows it in the page body.
+.date {
+  display: none;
+  font: 700 13px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label-dim);
+
+  @media (min-width: 45rem) {
+    display: inline;
+  }
 }

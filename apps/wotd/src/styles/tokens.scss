@@ -33,6 +33,10 @@
   --level-beginner-fill: oklch(0.965 0.03 155);
   --level-beginner-fill-hover: oklch(0.94 0.05 155);
   --level-beginner-text: oklch(0.35 0.09 155);
+  --level-beginner-badge-text: #fff;
+  --level-beginner-sublabel: oklch(0.48 0.05 155);
+  --level-beginner-chevron: oklch(0.6 0.1 155);
+  --level-beginner-start: oklch(0.45 0.1 155);
 
   --level-intermediate-solid: oklch(0.55 0.13 265);
   --level-intermediate-solid-hover: oklch(0.48 0.13 265);
@@ -40,6 +44,10 @@
   --level-intermediate-fill: oklch(0.965 0.03 265);
   --level-intermediate-fill-hover: oklch(0.94 0.05 265);
   --level-intermediate-text: oklch(0.35 0.09 265);
+  --level-intermediate-badge-text: #fff;
+  --level-intermediate-sublabel: oklch(0.48 0.05 265);
+  --level-intermediate-chevron: oklch(0.6 0.1 265);
+  --level-intermediate-start: oklch(0.45 0.1 265);
 
   --level-advanced-solid: oklch(0.58 0.13 70);
   --level-advanced-solid-hover: oklch(0.51 0.13 70);
@@ -47,6 +55,10 @@
   --level-advanced-fill: oklch(0.965 0.03 70);
   --level-advanced-fill-hover: oklch(0.94 0.05 70);
   --level-advanced-text: oklch(0.35 0.09 70);
+  --level-advanced-badge-text: #fff;
+  --level-advanced-sublabel: oklch(0.48 0.05 70);
+  --level-advanced-chevron: oklch(0.6 0.1 70);
+  --level-advanced-start: oklch(0.45 0.09 70);
 
   --level-expert-solid: oklch(0.55 0.16 20);
   --level-expert-solid-hover: oklch(0.48 0.16 20);
@@ -54,6 +66,10 @@
   --level-expert-fill: oklch(0.965 0.03 20);
   --level-expert-fill-hover: oklch(0.94 0.05 20);
   --level-expert-text: oklch(0.35 0.09 20);
+  --level-expert-badge-text: #fff;
+  --level-expert-sublabel: oklch(0.48 0.06 20);
+  --level-expert-chevron: oklch(0.6 0.12 20);
+  --level-expert-start: oklch(0.45 0.12 20);
 }
 
 :root[data-theme='dark'] {
@@ -77,6 +93,10 @@
   --level-beginner-fill: oklch(0.28 0.035 155);
   --level-beginner-fill-hover: oklch(0.34 0.05 155);
   --level-beginner-text: oklch(0.9 0.09 155);
+  --level-beginner-badge-text: #13170f;
+  --level-beginner-sublabel: oklch(0.72 0.05 155);
+  --level-beginner-chevron: oklch(0.75 0.1 155);
+  --level-beginner-start: oklch(0.8 0.1 155);
 
   --level-intermediate-solid: oklch(0.74 0.14 265);
   --level-intermediate-solid-hover: oklch(0.81 0.14 265);
@@ -84,6 +104,10 @@
   --level-intermediate-fill: oklch(0.28 0.04 265);
   --level-intermediate-fill-hover: oklch(0.34 0.06 265);
   --level-intermediate-text: oklch(0.9 0.09 265);
+  --level-intermediate-badge-text: #0f1117;
+  --level-intermediate-sublabel: oklch(0.72 0.05 265);
+  --level-intermediate-chevron: oklch(0.75 0.1 265);
+  --level-intermediate-start: oklch(0.8 0.1 265);
 
   --level-advanced-solid: oklch(0.82 0.14 70);
   --level-advanced-solid-hover: oklch(0.89 0.14 70);
@@ -91,6 +115,10 @@
   --level-advanced-fill: oklch(0.29 0.04 70);
   --level-advanced-fill-hover: oklch(0.35 0.055 70);
   --level-advanced-text: oklch(0.9 0.09 70);
+  --level-advanced-badge-text: #17130a;
+  --level-advanced-sublabel: oklch(0.74 0.05 70);
+  --level-advanced-chevron: oklch(0.78 0.1 70);
+  --level-advanced-start: oklch(0.84 0.1 70);
 
   --level-expert-solid: oklch(0.72 0.16 20);
   --level-expert-solid-hover: oklch(0.79 0.15 20);
@@ -98,4 +126,8 @@
   --level-expert-fill: oklch(0.29 0.05 20);
   --level-expert-fill-hover: oklch(0.35 0.07 20);
   --level-expert-text: oklch(0.9 0.09 20);
+  --level-expert-badge-text: #1a0d0b;
+  --level-expert-sublabel: oklch(0.73 0.06 20);
+  --level-expert-chevron: oklch(0.76 0.12 20);
+  --level-expert-start: oklch(0.8 0.12 20);
 }

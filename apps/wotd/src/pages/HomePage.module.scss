@@ -1,26 +1,99 @@
+// Picker body. Mobile (frame 5a): 24px 20px 18px padding, date line, 38px
+// headline broken over two lines, accent rule, vertical level list. Desktop
+// (frame 5d): 56px 40px 32px padding in a centred 1120px column, 58px
+// headline beside a right-aligned intro, 4-column card grid.
 .home {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  min-height: calc(100dvh - 5rem);
-  padding: 2rem 1.5rem;
-  font-family: system-ui, sans-serif;
-  color: #1c1c1c;
-  background: #fafaf7;
+  padding: 24px 20px 18px;
+
+  @media (min-width: 45rem) {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 56px 40px 32px;
+  }
+}
+
+// Mobile-only: desktop carries the date in the top bar instead.
+.date {
+  margin: 0 0 8px;
+  font: 700 12px/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--label-dim);
+
+  @media (min-width: 45rem) {
+    display: none;
+  }
+}
+
+.headlineRow {
+  @media (min-width: 45rem) {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+  }
 }
 
 .heading {
-  text-align: center;
+  margin: 0 0 4px;
+  font: 400 38px/1.06 var(--font-display);
+  letter-spacing: -0.015em;
+
+  @media (min-width: 45rem) {
+    margin: 0 0 6px;
+    font-size: 58px;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+  }
+}
+
+.mobileBreak {
+  @media (min-width: 45rem) {
+    display: none;
+  }
+}
+
+.accentRule {
+  display: block;
+  width: 88px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  margin: 0 0 22px;
+
+  @media (min-width: 45rem) {
+    width: 120px;
+    height: 6px;
+    margin: 0;
+  }
+}
+
+// Desktop-only intro paragraph, right-aligned against the headline.
+.intro {
+  display: none;
+
+  @media (min-width: 45rem) {
+    display: block;
+    margin: 0 0 4px;
+    max-width: 34ch;
+    font: 600 15px/1.55 var(--font-ui);
+    color: var(--body-muted);
+    text-wrap: pretty;
+  }
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
-  width: 100%;
-  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
-  @media (max-width: 30rem) {
-    grid-template-columns: 1fr;
+  @media (min-width: 45rem) {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-top: 44px;
   }
 }
