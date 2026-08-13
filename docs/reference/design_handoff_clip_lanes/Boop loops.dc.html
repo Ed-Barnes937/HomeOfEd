@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+@font-face{font-family:'Chivo';font-style:normal;font-weight:300 900;font-display:swap;src:url('apps/boop/public/fonts/chivo-latin.woff2') format('woff2');}
+@font-face{font-family:'Chivo Mono';font-style:normal;font-weight:400 900;font-display:swap;src:url('apps/boop/public/fonts/chivo-mono-latin.woff2') format('woff2');}
+html,body{margin:0;background:#0a1518;}
+*,*::before,*::after{box-sizing:border-box;}
+a{color:#6fe0f0;text-decoration:none;}
+a:hover{color:#a6ecf7;}
+@keyframes cellPop{from{transform:scale(.9)}to{transform:scale(1)}}
+@keyframes clipPulse{0%,100%{box-shadow:0 0 0 3px rgba(111,224,240,.55)}50%{box-shadow:0 0 0 6px rgba(111,224,240,.18)}}
+</style>
+</helmet>
+
+<section style="display:flex;flex-direction:column;gap:28px;padding:56px 48px;font-family:'Chivo',system-ui,sans-serif;color:#f2efe6;">
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:820px;">
+    <div style="font:900 34px 'Chivo',system-ui;letter-spacing:-0.03em;">Clip lanes, polished</div>
+    <div style="font:400 16px/1.5 'Chivo',system-ui;color:rgba(242,239,230,.6);text-wrap:pretty;">Built out from <a href="#1c">1c</a>. The grid now says whose clip it is, lanes are drag-paintable like the grid itself, and the song sweeps a playhead across the squares as it plays. Repeats are just the same square twice, so there is nothing new to learn.</div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start;">
+    <div id="2a" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font:800 12px 'Chivo Mono',monospace;padding:5px 9px;border-radius:7px;background:#b78bff;color:#14262a;">2a</span>
+        <span style="font:800 19px 'Chivo',system-ui;letter-spacing:-0.02em;">Clip lanes</span>
+      </div>
+      <div data-screen-label="2a Clip lanes polished" style="width:1428px;height:1150px;background:#14262a;color:#f2efe6;border-radius:22px;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column;overflow:hidden;">
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;height:58px;display:flex;align-items:center;gap:14px;">
+            <span style="flex:none;width:44px;height:44px;margin-left:-10px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,.55);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+            </span>
+            <span style="font:900 31px 'Chivo',system-ui;letter-spacing:-0.03em;">boop</span>
+            <span style="font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">{{ d.savedLabel }}</span>
+            <div style="flex:1;"></div>
+            <button type="button" style="padding:11px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">New boop</button>
+            <button type="button" style="padding:11px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">My boops</button>
+            <button type="button" style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border:none;border-radius:9px;background:#f2efe6;font:800 14px 'Chivo',system-ui;color:#14262a;cursor:pointer;">Share</button>
+            <button type="button" style="flex:none;width:44px;height:44px;border:1px solid rgba(242,239,230,.2);border-radius:50%;background:transparent;font:800 17px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">?</button>
+          </div>
+        </div>
+
+        <div style="flex:1;min-height:0;overflow-y:auto;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;">
+            <div style="margin-top:14px;display:flex;align-items:center;gap:12px;">
+              <span style="font:700 13px 'Chivo',system-ui;color:rgba(242,239,230,.45);">You're changing</span>
+              <span style="{{ d.editingTintStyle }}"></span>
+              <sc-if value="{{ d.notEditingRow }}" hint-placeholder-val="{{ true }}">
+                <span style="display:inline-flex;align-items:center;gap:8px;">
+                  <span style="{{ d.editingNameStyle }}" onClick="{{ d.startRenameActive }}">{{ d.editingName }}</span>
+                  <button type="button" onClick="{{ d.startRenameActive }}" aria-label="Rename this clip" style="flex:none;width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(242,239,230,.2);border-radius:50%;background:transparent;color:rgba(242,239,230,.7);cursor:pointer;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                  </button>
+                </span>
+              </sc-if>
+              <sc-if value="{{ d.editingRow }}" hint-placeholder-val="{{ false }}">
+                <input value="{{ d.editingName }}" onChange="{{ d.renameActive }}" onBlur="{{ d.commitRename }}" onKeyDown="{{ d.renameKey }}" autoFocus="{{ true }}" style="width:200px;padding:5px 9px;border:1px solid #6fe0f0;border-radius:8px;background:#0e1f23;font:800 16px 'Chivo',system-ui;color:#f2efe6;outline:none;">
+              </sc-if>
+              <div style="flex:1;"></div>
+              <button type="button" onClick="{{ d.duplicate }}" style="padding:9px 14px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 13px 'Chivo',system-ui;color:rgba(242,239,230,.75);cursor:pointer;">Make a copy</button>
+              <button type="button" onClick="{{ d.remove }}" style="padding:9px 14px;border-radius:9px;border:1px dashed rgba(255,138,122,.55);background:transparent;font:700 13px 'Chivo',system-ui;color:#ff8a7a;cursor:pointer;">Delete clip</button>
+            </div>
+            <div style="{{ d.wellStyle }}">
+              <div style="display:flex;gap:18px;margin-bottom:8px;">
+                <div style="flex:none;width:160px;"></div>
+                <sc-for list="{{ d.bars }}" as="bar" hint-placeholder-count="4">
+                  <div style="{{ bar.style }}">{{ bar.label }}</div>
+                </sc-for>
+              </div>
+              <div style="position:relative;touch-action:none;">
+                <sc-if value="{{ d.playhead }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ d.playheadStyle }}"></div>
+                </sc-if>
+                <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ d.rows }}" as="row" hint-placeholder-count="6">
+                    <div style="display:flex;align-items:center;gap:18px;">
+                      <div style="flex:none;width:160px;display:flex;align-items:center;gap:12px;">
+                        <span style="flex:none;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;">
+                          <span style="{{ row.plateStyle }}"></span>
+                        </span>
+                        <span style="{{ row.nameStyle }}">{{ row.name }}</span>
+                      </div>
+                      <div style="display:flex;gap:18px;">
+                        <sc-for list="{{ row.groups }}" as="g" hint-placeholder-count="4">
+                          <div style="display:flex;gap:8px;">
+                            <sc-for list="{{ g.cells }}" as="cell" hint-placeholder-count="4">
+                              <button type="button" style="{{ cell.style }}" onClick="{{ cell.toggle }}">
+                                <sc-if value="{{ cell.on }}" hint-placeholder-val="{{ false }}">
+                                  <span style="{{ cell.artStyle }}"></span>
+                                </sc-if>
+                              </button>
+                            </sc-for>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="margin-top:16px;height:72px;padding:0 18px;border-radius:16px;background:rgba(255,255,255,.05);display:flex;align-items:center;gap:16px;">
+                <button type="button" onClick="{{ d.toggleClip }}" style="flex:none;width:56px;height:56px;padding:0;border:none;border-radius:50%;background:#ffd24a;box-shadow:0 4px 0 #c79a17,0 10px 22px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                  <span style="{{ d.clipGlyphStyle }}"></span>
+                </button>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span style="font:800 15px 'Chivo',system-ui;">{{ d.clipPlayLabel }}</span>
+                  <span style="font:400 13px 'Chivo',system-ui;color:rgba(242,239,230,.45);">Just these 4 bars, round and round</span>
+                </div>
+                <div style="flex:1;"></div>
+                <button type="button" style="flex:none;padding:12px 18px;border-radius:9px;border:1px dashed rgba(255,138,122,.55);background:transparent;font:700 14px 'Chivo',system-ui;color:#ff8a7a;cursor:pointer;">Clear grid</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;margin-top:14px;padding:0 18px 14px;border-radius:20px;background:rgba(255,255,255,.045);display:flex;flex-direction:column;">
+            <div style="height:64px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.07);">
+              <span style="font:900 17px 'Chivo',system-ui;letter-spacing:-0.02em;">Your boop</span>
+              <span style="font:600 13px 'Chivo Mono',monospace;color:rgba(242,239,230,.4);">{{ d.barsLabel }}</span>
+              <div style="flex:1;"></div>
+              <span style="font:800 15px 'Chivo',system-ui;">Speed</span>
+              <span style="font:600 13px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);width:64px;">{{ d.tempoLabel }}</span>
+              <span style="flex:none;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Slow</span>
+              <div onPointerDown="{{ d.tempoDown }}" onPointerMove="{{ d.tempoMove }}" style="position:relative;width:280px;height:10px;border-radius:5px;background:rgba(255,255,255,.11);cursor:pointer;touch-action:none;">
+                <div style="{{ d.tempoFillStyle }}"></div>
+                <div style="{{ d.tempoThumbStyle }}"></div>
+              </div>
+              <span style="flex:none;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Fast</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:18px;padding-top:14px;">
+            <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:7px;padding-top:24px;">
+              <button type="button" onClick="{{ d.toggleSong }}" style="{{ d.songButtonStyle }}">
+                <span style="{{ d.songGlyphStyle }}"></span>
+              </button>
+              <span style="font:800 12px 'Chivo',system-ui;color:rgba(242,239,230,.6);">{{ d.songLabel }}</span>
+            </div>
+            <div style="flex:none;width:1px;align-self:stretch;background:rgba(255,255,255,.1);"></div>
+            <div style="flex:1;min-width:0;overflow-x:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:2px;">
+              <div style="display:flex;gap:8px;padding-left:184px;">
+                <sc-for list="{{ d.positions }}" as="pos" hint-placeholder-count="16">
+                  <div style="{{ pos.style }}">{{ pos.label }}</div>
+                </sc-for>
+              </div>
+              <sc-for list="{{ d.lanes }}" as="lane" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="{{ lane.chipStyle }}" onClick="{{ lane.select }}">
+                    <span style="{{ lane.dotStyle }}"></span>
+                    <span style="{{ lane.nameStyle }}">{{ lane.name }}</span>
+                    <span style="{{ lane.countStyle }}">{{ lane.countLabel }}</span>
+                  </div>
+                  <sc-for list="{{ lane.slots }}" as="slot" hint-placeholder-count="16">
+                    <button type="button" style="{{ slot.style }}" onPointerDown="{{ slot.down }}" onPointerEnter="{{ slot.enter }}"></button>
+                  </sc-for>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button type="button" onClick="{{ d.addClip }}" style="flex:none;width:176px;height:46px;border:2px dashed rgba(242,239,230,.22);border-radius:12px;background:transparent;font:800 14px 'Chivo',system-ui;color:rgba(242,239,230,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">+ New clip</button>
+                <span style="font:400 13px 'Chivo',system-ui;color:rgba(242,239,230,.3);">Starts you on an empty grid</span>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;padding-bottom:32px;">
+          
+        </div>
+      </div>
+      <div style="display:flex;gap:28px;max-width:1428px;font:400 14px/1.5 'Chivo',system-ui;color:rgba(242,239,230,.55);">
+        <div style="flex:1;"><strong style="font-weight:800;color:rgba(242,239,230,.85);display:block;">Drag to fill</strong>Squares paint the same way grid cells do — press and drag across a lane to lay a clip down four times in a row.</div>
+        <div style="flex:1;"><strong style="font-weight:800;color:rgba(242,239,230,.85);display:block;">Repeats are free</strong>No repeat counter to learn. The same square twice means it plays twice.</div>
+        <div style="flex:1;"><strong style="font-weight:800;color:rgba(242,239,230,.85);display:block;">The grid says whose it is</strong>The well is tinted to the clip you're on and named above it, so switching lanes never feels like the grid changed by itself.</div>
+        <div style="flex:1;"><strong style="font-weight:800;color:rgba(242,239,230,.85);display:block;">One dashed square ahead</strong>The next free square on your lane is outlined, which is the whole invitation to build a longer song.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:28px;padding:56px 48px;font-family:'Chivo',system-ui,sans-serif;color:#f2efe6;">
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:820px;">
+    <div style="font:900 34px 'Chivo',system-ui;letter-spacing:-0.03em;">Loops — three directions</div>
+    <div style="font:400 16px/1.5 'Chivo',system-ui;color:rgba(242,239,230,.6);text-wrap:pretty;">Same rules in all three: the 4 bars on the grid are always a clip, tapping another clip switches the grid straight to it, and there is no save step. What changes is how the chain of clips is drawn and how the next clip gets made. All three are live — paint the grid, switch clips, hit play.</div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start;">
+
+    <div id="1a" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font:800 12px 'Chivo Mono',monospace;padding:5px 9px;border-radius:7px;background:#6fe0f0;color:#14262a;">1a</span>
+        <span style="font:800 19px 'Chivo',system-ui;letter-spacing:-0.02em;">Clip bar</span>
+      </div>
+      <div style="font:400 14px/1.5 'Chivo',system-ui;color:rgba(242,239,230,.55);max-width:1428px;text-wrap:pretty;">A shelf of clips under the grid. The dashed <strong style="font-weight:700;color:rgba(242,239,230,.8);">+</strong> makes an empty clip and drops you straight onto a blank grid. Names are automatic; tap one to rename it.</div>
+      <div data-screen-label="1a Clip bar" style="width:1428px;height:900px;background:#14262a;color:#f2efe6;border-radius:22px;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column;overflow:hidden;">
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;height:58px;display:flex;align-items:center;gap:14px;">
+            <span style="flex:none;width:44px;height:44px;margin-left:-10px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,.55);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+            </span>
+            <span style="font:900 31px 'Chivo',system-ui;letter-spacing:-0.03em;">boop</span>
+            <span style="font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">{{ a.savedLabel }}</span>
+            <div style="flex:1;"></div>
+            <button type="button" style="padding:11px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">My boops</button>
+            <button type="button" style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border:none;border-radius:9px;background:#f2efe6;font:800 14px 'Chivo',system-ui;color:#14262a;cursor:pointer;">Share</button>
+            <button type="button" style="flex:none;width:44px;height:44px;border:1px solid rgba(242,239,230,.2);border-radius:50%;background:transparent;font:800 17px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">?</button>
+          </div>
+        </div>
+
+        <div style="flex:1;min-height:0;overflow-y:auto;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;">
+            <div style="margin-top:16px;padding:18px;border-radius:24px;background:#0e1f23;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
+              <div style="display:flex;gap:18px;margin-bottom:8px;">
+                <div style="flex:none;width:160px;"></div>
+                <sc-for list="{{ a.bars }}" as="bar" hint-placeholder-count="4">
+                  <div style="{{ bar.style }}">{{ bar.label }}</div>
+                </sc-for>
+              </div>
+              <div style="position:relative;touch-action:none;">
+                <sc-if value="{{ a.playhead }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ a.playheadStyle }}"></div>
+                </sc-if>
+                <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ a.rows }}" as="row" hint-placeholder-count="6">
+                    <div style="display:flex;align-items:center;gap:18px;">
+                      <div style="flex:none;width:160px;display:flex;align-items:center;gap:12px;">
+                        <span style="flex:none;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;">
+                          <span style="{{ row.plateStyle }}"></span>
+                        </span>
+                        <span style="{{ row.nameStyle }}">{{ row.name }}</span>
+                      </div>
+                      <div style="display:flex;gap:18px;">
+                        <sc-for list="{{ row.groups }}" as="g" hint-placeholder-count="4">
+                          <div style="display:flex;gap:8px;">
+                            <sc-for list="{{ g.cells }}" as="cell" hint-placeholder-count="4">
+                              <button type="button" style="{{ cell.style }}" onClick="{{ cell.toggle }}">
+                                <sc-if value="{{ cell.on }}" hint-placeholder-val="{{ false }}">
+                                  <span style="{{ cell.artStyle }}"></span>
+                                </sc-if>
+                              </button>
+                            </sc-for>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;margin-top:16px;height:112px;padding:0 18px;border-radius:20px;background:rgba(255,255,255,.045);display:flex;align-items:center;gap:18px;">
+            <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <button type="button" onClick="{{ a.toggleSong }}" style="{{ a.songButtonStyle }}">
+                <span style="{{ a.songGlyphStyle }}"></span>
+              </button>
+              <span style="font:800 11px 'Chivo',system-ui;color:rgba(242,239,230,.55);letter-spacing:.02em;">{{ a.songLabel }}</span>
+            </div>
+            <div style="flex:none;width:1px;height:64px;background:rgba(255,255,255,.1);"></div>
+            <div style="flex:1;min-width:0;overflow-x:auto;display:flex;align-items:center;gap:12px;padding:6px 0;">
+              <sc-for list="{{ a.clips }}" as="clip" hint-placeholder-count="3">
+                <div style="{{ clip.tileStyle }}" onClick="{{ clip.select }}">
+                  <div style="display:flex;gap:2px;">
+                    <sc-for list="{{ clip.mini }}" as="col" hint-placeholder-count="16">
+                      <div style="display:flex;flex-direction:column;gap:2px;">
+                        <sc-for list="{{ col.dots }}" as="dot" hint-placeholder-count="6">
+                          <div style="{{ dot.style }}"></div>
+                        </sc-for>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ clip.editing }}" hint-placeholder-val="{{ false }}">
+                    <input value="{{ clip.name }}" onChange="{{ clip.rename }}" onBlur="{{ clip.commitName }}" onKeyDown="{{ clip.nameKey }}" autoFocus="{{ true }}" style="width:100%;padding:2px 4px;border:1px solid #6fe0f0;border-radius:5px;background:#0e1f23;font:700 12px 'Chivo',system-ui;color:#f2efe6;outline:none;">
+                  </sc-if>
+                  <sc-if value="{{ clip.notEditing }}" hint-placeholder-val="{{ true }}">
+                    <span style="{{ clip.nameStyle }}" onClick="{{ clip.startRename }}">{{ clip.name }}</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <button type="button" onClick="{{ a.addClip }}" style="flex:none;width:80px;height:80px;border:2px dashed rgba(242,239,230,.22);border-radius:14px;background:transparent;font:300 34px 'Chivo',system-ui;color:rgba(242,239,230,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;padding-bottom:32px;">
+          <div style="max-width:1356px;margin-inline:auto;margin-top:16px;height:84px;padding:0 22px;border-radius:20px;background:rgba(255,255,255,.045);box-shadow:0 -4px 20px rgba(0,0,0,.35);display:flex;align-items:center;gap:26px;">
+            <button type="button" onClick="{{ a.toggleClip }}" style="flex:none;width:62px;height:62px;padding:0;border:none;border-radius:50%;background:#ffd24a;box-shadow:0 4px 0 #c79a17,0 10px 22px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+              <span style="{{ a.clipGlyphStyle }}"></span>
+            </button>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:baseline;gap:8px;">
+                <span style="font:800 15px 'Chivo',system-ui;">Tempo</span>
+                <span style="font:600 13px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);">120 BPM</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;">
+                <span style="flex:none;width:34px;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Slow</span>
+                <div style="position:relative;width:260px;height:10px;border-radius:5px;background:rgba(255,255,255,.11);">
+                  <div style="position:absolute;inset:0 auto 0 0;width:45%;border-radius:5px;background:rgba(242,239,230,.4);"></div>
+                  <div style="position:absolute;top:-10px;left:calc(45% - 15px);width:30px;height:30px;border-radius:50%;background:#f2efe6;box-shadow:0 3px 8px rgba(0,0,0,.45);"></div>
+                </div>
+                <span style="flex:none;width:30px;text-align:right;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Fast</span>
+              </div>
+            </div>
+            <div style="flex:none;margin-left:auto;display:flex;align-items:center;gap:18px;">
+              <button type="button" style="flex:none;padding:12px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">New boop</button>
+              <div style="flex:none;width:1px;height:44px;background:rgba(255,255,255,.1);"></div>
+              <button type="button" style="flex:none;padding:12px 18px;border-radius:9px;border:1px dashed rgba(255,138,122,.55);background:transparent;font:700 14px 'Chivo',system-ui;color:#ff8a7a;cursor:pointer;">Clear grid</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="1b" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font:800 12px 'Chivo Mono',monospace;padding:5px 9px;border-radius:7px;background:#6fe0a8;color:#14262a;">1b</span>
+        <span style="font:800 19px 'Chivo',system-ui;letter-spacing:-0.02em;">Song ribbon</span>
+      </div>
+      <div style="font:400 14px/1.5 'Chivo',system-ui;color:rgba(242,239,230,.55);max-width:1428px;text-wrap:pretty;">The chain is one ribbon, so the song has a visible length. Tap <strong style="font-weight:700;color:rgba(242,239,230,.8);">×2</strong> to make a clip repeat and watch it take up more of the song. The <strong style="font-weight:700;color:rgba(242,239,230,.8);">+</strong> copies the clip you are on, so the next one starts from something that already works.</div>
+      <div data-screen-label="1b Song ribbon" style="width:1428px;height:900px;background:#14262a;color:#f2efe6;border-radius:22px;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column;overflow:hidden;">
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;height:58px;display:flex;align-items:center;gap:14px;">
+            <span style="flex:none;width:44px;height:44px;margin-left:-10px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,.55);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+            </span>
+            <span style="font:900 31px 'Chivo',system-ui;letter-spacing:-0.03em;">boop</span>
+            <span style="font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">{{ b.savedLabel }}</span>
+            <div style="flex:1;"></div>
+            <button type="button" style="padding:11px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">My boops</button>
+            <button type="button" style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border:none;border-radius:9px;background:#f2efe6;font:800 14px 'Chivo',system-ui;color:#14262a;cursor:pointer;">Share</button>
+            <button type="button" style="flex:none;width:44px;height:44px;border:1px solid rgba(242,239,230,.2);border-radius:50%;background:transparent;font:800 17px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">?</button>
+          </div>
+        </div>
+
+        <div style="flex:1;min-height:0;overflow-y:auto;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;">
+            <div style="margin-top:16px;padding:18px;border-radius:24px;background:#0e1f23;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
+              <div style="display:flex;gap:18px;margin-bottom:8px;">
+                <div style="flex:none;width:160px;"></div>
+                <sc-for list="{{ b.bars }}" as="bar" hint-placeholder-count="4">
+                  <div style="{{ bar.style }}">{{ bar.label }}</div>
+                </sc-for>
+              </div>
+              <div style="position:relative;touch-action:none;">
+                <sc-if value="{{ b.playhead }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ b.playheadStyle }}"></div>
+                </sc-if>
+                <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ b.rows }}" as="row" hint-placeholder-count="6">
+                    <div style="display:flex;align-items:center;gap:18px;">
+                      <div style="flex:none;width:160px;display:flex;align-items:center;gap:12px;">
+                        <span style="flex:none;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;">
+                          <span style="{{ row.plateStyle }}"></span>
+                        </span>
+                        <span style="{{ row.nameStyle }}">{{ row.name }}</span>
+                      </div>
+                      <div style="display:flex;gap:18px;">
+                        <sc-for list="{{ row.groups }}" as="g" hint-placeholder-count="4">
+                          <div style="display:flex;gap:8px;">
+                            <sc-for list="{{ g.cells }}" as="cell" hint-placeholder-count="4">
+                              <button type="button" style="{{ cell.style }}" onClick="{{ cell.toggle }}">
+                                <sc-if value="{{ cell.on }}" hint-placeholder-val="{{ false }}">
+                                  <span style="{{ cell.artStyle }}"></span>
+                                </sc-if>
+                              </button>
+                            </sc-for>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;margin-top:16px;height:112px;padding:0 18px;border-radius:20px;background:rgba(255,255,255,.045);display:flex;align-items:center;gap:18px;">
+            <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <button type="button" onClick="{{ b.toggleSong }}" style="{{ b.songButtonStyle }}">
+                <span style="{{ b.songGlyphStyle }}"></span>
+              </button>
+              <span style="font:800 11px 'Chivo',system-ui;color:rgba(242,239,230,.55);letter-spacing:.02em;">{{ b.songLabel }}</span>
+            </div>
+            <div style="flex:none;width:1px;height:64px;background:rgba(255,255,255,.1);"></div>
+            <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:8px;border-radius:16px;background:rgba(0,0,0,.22);">
+              <sc-for list="{{ b.clips }}" as="clip" hint-placeholder-count="3">
+                <div style="{{ clip.segStyle }}" onClick="{{ clip.select }}">
+                  <span style="{{ clip.segNameStyle }}">{{ clip.name }}</span>
+                  <sc-if value="{{ b.showRepeats }}" hint-placeholder-val="{{ true }}">
+                    <span style="{{ clip.repeatStyle }}" onClick="{{ clip.addRepeat }}">{{ clip.repeatLabel }}</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <button type="button" onClick="{{ b.addClip }}" style="flex:none;width:64px;height:64px;border:2px dashed rgba(242,239,230,.22);border-radius:12px;background:transparent;font:300 30px 'Chivo',system-ui;color:rgba(242,239,230,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+            </div>
+            <span style="flex:none;font:600 12px 'Chivo Mono',monospace;color:rgba(242,239,230,.4);">{{ b.lengthLabel }}</span>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;padding-bottom:32px;">
+          <div style="max-width:1356px;margin-inline:auto;margin-top:16px;height:84px;padding:0 22px;border-radius:20px;background:rgba(255,255,255,.045);box-shadow:0 -4px 20px rgba(0,0,0,.35);display:flex;align-items:center;gap:26px;">
+            <button type="button" onClick="{{ b.toggleClip }}" style="flex:none;width:62px;height:62px;padding:0;border:none;border-radius:50%;background:#ffd24a;box-shadow:0 4px 0 #c79a17,0 10px 22px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+              <span style="{{ b.clipGlyphStyle }}"></span>
+            </button>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:baseline;gap:8px;">
+                <span style="font:800 15px 'Chivo',system-ui;">Tempo</span>
+                <span style="font:600 13px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);">120 BPM</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;">
+                <span style="flex:none;width:34px;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Slow</span>
+                <div style="position:relative;width:260px;height:10px;border-radius:5px;background:rgba(255,255,255,.11);">
+                  <div style="position:absolute;inset:0 auto 0 0;width:45%;border-radius:5px;background:rgba(242,239,230,.4);"></div>
+                  <div style="position:absolute;top:-10px;left:calc(45% - 15px);width:30px;height:30px;border-radius:50%;background:#f2efe6;box-shadow:0 3px 8px rgba(0,0,0,.45);"></div>
+                </div>
+                <span style="flex:none;width:30px;text-align:right;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Fast</span>
+              </div>
+            </div>
+            <div style="flex:none;margin-left:auto;display:flex;align-items:center;gap:18px;">
+              <button type="button" style="flex:none;padding:12px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">New boop</button>
+              <div style="flex:none;width:1px;height:44px;background:rgba(255,255,255,.1);"></div>
+              <button type="button" style="flex:none;padding:12px 18px;border-radius:9px;border:1px dashed rgba(255,138,122,.55);background:transparent;font:700 14px 'Chivo',system-ui;color:#ff8a7a;cursor:pointer;">Clear grid</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="1c" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font:800 12px 'Chivo Mono',monospace;padding:5px 9px;border-radius:7px;background:#b78bff;color:#14262a;">1c</span>
+        <span style="font:800 19px 'Chivo',system-ui;letter-spacing:-0.02em;">Clip lanes</span>
+      </div>
+      <div style="font:400 14px/1.5 'Chivo',system-ui;color:rgba(242,239,230,.55);max-width:1428px;text-wrap:pretty;">Hydrogen's song editor, stripped back. Each clip owns a lane; tap a square to say "play this one here". Making a clip and arranging it are two separate moves, which costs a step but makes repeats, gaps and swaps obvious.</div>
+      <div data-screen-label="1c Clip lanes" style="width:1428px;height:1000px;background:#14262a;color:#f2efe6;border-radius:22px;box-shadow:0 24px 60px -24px rgba(20,38,42,.55);display:flex;flex-direction:column;overflow:hidden;">
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;height:58px;display:flex;align-items:center;gap:14px;">
+            <span style="flex:none;width:44px;height:44px;margin-left:-10px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,.55);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+            </span>
+            <span style="font:900 31px 'Chivo',system-ui;letter-spacing:-0.03em;">boop</span>
+            <span style="font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">{{ c.savedLabel }}</span>
+            <div style="flex:1;"></div>
+            <button type="button" style="padding:11px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">My boops</button>
+            <button type="button" style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border:none;border-radius:9px;background:#f2efe6;font:800 14px 'Chivo',system-ui;color:#14262a;cursor:pointer;">Share</button>
+            <button type="button" style="flex:none;width:44px;height:44px;border:1px solid rgba(242,239,230,.2);border-radius:50%;background:transparent;font:800 17px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">?</button>
+          </div>
+        </div>
+
+        <div style="flex:1;min-height:0;overflow-y:auto;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;">
+            <div style="margin-top:16px;padding:18px;border-radius:24px;background:#0e1f23;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);">
+              <div style="display:flex;gap:18px;margin-bottom:8px;">
+                <div style="flex:none;width:160px;"></div>
+                <sc-for list="{{ c.bars }}" as="bar" hint-placeholder-count="4">
+                  <div style="{{ bar.style }}">{{ bar.label }}</div>
+                </sc-for>
+              </div>
+              <div style="position:relative;touch-action:none;">
+                <sc-if value="{{ c.playhead }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ c.playheadStyle }}"></div>
+                </sc-if>
+                <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ c.rows }}" as="row" hint-placeholder-count="6">
+                    <div style="display:flex;align-items:center;gap:18px;">
+                      <div style="flex:none;width:160px;display:flex;align-items:center;gap:12px;">
+                        <span style="flex:none;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;">
+                          <span style="{{ row.plateStyle }}"></span>
+                        </span>
+                        <span style="{{ row.nameStyle }}">{{ row.name }}</span>
+                      </div>
+                      <div style="display:flex;gap:18px;">
+                        <sc-for list="{{ row.groups }}" as="g" hint-placeholder-count="4">
+                          <div style="display:flex;gap:8px;">
+                            <sc-for list="{{ g.cells }}" as="cell" hint-placeholder-count="4">
+                              <button type="button" style="{{ cell.style }}" onClick="{{ cell.toggle }}">
+                                <sc-if value="{{ cell.on }}" hint-placeholder-val="{{ false }}">
+                                  <span style="{{ cell.artStyle }}"></span>
+                                </sc-if>
+                              </button>
+                            </sc-for>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;">
+          <div style="max-width:1356px;margin-inline:auto;margin-top:16px;padding:14px 18px;border-radius:20px;background:rgba(255,255,255,.045);display:flex;align-items:flex-start;gap:18px;">
+            <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:22px;">
+              <button type="button" onClick="{{ c.toggleSong }}" style="{{ c.songButtonStyle }}">
+                <span style="{{ c.songGlyphStyle }}"></span>
+              </button>
+              <span style="font:800 11px 'Chivo',system-ui;color:rgba(242,239,230,.55);">{{ c.songLabel }}</span>
+            </div>
+            <div style="flex:none;width:1px;align-self:stretch;background:rgba(255,255,255,.1);"></div>
+            <div style="flex:1;min-width:0;overflow-x:auto;display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;gap:6px;padding-left:158px;">
+                <sc-for list="{{ c.positions }}" as="pos" hint-placeholder-count="12">
+                  <div style="{{ pos.style }}">{{ pos.label }}</div>
+                </sc-for>
+              </div>
+              <sc-for list="{{ c.lanes }}" as="lane" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div style="{{ lane.chipStyle }}" onClick="{{ lane.select }}">
+                    <span style="{{ lane.dotStyle }}"></span>
+                    <span style="{{ lane.nameStyle }}">{{ lane.name }}</span>
+                  </div>
+                  <sc-for list="{{ lane.slots }}" as="slot" hint-placeholder-count="12">
+                    <button type="button" style="{{ slot.style }}" onClick="{{ slot.toggle }}"></button>
+                  </sc-for>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button type="button" onClick="{{ c.addClip }}" style="flex:none;width:152px;height:36px;border:2px dashed rgba(242,239,230,.22);border-radius:10px;background:transparent;font:700 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">+ New clip</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:none;padding-inline:36px;padding-bottom:32px;">
+          <div style="max-width:1356px;margin-inline:auto;margin-top:16px;height:84px;padding:0 22px;border-radius:20px;background:rgba(255,255,255,.045);box-shadow:0 -4px 20px rgba(0,0,0,.35);display:flex;align-items:center;gap:26px;">
+            <button type="button" onClick="{{ c.toggleClip }}" style="flex:none;width:62px;height:62px;padding:0;border:none;border-radius:50%;background:#ffd24a;box-shadow:0 4px 0 #c79a17,0 10px 22px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+              <span style="{{ c.clipGlyphStyle }}"></span>
+            </button>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:baseline;gap:8px;">
+                <span style="font:800 15px 'Chivo',system-ui;">Tempo</span>
+                <span style="font:600 13px 'Chivo Mono',monospace;color:rgba(242,239,230,.5);">120 BPM</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;">
+                <span style="flex:none;width:34px;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Slow</span>
+                <div style="position:relative;width:260px;height:10px;border-radius:5px;background:rgba(255,255,255,.11);">
+                  <div style="position:absolute;inset:0 auto 0 0;width:45%;border-radius:5px;background:rgba(242,239,230,.4);"></div>
+                  <div style="position:absolute;top:-10px;left:calc(45% - 15px);width:30px;height:30px;border-radius:50%;background:#f2efe6;box-shadow:0 3px 8px rgba(0,0,0,.45);"></div>
+                </div>
+                <span style="flex:none;width:30px;text-align:right;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,.5);">Fast</span>
+              </div>
+            </div>
+            <div style="flex:none;margin-left:auto;display:flex;align-items:center;gap:18px;">
+              <button type="button" style="flex:none;padding:12px 18px;border:1px solid rgba(242,239,230,.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,.8);cursor:pointer;">New boop</button>
+              <div style="flex:none;width:1px;height:44px;background:rgba(255,255,255,.1);"></div>
+              <button type="button" style="flex:none;padding:12px 18px;border-radius:9px;border:1px dashed rgba(255,138,122,.55);background:transparent;font:700 14px 'Chivo',system-ui;color:#ff8a7a;cursor:pointer;">Clear grid</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;songAccent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#6fe0f0&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#6fe0f0&quot;,&quot;#6fe0a8&quot;,&quot;#ffd24a&quot;,&quot;#b78bff&quot;],&quot;section&quot;:&quot;Loops&quot;},&quot;showRepeats&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Loops&quot;},&quot;clipPrefix&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Clip&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Loops&quot;}}">
+const ART = 'apps/boop/public/kits/launch/artwork/';
+const KIT = [
+  { id: 'kick', name: 'Kick', color: '#ff6b5c', art: ART + 'drum.svg' },
+  { id: 'snare', name: 'Snare', color: '#ffb03a', art: ART + 'drum-kit.svg' },
+  { id: 'hat', name: 'Hi-hat', color: '#dce85c', art: ART + 'gong.svg' },
+  { id: 'tom', name: 'Tom', color: '#ff7fb0', art: ART + 'tambourine.svg' },
+  { id: 'marimba', name: 'Marimba', color: '#6fe0a8', art: ART + 'xylophone.svg' },
+  { id: 'boop', name: 'Boop', color: '#b78bff', art: ART + 'boombox.svg' },
+];
+const CLIP_TINTS = ['#6fe0f0', '#6fe0a8', '#b78bff', '#ffb03a', '#ff7fb0'];
+
+function pattern(spec) {
+  return KIT.map((k) => {
+    const on = spec[k.id] || [];
+    return Array.from({ length: 16 }, (_, s) => on.indexOf(s) !== -1);
+  });
+}
+const SEEDS = [
+  { kick: [0, 4, 8, 12], hat: [2, 6, 10, 14], snare: [4, 12] },
+  { kick: [0, 3, 6, 8, 11, 14], snare: [4, 12], tom: [7, 15] },
+  { marimba: [0, 2, 5, 7, 9, 12], boop: [3, 11], hat: [0, 4, 8, 12] },
+];
+function seedClips(n, prefix) {
+  return Array.from({ length: n }, (_, i) => ({
+    name: prefix + ' ' + (i + 1),
+    steps: pattern(SEEDS[i % SEEDS.length]),
+    repeats: i === 0 ? 2 : 1,
+  }));
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const prefix = (props && props.clipPrefix) || 'Clip';
+    this.state = {
+      a: { clips: seedClips(3, prefix), active: 0 },
+      b: { clips: seedClips(3, prefix), active: 0 },
+      c: {
+        clips: seedClips(3, prefix),
+        active: 0,
+        placements: [0, 0, 1, 2, 1, null, null, null, null, null, null, null],
+      },
+      d: {
+        clips: seedClips(4, prefix),
+        active: 1,
+        placements: [0, 0, 1, 2, 1, 3, null, null, null, null, null, null, null, null, null, null],
+      },
+      play: null,
+      editing: null,
+      bpm: 120,
+    };
+    this.paintMode = null;
+    this.lastStepAt = 0;
+  }
+
+  setTempoFromEvent(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    this.setState({ bpm: Math.round(60 + pct * 120) });
+  }
+
+  stepMs() {
+    return 15000 / this.state.bpm;
+  }
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (!this.state.play) return;
+      const now = performance.now();
+      if (now - this.lastStepAt < this.stepMs()) return;
+      this.lastStepAt = now;
+      this.tick();
+    }, 16);
+    this.endPaint = () => {
+      this.paintMode = null;
+    };
+    window.addEventListener('pointerup', this.endPaint);
+    window.addEventListener('pointercancel', this.endPaint);
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer);
+    window.removeEventListener('pointerup', this.endPaint);
+    window.removeEventListener('pointercancel', this.endPaint);
+  }
+
+  paintPlacement(laneIndex, pos, filled, isDown) {
+    if (isDown) this.paintMode = filled ? 'remove' : 'place';
+    if (!this.paintMode) return;
+    if (this.paintMode === 'place' && filled) return;
+    if (this.paintMode === 'remove' && !filled) return;
+    this.togglePlacement('d', laneIndex, pos);
+  }
+
+  deleteClip(key, index) {
+    this.setState((s) => {
+      const opt = s[key];
+      if (opt.clips.length <= 1) return null;
+      const clips = opt.clips.filter((_, i) => i !== index);
+      const placements = opt.placements.map((p) => {
+        if (p === index) return null;
+        if (p !== null && p > index) return p - 1;
+        return p;
+      });
+      const patch = {};
+      patch[key] = Object.assign({}, opt, {
+        clips,
+        placements,
+        active: Math.max(0, Math.min(opt.active, clips.length - 1)),
+      });
+      patch.play = null;
+      return patch;
+    });
+  }
+
+  prefix() {
+    return this.props.clipPrefix || 'Clip';
+  }
+  accent() {
+    return this.props.songAccent || '#6fe0f0';
+  }
+  showRepeats() {
+    return this.props.showRepeats !== false;
+  }
+
+  sequence(key, opt) {
+    if (key === 'c' || key === 'd') {
+      return opt.placements.filter((p) => p !== null && opt.clips[p]);
+    }
+    const out = [];
+    opt.clips.forEach((clip, i) => {
+      const n = this.showRepeats() ? Math.max(1, clip.repeats || 1) : 1;
+      for (let r = 0; r < n; r++) out.push(i);
+    });
+    return out;
+  }
+
+  tick() {
+    const play = this.state.play;
+    if (!play) return;
+    const step = play.step + 1;
+    if (step < 16) {
+      this.setState({ play: Object.assign({}, play, { step }) });
+      return;
+    }
+    if (play.mode === 'clip') {
+      this.setState({ play: Object.assign({}, play, { step: 0 }) });
+      return;
+    }
+    const opt = this.state[play.opt];
+    const seq = this.sequence(play.opt, opt);
+    if (!seq.length) {
+      this.setState({ play: null });
+      return;
+    }
+    const pos = (play.pos + 1) % seq.length;
+    const next = Object.assign({}, play, { step: 0, pos });
+    const patch = {};
+    patch.play = next;
+    patch[play.opt] = Object.assign({}, opt, { active: seq[pos] });
+    this.setState(patch);
+  }
+
+  togglePlay(key, mode) {
+    const play = this.state.play;
+    if (play && play.opt === key && play.mode === mode) {
+      this.setState({ play: null });
+      return;
+    }
+    const opt = this.state[key];
+    const patch = { play: { opt: key, mode, step: 0, pos: 0 } };
+    if (mode === 'song') {
+      const seq = this.sequence(key, opt);
+      if (!seq.length) return;
+      patch[key] = Object.assign({}, opt, { active: seq[0] });
+    }
+    this.setState(patch);
+  }
+
+  updateOpt(key, changes) {
+    this.setState((s) => {
+      const patch = {};
+      patch[key] = Object.assign({}, s[key], changes);
+      return patch;
+    });
+  }
+
+  selectClip(key, index) {
+    const play = this.state.play;
+    const patch = {};
+    patch[key] = Object.assign({}, this.state[key], { active: index });
+    if (play && play.opt === key && play.mode === 'song') patch.play = null;
+    this.setState(patch);
+  }
+
+  toggleCell(key, rowIndex, step) {
+    this.setState((s) => {
+      const opt = s[key];
+      const clips = opt.clips.slice();
+      const clip = Object.assign({}, clips[opt.active]);
+      const steps = clip.steps.map((row) => row.slice());
+      steps[rowIndex][step] = !steps[rowIndex][step];
+      clip.steps = steps;
+      clips[opt.active] = clip;
+      const patch = {};
+      patch[key] = Object.assign({}, opt, { clips });
+      return patch;
+    });
+  }
+
+  addClip(key, copyCurrent) {
+    this.setState((s) => {
+      const opt = s[key];
+      const clips = opt.clips.slice();
+      const source = copyCurrent ? opt.clips[opt.active] : null;
+      clips.push({
+        name: this.prefix() + ' ' + (clips.length + 1),
+        steps: source ? source.steps.map((r) => r.slice()) : pattern({}),
+        repeats: 1,
+      });
+      const patch = {};
+      patch[key] = Object.assign({}, opt, { clips, active: clips.length - 1 });
+      patch.play = null;
+      return patch;
+    });
+  }
+
+  addRepeat(key, index) {
+    this.setState((s) => {
+      const opt = s[key];
+      const clips = opt.clips.slice();
+      const clip = Object.assign({}, clips[index]);
+      clip.repeats = (clip.repeats || 1) % 4 + 1;
+      clips[index] = clip;
+      const patch = {};
+      patch[key] = Object.assign({}, opt, { clips });
+      return patch;
+    });
+  }
+
+  renameClip(key, index, name) {
+    this.setState((s) => {
+      const opt = s[key];
+      const clips = opt.clips.slice();
+      clips[index] = Object.assign({}, clips[index], { name });
+      const patch = {};
+      patch[key] = Object.assign({}, opt, { clips });
+      return patch;
+    });
+  }
+
+  togglePlacement(key, laneIndex, pos) {
+    this.setState((s) => {
+      const opt = s[key];
+      const placements = opt.placements.slice();
+      placements[pos] = placements[pos] === laneIndex ? null : laneIndex;
+      const patch = {};
+      patch[key] = Object.assign({}, opt, { placements });
+      return patch;
+    });
+  }
+
+  // ---- view builders -------------------------------------------------
+
+  gridRows(key) {
+    const opt = this.state[key];
+    const clip = opt.clips[opt.active];
+    const play = this.state.play;
+    const head = play && play.opt === key ? play.step : null;
+    return KIT.map((inst, r) => ({
+      name: inst.name,
+      nameStyle:
+        "font:800 17px 'Chivo',system-ui;letter-spacing:-0.015em;color:#f2efe6;white-space:nowrap;",
+      plateStyle:
+        'width:40px;height:40px;background:' +
+        inst.color +
+        ';-webkit-mask:url(' +
+        inst.art +
+        ') center/contain no-repeat;mask:url(' +
+        inst.art +
+        ') center/contain no-repeat;',
+      groups: [0, 1, 2, 3].map((g) => ({
+        cells: [0, 1, 2, 3].map((i) => {
+          const step = g * 4 + i;
+          const on = clip.steps[r][step];
+          const under = head === step;
+          let bg = g % 2 === 0 ? 'rgba(255,255,255,.045)' : 'rgba(255,255,255,.075)';
+          let shadow = 'inset 0 1px 0 rgba(255,255,255,.08)';
+          let transform = '';
+          if (on) {
+            bg = inst.color;
+            shadow = '0 2px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.38)';
+          } else if (under) {
+            bg = 'rgba(255,255,255,.14)';
+          }
+          if (on && under) {
+            transform = 'transform:scale(1.11);';
+            shadow = '0 0 0 3px rgba(255,255,255,.6),0 8px 16px rgba(0,0,0,.45)';
+          }
+          return {
+            on,
+            style:
+              'flex:none;width:62px;height:66px;padding:0;border:none;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:' +
+              bg +
+              ';box-shadow:' +
+              shadow +
+              ';' +
+              transform,
+            artStyle:
+              'width:35px;height:35px;background:rgba(0,0,0,.42);-webkit-mask:url(' +
+              inst.art +
+              ') center/contain no-repeat;mask:url(' +
+              inst.art +
+              ') center/contain no-repeat;animation:cellPop 140ms cubic-bezier(.34,1.56,.64,1);',
+            toggle: () => this.toggleCell(key, r, step),
+          };
+        }),
+      })),
+    }));
+  }
+
+  bars(key) {
+    const play = this.state.play;
+    const head = play && play.opt === key ? play.step : null;
+    const activeBar = head === null ? null : Math.floor(head / 4);
+    return [0, 1, 2, 3].map((g) => ({
+      label: String(g + 1),
+      style:
+        "flex:none;width:272px;font:700 13px 'Chivo Mono',monospace;color:" +
+        (g === activeBar ? 'rgba(242,239,230,.7)' : 'rgba(242,239,230,.28)') +
+        ';',
+    }));
+  }
+
+  playheadStyle(key) {
+    const play = this.state.play;
+    if (!play || play.opt !== key) return null;
+    const g = Math.floor(play.step / 4);
+    const c = play.step % 4;
+    const left = 170 + g * 290 + c * 70;
+    return (
+      'position:absolute;z-index:0;top:-8px;bottom:-8px;left:' +
+      left +
+      'px;width:78px;border-radius:19px;background:linear-gradient(180deg,rgba(111,224,240,.24),rgba(111,224,240,.07));box-shadow:0 0 0 1px rgba(111,224,240,.34);pointer-events:none;'
+    );
+  }
+
+  songButton(key) {
+    const play = this.state.play;
+    const on = !!play && play.opt === key && play.mode === 'song';
+    const accent = this.accent();
+    return {
+      style:
+        'flex:none;width:56px;height:56px;padding:0;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;background:' +
+        (on ? '#f2efe6' : accent) +
+        ';box-shadow:0 4px 0 rgba(0,0,0,.28),0 10px 22px rgba(0,0,0,.3);',
+      glyph: on
+        ? 'width:18px;height:22px;border-left:7px solid #14262a;border-right:7px solid #14262a;'
+        : 'width:0;height:0;margin-left:4px;border-top:11px solid transparent;border-bottom:11px solid transparent;border-left:18px solid #14262a;box-shadow:none;position:relative;',
+      label: on ? 'Stop' : 'Song',
+    };
+  }
+
+  clipGlyph(key) {
+    const play = this.state.play;
+    const on = !!play && play.opt === key && play.mode === 'clip';
+    return on
+      ? 'width:20px;height:24px;border-left:7px solid #14262a;border-right:7px solid #14262a;'
+      : 'width:0;height:0;margin-left:6px;border-top:13px solid transparent;border-bottom:13px solid transparent;border-left:21px solid #14262a;';
+  }
+
+  savedLabel(key) {
+    const opt = this.state[key];
+    return 'Playground song — ' + opt.clips.length + ' clips';
+  }
+
+  mini(clip) {
+    return Array.from({ length: 16 }, (_, s) => ({
+      dots: KIT.map((inst, r) => ({
+        style:
+          'width:4px;height:4px;border-radius:1px;background:' +
+          (clip.steps[r][s] ? inst.color : 'rgba(255,255,255,.13)') +
+          ';',
+      })),
+    }));
+  }
+
+  renderVals() {
+    const play = this.state.play;
+    const accent = this.accent();
+    const out = {};
+
+    ['a', 'b', 'c', 'd'].forEach((key) => {
+      const opt = this.state[key];
+      const song = this.songButton(key);
+      const playingSong = !!play && play.opt === key && play.mode === 'song';
+      const seq = this.sequence(key, opt);
+      const nowPlaying = playingSong && seq.length ? seq[play.pos] : null;
+
+      const tempoPct = (this.state.bpm - 60) / 120;
+      const view = {
+        tempoLabel: this.state.bpm + ' BPM',
+        tempoFillStyle:
+          'position:absolute;inset:0 auto 0 0;width:' +
+          (tempoPct * 100).toFixed(1) +
+          '%;border-radius:5px;background:rgba(242,239,230,.4);pointer-events:none;',
+        tempoThumbStyle:
+          'position:absolute;top:-10px;left:calc(' +
+          (tempoPct * 100).toFixed(1) +
+          '% - 15px);width:30px;height:30px;border-radius:50%;background:#f2efe6;box-shadow:0 3px 8px rgba(0,0,0,.45);pointer-events:none;',
+        tempoDown: (e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          this.setTempoFromEvent(e);
+        },
+        tempoMove: (e) => {
+          if (e.buttons) this.setTempoFromEvent(e);
+        },
+        clipPlayLabel:
+          play && play.opt === key && play.mode === 'clip' ? 'Stop' : 'Play this clip',
+        rows: this.gridRows(key),
+        bars: this.bars(key),
+        playhead: !!play && play.opt === key,
+        playheadStyle: this.playheadStyle(key),
+        songButtonStyle: song.style,
+        songGlyphStyle: song.glyph,
+        songLabel: song.label,
+        clipGlyphStyle: this.clipGlyph(key),
+        savedLabel: this.savedLabel(key),
+        showRepeats: this.showRepeats(),
+        toggleSong: () => this.togglePlay(key, 'song'),
+        toggleClip: () => this.togglePlay(key, 'clip'),
+        addClip: () => this.addClip(key, key === 'b'),
+      };
+
+      view.clips = opt.clips.map((clip, i) => {
+        const isActive = i === opt.active;
+        const isNow = nowPlaying === i;
+        const tint = CLIP_TINTS[i % CLIP_TINTS.length];
+        const editing = this.state.editing === key + ':' + i;
+        let ring = 'none';
+        if (isNow) ring = '0 0 0 3px rgba(111,224,240,.55)';
+        else if (isActive) ring = 'inset 0 0 0 2px ' + accent;
+        const reps = Math.max(1, clip.repeats || 1);
+        return {
+          name: clip.name,
+          editing,
+          notEditing: !editing,
+          tileStyle:
+            'flex:none;width:126px;padding:12px;border-radius:14px;background:' +
+            (isActive ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.05)') +
+            ';box-shadow:' +
+            ring +
+            ';display:flex;flex-direction:column;gap:8px;align-items:flex-start;cursor:pointer;' +
+            (isNow ? 'animation:clipPulse 1s ease-in-out infinite;' : ''),
+          nameStyle:
+            "font:700 12px 'Chivo',system-ui;color:" +
+            (isActive ? '#f2efe6' : 'rgba(242,239,230,.6)') +
+            ';cursor:text;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;',
+          segStyle:
+            'flex:' +
+            reps +
+            ' 1 0;min-width:0;height:64px;padding:0 12px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;background:' +
+            tint +
+            (isActive ? '38' : '20') +
+            ';box-shadow:' +
+            (isNow ? '0 0 0 3px rgba(111,224,240,.55)' : isActive ? 'inset 0 0 0 2px ' + tint : 'none') +
+            ';' +
+            (isNow ? 'animation:clipPulse 1s ease-in-out infinite;' : ''),
+          segNameStyle:
+            "font:800 14px 'Chivo',system-ui;color:" +
+            (isActive ? '#f2efe6' : 'rgba(242,239,230,.7)') +
+            ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;',
+          repeatLabel: '×' + reps,
+          repeatStyle:
+            "flex:none;padding:4px 8px;border-radius:7px;background:rgba(0,0,0,.28);font:800 12px 'Chivo Mono',monospace;color:" +
+            tint +
+            ';cursor:pointer;',
+          mini: this.mini(clip),
+          select: () => this.selectClip(key, i),
+          addRepeat: (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            this.addRepeat(key, i);
+          },
+          startRename: (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            this.setState({ editing: key + ':' + i });
+          },
+          rename: (e) => this.renameClip(key, i, e.target.value),
+          commitName: () => this.setState({ editing: null }),
+          nameKey: (e) => {
+            if (e.key === 'Enter') this.setState({ editing: null });
+          },
+        };
+      });
+
+      if (key === 'b') {
+        const total = opt.clips.reduce(
+          (n, cl) => n + (this.showRepeats() ? Math.max(1, cl.repeats || 1) : 1),
+          0
+        );
+        view.lengthLabel = total * 4 + ' bars';
+      }
+
+      if (key === 'd') {
+        const current = playingSong && seq.length ? this.posIndex(opt, play.pos) : -1;
+        const clip = opt.clips[opt.active];
+        const tintNow = CLIP_TINTS[opt.active % CLIP_TINTS.length];
+        const used = opt.placements.filter((p) => p !== null).length;
+        view.editingName = clip.name;
+        view.editingTintStyle =
+          'flex:none;width:14px;height:14px;border-radius:50%;background:' + tintNow + ';';
+        view.editingNameStyle =
+          "font:800 17px 'Chivo',system-ui;letter-spacing:-0.015em;color:#f2efe6;cursor:text;";
+        view.editingRow = this.state.editing === 'd:name';
+        view.notEditingRow = this.state.editing !== 'd:name';
+        view.startRenameActive = () => this.setState({ editing: 'd:name' });
+        view.renameActive = (e) => this.renameClip('d', opt.active, e.target.value);
+        view.commitRename = () => this.setState({ editing: null });
+        view.renameKey = (e) => {
+          if (e.key === 'Enter') this.setState({ editing: null });
+        };
+        view.duplicate = () => this.addClip('d', true);
+        view.remove = () => this.deleteClip('d', opt.active);
+        view.wellStyle =
+          'margin-top:12px;padding:18px;border-radius:24px;background:#0e1f23;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 0 0 2px ' +
+          tintNow +
+          '40;';
+        view.lengthLabel = used + ' in the song';
+        view.barsLabel = used * 4 + ' bars';
+        view.hasSong = used > 0;
+        view.positions = opt.placements.map((_, p) => ({
+          label: String(p + 1),
+          style:
+            "flex:none;width:56px;text-align:center;font:700 12px 'Chivo Mono',monospace;color:" +
+            (current === p ? '#6fe0f0' : 'rgba(242,239,230,.3)') +
+            ';',
+        }));
+        view.lanes = opt.clips.map((clipRow, i) => {
+          const isActive = i === opt.active;
+          const tint = CLIP_TINTS[i % CLIP_TINTS.length];
+          const count = opt.placements.filter((p) => p === i).length;
+          return {
+            name: clipRow.name,
+            countLabel: count > 0 ? '×' + count : '',
+            countStyle:
+              "flex:none;font:800 12px 'Chivo Mono',monospace;color:" +
+              (count > 0 ? tint : 'transparent') +
+              ';',
+            chipStyle:
+              'flex:none;width:176px;height:46px;padding:0 14px;border-radius:12px;display:flex;align-items:center;gap:10px;cursor:pointer;background:' +
+              (isActive ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)') +
+              ';box-shadow:' +
+              (isActive ? 'inset 0 0 0 2px ' + accent : 'none') +
+              ';',
+            dotStyle: 'flex:none;width:12px;height:12px;border-radius:50%;background:' + tint + ';',
+            nameStyle:
+              "flex:1;min-width:0;font:800 14px 'Chivo',system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:" +
+              (isActive ? '#f2efe6' : 'rgba(242,239,230,.62)') +
+              ';',
+            select: () => this.selectClip('d', i),
+            slots: opt.placements.map((placed, p) => {
+              const filled = placed === i;
+              const isNow = current === p && filled;
+              const nextFree = isActive && !filled && placed === null && p === used;
+              return {
+                style:
+                  'flex:none;width:56px;height:46px;padding:0;border-radius:11px;cursor:pointer;background:' +
+                  (filled ? tint : 'rgba(255,255,255,.045)') +
+                  ';border:' +
+                  (nextFree ? '2px dashed ' + tint + '80' : 'none') +
+                  ';box-shadow:' +
+                  (isNow
+                    ? '0 0 0 3px rgba(255,255,255,.65),0 8px 16px rgba(0,0,0,.45)'
+                    : filled
+                      ? '0 2px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.3)'
+                      : 'inset 0 1px 0 rgba(255,255,255,.07)') +
+                  ';' +
+                  (isNow ? 'transform:scale(1.06);' : ''),
+                down: (e) => {
+                  if (e && e.preventDefault) e.preventDefault();
+                  this.paintPlacement(i, p, filled, true);
+                },
+                enter: () => this.paintPlacement(i, p, filled, false),
+              };
+            }),
+          };
+        });
+      }
+
+      if (key === 'c') {
+        view.positions = opt.placements.map((_, p) => ({
+          label: String(p + 1),
+          style:
+            "flex:none;width:44px;text-align:center;font:700 11px 'Chivo Mono',monospace;color:" +
+            (playingSong && seq.length && this.posIndex(opt, play.pos) === p
+              ? 'rgba(242,239,230,.75)'
+              : 'rgba(242,239,230,.28)') +
+            ';',
+        }));
+        view.lanes = opt.clips.map((clip, i) => {
+          const isActive = i === opt.active;
+          const tint = CLIP_TINTS[i % CLIP_TINTS.length];
+          return {
+            name: clip.name,
+            chipStyle:
+              'flex:none;width:152px;height:36px;padding:0 12px;border-radius:10px;display:flex;align-items:center;gap:8px;cursor:pointer;background:' +
+              (isActive ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.05)') +
+              ';box-shadow:' +
+              (isActive ? 'inset 0 0 0 2px ' + accent : 'none') +
+              ';',
+            dotStyle: 'flex:none;width:10px;height:10px;border-radius:50%;background:' + tint + ';',
+            nameStyle:
+              "font:700 13px 'Chivo',system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:" +
+              (isActive ? '#f2efe6' : 'rgba(242,239,230,.6)') +
+              ';',
+            select: () => this.selectClip(key, i),
+            slots: opt.placements.map((placed, p) => {
+              const filled = placed === i;
+              const isNow =
+                playingSong && filled && this.posIndex(opt, play.pos) === p;
+              return {
+                style:
+                  'flex:none;width:44px;height:36px;padding:0;border:none;border-radius:9px;cursor:pointer;background:' +
+                  (filled ? tint : 'rgba(255,255,255,.05)') +
+                  ';box-shadow:' +
+                  (isNow
+                    ? '0 0 0 3px rgba(111,224,240,.7)'
+                    : filled
+                      ? '0 2px 0 rgba(0,0,0,.35)'
+                      : 'inset 0 1px 0 rgba(255,255,255,.08)') +
+                  ';',
+                toggle: () => this.togglePlacement(key, i, p),
+              };
+            }),
+          };
+        });
+      }
+
+      out[key] = view;
+    });
+
+    return out;
+  }
+
+  posIndex(opt, seqPos) {
+    let n = -1;
+    for (let p = 0; p < opt.placements.length; p++) {
+      if (opt.placements[p] !== null && opt.clips[opt.placements[p]]) {
+        n++;
+        if (n === seqPos) return p;
+      }
+    }
+    return -1;
+  }
+}
+</script>
+</body>
+</html>
