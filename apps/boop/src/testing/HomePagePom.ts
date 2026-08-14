@@ -998,6 +998,72 @@ export class HomePagePom extends BasePage {
     expect(scrollers).toBe(0)
   }
 
+  // --- The phone clip lanes (boop-loops ticket 21, spec §5 — variant B) ---
+
+  private readonly phoneSongBar = this.page.getByTestId('phone-song-bar')
+
+  laneWindow() {
+    return this.page.getByTestId('phone-lane-window')
+  }
+
+  /** The song bar lives inside the scrolling region — nothing new is pinned (ADR 0030). */
+  async verifySongBarInsideGridRegion(): Promise<void> {
+    const inside = await this.phoneSongBar.evaluate(
+      (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+      'stage-scroller',
+    )
+    expect(inside).toBe(true)
+  }
+
+  /**
+   * The lanes reuse the step window's exact geometry (ticket 21): with both
+   * windows at rest, a lane square sits exactly under its grid column — same
+   * left edge, same 32px width.
+   */
+  async verifyLaneSquareAlignedUnderCell(position: number): Promise<void> {
+    const cell = await this.cell('kick', position).boundingBox()
+    const square = await this.laneSquare(0, position).boundingBox()
+    if (!cell || !square) throw new Error('the grid cell or the lane square is not visible')
+    expect(Math.round(square.x)).toBe(Math.round(cell.x))
+    expect(Math.round(square.width)).toBe(Math.round(cell.width))
+  }
+
+  /** A real sideways swipe over the lane window — the browser owns the pan. */
+  async swipeLanes(deltaX: number): Promise<void> {
+    const box = await this.laneWindow().boundingBox()
+    if (!box) throw new Error('the phone lane window is not visible')
+    await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await this.page.mouse.wheel(deltaX, 0)
+  }
+
+  /** Wait for the snap to settle on a bar line at the given strip offset. */
+  async verifyLaneWindowAt(offset: number): Promise<void> {
+    await expect
+      .poll(async () => this.laneWindow().evaluate((element) => element.scrollLeft))
+      .toBe(offset)
+  }
+
+  /** Drag-paint across a run of lane squares on one lane — `dragPaint`'s twin. */
+  async dragPaintLanes(clipIndex: number, positions: number[]): Promise<void> {
+    const [first, ...rest] = positions
+    if (first === undefined) return
+    const startBox = await this.laneSquare(clipIndex, first).boundingBox()
+    if (!startBox) throw new Error(`lane square ${clipIndex}-${first} is not visible`)
+    await this.page.mouse.move(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2)
+    await this.page.mouse.down()
+    for (const position of rest) {
+      const box = await this.laneSquare(clipIndex, position).boundingBox()
+      if (!box) throw new Error(`lane square ${clipIndex}-${position} is not visible`)
+      await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    }
+    await this.page.mouse.up()
+  }
+
+  /** The ×n placement count on a chip. */
+  async verifyChipPlacementCount(index: number, text: string): Promise<void> {
+    await expect(this.page.getByTestId(`clip-count-${index}`)).toHaveText(text)
+  }
+
   // --- Song playback (ticket 16) ---
 
   private readonly songPlayButton = this.page.getByTestId('song-play-button')

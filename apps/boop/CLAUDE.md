@@ -69,18 +69,24 @@ src/
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export
-  features/clips/   the clip chrome (boop-loops tickets 15/20, ≥1024):
-                    ClipHeader.tsx (tint dot, inline rename, copy, delete),
-                    ClipControl.tsx (Play this clip + clip-scoped Clear grid,
-                    rendered inside the grid well), clipTints.ts (the fixed
-                    5-tint list)
+  features/clips/   the clip chrome (boop-loops tickets 15/20/21):
+                    ClipHeader.tsx (tint dot, inline rename, copy, delete —
+                    every width; ≤1023px slims it with CSS), ClipControl.tsx
+                    (Play this clip + clip-scoped Clear grid, rendered inside
+                    the grid well, ≥1024), clipTints.ts (the fixed 5-tint list)
   features/songbar/ SongBar.tsx — the pinned song bar (≥1024, tickets 15/20;
                     the tablet band shrinks the lane grid to fit): Speed
                     (the old tempo slider), the song play button (wired to the
                     songConductor, ticket 16), and the lane grid — chips
                     (tap-to-select, drag-to-reorder via useChipDrag.ts,
                     ticket 18), placement squares (drag-paint + the grid's
-                    keyboard model), "+ New clip"
+                    keyboard model), "+ New clip".
+                    PhoneSongBar.tsx — the phone song bar (≤1023px, ticket 21,
+                    variant B): lives in the scrolling region below the grid
+                    well on the step window's exact geometry, compact chips +
+                    "+ New" in a pinned 92px column, snap-scrolling lane strip
+                    under PhoneGrid's paint-vs-scroll rules; clip play and
+                    Speed stay in the pinned transport
   features/picker/  the "+ New clip" picker (ticket 17, replacing the retired
                     starters): NewClipPicker.tsx (the paper-card dialog —
                     Blank first, then the sample clips), sampleClips.ts (the

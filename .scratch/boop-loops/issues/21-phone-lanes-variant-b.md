@@ -27,10 +27,26 @@ Spec: §5 (phone).
 
 **Blocked by:** 16 — Song playback; 17 — The "+ New clip" picker.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] The song bar renders in the scrolling region with the geometry above; lane squares align column-for-column with the grid's step window
-- [ ] Placements toggle under PhoneGrid's paint-vs-scroll rules; sideways swipe scrolls, snap lands on bar lines
-- [ ] Song play works from the song bar header; clip play and Speed remain in the pinned transport; the playing ring walks the lanes
-- [ ] Compact chips select clips; "+ New" opens the picker and disables at the cap; the slim clip header carries rename/copy/delete
-- [ ] Nothing new is pinned; the grid region stays the only scroller; covered by `*.iwft` at a phone viewport
+- [x] The song bar renders in the scrolling region with the geometry above; lane squares align column-for-column with the grid's step window
+- [x] Placements toggle under PhoneGrid's paint-vs-scroll rules; sideways swipe scrolls, snap lands on bar lines
+- [x] Song play works from the song bar header; clip play and Speed remain in the pinned transport; the playing ring walks the lanes
+- [x] Compact chips select clips; "+ New" opens the picker and disables at the cap; the slim clip header carries rename/copy/delete
+- [x] Nothing new is pinned; the grid region stays the only scroller; covered by `*.iwft` at a phone viewport
+
+Done: `PhoneSongBar.tsx` renders in the scrolling region below the grid well on
+the step window's exact geometry (92px chip column, 32px squares, 5px/11px
+gaps, 605px strip, snap to bar lines, `touch-action: pan-x`), with
+`useDragPaint` (`applyOnPointerDown: false`) and the grid's arrow-key model.
+The laptop `ClipHeader` now renders at every width, slimmed by a
+`@media (max-width: 1023px)` block. The phone transport's play became clip
+play, and the "⋯" menu's Clear grid became the clip-scoped edit (spec §7).
+Covered by `phoneLanes.iwft.tsx` at 390×844.
+
+Remaining for a human: an eyeball and thumb pass on a real phone — the
+numbers and snap points are tested, the feel of swipe-vs-paint is not.
+
+Open question (from review): lane *reordering* (spec §8 chip drag, §14
+Ctrl/Cmd+Arrow) is not available on the phone — this ticket scoped chips to
+tap-to-select only. Decide whether that stands or wants a follow-up ticket.

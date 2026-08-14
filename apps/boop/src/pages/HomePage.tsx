@@ -17,6 +17,7 @@ import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
 import { NewClipPicker } from '../features/picker/NewClipPicker.tsx'
 import { firstVisitSong, samplePattern, type SampleClip } from '../features/picker/sampleClips.ts'
+import { PhoneSongBar } from '../features/songbar/PhoneSongBar.tsx'
 import { SongBar } from '../features/songbar/SongBar.tsx'
 import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
@@ -88,7 +89,9 @@ export function HomePage() {
   // control in the well, the pinned song bar — and no transport bar. The
   // tablet band (1024–1279) is the laptop design with the lane grid shrunk
   // to fit the column (spec §4, variant E) — a CSS difference, not a layout
-  // switch.
+  // switch. The phone (ticket 21, spec §5 — variant B) keeps its pinned
+  // transport (clip play and Speed) and puts the song bar in the scrolling
+  // region below the grid well, on the step window's geometry.
   const phone = useIsPhone()
 
   // A shared boop is decoded on the first render, before the first restore,
@@ -311,16 +314,6 @@ export function HomePage() {
     [engine, markEdited],
   )
 
-  const clearAll = useCallback(() => {
-    if (!engine) return
-    stopSongPlayback()
-    engine.setPattern(engine.getPattern().map((row) => ({ ...row, steps: row.steps.map(() => false) })))
-    setSong((s) => (s ? withActivePattern(s, engine.getPattern()) : s))
-    // An empty grid is not a saved boop with things rubbed out — it is nothing,
-    // and reads "Not saved yet".
-    setLoaded(null)
-  }, [engine, stopSongPlayback])
-
   /** Read at tap time, so the link always carries the whole song as it stands. */
   const getShareUrl = useCallback(() => {
     if (!engine || !songRef.current) return window.location.href
@@ -483,10 +476,9 @@ export function HomePage() {
   )
 
   /**
-   * "Clear grid" in the clip control is clip-scoped and an *edit* (spec §7):
-   * it empties only the clip on the grid and keeps the loaded boop, unlike
-   * the old transport's `clearAll` above, which the phone keeps until its
-   * layout lands (ticket 21).
+   * "Clear grid" is clip-scoped and an *edit* (spec §7): it empties only the
+   * clip on the grid and keeps the loaded boop. One behaviour at every width —
+   * the clip control at ≥1024, the "⋯" menu (behind its confirm) on the phone.
    */
   const clearClip = useCallback(() => {
     if (!engine) return
@@ -545,7 +537,7 @@ export function HomePage() {
             // boop works / Clear grid. Export is per saved boop, inside the dialog.
             <PhoneBar
               getShareUrl={getShareUrl}
-              onClearGrid={clearAll}
+              onClearGrid={clearClip}
               onSave={() => setBoopsOpen(true)}
               onOpenMyBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
@@ -566,19 +558,33 @@ export function HomePage() {
         <div className={styles.column} data-testid="stage-column">
           {/* The loop map rides inside PhoneGrid's well, so it stays glued
               under the grid inside this region rather than joining the pinned
-              bar and becoming a second transport (ADR 0027). */}
-          {!phone && (
-            <ClipHeader
-              clip={activeClip(song)}
-              canDelete={song.clips.length > 1}
-              canCopy={song.clips.length < MAX_CLIPS}
-              onRename={renameActiveClip}
-              onCopy={copyClip}
-              onDelete={deleteActiveClip}
-            />
-          )}
+              bar and becoming a second transport (ADR 0027). The clip header
+              is the laptop row at every width — the phone slims it with CSS
+              (ticket 21), not a different component. */}
+          <ClipHeader
+            clip={activeClip(song)}
+            canDelete={song.clips.length > 1}
+            canCopy={song.clips.length < MAX_CLIPS}
+            onRename={renameActiveClip}
+            onCopy={copyClip}
+            onDelete={deleteActiveClip}
+          />
           {phone ? (
-            <PhoneGrid {...gridProps} />
+            <>
+              <PhoneGrid {...gridProps} />
+              {/* The phone song bar lives here, in the scrolling region below
+                  the grid well (ticket 21, spec §5) — nothing new is pinned
+                  (ADR 0030). Speed stays in the transport, so no tempo here. */}
+              <PhoneSongBar
+                song={song}
+                onSelectClip={selectClip}
+                onTogglePlacement={togglePlacementAt}
+                onAddClip={() => setPickerOpen(true)}
+                onToggleSong={toggleSong}
+                songPlaying={songPlaying}
+                playingPosition={playingPosition}
+              />
+            </>
           ) : (
             <Grid
               {...gridProps}
@@ -597,12 +603,15 @@ export function HomePage() {
       <div className={styles.transportDock}>
         <div className={styles.column}>
           {phone ? (
+            // The phone keeps the pinned transport (spec §5): its play is
+            // *clip* play — while the song plays it reads paused and pressing
+            // it takes over, exactly like the laptop's clip control.
             <Transport
-              isPlaying={isPlaying}
-              onToggle={togglePlay}
+              isPlaying={isPlaying && !songPlaying}
+              onToggle={toggleClipPlay}
               bpm={song.bpm}
               onTempoChange={changeTempo}
-              onClearAll={clearAll}
+              onClearAll={clearClip}
               onNewBoop={newBoop}
               showClearGrid={false}
             />
