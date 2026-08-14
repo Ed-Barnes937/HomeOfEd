@@ -3,9 +3,9 @@ import { expect } from '@playwright/experimental-ct-react'
 import { SAVE_KEY } from './persistence/storage.ts'
 import { test } from './testing/iwftTest.tsx'
 
-// A fresh browser is seeded with a starter (ticket 36), so every test here
-// that cares about the grid it starts from says so: New boop -> Blank, the
-// same two taps a child would use.
+// A fresh browser is seeded with a sample clip (tickets 36/17), so every test
+// here that cares about the grid it starts from says so with the one-tap New
+// boop reset — the same tap a child would use.
 test('renders the 6x16 grid, empty', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

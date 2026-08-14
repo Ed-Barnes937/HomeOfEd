@@ -47,7 +47,7 @@ src/
     storage.ts        the localStorage seam; never throws
     autosave.ts       debounced (2 s lull) writer of the working song
     useWorkingSong.ts hook: restore the whole song on mount, autosave on edit,
-                      flush on pagehide, and seed a first visit (ticket 36)
+                      flush on pagehide, and seed a first visit (tickets 36/17)
   song/             the working-song domain (ticket 14) — pure, no React
     song.ts           Song/Clip types, StoredBoop↔Song conversions, and the
                       mutation kinds (placement, add/delete/rename clip, lane
@@ -79,9 +79,12 @@ src/
                     songConductor, ticket 16), and the lane grid — chips,
                     placement squares (drag-paint + the grid's keyboard
                     model), "+ New clip"
-  features/presets/ the four starters as pure data (presets.ts, incl. the
-                    first-visit seed) + NewBoopDialog.tsx, opened from the
-                    transport bar's "New boop" button (ticket 36)
+  features/picker/  the "+ New clip" picker (ticket 17, replacing the retired
+                    starters): NewClipPicker.tsx (the paper-card dialog —
+                    Blank first, then the sample clips), sampleClips.ts (the
+                    eight-clip roster + the first-visit seed, pure data), and
+                    PatternThumbnail.tsx (the dot-matrix preview, shared with
+                    "My boops")
   features/topbar/  TopBar.tsx (desktop, incl. the laptop's plain New boop
                     reset) and PhoneBar.tsx (the 52px strip + "⋯" menu);
                     `useIsPhone.ts` and `useIsLaptop.ts` (both at src/) pick
@@ -155,9 +158,9 @@ share-link snapshot.
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error. A browser with **no** working
-  grid is seeded with a starter rather than opened empty (ticket 36) — that
-  lives in `useWorkingGrid`, beside the restore, and must never need a new
-  field or a version bump.
+  grid is seeded with a one-clip song built from a sample clip rather than
+  opened empty (tickets 36/17) — that lives in `useWorkingSong`, beside the
+  restore, and must never need a new field or a version bump.
 - **Saved-state visibility** ([ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md)).
   Because nothing is ever lost, **never add a `beforeunload` guard** — it would
   warn about nothing, in wording a 6-year-old cannot read. The chrome answers
@@ -166,7 +169,7 @@ share-link snapshot.
   the phone's save icon, a standing ring on the row. "Edited" has one definition
   app-wide — any mutation of the song: a cell toggle, a speed change, a
   placement change, clip add/delete/rename, or a lane reorder (ADR 0031, as
-  amended) — which is also what drops the starter ring. Identity is the boop's *row*, so every mutation of "My boops"
+  amended). Identity is the boop's *row*, so every mutation of "My boops"
   goes through `savedState.ts`'s transitions or the ring lands on the wrong boop.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the

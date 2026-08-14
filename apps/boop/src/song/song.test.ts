@@ -172,6 +172,25 @@ describe('addClip', () => {
 
     expect(addClip(full, emptyPattern)).toBe(full)
   })
+
+  it("takes a sample clip's label as the name, still on the lowest unused tint", () => {
+    const next = addClip(song, emptyPattern, 'Boom clap')
+
+    expect(next.clips[2]).toEqual({ name: 'Boom clap', tint: 1, pattern: emptyPattern })
+    expect(next.activeClipIndex).toBe(2)
+  })
+
+  it('leaves the automatic "Clip N" numbering alone for a named add', () => {
+    const named = addClip(song, emptyPattern, 'Boom clap')
+    const blankAfter = addClip(named, emptyPattern)
+
+    expect(blankAfter.clips.map((clip) => clip.name)).toEqual([
+      'Clip 1',
+      'Drums',
+      'Boom clap',
+      'Clip 2',
+    ])
+  })
 })
 
 describe('deleteClip', () => {

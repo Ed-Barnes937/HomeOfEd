@@ -11,8 +11,8 @@ test('the whole 6x16 grid is still there on a phone — the rail is pinned and t
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.verifyPhoneChromeShown()
-  // A fresh browser is seeded with a starter (ticket 36); this suite is about
-  // the layout, so it starts from a known-empty grid — New boop -> Blank.
+  // A fresh browser is seeded with a sample clip (tickets 36/17); this suite is
+  // about the layout, so it starts from a known-empty grid — the New boop reset.
   await root.startBlank()
 
   // Nothing is dropped: the first and last cell of the first and last row all

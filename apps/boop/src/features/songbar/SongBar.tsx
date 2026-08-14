@@ -16,7 +16,7 @@ interface SongBarProps {
   onSelectClip: (index: number) => void
   /** A lane-square toggle: place, tap off, or replace (one clip per position). */
   onTogglePlacement: (clipIndex: number, position: number) => void
-  /** Appends a blank clip and selects it (the picker replaces this in ticket 17). */
+  /** Opens the "+ New clip" picker (ticket 17): Blank first, then the sample clips. */
   onAddClip: () => void
   /** Play or stop the song: placements left to right, looping (spec §9). */
   onToggleSong: () => void

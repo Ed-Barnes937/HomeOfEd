@@ -149,7 +149,9 @@ layer you add (loop-pedal style), not a thing you load over everything.
   starter-style cards (thumbnail + name) in a grid, **Blank first**, then the
   eight sample clips. The dialog shape is chosen because it works on mobile
   too.
-- **No per-card preview.** Picking is how you hear a sample clip.
+- **No per-card preview.** Picking is how you hear a sample clip: landing one
+  starts clip playback (the prototype's resolved behaviour — "the clip
+  appears, named, and (if not blank) playing"). Picking Blank stays silent.
 - Picking lands the choice as a new clip: named after its plain label (Blank
   gets the automatic "Clip N"), lowest unused tint, put on the grid,
   **not** placed in the song (that is a separate tap). A sample clip's name

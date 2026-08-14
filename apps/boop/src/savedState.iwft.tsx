@@ -10,7 +10,7 @@ test('a grid that is not in "My boops" reads "Not saved yet"', async ({ mountApp
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  // The first-visit seed is a starter, and a starter is never in the list.
+  // The first-visit seed is a sample clip, which is never in the list.
   await root.verifySavedState('Not saved yet')
 
   await root.toggleCell('kick', 2)

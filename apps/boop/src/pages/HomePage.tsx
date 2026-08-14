@@ -15,13 +15,8 @@ import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
-import { NewBoopDialog } from '../features/presets/NewBoopDialog.tsx'
-import {
-  firstVisitSeed,
-  PRESETS,
-  presetPattern,
-  type PresetId,
-} from '../features/presets/presets.ts'
+import { NewClipPicker } from '../features/picker/NewClipPicker.tsx'
+import { firstVisitSong, samplePattern, type SampleClip } from '../features/picker/sampleClips.ts'
 import { SongBar } from '../features/songbar/SongBar.tsx'
 import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
@@ -69,32 +64,21 @@ export function HomePage() {
   const engine = useEngine()
   const [song, setSong] = useState<Song | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  // Which starter boop is currently loaded, if any — the loaded card's ring,
-  // which since ticket 36 is only ever seen inside the "New boop" dialog.
-  // Drops to `null` on the first change of any kind: a cell toggle, a tempo
-  // move, or clear-all. Ticket 31 gave the app one definition of "changed"
-  // and this follows it — the old tempo exemption is gone.
-  //
-  // Not restored on reload, and so deliberately not set by the first-visit
-  // seed either: the ring means "you picked this, just now", and a reload of a
-  // starter has never carried it.
-  const [activePreset, setActivePreset] = useState<PresetId | null>(null)
   // The saved boop the grid came from, and whether it has since diverged
-  // (ticket 31). `null` — a starter, a share link, a fresh or cleared grid —
-  // reads "Not saved yet": none of those are rows in "My boops". Like
-  // `activePreset` it is not restored on reload; the indicator describes this
-  // session's loading and saving, not the autosave, which never loses anything.
+  // (ticket 31). `null` — a share link, a fresh or cleared grid — reads
+  // "Not saved yet": neither is a row in "My boops". Not restored on reload;
+  // the indicator describes this session's loading and saving, not the
+  // autosave, which never loses anything.
   const [loaded, setLoaded] = useState<LoadedBoop | null>(null)
-  // Bumped on every preset load (including blank) so the grid can stagger the
+  // Bumped whenever a whole clip lands on the grid so it can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
   // "My boops" is open or it isn't. The phone chrome's save icon (ticket 27)
   // opens the same panel: since ticket 32 the save form is always on and
   // prefilled, so "open it" *is* "get ready to save".
   const [boopsOpen, setBoopsOpen] = useState(false)
-  // The starters (ticket 36) — off the main screen, behind the bottom bar's
-  // "New boop" button.
-  const [newBoopOpen, setNewBoopOpen] = useState(false)
+  // The "+ New clip" picker (ticket 17): Blank first, then the sample clips.
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
@@ -114,7 +98,7 @@ export function HomePage() {
 
   // The restore hands back the whole autosaved song, its active clip and tempo
   // already in the engine; adopting it here is what un-gates the render below.
-  const restoredSong = useWorkingSong(engine, song, sharedBoop.current, firstVisitSeed)
+  const restoredSong = useWorkingSong(engine, song, sharedBoop.current, firstVisitSong)
 
   useEffect(() => {
     if (restoredSong) setSong(restoredSong)
@@ -205,7 +189,6 @@ export function HomePage() {
 
   /** Everything the app calls a change (ADR 0031, as amended): any mutation of the song. */
   const markEdited = useCallback(() => {
-    setActivePreset(null)
     setLoaded(afterEdit)
   }, [])
 
@@ -247,26 +230,6 @@ export function HomePage() {
       updateSong((s) => withActivePattern(s, engine.getPattern()))
     },
     [engine, stopSongPlayback, updateSong],
-  )
-
-  const loadPreset = useCallback(
-    (presetId: PresetId) => {
-      if (!engine) return
-      const preset = PRESETS.find((p) => p.id === presetId)
-      if (!preset) return
-      stopSongPlayback()
-      engine.setPattern(presetPattern(engine.kit, preset))
-      engine.setTempo(preset.tempo)
-      // A starter replaces the whole working slot: a fresh one-clip song.
-      setSong(singleClipSong(engine.getPattern(), engine.getTempo()))
-      setActivePreset(presetId)
-      // A starter is never a row in "My boops", so it has no identity to
-      // carry — it reads the same as a blank grid (ticket 31).
-      setLoaded(null)
-      setLoadToken((token) => token + 1)
-      setNewBoopOpen(false)
-    },
-    [engine, stopSongPlayback],
   )
 
   const togglePlay = useCallback(() => {
@@ -352,7 +315,6 @@ export function HomePage() {
     stopSongPlayback()
     engine.setPattern(engine.getPattern().map((row) => ({ ...row, steps: row.steps.map(() => false) })))
     setSong((s) => (s ? withActivePattern(s, engine.getPattern()) : s))
-    setActivePreset(null)
     // An empty grid is not a saved boop with things rubbed out — it is nothing,
     // and reads "Not saved yet".
     setLoaded(null)
@@ -414,7 +376,6 @@ export function HomePage() {
     const fresh = singleClipSong(engine.getPattern(), engine.getTempo())
     songRef.current = fresh
     setSong(fresh)
-    setActivePreset(null)
     // The reset drops the loaded boop — this is a new boop, not an edit.
     setLoaded(null)
     setLoadToken((token) => token + 1)
@@ -440,23 +401,44 @@ export function HomePage() {
     [engine, stopSongPlayback],
   )
 
-  /** Adds a clip and puts it on the grid; `pattern` is blank or the copied clip's. */
+  /**
+   * Adds a clip and puts it on the grid; `pattern` is blank, a sample clip's,
+   * or the copied clip's. `name` is a sample clip's plain label — without one
+   * the clip takes the automatic "Clip N". Returns the song the clip landed
+   * in, or `null` for a refused no-op at the cap.
+   */
   const addClipToSong = useCallback(
-    (pattern: (song: Song) => Pattern) => {
-      if (!engine) return
-      const next = updateSong((s) => addClip(s, pattern(s)))
-      if (!next) return
+    (pattern: (song: Song) => Pattern, name?: string): Song | null => {
+      if (!engine) return null
+      const next = updateSong((s) => addClip(s, pattern(s), name))
+      if (!next) return null
       engine.setPattern(activeClip(next).pattern)
       setLoadToken((token) => token + 1)
+      return next
     },
     [engine, updateSong],
   )
 
-  const addBlankClip = useCallback(() => {
-    if (!engine) return
-    const kit = engine.kit
-    addClipToSong(() => blankPattern(kit))
-  }, [addClipToSong, engine])
+  /**
+   * The picker's landing (spec §6): the choice becomes a new clip, on the
+   * grid, unplaced. Blank keeps the automatic "Clip N"; a sample clip lands
+   * under its own label and starts playing — there is no per-card preview,
+   * so picking is how you hear one.
+   */
+  const pickClip = useCallback(
+    (sample: SampleClip | null) => {
+      setPickerOpen(false)
+      if (!engine) return
+      const kit = engine.kit
+      if (!sample) {
+        addClipToSong(() => blankPattern(kit))
+        return
+      }
+      const landed = addClipToSong(() => samplePattern(kit, sample.rows), sample.label)
+      if (landed && !engine.isPlaying()) void engine.start()
+    },
+    [addClipToSong, engine],
+  )
 
   /** "Make a copy": the active clip's pattern into a new clip, selected. */
   const copyClip = useCallback(
@@ -511,7 +493,6 @@ export function HomePage() {
       engine.setTempo(loadedSong.bpm)
       // The engine rounds and clamps the tempo; keep its number, as the restore does.
       setSong({ ...loadedSong, bpm: engine.getTempo() })
-      setActivePreset(null)
       // The grid *is* that row now, and matches it exactly (ticket 31).
       setLoaded({ index, name: boop.name, edited: false })
       setLoadToken((token) => token + 1)
@@ -614,7 +595,7 @@ export function HomePage() {
               onTempoChange={changeTempo}
               onSelectClip={selectClip}
               onTogglePlacement={togglePlacementAt}
-              onAddClip={addBlankClip}
+              onAddClip={() => setPickerOpen(true)}
               onToggleSong={toggleSong}
               songPlaying={songPlaying}
               playingPosition={playingPosition}
@@ -626,7 +607,7 @@ export function HomePage() {
               bpm={song.bpm}
               onTempoChange={changeTempo}
               onClearAll={clearAll}
-              onNewBoop={() => setNewBoopOpen(true)}
+              onNewBoop={newBoop}
               showClearGrid={!phone}
             />
           )}
@@ -642,13 +623,7 @@ export function HomePage() {
           onLoadedChange={setLoaded}
         />
       )}
-      {newBoopOpen && (
-        <NewBoopDialog
-          activePreset={activePreset}
-          onSelectPreset={loadPreset}
-          onClose={() => setNewBoopOpen(false)}
-        />
-      )}
+      {pickerOpen && <NewClipPicker onPick={pickClip} onClose={() => setPickerOpen(false)} />}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>
   )

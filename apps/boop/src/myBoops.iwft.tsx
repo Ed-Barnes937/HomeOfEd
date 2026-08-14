@@ -22,8 +22,8 @@ test('save, edit the grid, then load the saved boop back — the original is res
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  // A fresh browser is seeded with a starter (ticket 36); start from Blank so
-  // the saved boop is exactly the two edits below.
+  // A fresh browser is seeded with a sample clip (tickets 36/17); start from
+  // Blank so the saved boop is exactly the two edits below.
   await root.startBlank()
 
   await root.toggleCell('kick', 0)

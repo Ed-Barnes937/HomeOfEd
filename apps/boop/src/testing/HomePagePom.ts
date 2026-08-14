@@ -119,66 +119,64 @@ export class HomePagePom extends BasePage {
     await this.confirmDestructiveButton.click()
   }
 
-  // --- The "New boop" dialog (ticket 36) ---
+  // --- New boop (the plain reset) and the "+ New clip" picker (ticket 17) ---
 
   private readonly newBoopButton = this.page.getByTestId('new-boop-button')
-  private readonly newBoopCard = this.page.getByRole('dialog', { name: 'New boop' })
+  private readonly pickerDialog = this.page.getByRole('dialog', { name: 'New clip' })
 
-  presetCard(presetId: string) {
-    return this.page.getByTestId(`preset-card-${presetId}`)
+  pickerCard(sampleId: string) {
+    return this.page.getByTestId(`picker-card-${sampleId}`)
   }
 
-  async openNewBoop(): Promise<void> {
-    await this.newBoopButton.click()
-    await expect(this.newBoopCard).toBeVisible()
+  /** Tap "+ New clip" and wait for the picker dialog. */
+  async openNewClipPicker(): Promise<void> {
+    await this.page.getByTestId('new-clip-button').click()
+    await expect(this.pickerDialog).toBeVisible()
   }
 
-  async closeNewBoop(): Promise<void> {
-    await this.page.getByTestId('new-boop-close-button').click()
+  /** Pick a card from the open picker — `'blank'` or a sample clip's id. It closes itself. */
+  async pickClip(sampleId: string): Promise<void> {
+    await this.pickerCard(sampleId).click()
+    await this.verifyPickerClosed()
   }
 
-  async verifyNewBoopDialogShown(): Promise<void> {
-    await expect(this.newBoopCard).toBeVisible()
+  async closeNewClipPicker(): Promise<void> {
+    await this.page.getByTestId('new-clip-close-button').click()
   }
 
-  async verifyNewBoopDialogClosed(): Promise<void> {
-    await expect(this.newBoopCard).toHaveCount(0)
+  /** Tap the dimmed backdrop, outside the picker's card — the touch-easy dismiss. */
+  async dismissPickerByOutsideTap(): Promise<void> {
+    await this.page.mouse.click(4, 4)
   }
 
-  /** The starter cards, top-left to bottom-right — the order is part of the design. */
-  async verifyStarterOrder(expected: string[]): Promise<void> {
-    await expect(this.page.getByTestId('starter-cards').getByRole('button')).toHaveText(expected)
+  async verifyPickerShown(): Promise<void> {
+    await expect(this.pickerDialog).toBeVisible()
   }
 
-  /** The starters are only reachable through the dialog now — open it, pick one, it closes. */
-  async loadPreset(presetId: string): Promise<void> {
-    await this.openNewBoop()
-    await this.presetCard(presetId).click()
-    await this.verifyNewBoopDialogClosed()
+  async verifyPickerClosed(): Promise<void> {
+    await expect(this.pickerDialog).toHaveCount(0)
+  }
+
+  /** The picker's cards, top-left to bottom-right — the order is part of the design. */
+  async verifyPickerCardOrder(expected: string[]): Promise<void> {
+    await expect(
+      this.page.getByTestId('picker-cards').getByRole('button'),
+    ).toHaveText(expected)
+  }
+
+  /** No dialog of any kind is open — New boop is a plain reset, not a picker. */
+  async verifyNoDialogOpen(): Promise<void> {
+    await expect(this.page.getByRole('dialog')).toHaveCount(0)
   }
 
   /**
    * Start from an empty grid, the way a child would. A fresh browser is seeded
-   * with `Wonky Walk` (ticket 36), so a suite that is about grid behaviour
-   * rather than onboarding has to say where it starts. On the laptop layout
-   * (≥1280, ticket 15) New boop is a plain one-tap reset in the top bar; below
-   * it the dialog's Blank card is still the way (until tickets 17/20/21).
+   * with a sample clip (tickets 36/17), so a suite that is about grid
+   * behaviour rather than onboarding has to say where it starts. New boop is
+   * a plain one-tap reset at every width (spec §7).
    */
   async startBlank(): Promise<void> {
-    if ((this.page.viewportSize()?.width ?? 0) >= 1280) {
-      await this.newBoopButton.click()
-      return
-    }
-    await this.loadPreset('blank')
-  }
-
-  /** This and `verifyPresetNotLoaded` read the card, so the dialog has to be open. */
-  async verifyPresetLoaded(presetId: string): Promise<void> {
-    await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'true')
-  }
-
-  async verifyPresetNotLoaded(presetId: string): Promise<void> {
-    await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'false')
+    await this.newBoopButton.click()
   }
 
   async verifyCellOn(instrumentId: string, step: number): Promise<void> {
@@ -267,7 +265,7 @@ export class HomePagePom extends BasePage {
     return parseSaveDocument(raw).working
   }
 
-  /** The "My boops" list — separate from the working grid a preset load may replace. */
+  /** The "My boops" list — separate from the working grid a load may replace. */
   async readSavedBoops(): Promise<readonly StoredBoop[]> {
     const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)
     return parseSaveDocument(raw).creations
@@ -864,8 +862,10 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('clip-copy-button')).toBeDisabled()
   }
 
+  /** Add a blank clip the whole way: "+ New clip" opens the picker, Blank lands it (ticket 17). */
   async addClip(): Promise<void> {
-    await this.page.getByTestId('new-clip-button').click()
+    await this.openNewClipPicker()
+    await this.pickClip('blank')
   }
 
   async verifyAddClipDisabled(): Promise<void> {

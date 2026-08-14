@@ -5,8 +5,8 @@
  * boop autosaves the working grid after every lull, so "unsaved" can never
  * mean "you are about to lose this" (ADR 0025). It means the narrower thing:
  * this grid is not a row in "My boops", or it has drifted from the row it came
- * from. Starters are deliberately outside all of this — loading one reads the
- * same as a blank grid, because a starter is never in the list either.
+ * from. Sample clips are deliberately outside all of this (ADR 0031, as
+ * amended) — they have no identity; adding one is an edit like any other.
  */
 
 /** The saved boop the working grid came from, while it is still recognisably that boop. */

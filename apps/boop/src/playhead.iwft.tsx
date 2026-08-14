@@ -30,8 +30,8 @@ test('the playhead advances during playback, driven by the draw-time channel', a
 test('a struck cell squashes and its row label bobs — never a strobe or flash', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  // A fresh browser is seeded with a starter (ticket 36) whose kick already
-  // sits on step 0; start from Blank so this test owns the one hit it fires.
+  // A fresh browser is seeded with a sample clip (tickets 36/17) whose kick
+  // already sits on step 0; start from Blank so this test owns the one hit it fires.
   await root.startBlank()
 
   await root.toggleCell('kick', 0)

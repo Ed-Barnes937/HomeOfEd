@@ -1,8 +1,8 @@
-import type { PresetRowSteps } from './presets.ts'
-import styles from './PresetThumbnail.module.scss'
+import type { SampleRowSteps } from './sampleClips.ts'
+import styles from './PatternThumbnail.module.scss'
 
-interface PresetThumbnailProps {
-  rows: readonly PresetRowSteps[]
+interface PatternThumbnailProps {
+  rows: readonly SampleRowSteps[]
 }
 
 /**
@@ -10,12 +10,12 @@ interface PresetThumbnailProps {
  * matrix ... dots `#14262A` for active steps"): one dot per cell. Reads
  * straight off position-only rows, with no need to know which kit is loaded.
  *
- * Ink on paper, one flat colour, because both places it appears are now paper
- * cards: the "My boops" list and — since ticket 36 — the starter cards, which
- * left the dark stage for the "New boop" dialog. The stage variant, whose
+ * Ink on paper, one flat colour, because both places it appears are paper
+ * cards: the "My boops" list and the "+ New clip" picker's cards (ticket 17,
+ * which retired the starter cards it was born on). The stage variant, whose
  * active dots took their row's instrument hue, went with the preset row.
  */
-export function PresetThumbnail({ rows }: PresetThumbnailProps) {
+export function PatternThumbnail({ rows }: PatternThumbnailProps) {
   return (
     <div className={styles.matrix} aria-hidden="true">
       {rows.map((row, rowIndex) => (

@@ -140,11 +140,13 @@ export function togglePlacement(song: Song, clipIndex: number, position: number)
 
 /**
  * Append a new clip and put it on the grid, unplaced — placing it in the song
- * is a separate tap (spec §6). Name and tint both take the lowest unused
- * value, which keeps one-tint-per-clip after deletes. A no-op at the cap:
- * the "+ New clip" button is disabled there, so this is only belt-and-braces.
+ * is a separate tap (spec §6). A sample clip lands under its plain label via
+ * `name`; without one (Blank), the name takes the lowest unused "Clip N".
+ * The tint always takes the lowest unused value, which keeps one-tint-per-clip
+ * after deletes. A no-op at the cap: the "+ New clip" button is disabled
+ * there, so this is only belt-and-braces.
  */
-export function addClip(song: Song, pattern: Pattern): Song {
+export function addClip(song: Song, pattern: Pattern, name?: string): Song {
   if (song.clips.length >= MAX_CLIPS) return song
   const names = new Set(song.clips.map((clip) => clip.name))
   const tints = new Set(song.clips.map((clip) => clip.tint))
@@ -154,7 +156,7 @@ export function addClip(song: Song, pattern: Pattern): Song {
   while (tint < TINT_COUNT && tints.has(tint)) tint += 1
   return {
     ...song,
-    clips: [...song.clips, { name: clipName(n), tint, pattern }],
+    clips: [...song.clips, { name: name ?? clipName(n), tint, pattern }],
     activeClipIndex: song.clips.length,
   }
 }

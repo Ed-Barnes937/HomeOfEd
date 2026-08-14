@@ -5,7 +5,7 @@ import { useBoops } from '../../persistence/useBoops.ts'
 import { afterDelete, afterRename, afterSave, type LoadedBoop } from '../../savedState.ts'
 import { useIsPhone } from '../../useIsPhone.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
-import { PresetThumbnail } from '../presets/PresetThumbnail.tsx'
+import { PatternThumbnail } from '../picker/PatternThumbnail.tsx'
 import { generateBoopName } from './boopNames.ts'
 import styles from './BoopsPanel.module.scss'
 
@@ -39,7 +39,7 @@ type Editing =
 /** How long the freshly saved row keeps its highlight (ticket 32). */
 const HIGHLIGHT_MS = 1200
 
-/** One row's dots, read off its bitstrings — position only, matching `PresetThumbnail`'s shape. */
+/** One row's dots, read off its bitstrings — position only, matching `PatternThumbnail`'s shape. */
 function thumbnailRows(pattern: StoredPattern) {
   return pattern.rows.map((row) => ({
     steps: Array.from(row.steps, (c) => c === '1'),
@@ -229,7 +229,7 @@ export function BoopsPanel({
                       onClick={() => onLoad(boop, index)}
                       data-testid={`boop-load-${index}`}
                     >
-                      <PresetThumbnail rows={thumbnailRows(boop.patterns[0]!)} />
+                      <PatternThumbnail rows={thumbnailRows(boop.patterns[0]!)} />
                       <span className={styles.name}>{boop.name}</span>
                     </button>
                     <button

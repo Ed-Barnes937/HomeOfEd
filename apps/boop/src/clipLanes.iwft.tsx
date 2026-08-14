@@ -2,9 +2,9 @@ import { test } from './testing/iwftTest.tsx'
 
 // The clip-lanes laptop layout (boop-loops ticket 15, the handoff's 2a frame),
 // at the default 1280px CT viewport — the width the design is normative for.
-// A fresh browser is seeded with a starter (ticket 36), so suites that care
-// about their starting grid say so with `startBlank()` — at this width that is
-// the top bar's plain New boop reset.
+// A fresh browser is seeded with a sample clip (tickets 36/17), so suites that
+// care about their starting grid say so with `startBlank()` — the top bar's
+// plain New boop reset.
 
 test('the old transport bar is gone; its pieces have their new homes', async ({ mountApp }) => {
   const { root } = await mountApp()
@@ -14,9 +14,10 @@ test('the old transport bar is gone; its pieces have their new homes', async ({ 
   // Play became the clip control (in the well), tempo became Speed in the
   // song bar, New boop went to the top bar, Clear grid into the clip control.
   await root.verifyPaused()
-  await root.verifyTempo(92) // the seed's tempo, read from the song bar's Speed
+  await root.verifyTempo(100) // the seed's speed, read from the song bar's Speed
+  await root.verifyCellOn('kick', 0) // the sample-clip seed is on the grid
   await root.pressNewBoop()
-  await root.verifyTempo(100)
+  await root.verifyCellOff('kick', 0)
 })
 
 test('New boop is a plain reset: one blank clip, no dialog, no confirm', async ({ mountApp }) => {
@@ -26,7 +27,7 @@ test('New boop is a plain reset: one blank clip, no dialog, no confirm', async (
   await root.toggleCell('kick', 2)
   await root.pressNewBoop()
 
-  await root.verifyNewBoopDialogClosed()
+  await root.verifyNoDialogOpen()
   await root.verifyCellOff('kick', 2)
   await root.verifyClipCount(1)
   await root.verifyActiveClipName('Clip 1')

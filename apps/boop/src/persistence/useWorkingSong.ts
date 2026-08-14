@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { Kit, Pattern, SequencerEngine } from '../engine/sequencerEngine.ts'
+import type { Kit, SequencerEngine } from '../engine/sequencerEngine.ts'
 import { activeClip, singleClipSong, songFromStored, storedBoopFromSong, type Song } from '../song/song.ts'
 import { createAutosave } from './autosave.ts'
 import { WORKING_NAME, type StoredBoop } from './saveFormat.ts'
@@ -24,10 +24,11 @@ import { loadSaveDocument } from './storage.ts'
  * a reload after following a link keeps the boop, not the song it replaced.
  * It must be stable across renders; it is read once, on restore.
  *
- * `seed` is what a browser that has never been here opens on (ticket 36) —
- * there is no autosave to restore, so rather than an empty grid the app starts
- * from a one-clip song. Like a shared boop it is written straight back to the
- * autosave slot, so a reload shows the same thing rather than re-deciding.
+ * `seed` is what a browser that has never been here opens on (ticket 36; a
+ * one-clip song built from a sample clip since ticket 17) — there is no
+ * autosave to restore, so rather than an empty grid the app starts from that
+ * song. Like a shared boop it is written straight back to the autosave slot,
+ * so a reload shows the same thing rather than re-deciding.
  * "Never been here" means no *working song* — `working: null`, which is what a
  * fresh browser reads as. A browser with saved boops but no working song is
  * seeded too, and rightly: the seed replaces nothing.
@@ -36,7 +37,7 @@ export function useWorkingSong(
   engine: SequencerEngine | null,
   song: Song | null,
   openedWith: StoredBoop | null = null,
-  seed: ((kit: Kit) => { pattern: Pattern; tempo: number }) | null = null,
+  seed: ((kit: Kit) => Song) | null = null,
 ): Song | null {
   const autosave = useRef<ReturnType<typeof createAutosave> | null>(null)
   autosave.current ??= createAutosave(window.localStorage)
@@ -56,8 +57,7 @@ export function useWorkingSong(
       // through so the autosave slot holds it too.
       if (openedWith) sawFirstMirror.current = true
     } else if (seed) {
-      const { pattern: seeded, tempo } = seed(engine.kit)
-      initial = singleClipSong(seeded, tempo)
+      initial = seed(engine.kit)
       // Same reasoning — a seeded first visit is written straight back, so a
       // reload shows it rather than re-deciding.
       sawFirstMirror.current = true

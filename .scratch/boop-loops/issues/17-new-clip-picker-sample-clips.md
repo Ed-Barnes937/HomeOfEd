@@ -28,11 +28,11 @@ the existing dialog focus/dismiss behaviour).
 
 **Blocked by:** 15 — Laptop clip lanes.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] "+ New clip" opens the picker dialog (Blank first, then the eight sample clips); it stays disabled at the 5-clip cap
-- [ ] Picking Blank or a sample clip creates the clip per the rules above and closes the dialog; nothing is placed in the song
-- [ ] All eight roster patterns match the prototype data
-- [ ] Starters and the old New boop dialog are gone; no dead code from the retirement remains
-- [ ] A fresh browser is seeded with a one-clip song built from a sample clip
-- [ ] Dialog focus/dismiss matches the existing dialog behaviour; covered by `*.iwft`
+- [x] "+ New clip" opens the picker dialog (Blank first, then the eight sample clips); it stays disabled at the 5-clip cap
+- [x] Picking Blank or a sample clip creates the clip per the rules above and closes the dialog; nothing is placed in the song. Landing a sample clip also starts clip playback — "picking is how you hear one", the prototype's resolved behaviour, now stated in spec §6
+- [x] All eight roster patterns match the prototype data (unit-tested step for step in `sampleClips.test.ts`)
+- [x] Starters and the old New boop dialog are gone; no dead code from the retirement remains (`features/presets/` deleted, `--shadow-preset-active` removed; the tablet/phone "New boop" button is now the plain reset)
+- [x] A fresh browser is seeded with a one-clip song built from a sample clip (Boom clap — the roster's fullest single layer — at the default speed)
+- [x] Dialog focus/dismiss matches the existing dialog behaviour (× + backdrop, as `BoopsPanel`); covered by `newClipPicker.iwft.tsx` and `firstVisit.iwft.tsx`
