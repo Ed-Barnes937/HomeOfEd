@@ -45,6 +45,7 @@ import {
   withBpm,
   type Song,
 } from '../song/song.ts'
+import { createSongConductor, type SongConductor } from '../song/songConductor.ts'
 import { useIsLaptop } from '../useIsLaptop.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
@@ -128,15 +129,79 @@ export function HomePage() {
     if (sharedBoop.current) clearShareHash(window.location, window.history)
   }, [])
 
+  // --- Song playback (ticket 16, spec §9) ---
+
+  const [songPlaying, setSongPlaying] = useState(false)
+  // The song position sounding right now — the ring on the lane squares.
+  const [playingPosition, setPlayingPosition] = useState<number | null>(null)
+  const conductorRef = useRef<SongConductor | null>(null)
+  // True whenever the song play is on — including an all-empty song, which
+  // plays the grid clip and needs no conductor (ADR 0032).
+  const songModeRef = useRef(false)
+
+  /**
+   * Draw time: this position is audible now. The ring moves and the grid
+   * switches to its clip — a view change like tapping its chip, never an
+   * edit, and never an engine write: the conductor owns the engine's pattern
+   * while the song plays.
+   */
+  const onSoundingPosition = useCallback((position: number) => {
+    setPlayingPosition(position)
+    const current = songRef.current
+    if (!current) return
+    const clipIndex = current.placements[position]
+    if (clipIndex === null || clipIndex === undefined || clipIndex === current.activeClipIndex)
+      return
+    const next = { ...current, activeClipIndex: clipIndex }
+    songRef.current = next
+    setSong(next)
+  }, [])
+
+  /**
+   * Leave song mode: drop the conductor and re-sync the engine to the clip on
+   * the grid. The conductor swaps one lookahead ahead of the sound, so at the
+   * moment the song ends the engine may already hold the *next* position's
+   * clip — the resync makes "the clip on the grid" true again before any edit
+   * reads the engine back. Does not touch the transport; callers decide
+   * whether playback stops or carries on as clip play.
+   */
+  const leaveSongMode = useCallback(() => {
+    if (!songModeRef.current) return
+    songModeRef.current = false
+    conductorRef.current?.dispose()
+    conductorRef.current = null
+    setSongPlaying(false)
+    setPlayingPosition(null)
+    const current = songRef.current
+    if (engine && current) engine.setPattern(activeClip(current).pattern)
+  }, [engine])
+
+  /**
+   * Any mutation while the song plays means "you are now editing, not
+   * listening" (spec §9): stop playback outright. The explicit `leaveSongMode`
+   * covers the sliver where song mode is on but `start()` is still unlocking,
+   * when `engine.stop()` would be a no-op and emit nothing.
+   */
+  const stopSongPlayback = useCallback(() => {
+    if (!songModeRef.current) return
+    engine?.stop()
+    leaveSongMode()
+  }, [engine, leaveSongMode])
+
   useEffect(() => {
     if (!engine) return
     setIsPlaying(engine.isPlaying())
     return engine.onTransport((event) => {
       if (event.type === 'started') setIsPlaying(true)
-      if (event.type === 'stopped') setIsPlaying(false)
+      if (event.type === 'stopped') {
+        setIsPlaying(false)
+        // However the transport stopped — the stop buttons, spacebar, an
+        // audio interruption — song mode does not outlive it.
+        leaveSongMode()
+      }
       if (event.type === 'tempoChanged') setSong((s) => (s ? withBpm(s, event.bpm) : s))
     })
-  }, [engine])
+  }, [engine, leaveSongMode])
 
   /** Everything the app calls a change (ADR 0031, as amended): any mutation of the song. */
   const markEdited = useCallback(() => {
@@ -153,6 +218,10 @@ export function HomePage() {
    */
   const updateSong = useCallback(
     (mutate: (song: Song) => Song): Song | null => {
+      // Every song mutation stops song playback first (spec §9). This runs
+      // before we know whether `mutate` is a refused no-op, but those hide
+      // behind disabled buttons — the stop can't misfire in practice.
+      stopSongPlayback()
       const current = songRef.current
       if (!current) return null
       const next = mutate(current)
@@ -162,18 +231,22 @@ export function HomePage() {
       markEdited()
       return next
     },
-    [markEdited],
+    [markEdited, stopSongPlayback],
   )
 
   const toggleCell = useCallback(
     (instrumentId: string, step: number) => {
       if (!engine) return
+      // Stop the song before reading the engine back: while it plays the
+      // engine may already hold the next position's clip, and the stop's
+      // resync is what makes this read the clip on the grid.
+      stopSongPlayback()
       const row = engine.getPattern().find((r) => r.instrumentId === instrumentId)
       const on = row?.steps[step] !== true
       engine.setCell(instrumentId, step, on)
       updateSong((s) => withActivePattern(s, engine.getPattern()))
     },
-    [engine, updateSong],
+    [engine, stopSongPlayback, updateSong],
   )
 
   const loadPreset = useCallback(
@@ -181,6 +254,7 @@ export function HomePage() {
       if (!engine) return
       const preset = PRESETS.find((p) => p.id === presetId)
       if (!preset) return
+      stopSongPlayback()
       engine.setPattern(presetPattern(engine.kit, preset))
       engine.setTempo(preset.tempo)
       // A starter replaces the whole working slot: a fresh one-clip song.
@@ -192,7 +266,7 @@ export function HomePage() {
       setLoadToken((token) => token + 1)
       setNewBoopOpen(false)
     },
-    [engine],
+    [engine, stopSongPlayback],
   )
 
   const togglePlay = useCallback(() => {
@@ -203,6 +277,49 @@ export function HomePage() {
       void engine.start()
     }
   }, [engine])
+
+  /**
+   * "Play this clip" (the clip control). While the song plays it *switches*
+   * mode: the song ends and the clip on the grid keeps looping, without a
+   * transport stop — "starting either play stops the other" (spec §9).
+   * Otherwise it is the old play/pause.
+   */
+  const toggleClipPlay = useCallback(() => {
+    if (!engine) return
+    if (songModeRef.current) {
+      leaveSongMode()
+      if (!engine.isPlaying()) void engine.start()
+      return
+    }
+    togglePlay()
+  }, [engine, leaveSongMode, togglePlay])
+
+  /**
+   * The song play button (spec §9): placements left to right, looping, empty
+   * positions skipped. An all-empty song plays the clip on the grid — "an
+   * empty song playing the grid clip is today's behaviour" (ADR 0032) — so no
+   * conductor and no ring, but the button still reads Stop. Starting the song
+   * while the clip loops takes over without stopping the transport.
+   */
+  const toggleSong = useCallback(() => {
+    const current = songRef.current
+    if (!engine || !current) return
+    if (songModeRef.current) {
+      stopSongPlayback()
+      return
+    }
+    songModeRef.current = true
+    setSongPlaying(true)
+    if (current.placements.some((held) => held !== null)) {
+      conductorRef.current = createSongConductor(
+        engine,
+        current.clips.map((clip) => clip.pattern),
+        current.placements,
+        onSoundingPosition,
+      )
+    }
+    if (!engine.isPlaying()) void engine.start()
+  }, [engine, onSoundingPosition, stopSongPlayback])
 
   // Spacebar toggles play from anywhere on the page (spec: "Transport &
   // tempo"). `preventDefault` always fires for a non-editable target, so
@@ -232,13 +349,14 @@ export function HomePage() {
 
   const clearAll = useCallback(() => {
     if (!engine) return
+    stopSongPlayback()
     engine.setPattern(engine.getPattern().map((row) => ({ ...row, steps: row.steps.map(() => false) })))
     setSong((s) => (s ? withActivePattern(s, engine.getPattern()) : s))
     setActivePreset(null)
     // An empty grid is not a saved boop with things rubbed out — it is nothing,
     // and reads "Not saved yet".
     setLoaded(null)
-  }, [engine])
+  }, [engine, stopSongPlayback])
 
   /** Read at tap time, so the link always carries the whole song as it stands. */
   const getShareUrl = useCallback(() => {
@@ -290,6 +408,7 @@ export function HomePage() {
   /** "New boop" as a plain reset (spec §7): one blank clip, default tempo, no confirm. */
   const newBoop = useCallback(() => {
     if (!engine) return
+    stopSongPlayback()
     engine.setPattern(blankPattern(engine.kit))
     engine.setTempo(DEFAULT_BPM)
     const fresh = singleClipSong(engine.getPattern(), engine.getTempo())
@@ -299,12 +418,17 @@ export function HomePage() {
     // The reset drops the loaded boop — this is a new boop, not an edit.
     setLoaded(null)
     setLoadToken((token) => token + 1)
-  }, [engine])
+  }, [engine, stopSongPlayback])
 
-  /** Tapping a chip puts that clip on the grid — a view change, not an edit. */
+  /**
+   * Tapping a chip puts that clip on the grid — a view change, not an edit.
+   * While the song plays it also stops it (spec §9: "you are now editing, not
+   * listening"), even when the chip is already the active clip.
+   */
   const selectClip = useCallback(
     (index: number) => {
       if (!engine) return
+      stopSongPlayback()
       const current = songRef.current
       if (!current || index === current.activeClipIndex || !current.clips[index]) return
       const next = { ...current, activeClipIndex: index }
@@ -313,7 +437,7 @@ export function HomePage() {
       setSong(next)
       setLoadToken((token) => token + 1)
     },
-    [engine],
+    [engine, stopSongPlayback],
   )
 
   /** Adds a clip and puts it on the grid; `pattern` is blank or the copied clip's. */
@@ -371,13 +495,17 @@ export function HomePage() {
    */
   const clearClip = useCallback(() => {
     if (!engine) return
+    // Stop the song before blanking the engine — `leaveSongMode`'s resync
+    // would otherwise overwrite the blank with the active clip again.
+    stopSongPlayback()
     engine.setPattern(blankPattern(engine.kit))
     updateSong((s) => withActivePattern(s, engine.getPattern()))
-  }, [engine, updateSong])
+  }, [engine, stopSongPlayback, updateSong])
 
   const loadBoop = useCallback(
     (boop: StoredBoop, index: number) => {
       if (!engine) return
+      stopSongPlayback()
       const loadedSong = songFromStored(engine.kit, boop)
       engine.setPattern(activeClip(loadedSong).pattern)
       engine.setTempo(loadedSong.bpm)
@@ -389,7 +517,7 @@ export function HomePage() {
       setLoadToken((token) => token + 1)
       setBoopsOpen(false)
     },
-    [engine],
+    [engine, stopSongPlayback],
   )
 
   if (!engine || !song) {
@@ -463,7 +591,11 @@ export function HomePage() {
               tintColor={laptop ? clipTint(activeClip(song).tint) : undefined}
               wellFooter={
                 laptop ? (
-                  <ClipControl isPlaying={isPlaying} onToggle={togglePlay} onClearGrid={clearClip} />
+                  <ClipControl
+                    isPlaying={isPlaying && !songPlaying}
+                    onToggle={toggleClipPlay}
+                    onClearGrid={clearClip}
+                  />
                 ) : undefined
               }
             />
@@ -483,9 +615,9 @@ export function HomePage() {
               onSelectClip={selectClip}
               onTogglePlacement={togglePlacementAt}
               onAddClip={addBlankClip}
-              onToggleSong={() => {}}
-              songPlaying={false}
-              playingPosition={null}
+              onToggleSong={toggleSong}
+              songPlaying={songPlaying}
+              playingPosition={playingPosition}
             />
           ) : (
             <Transport

@@ -12,16 +12,16 @@ interface SongBarProps {
   song: Song
   bpm: number
   onTempoChange: (bpm: number) => void
-  /** Puts that clip on the grid. Stops the song when it is playing (ticket 16). */
+  /** Puts that clip on the grid. Stops the song when it is playing (spec §9). */
   onSelectClip: (index: number) => void
   /** A lane-square toggle: place, tap off, or replace (one clip per position). */
   onTogglePlacement: (clipIndex: number, position: number) => void
   /** Appends a blank clip and selects it (the picker replaces this in ticket 17). */
   onAddClip: () => void
-  /** Song playback (ticket 16). Until it lands the button is honest chrome: it renders, and does nothing. */
+  /** Play or stop the song: placements left to right, looping (spec §9). */
   onToggleSong: () => void
   songPlaying: boolean
-  /** The song position currently sounding, or `null` — drives the ruler and the playing ring (ticket 16). */
+  /** The song position currently sounding, or `null` — drives the ruler and the playing ring. */
   playingPosition: number | null
 }
 

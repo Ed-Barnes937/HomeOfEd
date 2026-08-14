@@ -52,6 +52,9 @@ src/
     song.ts           Song/Clip types, StoredBoop↔Song conversions, and the
                       mutation kinds (placement, add/delete/rename clip, lane
                       reorder) later tickets wire to UI
+    songConductor.ts  song playback (ticket 16): the ~30-line layer above the
+                      SequencerEngine seam — swap at step 15 on onBeat, the
+                      sounding position advances on onDrawBeat
   export/           WAV export: offline render → PCM mix → WAV encode, plus the
                     share-sheet/download action and the slugged filename. Pure
                     but for `sampleDecoder.ts`, the AudioContext seam.
@@ -72,9 +75,10 @@ src/
                     rendered inside the grid well), clipTints.ts (the fixed
                     5-tint list)
   features/songbar/ SongBar.tsx — the pinned song bar (laptop ≥1280): Speed
-                    (the old tempo slider), the song play button (behaviour is
-                    ticket 16), and the lane grid — chips, placement squares
-                    (drag-paint + the grid's keyboard model), "+ New clip"
+                    (the old tempo slider), the song play button (wired to the
+                    songConductor, ticket 16), and the lane grid — chips,
+                    placement squares (drag-paint + the grid's keyboard
+                    model), "+ New clip"
   features/presets/ the four starters as pure data (presets.ts, incl. the
                     first-visit seed) + NewBoopDialog.tsx, opened from the
                     transport bar's "New boop" button (ticket 36)

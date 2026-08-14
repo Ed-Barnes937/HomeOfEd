@@ -7,6 +7,9 @@ import { parseSaveDocument, type StoredBoop } from '../persistence/saveFormat.ts
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 
+/** How far `crankSteps` moves the fake clock per step — clear of the 0.1s lookahead, so each step's draw releases in the same iteration. */
+export const CRANK_STEP_SECONDS = 0.2
+
 /** The root page object for boop's grid app — tap cells, play/pause, and drive the fake audio clock. */
 export class HomePagePom extends BasePage {
   private readonly playButton = this.page.getByTestId('play-button')
@@ -888,6 +891,62 @@ export class HomePagePom extends BasePage {
   /** The song bar's `<n> bars` readout — placed squares × 4. */
   async verifySongLength(text: string): Promise<void> {
     await expect(this.page.getByTestId('song-length')).toHaveText(text)
+  }
+
+  // --- Song playback (ticket 16) ---
+
+  private readonly songPlayButton = this.page.getByTestId('song-play-button')
+
+  async pressSongPlay(): Promise<void> {
+    await this.songPlayButton.click()
+  }
+
+  async verifySongPlaying(): Promise<void> {
+    await expect(this.songPlayButton).toHaveAttribute('aria-pressed', 'true')
+  }
+
+  async verifySongStopped(): Promise<void> {
+    await expect(this.songPlayButton).toHaveAttribute('aria-pressed', 'false')
+  }
+
+  /** The playing ring on the lane square whose position is sounding. */
+  async verifyPositionPlaying(clipIndex: number, position: number): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-playing', 'true')
+  }
+
+  async verifyNoPositionPlaying(): Promise<void> {
+    await expect(this.page.locator('[data-testid^="lane-"][data-playing="true"]')).toHaveCount(0)
+  }
+
+  async verifyPositionNumeralPlaying(position: number): Promise<void> {
+    await expect(this.page.getByTestId(`song-position-numeral-${position}`)).toHaveAttribute(
+      'data-playing',
+      'true',
+    )
+  }
+
+  /**
+   * Fire `count` scheduled steps, advancing the draw clock past each one —
+   * one audible step per iteration, schedule and draw together. Use the
+   * separate `fireStep`/`advanceDrawClock` pair to hold the draw clock back
+   * and observe the schedule-time lookahead instead.
+   */
+  async crankSteps(count: number): Promise<void> {
+    await this.page.evaluate(
+      ({ key, count: steps, stepSeconds }) => {
+        const driver = (
+          globalThis as unknown as Record<
+            string,
+            { fireStep: () => void; now: () => number; advanceTo: (time: number) => void }
+          >
+        )[key]!
+        for (let i = 0; i < steps; i += 1) {
+          driver.fireStep()
+          driver.advanceTo(driver.now() + stepSeconds)
+        }
+      },
+      { key: BOOP_AUDIO_DRIVER_KEY, count, stepSeconds: CRANK_STEP_SECONDS },
+    )
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */
