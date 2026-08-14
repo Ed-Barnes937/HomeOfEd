@@ -11,7 +11,7 @@ level change.
 
 **Blocked by:** 04 — Word screen pre-reveal.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `.scratch/wotd-redesign/spec.md` · measurements in the handoff README §3 and §6; visuals in
 `WOTD - Dark Mode.html` (5c/5f and their light pairs). The entry card is Definition + Example +

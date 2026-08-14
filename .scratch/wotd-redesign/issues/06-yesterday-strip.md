@@ -9,7 +9,7 @@ never triggers word generation.
 
 **Blocked by:** 04 — Word screen pre-reveal.
 
-**Status:** ready-for-human
+**Status:** resolved
 
 Spec: `.scratch/wotd-redesign/spec.md` · strip measurements in the handoff README §1/§2 (mobile)
 and §4 (desktop inline definition). Note the spec's deliberate deviation: the strip lives on the

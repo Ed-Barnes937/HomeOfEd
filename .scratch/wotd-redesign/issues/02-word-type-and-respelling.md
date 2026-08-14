@@ -6,7 +6,7 @@ change simply omit both — the page renders cleanly without them.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-human
+**Status:** resolved
 
 Spec: `.scratch/wotd-redesign/spec.md`. Origin is deliberately **not** added — it was dropped from
 the design.

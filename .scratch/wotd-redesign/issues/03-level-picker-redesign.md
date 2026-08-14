@@ -9,7 +9,7 @@ the right, headline row with the right-aligned intro paragraph, and a 4-column c
 
 **Blocked by:** 01 — Theme foundation.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `.scratch/wotd-redesign/spec.md` · measurements in the handoff README §1 and §4; visuals in
 `WOTD - Dark Mode.html` (5a/5d and their light pairs).
@@ -20,4 +20,4 @@ Spec: `.scratch/wotd-redesign/spec.md` · measurements in the handoff README §1
 - [x] No yesterday strip and no "Past words" pill anywhere on the picker (both out of scope / moved)
 - [x] Level rows/cards navigate to the word page for that level; hit targets ≥44px
 - [x] Existing `.iwft` picker coverage still passes (navigation, four levels shown)
-- [ ] Manual side-by-side against the reference HTML in both themes at 390×720 and 1280×800
+- [x] Manual side-by-side against the reference HTML in both themes at 390×720 and 1280×800

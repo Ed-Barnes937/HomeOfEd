@@ -11,7 +11,7 @@ it stays hidden where speech is unsupported.
 
 **Blocked by:** 01 — Theme foundation; 02 — Word type and respelling.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `.scratch/wotd-redesign/spec.md` · measurements in the handoff README §2 and §5; visuals in
 `WOTD - Dark Mode.html` (5b/5e and their light pairs).
