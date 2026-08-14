@@ -195,9 +195,11 @@ export function renameClip(song: Song, index: number, name: string): Song {
 /**
  * Move a lane from `from` to `to`. Placements are index-based (ADR 0032), so
  * they are rewritten in the same update; the tint and the grid both travel
- * with their clip.
+ * with their clip. A refused move — nowhere to go, or out of range — is a
+ * no-op, so it never marks the boop edited.
  */
 export function moveClip(song: Song, from: number, to: number): Song {
+  if (from === to || !song.clips[from] || !song.clips[to]) return song
   const clips = [...song.clips]
   const [moved] = clips.splice(from, 1)
   clips.splice(to, 0, moved!)

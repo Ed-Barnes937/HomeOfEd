@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from 'react'
 
 import { MAX_CLIPS, SONG_POSITIONS } from '../../persistence/saveFormat.ts'
 import type { Song } from '../../song/song.ts'
@@ -7,6 +7,7 @@ import { useDragPaint } from '../grid/useDragPaint.ts'
 import { useGridKeyboardNav } from '../grid/useGridKeyboardNav.ts'
 import { bpmToPercent, percentToBpm } from '../transport/tempoScale.ts'
 import styles from './SongBar.module.scss'
+import { useChipDrag, type ChipDragState } from './useChipDrag.ts'
 
 interface SongBarProps {
   song: Song
@@ -16,6 +17,8 @@ interface SongBarProps {
   onSelectClip: (index: number) => void
   /** A lane-square toggle: place, tap off, or replace (one clip per position). */
   onTogglePlacement: (clipIndex: number, position: number) => void
+  /** A lane reorder (ticket 18): chip drag or Ctrl/Cmd+ArrowUp/Down. Counts as edited. */
+  onMoveClip: (from: number, to: number) => void
   /** Opens the "+ New clip" picker (ticket 17): Blank first, then the sample clips. */
   onAddClip: () => void
   /** Play or stop the song: placements left to right, looping (spec §9). */
@@ -42,6 +45,7 @@ export function SongBar({
   onTempoChange,
   onSelectClip,
   onTogglePlacement,
+  onMoveClip,
   onAddClip,
   onToggleSong,
   songPlaying,
@@ -63,6 +67,57 @@ export function SongBar({
     instrumentIdAt: (rowIndex) => (rowIndex < song.clips.length ? String(rowIndex) : undefined),
     cellTestId: (laneId, position) => `lane-${laneId}-${position}`,
   })
+
+  // --- Lane reordering (ticket 18, spec §8) ---
+
+  const chipDrag = useChipDrag({
+    laneCount: song.clips.length,
+    containerRef: keyboardNav.containerRef,
+    onMove: onMoveClip,
+    onTap: onSelectClip,
+  })
+
+  // The moved clip's new index after a keyboard reorder. Chips are keyed by
+  // index, so the reorder re-renders the focused element with a *different*
+  // clip — focus must chase the moved one for the next press to keep moving it.
+  const pendingChipFocus = useRef<number | null>(null)
+  useEffect(() => {
+    if (pendingChipFocus.current === null) return
+    keyboardNav.containerRef.current
+      ?.querySelector<HTMLButtonElement>(`[data-testid="clip-chip-${pendingChipFocus.current}"]`)
+      ?.focus()
+    pendingChipFocus.current = null
+  })
+
+  /** Ctrl/Cmd+ArrowUp/Down moves the chip's lane; plain arrows are untouched (spec §14). */
+  const onChipKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!event.ctrlKey && !event.metaKey) return
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+    event.preventDefault()
+    const to = index + (event.key === 'ArrowUp' ? -1 : 1)
+    if (to < 0 || to >= song.clips.length) return
+    onMoveClip(index, to)
+    pendingChipFocus.current = to
+  }
+
+  /** The live make-way: lanes between the drag's origin and target step one pitch aside. */
+  const laneShift = (drag: ChipDragState | null, index: number): string | undefined => {
+    if (!drag) return undefined
+    if (index === drag.from) {
+      // The dragged lane follows the pointer, but never past the lane list —
+      // the drop target clamps to the lanes, so the chip stops with it.
+      const dy = Math.max(
+        -drag.from * drag.rowPitch,
+        Math.min((song.clips.length - 1 - drag.from) * drag.rowPitch, drag.dy),
+      )
+      return `translateY(${dy}px)`
+    }
+    if (drag.from < drag.to && index > drag.from && index <= drag.to)
+      return `translateY(${-drag.rowPitch}px)`
+    if (drag.from > drag.to && index >= drag.to && index < drag.from)
+      return `translateY(${drag.rowPitch}px)`
+    return undefined
+  }
 
   return (
     <div className={styles.bar} data-testid="song-bar">
@@ -134,19 +189,34 @@ export function SongBar({
             ref={keyboardNav.containerRef}
             className={styles.laneRows}
             role="application"
-            aria-label="Song lanes. One row per clip, 16 positions. Tap a square to place that clip there. Arrow keys move, Enter places or removes, Backspace removes."
+            aria-label="Song lanes. One row per clip, 16 positions. Tap a square to place that clip there. Arrow keys move, Enter places or removes, Backspace removes. On a clip's chip, Control or Command with up and down moves its lane."
+            data-drag-live={chipDrag.drag !== null || undefined}
           >
             {song.clips.map((clip, clipIndex) => {
               const count = song.placements.filter((held) => held === clipIndex).length
               const active = clipIndex === song.activeClipIndex
-              const laneStyle = { '--lane-tint': clipTint(clip.tint) } as CSSProperties
+              const laneStyle = {
+                '--lane-tint': clipTint(clip.tint),
+                transform: laneShift(chipDrag.drag, clipIndex),
+              } as CSSProperties
               return (
-                <div key={clipIndex} className={styles.lane} style={laneStyle}>
+                <div
+                  key={clipIndex}
+                  className={styles.lane}
+                  style={laneStyle}
+                  data-dragging={chipDrag.drag?.from === clipIndex || undefined}
+                >
                   <button
                     type="button"
                     className={styles.chip}
                     data-active={active}
-                    onClick={() => onSelectClip(clipIndex)}
+                    data-tint={clip.tint}
+                    onClick={() => chipDrag.onClick(clipIndex)}
+                    onPointerDown={(event) => chipDrag.onPointerDown(event, clipIndex)}
+                    onPointerMove={chipDrag.onPointerMove}
+                    onPointerUp={chipDrag.onPointerUp}
+                    onPointerCancel={chipDrag.onPointerCancel}
+                    onKeyDown={(event) => onChipKeyDown(event, clipIndex)}
                     aria-pressed={active}
                     data-testid={`clip-chip-${clipIndex}`}
                   >

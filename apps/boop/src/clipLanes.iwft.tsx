@@ -149,6 +149,80 @@ test('lane squares follow the grid keyboard model: arrows move, Enter places, Ba
   await root.verifyPlacementOff(0, 1)
 })
 
+test('dragging a chip reorders lanes; placements and tints travel; a small press still selects', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+  await root.addClip() // Clip 2, tint 1, now active
+  await root.toggleLaneSquare(0, 0)
+  await root.toggleLaneSquare(1, 1)
+
+  // Mid-drag: the dragged chip lifts and the other lane makes way live.
+  await root.beginChipDrag(0, 1)
+  await root.verifyChipLifted(0)
+  await root.verifyLaneMakingWay(1, 'up')
+  await root.releaseChip()
+
+  await root.verifyClipChipName(0, 'Clip 2')
+  await root.verifyClipChipName(1, 'Clip 1')
+  // Placements were rewritten in the same update: each clip kept its squares.
+  await root.verifyPlacementOn(1, 0) // Clip 1, now lane 1, still at position 1
+  await root.verifyPlacementOn(0, 1) // Clip 2, now lane 0, still at position 2
+  // Tints travelled with their clips — the reorder recoloured nothing.
+  await root.verifyChipTint(0, 1)
+  await root.verifyChipTint(1, 0)
+
+  // A sub-threshold press is a tap: it selects the clip, moving nothing.
+  await root.pressChipBelowThreshold(1)
+  await root.verifyClipChipActive(1)
+  await root.verifyClipChipName(1, 'Clip 1')
+})
+
+test("Ctrl/Cmd+ArrowDown moves the focused chip's lane; a plain arrow moves nothing", async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+  await root.addClip()
+
+  // Plain arrows keep their navigation meaning — no reorder.
+  await root.clipChip(0).press('ArrowDown')
+  await root.verifyClipChipName(0, 'Clip 1')
+
+  await root.reorderChipByKeyboard(0, 'down')
+  await root.verifyClipChipName(0, 'Clip 2')
+  await root.verifyClipChipName(1, 'Clip 1')
+  // Focus follows the moved chip, so the next press keeps moving the same lane.
+  await root.verifyChipFocused(1)
+
+  await root.reorderChipByKeyboard(1, 'up')
+  await root.verifyClipChipName(0, 'Clip 1')
+  await root.verifyChipFocused(0)
+
+  // Cmd works too — the spec says Ctrl/Cmd, whichever the child's machine has.
+  await root.clipChip(0).press('Meta+ArrowDown')
+  await root.verifyClipChipName(0, 'Clip 2')
+  await root.verifyChipFocused(1)
+})
+
+test('a lane reorder marks the loaded boop edited', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+  await root.addClip()
+
+  await root.openBoops()
+  await root.saveBoop()
+  await root.closeBoops()
+  await root.verifySavedState('Boop 1')
+
+  await root.reorderChipByKeyboard(0, 'down')
+  await root.verifySavedState('Boop 1 • edited')
+})
+
 test('Clear grid clears only the clip on screen, and marks the loaded boop edited', async ({
   mountApp,
 }) => {

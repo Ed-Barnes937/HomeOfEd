@@ -832,6 +832,65 @@ export class HomePagePom extends BasePage {
     await expect(this.clipChip(index)).toContainText(name)
   }
 
+  /** The chip's tint index — tints travel with their clips (spec §2, ticket 18). */
+  async verifyChipTint(index: number, tint: number): Promise<void> {
+    await expect(this.clipChip(index)).toHaveAttribute('data-tint', String(tint))
+  }
+
+  async verifyChipFocused(index: number): Promise<void> {
+    await expect(this.clipChip(index)).toBeFocused()
+  }
+
+  /** Drag a chip vertically onto another chip's lane (ticket 18). */
+  async dragChip(from: number, to: number): Promise<void> {
+    await this.beginChipDrag(from, to)
+    await this.releaseChip()
+  }
+
+  /** The drag's first half — pointer down and over the target, held for mid-drag asserts. */
+  async beginChipDrag(from: number, to: number): Promise<void> {
+    const source = await this.clipChip(from).boundingBox()
+    const target = await this.clipChip(to).boundingBox()
+    if (!source || !target) throw new Error('a clip chip is not visible')
+    await this.page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
+    await this.page.mouse.down()
+    await this.page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, {
+      steps: 6,
+    })
+  }
+
+  async releaseChip(): Promise<void> {
+    await this.page.mouse.up()
+  }
+
+  /** Mid-drag: the dragged chip's lane is flagged — the lift's scale + shadow ride on it. */
+  async verifyChipLifted(index: number): Promise<void> {
+    await expect(this.clipChip(index).locator('..')).toHaveAttribute('data-dragging', 'true')
+  }
+
+  /** Mid-drag: this chip's lane has stepped aside — the live make-way. */
+  async verifyLaneMakingWay(index: number, direction: 'up' | 'down'): Promise<void> {
+    const shift = direction === 'up' ? /translateY\(-/ : /translateY\(\d/
+    await expect(this.clipChip(index).locator('..')).toHaveAttribute('style', shift)
+  }
+
+  /** A press that wanders under the ~8px drag threshold — still a tap-to-select. */
+  async pressChipBelowThreshold(index: number): Promise<void> {
+    const box = await this.clipChip(index).boundingBox()
+    if (!box) throw new Error('the clip chip is not visible')
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await this.page.mouse.move(x, y)
+    await this.page.mouse.down()
+    await this.page.mouse.move(x, y + 3)
+    await this.page.mouse.up()
+  }
+
+  /** Ctrl/Cmd+ArrowUp/Down on a focused chip moves its lane (spec §8/§14). */
+  async reorderChipByKeyboard(index: number, direction: 'up' | 'down'): Promise<void> {
+    await this.clipChip(index).press(direction === 'up' ? 'Control+ArrowUp' : 'Control+ArrowDown')
+  }
+
   /** The clip header's name — also the chip's, but the header is the editable one. */
   async verifyActiveClipName(name: string): Promise<void> {
     await expect(this.page.getByTestId('clip-name')).toHaveText(name)

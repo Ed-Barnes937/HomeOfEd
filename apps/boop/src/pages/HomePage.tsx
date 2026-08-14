@@ -31,6 +31,7 @@ import {
   activeClip,
   addClip,
   deleteClip,
+  moveClip,
   renameClip,
   singleClipSong,
   songFromStored,
@@ -462,6 +463,18 @@ export function HomePage() {
     [updateSong],
   )
 
+  /**
+   * A lane reorder (ticket 18): chip drag or Ctrl/Cmd+Arrow. Placements are
+   * rewritten in the same update (spec §8) and the grid's clip travels, so
+   * the engine's pattern is untouched — nothing to resync.
+   */
+  const moveClipLane = useCallback(
+    (from: number, to: number) => {
+      updateSong((s) => moveClip(s, from, to))
+    },
+    [updateSong],
+  )
+
   const togglePlacementAt = useCallback(
     (clipIndex: number, position: number) => {
       updateSong((s) => togglePlacement(s, clipIndex, position))
@@ -595,6 +608,7 @@ export function HomePage() {
               onTempoChange={changeTempo}
               onSelectClip={selectClip}
               onTogglePlacement={togglePlacementAt}
+              onMoveClip={moveClipLane}
               onAddClip={() => setPickerOpen(true)}
               onToggleSong={toggleSong}
               songPlaying={songPlaying}

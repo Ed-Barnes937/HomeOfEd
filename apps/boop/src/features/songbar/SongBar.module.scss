@@ -208,17 +208,35 @@
   }
 }
 
-// The keyboard-nav container wrapping the lane rows.
+// The keyboard-nav container wrapping the lane rows. While a chip drag is
+// live (ticket 18) the other lanes make way with a short transition; the
+// dragged lane follows the pointer raw. Scoping the transition to the drag
+// means the drop's single re-render — reordered, transforms gone — has
+// nothing left to animate, so there is no double-jump on commit.
 .laneRows {
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  &[data-drag-live='true'] .lane {
+    transition: transform 140ms ease;
+
+    &[data-dragging='true'] {
+      transition: none;
+    }
+  }
 }
 
 .lane {
   display: flex;
   align-items: center;
   gap: 8px;
+
+  // The dragged lane rides over the ones making way.
+  &[data-dragging='true'] {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .chip {
@@ -234,6 +252,9 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  // The chip is the vertical drag handle (ticket 18) — the browser must not
+  // claim the gesture as a scroll on touch.
+  touch-action: none;
 
   &[data-active='true'] {
     background: rgba(255, 255, 255, 0.11);
@@ -244,6 +265,14 @@
     outline: 2px solid var(--cyan);
     outline-offset: 2px;
   }
+}
+
+// The lift — the grid's active language (scale + shadow) while a chip drags.
+.lane[data-dragging='true'] .chip {
+  background: rgba(255, 255, 255, 0.11);
+  transform: scale(1.05);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
+  cursor: grabbing;
 }
 
 .chipDot {

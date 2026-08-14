@@ -76,9 +76,10 @@ src/
                     5-tint list)
   features/songbar/ SongBar.tsx — the pinned song bar (laptop ≥1280): Speed
                     (the old tempo slider), the song play button (wired to the
-                    songConductor, ticket 16), and the lane grid — chips,
-                    placement squares (drag-paint + the grid's keyboard
-                    model), "+ New clip"
+                    songConductor, ticket 16), and the lane grid — chips
+                    (tap-to-select, drag-to-reorder via useChipDrag.ts,
+                    ticket 18), placement squares (drag-paint + the grid's
+                    keyboard model), "+ New clip"
   features/picker/  the "+ New clip" picker (ticket 17, replacing the retired
                     starters): NewClipPicker.tsx (the paper-card dialog —
                     Blank first, then the sample clips), sampleClips.ts (the

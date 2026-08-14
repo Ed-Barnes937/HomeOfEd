@@ -246,6 +246,16 @@ describe('moveClip', () => {
   it('tints travel with their clips', () => {
     expect(moveClip(song, 0, 1).clips.map((clip) => clip.tint)).toEqual([3, 0])
   })
+
+  it('refuses a move to where the clip already is', () => {
+    expect(moveClip(song, 1, 1)).toBe(song)
+  })
+
+  it('refuses an out-of-range move', () => {
+    expect(moveClip(song, 0, 2)).toBe(song)
+    expect(moveClip(song, 0, -1)).toBe(song)
+    expect(moveClip(song, 2, 0)).toBe(song)
+  })
 })
 
 /**

@@ -18,10 +18,10 @@ Spec: §8 (lane reordering), §14 (accessibility).
 
 **Blocked by:** 15 — Laptop clip lanes.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Chip drag reorders lanes with the lift treatment and live make-way; a sub-threshold press still selects the clip
-- [ ] Placements move with their clips — the placement string is rewritten in the same update, covered by unit tests
-- [ ] Tints stay with their clips through reorder and delete
-- [ ] Ctrl/Cmd+ArrowUp/Down moves the focused chip's lane; plain arrows are unchanged
-- [ ] A reorder marks the boop edited
+- [x] Chip drag reorders lanes with the lift treatment and live make-way; a sub-threshold press still selects the clip
+- [x] Placements move with their clips — the placement string is rewritten in the same update, covered by unit tests
+- [x] Tints stay with their clips through reorder and delete
+- [x] Ctrl/Cmd+ArrowUp/Down moves the focused chip's lane; plain arrows are unchanged
+- [x] A reorder marks the boop edited
