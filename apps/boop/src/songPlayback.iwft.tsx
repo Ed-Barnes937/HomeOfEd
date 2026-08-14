@@ -2,7 +2,7 @@ import { test } from './testing/iwftTest.tsx'
 import { CRANK_STEP_SECONDS, type HomePagePom } from './testing/HomePagePom.ts'
 
 // Song playback: the conductor (boop-loops ticket 16, spec §9), at the default
-// 1280px CT viewport — the song bar only exists on the laptop layout. Steps
+// 1280px CT viewport — the song bar only exists on the clip-lanes layouts. Steps
 // are hand-cranked on the FakeAudioDriver: `crankSteps` fires schedule and
 // draw together; `fireStep` + `advanceDrawClock` pull them apart to observe
 // the schedule-time lookahead.

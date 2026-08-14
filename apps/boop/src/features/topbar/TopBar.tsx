@@ -17,8 +17,7 @@ export interface TopBarProps {
   loaded: LoadedBoop | null
   /**
    * The plain, no-dialog New boop reset (boop-loops ticket 15) — rendered
-   * before "My boops" on the laptop layout only. Absent on the tablet, where
-   * New boop still lives in the transport bar until ticket 20.
+   * before "My boops" on the clip-lanes layouts (laptop and tablet, ≥1024px).
    */
   onNewBoop?: () => void
 }

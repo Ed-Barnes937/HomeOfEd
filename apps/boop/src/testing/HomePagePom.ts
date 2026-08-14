@@ -699,8 +699,8 @@ export class HomePagePom extends BasePage {
   // --- The fixed frame (ticket 33) ---
 
   private readonly stageScroller = this.page.getByTestId('stage-scroller')
-  // The pinned bottom bar: the transport below 1280px, the song bar at and
-  // above it (ticket 15). Only ever one of the two is mounted.
+  // The pinned bottom bar: the transport on the phone (<1024px), the song bar
+  // at and above it (tickets 15/20). Only ever one of the two is mounted.
   private readonly transportBar = this.page
     .getByTestId('transport-bar')
     .or(this.page.getByTestId('song-bar'))
@@ -802,7 +802,7 @@ export class HomePagePom extends BasePage {
 
   // --- The clip-lanes laptop layout (ticket 15) ---
 
-  /** The old transport bar must be gone at ≥1280 — its pieces moved (handoff §6). */
+  /** The old transport bar must be gone at ≥1024 — its pieces moved (handoff §6, ticket 20). */
   async verifyNoTransportBar(): Promise<void> {
     await expect(this.page.getByTestId('transport-bar')).toHaveCount(0)
   }
@@ -950,6 +950,52 @@ export class HomePagePom extends BasePage {
   /** The song bar's `<n> bars` readout — placed squares × 4. */
   async verifySongLength(text: string): Promise<void> {
     await expect(this.page.getByTestId('song-length')).toHaveText(text)
+  }
+
+  // --- The tablet band (boop-loops ticket 20, spec §4 — variant E) ---
+
+  /**
+   * Variant E's fit: chips and "+ New clip" narrow to 128px, the squares turn
+   * flexible — compressed below the laptop's fixed 56px, all equal — and the
+   * ruler numerals track the squares column-for-column.
+   */
+  async verifyLaneGridFitsColumn(): Promise<void> {
+    const chip = await this.clipChip(0).boundingBox()
+    const newClip = await this.page.getByTestId('new-clip-button').boundingBox()
+    if (!chip || !newClip) throw new Error('the chip or the New clip button is not visible')
+    expect(Math.round(chip.width)).toBe(128)
+    expect(Math.round(newClip.width)).toBe(128)
+
+    const first = await this.laneSquare(0, 0).boundingBox()
+    const last = await this.laneSquare(0, 15).boundingBox()
+    if (!first || !last) throw new Error('the lane squares are not visible')
+    expect(first.width).toBeLessThan(56)
+    expect(first.width).toBeGreaterThanOrEqual(20)
+    expect(Math.abs(first.width - last.width)).toBeLessThanOrEqual(1)
+
+    const numeral = await this.page.getByTestId('song-position-numeral-15').boundingBox()
+    if (!numeral) throw new Error('the ruler numeral is not visible')
+    const centre = numeral.x + numeral.width / 2
+    expect(centre).toBeGreaterThanOrEqual(last.x)
+    expect(centre).toBeLessThanOrEqual(last.x + last.width)
+  }
+
+  /**
+   * "No sideways scroll anywhere at this width" (spec §4): nothing on the
+   * page — the lane grid included — scrolls horizontally.
+   */
+  async verifyNoSidewaysScroller(): Promise<void> {
+    await this.verifyNoHorizontalOverflow()
+    const scrollers = await this.page.evaluate(() =>
+      [...document.querySelectorAll('*')].filter((element) => {
+        const { overflowX } = getComputedStyle(element)
+        return (
+          (overflowX === 'auto' || overflowX === 'scroll') &&
+          element.scrollWidth > element.clientWidth
+        )
+      }).length,
+    )
+    expect(scrollers).toBe(0)
   }
 
   // --- Song playback (ticket 16) ---

@@ -69,12 +69,13 @@ src/
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export
-  features/clips/   the clip chrome (boop-loops ticket 15, laptop ≥1280 only):
+  features/clips/   the clip chrome (boop-loops tickets 15/20, ≥1024):
                     ClipHeader.tsx (tint dot, inline rename, copy, delete),
                     ClipControl.tsx (Play this clip + clip-scoped Clear grid,
                     rendered inside the grid well), clipTints.ts (the fixed
                     5-tint list)
-  features/songbar/ SongBar.tsx — the pinned song bar (laptop ≥1280): Speed
+  features/songbar/ SongBar.tsx — the pinned song bar (≥1024, tickets 15/20;
+                    the tablet band shrinks the lane grid to fit): Speed
                     (the old tempo slider), the song play button (wired to the
                     songConductor, ticket 16), and the lane grid — chips
                     (tap-to-select, drag-to-reorder via useChipDrag.ts,
@@ -86,12 +87,11 @@ src/
                     eight-clip roster + the first-visit seed, pure data), and
                     PatternThumbnail.tsx (the dot-matrix preview, shared with
                     "My boops")
-  features/topbar/  TopBar.tsx (desktop, incl. the laptop's plain New boop
-                    reset) and PhoneBar.tsx (the 52px strip + "⋯" menu);
-                    `useIsPhone.ts` and `useIsLaptop.ts` (both at src/) pick
-                    the layout: ≥1280 is clip-lanes, <1024 is the phone, and
-                    the tablet band between keeps the old transport until
-                    ticket 20
+  features/topbar/  TopBar.tsx (desktop, incl. the plain New boop reset) and
+                    PhoneBar.tsx (the 52px strip + "⋯" menu); `useIsPhone.ts`
+                    (at src/) picks the layout: ≥1024 is clip-lanes (the
+                    tablet band 1024–1279 shrinks the lane grid via CSS,
+                    ticket 20), <1024 is the phone
   pages/            HomePage — the whole app as a fixed frame (ADR 0030):
                     pinned chrome, the scrolling grid region, pinned transport
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument

@@ -42,7 +42,6 @@ import {
   type Song,
 } from '../song/song.ts'
 import { createSongConductor, type SongConductor } from '../song/songConductor.ts'
-import { useIsLaptop } from '../useIsLaptop.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
 
@@ -84,12 +83,13 @@ export function HomePage() {
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
   // the pinned-rail scroll window takes over (ticket 27) — chrome and grid
-  // both, since the phone's actions live in the "⋯" menu.
+  // both, since the phone's actions live in the "⋯" menu. At 1024px and up
+  // the child gets the clip-lanes design (tickets 15/20): clip header, clip
+  // control in the well, the pinned song bar — and no transport bar. The
+  // tablet band (1024–1279) is the laptop design with the lane grid shrunk
+  // to fit the column (spec §4, variant E) — a CSS difference, not a layout
+  // switch.
   const phone = useIsPhone()
-  // At 1280px and up the child gets the clip-lanes design (ticket 15): clip
-  // header, clip control in the well, the pinned song bar — and no transport
-  // bar. The tablet band between keeps today's chrome until ticket 20.
-  const laptop = useIsLaptop()
 
   // A shared boop is decoded on the first render, before the first restore,
   // and wins over the autosaved grid. Held in a ref so the value survives the
@@ -366,7 +366,7 @@ export function HomePage() {
     [engine],
   )
 
-  // --- The clip-lanes handlers (ticket 15, laptop layout) ---
+  // --- The clip-lanes handlers (tickets 15/20, laptop and tablet) ---
 
   /** "New boop" as a plain reset (spec §7): one blank clip, default tempo, no confirm. */
   const newBoop = useCallback(() => {
@@ -485,8 +485,8 @@ export function HomePage() {
   /**
    * "Clear grid" in the clip control is clip-scoped and an *edit* (spec §7):
    * it empties only the clip on the grid and keeps the loaded boop, unlike
-   * the old transport's `clearAll` above, which the tablet and phone keep
-   * until their layouts land (tickets 20/21).
+   * the old transport's `clearAll` above, which the phone keeps until its
+   * layout lands (ticket 21).
    */
   const clearClip = useCallback(() => {
     if (!engine) return
@@ -557,7 +557,7 @@ export function HomePage() {
               onOpenBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
               loaded={loaded}
-              onNewBoop={laptop ? newBoop : undefined}
+              onNewBoop={newBoop}
             />
           )}
         </div>
@@ -567,7 +567,7 @@ export function HomePage() {
           {/* The loop map rides inside PhoneGrid's well, so it stays glued
               under the grid inside this region rather than joining the pinned
               bar and becoming a second transport (ADR 0027). */}
-          {laptop && (
+          {!phone && (
             <ClipHeader
               clip={activeClip(song)}
               canDelete={song.clips.length > 1}
@@ -582,15 +582,13 @@ export function HomePage() {
           ) : (
             <Grid
               {...gridProps}
-              tintColor={laptop ? clipTint(activeClip(song).tint) : undefined}
+              tintColor={clipTint(activeClip(song).tint)}
               wellFooter={
-                laptop ? (
-                  <ClipControl
-                    isPlaying={isPlaying && !songPlaying}
-                    onToggle={toggleClipPlay}
-                    onClearGrid={clearClip}
-                  />
-                ) : undefined
+                <ClipControl
+                  isPlaying={isPlaying && !songPlaying}
+                  onToggle={toggleClipPlay}
+                  onClearGrid={clearClip}
+                />
               }
             />
           )}
@@ -598,7 +596,17 @@ export function HomePage() {
       </div>
       <div className={styles.transportDock}>
         <div className={styles.column}>
-          {laptop ? (
+          {phone ? (
+            <Transport
+              isPlaying={isPlaying}
+              onToggle={togglePlay}
+              bpm={song.bpm}
+              onTempoChange={changeTempo}
+              onClearAll={clearAll}
+              onNewBoop={newBoop}
+              showClearGrid={false}
+            />
+          ) : (
             // The song bar takes the transport's pinned slot (handoff §5/§6):
             // its play became the clip control, tempo became Speed here, New
             // boop moved to the top bar, Clear grid into the clip control.
@@ -613,16 +621,6 @@ export function HomePage() {
               onToggleSong={toggleSong}
               songPlaying={songPlaying}
               playingPosition={playingPosition}
-            />
-          ) : (
-            <Transport
-              isPlaying={isPlaying}
-              onToggle={togglePlay}
-              bpm={song.bpm}
-              onTempoChange={changeTempo}
-              onClearAll={clearAll}
-              onNewBoop={newBoop}
-              showClearGrid={!phone}
             />
           )}
         </div>
