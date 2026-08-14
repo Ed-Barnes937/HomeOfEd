@@ -9,7 +9,9 @@
   ([`.scratch/music-app/spec.md`](../../.scratch/music-app/spec.md)).
   Implements ticket 19; consumed by tickets 20 (My boops) and 21 (share links).
   Terminology updated by ticket 35 ("groove" → "boop"; see note below) — the
-  shape and this ADR's decisions are unchanged.
+  shape and this ADR's decisions are unchanged. Extended (additively, no
+  version bump) by [ADR 0032](0032-boop-save-format-songs.md), which grows the
+  boop into a song of clips and placements.
 
 > **Ticket 35 note:** this format shipped under the name "groove"; the concept
 > is now called "boop" everywhere except the bytes already on disk. The

@@ -1,11 +1,16 @@
 # apps/boop — scoped rules
 
 A kid-friendly (6+) music toy at `boop.homeofed.com`: a 6-instrument x 16-step
-step-sequencer, one always-looping pattern, music-first (no reactive visual
-layer in V1). Full product spec: [`.scratch/music-app/spec.md`](../../.scratch/music-app/spec.md).
-Visual reference: [`docs/reference/boop-design/README.md`](../../docs/reference/boop-design/README.md)
-(high-fidelity handoff — read it before touching anything visual; colours,
-type, spacing, radii, shadows and grid geometry are final and exact).
+step-sequencer, music-first (no reactive visual layer in V1). The grid always
+edits one **clip**; clips arrange into a **song** on the lane grid (the
+boop-loops effort — spec: [`.scratch/boop-loops/spec.md`](../../.scratch/boop-loops/spec.md)).
+Original product spec: [`.scratch/music-app/spec.md`](../../.scratch/music-app/spec.md).
+Visual references: [`docs/reference/boop-design/README.md`](../../docs/reference/boop-design/README.md)
+(the main screen) and
+[`docs/reference/design_handoff_clip_lanes/README.md`](../../docs/reference/design_handoff_clip_lanes/README.md)
+(the ≥1280px clip-lanes frame) — high-fidelity handoffs; read them before
+touching anything visual: colours, type, spacing, radii, shadows and grid
+geometry are final and exact.
 Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
@@ -40,9 +45,16 @@ src/
   persistence/      the save format + autosave (ADR 0025) — no React except the hook
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
-    autosave.ts       debounced (2 s lull) writer of the working grid
-    useWorkingGrid.ts hook: restore on mount, autosave on edit, flush on
-                      pagehide, and seed a first visit (ticket 36)
+    autosave.ts       debounced (2 s lull) writer of the working song
+    useWorkingSong.ts hook: restore the whole song on mount, autosave on edit,
+                      flush on pagehide, and seed a first visit (tickets 36/17)
+  song/             the working-song domain (ticket 14) — pure, no React
+    song.ts           Song/Clip types, StoredBoop↔Song conversions, and the
+                      mutation kinds (placement, add/delete/rename clip, lane
+                      reorder) later tickets wire to UI
+    songConductor.ts  song playback (ticket 16): the ~30-line layer above the
+                      SequencerEngine seam — swap at step 15 on onBeat, the
+                      sounding position advances on onDrawBeat
   export/           WAV export: offline render → PCM mix → WAV encode, plus the
                     share-sheet/download action and the slugged filename. Pure
                     but for `sampleDecoder.ts`, the AudioContext seam.
@@ -57,11 +69,35 @@ src/
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export
-  features/presets/ the four starters as pure data (presets.ts, incl. the
-                    first-visit seed) + NewBoopDialog.tsx, opened from the
-                    transport bar's "New boop" button (ticket 36)
-  features/topbar/  TopBar.tsx (desktop) and PhoneBar.tsx (the 52px strip +
-                    "⋯" menu); `useIsPhone.ts` picks between them
+  features/clips/   the clip chrome (boop-loops tickets 15/20/21):
+                    ClipHeader.tsx (tint dot, inline rename, copy, delete —
+                    every width; ≤1023px slims it with CSS), ClipControl.tsx
+                    (Play this clip + clip-scoped Clear grid, rendered inside
+                    the grid well, ≥1024), clipTints.ts (the fixed 5-tint list)
+  features/songbar/ SongBar.tsx — the pinned song bar (≥1024, tickets 15/20;
+                    the tablet band shrinks the lane grid to fit): Speed
+                    (the old tempo slider), the song play button (wired to the
+                    songConductor, ticket 16), and the lane grid — chips
+                    (tap-to-select, drag-to-reorder via useChipDrag.ts,
+                    ticket 18), placement squares (drag-paint + the grid's
+                    keyboard model), "+ New clip".
+                    PhoneSongBar.tsx — the phone song bar (≤1023px, ticket 21,
+                    variant B): lives in the scrolling region below the grid
+                    well on the step window's exact geometry, compact chips +
+                    "+ New" in a pinned 92px column, snap-scrolling lane strip
+                    under PhoneGrid's paint-vs-scroll rules; clip play and
+                    Speed stay in the pinned transport
+  features/picker/  the "+ New clip" picker (ticket 17, replacing the retired
+                    starters): NewClipPicker.tsx (the paper-card dialog —
+                    Blank first, then the sample clips), sampleClips.ts (the
+                    eight-clip roster + the first-visit seed, pure data), and
+                    PatternThumbnail.tsx (the dot-matrix preview, shared with
+                    "My boops")
+  features/topbar/  TopBar.tsx (desktop, incl. the plain New boop reset) and
+                    PhoneBar.tsx (the 52px strip + "⋯" menu); `useIsPhone.ts`
+                    (at src/) picks the layout: ≥1024 is clip-lanes (the
+                    tablet band 1024–1279 shrinks the lane grid via CSS,
+                    ticket 20), <1024 is the phone
   pages/            HomePage — the whole app as a fixed frame (ADR 0030):
                     pinned chrome, the scrolling grid region, pinned transport
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
@@ -119,23 +155,28 @@ share-link snapshot.
   work; UI subscribes via `onDrawBeat`. Pattern edits are readable state, not
   an event stream, and audition-on-toggle is the engine's job. Test engine
   behaviour against `FakeAudioDriver`, never a real AudioContext.
-- **Persistence** ([ADR 0025](../../docs/adr/0025-boop-save-format.md)). One
+- **Persistence** ([ADR 0025](../../docs/adr/0025-boop-save-format.md), extended
+  for songs by [ADR 0032](../../docs/adr/0032-boop-save-format-songs.md)). One
   versioned save document under one `localStorage` key (`boop:save`), holding
-  the autosaved working grid and the "My boops" list. Anything that persists
+  the autosaved working grid and the "My boops" list. A stored boop is a whole
+  song: `patterns` is the clip list (≤5, optional `name`/`tint` per clip), plus
+  optional `placements` (16-char string) and `gridClip` — all additive, still
+  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. Anything that persists
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error. A browser with **no** working
-  grid is seeded with a starter rather than opened empty (ticket 36) — that
-  lives in `useWorkingGrid`, beside the restore, and must never need a new
-  field or a version bump.
+  grid is seeded with a one-clip song built from a sample clip rather than
+  opened empty (tickets 36/17) — that lives in `useWorkingSong`, beside the
+  restore, and must never need a new field or a version bump.
 - **Saved-state visibility** ([ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md)).
   Because nothing is ever lost, **never add a `beforeunload` guard** — it would
   warn about nothing, in wording a 6-year-old cannot read. The chrome answers
   the narrower, true question, "is this boop in My boops?", off the **loaded
   boop** (`savedState.ts`, and `CONTEXT.md`): words on the desktop bar, a dot on
   the phone's save icon, a standing ring on the row. "Edited" has one definition
-  app-wide — a cell toggle *or* a tempo change — which is also what drops the
-  starter ring. Identity is the boop's *row*, so every mutation of "My boops"
+  app-wide — any mutation of the song: a cell toggle, a speed change, a
+  placement change, clip add/delete/rename, or a lane reorder (ADR 0031, as
+  amended). Identity is the boop's *row*, so every mutation of "My boops"
   goes through `savedState.ts`'s transitions or the ring lands on the wrong boop.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the

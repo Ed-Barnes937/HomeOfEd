@@ -11,7 +11,7 @@ interface TransportProps {
   bpm: number
   onTempoChange: (bpm: number) => void
   onClearAll: () => void
-  /** Opens the "New boop" dialog (ticket 36) — the only way to reach the starters. */
+  /** The plain New boop reset (spec §7): one blank clip, no dialog, no confirm. */
   onNewBoop: () => void
   /**
    * Whether Clear grid (and its divider) belong to this bar. False on the

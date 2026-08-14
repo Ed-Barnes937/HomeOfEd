@@ -10,7 +10,7 @@ test('a grid that is not in "My boops" reads "Not saved yet"', async ({ mountApp
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  // The first-visit seed is a starter, and a starter is never in the list.
+  // The first-visit seed is a sample clip, which is never in the list.
   await root.verifySavedState('Not saved yet')
 
   await root.toggleCell('kick', 2)
@@ -60,7 +60,7 @@ test('a tempo change alone counts as an edit — tempo is part of a saved boop',
   await root.verifySavedState('Boop 1 • edited')
 })
 
-test('loading a starter, and clearing the grid, both drop the identity', async ({ mountApp }) => {
+test('New boop drops the identity; Clear grid is an edit that keeps it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
@@ -69,16 +69,18 @@ test('loading a starter, and clearing the grid, both drop the identity', async (
   await root.closeBoops()
   await root.verifySavedState('Boop 1')
 
-  // Starters get no identity of their own (ticket 31, decision 3).
-  await root.loadPreset('robot')
-  await root.verifySavedState('Not saved yet')
+  // Clear grid is clip-scoped and counts as an edit (boop-loops ticket 15,
+  // spec §7) — the grid is still recognisably that boop, with things rubbed out.
+  await root.openClearGridConfirm()
+  await root.clearIt()
+  await root.verifySavedState('Boop 1 • edited')
 
   await root.openBoops()
   await root.loadBoop(0)
   await root.verifySavedState('Boop 1')
 
-  await root.openClearGridConfirm()
-  await root.clearIt()
+  // New boop is the reset: a fresh one-clip song with no identity to carry.
+  await root.pressNewBoop()
   await root.verifySavedState('Not saved yet')
 })
 

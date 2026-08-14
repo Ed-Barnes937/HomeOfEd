@@ -1,0 +1,288 @@
+// Phone song bar (boop-loops ticket 21, spec §5 — variant B). Lane geometry
+// deliberately reuses the step window's numbers (PhoneGrid.module.scss): 10px
+// well padding, a 92px pinned chip column (= the instrument rail), 32px
+// squares, 5px in-group gaps, 11px group gutters, the same 605px strip, snap
+// to bar lines, `touch-action: pan-x` — so lane squares align
+// column-for-column under the grid's cells. Change those numbers together.
+
+$ruler-height: 14px;
+$lane-height: 30px;
+$lane-gap: 5px;
+// Breathing room for the playing ring's scale(1.08) + 2px halo; applied to
+// the chip column and the lane rows identically so the rows stay aligned.
+$row-inset: 4px;
+
+.bar {
+  margin-top: 12px;
+  padding: 10px; // the grid well's padding, for the column alignment
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+// The song bar's play, at the phone's 36px — the laptop 56px circle scaled
+// down, same flip: cyan + triangle at rest, ink + pause while playing.
+.songPlay {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &[data-playing='true'] {
+    background: var(--ink);
+  }
+
+  &:active {
+    box-shadow: none;
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 13px solid var(--ink-dark);
+}
+
+.pause {
+  display: flex;
+  gap: 4px;
+}
+
+.pauseBar {
+  width: 5px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ink-dark);
+}
+
+.title {
+  font: 900 14px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.bars {
+  font: 600 11px var(--font-mono);
+  color: rgba(242, 239, 230, 0.4);
+}
+
+.lanes {
+  display: flex;
+  gap: 8px; // the rail gap
+}
+
+// The pinned chip column — the instrument rail's slot, so it never scrolls
+// and a child always knows whose lane a row is, whichever bars are on screen.
+.chipColumn {
+  flex: none;
+  width: 92px;
+  display: flex;
+  flex-direction: column;
+  gap: $lane-gap;
+}
+
+.rulerSpacer {
+  height: $ruler-height;
+}
+
+.chipRows {
+  padding: $row-inset 0;
+  display: flex;
+  flex-direction: column;
+  gap: $lane-gap;
+}
+
+.chip {
+  height: $lane-height;
+  padding: 0 6px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+
+  &[data-active='true'] {
+    background: rgba(255, 255, 255, 0.11);
+    box-shadow: inset 0 0 0 2px var(--cyan);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.chipDot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--lane-tint);
+}
+
+.chipName {
+  min-width: 0;
+  font: 800 10px var(--font-display);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipCount {
+  flex: none;
+  margin-left: auto;
+  font: 800 9px var(--font-mono);
+  color: var(--lane-tint);
+}
+
+.newClip {
+  height: $lane-height;
+  border: 2px dashed rgba(242, 239, 230, 0.22);
+  border-radius: 8px;
+  background: transparent;
+  font: 800 10px var(--font-display);
+  color: rgba(242, 239, 230, 0.5);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+// The lane window — the step window's scroll behaviour verbatim: the browser
+// owns horizontal pans, a swipe snaps to a bar line and never paints.
+.window {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.strip {
+  width: 605px; // 16 x 32 + 12 x 5 + 3 x 11 — the step window's strip
+  display: flex;
+  flex-direction: column;
+  gap: $lane-gap;
+}
+
+.ruler {
+  display: flex;
+  gap: 11px; // group gutter
+  height: $ruler-height;
+}
+
+// Each group is the scroll-snap target, exactly like the grid's bar numerals:
+// the four snap positions are the four bar lines.
+.rulerGroup {
+  flex: none;
+  width: 143px; // 4 x 32 + 3 x 5
+  scroll-snap-align: start;
+  display: flex;
+  gap: 5px;
+}
+
+.rulerNumeral {
+  flex: none;
+  width: 32px;
+  text-align: center;
+  font: 700 10px var(--font-mono);
+  line-height: $ruler-height;
+  color: rgba(242, 239, 230, 0.28);
+
+  &[data-playing='true'] {
+    color: var(--cyan);
+  }
+}
+
+.laneRows {
+  padding: $row-inset 0;
+  display: flex;
+  flex-direction: column;
+  gap: $lane-gap;
+}
+
+.lane {
+  display: flex;
+  gap: 11px; // group gutter
+}
+
+.group {
+  display: flex;
+  gap: 5px;
+}
+
+.square {
+  flex: none;
+  width: 32px;
+  height: $lane-height;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+
+  &[data-on='true'] {
+    background: var(--lane-tint);
+    box-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  // The playing ring — the grid playhead's language, hard cut, no transition.
+  &[data-playing='true'] {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.65),
+      0 6px 12px rgba(0, 0, 0, 0.45);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}

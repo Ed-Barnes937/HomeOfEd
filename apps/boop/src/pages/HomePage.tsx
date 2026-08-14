@@ -2,77 +2,96 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
-import { DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
+import { DEFAULT_BPM, STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
 import { boopFilename } from '../export/boopFilename.ts'
 import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
 import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
 import { webAudioSampleDecoder } from '../export/sampleDecoder.ts'
 import { BoopsPanel } from '../features/boops/BoopsPanel.tsx'
+import { ClipControl } from '../features/clips/ClipControl.tsx'
+import { ClipHeader } from '../features/clips/ClipHeader.tsx'
+import { clipTint } from '../features/clips/clipTints.ts'
 import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
-import { NewBoopDialog } from '../features/presets/NewBoopDialog.tsx'
-import {
-  firstVisitSeed,
-  PRESETS,
-  presetPattern,
-  type PresetId,
-} from '../features/presets/presets.ts'
+import { NewClipPicker } from '../features/picker/NewClipPicker.tsx'
+import { firstVisitSong, samplePattern, type SampleClip } from '../features/picker/sampleClips.ts'
+import { PhoneSongBar } from '../features/songbar/PhoneSongBar.tsx'
+import { SongBar } from '../features/songbar/SongBar.tsx'
 import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
-import { storedToPattern, workingBoop, type StoredBoop } from '../persistence/saveFormat.ts'
-import { useWorkingGrid } from '../persistence/useWorkingGrid.ts'
+import { MAX_CLIPS, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
+import { useWorkingSong } from '../persistence/useWorkingSong.ts'
 import { afterEdit, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
+import {
+  activeClip,
+  addClip,
+  deleteClip,
+  moveClip,
+  renameClip,
+  singleClipSong,
+  songFromStored,
+  storedBoopFromSong,
+  togglePlacement,
+  withActivePattern,
+  withBpm,
+  type Song,
+} from '../song/song.ts'
+import { createSongConductor, type SongConductor } from '../song/songConductor.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
 
+/** An all-off pattern for `kit` — what a new or cleared clip starts as. */
+function blankPattern(kit: Kit): Pattern {
+  return kit.instruments.map((instrument) => ({
+    instrumentId: instrument.instrumentId,
+    steps: Array.from({ length: STEPS_PER_PATTERN }, () => false),
+  }))
+}
+
 /**
- * The whole app (ticket 13 — first sound): top bar, the 6x16 grid, and
- * play/pause. Grid state drives the engine's pattern directly; the engine is
- * the source of truth (`getPattern()`), mirrored into local state so toggling
- * a cell re-renders.
+ * The whole app: top bar, the 6x16 grid, and play/pause. The working state is
+ * a *song* (ticket 14) — clips, placements, one bpm, and the active clip the
+ * grid edits. The engine holds only that active clip's pattern and the tempo;
+ * they are the source of truth for what sounds, mirrored into the song after
+ * every edit so a toggle re-renders and the autosave sees the whole song.
  */
 export function HomePage() {
   const engine = useEngine()
-  const [pattern, setPattern] = useState<Pattern | null>(null)
+  const [song, setSong] = useState<Song | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [bpm, setBpm] = useState(DEFAULT_BPM)
-  // Which starter boop is currently loaded, if any — the loaded card's ring,
-  // which since ticket 36 is only ever seen inside the "New boop" dialog.
-  // Drops to `null` on the first change of any kind: a cell toggle, a tempo
-  // move, or clear-all. Ticket 31 gave the app one definition of "changed"
-  // and this follows it — the old tempo exemption is gone.
-  //
-  // Not restored on reload, and so deliberately not set by the first-visit
-  // seed either: the ring means "you picked this, just now", and a reload of a
-  // starter has never carried it.
-  const [activePreset, setActivePreset] = useState<PresetId | null>(null)
   // The saved boop the grid came from, and whether it has since diverged
-  // (ticket 31). `null` — a starter, a share link, a fresh or cleared grid —
-  // reads "Not saved yet": none of those are rows in "My boops". Like
-  // `activePreset` it is not restored on reload; the indicator describes this
-  // session's loading and saving, not the autosave, which never loses anything.
+  // (ticket 31). `null` — a share link, a fresh or cleared grid — reads
+  // "Not saved yet": neither is a row in "My boops". Not restored on reload;
+  // the indicator describes this session's loading and saving, not the
+  // autosave, which never loses anything.
   const [loaded, setLoaded] = useState<LoadedBoop | null>(null)
-  // Bumped on every preset load (including blank) so the grid can stagger the
+  // Bumped whenever a whole clip lands on the grid so it can stagger the
   // cells landing across columns instead of popping in all at once.
   const [loadToken, setLoadToken] = useState(0)
   // "My boops" is open or it isn't. The phone chrome's save icon (ticket 27)
   // opens the same panel: since ticket 32 the save form is always on and
   // prefilled, so "open it" *is* "get ready to save".
   const [boopsOpen, setBoopsOpen] = useState(false)
-  // The starters (ticket 36) — off the main screen, behind the bottom bar's
-  // "New boop" button.
-  const [newBoopOpen, setNewBoopOpen] = useState(false)
+  // The "+ New clip" picker (ticket 17): Blank first, then the sample clips.
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
   // the pinned-rail scroll window takes over (ticket 27) — chrome and grid
-  // both, since the phone's actions live in the "⋯" menu.
+  // both, since the phone's actions live in the "⋯" menu. At 1024px and up
+  // the child gets the clip-lanes design (tickets 15/20): clip header, clip
+  // control in the well, the pinned song bar — and no transport bar. The
+  // tablet band (1024–1279) is the laptop design with the lane grid shrunk
+  // to fit the column (spec §4, variant E) — a CSS difference, not a layout
+  // switch. The phone (ticket 21, spec §5 — variant B) keeps its pinned
+  // transport (clip play and Speed) and puts the song bar in the scrolling
+  // region below the grid well, on the step window's geometry.
   const phone = useIsPhone()
 
   // A shared boop is decoded on the first render, before the first restore,
@@ -81,60 +100,140 @@ export function HomePage() {
   const sharedBoop = useRef<StoredBoop | null | undefined>(undefined)
   sharedBoop.current ??= decodeShareHash(window.location.hash)
 
-  // Autosave restores into the engine first; the mirror below waits for it, so
-  // it reads the restored pattern and tempo rather than the empty grid.
-  const restored = useWorkingGrid(engine, pattern, bpm, sharedBoop.current, firstVisitSeed)
+  // The restore hands back the whole autosaved song, its active clip and tempo
+  // already in the engine; adopting it here is what un-gates the render below.
+  const restoredSong = useWorkingSong(engine, song, sharedBoop.current, firstVisitSong)
+
+  useEffect(() => {
+    if (restoredSong) setSong(restoredSong)
+  }, [restoredSong])
+
+  // Tap-time reads (share, save) go through the ref so their callbacks keep a
+  // stable identity while always seeing the song as it stands.
+  const songRef = useRef<Song | null>(null)
+  songRef.current = song
 
   useEffect(() => {
     if (sharedBoop.current) clearShareHash(window.location, window.history)
   }, [])
 
+  // --- Song playback (ticket 16, spec §9) ---
+
+  const [songPlaying, setSongPlaying] = useState(false)
+  // The song position sounding right now — the ring on the lane squares.
+  const [playingPosition, setPlayingPosition] = useState<number | null>(null)
+  const conductorRef = useRef<SongConductor | null>(null)
+  // True whenever the song play is on — including an all-empty song, which
+  // plays the grid clip and needs no conductor (ADR 0032).
+  const songModeRef = useRef(false)
+
+  /**
+   * Draw time: this position is audible now. The ring moves and the grid
+   * switches to its clip — a view change like tapping its chip, never an
+   * edit, and never an engine write: the conductor owns the engine's pattern
+   * while the song plays.
+   */
+  const onSoundingPosition = useCallback((position: number) => {
+    setPlayingPosition(position)
+    const current = songRef.current
+    if (!current) return
+    const clipIndex = current.placements[position]
+    if (clipIndex === null || clipIndex === undefined || clipIndex === current.activeClipIndex)
+      return
+    const next = { ...current, activeClipIndex: clipIndex }
+    songRef.current = next
+    setSong(next)
+  }, [])
+
+  /**
+   * Leave song mode: drop the conductor and re-sync the engine to the clip on
+   * the grid. The conductor swaps one lookahead ahead of the sound, so at the
+   * moment the song ends the engine may already hold the *next* position's
+   * clip — the resync makes "the clip on the grid" true again before any edit
+   * reads the engine back. Does not touch the transport; callers decide
+   * whether playback stops or carries on as clip play.
+   */
+  const leaveSongMode = useCallback(() => {
+    if (!songModeRef.current) return
+    songModeRef.current = false
+    conductorRef.current?.dispose()
+    conductorRef.current = null
+    setSongPlaying(false)
+    setPlayingPosition(null)
+    const current = songRef.current
+    if (engine && current) engine.setPattern(activeClip(current).pattern)
+  }, [engine])
+
+  /**
+   * Any mutation while the song plays means "you are now editing, not
+   * listening" (spec §9): stop playback outright. The explicit `leaveSongMode`
+   * covers the sliver where song mode is on but `start()` is still unlocking,
+   * when `engine.stop()` would be a no-op and emit nothing.
+   */
+  const stopSongPlayback = useCallback(() => {
+    if (!songModeRef.current) return
+    engine?.stop()
+    leaveSongMode()
+  }, [engine, leaveSongMode])
+
   useEffect(() => {
-    if (!engine || !restored) return
-    setPattern(engine.getPattern())
+    if (!engine) return
     setIsPlaying(engine.isPlaying())
-    setBpm(engine.getTempo())
     return engine.onTransport((event) => {
       if (event.type === 'started') setIsPlaying(true)
-      if (event.type === 'stopped') setIsPlaying(false)
-      if (event.type === 'tempoChanged') setBpm(event.bpm)
+      if (event.type === 'stopped') {
+        setIsPlaying(false)
+        // However the transport stopped — the stop buttons, spacebar, an
+        // audio interruption — song mode does not outlive it.
+        leaveSongMode()
+      }
+      if (event.type === 'tempoChanged') setSong((s) => (s ? withBpm(s, event.bpm) : s))
     })
-  }, [engine, restored])
+  }, [engine, leaveSongMode])
 
-  /** Everything the app calls a change (ticket 31): a cell toggle and a tempo move alike. */
+  /** Everything the app calls a change (ADR 0031, as amended): any mutation of the song. */
   const markEdited = useCallback(() => {
-    setActivePreset(null)
     setLoaded(afterEdit)
   }, [])
+
+  /**
+   * The path a song mutation takes: apply it, and — if it really changed
+   * something — mark the loaded boop edited. A refused no-op (deleting the
+   * last clip, adding past the cap) is not a mutation and marks nothing.
+   * Tempo is the one mutation that arrives elsewhere (the engine's
+   * `tempoChanged` event above); `changeTempo` marks edited itself.
+   */
+  const updateSong = useCallback(
+    (mutate: (song: Song) => Song): Song | null => {
+      // Every song mutation stops song playback first (spec §9). This runs
+      // before we know whether `mutate` is a refused no-op, but those hide
+      // behind disabled buttons — the stop can't misfire in practice.
+      stopSongPlayback()
+      const current = songRef.current
+      if (!current) return null
+      const next = mutate(current)
+      if (next === current) return null
+      songRef.current = next
+      setSong(next)
+      markEdited()
+      return next
+    },
+    [markEdited, stopSongPlayback],
+  )
 
   const toggleCell = useCallback(
     (instrumentId: string, step: number) => {
       if (!engine) return
+      // Stop the song before reading the engine back: while it plays the
+      // engine may already hold the next position's clip, and the stop's
+      // resync is what makes this read the clip on the grid.
+      stopSongPlayback()
       const row = engine.getPattern().find((r) => r.instrumentId === instrumentId)
       const on = row?.steps[step] !== true
       engine.setCell(instrumentId, step, on)
-      setPattern(engine.getPattern())
-      markEdited()
+      updateSong((s) => withActivePattern(s, engine.getPattern()))
     },
-    [engine, markEdited],
-  )
-
-  const loadPreset = useCallback(
-    (presetId: PresetId) => {
-      if (!engine) return
-      const preset = PRESETS.find((p) => p.id === presetId)
-      if (!preset) return
-      engine.setPattern(presetPattern(engine.kit, preset))
-      engine.setTempo(preset.tempo)
-      setPattern(engine.getPattern())
-      setActivePreset(presetId)
-      // A starter is never a row in "My boops", so it has no identity to
-      // carry — it reads the same as a blank grid (ticket 31).
-      setLoaded(null)
-      setLoadToken((token) => token + 1)
-      setNewBoopOpen(false)
-    },
-    [engine],
+    [engine, stopSongPlayback, updateSong],
   )
 
   const togglePlay = useCallback(() => {
@@ -145,6 +244,49 @@ export function HomePage() {
       void engine.start()
     }
   }, [engine])
+
+  /**
+   * "Play this clip" (the clip control). While the song plays it *switches*
+   * mode: the song ends and the clip on the grid keeps looping, without a
+   * transport stop — "starting either play stops the other" (spec §9).
+   * Otherwise it is the old play/pause.
+   */
+  const toggleClipPlay = useCallback(() => {
+    if (!engine) return
+    if (songModeRef.current) {
+      leaveSongMode()
+      if (!engine.isPlaying()) void engine.start()
+      return
+    }
+    togglePlay()
+  }, [engine, leaveSongMode, togglePlay])
+
+  /**
+   * The song play button (spec §9): placements left to right, looping, empty
+   * positions skipped. An all-empty song plays the clip on the grid — "an
+   * empty song playing the grid clip is today's behaviour" (ADR 0032) — so no
+   * conductor and no ring, but the button still reads Stop. Starting the song
+   * while the clip loops takes over without stopping the transport.
+   */
+  const toggleSong = useCallback(() => {
+    const current = songRef.current
+    if (!engine || !current) return
+    if (songModeRef.current) {
+      stopSongPlayback()
+      return
+    }
+    songModeRef.current = true
+    setSongPlaying(true)
+    if (current.placements.some((held) => held !== null)) {
+      conductorRef.current = createSongConductor(
+        engine,
+        current.clips.map((clip) => clip.pattern),
+        current.placements,
+        onSoundingPosition,
+      )
+    }
+    if (!engine.isPlaying()) void engine.start()
+  }, [engine, onSoundingPosition, stopSongPlayback])
 
   // Spacebar toggles play from anywhere on the page (spec: "Transport &
   // tempo"). `preventDefault` always fires for a non-editable target, so
@@ -172,34 +314,28 @@ export function HomePage() {
     [engine, markEdited],
   )
 
-  const clearAll = useCallback(() => {
-    if (!engine) return
-    engine.setPattern(engine.getPattern().map((row) => ({ ...row, steps: row.steps.map(() => false) })))
-    setPattern(engine.getPattern())
-    setActivePreset(null)
-    // An empty grid is not a saved boop with things rubbed out — it is nothing,
-    // and reads "Not saved yet".
-    setLoaded(null)
-  }, [engine])
-
-  /** Read at tap time, so the link always carries the grid as it stands. */
+  /** Read at tap time, so the link always carries the whole song as it stands. */
   const getShareUrl = useCallback(() => {
-    if (!engine) return window.location.href
+    if (!engine || !songRef.current) return window.location.href
     return buildShareUrl(
       window.location,
-      workingBoop(engine.kit, engine.getPattern(), engine.getTempo()),
+      storedBoopFromSong(engine.kit, songRef.current, WORKING_NAME),
     )
   }, [engine])
 
   /** Read at tap time (the Save button inside "My boops"), same reasoning as `getShareUrl`. */
-  const getWorkingSnapshot = useCallback(() => {
-    if (!engine) throw new Error('engine not ready')
-    return { kit: engine.kit, pattern: engine.getPattern(), tempo: engine.getTempo() }
-  }, [engine])
+  const getWorkingBoop = useCallback(
+    (name: string) => {
+      if (!engine || !songRef.current) throw new Error('engine not ready')
+      return storedBoopFromSong(engine.kit, songRef.current, name)
+    },
+    [engine],
+  )
 
   /**
    * Export one *saved* boop as a WAV (ticket 34): an offline render of that
-   * row's stored pattern and tempo, then the share sheet on mobile or a
+   * row's whole song — placements one pass, or the grid clip's 4 bars when
+   * nothing is placed (ticket 19) — then the share sheet on mobile or a
    * download on desktop. The only export path — there is no top-bar link, so
    * exporting means "export this saved boop". The double-tap guard lives on
    * the row, in `BoopsPanel`.
@@ -211,8 +347,7 @@ export function HomePage() {
       const context = new OfflineAudioContext(1, 1, DEFAULT_SAMPLE_RATE)
       const blob = await renderBoopWav({
         kit,
-        pattern: storedToPattern(kit, boop.patterns[0]!),
-        bpm: boop.tempo,
+        song: songFromStored(kit, boop),
         decode: webAudioSampleDecoder(context),
       })
       await exportBoopWav(
@@ -224,22 +359,154 @@ export function HomePage() {
     [engine],
   )
 
+  // --- The clip-lanes handlers (tickets 15/20, laptop and tablet) ---
+
+  /** "New boop" as a plain reset (spec §7): one blank clip, default tempo, no confirm. */
+  const newBoop = useCallback(() => {
+    if (!engine) return
+    stopSongPlayback()
+    engine.setPattern(blankPattern(engine.kit))
+    engine.setTempo(DEFAULT_BPM)
+    const fresh = singleClipSong(engine.getPattern(), engine.getTempo())
+    songRef.current = fresh
+    setSong(fresh)
+    // The reset drops the loaded boop — this is a new boop, not an edit.
+    setLoaded(null)
+    setLoadToken((token) => token + 1)
+  }, [engine, stopSongPlayback])
+
+  /**
+   * Tapping a chip puts that clip on the grid — a view change, not an edit.
+   * While the song plays it also stops it (spec §9: "you are now editing, not
+   * listening"), even when the chip is already the active clip.
+   */
+  const selectClip = useCallback(
+    (index: number) => {
+      if (!engine) return
+      stopSongPlayback()
+      const current = songRef.current
+      if (!current || index === current.activeClipIndex || !current.clips[index]) return
+      const next = { ...current, activeClipIndex: index }
+      engine.setPattern(activeClip(next).pattern)
+      songRef.current = next
+      setSong(next)
+      setLoadToken((token) => token + 1)
+    },
+    [engine, stopSongPlayback],
+  )
+
+  /**
+   * Adds a clip and puts it on the grid; `pattern` is blank, a sample clip's,
+   * or the copied clip's. `name` is a sample clip's plain label — without one
+   * the clip takes the automatic "Clip N". Returns the song the clip landed
+   * in, or `null` for a refused no-op at the cap.
+   */
+  const addClipToSong = useCallback(
+    (pattern: (song: Song) => Pattern, name?: string): Song | null => {
+      if (!engine) return null
+      const next = updateSong((s) => addClip(s, pattern(s), name))
+      if (!next) return null
+      engine.setPattern(activeClip(next).pattern)
+      setLoadToken((token) => token + 1)
+      return next
+    },
+    [engine, updateSong],
+  )
+
+  /**
+   * The picker's landing (spec §6): the choice becomes a new clip, on the
+   * grid, unplaced. Blank keeps the automatic "Clip N"; a sample clip lands
+   * under its own label and starts playing — there is no per-card preview,
+   * so picking is how you hear one.
+   */
+  const pickClip = useCallback(
+    (sample: SampleClip | null) => {
+      setPickerOpen(false)
+      if (!engine) return
+      const kit = engine.kit
+      if (!sample) {
+        addClipToSong(() => blankPattern(kit))
+        return
+      }
+      const landed = addClipToSong(() => samplePattern(kit, sample.rows), sample.label)
+      if (landed && !engine.isPlaying()) void engine.start()
+    },
+    [addClipToSong, engine],
+  )
+
+  /** "Make a copy": the active clip's pattern into a new clip, selected. */
+  const copyClip = useCallback(
+    () => addClipToSong((s) => activeClip(s).pattern),
+    [addClipToSong],
+  )
+
+  /** "Delete clip" deletes the clip on the grid; the grid lands on a neighbour. */
+  const deleteActiveClip = useCallback(() => {
+    if (!engine) return
+    const next = updateSong((s) => deleteClip(s, s.activeClipIndex))
+    if (!next) return
+    engine.setPattern(activeClip(next).pattern)
+    setLoadToken((token) => token + 1)
+  }, [engine, updateSong])
+
+  const renameActiveClip = useCallback(
+    (name: string) => {
+      updateSong((s) => renameClip(s, s.activeClipIndex, name))
+    },
+    [updateSong],
+  )
+
+  /**
+   * A lane reorder (ticket 18): chip drag or Ctrl/Cmd+Arrow. Placements are
+   * rewritten in the same update (spec §8) and the grid's clip travels, so
+   * the engine's pattern is untouched — nothing to resync.
+   */
+  const moveClipLane = useCallback(
+    (from: number, to: number) => {
+      updateSong((s) => moveClip(s, from, to))
+    },
+    [updateSong],
+  )
+
+  const togglePlacementAt = useCallback(
+    (clipIndex: number, position: number) => {
+      updateSong((s) => togglePlacement(s, clipIndex, position))
+    },
+    [updateSong],
+  )
+
+  /**
+   * "Clear grid" is clip-scoped and an *edit* (spec §7): it empties only the
+   * clip on the grid and keeps the loaded boop. One behaviour at every width —
+   * the clip control at ≥1024, the "⋯" menu (behind its confirm) on the phone.
+   */
+  const clearClip = useCallback(() => {
+    if (!engine) return
+    // Stop the song before blanking the engine — `leaveSongMode`'s resync
+    // would otherwise overwrite the blank with the active clip again.
+    stopSongPlayback()
+    engine.setPattern(blankPattern(engine.kit))
+    updateSong((s) => withActivePattern(s, engine.getPattern()))
+  }, [engine, stopSongPlayback, updateSong])
+
   const loadBoop = useCallback(
     (boop: StoredBoop, index: number) => {
       if (!engine) return
-      engine.setPattern(storedToPattern(engine.kit, boop.patterns[0]!))
-      engine.setTempo(boop.tempo)
-      setPattern(engine.getPattern())
-      setActivePreset(null)
+      stopSongPlayback()
+      const loadedSong = songFromStored(engine.kit, boop)
+      engine.setPattern(activeClip(loadedSong).pattern)
+      engine.setTempo(loadedSong.bpm)
+      // The engine rounds and clamps the tempo; keep its number, as the restore does.
+      setSong({ ...loadedSong, bpm: engine.getTempo() })
       // The grid *is* that row now, and matches it exactly (ticket 31).
       setLoaded({ index, name: boop.name, edited: false })
       setLoadToken((token) => token + 1)
       setBoopsOpen(false)
     },
-    [engine],
+    [engine, stopSongPlayback],
   )
 
-  if (!engine || !pattern) {
+  if (!engine || !song) {
     return (
       <main className={styles.stage}>
         <p className={styles.loading}>Loading…</p>
@@ -249,7 +516,7 @@ export function HomePage() {
 
   const gridProps: GridViewProps = {
     kit: engine.kit,
-    pattern,
+    pattern: activeClip(song).pattern,
     onToggleCell: toggleCell,
     playheadStep: motion.playing ? motion.step : null,
     cellStrikes: motion.cellStrikes,
@@ -270,7 +537,7 @@ export function HomePage() {
             // boop works / Clear grid. Export is per saved boop, inside the dialog.
             <PhoneBar
               getShareUrl={getShareUrl}
-              onClearGrid={clearAll}
+              onClearGrid={clearClip}
               onSave={() => setBoopsOpen(true)}
               onOpenMyBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
@@ -282,6 +549,7 @@ export function HomePage() {
               onOpenBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
               loaded={loaded}
+              onNewBoop={newBoop}
             />
           )}
         </div>
@@ -290,40 +558,93 @@ export function HomePage() {
         <div className={styles.column} data-testid="stage-column">
           {/* The loop map rides inside PhoneGrid's well, so it stays glued
               under the grid inside this region rather than joining the pinned
-              bar and becoming a second transport (ADR 0027). */}
-          {phone ? <PhoneGrid {...gridProps} /> : <Grid {...gridProps} />}
+              bar and becoming a second transport (ADR 0027). The clip header
+              is the laptop row at every width — the phone slims it with CSS
+              (ticket 21), not a different component. */}
+          <ClipHeader
+            clip={activeClip(song)}
+            canDelete={song.clips.length > 1}
+            canCopy={song.clips.length < MAX_CLIPS}
+            onRename={renameActiveClip}
+            onCopy={copyClip}
+            onDelete={deleteActiveClip}
+          />
+          {phone ? (
+            <>
+              <PhoneGrid {...gridProps} />
+              {/* The phone song bar lives here, in the scrolling region below
+                  the grid well (ticket 21, spec §5) — nothing new is pinned
+                  (ADR 0030). Speed stays in the transport, so no tempo here. */}
+              <PhoneSongBar
+                song={song}
+                onSelectClip={selectClip}
+                onTogglePlacement={togglePlacementAt}
+                onAddClip={() => setPickerOpen(true)}
+                onToggleSong={toggleSong}
+                songPlaying={songPlaying}
+                playingPosition={playingPosition}
+              />
+            </>
+          ) : (
+            <Grid
+              {...gridProps}
+              tintColor={clipTint(activeClip(song).tint)}
+              wellFooter={
+                <ClipControl
+                  isPlaying={isPlaying && !songPlaying}
+                  onToggle={toggleClipPlay}
+                  onClearGrid={clearClip}
+                />
+              }
+            />
+          )}
         </div>
       </div>
       <div className={styles.transportDock}>
         <div className={styles.column}>
-          <Transport
-            isPlaying={isPlaying}
-            onToggle={togglePlay}
-            bpm={bpm}
-            onTempoChange={changeTempo}
-            onClearAll={clearAll}
-            onNewBoop={() => setNewBoopOpen(true)}
-            showClearGrid={!phone}
-          />
+          {phone ? (
+            // The phone keeps the pinned transport (spec §5): its play is
+            // *clip* play — while the song plays it reads paused and pressing
+            // it takes over, exactly like the laptop's clip control.
+            <Transport
+              isPlaying={isPlaying && !songPlaying}
+              onToggle={toggleClipPlay}
+              bpm={song.bpm}
+              onTempoChange={changeTempo}
+              onClearAll={clearClip}
+              onNewBoop={newBoop}
+              showClearGrid={false}
+            />
+          ) : (
+            // The song bar takes the transport's pinned slot (handoff §5/§6):
+            // its play became the clip control, tempo became Speed here, New
+            // boop moved to the top bar, Clear grid into the clip control.
+            <SongBar
+              song={song}
+              bpm={song.bpm}
+              onTempoChange={changeTempo}
+              onSelectClip={selectClip}
+              onTogglePlacement={togglePlacementAt}
+              onMoveClip={moveClipLane}
+              onAddClip={() => setPickerOpen(true)}
+              onToggleSong={toggleSong}
+              songPlaying={songPlaying}
+              playingPosition={playingPosition}
+            />
+          )}
         </div>
       </div>
       {boopsOpen && (
         <BoopsPanel
           onClose={() => setBoopsOpen(false)}
           onLoad={loadBoop}
-          getWorkingSnapshot={getWorkingSnapshot}
+          getWorkingBoop={getWorkingBoop}
           onExport={exportBoop}
           loaded={loaded}
           onLoadedChange={setLoaded}
         />
       )}
-      {newBoopOpen && (
-        <NewBoopDialog
-          activePreset={activePreset}
-          onSelectPreset={loadPreset}
-          onClose={() => setNewBoopOpen(false)}
-        />
-      )}
+      {pickerOpen && <NewClipPicker onPick={pickClip} onClose={() => setPickerOpen(false)} />}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>
   )

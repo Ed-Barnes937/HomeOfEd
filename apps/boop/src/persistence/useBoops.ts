@@ -1,19 +1,18 @@
 import { useCallback, useState } from 'react'
 
-import type { Kit, Pattern } from '../engine/sequencerEngine.ts'
-import { boopFrom, type StoredBoop } from './saveFormat.ts'
+import type { StoredBoop } from './saveFormat.ts'
 import { deleteBoop, loadSaveDocument, renameBoop, saveBoop, type SaveStorage } from './storage.ts'
 
 export interface UseBoopsResult {
   /** The "My boops" list, freshest after every `save`/`rename`/`remove`. */
   boops: readonly StoredBoop[]
   /**
-   * Snapshots `pattern` and `tempo` under `name` — the name the save form was
-   * showing at the moment of the press (ticket 32), generated or overtyped.
-   * Returns the row it landed on, read off what is on disk rather than off
-   * local state, so two saves inside one task still get distinct rows.
+   * Appends `boop` — the whole working song, already named with what the save
+   * form was showing at the moment of the press (ticket 32). Returns the row
+   * it landed on, read off what is on disk rather than off local state, so
+   * two saves inside one task still get distinct rows.
    */
-  save: (kit: Kit, pattern: Pattern, tempo: number, name: string) => { index: number }
+  save: (boop: StoredBoop) => { index: number }
   rename: (index: number, name: string) => void
   remove: (index: number) => void
 }
@@ -33,9 +32,9 @@ export function useBoops(storage: SaveStorage = window.localStorage): UseBoopsRe
   }, [storage])
 
   const save = useCallback(
-    (kit: Kit, pattern: Pattern, tempo: number, name: string) => {
+    (boop: StoredBoop) => {
       const existing = loadSaveDocument(storage).creations
-      saveBoop(storage, boopFrom(kit, pattern, tempo, name))
+      saveBoop(storage, boop)
       refresh()
       return { index: existing.length }
     },

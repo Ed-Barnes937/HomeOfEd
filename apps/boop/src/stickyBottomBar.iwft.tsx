@@ -72,8 +72,8 @@ test.describe('small phone, short window', () => {
   }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
-    // A fresh browser is seeded with a starter (ticket 36) whose hat already
-    // has step 9 on; this test paints its own cells, so start from Blank.
+    // A fresh browser is seeded with a sample clip (tickets 36/17) with cells
+    // already on; this test paints its own cells, so start from Blank.
     await root.startBlank()
 
     // The step window is still its own horizontal scroller, snapping to bar lines.

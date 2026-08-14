@@ -7,6 +7,9 @@ import { parseSaveDocument, type StoredBoop } from '../persistence/saveFormat.ts
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 
+/** How far `crankSteps` moves the fake clock per step — clear of the 0.1s lookahead, so each step's draw releases in the same iteration. */
+export const CRANK_STEP_SECONDS = 0.2
+
 /** The root page object for boop's grid app — tap cells, play/pause, and drive the fake audio clock. */
 export class HomePagePom extends BasePage {
   private readonly playButton = this.page.getByTestId('play-button')
@@ -29,7 +32,8 @@ export class HomePagePom extends BasePage {
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
-    await expect(this.page.getByRole('application')).toBeVisible()
+    // Named: the laptop layout has a second application region (the song lanes).
+    await expect(this.page.getByRole('application', { name: /step grid/ })).toBeVisible()
   }
 
   cell(instrumentId: string, step: number) {
@@ -115,60 +119,64 @@ export class HomePagePom extends BasePage {
     await this.confirmDestructiveButton.click()
   }
 
-  // --- The "New boop" dialog (ticket 36) ---
+  // --- New boop (the plain reset) and the "+ New clip" picker (ticket 17) ---
 
   private readonly newBoopButton = this.page.getByTestId('new-boop-button')
-  private readonly newBoopCard = this.page.getByRole('dialog', { name: 'New boop' })
+  private readonly pickerDialog = this.page.getByRole('dialog', { name: 'New clip' })
 
-  presetCard(presetId: string) {
-    return this.page.getByTestId(`preset-card-${presetId}`)
+  pickerCard(sampleId: string) {
+    return this.page.getByTestId(`picker-card-${sampleId}`)
   }
 
-  async openNewBoop(): Promise<void> {
-    await this.newBoopButton.click()
-    await expect(this.newBoopCard).toBeVisible()
+  /** Tap "+ New clip" and wait for the picker dialog. */
+  async openNewClipPicker(): Promise<void> {
+    await this.page.getByTestId('new-clip-button').click()
+    await expect(this.pickerDialog).toBeVisible()
   }
 
-  async closeNewBoop(): Promise<void> {
-    await this.page.getByTestId('new-boop-close-button').click()
+  /** Pick a card from the open picker — `'blank'` or a sample clip's id. It closes itself. */
+  async pickClip(sampleId: string): Promise<void> {
+    await this.pickerCard(sampleId).click()
+    await this.verifyPickerClosed()
   }
 
-  async verifyNewBoopDialogShown(): Promise<void> {
-    await expect(this.newBoopCard).toBeVisible()
+  async closeNewClipPicker(): Promise<void> {
+    await this.page.getByTestId('new-clip-close-button').click()
   }
 
-  async verifyNewBoopDialogClosed(): Promise<void> {
-    await expect(this.newBoopCard).toHaveCount(0)
+  /** Tap the dimmed backdrop, outside the picker's card — the touch-easy dismiss. */
+  async dismissPickerByOutsideTap(): Promise<void> {
+    await this.page.mouse.click(4, 4)
   }
 
-  /** The starter cards, top-left to bottom-right — the order is part of the design. */
-  async verifyStarterOrder(expected: string[]): Promise<void> {
-    await expect(this.page.getByTestId('starter-cards').getByRole('button')).toHaveText(expected)
+  async verifyPickerShown(): Promise<void> {
+    await expect(this.pickerDialog).toBeVisible()
   }
 
-  /** The starters are only reachable through the dialog now — open it, pick one, it closes. */
-  async loadPreset(presetId: string): Promise<void> {
-    await this.openNewBoop()
-    await this.presetCard(presetId).click()
-    await this.verifyNewBoopDialogClosed()
+  async verifyPickerClosed(): Promise<void> {
+    await expect(this.pickerDialog).toHaveCount(0)
+  }
+
+  /** The picker's cards, top-left to bottom-right — the order is part of the design. */
+  async verifyPickerCardOrder(expected: string[]): Promise<void> {
+    await expect(
+      this.page.getByTestId('picker-cards').getByRole('button'),
+    ).toHaveText(expected)
+  }
+
+  /** No dialog of any kind is open — New boop is a plain reset, not a picker. */
+  async verifyNoDialogOpen(): Promise<void> {
+    await expect(this.page.getByRole('dialog')).toHaveCount(0)
   }
 
   /**
-   * Start from an empty grid, the way a child would: New boop → Blank. A fresh
-   * browser is seeded with `Wonky Walk` (ticket 36), so a suite that is about
-   * grid behaviour rather than onboarding has to say where it starts.
+   * Start from an empty grid, the way a child would. A fresh browser is seeded
+   * with a sample clip (tickets 36/17), so a suite that is about grid
+   * behaviour rather than onboarding has to say where it starts. New boop is
+   * a plain one-tap reset at every width (spec §7).
    */
   async startBlank(): Promise<void> {
-    await this.loadPreset('blank')
-  }
-
-  /** This and `verifyPresetNotLoaded` read the card, so the dialog has to be open. */
-  async verifyPresetLoaded(presetId: string): Promise<void> {
-    await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'true')
-  }
-
-  async verifyPresetNotLoaded(presetId: string): Promise<void> {
-    await expect(this.presetCard(presetId)).toHaveAttribute('data-active', 'false')
+    await this.newBoopButton.click()
   }
 
   async verifyCellOn(instrumentId: string, step: number): Promise<void> {
@@ -257,7 +265,7 @@ export class HomePagePom extends BasePage {
     return parseSaveDocument(raw).working
   }
 
-  /** The "My boops" list — separate from the working grid a preset load may replace. */
+  /** The "My boops" list — separate from the working grid a load may replace. */
   async readSavedBoops(): Promise<readonly StoredBoop[]> {
     const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), SAVE_KEY)
     return parseSaveDocument(raw).creations
@@ -266,13 +274,14 @@ export class HomePagePom extends BasePage {
   /**
    * Wait for the debounced autosave to reach localStorage with a given cell on
    * — asserting on content, not merely on the slot existing, so the wait cannot
-   * be satisfied by an earlier write of a grid that predates the edit.
+   * be satisfied by an earlier write of a grid that predates the edit. `clip`
+   * says which clip of the working song the cell belongs to (ticket 14).
    */
-  async waitForAutosavedCell(instrumentId: string, step: number): Promise<void> {
+  async waitForAutosavedCell(instrumentId: string, step: number, clip = 0): Promise<void> {
     await expect
       .poll(async () => {
         const working = await this.readAutosavedGrid()
-        const row = working?.patterns[0]?.rows.find((r) => r.instrumentId === instrumentId)
+        const row = working?.patterns[clip]?.rows.find((r) => r.instrumentId === instrumentId)
         return row?.steps[step] === '1'
       })
       .toBe(true)
@@ -690,7 +699,11 @@ export class HomePagePom extends BasePage {
   // --- The fixed frame (ticket 33) ---
 
   private readonly stageScroller = this.page.getByTestId('stage-scroller')
-  private readonly transportBar = this.page.getByTestId('transport-bar')
+  // The pinned bottom bar: the transport on the phone (<1024px), the song bar
+  // at and above it (tickets 15/20). Only ever one of the two is mounted.
+  private readonly transportBar = this.page
+    .getByTestId('transport-bar')
+    .or(this.page.getByTestId('song-bar'))
 
   /**
    * The grid region scrolls *vertically only*, and the document does not scroll
@@ -785,6 +798,326 @@ export class HomePagePom extends BasePage {
       .getByTestId('loop-map')
       .evaluate((element, id) => element.closest(`[data-testid="${id}"]`) !== null, 'stage-scroller')
     expect(inside).toBe(true)
+  }
+
+  // --- The clip-lanes laptop layout (ticket 15) ---
+
+  /** The old transport bar must be gone at ≥1024 — its pieces moved (handoff §6, ticket 20). */
+  async verifyNoTransportBar(): Promise<void> {
+    await expect(this.page.getByTestId('transport-bar')).toHaveCount(0)
+  }
+
+  /** The plain, no-dialog New boop reset in the top bar. */
+  async pressNewBoop(): Promise<void> {
+    await this.newBoopButton.click()
+  }
+
+  clipChip(index: number) {
+    return this.page.getByTestId(`clip-chip-${index}`)
+  }
+
+  async selectClip(index: number): Promise<void> {
+    await this.clipChip(index).click()
+  }
+
+  async verifyClipChipActive(index: number): Promise<void> {
+    await expect(this.clipChip(index)).toHaveAttribute('data-active', 'true')
+  }
+
+  async verifyClipCount(count: number): Promise<void> {
+    await expect(this.page.getByTestId(/^clip-chip-\d+$/)).toHaveCount(count)
+  }
+
+  async verifyClipChipName(index: number, name: string): Promise<void> {
+    await expect(this.clipChip(index)).toContainText(name)
+  }
+
+  /** The chip's tint index — tints travel with their clips (spec §2, ticket 18). */
+  async verifyChipTint(index: number, tint: number): Promise<void> {
+    await expect(this.clipChip(index)).toHaveAttribute('data-tint', String(tint))
+  }
+
+  async verifyChipFocused(index: number): Promise<void> {
+    await expect(this.clipChip(index)).toBeFocused()
+  }
+
+  /** Drag a chip vertically onto another chip's lane (ticket 18). */
+  async dragChip(from: number, to: number): Promise<void> {
+    await this.beginChipDrag(from, to)
+    await this.releaseChip()
+  }
+
+  /** The drag's first half — pointer down and over the target, held for mid-drag asserts. */
+  async beginChipDrag(from: number, to: number): Promise<void> {
+    const source = await this.clipChip(from).boundingBox()
+    const target = await this.clipChip(to).boundingBox()
+    if (!source || !target) throw new Error('a clip chip is not visible')
+    await this.page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
+    await this.page.mouse.down()
+    await this.page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, {
+      steps: 6,
+    })
+  }
+
+  async releaseChip(): Promise<void> {
+    await this.page.mouse.up()
+  }
+
+  /** Mid-drag: the dragged chip's lane is flagged — the lift's scale + shadow ride on it. */
+  async verifyChipLifted(index: number): Promise<void> {
+    await expect(this.clipChip(index).locator('..')).toHaveAttribute('data-dragging', 'true')
+  }
+
+  /** Mid-drag: this chip's lane has stepped aside — the live make-way. */
+  async verifyLaneMakingWay(index: number, direction: 'up' | 'down'): Promise<void> {
+    const shift = direction === 'up' ? /translateY\(-/ : /translateY\(\d/
+    await expect(this.clipChip(index).locator('..')).toHaveAttribute('style', shift)
+  }
+
+  /** A press that wanders under the ~8px drag threshold — still a tap-to-select. */
+  async pressChipBelowThreshold(index: number): Promise<void> {
+    const box = await this.clipChip(index).boundingBox()
+    if (!box) throw new Error('the clip chip is not visible')
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await this.page.mouse.move(x, y)
+    await this.page.mouse.down()
+    await this.page.mouse.move(x, y + 3)
+    await this.page.mouse.up()
+  }
+
+  /** Ctrl/Cmd+ArrowUp/Down on a focused chip moves its lane (spec §8/§14). */
+  async reorderChipByKeyboard(index: number, direction: 'up' | 'down'): Promise<void> {
+    await this.clipChip(index).press(direction === 'up' ? 'Control+ArrowUp' : 'Control+ArrowDown')
+  }
+
+  /** The clip header's name — also the chip's, but the header is the editable one. */
+  async verifyActiveClipName(name: string): Promise<void> {
+    await expect(this.page.getByTestId('clip-name')).toHaveText(name)
+  }
+
+  /** Rename via the pencil: type, Enter commits. */
+  async renameActiveClip(name: string): Promise<void> {
+    await this.page.getByTestId('clip-rename-button').click()
+    const input = this.page.getByTestId('clip-rename-input')
+    await input.fill(name)
+    await input.press('Enter')
+  }
+
+  async copyClip(): Promise<void> {
+    await this.page.getByTestId('clip-copy-button').click()
+  }
+
+  async deleteClip(): Promise<void> {
+    await this.page.getByTestId('clip-delete-button').click()
+  }
+
+  async verifyDeleteClipDisabled(): Promise<void> {
+    await expect(this.page.getByTestId('clip-delete-button')).toBeDisabled()
+  }
+
+  /** A copy is a new clip, so the 5-clip cap greys it like "+ New clip". */
+  async verifyCopyClipDisabled(): Promise<void> {
+    await expect(this.page.getByTestId('clip-copy-button')).toBeDisabled()
+  }
+
+  /** Add a blank clip the whole way: "+ New clip" opens the picker, Blank lands it (ticket 17). */
+  async addClip(): Promise<void> {
+    await this.openNewClipPicker()
+    await this.pickClip('blank')
+  }
+
+  async verifyAddClipDisabled(): Promise<void> {
+    await expect(this.page.getByTestId('new-clip-button')).toBeDisabled()
+  }
+
+  laneSquare(clipIndex: number, position: number) {
+    return this.page.getByTestId(`lane-${clipIndex}-${position}`)
+  }
+
+  async toggleLaneSquare(clipIndex: number, position: number): Promise<void> {
+    await this.laneSquare(clipIndex, position).click()
+  }
+
+  async verifyPlacementOn(clipIndex: number, position: number): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-on', 'true')
+  }
+
+  async verifyPlacementOff(clipIndex: number, position: number): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-on', 'false')
+  }
+
+  /** The song bar's `<n> bars` readout — placed squares × 4. */
+  async verifySongLength(text: string): Promise<void> {
+    await expect(this.page.getByTestId('song-length')).toHaveText(text)
+  }
+
+  // --- The tablet band (boop-loops ticket 20, spec §4 — variant E) ---
+
+  /**
+   * Variant E's fit: chips and "+ New clip" narrow to 128px, the squares turn
+   * flexible — compressed below the laptop's fixed 56px, all equal — and the
+   * ruler numerals track the squares column-for-column.
+   */
+  async verifyLaneGridFitsColumn(): Promise<void> {
+    const chip = await this.clipChip(0).boundingBox()
+    const newClip = await this.page.getByTestId('new-clip-button').boundingBox()
+    if (!chip || !newClip) throw new Error('the chip or the New clip button is not visible')
+    expect(Math.round(chip.width)).toBe(128)
+    expect(Math.round(newClip.width)).toBe(128)
+
+    const first = await this.laneSquare(0, 0).boundingBox()
+    const last = await this.laneSquare(0, 15).boundingBox()
+    if (!first || !last) throw new Error('the lane squares are not visible')
+    expect(first.width).toBeLessThan(56)
+    expect(first.width).toBeGreaterThanOrEqual(20)
+    expect(Math.abs(first.width - last.width)).toBeLessThanOrEqual(1)
+
+    const numeral = await this.page.getByTestId('song-position-numeral-15').boundingBox()
+    if (!numeral) throw new Error('the ruler numeral is not visible')
+    const centre = numeral.x + numeral.width / 2
+    expect(centre).toBeGreaterThanOrEqual(last.x)
+    expect(centre).toBeLessThanOrEqual(last.x + last.width)
+  }
+
+  /**
+   * "No sideways scroll anywhere at this width" (spec §4): nothing on the
+   * page — the lane grid included — scrolls horizontally.
+   */
+  async verifyNoSidewaysScroller(): Promise<void> {
+    await this.verifyNoHorizontalOverflow()
+    const scrollers = await this.page.evaluate(() =>
+      [...document.querySelectorAll('*')].filter((element) => {
+        const { overflowX } = getComputedStyle(element)
+        return (
+          (overflowX === 'auto' || overflowX === 'scroll') &&
+          element.scrollWidth > element.clientWidth
+        )
+      }).length,
+    )
+    expect(scrollers).toBe(0)
+  }
+
+  // --- The phone clip lanes (boop-loops ticket 21, spec §5 — variant B) ---
+
+  private readonly phoneSongBar = this.page.getByTestId('phone-song-bar')
+
+  laneWindow() {
+    return this.page.getByTestId('phone-lane-window')
+  }
+
+  /** The song bar lives inside the scrolling region — nothing new is pinned (ADR 0030). */
+  async verifySongBarInsideGridRegion(): Promise<void> {
+    const inside = await this.phoneSongBar.evaluate(
+      (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+      'stage-scroller',
+    )
+    expect(inside).toBe(true)
+  }
+
+  /**
+   * The lanes reuse the step window's exact geometry (ticket 21): with both
+   * windows at rest, a lane square sits exactly under its grid column — same
+   * left edge, same 32px width.
+   */
+  async verifyLaneSquareAlignedUnderCell(position: number): Promise<void> {
+    const cell = await this.cell('kick', position).boundingBox()
+    const square = await this.laneSquare(0, position).boundingBox()
+    if (!cell || !square) throw new Error('the grid cell or the lane square is not visible')
+    expect(Math.round(square.x)).toBe(Math.round(cell.x))
+    expect(Math.round(square.width)).toBe(Math.round(cell.width))
+  }
+
+  /** A real sideways swipe over the lane window — the browser owns the pan. */
+  async swipeLanes(deltaX: number): Promise<void> {
+    const box = await this.laneWindow().boundingBox()
+    if (!box) throw new Error('the phone lane window is not visible')
+    await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await this.page.mouse.wheel(deltaX, 0)
+  }
+
+  /** Wait for the snap to settle on a bar line at the given strip offset. */
+  async verifyLaneWindowAt(offset: number): Promise<void> {
+    await expect
+      .poll(async () => this.laneWindow().evaluate((element) => element.scrollLeft))
+      .toBe(offset)
+  }
+
+  /** Drag-paint across a run of lane squares on one lane — `dragPaint`'s twin. */
+  async dragPaintLanes(clipIndex: number, positions: number[]): Promise<void> {
+    const [first, ...rest] = positions
+    if (first === undefined) return
+    const startBox = await this.laneSquare(clipIndex, first).boundingBox()
+    if (!startBox) throw new Error(`lane square ${clipIndex}-${first} is not visible`)
+    await this.page.mouse.move(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2)
+    await this.page.mouse.down()
+    for (const position of rest) {
+      const box = await this.laneSquare(clipIndex, position).boundingBox()
+      if (!box) throw new Error(`lane square ${clipIndex}-${position} is not visible`)
+      await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    }
+    await this.page.mouse.up()
+  }
+
+  /** The ×n placement count on a chip. */
+  async verifyChipPlacementCount(index: number, text: string): Promise<void> {
+    await expect(this.page.getByTestId(`clip-count-${index}`)).toHaveText(text)
+  }
+
+  // --- Song playback (ticket 16) ---
+
+  private readonly songPlayButton = this.page.getByTestId('song-play-button')
+
+  async pressSongPlay(): Promise<void> {
+    await this.songPlayButton.click()
+  }
+
+  async verifySongPlaying(): Promise<void> {
+    await expect(this.songPlayButton).toHaveAttribute('aria-pressed', 'true')
+  }
+
+  async verifySongStopped(): Promise<void> {
+    await expect(this.songPlayButton).toHaveAttribute('aria-pressed', 'false')
+  }
+
+  /** The playing ring on the lane square whose position is sounding. */
+  async verifyPositionPlaying(clipIndex: number, position: number): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-playing', 'true')
+  }
+
+  async verifyNoPositionPlaying(): Promise<void> {
+    await expect(this.page.locator('[data-testid^="lane-"][data-playing="true"]')).toHaveCount(0)
+  }
+
+  async verifyPositionNumeralPlaying(position: number): Promise<void> {
+    await expect(this.page.getByTestId(`song-position-numeral-${position}`)).toHaveAttribute(
+      'data-playing',
+      'true',
+    )
+  }
+
+  /**
+   * Fire `count` scheduled steps, advancing the draw clock past each one —
+   * one audible step per iteration, schedule and draw together. Use the
+   * separate `fireStep`/`advanceDrawClock` pair to hold the draw clock back
+   * and observe the schedule-time lookahead instead.
+   */
+  async crankSteps(count: number): Promise<void> {
+    await this.page.evaluate(
+      ({ key, count: steps, stepSeconds }) => {
+        const driver = (
+          globalThis as unknown as Record<
+            string,
+            { fireStep: () => void; now: () => number; advanceTo: (time: number) => void }
+          >
+        )[key]!
+        for (let i = 0; i < steps; i += 1) {
+          driver.fireStep()
+          driver.advanceTo(driver.now() + stepSeconds)
+        }
+      },
+      { key: BOOP_AUDIO_DRIVER_KEY, count, stepSeconds: CRANK_STEP_SECONDS },
+    )
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */

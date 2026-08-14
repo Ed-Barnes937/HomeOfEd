@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Kit, Pattern } from '../engine/sequencerEngine.ts'
+import type { Song } from '../song/song.ts'
 import { renderBoopWav } from './renderBoopWav.ts'
 
 const kit: Kit = {
@@ -18,7 +19,26 @@ function rowOf(instrumentId: string, ...onSteps: number[]) {
   return { instrumentId, steps }
 }
 
-const pattern: Pattern = [rowOf('kick', 0), rowOf('snare', 4)]
+const kickPattern: Pattern = [rowOf('kick', 0), rowOf('snare')]
+const snarePattern: Pattern = [rowOf('kick'), rowOf('snare', 0)]
+
+function songOf(placements: readonly (number | null)[]): Song {
+  return {
+    bpm: 100,
+    clips: [
+      { name: 'Clip 1', tint: 0, pattern: kickPattern },
+      { name: 'Clip 2', tint: 1, pattern: snarePattern },
+    ],
+    activeClipIndex: 0,
+    placements,
+  }
+}
+
+const EMPTY = new Array<number | null>(16).fill(null)
+
+/** kick decodes positive, snare negative — one sample tells the clips apart. */
+const signedDecode = (url: string) =>
+  Promise.resolve(new Float32Array([url.includes('kick') ? 1 : -1]))
 
 describe('renderBoopWav', () => {
   it('decodes every kit instrument by its sound url, renders, and encodes a WAV blob', async () => {
@@ -28,7 +48,7 @@ describe('renderBoopWav', () => {
       return Promise.resolve(new Float32Array([1]))
     }
 
-    const blob = await renderBoopWav({ kit, pattern, bpm: 120, loops: 4, sampleRate: 8000, decode })
+    const blob = await renderBoopWav({ kit, song: songOf(EMPTY), sampleRate: 8000, decode })
 
     expect(requested.sort()).toEqual(['/kits/launch/sounds/kick.wav', '/kits/launch/sounds/snare.wav'])
     expect(blob.type).toBe('audio/wav')
@@ -36,13 +56,45 @@ describe('renderBoopWav', () => {
     expect(String.fromCharCode(...bytes.slice(0, 4))).toBe('RIFF')
   })
 
-  it('defaults to 4 loops and 44100 Hz — the engine and kit sample rate', async () => {
+  it('a song with no placements exports the grid clip 4 bars long at 44100 Hz — unchanged for an old boop', async () => {
     const decode = () => Promise.resolve(new Float32Array(0))
-    const blob = await renderBoopWav({ kit, pattern, bpm: 100, decode })
+    const blob = await renderBoopWav({ kit, song: songOf(EMPTY), decode })
     const dv = new DataView(await blob.arrayBuffer())
 
     expect(dv.getUint32(24, true)).toBe(44100)
     // 4 loops * 16 steps * secondsPerStep(0.15s at 100bpm) * 44100 samples/s = 4233600 samples.
     expect(dv.getUint32(40, true) / 2).toBe(4 * 16 * (60 / 100 / 4) * 44100)
+  })
+
+  it('a song with no placements renders the grid clip, not clip 1', async () => {
+    const song: Song = { ...songOf(EMPTY), activeClipIndex: 1 }
+    const blob = await renderBoopWav({ kit, song, sampleRate: 4, decode: signedDecode })
+    const dv = new DataView(await blob.arrayBuffer())
+
+    expect(dv.getInt16(44, true)).toBeLessThan(0)
+  })
+
+  it('a song with placements exports one pass, left to right, empty positions skipped', async () => {
+    // Positions: [1, empty, 0, empty...] -> pass is [snarePattern, kickPattern].
+    const placements = [1, null, 0, ...new Array<number | null>(13).fill(null)]
+    const blob = await renderBoopWav({
+      kit,
+      song: songOf(placements),
+      sampleRate: 4,
+      decode: signedDecode,
+    })
+    const dv = new DataView(await blob.arrayBuffer())
+
+    const samplesPerStep = Math.round((60 / 100 / 4) * 4) // = 1
+    const dataSamples = dv.getUint32(40, true) / 2
+    // 2 placed positions * 16 steps * 1 sample/step, plus the 1-sample tail.
+    expect(dataSamples).toBe(2 * 16 * samplesPerStep + 1)
+
+    // PCM data starts at byte 44. First pass starts with the snare's negative
+    // sample, the second with the kick's positive one — order is left to right.
+    const first = dv.getInt16(44, true)
+    const second = dv.getInt16(44 + 16 * samplesPerStep * 2, true)
+    expect(first).toBeLessThan(0)
+    expect(second).toBeGreaterThan(0)
   })
 })

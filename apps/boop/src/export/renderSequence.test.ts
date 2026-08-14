@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Kit, Pattern } from '../engine/sequencerEngine.ts'
-import { renderPatternSamples } from './renderPattern.ts'
+import { renderSequenceSamples } from './renderSequence.ts'
 
 function kitOf(...instrumentIds: string[]): Kit {
   return {
@@ -23,16 +23,15 @@ function rowOf(instrumentId: string, ...onSteps: number[]): { instrumentId: stri
   return { instrumentId, steps }
 }
 
-describe('renderPatternSamples', () => {
+describe('renderSequenceSamples', () => {
   it('places a hit at its step offset, scaled by voice and master gain', () => {
     const kit = kitOf('kick')
     const pattern: Pattern = [rowOf('kick', 0)]
     // bpm 60 -> secondsPerStep = 60/60/4 = 0.25s; sampleRate 4 -> 1 sample/step.
-    const out = renderPatternSamples({
+    const out = renderSequenceSamples({
       kit,
-      pattern,
+      sequence: [pattern],
       bpm: 60,
-      loops: 1,
       sampleRate: 4,
       samples: { kick: new Float32Array([1, 1]) },
     })
@@ -42,31 +41,45 @@ describe('renderPatternSamples', () => {
     expect(out[1]).toBeCloseTo(0.3)
   })
 
-  it('repeats the pattern for each loop', () => {
+  it('renders each pass of the sequence in order', () => {
     const kit = kitOf('kick')
     const pattern: Pattern = [rowOf('kick', 0)]
-    const out = renderPatternSamples({
+    const out = renderSequenceSamples({
       kit,
-      pattern,
+      sequence: [pattern, pattern],
       bpm: 60,
-      loops: 2,
       sampleRate: 4,
       samples: { kick: new Float32Array([1]) },
     })
 
-    // 16 steps/loop * 1 sample/step = 16 samples between loop starts.
+    // 16 steps/pass * 1 sample/step = 16 samples between pass starts.
     expect(out[0]).toBeCloseTo(0.3)
     expect(out[16]).toBeCloseTo(0.3)
+  })
+
+  it('renders different patterns per pass — each slot sounds its own clip', () => {
+    const kit = kitOf('kick', 'snare')
+    const kickOnly: Pattern = [rowOf('kick', 0)]
+    const snareOnly: Pattern = [rowOf('snare', 0)]
+    const out = renderSequenceSamples({
+      kit,
+      sequence: [kickOnly, snareOnly],
+      bpm: 60,
+      sampleRate: 4,
+      samples: { kick: new Float32Array([1]), snare: new Float32Array([-1]) },
+    })
+
+    expect(out[0]).toBeCloseTo(0.3)
+    expect(out[16]).toBeCloseTo(-0.3)
   })
 
   it('leaves silent steps at zero', () => {
     const kit = kitOf('kick')
     const pattern: Pattern = [rowOf('kick', 4)]
-    const out = renderPatternSamples({
+    const out = renderSequenceSamples({
       kit,
-      pattern,
+      sequence: [pattern],
       bpm: 60,
-      loops: 1,
       sampleRate: 4,
       samples: { kick: new Float32Array([1]) },
     })
@@ -79,11 +92,10 @@ describe('renderPatternSamples', () => {
   it('sums hits from several instruments on the same step and clamps rather than clips silently past full scale', () => {
     const kit = kitOf('a', 'b', 'c', 'd', 'e')
     const pattern: Pattern = [rowOf('a', 0), rowOf('b', 0), rowOf('c', 0), rowOf('d', 0), rowOf('e', 0)]
-    const out = renderPatternSamples({
+    const out = renderSequenceSamples({
       kit,
-      pattern,
+      sequence: [pattern],
       bpm: 60,
-      loops: 1,
       sampleRate: 4,
       samples: {
         a: new Float32Array([1]),
@@ -101,11 +113,10 @@ describe('renderPatternSamples', () => {
   it('pads the tail so a hit near the end of the render is not cut off', () => {
     const kit = kitOf('kick')
     const pattern: Pattern = [rowOf('kick', 15)]
-    const out = renderPatternSamples({
+    const out = renderSequenceSamples({
       kit,
-      pattern,
+      sequence: [pattern],
       bpm: 60,
-      loops: 1,
       sampleRate: 4,
       samples: { kick: new Float32Array([1, 1, 1]) }, // 3-sample tail past the last step
     })
@@ -119,11 +130,10 @@ describe('renderPatternSamples', () => {
   it('ignores a hit for an instrument whose sample failed to decode', () => {
     const kit = kitOf('kick')
     const pattern: Pattern = [rowOf('kick', 0)]
-    const out = renderPatternSamples({
+    const out = renderSequenceSamples({
       kit,
-      pattern,
+      sequence: [pattern],
       bpm: 60,
-      loops: 1,
       sampleRate: 4,
       samples: {},
     })

@@ -74,6 +74,33 @@ describe('storedToPattern', () => {
 })
 
 describe('round-trip', () => {
+  it('preserves a pattern name and tint (ADR 0032)', () => {
+    const named = { ...patternToStored(pattern), name: 'Drums', tint: 3 }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: null,
+      creations: [{ ...boop, patterns: [named] }],
+    }
+
+    expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
+  it('preserves placements and gridClip on working and saved rows alike (ADR 0032)', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: [patternToStored(pattern), patternToStored(pattern)],
+      placements: '1112..2211......',
+      gridClip: 1,
+    }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...song, name: '' },
+      creations: [song],
+    }
+
+    expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
   it('preserves the working boop and the saved list', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
@@ -82,6 +109,29 @@ describe('round-trip', () => {
     }
 
     expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
+  it('decodes a V1 document with no song fields byte-identically (ADR 0032)', () => {
+    // Exactly what a pre-song build wrote: no name/tint on the pattern, no
+    // placements/gridClip on the boop. The decoder must add nothing.
+    const v1Raw = JSON.stringify({
+      version: 1,
+      working: { name: '', kitId: 'launch', tempo: 120, patterns: [patternToStored(pattern)] },
+      creations: [
+        { name: 'Boop 1', kitId: 'launch', tempo: 90, patterns: [patternToStored(pattern)] },
+      ],
+    })
+
+    const decoded = parseSaveDocument(v1Raw)
+
+    // The real guarantee: no song fields materialise on old data…
+    expect('placements' in decoded.working!).toBe(false)
+    expect('gridClip' in decoded.working!).toBe(false)
+    expect('name' in decoded.working!.patterns[0]!).toBe(false)
+    expect('tint' in decoded.working!.patterns[0]!).toBe(false)
+    // …which for an app-written document (single writer, canonical key
+    // order) makes the round-trip byte-identical.
+    expect(serializeSaveDocument(decoded)).toBe(v1Raw)
   })
 
   it('survives a full trip back onto the grid', () => {
@@ -138,7 +188,55 @@ describe('parseSaveDocument (defensive decode)', () => {
       'a missing name',
       withWorking({ kitId: 'launch', tempo: 120, patterns: [patternToStored(pattern)] }),
     ],
+    [
+      'more than 5 patterns',
+      withWorking({ ...boop, patterns: new Array(6).fill(patternToStored(pattern)) }),
+    ],
+    ['a non-string pattern name', withWorking(withPattern({ name: 7 }))],
+    ['a tint above the tint list', withWorking(withPattern({ tint: 5 }))],
+    ['a negative tint', withWorking(withPattern({ tint: -1 }))],
+    ['a fractional tint', withWorking(withPattern({ tint: 1.5 }))],
+    [
+      'a duplicate tint across two patterns',
+      withWorking({
+        ...boop,
+        patterns: [
+          { ...patternToStored(pattern), tint: 2 },
+          { ...patternToStored(pattern), tint: 2 },
+        ],
+      }),
+    ],
+    [
+      'a tint colliding with another pattern’s defaulted tint',
+      withWorking({
+        ...boop,
+        patterns: [patternToStored(pattern), { ...patternToStored(pattern), tint: 0 }],
+      }),
+    ],
+    [
+      'a placement digit with no clip behind it',
+      withWorking({ ...boop, placements: '2...............' }),
+    ],
+    ['a placements string of the wrong length', withWorking({ ...boop, placements: '1...' })],
+    [
+      'placement characters that are not . or 1-5',
+      withWorking({ ...boop, placements: '0x..............' }),
+    ],
+    ['a non-string placements', withWorking({ ...boop, placements: 16 })],
+    ['a gridClip past the clip list', withWorking({ ...boop, gridClip: 1 })],
+    ['a negative gridClip', withWorking({ ...boop, gridClip: -1 })],
+    ['a fractional gridClip', withWorking({ ...boop, gridClip: 0.5 })],
   ])('degrades to an empty document on %s', (_label, raw) => {
+    expect(parseSaveDocument(raw)).toEqual(empty)
+  })
+
+  it('discards the whole document when one saved boop breaks a song rule', () => {
+    const raw = JSON.stringify({
+      version: SAVE_FORMAT_VERSION,
+      working: null,
+      creations: [boop, { ...boop, gridClip: 1 }],
+    })
+
     expect(parseSaveDocument(raw)).toEqual(empty)
   })
 
@@ -152,6 +250,11 @@ describe('parseSaveDocument (defensive decode)', () => {
 /** A serialized document whose `working` slot is the (possibly invalid) value under test. */
 function withWorking(working: unknown): string {
   return JSON.stringify({ version: SAVE_FORMAT_VERSION, working, creations: [] })
+}
+
+/** The valid boop with its one pattern carrying the (possibly invalid) extra fields. */
+function withPattern(extra: Record<string, unknown>): unknown {
+  return { ...boop, patterns: [{ ...patternToStored(pattern), ...extra }] }
 }
 
 // Ticket 35: the "groove" → "boop" rename touches types and identifiers only.

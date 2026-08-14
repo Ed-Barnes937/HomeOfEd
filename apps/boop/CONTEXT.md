@@ -81,54 +81,94 @@ ever carries this id.
 _Avoid_: Instrument name, row id.
 
 **Pattern**:
-The single working grid of on/off cells, `boolean[6][16]` — exposed by the
+A grid of on/off cells, `boolean[6][16]` — exposed by the
 engine as one row per kit instrument, in kit order, each carrying its
-`instrumentId`. V1 has exactly one
-pattern per boop; chaining several patterns into a song is the confirmed
-V2 direction the save format is already shaped for.
-_Avoid_: Song (a pattern is not yet a song in V1), sequence.
+`instrumentId`. The engine-level term for the raw grid; a pattern with a name
+and identity inside a boop is a **Clip**. Always 16 steps / 4 bars — clips are
+never variable-length (boop-loops ticket 10).
+_Avoid_: Song (a song is an arrangement of clips, not one grid), sequence.
+
+**Clip**:
+A named 6×16 pattern within a boop — `{ name, steps }`. Names are automatic
+(`Clip 1`, `Clip 2`, …) and renameable inline, never forced. The working grid
+always edits exactly one clip; every edit writes straight into it.
+_Avoid_: Pattern (the engine-level term for the raw grid), loop, part.
+
+**Tint**:
+A clip's colour, one of the fixed list of 5 — how a child recognises a clip
+across its chip, its placement squares, the clip header dot, and the grid-well
+ring. A tint belongs to the clip for the clip's whole life: reordering or
+deleting other clips never recolours it (boop-loops ticket 09). At most one
+clip per tint; a new clip takes the lowest unused one.
+_Avoid_: Colour (fine casually, but the term of art is tint), theme.
+
+**Sample clip**:
+A pre-made, pattern-only clip offered in the "+ New clip" picker (after
+Blank) — a single-role, layerable phrase with a plain label ("Slow bass"),
+which becomes the new clip's name. Carries no tempo: it plays at the boop's
+one bpm. Always two words — a bare *sample* is an audio one-shot. Replaces
+the retired **Starter** (boop-loops ticket 07).
+_Avoid_: Sample (taken — the audio one-shot), starter, preset, loop.
+
+**Song**:
+The arrangement a boop holds: ordered clips, placements, and one bpm for the
+whole boop. Played left to right through its placements, looping. Fixed at 16
+positions, and holds at most 5 clips — one per tint (boop-loops ticket 01).
+_Avoid_: Arrangement, track, sequence.
+
+**Placement**:
+One filled square on the lane grid — "play this clip at this position in the
+song". One clip per position; a repeat is the same clip placed twice, never a
+counter.
+_Avoid_: Slot (that is the empty square), block, instance.
+
+**Lane**:
+One clip's row in the song bar: its chip (tint dot, name, ×n count) followed
+by its placement squares. Each clip owns exactly one lane.
+_Avoid_: Track, row (fine for the grid well; a lane belongs to the song bar).
 
 **Boop**:
-A named, saved entry in "My boops" — currently wraps one pattern (plus
-tempo), shaped so a V2 boop can grow to hold several chained patterns
-without a storage migration. Both the domain term and the storage-shape
-term (ticket 35) — one word for one concept.
+A named, saved entry in "My boops" — wraps one song (clips + placements +
+bpm). Until the loops feature lands it holds a single-clip song: one pattern
+plus tempo, the shape the save format round-trips today. Both the domain term
+and the storage-shape term (ticket 35) — one word for one concept.
 _Avoid_: Groove (the pre-rename name, ticket 35 — left on old saved rows
 but never used going forward), Creation (the type-level name before ticket
 35's rename; `creations` survives only as the frozen save-document field
 name, see [ADR 0025](../../docs/adr/0025-boop-save-format.md)), save, snapshot.
 
 **Working grid**:
-The pattern and tempo a child is editing right now — an unnamed boop,
-continuously autosaved and restored on the next load. Distinct from a saved
-boop: it is one slot that always exists and is always overwritten, never an
-entry in the "My boops" list. Saving into that list copies the working grid
-and gives it a name. A browser with no working grid at all is *seeded* with a
-starter rather than opening empty (ticket 36) — see **Starter**.
+What a child is editing right now — an unnamed boop, continuously autosaved
+and restored on the next load. Since boop-loops ticket 14 the slot holds the
+whole **song** (clips, placements, one bpm, and which clip is on the grid), so
+a reload lands on the clip the child was editing. Distinct from a saved boop:
+it is one slot that always exists and is always overwritten, never an entry in
+the "My boops" list. Saving into that list copies the working song and gives
+it a name. A browser with no working song at all is *seeded* with a one-clip
+song built from a sample clip rather than opening empty — see **Sample clip**.
 _Avoid_: Current pattern, draft, session.
 
 **Loaded boop**:
 The saved boop the working grid came from, while it is still recognisably that
 boop — its row in "My boops" plus whether the grid has since diverged
-(ticket 31). Set by loading a row, adopted by a save, dropped by Clear grid and
-by loading a starter, and never restored on reload: it describes this session's
+(ticket 31). Set by loading a row, adopted by a save, dropped by "New boop"'s
+reset (Clear grid is clip-scoped and counts as an *edit* instead — boop-loops
+ticket 07), and never restored on reload: it describes this session's
 loading and saving, not what is on disk. It drives the chrome's saved/edited
 indicator and the loaded row's ring. "Edited" has exactly one meaning across
-the app — a cell toggle *or* a tempo change. See
-[ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md).
+the app — any mutation of the song: a cell toggle, a speed change, a placement
+change, clip add, clip delete, clip rename, or a lane reorder. See
+[ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md), as amended.
 _Avoid_: Unsaved changes, dirty (nothing is ever lost — the working grid is
 autosaved), current boop.
 
-**Starter**:
-One of the four fixed offerings in the "New boop" dialog — Blank, Wonky Walk,
-Robot Hiccup, Sunday Stomp. Pure data, position-only rows plus a tempo, loaded
-into the working grid on a tap. A starter has no identity once loaded: it is
-never a saved boop, and the ring saying which one is loaded is internal to the
-dialog. `Wonky Walk` is also the **first-visit seed**, which is what a browser
-with no working grid opens on.
-_Avoid_: Preset (the code's name for the same thing — `presets.ts`, `PresetId`
-— kept because the design handoff says "preset row"; prefer "starter" in
-product copy and prose), template, demo.
+**Starter** *(retired — boop-loops ticket 07)*:
+The old model: one of four fixed offerings in the "New boop" dialog (Blank,
+Wonky Walk, Robot Hiccup, Sunday Stomp), each a whole pattern plus a tempo,
+loaded *over* the working grid. Replaced by **Sample clip** — pre-made
+content is now a layer you add, not a thing you load over everything —
+while "New boop" becomes a plain button resetting to one blank clip.
+_Avoid_: Using it for new work; say **Sample clip**.
 
 **Step window**:
 On a phone, the horizontally scrolling viewport over the 16 step columns —

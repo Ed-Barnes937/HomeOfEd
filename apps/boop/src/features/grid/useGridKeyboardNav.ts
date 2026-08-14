@@ -26,6 +26,12 @@ interface GridKeyboardNavOptions {
   onToggleCell: (instrumentId: string, step: number) => void
   /** The `instrumentId` at a given row index, in the same row order the grid renders — used to resolve an arrow move's target cell. */
   instrumentIdAt: (rowIndex: number) => string | undefined
+  /**
+   * The `data-testid` of a cell, matching what the caller renders. Defaults to
+   * the grid's `cell-<id>-<step>`; the song bar's lane squares (ticket 15) use
+   * their own ids but the same arrow-key model.
+   */
+  cellTestId?: (instrumentId: string, step: number) => string
 }
 
 /**
@@ -43,6 +49,7 @@ export function useGridKeyboardNav({
   stepCount,
   onToggleCell,
   instrumentIdAt,
+  cellTestId = (instrumentId, step) => `cell-${instrumentId}-${step}`,
 }: GridKeyboardNavOptions): GridKeyboardNav {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -50,7 +57,7 @@ export function useGridKeyboardNav({
     const instrumentId = instrumentIdAt(rowIndex)
     if (instrumentId === undefined) return
     const target = containerRef.current?.querySelector<HTMLButtonElement>(
-      `[data-testid="cell-${instrumentId}-${step}"]`,
+      `[data-testid="${cellTestId(instrumentId, step)}"]`,
     )
     target?.focus()
   }

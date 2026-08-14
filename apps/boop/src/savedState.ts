@@ -5,8 +5,8 @@
  * boop autosaves the working grid after every lull, so "unsaved" can never
  * mean "you are about to lose this" (ADR 0025). It means the narrower thing:
  * this grid is not a row in "My boops", or it has drifted from the row it came
- * from. Starters are deliberately outside all of this — loading one reads the
- * same as a blank grid, because a starter is never in the list either.
+ * from. Sample clips are deliberately outside all of this (ADR 0031, as
+ * amended) — they have no identity; adding one is an edit like any other.
  */
 
 /** The saved boop the working grid came from, while it is still recognisably that boop. */
@@ -14,7 +14,7 @@ export interface LoadedBoop {
   /** Its row in "My boops" — the row that wears the loaded ring. */
   index: number
   name: string
-  /** A cell toggle or a tempo change since it was loaded or saved. */
+  /** Any mutation of the song since it was loaded or saved (ADR 0031, as amended). */
   edited: boolean
 }
 
@@ -61,9 +61,10 @@ export function afterSave(index: number, name: string): LoadedBoop {
 }
 
 /**
- * One definition of "changed" for the whole app: a cell toggle *and* a tempo
- * move both count. Idempotent, so painting a whole row does not churn the
- * chrome sixteen times.
+ * One definition of "changed" for the whole app (ADR 0031, as amended): any
+ * mutation of the song — a cell toggle, a speed change, a placement change,
+ * clip add, clip delete, clip rename, or a lane reorder. Idempotent, so
+ * painting a whole row does not churn the chrome sixteen times.
  */
 export function afterEdit(loaded: LoadedBoop | null): LoadedBoop | null {
   if (loaded === null || loaded.edited) return loaded

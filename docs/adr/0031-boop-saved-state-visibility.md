@@ -86,3 +86,19 @@ the "New boop" dialog's card ring (ticket 36) and never reaches the main screen.
 - The indicator has no "Saved today"-style meta, and should not grow one. It
   answers one question; a second line would turn it into the status bar the
   design rules out.
+
+## Amendment (2026-08-13): "changed" grows to "any mutation of the song"
+
+The clip-lanes feature (the boop-loops map,
+[The "edited" definition grows](../../.scratch/boop-loops/issues/08-edited-definition.md))
+gives a boop more ways to mutate than a cell toggle or a tempo move. The single
+definition grows to cover them all: a cell toggle, a speed (tempo) change, a
+placement change, a clip add, a clip delete, a clip rename, and a lane reorder
+all count as "edited". The principle of decision 3 is unchanged — there is
+exactly one app-wide definition, and it is "any mutation of the song".
+
+One adjacent change from the same map
+([Starters and New boop vs clips](../../.scratch/boop-loops/issues/07-starters-and-new-boop.md)):
+"Clear grid" becomes clip-scoped and is an *edit* under this definition — it no
+longer drops the loaded boop. Decision 5's starters are retired in favour of
+sample clips, which likewise get no identity.
