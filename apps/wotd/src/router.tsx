@@ -1,20 +1,12 @@
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 
-import { SiteHeader } from './components/SiteHeader.tsx'
 import { HomePage } from './pages/HomePage.tsx'
 import { WotdPage } from './pages/WotdPage.tsx'
 import { DIFFICULTIES, type Difficulty } from './server/wordGenerator.ts'
 
-function RootLayout() {
-  return (
-    <>
-      <SiteHeader />
-      <Outlet />
-    </>
-  )
-}
-
-const rootRoute = createRootRoute({ component: RootLayout })
+// Each page renders its own top bar — the picker's SiteHeader and the word
+// screen's WordHeader differ in the design (frames 5a/5d vs 5b/5e).
+const rootRoute = createRootRoute()
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,

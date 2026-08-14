@@ -20,6 +20,10 @@ export const wordsTable = pgTable(
     exampleSentence: text('example_sentence').notNull(),
     // synonyms on the wire; the column stays `alternatives` (Supabase heritage).
     alternatives: text('alternatives').array().notNull(),
+    // Nullable: rows stored before the redesign have neither and are not
+    // backfilled — the UI omits the missing pieces.
+    wordType: text('word_type'),
+    respelling: text('respelling'),
     difficulty: difficultyLevel('difficulty').notNull(),
     // `YYYY-MM-DD` string end to end (string mode) so PGlite and Postgres can't
     // drift on timezone handling. Replaces the old `todaywords` view.

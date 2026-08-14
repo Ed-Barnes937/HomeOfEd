@@ -12,8 +12,8 @@ export function toUtcDate(now: Date): string {
   return now.toISOString().slice(0, 10)
 }
 
-/** UTC `YYYY-MM-DD`, `days` before `now` — the no-repeat window's cutoff. */
-function daysAgoUtc(now: Date, days: number): string {
+/** UTC `YYYY-MM-DD`, `days` before `now` — window cutoffs and "yesterday". */
+export function daysAgoUtc(now: Date, days: number): string {
   const d = new Date(now)
   d.setUTCDate(d.getUTCDate() - days)
   return toUtcDate(d)
@@ -38,6 +38,8 @@ export function toWire(row: WordRow): WordOfTheDay {
     definition: row.definition,
     exampleSentence: row.exampleSentence,
     synonyms: row.alternatives,
+    wordType: row.wordType,
+    respelling: row.respelling,
   }
 }
 
@@ -85,6 +87,8 @@ export class GetTodayWordsHandler extends Handler<void, WordOfTheDay[], WotdStor
       definition: g.definition,
       exampleSentence: g.exampleSentence,
       alternatives: g.synonyms,
+      wordType: g.wordType,
+      respelling: g.respelling,
       difficulty: g.difficulty,
       forDate: today,
     }))

@@ -10,7 +10,7 @@ export interface AnthropicWordGeneratorOptions {
 const DEFAULT_MODEL = 'claude-haiku-4-5'
 
 const SYSTEM_PROMPT =
-  "You are an erudite assistant that generates a challenging word of the day for each of the given English speaking proficiency levels. Each word should be at the edge of what you'd expect a person of that level and age to know and should be returned in the given structure"
+  "You are an erudite assistant that generates a challenging word of the day for each of the given English speaking proficiency levels. Each word should be at the edge of what you'd expect a person of that level and age to know and should be returned in the given structure, including its part of speech (word_type) and a syllable-by-syllable pronunciation respelling like \"ih·FEM·er·uhl\""
 
 const DIFFICULTY_PERSONAS = [
   'beginner: a beginner English speaker, typically a toddler',
@@ -54,8 +54,25 @@ const GENERATE_WORDS_TOOL: Anthropic.Tool = {
               items: { type: 'string' },
               description: 'Three synonyms for the generated word',
             },
+            word_type: {
+              type: 'string',
+              description: 'The part of speech of the generated word, e.g. "adjective"',
+            },
+            respelling: {
+              type: 'string',
+              description:
+                'A syllable-by-syllable pronunciation respelling with the stressed syllable in capitals, using interpunct separators, e.g. "ih·FEM·er·uhl"',
+            },
           },
-          required: ['difficulty', 'word', 'definition', 'example_sentence', 'synonyms'],
+          required: [
+            'difficulty',
+            'word',
+            'definition',
+            'example_sentence',
+            'synonyms',
+            'word_type',
+            'respelling',
+          ],
           additionalProperties: false,
         },
       },
@@ -72,6 +89,8 @@ type RawWordEntry = {
   definition?: unknown
   example_sentence?: unknown
   synonyms?: unknown
+  word_type?: unknown
+  respelling?: unknown
 }
 
 /**
@@ -99,7 +118,9 @@ export function parseGeneratedWords(toolInput: unknown): GeneratedWord[] {
       typeof e.definition !== 'string' ||
       typeof e.example_sentence !== 'string' ||
       !Array.isArray(e.synonyms) ||
-      !e.synonyms.every((s) => typeof s === 'string')
+      !e.synonyms.every((s) => typeof s === 'string') ||
+      typeof e.word_type !== 'string' ||
+      typeof e.respelling !== 'string'
     ) {
       throw new Error(`generate_words entry ${i} has an invalid shape`)
     }
@@ -109,6 +130,8 @@ export function parseGeneratedWords(toolInput: unknown): GeneratedWord[] {
       definition: e.definition,
       exampleSentence: e.example_sentence,
       synonyms: e.synonyms,
+      wordType: e.word_type,
+      respelling: e.respelling,
     }
   })
 

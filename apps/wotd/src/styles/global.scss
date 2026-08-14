@@ -1,6 +1,8 @@
 // Minimal global reset. Side-effect sheet imported once from main.tsx:
 // border-box sizing so widths/padding don't overflow small viewports, and a
 // zeroed body margin so the layout fills the screen edge to edge.
+@use './tokens.scss';
+
 *,
 *::before,
 *::after {
@@ -9,4 +11,7 @@
 
 body {
   margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-ui);
 }
