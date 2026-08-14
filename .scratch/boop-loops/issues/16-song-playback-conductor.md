@@ -20,10 +20,10 @@ Spec: §9 (playback).
 
 **Blocked by:** 15 — Laptop clip lanes.
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Song mode plays placements left to right, skips empty positions, and loops the song; an all-empty song's play behaviour matches the spec (song sequence is the non-empty placements)
-- [ ] Gapless swaps proven deterministically against `FakeAudioDriver` (unit tests — done) and by ear against the real driver (**pending the human listen** — see comment)
+- [x] Gapless swaps proven deterministically against `FakeAudioDriver` (unit tests) and by ear against the real driver (human listen passed, 2026-08-14)
 - [x] The grid follows the sounding clip via the draw channel; no early flash of the next clip
 - [x] The playing ring walks the lane squares in step with the sound
 - [x] One mode at a time: starting either play stops the other; tapping a chip during song play stops the song
