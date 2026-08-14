@@ -581,17 +581,6 @@
   }
 }
 
-.yesterdayChevron {
-  flex: none;
-  margin-left: auto;
-  color: var(--label-dim);
-
-  @media (min-width: 45rem) {
-    width: 18px;
-    height: 18px;
-  }
-}
-
 // The reveal transition: 200ms ease-out fade + 8px rise on the pieces that
 // appear, suppressed under reduced motion.
 .reveal {

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { ArrowRightIcon, SpeakerIcon } from '../components/icons.tsx'
+import { SpeakerIcon } from '../components/icons.tsx'
 import { WordHeader } from '../components/WordHeader.tsx'
 import { speak, speechSupported } from '../features/speech/speak.ts'
 import { todayWordsQueryOptions } from '../features/wotd/todayWordsQuery.ts'
@@ -113,10 +113,10 @@ function WordScreen({ level }: { level: Difficulty }) {
 }
 
 /**
- * The dashed Yesterday strip — display-only (the design's chevron is a static
- * glyph, not a navigation affordance). Pinned to the bottom on mobile via the
- * slot's margin-top:auto; spans the content column beneath the grid on
- * desktop, where the definition also appears inline.
+ * The dashed Yesterday strip — display-only, so no chevron (the design's
+ * static glyph implied navigation that doesn't exist). Pinned to the bottom
+ * on mobile via the slot's margin-top:auto; spans the content column beneath
+ * the grid on desktop, where the definition also appears inline.
  */
 function YesterdayStrip({ entry }: { entry: YesterdayWord }) {
   return (
@@ -132,7 +132,6 @@ function YesterdayStrip({ entry }: { entry: YesterdayWord }) {
           </span>
         )}
         <span className={styles.yesterdayDefinition}>{entry.definition}</span>
-        <ArrowRightIcon size={16} strokeWidth={2.2} className={styles.yesterdayChevron} />
       </div>
     </div>
   )
