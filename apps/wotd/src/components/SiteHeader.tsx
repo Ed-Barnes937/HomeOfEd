@@ -8,9 +8,10 @@ import { ThemeToggle } from './ThemeToggle.tsx'
 
 /**
  * The design's top bar, both sizes. Mobile: circular back-to-hub button,
- * centred wordmark label, theme toggle. Desktop: "W" mark + wordmark on the
- * left, date and toggle on the right. The hub link swaps form per breakpoint
- * (arrow button ↔ "W" mark) — one is always in the accessibility tree.
+ * centred wordmark label, theme toggle. Desktop: back-to-hub arrow + wordmark
+ * on the left, date and toggle on the right. The hub link swaps position per
+ * breakpoint — one is always in the accessibility tree. (The design's "W"
+ * mark was replaced: it read as a wotd home link, not a link to the hub.)
  */
 export function SiteHeader() {
   const hub = hubUrl(window.location.hostname)
@@ -21,7 +22,7 @@ export function SiteHeader() {
       </a>
       <div className={styles.brand}>
         <a className={styles.mark} href={hub} aria-label="Back to home of ed">
-          W
+          <ArrowLeftIcon size={17} strokeWidth={2.4} />
         </a>
         <Link to="/" className={styles.wordmark}>
           Word of the Day

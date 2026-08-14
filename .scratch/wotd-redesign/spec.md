@@ -75,7 +75,9 @@ current level in a dashed strip.
 - "Hear it" keeps the existing Web Speech module; the button gains the designed pill treatment (mobile pre-reveal), the 36px circular form (mobile revealed), and a playing state animating the speaker icon. Unsupported speech hides the button (existing guard).
 - Reveal/hide is a 200ms ease-out fade + 8px rise, gated on `prefers-reduced-motion`.
 - Icons stay inline stroked SVGs (arrow, chevron, speaker, sun, moon) in the app's own icon module.
-- The desktop "W" mark + wordmark is built from the design; the `WOTD Logo.png` file is ignored.
+- The desktop "W" mark was replaced with the mobile back-arrow button (deviation, decided at
+  visual sign-off): the mark read as a wotd home link, but it links to the hub. The
+  `WOTD Logo.png` file is ignored.
 
 ## Testing Decisions
 

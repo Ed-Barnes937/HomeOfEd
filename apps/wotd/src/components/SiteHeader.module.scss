@@ -56,25 +56,30 @@
   gap: 12px;
 }
 
-// Desktop back-to-hub: the inverted-fill "W" mark. The halo keeps its hit
-// target ≥44px without changing the 28px visual.
+// Desktop back-to-hub: the same circular arrow button as mobile (the design's
+// "W" mark misread as a wotd home link). The halo keeps its hit target ≥44px.
 .mark {
   position: relative;
   display: none;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: var(--ink);
-  color: var(--page);
-  font: 800 13px/1 var(--font-ui);
-  text-decoration: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 2px solid var(--rule);
+  color: var(--text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
 
   &::before {
     content: '';
     position: absolute;
-    inset: -8px;
+    inset: -6px;
+    border-radius: 999px;
+  }
+
+  &:hover {
+    background: var(--button-hover-fill);
+    color: var(--ink);
   }
 
   &:focus-visible {
