@@ -12,6 +12,7 @@ import {
   singleClipSong,
   songFromStored,
   storedBoopFromSong,
+  togglePlacement,
   withActivePattern,
   withBpm,
   withPlacement,
@@ -131,6 +132,20 @@ describe('withPlacement', () => {
 
   it('removes a placement', () => {
     expect(withPlacement(song, 0, null).placements[0]).toBeNull()
+  })
+})
+
+describe('togglePlacement', () => {
+  it('places the clip on its empty square', () => {
+    expect(togglePlacement(song, 0, 3).placements[3]).toBe(0)
+  })
+
+  it('taps a filled square off', () => {
+    expect(togglePlacement(song, 0, 0).placements[0]).toBeNull()
+  })
+
+  it("replaces another clip's placement — one clip per position", () => {
+    expect(togglePlacement(song, 0, 2).placements[2]).toBe(0)
   })
 })
 

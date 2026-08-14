@@ -1,11 +1,16 @@
 # apps/boop — scoped rules
 
 A kid-friendly (6+) music toy at `boop.homeofed.com`: a 6-instrument x 16-step
-step-sequencer, one always-looping pattern, music-first (no reactive visual
-layer in V1). Full product spec: [`.scratch/music-app/spec.md`](../../.scratch/music-app/spec.md).
-Visual reference: [`docs/reference/boop-design/README.md`](../../docs/reference/boop-design/README.md)
-(high-fidelity handoff — read it before touching anything visual; colours,
-type, spacing, radii, shadows and grid geometry are final and exact).
+step-sequencer, music-first (no reactive visual layer in V1). The grid always
+edits one **clip**; clips arrange into a **song** on the lane grid (the
+boop-loops effort — spec: [`.scratch/boop-loops/spec.md`](../../.scratch/boop-loops/spec.md)).
+Original product spec: [`.scratch/music-app/spec.md`](../../.scratch/music-app/spec.md).
+Visual references: [`docs/reference/boop-design/README.md`](../../docs/reference/boop-design/README.md)
+(the main screen) and
+[`docs/reference/design_handoff_clip_lanes/README.md`](../../docs/reference/design_handoff_clip_lanes/README.md)
+(the ≥1280px clip-lanes frame) — high-fidelity handoffs; read them before
+touching anything visual: colours, type, spacing, radii, shadows and grid
+geometry are final and exact.
 Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
@@ -61,11 +66,24 @@ src/
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export
+  features/clips/   the clip chrome (boop-loops ticket 15, laptop ≥1280 only):
+                    ClipHeader.tsx (tint dot, inline rename, copy, delete),
+                    ClipControl.tsx (Play this clip + clip-scoped Clear grid,
+                    rendered inside the grid well), clipTints.ts (the fixed
+                    5-tint list)
+  features/songbar/ SongBar.tsx — the pinned song bar (laptop ≥1280): Speed
+                    (the old tempo slider), the song play button (behaviour is
+                    ticket 16), and the lane grid — chips, placement squares
+                    (drag-paint + the grid's keyboard model), "+ New clip"
   features/presets/ the four starters as pure data (presets.ts, incl. the
                     first-visit seed) + NewBoopDialog.tsx, opened from the
                     transport bar's "New boop" button (ticket 36)
-  features/topbar/  TopBar.tsx (desktop) and PhoneBar.tsx (the 52px strip +
-                    "⋯" menu); `useIsPhone.ts` picks between them
+  features/topbar/  TopBar.tsx (desktop, incl. the laptop's plain New boop
+                    reset) and PhoneBar.tsx (the 52px strip + "⋯" menu);
+                    `useIsPhone.ts` and `useIsLaptop.ts` (both at src/) pick
+                    the layout: ≥1280 is clip-lanes, <1024 is the phone, and
+                    the tablet band between keeps the old transport until
+                    ticket 20
   pages/            HomePage — the whole app as a fixed frame (ADR 0030):
                     pinned chrome, the scrolling grid region, pinned transport
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument

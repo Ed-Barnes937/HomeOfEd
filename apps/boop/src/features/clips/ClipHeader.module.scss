@@ -1,0 +1,123 @@
+// Clip header row geometry from the clip-lanes handoff (§2 "Clip header row").
+.row {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.label {
+  font: 700 13px var(--font-display);
+  color: rgba(242, 239, 230, 0.45);
+}
+
+.dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+// Name + pencil share the handoff's tighter 8px gap inside the row's 12px.
+.nameGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.name {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: 800 17px var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.renameButton {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(242, 239, 230, 0.2);
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(242, 239, 230, 0.7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.nameInput {
+  padding: 5px 9px;
+  border: 1px solid var(--cyan);
+  border-radius: 8px;
+  background: var(--well);
+  font: 800 16px var(--font-display);
+  color: var(--ink);
+}
+
+.spacer {
+  flex: 1;
+}
+
+// The top bar's ghost treatment at the header row's smaller scale.
+.copy {
+  flex: none;
+  padding: 9px 14px;
+  border: 1px solid rgba(242, 239, 230, 0.2);
+  border-radius: var(--r-control);
+  background: transparent;
+  font: 700 13px var(--font-display);
+  color: rgba(242, 239, 230, 0.8);
+  cursor: pointer;
+
+  // A copy is a new clip, so the cap greys this like "+ New clip" (spec §2).
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+// Dashed coral, like Clear grid — a remove action, never mistakable for chrome.
+.delete {
+  flex: none;
+  padding: 9px 14px;
+  border: 1px dashed rgba(255, 138, 122, 0.55);
+  border-radius: 9px;
+  background: transparent;
+  font: 700 13px var(--font-display);
+  color: var(--danger);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}

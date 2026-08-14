@@ -6,6 +6,13 @@ import { test } from './testing/iwftTest.tsx'
 // Ticket 36: the starters left the main screen for a "New boop" dialog opened
 // from the bottom bar, and a browser that has never been here opens on
 // `Wonky Walk` rather than an empty grid.
+//
+// Since the clip-lanes laptop layout (boop-loops ticket 15), the dialog and
+// the transport-bar button live only below 1280px — at the laptop width New
+// boop is a plain top-bar reset (`clipLanes.iwft`). This suite therefore runs
+// at a tablet viewport, where this chrome still is what the child sees, until
+// ticket 17 retires the starters and ticket 20 reworks the tablet.
+test.use({ viewport: { width: 1100, height: 800 } })
 
 test('the starters are behind the New boop button, not on the main screen', async ({ mountApp }) => {
   const { root } = await mountApp()
@@ -51,6 +58,21 @@ test('the loaded ring is internal to the dialog, and drops on the first edit', a
 
 // One definition of "changed" across the app (ticket 31): the ring used to
 // survive a tempo move, and no longer does.
+test('loading a starter drops the loaded identity — starters have none (ticket 31)', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openBoops()
+  await root.saveBoop()
+  await root.closeBoops()
+  await root.verifySavedState('Boop 1')
+
+  await root.loadPreset('robot')
+  await root.verifySavedState('Not saved yet')
+})
+
 test('the loaded ring drops on a tempo change, and on clear-all', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

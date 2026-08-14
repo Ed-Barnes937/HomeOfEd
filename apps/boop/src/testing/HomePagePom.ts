@@ -29,7 +29,8 @@ export class HomePagePom extends BasePage {
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
-    await expect(this.page.getByRole('application')).toBeVisible()
+    // Named: the laptop layout has a second application region (the song lanes).
+    await expect(this.page.getByRole('application', { name: /step grid/ })).toBeVisible()
   }
 
   cell(instrumentId: string, step: number) {
@@ -154,11 +155,17 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * Start from an empty grid, the way a child would: New boop → Blank. A fresh
-   * browser is seeded with `Wonky Walk` (ticket 36), so a suite that is about
-   * grid behaviour rather than onboarding has to say where it starts.
+   * Start from an empty grid, the way a child would. A fresh browser is seeded
+   * with `Wonky Walk` (ticket 36), so a suite that is about grid behaviour
+   * rather than onboarding has to say where it starts. On the laptop layout
+   * (≥1280, ticket 15) New boop is a plain one-tap reset in the top bar; below
+   * it the dialog's Blank card is still the way (until tickets 17/20/21).
    */
   async startBlank(): Promise<void> {
+    if ((this.page.viewportSize()?.width ?? 0) >= 1280) {
+      await this.newBoopButton.click()
+      return
+    }
     await this.loadPreset('blank')
   }
 
@@ -691,7 +698,11 @@ export class HomePagePom extends BasePage {
   // --- The fixed frame (ticket 33) ---
 
   private readonly stageScroller = this.page.getByTestId('stage-scroller')
-  private readonly transportBar = this.page.getByTestId('transport-bar')
+  // The pinned bottom bar: the transport below 1280px, the song bar at and
+  // above it (ticket 15). Only ever one of the two is mounted.
+  private readonly transportBar = this.page
+    .getByTestId('transport-bar')
+    .or(this.page.getByTestId('song-bar'))
 
   /**
    * The grid region scrolls *vertically only*, and the document does not scroll
@@ -786,6 +797,97 @@ export class HomePagePom extends BasePage {
       .getByTestId('loop-map')
       .evaluate((element, id) => element.closest(`[data-testid="${id}"]`) !== null, 'stage-scroller')
     expect(inside).toBe(true)
+  }
+
+  // --- The clip-lanes laptop layout (ticket 15) ---
+
+  /** The old transport bar must be gone at ≥1280 — its pieces moved (handoff §6). */
+  async verifyNoTransportBar(): Promise<void> {
+    await expect(this.page.getByTestId('transport-bar')).toHaveCount(0)
+  }
+
+  /** The plain, no-dialog New boop reset in the top bar. */
+  async pressNewBoop(): Promise<void> {
+    await this.newBoopButton.click()
+  }
+
+  clipChip(index: number) {
+    return this.page.getByTestId(`clip-chip-${index}`)
+  }
+
+  async selectClip(index: number): Promise<void> {
+    await this.clipChip(index).click()
+  }
+
+  async verifyClipChipActive(index: number): Promise<void> {
+    await expect(this.clipChip(index)).toHaveAttribute('data-active', 'true')
+  }
+
+  async verifyClipCount(count: number): Promise<void> {
+    await expect(this.page.getByTestId(/^clip-chip-\d+$/)).toHaveCount(count)
+  }
+
+  async verifyClipChipName(index: number, name: string): Promise<void> {
+    await expect(this.clipChip(index)).toContainText(name)
+  }
+
+  /** The clip header's name — also the chip's, but the header is the editable one. */
+  async verifyActiveClipName(name: string): Promise<void> {
+    await expect(this.page.getByTestId('clip-name')).toHaveText(name)
+  }
+
+  /** Rename via the pencil: type, Enter commits. */
+  async renameActiveClip(name: string): Promise<void> {
+    await this.page.getByTestId('clip-rename-button').click()
+    const input = this.page.getByTestId('clip-rename-input')
+    await input.fill(name)
+    await input.press('Enter')
+  }
+
+  async copyClip(): Promise<void> {
+    await this.page.getByTestId('clip-copy-button').click()
+  }
+
+  async deleteClip(): Promise<void> {
+    await this.page.getByTestId('clip-delete-button').click()
+  }
+
+  async verifyDeleteClipDisabled(): Promise<void> {
+    await expect(this.page.getByTestId('clip-delete-button')).toBeDisabled()
+  }
+
+  /** A copy is a new clip, so the 5-clip cap greys it like "+ New clip". */
+  async verifyCopyClipDisabled(): Promise<void> {
+    await expect(this.page.getByTestId('clip-copy-button')).toBeDisabled()
+  }
+
+  async addClip(): Promise<void> {
+    await this.page.getByTestId('new-clip-button').click()
+  }
+
+  async verifyAddClipDisabled(): Promise<void> {
+    await expect(this.page.getByTestId('new-clip-button')).toBeDisabled()
+  }
+
+  laneSquare(clipIndex: number, position: number) {
+    return this.page.getByTestId(`lane-${clipIndex}-${position}`)
+  }
+
+  async toggleLaneSquare(clipIndex: number, position: number): Promise<void> {
+    await this.laneSquare(clipIndex, position).click()
+  }
+
+  async verifyPlacementOn(clipIndex: number, position: number): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-on', 'true')
+  }
+
+  async verifyPlacementOff(clipIndex: number, position: number): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-on', 'false')
+  }
+
+  /** The song bar's `<n> bars` readout — placed squares × 4. */
+  async verifySongLength(text: string): Promise<void> {
+    await expect(this.page.getByTestId('song-length')).toHaveText(text)
   }
 
   /** Assert the samples the fake driver has been told to play, in call order. */

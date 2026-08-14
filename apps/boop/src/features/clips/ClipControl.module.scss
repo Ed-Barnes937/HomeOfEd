@@ -1,0 +1,96 @@
+// Clip control geometry from the clip-lanes handoff (§4 "Clip control") — the
+// strip inside the grid well, below the rows.
+.control {
+  margin-top: 16px;
+  height: 72px;
+  padding: 0 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+// The old transport's play button at 56px scale.
+.play {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--play);
+  box-shadow: var(--shadow-play);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:active {
+    box-shadow: none;
+    transform: translateY(2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 19px solid var(--ink-dark);
+}
+
+.pause {
+  display: flex;
+  gap: 6px;
+}
+
+.pauseBar {
+  width: 7px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--ink-dark);
+}
+
+.labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font: 800 15px var(--font-display);
+  color: var(--ink);
+}
+
+.sub {
+  font: 400 13px var(--font-display);
+  color: rgba(242, 239, 230, 0.45);
+}
+
+.spacer {
+  flex: 1;
+}
+
+// The existing dashed coral Clear grid, unchanged (handoff §4).
+.clear {
+  flex: none;
+  padding: 12px 18px;
+  border: 1px dashed rgba(255, 138, 122, 0.55);
+  border-radius: 9px;
+  background: transparent;
+  font: 700 14px var(--font-display);
+  color: var(--danger);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}

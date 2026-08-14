@@ -130,6 +130,15 @@ export function withPlacement(song: Song, position: number, clipIndex: number | 
 }
 
 /**
+ * A lane-square tap: place `clipIndex` at `position`, tap its own placement
+ * off, or replace another clip's — one clip per position (spec §2).
+ */
+export function togglePlacement(song: Song, clipIndex: number, position: number): Song {
+  const held = song.placements[position]
+  return withPlacement(song, position, held === clipIndex ? null : clipIndex)
+}
+
+/**
  * Append a new clip and put it on the grid, unplaced — placing it in the song
  * is a separate tap (spec §6). Name and tint both take the lowest unused
  * value, which keeps one-tint-per-clip after deletes. A no-op at the cap:

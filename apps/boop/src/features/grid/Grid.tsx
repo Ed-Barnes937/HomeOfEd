@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
 import styles from './Grid.module.scss'
@@ -32,6 +32,14 @@ export interface GridViewProps {
    * across columns instead of all popping in at once (ticket 22).
    */
   loadToken: number
+  /**
+   * The active clip's tint (boop-loops ticket 15): the laptop layout wears it
+   * as an inner ring on the well. Absent everywhere the clip chrome hasn't
+   * landed yet (tablet/phone) — the well then looks exactly as it always has.
+   */
+  tintColor?: string
+  /** Rendered inside the well, below the rows — the laptop clip control. */
+  wellFooter?: ReactNode
 }
 
 /**
@@ -54,6 +62,8 @@ export function Grid({
   cellStrikes,
   rowStrikes,
   loadToken,
+  tintColor,
+  wellFooter,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: true })
@@ -75,7 +85,11 @@ export function Grid({
         } as CSSProperties)
 
   return (
-    <div className={styles.well}>
+    <div
+      className={styles.well}
+      data-tinted={tintColor !== undefined}
+      style={tintColor !== undefined ? ({ '--clip-tint': tintColor } as CSSProperties) : undefined}
+    >
       <div className={styles.barNumerals} aria-hidden="true">
         <div className={styles.railSpacer} />
         {groups.map((group) => (
@@ -191,6 +205,7 @@ export function Grid({
           })}
         </div>
       </div>
+      {wellFooter}
     </div>
   )
 }

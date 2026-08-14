@@ -40,11 +40,28 @@ Spec: §3 (laptop layout + deltas), §7 (New boop / Clear grid), §14
 
 **Blocked by:** 14 — The working song state.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The 2a frame is recreated pixel-close at ≥1280px; the old transport bar is gone at this width
-- [ ] Clips can be added (blank), copied, renamed, deleted, and selected via chips; tints follow the lowest-unused rule; Delete disables at one clip, + New clip at five
-- [ ] Placements toggle by pointer and keyboard, one per position with replace; lane squares have labels and arrow-key navigation
-- [ ] New boop is a plain reset; Clear grid is clip-scoped and counts as an edit
-- [ ] Play this clip loops the grid clip with today's playhead behaviour
-- [ ] Whole-page behaviour covered by `*.iwft`; placement/clip logic by `*.test`
+- [x] The 2a frame is recreated pixel-close at ≥1280px; the old transport bar is gone at this width
+- [x] Clips can be added (blank), copied, renamed, deleted, and selected via chips; tints follow the lowest-unused rule; Delete disables at one clip, + New clip at five
+- [x] Placements toggle by pointer and keyboard, one per position with replace; lane squares have labels and arrow-key navigation
+- [x] New boop is a plain reset; Clear grid is clip-scoped and counts as an edit
+- [x] Play this clip loops the grid clip with today's playhead behaviour
+- [x] Whole-page behaviour covered by `*.iwft`; placement/clip logic by `*.test`
+
+**Resolution.** `useIsLaptop` (≥1280px) turns on the layout: `ClipHeader` +
+tint-ringed `Grid` with `ClipControl` in the well, and the pinned `SongBar`
+(Speed, the song play button laid out for ticket 16, the lane grid) in the
+transport dock's slot — the transport bar is unmounted at this width. The
+tablet band (1024–1279) keeps today's chrome until ticket 20; the New boop
+dialog suite now runs at a tablet viewport, where that chrome still lives
+until ticket 17. Placements paint through `useDragPaint` and follow the grid's
+keyboard model via `useGridKeyboardNav` (given a `cellTestId` parameter);
+`togglePlacement` in `song.ts` carries the one-per-position replace rule.
+Decisions worth noting: selecting a clip (chip tap) is a view change, not an
+"edited" mutation; the handoff's hint text became "Add another layer" per the
+spec's §3 delta; "Make a copy" disables at the 5-clip cap alongside "+ New
+clip" (a copy is a new clip — the spec named only the latter, but a silently
+dead button is worse); song playback is deliberately inert until ticket 16.
+The first-visit seed stays a starter — ticket 17 owns the sample-clip swap.
+Whole-page coverage: `clipLanes.iwft.tsx`.

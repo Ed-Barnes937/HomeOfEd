@@ -15,6 +15,12 @@ export interface TopBarProps {
   onOpenHints: () => void
   /** The saved boop this grid came from, or `null` (ticket 31) — drives the indicator. */
   loaded: LoadedBoop | null
+  /**
+   * The plain, no-dialog New boop reset (boop-loops ticket 15) — rendered
+   * before "My boops" on the laptop layout only. Absent on the tablet, where
+   * New boop still lives in the transport bar until ticket 20.
+   */
+  onNewBoop?: () => void
 }
 
 /**
@@ -28,7 +34,7 @@ export interface TopBarProps {
  * The saved/edited indicator (ticket 31) sits after the wordmark, before the
  * spacer — quiet chrome at half ink, never a status bar.
  */
-export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, loaded }: TopBarProps) {
+export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, loaded, onNewBoop }: TopBarProps) {
   const { shareState, share } = useShareBoop(getShareUrl)
   const copied = shareState === 'copied'
 
@@ -55,6 +61,16 @@ export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, loaded }: TopBar
         {savedStateLabel(loaded)}
       </span>
       <div className={styles.spacer} />
+      {onNewBoop && (
+        <button
+          type="button"
+          className={styles.ghost}
+          onClick={onNewBoop}
+          data-testid="new-boop-button"
+        >
+          New boop
+        </button>
+      )}
       <button
         type="button"
         className={styles.ghost}

@@ -9,6 +9,15 @@
   background: var(--well);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
+  // The active clip's tint ring (clip-lanes handoff §3): `<clipTint>40` = 25%.
+  // The clip header row above absorbs 4px of the old margin.
+  &[data-tinted='true'] {
+    margin-top: 12px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      inset 0 0 0 2px color-mix(in srgb, var(--clip-tint) 25%, transparent);
+  }
+
   @media (max-width: 1279px) {
     padding: 16px;
     border-radius: 20px;
