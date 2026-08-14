@@ -15,13 +15,12 @@ const VOICE_GAIN = 0.5
  */
 const MASTER_GAIN = 0.6
 
-export interface RenderPatternOptions {
+export interface RenderSequenceOptions {
   kit: Kit
-  pattern: Pattern
+  /** One 16-step pass per entry, rendered left to right (ticket 19: a song is a sequence of clips). */
+  sequence: readonly Pattern[]
   /** Beats per minute — the same tempo the engine schedules from. */
   bpm: number
-  /** How many times to loop the pattern. */
-  loops: number
   sampleRate: number
   /** Decoded, mono sample data per `instrumentId`. A missing entry is silently skipped. */
   samples: Readonly<Record<string, Float32Array>>
@@ -31,14 +30,14 @@ export interface RenderPatternOptions {
  * The pure scheduling + mixing core of the WAV export: no AudioContext, no
  * Tone.js — just where each hit lands in sample space and how loud it is
  * once several rows land on the same step. Mirrors `secondsPerStep` from
- * `createSequencerEngine.ts` so the render matches what the loop actually
+ * `createSequencerEngine.ts` so the render matches what playback actually
  * sounds like.
  */
-export function renderPatternSamples(options: RenderPatternOptions): Float32Array {
-  const { kit, pattern, bpm, loops, sampleRate, samples } = options
+export function renderSequenceSamples(options: RenderSequenceOptions): Float32Array {
+  const { kit, sequence, bpm, sampleRate, samples } = options
   const secondsPerStep = 60 / bpm / 4
   const samplesPerStep = Math.round(secondsPerStep * sampleRate)
-  const totalSteps = STEPS_PER_PATTERN * loops
+  const totalSteps = STEPS_PER_PATTERN * sequence.length
 
   const longestSample = kit.instruments.reduce(
     (max, instrument) => Math.max(max, samples[instrument.instrumentId]?.length ?? 0),
@@ -46,9 +45,12 @@ export function renderPatternSamples(options: RenderPatternOptions): Float32Arra
   )
   const out = new Float32Array(totalSteps * samplesPerStep + longestSample)
 
-  const rows = new Map(pattern.map((row) => [row.instrumentId, row.steps]))
+  const passRows = sequence.map(
+    (pattern) => new Map(pattern.map((row) => [row.instrumentId, row.steps])),
+  )
 
   for (let tick = 0; tick < totalSteps; tick += 1) {
+    const rows = passRows[Math.floor(tick / STEPS_PER_PATTERN)]!
     const step = tick % STEPS_PER_PATTERN
     const offset = tick * samplesPerStep
     for (const instrument of kit.instruments) {

@@ -22,7 +22,7 @@ import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { Transport } from '../features/transport/Transport.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
-import { MAX_CLIPS, storedToPattern, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
+import { MAX_CLIPS, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
 import { useWorkingSong } from '../persistence/useWorkingSong.ts'
 import { afterEdit, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
@@ -341,7 +341,8 @@ export function HomePage() {
 
   /**
    * Export one *saved* boop as a WAV (ticket 34): an offline render of that
-   * row's stored pattern and tempo, then the share sheet on mobile or a
+   * row's whole song — placements one pass, or the grid clip's 4 bars when
+   * nothing is placed (ticket 19) — then the share sheet on mobile or a
    * download on desktop. The only export path — there is no top-bar link, so
    * exporting means "export this saved boop". The double-tap guard lives on
    * the row, in `BoopsPanel`.
@@ -353,8 +354,7 @@ export function HomePage() {
       const context = new OfflineAudioContext(1, 1, DEFAULT_SAMPLE_RATE)
       const blob = await renderBoopWav({
         kit,
-        pattern: storedToPattern(kit, boop.patterns[0]!),
-        bpm: boop.tempo,
+        song: songFromStored(kit, boop),
         decode: webAudioSampleDecoder(context),
       })
       await exportBoopWav(

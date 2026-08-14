@@ -13,9 +13,9 @@ Spec: §12 (WAV export).
 
 **Blocked by:** 14 — The working song state.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] A song with placements exports one pass of the placement sequence at the boop's bpm (empty positions skipped)
-- [ ] A song with no placements exports the grid clip's 4 bars — identical output to today for an old boop
-- [ ] Export is available regardless of song contents
-- [ ] Render behaviour covered by `*.test` unit tests
+- [x] A song with placements exports one pass of the placement sequence at the boop's bpm (empty positions skipped)
+- [x] A song with no placements exports the grid clip's 4 bars — identical output to today for an old boop
+- [x] Export is available regardless of song contents
+- [x] Render behaviour covered by `*.test` unit tests
