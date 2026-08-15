@@ -118,9 +118,15 @@ _Avoid_: Arrangement, track, sequence.
 
 **Placement**:
 One filled square on the lane grid — "play this clip at this position in the
-song". One clip per position; a repeat is the same clip placed twice, never a
-counter.
+song". A repeat is the same clip placed twice, never a counter.
 _Avoid_: Slot (that is the empty square), block, instance.
+
+**Layered position**:
+A song position holding more than one placement: every clip in it sounds
+together, its patterns overlaid (ADR 0032, amended). Still one position — one
+slot in the song, one square in the bars count; the grid shows its topmost
+lane while it sounds.
+_Avoid_: Stack, chord, overlay (the mechanism, not the thing).
 
 **Lane**:
 One clip's row in the song bar: its chip (tint dot, name, ×n count) followed

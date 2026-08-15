@@ -15,7 +15,7 @@ interface SongBarProps {
   onTempoChange: (bpm: number) => void
   /** Puts that clip on the grid. Stops the song when it is playing (spec §9). */
   onSelectClip: (index: number) => void
-  /** A lane-square toggle: place, tap off, or replace (one clip per position). */
+  /** A lane-square toggle: place or tap off. Every lane is its own toggle, so a position can hold several clips. */
   onTogglePlacement: (clipIndex: number, position: number) => void
   /** A lane reorder (ticket 18): chip drag or Ctrl/Cmd+ArrowUp/Down. Counts as edited. */
   onMoveClip: (from: number, to: number) => void
@@ -52,9 +52,9 @@ export function SongBar({
   playingPosition,
 }: SongBarProps) {
   const percent = bpmToPercent(bpm)
-  const placedCount = song.placements.filter((held) => held !== null).length
+  const placedCount = song.placements.filter((clips) => clips.length > 0).length
   // The dashed "next" hint on the active clip's lane: the first empty position.
-  const nextFree = song.placements.indexOf(null)
+  const nextFree = song.placements.findIndex((clips) => clips.length === 0)
   const atClipCap = song.clips.length >= MAX_CLIPS
 
   const toggleByLane = (laneId: string, position: number) =>
@@ -193,7 +193,7 @@ export function SongBar({
             data-drag-live={chipDrag.drag !== null || undefined}
           >
             {song.clips.map((clip, clipIndex) => {
-              const count = song.placements.filter((held) => held === clipIndex).length
+              const count = song.placements.filter((clips) => clips.includes(clipIndex)).length
               const active = clipIndex === song.activeClipIndex
               const laneStyle = {
                 '--lane-tint': clipTint(clip.tint),
@@ -229,7 +229,7 @@ export function SongBar({
                     )}
                   </button>
                   {POSITIONS.map((position) => {
-                    const on = song.placements[position] === clipIndex
+                    const on = song.placements[position]!.includes(clipIndex)
                     const laneId = String(clipIndex)
                     return (
                       <button

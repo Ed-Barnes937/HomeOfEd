@@ -61,3 +61,19 @@ and how kits are described on disk.
 - V1 ships synthesized placeholder one-shots
   (`apps/boop/scripts/generatePlaceholderSamples.mjs`) rather than sourced CC0
   audio, so the repo carries no third-party samples until the real kit lands.
+
+## Amendment (2026-08-15): the engine borrows the driver, it does not own it
+
+`SequencerEngine.dispose()` used to dispose the injected `AudioDriver` too.
+That is the wrong ownership: the driver is a constructor dependency, and React's
+dev double-mount builds **two** engines over the one driver and throws the first
+away. Whichever engine lost the race took the shared driver's sample buffers and
+output bus down with it, leaving the live engine with a moving playhead and no
+sound — silent, because `play()` returns early when there are no buffers, and
+therefore invisible in the console.
+
+`dispose()` now releases only what the engine itself holds: its listeners, its
+driver-state subscription, and the transport if it is running. **The `App`
+component owns the driver** — one per page, for the life of the page — and does
+not dispose it. `AudioDriver.dispose()` stays on the interface for a caller that
+genuinely owns one (the offline render path, tests).

@@ -17,7 +17,9 @@ import {
   SONG_POSITIONS,
   TINT_COUNT,
   patternToStored,
+  placementsToStored,
   storedToPattern,
+  storedToPlacements,
   type StoredBoop,
 } from '../persistence/saveFormat.ts'
 
@@ -37,12 +39,16 @@ export interface Song {
   clips: readonly Clip[]
   /** The clip on the grid — what every grid edit writes into. */
   activeClipIndex: number
-  /** One entry per song position: a clip index, or `null` for an empty slot. */
-  placements: readonly (number | null)[]
+  /**
+   * One entry per song position: the clips that sound there, in lane order.
+   * Empty means an empty slot; more than one means they sound layered together.
+   */
+  placements: readonly (readonly number[])[]
 }
 
-const EMPTY_PLACEMENTS: readonly (number | null)[] = new Array<number | null>(SONG_POSITIONS).fill(
-  null,
+const EMPTY_PLACEMENTS: readonly (readonly number[])[] = Array.from(
+  { length: SONG_POSITIONS },
+  () => [] as readonly number[],
 )
 
 /** The automatic clip name for a 1-based number. */
@@ -79,9 +85,7 @@ export function songFromStored(kit: Kit, boop: StoredBoop): Song {
       pattern: storedToPattern(kit, stored),
     })),
     activeClipIndex: boop.gridClip ?? 0,
-    placements: boop.placements
-      ? Array.from(boop.placements, (char) => (char === '.' ? null : Number(char) - 1))
-      : EMPTY_PLACEMENTS,
+    placements: boop.placements ? storedToPlacements(boop.placements) : EMPTY_PLACEMENTS,
   }
 }
 
@@ -101,7 +105,7 @@ export function storedBoopFromSong(kit: Kit, song: Song, name: string): StoredBo
       name: clip.name,
       tint: clip.tint,
     })),
-    placements: song.placements.map((clip) => (clip === null ? '.' : String(clip + 1))).join(''),
+    placements: placementsToStored(song.placements),
     gridClip: song.activeClipIndex,
   }
 }
@@ -121,21 +125,43 @@ export function withBpm(song: Song, bpm: number): Song {
   return { ...song, bpm }
 }
 
-/** Place `clipIndex` at `position` (replacing whatever held it), or `null` to empty it. */
-export function withPlacement(song: Song, position: number, clipIndex: number | null): Song {
+/** Set the clips `position` holds. They are kept in lane order. */
+export function withPlacement(song: Song, position: number, clipIndices: readonly number[]): Song {
+  const held = [...clipIndices].sort((a, b) => a - b)
   return {
     ...song,
-    placements: song.placements.map((held, index) => (index === position ? clipIndex : held)),
+    placements: song.placements.map((clips, index) => (index === position ? held : clips)),
   }
 }
 
 /**
- * A lane-square tap: place `clipIndex` at `position`, tap its own placement
- * off, or replace another clip's — one clip per position (spec §2).
+ * A lane-square tap: add `clipIndex` to `position`, or take it off again.
+ * Every lane is its own toggle — a position holds as many clips as the child
+ * puts there, and they sound layered (spec §2, as amended).
  */
 export function togglePlacement(song: Song, clipIndex: number, position: number): Song {
-  const held = song.placements[position]
-  return withPlacement(song, position, held === clipIndex ? null : clipIndex)
+  const held = song.placements[position]!
+  return withPlacement(
+    song,
+    position,
+    held.includes(clipIndex) ? held.filter((index) => index !== clipIndex) : [...held, clipIndex],
+  )
+}
+
+/**
+ * What a layered position sounds like: the clips' patterns overlaid, so a step
+ * is on when any of them has it on. Rows line up by index — every clip's
+ * pattern is built for the same kit, in kit order (`storedToPattern`).
+ */
+export function mergePatterns(patterns: readonly Pattern[]): Pattern {
+  const [first, ...rest] = patterns
+  if (rest.length === 0) return first!
+  return first!.map((row, rowIndex) => ({
+    instrumentId: row.instrumentId,
+    steps: row.steps.map(
+      (on, step) => on || rest.some((pattern) => pattern[rowIndex]?.steps[step] === true),
+    ),
+  }))
 }
 
 /**
@@ -178,8 +204,8 @@ export function deleteClip(song: Song, index: number): Song {
     ...song,
     clips: song.clips.filter((_, i) => i !== index),
     activeClipIndex: active,
-    placements: song.placements.map((held) =>
-      held === null || held === index ? null : held > index ? held - 1 : held,
+    placements: song.placements.map((clips) =>
+      clips.filter((held) => held !== index).map((held) => (held > index ? held - 1 : held)),
     ),
   }
 }
@@ -208,6 +234,8 @@ export function moveClip(song: Song, from: number, to: number): Song {
     ...song,
     clips,
     activeClipIndex: newIndex.get(song.activeClipIndex)!,
-    placements: song.placements.map((held) => (held === null ? null : newIndex.get(held)!)),
+    placements: song.placements.map((clips) =>
+      clips.map((held) => newIndex.get(held)!).sort((a, b) => a - b),
+    ),
   }
 }

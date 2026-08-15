@@ -131,15 +131,16 @@ export function HomePage() {
    * Draw time: this position is audible now. The ring moves and the grid
    * switches to its clip — a view change like tapping its chip, never an
    * edit, and never an engine write: the conductor owns the engine's pattern
-   * while the song plays.
+   * while the song plays. A layered position sounds several clips at once but
+   * the grid shows one: its topmost lane, so a single-clip position behaves
+   * exactly as it always has.
    */
   const onSoundingPosition = useCallback((position: number) => {
     setPlayingPosition(position)
     const current = songRef.current
     if (!current) return
-    const clipIndex = current.placements[position]
-    if (clipIndex === null || clipIndex === undefined || clipIndex === current.activeClipIndex)
-      return
+    const clipIndex = current.placements[position]?.[0]
+    if (clipIndex === undefined || clipIndex === current.activeClipIndex) return
     const next = { ...current, activeClipIndex: clipIndex }
     songRef.current = next
     setSong(next)
@@ -277,7 +278,7 @@ export function HomePage() {
     }
     songModeRef.current = true
     setSongPlaying(true)
-    if (current.placements.some((held) => held !== null)) {
+    if (current.placements.some((clipIndices) => clipIndices.length > 0)) {
       conductorRef.current = createSongConductor(
         engine,
         current.clips.map((clip) => clip.pattern),

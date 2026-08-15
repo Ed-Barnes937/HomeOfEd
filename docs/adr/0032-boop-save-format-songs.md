@@ -94,3 +94,36 @@ duplicate `tint` invalidates the boop). Uniqueness is checked on **effective**
 tints — an absent `tint` counts as the pattern's position — so a stated tint
 colliding with another pattern's default is also invalid; the single writer
 never mixes stated and defaulted tints, so a mix that collides is corruption.
+
+## Amendment (2026-08-15): a position holds any number of clips
+
+Decision (3) allowed one clip per position: tapping a lane square in a column
+that already held a clip replaced it. Layering is what a child reaches for
+next — a drum clip *under* a melody clip, not instead of it — and the lane grid
+already draws one square per clip per position, so the affordance was there
+and only the model refused. **Every lane square is now its own toggle, and a
+position sounds every clip placed in it, together.** There is no cap beyond
+the 5-clip cap: a position may hold all five.
+
+- **Storage.** `placements` becomes the 16 positions **comma-separated**, each
+  field the 1-based clip indices sounding there, ascending — e.g.
+  `"1,12,,3,,,,,,,,,,,,"`. An empty field is an empty position; several digits
+  is a layered one. The separator is also the discriminator: a string **with no
+  comma** is read in the pre-layering form (16 characters, `.` for empty), so
+  every save and share link already on disk still decodes. **The writer emits
+  the comma form only once something is actually layered** — a song with at
+  most one clip per position is still written the old way, byte-identical. That
+  keeps decision (1)'s stale-build risk as small as it can be: here the stale
+  build does not merely drop an unknown field, it rejects the boop, and by
+  decision (6) one invalid boop discards the *whole* save document. Only a song
+  a child has genuinely layered can trip that.
+- **Decode stays strict** (6): exactly 16 positions, only clip digits, no
+  position naming the same clip twice, and no digit past the clip list. The two
+  forms never mix — a `.` inside a comma-separated string is invalid.
+- **Playback and export** resolve a position to the clips' patterns **overlaid**
+  — a step sounds when any clip in the column has it on — so layering stays
+  entirely above the `SequencerEngine` seam (ADR 0024): the engine is still
+  handed one pattern per slot. A step two clips share sounds once, not twice.
+- **A layered position is still one position.** It occupies one slot in the
+  song, counts once in the bars readout, and the grid shows its **topmost lane**
+  while it sounds, since the grid can only show one clip.

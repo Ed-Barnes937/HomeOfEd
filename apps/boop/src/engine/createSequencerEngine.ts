@@ -181,6 +181,13 @@ class BoopSequencerEngine implements SequencerEngine {
     return subscribe(this.audioStateListeners, listener)
   }
 
+  /**
+   * Release what this engine owns — its listeners, and the transport it may
+   * have running. **Not** the driver: it is injected, so its owner disposes it.
+   * React's dev double-mount builds a second engine over the same driver, and
+   * disposing the first one's driver would leave the live engine with no
+   * samples and no output bus — a moving playhead and silence.
+   */
   dispose(): void {
     this.stop()
     this.offDriverState()
@@ -188,7 +195,6 @@ class BoopSequencerEngine implements SequencerEngine {
     this.drawListeners.clear()
     this.transportListeners.clear()
     this.audioStateListeners.clear()
-    this.driver.dispose()
   }
 
   /**

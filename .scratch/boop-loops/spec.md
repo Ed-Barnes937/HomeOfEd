@@ -53,8 +53,12 @@ song's placements left to right, looping.
   ([Lane reordering](issues/09-lane-reordering.md), ADR 0032 amendment).
   Reorder and delete never recolour a clip. New clips and copies take the
   lowest unused tint.
-- **One placement per position.** Placing a clip in a column that already
-  holds another replaces it.
+- **Positions layer.** Every lane square is its own toggle: a column holds as
+  many clips as the child puts there (up to all 5), and they sound together —
+  their patterns overlaid (ADR 0032, 2026-08-15 amendment). A layered column is
+  still one position: one slot, one square in the bars count. Superseded: the
+  original "one placement per position", where placing a clip replaced the one
+  already in the column.
 - **Speed (bpm) is a property of the whole boop**, 60–180, driving both play
   modes. Step duration is `15000 / bpm` ms for a 16th.
 - **No lane overflow handling.** The 5-clip cap bounds the laptop song bar at
@@ -68,7 +72,8 @@ Song {
   bpm: number                     // 60–180, whole boop
   clips: Clip[]                   // 1–5, ordered; order IS lane order
   activeClipIndex: number         // the clip on the grid
-  placements: (number | null)[16] // clip index per song position, or empty
+  placements: number[][16]        // the clips sounding at each song position,
+                                  // in lane order; empty = an empty position
 }
 Clip { name: string; tint: 0–4; steps: boolean[6][16] }
 ```
@@ -213,14 +218,16 @@ prototype branch `prototype/03-song-mode` — the conductor in
   bars. The grid playhead sweeps as today.
 - **Song** (cyan) plays the placements left to right, looping the whole song.
   Empty positions are skipped (song sequence =
-  `placements.filter(p => p !== null)`). As each position starts, the grid
-  switches to that clip and its lane square gets the playing ring.
+  `placements.filter(p => p.length > 0)`). As each position starts, the grid
+  switches to that clip and its lane square gets the playing ring. A layered
+  position rings on every lane in it, and the grid shows its topmost.
 - **Only one mode plays at a time.** Tapping a chip while the song plays
   stops the song (you are now editing, not listening).
 - **Mechanics — no `SequencerEngine` contract change.** Song mode is a
   ~30-line conductor living entirely above the existing seam: it subscribes
   to `onBeat`, and at step 15 calls `setPattern` with the next position's
-  clip. `onScheduledStep` reads rows fresh each step and `onBeat` fires
+  clip — for a layered position, that position's clips overlaid into one
+  pattern, so the seam still sees one pattern per slot. `onScheduledStep` reads rows fresh each step and `onBeat` fires
   synchronously inside the step-15 callback, so the swap lands before tick 16
   is scheduled — gapless by construction. Proven deterministically (over
   `FakeAudioDriver`) and by ear (real `ToneAudioDriver`).
@@ -238,8 +245,12 @@ prototype branch `prototype/03-song-mode` — the conductor in
 - **Additive fields, no version bump** — `SAVE_FORMAT_VERSION` stays 1.
 - **`patterns` is the clip list**; each `StoredPattern` gains optional `name`
   (absent → "Clip N") and optional `tint` (0–4; absent → its position).
-- **`placements`: a 16-char string** on `StoredBoop` — `.` empty, `1`–`5` a
-  1-based clip index per position (e.g. `"1112..3311...."`).
+- **`placements`: the 16 positions, comma-separated** on `StoredBoop` — each
+  field the 1-based clip indices sounding there, ascending; empty field = empty
+  position, several digits = a layered one (e.g. `"1,12,,3,,,,,,,,,,,,"`). A
+  comma-less string is read in the pre-layering form (16 characters, `.` empty),
+  so old saves and old links still decode — and a song with nothing layered is
+  still *written* that way, byte-identical to what earlier builds wrote.
 - **`gridClip`**: optional integer on `StoredBoop`, default 0 — on `working`
   and saved rows alike, so the working slot is a working *song*.
 - **An old boop decodes to one clip, no placements** — an empty song bar,

@@ -7,6 +7,7 @@ import {
   activeClip,
   addClip,
   deleteClip,
+  mergePatterns,
   moveClip,
   renameClip,
   singleClipSong,
@@ -38,6 +39,13 @@ const kickPattern: Pattern = [row('kick', 0, 4), row('snare')]
 const snarePattern: Pattern = [row('kick'), row('snare', 2, 10)]
 const emptyPattern: Pattern = [row('kick'), row('snare')]
 
+/** 16 columns, empty but for the given `{ position: [clip, ...] }` entries. */
+function columns(entries: Record<number, readonly number[]>): readonly (readonly number[])[] {
+  const placements: number[][] = Array.from({ length: 16 }, () => [])
+  for (const [position, clips] of Object.entries(entries)) placements[Number(position)] = [...clips]
+  return placements
+}
+
 /** A two-clip song with a couple of placements — the working example throughout. */
 const song: Song = {
   bpm: 120,
@@ -46,7 +54,7 @@ const song: Song = {
     { name: 'Drums', tint: 3, pattern: snarePattern },
   ],
   activeClipIndex: 1,
-  placements: [0, 0, 1, null, null, null, null, null, null, null, null, null, null, null, null, 1],
+  placements: columns({ 0: [0], 1: [0], 2: [1], 15: [1] }),
 }
 
 describe('singleClipSong', () => {
@@ -55,7 +63,7 @@ describe('singleClipSong', () => {
       bpm: 100,
       clips: [{ name: 'Clip 1', tint: 0, pattern: kickPattern }],
       activeClipIndex: 0,
-      placements: new Array(16).fill(null),
+      placements: columns({}),
     })
   })
 })
@@ -76,6 +84,35 @@ describe('songFromStored / storedBoopFromSong', () => {
       gridClip: 1,
     })
     expect(songFromStored(kit, stored)).toEqual(song)
+  })
+
+  it('round-trips a layered position — several clips in one column', () => {
+    const layered: Song = { ...song, placements: columns({ 0: [0, 1], 3: [1] }) }
+    const stored = storedBoopFromSong(kit, layered, 'Layers')
+
+    expect(stored.placements).toBe('12,,,2,,,,,,,,,,,,')
+    expect(songFromStored(kit, stored)).toEqual(layered)
+  })
+
+  it('writes the pre-layering form until something is actually layered', () => {
+    // A song no child has layered must stay byte-identical to what earlier
+    // builds wrote, so it keeps round-tripping through them.
+    expect(storedBoopFromSong(kit, song, 'Flat').placements).toBe('112............2')
+
+    const layered: Song = { ...song, placements: columns({ 0: [0, 1] }) }
+    expect(storedBoopFromSong(kit, layered, 'Layers').placements).toBe('12,,,,,,,,,,,,,,,')
+  })
+
+  it('reads a pre-layering placements string — one clip per position', () => {
+    const stored: StoredBoop = {
+      name: '',
+      kitId: 'launch',
+      tempo: 120,
+      patterns: [patternToStored(kickPattern), patternToStored(snarePattern)],
+      placements: '112............2',
+    }
+
+    expect(songFromStored(kit, stored).placements).toEqual(song.placements)
   })
 
   it('reads an old single-pattern boop as a one-clip song with an empty song bar', () => {
@@ -126,26 +163,58 @@ describe('withBpm', () => {
 })
 
 describe('withPlacement', () => {
-  it('places a clip at a position, replacing whatever held it', () => {
-    expect(withPlacement(song, 2, 0).placements[2]).toBe(0)
+  it('sets the clips a position holds', () => {
+    expect(withPlacement(song, 2, [0, 1]).placements[2]).toEqual([0, 1])
   })
 
-  it('removes a placement', () => {
-    expect(withPlacement(song, 0, null).placements[0]).toBeNull()
+  it('empties a position', () => {
+    expect(withPlacement(song, 0, []).placements[0]).toEqual([])
   })
 })
 
 describe('togglePlacement', () => {
   it('places the clip on its empty square', () => {
-    expect(togglePlacement(song, 0, 3).placements[3]).toBe(0)
+    expect(togglePlacement(song, 0, 3).placements[3]).toEqual([0])
   })
 
   it('taps a filled square off', () => {
-    expect(togglePlacement(song, 0, 0).placements[0]).toBeNull()
+    expect(togglePlacement(song, 0, 0).placements[0]).toEqual([])
   })
 
-  it("replaces another clip's placement — one clip per position", () => {
-    expect(togglePlacement(song, 0, 2).placements[2]).toBe(0)
+  it("layers onto another clip's placement, leaving it alone", () => {
+    expect(togglePlacement(song, 0, 2).placements[2]).toEqual([0, 1])
+  })
+
+  it('keeps a layered position in lane order however it was built', () => {
+    const built = togglePlacement(togglePlacement(song, 1, 4), 0, 4)
+
+    expect(built.placements[4]).toEqual([0, 1])
+  })
+
+  it('removes just its own clip from a layered position', () => {
+    const layered = withPlacement(song, 5, [0, 1])
+
+    expect(togglePlacement(layered, 1, 5).placements[5]).toEqual([0])
+  })
+})
+
+describe('mergePatterns', () => {
+  it('is the one pattern itself when a position holds one clip', () => {
+    expect(mergePatterns([kickPattern])).toBe(kickPattern)
+  })
+
+  it('sounds every layer: a step is on when any clip has it on', () => {
+    expect(mergePatterns([kickPattern, snarePattern])).toEqual([
+      row('kick', 0, 4),
+      row('snare', 2, 10),
+    ])
+  })
+
+  it('a step two clips share sounds once', () => {
+    expect(mergePatterns([kickPattern, [row('kick', 4, 8), row('snare')]])).toEqual([
+      row('kick', 0, 4, 8),
+      row('snare'),
+    ])
   })
 })
 
@@ -198,10 +267,16 @@ describe('deleteClip', () => {
     const next = deleteClip(song, 0)
 
     expect(next.clips).toEqual([song.clips[1]])
-    expect(next.placements[0]).toBeNull()
-    expect(next.placements[1]).toBeNull()
-    expect(next.placements[2]).toBe(0)
-    expect(next.placements[15]).toBe(0)
+    expect(next.placements[0]).toEqual([])
+    expect(next.placements[1]).toEqual([])
+    expect(next.placements[2]).toEqual([0])
+    expect(next.placements[15]).toEqual([0])
+  })
+
+  it('leaves the other layers of a position it shared', () => {
+    const next = deleteClip(withPlacement(song, 4, [0, 1]), 0)
+
+    expect(next.placements[4]).toEqual([0])
   })
 
   it('keeps the grid on the same clip when one above it goes', () => {
@@ -234,9 +309,15 @@ describe('moveClip', () => {
     const next = moveClip(song, 0, 1)
 
     expect(next.clips).toEqual([song.clips[1], song.clips[0]])
-    expect(next.placements[0]).toBe(1)
-    expect(next.placements[2]).toBe(0)
-    expect(next.placements[15]).toBe(0)
+    expect(next.placements[0]).toEqual([1])
+    expect(next.placements[2]).toEqual([0])
+    expect(next.placements[15]).toEqual([0])
+  })
+
+  it('re-sorts a layered position into the new lane order', () => {
+    const next = moveClip(withPlacement(song, 4, [0, 1]), 0, 1)
+
+    expect(next.placements[4]).toEqual([0, 1])
   })
 
   it('keeps the grid on the clip it was on', () => {
@@ -274,7 +355,7 @@ describe('every song mutation kind marks the loaded boop edited', () => {
   const kinds: [string, (input: Song) => Song][] = [
     ['a cell toggle', (input) => withActivePattern(input, emptyPattern)],
     ['a speed change', (input) => withBpm(input, 84)],
-    ['a placement change', (input) => withPlacement(input, 3, 0)],
+    ['a placement change', (input) => withPlacement(input, 3, [0])],
     ['a clip add', (input) => addClip(input, emptyPattern)],
     ['a clip delete', (input) => deleteClip(input, 0)],
     ['a clip rename', (input) => renameClip(input, 0, 'Thunder')],

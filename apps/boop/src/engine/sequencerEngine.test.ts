@@ -336,12 +336,27 @@ describe('SequencerEngine', () => {
     })
   })
 
-  it('stops and disposes the driver', async () => {
+  it('stops, and leaves the injected driver to whoever owns it', async () => {
     await engine.start()
     engine.dispose()
-    expect(driver.disposed).toBe(true)
+    expect(driver.disposed).toBe(false)
     expect(driver.transportRunning).toBe(false)
     expect(engine.isPlaying()).toBe(false)
+  })
+
+  it('a second engine over the same driver still sounds once the first is disposed', async () => {
+    // React's dev double-mount builds two engines over the one injected driver
+    // and throws the first away. Disposing it must not take the driver — its
+    // samples and output bus — down with it, or the live engine plays silence.
+    const second = await createSequencerEngine({ kit, driver })
+    engine.dispose()
+
+    second.setCell('kick', 0, true)
+    await second.start()
+    driver.played = []
+    driver.fireStep()
+
+    expect(driver.played).toEqual([{ instrumentId: 'kick', audioTime: 0.1 }])
   })
 
   function transportEvents(engine: SequencerEngine): TransportEvent[] {

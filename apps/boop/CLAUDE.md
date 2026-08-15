@@ -154,13 +154,18 @@ share-link snapshot.
   (`{ tick, step, audioTime, hits: [{ instrumentId }] }`) and must do no DOM
   work; UI subscribes via `onDrawBeat`. Pattern edits are readable state, not
   an event stream, and audition-on-toggle is the engine's job. Test engine
-  behaviour against `FakeAudioDriver`, never a real AudioContext.
+  behaviour against `FakeAudioDriver`, never a real AudioContext. The engine
+  **borrows** its driver: `App` owns the one `AudioDriver` for the life of the
+  page, and `engine.dispose()` must never dispose it (ADR 0024, as amended) —
+  React's dev double-mount builds two engines over that one driver.
 - **Persistence** ([ADR 0025](../../docs/adr/0025-boop-save-format.md), extended
   for songs by [ADR 0032](../../docs/adr/0032-boop-save-format-songs.md)). One
   versioned save document under one `localStorage` key (`boop:save`), holding
   the autosaved working grid and the "My boops" list. A stored boop is a whole
   song: `patterns` is the clip list (≤5, optional `name`/`tint` per clip), plus
-  optional `placements` (16-char string) and `gridClip` — all additive, still
+  optional `placements` (the 16 positions, comma-separated — each field the
+  clips sounding there, so a position can hold several; a comma-less string is
+  read in the pre-layering one-clip-per-position form) and `gridClip` — all additive, still
   `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. Anything that persists
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned

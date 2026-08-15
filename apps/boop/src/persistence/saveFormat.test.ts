@@ -101,6 +101,22 @@ describe('round-trip', () => {
     expect(reparse(saveDocument)).toEqual(saveDocument)
   })
 
+  it('preserves a layered placements string — several clips in one position', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: [patternToStored(pattern), patternToStored(pattern)],
+      placements: '12,2,,,,,,,,,,,,,,1',
+      gridClip: 0,
+    }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...song, name: '' },
+      creations: [song],
+    }
+
+    expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
   it('preserves the working boop and the saved list', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
@@ -223,6 +239,18 @@ describe('parseSaveDocument (defensive decode)', () => {
       withWorking({ ...boop, placements: '0x..............' }),
     ],
     ['a non-string placements', withWorking({ ...boop, placements: 16 })],
+    [
+      'a layered placements string with the wrong number of positions',
+      withWorking({ ...boop, placements: '1,1,,' }),
+    ],
+    [
+      'a layered position naming the same clip twice',
+      withWorking({ ...boop, placements: '11,,,,,,,,,,,,,,,' }),
+    ],
+    [
+      'a layered position with a . in it — the two forms never mix',
+      withWorking({ ...boop, placements: '1,.,,,,,,,,,,,,,,' }),
+    ],
     ['a gridClip past the clip list', withWorking({ ...boop, gridClip: 1 })],
     ['a negative gridClip', withWorking({ ...boop, gridClip: -1 })],
     ['a fractional gridClip', withWorking({ ...boop, gridClip: 0.5 })],
