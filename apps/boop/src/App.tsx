@@ -12,6 +12,11 @@ interface AppProps {
   driver?: AudioDriver
 }
 
+/**
+ * The app owns the `AudioDriver`: one per page, for the life of the page. The
+ * engine only borrows it (`SequencerEngine.dispose` leaves it alone), so a
+ * dev double-mount can build a second engine over it without silencing the app.
+ */
 export function App({ driver }: AppProps = {}) {
   const [queryClient] = useState(() => new QueryClient())
   const [audioDriver] = useState<AudioDriver>(() => driver ?? new ToneAudioDriver())
