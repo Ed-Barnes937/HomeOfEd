@@ -27,8 +27,15 @@ export const TINT_COUNT = 5
 /** Hard cap on clips per boop — one per tint (ADR 0032, spec §2). */
 export const MAX_CLIPS = TINT_COUNT
 
-/** A song is fixed at 16 positions; `placements` is one character per position. */
+/** A song is fixed at 16 positions; `placements` is one field per position. */
 export const SONG_POSITIONS = 16
+
+/**
+ * Separates the 16 positions in a `placements` string. Its presence is also
+ * what tells the two forms apart: a pre-layering string has no separator and
+ * one character per position (ADR 0032, as amended).
+ */
+const PLACEMENT_SEPARATOR = ','
 
 /** One instrument's 16 cells as a bitstring, e.g. `1000100010001000`. */
 export interface StoredRow {
@@ -62,8 +69,13 @@ export interface StoredBoop {
   tempo: number
   patterns: readonly StoredPattern[]
   /**
-   * One character per song position: `.` empty, `1`–`5` a 1-based clip index
-   * (e.g. `"1112..3311......"`). Always exactly 16 characters when present.
+   * The 16 song positions, comma-separated: each field is the 1-based clip
+   * indices sounding there, ascending, and an empty field is an empty position
+   * (e.g. `"1,12,,3,,,,,,,,,,,,"`). Several digits in one field is a layered
+   * position — several clips sounding together.
+   *
+   * A pre-layering string is also read: no commas, one character per position,
+   * `.` empty (e.g. `"1112..3311......"`).
    */
   placements?: string
   /** Which clip is on the grid (0-based index into `patterns`), default 0. */
@@ -122,6 +134,43 @@ export function storedToPattern(kit: Kit, stored: StoredPattern): Pattern {
       steps: Array.from({ length: STEPS_PER_PATTERN }, (_, step) => steps?.[step] === '1'),
     }
   })
+}
+
+/**
+ * The 16 positions as the stored string. A song with nothing layered is
+ * written in the **pre-layering form** — one character per position — so it
+ * stays byte-identical to what earlier builds wrote and keeps round-tripping
+ * through them. Only a genuinely layered song needs the comma form, which an
+ * earlier build cannot read (ADR 0032's stale-build risk, kept as small as it
+ * can be: a stale build rejecting one boop discards the whole save document).
+ */
+export function placementsToStored(placements: readonly (readonly number[])[]): string {
+  if (placements.every((clips) => clips.length <= 1)) {
+    return placements.map((clips) => (clips[0] === undefined ? '.' : String(clips[0] + 1))).join('')
+  }
+  return placements
+    .map((clips) => clips.map((clipIndex) => String(clipIndex + 1)).join(''))
+    .join(PLACEMENT_SEPARATOR)
+}
+
+/**
+ * Read either form of a `placements` string as the 16 positions, each in lane
+ * order. The string has already been validated by `decodeStoredBoop`; the sort
+ * is what makes a hand-written field like `"21"` still read canonically.
+ */
+export function storedToPlacements(placements: string): readonly (readonly number[])[] {
+  return placementFields(placements).map((field) =>
+    Array.from(field)
+      .filter((char) => char !== '.')
+      .map((char) => Number(char) - 1)
+      .sort((a, b) => a - b),
+  )
+}
+
+function placementFields(placements: string): string[] {
+  return placements.includes(PLACEMENT_SEPARATOR)
+    ? placements.split(PLACEMENT_SEPARATOR)
+    : Array.from(placements)
 }
 
 export function serializeSaveDocument(saveDocument: SaveDocument): string {
@@ -189,12 +238,7 @@ export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
 
   if (value.placements !== undefined) {
     if (typeof value.placements !== 'string') return undefined
-    if (value.placements.length !== SONG_POSITIONS) return undefined
-    if (!/^[.1-5]+$/.test(value.placements)) return undefined
-    // A digit past the clip list is dangling — a bug or corruption, not data.
-    for (const char of value.placements) {
-      if (char !== '.' && Number(char) > decoded.length) return undefined
-    }
+    if (!isValidPlacements(value.placements, decoded.length)) return undefined
     boop.placements = value.placements
   }
 
@@ -205,6 +249,24 @@ export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
   }
 
   return boop
+}
+
+/**
+ * Both forms: exactly 16 positions, only clip digits (plus `.` in the old
+ * form), and no position naming the same clip twice. A digit past the clip
+ * list is dangling — a bug or corruption, not data.
+ */
+function isValidPlacements(placements: string, clipCount: number): boolean {
+  const layered = placements.includes(PLACEMENT_SEPARATOR)
+  const fields = placementFields(placements)
+  if (fields.length !== SONG_POSITIONS) return false
+  for (const field of fields) {
+    if (!(layered ? /^[1-5]*$/ : /^[.1-5]$/).test(field)) return false
+    const digits = Array.from(field).filter((char) => char !== '.')
+    if (new Set(digits).size !== digits.length) return false
+    if (digits.some((char) => Number(char) > clipCount)) return false
+  }
+  return true
 }
 
 function decodePattern(value: unknown): StoredPattern | undefined {

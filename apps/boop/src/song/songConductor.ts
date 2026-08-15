@@ -14,6 +14,7 @@
  */
 
 import { STEPS_PER_PATTERN, type Pattern, type SequencerEngine } from '../engine/sequencerEngine.ts'
+import { mergePatterns } from './song.ts'
 
 export interface SongConductor {
   /** The song position audible right now (draw time) — what the UI shows. */
@@ -23,31 +24,35 @@ export interface SongConductor {
 
 /**
  * Start conducting `placements` over `engine`: the sequence is the non-empty
- * placements, left to right, looping. Sets the first position's clip
- * immediately; the caller starts and stops the transport. `onSoundingPosition`
- * fires at draw time — once for the first position on the first draw, then at
- * each audible slot change — and is safe for DOM work.
+ * placements, left to right, looping. A position holding several clips sounds
+ * them layered — one merged pattern, so layering costs the engine nothing.
+ * Sets the first position's pattern immediately; the caller starts and stops
+ * the transport. `onSoundingPosition` fires at draw time — once for the first
+ * position on the first draw, then at each audible slot change — and is safe
+ * for DOM work.
  */
 export function createSongConductor(
   engine: SequencerEngine,
   clips: readonly Pattern[],
-  placements: readonly (number | null)[],
+  placements: readonly (readonly number[])[],
   onSoundingPosition: (position: number) => void,
 ): SongConductor {
-  const sequence = placements.flatMap((clipIndex, position) =>
-    clipIndex === null ? [] : [{ position, clipIndex }],
+  const sequence = placements.flatMap((clipIndices, position) =>
+    clipIndices.length === 0
+      ? []
+      : [{ position, pattern: mergePatterns(clipIndices.map((index) => clips[index]!)) }],
   )
   if (sequence.length === 0) throw new Error('a song with no placements has nothing to conduct')
 
   let scheduled = 0
   let sounding = 0
   let announced = -1
-  engine.setPattern(clips[sequence[0]!.clipIndex]!)
+  engine.setPattern(sequence[0]!.pattern)
 
   const offBeat = engine.onBeat(({ step }) => {
     if (step === STEPS_PER_PATTERN - 1) {
       scheduled = (scheduled + 1) % sequence.length
-      engine.setPattern(clips[sequence[scheduled]!.clipIndex]!)
+      engine.setPattern(sequence[scheduled]!.pattern)
     }
   })
   const offDraw = engine.onDrawBeat(({ step }) => {

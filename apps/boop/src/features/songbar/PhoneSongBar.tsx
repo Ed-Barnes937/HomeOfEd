@@ -14,7 +14,7 @@ interface PhoneSongBarProps {
   song: Song
   /** Puts that clip on the grid. Stops the song when it is playing (spec §9). */
   onSelectClip: (index: number) => void
-  /** A lane-square toggle: place, tap off, or replace (one clip per position). */
+  /** A lane-square toggle: place or tap off. Every lane is its own toggle, so a position can hold several clips. */
   onTogglePlacement: (clipIndex: number, position: number) => void
   /** Opens the "+ New clip" picker (ticket 17): Blank first, then the sample clips. */
   onAddClip: () => void
@@ -49,7 +49,7 @@ export function PhoneSongBar({
   songPlaying,
   playingPosition,
 }: PhoneSongBarProps) {
-  const placedCount = song.placements.filter((held) => held !== null).length
+  const placedCount = song.placements.filter((clips) => clips.length > 0).length
   const atClipCap = song.clips.length >= MAX_CLIPS
 
   const toggleByLane = (laneId: string, position: number) =>
@@ -94,7 +94,7 @@ export function PhoneSongBar({
           <div className={styles.rulerSpacer} aria-hidden="true" />
           <div className={styles.chipRows}>
             {song.clips.map((clip, clipIndex) => {
-              const count = song.placements.filter((held) => held === clipIndex).length
+              const count = song.placements.filter((clips) => clips.includes(clipIndex)).length
               const active = clipIndex === song.activeClipIndex
               return (
                 <button
@@ -166,7 +166,7 @@ export function PhoneSongBar({
                     <div key={group} className={styles.group}>
                       {Array.from({ length: GROUP_SIZE }, (_, i) => {
                         const position = group * GROUP_SIZE + i
-                        const on = song.placements[position] === clipIndex
+                        const on = song.placements[position]!.includes(clipIndex)
                         const laneId = String(clipIndex)
                         return (
                           <button

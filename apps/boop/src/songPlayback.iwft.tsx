@@ -48,6 +48,38 @@ test('the song plays placements left to right, skips empty positions, and loops'
   await root.verifyCellOn('kick', 0)
 })
 
+test('a layered position rings on every lane in it and shows its topmost clip', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+  await root.toggleCell('kick', 0)
+  await root.addClip()
+  await root.toggleCell('snare', 0)
+
+  // Both clips in the one column — they sound together, and the column is
+  // still one position: 4 bars, not 8.
+  await root.toggleLaneSquare(0, 0)
+  await root.toggleLaneSquare(1, 0)
+  await root.verifySongLength('4 bars')
+
+  await root.pressSongPlay()
+  await root.verifySongPlaying()
+  await root.crankSteps(1)
+
+  await root.verifyPositionPlaying(0, 0)
+  await root.verifyPositionPlaying(1, 0)
+  // The grid can only show one clip: the layered column's topmost lane.
+  await root.verifyClipChipActive(0)
+  await root.verifyCellOn('kick', 0)
+
+  // A one-position song loops on itself, still ringing on both lanes.
+  await root.crankSteps(16)
+  await root.verifyPositionPlaying(0, 0)
+  await root.verifyPositionPlaying(1, 0)
+})
+
 test('the grid follows the draw channel: no early flash of the next clip at the swap', async ({
   mountApp,
 }) => {

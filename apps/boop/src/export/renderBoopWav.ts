@@ -1,5 +1,5 @@
 import type { Kit } from '../engine/sequencerEngine.ts'
-import { activeClip, type Song } from '../song/song.ts'
+import { activeClip, mergePatterns, type Song } from '../song/song.ts'
 import { renderSequenceSamples } from './renderSequence.ts'
 import type { SampleDecoder } from './sampleDecoder.ts'
 import { encodeWavPcm16 } from './wavEncoder.ts'
@@ -33,10 +33,12 @@ export async function renderBoopWav(options: RenderBoopWavOptions): Promise<Blob
   )
   const samples = Object.fromEntries(decoded)
 
-  const placed = song.placements.filter((held): held is number => held !== null)
+  const placed = song.placements.filter((clipIndices) => clipIndices.length > 0)
   const sequence =
     placed.length > 0
-      ? placed.map((clipIndex) => song.clips[clipIndex]!.pattern)
+      ? placed.map((clipIndices) =>
+          mergePatterns(clipIndices.map((clipIndex) => song.clips[clipIndex]!.pattern)),
+        )
       : new Array(DEFAULT_LOOPS).fill(activeClip(song).pattern)
 
   const mixed = renderSequenceSamples({ kit, sequence, bpm: song.bpm, sampleRate, samples })

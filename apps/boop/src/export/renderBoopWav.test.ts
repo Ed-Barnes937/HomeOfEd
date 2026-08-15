@@ -22,7 +22,7 @@ function rowOf(instrumentId: string, ...onSteps: number[]) {
 const kickPattern: Pattern = [rowOf('kick', 0), rowOf('snare')]
 const snarePattern: Pattern = [rowOf('kick'), rowOf('snare', 0)]
 
-function songOf(placements: readonly (number | null)[]): Song {
+function songOf(placements: readonly (readonly number[])[]): Song {
   return {
     bpm: 100,
     clips: [
@@ -34,7 +34,7 @@ function songOf(placements: readonly (number | null)[]): Song {
   }
 }
 
-const EMPTY = new Array<number | null>(16).fill(null)
+const EMPTY: readonly (readonly number[])[] = Array.from({ length: 16 }, () => [])
 
 /** kick decodes positive, snare negative — one sample tells the clips apart. */
 const signedDecode = (url: string) =>
@@ -76,7 +76,7 @@ describe('renderBoopWav', () => {
 
   it('a song with placements exports one pass, left to right, empty positions skipped', async () => {
     // Positions: [1, empty, 0, empty...] -> pass is [snarePattern, kickPattern].
-    const placements = [1, null, 0, ...new Array<number | null>(13).fill(null)]
+    const placements = [[1], [], [0], ...EMPTY.slice(3)]
     const blob = await renderBoopWav({
       kit,
       song: songOf(placements),
@@ -96,5 +96,21 @@ describe('renderBoopWav', () => {
     const second = dv.getInt16(44 + 16 * samplesPerStep * 2, true)
     expect(first).toBeLessThan(0)
     expect(second).toBeGreaterThan(0)
+  })
+
+  it('exports a layered position as one slot with every clip in it sounding', async () => {
+    // One position holding both clips: the kick's +1 and the snare's -1 land on
+    // the same sample and cancel — proof both were mixed into the one slot.
+    const blob = await renderBoopWav({
+      kit,
+      song: songOf([[0, 1], ...EMPTY.slice(1)]),
+      sampleRate: 4,
+      decode: signedDecode,
+    })
+    const dv = new DataView(await blob.arrayBuffer())
+
+    // Still one slot long — layering stacks clips, it does not lengthen the song.
+    expect(dv.getUint32(40, true) / 2).toBe(16 * 1 + 1)
+    expect(dv.getInt16(44, true)).toBe(0)
   })
 })

@@ -27,11 +27,11 @@ function fullRow(on: string): Pattern {
   }))
 }
 
-/** 16 placements: `null` everywhere except the given `{ position: clipIndex }` entries. */
-function placementsAt(entries: Record<number, number>): (number | null)[] {
-  const placements = new Array<number | null>(STEPS_PER_PATTERN).fill(null)
-  for (const [position, clipIndex] of Object.entries(entries)) {
-    placements[Number(position)] = clipIndex
+/** 16 placements: empty everywhere except the given `{ position: clips }` entries. */
+function placementsAt(entries: Record<number, number | readonly number[]>): number[][] {
+  const placements = Array.from({ length: STEPS_PER_PATTERN }, () => [] as number[])
+  for (const [position, clips] of Object.entries(entries)) {
+    placements[Number(position)] = typeof clips === 'number' ? [clips] : [...clips]
   }
   return placements
 }
@@ -85,6 +85,32 @@ describe('createSongConductor', () => {
     const expected = ['kick', 'snare', 'kick', 'snare', 'kick']
     for (const { tick, instrumentId } of scheduled) {
       expect(instrumentId).toBe(expected[Math.floor(tick / STEPS_PER_PATTERN)])
+    }
+  })
+
+  it('sounds a layered position: every clip in the column plays together', async () => {
+    const clips = [fullRow('kick'), fullRow('snare')]
+    // Position 0 holds both clips; position 1 holds only the kick.
+    createSongConductor(engine, clips, placementsAt({ 0: [0, 1], 1: [0] }), () => {})
+    await engine.start()
+
+    const perTick = new Map<number, string[]>()
+    engine.onBeat(({ tick, hits }) => {
+      perTick.set(
+        tick,
+        hits.map((hit) => hit.instrumentId),
+      )
+    })
+
+    crank(STEPS_PER_PATTERN * 2)
+
+    // The layered slot sounds both instruments on every one of its 16 steps.
+    for (let tick = 0; tick < STEPS_PER_PATTERN; tick += 1) {
+      expect(perTick.get(tick)).toEqual(['kick', 'snare'])
+    }
+    // The single-clip slot after it is untouched by the layering.
+    for (let tick = STEPS_PER_PATTERN; tick < STEPS_PER_PATTERN * 2; tick += 1) {
+      expect(perTick.get(tick)).toEqual(['kick'])
     }
   })
 

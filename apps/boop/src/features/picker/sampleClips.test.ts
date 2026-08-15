@@ -107,7 +107,7 @@ describe('the first-visit seed', () => {
     expect(song.bpm).toBe(DEFAULT_BPM)
     expect(song.activeClipIndex).toBe(0)
     // A one-clip song with an empty song bar — placing it is the child's move.
-    expect(song.placements).toEqual(new Array(SONG_POSITIONS).fill(null))
+    expect(song.placements).toEqual(Array.from({ length: SONG_POSITIONS }, () => []))
     // It still sounds like something: the sample's kick and snare are on.
     const kick = song.clips[0]!.pattern.find((row) => row.instrumentId === 'kick')!
     expect(kick.steps[0]).toBe(true)

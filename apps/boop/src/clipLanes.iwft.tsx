@@ -110,7 +110,7 @@ test('renaming a clip is inline, and shows on its chip', async ({ mountApp }) =>
   await root.verifyClipChipName(0, 'Thunder')
 })
 
-test('placements toggle by pointer: place, tap off, and replace across lanes', async ({
+test('placements toggle by pointer: place, layer a second clip on top, tap each off', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -122,14 +122,21 @@ test('placements toggle by pointer: place, tap off, and replace across lanes', a
   await root.verifyPlacementOn(0, 0)
   await root.verifySongLength('4 bars')
 
-  // One clip per position: placing clip 2 in the same column replaces clip 1.
+  // Every lane is its own toggle: clip 2 layers onto the column, and clip 1
+  // stays where it was. A layered column is still one position — 4 bars.
   await root.toggleLaneSquare(1, 0)
   await root.verifyPlacementOn(1, 0)
-  await root.verifyPlacementOff(0, 0)
+  await root.verifyPlacementOn(0, 0)
   await root.verifySongLength('4 bars')
 
+  // Tapping one layer off leaves the other sounding.
   await root.toggleLaneSquare(1, 0)
   await root.verifyPlacementOff(1, 0)
+  await root.verifyPlacementOn(0, 0)
+  await root.verifySongLength('4 bars')
+
+  await root.toggleLaneSquare(0, 0)
+  await root.verifyPlacementOff(0, 0)
   await root.verifySongLength('0 bars')
 })
 
