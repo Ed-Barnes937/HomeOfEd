@@ -200,11 +200,50 @@ share-link snapshot.
 - **The stage is a fixed frame, and the grid region is the only scroller**
   ([ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)). `.stage`
   is a `height: 100dvh` flex column: chrome `flex: none`, the grid region
-  `flex: 1; min-height: 0; overflow-y: auto`, transport `flex: none` and inset
-  to `--column-width` (not full-bleed). Neither bar may scroll away, and the
+  `flex: 1; min-height: 0; overflow-y: auto`, transport inset to
+  `--column-width` (not full-bleed). The dock is `flex: none` on the phone but
+  **capped at ≥1024** (`flex: 0 1 auto; max-height: 32dvh`, ticket 23): the
+  song bar grows with the song, and uncapped it took 79% of a 1280×600 screen
+  and starved the grid to 16px. Neither bar may scroll away, and the
   loop map stays under the grid *inside* the scrolling region — never in the
   bar, or it becomes a second transport. New main-screen content goes in the
   scrolling region by default.
+  **One exception** (ADR 0030, as amended by ticket 23): the grid well and the
+  phone song bar each hold a nested scroller, because each carries a play
+  button that the region would otherwise scroll away — a pinned bar the child
+  can always reach beats the single-scroller rule. The well is a flex column
+  whose rows scroll in their own box with the footer pinned under them; the
+  phone song bar is the same shape with its header pinned. Neither box may
+  ever be `flex: 1` — they may shrink, they must never stretch the grid on a
+  tall window. **The grid absorbs the squeeze first, down to a floor.** The
+  well shrinks (`min-height: 0`) and the phone song bar does not — what holds
+  the bar is the *absence* of `min-height: 0` on it, which leaves it the
+  content-based `min-height: auto`; do not add one, and note `flex-shrink: 0`
+  was tried there and measured to change nothing. The ticket's headline is
+  "the grid scrolls, *not* the bar", and a shrink factor above zero would chop
+  a lane row on the default phone screen while the grid still held 109px of
+  slack. **But priority without a floor takes everything**: it left 40px of
+  grid at 390×640 with five clips and none at all on a 460px-tall window, with
+  the rail spilling over the bar. So `PhoneGrid`'s `.well` — the box flex
+  shrinks, not the scroll box in it — carries a three-rows-plus-loop-map
+  `min-height`, and the region scrolls to pay for it. The bar's `max-height`
+  then keeps song play clear of the chrome at the bottom of that scroll, and
+  is what makes its strip scroll rather than the header. The *page* still
+  never scrolls — **except below 505px of viewport height at phone widths**,
+  where the owner's call is that boop stops being a fixed frame and the whole
+  page scrolls (ADR 0030, amended twice by ticket 23). Down there no fixed
+  arrangement keeps both play buttons reachable, so a scrolling page is what
+  reaches them; the grid well and the lane strip take max-heights to keep the
+  page a sensible length, and the three-row floor still applies. 505 is the
+  first height at which song play is *wholly* clear of the transport — do not
+  lower it, and do not merge this with the laptop's dock cap.
+  **`Grid`'s well has no floor and must not be given one**: the dock cap
+  already stops the region being starved, so a floor there was mutation-tested
+  and found redundant — and it cannot be won anyway, since the clip play button
+  sits *inside* that well, so a floor pushes its own button below the fold. The
+  laptop lane grid scrolling vertically is not a third nested scroller: it is
+  ticket 25's existing `overflow-x` box gaining a second axis. Anything genuinely
+  new still needs another ADR.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

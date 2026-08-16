@@ -58,6 +58,210 @@ dialog anyway (ticket 36).
 > "empty band on a tall window" below is the one already anticipated there —
 > the band is larger, not smaller.
 
+> **Amended by ticket 23 (post-launch feedback) — the one-scroller rule has an
+> exception.** "The grid well's region is the only scrolling region" turned out
+> to reach the wrong result on a short window. The region carries the grid well,
+> and the well carries a play button on both layouts — the clip control at
+> ≥1024, the song bar's header on the phone. So the thing that scrolled away was
+> the thing the rule existed to keep on screen, just one level in: at 1280×600
+> the clip play button was off the bottom of the region, and at 390×640 so was
+> song play.
+>
+> A **nested scroller is therefore allowed inside the grid well and inside the
+> phone song bar**, and nowhere else. The well is a flex column of the region's
+> height whose rows scroll in their own box (`Grid`/`PhoneGrid`'s `.wellScroll`)
+> with the footer under them at `flex: none`; the phone song bar is the same
+> shape with its header pinned and the lane strip scrolling
+> (`PhoneSongBar`'s `.lanes`). The scrolling region's column
+> (`HomePage.module.scss`'s `.stack`) is what gives the well a height to shrink
+> against — nothing in it grows, so a tall window is exactly as it was.
+>
+> **The grid absorbs the squeeze first, and on its own** (settled by the repo
+> owner after review). The well shrinks — `min-height: 0` — and the phone song
+> bar does not, capped by `max-height: 100%`. So the well gives up every pixel
+> of its slack before the lane strip gives up one. The
+> first build shared the deficit out proportionally, which is what flex does by
+> default, and the result was a chopped lane row under a scrollbar in a 49px
+> box on the default one-clip phone screen while the grid still held 109px of
+> slack — the opposite of "the grid scrolls, **not** the bar". No shrink factor
+> above zero can express the ordering, because flex shares a deficit rather
+> than queueing it. What holds the bar is the *absence* of `min-height: 0` on
+> it: a flex item with `overflow: visible` keeps `min-height: auto`, the
+> content-based automatic minimum, and refuses to go below its content. (An
+> explicit `flex-shrink: 0` was tried and removed — measured across four
+> viewport and clip combinations it changed nothing, because the automatic
+> minimum had already done the job.) `max-height: 100%` then clamps that
+> minimum, per flexbox §4.5, which is what makes the strip's scroller
+> load-bearing: once five lanes on a very short window make the bar taller
+> than the whole region, the cap stops it growing and the strip is what gives,
+> never the header.
+>
+> **Priority needs a floor, or it takes everything.** Giving the bar absolute
+> priority with nothing under the grid did exactly that: five clips at 390×640
+> left 40px of grid — less than one 44px row — and a 460px-tall window left
+> **none at all** from one clip upwards. The floor is `min-height` on
+> `PhoneGrid`'s `.well`, at **three rows** plus the loop map (170px of rows,
+> derived from that file's own geometry variables).
+>
+> Three rather than two is the repo owner's call, and the reason is how often
+> two binds: on a 390×640 phone a child is pinned to the floor as soon as the
+> song has three clips, which is the ordinary state of a song being worked on
+> rather than a rescue case. A 120px window onto a 332px grid cannot show the
+> kick and the boop at once, so placing a beat means scrolling a six-row
+> instrument grid two rows at a time. Three costs about 50px more region
+> scroll — at exactly the sizes where the region is already scrolling — and
+> buys 50% more grid for it.
+>
+> It goes on `.well` and not on the scroll box inside it, because `.well` is
+> the box flex shrinks and it is `overflow: visible`. The scroll box is not all
+> it holds — 20px of padding and the 34px loop map sit outside it — so a floor
+> there leaves `.well` free to shrink below its own content, and what comes off
+> spills rather than clips. Measured at 390×460 with five clips and the floor
+> on the scroll box alone, `elementFromPoint` over the song play button
+> returned the instrument rail's artwork: the grid painting over the song bar.
+>
+> The floor is paid for by the region scrolling, which is allowed; the *page*
+> never scrolls, and that part of this ADR is still absolute.
+>
+> The floor's cost is what makes `max-height: 100%` matter twice over. The
+> region now scrolls on a short phone, and scrolling it is what could take song
+> play back off the top — but a bar capped at the region's height can never
+> have its top rise above the region's top, so at the bottom of the scroll the
+> header lands at y=62, clear of the 52px chrome, instead of at y=41 behind it.
+> Note that "behind it" is invisible to a viewport-intersection assertion, so
+> the test for it asks the browser what is painted at the button
+> (`verifyNotOccluded`).
+>
+> **The pinned bar at ≥1024 is capped, which amends §1 above.** That section
+> says the transport dock is `flex: none`. It no longer is: at ≥1024 it is
+> `flex: 0 1 auto; min-height: 0; max-height: 32dvh`. The song bar, unlike the
+> transport it replaced, **grows with the song** — five clips at 1280×600 made
+> the dock 476px of a 600px screen, 79% of it, leaving the scrolling region
+> 66px. That is what starved the grid to 16px and drew the clip control over
+> the bar, where `elementFromPoint` found the bar swallowing its taps. A
+> `flex: none` bar that grows without limit is not chrome, it is the page.
+> 32dvh is what leaves 1280×600 the 350px its clip header and well need. The
+> phone dock is untouched — `flex: none`, no cap — because its transport is a
+> fixed height that does not grow with the song.
+>
+> Two mechanical notes for whoever changes this next. The dock stays a **block**
+> rather than becoming a flex column: `.column` centres itself with
+> `margin-inline: auto`, and an auto cross-axis margin on a flex item beats
+> `align-items: stretch`, so the bar sized to its content and stopped lining up
+> with the grid — 23px narrower, measured at 2560. It takes `height: 100%` via
+> `.stack` instead. And the shrink has to be threaded all the way down —
+> `.bar`, then `.body`, then `.lanes` — because a flex item that cannot shrink
+> passes nothing to its children; `.lanes` also needs `align-self: stretch`,
+> since the row above it is `align-items: flex-start` and a flex-start item
+> takes its content height and never sees the cap.
+>
+> **This is not a third nested scroller.** `.lanes` was already a scroll box —
+> ticket 25 gave it `overflow-x: auto` for the lane grid — so the cap adds a
+> second *axis* to an existing scroller rather than a new one. Ticket 25's 4px
+> padding surrounds that box on all sides already, so the rings are whole on
+> the new axis too, and `playBarPinned.iwft.tsx` re-runs
+> `verifyFocusRingsFitTheScrollBox` against it with the lanes scrolling. The
+> "no third nested scroller without another ADR" rule stands.
+>
+> **The laptop grid needs no floor, and that is the cap's doing.** A floor was
+> built for `Grid.module.scss`'s `.well` and then removed: with the dock capped,
+> deleting it left all 19 tests green, because the region can no longer be
+> starved and the well degrades proportionally instead of collapsing. To be
+> precise about "more than the floor would": that holds from about 590px of
+> viewport height upward — 1280×600 gives the well 180px against the 165px two
+> rows would have guaranteed. Below that the well is simply smaller (140px at
+> 560, 80px at 500) and a floor would have guaranteed more. It still could not
+> have been used, for the reason below; what the cap guarantees down there is
+> that the well shrinks smoothly instead of collapsing to 16px. It could
+> not have been kept honestly anyway — this well carries the clip play button
+> at its foot, so a floor pushes its own button below the fold on any window
+> short enough for the floor to bind. Measured at 1280×600: a two-row floor
+> needs 350px of region against 418px available, which fits; three rows needs
+> 426px and does not, by 8px, with the song bar already reduced to its header
+> alone. The phone has a floor because there the play button sits in a
+> *sibling* below the well rather than inside it.
+>
+> **Amended again by ticket 23 — below 505px tall, the page scrolls.** This is
+> the repo owner's call and it reverses this ADR's central invariant, in a
+> band. At phone widths and under 505px of viewport height, `.stage` stops
+> being a `height: 100dvh` fixed frame (`height: auto; min-height: 100dvh`),
+> the region stops boxing its content, and **the document scrolls**. The grid
+> well and the phone song bar's lane strip take max-heights — three grid rows
+> and three lanes — so the page stays a sensible length rather than laying all
+> six rows and five lanes out down it.
+>
+> **Why a short window earns the exception.** The fixed frame's promise is that
+> both play buttons are reachable without scrolling, and it keeps that promise
+> by pushing the overflow into the grid's own scroller. Below the threshold
+> there is no arrangement left that keeps it: the grid's floor plus the song
+> bar's header is simply taller than the room between the two pinned bars, so
+> song play ends up behind the pinned transport. Measured on a fresh one-clip
+> 390px phone, the first wholly-clear height is **503**, and it is partly
+> covered from **502** down. A page a child can scroll reaches both
+> buttons; a fixed frame that hides one reaches neither. What a child gets
+> instead of the frame is an ordinary scrolling page: three grid rows, the song
+> bar, the transport, in document order.
+>
+> **505, not the 500 first proposed.** 500 came from a measurement that sampled
+> the song play button's centre only, and the centre of a circle is the last
+> part of it to go behind anything. Sampling its edges as well — which is what
+> `verifyNotOccluded` does — showed 500 failing: one of five points is under
+> the transport there. The shipped threshold is **505**, which leaves **2px of
+> margin** over the measured 503, not the zero an earlier draft of this
+> paragraph implied.
+>
+> What protects that margin is the **505** test, not a test at 503: 503 is
+> inside the page-scrolling band, so a test there would assert page-scroll
+> behaviour and say nothing about occlusion — the very thing 503 is the
+> boundary of. The at-and-above describe runs `verifyNotOccluded` on song play
+> at 505, so if the header, floor or transport heights drift and push the
+> occlusion boundary past 505, that fails. The band's top edge (504) is pinned
+> from the other side, alongside 460 and 492; 504 and 505 are the deciding
+> pair, measured at 126px of page overflow and zero respectively.
+>
+> 520 was considered and rejected: 17px of extra margin would push 505–519 into
+> page-scroll mode, where clip play is off screen at rest, trading a real band
+> for a hypothetical one.
+>
+> **The laptop is not part of this.** 1280×600 is not a height-restricted
+> device; its problem was a dock taking 79% of the screen, fixed by the cap
+> above. The two mechanisms are deliberately separate and must not be merged.
+>
+> **Scope the test relaxation, not the helper.** `verifyNothingIsScrolled` and
+> the page-scroll assertions still hold everywhere else and must keep holding —
+> only tests naming a viewport under the threshold may assert
+> `verifyPageIsTheScroller`. There is a narrower `verifyPageDoesNotScroll` for
+> the fixed-frame side, because a floored grid legitimately scrolls the
+> *region* on a short phone while the page must not move.
+
+> **The reason, and it is the whole reason:** a pinned bar a child can always
+> reach beats a single-scroller rule. One scroller was only ever a means to that
+> end. Everything else in this ADR stands — the three-section frame, the pinned
+> chrome and transport, `min-height: 0`, and "do not fix the empty band by
+> stretching the grid" (no nested box is ever `flex: 1`, precisely so it
+> cannot).
+>
+> The cost is that the grid is the thing that gives way, and on a short window
+> it gives way hard: at 1280×600 the scroll box measures **113px against 485px
+> of content** — one row of the six and about half of the next — and the child
+> scrolls the well for the rest. Two rows is the 1440 case, not this one. That
+> is the trade the ticket was written to make, and it is a real one.
+>
+> The playhead column survives the move — it is `position: absolute` inside
+> `.body`, which is still its containing block, so only clipping was at risk.
+> The scroll box takes 8px of padding at laptop and 7px at tablet (with
+> matching negative margins, ticket 25's trick) to hold the column's overhang.
+> Note the symptom that padding prevents: overflowing content *grows*
+> `scrollWidth` rather than being sliced, so the playhead-against-its-cell
+> comparison cannot see it — the column and the cell move together. What the
+> overhang actually does is give the well a sideways scroll it should not
+> have. `playBarPinned.iwft.tsx` pins the column over the right cell at both
+> number sets and with the well scrolled, and asserts that missing sideways
+> scroll at 1440 on step 15, the one step whose overhang reaches past
+> the last cell. Removing the laptop padding puts 8px back and turns that test
+> red; the tablet block is symmetry only — at 1024–1279 the 924px grid never
+> reaches the edge of its ≥940px body, and no test can see it go.
+
 ### 2. The bar is inset to the column, not full-bleed — decided by prototype
 
 Ticket 33 was grilled to a **full-bleed** bar with its contents aligned to the
@@ -106,3 +310,34 @@ snap, paint and loop-map behaviours at a short 360 × 640 phone viewport.
 - Anything added to the main screen from here belongs in the scrolling region
   by default. Adding to either pinned bar costs vertical space on the screen
   that has least of it.
+- **Open, from ticket 23: no test places a clip while the lane strip is
+  squeezed.** Once the grid took a floor, the strip is only squeezed at
+  390×460 with five lanes, and the placement tests run at 390×844 and 390×640
+  where it is whole. Worth closing if the lane gestures are touched again.
+- The phone grid has a floor and the laptop and tablet one does not. That
+  asymmetry is deliberate and is explained in the amendment above: the cap
+  makes a laptop floor unnecessary, and the clip play button living *inside*
+  the laptop well makes one unwinnable. Do not "fix" it for symmetry.
+- On a phone short enough for the region to scroll, adding a clip leaves that
+  region scrolled past the grid: the picker's own scrolling is what moves it,
+  and the child has to scroll back up.
+- **Below the threshold, clip play is off screen at rest** — measured 5/5
+  covered at every height tested, on the transport at the foot of a page that
+  is now longer than the window. It is reachable by scrolling the page, and the
+  tests assert that, but the exception is not a clean win: it trades clip play
+  being immediately visible for song play being reachable at all. There is no
+  alternative in that band — song play is genuinely occluded at 502 and below —
+  but the cost belongs on the record next to the benefit.
+- The cliff that used to sit here — song play behind the pinned transport on a
+  short one-clip phone — is **gone, not merely recorded**: it is what the
+  below-505px page-scroll exception above exists to remove. Its history is
+  worth keeping, because it shows the floor and the cliff are one lever: at a
+  two-row floor the cliff sat at ~450px, and the owner's third row pushed it to
+  505. Raising the floor lowers the height at which the frame can keep its
+  promise, which is why the answer in the end was to stop being a frame down
+  there rather than to trade one guarantee against the other.
+- Since ticket 23 the loop map sits at the foot of the phone well, *outside*
+  the well's own scroll box rather than inside it. It is still glued under the
+  grid and still inside the scrolling region — §3's point — and being outside
+  the box is what keeps it on screen when the rows scroll, which is the whole
+  job it has when the playhead is out of view.
