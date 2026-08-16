@@ -12,6 +12,9 @@ $bar-row-gap: 6px;
 // Vertical breathing room for the playhead column's -6px inset and the
 // under-playhead cell's scale(1.11); applied identically to both columns.
 $row-inset: 6px;
+// The least grid a child is ever shown (ticket 23): the bar-numeral row, the
+// rows' top inset, then two 44px rows with their 6px gap.
+$two-rows: $bar-row-height + $bar-row-gap + $row-inset + 44px + 6px + 44px;
 
 .well {
   margin-top: 12px;
@@ -24,9 +27,23 @@ $row-inset: 6px;
   // leaves it, so the song bar below it — which carries song play — is on
   // screen at every window height. The `overflow: hidden` that used to sit
   // here moved to that scroll box: it is what the strip overflows.
+  //
+  // The floor, and it has to sit here rather than on the scroll box: this is
+  // the box flex shrinks, and `min-height: 0` on it let the grid go to
+  // *nothing* — five clips at 390x640 left 40px of grid, and a 460px-tall
+  // window left none at all from one clip upwards. Worse, this box is
+  // `overflow: visible`, so a well shrunk below its content did not clip, it
+  // spilled: the instrument rail painted straight over the song bar beneath
+  // it. A sequencer with no sequencer on it is not a trade worth making, so
+  // the well stops here and the region scrolls instead.
+  //
+  // 10 + 10 padding, two rows (see `.wellScroll`), and the loop map's own
+  // 34px — the map is `flex: none` under the scroll box and must stay whole,
+  // since it is what carries the playhead when the strip is scrolled away
+  // (ADR 0027). Change it with `LoopMap.module.scss`.
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: 10px + 10px + $two-rows + 34px;
 }
 
 // See Grid.module.scss's `.wellScroll` — same rules, the phone's numbers. No

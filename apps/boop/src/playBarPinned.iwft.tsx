@@ -31,6 +31,9 @@ test.describe('laptop, short window', () => {
     await root.verifyIsShown()
 
     await root.verifyGridWellIsTheScroller()
+    // Here the stronger claim does hold: the well swallows the whole squeeze,
+    // so neither the region nor the page has anything to scroll.
+    await root.verifyNothingIsScrolled()
   })
 
   test('the grid is still 6 x 16, at the laptop cell geometry', async ({ mountApp }) => {
@@ -150,15 +153,17 @@ test.describe('small phone, short window', () => {
     await root.verifyIsShown()
 
     // The default first-run screen: one clip, and its lane row whole. The grid
-    // is what is short here — it still has 219px of content it is not showing.
+    // is what is short here — it still has 152px of content it is not showing,
+    // but it is well clear of its floor.
     await root.verifyLaneStripWhole()
     await root.verifyGridWellIsTheScroller()
+    await root.verifyGridFloor(2)
   })
 
-  // `phoneLanes.iwft.tsx` runs at 390x844, where the strip is never squeezed —
-  // so nothing exercised a lane at the size this ticket changed. The placement
-  // gestures are what the squeeze puts most at risk.
-  test('placing and painting a lane still works at the squeezed size', async ({ mountApp }) => {
+  // `phoneLanes.iwft.tsx` runs at 390x844; this is the same interaction on a
+  // window short enough that the grid is scrolling. The strip itself is whole
+  // here — the squeezed-strip case is the five-lane describe below.
+  test('placing and painting a lane still works on a short window', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
     await root.startBlank()
@@ -186,27 +191,60 @@ test.describe('small phone, short window', () => {
   })
 })
 
-// The last resort, and the only thing that makes the bar's scrolling strip
-// load-bearing: five lanes on a window this short make the bar taller than the
-// whole region, so its `max-height` caps it. What gives way then is the strip.
+// The hardest screen boop has: five lanes on a 460px window. Everything is
+// competing at once — the bar is taller than the whole region so its
+// `max-height` caps it, the grid is on its floor, and the region itself has to
+// scroll. All three promises have to survive that simultaneously.
 test.describe('small phone, a window too short for five lanes', () => {
   test.use({ viewport: { width: 390, height: 460 } })
+
+  async function fiveClips(root: {
+    startBlank: () => Promise<void>
+    addClip: () => Promise<void>
+    verifyClipCount: (count: number) => Promise<void>
+  }) {
+    await root.startBlank()
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+    await root.verifyClipCount(5)
+  }
 
   test('a capped bar loses lane rows to a scroll, never the song play button', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
-    await root.startBlank()
-
-    await root.addClip()
-    await root.addClip()
-    await root.addClip()
-    await root.addClip()
-    await root.verifyClipCount(5)
+    await fiveClips(root)
 
     await root.verifyLaneStripIsTheScroller()
     await root.verifySongPlayFullyInViewport()
+    await root.verifyTransportFullyInViewport()
+  })
+
+  test('the grid keeps its two rows, and song play stays reachable to pay for them', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await fiveClips(root)
+
+    // The floor. Without it this screen showed no grid at all.
+    await root.verifyGridFloor(2)
+
+    // The floor is paid for by the region scrolling, and that is what could
+    // take song play back off the screen — so both ends of that scroll are
+    // checked, and by occlusion rather than by viewport intersection: the
+    // pinned chrome would sit *over* the header while `toBeInViewport` still
+    // called it visible.
+    await root.verifySongPlayFullyInViewport()
+    await root.verifyNotOccluded('song-play-button')
+
+    await root.scrollGridRegionToBottom()
+    await root.verifyGridFloor(2)
+    await root.verifySongPlayFullyInViewport()
+    await root.verifyNotOccluded('song-play-button')
     await root.verifyTransportFullyInViewport()
   })
 })

@@ -85,10 +85,36 @@ dialog anyway (ticket 36).
 > box on the default one-clip phone screen while the grid still held 109px of
 > slack — the opposite of "the grid scrolls, **not** the bar". No shrink factor
 > above zero can express the ordering, because flex shares a deficit rather
-> than queueing it, so the bar takes zero and a cap instead. The strip's
-> scroller is still correct and still needed: once five lanes on a very short
-> window make the bar taller than the whole region, `max-height` stops it
-> growing and the strip is what gives, never the header.
+> than queueing it. What holds the bar is the *absence* of `min-height: 0` on
+> it: a flex item with `overflow: visible` keeps `min-height: auto`, the
+> content-based automatic minimum, and refuses to go below its content. (An
+> explicit `flex-shrink: 0` was tried and removed — measured across four
+> viewport and clip combinations it changed nothing, because the automatic
+> minimum had already done the job.) `max-height: 100%` then clamps that
+> minimum, per flexbox §4.5, which is what makes the strip's scroller
+> load-bearing: once five lanes on a very short window make the bar taller
+> than the whole region, the cap stops it growing and the strip is what gives,
+> never the header.
+>
+> **Priority needs a floor, or it takes everything.** Giving the bar absolute
+> priority with nothing under the grid did exactly that: five clips at 390×640
+> left 40px of grid — less than one 44px row — and a 460px-tall window left
+> **none at all** from one clip upwards. Worse, `.well` is `overflow: visible`,
+> so a well shrunk below its content did not clip but spilled, and the
+> instrument rail painted over the song bar beneath it. The floor is
+> `min-height` on `PhoneGrid`'s `.well` — the box flex actually shrinks, not
+> the scroll box inside it — at two rows plus the loop map. It is paid for by
+> the region scrolling, which is allowed; the *page* never scrolls, and that
+> part of this ADR is still absolute.
+>
+> The floor's cost is what makes `max-height: 100%` matter twice over. The
+> region now scrolls on a short phone, and scrolling it is what could take song
+> play back off the top — but a bar capped at the region's height can never
+> have its top rise above the region's top, so at the bottom of the scroll the
+> header lands at y=62, clear of the 52px chrome, instead of at y=41 behind it.
+> Note that "behind it" is invisible to a viewport-intersection assertion, so
+> the test for it asks the browser what is painted at the button
+> (`verifyNotOccluded`).
 >
 > **The reason, and it is the whole reason:** a pinned bar a child can always
 > reach beats a single-scroller rule. One scroller was only ever a means to that
@@ -108,9 +134,9 @@ dialog anyway (ticket 36).
 > The scroll box takes 8px of padding at laptop and 7px at tablet (with
 > matching negative margins, ticket 25's trick) to hold the column's overhang.
 > Note the symptom that padding prevents: overflowing content *grows*
-> `scrollWidth` rather than being sliced, so a bounding box cannot see it —
-> what the overhang actually does is give the well a sideways scroll it should
-> not have. `playBarPinned.iwft.tsx` pins the column over the right cell at
+> `scrollWidth` rather than being sliced, so the playhead-against-its-cell
+> comparison cannot see it — the column and the cell move together. What the
+> overhang actually does is give the well a sideways scroll it should not have. `playBarPinned.iwft.tsx` pins the column over the right cell at
 > both number sets and with the well scrolled, and asserts that missing
 > sideways scroll at 1440 on step 15, the one step whose overhang reaches past
 > the last cell. Removing the laptop padding puts 8px back and turns that test

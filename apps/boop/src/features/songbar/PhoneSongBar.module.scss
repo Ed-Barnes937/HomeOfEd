@@ -21,21 +21,30 @@ $row-inset: 4px;
   // 23), so the song play button it carries is on screen at every window
   // height however many clips the song has.
   //
-  // `flex-shrink: 0` is the ticket's headline made literal — "the grid scrolls
-  // **not** the bar". The grid well shrinks (`min-height: 0`, Grid.module.scss)
-  // and this does not, so the well gives up every pixel of its slack before
-  // the lane strip gives up one. A shrink *factor* cannot express that: flex
-  // shares a deficit out proportionally, so any factor above zero chops a lane
-  // row on the default one-clip phone screen while the grid still has hundreds
-  // of pixels in hand. Zero, then a cap:
+  // The bar does not shrink, and what stops it is the *absence* of a
+  // `min-height: 0` here — do not add one. Without it this box keeps
+  // `min-height: auto`, which for a flex item with `overflow: visible`
+  // resolves to the content-based automatic minimum, so the bar already
+  // refuses to go below its content. `flex-shrink: 0` was tried and removed:
+  // measured at four viewport/clip combinations it changed nothing, because
+  // the automatic minimum had already done the job.
   //
-  // `max-height: 100%` is the last resort, and the only thing that makes the
-  // scrolling strip below load-bearing. Once the bar is taller than the whole
-  // region — five clips on a very short window — it stops growing, and what
-  // gives way inside it is the strip, never the header.
+  // That ordering is the ticket's headline — "the grid scrolls **not** the
+  // bar" — and a shrink *factor* could not have expressed it either way: flex
+  // shares a deficit out proportionally rather than queueing it, so any factor
+  // above zero chops a lane row on the default one-clip phone screen while the
+  // grid still holds 109px of slack. The grid's own floor is in
+  // `PhoneGrid.module.scss`; between them the region takes the overflow.
+  //
+  // `max-height: 100%` then clamps that automatic minimum (flexbox §4.5), and
+  // it is what keeps song play reachable once the region does scroll: capped
+  // at the region's height, the bar's top can never rise above the region's
+  // top, so at the bottom of the scroll the header lands at y=62 — clear of
+  // the 52px chrome — instead of at y=41 behind it. It is also what makes the
+  // strip's scroller load-bearing: a capped bar loses lane rows, not the
+  // header.
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   max-height: 100%;
 }
 

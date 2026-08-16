@@ -212,14 +212,21 @@ share-link snapshot.
   whose rows scroll in their own box with the footer pinned under them; the
   phone song bar is the same shape with its header pinned. Neither box may
   ever be `flex: 1` — they may shrink, they must never stretch the grid on a
-  tall window. **The grid absorbs the squeeze first**: the well shrinks
-  (`min-height: 0`) and the phone song bar does not (`flex-shrink: 0`), so the
-  well gives up every pixel of its slack before the lane strip gives up one —
-  the ticket's headline is "the grid scrolls, *not* the bar", and a shrink
-  factor above zero would chop a lane row on the default phone screen while
-  the grid still held hundreds of pixels. The bar's strip scrolls only once
-  its `max-height` caps the bar, which takes five lanes on a very short
-  window. No third nested scroller without another ADR.
+  tall window. **The grid absorbs the squeeze first, down to a floor.** The
+  well shrinks (`min-height: 0`) and the phone song bar does not — what holds
+  the bar is the *absence* of `min-height: 0` on it, which leaves it the
+  content-based `min-height: auto`; do not add one, and note `flex-shrink: 0`
+  was tried there and measured to change nothing. The ticket's headline is
+  "the grid scrolls, *not* the bar", and a shrink factor above zero would chop
+  a lane row on the default phone screen while the grid still held 109px of
+  slack. **But priority without a floor takes everything**: it left 40px of
+  grid at 390×640 with five clips and none at all on a 460px-tall window, with
+  the rail spilling over the bar. So `PhoneGrid`'s `.well` — the box flex
+  shrinks, not the scroll box in it — carries a two-rows-plus-loop-map
+  `min-height`, and the region scrolls to pay for it. The bar's `max-height`
+  then keeps song play clear of the chrome at the bottom of that scroll, and
+  is what makes its strip scroll rather than the header. The *page* still
+  never scrolls. No third nested scroller without another ADR.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.
