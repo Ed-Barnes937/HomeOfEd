@@ -1027,12 +1027,14 @@ export class HomePagePom extends BasePage {
    * page does not scroll, whatever the region inside it is doing. Weaker than
    * `verifyNothingIsScrolled`, deliberately — a floored grid makes the region
    * scroll on a short phone, and that is allowed; the page scrolling is not.
+   *
+   * Delegates rather than reading `scrollHeight` with a `+1` tolerance: this
+   * guards the phone threshold at 505, where the margin is thinnest, and a
+   * tolerance that can hide a real 1px scroll is precisely what let the laptop
+   * band go unnoticed.
    */
   async verifyPageDoesNotScroll(): Promise<void> {
-    const overflow = await this.page.evaluate(
-      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
-    )
-    expect(overflow).toBeLessThanOrEqual(1)
+    await this.verifyPageDoesNotMove()
   }
 
   /** Scroll the frame's own region — which the grid's floor can now make necessary. */

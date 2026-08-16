@@ -50,8 +50,10 @@
 // a circle to go behind anything; sampling its edges too — which is what
 // `verifyNotOccluded` does — puts the first wholly-clear height at 503, so a
 // 500px threshold would have left the first fixed-frame height failing the
-// promise the threshold exists to keep. 505 ships, leaving 2px of margin, and
-// the tests pin 503 itself so that margin cannot be eaten quietly.
+// promise the threshold exists to keep. 505 ships, leaving 2px of margin.
+// What guards that margin is the test at 505 asserting song play is
+// unoccluded — not a test at 503, which is inside the scrolling band and so
+// could only assert page-scroll behaviour. 504 is pinned from the other side.
 //
 // Everything at 500px and above is untouched — that is the common case, it is
 // tested, and it keeps every number this ticket established. The laptop is a

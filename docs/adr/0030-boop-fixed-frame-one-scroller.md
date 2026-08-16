@@ -208,9 +208,16 @@ dialog anyway (ticket 36).
 > `verifyNotOccluded` does — showed 500 failing: one of five points is under
 > the transport there. The shipped threshold is **505**, which leaves **2px of
 > margin** over the measured 503, not the zero an earlier draft of this
-> paragraph implied. Tests run at 460 and 492 below it, at **503** — the true
-> boundary, so a change to the header, floor or transport heights fails loudly
-> instead of quietly eating that margin — and at 505 and 520 above.
+> paragraph implied.
+>
+> What protects that margin is the **505** test, not a test at 503: 503 is
+> inside the page-scrolling band, so a test there would assert page-scroll
+> behaviour and say nothing about occlusion — the very thing 503 is the
+> boundary of. The at-and-above describe runs `verifyNotOccluded` on song play
+> at 505, so if the header, floor or transport heights drift and push the
+> occlusion boundary past 505, that fails. The band's top edge (504) is pinned
+> from the other side, alongside 460 and 492; 504 and 505 are the deciding
+> pair, measured at 126px of page overflow and zero respectively.
 >
 > 520 was considered and rejected: 17px of extra margin would push 505–519 into
 > page-scroll mode, where clip play is off screen at rest, trading a real band

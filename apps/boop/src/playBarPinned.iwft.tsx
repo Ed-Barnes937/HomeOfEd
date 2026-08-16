@@ -97,11 +97,11 @@ test.describe('laptop, the whole column', () => {
 // and five, at both laptop heights and in the tablet band. `elementFromPoint`,
 // not viewport intersection, because "drawn but covered" was the old failure.
 test.describe('the five-clip cap', () => {
-  // Two rows visible, in laptop numbers: the bar-numeral row (15 + 8) and two
-  // 66px rows with their 10px gap. Not a floor — `Grid.module.scss` has none
-  // and must not be given one — but what the dock cap leaves the well at these
-  // viewports, which is worth pinning so a change to the cap is loud.
-  const LAPTOP_FLOOR = 15 + 8 + 2 * 66 + 10
+  // What the dock cap leaves the well at these viewports, in laptop numbers:
+  // the bar-numeral row (15 + 8) and two 66px rows with their 10px gap. Named
+  // for what it is — `Grid.module.scss` has no floor and must not be given
+  // one — and pinned so that a change to the cap is loud.
+  const TWO_ROWS_VISIBLE = 15 + 8 + 2 * 66 + 10
 
   async function fiveClips(root: {
     startBlank: () => Promise<void>
@@ -126,7 +126,7 @@ test.describe('the five-clip cap', () => {
       await root.verifyIsShown()
 
       await root.verifyNotOccluded('play-button')
-      await root.verifyGridShowsAtLeast(LAPTOP_FLOOR)
+      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
       await root.verifyNothingIsScrolled()
 
       await fiveClips(root)
@@ -135,7 +135,7 @@ test.describe('the five-clip cap', () => {
       // of grid and a play button the song bar was swallowing.
       await root.verifyNotOccluded('play-button')
       await root.verifyClipPlayFullyInViewport()
-      await root.verifyGridShowsAtLeast(LAPTOP_FLOOR)
+      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
       await root.verifyNothingIsScrolled()
     })
 
@@ -163,7 +163,7 @@ test.describe('the five-clip cap', () => {
       await fiveClips(root)
       await root.verifyNotOccluded('play-button')
       await root.verifyClipPlayFullyInViewport()
-      await root.verifyGridShowsAtLeast(LAPTOP_FLOOR)
+      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
       await root.verifyNothingIsScrolled()
     })
   })
