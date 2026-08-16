@@ -8,6 +8,8 @@ doesn't, except the current drawing (mirrored to `localStorage` — see
 `session.ts` below). Full spec: `.claude/tasks/espy-doodle/spec.md`;
 ratified decisions: `.claude/tasks/espy-doodle/decisions.md`; divergences
 from the design guide: [ADR 0016](../../docs/adr/0016-espy-doodle.md).
+Before changing the ink field's look, read the watercolour technique study:
+[`docs/reference/watercolour-technique/README.md`](../../docs/reference/watercolour-technique/README.md).
 
 ## Layout
 
@@ -29,13 +31,14 @@ src/
       layout.ts                 blobCount(w,h) / blobRadiusFraction(count)
       history.ts                History (push/undo/floor), visibleOps(), currentViewBox()
       coords.ts                 computeFit(viewBox,cssW,cssH) + toLogical/toDevice
-    render/surface.ts           DoodleSurface — the ONLY 2D-canvas module; blits the baked fluid raster (plain outline fallback)
-    render/fluid.ts             WebGL2 stable-fluids sim — blooms seeded ink then bakes the field raster (render-layer: touches GL)
+    render/surface.ts           DoodleSurface — the ONLY 2D-canvas module; paints the paper sheet, blits the baked fluid raster over it (plain outline fallback)
+    render/paper.ts             PURE TS — procedural watercolour paper (tooth + fine grain + anisotropic fibre, relief-shaded); fills an RGBA buffer, fixed seed, no knobs
+    render/fluid.ts             WebGL2 stable-fluids sim — blooms seeded ink then bakes the field raster as ink-with-alpha (render-layer: touches GL)
     render/fluid.helpers.ts     PURE TS — blot→splat mapping + brush archetypes (dot/peanut/bean/clump/spike/arch), no GL
     render/fluid.color.ts       PURE TS — hex→rgb01 palette helper
     render/fluid.tuning.ts      TEMP (tech debt) — tunable look knobs (DEFAULT_TUNING = shipped look) + ?tune live state
     FluidTuner.tsx/.module.scss TEMP (tech debt) — ?tune-only debug panel (live knobs + one-of-each grid)
-    theme.ts                    SKETCHBOOK canvas colour literals (single fixed direction)
+    theme.ts                    SKETCHBOOK canvas colour literals — ink/eye only (paper is generated, not a colour)
     session.ts                  load/save current Op[] ↔ localStorage (single slot; quota-safe, never throws)
     save.ts                     PURE TS — save-target selection over injected SaveCaps (native/share/download)
     save.native.ts              the ONLY module importing Capacitor plugins (Filesystem+Share); lazy-loaded
@@ -71,9 +74,9 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
 
 ## Rules
 
-- **The one hard boundary** (spec §2, root CLAUDE §3): `features/doodle/engine/*`
-  and the fluid pure helpers (`render/fluid.helpers.ts`, `render/fluid.color.ts`)
-  are pure TS — no React, no DOM, no Canvas/GL access. Only `render/surface.ts`
+- **The one hard boundary** (spec §2, root CLAUDE §3): `features/doodle/engine/*`,
+  the fluid pure helpers (`render/fluid.helpers.ts`, `render/fluid.color.ts`) and
+  the paper generator (`render/paper.ts`, which fills a byte buffer) are pure TS — no React, no DOM, no Canvas/GL access. Only `render/surface.ts`
   (2D), `render/fluid.ts` (WebGL), and `useDoodle.ts` may touch a canvas/DOM. The
   drawing itself is **not** React state (it lives in refs, projected
   imperatively) — React holds only `tool`/`nib`/`canUndo`, so a stroke never
@@ -86,6 +89,12 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
   `engine/history.ts` and [ADR 0016](../../docs/adr/0016-espy-doodle.md).
 - Single fixed sketchbook look (`theme.ts` + `styles/tokens.scss`) — no
   theme/mode/ink-engine switcher.
+- **Paper is a layer, not a colour.** `render/paper.ts` generates the sheet from
+  a FIXED seed with plain `const`s — it has no tunable knobs and must never be
+  folded into `fluid.tuning.ts`. The sim bakes ink with COVERAGE AS ALPHA and
+  `surface.ts` blits it over the paper, which keeps paper independent of the sim:
+  it survives a letterboxing resize and is there when WebGL is not. Anything that
+  persists the baked raster must therefore keep the alpha channel (no JPEG).
 - Server code changes go through TDD: unit test against the injected seams
   first, `.iwft` only for whole-page behaviour (keep it thin).
 - Relative imports carry explicit `.ts`/`.tsx` extensions; server code sticks to

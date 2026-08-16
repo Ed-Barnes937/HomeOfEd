@@ -5,7 +5,7 @@ import type { Op } from '../features/doodle/engine/types.ts'
 import { DOODLE_SEAM_KEY, type DoodleTestSeam } from '../features/doodle/useDoodle.ts'
 
 /** The one localStorage slot session.ts persists the current drawing to (spec §10). */
-const SESSION_KEY = 'espy:doodle:v1'
+const SESSION_KEY = 'espy:doodle:v2'
 
 export class DoodlePagePom extends BasePage {
   private readonly canvas = this.page.getByTestId('doodle-canvas')
