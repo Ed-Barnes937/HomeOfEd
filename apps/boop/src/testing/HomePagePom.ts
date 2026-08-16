@@ -1004,25 +1004,34 @@ export class HomePagePom extends BasePage {
     expect(Math.round(chip.width)).toBe(128)
     expect(Math.round(newClip.width)).toBe(128)
 
-    const first = await this.laneSquare(0, 0).boundingBox()
-    const last = await this.laneSquare(0, 15).boundingBox()
-    if (!first || !last) throw new Error('the lane squares are not visible')
+    const squares = []
+    for (let position = 0; position < 16; position += 1) {
+      const box = await this.laneSquare(0, position).boundingBox()
+      if (!box) throw new Error(`lane square ${position} is not visible`)
+      squares.push(box)
+    }
+    const first = squares[0]!
+    const last = squares[15]!
     expect(first.width).toBeLessThan(56)
     expect(first.width).toBeGreaterThanOrEqual(20)
-    expect(Math.abs(first.width - last.width)).toBeLessThanOrEqual(1)
+
+    // The fit itself: all 16 squares the same width as each other, and the row
+    // ending flush with the lane grid's content edge — so they and their gaps
+    // add up to the column exactly. Anything that changes one square's
+    // geometry, or the width they share out, breaks one half or the other.
+    const widths = squares.map((box) => box.width)
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(0.5)
+    const contentRight = await this.page.getByTestId('song-lanes').evaluate((box: HTMLElement) => {
+      const rect = box.getBoundingClientRect()
+      return rect.right - parseFloat(getComputedStyle(box).paddingRight)
+    })
+    expect(Math.abs(last.x + last.width - contentRight)).toBeLessThanOrEqual(1)
 
     const numeral = await this.page.getByTestId('song-position-numeral-15').boundingBox()
     if (!numeral) throw new Error('the ruler numeral is not visible')
     const centre = numeral.x + numeral.width / 2
     expect(centre).toBeGreaterThanOrEqual(last.x)
     expect(centre).toBeLessThanOrEqual(last.x + last.width)
-  }
-
-  /** The tablet band's flexible square width, pinned so a border change cannot move it. */
-  async verifyLaneSquareWidth(expected: number): Promise<void> {
-    const box = await this.laneSquare(0, 0).boundingBox()
-    if (!box) throw new Error('the lane square is not visible')
-    expect(box.width).toBeCloseTo(expected, 3)
   }
 
   /**
