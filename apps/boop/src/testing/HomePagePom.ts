@@ -947,6 +947,44 @@ export class HomePagePom extends BasePage {
     await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-on', 'false')
   }
 
+  /** No lane square marks a "next free" position — the dashed hint is gone (ticket 24). */
+  async verifyNoPlacementHint(): Promise<void> {
+    await expect(this.page.locator('[data-testid^="lane-"][data-hint]')).toHaveCount(0)
+  }
+
+  /**
+   * A focus ring is drawn 4px outside its button (a 2px outline at a 2px
+   * offset), and a scroll box clips on every side, not just the scrolling one
+   * — so every button inside one needs 4px of room within its scrollable
+   * area, or the ring is sliced off (ticket 25).
+   */
+  async verifyFocusRingsFitTheScrollBox(testId: string): Promise<void> {
+    const room = await this.page.getByTestId(testId).evaluate((box: HTMLElement) => {
+      const outer = box.getBoundingClientRect()
+      // The scrollable area's edges, in viewport coordinates.
+      const left = outer.left + box.clientLeft - box.scrollLeft
+      const top = outer.top + box.clientTop - box.scrollTop
+      const right = left + box.scrollWidth
+      const bottom = top + box.scrollHeight
+      return [...box.querySelectorAll<HTMLElement>('button')].map((button) => {
+        const rect = button.getBoundingClientRect()
+        return Math.min(rect.left - left, rect.top - top, right - rect.right, bottom - rect.bottom)
+      })
+    })
+    expect(room.length).toBeGreaterThan(0)
+    expect(Math.min(...room)).toBeGreaterThanOrEqual(4)
+  }
+
+  /** The ruler numeral sits over its own square — the lane grid lines up column-for-column. */
+  async verifyRulerAlignedOverSquare(position: number): Promise<void> {
+    const numeral = await this.page.getByTestId(`song-position-numeral-${position}`).boundingBox()
+    const square = await this.laneSquare(0, position).boundingBox()
+    if (!numeral || !square) throw new Error('the ruler numeral or the lane square is not visible')
+    const centre = numeral.x + numeral.width / 2
+    expect(centre).toBeGreaterThanOrEqual(square.x)
+    expect(centre).toBeLessThanOrEqual(square.x + square.width)
+  }
+
   /** The song bar's `<n> bars` readout — placed squares × 4. */
   async verifySongLength(text: string): Promise<void> {
     await expect(this.page.getByTestId('song-length')).toHaveText(text)
@@ -966,12 +1004,28 @@ export class HomePagePom extends BasePage {
     expect(Math.round(chip.width)).toBe(128)
     expect(Math.round(newClip.width)).toBe(128)
 
-    const first = await this.laneSquare(0, 0).boundingBox()
-    const last = await this.laneSquare(0, 15).boundingBox()
-    if (!first || !last) throw new Error('the lane squares are not visible')
+    const squares = []
+    for (let position = 0; position < 16; position += 1) {
+      const box = await this.laneSquare(0, position).boundingBox()
+      if (!box) throw new Error(`lane square ${position} is not visible`)
+      squares.push(box)
+    }
+    const first = squares[0]!
+    const last = squares[15]!
     expect(first.width).toBeLessThan(56)
     expect(first.width).toBeGreaterThanOrEqual(20)
-    expect(Math.abs(first.width - last.width)).toBeLessThanOrEqual(1)
+
+    // The fit itself: all 16 squares the same width as each other, and the row
+    // ending flush with the lane grid's content edge — so they and their gaps
+    // add up to the column exactly. Anything that changes one square's
+    // geometry, or the width they share out, breaks one half or the other.
+    const widths = squares.map((box) => box.width)
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(0.5)
+    const contentRight = await this.page.getByTestId('song-lanes').evaluate((box: HTMLElement) => {
+      const rect = box.getBoundingClientRect()
+      return rect.right - parseFloat(getComputedStyle(box).paddingRight)
+    })
+    expect(Math.abs(last.x + last.width - contentRight)).toBeLessThanOrEqual(1)
 
     const numeral = await this.page.getByTestId('song-position-numeral-15').boundingBox()
     if (!numeral) throw new Error('the ruler numeral is not visible')

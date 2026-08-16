@@ -54,6 +54,17 @@ test('lane squares align column-for-column with the step window, and the strip s
   await root.verifyLaneWindowAt(308)
 })
 
+test('the lane window leaves room for its squares’ focus rings', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyFocusRingsFitTheScrollBox('phone-lane-window')
+  // The room changed nothing on screen: the columns still line up.
+  await root.verifyLaneSquareAlignedUnderCell(0)
+  await root.verifyLaneSquareAlignedUnderCell(15)
+})
+
 test('placements follow the phone paint-vs-scroll rules', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

@@ -30,6 +30,7 @@ test('the lane grid fits the column, even at the five-clip cap', async ({ mountA
   await root.startBlank()
 
   await root.verifyLaneGridFitsColumn()
+  await root.verifyNoPlacementHint()
 
   await root.addClip()
   await root.addClip()

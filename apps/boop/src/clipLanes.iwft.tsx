@@ -140,6 +140,34 @@ test('placements toggle by pointer: place, layer a second clip on top, tap each 
   await root.verifySongLength('0 bars')
 })
 
+test('no lane square marks a next free position, whichever clip is active', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+  await root.addClip()
+  await root.toggleLaneSquare(1, 0)
+
+  await root.verifyNoPlacementHint()
+  await root.selectClip(0)
+  await root.verifyNoPlacementHint()
+})
+
+test('the lane grid leaves room for its focus rings, and still lines up column-for-column', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+  await root.addClip()
+
+  // Chips, placement squares and "+ New clip" all sit in the one scroll box.
+  await root.verifyFocusRingsFitTheScrollBox('song-lanes')
+  await root.verifyRulerAlignedOverSquare(0)
+  await root.verifyRulerAlignedOverSquare(15)
+})
+
 test('lane squares follow the grid keyboard model: arrows move, Enter places, Backspace removes', async ({
   mountApp,
   page,
