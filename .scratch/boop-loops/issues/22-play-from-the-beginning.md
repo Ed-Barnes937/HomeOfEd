@@ -38,9 +38,9 @@ to record that the engine seam has no resume semantics — `start()` is always
 
 **Status:** ready-for-agent
 
-- [ ] Engine unit test (against `FakeAudioDriver`): stop at step 7, `start()`, the next beat event is step 0
-- [ ] Engine unit test: `songPos()` reads 0 immediately after a `start()` that follows a mid-loop stop
-- [ ] `.iwft`: clip play from a stopped mid-loop transport puts the playhead on step 1 of bar 1
-- [ ] `.iwft`: song play always begins at the leftmost placed position, including when it takes over from a running clip loop
-- [ ] `.iwft`: the spacebar follows the same rule
-- [ ] Spec §9 and ADR 0024 updated
+- [x] Engine unit test (against `FakeAudioDriver`): stop at step 7, `start()`, the next beat event is step 0
+- [x] Engine unit test: `songPos()` reads 0 immediately after a `start()` that follows a mid-loop stop
+- [x] `.iwft`: clip play from a stopped mid-loop transport puts the playhead on step 1 of bar 1
+- [x] `.iwft`: song play always begins at the leftmost placed position, including when it takes over from a running clip loop
+- [x] `.iwft`: the spacebar follows the same rule
+- [x] Spec §9 and ADR 0024 updated

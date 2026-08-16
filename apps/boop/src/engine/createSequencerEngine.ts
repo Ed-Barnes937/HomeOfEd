@@ -51,11 +51,11 @@ class BoopSequencerEngine implements SequencerEngine {
   /**
    * The point `songPos()` interpolates from: a position in tick space and the
    * audio time it was true at. Replaced by every scheduled beat, and by
-   * anything else that would otherwise make the playhead jump (resume, tempo).
+   * anything else that would otherwise make the playhead jump (start, tempo).
+   * Null while stopped — a stopped transport sits at the top, not at a
+   * remembered position.
    */
   private anchor: { pos: number; audioTime: number } | null = null
-  /** Where the playhead sat when the transport last stopped. */
-  private frozenPos = 0
 
   constructor(
     readonly kit: Kit,
@@ -113,17 +113,18 @@ class BoopSequencerEngine implements SequencerEngine {
     // Must run inside the user gesture that called us — hence unlock first.
     await this.driver.unlock()
     this.playing = true
-    // Anchor on resume: the playhead moves from where it paused right away,
-    // rather than sitting still until the first scheduled beat and then
-    // jumping back by one lookahead.
-    this.anchor = { pos: this.frozenPos, audioTime: this.driver.now() }
+    // Play is always play-from-the-top: there is no pause, so nothing here
+    // carries over from the last run. Anchoring straight away also means the
+    // playhead moves at once, rather than sitting still until the first
+    // scheduled beat and then jumping back by one lookahead.
+    this.nextTick = 0
+    this.anchor = { pos: 0, audioTime: this.driver.now() }
     this.driver.startTransport()
     this.emitTransport({ type: 'started' })
   }
 
   stop(): void {
     if (!this.playing) return
-    this.frozenPos = this.rawPos()
     this.anchor = null
     this.playing = false
     this.driver.stopTransport()
@@ -249,7 +250,7 @@ class BoopSequencerEngine implements SequencerEngine {
 
   /** `songPos()` without the zero clamp — the value re-anchoring must use. */
   private rawPos(): number {
-    if (!this.anchor) return this.frozenPos
+    if (!this.anchor) return 0
     return this.anchor.pos + (this.driver.now() - this.anchor.audioTime) / this.secondsPerStep()
   }
 
