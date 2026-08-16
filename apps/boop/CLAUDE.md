@@ -229,7 +229,14 @@ share-link snapshot.
   `min-height`, and the region scrolls to pay for it. The bar's `max-height`
   then keeps song play clear of the chrome at the bottom of that scroll, and
   is what makes its strip scroll rather than the header. The *page* still
-  never scrolls.
+  never scrolls — **except below 505px of viewport height at phone widths**,
+  where the owner's call is that boop stops being a fixed frame and the whole
+  page scrolls (ADR 0030, amended twice by ticket 23). Down there no fixed
+  arrangement keeps both play buttons reachable, so a scrolling page is what
+  reaches them; the grid well and the lane strip take max-heights to keep the
+  page a sensible length, and the three-row floor still applies. 505 is the
+  first height at which song play is *wholly* clear of the transport — do not
+  lower it, and do not merge this with the laptop's dock cap.
   **`Grid`'s well has no floor and must not be given one**: the dock cap
   already stops the region being starved, so a floor there was mutation-tested
   and found redundant — and it cannot be won anyway, since the clip play button

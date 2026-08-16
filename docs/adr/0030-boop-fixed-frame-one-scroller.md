@@ -175,6 +175,47 @@ dialog anyway (ticket 36).
 > alone. The phone has a floor because there the play button sits in a
 > *sibling* below the well rather than inside it.
 >
+> **Amended again by ticket 23 — below 505px tall, the page scrolls.** This is
+> the repo owner's call and it reverses this ADR's central invariant, in a
+> band. At phone widths and under 505px of viewport height, `.stage` stops
+> being a `height: 100dvh` fixed frame (`height: auto; min-height: 100dvh`),
+> the region stops boxing its content, and **the document scrolls**. The grid
+> well and the phone song bar's lane strip take max-heights — three grid rows
+> and three lanes — so the page stays a sensible length rather than laying all
+> six rows and five lanes out down it.
+>
+> **Why a short window earns the exception.** The fixed frame's promise is that
+> both play buttons are reachable without scrolling, and it keeps that promise
+> by pushing the overflow into the grid's own scroller. Below 505px there is no
+> arrangement left that keeps it: the grid's floor plus the song bar's header
+> is simply taller than the room between the two pinned bars, so song play ends
+> up behind the pinned transport. Measured on a fresh one-clip 390px phone, it
+> is partly covered from 504px down. A page a child can scroll reaches both
+> buttons; a fixed frame that hides one reaches neither. What a child gets
+> instead of the frame is an ordinary scrolling page: three grid rows, the song
+> bar, the transport, in document order.
+>
+> **505, not the 500 first proposed.** 500 came from a measurement that sampled
+> the song play button's centre only, and the centre of a circle is the last
+> part of it to go behind anything. Sampling its edges as well — which is what
+> `verifyNotOccluded` does — puts the first wholly-clear height at 505: at
+> exactly 500, one of five sample points is under the transport. A 500px
+> threshold would have left the first fixed-frame height failing the very
+> promise the threshold exists to keep. The tests run at 460 and 492 below it
+> and at **505 and 520** above, so the boundary itself is pinned rather than
+> straddled.
+>
+> **The laptop is not part of this.** 1280×600 is not a height-restricted
+> device; its problem was a dock taking 79% of the screen, fixed by the cap
+> above. The two mechanisms are deliberately separate and must not be merged.
+>
+> **Scope the test relaxation, not the helper.** `verifyNothingIsScrolled` and
+> the page-scroll assertions still hold everywhere else and must keep holding —
+> only tests naming a viewport under the threshold may assert
+> `verifyPageIsTheScroller`. There is a narrower `verifyPageDoesNotScroll` for
+> the fixed-frame side, because a floored grid legitimately scrolls the
+> *region* on a short phone while the page must not move.
+
 > **The reason, and it is the whole reason:** a pinned bar a child can always
 > reach beats a single-scroller rule. One scroller was only ever a means to that
 > end. Everything else in this ADR stands — the three-section frame, the pinned
@@ -262,19 +303,14 @@ snap, paint and loop-map behaviours at a short 360 × 640 phone viewport.
 - On a phone short enough for the region to scroll, adding a clip leaves that
   region scrolled past the grid: the picker's own scrolling is what moves it,
   and the child has to scroll back up.
-- **There is a height below which song play is behind the pinned transport on
-  a fresh one-clip load, and the floor's size is what sets it.** Measured on a
-  390px-wide phone, one clip, at rest: clear at **494px and taller**, behind
-  the transport dock at **492px and shorter**. At the two-row floor this cliff
-  sat at ~450px, so the extra row moved it up by about 42px — the floor pushes
-  the bar down, and on a short enough window it pushes it past the fold. Every
-  viewport this suite tests, and the 360×560 of ADR 0030's own sticky-bar
-  suite, sits above the cliff; a child on a shorter window than that reaches
-  song play by scrolling the region, which is the same region they are already
-  scrolling for the grid. It is recorded rather than fixed because raising the
-  floor and lowering the cliff are the same lever pulled in opposite
-  directions — you cannot have both without taking the play button out of the
-  scrolling region altogether, which is a design change, not a merge call.
+- The cliff that used to sit here — song play behind the pinned transport on a
+  short one-clip phone — is **gone, not merely recorded**: it is what the
+  below-505px page-scroll exception above exists to remove. Its history is
+  worth keeping, because it shows the floor and the cliff are one lever: at a
+  two-row floor the cliff sat at ~450px, and the owner's third row pushed it to
+  505. Raising the floor lowers the height at which the frame can keep its
+  promise, which is why the answer in the end was to stop being a frame down
+  there rather than to trade one guarantee against the other.
 - Since ticket 23 the loop map sits at the foot of the phone well, *outside*
   the well's own scroll box rather than inside it. It is still glued under the
   grid and still inside the scrolling region — §3's point — and being outside

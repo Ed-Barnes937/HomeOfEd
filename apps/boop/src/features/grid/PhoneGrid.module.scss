@@ -60,6 +60,15 @@ $grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
   display: flex;
   flex-direction: column;
   min-height: 10px + 10px + $grid-floor + 34px;
+
+  // Below 500px tall the page scrolls instead of the frame (ADR 0030, as
+  // amended by ticket 23), so nothing bounds this well any more — it would
+  // grow to all six rows and push the song bar and transport a long way down
+  // the document. Pinned to the floor instead: three rows, and `.wellScroll`
+  // carries the rest exactly as it does above the threshold.
+  @media (max-height: 504px) {
+    max-height: 10px + 10px + $grid-floor + 34px;
+  }
 }
 
 // See Grid.module.scss's `.wellScroll` — same rules, the phone's numbers. No

@@ -286,62 +286,70 @@ test.describe('small phone, short window', () => {
   })
 })
 
-// The hardest screen boop has: five lanes on a 460px window. Everything is
-// competing at once — the bar is taller than the whole region so its
-// `max-height` caps it, the grid is on its floor, and the region itself has to
-// scroll. All three promises have to survive that simultaneously.
-test.describe('small phone, a window too short for five lanes', () => {
-  test.use({ viewport: { width: 390, height: 460 } })
+// Below 500px of viewport height the frame gives up and the whole page scrolls
+// (ADR 0030, as amended by ticket 23 — the repo owner's call). It is the one
+// band where this app's page-never-scrolls rule inverts, and the reason is that
+// no fixed arrangement keeps both play buttons reachable down here: the grid's
+// floor plus the song bar's header is taller than the room between the two
+// pinned bars, so song play ends up behind the transport from 492px down.
+// Scrolling the page reaches both; a fixed frame that hides one reaches
+// neither.
+for (const height of [460, 492]) {
+  test.describe(`small phone, 390x${height} — under the short-window threshold`, () => {
+    test.use({ viewport: { width: 390, height } })
 
-  async function fiveClips(root: {
-    startBlank: () => Promise<void>
-    addClip: () => Promise<void>
-    verifyClipCount: (count: number) => Promise<void>
-  }) {
-    await root.startBlank()
-    await root.addClip()
-    await root.addClip()
-    await root.addClip()
-    await root.addClip()
-    await root.verifyClipCount(5)
-  }
+    test('the page scrolls, and both play buttons are reachable and uncovered', async ({
+      mountApp,
+    }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
 
-  test('a capped bar loses lane rows to a scroll, never the song play button', async ({
-    mountApp,
-  }) => {
-    const { root } = await mountApp()
-    await root.verifyIsShown()
-    await fiveClips(root)
+      // One clip, then three, then five: the floor has to hold at each, and
+      // both buttons have to stay reachable as the song grows.
+      for (const clips of [1, 3, 5]) {
+        if (clips > 1) {
+          await root.startBlank()
+          for (let i = 1; i < clips; i += 1) await root.addClip()
+          await root.verifyClipCount(clips)
+        }
 
-    await root.verifyLaneStripIsTheScroller()
-    await root.verifySongPlayFullyInViewport()
-    await root.verifyTransportFullyInViewport()
+        await root.verifyPageIsTheScroller()
+
+        // Reachable means reachable by scrolling, which is the whole point of
+        // the exception — and unoccluded when you get there, by
+        // `elementFromPoint` rather than viewport intersection.
+        await root.scrollPageToTop()
+        await root.verifyNotOccluded('song-play-button')
+        await root.verifyGridFloor(3)
+
+        await root.scrollPageToBottom()
+        await root.verifyNotOccluded('play-button')
+        await root.verifyNotOccluded('song-play-button')
+      }
+    })
   })
+}
 
-  test('the grid keeps its three rows, and song play stays reachable to pay for them', async ({
-    mountApp,
-  }) => {
-    const { root } = await mountApp()
-    await root.verifyIsShown()
-    await fiveClips(root)
+// The other side of the boundary. 505 is the first fixed-frame height and the
+// first height at which song play is wholly clear of the transport — the two
+// have to be the same number or the threshold fails at its own edge, which is
+// why this runs at 505 exactly rather than somewhere comfortable.
+for (const height of [505, 520]) {
+  test.describe(`small phone, 390x${height} — at and above the threshold`, () => {
+    test.use({ viewport: { width: 390, height } })
 
-    // Song play where the child is left standing — adding the fifth clip
-    // leaves the region scrolled, and this is that position. Occlusion, not
-    // viewport intersection: the pinned chrome sits *over* the header while
-    // `toBeInViewport` still calls it visible.
-    await root.verifyNotOccluded('song-play-button')
+    test('the frame is still fixed, and song play is wholly clear', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
 
-    // The floor, and really on screen — a well of the right height that has
-    // scrolled out of view is the same miss. Read from the top of the region,
-    // which is where the grid is on a window this short.
-    await root.scrollGridRegionToTop()
-    await root.verifyGridFloor(3)
-
-    // And at the far end of that scroll, where the top chrome would cover the
-    // header if the bar were not capped to the region.
-    await root.scrollGridRegionToBottom()
-    await root.verifySongPlayFullyInViewport()
-    await root.verifyNotOccluded('song-play-button')
-    await root.verifyTransportFullyInViewport()
+      // The page does not scroll here — that is the invariant the band below
+      // gives up. The *region* does, which is the floor being paid for and has
+      // been allowed since the floor landed.
+      await root.verifyPageDoesNotScroll()
+      await root.verifyGridWellIsTheScroller()
+      await root.verifyGridFloor(3)
+      await root.verifyNotOccluded('song-play-button')
+      await root.verifyTransportFullyInViewport()
+    })
   })
-})
+}

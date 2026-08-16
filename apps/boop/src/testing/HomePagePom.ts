@@ -984,6 +984,39 @@ export class HomePagePom extends BasePage {
     expect(covered).toEqual([])
   }
 
+  /**
+   * Below the short-window threshold the *page* is the scroller (ADR 0030, as
+   * amended by ticket 23) — the one place in this app where that is true, and
+   * only ever asserted by tests that name a viewport under it.
+   */
+  async verifyPageIsTheScroller(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    )
+    expect(overflow).toBeGreaterThan(0)
+  }
+
+  async scrollPageToBottom(): Promise<void> {
+    await this.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  }
+
+  async scrollPageToTop(): Promise<void> {
+    await this.page.evaluate(() => window.scrollTo(0, 0))
+  }
+
+  /**
+   * The fixed frame's own half of that rule: at and above the threshold the
+   * page does not scroll, whatever the region inside it is doing. Weaker than
+   * `verifyNothingIsScrolled`, deliberately — a floored grid makes the region
+   * scroll on a short phone, and that is allowed; the page scrolling is not.
+   */
+  async verifyPageDoesNotScroll(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    )
+    expect(overflow).toBeLessThanOrEqual(1)
+  }
+
   /** Scroll the frame's own region — which the grid's floor can now make necessary. */
   async scrollGridRegionToBottom(): Promise<void> {
     await this.stageScroller.evaluate((element) => {

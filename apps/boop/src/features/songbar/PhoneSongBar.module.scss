@@ -135,6 +135,14 @@ $row-inset: 4px;
 .lanes {
   flex: 0 1 auto;
   min-height: 0;
+  // The song container's own short-window cap (ADR 0030, ticket 23): with the
+  // page scrolling, `.bar`'s `max-height: 100%` no longer bounds anything, so
+  // the strip would lay all five lanes out down the document. Three lanes and
+  // the ruler, then it scrolls — the same shape it has above the threshold.
+  @media (max-height: 504px) {
+    max-height: $ruler-height + $lane-gap + 2 * $row-inset + 3 * $lane-height +
+      2 * $lane-gap;
+  }
   overflow-y: auto;
   padding: 0 4px;
   margin: 0 -4px;
