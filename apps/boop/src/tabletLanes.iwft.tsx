@@ -30,6 +30,10 @@ test('the lane grid fits the column, even at the five-clip cap', async ({ mountA
   await root.startBlank()
 
   await root.verifyLaneGridFitsColumn()
+  // The exact fit at this width — the squares' widths are the thing a change
+  // to their border silently moves (ticket 24).
+  await root.verifyLaneSquareWidth(41.4375)
+  await root.verifyNoPlacementHint()
 
   await root.addClip()
   await root.addClip()

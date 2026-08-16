@@ -947,6 +947,44 @@ export class HomePagePom extends BasePage {
     await expect(this.laneSquare(clipIndex, position)).toHaveAttribute('data-on', 'false')
   }
 
+  /** No lane square marks a "next free" position — the dashed hint is gone (ticket 24). */
+  async verifyNoPlacementHint(): Promise<void> {
+    await expect(this.page.locator('[data-testid^="lane-"][data-hint]')).toHaveCount(0)
+  }
+
+  /**
+   * A focus ring is drawn 4px outside its button (a 2px outline at a 2px
+   * offset), and a scroll box clips on every side, not just the scrolling one
+   * — so every button inside one needs 4px of room within its scrollable
+   * area, or the ring is sliced off (ticket 25).
+   */
+  async verifyFocusRingsFitTheScrollBox(testId: string): Promise<void> {
+    const room = await this.page.getByTestId(testId).evaluate((box: HTMLElement) => {
+      const outer = box.getBoundingClientRect()
+      // The scrollable area's edges, in viewport coordinates.
+      const left = outer.left + box.clientLeft - box.scrollLeft
+      const top = outer.top + box.clientTop - box.scrollTop
+      const right = left + box.scrollWidth
+      const bottom = top + box.scrollHeight
+      return [...box.querySelectorAll<HTMLElement>('button')].map((button) => {
+        const rect = button.getBoundingClientRect()
+        return Math.min(rect.left - left, rect.top - top, right - rect.right, bottom - rect.bottom)
+      })
+    })
+    expect(room.length).toBeGreaterThan(0)
+    expect(Math.min(...room)).toBeGreaterThanOrEqual(4)
+  }
+
+  /** The ruler numeral sits over its own square — the lane grid lines up column-for-column. */
+  async verifyRulerAlignedOverSquare(position: number): Promise<void> {
+    const numeral = await this.page.getByTestId(`song-position-numeral-${position}`).boundingBox()
+    const square = await this.laneSquare(0, position).boundingBox()
+    if (!numeral || !square) throw new Error('the ruler numeral or the lane square is not visible')
+    const centre = numeral.x + numeral.width / 2
+    expect(centre).toBeGreaterThanOrEqual(square.x)
+    expect(centre).toBeLessThanOrEqual(square.x + square.width)
+  }
+
   /** The song bar's `<n> bars` readout — placed squares × 4. */
   async verifySongLength(text: string): Promise<void> {
     await expect(this.page.getByTestId('song-length')).toHaveText(text)
@@ -978,6 +1016,13 @@ export class HomePagePom extends BasePage {
     const centre = numeral.x + numeral.width / 2
     expect(centre).toBeGreaterThanOrEqual(last.x)
     expect(centre).toBeLessThanOrEqual(last.x + last.width)
+  }
+
+  /** The tablet band's flexible square width, pinned so a border change cannot move it. */
+  async verifyLaneSquareWidth(expected: number): Promise<void> {
+    const box = await this.laneSquare(0, 0).boundingBox()
+    if (!box) throw new Error('the lane square is not visible')
+    expect(box.width).toBeCloseTo(expected, 3)
   }
 
   /**

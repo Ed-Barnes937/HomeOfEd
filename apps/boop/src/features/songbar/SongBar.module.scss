@@ -190,6 +190,12 @@
   flex-direction: column;
   gap: 8px;
   overflow-x: auto;
+  // `overflow-x: auto` clips on every side, and the chips', squares' and
+  // "+ New clip"'s focus rings sit 4px out (a 2px outline at a 2px offset).
+  // The padding takes them inside the scroll box; the negative margin puts
+  // the box back where it was, so nothing moves on screen (ticket 25).
+  padding: 4px;
+  margin: -4px;
 
   @media (max-width: 1279px) {
     overflow-x: visible;
@@ -234,6 +240,16 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  // The lane rows overflow the scroll box, and its own trailing padding sits
+  // inside that overflow — so the last square's focus ring takes its 4px from
+  // the scrolling content instead, off a box sized to the rows (ticket 25).
+  // Laptop only: on the tablet the lane grid does not scroll and the squares
+  // flex to fill this width.
+  @media (min-width: 1280px) {
+    width: fit-content;
+    padding-right: 4px;
+  }
 
   &[data-drag-live='true'] .lane {
     transition: transform 140ms ease;
@@ -332,12 +348,6 @@
     flex: 1;
     width: auto;
     min-width: 20px;
-    // Transparent, not none, so the hint's dashed swap below changes no
-    // geometry here: a border inflates a flexible square's flex base size
-    // (the outer width can never go below the border sum, border-box or
-    // not), and the fit needs every square's base identical. Tablet-scoped
-    // so the laptop's inset highlight keeps the handoff's exact inset.
-    border: 2px solid transparent;
   }
   background: rgba(255, 255, 255, 0.045);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
@@ -348,14 +358,6 @@
     box-shadow:
       0 2px 0 rgba(0, 0, 0, 0.35),
       inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  }
-
-  // The next free square on the active clip's lane — a dashed invitation
-  // (handoff §5: "2px dashed <clipTint>80 over the empty fill"). border-box
-  // sizing keeps the laptop's 56×46 geometry; on the tablet it swaps the
-  // standing transparent border in place.
-  &[data-hint='true'] {
-    border: 2px dashed color-mix(in srgb, var(--lane-tint) 50%, transparent);
   }
 
   // The playing ring — the grid playhead's language, hard cut, no transition.
