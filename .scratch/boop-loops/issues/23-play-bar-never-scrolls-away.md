@@ -39,8 +39,8 @@ Record the reason, not just the exception.
 
 **Status:** ready-for-agent
 
-- [ ] `.iwft` at a short viewport (e.g. 1280×600): the clip play button is in the viewport without scrolling
-- [ ] `.iwft` at a short phone viewport (e.g. 390×640): the song play button is in the viewport without scrolling
-- [ ] The grid is still 6 rows × 16 steps at every breakpoint; no cell geometry changed
-- [ ] The playhead column lands on the correct step at 1280px+ and in the tablet band, including when the well is scrolled
-- [ ] ADR 0030 amended with the exception and its reason
+- [x] `.iwft` at a short viewport (e.g. 1280×600): the clip play button is in the viewport without scrolling
+- [x] `.iwft` at a short phone viewport (e.g. 390×640): the song play button is in the viewport without scrolling
+- [x] The grid is still 6 rows × 16 steps at every breakpoint; no cell geometry changed
+- [x] The playhead column lands on the correct step at 1280px+ and in the tablet band, including when the well is scrolled
+- [x] ADR 0030 amended with the exception and its reason

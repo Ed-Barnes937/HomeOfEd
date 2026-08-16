@@ -17,9 +17,18 @@ $row-inset: 4px;
   padding: 10px; // the grid well's padding, for the column alignment
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.045);
+  // The lanes scroll inside the bar; the header above them does not (ticket
+  // 23), so the song play button it carries is on screen at every window
+  // height however many clips the song has. `min-height: 0` is the well's own
+  // (Grid.module.scss): it is what lets the bar give up height at all, and the
+  // scrolling lane strip below is what stops it giving up the header with it.
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .header {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -91,7 +100,22 @@ $row-inset: 4px;
   color: rgba(242, 239, 230, 0.4);
 }
 
+// The chip column and the lane strip scroll vertically together, so a child
+// always knows whose lane a row is (ticket 23). `flex: 0 1 auto`, never
+// `flex: 1`: the strip may shrink on a short window but must not grow on a
+// tall one. This is the only part of the bar that shrinks — the header above
+// is `flex: none` — so a squeezed bar loses lane rows to a scroll, never the
+// song play button.
+//
+// The horizontal padding is `.window`'s own (ticket 25) repeated one box out:
+// `overflow-y: auto` computes this axis to `auto` as well, so without it the
+// window's -4px margins would fall outside this box and be clipped.
 .lanes {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px;
+  margin: 0 -4px;
   display: flex;
   gap: 8px; // the rail gap
 }

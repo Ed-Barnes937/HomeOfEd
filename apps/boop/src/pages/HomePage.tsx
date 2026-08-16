@@ -562,7 +562,7 @@ export function HomePage() {
         </div>
       </div>
       <div className={styles.scroller} data-testid="stage-scroller">
-        <div className={styles.column} data-testid="stage-column">
+        <div className={`${styles.column} ${styles.stack}`} data-testid="stage-column">
           {/* The loop map rides inside PhoneGrid's well, so it stays glued
               under the grid inside this region rather than joining the pinned
               bar and becoming a second transport (ADR 0027). The clip header

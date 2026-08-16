@@ -33,7 +33,7 @@ test('the song bar renders in the scrolling region; nothing new is pinned', asyn
   await root.addClip()
   await root.verifyClipCount(5)
   await root.verifyTransportFullyInViewport()
-  await root.verifyGridRegionIsTheOnlyScroller()
+  await root.verifyGridWellIsTheScroller()
   await root.verifyNoHorizontalOverflow()
 })
 

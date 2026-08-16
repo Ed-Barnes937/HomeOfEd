@@ -53,6 +53,9 @@ export class HomePagePom extends BasePage {
   async dragPaint(instrumentId: string, steps: number[]): Promise<void> {
     const [first, ...rest] = steps
     if (first === undefined) return
+    // The rows scroll inside the well (ticket 23), so the row being painted may
+    // be below its visible band — a real finger scrolls to it first.
+    await this.cell(instrumentId, first).scrollIntoViewIfNeeded()
     const startBox = await this.cell(instrumentId, first).boundingBox()
     if (!startBox) throw new Error(`cell ${instrumentId}-${first} is not visible`)
     await this.page.mouse.move(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2)
@@ -592,9 +595,18 @@ export class HomePagePom extends BasePage {
 
   /** A real sideways swipe over the step window — the browser owns the pan. */
   async swipeSteps(deltaX: number): Promise<void> {
-    const box = await this.stepWindow().boundingBox()
-    if (!box) throw new Error('the phone step window is not visible')
-    await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    // The window is taller than the well's scroll box shows (ticket 23), so its
+    // centre can be off the visible band and the wheel would land elsewhere.
+    // Aim at the middle of the part a child can actually see, and scroll
+    // nothing to get there — the swipe must start from where the strip is.
+    const point = await this.stepWindow().evaluate((element) => {
+      const window_ = element.getBoundingClientRect()
+      const box = element.closest('[data-testid="grid-scroll"]')?.getBoundingClientRect()
+      const top = Math.max(window_.top, box?.top ?? window_.top)
+      const bottom = Math.min(window_.bottom, box?.bottom ?? window_.bottom)
+      return { x: window_.left + window_.width / 2, y: (top + bottom) / 2 }
+    })
+    await this.page.mouse.move(point.x, point.y)
     await this.page.mouse.wheel(deltaX, 0)
   }
 
@@ -705,39 +717,6 @@ export class HomePagePom extends BasePage {
     .getByTestId('transport-bar')
     .or(this.page.getByTestId('song-bar'))
 
-  /**
-   * The grid region scrolls *vertically only*, and the document does not scroll
-   * at all — the whole point of the fixed frame. All three halves matter: a
-   * page that scrolls as well would still scroll the play button away, and
-   * `overflow-y: auto` computes the other axis to `auto` too, so anything wider
-   * than the region's padding box would silently give it a sideways scroll.
-   */
-  async verifyGridRegionIsTheOnlyScroller(): Promise<void> {
-    const region = await this.stageScroller.evaluate((element) => ({
-      scrollHeight: element.scrollHeight,
-      clientHeight: element.clientHeight,
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-    }))
-    expect(region.scrollHeight).toBeGreaterThan(region.clientHeight)
-    expect(region.scrollWidth).toBeLessThanOrEqual(region.clientWidth)
-
-    const document_ = await this.page.evaluate(() => ({
-      scrollHeight: document.documentElement.scrollHeight,
-      clientHeight: document.documentElement.clientHeight,
-    }))
-    expect(document_.scrollHeight).toBeLessThanOrEqual(document_.clientHeight + 1)
-  }
-
-  async scrollGridRegionToBottom(): Promise<void> {
-    await this.stageScroller.evaluate((element) => {
-      element.scrollTop = element.scrollHeight
-    })
-    await expect
-      .poll(async () => this.stageScroller.evaluate((element) => element.scrollTop))
-      .toBeGreaterThan(0)
-  }
-
   /** Whole bar on screen, not merely intersecting it. */
   async verifyTransportFullyInViewport(): Promise<void> {
     await expect(this.transportBar).toBeInViewport({ ratio: 1 })
@@ -798,6 +777,116 @@ export class HomePagePom extends BasePage {
       .getByTestId('loop-map')
       .evaluate((element, id) => element.closest(`[data-testid="${id}"]`) !== null, 'stage-scroller')
     expect(inside).toBe(true)
+  }
+
+  // --- The pinned play bars (ticket 23) ---
+
+  private readonly gridWellScroll = this.page.getByTestId('grid-scroll')
+
+  /** Clip play: the well's footer at ≥1024, the pinned transport on the phone. */
+  async verifyClipPlayFullyInViewport(): Promise<void> {
+    await expect(this.playButton).toBeInViewport({ ratio: 1 })
+  }
+
+  async verifySongPlayFullyInViewport(): Promise<void> {
+    await expect(this.songPlayButton).toBeInViewport({ ratio: 1 })
+  }
+
+  /**
+   * The bars are reachable because nothing had to be scrolled to reach them —
+   * neither the page nor the grid region has anything to scroll. This is the
+   * assertion the old layout fails: there, the region scrolls and the button
+   * the region carries is off the bottom of it.
+   */
+  async verifyNothingIsScrolled(): Promise<void> {
+    const region = await this.stageScroller.evaluate((element) => ({
+      overflowY: element.scrollHeight - element.clientHeight,
+      overflowX: element.scrollWidth - element.clientWidth,
+    }))
+    expect(region.overflowY).toBeLessThanOrEqual(0)
+    expect(region.overflowX).toBeLessThanOrEqual(0)
+
+    const document_ = await this.page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      clientHeight: document.documentElement.clientHeight,
+    }))
+    expect(document_.scrollHeight).toBeLessThanOrEqual(document_.clientHeight + 1)
+  }
+
+  /**
+   * The grid's own scroll box inside the well is what takes up the slack on a
+   * short window — the nested scroller ADR 0030 was amended for. The rows
+   * scroll there; the well's footer, the frame and the page do not move.
+   */
+  async verifyGridWellIsTheScroller(): Promise<void> {
+    const overflow = await this.gridWellScroll.evaluate(
+      (element) => element.scrollHeight - element.clientHeight,
+    )
+    expect(overflow).toBeGreaterThan(0)
+    await this.verifyNothingIsScrolled()
+  }
+
+  async scrollGridWellToBottom(): Promise<void> {
+    await this.gridWellScroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
+    await expect
+      .poll(async () => this.gridWellScroll.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0)
+  }
+
+  /** 6 rows × 16 steps, at every breakpoint — no ticket may drop one (ADR 0027). */
+  async verifyGridIsSixBySixteen(): Promise<void> {
+    await expect(this.page.getByTestId(/^cell-[a-z]+-\d+$/)).toHaveCount(96)
+    for (const instrumentId of ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop']) {
+      await expect(this.cell(instrumentId, 0)).toHaveCount(1)
+      await expect(this.cell(instrumentId, 15)).toHaveCount(1)
+    }
+  }
+
+  /** The handoff's cell size for this breakpoint — a layout ticket may not nudge it. */
+  async verifyCellGeometry(width: number, height: number): Promise<void> {
+    const box = await this.cell('kick', 0).boundingBox()
+    if (!box) throw new Error('the cell is not visible')
+    expect(Math.round(box.width)).toBe(width)
+    expect(Math.round(box.height)).toBe(height)
+  }
+
+  /**
+   * The playhead column is `position: absolute` with hand-computed pixel
+   * offsets, so putting `.body` in a scroll box is exactly the kind of change
+   * that silently moves it: it must still be centred on its step's cell,
+   * cover that cell top to bottom, and be on screen rather than clipped by the
+   * scroll box it now lives in.
+   */
+  async verifyPlayheadCoversCell(instrumentId: string, step: number): Promise<void> {
+    const column = await this.playhead().boundingBox()
+    const cell = await this.cell(instrumentId, step).boundingBox()
+    if (!column || !cell) throw new Error('the playhead or the cell is not visible')
+    const centre = column.x + column.width / 2
+    expect(Math.abs(centre - (cell.x + cell.width / 2))).toBeLessThanOrEqual(1)
+    expect(column.width).toBeGreaterThan(cell.width)
+    expect(column.y).toBeLessThanOrEqual(cell.y)
+    expect(column.y + column.height).toBeGreaterThanOrEqual(cell.y + cell.height)
+    // 0.99, not 1: a sub-pixel cell height rounds the ratio just under it.
+    await expect(this.cell(instrumentId, step)).toBeInViewport({ ratio: 0.99 })
+    await expect(this.playhead()).toBeInViewport()
+  }
+
+  /**
+   * The phone song bar's header carries song play, so the lane strip is what
+   * scrolls when the bar runs out of room — the header is never inside that
+   * scroll box.
+   */
+  async verifySongPlayOutsideTheLaneScroller(): Promise<void> {
+    const lanes = this.page.getByTestId('phone-song-lanes')
+    const scrolls = await lanes.evaluate((element) => getComputedStyle(element).overflowY)
+    expect(scrolls).toBe('auto')
+    const inside = await this.songPlayButton.evaluate(
+      (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+      'phone-song-lanes',
+    )
+    expect(inside).toBe(false)
   }
 
   // --- The clip-lanes laptop layout (ticket 15) ---

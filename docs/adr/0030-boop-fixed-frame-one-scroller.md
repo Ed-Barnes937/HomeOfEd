@@ -58,6 +58,40 @@ dialog anyway (ticket 36).
 > "empty band on a tall window" below is the one already anticipated there —
 > the band is larger, not smaller.
 
+> **Amended by ticket 23 (post-launch feedback) — the one-scroller rule has an
+> exception.** "The grid well's region is the only scrolling region" turned out
+> to reach the wrong result on a short window. The region carries the grid well,
+> and the well carries a play button on both layouts — the clip control at
+> ≥1024, the song bar's header on the phone. So the thing that scrolled away was
+> the thing the rule existed to keep on screen, just one level in: at 1280×600
+> the clip play button was off the bottom of the region, and at 390×640 so was
+> song play.
+>
+> A **nested scroller is therefore allowed inside the grid well and inside the
+> phone song bar**, and nowhere else. The well is a flex column of the region's
+> height whose rows scroll in their own box (`Grid`/`PhoneGrid`'s `.wellScroll`)
+> with the footer under them at `flex: none`; the phone song bar is the same
+> shape with its header pinned and the lane strip scrolling
+> (`PhoneSongBar`'s `.lanes`). The scrolling region's column
+> (`HomePage.module.scss`'s `.stack`) is what gives the well a height to shrink
+> against — nothing in it grows, so a tall window is exactly as it was.
+>
+> **The reason, and it is the whole reason:** a pinned bar a child can always
+> reach beats a single-scroller rule. One scroller was only ever a means to that
+> end. Everything else in this ADR stands — the three-section frame, the pinned
+> chrome and transport, `min-height: 0`, and "do not fix the empty band by
+> stretching the grid" (the nested box is `flex: 0 1 auto`, never `flex: 1`,
+> precisely so it cannot).
+>
+> The cost is that the grid is the thing that gives way: at 1280×600 about two
+> rows of it are on screen at a time and the child scrolls the well for the
+> rest. That is the trade the ticket was written to make. The playhead column
+> survives it — it is `position: absolute` inside `.body`, which is still its
+> containing block, so only clipping was at risk: the scroll box takes 8px of
+> padding at laptop and 7px at tablet (with matching negative margins, ticket
+> 25's trick) to hold the column's overhang, and `playBarPinned.iwft.tsx` pins
+> it over the right cell at both number sets and with the well scrolled.
+
 ### 2. The bar is inset to the column, not full-bleed — decided by prototype
 
 Ticket 33 was grilled to a **full-bleed** bar with its contents aligned to the
@@ -106,3 +140,8 @@ snap, paint and loop-map behaviours at a short 360 × 640 phone viewport.
 - Anything added to the main screen from here belongs in the scrolling region
   by default. Adding to either pinned bar costs vertical space on the screen
   that has least of it.
+- Since ticket 23 the loop map sits at the foot of the phone well, *outside*
+  the well's own scroll box rather than inside it. It is still glued under the
+  grid and still inside the scrolling region — §3's point — and being outside
+  the box is what keeps it on screen when the rows scroll, which is the whole
+  job it has when the playhead is out of view.

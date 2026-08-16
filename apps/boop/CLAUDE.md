@@ -205,6 +205,14 @@ share-link snapshot.
   loop map stays under the grid *inside* the scrolling region — never in the
   bar, or it becomes a second transport. New main-screen content goes in the
   scrolling region by default.
+  **One exception** (ADR 0030, as amended by ticket 23): the grid well and the
+  phone song bar each hold a nested scroller, because each carries a play
+  button that the region would otherwise scroll away — a pinned bar the child
+  can always reach beats the single-scroller rule. The well is a flex column
+  whose rows scroll in their own box with the footer pinned under them; the
+  phone song bar is the same shape with its header pinned. Both are
+  `flex: 0 1 auto`, never `flex: 1` — they may shrink, they must never stretch
+  the grid on a tall window. No third nested scroller without another ADR.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

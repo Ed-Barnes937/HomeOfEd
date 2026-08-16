@@ -8,6 +8,15 @@
   border-radius: 24px;
   background: var(--well);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  // The rows scroll inside the well; the footer under them does not (ticket
+  // 23) — so the clip play button the footer carries is on screen at every
+  // window height, and the grid is what gives way. `min-height: 0` is what
+  // lets the well shrink below its content, exactly as the frame's scrolling
+  // region needs it (ADR 0030): flex stops the shrink the moment the well
+  // fits its space, so it is never smaller than what it was given.
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
   // The active clip's tint ring (clip-lanes handoff §3): `<clipTint>40` = 25%.
   // The clip header row above absorbs 4px of the old margin.
@@ -22,6 +31,35 @@
     padding: 16px;
     border-radius: 20px;
   }
+}
+
+// The bar-numeral row and the rows, in the well's one scroll box (ticket 23).
+// `flex: 0 1 auto`, never `flex: 1`: it may shrink when the window is short but
+// must not grow on a tall one, or the footer would be pushed to the foot of a
+// stretched well and the grid would no longer hug its content.
+//
+// `overflow-y: auto` computes the other axis to `auto` too, and a scroll box
+// clips on every side, so the 8px the playhead column overhangs `.body` by
+// (7px on the tablet) would be sliced off — and its right-hand overhang would
+// add scrollable width. The padding takes the overhang inside the box and the
+// matching negative margin puts the box back where it was, so nothing moves on
+// screen — the same trick ticket 25 used for the lane focus rings.
+.wellScroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  margin: -8px;
+
+  @media (max-width: 1279px) {
+    padding: 7px;
+    margin: -7px;
+  }
+}
+
+// Pinned at the foot of the well — the clip play button lives here.
+.wellFooter {
+  flex: none;
 }
 
 .barNumerals {

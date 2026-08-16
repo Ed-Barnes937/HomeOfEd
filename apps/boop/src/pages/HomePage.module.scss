@@ -78,6 +78,19 @@
   margin-inline: auto;
 }
 
+// The scrolling region's column is a flex column of the region's own height,
+// which is what gives the grid well a max-height to shrink against (ticket 23).
+// Nothing here grows: every child keeps `flex: 0 1 auto`, so on a tall window
+// the stack is exactly what it always was — ADR 0030's "do not fix the empty
+// band by stretching the grid" still holds. On a short one the well is the
+// only child that can shrink (it is the only one whose minimum is smaller than
+// its content), so it gives way and the bars below it stay on screen.
+.stack {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .loading {
   padding: 32px;
   font-family: var(--font-display);
