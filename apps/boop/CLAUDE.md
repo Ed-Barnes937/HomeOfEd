@@ -210,9 +210,16 @@ share-link snapshot.
   button that the region would otherwise scroll away — a pinned bar the child
   can always reach beats the single-scroller rule. The well is a flex column
   whose rows scroll in their own box with the footer pinned under them; the
-  phone song bar is the same shape with its header pinned. Both are
-  `flex: 0 1 auto`, never `flex: 1` — they may shrink, they must never stretch
-  the grid on a tall window. No third nested scroller without another ADR.
+  phone song bar is the same shape with its header pinned. Neither box may
+  ever be `flex: 1` — they may shrink, they must never stretch the grid on a
+  tall window. **The grid absorbs the squeeze first**: the well shrinks
+  (`min-height: 0`) and the phone song bar does not (`flex-shrink: 0`), so the
+  well gives up every pixel of its slack before the lane strip gives up one —
+  the ticket's headline is "the grid scrolls, *not* the bar", and a shrink
+  factor above zero would chop a lane row on the default phone screen while
+  the grid still held hundreds of pixels. The bar's strip scrolls only once
+  its `max-height` caps the bar, which takes five lanes on a very short
+  window. No third nested scroller without another ADR.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

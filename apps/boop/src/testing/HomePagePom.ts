@@ -896,6 +896,30 @@ export class HomePagePom extends BasePage {
   }
 
   /**
+   * The grid gives up its slack before the lane strip gives up anything
+   * (ticket 23, as the repo owner settled it): on the default one-clip phone
+   * screen the strip is whole and unscrolled, however short the window. A
+   * chopped lane row under a scrollbar is not what "the grid scrolls, not the
+   * bar" asked for.
+   */
+  async verifyLaneStripWhole(): Promise<void> {
+    const strip = await this.page.getByTestId('phone-song-lanes').evaluate((element) => ({
+      overflow: element.scrollHeight - element.clientHeight,
+      scrollTop: element.scrollTop,
+    }))
+    expect(strip.overflow).toBeLessThanOrEqual(0)
+    expect(strip.scrollTop).toBe(0)
+  }
+
+  /** The other end of the same rule: once the bar is capped, the strip is what gives. */
+  async verifyLaneStripIsTheScroller(): Promise<void> {
+    const overflow = await this.page
+      .getByTestId('phone-song-lanes')
+      .evaluate((element) => element.scrollHeight - element.clientHeight)
+    expect(overflow).toBeGreaterThan(0)
+  }
+
+  /**
    * The phone song bar's header carries song play, so the lane strip is what
    * scrolls when the bar runs out of room — the header is never inside that
    * scroll box.

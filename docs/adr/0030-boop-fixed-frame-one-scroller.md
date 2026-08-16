@@ -76,12 +76,26 @@ dialog anyway (ticket 36).
 > (`HomePage.module.scss`'s `.stack`) is what gives the well a height to shrink
 > against — nothing in it grows, so a tall window is exactly as it was.
 >
+> **The grid absorbs the squeeze first, and on its own** (settled by the repo
+> owner after review). The well shrinks — `min-height: 0` — and the phone song
+> bar does not: `flex-shrink: 0`, capped by `max-height: 100%`. So the well
+> gives up every pixel of its slack before the lane strip gives up one. The
+> first build shared the deficit out proportionally, which is what flex does by
+> default, and the result was a chopped lane row under a scrollbar in a 49px
+> box on the default one-clip phone screen while the grid still held 109px of
+> slack — the opposite of "the grid scrolls, **not** the bar". No shrink factor
+> above zero can express the ordering, because flex shares a deficit rather
+> than queueing it, so the bar takes zero and a cap instead. The strip's
+> scroller is still correct and still needed: once five lanes on a very short
+> window make the bar taller than the whole region, `max-height` stops it
+> growing and the strip is what gives, never the header.
+>
 > **The reason, and it is the whole reason:** a pinned bar a child can always
 > reach beats a single-scroller rule. One scroller was only ever a means to that
 > end. Everything else in this ADR stands — the three-section frame, the pinned
 > chrome and transport, `min-height: 0`, and "do not fix the empty band by
-> stretching the grid" (the nested box is `flex: 0 1 auto`, never `flex: 1`,
-> precisely so it cannot).
+> stretching the grid" (no nested box is ever `flex: 1`, precisely so it
+> cannot).
 >
 > The cost is that the grid is the thing that gives way, and on a short window
 > it gives way hard: at 1280×600 the scroll box measures **113px against 485px

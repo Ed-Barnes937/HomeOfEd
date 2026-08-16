@@ -145,11 +145,68 @@ test.describe('small phone, short window', () => {
     await root.verifySongPlayOutsideTheLaneScroller()
   })
 
+  test('the grid gives up its slack before the lane strip gives up any', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    // The default first-run screen: one clip, and its lane row whole. The grid
+    // is what is short here — it still has 219px of content it is not showing.
+    await root.verifyLaneStripWhole()
+    await root.verifyGridWellIsTheScroller()
+  })
+
+  // `phoneLanes.iwft.tsx` runs at 390x844, where the strip is never squeezed —
+  // so nothing exercised a lane at the size this ticket changed. The placement
+  // gestures are what the squeeze puts most at risk.
+  test('placing and painting a lane still works at the squeezed size', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.startBlank()
+
+    await root.toggleLaneSquare(0, 0)
+    await root.verifyPlacementOn(0, 0)
+    await root.verifySongLength('4 bars')
+    await root.toggleLaneSquare(0, 0)
+    await root.verifyPlacementOff(0, 0)
+
+    await root.dragPaintLanes(0, [1, 2, 3])
+    await root.verifyPlacementOn(0, 1)
+    await root.verifyPlacementOn(0, 3)
+    // Painting is not scrolling, on either axis: the strip did not move.
+    await root.verifyLaneWindowAt(0)
+    await root.verifyLaneStripWhole()
+  })
+
   test('the grid is still 6 x 16, at the phone cell geometry', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
     await root.verifyGridIsSixBySixteen()
     await root.verifyCellGeometry(32, 44)
+  })
+})
+
+// The last resort, and the only thing that makes the bar's scrolling strip
+// load-bearing: five lanes on a window this short make the bar taller than the
+// whole region, so its `max-height` caps it. What gives way then is the strip.
+test.describe('small phone, a window too short for five lanes', () => {
+  test.use({ viewport: { width: 390, height: 460 } })
+
+  test('a capped bar loses lane rows to a scroll, never the song play button', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.startBlank()
+
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+    await root.verifyClipCount(5)
+
+    await root.verifyLaneStripIsTheScroller()
+    await root.verifySongPlayFullyInViewport()
+    await root.verifyTransportFullyInViewport()
   })
 })

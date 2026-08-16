@@ -19,12 +19,24 @@ $row-inset: 4px;
   background: rgba(255, 255, 255, 0.045);
   // The lanes scroll inside the bar; the header above them does not (ticket
   // 23), so the song play button it carries is on screen at every window
-  // height however many clips the song has. `min-height: 0` is the well's own
-  // (Grid.module.scss): it is what lets the bar give up height at all, and the
-  // scrolling lane strip below is what stops it giving up the header with it.
+  // height however many clips the song has.
+  //
+  // `flex-shrink: 0` is the ticket's headline made literal — "the grid scrolls
+  // **not** the bar". The grid well shrinks (`min-height: 0`, Grid.module.scss)
+  // and this does not, so the well gives up every pixel of its slack before
+  // the lane strip gives up one. A shrink *factor* cannot express that: flex
+  // shares a deficit out proportionally, so any factor above zero chops a lane
+  // row on the default one-clip phone screen while the grid still has hundreds
+  // of pixels in hand. Zero, then a cap:
+  //
+  // `max-height: 100%` is the last resort, and the only thing that makes the
+  // scrolling strip below load-bearing. Once the bar is taller than the whole
+  // region — five clips on a very short window — it stops growing, and what
+  // gives way inside it is the strip, never the header.
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  flex-shrink: 0;
+  max-height: 100%;
 }
 
 .header {
@@ -103,9 +115,10 @@ $row-inset: 4px;
 // The chip column and the lane strip scroll vertically together, so a child
 // always knows whose lane a row is (ticket 23). `flex: 0 1 auto`, never
 // `flex: 1`: the strip may shrink on a short window but must not grow on a
-// tall one. This is the only part of the bar that shrinks — the header above
-// is `flex: none` — so a squeezed bar loses lane rows to a scroll, never the
-// song play button.
+// tall one. This is the only part of the bar that can give — the header above
+// is `flex: none` — so a bar capped by its `max-height` loses lane rows to a
+// scroll, never the song play button. Below that cap the bar does not shrink
+// at all and this strip stays whole: the grid absorbs the squeeze first.
 //
 // The horizontal padding is `.window`'s own (ticket 25) repeated one box out:
 // `overflow-y: auto` computes this axis to `auto` as well, so without it the
