@@ -166,7 +166,13 @@ dialog anyway (ticket 36).
 > **The laptop grid needs no floor, and that is the cap's doing.** A floor was
 > built for `Grid.module.scss`'s `.well` and then removed: with the dock capped,
 > deleting it left all 19 tests green, because the region can no longer be
-> starved and the well degrades proportionally instead of collapsing. It could
+> starved and the well degrades proportionally instead of collapsing. To be
+> precise about "more than the floor would": that holds from about 590px of
+> viewport height upward — 1280×600 gives the well 180px against the 165px two
+> rows would have guaranteed. Below that the well is simply smaller (140px at
+> 560, 80px at 500) and a floor would have guaranteed more. It still could not
+> have been used, for the reason below; what the cap guarantees down there is
+> that the well shrinks smoothly instead of collapsing to 16px. It could
 > not have been kept honestly anyway — this well carries the clip play button
 > at its foot, so a floor pushes its own button below the fold on any window
 > short enough for the floor to bind. Measured at 1280×600: a two-row floor
@@ -186,11 +192,12 @@ dialog anyway (ticket 36).
 >
 > **Why a short window earns the exception.** The fixed frame's promise is that
 > both play buttons are reachable without scrolling, and it keeps that promise
-> by pushing the overflow into the grid's own scroller. Below 505px there is no
-> arrangement left that keeps it: the grid's floor plus the song bar's header
-> is simply taller than the room between the two pinned bars, so song play ends
-> up behind the pinned transport. Measured on a fresh one-clip 390px phone, it
-> is partly covered from 504px down. A page a child can scroll reaches both
+> by pushing the overflow into the grid's own scroller. Below the threshold
+> there is no arrangement left that keeps it: the grid's floor plus the song
+> bar's header is simply taller than the room between the two pinned bars, so
+> song play ends up behind the pinned transport. Measured on a fresh one-clip
+> 390px phone, the first wholly-clear height is **503**, and it is partly
+> covered from **502** down. A page a child can scroll reaches both
 > buttons; a fixed frame that hides one reaches neither. What a child gets
 > instead of the frame is an ordinary scrolling page: three grid rows, the song
 > bar, the transport, in document order.
@@ -198,12 +205,16 @@ dialog anyway (ticket 36).
 > **505, not the 500 first proposed.** 500 came from a measurement that sampled
 > the song play button's centre only, and the centre of a circle is the last
 > part of it to go behind anything. Sampling its edges as well — which is what
-> `verifyNotOccluded` does — puts the first wholly-clear height at 505: at
-> exactly 500, one of five sample points is under the transport. A 500px
-> threshold would have left the first fixed-frame height failing the very
-> promise the threshold exists to keep. The tests run at 460 and 492 below it
-> and at **505 and 520** above, so the boundary itself is pinned rather than
-> straddled.
+> `verifyNotOccluded` does — showed 500 failing: one of five points is under
+> the transport there. The shipped threshold is **505**, which leaves **2px of
+> margin** over the measured 503, not the zero an earlier draft of this
+> paragraph implied. Tests run at 460 and 492 below it, at **503** — the true
+> boundary, so a change to the header, floor or transport heights fails loudly
+> instead of quietly eating that margin — and at 505 and 520 above.
+>
+> 520 was considered and rejected: 17px of extra margin would push 505–519 into
+> page-scroll mode, where clip play is off screen at rest, trading a real band
+> for a hypothetical one.
 >
 > **The laptop is not part of this.** 1280×600 is not a height-restricted
 > device; its problem was a dock taking 79% of the screen, fixed by the cap
@@ -303,6 +314,13 @@ snap, paint and loop-map behaviours at a short 360 × 640 phone viewport.
 - On a phone short enough for the region to scroll, adding a clip leaves that
   region scrolled past the grid: the picker's own scrolling is what moves it,
   and the child has to scroll back up.
+- **Below the threshold, clip play is off screen at rest** — measured 5/5
+  covered at every height tested, on the transport at the foot of a page that
+  is now longer than the window. It is reachable by scrolling the page, and the
+  tests assert that, but the exception is not a clean win: it trades clip play
+  being immediately visible for song play being reachable at all. There is no
+  alternative in that band — song play is genuinely occluded at 502 and below —
+  but the cost belongs on the record next to the benefit.
 - The cliff that used to sit here — song play behind the pinned transport on a
   short one-clip phone — is **gone, not merely recorded**: it is what the
   below-505px page-scroll exception above exists to remove. Its history is

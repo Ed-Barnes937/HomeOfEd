@@ -38,20 +38,20 @@
 //
 // Why a band earns an exception. The fixed frame's promise is that both play
 // buttons are on screen without scrolling, and it keeps that promise by
-// pushing whatever does not fit into the grid's own scroller. Below 505px
-// there is no arrangement left that keeps it: measured on a fresh one-clip
-// 390px phone, song play is partly behind the pinned transport from 504px
-// down, because the grid's floor plus the song bar's header is taller than
-// the room between the two pinned bars. A page a child can scroll reaches
-// both buttons; a fixed frame that hides one reaches neither.
+// pushing whatever does not fit into the grid's own scroller. Below the
+// threshold there is no arrangement left that keeps it: measured on a fresh
+// one-clip 390px phone, song play is partly behind the pinned transport from
+// 502px down, because the grid's floor plus the song bar's header is taller
+// than the room between the two pinned bars. A page a child can scroll
+// reaches both buttons; a fixed frame that hides one reaches neither.
 //
-// **505, not the 500 first proposed.** 500 came from a measurement that
-// sampled the button's centre only, and the centre is the last part of a
-// circle to go behind anything. Sampling its edges too — which is what
-// `verifyNotOccluded` does — puts the first fully-clear height at 505: at
-// exactly 500 one of five sample points is under the transport. A threshold
-// of 500 would therefore have left the first fixed-frame height failing the
-// promise the threshold exists to keep.
+// **505, against a measured boundary of 503.** An earlier figure of 500 came
+// from sampling the button's centre only, and the centre is the last part of
+// a circle to go behind anything; sampling its edges too — which is what
+// `verifyNotOccluded` does — puts the first wholly-clear height at 503, so a
+// 500px threshold would have left the first fixed-frame height failing the
+// promise the threshold exists to keep. 505 ships, leaving 2px of margin, and
+// the tests pin 503 itself so that margin cannot be eaten quietly.
 //
 // Everything at 500px and above is untouched — that is the common case, it is
 // tested, and it keeps every number this ticket established. The laptop is a
@@ -126,7 +126,16 @@
   @media (min-width: 1024px) {
     flex: 0 1 auto;
     min-height: 0;
-    max-height: 32dvh;
+    // Never capped below what the bar cannot give up. The song bar has an
+    // irreducible 193px — 14 margin + 64 header + 14 body padding + the 101px
+    // play column, which is `flex: none` (24 + the 56px circle + 7 + its
+    // label) — and a cap under that does not shrink it, it spills: the dock is
+    // `overflow: visible`, so the excess lands in the document and the *page*
+    // scrolls. Below 610px tall, 32dvh is under 193, which put a scrolling
+    // page on every laptop height from 600 down (1px at 600, 33px at 500).
+    // `max()` holds the cap at the bar's own floor instead. Change the 193
+    // with `SongBar.module.scss`'s header or play column.
+    max-height: max(32dvh, 193px);
   }
 
   @media (max-width: 1279px) {

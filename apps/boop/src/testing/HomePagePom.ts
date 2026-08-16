@@ -942,8 +942,10 @@ export class HomePagePom extends BasePage {
 
   /**
    * The same assertion in pixels, for the laptop and tablet renderers, whose
-   * rows are 66px and 50px rather than the phone's 44px. Their floors live in
-   * `Grid.module.scss`'s `$grid-floor` / `$grid-floor-tablet`.
+   * rows are 66px and 50px rather than the phone's 44px. Those renderers have
+   * no floor of their own — the dock cap is what keeps their well large, see
+   * `Grid.module.scss` — so callers state the height they expect at the
+   * viewport they are testing rather than reading a constant.
    */
   async verifyGridShowsAtLeast(px: number): Promise<void> {
     const visible = await this.gridWellScroll.evaluate((element) => element.clientHeight)
@@ -1002,6 +1004,22 @@ export class HomePagePom extends BasePage {
 
   async scrollPageToTop(): Promise<void> {
     await this.page.evaluate(() => window.scrollTo(0, 0))
+  }
+
+  /**
+   * Stronger than reading `scrollHeight`, and the assertion that would have
+   * caught the sub-610px laptop band: it asks the browser to scroll and checks
+   * that nothing moved. A 1px overflow is exactly what 1280x600 had, and a
+   * `+1` tolerance cannot see it — but the page really did move.
+   */
+  async verifyPageDoesNotMove(): Promise<void> {
+    const moved = await this.page.evaluate(() => {
+      window.scrollTo(0, 200)
+      const y = Math.round(window.scrollY)
+      window.scrollTo(0, 0)
+      return y
+    })
+    expect(moved).toBe(0)
   }
 
   /**

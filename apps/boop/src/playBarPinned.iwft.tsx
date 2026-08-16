@@ -97,8 +97,10 @@ test.describe('laptop, the whole column', () => {
 // and five, at both laptop heights and in the tablet band. `elementFromPoint`,
 // not viewport intersection, because "drawn but covered" was the old failure.
 test.describe('the five-clip cap', () => {
-  // The laptop floor, from `Grid.module.scss`: the bar-numeral row (15 + 8)
-  // and two 66px rows with their 10px gap.
+  // Two rows visible, in laptop numbers: the bar-numeral row (15 + 8) and two
+  // 66px rows with their 10px gap. Not a floor — `Grid.module.scss` has none
+  // and must not be given one — but what the dock cap leaves the well at these
+  // viewports, which is worth pinning so a change to the cap is loud.
   const LAPTOP_FLOOR = 15 + 8 + 2 * 66 + 10
 
   async function fiveClips(root: {
@@ -183,6 +185,34 @@ test.describe('the five-clip cap', () => {
       await root.verifyNothingIsScrolled()
     })
   })
+})
+
+// The dock cap's own failure mode, found in review: the song bar has an
+// irreducible 193px, and a cap below that does not shrink it — the dock is
+// `overflow: visible`, so the excess lands in the document and the page
+// scrolls. 32dvh falls under 193 below 610px tall, which put a scrolling page
+// on every laptop height from 600 down: 1px at 600, small enough for the `+1`
+// tolerance to swallow, 33px at 500. These heights sit inside that band, and
+// the assertion asks the browser to scroll rather than reading a number.
+test.describe('laptop, short windows — the frame must not become a page', () => {
+  for (const [width, height] of [
+    [1280, 600],
+    [1280, 560],
+    [1280, 500],
+    [1024, 500],
+  ] as const) {
+    test.describe(`${width}x${height}`, () => {
+      test.use({ viewport: { width, height } })
+
+      test('the page does not scroll, and clip play is still uncovered', async ({ mountApp }) => {
+        const { root } = await mountApp()
+        await root.verifyIsShown()
+
+        await root.verifyPageDoesNotMove()
+        await root.verifyNotOccluded('play-button')
+      })
+    })
+  }
 })
 
 test.describe('tablet band, short window', () => {
@@ -294,7 +324,12 @@ test.describe('small phone, short window', () => {
 // pinned bars, so song play ends up behind the transport from 492px down.
 // Scrolling the page reaches both; a fixed frame that hides one reaches
 // neither.
-for (const height of [460, 492]) {
+// 460 and 492 are comfortably inside the band; 504 is its top edge, the last
+// height the exception covers. Testing the edge is what stops the threshold
+// drifting without anyone noticing — the four pixels between the measured
+// occlusion boundary (503) and the shipped threshold (505) are exactly where a
+// silent change would hide.
+for (const height of [460, 492, 504]) {
   test.describe(`small phone, 390x${height} — under the short-window threshold`, () => {
     test.use({ viewport: { width: 390, height } })
 
@@ -334,6 +369,11 @@ for (const height of [460, 492]) {
 // first height at which song play is wholly clear of the transport — the two
 // have to be the same number or the threshold fails at its own edge, which is
 // why this runs at 505 exactly rather than somewhere comfortable.
+// 505 is the first fixed-frame height, and it has to be a height at which song
+// play is wholly clear or the threshold fails at its own edge. The measured
+// boundary is 503, so there are 2px of margin — and this runs at 505 exactly,
+// not somewhere comfortable, so anything that moves the header, the floor or
+// the transport eats that margin loudly.
 for (const height of [505, 520]) {
   test.describe(`small phone, 390x${height} — at and above the threshold`, () => {
     test.use({ viewport: { width: 390, height } })
