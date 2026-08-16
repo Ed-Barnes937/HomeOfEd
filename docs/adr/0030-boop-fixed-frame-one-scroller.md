@@ -99,13 +99,29 @@ dialog anyway (ticket 36).
 > **Priority needs a floor, or it takes everything.** Giving the bar absolute
 > priority with nothing under the grid did exactly that: five clips at 390×640
 > left 40px of grid — less than one 44px row — and a 460px-tall window left
-> **none at all** from one clip upwards. Worse, `.well` is `overflow: visible`,
-> so a well shrunk below its content did not clip but spilled, and the
-> instrument rail painted over the song bar beneath it. The floor is
-> `min-height` on `PhoneGrid`'s `.well` — the box flex actually shrinks, not
-> the scroll box inside it — at two rows plus the loop map. It is paid for by
-> the region scrolling, which is allowed; the *page* never scrolls, and that
-> part of this ADR is still absolute.
+> **none at all** from one clip upwards. The floor is `min-height` on
+> `PhoneGrid`'s `.well`, at **three rows** plus the loop map (170px of rows,
+> derived from that file's own geometry variables).
+>
+> Three rather than two is the repo owner's call, and the reason is how often
+> two binds: on a 390×640 phone a child is pinned to the floor as soon as the
+> song has three clips, which is the ordinary state of a song being worked on
+> rather than a rescue case. A 120px window onto a 332px grid cannot show the
+> kick and the boop at once, so placing a beat means scrolling a six-row
+> instrument grid two rows at a time. Three costs about 50px more region
+> scroll — at exactly the sizes where the region is already scrolling — and
+> buys 50% more grid for it.
+>
+> It goes on `.well` and not on the scroll box inside it, because `.well` is
+> the box flex shrinks and it is `overflow: visible`. The scroll box is not all
+> it holds — 20px of padding and the 34px loop map sit outside it — so a floor
+> there leaves `.well` free to shrink below its own content, and what comes off
+> spills rather than clips. Measured at 390×460 with five clips and the floor
+> on the scroll box alone, `elementFromPoint` over the song play button
+> returned the instrument rail's artwork: the grid painting over the song bar.
+>
+> The floor is paid for by the region scrolling, which is allowed; the *page*
+> never scrolls, and that part of this ADR is still absolute.
 >
 > The floor's cost is what makes `max-height: 100%` matter twice over. The
 > region now scrolls on a short phone, and scrolling it is what could take song
@@ -136,9 +152,10 @@ dialog anyway (ticket 36).
 > Note the symptom that padding prevents: overflowing content *grows*
 > `scrollWidth` rather than being sliced, so the playhead-against-its-cell
 > comparison cannot see it — the column and the cell move together. What the
-> overhang actually does is give the well a sideways scroll it should not have. `playBarPinned.iwft.tsx` pins the column over the right cell at
-> both number sets and with the well scrolled, and asserts that missing
-> sideways scroll at 1440 on step 15, the one step whose overhang reaches past
+> overhang actually does is give the well a sideways scroll it should not
+> have. `playBarPinned.iwft.tsx` pins the column over the right cell at both
+> number sets and with the well scrolled, and asserts that missing sideways
+> scroll at 1440 on step 15, the one step whose overhang reaches past
 > the last cell. Removing the laptop padding puts 8px back and turns that test
 > red; the tablet block is symmetry only — at 1024–1279 the 924px grid never
 > reaches the edge of its ≥940px body, and no test can see it go.
@@ -191,6 +208,40 @@ snap, paint and loop-map behaviours at a short 360 × 640 phone viewport.
 - Anything added to the main screen from here belongs in the scrolling region
   by default. Adding to either pinned bar costs vertical space on the screen
   that has least of it.
+- **Open, from ticket 23: no test places a clip while the lane strip is
+  squeezed.** Once the grid took a floor, the strip is only squeezed at
+  390×460 with five lanes, and the placement tests run at 390×844 and 390×640
+  where it is whole. Worth closing if the lane gestures are touched again.
+- **Also open: the phone grid has a floor, the laptop and tablet one does
+  not.** `Grid.module.scss`'s `.well` still carries ticket 23's
+  `min-height: 0`, so at the five-clip cap the well is squeezed to 16px at
+  both 1280×600 and 1440×700 — no grid rows, and the clip control drawn over
+  the song bar. A floor there costs acceptance criterion 1 ("clip play in the
+  viewport without scrolling at 1280×600"), because unlike the phone the play
+  button is *inside* the well, at its foot, so the floor pushes its own button
+  down by exactly the floor's height. 1280×600 has **220px** of well to give;
+  a two-row floor needs 289px and the three-row floor the phone now uses needs
+  **365px** at the laptop's larger geometry. The gap was 69px and is now
+  145px — the owner's three-row call widened it rather than closing it, which
+  is worth knowing before anyone tries to make the two renderers match. One of
+  the two guarantees has to go: an open call for the repo owner, not a merge
+  call.
+- On a phone short enough for the region to scroll, adding a clip leaves that
+  region scrolled past the grid: the picker's own scrolling is what moves it,
+  and the child has to scroll back up.
+- **There is a height below which song play is behind the pinned transport on
+  a fresh one-clip load, and the floor's size is what sets it.** Measured on a
+  390px-wide phone, one clip, at rest: clear at **494px and taller**, behind
+  the transport dock at **492px and shorter**. At the two-row floor this cliff
+  sat at ~450px, so the extra row moved it up by about 42px — the floor pushes
+  the bar down, and on a short enough window it pushes it past the fold. Every
+  viewport this suite tests, and the 360×560 of ADR 0030's own sticky-bar
+  suite, sits above the cliff; a child on a shorter window than that reaches
+  song play by scrolling the region, which is the same region they are already
+  scrolling for the grid. It is recorded rather than fixed because raising the
+  floor and lowering the cliff are the same lever pulled in opposite
+  directions — you cannot have both without taking the play button out of the
+  scrolling region altogether, which is a design change, not a merge call.
 - Since ticket 23 the loop map sits at the foot of the phone well, *outside*
   the well's own scroll box rather than inside it. It is still glued under the
   grid and still inside the scrolling region — §3's point — and being outside

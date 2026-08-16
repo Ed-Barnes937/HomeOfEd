@@ -13,8 +13,18 @@ $bar-row-gap: 6px;
 // under-playhead cell's scale(1.11); applied identically to both columns.
 $row-inset: 6px;
 // The least grid a child is ever shown (ticket 23): the bar-numeral row, the
-// rows' top inset, then two 44px rows with their 6px gap.
-$two-rows: $bar-row-height + $bar-row-gap + $row-inset + 44px + 6px + 44px;
+// rows' top inset, then `$floor-rows` of the six with their 6px gaps.
+//
+// Three, not two (the repo owner's call). Two binds as soon as a song has
+// three clips, which is the normal state of a song being worked on rather
+// than a rescue case — and a 120px window onto a 332px grid cannot show the
+// kick and the boop at once, so placing a beat means scrolling a six-row
+// instrument grid two rows at a time. Three costs about 50px more region
+// scroll, at exactly the sizes where the region is already scrolling, and
+// buys 50% more grid for it.
+$floor-rows: 3;
+$grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
+  ($floor-rows - 1) * 6px;
 
 .well {
   margin-top: 12px;
@@ -31,19 +41,25 @@ $two-rows: $bar-row-height + $bar-row-gap + $row-inset + 44px + 6px + 44px;
   // The floor, and it has to sit here rather than on the scroll box: this is
   // the box flex shrinks, and `min-height: 0` on it let the grid go to
   // *nothing* — five clips at 390x640 left 40px of grid, and a 460px-tall
-  // window left none at all from one clip upwards. Worse, this box is
-  // `overflow: visible`, so a well shrunk below its content did not clip, it
-  // spilled: the instrument rail painted straight over the song bar beneath
-  // it. A sequencer with no sequencer on it is not a trade worth making, so
-  // the well stops here and the region scrolls instead.
+  // window left none at all from one clip upwards. A sequencer with no
+  // sequencer on it is not a trade worth making, so the well stops here and
+  // the region scrolls instead.
   //
-  // 10 + 10 padding, two rows (see `.wellScroll`), and the loop map's own
+  // Flooring `.wellScroll` alone does not do it, and the reason is this box's
+  // `overflow: visible`. The scroll box is not all that is in here — 20px of
+  // padding and the 34px loop map sit outside it — so this box stays free to
+  // shrink below its own content, and what comes off spills rather than clips.
+  // Measured at 390x460 with five clips and the floor on the scroll box only,
+  // `elementFromPoint` over the song play button returned the instrument
+  // rail's artwork: the grid painting over the song bar.
+  //
+  // 10 + 10 padding, the row floor above, and the loop map's own
   // 34px — the map is `flex: none` under the scroll box and must stay whole,
   // since it is what carries the playhead when the strip is scrolled away
   // (ADR 0027). Change it with `LoopMap.module.scss`.
   display: flex;
   flex-direction: column;
-  min-height: 10px + 10px + $two-rows + 34px;
+  min-height: 10px + 10px + $grid-floor + 34px;
 }
 
 // See Grid.module.scss's `.wellScroll` — same rules, the phone's numbers. No

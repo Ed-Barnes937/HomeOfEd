@@ -14,6 +14,9 @@ test.describe('laptop, short window', () => {
     await root.verifyIsShown()
 
     await root.verifyGridWellIsTheScroller()
+    // At this width the well swallows the whole squeeze, so the region has
+    // nothing to scroll either — the stronger claim, kept where it holds.
+    await root.verifyNothingIsScrolled()
     await root.verifyTransportFullyInViewport()
     await root.verifyTopBarFullyInViewport()
 

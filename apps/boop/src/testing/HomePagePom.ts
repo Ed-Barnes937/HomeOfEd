@@ -924,12 +924,23 @@ export class HomePagePom extends BasePage {
    * The grid has a floor and never falls through it (ticket 23). Priority with
    * no floor is what took the phone grid to 40px and then to 0 — a state the
    * scroll-box helpers cannot see, because a zero-height well satisfies
-   * "scrollHeight > clientHeight" maximally. `rows` is whole 44px rows; the
-   * 20 is the bar-numeral strip above them and the 6 their top inset.
+   * "scrollHeight > clientHeight" maximally.
+   *
+   * Height alone is not enough, though. A well of exactly the right height can
+   * still sit entirely above the viewport once the region scrolls — the same
+   * class of miss this helper exists to catch — so the rows have to be on
+   * screen and uncovered, which is what a child actually needs.
+   *
+   * `rows` is whole phone rows, and the arithmetic mirrors
+   * `PhoneGrid.module.scss`'s `$grid-floor`: `$bar-row-height` (14) +
+   * `$bar-row-gap` (6) + `$row-inset` (6), then 44px rows with 6px between.
+   * Change them together.
    */
   async verifyGridFloor(rows: number): Promise<void> {
     const visible = await this.gridWellScroll.evaluate((element) => element.clientHeight)
-    expect(visible).toBeGreaterThanOrEqual(20 + 6 + rows * 44 + (rows - 1) * 6)
+    expect(visible).toBeGreaterThanOrEqual(14 + 6 + 6 + rows * 44 + (rows - 1) * 6)
+    await expect(this.cell('kick', 0)).toBeInViewport({ ratio: 0.99 })
+    await this.verifyNotOccluded('cell-kick-0')
   }
 
   /**
@@ -968,6 +979,22 @@ export class HomePagePom extends BasePage {
   async scrollGridRegionToBottom(): Promise<void> {
     await this.stageScroller.evaluate((element) => {
       element.scrollTop = element.scrollHeight
+    })
+  }
+
+  /**
+   * Back to the top of both scrollers — the region and the grid's own box.
+   * Adding a clip leaves them scrolled, because clicking through the picker
+   * scrolls things into view, so a test that means "this is where the layout
+   * puts the grid" has to say which scroll position it means rather than
+   * inherit whichever one the last interaction happened to leave behind.
+   */
+  async scrollGridRegionToTop(): Promise<void> {
+    await this.stageScroller.evaluate((element) => {
+      element.scrollTop = 0
+    })
+    await this.gridWellScroll.evaluate((element) => {
+      element.scrollTop = 0
     })
   }
 

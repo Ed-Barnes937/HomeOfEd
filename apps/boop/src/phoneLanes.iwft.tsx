@@ -25,8 +25,9 @@ test('the song bar renders in the scrolling region; nothing new is pinned', asyn
   await root.verifyTempo(100)
 
   // Even at the five-clip cap the lanes grow the scrolling region, never a
-  // pinned bar: the grid region stays the only scroller (ADR 0030) and the
-  // page never scrolls sideways.
+  // pinned bar: the grid scrolls inside its own well (ADR 0030, as amended by
+  // ticket 23), on a window this tall nothing else has to scroll at all, and
+  // the page never scrolls sideways.
   await root.addClip()
   await root.addClip()
   await root.addClip()
@@ -34,6 +35,7 @@ test('the song bar renders in the scrolling region; nothing new is pinned', asyn
   await root.verifyClipCount(5)
   await root.verifyTransportFullyInViewport()
   await root.verifyGridWellIsTheScroller()
+  await root.verifyNothingIsScrolled()
   await root.verifyNoHorizontalOverflow()
 })
 

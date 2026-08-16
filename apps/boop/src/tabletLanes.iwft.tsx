@@ -44,9 +44,10 @@ test('the lane grid fits the column, even at the five-clip cap', async ({ mountA
   await root.verifyNoSidewaysScroller()
   // The song bar is pinned and the grid still scrolls inside its own well
   // (ADR 0030, as amended by ticket 23) — five lanes squeeze the region, they
-  // don't unpin the bar.
+  // don't unpin the bar, and at this width they don't make it scroll either.
   await root.verifyTransportFullyInViewport()
   await root.verifyGridWellIsTheScroller()
+  await root.verifyNothingIsScrolled()
 })
 
 test('placements, clip switching and reordering work unchanged at this width', async ({

@@ -222,7 +222,7 @@ share-link snapshot.
   slack. **But priority without a floor takes everything**: it left 40px of
   grid at 390×640 with five clips and none at all on a 460px-tall window, with
   the rail spilling over the bar. So `PhoneGrid`'s `.well` — the box flex
-  shrinks, not the scroll box in it — carries a two-rows-plus-loop-map
+  shrinks, not the scroll box in it — carries a three-rows-plus-loop-map
   `min-height`, and the region scrolls to pay for it. The bar's `max-height`
   then keeps song play clear of the chrome at the bottom of that scroll, and
   is what makes its strip scroll rather than the header. The *page* still

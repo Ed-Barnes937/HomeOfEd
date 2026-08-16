@@ -153,11 +153,11 @@ test.describe('small phone, short window', () => {
     await root.verifyIsShown()
 
     // The default first-run screen: one clip, and its lane row whole. The grid
-    // is what is short here — it still has 152px of content it is not showing,
+    // is what is short here — it still has 162px of content it is not showing,
     // but it is well clear of its floor.
     await root.verifyLaneStripWhole()
     await root.verifyGridWellIsTheScroller()
-    await root.verifyGridFloor(2)
+    await root.verifyGridFloor(3)
   })
 
   // `phoneLanes.iwft.tsx` runs at 390x844; this is the same interaction on a
@@ -223,26 +223,28 @@ test.describe('small phone, a window too short for five lanes', () => {
     await root.verifyTransportFullyInViewport()
   })
 
-  test('the grid keeps its two rows, and song play stays reachable to pay for them', async ({
+  test('the grid keeps its three rows, and song play stays reachable to pay for them', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
     await fiveClips(root)
 
-    // The floor. Without it this screen showed no grid at all.
-    await root.verifyGridFloor(2)
-
-    // The floor is paid for by the region scrolling, and that is what could
-    // take song play back off the screen — so both ends of that scroll are
-    // checked, and by occlusion rather than by viewport intersection: the
-    // pinned chrome would sit *over* the header while `toBeInViewport` still
-    // called it visible.
-    await root.verifySongPlayFullyInViewport()
+    // Song play where the child is left standing — adding the fifth clip
+    // leaves the region scrolled, and this is that position. Occlusion, not
+    // viewport intersection: the pinned chrome sits *over* the header while
+    // `toBeInViewport` still calls it visible.
     await root.verifyNotOccluded('song-play-button')
 
+    // The floor, and really on screen — a well of the right height that has
+    // scrolled out of view is the same miss. Read from the top of the region,
+    // which is where the grid is on a window this short.
+    await root.scrollGridRegionToTop()
+    await root.verifyGridFloor(3)
+
+    // And at the far end of that scroll, where the top chrome would cover the
+    // header if the bar were not capped to the region.
     await root.scrollGridRegionToBottom()
-    await root.verifyGridFloor(2)
     await root.verifySongPlayFullyInViewport()
     await root.verifyNotOccluded('song-play-button')
     await root.verifyTransportFullyInViewport()
