@@ -22,7 +22,12 @@ export function usePlayheadMotion(engine: SequencerEngine | null): PlayheadMotio
     if (!engine) return
     setPlaying(engine.isPlaying())
     const offTransport = engine.onTransport((event) => {
-      if (event.type === 'started') setPlaying(true)
+      if (event.type === 'started') {
+        setPlaying(true)
+        // Play always starts at the top (ticket 22), so the step the last run
+        // ended on must not flash before this run's first beat is drawn.
+        setState((current) => ({ ...current, step: null }))
+      }
       if (event.type === 'stopped') setPlaying(false)
     })
     const offDraw = engine.onDrawBeat((event) => setState((current) => applyDrawBeat(current, event)))

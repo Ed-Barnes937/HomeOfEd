@@ -106,7 +106,8 @@ test('song play works from the song bar header and the playing ring walks the la
   await root.verifyPositionNumeralPlaying(1)
 
   // The transport's play is *clip* play (spec §9): it takes over from the
-  // song without stopping the transport.
+  // song, stopping the transport and starting the clip from the top
+  // (ticket 22).
   await root.pressPlay()
   await root.verifySongStopped()
   await root.verifyPlaying()

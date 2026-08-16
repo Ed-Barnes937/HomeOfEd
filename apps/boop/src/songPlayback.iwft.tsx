@@ -132,6 +132,37 @@ test('one mode at a time: each play stops the other, and a chip tap stops the so
   await root.verifyNoPositionPlaying()
 })
 
+test('song play begins at the leftmost placement, even taking over a running clip loop', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await buildTwoClipSong(root)
+
+  // A clip loop already running, part way through its bars.
+  await root.pressPlay()
+  await root.verifyPlaying()
+  await root.crankSteps(8)
+  await root.verifyPlayheadAtStep(7)
+
+  // The song takes over: from position 0, from its first step (ticket 22).
+  await root.pressSongPlay()
+  await root.verifySongPlaying()
+  await root.crankSteps(1)
+  await root.verifyPositionPlaying(0, 0)
+  await root.verifyPlayheadAtStep(0)
+  await root.verifyCellOn('kick', 0)
+
+  // ...and the clip takes back over the same way.
+  await root.crankSteps(4)
+  await root.verifyPlayheadAtStep(4)
+  await root.pressPlay()
+  await root.verifySongStopped()
+  await root.verifyPlaying()
+  await root.crankSteps(1)
+  await root.verifyPlayheadAtStep(0)
+})
+
 test('a grid edit during song play stops the song and lands in the clip on screen', async ({
   mountApp,
 }) => {

@@ -169,7 +169,7 @@ describe('SequencerEngine', () => {
       expect(engine.songPos()).toBeCloseTo(1)
     })
 
-    it('keeps moving from where it paused, without waiting for the next beat', async () => {
+    it('reads zero the moment a start follows a mid-loop stop', async () => {
       engine.setTempo(120)
       await engine.start()
       driver.fireStep()
@@ -178,8 +178,20 @@ describe('SequencerEngine', () => {
 
       driver.advanceTo(1)
       await engine.start()
+      expect(engine.songPos()).toBe(0)
+    })
+
+    it('moves from the top right away, without waiting for the first beat', async () => {
+      engine.setTempo(120)
+      await engine.start()
+      driver.fireStep()
+      driver.advanceTo(0.1625)
+      engine.stop()
+
+      driver.advanceTo(1)
+      await engine.start()
       driver.advanceTo(1.0625)
-      expect(engine.songPos()).toBeCloseTo(1) // half a step further on, no jump back
+      expect(engine.songPos()).toBeCloseTo(0.5) // half a step in, counted from the top
     })
 
     it('does not jump when the tempo changes mid-loop', async () => {
@@ -195,14 +207,15 @@ describe('SequencerEngine', () => {
       expect(engine.songPos()).toBeCloseTo(1)
     })
 
-    it('freezes where it was when the transport stops', async () => {
+    it('rests at the top while the transport is stopped — there is no paused position', async () => {
       engine.setTempo(120)
       await engine.start()
       driver.fireStep()
       driver.advanceTo(0.1625)
       engine.stop()
+      expect(engine.songPos()).toBe(0)
       driver.advanceTo(5)
-      expect(engine.songPos()).toBeCloseTo(0.5)
+      expect(engine.songPos()).toBe(0)
     })
   })
 
@@ -226,13 +239,13 @@ describe('SequencerEngine', () => {
       expect(driver.transportRunning).toBe(false)
     })
 
-    it('resumes where it paused rather than resetting the tick', async () => {
+    it('starts from the top after a stop, wherever in the loop it stopped', async () => {
       await engine.start()
-      driver.fireStep()
-      driver.fireStep()
+      for (let i = 0; i < 8; i += 1) driver.fireStep() // stop mid-loop, at step 7
       engine.stop()
       const events = await startAndCollect(engine, 1)
-      expect(events[0]?.tick).toBe(2)
+      expect(events[0]?.tick).toBe(0)
+      expect(events[0]?.step).toBe(0)
     })
   })
 
