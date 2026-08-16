@@ -608,7 +608,7 @@ export function HomePage() {
         </div>
       </div>
       <div className={styles.transportDock}>
-        <div className={styles.column}>
+        <div className={`${styles.column} ${styles.stack}`}>
           {phone ? (
             // The phone keeps the pinned transport (spec §5): its play is
             // *clip* play — while the song plays it reads paused and pressing

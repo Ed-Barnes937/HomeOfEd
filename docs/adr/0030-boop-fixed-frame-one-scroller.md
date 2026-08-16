@@ -78,8 +78,8 @@ dialog anyway (ticket 36).
 >
 > **The grid absorbs the squeeze first, and on its own** (settled by the repo
 > owner after review). The well shrinks — `min-height: 0` — and the phone song
-> bar does not: `flex-shrink: 0`, capped by `max-height: 100%`. So the well
-> gives up every pixel of its slack before the lane strip gives up one. The
+> bar does not, capped by `max-height: 100%`. So the well gives up every pixel
+> of its slack before the lane strip gives up one. The
 > first build shared the deficit out proportionally, which is what flex does by
 > default, and the result was a chopped lane row under a scrollbar in a 49px
 > box on the default one-clip phone screen while the grid still held 109px of
@@ -131,6 +131,49 @@ dialog anyway (ticket 36).
 > Note that "behind it" is invisible to a viewport-intersection assertion, so
 > the test for it asks the browser what is painted at the button
 > (`verifyNotOccluded`).
+>
+> **The pinned bar at ≥1024 is capped, which amends §1 above.** That section
+> says the transport dock is `flex: none`. It no longer is: at ≥1024 it is
+> `flex: 0 1 auto; min-height: 0; max-height: 32dvh`. The song bar, unlike the
+> transport it replaced, **grows with the song** — five clips at 1280×600 made
+> the dock 476px of a 600px screen, 79% of it, leaving the scrolling region
+> 66px. That is what starved the grid to 16px and drew the clip control over
+> the bar, where `elementFromPoint` found the bar swallowing its taps. A
+> `flex: none` bar that grows without limit is not chrome, it is the page.
+> 32dvh is what leaves 1280×600 the 350px its clip header and well need. The
+> phone dock is untouched — `flex: none`, no cap — because its transport is a
+> fixed height that does not grow with the song.
+>
+> Two mechanical notes for whoever changes this next. The dock stays a **block**
+> rather than becoming a flex column: `.column` centres itself with
+> `margin-inline: auto`, and an auto cross-axis margin on a flex item beats
+> `align-items: stretch`, so the bar sized to its content and stopped lining up
+> with the grid — 23px narrower, measured at 2560. It takes `height: 100%` via
+> `.stack` instead. And the shrink has to be threaded all the way down —
+> `.bar`, then `.body`, then `.lanes` — because a flex item that cannot shrink
+> passes nothing to its children; `.lanes` also needs `align-self: stretch`,
+> since the row above it is `align-items: flex-start` and a flex-start item
+> takes its content height and never sees the cap.
+>
+> **This is not a third nested scroller.** `.lanes` was already a scroll box —
+> ticket 25 gave it `overflow-x: auto` for the lane grid — so the cap adds a
+> second *axis* to an existing scroller rather than a new one. Ticket 25's 4px
+> padding surrounds that box on all sides already, so the rings are whole on
+> the new axis too, and `playBarPinned.iwft.tsx` re-runs
+> `verifyFocusRingsFitTheScrollBox` against it with the lanes scrolling. The
+> "no third nested scroller without another ADR" rule stands.
+>
+> **The laptop grid needs no floor, and that is the cap's doing.** A floor was
+> built for `Grid.module.scss`'s `.well` and then removed: with the dock capped,
+> deleting it left all 19 tests green, because the region can no longer be
+> starved and the well degrades proportionally instead of collapsing. It could
+> not have been kept honestly anyway — this well carries the clip play button
+> at its foot, so a floor pushes its own button below the fold on any window
+> short enough for the floor to bind. Measured at 1280×600: a two-row floor
+> needs 350px of region against 418px available, which fits; three rows needs
+> 426px and does not, by 8px, with the song bar already reduced to its header
+> alone. The phone has a floor because there the play button sits in a
+> *sibling* below the well rather than inside it.
 >
 > **The reason, and it is the whole reason:** a pinned bar a child can always
 > reach beats a single-scroller rule. One scroller was only ever a means to that
@@ -212,20 +255,10 @@ snap, paint and loop-map behaviours at a short 360 × 640 phone viewport.
   squeezed.** Once the grid took a floor, the strip is only squeezed at
   390×460 with five lanes, and the placement tests run at 390×844 and 390×640
   where it is whole. Worth closing if the lane gestures are touched again.
-- **Also open: the phone grid has a floor, the laptop and tablet one does
-  not.** `Grid.module.scss`'s `.well` still carries ticket 23's
-  `min-height: 0`, so at the five-clip cap the well is squeezed to 16px at
-  both 1280×600 and 1440×700 — no grid rows, and the clip control drawn over
-  the song bar. A floor there costs acceptance criterion 1 ("clip play in the
-  viewport without scrolling at 1280×600"), because unlike the phone the play
-  button is *inside* the well, at its foot, so the floor pushes its own button
-  down by exactly the floor's height. 1280×600 has **220px** of well to give;
-  a two-row floor needs 289px and the three-row floor the phone now uses needs
-  **365px** at the laptop's larger geometry. The gap was 69px and is now
-  145px — the owner's three-row call widened it rather than closing it, which
-  is worth knowing before anyone tries to make the two renderers match. One of
-  the two guarantees has to go: an open call for the repo owner, not a merge
-  call.
+- The phone grid has a floor and the laptop and tablet one does not. That
+  asymmetry is deliberate and is explained in the amendment above: the cap
+  makes a laptop floor unnecessary, and the clip play button living *inside*
+  the laptop well makes one unwinnable. Do not "fix" it for symmetry.
 - On a phone short enough for the region to scroll, adding a clip leaves that
   region scrolled past the grid: the picker's own scrolling is what moves it,
   and the child has to scroll back up.

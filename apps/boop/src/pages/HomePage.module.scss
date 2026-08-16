@@ -57,6 +57,29 @@
   padding-bottom: 32px;
   @include frame-padding;
 
+  // Capped at >=1024 (ticket 23). The song bar grows with the song, and a
+  // `flex: none` dock takes that growth straight out of the scrolling region:
+  // at 1280x600 with five clips it took 476 of 600px — 79% of the screen —
+  // leaving the region 66px, which is what starved the grid to 16px and drew
+  // the clip control over the bar. The cap is the phone's `max-height` idea at
+  // the frame's scale, and 32dvh is what leaves 1280x600 the 350px its clip
+  // header and floored well need. The dock is a flex column so the bar inside
+  // can shrink into it; the lane grid is what gives way, never the header.
+  //
+  // The phone keeps `flex: none` and no cap: its transport is a fixed height
+  // that does not grow with the song, and ADR 0030's phone behaviour is
+  // settled.
+  // Deliberately still a block, not a flex column: `.column` centres itself
+  // with `margin-inline: auto`, and an auto cross-axis margin on a flex item
+  // beats `align-items: stretch`, so the bar would size to its content and
+  // stop lining up with the grid above it (23px narrower, measured at 2560).
+  // The column takes `height: 100%` instead — see `.stack`.
+  @media (min-width: 1024px) {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 32dvh;
+  }
+
   @media (max-width: 1279px) {
     padding-bottom: 26px;
   }
@@ -78,6 +101,11 @@
   margin-inline: auto;
 }
 
+// Used by the scrolling region's column and, since ticket 23, the capped
+// dock's column too: both need their one child to be able to shrink inside a
+// bounded parent, and a plain block cannot — it would size to its content and
+// spill, which on the dock scrolled the whole page.
+//
 // The scrolling region's column is a flex column of the region's own height,
 // which is what gives the grid well a max-height to shrink against (ticket 23).
 // Nothing here grows: every child keeps `flex: 0 1 auto`, so on a tall window

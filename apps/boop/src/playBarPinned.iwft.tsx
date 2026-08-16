@@ -90,6 +90,101 @@ test.describe('laptop, the whole column', () => {
   })
 })
 
+// The song bar grows with the song, and until ticket 23 the dock it sits in
+// was `flex: none` — so at the five-clip cap it took 476 of 600px and left the
+// grid 16px, with the clip control drawn over the bar and eating its taps. The
+// dock is capped now, and these are the states that has to hold in: one clip
+// and five, at both laptop heights and in the tablet band. `elementFromPoint`,
+// not viewport intersection, because "drawn but covered" was the old failure.
+test.describe('the five-clip cap', () => {
+  // The laptop floor, from `Grid.module.scss`: the bar-numeral row (15 + 8)
+  // and two 66px rows with their 10px gap.
+  const LAPTOP_FLOOR = 15 + 8 + 2 * 66 + 10
+
+  async function fiveClips(root: {
+    startBlank: () => Promise<void>
+    addClip: () => Promise<void>
+    verifyClipCount: (count: number) => Promise<void>
+  }) {
+    await root.startBlank()
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+    await root.verifyClipCount(5)
+  }
+
+  test.describe('1280x600', () => {
+    test.use({ viewport: { width: 1280, height: 600 } })
+
+    test('clip play survives one clip and five, and the grid keeps its floor', async ({
+      mountApp,
+    }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+
+      await root.verifyNotOccluded('play-button')
+      await root.verifyGridShowsAtLeast(LAPTOP_FLOOR)
+      await root.verifyNothingIsScrolled()
+
+      await fiveClips(root)
+
+      // The whole regression in one assertion: five clips used to leave 16px
+      // of grid and a play button the song bar was swallowing.
+      await root.verifyNotOccluded('play-button')
+      await root.verifyClipPlayFullyInViewport()
+      await root.verifyGridShowsAtLeast(LAPTOP_FLOOR)
+      await root.verifyNothingIsScrolled()
+    })
+
+    test('the capped dock scrolls its lanes without slicing their focus rings', async ({
+      mountApp,
+    }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+      await fiveClips(root)
+
+      // Ticket 25's 4px padding has to survive the box gaining a second axis.
+      await root.verifyFocusRingsFitTheScrollBox('song-lanes')
+      await root.verifySongPlayFullyInViewport()
+    })
+  })
+
+  test.describe('1440x700', () => {
+    test.use({ viewport: { width: 1440, height: 700 } })
+
+    test('clip play survives one clip and five here too', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+
+      await root.verifyNotOccluded('play-button')
+      await fiveClips(root)
+      await root.verifyNotOccluded('play-button')
+      await root.verifyClipPlayFullyInViewport()
+      await root.verifyGridShowsAtLeast(LAPTOP_FLOOR)
+      await root.verifyNothingIsScrolled()
+    })
+  })
+
+  test.describe('tablet band, 1100x800', () => {
+    test.use({ viewport: { width: 1100, height: 800 } })
+
+    test('the tablet band keeps its floor and its play button at five clips', async ({
+      mountApp,
+    }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+      await fiveClips(root)
+
+      await root.verifyNotOccluded('play-button')
+      await root.verifyClipPlayFullyInViewport()
+      // The tablet's own numbers: 12 + 8, then two 50px rows with an 8px gap.
+      await root.verifyGridShowsAtLeast(12 + 8 + 2 * 50 + 8)
+      await root.verifyNothingIsScrolled()
+    })
+  })
+})
+
 test.describe('tablet band, short window', () => {
   test.use({ viewport: { width: 1100, height: 600 } })
 

@@ -937,8 +937,17 @@ export class HomePagePom extends BasePage {
    * Change them together.
    */
   async verifyGridFloor(rows: number): Promise<void> {
+    await this.verifyGridShowsAtLeast(14 + 6 + 6 + rows * 44 + (rows - 1) * 6)
+  }
+
+  /**
+   * The same assertion in pixels, for the laptop and tablet renderers, whose
+   * rows are 66px and 50px rather than the phone's 44px. Their floors live in
+   * `Grid.module.scss`'s `$grid-floor` / `$grid-floor-tablet`.
+   */
+  async verifyGridShowsAtLeast(px: number): Promise<void> {
     const visible = await this.gridWellScroll.evaluate((element) => element.clientHeight)
-    expect(visible).toBeGreaterThanOrEqual(14 + 6 + 6 + rows * 44 + (rows - 1) * 6)
+    expect(visible).toBeGreaterThanOrEqual(px)
     await expect(this.cell('kick', 0)).toBeInViewport({ ratio: 0.99 })
     await this.verifyNotOccluded('cell-kick-0')
   }

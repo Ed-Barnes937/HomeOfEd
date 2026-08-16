@@ -10,11 +10,17 @@
   background: rgba(255, 255, 255, 0.045);
   // Pinned over the scrolling grid well, like the transport was (ticket 33).
   box-shadow: var(--shadow-transport-bar);
+  // The header is `flex: none` and the lane grid is what gives way, so a
+  // capped dock (ticket 23) costs lane rows and never the song play button,
+  // Speed, or the bars readout. `min-height: 0` is what lets this shrink into
+  // the cap at all.
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .header {
+  flex: none;
   height: 64px;
   display: flex;
   align-items: center;
@@ -108,6 +114,11 @@
   display: flex;
   align-items: flex-start;
   gap: 18px;
+  // Shrinks into the capped dock (ticket 23) so the lane grid inside it can:
+  // this row is what sits between the pinned header and the lanes, and a flex
+  // item that cannot shrink passes nothing down.
+  flex: 0 1 auto;
+  min-height: 0;
 }
 
 .playColumn {
@@ -184,12 +195,22 @@
 }
 
 .lanes {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  // `align-self`, because the row above is `align-items: flex-start` and a
+  // flex-start item takes its content height — it would never see the cap.
+  align-self: stretch;
+  // Vertical as well, since ticket 23 capped the dock. This is not a third
+  // nested scroller: the box already scrolled sideways for the lane grid, and
+  // this is that same box gaining its second axis. `min-height: 0` is what
+  // lets it shrink; ticket 25's 4px padding below already surrounds the box,
+  // so the focus rings are whole on this axis too.
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
   overflow-x: auto;
+  overflow-y: auto;
   // `overflow-x: auto` clips on every side, and the chips', squares' and
   // "+ New clip"'s focus rings sit 4px out (a 2px outline at a 2px offset).
   // The padding takes them inside the scroll box; the negative margin puts

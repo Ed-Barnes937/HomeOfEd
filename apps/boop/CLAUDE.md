@@ -200,8 +200,11 @@ share-link snapshot.
 - **The stage is a fixed frame, and the grid region is the only scroller**
   ([ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)). `.stage`
   is a `height: 100dvh` flex column: chrome `flex: none`, the grid region
-  `flex: 1; min-height: 0; overflow-y: auto`, transport `flex: none` and inset
-  to `--column-width` (not full-bleed). Neither bar may scroll away, and the
+  `flex: 1; min-height: 0; overflow-y: auto`, transport inset to
+  `--column-width` (not full-bleed). The dock is `flex: none` on the phone but
+  **capped at ≥1024** (`flex: 0 1 auto; max-height: 32dvh`, ticket 23): the
+  song bar grows with the song, and uncapped it took 79% of a 1280×600 screen
+  and starved the grid to 16px. Neither bar may scroll away, and the
   loop map stays under the grid *inside* the scrolling region — never in the
   bar, or it becomes a second transport. New main-screen content goes in the
   scrolling region by default.
@@ -226,7 +229,14 @@ share-link snapshot.
   `min-height`, and the region scrolls to pay for it. The bar's `max-height`
   then keeps song play clear of the chrome at the bottom of that scroll, and
   is what makes its strip scroll rather than the header. The *page* still
-  never scrolls. No third nested scroller without another ADR.
+  never scrolls.
+  **`Grid`'s well has no floor and must not be given one**: the dock cap
+  already stops the region being starved, so a floor there was mutation-tested
+  and found redundant — and it cannot be won anyway, since the clip play button
+  sits *inside* that well, so a floor pushes its own button below the fold. The
+  laptop lane grid scrolling vertically is not a third nested scroller: it is
+  ticket 25's existing `overflow-x` box gaining a second axis. Anything genuinely
+  new still needs another ADR.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.
