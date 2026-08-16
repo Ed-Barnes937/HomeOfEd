@@ -4,18 +4,45 @@
  * strokes and eyes.
  *
  * The field is an ink-in-water raster baked by the WebGL sim (`fluid.ts`) and
- * handed in as `fieldImage`; this module just blits it under the fit. When no
- * baked image is available yet (the sim is still running, WebGL is absent, or a
- * restored session's raster is still decoding) it falls back to a plain filled
- * blot outline so the field is never blank.
+ * handed in as `fieldImage`; the raster carries ink COVERAGE AS ALPHA, so this
+ * module blits it over the paper rather than the sim compositing paper itself.
+ * When no baked image is available yet (the sim is still running, WebGL is
+ * absent, or a restored session's raster is still decoding) it falls back to a
+ * plain filled blot outline so the field is never blank.
+ *
+ * Paper is a generated sheet (`paper.ts`), not a flat fill, and is independent
+ * of the sim — so the no-WebGL fallback and the letterbox margins left by a fit
+ * whose aspect no longer matches both get it for free.
  */
 import { computeFit } from '../engine/coords.ts'
 import type { Fit } from '../engine/coords.ts'
 import { currentViewBox, visibleOps } from '../engine/history.ts'
 import type { Blot, Eye, Op, Point, Stroke } from '../engine/types.ts'
 import type { SketchbookTheme } from '../theme.ts'
+import { generatePaper, PAPER_FLAT } from './paper.ts'
 
 const TAU = Math.PI * 2
+
+/**
+ * Longest CSS edge of a generated sheet. Generating at CSS scale rather than
+ * device scale keeps the cost bounded (it is ~15 noise samples per pixel, and
+ * this runs on phones); a canvas wider than the cap stretches the sheet, which
+ * is invisible because the paper is optically flat — no vignette, no gradient.
+ */
+const PAPER_MAX_PX = 1600
+
+/** Sheet sizes are quantised so a drag-resize doesn't regenerate every frame. */
+const PAPER_STEP_PX = 256
+
+/** Factory for the offscreen sheet — injectable so the surface is testable off-DOM. */
+export type CreateCanvas = (w: number, h: number) => HTMLCanvasElement
+
+const domCreateCanvas: CreateCanvas = (w, h) => {
+  const c = document.createElement('canvas')
+  c.width = w
+  c.height = h
+  return c
+}
 
 function midpoint(a: Point, b: Point): Point {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
@@ -27,8 +54,15 @@ export class DoodleSurface {
   private cssH = 0
   /** Backing-store scale = min(dpr, 2). */
   private scale = 1
+  /** The generated sheet, in CSS px. Grows to cover; never shrinks. */
+  private sheet: HTMLCanvasElement | null = null
+  private sheetW = 0
+  private sheetH = 0
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
+  constructor(
+    private readonly canvas: HTMLCanvasElement,
+    private readonly createCanvas: CreateCanvas = domCreateCanvas,
+  ) {
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('2D canvas context unavailable')
     this.ctx = ctx
@@ -44,12 +78,49 @@ export class DoodleSurface {
     this.canvas.height = Math.round(cssH * scale)
   }
 
-  /** Paint paper over the FULL device rect (art bleeds under it are cleared). */
-  paintPaper(color: string): void {
+  /**
+   * Paint the generated sheet over the FULL device rect (art bleeds under it
+   * are cleared). Drawn outside the fit, so the letterbox margins are paper too.
+   */
+  paintPaper(): void {
     const ctx = this.ctx
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.fillStyle = color
+    ctx.fillStyle = PAPER_FLAT
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+    this.ensureSheet()
+    if (!this.sheet) return
+    ctx.drawImage(
+      this.sheet,
+      0,
+      0,
+      Math.min(this.cssW, this.sheetW),
+      Math.min(this.cssH, this.sheetH),
+      0,
+      0,
+      this.canvas.width,
+      this.canvas.height,
+    )
+  }
+
+  /** Generate the sheet if the current one doesn't cover the canvas. Once per size. */
+  private ensureSheet(): void {
+    const quantise = (px: number): number =>
+      Math.min(PAPER_MAX_PX, Math.max(PAPER_STEP_PX, Math.ceil(px / PAPER_STEP_PX) * PAPER_STEP_PX))
+    const needW = quantise(this.cssW)
+    const needH = quantise(this.cssH)
+    if (this.sheet && this.sheetW >= needW && this.sheetH >= needH) return
+
+    const w = Math.max(this.sheetW, needW)
+    const h = Math.max(this.sheetH, needH)
+    const sheet = this.createCanvas(w, h)
+    const sheetCtx = sheet.getContext('2d')
+    if (!sheetCtx) return // no sheet — the flat fill above still reads as paper
+    const image = sheetCtx.createImageData(w, h)
+    image.data.set(generatePaper(w, h))
+    sheetCtx.putImageData(image, 0, 0)
+    this.sheet = sheet
+    this.sheetW = w
+    this.sheetH = h
   }
 
   /**
@@ -63,7 +134,7 @@ export class DoodleSurface {
     fieldImage?: CanvasImageSource | null,
   ): void {
     const ctx = this.ctx
-    this.paintPaper(theme.paper)
+    this.paintPaper()
 
     const vb = currentViewBox(ops)
     const fit = computeFit(vb, this.cssW, this.cssH)

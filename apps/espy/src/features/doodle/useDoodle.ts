@@ -130,7 +130,16 @@ function debugGridBlots(w: number, h: number): Blot[] {
   }))
 }
 
-/** Downscale the baked field to a small JPEG data URL for session restore. */
+/**
+ * Downscale the baked field to a small data URL for session restore.
+ *
+ * WebP, not JPEG: the baked raster now carries ink coverage as ALPHA (it is
+ * blitted over the generated paper), and JPEG has no alpha channel — a JPEG
+ * would restore as a black rectangle. Browsers that can't encode WebP fall back
+ * to PNG on their own, which also keeps alpha. The raster is mostly transparent
+ * so it compresses hard (measured ~30–40KB per session at this cap); `session.ts`
+ * is the actual quota guard.
+ */
 function toPersistDataURL(baked: HTMLCanvasElement): string {
   const longest = Math.max(baked.width, baked.height)
   const scale = Math.min(1, PERSIST_CAP_PX / longest)
@@ -138,7 +147,7 @@ function toPersistDataURL(baked: HTMLCanvasElement): string {
   c.width = Math.max(1, Math.round(baked.width * scale))
   c.height = Math.max(1, Math.round(baked.height * scale))
   c.getContext('2d')!.drawImage(baked, 0, 0, c.width, c.height)
-  return c.toDataURL('image/jpeg', 0.82)
+  return c.toDataURL('image/webp', 0.85)
 }
 
 export function useDoodle(): UseDoodle {
@@ -196,7 +205,7 @@ export function useDoodle(): UseDoodle {
       const field = currentField(h.ops)
       if (field && field === pendingField && !fieldImages.has(field)) {
         // Sim in flight for this field — leave bare paper under the GL overlay.
-        surface.paintPaper(SKETCHBOOK.paper)
+        surface.paintPaper()
         return
       }
       surface.renderOps(h.ops, SKETCHBOOK, field ? fieldImages.get(field) ?? null : null)
@@ -234,7 +243,6 @@ export function useDoodle(): UseDoodle {
           cssH: cssSize.h,
           dpr: window.devicePixelRatio || 1,
           seeds: field.blots.map((b) => ({ x: b.cx, y: b.cy, r: b.r })),
-          paper: SKETCHBOOK.paper,
           ink: SKETCHBOOK.ink,
           rngSeed: liveDebug.grid ? 1 : Math.floor(Math.random() * 0xffffffff),
           animate: !reducedMotion,
