@@ -62,6 +62,31 @@ test.describe('laptop, short window', () => {
   })
 })
 
+// The column fits whole at 1440, so the well's scroll box has no business
+// scrolling sideways — which makes this the width where the playhead column's
+// 8px overhang shows up if `.wellScroll`'s padding stops holding it. Step 15
+// is the only step that puts the overhang past the last cell.
+test.describe('laptop, the whole column', () => {
+  test.use({ viewport: { width: 1440, height: 700 } })
+
+  test('the playhead at the last step does not push the well sideways', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyGridWellHasNoSidewaysScroll()
+
+    await root.pressPlay()
+    await root.verifyPlaying()
+    await root.crankSteps(16)
+    await root.verifyPlayheadAtStep(15)
+    await root.verifyPlayheadCoversCell('kick', 15)
+    await root.verifyGridWellHasNoSidewaysScroll()
+
+    await root.scrollGridWellToBottom()
+    await root.verifyPlayheadCoversCell('boop', 15)
+    await root.verifyGridWellHasNoSidewaysScroll()
+  })
+})
+
 test.describe('tablet band, short window', () => {
   test.use({ viewport: { width: 1100, height: 600 } })
 

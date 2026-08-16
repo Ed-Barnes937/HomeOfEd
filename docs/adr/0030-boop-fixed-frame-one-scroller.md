@@ -83,14 +83,25 @@ dialog anyway (ticket 36).
 > stretching the grid" (the nested box is `flex: 0 1 auto`, never `flex: 1`,
 > precisely so it cannot).
 >
-> The cost is that the grid is the thing that gives way: at 1280×600 about two
-> rows of it are on screen at a time and the child scrolls the well for the
-> rest. That is the trade the ticket was written to make. The playhead column
-> survives it — it is `position: absolute` inside `.body`, which is still its
-> containing block, so only clipping was at risk: the scroll box takes 8px of
-> padding at laptop and 7px at tablet (with matching negative margins, ticket
-> 25's trick) to hold the column's overhang, and `playBarPinned.iwft.tsx` pins
-> it over the right cell at both number sets and with the well scrolled.
+> The cost is that the grid is the thing that gives way, and on a short window
+> it gives way hard: at 1280×600 the scroll box measures **113px against 485px
+> of content** — one row of the six and about half of the next — and the child
+> scrolls the well for the rest. Two rows is the 1440 case, not this one. That
+> is the trade the ticket was written to make, and it is a real one.
+>
+> The playhead column survives the move — it is `position: absolute` inside
+> `.body`, which is still its containing block, so only clipping was at risk.
+> The scroll box takes 8px of padding at laptop and 7px at tablet (with
+> matching negative margins, ticket 25's trick) to hold the column's overhang.
+> Note the symptom that padding prevents: overflowing content *grows*
+> `scrollWidth` rather than being sliced, so a bounding box cannot see it —
+> what the overhang actually does is give the well a sideways scroll it should
+> not have. `playBarPinned.iwft.tsx` pins the column over the right cell at
+> both number sets and with the well scrolled, and asserts that missing
+> sideways scroll at 1440 on step 15, the one step whose overhang reaches past
+> the last cell. Removing the laptop padding puts 8px back and turns that test
+> red; the tablet block is symmetry only — at 1024–1279 the 924px grid never
+> reaches the edge of its ≥940px body, and no test can see it go.
 
 ### 2. The bar is inset to the column, not full-bleed — decided by prototype
 

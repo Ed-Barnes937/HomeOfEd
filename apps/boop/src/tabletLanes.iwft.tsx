@@ -42,8 +42,9 @@ test('the lane grid fits the column, even at the five-clip cap', async ({ mountA
 
   await root.verifyLaneGridFitsColumn()
   await root.verifyNoSidewaysScroller()
-  // The song bar is pinned and the grid region is still the only scroller
-  // (ADR 0030) — five lanes squeeze the region, they don't unpin the bar.
+  // The song bar is pinned and the grid still scrolls inside its own well
+  // (ADR 0030, as amended by ticket 23) — five lanes squeeze the region, they
+  // don't unpin the bar.
   await root.verifyTransportFullyInViewport()
   await root.verifyGridWellIsTheScroller()
 })

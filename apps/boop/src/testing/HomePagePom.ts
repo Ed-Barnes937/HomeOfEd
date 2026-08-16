@@ -826,6 +826,28 @@ export class HomePagePom extends BasePage {
     await this.verifyNothingIsScrolled()
   }
 
+  /**
+   * The guard that came with the scroll box, and the only thing that can see
+   * the playhead's overhang escape it. `overflow-y: auto` computes the other
+   * axis to `auto` too, so anything wider than the box's padding box gives it
+   * a sideways scroll — and the playhead column overhangs `.body` by 8px at
+   * laptop, which is what `.wellScroll`'s padding is there to hold.
+   *
+   * A slice is *not* the symptom to look for: overflowing content grows
+   * `scrollWidth` rather than being cut, so it stays inside the scrollable
+   * area and a bounding box cannot see it. The sideways scroll is the symptom.
+   *
+   * Only meaningful at a width where the column itself fits — at 1280 the
+   * 1320px grid is legitimately wider than the column, and the box's sideways
+   * scroll is what keeps all 16 steps reachable.
+   */
+  async verifyGridWellHasNoSidewaysScroll(): Promise<void> {
+    const overflow = await this.gridWellScroll.evaluate(
+      (element) => element.scrollWidth - element.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  }
+
   async scrollGridWellToBottom(): Promise<void> {
     await this.gridWellScroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight
