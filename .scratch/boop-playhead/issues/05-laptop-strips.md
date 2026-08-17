@@ -66,6 +66,10 @@ Spec: §4 (behaviour, keyboard), §1.
 - [ ] No new design tokens
 - [ ] Whole-page coverage in an `.iwft` suite; the tablet band (1024–1279px) is
       not broken by the new rows
+- [ ] Whole-page coverage of the scrub-is-not-an-edit rule specifically — a tap
+      or drag on the strip leaves the saved-state chrome unmoved and playback
+      running. Handed over from ticket 04, which had no gesture to drive it: it
+      is the effort's load-bearing rule and the easiest to regress
 - [ ] **Human, by eye:** side by side against
       `docs/reference/design_handoff_playhead/boop-playhead-mockup.html` at
       1280px and up

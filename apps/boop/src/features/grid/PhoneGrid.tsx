@@ -43,6 +43,7 @@ export function PhoneGrid({
   pattern,
   onToggleCell,
   playheadStep,
+  playheadPlaying,
   cellStrikes,
   rowStrikes,
   loadToken,
@@ -156,6 +157,7 @@ export function PhoneGrid({
                       style={playheadStyle}
                       data-testid="playhead"
                       data-step={playheadStep}
+                      data-playing={playheadPlaying}
                     />
                   )}
                 </div>

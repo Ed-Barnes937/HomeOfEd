@@ -165,8 +165,8 @@ _Avoid_: Song bar (taken — the pinned bar of lanes), absolute bar, beat.
 Moving the playhead by gesture — a tap or drag on the song strip or the clip
 rail. A *view* change and never an edit: a scrub must not mark the boop edited
 and must not stop playback, so it takes a path parallel to the song mutations
-(boop-playhead spec §2). Bar-resolution on the song strip, step-resolution on
-the clip rail.
+(boop-playhead spec §2) — `song/songScrub.ts`, the sibling of `HomePage`'s
+`updateSong`. Bar-resolution on the song strip, step-resolution on the clip rail.
 _Avoid_: Seek (**`seek(tick)`** is the engine call a scrub makes), drag, seek
 bar, scrubbing as a synonym for playing.
 

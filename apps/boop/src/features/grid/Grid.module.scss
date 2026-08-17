@@ -102,6 +102,12 @@
   box-shadow: 0 0 0 1px rgba(111, 224, 240, 0.34);
   pointer-events: none;
 
+  // Stopped, the column stays where it was at 45% (boop-playhead spec §1):
+  // where we are is a fact about the boop, not a sign of playback.
+  &[data-playing='false'] {
+    opacity: 0.45;
+  }
+
   @media (max-width: 1279px) {
     top: -7px;
     bottom: -7px;

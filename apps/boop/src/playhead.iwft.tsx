@@ -3,6 +3,8 @@ import { test } from './testing/iwftTest.tsx'
 test('the playhead advances during playback, driven by the draw-time channel', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  // Nothing has sounded yet, so there is nothing to point at — the one case that
+  // still has no playhead at all (boop-playhead ticket 04).
   await root.verifyPlayheadHidden()
 
   await root.pressPlay()
@@ -68,7 +70,7 @@ test('the playhead stays in sync after a tempo change mid-playback', async ({ mo
   await root.verifyPlayheadAtStep(2)
 })
 
-test('the playhead disappears cleanly when stopped, and resuming does not reset the pattern', async ({
+test('the playhead stays where it stopped, and resuming does not reset the pattern', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -84,7 +86,10 @@ test('the playhead disappears cleanly when stopped, and resuming does not reset 
 
   await root.pressPlay() // pause
   await root.verifyPaused()
-  await root.verifyPlayheadHidden()
+  // Since boop-playhead ticket 04 a pause leaves the playhead on the step it
+  // paused on, dimmed, instead of unmounting it — where we are is a fact about
+  // the boop (spec §1). It is the *clip's* step, so a paused clip loop keeps it.
+  await root.verifyPlayheadStoppedAtStep(0)
   await root.verifyCellOn('snare', 3)
 
   await root.pressPlay() // resume

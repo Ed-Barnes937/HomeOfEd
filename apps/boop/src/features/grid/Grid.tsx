@@ -20,8 +20,18 @@ export interface GridViewProps {
   kit: Kit
   pattern: Pattern
   onToggleCell: (instrumentId: string, step: number) => void
-  /** The playhead's current column, or `null` to hide it cleanly (stopped). */
+  /**
+   * The playhead's column — the last step that sounded, or `null` when nothing
+   * has yet. Since boop-playhead ticket 04 a stop is not one of those: the
+   * playhead stays on its step, so this outlives playback.
+   */
   playheadStep: number | null
+  /**
+   * Whether the transport is running. The playhead no longer unmounts on a stop
+   * (spec §1) — it stays put at 45% opacity — so this is what tells a stopped
+   * playhead from a playing one.
+   */
+  playheadPlaying: boolean
   /** `${instrumentId}:${step}` -> strike epoch (ticket 17) — a cell's squash re-keys only on a real hit. */
   cellStrikes: Readonly<Record<string, number>>
   /** `instrumentId` -> strike epoch (ticket 17) — drives that row's label bob. */
@@ -59,6 +69,7 @@ export function Grid({
   pattern,
   onToggleCell,
   playheadStep,
+  playheadPlaying,
   cellStrikes,
   rowStrikes,
   loadToken,
@@ -110,7 +121,13 @@ export function Grid({
         aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses."
       >
         {playheadStep !== null && (
-          <div className={styles.playhead} style={playheadStyle} data-testid="playhead" data-step={playheadStep} />
+          <div
+            className={styles.playhead}
+            style={playheadStyle}
+            data-testid="playhead"
+            data-step={playheadStep}
+            data-playing={playheadPlaying}
+          />
         )}
         <div className={styles.rows}>
           {pattern.map((row, rowIndex) => {

@@ -238,8 +238,23 @@ export class HomePagePom extends BasePage {
 
   async verifyPlayheadAtStep(step: number): Promise<void> {
     await expect(this.playhead()).toHaveAttribute('data-step', String(step))
+    await expect(this.playhead()).toHaveAttribute('data-playing', 'true')
   }
 
+  /**
+   * Stopped, the playhead stays on the step it stopped on rather than
+   * unmounting (boop-playhead ticket 04): where we are is a fact about the
+   * boop, drawn at 45%.
+   */
+  async verifyPlayheadStoppedAtStep(step: number): Promise<void> {
+    await expect(this.playhead()).toHaveAttribute('data-step', String(step))
+    await expect(this.playhead()).toHaveAttribute('data-playing', 'false')
+  }
+
+  /**
+   * No playhead at all — since ticket 04 that means only "nothing has sounded
+   * yet", never "we are stopped": a stop leaves the playhead where it was.
+   */
   async verifyPlayheadHidden(): Promise<void> {
     await expect(this.playhead()).toHaveCount(0)
   }

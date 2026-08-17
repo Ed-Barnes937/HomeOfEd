@@ -193,6 +193,11 @@ $row-inset: 6px;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(111, 224, 240, 0.24), rgba(111, 224, 240, 0.07));
   box-shadow: var(--shadow-playhead-column);
+
+  // Stopped, the column stays where it was at 45% — the laptop's rule (spec §1).
+  &[data-playing='false'] {
+    opacity: 0.45;
+  }
 }
 
 .rows {

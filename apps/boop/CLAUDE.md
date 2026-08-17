@@ -58,6 +58,8 @@ src/
     songTimeline.ts   the global-bar axis (boop-playhead ticket 02): which
                       positions are placed, global bar ↔ (position, bar) ↔
                       tick, clamping, and the snap both scrub strips need
+    songScrub.ts      what a scrub does, and only that (ticket 04): a seek
+                      through the conductor or the engine, no edit and no stop
   export/           WAV export: offline render → PCM mix → WAV encode, plus the
                     share-sheet/download action and the slugged filename. Pure
                     but for `sampleDecoder.ts`, the AudioContext seam.
