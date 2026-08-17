@@ -32,22 +32,22 @@ Spec: §5 (the conductor), §2.
 
 **Blocked by:** 01, 02
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] `seek(globalBar)` on the `SongConductor` interface, documented on it
-- [ ] After a seek the target position's pattern is loaded before the next step
+- [x] `seek(globalBar)` on the `SongConductor` interface, documented on it
+- [x] After a seek the target position's pattern is loaded before the next step
       is scheduled — the first step after a jump sounds the *new* clip
-- [ ] `soundingPosition()` reads the target immediately
-- [ ] The next draw announces the new position even when the sequence index is
+- [x] `soundingPosition()` reads the target immediately
+- [x] The next draw announces the new position even when the sequence index is
       unchanged (a jump within one position must still move the readout's bar)
-- [ ] Playback continues from the target and the step-15 swap picks up correctly
+- [x] Playback continues from the target and the step-15 swap picks up correctly
       from there — a seek does not desynchronise `scheduled` from `sounding`
-- [ ] Seeking into a layered position loads the merged pattern and reports the
+- [x] Seeking into a layered position loads the merged pattern and reports the
       topmost lane, identically to arriving by playback
-- [ ] Seeking to the last bar of the last placed position wraps to the first on
+- [x] Seeking to the last bar of the last placed position wraps to the first on
       the next swap
-- [ ] Out-of-range bars clamp via the timeline rather than throwing
-- [ ] Unit-tested in `songConductor.test.ts` against `FakeAudioDriver`
+- [x] Out-of-range bars clamp via the timeline rather than throwing
+- [x] Unit-tested in `songConductor.test.ts` against `FakeAudioDriver`
 - [ ] **Human, by ear:** scrub across a position boundary during playback and
       confirm the clip changes cleanly (this is where ticket 01's stale audio
       and a clip swap coincide — the worst case for spec §7.1)

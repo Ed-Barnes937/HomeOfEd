@@ -16,6 +16,7 @@ import {
   readoutParts,
   songTimeline,
   tickOfGlobalBar,
+  timelineIndexAt,
 } from './songTimeline.ts'
 
 /** 16 placements: empty everywhere except the listed positions, each holding clip 0. */
@@ -97,6 +98,16 @@ describe('songTimeline', () => {
     expect(globalBarAtFraction(timeline, 0.5)).toBe(0)
     expect(globalBarOfTick(timeline, 99)).toBe(0)
     expect(readoutParts(timeline, 0)).toBeNull()
+  })
+
+  it('gives the place in the timeline, not the position, for a seek to index by', () => {
+    const timeline = songTimeline(placedAt([1, 3]))
+    expect(timelineIndexAt(timeline, 0)).toBe(0)
+    expect(timelineIndexAt(timeline, BARS_PER_POSITION)).toBe(1)
+    // Clamped either way, and never a place the sequence has no slot for.
+    expect(timelineIndexAt(timeline, 1000)).toBe(1)
+    expect(timelineIndexAt(timeline, -1000)).toBe(0)
+    expect(timelineIndexAt(songTimeline(placedAt([])), 0)).toBeNull()
   })
 
   it('has no global bar for a position that is not placed', () => {

@@ -185,6 +185,175 @@ describe('createSongConductor', () => {
     expect(conductor.soundingPosition()).toBe(5)
   })
 
+  describe('seek', () => {
+    /** Is the clip whose `on` instrument fills every step the one loaded? */
+    function loaded(instrumentId: string): boolean {
+      return engine.getPattern().find((row) => row.instrumentId === instrumentId)?.steps[0] === true
+    }
+
+    it('loads the target position and reports it at once, without waiting for a draw', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const conductor = createSongConductor(engine, clips, placementsAt({ 0: 0, 2: 1 }), () => {})
+      await engine.start()
+      crank(2)
+
+      // Global bar 4 is the start of the second placed position — position 2.
+      conductor.seek(4)
+
+      expect(conductor.soundingPosition()).toBe(2)
+      expect(loaded('snare')).toBe(true)
+      expect(engine.songPos()).toBe(16)
+      // Scrubbing is listening, not editing: it never stops the song (spec §2).
+      expect(engine.isPlaying()).toBe(true)
+    })
+
+    it('sounds the new clip on the very first step after the jump', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const conductor = createSongConductor(engine, clips, placementsAt({ 0: 0, 2: 1 }), () => {})
+      await engine.start()
+      crank(2)
+
+      const scheduled: string[] = []
+      engine.onBeat(({ hits }) => {
+        for (const hit of hits) scheduled.push(hit.instrumentId)
+      })
+
+      conductor.seek(4)
+      crank(1, 2)
+
+      expect(scheduled).toEqual(['snare'])
+    })
+
+    it('announces on the next draw even when the position is unchanged', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const sounded: number[] = []
+      const conductor = createSongConductor(
+        engine,
+        clips,
+        placementsAt({ 0: 0, 2: 1 }),
+        (position) => sounded.push(position),
+      )
+      await engine.start()
+      crank(2)
+      expect(sounded).toEqual([0])
+
+      // Bar 1 of the same position: a jump the readout must still report.
+      conductor.seek(1)
+      crank(1, 2)
+      driver.advanceTo(3 * secondsPerStep)
+
+      expect(sounded).toEqual([0, 0])
+    })
+
+    it('keeps the step-15 swap in step: playback carries on into the next position', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const conductor = createSongConductor(engine, clips, placementsAt({ 0: 0, 2: 1 }), () => {})
+      await engine.start()
+      crank(2)
+
+      const scheduled: string[] = []
+      engine.onBeat(({ hits }) => {
+        for (const hit of hits) scheduled.push(hit.instrumentId)
+      })
+
+      // Global bar 3: the last bar of position 0, so ticks 12–15 then the wrap.
+      conductor.seek(3)
+      crank(8, 2)
+
+      // Four steps of the old clip, then the swap at step 15 lands the new one.
+      expect(scheduled).toEqual([
+        'kick',
+        'kick',
+        'kick',
+        'kick',
+        'snare',
+        'snare',
+        'snare',
+        'snare',
+      ])
+      // The draw of the wrap's step 0 is what makes it audible to the UI.
+      driver.advanceTo(10 * secondsPerStep)
+      expect(conductor.soundingPosition()).toBe(2)
+    })
+
+    it('seeks into a layered position exactly as arriving there by playback does', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const conductor = createSongConductor(
+        engine,
+        clips,
+        placementsAt({ 0: [0, 1], 1: 0 }),
+        () => {},
+      )
+      await engine.start()
+      // What arriving at the layered position by playback looks like: the
+      // conductor loads position 0 on construction, and the song starts there.
+      const byPlayback = engine.getPattern()
+      expect(loaded('kick')).toBe(true)
+      expect(loaded('snare')).toBe(true)
+
+      // Play on into the single-clip position, then jump back to the layered one.
+      crank(STEPS_PER_PATTERN + 1)
+      driver.advanceTo((STEPS_PER_PATTERN + 1) * secondsPerStep)
+      expect(conductor.soundingPosition()).toBe(1)
+      expect(loaded('snare')).toBe(false)
+
+      conductor.seek(2)
+
+      // Not "almost the same": the same merged pattern and the same position.
+      expect(engine.getPattern()).toEqual(byPlayback)
+      expect(conductor.soundingPosition()).toBe(0)
+    })
+
+    it('wraps to the first position when the seek lands in the last', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const conductor = createSongConductor(engine, clips, placementsAt({ 0: 0, 2: 1 }), () => {})
+      await engine.start()
+      crank(2)
+
+      // Global bar 7 is the last bar of the song: ticks 28–31, then the wrap.
+      conductor.seek(7)
+      expect(loaded('snare')).toBe(true)
+
+      crank(4, 2)
+
+      expect(loaded('kick')).toBe(true)
+      expect(conductor.soundingPosition()).toBe(2)
+    })
+
+    it('clamps an out-of-range bar through the timeline rather than throwing', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const conductor = createSongConductor(engine, clips, placementsAt({ 0: 0, 2: 1 }), () => {})
+      await engine.start()
+      crank(2)
+
+      conductor.seek(999)
+      expect(conductor.soundingPosition()).toBe(2)
+      expect(engine.songPos()).toBe(28)
+
+      conductor.seek(-5)
+      expect(conductor.soundingPosition()).toBe(0)
+      expect(engine.songPos()).toBe(0)
+    })
+
+    it('seeks while stopped, leaving the target to sound on the next start', async () => {
+      const clips = [fullRow('kick'), fullRow('snare')]
+      const conductor = createSongConductor(engine, clips, placementsAt({ 0: 0, 2: 1 }), () => {})
+
+      conductor.seek(4)
+
+      expect(conductor.soundingPosition()).toBe(2)
+      expect(loaded('snare')).toBe(true)
+
+      await engine.start()
+      const scheduled: string[] = []
+      engine.onBeat(({ hits }) => {
+        for (const hit of hits) scheduled.push(hit.instrumentId)
+      })
+      crank(1)
+      expect(scheduled).toEqual(['snare'])
+    })
+  })
+
   it('stops conducting on dispose: the pattern never swaps again', async () => {
     const clips = [fullRow('kick'), fullRow('snare')]
     const conductor = createSongConductor(engine, clips, placementsAt({ 0: 0, 1: 1 }), () => {})

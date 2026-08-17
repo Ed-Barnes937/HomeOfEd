@@ -67,12 +67,23 @@ export function barAt(
   timeline: SongTimeline,
   globalBar: number,
 ): { position: number; bar: number } | null {
-  if (timeline.barCount === 0) return null
-  const clamped = clampGlobalBar(timeline, globalBar)
+  const index = timelineIndexAt(timeline, globalBar)
+  if (index === null) return null
   return {
-    position: timeline.positions[Math.floor(clamped / BARS_PER_POSITION)]!,
-    bar: clamped % BARS_PER_POSITION,
+    position: timeline.positions[index]!,
+    bar: clampGlobalBar(timeline, globalBar) % BARS_PER_POSITION,
   }
+}
+
+/**
+ * The *place in the timeline* a global bar falls in — an index into
+ * `positions`, not the position itself. What a seek needs, because the
+ * conductor's sequence is built in this order (boop-playhead ticket 03).
+ * Clamps first, so any number answers; `null` only on an empty timeline.
+ */
+export function timelineIndexAt(timeline: SongTimeline, globalBar: number): number | null {
+  if (timeline.barCount === 0) return null
+  return Math.floor(clampGlobalBar(timeline, globalBar) / BARS_PER_POSITION)
 }
 
 /**
