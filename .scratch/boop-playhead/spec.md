@@ -63,9 +63,12 @@ So scrub needs a path parallel to `updateSong`, not a variant of it.
 Add to `apps/boop/CONTEXT.md`:
 
 - **Bar** — a quarter of a clip: 4 steps. A position is 4 bars.
-- **Global bar** — a position on the whole song's timeline, `position × 4 +
-  bar`. The song's own unit of "where we are". A 16-position song is 64 global
-  bars; the demo's 8 placed positions are 32.
+- **Global bar** — where we are on the whole song's timeline, counted over the
+  **placed** positions only: `place in the timeline × 4 + bar`. The song's own
+  unit of "where we are". The demo's 8 placed positions are 32 global bars,
+  whatever numerals those positions carry on the ruler; a song with all 16
+  placed is 64. Empty positions are drawn but are not on the timeline, so they
+  hold no global bar and a scrub cannot reach them (§4).
 - **Scrub** — moving the playhead by gesture. A view change, never an edit
   (§2).
 
