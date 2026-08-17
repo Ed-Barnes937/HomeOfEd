@@ -55,6 +55,9 @@ src/
     songConductor.ts  song playback (ticket 16): the ~30-line layer above the
                       SequencerEngine seam — swap at step 15 on onBeat, the
                       sounding position advances on onDrawBeat
+    songTimeline.ts   the global-bar axis (boop-playhead ticket 02): which
+                      positions are placed, global bar ↔ (position, bar) ↔
+                      tick, clamping, and the snap both scrub strips need
   export/           WAV export: offline render → PCM mix → WAV encode, plus the
                     share-sheet/download action and the slugged filename. Pure
                     but for `sampleDecoder.ts`, the AudioContext seam.

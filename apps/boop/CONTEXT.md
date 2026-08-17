@@ -143,6 +143,33 @@ One clip's row in the song bar: its chip (tint dot, name, ×n count) followed
 by its placement squares. Each clip owns exactly one lane.
 _Avoid_: Track, row (fine for the grid well; a lane belongs to the song bar).
 
+**Bar**:
+A quarter of a clip — 4 steps. A position is 4 bars, and a bar is the
+resolution a scrub of the song strip snaps to (boop-playhead ticket 02).
+Neither the engine nor `song.ts` knows what a bar is: `song/songTimeline.ts`
+owns the arithmetic, deriving it from `STEPS_PER_PATTERN`.
+_Avoid_: Measure, beat (a beat is 4 steps of *musical* time; "bar" is the term
+of art here), quarter.
+
+**Global bar**:
+Where we are on the whole song's timeline, counted over the **placed**
+positions only: `place in the timeline × 4 + bar`. The song's own unit of
+position, and what both scrub strips move in. A song with 8 placed positions
+is 32 global bars, whatever numerals those positions carry on the ruler —
+empty positions are drawn but are not on the timeline and cannot be reached.
+Converts to an engine **Tick** (`× 4` steps) so a scrub can call
+**`seek(tick)`**.
+_Avoid_: Song bar (taken — the pinned bar of lanes), absolute bar, beat.
+
+**Scrub**:
+Moving the playhead by gesture — a tap or drag on the song strip or the clip
+rail. A *view* change and never an edit: a scrub must not mark the boop edited
+and must not stop playback, so it takes a path parallel to the song mutations
+(boop-playhead spec §2). Bar-resolution on the song strip, step-resolution on
+the clip rail.
+_Avoid_: Seek (**`seek(tick)`** is the engine call a scrub makes), drag, seek
+bar, scrubbing as a synonym for playing.
+
 **Boop**:
 A named, saved entry in "My boops" — wraps one song (clips + placements +
 bpm). Until the loops feature lands it holds a single-clip song: one pattern
