@@ -50,10 +50,16 @@
   --instrument-marimba: #6fe0a8;
   --instrument-boop: #b78bff;
 
-  // Layout — the fixed laptop-breakpoint stack's width (ticket 29: rail 160 +
-  // railGap 18 + steps 1142 + well padding 2×18), shared so a later full-bleed
-  // bar (ticket 33) can align to the same column from its own SCSS module.
-  --column-width: 1356px;
+  // Layout — the fixed laptop-breakpoint stack's width (rail 160 + railGap 18 +
+  // steps 982 + well padding 2×18), shared so a later full-bleed bar (ticket
+  // 33) can align to the same column from its own SCSS module.
+  //
+  // Was 1356 (62px cells), and that did not fit its own breakpoint: with the
+  // frame's padding the column needed a 1420px viewport, so every window from
+  // 1280 — where the laptop number set starts — to 1419 scrolled the grid well
+  // and the lane grid sideways. 52px cells are the largest that clear 1280,
+  // needing 1260.
+  --column-width: 1196px;
 
   // Radii
   --r-frame: 22px;

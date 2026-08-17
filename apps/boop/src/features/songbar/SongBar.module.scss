@@ -232,7 +232,7 @@
 
 .rulerNumeral {
   flex: none;
-  width: 56px;
+  width: 44px;
   text-align: center;
   font: 700 12px var(--font-mono);
   color: rgba(242, 239, 230, 0.3);
@@ -353,9 +353,11 @@
   color: var(--lane-tint);
 }
 
+// 44px wide, not the handoff's 56: the lane grid has to fit the same column as
+// the grid well, and the well's 52px cells narrowed that column to 1196.
 .square {
   flex: none;
-  width: 56px;
+  width: 44px;
   height: 46px;
   padding: 0;
   border: none;
