@@ -68,6 +68,49 @@ test('the playhead stays in sync after a tempo change mid-playback', async ({ mo
   await root.verifyPlayheadAtStep(2)
 })
 
+test('play always starts at step 1 of bar 1, wherever in the loop it was stopped', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.pressPlay()
+  await root.verifyPlaying()
+  await root.crankSteps(8) // stopped mid-loop, on step 8 of 16
+  await root.verifyPlayheadAtStep(7)
+
+  await root.pressPlay() // stop
+  await root.verifyPaused()
+  await root.verifyPlayheadHidden()
+
+  await root.pressPlay() // and away again — from the top, not from step 8
+  await root.verifyPlaying()
+  await root.verifyPlayheadHidden() // nothing stale from the last run
+  await root.crankSteps(1)
+  await root.verifyPlayheadAtStep(0)
+  await root.verifyActiveBar(0)
+})
+
+test('the spacebar starts from the top too — one rule, however you press play', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.pressSpaceKey()
+  await root.verifyPlaying()
+  await root.crankSteps(8)
+  await root.verifyPlayheadAtStep(7)
+
+  await root.pressSpaceKey()
+  await root.verifyPaused()
+
+  await root.pressSpaceKey()
+  await root.verifyPlaying()
+  await root.crankSteps(1)
+  await root.verifyPlayheadAtStep(0)
+})
+
 test('the playhead disappears cleanly when stopped, and resuming does not reset the pattern', async ({
   mountApp,
 }) => {

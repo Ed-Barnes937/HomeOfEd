@@ -77,3 +77,25 @@ driver-state subscription, and the transport if it is running. **The `App`
 component owns the driver** — one per page, for the life of the page — and does
 not dispose it. `AudioDriver.dispose()` stays on the interface for a caller that
 genuinely owns one (the offline render path, tests).
+
+## Amendment (2026-08-16): the seam has no resume semantics
+
+Decision 2 above ("pause, not stop") is withdrawn. `start()` is always **start
+from the top**: it resets `nextTick` and the playhead anchor to 0 before the
+driver's transport runs, so the first beat of every run is tick 0, step 0. Stop
+keeps nothing to resume from — the `frozenPos` field is gone, and `songPos()`
+reads 0 whenever the transport is stopped. `tick` is therefore monotonic only
+within a run, not for the whole session; `step` is still `tick mod 16`.
+
+The toy has one transport concept, not two. Resume made the audible start
+depend on where the last stop happened, which reads as a bug to a 6-year-old:
+press play, hear the middle of the loop. Putting the rewind inside `start()`
+rather than in the callers makes it true for clip play, song play and the
+spacebar alike, with no path that can opt out.
+
+The cost is the gapless takeover between clip play and song play (ticket 22,
+spec §9). Both used to switch mode over a *running* transport; both now stop
+and start, so the takeover begins at the top with a small audible gap. Draws
+are still cancelled on stop (decision 3), and the UI drops its last drawn step
+on the `started` event so the old position cannot flash before the new run's
+first beat is drawn.

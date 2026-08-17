@@ -53,8 +53,6 @@ export function SongBar({
 }: SongBarProps) {
   const percent = bpmToPercent(bpm)
   const placedCount = song.placements.filter((clips) => clips.length > 0).length
-  // The dashed "next" hint on the active clip's lane: the first empty position.
-  const nextFree = song.placements.findIndex((clips) => clips.length === 0)
   const atClipCap = song.clips.length >= MAX_CLIPS
 
   const toggleByLane = (laneId: string, position: number) =>
@@ -172,7 +170,7 @@ export function SongBar({
           <span className={styles.playLabel}>{songPlaying ? 'Stop' : 'Song'}</span>
         </div>
         <div className={styles.divider} aria-hidden="true" />
-        <div className={styles.lanes}>
+        <div className={styles.lanes} data-testid="song-lanes">
           <div className={styles.ruler} aria-hidden="true">
             {POSITIONS.map((position) => (
               <span
@@ -238,7 +236,6 @@ export function SongBar({
                         className={styles.square}
                         data-on={on}
                         data-playing={on && position === playingPosition}
-                        data-hint={active && !on && position === nextFree}
                         aria-pressed={on}
                         aria-label={`${clip.name}, position ${position + 1}, ${on ? 'on' : 'off'}`}
                         data-testid={`lane-${clipIndex}-${position}`}

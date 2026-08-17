@@ -93,9 +93,13 @@ export class ToneAudioDriver implements AudioDriver {
   }
 
   stopTransport(): void {
-    // pause(), not stop(): the toy's transport is play/pause and must not
-    // rewind the loop underneath the engine's tick count.
-    getTransport().pause()
+    // stop(), not pause(): the engine's `start()` is always start-from-the-top
+    // (ADR 0024, as amended), so Tone's own timeline must rewind with it.
+    // Paused, the '16n' repeat resumes part way through the interrupted step,
+    // and that short first step re-anchors the playhead the engine has just
+    // put at 0. The scheduled repeat survives a stop — only `clear()` removes
+    // it — so restarting fires it again from position 0.
+    getTransport().stop()
   }
 
   play(instrumentId: string, audioTime?: number): void {

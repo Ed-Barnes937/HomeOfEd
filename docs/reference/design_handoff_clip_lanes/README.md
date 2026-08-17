@@ -107,6 +107,15 @@ None new. The prototype uses the repo's own launch-kit artwork (`public/kits/lau
 
 Source read while building, for reference: `apps/boop/src/styles/tokens.scss`, `src/pages/HomePage.module.scss`, `src/features/grid/Grid.tsx` + `Grid.module.scss`, `src/features/transport/Transport.module.scss`, `src/features/topbar/TopBar.tsx` + `TopBar.module.scss`, `public/kits/launch/kit.json`.
 
+## Deviations in the build
+
+- **No placement hint.** §5 specifies a dashed square on the next free position
+  of the active clip's lane (`2px dashed <clipTint>80` over the empty fill).
+  The build does not draw it (boop-loops ticket 24). It served no purpose in
+  use and read as an outline rather than an invitation. This is a decision, not
+  a regression — don't restore it. `PhoneSongBar` never had one, so the phone
+  already matched.
+
 ## Open questions
 - Tablet (≤1279px) and phone (≤1023px) lane layouts are undesigned. The phone build uses `PhoneGrid`; the lane grid will need its own treatment there.
 - Song length is currently a fixed 16 positions in the prototype. Decide whether positions grow on demand.

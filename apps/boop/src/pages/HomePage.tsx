@@ -247,27 +247,30 @@ export function HomePage() {
   }, [engine])
 
   /**
-   * "Play this clip" (the clip control). While the song plays it *switches*
-   * mode: the song ends and the clip on the grid keeps looping, without a
-   * transport stop — "starting either play stops the other" (spec §9).
-   * Otherwise it is the old play/pause.
+   * "Play this clip" (the clip control). While the song plays it takes over:
+   * the song stops and the clip on the grid loops from its first step —
+   * "starting either play stops the other" (spec §9). The transport really
+   * does stop, because play always starts at the top (ticket 22): a small
+   * audible gap is the price of one rule with no exceptions. Otherwise it is
+   * the plain play/stop.
    */
   const toggleClipPlay = useCallback(() => {
     if (!engine) return
     if (songModeRef.current) {
-      leaveSongMode()
-      if (!engine.isPlaying()) void engine.start()
+      stopSongPlayback()
+      void engine.start()
       return
     }
     togglePlay()
-  }, [engine, leaveSongMode, togglePlay])
+  }, [engine, stopSongPlayback, togglePlay])
 
   /**
    * The song play button (spec §9): placements left to right, looping, empty
    * positions skipped. An all-empty song plays the clip on the grid — "an
    * empty song playing the grid clip is today's behaviour" (ADR 0032) — so no
    * conductor and no ring, but the button still reads Stop. Starting the song
-   * while the clip loops takes over without stopping the transport.
+   * while the clip loops stops the transport first, so the song begins at its
+   * leftmost placement rather than mid-bar (ticket 22).
    */
   const toggleSong = useCallback(() => {
     const current = songRef.current
@@ -276,6 +279,9 @@ export function HomePage() {
       stopSongPlayback()
       return
     }
+    // Before song mode, never after: the stop's transport event runs
+    // `leaveSongMode`, which would tear the conductor below straight back down.
+    engine.stop()
     songModeRef.current = true
     setSongPlaying(true)
     if (current.placements.some((clipIndices) => clipIndices.length > 0)) {
@@ -286,7 +292,7 @@ export function HomePage() {
         onSoundingPosition,
       )
     }
-    if (!engine.isPlaying()) void engine.start()
+    void engine.start()
   }, [engine, onSoundingPosition, stopSongPlayback])
 
   // Spacebar toggles play from anywhere on the page (spec: "Transport &
@@ -556,7 +562,7 @@ export function HomePage() {
         </div>
       </div>
       <div className={styles.scroller} data-testid="stage-scroller">
-        <div className={styles.column} data-testid="stage-column">
+        <div className={`${styles.column} ${styles.stack}`} data-testid="stage-column">
           {/* The loop map rides inside PhoneGrid's well, so it stays glued
               under the grid inside this region rather than joining the pinned
               bar and becoming a second transport (ADR 0027). The clip header
@@ -602,7 +608,7 @@ export function HomePage() {
         </div>
       </div>
       <div className={styles.transportDock}>
-        <div className={styles.column}>
+        <div className={`${styles.column} ${styles.stack}`}>
           {phone ? (
             // The phone keeps the pinned transport (spec §5): its play is
             // *clip* play — while the song plays it reads paused and pressing
