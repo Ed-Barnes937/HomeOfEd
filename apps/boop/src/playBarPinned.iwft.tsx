@@ -41,7 +41,7 @@ test.describe('laptop, short window', () => {
     await root.verifyIsShown()
 
     await root.verifyGridIsSixBySixteen()
-    await root.verifyCellGeometry(62, 66)
+    await root.verifyCellGeometry(52, 56)
   })
 
   test('the playhead column lands on its step, scrolled well or not', async ({ mountApp }) => {
