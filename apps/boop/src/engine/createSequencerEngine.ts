@@ -56,6 +56,14 @@ class BoopSequencerEngine implements SequencerEngine {
   private anchor: { pos: number; audioTime: number } | null = null
   /** Where the playhead sat when the transport last stopped. */
   private frozenPos = 0
+  /**
+   * The lowest position `songPos()` will report. Steps are scheduled a lookahead
+   * early, so the raw position runs up to one lookahead behind the step that is
+   * about to sound; without a floor the playhead would sit slightly behind the
+   * song's start, and step *backwards* right after a seek. Raised by a seek to
+   * its target, and inert again as soon as the transport catches up.
+   */
+  private posFloor = 0
 
   constructor(
     readonly kit: Kit,
@@ -155,10 +163,31 @@ class BoopSequencerEngine implements SequencerEngine {
   }
 
   songPos(): number {
-    // Clamped only here: the raw value runs slightly negative before the first
-    // step sounds (beats are scheduled a lookahead early), and re-anchoring
-    // must carry that raw value rather than a clamped one.
-    return Math.max(0, this.rawPos())
+    // Floored only here: the raw value runs a lookahead behind the step about to
+    // sound (negative before the very first one), and re-anchoring must carry
+    // that raw value rather than a floored one.
+    return Math.max(this.posFloor, this.rawPos())
+  }
+
+  seek(tick: number): void {
+    if (!Number.isFinite(tick)) return
+    const target = Math.max(0, Math.floor(tick))
+    this.nextTick = target
+    // The target's own step is scheduled a lookahead early, so the raw position
+    // is behind it until it sounds. Hold the playhead at the target until then,
+    // rather than letting it step backwards under a child's finger.
+    this.posFloor = target
+    // Re-anchor the same way setTempo does, so songPos() reads the target at
+    // once rather than carrying on from the pre-jump anchor. Stopped, the frozen
+    // position is what a later start() resumes from, so write that instead.
+    if (this.playing) {
+      this.anchor = { pos: target, audioTime: this.driver.now() }
+    } else {
+      this.frozenPos = target
+    }
+    // Audio inside the lookahead still sounds — the driver cannot unschedule it
+    // (spec §7.1) — but its draws would report the position we just left.
+    this.driver.cancelDraws()
   }
 
   audioState(): AudioState {

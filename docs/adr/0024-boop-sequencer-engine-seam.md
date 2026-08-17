@@ -77,3 +77,40 @@ driver-state subscription, and the transport if it is running. **The `App`
 component owns the driver** — one per page, for the life of the page — and does
 not dispose it. `AudioDriver.dispose()` stays on the interface for a caller that
 genuinely owns one (the offline render path, tests).
+
+## Amendment (2026-08-17): `seek(tick)`, and the driver seam stays as it is
+
+The playhead effort
+([`.scratch/boop-playhead/spec.md`](../../.scratch/boop-playhead/spec.md),
+ticket 01) makes the song's position settable, so the engine grows one
+capability: **`seek(tick)`**. It sets the scheduler's `nextTick`, re-anchors
+`songPos()` on the target (or, while stopped, writes `frozenPos`, because that is
+what a later `start()` resumes from), and cancels pending draws. It emits **no**
+transport event — a seek is neither a start nor a stop, and the position is a
+query, not an event stream. Decision 2 above ("pause, not stop") is unchanged: a
+seek is the *only* way the tick moves other than by counting.
+
+Two smaller calls the ticket left to the implementation:
+
+- **A seek lands on a whole tick.** `nextTick` is the scheduler's counter and
+  `step` is `tick mod 16`, so a fractional target would break the grid column.
+  Fractional targets floor; the interface says so.
+- **`songPos()` gained a floor, not just a zero clamp.** Steps are scheduled a
+  lookahead early, so the raw position sits up to one lookahead *behind* the step
+  about to sound — which is why `songPos()` already clamped at zero for the
+  song's start. A seek raises that floor to its target, so the playhead holds
+  there until the target's step sounds instead of stepping backwards under a
+  child's finger. The floor is inert again as soon as the transport catches up.
+
+**The `AudioDriver` seam does not change.** The driver can cancel pending draws
+but has no way to unschedule a `play()` already queued at a future `audioTime`,
+so up to one lookahead — ~0.1–0.15s, one or two sixteenths — of the pre-jump clip
+may still sound after a jump. Accepted rather than widening the driver with a
+cancel-scheduled-audio call (spec §7.1): the artefact lands while a child is
+actively dragging, during which the design already expects a smear of audio, and
+the precision a wider seam would buy is below what a 6-year-old notices. This
+amendment is therefore a *narrowing of the engine*, not a change to the driver.
+
+**Veto trigger:** if the by-ear check finds the stale audio reads as a stutter or
+a wrong note rather than a smear, widen `AudioDriver` with a way to cancel
+scheduled audio and amend this again.

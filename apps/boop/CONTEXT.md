@@ -37,8 +37,18 @@ A continuous query on the `SequencerEngine` for the current playhead position,
 re-anchored at each scheduled beat. Distinct from `step`: `step` is discrete
 (which column), `songPos()` is continuous (where within the loop right now).
 It reads in **tick space** — a fractional tick, so `songPos() % 16` is the grid
-column — and freezes where it was while the transport is stopped.
+column — and holds where it was while the transport is stopped, unless a
+**`seek(tick)`** moves it.
 _Avoid_: Playhead position (fine as UI language, not as the engine method name).
+
+**`seek(tick)`**:
+The one way the transport's position moves other than by counting steps: it puts
+the playhead at a tick, playing or stopped, and `songPos()` reads that tick at
+once. Playing, the next scheduled step sounds from there; stopped, a later
+`start()` resumes from there. A seek is neither a start nor a stop, so it emits
+no transport event, and audio already scheduled inside the lookahead still
+sounds (ADR 0024, as amended).
+_Avoid_: Jump, scrub (**Scrub** is the gesture; `seek` is what it calls).
 
 **Audition**:
 The single sample the engine plays when a cell is turned **on while stopped**,

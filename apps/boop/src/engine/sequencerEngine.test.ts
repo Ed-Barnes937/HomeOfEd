@@ -206,6 +206,113 @@ describe('SequencerEngine', () => {
     })
   })
 
+  describe('seek(tick)', () => {
+    it('moves the playhead there at once while playing, and keeps advancing', async () => {
+      engine.setTempo(120) // 0.125 s per step
+      await engine.start()
+      driver.fireStep()
+      driver.advanceTo(0.1625) // half way through tick 0
+
+      engine.seek(32)
+
+      expect(engine.songPos()).toBeCloseTo(32)
+      driver.advanceTo(0.225) // half a step later
+      expect(engine.songPos()).toBeCloseTo(32.5)
+    })
+
+    it('never steps backwards when the target’s own step is scheduled', async () => {
+      // That step is scheduled a lookahead early, so the raw position sits behind
+      // the target until it sounds. The playhead must hold, not jump back.
+      engine.setTempo(120) // 0.125 s per step
+      await engine.start()
+      driver.fireStep()
+      driver.advanceTo(0.1625)
+
+      engine.seek(32)
+      driver.fireStep() // tick 32, sounding 0.1 s from now
+
+      expect(engine.songPos()).toBeCloseTo(32)
+      driver.advanceTo(0.2625) // the step sounds
+      expect(engine.songPos()).toBeCloseTo(32)
+      driver.advanceTo(0.325) // half a step further on
+      expect(engine.songPos()).toBeCloseTo(32.5)
+    })
+
+    it('sounds the next scheduled step from the target', async () => {
+      await engine.start()
+      driver.fireStep()
+      engine.seek(32)
+      const events = await startAndCollect(engine, 2)
+      expect(events.map((e) => e.tick)).toEqual([32, 33])
+    })
+
+    it('moves the playhead while stopped, and a later start resumes from there', async () => {
+      await engine.start()
+      driver.fireStep()
+      driver.fireStep()
+      engine.stop()
+
+      engine.seek(20)
+
+      expect(engine.songPos()).toBe(20)
+      driver.advanceTo(1)
+      expect(engine.songPos()).toBe(20) // stopped, so it does not drift
+      const events = await startAndCollect(engine, 1)
+      expect(events[0]?.tick).toBe(20)
+    })
+
+    it('drops the draws for steps scheduled before the jump', async () => {
+      const drawn: BeatEvent[] = []
+      engine.onDrawBeat((e) => drawn.push(e))
+      await engine.start()
+      driver.fireStep()
+
+      engine.seek(32)
+
+      driver.advanceTo(0.1)
+      expect(drawn).toEqual([])
+    })
+
+    it('is not a transport event', async () => {
+      const events = transportEvents(engine)
+      await engine.start()
+      driver.fireStep()
+      engine.seek(32)
+      engine.stop()
+      engine.seek(0)
+      expect(events).toEqual([{ type: 'started' }, { type: 'stopped' }])
+    })
+
+    it('clamps a negative target to the start of the song', async () => {
+      await engine.start()
+      driver.fireStep()
+      engine.seek(-5)
+      expect(engine.songPos()).toBeCloseTo(0)
+      const events = await startAndCollect(engine, 1)
+      expect(events[0]?.tick).toBe(0)
+    })
+
+    it('ignores a target that is not a finite number', async () => {
+      await engine.start()
+      driver.fireStep()
+      engine.seek(32)
+      engine.seek(Number.NaN)
+      engine.seek(Number.POSITIVE_INFINITY)
+      expect(engine.songPos()).toBeCloseTo(32)
+      const events = await startAndCollect(engine, 1)
+      expect(events[0]?.tick).toBe(32)
+    })
+
+    it('lands on a whole tick, so step stays an integer column', async () => {
+      await engine.start()
+      driver.fireStep()
+      engine.seek(32.7)
+      expect(engine.songPos()).toBeCloseTo(32)
+      const events = await startAndCollect(engine, 1)
+      expect(events[0]?.step).toBe(0)
+    })
+  })
+
   describe('transport', () => {
     it('unlocks audio from the gesture before starting', async () => {
       expect(engine.audioState()).toBe('locked')
