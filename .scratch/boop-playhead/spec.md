@@ -79,12 +79,18 @@ Bars are new to the codebase: the engine counts ticks and 16-step patterns, and
 
 | Gesture | Result |
 |---|---|
-| Tap the song strip | Jump the song there, snapped to the nearest bar |
+| Tap the song strip | Jump the song to the bar under the pointer |
 | Drag the song strip | Continuous bar-snapped scrub; playback follows and is audible |
 | Tap a ruler numeral | Jump to the start of that position |
 | Tap or drag the clip rail | Move the playhead within the current clip's 16 steps, snapped to a step |
 | Drag while stopped | Silent preview: playhead and under-playhead highlight move, nothing sounds |
 | Release | Playback resumes from where it was dropped, if it was playing |
+
+**Snapping is the segment under the pointer**, on both strips — the bar or step
+the finger is *inside*, not the nearest bar or step *line*. The track is that
+many equal segments, so every bar is the same size of target; snapping to the
+nearest line would make the two end ones half-width. Ticket 02's
+`globalBarAtFraction` is the one implementation of this rule.
 
 **Clamping.** Empty positions are not part of the timeline. The scrub clamps to
 the last placed position — in a song with placements at 1–8 the strip's cells
