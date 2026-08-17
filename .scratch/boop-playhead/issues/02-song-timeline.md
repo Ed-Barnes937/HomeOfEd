@@ -31,20 +31,20 @@ Spec: §3 (vocabulary), §5 (the timeline), §4 (clamping).
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `songTimeline.ts` is pure: no React, no engine import, no DOM
-- [ ] Global bar ↔ (position, bar) round-trips for every bar of a song with
+- [x] `songTimeline.ts` is pure: no React, no engine import, no DOM
+- [x] Global bar ↔ (position, bar) round-trips for every bar of a song with
       gaps in its placements
-- [ ] Scrubs past the end clamp to the last placed position; scrubs before the
+- [x] Scrubs past the end clamp to the last placed position; scrubs before the
       start clamp to global bar 0
-- [ ] Empty positions are absent from the timeline, so the mapping skips them
-- [ ] A song with no placements yields an empty timeline and no throw from any
+- [x] Empty positions are absent from the timeline, so the mapping skips them
+- [x] A song with no placements yields an empty timeline and no throw from any
       query
-- [ ] Global bar ↔ tick agrees with `STEPS_PER_PATTERN` and 4 bars per position
+- [x] Global bar ↔ tick agrees with `STEPS_PER_PATTERN` and 4 bars per position
       — derived from those constants, not from a literal 4 or 16
-- [ ] The timeline's sequence matches `createSongConductor`'s own, asserted
+- [x] The timeline's sequence matches `createSongConductor`'s own, asserted
       against it rather than by eye
-- [ ] Unit-tested in `songTimeline.test.ts`, table-driven over the awkward cases
+- [x] Unit-tested in `songTimeline.test.ts`, table-driven over the awkward cases
       (gaps, one placement, all 16, none)
-- [ ] `apps/boop/CONTEXT.md` gains **Bar**, **Global bar** and **Scrub**
+- [x] `apps/boop/CONTEXT.md` gains **Bar**, **Global bar** and **Scrub**

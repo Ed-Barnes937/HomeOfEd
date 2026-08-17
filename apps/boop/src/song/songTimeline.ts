@@ -8,7 +8,9 @@
  * what stops the two strips, the conductor and the readout each growing their
  * own copy of the same off-by-one.
  *
- * Pure: no React, no engine, no DOM — a sibling of `song.ts`, tested like it.
+ * Pure: no React, no DOM, and no engine *behaviour* — the one engine import is
+ * `STEPS_PER_PATTERN`, because a bar has to be derived from the pattern length
+ * rather than written down again as 16. A sibling of `song.ts`, tested like it.
  *
  * Total by design. A song with no placements at all has an empty timeline and
  * every query still answers (ADR 0032's all-empty song plays the grid clip and
@@ -92,11 +94,12 @@ function clampBar(bar: number): number {
 
 /**
  * The bar a pointer is over, given how far across the scrub track it sits
- * (0 at the left edge, 1 at the right). The track is `barCount` equal segments,
- * so the pointer takes the segment it is inside; either end clamps.
+ * (0 at the left edge, 1 at the right). The track is `barCount` equal segments
+ * and the pointer takes the segment it is *inside* — every bar is the same size
+ * of target, where snapping to the nearest bar *line* would make the two end
+ * bars half-width ones. Either end clamps; `clampGlobalBar` handles the rest.
  */
 export function globalBarAtFraction(timeline: SongTimeline, fraction: number): number {
-  if (timeline.barCount === 0 || Number.isNaN(fraction)) return 0
   return clampGlobalBar(timeline, Math.floor(fraction * timeline.barCount))
 }
 
@@ -113,6 +116,10 @@ export function tickOfGlobalBar(globalBar: number): number {
  * The global bar a tick is inside. Ticks are monotonic and the song loops, so
  * a tick past the end wraps round to the start; a tick before it reads as the
  * start, the way `clampGlobalBar` treats a scrub off the left of the track.
+ *
+ * A non-finite tick reads as the start, not as the end — unlike a global bar
+ * off the right of the track, it is nonsense rather than an over-scrub, and
+ * `seek` refuses one outright for the same reason.
  */
 export function globalBarOfTick(timeline: SongTimeline, tick: number): number {
   if (timeline.barCount === 0 || !Number.isFinite(tick) || tick < 0) return 0
