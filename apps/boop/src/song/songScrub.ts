@@ -14,7 +14,14 @@
 
 import type { SequencerEngine } from '../engine/sequencerEngine.ts'
 import type { SongConductor } from './songConductor.ts'
-import { clampGlobalBar, tickOfGlobalBar, type SongTimeline } from './songTimeline.ts'
+import { STEPS_PER_PATTERN } from '../engine/sequencerEngine.ts'
+import {
+  BARS_PER_POSITION,
+  STEPS_PER_BAR,
+  clampGlobalBar,
+  tickOfGlobalBar,
+  type SongTimeline,
+} from './songTimeline.ts'
 
 export interface ScrubTarget {
   /** The transport. Seeked directly only when there is no conductor to go through. */
@@ -50,4 +57,38 @@ export function scrubToBar(
   if (conductor) conductor.seek(bar)
   else engine.seek(tickOfGlobalBar(bar))
   return bar
+}
+
+/**
+ * The clip rail's scrub (spec §4): move the playhead to `step` *within the
+ * position it is already on*, and report where it landed. The bar moves with
+ * it — a step names a bar — so the readout and the song strip follow a rail
+ * drag as well.
+ *
+ * On a song with nothing placed there is no timeline and no conductor, but the
+ * grid is still showing a clip and its 16 steps are exactly what the rail
+ * scrubs (ADR 0032), so this answers there too.
+ *
+ * The conductor is re-seeked even though the position has not changed: it swaps
+ * the *next* position's pattern in at step 15, one lookahead early, so a rail
+ * drag backwards from the end of a slot would otherwise leave the engine
+ * holding the wrong clip. Its own seek lands on the bar's first tick, and the
+ * engine seek that follows carries on to the step inside that bar.
+ */
+export function scrubToStep(
+  { engine, conductor, timeline }: ScrubTarget,
+  globalBar: number,
+  step: number,
+): { globalBar: number; step: number } {
+  const target = Math.min(STEPS_PER_PATTERN - 1, Math.max(0, Math.floor(step)))
+  if (timeline.barCount === 0) {
+    engine.seek(target)
+    return { globalBar: 0, step: target }
+  }
+  const positionStart =
+    Math.floor(clampGlobalBar(timeline, globalBar) / BARS_PER_POSITION) * BARS_PER_POSITION
+  const bar = positionStart + Math.floor(target / STEPS_PER_BAR)
+  if (conductor) conductor.seek(bar)
+  engine.seek(tickOfGlobalBar(bar) + (target % STEPS_PER_BAR))
+  return { globalBar: bar, step: target }
 }

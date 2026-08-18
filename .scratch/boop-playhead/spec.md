@@ -84,17 +84,46 @@ Bars are new to the codebase: the engine counts ticks and 16-step patterns, and
 | Tap a ruler numeral | Jump to the start of that position |
 | Tap or drag the clip rail | Move the playhead within the current clip's 16 steps, snapped to a step |
 | Drag while stopped | Silent preview: playhead and under-playhead highlight move, nothing sounds |
-| Release | Playback resumes from where it was dropped, if it was playing |
+| Release | Playback is still running iff it was running at the press |
 
 **Snapping is the segment under the pointer**, on both strips — the bar or step
 the finger is *inside*, not the nearest bar or step *line*. The track is that
 many equal segments, so every bar is the same size of target; snapping to the
-nearest line would make the two end ones half-width. Ticket 02's
-`globalBarAtFraction` is the one implementation of this rule.
+nearest line would make the two end ones half-width.
 
-**Clamping.** Empty positions are not part of the timeline. The scrub clamps to
-the last placed position — in a song with placements at 1–8 the strip's cells
-9–16 are drawn (dimmed, per the handoff) but not reachable.
+The rule is one rule, but the two strips cut their track into different
+segments, so it has two implementations (amended by ticket 05):
+
+- The **laptop** strips are drawn as 16 fixed segments — 16 position cells on
+  the song strip, 16 step ticks on the clip rail — so the segment is found by
+  hit-testing the ones the browser laid out (`features/playhead/scrubGeometry.ts`),
+  and the cell's own quarter names the bar (`globalBarAtCell`). Hit-testing
+  rather than arithmetic is what keeps the tablet band's compressed cells right
+  without a second copy of the column maths.
+- The **phone** song strip is drawn as one segment per *global bar* over the
+  song's real length (§7.2), so a fraction of the track is the whole answer:
+  ticket 02's `globalBarAtFraction`. Its first caller is ticket 06.
+
+**Clamping.** Empty positions are not part of the timeline, so the strip's cells
+for them are drawn (dimmed, per the handoff) but hold no bar of their own. Two
+cases, and ticket 05 settled the second:
+
+- **After the last placed position** — in a song placed at 1–8, cells 9–16 —
+  the scrub clamps to the last placed position.
+- **A gap between placed positions** resolves *forwards*, to the start of the
+  next placed position. Resolving backwards would send the playhead back a
+  position as a left-to-right drag crossed the gap and then forwards again on
+  the other side; forwards keeps the drag monotonic.
+
+A **ruler numeral** for an empty position is not a jump at all, and is inert.
+The strip is a continuous track and has to answer for every x, but a numeral
+means one position and an empty one means nothing.
+
+**Release resumes nothing** (amended by ticket 05). A scrub never stops
+playback (§2), so at release playback is running exactly when it was running at
+the press — there is nothing to remember and nothing to restart. The handoff's
+"playback resumes from where you dropped it" describes its mock, whose fake
+clock does pause; in the real transport a `seek` is not a stop.
 
 **Motion is hard-cut.** No transition on a bar or step change — the existing
 playhead's rule, and why `prefers-reduced-motion` needs nothing.

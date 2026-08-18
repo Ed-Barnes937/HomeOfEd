@@ -2,9 +2,12 @@ import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from 'react
 
 import { MAX_CLIPS, SONG_POSITIONS } from '../../persistence/saveFormat.ts'
 import type { Song } from '../../song/song.ts'
+import { BARS_PER_POSITION } from '../../song/songTimeline.ts'
 import { clipTint } from '../clips/clipTints.ts'
 import { useDragPaint } from '../grid/useDragPaint.ts'
 import { useGridKeyboardNav } from '../grid/useGridKeyboardNav.ts'
+import { playheadValueText, type SongPlayheadView } from '../playhead/songPlayhead.ts'
+import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
 import { bpmToPercent, percentToBpm } from '../transport/tempoScale.ts'
 import styles from './SongBar.module.scss'
 import { useChipDrag, type ChipDragState } from './useChipDrag.ts'
@@ -24,8 +27,17 @@ interface SongBarProps {
   /** Play or stop the song: placements left to right, looping (spec §9). */
   onToggleSong: () => void
   songPlaying: boolean
-  /** The song position currently sounding, or `null` — drives the ruler and the playing ring. */
+  /** The song position currently sounding, or `null` — drives the playing ring on the squares. */
   playingPosition: number | null
+  /** Where the playhead sits, playing or stopped (boop-playhead ticket 05). */
+  playhead: SongPlayheadView
+  /** Scrub to a global bar: the strip's arrow keys and Home (spec §4). */
+  onScrubToBar: (globalBar: number) => void
+  /**
+   * Scrub to a strip cell — a position slot and the bar inside it. Empty slots
+   * are drawn but not on the timeline, so the caller clamps them (spec §4).
+   */
+  onScrubToCell: (position: number, bar: number) => void
 }
 
 const POSITIONS = Array.from({ length: SONG_POSITIONS }, (_, i) => i)
@@ -50,6 +62,9 @@ export function SongBar({
   onToggleSong,
   songPlaying,
   playingPosition,
+  playhead,
+  onScrubToBar,
+  onScrubToCell,
 }: SongBarProps) {
   const percent = bpmToPercent(bpm)
   const placedCount = song.placements.filter((clips) => clips.length > 0).length
@@ -98,6 +113,27 @@ export function SongBar({
     if (to < 0 || to >= song.clips.length) return
     onMoveClip(index, to)
     pendingChipFocus.current = to
+  }
+
+  // --- The song strip (boop-playhead ticket 05, spec §4) ---
+
+  // A press or a drag anywhere on the strip: the cell under the pointer names
+  // the position and the quarter of it under the pointer names the bar.
+  const stripScrub = useScrubDrag(({ segment, fraction }) =>
+    onScrubToCell(segment, Math.floor(fraction * BARS_PER_POSITION)),
+  )
+
+  /** Arrows move one bar, Home returns to the song's start (spec §4). */
+  const onStripKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // `?? 0` rather than a guard: a song with nothing placed has no bar to move
+    // from, and the scrub itself is the no-op there (`scrubToBar` answers
+    // `null`) — the keys must not stop answering on the way.
+    const bar = playhead.bar ?? 0
+    const moved = scrubKeyMove(event.key, {
+      onStep: (delta) => onScrubToBar(bar + delta),
+      onSongStart: () => onScrubToBar(0),
+    })
+    if (moved) event.preventDefault()
   }
 
   /** The live make-way: lanes between the drag's origin and target step one pitch aside. */
@@ -173,17 +209,89 @@ export function SongBar({
         </div>
         <div className={styles.divider} aria-hidden="true" />
         <div className={styles.lanes}>
-          <div className={styles.ruler} aria-hidden="true">
-            {POSITIONS.map((position) => (
-              <span
-                key={position}
-                className={styles.rulerNumeral}
-                data-playing={position === playingPosition}
-                data-testid={`song-position-numeral-${position}`}
-              >
-                {position + 1}
-              </span>
-            ))}
+          {/* The song strip: the first child of `.lanes`, above the ruler, on
+              the lane row's own 16 × 56px / 8px-gap track so every cell sits
+              under its numeral and its lane squares (handoff "Song strip"). */}
+          <div className={styles.stripRow}>
+            <span className={styles.stripLabel}>WHOLE SONG</span>
+            <div
+              className={styles.stripTrack}
+              role="slider"
+              tabIndex={0}
+              aria-label="Whole song. Drag to move the playhead."
+              aria-valuemin={0}
+              aria-valuemax={Math.max(0, playhead.barCount - 1)}
+              aria-valuenow={playhead.bar ?? 0}
+              aria-valuetext={playheadValueText(playhead)}
+              onKeyDown={onStripKeyDown}
+              onPointerDown={stripScrub.onPointerDown}
+              onPointerMove={stripScrub.onPointerMove}
+              onPointerUp={stripScrub.onPointerUp}
+              onPointerCancel={stripScrub.onPointerCancel}
+              data-testid="song-strip"
+            >
+              {POSITIONS.map((position) => {
+                const clipIndex = song.placements[position]![0]
+                return (
+                  <span
+                    key={position}
+                    className={styles.stripCell}
+                    {...{ [SCRUB_SEGMENT_ATTR]: '' }}
+                    data-placed={clipIndex !== undefined}
+                    style={
+                      clipIndex === undefined
+                        ? undefined
+                        : ({ '--cell-tint': clipTint(song.clips[clipIndex]!.tint) } as CSSProperties)
+                    }
+                    data-testid={`song-strip-cell-${position}`}
+                  />
+                )
+              })}
+              {playhead.position !== null && playhead.barInPosition !== null && (
+                <span
+                  className={styles.stripMarker}
+                  style={
+                    {
+                      '--position': playhead.position,
+                      '--bar': playhead.barInPosition,
+                    } as CSSProperties
+                  }
+                  data-playing={playhead.playing}
+                  data-position={playhead.position}
+                  data-bar={playhead.barInPosition}
+                  data-testid="song-strip-marker"
+                />
+              )}
+            </div>
+          </div>
+          {/* The ruler's geometry is unchanged; each numeral is now a jump to
+              the start of its position (handoff "Ruler"). An empty position is
+              not on the timeline, so its numeral is not a jump — unlike the
+              strip, which is a continuous track and has to resolve every x to
+              some bar, a numeral means one position and an empty one means
+              nothing. The two sliders are the keyboard route (handoff
+              "Accessibility"), so the numerals stay out of the tab order rather
+              than putting 16 stops ahead of the lane grid. */}
+          <div className={styles.ruler}>
+            {POSITIONS.map((position) => {
+              const placed = song.placements[position]!.length > 0
+              return (
+                <button
+                  key={position}
+                  type="button"
+                  className={styles.rulerNumeral}
+                  tabIndex={-1}
+                  disabled={!placed}
+                  data-current={position === playhead.position}
+                  data-playing={position === playhead.position && playhead.playing}
+                  onClick={() => onScrubToCell(position, 0)}
+                  aria-label={`Jump to position ${position + 1}`}
+                  data-testid={`song-position-numeral-${position}`}
+                >
+                  {position + 1}
+                </button>
+              )
+            })}
           </div>
           <div
             ref={keyboardNav.containerRef}

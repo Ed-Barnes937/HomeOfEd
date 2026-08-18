@@ -43,30 +43,57 @@ Spec: §4 (behaviour, keyboard), §1.
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Four notes from the build** — each one amended into the spec:
 
-- [ ] The song strip matches the handoff's geometry: cells sit exactly under
+1. *No resume on release.* The drag hook remembers nothing about "was it
+   playing when the drag began", because a scrub never stops playback (spec §2)
+   — so playback is still running at release exactly when it was running at the
+   press, and a resume would be dead code. The handoff's wording comes from the
+   mock, whose fake clock does pause. `useScrubDrag`'s header records this and
+   the `.iwft` asserts the observable rule (`verifySongPlaying` after a drag).
+2. *The play button's centring is a band, not a pixel.* The handoff's 46px is
+   in as given, but at that value the button's centre sits ~9px above the
+   lanes' own centre (the pre-playhead 24px was ~7px out the same way). The
+   `.iwft` therefore asserts the centre falls inside the lane rows' band — a
+   real guard, since the old 24px put it above them — and the pixel judgement
+   stays the by-eye check.
+3. *An empty slot resolves forwards.* The spec's clamp rule was written for the
+   trailing empties; a *gap* between placed positions needed its own answer.
+   Resolving it backwards (the first attempt) made a left-to-right drag double
+   back across the gap and forwards again on the other side, which a child would
+   see, so a gap now resolves to the start of the next placed position and only
+   the trailing empties clamp. Spec §4's "Clamping" says both cases.
+4. *An empty ruler numeral is inert.* The strip is a continuous track and must
+   answer for every x, but a numeral means one position, and an empty one means
+   nothing — so it is `disabled` rather than clamping somewhere the child did
+   not point at. The numerals are also out of the tab order (`tabIndex={-1}`):
+   the two sliders are the keyboard route the handoff names, and 16 extra stops
+   ahead of the lane grid were not asked for.
+
+**Status:** ready-for-human
+
+- [x] The song strip matches the handoff's geometry: cells sit exactly under
       their ruler numerals and lane squares at ≥1280px
-- [ ] Placed cells carry their topmost clip's tint at 32%; empty cells are the
+- [x] Placed cells carry their topmost clip's tint at 32%; empty cells are the
       dimmed treatment and are not reachable by a scrub (spec §4)
-- [ ] The marker is one bar wide at the handoff's offset, opacity 1 playing /
+- [x] The marker is one bar wide at the handoff's offset, opacity 1 playing /
       0.45 stopped, hard-cut on change
-- [ ] Tapping a ruler numeral jumps to that position's start; the current
+- [x] Tapping a ruler numeral jumps to that position's start; the current
       numeral takes the handoff's playing and stopped treatments
-- [ ] The clip rail sits on `.steps`' geometry, snaps to steps, and moves the
+- [x] The clip rail sits on `.steps`' geometry, snaps to steps, and moves the
       grid's under-playhead highlight
-- [ ] The readout reads `Position 4 · bar 2 of 4` and tracks both strips
-- [ ] Dragging either strip scrubs continuously; release resumes playback only
+- [x] The readout reads `Position 4 · bar 2 of 4` and tracks both strips
+- [x] Dragging either strip scrubs continuously; release resumes playback only
       if it was playing when the drag began
-- [ ] The play button still centres against the lanes with the strip row above
+- [x] The play button still centres against the lanes with the strip row above
       them
-- [ ] `.playhead` renders at 0.45 opacity while stopped instead of unmounting
-- [ ] `role="slider"` with `aria-valuenow` / `aria-valuetext` on both; arrows
+- [x] `.playhead` renders at 0.45 opacity while stopped instead of unmounting
+- [x] `role="slider"` with `aria-valuenow` / `aria-valuetext` on both; arrows
       move one bar / one step, Home goes to the song's start
-- [ ] No new design tokens
-- [ ] Whole-page coverage in an `.iwft` suite; the tablet band (1024–1279px) is
+- [x] No new design tokens
+- [x] Whole-page coverage in an `.iwft` suite; the tablet band (1024–1279px) is
       not broken by the new rows
-- [ ] Whole-page coverage of the scrub-is-not-an-edit rule specifically — a tap
+- [x] Whole-page coverage of the scrub-is-not-an-edit rule specifically — a tap
       or drag on the strip leaves the saved-state chrome unmoved and playback
       running. Handed over from ticket 04, which had no gesture to drive it: it
       is the effort's load-bearing rule and the easiest to regress

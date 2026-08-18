@@ -53,6 +53,9 @@ export class HomePagePom extends BasePage {
   async dragPaint(instrumentId: string, steps: number[]): Promise<void> {
     const [first, ...rest] = steps
     if (first === undefined) return
+    // Raw mouse moves do not scroll the way a locator click does, and the well
+    // is inside the one scrolling region — bring the row into view first.
+    await this.cell(instrumentId, first).scrollIntoViewIfNeeded()
     const startBox = await this.cell(instrumentId, first).boundingBox()
     if (!startBox) throw new Error(`cell ${instrumentId}-${first} is not visible`)
     await this.page.mouse.move(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2)
@@ -1102,6 +1105,170 @@ export class HomePagePom extends BasePage {
 
   async verifyNoPositionPlaying(): Promise<void> {
     await expect(this.page.locator('[data-testid^="lane-"][data-playing="true"]')).toHaveCount(0)
+  }
+
+  // --- The scrub strips (boop-playhead ticket 05, spec §4) ---
+
+  private readonly songStrip = this.page.getByTestId('song-strip')
+  private readonly songStripMarker = this.page.getByTestId('song-strip-marker')
+  private readonly clipRail = this.page.getByTestId('clip-rail')
+
+  private stripCell(position: number) {
+    return this.page.getByTestId(`song-strip-cell-${position}`)
+  }
+
+  /** The x of a bar's middle inside a strip cell — the segment a scrub lands in. */
+  private async barCentre(position: number, bar: number): Promise<{ x: number; y: number }> {
+    const box = await this.stripCell(position).boundingBox()
+    if (!box) throw new Error(`song strip cell ${position} is not visible`)
+    return { x: box.x + (box.width * (bar + 0.5)) / 4, y: box.y + box.height / 2 }
+  }
+
+  /** Tap the song strip on one bar of one position — the whole gesture in one press. */
+  async tapSongStrip(position: number, bar = 0): Promise<void> {
+    const { x, y } = await this.barCentre(position, bar)
+    await this.page.mouse.click(x, y)
+  }
+
+  /** Press at one point and drag to another without releasing — a continuous scrub. */
+  private async dragBetween(
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ): Promise<void> {
+    await this.page.mouse.move(start.x, start.y)
+    await this.page.mouse.down()
+    await this.page.mouse.move(end.x, end.y, { steps: 8 })
+    await this.page.mouse.up()
+  }
+
+  async dragSongStrip(
+    from: { position: number; bar?: number },
+    to: { position: number; bar?: number },
+  ): Promise<void> {
+    await this.dragBetween(
+      await this.barCentre(from.position, from.bar ?? 0),
+      await this.barCentre(to.position, to.bar ?? 0),
+    )
+  }
+
+  /** The strip marker's bar, and whether it is the playing or the stopped treatment. */
+  async verifySongStripMarkerAt(position: number, bar: number, playing: boolean): Promise<void> {
+    await expect(this.songStripMarker).toHaveAttribute('data-position', String(position))
+    await expect(this.songStripMarker).toHaveAttribute('data-bar', String(bar))
+    await expect(this.songStripMarker).toHaveAttribute('data-playing', String(playing))
+  }
+
+  /** A placed cell wears its clip's tint; an empty one is the dimmed treatment. */
+  async verifyStripCellPlaced(position: number, placed: boolean): Promise<void> {
+    await expect(this.stripCell(position)).toHaveAttribute('data-placed', String(placed))
+  }
+
+  /**
+   * Cells sit exactly under their ruler numerals and lane squares — the one
+   * geometry claim the handoff makes about the strip.
+   */
+  async verifyStripCellAlignsWithLane(position: number, clipIndex: number): Promise<void> {
+    const cell = await this.stripCell(position).boundingBox()
+    const square = await this.laneSquare(clipIndex, position).boundingBox()
+    const numeral = await this.page.getByTestId(`song-position-numeral-${position}`).boundingBox()
+    if (!cell || !square || !numeral) throw new Error('the strip, lane or ruler is not visible')
+    expect(Math.abs(cell.x - square.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(cell.width - square.width)).toBeLessThanOrEqual(1)
+    expect(Math.abs(cell.x - numeral.x)).toBeLessThanOrEqual(1)
+  }
+
+  /** Tap a ruler numeral — a jump to the start of that position. */
+  async tapPositionNumeral(position: number): Promise<void> {
+    await this.page.getByTestId(`song-position-numeral-${position}`).click()
+  }
+
+  /** An empty position is not on the timeline, so its numeral is not a jump. */
+  async verifyPositionNumeralUnreachable(position: number): Promise<void> {
+    await expect(this.page.getByTestId(`song-position-numeral-${position}`)).toBeDisabled()
+  }
+
+  /** The numeral of the position the playhead is in, playing or stopped. */
+  async verifyPositionNumeralCurrent(position: number, playing: boolean): Promise<void> {
+    const numeral = this.page.getByTestId(`song-position-numeral-${position}`)
+    await expect(numeral).toHaveAttribute('data-current', 'true')
+    await expect(numeral).toHaveAttribute('data-playing', String(playing))
+  }
+
+  /** Tap the clip rail on one of its 16 step ticks. */
+  async tapClipRail(step: number): Promise<void> {
+    await this.page.getByTestId(`clip-rail-tick-${step}`).click()
+  }
+
+  async dragClipRail(from: number, to: number): Promise<void> {
+    await this.dragBetween(await this.tickCentre(from), await this.tickCentre(to))
+  }
+
+  /** The middle of one of the rail's 16 step ticks. */
+  private async tickCentre(step: number): Promise<{ x: number; y: number }> {
+    const box = await this.page.getByTestId(`clip-rail-tick-${step}`).boundingBox()
+    if (!box) throw new Error(`clip rail tick ${step} is not visible`)
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+
+  /** The rail's cyan tick, and whether it is the playing or the stopped treatment. */
+  async verifyClipRailAtStep(step: number, playing: boolean): Promise<void> {
+    const tick = this.page.getByTestId(`clip-rail-tick-${step}`)
+    await expect(tick).toHaveAttribute('data-current', 'true')
+    await expect(tick).toHaveAttribute('data-playing', String(playing))
+    await expect(
+      this.page.locator('[data-testid^="clip-rail-tick-"][data-current="true"]'),
+    ).toHaveCount(1)
+  }
+
+  /** The rail sits on `.steps`' geometry: each tick under its own grid column. */
+  async verifyClipRailAlignsWithSteps(step: number): Promise<void> {
+    const tick = await this.page.getByTestId(`clip-rail-tick-${step}`).boundingBox()
+    const cell = await this.cell('kick', step).boundingBox()
+    if (!tick || !cell) throw new Error('the rail tick or the grid cell is not visible')
+    expect(Math.abs(tick.x - cell.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(tick.width - cell.width)).toBeLessThanOrEqual(1)
+  }
+
+  /** `Position 4 · bar 2 of 4` — the clip header's readout. */
+  async verifyPlayheadReadout(text: string): Promise<void> {
+    await expect(this.page.getByTestId('playhead-readout')).toHaveText(text)
+  }
+
+  /** Arrow keys and Home on either strip (spec §4). */
+  async pressOnSongStrip(key: string): Promise<void> {
+    await this.songStrip.press(key)
+  }
+
+  async pressOnClipRail(key: string): Promise<void> {
+    await this.clipRail.press(key)
+  }
+
+  /** Both strips are sliders, with the bar/step they sit on as their value. */
+  async verifySongStripSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.songStrip).toHaveAttribute('role', 'slider')
+    await expect(this.songStrip).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.songStrip).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  async verifyClipRailSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.clipRail).toHaveAttribute('role', 'slider')
+    await expect(this.clipRail).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.clipRail).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  /**
+   * The play button still reads as belonging to the lanes, not to the strip row
+   * now above them (handoff "Play column"): its centre falls inside the lane
+   * rows' own band. At the pre-playhead 24px padding it sat above them.
+   */
+  async verifySongPlayCentredOnLanes(): Promise<void> {
+    const play = await this.songPlayButton.boundingBox()
+    const first = await this.laneSquare(0, 0).boundingBox()
+    const last = await this.laneSquare(1, 0).boundingBox()
+    if (!play || !first || !last) throw new Error('the song play button or the lanes are not visible')
+    const centre = play.y + play.height / 2
+    expect(centre).toBeGreaterThanOrEqual(first.y)
+    expect(centre).toBeLessThanOrEqual(last.y + last.height)
   }
 
   async verifyPositionNumeralPlaying(position: number): Promise<void> {

@@ -115,6 +115,32 @@ export function globalBarAtFraction(timeline: SongTimeline, fraction: number): n
 }
 
 /**
+ * The global bar a strip cell holds: the position slot the pointer is over and
+ * the bar inside it. The laptop strip draws all 16 slots, but only the placed
+ * ones are on the timeline (spec §4), so an empty slot has to resolve to
+ * something — and it resolves *forwards*, to the start of the next placed
+ * position. That keeps a left-to-right drag monotonic: resolving backwards
+ * would send the playhead back a position as the finger crossed a gap and then
+ * forwards again on the other side, which a child would see. Past the last
+ * placed position there is no forwards, so those slots clamp to its last bar —
+ * "the scrub clamps to the last placed position", and the same answer
+ * `clampGlobalBar` gives an over-scrub off the right of the track.
+ *
+ * `null` on an empty timeline: there is nothing to point at.
+ */
+export function globalBarAtCell(
+  timeline: SongTimeline,
+  position: number,
+  bar: number,
+): number | null {
+  if (timeline.barCount === 0) return null
+  const index = timeline.positions.findIndex((placed) => placed >= position)
+  if (index === -1) return timeline.barCount - 1
+  const onCell = timeline.positions[index] === position
+  return index * BARS_PER_POSITION + (onCell ? clampBar(bar) : 0)
+}
+
+/**
  * The engine tick a global bar starts on — what a scrub hands `engine.seek()`.
  * Tick space runs over the *placed* sequence, which is exactly what the
  * conductor plays, so this needs no timeline.

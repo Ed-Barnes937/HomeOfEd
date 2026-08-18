@@ -92,6 +92,12 @@ src/
                     "+ New" in a pinned 92px column, snap-scrolling lane strip
                     under PhoneGrid's paint-vs-scroll rules; clip play and
                     Speed stay in the pinned transport
+  features/playhead/ the scrub strips' shared parts (boop-playhead ticket 05):
+                    scrubGeometry.ts (which drawn segment a pointer is over —
+                    pure), useScrubDrag.ts (the pointer-capture gesture both
+                    strips hang off, deliberately not useDragPaint), and
+                    songPlayhead.ts (the one view shape the strips, the ruler
+                    and the readout all read)
   features/picker/  the "+ New clip" picker (ticket 17, replacing the retired
                     starters): NewClipPicker.tsx (the paper-card dialog —
                     Blank first, then the sample clips), sampleClips.ts (the

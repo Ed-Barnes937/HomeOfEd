@@ -10,6 +10,7 @@ import {
   STEPS_PER_BAR,
   barAt,
   clampGlobalBar,
+  globalBarAtCell,
   globalBarAtFraction,
   globalBarOf,
   globalBarOfTick,
@@ -119,6 +120,49 @@ describe('songTimeline', () => {
   it('starts a position on its first bar when no bar is asked for', () => {
     const timeline = songTimeline(placedAt(GAPPY))
     expect(globalBarOf(timeline, 9)).toBe(3 * BARS_PER_POSITION)
+  })
+
+  describe('the strip cell a pointer is over', () => {
+    // The laptop strip draws all 16 slots (spec §4); only the placed ones are
+    // on the timeline, so an empty slot has to resolve to something.
+    const timeline = songTimeline(placedAt([1, 2, 5, 9]))
+
+    it('reads a placed slot as that position and bar', () => {
+      expect(globalBarAtCell(timeline, 1, 0)).toBe(0)
+      expect(globalBarAtCell(timeline, 2, 3)).toBe(BARS_PER_POSITION + 3)
+      expect(globalBarAtCell(timeline, 9, 2)).toBe(3 * BARS_PER_POSITION + 2)
+    })
+
+    it('resolves an empty slot forwards, to the start of the next placed one', () => {
+      // Slots 3 and 4 are empty; the next placed position is 5, the third on
+      // the timeline. Forwards, so a left-to-right drag never doubles back.
+      expect(globalBarAtCell(timeline, 3, 0)).toBe(2 * BARS_PER_POSITION)
+      expect(globalBarAtCell(timeline, 4, 2)).toBe(2 * BARS_PER_POSITION)
+      // Slot 0 is before the first placed position, so it is the song's start.
+      expect(globalBarAtCell(timeline, 0, 3)).toBe(0)
+    })
+
+    it('clamps the trailing empties to the last placed position (spec §4)', () => {
+      // Nothing is placed after 9, so 10–15 have no forwards to go to.
+      expect(globalBarAtCell(timeline, 10, 0)).toBe(timeline.barCount - 1)
+      expect(globalBarAtCell(timeline, 15, 3)).toBe(timeline.barCount - 1)
+    })
+
+    it('crosses a gap monotonically, left to right', () => {
+      const bars = [1, 2, 3, 4, 5].map((slot) => globalBarAtCell(timeline, slot, 0)!)
+      expect(bars).toEqual([...bars].sort((a, b) => a - b))
+    })
+
+    it('clamps a bar outside 0…3 and a slot outside the strip', () => {
+      expect(globalBarAtCell(timeline, 1, 99)).toBe(BARS_PER_POSITION - 1)
+      expect(globalBarAtCell(timeline, 1, -4)).toBe(0)
+      expect(globalBarAtCell(timeline, 99, 0)).toBe(timeline.barCount - 1)
+      expect(globalBarAtCell(timeline, -3, 0)).toBe(0)
+    })
+
+    it('has no bar to point at when nothing is placed', () => {
+      expect(globalBarAtCell(songTimeline(placedAt([])), 4, 1)).toBeNull()
+    })
   })
 
   describe('snapping a fraction of the track to a bar', () => {

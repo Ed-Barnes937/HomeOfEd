@@ -17,6 +17,12 @@ interface ClipHeaderProps {
   onCopy: () => void
   /** Removes the active clip and its placements. */
   onDelete: () => void
+  /**
+   * `Position 4 · bar 2 of 4` (boop-playhead handoff, "Readout"), or absent —
+   * on a song with nothing placed there is nothing to read out, and on the
+   * phone the caption sits on the WHOLE SONG strip instead.
+   */
+  readout: string | null
 }
 
 /**
@@ -26,7 +32,15 @@ interface ClipHeaderProps {
  * affordance is visible rather than discovered. Enter or blur commits;
  * Escape-free by design, and no naming is ever forced.
  */
-export function ClipHeader({ clip, canDelete, canCopy, onRename, onCopy, onDelete }: ClipHeaderProps) {
+export function ClipHeader({
+  clip,
+  canDelete,
+  canCopy,
+  onRename,
+  onCopy,
+  onDelete,
+  readout,
+}: ClipHeaderProps) {
   const [editing, setEditing] = useState<string | null>(null)
 
   function commit(value: string) {
@@ -79,6 +93,11 @@ export function ClipHeader({ clip, canDelete, canCopy, onRename, onCopy, onDelet
         />
       )}
       <div className={styles.spacer} />
+      {readout !== null && (
+        <span className={styles.readout} data-testid="playhead-readout">
+          {readout}
+        </span>
+      )}
       <button
         type="button"
         className={styles.copy}
