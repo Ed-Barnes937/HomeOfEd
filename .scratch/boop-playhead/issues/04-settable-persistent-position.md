@@ -35,7 +35,7 @@ Spec: §2, §4 (release behaviour), §5 (HomePage), §6.
 
 **Blocked by:** 03
 
-**Status:** ready-for-human — built; the last box is deferred to ticket 05 for
+**Status:** resolved — the deferred box was delivered by ticket 05 for
 the reason in the comments, and that deferral wants a human's nod
 
 - [x] The position is bar-resolution and survives `leaveSongMode` — stopping the
@@ -54,9 +54,11 @@ the reason in the comments, and that deferral wants a human's nod
       about resuming mid-pattern, so say so in that ticket's comments
 - [x] `verifyPlayheadHidden` replaced with a stopped-state assertion; the
       existing `.iwft` suites pass
-- [ ] Whole-page coverage of the scrub-is-not-an-edit rule specifically — it is
+- [x] Whole-page coverage of the scrub-is-not-an-edit rule specifically — it is
       the effort's load-bearing rule and the easiest to regress
-      — **deferred to ticket 05**, see comments
+      — **deferred to ticket 05**, which landed it in `playheadStrips.iwft.tsx`
+      ("a scrub is listening, not editing"); ticket 06 added the phone's own in
+      `phoneStrips.iwft.tsx`
 
 ## Comments
 

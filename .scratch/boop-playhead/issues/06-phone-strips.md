@@ -78,7 +78,17 @@ ADR 0027:
    dead space (the well's padding, the row's own margin) and no visible geometry
    moves.
 
-**Status:** ready-for-human
+
+**By-hand check waived (2026-08-19).** The spec owner chose to ship without it
+and fix forward. The box below is left unticked deliberately: it records a check
+that was *not performed*, not one that passed.
+
+Spec §7.2's question is unanswered rather than settled: nobody has yet built a
+16-position song on a real phone to see whether bar-snapping is too tight at a
+~5px bar step. If it is, the follow-up switches the phone to position-snap,
+which the timeline module makes a change of snap unit.
+
+**Status:** resolved
 
 - [x] `LoopMap`'s geometry is unchanged — band, label, ticks and bracket all as
       they are today

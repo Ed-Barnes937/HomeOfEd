@@ -32,7 +32,12 @@ Spec: §5 (the conductor), §2.
 
 **Blocked by:** 01, 02
 
-**Status:** ready-for-human
+
+**By-hand check waived (2026-08-19).** The spec owner chose to ship without it
+and fix forward. The box below is left unticked deliberately: it records a check
+that was *not performed*, not one that passed.
+
+**Status:** resolved
 
 - [x] `seek(globalBar)` on the `SongConductor` interface, documented on it
 - [x] After a seek the target position's pattern is loaded before the next step

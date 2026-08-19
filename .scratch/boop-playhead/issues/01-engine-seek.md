@@ -26,7 +26,16 @@ Spec: §5 (the engine), §7.1.
 
 **Blocked by:** —
 
-**Status:** ready-for-human — built; only the by-ear check is left
+
+**By-hand check waived (2026-08-19).** The spec owner chose to ship without it
+and fix forward. The box below is left unticked deliberately: it records a check
+that was *not performed*, not one that passed.
+
+Spec §7.1's veto trigger stays live: if the stale audio ever reads as a stutter
+or a wrong note rather than a smear, the fix is to widen `AudioDriver` with a
+cancel-scheduled-audio call.
+
+**Status:** resolved
 
 - [x] `seek(tick)` exists on the `SequencerEngine` interface, documented on the
       contract in `sequencerEngine.ts`, with Tone.js still not leaking through it

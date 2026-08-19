@@ -1,7 +1,10 @@
 # Spec: boop — controllable song playhead
 
-Status: **proposed** — decisions §7 are open for the spec owner to promote or
-veto. Everything else is ready for `/implement`.
+Status: **accepted, built** (2026-08-19) — all six tickets are resolved and
+decisions §7 were promoted as written. §7.1's veto trigger and §7.2's
+open question both survive as follow-ups, not as gates: neither by-hand check
+was performed, so if the stale audio reads as a stutter, or bar-snapping proves
+too tight on a 16-position song, the fix goes forward from here.
 
 The song's position is output-only today. This effort makes it **settable**: a
 child can put the playhead where they want it, on the song and inside a clip,
