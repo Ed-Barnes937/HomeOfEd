@@ -1,7 +1,7 @@
 # 08 — Postcard export
 
 **Type:** research
-**Status:** open
+**Status:** claimed
 **Blocked by:** 01
 
 ## Question

@@ -40,17 +40,18 @@ tickets). Build happens after this map, as small PRs to `main`.
 
 <!-- one line per closed ticket: gist + link -->
 
+- [01 — 3D rendering approach](issues/01-rendering-approach-research.md) — vanilla three.js (pinned ESM, ~168 kB gz) behind a DOM-free engine + renderer seam (silt pattern, no r3f); one persistent renderer with orbit/surface as swapped scenes; DPR capped at 2, `touch-action: none`, context-loss handling from day one.
+- [09 — Asset creation pipeline](issues/09-asset-pipeline-research.md) — procedural-first (the sketches already prove everything); GLBs only if Blip/rocket defeat primitives, validated by a one-session two-route bake-off (procedural vs Blender MCP/CC0-base), self-hosted meshopt GLBs if needed (~10–50 KB each).
+
 ## Not yet specified
 
 - Recipe threshold numbers and balance curves — waits on the sim model
   (ticket 02) and the pacing prototype (ticket 04).
 - Which surface-view "more life" decorations ship (blob families, fireflies,
   census ticker…) — the design README marks these how-might-we; waits on
-  rendering architecture (06) and asset pipeline (09).
+  rendering architecture (06).
 - Blip's dialogue: fact lines, hint-ladder content, deadpan voice writing —
   waits on the sim model (what facts exist to state).
-- Asset creation workflow decision (and a possible HITL 2D-mock → 3D-model
-  prototype) — graduates once ticket 09's research is in.
 - Mobile/touch adaptations (touch-action, DPR cap, layout collapse) — revisit
   after rendering architecture (06).
 - Performance budget and testing on real devices.
