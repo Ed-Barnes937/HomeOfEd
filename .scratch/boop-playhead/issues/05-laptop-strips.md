@@ -70,7 +70,7 @@ Spec: §4 (behaviour, keyboard), §1.
    the two sliders are the keyboard route the handoff names, and 16 extra stops
    ahead of the lane grid were not asked for.
 
-**Status:** ready-for-human
+**Status:** resolved
 
 - [x] The song strip matches the handoff's geometry: cells sit exactly under
       their ruler numerals and lane squares at ≥1280px
@@ -97,6 +97,6 @@ Spec: §4 (behaviour, keyboard), §1.
       or drag on the strip leaves the saved-state chrome unmoved and playback
       running. Handed over from ticket 04, which had no gesture to drive it: it
       is the effort's load-bearing rule and the easiest to regress
-- [ ] **Human, by eye:** side by side against
+- [x] **Human, by eye:** side by side against
       `docs/reference/design_handoff_playhead/boop-playhead-mockup.html` at
-      1280px and up
+      1280px and up — approved 2026-08-19, the 46px play column included
