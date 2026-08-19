@@ -1,13 +1,34 @@
 // Grid-well geometry from the design handoff (docs/reference/boop-design/README.md,
-// "Grid well" / "Cell geometry and state"). Breakpoint at 1280px splits the
-// laptop and tablet number sets; below 1024px this component is not rendered
-// at all — `PhoneGrid` and its own module take over (ticket 27, `useIsPhone`).
+// "Grid well" / "Cell geometry and state"), with the laptop cell narrowed from
+// the handoff's 62px to 52 so the column fits the 1280px breakpoint it starts
+// at (ADR 0033). Breakpoint at 1280px splits the laptop and tablet number sets;
+// below 1024px this component is not rendered at all — `PhoneGrid` and its own
+// module take over (ticket 27, `useIsPhone`).
 .well {
   margin-top: 16px;
   padding: 18px;
   border-radius: 24px;
   background: var(--well);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  // The rows scroll inside the well; the footer under them does not (ticket
+  // 23) — so the clip play button the footer carries is on screen at every
+  // window height, and the grid is what gives way. `min-height: 0` is what
+  // lets the well shrink below its content, exactly as the frame's scrolling
+  // region needs it (ADR 0030): flex stops the shrink the moment the well
+  // fits its space, so it is never smaller than what it was given.
+  // No floor here, unlike `PhoneGrid`'s well — and that is a finding, not an
+  // omission. The 16px well at the five-clip cap was caused by the *dock*
+  // growing unbounded, not by the absence of a floor: with the dock capped
+  // (`HomePage.module.scss`) the region can no longer be starved, and the well
+  // degrades proportionally instead of collapsing. A floor was built and
+  // mutation-tested here — removing it left all 19 tests green, because the
+  // cap already guarantees more than the floor would. Adding one back would
+  // also re-open the conflict it cannot win: this well carries the clip play
+  // button at its foot, so a floor pushes its own button below the fold on any
+  // window short enough for the floor to bind.
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
   // The active clip's tint ring (clip-lanes handoff §3): `<clipTint>40` = 25%.
   // The clip header row above absorbs 4px of the old margin.
@@ -22,6 +43,35 @@
     padding: 16px;
     border-radius: 20px;
   }
+}
+
+// The bar-numeral row and the rows, in the well's one scroll box (ticket 23).
+// `flex: 0 1 auto`, never `flex: 1`: it may shrink when the window is short but
+// must not grow on a tall one, or the footer would be pushed to the foot of a
+// stretched well and the grid would no longer hug its content.
+//
+// `overflow-y: auto` computes the other axis to `auto` too, and a scroll box
+// clips on every side, so the 8px the playhead column overhangs `.body` by
+// (7px on the tablet) would be sliced off — and its right-hand overhang would
+// add scrollable width. The padding takes the overhang inside the box and the
+// matching negative margin puts the box back where it was, so nothing moves on
+// screen — the same trick ticket 25 used for the lane focus rings.
+.wellScroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  margin: -8px;
+
+  @media (max-width: 1279px) {
+    padding: 7px;
+    margin: -7px;
+  }
+}
+
+// Pinned at the foot of the well — the clip play button lives here.
+.wellFooter {
+  flex: none;
 }
 
 .barNumerals {
@@ -64,7 +114,8 @@
   }
 }
 
-// 4 groups of 4 × 62px on an 8px gap with 18px gutters = 1142px — `.steps`.
+// 4 groups of 4 × 52px on an 8px gap with 18px gutters = 982px — `.steps`. 52
+// and not the handoff's 62 because ADR 0033 narrowed the laptop cell.
 .railTrack {
   flex: none;
   height: 10px;
@@ -96,7 +147,7 @@
 
 .railTick {
   flex: none;
-  width: 62px;
+  width: 52px;
   height: 4px;
   margin-top: 3px;
   border-radius: 2px;
@@ -128,7 +179,7 @@
 
 .barNumeral {
   flex: none;
-  width: 272px; // 4 × cellW(62) + 3 × gap(18)
+  width: 232px; // 4 × cellW(52) + 3 × gap(8)
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 13px;
@@ -178,9 +229,9 @@
   z-index: 0;
   top: -8px;
   bottom: -8px;
-  left: calc(160px + 18px + var(--group) * (4 * 62px + 3 * 8px + 18px) + var(--col) * (62px + 8px) - 8px);
-  width: calc(62px + 2 * 8px);
-  border-radius: 19px;
+  left: calc(160px + 18px + var(--group) * (4 * 52px + 3 * 8px + 18px) + var(--col) * (52px + 8px) - 8px);
+  width: calc(52px + 2 * 8px);
+  border-radius: 17px;
   background: linear-gradient(180deg, rgba(111, 224, 240, 0.24), rgba(111, 224, 240, 0.07));
   box-shadow: 0 0 0 1px rgba(111, 224, 240, 0.34);
   pointer-events: none;
@@ -290,11 +341,11 @@
 
 .cell {
   flex: none;
-  width: 62px;
-  height: 66px;
+  width: 52px;
+  height: 56px;
   padding: 0;
   border: none;
-  border-radius: 14px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -405,8 +456,8 @@
 }
 
 .cellArtwork {
-  width: 35px;
-  height: 35px;
+  width: 30px;
+  height: 30px;
   background: rgba(0, 0, 0, 0.42);
   mask-size: contain;
   mask-repeat: no-repeat;

@@ -171,7 +171,9 @@ test('neither band scrolls, both clear 44px, and the region still pans verticall
   await root.verifyBandTapTargets()
   // The bands must not claim vertical panning from the one scroller (ADR 0030).
   await root.verifyBandsAllowVerticalScroll()
-  await root.verifyGridRegionIsTheOnlyScroller()
+  // Ticket 23 moved the scroll inside the grid well; the page still never moves.
+  await root.verifyGridWellIsTheScroller()
+  await root.verifyNothingIsScrolled()
 
   // The grid and the lanes swipe; the bands stay exactly where they were.
   await root.verifyBandsDoNotScroll(300)

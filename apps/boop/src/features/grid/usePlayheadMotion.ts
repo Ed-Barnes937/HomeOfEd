@@ -22,7 +22,14 @@ export function usePlayheadMotion(engine: SequencerEngine | null): PlayheadMotio
     if (!engine) return
     setPlaying(engine.isPlaying())
     const offTransport = engine.onTransport((event) => {
-      if (event.type === 'started') setPlaying(true)
+      if (event.type === 'started') {
+        setPlaying(true)
+        // A run never inherits the last one's step (ticket 22), so the step it
+        // ended on must not flash before this run's first beat is drawn. A
+        // scrubbed start is unaffected: that step is `scrubStep`, held by the
+        // page until a drawn beat replaces it.
+        setState((current) => ({ ...current, step: null }))
+      }
       if (event.type === 'stopped') setPlaying(false)
     })
     const offDraw = engine.onDrawBeat((event) => setState((current) => applyDrawBeat(current, event)))

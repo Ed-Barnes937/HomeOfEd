@@ -208,7 +208,7 @@ export function PhoneSongBar({
           )}
         </div>
       </div>
-      <div className={styles.lanes}>
+      <div className={styles.lanes} data-testid="phone-song-lanes">
         <div className={styles.chipColumn}>
           <div className={styles.rulerSpacer} aria-hidden="true" />
           <div className={styles.chipRows}>

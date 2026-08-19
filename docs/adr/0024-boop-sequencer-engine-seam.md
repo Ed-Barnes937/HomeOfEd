@@ -78,16 +78,38 @@ component owns the driver** — one per page, for the life of the page — and d
 not dispose it. `AudioDriver.dispose()` stays on the interface for a caller that
 genuinely owns one (the offline render path, tests).
 
+## Amendment (2026-08-16): the seam has no resume semantics
+
+Decision 2 above ("pause, not stop") is withdrawn. `start()` is always **start
+from the top**: it resets `nextTick` and the playhead anchor to 0 before the
+driver's transport runs, so the first beat of every run is tick 0, step 0. Stop
+keeps nothing to resume from — the `frozenPos` field is gone, and `songPos()`
+reads 0 whenever the transport is stopped. `tick` is therefore monotonic only
+within a run, not for the whole session; `step` is still `tick mod 16`.
+
+The toy has one transport concept, not two. Resume made the audible start
+depend on where the last stop happened, which reads as a bug to a 6-year-old:
+press play, hear the middle of the loop. Putting the rewind inside `start()`
+rather than in the callers makes it true for clip play, song play and the
+spacebar alike, with no path that can opt out.
+
+The cost is the gapless takeover between clip play and song play (ticket 22,
+spec §9). Both used to switch mode over a *running* transport; both now stop
+and start, so the takeover begins at the top with a small audible gap. Draws
+are still cancelled on stop (decision 3), and the UI drops its last drawn step
+on the `started` event so the old position cannot flash before the new run's
+first beat is drawn.
+
 ## Amendment (2026-08-17): `seek(tick)`, and the driver seam stays as it is
 
 The playhead effort
 ([`.scratch/boop-playhead/spec.md`](../../.scratch/boop-playhead/spec.md),
 ticket 01) makes the song's position settable, so the engine grows one
 capability: **`seek(tick)`**. It sets the scheduler's `nextTick`, re-anchors
-`songPos()` on the target (or, while stopped, writes `frozenPos`, because that is
-what a later `start()` resumes from), and cancels pending draws. It emits **no**
-transport event — a seek is neither a start nor a stop, and the position is a
-query, not an event stream. Decision 2 above ("pause, not stop") is unchanged: a
+`songPos()` on the target (while stopped there is no anchor to hold, so the
+floor below reports the target and `nextTick` is what the next `start()` sounds
+from), and cancels pending draws. It emits **no** transport event — a seek is
+neither a start nor a stop, and the position is a query, not an event stream. A
 seek is the *only* way the tick moves other than by counting.
 
 Two smaller calls the ticket left to the implementation:
@@ -114,3 +136,18 @@ amendment is therefore a *narrowing of the engine*, not a change to the driver.
 **Veto trigger:** if the by-ear check finds the stale audio reads as a stutter or
 a wrong note rather than a smear, widen `AudioDriver` with a way to cancel
 scheduled audio and amend this again.
+
+### Where the rewind lives
+
+The amendment above puts the rewind inside `start()`. A settable playhead needs
+it inside **`stop()`** instead, and that is where it now is: `stop()` resets
+`nextTick` and the position floor to 0, and `start()` anchors on whatever
+`nextTick` holds.
+
+Both rules survive intact. Stopping still discards the run's progress, so a stop
+part way through the loop is followed by a play from the top — the whole point of
+the 2026-08-16 amendment, and no caller can opt out of it any more than before.
+What can now reach the next run is a **seek**, which is a child deliberately
+putting the playhead somewhere and is the one thing that should be honoured. The
+rewind on stop happens before that seek, not after it, so an explicit choice is
+no longer wiped by the play meant to sound it.

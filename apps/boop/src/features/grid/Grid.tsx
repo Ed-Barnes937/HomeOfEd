@@ -126,162 +126,171 @@ export function Grid({
       data-tinted={tintColor !== undefined}
       style={tintColor !== undefined ? ({ '--clip-tint': tintColor } as CSSProperties) : undefined}
     >
-      <div className={styles.barNumerals} aria-hidden="true">
-        <div className={styles.railSpacer} />
-        {groups.map((group) => (
-          <div
-            key={group}
-            className={styles.barNumeral}
-            data-active={group === activeBar}
-            data-testid={`bar-numeral-${group}`}
-          >
-            {group + 1}
-          </div>
-        ))}
-      </div>
-      <div className={styles.railRow}>
-        <span className={styles.railLabel}>THIS CLIP</span>
-        <div
-          className={styles.railTrack}
-          role="slider"
-          tabIndex={0}
-          aria-label="This clip. Drag to move the playhead."
-          aria-valuemin={0}
-          aria-valuemax={STEPS_PER_PATTERN - 1}
-          aria-valuenow={playheadStep ?? 0}
-          aria-valuetext={`Step ${(playheadStep ?? 0) + 1}`}
-          onKeyDown={onRailKeyDown}
-          onPointerDown={railScrub.onPointerDown}
-          onPointerMove={railScrub.onPointerMove}
-          onPointerUp={railScrub.onPointerUp}
-          onPointerCancel={railScrub.onPointerCancel}
-          data-testid="clip-rail"
-        >
+      <div className={styles.wellScroll} data-testid="grid-scroll">
+        <div className={styles.barNumerals} aria-hidden="true">
+          <div className={styles.railSpacer} />
           {groups.map((group) => (
-            <div key={group} className={styles.railGroup}>
-              {STEPS.slice(group * GROUP_SIZE, (group + 1) * GROUP_SIZE).map((step) => (
-                <span
-                  key={step}
-                  className={styles.railTick}
-                  {...{ [SCRUB_SEGMENT_ATTR]: '' }}
-                  data-current={step === playheadStep}
-                  data-playing={playheadPlaying}
-                  data-testid={`clip-rail-tick-${step}`}
-                />
-              ))}
+            <div
+              key={group}
+              className={styles.barNumeral}
+              data-active={group === activeBar}
+              data-testid={`bar-numeral-${group}`}
+            >
+              {group + 1}
             </div>
           ))}
         </div>
-      </div>
-      <div
-        ref={keyboardNav.containerRef}
-        className={styles.body}
-        role="application"
-        aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses."
-      >
-        {playheadStep !== null && (
+        <div className={styles.railRow}>
+          <span className={styles.railLabel}>THIS CLIP</span>
           <div
-            className={styles.playhead}
-            style={playheadStyle}
-            data-testid="playhead"
-            data-step={playheadStep}
-            data-playing={playheadPlaying}
-          />
-        )}
-        <div className={styles.rows}>
-          {pattern.map((row, rowIndex) => {
-            const instrument = kit.instruments[rowIndex]
-            if (!instrument) return null
-            const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
-            const rowStyle = { '--row-color': `var(${colorVar})` } as CSSProperties
-            const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
-
-            return (
-              <div key={row.instrumentId} className={styles.row} style={rowStyle}>
-                <div className={styles.rail}>
-                  <span className={styles.plate}>
-                    <span
-                      className={styles.artwork}
-                      style={{
-                        maskImage: `url(${instrument.artwork})`,
-                        WebkitMaskImage: `url(${instrument.artwork})`,
-                      }}
-                    />
-                  </span>
+            className={styles.railTrack}
+            role="slider"
+            tabIndex={0}
+            aria-label="This clip. Drag to move the playhead."
+            aria-valuemin={0}
+            aria-valuemax={STEPS_PER_PATTERN - 1}
+            aria-valuenow={playheadStep ?? 0}
+            aria-valuetext={`Step ${(playheadStep ?? 0) + 1}`}
+            onKeyDown={onRailKeyDown}
+            onPointerDown={railScrub.onPointerDown}
+            onPointerMove={railScrub.onPointerMove}
+            onPointerUp={railScrub.onPointerUp}
+            onPointerCancel={railScrub.onPointerCancel}
+            data-testid="clip-rail"
+          >
+            {groups.map((group) => (
+              <div key={group} className={styles.railGroup}>
+                {STEPS.slice(group * GROUP_SIZE, (group + 1) * GROUP_SIZE).map((step) => (
                   <span
-                    key={rowStrikeEpoch}
-                    className={styles.nameBob}
-                    data-struck={rowStrikeEpoch > 0}
-                    data-testid={`row-label-${row.instrumentId}`}
-                  >
-                    <span className={styles.name}>{instrument.name}</span>
-                  </span>
-                </div>
-                <div className={styles.steps}>
-                  {groups.map((group) => (
-                    <div
-                      key={group}
-                      className={styles.group}
-                      data-parity={group % 2 === 0 ? 'even' : 'odd'}
-                    >
-                      {Array.from({ length: GROUP_SIZE }, (_, i) => {
-                        const step = group * GROUP_SIZE + i
-                        const on = row.steps[step] === true
-                        const underPlayhead = step === playheadStep
-                        const cellKey = `${row.instrumentId}:${step}`
-                        const strikeEpoch = cellStrikes[cellKey] ?? 0
-                        const mountDelay = staggerDelayFor(cellKey, step, on)
-                        return (
-                          <button
-                            key={step}
-                            type="button"
-                            className={styles.cell}
-                            data-parity={group % 2 === 0 ? 'even' : 'odd'}
-                            data-active={on}
-                            data-playhead={underPlayhead}
-                            data-testid={`cell-${row.instrumentId}-${step}`}
-                            aria-pressed={on}
-                            aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
-                            onPointerDown={(event) =>
-                              paint.onPointerDown(event, row.instrumentId, step, on)
-                            }
-                            onPointerEnter={(event) =>
-                              paint.onPointerEnter(event, row.instrumentId, step, on)
-                            }
-                            onClick={(event) => paint.onClick(event, row.instrumentId, step)}
-                            onKeyDown={(event) =>
-                              keyboardNav.onCellKeyDown(event, rowIndex, step, row.instrumentId, on)
-                            }
-                          >
-                            <span
-                              key={strikeEpoch}
-                              className={styles.squash}
-                              data-struck={strikeEpoch > 0}
-                              data-testid={`cell-squash-${row.instrumentId}-${step}`}
-                            >
-                              {on && (
-                                <span
-                                  className={styles.cellArtwork}
-                                  style={{
-                                    maskImage: `url(${instrument.artwork})`,
-                                    WebkitMaskImage: `url(${instrument.artwork})`,
-                                    animationDelay: mountDelay > 0 ? `${mountDelay}ms` : undefined,
-                                  }}
-                                />
-                              )}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ))}
-                </div>
+                    key={step}
+                    className={styles.railTick}
+                    {...{ [SCRUB_SEGMENT_ATTR]: '' }}
+                    data-current={step === playheadStep}
+                    data-playing={playheadPlaying}
+                    data-testid={`clip-rail-tick-${step}`}
+                  />
+                ))}
               </div>
-            )
-          })}
+            ))}
+          </div>
+        </div>
+        <div
+          ref={keyboardNav.containerRef}
+          className={styles.body}
+          role="application"
+          aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses."
+        >
+          {playheadStep !== null && (
+            <div
+              className={styles.playhead}
+              style={playheadStyle}
+              data-testid="playhead"
+              data-step={playheadStep}
+              data-playing={playheadPlaying}
+            />
+          )}
+          <div className={styles.rows}>
+            {pattern.map((row, rowIndex) => {
+              const instrument = kit.instruments[rowIndex]
+              if (!instrument) return null
+              const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
+              const rowStyle = { '--row-color': `var(${colorVar})` } as CSSProperties
+              const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
+
+              return (
+                <div key={row.instrumentId} className={styles.row} style={rowStyle}>
+                  <div className={styles.rail}>
+                    <span className={styles.plate}>
+                      <span
+                        className={styles.artwork}
+                        style={{
+                          maskImage: `url(${instrument.artwork})`,
+                          WebkitMaskImage: `url(${instrument.artwork})`,
+                        }}
+                      />
+                    </span>
+                    <span
+                      key={rowStrikeEpoch}
+                      className={styles.nameBob}
+                      data-struck={rowStrikeEpoch > 0}
+                      data-testid={`row-label-${row.instrumentId}`}
+                    >
+                      <span className={styles.name}>{instrument.name}</span>
+                    </span>
+                  </div>
+                  <div className={styles.steps}>
+                    {groups.map((group) => (
+                      <div
+                        key={group}
+                        className={styles.group}
+                        data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                      >
+                        {Array.from({ length: GROUP_SIZE }, (_, i) => {
+                          const step = group * GROUP_SIZE + i
+                          const on = row.steps[step] === true
+                          const underPlayhead = step === playheadStep
+                          const cellKey = `${row.instrumentId}:${step}`
+                          const strikeEpoch = cellStrikes[cellKey] ?? 0
+                          const mountDelay = staggerDelayFor(cellKey, step, on)
+                          return (
+                            <button
+                              key={step}
+                              type="button"
+                              className={styles.cell}
+                              data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                              data-active={on}
+                              data-playhead={underPlayhead}
+                              data-testid={`cell-${row.instrumentId}-${step}`}
+                              aria-pressed={on}
+                              aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
+                              onPointerDown={(event) =>
+                                paint.onPointerDown(event, row.instrumentId, step, on)
+                              }
+                              onPointerEnter={(event) =>
+                                paint.onPointerEnter(event, row.instrumentId, step, on)
+                              }
+                              onClick={(event) => paint.onClick(event, row.instrumentId, step)}
+                              onKeyDown={(event) =>
+                                keyboardNav.onCellKeyDown(
+                                  event,
+                                  rowIndex,
+                                  step,
+                                  row.instrumentId,
+                                  on,
+                                )
+                              }
+                            >
+                              <span
+                                key={strikeEpoch}
+                                className={styles.squash}
+                                data-struck={strikeEpoch > 0}
+                                data-testid={`cell-squash-${row.instrumentId}-${step}`}
+                              >
+                                {on && (
+                                  <span
+                                    className={styles.cellArtwork}
+                                    style={{
+                                      maskImage: `url(${instrument.artwork})`,
+                                      WebkitMaskImage: `url(${instrument.artwork})`,
+                                      animationDelay:
+                                        mountDelay > 0 ? `${mountDelay}ms` : undefined,
+                                    }}
+                                  />
+                                )}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
-      {wellFooter}
+      {wellFooter && <div className={styles.wellFooter}>{wellFooter}</div>}
     </div>
   )
 }

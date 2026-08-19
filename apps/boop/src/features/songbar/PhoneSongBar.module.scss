@@ -17,9 +17,39 @@ $row-inset: 4px;
   padding: 10px; // the grid well's padding, for the column alignment
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.045);
+  // The lanes scroll inside the bar; the header above them does not (ticket
+  // 23), so the song play button it carries is on screen at every window
+  // height however many clips the song has.
+  //
+  // The bar does not shrink, and what stops it is the *absence* of a
+  // `min-height: 0` here — do not add one. Without it this box keeps
+  // `min-height: auto`, which for a flex item with `overflow: visible`
+  // resolves to the content-based automatic minimum, so the bar already
+  // refuses to go below its content. `flex-shrink: 0` was tried and removed:
+  // measured at four viewport/clip combinations it changed nothing, because
+  // the automatic minimum had already done the job.
+  //
+  // That ordering is the ticket's headline — "the grid scrolls **not** the
+  // bar" — and a shrink *factor* could not have expressed it either way: flex
+  // shares a deficit out proportionally rather than queueing it, so any factor
+  // above zero chops a lane row on the default one-clip phone screen while the
+  // grid still holds 109px of slack. The grid's own floor is in
+  // `PhoneGrid.module.scss`; between them the region takes the overflow.
+  //
+  // `max-height: 100%` then clamps that automatic minimum (flexbox §4.5), and
+  // it is what keeps song play reachable once the region does scroll: capped
+  // at the region's height, the bar's top can never rise above the region's
+  // top, so at the bottom of the scroll the header lands at y=62 — clear of
+  // the 52px chrome — instead of at y=41 behind it. It is also what makes the
+  // strip's scroller load-bearing: a capped bar loses lane rows, not the
+  // header.
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
 }
 
 .header {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -205,7 +235,31 @@ $row-inset: 4px;
   background: rgba(20, 38, 42, 0.45);
 }
 
+// The chip column and the lane strip scroll vertically together, so a child
+// always knows whose lane a row is (ticket 23). `flex: 0 1 auto`, never
+// `flex: 1`: the strip may shrink on a short window but must not grow on a
+// tall one. This is the only part of the bar that can give — the header above
+// is `flex: none` — so a bar capped by its `max-height` loses lane rows to a
+// scroll, never the song play button. Below that cap the bar does not shrink
+// at all and this strip stays whole: the grid absorbs the squeeze first.
+//
+// The horizontal padding is `.window`'s own (ticket 25) repeated one box out:
+// `overflow-y: auto` computes this axis to `auto` as well, so without it the
+// window's -4px margins would fall outside this box and be clipped.
 .lanes {
+  flex: 0 1 auto;
+  min-height: 0;
+  // The song container's own short-window cap (ADR 0030, ticket 23): with the
+  // page scrolling, `.bar`'s `max-height: 100%` no longer bounds anything, so
+  // the strip would lay all five lanes out down the document. Three lanes and
+  // the ruler, then it scrolls — the same shape it has above the threshold.
+  @media (max-height: 504px) {
+    max-height: $ruler-height + $lane-gap + 2 * $row-inset + 3 * $lane-height +
+      2 * $lane-gap;
+  }
+  overflow-y: auto;
+  padding: 0 4px;
+  margin: 0 -4px;
   display: flex;
   gap: 8px; // the rail gap
 }
@@ -305,6 +359,13 @@ $row-inset: 4px;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  // Sideways room for the end squares' focus rings, which sit 4px out; the
+  // negative margin keeps the strip's columns where they were, and the
+  // scroll padding keeps the bar lines snapping to the same offsets
+  // (ticket 25). The vertical room is `.laneRows`' $row-inset.
+  padding: 0 4px;
+  margin: 0 -4px;
+  scroll-padding-left: 4px;
   scroll-snap-type: x mandatory;
   touch-action: pan-x;
   scrollbar-width: none;

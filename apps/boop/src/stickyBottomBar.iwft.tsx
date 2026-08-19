@@ -13,11 +13,14 @@ test.describe('laptop, short window', () => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
-    await root.verifyGridRegionIsTheOnlyScroller()
+    await root.verifyGridWellIsTheScroller()
+    // At this width the well swallows the whole squeeze, so the region has
+    // nothing to scroll either — the stronger claim, kept where it holds.
+    await root.verifyNothingIsScrolled()
     await root.verifyTransportFullyInViewport()
     await root.verifyTopBarFullyInViewport()
 
-    await root.scrollGridRegionToBottom()
+    await root.scrollGridWellToBottom()
 
     // The whole complaint in one assertion: the play button is still there.
     await root.verifyTransportFullyInViewport()
@@ -28,7 +31,7 @@ test.describe('laptop, short window', () => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
-    await root.scrollGridRegionToBottom()
+    await root.scrollGridWellToBottom()
     await root.pressPlay()
     await root.verifyPlaying()
   })
@@ -48,8 +51,8 @@ test.describe('small phone, short window', () => {
     await root.verifyIsShown()
     await root.verifyPhoneChromeShown()
 
-    await root.verifyGridRegionIsTheOnlyScroller()
-    await root.scrollGridRegionToBottom()
+    await root.verifyGridWellIsTheScroller()
+    await root.scrollGridWellToBottom()
 
     await root.verifyTransportFullyInViewport()
     await root.verifyTopBarFullyInViewport()

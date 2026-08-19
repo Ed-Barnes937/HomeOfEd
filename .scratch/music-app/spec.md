@@ -58,8 +58,12 @@ screens.
 
 ### Transport & tempo
 
-- **Play/pause** is the one transport control. Loop is unconditional; there
-  is no play-once mode and no record.
+- **Play/stop** is the one transport control. Loop is unconditional; there
+  is no play-once mode and no record. There is no pause either: play always
+  starts at the beginning (boop-loops ticket 22, [ADR 0024](../../docs/adr/0024-boop-sequencer-engine-seam.md)
+  as amended) — the rewind moves the playhead only, never the pattern. The
+  beginning is wherever the child has put the playhead, which is the start of
+  the song until they scrub it somewhere else (boop-playhead).
 - No button that resets the pattern while looking like "play from the top"
   (Song Maker's Restart trap). If a return-to-step-1 affordance exists, it
   must not touch the pattern.

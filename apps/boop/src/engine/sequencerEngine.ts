@@ -94,9 +94,12 @@ export interface SequencerEngine {
   /** Replace the whole grid (loading a preset, a saved boop, a share link). */
   setPattern(pattern: Pattern): void
 
-  /** Unlock audio (must be called from a user gesture) and start the loop. */
+  /**
+   * Unlock audio (must be called from a user gesture) and start the loop —
+   * always from the top: `tick` and the playhead rewind to 0 first.
+   */
   start(): Promise<void>
-  /** Pause the loop. `tick` is not reset — playback resumes where it stopped. */
+  /** Stop the loop. There is no pause, so nothing is kept to resume from. */
   stop(): void
   isPlaying(): boolean
 

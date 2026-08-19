@@ -25,15 +25,17 @@ test('the song bar renders in the scrolling region; nothing new is pinned', asyn
   await root.verifyTempo(100)
 
   // Even at the five-clip cap the lanes grow the scrolling region, never a
-  // pinned bar: the grid region stays the only scroller (ADR 0030) and the
-  // page never scrolls sideways.
+  // pinned bar: the grid scrolls inside its own well (ADR 0030, as amended by
+  // ticket 23), on a window this tall nothing else has to scroll at all, and
+  // the page never scrolls sideways.
   await root.addClip()
   await root.addClip()
   await root.addClip()
   await root.addClip()
   await root.verifyClipCount(5)
   await root.verifyTransportFullyInViewport()
-  await root.verifyGridRegionIsTheOnlyScroller()
+  await root.verifyGridWellIsTheScroller()
+  await root.verifyNothingIsScrolled()
   await root.verifyNoHorizontalOverflow()
 })
 
@@ -52,6 +54,17 @@ test('lane squares align column-for-column with the step window, and the strip s
   // own snap point (8 x 32 + 6 x 5 + 2 x 11), never half a bar.
   await root.swipeLanes(300)
   await root.verifyLaneWindowAt(308)
+})
+
+test('the lane window leaves room for its squares’ focus rings', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyFocusRingsFitTheScrollBox('phone-lane-window')
+  // The room changed nothing on screen: the columns still line up.
+  await root.verifyLaneSquareAlignedUnderCell(0)
+  await root.verifyLaneSquareAlignedUnderCell(15)
 })
 
 test('placements follow the phone paint-vs-scroll rules', async ({ mountApp }) => {
@@ -106,7 +119,8 @@ test('song play works from the song bar header and the playing ring walks the la
   await root.verifyPositionNumeralPlaying(1)
 
   // The transport's play is *clip* play (spec §9): it takes over from the
-  // song without stopping the transport.
+  // song, stopping the transport and starting the clip from the top
+  // (ticket 22).
   await root.pressPlay()
   await root.verifySongStopped()
   await root.verifyPlaying()
