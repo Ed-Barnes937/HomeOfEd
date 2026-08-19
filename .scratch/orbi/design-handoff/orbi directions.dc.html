@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;700;900&amp;family=Chivo+Mono:wght@400;600&amp;family=Baloo+2:wght@600;800&amp;family=Nunito:wght@500;700;800&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,500&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}a{color:#2a78d6}a:hover{color:#1b5aa8}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11.5px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.6)}.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}.dv-next{margin:26px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}.dv-intro{max-width:760px;font:12.5px/1.55 system-ui,sans-serif;color:rgba(0,0,0,.62);margin:0 0 24px}</style>
+</helmet>
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Live three.js explorations — real WebGL, in the <a class="dv-oid" href="#1d">1d</a> Flight Console chrome</span></div>
+<p class="dv-intro">These two are actually rendering with three.js, not painted mockups — drag to spin. <a class="dv-oid" href="#3a">3a</a> is the orbit view: procedural continents, a sun that orbits so the terminator sweeps and city lights wink on as night arrives, an ice comet that streaks in and impacts every ~14s (flash + glow), atmosphere rim shader, one moon. <a class="dv-oid" href="#3b">3b</a> is the surface: bumpy terrain, pond, hopping blobs, fireflies — and plants growing in time-lapse from sprout → fern → small tree, each on its own clock. Everything here is buildable with the same tricks in the real app.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Orbit view, live — sweeping terminator, comet impact every ~14s; drag to spin</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background:#04060c;font-family:'IBM Plex Mono',monospace">
+  <x-import component-from-global-scope="orbi-planet-3d" from="./orbi-three.js" style="position:absolute;inset:0;width:1150px;height:680px" hint-size="1150px,680px"></x-import>
+  <div style="position:absolute;top:26px;left:32px;pointer-events:none">
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:600 22px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:2px">SPLODGE</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 05/05 &#183; CLEVER BLOBS</span></div>
+    <div style="margin-top:4px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LIVE RENDER &#183; DRAG TO ROTATE</div>
+  </div>
+  <div style="position:absolute;top:28px;right:32px;padding:6px 12px;border:1px solid rgba(127,216,232,.3);color:rgba(127,216,232,.8);font:400 11px 'IBM Plex Mono',monospace;pointer-events:none">[ ESC ] SHELF</div>
+  <div style="position:absolute;left:32px;bottom:26px;display:flex;gap:10px;pointer-events:none">
+    <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace;background:rgba(4,6,12,.6)">[ ORBIT &#8645; ]</div>
+    <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace;background:rgba(4,6,12,.6)">[ ATMOS &#8767; ]</div>
+    <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace;background:rgba(4,6,12,.6)">[ COMET &#10054; ]</div>
+    <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace;background:rgba(4,6,12,.6)">[ SEED &#10047; ]</div>
+  </div>
+  <div style="position:absolute;right:32px;bottom:26px;display:flex;align-items:center;gap:12px;pointer-events:none;background:rgba(4,6,12,.6);padding:8px 12px;border:1px solid rgba(127,216,232,.25)">
+    <span style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">TIME RATE</span>
+    <span style="font:600 16px 'IBM Plex Mono',monospace;color:#e8f4f6">&#215;1000</span>
+  </div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Surface view, live — blobs + plants growing sprout→fern→tree in time-lapse; drag to look</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background:#060910;font-family:'IBM Plex Mono',monospace">
+  <x-import component-from-global-scope="orbi-surface-3d" from="./orbi-three.js" style="position:absolute;inset:0;width:1150px;height:680px" hint-size="1150px,680px"></x-import>
+  <div style="position:absolute;top:26px;left:32px;pointer-events:none">
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:600 20px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:2px">SPLODGE</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">SURFACE &#183; CH 04/05 &#183; BLOBS!</span></div>
+    <div style="margin-top:4px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LIVE RENDER &#183; DRAG TO LOOK AROUND</div>
+  </div>
+  <div style="position:absolute;top:28px;right:32px;padding:8px 14px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace;background:rgba(4,6,12,.6);pointer-events:none">[ &#8593; BACK TO ORBIT ]</div>
+  <div style="position:absolute;left:32px;bottom:24px;display:flex;align-items:center;gap:12px;background:rgba(4,6,12,.6);padding:8px 12px;border:1px solid rgba(127,216,232,.25);pointer-events:none">
+    <span style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">TIME</span>
+    <span style="font:600 14px 'IBM Plex Mono',monospace;color:#e8f4f6">&#215;100</span>
+  </div>
+</div></div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "blobs follow the cursor" &#183; "comet leaves a crater lake that turns green" &#183; "tiny rocket launch from the surface"</p>
+</section>
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Taking <a class="dv-oid" href="#1d">1d</a> Flight Console forward — the full screen set</span></div>
+<p class="dv-intro">Same system as <a class="dv-oid" href="#1d">1d</a>: near-black #04060c, IBM Plex Mono, one cyan accent, square corners, bracket buttons. The chrome stays deadpan and monochrome so the planets carry all the colour. Shelf &#8594; builder &#8594; surface view &#8594; postcard, plus the orbit view again at chapter 5 so the city-lights payoff exists in this direction too. UNIT-7 ("Toaster") appears in every screen's Mission Control slot.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Planet shelf — mission roster with search</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1px 1px at 22% 28%,rgba(255,255,255,.65),transparent),radial-gradient(1px 1px at 48% 68%,rgba(255,255,255,.45),transparent),radial-gradient(1.5px 1.5px at 74% 18%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 90% 48%,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 10% 78%,rgba(255,255,255,.4),transparent),linear-gradient(#04060c,#04060c);font-family:'IBM Plex Mono',monospace">
+  <div style="position:absolute;top:30px;left:40px;display:flex;align-items:baseline;gap:12px"><span style="font:600 24px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:3px">ORBI</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">// PLANET SHELF</span></div>
+  <div style="position:absolute;top:30px;right:40px;display:flex;align-items:center;gap:10px;padding:10px 16px;border:1px solid rgba(127,216,232,.3);width:240px"><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.4)">SEARCH:</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:#e8f4f6">SPL</span><span style="width:8px;height:14px;background:#7fd8e8"></span></div>
+  <div style="position:absolute;top:96px;left:40px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">5 PLANETS &#183; SORTED BY LAST VISIT</div>
+  <div style="position:absolute;top:120px;left:40px;right:40px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:center;gap:18px;padding:12px 18px;border:1px solid rgba(127,216,232,.35);background:rgba(6,10,18,.85);box-shadow:inset 3px 0 0 #7fd8e8">
+      <div style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.4),transparent 45%),radial-gradient(circle at 62% 66%,#1e8f6a 0 12%,transparent 26%),radial-gradient(circle at 46% 44%,#37c795 0 60%,#2fb886 100%);box-shadow:inset -12px -3px 12px rgba(2,3,8,.9)"></div>
+      <div style="flex:1"><div style="font:600 15px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:1px">SPLODGE</div><div style="margin-top:3px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 04/05 &#183; BLOBS!</div></div>
+      <div style="width:220px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.55)">18&#176;C &#183; WATER: LIQUID &#183; BLOBS: 12</div>
+      <div style="width:130px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LAST SEEN TODAY</div>
+      <div style="padding:8px 16px;border:1px solid #7fd8e8;color:#04060c;background:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ OPEN ]</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;padding:12px 18px;border:1px solid rgba(127,216,232,.2);background:rgba(6,10,18,.85)">
+      <div style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 30% 26%,rgba(255,255,255,.5),transparent 40%),radial-gradient(circle at 68% 60%,#8ed96a 0 11%,transparent 22%),radial-gradient(circle at 46% 46%,#ff8fb0 0 58%,#ff7aa2 100%);box-shadow:inset -12px -3px 12px rgba(2,3,8,.9)"></div>
+      <div style="flex:1"><div style="font:600 15px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:1px">ZOOMER</div><div style="margin-top:3px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 03/05 &#183; FIRST LIFE</div></div>
+      <div style="width:220px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.55)">22&#176;C &#183; SHALLOW SEAS &#183; GREEN: SPREADING</div>
+      <div style="width:130px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LAST SEEN 2 DAYS</div>
+      <div style="padding:8px 16px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ OPEN ]</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;padding:12px 18px;border:1px solid rgba(127,216,232,.2);background:rgba(6,10,18,.85)">
+      <div style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 30% 26%,rgba(255,244,224,.5),transparent 42%),radial-gradient(circle at 66% 58%,#7d6a9e 0 10%,transparent 24%),radial-gradient(circle at 45% 45%,#5a7ba2 0 55%,#4a6d8c 100%);box-shadow:inset -12px -3px 12px rgba(2,3,8,.9)"></div>
+      <div style="flex:1"><div style="font:600 15px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:1px">PEARL</div><div style="margin-top:3px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 05/05 &#183; CLEVER BLOBS</div></div>
+      <div style="width:220px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.55)">14&#176;C &#183; 4,006 LIGHTS &#183; 1 ROCKET</div>
+      <div style="width:130px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LAST SEEN 5 DAYS</div>
+      <div style="padding:8px 16px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ OPEN ]</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;padding:12px 18px;border:1px solid rgba(127,216,232,.2);background:rgba(6,10,18,.85)">
+      <div style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,236,214,.32),transparent 46%),radial-gradient(circle at 64% 58%,#7a5636 0 9%,transparent 20%),radial-gradient(circle at 46% 46%,#96714b 0 58%,#7d5c3c 100%);box-shadow:inset -12px -3px 12px rgba(2,3,8,.9)"></div>
+      <div style="flex:1"><div style="font:600 15px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:1px">BOULDER</div><div style="margin-top:3px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 01/05 &#183; BARE ROCK</div></div>
+      <div style="width:220px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.55)">&#8722;80&#176;C &#183; WATER: ICE &#183; LIFE: NONE</div>
+      <div style="width:130px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LAST SEEN 1 WEEK</div>
+      <div style="padding:8px 16px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ OPEN ]</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;padding:12px 18px;border:1px solid rgba(127,216,232,.2);background:rgba(6,10,18,.85)">
+      <div style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 30% 26%,rgba(255,255,255,.5),transparent 44%),radial-gradient(circle at 64% 62%,#b9a8e8 0 11%,transparent 23%),radial-gradient(circle at 46% 46%,#a5e0cf 0 56%,#9adbc8 100%);box-shadow:inset -12px -3px 12px rgba(2,3,8,.9)"></div>
+      <div style="flex:1"><div style="font:600 15px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:1px">TWINKLE</div><div style="margin-top:3px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 02/05 &#183; SEAS FORM</div></div>
+      <div style="width:220px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.55)">6&#176;C &#183; RAINING &#183; SEAS: FILLING</div>
+      <div style="width:130px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LAST SEEN 2 WEEKS</div>
+      <div style="padding:8px 16px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ OPEN ]</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border:1px dashed rgba(127,216,232,.35);color:#7fd8e8;font:600 12px 'IBM Plex Mono',monospace">[ + NEW PLANET ]</div>
+  </div>
+  <div style="position:absolute;left:40px;right:40px;bottom:22px;display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid rgba(127,216,232,.18);background:rgba(6,10,18,.7)">
+    <div style="width:24px;height:26px;border:1px solid rgba(127,216,232,.6);border-radius:4px;background:rgba(8,14,24,.9);display:flex;align-items:center;justify-content:center;gap:3px"><div style="width:4px;height:8px;background:#7fd8e8"></div><div style="width:4px;height:8px;background:#7fd8e8"></div></div>
+    <div style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.6)">&gt; Nothing happened while you were away. Nothing ever does. Planets only run while you watch.</div>
+  </div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Builder — dials left of a live preview, recipe forecast from UNIT-7</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1px 1px at 22% 28%,rgba(255,255,255,.65),transparent),radial-gradient(1.5px 1.5px at 74% 18%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 90% 48%,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 10% 78%,rgba(255,255,255,.4),transparent),linear-gradient(#04060c,#04060c);font-family:'IBM Plex Mono',monospace">
+  <div style="position:absolute;top:26px;left:32px;display:flex;align-items:baseline;gap:14px"><span style="font:600 20px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:2px">NEW PLANET</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">BUILD MODE</span></div>
+  <div style="position:absolute;top:28px;right:32px;padding:6px 12px;border:1px solid rgba(127,216,232,.3);color:rgba(127,216,232,.8);font:400 11px 'IBM Plex Mono',monospace">[ ESC ] SHELF</div>
+  <div style="position:absolute;left:80px;top:130px;width:340px;height:340px">
+    <div style="position:absolute;inset:-24px;border-radius:50%;border:1px dashed rgba(127,216,232,.2)"></div>
+    <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.4),transparent 45%),radial-gradient(circle at 62% 66%,#3a7ba6 0 13%,transparent 28%),radial-gradient(circle at 28% 60%,#e8c97a 0 8%,transparent 17%),radial-gradient(circle at 70% 28%,#3a7ba6 0 9%,transparent 19%),radial-gradient(circle at 46% 44%,#5aa88f 0 58%,#48927c 100%);box-shadow:inset -70px -12px 70px rgba(2,3,8,.94),inset 12px 10px 38px rgba(255,255,255,.18)"></div>
+    <div style="position:absolute;right:-40px;top:-8px;width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 35% 32%,#cfd4de,#8f96a6 70%);box-shadow:inset -6px -3px 8px rgba(2,3,8,.7)"></div>
+    <div style="position:absolute;left:-16px;bottom:-46px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">PREVIEW &#183; UPDATES LIVE</div>
+  </div>
+  <div style="position:absolute;left:56px;top:548px;width:388px;border:1px solid rgba(127,216,232,.25);background:rgba(6,10,18,.85);padding:12px 14px;display:flex;gap:12px;align-items:flex-start">
+    <div style="width:24px;height:26px;border:1px solid rgba(127,216,232,.6);border-radius:4px;background:rgba(8,14,24,.9);display:flex;align-items:center;justify-content:center;gap:3px;flex:none"><div style="width:4px;height:8px;background:#7fd8e8"></div><div style="width:4px;height:8px;background:#7fd8e8"></div></div>
+    <div style="font:400 11px/1.6 'IBM Plex Mono',monospace;color:rgba(232,244,246,.7)">&gt; FORECAST: a bit far from the sun for green life. Ice life possible. Or nudge later. Your call.</div>
+  </div>
+  <div style="position:absolute;right:32px;top:88px;width:560px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid rgba(127,216,232,.3)"><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.4)">NAME:</span><span style="font:600 14px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:1px">FROSTBALL</span><span style="width:8px;height:15px;background:#7fd8e8"></span><span style="margin-left:auto;font:400 10px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.6)">[ &#8635; NEW NAME ]</span></div>
+    <div style="border:1px solid rgba(127,216,232,.25);background:rgba(6,10,18,.85);padding:16px 18px;display:flex;flex-direction:column;gap:16px">
+      <div style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">DIALS</div>
+      <div><div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75);margin-bottom:8px"><span>SIZE</span><span style="color:#7fd8e8">1.2 EARTHS</span></div><div style="position:relative;height:2px;background:rgba(127,216,232,.18)"><div style="position:absolute;left:0;top:0;height:2px;width:55%;background:#7fd8e8"></div><div style="position:absolute;left:55%;top:-5px;width:11px;height:11px;background:#04060c;border:1.5px solid #7fd8e8"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75);margin-bottom:8px"><span>DISTANCE FROM SUN</span><span style="color:#7fd8e8">1.6 AU &#183; CHILLY</span></div><div style="position:relative;height:2px;background:rgba(127,216,232,.18)"><div style="position:absolute;left:0;top:0;height:2px;width:72%;background:#7fd8e8"></div><div style="position:absolute;left:72%;top:-5px;width:11px;height:11px;background:#04060c;border:1.5px solid #7fd8e8"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75);margin-bottom:8px"><span>WATER</span><span style="color:#7fd8e8">62%</span></div><div style="position:relative;height:2px;background:rgba(127,216,232,.18)"><div style="position:absolute;left:0;top:0;height:2px;width:62%;background:#7fd8e8"></div><div style="position:absolute;left:62%;top:-5px;width:11px;height:11px;background:#04060c;border:1.5px solid #7fd8e8"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75);margin-bottom:8px"><span>ATMOSPHERE</span><span style="color:#7fd8e8">0.7 BAR &#183; THIN-ISH</span></div><div style="position:relative;height:2px;background:rgba(127,216,232,.18)"><div style="position:absolute;left:0;top:0;height:2px;width:38%;background:#7fd8e8"></div><div style="position:absolute;left:38%;top:-5px;width:11px;height:11px;background:#04060c;border:1.5px solid #7fd8e8"></div></div></div>
+    </div>
+    <div style="border:1px solid rgba(127,216,232,.25);background:rgba(6,10,18,.85);padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+      <div style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">LOOKS</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75);width:80px">COLOUR</span>
+        <div style="width:26px;height:26px;background:#48927c;box-shadow:0 0 0 2px #7fd8e8"></div>
+        <div style="width:26px;height:26px;background:#ff7aa2"></div>
+        <div style="width:26px;height:26px;background:#4a6d8c"></div>
+        <div style="width:26px;height:26px;background:#96714b"></div>
+        <div style="width:26px;height:26px;background:#9adbc8"></div>
+        <div style="width:26px;height:26px;background:#c9a6ff"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75);width:80px">PATTERN</span>
+        <div style="padding:6px 12px;border:1px solid #7fd8e8;color:#04060c;background:#7fd8e8;font:600 10.5px 'IBM Plex Mono',monospace">SPOTS</div>
+        <div style="padding:6px 12px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.7);font:400 10.5px 'IBM Plex Mono',monospace">STRIPES</div>
+        <div style="padding:6px 12px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.7);font:400 10.5px 'IBM Plex Mono',monospace">SWIRLS</div>
+        <div style="padding:6px 12px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.7);font:400 10.5px 'IBM Plex Mono',monospace">PLAIN</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:28px">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)">MOONS</span><span style="padding:4px 10px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 12px 'IBM Plex Mono',monospace">&#8722;</span><span style="font:600 13px 'IBM Plex Mono',monospace;color:#e8f4f6">1</span><span style="padding:4px 10px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 12px 'IBM Plex Mono',monospace">+</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)">RINGS</span><span style="padding:4px 12px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.45);font:400 10.5px 'IBM Plex Mono',monospace">OFF</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div style="flex:1;text-align:center;padding:14px;border:1px solid rgba(127,216,232,.45);color:#7fd8e8;font:600 12.5px 'IBM Plex Mono',monospace">[ &#9860; RANDOMISE ]</div>
+      <div style="flex:1;text-align:center;padding:14px;background:#7fd8e8;color:#04060c;font:600 12.5px 'IBM Plex Mono',monospace">[ START TIME &#8594; ]</div>
+    </div>
+  </div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Zoomed in — surface view, Mission Control collapsed to an edge tab</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1px 1px at 22% 18%,rgba(255,255,255,.65),transparent),radial-gradient(1.5px 1.5px at 64% 10%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 86% 28%,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 8% 38%,rgba(255,255,255,.4),transparent),radial-gradient(50% 40% at 4% 0%,rgba(255,236,190,.14),transparent),linear-gradient(#04060c,#060910);font-family:'IBM Plex Mono',monospace">
+  <div style="position:absolute;left:-700px;top:400px;width:2550px;height:2550px;border-radius:50%;background:radial-gradient(circle at 50% 0%,#8a6544 0 18%,#7d5c3c 40%);box-shadow:inset 0 30px 80px rgba(255,236,214,.12)"></div>
+  <div style="position:absolute;left:120px;top:520px;width:340px;height:110px;border-radius:50%;background:radial-gradient(ellipse at 40% 40%,#4a8fb8,#3a7297 75%);box-shadow:inset 0 6px 18px rgba(2,3,8,.4),0 0 24px rgba(74,143,184,.25)"></div>
+  <div style="position:absolute;left:520px;top:470px;width:220px;height:70px;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,rgba(120,190,110,.85),rgba(96,160,86,.5) 70%,transparent)"></div>
+  <div style="position:absolute;left:760px;top:540px;width:300px;height:90px;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,rgba(120,190,110,.7),rgba(96,160,86,.4) 70%,transparent)"></div>
+  <div style="position:absolute;left:300px;top:445px;width:150px;height:44px;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,rgba(120,190,110,.6),transparent 75%)"></div>
+  <div style="position:absolute;left:150px;top:330px;width:150px;height:38px;border-radius:50%;background:rgba(255,255,255,.1)"></div>
+  <div style="position:absolute;left:210px;top:316px;width:110px;height:34px;border-radius:50%;background:rgba(255,255,255,.13)"></div>
+  <div style="position:absolute;left:196px;top:372px;width:2px;height:9px;background:rgba(140,190,220,.55);transform:rotate(14deg);box-shadow:22px 4px 0 rgba(140,190,220,.45),44px -2px 0 rgba(140,190,220,.5),66px 6px 0 rgba(140,190,220,.4),88px 0 0 rgba(140,190,220,.5)"></div>
+  <div style="position:absolute;left:180px;top:472px;width:190px;height:42px;border-radius:50%;background:rgba(2,3,8,.22)"></div>
+  <div style="position:absolute;left:766px;top:576px;width:2.5px;height:2.5px;border-radius:50%;background:rgba(120,80,50,.7);box-shadow:14px 5px 0 rgba(120,80,50,.6),28px 7px 0 rgba(120,80,50,.65),42px 5px 0 rgba(120,80,50,.55),56px 1px 0 rgba(120,80,50,.6),66px -3px 0 rgba(120,80,50,.5)"></div>
+  <div style="position:absolute;left:798px;top:584px;width:17px;height:13px;border-radius:7px 7px 6px 6px;background:#9fd66a;box-shadow:inset -3px -2px 4px rgba(60,90,40,.5)"><div style="position:absolute;left:3px;top:3px;width:3px;height:4.5px;border-radius:1.5px;background:#fff"></div><div style="position:absolute;left:10px;top:3px;width:3px;height:4.5px;border-radius:1.5px;background:#fff"></div></div>
+  <div style="position:absolute;left:776px;top:590px;width:13px;height:10px;border-radius:6px 6px 5px 5px;background:#b8e86a;box-shadow:inset -2.5px -2px 3px rgba(60,90,40,.45)"><div style="position:absolute;left:2.5px;top:2.5px;width:2.5px;height:3.5px;border-radius:1px;background:#fff"></div><div style="position:absolute;left:7.5px;top:2.5px;width:2.5px;height:3.5px;border-radius:1px;background:#fff"></div></div>
+  <div style="position:absolute;left:556px;top:472px;width:2px;height:10px;background:#6fae4a;border-radius:1px;transform:rotate(-6deg);box-shadow:7px 2px 0 #7fbe58,14px -1px 0 #6fae4a,21px 3px 0 #8ecf66"></div>
+  <div style="position:absolute;left:556px;top:468px;width:4px;height:4px;border-radius:50%;background:#b8e86a;box-shadow:7px 2px 0 #cdf08a,14px -1px 0 #b8e86a,21px 3px 0 #d6f49a"></div>
+  <div style="position:absolute;left:892px;top:556px;width:2px;height:9px;background:#6fae4a;border-radius:1px;transform:rotate(5deg);box-shadow:8px 3px 0 #7fbe58,16px -1px 0 #8ecf66"></div>
+  <div style="position:absolute;left:892px;top:552px;width:4px;height:4px;border-radius:50%;background:#b8e86a;box-shadow:8px 3px 0 #cdf08a,16px -1px 0 #b8e86a"></div>
+  <div style="position:absolute;left:700px;top:512px;width:3px;height:3px;border-radius:50%;background:#ffe9a8;box-shadow:0 0 5px rgba(255,233,168,.9),16px -10px 2px rgba(255,233,168,.7),34px 4px 2px rgba(255,233,168,.6),48px -14px 2px rgba(255,233,168,.5)"></div>
+  <div style="position:absolute;left:224px;top:546px;width:64px;height:22px;border-radius:50%;border:1px solid rgba(200,230,245,.35)"></div>
+  <div style="position:absolute;left:236px;top:550px;width:40px;height:14px;border-radius:50%;border:1px solid rgba(200,230,245,.25)"></div>
+  <div style="position:absolute;left:242px;top:540px;width:26px;height:14px;border-radius:12px 12px 0 0;background:#8ed96a"><div style="position:absolute;left:5px;top:4px;width:4px;height:6px;border-radius:2px;background:#fff"></div><div style="position:absolute;left:15px;top:4px;width:4px;height:6px;border-radius:2px;background:#fff"></div></div>
+  <div style="position:absolute;left:200px;top:508px;white-space:nowrap;font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.75);background:rgba(4,6,12,.7);padding:2px 6px">BLOB 11 &#183; SWIMMING, BADLY</div>
+  <div style="position:absolute;left:582px;top:498px;width:34px;height:26px;border-radius:14px 14px 11px 11px;background:#9fd66a;box-shadow:inset -6px -4px 8px rgba(60,90,40,.5)"><div style="position:absolute;left:7px;top:7px;width:6px;height:8px;border-radius:3px;background:#fff"></div><div style="position:absolute;left:19px;top:7px;width:6px;height:8px;border-radius:3px;background:#fff"></div><div style="position:absolute;left:9px;top:9px;width:3px;height:4px;border-radius:2px;background:#2a3a18"></div><div style="position:absolute;left:21px;top:9px;width:3px;height:4px;border-radius:2px;background:#2a3a18"></div></div>
+  <div style="position:absolute;left:840px;top:565px;width:42px;height:32px;border-radius:17px 17px 13px 13px;background:#9fd66a;box-shadow:inset -7px -5px 10px rgba(60,90,40,.5)"><div style="position:absolute;left:9px;top:9px;width:7px;height:9px;border-radius:3px;background:#fff"></div><div style="position:absolute;left:24px;top:9px;width:7px;height:9px;border-radius:3px;background:#fff"></div><div style="position:absolute;left:11px;top:11px;width:3.5px;height:5px;border-radius:2px;background:#2a3a18"></div><div style="position:absolute;left:26px;top:11px;width:3.5px;height:5px;border-radius:2px;background:#2a3a18"></div></div>
+  <div style="position:absolute;left:922px;top:590px;width:26px;height:20px;border-radius:11px 11px 9px 9px;background:#b8e86a;box-shadow:inset -5px -3px 7px rgba(60,90,40,.45)"><div style="position:absolute;left:5px;top:5px;width:5px;height:7px;border-radius:2px;background:#fff"></div><div style="position:absolute;left:14px;top:5px;width:5px;height:7px;border-radius:2px;background:#fff"></div></div>
+  <div style="position:absolute;left:452px;top:552px;width:30px;height:23px;border-radius:13px 13px 10px 10px;background:#8ed96a;box-shadow:inset -5px -4px 8px rgba(60,90,40,.5)"><div style="position:absolute;left:6px;top:6px;width:5px;height:7px;border-radius:2px;background:#fff"></div><div style="position:absolute;left:16px;top:6px;width:5px;height:7px;border-radius:2px;background:#fff"></div></div>
+  <div style="position:absolute;left:562px;top:452px;width:76px;height:80px;border:1px solid rgba(127,216,232,.65)"><div style="position:absolute;left:-1px;top:-22px;white-space:nowrap;font:400 9.5px 'IBM Plex Mono',monospace;color:#7fd8e8;background:rgba(4,6,12,.7);padding:2px 6px">BLOB 07 &#183; WOBBLING</div></div>
+  <div style="position:absolute;top:26px;left:32px">
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:600 20px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:2px">SPLODGE</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">SURFACE &#183; CH 04/05 &#183; BLOBS!</span></div>
+    <div style="margin-top:4px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">LIFE TYPE: CLASSIC GREEN &#183; COVERAGE 34% &#9650; &#183; BLOBS: 12 &#9650; &#183; SPROUTS: 48</div>
+  </div>
+  <div style="position:absolute;top:28px;right:32px;padding:8px 14px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace;background:rgba(4,6,12,.6)">[ &#8593; BACK TO ORBIT ]</div>
+  <div style="position:absolute;left:32px;bottom:24px;display:flex;align-items:center;gap:12px;background:rgba(4,6,12,.6);padding:8px 12px;border:1px solid rgba(127,216,232,.25)">
+    <span style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">TIME</span>
+    <span style="font:600 14px 'IBM Plex Mono',monospace;color:#e8f4f6">&#215;100</span>
+    <span style="padding:4px 10px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">&#8722;</span>
+    <span style="padding:4px 10px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">+</span>
+  </div>
+  <div style="position:absolute;right:0;top:270px;display:flex;align-items:center;gap:8px;padding:10px 12px 10px 14px;border:1px solid rgba(127,216,232,.35);border-right:none;background:rgba(6,10,18,.85)">
+    <span style="font:400 12px 'IBM Plex Mono',monospace;color:#7fd8e8">&#9666;</span>
+    <div style="width:20px;height:22px;border:1px solid rgba(127,216,232,.6);border-radius:3px;display:flex;align-items:center;justify-content:center;gap:2.5px"><div style="width:3.5px;height:7px;background:#7fd8e8"></div><div style="width:3.5px;height:7px;background:#7fd8e8"></div></div>
+  </div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="2d"><div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>Postcard — printed-telemetry keepsake, stamp starring UNIT-7</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1px 1px at 22% 28%,rgba(255,255,255,.5),transparent),radial-gradient(1.5px 1.5px at 74% 18%,rgba(255,255,255,.45),transparent),radial-gradient(1px 1px at 90% 68%,rgba(255,255,255,.35),transparent),linear-gradient(#04060c,#04060c);font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;justify-content:center">
+  <div style="position:absolute;top:30px;left:40px;font:400 11px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">POSTCARD // SPLODGE &#183; READY TO EXPORT</div>
+  <div style="width:840px;height:520px;background:#f0ead8;transform:rotate(-1.5deg);box-shadow:0 40px 90px rgba(0,0,0,.7);display:flex;flex-direction:column">
+    <div style="flex:1;display:flex">
+      <div style="width:56%;margin:22px 0 0 22px;position:relative;overflow:hidden;background-image:radial-gradient(1.5px 1.5px at 20% 25%,rgba(255,255,255,.8),transparent),radial-gradient(1px 1px at 60% 15%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 80% 60%,rgba(255,255,255,.5),transparent),radial-gradient(1px 1px at 35% 75%,rgba(255,255,255,.5),transparent),linear-gradient(#070a14,#0a0e1c)">
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:220px;height:220px;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.4),transparent 45%),radial-gradient(circle at 62% 66%,#1e8f6a 0 12%,transparent 26%),radial-gradient(circle at 46% 44%,#37c795 0 60%,#2fb886 100%);box-shadow:inset -46px -8px 46px rgba(4,6,14,.92),inset 10px 8px 26px rgba(255,255,255,.2),0 0 50px rgba(55,199,149,.2)"></div>
+        <div style="position:absolute;left:59%;top:44%;width:3px;height:3px;border-radius:50%;background:#ffd9a0;box-shadow:0 0 5px #ffd9a0,8px 12px 2px #ffce8a,-4px 22px 2px rgba(255,217,160,.85),12px 30px 2px rgba(255,206,138,.7),4px 40px 2px #ffd9a0"></div>
+        <div style="position:absolute;left:20px;bottom:14px;font:400 9px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.5);letter-spacing:1px">ORBIT DAY 91 118 &#183; CH 05/05</div>
+      </div>
+      <div style="flex:1;padding:22px 24px 0;display:flex;flex-direction:column">
+        <div style="align-self:flex-end;display:flex;gap:14px;align-items:flex-start">
+          <div style="width:74px;height:74px;border-radius:50%;border:1.5px dashed rgba(40,44,60,.4);display:flex;align-items:center;justify-content:center;transform:rotate(8deg)"><div style="font:400 7.5px 'IBM Plex Mono',monospace;color:rgba(40,44,60,.5);text-align:center;line-height:1.5">ORBI MAIL<br>DAY 91118<br>&#10038;</div></div>
+          <div style="width:66px;height:80px;border:1.5px dashed rgba(40,44,60,.45);background:#e6dfc8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px">
+            <div style="position:relative;width:34px;height:30px"><div style="position:absolute;left:11px;top:0;width:12px;height:18px;border-radius:3px;background:#282c3c"></div><div style="position:absolute;left:14px;top:4px;width:6px;height:7px;border-radius:2px;background:#7fd8e8"></div><div style="position:absolute;left:0;top:6px;width:9px;height:10px;background:repeating-linear-gradient(90deg,#282c3c 0 2.5px,#8a8f9e 2.5px 5px)"></div><div style="position:absolute;left:25px;top:6px;width:9px;height:10px;background:repeating-linear-gradient(90deg,#282c3c 0 2.5px,#8a8f9e 2.5px 5px)"></div></div>
+            <div style="font:600 7px 'IBM Plex Mono',monospace;color:#282c3c">UNIT-7</div>
+          </div>
+        </div>
+        <div style="margin-top:26px;font:600 24px/1.3 'IBM Plex Mono',monospace;color:#282c3c;letter-spacing:1px">GREETINGS<br>FROM<br>SPLODGE</div>
+        <div style="margin-top:auto;margin-bottom:18px;display:flex;flex-direction:column;gap:14px">
+          <div style="height:1px;background:rgba(40,44,60,.3)"></div>
+          <div style="height:1px;background:rgba(40,44,60,.3)"></div>
+          <div style="height:1px;background:rgba(40,44,60,.3)"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin:0 22px 18px;padding-top:12px;border-top:1px solid rgba(40,44,60,.25);display:flex;justify-content:space-between;font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(40,44,60,.6);letter-spacing:1px"><span>CH 05 — CLEVER BLOBS</span><span>4,006 LIGHTS ON</span><span>POP: LOTS</span><span>WEATHER: RAINING, GENTLY</span></div>
+  </div>
+  <div style="position:absolute;bottom:30px;left:50%;transform:translateX(-50%);display:flex;gap:14px">
+    <div style="padding:10px 18px;background:#7fd8e8;color:#04060c;font:600 11.5px 'IBM Plex Mono',monospace">[ SAVE PICTURE ]</div>
+    <div style="padding:10px 18px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11.5px 'IBM Plex Mono',monospace">[ PRINT ]</div>
+  </div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="2e"><div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a>Orbit view at chapter 5 — the city-lights payoff in Flight Console</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1px 1px at 22% 28%,rgba(255,255,255,.65),transparent),radial-gradient(1px 1px at 48% 68%,rgba(255,255,255,.45),transparent),radial-gradient(1.5px 1.5px at 74% 18%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 90% 48%,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 10% 78%,rgba(255,255,255,.4),transparent),linear-gradient(#04060c,#04060c);font-family:'IBM Plex Mono',monospace">
+  <div style="position:absolute;left:-100px;top:290px;width:1350px;height:340px;border-radius:50%;border:1px solid rgba(127,216,232,.1);transform:rotate(-9deg)"></div>
+  <div style="position:absolute;top:26px;left:32px">
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:600 22px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:2px">SPLODGE</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 05/05 &#183; CLEVER BLOBS</span></div>
+    <div style="margin-top:4px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">ORBIT DAY 91 118 &#183; ALL SYSTEMS NOMINAL</div>
+  </div>
+  <div style="position:absolute;top:28px;right:32px;padding:6px 12px;border:1px solid rgba(127,216,232,.3);color:rgba(127,216,232,.8);font:400 11px 'IBM Plex Mono',monospace">[ ESC ] SHELF</div>
+  <div style="position:absolute;left:385px;top:150px;width:320px;height:320px">
+    <div style="position:absolute;inset:-26px;border-radius:50%;border:1px solid rgba(127,216,232,.22)"></div>
+    <div style="position:absolute;left:50%;top:-32px;width:1px;height:10px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:50%;bottom:-32px;width:1px;height:10px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:-32px;top:50%;width:10px;height:1px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;right:-32px;top:50%;width:10px;height:1px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.38),transparent 46%),radial-gradient(circle at 62% 66%,#1e8f6a 0 12%,transparent 26%),radial-gradient(circle at 24% 62%,#e8c97a 0 7%,transparent 15%),radial-gradient(circle at 70% 28%,#2a6a9e 0 10%,transparent 22%),radial-gradient(circle at 46% 44%,#37c795 0 58%,#2b9e7a 100%);box-shadow:inset -66px -12px 66px rgba(2,3,8,.95),inset 10px 10px 34px rgba(255,255,255,.18),0 0 70px rgba(55,199,149,.14)"></div>
+    <div style="position:absolute;right:64px;top:130px;width:3px;height:3px;border-radius:50%;background:#ffd9a0;box-shadow:0 0 6px #ffd9a0,10px 16px 3px #ffce8a,-6px 30px 3px rgba(255,217,160,.85),16px 42px 3px rgba(255,206,138,.7),4px 56px 3px #ffd9a0,22px 24px 3px rgba(255,217,160,.6),10px 70px 3px rgba(255,206,138,.55)"></div>
+    <div style="position:absolute;right:-18px;top:44px;width:6px;height:10px;border-radius:3px 3px 2px 2px;background:#f4efe4;transform:rotate(32deg);box-shadow:0 0 6px rgba(255,244,214,.7)"></div>
+    <div style="position:absolute;right:-8px;top:56px;width:2px;height:34px;background:linear-gradient(rgba(255,206,138,.8),transparent);transform:rotate(32deg)"></div>
+    <div style="position:absolute;right:-128px;top:26px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.6)">ROCKET 01<br>OUTBOUND</div>
+  </div>
+  <div style="position:absolute;right:32px;top:96px;width:300px;border:1px solid rgba(127,216,232,.25);background:rgba(6,10,18,.85)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(127,216,232,.18)">
+      <span style="font:600 10.5px 'IBM Plex Mono',monospace;color:#7fd8e8;letter-spacing:2px">MISSION CONTROL</span>
+      <div style="width:22px;height:16px;border:1px solid rgba(127,216,232,.5);display:flex;align-items:center;justify-content:center"><div style="width:8px;height:5px;background:#7fd8e8"></div></div>
+    </div>
+    <div style="padding:12px 14px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid rgba(127,216,232,.12)">
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">SURFACE</span><span>16&#176;C</span></div>
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">ATMOSPHERE</span><span>0.9 BAR</span></div>
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">WATER</span><span>LIQUID</span></div>
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">LIFE</span><span>CLEVER</span></div>
+    </div>
+    <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+      <div style="font:400 12.5px/1.6 'IBM Plex Mono',monospace;color:#e8f4f6">&gt; City lights on the night side. The blobs are up late. One of them built a rocket.</div>
+      <div style="display:inline-flex;align-self:flex-start;padding:7px 14px;border:1px solid #7fd8e8;color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ HINT 1 OF 2 ]</div>
+    </div>
+  </div>
+  <div style="position:absolute;left:32px;right:32px;bottom:26px;display:flex;justify-content:space-between;align-items:flex-end">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">TOOLKIT</div>
+      <div style="display:flex;gap:10px">
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ ORBIT &#8645; ]</div>
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ ATMOS &#8767; ]</div>
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ COMET &#10054; ]</div>
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ SEED &#10047; ]</div>
+      </div>
+    </div>
+    <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.4);color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ &#8595; ZOOM TO SURFACE ]</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">TIME RATE</div>
+      <div style="padding:8px 12px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 13px 'IBM Plex Mono',monospace">&#8722;</div>
+      <div style="font:600 16px 'IBM Plex Mono',monospace;color:#e8f4f6">&#215;1000</div>
+      <div style="padding:8px 12px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 13px 'IBM Plex Mono',monospace">+</div>
+    </div>
+  </div>
+</div></div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "postcard caption in the kid's handwriting" &#183; "warmer accent instead of cyan" &#183; "make <a class="dv-oid" href="#2e">2e</a>'s planet spin"</p>
+</section>
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Five directions — main view (zoomed out) + the Mission Control bot in each finish</span></div>
+<p class="dv-intro">Assumptions: laptop hero at 1150&#215;680; one shared robot design, re-finished per direction; Mission Control speaks deadpan scientist throughout; directions diverge on planet rendering (cartoony &#8596; painterly), panel/HUD layout, and the bot's finish. Family feel comes from HomeOfEd's habits (self-hosted-able fonts, one accent per app, dark rooms) — not shared UI, since every app owns its own look. Each direction shows a different chapter so the co-designer sees the whole ladder: bare rock, first life, blobs, and city lights twice (it's the payoff). Name ideas for the bot ride along under each robot card.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Control Desk — cartoony planet, spaceship console, amber on navy (Chivo)</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1.5px 1.5px at 12% 18%,rgba(255,255,255,.9),transparent),radial-gradient(1px 1px at 30% 60%,rgba(255,255,255,.6),transparent),radial-gradient(1.5px 1.5px at 55% 12%,rgba(255,255,255,.7),transparent),radial-gradient(1px 1px at 70% 42%,rgba(255,255,255,.5),transparent),radial-gradient(2px 2px at 88% 22%,rgba(255,255,255,.8),transparent),radial-gradient(1px 1px at 44% 34%,rgba(255,255,255,.55),transparent),radial-gradient(1px 1px at 8% 74%,rgba(255,255,255,.5),transparent),linear-gradient(180deg,#0b1226 0%,#0a0f20 70%,#090d1b 100%);font-family:'Chivo',sans-serif">
+  <div style="position:absolute;top:22px;left:26px;display:flex;align-items:center;gap:14px">
+    <div style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:9px;background:#141d38;border:1px solid rgba(255,184,77,.25);color:#ffb84d;font:600 12px 'Chivo Mono',monospace">&#9666; SHELF</div>
+    <div style="font:900 26px 'Chivo',sans-serif;color:#f2efe6;letter-spacing:.5px">SPLODGE</div>
+    <div style="padding:6px 12px;border-radius:20px;background:rgba(255,184,77,.14);border:1px solid rgba(255,184,77,.35);color:#ffcf85;font:600 11px 'Chivo Mono',monospace">CHAPTER 4 — BLOBS!</div>
+  </div>
+  <div style="position:absolute;left:355px;top:130px;width:330px;height:330px">
+    <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.4),transparent 45%),radial-gradient(circle at 62% 66%,#1e8f6a 0 12%,transparent 26%),radial-gradient(circle at 24% 62%,#e8c97a 0 8%,transparent 18%),radial-gradient(circle at 74% 30%,#1e8f6a 0 7%,transparent 15%),radial-gradient(circle at 46% 44%,#37c795 0 60%,#2fb886 100%);box-shadow:inset -70px -14px 70px rgba(6,10,24,.92),inset 14px 12px 40px rgba(255,255,255,.22),0 0 70px rgba(55,199,149,.18)"></div>
+    <div style="position:absolute;right:-56px;top:-24px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 32%,#cfd4de,#8f96a6 70%);box-shadow:inset -8px -4px 10px rgba(9,13,27,.7)"></div>
+  </div>
+  <div style="position:absolute;right:26px;top:96px;width:300px;border-radius:14px;background:#0e1630;border:1px solid rgba(255,184,77,.22);box-shadow:0 18px 40px rgba(0,0,0,.4)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,184,77,.15)">
+      <div style="width:28px;height:28px;border-radius:8px;background:#1d2846;border:1px solid rgba(255,184,77,.4);display:flex;align-items:center;justify-content:center"><div style="width:14px;height:9px;border-radius:3px;background:#ffb84d;box-shadow:0 0 6px rgba(255,184,77,.8)"></div></div>
+      <div style="font:600 11px 'Chivo Mono',monospace;color:#ffb84d;letter-spacing:1.5px">MISSION CONTROL</div>
+    </div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+      <div style="font:400 14px/1.5 'Chivo',sans-serif;color:#f2efe6">Blobs: 12. They wobble. Wobbling is normal.</div>
+      <div style="font:400 11px 'Chivo Mono',monospace;color:rgba(242,239,230,.55)">SURFACE 18&#176; &#183; LIQUID WATER &#183; AIR: THICK-ISH</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="padding:8px 16px;border-radius:9px;background:#ffb84d;color:#241a10;font:700 12px 'Chivo',sans-serif;box-shadow:0 3px 0 #b57e24">HINT</div>
+        <div style="font:400 10.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.4)">press again for the answer</div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:140px;background:linear-gradient(180deg,#18224200,#182242 18%),#131b33;border-top:2px solid rgba(255,184,77,.3);display:flex;align-items:center;gap:40px;padding:0 40px;box-shadow:0 -12px 40px rgba(0,0,0,.45)">
+    <div style="position:absolute;top:10px;left:16px;width:6px;height:6px;border-radius:50%;background:#2a3a66"></div>
+    <div style="position:absolute;top:10px;right:16px;width:6px;height:6px;border-radius:50%;background:#2a3a66"></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:600 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.45);letter-spacing:2px">TIME</div>
+      <div style="display:flex;gap:6px">
+        <div style="padding:12px 20px;border-radius:10px;background:#1d2846;border-bottom:4px solid #10182e;color:rgba(242,239,230,.6);font:700 14px 'Chivo Mono',monospace">&#215;1</div>
+        <div style="padding:12px 20px;border-radius:10px;background:#ffb84d;border-bottom:4px solid #b57e24;color:#241a10;font:700 14px 'Chivo Mono',monospace">&#215;100</div>
+        <div style="padding:12px 20px;border-radius:10px;background:#1d2846;border-bottom:4px solid #10182e;color:rgba(242,239,230,.6);font:700 14px 'Chivo Mono',monospace">&#215;10k</div>
+      </div>
+    </div>
+    <div style="width:2px;height:70px;background:rgba(255,184,77,.15)"></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:600 10px 'Chivo Mono',monospace;color:rgba(242,239,230,.45);letter-spacing:2px">RESCUE TOOLKIT</div>
+      <div style="display:flex;gap:10px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:88px;padding:10px 0;border-radius:10px;background:#1d2846;border-bottom:4px solid #10182e"><div style="font:700 17px 'Chivo',sans-serif;color:#ffb84d">&#8645;</div><div style="font:600 9.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.7)">NUDGE ORBIT</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:88px;padding:10px 0;border-radius:10px;background:#1d2846;border-bottom:4px solid #10182e"><div style="font:700 17px 'Chivo',sans-serif;color:#ffb84d">&#8767;</div><div style="font:600 9.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.7)">ATMOSPHERE</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:88px;padding:10px 0;border-radius:10px;background:#1d2846;border-bottom:4px solid #10182e"><div style="font:700 17px 'Chivo',sans-serif;color:#ffb84d">&#10054;</div><div style="font:600 9.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.7)">ICE COMET</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:88px;padding:10px 0;border-radius:10px;background:#1d2846;border-bottom:4px solid #10182e"><div style="font:700 17px 'Chivo',sans-serif;color:#ffb84d">&#10047;</div><div style="font:600 9.5px 'Chivo Mono',monospace;color:rgba(242,239,230,.7)">PLANT SEED</div></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<div class="dv-card" style="width:260px;background:#0e1630"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px 16px">
+  <div style="position:relative;width:150px;height:120px">
+    <div style="position:absolute;left:73px;top:8px;width:4px;height:16px;background:#2a3a66;border-radius:2px"></div>
+    <div style="position:absolute;left:69px;top:0;width:12px;height:12px;border-radius:50%;background:#ffb84d;box-shadow:0 0 10px rgba(255,184,77,.9)"></div>
+    <div style="position:absolute;left:0;top:44px;width:34px;height:44px;border-radius:6px;background:repeating-linear-gradient(90deg,#1d2846 0 6px,#2a3a66 6px 12px);border:2px solid #10182e"></div>
+    <div style="position:absolute;left:112px;top:44px;width:34px;height:44px;border-radius:6px;background:repeating-linear-gradient(90deg,#1d2846 0 6px,#2a3a66 6px 12px);border:2px solid #10182e"></div>
+    <div style="position:absolute;left:36px;top:62px;width:12px;height:8px;background:#10182e"></div>
+    <div style="position:absolute;left:102px;top:62px;width:12px;height:8px;background:#10182e"></div>
+    <div style="position:absolute;left:46px;top:24px;width:58px;height:66px;border-radius:16px;background:#1d2846;border:2px solid #2a3a66;box-shadow:0 6px 16px rgba(0,0,0,.5)">
+      <div style="margin:9px 7px 0;height:28px;border-radius:8px;background:#0a1122;border:1px solid rgba(255,184,77,.4);display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:inset 0 0 10px rgba(255,184,77,.15)"><div style="width:7px;height:13px;border-radius:4px;background:#ffb84d"></div><div style="width:7px;height:13px;border-radius:4px;background:#ffb84d"></div></div>
+      <div style="display:flex;justify-content:center;gap:4px;margin-top:8px"><div style="width:4px;height:4px;border-radius:50%;background:#ffb84d"></div><div style="width:4px;height:4px;border-radius:50%;background:rgba(255,184,77,.35)"></div><div style="width:4px;height:4px;border-radius:50%;background:rgba(255,184,77,.35)"></div></div>
+    </div>
+    <div style="position:absolute;left:64px;top:92px;width:22px;height:9px;border-radius:0 0 7px 7px;background:#10182e"></div>
+  </div>
+  <div style="font:600 10.5px 'Chivo Mono',monospace;color:#ffb84d;letter-spacing:1px">MISSION CONTROL</div>
+  <div style="font:400 11px/1.4 'Chivo',sans-serif;color:rgba(242,239,230,.6);text-align:center">Riveted, backlit, takes its job seriously. Wants to be called BOLT.</div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Observatory — painterly planet, whisper-thin floating UI, serif (Source Serif)</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(60% 50% at 70% 30%,rgba(96,84,150,.12),transparent),radial-gradient(1px 1px at 18% 24%,rgba(255,255,255,.7),transparent),radial-gradient(1.5px 1.5px at 40% 70%,rgba(255,255,255,.5),transparent),radial-gradient(1px 1px at 62% 16%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 82% 60%,rgba(255,255,255,.45),transparent),radial-gradient(1.5px 1.5px at 8% 56%,rgba(255,255,255,.55),transparent),linear-gradient(180deg,#08090f,#0a0c14);font-family:'Instrument Sans',sans-serif">
+  <div style="position:absolute;top:34px;left:40px">
+    <div style="font:500 30px 'Source Serif 4',serif;color:#e9e6dc;font-style:italic">Pearl</div>
+    <div style="margin-top:6px;font:500 10.5px 'Instrument Sans',sans-serif;color:rgba(233,230,220,.45);letter-spacing:3px;text-transform:uppercase">Chapter five &#183; city lights</div>
+    <div style="margin-top:10px;display:flex;gap:6px;align-items:center"><div style="width:5px;height:5px;border-radius:50%;background:rgba(233,230,220,.9)"></div><div style="width:5px;height:5px;border-radius:50%;background:rgba(233,230,220,.9)"></div><div style="width:5px;height:5px;border-radius:50%;background:rgba(233,230,220,.9)"></div><div style="width:5px;height:5px;border-radius:50%;background:rgba(233,230,220,.9)"></div><div style="width:5px;height:5px;border-radius:50%;background:#c9b8ff;box-shadow:0 0 8px rgba(201,184,255,.8)"></div></div>
+  </div>
+  <div style="position:absolute;top:26px;right:40px;font:500 11px 'Instrument Sans',sans-serif;color:rgba(233,230,220,.4);letter-spacing:2px">&#8592; ALL PLANETS</div>
+  <div style="position:absolute;left:375px;top:135px;width:380px;height:380px">
+    <div style="position:absolute;left:-80px;top:130px;width:540px;height:130px;border-radius:50%;border:2px solid rgba(201,190,255,.22);transform:rotate(-16deg)"></div>
+    <div style="position:absolute;inset:10px;border-radius:50%;background:radial-gradient(circle at 30% 26%,rgba(255,244,224,.5),transparent 42%),radial-gradient(circle at 66% 58%,#7d6a9e 0 10%,transparent 24%),radial-gradient(circle at 40% 66%,#a67c86 0 9%,transparent 20%),radial-gradient(circle at 58% 26%,#5d7fa6 0 12%,transparent 26%),radial-gradient(circle at 45% 45%,#5a7ba2 0 55%,#4a6d8c 100%);box-shadow:inset -84px -16px 90px rgba(4,6,14,.94),inset 16px 14px 60px rgba(255,240,220,.16),0 0 90px rgba(140,170,255,.14),0 0 0 14px rgba(140,170,255,.04)"></div>
+    <div style="position:absolute;right:78px;top:150px;width:3px;height:3px;border-radius:50%;background:#ffd9a0;box-shadow:0 0 6px #ffd9a0,12px 18px 3px #ffce8a,-6px 32px 3px rgba(255,217,160,.85),20px 40px 3px rgba(255,206,138,.7),6px 54px 3px #ffd9a0,26px 12px 3px rgba(255,217,160,.6),16px 66px 3px rgba(255,206,138,.55)"></div>
+    <div style="position:absolute;left:-84px;top:196px;width:548px;height:130px;border-radius:50%;border:2px solid rgba(201,190,255,.3);transform:rotate(-16deg);clip-path:inset(58% 0 0 0)"></div>
+  </div>
+  <div style="position:absolute;left:40px;top:220px;display:flex;flex-direction:column;gap:14px">
+    <div style="width:44px;height:44px;border-radius:50%;border:1px solid rgba(233,230,220,.25);display:flex;align-items:center;justify-content:center;color:rgba(233,230,220,.75);font-size:16px">&#8645;</div>
+    <div style="width:44px;height:44px;border-radius:50%;border:1px solid rgba(233,230,220,.25);display:flex;align-items:center;justify-content:center;color:rgba(233,230,220,.75);font-size:16px">&#8767;</div>
+    <div style="width:44px;height:44px;border-radius:50%;border:1px solid rgba(233,230,220,.25);display:flex;align-items:center;justify-content:center;color:rgba(233,230,220,.75);font-size:15px">&#10054;</div>
+    <div style="width:44px;height:44px;border-radius:50%;border:1px solid rgba(233,230,220,.25);display:flex;align-items:center;justify-content:center;color:rgba(233,230,220,.75);font-size:15px">&#10047;</div>
+    <div style="margin-top:2px;font:500 9px 'Instrument Sans',sans-serif;color:rgba(233,230,220,.35);letter-spacing:2px;text-align:center;width:44px">TOOLS</div>
+  </div>
+  <div style="position:absolute;left:290px;right:400px;bottom:44px;display:flex;align-items:center;gap:18px">
+    <div style="font:500 11px 'Instrument Sans',sans-serif;color:rgba(233,230,220,.5);letter-spacing:2px;white-space:nowrap">TIME &#215;512</div>
+    <div style="position:relative;flex:1;height:2px;background:rgba(233,230,220,.15)"><div style="position:absolute;left:0;top:0;height:2px;width:72%;background:rgba(201,184,255,.7)"></div><div style="position:absolute;left:72%;top:-5px;width:12px;height:12px;border-radius:50%;background:#c9b8ff;box-shadow:0 0 12px rgba(201,184,255,.8)"></div></div>
+  </div>
+  <div style="position:absolute;right:40px;top:110px;width:290px;border-radius:16px;background:rgba(16,18,28,.72);border:1px solid rgba(233,230,220,.12);backdrop-filter:blur(6px);box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0">
+      <div style="width:26px;height:26px;border-radius:8px;background:#d8dce6;display:flex;align-items:center;justify-content:center"><div style="width:12px;height:8px;border-radius:3px;background:#2b2e3a"></div></div>
+      <div style="font:500 10px 'Instrument Sans',sans-serif;color:rgba(233,230,220,.5);letter-spacing:2.5px">MISSION CONTROL</div>
+    </div>
+    <div style="padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px">
+      <div style="font:400 15px/1.55 'Source Serif 4',serif;color:#e9e6dc">Lights detected on the night side. The blobs are up late.</div>
+      <div style="font:400 11px 'Instrument Sans',sans-serif;color:rgba(233,230,220,.45)">Surface 14&#176; &#183; seas calm &#183; population: lots</div>
+      <div style="font:500 11.5px 'Instrument Sans',sans-serif;color:#c9b8ff;letter-spacing:.5px">a hint, please &#8594;</div>
+    </div>
+  </div>
+</div></div>
+<div class="dv-card" style="width:260px;background:#0a0c14"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px 16px">
+  <div style="position:relative;width:150px;height:120px">
+    <div style="position:absolute;left:73px;top:8px;width:3px;height:16px;background:#9aa0b0;border-radius:2px"></div>
+    <div style="position:absolute;left:70px;top:0;width:10px;height:10px;border-radius:50%;background:#c9b8ff;box-shadow:0 0 10px rgba(201,184,255,.9)"></div>
+    <div style="position:absolute;left:0;top:44px;width:34px;height:44px;border-radius:5px;background:repeating-linear-gradient(90deg,#2b2e3a 0 6px,#3d4152 6px 12px);border:1px solid rgba(233,230,220,.3)"></div>
+    <div style="position:absolute;left:114px;top:44px;width:34px;height:44px;border-radius:5px;background:repeating-linear-gradient(90deg,#2b2e3a 0 6px,#3d4152 6px 12px);border:1px solid rgba(233,230,220,.3)"></div>
+    <div style="position:absolute;left:35px;top:62px;width:12px;height:6px;background:#9aa0b0"></div>
+    <div style="position:absolute;left:103px;top:62px;width:12px;height:6px;background:#9aa0b0"></div>
+    <div style="position:absolute;left:46px;top:24px;width:58px;height:66px;border-radius:16px;background:linear-gradient(160deg,#e6e9f0,#c3c9d6);border:1px solid rgba(255,255,255,.5);box-shadow:0 8px 22px rgba(0,0,0,.55)">
+      <div style="margin:9px 7px 0;height:28px;border-radius:8px;background:#20232e;display:flex;align-items:center;justify-content:center;gap:8px"><div style="width:7px;height:12px;border-radius:4px;background:#fff2d8"></div><div style="width:7px;height:12px;border-radius:4px;background:#fff2d8"></div></div>
+      <div style="display:flex;justify-content:center;gap:4px;margin-top:8px"><div style="width:4px;height:4px;border-radius:50%;background:#9aa0b0"></div><div style="width:4px;height:4px;border-radius:50%;background:#9aa0b0"></div></div>
+    </div>
+    <div style="position:absolute;left:64px;top:92px;width:22px;height:8px;border-radius:0 0 6px 6px;background:#9aa0b0"></div>
+  </div>
+  <div style="font:500 10px 'Instrument Sans',sans-serif;color:rgba(233,230,220,.5);letter-spacing:2.5px">MISSION CONTROL</div>
+  <div style="font:400 12px/1.45 'Source Serif 4',serif;color:rgba(233,230,220,.75);text-align:center;font-style:italic">Brushed silver, softly spoken. Wants to be called Aster.</div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Sticker Cartoon — big bold planet, chunky sticker UI, candy colors (Baloo 2)</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1.5px 1.5px at 15% 30%,rgba(255,255,255,.8),transparent),radial-gradient(1px 1px at 45% 15%,rgba(255,255,255,.6),transparent),radial-gradient(1.5px 1.5px at 80% 70%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 65% 45%,rgba(255,255,255,.5),transparent),linear-gradient(180deg,#171d3d,#141a33);font-family:'Baloo 2',sans-serif">
+  <div style="position:absolute;left:9%;top:22%;width:10px;height:10px;background:rgba(255,255,255,.85);transform:rotate(45deg);border-radius:2px"></div>
+  <div style="position:absolute;left:78%;top:14%;width:8px;height:8px;background:rgba(255,255,255,.6);transform:rotate(45deg);border-radius:2px"></div>
+  <div style="position:absolute;left:88%;top:56%;width:7px;height:7px;background:rgba(255,255,255,.5);transform:rotate(45deg);border-radius:2px"></div>
+  <div style="position:absolute;top:22px;left:24px;display:flex;align-items:center;gap:14px">
+    <div style="padding:10px 18px;border-radius:16px;background:#fff7e8;box-shadow:0 4px 0 rgba(0,0,0,.35);color:#3a2f52;font:800 14px 'Baloo 2',sans-serif">&#9666; my planets</div>
+    <div style="padding:8px 22px;border-radius:18px;background:#fff7e8;box-shadow:0 4px 0 rgba(0,0,0,.35);display:flex;align-items:center;gap:10px">
+      <span style="font:800 22px 'Baloo 2',sans-serif;color:#3a2f52">Zoomer</span>
+      <span style="padding:3px 10px;border-radius:12px;background:#b8e86a;color:#3a5210;font:800 12px 'Baloo 2',sans-serif">chapter 3 &#183; first life!</span>
+    </div>
+  </div>
+  <div style="position:absolute;left:365px;top:130px;width:340px;height:340px">
+    <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 30% 26%,rgba(255,255,255,.55),transparent 40%),radial-gradient(circle at 68% 60%,#8ed96a 0 11%,transparent 22%),radial-gradient(circle at 34% 64%,#8ed96a 0 9%,transparent 19%),radial-gradient(circle at 58% 30%,#ffd08a 0 7%,transparent 15%),radial-gradient(circle at 46% 46%,#ff8fb0 0 58%,#ff7aa2 100%);box-shadow:0 0 0 6px rgba(255,255,255,.9),0 0 0 13px rgba(255,255,255,.12),inset -66px -14px 66px rgba(20,16,45,.75),0 18px 60px rgba(0,0,0,.45)"></div>
+    <div style="position:absolute;left:26%;top:14%;width:64px;height:30px;border-radius:50%;background:rgba(255,255,255,.65);transform:rotate(-24deg)"></div>
+    <div style="position:absolute;right:-64px;top:30px;width:26px;height:26px;border-radius:50%;background:#ffd08a;box-shadow:0 0 0 4px rgba(255,255,255,.85),inset -6px -3px 8px rgba(20,16,45,.5)"></div>
+    <div style="position:absolute;left:-52px;bottom:44px;width:18px;height:18px;border-radius:50%;background:#8ec9ff;box-shadow:0 0 0 4px rgba(255,255,255,.85),inset -4px -2px 6px rgba(20,16,45,.5)"></div>
+  </div>
+  <div style="position:absolute;left:28px;bottom:26px;display:flex;gap:14px;align-items:flex-end">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:64px;height:64px;border-radius:50%;background:#8ec9ff;box-shadow:0 0 0 5px #fff7e8,0 6px 0 rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:800 22px 'Baloo 2',sans-serif;color:#1e3a5c">&#8645;</div><div style="font:800 11px 'Baloo 2',sans-serif;color:#fff7e8">nudge</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:64px;height:64px;border-radius:50%;background:#c9a6ff;box-shadow:0 0 0 5px #fff7e8,0 6px 0 rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:800 22px 'Baloo 2',sans-serif;color:#3d2a66">&#8767;</div><div style="font:800 11px 'Baloo 2',sans-serif;color:#fff7e8">air</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:64px;height:64px;border-radius:50%;background:#a6e8ff;box-shadow:0 0 0 5px #fff7e8,0 6px 0 rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:800 20px 'Baloo 2',sans-serif;color:#155a73">&#10054;</div><div style="font:800 11px 'Baloo 2',sans-serif;color:#fff7e8">comet</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:64px;height:64px;border-radius:50%;background:#b8e86a;box-shadow:0 0 0 5px #fff7e8,0 6px 0 rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:800 20px 'Baloo 2',sans-serif;color:#3a5210">&#10047;</div><div style="font:800 11px 'Baloo 2',sans-serif;color:#fff7e8">seed</div></div>
+  </div>
+  <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:34px;display:flex;align-items:center;gap:0">
+    <div style="padding:14px 28px;border-radius:26px;background:#ffd24a;box-shadow:0 0 0 5px #fff7e8,0 6px 0 rgba(0,0,0,.35);font:800 18px 'Baloo 2',sans-serif;color:#5c4308">&#9654;&#9654; fast-forward &#215;100</div>
+  </div>
+  <div style="position:absolute;right:26px;top:120px;width:290px">
+    <div style="position:relative;border-radius:20px;background:#fff7e8;box-shadow:0 6px 0 rgba(0,0,0,.35);padding:16px">
+      <div style="position:absolute;left:-12px;top:38px;width:0;height:0;border-top:12px solid transparent;border-bottom:12px solid transparent;border-right:14px solid #fff7e8"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:30px;height:30px;border-radius:10px;background:#3a2f52;display:flex;align-items:center;justify-content:center"><div style="width:16px;height:10px;border-radius:4px;background:#8ef0e0"></div></div>
+        <div style="font:800 12px 'Baloo 2',sans-serif;color:#3a2f52;letter-spacing:.5px">mission control</div>
+      </div>
+      <div style="font:700 15px/1.45 'Nunito',sans-serif;color:#3a2f52">First life! Green stuff is spreading across the wet bits. Speed: slow but determined.</div>
+      <div style="margin-top:8px;font:700 11px 'Nunito',sans-serif;color:rgba(58,47,82,.55)">22&#176; &#183; shallow seas &#183; air: cosy</div>
+      <div style="margin-top:12px;display:inline-block;padding:8px 18px;border-radius:14px;background:#ff7aa2;box-shadow:0 4px 0 rgba(0,0,0,.25);font:800 13px 'Baloo 2',sans-serif;color:#fff">hint?</div>
+    </div>
+  </div>
+</div></div>
+<div class="dv-card" style="width:260px;background:#171d3d"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px 16px">
+  <div style="position:relative;width:150px;height:120px">
+    <div style="position:absolute;left:72px;top:6px;width:5px;height:18px;background:#fff7e8;border-radius:3px"></div>
+    <div style="position:absolute;left:67px;top:-4px;width:15px;height:15px;border-radius:50%;background:#ffd24a;box-shadow:0 0 0 3px #fff7e8,0 0 12px rgba(255,210,74,.8)"></div>
+    <div style="position:absolute;left:0;top:44px;width:34px;height:44px;border-radius:8px;background:repeating-linear-gradient(90deg,#8ec9ff 0 7px,#5ba8f0 7px 14px);box-shadow:0 0 0 4px #fff7e8"></div>
+    <div style="position:absolute;left:114px;top:44px;width:34px;height:44px;border-radius:8px;background:repeating-linear-gradient(90deg,#8ec9ff 0 7px,#5ba8f0 7px 14px);box-shadow:0 0 0 4px #fff7e8"></div>
+    <div style="position:absolute;left:38px;top:62px;width:10px;height:8px;background:#fff7e8"></div>
+    <div style="position:absolute;left:102px;top:62px;width:10px;height:8px;background:#fff7e8"></div>
+    <div style="position:absolute;left:46px;top:24px;width:58px;height:66px;border-radius:18px;background:#c9a6ff;box-shadow:0 0 0 4px #fff7e8,0 8px 0 rgba(0,0,0,.3)">
+      <div style="margin:9px 7px 0;height:30px;border-radius:10px;background:#3a2f52;display:flex;align-items:center;justify-content:center;gap:7px"><div style="width:9px;height:14px;border-radius:5px;background:#8ef0e0"></div><div style="width:9px;height:14px;border-radius:5px;background:#8ef0e0"></div></div>
+      <div style="display:flex;justify-content:center;gap:10px;margin-top:6px"><div style="width:8px;height:5px;border-radius:50%;background:#ff8fb0"></div><div style="width:8px;height:5px;border-radius:50%;background:#ff8fb0"></div></div>
+    </div>
+    <div style="position:absolute;left:62px;top:92px;width:26px;height:10px;border-radius:0 0 8px 8px;background:#fff7e8"></div>
+  </div>
+  <div style="font:800 12px 'Baloo 2',sans-serif;color:#fff7e8;letter-spacing:.5px">mission control</div>
+  <div style="font:700 11.5px/1.45 'Nunito',sans-serif;color:rgba(255,247,232,.65);text-align:center">A sticker with feelings (and cheeks). Wants to be called Bleep.</div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Flight Console — realistic-leaning planet, mono readouts, thin cyan HUD (IBM Plex Mono)</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(1px 1px at 22% 28%,rgba(255,255,255,.65),transparent),radial-gradient(1px 1px at 48% 68%,rgba(255,255,255,.45),transparent),radial-gradient(1.5px 1.5px at 74% 18%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 90% 48%,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 10% 78%,rgba(255,255,255,.4),transparent),linear-gradient(#04060c,#04060c);font-family:'IBM Plex Mono',monospace">
+  <div style="position:absolute;left:-100px;top:290px;width:1350px;height:340px;border-radius:50%;border:1px solid rgba(127,216,232,.1);transform:rotate(-9deg)"></div>
+  <div style="position:absolute;top:26px;left:32px">
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:600 22px 'IBM Plex Mono',monospace;color:#e8f4f6;letter-spacing:2px">BOULDER</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.7)">CH 01/05 &#183; BARE ROCK</span></div>
+    <div style="margin-top:4px;font:400 10.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35)">ORBIT DAY 84 302 &#183; ALL SYSTEMS NOMINAL</div>
+  </div>
+  <div style="position:absolute;top:28px;right:32px;padding:6px 12px;border:1px solid rgba(127,216,232,.3);color:rgba(127,216,232,.8);font:400 11px 'IBM Plex Mono',monospace">[ ESC ] SHELF</div>
+  <div style="position:absolute;left:385px;top:150px;width:320px;height:320px">
+    <div style="position:absolute;inset:-26px;border-radius:50%;border:1px solid rgba(127,216,232,.22)"></div>
+    <div style="position:absolute;left:50%;top:-32px;width:1px;height:10px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:50%;bottom:-32px;width:1px;height:10px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:-32px;top:50%;width:10px;height:1px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;right:-32px;top:50%;width:10px;height:1px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(12deg,rgba(60,40,26,.35) 0 30%,transparent 34% 62%,rgba(70,48,30,.3) 66%),radial-gradient(circle at 34% 30%,rgba(255,236,214,.32),transparent 46%),radial-gradient(circle at 64% 58%,#7a5636 0 9%,transparent 20%),radial-gradient(circle at 42% 68%,#8f6a42 0 7%,transparent 16%),radial-gradient(circle at 48% 44%,#a4785022 0,transparent 60%),radial-gradient(circle at 46% 46%,#96714b 0 58%,#7d5c3c 100%);box-shadow:inset -66px -12px 66px rgba(2,3,8,.95),inset 10px 10px 34px rgba(255,236,214,.12)"></div>
+    <div style="position:absolute;right:-118px;top:36px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.6)">R 5 940 KM</div>
+    <div style="position:absolute;left:-124px;bottom:52px;font:400 10px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.6)">T &#8722;80&#176;C</div>
+  </div>
+  <div style="position:absolute;right:32px;top:96px;width:300px;border:1px solid rgba(127,216,232,.25);background:rgba(6,10,18,.85)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(127,216,232,.18)">
+      <span style="font:600 10.5px 'IBM Plex Mono',monospace;color:#7fd8e8;letter-spacing:2px">MISSION CONTROL</span>
+      <div style="width:22px;height:16px;border:1px solid rgba(127,216,232,.5);display:flex;align-items:center;justify-content:center"><div style="width:8px;height:5px;background:#7fd8e8"></div></div>
+    </div>
+    <div style="padding:12px 14px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid rgba(127,216,232,.12)">
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">SURFACE</span><span>&#8722;80&#176;C</span></div>
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">ATMOSPHERE</span><span>0.2 BAR</span></div>
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">WATER</span><span>ICE</span></div>
+      <div style="display:flex;justify-content:space-between;font:400 11px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.75)"><span style="color:rgba(232,244,246,.4)">LIFE</span><span>NONE</span></div>
+    </div>
+    <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+      <div style="font:400 12.5px/1.6 'IBM Plex Mono',monospace;color:#e8f4f6">&gt; No life yet. The surface is &#8722;80&#176; and nothing is liquid.</div>
+      <div style="display:inline-flex;align-self:flex-start;padding:7px 14px;border:1px solid #7fd8e8;color:#7fd8e8;font:600 11px 'IBM Plex Mono',monospace">[ HINT 1 OF 2 ]</div>
+    </div>
+  </div>
+  <div style="position:absolute;left:32px;right:32px;bottom:26px;display:flex;justify-content:space-between;align-items:flex-end">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">TOOLKIT</div>
+      <div style="display:flex;gap:10px">
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ ORBIT &#8645; ]</div>
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ ATMOS &#8767; ]</div>
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ COMET &#10054; ]</div>
+        <div style="padding:10px 16px;border:1px solid rgba(127,216,232,.35);color:rgba(232,244,246,.85);font:400 11.5px 'IBM Plex Mono',monospace">[ SEED &#10047; ]</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font:400 9.5px 'IBM Plex Mono',monospace;color:rgba(232,244,246,.35);letter-spacing:2px">TIME RATE</div>
+      <div style="padding:8px 12px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 13px 'IBM Plex Mono',monospace">&#8722;</div>
+      <div style="font:600 16px 'IBM Plex Mono',monospace;color:#e8f4f6">&#215;1000</div>
+      <div style="padding:8px 12px;border:1px solid rgba(127,216,232,.35);color:#7fd8e8;font:600 13px 'IBM Plex Mono',monospace">+</div>
+    </div>
+  </div>
+</div></div>
+<div class="dv-card" style="width:260px;background:#04060c"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px 16px">
+  <div style="position:relative;width:150px;height:120px">
+    <div style="position:absolute;left:74px;top:8px;width:2px;height:16px;background:rgba(127,216,232,.6)"></div>
+    <div style="position:absolute;left:71px;top:0;width:9px;height:9px;border-radius:50%;border:1px solid #7fd8e8;box-shadow:0 0 8px rgba(127,216,232,.7)"></div>
+    <div style="position:absolute;left:0;top:44px;width:34px;height:44px;background:repeating-linear-gradient(90deg,rgba(127,216,232,.12) 0 6px,rgba(127,216,232,.03) 6px 12px);border:1px solid rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:114px;top:44px;width:34px;height:44px;background:repeating-linear-gradient(90deg,rgba(127,216,232,.12) 0 6px,rgba(127,216,232,.03) 6px 12px);border:1px solid rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:35px;top:64px;width:12px;height:1px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:103px;top:64px;width:12px;height:1px;background:rgba(127,216,232,.5)"></div>
+    <div style="position:absolute;left:46px;top:24px;width:58px;height:66px;border-radius:6px;background:rgba(8,14,24,.9);border:1px solid rgba(127,216,232,.6)">
+      <div style="margin:9px 7px 0;height:28px;border:1px solid rgba(127,216,232,.35);display:flex;align-items:center;justify-content:center;gap:8px"><div style="width:6px;height:12px;background:#7fd8e8"></div><div style="width:6px;height:12px;background:#7fd8e8"></div></div>
+      <div style="margin:6px 10px 0;font:400 7.5px 'IBM Plex Mono',monospace;color:rgba(127,216,232,.6);text-align:center">UNIT-7</div>
+    </div>
+    <div style="position:absolute;left:64px;top:92px;width:22px;height:7px;border:1px solid rgba(127,216,232,.5);border-top:none"></div>
+  </div>
+  <div style="font:600 10px 'IBM Plex Mono',monospace;color:#7fd8e8;letter-spacing:2px">MISSION CONTROL</div>
+  <div style="font:400 11px/1.5 'IBM Plex Mono',monospace;color:rgba(232,244,246,.55);text-align:center">Designation UNIT-7. The crew calls it Toaster.</div>
+</div></div>
+</div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Storybook Night — soft dreamy planet, cosy floating cards, warm glow payoff (Nunito)</div>
+<div class="dv-card" style="width:1150px"><div style="position:relative;width:1150px;height:680px;overflow:hidden;background-image:radial-gradient(2px 2px at 14% 20%,rgba(255,244,214,.9),transparent),radial-gradient(1px 1px at 34% 44%,rgba(255,255,255,.6),transparent),radial-gradient(1.5px 1.5px at 58% 14%,rgba(255,244,214,.7),transparent),radial-gradient(1px 1px at 78% 34%,rgba(255,255,255,.5),transparent),radial-gradient(2px 2px at 90% 12%,rgba(255,244,214,.8),transparent),radial-gradient(1px 1px at 6% 60%,rgba(255,255,255,.45),transparent),radial-gradient(1.5px 1.5px at 26% 82%,rgba(255,244,214,.55),transparent),radial-gradient(40% 34% at 92% 88%,rgba(185,168,232,.14),transparent),linear-gradient(180deg,#171226,#100c1d 60%,#0d0a18);font-family:'Nunito',sans-serif">
+  <div style="position:absolute;top:26px;left:28px;display:flex;align-items:center;gap:12px">
+    <div style="padding:8px 16px;border-radius:14px;background:rgba(30,24,50,.75);border:1px solid rgba(185,168,232,.25);color:rgba(238,232,255,.8);font:700 12.5px 'Nunito',sans-serif">&#9666; planet shelf</div>
+    <div style="font:800 24px 'Nunito',sans-serif;color:#eee8ff">Twinkle</div>
+    <div style="padding:6px 14px;border-radius:14px;background:rgba(255,210,120,.12);border:1px solid rgba(255,210,120,.3);color:#ffd9a0;font:700 11.5px 'Nunito',sans-serif">chapter five &#8212; the lights are on</div>
+  </div>
+  <div style="position:absolute;left:365px;top:135px;width:350px;height:350px">
+    <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 30% 26%,rgba(255,255,255,.5),transparent 44%),radial-gradient(circle at 64% 62%,#b9a8e8 0 11%,transparent 23%),radial-gradient(circle at 36% 66%,#b9a8e8 0 8%,transparent 18%),radial-gradient(circle at 62% 30%,#7fd8c8 0 8%,transparent 17%),radial-gradient(circle at 46% 46%,#a5e0cf 0 56%,#9adbc8 100%);box-shadow:inset -74px -14px 78px rgba(10,7,22,.92),inset 14px 12px 46px rgba(255,255,255,.2),0 0 90px rgba(154,219,200,.16),0 0 0 12px rgba(185,168,232,.05)"></div>
+    <div style="position:absolute;right:66px;top:130px;width:3px;height:3px;border-radius:50%;background:#ffd9a0;box-shadow:0 0 7px #ffd9a0,10px 16px 3px #ffce8a,-8px 30px 3px rgba(255,217,160,.9),16px 44px 3px rgba(255,206,138,.75),2px 58px 3px #ffd9a0,24px 26px 3px rgba(255,217,160,.65),12px 74px 3px rgba(255,206,138,.6),-14px 48px 3px rgba(255,217,160,.7)"></div>
+    <div style="position:absolute;right:26px;top:66px;width:9px;height:20px;border-radius:5px 5px 3px 3px;background:#f4efe4;transform:rotate(24deg);box-shadow:0 0 8px rgba(255,244,214,.6)"></div>
+    <div style="position:absolute;right:34px;top:88px;width:3px;height:26px;background:linear-gradient(rgba(255,206,138,.9),transparent);transform:rotate(24deg);border-radius:2px"></div>
+  </div>
+  <div style="position:absolute;left:28px;bottom:28px;display:flex;align-items:center;gap:10px;padding:12px 20px;border-radius:20px;background:rgba(30,24,50,.75);border:1px solid rgba(185,168,232,.25)">
+    <span style="color:#c9b8ff;font-size:15px">&#10022;</span>
+    <span style="font:800 14px 'Nunito',sans-serif;color:#eee8ff">fast-forward &#215;200</span>
+  </div>
+  <div style="position:absolute;right:28px;bottom:28px;display:flex;gap:10px;padding:12px 14px;border-radius:22px;background:rgba(30,24,50,.75);border:1px solid rgba(185,168,232,.25)">
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(185,168,232,.16);border:1px solid rgba(185,168,232,.35);display:flex;align-items:center;justify-content:center;color:#eee8ff;font-size:17px">&#8645;</div>
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(185,168,232,.16);border:1px solid rgba(185,168,232,.35);display:flex;align-items:center;justify-content:center;color:#eee8ff;font-size:17px">&#8767;</div>
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(185,168,232,.16);border:1px solid rgba(185,168,232,.35);display:flex;align-items:center;justify-content:center;color:#eee8ff;font-size:16px">&#10054;</div>
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(185,168,232,.16);border:1px solid rgba(185,168,232,.35);display:flex;align-items:center;justify-content:center;color:#eee8ff;font-size:16px">&#10047;</div>
+  </div>
+  <div style="position:absolute;right:28px;top:130px;width:280px">
+    <div style="position:relative;border-radius:18px;background:rgba(30,24,50,.82);border:1px solid rgba(185,168,232,.3);box-shadow:0 20px 50px rgba(0,0,0,.5);padding:38px 18px 18px">
+      <div style="position:absolute;left:50%;top:-26px;transform:translateX(-50%);width:52px;height:40px;border-radius:14px 14px 6px 6px;background:#b9a8e8;border:2px solid rgba(238,232,255,.5);display:flex;align-items:flex-start;justify-content:center;padding-top:8px"><div style="width:30px;height:16px;border-radius:6px;background:#241d3d;display:flex;align-items:center;justify-content:center;gap:5px"><div style="width:5px;height:9px;border-radius:3px;background:#ffd9a0"></div><div style="width:5px;height:9px;border-radius:3px;background:#ffd9a0"></div></div></div>
+      <div style="font:700 10.5px 'Nunito',sans-serif;color:rgba(238,232,255,.45);letter-spacing:2px;text-align:center;margin-bottom:8px">MISSION CONTROL</div>
+      <div style="font:700 14.5px/1.5 'Nunito',sans-serif;color:#eee8ff">4,006 windows lit on the night side. Also: somebody built a rocket.</div>
+      <div style="margin-top:8px;font:600 11px 'Nunito',sans-serif;color:rgba(238,232,255,.5)">surface 16&#176; &#183; seas calm &#183; blobs: clever</div>
+      <div style="margin-top:12px;display:inline-block;padding:8px 16px;border-radius:12px;background:rgba(255,210,120,.15);border:1px solid rgba(255,210,120,.4);font:800 12px 'Nunito',sans-serif;color:#ffd9a0">hint (press twice for the answer)</div>
+    </div>
+  </div>
+</div></div>
+<div class="dv-card" style="width:260px;background:#100c1d"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 16px 16px">
+  <div style="position:relative;width:150px;height:120px">
+    <div style="position:absolute;left:73px;top:8px;width:4px;height:16px;background:#8677b3;border-radius:2px"></div>
+    <div style="position:absolute;left:69px;top:0;width:12px;height:12px;border-radius:50%;background:#ffd9a0;box-shadow:0 0 12px rgba(255,217,160,.9)"></div>
+    <div style="position:absolute;left:0;top:44px;width:34px;height:44px;border-radius:8px;background:repeating-linear-gradient(90deg,#4a3f78 0 6px,#5d4f94 6px 12px);border:2px solid #8677b3"></div>
+    <div style="position:absolute;left:114px;top:44px;width:34px;height:44px;border-radius:8px;background:repeating-linear-gradient(90deg,#4a3f78 0 6px,#5d4f94 6px 12px);border:2px solid #8677b3"></div>
+    <div style="position:absolute;left:36px;top:62px;width:12px;height:7px;background:#8677b3"></div>
+    <div style="position:absolute;left:102px;top:62px;width:12px;height:7px;background:#8677b3"></div>
+    <div style="position:absolute;left:46px;top:24px;width:58px;height:66px;border-radius:18px;background:#b9a8e8;border:2px solid rgba(238,232,255,.5);box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 24px rgba(185,168,232,.25)">
+      <div style="margin:9px 7px 0;height:28px;border-radius:9px;background:#241d3d;display:flex;align-items:center;justify-content:center;gap:8px"><div style="width:8px;height:8px;border-radius:50% 50% 0 0;border-top:3px solid #ffd9a0;margin-top:6px"></div><div style="width:8px;height:8px;border-radius:50% 50% 0 0;border-top:3px solid #ffd9a0;margin-top:6px"></div></div>
+      <div style="display:flex;justify-content:center;gap:4px;margin-top:8px"><div style="width:4px;height:4px;border-radius:50%;background:#ffd9a0"></div><div style="width:4px;height:4px;border-radius:50%;background:rgba(255,217,160,.4)"></div></div>
+    </div>
+    <div style="position:absolute;left:64px;top:92px;width:22px;height:9px;border-radius:0 0 7px 7px;background:#8677b3"></div>
+  </div>
+  <div style="font:700 10.5px 'Nunito',sans-serif;color:rgba(238,232,255,.5);letter-spacing:2px">MISSION CONTROL</div>
+  <div style="font:700 11.5px/1.45 'Nunito',sans-serif;color:rgba(238,232,255,.7);text-align:center">Soft glow, sleepy eyes, always awake. Wants to be called Twink.</div>
+</div></div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "make <a class="dv-oid" href="#1b">1b</a>'s planet spin" &#183; "mix <a class="dv-oid" href="#1b">1b</a>'s planet with <a class="dv-oid" href="#1a">1a</a>'s console" &#183; "show the builder screen in <a class="dv-oid" href="#1c">1c</a> and <a class="dv-oid" href="#1e">1e</a>"</p>
+</section>
+</x-dc>
+</body>
+</html>

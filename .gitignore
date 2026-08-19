@@ -28,6 +28,7 @@ test-results/
 !.scratch/*/spec.md
 !.scratch/*/design-brief.md
 !.scratch/*/issues/
+!.scratch/*/design-handoff/
 
 # misc
 *.log
