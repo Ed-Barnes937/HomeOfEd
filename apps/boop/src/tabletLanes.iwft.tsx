@@ -110,3 +110,29 @@ test('the playing ring walks the lane squares as the song plays', async ({ mount
   await root.verifyPositionPlaying(1, 1)
   await root.verifyPositionNumeralPlaying(1)
 })
+
+test('the new scrub rows fit the band: strip cells still track the squares', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.toggleCell('kick', 0)
+  await root.toggleLaneSquare(0, 0)
+  await root.toggleLaneSquare(0, 15)
+
+  // The song strip and the clip rail (boop-playhead ticket 05) compress with
+  // the lane grid rather than pushing the column into a sideways scroll.
+  await root.verifyStripCellAlignsWithLane(0, 0)
+  await root.verifyStripCellAlignsWithLane(15, 0)
+  await root.verifyClipRailAlignsWithSteps(0)
+  await root.verifyClipRailAlignsWithSteps(15)
+  await root.verifyNoSidewaysScroller()
+
+  // ...and the gestures work here too.
+  await root.tapSongStrip(15, 2)
+  await root.verifySongStripMarkerAt(15, 2, false)
+  await root.tapClipRail(6)
+  await root.verifyClipRailAtStep(6, false)
+})

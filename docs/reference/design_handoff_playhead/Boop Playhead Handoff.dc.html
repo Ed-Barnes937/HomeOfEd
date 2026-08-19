@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<style>
+@font-face{font-family:'Chivo';font-style:normal;font-weight:300 900;font-display:swap;src:url('assets/fonts/chivo-latin.woff2') format('woff2')}
+@font-face{font-family:'Chivo Mono';font-style:normal;font-weight:400 900;font-display:swap;src:url('assets/fonts/chivo-mono-latin.woff2') format('woff2')}
+body{margin:0;background:#f0eee9;font-family:'Chivo',system-ui,sans-serif}
+a{color:#0b7c91}a:hover{color:#14262a}
+*,*::before,*::after{box-sizing:border-box}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:900px}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.dv-note{margin:0;max-width:900px;font:400 12px/1.55 system-ui,sans-serif;color:rgba(0,0,0,.6)}
+</style></helmet>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#14262a"/><rect x="30" y="44" width="40" height="6" rx="3" fill="#f2efe6" opacity="0.25"/><rect x="46" y="34" width="8" height="26" rx="3" fill="#6fe0f0"/><rect x="42" y="26" width="16" height="12" rx="4" fill="#6fe0f0"/></svg></template>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Controllable playhead — design handoff</span></div>
+<p class="dv-note">Two screens share one clock: pressing Play or scrubbing on either moves both. Drag the strips to scrub — the song strip snaps to bars, the clip rail and WHOLE&nbsp;LOOP snap to steps. Demo song: 3 clips, 8 placed positions, 32 bars, 110&nbsp;BPM.</p>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Conservative — a WHOLE&nbsp;SONG strip above the ruler, built from the loop map's tick language and aligned to the lane columns. Tap or drag it to jump; the ruler numerals become tap targets too. In the grid well the bar-numeral row grows a 16-step scrub rail, and the existing playhead column stays put at 45% when stopped.</div>
+<div class="dv-card">
+<div style="width:1428px;background:#14262a;color:#f2efe6;padding:0 36px 28px">
+
+<header style="height:58px;display:flex;align-items:center;gap:14px">
+<span style="flex:none;width:44px;height:44px;margin-left:-10px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,0.55)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg></span>
+<span style="font:900 31px 'Chivo',system-ui;letter-spacing:-0.03em">boop</span>
+<span style="font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,0.5)">Not saved yet</span>
+<div style="flex:1"></div>
+<button type="button" style="padding:11px 18px;border:1px solid rgba(242,239,230,0.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,0.8);cursor:pointer">New boop</button>
+<button type="button" style="padding:11px 18px;border:1px solid rgba(242,239,230,0.2);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:rgba(242,239,230,0.8);cursor:pointer">My boops</button>
+<button type="button" style="padding:11px 20px;border:none;border-radius:9px;background:#f2efe6;font:800 14px 'Chivo',system-ui;color:#14262a;cursor:pointer">Share</button>
+<button type="button" style="flex:none;width:44px;height:44px;border:1px solid rgba(242,239,230,0.2);border-radius:50%;background:transparent;font:800 17px 'Chivo',system-ui;color:rgba(242,239,230,0.8);cursor:pointer">?</button>
+</header>
+
+<div style="margin-top:14px;display:flex;align-items:center;gap:12px">
+<span style="flex:none;font:700 13px 'Chivo',system-ui;color:rgba(242,239,230,0.45)">You&rsquo;re changing</span>
+<span style="flex:none;width:14px;height:14px;border-radius:50%;background:{{ clipTint }}"></span>
+<span style="font:800 17px 'Chivo',system-ui;letter-spacing:-0.015em;color:#f2efe6">{{ clipName }}</span>
+<span style="flex:none;width:32px;height:32px;border:1px solid rgba(242,239,230,0.2);border-radius:50%;color:rgba(242,239,230,0.7);display:inline-flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span>
+<div style="flex:1"></div>
+<span style="font:700 12px 'Chivo Mono',ui-monospace;color:rgba(242,239,230,0.45)">{{ posReadout }}</span>
+<button type="button" style="flex:none;padding:9px 14px;border:1px solid rgba(242,239,230,0.2);border-radius:9px;background:transparent;font:700 13px 'Chivo',system-ui;color:rgba(242,239,230,0.8);cursor:pointer">Make a copy</button>
+<button type="button" style="flex:none;padding:9px 14px;border:1px dashed rgba(255,138,122,0.55);border-radius:9px;background:transparent;font:700 13px 'Chivo',system-ui;color:#ff8a7a;cursor:pointer">Delete clip</button>
+</div>
+
+<div style="margin-top:12px;padding:18px;border-radius:24px;background:#0e1f23;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05),inset 0 0 0 2px {{ clipTintRing }}">
+<div style="display:flex;gap:18px;margin-bottom:4px">
+<div style="flex:none;width:160px"></div>
+<sc-for list="{{ barNumsB }}" as="b" hint-placeholder-count="4"><div style="flex:none;width:272px;font:700 13px 'Chivo Mono',ui-monospace;color:{{ b.color }}">{{ b.n }}</div></sc-for>
+</div>
+<div style="display:flex;gap:18px;margin-bottom:8px">
+<div style="flex:none;width:160px;font:700 10px 'Chivo',system-ui;letter-spacing:0.06em;color:rgba(242,239,230,0.38);line-height:10px">THIS CLIP</div>
+<div onPointerDown="{{ gridDown }}" onPointerMove="{{ gridMove }}" onPointerUp="{{ scrubUp }}" onPointerCancel="{{ scrubUp }}" style="flex:none;width:1142px;height:10px;display:flex;gap:18px;cursor:pointer;touch-action:none">
+<sc-for list="{{ clipRail }}" as="g" hint-placeholder-count="4"><div style="display:flex;gap:8px">
+<sc-for list="{{ g.ticks }}" as="t" hint-placeholder-count="4"><span style="flex:none;width:62px;height:4px;margin-top:3px;border-radius:2px;background:{{ t.bg }};box-shadow:{{ t.glow }};opacity:{{ t.op }}"></span></sc-for>
+</div></sc-for>
+</div>
+</div>
+<div style="position:relative">
+<div style="position:absolute;z-index:0;top:-8px;bottom:-8px;width:78px;border-radius:19px;background:linear-gradient(180deg,rgba(111,224,240,0.24),rgba(111,224,240,0.07));box-shadow:0 0 0 1px rgba(111,224,240,0.34);pointer-events:none;left:{{ phLeft }}px;opacity:{{ opDim }}"></div>
+<div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{ gridRows }}" as="row" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:18px">
+<div style="flex:none;width:160px;display:flex;align-items:center;gap:12px">
+<span style="flex:none;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center"><span style="width:40px;height:40px;background-image:{{ row.mask }};background-size:contain;background-repeat:no-repeat;background-position:center"></span></span>
+<span style="font:800 17px 'Chivo',system-ui;letter-spacing:-0.015em;color:#f2efe6;white-space:nowrap">{{ row.name }}</span>
+</div>
+<div style="display:flex;gap:18px">
+<sc-for list="{{ row.groups }}" as="g" hint-placeholder-count="4"><div style="display:flex;gap:8px">
+<sc-for list="{{ g.cells }}" as="c" hint-placeholder-count="4"><div style="flex:none;width:62px;height:66px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:{{ c.bg }};box-shadow:{{ c.shadow }};transform:{{ c.transform }}"><span style="width:35px;height:35px;background-image:{{ c.mask }};background-size:contain;background-repeat:no-repeat;background-position:center;opacity:{{ c.art }}"></span></div></sc-for>
+</div></sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="margin-top:16px;height:72px;padding:0 18px;border-radius:16px;background:rgba(255,255,255,0.05);display:flex;align-items:center;gap:16px">
+<span style="flex:none;width:56px;height:56px;border-radius:50%;background:#ffd24a;box-shadow:0 4px 0 #c79a17,0 10px 22px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center"><span style="width:0;height:0;margin-left:5px;border-top:12px solid transparent;border-bottom:12px solid transparent;border-left:19px solid #14262a"></span></span>
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="font:800 15px 'Chivo',system-ui;color:#f2efe6">Play this clip</span>
+<span style="font:400 13px 'Chivo',system-ui;color:rgba(242,239,230,0.45)">Just these 4 bars, round and round</span>
+</div>
+<div style="flex:1"></div>
+<button type="button" style="flex:none;padding:12px 18px;border:1px dashed rgba(255,138,122,0.55);border-radius:9px;background:transparent;font:700 14px 'Chivo',system-ui;color:#ff8a7a;cursor:pointer">Clear grid</button>
+</div>
+</div>
+
+<div style="margin-top:14px;padding:0 18px 14px;border-radius:20px;background:rgba(255,255,255,0.045);box-shadow:0 -4px 20px rgba(0,0,0,0.35);display:flex;flex-direction:column">
+<div style="height:64px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,0.07)">
+<span style="font:900 17px 'Chivo',system-ui;letter-spacing:-0.02em;color:#f2efe6">Your boop</span>
+<span style="font:600 13px 'Chivo Mono',ui-monospace;color:rgba(242,239,230,0.4)">32 bars</span>
+<div style="flex:1"></div>
+<span style="font:800 15px 'Chivo',system-ui;color:#f2efe6">Speed</span>
+<span style="flex:none;width:64px;font:600 13px 'Chivo Mono',ui-monospace;color:rgba(242,239,230,0.5)">{{ bpmText }}</span>
+<span style="flex:none;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,0.5)">Slow</span>
+<div style="flex:none;position:relative;width:280px;height:10px;border-radius:5px;background:linear-gradient(to right,rgba(242,239,230,0.4) {{ tempoPct }}%,rgba(255,255,255,0.11) {{ tempoPct }}%)"><span style="position:absolute;top:-10px;width:30px;height:30px;border-radius:50%;background:#f2efe6;box-shadow:0 3px 8px rgba(0,0,0,0.45);left:{{ tempoThumb }}px"></span></div>
+<span style="flex:none;font:600 13px 'Chivo',system-ui;color:rgba(242,239,230,0.5)">Fast</span>
+</div>
+<div style="padding-top:14px;display:flex;align-items:flex-start;gap:18px">
+<div style="flex:none;padding-top:46px;display:flex;flex-direction:column;align-items:center;gap:7px">
+<button type="button" onClick="{{ toggle }}" style="width:56px;height:56px;padding:0;border:none;border-radius:50%;background:{{ songPlayBg }};box-shadow:0 4px 0 rgba(0,0,0,0.28),0 10px 22px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;cursor:pointer">
+<span style="width:0;height:0;margin-left:5px;border-top:12px solid transparent;border-bottom:12px solid transparent;border-left:19px solid #14262a;display:{{ dispPlay }}"></span>
+<span style="display:{{ dispPause }};gap:6px"><span style="width:7px;height:22px;border-radius:2px;background:#14262a"></span><span style="width:7px;height:22px;border-radius:2px;background:#14262a"></span></span>
+</button>
+<span style="font:800 12px 'Chivo',system-ui;color:rgba(242,239,230,0.6)">{{ playLabel }}</span>
+</div>
+<div style="flex:none;width:1px;align-self:stretch;background:rgba(255,255,255,0.1)"></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+
+<div style="display:flex;align-items:center">
+<span style="flex:none;width:184px;font:700 10px 'Chivo',system-ui;letter-spacing:0.06em;color:rgba(242,239,230,0.38)">WHOLE SONG</span>
+<div onPointerDown="{{ songDown }}" onPointerMove="{{ songMove }}" onPointerUp="{{ scrubUp }}" onPointerCancel="{{ scrubUp }}" style="position:relative;flex:none;width:1016px;height:26px;display:flex;align-items:center;gap:8px;cursor:pointer;touch-action:none">
+<sc-for list="{{ stripCells }}" as="s" hint-placeholder-count="16"><div style="flex:none;width:56px;height:12px;border-radius:4px;background:{{ s.bg }};box-shadow:{{ s.shadow }}"></div></sc-for>
+<div style="position:absolute;top:1px;bottom:1px;width:14px;border-radius:4px;background:#6fe0f0;box-shadow:0 0 8px rgba(111,224,240,0.8);pointer-events:none;left:{{ songMarkLeft }}px;opacity:{{ opDim }}"></div>
+</div>
+</div>
+
+<div style="display:flex;gap:8px;padding-left:184px">
+<sc-for list="{{ rulerB }}" as="r" hint-placeholder-count="16"><span style="flex:none;width:56px;height:18px;border-radius:6px;text-align:center;font:700 12px/18px 'Chivo Mono',ui-monospace;color:{{ r.color }};background:{{ r.bg }};cursor:pointer">{{ r.n }}</span></sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ laneRows }}" as="lane" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="flex:none;width:176px;height:46px;padding:0 14px;border-radius:12px;background:{{ lane.chipBg }};box-shadow:{{ lane.chipRing }};display:flex;align-items:center;gap:8px;cursor:pointer">
+<span style="flex:none;width:12px;height:12px;border-radius:50%;background:{{ lane.tint }}"></span>
+<span style="min-width:0;font:800 14px 'Chivo',system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f2efe6">{{ lane.name }}</span>
+<span style="flex:none;margin-left:auto;font:800 12px 'Chivo Mono',ui-monospace;color:{{ lane.tint }}">{{ lane.countText }}</span>
+</div>
+<sc-for list="{{ lane.squares }}" as="s" hint-placeholder-count="16"><div style="flex:none;width:56px;height:46px;border-radius:11px;background:{{ s.bg }};box-shadow:{{ s.shadow }};transform:{{ s.transform }};border:{{ s.border }};cursor:pointer"></div></sc-for>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:12px">
+<button type="button" style="flex:none;width:176px;height:46px;border:2px dashed rgba(242,239,230,0.22);border-radius:12px;background:transparent;font:800 14px 'Chivo',system-ui;color:rgba(242,239,230,0.5);cursor:pointer">+ New clip</button>
+<span style="font:400 13px 'Chivo',system-ui;color:rgba(242,239,230,0.3)">Add another layer</span>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Phone, 390&nbsp;px. Both strips are the non-scrolling kind, which is the whole trick from the loop map: the lanes and the grid still swipe sideways, but the playhead lives on a band that never moves, so it can never be lost. WHOLE&nbsp;SONG spans the song's real length (8 positions &times; 4 bars &asymp; 11&nbsp;px per bar), so bar-snapping still gives a fat enough target. WHOLE&nbsp;LOOP becomes the clip scrubber, snapping to steps.</div>
+<div class="dv-card">
+<div style="width:390px;background:#14262a;color:#f2efe6;padding:0 12px 20px;overflow:hidden">
+
+<div style="margin:0 -12px;height:52px;display:flex;align-items:center;gap:6px;padding:0 8px;background:rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.08)">
+<span style="flex:none;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,0.55)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg></span>
+<span style="flex:1;min-width:0;font:900 20px 'Chivo',system-ui;letter-spacing:-0.03em">boop</span>
+<span style="position:relative;flex:none;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,0.55)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg><span style="position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;border:1.5px solid #6fe0f0;background:#6fe0f0"></span></span>
+<span style="flex:none;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:rgba(242,239,230,0.55)"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></span>
+</div>
+
+<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+<span style="flex:none;font:700 11px 'Chivo',system-ui;color:rgba(242,239,230,0.45)">You&rsquo;re changing</span>
+<span style="flex:none;width:12px;height:12px;border-radius:50%;background:{{ clipTint }}"></span>
+<span style="min-width:0;font:800 14px 'Chivo',system-ui;letter-spacing:-0.015em;color:#f2efe6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ clipName }}</span>
+<div style="flex:1"></div>
+<span style="flex:none;padding:7px 9px;border:1px solid rgba(242,239,230,0.2);border-radius:9px;font:700 11px 'Chivo',system-ui;color:rgba(242,239,230,0.8)">Copy</span>
+<span style="flex:none;padding:7px 9px;border:1px dashed rgba(255,138,122,0.55);border-radius:9px;font:700 11px 'Chivo',system-ui;color:#ff8a7a">Delete</span>
+</div>
+
+<div style="margin-top:12px;padding:10px;border-radius:16px;background:#0e1f23;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);overflow:hidden">
+<div style="display:flex;gap:8px;margin-bottom:6px">
+<div style="flex:none;width:92px"></div>
+<div style="position:relative;flex:1;min-width:0;overflow:hidden">
+<div style="display:flex;gap:11px;height:14px;width:605px">
+<sc-for list="{{ barNumsB }}" as="b" hint-placeholder-count="4"><div style="flex:none;width:143px;font:700 10px/14px 'Chivo Mono',ui-monospace;color:{{ b.color }}">{{ b.n }}</div></sc-for>
+</div>
+</div>
+</div>
+<div style="display:flex;gap:8px">
+<div style="flex:none;width:92px;padding:6px 0;display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{ phoneRail }}" as="row" hint-placeholder-count="6">
+<div style="height:44px;display:flex;align-items:center;gap:7px">
+<span style="flex:none;width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center"><span style="width:24px;height:24px;background-image:{{ row.mask }};background-size:contain;background-repeat:no-repeat;background-position:center"></span></span>
+<span style="font:800 11px 'Chivo',system-ui;letter-spacing:-0.015em;color:#f2efe6;white-space:nowrap">{{ row.name }}</span>
+</div>
+</sc-for>
+</div>
+<div style="position:relative;flex:1;min-width:0;overflow:hidden">
+<div style="position:relative;padding:6px 0;width:605px">
+<div style="position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none"><div style="position:absolute;top:0;bottom:0;width:44px;border-radius:10px;background:linear-gradient(180deg,rgba(111,224,240,0.24),rgba(111,224,240,0.07));box-shadow:0 0 0 1px rgba(111,224,240,0.34);left:{{ phonePhLeft }}px;opacity:{{ opDim }}"></div></div>
+<div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{ phoneRows }}" as="row" hint-placeholder-count="6">
+<div style="display:flex;gap:11px">
+<sc-for list="{{ row.groups }}" as="g" hint-placeholder-count="4"><div style="display:flex;gap:5px">
+<sc-for list="{{ g.cells }}" as="c" hint-placeholder-count="4"><div style="flex:none;width:32px;height:44px;border-radius:7px;background:{{ c.bg }};box-shadow:{{ c.shadow }};transform:{{ c.transform }}"></div></sc-for>
+</div></sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="position:absolute;top:0;bottom:6px;right:0;width:22px;border-radius:2px;pointer-events:none;border-right:3px solid #6fe0f0;background:linear-gradient(270deg,rgba(111,224,240,0.35),rgba(111,224,240,0));opacity:{{ edgeGlow }}"></div>
+</div>
+</div>
+</div>
+
+<div onPointerDown="{{ loopDown }}" onPointerMove="{{ loopMove }}" onPointerUp="{{ scrubUp }}" onPointerCancel="{{ scrubUp }}" style="margin-top:6px;height:40px;display:flex;align-items:flex-end;gap:8px;touch-action:none;cursor:pointer">
+<span style="flex:none;width:92px;font:700 10px 'Chivo',system-ui;letter-spacing:0.06em;color:rgba(242,239,230,0.4)">WHOLE LOOP</span>
+<div style="position:relative;flex:1;min-width:0;padding-bottom:10px">
+<div style="display:flex;gap:4px;align-items:flex-end;height:20px">
+<sc-for list="{{ phoneTicks }}" as="t" hint-placeholder-count="16"><span style="flex:1;border-radius:2px;height:{{ t.h }}px;background:{{ t.bg }};box-shadow:{{ t.glow }};opacity:{{ t.op }}"></span></sc-for>
+</div>
+<div style="position:absolute;bottom:0;height:3px;border-radius:2px;background:rgba(242,239,230,0.55);left:0;width:43%"></div>
+<div style="position:absolute;top:-4px;width:18px;height:16px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:2px;background:{{ capBg }};box-shadow:0 2px 6px rgba(0,0,0,0.45);left:calc({{ loopCapPct }}% - 9px)">
+<span style="width:2px;height:7px;border-radius:1px;background:rgba(20,38,42,0.45)"></span><span style="width:2px;height:7px;border-radius:1px;background:rgba(20,38,42,0.45)"></span>
+</div>
+</div>
+</div>
+
+<div style="margin-top:12px;padding:10px;border-radius:16px;background:rgba(255,255,255,0.045)">
+<div style="display:flex;align-items:center;gap:10px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.07)">
+<button type="button" onClick="{{ toggle }}" style="flex:none;width:36px;height:36px;padding:0;border:none;border-radius:50%;background:{{ songPlayBg }};box-shadow:0 3px 0 rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center;cursor:pointer">
+<span style="width:0;height:0;margin-left:3px;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:13px solid #14262a;display:{{ dispPlay }}"></span>
+<span style="display:{{ dispPause }};gap:4px"><span style="width:5px;height:14px;border-radius:2px;background:#14262a"></span><span style="width:5px;height:14px;border-radius:2px;background:#14262a"></span></span>
+</button>
+<span style="font:900 14px 'Chivo',system-ui;letter-spacing:-0.02em;color:#f2efe6">Your boop</span>
+<span style="font:600 11px 'Chivo Mono',ui-monospace;color:rgba(242,239,230,0.4)">32 bars</span>
+</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px">
+<span style="font:700 10px 'Chivo',system-ui;letter-spacing:0.06em;color:rgba(242,239,230,0.4)">WHOLE SONG</span>
+<span style="font:700 10px 'Chivo Mono',ui-monospace;color:rgba(242,239,230,0.45)">{{ posReadout }}</span>
+</div>
+<div onPointerDown="{{ phoneSongDown }}" onPointerMove="{{ phoneSongMove }}" onPointerUp="{{ scrubUp }}" onPointerCancel="{{ scrubUp }}" style="position:relative;height:30px;margin-bottom:10px;touch-action:none;cursor:pointer">
+<div style="position:absolute;top:9px;left:0;right:0;height:12px;display:flex;border-radius:4px;overflow:hidden">
+<sc-for list="{{ phoneSegs }}" as="s" hint-placeholder-count="8"><div style="flex:1;background:{{ s.bg }};box-shadow:inset -1px 0 0 rgba(14,31,35,0.9)"></div></sc-for>
+</div>
+<div style="position:absolute;top:9px;height:12px;width:3.125%;background:#6fe0f0;box-shadow:0 0 8px rgba(111,224,240,0.8);pointer-events:none;left:{{ phoneMarkPct }}%;opacity:{{ opDim }}"></div>
+<div style="position:absolute;top:4px;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:2px;background:{{ capBg }};box-shadow:0 3px 8px rgba(0,0,0,0.45);left:calc({{ phoneCapPct }}% - 11px)">
+<span style="width:2px;height:9px;border-radius:1px;background:rgba(20,38,42,0.45)"></span><span style="width:2px;height:9px;border-radius:1px;background:rgba(20,38,42,0.45)"></span><span style="width:2px;height:9px;border-radius:1px;background:rgba(20,38,42,0.45)"></span>
+</div>
+</div>
+
+<div style="display:flex;gap:8px">
+<div style="flex:none;width:92px;padding:4px 0;display:flex;flex-direction:column;gap:5px">
+<sc-for list="{{ laneRows }}" as="lane" hint-placeholder-count="3">
+<div style="height:30px;padding:0 6px;border-radius:8px;background:{{ lane.chipBg }};box-shadow:{{ lane.chipRing }};display:flex;align-items:center;gap:5px">
+<span style="flex:none;width:9px;height:9px;border-radius:50%;background:{{ lane.tint }}"></span>
+<span style="min-width:0;font:800 10px 'Chivo',system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f2efe6">{{ lane.name }}</span>
+<span style="flex:none;margin-left:auto;font:800 9px 'Chivo Mono',ui-monospace;color:{{ lane.tint }}">{{ lane.countText }}</span>
+</div>
+</sc-for>
+<div style="height:30px;border:2px dashed rgba(242,239,230,0.22);border-radius:8px;font:800 10px/26px 'Chivo',system-ui;text-align:center;color:rgba(242,239,230,0.5)">+ New</div>
+</div>
+<div style="flex:1;min-width:0;overflow:hidden">
+<div style="width:605px;display:flex;flex-direction:column;gap:5px">
+<div style="display:flex;gap:11px;height:14px">
+<sc-for list="{{ phoneLaneRuler }}" as="g" hint-placeholder-count="4"><div style="flex:none;width:143px;display:flex;gap:5px">
+<sc-for list="{{ g.cells }}" as="r" hint-placeholder-count="4"><span style="flex:none;width:32px;text-align:center;font:700 10px/14px 'Chivo Mono',ui-monospace;color:{{ r.color }}">{{ r.n }}</span></sc-for>
+</div></sc-for>
+</div>
+<div style="padding:4px 0;display:flex;flex-direction:column;gap:5px">
+<sc-for list="{{ laneRows }}" as="lane" hint-placeholder-count="3">
+<div style="display:flex;gap:11px">
+<sc-for list="{{ lane.phoneGroups }}" as="g" hint-placeholder-count="4"><div style="display:flex;gap:5px">
+<sc-for list="{{ g.cells }}" as="s" hint-placeholder-count="4"><div style="flex:none;width:32px;height:30px;border-radius:7px;background:{{ s.bg }};box-shadow:{{ s.shadow }};transform:{{ s.transform }}"></div></sc-for>
+</div></sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="margin-top:12px;padding:14px;border-radius:18px;background:rgba(255,255,255,0.045);display:flex;align-items:center;gap:14px">
+<span style="flex:none;width:72px;height:72px;border-radius:50%;background:#ffd24a;box-shadow:0 5px 0 #c79a17,0 12px 24px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center"><span style="width:0;height:0;margin-left:6px;border-top:16px solid transparent;border-bottom:16px solid transparent;border-left:25px solid #14262a"></span></span>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font:800 14px 'Chivo',system-ui;color:#f2efe6">Tempo</span><span style="font:600 12px 'Chivo Mono',ui-monospace;color:rgba(242,239,230,0.5)">{{ bpmText }}</span></div>
+<div style="display:flex;align-items:center;gap:14px;min-width:0">
+<span style="flex:none;width:28px;font:600 11px 'Chivo',system-ui;color:rgba(242,239,230,0.5)">Slow</span>
+<div style="position:relative;flex:1;min-width:0;height:12px;border-radius:6px;background:linear-gradient(to right,rgba(242,239,230,0.4) {{ tempoPct }}%,rgba(255,255,255,0.11) {{ tempoPct }}%)"><span style="position:absolute;top:-11px;width:34px;height:34px;border-radius:50%;background:#f2efe6;box-shadow:0 3px 8px rgba(0,0,0,0.45);left:calc({{ tempoPct }}% - 17px)"></span></div>
+<span style="flex:none;width:24px;text-align:right;font:600 11px 'Chivo',system-ui;color:rgba(242,239,230,0.5)">Fast</span>
+</div>
+</div>
+<span style="flex:none;width:44px;height:44px;border:1px solid rgba(242,239,230,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;font:700 24px/1 'Chivo',system-ui;color:rgba(242,239,230,0.8)">+</span>
+</div>
+
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Geometry, states and behaviour are written up in <strong>README.md</strong> alongside this file.</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;bpm&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:110,&quot;min&quot;:60,&quot;max&quot;:180,&quot;step&quot;:1,&quot;unit&quot;:&quot; BPM&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Playback&quot;},&quot;snap&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;bar&quot;,&quot;step&quot;],&quot;default&quot;:&quot;bar&quot;,&quot;tsType&quot;:&quot;'bar' | 'step'&quot;,&quot;section&quot;:&quot;Playback&quot;},&quot;dimStopped&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Playhead&quot;}}">
+const CLIPS = [
+  { name: 'Slow bass', tint: '#6fe0f0', soft: 'rgba(111,224,240,0.32)', rows: ['1000100010001000','0000100000001001','0010001000100010','0000000000010000','1001001000001000','0000000010000000'] },
+  { name: 'Clip 2', tint: '#6fe0a8', soft: 'rgba(111,224,168,0.32)', rows: ['1000001010000010','0000100000001000','1010101010101011','0000000000000100','0000000000000000','0010000000100000'] },
+  { name: 'Tappy hats', tint: '#b78bff', soft: 'rgba(183,139,255,0.32)', rows: ['0000000000000000','0000000000000000','1101110111011101','0010000000100000','0000100000001000','0000000000000000'] },
+]
+const ART_SVG = {
+  "drum": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M476.865 25.514L282.941 145.422l19.32 9.215L486.333 40.822l-9.467-15.308zM73.6 65.508l-7.748 16.246 286.595 136.709 1.389 2.715c3.244 6.346 9.677 12.524 17.723 16.373l.003.002.004.002c8.566 4.084 17.188 5.364 23.63 4.373 6.443-.992 10.352-3.63 12.523-8.18 2.17-4.55 1.665-8.39-1.725-13.603-3.39-5.213-10.122-10.882-18.935-15.086-8.063-3.843-16.927-4.961-23.91-3.487l-2.983.63L73.6 65.507zm121.097 97.65c-40.936 2.913-77.435 8.644-106.084 16.283-21.165 5.644-38.06 12.392-48.953 19.26C28.767 205.57 25 211.723 25 216c0 4.277 3.767 10.43 14.66 17.299 10.894 6.868 27.788 13.616 48.953 19.26C130.943 263.847 190.374 271 256 271c49.18 0 94.88-4.017 132.512-10.781-8.123-.325-16.546-2.53-24.703-6.422l-.002-.002-.004-.002c-10.2-4.878-18.614-12.38-24.135-21.484l-72.705-34.68-36.498 22.566c-4.5 9.65-12.051 18.021-21.662 23.977l-.002.002-.004.002c-10.715 6.625-22.297 10.072-33.281 9.588-10.985-.484-21.794-5.485-27.856-15.29-6.062-9.803-5.366-21.696-.515-31.294 4.85-9.598 13.3-17.76 23.785-24.243l.002-.001h.002c9.63-5.951 20.504-8.973 31.16-8.688l6.904-4.27-14.3-6.82zm127.432.36l-.545.336 41.3 19.7c10.563-1.44 21.702.385 31.92 5.257h.005c11.125 5.306 20.412 12.504 26.275 21.52 5.863 9.014 7.844 20.763 2.88 31.167-3.08 6.457-8.178 11.27-14.2 14.395 4.699-1.07 9.273-2.174 13.623-3.334 21.165-5.644 38.06-12.392 48.953-19.26C483.233 226.43 487 220.277 487 216c0-4.277-3.767-10.43-14.66-17.299-10.894-6.868-27.788-13.616-48.953-19.26-27.516-7.337-62.286-12.91-101.258-15.923zm-93.81 15.677l-21.499 13.293-3.033-.3c-7.102-.708-15.793 1.364-23.39 6.058l-.002.002c-8.305 5.135-14.382 11.502-17.186 17.05-2.804 5.55-2.89 9.422-.238 13.71 2.651 4.288 6.822 6.486 13.336 6.773 6.513.287 14.949-1.923 23.023-6.916 7.58-4.699 13.305-11.538 15.842-18.199l1.086-2.85 31.383-19.404-19.323-9.217zM39.642 253.912l26.941 44.9 33.31-24.982a408.545 408.545 0 0 1-15.92-3.879c-17.352-4.627-32.253-9.928-44.331-16.039zm432.714 0c-12.078 6.11-26.98 11.412-44.332 16.04-6.926 1.846-14.283 3.565-21.949 5.175l38.926 24.377 27.355-45.592zM487 264.492l-17.576 29.293a90.955 90.955 0 0 0 2.209-.97c5.948-2.72 10.255-5.583 12.627-7.944 2.371-2.361 2.74-3.683 2.74-4.871v-15.508zm-462 .002V280c0 1.188.369 2.51 2.74 4.871 2.372 2.361 6.679 5.224 12.627 7.943.712.326 1.45.65 2.207.971L25 264.495zm98.639 14.027l-36.737 27.553c1.874.36 3.74.72 5.674 1.065 21.728 3.862 47.224 6.792 74.612 8.775l-36.143-36.143a573.54 573.54 0 0 1-7.406-1.25zm233.996 4.538c-23.345 2.877-48.603 4.787-75.155 5.552l37.08 27.809 38.075-33.361zm27.261.045l-37.195 32.59c26.286-1.979 50.764-4.83 71.723-8.555 1.011-.18 1.972-.373 2.967-.557l-37.495-23.478zm-224.369.697l32.317 32.316 36.676-27.506c-24.226-.698-47.389-2.342-68.993-4.81zM256 291.25l-36.322 27.242c12.024.332 24.171.508 36.322.508 12.15 0 24.298-.176 36.322-.508L256 291.25zM25 305.121V440c0 5.5 4.3 11.699 16.09 18.436 3.953 2.259 8.63 4.452 13.91 6.554V317.13c-8.28-2.377-15.693-5.007-22.117-7.943-2.813-1.287-5.44-2.63-7.883-4.065zm462 0c-2.443 1.435-5.07 2.778-7.883 4.065-6.424 2.936-13.838 5.566-22.117 7.943V464.99c5.28-2.103 9.957-4.295 13.91-6.554C482.7 451.699 487 445.5 487 440V305.121zM73 321.63v149.488c6.196 1.816 12.868 3.523 19.953 5.098 25.716 5.714 56.789 9.79 90.047 12.2V334.978c-34.264-1.945-66.46-5.297-93.576-10.118A430.035 430.035 0 0 1 73 321.63zm366 0a430.032 430.032 0 0 1-16.424 3.232c-27.115 4.82-59.312 8.173-93.576 10.118v153.435c33.258-2.409 64.331-6.485 90.047-12.2 7.085-1.574 13.757-3.281 19.953-5.097V321.63zM201 335.87v153.684c18.028.96 36.517 1.445 55 1.445 18.483 0 36.972-.485 55-1.445V335.87c-18.053.752-36.52 1.129-55 1.129-18.48 0-36.947-.377-55-1.129z\"></path></svg>",
+  "drum-kit": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"m111 58.3-87.37.4-.61 8.3L192.4 92.6l1.8-8.1zm310.8 18.8-.3 29.7 5-.8 4.9.8-.3-29.7zM96.33 92.8l-1.81 13-33.17 26.4 1.84 115.6 6.16-40.4 9.55-2.3h.28l-1.03-65 31.95-25.4 2.7-19.4zm330.17 25.9-66.6 10.4.6 8.3h132l.6-8.3zm-66 33.3-.6 8.3 66.6 10.4 66.6-10.4-.6-8.3zm60.3 30.5-.2 20.8c2.8.5 5.6 1.2 8.5 1.8l3.3.8-.2-23.4-5.7.9zm-287.4 30.7c-16.5-.2-33.5 1.9-51.1 6.1l-2.86 18.8c23.26-3.3 75.96-6.9 127.56 14.6 4-1.6 8.2-3.1 12.4-4.3l1.2-8c-26.6-18.2-55.8-26.8-87.2-27.2zm241.2 0c-31.4.4-60.6 9-87.2 27.2l1.2 8c4.2 1.2 8.4 2.7 12.4 4.3 51.6-21.5 104.3-17.9 127.6-14.6l-2.9-18.8c-17.6-4.2-34.6-6.3-51.1-6.1zm-258.1 39c-17.91 0-32.1 1.8-39.69 3.1l-7.05 46.3 72.94 11.1c10.1-20.3 25.5-37.5 44.5-49.6-25.4-8.5-50.4-10.9-70.7-10.9zm275 0c-20.3 0-45.3 2.4-70.7 10.9 19 12.1 34.4 29.3 44.5 49.6l72.9-11.1-7-46.3c-7.6-1.3-21.8-3.1-39.7-3.1zm-137.5 10c-49.9 0-90.4 40.5-90.4 90.4 0 49.9 40.5 90.4 90.4 90.4 49.9 0 90.4-40.5 90.4-90.4 0-49.9-40.5-90.4-90.4-90.4zM64.27 315.5l1.36 85.5-46.73 87h18.94l33.24-62 15.19 62h17.23l-21.19-86-1.33-84zM433.6 317l-14.2 2.2-.8 74.1-24.2 55.7 7.4 25 24.7-57 30.9 71h18.2l-41.2-94.7zm-279.7 11.6c-4.7 12.1-7.2 25.2-7.2 38.9C146.7 427 194.8 475 254 475c59.2 0 107.3-48 107.3-107.5 0-13.7-2.5-26.8-7.2-38.9 1.8 7.7 2.8 15.8 2.8 24C356.9 409 310.8 456 254 456c-56.8 0-102.9-47-102.9-103.4 0-8.2 1-16.3 2.8-24zm-18 77.4-20.2 82h25.7l11.8-48c-7.4-11-13.3-22-17.3-34zm236.2 0c-4 12-9.9 23-17.3 34l11.8 48h25.7z\"></path></svg>",
+  "gong": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M25 34.36v40.77l58 43.47h346l58-43.47V34.36l-67.8 54.27H92.84zm439 80.44l-29 21.8h-1v341h30zm-414 1.6v361.2h30v-341h-3zm84.7 20.2l26.4 66c4.6-4.2 9.6-8.1 14.8-11.6l-21.8-54.4zm223.2 0L336.1 191c5.2 3.5 10.2 7.4 14.8 11.6l26.4-66zm-101.9 48c-66.1 0-119 49.9-119 111s52.9 111 119 111c15.2 0 29.6-2.6 42.9-7.4l-66.1-87.4c-11.9-.5-23.4-6.1-31.1-16.2-13.6-17.9-10-43.8 8-57.4 18-13.6 43.8-10 57.4 8 7.7 10.1 9.9 22.8 7.1 34.3l68.8 90.9c19.9-19.9 32-46.6 32-75.8 0-61.1-52.9-111-119-111zm-21.7 63.2c-4.8.1-9.6 1.6-13.8 4.8-10.2 7.7-12.1 22-4.4 32.2 7.7 10.2 22 12.2 32.2 4.5 10.2-7.8 12.2-22.1 4.5-32.3-4.6-6.1-11.5-9.2-18.5-9.2zm30.8 50.3c-1.8 2-3.7 3.8-5.9 5.5-2.2 1.7-4.5 3-6.9 4.2l111 146.7 12.8-9.6z\"></path></svg>",
+  "tambourine": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M256 59.5a48 48 0 0 0-41.8 24.55c13.3-2.32 27.2-3.55 41.8-3.55 14.6 0 28.6 1.24 41.9 3.56A48 48 0 0 0 256 59.5zm0 39c-99.4 0-163.7 59.3-186.6 132.3-23 73.2-6.4 160.5 52.3 219v.1l2.6 2.6h3.7c17.8 0 32.9-7.3 50.5-14.7l-3.6-17.9c-15.4 6.1-27.4 11.3-38 13.5l-5.1 1.1-3.5-3.9c-48.4-53.3-62-130.1-41.7-194.4 20.9-66.7 77-119.7 169.4-119.7 92.3 0 148.5 53 169.4 119.7 20.3 64.3 6.7 141.1-41.7 194.4l-3.5 3.9-5.1-1.1c-10.6-2.2-22.6-7.4-38-13.5l-3.6 17.9c17.6 7.4 32.7 14.7 50.5 14.7h3.7l2.6-2.6v-.1c58.7-58.5 75.3-145.8 52.3-219-22.9-73-87.2-132.3-186.6-132.3zm-151 34a48 48 0 0 0-48 48 48 48 0 0 0 4.6 20.4c11.7-25.5 28.5-48.7 49.9-67.9a48 48 0 0 0-6.5-.5zm302 0a48 48 0 0 0-6.5.5c21.4 19.2 38.2 42.4 49.9 67.9a48 48 0 0 0 4.6-20.4 48 48 0 0 0-48-48zm-151 2c-13.3 0-25.7 1.1-37.2 3.2a48 48 0 0 0 37.2 17.8 48 48 0 0 0 37.2-17.7c-11.5-2.2-23.9-3.3-37.2-3.3zm-104.7 33.7c-19.3 16-33.4 36.7-42.7 60.1a48 48 0 0 0 44.4-47.8 48 48 0 0 0-1.7-12.3zm209.3 0a48 48 0 0 0-1.6 12.3 48 48 0 0 0 44.5 47.9c-9.4-23.5-23.5-44.2-42.9-60.2zM95.7 299.4c.5 23.4 5.3 46.9 14.4 68.8a48 48 0 0 0 8.9-27.7 48 48 0 0 0-23.3-41.1zm320.6 0a48 48 0 0 0-23.3 41.1 48 48 0 0 0 8.9 27.8c9.1-22 13.9-45.5 14.4-68.9zm-374.8 3.3A48 48 0 0 0 23 340.5a48 48 0 0 0 35.9 46.4c-11-26.9-16.7-55.6-17.4-84.2zm429.1 0c-.8 28.6-6.5 57.2-17.5 84.2a48 48 0 0 0 35.9-46.4 48 48 0 0 0-18.4-37.8zM256 402.5c-25.6 0-46.5 5-64 11l3.5 17.7c16.8-5.9 36.2-10.7 60.5-10.7 24.3 0 43.7 4.8 60.5 10.7l3.5-17.7c-17.5-6-38.4-11-64-11z\"></path></svg>",
+  "xylophone": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M25 57v270h78V57H25zm96 16v238h78V73h-78zm-57 7a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm153 9v206h78V89h-78zm-57 7a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm153 9v174h78V105h-78zm-57 7a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm153 9v142h78V121h-78zm-57 7a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm96 16a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm0 64a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm-96 16a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm-96 16a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm-96 16a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm-96 16a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm352 57c-12.81 0-23 10.19-23 23s10.19 23 23 23 23-10.19 23-23-10.19-23-23-23zm-40.977 23.967l-162.242 40.56L65.117 375.07l-2.234 17.86 101.53 12.691L29.815 439.27l4.368 17.46 179.7-44.925 193.313 24.164a40.592 40.592 0 0 1 2.246-17.857l-147.187-18.4 117.162-29.29a40.58 40.58 0 0 1-4.395-17.455zM448 409c-12.81 0-23 10.19-23 23s10.19 23 23 23 23-10.19 23-23-10.19-23-23-23z\"></path></svg>",
+  "boombox": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M369.1 24.54l-12.6 12.92c-9.2 14.71-9.7 34.33-7.6 53.05-2.9-.39-5.9-.46-8.9-.2-16.1 1.38-28.4 11.59-27.4 22.89 1 11.2 14.8 19.2 30.9 17.8 8.8-.7 17-4.2 22.1-9.5 1.7 10.8 15.2 18.2 30.7 16.9 16.1-1.4 28.4-11.6 27.4-22.9-.2-2.3-.9-4.5-2.1-6.5-3.4-19.63-4.2-38.02 4.8-57.07-18.6-5.91-44-16.31-57.3-27.39zm2.4 24.77c10.1 6.59 21.3 11.42 32 14.24-2.6 11.7-2.6 23.19-1.6 34.32-3-.42-6-.5-9.1-.24-8.8.77-16.9 4.27-22 9.57-.3-2-1.1-3.9-2.2-5.7-3.1-17.98-3.9-34.87 2.9-52.19zM111.4 63.88c-13.92 5.83-36.33 8.22-53.82 3.71l-4.5 17.43c2.08 18.88 10 35.28 19.99 49.68a20.44 29.25 55.36 0 0-8.08 4.4 20.44 29.25 55.36 0 0-12.45 33.4 20.44 29.25 55.36 0 0 35.69.2 20.44 29.25 55.36 0 0 12.47-33.4 20.44 29.25 55.36 0 0-5.4-4.7c-11.6-14-20.7-28.3-23.28-46.69 16.57.96 33.18-1.91 46.38-7.43l-7-16.6zM151 167v48h16v-32h178v32h16v-48H151zM25 233v238h462V233H25zm39 14h64v18H64v-18zm112 0h160v18H176v-18zm208 0h64v18h-64v-18zM48 279h416v18H48v-18zm64 32c40.2 0 73 32.8 73 73s-32.8 73-73 73c-40.21 0-73-32.8-73-73s32.79-73 73-73zm87 0h114v82H199v-82zm201 0c40.2 0 73 32.8 73 73s-32.8 73-73 73-73-32.8-73-73 32.8-73 73-73zm-288 18c-30.48 0-55 24.5-55 55s24.52 55 55 55c30.5 0 55-24.5 55-55s-24.5-55-55-55zm105 0v46h78v-46h-78zm183 0c-30.5 0-55 24.5-55 55s24.5 55 55 55 55-24.5 55-55-24.5-55-55-55zm-288 30c13.7 0 25 11.3 25 25s-11.3 25-25 25-25-11.3-25-25 11.3-25 25-25zm288 0c13.7 0 25 11.3 25 25s-11.3 25-25 25-25-11.3-25-25 11.3-25 25-25zm-288 18c-4 0-7 3-7 7s3 7 7 7 7-3 7-7-3-7-7-7zm288 0c-4 0-7 3-7 7s3 7 7 7 7-3 7-7-3-7-7-7zm-185 39h18v32h-18v-32zm32 0h18v32h-18v-32zm32 0h18v32h-18v-32z\"></path></svg>",
+}
+const artUrl = (key, color) =>
+  'url("data:image/svg+xml,' + encodeURIComponent(ART_SVG[key].split('currentColor').join(color)).split('"').join('%22') + '")'
+const ROWS = [
+  { name: 'Kick', color: '#ff6b5c', art: 'drum' },
+  { name: 'Snare', color: '#ffb03a', art: 'drum-kit' },
+  { name: 'Hi-hat', color: '#dce85c', art: 'gong' },
+  { name: 'Tom', color: '#ff7fb0', art: 'tambourine' },
+  { name: 'Marimba', color: '#6fe0a8', art: 'xylophone' },
+  { name: 'Boop', color: '#b78bff', art: 'boombox' },
+]
+const PLACE = [[0],[0],[1],[1,2],[0],[2],[1],[0,1],[],[],[],[],[],[],[],[]]
+const PLACED = 8
+const TOTAL = PLACED * 16
+const NEXT_FREE = 8
+
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
+
+class Component extends DCLogic {
+  state = { step: 0, playing: true }
+
+  componentDidMount() {
+    this.t = 0
+    this.last = performance.now()
+    this.dragging = null
+    const loop = (now) => {
+      const dt = Math.min(0.25, (now - this.last) / 1000)
+      this.last = now
+      if (this.state.playing && !this.dragging) {
+        const bpm = this.props.bpm ?? 110
+        this.t = (this.t + dt * (bpm / 60) * 4) % TOTAL
+        const s = Math.floor(this.t)
+        if (s !== this.state.step) this.setState({ step: s })
+      }
+      this.raf = requestAnimationFrame(loop)
+    }
+    this.raf = requestAnimationFrame(loop)
+  }
+
+  componentWillUnmount() { cancelAnimationFrame(this.raf) }
+
+  seek(step) {
+    const s = clamp(Math.round(step), 0, TOTAL - 1)
+    this.t = s
+    if (s !== this.state.step) this.setState({ step: s })
+  }
+
+  grab(e, kind) {
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch (err) { /* ignore */ }
+    this.dragging = kind
+  }
+
+  // The song strip: 16 lane-aligned cells of 56px on an 8px gap; one cell is a
+  // position (4 bars), so a bar is 14px. Only the 8 placed positions are part
+  // of the timeline, so the scrub clamps there.
+  songAt(e) {
+    const r = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - r.left
+    const p = clamp(Math.floor(x / 64), 0, PLACED - 1)
+    const inner = clamp(x - p * 64, 0, 56)
+    const bar = this.props.snap === 'step' ? null : clamp(Math.floor(inner / 14), 0, 3)
+    if (bar === null) return p * 16 + clamp(Math.floor(inner / 3.5), 0, 15)
+    return p * 16 + bar * 4
+  }
+
+  // The grid rail: 4 groups of 4 x 62px on an 8px gap, 18px gutters.
+  gridAt(e, offset) {
+    const r = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - r.left - (offset || 0)
+    const g = clamp(Math.floor(x / 290), 0, 3)
+    const c = clamp(Math.floor((x - g * 290) / 70), 0, 3)
+    return Math.floor(this.state.step / 16) * 16 + g * 4 + c
+  }
+
+  songDown = (e) => { this.grab(e, 'song'); this.seek(this.songAt(e)) }
+  songMove = (e) => { if (this.dragging === 'song') this.seek(this.songAt(e)) }
+  gridDown = (e) => { this.grab(e, 'grid'); this.seek(this.gridAt(e, 0)) }
+  gridMove = (e) => { if (this.dragging === 'grid') this.seek(this.gridAt(e, 0)) }
+  // 1c's target is the whole bar-numeral row, so the steps origin is inset by
+  // the 160px rail plus its 18px gap.
+  railDown = (e) => { this.grab(e, 'rail'); this.seek(this.gridAt(e, 178)) }
+  railMove = (e) => { if (this.dragging === 'rail') this.seek(this.gridAt(e, 178)) }
+
+  loopDown = (e) => { this.grab(e, 'loop'); this.seekLoop(e) }
+  loopMove = (e) => { if (this.dragging === 'loop') this.seekLoop(e) }
+  seekLoop(e) {
+    const rail = e.currentTarget.lastElementChild
+    const r = rail.getBoundingClientRect()
+    const s = clamp(Math.floor(((e.clientX - r.left) / r.width) * 16), 0, 15)
+    this.seek(Math.floor(this.state.step / 16) * 16 + s)
+  }
+
+  phoneSongDown = (e) => { this.grab(e, 'psong'); this.seekPhoneSong(e) }
+  phoneSongMove = (e) => { if (this.dragging === 'psong') this.seekPhoneSong(e) }
+  seekPhoneSong(e) {
+    const r = e.currentTarget.getBoundingClientRect()
+    const b = clamp(Math.floor(((e.clientX - r.left) / r.width) * 32), 0, 31)
+    this.seek(Math.floor(b / 4) * 16 + (b % 4) * 4)
+  }
+
+  scrubUp = () => { this.dragging = null; this.last = performance.now() }
+  toggle = () => this.setState((s) => ({ playing: !s.playing }))
+
+  renderVals() {
+    const st = this.state.step
+    const playing = this.state.playing
+    const bpm = this.props.bpm ?? 110
+    const dimStopped = this.props.dimStopped ?? true
+    const pos = Math.floor(st / 16)
+    const sic = st % 16
+    const bar = Math.floor(sic / 4)
+    const globalBar = pos * 4 + bar
+    const ci = PLACE[pos][0]
+    const clip = CLIPS[ci]
+    const opDim = playing ? 1 : (dimStopped ? 0.45 : 0)
+    const dimText = playing ? 1 : 0.5
+
+    const cellsFor = (rowIndex, big) => {
+      const pattern = clip.rows[rowIndex]
+      return [0, 1, 2, 3].map((g) => ({
+        cells: [0, 1, 2, 3].map((k) => {
+          const step = g * 4 + k
+          const on = pattern[step] === '1'
+          const under = playing && step === sic
+          const base = g % 2 === 0 ? 'rgba(255,255,255,0.045)' : 'rgba(255,255,255,0.075)'
+          return {
+            on,
+            bg: on ? ROWS[rowIndex].color : under ? 'rgba(255,255,255,0.14)' : base,
+            shadow: on && under
+              ? '0 0 0 3px rgba(255,255,255,0.6),0 8px 16px rgba(0,0,0,0.45)'
+              : on
+                ? '0 2px 0 rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.38)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.08)',
+            transform: on && under ? (big ? 'scale(1.11)' : 'scale(1.11)') : 'none',
+            mask: artUrl(ROWS[rowIndex].art, '#000000'),
+            art: on ? 0.42 : 0,
+          }
+        }),
+      }))
+    }
+
+    const gridRows = ROWS.map((r, i) => ({
+      name: r.name, color: r.color, mask: artUrl(r.art, r.color), groups: cellsFor(i, true),
+    }))
+    const phoneRows = ROWS.map((r, i) => ({ groups: cellsFor(i, false) }))
+    const phoneRail = ROWS.map((r) => ({ name: r.name, color: r.color, mask: artUrl(r.art, r.color) }))
+
+    const barNumsA = [0, 1, 2, 3].map((g) => ({
+      n: g + 1,
+      color: playing && g === bar ? 'rgba(242,239,230,0.7)' : 'rgba(242,239,230,0.28)',
+    }))
+    const barNumsB = [0, 1, 2, 3].map((g) => ({
+      n: g + 1,
+      color: g === bar ? (playing ? 'rgba(242,239,230,0.7)' : 'rgba(242,239,230,0.45)') : 'rgba(242,239,230,0.28)',
+    }))
+
+    const clipRail = [0, 1, 2, 3].map((g) => ({
+      ticks: [0, 1, 2, 3].map((k) => {
+        const step = g * 4 + k
+        const here = step === sic
+        return {
+          bg: here ? '#6fe0f0' : 'rgba(242,239,230,0.12)',
+          glow: here ? '0 0 8px rgba(111,224,240,0.8)' : 'none',
+          op: here ? opDim : 1,
+        }
+      }),
+    }))
+
+    const stripCells = PLACE.map((clipsAt, p) => ({
+      bg: clipsAt.length ? CLIPS[clipsAt[0]].soft : 'rgba(255,255,255,0.05)',
+      shadow: clipsAt.length ? 'inset 0 1px 0 rgba(255,255,255,0.14)' : 'none',
+    }))
+
+    const rulerA = PLACE.map((_, p) => ({
+      n: p + 1,
+      color: playing && p === pos ? '#6fe0f0' : 'rgba(242,239,230,0.3)',
+    }))
+    const rulerB = PLACE.map((_, p) => ({
+      n: p + 1,
+      color: p === pos ? (playing ? '#6fe0f0' : 'rgba(111,224,240,0.5)') : 'rgba(242,239,230,0.3)',
+      bg: p === pos ? 'rgba(111,224,240,0.12)' : 'transparent',
+    }))
+
+    const laneRows = CLIPS.map((c, i) => {
+      const count = PLACE.filter((a) => a.includes(i)).length
+      const squares = PLACE.map((clipsAt, p) => {
+        const on = clipsAt.includes(i)
+        const ring = playing && on && p === pos
+        return {
+          bg: on ? c.tint : 'rgba(255,255,255,0.045)',
+          shadow: ring
+            ? '0 0 0 3px rgba(255,255,255,0.65),0 8px 16px rgba(0,0,0,0.45)'
+            : on
+              ? '0 2px 0 rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.3)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.07)',
+          transform: ring ? 'scale(1.06)' : 'none',
+          border: i === ci && !on && p === NEXT_FREE ? `2px dashed ${c.soft}` : '2px solid transparent',
+        }
+      })
+      return {
+        name: c.name, tint: c.tint, countText: `\u00d7${count}`,
+        chipBg: i === ci ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.05)',
+        chipRing: i === ci ? 'inset 0 0 0 2px #6fe0f0' : 'none',
+        squares,
+        phoneGroups: [0, 1, 2, 3].map((g) => ({ cells: squares.slice(g * 4, g * 4 + 4) })),
+      }
+    })
+
+    const phoneLaneRuler = [0, 1, 2, 3].map((g) => ({
+      cells: rulerB.slice(g * 4, g * 4 + 4),
+    }))
+
+    const phoneTicks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((s) => {
+      const has = clip.rows.some((r) => r[s] === '1')
+      const here = s === sic
+      return {
+        h: here ? 20 : has ? 12 : 5,
+        bg: here ? '#6fe0f0' : has ? 'rgba(242,239,230,0.5)' : 'rgba(242,239,230,0.18)',
+        glow: here ? '0 0 8px rgba(111,224,240,0.8)' : 'none',
+        op: here ? opDim : 1,
+      }
+    })
+
+    const phoneSegs = PLACE.slice(0, PLACED).map((clipsAt) => ({
+      bg: CLIPS[clipsAt[0]].soft,
+    }))
+
+    return {
+      clipName: clip.name,
+      clipTint: clip.tint,
+      clipTintRing: clip.soft,
+      posReadout: `Position ${pos + 1} \u00b7 bar ${bar + 1} of 4`,
+      bpmText: `${bpm} BPM`,
+      tempoPct: Math.round(((bpm - 60) / (180 - 60)) * 100),
+      tempoThumb: Math.round((((bpm - 60) / (180 - 60)) * 280) - 15),
+      gridRows, phoneRows, phoneRail,
+      barNumsA, barNumsB, clipRail, stripCells, rulerA, rulerB, laneRows, phoneLaneRuler,
+      phoneTicks, phoneSegs,
+      phLeft: 178 + bar * 290 + (sic % 4) * 70 - 8,
+      phonePhLeft: bar * (4 * 32 + 3 * 5 + 11) + (sic % 4) * 37 - 6,
+      gridCapLeft: 178 + bar * 290 + (sic % 4) * 70 + 18,
+      songMarkLeft: pos * 64 + bar * 14,
+      songCapLeft: pos * 64 + bar * 14 - 6,
+      songLineLeft: 184 + pos * 64 + bar * 14 + 5,
+      phoneMarkPct: (globalBar / 32) * 100,
+      phoneCapPct: ((globalBar + 0.5) / 32) * 100,
+      loopCapPct: ((sic + 0.5) / 16) * 100,
+      edgeGlow: sic > 6 ? opDim : 0,
+      opHide: playing ? 1 : 0,
+      opDim,
+      dimText,
+      songPlayBg: playing ? '#f2efe6' : '#6fe0f0',
+      capBg: playing ? '#6fe0f0' : '#f2efe6',
+      dispPlay: playing ? 'none' : 'block',
+      dispPause: playing ? 'flex' : 'none',
+      playLabel: playing ? 'Stop' : 'Song',
+      toggle: this.toggle,
+      songDown: this.songDown, songMove: this.songMove,
+      gridDown: this.gridDown, gridMove: this.gridMove,
+      railDown: this.railDown, railMove: this.railMove,
+      loopDown: this.loopDown, loopMove: this.loopMove,
+      phoneSongDown: this.phoneSongDown, phoneSongMove: this.phoneSongMove,
+      scrubUp: this.scrubUp,
+    }
+  }
+}
+</script>
+</body>
+</html>

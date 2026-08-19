@@ -56,6 +56,14 @@ class BoopSequencerEngine implements SequencerEngine {
    * remembered position.
    */
   private anchor: { pos: number; audioTime: number } | null = null
+  /**
+   * The lowest position `songPos()` will report. Steps are scheduled a lookahead
+   * early, so the raw position runs up to one lookahead behind the step that is
+   * about to sound; without a floor the playhead would sit slightly behind the
+   * song's start, and step *backwards* right after a seek. Raised by a seek to
+   * its target, and inert again as soon as the transport catches up.
+   */
+  private posFloor = 0
 
   constructor(
     readonly kit: Kit,
@@ -113,18 +121,25 @@ class BoopSequencerEngine implements SequencerEngine {
     // Must run inside the user gesture that called us — hence unlock first.
     await this.driver.unlock()
     this.playing = true
-    // Play is always play-from-the-top: there is no pause, so nothing here
-    // carries over from the last run. Anchoring straight away also means the
-    // playhead moves at once, rather than sitting still until the first
-    // scheduled beat and then jumping back by one lookahead.
-    this.nextTick = 0
-    this.anchor = { pos: 0, audioTime: this.driver.now() }
+    // There is no pause: nothing carries over from the last run, because the
+    // rewind lives in `stop()`. Play therefore starts wherever the playhead is
+    // — the top, unless a seek has since put it somewhere a child chose.
+    // Anchoring straight away also means the playhead moves at once, rather
+    // than sitting still until the first scheduled beat and then jumping back
+    // by one lookahead.
+    this.anchor = { pos: this.nextTick, audioTime: this.driver.now() }
     this.driver.startTransport()
     this.emitTransport({ type: 'started' })
   }
 
   stop(): void {
     if (!this.playing) return
+    // Stopping discards the run's progress — a stopped transport sits at the
+    // top, not at a remembered position. The rewind lives here rather than in
+    // `start()` so that a seek made while stopped is not wiped by the play that
+    // is meant to sound it.
+    this.nextTick = 0
+    this.posFloor = 0
     this.anchor = null
     this.playing = false
     this.driver.stopTransport()
@@ -156,10 +171,30 @@ class BoopSequencerEngine implements SequencerEngine {
   }
 
   songPos(): number {
-    // Clamped only here: the raw value runs slightly negative before the first
-    // step sounds (beats are scheduled a lookahead early), and re-anchoring
-    // must carry that raw value rather than a clamped one.
-    return Math.max(0, this.rawPos())
+    // Floored only here: the raw value runs a lookahead behind the step about to
+    // sound (negative before the very first one), and re-anchoring must carry
+    // that raw value rather than a floored one.
+    return Math.max(this.posFloor, this.rawPos())
+  }
+
+  seek(tick: number): void {
+    if (!Number.isFinite(tick)) return
+    const target = Math.max(0, Math.floor(tick))
+    this.nextTick = target
+    // The target's own step is scheduled a lookahead early, so the raw position
+    // is behind it until it sounds. Hold the playhead at the target until then,
+    // rather than letting it step backwards under a child's finger.
+    this.posFloor = target
+    // Re-anchor the same way setTempo does, so songPos() reads the target at
+    // once rather than carrying on from the pre-jump anchor. Stopped, there is
+    // no anchor to hold: `posFloor` reports the target, and `nextTick` is what
+    // the next start() sounds from.
+    if (this.playing) {
+      this.anchor = { pos: target, audioTime: this.driver.now() }
+    }
+    // Audio inside the lookahead still sounds — the driver cannot unschedule it
+    // (spec §7.1) — but its draws would report the position we just left.
+    this.driver.cancelDraws()
   }
 
   audioState(): AudioState {

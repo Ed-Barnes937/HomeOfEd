@@ -54,7 +54,8 @@ export class HomePagePom extends BasePage {
     const [first, ...rest] = steps
     if (first === undefined) return
     // The rows scroll inside the well (ticket 23), so the row being painted may
-    // be below its visible band — a real finger scrolls to it first.
+    // be below its visible band — and raw mouse moves do not scroll the way a
+    // locator click does. A real finger scrolls to it first.
     await this.cell(instrumentId, first).scrollIntoViewIfNeeded()
     const startBox = await this.cell(instrumentId, first).boundingBox()
     if (!startBox) throw new Error(`cell ${instrumentId}-${first} is not visible`)
@@ -241,8 +242,23 @@ export class HomePagePom extends BasePage {
 
   async verifyPlayheadAtStep(step: number): Promise<void> {
     await expect(this.playhead()).toHaveAttribute('data-step', String(step))
+    await expect(this.playhead()).toHaveAttribute('data-playing', 'true')
   }
 
+  /**
+   * Stopped, the playhead stays on the step it stopped on rather than
+   * unmounting (boop-playhead ticket 04): where we are is a fact about the
+   * boop, drawn at 45%.
+   */
+  async verifyPlayheadStoppedAtStep(step: number): Promise<void> {
+    await expect(this.playhead()).toHaveAttribute('data-step', String(step))
+    await expect(this.playhead()).toHaveAttribute('data-playing', 'false')
+  }
+
+  /**
+   * No playhead at all — since ticket 04 that means only "nothing has sounded
+   * yet", never "we are stopped": a stop leaves the playhead where it was.
+   */
   async verifyPlayheadHidden(): Promise<void> {
     await expect(this.playhead()).toHaveCount(0)
   }
@@ -1427,11 +1443,368 @@ export class HomePagePom extends BasePage {
     await expect(this.page.locator('[data-testid^="lane-"][data-playing="true"]')).toHaveCount(0)
   }
 
+  // --- The scrub strips (boop-playhead ticket 05, spec §4) ---
+
+  private readonly songStrip = this.page.getByTestId('song-strip')
+  private readonly songStripMarker = this.page.getByTestId('song-strip-marker')
+  private readonly clipRail = this.page.getByTestId('clip-rail')
+
+  private stripCell(position: number) {
+    return this.page.getByTestId(`song-strip-cell-${position}`)
+  }
+
+  /**
+   * The x of a bar's middle inside a strip cell — the segment a scrub lands in.
+   *
+   * The strip rides the lane grid inside the dock's scroll box, and a capped
+   * dock (ticket 23) can have it scrolled out of view; raw mouse moves do not
+   * scroll the way a locator click does, so bring it in first, as a finger
+   * would.
+   */
+  private async barCentre(position: number, bar: number): Promise<{ x: number; y: number }> {
+    await this.songStrip.scrollIntoViewIfNeeded()
+    const box = await this.stripCell(position).boundingBox()
+    if (!box) throw new Error(`song strip cell ${position} is not visible`)
+    return { x: box.x + (box.width * (bar + 0.5)) / 4, y: box.y + box.height / 2 }
+  }
+
+  /** Tap the song strip on one bar of one position — the whole gesture in one press. */
+  async tapSongStrip(position: number, bar = 0): Promise<void> {
+    const { x, y } = await this.barCentre(position, bar)
+    await this.page.mouse.click(x, y)
+  }
+
+  /** Press at one point and drag to another without releasing — a continuous scrub. */
+  private async dragBetween(
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ): Promise<void> {
+    await this.page.mouse.move(start.x, start.y)
+    await this.page.mouse.down()
+    await this.page.mouse.move(end.x, end.y, { steps: 8 })
+    await this.page.mouse.up()
+  }
+
+  async dragSongStrip(
+    from: { position: number; bar?: number },
+    to: { position: number; bar?: number },
+  ): Promise<void> {
+    await this.dragBetween(
+      await this.barCentre(from.position, from.bar ?? 0),
+      await this.barCentre(to.position, to.bar ?? 0),
+    )
+  }
+
+  /** The strip marker's bar, and whether it is the playing or the stopped treatment. */
+  async verifySongStripMarkerAt(position: number, bar: number, playing: boolean): Promise<void> {
+    await expect(this.songStripMarker).toHaveAttribute('data-position', String(position))
+    await expect(this.songStripMarker).toHaveAttribute('data-bar', String(bar))
+    await expect(this.songStripMarker).toHaveAttribute('data-playing', String(playing))
+  }
+
+  /** A placed cell wears its clip's tint; an empty one is the dimmed treatment. */
+  async verifyStripCellPlaced(position: number, placed: boolean): Promise<void> {
+    await expect(this.stripCell(position)).toHaveAttribute('data-placed', String(placed))
+  }
+
+  /**
+   * Cells sit exactly under their ruler numerals and lane squares — the one
+   * geometry claim the handoff makes about the strip.
+   */
+  async verifyStripCellAlignsWithLane(position: number, clipIndex: number): Promise<void> {
+    const cell = await this.stripCell(position).boundingBox()
+    const square = await this.laneSquare(clipIndex, position).boundingBox()
+    const numeral = await this.page.getByTestId(`song-position-numeral-${position}`).boundingBox()
+    if (!cell || !square || !numeral) throw new Error('the strip, lane or ruler is not visible')
+    expect(Math.abs(cell.x - square.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(cell.width - square.width)).toBeLessThanOrEqual(1)
+    expect(Math.abs(cell.x - numeral.x)).toBeLessThanOrEqual(1)
+  }
+
+  /** Tap a ruler numeral — a jump to the start of that position. */
+  async tapPositionNumeral(position: number): Promise<void> {
+    await this.page.getByTestId(`song-position-numeral-${position}`).click()
+  }
+
+  /** An empty position is not on the timeline, so its numeral is not a jump. */
+  async verifyPositionNumeralUnreachable(position: number): Promise<void> {
+    await expect(this.page.getByTestId(`song-position-numeral-${position}`)).toBeDisabled()
+  }
+
+  /** The numeral of the position the playhead is in, playing or stopped. */
+  async verifyPositionNumeralCurrent(position: number, playing: boolean): Promise<void> {
+    const numeral = this.page.getByTestId(`song-position-numeral-${position}`)
+    await expect(numeral).toHaveAttribute('data-current', 'true')
+    await expect(numeral).toHaveAttribute('data-playing', String(playing))
+  }
+
+  /** Tap the clip rail on one of its 16 step ticks. */
+  async tapClipRail(step: number): Promise<void> {
+    await this.page.getByTestId(`clip-rail-tick-${step}`).click()
+  }
+
+  async dragClipRail(from: number, to: number): Promise<void> {
+    await this.dragBetween(await this.tickCentre(from), await this.tickCentre(to))
+  }
+
+  /** The middle of one of the rail's 16 step ticks. */
+  private async tickCentre(step: number): Promise<{ x: number; y: number }> {
+    const box = await this.page.getByTestId(`clip-rail-tick-${step}`).boundingBox()
+    if (!box) throw new Error(`clip rail tick ${step} is not visible`)
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+
+  /** The rail's cyan tick, and whether it is the playing or the stopped treatment. */
+  async verifyClipRailAtStep(step: number, playing: boolean): Promise<void> {
+    const tick = this.page.getByTestId(`clip-rail-tick-${step}`)
+    await expect(tick).toHaveAttribute('data-current', 'true')
+    await expect(tick).toHaveAttribute('data-playing', String(playing))
+    await expect(
+      this.page.locator('[data-testid^="clip-rail-tick-"][data-current="true"]'),
+    ).toHaveCount(1)
+  }
+
+  /** The rail sits on `.steps`' geometry: each tick under its own grid column. */
+  async verifyClipRailAlignsWithSteps(step: number): Promise<void> {
+    const tick = await this.page.getByTestId(`clip-rail-tick-${step}`).boundingBox()
+    const cell = await this.cell('kick', step).boundingBox()
+    if (!tick || !cell) throw new Error('the rail tick or the grid cell is not visible')
+    expect(Math.abs(tick.x - cell.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(tick.width - cell.width)).toBeLessThanOrEqual(1)
+  }
+
+  /** `Position 4 · bar 2 of 4` — the clip header's readout. */
+  async verifyPlayheadReadout(text: string): Promise<void> {
+    await expect(this.page.getByTestId('playhead-readout')).toHaveText(text)
+  }
+
+  /** Arrow keys and Home on either strip (spec §4). */
+  async pressOnSongStrip(key: string): Promise<void> {
+    await this.songStrip.press(key)
+  }
+
+  async pressOnClipRail(key: string): Promise<void> {
+    await this.clipRail.press(key)
+  }
+
+  /** Both strips are sliders, with the bar/step they sit on as their value. */
+  async verifySongStripSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.songStrip).toHaveAttribute('role', 'slider')
+    await expect(this.songStrip).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.songStrip).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  async verifyClipRailSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.clipRail).toHaveAttribute('role', 'slider')
+    await expect(this.clipRail).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.clipRail).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  /**
+   * The play button still reads as belonging to the lanes, not to the strip row
+   * now above them (handoff "Play column"): its centre falls inside the lane
+   * rows' own band. At the pre-playhead 24px padding it sat above them.
+   */
+  async verifySongPlayCentredOnLanes(): Promise<void> {
+    const play = await this.songPlayButton.boundingBox()
+    const first = await this.laneSquare(0, 0).boundingBox()
+    const last = await this.laneSquare(1, 0).boundingBox()
+    if (!play || !first || !last) throw new Error('the song play button or the lanes are not visible')
+    const centre = play.y + play.height / 2
+    expect(centre).toBeGreaterThanOrEqual(first.y)
+    expect(centre).toBeLessThanOrEqual(last.y + last.height)
+  }
+
   async verifyPositionNumeralPlaying(position: number): Promise<void> {
     await expect(this.page.getByTestId(`song-position-numeral-${position}`)).toHaveAttribute(
       'data-playing',
       'true',
     )
+  }
+
+  // --- The phone scrub bands (boop-playhead ticket 06, spec §4/§7.2) ---
+
+  private readonly loopMap = this.page.getByTestId('loop-map')
+  private readonly songBand = this.page.getByTestId('song-band')
+  private readonly songBandMarker = this.page.getByTestId('song-band-marker')
+
+  /**
+   * A tap on the loop map band, over one of its 16 ticks. Deliberately the
+   * *band's* own y — the handoff's pointer target is the whole band, and a tap
+   * that misses the 5px tick must still scrub.
+   */
+  async tapLoopMap(step: number): Promise<void> {
+    const { x } = await this.loopTickCentre(step)
+    const band = await this.loopMap.boundingBox()
+    if (!band) throw new Error('the loop map is not visible')
+    await this.page.mouse.click(x, band.y + band.height / 2)
+  }
+
+  async dragLoopMap(from: number, to: number): Promise<void> {
+    await this.dragBetween(await this.loopTickCentre(from), await this.loopTickCentre(to))
+  }
+
+  private async loopTickCentre(step: number): Promise<{ x: number; y: number }> {
+    const box = await this.page.getByTestId(`loop-tick-${step}`).boundingBox()
+    if (!box) throw new Error(`loop tick ${step} is not visible`)
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+
+  /** The loop map's grip cap, on the step it sits above and its playing treatment. */
+  async verifyLoopMapCapAt(step: number, playing: boolean): Promise<void> {
+    const cap = this.page.getByTestId('loop-map-cap')
+    await expect(cap).toHaveAttribute('data-step', String(step))
+    await expect(cap).toHaveAttribute('data-playing', String(playing))
+    // And it is centred on that tick, not on a flat 1/16 of the track: the
+    // ticks are `flex: 1` on a 4px gap, so the two are ~2px apart.
+    const capBox = await cap.boundingBox()
+    const tick = await this.page.getByTestId(`loop-tick-${step}`).boundingBox()
+    if (!capBox || !tick) throw new Error('the loop map cap or its tick is not visible')
+    expect(Math.abs(capBox.x + capBox.width / 2 - (tick.x + tick.width / 2))).toBeLessThanOrEqual(1)
+  }
+
+  async verifyLoopMapSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.loopMap).toHaveAttribute('role', 'slider')
+    await expect(this.loopMap).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.loopMap).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  async pressOnLoopMap(key: string): Promise<void> {
+    await this.loopMap.press(key)
+  }
+
+  /** The x of one global bar's middle on the WHOLE SONG band's continuous track. */
+  private async songBandBarCentre(
+    globalBar: number,
+    barCount: number,
+  ): Promise<{ x: number; y: number }> {
+    const box = await this.songBand.boundingBox()
+    if (!box) throw new Error('the song band is not visible')
+    return {
+      x: box.x + (box.width * (globalBar + 0.5)) / barCount,
+      y: box.y + box.height / 2,
+    }
+  }
+
+  /** Tap the WHOLE SONG band on one global bar of a `barCount`-bar song. */
+  async tapSongBand(globalBar: number, barCount: number): Promise<void> {
+    const { x, y } = await this.songBandBarCentre(globalBar, barCount)
+    await this.page.mouse.click(x, y)
+  }
+
+  async dragSongBand(from: number, to: number, barCount: number): Promise<void> {
+    await this.dragBetween(
+      await this.songBandBarCentre(from, barCount),
+      await this.songBandBarCentre(to, barCount),
+    )
+  }
+
+  /** The band's marker: the global bar it sits on, and its playing treatment. */
+  async verifySongBandMarkerAt(globalBar: number, playing: boolean): Promise<void> {
+    await expect(this.songBandMarker).toHaveAttribute('data-bar', String(globalBar))
+    await expect(this.songBandMarker).toHaveAttribute('data-playing', String(playing))
+  }
+
+  /**
+   * One segment per *placed* position (spec §7.2), each wearing its topmost
+   * clip's tint — so the count follows a placement change.
+   */
+  async verifySongBandSegments(tints: number[]): Promise<void> {
+    const segments = this.page.locator('[data-testid^="song-band-segment-"]')
+    await expect(segments).toHaveCount(tints.length)
+    for (const [index, tint] of tints.entries()) {
+      await expect(segments.nth(index)).toHaveAttribute('data-tint', String(tint))
+    }
+  }
+
+  /**
+   * The marker is one bar of the song's real length, and it sits on the segment
+   * holding that bar: the derived geometry's one arithmetic claim (spec §7.2).
+   */
+  async verifySongBandMarkerOnSegment(globalBar: number, barCount: number): Promise<void> {
+    const marker = await this.songBandMarker.boundingBox()
+    const band = await this.songBand.boundingBox()
+    if (!marker || !band) throw new Error('the song band or its marker is not visible')
+    expect(Math.abs(marker.width - band.width / barCount)).toBeLessThanOrEqual(1)
+    expect(Math.abs(marker.x - (band.x + (band.width * globalBar) / barCount))).toBeLessThanOrEqual(
+      1,
+    )
+  }
+
+  async verifySongBandCapAt(globalBar: number, playing: boolean): Promise<void> {
+    const cap = this.page.getByTestId('song-band-cap')
+    await expect(cap).toHaveAttribute('data-bar', String(globalBar))
+    await expect(cap).toHaveAttribute('data-playing', String(playing))
+  }
+
+  async verifySongBandSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.songBand).toHaveAttribute('role', 'slider')
+    await expect(this.songBand).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.songBand).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  async pressOnSongBand(key: string): Promise<void> {
+    await this.songBand.press(key)
+  }
+
+  /** `Position 4 · bar 2 of 4` — the phone's readout, on the band's caption row. */
+  async verifyPhonePlayheadReadout(text: string): Promise<void> {
+    await expect(this.page.getByTestId('phone-playhead-readout')).toHaveText(text)
+  }
+
+  /**
+   * Neither band scrolls: both stay put while the grid and the lanes swipe
+   * (ADR 0027). Measured against the step window's own scroll, so it is the
+   * bands' *immobility* that is asserted rather than a pixel.
+   */
+  async verifyBandsDoNotScroll(swipeBy: number): Promise<void> {
+    const before = { loop: await this.loopMap.boundingBox(), song: await this.songBand.boundingBox() }
+    await this.swipeSteps(swipeBy)
+    await this.swipeLanes(swipeBy)
+    const after = { loop: await this.loopMap.boundingBox(), song: await this.songBand.boundingBox() }
+    if (!before.loop || !before.song || !after.loop || !after.song)
+      throw new Error('a scrub band is not visible')
+    expect(Math.abs(after.loop.x - before.loop.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.loop.width - before.loop.width)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.song.x - before.song.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.song.width - before.song.width)).toBeLessThanOrEqual(1)
+  }
+
+  /**
+   * A drag *down* a band, the gesture a child makes to scroll the page. The
+   * band must move nothing: only a sideways drag is a scrub (`useScrubDrag`'s
+   * deferred mode), because on real touch hardware this one belongs to the
+   * scrolling region and arrives as `pointermove`s before `pointercancel`.
+   */
+  async dragDownBand(band: 'loop' | 'song'): Promise<void> {
+    const box = await (band === 'loop' ? this.loopMap : this.songBand).boundingBox()
+    if (!box) throw new Error('a scrub band is not visible')
+    const x = box.x + box.width * 0.8
+    const y = box.y + box.height / 2
+    await this.dragBetween({ x, y }, { x, y: y - 120 })
+  }
+
+  /**
+   * The bands are inside the one scrolling region (ADR 0030), so they must not
+   * take vertical panning away from it: `pan-y` rather than the handoff's
+   * `none`, which would trap a finger that lands on the band.
+   */
+  async verifyBandsAllowVerticalScroll(): Promise<void> {
+    for (const band of [this.loopMap, this.songBand]) {
+      const touchAction = await band.evaluate(
+        (element) => getComputedStyle(element).touchAction,
+      )
+      expect(touchAction).toBe('pan-y')
+    }
+  }
+
+  /** Both caps clear a 44px touch target through their band's own hit area. */
+  async verifyBandTapTargets(): Promise<void> {
+    for (const band of [this.loopMap, this.songBand]) {
+      const box = await band.boundingBox()
+      if (!box) throw new Error('a scrub band is not visible')
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
   }
 
   /**

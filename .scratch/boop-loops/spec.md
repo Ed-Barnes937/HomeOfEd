@@ -228,7 +228,13 @@ prototype branch `prototype/03-song-mode` — the conductor in
   therefore *stops* the other before it starts: the takeover costs a small
   audible gap, in exchange for a rule with no exceptions. The engine seam has
   no resume semantics ([ADR 0024](../../docs/adr/0024-boop-sequencer-engine-seam.md),
-  as amended).
+  as amended) — the rewind lives in `stop()`, so nothing a run leaves behind
+  can reach the next one.
+  The one thing that reaches it is a **scrub** (boop-playhead), which comes
+  after the stop and is a place the child chose and can see on the strips. That
+  is a deliberate position, not a remembered offset, so the rule this bullet
+  protects — press play, never hear the middle of the loop by accident — still
+  holds.
 - **Mechanics — no `SequencerEngine` contract change.** Song mode is a
   ~30-line conductor living entirely above the existing seam: it subscribes
   to `onBeat`, and at step 15 calls `setPattern` with the next position's

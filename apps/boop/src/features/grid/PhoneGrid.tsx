@@ -36,16 +36,21 @@ const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
  *
  * **Playback never scrolls the window.** The loop map below carries the
  * playhead when it is out of view, and an edge glow says which way to swipe
- * back — a child's scroll position is never yanked.
+ * back — a child's scroll position is never yanked. Since boop-playhead ticket
+ * 06 that map is also the phone's clip scrubber, so the scrub props of
+ * `GridViewProps` go straight through to it.
  */
 export function PhoneGrid({
   kit,
   pattern,
   onToggleCell,
   playheadStep,
+  playheadPlaying,
   cellStrikes,
   rowStrikes,
   loadToken,
+  onScrubToStep,
+  onScrubToSongStart,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: false })
@@ -157,6 +162,7 @@ export function PhoneGrid({
                         style={playheadStyle}
                         data-testid="playhead"
                         data-step={playheadStep}
+                        data-playing={playheadPlaying}
                       />
                     )}
                   </div>
@@ -250,7 +256,14 @@ export function PhoneGrid({
       </div>
 
       <div className={styles.loopMapFooter}>
-        <LoopMap pattern={pattern} playheadStep={playheadStep} scrollLeft={scrollLeft} />
+        <LoopMap
+          pattern={pattern}
+          playheadStep={playheadStep}
+          playheadPlaying={playheadPlaying}
+          scrollLeft={scrollLeft}
+          onScrubToStep={onScrubToStep}
+          onScrubToSongStart={onScrubToSongStart}
+        />
       </div>
     </div>
   )

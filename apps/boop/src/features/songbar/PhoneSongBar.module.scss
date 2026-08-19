@@ -121,6 +121,120 @@ $row-inset: 4px;
   color: rgba(242, 239, 230, 0.4);
 }
 
+// The WHOLE SONG band (boop-playhead handoff, "Phone geometry (1d)"). The
+// non-scrolling kind, like the loop map: the lanes below swipe, this never does.
+.songCaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.songLabel {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 239, 230, 0.4);
+}
+
+.songReadout {
+  font: 700 10px var(--font-mono);
+  color: rgba(242, 239, 230, 0.45);
+}
+
+// The handoff's 30px tap-target row, grown to a 44px hit box the way the loop
+// map's band is (handoff "Accessibility"): padding out, margin straight back, so
+// the 10px below the band absorbs it and nothing shifts. The visuals hang off
+// `.songTrack`, which keeps the 30px box the handoff's offsets are measured in.
+.songBand {
+  height: 44px; // 30px of track inside it — `box-sizing: border-box` is global
+  padding: 7px 0;
+  margin: -7px 0 3px;
+  cursor: pointer;
+  // `pan-y`, not the handoff's `none`: the band is inside the one scrolling
+  // region (ADR 0030) and must not trap a finger that lands on it. See
+  // `LoopMap.module.scss` — the same rule, for the same reason.
+  touch-action: pan-y;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+.songTrack {
+  position: relative;
+  height: 30px;
+}
+
+// Divided by an inset rather than a gap, so the track is exactly `--bar-count`
+// equal bars end to end and the marker's percentage maths is exact.
+.songSegments {
+  position: absolute;
+  top: 9px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.songSegment {
+  flex: 1;
+  background: color-mix(in srgb, var(--segment-tint) 32%, transparent);
+  box-shadow: inset -1px 0 0 rgba(14, 31, 35, 0.9);
+}
+
+// One bar of the song's real length — not a fixed width, because the band spans
+// the placed positions and its bar count moves with them (spec §7.2). No
+// transition: a bar change hard-cuts, like every other playhead (spec §4).
+.songMarker {
+  position: absolute;
+  top: 9px;
+  height: 12px;
+  left: calc(var(--bar) / var(--bar-count) * 100%);
+  width: calc(100% / var(--bar-count));
+  background: var(--cyan);
+  box-shadow: var(--shadow-loop-map-tick);
+  pointer-events: none;
+
+  &[data-playing='false'] {
+    opacity: 0.45;
+  }
+}
+
+// The grip cap: centred on the current bar, and what a finger actually aims at.
+.songCap {
+  position: absolute;
+  top: 4px;
+  left: calc((var(--bar) + 0.5) / var(--bar-count) * 100% - 11px);
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--ink);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+
+  &[data-playing='true'] {
+    background: var(--cyan);
+  }
+}
+
+.songGrip {
+  width: 2px;
+  height: 9px;
+  border-radius: 1px;
+  background: rgba(20, 38, 42, 0.45);
+}
+
 // The chip column and the lane strip scroll vertically together, so a child
 // always knows whose lane a row is (ticket 23). `flex: 0 1 auto`, never
 // `flex: 1`: the strip may shrink on a short window but must not grow on a

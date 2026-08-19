@@ -77,10 +77,94 @@
 .barNumerals {
   display: flex;
   gap: 18px;
+  // 4px, not 8: the clip rail row now sits between this and the body, and it
+  // carries the 8px (boop-playhead handoff, "Clip rail").
+  margin-bottom: 4px;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+}
+
+// The clip rail (boop-playhead handoff, "Clip rail"): a tick per step on
+// `.steps`' exact geometry, so each tick sits under its own column.
+.railRow {
+  display: flex;
+  gap: 18px;
   margin-bottom: 8px;
 
   @media (max-width: 1279px) {
     gap: 14px;
+  }
+}
+
+// The instrument rail's 160px, holding the loop map's caption idiom.
+.railLabel {
+  flex: none;
+  width: 160px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 239, 230, 0.38);
+
+  @media (max-width: 1279px) {
+    width: 124px;
+  }
+}
+
+// 4 groups of 4 × 52px on an 8px gap with 18px gutters = 982px — `.steps`. 52
+// and not the handoff's 62 because ADR 0033 narrowed the laptop cell.
+.railTrack {
+  flex: none;
+  height: 10px;
+  display: flex;
+  gap: 18px;
+  cursor: pointer;
+  // A scrub is a continuous horizontal gesture, like drag-paint below it.
+  touch-action: none;
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+.railGroup {
+  display: flex;
+  gap: 8px;
+
+  @media (max-width: 1279px) {
+    gap: 6px;
+  }
+}
+
+.railTick {
+  flex: none;
+  width: 52px;
+  height: 4px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: rgba(242, 239, 230, 0.12);
+
+  @media (max-width: 1279px) {
+    width: 42px;
+  }
+
+  // The step the playhead is on — the same 1 / 0.45 rule as the column.
+  &[data-current='true'] {
+    background: var(--cyan);
+    box-shadow: var(--shadow-loop-map-tick);
+
+    &[data-playing='false'] {
+      opacity: 0.45;
+    }
   }
 }
 
@@ -151,6 +235,12 @@
   background: linear-gradient(180deg, rgba(111, 224, 240, 0.24), rgba(111, 224, 240, 0.07));
   box-shadow: 0 0 0 1px rgba(111, 224, 240, 0.34);
   pointer-events: none;
+
+  // Stopped, the column stays where it was at 45% (boop-playhead spec §1):
+  // where we are is a fact about the boop, not a sign of playback.
+  &[data-playing='false'] {
+    opacity: 0.45;
+  }
 
   @media (max-width: 1279px) {
     top: -7px;

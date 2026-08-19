@@ -1,6 +1,7 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
 
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
+import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
 import styles from './Grid.module.scss'
 import { ROW_COLOR_VARS } from './instrumentColors.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
@@ -10,6 +11,7 @@ import { useLoadStagger } from './useLoadStagger.ts'
 
 const GROUP_SIZE = 4
 const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
+const STEPS = Array.from({ length: STEPS_PER_PATTERN }, (_, step) => step)
 
 /**
  * What either grid renderer needs. `Grid` and `PhoneGrid` are two views of the
@@ -20,8 +22,18 @@ export interface GridViewProps {
   kit: Kit
   pattern: Pattern
   onToggleCell: (instrumentId: string, step: number) => void
-  /** The playhead's current column, or `null` to hide it cleanly (stopped). */
+  /**
+   * The playhead's column — the last step that sounded, or `null` when nothing
+   * has yet. Since boop-playhead ticket 04 a stop is not one of those: the
+   * playhead stays on its step, so this outlives playback.
+   */
   playheadStep: number | null
+  /**
+   * Whether the transport is running. The playhead no longer unmounts on a stop
+   * (spec §1) — it stays put at 45% opacity — so this is what tells a stopped
+   * playhead from a playing one.
+   */
+  playheadPlaying: boolean
   /** `${instrumentId}:${step}` -> strike epoch (ticket 17) — a cell's squash re-keys only on a real hit. */
   cellStrikes: Readonly<Record<string, number>>
   /** `instrumentId` -> strike epoch (ticket 17) — drives that row's label bob. */
@@ -32,6 +44,14 @@ export interface GridViewProps {
    * across columns instead of all popping in at once (ticket 22).
    */
   loadToken: number
+  /**
+   * The clip rail's scrub (boop-playhead ticket 05, spec §4): move the playhead
+   * to a step of the clip on the grid. Snapped to a step by the caller's own
+   * geometry, so this is a step index, never a coordinate.
+   */
+  onScrubToStep: (step: number) => void
+  /** Home on either scrub track: back to the start of the song (spec §4). */
+  onScrubToSongStart: () => void
   /**
    * The active clip's tint (boop-loops ticket 15): the laptop layout wears it
    * as an inner ring on the well. Absent everywhere the clip chrome hasn't
@@ -59,9 +79,12 @@ export function Grid({
   pattern,
   onToggleCell,
   playheadStep,
+  playheadPlaying,
   cellStrikes,
   rowStrikes,
   loadToken,
+  onScrubToStep,
+  onScrubToSongStart,
   tintColor,
   wellFooter,
 }: GridViewProps) {
@@ -74,6 +97,19 @@ export function Grid({
     onToggleCell,
     instrumentIdAt: (rowIndex) => pattern[rowIndex]?.instrumentId,
   })
+
+  // The clip rail (boop-playhead handoff, "Clip rail"): a tick per step on
+  // `.steps`' own geometry, tapped or dragged to move the playhead.
+  const railScrub = useScrubDrag(({ segment }) => onScrubToStep(segment))
+  const onRailKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = playheadStep ?? 0
+    const moved = scrubKeyMove(event.key, {
+      // `scrubToStep` clamps to the pattern, so the rail never leaves its clip.
+      onStep: (delta) => onScrubToStep(step + delta),
+      onSongStart: onScrubToSongStart,
+    })
+    if (moved) event.preventDefault()
+  }
 
   const activeBar = playheadStep === null ? null : stepToBar(playheadStep)
   const playheadStyle =
@@ -104,6 +140,40 @@ export function Grid({
             </div>
           ))}
         </div>
+        <div className={styles.railRow}>
+          <span className={styles.railLabel}>THIS CLIP</span>
+          <div
+            className={styles.railTrack}
+            role="slider"
+            tabIndex={0}
+            aria-label="This clip. Drag to move the playhead."
+            aria-valuemin={0}
+            aria-valuemax={STEPS_PER_PATTERN - 1}
+            aria-valuenow={playheadStep ?? 0}
+            aria-valuetext={`Step ${(playheadStep ?? 0) + 1}`}
+            onKeyDown={onRailKeyDown}
+            onPointerDown={railScrub.onPointerDown}
+            onPointerMove={railScrub.onPointerMove}
+            onPointerUp={railScrub.onPointerUp}
+            onPointerCancel={railScrub.onPointerCancel}
+            data-testid="clip-rail"
+          >
+            {groups.map((group) => (
+              <div key={group} className={styles.railGroup}>
+                {STEPS.slice(group * GROUP_SIZE, (group + 1) * GROUP_SIZE).map((step) => (
+                  <span
+                    key={step}
+                    className={styles.railTick}
+                    {...{ [SCRUB_SEGMENT_ATTR]: '' }}
+                    data-current={step === playheadStep}
+                    data-playing={playheadPlaying}
+                    data-testid={`clip-rail-tick-${step}`}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
         <div
           ref={keyboardNav.containerRef}
           className={styles.body}
@@ -116,6 +186,7 @@ export function Grid({
               style={playheadStyle}
               data-testid="playhead"
               data-step={playheadStep}
+              data-playing={playheadPlaying}
             />
           )}
           <div className={styles.rows}>

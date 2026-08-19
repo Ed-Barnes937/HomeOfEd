@@ -3,10 +3,32 @@
 // under the grid, its label occupying the same 92px as the instrument rail so
 // it reads as belonging to the grid.
 .map {
-  height: 34px;
+  // 34px of band inside 44px of border box — `box-sizing: border-box` is global,
+  // so the height carries the padding.
+  height: 44px;
   display: flex;
   align-items: flex-end;
   gap: 8px; // the rail gap
+  cursor: pointer;
+  // A scrub is a horizontal gesture, so the browser must not claim one as a
+  // page pan — but `pan-y` rather than the handoff's `none`: the band sits
+  // inside the one scrolling region (ADR 0030) and `none` would trap a finger
+  // that lands on it. The gesture holds its first scrub back to a move or a
+  // release (`applyOnPointerDown: false`), so a vertical pan from here scrolls
+  // and moves nothing.
+  touch-action: pan-y;
+  // 44px of touch target (handoff "Accessibility") with the band's 34px
+  // geometry untouched: the padding grows the hit box and the negative margin
+  // gives the space straight back, so the extra 5px each side lands on the
+  // well's own padding and the layout above's margin — dead space either way.
+  padding: 5px 0;
+  margin: -5px 0;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 .label {
@@ -24,6 +46,11 @@
   flex: 1;
   min-width: 0;
   padding-bottom: 7px; // room for the window bracket under the ticks
+  // The ticks are `flex: 1` on a 4px gap, so a tick's own width is the only way
+  // to land the cap on one. Derived from the track rather than written down,
+  // exactly as the laptop strip's `--cell-w` is: the band's width is the
+  // phone's, so there is no pitch to hard-code.
+  --tick-w: calc((100% - 15 * 4px) / 16);
 }
 
 .ticks {
@@ -51,6 +78,38 @@
     background: var(--cyan);
     box-shadow: var(--shadow-loop-map-tick);
   }
+}
+
+// The grip cap above the current tick (boop-playhead handoff, "WHOLE LOOP
+// becomes the clip scrubber") — the thing a child's finger aims at. Centred on
+// the tick itself rather than on a flat 1/16 of the track: the 4px gaps put a
+// tick's centre off that fraction by ~2px at a phone width, which the mock's own
+// percentage inherits. No transition: it hard-cuts with the playhead.
+.cap {
+  position: absolute;
+  top: -4px;
+  left: calc(var(--step) * (var(--tick-w) + 4px) + var(--tick-w) / 2 - 9px);
+  width: 18px;
+  height: 16px;
+  border-radius: 6px;
+  background: var(--ink);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+
+  &[data-playing='true'] {
+    background: var(--cyan);
+  }
+}
+
+.grip {
+  width: 2px;
+  height: 7px;
+  border-radius: 1px;
+  background: rgba(20, 38, 42, 0.45);
 }
 
 // Which half of the loop the step window is showing. Slides with the scroll

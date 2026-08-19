@@ -1,10 +1,16 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, KeyboardEvent } from 'react'
 
 import { MAX_CLIPS, SONG_POSITIONS } from '../../persistence/saveFormat.ts'
 import type { Song } from '../../song/song.ts'
 import { clipTint } from '../clips/clipTints.ts'
 import { useDragPaint } from '../grid/useDragPaint.ts'
 import { useGridKeyboardNav } from '../grid/useGridKeyboardNav.ts'
+import {
+  playheadReadout,
+  playheadValueText,
+  type SongPlayheadView,
+} from '../playhead/songPlayhead.ts'
+import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
 import styles from './PhoneSongBar.module.scss'
 
 const GROUP_SIZE = 4
@@ -23,6 +29,16 @@ interface PhoneSongBarProps {
   songPlaying: boolean
   /** The song position currently sounding, or `null` — drives the ruler and the playing ring. */
   playingPosition: number | null
+  /** Where the playhead sits, playing or stopped (boop-playhead ticket 06). */
+  playhead: SongPlayheadView
+  /**
+   * Scrub to a fraction of the WHOLE SONG band, 0 at its left edge — the band is
+   * one continuous track over the song's real length, so the fraction is the
+   * whole answer (spec §7.2). The caller turns it into a global bar.
+   */
+  onScrubToFraction: (fraction: number) => void
+  /** Scrub to a global bar: the band's arrow keys and Home (spec §4). */
+  onScrubToBar: (globalBar: number) => void
 }
 
 /**
@@ -39,6 +55,11 @@ interface PhoneSongBarProps {
  * horizontal pans (`touch-action: pan-x`), a tap toggles, and a drag paints
  * only after crossing a square boundary (`applyOnPointerDown: false`). The
  * squares keep the grid's arrow-key model (spec §14).
+ *
+ * The **WHOLE SONG** band between the header and the lanes is boop-playhead
+ * ticket 06: the song scrubber, and — like the loop map — the non-scrolling
+ * kind, so the playhead is on a band that never moves however far the lanes
+ * have been swiped.
  */
 export function PhoneSongBar({
   song,
@@ -48,6 +69,9 @@ export function PhoneSongBar({
   onToggleSong,
   songPlaying,
   playingPosition,
+  playhead,
+  onScrubToFraction,
+  onScrubToBar,
 }: PhoneSongBarProps) {
   const placedCount = song.placements.filter((clips) => clips.length > 0).length
   const atClipCap = song.clips.length >= MAX_CLIPS
@@ -62,6 +86,35 @@ export function PhoneSongBar({
     instrumentIdAt: (rowIndex) => (rowIndex < song.clips.length ? String(rowIndex) : undefined),
     cellTestId: (laneId, position) => `lane-${laneId}-${position}`,
   })
+
+  // --- The WHOLE SONG band (boop-playhead ticket 06, spec §7.2) ---
+
+  // The band's geometry is *derived*: one segment per placed position, so the
+  // count changes as placements do. Each wears its topmost clip's tint, the way
+  // the laptop strip's cells do.
+  const segments = song.placements.flatMap((clipIndices, position) => {
+    const clipIndex = clipIndices[0]
+    return clipIndex === undefined ? [] : [{ position, clip: song.clips[clipIndex]! }]
+  })
+
+  // One continuous segment rather than one per bar: the track is the song's real
+  // length divided into `barCount` equal bars, so the fraction across it *is*
+  // the answer, and `globalBarAtFraction` does the arithmetic (spec §4). Held
+  // back to a move or a release, like the loop map, so a vertical pan of the
+  // scrolling region that starts on the band moves nothing.
+  const bandScrub = useScrubDrag(({ fraction }) => onScrubToFraction(fraction), {
+    applyOnPointerDown: false,
+  })
+
+  /** Arrows move one bar, Home returns to the song's start (spec §4). */
+  const onBandKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const bar = playhead.bar ?? 0
+    const moved = scrubKeyMove(event.key, {
+      onStep: (delta) => onScrubToBar(bar + delta),
+      onSongStart: () => onScrubToBar(0),
+    })
+    if (moved) event.preventDefault()
+  }
 
   return (
     <section className={styles.bar} aria-label="Your boop (song)" data-testid="phone-song-bar">
@@ -88,6 +141,72 @@ export function PhoneSongBar({
         <span className={styles.bars} data-testid="song-length">
           {placedCount * 4} bars
         </span>
+      </div>
+      {/* The WHOLE SONG band: a caption row carrying the phone's readout, then
+          one continuous track over the song's placed length. Divided by an
+          inset rather than a gap so the marker's arithmetic stays exact
+          (handoff "WHOLE SONG"). */}
+      <div className={styles.songCaption}>
+        <span className={styles.songLabel}>WHOLE SONG</span>
+        <span className={styles.songReadout} data-testid="phone-playhead-readout">
+          {playheadReadout(playhead)}
+        </span>
+      </div>
+      <div
+        className={styles.songBand}
+        role="slider"
+        tabIndex={0}
+        aria-label="Whole song. Drag to move the playhead."
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, playhead.barCount - 1)}
+        aria-valuenow={playhead.bar ?? 0}
+        aria-valuetext={playheadValueText(playhead)}
+        onKeyDown={onBandKeyDown}
+        onPointerDown={bandScrub.onPointerDown}
+        onPointerMove={bandScrub.onPointerMove}
+        onPointerUp={bandScrub.onPointerUp}
+        onPointerCancel={bandScrub.onPointerCancel}
+        data-testid="song-band"
+      >
+        <div
+          className={styles.songTrack}
+          style={{ '--bar-count': Math.max(1, playhead.barCount) } as CSSProperties}
+        >
+          <div className={styles.songSegments} {...{ [SCRUB_SEGMENT_ATTR]: '' }}>
+            {segments.map(({ position, clip }) => (
+              <span
+                key={position}
+                className={styles.songSegment}
+                style={{ '--segment-tint': clipTint(clip.tint) } as CSSProperties}
+                data-tint={clip.tint}
+                data-testid={`song-band-segment-${position}`}
+              />
+            ))}
+          </div>
+          {playhead.bar !== null && (
+            <>
+              <span
+                className={styles.songMarker}
+                style={{ '--bar': playhead.bar } as CSSProperties}
+                data-playing={playhead.playing}
+                data-bar={playhead.bar}
+                data-testid="song-band-marker"
+              />
+              <span
+                className={styles.songCap}
+                style={{ '--bar': playhead.bar } as CSSProperties}
+                data-playing={playhead.playing}
+                data-bar={playhead.bar}
+                data-testid="song-band-cap"
+                aria-hidden="true"
+              >
+                <span className={styles.songGrip} />
+                <span className={styles.songGrip} />
+                <span className={styles.songGrip} />
+              </span>
+            </>
+          )}
+        </div>
       </div>
       <div className={styles.lanes} data-testid="phone-song-lanes">
         <div className={styles.chipColumn}>

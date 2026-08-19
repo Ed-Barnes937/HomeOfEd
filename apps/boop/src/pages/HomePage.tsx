@@ -17,6 +17,10 @@ import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
 import { NewClipPicker } from '../features/picker/NewClipPicker.tsx'
 import { firstVisitSong, samplePattern, type SampleClip } from '../features/picker/sampleClips.ts'
+import {
+  playheadReadout,
+  type SongPlayheadView,
+} from '../features/playhead/songPlayhead.ts'
 import { PhoneSongBar } from '../features/songbar/PhoneSongBar.tsx'
 import { SongBar } from '../features/songbar/SongBar.tsx'
 import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
@@ -43,8 +47,22 @@ import {
   type Song,
 } from '../song/song.ts'
 import { createSongConductor, type SongConductor } from '../song/songConductor.ts'
+import { scrubToBar, scrubToStep } from '../song/songScrub.ts'
+import {
+  BARS_PER_POSITION,
+  STEPS_PER_BAR,
+  barAt,
+  clampGlobalBar,
+  globalBarAtCell,
+  globalBarAtFraction,
+  globalBarOfTick,
+  songTimeline,
+} from '../song/songTimeline.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
+
+/** No placements at all — the timeline of a song that has not loaded yet. */
+const NO_PLACEMENTS: readonly (readonly number[])[] = []
 
 /** An all-off pattern for `kit` — what a new or cleared clip starts as. */
 function blankPattern(kit: Kit): Pattern {
@@ -120,23 +138,69 @@ export function HomePage() {
   // --- Song playback (ticket 16, spec §9) ---
 
   const [songPlaying, setSongPlaying] = useState(false)
-  // The song position sounding right now — the ring on the lane squares.
-  const [playingPosition, setPlayingPosition] = useState<number | null>(null)
+  // Where the playhead sits, in global bars (boop-playhead ticket 04). A
+  // persistent fact about the boop rather than a playback artefact (spec §1):
+  // the draw channel moves it while the song plays, a scrub moves it by hand,
+  // and a stop leaves it exactly where it was. Page-lifetime view state — never
+  // saved, never shared (spec §7.3).
+  const [songBar, setSongBar] = useState(0)
   const conductorRef = useRef<SongConductor | null>(null)
   // True whenever the song play is on — including an all-empty song, which
   // plays the grid clip and needs no conductor (ADR 0032).
   const songModeRef = useRef(false)
 
+  // The global-bar axis of the song as it stands (ticket 02) — cheap enough to
+  // derive every render: 16 placements in, the placed ones out. The ref is for
+  // the draw-beat listener below, which reads it outside React's render.
+  const timeline = songTimeline(song?.placements ?? NO_PLACEMENTS)
+  const timelineRef = useRef(timeline)
+  timelineRef.current = timeline
+
+  // The bar the playhead is on, clamped to the song as it stands so a placement
+  // change can shorten the timeline under it without the marker drifting.
+  // `null` means only "there is nothing to point at" — a song with no
+  // placements has no timeline — and no longer means "we are stopped".
+  const playheadBar = timeline.barCount === 0 ? null : clampGlobalBar(timeline, songBar)
+  const playheadAt = playheadBar === null ? null : barAt(timeline, playheadBar)
+  // The scrub handlers are held across a whole drag, so they read the bar from a
+  // ref rather than closing over it and going stale between pointer moves.
+  const songBarRef = useRef(songBar)
+  songBarRef.current = songBar
+
+  // The step a scrub put the playhead on (boop-playhead ticket 05). Stopped,
+  // the draw channel is silent, so a scrub is the only thing that can move the
+  // column and the grid's under-playhead highlight — the silent preview of
+  // spec §4. The next drawn beat drops it: from then on the engine is the
+  // authority again.
+  const [scrubStep, setScrubStep] = useState<number | null>(null)
+
+  // The playhead's bar while the song plays, from the draw channel and nowhere
+  // else: the schedule runs a lookahead ahead of the sound (ADR 0024), so a
+  // tick read at schedule time would move the playhead — and with it the grid's
+  // clip — before that bar was audible. Song mode only: a clip loop leaves the
+  // song's position alone.
+  useEffect(() => {
+    if (!engine) return
+    return engine.onDrawBeat(({ tick }) => {
+      // An all-empty song plays the grid clip with no conductor (ADR 0032), and
+      // its ticks belong to no timeline — leave the bar where it was rather than
+      // resetting it to the start of a song that has nothing in it.
+      // Clear any scrub preview — returning the same value when it is already
+      // clear, so a drawn beat per step does not re-render for nothing.
+      setScrubStep((step) => (step === null ? step : null))
+      if (!songModeRef.current || timelineRef.current.barCount === 0) return
+      setSongBar(globalBarOfTick(timelineRef.current, tick))
+    })
+  }, [engine])
+
   /**
-   * Draw time: this position is audible now. The ring moves and the grid
-   * switches to its clip — a view change like tapping its chip, never an
-   * edit, and never an engine write: the conductor owns the engine's pattern
-   * while the song plays. A layered position sounds several clips at once but
-   * the grid shows one: its topmost lane, so a single-clip position behaves
-   * exactly as it always has.
+   * Draw time: this position is audible now. The grid switches to its clip — a
+   * view change like tapping its chip, never an edit, and never an engine
+   * write: the conductor owns the engine's pattern while the song plays. A
+   * layered position sounds several clips at once but the grid shows one: its
+   * topmost lane, so a single-clip position behaves exactly as it always has.
    */
   const onSoundingPosition = useCallback((position: number) => {
-    setPlayingPosition(position)
     const current = songRef.current
     if (!current) return
     const clipIndex = current.placements[position]?.[0]
@@ -153,6 +217,9 @@ export function HomePage() {
    * clip — the resync makes "the clip on the grid" true again before any edit
    * reads the engine back. Does not touch the transport; callers decide
    * whether playback stops or carries on as clip play.
+   *
+   * The playhead's bar is deliberately left alone: since ticket 04 stopping the
+   * song no longer erases where you were, so the next play starts from there.
    */
   const leaveSongMode = useCallback(() => {
     if (!songModeRef.current) return
@@ -160,7 +227,6 @@ export function HomePage() {
     conductorRef.current?.dispose()
     conductorRef.current = null
     setSongPlaying(false)
-    setPlayingPosition(null)
     const current = songRef.current
     if (engine && current) engine.setPattern(activeClip(current).pattern)
   }, [engine])
@@ -222,6 +288,85 @@ export function HomePage() {
     [markEdited, stopSongPlayback],
   )
 
+  /**
+   * `updateSong`'s sibling, and the only other path to the song (spec §2): a
+   * scrub. It marks nothing edited and stops nothing, because moving the
+   * playhead is listening rather than editing — and it never writes `songRef`,
+   * because the song has not changed. Stopped, it is silent: the state moves and
+   * the transport stays where it was, so only the next play sounds the target.
+   */
+  const scrubSongTo = useCallback(
+    (globalBar: number) => {
+      if (!engine) return null
+      const bar = scrubToBar(
+        { engine, conductor: conductorRef.current, timeline: timelineRef.current },
+        globalBar,
+      )
+      if (bar !== null) setSongBar(bar)
+      return bar
+    },
+    [engine],
+  )
+
+  /**
+   * A *gesture's* scrub to a bar — the strips' arrows and Home. The same seek,
+   * plus the column: stopped there is no draw beat to move it, so the bar's own
+   * first step is the silent preview of where the scrub landed (spec §4).
+   * `toggleSong`'s own seek deliberately does not do this — nothing has sounded
+   * yet at that point, and the column means "the last step that did".
+   */
+  const scrubSongToBar = useCallback(
+    (globalBar: number) => {
+      const bar = scrubSongTo(globalBar)
+      if (bar !== null) setScrubStep((bar % BARS_PER_POSITION) * STEPS_PER_BAR)
+    },
+    [scrubSongTo],
+  )
+
+  /**
+   * The song strip's own gesture: a cell of the strip and the bar inside it.
+   * Empty cells are drawn but not on the timeline, so the resolution clamps
+   * rather than reaching one (spec §4).
+   */
+  const scrubSongToCell = useCallback(
+    (position: number, bar: number) => {
+      const globalBar = globalBarAtCell(timelineRef.current, position, bar)
+      if (globalBar !== null) scrubSongToBar(globalBar)
+    },
+    [scrubSongToBar],
+  )
+
+  /**
+   * The phone song band's gesture (ticket 06): how far across the band the
+   * pointer sits. The band is one continuous track over the song's *real*
+   * length, not the laptop strip's 16 drawn slots, so a fraction of it is the
+   * whole answer and there is no empty cell to resolve (spec §7.2).
+   */
+  const scrubSongToFraction = useCallback(
+    (fraction: number) => {
+      scrubSongToBar(globalBarAtFraction(timelineRef.current, fraction))
+    },
+    [scrubSongToBar],
+  )
+
+  /**
+   * The clip rail's gesture: a step of the clip on the grid. The bar moves with
+   * it — a step names a bar — so the strip and the readout follow a rail drag.
+   */
+  const scrubClipToStep = useCallback(
+    (step: number) => {
+      if (!engine) return
+      const landed = scrubToStep(
+        { engine, conductor: conductorRef.current, timeline: timelineRef.current },
+        songBarRef.current,
+        step,
+      )
+      setSongBar(landed.globalBar)
+      setScrubStep(landed.step)
+    },
+    [engine],
+  )
+
   const toggleCell = useCallback(
     (instrumentId: string, step: number) => {
       if (!engine) return
@@ -269,8 +414,15 @@ export function HomePage() {
    * positions skipped. An all-empty song plays the clip on the grid — "an
    * empty song playing the grid clip is today's behaviour" (ADR 0032) — so no
    * conductor and no ring, but the button still reads Stop. Starting the song
-   * while the clip loops stops the transport first, so the song begins at its
-   * leftmost placement rather than mid-bar (ticket 22).
+   * while the clip loops stops the transport first (ticket 22), so nothing of
+   * that run carries over.
+   *
+   * What the song then starts from is the playhead, not the first position:
+   * the bar outlives a stop since ticket 04 and the strips draw it where it
+   * sits, so this is a place a child can see and chose, not a remembered
+   * offset. That is what supersedes boop-loops ticket 16's accepted limit
+   * about resuming mid-song. The scrub therefore has to follow the stop, since
+   * the stop is the rewind.
    */
   const toggleSong = useCallback(() => {
     const current = songRef.current
@@ -291,9 +443,12 @@ export function HomePage() {
         current.placements,
         onSoundingPosition,
       )
+      // A fresh conductor sits at the first position, so send it to the playhead
+      // before the transport starts — the same move a scrub makes.
+      scrubSongTo(songBar)
     }
     void engine.start()
-  }, [engine, onSoundingPosition, stopSongPlayback])
+  }, [engine, onSoundingPosition, scrubSongTo, songBar, stopSongPlayback])
 
   // Spacebar toggles play from anywhere on the page (spec: "Transport &
   // tempo"). `preventDefault` always fires for a non-editable target, so
@@ -521,14 +676,39 @@ export function HomePage() {
     )
   }
 
+  // The playhead column is the last step the draw channel reached, playing or
+  // not: a stop no longer hides it (spec §1), it stays put at 45%. `null` is
+  // now only "nothing has sounded yet" — a page that has never played. The step
+  // stays the *clip's*, so pausing a clip loop leaves the column exactly where
+  // the child paused it rather than jumping to wherever the song's bar is.
+  // ...unless a scrub moved it since: stopped, that is the only thing that can,
+  // and it is what makes the silent preview visible (spec §4).
+  const playheadStep = scrubStep ?? motion.step
+
+  // The ring on the lane squares still means "this position is sounding", so it
+  // stays playing-only. The strip and the ruler read the playhead instead, which
+  // outlives a stop.
+  const playingPosition = songPlaying && playheadAt !== null ? playheadAt.position : null
+
+  const playhead: SongPlayheadView = {
+    bar: playheadBar,
+    position: playheadAt?.position ?? null,
+    barInPosition: playheadAt?.bar ?? null,
+    barCount: timeline.barCount,
+    playing: songPlaying,
+  }
+
   const gridProps: GridViewProps = {
     kit: engine.kit,
     pattern: activeClip(song).pattern,
     onToggleCell: toggleCell,
-    playheadStep: motion.playing ? motion.step : null,
+    playheadStep,
+    playheadPlaying: motion.playing,
     cellStrikes: motion.cellStrikes,
     rowStrikes: motion.rowStrikes,
     loadToken,
+    onScrubToStep: scrubClipToStep,
+    onScrubToSongStart: () => scrubSongToBar(0),
   }
 
   return (
@@ -575,6 +755,8 @@ export function HomePage() {
             onRename={renameActiveClip}
             onCopy={copyClip}
             onDelete={deleteActiveClip}
+            // The phone's readout rides on its own WHOLE SONG strip (ticket 06).
+            readout={phone ? null : playheadReadout(playhead)}
           />
           {phone ? (
             <>
@@ -590,6 +772,9 @@ export function HomePage() {
                 onToggleSong={toggleSong}
                 songPlaying={songPlaying}
                 playingPosition={playingPosition}
+                playhead={playhead}
+                onScrubToFraction={scrubSongToFraction}
+                onScrubToBar={scrubSongToBar}
               />
             </>
           ) : (
@@ -637,6 +822,9 @@ export function HomePage() {
               onToggleSong={toggleSong}
               songPlaying={songPlaying}
               playingPosition={playingPosition}
+              playhead={playhead}
+              onScrubToBar={scrubSongToBar}
+              onScrubToCell={scrubSongToCell}
             />
           )}
         </div>

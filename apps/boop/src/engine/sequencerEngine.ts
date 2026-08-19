@@ -114,6 +114,19 @@ export interface SequencerEngine {
    */
   songPos(): number
 
+  /**
+   * Move the transport to `tick`, playing or stopped. Fractional targets land on
+   * the whole tick below, so `step` stays a grid column; a negative target
+   * clamps to the start of the song and a non-finite one is ignored — the way
+   * `setTempo` refuses a bad tempo.
+   *
+   * A seek is not a start or a stop, so it emits no transport event. Steps
+   * already scheduled inside the lookahead still sound (the driver cannot
+   * unschedule audio) but their draws are dropped, so no pre-jump position
+   * reaches the UI. See ADR 0024's amendment.
+   */
+  seek(tick: number): void
+
   audioState(): AudioState
 
   /** Canonical seam: fires at schedule time, with lookahead. No DOM work here. */

@@ -97,6 +97,26 @@ inside the boops panel).
 > `stickyBottomBar.iwft.tsx`; the loop map stays inside that scrolling region,
 > under the grid, rather than joining the pinned bar.
 
+> **Amended by the boop-playhead effort (ticket 06).** The loop map is now also
+> the phone's clip scrubber, and a `WHOLE SONG` band joins it in the phone song
+> bar. Both are **non-scrolling** bands — which is the loop map's own argument
+> from §1, now carrying the playhead on the song axis too — and both split axes
+> the way §3 does, one step further:
+>
+> - `touch-action: pan-y`, not the playhead handoff's `touch-action: none`.
+>   Horizontal gestures are the scrub and are ours; **vertical** pans belong to
+>   ADR 0030's one scrolling region, which both bands sit inside. `none` would
+>   trap a finger that lands on a band.
+> - The press decides nothing, and the gesture must *prove* it is a scrub
+>   (`useScrubDrag`'s `applyOnPointerDown: false`, §3's rule for the same
+>   reason). The proof is that the pointer has travelled further across the band
+>   than down it — the continuous-axis form of §3's "crossing a cell boundary is
+>   what proves this is a paint", and it is the guard that matters, because the
+>   browser sends a `pointermove` or two before it claims a touch scroll and
+>   sends `pointercancel`. A press that barely moves is still a tap, and scrubs
+>   on release. The laptop strips keep the immediate press — they are in a pinned
+>   bar that cannot scroll.
+
 ## Consequences
 
 - Playback **never** scrolls the window. The loop map carries the playhead and

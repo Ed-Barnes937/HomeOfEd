@@ -261,7 +261,14 @@ test.describe('small phone, short window', () => {
     await root.verifyPhoneChromeShown()
 
     await root.verifySongPlayFullyInViewport()
-    await root.verifyNothingIsScrolled()
+    // The region scrolls here, and the page still does not. Since boop-playhead
+    // ticket 06 the phone bar also carries the WHOLE SONG band, and at 640px
+    // there is nowhere left to put its 47px: the grid well is already at its
+    // three-row floor. ADR 0030 as amended allows exactly this — a phone short
+    // enough scrolls the region rather than shrink the grid away — and the
+    // promise this test exists for is untouched, since both play buttons are
+    // still whole and on screen.
+    await root.verifyGridWellIsTheScroller()
     // The pinned transport's clip play is the other half of the same promise.
     await root.verifyTransportFullyInViewport()
   })

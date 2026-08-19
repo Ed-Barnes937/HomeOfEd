@@ -3,6 +3,8 @@ import { test } from './testing/iwftTest.tsx'
 test('the playhead advances during playback, driven by the draw-time channel', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  // Nothing has sounded yet, so there is nothing to point at — the one case that
+  // still has no playhead at all (boop-playhead ticket 04).
   await root.verifyPlayheadHidden()
 
   await root.pressPlay()
@@ -81,7 +83,9 @@ test('play always starts at step 1 of bar 1, wherever in the loop it was stopped
 
   await root.pressPlay() // stop
   await root.verifyPaused()
-  await root.verifyPlayheadHidden()
+  // Ticket 04: the marker stays on the step it stopped on, dimmed — but where
+  // the *transport* resumes from is a separate question, answered below.
+  await root.verifyPlayheadStoppedAtStep(7)
 
   await root.pressPlay() // and away again — from the top, not from step 8
   await root.verifyPlaying()
@@ -104,6 +108,7 @@ test('the spacebar starts from the top too — one rule, however you press play'
 
   await root.pressSpaceKey()
   await root.verifyPaused()
+  await root.verifyPlayheadStoppedAtStep(7)
 
   await root.pressSpaceKey()
   await root.verifyPlaying()
@@ -111,7 +116,7 @@ test('the spacebar starts from the top too — one rule, however you press play'
   await root.verifyPlayheadAtStep(0)
 })
 
-test('the playhead disappears cleanly when stopped, and resuming does not reset the pattern', async ({
+test('the playhead stays where it stopped, and resuming does not reset the pattern', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -127,7 +132,10 @@ test('the playhead disappears cleanly when stopped, and resuming does not reset 
 
   await root.pressPlay() // pause
   await root.verifyPaused()
-  await root.verifyPlayheadHidden()
+  // Since boop-playhead ticket 04 a pause leaves the playhead on the step it
+  // paused on, dimmed, instead of unmounting it — where we are is a fact about
+  // the boop (spec §1). It is the *clip's* step, so a paused clip loop keeps it.
+  await root.verifyPlayheadStoppedAtStep(0)
   await root.verifyCellOn('snare', 3)
 
   await root.pressPlay() // resume

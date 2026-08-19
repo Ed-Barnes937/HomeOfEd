@@ -128,6 +128,8 @@ test('one mode at a time: each play stops the other, and a chip tap stops the so
   await root.selectClip(0)
   await root.verifySongStopped()
   await root.verifyPaused()
+  // Nothing was ever cranked here, so no step has sounded and there is still
+  // nothing to point at — the only case that leaves no playhead (ticket 04).
   await root.verifyPlayheadHidden()
   await root.verifyNoPositionPlaying()
 })
@@ -161,6 +163,62 @@ test('song play begins at the leftmost placement, even taking over a running cli
   await root.verifyPlaying()
   await root.crankSteps(1)
   await root.verifyPlayheadAtStep(0)
+})
+
+test('the playhead survives a stop, and the song starts again from where it was', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await buildTwoClipSong(root)
+
+  await root.pressSongPlay()
+  await root.verifySongPlaying()
+
+  // Into the second placed position — global bar 4, the start of position 2.
+  await root.crankSteps(17)
+  await root.verifyPositionPlaying(1, 2)
+  await root.verifyPlayheadAtStep(0)
+
+  await root.pressSongPlay()
+  await root.verifySongStopped()
+  // Stopping no longer erases where we were: the playhead stays, dimmed. The
+  // ring still means "sounding now", so it goes.
+  await root.verifyPlayheadStoppedAtStep(0)
+  await root.verifyNoPositionPlaying()
+
+  // Playing again resumes from that position rather than the top of the song —
+  // this is what supersedes boop-loops ticket 16's accepted limit.
+  await root.pressSongPlay()
+  await root.crankSteps(1)
+  await root.verifyPositionPlaying(1, 2)
+  await root.verifyCellOn('snare', 0)
+  await root.verifyCellOff('kick', 0)
+})
+
+test('the playhead keeps bar resolution: four bars to a position', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await buildTwoClipSong(root)
+
+  await root.pressSongPlay()
+  await root.verifySongPlaying()
+
+  // Bar 2 of position 1: step 4 of the sounding clip, still position 0.
+  await root.crankSteps(5)
+  await root.verifyPositionPlaying(0, 0)
+  await root.verifyPlayheadAtStep(4)
+
+  await root.pressSongPlay()
+  await root.verifySongStopped()
+  // Bar resolution: the stopped playhead sits at the start of the bar it was in.
+  await root.verifyPlayheadStoppedAtStep(4)
+
+  await root.pressSongPlay()
+  await root.crankSteps(1)
+  // And the song picks up in that bar, not at the start of the position.
+  await root.verifyPlayheadAtStep(4)
+  await root.verifyPositionPlaying(0, 0)
 })
 
 test('a grid edit during song play stops the song and lands in the clip on screen', async ({
@@ -201,7 +259,9 @@ test('an all-empty song plays the clip on the grid — no ring, still the song b
 
   await root.pressSongPlay()
   await root.verifySongStopped()
-  await root.verifyPlayheadHidden()
+  // No placements, so no song position — but a step has sounded, and that is
+  // what the playhead column points at, so it stays (dimmed) like any pause.
+  await root.verifyPlayheadStoppedAtStep(0)
 })
 
 test('speed changes mid-song take effect without stopping it', async ({ mountApp }) => {

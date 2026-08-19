@@ -67,3 +67,11 @@ two audibly different clips, place them, play the song and listen to the joins
 (A→B, B→A wrap) for any seam, flam, or dropped beat. Issue 03 already passed
 this by ear for the identical conductor shape, so this is confirmation, not
 open risk.
+
+**2026-08-17 (agent)** — The **accepted limit** above is superseded by
+boop-playhead ticket 04. The song's position is now a persistent fact that
+outlives a stop, and pressing play sends the fresh conductor to that position
+first (`HomePage`'s `toggleSong` → `scrubToBar`), so a song started after a stop
+resumes from the bar it stopped in *on purpose* — position and bar both, not
+just the leftover engine tick. Nothing here needs changing; the limit is simply
+no longer one.
