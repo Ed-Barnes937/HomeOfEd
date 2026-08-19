@@ -45,6 +45,11 @@ export interface CreateChildDeps {
  * child row (temp password = username, `mustChangePassword` set), its preset
  * row (preset defaults + any overrides), and any calibration answers.
  * `parentId` comes from `ctx.auth`, never input.
+ *
+ * `presetName` is required BY DESIGN (ADR-0016): safe-by-default (6.5.9) holds
+ * at the read seam (`loadChildConfig` falls back to the strictest preset for a
+ * child with no preset row); creation demands an explicit parental choice
+ * rather than silently defaulting.
  */
 export class CreateChildHandler extends Handler<CreateChildInput, CreateChildResult, SproutStore> {
   private readonly hasher: PasswordHasher

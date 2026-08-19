@@ -20,6 +20,19 @@ primary_region = 'lhr'
 
 [env]
   PORT = '8080'
+  # Behavioural limit launch values (ADR-0018). All nine pinned explicitly —
+  # eight match the code defaults in behavioural-limits.ts; only RETENTION_S
+  # differs (24h → 7 days, so the week-one firing-rate query has a week of
+  # rows). Tuning knobs, not secrets: a future tune is a one-line diff here.
+  RATE_LIMIT_VELOCITY_WINDOW_S = '60'
+  RATE_LIMIT_MAX_MESSAGES = '20'
+  RATE_LIMIT_PROBE_WINDOW_S = '300'
+  RATE_LIMIT_MAX_PROBES = '4'
+  RATE_LIMIT_REPUTATION_WINDOW_S = '3600'
+  RATE_LIMIT_DEVICE_PROBE_STRIKES = '8'
+  RATE_LIMIT_PIN_WINDOW_S = '900'
+  RATE_LIMIT_MAX_PIN_FAILURES = '5'
+  RATE_LIMIT_RETENTION_S = '604800'
 
 # Two process groups from ONE image (plan D8 / ADR 0001 §3). `web` serves HTTP;
 # `worker` is the headless retention/purge loop (no HTTP). Fly runs one machine
