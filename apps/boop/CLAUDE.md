@@ -69,7 +69,9 @@ src/
   features/grid/    the grid well. Two renderers, one behaviour:
                     Grid.tsx      laptop/tablet — the full 6x16 laid out flat
                     PhoneGrid.tsx <1024px — pinned rail + snap-scrolling step
-                                  window + the "WHOLE LOOP" map (ticket 27)
+                                  window + the "WHOLE LOOP" map (ticket 27),
+                                  which is also the phone's clip scrubber
+                                  (boop-playhead ticket 06)
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
@@ -91,7 +93,9 @@ src/
                     well on the step window's exact geometry, compact chips +
                     "+ New" in a pinned 92px column, snap-scrolling lane strip
                     under PhoneGrid's paint-vs-scroll rules; clip play and
-                    Speed stay in the pinned transport
+                    Speed stay in the pinned transport. The non-scrolling
+                    "WHOLE SONG" band above the lanes is the phone's song
+                    scrubber (boop-playhead ticket 06)
   features/playhead/ the scrub strips' shared parts (boop-playhead ticket 05):
                     scrubGeometry.ts (which drawn segment a pointer is over —
                     pure), useScrubDrag.ts (the pointer-capture gesture both

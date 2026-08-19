@@ -1278,6 +1278,191 @@ export class HomePagePom extends BasePage {
     )
   }
 
+  // --- The phone scrub bands (boop-playhead ticket 06, spec §4/§7.2) ---
+
+  private readonly loopMap = this.page.getByTestId('loop-map')
+  private readonly songBand = this.page.getByTestId('song-band')
+  private readonly songBandMarker = this.page.getByTestId('song-band-marker')
+
+  /**
+   * A tap on the loop map band, over one of its 16 ticks. Deliberately the
+   * *band's* own y — the handoff's pointer target is the whole band, and a tap
+   * that misses the 5px tick must still scrub.
+   */
+  async tapLoopMap(step: number): Promise<void> {
+    const { x } = await this.loopTickCentre(step)
+    const band = await this.loopMap.boundingBox()
+    if (!band) throw new Error('the loop map is not visible')
+    await this.page.mouse.click(x, band.y + band.height / 2)
+  }
+
+  async dragLoopMap(from: number, to: number): Promise<void> {
+    await this.dragBetween(await this.loopTickCentre(from), await this.loopTickCentre(to))
+  }
+
+  private async loopTickCentre(step: number): Promise<{ x: number; y: number }> {
+    const box = await this.page.getByTestId(`loop-tick-${step}`).boundingBox()
+    if (!box) throw new Error(`loop tick ${step} is not visible`)
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+
+  /** The loop map's grip cap, on the step it sits above and its playing treatment. */
+  async verifyLoopMapCapAt(step: number, playing: boolean): Promise<void> {
+    const cap = this.page.getByTestId('loop-map-cap')
+    await expect(cap).toHaveAttribute('data-step', String(step))
+    await expect(cap).toHaveAttribute('data-playing', String(playing))
+    // And it is centred on that tick, not on a flat 1/16 of the track: the
+    // ticks are `flex: 1` on a 4px gap, so the two are ~2px apart.
+    const capBox = await cap.boundingBox()
+    const tick = await this.page.getByTestId(`loop-tick-${step}`).boundingBox()
+    if (!capBox || !tick) throw new Error('the loop map cap or its tick is not visible')
+    expect(Math.abs(capBox.x + capBox.width / 2 - (tick.x + tick.width / 2))).toBeLessThanOrEqual(1)
+  }
+
+  async verifyLoopMapSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.loopMap).toHaveAttribute('role', 'slider')
+    await expect(this.loopMap).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.loopMap).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  async pressOnLoopMap(key: string): Promise<void> {
+    await this.loopMap.press(key)
+  }
+
+  /** The x of one global bar's middle on the WHOLE SONG band's continuous track. */
+  private async songBandBarCentre(
+    globalBar: number,
+    barCount: number,
+  ): Promise<{ x: number; y: number }> {
+    const box = await this.songBand.boundingBox()
+    if (!box) throw new Error('the song band is not visible')
+    return {
+      x: box.x + (box.width * (globalBar + 0.5)) / barCount,
+      y: box.y + box.height / 2,
+    }
+  }
+
+  /** Tap the WHOLE SONG band on one global bar of a `barCount`-bar song. */
+  async tapSongBand(globalBar: number, barCount: number): Promise<void> {
+    const { x, y } = await this.songBandBarCentre(globalBar, barCount)
+    await this.page.mouse.click(x, y)
+  }
+
+  async dragSongBand(from: number, to: number, barCount: number): Promise<void> {
+    await this.dragBetween(
+      await this.songBandBarCentre(from, barCount),
+      await this.songBandBarCentre(to, barCount),
+    )
+  }
+
+  /** The band's marker: the global bar it sits on, and its playing treatment. */
+  async verifySongBandMarkerAt(globalBar: number, playing: boolean): Promise<void> {
+    await expect(this.songBandMarker).toHaveAttribute('data-bar', String(globalBar))
+    await expect(this.songBandMarker).toHaveAttribute('data-playing', String(playing))
+  }
+
+  /**
+   * One segment per *placed* position (spec §7.2), each wearing its topmost
+   * clip's tint — so the count follows a placement change.
+   */
+  async verifySongBandSegments(tints: number[]): Promise<void> {
+    const segments = this.page.locator('[data-testid^="song-band-segment-"]')
+    await expect(segments).toHaveCount(tints.length)
+    for (const [index, tint] of tints.entries()) {
+      await expect(segments.nth(index)).toHaveAttribute('data-tint', String(tint))
+    }
+  }
+
+  /**
+   * The marker is one bar of the song's real length, and it sits on the segment
+   * holding that bar: the derived geometry's one arithmetic claim (spec §7.2).
+   */
+  async verifySongBandMarkerOnSegment(globalBar: number, barCount: number): Promise<void> {
+    const marker = await this.songBandMarker.boundingBox()
+    const band = await this.songBand.boundingBox()
+    if (!marker || !band) throw new Error('the song band or its marker is not visible')
+    expect(Math.abs(marker.width - band.width / barCount)).toBeLessThanOrEqual(1)
+    expect(Math.abs(marker.x - (band.x + (band.width * globalBar) / barCount))).toBeLessThanOrEqual(
+      1,
+    )
+  }
+
+  async verifySongBandCapAt(globalBar: number, playing: boolean): Promise<void> {
+    const cap = this.page.getByTestId('song-band-cap')
+    await expect(cap).toHaveAttribute('data-bar', String(globalBar))
+    await expect(cap).toHaveAttribute('data-playing', String(playing))
+  }
+
+  async verifySongBandSlider(valueNow: number, valueText: string): Promise<void> {
+    await expect(this.songBand).toHaveAttribute('role', 'slider')
+    await expect(this.songBand).toHaveAttribute('aria-valuenow', String(valueNow))
+    await expect(this.songBand).toHaveAttribute('aria-valuetext', valueText)
+  }
+
+  async pressOnSongBand(key: string): Promise<void> {
+    await this.songBand.press(key)
+  }
+
+  /** `Position 4 · bar 2 of 4` — the phone's readout, on the band's caption row. */
+  async verifyPhonePlayheadReadout(text: string): Promise<void> {
+    await expect(this.page.getByTestId('phone-playhead-readout')).toHaveText(text)
+  }
+
+  /**
+   * Neither band scrolls: both stay put while the grid and the lanes swipe
+   * (ADR 0027). Measured against the step window's own scroll, so it is the
+   * bands' *immobility* that is asserted rather than a pixel.
+   */
+  async verifyBandsDoNotScroll(swipeBy: number): Promise<void> {
+    const before = { loop: await this.loopMap.boundingBox(), song: await this.songBand.boundingBox() }
+    await this.swipeSteps(swipeBy)
+    await this.swipeLanes(swipeBy)
+    const after = { loop: await this.loopMap.boundingBox(), song: await this.songBand.boundingBox() }
+    if (!before.loop || !before.song || !after.loop || !after.song)
+      throw new Error('a scrub band is not visible')
+    expect(Math.abs(after.loop.x - before.loop.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.loop.width - before.loop.width)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.song.x - before.song.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.song.width - before.song.width)).toBeLessThanOrEqual(1)
+  }
+
+  /**
+   * A drag *down* a band, the gesture a child makes to scroll the page. The
+   * band must move nothing: only a sideways drag is a scrub (`useScrubDrag`'s
+   * deferred mode), because on real touch hardware this one belongs to the
+   * scrolling region and arrives as `pointermove`s before `pointercancel`.
+   */
+  async dragDownBand(band: 'loop' | 'song'): Promise<void> {
+    const box = await (band === 'loop' ? this.loopMap : this.songBand).boundingBox()
+    if (!box) throw new Error('a scrub band is not visible')
+    const x = box.x + box.width * 0.8
+    const y = box.y + box.height / 2
+    await this.dragBetween({ x, y }, { x, y: y - 120 })
+  }
+
+  /**
+   * The bands are inside the one scrolling region (ADR 0030), so they must not
+   * take vertical panning away from it: `pan-y` rather than the handoff's
+   * `none`, which would trap a finger that lands on the band.
+   */
+  async verifyBandsAllowVerticalScroll(): Promise<void> {
+    for (const band of [this.loopMap, this.songBand]) {
+      const touchAction = await band.evaluate(
+        (element) => getComputedStyle(element).touchAction,
+      )
+      expect(touchAction).toBe('pan-y')
+    }
+  }
+
+  /** Both caps clear a 44px touch target through their band's own hit area. */
+  async verifyBandTapTargets(): Promise<void> {
+    for (const band of [this.loopMap, this.songBand]) {
+      const box = await band.boundingBox()
+      if (!box) throw new Error('a scrub band is not visible')
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+  }
+
   /**
    * Fire `count` scheduled steps, advancing the draw clock past each one —
    * one audible step per iteration, schedule and draw together. Use the

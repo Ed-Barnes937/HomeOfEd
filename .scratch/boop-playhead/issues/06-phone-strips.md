@@ -43,27 +43,62 @@ Spec: §4, §7.2.
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Three notes from the build** — the first two amended into the spec and
+ADR 0027:
 
-- [ ] `LoopMap`'s geometry is unchanged — band, label, ticks and bracket all as
+1. *`touch-action: pan-y`, not `none`, and the gesture has to prove itself.* The
+   handoff asks for `none` on the loop map band; inside ADR 0030's one scroller
+   that traps a finger landing on the band, which is exactly what this ticket
+   was told to check. So both bands take `pan-y` — horizontal is the scrub,
+   vertical belongs to the region — and `useScrubDrag` gained
+   `applyOnPointerDown: false` for them. Leaving `pointercancel` to undo an
+   accidental scrub was the first attempt and it does not work: the browser sends
+   a `pointermove` or two before it claims the scroll, so the playhead had
+   already jumped. The band therefore commits only once the pointer has
+   travelled further across it than down it — `useDragPaint`'s cell-boundary
+   rule on a continuous axis — with a tap still scrubbing on release. The
+   `.iwft` drags *down* each band and asserts the playhead does not move. The
+   laptop strips keep the immediate press: they are in a pinned bar that cannot
+   scroll.
+
+   The cap's own offset came out of the same review: it was a flat 1/16 of the
+   track, like the mock's, which the ticks' 4px gaps put ~2px off the tick it
+   names. It now derives a tick's width the way the laptop strip's marker
+   derives a cell's, and the `.iwft` asserts cap and tick share a centre.
+2. *The song band draws positions but snaps on the whole track.* The handoff
+   draws eight position segments; the spec says the snap is a fraction of the
+   track through `globalBarAtFraction`. Both are true — the segments are paint,
+   and the track is marked as one continuous scrub segment, so the fraction
+   across it is the answer with no second copy of the bar arithmetic. That is
+   also what keeps the marker exact when a placement changes the segment count.
+3. *44px comes from padding, not from a taller band.* The loop map's 34px is
+   fixed by the ticket and the song band's track is the handoff's 30px, so
+   neither is 44px on its own. Both bands take `padding` out to 44px and give
+   the space straight back with a negative `margin`, so the hit box grows onto
+   dead space (the well's padding, the row's own margin) and no visible geometry
+   moves.
+
+**Status:** ready-for-human
+
+- [x] `LoopMap`'s geometry is unchanged — band, label, ticks and bracket all as
       they are today
-- [ ] Tapping or dragging the loop map band moves the playhead within the clip,
+- [x] Tapping or dragging the loop map band moves the playhead within the clip,
       snapped to steps
-- [ ] The loop map's cap matches the handoff: size, offset, grip bars, cyan
+- [x] The loop map's cap matches the handoff: size, offset, grip bars, cyan
       playing / `--ink` stopped
-- [ ] The grid region still scrolls vertically with a finger starting on the
+- [x] The grid region still scrolls vertically with a finger starting on the
       band (ADR 0030 is not broken by `touch-action: none`)
-- [ ] The `WHOLE SONG` band spans the placed positions, with segments dividing
+- [x] The `WHOLE SONG` band spans the placed positions, with segments dividing
       by inset rather than gap, each in its topmost clip's tint at 32%
-- [ ] The band's segment count follows a placement change without the marker
+- [x] The band's segment count follows a placement change without the marker
       drifting
-- [ ] The marker is one bar of the song's real length, at the 1 / 0.45 opacity
+- [x] The marker is one bar of the song's real length, at the 1 / 0.45 opacity
       rule, hard-cut
-- [ ] The caption row reads `WHOLE SONG` and the readout, per the handoff
-- [ ] Both caps clear 44px of touch target
-- [ ] Neither band scrolls, at any phone width, while the grid and lanes still
+- [x] The caption row reads `WHOLE SONG` and the readout, per the handoff
+- [x] Both caps clear 44px of touch target
+- [x] Neither band scrolls, at any phone width, while the grid and lanes still
       swipe (ADR 0027)
-- [ ] Whole-page coverage in an `.iwft` suite at phone widths
+- [x] Whole-page coverage in an `.iwft` suite at phone widths
 - [ ] **Human, by hand, on a real phone:** scrub both bands; then build a
       16-position song and report whether bar-snapping on the song band is too
       tight (spec §7.2's follow-up trigger)

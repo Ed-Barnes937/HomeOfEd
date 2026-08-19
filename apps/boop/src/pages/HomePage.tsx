@@ -54,6 +54,7 @@ import {
   barAt,
   clampGlobalBar,
   globalBarAtCell,
+  globalBarAtFraction,
   globalBarOfTick,
   songTimeline,
 } from '../song/songTimeline.ts'
@@ -331,6 +332,19 @@ export function HomePage() {
     (position: number, bar: number) => {
       const globalBar = globalBarAtCell(timelineRef.current, position, bar)
       if (globalBar !== null) scrubSongToBar(globalBar)
+    },
+    [scrubSongToBar],
+  )
+
+  /**
+   * The phone song band's gesture (ticket 06): how far across the band the
+   * pointer sits. The band is one continuous track over the song's *real*
+   * length, not the laptop strip's 16 drawn slots, so a fraction of it is the
+   * whole answer and there is no empty cell to resolve (spec §7.2).
+   */
+  const scrubSongToFraction = useCallback(
+    (fraction: number) => {
+      scrubSongToBar(globalBarAtFraction(timelineRef.current, fraction))
     },
     [scrubSongToBar],
   )
@@ -749,6 +763,9 @@ export function HomePage() {
                 onToggleSong={toggleSong}
                 songPlaying={songPlaying}
                 playingPosition={playingPosition}
+                playhead={playhead}
+                onScrubToFraction={scrubSongToFraction}
+                onScrubToBar={scrubSongToBar}
               />
             </>
           ) : (

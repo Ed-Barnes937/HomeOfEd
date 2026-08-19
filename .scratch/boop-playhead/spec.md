@@ -100,9 +100,23 @@ segments, so it has two implementations (amended by ticket 05):
   and the cell's own quarter names the bar (`globalBarAtCell`). Hit-testing
   rather than arithmetic is what keeps the tablet band's compressed cells right
   without a second copy of the column maths.
-- The **phone** song strip is drawn as one segment per *global bar* over the
-  song's real length (§7.2), so a fraction of the track is the whole answer:
-  ticket 02's `globalBarAtFraction`. Its first caller is ticket 06.
+- The **phone** song strip is one continuous segment over the song's real length
+  (§7.2), so a fraction of the track is the whole answer: ticket 02's
+  `globalBarAtFraction`. Its first caller is ticket 06. (The band *draws* one
+  segment per placed position, per the handoff, but those are eight cells of
+  paint over one track — the snap does not read them.) The phone's clip
+  scrubber, the loop map, hit-tests its 16 ticks like the laptop rail does.
+
+**A phone band's gesture has to prove itself first** (ticket 06). The laptop
+strips are in a pinned bar, so the press can scrub at once. The phone bands are
+inside ADR 0030's one scrolling region and take `touch-action: pan-y` rather than
+the handoff's `none` — which would trap a finger that landed on a band — so a
+vertical pan that begins on one must move the playhead nowhere. `pointercancel`
+is not enough on its own: the browser sends a `pointermove` or two before it
+claims the scroll. So the press decides nothing and the gesture commits only once
+the pointer has travelled further across the band than down it, which is
+`useDragPaint`'s "wait until the drag crosses a cell boundary" on a continuous
+axis. A press that barely moves is still a tap, and scrubs on release.
 
 **Clamping.** Empty positions are not part of the timeline, so the strip's cells
 for them are drawn (dimmed, per the handoff) but hold no bar of their own. Two
