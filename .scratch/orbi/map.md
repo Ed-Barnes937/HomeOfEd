@@ -42,6 +42,7 @@ tickets). Build happens after this map, as small PRs to `main`.
 
 - [01 — 3D rendering approach](issues/01-rendering-approach-research.md) — vanilla three.js (pinned ESM, ~168 kB gz) behind a DOM-free engine + renderer seam (silt pattern, no r3f); one persistent renderer with orbit/surface as swapped scenes; DPR capped at 2, `touch-action: none`, context-loss handling from day one.
 - [09 — Asset creation pipeline](issues/09-asset-pipeline-research.md) — procedural-first (the sketches already prove everything); GLBs only if Blip/rocket defeat primitives, validated by a one-session two-route bake-off (procedural vs Blender MCP/CC0-base), self-hosted meshopt GLBs if needed (~10–50 KB each).
+- [08 — Postcard export](issues/08-postcard-export-research.md) — no preserveDrawingBuffer: one-off render + synchronous drawImage into an offscreen 2D canvas, composite the card there (fonts via document.fonts.load), toBlob PNG; save via `<a download>` with navigator.share({files}) upgrade, print the PNG via a print-only element + @media print + window.print(). Zero new deps.
 
 ## Not yet specified
 
