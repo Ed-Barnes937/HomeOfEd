@@ -136,3 +136,32 @@ test('the new scrub rows fit the band: strip cells still track the squares', asy
   await root.tapClipRail(6)
   await root.verifyClipRailAtStep(6, false)
 })
+
+// The band used to compress the squares to their 20px floor at every width in
+// it, however much room the row had — the lane grid took its content's minimum
+// width instead of the row's. At 1100 the laptop's own 44px square fits.
+test('the squares are only as small as the width forces', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+  await root.addClip()
+
+  await root.verifyLaneSquareWidthAtLeast(40)
+  await root.verifyLaneGridFitsColumn()
+  await root.verifyNoSidewaysScroller()
+})
+
+test.describe('1024 — the narrow end, where the band really does compress', () => {
+  test.use({ viewport: { width: 1024, height: 800 } })
+
+  test('the squares share out the column exactly, flush with its edge', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.startBlank()
+    await root.addClip()
+
+    await root.verifyLaneGridFitsColumn({ expectFlush: true })
+    await root.verifyNoSidewaysScroller()
+    await root.verifyStripCellAlignsWithLane(15, 0)
+  })
+})

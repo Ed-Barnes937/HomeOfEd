@@ -128,16 +128,16 @@
   @media (min-width: 1024px) {
     flex: 0 1 auto;
     min-height: 0;
-    // Never capped below what the bar cannot give up. The song bar has an
-    // irreducible 193px — 14 margin + 64 header + 14 body padding + the 101px
-    // play column, which is `flex: none` (24 + the 56px circle + 7 + its
-    // label) — and a cap under that does not shrink it, it spills: the dock is
-    // `overflow: visible`, so the excess lands in the document and the *page*
-    // scrolls. Below 610px tall, 32dvh is under 193, which put a scrolling
-    // page on every laptop height from 600 down (1px at 600, 33px at 500).
-    // `max()` holds the cap at the bar's own floor instead. Change the 193
-    // with `SongBar.module.scss`'s header or play column.
-    max-height: max(32dvh, 193px);
+    // Never capped below what the bar cannot give up. A cap under that does
+    // not shrink it, it spills: the dock is `overflow: visible`, so the excess
+    // lands in the document and the *page* scrolls. That floor was 193px while
+    // song play was a `flex: none` column beside the lane grid (14 margin + 64
+    // header + 14 body padding + the 101px column), and 32dvh was under it on
+    // every laptop height from 610 down. Song play is the header row now, so
+    // the irreducible part is 14 margin + 72 header + 14 body padding = 100px,
+    // and the lane grid below it shrinks to nothing. Change the 100 with
+    // `SongBar.module.scss`'s header.
+    max-height: max(32dvh, 100px);
   }
 
   @media (max-width: 1279px) {

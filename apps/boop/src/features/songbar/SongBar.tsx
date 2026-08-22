@@ -43,10 +43,15 @@ interface SongBarProps {
 const POSITIONS = Array.from({ length: SONG_POSITIONS }, (_, i) => i)
 
 /**
- * The pinned song bar (design handoff §5): header row with the boop's name,
- * length and Speed (the old transport's tempo slider, moved here), then the
- * song play column and the lane grid — one lane per clip: a chip (tint dot,
- * name, ×n count) and 16 placement squares. Placement paints exactly like
+ * The pinned song bar (design handoff §5): header row with song play, the
+ * boop's name, its length and Speed (the old transport's tempo slider, moved
+ * here), then the lane grid — one lane per clip: a chip (tint dot, name, ×n
+ * count) and 16 placement squares. Song play leads the header at every width,
+ * the phone bar's arrangement (the owner's call): it was a play *column* down
+ * the left of the lane grid, and the ~93px that column took is the lane grid's
+ * now — which is what stopped the band from 1024 to 1279 compressing its
+ * squares, and what leaves a classic vertical scrollbar room to appear without
+ * starting a sideways one. Placement paints exactly like
  * grid cells (`useDragPaint`), and the squares follow the grid's arrow-key
  * model (`useGridKeyboardNav`): plain arrows move, Enter toggles, Backspace
  * removes.
@@ -156,6 +161,24 @@ export function SongBar({
   return (
     <div className={styles.bar} data-testid="song-bar">
       <div className={styles.header}>
+        <button
+          type="button"
+          className={styles.songPlay}
+          onClick={onToggleSong}
+          aria-pressed={songPlaying}
+          aria-label={songPlaying ? 'Stop the song' : 'Play the song'}
+          data-playing={songPlaying}
+          data-testid="song-play-button"
+        >
+          {songPlaying ? (
+            <span className={styles.pause} aria-hidden="true">
+              <span className={styles.pauseBar} />
+              <span className={styles.pauseBar} />
+            </span>
+          ) : (
+            <span className={styles.triangle} aria-hidden="true" />
+          )}
+        </button>
         <span className={styles.title}>Your boop</span>
         <span className={styles.bars} data-testid="song-length">
           {placedCount * 4} bars
@@ -184,28 +207,6 @@ export function SongBar({
         <span className={styles.endpoint}>Fast</span>
       </div>
       <div className={styles.body}>
-        <div className={styles.playColumn}>
-          <button
-            type="button"
-            className={styles.songPlay}
-            onClick={onToggleSong}
-            aria-pressed={songPlaying}
-            aria-label={songPlaying ? 'Stop the song' : 'Play the song'}
-            data-playing={songPlaying}
-            data-testid="song-play-button"
-          >
-            {songPlaying ? (
-              <span className={styles.pause} aria-hidden="true">
-                <span className={styles.pauseBar} />
-                <span className={styles.pauseBar} />
-              </span>
-            ) : (
-              <span className={styles.triangle} aria-hidden="true" />
-            )}
-          </button>
-          <span className={styles.playLabel}>{songPlaying ? 'Stop' : 'Song'}</span>
-        </div>
-        <div className={styles.divider} aria-hidden="true" />
         <div className={styles.lanes} data-testid="song-lanes">
           {/* The song strip: the first child of `.lanes`, above the ruler, on
               the lane row's own 16 × 56px / 8px-gap track so every cell sits
@@ -239,7 +240,9 @@ export function SongBar({
                     style={
                       clipIndex === undefined
                         ? undefined
-                        : ({ '--cell-tint': clipTint(song.clips[clipIndex]!.tint) } as CSSProperties)
+                        : ({
+                            '--cell-tint': clipTint(song.clips[clipIndex]!.tint),
+                          } as CSSProperties)
                     }
                     data-testid={`song-strip-cell-${position}`}
                   />

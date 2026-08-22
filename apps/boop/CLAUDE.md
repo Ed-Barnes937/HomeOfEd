@@ -82,12 +82,12 @@ src/
                     (Play this clip + clip-scoped Clear grid, rendered inside
                     the grid well, ≥1024), clipTints.ts (the fixed 5-tint list)
   features/songbar/ SongBar.tsx — the pinned song bar (≥1024, tickets 15/20;
-                    the tablet band shrinks the lane grid to fit): Speed
-                    (the old tempo slider), the song play button (wired to the
-                    songConductor, ticket 16), and the lane grid — chips
-                    (tap-to-select, drag-to-reorder via useChipDrag.ts,
-                    ticket 18), placement squares (drag-paint + the grid's
-                    keyboard model), "+ New clip".
+                    the tablet band shrinks the lane grid to fit): a header row
+                    carrying the song play button (wired to the songConductor,
+                    ticket 16) and Speed (the old tempo slider), then the lane
+                    grid below it — chips (tap-to-select, drag-to-reorder via
+                    useChipDrag.ts, ticket 18), placement squares (drag-paint +
+                    the grid's keyboard model), "+ New clip".
                     PhoneSongBar.tsx — the phone song bar (≤1023px, ticket 21,
                     variant B): lives in the scrolling region below the grid
                     well on the step window's exact geometry, compact chips +
@@ -204,6 +204,16 @@ share-link snapshot.
   Share button: system sheet on touch devices (`prefersShareSheet`), clipboard
   + "Copied!" otherwise — capability alone can't decide, desktop browsers ship
   `navigator.share` too. Never a modal or a "copy this link" field.
+- **Song play is the song grid's header at every width**
+  ([ADR 0034](../../docs/adr/0034-boop-song-play-is-the-song-header.md)). The
+  laptop bar's play *column* is gone; the button leads the header row, as it
+  always did on the phone. The 93px that column took is the lane grid's, and
+  that is what makes the rest of the ADR's geometry work: `.lanes` is `flex: 1`
+  (on `auto` it took its content's *minimum* width and the tablet band's
+  squares compressed to their 20px floor at every width), the tablet band's
+  squares, numerals and strip track are `flex: 0 1 <laptop size>` so they
+  shrink but never grow past it, and the box reserves a `scrollbar-gutter` so a
+  classic vertical scrollbar cannot start a sideways one.
 - **The grid never shrinks**
   ([ADR 0027](../../docs/adr/0027-boop-small-phone-layout.md)). 6 x 16, always — no breakpoint may drop a row or
   a step. Below 1024px (`useIsPhone`) the instrument rail is pinned and the 16

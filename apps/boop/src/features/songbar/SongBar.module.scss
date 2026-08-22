@@ -19,9 +19,14 @@
   min-height: 0;
 }
 
+// Song play leads this row at every width — the phone bar's arrangement, made
+// the one arrangement (the owner's call). 72px rather than the handoff's 64 is
+// the 56px circle plus 8px of air either side; the row is what the old play
+// *column* cost the lane grid, and the column's 46px offset and its label are
+// gone with it.
 .header {
   flex: none;
-  height: 64px;
+  height: 72px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -113,7 +118,6 @@
   padding-top: 14px;
   display: flex;
   align-items: flex-start;
-  gap: 18px;
   // Shrinks into the capped dock (ticket 23) so the lane grid inside it can:
   // this row is what sits between the pinned header and the lanes, and a flex
   // item that cannot shrink passes nothing down.
@@ -121,31 +125,8 @@
   min-height: 0;
 }
 
-.playColumn {
-  flex: none;
-  // Stretch and shrink with the row rather than sit at its content height, so
-  // the offset below can give way (ticket 23).
-  align-self: stretch;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-
-  // 46px, not the pre-playhead 24px: the song strip row now sits above the
-  // lanes, and the play button still centres against them (handoff "Play
-  // column"). A shrinkable spacer and not `padding-top`, because a capped dock
-  // (ticket 23) must lose this offset before it loses any of the button: 46px
-  // of fixed padding is 46px the dock cannot give back, and at 1280x600 the
-  // cap has none to spare.
-  &::before {
-    content: '';
-    flex: 0 1 46px;
-    min-height: 0;
-  }
-}
-
 .songPlay {
+  flex: none;
   width: 56px;
   height: 56px;
   padding: 0;
@@ -197,20 +178,11 @@
   background: var(--ink-dark);
 }
 
-.playLabel {
-  font: 800 12px var(--font-display);
-  color: rgba(242, 239, 230, 0.6);
-}
-
-.divider {
-  flex: none;
-  width: 1px;
-  align-self: stretch;
-  background: rgba(255, 255, 255, 0.1);
-}
-
 .lanes {
-  flex: 0 1 auto;
+  // `flex: 1`, not `0 1 auto`: on `auto` the box took its content's *minimum*
+  // width, so from 1024 to 1279 — where the squares are flexible — they
+  // compressed to their 20px floor however much room the row actually had.
+  flex: 1;
   min-width: 0;
   // `align-self`, because the row above is `align-items: flex-start` and a
   // flex-start item takes its content height — it would never see the cap.
@@ -226,6 +198,12 @@
   gap: 8px;
   overflow-x: auto;
   overflow-y: auto;
+  // A classic, space-taking vertical scrollbar (macOS "always show scroll
+  // bars") used to come straight out of the row's width and start a sideways
+  // scroll under it. Reserving the gutter keeps the lane grid a fixed width
+  // whether the bar is there or not; the room to give it is what the old play
+  // column freed.
+  scrollbar-gutter: stable;
   // `overflow-x: auto` clips on every side, and the chips', squares' and
   // "+ New clip"'s focus rings sit 4px out (a 2px outline at a 2px offset).
   // The padding takes them inside the scroll box; the negative margin puts
@@ -276,8 +254,11 @@
   touch-action: none;
   --cell-w: calc((100% - 15 * 8px) / 16);
 
+  // `0 1 824px`, not `1`: the band shrinks the track when 824 does not fit and
+  // leaves it at its laptop width when it does, so the cells never grow past
+  // the 44px square they sit over.
   @media (max-width: 1279px) {
-    flex: 1;
+    flex: 0 1 824px;
     min-width: 0;
     width: auto;
   }
@@ -363,7 +344,7 @@
   }
 
   @media (max-width: 1279px) {
-    flex: 1;
+    flex: 0 1 44px;
     width: auto;
     min-width: 20px;
   }
@@ -499,8 +480,12 @@
   border: none;
   border-radius: 11px;
 
+  // Flexible on the tablet band, but only downwards: `0 1 44px` shrinks the
+  // square towards its 20px floor where 16 of them do not fit and leaves it at
+  // the laptop's 44px where they do. On `flex: 1` they took whatever the row
+  // had, which above 1024 is more than 44 and below it was the floor.
   @media (max-width: 1279px) {
-    flex: 1;
+    flex: 0 1 44px;
     width: auto;
     min-width: 20px;
   }
