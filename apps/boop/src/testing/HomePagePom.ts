@@ -163,9 +163,7 @@ export class HomePagePom extends BasePage {
 
   /** The picker's cards, top-left to bottom-right — the order is part of the design. */
   async verifyPickerCardOrder(expected: string[]): Promise<void> {
-    await expect(
-      this.page.getByTestId('picker-cards').getByRole('button'),
-    ).toHaveText(expected)
+    await expect(this.page.getByTestId('picker-cards').getByRole('button')).toHaveText(expected)
   }
 
   /** No dialog of any kind is open — New boop is a plain reset, not a picker. */
@@ -229,7 +227,9 @@ export class HomePagePom extends BasePage {
   async advanceDrawClock(audioTime: number): Promise<void> {
     await this.page.evaluate(
       ({ key, audioTime: time }) => {
-        const driver = (globalThis as unknown as Record<string, { advanceTo: (time: number) => void }>)[key]!
+        const driver = (
+          globalThis as unknown as Record<string, { advanceTo: (time: number) => void }>
+        )[key]!
         driver.advanceTo(time)
       },
       { key: BOOP_AUDIO_DRIVER_KEY, audioTime },
@@ -275,7 +275,10 @@ export class HomePagePom extends BasePage {
   }
 
   async verifyRowLabelStruck(instrumentId: string): Promise<void> {
-    await expect(this.page.getByTestId(`row-label-${instrumentId}`)).toHaveAttribute('data-struck', 'true')
+    await expect(this.page.getByTestId(`row-label-${instrumentId}`)).toHaveAttribute(
+      'data-struck',
+      'true',
+    )
   }
 
   /** The autosaved working grid a reload would restore from, or `null`. */
@@ -772,7 +775,8 @@ export class HomePagePom extends BasePage {
   async verifyTempoClearsNewBoopButton(): Promise<void> {
     const fast = await this.page.getByText('Fast', { exact: true }).boundingBox()
     const button = await this.newBoopButton.boundingBox()
-    if (!fast || !button) throw new Error('the tempo endpoint or the New boop button is not visible')
+    if (!fast || !button)
+      throw new Error('the tempo endpoint or the New boop button is not visible')
     expect(button.x - (fast.x + fast.width)).toBeGreaterThanOrEqual(10)
   }
 
@@ -791,7 +795,10 @@ export class HomePagePom extends BasePage {
   async verifyLoopMapInsideGridRegion(): Promise<void> {
     const inside = await this.page
       .getByTestId('loop-map')
-      .evaluate((element, id) => element.closest(`[data-testid="${id}"]`) !== null, 'stage-scroller')
+      .evaluate(
+        (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+        'stage-scroller',
+      )
     expect(inside).toBe(true)
   }
 
@@ -1293,11 +1300,32 @@ export class HomePagePom extends BasePage {
   // --- The tablet band (boop-loops ticket 20, spec §4 — variant E) ---
 
   /**
-   * Variant E's fit: chips and "+ New clip" narrow to 128px, the squares turn
-   * flexible — compressed below the laptop's fixed 56px, all equal — and the
-   * ruler numerals track the squares column-for-column.
+   * The right edge of the lane grid's content box — `clientWidth` rather than
+   * the bounding rect, so the scrollbar gutter the box reserves is outside it.
    */
-  async verifyLaneGridFitsColumn(): Promise<void> {
+  private async laneGridContentRight(): Promise<number> {
+    return await this.page.getByTestId('song-lanes').evaluate((box: HTMLElement) => {
+      const rect = box.getBoundingClientRect()
+      return (
+        rect.left +
+        box.clientLeft +
+        box.clientWidth -
+        parseFloat(getComputedStyle(box).paddingRight)
+      )
+    })
+  }
+
+  /**
+   * Variant E's fit: chips and "+ New clip" narrow to 128px, and the squares
+   * turn flexible — all equal, never wider than the laptop's own 44px square,
+   * and compressing towards a 20px floor only as far as the width forces.
+   * They used to compress all the way to that floor at every tablet width,
+   * because the lane grid took its content's *minimum* width instead of the
+   * room the row had; the band now only compresses where 16 x 44px genuinely
+   * does not fit. `expectFlush` is that narrow end: the squares and their gaps
+   * add up to the column exactly.
+   */
+  async verifyLaneGridFitsColumn({ expectFlush = false } = {}): Promise<void> {
     const chip = await this.clipChip(0).boundingBox()
     const newClip = await this.page.getByTestId('new-clip-button').boundingBox()
     if (!chip || !newClip) throw new Error('the chip or the New clip button is not visible')
@@ -1312,20 +1340,20 @@ export class HomePagePom extends BasePage {
     }
     const first = squares[0]!
     const last = squares[15]!
-    expect(first.width).toBeLessThan(56)
+    expect(first.width).toBeLessThanOrEqual(44)
     expect(first.width).toBeGreaterThanOrEqual(20)
 
-    // The fit itself: all 16 squares the same width as each other, and the row
-    // ending flush with the lane grid's content edge — so they and their gaps
-    // add up to the column exactly. Anything that changes one square's
-    // geometry, or the width they share out, breaks one half or the other.
+    // All 16 the same width as each other, and the row inside the lane grid's
+    // content edge — flush with it where the band is compressing.
     const widths = squares.map((box) => box.width)
     expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(0.5)
-    const contentRight = await this.page.getByTestId('song-lanes').evaluate((box: HTMLElement) => {
-      const rect = box.getBoundingClientRect()
-      return rect.right - parseFloat(getComputedStyle(box).paddingRight)
-    })
-    expect(Math.abs(last.x + last.width - contentRight)).toBeLessThanOrEqual(1)
+    const contentRight = await this.laneGridContentRight()
+    if (expectFlush) {
+      expect(Math.abs(last.x + last.width - contentRight)).toBeLessThanOrEqual(1)
+      expect(first.width).toBeLessThan(44)
+    } else {
+      expect(last.x + last.width).toBeLessThanOrEqual(contentRight + 1)
+    }
 
     const numeral = await this.page.getByTestId('song-position-numeral-15').boundingBox()
     if (!numeral) throw new Error('the ruler numeral is not visible')
@@ -1340,14 +1368,15 @@ export class HomePagePom extends BasePage {
    */
   async verifyNoSidewaysScroller(): Promise<void> {
     await this.verifyNoHorizontalOverflow()
-    const scrollers = await this.page.evaluate(() =>
-      [...document.querySelectorAll('*')].filter((element) => {
-        const { overflowX } = getComputedStyle(element)
-        return (
-          (overflowX === 'auto' || overflowX === 'scroll') &&
-          element.scrollWidth > element.clientWidth
-        )
-      }).length,
+    const scrollers = await this.page.evaluate(
+      () =>
+        [...document.querySelectorAll('*')].filter((element) => {
+          const { overflowX } = getComputedStyle(element)
+          return (
+            (overflowX === 'auto' || overflowX === 'scroll') &&
+            element.scrollWidth > element.clientWidth
+          )
+        }).length,
     )
     expect(scrollers).toBe(0)
   }
@@ -1601,18 +1630,44 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The play button still reads as belonging to the lanes, not to the strip row
-   * now above them (handoff "Play column"): its centre falls inside the lane
-   * rows' own band. At the pre-playhead 24px padding it sat above them.
+   * Song play is the song grid's header at every width. It was the laptop
+   * bar's own left-hand play *column* until Ed asked for one arrangement
+   * across the breakpoints (the phone bar already had it there): the button
+   * leads the header row, beside "Your boop" and the bars readout, and the
+   * width it used to take is the lane grid's now.
    */
-  async verifySongPlayCentredOnLanes(): Promise<void> {
+  async verifySongPlayIsTheSongHeader(): Promise<void> {
     const play = await this.songPlayButton.boundingBox()
-    const first = await this.laneSquare(0, 0).boundingBox()
-    const last = await this.laneSquare(1, 0).boundingBox()
-    if (!play || !first || !last) throw new Error('the song play button or the lanes are not visible')
-    const centre = play.y + play.height / 2
-    expect(centre).toBeGreaterThanOrEqual(first.y)
-    expect(centre).toBeLessThanOrEqual(last.y + last.height)
+    const bars = await this.page.getByTestId('song-length').boundingBox()
+    if (!play || !bars) throw new Error('the song play button or the bars readout is not visible')
+    // The same row as the readout: its centre falls inside the button's band.
+    const centre = bars.y + bars.height / 2
+    expect(centre).toBeGreaterThanOrEqual(play.y)
+    expect(centre).toBeLessThanOrEqual(play.y + play.height)
+    // And it leads that row.
+    expect(play.x + play.width).toBeLessThanOrEqual(bars.x)
+  }
+
+  /**
+   * A classic, space-taking vertical scrollbar must not tip the lane grid into
+   * scrolling sideways as well. That is the bug: with the lane grid sized to
+   * the column almost exactly, the ~15px a macOS "always show scroll bars"
+   * vertical bar takes came straight out of the row's width and put a
+   * horizontal bar under it. CT's chromium draws overlay scrollbars and so can
+   * never reproduce it — the assertion is the slack the bar would need.
+   */
+  async verifyLaneGridClearsAClassicScrollbar(): Promise<void> {
+    const contentRight = await this.laneGridContentRight()
+    const last = await this.laneSquare(0, 15).boundingBox()
+    if (!last) throw new Error('the last lane square is not visible')
+    expect(contentRight - (last.x + last.width)).toBeGreaterThanOrEqual(15)
+  }
+
+  /** No needless compression: the squares are only as small as the width forces. */
+  async verifyLaneSquareWidthAtLeast(px: number): Promise<void> {
+    const square = await this.laneSquare(0, 0).boundingBox()
+    if (!square) throw new Error('the lane square is not visible')
+    expect(square.width).toBeGreaterThanOrEqual(px)
   }
 
   async verifyPositionNumeralPlaying(position: number): Promise<void> {
@@ -1758,10 +1813,16 @@ export class HomePagePom extends BasePage {
    * bands' *immobility* that is asserted rather than a pixel.
    */
   async verifyBandsDoNotScroll(swipeBy: number): Promise<void> {
-    const before = { loop: await this.loopMap.boundingBox(), song: await this.songBand.boundingBox() }
+    const before = {
+      loop: await this.loopMap.boundingBox(),
+      song: await this.songBand.boundingBox(),
+    }
     await this.swipeSteps(swipeBy)
     await this.swipeLanes(swipeBy)
-    const after = { loop: await this.loopMap.boundingBox(), song: await this.songBand.boundingBox() }
+    const after = {
+      loop: await this.loopMap.boundingBox(),
+      song: await this.songBand.boundingBox(),
+    }
     if (!before.loop || !before.song || !after.loop || !after.song)
       throw new Error('a scrub band is not visible')
     expect(Math.abs(after.loop.x - before.loop.x)).toBeLessThanOrEqual(1)
@@ -1791,9 +1852,7 @@ export class HomePagePom extends BasePage {
    */
   async verifyBandsAllowVerticalScroll(): Promise<void> {
     for (const band of [this.loopMap, this.songBand]) {
-      const touchAction = await band.evaluate(
-        (element) => getComputedStyle(element).touchAction,
-      )
+      const touchAction = await band.evaluate((element) => getComputedStyle(element).touchAction)
       expect(touchAction).toBe('pan-y')
     }
   }

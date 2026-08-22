@@ -47,3 +47,24 @@ test.describe('1366 — inside the old scrolling band', () => {
     await root.verifyNoSidewaysScroller()
   })
 })
+
+test.describe('a vertical scrollbar must not start a sideways one', () => {
+  // Ed's bug: on macOS with "always show scroll bars", the lane grid's own
+  // vertical scrollbar took ~15px out of a row sized to the column almost
+  // exactly, and a horizontal bar appeared under it. 700px tall with the five
+  // clips is where the lane grid scrolls vertically.
+  test.use({ viewport: { width: 1280, height: 700 } })
+
+  test('the lane grid keeps a classic scrollbar of slack', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.startBlank()
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+    await root.addClip()
+
+    await root.verifyLaneGridClearsAClassicScrollbar()
+    await root.verifyNoSidewaysScroller()
+  })
+})

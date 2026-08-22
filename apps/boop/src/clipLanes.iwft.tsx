@@ -308,3 +308,13 @@ test('clip add, rename and placement each mark the loaded boop edited', async ({
   await root.addClip()
   await root.verifySavedState('Boop 1 • edited')
 })
+
+test('song play is the song grid’s header, the same as on the phone', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifySongPlayIsTheSongHeader()
+  await root.pressSongPlay()
+  await root.verifySongPlaying()
+})

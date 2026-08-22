@@ -35,8 +35,8 @@ test('the song strip sits on the lane grid: a cell per position, under its numer
   await root.verifyStripCellPlaced(1, false)
   await root.verifyStripCellPlaced(9, false)
 
-  // The play button still centres against the lanes with the strip above them.
-  await root.verifySongPlayCentredOnLanes()
+  // Song play is the bar's header, above the strip — not a column beside it.
+  await root.verifySongPlayIsTheSongHeader()
 })
 
 test('tapping the song strip jumps the song, and playing keeps it playing', async ({ mountApp }) => {
