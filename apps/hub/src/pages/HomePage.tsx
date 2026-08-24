@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import styles from './HomePage.module.scss'
 import { isNew } from './isNew.ts'
+import { isUpdated } from './isUpdated.ts'
 import { useColourTheme } from './useColourTheme'
 
 type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'idle'
@@ -11,6 +12,9 @@ type AppLink = {
   href?: string
   // ISO date the app went live; drives the "New" pill (see isNew.ts).
   deployedAt?: string
+  // ISO date of the app's last notable change; drives the "Updated" pill (see
+  // isUpdated.ts). "New" wins while both windows are open.
+  updatedAt?: string
   // Overrides the default "SOON" text for a not-yet-live card.
   soonLabel?: string
 }
@@ -46,6 +50,7 @@ const APPS: AppLink[] = [
     kind: 'silt',
     href: 'https://silt.homeofed.com',
     deployedAt: '2026-08-07',
+    updatedAt: '2026-08-24',
   },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
@@ -101,7 +106,13 @@ export function HomePage() {
           {APPS.map((app) => {
             const inner = (
               <>
-                {isNew(app.deployedAt, now) && <span className={styles.newPill}>New</span>}
+                {isNew(app.deployedAt, now) ? (
+                  <span className={styles.newPill}>New</span>
+                ) : (
+                  isUpdated(app.updatedAt, now) && (
+                    <span className={styles.updatedPill}>Updated</span>
+                  )
+                )}
                 <canvas className={styles.preview} data-kind={app.kind} aria-hidden="true" />
                 <div className={styles.cardFoot}>
                   <span className={styles.name}>{app.name}</span>
