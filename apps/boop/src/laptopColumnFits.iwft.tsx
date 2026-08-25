@@ -16,8 +16,16 @@ test.describe('1280 — the first width the laptop numbers claim', () => {
     await root.verifyIsShown()
 
     await root.verifyNoSidewaysScroller()
+
+    await root.openClipEditor()
     await root.verifyGridIsSixBySixteen()
     await root.verifyCellGeometry(52, 56)
+    // The card contains the fixed-geometry column, so its own padding has to
+    // be added to `--column-width` or the last steps are clipped. At 1280 the
+    // screen is narrower than the column plus that padding, so the card takes
+    // what it can and the well's own sideways scroll reaches the last steps —
+    // the arrangement this width had before the card existed.
+    await root.verifyCardHoldsTheColumn()
   })
 
   test('the lane grid fits too, at the five-clip cap', async ({ mountApp }) => {

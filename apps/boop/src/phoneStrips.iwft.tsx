@@ -6,6 +6,12 @@ import type { HomePagePom } from './testing/HomePagePom.ts'
 // sits between the phone song bar's header and its lanes. Both are the
 // non-scrolling kind, which is the loop map's own argument from ADR 0027 — the
 // grid and the lanes swipe, the playhead lives somewhere that never moves.
+//
+// Since screenspace ticket 03 the two bands are on different surfaces — the
+// loop map inside the clip editor card, the WHOLE SONG band on the song bar
+// behind it — so the assertions that used to read both at once read one at a
+// time. What they assert is unchanged; the playhead they share is still the
+// one fact both bands draw.
 
 test.use({ viewport: { width: 390, height: 844 } })
 
@@ -28,6 +34,7 @@ test("the loop map's geometry is untouched, and it now scrubs the clip", async (
   await buildTwoClipSong(root)
 
   // Unchanged: all 16 ticks, always, and the window bracket underneath.
+  await root.openClipEditor()
   await root.verifyLoopMapCoversWholeLoop()
   await root.verifyLoopWindowBracketAt(0)
 
@@ -53,6 +60,7 @@ test('dragging the loop map scrubs continuously, and never stops playback', asyn
   await root.pressSongPlay()
   await root.verifySongPlaying()
   await root.crankSteps(1)
+  await root.openClipEditor()
   await root.verifyLoopMapCapAt(0, true)
 
   await root.dragLoopMap(2, 13)
@@ -89,6 +97,7 @@ test('the WHOLE SONG band spans the placed positions, one bar wide marker and al
   await root.verifySongBandMarkerAt(6, true)
   await root.verifySongBandCapAt(6, true)
   await root.verifyPositionPlaying(1, 2)
+  await root.openClipEditor()
   await root.verifyCellOn('snare', 0)
 })
 
@@ -168,17 +177,22 @@ test('neither band scrolls, both clear 44px, and the region still pans verticall
   await root.verifyIsShown()
   await buildTwoClipSong(root)
 
-  await root.verifyBandTapTargets()
+  // The song bar's band, on the home surface.
+  await root.verifyBandTapTarget('song')
   // The bands must not claim vertical panning from the one scroller (ADR 0030).
-  await root.verifyBandsAllowVerticalScroll()
-  // Ticket 23 moved the scroll inside the grid well; the page still never moves.
-  await root.verifyGridWellIsTheScroller()
-  await root.verifyNothingIsScrolled()
-
-  // The grid and the lanes swipe; the bands stay exactly where they were.
-  await root.verifyBandsDoNotScroll(300)
-  await root.verifyStepWindowAt(308)
+  await root.verifyBandAllowsVerticalScroll('song')
+  await root.verifyBandDoesNotScroll('song', 300)
   await root.verifyLaneWindowAt(308)
+  await root.verifyNothingIsScrolled()
+  await root.verifyNoHorizontalOverflow()
+
+  // The loop map, inside the card. Ticket 23 moved the grid's scroll inside
+  // its own well, and the card kept it there; the page still never moves.
+  await root.verifyBandTapTarget('loop')
+  await root.verifyBandAllowsVerticalScroll('loop')
+  await root.verifyBandDoesNotScroll('loop', 300)
+  await root.verifyStepWindowAt(308)
+  await root.verifyPageDoesNotScroll()
   await root.verifyNoHorizontalOverflow()
 })
 
@@ -190,6 +204,7 @@ test('a drag down a band scrolls the page rather than scrubbing it', async ({ mo
   // Park the playhead somewhere findable first.
   await root.tapSongBand(2, 8)
   await root.verifySongBandMarkerAt(2, false)
+  await root.openClipEditor()
   await root.verifyPlayheadStoppedAtStep(8)
 
   // A drag *down* either band is the page-scroll gesture, and on real touch

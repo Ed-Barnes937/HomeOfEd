@@ -165,10 +165,11 @@ test('the grid and tempo are autosaved, and a reload brings them back', async ({
   const { root } = await mountApp()
   await root.verifyIsShown()
 
+  await root.verifyTempo(110)
+  await root.openClipEditor()
   await root.verifyCellOn('snare', 4)
   await root.verifyCellOn('kick', 0)
   await root.verifyCellOff('boop', 15)
-  await root.verifyTempo(110)
 })
 
 test('a multi-clip working song survives a reload, landing on the clip being edited', async ({
@@ -203,10 +204,11 @@ test('a multi-clip working song survives a reload, landing on the clip being edi
   const { root } = await mountApp()
   await root.verifyIsShown()
 
+  await root.verifyTempo(120)
   // The grid shows the clip the child was editing — clip 2, not clip 1.
+  await root.openClipEditor()
   await root.verifyCellOn('snare', 2)
   await root.verifyCellOff('kick', 0)
-  await root.verifyTempo(120)
 
   // An edit autosaves the *whole* song back: both clips, names, tints,
   // placements and the active clip all still there.
