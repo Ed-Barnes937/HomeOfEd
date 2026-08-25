@@ -766,18 +766,13 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * "Fast" clears the phone's New boop button (ticket 36, carried over from
-   * 33) — the gap the shrink fix bought back, not merely the absence of an
-   * overlap. Ticket 37 measured a 23px overlap at 360px; the bar's own
-   * `gap: 14px` is what should separate them, so anything under 10px means the
-   * tempo block has started losing the argument again.
+   * The transport is play and "+" only: Speed left it for the song bar's
+   * header (screenspace ticket 02), so neither half of the control may still
+   * be here — a leftover readout would be a second, stale one.
    */
-  async verifyTempoClearsNewBoopButton(): Promise<void> {
-    const fast = await this.page.getByText('Fast', { exact: true }).boundingBox()
-    const button = await this.newBoopButton.boundingBox()
-    if (!fast || !button)
-      throw new Error('the tempo endpoint or the New boop button is not visible')
-    expect(button.x - (fast.x + fast.width)).toBeGreaterThanOrEqual(10)
+  async verifyTransportHasNoTempo(): Promise<void> {
+    await expect(this.transportBar.getByTestId('tempo-slider')).toHaveCount(0)
+    await expect(this.transportBar.getByTestId('tempo-readout')).toHaveCount(0)
   }
 
   /** New boop is a 44px tap target on the phone, like the rest of the chrome. */
@@ -1390,6 +1385,52 @@ export class HomePagePom extends BasePage {
   }
 
   /** The song bar lives inside the scrolling region — nothing new is pinned (ADR 0030). */
+  /**
+   * Speed is in the phone song bar's header (screenspace ticket 02) — the
+   * position the laptop `SongBar` already uses. Asserted by place, not by
+   * existence: inside the bar, below song play, and above the WHOLE SONG band,
+   * so tacking it on under the lanes would not pass.
+   */
+  async verifySpeedInSongBarHeader(): Promise<void> {
+    const inBar = await this.page
+      .getByTestId('tempo-slider')
+      .evaluate(
+        (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+        'phone-song-bar',
+      )
+    expect(inBar).toBe(true)
+
+    const speed = await this.page.getByTestId('song-speed').boundingBox()
+    const play = await this.page.getByTestId('song-play-button').boundingBox()
+    const band = await this.page.getByTestId('song-band').boundingBox()
+    if (!speed || !play || !band) throw new Error('the phone song bar header is not visible')
+    expect(speed.y).toBeGreaterThanOrEqual(play.y)
+    expect(speed.y + speed.height).toBeLessThanOrEqual(band.y)
+  }
+
+  /**
+   * The Speed row fits the bar it moved into: "Fast" inside the bar's box, and
+   * a slider track no shorter than the 84px it had in the transport at 360px
+   * (measured — the transport gave the tempo block 164px and its endpoints and
+   * gaps took 80 of them). Under that and the move has cost the control track.
+   */
+  async verifySpeedRowFitsSongBar(): Promise<void> {
+    const bar = await this.phoneSongBar.boundingBox()
+    const fast = await this.page.getByText('Fast', { exact: true }).boundingBox()
+    const slider = await this.tempoSlider.boundingBox()
+    if (!bar || !fast || !slider) throw new Error('the Speed row is not visible')
+    expect(fast.x + fast.width).toBeLessThanOrEqual(bar.x + bar.width)
+    expect(slider.width).toBeGreaterThanOrEqual(84)
+  }
+
+  /** Nothing inside the phone song bar spills sideways — the Speed slider shrinks. */
+  async verifySongBarHasNoOverflow(): Promise<void> {
+    const overflow = await this.phoneSongBar.evaluate(
+      (element) => element.scrollWidth - element.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  }
+
   async verifySongBarInsideGridRegion(): Promise<void> {
     const inside = await this.phoneSongBar.evaluate(
       (element, id) => element.closest(`[data-testid="${id}"]`) !== null,

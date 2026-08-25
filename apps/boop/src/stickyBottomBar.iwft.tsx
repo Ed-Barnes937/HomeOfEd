@@ -59,14 +59,17 @@ test.describe('small phone, short window', () => {
     await root.verifyNoHorizontalOverflow()
   })
 
-  test('the tempo block shrinks rather than pushing the bar wider than the phone', async ({
+  test('the Speed slider shrinks rather than pushing its bar wider than the phone', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
     // The `<input type="range">` keeps its intrinsic width unless it is told it
-    // may shrink, which is what overflowed the bar at 360px (ticket 37).
+    // may shrink, which is what overflowed the transport at 360px (ticket 37).
+    // Speed is in the song bar now (screenspace ticket 02) and took the rule
+    // with it; the transport is checked as well, since it kept the "+".
+    await root.verifySongBarHasNoOverflow()
     await root.verifyTransportHasNoOverflow()
   })
 

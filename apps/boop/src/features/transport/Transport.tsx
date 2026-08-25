@@ -1,15 +1,12 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 
 import { CLEAR_GRID_CONFIRM } from '../confirm/clearGridConfirm.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
-import { bpmToPercent, percentToBpm } from './tempoScale.ts'
 import styles from './Transport.module.scss'
 
 interface TransportProps {
   isPlaying: boolean
   onToggle: () => void
-  bpm: number
-  onTempoChange: (bpm: number) => void
   onClearAll: () => void
   /** The plain New boop reset (spec §7): one blank clip, no dialog, no confirm. */
   onNewBoop: () => void
@@ -28,17 +25,17 @@ interface TransportProps {
  * entire transport, no stop/restart/record. No swing control — never add
  * one. Clear-grid (ticket 15) sits behind the divider, dashed and coral so it
  * is never mistakable for "play from the top" (spec: "The grid" — clear-all).
+ *
+ * Tempo used to sit between the two: it is Speed in the song bar's header now,
+ * at every width (screenspace ticket 02), so this bar no longer knows the bpm.
  */
 export function Transport({
   isPlaying,
   onToggle,
-  bpm,
-  onTempoChange,
   onClearAll,
   onNewBoop,
   showClearGrid = true,
 }: TransportProps) {
-  const percent = bpmToPercent(bpm)
   const [confirmingClear, setConfirmingClear] = useState(false)
 
   return (
@@ -60,36 +57,9 @@ export function Transport({
           <span className={styles.triangle} aria-hidden="true" />
         )}
       </button>
-      <div className={styles.tempo}>
-        <div className={styles.tempoHeader}>
-          <span className={styles.tempoLabel} id="tempo-label">
-            Tempo
-          </span>
-          <span className={styles.tempoReadout} data-testid="tempo-readout">
-            {bpm} BPM
-          </span>
-        </div>
-        <div className={styles.tempoTrackRow}>
-          <span className={styles.tempoEndpoint}>Slow</span>
-          <input
-            type="range"
-            className={styles.tempoSlider}
-            style={{ '--tempo-percent': `${percent}%` } as CSSProperties}
-            min={0}
-            max={100}
-            step="any"
-            value={percent}
-            onChange={(event) => onTempoChange(percentToBpm(Number(event.target.value)))}
-            aria-labelledby="tempo-label"
-            aria-valuetext={`${bpm} BPM`}
-            data-testid="tempo-slider"
-          />
-          <span className={styles.tempoEndpoint}>Fast</span>
-        </div>
-      </div>
       {/* The bar's actions, pushed right as one group. On the phone that is
           New boop alone: Clear grid lives in the "⋯" menu, and the button
-          shrinks to a 44px "+" so the tempo block keeps its track. */}
+          stays the 44px "+" it shrank to for the tempo block. */}
       <div className={styles.actions}>
         <button
           type="button"

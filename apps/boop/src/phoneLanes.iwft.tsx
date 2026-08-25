@@ -3,8 +3,9 @@ import { test } from './testing/iwftTest.tsx'
 // Phone clip lanes (boop-loops ticket 21, spec §5 — variant B): at ≤1023px the
 // song bar lives *inside the scrolling region*, below the grid well — nothing
 // new is pinned (ADR 0030's default home). The phone keeps its pinned
-// transport bar: clip play and Speed stay there. Lanes reuse the step window's
-// exact geometry so lane squares align column-for-column under the grid, and
+// transport bar, now clip play and the "+" alone: Speed moved into the song
+// bar's header (screenspace ticket 02). Lanes reuse the step window's exact
+// geometry so lane squares align column-for-column under the grid, and
 // placements follow PhoneGrid's paint-vs-scroll rules (ADR 0027).
 
 test.use({ viewport: { width: 390, height: 844 } })
@@ -20,8 +21,9 @@ test('the song bar renders in the scrolling region; nothing new is pinned', asyn
   await root.verifySongBarInsideGridRegion()
   await root.verifySongLength('0 bars')
 
-  // The pinned transport keeps clip play and Speed (spec §5).
+  // The pinned transport keeps clip play; Speed is in the song bar's header.
   await root.verifyTransportFullyInViewport()
+  await root.verifyTransportHasNoTempo()
   await root.verifyTempo(100)
 
   // Even at the five-clip cap the lanes grow the scrolling region, never a
@@ -163,4 +165,53 @@ test('compact chips select clips, "+ New" caps at five, and the slim header carr
   await root.verifyClipCount(5)
   await root.verifyAddClipDisabled()
   await root.verifyCopyClipDisabled()
+})
+
+test('Speed sits in the song bar header, retunes the playing song, and marks the boop edited', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyPhoneChromeShown()
+  await root.startBlank()
+
+  await root.verifySpeedInSongBarHeader()
+  await root.verifyTransportHasNoTempo()
+
+  // A speed change retunes a playing song without stopping it (spec §9) — the
+  // laptop's `songPlayback` case, at the width the control just moved to.
+  await root.toggleCell('kick', 0)
+  await root.toggleLaneSquare(0, 0)
+  await root.pressSongPlay()
+  await root.verifySongPlaying()
+  await root.crankSteps(1)
+
+  await root.setTempoPercent(80)
+  await root.verifyTempo(157)
+  await root.verifySongPlaying()
+  await root.crankSteps(1)
+  await root.verifyPositionPlaying(0, 0)
+
+  // And it is still a mutation: tempo is part of a saved boop (ADR 0031).
+  await root.pressPhoneSave()
+  await root.saveBoop()
+  await root.closeBoops()
+  await root.verifyPhoneSavedDot(false)
+  await root.setTempoPercent(30)
+  await root.verifyPhoneSavedDot(true)
+})
+
+test.describe('narrow phone', () => {
+  test.use({ viewport: { width: 320, height: 640 } })
+
+  test('the Speed row fits the song bar at the narrowest phone', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyPhoneChromeShown()
+
+    await root.verifySpeedInSongBarHeader()
+    await root.verifySpeedRowFitsSongBar()
+    await root.verifySongBarHasNoOverflow()
+    await root.verifyNoHorizontalOverflow()
+  })
 })

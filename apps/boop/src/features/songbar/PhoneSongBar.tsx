@@ -11,6 +11,7 @@ import {
   type SongPlayheadView,
 } from '../playhead/songPlayhead.ts'
 import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
+import { bpmToPercent, percentToBpm } from '../transport/tempoScale.ts'
 import styles from './PhoneSongBar.module.scss'
 
 const GROUP_SIZE = 4
@@ -18,6 +19,8 @@ const GROUPS = Array.from({ length: SONG_POSITIONS / GROUP_SIZE }, (_, i) => i)
 
 interface PhoneSongBarProps {
   song: Song
+  bpm: number
+  onTempoChange: (bpm: number) => void
   /** Puts that clip on the grid. Stops the song when it is playing (spec §9). */
   onSelectClip: (index: number) => void
   /** A lane-square toggle: place or tap off. Every lane is its own toggle, so a position can hold several clips. */
@@ -44,9 +47,9 @@ interface PhoneSongBarProps {
 /**
  * The phone song bar (boop-loops ticket 21, spec §5 — variant B). It lives
  * *inside the scrolling region*, below the grid well — nothing new is pinned
- * (ADR 0030's default home); clip play and Speed stay in the pinned transport.
- * A header row (the 36px cyan song play circle, "Your boop", the bars count),
- * then the lanes on the step window's exact geometry: a pinned 92px chip
+ * (ADR 0030's default home); clip play stays in the pinned transport.
+ * A header (the 36px cyan song play circle, "Your boop", the bars count, and
+ * Speed), then the lanes on the step window's exact geometry: a pinned 92px chip
  * column (compact chips — tint dot, truncating name, ×n — with "+ New"
  * beneath) beside a snap-scrolling strip whose squares sit column-for-column
  * under the grid's cells.
@@ -63,6 +66,8 @@ interface PhoneSongBarProps {
  */
 export function PhoneSongBar({
   song,
+  bpm,
+  onTempoChange,
   onSelectClip,
   onTogglePlacement,
   onAddClip,
@@ -73,6 +78,7 @@ export function PhoneSongBar({
   onScrubToFraction,
   onScrubToBar,
 }: PhoneSongBarProps) {
+  const percent = bpmToPercent(bpm)
   const placedCount = song.placements.filter((clips) => clips.length > 0).length
   const atClipCap = song.clips.length >= MAX_CLIPS
 
@@ -119,28 +125,61 @@ export function PhoneSongBar({
   return (
     <section className={styles.bar} aria-label="Your boop (song)" data-testid="phone-song-bar">
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.songPlay}
-          onClick={onToggleSong}
-          aria-pressed={songPlaying}
-          aria-label={songPlaying ? 'Stop the song' : 'Play the song'}
-          data-playing={songPlaying}
-          data-testid="song-play-button"
-        >
-          {songPlaying ? (
-            <span className={styles.pause} aria-hidden="true">
-              <span className={styles.pauseBar} />
-              <span className={styles.pauseBar} />
-            </span>
-          ) : (
-            <span className={styles.triangle} aria-hidden="true" />
-          )}
-        </button>
-        <span className={styles.title}>Your boop</span>
-        <span className={styles.bars} data-testid="song-length">
-          {placedCount * 4} bars
-        </span>
+        <div className={styles.headerRow}>
+          <button
+            type="button"
+            className={styles.songPlay}
+            onClick={onToggleSong}
+            aria-pressed={songPlaying}
+            aria-label={songPlaying ? 'Stop the song' : 'Play the song'}
+            data-playing={songPlaying}
+            data-testid="song-play-button"
+          >
+            {songPlaying ? (
+              <span className={styles.pause} aria-hidden="true">
+                <span className={styles.pauseBar} />
+                <span className={styles.pauseBar} />
+              </span>
+            ) : (
+              <span className={styles.triangle} aria-hidden="true" />
+            )}
+          </button>
+          <span className={styles.title}>Your boop</span>
+          <span className={styles.bars} data-testid="song-length">
+            {placedCount * 4} bars
+          </span>
+        </div>
+        {/* Speed, moved out of the transport (screenspace ticket 02) into the
+            header the laptop `SongBar` already keeps it in. Its own line
+            rather than beside song play: the phone header has 316px inside it
+            at 360px and play, the title and the bars count take 176 of them,
+            which would leave the slider a 60px track — 30px at 320px — against
+            the 84px it had in the transport. A line of its own gives it 146px
+            at 360 and 106 at 320, so the move costs no track at any phone
+            width. */}
+        <div className={styles.speed} data-testid="song-speed">
+          <span className={styles.speedLabel} id="tempo-label">
+            Speed
+          </span>
+          <span className={styles.speedReadout} data-testid="tempo-readout">
+            {bpm} BPM
+          </span>
+          <span className={styles.endpoint}>Slow</span>
+          <input
+            type="range"
+            className={styles.slider}
+            style={{ '--tempo-percent': `${percent}%` } as CSSProperties}
+            min={0}
+            max={100}
+            step="any"
+            value={percent}
+            onChange={(event) => onTempoChange(percentToBpm(Number(event.target.value)))}
+            aria-labelledby="tempo-label"
+            aria-valuetext={`${bpm} BPM`}
+            data-testid="tempo-slider"
+          />
+          <span className={styles.endpoint}>Fast</span>
+        </div>
       </div>
       {/* The WHOLE SONG band: a caption row carrying the phone's readout, then
           one continuous track over the song's placed length. Divided by an

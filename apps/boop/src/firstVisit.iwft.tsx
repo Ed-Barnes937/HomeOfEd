@@ -125,14 +125,17 @@ test.describe('tablet', () => {
 test.describe('small phone', () => {
   test.use({ viewport: { width: 360, height: 640 } })
 
-  test('New boop is a 44px button in the bar, and Fast clears it', async ({ mountApp }) => {
+  test('New boop is a 44px button in the bar, and the Speed row fits the song bar', async ({
+    mountApp,
+  }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
     await root.verifyPhoneChromeShown()
 
     await root.verifyNewBoopButtonTapTarget()
-    await root.verifyTempoClearsNewBoopButton()
     await root.verifyTransportHasNoOverflow()
+    await root.verifySpeedRowFitsSongBar()
+    await root.verifySongBarHasNoOverflow()
 
     await root.toggleCell('boop', 5)
     await root.pressNewBoop()
@@ -143,11 +146,12 @@ test.describe('small phone', () => {
 test.describe('390px phone', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('Fast clears the New boop button here too', async ({ mountApp }) => {
+  test('the Speed row fits here too', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
-    await root.verifyTempoClearsNewBoopButton()
     await root.verifyTransportHasNoOverflow()
+    await root.verifySpeedRowFitsSongBar()
+    await root.verifySongBarHasNoOverflow()
   })
 })

@@ -92,8 +92,10 @@ src/
                     variant B): lives in the scrolling region below the grid
                     well on the step window's exact geometry, compact chips +
                     "+ New" in a pinned 92px column, snap-scrolling lane strip
-                    under PhoneGrid's paint-vs-scroll rules; clip play and
-                    Speed stay in the pinned transport. The non-scrolling
+                    under PhoneGrid's paint-vs-scroll rules; its header
+                    carries Speed too (screenspace ticket 02 — the one home
+                    for the control at every width), clip play stays in the
+                    pinned transport. The non-scrolling
                     "WHOLE SONG" band above the lanes is the phone's song
                     scrubber (boop-playhead ticket 06)
   features/playhead/ the scrub strips' shared parts (boop-playhead ticket 05):
