@@ -24,3 +24,26 @@ export function emitSpawners(sim: Sim, spawners: readonly Spawner[]): void {
     }
   }
 }
+
+/**
+ * Whether a spawner's cell falls inside a centred square brush of this width.
+ * Shared by the erase sweep and the overlay's removal highlight, so the chrome
+ * can never disagree with what a wipe actually takes. The lopsided `lo`/`hi`
+ * split mirrors the brush footprint in `useSimLoop` — every shipped width is
+ * odd, but an even one must land on the same cells in both places.
+ */
+export function isUnderBrush(
+  spawner: Spawner,
+  centre: { x: number; y: number },
+  brushWidth: number,
+): boolean {
+  const half = (brushWidth - 1) / 2
+  const lo = Math.floor(half)
+  const hi = Math.ceil(half)
+  return (
+    spawner.x >= centre.x - lo &&
+    spawner.x <= centre.x + hi &&
+    spawner.y >= centre.y - lo &&
+    spawner.y <= centre.y + hi
+  )
+}
