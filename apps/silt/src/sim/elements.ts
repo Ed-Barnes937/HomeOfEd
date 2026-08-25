@@ -15,6 +15,9 @@ export const OIL = 7
 export const FIRE = 8
 export const SMOKE = 9
 export const STEAM = 10
+export const ACID = 11
+export const STONE = 12
+export const SULPHUR = 13
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -28,6 +31,9 @@ const dirt: ElementDef = {
   colours: ['#8a7358'],
   tags: ['solid'],
   archetype: { kind: 'static' },
+  // The hardness pass (materials spec §3) lands here, where acid first reads
+  // it: 0 is "anything dissolves this", and it is also the registry's default.
+  hardness: 0,
 }
 
 const sand: ElementDef = {
@@ -39,6 +45,7 @@ const sand: ElementDef = {
   // falling-sand angle of repose. Density 60 is the top of the roster, so a
   // grain sinks through both liquids.
   archetype: { kind: 'powder', density: 60, slide: 1 },
+  hardness: 0,
 }
 
 const water: ElementDef = {
@@ -70,6 +77,9 @@ const obsidian: ElementDef = {
   colours: ['#2a2430'],
   tags: ['solid'],
   archetype: { kind: 'static' },
+  // The top of the hardness ladder: nothing in the roster corrodes it, which
+  // is what makes it the material to build an acid-proof tank out of.
+  hardness: 5,
 }
 
 const wood: ElementDef = {
@@ -133,6 +143,42 @@ const steam: ElementDef = {
   lifetime: { ticks: 180, jitter: 60, becomes: 'water' },
 }
 
+const acid: ElementDef = {
+  id: ACID,
+  name: 'acid',
+  colours: ['#8fd128'],
+  tags: ['liquid'],
+  // Denser than water (30), so it sinks under a pool rather than sitting on
+  // it, and lighter than sand (60), so a grain still falls through it.
+  archetype: { kind: 'liquid', density: 35, dispersion: 4 },
+  // Acid is not immune to acid — but rows 6–7 are keyed on `[solid]` and
+  // `[powder]`, and acid is neither, so the self-pair is never registered.
+  hardness: 0,
+}
+
+const stone: ElementDef = {
+  id: STONE,
+  name: 'stone',
+  colours: ['#6f6a63'],
+  tags: ['solid'],
+  archetype: { kind: 'static' },
+  // Hardness 3 is above rows 6–7's `maxHardness: 1`, so acid + stone is never
+  // registered at all — stone is the acid-proof building material you paint.
+  hardness: 3,
+}
+
+const sulphur: ElementDef = {
+  id: SULPHUR,
+  name: 'sulphur',
+  colours: ['#d6c53c'],
+  tags: ['powder', 'flammable'],
+  archetype: { kind: 'powder', density: 55, slide: 1 },
+  // 2 is above rows 6–7's `maxHardness: 1`, so the acid that just made this
+  // grain can never dissolve it back: the runaway loop is impossible by
+  // construction rather than headed off by a guard.
+  hardness: 2,
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -145,10 +191,13 @@ export const v1Elements: readonly ElementDef[] = [
   fire,
   smoke,
   steam,
+  acid,
+  stone,
+  sulphur,
 ]
 
 /**
- * The chemistry (spec §4, materials spec §4 rows 1–4). Rows of data, not hooks
+ * The chemistry (spec §4, materials spec §4 rows 1–9). Rows of data, not hooks
  * — the elements above name neither each other nor the products.
  *
  * **Order is load-bearing**: a tag row registers every pair it covers, and the
@@ -166,4 +215,21 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'fire', b: 'flammable', p: 0.4, aBecomes: 'fire', bBecomes: 'fire' },
   // Lava ignites and survives — it is a heat source, not a fuel.
   { a: 'lava', b: 'flammable', p: 0.15, aBecomes: 'lava', bBecomes: 'fire' },
+  // **This row must stay above the two below it.** They cover acid + wood as
+  // well, via `[solid]` at hardness 1, and `resolvePairs` keeps the first
+  // registration and drops the rest without a word — reorder these three and
+  // the residue silently stops happening. `acid.test.ts` pins it.
+  //
+  // The residue goes on the *acid* side: the wood is gone, the cavity is
+  // genuinely dug, and the spent acid leaves a grain behind. The other way
+  // round turns the wall into a sulphur wall and digs nothing.
+  { a: 'acid', b: 'wood', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  // Two cells in, none out. `maxHardness` is checked once at boot, so stone,
+  // obsidian and sulphur are not "immune" — their pairs simply do not exist.
+  { a: 'acid', b: 'solid', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
+  { a: 'acid', b: 'powder', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
+  // Water wins: the acid ends up as more water rather than as a hole.
+  { a: 'acid', b: 'water', p: 1, aBecomes: 'water', bBecomes: 'water' },
+  // Acid boils off; lava is the heat source and survives, as it does with fuel.
+  { a: 'acid', b: 'lava', p: 1, aBecomes: 'smoke', bBecomes: 'lava' },
 ]

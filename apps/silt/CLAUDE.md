@@ -59,9 +59,11 @@ constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick 
               CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
-              wood, oil, fire, smoke, steam) and v1Reactions — pure config, zero
-              behavioural code. Gas densities read backwards: `canDisplace` is
-              `mine > theirs`, so the gas closest to zero rises highest
+              wood, oil, fire, smoke, steam, acid, stone, sulphur) and
+              v1Reactions — pure config, zero behavioural code. Gas densities
+              read backwards: `canDisplace` is `mine > theirs`, so the gas
+              closest to zero rises highest. Reaction row order is load-bearing:
+              a specific pair must precede any tag row covering it (acid + wood)
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
