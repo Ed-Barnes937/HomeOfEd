@@ -58,6 +58,9 @@ import {
   globalBarOfTick,
   songTimeline,
 } from '../song/songTimeline.ts'
+import { PrototypeFrame } from '../prototype/PrototypeFrame.tsx'
+import { PrototypeSwitcher } from '../prototype/PrototypeSwitcher.tsx'
+import { usePrototypeVariant } from '../prototype/usePrototypeVariant.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
 
@@ -111,6 +114,11 @@ export function HomePage() {
   // transport (clip play and Speed) and puts the song bar in the scrolling
   // region below the grid well, on the step window's geometry.
   const phone = useIsPhone()
+  // PROTOTYPE (screenspace) — throwaway, see `src/prototype/README.md`.
+  const [protoVariant, selectProtoVariant] = usePrototypeVariant()
+  // `clip-dialog`'s editor lives here rather than in the frame so a clip-chip
+  // tap in the song bar can open it — the frame only sees the bar as a slot.
+  const [protoClipOpen, setProtoClipOpen] = useState(false)
 
   // A shared boop is decoded on the first render, before the first restore,
   // and wins over the autosaved grid. Held in a ref so the value survives the
@@ -711,6 +719,149 @@ export function HomePage() {
     onScrubToSongStart: () => scrubSongToBar(0),
   }
 
+  // PROTOTYPE (screenspace) — everything from here to the main `return` is
+  // throwaway and goes with `src/prototype/`. The overlays are hoisted so both
+  // the shipped frame and the prototype frames can render the same ones.
+  const overlays = (
+    <>
+      {boopsOpen && (
+        <BoopsPanel
+          onClose={() => setBoopsOpen(false)}
+          onLoad={loadBoop}
+          getWorkingBoop={getWorkingBoop}
+          onExport={exportBoop}
+          loaded={loaded}
+          onLoadedChange={setLoaded}
+        />
+      )}
+      {pickerOpen && <NewClipPicker onPick={pickClip} onClose={() => setPickerOpen(false)} />}
+      <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
+      <PrototypeSwitcher variant={protoVariant} onSelect={selectProtoVariant} />
+    </>
+  )
+
+  // In `clip-dialog` the song bar is the home surface, so a chip tap is how a
+  // child reaches the grid — it selects the clip *and* opens the editor.
+  const protoSelectClip = (index: number) => {
+    selectClip(index)
+    if (protoVariant === 'clip-dialog') setProtoClipOpen(true)
+  }
+
+  if (protoVariant !== 'now') {
+    return (
+      <>
+        <PrototypeFrame
+          variant={protoVariant}
+          songPlaying={songPlaying}
+          onToggleSong={toggleSong}
+          placedCount={song.placements.filter((clips) => clips.length > 0).length}
+          clipName={activeClip(song).name}
+          clipTint={clipTint(activeClip(song).tint)}
+          clipPlaying={isPlaying && !songPlaying}
+          onToggleClip={toggleClipPlay}
+          clipOpen={protoClipOpen}
+          onClipOpenChange={setProtoClipOpen}
+          chrome={
+            phone ? (
+              <PhoneBar
+                getShareUrl={getShareUrl}
+                onClearGrid={clearClip}
+                onSave={() => setBoopsOpen(true)}
+                onOpenMyBoops={() => setBoopsOpen(true)}
+                onOpenHints={() => setHintsOpen(true)}
+                loaded={loaded}
+              />
+            ) : (
+              <TopBar
+                getShareUrl={getShareUrl}
+                onOpenBoops={() => setBoopsOpen(true)}
+                onOpenHints={() => setHintsOpen(true)}
+                loaded={loaded}
+                onNewBoop={newBoop}
+              />
+            )
+          }
+          clipHeader={
+            <ClipHeader
+              clip={activeClip(song)}
+              canDelete={song.clips.length > 1}
+              canCopy={song.clips.length < MAX_CLIPS}
+              onRename={renameActiveClip}
+              onCopy={copyClip}
+              onDelete={deleteActiveClip}
+              readout={phone ? null : playheadReadout(playhead)}
+            />
+          }
+          grid={
+            phone ? (
+              <PhoneGrid {...gridProps} />
+            ) : (
+              <Grid
+                {...gridProps}
+                tintColor={clipTint(activeClip(song).tint)}
+                wellFooter={
+                  <ClipControl
+                    isPlaying={isPlaying && !songPlaying}
+                    onToggle={toggleClipPlay}
+                    onClearGrid={clearClip}
+                  />
+                }
+              />
+            )
+          }
+          songBar={
+            phone ? (
+              <PhoneSongBar
+                song={song}
+                onSelectClip={protoSelectClip}
+                onTogglePlacement={togglePlacementAt}
+                onAddClip={() => setPickerOpen(true)}
+                onToggleSong={toggleSong}
+                songPlaying={songPlaying}
+                playingPosition={playingPosition}
+                playhead={playhead}
+                onScrubToFraction={scrubSongToFraction}
+                onScrubToBar={scrubSongToBar}
+              />
+            ) : (
+              <SongBar
+                song={song}
+                bpm={song.bpm}
+                onTempoChange={changeTempo}
+                onSelectClip={protoSelectClip}
+                onTogglePlacement={togglePlacementAt}
+                onMoveClip={moveClipLane}
+                onAddClip={() => setPickerOpen(true)}
+                onToggleSong={toggleSong}
+                songPlaying={songPlaying}
+                playingPosition={playingPosition}
+                playhead={playhead}
+                onScrubToBar={scrubSongToBar}
+                onScrubToCell={scrubSongToCell}
+              />
+            )
+          }
+          // No transport at >=1024: the shipped laptop layout folded clip play
+          // into `ClipControl` and tempo into `SongBar`'s Speed.
+          transport={
+            phone ? (
+              <Transport
+                isPlaying={isPlaying && !songPlaying}
+                onToggle={toggleClipPlay}
+                bpm={song.bpm}
+                onTempoChange={changeTempo}
+                onClearAll={clearClip}
+                onNewBoop={newBoop}
+                showClearGrid={false}
+              />
+            ) : null
+          }
+        />
+        {overlays}
+      </>
+    )
+  }
+
   return (
     // Three frame sections (ticket 33): pinned chrome, the one scrolling
     // region, pinned transport. Each carries the centring column so the bars
@@ -766,7 +917,7 @@ export function HomePage() {
                   (ADR 0030). Speed stays in the transport, so no tempo here. */}
               <PhoneSongBar
                 song={song}
-                onSelectClip={selectClip}
+                onSelectClip={protoSelectClip}
                 onTogglePlacement={togglePlacementAt}
                 onAddClip={() => setPickerOpen(true)}
                 onToggleSong={toggleSong}
@@ -829,18 +980,7 @@ export function HomePage() {
           )}
         </div>
       </div>
-      {boopsOpen && (
-        <BoopsPanel
-          onClose={() => setBoopsOpen(false)}
-          onLoad={loadBoop}
-          getWorkingBoop={getWorkingBoop}
-          onExport={exportBoop}
-          loaded={loaded}
-          onLoadedChange={setLoaded}
-        />
-      )}
-      {pickerOpen && <NewClipPicker onPick={pickClip} onClose={() => setPickerOpen(false)} />}
-      <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
+      {overlays}
     </main>
   )
 }

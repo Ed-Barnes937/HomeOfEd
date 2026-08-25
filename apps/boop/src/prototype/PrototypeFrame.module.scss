@@ -1,0 +1,323 @@
+// PROTOTYPE — throwaway. Mirrors HomePage.module.scss's three-section frame at
+// every width, minus every compromise the shipped layout needs to hold both
+// surfaces at once (the phone's three-row grid floor, the laptop dock's
+// `max(32dvh, 100px)` cap, the 505px page-scroll exception) — the whole point
+// is that a variant showing one surface at a time should need none of them.
+
+// HomePage's `frame-padding` mixin, copied rather than shared: this file dies
+// with the prototype and must not become a thing HomePage depends on.
+@mixin frame-padding {
+  padding-inline: 32px;
+
+  @media (max-width: 1279px) {
+    padding-inline: 26px;
+  }
+
+  @media (max-width: 1023px) {
+    padding-inline: 12px;
+  }
+}
+
+.stage {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--stage);
+  color: var(--ink);
+}
+
+.chrome {
+  flex: none;
+  @include frame-padding;
+}
+
+.scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  @include frame-padding;
+}
+
+.dock {
+  flex: none;
+  padding-bottom: 32px;
+  @include frame-padding;
+
+  @media (max-width: 1279px) {
+    padding-bottom: 26px;
+  }
+
+  @media (max-width: 1023px) {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
+
+// HomePage's centring column — the fixed-geometry laptop stack (tokens.scss's
+// `--column-width`), so the pinned sections line up with the scrolling grid.
+.column {
+  max-width: var(--column-width);
+  margin-inline: auto;
+}
+
+// Lets the one child shrink inside the bounded scroller rather than spill.
+.stack {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+// --- Variant C: the tab strip ---------------------------------------------
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 6px 0 10px;
+
+  @media (min-width: 1024px) {
+    gap: 10px;
+    padding: 10px 0 14px;
+  }
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  border: none;
+  border-radius: var(--r-control);
+  background: rgba(242, 239, 230, 0.08);
+  color: rgba(242, 239, 230, 0.55);
+  font: 900 13px var(--font-display);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+
+  &[data-active='true'] {
+    background: var(--cyan);
+    color: var(--ink-dark);
+  }
+
+  @media (min-width: 1024px) {
+    height: 48px;
+    font-size: 15px;
+  }
+}
+
+.tabCount {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(20, 38, 42, 0.18);
+  font: 700 11px var(--font-mono);
+}
+
+// --- The launcher row (both dialog variants) ------------------------------
+
+.launcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  // Nothing under it at >=1024 — no transport there — so it is the dock.
+  @media (min-width: 1024px) {
+    gap: 14px;
+    margin-bottom: 0;
+  }
+}
+
+.launcherPlay {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--cyan);
+  cursor: pointer;
+
+  @media (min-width: 1024px) {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border-left: 14px solid var(--ink-dark);
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+
+  @media (min-width: 1024px) {
+    margin-left: 5px;
+    border-left-width: 20px;
+    border-top-width: 13px;
+    border-bottom-width: 13px;
+  }
+}
+
+.pause {
+  display: flex;
+  gap: 4px;
+}
+
+.pauseBar {
+  width: 5px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--ink-dark);
+
+  @media (min-width: 1024px) {
+    width: 7px;
+    height: 24px;
+  }
+}
+
+.launcherOpen {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--r-control);
+  background: rgba(242, 239, 230, 0.08);
+  color: var(--ink);
+  font: 800 14px var(--font-display);
+  cursor: pointer;
+  text-align: left;
+
+  @media (min-width: 1024px) {
+    height: 64px;
+    padding: 0 20px;
+    gap: 14px;
+    border-radius: var(--r-transport);
+    font-size: 18px;
+  }
+}
+
+.launcherDot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+
+  @media (min-width: 1024px) {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.launcherTitle {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launcherBars {
+  flex: none;
+  font: 700 12px var(--font-mono);
+  color: rgba(242, 239, 230, 0.55);
+
+  @media (min-width: 1024px) {
+    font-size: 15px;
+  }
+}
+
+.launcherChevron {
+  flex: none;
+  font-size: 20px;
+  line-height: 1;
+  color: rgba(242, 239, 230, 0.5);
+
+  @media (min-width: 1024px) {
+    font-size: 26px;
+  }
+}
+
+// --- The card (both dialog variants) --------------------------------------
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+
+  // Centred at >=1024, bottom-anchored below it: on the phone the arrangement
+  // is a bottom-of-screen idea in every other layout and song play wants to be
+  // under the thumb; on a laptop a centred card is the shape `BoopsPanel`
+  // already uses.
+  @media (min-width: 1024px) {
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+  }
+}
+
+.card {
+  width: 100%;
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  border-radius: var(--r-popover) var(--r-popover) 0 0;
+  background: var(--stage);
+  box-shadow: var(--shadow-popover);
+
+  // Wide enough for the laptop grid's own geometry — the card *contains* the
+  // column, so its own 18px padding has to be added on top of
+  // `--column-width` or the last steps are clipped (measured: steps 13-16
+  // were cut at 1440).
+  @media (min-width: 1024px) {
+    width: min(calc(var(--column-width) + 36px), 100%);
+    max-height: 82dvh;
+    padding: 18px;
+    border-radius: var(--r-popover);
+  }
+}
+
+.cardHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.cardTitle {
+  font: 900 17px var(--font-display);
+  color: var(--ink);
+
+  @media (min-width: 1024px) {
+    font-size: 21px;
+  }
+}
+
+.cardClose {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: rgba(242, 239, 230, 0.5);
+  font: 700 22px var(--font-display);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cardBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
