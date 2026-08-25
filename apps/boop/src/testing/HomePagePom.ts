@@ -2027,6 +2027,22 @@ export class HomePagePom extends BasePage {
     expect(cut).toBeLessThanOrEqual(0)
   }
 
+  /**
+   * The header has room the readout is not using — not merely enough.
+   *
+   * "Not truncated" was true at 1024 with *zero* pixels to spare: 158px wanted
+   * against 158px of room. It passed here and failed CI, where Chivo Mono does
+   * not resolve and the fallback runs about 12% wider. A margin is the thing
+   * that has to hold, so it is the thing to assert; the number below is what a
+   * 12% wider font would need.
+   */
+  async verifyPlayheadReadoutHasRoomToSpare(atLeast: number): Promise<void> {
+    const spare = await this.page
+      .getByTestId('song-header-spacer')
+      .evaluate((element) => element.getBoundingClientRect().width)
+    expect(spare).toBeGreaterThanOrEqual(atLeast)
+  }
+
   async verifyPlayheadReadout(text: string): Promise<void> {
     await expect(this.page.getByTestId('playhead-readout')).toHaveText(text)
   }

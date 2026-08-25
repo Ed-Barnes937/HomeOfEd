@@ -37,6 +37,16 @@
   font: 900 17px var(--font-display);
   letter-spacing: -0.02em;
   color: var(--ink);
+
+  // The row's last-resort valve. The readout is the only other item that can
+  // shrink (`min-width: 0`), so without this it absorbs every pixel of
+  // overflow on its own — which is how CI cut it by 4px on a font stack where
+  // Chivo Mono does not resolve and the fallback runs wider. A static label
+  // gives way before live numbers do.
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bars {
@@ -64,10 +74,14 @@
 
   // The tablet band's header is full — measured at 1024 the 13px string wanted
   // 179px and had 176, so `Position 1 · bar 1 of 4` ellipsised on the shortest
-  // text it can ever hold. 11px is what fits the longest (`Position 16 · bar 4
-  // of 4`) at the band's narrow end without Speed giving anything up.
+  // text it can ever hold. 11px fit the longest (`Position 16 · bar 4 of 4`)
+  // there, but only exactly: 158px wanted against 158px of room, no margin at
+  // all, and CI cut it by 4px on a font stack where Chivo Mono does not
+  // resolve and the fallback runs about 12% wider. 10px is the app's stated
+  // floor (`PhoneGrid.module.scss` — never derive smaller) and it buys real
+  // slack, so the readout survives a font this repo does not control.
   @media (max-width: 1279px) {
-    font-size: 11px;
+    font-size: 10px;
   }
 }
 
