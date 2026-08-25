@@ -175,6 +175,19 @@ its own ticket, separate from its elements.
 
 ## 8. Watch items
 
+- **Dirt stops being inert.** Row 10 means any dirt wall or floor in contact with
+  water slowly becomes mud, so dirt is no longer usable as a container for water.
+  This is row 10 working as specified, but it is a real change to what dirt is
+  *for*, and it broke several existing tests that used a dirt floor under water
+  (they now use obsidian). If it turns out to be unwanted, the dial is row 10's
+  `p`, or restricting the row — not reverting mud. **Open for Ed to confirm.**
+- **Hotkeys run out at nine.** `useSiltHotkeys.ts` maps a digit to the *nth* rail
+  entry, so digits stop at 9. Stage 02 takes the roster to exactly 9 paintables;
+  mud (10th, PR 03) and seed (11th, PR 04) therefore get no hotkey at all. This is
+  an open UI decision — 0 for the tenth leaves the eleventh stranded, and anything
+  better is a change to the shortcut scheme rather than to a ticket. **PRs 03 and
+  04 must not change the hotkey scheme**; they inherit the gap and it gets decided
+  on its own.
 - **The rail fills up.** Paintable goes 4 → 11. `paletteGroups.ts` says the rail
   was "built for a roster that will triple" — that is 12. PR 04 must carry an
   explicit mobile-rail check rather than assuming it still fits.

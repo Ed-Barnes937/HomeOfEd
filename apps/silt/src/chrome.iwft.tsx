@@ -155,3 +155,15 @@ test('the Energy group appears in the rail now fire is paintable', async ({ moun
   await root.selectElement('fire')
   expect(await root.isSelected('fire')).toBe(true)
 })
+
+// Mud is a reaction product that is still paintable in its own right, unlike
+// obsidian — so unlike smoke and steam, it has to reach the rail.
+test('mud is paintable and sits in the Liquid group', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Liquid', 'mud')
+
+  await root.selectElement('mud')
+  expect(await root.isSelected('mud')).toBe(true)
+})

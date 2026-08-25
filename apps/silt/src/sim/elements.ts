@@ -18,6 +18,7 @@ export const STEAM = 10
 export const ACID = 11
 export const STONE = 12
 export const SULPHUR = 13
+export const MUD = 14
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -179,6 +180,20 @@ const sulphur: ElementDef = {
   hardness: 2,
 }
 
+const mud: ElementDef = {
+  id: MUD,
+  name: 'mud',
+  // Wet dirt: the same hue as dirt, darkened, so a wetted bed reads as the
+  // same ground rather than as a new material dropped on top of it.
+  colours: ['#5b4632'],
+  tags: ['liquid'],
+  // Denser than water (30), so it settles under a pool rather than clouding
+  // it, and lighter than sand (60), so a grain still sinks through. The
+  // slowest liquid in the roster: one cell of spread and roughly one tick in
+  // ten, which is what makes it ooze rather than flow.
+  archetype: { kind: 'liquid', density: 50, dispersion: 1, move: 0.1 },
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -194,10 +209,11 @@ export const v1Elements: readonly ElementDef[] = [
   acid,
   stone,
   sulphur,
+  mud,
 ]
 
 /**
- * The chemistry (spec §4, materials spec §4 rows 1–9). Rows of data, not hooks
+ * The chemistry (spec §4, materials spec §4 rows 1–12). Rows of data, not hooks
  * — the elements above name neither each other nor the products.
  *
  * **Order is load-bearing**: a tag row registers every pair it covers, and the
@@ -232,4 +248,15 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'acid', b: 'water', p: 1, aBecomes: 'water', bBecomes: 'water' },
   // Acid boils off; lava is the heat source and survives, as it does with fuel.
   { a: 'acid', b: 'lava', p: 1, aBecomes: 'smoke', bBecomes: 'lava' },
+  // Two cells in, one out, as with acid + wood: the water is spent soaking the
+  // dirt. Dirt only — sand plus water is wet sand, and a lake quietly turning a
+  // whole sand bed to ooze annoys more than it delights.
+  { a: 'water', b: 'dirt', p: 0.4, aBecomes: null, bBecomes: 'mud' },
+  // The two heat levels. Mud carries no `flammable` tag and is a liquid, so
+  // neither `fire + [flammable]` nor acid's `[solid]`/`[powder]` rows cover
+  // these pairs — naming both sides explicitly keeps them out of the tags
+  // regardless of where they sit in the table.
+  { a: 'mud', b: 'fire', p: 1, aBecomes: 'dirt', bBecomes: 'smoke' },
+  // Lava bakes rather than dries, and survives — a heat source, not a reagent.
+  { a: 'mud', b: 'lava', p: 1, aBecomes: 'stone', bBecomes: 'lava' },
 ]

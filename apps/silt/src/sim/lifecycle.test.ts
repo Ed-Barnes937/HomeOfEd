@@ -22,14 +22,19 @@ function raAt(sim: Sim, x: number, y: number): number {
 }
 
 /**
- * Two cells wedged into a dirt pocket at `(x, FLOOR - 1)` and `(x + 1, FLOOR -
- * 1)` with nowhere to move, so a reaction is the only thing that can change
- * them and one tick is enough to see it.
+ * Two cells wedged into a pocket at `(x, FLOOR - 1)` and `(x + 1, FLOOR - 1)`
+ * with nowhere to move, so a reaction is the only thing that can change them
+ * and one tick is enough to see it.
+ *
+ * `walls` defaults to dirt, which the cases with a bespoke table below use as
+ * the subject of their own row. Any case running the *default* table must pass
+ * obsidian: water turns dirt into mud (materials spec §4 row 10) at p 0.4, so a
+ * dirt pocket holding water reacts with its own walls.
  */
-function pocket(sim: Sim, x: number, left: number, right: number): void {
-  for (let i = -2; i <= 3; i++) sim.paint(x + i, FLOOR, DIRT)
-  sim.paint(x - 1, FLOOR - 1, DIRT)
-  sim.paint(x + 2, FLOOR - 1, DIRT)
+function pocket(sim: Sim, x: number, left: number, right: number, walls = DIRT): void {
+  for (let i = -2; i <= 3; i++) sim.paint(x + i, FLOOR, walls)
+  sim.paint(x - 1, FLOOR - 1, walls)
+  sim.paint(x + 2, FLOOR - 1, walls)
   sim.paint(x, FLOOR - 1, left)
   sim.paint(x + 1, FLOOR - 1, right)
 }
@@ -37,7 +42,7 @@ function pocket(sim: Sim, x: number, left: number, right: number): void {
 describe('reaction table', () => {
   it('flashes the water to steam and freezes the lava to obsidian', () => {
     const sim = new Sim({ seed: 1 })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, OBSIDIAN)
 
     sim.tick()
 
@@ -46,6 +51,8 @@ describe('reaction table', () => {
   })
 
   it('does nothing when the table is empty — the rule is data, not element code', () => {
+    // Dirt walls, not obsidian: this case counts obsidian to mean "nothing
+    // happened", and the table is empty so dirt cannot react either.
     const sim = new Sim({ seed: 1, elements: v1Elements, reactions: [] })
     pocket(sim, 100, WATER, LAVA)
 
