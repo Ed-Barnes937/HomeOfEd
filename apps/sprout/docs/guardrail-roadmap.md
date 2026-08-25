@@ -108,12 +108,13 @@ Status key: ✅ shipped · ⚠️ partial / confirm · ⬜ outstanding
     the strictest preset (`early-learner`, verified per-slider) is the tested fallback at the
     read seam (`loadChildConfig`), onboarding pre-selects it, and `presetName` stays required
     at creation by design.
-  - **Honest disclosure: decided** (ADR-0017 in [`product-legal-adrs.md`](product-legal-adrs.md)) —
+  - **Honest disclosure: built** (ADR-0017 in [`product-legal-adrs.md`](product-legal-adrs.md)) —
     first-run statement card + persistent line above the chat input, per-preset wording
-    incl. the parent-visibility sentence, plus a positive identity instruction in the
-    pipeline system prompt. Verified absent from the tree; build handed to `/tdd`.
-  - **Still to confirm:** the disclosure build lands, and the parent-visible flag log is
-    present (not verified during the port).
+    incl. the parent-visibility sentence (whole-frontend-tested for the strictest and
+    least-strict registers), plus the positive identity instruction in the pipeline
+    system prompt.
+  - **Still to confirm:** the parent-visible flag log is present (not verified during
+    the port).
 
 - ✅ **6.5.10 Hash PINs / child password** — auth is app-owned (ADR-0012); scrypt hashing carried from the source repo.
   - **Confirm:** re-verify the hashing path survived the auth rebuild in sprout.
