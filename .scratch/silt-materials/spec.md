@@ -60,9 +60,9 @@ Ids are pinned and never renumbered — species bytes go into localStorage scene
 | 5 | obsidian | static | solid | **5** | | no | v1 |
 | 6 | wood | static | solid, flammable | **1** | | yes | 01 |
 | 7 | oil | liquid d20 disp 4 | liquid, flammable | | | yes | 01 |
-| 8 | fire | gas d−20 disp 1 move .3 | gas, energy | | 40 ±20 → smoke | yes | 01 |
-| 9 | smoke | gas d−5 disp 3 | gas | | 200 ±55 → null | no | 01 |
-| 10 | steam | gas d−10 disp 4 | gas | | 180 ±60 → water | no | 01 |
+| 8 | fire | gas d−20 disp 1 move .3 | gas, energy | | 40 +0..20 → smoke | yes | 01 |
+| 9 | smoke | gas d−5 disp 3 | gas | | 200 +0..55 → null | no | 01 |
+| 10 | steam | gas d−10 disp 4 | gas | | 180 +0..60 → water | no | 01 |
 | 11 | acid | liquid d35 disp 4 | liquid | 0 | | yes | 02 |
 | 12 | stone | static | solid | **3** | | yes | 02 |
 | 13 | sulphur | powder d55 slide 1 | powder, flammable | **2** | | no | 02 |
@@ -73,6 +73,11 @@ Ids are pinned and never renumbered — species bytes go into localStorage scene
 
 Hardness on the existing dirt/sand/obsidian is added in PR 02, where it first
 matters. Lifetime values are opening guesses to be tuned, not decisions.
+
+**Jitter is one-sided.** `applyLifetime` computes `ticks + randInt(jitter + 1)`,
+so `200 +0..55` means a range of 200–255, never 145–255. Smoke's `200 + 55` lands
+exactly on `MAX_LIFETIME_TICKS`, so raising either number is a boot failure, not a
+slow fuse.
 
 Paintable is an explicit list in `paletteGroups.ts`, not a tag — adding an
 element does not add it to the rail, and the safe default is the right way

@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { createRegistry, DIRT, LAVA, SAND, WATER, type ElementDef } from '../../sim/index.ts'
+import {
+  createRegistry,
+  DIRT,
+  FIRE,
+  LAVA,
+  OIL,
+  SAND,
+  WATER,
+  WOOD,
+  type ElementDef,
+} from '../../sim/index.ts'
 import { buildSpeciesPalette } from '../render/speciesPalette.ts'
 import { buildRailPalette } from './paletteGroups.ts'
 
@@ -40,6 +50,21 @@ describe('rail and grid colours share one registry', () => {
         colours: ['#ff00ff'],
         tags: ['liquid'],
         archetype: { kind: 'liquid', density: 45, dispersion: 2, move: 0.15 },
+      },
+      { id: WOOD, name: 'wood', colours: ['#010203'], tags: ['solid'], archetype: { kind: 'static' } },
+      {
+        id: OIL,
+        name: 'oil',
+        colours: ['#040506'],
+        tags: ['liquid'],
+        archetype: { kind: 'liquid', density: 20, dispersion: 4 },
+      },
+      {
+        id: FIRE,
+        name: 'fire',
+        colours: ['#070809'],
+        tags: ['energy'],
+        archetype: { kind: 'gas', density: -20, dispersion: 1 },
       },
     ]
     const registry = createRegistry(nonDefaultRoster)

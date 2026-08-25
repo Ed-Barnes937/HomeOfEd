@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createRegistry, OBSIDIAN, v1Elements, v1Reactions } from '../../sim/index.ts'
+import { createRegistry, OBSIDIAN, SMOKE, STEAM, v1Elements, v1Reactions } from '../../sim/index.ts'
 import { BRUSH_WIDTHS, buildRailPalette } from './paletteGroups.ts'
 
 // The registry `Sim` builds by default (v1Elements/v1Reactions) — the same
@@ -9,20 +9,33 @@ import { BRUSH_WIDTHS, buildRailPalette } from './paletteGroups.ts'
 const registry = createRegistry(v1Elements, v1Reactions)
 
 describe('paletteGroups', () => {
-  it('lists only the paintable v1 roster, never the obsidian reaction product', () => {
+  it('lists only the paintable roster, never a reaction product', () => {
     const { entries } = buildRailPalette(registry)
-    expect(entries.map((entry) => entry.name)).toEqual(['dirt', 'sand', 'water', 'lava'])
-    expect(entries.some((entry) => entry.id === OBSIDIAN)).toBe(false)
+    expect(entries.map((entry) => entry.name)).toEqual([
+      'dirt',
+      'sand',
+      'water',
+      'lava',
+      'wood',
+      'oil',
+      'fire',
+    ])
+    // Obsidian, smoke and steam are what the world makes, not what you paint.
+    for (const id of [OBSIDIAN, SMOKE, STEAM]) {
+      expect(entries.some((entry) => entry.id === id)).toBe(false)
+    }
   })
 
-  it('omits groups with no members instead of rendering an empty section', () => {
+  it('groups the roster in rail order, Energy included now fire is paintable', () => {
     const { groups } = buildRailPalette(registry)
-    const labels = groups.map((group) => group.label)
-    expect(labels).toEqual(['Solid', 'Powder', 'Liquid'])
-    expect(labels).not.toContain('Energy')
-    for (const group of groups) {
-      expect(group.entries.length).toBeGreaterThan(0)
-    }
+    expect(
+      groups.map((group) => [group.label, group.entries.map((entry) => entry.name)]),
+    ).toEqual([
+      ['Solid', ['dirt', 'wood']],
+      ['Powder', ['sand']],
+      ['Liquid', ['water', 'lava', 'oil']],
+      ['Energy', ['fire']],
+    ])
   })
 
   it('offers four brush sizes, ascending', () => {

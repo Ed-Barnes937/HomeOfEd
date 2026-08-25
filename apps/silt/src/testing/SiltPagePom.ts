@@ -26,6 +26,13 @@ export class SiltPagePom extends BasePage {
     return pressed === 'true'
   }
 
+  /** A rail group section and one of the swatches inside it (spec §9). */
+  async verifyPaletteGroupContains(label: string, name: string): Promise<void> {
+    const group = this.page.getByTestId(`palette-group-${label}`)
+    await expect(group).toBeVisible()
+    await expect(group.getByTestId(`element-${name}`)).toBeVisible()
+  }
+
   async selectBrush(index: number): Promise<void> {
     await this.page.getByTestId(`brush-${index}`).click()
   }

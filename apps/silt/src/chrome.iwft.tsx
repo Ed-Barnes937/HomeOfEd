@@ -140,3 +140,18 @@ test('keyboard shortcuts select elements, change brush, and toggle play/step', a
   await root.pressKey('Space')
   await root.verifyPaused()
 })
+
+// The rail has had a group for Energy since v1 and nothing to put in it (spec
+// §9). Fire is the first energy element, so this is the first time the section
+// renders at all.
+test('the Energy group appears in the rail now fire is paintable', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Energy', 'fire')
+  await root.verifyPaletteGroupContains('Solid', 'wood')
+  await root.verifyPaletteGroupContains('Liquid', 'oil')
+
+  await root.selectElement('fire')
+  expect(await root.isSelected('fire')).toBe(true)
+})

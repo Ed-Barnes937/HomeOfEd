@@ -211,7 +211,11 @@ export function HomePage() {
         <nav className={styles.rail} aria-label="tools">
           <div className={styles.palette} data-testid="palette">
             {palette.groups.map((group) => (
-              <div key={group.label} className={styles.paletteGroup}>
+              <div
+                key={group.label}
+                className={styles.paletteGroup}
+                data-testid={`palette-group-${group.label}`}
+              >
                 <span className={styles.groupLabel}>{group.label}</span>
                 {group.entries.map((entry) => {
                   const hotkey = palette.entries.indexOf(entry) + 1

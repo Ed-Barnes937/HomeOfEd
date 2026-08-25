@@ -159,10 +159,10 @@ describe('move probability', () => {
   })
 })
 
-/** A gas exists only to prove the archetype — no v1 element is one. */
-const steam: ElementDef = {
+/** A throwaway gas: this suite tests the archetype, not the roster's gases. */
+const plume: ElementDef = {
   id: 100,
-  name: 'steam',
+  name: 'plume',
   colours: ['#cfd6da'],
   tags: ['gas'],
   archetype: { kind: 'gas', density: -20, dispersion: 3 },
@@ -170,32 +170,32 @@ const steam: ElementDef = {
 
 describe('gas movement', () => {
   it('rises one cell per tick', () => {
-    const sim = new Sim({ seed: 1, elements: [...v1Elements, steam] })
-    sim.paint(10, 10, steam.id)
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, plume] })
+    sim.paint(10, 10, plume.id)
 
     sim.tick()
 
     expect(sim.speciesAt(10, 10)).toBe(EMPTY)
-    expect(sim.speciesAt(10, 9)).toBe(steam.id)
+    expect(sim.speciesAt(10, 9)).toBe(plume.id)
   })
 
   it('stops at the ceiling', () => {
-    const sim = new Sim({ seed: 1, elements: [...v1Elements, steam] })
-    sim.paint(10, 0, steam.id)
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, plume] })
+    sim.paint(10, 0, plume.id)
 
     for (let i = 0; i < 5; i++) sim.tick()
 
-    expect(cellsOf(sim, steam.id).map((c) => c.y)).toEqual([0])
+    expect(cellsOf(sim, plume.id).map((c) => c.y)).toEqual([0])
   })
 
   it('bubbles up through a denser liquid', () => {
-    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, steam] }))
+    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, plume] }))
     pourColumn(sim, 150, 8, WATER)
-    sim.paint(150, FLOOR - 1, steam.id)
+    sim.paint(150, FLOOR - 1, plume.id)
 
     for (let i = 0; i < 40; i++) sim.tick()
 
-    const bubble = cellsOf(sim, steam.id)
+    const bubble = cellsOf(sim, plume.id)
     expect(bubble).toHaveLength(1)
     // Negative density means the water sinks past it rather than the other way
     // round, but the bubble still ends up above the water it started under.
