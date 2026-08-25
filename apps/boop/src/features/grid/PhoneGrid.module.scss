@@ -12,25 +12,6 @@ $bar-row-gap: 6px;
 // Vertical breathing room for the playhead column's -6px inset and the
 // under-playhead cell's scale(1.11); applied identically to both columns.
 $row-inset: 6px;
-// The least grid a child is ever shown (ticket 23): the bar-numeral row, the
-// rows' top inset, then `$floor-rows` of the six with their 6px gaps.
-//
-// Three, not two (the repo owner's call). Two binds as soon as a song has
-// three clips, which is the normal state of a song being worked on rather
-// than a rescue case — and a 120px window onto a 332px grid cannot show the
-// kick and the boop at once, so placing a beat means scrolling a six-row
-// instrument grid two rows at a time. Three costs about 50px more region
-// scroll, at exactly the sizes where the region is already scrolling, and
-// buys 50% more grid for it.
-$floor-rows: 3;
-$grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
-  ($floor-rows - 1) * 6px;
-// The clip control the well gained when the grid moved into the card
-// (screenspace ticket 03): 64px plus its 10px top margin, from
-// `ClipControl.module.scss`'s phone block. It is `flex: none` under the loop
-// map and carries clip play, so it comes off the well's budget rather than
-// out of the rows. Change the two together.
-$clip-control: 74px;
 
 .well {
   margin-top: 12px;
@@ -39,42 +20,34 @@ $clip-control: 74px;
   background: var(--well);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   // The rail and step columns scroll together inside the well; the loop map
-  // under them does not (ticket 23). The well shrinks to whatever the frame
-  // leaves it, so the song bar below it — which carries song play — is on
-  // screen at every window height. The `overflow: hidden` that used to sit
-  // here moved to that scroll box: it is what the strip overflows.
+  // and the clip control under them do not (ticket 23, screenspace ticket 03).
+  // So the button the footer carries is on screen at every window height and
+  // the grid is what gives way. The `overflow: hidden` that used to sit here
+  // moved to that scroll box: it is what the strip overflows.
   //
-  // The floor, and it has to sit here rather than on the scroll box: this is
-  // the box flex shrinks, and `min-height: 0` on it let the grid go to
-  // *nothing* — five clips at 390x640 left 40px of grid, and a 460px-tall
-  // window left none at all from one clip upwards. A sequencer with no
-  // sequencer on it is not a trade worth making, so the well stops here and
-  // the region scrolls instead.
+  // `min-height: 0` is what lets the well shrink below its content inside the
+  // card, and it is the same rule `Grid.module.scss`'s well already carries.
+  // **The three-rows-plus-loop-map floor that stood here is retired**
+  // (screenspace ticket 04). It was written when the well and the song bar
+  // competed for the frame's one scrolling region — priority with no floor
+  // took the grid to 40px at 390x640 and to nothing at 460. The card bounds
+  // the grid now and the song bar is nowhere near it: measured with the floor
+  // gone, 390x640 gives the rows 320px, not 40.
   //
-  // Flooring `.wellScroll` alone does not do it, and the reason is this box's
-  // `overflow: visible`. The scroll box is not all that is in here — 20px of
-  // padding and the 34px loop map sit outside it — so this box stays free to
-  // shrink below its own content, and what comes off spills rather than clips.
-  // Measured at 390x460 with five clips and the floor on the scroll box only,
-  // `elementFromPoint` over the song play button returned the instrument
-  // rail's artwork: the grid painting over the song bar.
+  // What the floor did instead was push its own button off screen, because
+  // screenspace ticket 03 put clip play *inside* this well. Measured with the
+  // floor on: clip play landed at y 381-429 on a 380px-tall window and at
+  // 380-428 on a 667x375 landscape phone — wholly below the fold both times —
+  // and 13px below it at 390x420. That is exactly the conflict
+  // `Grid.module.scss` records for the laptop well, and it arrives here for
+  // the same reason. The two renderers now agree: no floor, at either width.
   //
-  // 10 + 10 padding, the row floor above, the loop map's own 34px — the map is
-  // `flex: none` under the scroll box and must stay whole, since it is what
-  // carries the playhead when the strip is scrolled away (ADR 0027); change it
-  // with `LoopMap.module.scss` — and the clip control below it.
+  // The cost, stated: at 390x460 the rows get 162px rather than the floor's
+  // 170, so the third row is 8px short there. Below 455 the floor bought
+  // nothing at all — it spent the clip play button.
   display: flex;
   flex-direction: column;
-  min-height: 10px + 10px + $grid-floor + 34px + $clip-control;
-
-  // Below 500px tall the page scrolls instead of the frame (ADR 0030, as
-  // amended by ticket 23), so nothing bounds this well any more — it would
-  // grow to all six rows and push the song bar and transport a long way down
-  // the document. Pinned to the floor instead: three rows, and `.wellScroll`
-  // carries the rest exactly as it does above the threshold.
-  @media (max-height: 504px) {
-    max-height: 10px + 10px + $grid-floor + 34px + $clip-control;
-  }
+  min-height: 0;
 }
 
 // See Grid.module.scss's `.wellScroll` — same rules, the phone's numbers. No
