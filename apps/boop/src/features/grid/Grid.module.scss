@@ -16,16 +16,17 @@
   // lets the well shrink below its content, exactly as the frame's scrolling
   // region needs it (ADR 0030): flex stops the shrink the moment the well
   // fits its space, so it is never smaller than what it was given.
-  // No floor here, unlike `PhoneGrid`'s well — and that is a finding, not an
-  // omission. The 16px well at the five-clip cap was caused by the *dock*
-  // growing unbounded, not by the absence of a floor: with the dock capped
-  // (`HomePage.module.scss`) the region can no longer be starved, and the well
-  // degrades proportionally instead of collapsing. A floor was built and
-  // mutation-tested here — removing it left all 19 tests green, because the
-  // cap already guarantees more than the floor would. Adding one back would
-  // also re-open the conflict it cannot win: this well carries the clip play
-  // button at its foot, so a floor pushes its own button below the fold on any
-  // window short enough for the floor to bind.
+  // No floor here, and none in `PhoneGrid`'s well either since screenspace
+  // ticket 04 — the two renderers agree. The 16px well at the five-clip cap
+  // was caused by the *dock* growing unbounded, and the dock stopped growing
+  // when the song bar left it for the scrolling region (screenspace ticket
+  // 03): the card is what bounds the grid now, so the region cannot starve it
+  // and the well degrades proportionally instead of collapsing. A floor was
+  // built and mutation-tested here — removing it left all 19 tests green.
+  // Adding one back would also re-open the conflict it cannot win: this well
+  // carries the clip play button at its foot, so a floor pushes its own button
+  // below the fold on any window short enough for the floor to bind. That is
+  // measured at both widths now, and it is why the phone's floor went.
   display: flex;
   flex-direction: column;
   min-height: 0;
