@@ -166,12 +166,18 @@ export class SiltPagePom extends BasePage {
     return this.statusText(`scene-updated-${name}`)
   }
 
-  async verifySceneThumbnail(name: string): Promise<void> {
+  /** The row's thumbnail as its PNG data URL — comparable between rows. */
+  async sceneThumbnail(name: string): Promise<string> {
     const src = await this.page
       .getByTestId(`scene-row-${name}`)
       .getByTestId('scene-thumb')
       .getAttribute('src')
     expect(src).toMatch(/^data:image\/png;base64,/)
+    return src ?? ''
+  }
+
+  async verifySceneThumbnail(name: string): Promise<void> {
+    await this.sceneThumbnail(name)
   }
 
   async renameScene(from: string, to: string): Promise<void> {

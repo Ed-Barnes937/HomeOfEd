@@ -294,9 +294,9 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
           sim.tick()
         })
       }
-      renderer.draw(sim)
-
-      framesSinceSample++
+      // `draw` skips an unchanged world (ticket 06), so this counts frames
+      // silt actually drew — a paused, untouched world honestly reads 0.
+      if (renderer.draw(sim)) framesSinceSample++
       const sinceSample = time - lastFpsSample
       if (sinceSample >= 250) {
         onFpsRef.current?.(Math.round((framesSinceSample * 1000) / sinceSample))
@@ -346,9 +346,14 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     saveScene: () => {
       const sim = requireSim(simRef.current)
       const envelope = encodeScene(sim, spawnersRef.current, sim.registry)
+      // A frame can be skipped now (ticket 06), so a save landing between a
+      // paint and the next rAF would snapshot the previous world. This is a
+      // no-op whenever the canvas is already current.
+      const renderer = rendererRef.current
+      renderer?.draw(sim)
       return {
         json: JSON.stringify(envelope),
-        thumbnail: rendererRef.current?.snapshot() ?? null,
+        thumbnail: renderer?.snapshot() ?? null,
       }
     },
     loadScene: (json) => {
