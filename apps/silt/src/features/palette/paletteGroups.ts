@@ -1,13 +1,51 @@
-import { DIRT, LAVA, SAND, WATER, type ElementRegistry } from '../../sim/index.ts'
+import {
+  ACID,
+  DIRT,
+  FIRE,
+  LAVA,
+  MUD,
+  OIL,
+  SAND,
+  SEED,
+  STONE,
+  WATER,
+  WOOD,
+  type ElementRegistry,
+} from '../../sim/index.ts'
 
 /**
- * The v1 paintable roster (spec §4) — everything in `v1Elements` except
- * Obsidian, which is a reaction product and must never appear in the palette.
- * Listed explicitly, rather than derived by excluding a tag, so a future
- * reaction product doesn't have to remember to also carry an "un-paintable"
- * marker to stay out of the rail.
+ * The paintable roster (spec §4) — everything in `v1Elements` except the
+ * reaction products, which must never appear in the palette: obsidian, and now
+ * smoke, steam and sulphur — sulphur is what corroding wood leaves behind, and
+ * painting it directly would make acid a second eraser rather than a tool.
+ * Moss and vine are products too, and deliberately so: they are what a seed
+ * planted in wet soil earns you.
+ * Listed explicitly, rather than derived by excluding a tag,
+ * so a future reaction product doesn't have to remember to also carry an
+ * "un-paintable" marker to stay out of the rail.
+ *
+ * Order is rail order, and rail order is the `1`–`9` hotkey order — new
+ * elements go on the end, so an existing element never changes its digit.
+ *
+ * **The digits ran out at nine** (materials spec §8). Mud is the tenth entry
+ * and seed the eleventh, so neither has a hotkey. That is an open UI decision,
+ * not an oversight: `0` for the tenth strands the eleventh, and anything better
+ * is a change to the shortcut scheme rather than to an element. Appending here
+ * is what keeps every existing digit where it was.
  */
-const PAINTABLE_IDS: readonly number[] = [DIRT, SAND, WATER, LAVA]
+const PAINTABLE_IDS: readonly number[] = [
+  DIRT,
+  SAND,
+  WATER,
+  LAVA,
+  WOOD,
+  OIL,
+  FIRE,
+  ACID,
+  STONE,
+  MUD,
+  SEED,
+]
 
 export interface PaletteEntry {
   id: number
@@ -23,8 +61,9 @@ export interface PaletteGroup {
 
 /**
  * Group labels in display order (spec §9). A group with no members is left
- * out entirely — Energy has no v1 elements, and an empty section would just
- * be dead chrome with nothing to distinguish it from a labelling mistake.
+ * out entirely — an empty section would just be dead chrome with nothing to
+ * distinguish it from a labelling mistake. Fire is the first `energy` element,
+ * so Energy renders for the first time here.
  * The roster is built to triple (spec §9), so this stays generic rather than
  * special-casing today's four elements.
  */

@@ -140,3 +140,67 @@ test('keyboard shortcuts select elements, change brush, and toggle play/step', a
   await root.pressKey('Space')
   await root.verifyPaused()
 })
+
+// The rail has had a group for Energy since v1 and nothing to put in it (spec
+// §9). Fire is the first energy element, so this is the first time the section
+// renders at all.
+test('the rail advertises a hotkey only where one exists', async ({ mountApp, page }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Digits stop at `HOTKEYED_ENTRIES` (nine) and the roster is eleven
+  // paintables. The first nine carry a badge; mud and seed must not claim a
+  // dead key. Asserting the *badge* is absent, not that some particular text
+  // is: "no element reading 10" also passes when the badge renders "99".
+  await expect(page.getByTestId('element-dirt').getByTestId('hotkey-badge')).toHaveText('1')
+  await expect(page.getByTestId('element-mud').getByTestId('hotkey-badge')).toHaveCount(0)
+  await expect(page.getByTestId('element-seed').getByTestId('hotkey-badge')).toHaveCount(0)
+  // And exactly nine of them exist in the rail, so the cut is where it says.
+  await expect(page.getByTestId('palette').getByTestId('hotkey-badge')).toHaveCount(9)
+
+  // The swatch still works; it just does not claim a shortcut.
+  await root.selectElement('mud')
+  expect(await root.isSelected('mud')).toBe(true)
+})
+
+test('the Energy group appears in the rail now fire is paintable', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Energy', 'fire')
+  await root.verifyPaletteGroupContains('Solid', 'wood')
+  await root.verifyPaletteGroupContains('Liquid', 'oil')
+
+  await root.selectElement('fire')
+  expect(await root.isSelected('fire')).toBe(true)
+})
+
+// Mud is a reaction product that is still paintable in its own right, unlike
+// obsidian — so unlike smoke and steam, it has to reach the rail.
+test('mud is paintable and sits in the Liquid group', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Liquid', 'mud')
+
+  await root.selectElement('mud')
+  expect(await root.isSelected('mud')).toBe(true)
+})
+
+// Seed is the eleventh paintable, and the roster's last: moss and vine are the
+// reward for planting it, so neither reaches the rail.
+test('seed is paintable and sits in the Powder group, with no plant beside it', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Powder', 'seed')
+
+  await root.selectElement('seed')
+  expect(await root.isSelected('seed')).toBe(true)
+
+  const names = await root.paletteElementNames()
+  expect(names).not.toContain('moss')
+  expect(names).not.toContain('vine')
+})

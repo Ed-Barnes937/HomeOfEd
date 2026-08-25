@@ -26,6 +26,13 @@ export class SiltPagePom extends BasePage {
     return pressed === 'true'
   }
 
+  /** A rail group section and one of the swatches inside it (spec §9). */
+  async verifyPaletteGroupContains(label: string, name: string): Promise<void> {
+    const group = this.page.getByTestId(`palette-group-${label}`)
+    await expect(group).toBeVisible()
+    await expect(group.getByTestId(`element-${name}`)).toBeVisible()
+  }
+
   async selectBrush(index: number): Promise<void> {
     await this.page.getByTestId(`brush-${index}`).click()
   }
@@ -239,6 +246,25 @@ export class SiltPagePom extends BasePage {
       if (!box) throw new Error('palette swatch has no bounding box')
       expect(eraseBox.x).toBeGreaterThan(box.x)
     }
+  }
+
+  /** Every paintable swatch the rail is currently rendering. */
+  async paletteElementNames(): Promise<string[]> {
+    const testIds = await this.page.getByTestId(/^element-/).evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('data-testid') ?? ''),
+    )
+    return testIds.map((id) => id.replace('element-', ''))
+  }
+
+  /**
+   * The rail overflows into its own scroller, never into the page: a bottom bar
+   * that pushes the document sideways drags the canvas out of view with it.
+   */
+  async verifyNoHorizontalPageOverflow(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(1)
   }
 
   private async boundingBoxOrThrow(testId: string): Promise<{ width: number; height: number }> {

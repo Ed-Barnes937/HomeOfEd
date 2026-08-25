@@ -23,6 +23,13 @@ import {
 
 const v1 = createRegistry(v1Elements, v1Reactions)
 
+/** A roster water has been taken out of. Steam goes with it — it condenses
+ * back into water, and the registry refuses a `lifetime.becomes` it cannot
+ * resolve. */
+const withoutWater = createRegistry(
+  v1Elements.filter((e) => e.name !== 'water' && e.name !== 'steam'),
+)
+
 /** A grid-shaped source the codec can read, with nothing but the bytes in it. */
 function source(
   width: number,
@@ -88,7 +95,6 @@ describe('encodeScene / decodeScene', () => {
     world.set(1, 0, WATER, 0, 0)
     const envelope = encodeScene(world, [], v1)
 
-    const withoutWater = createRegistry(v1Elements.filter((e) => e.name !== 'water'))
     const scene = decodeScene(JSON.stringify(envelope), { width: 4, height: 4 }, withoutWater)
 
     expect(speciesAt(scene, 4, 0, 0)).toBe(SAND)
@@ -112,7 +118,6 @@ describe('encodeScene / decodeScene', () => {
       spawners: envelope.spawners.map((spawner) => ({ ...spawner, rate: 3 })),
     }
 
-    const withoutWater = createRegistry(v1Elements.filter((e) => e.name !== 'water'))
     const scene = decodeScene(JSON.stringify(loose), { width: 4, height: 4 }, withoutWater)
 
     expect(scene.spawners).toEqual([{ x: 2, y: 2, element: SAND }])

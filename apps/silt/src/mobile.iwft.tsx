@@ -1,6 +1,6 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { DIRT, GRID_HEIGHT, SAND } from './sim/index.ts'
+import { DIRT, GRID_HEIGHT, SAND, SEED } from './sim/index.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -70,4 +70,50 @@ test('spawner mode is reachable and places a spawner via a single-finger tap', a
 
   await root.touchPaintCell(50, 50)
   await root.verifySpawnerAt(50, 50)
+})
+
+test('the Energy group survives the rotation into the bottom bar', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Energy', 'fire')
+  await root.verifySquareChipSize('element-fire')
+})
+
+/**
+ * Materials spec §8: the rail was built for a roster "that will triple" — 12 —
+ * and stage 04 takes it to 11 paintables. Checked at phone width rather than
+ * assumed: the bottom bar is the tightest place the roster has to fit.
+ */
+test('the bottom bar still carries the full eleven-element roster', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Rail order is *group* order, not `PAINTABLE_IDS` order — the bar renders
+  // Solid, Powder, Liquid, Energy, and every one of the eleven is in it.
+  expect(await root.paletteElementNames()).toEqual([
+    'dirt',
+    'wood',
+    'stone',
+    'sand',
+    'seed',
+    'water',
+    'lava',
+    'oil',
+    'acid',
+    'mud',
+    'fire',
+  ])
+  await root.verifyNoHorizontalPageOverflow()
+
+  // The new chip is still a full-size touch target and still reachable — a
+  // swatch that has to be scrolled to is fine, one that cannot be tapped is not.
+  await root.verifySquareChipSize('element-seed')
+  await root.selectElement('seed')
+  expect(await root.isSelected('seed')).toBe(true)
+  await root.touchPaintCell(150, FLOOR - 9)
+  await root.verifyCellIs(150, FLOOR - 9, SEED)
+
+  // Erase stays at the tail of the same row, behind the new swatch.
+  await root.verifyEraseIsLastInPaletteRow()
 })
