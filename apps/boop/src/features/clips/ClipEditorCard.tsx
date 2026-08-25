@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 
 import styles from './ClipEditorCard.module.scss'
 
@@ -26,11 +26,28 @@ interface ClipEditorCardProps {
  * scroll the clip play button away, which is the thing that box exists to
  * prevent.
  *
- * Dismiss follows the app's other dialogs: the × button and a tap on the
- * dimmed backdrop, no Escape handler, because the grid, the loop map and both
- * scrub strips own the keyboard inside it.
+ * Dismiss follows the app's other dialogs: the × button, a tap on the dimmed
+ * backdrop, and Escape — the hint sheet's key, on the app's one other
+ * `aria-modal` dialog.
+ *
+ * Escape was held back at first on the grounds that the grid and the strips
+ * own the keyboard in here. They do, but not this key: the grid claims the
+ * arrows, Enter and Backspace, and both scrub strips claim Left, Right and
+ * Home. Escape is free, so closing on it costs the grid nothing — and a
+ * modal that traps a keyboard user with no key out is the worse trade.
  */
 export function ClipEditorCard({ clipName, onClose, children }: ClipEditorCardProps) {
+  // On `window`, like the hint sheet's: the grid's own cells stop keydown
+  // bubbling for the keys they handle, and Escape has to reach us from
+  // wherever focus happens to be inside the card.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
   return (
     <div className={styles.overlay} onClick={onClose} data-testid="clip-editor-overlay">
       <div

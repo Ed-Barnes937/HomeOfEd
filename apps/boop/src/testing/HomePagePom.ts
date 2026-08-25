@@ -267,6 +267,12 @@ export class HomePagePom extends BasePage {
     await expect(this.clipEditorCard).toHaveCount(0)
   }
 
+  /** Escape, the way the hint sheet dismisses. */
+  async dismissClipEditorByEscape(): Promise<void> {
+    await this.page.keyboard.press('Escape')
+    await expect(this.clipEditorCard).toHaveCount(0)
+  }
+
   async verifyClipEditorOpen(): Promise<void> {
     await expect(this.clipEditorCard).toBeVisible()
     await expect(this.page.getByRole('application', { name: /step grid/ })).toBeVisible()

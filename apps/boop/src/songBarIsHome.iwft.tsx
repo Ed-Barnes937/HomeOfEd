@@ -94,6 +94,29 @@ for (const { name, viewport } of WIDTHS) {
       await root.verifyClipEditorClosed()
     })
 
+    test('Escape dismisses the card, the way it dismisses the hint sheet', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+
+      await root.openClipEditor()
+      await root.dismissClipEditorByEscape()
+      await root.verifyClipEditorClosed()
+    })
+
+    // Escape is free inside the card: the grid owns the arrows, Enter and
+    // Backspace, and both scrub strips own Left, Right and Home. None of them
+    // claims Escape, so closing on it takes nothing away from the grid.
+    test('Escape closes the card even from a focused grid cell', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+
+      await root.openClipEditor()
+      await root.focusCell('kick', 0)
+      await root.dismissClipEditorByEscape()
+      await root.verifyClipEditorClosed()
+      await root.verifySongBarIsTheHomeSurface()
+    })
+
     test('the grid inside the card is still 6 x 16, and the card holds the whole column', async ({
       mountApp,
     }) => {
