@@ -22,6 +22,7 @@ Tickets are sequential — each branches from and merges into
 | 07 | pointer path: layout reads, brush offsets | `features/sim/useSimLoop.ts` | done | 2 forced layouts + 49 allocs per event → 0 |
 | 08 | React re-render pressure | `pages/HomePage.tsx`, `features/render/WorldOverlay.tsx` | **wontfix** | measured ~0.15 ms/frame — did not clear the bar |
 | 09 | sim in a Web Worker (proposal) | architecture | needs-triage | gated on a real measurement on the Air |
+| 10 | palette lookups are linear scans | `features/palette/paletteGroups.ts` | ready-for-agent | carved out of 08; not a bench-movable change |
 
 ## Decisions so far
 
