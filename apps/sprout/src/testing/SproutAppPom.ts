@@ -42,6 +42,19 @@ export class SproutAppPom extends BasePage {
     await this.page.getByPlaceholder(placeholder).fill(value)
   }
 
+  async tickCheckbox(name: string): Promise<void> {
+    await this.page.getByRole('checkbox', { name }).check()
+  }
+
+  async verifyButtonEnabled(name: string, enabled: boolean): Promise<void> {
+    const button = this.page.getByRole('button', { name })
+    if (enabled) {
+      await expect(button).toBeEnabled({ timeout: 10_000 })
+    } else {
+      await expect(button).toBeDisabled({ timeout: 10_000 })
+    }
+  }
+
   // --- parent dashboard ---
 
   async verifyDashboardShown(): Promise<void> {

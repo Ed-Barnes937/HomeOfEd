@@ -38,6 +38,10 @@ export const user = pgTable('user', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   subscriptionStatus: text('subscription_status').default('trial'),
+  // ADR-0014 / ADR-0015: server-stamped at registration by the before-create
+  // hook in auth/betterAuth.ts. NOT NULL is safe — no deployed accounts exist.
+  ukResidenceAttestedAt: timestamp('uk_residence_attested_at', { withTimezone: true }).notNull(),
+  tosAgreedAt: timestamp('tos_agreed_at', { withTimezone: true }).notNull(),
 })
 
 export const session = pgTable('session', {

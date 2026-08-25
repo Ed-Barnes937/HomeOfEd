@@ -19,7 +19,7 @@ const CONVO_ID = '22222222-2222-4222-8222-222222222222'
 const seedFreeformChild = async (db: {
   execute: (sql: string) => Promise<unknown>
 }): Promise<void> => {
-  await db.execute(`insert into "user" (id, name, email) values ('p1', 'Parent', 'p@test.com')`)
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Parent', 'p@test.com', now(), now())`)
   await db.execute(
     `insert into children (id, parent_id, display_name, username, password_hash, pin_hash, must_change_password, preset_name)
      values ('11111111-1111-4111-8111-111111111111', 'p1', 'Alex', 'alex1234', 'test:pw', 'test:5678', false, 'independent-explorer')`,
@@ -35,7 +35,7 @@ const seedFreeformChild = async (db: {
 const seedChildAtLimit = async (db: {
   execute: (sql: string) => Promise<unknown>
 }): Promise<void> => {
-  await db.execute(`insert into "user" (id, name, email) values ('p1', 'Parent', 'p@test.com')`)
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Parent', 'p@test.com', now(), now())`)
   await db.execute(
     `insert into children (id, parent_id, display_name, username, password_hash, pin_hash, must_change_password, preset_name)
      values ('11111111-1111-4111-8111-111111111111', 'p1', 'Alex', 'alex1234', 'test:pw', 'test:5678', false, 'early-learner')`,

@@ -10,7 +10,7 @@ import { asParent } from './testing/users.ts'
 const seedDashboard = async (db: {
   execute: (sql: string) => Promise<unknown>
 }): Promise<void> => {
-  await db.execute(`insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`)
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`)
   await db.execute(
     `insert into children (id, parent_id, display_name, username, password_hash, pin_hash, must_change_password, preset_name)
      values ('11111111-1111-4111-8111-111111111111', 'p1', 'Ben', 'ben1234', 'test:ben1234', 'test:1234', false, 'early-learner'),
@@ -95,7 +95,7 @@ test('empty state when the parent has no children', async ({ mountApp }) => {
     user: asParent('solo'),
     seed: async (db) => {
       await db.execute(
-        `insert into "user" (id, name, email) values ('solo', 'Solo', 'solo@test.com')`,
+        `insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('solo', 'Solo', 'solo@test.com', now(), now())`,
       )
     },
   })
@@ -112,6 +112,29 @@ test('unauthenticated parent is redirected to login', async ({ mountApp }) => {
   await expect(page.getByRole('heading', { name: 'Parent login' })).toBeVisible({ timeout: 10_000 })
 })
 
+// ADR-0014 / ADR-0015: the two legal checkboxes gate submission (the server
+// hook is the control; this proves the form-side UX). Copy is counsel-flagged
+// — do not reword.
+test('registration submit is blocked until both legal checkboxes are ticked', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.goto('/parent/register')
+
+  await root.fillByLabel('Your name', 'Alice')
+  await root.fillByLabel('Email', 'alice@test.com')
+  await root.fillByLabel('Password', 'correct-horse-battery')
+  await root.fillByLabel('Confirm password', 'correct-horse-battery')
+
+  await root.verifyButtonEnabled('Create account', false)
+
+  await root.tickCheckbox('I confirm I live in the United Kingdom')
+  await root.verifyButtonEnabled('Create account', false)
+
+  await root.tickCheckbox('I agree to the Terms of Service and have read the Privacy Policy')
+  await root.verifyButtonEnabled('Create account', true)
+})
+
 test('parent creates a child through onboarding and it appears on the dashboard', async ({
   mountApp,
 }) => {
@@ -119,7 +142,7 @@ test('parent creates a child through onboarding and it appears on the dashboard'
     user: asParent('p1'),
     seed: async (db) => {
       await db.execute(
-        `insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`,
+        `insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`,
       )
     },
   })

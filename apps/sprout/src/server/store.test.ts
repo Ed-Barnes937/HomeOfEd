@@ -19,6 +19,8 @@ async function makeParent(store: DrizzleSproutStore): Promise<string> {
     id: `parent-${parentSeq}`,
     name: `Parent ${parentSeq}`,
     email: `parent-${parentSeq}@example.com`,
+    ukResidenceAttestedAt: new Date(),
+    tosAgreedAt: new Date(),
   })
 }
 

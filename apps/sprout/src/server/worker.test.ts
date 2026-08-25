@@ -32,6 +32,8 @@ async function seedChild(store: DrizzleSproutStore): Promise<string> {
     id: 'parent-1',
     name: 'Parent',
     email: 'parent@example.com',
+    ukResidenceAttestedAt: new Date(),
+    tosAgreedAt: new Date(),
   })
   const child = await store.createChild({
     parentId,

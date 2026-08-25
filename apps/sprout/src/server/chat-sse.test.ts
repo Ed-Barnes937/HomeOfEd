@@ -42,7 +42,13 @@ function fakePipeline(chunks: ChatStreamChunk[]): PipelineClient {
 }
 
 async function seedChild(store: SproutStore): Promise<void> {
-  await store.createUser({ id: PARENT_ID, name: 'P', email: 'p@test.com' })
+  await store.createUser({
+    id: PARENT_ID,
+    name: 'P',
+    email: 'p@test.com',
+    ukResidenceAttestedAt: new Date(),
+    tosAgreedAt: new Date(),
+  })
   await store.createChild({
     id: CHILD_ID,
     parentId: PARENT_ID,

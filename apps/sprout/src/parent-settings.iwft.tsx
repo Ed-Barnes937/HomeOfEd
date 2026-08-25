@@ -19,7 +19,7 @@ const installLegalDocRoutes = async (page: Page): Promise<void> => {
 }
 
 const seedParent = async (db: { execute: (sql: string) => Promise<unknown> }): Promise<void> => {
-  await db.execute(`insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`)
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`)
 }
 
 test('settings toggles flip and are gated behind a parent session', async ({ mountApp }) => {

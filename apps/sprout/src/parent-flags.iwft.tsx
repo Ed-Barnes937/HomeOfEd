@@ -2,7 +2,7 @@ import { test } from './testing/iwftTest.tsx'
 import { asParent } from './testing/users.ts'
 
 const seedFlags = async (db: { execute: (sql: string) => Promise<unknown> }): Promise<void> => {
-  await db.execute(`insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`)
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`)
   await db.execute(
     `insert into children (id, parent_id, display_name, username, password_hash, must_change_password, preset_name)
      values ('11111111-1111-4111-8111-111111111111', 'p1', 'Ben', 'ben1234', 'test:ben1234', false, 'early-learner'),
@@ -39,7 +39,7 @@ test('empty state when the parent has no flags', async ({ mountApp }) => {
     user: asParent('p1'),
     seed: async (db) => {
       await db.execute(
-        `insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`,
+        `insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`,
       )
     },
   })

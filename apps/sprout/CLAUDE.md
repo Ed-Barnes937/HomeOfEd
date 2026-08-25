@@ -34,6 +34,12 @@ Tailwind, no `cva`).
   `createHttpPipelineClient` (real Node fetch to `hoe-sprout-pipeline.flycast`
   with `x-pipeline-key`) + `createHttpSummariser`. The private-network call is
   exercised end-to-end in docker-stack / at deploy.
+- **Registration legal gate** (`server/auth/betterAuth.ts`): two Better Auth
+  `additionalField`s (`ukResidenceAttestedAt` / `tosAgreedAt`, both `NOT NULL`
+  on `user`) and a `databaseHooks.user.create.before` hook that rejects any
+  unattested/unagreed signup and stamps both columns with **server** time
+  (ADR-0014/0015). The two registration checkboxes are UX only; their copy is
+  counsel-flagged — do not reword.
 - **Two identities behind one `ctx.auth` seam**
   ([ADR 0012](../../docs/adr/0012-sprout-app-owned-auth.md)): parent (Better Auth
   cookie session; `/api/auth/*` forwarded through Fastify, an `onRequest` hook
