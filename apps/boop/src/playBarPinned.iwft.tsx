@@ -120,12 +120,7 @@ for (const [width, height] of [
 
       await root.verifyEveryControlIsReachable()
 
-      await root.startBlank()
-      await root.addClip()
-      await root.addClip()
-      await root.addClip()
-      await root.addClip()
-      await root.verifyClipCount(5)
+      await fiveClips(root)
 
       await root.verifyEveryControlIsReachable()
     })
@@ -266,12 +261,17 @@ test.describe('laptop, short windows — the frame must not become a page', () =
         await root.verifyStageIsAFixedFrame()
         await root.verifyNotOccluded('clip-launcher-play')
         await root.verifyNotOccluded('song-play-button')
+        await root.verifyDockDoesNotGrow()
 
         await fiveClips(root)
 
         await root.verifyStageIsAFixedFrame()
         await root.verifyNotOccluded('clip-launcher-play')
         await root.verifyNotOccluded('song-play-button')
+        // The cap's own claim, asserted rather than only written down: five
+        // clips is what used to take the dock to 476px, and it does not move
+        // the launcher by a pixel now.
+        await root.verifyDockDoesNotGrow()
       })
     })
   }
@@ -439,13 +439,33 @@ for (const height of [380, 420, 460, 492, 504, 505, 520]) {
       // rows at 380, 127 at 420, 162 at 460 and 201 at 505, all within 1px of
       // this. It is a *measurement*, not a layout rule; nothing holds the grid
       // here. What it pins is that the relationship stays linear — the retired
-      // floor and the retired 505 exception were both steps in it.
-      await root.verifyGridShowsAtLeast(Math.floor(height * 0.88) - 243)
+      // floor and the retired 505 exception were both steps in it, and a step
+      // is as wrong upwards as downwards, so this is asserted both ways.
+      await root.verifyGridTracksTheCard(Math.floor(height * 0.88) - 243)
       await root.verifyClipPlayInWellIsReachable()
       await root.verifyStageIsAFixedFrame()
     })
   })
 }
+
+// The landscape phone cited in `PhoneGrid.module.scss`'s retirement note. It
+// is the shortest window boop is likely to meet on a real device, and it is
+// where the three-row floor put clip play wholly off screen (y 380-428 against
+// a 375px window). Pinned so the cited measurement has a test behind it.
+test.describe('landscape phone, 667x375', () => {
+  test.use({ viewport: { width: 667, height: 375 } })
+
+  test('every control is reachable, and clip play is inside the card', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    await root.verifyEveryControlIsReachable()
+
+    await root.openClipEditor()
+    await root.verifyClipPlayInWellIsReachable()
+    await root.verifyStageIsAFixedFrame()
+  })
+})
 
 // The boundary itself, asserted as absent. 504 and 505 were the pair the
 // exception turned on — 126px of page overflow on one side and zero on the

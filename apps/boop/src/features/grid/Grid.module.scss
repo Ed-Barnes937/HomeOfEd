@@ -22,7 +22,8 @@
   // when the song bar left it for the scrolling region (screenspace ticket
   // 03): the card is what bounds the grid now, so the region cannot starve it
   // and the well degrades proportionally instead of collapsing. A floor was
-  // built and mutation-tested here — removing it left all 19 tests green.
+  // built and mutation-tested here — removing it left the suite of the day (19
+  // tests) green.
   // Adding one back would also re-open the conflict it cannot win: this well
   // carries the clip play button at its foot, so a floor pushes its own button
   // below the fold on any window short enough for the floor to bind. That is

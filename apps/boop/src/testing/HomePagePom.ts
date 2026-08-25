@@ -1186,6 +1186,43 @@ export class HomePagePom extends BasePage {
   }
 
   /**
+   * The retired dock cap's own claim, asserted rather than only written down
+   * (screenspace ticket 04, review finding). The cap existed because the dock
+   * held the song bar and the song bar grows with the song — five clips at
+   * 1280x600 took 476 of 600px. The dock holds a fixed-height launcher now, so
+   * its height is the launcher's and does not move with the song at all.
+   *
+   * 160px is the launcher plus the dock's own 32px bottom gutter with room to
+   * spare, measured at 132. A dock that started growing again would fail here
+   * long before it starved anything, which is what the cap used to notice.
+   */
+  async verifyDockDoesNotGrow(): Promise<void> {
+    const dock = await this.clipLauncher.evaluate((element) => {
+      const box = element.closest('[class*="dock"]')
+      return box ? Math.round(box.getBoundingClientRect().height) : null
+    })
+    expect(dock).not.toBeNull()
+    expect(dock).toBeLessThanOrEqual(160)
+  }
+
+  /**
+   * The grid tracks the card's height with no step in it, asserted both ways
+   * (screenspace ticket 04, review finding). `verifyGridShowsAtLeast` is
+   * one-sided, so it cannot see a step *upward* — and a floor coming back at
+   * some heights and not others is exactly an upward step. The retired floor
+   * and the retired 505 exception were both steps in this relationship, so
+   * what pins their absence has to be a band.
+   *
+   * 2px of tolerance: the card is a `dvh` percentage and the browser rounds.
+   */
+  async verifyGridTracksTheCard(expected: number): Promise<void> {
+    const visible = await this.gridWellScroll.evaluate((element) => element.clientHeight)
+    expect(Math.abs(visible - expected)).toBeLessThanOrEqual(2)
+    await expect(this.cell('kick', 0)).toBeInViewport({ ratio: 0.99 })
+    await this.verifyNotOccluded('cell-kick-0')
+  }
+
+  /**
    * Screenspace ticket 04's own verify list, and the reason it is a helper
    * rather than a list in one suite: the three retired compromises all existed
    * to keep controls reachable, so "reachable" is what has to be pinned in
