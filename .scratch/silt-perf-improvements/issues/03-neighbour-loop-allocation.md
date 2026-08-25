@@ -76,4 +76,10 @@ against the repo's "don't refactor things that aren't broken" rule — and would
 bake a performance rationale into the comments that the measurements do not
 support.
 
+**The most useful half of the result:** the `Int8Array` variant was not merely
+neutral, it was consistently **2-4% slower** than the existing array-of-pairs
+code across three runs. A typed array is the first thing anyone revisiting this
+will reach for, and on this workload it is the one option measurably worse than
+doing nothing.
+
 Recorded rather than deleted so the experiment is not re-run.
