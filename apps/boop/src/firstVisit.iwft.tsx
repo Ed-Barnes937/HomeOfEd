@@ -21,6 +21,8 @@ test('a fresh browser opens on a sample clip, and autosaves it', async ({ mountA
   await root.verifyIsShown()
 
   // Boom clap: kick heartbeat under a backbeat snare, at the default speed.
+  // The grid is behind a tap since screenspace ticket 03, so read it there.
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
   await root.verifyCellOn('kick', 8)
   await root.verifyCellOn('snare', 4)
@@ -50,6 +52,7 @@ test('a returning browser is never re-seeded, even from an empty grid', async ({
   const { root } = await mountApp()
   await root.verifyIsShown()
 
+  await root.openClipEditor()
   await root.verifyCellOn('tom', 2)
   await root.verifyCellOff('kick', 0) // not the seed again
 })
@@ -87,9 +90,10 @@ test.describe('tablet', () => {
     await root.pressNewBoop()
 
     await root.verifyNoDialogOpen()
+    await root.verifyTempo(100)
+    await root.openClipEditor()
     await root.verifyCellOff('marimba', 3)
     await root.verifyCellOff('kick', 0)
-    await root.verifyTempo(100)
   })
 
   test('New boop only resets the working slot, never a saved boop', async ({
@@ -115,6 +119,7 @@ test.describe('tablet', () => {
     await root.verifyIsShown()
 
     await root.pressNewBoop()
+    await root.openClipEditor()
     await root.verifyCellOff('kick', 0)
 
     const saved = await root.readSavedBoops()
@@ -125,7 +130,7 @@ test.describe('tablet', () => {
 test.describe('small phone', () => {
   test.use({ viewport: { width: 360, height: 640 } })
 
-  test('New boop is a 44px button in the bar, and the Speed row fits the song bar', async ({
+  test('New boop is a 44px menu entry, and the Speed row fits the song bar', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()
@@ -133,12 +138,13 @@ test.describe('small phone', () => {
     await root.verifyPhoneChromeShown()
 
     await root.verifyNewBoopButtonTapTarget()
-    await root.verifyTransportHasNoOverflow()
+    await root.verifyLauncherHasNoOverflow()
     await root.verifySpeedRowFitsSongBar()
     await root.verifySongBarHasNoOverflow()
 
     await root.toggleCell('boop', 5)
     await root.pressNewBoop()
+    await root.openClipEditor()
     await root.verifyCellOff('boop', 5)
   })
 })
@@ -150,7 +156,7 @@ test.describe('390px phone', () => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
-    await root.verifyTransportHasNoOverflow()
+    await root.verifyLauncherHasNoOverflow()
     await root.verifySpeedRowFitsSongBar()
     await root.verifySongBarHasNoOverflow()
   })

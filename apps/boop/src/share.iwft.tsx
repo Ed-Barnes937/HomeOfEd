@@ -33,10 +33,11 @@ test('sharing copies a link, and opening that link loads the boop ready to play'
   const { root } = await mountApp()
   await root.verifyIsShown()
 
+  await root.verifyTempo(110)
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
   await root.verifyCellOn('snare', 4)
   await root.verifyCellOff('boop', 15)
-  await root.verifyTempo(110)
 
   await root.pressPlay()
   await root.verifyPlaying()
@@ -78,9 +79,10 @@ test('a mangled link opens like a first visit rather than an error', async ({ mo
   // Nothing decodable in the fragment and nothing in this browser's storage, so
   // the visitor is simply new: they get the first-visit seed (tickets 36/17),
   // not an error and not a void.
+  await root.verifyTempo(100)
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
   await root.verifyCellOn('kick', 8)
   await root.verifyCellOn('snare', 4)
   await root.verifyCellOff('boop', 15)
-  await root.verifyTempo(100)
 })

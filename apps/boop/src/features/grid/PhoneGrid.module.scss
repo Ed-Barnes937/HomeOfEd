@@ -25,6 +25,12 @@ $row-inset: 6px;
 $floor-rows: 3;
 $grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
   ($floor-rows - 1) * 6px;
+// The clip control the well gained when the grid moved into the card
+// (screenspace ticket 03): 64px plus its 10px top margin, from
+// `ClipControl.module.scss`'s phone block. It is `flex: none` under the loop
+// map and carries clip play, so it comes off the well's budget rather than
+// out of the rows. Change the two together.
+$clip-control: 74px;
 
 .well {
   margin-top: 12px;
@@ -53,13 +59,13 @@ $grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
   // `elementFromPoint` over the song play button returned the instrument
   // rail's artwork: the grid painting over the song bar.
   //
-  // 10 + 10 padding, the row floor above, and the loop map's own
-  // 34px — the map is `flex: none` under the scroll box and must stay whole,
-  // since it is what carries the playhead when the strip is scrolled away
-  // (ADR 0027). Change it with `LoopMap.module.scss`.
+  // 10 + 10 padding, the row floor above, the loop map's own 34px — the map is
+  // `flex: none` under the scroll box and must stay whole, since it is what
+  // carries the playhead when the strip is scrolled away (ADR 0027); change it
+  // with `LoopMap.module.scss` — and the clip control below it.
   display: flex;
   flex-direction: column;
-  min-height: 10px + 10px + $grid-floor + 34px;
+  min-height: 10px + 10px + $grid-floor + 34px + $clip-control;
 
   // Below 500px tall the page scrolls instead of the frame (ADR 0030, as
   // amended by ticket 23), so nothing bounds this well any more — it would
@@ -67,7 +73,7 @@ $grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
   // the document. Pinned to the floor instead: three rows, and `.wellScroll`
   // carries the rest exactly as it does above the threshold.
   @media (max-height: 504px) {
-    max-height: 10px + 10px + $grid-floor + 34px;
+    max-height: 10px + 10px + $grid-floor + 34px + $clip-control;
   }
 }
 
@@ -78,6 +84,10 @@ $grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
   flex: 0 1 auto;
   min-height: 0;
   overflow: hidden auto;
+}
+
+.wellFooter {
+  flex: none;
 }
 
 .loopMapFooter {

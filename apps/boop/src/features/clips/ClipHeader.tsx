@@ -17,12 +17,6 @@ interface ClipHeaderProps {
   onCopy: () => void
   /** Removes the active clip and its placements. */
   onDelete: () => void
-  /**
-   * `Position 4 · bar 2 of 4` (boop-playhead handoff, "Readout"), or absent —
-   * on a song with nothing placed there is nothing to read out, and on the
-   * phone the caption sits on the WHOLE SONG strip instead.
-   */
-  readout: string | null
 }
 
 /**
@@ -31,6 +25,11 @@ interface ClipHeaderProps {
  * name and the pencil open the inline rename — the pencil exists so the
  * affordance is visible rather than discovered. Enter or blur commits;
  * Escape-free by design, and no naming is ever forced.
+ *
+ * It is the first thing in the clip editor card since screenspace ticket 03,
+ * and is that dialog's title in all but name. The song playhead's readout used
+ * to ride here at ≥1024; it is in the song bar's header now, because the song
+ * bar is what stays on screen.
  */
 export function ClipHeader({
   clip,
@@ -39,7 +38,6 @@ export function ClipHeader({
   onRename,
   onCopy,
   onDelete,
-  readout,
 }: ClipHeaderProps) {
   const [editing, setEditing] = useState<string | null>(null)
 
@@ -93,11 +91,6 @@ export function ClipHeader({
         />
       )}
       <div className={styles.spacer} />
-      {readout !== null && (
-        <span className={styles.readout} data-testid="playhead-readout">
-          {readout}
-        </span>
-      )}
       <button
         type="button"
         className={styles.copy}

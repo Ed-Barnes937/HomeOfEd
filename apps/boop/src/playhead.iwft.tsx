@@ -1,8 +1,12 @@
 import { test } from './testing/iwftTest.tsx'
 
+// The playhead is drawn on the grid, and the grid is behind a tap since
+// screenspace ticket 03 — so every test here opens the clip editor first.
+
 test('the playhead advances during playback, driven by the draw-time channel', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.openClipEditor()
   // Nothing has sounded yet, so there is nothing to point at — the one case that
   // still has no playhead at all (boop-playhead ticket 04).
   await root.verifyPlayheadHidden()
@@ -32,6 +36,7 @@ test('the playhead advances during playback, driven by the draw-time channel', a
 test('a struck cell squashes and its row label bobs — never a strobe or flash', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.openClipEditor()
   // A fresh browser is seeded with a sample clip (tickets 36/17) whose kick
   // already sits on step 0; start from Blank so this test owns the one hit it fires.
   await root.startBlank()
@@ -50,6 +55,7 @@ test('a struck cell squashes and its row label bobs — never a strobe or flash'
 test('the playhead stays in sync after a tempo change mid-playback', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.openClipEditor()
 
   await root.pressPlay()
   await root.verifyPlaying()
@@ -75,6 +81,7 @@ test('play always starts at step 1 of bar 1, wherever in the loop it was stopped
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.openClipEditor()
 
   await root.pressPlay()
   await root.verifyPlaying()
@@ -100,6 +107,7 @@ test('the spacebar starts from the top too — one rule, however you press play'
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.openClipEditor()
 
   await root.pressSpaceKey()
   await root.verifyPlaying()
@@ -121,6 +129,7 @@ test('the playhead stays where it stopped, and resuming does not reset the patte
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.openClipEditor()
 
   await root.toggleCell('snare', 3)
   await root.pressPlay()

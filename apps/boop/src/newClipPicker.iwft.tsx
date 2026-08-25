@@ -40,6 +40,8 @@ test('picking a sample clip lands it named, on the grid, unplaced — and silent
 
   await root.verifyClipCount(2)
   await root.verifyClipChipActive(1)
+  // The picked clip is what the editor now opens on.
+  await root.openClipEditor()
   await root.verifyActiveClipName('Boom clap')
   // The sample's pattern is on the grid…
   await root.verifyCellOn('kick', 0)
@@ -66,6 +68,7 @@ test('picking Blank lands the automatic "Clip N", silent', async ({ mountApp }) 
   await root.pickClip('blank')
 
   await root.verifyClipCount(2)
+  await root.openClipEditor()
   await root.verifyActiveClipName('Clip 2')
   await root.verifyPaused()
 })
@@ -95,6 +98,7 @@ test("a sample clip's name is renameable like any other clip's", async ({ mountA
 
   await root.openNewClipPicker()
   await root.pickClip('twinkle-tune')
+  await root.openClipEditor()
   await root.verifyActiveClipName('Twinkle tune')
 
   await root.renameActiveClip('Sparkles')

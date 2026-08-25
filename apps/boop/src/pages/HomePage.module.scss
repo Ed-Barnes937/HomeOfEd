@@ -97,18 +97,27 @@
   @include frame-padding;
 }
 
-// Pinned by being a `flex: none` sibling of the scroller, not by
-// `position: fixed` — so no z-index games, and the bar can never overlap the
-// grid it is meant to sit below. The bottom padding is the frame's own gutter,
-// plus the iOS safe area on phone: the bar is inset to the column rather than
-// full-bleed (ticket 37), so its container is what has to clear the home
-// indicator.
-.transportDock {
+// The dock. Pinned by being a `flex: none` sibling of the scroller, not by
+// `position: fixed` — so no z-index games, and the bar can never overlap what
+// it sits below. The bottom padding is the frame's own gutter, plus the iOS
+// safe area on phone: the bar is inset to the column rather than full-bleed
+// (ticket 37), so its container is what has to clear the home indicator.
+//
+// It held the transport, then the song bar, and holds the clip launcher since
+// screenspace ticket 03 — one fixed-height row at every width.
+.dock {
   flex: none;
   padding-bottom: 32px;
   @include frame-padding;
 
-  // Capped at >=1024 (ticket 23). The song bar grows with the song, and a
+  // Capped at >=1024 (ticket 23). **The cap can no longer bind**: the launcher
+  // is a fixed ~100px and the song bar that grew is in the scrolling region
+  // now (screenspace ticket 03). It is left in place deliberately —
+  // screenspace ticket 04 retires it along with the phone grid floor and the
+  // 505px exception, and retiring one of the three inside this ticket would
+  // have mixed the two changes. What it was for:
+  //
+  // The song bar grows with the song, and a
   // `flex: none` dock takes that growth straight out of the scrolling region:
   // at 1280x600 with five clips it took 476 of 600px — 79% of the screen —
   // leaving the region 66px, which is what starved the grid to 16px and drew
@@ -117,9 +126,8 @@
   // header and floored well need. The dock is a flex column so the bar inside
   // can shrink into it; the lane grid is what gives way, never the header.
   //
-  // The phone keeps `flex: none` and no cap: its transport is a fixed height
-  // that does not grow with the song, and ADR 0030's phone behaviour is
-  // settled.
+  // The phone keeps `flex: none` and no cap: the dock is a fixed height that
+  // does not grow with the song, and ADR 0030's phone behaviour is settled.
   // Deliberately still a block, not a flex column: `.column` centres itself
   // with `margin-inline: auto`, and an auto cross-axis margin on a flex item
   // beats `align-items: stretch`, so the bar would size to its content and
