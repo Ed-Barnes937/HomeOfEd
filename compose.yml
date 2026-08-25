@@ -164,6 +164,12 @@ services:
       BETTER_AUTH_URL: http://localhost:8084
       PIPELINE_URL: http://sprout-pipeline:8080
       PIPELINE_API_KEY: dev-pipeline-key
+      # The docker stack serves headerless local browser traffic (no
+      # Cloudflare, no CF-IPCountry) from the prod image, so it opts out of
+      # the UK geo boundary (ADR-0012 item 4). ONLY this file may set the
+      # variable — main.ts fails fast at boot if it reaches real
+      # infrastructure (FLY_APP_NAME present).
+      GEO_ENFORCEMENT: 'off'
     ports:
       - '8084:8080'
     depends_on:

@@ -14,6 +14,14 @@ child screens under `pages/`. Styling is SCSS modules (`*.module.scss` +
 Tailwind, no `cva`).
 
 **How the moving parts fit:**
+- **UK geo boundary** (`server/geo-boundary.ts`): the load-bearing `onRequest`
+  hook (ADR-0011/0012/0013 in [product-legal-adrs.md](docs/product-legal-adrs.md)) —
+  `CF-IPCountry === 'GB'` passes, everything else (incl. a missing header,
+  fail-closed) gets the generic `451` status notice; exact-match exempt paths
+  `/health`, `/terms`, `/privacy`. Registered first in `main.ts`'s
+  `registerRoutes`; `GEO_ENFORCEMENT=off` (docker stack only) disables it and a
+  boot guard throws if that variable reaches Fly (`FLY_APP_NAME` present). Not
+  in the simulator path.
 - **Chat SSE route** (`server/chat-sse.ts`): a plain `text/event-stream` Fastify
   route `POST /api/chat/stream`, mounted via the backend-kit `registerRoutes` hook
   ([ADR 0015](../../docs/adr/0015-createappserver-route-hook.md), D9). It

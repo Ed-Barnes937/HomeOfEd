@@ -15,6 +15,7 @@ import { fixedAuthProvider, resolveParentUser, type ChildUser } from './auth/pro
 import { mintChildToken } from './auth/childToken.ts'
 import { registerChatSseRoute } from './chat-sse.ts'
 import { toFetchHeaders, toFetchRequest } from './fastifyBridge.ts'
+import { assertGeoEnvSafe, geoEnforcementEnabled, registerGeoBoundary } from './geo-boundary.ts'
 import { registerLegalDocRoutes } from './legal-docs.ts'
 import { createHttpPipelineClient, createHttpSummariser } from './pipeline/pipelineClient.ts'
 import { scryptHasher } from './password.ts'
@@ -34,6 +35,12 @@ const childSessionSecret = process.env.CHILD_SESSION_SECRET
 if (!childSessionSecret) {
   throw new Error('CHILD_SESSION_SECRET is required')
 }
+
+// The UK geo boundary's escape hatch must never reach real infrastructure
+// (ADR-0012 item 4): Fly injects FLY_APP_NAME into every machine, so a set
+// GEO_ENFORCEMENT there crashes the deploy visibly rather than silently
+// opening the boundary. Only the docker-stack compose file sets it.
+assertGeoEnvSafe(process.env)
 
 // Pipeline over Fly's PRIVATE network (plan §3/§10): never a public URL. The
 // real pipeline app is P6; this client is exercised end-to-end at P6 + deploy.
@@ -89,6 +96,14 @@ const appRouter = createAppRouter({
 // App-owned Fastify routes (D9), mounted ahead of the SPA fallback: parent
 // session resolution + Better Auth handler + the chat SSE stream.
 const registerRoutes = (app: FastifyInstance): void => {
+  // UK geo boundary (ADR-0011/0012/0013): refuse every non-GB request with
+  // the 451 status notice before any app surface. A root-level onRequest hook
+  // added here applies to ALL routes, including /health and the tRPC plugin
+  // registered before this hook runs — exemption (/health, /terms, /privacy)
+  // is an exact-path check inside the hook. Registered FIRST so refusal
+  // happens before parent-session resolution below.
+  if (geoEnforcementEnabled(process.env)) registerGeoBoundary(app)
+
   // Parent session resolution (discharges the P2 /api/auth TODO): resolve the
   // Better Auth cookie session per tRPC HTTP request (async) and stamp the
   // trusted PARENT_HEADER the auth seam reads. Strip any inbound value first —

@@ -657,19 +657,25 @@ jobs:
         # build context (turbo prune).
         run: flyctl deploy --config apps/sprout/fly.toml --remote-only
 
+      # SMOKE CONSTRAINT (ADR-0011 item 4): smoke URLs must stay on
+      # hoe-sprout.fly.dev and touch only geo-exempt paths (/health, /terms,
+      # /privacy). The UK geo boundary refuses everything else with 451 —
+      # direct .fly.dev requests carry no CF-IPCountry header (fail-closed) —
+      # so the former SPA-index/asset checks cannot pass from a US runner and
+      # were removed by design. The final check asserts the refusal itself:
+      # the load-bearing boundary is live on the deployed app.
       - name: Post-deploy smoke
         if: steps.affected.outputs.deploy == 'true'
         run: |
           set -euo pipefail
           echo "deep /health (real Store → Postgres round-trip)"
           curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
-          echo "SPA index"
-          index=$(curl -fsS "$APP_URL/")
-          echo "$index" | grep -q '<div id="root">'
-          echo "one hashed static asset"
-          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
-          test -n "$asset"
-          curl -fsS "$APP_URL/$asset" > /dev/null
+          echo "geo-exempt legal documents"
+          curl -fsS "$APP_URL/terms" > /dev/null
+          curl -fsS "$APP_URL/privacy" > /dev/null
+          echo "geo boundary refuses headerless non-exempt traffic (451)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/")
+          test "$code" = "451"
           echo "smoke OK"
 
   # sprout-pipeline — headless, PRIVATE safety service (plan 0004 §5.5 / §9.3).
