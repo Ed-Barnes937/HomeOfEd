@@ -6,6 +6,7 @@ import {
   DIRT,
   FIRE,
   LAVA,
+  MUD,
   OIL,
   SAND,
   STONE,
@@ -81,6 +82,13 @@ describe('rail and grid colours share one registry', () => {
         colours: ['#0d0e0f'],
         tags: ['solid'],
         archetype: { kind: 'static' },
+      },
+      {
+        id: MUD,
+        name: 'mud',
+        colours: ['#101112'],
+        tags: ['liquid'],
+        archetype: { kind: 'liquid', density: 50, dispersion: 1, move: 0.1 },
       },
     ]
     const registry = createRegistry(nonDefaultRoster)

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DIRT,
   EMPTY,
+  OBSIDIAN,
   FIRE,
   LAVA,
   OIL,
@@ -43,12 +44,14 @@ function run(sim: Sim, ticks: number): void {
   for (let i = 0; i < ticks; i++) sim.tick()
 }
 
-/** As in `lifecycle.test.ts`: two cells wedged into a dirt pocket with nowhere
- * to move, so a reaction is the only thing that can change them. */
+/** As in `lifecycle.test.ts`: two cells wedged into a pocket with nowhere to
+ * move, so a reaction is the only thing that can change them. Obsidian rather
+ * than dirt: water turns dirt into mud (materials spec §4 row 10), so a dirt
+ * pocket would react with the water this pocket is holding. */
 function pocket(sim: Sim, x: number, left: number, right: number): void {
-  for (let i = -2; i <= 3; i++) sim.paint(x + i, FLOOR, DIRT)
-  sim.paint(x - 1, FLOOR - 1, DIRT)
-  sim.paint(x + 2, FLOOR - 1, DIRT)
+  for (let i = -2; i <= 3; i++) sim.paint(x + i, FLOOR, OBSIDIAN)
+  sim.paint(x - 1, FLOOR - 1, OBSIDIAN)
+  sim.paint(x + 2, FLOOR - 1, OBSIDIAN)
   sim.paint(x, FLOOR - 1, left)
   sim.paint(x + 1, FLOOR - 1, right)
 }
@@ -137,11 +140,12 @@ describe('the fire group', () => {
   // the displacement rule does this, no special case.
   it('floats oil on water', () => {
     const sim = new Sim({ seed: 1 })
-    // A dirt well, so neither liquid can simply spread out of the experiment.
-    for (let x = 0; x < GRID_WIDTH; x++) sim.paint(x, FLOOR, DIRT)
+    // An obsidian well, so neither liquid can simply spread out of the
+    // experiment — and so the water wets no dirt on its way.
+    for (let x = 0; x < GRID_WIDTH; x++) sim.paint(x, FLOOR, OBSIDIAN)
     for (let y = FLOOR - 14; y < FLOOR; y++) {
-      sim.paint(145, y, DIRT)
-      sim.paint(155, y, DIRT)
+      sim.paint(145, y, OBSIDIAN)
+      sim.paint(155, y, OBSIDIAN)
     }
     // Oil starts underneath the water and has to swap its way out.
     for (let x = 146; x < 155; x++) {

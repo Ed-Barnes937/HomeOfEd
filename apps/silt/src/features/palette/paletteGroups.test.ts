@@ -29,6 +29,7 @@ describe('paletteGroups', () => {
       'fire',
       'acid',
       'stone',
+      'mud',
     ])
     // Obsidian, smoke, steam and sulphur are what the world makes, not what
     // you paint — sulphur only exists where acid has eaten wood.
@@ -44,7 +45,7 @@ describe('paletteGroups', () => {
     ).toEqual([
       ['Solid', ['dirt', 'wood', 'stone']],
       ['Powder', ['sand']],
-      ['Liquid', ['water', 'lava', 'oil', 'acid']],
+      ['Liquid', ['water', 'lava', 'oil', 'acid', 'mud']],
       ['Energy', ['fire']],
     ])
   })

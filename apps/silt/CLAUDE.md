@@ -59,7 +59,7 @@ constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick 
               CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
-              wood, oil, fire, smoke, steam, acid, stone, sulphur) and
+              wood, oil, fire, smoke, steam, acid, stone, sulphur, mud) and
               v1Reactions — pure config, zero behavioural code. Gas densities
               read backwards: `canDisplace` is `mine > theirs`, so the gas
               closest to zero rises highest. Reaction row order is load-bearing:

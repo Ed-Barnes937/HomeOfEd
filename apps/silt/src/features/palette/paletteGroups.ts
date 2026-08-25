@@ -3,6 +3,7 @@ import {
   DIRT,
   FIRE,
   LAVA,
+  MUD,
   OIL,
   SAND,
   STONE,
@@ -23,7 +24,7 @@ import {
  * Order is rail order, and rail order is the `1`–`9` hotkey order — new
  * elements go on the end, so an existing element never changes its digit.
  */
-const PAINTABLE_IDS: readonly number[] = [DIRT, SAND, WATER, LAVA, WOOD, OIL, FIRE, ACID, STONE]
+const PAINTABLE_IDS: readonly number[] = [DIRT, SAND, WATER, LAVA, WOOD, OIL, FIRE, ACID, STONE, MUD]
 
 export interface PaletteEntry {
   id: number

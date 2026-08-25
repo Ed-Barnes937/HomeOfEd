@@ -17,6 +17,7 @@ export {
   EMPTY,
   FIRE,
   LAVA,
+  MUD,
   OBSIDIAN,
   OIL,
   SAND,
