@@ -30,10 +30,15 @@ export class HomePagePom extends BasePage {
   private readonly hintSheetOverlay = this.page.getByTestId('hint-sheet-overlay')
   private readonly hintSheetClose = this.page.getByTestId('hint-sheet-close')
 
+  /**
+   * The app has landed on its home surface. That is the *song bar* since
+   * screenspace ticket 03, at every width: the grid is behind a tap now, so
+   * asserting the step grid here would only ever assert that the card was
+   * open.
+   */
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('boop', { exact: true })).toBeVisible()
-    // Named: the laptop layout has a second application region (the song lanes).
-    await expect(this.page.getByRole('application', { name: /step grid/ })).toBeVisible()
+    await expect(this.songBar).toBeVisible()
   }
 
   cell(instrumentId: string, step: number) {
@@ -41,6 +46,7 @@ export class HomePagePom extends BasePage {
   }
 
   async toggleCell(instrumentId: string, step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.cell(instrumentId, step).click()
   }
 
@@ -51,6 +57,7 @@ export class HomePagePom extends BasePage {
    * add-or-remove, then every later step in `steps` gets that same decision.
    */
   async dragPaint(instrumentId: string, steps: number[]): Promise<void> {
+    await this.ensureClipEditorOpen()
     const [first, ...rest] = steps
     if (first === undefined) return
     // The rows scroll inside the well (ticket 23), so the row being painted may
@@ -71,11 +78,13 @@ export class HomePagePom extends BasePage {
 
   /** Toggle a cell the keyboard way — focus it, then Enter (spec: "Accessibility & input"). */
   async toggleCellWithKeyboard(instrumentId: string, step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.cell(instrumentId, step).focus()
     await this.page.keyboard.press('Enter')
   }
 
   async focusCell(instrumentId: string, step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.cell(instrumentId, step).focus()
   }
 
@@ -94,6 +103,7 @@ export class HomePagePom extends BasePage {
   }
 
   async focusClearGridButton(): Promise<void> {
+    await this.reachClearGrid()
     await this.clearGridButton.focus()
   }
 
@@ -108,7 +118,19 @@ export class HomePagePom extends BasePage {
   }
 
   async openClearGridConfirm(): Promise<void> {
+    await this.reachClearGrid()
     await this.clearGridButton.click()
+  }
+
+  /**
+   * Clear grid has two homes, and screenspace ticket 03 moved neither: the
+   * clip control inside the well at ≥1024, the phone's "⋯" menu below it. The
+   * well is inside the editor card now and the menu is behind it, so the two
+   * routes go opposite ways.
+   */
+  private async reachClearGrid(): Promise<void> {
+    if (await this.isPhoneLayout()) await this.openPhoneMenu()
+    else await this.ensureClipEditorOpen()
   }
 
   async verifyClearGridConfirmShown(): Promise<void> {
@@ -134,6 +156,7 @@ export class HomePagePom extends BasePage {
 
   /** Tap "+ New clip" and wait for the picker dialog. */
   async openNewClipPicker(): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.page.getByTestId('new-clip-button').click()
     await expect(this.pickerDialog).toBeVisible()
   }
@@ -166,19 +189,179 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('picker-cards').getByRole('button')).toHaveText(expected)
   }
 
-  /** No dialog of any kind is open — New boop is a plain reset, not a picker. */
+  /**
+   * New boop is a plain reset: it puts no picker and no panel on screen. The
+   * clip editor card is a dialog too since screenspace ticket 03, so this asks
+   * about the two dialogs New boop could plausibly have opened rather than
+   * about `role=dialog` in general.
+   */
   async verifyNoDialogOpen(): Promise<void> {
-    await expect(this.page.getByRole('dialog')).toHaveCount(0)
+    await expect(this.pickerDialog).toHaveCount(0)
+    await expect(this.boopsCard).toHaveCount(0)
+  }
+
+  // --- The song bar as the home surface, and the clip editor card
+  // (screenspace ticket 03) ---
+
+  /** The home surface: `SongBar` at ≥1024, `PhoneSongBar` below it. */
+  private readonly songBar = this.page
+    .getByTestId('song-bar')
+    .or(this.page.getByTestId('phone-song-bar'))
+  private readonly clipLauncher = this.page.getByTestId('clip-launcher')
+  private readonly clipLauncherPlay = this.page.getByTestId('clip-launcher-play')
+  private readonly clipLauncherOpen = this.page.getByTestId('clip-launcher-open')
+  private readonly clipEditorCard = this.page.getByTestId('clip-editor-card')
+  private readonly clipEditorOverlay = this.page.getByTestId('clip-editor-overlay')
+  private readonly clipEditorClose = this.page.getByTestId('clip-editor-close-button')
+
+  /**
+   * The grid is behind a tap since screenspace ticket 03, so a helper that
+   * acts *on the grid* opens the card first — the tap a child makes on the way
+   * in. Assertions never route: they read whatever is on screen, so a test that
+   * asserts about the grid has to have acted on it (or opened the card itself)
+   * first, and a test about the arrangement cannot be quietly given a card it
+   * did not open.
+   */
+  private async ensureClipEditorOpen(): Promise<void> {
+    if ((await this.clipEditorCard.count()) === 0) await this.openClipEditor()
   }
 
   /**
-   * Start from an empty grid, the way a child would. A fresh browser is seeded
-   * with a sample clip (tickets 36/17), so a suite that is about grid
-   * behaviour rather than onboarding has to say where it starts. New boop is
-   * a plain one-tap reset at every width (spec §7).
+   * The mirror image: the song bar and the chrome are *behind* the card, so a
+   * helper that acts on either closes it first. Same reasoning — the route is
+   * the page object's business, the behaviour is the test's.
+   */
+  private async ensureClipEditorClosed(): Promise<void> {
+    if ((await this.clipEditorCard.count()) > 0) await this.closeClipEditor()
+  }
+
+  /** Route one into the editor: the dock's labelled launcher. */
+  async openClipEditor(): Promise<void> {
+    await this.clipLauncherOpen.click()
+    await expect(this.clipEditorCard).toBeVisible()
+  }
+
+  /**
+   * Route two: a tap on a clip chip in the song bar. It selects that clip and
+   * opens the editor on it — a child who taps the thing they want to change
+   * expects to be changing it.
+   */
+  async openClipEditorFromChip(index: number): Promise<void> {
+    await this.clipChip(index).click()
+    await expect(this.clipEditorCard).toBeVisible()
+  }
+
+  async closeClipEditor(): Promise<void> {
+    await this.clipEditorClose.click()
+    await expect(this.clipEditorCard).toHaveCount(0)
+  }
+
+  /** A tap on the dimmed backdrop, the way "My boops" and the picker dismiss. */
+  async dismissClipEditorByOutsideTap(): Promise<void> {
+    await this.clipEditorOverlay.click({ position: { x: 5, y: 5 } })
+    await expect(this.clipEditorCard).toHaveCount(0)
+  }
+
+  async verifyClipEditorOpen(): Promise<void> {
+    await expect(this.clipEditorCard).toBeVisible()
+    await expect(this.page.getByRole('application', { name: /step grid/ })).toBeVisible()
+  }
+
+  async verifyClipEditorClosed(): Promise<void> {
+    await expect(this.clipEditorCard).toHaveCount(0)
+    await expect(this.page.getByRole('application', { name: /step grid/ })).toHaveCount(0)
+  }
+
+  /** The card names the clip it opened on — it has no title of its own. */
+  async verifyClipEditorLabelled(clipName: string): Promise<void> {
+    await expect(this.page.getByRole('dialog', { name: `Editing ${clipName}` })).toBeVisible()
+  }
+
+  /** The song bar is on the frame and the grid is not — the resting arrangement. */
+  async verifySongBarIsTheHomeSurface(): Promise<void> {
+    await expect(this.songBar).toBeVisible()
+    await expect(this.songBar).toBeInViewport()
+    await this.verifyClipEditorClosed()
+    const inside = await this.songBar.evaluate(
+      (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+      'stage-scroller',
+    )
+    expect(inside).toBe(true)
+  }
+
+  /** The launcher is in the dock, and the dock holds nothing else. */
+  async verifyLauncherIsTheWholeDock(): Promise<void> {
+    await expect(this.clipLauncher).toBeInViewport({ ratio: 1 })
+    await expect(this.page.getByTestId('transport-bar')).toHaveCount(0)
+    const siblings = await this.clipLauncher.evaluate(
+      (element) => element.parentElement?.childElementCount ?? -1,
+    )
+    expect(siblings).toBe(1)
+  }
+
+  /**
+   * Clear grid is the "⋯" menu's on the phone (design handoff), so the well
+   * footer carries play alone there — two Clear buttons would be one too many.
+   */
+  async verifyNoClearGridInTheWell(): Promise<void> {
+    await expect(this.page.getByTestId('clip-control').getByTestId('clear-grid-button')).toHaveCount(
+      0,
+    )
+  }
+
+  /** The launcher names the clip the card would open on. */
+  async verifyLauncherClip(name: string): Promise<void> {
+    await expect(this.page.getByTestId('clip-launcher-name')).toHaveText(name)
+  }
+
+  /**
+   * The card must not clip the fixed-geometry column it contains (ticket 29).
+   * Measured rather than eyeballed: the card's content box — its own box less
+   * its computed horizontal padding — against the rule the stylesheet states,
+   * `min(--column-width + 2 × padding, 100%)` inside the overlay's 32px
+   * gutters. A card an inch too narrow shrinks the well and the last steps go
+   * off the end of it, which is what happened in the prototype at 1440.
+   *
+   * On a viewport too narrow for the whole column the card is as wide as the
+   * screen allows and the well's own sideways scroll is what reaches steps
+   * 13–16 — the same arrangement as before the card existed. Callers at a
+   * width where the column fits whole add `verifyGridWellHasNoSidewaysScroll`.
+   */
+  async verifyCardHoldsTheColumn(): Promise<void> {
+    const measured = await this.clipEditorCard.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const columnWidth = parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--column-width'),
+      )
+      const overlay = element.parentElement!
+      const overlayStyle = getComputedStyle(overlay)
+      const gutters =
+        parseFloat(overlayStyle.paddingLeft) + parseFloat(overlayStyle.paddingRight)
+      const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+      return {
+        inner: element.getBoundingClientRect().width - padding,
+        expected: Math.min(columnWidth, overlay.clientWidth - gutters - padding),
+        overflow: element.scrollWidth - element.clientWidth,
+      }
+    })
+    expect(Math.round(measured.inner)).toBe(Math.round(measured.expected))
+    // Whatever the width, the card itself never spills sideways.
+    expect(measured.overflow).toBeLessThanOrEqual(0)
+  }
+
+  /**
+   * Start from an empty grid, the way a child would: the New boop reset, then
+   * open the clip editor on the blank clip it leaves. A fresh browser is
+   * seeded with a sample clip (tickets 36/17), so a suite that is about grid
+   * behaviour rather than onboarding has to say where it starts.
+   *
+   * It opens the card because the grid is behind a tap since screenspace
+   * ticket 03 and nearly every caller here is about the grid. A suite that
+   * wants the reset *without* the editor calls `pressNewBoop` instead.
    */
   async startBlank(): Promise<void> {
-    await this.newBoopButton.click()
+    await this.pressNewBoop()
+    await this.openClipEditor()
   }
 
   async verifyCellOn(instrumentId: string, step: number): Promise<void> {
@@ -189,19 +372,38 @@ export class HomePagePom extends BasePage {
     await expect(this.cell(instrumentId, step)).toHaveAttribute('data-active', 'false')
   }
 
+  /**
+   * Clip play by whichever of its two routes is on screen (screenspace ticket
+   * 03): the well's footer when the editor card is open, the dock's launcher
+   * when it is not. The card's backdrop covers the dock, so a test that opened
+   * the editor genuinely cannot reach the launcher — pressing the one that is
+   * there is what a child does. `pressWellClipPlay` names the in-card button
+   * when the distinction is the point.
+   */
   async pressPlay(): Promise<void> {
+    if ((await this.clipEditorCard.count()) > 0) await this.playButton.click()
+    else await this.clipLauncherPlay.click()
+  }
+
+  async pressWellClipPlay(): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.playButton.click()
   }
 
   async verifyPlaying(): Promise<void> {
-    await expect(this.playButton).toHaveAttribute('aria-pressed', 'true')
+    await expect(this.clipLauncherPlay).toHaveAttribute('aria-pressed', 'true')
   }
 
   async verifyPaused(): Promise<void> {
-    await expect(this.playButton).toHaveAttribute('aria-pressed', 'false')
+    await expect(this.clipLauncherPlay).toHaveAttribute('aria-pressed', 'false')
   }
 
-  /** Drag the tempo slider to a given position on its 0–100 percent track. */
+  /**
+   * Drag the tempo slider to a given position on its 0–100 percent track.
+   * Deliberately not routed past the clip editor card: this sets the input's
+   * value rather than aiming a finger at it, and suites whose subject is the
+   * grid change the tempo mid-test without meaning to leave the editor.
+   */
   async setTempoPercent(percent: number): Promise<void> {
     await this.tempoSlider.fill(String(percent))
   }
@@ -310,6 +512,7 @@ export class HomePagePom extends BasePage {
   }
 
   async pressShare(): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.shareButton.click()
   }
 
@@ -346,6 +549,7 @@ export class HomePagePom extends BasePage {
   }
 
   async openBoops(): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.boopsButton.click()
   }
 
@@ -538,6 +742,7 @@ export class HomePagePom extends BasePage {
   }
 
   async openHints(): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.helpButton.click()
   }
 
@@ -576,9 +781,16 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByRole('button', { name: 'My boops' })).toHaveCount(0)
   }
 
+  /**
+   * Open the "⋯" menu, or leave it open — the button is a toggle, and helpers
+   * that route through here (New boop, Clear grid) must not shut a menu the
+   * test opened deliberately.
+   */
   async openPhoneMenu(): Promise<void> {
-    await this.phoneMenuButton.click()
-    await expect(this.page.getByTestId('phone-menu')).toBeVisible()
+    await this.ensureClipEditorClosed()
+    const menu = this.page.getByTestId('phone-menu')
+    if ((await menu.count()) === 0) await this.phoneMenuButton.click()
+    await expect(menu).toBeVisible()
   }
 
   /** The "⋯" menu's entries, top to bottom — the order is part of the design. */
@@ -614,6 +826,7 @@ export class HomePagePom extends BasePage {
 
   /** A real sideways swipe over the step window — the browser owns the pan. */
   async swipeSteps(deltaX: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     // The window is taller than the well's scroll box shows (ticket 23), so its
     // centre can be off the visible band and the wheel would land elsewhere.
     // Aim at the middle of the part a child can actually see, and scroll
@@ -678,6 +891,7 @@ export class HomePagePom extends BasePage {
 
   /** The chrome strip's save icon — opens "My boops" with the save form ready (ticket 32). */
   async pressPhoneSave(): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.page.getByTestId('phone-save-button').click()
   }
 
@@ -730,15 +944,14 @@ export class HomePagePom extends BasePage {
   // --- The fixed frame (ticket 33) ---
 
   private readonly stageScroller = this.page.getByTestId('stage-scroller')
-  // The pinned bottom bar: the transport on the phone (<1024px), the song bar
-  // at and above it (tickets 15/20). Only ever one of the two is mounted.
-  private readonly transportBar = this.page
-    .getByTestId('transport-bar')
-    .or(this.page.getByTestId('song-bar'))
 
-  /** Whole bar on screen, not merely intersecting it. */
-  async verifyTransportFullyInViewport(): Promise<void> {
-    await expect(this.transportBar).toBeInViewport({ ratio: 1 })
+  /**
+   * Whole dock on screen, not merely intersecting it. The dock is the clip
+   * launcher at every width since screenspace ticket 03 — the transport is
+   * gone and the song bar moved into the scrolling region.
+   */
+  async verifyLauncherFullyInViewport(): Promise<void> {
+    await expect(this.clipLauncher).toBeInViewport({ ratio: 1 })
   }
 
   async verifyTopBarFullyInViewport(): Promise<void> {
@@ -749,34 +962,41 @@ export class HomePagePom extends BasePage {
    * The bar is inset to the centred column, not full-bleed — ticket 33's
    * decision 1, reversed by the layout prototype (ticket 37).
    */
-  async verifyTransportInsetToColumn(): Promise<void> {
-    const bar = await this.transportBar.boundingBox()
+  async verifyLauncherInsetToColumn(): Promise<void> {
+    const bar = await this.clipLauncher.boundingBox()
     const column = await this.page.getByTestId('stage-column').boundingBox()
-    if (!bar || !column) throw new Error('the transport bar or the stage column is not visible')
+    if (!bar || !column) throw new Error('the clip launcher or the stage column is not visible')
     expect(Math.round(bar.x)).toBe(Math.round(column.x))
     expect(Math.round(bar.width)).toBe(Math.round(column.width))
   }
 
-  /** Nothing inside the transport spills sideways — the phone tempo block shrinks. */
-  async verifyTransportHasNoOverflow(): Promise<void> {
-    const overflow = await this.transportBar.evaluate(
+  /** Nothing inside the launcher spills sideways — a long clip name ellipsises. */
+  async verifyLauncherHasNoOverflow(): Promise<void> {
+    const overflow = await this.clipLauncher.evaluate(
       (element) => element.scrollWidth - element.clientWidth,
     )
     expect(overflow).toBeLessThanOrEqual(0)
   }
 
   /**
-   * The transport is play and "+" only: Speed left it for the song bar's
-   * header (screenspace ticket 02), so neither half of the control may still
-   * be here — a leftover readout would be a second, stale one.
+   * The launcher carries *clip* play and nothing else that has a home
+   * elsewhere (screenspace ticket 03): Speed is the song bar header's, and so
+   * is song play — repeating either here is the duplication the ticket removed.
    */
-  async verifyTransportHasNoTempo(): Promise<void> {
-    await expect(this.transportBar.getByTestId('tempo-slider')).toHaveCount(0)
-    await expect(this.transportBar.getByTestId('tempo-readout')).toHaveCount(0)
+  async verifyLauncherCarriesClipPlayOnly(): Promise<void> {
+    await expect(this.clipLauncher.getByTestId('tempo-slider')).toHaveCount(0)
+    await expect(this.clipLauncher.getByTestId('tempo-readout')).toHaveCount(0)
+    await expect(this.clipLauncher.getByTestId('song-play-button')).toHaveCount(0)
+    await expect(this.clipLauncher.getByTestId('clip-launcher-play')).toHaveCount(1)
   }
 
-  /** New boop is a 44px tap target on the phone, like the rest of the chrome. */
+  /**
+   * New boop is a 44px tap target on the phone, like the rest of the chrome.
+   * It is an entry in the "⋯" menu since screenspace ticket 03, so the menu is
+   * where it gets measured.
+   */
   async verifyNewBoopButtonTapTarget(): Promise<void> {
+    if (await this.isPhoneLayout()) await this.openPhoneMenu()
     const box = await this.newBoopButton.boundingBox()
     if (!box) throw new Error('the New boop button is not visible')
     expect(box.width).toBeGreaterThanOrEqual(44)
@@ -784,26 +1004,36 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The loop map is inside the scrolling region, glued under the grid — it must
-   * never migrate into the pinned bar and become a second transport (ADR 0027).
+   * The loop map is glued under the grid, inside the grid well — it must never
+   * migrate into a pinned bar and become a second transport (ADR 0027). It
+   * used to be "inside the scrolling region"; the grid moved into the clip
+   * editor card (screenspace ticket 03) and the map went with it, so the well
+   * is what the rule is about now, and the dock is the bar it must stay out of.
    */
-  async verifyLoopMapInsideGridRegion(): Promise<void> {
-    const inside = await this.page
-      .getByTestId('loop-map')
-      .evaluate(
-        (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
-        'stage-scroller',
-      )
-    expect(inside).toBe(true)
+  async verifyLoopMapInsideGridWell(): Promise<void> {
+    const loopMap = this.page.getByTestId('loop-map')
+    const inWell = await loopMap.evaluate(
+      (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+      'clip-editor-card',
+    )
+    expect(inWell).toBe(true)
+    const inDock = await loopMap.evaluate(
+      (element, id) => element.closest(`[data-testid="${id}"]`) !== null,
+      'clip-launcher',
+    )
+    expect(inDock).toBe(false)
   }
 
   // --- The pinned play bars (ticket 23) ---
 
   private readonly gridWellScroll = this.page.getByTestId('grid-scroll')
 
-  /** Clip play: the well's footer at ≥1024, the pinned transport on the phone. */
+  /**
+   * Clip play: the dock's launcher, at every width and whether or not the
+   * editor card is open (screenspace ticket 03).
+   */
   async verifyClipPlayFullyInViewport(): Promise<void> {
-    await expect(this.playButton).toBeInViewport({ ratio: 1 })
+    await expect(this.clipLauncherPlay).toBeInViewport({ ratio: 1 })
   }
 
   async verifySongPlayFullyInViewport(): Promise<void> {
@@ -876,6 +1106,7 @@ export class HomePagePom extends BasePage {
   }
 
   async scrollGridWellToBottom(): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.gridWellScroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight
     })
@@ -1109,9 +1340,21 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('transport-bar')).toHaveCount(0)
   }
 
-  /** The plain, no-dialog New boop reset in the top bar. */
+  /**
+   * The plain, no-dialog New boop reset (spec §7). It is a top-bar button at
+   * ≥1024 and the first entry in the phone's "⋯" menu, where it moved when the
+   * transport went (screenspace ticket 03) — so the phone route opens the menu
+   * first, exactly as a child would.
+   */
   async pressNewBoop(): Promise<void> {
+    await this.ensureClipEditorClosed()
+    if (await this.isPhoneLayout()) await this.openPhoneMenu()
     await this.newBoopButton.click()
+  }
+
+  /** Which chrome is mounted — `useIsPhone`'s answer, read off the DOM. */
+  private async isPhoneLayout(): Promise<boolean> {
+    return (await this.page.getByTestId('phone-bar').count()) > 0
   }
 
   clipChip(index: number) {
@@ -1119,6 +1362,7 @@ export class HomePagePom extends BasePage {
   }
 
   async selectClip(index: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.clipChip(index).click()
   }
 
@@ -1145,12 +1389,14 @@ export class HomePagePom extends BasePage {
 
   /** Drag a chip vertically onto another chip's lane (ticket 18). */
   async dragChip(from: number, to: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.beginChipDrag(from, to)
     await this.releaseChip()
   }
 
   /** The drag's first half — pointer down and over the target, held for mid-drag asserts. */
   async beginChipDrag(from: number, to: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     const source = await this.clipChip(from).boundingBox()
     const target = await this.clipChip(to).boundingBox()
     if (!source || !target) throw new Error('a clip chip is not visible')
@@ -1178,6 +1424,7 @@ export class HomePagePom extends BasePage {
 
   /** A press that wanders under the ~8px drag threshold — still a tap-to-select. */
   async pressChipBelowThreshold(index: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     const box = await this.clipChip(index).boundingBox()
     if (!box) throw new Error('the clip chip is not visible')
     const x = box.x + box.width / 2
@@ -1190,6 +1437,7 @@ export class HomePagePom extends BasePage {
 
   /** Ctrl/Cmd+ArrowUp/Down on a focused chip moves its lane (spec §8/§14). */
   async reorderChipByKeyboard(index: number, direction: 'up' | 'down'): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.clipChip(index).press(direction === 'up' ? 'Control+ArrowUp' : 'Control+ArrowDown')
   }
 
@@ -1200,6 +1448,7 @@ export class HomePagePom extends BasePage {
 
   /** Rename via the pencil: type, Enter commits. */
   async renameActiveClip(name: string): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.page.getByTestId('clip-rename-button').click()
     const input = this.page.getByTestId('clip-rename-input')
     await input.fill(name)
@@ -1207,10 +1456,12 @@ export class HomePagePom extends BasePage {
   }
 
   async copyClip(): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.page.getByTestId('clip-copy-button').click()
   }
 
   async deleteClip(): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.page.getByTestId('clip-delete-button').click()
   }
 
@@ -1238,6 +1489,7 @@ export class HomePagePom extends BasePage {
   }
 
   async toggleLaneSquare(clipIndex: number, position: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.laneSquare(clipIndex, position).click()
   }
 
@@ -1454,6 +1706,7 @@ export class HomePagePom extends BasePage {
 
   /** A real sideways swipe over the lane window — the browser owns the pan. */
   async swipeLanes(deltaX: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     const box = await this.laneWindow().boundingBox()
     if (!box) throw new Error('the phone lane window is not visible')
     await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
@@ -1469,6 +1722,7 @@ export class HomePagePom extends BasePage {
 
   /** Drag-paint across a run of lane squares on one lane — `dragPaint`'s twin. */
   async dragPaintLanes(clipIndex: number, positions: number[]): Promise<void> {
+    await this.ensureClipEditorClosed()
     const [first, ...rest] = positions
     if (first === undefined) return
     const startBox = await this.laneSquare(clipIndex, first).boundingBox()
@@ -1493,6 +1747,7 @@ export class HomePagePom extends BasePage {
   private readonly songPlayButton = this.page.getByTestId('song-play-button')
 
   async pressSongPlay(): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.songPlayButton.click()
   }
 
@@ -1540,6 +1795,7 @@ export class HomePagePom extends BasePage {
 
   /** Tap the song strip on one bar of one position — the whole gesture in one press. */
   async tapSongStrip(position: number, bar = 0): Promise<void> {
+    await this.ensureClipEditorClosed()
     const { x, y } = await this.barCentre(position, bar)
     await this.page.mouse.click(x, y)
   }
@@ -1559,6 +1815,7 @@ export class HomePagePom extends BasePage {
     from: { position: number; bar?: number },
     to: { position: number; bar?: number },
   ): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.dragBetween(
       await this.barCentre(from.position, from.bar ?? 0),
       await this.barCentre(to.position, to.bar ?? 0),
@@ -1593,6 +1850,7 @@ export class HomePagePom extends BasePage {
 
   /** Tap a ruler numeral — a jump to the start of that position. */
   async tapPositionNumeral(position: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.page.getByTestId(`song-position-numeral-${position}`).click()
   }
 
@@ -1610,10 +1868,12 @@ export class HomePagePom extends BasePage {
 
   /** Tap the clip rail on one of its 16 step ticks. */
   async tapClipRail(step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.page.getByTestId(`clip-rail-tick-${step}`).click()
   }
 
   async dragClipRail(from: number, to: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.dragBetween(await this.tickCentre(from), await this.tickCentre(to))
   }
 
@@ -1650,10 +1910,12 @@ export class HomePagePom extends BasePage {
 
   /** Arrow keys and Home on either strip (spec §4). */
   async pressOnSongStrip(key: string): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.songStrip.press(key)
   }
 
   async pressOnClipRail(key: string): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.clipRail.press(key)
   }
 
@@ -1730,6 +1992,7 @@ export class HomePagePom extends BasePage {
    * that misses the 5px tick must still scrub.
    */
   async tapLoopMap(step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     const { x } = await this.loopTickCentre(step)
     const band = await this.loopMap.boundingBox()
     if (!band) throw new Error('the loop map is not visible')
@@ -1737,6 +2000,7 @@ export class HomePagePom extends BasePage {
   }
 
   async dragLoopMap(from: number, to: number): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.dragBetween(await this.loopTickCentre(from), await this.loopTickCentre(to))
   }
 
@@ -1766,6 +2030,7 @@ export class HomePagePom extends BasePage {
   }
 
   async pressOnLoopMap(key: string): Promise<void> {
+    await this.ensureClipEditorOpen()
     await this.loopMap.press(key)
   }
 
@@ -1784,11 +2049,13 @@ export class HomePagePom extends BasePage {
 
   /** Tap the WHOLE SONG band on one global bar of a `barCount`-bar song. */
   async tapSongBand(globalBar: number, barCount: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     const { x, y } = await this.songBandBarCentre(globalBar, barCount)
     await this.page.mouse.click(x, y)
   }
 
   async dragSongBand(from: number, to: number, barCount: number): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.dragBetween(
       await this.songBandBarCentre(from, barCount),
       await this.songBandBarCentre(to, barCount),
@@ -1840,6 +2107,7 @@ export class HomePagePom extends BasePage {
   }
 
   async pressOnSongBand(key: string): Promise<void> {
+    await this.ensureClipEditorClosed()
     await this.songBand.press(key)
   }
 
@@ -1853,23 +2121,22 @@ export class HomePagePom extends BasePage {
    * (ADR 0027). Measured against the step window's own scroll, so it is the
    * bands' *immobility* that is asserted rather than a pixel.
    */
-  async verifyBandsDoNotScroll(swipeBy: number): Promise<void> {
-    const before = {
-      loop: await this.loopMap.boundingBox(),
-      song: await this.songBand.boundingBox(),
-    }
-    await this.swipeSteps(swipeBy)
-    await this.swipeLanes(swipeBy)
-    const after = {
-      loop: await this.loopMap.boundingBox(),
-      song: await this.songBand.boundingBox(),
-    }
-    if (!before.loop || !before.song || !after.loop || !after.song)
-      throw new Error('a scrub band is not visible')
-    expect(Math.abs(after.loop.x - before.loop.x)).toBeLessThanOrEqual(1)
-    expect(Math.abs(after.loop.width - before.loop.width)).toBeLessThanOrEqual(1)
-    expect(Math.abs(after.song.x - before.song.x)).toBeLessThanOrEqual(1)
-    expect(Math.abs(after.song.width - before.song.width)).toBeLessThanOrEqual(1)
+  /**
+   * The band stays exactly where it was while the surface under it swipes —
+   * the grid's step window for the loop map, the lane strip for the WHOLE SONG
+   * band. One band at a time, for the same reason as the two helpers above.
+   */
+  async verifyBandDoesNotScroll(band: 'loop' | 'song', swipeBy: number): Promise<void> {
+    const locator = band === 'loop' ? this.loopMap : this.songBand
+    if (band === 'loop') await this.ensureClipEditorOpen()
+    else await this.ensureClipEditorClosed()
+    const before = await locator.boundingBox()
+    if (band === 'loop') await this.swipeSteps(swipeBy)
+    else await this.swipeLanes(swipeBy)
+    const after = await locator.boundingBox()
+    if (!before || !after) throw new Error('a scrub band is not visible')
+    expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(1)
   }
 
   /**
@@ -1879,6 +2146,8 @@ export class HomePagePom extends BasePage {
    * scrolling region and arrives as `pointermove`s before `pointercancel`.
    */
   async dragDownBand(band: 'loop' | 'song'): Promise<void> {
+    if (band === 'loop') await this.ensureClipEditorOpen()
+    else await this.ensureClipEditorClosed()
     const box = await (band === 'loop' ? this.loopMap : this.songBand).boundingBox()
     if (!box) throw new Error('a scrub band is not visible')
     const x = box.x + box.width * 0.8
@@ -1891,20 +2160,28 @@ export class HomePagePom extends BasePage {
    * take vertical panning away from it: `pan-y` rather than the handoff's
    * `none`, which would trap a finger that lands on the band.
    */
-  async verifyBandsAllowVerticalScroll(): Promise<void> {
-    for (const band of [this.loopMap, this.songBand]) {
-      const touchAction = await band.evaluate((element) => getComputedStyle(element).touchAction)
-      expect(touchAction).toBe('pan-y')
-    }
+  /**
+   * One band at a time since screenspace ticket 03: the loop map is inside the
+   * clip editor card and the WHOLE SONG band is on the song bar behind it, so
+   * they are never on screen together and a helper that read both would have
+   * to open and close the card between its two halves.
+   */
+  async verifyBandAllowsVerticalScroll(band: 'loop' | 'song'): Promise<void> {
+    if (band === 'loop') await this.ensureClipEditorOpen()
+    else await this.ensureClipEditorClosed()
+    const touchAction = await (band === 'loop' ? this.loopMap : this.songBand).evaluate(
+      (element) => getComputedStyle(element).touchAction,
+    )
+    expect(touchAction).toBe('pan-y')
   }
 
   /** Both caps clear a 44px touch target through their band's own hit area. */
-  async verifyBandTapTargets(): Promise<void> {
-    for (const band of [this.loopMap, this.songBand]) {
-      const box = await band.boundingBox()
-      if (!box) throw new Error('a scrub band is not visible')
-      expect(box.height).toBeGreaterThanOrEqual(44)
-    }
+  async verifyBandTapTarget(band: 'loop' | 'song'): Promise<void> {
+    if (band === 'loop') await this.ensureClipEditorOpen()
+    else await this.ensureClipEditorClosed()
+    const box = await (band === 'loop' ? this.loopMap : this.songBand).boundingBox()
+    if (!box) throw new Error('a scrub band is not visible')
+    expect(box.height).toBeGreaterThanOrEqual(44)
   }
 
   /**
