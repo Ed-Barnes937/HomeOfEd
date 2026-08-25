@@ -1166,31 +1166,126 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The grid has a floor and never falls through it (ticket 23). Priority with
-   * no floor is what took the phone grid to 40px and then to 0 — a state the
-   * scroll-box helpers cannot see, because a zero-height well satisfies
-   * "scrollHeight > clientHeight" maximally.
+   * The phone grid's three-row floor is retired (screenspace ticket 04), and
+   * this is what replaced it. The floor guaranteed rows by refusing to shrink,
+   * and once screenspace ticket 03 put clip play *inside* the well that
+   * refusal was paid for with the button: measured with the floor on, clip
+   * play landed wholly below the fold at 390x380 and at 667x375, and 13px
+   * below it at 390x420.
    *
-   * Height alone is not enough, though. A well of exactly the right height can
-   * still sit entirely above the viewport once the region scrolls — the same
-   * class of miss this helper exists to catch — so the rows have to be on
-   * screen and uncovered, which is what a child actually needs.
-   *
-   * `rows` is whole phone rows, and the arithmetic mirrors
-   * `PhoneGrid.module.scss`'s `$grid-floor`: `$bar-row-height` (14) +
-   * `$bar-row-gap` (6) + `$row-inset` (6), then 44px rows with 6px between.
-   * Change them together.
+   * So the promise is no longer "at least three rows, whatever it costs" but
+   * "the well fits the card, and the button under the rows is reachable" —
+   * which is the promise `Grid.module.scss`'s floorless well has always kept.
+   * Callers still say how much grid they expect at the viewport they are
+   * testing (`verifyGridShowsAtLeast`); what this adds is the cost the floor
+   * used to hide.
    */
-  async verifyGridFloor(rows: number): Promise<void> {
-    await this.verifyGridShowsAtLeast(14 + 6 + 6 + rows * 44 + (rows - 1) * 6)
+  async verifyClipPlayInWellIsReachable(): Promise<void> {
+    await expect(this.page.getByTestId('play-button')).toBeInViewport({ ratio: 1 })
+    await this.verifyNotOccluded('play-button')
   }
 
   /**
-   * The same assertion in pixels, for the laptop and tablet renderers, whose
-   * rows are 66px and 50px rather than the phone's 44px. Those renderers have
-   * no floor of their own — the dock cap is what keeps their well large, see
-   * `Grid.module.scss` — so callers state the height they expect at the
-   * viewport they are testing rather than reading a constant.
+   * Screenspace ticket 04's own verify list, and the reason it is a helper
+   * rather than a list in one suite: the three retired compromises all existed
+   * to keep controls reachable, so "reachable" is what has to be pinned in
+   * their place — every control the width offers, whole in the viewport and
+   * not painted over, with the page still.
+   *
+   * The card is opened and closed inside it, because the two surfaces are
+   * never on screen together: the launcher and the song bar are behind the
+   * card's backdrop while it is up, and clip play in the well is behind
+   * nothing only while it is.
+   */
+  async verifyEveryControlIsReachable(): Promise<void> {
+    await this.ensureClipEditorClosed()
+    await this.verifyStageIsAFixedFrame()
+
+    // On the frame: song play, Speed, and the launcher's two.
+    for (const id of [
+      'song-play-button',
+      'tempo-slider',
+      'clip-launcher-play',
+      'clip-launcher-open',
+    ])
+      await this.verifyControlIsReachable(id)
+    // The phone's actions are all in the "⋯" menu, so the button is the one
+    // that has to be on the frame. "+ New clip" is deliberately *not* here:
+    // it is the last cell of the lane grid, inside that grid's own scroll box
+    // (ADR 0030's nested-scroller exception), so at five clips it is below the
+    // fold of a box the child scrolls — and disabled there anyway.
+    if (await this.isPhoneLayout()) await this.verifyControlIsReachable('phone-menu-button')
+    else await this.verifyControlIsReachable('new-boop-button')
+
+    // In the card: the clip header's actions and clip play under the rows.
+    await this.openClipEditor()
+    await this.verifyStageIsAFixedFrame()
+    for (const id of ['clip-editor-close-button', 'clip-rename-button', 'play-button'])
+      await this.verifyControlIsReachable(id)
+    await this.ensureClipEditorClosed()
+  }
+
+  private async verifyControlIsReachable(testId: string): Promise<void> {
+    await expect(this.page.getByTestId(testId)).toBeInViewport({ ratio: 1 })
+    await this.verifyNotOccluded(testId)
+  }
+
+  /**
+   * The frame is fixed at *every* height (screenspace ticket 04). Below 505px
+   * `.stage` used to become `height: auto; min-height: 100dvh` and the
+   * document scrolled, because no arrangement kept both play buttons clear
+   * while the grid and the song bar shared the screen. Only the song bar is on
+   * the frame now, so the exception has nothing left to buy and the stage is
+   * the viewport again at 460 exactly as it is at 900.
+   *
+   * `verifyPageDoesNotScroll` alone cannot see this: the exception's own
+   * max-heights kept the document short enough not to scroll, so the page sat
+   * still on both sides of the threshold. What tells them apart is whether the
+   * stage is *bounded* by the window or merely at least as tall as it.
+   */
+  async verifyStageIsAFixedFrame(): Promise<void> {
+    const stage = await this.page.getByTestId('stage').evaluate((element) => ({
+      height: Math.round(element.getBoundingClientRect().height),
+      viewport: window.innerHeight,
+      overflow: element.scrollHeight - element.clientHeight,
+    }))
+    expect(stage.height).toBe(stage.viewport)
+    expect(stage.overflow).toBeLessThanOrEqual(0)
+    await this.verifyPageDoesNotMove()
+  }
+
+  /**
+   * The retired 505px threshold, asserted as absent (screenspace ticket 04).
+   * 504 and 505 were the deciding pair: 126px of page overflow on one side of
+   * it and zero on the other, because `.stage` stopped being a fixed frame.
+   * Nothing keys off that height any more, so resizing across it must move the
+   * grid by the pixel of window it lost and no more.
+   *
+   * A boundary that has gone cannot be pinned by testing either side of it in
+   * isolation — both sides pass whatever the layout does. Crossing it in one
+   * page is what makes a step visible.
+   */
+  async verifyResizingDoesNotStepTheGrid(width: number, height: number): Promise<void> {
+    const before = await this.gridWellScroll.evaluate((element) => element.clientHeight)
+    const lost = (this.page.viewportSize()?.height ?? 0) - height
+    await this.page.setViewportSize({ width, height })
+    const after = await this.gridWellScroll.evaluate((element) => element.clientHeight)
+    // No more than the window gave up, and never in the other direction. The
+    // exception's step was 31px of grid across that one pixel, in the wrong
+    // direction: the page-scrolling side capped the well and showed *less*.
+    expect(before - after).toBeGreaterThanOrEqual(0)
+    expect(before - after).toBeLessThanOrEqual(lost)
+  }
+
+  /**
+   * How much grid is on screen and uncovered, in pixels. Neither renderer has
+   * a floor since screenspace ticket 04, so callers state the height they
+   * expect at the viewport they are testing rather than reading a constant —
+   * the well degrades with the window instead of stepping at a threshold.
+   *
+   * Height alone is not enough. A well of exactly the right height can still
+   * sit entirely above the viewport once the region scrolls, so the rows have
+   * to be on screen and uncovered, which is what a child actually needs.
    */
   async verifyGridShowsAtLeast(px: number): Promise<void> {
     const visible = await this.gridWellScroll.evaluate((element) => element.clientHeight)
@@ -1251,13 +1346,13 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The fixed frame's own half of that rule: at and above the threshold the
-   * page does not scroll, whatever the region inside it is doing. Weaker than
-   * `verifyNothingIsScrolled`, deliberately — a floored grid makes the region
-   * scroll on a short phone, and that is allowed; the page scrolling is not.
+   * The page never scrolls, whatever the region inside it is doing. Weaker
+   * than `verifyNothingIsScrolled`, deliberately — a short phone with five
+   * clips legitimately scrolls the *region* by about 12px, and that is
+   * allowed; the page moving is not. `verifyStageIsAFixedFrame` is the
+   * stronger form, and says the frame is bounded by the window as well.
    *
-   * Delegates rather than reading `scrollHeight` with a `+1` tolerance: this
-   * guards the phone threshold at 505, where the margin is thinnest, and a
+   * Delegates rather than reading `scrollHeight` with a `+1` tolerance: a
    * tolerance that can hide a real 1px scroll is precisely what let the laptop
    * band go unnoticed.
    */
@@ -1265,7 +1360,7 @@ export class HomePagePom extends BasePage {
     await this.verifyPageDoesNotMove()
   }
 
-  /** Scroll the frame's own region — which the grid's floor can now make necessary. */
+  /** Scroll the frame's own region — which a five-clip song bar can make necessary. */
   async scrollGridRegionToBottom(): Promise<void> {
     await this.stageScroller.evaluate((element) => {
       element.scrollTop = element.scrollHeight
