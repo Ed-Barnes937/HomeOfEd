@@ -1384,7 +1384,6 @@ export class HomePagePom extends BasePage {
     return this.page.getByTestId('phone-lane-window')
   }
 
-  /** The song bar lives inside the scrolling region — nothing new is pinned (ADR 0030). */
   /**
    * Speed is in the phone song bar's header (screenspace ticket 02) — the
    * position the laptop `SongBar` already uses. Asserted by place, not by
@@ -1431,6 +1430,7 @@ export class HomePagePom extends BasePage {
     expect(overflow).toBeLessThanOrEqual(0)
   }
 
+  /** The song bar lives inside the scrolling region — nothing new is pinned (ADR 0030). */
   async verifySongBarInsideGridRegion(): Promise<void> {
     const inside = await this.phoneSongBar.evaluate(
       (element, id) => element.closest(`[data-testid="${id}"]`) !== null,

@@ -11,7 +11,7 @@ import {
   type SongPlayheadView,
 } from '../playhead/songPlayhead.ts'
 import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
-import { bpmToPercent, percentToBpm } from '../transport/tempoScale.ts'
+import { bpmToPercent, percentToBpm } from './tempoScale.ts'
 import styles from './PhoneSongBar.module.scss'
 
 const GROUP_SIZE = 4
@@ -164,7 +164,7 @@ export function PhoneSongBar({
           <span className={styles.speedReadout} data-testid="tempo-readout">
             {bpm} BPM
           </span>
-          <span className={styles.endpoint}>Slow</span>
+          <span className={`${styles.endpoint} ${styles.endpointSlow}`}>Slow</span>
           <input
             type="range"
             className={styles.slider}
@@ -178,7 +178,7 @@ export function PhoneSongBar({
             aria-valuetext={`${bpm} BPM`}
             data-testid="tempo-slider"
           />
-          <span className={styles.endpoint}>Fast</span>
+          <span className={`${styles.endpoint} ${styles.endpointFast}`}>Fast</span>
         </div>
       </div>
       {/* The WHOLE SONG band: a caption row carrying the phone's readout, then

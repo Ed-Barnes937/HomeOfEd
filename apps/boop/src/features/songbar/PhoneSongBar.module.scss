@@ -71,8 +71,8 @@ $row-inset: 4px;
 // Speed (screenspace ticket 02) — the transport's tempo block, on the song
 // bar's own header. One row, not the transport's two: the label and the
 // readout sit on the track's line, which is what pays for the row the header
-// gained. The endpoints keep fixed widths so the row does not jitter as the
-// number changes, the way the laptop `SongBar`'s readout does.
+// gained. The readout keeps a fixed width so the row does not jitter as the
+// number changes, the way the laptop `SongBar`'s does.
 .speed {
   display: flex;
   align-items: center;
@@ -102,15 +102,18 @@ $row-inset: 4px;
   flex: none;
   font: 700 10px var(--font-display);
   color: rgba(242, 239, 230, 0.5);
+}
 
-  &:first-of-type {
-    width: 26px;
-  }
+// Named rather than `:first-of-type` / `:last-of-type`: the row's spans are
+// the label, the readout and these two, so "first span" is the label — the
+// transport's `:first-child` did not survive the move to a shared row.
+.endpointSlow {
+  width: 26px;
+}
 
-  &:last-of-type {
-    width: 24px;
-    text-align: right;
-  }
+.endpointFast {
+  width: 24px;
+  text-align: right;
 }
 
 // The transport's phone tempo slider verbatim — the 12px track and the 34px

@@ -37,6 +37,18 @@ Alternatives rejected: inside the clip editor card (wrong — tempo is
 song-wide, not clip-scoped, and it would read as a property of the clip);
 the "..." menu (buries a control that is half the fun of the toy).
 
+## As built
+
+Speed is in `PhoneSongBar`'s header, on its **own line under the play row**
+rather than beside song play. The header has 316px inside it at 360px, and
+song play, the title and the bars count take 176 of them — beside them the
+slider would have had a 60px track, 30px at 320px, against the 84px it had in
+the transport. Its own line gives it 146px at 360 and 106 at 320, so the move
+costs no track at any phone width. The row is paid for out of the header's own
+spacing and the labels' line height: at 390x844 with five clips the scrolling
+region had under 7px of slack. The laptop `SongBar` is unchanged — beside song
+play still, where the width is there for it.
+
 ## Verify
 
 - Existing tempo `.iwft` coverage passes with the control in its new place.
