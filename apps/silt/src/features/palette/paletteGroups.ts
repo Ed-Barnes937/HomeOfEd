@@ -1,15 +1,29 @@
-import { DIRT, FIRE, LAVA, OIL, SAND, WATER, WOOD, type ElementRegistry } from '../../sim/index.ts'
+import {
+  ACID,
+  DIRT,
+  FIRE,
+  LAVA,
+  OIL,
+  SAND,
+  STONE,
+  WATER,
+  WOOD,
+  type ElementRegistry,
+} from '../../sim/index.ts'
 
 /**
  * The paintable roster (spec §4) — everything in `v1Elements` except the
  * reaction products, which must never appear in the palette: obsidian, and now
- * smoke and steam. Listed explicitly, rather than derived by excluding a tag,
+ * smoke, steam and sulphur — sulphur is what corroding wood leaves behind, and
+ * painting it directly would make acid a second eraser rather than a tool.
+ * Listed explicitly, rather than derived by excluding a tag,
  * so a future reaction product doesn't have to remember to also carry an
  * "un-paintable" marker to stay out of the rail.
  *
- * Order is rail order, and rail order is the `1`–`9` hotkey order.
+ * Order is rail order, and rail order is the `1`–`9` hotkey order — new
+ * elements go on the end, so an existing element never changes its digit.
  */
-const PAINTABLE_IDS: readonly number[] = [DIRT, SAND, WATER, LAVA, WOOD, OIL, FIRE]
+const PAINTABLE_IDS: readonly number[] = [DIRT, SAND, WATER, LAVA, WOOD, OIL, FIRE, ACID, STONE]
 
 export interface PaletteEntry {
   id: number

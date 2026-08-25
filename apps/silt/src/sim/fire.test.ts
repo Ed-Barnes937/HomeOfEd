@@ -66,8 +66,10 @@ describe('the fire group', () => {
     expect(registry.has(OIL, 'flammable')).toBe(true)
   })
 
+  // Rows 1–4 are this group's; later groups append to the same table, so this
+  // pins the head of it rather than the whole thing.
   it('registers rows 1–4 in the declared order', () => {
-    expect(v1Reactions.map((row) => [row.a, row.b])).toEqual([
+    expect(v1Reactions.slice(0, 4).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'flammable'],

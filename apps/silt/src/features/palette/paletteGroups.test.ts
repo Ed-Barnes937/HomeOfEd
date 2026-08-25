@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { createRegistry, OBSIDIAN, SMOKE, STEAM, v1Elements, v1Reactions } from '../../sim/index.ts'
+import {
+  createRegistry,
+  OBSIDIAN,
+  SMOKE,
+  STEAM,
+  SULPHUR,
+  v1Elements,
+  v1Reactions,
+} from '../../sim/index.ts'
 import { BRUSH_WIDTHS, buildRailPalette } from './paletteGroups.ts'
 
 // The registry `Sim` builds by default (v1Elements/v1Reactions) — the same
@@ -19,9 +27,12 @@ describe('paletteGroups', () => {
       'wood',
       'oil',
       'fire',
+      'acid',
+      'stone',
     ])
-    // Obsidian, smoke and steam are what the world makes, not what you paint.
-    for (const id of [OBSIDIAN, SMOKE, STEAM]) {
+    // Obsidian, smoke, steam and sulphur are what the world makes, not what
+    // you paint — sulphur only exists where acid has eaten wood.
+    for (const id of [OBSIDIAN, SMOKE, STEAM, SULPHUR]) {
       expect(entries.some((entry) => entry.id === id)).toBe(false)
     }
   })
@@ -31,9 +42,9 @@ describe('paletteGroups', () => {
     expect(
       groups.map((group) => [group.label, group.entries.map((entry) => entry.name)]),
     ).toEqual([
-      ['Solid', ['dirt', 'wood']],
+      ['Solid', ['dirt', 'wood', 'stone']],
       ['Powder', ['sand']],
-      ['Liquid', ['water', 'lava', 'oil']],
+      ['Liquid', ['water', 'lava', 'oil', 'acid']],
       ['Energy', ['fire']],
     ])
   })

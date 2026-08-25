@@ -12,6 +12,7 @@ export {
   TICKS_PER_SECOND,
 } from './constants.ts'
 export {
+  ACID,
   DIRT,
   EMPTY,
   FIRE,
@@ -21,6 +22,8 @@ export {
   SAND,
   SMOKE,
   STEAM,
+  STONE,
+  SULPHUR,
   WALL,
   WATER,
   WOOD,

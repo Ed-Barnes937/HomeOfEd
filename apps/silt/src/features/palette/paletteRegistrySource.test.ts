@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  ACID,
   createRegistry,
   DIRT,
   FIRE,
   LAVA,
   OIL,
   SAND,
+  STONE,
   WATER,
   WOOD,
   type ElementDef,
@@ -65,6 +67,20 @@ describe('rail and grid colours share one registry', () => {
         colours: ['#070809'],
         tags: ['energy'],
         archetype: { kind: 'gas', density: -20, dispersion: 1 },
+      },
+      {
+        id: ACID,
+        name: 'acid',
+        colours: ['#0a0b0c'],
+        tags: ['liquid'],
+        archetype: { kind: 'liquid', density: 35, dispersion: 4 },
+      },
+      {
+        id: STONE,
+        name: 'stone',
+        colours: ['#0d0e0f'],
+        tags: ['solid'],
+        archetype: { kind: 'static' },
       },
     ]
     const registry = createRegistry(nonDefaultRoster)
