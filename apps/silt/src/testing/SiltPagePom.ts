@@ -248,6 +248,25 @@ export class SiltPagePom extends BasePage {
     }
   }
 
+  /** Every paintable swatch the rail is currently rendering. */
+  async paletteElementNames(): Promise<string[]> {
+    const testIds = await this.page.getByTestId(/^element-/).evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('data-testid') ?? ''),
+    )
+    return testIds.map((id) => id.replace('element-', ''))
+  }
+
+  /**
+   * The rail overflows into its own scroller, never into the page: a bottom bar
+   * that pushes the document sideways drags the canvas out of view with it.
+   */
+  async verifyNoHorizontalPageOverflow(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(1)
+  }
+
   private async boundingBoxOrThrow(testId: string): Promise<{ width: number; height: number }> {
     const box = await this.page.getByTestId(testId).boundingBox()
     if (!box) throw new Error(`${testId} has no bounding box`)

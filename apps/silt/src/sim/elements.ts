@@ -1,3 +1,4 @@
+import { createGrowth } from './growth.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
 
 /**
@@ -19,6 +20,9 @@ export const ACID = 11
 export const STONE = 12
 export const SULPHUR = 13
 export const MUD = 14
+export const SEED = 15
+export const MOSS = 16
+export const VINE = 17
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -194,6 +198,56 @@ const mud: ElementDef = {
   archetype: { kind: 'liquid', density: 50, dispersion: 1, move: 0.1 },
 }
 
+/**
+ * The one hook in the roster (materials spec §5), shared by moss and vine.
+ * Everything else here is data; growth is not, because a reaction row has
+ * neither a direction nor a brake. See `growth.ts`.
+ */
+const grow = createGrowth(WATER, VINE)
+
+const seed: ElementDef = {
+  id: SEED,
+  name: 'seed',
+  // A husk, not a grain: darker and greener than sand and than sulphur, both
+  // of which it otherwise sits between on the powder shelf.
+  colours: ['#9c8348'],
+  tags: ['powder', 'flammable'],
+  // Denser than water (30) and lighter than mud (50), so a seed sinks through
+  // a pool and comes to rest *on* the soil instead of burying itself in it —
+  // which is what puts the sprout on the surface where it can be seen.
+  archetype: { kind: 'powder', density: 40, slide: 1 },
+  // 0 is all three plants need to dissolve: rows 6-7 already cover `[powder]`
+  // and `[solid]` at `maxHardness: 1`, so acid needs no row of its own here.
+  hardness: 0,
+}
+
+const moss: ElementDef = {
+  id: MOSS,
+  name: 'moss',
+  colours: ['#4a7a34'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // **No `lifetime`.** The hook keeps its branch count in `ra`, which the
+  // engine's lifetime feature owns; giving moss a lifetime would hand the byte
+  // back and silently uncap growth. See the comment in `growth.ts`.
+  onTick: grow,
+}
+
+const vine: ElementDef = {
+  id: VINE,
+  name: 'vine',
+  // Brighter than moss: a climbing shoot reads as newer growth than the mat it
+  // came from.
+  colours: ['#79b74a'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // The same hook, so a vine climbs on from where the moss left off. Also no
+  // `lifetime`, for the same reason.
+  onTick: grow,
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -210,10 +264,13 @@ export const v1Elements: readonly ElementDef[] = [
   stone,
   sulphur,
   mud,
+  seed,
+  moss,
+  vine,
 ]
 
 /**
- * The chemistry (spec §4, materials spec §4 rows 1–12). Rows of data, not hooks
+ * The chemistry (spec §4, materials spec §4 rows 1–13). Rows of data, not hooks
  * — the elements above name neither each other nor the products.
  *
  * **Order is load-bearing**: a tag row registers every pair it covers, and the
@@ -259,4 +316,9 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'mud', b: 'fire', p: 1, aBecomes: 'dirt', bBecomes: 'smoke' },
   // Lava bakes rather than dries, and survives — a heat source, not a reagent.
   { a: 'mud', b: 'lava', p: 1, aBecomes: 'stone', bBecomes: 'lava' },
+  // Sprouting **is** a reaction — it has a fixed outcome and needs no
+  // direction. The soil is not consumed: mud is the bed, not the fuel. Nothing
+  // above claims this pair (mud is a liquid, so acid's `[solid]`/`[powder]`
+  // rows never reach it), so the row is safe at the tail of the table.
+  { a: 'seed', b: 'mud', p: 1, aBecomes: 'moss', bBecomes: 'mud' },
 ]

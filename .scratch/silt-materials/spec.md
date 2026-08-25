@@ -147,6 +147,28 @@ pool cannot fan out without limit.
 This is the first use of `ra` outside the engine and needs a comment saying
 exactly that.
 
+### Two engine gaps this stage found
+
+**A hook cannot keep its own cell awake.** `keepAwake` is on the engine-internal
+`MovementApi`, not on the element-facing `Api`. Settled water writes nothing, so
+a plant in a still pond gets two or three draws and then its chunk sleeps for
+good — growth silently stops. The hook works around it by writing `ra` on every
+tick it has a water neighbour and budget left, since writing marks the chunk
+dirty, and stopping once the budget is spent lets finished plants sleep again.
+That workaround is sound but the gap is real: any future hook that acts
+probabilistically on a settled world hits it. Adding `keepAwake` to `Api` is the
+obvious fix and is an engine change, so it is not in these four PRs.
+
+**Growth is NOT bounded, and the ticket claimed it was.** `set` clears the
+target's scratch bytes, so every newly grown vine starts with a fresh
+`BRANCH_BUDGET`. The budget therefore caps one cell's fan-out and nothing else:
+a sealed pool does go entirely to vine, in about 600 ticks (~10 seconds). The
+hook cannot seed a child's `ra`, because the `ra` setter addresses the current
+cell only — so bounding total growth genuinely needs an engine affordance, not a
+better hook. **Open for Ed.** The options are to accept it (water is finite in
+open worlds), to require a plant to be rooted against something solid before it
+may grow, or to add the engine affordance. Lowering `GROWTH_P` only slows it.
+
 ## 6. PR sequence
 
 Strictly linear — there is no parallelising these.
@@ -187,7 +209,10 @@ its own ticket, separate from its elements.
   an open UI decision — 0 for the tenth leaves the eleventh stranded, and anything
   better is a change to the shortcut scheme rather than to a ticket. **PRs 03 and
   04 must not change the hotkey scheme**; they inherit the gap and it gets decided
-  on its own.
+  on its own. The rail no longer *advertises* a key it does not bind: the badge is
+  suppressed past the ninth entry, because a swatch reading "10" names a shortcut
+  that does nothing. That is true under every scheme Ed might pick, so it is a fix
+  rather than a pre-empted decision.
 - **The rail fills up.** Paintable goes 4 → 11. `paletteGroups.ts` says the rail
   was "built for a roster that will triple" — that is 12. PR 04 must carry an
   explicit mobile-rail check rather than assuming it still fits.

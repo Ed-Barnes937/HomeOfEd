@@ -45,7 +45,11 @@ on mobile rather than assuming.
 - [ ] Seed sinks through water and rests *on* mud (density 40) rather than burying itself
 - [ ] Vines grow **upward** by preference — pinned by a test, not by eye
 - [ ] Growth consumes water, and `BRANCH_BUDGET` bounds one cell's fan-out
-- [ ] A vine dropped in a pool does not convert the pool without limit
+- [x] ~~A vine dropped in a pool does not convert the pool without limit~~ —
+      **false as written; see spec §5 "Two engine gaps".** `set` clears scratch,
+      so each new vine gets a fresh budget and a sealed pool does fully convert.
+      What is pinned instead: at most one branch per plant cell per tick, and
+      every plant cell's `ra` <= `BRANCH_BUDGET`, read off the raw bytes.
 - [ ] The `ra` ownership comment is at the hook
 - [ ] Acid dissolves all three; fire burns all three — no new rows needed
 - [ ] Rail checked at mobile width with the full 11-element roster

@@ -144,6 +144,21 @@ test('keyboard shortcuts select elements, change brush, and toggle play/step', a
 // The rail has had a group for Energy since v1 and nothing to put in it (spec
 // §9). Fire is the first energy element, so this is the first time the section
 // renders at all.
+test('the rail advertises a hotkey only where one exists', async ({ mountApp, page }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Digits stop at 9 (`useSiltHotkeys`), and the roster is eleven paintables.
+  // The first nine carry a badge; mud and seed must not claim a dead key.
+  await expect(page.getByTestId('element-dirt').getByText('1', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('element-mud').getByText('10', { exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('element-seed').getByText('11', { exact: true })).toHaveCount(0)
+
+  // The swatch still works; it just does not claim a shortcut.
+  await root.selectElement('mud')
+  expect(await root.isSelected('mud')).toBe(true)
+})
+
 test('the Energy group appears in the rail now fire is paintable', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
@@ -166,4 +181,22 @@ test('mud is paintable and sits in the Liquid group', async ({ mountApp }) => {
 
   await root.selectElement('mud')
   expect(await root.isSelected('mud')).toBe(true)
+})
+
+// Seed is the eleventh paintable, and the roster's last: moss and vine are the
+// reward for planting it, so neither reaches the rail.
+test('seed is paintable and sits in the Powder group, with no plant beside it', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Powder', 'seed')
+
+  await root.selectElement('seed')
+  expect(await root.isSelected('seed')).toBe(true)
+
+  const names = await root.paletteElementNames()
+  expect(names).not.toContain('moss')
+  expect(names).not.toContain('vine')
 })

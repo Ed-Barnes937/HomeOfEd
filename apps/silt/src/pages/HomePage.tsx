@@ -218,7 +218,12 @@ export function HomePage() {
               >
                 <span className={styles.groupLabel}>{group.label}</span>
                 {group.entries.map((entry) => {
-                  const hotkey = palette.entries.indexOf(entry) + 1
+                  // `useSiltHotkeys` only binds digits 1-9, so past the ninth
+                  // rail entry there is no key to advertise. A badge reading
+                  // "10" would name a shortcut that does nothing — see the
+                  // hotkey gap in `.scratch/silt-materials/spec.md` §8.
+                  const nth = palette.entries.indexOf(entry) + 1
+                  const hotkey = nth <= 9 ? nth : undefined
                   return (
                     <button
                       key={entry.id}
@@ -234,7 +239,9 @@ export function HomePage() {
                         aria-hidden="true"
                       />
                       <span className={styles.swatchName}>{entry.name}</span>
-                      <span className={styles.hotkey}>{hotkey}</span>
+                      {hotkey !== undefined && (
+                        <span className={styles.hotkey}>{hotkey}</span>
+                      )}
                     </button>
                   )
                 })}
