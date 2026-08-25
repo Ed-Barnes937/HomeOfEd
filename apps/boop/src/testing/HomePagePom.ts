@@ -2033,8 +2033,12 @@ export class HomePagePom extends BasePage {
    * "Not truncated" was true at 1024 with *zero* pixels to spare: 158px wanted
    * against 158px of room. It passed here and failed CI, where Chivo Mono does
    * not resolve and the fallback runs about 12% wider. A margin is the thing
-   * that has to hold, so it is the thing to assert; the number below is what a
-   * 12% wider font would need.
+   * that has to hold, so it is the thing to assert.
+   *
+   * Measured slack in the header's spacer at 1024: **29px** on a machine with
+   * the real font, **17px** on CI's wider fallback. The floor the caller passes
+   * has to sit under the narrower of those two and still mean something — it is
+   * there to catch a return to the zero-margin fit, not to pin either number.
    */
   async verifyPlayheadReadoutHasRoomToSpare(atLeast: number): Promise<void> {
     const spare = await this.page
