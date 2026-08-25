@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 import {
   createRegistry,
   OBSIDIAN,
+  MOSS,
   SMOKE,
   STEAM,
   SULPHUR,
+  VINE,
   v1Elements,
   v1Reactions,
 } from '../../sim/index.ts'
@@ -30,10 +32,12 @@ describe('paletteGroups', () => {
       'acid',
       'stone',
       'mud',
+      'seed',
     ])
-    // Obsidian, smoke, steam and sulphur are what the world makes, not what
-    // you paint — sulphur only exists where acid has eaten wood.
-    for (const id of [OBSIDIAN, SMOKE, STEAM, SULPHUR]) {
+    // Obsidian, smoke, steam, sulphur, moss and vine are what the world makes,
+    // not what you paint — sulphur only exists where acid has eaten wood, and
+    // the plants only where a seed found wet soil.
+    for (const id of [OBSIDIAN, SMOKE, STEAM, SULPHUR, MOSS, VINE]) {
       expect(entries.some((entry) => entry.id === id)).toBe(false)
     }
   })
@@ -44,7 +48,7 @@ describe('paletteGroups', () => {
       groups.map((group) => [group.label, group.entries.map((entry) => entry.name)]),
     ).toEqual([
       ['Solid', ['dirt', 'wood', 'stone']],
-      ['Powder', ['sand']],
+      ['Powder', ['sand', 'seed']],
       ['Liquid', ['water', 'lava', 'oil', 'acid', 'mud']],
       ['Energy', ['fire']],
     ])
