@@ -187,9 +187,7 @@ export class Sim {
       if (!chunk.awake) continue
       const area = chunk.active
       for (let y = area.minY; y <= area.maxY; y++) {
-        for (let x = area.minX; x <= area.maxX; x++) {
-          this.#grid.stamp(x, y, settled)
-        }
+        this.#grid.stampRow(y, area.minX, area.maxX, settled)
       }
     }
   }
@@ -204,14 +202,17 @@ export class Sim {
     for (let y = area.maxY; y >= area.minY; y--) {
       for (let i = 0; i < width; i++) {
         const x = rightToLeft ? area.maxX - i : area.minX + i
-        const species = grid.speciesAt(x, y)
+        // The chunk rect is clamped to the grid, so `x, y` is known in bounds:
+        // one base index serves all three field touches, no bounds check each.
+        const base = grid.baseIndexOf(x, y)
+        const species = grid.speciesAtBase(base)
         if (species === EMPTY) continue
-        if (grid.clockAt(x, y) === clock) continue
+        if (grid.clockAtBase(base) === clock) continue
 
         const def = this.registry.get(species)
         if (!def) continue
 
-        grid.stamp(x, y, clock)
+        grid.stampAtBase(base, clock)
         this.#api.moveTo(x, y, clock)
         applyArchetype(this.#api, def.archetype)
         this.#scanned++
