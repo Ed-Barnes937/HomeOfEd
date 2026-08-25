@@ -1,6 +1,6 @@
 # 02 — Registry lookups off `Map` and onto flat arrays
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** 01
 **Spec:** [../spec.md](../spec.md)
@@ -71,3 +71,14 @@ correct.
 - [ ] Determinism test green without edits
 - [ ] Bench before/after in the PR description, with scanned counts
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
+
+## Answer
+
+Done, interface unchanged, no caller edited. `get`/`density`/`lifetimeOf` are
+256-slot arrays; `reactionFor` is an `Int16Array(65536)` of indices into a
+`Reaction[]`. "Density 0" stays distinct from "no density" via a presence flag.
+
+−12.4% / −6.8% / −2.4% / flat, scanned counts identical. **Smaller than the
+ticket's "largest single win available" claim** — V8 already handles small
+integer-keyed `Map`s well, so the array form saves the hash and the megamorphic
+call, not the whole lookup.

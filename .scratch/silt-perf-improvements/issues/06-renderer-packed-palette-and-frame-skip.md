@@ -1,6 +1,6 @@
 # 06 — Renderer: a packed 32-bit palette, and stop redrawing an unchanged world
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 
@@ -82,3 +82,18 @@ of setup.
 - [ ] The FPS readout still means something, and the PR says what
 - [ ] Scene thumbnails are not stale
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green (Vitest **and** Playwright CT)
+
+## Answer
+
+Both halves done. Packed `Uint32Array(256)` palette with byte order probed at
+module load, one store per cell: **0.0935 → 0.0287 ms/frame, 3.3×**. `Sim.revision`
+drives a frame skip when neither world nor fit has changed, taking the paused
+state to zero draw cost.
+
+Decisions: FPS now counts **drawn** frames, so a paused world honestly reads 0;
+`saveScene` forces a draw before `snapshot()` rather than making `snapshot`
+rasterise on demand.
+
+The ticket assumed an existing `.iwft` test would catch a stale thumbnail. It
+would not — `verifySceneThumbnail` only asserted the data-URL prefix. A real
+test was added and confirmed load-bearing by deliberately breaking `draw`.

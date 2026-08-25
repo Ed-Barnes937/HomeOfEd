@@ -1,6 +1,6 @@
 # 01 — A committed sim benchmark
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 
@@ -44,3 +44,23 @@ reports a non-trivial scanned count at the end of its run, and say so in the PR.
 - [ ] Not wired into `pnpm test`
 - [ ] `apps/silt/CLAUDE.md` Commands section mentions it
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
+
+## Answer
+
+Landed as `apps/silt/bench/sim.bench.ts`, run with `pnpm --filter silt run bench`.
+Not wired into `pnpm test`. Baselines on the dev Mac:
+
+```
+spawners + mixed world   0.749 ms/tick   scanned=6374
+reaction churn           0.911 ms/tick   scanned=1968
+plant growth             0.999 ms/tick   scanned=5786
+settled world            0.067 ms/tick   scanned=275
+```
+
+Plant growth settled to `scanned=0` on the first attempt — the trap the ticket
+warned about — because `MAX_PLANT_NEIGHBOURS = 1` makes growth terminal. Fixed
+with a deeper reservoir rather than a per-tick feed.
+
+**Known weakness:** `reaction churn` scans 1968 where the audit's own version
+held 4553; the wood slab burns out partway, so it understates ticket 02. See
+the map's Fog.

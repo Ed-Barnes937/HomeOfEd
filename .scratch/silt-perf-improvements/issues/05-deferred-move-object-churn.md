@@ -1,6 +1,6 @@
 # 05 — `DeferredMoves` without an object per move
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** 01
 **Spec:** [../spec.md](../spec.md)
@@ -62,3 +62,20 @@ removes a GC source, and GC is what turns a 58 fps average into a visible hitch.
 - [ ] Determinism and chunking tests green **without edits**
 - [ ] Bench before/after in the PR description, with scanned counts
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
+
+## Answer
+
+Done — flat `Int32Array` of `(src, dst, species)` triples plus a sorted
+`Uint32Array` of slot numbers. No per-move allocation; buffer reused across
+ticks.
+
+**The ticket's premise was wrong.** `(dst, src)` is not a total order: a cell
+that queues a deferred move keeps its index, so a later cell in the same chunk
+can displace it and queue from that same source. Measured with a temporary
+assertion: **132 duplicate pairs** across the bench scenarios. Determinism was
+being held up by `Array.prototype.sort` stability, not by uniqueness. The
+comparator now ends in `|| a - b` (push order) so the ordering is total
+explicitly, and the class comment records it.
+
+Null result on throughput, stated plainly — the value is the removed allocation
+and the corrected invariant.

@@ -80,3 +80,35 @@ away for speed:
 6. **Archetypes own movement, hooks own transmutation.**
 7. Every ticket keeps `pnpm lint`, `pnpm typecheck` and
    `pnpm --filter silt run test` green, including the determinism tests.
+
+## How the predictions held up
+
+Recorded because the audit was wrong about roughly half of what it predicted,
+and the shape of the error is worth keeping.
+
+| Prediction | Outcome |
+| --- | --- |
+| Registry `Map` lookups are "the largest single win available in the engine" | **Overstated.** −12% / −7% / −2% |
+| Neighbour-loop iterator allocation is "a modest but free win" | **Wrong.** Null — V8 never made the allocation |
+| Deferred-move object churn matters for GC | **Unproven.** Null on throughput; the allocation is genuinely gone but nothing here measures pauses |
+| Index arithmetic is "a broad few-percent-each win" | **Understated.** −16% / −20% / −6%, the biggest in the series |
+| Packed palette gives ~3× on the rasterise loop | **Held.** 0.0935 → 0.0287 ms/frame |
+| React is "very plausibly the single largest frontend cost" | **Wrong.** 0.060 ms/move — smaller than the rasterise loop, ~20× smaller than one sim tick |
+
+The pattern: hypotheses about *allocation and lookup theory* under V8 came in at
+or near null, and the one that paid was plain arithmetic and memory-access
+shape. A modern engine is better at eliding the former than at fixing the
+latter.
+
+The corollary for [ticket 09](issues/09-sim-in-a-worker.md): the 3-4x
+fast-Mac-to-Air multiplier used throughout this spec is the same kind of
+unmeasured extrapolation. **Measure on the reference machine before spending
+anything on the worker.**
+
+## The one correctness finding
+
+Ticket 05 disproved a claim in the `DeferredMoves` class comment: `(dst, src)`
+is not a total order over queued moves, and 132 duplicate pairs were measured
+across the bench scenarios. Determinism was resting on `Array.prototype.sort`
+being stable rather than on the uniqueness the comment asserted. Now explicit.
+That is worth more than any of the timings above.

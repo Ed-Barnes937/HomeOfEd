@@ -1,6 +1,6 @@
 # 04 — Grid and chunk index arithmetic, and the clock-guard pass
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** 01
 **Spec:** [../spec.md](../spec.md)
@@ -85,3 +85,17 @@ the clock-guard pass.
 - [ ] Every existing test green **without edits**
 - [ ] Bench before/after in the PR description, with scanned counts
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
+
+## Answer
+
+All three parts done. `Grid.baseIndexOf` + `*AtBase` accessors let `#scanChunk`
+pay the index arithmetic once per cell; `CELL_SHIFT` and `ChunkMap.#chunkOf`
+replace every `Math.floor` (with a division fallback for non-power-of-two chunk
+sizes); `Grid.stampRow` makes the clock guard a strided row write that still
+marks nothing dirty.
+
+**−16% / −20% / −6% — the largest win in the series.** Scanned counts identical.
+
+Also found a real coverage gap: `chunking.test.ts`'s non-default size was `16`,
+a power of two, so the division fallback had no test. One was added and
+confirmed load-bearing.

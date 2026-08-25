@@ -1,6 +1,6 @@
 # 03 — Stop allocating in the per-cell neighbour loops
 
-**Status:** ready-for-agent
+**Status:** wontfix
 **Type:** task
 **Blocked by:** 01
 **Spec:** [../spec.md](../spec.md)
@@ -62,3 +62,18 @@ worlds (`plant growth` and `reaction churn` in the bench).
 - [ ] `growth.test.ts` / `lifecycle.test.ts` / determinism green without edits
 - [ ] Bench before/after in the PR description, with scanned counts
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
+
+## Answer — wontfix
+
+Implemented and measured, then closed. Five interleaved runs put the win at
+2-4%, inside this machine's run-to-run spread; an `Int8Array` variant was 2-4%
+*slower* than the original. V8 escape-analyses the iterator away for a
+`for...of` over a small module-level const array literal, so the allocation
+this ticket predicted was never being made.
+
+Landing it would rewrite comment-heavy, load-bearing code for no measured gain,
+against the repo's "don't refactor things that aren't broken" rule — and would
+bake a performance rationale into the comments that the measurements do not
+support.
+
+Recorded rather than deleted so the experiment is not re-run.

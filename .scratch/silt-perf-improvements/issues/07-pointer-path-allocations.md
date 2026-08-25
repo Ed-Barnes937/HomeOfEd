@@ -1,6 +1,6 @@
 # 07 — The pointer path: a layout read and an allocation per event
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 
@@ -75,3 +75,19 @@ answer is acceptable — an explicit decision is not.
 - [ ] Brush offsets precomputed per width, no per-event allocation
 - [ ] An explicit decision recorded on the `Sim.paint` batching question
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green (Vitest **and** Playwright CT)
+
+## Answer
+
+Done. `getBoundingClientRect` is out of the pointermove path — the rect is
+cached and refreshed on five triggers: eager read at effect setup,
+`ResizeObserver`, DPR change via `refit()`, `window` resize, and `window`
+scroll with `capture: true` (scroll does not bubble). Brush offsets are
+memoised per width as flat `Int8Array`s.
+
+`Sim.paint` batching **declined**, explicitly: a 7×7 brush spans at most 2×2
+chunks, so the redundant `activate` calls are a few hundred integer comparisons
+— not in the class of the two forced layouts removed. Recorded in the code.
+
+The scroll test was confirmed load-bearing by removing the listener and
+watching it time out. **Uncovered:** the DPR-change refresh — Playwright CT
+cannot trigger a real `devicePixelRatio` change.

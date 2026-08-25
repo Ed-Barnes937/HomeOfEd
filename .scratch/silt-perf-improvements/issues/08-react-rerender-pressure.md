@@ -1,6 +1,6 @@
 # 08 — React re-render pressure: the rail, the overlay, the status bar
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 
@@ -90,3 +90,27 @@ imperative version is still worth it. **Do not do both speculatively.**
 - [ ] An explicit, measured decision on the imperative brush cursor
 - [ ] All five `.iwft` suites green
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
+
+## Answer
+
+Done. The rail is a memoised `ToolRail` with `useCallback`-stable props,
+`WorldOverlay` is memoised, `useSimLoop`'s controls are `useMemo`d, and
+`colourOf`/`nameOf`/the hotkey index are O(1) off a build-time `Map`.
+
+Measured in the CT harness with temporary counters:
+
+| Scenario | Rail | Overlay |
+| --- | --- | --- |
+| 100 pointer moves, before | 73 | 71 |
+| 100 pointer moves, after | **0** | 69 |
+| 3 s of FPS ticks, before | 8 | 6 |
+| 3 s of FPS ticks, after | **0** | **0** |
+
+**The ticket's headline claim did not survive measurement.** React was not "very
+plausibly the single largest frontend cost" — at 0.060 ms per pointer move it
+was already smaller than the rasterise loop and ~20× smaller than one sim tick.
+
+Imperative brush cursor **declined**, on measurement: after memoisation a move
+costs 0.038 ms of which React is 0.034 ms, so that is the entire ceiling —
+under 2% of the frame budget, against moving four pieces of chrome to
+imperative DOM writes.
