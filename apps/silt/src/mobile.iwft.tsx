@@ -71,3 +71,11 @@ test('spawner mode is reachable and places a spawner via a single-finger tap', a
   await root.touchPaintCell(50, 50)
   await root.verifySpawnerAt(50, 50)
 })
+
+test('the Energy group survives the rotation into the bottom bar', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyPaletteGroupContains('Energy', 'fire')
+  await root.verifySquareChipSize('element-fire')
+})

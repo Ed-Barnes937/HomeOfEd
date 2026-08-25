@@ -1,13 +1,15 @@
-import { DIRT, LAVA, SAND, WATER, type ElementRegistry } from '../../sim/index.ts'
+import { DIRT, FIRE, LAVA, OIL, SAND, WATER, WOOD, type ElementRegistry } from '../../sim/index.ts'
 
 /**
- * The v1 paintable roster (spec §4) — everything in `v1Elements` except
- * Obsidian, which is a reaction product and must never appear in the palette.
- * Listed explicitly, rather than derived by excluding a tag, so a future
- * reaction product doesn't have to remember to also carry an "un-paintable"
- * marker to stay out of the rail.
+ * The paintable roster (spec §4) — everything in `v1Elements` except the
+ * reaction products, which must never appear in the palette: obsidian, and now
+ * smoke and steam. Listed explicitly, rather than derived by excluding a tag,
+ * so a future reaction product doesn't have to remember to also carry an
+ * "un-paintable" marker to stay out of the rail.
+ *
+ * Order is rail order, and rail order is the `1`–`9` hotkey order.
  */
-const PAINTABLE_IDS: readonly number[] = [DIRT, SAND, WATER, LAVA]
+const PAINTABLE_IDS: readonly number[] = [DIRT, SAND, WATER, LAVA, WOOD, OIL, FIRE]
 
 export interface PaletteEntry {
   id: number
@@ -23,8 +25,9 @@ export interface PaletteGroup {
 
 /**
  * Group labels in display order (spec §9). A group with no members is left
- * out entirely — Energy has no v1 elements, and an empty section would just
- * be dead chrome with nothing to distinguish it from a labelling mistake.
+ * out entirely — an empty section would just be dead chrome with nothing to
+ * distinguish it from a labelling mistake. Fire is the first `energy` element,
+ * so Energy renders for the first time here.
  * The roster is built to triple (spec §9), so this stays generic rather than
  * special-casing today's four elements.
  */

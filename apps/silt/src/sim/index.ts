@@ -14,11 +14,16 @@ export {
 export {
   DIRT,
   EMPTY,
+  FIRE,
   LAVA,
   OBSIDIAN,
+  OIL,
   SAND,
+  SMOKE,
+  STEAM,
   WALL,
   WATER,
+  WOOD,
   v1Elements,
   v1Reactions,
 } from './elements.ts'

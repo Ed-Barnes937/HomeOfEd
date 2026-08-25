@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, WATER, v1Elements, v1Reactions } from './elements.ts'
+import { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, STEAM, WATER, v1Elements } from './elements.ts'
 import { GRID_HEIGHT, GRID_WIDTH, RA_OFFSET } from './constants.ts'
 import { Sim } from './sim.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
@@ -35,13 +35,13 @@ function pocket(sim: Sim, x: number, left: number, right: number): void {
 }
 
 describe('reaction table', () => {
-  it('turns both touching cells into obsidian', () => {
+  it('flashes the water to steam and freezes the lava to obsidian', () => {
     const sim = new Sim({ seed: 1 })
     pocket(sim, 100, WATER, LAVA)
 
     sim.tick()
 
-    expect(sim.speciesAt(100, FLOOR - 1)).toBe(OBSIDIAN)
+    expect(sim.speciesAt(100, FLOOR - 1)).toBe(STEAM)
     expect(sim.speciesAt(101, FLOOR - 1)).toBe(OBSIDIAN)
   })
 
@@ -226,11 +226,6 @@ describe('onTick hook', () => {
 })
 
 describe('the v1 roster', () => {
-  it('registers exactly one reaction row', () => {
-    expect(v1Reactions).toHaveLength(1)
-    expect(v1Reactions[0]).toMatchObject({ a: 'water', b: 'lava', p: 1 })
-  })
-
   it('makes obsidian where a poured stream of water meets lava', () => {
     const sim = new Sim({ seed: 1 })
     for (let x = 0; x < GRID_WIDTH; x++) sim.paint(x, FLOOR, DIRT)

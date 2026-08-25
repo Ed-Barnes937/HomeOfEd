@@ -5,7 +5,8 @@ A falling-sand cellular-automaton playground at `silt.homeofed.com`.
 client-side simulation, scenes in `localStorage`, nothing server-owned.
 Scaffolded from `templates/starter`
 ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)). Spec:
-`.scratch/sand-sim/spec.md`; tickets in `.scratch/silt/`.
+`.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
+(materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`.
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -57,8 +58,10 @@ Pure TypeScript, no DOM, no `Math.random()` — see `.scratch/sand-sim/spec.md` 
 constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick rate,
               CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
-elements.ts   pinned species ids + the v1 roster (dirt, sand, water, lava,
-              obsidian) and v1Reactions — pure config, zero behavioural code
+elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
+              wood, oil, fire, smoke, steam) and v1Reactions — pure config, zero
+              behavioural code. Gas densities read backwards: `canDisplace` is
+              `mine > theirs`, so the gas closest to zero rises highest
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
