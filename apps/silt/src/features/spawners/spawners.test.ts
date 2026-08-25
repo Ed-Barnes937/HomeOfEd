@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DIRT, EMPTY, Sim, WATER } from '../../sim/index.ts'
+import { brushOffsets } from '../sim/brushOffsets.ts'
 import { emitSpawners, isUnderBrush, type Spawner } from './spawners.ts'
 
 describe('emitSpawners', () => {
@@ -44,12 +45,27 @@ describe('isUnderBrush', () => {
   })
 
   it('reaches a cell away from centre once the brush is wide enough', () => {
-    expect(isUnderBrush(spawner, { x: 42, y: 42 }, 5)).toBe(true)
-    expect(isUnderBrush(spawner, { x: 42, y: 42 }, 3)).toBe(false)
+    expect(isUnderBrush(spawner, { x: 42, y: 40 }, 5)).toBe(true)
+    expect(isUnderBrush(spawner, { x: 42, y: 40 }, 3)).toBe(false)
   })
 
-  it('covers the whole square, corners included', () => {
-    expect(isUnderBrush(spawner, { x: 37, y: 43 }, 7)).toBe(true)
-    expect(isUnderBrush(spawner, { x: 36, y: 43 }, 7)).toBe(false)
+  it('is round: the square corners fall outside the brush', () => {
+    expect(isUnderBrush(spawner, { x: 42, y: 42 }, 5)).toBe(false)
+    expect(isUnderBrush(spawner, { x: 42, y: 42 }, 7)).toBe(true)
+    expect(isUnderBrush(spawner, { x: 37, y: 43 }, 7)).toBe(false)
+  })
+
+  it('agrees with the paint footprint for every shipped width', () => {
+    for (const width of [1, 3, 5, 7]) {
+      const offsets = brushOffsets(width)
+      const reach = Math.ceil(width / 2)
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (let dx = -reach; dx <= reach; dx++) {
+          const painted = offsets.some((o) => o.dx === dx && o.dy === dy)
+          const swept = isUnderBrush(spawner, { x: spawner.x - dx, y: spawner.y - dy }, width)
+          expect(swept).toBe(painted)
+        }
+      }
+    }
   })
 })
