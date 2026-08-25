@@ -14,7 +14,7 @@ export interface WorldOverlayProps {
   cursor: CursorInfo | null
   spawners: readonly Spawner[]
   mode: SimMode
-  /** Square brush width in cells — the paint cursor is drawn at true size. */
+  /** Round brush diameter in cells — the paint cursor is drawn at true size. */
   brushWidth: number
   fit: WorldFit
   palette: RailPalette

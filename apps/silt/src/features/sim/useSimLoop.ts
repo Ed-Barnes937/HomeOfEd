@@ -11,6 +11,7 @@ import {
   type ElementRegistry,
 } from '../../sim/index.ts'
 import { SimRenderer } from '../render/renderer.ts'
+import { brushOffsets } from './brushOffsets.ts'
 import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
 import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
 
@@ -50,7 +51,7 @@ export interface UseSimLoopOptions {
   running: boolean
   /** The species painting or spawner placement applies — EMPTY when the erase tool is active. */
   selectedElement: number
-  /** Square brush width in cells (odd, so it has a centre); 1 = single cell. Spawners ignore this — one entity per click. */
+  /** Round brush diameter in cells (odd, so it has a centre); 1 = single cell. Spawners ignore this — one entity per click. */
   brushWidth: number
   /** Paint vs spawner-placement mode (spec §3, §7); the rail toggle from ticket 07. */
   mode: SimMode
@@ -62,20 +63,6 @@ export interface UseSimLoopOptions {
   onFps?: (fps: number) => void
   /** Fires whenever a spawner is placed or removed, with the current list (a fresh copy). */
   onSpawnersChange?: (spawners: readonly Spawner[]) => void
-}
-
-/** `(dx, dy)` offsets covering a centred square brush of this cell width (odd, so it has a centre). */
-function brushOffsets(width: number): readonly { dx: number; dy: number }[] {
-  const half = (width - 1) / 2
-  const lo = Math.floor(half)
-  const hi = Math.ceil(half)
-  const offsets: { dx: number; dy: number }[] = []
-  for (let dy = -lo; dy <= hi; dy++) {
-    for (let dx = -lo; dx <= hi; dx++) {
-      offsets.push({ dx, dy })
-    }
-  }
-  return offsets
 }
 
 export interface UseSimLoopControls {
