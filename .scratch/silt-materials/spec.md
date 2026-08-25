@@ -159,15 +159,24 @@ That workaround is sound but the gap is real: any future hook that acts
 probabilistically on a settled world hits it. Adding `keepAwake` to `Api` is the
 obvious fix and is an engine change, so it is not in these four PRs.
 
-**Growth is NOT bounded, and the ticket claimed it was.** `set` clears the
-target's scratch bytes, so every newly grown vine starts with a fresh
+**`BRANCH_BUDGET` bounds nothing, and the ticket claimed it did.** `set` clears
+the target's scratch bytes, so every newly grown vine starts with a fresh
 `BRANCH_BUDGET`. The budget therefore caps one cell's fan-out and nothing else:
-a sealed pool does go entirely to vine, in about 600 ticks (~10 seconds). The
-hook cannot seed a child's `ra`, because the `ra` setter addresses the current
-cell only — so bounding total growth genuinely needs an engine affordance, not a
-better hook. **Open for Ed.** The options are to accept it (water is finite in
-open worlds), to require a plant to be rooted against something solid before it
-may grow, or to add the engine affordance. Lowering `GROWTH_P` only slows it.
+a sealed pool went entirely to vine in about 600 ticks (~10 seconds). The hook
+cannot seed a child's `ra`, because the `ra` setter addresses the current cell
+only — so bounding total growth this way genuinely needs an engine affordance.
+
+**Resolved by a crowding rule instead, 2026-08-25 —
+[ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md).**
+A vine will not grow into a cell that two plant cells already touch
+(`MAX_PLANT_NEIGHBOURS = 1`; the parent is one of them). Every new cell
+therefore attaches to exactly one existing cell, which makes the plant an
+induced forest — no cycle closes, no two strands run alongside each other, and
+no 2×2 block of plant can ever form. A sealed pool cannot convert: measured over
+seeds 1–12, vine saturates at 110–123 cells of a 210-cell pool. No engine change
+was needed, and `BRANCH_BUDGET` is kept for what it really is, a per-cell rate
+limit. The cost is that `CHUNK_MARGIN` is now fully spent — the check reads two
+cells out, which is the margin exactly.
 
 ## 6. PR sequence
 

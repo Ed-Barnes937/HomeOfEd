@@ -45,10 +45,14 @@ on mobile rather than assuming.
 - [ ] Seed sinks through water and rests *on* mud (density 40) rather than burying itself
 - [ ] Vines grow **upward** by preference — pinned by a test, not by eye
 - [ ] Growth consumes water, and `BRANCH_BUDGET` bounds one cell's fan-out
-- [x] ~~A vine dropped in a pool does not convert the pool without limit~~ —
-      **false as written; see spec §5 "Two engine gaps".** `set` clears scratch,
-      so each new vine gets a fresh budget and a sealed pool does fully convert.
-      What is pinned instead: at most one branch per plant cell per tick, and
+- [x] A vine dropped in a pool does not convert the pool without limit — **true,
+      but not for the reason first written.** `BRANCH_BUDGET` does not bound it:
+      `set` clears scratch, so each new vine gets a fresh budget. The bound is a
+      crowding rule added 2026-08-25 ([ADR 0035](../../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md)) —
+      no growth into a cell two plant cells already touch. Pinned by three
+      tests: water survives a sealed pool, no 2×2 block of plant forms on any
+      tick, and the pool saturates rather than creeping on. Also still pinned,
+      for the budget itself: at most one branch per plant cell per tick, and
       every plant cell's `ra` <= `BRANCH_BUDGET`, read off the raw bytes.
 - [ ] The `ra` ownership comment is at the hook
 - [ ] Acid dissolves all three; fire burns all three — no new rows needed

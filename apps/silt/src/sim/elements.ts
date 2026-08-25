@@ -203,7 +203,7 @@ const mud: ElementDef = {
  * Everything else here is data; growth is not, because a reaction row has
  * neither a direction nor a brake. See `growth.ts`.
  */
-const grow = createGrowth(WATER, VINE)
+const grow = createGrowth(WATER, MOSS, VINE)
 
 const seed: ElementDef = {
   id: SEED,

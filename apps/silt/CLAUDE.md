@@ -76,7 +76,8 @@ kernels.ts    applyArchetype — the only code that moves cells
 lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
               has moved; neither moves anything
 growth.ts     the roster's one `onTick`: moss and vine grow into water, up
-              first, capped per cell by a branch count kept in `ra`
+              first, capped per cell by a branch count kept in `ra` and bounded
+              overall by refusing any cell that already touches two plants
 sim.ts        the world: chunk scan order, the clock guard, paint/tick
 loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
 ```
@@ -118,6 +119,12 @@ Rules that are easy to break by accident:
   draw has to *write* — `growth.ts` writes `ra` every tick it has water to
   reach, because settled water writes nothing and the chunk would sleep under
   the plant.
+- **`CHUNK_MARGIN` is fully spent.** The crowding check in `growth.ts` reads two
+  cells out (the candidate is one away, its neighbours one past that), which is
+  exactly the margin — a write wakes every chunk within two cells of it, so
+  nothing is missed, but there is no slack left. A hook that needs a third cell
+  needs the margin raised in the same change. See
+  [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md).
 - **Species ids are pinned**, but scenes remap by *name*: the envelope's
   `elements` table records what each byte meant, so renumbering an id is safe
   and renaming an element silently empties those cells (with a warning).

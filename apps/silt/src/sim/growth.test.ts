@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { BRANCH_BUDGET, createGrowth, GROWTH_P } from './growth.ts'
+import { BRANCH_BUDGET, createGrowth, GROWTH_P, MAX_PLANT_NEIGHBOURS } from './growth.ts'
+import { CHUNK_MARGIN } from './constants.ts'
 import type { Api } from './types.ts'
 
 const WATER = 3
+const MOSS = 16
 const VINE = 17
 const EMPTY = 0
 
-const grow = createGrowth(WATER, VINE)
+const grow = createGrowth(WATER, MOSS, VINE)
 
 /**
  * The hook is tested against a stub rather than a `Sim`, so direction, budget
@@ -21,6 +23,7 @@ class StubApi implements Api {
   ra = 0
   rb = 0
   readonly writes: { dx: number; dy: number; species: number }[] = []
+  readonly reads: { dx: number; dy: number }[] = []
 
   #cells: Map<string, number>
   #draws: number[]
@@ -28,9 +31,16 @@ class StubApi implements Api {
   constructor(cells: Record<string, number>, draws: number[] = []) {
     this.#cells = new Map(Object.entries(cells))
     this.#draws = draws
+    // The hook only ever runs on a plant, so the centre cell is one — and it
+    // counts towards its own candidates' crowding, which is what makes
+    // `MAX_PLANT_NEIGHBOURS` of one mean "nothing adjacent but the parent".
+    // Defaulted rather than repeated in every case, and overridable so a test
+    // can make the parent moss.
+    if (!this.#cells.has('0,0')) this.#cells.set('0,0', VINE)
   }
 
   get(dx: number, dy: number): number {
+    this.reads.push({ dx, dy })
     return this.#cells.get(`${dx},${dy}`) ?? EMPTY
   }
 
@@ -89,17 +99,61 @@ describe('the growth hook', () => {
     expect(api.writes).toEqual([])
   })
 
-  it('never reaches further than one cell, in either axis', () => {
+  it('never writes further than one cell, nor reads past the chunk margin', () => {
     const api = new StubApi({ '0,-1': WATER, '-1,0': WATER, '1,0': WATER })
 
     for (let i = 0; i < BRANCH_BUDGET; i++) grow(api)
 
-    // ±1 offsets only: the chunk margin is two cells, so anything wider would
-    // read a stale neighbour under chunked iteration.
+    // Writes stay at ±1 — the plant grows into a neighbour, never across a gap.
     for (const write of api.writes) {
       expect(Math.abs(write.dx)).toBeLessThanOrEqual(1)
       expect(Math.abs(write.dy)).toBeLessThanOrEqual(1)
     }
+
+    // Reads go one further, because the crowding check looks past the candidate
+    // at the candidate's own neighbours. Two is the whole of `CHUNK_MARGIN`, so
+    // this is the assertion that fails if a later change reads wider than the
+    // margin can wake — see the note on `crowding`.
+    expect(api.reads.length).toBeGreaterThan(0)
+    for (const read of api.reads) {
+      expect(Math.abs(read.dx)).toBeLessThanOrEqual(CHUNK_MARGIN)
+      expect(Math.abs(read.dy)).toBeLessThanOrEqual(CHUNK_MARGIN)
+    }
+  })
+
+  it('refuses a cell that already touches two plants, and spends nothing doing it', () => {
+    // The candidate above touches the parent and one more plant. Moss counts
+    // alongside vine: they are one organism.
+    const api = new StubApi({ '0,-1': WATER, '1,-1': MOSS })
+
+    grow(api)
+
+    expect(api.writes).toEqual([])
+    // No water taken and no branch spent — a blocked candidate is not a
+    // failed draw, so it costs the plant nothing.
+    expect(api.ra).toBe(0)
+  })
+
+  it('skips a crowded candidate for the next offset, unlike a failed draw', () => {
+    // Above is water but crowded; the left is water and free. Crowding is an
+    // eligibility test, so the plant branches sideways rather than stalling —
+    // which is the whole reason a blocked vine still has somewhere to go.
+    const api = new StubApi({ '0,-1': WATER, '1,-1': MOSS, '-1,0': WATER })
+
+    grow(api)
+
+    expect(api.writes).toEqual([{ dx: -1, dy: 0, species: VINE }])
+  })
+
+  it('counts the parent towards crowding, so one free side is all it needs', () => {
+    // Nothing around the candidate but the parent: exactly at the limit, and
+    // therefore allowed. One more plant touching it would not be.
+    const api = new StubApi({ '0,-1': WATER })
+
+    grow(api)
+
+    expect(MAX_PLANT_NEIGHBOURS).toBe(1)
+    expect(api.writes).toEqual([{ dx: 0, dy: -1, species: VINE }])
   })
 
   it('spends one branch of the budget per cell it grows', () => {

@@ -46,6 +46,21 @@ function countIn(sim: Sim, box: Box, species: number): number {
   return total
 }
 
+/** 2×2 squares inside `box` whose four cells are all plant. Should always be 0. */
+function blocksIn(sim: Sim, box: Box): number {
+  const plant = (x: number, y: number): boolean => {
+    const species = sim.speciesAt(x, y)
+    return species === VINE || species === MOSS
+  }
+  let blocks = 0
+  for (let y = box.y0; y < box.y1; y++) {
+    for (let x = box.x0; x < box.x1; x++) {
+      if (plant(x, y) && plant(x + 1, y) && plant(x, y + 1) && plant(x + 1, y + 1)) blocks++
+    }
+  }
+  return blocks
+}
+
 /**
  * The raw `ra` byte of a cell. `Sim` exposes no accessor for it — deliberately,
  * since `ra` is scratch the engine owns — but `cells` is the buffer, and the
@@ -258,6 +273,67 @@ describe('seed, moss and vine', () => {
     }
     // And the counter is really in use: cells did run their budget out.
     expect(spent).toBeGreaterThan(0)
+  })
+
+  /**
+   * The bound, and the reason `MAX_PLANT_NEIGHBOURS` exists (ADR 0035). Every
+   * new cell attaches to exactly one existing plant cell, so the plant is an
+   * induced forest: no cycle closes and no two strands run alongside each
+   * other. A pool therefore *cannot* go entirely to vine — it fills with
+   * separated strands and keeps the water between them.
+   *
+   * Measured over seeds 1–12, and it saturates rather than creeping on: vine
+   * settles at 110–123 of the 210 cells of water, so 86–99 cells survive. The
+   * thresholds sit well outside that, since what is pinned is that the bound
+   * exists, not the arithmetic of one pool.
+   */
+  it('cannot convert a sealed pool: water survives however long it grows', () => {
+    const sim = new Sim({ seed: 1 })
+    pool(sim, 140, 160, 10)
+    const waterBefore = count(sim, WATER)
+    sim.paint(150, FLOOR - 1, MOSS)
+
+    run(sim, 4000)
+
+    // It really did fill out — this is not a plant that failed to start.
+    expect(count(sim, VINE)).toBeGreaterThan(50)
+    // And it stopped well short of the pool. Before the crowding rule this
+    // number was zero.
+    expect(count(sim, WATER)).toBeGreaterThan(waterBefore / 4)
+  })
+
+  it('saturates rather than creeping on, so the pool reaches a resting state', () => {
+    const sim = new Sim({ seed: 1 })
+    pool(sim, 140, 160, 10)
+    sim.paint(150, FLOOR - 1, MOSS)
+
+    run(sim, 2000)
+    const settled = count(sim, VINE)
+    run(sim, 2000)
+
+    // Every candidate is crowded or dry, so nothing is left to draw for.
+    expect(count(sim, VINE)).toBe(settled)
+  })
+
+  /**
+   * The structural half of the same rule, and the one that does not depend on
+   * how the draws fell: place three corners of a 2×2 and the fourth touches two
+   * plants for good, so it is refused for the rest of the run. Checked every
+   * tick rather than at the end, since a block that formed and was then burnt
+   * away would still be a broken invariant.
+   */
+  it('never forms a 2×2 block of plant, on any tick', () => {
+    const sim = new Sim({ seed: 1 })
+    pool(sim, 140, 160, 10)
+    sim.paint(150, FLOOR - 1, MOSS)
+
+    for (let t = 0; t < 600; t++) {
+      sim.tick()
+      expect(blocksIn(sim, POOL)).toBe(0)
+    }
+
+    // Not vacuous: there was a substantial plant there to find a block in.
+    expect(count(sim, VINE)).toBeGreaterThan(20)
   })
 
   it('grows nothing at all with no water to spend', () => {
