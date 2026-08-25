@@ -20,7 +20,7 @@ Tickets are sequential — each branches from and merges into
 | 05 | deferred-move object churn | `sim/moves.ts` | done | null on speed; fixed a latent determinism hazard |
 | 06 | renderer: packed palette + frame skip | `features/render/*` | done | 3.3× on the rasterise loop; paused draws to zero |
 | 07 | pointer path: layout reads, brush offsets | `features/sim/useSimLoop.ts` | done | 2 forced layouts + 49 allocs per event → 0 |
-| 08 | React re-render pressure | `pages/HomePage.tsx`, `features/render/WorldOverlay.tsx` | done | rail 73 → **0** renders per 100 moves |
+| 08 | React re-render pressure | `pages/HomePage.tsx`, `features/render/WorldOverlay.tsx` | **wontfix** | measured ~0.15 ms/frame — did not clear the bar |
 | 09 | sim in a Web Worker (proposal) | architecture | needs-triage | gated on a real measurement on the Air |
 
 ## Decisions so far
@@ -46,11 +46,17 @@ Tickets are sequential — each branches from and merges into
   and memory-access shape. Treat micro-allocation hypotheses about V8 as
   needing measurement before they earn a ticket.
 
-- **React was not the largest frontend cost.** The audit called it "very
-  plausibly the single largest"; measured, it was 0.060 ms per pointer move
-  — smaller than the rasterise loop (0.096 ms/frame) and ~20x smaller than one
-  sim tick. The memo work still landed (rail 73 → 0 renders per 100 moves) but
-  it is a small win.
+- **Ticket 08 is closed `wontfix`, and React was not the largest frontend
+  cost.** The audit called it "very plausibly the single largest"; measured, it
+  was 0.060 ms per pointer move — smaller than the rasterise loop
+  (0.096 ms/frame) and ~20x smaller than one sim tick. The memo work did what
+  it claimed (rail 73 → 0 renders per 100 moves, ~0.15 ms/frame on the
+  reference machine) but memo boundaries are a permanent stale-UI hazard on a
+  page that needs five `.iwft` suites to protect it, and 0.15 ms did not clear
+  that bar. **Separable leftover:** `colourOf`/`nameOf` still do a linear
+  `entries.find` per call and `HomePage` still runs `entries.indexOf` inside
+  two nested `.map`s. That is sloppy independent of React and may be worth its
+  own small ticket.
 
 - **The imperative brush cursor was declined, on measurement.** After
   memoisation a pointer move costs 0.038 ms, of which React is 0.034 ms — the

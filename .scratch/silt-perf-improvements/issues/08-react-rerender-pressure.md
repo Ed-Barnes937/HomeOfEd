@@ -1,6 +1,6 @@
 # 08 — React re-render pressure: the rail, the overlay, the status bar
 
-**Status:** done
+**Status:** wontfix
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 
@@ -91,7 +91,7 @@ imperative version is still worth it. **Do not do both speculatively.**
 - [ ] All five `.iwft` suites green
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
 
-## Answer
+## Answer — wontfix
 
 Done. The rail is a memoised `ToolRail` with `useCallback`-stable props,
 `WorldOverlay` is memoised, `useSimLoop`'s controls are `useMemo`d, and
@@ -114,3 +114,15 @@ Imperative brush cursor **declined**, on measurement: after memoisation a move
 costs 0.038 ms of which React is 0.034 ms, so that is the entire ceiling —
 under 2% of the frame budget, against moving four pieces of chrome to
 imperative DOM writes.
+
+**Closed `wontfix` after measurement.** The work was done and green, and it did
+what it claimed. It is not landing because the saving is ~0.15 ms/frame on the
+reference machine while `React.memo` boundaries are a permanent stale-UI hazard
+on a page five `.iwft` suites exist to protect — that trade did not clear the
+bar. The disproof of the audit's "single largest frontend cost" claim is the
+part worth keeping, and it is recorded in the map and the spec.
+
+The `paletteGroups.ts` cleanup inside this ticket (linear `entries.find` in
+`colourOf`/`nameOf`, and `entries.indexOf` inside two nested `.map`s in
+`HomePage`) is sloppy independent of any React question and may deserve its own
+small ticket.
