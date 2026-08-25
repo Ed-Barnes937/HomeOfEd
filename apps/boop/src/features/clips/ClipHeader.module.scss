@@ -104,13 +104,6 @@
   flex: 1;
 }
 
-// The playhead readout (boop-playhead handoff, "Readout") — before Make a copy.
-.readout {
-  flex: none;
-  font: 700 12px var(--font-mono);
-  color: rgba(242, 239, 230, 0.45);
-}
-
 // The top bar's ghost treatment at the header row's smaller scale.
 .copy {
   flex: none;

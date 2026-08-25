@@ -31,6 +31,14 @@ interface SongBarProps {
   playingPosition: number | null
   /** Where the playhead sits, playing or stopped (boop-playhead ticket 05). */
   playhead: SongPlayheadView
+  /**
+   * `Position 4 · bar 2 of 4`, or `null` on a song with nothing placed. It
+   * rode on `ClipHeader` until screenspace ticket 03 moved that header into
+   * the clip editor card; it reads the *song's* playhead, so it belongs with
+   * the song's other numbers, and the header is `flex: none` so it stays on
+   * screen whether or not the card is open.
+   */
+  readout: string | null
   /** Scrub to a global bar: the strip's arrow keys and Home (spec §4). */
   onScrubToBar: (globalBar: number) => void
   /**
@@ -68,6 +76,7 @@ export function SongBar({
   songPlaying,
   playingPosition,
   playhead,
+  readout,
   onScrubToBar,
   onScrubToCell,
 }: SongBarProps) {
@@ -183,6 +192,11 @@ export function SongBar({
         <span className={styles.bars} data-testid="song-length">
           {placedCount * 4} bars
         </span>
+        {readout !== null && (
+          <span className={styles.readout} data-testid="playhead-readout">
+            {readout}
+          </span>
+        )}
         <div className={styles.spacer} />
         <span className={styles.speedLabel} id="tempo-label">
           Speed

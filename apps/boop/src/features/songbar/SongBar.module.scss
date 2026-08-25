@@ -48,6 +48,21 @@
   flex: 1;
 }
 
+// The song playhead's readout, beside the song's length — both are facts about
+// the song, and it is `ClipHeader`'s old one, moved here when that header went
+// into the clip editor card (screenspace ticket 03). It shrinks and ellipsises
+// rather than pushing the row: the tablet band's header is already full, and
+// Speed must never be the thing that gives way.
+.readout {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 13px var(--font-mono);
+  color: rgba(242, 239, 230, 0.5);
+}
+
 .speedLabel {
   font: 800 15px var(--font-display);
   color: var(--ink);
