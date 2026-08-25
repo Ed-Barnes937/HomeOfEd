@@ -578,8 +578,8 @@ export function HomePage() {
   /**
    * The picker's landing (spec §6): the choice becomes a new clip, on the
    * grid, unplaced. Blank keeps the automatic "Clip N"; a sample clip lands
-   * under its own label and starts playing — there is no per-card preview,
-   * so picking is how you hear one.
+   * under its own label. Neither route starts the transport — adding a clip
+   * is an edit, and the child decides when sound happens.
    */
   const pickClip = useCallback(
     (sample: SampleClip | null) => {
@@ -590,8 +590,7 @@ export function HomePage() {
         addClipToSong(() => blankPattern(kit))
         return
       }
-      const landed = addClipToSong(() => samplePattern(kit, sample.rows), sample.label)
-      if (landed && !engine.isPlaying()) void engine.start()
+      addClipToSong(() => samplePattern(kit, sample.rows), sample.label)
     },
     [addClipToSong, engine],
   )

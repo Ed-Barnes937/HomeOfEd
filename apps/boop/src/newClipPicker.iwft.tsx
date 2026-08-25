@@ -28,7 +28,7 @@ test('"+ New clip" opens the picker: Blank first, then the eight sample clips', 
   ])
 })
 
-test('picking a sample clip lands it named, on the grid, unplaced — and playing', async ({
+test('picking a sample clip lands it named, on the grid, unplaced — and silent', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -48,8 +48,13 @@ test('picking a sample clip lands it named, on the grid, unplaced — and playin
   // sample clips are pattern-only, playing at the boop's one bpm.
   await root.verifySongLength('0 bars')
   await root.verifyTempo(100)
-  // No per-card preview: picking is how you hear one.
-  await root.verifyPlaying()
+  // Adding a clip is an edit, not a transport command: the child decides when
+  // sound happens. This used to start the loop on the sample path only, which
+  // made the picker's two routes disagree (boop-screenspace ticket 01).
+  // Keep the awaited assertions above: the play button reads paused before the
+  // pick too, and `engine.start()` awaits `driver.unlock()` before it flips —
+  // those round-trips are what give a regression time to show up here.
+  await root.verifyPaused()
 })
 
 test('picking Blank lands the automatic "Clip N", silent', async ({ mountApp }) => {
