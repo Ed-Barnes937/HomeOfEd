@@ -51,6 +51,9 @@ test('picking a sample clip lands it named, on the grid, unplaced — and silent
   // Adding a clip is an edit, not a transport command: the child decides when
   // sound happens. This used to start the loop on the sample path only, which
   // made the picker's two routes disagree (boop-screenspace ticket 01).
+  // Keep the awaited assertions above: the play button reads paused before the
+  // pick too, and `engine.start()` awaits `driver.unlock()` before it flips —
+  // those round-trips are what give a regression time to show up here.
   await root.verifyPaused()
 })
 
