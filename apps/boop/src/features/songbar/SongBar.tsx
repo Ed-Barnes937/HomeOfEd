@@ -197,7 +197,7 @@ export function SongBar({
             {readout}
           </span>
         )}
-        <div className={styles.spacer} />
+        <div className={styles.spacer} data-testid="song-header-spacer" />
         <span className={styles.speedLabel} id="tempo-label">
           Speed
         </span>

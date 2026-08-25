@@ -203,6 +203,9 @@ test.describe('the laptop, where the clip header used to carry the readout', () 
 
       await root.verifyPlayheadReadout('Position 16 · bar 4 of 4')
       await root.verifyPlayheadReadoutNotTruncated()
+      // And with room left over, so a font this repo does not control cannot
+      // cut it. 11px fit here exactly and still failed CI — see the helper.
+      await root.verifyPlayheadReadoutHasRoomToSpare(18)
       // And it did not push the header wide enough to start a sideways scroll.
       await root.verifyNoSidewaysScroller()
       await root.verifyTempo(100)
