@@ -7,12 +7,12 @@ existing negative blocker. (ADR-0017 item 4.)
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] The system prompt builder gains one positive identity instruction, present for all
+- [x] The system prompt builder gains one positive identity instruction, present for all
       presets alongside the existing "never pretend to be a real person" blocker.
-- [ ] The prompt unit tests assert the new instruction (the file's existing loose-regex
+- [x] The prompt unit tests assert the new instruction (the file's existing loose-regex
       style) — and also pin the existing negative blocker, which is currently untested.
-- [ ] Verify loop green for the pipeline app.
+- [x] Verify loop green for the pipeline app.
 
 ## Comments

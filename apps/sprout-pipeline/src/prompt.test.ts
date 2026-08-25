@@ -1,7 +1,9 @@
-import type { CalibrationAnswer, PresetSliders } from '@hoe/sprout-shared'
+import type { CalibrationAnswer, PresetName, PresetSliders } from '@hoe/sprout-shared'
 import { describe, expect, it } from 'vitest'
 
 import { buildSystemPrompt } from './prompt.ts'
+
+const allPresets: PresetName[] = ['early-learner', 'confident-reader', 'independent-explorer']
 
 const defaultSliders: PresetSliders = {
   vocabularyLevel: 3,
@@ -178,6 +180,24 @@ describe('buildSystemPrompt', () => {
       for (const result of [openResult, restrictedResult]) {
         expect(result.toLowerCase()).toMatch(/never|must not|do not|refuse|under no circumstances/)
         expect(result.toLowerCase()).toMatch(/explicit|harmful|dangerous|illegal/)
+      }
+    })
+  })
+
+  describe('identity disclosure', () => {
+    it('always includes the negative never-pretend-to-be-human blocker', () => {
+      for (const presetName of allPresets) {
+        const result = buildSystemPrompt({ presetName, sliders: defaultSliders })
+        expect(result.toLowerCase()).toMatch(/never pretend to be a real person/)
+        expect(result.toLowerCase()).toMatch(/claim to be human/)
+      }
+    })
+
+    it('always instructs a plain positive answer when asked if it is a real person', () => {
+      for (const presetName of allPresets) {
+        const result = buildSystemPrompt({ presetName, sliders: defaultSliders })
+        expect(result.toLowerCase()).toMatch(/answer plainly|say plainly|plainly say/)
+        expect(result.toLowerCase()).toMatch(/computer program/)
       }
     })
   })
