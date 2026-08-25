@@ -64,17 +64,33 @@ export interface UseSimLoopOptions {
   onSpawnersChange?: (spawners: readonly Spawner[]) => void
 }
 
-/** `(dx, dy)` offsets covering a centred square brush of this cell width (odd, so it has a centre). */
-function brushOffsets(width: number): readonly { dx: number; dy: number }[] {
+const brushOffsetCache = new Map<number, Int8Array>()
+
+/**
+ * `(dx, dy)` offsets covering a centred square brush of this cell width (odd,
+ * so it has a centre), flat as `[dx, dy, dx, dy, …]`.
+ *
+ * Memoised per width, because `paintAt` calls this on every pointer event
+ * while dragging and the widest brush is 49 pairs. `BRUSH_WIDTHS` is a fixed
+ * four-entry list, so the cache holds four arrays for the app's lifetime and
+ * the painting path allocates nothing.
+ */
+export function brushOffsets(width: number): Int8Array {
+  const cached = brushOffsetCache.get(width)
+  if (cached) return cached
   const half = (width - 1) / 2
   const lo = Math.floor(half)
   const hi = Math.ceil(half)
-  const offsets: { dx: number; dy: number }[] = []
+  const span = lo + hi + 1
+  const offsets = new Int8Array(span * span * 2)
+  let i = 0
   for (let dy = -lo; dy <= hi; dy++) {
     for (let dx = -lo; dx <= hi; dx++) {
-      offsets.push({ dx, dy })
+      offsets[i++] = dx
+      offsets[i++] = dy
     }
   }
+  brushOffsetCache.set(width, offsets)
   return offsets
 }
 
@@ -160,18 +176,41 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     const height = canvas.clientHeight || window.innerHeight
     renderer.resize(width, height, window.devicePixelRatio || 1)
 
+    // The canvas's on-screen box, cached. `getBoundingClientRect` forces a
+    // layout, and `onPointerMove` would otherwise pay for two of them per
+    // event while dragging (once for the cursor readout, once inside
+    // `paintAt`) — at a trackpad's 120 Hz report rate, on the frame the sim is
+    // busiest. Read eagerly here so it is already right on the first pointer
+    // event, before any observer has fired.
+    //
+    // A stale rect is a *correctness* bug — paint lands in the wrong cell and
+    // the brush outline detaches from the pointer — so every way the box can
+    // move refreshes it: the ResizeObserver and the DPR watcher (the canvas's
+    // own size), window resize (the viewport, which moves a centred canvas
+    // without resizing it), and scroll. Scroll is captured on `window` because
+    // scroll events do not bubble: only the capture phase sees an ancestor
+    // scroller's scroll.
+    let rect = canvas.getBoundingClientRect()
+    const refreshRect = (): void => {
+      rect = canvas.getBoundingClientRect()
+    }
+
     const refit = (): void => {
-      const rect = canvas.getBoundingClientRect()
+      refreshRect()
       renderer.resize(rect.width, rect.height, window.devicePixelRatio || 1)
     }
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
+      refreshRect()
       const { width: w, height: h } = entry.contentRect
       renderer.resize(w, h, window.devicePixelRatio || 1)
     })
     resizeObserver.observe(canvas)
+
+    window.addEventListener('scroll', refreshRect, { capture: true, passive: true })
+    window.addEventListener('resize', refreshRect, { passive: true })
 
     // devicePixelRatio changes (browser/OS zoom) don't touch the canvas's CSS
     // size, so ResizeObserver never fires for them — spec §6 requires the
@@ -190,20 +229,29 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     }
     watchDpr()
 
-    const cellAt = (clientX: number, clientY: number): { x: number; y: number } | null => {
-      const rect = canvas.getBoundingClientRect()
-      return renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
-    }
+    const cellAt = (clientX: number, clientY: number): { x: number; y: number } | null =>
+      renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
 
     let painting = false
     const paintAt = (clientX: number, clientY: number): void => {
       const cell = cellAt(clientX, clientY)
       if (!cell) return
-      for (const { dx, dy } of brushOffsets(brushRef.current)) {
-        const x = cell.x + dx
-        const y = cell.y + dy
+      // One `sim.paint` per cell, deliberately: a batched entry point would
+      // hoist the registry lookup and narrow the `chunks.activate` spread, but
+      // a 7×7 brush spans at most 2×2 of the 32-cell chunks, so the redundant
+      // spreads are a few hundred rect unions — nowhere near the two forced
+      // layouts this change removes. Not worth a second painting seam whose
+      // clock and dirty-rect semantics would have to stay in step with `paint`.
+      //
+      // Flat `[dx, dy, …]` pairs — see `brushOffsets`; walked by index so a
+      // drag allocates nothing per event.
+      const offsets = brushOffsets(brushRef.current)
+      const species = selectedRef.current
+      for (let i = 0; i < offsets.length; i += 2) {
+        const x = cell.x + offsets[i]!
+        const y = cell.y + offsets[i + 1]!
         if (x < 0 || y < 0 || x >= sim.width || y >= sim.height) continue
-        sim.paint(x, y, selectedRef.current)
+        sim.paint(x, y, species)
       }
       onPaintRef.current?.()
     }
@@ -313,6 +361,8 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       rendererRef.current = null
       resizeObserver.disconnect()
       stopWatchingDpr()
+      window.removeEventListener('scroll', refreshRect, { capture: true })
+      window.removeEventListener('resize', refreshRect)
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', stopPainting)
