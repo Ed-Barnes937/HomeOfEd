@@ -33,6 +33,22 @@ describe('DrizzleWotdStore over PGlite with the generated migrations', () => {
     })
   })
 
+  it('persists wordType and respelling and reads them back', async () => {
+    const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
+    await store.insertWords([row({ wordType: 'adjective', respelling: 'ih·FEM·er·uhl' })])
+
+    const rows = await store.getWordsForDate('2026-07-05')
+    expect(rows[0]).toMatchObject({ wordType: 'adjective', respelling: 'ih·FEM·er·uhl' })
+  })
+
+  it('stores null wordType and respelling when a row omits them (pre-redesign shape)', async () => {
+    const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
+    await store.insertWords([row()])
+
+    const rows = await store.getWordsForDate('2026-07-05')
+    expect(rows[0]).toMatchObject({ wordType: null, respelling: null })
+  })
+
   it('returns an empty array for a date with no words', async () => {
     const store = new DrizzleWotdStore(await freshTestDb(wotdSchema, migrations))
     await store.insertWords([row({ forDate: '2026-07-05' })])

@@ -77,7 +77,10 @@
   }
 }
 
-// --- Canvas area: dashed-border card fills the space; canvas fills the card. ---
+// --- Canvas area: the card fills the space; canvas fills the card. The card is
+// a SHEET OF PAPER ON A DESK — warm sheet against the neutral-grey room, no
+// dashed sketchbook rule (a sheet has a cut edge, not a stitched one), and the
+// two-part shadow in `--espy-shadow-card` gives it the air underneath. ---
 
 .canvasArea {
   flex: 1;
@@ -91,7 +94,6 @@
   min-width: 0;
   position: relative;
   background: var(--espy-card);
-  border: 2px dashed var(--espy-card-border);
   border-radius: var(--espy-radius-card);
   box-shadow: var(--espy-shadow-card);
   overflow: hidden;

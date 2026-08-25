@@ -1,0 +1,397 @@
+// Small-phone grid geometry, exactly the design handoff's "Phone grid
+// geometry" block (docs/reference/boop-design/README.md, "Main screen — small
+// phone"): cell 32 x 44 radius 7, inner gap 5, group gutter 11, rail 92, rail
+// gap 8, row gap 6, plate 32 / artwork 24, row label Chivo 800 11px, bar
+// numerals Chivo Mono 700 10px (the 10px floor — never derive smaller).
+// The pixel constants here are mirrored in `phoneWindow.ts`; change together.
+
+// The bar-numeral row's height is pinned so the pinned rail column and the
+// scrolling step column stay row-aligned.
+$bar-row-height: 14px;
+$bar-row-gap: 6px;
+// Vertical breathing room for the playhead column's -6px inset and the
+// under-playhead cell's scale(1.11); applied identically to both columns.
+$row-inset: 6px;
+// The least grid a child is ever shown (ticket 23): the bar-numeral row, the
+// rows' top inset, then `$floor-rows` of the six with their 6px gaps.
+//
+// Three, not two (the repo owner's call). Two binds as soon as a song has
+// three clips, which is the normal state of a song being worked on rather
+// than a rescue case — and a 120px window onto a 332px grid cannot show the
+// kick and the boop at once, so placing a beat means scrolling a six-row
+// instrument grid two rows at a time. Three costs about 50px more region
+// scroll, at exactly the sizes where the region is already scrolling, and
+// buys 50% more grid for it.
+$floor-rows: 3;
+$grid-floor: $bar-row-height + $bar-row-gap + $row-inset + $floor-rows * 44px +
+  ($floor-rows - 1) * 6px;
+
+.well {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--well);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  // The rail and step columns scroll together inside the well; the loop map
+  // under them does not (ticket 23). The well shrinks to whatever the frame
+  // leaves it, so the song bar below it — which carries song play — is on
+  // screen at every window height. The `overflow: hidden` that used to sit
+  // here moved to that scroll box: it is what the strip overflows.
+  //
+  // The floor, and it has to sit here rather than on the scroll box: this is
+  // the box flex shrinks, and `min-height: 0` on it let the grid go to
+  // *nothing* — five clips at 390x640 left 40px of grid, and a 460px-tall
+  // window left none at all from one clip upwards. A sequencer with no
+  // sequencer on it is not a trade worth making, so the well stops here and
+  // the region scrolls instead.
+  //
+  // Flooring `.wellScroll` alone does not do it, and the reason is this box's
+  // `overflow: visible`. The scroll box is not all that is in here — 20px of
+  // padding and the 34px loop map sit outside it — so this box stays free to
+  // shrink below its own content, and what comes off spills rather than clips.
+  // Measured at 390x460 with five clips and the floor on the scroll box only,
+  // `elementFromPoint` over the song play button returned the instrument
+  // rail's artwork: the grid painting over the song bar.
+  //
+  // 10 + 10 padding, the row floor above, and the loop map's own
+  // 34px — the map is `flex: none` under the scroll box and must stay whole,
+  // since it is what carries the playhead when the strip is scrolled away
+  // (ADR 0027). Change it with `LoopMap.module.scss`.
+  display: flex;
+  flex-direction: column;
+  min-height: 10px + 10px + $grid-floor + 34px;
+
+  // Below 500px tall the page scrolls instead of the frame (ADR 0030, as
+  // amended by ticket 23), so nothing bounds this well any more — it would
+  // grow to all six rows and push the song bar and transport a long way down
+  // the document. Pinned to the floor instead: three rows, and `.wellScroll`
+  // carries the rest exactly as it does above the threshold.
+  @media (max-height: 504px) {
+    max-height: 10px + 10px + $grid-floor + 34px;
+  }
+}
+
+// See Grid.module.scss's `.wellScroll` — same rules, the phone's numbers. No
+// overhang padding is needed: the phone playhead is clipped to its own layer
+// inside the strip, and the rows carry `$row-inset` already.
+.wellScroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden auto;
+}
+
+.loopMapFooter {
+  flex: none;
+}
+
+.layout {
+  display: flex;
+  gap: 8px; // rail gap
+  margin-bottom: 6px;
+}
+
+// The pinned instrument rail — it never scrolls, so a child always knows which
+// voice a row is, whichever bar is on screen.
+.railCol {
+  flex: none;
+  width: 92px; // 32 plate + 7 gap + 53 text ("Marimba" at Chivo 800 11px)
+}
+
+.barSpacer {
+  height: $bar-row-height;
+  margin-bottom: $bar-row-gap;
+}
+
+.railRows {
+  padding: $row-inset 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px; // row gap
+}
+
+.railRow {
+  height: 44px; // the cell height, so rail and steps line up row for row
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.plate {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artwork {
+  width: 24px;
+  height: 24px;
+  background: var(--row-color);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.nameBob {
+  display: inline-block;
+  min-width: 0;
+
+  &[data-struck='true'] {
+    animation: rowBob 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+@keyframes rowBob {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(4px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+// Holds the scrolling window plus the off-screen playhead marker, which must
+// stay pinned to the window's edge rather than scroll away with the strip.
+.windowWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+// The step window. `touch-action: pan-x` hands horizontal panning to the
+// browser — a sideways swipe scrolls and snaps to a bar line and never paints
+// — while vertical drags stay ours to paint with. This is ticket 15's
+// `touch-action: none` deliberately relaxed for the phone, and it is why
+// `useDragPaint` defers the first cell (a swipe that starts on a cell must not
+// flip it). Playback never scrolls this element: the loop map carries the
+// playhead instead, so a child's position is never yanked.
+.window {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.strip {
+  width: 605px; // 16 x 32 + 12 x 5 + 3 x 11
+}
+
+.barNumerals {
+  display: flex;
+  gap: 11px; // group gutter
+  height: $bar-row-height;
+  margin-bottom: $bar-row-gap;
+}
+
+// Each numeral spans its whole 4-step group, so it doubles as the scroll-snap
+// target: the four snap positions are exactly the four bar lines.
+.barNumeral {
+  flex: none;
+  width: 143px; // 4 x 32 + 3 x 5
+  scroll-snap-align: start;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: $bar-row-height;
+  color: rgba(242, 239, 230, 0.28);
+
+  &[data-active='true'] {
+    color: rgba(242, 239, 230, 0.7);
+  }
+}
+
+.body {
+  position: relative;
+  padding: $row-inset 0;
+}
+
+// Clips the playhead column at the ends of the strip so its 6px overhang
+// cannot add scrollable width and pull the last snap position off a bar line.
+.playheadLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+// pad = round(32 x 0.09) + 3 = 6; width = 32 + 2 x 6 = 44; radius = round(32 x 0.3) = 10.
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--group) * (4 * 32px + 3 * 5px + 11px) + var(--col) * (32px + 5px) - 6px);
+  width: 44px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(111, 224, 240, 0.24), rgba(111, 224, 240, 0.07));
+  box-shadow: var(--shadow-playhead-column);
+
+  // Stopped, the column stays where it was at 45% — the laptop's rule (spec §1).
+  &[data-playing='false'] {
+    opacity: 0.45;
+  }
+}
+
+.rows {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stepsRow {
+  display: flex;
+  gap: 11px; // group gutter
+}
+
+.group {
+  display: flex;
+  gap: 5px;
+}
+
+// 32 x 44: deliberately below 44 on its short axis (design handoff, "Tap
+// targets") — the row band is 44 tall, cells sit edge to edge, and horizontal
+// neighbours are same-row cells where a mis-tap is harmless and audible.
+// In-cell artwork is dropped on phone (18px is below the legibility floor), so
+// an active cell is a plain coloured pebble.
+.cell {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: var(--shadow-cell-empty);
+  cursor: pointer;
+
+  &[data-parity='odd'] {
+    background: rgba(255, 255, 255, 0.075);
+  }
+
+  &[data-playhead='true'] {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  &[data-active='true'][data-playhead='true'] {
+    transform: scale(1.11);
+    box-shadow: var(--shadow-cell-playhead);
+  }
+
+  // See Grid.module.scss's cell rule — same `--cyan-solid` focus token, same
+  // pending-design caveat.
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+}
+
+.squash {
+  position: absolute;
+  inset: 0;
+
+  &[data-struck='true'] {
+    animation: cellSquash 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+@keyframes cellSquash {
+  0% {
+    transform: scale(1, 1);
+  }
+  8% {
+    transform: scale(1.2, 0.82);
+  }
+  30% {
+    transform: scale(0.94, 1.08);
+  }
+  55%,
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+.pebble {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: var(--row-color);
+  box-shadow: var(--shadow-cell-active);
+  // Edit-pop (design handoff, "Motion" — "Edit while stopped"): the pebble
+  // mounts fresh every time a cell turns on, so this plays once per paint.
+  animation: cellPop 140ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes cellPop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+// Off-screen playhead marker (design handoff, frame B): it appears on the side
+// the playhead is on, telling a child which way to swipe back.
+.edgeGlow {
+  position: absolute;
+  top: 26px; // clear of the bar-numeral row
+  bottom: 10px;
+  width: 22px;
+  border-radius: 2px;
+  pointer-events: none;
+
+  &[data-side='left'] {
+    left: 0;
+    border-left: 3px solid var(--cyan);
+    background: linear-gradient(90deg, rgba(111, 224, 240, 0.35), rgba(111, 224, 240, 0));
+  }
+
+  // The handoff only draws the left form; the right is its mirror, for a
+  // playhead that has run ahead of the window rather than behind it.
+  &[data-side='right'] {
+    right: 0;
+    border-right: 3px solid var(--cyan);
+    background: linear-gradient(270deg, rgba(111, 224, 240, 0.35), rgba(111, 224, 240, 0));
+  }
+}

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Op } from './engine/types.ts'
 import { loadSession, saveSession } from './session.ts'
 
-const STORAGE_KEY = 'espy:doodle:v1'
+const STORAGE_KEY = 'espy:doodle:v2'
 
 class FakeStorage {
   private readonly store = new Map<string, string>()
@@ -65,6 +65,12 @@ const SAMPLE_OPS: Op[] = [
 ]
 
 describe('saveSession / loadSession', () => {
+  it('ignores a v1 session — its baked raster is opaque and would cover the paper', () => {
+    const storage = new FakeStorage()
+    storage.setItem('espy:doodle:v1', JSON.stringify([field('data:image/jpeg;base64,AAAA')]))
+    expect(loadSession(storage)).toBeNull() // fall back to a fresh field
+  })
+
   it('round-trips a saved Op[] exactly', () => {
     const storage = new FakeStorage()
     saveSession(SAMPLE_OPS, storage)

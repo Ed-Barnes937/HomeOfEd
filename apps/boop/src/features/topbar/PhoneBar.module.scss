@@ -1,0 +1,110 @@
+// The 52px phone strip (design handoff, "Main screen — small phone" →
+// "Chrome — the 52px strip"), ported from apps/fridge's MobileBar idiom.
+.bar {
+  position: relative;
+  z-index: 30;
+  // Full-bleed across the 12px phone content padding.
+  margin: 0 -12px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+// Every tap target clears 44px.
+.icon {
+  position: relative; // the save icon's dot badge anchors to it
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: rgba(242, 239, 230, 0.55);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: -2px;
+  }
+}
+
+// The saved/edited badge (ticket 31), tucked into the save icon's top-right:
+// filled cyan while this grid is not a row in "My boops" (or has drifted from
+// one), a hollow ring once it is. The strip has no room for the desktop's words.
+.savedDot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cyan);
+  background: transparent;
+
+  &[data-unsaved='true'] {
+    background: var(--cyan);
+  }
+}
+
+.wordmark {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+// The "⋯" sheet: a paper card anchored under the strip (design handoff,
+// "Mobile '⋯' menu").
+.menu {
+  position: absolute;
+  top: 56px;
+  right: 8px;
+  left: 8px;
+  max-width: 320px;
+  margin-left: auto;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+}
+
+.item {
+  min-height: 44px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid rgba(20, 38, 42, 0.12);
+  border-radius: var(--r-control);
+  background: var(--paper-input);
+  font: 700 14px var(--font-display);
+  color: var(--ink-dark);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+}
+
+// Clear grid: dashed and coral, so it is never mistakable for a safe action.
+.danger {
+  border: 1px dashed rgba(138, 74, 66, 0.4);
+  color: var(--danger-text);
+}

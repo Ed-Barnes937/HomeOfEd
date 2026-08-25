@@ -54,14 +54,15 @@ src/
     migrations/     drizzle-kit output (`pnpm generate`) — SQL + meta/, committed
     migrations.ts   Vite ?raw glob loader → statement list (browser/vitest)
     store.ts        WotdStore interface + DrizzleWotdStore (getWordsForDate/insertWords/ping)
-    wordGenerator.ts  pinned contracts: Difficulty/DIFFICULTIES/WordOfTheDay/GeneratedWord/WordGenerator
+    wordGenerator.ts  pinned contracts: Difficulty/DIFFICULTIES/WordOfTheDay/YesterdayWord/GeneratedWord/WordGenerator
     handlers/todayWordsHandler.ts  GetTodayWordsHandler (lazy generation, race-safe)
+    handlers/yesterdayWordHandler.ts  GetYesterdayWordHandler (read-only, no generator seam)
     anthropicWordGenerator.ts      prod generator (Anthropic tool-use) + parseGeneratedWords
     router.ts       createAppRouter(generator) factory; exports AppRouter
     simulator.ts    dev wiring: PGlite Store + FakeWordGenerator
     main.ts         prod entrypoint: Postgres Store + AnthropicWordGenerator + deep /health
     migrate.ts      release_command: run-once migrations
-    todayWords.test.ts / anthropicWordGenerator.test.ts / store.test.ts  Vitest units
+    todayWords.test.ts / yesterdayWord.test.ts / anthropicWordGenerator.test.ts / store.test.ts  Vitest units
   pages/ components/ features/  UI — SCSS modules, inline SVGs, code-based TanStack routes
   testing/          IwftApp harness (PGlite + FakeWordGenerator, fixed now) + POMs + fixture
   wotd.iwft.tsx     whole-frontend tests via the in-browser backend (seeded reads)

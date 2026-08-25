@@ -6,7 +6,14 @@
 
 import type { Blot, Eye, Op, Point, Satellite, Stroke, ViewBox } from './engine/types.ts'
 
-const KEY = 'espy:doodle:v1'
+/**
+ * Bumped to v2 when the baked field raster changed from an OPAQUE jpeg (ink
+ * already composited over a flat paper colour) to ink with coverage as ALPHA,
+ * blitted over the generated paper sheet. A v1 raster restored under v2 would
+ * paint its own dead flat paper over the sheet as a rectangle. The old key is
+ * never read, so those sessions start fresh — which is the documented fallback.
+ */
+const KEY = 'espy:doodle:v2'
 
 function isNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)

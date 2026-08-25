@@ -1,0 +1,474 @@
+// Tokens per spec §9 — chrome is warm paper/ink; saturation is reserved for
+// the world canvas.
+$ink: #1a1714;
+$paper: #e7e2d5;
+$panel: #efeadd;
+$raised: #f5f2e9;
+$muted: #8a8478;
+$world: #181510;
+$destructive: #e2542a;
+
+$font-label: 'Silkscreen', monospace;
+$font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+// Mobile rule (spec §9, design brief §02): any touch device, or any viewport
+// narrow enough that the desktop rail would be unusable. Matches the house
+// pattern from ADR 0023 (fridge).
+$mobile: '(pointer: coarse), (max-width: 700px)';
+
+.app {
+  display: grid;
+  grid-template-rows: 58px 1fr;
+  height: 100dvh;
+  background: $panel;
+  color: $ink;
+  font-family: $font-mono;
+}
+
+// ---- header (58px) ---------------------------------------------------
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1rem;
+  background: $paper;
+  border-bottom: 2px solid $ink;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.title {
+  font-family: $font-label;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sceneName {
+  font-size: 0.75rem;
+  color: $muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerControls {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.headerButton {
+  border: 2px solid $ink;
+  background: $raised;
+  color: $ink;
+  padding: 0.35rem 0.9rem;
+  font: inherit;
+  font-family: $font-label;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+
+  &:disabled {
+    color: $muted;
+    cursor: not-allowed;
+  }
+}
+
+// Positioning context for the scenes popover, which hangs off the header
+// button rather than floating over the world.
+.scenesAnchor {
+  position: relative;
+}
+
+.armed {
+  background: $destructive;
+  color: $paper;
+  border-color: $ink;
+}
+
+// Step has no meaning without a keyboard, and there's no room for it once the
+// rail becomes a bottom bar — play and reset stay, sized as touch targets
+// (spec §9, design brief §02).
+@media #{$mobile} {
+  .stepButton {
+    display: none;
+  }
+
+  .headerButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+// ---- body: rail (176px) | stage ---------------------------------------
+
+.body {
+  display: grid;
+  grid-template-columns: 176px 1fr;
+  min-height: 0;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 0.75rem;
+  background: $panel;
+  border-right: 2px solid $ink;
+  overflow-y: auto;
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.paletteGroup,
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.groupLabel {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $muted;
+  padding: 0 0.25rem;
+}
+
+.swatchRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  background: transparent;
+  color: $ink;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: $ink;
+    color: $paper;
+  }
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid $ink;
+  flex: none;
+}
+
+.swatchName {
+  flex: 1;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hotkey {
+  font-size: 0.7rem;
+  color: $muted;
+}
+
+.swatchRow[aria-pressed='true'] .hotkey {
+  color: $paper;
+}
+
+.brushRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.25rem;
+}
+
+.brushButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: $ink;
+    background: $raised;
+  }
+}
+
+.brushSquare {
+  background: $ink;
+  display: block;
+}
+
+.modeToggle {
+  display: flex;
+  border: 2px solid $ink;
+}
+
+.modeButton {
+  flex: 1;
+  border: none;
+  background: $raised;
+  color: $ink;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-family: $font-label;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+
+  &:not(:first-child) {
+    border-left: 2px solid $ink;
+  }
+
+  &[aria-pressed='true'] {
+    background: $ink;
+    color: $paper;
+  }
+
+  &:disabled {
+    color: $muted;
+    cursor: not-allowed;
+  }
+}
+
+.eraseButton {
+  border: 2px solid $ink;
+  background: $raised;
+  color: $ink;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: $destructive;
+    color: $paper;
+    border-color: $ink;
+  }
+}
+
+// ---- mobile: rail rotates into a bottom bar (spec §9, design brief §02) ----
+//
+// Only step drops (spec §9 says so explicitly); brush and mode are shipped
+// rail contents (spec §9's desktop rail description, ticket 08's spawner
+// mode) with nothing marking them droppable, so both fold into the same
+// scrolling row as compact controls — not the full desktop rail treatment,
+// just the existing brush squares / mode toggle at touch-target size. Erase
+// needs no reordering: it's already the rail's last child, which puts it
+// last in the scroll row for free.
+@media #{$mobile} {
+  .body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .rail {
+    grid-row: 2;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem;
+    border-right: none;
+    border-top: 2px solid $ink;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .stage {
+    grid-row: 1;
+  }
+
+  .palette {
+    flex-direction: row;
+    gap: 0.4rem;
+  }
+
+  .paletteGroup {
+    flex-direction: row;
+    gap: 0.4rem;
+  }
+
+  .groupLabel {
+    display: none;
+  }
+
+  .section {
+    flex: none;
+  }
+
+  .brushButton {
+    width: 48px;
+    height: 48px;
+  }
+
+  .modeButton {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.6rem;
+  }
+
+  .swatchRow {
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0.2rem;
+  }
+
+  .swatchName {
+    flex: none;
+    font-size: 7px;
+  }
+
+  .hotkey {
+    display: none;
+  }
+
+  .eraseButton {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+// ---- stage: canvas + status bar (32px) ---------------------------------
+
+.stage {
+  display: grid;
+  grid-template-rows: 1fr 32px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.canvasWrap {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  background: $world;
+}
+
+// Paused brightens the grid rather than dimming it (spec §9) — building is a
+// first-class activity, not an interruption.
+.paused .canvas {
+  filter: brightness(1.15);
+}
+
+// The world canvas — one pixel per sim cell, scaled up letterboxed (spec §6).
+// Smoothing is also switched off on the 2D context; this CSS hint keeps the
+// browser's own upscale crisp on the rare frame drawn before that runs.
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.runPill {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border: 2px solid $ink;
+  font-family: $font-label;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.running {
+  background: $ink;
+  color: $paper;
+}
+
+// Paused inverts the pill to paper (spec §9).
+.pillPaused {
+  background: $paper;
+  color: $ink;
+}
+
+.blinkDot {
+  width: 6px;
+  height: 6px;
+  background: #3ecf6b;
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.firstVisitHint {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: $paper;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 400ms ease;
+}
+
+.firstVisitHintFading {
+  opacity: 0;
+}
+
+// The brush cursor, the spawner boxes and the placement ghost are the world
+// overlay's own (../features/render/WorldOverlay.module.scss) — they position
+// against `.canvasWrap` above.
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  background: $paper;
+  border-top: 2px solid $ink;
+  font-family: $font-mono;
+  font-size: 0.68rem;
+  color: $ink;
+}
+
+.statusLeft,
+.statusRight {
+  display: flex;
+  gap: 0.9rem;
+  text-transform: uppercase;
+}

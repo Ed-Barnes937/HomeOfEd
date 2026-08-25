@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import styles from './HomePage.module.scss'
 import { isNew } from './isNew.ts'
+import { isUpdated } from './isUpdated.ts'
 import { useColourTheme } from './useColourTheme'
 
-type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'idle'
+type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'idle'
 type AppLink = {
   name: string
   status: 'LIVE' | 'SOON'
@@ -11,6 +12,11 @@ type AppLink = {
   href?: string
   // ISO date the app went live; drives the "New" pill (see isNew.ts).
   deployedAt?: string
+  // ISO date of the app's last notable change; drives the "Updated" pill (see
+  // isUpdated.ts). "New" wins while both windows are open.
+  updatedAt?: string
+  // Overrides the default "SOON" text for a not-yet-live card.
+  soonLabel?: string
 }
 
 const APPS: AppLink[] = [
@@ -30,6 +36,21 @@ const APPS: AppLink[] = [
     kind: 'garden',
     href: 'https://karesansui.homeofed.com',
     deployedAt: '2026-07-10',
+  },
+  {
+    name: 'boop',
+    status: 'LIVE',
+    kind: 'boop',
+    href: 'https://boop.homeofed.com',
+    deployedAt: '2026-08-07',
+  },
+  {
+    name: 'Silt',
+    status: 'LIVE',
+    kind: 'silt',
+    href: 'https://silt.homeofed.com',
+    deployedAt: '2026-08-07',
+    updatedAt: '2026-08-24',
   },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
@@ -85,7 +106,13 @@ export function HomePage() {
           {APPS.map((app) => {
             const inner = (
               <>
-                {isNew(app.deployedAt, now) && <span className={styles.newPill}>New</span>}
+                {isNew(app.deployedAt, now) ? (
+                  <span className={styles.newPill}>New</span>
+                ) : (
+                  isUpdated(app.updatedAt, now) && (
+                    <span className={styles.updatedPill}>Updated</span>
+                  )
+                )}
                 <canvas className={styles.preview} data-kind={app.kind} aria-hidden="true" />
                 <div className={styles.cardFoot}>
                   <span className={styles.name}>{app.name}</span>
@@ -95,7 +122,7 @@ export function HomePage() {
                       LIVE
                     </span>
                   ) : (
-                    <span className={styles.soonLabel}>SOON</span>
+                    <span className={styles.soonLabel}>{app.soonLabel ?? 'SOON'}</span>
                   )}
                 </div>
               </>
@@ -298,6 +325,8 @@ function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string)
         else if (kind === 'word') stops.push(drawWord(cv, darkRef))
         else if (kind === 'ink') stops.push(drawInk(cv, darkRef))
         else if (kind === 'garden') stops.push(drawGarden(cv, darkRef))
+        else if (kind === 'boop') stops.push(drawBoop(cv, darkRef))
+        else if (kind === 'silt') stops.push(drawSilt(cv, darkRef))
         else stops.push(drawIdle(cv, darkRef))
       }
     }, 90)
@@ -622,6 +651,111 @@ function drawGarden(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
         alpha = 1
         prog = 0
         phase = 'draw'
+      }
+    }
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
+}
+
+// boop: a tiny four-step groove — coloured note cells brighten and swell in
+// turn as an implied playhead advances, echoing the step-sequencer at boop's
+// heart. The pulse is a smooth scale/alpha curve rather than an on/off flash,
+// so the preview never strobes.
+function drawBoop(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const NOTES = ['#FF6B5C', '#FFB03A', '#6FE0A8', '#B78BFF']
+  const STEPS = NOTES.length
+  const cellW = w / (STEPS + 1)
+  const cy = h / 2
+  let raf = 0
+  let t = 0
+  const step = (): void => {
+    const dark = darkRef.current
+    ctx.clearRect(0, 0, w, h)
+    t += 0.02
+    const beat = (t / 0.9) % STEPS
+    for (let i = 0; i < STEPS; i++) {
+      const cx = cellW * (i + 1)
+      const dist = Math.min(Math.abs(beat - i), STEPS - Math.abs(beat - i))
+      const hit = Math.max(0, 1 - dist * 2.4)
+      const scale = 1 + hit * 0.35
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.scale(scale, scale)
+      ctx.globalAlpha = dark ? 0.5 + hit * 0.5 : 0.4 + hit * 0.6
+      ctx.fillStyle = NOTES[i]!
+      ctx.beginPath()
+      ctx.roundRect(-9, -9, 18, 18, 5)
+      ctx.fill()
+      ctx.restore()
+    }
+    ctx.globalAlpha = 1
+    raf = requestAnimationFrame(step)
+  }
+  step()
+  return () => cancelAnimationFrame(raf)
+}
+
+// silt: grains of sand fall from the top, pile up, and settle into small
+// slopes — the falling-sand playground in miniature. Runs a tiny falling-sand
+// cellular automaton on a coarse grid; once the pile nears the top the grid
+// clears and the loop starts over. Grain colour tracks the hub theme.
+function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+  const { ctx, w, h } = cvctx(cv)
+  const cols = 22
+  const rows = 16
+  const cell = Math.min(w / cols, h / rows)
+  const offX = (w - cell * cols) / 2
+  const offY = (h - cell * rows) / 2
+  const makeGrid = (): boolean[][] =>
+    Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false))
+  let grid = makeGrid()
+  let frame = 0
+  let raf = 0
+  const step = (): void => {
+    frame++
+    if (frame % 3 === 0) {
+      const x = Math.floor(Math.random() * cols)
+      const row = grid[0]!
+      if (!row[x]) row[x] = true
+    }
+    for (let y = rows - 2; y >= 0; y--) {
+      const row = grid[y]!
+      const below = grid[y + 1]!
+      for (let x = 0; x < cols; x++) {
+        if (!row[x]) continue
+        if (!below[x]) {
+          below[x] = true
+          row[x] = false
+          continue
+        }
+        const dir = Math.random() < 0.5 ? -1 : 1
+        const first = x + dir
+        const second = x - dir
+        if (first >= 0 && first < cols && !below[first]) {
+          below[first] = true
+          row[x] = false
+        } else if (second >= 0 && second < cols && !below[second]) {
+          below[second] = true
+          row[x] = false
+        }
+      }
+    }
+    const topRow = grid[1]!
+    const filled = topRow.reduce((n, cellFilled) => n + (cellFilled ? 1 : 0), 0)
+    if (filled > cols * 0.6) {
+      grid = makeGrid()
+    }
+
+    const col = darkRef.current ? ACCENT.dark : ACCENT.light
+    ctx.clearRect(0, 0, w, h)
+    ctx.fillStyle = col
+    for (let y = 0; y < rows; y++) {
+      const row = grid[y]!
+      for (let x = 0; x < cols; x++) {
+        if (row[x]) ctx.fillRect(offX + x * cell, offY + y * cell, cell - 0.5, cell - 0.5)
       }
     }
     raf = requestAnimationFrame(step)

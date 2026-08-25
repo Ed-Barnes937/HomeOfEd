@@ -1,17 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import type { ComponentType } from 'react'
 
-import type { Difficulty } from '../server/wordGenerator.ts'
-import { ArrowRightIcon, LightbulbIcon, RocketIcon, SparklesIcon, StarIcon, ZapIcon, type IconProps } from './icons.tsx'
+import { DIFFICULTIES, type Difficulty } from '../server/wordGenerator.ts'
+import { ArrowRightIcon } from './icons.tsx'
 import styles from './LevelCard.module.scss'
-import { Typography } from './Typography.tsx'
-
-const ICON: Record<Difficulty, ComponentType<IconProps>> = {
-  beginner: LightbulbIcon,
-  intermediate: StarIcon,
-  advanced: ZapIcon,
-  expert: RocketIcon,
-}
 
 /** Age-hint copy, per the school key-stage the level is aimed at. */
 const KS_HINT: Record<Difficulty, string> = {
@@ -23,8 +14,13 @@ const KS_HINT: Record<Difficulty, string> = {
 
 type LevelCardProps = { level: Difficulty }
 
+/**
+ * One level in the picker. Mobile: a horizontal tappable row (number badge,
+ * name, key-stage hint, chevron). Desktop: a column card with a "START →"
+ * affordance. Same element both sizes — CSS swaps the chevron for the START
+ * row at the grid breakpoint.
+ */
 export function LevelCard({ level }: LevelCardProps) {
-  const Icon = ICON[level]
   return (
     <Link
       to="/wotd"
@@ -33,16 +29,15 @@ export function LevelCard({ level }: LevelCardProps) {
       data-level={level}
       data-testid={`level-card-${level}`}
     >
-      <SparklesIcon size={20} className={styles.sparkleTopLeft} />
-      <SparklesIcon size={20} className={styles.sparkleBottomRight} />
-      <div className={styles.content}>
-        <Icon size={40} />
-        <Typography variant="h3">{level}</Typography>
-        <Typography className={styles.hint}>{KS_HINT[level]}</Typography>
-        <span className={styles.cta}>
-          Select Level <ArrowRightIcon size={18} />
-        </span>
-      </div>
+      <span className={styles.badge}>{DIFFICULTIES.indexOf(level) + 1}</span>
+      <span className={styles.names}>
+        <span className={styles.name}>{level}</span>
+        <span className={styles.hint}>{KS_HINT[level]}</span>
+      </span>
+      <ArrowRightIcon size={18} strokeWidth={2.2} className={styles.chevron} />
+      <span className={styles.start}>
+        Start <ArrowRightIcon size={15} strokeWidth={2.4} />
+      </span>
     </Link>
   )
 }

@@ -1,0 +1,552 @@
+// Song bar geometry from the clip-lanes handoff (§5 "Song bar") — the pinned
+// bar below the scrolling grid region, in the transport dock's old slot.
+// On the tablet band (1024–1279px, ticket 20, spec §4 — variant E) the lane
+// grid shrinks to fit the column instead of scrolling: squares and ruler
+// numerals turn flexible with a min-width floor, chips narrow to 128px.
+.bar {
+  margin-top: 14px;
+  padding: 0 18px 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.045);
+  // Pinned over the scrolling grid well, like the transport was (ticket 33).
+  box-shadow: var(--shadow-transport-bar);
+  // The header is `flex: none` and the lane grid is what gives way, so a
+  // capped dock (ticket 23) costs lane rows and never the song play button,
+  // Speed, or the bars readout. `min-height: 0` is what lets this shrink into
+  // the cap at all.
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+// Song play leads this row at every width — the phone bar's arrangement, made
+// the one arrangement (the owner's call). 72px rather than the handoff's 64 is
+// the 56px circle plus 8px of air either side; the row is what the old play
+// *column* cost the lane grid, and the column's 46px offset and its label are
+// gone with it.
+.header {
+  flex: none;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.title {
+  font: 900 17px var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.bars {
+  font: 600 13px var(--font-mono);
+  color: rgba(242, 239, 230, 0.4);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.speedLabel {
+  font: 800 15px var(--font-display);
+  color: var(--ink);
+}
+
+// Fixed width so the row does not jitter as the number changes (handoff §5).
+.speedReadout {
+  flex: none;
+  width: 64px;
+  font: 600 13px var(--font-mono);
+  color: rgba(242, 239, 230, 0.5);
+}
+
+.endpoint {
+  flex: none;
+  font: 600 13px var(--font-display);
+  color: rgba(242, 239, 230, 0.5);
+}
+
+// The transport bar's tempo slider skin, moved here (handoff §5 — "Same
+// visual as today's tempo slider") at the song bar's fixed 280px width.
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  width: 280px;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    rgba(242, 239, 230, 0.4) var(--tempo-percent),
+    rgba(255, 255, 255, 0.11) var(--tempo-percent)
+  );
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-thumb {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-track {
+    height: 10px;
+    border-radius: 5px;
+    background: transparent;
+  }
+
+  &::-moz-range-progress {
+    height: 10px;
+    border-radius: 5px 0 0 5px;
+    background: rgba(242, 239, 230, 0.4);
+  }
+}
+
+.body {
+  padding-top: 14px;
+  display: flex;
+  align-items: flex-start;
+  // Shrinks into the capped dock (ticket 23) so the lane grid inside it can:
+  // this row is what sits between the pinned header and the lanes, and a flex
+  // item that cannot shrink passes nothing down.
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.songPlay {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    0 10px 22px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  // Playing: ink fill + pause glyph (handoff §5 — the flip, not a new button).
+  &[data-playing='true'] {
+    background: var(--ink);
+  }
+
+  &:active {
+    box-shadow: none;
+    transform: translateY(2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 19px solid var(--ink-dark);
+}
+
+.pause {
+  display: flex;
+  gap: 6px;
+}
+
+.pauseBar {
+  width: 7px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--ink-dark);
+}
+
+.lanes {
+  // `flex: 1`, not `0 1 auto`: on `auto` the box took its content's *minimum*
+  // width, so from 1024 to 1279 — where the squares are flexible — they
+  // compressed to their 20px floor however much room the row actually had.
+  flex: 1;
+  min-width: 0;
+  // `align-self`, because the row above is `align-items: flex-start` and a
+  // flex-start item takes its content height — it would never see the cap.
+  align-self: stretch;
+  // Vertical as well, since ticket 23 capped the dock. This is not a third
+  // nested scroller: the box already scrolled sideways for the lane grid, and
+  // this is that same box gaining its second axis. `min-height: 0` is what
+  // lets it shrink; ticket 25's 4px padding below already surrounds the box,
+  // so the focus rings are whole on this axis too.
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: auto;
+  // A classic, space-taking vertical scrollbar (macOS "always show scroll
+  // bars") used to come straight out of the row's width and start a sideways
+  // scroll under it. Reserving the gutter keeps the lane grid a fixed width
+  // whether the bar is there or not; the room to give it is what the old play
+  // column freed.
+  scrollbar-gutter: stable;
+  // `overflow-x: auto` clips on every side, and the chips', squares' and
+  // "+ New clip"'s focus rings sit 4px out (a 2px outline at a 2px offset).
+  // The padding takes them inside the scroll box; the negative margin puts
+  // the box back where it was, so nothing moves on screen (ticket 25).
+  padding: 4px;
+  margin: -4px;
+}
+
+// The song strip (boop-playhead handoff, "Song strip"): the first child of
+// `.lanes`, so the column's own 8px gap is the only spacing it needs.
+.stripRow {
+  display: flex;
+  align-items: center;
+  height: 26px;
+}
+
+// The 184px inset the ruler pads by — the loop map's caption idiom.
+.stripLabel {
+  flex: none;
+  width: 184px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 239, 230, 0.38);
+
+  @media (max-width: 1279px) {
+    width: 136px; // the 128px tablet chip + 8px gap
+  }
+}
+
+// 16 × 44px on an 8px gap = 824px, the lane row's track exactly — 44 and not
+// the handoff's 56 because ADR 0033 narrowed the laptop column and the squares
+// with it. The tablet band compresses the cells the way it compresses the
+// squares, so the marker derives its own maths from the track's width rather
+// than repeating a pitch.
+.stripTrack {
+  position: relative;
+  flex: none;
+  width: 824px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  // A scrub is a continuous horizontal gesture — the browser must not claim it
+  // as a page pan.
+  touch-action: none;
+  --cell-w: calc((100% - 15 * 8px) / 16);
+
+  // `0 1 824px`, not `1`: the band shrinks the track when 824 does not fit and
+  // leaves it at its laptop width when it does, so the cells never grow past
+  // the 44px square they sit over.
+  @media (max-width: 1279px) {
+    flex: 0 1 824px;
+    min-width: 0;
+    width: auto;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+.stripCell {
+  flex: none;
+  width: 44px;
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+
+  // No `min-width` floor, unlike the ruler numerals: those hold text, a 12px
+  // bar does not — and a floor would put the cell's width out of step with the
+  // marker's own `--cell-w`, drifting it off its cell.
+  @media (max-width: 1279px) {
+    flex: 1;
+    width: auto;
+  }
+
+  // A placed cell wears its topmost clip's tint at 32% (handoff "Song strip").
+  &[data-placed='true'] {
+    background: color-mix(in srgb, var(--cell-tint) 32%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+}
+
+// One bar wide — a quarter of a cell — at `position × (cell + gap) + bar × bar`.
+// No transition: a bar change hard-cuts, like the playhead column (spec §4).
+.stripMarker {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: calc(var(--position) * (var(--cell-w) + 8px) + var(--bar) * var(--cell-w) / 4);
+  width: calc(var(--cell-w) / 4);
+  border-radius: 4px;
+  background: var(--cyan);
+  box-shadow: var(--shadow-loop-map-tick);
+  pointer-events: none;
+
+  // Stopped, the marker stays where it was at 45% (spec §1).
+  &[data-playing='false'] {
+    opacity: 0.45;
+  }
+}
+
+// 184px left inset = 176px chip + 8px gap, then one numeral per position.
+.ruler {
+  display: flex;
+  gap: 8px;
+  padding-left: 184px;
+
+  @media (max-width: 1279px) {
+    padding-left: 136px; // the 128px tablet chip + 8px gap
+  }
+}
+
+// Now a jump to that position's start (handoff "Ruler"): a hit target and a
+// pointer cursor, geometry otherwise untouched.
+.rulerNumeral {
+  flex: none;
+  width: 44px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: center;
+  font: 700 12px/18px var(--font-mono);
+  color: rgba(242, 239, 230, 0.3);
+  cursor: pointer;
+
+  // An empty position has nothing to jump to; the handoff gives it no treatment
+  // of its own, so it keeps the plain look and only loses the affordance.
+  &:disabled {
+    cursor: default;
+  }
+
+  @media (max-width: 1279px) {
+    flex: 0 1 44px;
+    width: auto;
+    min-width: 20px;
+  }
+
+  // The position the playhead is in, playing or stopped.
+  &[data-current='true'] {
+    background: rgba(111, 224, 240, 0.12);
+    color: rgba(111, 224, 240, 0.5);
+  }
+
+  &[data-playing='true'] {
+    color: var(--cyan);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+// The keyboard-nav container wrapping the lane rows. While a chip drag is
+// live (ticket 18) the other lanes make way with a short transition; the
+// dragged lane follows the pointer raw. Scoping the transition to the drag
+// means the drop's single re-render — reordered, transforms gone — has
+// nothing left to animate, so there is no double-jump on commit.
+.laneRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  // The lane rows overflow the scroll box, and its own trailing padding sits
+  // inside that overflow — so the last square's focus ring takes its 4px from
+  // the scrolling content instead, off a box sized to the rows (ticket 25).
+  // Laptop only: on the tablet the lane grid does not scroll and the squares
+  // flex to fill this width.
+  @media (min-width: 1280px) {
+    width: fit-content;
+    padding-right: 4px;
+  }
+
+  &[data-drag-live='true'] .lane {
+    transition: transform 140ms ease;
+
+    &[data-dragging='true'] {
+      transition: none;
+    }
+  }
+}
+
+.lane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  // The dragged lane rides over the ones making way.
+  &[data-dragging='true'] {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.chip {
+  flex: none;
+  width: 176px;
+
+  @media (max-width: 1279px) {
+    width: 128px;
+  }
+  height: 46px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  // The chip is the vertical drag handle (ticket 18) — the browser must not
+  // claim the gesture as a scroll on touch.
+  touch-action: none;
+
+  &[data-active='true'] {
+    background: rgba(255, 255, 255, 0.11);
+    box-shadow: inset 0 0 0 2px var(--cyan);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+// The lift — the grid's active language (scale + shadow) while a chip drags.
+.lane[data-dragging='true'] .chip {
+  background: rgba(255, 255, 255, 0.11);
+  transform: scale(1.05);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
+  cursor: grabbing;
+}
+
+.chipDot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--lane-tint);
+}
+
+.chipName {
+  min-width: 0;
+  font: 800 14px var(--font-display);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipCount {
+  flex: none;
+  margin-left: auto;
+  font: 800 12px var(--font-mono);
+  color: var(--lane-tint);
+}
+
+// 44px wide, not the handoff's 56: the lane grid has to fit the same column as
+// the grid well, and the well's 52px cells narrowed that column to 1196.
+.square {
+  flex: none;
+  width: 44px;
+  height: 46px;
+  padding: 0;
+  border: none;
+  border-radius: 11px;
+
+  // Flexible on the tablet band, but only downwards: `0 1 44px` shrinks the
+  // square towards its 20px floor where 16 of them do not fit and leaves it at
+  // the laptop's 44px where they do. On `flex: 1` they took whatever the row
+  // had, which above 1024 is more than 44 and below it was the floor.
+  @media (max-width: 1279px) {
+    flex: 0 1 44px;
+    width: auto;
+    min-width: 20px;
+  }
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+
+  &[data-on='true'] {
+    background: var(--lane-tint);
+    box-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  // The playing ring — the grid playhead's language, hard cut, no transition.
+  &[data-playing='true'] {
+    transform: scale(1.06);
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.65),
+      0 8px 16px rgba(0, 0, 0, 0.45);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.newClipRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.newClip {
+  flex: none;
+  width: 176px;
+
+  @media (max-width: 1279px) {
+    width: 128px;
+  }
+  height: 46px;
+  border: 2px dashed rgba(242, 239, 230, 0.22);
+  border-radius: 12px;
+  background: transparent;
+  font: 800 14px var(--font-display);
+  color: rgba(242, 239, 230, 0.5);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}
+
+.newClipHint {
+  font: 400 13px var(--font-display);
+  color: rgba(242, 239, 230, 0.3);
+}

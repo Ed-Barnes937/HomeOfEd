@@ -46,6 +46,12 @@ function recordingContext() {
     setTransform: rec('setTransform'),
     fillRect: rec('fillRect'),
     drawImage: rec('drawImage'),
+    createImageData: (w: number, h: number) => ({
+      width: w,
+      height: h,
+      data: new Uint8ClampedArray(w * h * 4),
+    }),
+    putImageData: rec('putImageData'),
     beginPath: rec('beginPath'),
     moveTo: rec('moveTo'),
     lineTo: rec('lineTo'),
@@ -70,6 +76,34 @@ function fakeCanvas(ctx: Rec): HTMLCanvasElement {
   } as unknown as HTMLCanvasElement
 }
 
+/**
+ * Off-DOM sheet factory: the surface generates its paper into a canvas it makes
+ * itself, so tests inject one that records instead. Sheets are tracked so a test
+ * can assert how many were generated across a resize.
+ */
+const SHEET_BRAND = '__isPaperSheet'
+
+function fakeSheets() {
+  const made: { w: number; h: number; ctx: Rec }[] = []
+  const create = (w: number, h: number): HTMLCanvasElement => {
+    const ctx = recordingContext()
+    made.push({ w, h, ctx })
+    const canvas = fakeCanvas(ctx)
+    canvas.width = w
+    canvas.height = h
+    ;(canvas as unknown as Record<string, boolean>)[SHEET_BRAND] = true
+    return canvas
+  }
+  return { made, create }
+}
+
+/** The paper blits — identified by the source being a sheet, not by arg shape. */
+function paperBlits(ctx: Rec): RecordedCall[] {
+  return ctx.calls.filter(
+    (c) => c.m === 'drawImage' && (c.args[0] as Record<string, boolean>)[SHEET_BRAND] === true,
+  )
+}
+
 /** A field op with a known blot set (deterministic under a seeded rng). */
 function fieldOp(width: number, height: number, seed: number): Op {
   const vb = { width, height }
@@ -82,7 +116,7 @@ describe('DoodleSurface', () => {
   it('sizes the backing store to css × min(dpr, 2)', () => {
     const ctx = recordingContext()
     const canvas = fakeCanvas(ctx)
-    const surface = new DoodleSurface(canvas)
+    const surface = new DoodleSurface(canvas, fakeSheets().create)
     surface.resize(400, 300, 3) // dpr clamped to 2
     expect(canvas.width).toBe(800)
     expect(canvas.height).toBe(600)
@@ -90,7 +124,7 @@ describe('DoodleSurface', () => {
 
   it('paints paper first — one full-rect fillRect before any art', () => {
     const ctx = recordingContext()
-    const surface = new DoodleSurface(fakeCanvas(ctx))
+    const surface = new DoodleSurface(fakeCanvas(ctx), fakeSheets().create)
     surface.resize(400, 300, 2)
     surface.renderOps([fieldOp(400, 300, 7)], SKETCHBOOK)
 
@@ -102,13 +136,13 @@ describe('DoodleSurface', () => {
 
   it('blits the baked field raster once when one is supplied, tracing no blots', () => {
     const ctx = recordingContext()
-    const surface = new DoodleSurface(fakeCanvas(ctx))
+    const surface = new DoodleSurface(fakeCanvas(ctx), fakeSheets().create)
     surface.resize(720, 850, 1)
     const field = fieldOp(720, 850, 42)
     const bakedImage = { width: 720, height: 850 } as unknown as CanvasImageSource
     surface.renderOps([field], SKETCHBOOK, bakedImage)
 
-    const draws = ctx.calls.filter((c) => c.m === 'drawImage')
+    const draws = ctx.calls.filter((c) => c.m === 'drawImage' && c.args[0] === bakedImage)
     expect(draws).toHaveLength(1)
     expect(draws[0]?.args).toEqual([bakedImage, 0, 0, 720, 850])
     // The raster IS the field — no outline tracing when it's present.
@@ -117,7 +151,7 @@ describe('DoodleSurface', () => {
 
   it('falls back to a plain blot fill (one outline + one fill per blot, plus satellites)', () => {
     const ctx = recordingContext()
-    const surface = new DoodleSurface(fakeCanvas(ctx))
+    const surface = new DoodleSurface(fakeCanvas(ctx), fakeSheets().create)
     surface.resize(720, 850, 1)
     const field = fieldOp(720, 850, 42)
     const blots = field.type === 'field' ? field.blots : []
@@ -132,12 +166,13 @@ describe('DoodleSurface', () => {
     expect(closes).toBe(blots.length) // one closed outline per blot
     expect(arcs).toBe(satTotal) // arcs are only satellites in a pure field
     expect(fills).toBe(blots.length + satTotal) // one per blot + one per satellite
-    expect(ctx.calls.some((c) => c.m === 'drawImage')).toBe(false)
+    // Only the paper sheet is blitted — there is no field raster to draw.
+    expect(ctx.calls.filter((c) => c.m === 'drawImage')).toEqual(paperBlits(ctx))
   })
 
   it('strokes each stroke op once with round cap and join', () => {
     const ctx = recordingContext()
-    const surface = new DoodleSurface(fakeCanvas(ctx))
+    const surface = new DoodleSurface(fakeCanvas(ctx), fakeSheets().create)
     surface.resize(400, 300, 1)
     const emptyField: Op = { type: 'field', viewBox: { width: 400, height: 300 }, blots: [] }
     const stroke: Op = {
@@ -154,7 +189,7 @@ describe('DoodleSurface', () => {
 
   it('renders each eye op as 3 fills (white, pupil, highlight) plus 1 stroke', () => {
     const ctx = recordingContext()
-    const surface = new DoodleSurface(fakeCanvas(ctx))
+    const surface = new DoodleSurface(fakeCanvas(ctx), fakeSheets().create)
     surface.resize(400, 300, 1)
     const emptyField: Op = { type: 'field', viewBox: { width: 400, height: 300 }, blots: [] }
     const eye: Op = { type: 'eye', eye: makeEye(100, 100, EYE_BASE, mulberry32(3)) }
@@ -166,10 +201,80 @@ describe('DoodleSurface', () => {
 
   it('never writes a fractional globalAlpha (the field is baked, not bloomed on the 2D canvas)', () => {
     const ctx = recordingContext()
-    const surface = new DoodleSurface(fakeCanvas(ctx))
+    const surface = new DoodleSurface(fakeCanvas(ctx), fakeSheets().create)
     surface.resize(400, 300, 1)
     surface.renderOps([fieldOp(400, 300, 7)], SKETCHBOOK)
     expect(ctx.alphaWrites.length).toBeGreaterThan(0)
     expect(ctx.alphaWrites.every((a) => a === 1)).toBe(true)
+  })
+})
+
+describe('DoodleSurface paper', () => {
+  it('blits a generated sheet over the FULL device rect, outside the fit', () => {
+    const ctx = recordingContext()
+    const sheets = fakeSheets()
+    const surface = new DoodleSurface(fakeCanvas(ctx), sheets.create)
+    surface.resize(400, 300, 2)
+    // A viewBox with a different aspect letterboxes — the paper must still cover.
+    surface.renderOps([fieldOp(300, 600, 7)], SKETCHBOOK)
+
+    const blits = paperBlits(ctx)
+    expect(blits).toHaveLength(1)
+    const [, sx, sy, sw, sh, dx, dy, dw, dh] = blits[0]!.args
+    expect([sx, sy]).toEqual([0, 0])
+    expect([sw, sh]).toEqual([400, 300]) // the canvas's CSS rect, cropped from the sheet
+    expect([dx, dy, dw, dh]).toEqual([0, 0, 800, 600]) // the full device rect
+  })
+
+  it('generates the sheet in CSS px, quantised so it covers the canvas', () => {
+    const ctx = recordingContext()
+    const sheets = fakeSheets()
+    const surface = new DoodleSurface(fakeCanvas(ctx), sheets.create)
+    surface.resize(400, 300, 2)
+    surface.paintPaper()
+
+    expect(sheets.made).toHaveLength(1)
+    expect(sheets.made[0]!.w).toBeGreaterThanOrEqual(400)
+    expect(sheets.made[0]!.h).toBeGreaterThanOrEqual(300)
+    // Written once, as pixels — not redrawn per paint.
+    expect(sheets.made[0]!.ctx.calls.filter((c) => c.m === 'putImageData')).toHaveLength(1)
+  })
+
+  it('generates the sheet once per size, not per paint', () => {
+    const ctx = recordingContext()
+    const sheets = fakeSheets()
+    const surface = new DoodleSurface(fakeCanvas(ctx), sheets.create)
+    surface.resize(400, 300, 1)
+    surface.paintPaper()
+    surface.paintPaper()
+    expect(sheets.made).toHaveLength(1)
+
+    // Small resizes land in the same quantised bucket — no regeneration.
+    surface.resize(420, 310, 1)
+    surface.paintPaper()
+    expect(sheets.made).toHaveLength(1)
+
+    // Growing past the bucket does regenerate, once.
+    surface.resize(1100, 900, 1)
+    surface.paintPaper()
+    surface.paintPaper()
+    expect(sheets.made).toHaveLength(2)
+
+    // Shrinking back reuses the bigger sheet.
+    surface.resize(400, 300, 1)
+    surface.paintPaper()
+    expect(sheets.made).toHaveLength(2)
+  })
+
+  it('caps the sheet, stretching it across an over-wide canvas', () => {
+    const ctx = recordingContext()
+    const sheets = fakeSheets()
+    const surface = new DoodleSurface(fakeCanvas(ctx), sheets.create)
+    surface.resize(2400, 1200, 1)
+    surface.paintPaper()
+
+    expect(sheets.made[0]!.w).toBeLessThanOrEqual(1600)
+    const [, , , sw] = paperBlits(ctx)[0]!.args
+    expect(sw).toBe(sheets.made[0]!.w) // whole sheet stretched, not cropped short
   })
 })

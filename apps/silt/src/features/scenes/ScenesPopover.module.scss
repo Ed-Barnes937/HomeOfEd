@@ -1,0 +1,176 @@
+// Tokens per spec §9 — the popover is made of the same paper and ink as the
+// rest of the chrome (hard borders, offset shadow, bitmap face).
+$ink: #1a1714;
+$paper: #e7e2d5;
+$panel: #efeadd;
+$raised: #f5f2e9;
+$muted: #8a8478;
+$world: #181510;
+$destructive: #e2542a;
+
+$font-label: 'Silkscreen', monospace;
+$font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 10;
+  width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: $panel;
+  border: 2px solid $ink;
+  box-shadow: 4px 4px 0 $ink;
+  color: $ink;
+  font-family: $font-mono;
+  text-align: left;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headTitle {
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  color: $ink;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  cursor: pointer;
+}
+
+.save {
+  border: 2px solid $ink;
+  background: $raised;
+  color: $ink;
+  padding: 0.4rem 0.6rem;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  background: $raised;
+  border: 2px solid $ink;
+}
+
+// The thumbnail is a picture of the world, so it keeps the world's background
+// and the world's hard pixels — no smoothing, no rounded corners.
+.thumb {
+  flex: none;
+  width: 48px;
+  height: 32px;
+  background: $world;
+  border: 1px solid $ink;
+  image-rendering: pixelated;
+  object-fit: cover;
+}
+
+.rowBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.name {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: $ink;
+  font-family: $font-label;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.2rem;
+
+  &:hover,
+  &:focus {
+    border-color: $ink;
+    background: $paper;
+    outline: none;
+  }
+}
+
+// Numbers are Plex Mono per spec §9, and this one is secondary to the name.
+.updated {
+  font-family: $font-mono;
+  font-size: 0.62rem;
+  color: $muted;
+  padding-left: 0.2rem;
+}
+
+.action {
+  flex: none;
+  border: 2px solid $ink;
+  background: $paper;
+  color: $ink;
+  padding: 0.25rem 0.4rem;
+  font-family: $font-label;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.armed {
+  background: $destructive;
+  color: $paper;
+}
+
+.ok,
+.error,
+.empty,
+.footer {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
+.error {
+  color: $destructive;
+}
+
+.empty,
+.footer {
+  color: $muted;
+}
+
+.footer {
+  border-top: 2px solid $ink;
+  padding-top: 0.4rem;
+  font-family: $font-label;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

@@ -1,70 +1,120 @@
+// Level rows (mobile, frame 5a) and cards (desktop, frame 5d). Each level's
+// palette is bound to local vars by its data-level attribute; the layout
+// rules below then read only the local vars.
 .card {
-  position: relative;
-  display: block;
-  overflow: hidden;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 2px solid var(--lv-border);
+  background: var(--lv-fill);
   text-decoration: none;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: background 0.15s ease;
 
   &:hover {
-    transform: scale(1.03);
-    box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.35);
+    background: var(--lv-fill-hover);
   }
 
-  &[data-level='beginner'] {
-    background: #059669;
+  &:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
   }
 
-  &[data-level='intermediate'] {
-    background: #4f46e5;
+  @each $level in beginner, intermediate, advanced, expert {
+    &[data-level='#{$level}'] {
+      --lv-border: var(--level-#{$level}-border);
+      --lv-fill: var(--level-#{$level}-fill);
+      --lv-fill-hover: var(--level-#{$level}-fill-hover);
+      --lv-solid: var(--level-#{$level}-solid);
+      --lv-text: var(--level-#{$level}-text);
+      --lv-badge-text: var(--level-#{$level}-badge-text);
+      --lv-sublabel: var(--level-#{$level}-sublabel);
+      --lv-chevron: var(--level-#{$level}-chevron);
+      --lv-start: var(--level-#{$level}-start);
+    }
   }
 
-  &[data-level='advanced'] {
-    background: #d97706;
-  }
-
-  &[data-level='expert'] {
-    background: #e11d48;
+  @media (min-width: 45rem) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 24px 22px 22px;
+    border-radius: 22px;
   }
 }
 
-.sparkleTopLeft {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  opacity: 0.35;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--lv-solid);
+  color: var(--lv-badge-text);
+  font: 800 15px/1 var(--font-ui);
+
+  @media (min-width: 45rem) {
+    align-self: flex-start;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    font-size: 19px;
+  }
 }
 
-.sparkleBottomRight {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  opacity: 0.35;
-}
-
-.content {
-  position: relative;
-  z-index: 1;
+.names {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0.25rem;
+  gap: 1px;
+
+  @media (min-width: 45rem) {
+    flex: none;
+    gap: 3px;
+  }
+}
+
+.name {
+  font: 400 23px/1.1 var(--font-display);
+  color: var(--lv-text);
+  text-transform: capitalize;
+
+  @media (min-width: 45rem) {
+    font-size: 30px;
+    line-height: 1.05;
+  }
 }
 
 .hint {
-  opacity: 0.9;
+  font: 600 12.5px/1.2 var(--font-ui);
+  color: var(--lv-sublabel);
+
+  @media (min-width: 45rem) {
+    font-size: 13.5px;
+  }
 }
 
-.cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.5rem 1.25rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.3);
-  font-weight: 600;
+.chevron {
+  color: var(--lv-chevron);
+
+  @media (min-width: 45rem) {
+    display: none;
+  }
+}
+
+.start {
+  display: none;
+
+  @media (min-width: 45rem) {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 8px;
+    font: 800 12.5px/1 var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--lv-start);
+  }
 }

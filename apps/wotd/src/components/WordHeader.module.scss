@@ -1,0 +1,142 @@
+// Word-screen top bar (frames 5b/5e): same shell as the picker's SiteHeader
+// (18px 20px / 20px 40px, 2px rule), but a "Levels" back link on the left and
+// the level pill in the right group.
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 2px solid var(--rule);
+
+  @media (min-width: 45rem) {
+    padding: 20px 40px;
+  }
+}
+
+// Back to the picker. The visual is a small uppercase label; a min-height and
+// negative margin keep the hit target ≥44px without moving the text.
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: -6px 0;
+  font: 800 12px/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  @media (min-width: 45rem) {
+    gap: 9px;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+  }
+}
+
+.backIcon {
+  @media (min-width: 45rem) {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.backMobile {
+  @media (min-width: 45rem) {
+    display: none;
+  }
+}
+
+.backDesktop {
+  display: none;
+
+  @media (min-width: 45rem) {
+    display: inline;
+  }
+}
+
+.right {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  @media (min-width: 45rem) {
+    gap: 22px;
+
+    // The design pulls the toggle 8px back towards the pill (14px visual gap).
+    > :last-child {
+      margin-left: -8px;
+    }
+  }
+}
+
+// Desktop-only date, as on the picker's top bar.
+.date {
+  display: none;
+  font: 700 13px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label-dim);
+
+  @media (min-width: 45rem) {
+    display: inline;
+  }
+}
+
+// Level pill: tinted fill, number badge in the level's solid colour.
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  background: var(--lv-pill-bg);
+  font: 800 12px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lv-pill-text);
+
+  @each $level in beginner, intermediate, advanced, expert {
+    &[data-level='#{$level}'] {
+      --lv-pill-bg: var(--level-#{$level}-pill-bg);
+      --lv-pill-text: var(--level-#{$level}-pill-text);
+      --lv-solid: var(--level-#{$level}-solid);
+      --lv-badge-text: var(--level-#{$level}-badge-text);
+    }
+  }
+
+  @media (min-width: 45rem) {
+    gap: 9px;
+    padding: 7px 14px 7px 8px;
+    font-size: 12.5px;
+  }
+}
+
+.pillBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 7px;
+  background: var(--lv-solid);
+  color: var(--lv-badge-text);
+  font: 800 11px/1 var(--font-ui);
+
+  @media (min-width: 45rem) {
+    width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+}

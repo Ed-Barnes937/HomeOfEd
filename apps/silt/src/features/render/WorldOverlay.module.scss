@@ -1,0 +1,51 @@
+// Tokens per spec §9 — the world chrome is drawn in the same paper and ink as
+// the rest of the UI, with red reserved for removal.
+$ink: #1a1714;
+$paper: #e7e2d5;
+$destructive: #e2542a;
+
+.brushCursor {
+  position: absolute;
+  border: 1px solid $paper;
+  outline: 1px solid $ink;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+// A placed spawner: a white-outlined box with the element's colour inside,
+// so it never reads as painted cells (spec §7, §9).
+.spawner {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid $paper;
+  outline: 1px solid $ink;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+// Hover turns the spawner red with a minus (spec §7).
+.spawnerRemove {
+  border-color: $destructive;
+  outline-color: $destructive;
+}
+
+.spawnerMinus {
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: $destructive;
+  transform: translateY(-50%);
+}
+
+// The placement ghost follows the cursor in spawner mode (spec §7, §9).
+.spawnerGhost {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed $paper;
+  outline: 1px dashed $ink;
+  opacity: 0.6;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}

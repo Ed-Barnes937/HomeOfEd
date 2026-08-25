@@ -64,6 +64,26 @@ services:
     ports:
       - '8087:8080'
 
+  # boop has no database (ADR 0008) — one service, no depends_on, no migrate
+  # step. Kid-friendly step-sequencer music toy; persistence is localStorage.
+  boop:
+    build:
+      context: .
+      dockerfile: apps/boop/Dockerfile
+    command: node src/server/main.ts
+    ports:
+      - '8088:8080'
+
+  # silt has no database (ADR 0008) — one service, no depends_on, no migrate
+  # step. Falling-sand playground; the sim runs client-side.
+  silt:
+    build:
+      context: .
+      dockerfile: apps/silt/Dockerfile
+    command: node src/server/main.ts
+    ports:
+      - '8089:8080'
+
   # wotd is database-backed (words shared across users, survive redeploys). Two
   # services: the app runs migrations then the server, backed by its own db.
   # ANTHROPIC_API_KEY is a real secret — supply it via a gitignored .env if you

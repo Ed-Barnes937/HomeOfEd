@@ -9,106 +9,57 @@ function base({ size = 24, ...props }: IconProps) {
   return { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', ...props }
 }
 
-export function LightbulbIcon(props: IconProps) {
+export function ArrowRightIcon({ strokeWidth = 1.5, ...props }: IconProps) {
   return (
     <svg {...base(props)}>
-      <path
-        d="M9 18h6M10 21h4M8 14a5 5 0 1 1 8 0c-.8.9-1.5 1.7-1.5 3h-5c0-1.3-.7-2.1-1.5-3Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M4 12h16M14 6l6 6-6 6" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
-export function StarIcon(props: IconProps) {
+export function ArrowLeftIcon({ strokeWidth = 1.5, ...props }: IconProps) {
   return (
     <svg {...base(props)}>
-      <path
-        d="m12 3 2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2L6.6 19l1.3-6-4.6-4.1 6.1-.6L12 3Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
+      <path d="M20 12H4M10 6l-6 6 6 6" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
-export function ZapIcon(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <path d="M13 3 4 14h6l-1 7 9-11h-6l1-7Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export function RocketIcon(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <path
-        d="M12 3c2.5 1.5 4 4.2 4 8 0 2-1 4-1 4l-3 1-3-1s-1-2-1-4c0-3.8 1.5-6.5 4-8Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="10" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M9 16l-2 4 3-1M15 16l2 4-3-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-export function SparklesIcon(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <path
-        d="M11 3l1 4 4 1-4 1-1 4-1-4-4-1 4-1 1-4ZM19 13l.6 2 2 .6-2 .6-.6 2-.6-2-2-.6 2-.6.6-2Z"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-export function ArrowRightIcon(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <path d="M4 12h16M14 6l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export function ArrowLeftIcon(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <path d="M20 12H4M10 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export function SpeakerIcon(props: IconProps) {
+export function SpeakerIcon({ strokeWidth = 1.5, ...props }: IconProps) {
   return (
     <svg {...base(props)}>
       <path
         d="M4 9v6h4l5 4V5L8 9H4Z"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
-      <path d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M16 9a4 4 0 0 1 0 6M18.5 7a7 7 0 0 1 0 10" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" />
     </svg>
   )
 }
 
-export function BookOpenIcon(props: IconProps) {
+export function SunIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M12 3v1.6M12 19.4V21M5.2 5.2l1.1 1.1M17.7 17.7l1.1 1.1M3 12h1.6M19.4 12H21M5.2 18.8l1.1-1.1M17.7 6.3l1.1-1.1"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+export function MoonIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
       <path
-        d="M12 6c-1.5-1.2-3.5-1.8-6-1.8v13c2.5 0 4.5.6 6 1.8V6ZM12 6c1.5-1.2 3.5-1.8 6-1.8v13c-2.5 0-4.5.6-6 1.8"
+        d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

@@ -8,10 +8,17 @@ test('home page renders the wordmark, lede, and the live app links', async ({ mo
   await root.verifyWotdLink()
   await root.verifyEspyLink()
   await root.verifyKaresansuiLink()
+  await root.verifyBoopLink()
   await root.verifyHeigIsComingSoon()
+  await root.verifySiltLink()
 })
 
 test('home page renders a live preview canvas for every app card', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyPreviewsRender()
+})
+
+test('home page keeps the wordmark reachable on a narrow phone viewport', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyWordmarkReachableOnNarrowViewport()
 })

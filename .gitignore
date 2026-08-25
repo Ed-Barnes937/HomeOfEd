@@ -18,8 +18,16 @@ test-results/
 .env.*
 !.env.example
 
-# local issue tracker (mattpocock/skills) — specs and tickets stay local
-.scratch/
+# local issue tracker (mattpocock/skills) — maps, specs, and tickets are the
+# canonical tracker artifacts and are committed; everything else in .scratch/
+# (prototypes, research working files) stays local
+.scratch/*
+!.scratch/*/
+.scratch/*/*
+!.scratch/*/map.md
+!.scratch/*/spec.md
+!.scratch/*/design-brief.md
+!.scratch/*/issues/
 
 # misc
 *.log

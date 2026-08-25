@@ -1,18 +1,25 @@
 /* Design tokens for the chrome (buttons, panel, text) — spec §11.3. Canvas
- * colours (paper/ink/eye) are literals in theme.ts instead, since canvas
- * can't read CSS custom properties. No theme switcher — one fixed direction. */
+ * colours (ink/eye) are literals in theme.ts instead, since canvas can't read
+ * CSS custom properties; the paper itself is generated (render/paper.ts).
+ * No theme switcher — one fixed direction.
+ *
+ * The canvas card reads as a sheet of paper on a desk: `--espy-room` is the
+ * neutral grey the sheet sits on, and `--espy-card` matches the generated
+ * paper's flat average (`PAPER_FLAT`). The two are only a few levels of
+ * luminance apart — the read is carried by HUE, not by contrast. */
 :root {
-  --espy-paper: #f7efdc;
-  --espy-card: #fffdf4;
+  --espy-room: #f0efec;
+  --espy-card: #faf6ec;
   --espy-text: #3b3327;
   --espy-muted: #b0a488;
   --espy-accent: #e07a45;
   --espy-chrome: #fffaef;
   --espy-chrome-border: #eaddbe;
-  --espy-card-border: #d9cba7;
   --espy-radius-card: 12px;
   --espy-radius-chrome: 14px;
-  --espy-shadow-card: 0 14px 34px rgba(80, 60, 20, 0.12), 0 3px 0 #eaddbe;
+  /* Two-part: a 1px hairline for the crisp cut edge, plus a wide soft one for
+   * the air underneath the sheet. */
+  --espy-shadow-card: 0 0 0 1px rgba(35, 30, 20, 0.07), 0 24px 80px rgba(35, 30, 20, 0.16);
   --espy-shadow-chrome: 0 3px 0 #eaddbe;
   --espy-font-display: 'Caveat', cursive;
   --espy-font-ui: 'Nunito', system-ui, sans-serif;
@@ -26,5 +33,5 @@ body {
 }
 
 body {
-  background: var(--espy-paper);
+  background: var(--espy-room);
 }

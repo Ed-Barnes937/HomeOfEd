@@ -9,6 +9,8 @@ function rawEntry(overrides: Partial<Record<string, unknown>> = {}) {
     definition: 'feeling or showing pleasure',
     example_sentence: 'She felt happy.',
     synonyms: ['glad', 'cheerful', 'joyful'],
+    word_type: 'adjective',
+    respelling: 'HAP·ee',
     ...overrides,
   }
 }
@@ -55,7 +57,25 @@ describe('parseGeneratedWords', () => {
       definition: 'feeling or showing pleasure',
       exampleSentence: 'She felt happy.',
       synonyms: ['glad', 'cheerful', 'joyful'],
+      wordType: 'adjective',
+      respelling: 'HAP·ee',
     })
+  })
+
+  it('throws when word_type or respelling is missing or not a string', () => {
+    const withBadEntry = (overrides: Partial<Record<string, unknown>>) => ({
+      words: [
+        rawEntry({ difficulty: 'beginner', ...overrides }),
+        rawEntry({ difficulty: 'intermediate' }),
+        rawEntry({ difficulty: 'advanced' }),
+        rawEntry({ difficulty: 'expert' }),
+      ],
+    })
+
+    expect(() => parseGeneratedWords(withBadEntry({ word_type: undefined }))).toThrow()
+    expect(() => parseGeneratedWords(withBadEntry({ respelling: undefined }))).toThrow()
+    expect(() => parseGeneratedWords(withBadEntry({ word_type: 42 }))).toThrow()
+    expect(() => parseGeneratedWords(withBadEntry({ respelling: ['not', 'a', 'string'] }))).toThrow()
   })
 
   it('preserves the synonyms array contents', () => {

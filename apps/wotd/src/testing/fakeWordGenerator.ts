@@ -9,6 +9,8 @@ const FAKE_WORDS: readonly GeneratedWord[] = [
     definition: 'feeling or showing pleasure or contentment',
     exampleSentence: 'She felt happy when she saw the puppy.',
     synonyms: ['glad', 'cheerful', 'joyful'],
+    wordType: 'adjective',
+    respelling: 'HAP·ee',
   },
   {
     difficulty: 'intermediate',
@@ -16,6 +18,8 @@ const FAKE_WORDS: readonly GeneratedWord[] = [
     definition: 'eager to know or learn something',
     exampleSentence: 'The curious cat explored every corner of the room.',
     synonyms: ['inquisitive', 'interested', 'nosy'],
+    wordType: 'adjective',
+    respelling: 'KYOOR·ee·uhs',
   },
   {
     difficulty: 'advanced',
@@ -23,6 +27,8 @@ const FAKE_WORDS: readonly GeneratedWord[] = [
     definition: 'able to recover quickly from difficulties',
     exampleSentence: 'A resilient community rebuilt within a year of the storm.',
     synonyms: ['tough', 'hardy', 'adaptable'],
+    wordType: 'adjective',
+    respelling: 'rih·ZIL·yuhnt',
   },
   {
     difficulty: 'expert',
@@ -30,6 +36,8 @@ const FAKE_WORDS: readonly GeneratedWord[] = [
     definition: 'lasting for a very short time',
     exampleSentence: 'The ephemeral beauty of the cherry blossom draws crowds each spring.',
     synonyms: ['fleeting', 'transient', 'momentary'],
+    wordType: 'adjective',
+    respelling: 'ih·FEM·er·uhl',
   },
 ]
 

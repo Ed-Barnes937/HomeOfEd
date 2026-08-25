@@ -1,40 +1,37 @@
 import { Link } from '@tanstack/react-router'
 
+import { formatShortDate } from '../formatDate.ts'
 import { hubUrl } from '../hubUrl.ts'
-import { BookOpenIcon } from './icons.tsx'
+import { ArrowLeftIcon } from './icons.tsx'
 import styles from './SiteHeader.module.scss'
-import { Typography } from './Typography.tsx'
+import { ThemeToggle } from './ThemeToggle.tsx'
 
+/**
+ * The design's top bar, both sizes. Mobile: circular back-to-hub button,
+ * centred wordmark label, theme toggle. Desktop: back-to-hub arrow + wordmark
+ * on the left, date and toggle on the right. The hub link swaps position per
+ * breakpoint — one is always in the accessibility tree. (The design's "W"
+ * mark was replaced: it read as a wotd home link, not a link to the hub.)
+ */
 export function SiteHeader() {
+  const hub = hubUrl(window.location.hostname)
   return (
     <header className={styles.header}>
-      <a
-        className={styles.back}
-        href={hubUrl(window.location.hostname)}
-        aria-label="Back to home of ed"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M19 12H5" />
-          <path d="m12 19-7-7 7-7" />
-        </svg>
+      <a className={styles.backMobile} href={hub} aria-label="Back to home of ed">
+        <ArrowLeftIcon size={17} strokeWidth={2.4} />
       </a>
-      <Link to="/" className={styles.wordmark}>
-        <Typography variant="h1" className={styles.title}>
-          <BookOpenIcon size={32} />
-          Word of the Day!
-          <BookOpenIcon size={32} />
-        </Typography>
-      </Link>
+      <div className={styles.brand}>
+        <a className={styles.mark} href={hub} aria-label="Back to home of ed">
+          <ArrowLeftIcon size={17} strokeWidth={2.4} />
+        </a>
+        <Link to="/" className={styles.wordmark}>
+          Word of the Day
+        </Link>
+      </div>
+      <div className={styles.right}>
+        <span className={styles.date}>{formatShortDate(new Date())}</span>
+        <ThemeToggle />
+      </div>
     </header>
   )
 }

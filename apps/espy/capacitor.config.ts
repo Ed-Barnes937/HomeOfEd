@@ -13,13 +13,14 @@ const config: CapacitorConfig = {
   appName: 'Espy',
   webDir: 'dist',
   plugins: {
-    // Page chrome is --espy-paper (tokens.scss), not the canvas-card cream.
+    // Page chrome is --espy-room (tokens.scss) — the neutral desk the paper
+    // sheet sits on, not the canvas-card cream.
     StatusBar: {
       style: 'LIGHT', // light background → dark content
-      backgroundColor: '#f7efdc',
+      backgroundColor: '#f0efec',
     },
     SplashScreen: {
-      backgroundColor: '#f7efdc',
+      backgroundColor: '#f0efec',
       launchAutoHide: true,
     },
   },

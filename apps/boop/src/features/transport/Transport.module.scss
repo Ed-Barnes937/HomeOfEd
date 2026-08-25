@@ -1,0 +1,316 @@
+// Transport bar geometry from the design handoff.
+.bar {
+  margin-top: 16px;
+  height: 84px;
+  padding: 0 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.045);
+  // Ticket 33: the bar is now pinned below the scrolling grid well, so it needs
+  // to read as sitting above it rather than as the last thing in the stack.
+  box-shadow: var(--shadow-transport-bar);
+  display: flex;
+  align-items: center;
+  gap: 26px;
+
+  @media (max-width: 1279px) {
+    height: 76px;
+    border-radius: 18px;
+  }
+
+  // Small phone (ticket 27): play + tempo only — Clear grid moves into the
+  // "⋯" menu, so the divider goes with it.
+  @media (max-width: 1023px) {
+    margin-top: 12px;
+    height: auto;
+    padding: 14px;
+    gap: 14px;
+    border-radius: 18px;
+  }
+}
+
+.play {
+  flex: none;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--play);
+  box-shadow: var(--shadow-play);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:active {
+    box-shadow: none;
+    transform: translateY(2px);
+  }
+
+  @media (max-width: 1279px) {
+    width: 56px;
+    height: 56px;
+    box-shadow: var(--shadow-play-phone);
+  }
+
+  @media (max-width: 1023px) {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  margin-left: 6px;
+  border-top: 13px solid transparent;
+  border-bottom: 13px solid transparent;
+  border-left: 21px solid var(--ink-dark);
+
+  @media (max-width: 1279px) {
+    border-top-width: 12px;
+    border-bottom-width: 12px;
+    border-left-width: 19px;
+  }
+
+  @media (max-width: 1023px) {
+    border-top-width: 16px;
+    border-bottom-width: 16px;
+    border-left-width: 25px;
+  }
+}
+
+.pause {
+  display: flex;
+  gap: 6px;
+}
+
+.pauseBar {
+  width: 7px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--ink-dark);
+}
+
+.tempo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  @media (max-width: 1023px) {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.tempoHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tempoLabel {
+  font: 800 15px var(--font-display);
+  color: var(--ink);
+
+  @media (max-width: 1023px) {
+    font-size: 14px;
+  }
+}
+
+.tempoReadout {
+  font: 600 13px var(--font-mono);
+  color: rgba(242, 239, 230, 0.5);
+
+  @media (max-width: 1023px) {
+    font-size: 12px;
+  }
+}
+
+.tempoTrackRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  // With New boop in the phone bar (ticket 36) the tempo block has to give way,
+  // and a flex item will not shrink below its content's intrinsic width unless
+  // told to — see `.tempoSlider` (ticket 37: 23px overlap at 360px).
+  min-width: 0;
+}
+
+.tempoEndpoint {
+  flex: none;
+  font: 600 13px var(--font-display);
+  color: rgba(242, 239, 230, 0.5);
+
+  &:first-child {
+    width: 34px;
+  }
+
+  &:last-child {
+    width: 30px;
+    text-align: right;
+  }
+
+  @media (max-width: 1023px) {
+    font-size: 11px;
+
+    &:first-child {
+      width: 28px;
+    }
+
+    &:last-child {
+      width: 24px;
+    }
+  }
+}
+
+// A native <input type="range"> re-skinned to the handoff's track/fill/thumb.
+// --tempo-percent (set inline from bpmToPercent) drives both the fill and the
+// thumb position, so track and thumb always agree.
+.tempoSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  // An `<input type="range">` has an intrinsic width, which `flex: 1` alone
+  // will not shrink past — that is what pushed "Fast" into the phone bar's New
+  // boop button (ticket 37).
+  min-width: 0;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    rgba(242, 239, 230, 0.4) var(--tempo-percent),
+    rgba(255, 255, 255, 0.11) var(--tempo-percent)
+  );
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-thumb {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-track {
+    height: 10px;
+    border-radius: 5px;
+    background: transparent;
+  }
+
+  &::-moz-range-progress {
+    height: 10px;
+    border-radius: 5px 0 0 5px;
+    background: rgba(242, 239, 230, 0.4);
+  }
+
+  @media (max-width: 1023px) {
+    height: 12px;
+    border-radius: 6px;
+
+    &::-webkit-slider-thumb {
+      width: 34px;
+      height: 34px;
+    }
+
+    &::-moz-range-thumb {
+      width: 34px;
+      height: 34px;
+    }
+  }
+}
+
+// The right-hand action group (ticket 36): New boop, then the divider and
+// Clear grid. `margin-left: auto` sits here rather than on Clear grid, so the
+// group stays together when Clear grid is in the "⋯" menu instead.
+.actions {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+
+  @media (max-width: 1023px) {
+    gap: 0;
+  }
+}
+
+// The top bar's ghost treatment (design handoff §1) — New boop opens a
+// dialog, so it is chrome, not the coral warning shape Clear grid wears.
+.newBoop {
+  flex: none;
+  padding: 12px 18px;
+  border: 1px solid rgba(242, 239, 230, 0.2);
+  border-radius: var(--r-control);
+  background: transparent;
+  font: 700 14px var(--font-display);
+  color: rgba(242, 239, 230, 0.8);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  // Phone: a 44px square "+" beside the tempo block. The label would cost the
+  // slider ~80px of track on a 360px screen.
+  @media (max-width: 1023px) {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+  }
+}
+
+.newBoopGlyph {
+  display: none;
+
+  @media (max-width: 1023px) {
+    display: block;
+  }
+}
+
+.newBoopLabel {
+  @media (max-width: 1023px) {
+    display: none;
+  }
+}
+
+.divider {
+  flex: none;
+  width: 1px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+// Clear grid: dashed coral, deliberately never mistakable for "play from the
+// top" (design handoff, "Transport bar" — Clear grid).
+.clear {
+  flex: none;
+  padding: 12px 18px;
+  border-radius: 9px;
+  border: 1px dashed rgba(255, 138, 122, 0.55);
+  background: transparent;
+  font: 700 14px var(--font-display);
+  color: var(--danger);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+}

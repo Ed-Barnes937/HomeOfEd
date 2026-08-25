@@ -1,0 +1,82 @@
+// The hint sheet: same overlay/card idiom as ConfirmCard (a light card on
+// the dark stage), sized for one screen of picture-led hints rather than a
+// title + message + two buttons.
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  // Above the phone chrome (PhoneBar's 30/31) — see BoopsPanel's overlay.
+  z-index: 41;
+}
+
+.card {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  font: 800 17px var(--font-display);
+  color: var(--ink-dark);
+}
+
+.close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(20, 38, 42, 0.6);
+  cursor: pointer;
+}
+
+.hints {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.picture {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-control);
+  background: rgba(20, 38, 42, 0.06);
+  color: var(--cyan-solid);
+}
+
+.label {
+  font: 600 14.5px/1.35 var(--font-display);
+  color: var(--ink-dark);
+}

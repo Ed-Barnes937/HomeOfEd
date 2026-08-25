@@ -22,6 +22,21 @@ export type WordOfTheDay = {
   definition: string
   exampleSentence: string
   synonyms: string[]
+  /** e.g. "adjective" — null for rows stored before the redesign (no backfill). */
+  wordType: string | null
+  /** e.g. "ih·FEM·er·uhl" — null for rows stored before the redesign (no backfill). */
+  respelling: string | null
+}
+
+/**
+ * Wire contract (tRPC `yesterdayWord` output) — the Yesterday strip's data.
+ * Null on the wire when yesterday has no word for the requested level.
+ */
+export type YesterdayWord = {
+  word: string
+  /** e.g. "noun" — null for rows stored before the redesign (no backfill). */
+  wordType: string | null
+  definition: string
 }
 
 /** Generator contract. `synonyms` is exactly 3. */
@@ -31,6 +46,10 @@ export type GeneratedWord = {
   definition: string
   exampleSentence: string
   synonyms: string[]
+  /** The word's part of speech, e.g. "adjective". */
+  wordType: string
+  /** Syllable-by-syllable respelling, e.g. "ih·FEM·er·uhl". */
+  respelling: string
 }
 
 export interface WordGenerator {

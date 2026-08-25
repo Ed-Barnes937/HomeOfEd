@@ -32,7 +32,6 @@ export interface FluidFieldOptions {
   cssH: number
   dpr: number
   seeds: readonly FluidSeed[]
-  paper: string
   ink: string
   /** Numeric seed for the (visual-only) splat asymmetry rng. */
   rngSeed: number
@@ -196,13 +195,17 @@ void main(){
 // paper, not a fuzzy halo), pool pigment darker in a thin band just inside that
 // edge, and mottle the fill with granulation. Monochrome (ADR 0016). The knobs
 // are tunable (`fluid.tuning.ts`), so the shader is built per run.
+//
+// Output is INK WITH COVERAGE AS ALPHA (premultiplied), not ink composited over
+// paper: the paper is generated separately by `paper.ts` and `surface.ts` blits
+// this raster over it. That keeps paper independent of the sim, so it survives
+// a letterboxing resize and is present when WebGL is not.
 const displayFragment = (t: FluidTuning): string => `#version 300 es
 precision highp float;
 in vec2 vUv;
 out vec4 outColor;
 uniform sampler2D uTexture;
 uniform vec2 texelSize;
-uniform vec3 paper;
 uniform vec3 ink;
 
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -230,13 +233,15 @@ void main(){
   // Crisp silhouette: coverage crosses the threshold over ~1px of the field.
   float aa = fwidth(c) * 1.5 + 0.0008;
   float cov = smoothstep(${t.threshold.toFixed(3)} - aa, ${t.threshold.toFixed(3)} + aa, c);
-  if (cov <= 0.0) { outColor = vec4(paper, 1.0); return; }
+  if (cov <= 0.0) { outColor = vec4(0.0); return; }
   // Edge-darkening: a thin pooled band just inside the boundary, fading in.
   float rim = (1.0 - smoothstep(${t.threshold.toFixed(3)}, ${(t.threshold + t.rimBand).toFixed(3)}, c)) * ${t.edgeGain.toFixed(3)};
   // Granulation across the wash.
   float gran = (vnoise(vUv * ${t.grainScale.toFixed(1)}) - 0.5) * ${t.grainAmount.toFixed(3)};
   float tone = cov * clamp(${t.washMax.toFixed(3)} + rim + gran, 0.0, 1.0);
-  outColor = vec4(mix(paper, ink, tone), 1.0);
+  // Premultiplied: the drawing buffer is premultipliedAlpha, and the bake reads
+  // it back through drawImage, which un-premultiplies for us.
+  outColor = vec4(ink * tone, tone);
 }`
 
 // --- GL plumbing -----------------------------------------------------------
@@ -312,11 +317,12 @@ function makeDoubleFbo(gl: GL, w: number, h: number): DoubleFbo {
 }
 
 /**
- * Run the ink bloom and resolve with a 2D canvas holding the baked field
- * (ink over paper), sized to the backing store. Rejects if aborted.
+ * Run the ink bloom and resolve with a 2D canvas holding the baked field —
+ * ink with coverage as ALPHA (transparent where there is no paint), sized to
+ * the backing store. The caller blits it over the paper. Rejects if aborted.
  */
 export function runFluidField(opts: FluidFieldOptions): Promise<HTMLCanvasElement> {
-  const { overCanvas, cssW, cssH, dpr, seeds, paper, ink, rngSeed, animate, signal } = opts
+  const { overCanvas, cssW, cssH, dpr, seeds, ink, rngSeed, animate, signal } = opts
   const tuning = opts.tuning ?? DEFAULT_TUNING
   const scale = Math.min(dpr, 2)
   const w = Math.max(1, Math.round(cssW * scale))
@@ -336,8 +342,11 @@ export function runFluidField(opts: FluidFieldOptions): Promise<HTMLCanvasElemen
   })
   overCanvas.parentElement?.appendChild(canvas)
 
+  // `alpha: true`: the display pass writes ink coverage as alpha, so the paper
+  // painted on the 2D canvas below shows through during the bloom, and the bake
+  // reads back a transparent-where-unpainted raster.
   const gl = canvas.getContext('webgl2', {
-    alpha: false,
+    alpha: true,
     antialias: false,
     depth: false,
     stencil: false,
@@ -396,7 +405,6 @@ export function runFluidField(opts: FluidFieldOptions): Promise<HTMLCanvasElemen
     gl.uniform1i(uni(p, name), unit)
   }
 
-  const [pr, pg, pb] = hexToRgb01(paper)
   const [ir, ig, ib] = hexToRgb01(ink)
 
   // --- Seeding: dye + velocity splats from the blots ------------------------
@@ -496,7 +504,6 @@ export function runFluidField(opts: FluidFieldOptions): Promise<HTMLCanvasElemen
     gl.useProgram(progs.display)
     gl.uniform2f(uni(progs.display, 'texelSize'), dye.read.texelX, dye.read.texelY)
     bindTex(progs.display, 'uTexture', dye.read.tex, 0)
-    gl.uniform3f(uni(progs.display, 'paper'), pr, pg, pb)
     gl.uniform3f(uni(progs.display, 'ink'), ir, ig, ib)
     blit(null)
   }
