@@ -346,6 +346,7 @@ export function HomePage() {
               fit={controls}
               palette={palette}
               selectedElement={selectedElement}
+              erasing={tool === 'erase'}
             />
           </div>
 

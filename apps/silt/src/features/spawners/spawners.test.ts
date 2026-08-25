@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DIRT, EMPTY, Sim, WATER } from '../../sim/index.ts'
-import { emitSpawners, type Spawner } from './spawners.ts'
+import { emitSpawners, isUnderBrush, type Spawner } from './spawners.ts'
 
 describe('emitSpawners', () => {
   it('paints a spawner element into its empty cell', () => {
@@ -29,5 +29,27 @@ describe('emitSpawners', () => {
     emitSpawners(sim, [])
 
     expect(sim.speciesAt(5, 5)).toBe(EMPTY)
+  })
+})
+
+describe('isUnderBrush', () => {
+  const spawner: Spawner = { x: 40, y: 40 , element: WATER }
+
+  it('covers the centre cell with a single-cell brush', () => {
+    expect(isUnderBrush(spawner, { x: 40, y: 40 }, 1)).toBe(true)
+  })
+
+  it('leaves the neighbouring cell alone with a single-cell brush', () => {
+    expect(isUnderBrush(spawner, { x: 41, y: 40 }, 1)).toBe(false)
+  })
+
+  it('reaches a cell away from centre once the brush is wide enough', () => {
+    expect(isUnderBrush(spawner, { x: 42, y: 42 }, 5)).toBe(true)
+    expect(isUnderBrush(spawner, { x: 42, y: 42 }, 3)).toBe(false)
+  })
+
+  it('covers the whole square, corners included', () => {
+    expect(isUnderBrush(spawner, { x: 37, y: 43 }, 7)).toBe(true)
+    expect(isUnderBrush(spawner, { x: 36, y: 43 }, 7)).toBe(false)
   })
 })
