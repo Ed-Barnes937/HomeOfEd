@@ -742,7 +742,7 @@ export function HomePage() {
     // What stands in each changed with screenspace ticket 03: the song bar is
     // the home surface in the scrolling region at every width, the dock holds
     // the clip launcher alone, and the grid opens as a card over the top.
-    <main className={styles.stage}>
+    <main className={styles.stage} data-testid="stage">
       <div className={styles.chrome}>
         <div className={styles.column}>
           {phone ? (
@@ -819,7 +819,7 @@ export function HomePage() {
         </div>
       </div>
       <div className={styles.dock}>
-        <div className={`${styles.column} ${styles.stack}`}>
+        <div className={styles.column}>
           {/* One launcher row, at every width, and nothing else. Its play is
               *clip* play — while the song plays it reads paused and pressing
               it takes over, exactly like the laptop's clip control. Song play

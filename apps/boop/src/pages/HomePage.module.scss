@@ -32,57 +32,6 @@
   color: var(--ink);
 }
 
-// The short-window exception (ticket 23, the repo owner's call). Below 500px
-// of viewport height on a phone, boop stops being a fixed frame and the whole
-// page scrolls.
-//
-// Why a band earns an exception. The fixed frame's promise is that both play
-// buttons are on screen without scrolling, and it keeps that promise by
-// pushing whatever does not fit into the grid's own scroller. Below the
-// threshold there is no arrangement left that keeps it: measured on a fresh
-// one-clip 390px phone, song play is partly behind the pinned transport from
-// 502px down, because the grid's floor plus the song bar's header is taller
-// than the room between the two pinned bars. A page a child can scroll
-// reaches both buttons; a fixed frame that hides one reaches neither.
-//
-// **505, against a measured boundary of 503.** An earlier figure of 500 came
-// from sampling the button's centre only, and the centre is the last part of
-// a circle to go behind anything; sampling its edges too — which is what
-// `verifyNotOccluded` does — puts the first wholly-clear height at 503, so a
-// 500px threshold would have left the first fixed-frame height failing the
-// promise the threshold exists to keep. 505 ships, leaving 2px of margin.
-// What guards that margin is the test at 505 asserting song play is
-// unoccluded — not a test at 503, which is inside the scrolling band and so
-// could only assert page-scroll behaviour. 504 is pinned from the other side.
-//
-// Everything at 500px and above is untouched — that is the common case, it is
-// tested, and it keeps every number this ticket established. The laptop is a
-// separate matter entirely: 1280x600 is not a short window, its problem was a
-// dock taking 79% of the screen, and it keeps the cap above.
-@mixin short-window {
-  @media (max-width: 1023px) and (max-height: 504px) {
-    @content;
-  }
-}
-
-@include short-window {
-  .stage {
-    height: auto;
-    min-height: 100dvh;
-  }
-
-  // Nothing nested scrolls down here: the page is the scroller, so the region
-  // hands its content straight to the document instead of boxing it.
-  .scroller {
-    overflow-y: visible;
-    min-height: auto;
-  }
-
-  .stack {
-    height: auto;
-  }
-}
-
 .chrome {
   flex: none;
   @include frame-padding;
@@ -104,49 +53,16 @@
 // (ticket 37), so its container is what has to clear the home indicator.
 //
 // It held the transport, then the song bar, and holds the clip launcher since
-// screenspace ticket 03 — one fixed-height row at every width.
+// screenspace ticket 03 — one fixed-height row at every width. That is why it
+// is `flex: none` at every width and carries no cap: the >=1024 cap ticket 23
+// put here existed because the song bar grew with the song inside the dock,
+// and the song bar is the scrolling region's content now. Measured with the
+// cap gone: the dock is 132px at 1280x600 and at 1280x900, one clip or five,
+// against a cap that would have allowed 192. Nothing in here grows any more.
 .dock {
   flex: none;
   padding-bottom: 32px;
   @include frame-padding;
-
-  // Capped at >=1024 (ticket 23). **The cap can no longer bind**: the launcher
-  // is a fixed ~100px and the song bar that grew is in the scrolling region
-  // now (screenspace ticket 03). It is left in place deliberately —
-  // screenspace ticket 04 retires it along with the phone grid floor and the
-  // 505px exception, and retiring one of the three inside this ticket would
-  // have mixed the two changes. What it was for:
-  //
-  // The song bar grows with the song, and a
-  // `flex: none` dock takes that growth straight out of the scrolling region:
-  // at 1280x600 with five clips it took 476 of 600px — 79% of the screen —
-  // leaving the region 66px, which is what starved the grid to 16px and drew
-  // the clip control over the bar. The cap is the phone's `max-height` idea at
-  // the frame's scale, and 32dvh is what leaves 1280x600 the 350px its clip
-  // header and floored well need. The dock is a flex column so the bar inside
-  // can shrink into it; the lane grid is what gives way, never the header.
-  //
-  // The phone keeps `flex: none` and no cap: the dock is a fixed height that
-  // does not grow with the song, and ADR 0030's phone behaviour is settled.
-  // Deliberately still a block, not a flex column: `.column` centres itself
-  // with `margin-inline: auto`, and an auto cross-axis margin on a flex item
-  // beats `align-items: stretch`, so the bar would size to its content and
-  // stop lining up with the grid above it (23px narrower, measured at 2560).
-  // The column takes `height: 100%` instead — see `.stack`.
-  @media (min-width: 1024px) {
-    flex: 0 1 auto;
-    min-height: 0;
-    // Never capped below what the bar cannot give up. A cap under that does
-    // not shrink it, it spills: the dock is `overflow: visible`, so the excess
-    // lands in the document and the *page* scrolls. That floor was 193px while
-    // song play was a `flex: none` column beside the lane grid (14 margin + 64
-    // header + 14 body padding + the 101px column), and 32dvh was under it on
-    // every laptop height from 610 down. Song play is the header row now, so
-    // the irreducible part is 14 margin + 72 header + 14 body padding = 100px,
-    // and the lane grid below it shrinks to nothing. Change the 100 with
-    // `SongBar.module.scss`'s header.
-    max-height: max(32dvh, 100px);
-  }
 
   @media (max-width: 1279px) {
     padding-bottom: 26px;
@@ -170,18 +86,17 @@
   margin-inline: auto;
 }
 
-// Used by the scrolling region's column and, since ticket 23, the capped
-// dock's column too: both need their one child to be able to shrink inside a
-// bounded parent, and a plain block cannot — it would size to its content and
-// spill, which on the dock scrolled the whole page.
+// The scrolling region's column, and only that one since screenspace ticket
+// 04 retired the dock cap — the dock's column was given this because a capped
+// dock bounded it and a plain block would have sized to its content and
+// spilled. The dock is `flex: none` again, so there is nothing to shrink into.
 //
-// The scrolling region's column is a flex column of the region's own height,
-// which is what gives the grid well a max-height to shrink against (ticket 23).
-// Nothing here grows: every child keeps `flex: 0 1 auto`, so on a tall window
-// the stack is exactly what it always was — ADR 0030's "do not fix the empty
-// band by stretching the grid" still holds. On a short one the well is the
-// only child that can shrink (it is the only one whose minimum is smaller than
-// its content), so it gives way and the bars below it stay on screen.
+// This column is a flex column of the region's own height, which is what gives
+// the song bar a height to shrink against (ticket 23). Nothing here grows:
+// every child keeps `flex: 0 1 auto`, so on a tall window the stack is exactly
+// what it always was — ADR 0030's "do not fix the empty band by stretching the
+// grid" still holds. On a short one the bar's lane strip is the only thing
+// that can shrink, so it gives way and the dock below stays on screen.
 .stack {
   height: 100%;
   display: flex;
