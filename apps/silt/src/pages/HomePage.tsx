@@ -7,7 +7,7 @@ import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
 import { type Spawner } from '../features/spawners/spawners.ts'
 import { useArmedConfirm } from '../hooks/useArmedConfirm.ts'
-import { useSiltHotkeys } from '../hooks/useSiltHotkeys.ts'
+import { HOTKEYED_ENTRIES, useSiltHotkeys } from '../hooks/useSiltHotkeys.ts'
 import { EMPTY, GRID_HEIGHT, GRID_WIDTH, SAND } from '../sim/index.ts'
 import styles from './HomePage.module.scss'
 
@@ -218,12 +218,12 @@ export function HomePage() {
               >
                 <span className={styles.groupLabel}>{group.label}</span>
                 {group.entries.map((entry) => {
-                  // `useSiltHotkeys` only binds digits 1-9, so past the ninth
-                  // rail entry there is no key to advertise. A badge reading
-                  // "10" would name a shortcut that does nothing — see the
-                  // hotkey gap in `.scratch/silt-materials/spec.md` §8.
+                  // Only the first `HOTKEYED_ENTRIES` swatches have a key to
+                  // advertise, and the roster is longer than that. A badge
+                  // reading "10" would name a shortcut that does nothing — see
+                  // the hotkey gap in `.scratch/silt-materials/spec.md` §8.
                   const nth = palette.entries.indexOf(entry) + 1
-                  const hotkey = nth <= 9 ? nth : undefined
+                  const hotkey = nth <= HOTKEYED_ENTRIES ? nth : undefined
                   return (
                     <button
                       key={entry.id}
@@ -240,7 +240,9 @@ export function HomePage() {
                       />
                       <span className={styles.swatchName}>{entry.name}</span>
                       {hotkey !== undefined && (
-                        <span className={styles.hotkey}>{hotkey}</span>
+                        <span className={styles.hotkey} data-testid="hotkey-badge">
+                          {hotkey}
+                        </span>
                       )}
                     </button>
                   )

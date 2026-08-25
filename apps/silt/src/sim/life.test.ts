@@ -288,18 +288,23 @@ describe('seed, moss and vine', () => {
    * exists, not the arithmetic of one pool.
    */
   it('cannot convert a sealed pool: water survives however long it grows', () => {
-    const sim = new Sim({ seed: 1 })
-    pool(sim, 140, 160, 10)
-    const waterBefore = count(sim, WATER)
-    sim.paint(150, FLOOR - 1, MOSS)
+    // Swept, not pinned to the committed seed — the ADR quotes a range measured
+    // across seeds, so the test has to cover a range too or the number in the
+    // ADR is unbacked. Every seed here is a fresh world, not a fresh draw.
+    for (let seed = 1; seed <= 12; seed++) {
+      const sim = new Sim({ seed })
+      pool(sim, 140, 160, 10)
+      const waterBefore = count(sim, WATER)
+      sim.paint(150, FLOOR - 1, MOSS)
 
-    run(sim, 4000)
+      run(sim, 4000)
 
-    // It really did fill out — this is not a plant that failed to start.
-    expect(count(sim, VINE)).toBeGreaterThan(50)
-    // And it stopped well short of the pool. Before the crowding rule this
-    // number was zero.
-    expect(count(sim, WATER)).toBeGreaterThan(waterBefore / 4)
+      // It really did fill out — this is not a plant that failed to start.
+      expect(count(sim, VINE)).toBeGreaterThan(50)
+      // And it stopped well short of the pool. Before the crowding rule this
+      // number was zero, on every seed.
+      expect(count(sim, WATER)).toBeGreaterThan(waterBefore / 4)
+    }
   })
 
   it('saturates rather than creeping on, so the pool reaches a resting state', () => {
@@ -321,8 +326,12 @@ describe('seed, moss and vine', () => {
    * plants for good, so it is refused for the rest of the run. Checked every
    * tick rather than at the end, since a block that formed and was then burnt
    * away would still be a broken invariant.
+   *
+   * **This binds what grew, not the world.** Sprouting is a reaction row with
+   * no crowding gate, so a 2×2 of seed wedged in mud does make a 2×2 of moss.
+   * Hence one moss here and everything else grown from it (ADR 0035).
    */
-  it('never forms a 2×2 block of plant, on any tick', () => {
+  it('never grows a 2×2 block of plant, on any tick', () => {
     const sim = new Sim({ seed: 1 })
     pool(sim, 140, 160, 10)
     sim.paint(150, FLOOR - 1, MOSS)

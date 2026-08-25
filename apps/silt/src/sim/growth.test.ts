@@ -16,16 +16,22 @@ const grow = createGrowth(WATER, MOSS, VINE)
  * and reach are pinned exactly instead of being inferred from a world that is
  * also falling, reacting and sleeping. `life.test.ts` covers it in a real world.
  *
- * `set` is recorded rather than applied: what matters is *which offset* the
- * hook writes, and offsets are the thing the chunk margin constrains.
+ * The stub tracks scratch bytes **per offset**, and `set` clears the target's
+ * the way `Grid.write` does. That fidelity is the point rather than an extra:
+ * "a freshly grown vine starts on 0" is the whole reason `BRANCH_BUDGET` caps
+ * one cell's fan-out and not a thicket, so a stub whose `set` left the target's
+ * scratch alone would model a brake the engine does not have.
+ *
+ * What it deliberately does not model is chunk waking, since the hook cannot
+ * observe it. `life.test.ts` covers that in a real world.
  */
 class StubApi implements Api {
-  ra = 0
   rb = 0
   readonly writes: { dx: number; dy: number; species: number }[] = []
   readonly reads: { dx: number; dy: number }[] = []
 
   #cells: Map<string, number>
+  #scratch = new Map<string, number>()
   #draws: number[]
 
   constructor(cells: Record<string, number>, draws: number[] = []) {
@@ -39,6 +45,29 @@ class StubApi implements Api {
     if (!this.#cells.has('0,0')) this.#cells.set('0,0', VINE)
   }
 
+  /** The `ra` byte of any cell, so a test can read what a child inherited. */
+  raAt(dx: number, dy: number): number {
+    return this.#scratch.get(`${dx},${dy}`) ?? 0
+  }
+
+  /**
+   * Put a scratch byte on a *neighbour*. Only a test does this — the hook can
+   * only write its own `ra` — and it is what makes the clearing in `set`
+   * observable: without a value there first, "the child starts on 0" holds
+   * whether or not anything cleared it.
+   */
+  seedRa(dx: number, dy: number, value: number): void {
+    this.#scratch.set(`${dx},${dy}`, value)
+  }
+
+  get ra(): number {
+    return this.raAt(0, 0)
+  }
+
+  set ra(value: number) {
+    this.#scratch.set('0,0', value)
+  }
+
   get(dx: number, dy: number): number {
     this.reads.push({ dx, dy })
     return this.#cells.get(`${dx},${dy}`) ?? EMPTY
@@ -47,6 +76,8 @@ class StubApi implements Api {
   set(dx: number, dy: number, species: number): void {
     this.writes.push({ dx, dy, species })
     this.#cells.set(`${dx},${dy}`, species)
+    // As `Grid.write`: overwriting a cell clears its scratch bytes.
+    this.#scratch.delete(`${dx},${dy}`)
   }
 
   swap(): void {
@@ -143,6 +174,27 @@ describe('the growth hook', () => {
     grow(api)
 
     expect(api.writes).toEqual([{ dx: -1, dy: 0, species: VINE }])
+  })
+
+  /**
+   * The reason `BRANCH_BUDGET` is a per-cell rate limit and not a bound on a
+   * thicket. `Grid.write` clears the target's scratch bytes, so a child cannot
+   * inherit its parent's spent budget and the hook has no way to seed it —
+   * which is what `MAX_PLANT_NEIGHBOURS` exists to make up for (ADR 0035).
+   */
+  it('cannot pass its spent budget on: a grown cell starts on a fresh one', () => {
+    const api = new StubApi({ '0,-1': WATER })
+    // Load the target with a spent budget first, so the clearing is visible.
+    // Without this the assertion below holds vacuously.
+    api.seedRa(0, -1, BRANCH_BUDGET)
+    expect(api.raAt(0, -1)).toBe(BRANCH_BUDGET)
+
+    grow(api)
+
+    expect(api.ra).toBe(1)
+    // Growing over it wiped the counter: the new vine has its own budget, and
+    // the hook has no way to hand it anything else.
+    expect(api.raAt(0, -1)).toBe(0)
   })
 
   it('counts the parent towards crowding, so one free side is all it needs', () => {

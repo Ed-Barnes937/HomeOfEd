@@ -148,11 +148,15 @@ test('the rail advertises a hotkey only where one exists', async ({ mountApp, pa
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  // Digits stop at 9 (`useSiltHotkeys`), and the roster is eleven paintables.
-  // The first nine carry a badge; mud and seed must not claim a dead key.
-  await expect(page.getByTestId('element-dirt').getByText('1', { exact: true })).toBeVisible()
-  await expect(page.getByTestId('element-mud').getByText('10', { exact: true })).toHaveCount(0)
-  await expect(page.getByTestId('element-seed').getByText('11', { exact: true })).toHaveCount(0)
+  // Digits stop at `HOTKEYED_ENTRIES` (nine) and the roster is eleven
+  // paintables. The first nine carry a badge; mud and seed must not claim a
+  // dead key. Asserting the *badge* is absent, not that some particular text
+  // is: "no element reading 10" also passes when the badge renders "99".
+  await expect(page.getByTestId('element-dirt').getByTestId('hotkey-badge')).toHaveText('1')
+  await expect(page.getByTestId('element-mud').getByTestId('hotkey-badge')).toHaveCount(0)
+  await expect(page.getByTestId('element-seed').getByTestId('hotkey-badge')).toHaveCount(0)
+  // And exactly nine of them exist in the rail, so the cut is where it says.
+  await expect(page.getByTestId('palette').getByTestId('hotkey-badge')).toHaveCount(9)
 
   // The swatch still works; it just does not claim a shortcut.
   await root.selectElement('mud')

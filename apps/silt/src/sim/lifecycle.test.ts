@@ -26,12 +26,14 @@ function raAt(sim: Sim, x: number, y: number): number {
  * with nowhere to move, so a reaction is the only thing that can change them
  * and one tick is enough to see it.
  *
- * `walls` defaults to dirt, which the cases with a bespoke table below use as
- * the subject of their own row. Any case running the *default* table must pass
- * obsidian: water turns dirt into mud (materials spec §4 row 10) at p 0.4, so a
- * dirt pocket holding water reacts with its own walls.
+ * `walls` is **required, and has no safe default**. Water turns dirt into mud
+ * (materials spec §4 row 10) at p 0.4, so a dirt pocket holding water reacts
+ * with its own walls — a case on the *default* table needs obsidian, while the
+ * cases with a bespoke table below want dirt as the subject of their own row.
+ * Defaulting it either way makes the wrong choice silently, and the wrong
+ * choice is a test that passes on the committed seed and fails on others.
  */
-function pocket(sim: Sim, x: number, left: number, right: number, walls = DIRT): void {
+function pocket(sim: Sim, x: number, left: number, right: number, walls: number): void {
   for (let i = -2; i <= 3; i++) sim.paint(x + i, FLOOR, walls)
   sim.paint(x - 1, FLOOR - 1, walls)
   sim.paint(x + 2, FLOOR - 1, walls)
@@ -54,7 +56,7 @@ describe('reaction table', () => {
     // Dirt walls, not obsidian: this case counts obsidian to mean "nothing
     // happened", and the table is empty so dirt cannot react either.
     const sim = new Sim({ seed: 1, elements: v1Elements, reactions: [] })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, DIRT)
 
     for (let i = 0; i < 10; i++) sim.tick()
 
@@ -68,7 +70,7 @@ describe('reaction table', () => {
       { a: 'dirt', b: 'liquid', p: 1, aBecomes: 'sand', bBecomes: null },
     ]
     const sim = new Sim({ seed: 1, reactions: byTag })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, DIRT)
 
     sim.tick()
 
@@ -86,7 +88,7 @@ describe('reaction table', () => {
       { a: 'dirt', b: 'water', p: 1, aBecomes: 'sand', bBecomes: null, maxHardness: 1 },
     ]
     const sim = new Sim({ seed: 1, elements: hard, reactions: soft })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, DIRT)
 
     sim.tick()
 
@@ -100,7 +102,7 @@ describe('reaction table', () => {
     ]
     const reactedIn = (seed: number) => {
       const sim = new Sim({ seed, reactions: coinFlip })
-      for (let x = 0; x < 40; x++) pocket(sim, 4 + x * 6, WATER, LAVA)
+      for (let x = 0; x < 40; x++) pocket(sim, 4 + x * 6, WATER, LAVA, DIRT)
       sim.tick()
       return count(sim, OBSIDIAN)
     }
@@ -209,7 +211,7 @@ describe('onTick hook', () => {
       { a: 'shouter', b: 'water', p: 1, aBecomes: 'obsidian', bBecomes: null },
     ]
     const sim = new Sim({ seed: 1, elements: [...v1Elements, shouter], reactions: rule })
-    pocket(sim, 100, shouter.id, WATER)
+    pocket(sim, 100, shouter.id, WATER, DIRT)
 
     sim.tick()
 

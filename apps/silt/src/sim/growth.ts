@@ -28,13 +28,15 @@ export const GROWTH_P = 0.04
  * The parent is always one of them, so **one** means "nothing adjacent but the
  * plant it grows from" — and that is what bounds total growth (ADR 0035).
  *
- * Every new cell therefore attaches to exactly one existing cell, which makes
- * the plant an *induced forest* in the grid: no cycle can close, and no two
- * filaments can run alongside each other. In particular no 2×2 block of plant
- * can ever form — place three of its corners and the fourth has two plant
- * neighbours for good. So a sealed pool cannot convert; growth is forced into
- * separated strands with water between them, which is both the bound and the
- * reason it reads as vine rather than as algae.
+ * Every cell grown here therefore attaches to exactly one existing cell, which
+ * makes what grew an *induced forest* in the grid: no cycle can close, and no
+ * two strands can run alongside each other. No 2×2 block can be grown — place
+ * three of its corners and the fourth has two plant neighbours for good. So a
+ * sealed pool cannot convert; growth is forced into separated strands with
+ * water between them, which is both the bound and the reason it reads as vine
+ * rather than as algae. (Sprouting is a reaction row and has no crowding gate,
+ * so a 2×2 of seed wedged in mud *does* make a 2×2 of moss — the claim binds
+ * growth, not the world. ADR 0035.)
  *
  * This is an eligibility test, not a failed draw: a crowded neighbour is
  * skipped and the next offset in `REACH` is considered, so a plant blocked

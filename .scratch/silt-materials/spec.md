@@ -1,7 +1,9 @@
 # Spec: Silt materials — fire, acid, soil, life
 
 Extends the v1 roster (`.scratch/sand-sim/spec.md` §4) from five elements and one
-reaction to seventeen elements and eighteen reactions, in four sequential PRs.
+reaction to seventeen elements and thirteen reaction rows, in four sequential
+PRs. Thirteen *rows*, not thirteen pairs: the tag-keyed rows expand to 26
+unordered pairs in the registry (§4).
 
 Everything here is config in `apps/silt/src/sim/elements.ts` except one
 `onTick` hook in PR 04. No archetype is added; no engine subsystem is added.

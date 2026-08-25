@@ -113,7 +113,10 @@ Rules that are easy to break by accident:
   fields are parallel grids; the cell never widens past 4 bytes. **The one
   exception is the growth hook** (`growth.ts`): moss and vine declare no
   `lifetime`, so nothing is claiming `ra` and it holds their branch count.
-  Giving either of them a lifetime hands the byte back and uncaps growth.
+  Giving either of them a lifetime hands the byte back and uncaps growth. Full
+  reasoning in [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md)
+  §3 — this entry and the comment in `growth.ts` are summaries of it, so a
+  change to the rule belongs in the ADR first.
 - **A hook cannot keep its own cell awake.** `Api` has no `keepAwake` (it is on
   the engine-internal `MovementApi`), so a hook that must go on being offered a
   draw has to *write* — `growth.ts` writes `ra` every tick it has water to

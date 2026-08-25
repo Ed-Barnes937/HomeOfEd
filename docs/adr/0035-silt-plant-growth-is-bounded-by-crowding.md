@@ -53,16 +53,24 @@ than boring into it.
 `MAX_PLANT_NEIGHBOURS = 1`. The parent is always one of the four orthogonal
 neighbours, so one means "nothing adjacent but the plant it grows from".
 
-This is the brake, and it is structural rather than probabilistic. Every new
-cell attaches to exactly one existing plant cell, which makes the plant an
-**induced forest** in the grid graph: no cycle can close, and no two strands can
-run alongside each other. In particular **no 2×2 block of plant can ever form** —
-place three of its corners and the fourth permanently touches two plants. A
-snake cannot fold back beside itself for the same reason.
+This is the brake, and it is structural rather than probabilistic. Every cell
+grown this way attaches to exactly one existing plant cell, which makes what
+*grew* an **induced forest** in the grid graph: no cycle can close, and no two
+strands can run alongside each other. **No 2×2 block can be grown** — place
+three of its corners and the fourth permanently touches two plants. A strand
+cannot fold back beside itself for the same reason.
+
+Note the limit of that claim. It binds **growth only**. Sprouting is a reaction
+row (`seed + mud → moss`), and a reaction row has no notion of crowding, so a
+player who wedges a 2×2 of seed into mud does get a 2×2 of moss — verified, on 7
+of 8 seeds. That is not a hole in the bound: sprouting converts seed the player
+painted, one cell for one, and it is growth that was unbounded. But an invariant
+stated as "no 2×2 of plant ever" would be false, and the test asserts it of a
+grown plant rather than of the world.
 
 So a sealed pool cannot convert. Measured over seeds 1–12 on a 210-cell pool,
 vine saturates at 110–123 cells and 86–99 cells of water survive — a little over
-half, and it settles rather than creeping on. Zero 2×2 blocks at any tick.
+half, and it settles rather than creeping on.
 
 Three sub-choices inside this:
 
@@ -107,8 +115,9 @@ that wakes the chunk itself.
 
 - Plants read as vine: separated strands with water between them, climbing.
 - A pool is no longer consumed, and the bound is provable rather than tuned.
-  The tests pin both halves — the survival of water in a sealed pool, and the
-  no-2×2 invariant checked on every tick.
+  The tests pin both halves — the survival of water in a sealed pool over a
+  sweep of seeds, and the no-2×2 invariant checked on every tick of a grown
+  plant (not of a sprouted one; see the limit noted above).
 - **`CHUNK_MARGIN` is now fully spent.** The crowding check reads two cells from
   the plant, since the candidate is one away and the check looks one past it.
   Two is the margin, and it is exactly enough — `Chunks.touch` wakes every chunk

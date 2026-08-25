@@ -148,6 +148,22 @@ describe('the acid group', () => {
     expect(registry.reactionFor(OIL, ACID)).toBeUndefined()
   })
 
+  /**
+   * The last non-edge in spec §4: acid eats solids and powders, and rises
+   * through gases without touching them. Derived from the roster rather than
+   * listed, so a gas added later is covered here the day it lands — the risk
+   * this guards is a *future* tag row quietly capturing every gas at once.
+   */
+  it('leaves acid unregistered against every gas in the roster', () => {
+    const gases = v1Elements.filter((def) => def.archetype.kind === 'gas')
+
+    expect(gases.length).toBeGreaterThan(2)
+    for (const gas of gases) {
+      expect(registry.reactionFor(ACID, gas.id)).toBeUndefined()
+      expect(registry.reactionFor(gas.id, ACID)).toBeUndefined()
+    }
+  })
+
   it.each([
     ['dirt', DIRT],
     ['sand', SAND],
