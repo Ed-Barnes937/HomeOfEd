@@ -762,9 +762,12 @@ export function HomePage() {
               <PhoneGrid {...gridProps} />
               {/* The phone song bar lives here, in the scrolling region below
                   the grid well (ticket 21, spec §5) — nothing new is pinned
-                  (ADR 0030). Speed stays in the transport, so no tempo here. */}
+                  (ADR 0030). Speed is in its header, the laptop `SongBar`'s
+                  position, so the control has one home (screenspace 02). */}
               <PhoneSongBar
                 song={song}
+                bpm={song.bpm}
+                onTempoChange={changeTempo}
                 onSelectClip={selectClip}
                 onTogglePlacement={togglePlacementAt}
                 onAddClip={() => setPickerOpen(true)}
@@ -800,8 +803,6 @@ export function HomePage() {
             <Transport
               isPlaying={isPlaying && !songPlaying}
               onToggle={toggleClipPlay}
-              bpm={song.bpm}
-              onTempoChange={changeTempo}
               onClearAll={clearClip}
               onNewBoop={newBoop}
               showClearGrid={false}

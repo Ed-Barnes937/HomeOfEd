@@ -8,7 +8,7 @@ import { useDragPaint } from '../grid/useDragPaint.ts'
 import { useGridKeyboardNav } from '../grid/useGridKeyboardNav.ts'
 import { playheadValueText, type SongPlayheadView } from '../playhead/songPlayhead.ts'
 import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
-import { bpmToPercent, percentToBpm } from '../transport/tempoScale.ts'
+import { bpmToPercent, percentToBpm } from './tempoScale.ts'
 import styles from './SongBar.module.scss'
 import { useChipDrag, type ChipDragState } from './useChipDrag.ts'
 
