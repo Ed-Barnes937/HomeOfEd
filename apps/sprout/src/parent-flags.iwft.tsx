@@ -21,8 +21,18 @@ test('flags list shows every owned flag and mark-as-reviewed sticks', async ({ m
   await root.goto('/parent/flags')
 
   await root.verifyFlagCount(3)
+  await root.verifyFlagTopics(['space', 'animals', 'numbers'])
   await root.markFirstFlagReviewed()
   await root.verifyReviewedCount(1)
+})
+
+test('the dashboard "View flags" link reaches the flag log', async ({ mountApp }) => {
+  const { root } = await mountApp({ user: asParent('p1'), seed: seedFlags })
+  await root.goto('/parent/dashboard')
+
+  await root.verifyDashboardShown()
+  await root.clickLink('View flags')
+  await root.verifyFlagCount(3)
 })
 
 test('filtering by child narrows the list client-side', async ({ mountApp }) => {
