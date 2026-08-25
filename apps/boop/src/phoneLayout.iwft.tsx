@@ -184,12 +184,14 @@ test('clearing the grid from the "⋯" menu still goes through the confirm', asy
   await root.toggleCell('kick', 0)
   await root.verifyCellOn('kick', 0)
 
+  await root.openPhoneMenu()
   await root.openClearGridConfirm()
   await root.verifyClearGridConfirmShown()
   await root.keepPlaying()
   await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
 
+  await root.openPhoneMenu()
   await root.openClearGridConfirm()
   await root.clearIt()
   await root.openClipEditor()

@@ -161,6 +161,31 @@ test.describe('the phone, where the transport used to be', () => {
 test.describe('the laptop, where the clip header used to carry the readout', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
+  // 1024 is where the header is fullest: Speed keeps its 280px slider, so the
+  // readout is the only thing with room to give, and it must give space rather
+  // than letters.
+  test.describe('1024 — the tablet band’s narrow end', () => {
+    test.use({ viewport: { width: 1024, height: 800 } })
+
+    test('the readout is whole beside Speed, at the longest string it can hold', async ({
+      mountApp,
+    }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+      await root.startBlank()
+      await root.closeClipEditor()
+      // Position 16 is the longest readout there is.
+      await root.toggleLaneSquare(0, 15)
+      await root.tapSongStrip(15, 3)
+
+      await root.verifyPlayheadReadout('Position 16 · bar 4 of 4')
+      await root.verifyPlayheadReadoutNotTruncated()
+      // And it did not push the header wide enough to start a sideways scroll.
+      await root.verifyNoSidewaysScroller()
+      await root.verifyTempo(100)
+    })
+  })
+
   test('the playhead readout is in the song bar header, on screen with the card open', async ({
     mountApp,
   }) => {

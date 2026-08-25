@@ -40,16 +40,21 @@ test.describe('laptop, short window', () => {
     await root.verifyNotOccluded('play-button')
   })
 
-  test('play still works from the launcher with the grid scrolled to the bottom', async ({
-    mountApp,
-  }) => {
+  test('play still works with the grid scrolled to the bottom', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
     await root.openClipEditor()
 
+    // The well's own footer, which is what a child reaches without leaving the
+    // grid they have just scrolled.
     await root.scrollGridWellToBottom()
-    await root.pressPlay()
+    await root.pressWellClipPlay()
     await root.verifyPlaying()
+
+    // And the launcher outside the card agrees, and stops it.
+    await root.closeClipEditor()
+    await root.pressPlay()
+    await root.verifyPaused()
   })
 })
 

@@ -20,12 +20,13 @@ test.describe('1280 — the first width the laptop numbers claim', () => {
     await root.openClipEditor()
     await root.verifyGridIsSixBySixteen()
     await root.verifyCellGeometry(52, 56)
-    // The card contains the fixed-geometry column, so its own padding has to
-    // be added to `--column-width` or the last steps are clipped. At 1280 the
-    // screen is narrower than the column plus that padding, so the card takes
-    // what it can and the well's own sideways scroll reaches the last steps —
-    // the arrangement this width had before the card existed.
+    // The card contains the fixed-geometry column, so the overlay's gutter and
+    // the card's padding together have to come to the frame's own — 1280 is
+    // the width ADR 0033 exists to make fit, and a dialog-sized gutter left
+    // the well 8px short of it.
     await root.verifyCardHoldsTheColumn()
+    await root.verifyGridWellHasNoSidewaysScroll()
+    await root.verifyNoSidewaysScroller()
   })
 
   test('the lane grid fits too, at the five-clip cap', async ({ mountApp }) => {
@@ -74,5 +75,23 @@ test.describe('a vertical scrollbar must not start a sideways one', () => {
 
     await root.verifyLaneGridClearsAClassicScrollbar()
     await root.verifyNoSidewaysScroller()
+  })
+})
+
+// 1024 — the tablet band's narrow end, and the other width where the card's
+// horizontal budget binds. The frame spends 26px a side here; the card has to
+// spend the same between its overlay gutter and its own padding.
+test.describe('1024 — the tablet band’s narrow end', () => {
+  test.use({ viewport: { width: 1024, height: 900 } })
+
+  test('the card gives the grid what the frame gave it', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyNoSidewaysScroller()
+
+    await root.openClipEditor()
+    await root.verifyCardHoldsTheColumn()
+    await root.verifyGridWellHasNoSidewaysScroll()
+    await root.verifyGridIsSixBySixteen()
   })
 })

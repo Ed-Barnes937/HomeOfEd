@@ -103,18 +103,30 @@ readout is on the WHOLE SONG caption row (boop-playhead ticket 06).
 `ClipHeader`'s `readout` prop and `.readout` style are gone — nothing passed
 them any more.
 
-### The card is `--column-width + 36px` at ≥1024, measured
+### The card is `--column-width + 36px` at ≥1024, on a 14px overlay gutter
 
 `ClipEditorCard.module.scss`: `width: min(calc(var(--column-width) + 36px), 100%)`
-with `padding: 10px 18px 18px`. The card *contains* the fixed-geometry column,
-so its own horizontal padding has to be added to `--column-width` (1196px) or
-the last steps are clipped. 2 × 18 = 36 is the prototype's figure and it still
-measures right after ticket 02 — `verifyCardHoldsTheColumn` in
-`HomePagePom.ts` reads the card's computed padding, subtracts it from the card's
-box, and compares the result with the grid well's `scrollWidth`, so the number
-is checked rather than asserted. It runs at 1440, at 2560 (`wideScreenLayout`)
-and at 1280, where the grid is legitimately wider than the column and the well's
-own sideways scroll is what reaches steps 13–16.
+with `padding: 10px 18px 18px`, inside an overlay whose gutter is **14px**, not
+the 32 a dialog would normally take. The card *contains* the fixed-geometry
+column, so its own horizontal padding has to be added to `--column-width`
+(1196px) or the last steps are clipped — 2 × 18 = 36 is the prototype's figure
+and it still measures right after ticket 02.
+
+The gutter is the part the prototype got wrong and review caught. The overlay's
+gutter and the card's padding come out of the same budget as the frame's
+`frame-padding`, and at 32px they overspent it: measured, the grid well gained
+**25px of sideways scroll at 1024** and **8px at 1280** — 1280 being the exact
+width ADR 0033 exists to make fit. 14 + 18 = 32 at ≥1280 and 14 + 12 = 26 in the
+tablet band, which are the frame's own two numbers, so the card gives the grid
+exactly what the frame gave it. The tablet band takes its own width formula
+(`--column-width + 24px`) to match its 12px padding.
+
+`verifyCardHoldsTheColumn` in `HomePagePom.ts` measures the card's content box
+against **`stage-column`'s live width** — the frame's own column, behind the
+card. Comparing it with `--column-width` instead was a tautology (both numbers
+came from the same stylesheet rule) and is exactly why the overspend got past
+the first pass. It runs at 1024, 1280, 1440 and 2560, paired at each with
+`verifyGridWellHasNoSidewaysScroll`.
 
 ### Clip play is the well's footer at *every* width
 
@@ -140,3 +152,8 @@ no longer be measured in the same breath. `HomePagePom` routes: helpers that act
 chrome close it first, and assertions never route. `verifyBandsDoNotScroll`,
 `verifyBandTapTargets` and `verifyBandsAllowVerticalScroll` became per-band
 (`'loop' | 'song'`) for the same reason.
+
+One behavioural consequence, named rather than fixed: on the phone Clear grid is
+in the "⋯" menu and the grid is behind the card, so a child no longer watches
+the grid clear. Before, the grid was on the frame while the menu was open. The
+alternative is a second Clear button in the well, which the design forbids.

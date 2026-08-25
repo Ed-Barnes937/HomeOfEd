@@ -338,11 +338,18 @@ test.describe('small phone, short window', () => {
 })
 
 // The band the 505px page-scroll exception covers (ADR 0030, as amended by
-// ticket 23). The exception exists because no fixed arrangement kept both play
-// buttons reachable while both surfaces were up. Only one surface is up now, so
-// what these heights assert is the promise itself rather than the mechanism:
-// both buttons reachable and uncovered, one clip or five. Whether the
-// exception still does any work is screenspace ticket 04's question.
+// ticket 23), and the two heights just above it. The exception exists because
+// no fixed arrangement kept both play buttons reachable while both surfaces
+// were up; only one surface is up now, so these heights assert the promise
+// itself — both buttons reachable and uncovered, one clip or five.
+//
+// **And the page no longer scrolls on either side of the threshold.** That is
+// a stronger claim than the old suite made below 505, where the page scrolling
+// was how both buttons were reached, and it is deliberately asserted at 460,
+// 492 and 504 as well as at 505 and 520: the assertion is what would notice if
+// the page started scrolling again, and it is the measurement screenspace
+// ticket 04 needs when it decides whether the 505 exception still earns its
+// keep. The exception's CSS is untouched here.
 for (const height of [460, 492, 504, 505, 520]) {
   test.describe(`small phone, 390x${height}`, () => {
     test.use({ viewport: { width: 390, height } })
@@ -362,6 +369,7 @@ for (const height of [460, 492, 504, 505, 520]) {
 
         await root.verifyNotOccluded('song-play-button')
         await root.verifyNotOccluded('clip-launcher-play')
+        await root.verifyPageDoesNotScroll()
       }
     })
 

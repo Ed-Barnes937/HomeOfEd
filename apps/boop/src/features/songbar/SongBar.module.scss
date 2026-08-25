@@ -61,6 +61,14 @@
   white-space: nowrap;
   font: 600 13px var(--font-mono);
   color: rgba(242, 239, 230, 0.5);
+
+  // The tablet band's header is full — measured at 1024 the 13px string wanted
+  // 179px and had 176, so `Position 1 · bar 1 of 4` ellipsised on the shortest
+  // text it can ever hold. 11px is what fits the longest (`Position 16 · bar 4
+  // of 4`) at the band's narrow end without Speed giving anything up.
+  @media (max-width: 1279px) {
+    font-size: 11px;
+  }
 }
 
 .speedLabel {

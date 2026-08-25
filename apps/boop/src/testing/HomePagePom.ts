@@ -230,6 +230,11 @@ export class HomePagePom extends BasePage {
    * The mirror image: the song bar and the chrome are *behind* the card, so a
    * helper that acts on either closes it first. Same reasoning — the route is
    * the page object's business, the behaviour is the test's.
+   *
+   * `verifyBandDoesNotScroll` is the one assertion that routes, and only
+   * because it swipes the surface under the band before it measures — it is an
+   * action wearing an assertion's name. Nothing else that only reads the DOM
+   * may call either of these.
    */
   private async ensureClipEditorClosed(): Promise<void> {
     if ((await this.clipEditorCard.count()) > 0) await this.closeClipEditor()
@@ -292,7 +297,6 @@ export class HomePagePom extends BasePage {
   /** The launcher is in the dock, and the dock holds nothing else. */
   async verifyLauncherIsTheWholeDock(): Promise<void> {
     await expect(this.clipLauncher).toBeInViewport({ ratio: 1 })
-    await expect(this.page.getByTestId('transport-bar')).toHaveCount(0)
     const siblings = await this.clipLauncher.evaluate(
       (element) => element.parentElement?.childElementCount ?? -1,
     )
@@ -315,37 +319,29 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The card must not clip the fixed-geometry column it contains (ticket 29).
-   * Measured rather than eyeballed: the card's content box — its own box less
-   * its computed horizontal padding — against the rule the stylesheet states,
-   * `min(--column-width + 2 × padding, 100%)` inside the overlay's 32px
-   * gutters. A card an inch too narrow shrinks the well and the last steps go
-   * off the end of it, which is what happened in the prototype at 1440.
+   * The card must not clip the fixed-geometry column it contains (ticket 29) —
+   * measured against the frame it replaced, not against its own stylesheet.
    *
-   * On a viewport too narrow for the whole column the card is as wide as the
-   * screen allows and the well's own sideways scroll is what reaches steps
-   * 13–16 — the same arrangement as before the card existed. Callers at a
-   * width where the column fits whole add `verifyGridWellHasNoSidewaysScroll`.
+   * The frame gave the grid `stage-column`'s width. The card has to give it at
+   * least as much, and it is *not* free to: the overlay's gutter and the
+   * card's own padding both come out of the same budget, so a dialog-sized
+   * 32px gutter left the well 25px short at 1024 and 8px short at 1280 — the
+   * width ADR 0033 exists to make fit. Comparing the card with `--column-width`
+   * cannot catch that, because both numbers come from the same stylesheet
+   * rule; comparing it with the frame's live column can.
    */
   async verifyCardHoldsTheColumn(): Promise<void> {
+    const frame = await this.page.getByTestId('stage-column').boundingBox()
+    if (!frame) throw new Error('the stage column is not visible')
     const measured = await this.clipEditorCard.evaluate((element) => {
       const style = getComputedStyle(element)
-      const columnWidth = parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue('--column-width'),
-      )
-      const overlay = element.parentElement!
-      const overlayStyle = getComputedStyle(overlay)
-      const gutters =
-        parseFloat(overlayStyle.paddingLeft) + parseFloat(overlayStyle.paddingRight)
       const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
       return {
         inner: element.getBoundingClientRect().width - padding,
-        expected: Math.min(columnWidth, overlay.clientWidth - gutters - padding),
         overflow: element.scrollWidth - element.clientWidth,
       }
     })
-    expect(Math.round(measured.inner)).toBe(Math.round(measured.expected))
-    // Whatever the width, the card itself never spills sideways.
+    expect(Math.round(measured.inner)).toBeGreaterThanOrEqual(Math.round(frame.width))
     expect(measured.overflow).toBeLessThanOrEqual(0)
   }
 
@@ -1235,25 +1231,8 @@ export class HomePagePom extends BasePage {
     expect(covered).toEqual([])
   }
 
-  /**
-   * Below the short-window threshold the *page* is the scroller (ADR 0030, as
-   * amended by ticket 23) — the one place in this app where that is true, and
-   * only ever asserted by tests that name a viewport under it.
-   */
-  async verifyPageIsTheScroller(): Promise<void> {
-    const overflow = await this.page.evaluate(
-      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
-    )
-    expect(overflow).toBeGreaterThan(0)
-  }
 
-  async scrollPageToBottom(): Promise<void> {
-    await this.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-  }
 
-  async scrollPageToTop(): Promise<void> {
-    await this.page.evaluate(() => window.scrollTo(0, 0))
-  }
 
   /**
    * Stronger than reading `scrollHeight`, and the assertion that would have
@@ -1904,6 +1883,18 @@ export class HomePagePom extends BasePage {
   }
 
   /** `Position 4 · bar 2 of 4` — the clip header's readout. */
+  /**
+   * The readout is whole, not ellipsised. It shares `SongBar`'s header with
+   * Speed, and the tablet band's header is full — it was cut at 1024 on the
+   * shortest string it can hold before its own font size was pinned there.
+   */
+  async verifyPlayheadReadoutNotTruncated(): Promise<void> {
+    const cut = await this.page
+      .getByTestId('playhead-readout')
+      .evaluate((element) => element.scrollWidth - element.clientWidth)
+    expect(cut).toBeLessThanOrEqual(0)
+  }
+
   async verifyPlayheadReadout(text: string): Promise<void> {
     await expect(this.page.getByTestId('playhead-readout')).toHaveText(text)
   }
@@ -2117,11 +2108,6 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * Neither band scrolls: both stay put while the grid and the lanes swipe
-   * (ADR 0027). Measured against the step window's own scroll, so it is the
-   * bands' *immobility* that is asserted rather than a pixel.
-   */
-  /**
    * The band stays exactly where it was while the surface under it swipes —
    * the grid's step window for the loop map, the lane strip for the WHOLE SONG
    * band. One band at a time, for the same reason as the two helpers above.
@@ -2156,29 +2142,25 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The bands are inside the one scrolling region (ADR 0030), so they must not
-   * take vertical panning away from it: `pan-y` rather than the handoff's
-   * `none`, which would trap a finger that lands on the band.
-   */
-  /**
+   * The bands must not take vertical panning away from the scroller they sit
+   * in (ADR 0027/0030): `pan-y` rather than the handoff's `none`, which would
+   * trap a finger that lands on the band.
+   *
    * One band at a time since screenspace ticket 03: the loop map is inside the
    * clip editor card and the WHOLE SONG band is on the song bar behind it, so
    * they are never on screen together and a helper that read both would have
-   * to open and close the card between its two halves.
+   * to open and close the card between its two halves. These two read whatever
+   * is on screen — the caller says which surface it is on.
    */
   async verifyBandAllowsVerticalScroll(band: 'loop' | 'song'): Promise<void> {
-    if (band === 'loop') await this.ensureClipEditorOpen()
-    else await this.ensureClipEditorClosed()
     const touchAction = await (band === 'loop' ? this.loopMap : this.songBand).evaluate(
       (element) => getComputedStyle(element).touchAction,
     )
     expect(touchAction).toBe('pan-y')
   }
 
-  /** Both caps clear a 44px touch target through their band's own hit area. */
+  /** The cap clears a 44px touch target through its band's own hit area. */
   async verifyBandTapTarget(band: 'loop' | 'song'): Promise<void> {
-    if (band === 'loop') await this.ensureClipEditorOpen()
-    else await this.ensureClipEditorClosed()
     const box = await (band === 'loop' ? this.loopMap : this.songBand).boundingBox()
     if (!box) throw new Error('a scrub band is not visible')
     expect(box.height).toBeGreaterThanOrEqual(44)

@@ -818,7 +818,7 @@ export function HomePage() {
           )}
         </div>
       </div>
-      <div className={styles.transportDock}>
+      <div className={styles.dock}>
         <div className={`${styles.column} ${styles.stack}`}>
           {/* One launcher row, at every width, and nothing else. Its play is
               *clip* play — while the song plays it reads paused and pressing

@@ -177,7 +177,8 @@ test('neither band scrolls, both clear 44px, and the region still pans verticall
   await root.verifyIsShown()
   await buildTwoClipSong(root)
 
-  // The song bar's band, on the home surface.
+  // The song bar's band, on the home surface — where `buildTwoClipSong`'s last
+  // action, a lane-square tap, has already left us.
   await root.verifyBandTapTarget('song')
   // The bands must not claim vertical panning from the one scroller (ADR 0030).
   await root.verifyBandAllowsVerticalScroll('song')
@@ -188,6 +189,7 @@ test('neither band scrolls, both clear 44px, and the region still pans verticall
 
   // The loop map, inside the card. Ticket 23 moved the grid's scroll inside
   // its own well, and the card kept it there; the page still never moves.
+  await root.openClipEditor()
   await root.verifyBandTapTarget('loop')
   await root.verifyBandAllowsVerticalScroll('loop')
   await root.verifyBandDoesNotScroll('loop', 300)

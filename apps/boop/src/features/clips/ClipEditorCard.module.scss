@@ -16,10 +16,18 @@
   z-index: 30;
 
   // Centred at and above 1024, the shape "My boops" already uses there.
+  //
+  // 14px of side gutter, not the 32 a dialog would normally take: this gutter
+  // and the card's own padding are the grid's whole horizontal budget, and
+  // together they have to come to the frame's `frame-padding` or the card is
+  // narrower than the surface it replaced. 14 + 18 = 32 at ≥1280 and
+  // 14 + 12 = 26 in the tablet band — the frame's two numbers exactly. At 32
+  // the well gained a sideways scroll at 1024 and at 1280, which is the width
+  // ADR 0033 exists to make fit.
   @media (min-width: 1024px) {
     align-items: center;
     justify-content: center;
-    padding: 32px;
+    padding: 24px 14px;
   }
 }
 
@@ -47,6 +55,13 @@
     max-height: 84dvh;
     padding: 10px 18px 18px;
     border-radius: var(--r-popover);
+  }
+
+  // The tablet band's own `frame-padding` is 26px a side, and the overlay's
+  // gutter takes 14 of it — so 12 here, and the width formula follows.
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    width: min(calc(var(--column-width) + 24px), 100%);
+    padding: 10px 12px 12px;
   }
 }
 
