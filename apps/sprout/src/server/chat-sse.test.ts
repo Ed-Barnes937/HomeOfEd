@@ -2,13 +2,10 @@
 // `registerRoutes` hook + `createAppServer` (so it also proves the route is
 // mounted ahead of the SPA fallback). A fake pipeline scripts the chunks; a
 // FakeSproutStore proves flag persistence and the behavioural signals.
-import { createContext, InMemoryBlobStore, ConsoleLogger } from '@hoe/backend-kit'
+import { ConsoleLogger } from '@hoe/backend-kit'
 import { createAppServer } from '@hoe/backend-kit/server'
-import { mkdtemp, writeFile } from 'node:fs/promises'
 import type { AddressInfo } from 'node:net'
 import net from 'node:net'
-import os from 'node:os'
-import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { ChildUser } from './auth/providers.ts'
@@ -16,8 +13,8 @@ import { registerChatSseRoute } from './chat-sse.ts'
 import type { PipelineClient } from './pipeline/pipelineClient.ts'
 import type { ChatStreamChunk } from '../lib/chatStream.ts'
 import { readSseStream } from '../lib/sseFrames.ts'
-import { createAppRouter } from './router.ts'
 import { FakeSproutStore } from './testing/fakeSproutStore.ts'
+import { testServerOpts } from './testing/appServer.ts'
 import type { SproutStore } from './store.ts'
 
 const CHILD_ID = '11111111-1111-4111-8111-111111111111'
@@ -33,12 +30,6 @@ async function freePort(): Promise<number> {
   const { port } = probe.address() as AddressInfo
   await new Promise<void>((resolve) => probe.close(() => resolve()))
   return port
-}
-
-async function makeStaticDir(): Promise<string> {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'sprout-sse-'))
-  await writeFile(path.join(dir, 'index.html'), '<!doctype html><title>sprout</title>')
-  return dir
 }
 
 function fakePipeline(chunks: ChatStreamChunk[]): PipelineClient {
@@ -69,29 +60,19 @@ async function startServer(opts: {
   resolveChild: () => ChildUser | null
 }): Promise<{ url: string; close: () => Promise<void> }> {
   const port = await freePort()
-  const router = createAppRouter({
-    hasher: { hash: () => '', verify: () => false },
-    summarise: () => Promise.reject(new Error('unused')),
-    mintChildToken: () => '',
-  })
-  const server = createAppServer({
-    router,
-    createContext: createContext({
+  const server = createAppServer(
+    await testServerOpts({
       store: opts.store,
-      blobs: new InMemoryBlobStore(),
       logger: silentLogger,
+      registerRoutes: (app) =>
+        registerChatSseRoute(app, {
+          store: opts.store,
+          pipeline: opts.pipeline,
+          resolveChild: opts.resolveChild,
+          logger: silentLogger,
+        }),
     }),
-    staticDir: await makeStaticDir(),
-    logger: silentLogger,
-    healthCheck: () => Promise.resolve({ ok: true }),
-    registerRoutes: (app) =>
-      registerChatSseRoute(app, {
-        store: opts.store,
-        pipeline: opts.pipeline,
-        resolveChild: opts.resolveChild,
-        logger: silentLogger,
-      }),
-  })
+  )
   await server.listen(port)
   return { url: `http://127.0.0.1:${port}`, close: () => server.close() }
 }

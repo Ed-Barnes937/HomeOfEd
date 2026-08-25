@@ -2,11 +2,6 @@
 // app-level `onRequest` hook, exercised through the REAL D9 `registerRoutes`
 // hook + `buildAppServer` (inject style — legal-docs/chat-sse prior art).
 // Every refusal-matrix row is asserted per path, exempt and non-exempt.
-import { createContext, InMemoryBlobStore, ConsoleLogger } from '@hoe/backend-kit'
-import { buildAppServer } from '@hoe/backend-kit/server'
-import { mkdtemp, writeFile } from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -16,33 +11,10 @@ import {
   REFUSAL_HTML,
 } from './geo-boundary.ts'
 import { registerLegalDocRoutes } from './legal-docs.ts'
-import { createAppRouter } from './router.ts'
-import { FakeSproutStore } from './testing/fakeSproutStore.ts'
-
-const testLogger = new ConsoleLogger({ app: 'sprout-test' })
-
-async function makeStaticDir(): Promise<string> {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'sprout-geo-'))
-  await writeFile(path.join(dir, 'index.html'), '<!doctype html><title>sprout</title>')
-  return dir
-}
+import { buildTestAppServer } from './testing/appServer.ts'
 
 async function buildServer(env: Record<string, string | undefined> = {}) {
-  const router = createAppRouter({
-    hasher: { hash: () => '', verify: () => false },
-    summarise: () => Promise.reject(new Error('unused')),
-    mintChildToken: () => '',
-  })
-  return buildAppServer({
-    router,
-    createContext: createContext({
-      store: new FakeSproutStore(),
-      blobs: new InMemoryBlobStore(),
-      logger: testLogger,
-    }),
-    staticDir: await makeStaticDir(),
-    logger: testLogger,
-    healthCheck: () => Promise.resolve({ ok: true }),
+  return buildTestAppServer({
     // Mirrors main.ts wiring: the geo boundary first (env-gated), then the
     // app routes.
     registerRoutes: (app) => {

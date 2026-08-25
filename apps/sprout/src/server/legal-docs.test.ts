@@ -2,43 +2,13 @@
 // exercised through the REAL D9 `registerRoutes` hook + `buildAppServer`
 // (inject style — backend-kit's app-server tests are the prior art). The pages
 // are static skeletons whose headings mirror docs/legal-content-requirements.md.
-import { createContext, InMemoryBlobStore, ConsoleLogger } from '@hoe/backend-kit'
-import { buildAppServer } from '@hoe/backend-kit/server'
-import { mkdtemp, writeFile } from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { registerLegalDocRoutes } from './legal-docs.ts'
-import { createAppRouter } from './router.ts'
-import { FakeSproutStore } from './testing/fakeSproutStore.ts'
-
-const testLogger = new ConsoleLogger({ app: 'sprout-test' })
-
-async function makeStaticDir(): Promise<string> {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'sprout-legal-'))
-  await writeFile(path.join(dir, 'index.html'), '<!doctype html><title>sprout</title>')
-  return dir
-}
+import { buildTestAppServer } from './testing/appServer.ts'
 
 async function buildServer() {
-  const router = createAppRouter({
-    hasher: { hash: () => '', verify: () => false },
-    summarise: () => Promise.reject(new Error('unused')),
-    mintChildToken: () => '',
-  })
-  return buildAppServer({
-    router,
-    createContext: createContext({
-      store: new FakeSproutStore(),
-      blobs: new InMemoryBlobStore(),
-      logger: testLogger,
-    }),
-    staticDir: await makeStaticDir(),
-    logger: testLogger,
-    healthCheck: () => Promise.resolve({ ok: true }),
-    registerRoutes: (app) => registerLegalDocRoutes(app),
-  })
+  return buildTestAppServer({ registerRoutes: (app) => registerLegalDocRoutes(app) })
 }
 
 const TERMS_HEADINGS = [
