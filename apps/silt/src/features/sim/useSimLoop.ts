@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 
 import {
   createRegistry,
+  EMPTY,
   FixedTimestep,
   GRID_WIDTH,
   MS_PER_TICK,
@@ -13,7 +14,7 @@ import {
 import { SimRenderer } from '../render/renderer.ts'
 import { brushOffsets } from './brushOffsets.ts'
 import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
-import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
+import { emitSpawners, isUnderBrush, type Spawner } from '../spawners/spawners.ts'
 
 /**
  * Test-only seam (mirrors boids' window-key pattern): a property on the
@@ -49,7 +50,9 @@ export interface UseSimLoopOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
   /** Paused = setup mode (spec §3); painting works in both states. */
   running: boolean
-  /** The species painting or spawner placement applies — EMPTY when the erase tool is active. */
+  /** The species painting or spawner placement applies — EMPTY when the erase
+   * tool is active, which is also what makes an erase stroke sweep spawners
+   * out of its brush footprint. */
   selectedElement: number
   /** Round brush diameter in cells (odd, so it has a centre); 1 = single cell. Spawners ignore this — one entity per click. */
   brushWidth: number
@@ -192,11 +195,23 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
         if (x < 0 || y < 0 || x >= sim.width || y >= sim.height) continue
         sim.paint(x, y, selectedRef.current)
       }
+      // Erase clears the world under the brush, and a spawner is part of that
+      // world even though it isn't a cell — leaving it behind would refill the
+      // hole the stroke just made.
+      if (selectedRef.current === EMPTY) eraseSpawnersUnder(cell)
       onPaintRef.current?.()
     }
 
     const notifySpawners = (): void => {
       onSpawnersChangeRef.current?.(spawnersRef.current.slice())
+    }
+
+    const eraseSpawnersUnder = (cell: { x: number; y: number }): void => {
+      const spawners = spawnersRef.current
+      const kept = spawners.filter((spawner) => !isUnderBrush(spawner, cell, brushRef.current))
+      if (kept.length === spawners.length) return
+      spawners.splice(0, spawners.length, ...kept)
+      notifySpawners()
     }
 
     // Spawner mode places or removes one entity per click — no drag, unlike
