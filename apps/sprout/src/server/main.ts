@@ -15,6 +15,7 @@ import { fixedAuthProvider, resolveParentUser, type ChildUser } from './auth/pro
 import { mintChildToken } from './auth/childToken.ts'
 import { registerChatSseRoute } from './chat-sse.ts'
 import { toFetchHeaders, toFetchRequest } from './fastifyBridge.ts'
+import { registerLegalDocRoutes } from './legal-docs.ts'
 import { createHttpPipelineClient, createHttpSummariser } from './pipeline/pipelineClient.ts'
 import { scryptHasher } from './password.ts'
 import { createAppRouter } from './router.ts'
@@ -114,6 +115,9 @@ const registerRoutes = (app: FastifyInstance): void => {
     if (setCookies.length > 0) reply.header('set-cookie', setCookies)
     return reply.send(await response.text())
   })
+
+  // ToS/Privacy draft documents (ADR-0015): static, versioned, not SPA routes.
+  registerLegalDocRoutes(app)
 
   // Chat SSE stream: authenticates the child from the cookie via the same
   // child provider the auth seam uses.
