@@ -227,6 +227,16 @@ export class SiltPagePom extends BasePage {
     await this.canvas.dispatchEvent('pointerup', { clientX, clientY, bubbles: true })
   }
 
+  /** Drags from one cell to another delivered as a single pointermove — the
+   * event pattern of a fast flick, where samples land many cells apart. */
+  async dragPaint(from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
+    const start = await this.canvasClientPoint(from.x, from.y)
+    const end = await this.canvasClientPoint(to.x, to.y)
+    await this.canvas.dispatchEvent('pointerdown', { ...start, bubbles: true })
+    await this.canvas.dispatchEvent('pointermove', { ...end, bubbles: true })
+    await this.canvas.dispatchEvent('pointerup', { ...end, bubbles: true })
+  }
+
   /** Moves the pointer over a cell without pressing — drives the hover chrome. */
   async hoverCell(x: number, y: number): Promise<void> {
     const { clientX, clientY } = await this.canvasClientPoint(x, y)

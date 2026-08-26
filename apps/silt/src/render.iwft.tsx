@@ -35,6 +35,21 @@ test('painting keeps working once the sim is running', async ({ mountApp }) => {
   await expect.poll(() => root.countSpecies(DIRT)).toBeGreaterThan(before)
 })
 
+test('a fast drag paints a continuous stroke, not a dot per pointer sample', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Paused, so the stroke stays where it was painted. The whole drag arrives
+  // as one pointermove 200 cells from the pointerdown.
+  await root.dragPaint({ x: 50, y: 100 }, { x: 250, y: 100 })
+
+  await root.verifyCellIs(50, 100, SAND)
+  await root.verifyCellIs(150, 100, SAND)
+  await root.verifyCellIs(250, 100, SAND)
+})
+
 test('the world canvas renders crisp (no smoothing)', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
