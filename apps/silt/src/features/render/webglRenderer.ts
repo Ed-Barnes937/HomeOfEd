@@ -71,14 +71,12 @@ export class WebGLSimRenderer implements WorldRenderer {
   readonly kind = 'webgl2' as const
   private readonly gl: WebGL2RenderingContext
   private readonly palette: SpeciesPalette
-  private readonly clear: [number, number, number]
+  private readonly clearColour: [number, number, number]
   private program: WebGLProgram | null = null
   private gridTexture: WebGLTexture | null = null
   private lastCells: Uint8Array | null = null
   private buffer: HTMLCanvasElement | null = null
   private fit: Rect = { x: 0, y: 0, width: 0, height: 0 }
-  private cssWidth = 0
-  private cssHeight = 0
   private dpr = 1
 
   private readonly onContextLost = (event: Event): void => {
@@ -97,7 +95,7 @@ export class WebGLSimRenderer implements WorldRenderer {
     this.gl = gl
     this.palette = buildSpeciesPalette(registry)
     const [r, g, b] = hexToRgb(WORLD_COLOUR)
-    this.clear = [r / 255, g / 255, b / 255]
+    this.clearColour = [r / 255, g / 255, b / 255]
     canvas.addEventListener('webglcontextlost', this.onContextLost)
     canvas.addEventListener('webglcontextrestored', this.onContextRestored)
     this.initGL()
@@ -153,8 +151,6 @@ export class WebGLSimRenderer implements WorldRenderer {
 
   /** DPR-aware backing store, re-evaluated on resize/zoom (spec §6). */
   resize(cssWidth: number, cssHeight: number, dpr: number): void {
-    this.cssWidth = cssWidth
-    this.cssHeight = cssHeight
     this.dpr = dpr
     this.canvas.width = Math.max(1, Math.round(cssWidth * dpr))
     this.canvas.height = Math.max(1, Math.round(cssHeight * dpr))
@@ -217,7 +213,7 @@ export class WebGLSimRenderer implements WorldRenderer {
     )
 
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
-    gl.clearColor(this.clear[0], this.clear[1], this.clear[2], 1)
+    gl.clearColor(this.clearColour[0], this.clearColour[1], this.clearColour[2], 1)
     gl.clear(gl.COLOR_BUFFER_BIT)
 
     if (this.fit.width > 0 && this.fit.height > 0) {

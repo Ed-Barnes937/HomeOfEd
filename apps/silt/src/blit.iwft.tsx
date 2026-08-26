@@ -18,6 +18,10 @@ async function waitForProbe(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate((key) => key in window, BLIT_PROBE_KEY)).toBe(true)
 }
 
+// NOTE: the `(window as ...)[key]!` cast recurs in each evaluate callback below
+// on purpose — evaluate serialises its callback alone, so a shared node-side
+// helper would be a ReferenceError in the browser.
+
 test('the WebGL path draws the same colours the palette rasterises', async ({ mount, page }) => {
   await mount(<BlitProbe />)
   await waitForProbe(page)
