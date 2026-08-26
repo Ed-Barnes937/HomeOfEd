@@ -108,5 +108,6 @@ export function buildRailPalette(registry: ElementRegistry): RailPalette {
   }
 }
 
-/** Square brush widths in cells (spec §9 "four squares at true relative scale"). */
+/** Round brush diameters in cells (spec §9's "four squares at true relative
+ * scale", drawn as circles since the brush went round). */
 export const BRUSH_WIDTHS: readonly number[] = [1, 3, 5, 7]
