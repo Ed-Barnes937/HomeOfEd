@@ -24,6 +24,18 @@ const MAX_DT_MS = 33
  * number the physics uses (no visual/physics drift).
  */
 export const CURSOR_RADIUS = 180
+/**
+ * Click-removal target radius for beacons in world (CSS) px — ~48px effective
+ * touch target. Exported so tests and hit-affordances share the physics' number.
+ */
+export const BEACON_HIT_RADIUS = 24
+
+/** A pinned cursor force: the strength params.cursor held when it was placed. */
+export interface Beacon {
+  x: number
+  y: number
+  strength: number
+}
 
 function wrap(value: number, size: number): number {
   return ((value % size) + size) % size
@@ -46,6 +58,8 @@ export class Simulation {
   /** Pointer position in world px, or null when off-canvas. Fed each frame. */
   private pointer: { x: number; y: number } | null = null
   private readonly boidList: Boid[] = []
+  /** Dropped beacons — ephemeral, never persisted. */
+  private readonly beaconList: Beacon[] = []
   // Per-step scratch, reused across frames so step() allocates nothing.
   private forceX = new Float64Array(0)
   private forceY = new Float64Array(0)
@@ -71,6 +85,37 @@ export class Simulation {
 
   getPointer(): { x: number; y: number } | null {
     return this.pointer
+  }
+
+  get beacons(): ReadonlyArray<Beacon> {
+    return this.beaconList
+  }
+
+  /**
+   * Click policy for beacons: remove the nearest beacon hit within
+   * BEACON_HIT_RADIUS, else (strength ≠ 0) drop one frozen at `strength`.
+   * The hit-test runs first so a click with the cursor force off can still
+   * remove an existing beacon.
+   */
+  toggleBeaconAt(x: number, y: number, strength: number): 'added' | 'removed' | 'noop' {
+    let nearest = -1
+    let nearestDist = BEACON_HIT_RADIUS
+    for (let i = 0; i < this.beaconList.length; i++) {
+      const beacon = this.beaconList[i]
+      if (!beacon) continue
+      const dist = Math.hypot(beacon.x - x, beacon.y - y)
+      if (dist <= nearestDist) {
+        nearest = i
+        nearestDist = dist
+      }
+    }
+    if (nearest >= 0) {
+      this.beaconList.splice(nearest, 1)
+      return 'removed'
+    }
+    if (strength === 0) return 'noop'
+    this.beaconList.push({ x, y, strength })
+    return 'added'
   }
 
   setParams(params: SimParams): void {
@@ -225,6 +270,29 @@ export class Simulation {
           dx * sign,
           dy * sign,
           Math.abs(this.params.cursor) * falloff,
+          maxSpeed,
+          maxForce,
+        )
+      }
+    }
+
+    // Beacons: the cursor force frozen at placement strength — one steer per
+    // beacon in range, independent of the live params.cursor value. Indexed
+    // loop, no allocation.
+    for (let bi = 0; bi < this.beaconList.length; bi++) {
+      const beacon = this.beaconList[bi]
+      if (!beacon) continue
+      const dx = beacon.x - boid.x
+      const dy = beacon.y - boid.y
+      const dist = Math.hypot(dx, dy)
+      if (dist > 0 && dist < CURSOR_RADIUS) {
+        const falloff = 1 - dist / CURSOR_RADIUS
+        const sign = Math.sign(beacon.strength)
+        this.addSteer(
+          index,
+          dx * sign,
+          dy * sign,
+          Math.abs(beacon.strength) * falloff,
           maxSpeed,
           maxForce,
         )

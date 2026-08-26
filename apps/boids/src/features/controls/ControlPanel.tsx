@@ -76,7 +76,7 @@ const CURSOR_SLIDER_SPEC: SliderSpec = {
   label: 'cursor attraction',
   format: (v) => (v === 0 ? 'off' : `${v > 0 ? '+' : ''}${v.toFixed(2)}`),
   tooltip:
-    'Pulls boids toward your pointer when positive, pushes them away when negative. Zero switches the force off.',
+    'Pulls boids toward your pointer when positive, pushes them away when negative. Zero switches the force off. Click the canvas to pin the current force as a beacon; click a beacon to remove it.',
 }
 
 /** A titled, collapsible subsection. Header toggles the body; open by default. */

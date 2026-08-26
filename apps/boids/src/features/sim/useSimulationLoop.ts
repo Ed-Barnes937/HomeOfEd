@@ -21,7 +21,13 @@ export interface BoidsTestSeam {
   getParams(): SimParams
   /** The pointer the cursor force is steering to, or null when off-canvas. */
   getPointer(): { x: number; y: number } | null
+  /** Dropped beacons, with the strength frozen at placement. */
+  getBeacons(): { x: number; y: number; strength: number }[]
 }
+
+/** A pointerdown→pointerup pair within this client-px distance is a tap
+ * (drops/removes a beacon); anything longer is a drag steering the flock. */
+const TAP_SLOP_PX = 8
 
 /**
  * Test-only seam (mirrors backend-kit's window-key pattern): a property on
@@ -85,6 +91,7 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
       getPositions: () => sim.boids.map((b) => ({ x: b.x, y: b.y })),
       getParams: () => paramsRef.current,
       getPointer: () => sim.getPointer(),
+      getBeacons: () => sim.beacons.map((b) => ({ ...b })),
     }
 
     // Pointer capture: one listener drives both the physics (via pointerRef,
@@ -102,13 +109,40 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
         el.dataset.active = 'true'
       }
     }
+    // Tap = beacon toggle. Down remembers where; up within TAP_SLOP_PX toggles
+    // a beacon at that spot, frozen at the current cursor strength. A longer
+    // gesture is a steering drag and never places one.
+    let pendingTap: { x: number; y: number } | null = null
     const onPointerLeave = (): void => {
+      pendingTap = null
       pointerRef.current = null
       const el = opts.overlayRef.current
       if (el) el.dataset.active = 'false'
     }
+
+    const onPointerDown = (event: PointerEvent): void => {
+      pendingTap = { x: event.clientX, y: event.clientY }
+    }
+    const onPointerCancel = (): void => {
+      pendingTap = null
+    }
+    const onPointerUp = (event: PointerEvent): void => {
+      const down = pendingTap
+      pendingTap = null
+      if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > TAP_SLOP_PX) return
+      const rect = canvas.getBoundingClientRect()
+      const result = sim.toggleBeaconAt(
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        paramsRef.current.cursor,
+      )
+      if (result !== 'noop') redrawIfStaticRef.current?.()
+    }
     canvas.addEventListener('pointermove', onPointerMove)
     canvas.addEventListener('pointerleave', onPointerLeave)
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointerup', onPointerUp)
+    canvas.addEventListener('pointercancel', onPointerCancel)
 
     const draw = () => renderer.draw(sim, themeRef.current, shapeRef.current, paramsRef.current)
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -147,6 +181,9 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
       resizeObserver.disconnect()
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerleave', onPointerLeave)
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('pointerup', onPointerUp)
+      canvas.removeEventListener('pointercancel', onPointerCancel)
       if (rafId) cancelAnimationFrame(rafId)
       redrawIfStaticRef.current = null
       simRef.current = null

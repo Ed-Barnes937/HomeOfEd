@@ -200,3 +200,64 @@ test('prefers-reduced-motion renders a static frame instead of animating', async
   await root.verifyIsShown()
   await root.verifyStaticFrame()
 })
+
+test('clicking the canvas with the cursor force on drops a beacon; clicking it again removes it', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.dragSlider('cursor attraction', 1.5)
+  await root.clickCanvas(400, 300)
+  await root.verifyBeaconCount(1)
+
+  await root.clickCanvas(400, 300)
+  await root.verifyBeaconCount(0)
+})
+
+test('clicking with the cursor force off drops nothing', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.clickCanvas(400, 300) // cursor defaults to 0 (off)
+  await root.verifyBeaconCount(0)
+})
+
+test('a drag across the canvas steers the flock without dropping a beacon', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.dragSlider('cursor attraction', 1.5)
+  await root.dragAcrossCanvas({ x: 400, y: 300 }, { x: 460, y: 300 })
+  await root.verifyBeaconCount(0)
+})
+
+test('each beacon freezes the strength set at placement', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.dragSlider('cursor attraction', 1.5)
+  await root.clickCanvas(300, 300)
+
+  await root.dragSlider('cursor attraction', -2)
+  await root.clickCanvas(500, 300)
+
+  await root.verifyBeaconStrengths([1.5, -2])
+})
+
+test('dropping a beacon under reduced motion repaints without starting the animation', async ({
+  mountApp,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.dragSlider('cursor attraction', 1.5)
+  await root.clickCanvas(400, 300)
+
+  await root.verifyBeaconCount(1)
+  await root.verifyStaticFrame()
+})
