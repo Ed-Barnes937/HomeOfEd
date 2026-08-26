@@ -86,9 +86,14 @@ a dedicated `.iwft`, not dead code. All intent flows through one
 
 ### Stances taken
 
-- **Tearing is accepted.** The renderer may read mid-tick bytes; one tick's
-  tear on a falling-sand grid was judged invisible by looking (the ticket's
-  own suggested test). No double buffer until someone sees it.
+- **Tearing is accepted on screen, never in a saved scene.** The renderer may
+  read mid-tick bytes; one tick's tear on a falling-sand grid was judged
+  invisible by looking (the ticket's own suggested test), and the next frame
+  repairs it. No double buffer until someone sees it. A *save* is different —
+  a tear stored by `encodeScene` is permanent — so the core brackets every
+  cell mutation with a write seqlock (`STATUS_WRITE_SEQ`, odd while writing)
+  and `saveScene` reads through `WorldView.readConsistent`, which retries a
+  read that overlapped a write.
 - **Hidden tabs pause ticking.** The page forwards `visibilitychange`; the
   worker gates its clock on `running && visible` and drops the debt
   (`FixedTimestep.reset`), matching the old rAF-driven loop where a

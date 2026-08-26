@@ -409,7 +409,12 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     },
     saveScene: () => {
       const host = requireHost(hostRef.current)
-      const envelope = encodeScene(host.view, spawnersRef.current, host.registry)
+      // A consistent read, not a racy one: the sim may be mid-tick on its own
+      // thread, and a tear stored into a scene is permanent (unlike the
+      // renderer's, which the next frame repairs).
+      const envelope = host.view.readConsistent(() =>
+        encodeScene(host.view, spawnersRef.current, host.registry),
+      )
       // A frame can be skipped now (ticket 06), so a save landing between a
       // paint and the next rAF would snapshot the previous world. This is a
       // no-op whenever the canvas is already current.

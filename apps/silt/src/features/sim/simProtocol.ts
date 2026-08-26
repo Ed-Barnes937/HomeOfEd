@@ -9,7 +9,16 @@ import type { Spawner } from '../spawners/spawners.ts'
 
 /** Slot index of the sim's revision counter in the shared status block. */
 export const STATUS_REVISION = 0
-const STATUS_SLOTS = 1
+/**
+ * A seqlock over the cell bytes: the sim side makes it odd before mutating
+ * and even after, so a reader that saw the same even value on both sides of
+ * its read knows no write overlapped it. The renderer deliberately ignores it
+ * (a one-tick tear on screen is invisible — ADR 0036); `saveScene` must not
+ * (a tear in a stored scene is permanent), so `WorldView.readConsistent`
+ * validates against this slot.
+ */
+export const STATUS_WRITE_SEQ = 1
+const STATUS_SLOTS = 2
 
 /**
  * The two buffers a world lives in. Shared (worker mode) or plain (the local

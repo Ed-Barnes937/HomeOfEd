@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { EMPTY, GRID_WIDTH, MS_PER_TICK, SAND } from '../../sim/index.ts'
-import { LocalSimHost, selectSimHostKind } from './simHost.ts'
+import { createLocalWorld, STATUS_WRITE_SEQ } from './simProtocol.ts'
+import { LocalSimHost, selectSimHostKind, WorldView } from './simHost.ts'
 
 describe('selectSimHostKind', () => {
   it('picks the worker only when the page is cross-origin isolated and has workers', () => {
@@ -68,5 +69,40 @@ describe('LocalSimHost', () => {
     const host = new LocalSimHost()
     expect(host.registry.get(SAND)?.name).toBe('sand')
     host.dispose()
+  })
+})
+
+describe('WorldView.readConsistent', () => {
+  it('returns the read straight away when no write is in progress', () => {
+    const world = createLocalWorld()
+    const view = new WorldView(world)
+
+    let reads = 0
+    const result = view.readConsistent(() => {
+      reads++
+      return 'snapshot'
+    })
+
+    expect(result).toBe('snapshot')
+    expect(reads).toBe(1)
+  })
+
+  it('retries a read that overlapped a write, and returns the settled one', () => {
+    const world = createLocalWorld()
+    const view = new WorldView(world)
+    const status = new Int32Array(world.status)
+    // A write is in flight (odd sequence) for the first two read attempts,
+    // then the writer finishes (even again).
+    Atomics.store(status, STATUS_WRITE_SEQ, 1)
+
+    let reads = 0
+    const result = view.readConsistent(() => {
+      reads++
+      if (reads === 2) Atomics.store(status, STATUS_WRITE_SEQ, 2)
+      return reads
+    })
+
+    expect(result).toBeGreaterThan(1)
+    expect(Atomics.load(status, STATUS_WRITE_SEQ) % 2).toBe(0)
   })
 })

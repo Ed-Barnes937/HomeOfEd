@@ -21,6 +21,7 @@ import {
   createLocalWorld,
   createSharedWorld,
   STATUS_REVISION,
+  STATUS_WRITE_SEQ,
   type SimWorkerInit,
   type SimWorkerMessage,
   type WorldBuffers,
@@ -62,6 +63,27 @@ export class WorldView implements RenderableSim {
       if (cells[i] === species) count++
     }
     return count
+  }
+
+  /**
+   * Run `read` so it cannot have overlapped a sim-side write: the write
+   * seqlock (`STATUS_WRITE_SEQ`) must be even and unchanged across the read,
+   * or the read retries. For reads whose result outlives the frame —
+   * `saveScene` encodes the world for storage, where a mid-tick tear would be
+   * permanent. The renderer deliberately does not use this (ADR 0036 accepts
+   * on-screen tearing); a tick is ~1–2 ms, so a retry is rare and cheap.
+   * Bounded: after `maxAttempts` the last read is returned rather than
+   * hanging the page on a wedged writer.
+   */
+  readConsistent<T>(read: () => T, maxAttempts = 100): T {
+    let result!: T
+    for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt++) {
+      const before = Atomics.load(this.#status, STATUS_WRITE_SEQ)
+      result = read()
+      const after = Atomics.load(this.#status, STATUS_WRITE_SEQ)
+      if (before === after && before % 2 === 0) return result
+    }
+    return result
   }
 }
 

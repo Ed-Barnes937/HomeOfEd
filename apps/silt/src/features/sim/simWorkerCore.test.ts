@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { EMPTY, MS_PER_TICK, SAND, SPECIES_OFFSET, BYTES_PER_CELL, GRID_WIDTH, WATER } from '../../sim/index.ts'
-import { createSharedWorld, STATUS_REVISION } from './simProtocol.ts'
+import { createSharedWorld, STATUS_REVISION, STATUS_WRITE_SEQ } from './simProtocol.ts'
 import { SimWorkerCore } from './simWorkerCore.ts'
 
 function speciesAt(world: ReturnType<typeof createSharedWorld>, x: number, y: number): number {
@@ -98,6 +98,22 @@ describe('SimWorkerCore', () => {
     core.handle({ type: 'reset' })
 
     expect(speciesAt(world, 10, 10)).toBe(EMPTY)
+  })
+
+  it('leaves the write sequence even (no write in progress) after every operation', () => {
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world)
+    const seq = () => Atomics.load(new Int32Array(world.status), STATUS_WRITE_SEQ)
+
+    expect(seq() % 2).toBe(0)
+    core.handle({ type: 'paintCells', cellIndices: [10 * GRID_WIDTH + 10], species: SAND })
+    expect(seq() % 2).toBe(0)
+    core.handle({ type: 'setRunning', running: true })
+    core.advance(0)
+    core.advance(MS_PER_TICK * 3)
+    expect(seq() % 2).toBe(0)
+    // …and ticking moved it on: a reader that overlapped those writes can tell.
+    expect(seq()).toBeGreaterThan(0)
   })
 
   it('restore replaces the world with the given planes', () => {

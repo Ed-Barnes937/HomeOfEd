@@ -6,7 +6,12 @@
 // (spec §7).
 import { FixedTimestep, MS_PER_TICK, Sim } from '../../sim/index.ts'
 import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
-import { STATUS_REVISION, type SimWorkerMessage, type WorldBuffers } from './simProtocol.ts'
+import {
+  STATUS_REVISION,
+  STATUS_WRITE_SEQ,
+  type SimWorkerMessage,
+  type WorldBuffers,
+} from './simProtocol.ts'
 
 export class SimWorkerCore {
   readonly #sim: Sim
@@ -35,21 +40,23 @@ export class SimWorkerCore {
       case 'paintCells':
         // Applied on receipt, not deferred to the next tick — between ticks is
         // exactly when a main-thread paint landed, and the next rAF sees it.
-        for (const index of message.cellIndices) {
-          sim.paint(index % sim.width, (index / sim.width) | 0, message.species)
-        }
+        this.#mutate(() => {
+          for (const index of message.cellIndices) {
+            sim.paint(index % sim.width, (index / sim.width) | 0, message.species)
+          }
+        })
         break
       case 'setSpawners':
         this.#spawners = message.spawners
         break
       case 'step':
-        this.#tick()
+        this.#mutate(() => this.#tick())
         break
       case 'reset':
-        sim.clear()
+        this.#mutate(() => sim.clear())
         break
       case 'restore':
-        sim.restore(message.species, message.ra, message.rb)
+        this.#mutate(() => sim.restore(message.species, message.ra, message.rb))
         break
     }
     this.#publish()
@@ -68,13 +75,27 @@ export class SimWorkerCore {
       this.#timestep.reset()
       return
     }
-    this.#timestep.advance(nowMs - last, () => this.#tick())
+    this.#timestep.advance(nowMs - last, () => this.#mutate(() => this.#tick()))
     this.#publish()
   }
 
   #tick(): void {
     emitSpawners(this.#sim, this.#spawners)
     this.#sim.tick()
+  }
+
+  /**
+   * Bracket every cell-byte mutation with the write seqlock — odd while a
+   * write is in flight, even and advanced once it is done — so a cross-thread
+   * reader can tell whether its read overlapped one (see `STATUS_WRITE_SEQ`).
+   */
+  #mutate(write: () => void): void {
+    Atomics.add(this.#status, STATUS_WRITE_SEQ, 1)
+    try {
+      write()
+    } finally {
+      Atomics.add(this.#status, STATUS_WRITE_SEQ, 1)
+    }
   }
 
   /** The revision is what the render thread polls per frame — see `simProtocol.ts`. */

@@ -5,6 +5,10 @@
 - **Related:** `.scratch/sand-sim/spec.md` §5 (the locked spec — cell layout, the
   archetype/hook split, the reaction table, chunking, determinism). Implemented
   across silt tickets 03 (sim core), 05 (chunking) and 06 (full element model).
+  **Amended by [ADR 0036](0036-silt-sim-in-a-worker.md)** (2026-08-26): the
+  engine described here is unchanged, but it no longer ticks on the main
+  thread — it runs in a worker over shared memory. Everything below about the
+  engine's internals still holds; read 0036 for the threading model.
 
 ## Context
 
