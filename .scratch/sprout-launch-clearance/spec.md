@@ -1,6 +1,6 @@
 # Spec: Sprout launch-clearance builds
 
-Status: ready-for-agent
+Status: ready-for-human (all build tickets 12–17 landed; 14/15/16 await counsel/human sign-off)
 Date: 2026-08-25
 Sources: [`map.md`](map.md) (closed 2026-08-19), ADR-0011–ADR-0018 in
 [`apps/sprout/docs/product-legal-adrs.md`](../../apps/sprout/docs/product-legal-adrs.md).
