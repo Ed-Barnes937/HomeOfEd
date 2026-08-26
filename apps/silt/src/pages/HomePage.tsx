@@ -264,9 +264,10 @@ export function HomePage() {
                   onClick={() => setBrushIndex(index)}
                 >
                   <span
-                    className={styles.brushSquare}
-                    // True relative scale (spec §9): each icon's side is proportional
+                    className={styles.brushDot}
+                    // True relative scale (spec §9): each icon's diameter is proportional
                     // to the brush's actual cell width, not just its position in the list.
+                    // Drawn as a circle, not the spec's square, since the brush itself is round.
                     style={{ width: width * BRUSH_ICON_SCALE, height: width * BRUSH_ICON_SCALE }}
                     aria-hidden="true"
                   />
