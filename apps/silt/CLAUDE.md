@@ -34,14 +34,17 @@ src/
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches)
   features/         palette/ (the paintable roster + brush widths)
-                    render/  (letterboxFit, the Canvas 2D renderer, grid palette,
-                              WorldOverlay — the chrome drawn over the canvas)
+                    render/  (letterboxFit, grid palette, the WebGL2 renderer +
+                              the Canvas 2D fallback and createRenderer picking
+                              between them, WorldOverlay — the chrome drawn
+                              over the canvas)
                     sim/     (useSimLoop — the RAF loop, pointer painting, DPR fit)
                     spawners/(continuous emitters — entities, not cells)
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +
                               quota; useScenes: page state; the popover)
   testing/          IwftApp harness (in-browser backend) + iwft fixture + SiltPagePom
-  *.iwft.tsx        whole-frontend tests: render (paint/canvas), chrome, scenes,
+  *.iwft.tsx        whole-frontend tests: render (paint/canvas), blit (WebGL↔2D
+                    pixel parity + the env-gated blit bench), chrome, scenes,
                     spawners, mobile
 vite.config.ts      react + simulatorPlugin (dev simulator mode)
 playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109 })

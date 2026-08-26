@@ -301,6 +301,17 @@ export class SiltPagePom extends BasePage {
     )
   }
 
+  /** Which frame path the mounted app is rendering through. */
+  async rendererKind(): Promise<string> {
+    return this.canvas.evaluate(
+      (el, key) => {
+        const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
+        return seam.rendererKind()
+      },
+      TEST_SEAM_KEY,
+    )
+  }
+
   async countSpecies(species: number): Promise<number> {
     return this.canvas.evaluate(
       (el, { species, key }) => {

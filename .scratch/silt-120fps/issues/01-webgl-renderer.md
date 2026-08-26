@@ -1,6 +1,6 @@
 # 01 — WebGL renderer
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 
@@ -64,3 +64,43 @@ reach, say so — that result trims the spec's expectations for the whole epic.
 - Palette parity: same registry-derived colours as `buildSpeciesPalette` — the
   rail and the canvas must not drift (spec §9, materials ticket 16).
 - `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green.
+
+## Answer
+
+Landed as designed: `WebGLSimRenderer` (`features/render/webglRenderer.ts`)
+uploads `sim.cells` as-is to an `RGBA8UI` texture each frame and draws one
+triangle; species → colour is a `texelFetch` into a 256×1 palette texture
+packed from `buildSpeciesPalette` (`packPaletteTexture`). Selection lives in
+`createRenderer.ts` (webgl2 context → WebGL, else the 2D renderer); the CPU
+rasterise loop moved to `rasteriseSpecies` in `speciesPalette.ts`, shared by
+the 2D frame path and the WebGL `snapshot()`. Context loss is absorbed
+(preventDefault + rebuild on restore). The test seam gained `rendererKind()`;
+`blit.iwft.tsx` + `testing/BlitProbe.tsx` hold a readPixels parity gate
+(shader output vs the registry palette, letterbox included) and the env-gated
+measurement below.
+
+### Measurement
+
+`SILT_BLIT_BENCH=1 pnpm --filter silt exec playwright test -c
+playwright-ct.config.ts blit.iwft.tsx` — 300 draws of the perf bench's mixed
+world, 1240×800 canvas, dpr 1, `performance.now()` around `draw()` (CPU submit
+cost). 2026-08-26, fast Mac (Apple silicon):
+
+| Path | headed (real GPU) | headless (SwiftShader, software GL) |
+| --- | --- | --- |
+| Canvas 2D: rasterise + `putImageData` + `drawImage` | **0.15 ms/frame** | 0.63 ms/frame |
+| WebGL2: `texSubImage2D` + draw | **0.07–0.12 ms/frame** | 0.03 ms/frame |
+| WebGL2 incl. `gl.finish()` | 0.08 ms/frame | 0.02 ms/frame |
+
+So on the one machine we can reach, **the 2D blit was never the problem**:
+~0.15 ms/frame all-in, of which the audit had already measured ~0.03–0.10 ms
+as the CPU rasterise loop — the unmeasured GPU-bound row is ≲0.1 ms here, and
+the WebGL swap saves ~0.08 ms/frame (~1% of an 8.3 ms budget). Per the
+ticket's own instruction, that result trims the spec's expectations for the
+epic: on fast hardware the frame-rate lever is ticket 02 (the worker), not the
+renderer. The caveats before writing the swap off as decoration: the headless
+row shows the 2D path costs ~4× more wherever the GPU is weak or absent
+(software rasterisation — closer in spirit to the 2018 MacBook Air, which
+these numbers do NOT cover), the 2D cost scales with canvas size where the
+WebGL cost does not, and the WebGL path is the substrate any later 120 Hz work
+(and `rb` variance shading) builds on.

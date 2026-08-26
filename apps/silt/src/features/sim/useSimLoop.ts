@@ -10,7 +10,8 @@ import {
   v1Reactions,
   type ElementRegistry,
 } from '../../sim/index.ts'
-import { SimRenderer } from '../render/renderer.ts'
+import { createRenderer } from '../render/createRenderer.ts'
+import type { WorldRenderer } from '../render/renderer.ts'
 import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
 import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
 
@@ -28,6 +29,8 @@ export interface SiltTestSeam {
    * asserting "painting worked" without racing the sim's own movement. */
   countSpecies(species: number): number
   gridToCanvasPoint(x: number, y: number): { x: number; y: number }
+  /** Which frame path is live — WebGL2, or the Canvas 2D fallback (120fps ticket 01). */
+  rendererKind(): '2d' | 'webgl2'
 }
 
 /** Where the pointer is, in both grid and CSS-px terms — enough to draw a
@@ -124,7 +127,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   const onFpsRef = useRef(opts.onFps)
   const onSpawnersChangeRef = useRef(opts.onSpawnersChange)
   const simRef = useRef<Sim | null>(null)
-  const rendererRef = useRef<SimRenderer | null>(null)
+  const rendererRef = useRef<WorldRenderer | null>(null)
   const spawnersRef = useRef<Spawner[]>([])
   // Same defaults `Sim` itself falls back to, so the rail matches the canvas
   // from first paint — swapped for the sim's own `registry` once it mounts.
@@ -153,7 +156,8 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     const sim = new Sim()
     simRef.current = sim
     setRegistry(sim.registry)
-    const renderer = new SimRenderer(canvas, sim.registry)
+    // WebGL2 when available, the Canvas 2D renderer otherwise (120fps ticket 01).
+    const renderer = createRenderer(canvas, sim.registry)
     rendererRef.current = renderer
 
     const width = canvas.clientWidth || window.innerWidth
@@ -276,6 +280,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
         return count
       },
       gridToCanvasPoint: (x, y) => renderer.gridToCanvasPoint(x, y),
+      rendererKind: () => renderer.kind,
     }
 
     let rafId = 0
@@ -311,6 +316,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     return () => {
       simRef.current = null
       rendererRef.current = null
+      renderer.dispose?.()
       resizeObserver.disconnect()
       stopWatchingDpr()
       canvas.removeEventListener('pointerdown', onPointerDown)

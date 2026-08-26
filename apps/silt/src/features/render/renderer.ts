@@ -1,4 +1,4 @@
-import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, SPECIES_OFFSET } from '../../sim/index.ts'
+import { GRID_HEIGHT, GRID_WIDTH } from '../../sim/index.ts'
 import type { ElementRegistry } from '../../sim/index.ts'
 import {
   canvasPointToGrid,
@@ -6,7 +6,12 @@ import {
   gridToCanvasPoint,
   type Rect,
 } from './letterboxFit.ts'
-import { buildSpeciesPalette, WORLD_COLOUR, type SpeciesPalette } from './speciesPalette.ts'
+import {
+  buildSpeciesPalette,
+  rasteriseSpecies,
+  WORLD_COLOUR,
+  type SpeciesPalette,
+} from './speciesPalette.ts'
 
 /**
  * Narrow sim → renderer seam (spec §5.5): the renderer reads only this
@@ -17,6 +22,24 @@ export interface RenderableSim {
   readonly width: number
   readonly height: number
   readonly cells: Uint8Array
+}
+
+/**
+ * The renderer surface `useSimLoop` drives — `SimRenderer` (Canvas 2D) and
+ * `WebGLSimRenderer` both implement it, so which one is live is invisible to
+ * the loop (120fps ticket 01).
+ */
+export interface WorldRenderer {
+  /** Which frame path is live — surfaced through the test seam. */
+  readonly kind: '2d' | 'webgl2'
+  /** Release anything held outside the renderer (event listeners) — the 2D path holds nothing. */
+  dispose?(): void
+  resize(cssWidth: number, cssHeight: number, dpr: number): void
+  getFit(): Rect
+  gridToCanvasPoint(x: number, y: number): { x: number; y: number }
+  canvasPointToGrid(x: number, y: number): { x: number; y: number } | null
+  snapshot(): string
+  draw(sim: RenderableSim): void
 }
 
 function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -31,7 +54,8 @@ function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
  * the buffer up into the play area, aspect-preserving and letterboxed, with
  * smoothing off. Resize refits this canvas only — the sim is never touched.
  */
-export class SimRenderer {
+export class SimRenderer implements WorldRenderer {
+  readonly kind = '2d' as const
   private readonly ctx: CanvasRenderingContext2D
   private readonly buffer: HTMLCanvasElement
   private readonly bufferCtx: CanvasRenderingContext2D
@@ -90,18 +114,7 @@ export class SimRenderer {
 
   /** Rasterise the grid into the backing buffer, then blit it scaled and letterboxed. */
   draw(sim: RenderableSim): void {
-    const { cells } = sim
-    const pixels = this.imageData.data
-    const palette = this.palette
-    for (let cell = 0, i = SPECIES_OFFSET; i < cells.length; i += BYTES_PER_CELL, cell++) {
-      const species = cells[i] ?? 0
-      const c = species * 3
-      const p = cell * 4
-      pixels[p] = palette[c] ?? 0
-      pixels[p + 1] = palette[c + 1] ?? 0
-      pixels[p + 2] = palette[c + 2] ?? 0
-      pixels[p + 3] = 255
-    }
+    rasteriseSpecies(sim.cells, this.palette, this.imageData.data)
     this.bufferCtx.putImageData(this.imageData, 0, 0)
 
     const ctx = this.ctx
