@@ -151,18 +151,41 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     const height = canvas.clientHeight || window.innerHeight
     renderer.resize(width, height, window.devicePixelRatio || 1)
 
+    // The canvas's on-screen box, cached. `getBoundingClientRect` forces a
+    // layout, and `onPointerMove` would otherwise pay for two of them per
+    // event while dragging (once for the cursor readout, once inside
+    // `paintAt`) — at a trackpad's 120 Hz report rate, on the frame the sim is
+    // busiest. Read eagerly here so it is already right on the first pointer
+    // event, before any observer has fired.
+    //
+    // A stale rect is a *correctness* bug — paint lands in the wrong cell and
+    // the brush outline detaches from the pointer — so every way the box can
+    // move refreshes it: the ResizeObserver and the DPR watcher (the canvas's
+    // own size), window resize (the viewport, which moves a centred canvas
+    // without resizing it), and scroll. Scroll is captured on `window` because
+    // scroll events do not bubble: only the capture phase sees an ancestor
+    // scroller's scroll.
+    let rect = canvas.getBoundingClientRect()
+    const refreshRect = (): void => {
+      rect = canvas.getBoundingClientRect()
+    }
+
     const refit = (): void => {
-      const rect = canvas.getBoundingClientRect()
+      refreshRect()
       renderer.resize(rect.width, rect.height, window.devicePixelRatio || 1)
     }
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
+      refreshRect()
       const { width: w, height: h } = entry.contentRect
       renderer.resize(w, h, window.devicePixelRatio || 1)
     })
     resizeObserver.observe(canvas)
+
+    window.addEventListener('scroll', refreshRect, { capture: true, passive: true })
+    window.addEventListener('resize', refreshRect, { passive: true })
 
     // devicePixelRatio changes (browser/OS zoom) don't touch the canvas's CSS
     // size, so ResizeObserver never fires for them — spec §6 requires the
@@ -181,15 +204,19 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     }
     watchDpr()
 
-    const cellAt = (clientX: number, clientY: number): { x: number; y: number } | null => {
-      const rect = canvas.getBoundingClientRect()
-      return renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
-    }
+    const cellAt = (clientX: number, clientY: number): { x: number; y: number } | null =>
+      renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
 
     let painting = false
     // The last cell the current stroke stamped — what `paintAt` interpolates
     // from, so a fast drag reads as a line, not a dot per pointer sample.
     let lastPaintCell: { x: number; y: number } | null = null
+    // One `sim.paint` per cell, deliberately: a batched entry point would
+    // hoist the registry lookup and narrow the `chunks.activate` spread, but
+    // a brush spans at most 2×2 of the 32-cell chunks, so the redundant
+    // spreads are a few hundred rect unions (ticket 07). Not worth a second
+    // painting seam whose clock and dirty-rect semantics would have to stay
+    // in step with `paint`.
     const stampAt = (cell: { x: number; y: number }): void => {
       for (const { dx, dy } of brushOffsets(brushRef.current)) {
         const x = cell.x + dx
@@ -312,9 +339,9 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
           sim.tick()
         })
       }
-      renderer.draw(sim)
-
-      framesSinceSample++
+      // `draw` skips an unchanged world (ticket 06), so this counts frames
+      // silt actually drew — a paused, untouched world honestly reads 0.
+      if (renderer.draw(sim)) framesSinceSample++
       const sinceSample = time - lastFpsSample
       if (sinceSample >= 250) {
         onFpsRef.current?.(Math.round((framesSinceSample * 1000) / sinceSample))
@@ -331,6 +358,8 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       rendererRef.current = null
       resizeObserver.disconnect()
       stopWatchingDpr()
+      window.removeEventListener('scroll', refreshRect, { capture: true })
+      window.removeEventListener('resize', refreshRect)
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', stopPainting)
@@ -364,9 +393,14 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     saveScene: () => {
       const sim = requireSim(simRef.current)
       const envelope = encodeScene(sim, spawnersRef.current, sim.registry)
+      // A frame can be skipped now (ticket 06), so a save landing between a
+      // paint and the next rAF would snapshot the previous world. This is a
+      // no-op whenever the canvas is already current.
+      const renderer = rendererRef.current
+      renderer?.draw(sim)
       return {
         json: JSON.stringify(envelope),
-        thumbnail: rendererRef.current?.snapshot() ?? null,
+        thumbnail: renderer?.snapshot() ?? null,
       }
     },
     loadScene: (json) => {

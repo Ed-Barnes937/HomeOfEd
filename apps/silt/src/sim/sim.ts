@@ -50,6 +50,7 @@ export class Sim {
   #api: CellApi
   #generation = 0
   #scanned = 0
+  #revision = 0
 
   constructor(options: SimOptions = {}) {
     const { seed = 1, elements = v1Elements, reactions = v1Reactions } = options
@@ -64,6 +65,17 @@ export class Sim {
   /** Ticks completed. Also the parity that flips the horizontal scan. */
   get generation(): number {
     return this.#generation
+  }
+
+  /**
+   * Bumps on everything that can change what the world looks like — `tick`,
+   * `paint`, `clear`, `restore` — and on nothing else. A renderer holding the
+   * revision it last drew knows whether a redraw would produce a new picture
+   * (ticket 06). Deliberately coarser than the grid: a tick that moved nothing
+   * still bumps it, because proving otherwise costs more than the redraw.
+   */
+  get revision(): number {
+    return this.#revision
   }
 
   /** The single transferable buffer holding the whole world. */
@@ -101,6 +113,7 @@ export class Sim {
     // `write` only marks the chunk dirty for the *next* tick; a paint lands
     // between ticks, so it has to wake the chunk for the one about to run.
     this.#grid.chunks.activate(x, y)
+    this.#revision++
   }
 
   /**
@@ -115,6 +128,7 @@ export class Sim {
     this.#generation = 0
     this.#scanned = 0
     this.#rng.reset(this.#seed)
+    this.#revision++
   }
 
   /**
@@ -144,6 +158,7 @@ export class Sim {
       grid.setRb(x, y, rb[i]!)
       grid.chunks.activate(x, y)
     }
+    this.#revision++
   }
 
   /**
@@ -178,6 +193,7 @@ export class Sim {
     this.#moves.resolve(this.#grid, this.registry, this.#rng, clock)
     chunks.endFrame()
     this.#generation++
+    this.#revision++
   }
 
   /** See the class comment: stamp everything about to be scanned, first. */
@@ -187,9 +203,7 @@ export class Sim {
       if (!chunk.awake) continue
       const area = chunk.active
       for (let y = area.minY; y <= area.maxY; y++) {
-        for (let x = area.minX; x <= area.maxX; x++) {
-          this.#grid.stamp(x, y, settled)
-        }
+        this.#grid.stampRow(y, area.minX, area.maxX, settled)
       }
     }
   }
@@ -204,14 +218,17 @@ export class Sim {
     for (let y = area.maxY; y >= area.minY; y--) {
       for (let i = 0; i < width; i++) {
         const x = rightToLeft ? area.maxX - i : area.minX + i
-        const species = grid.speciesAt(x, y)
+        // The chunk rect is clamped to the grid, so `x, y` is known in bounds:
+        // one base index serves all three field touches, no bounds check each.
+        const base = grid.baseIndexOf(x, y)
+        const species = grid.speciesAtBase(base)
         if (species === EMPTY) continue
-        if (grid.clockAt(x, y) === clock) continue
+        if (grid.clockAtBase(base) === clock) continue
 
         const def = this.registry.get(species)
         if (!def) continue
 
-        grid.stamp(x, y, clock)
+        grid.stampAtBase(base, clock)
         this.#api.moveTo(x, y, clock)
         applyArchetype(this.#api, def.archetype)
         this.#scanned++

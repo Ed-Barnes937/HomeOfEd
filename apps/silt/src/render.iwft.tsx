@@ -68,4 +68,36 @@ test('a window resize refits the canvas without disturbing the sim', async ({ mo
 
   // Same cell, same content: resize recomputes the letterbox fit, nothing else.
   await root.verifyCellIs(10, 10, DIRT)
+
+  // And the refit leaves the pointer→cell mapping right: the cached canvas
+  // rect has to have moved with the new viewport, or paint lands elsewhere.
+  await root.paintCell(40, 40)
+  await root.verifyCellIs(40, 40, DIRT)
+})
+
+test('painting stays on target after the page scrolls under the canvas', async ({
+  mountApp,
+  page,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.selectElement('dirt')
+
+  // The page is 100dvh, so nothing scrolls until there is something to scroll
+  // past. A tall sibling makes the document scrollable; scrolling then moves
+  // the canvas on screen *without* resizing it — the case neither the
+  // ResizeObserver nor the DPR watcher sees, and the one that would leave a
+  // cached bounding rect stale.
+  const scrolled = await page.evaluate(async () => {
+    const spacer = document.createElement('div')
+    spacer.style.height = '2000px'
+    document.body.appendChild(spacer)
+    window.scrollTo(0, 400)
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    return window.scrollY
+  })
+  expect(scrolled).toBeGreaterThan(0)
+
+  await root.paintCell(10, 10)
+  await root.verifyCellIs(10, 10, DIRT)
 })
