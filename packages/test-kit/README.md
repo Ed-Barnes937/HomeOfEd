@@ -34,7 +34,14 @@ function applyPendingSeed<S>(db: DbClient<S>): Promise<DbClient<S>>
 function testUserAuth(req: Request): AuthProvider
 
 // '@hoe/test-kit/ct-config' (Node-only)
-function defineIwftConfig(opts: { ctPort: number; overrides?: PlaywrightTestConfig })
+// crossOriginIsolated serves the CT pages with COOP/COEP — for apps whose prod
+// server sends those headers (they unlock SharedArrayBuffer, e.g. silt's sim
+// worker), so the suites run the mode the deployed app runs.
+function defineIwftConfig(opts: {
+  ctPort: number
+  crossOriginIsolated?: boolean
+  overrides?: PlaywrightTestConfig
+})
 
 // '@hoe/test-kit/e2e-config' (Node-only, currently inert — see below)
 function defineE2eConfig(opts?: { overrides?: PlaywrightTestConfig })

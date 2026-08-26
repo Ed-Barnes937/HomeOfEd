@@ -25,6 +25,25 @@ export interface RenderableSim {
   readonly revision: number
 }
 
+/**
+ * The renderer surface `useSimLoop` drives — `SimRenderer` (Canvas 2D) and
+ * `WebGLSimRenderer` both implement it, so which one is live is invisible to
+ * the loop (120fps ticket 01).
+ */
+export interface WorldRenderer {
+  /** Which frame path is live — surfaced through the test seam. */
+  readonly kind: '2d' | 'webgl2'
+  /** Release anything held outside the renderer (event listeners) — the 2D path holds nothing. */
+  dispose?(): void
+  resize(cssWidth: number, cssHeight: number, dpr: number): void
+  getFit(): Rect
+  gridToCanvasPoint(x: number, y: number): { x: number; y: number }
+  canvasPointToGrid(x: number, y: number): { x: number; y: number } | null
+  snapshot(): string
+  /** Returns whether it actually drew — an unchanged world can skip the frame (ticket 06). */
+  draw(sim: RenderableSim): boolean
+}
+
 function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('2D canvas context unavailable')
@@ -37,7 +56,8 @@ function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
  * the buffer up into the play area, aspect-preserving and letterboxed, with
  * smoothing off. Resize refits this canvas only — the sim is never touched.
  */
-export class SimRenderer {
+export class SimRenderer implements WorldRenderer {
+  readonly kind = '2d' as const
   private readonly ctx: CanvasRenderingContext2D
   private readonly buffer: HTMLCanvasElement
   private readonly bufferCtx: CanvasRenderingContext2D

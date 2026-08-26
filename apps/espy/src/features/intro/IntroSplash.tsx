@@ -20,9 +20,17 @@ export function IntroSplash() {
   const [phase, setPhase] = useState<'hold' | 'leaving' | 'gone'>('hold')
 
   useEffect(() => {
-    const toLeaving = window.setTimeout(() => setPhase('leaving'), HOLD_MS)
-    const toGone = window.setTimeout(() => setPhase('gone'), HOLD_MS + FADE_MS)
+    // The hold starts at first paint, not at mount: on a starved renderer
+    // (slow device, loaded CI runner) timers anchored to mount can expire
+    // before the splash was ever seen.
+    let toLeaving: number | undefined
+    let toGone: number | undefined
+    const raf = requestAnimationFrame(() => {
+      toLeaving = window.setTimeout(() => setPhase('leaving'), HOLD_MS)
+      toGone = window.setTimeout(() => setPhase('gone'), HOLD_MS + FADE_MS)
+    })
     return () => {
+      cancelAnimationFrame(raf)
       clearTimeout(toLeaving)
       clearTimeout(toGone)
     }

@@ -51,7 +51,12 @@ jobs:
         run: pnpm --filter hub exec playwright install --with-deps chromium
 
       - name: Affected lint / typecheck / build / test
-        run: pnpm exec turbo run lint typecheck build test --affected
+        # --concurrency=3 (down from turbo's default 10): when a shared package
+        # changes, EVERY app is affected and the runner has 2 cores — running
+        # several Playwright CT suites (Chromium + Vite dev server + in-browser
+        # PGlite each) at once starves them into timeout failures that pass
+        # everywhere else. Single-app PRs never hit the cap.
+        run: pnpm exec turbo run lint typecheck build test --affected --concurrency=3
         env:
           TURBO_SCM_BASE: origin/${{ github.base_ref }}
 
