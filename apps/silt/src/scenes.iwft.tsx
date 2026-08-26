@@ -63,6 +63,28 @@ test('saving again writes over the scene being edited instead of forking a secon
   expect(await root.countSpecies(SAND)).toBe(2)
 })
 
+// The renderer skips a frame when the world has not changed (ticket 06), so a
+// save has to force the draw itself — otherwise the row would keep showing the
+// world as it was before the last paint. Asserting only "it is a PNG data URL"
+// would not have noticed.
+test('the thumbnail shows the world as it is at the save, not the one before it', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openScenes()
+  await root.saveScene()
+  const empty = await root.sceneThumbnail('scene 1')
+
+  await root.closeScenes()
+  await root.paintCell(150, 100)
+  await root.openScenes()
+  await root.saveScene()
+
+  expect(await root.sceneThumbnail('scene 1')).not.toBe(empty)
+})
+
 test('a loaded scene brings its spawners with it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

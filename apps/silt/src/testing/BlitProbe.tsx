@@ -53,8 +53,20 @@ export function BlitProbe() {
     const rendererGl = new WebGLSimRenderer(webglCanvas, gl, sim.registry)
     rendererGl.resize(CANVAS_WIDTH, CANVAS_HEIGHT, 1)
 
+    // The probe times and reads raw draws, so every call must actually draw:
+    // both renderers skip a frame whose revision they are already showing
+    // (ticket 06), and this sim is painted once and never ticked. Hand each
+    // draw a fresh revision instead of the sim's own.
+    let probeRevision = 0
+    const renderable = () => ({
+      width: sim.width,
+      height: sim.height,
+      cells: sim.cells,
+      revision: ++probeRevision,
+    })
+
     const readPixel = (deviceX: number, deviceYFromTop: number): number[] => {
-      rendererGl.draw(sim)
+      rendererGl.draw(renderable())
       const out = new Uint8Array(4)
       // readPixels in the same task as the draw, so the buffer is still live.
       gl.readPixels(
@@ -95,12 +107,12 @@ export function BlitProbe() {
           return (performance.now() - start) / frames
         }
         // Warm both paths before timing them.
-        renderer2d.draw(sim)
-        rendererGl.draw(sim)
-        const canvas2d = time(() => renderer2d.draw(sim))
-        const webgl = time(() => rendererGl.draw(sim))
+        renderer2d.draw(renderable())
+        rendererGl.draw(renderable())
+        const canvas2d = time(() => renderer2d.draw(renderable()))
+        const webgl = time(() => rendererGl.draw(renderable()))
         const finishStart = performance.now()
-        for (let i = 0; i < frames; i++) rendererGl.draw(sim)
+        for (let i = 0; i < frames; i++) rendererGl.draw(renderable())
         gl.finish()
         const webglFinished = (performance.now() - finishStart) / frames
         return { canvas2d, webgl, webglFinished }

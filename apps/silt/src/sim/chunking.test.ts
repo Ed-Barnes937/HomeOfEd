@@ -80,6 +80,25 @@ describe('chunk map', () => {
     })
   })
 
+  // The power-of-two sizes take the shift path; this one is the only thing
+  // exercising the division fallback beside it.
+  it('honours a chunk size that is not a power of two', () => {
+    const chunks = new ChunkMap(50, 30, 12)
+
+    expect(chunks.cols).toBe(5)
+    expect(chunks.rows).toBe(3)
+    chunks.all.forEach((chunk, index) => {
+      expect(chunks.indexAt(chunk.minX, chunk.minY)).toBe(index)
+      expect(chunks.indexAt(chunk.maxX, chunk.maxY)).toBe(index)
+    })
+
+    // A write on a chunk edge still spreads across it.
+    chunks.touch(12, 0)
+    chunks.endFrame()
+    expect(chunks.at(0, 0).active.isEmpty).toBe(false)
+    expect(chunks.at(1, 0).active.isEmpty).toBe(false)
+  })
+
   it('swaps working into active at frame end and empties working', () => {
     const chunks = new ChunkMap(GRID_WIDTH, GRID_HEIGHT)
     const chunk = chunks.at(0, 0)

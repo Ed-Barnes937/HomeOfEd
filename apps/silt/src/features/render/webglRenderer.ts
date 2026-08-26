@@ -78,6 +78,10 @@ export class WebGLSimRenderer implements WorldRenderer {
   private buffer: HTMLCanvasElement | null = null
   private fit: Rect = { x: 0, y: 0, width: 0, height: 0 }
   private dpr = 1
+  /** The world revision the on-screen canvas is showing; `-1` = never drawn. */
+  private drawnRevision = -1
+  /** A resize replaces (and so clears) the backing store — the next frame must draw. */
+  private fitDirty = true
 
   private readonly onContextLost = (event: Event): void => {
     // Without preventDefault the browser never fires the restore event.
@@ -85,6 +89,9 @@ export class WebGLSimRenderer implements WorldRenderer {
   }
   private readonly onContextRestored = (): void => {
     this.initGL()
+    // The restored context starts blank — the next frame must redraw whatever
+    // revision the canvas claimed to be showing.
+    this.drawnRevision = -1
   }
 
   constructor(
@@ -155,6 +162,7 @@ export class WebGLSimRenderer implements WorldRenderer {
     this.canvas.width = Math.max(1, Math.round(cssWidth * dpr))
     this.canvas.height = Math.max(1, Math.round(cssHeight * dpr))
     this.fit = computeLetterboxFit(cssWidth, cssHeight, GRID_WIDTH, GRID_HEIGHT)
+    this.fitDirty = true
   }
 
   getFit(): Rect {
@@ -192,11 +200,20 @@ export class WebGLSimRenderer implements WorldRenderer {
     return this.buffer.toDataURL('image/png')
   }
 
-  /** Upload the cells, clear to the world colour, draw the letterboxed quad. */
-  draw(sim: RenderableSim): void {
+  /**
+   * Upload the cells, clear to the world colour, draw the letterboxed quad —
+   * unless the canvas is already showing this exact world and the fit has not
+   * moved, in which case the whole frame (upload included) is skipped
+   * (ticket 06). Returns whether it actually drew, so the caller can report a
+   * frame rate that means "frames silt drew" rather than "times rAF fired".
+   */
+  draw(sim: RenderableSim): boolean {
+    if (!this.fitDirty && sim.revision === this.drawnRevision) return false
     this.lastCells = sim.cells
     const gl = this.gl
-    if (gl.isContextLost()) return
+    if (gl.isContextLost()) return false
+    this.fitDirty = false
+    this.drawnRevision = sim.revision
 
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.gridTexture)
@@ -226,6 +243,7 @@ export class WebGLSimRenderer implements WorldRenderer {
       gl.useProgram(this.program)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
     }
+    return true
   }
 }
 

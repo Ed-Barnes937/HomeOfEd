@@ -166,6 +166,12 @@ Spec §8; the calls the spec leaves open are in
   persistence; restart to pick up server changes).
 - `pnpm test --filter=silt` — Vitest (`*.test.ts`) then Playwright CT
   (`*.iwft.tsx`, CT port **3109**).
+- `pnpm --filter silt run bench` — `bench/sim.bench.ts`, ms/tick for four named
+  scenarios under native Node. A tool, not a gate: it is deliberately outside
+  `pnpm test`, since a timing assertion in CI would only flake. It prints
+  `scannedLastTick` beside every timing — a scenario that got faster because it
+  stopped simulating is not a win, and the scanned count is what tells the two
+  apart.
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).
 
 ## Rules

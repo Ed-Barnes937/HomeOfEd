@@ -1,4 +1,4 @@
-import { GRID_HEIGHT, GRID_WIDTH } from '../../sim/index.ts'
+import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, SPECIES_OFFSET } from '../../sim/index.ts'
 import type { ElementRegistry } from '../../sim/index.ts'
 import {
   canvasPointToGrid,
@@ -7,10 +7,9 @@ import {
   type Rect,
 } from './letterboxFit.ts'
 import {
-  buildSpeciesPalette,
-  rasteriseSpecies,
+  buildPackedSpeciesPalette,
   WORLD_COLOUR,
-  type SpeciesPalette,
+  type PackedSpeciesPalette,
 } from './speciesPalette.ts'
 
 /**
@@ -22,6 +21,8 @@ export interface RenderableSim {
   readonly width: number
   readonly height: number
   readonly cells: Uint8Array
+  /** Bumps on every world-changing call; see `Sim.revision`. */
+  readonly revision: number
 }
 
 /**
@@ -39,7 +40,8 @@ export interface WorldRenderer {
   gridToCanvasPoint(x: number, y: number): { x: number; y: number }
   canvasPointToGrid(x: number, y: number): { x: number; y: number } | null
   snapshot(): string
-  draw(sim: RenderableSim): void
+  /** Returns whether it actually drew — an unchanged world can skip the frame (ticket 06). */
+  draw(sim: RenderableSim): boolean
 }
 
 function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -60,11 +62,17 @@ export class SimRenderer implements WorldRenderer {
   private readonly buffer: HTMLCanvasElement
   private readonly bufferCtx: CanvasRenderingContext2D
   private readonly imageData: ImageData
-  private readonly palette: SpeciesPalette
+  /** 32-bit view over `imageData.data` — one store per cell (ticket 06). */
+  private readonly pixels: Uint32Array
+  private readonly palette: PackedSpeciesPalette
   private fit: Rect = { x: 0, y: 0, width: 0, height: 0 }
   private cssWidth = 0
   private cssHeight = 0
   private dpr = 1
+  /** The world revision the on-screen canvas is showing; `-1` = never drawn. */
+  private drawnRevision = -1
+  /** A resize replaces (and so clears) the backing store — the next frame must draw. */
+  private fitDirty = true
 
   constructor(canvas: HTMLCanvasElement, registry: ElementRegistry) {
     this.ctx = context2d(canvas)
@@ -75,7 +83,8 @@ export class SimRenderer implements WorldRenderer {
     this.buffer.height = GRID_HEIGHT
     this.bufferCtx = context2d(this.buffer)
     this.imageData = this.bufferCtx.createImageData(GRID_WIDTH, GRID_HEIGHT)
-    this.palette = buildSpeciesPalette(registry)
+    this.pixels = new Uint32Array(this.imageData.data.buffer)
+    this.palette = buildPackedSpeciesPalette(registry)
   }
 
   /** DPR-aware backing store, re-evaluated on resize/zoom (spec §6). */
@@ -87,6 +96,7 @@ export class SimRenderer implements WorldRenderer {
     this.ctx.canvas.height = Math.max(1, Math.round(cssHeight * dpr))
     this.ctx.imageSmoothingEnabled = false
     this.fit = computeLetterboxFit(cssWidth, cssHeight, GRID_WIDTH, GRID_HEIGHT)
+    this.fitDirty = true
   }
 
   getFit(): Rect {
@@ -106,15 +116,35 @@ export class SimRenderer implements WorldRenderer {
   /**
    * The world as a PNG data URL, one pixel per cell — the scene-row thumbnail
    * (spec §9). Reads the buffer the last `draw` filled, so it costs an encode
-   * and nothing else.
+   * and nothing else — which means the caller must `draw` first now that a
+   * frame can be skipped, or a save taken between a paint and the next rAF
+   * would store the previous world (ticket 06).
    */
   snapshot(): string {
     return this.buffer.toDataURL('image/png')
   }
 
-  /** Rasterise the grid into the backing buffer, then blit it scaled and letterboxed. */
-  draw(sim: RenderableSim): void {
-    rasteriseSpecies(sim.cells, this.palette, this.imageData.data)
+  /**
+   * Rasterise the grid into the backing buffer, then blit it scaled and
+   * letterboxed — unless the canvas is already showing this exact world and
+   * the fit has not moved, in which case the whole frame is skipped. That is
+   * the paused state, which is where a user spends the whole of setup mode
+   * (ticket 06).
+   *
+   * Returns whether it actually drew, so the caller can report a frame rate
+   * that means "frames silt drew" rather than "times rAF fired".
+   */
+  draw(sim: RenderableSim): boolean {
+    if (!this.fitDirty && sim.revision === this.drawnRevision) return false
+    this.fitDirty = false
+    this.drawnRevision = sim.revision
+
+    const { cells } = sim
+    const pixels = this.pixels
+    const palette = this.palette
+    for (let cell = 0, i = SPECIES_OFFSET; i < cells.length; i += BYTES_PER_CELL, cell++) {
+      pixels[cell] = palette[cells[i]!]!
+    }
     this.bufferCtx.putImageData(this.imageData, 0, 0)
 
     const ctx = this.ctx
@@ -124,5 +154,6 @@ export class SimRenderer implements WorldRenderer {
     if (this.fit.width > 0 && this.fit.height > 0) {
       ctx.drawImage(this.buffer, this.fit.x, this.fit.y, this.fit.width, this.fit.height)
     }
+    return true
   }
 }

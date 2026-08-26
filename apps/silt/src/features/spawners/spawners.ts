@@ -1,4 +1,5 @@
 import { EMPTY, type Sim } from '../../sim/index.ts'
+import { isWithinBrush } from '../sim/brushOffsets.ts'
 
 /**
  * A continuous emitter (spec §7): an entity living outside the cell grid,
@@ -23,4 +24,19 @@ export function emitSpawners(sim: Sim, spawners: readonly Spawner[]): void {
       sim.paint(spawner.x, spawner.y, spawner.element)
     }
   }
+}
+
+/**
+ * Whether a spawner's cell falls inside a centred round brush of this width.
+ * Shared by the erase sweep and the overlay's removal highlight, so the chrome
+ * can never disagree with what a wipe actually takes. Delegates to the same
+ * `isWithinBrush` the paint footprint is built from, so the sweep can never
+ * disagree with what a stroke paints either.
+ */
+export function isUnderBrush(
+  spawner: Spawner,
+  centre: { x: number; y: number },
+  brushWidth: number,
+): boolean {
+  return isWithinBrush(spawner.x - centre.x, spawner.y - centre.y, brushWidth)
 }

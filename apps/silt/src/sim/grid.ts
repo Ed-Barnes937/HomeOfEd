@@ -3,6 +3,16 @@ import { ChunkMap } from './chunks.ts'
 import { EMPTY, WALL } from './elements.ts'
 
 /**
+ * `#at` shifts instead of multiplying by `BYTES_PER_CELL`. The shift is derived
+ * from the constant rather than hard-coded, and the assert below is what keeps
+ * the two honest if the cell ever changes size to something not a power of two.
+ */
+const CELL_SHIFT = Math.log2(BYTES_PER_CELL)
+if (!Number.isInteger(CELL_SHIFT)) {
+  throw new Error(`BYTES_PER_CELL must be a power of two, got ${BYTES_PER_CELL}`)
+}
+
+/**
  * Cell storage: one interleaved `{ species, ra, rb, clock }` struct per cell in
  * a single `ArrayBuffer` (spec §5.1). Never objects-per-cell. The buffer is the
  * unit of transfer, so moving the sim into a worker is a `postMessage`, not a
@@ -50,12 +60,38 @@ export class Grid {
   }
 
   yOf(index: number): number {
-    return Math.floor(index / this.width)
+    // `index` is a cell index, so never negative — `| 0` truncates the same way
+    // `Math.floor` rounds, for a fraction of the cost.
+    return (index / this.width) | 0
+  }
+
+  /**
+   * Byte index of a cell's first field — the base the four field offsets hang
+   * off. Handed out so a caller reading several fields of the same cell pays
+   * the arithmetic once; the `y * width + x` layout still lives only here, so
+   * the base is opaque and only the `*AtBase` accessors below may read it.
+   * Callers must have bounds-checked.
+   */
+  baseIndexOf(x: number, y: number): number {
+    return this.#at(x, y, 0)
+  }
+
+  speciesAtBase(base: number): number {
+    return this.cells[base + SPECIES_OFFSET]!
+  }
+
+  clockAtBase(base: number): number {
+    return this.cells[base + CLOCK_OFFSET]!
+  }
+
+  /** `stamp` by base index. Marks nothing dirty — see `stamp`. */
+  stampAtBase(base: number, clock: number): void {
+    this.cells[base + CLOCK_OFFSET] = clock
   }
 
   /** Byte index of a field within a cell. Callers must have bounds-checked. */
   #at(x: number, y: number, field: number): number {
-    return (y * this.width + x) * BYTES_PER_CELL + field
+    return ((y * this.width + x) << CELL_SHIFT) + field
   }
 
   speciesAt(x: number, y: number): number {
@@ -96,6 +132,24 @@ export class Grid {
   stamp(x: number, y: number, clock: number): void {
     if (!this.inBounds(x, y)) return
     this.cells[this.#at(x, y, CLOCK_OFFSET)] = clock
+  }
+
+  /**
+   * Stamp a contiguous run of one row — the clock guard's shape, where the
+   * whole rect is known in bounds and stamping cell by cell pays for a bounds
+   * check and an index multiply per cell. Like `stamp`, and for the same
+   * reason, this marks nothing dirty.
+   */
+  stampRow(y: number, minX: number, maxX: number, clock: number): void {
+    if (y < 0 || y >= this.height) return
+    const from = minX < 0 ? 0 : minX
+    const to = maxX >= this.width ? this.width - 1 : maxX
+    if (from > to) return
+
+    const end = this.#at(to, y, CLOCK_OFFSET)
+    for (let i = this.#at(from, y, CLOCK_OFFSET); i <= end; i += BYTES_PER_CELL) {
+      this.cells[i] = clock
+    }
   }
 
   /** Overwrite a whole cell, clearing its scratch bytes. */
