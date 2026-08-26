@@ -51,11 +51,116 @@ $row-inset: 4px;
 .header {
   flex: none;
   display: flex;
+  flex-direction: column;
+  // 5px — the WHOLE SONG caption's number, not the play row's 10. The Speed
+  // row the header now stacks under that row has to pay for itself: measured
+  // at 390x844 with five clips, the scrolling region had under 7px of slack
+  // left, and this and `.speed`'s line height are where the row came from.
+  gap: 5px;
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.headerRow {
+  display: flex;
   align-items: center;
   gap: 10px;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+// Speed (screenspace ticket 02) — the transport's tempo block, on the song
+// bar's own header. One row, not the transport's two: the label and the
+// readout sit on the track's line, which is what pays for the row the header
+// gained. The readout keeps a fixed width so the row does not jitter as the
+// number changes, the way the laptop `SongBar`'s does.
+.speed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  // The row is the 12px slider track, and the labels beside it are held to it
+  // rather than to their own ~15px line boxes — 3px the lanes keep.
+  line-height: 12px;
+  // The `<input type="range">` will not shrink past its intrinsic width unless
+  // this row lets it (ticket 37, in the transport) — see `.slider`.
+  min-width: 0;
+}
+
+.speedLabel {
+  flex: none;
+  font: 800 12px var(--font-display);
+  color: var(--ink);
+}
+
+.speedReadout {
+  flex: none;
+  width: 52px;
+  font: 600 11px var(--font-mono);
+  color: rgba(242, 239, 230, 0.5);
+}
+
+.endpoint {
+  flex: none;
+  font: 700 10px var(--font-display);
+  color: rgba(242, 239, 230, 0.5);
+}
+
+// Named rather than `:first-of-type` / `:last-of-type`: the row's spans are
+// the label, the readout and these two, so "first span" is the label — the
+// transport's `:first-child` did not survive the move to a shared row.
+.endpointSlow {
+  width: 26px;
+}
+
+.endpointFast {
+  width: 24px;
+  text-align: right;
+}
+
+// The transport's phone tempo slider verbatim — the 12px track and the 34px
+// thumb are its tap target, and the move must not shrink what a child aims at.
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    to right,
+    rgba(242, 239, 230, 0.4) var(--tempo-percent),
+    rgba(255, 255, 255, 0.11) var(--tempo-percent)
+  );
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-thumb {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: var(--shadow-slider-thumb);
+  }
+
+  &::-moz-range-track {
+    height: 12px;
+    border-radius: 6px;
+    background: transparent;
+  }
+
+  &::-moz-range-progress {
+    height: 12px;
+    border-radius: 6px 0 0 6px;
+    background: rgba(242, 239, 230, 0.4);
+  }
 }
 
 // The song bar's play, at the phone's 36px — the laptop 56px circle scaled
@@ -249,14 +354,6 @@ $row-inset: 4px;
 .lanes {
   flex: 0 1 auto;
   min-height: 0;
-  // The song container's own short-window cap (ADR 0030, ticket 23): with the
-  // page scrolling, `.bar`'s `max-height: 100%` no longer bounds anything, so
-  // the strip would lay all five lanes out down the document. Three lanes and
-  // the ruler, then it scrolls — the same shape it has above the threshold.
-  @media (max-height: 504px) {
-    max-height: $ruler-height + $lane-gap + 2 * $row-inset + 3 * $lane-height +
-      2 * $lane-gap;
-  }
   overflow-y: auto;
   padding: 0 4px;
   margin: 0 -4px;

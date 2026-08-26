@@ -130,11 +130,19 @@ export class ChunkMap {
   #width: number
   #height: number
   #size: number
+  /**
+   * `log2(size)` when the size is a power of two, so cell → chunk is a shift;
+   * `-1` when it is not, and `#chunkOf` divides instead. `CHUNK_SIZE` is 32,
+   * but the size is a constructor parameter and the tests pass odd ones.
+   */
+  #shift: number
 
   constructor(width: number, height: number, size = CHUNK_SIZE) {
     this.#width = width
     this.#height = height
     this.#size = size
+    const shift = Math.log2(size)
+    this.#shift = Number.isInteger(shift) ? shift : -1
     this.cols = Math.ceil(width / size)
     this.rows = Math.ceil(height / size)
 
@@ -154,6 +162,14 @@ export class ChunkMap {
     this.all = chunks
   }
 
+  /**
+   * Cell coordinate → chunk coordinate. `value` is always non-negative here, so
+   * `| 0` truncates exactly as `Math.floor` rounds.
+   */
+  #chunkOf(value: number): number {
+    return this.#shift >= 0 ? value >> this.#shift : (value / this.#size) | 0
+  }
+
   at(cx: number, cy: number): Chunk {
     return this.all[cy * this.cols + cx]!
   }
@@ -161,7 +177,7 @@ export class ChunkMap {
   /** Which chunk owns a cell. Out-of-bounds cells answer -1. */
   indexAt(x: number, y: number): number {
     if (x < 0 || y < 0 || x >= this.#width || y >= this.#height) return -1
-    return Math.floor(y / this.#size) * this.cols + Math.floor(x / this.#size)
+    return this.#chunkOf(y) * this.cols + this.#chunkOf(x)
   }
 
   /**
@@ -198,10 +214,10 @@ export class ChunkMap {
     const maxY = Math.min(y + CHUNK_MARGIN, this.#height - 1)
     if (minX > maxX || minY > maxY) return
 
-    const firstCol = Math.floor(minX / this.#size)
-    const lastCol = Math.floor(maxX / this.#size)
-    const firstRow = Math.floor(minY / this.#size)
-    const lastRow = Math.floor(maxY / this.#size)
+    const firstCol = this.#chunkOf(minX)
+    const lastCol = this.#chunkOf(maxX)
+    const firstRow = this.#chunkOf(minY)
+    const lastRow = this.#chunkOf(maxY)
 
     for (let cy = firstRow; cy <= lastRow; cy++) {
       for (let cx = firstCol; cx <= lastCol; cx++) {

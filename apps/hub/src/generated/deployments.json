@@ -1,0 +1,30 @@
+{
+  "boids": {
+    "firstDeployedAt": "2026-07-03T00:00:00Z",
+    "lastDeployedAt": "2026-07-03T00:00:00Z"
+  },
+  "boop": {
+    "firstDeployedAt": "2026-08-07T00:00:00Z",
+    "lastDeployedAt": "2026-08-07T00:00:00Z"
+  },
+  "espy": {
+    "firstDeployedAt": "2026-07-09T00:00:00Z",
+    "lastDeployedAt": "2026-07-09T00:00:00Z"
+  },
+  "fridge": {
+    "firstDeployedAt": "2026-07-04T00:00:00Z",
+    "lastDeployedAt": "2026-07-04T00:00:00Z"
+  },
+  "karesansui": {
+    "firstDeployedAt": "2026-07-10T00:00:00Z",
+    "lastDeployedAt": "2026-07-10T00:00:00Z"
+  },
+  "silt": {
+    "firstDeployedAt": "2026-08-07T00:00:00Z",
+    "lastDeployedAt": "2026-08-24T00:00:00Z"
+  },
+  "wotd": {
+    "firstDeployedAt": "2026-07-05T00:00:00Z",
+    "lastDeployedAt": "2026-07-05T00:00:00Z"
+  }
+}

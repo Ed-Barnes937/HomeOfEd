@@ -1,6 +1,14 @@
 # 0030 — boop's stage is a fixed frame with one scrolling region
 
-- **Status:** Accepted
+- **Status:** Superseded (in part) by
+  [0035-boop-song-bar-is-the-home-surface.md](0035-boop-song-bar-is-the-home-surface.md).
+  The three-section frame, the pinned chrome and dock, `min-height: 0` and "do
+  not fix the empty band by stretching the grid" all still hold. What is
+  superseded is the model ticket 23's amendments below describe — both surfaces
+  on the frame, the grid absorbing the squeeze — and the three props it needed:
+  **the phone grid's three-row floor, the ≥1024 dock cap and the 505px
+  page-scroll exception are all retired.** The song bar is the home surface and
+  the grid opens as a card; read 0035 before trusting any number below.
 - **Date:** 2026-08-09
 - **Related:** [ADR 0027](0027-boop-small-phone-layout.md) (the phone's pinned
   rail and horizontal step window, whose scroll model this wraps), the design

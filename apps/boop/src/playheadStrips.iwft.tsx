@@ -55,8 +55,9 @@ test('tapping the song strip jumps the song, and playing keeps it playing', asyn
   await root.crankSteps(1)
   await root.verifySongStripMarkerAt(2, 2, true)
   await root.verifyPositionPlaying(1, 2)
-  await root.verifyCellOn('snare', 0)
   await root.verifyPlayheadReadout('Position 3 · bar 3 of 4')
+  await root.openClipEditor()
+  await root.verifyCellOn('snare', 0)
 })
 
 test('an empty cell is not reachable: it resolves forwards, or clamps at the end', async ({
@@ -95,6 +96,7 @@ test('the marker survives a stop at the dimmed treatment, and the next play resu
   // Scrubbed while stopped: silent, and the marker and the grid column both move.
   await root.tapSongStrip(2, 1)
   await root.verifySongStripMarkerAt(2, 1, false)
+  await root.openClipEditor()
   await root.verifyPlayheadStoppedAtStep(4)
   // Silent: the scrub moved the state and left the transport alone (spec §4).
   await root.verifySongStopped()
@@ -103,6 +105,7 @@ test('the marker survives a stop at the dimmed treatment, and the next play resu
   await root.pressSongPlay()
   await root.crankSteps(1)
   await root.verifySongStripMarkerAt(2, 1, true)
+  await root.openClipEditor()
   await root.verifyCellOn('snare', 0)
 })
 
@@ -152,6 +155,8 @@ test('the clip rail sits on the step columns, snaps to a step, and moves the hig
   await root.verifyIsShown()
   await buildTwoClipSong(root)
 
+  // The clip rail rides on the grid, so it is inside the editor card.
+  await root.openClipEditor()
   await root.verifyClipRailAlignsWithSteps(0)
   await root.verifyClipRailAlignsWithSteps(15)
 

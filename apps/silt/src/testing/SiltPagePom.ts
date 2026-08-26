@@ -77,6 +77,15 @@ export class SiltPagePom extends BasePage {
     await expect(this.page.getByTestId(`spawner-${x}-${y}`)).toHaveCount(0)
   }
 
+  /** The chrome saying a click or stroke here will take this spawner (spec §7). */
+  async verifySpawnerMarkedForRemoval(x: number, y: number): Promise<void> {
+    await expect(this.page.getByTestId(`spawner-${x}-${y}`)).toHaveClass(/spawnerRemove/)
+  }
+
+  async verifySpawnerNotMarkedForRemoval(x: number, y: number): Promise<void> {
+    await expect(this.page.getByTestId(`spawner-${x}-${y}`)).not.toHaveClass(/spawnerRemove/)
+  }
+
   async spawnerCount(): Promise<string> {
     return this.statusText('status-spawners')
   }
@@ -166,12 +175,18 @@ export class SiltPagePom extends BasePage {
     return this.statusText(`scene-updated-${name}`)
   }
 
-  async verifySceneThumbnail(name: string): Promise<void> {
+  /** The row's thumbnail as its PNG data URL — comparable between rows. */
+  async sceneThumbnail(name: string): Promise<string> {
     const src = await this.page
       .getByTestId(`scene-row-${name}`)
       .getByTestId('scene-thumb')
       .getAttribute('src')
     expect(src).toMatch(/^data:image\/png;base64,/)
+    return src ?? ''
+  }
+
+  async verifySceneThumbnail(name: string): Promise<void> {
+    await this.sceneThumbnail(name)
   }
 
   async renameScene(from: string, to: string): Promise<void> {
@@ -216,6 +231,22 @@ export class SiltPagePom extends BasePage {
     const { clientX, clientY } = await this.canvasClientPoint(x, y)
     await this.canvas.dispatchEvent('pointerdown', { clientX, clientY, bubbles: true })
     await this.canvas.dispatchEvent('pointerup', { clientX, clientY, bubbles: true })
+  }
+
+  /** Drags from one cell to another delivered as a single pointermove — the
+   * event pattern of a fast flick, where samples land many cells apart. */
+  async dragPaint(from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
+    const start = await this.canvasClientPoint(from.x, from.y)
+    const end = await this.canvasClientPoint(to.x, to.y)
+    await this.canvas.dispatchEvent('pointerdown', { ...start, bubbles: true })
+    await this.canvas.dispatchEvent('pointermove', { ...end, bubbles: true })
+    await this.canvas.dispatchEvent('pointerup', { ...end, bubbles: true })
+  }
+
+  /** Moves the pointer over a cell without pressing — drives the hover chrome. */
+  async hoverCell(x: number, y: number): Promise<void> {
+    const { clientX, clientY } = await this.canvasClientPoint(x, y)
+    await this.canvas.dispatchEvent('pointermove', { clientX, clientY, bubbles: true })
   }
 
   /** Paints one cell via a real single-finger touch tap (spec §9: one finger paints). */

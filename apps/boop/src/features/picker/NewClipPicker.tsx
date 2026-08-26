@@ -11,9 +11,11 @@ interface NewClipPickerProps {
 /**
  * The "+ New clip" picker (ticket 17, spec §6): the paper-card dialog shell
  * the retired New boop dialog used, holding starter-style cards — Blank
- * first, then the eight sample clips. No per-card preview; picking is how
- * you hear one. Picking lands the choice as a new clip and closes; closing
- * without picking changes nothing.
+ * first, then the eight sample clips. No per-card preview — the thumbnail is
+ * the whole preview, and picking makes no sound either (boop-screenspace
+ * ticket 01: adding a clip is an edit, not a transport command). Picking
+ * lands the choice as a new clip and closes; closing without picking changes
+ * nothing.
  *
  * Focus/dismiss follows the app's existing dialog behaviour (spec §14):
  * the × button and a tap on the dimmed backdrop both close it.

@@ -32,6 +32,9 @@ test('the song plays placements left to right, skips empty positions, and loops'
   await root.verifyPositionPlaying(0, 0)
   await root.verifyPositionNumeralPlaying(0)
   await root.verifyClipChipActive(0)
+  // What the grid is showing is a question for the editor card, so open it —
+  // the song keeps playing behind it.
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
   await root.verifyCellOff('snare', 0)
 
@@ -72,6 +75,7 @@ test('a layered position rings on every lane in it and shows its topmost clip', 
   await root.verifyPositionPlaying(1, 0)
   // The grid can only show one clip: the layered column's topmost lane.
   await root.verifyClipChipActive(0)
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
 
   // A one-position song loops on itself, still ringing on both lanes.
@@ -94,6 +98,7 @@ test('the grid follows the draw channel: no early flash of the next clip at the 
   // Step 16 is scheduled (the engine holds the next clip) but has not sounded:
   // the grid and the ring must still show position 0.
   await root.fireStep()
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
   await root.verifyPositionPlaying(0, 0)
 
@@ -142,6 +147,7 @@ test('song play begins at the leftmost placement, even taking over a running cli
   await buildTwoClipSong(root)
 
   // A clip loop already running, part way through its bars.
+  await root.openClipEditor()
   await root.pressPlay()
   await root.verifyPlaying()
   await root.crankSteps(8)
@@ -152,6 +158,7 @@ test('song play begins at the leftmost placement, even taking over a running cli
   await root.verifySongPlaying()
   await root.crankSteps(1)
   await root.verifyPositionPlaying(0, 0)
+  await root.openClipEditor()
   await root.verifyPlayheadAtStep(0)
   await root.verifyCellOn('kick', 0)
 
@@ -178,12 +185,14 @@ test('the playhead survives a stop, and the song starts again from where it was'
   // Into the second placed position — global bar 4, the start of position 2.
   await root.crankSteps(17)
   await root.verifyPositionPlaying(1, 2)
+  await root.openClipEditor()
   await root.verifyPlayheadAtStep(0)
 
   await root.pressSongPlay()
   await root.verifySongStopped()
   // Stopping no longer erases where we were: the playhead stays, dimmed. The
   // ring still means "sounding now", so it goes.
+  await root.openClipEditor()
   await root.verifyPlayheadStoppedAtStep(0)
   await root.verifyNoPositionPlaying()
 
@@ -192,6 +201,7 @@ test('the playhead survives a stop, and the song starts again from where it was'
   await root.pressSongPlay()
   await root.crankSteps(1)
   await root.verifyPositionPlaying(1, 2)
+  await root.openClipEditor()
   await root.verifyCellOn('snare', 0)
   await root.verifyCellOff('kick', 0)
 })
@@ -207,16 +217,19 @@ test('the playhead keeps bar resolution: four bars to a position', async ({ moun
   // Bar 2 of position 1: step 4 of the sounding clip, still position 0.
   await root.crankSteps(5)
   await root.verifyPositionPlaying(0, 0)
+  await root.openClipEditor()
   await root.verifyPlayheadAtStep(4)
 
   await root.pressSongPlay()
   await root.verifySongStopped()
   // Bar resolution: the stopped playhead sits at the start of the bar it was in.
+  await root.openClipEditor()
   await root.verifyPlayheadStoppedAtStep(4)
 
   await root.pressSongPlay()
   await root.crankSteps(1)
   // And the song picks up in that bar, not at the start of the position.
+  await root.openClipEditor()
   await root.verifyPlayheadAtStep(4)
   await root.verifyPositionPlaying(0, 0)
 })
@@ -254,6 +267,7 @@ test('an all-empty song plays the clip on the grid — no ring, still the song b
   await root.pressSongPlay()
   await root.verifySongPlaying()
   await root.crankSteps(1)
+  await root.openClipEditor()
   await root.verifyPlayheadAtStep(0)
   await root.verifyNoPositionPlaying()
 
@@ -261,6 +275,7 @@ test('an all-empty song plays the clip on the grid — no ring, still the song b
   await root.verifySongStopped()
   // No placements, so no song position — but a step has sounded, and that is
   // what the playhead column points at, so it stays (dimmed) like any pause.
+  await root.openClipEditor()
   await root.verifyPlayheadStoppedAtStep(0)
 })
 

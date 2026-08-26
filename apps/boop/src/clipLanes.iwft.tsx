@@ -15,8 +15,10 @@ test('the old transport bar is gone; its pieces have their new homes', async ({ 
   // song bar, New boop went to the top bar, Clear grid into the clip control.
   await root.verifyPaused()
   await root.verifyTempo(100) // the seed's speed, read from the song bar's Speed
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0) // the sample-clip seed is on the grid
   await root.pressNewBoop()
+  await root.openClipEditor()
   await root.verifyCellOff('kick', 0)
 })
 
@@ -28,10 +30,11 @@ test('New boop is a plain reset: one blank clip, no dialog, no confirm', async (
   await root.pressNewBoop()
 
   await root.verifyNoDialogOpen()
-  await root.verifyCellOff('kick', 2)
   await root.verifyClipCount(1)
-  await root.verifyActiveClipName('Clip 1')
   await root.verifySongLength('0 bars')
+  await root.openClipEditor()
+  await root.verifyCellOff('kick', 2)
+  await root.verifyActiveClipName('Clip 1')
 })
 
 test('+ New clip adds a blank clip onto the grid, unplaced, and disables at five', async ({
@@ -45,10 +48,11 @@ test('+ New clip adds a blank clip onto the grid, unplaced, and disables at five
   await root.addClip()
   await root.verifyClipCount(2)
   await root.verifyClipChipActive(1)
+  await root.verifySongLength('0 bars')
+  await root.openClipEditor()
   await root.verifyActiveClipName('Clip 2')
   // The new clip is blank — the kick lives in Clip 1 — and nothing was placed.
   await root.verifyCellOff('kick', 0)
-  await root.verifySongLength('0 bars')
 
   await root.addClip()
   await root.addClip()
@@ -56,6 +60,7 @@ test('+ New clip adds a blank clip onto the grid, unplaced, and disables at five
   await root.verifyClipCount(5)
   await root.verifyAddClipDisabled()
   // A copy is a new clip too, so the cap greys it the same way.
+  await root.openClipEditor()
   await root.verifyCopyClipDisabled()
 })
 

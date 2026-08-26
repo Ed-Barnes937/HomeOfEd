@@ -127,3 +127,35 @@ describe('grid storage', () => {
     expect(() => sim.paint(0, 0, 99)).toThrow(/unknown species/i)
   })
 })
+
+describe('revision', () => {
+  it('bumps on everything that changes the world', () => {
+    const sim = new Sim({ seed: 1 })
+    const start = sim.revision
+
+    sim.paint(10, 10, SAND)
+    const afterPaint = sim.revision
+    expect(afterPaint).toBeGreaterThan(start)
+
+    sim.tick()
+    const afterTick = sim.revision
+    expect(afterTick).toBeGreaterThan(afterPaint)
+
+    sim.clear()
+    const afterClear = sim.revision
+    expect(afterClear).toBeGreaterThan(afterTick)
+
+    const size = GRID_WIDTH * GRID_HEIGHT
+    sim.restore(new Uint8Array(size), new Uint8Array(size), new Uint8Array(size))
+    expect(sim.revision).toBeGreaterThan(afterClear)
+  })
+
+  it('does not move on a read', () => {
+    const sim = new Sim({ seed: 1 })
+    sim.paint(10, 10, SAND)
+    const revision = sim.revision
+
+    sim.speciesAt(10, 10)
+    expect(sim.revision).toBe(revision)
+  })
+})

@@ -62,6 +62,11 @@ column was the only thing in that row that was not the grid.
   play column); it is now 100px (14 + 72 + 14), because the lane grid under the
   header shrinks to nothing. `max-height: max(32dvh, 100px)` — measured at 1280
   from 600px tall down to 420, and the page scrolls at none of them.
+  **The cap itself is retired**
+  ([ADR 0035](0035-boop-song-bar-is-the-home-surface.md)): the song bar left the
+  dock for the scrolling region, so nothing in the dock grows and there is
+  nothing left to cap. This bullet is kept as the record of why 32dvh was safe
+  while the cap existed.
 - `verifyLaneGridFitsColumn` no longer asserts the squares are flush with the
   content edge at every tablet width — flush is now the narrow end only, so it
   takes an `expectFlush` flag, exercised at 1024. Its other half (all 16 equal,
