@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 
 import {
   createRegistry,
+  EMPTY,
   FixedTimestep,
   GRID_WIDTH,
   MS_PER_TICK,
@@ -11,8 +12,10 @@ import {
   type ElementRegistry,
 } from '../../sim/index.ts'
 import { SimRenderer } from '../render/renderer.ts'
+import { brushOffsets } from './brushOffsets.ts'
+import { strokeSteps } from './strokeSteps.ts'
 import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
-import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
+import { emitSpawners, isUnderBrush, type Spawner } from '../spawners/spawners.ts'
 
 /**
  * Test-only seam (mirrors boids' window-key pattern): a property on the
@@ -48,9 +51,11 @@ export interface UseSimLoopOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
   /** Paused = setup mode (spec §3); painting works in both states. */
   running: boolean
-  /** The species painting or spawner placement applies — EMPTY when the erase tool is active. */
+  /** The species painting or spawner placement applies — EMPTY when the erase
+   * tool is active, which is also what makes an erase stroke sweep spawners
+   * out of its brush footprint. */
   selectedElement: number
-  /** Square brush width in cells (odd, so it has a centre); 1 = single cell. Spawners ignore this — one entity per click. */
+  /** Round brush diameter in cells (odd, so it has a centre); 1 = single cell. Spawners ignore this — one entity per click. */
   brushWidth: number
   /** Paint vs spawner-placement mode (spec §3, §7); the rail toggle from ticket 07. */
   mode: SimMode
@@ -62,36 +67,6 @@ export interface UseSimLoopOptions {
   onFps?: (fps: number) => void
   /** Fires whenever a spawner is placed or removed, with the current list (a fresh copy). */
   onSpawnersChange?: (spawners: readonly Spawner[]) => void
-}
-
-const brushOffsetCache = new Map<number, Int8Array>()
-
-/**
- * `(dx, dy)` offsets covering a centred square brush of this cell width (odd,
- * so it has a centre), flat as `[dx, dy, dx, dy, …]`.
- *
- * Memoised per width, because `paintAt` calls this on every pointer event
- * while dragging and the widest brush is 49 pairs. `BRUSH_WIDTHS` is a fixed
- * four-entry list, so the cache holds four arrays for the app's lifetime and
- * the painting path allocates nothing.
- */
-export function brushOffsets(width: number): Int8Array {
-  const cached = brushOffsetCache.get(width)
-  if (cached) return cached
-  const half = (width - 1) / 2
-  const lo = Math.floor(half)
-  const hi = Math.ceil(half)
-  const span = lo + hi + 1
-  const offsets = new Int8Array(span * span * 2)
-  let i = 0
-  for (let dy = -lo; dy <= hi; dy++) {
-    for (let dx = -lo; dx <= hi; dx++) {
-      offsets[i++] = dx
-      offsets[i++] = dy
-    }
-  }
-  brushOffsetCache.set(width, offsets)
-  return offsets
 }
 
 export interface UseSimLoopControls {
@@ -233,31 +208,50 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
 
     let painting = false
+    // The last cell the current stroke stamped — what `paintAt` interpolates
+    // from, so a fast drag reads as a line, not a dot per pointer sample.
+    let lastPaintCell: { x: number; y: number } | null = null
+    // One `sim.paint` per cell, deliberately: a batched entry point would
+    // hoist the registry lookup and narrow the `chunks.activate` spread, but
+    // a brush spans at most 2×2 of the 32-cell chunks, so the redundant
+    // spreads are a few hundred rect unions (ticket 07). Not worth a second
+    // painting seam whose clock and dirty-rect semantics would have to stay
+    // in step with `paint`.
+    const stampAt = (cell: { x: number; y: number }): void => {
+      for (const { dx, dy } of brushOffsets(brushRef.current)) {
+        const x = cell.x + dx
+        const y = cell.y + dy
+        if (x < 0 || y < 0 || x >= sim.width || y >= sim.height) continue
+        sim.paint(x, y, selectedRef.current)
+      }
+      // Erase clears the world under the brush, and a spawner is part of that
+      // world even though it isn't a cell — leaving it behind would refill the
+      // hole the stroke just made.
+      if (selectedRef.current === EMPTY) eraseSpawnersUnder(cell)
+    }
     const paintAt = (clientX: number, clientY: number): void => {
       const cell = cellAt(clientX, clientY)
       if (!cell) return
-      // One `sim.paint` per cell, deliberately: a batched entry point would
-      // hoist the registry lookup and narrow the `chunks.activate` spread, but
-      // a 7×7 brush spans at most 2×2 of the 32-cell chunks, so the redundant
-      // spreads are a few hundred rect unions — nowhere near the two forced
-      // layouts this change removes. Not worth a second painting seam whose
-      // clock and dirty-rect semantics would have to stay in step with `paint`.
-      //
-      // Flat `[dx, dy, …]` pairs — see `brushOffsets`; walked by index so a
-      // drag allocates nothing per event.
-      const offsets = brushOffsets(brushRef.current)
-      const species = selectedRef.current
-      for (let i = 0; i < offsets.length; i += 2) {
-        const x = cell.x + offsets[i]!
-        const y = cell.y + offsets[i + 1]!
-        if (x < 0 || y < 0 || x >= sim.width || y >= sim.height) continue
-        sim.paint(x, y, species)
+      const from = lastPaintCell
+      lastPaintCell = cell
+      if (from) {
+        for (const step of strokeSteps(from, cell, brushRef.current)) stampAt(step)
+      } else {
+        stampAt(cell)
       }
       onPaintRef.current?.()
     }
 
     const notifySpawners = (): void => {
       onSpawnersChangeRef.current?.(spawnersRef.current.slice())
+    }
+
+    const eraseSpawnersUnder = (cell: { x: number; y: number }): void => {
+      const spawners = spawnersRef.current
+      const kept = spawners.filter((spawner) => !isUnderBrush(spawner, cell, brushRef.current))
+      if (kept.length === spawners.length) return
+      spawners.splice(0, spawners.length, ...kept)
+      notifySpawners()
     }
 
     // Spawner mode places or removes one entity per click — no drag, unlike
@@ -281,6 +275,8 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
         return
       }
       painting = true
+      // A fresh press starts a fresh stroke — never a line from the last one.
+      lastPaintCell = null
       paintAt(event.clientX, event.clientY)
     }
     const onPointerMove = (event: PointerEvent): void => {
@@ -300,6 +296,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     }
     const stopPainting = (): void => {
       painting = false
+      lastPaintCell = null
     }
     const onPointerLeave = (): void => {
       stopPainting()

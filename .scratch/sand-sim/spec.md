@@ -191,6 +191,10 @@ From [ticket 06](issues/06-grid-dimensions.md):
 - Placement via spawner mode (ghost preview under cursor). Drawn as a
   white-outlined box with the element's colour inside so it never reads as
   painted cells; hover turns it red with a minus; one click removes it.
+- **The erase tool also removes them** — an erase stroke takes every spawner
+  under its brush footprint, so clearing an area does not leave an emitter
+  behind to refill it ([ticket 21](issues/21-erase-removes-spawners.md)). Both
+  removal paths wear the same red-with-minus.
 - Reset removes spawners (§3).
 
 ## 8. Scene persistence (localStorage)

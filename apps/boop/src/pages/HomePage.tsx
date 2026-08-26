@@ -9,7 +9,9 @@ import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
 import { webAudioSampleDecoder } from '../export/sampleDecoder.ts'
 import { BoopsPanel } from '../features/boops/BoopsPanel.tsx'
 import { ClipControl } from '../features/clips/ClipControl.tsx'
+import { ClipEditorCard } from '../features/clips/ClipEditorCard.tsx'
 import { ClipHeader } from '../features/clips/ClipHeader.tsx'
+import { ClipLauncher } from '../features/clips/ClipLauncher.tsx'
 import { clipTint } from '../features/clips/clipTints.ts'
 import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
@@ -25,7 +27,6 @@ import { PhoneSongBar } from '../features/songbar/PhoneSongBar.tsx'
 import { SongBar } from '../features/songbar/SongBar.tsx'
 import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
-import { Transport } from '../features/transport/Transport.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
 import { MAX_CLIPS, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
 import { useWorkingSong } from '../persistence/useWorkingSong.ts'
@@ -98,6 +99,13 @@ export function HomePage() {
   const [boopsOpen, setBoopsOpen] = useState(false)
   // The "+ New clip" picker (ticket 17): Blank first, then the sample clips.
   const [pickerOpen, setPickerOpen] = useState(false)
+  /**
+   * Whether the clip editor card is open (screenspace ticket 03). It lives
+   * here rather than in the card because there are two routes in — the dock's
+   * launcher and a tap on any clip chip in the song bar — and the song bar is
+   * the page's, not the card's.
+   */
+  const [clipOpen, setClipOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
@@ -558,6 +566,21 @@ export function HomePage() {
   )
 
   /**
+   * A chip tap: the second route into the editor (screenspace ticket 03). It
+   * puts that clip on the grid *and* opens the card, including when the chip
+   * is already the active one — a child who taps the thing they want to change
+   * expects to be changing it. Selecting without opening is not an action the
+   * app offers any more: the active clip only matters to the grid.
+   */
+  const editClip = useCallback(
+    (index: number) => {
+      selectClip(index)
+      setClipOpen(true)
+    },
+    [selectClip],
+  )
+
+  /**
    * Adds a clip and puts it on the grid; `pattern` is blank, a sample clip's,
    * or the copied clip's. `name` is a sample clip's plain label — without one
    * the clip takes the automatic "Clip N". Returns the song the clip landed
@@ -578,8 +601,8 @@ export function HomePage() {
   /**
    * The picker's landing (spec §6): the choice becomes a new clip, on the
    * grid, unplaced. Blank keeps the automatic "Clip N"; a sample clip lands
-   * under its own label and starts playing — there is no per-card preview,
-   * so picking is how you hear one.
+   * under its own label. Neither route starts the transport — adding a clip
+   * is an edit, and the child decides when sound happens.
    */
   const pickClip = useCallback(
     (sample: SampleClip | null) => {
@@ -590,8 +613,7 @@ export function HomePage() {
         addClipToSong(() => blankPattern(kit))
         return
       }
-      const landed = addClipToSong(() => samplePattern(kit, sample.rows), sample.label)
-      if (landed && !engine.isPlaying()) void engine.start()
+      addClipToSong(() => samplePattern(kit, sample.rows), sample.label)
     },
     [addClipToSong, engine],
   )
@@ -713,18 +735,26 @@ export function HomePage() {
 
   return (
     // Three frame sections (ticket 33): pinned chrome, the one scrolling
-    // region, pinned transport. Each carries the centring column so the bars
+    // region, the pinned dock. Each carries the centring column so the bars
     // line up with the grid — the bar is inset to the column, not full-bleed
     // (ticket 37).
-    <main className={styles.stage}>
+    //
+    // What stands in each changed with screenspace ticket 03: the song bar is
+    // the home surface in the scrolling region at every width, the dock holds
+    // the clip launcher alone, and the grid opens as a card over the top.
+    <main className={styles.stage} data-testid="stage">
       <div className={styles.chrome}>
         <div className={styles.column}>
           {phone ? (
-            // The phone's actions live in the "⋯" menu: My boops / Share / How
-            // boop works / Clear grid. Export is per saved boop, inside the dialog.
+            // The phone's actions live in the "⋯" menu: New boop / My boops /
+            // Share / How boop works / Clear grid. New boop joined them when
+            // the transport went (screenspace ticket 03) — it is an action the
+            // phone chrome drops, which is what the menu is for. Export is per
+            // saved boop, inside the dialog.
             <PhoneBar
               getShareUrl={getShareUrl}
               onClearGrid={clearClip}
+              onNewBoop={newBoop}
               onSave={() => setBoopsOpen(true)}
               onOpenMyBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
@@ -743,11 +773,72 @@ export function HomePage() {
       </div>
       <div className={styles.scroller} data-testid="stage-scroller">
         <div className={`${styles.column} ${styles.stack}`} data-testid="stage-column">
+          {/* The song bar is the home surface (screenspace ticket 03): the
+              arrangement is what a child lands on, at every width, and the
+              grid is the focused thing they choose to open. The song is the
+              less discoverable half of the app, so it is the half that stays
+              on the frame. */}
+          {phone ? (
+            <PhoneSongBar
+              song={song}
+              bpm={song.bpm}
+              onTempoChange={changeTempo}
+              onSelectClip={editClip}
+              onTogglePlacement={togglePlacementAt}
+              onAddClip={() => setPickerOpen(true)}
+              onToggleSong={toggleSong}
+              songPlaying={songPlaying}
+              playingPosition={playingPosition}
+              playhead={playhead}
+              onScrubToFraction={scrubSongToFraction}
+              onScrubToBar={scrubSongToBar}
+            />
+          ) : (
+            <SongBar
+              song={song}
+              bpm={song.bpm}
+              onTempoChange={changeTempo}
+              onSelectClip={editClip}
+              onTogglePlacement={togglePlacementAt}
+              onMoveClip={moveClipLane}
+              onAddClip={() => setPickerOpen(true)}
+              onToggleSong={toggleSong}
+              songPlaying={songPlaying}
+              playingPosition={playingPosition}
+              playhead={playhead}
+              // The laptop readout left `ClipHeader` when the header moved
+              // into the card (screenspace ticket 03). It reads the *song's*
+              // playhead, so it belongs with the song's other numbers — and on
+              // the frame, where closing the card leaves it, rather than
+              // disappearing with the header that used to carry it.
+              readout={playheadReadout(playhead)}
+              onScrubToBar={scrubSongToBar}
+              onScrubToCell={scrubSongToCell}
+            />
+          )}
+        </div>
+      </div>
+      <div className={styles.dock}>
+        <div className={styles.column}>
+          {/* One launcher row, at every width, and nothing else. Its play is
+              *clip* play — while the song plays it reads paused and pressing
+              it takes over, exactly like the laptop's clip control. Song play
+              is not repeated here: the song bar carries it and the song bar is
+              always on screen now. */}
+          <ClipLauncher
+            clip={activeClip(song)}
+            isPlaying={isPlaying && !songPlaying}
+            onToggle={toggleClipPlay}
+            onOpen={() => setClipOpen(true)}
+          />
+        </div>
+      </div>
+      {clipOpen && (
+        <ClipEditorCard clipName={activeClip(song).name} onClose={() => setClipOpen(false)}>
           {/* The loop map rides inside PhoneGrid's well, so it stays glued
-              under the grid inside this region rather than joining the pinned
-              bar and becoming a second transport (ADR 0027). The clip header
-              is the laptop row at every width — the phone slims it with CSS
-              (ticket 21), not a different component. */}
+              under the grid rather than becoming a second transport (ADR
+              0027). The clip header is the laptop row at every width — the
+              phone slims it with CSS (ticket 21), not a different component. */}
           <ClipHeader
             clip={activeClip(song)}
             canDelete={song.clips.length > 1}
@@ -755,28 +846,25 @@ export function HomePage() {
             onRename={renameActiveClip}
             onCopy={copyClip}
             onDelete={deleteActiveClip}
-            // The phone's readout rides on its own WHOLE SONG strip (ticket 06).
-            readout={phone ? null : playheadReadout(playhead)}
           />
+          {/* Clip play is the well's footer at every width now. The phone
+              reached it on the pinned transport before; the launcher that
+              replaced the transport is behind this card's backdrop, so the
+              button has to be in the well or there is no way to hear the clip
+              being edited. Clear grid rides with it only at ≥1024 — on the
+              phone that action is in the "⋯" menu. */}
           {phone ? (
-            <>
-              <PhoneGrid {...gridProps} />
-              {/* The phone song bar lives here, in the scrolling region below
-                  the grid well (ticket 21, spec §5) — nothing new is pinned
-                  (ADR 0030). Speed stays in the transport, so no tempo here. */}
-              <PhoneSongBar
-                song={song}
-                onSelectClip={selectClip}
-                onTogglePlacement={togglePlacementAt}
-                onAddClip={() => setPickerOpen(true)}
-                onToggleSong={toggleSong}
-                songPlaying={songPlaying}
-                playingPosition={playingPosition}
-                playhead={playhead}
-                onScrubToFraction={scrubSongToFraction}
-                onScrubToBar={scrubSongToBar}
-              />
-            </>
+            <PhoneGrid
+              {...gridProps}
+              wellFooter={
+                <ClipControl
+                  isPlaying={isPlaying && !songPlaying}
+                  onToggle={toggleClipPlay}
+                  onClearGrid={clearClip}
+                  showClearGrid={false}
+                />
+              }
+            />
           ) : (
             <Grid
               {...gridProps}
@@ -790,45 +878,8 @@ export function HomePage() {
               }
             />
           )}
-        </div>
-      </div>
-      <div className={styles.transportDock}>
-        <div className={`${styles.column} ${styles.stack}`}>
-          {phone ? (
-            // The phone keeps the pinned transport (spec §5): its play is
-            // *clip* play — while the song plays it reads paused and pressing
-            // it takes over, exactly like the laptop's clip control.
-            <Transport
-              isPlaying={isPlaying && !songPlaying}
-              onToggle={toggleClipPlay}
-              bpm={song.bpm}
-              onTempoChange={changeTempo}
-              onClearAll={clearClip}
-              onNewBoop={newBoop}
-              showClearGrid={false}
-            />
-          ) : (
-            // The song bar takes the transport's pinned slot (handoff §5/§6):
-            // its play became the clip control, tempo became Speed here, New
-            // boop moved to the top bar, Clear grid into the clip control.
-            <SongBar
-              song={song}
-              bpm={song.bpm}
-              onTempoChange={changeTempo}
-              onSelectClip={selectClip}
-              onTogglePlacement={togglePlacementAt}
-              onMoveClip={moveClipLane}
-              onAddClip={() => setPickerOpen(true)}
-              onToggleSong={toggleSong}
-              songPlaying={songPlaying}
-              playingPosition={playingPosition}
-              playhead={playhead}
-              onScrubToBar={scrubSongToBar}
-              onScrubToCell={scrubSongToCell}
-            />
-          )}
-        </div>
-      </div>
+        </ClipEditorCard>
+      )}
       {boopsOpen && (
         <BoopsPanel
           onClose={() => setBoopsOpen(false)}

@@ -1,6 +1,6 @@
 import type { RailPalette } from '../palette/paletteGroups.ts'
 import type { CursorInfo, SimMode, UseSimLoopControls } from '../sim/useSimLoop.ts'
-import type { Spawner } from '../spawners/spawners.ts'
+import { isUnderBrush, type Spawner } from '../spawners/spawners.ts'
 import styles from './WorldOverlay.module.scss'
 
 /**
@@ -14,12 +14,14 @@ export interface WorldOverlayProps {
   cursor: CursorInfo | null
   spawners: readonly Spawner[]
   mode: SimMode
-  /** Square brush width in cells — the paint cursor is drawn at true size. */
+  /** Round brush diameter in cells — the paint cursor is drawn at true size. */
   brushWidth: number
   fit: WorldFit
   palette: RailPalette
   /** The species a spawner placed now would carry — the placement ghost's colour. */
   selectedElement: number
+  /** The erase tool is active, so the brush will take the spawners it covers. */
+  erasing: boolean
 }
 
 /**
@@ -36,6 +38,7 @@ export function WorldOverlay({
   fit,
   palette,
   selectedElement,
+  erasing,
 }: WorldOverlayProps) {
   // The hovered cell, in spawner mode, may already hold a spawner — that one
   // renders red-with-minus instead of the placement ghost (spec §7, §9).
@@ -43,6 +46,12 @@ export function WorldOverlay({
     mode === 'spawner' && cursor
       ? spawners.findIndex((spawner) => spawner.x === cursor.cell.x && spawner.y === cursor.cell.y)
       : -1
+
+  // An erase stroke takes every spawner under its footprint, so they all wear
+  // the same red-with-minus as a spawner-mode hover — one affordance meaning
+  // "this is about to go", whichever tool is doing it.
+  const willErase = (spawner: Spawner): boolean =>
+    erasing && cursor !== null && isUnderBrush(spawner, cursor.cell, brushWidth)
 
   return (
     <>
@@ -63,7 +72,7 @@ export function WorldOverlay({
         const point = fit.gridToCanvasPoint(spawner.x, spawner.y)
         if (!point) return null
         const size = fit.cellSize()
-        const removing = index === hoveredSpawnerIndex
+        const removing = index === hoveredSpawnerIndex || willErase(spawner)
         const colour = palette.colourOf(spawner.element)
         return (
           <div

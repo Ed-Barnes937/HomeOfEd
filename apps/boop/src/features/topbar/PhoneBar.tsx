@@ -12,6 +12,14 @@ export interface PhoneBarProps {
   getShareUrl: () => string
   onClearGrid: () => void
   /**
+   * The plain New boop reset (spec §7) — one blank clip, no dialog, no
+   * confirm. It moved into this menu when the transport went (screenspace
+   * ticket 03), which was its only phone home. The menu is where every action
+   * the phone chrome drops lives, and `TopBar` leads its action group with
+   * New boop too, so the two widths agree on the order.
+   */
+  onNewBoop: () => void
+  /**
    * Go and save the working grid (ticket 20): opens "My boops", whose save
    * form is always on and already prefilled (ticket 32). The strip has no room
    * to confirm a save of its own, and since the form is the confirmation, the
@@ -57,7 +65,7 @@ const CheckIcon = () => (
 /**
  * Phone chrome (ticket 27; design handoff, "Main screen — small phone" →
  * "Chrome — the 52px strip"): back, the compact wordmark, save, and a "⋯"
- * menu holding My boops, Share, How boop works and Clear grid. The idiom and
+ * menu holding New boop, My boops, Share, How boop works and Clear grid. The idiom and
  * the back / save / overflow glyphs are the fridge's `MobileBar` verbatim —
  * copied, never imported, since apps are leaf nodes — so boop's chrome matches
  * the rest of homeofed. Every tap target clears 44px.
@@ -69,6 +77,7 @@ const CheckIcon = () => (
 export function PhoneBar({
   getShareUrl,
   onClearGrid,
+  onNewBoop,
   onSave,
   onOpenMyBoops,
   onOpenHints,
@@ -123,6 +132,14 @@ export function PhoneBar({
 
       {menuOpen && (
         <div className={styles.menu} data-testid="phone-menu">
+          <button
+            type="button"
+            className={styles.item}
+            data-testid="new-boop-button"
+            onClick={withClose(onNewBoop)}
+          >
+            New boop
+          </button>
           <button
             type="button"
             className={styles.item}

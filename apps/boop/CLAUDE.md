@@ -22,8 +22,8 @@ server-backed short link stays a possible later addition, modelled on
 
 The `SequencerEngine` and the launch kit manifest have landed (ticket 12) —
 Tone.js behind a TypeScript interface, no `packages/*` extraction (the spec is
-explicit this stays in-app). The grid, transport and working-grid autosave now
-consume it; "My boops" and share links are later tickets.
+explicit this stays in-app). The grid, the play buttons and the working-grid
+autosave now consume it; "My boops" and share links are later tickets.
 
 ## Layout
 
@@ -76,24 +76,34 @@ src/
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export
-  features/clips/   the clip chrome (boop-loops tickets 15/20/21):
-                    ClipHeader.tsx (tint dot, inline rename, copy, delete —
-                    every width; ≤1023px slims it with CSS), ClipControl.tsx
-                    (Play this clip + clip-scoped Clear grid, rendered inside
-                    the grid well, ≥1024), clipTints.ts (the fixed 5-tint list)
-  features/songbar/ SongBar.tsx — the pinned song bar (≥1024, tickets 15/20;
-                    the tablet band shrinks the lane grid to fit): a header row
-                    carrying the song play button (wired to the songConductor,
-                    ticket 16) and Speed (the old tempo slider), then the lane
-                    grid below it — chips (tap-to-select, drag-to-reorder via
-                    useChipDrag.ts, ticket 18), placement squares (drag-paint +
-                    the grid's keyboard model), "+ New clip".
+  features/clips/   the clip chrome (boop-loops tickets 15/20/21, rehoused by
+                    screenspace ticket 03):
+                    ClipEditorCard.tsx — the dialog the grid opens in, over the
+                    song bar; ClipLauncher.tsx — the dock's one row (clip play,
+                    the tint dot, the clip's name, "Edit");
+                    ClipHeader.tsx (tint dot, inline rename, copy, delete — the
+                    card's first row at every width; ≤1023px slims it with CSS),
+                    ClipControl.tsx (Play this clip inside the grid well at
+                    every width, plus clip-scoped Clear grid at ≥1024 only),
+                    clipTints.ts (the fixed 5-tint list)
+  features/songbar/ SongBar.tsx — the song bar (≥1024, tickets 15/20; the
+                    tablet band shrinks the lane grid to fit). The home surface
+                    since screenspace ticket 03, in the scrolling region: a
+                    header row carrying the song play button (wired to the
+                    songConductor, ticket 16), the playhead readout and Speed
+                    (the old tempo slider), then the lane grid below it —
+                    chips (tap-to-select and open the editor, drag-to-reorder
+                    via useChipDrag.ts, ticket 18), placement squares
+                    (drag-paint + the grid's keyboard model), "+ New clip".
                     PhoneSongBar.tsx — the phone song bar (≤1023px, ticket 21,
-                    variant B): lives in the scrolling region below the grid
-                    well on the step window's exact geometry, compact chips +
+                    variant B): the home surface in the scrolling region since
+                    screenspace ticket 03, on the step window's exact geometry
+                    (which the grid still matches inside its card), compact chips +
                     "+ New" in a pinned 92px column, snap-scrolling lane strip
-                    under PhoneGrid's paint-vs-scroll rules; clip play and
-                    Speed stay in the pinned transport. The non-scrolling
+                    under PhoneGrid's paint-vs-scroll rules; its header
+                    carries Speed too (screenspace ticket 02 — the one home
+                    for the control at every width); clip play is the clip
+                    launcher's, in the dock. The non-scrolling
                     "WHOLE SONG" band above the lanes is the phone's song
                     scrubber (boop-playhead ticket 06)
   features/playhead/ the scrub strips' shared parts (boop-playhead ticket 05):
@@ -113,8 +123,11 @@ src/
                     (at src/) picks the layout: ≥1024 is clip-lanes (the
                     tablet band 1024–1279 shrinks the lane grid via CSS,
                     ticket 20), <1024 is the phone
-  pages/            HomePage — the whole app as a fixed frame (ADR 0030):
-                    pinned chrome, the scrolling grid region, pinned transport
+  pages/            HomePage — the whole app as a fixed frame at every height
+                    (ADR 0030, narrowed by ADR 0035): pinned chrome, the
+                    scrolling region (the song bar, the home surface), the
+                    pinned dock (the clip launcher); the grid opens as a card
+                    over the top. No height-keyed exception, no dock cap
   styles/tokens.scss  design tokens from the handoff (stage/well/ink/instrument
                       hues, radii, shadows) + self-hosted Chivo / Chivo Mono
   testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
@@ -222,53 +235,60 @@ share-link snapshot.
   window for the child. Paint vs scroll inside it: the browser owns horizontal
   pans (`touch-action: pan-x`), a tap toggles, and a drag paints only once it
   crosses a cell boundary — see `PhoneGrid.tsx`'s header.
-- **The stage is a fixed frame, and the grid region is the only scroller**
-  ([ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)). `.stage`
-  is a `height: 100dvh` flex column: chrome `flex: none`, the grid region
-  `flex: 1; min-height: 0; overflow-y: auto`, transport inset to
-  `--column-width` (not full-bleed). The dock is `flex: none` on the phone but
-  **capped at ≥1024** (`flex: 0 1 auto; max-height: 32dvh`, ticket 23): the
-  song bar grows with the song, and uncapped it took 79% of a 1280×600 screen
-  and starved the grid to 16px. Neither bar may scroll away, and the
-  loop map stays under the grid *inside* the scrolling region — never in the
-  bar, or it becomes a second transport. New main-screen content goes in the
-  scrolling region by default.
-  **One exception** (ADR 0030, as amended by ticket 23): the grid well and the
-  phone song bar each hold a nested scroller, because each carries a play
-  button that the region would otherwise scroll away — a pinned bar the child
-  can always reach beats the single-scroller rule. The well is a flex column
-  whose rows scroll in their own box with the footer pinned under them; the
-  phone song bar is the same shape with its header pinned. Neither box may
-  ever be `flex: 1` — they may shrink, they must never stretch the grid on a
-  tall window. **The grid absorbs the squeeze first, down to a floor.** The
-  well shrinks (`min-height: 0`) and the phone song bar does not — what holds
-  the bar is the *absence* of `min-height: 0` on it, which leaves it the
-  content-based `min-height: auto`; do not add one, and note `flex-shrink: 0`
-  was tried there and measured to change nothing. The ticket's headline is
-  "the grid scrolls, *not* the bar", and a shrink factor above zero would chop
-  a lane row on the default phone screen while the grid still held 109px of
-  slack. **But priority without a floor takes everything**: it left 40px of
-  grid at 390×640 with five clips and none at all on a 460px-tall window, with
-  the rail spilling over the bar. So `PhoneGrid`'s `.well` — the box flex
-  shrinks, not the scroll box in it — carries a three-rows-plus-loop-map
-  `min-height`, and the region scrolls to pay for it. The bar's `max-height`
-  then keeps song play clear of the chrome at the bottom of that scroll, and
-  is what makes its strip scroll rather than the header. The *page* still
-  never scrolls — **except below 505px of viewport height at phone widths**,
-  where the owner's call is that boop stops being a fixed frame and the whole
-  page scrolls (ADR 0030, amended twice by ticket 23). Down there no fixed
-  arrangement keeps both play buttons reachable, so a scrolling page is what
-  reaches them; the grid well and the lane strip take max-heights to keep the
-  page a sensible length, and the three-row floor still applies. 505 is the
-  first height at which song play is *wholly* clear of the transport — do not
-  lower it, and do not merge this with the laptop's dock cap.
-  **`Grid`'s well has no floor and must not be given one**: the dock cap
-  already stops the region being starved, so a floor there was mutation-tested
-  and found redundant — and it cannot be won anyway, since the clip play button
-  sits *inside* that well, so a floor pushes its own button below the fold. The
-  laptop lane grid scrolling vertically is not a third nested scroller: it is
-  ticket 25's existing `overflow-x` box gaining a second axis. Anything genuinely
-  new still needs another ADR.
+- **The song bar is the home surface; the grid opens as a card**
+  ([ADR 0035](../../docs/adr/0035-boop-song-bar-is-the-home-surface.md),
+  superseding [ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)
+  in part). At every width the song bar is the scrolling region's whole
+  content — the arrangement is what a child lands on, because the song is the
+  less discoverable half of the app. The grid opens in `ClipEditorCard`,
+  bottom-anchored below 1024 and centred at and above it, by two routes: a tap
+  on any clip chip, and the dock's one labelled launcher row. The card is
+  `min(calc(var(--column-width) + 36px), 100%)` at ≥1024 on a 14px overlay
+  gutter — it *contains* the fixed-geometry column, so its own padding adds to
+  `--column-width` or the last steps clip. Clip play is the well's footer at
+  every width, because the card is a modal and the launcher is behind its
+  backdrop. **A known cost:** on the phone Clear grid is in the "⋯" menu and
+  the grid is behind the card, so a child no longer watches the grid clear.
+- **The stage is a fixed frame at every height, and it has no exceptions**
+  ([ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md), as
+  narrowed by [ADR 0035](../../docs/adr/0035-boop-song-bar-is-the-home-surface.md)).
+  `.stage` is a `height: 100dvh` flex column: chrome `flex: none`, the
+  scrolling region `flex: 1; min-height: 0; overflow-y: auto`, the dock
+  `flex: none` and inset to `--column-width` (not full-bleed). Neither the
+  chrome nor the dock may scroll away, and **the page never scrolls** — at any
+  height, at any width. The region may; that is allowed and is what a five-clip
+  song bar on a short phone uses.
+  **The three props ADR 0030 needed are all retired** (screenspace ticket 04),
+  each verified by measurement, so do not put any of them back:
+  - *The ≥1024 dock cap* (`max-height: max(32dvh, 100px)`) guarded a dock that
+    held the growing song bar. The dock holds a fixed-height launcher now —
+    measured at 132px at 1280×600 and 1280×900, one clip or five, against a cap
+    that allowed 192.
+  - *The 505px page-scroll exception*, with its `max-height: 504px` twins on
+    the phone well and the lane strip. Page overflow is now zero at 380, 420,
+    460, 492, 504, 505 and 520, one clip or five.
+  - *The phone grid's three-row floor*. It became `min-height: 0`, not nothing:
+    deleting it restores the content-based `min-height: auto` and the well
+    overflows the card. The floor's own reason is gone (390×640 gives the rows
+    320px now, not 40), and what it did instead was push clip play — which
+    lives *inside* that well — below the fold: measured wholly off screen at
+    390×380 and at 667×375. `Grid.module.scss` records the same conflict for
+    the laptop well; **neither renderer has a floor, and neither may be given
+    one.**
+  New main-screen content goes in the scrolling region by default. Adding to
+  the dock costs vertical space on the screen that has least of it.
+  **The nested-scroller exception stands** (ADR 0030, as amended by ticket 23):
+  the grid well and the phone song bar each hold one, because each carries a
+  play button the region would otherwise scroll away. The well's is inside the
+  card; the phone song bar's lane strip is the only nested scroller left on the
+  frame. Neither box may ever be `flex: 1` — they may shrink, they must never
+  stretch the grid on a tall window. The phone song bar does not shrink at all
+  below its cap: what holds it is the *absence* of `min-height: 0` on it, which
+  leaves it the content-based automatic minimum. Do not add one, and note
+  `flex-shrink: 0` was tried there and measured to change nothing. The laptop
+  lane grid scrolling vertically is not a third nested scroller: it is ticket
+  25's existing `overflow-x` box gaining a second axis. Anything genuinely new
+  still needs another ADR.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids.

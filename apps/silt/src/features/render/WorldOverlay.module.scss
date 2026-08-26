@@ -8,6 +8,7 @@ $destructive: #e2542a;
   position: absolute;
   border: 1px solid $paper;
   outline: 1px solid $ink;
+  border-radius: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
