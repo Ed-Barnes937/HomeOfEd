@@ -152,13 +152,13 @@ describe('createSproutAuth over the injected client', () => {
 
     it('rejects a signup carrying no invite code', async () => {
       const res = await signUpWith('no-code@example.com')
-      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(res.status).toBe(403)
       await expectNoRow('no-code@example.com')
     })
 
     it('rejects a signup carrying the wrong invite code', async () => {
       const res = await signUpWith('wrong-code@example.com', { inviteCode: 'guess' })
-      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(res.status).toBe(403)
       await expectNoRow('wrong-code@example.com')
     })
 
@@ -167,6 +167,22 @@ describe('createSproutAuth over the injected client', () => {
       expect(res.status).toBe(200)
       const rows = await db.select().from(userTable).where(eq(userTable.email, 'coded@example.com'))
       expect(rows).toHaveLength(1)
+    })
+
+    it('applies no gate when the option is unset — same handler path, no code', async () => {
+      const res = await auth.handler(
+        new Request('http://localhost:3004/api/auth/sign-up/email', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email: 'ungated@example.com',
+            password: 'correct-horse-battery',
+            name: 'Ungated',
+            ...attested,
+          }),
+        }),
+      )
+      expect(res.status).toBe(200)
     })
   })
 
