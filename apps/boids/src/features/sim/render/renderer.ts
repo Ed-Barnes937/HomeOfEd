@@ -1,5 +1,5 @@
 import type { SimParams } from '../engine/params.ts'
-import type { Simulation } from '../engine/simulation.ts'
+import { CURSOR_RADIUS, type Simulation } from '../engine/simulation.ts'
 import type { Theme } from '../themes.ts'
 import { generateStars } from './backdrop.ts'
 import { KeyedColourCache } from './spriteCache.ts'
@@ -9,6 +9,18 @@ export type BoidShape = 'triangle' | 'dot' | 'line' | 'rocket' | 'duck'
 /** Trail streak length in px — the reference's `6 + trail*46 + speed*3`. */
 export function streakLength(params: SimParams): number {
   return 6 + params.trail * 46 + params.speed * 3
+}
+
+// Beacon sign colours — semantic (attract/repel), not themed. Keep in sync
+// with the cursor field tints in pages/BoidsPage.module.scss.
+const BEACON_ATTRACT_RGB = '255,120,90'
+const BEACON_REPEL_RGB = '90,170,255'
+/** Beacon glyph radius in CSS px. */
+const BEACON_GLYPH_RADIUS = 10
+
+/** Ring opacity scales with frozen strength (|s| ≤ 3): faint floor, subtle ceiling. */
+export function beaconRingAlpha(strength: number): number {
+  return 0.05 + 0.15 * Math.min(1, Math.abs(strength) / 3)
 }
 
 function rgba(hex: string, alpha: number): string {
@@ -161,6 +173,8 @@ export class CanvasRenderer {
   private readonly glowSprites = new KeyedColourCache<GlowSprite>()
   private readonly trailGradients = new KeyedColourCache<CanvasGradient>()
   private starfield: { key: string; canvas: HTMLCanvasElement } | null = null
+  /** Beacon glyph gradients, one per sign, built lazily at the origin. */
+  private beaconGlow: { attract?: CanvasGradient; repel?: CanvasGradient } = {}
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d')
@@ -184,6 +198,7 @@ export class CanvasRenderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, this.width, this.height)
     this.paintBackground(theme)
+    this.drawBeacons(sim)
 
     const stroke = theme.drawMode === 'stroke'
     const palette = theme.palette
@@ -238,6 +253,47 @@ export class CanvasRenderer {
       }
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+
+  /**
+   * Dropped beacons, under the flock: a faint ring at CURSOR_RADIUS (the exact
+   * physics range) plus a small glowing glyph, both tinted by force sign. The
+   * two glyph gradients are cached per sign; each beacon reuses them via its
+   * own setTransform. Runs right after paintBackground so boids draw on top.
+   */
+  private drawBeacons(sim: Simulation): void {
+    const ctx = this.ctx
+    const dpr = this.dpr
+    for (const beacon of sim.beacons) {
+      const attract = beacon.strength > 0
+      const rgb = attract ? BEACON_ATTRACT_RGB : BEACON_REPEL_RGB
+      ctx.setTransform(dpr, 0, 0, dpr, dpr * beacon.x, dpr * beacon.y)
+
+      ctx.strokeStyle = `rgba(${rgb},${beaconRingAlpha(beacon.strength)})`
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(0, 0, CURSOR_RADIUS, 0, Math.PI * 2)
+      ctx.stroke()
+
+      ctx.fillStyle = this.beaconGlyphGradient(attract)
+      ctx.beginPath()
+      ctx.arc(0, 0, BEACON_GLYPH_RADIUS, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+
+  private beaconGlyphGradient(attract: boolean): CanvasGradient {
+    const key = attract ? 'attract' : 'repel'
+    const cached = this.beaconGlow[key]
+    if (cached) return cached
+    const rgb = attract ? BEACON_ATTRACT_RGB : BEACON_REPEL_RGB
+    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, BEACON_GLYPH_RADIUS)
+    gradient.addColorStop(0, `rgba(${rgb},0.9)`)
+    gradient.addColorStop(0.4, `rgba(${rgb},0.45)`)
+    gradient.addColorStop(1, `rgba(${rgb},0)`)
+    this.beaconGlow[key] = gradient
+    return gradient
   }
 
   /**

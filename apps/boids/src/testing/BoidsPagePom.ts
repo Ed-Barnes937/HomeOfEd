@@ -179,6 +179,36 @@ export class BoidsPagePom extends BasePage {
     await this.canvas.dispatchEvent('pointerleave', { bubbles: true })
   }
 
+  /** A tap: pointerdown + pointerup at the same coords (within the tap slop). */
+  async clickCanvas(clientX: number, clientY: number): Promise<void> {
+    await this.canvas.dispatchEvent('pointerdown', { clientX, clientY, bubbles: true })
+    await this.canvas.dispatchEvent('pointerup', { clientX, clientY, bubbles: true })
+  }
+
+  /** A steering drag: down, move, up well beyond the tap slop. */
+  async dragAcrossCanvas(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+  ): Promise<void> {
+    await this.canvas.dispatchEvent('pointerdown', {
+      clientX: from.x,
+      clientY: from.y,
+      bubbles: true,
+    })
+    await this.canvas.dispatchEvent('pointermove', { clientX: to.x, clientY: to.y, bubbles: true })
+    await this.canvas.dispatchEvent('pointerup', { clientX: to.x, clientY: to.y, bubbles: true })
+  }
+
+  async verifyBeaconCount(expected: number): Promise<void> {
+    await expect.poll(async () => (await this.getBeacons()).length).toBe(expected)
+  }
+
+  async verifyBeaconStrengths(expected: number[]): Promise<void> {
+    await expect
+      .poll(async () => (await this.getBeacons()).map((b) => b.strength))
+      .toEqual(expected)
+  }
+
   /** The overlay is opacity-hidden (which Playwright still counts as visible),
    * so assert the data-active flag the pointer handler toggles. */
   async verifyOverlayActive(active: boolean): Promise<void> {
@@ -226,6 +256,13 @@ export class BoidsPagePom extends BasePage {
     return this.canvas.evaluate((el, key) => {
       const seam = (el as unknown as Record<string, BoidsTestSeam>)[key]
       return seam ? seam.getPositions() : []
+    }, TEST_SEAM_KEY)
+  }
+
+  private getBeacons(): Promise<{ x: number; y: number; strength: number }[]> {
+    return this.canvas.evaluate((el, key) => {
+      const seam = (el as unknown as Record<string, BoidsTestSeam>)[key]
+      return seam ? seam.getBeacons() : []
     }, TEST_SEAM_KEY)
   }
 }
