@@ -9,6 +9,13 @@ and parents start using the product under the legal assumptions we've made.
 **Gate owner:** _[NAME — TO BE CONFIRMED]_ (signs off that every blocker below is closed
 before launch).
 
+> **Supervised family pilot (2026-08-26).** Per
+> [ADR-0019](product-legal-adrs.md#adr-0019--supervised-family-pilot-precedes-counsel-sign-off-invite-code-closed-registration),
+> the owner's household is using the product ahead of this gate, behind an
+> invite-code-closed registration with every technical control live. Nothing below is
+> ticked by that pilot. Opening registration beyond the household is the release this
+> gate protects and requires every item below first.
+
 ---
 
 ## 🚫 Legal / compliance sign-off (counsel)

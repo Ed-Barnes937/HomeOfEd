@@ -2,7 +2,7 @@ import { test } from './testing/iwftTest.tsx'
 import { asParent } from './testing/users.ts'
 
 const seedFlags = async (db: { execute: (sql: string) => Promise<unknown> }): Promise<void> => {
-  await db.execute(`insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`)
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`)
   await db.execute(
     `insert into children (id, parent_id, display_name, username, password_hash, must_change_password, preset_name)
      values ('11111111-1111-4111-8111-111111111111', 'p1', 'Ben', 'ben1234', 'test:ben1234', false, 'early-learner'),
@@ -21,8 +21,18 @@ test('flags list shows every owned flag and mark-as-reviewed sticks', async ({ m
   await root.goto('/parent/flags')
 
   await root.verifyFlagCount(3)
+  await root.verifyFlagTopics(['space', 'animals', 'numbers'])
   await root.markFirstFlagReviewed()
   await root.verifyReviewedCount(1)
+})
+
+test('the dashboard "View flags" link reaches the flag log', async ({ mountApp }) => {
+  const { root } = await mountApp({ user: asParent('p1'), seed: seedFlags })
+  await root.goto('/parent/dashboard')
+
+  await root.verifyDashboardShown()
+  await root.clickLink('View flags')
+  await root.verifyFlagCount(3)
 })
 
 test('filtering by child narrows the list client-side', async ({ mountApp }) => {
@@ -39,7 +49,7 @@ test('empty state when the parent has no flags', async ({ mountApp }) => {
     user: asParent('p1'),
     seed: async (db) => {
       await db.execute(
-        `insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`,
+        `insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`,
       )
     },
   })

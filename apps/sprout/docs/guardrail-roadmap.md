@@ -102,18 +102,22 @@ Status key: ✅ shipped · ⚠️ partial / confirm · ⬜ outstanding
 
 ### Tier P2 — control into real control
 
-- ⚠️ **6.5.9 Safe-by-default + honest disclosure + parent visibility**
+- ✅ **6.5.9 Safe-by-default + honest disclosure + parent visibility**
   - Preset plumbing and flag persistence exist (`loadChildConfig.ts`, onboarding, flags).
   - **Safe-by-default: confirmed** (ADR-0016 in [`product-legal-adrs.md`](product-legal-adrs.md)) —
     the strictest preset (`early-learner`, verified per-slider) is the tested fallback at the
     read seam (`loadChildConfig`), onboarding pre-selects it, and `presetName` stays required
     at creation by design.
-  - **Honest disclosure: decided** (ADR-0017 in [`product-legal-adrs.md`](product-legal-adrs.md)) —
+  - **Honest disclosure: built** (ADR-0017 in [`product-legal-adrs.md`](product-legal-adrs.md)) —
     first-run statement card + persistent line above the chat input, per-preset wording
-    incl. the parent-visibility sentence, plus a positive identity instruction in the
-    pipeline system prompt. Verified absent from the tree; build handed to `/tdd`.
-  - **Still to confirm:** the disclosure build lands, and the parent-visible flag log is
-    present (not verified during the port).
+    incl. the parent-visibility sentence (whole-frontend-tested for the strictest and
+    least-strict registers), plus the positive identity instruction in the pipeline
+    system prompt.
+  - **Parent visibility: confirmed** (launch-clearance ticket 09) — `/parent/flags` is
+    linked from the dashboard, parent-scoped at the handler (cross-parent flags never
+    leak, the `childId` input is ignored), and the SSE write path and the read path
+    agree on shape. Whole-frontend-tested: topics render as badges (never raw JSON)
+    and the dashboard "View flags" link reaches the flag log (`parent-flags.iwft.tsx`).
 
 - ✅ **6.5.10 Hash PINs / child password** — auth is app-owned (ADR-0012); scrypt hashing carried from the source repo.
   - **Confirm:** re-verify the hashing path survived the auth rebuild in sprout.

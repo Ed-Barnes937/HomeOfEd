@@ -762,3 +762,47 @@ this ADR — no `/tdd` handoff; env values have no unit-testable seam of their o
 `numEnv` fallback behaviour is already covered). The roadmap's 6.5.6 confirm-bullet cites
 this ADR: thresholds are now *chosen*, with tuning scheduled against week-one traffic
 rather than left open. Counsel-flagged: the item-2 retention extension.
+
+---
+
+## ADR-0019 — Supervised family pilot precedes counsel sign-off; invite-code-closed registration
+
+- **Status:** Accepted *(a deliberate, owner-accepted deferral of the launch-readiness
+  legal gate — recorded, not self-certified; the gate itself is unchanged)*
+- **Date:** 2026-08-26
+
+**Context.** Every launch-clearance build (tickets 12–17) has landed, but the
+[launch-readiness gate](launch-readiness.md) blocks release to real users on counsel
+sign-off (ADR-0007 scope review, the parents-view-conversations edge, the written-content
+position, real ToS/Privacy text) and on the safeguarding runbook's named-people
+placeholders. Counsel review has no start date. The product owner wants their own
+children using the product under their direct supervision now, and will commission the
+counsel review once the product is stable.
+
+**Decision.** Run a **supervised family pilot** before the legal gate closes, under these
+conditions:
+
+1. **The cohort is the owner's household only.** Registration is closed behind a
+   server-checked invite code (`REGISTRATION_INVITE_CODE`, checked in a Better Auth
+   API-level sign-up hook, never persisted). The env var is **required in production**
+   for the pilot's duration — a missing value crashes boot rather than silently opening
+   registration. The invite code is not published anywhere.
+2. **Every launched control stays live**: the UK geo boundary (ADR-0011–0013), residence
+   attestation + ToS consent (ADR-0014/0015), safe-by-default presets (ADR-0016), honest
+   disclosure (ADR-0017), behavioural limits (ADR-0018), and the full guardrail pipeline.
+3. **The owner acts as de facto safeguarding lead** for the pilot: they are the only
+   parent, supervise use directly, and review the flag log. The runbook's DSL/deputy/
+   counsel placeholders remain open items for public launch — the pilot does not fill
+   them.
+4. **The launch-readiness gate is deferred, not ticked.** No counsel checkbox is marked;
+   the gate document gains a note recording this ADR as the authority for the pilot.
+   Opening registration to anyone outside the household — publishing the invite code,
+   adding families, removing the env requirement — **is the release the gate protects**
+   and re-blocks on the full gate.
+
+**Consequences.** The owner knowingly accepts the legal risk of operating pre-sign-off
+for their own family; the risk surface is the smallest available (one household, direct
+supervision, all technical controls live). The go-live runbook gains
+`REGISTRATION_INVITE_CODE` as a required secret. Public launch later requires: counsel
+sign-off per the gate, named safeguarding people, counsel-drafted ToS/Privacy text, and a
+deliberate decision to relax or remove the invite gate (its own ADR). Not legal advice.

@@ -7,7 +7,7 @@ const CHILD_ID = '11111111-1111-4111-8111-111111111111'
 // access to module scope — so the child UUID is inlined literally, not closed
 // over. The goto() below (Node side) may use the CHILD_ID constant.
 const seedChild = async (db: { execute: (sql: string) => Promise<unknown> }): Promise<void> => {
-  await db.execute(`insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com')`)
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`)
   await db.execute(
     `insert into children (id, parent_id, display_name, username, password_hash, must_change_password, preset_name)
      values ('11111111-1111-4111-8111-111111111111', 'p1', 'Ben', 'ben1234', 'test:ben1234', false, 'confident-reader')`,
@@ -40,7 +40,7 @@ test('a parent cannot open a child they do not own', async ({ mountApp }) => {
     user: asParent('intruder'),
     seed: async (db) => {
       await db.execute(
-        `insert into "user" (id, name, email) values ('p1', 'Alice', 'alice@test.com'), ('intruder', 'Mallory', 'm@test.com')`,
+        `insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now()), ('intruder', 'Mallory', 'm@test.com', now(), now())`,
       )
       await db.execute(
         `insert into children (id, parent_id, display_name, username, password_hash, must_change_password, preset_name)

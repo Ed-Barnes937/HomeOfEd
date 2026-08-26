@@ -136,10 +136,12 @@ export function SettingsPage() {
             <CardTitle>Legal</CardTitle>
           </CardHeader>
           <CardContent className={styles.contentStack2}>
-            <a href="#" className={styles.legalLink} aria-label="Privacy Policy">
+            {/* Plain full-page navigations — the documents are static pages
+                served outside the SPA (ADR-0015), so no router Link. */}
+            <a href="/privacy" className={styles.legalLink} aria-label="Privacy Policy">
               Privacy Policy
             </a>
-            <a href="#" className={styles.legalLink} aria-label="Terms of Service">
+            <a href="/terms" className={styles.legalLink} aria-label="Terms of Service">
               Terms of Service
             </a>
           </CardContent>

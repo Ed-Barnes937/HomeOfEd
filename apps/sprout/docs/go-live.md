@@ -67,8 +67,9 @@ Do **not** run `fly postgres attach hoe-pg` for this app.
 ### 3. Secrets
 
 `main.ts` and `worker.ts` refuse to boot in prod without `CHILD_SESSION_SECRET`
-and `PIPELINE_API_KEY`; the pipeline refuses to boot without `OPENROUTER_API_KEY`
-and `PIPELINE_API_KEY`. `PIPELINE_API_KEY` must be the **same value** on both apps
+and `PIPELINE_API_KEY`; `main.ts` also requires `REGISTRATION_INVITE_CODE` (the
+ADR-0019 family-pilot gate); the pipeline refuses to boot without
+`OPENROUTER_API_KEY` and `PIPELINE_API_KEY`. `PIPELINE_API_KEY` must be the **same value** on both apps
 (the caller sends it as `x-pipeline-key`).
 
 ```bash
@@ -76,7 +77,8 @@ fly secrets set --app hoe-sprout \
   BETTER_AUTH_SECRET='…' \
   BETTER_AUTH_URL='https://sprout.homeofed.com' \
   CHILD_SESSION_SECRET='…' \
-  PIPELINE_API_KEY='…shared…'
+  PIPELINE_API_KEY='…shared…' \
+  REGISTRATION_INVITE_CODE='…family-pilot invite code (ADR-0019) — required in prod…'
 # (DATABASE_URL already set in step 2.)
 
 fly secrets set --app hoe-sprout-pipeline \

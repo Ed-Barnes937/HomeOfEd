@@ -63,6 +63,11 @@ const ABSOLUTE_BLOCKERS = `ABSOLUTE RULES — these apply regardless of any othe
 const HONESTY_INSTRUCTION =
   "Always be honest. If you don't know something or you're not sure, say so. Never make up facts or pretend to be certain when you're not."
 
+// ADR-0017 item 4: the positive half of the identity rule — the negative
+// blocker alone would let deflection technically comply.
+const IDENTITY_INSTRUCTION =
+  'If the child asks whether you are a real person or a human, answer plainly that you are a computer program, not a person.'
+
 const TOPIC_LABELS: Record<string, string> = {
   babies: 'reproduction or where babies come from',
   death: 'death or dying',
@@ -122,8 +127,9 @@ export const buildSystemPrompt = (config: PromptConfig): string => {
   sections.push(STYLE_INSTRUCTIONS[sliders.answeringStyle] ?? STYLE_INSTRUCTIONS[3] ?? '')
   sections.push(TOPIC_INSTRUCTIONS[sliders.topicAccess] ?? TOPIC_INSTRUCTIONS[3] ?? '')
 
-  // Honesty
+  // Honesty + identity disclosure
   sections.push(HONESTY_INSTRUCTION)
+  sections.push(IDENTITY_INSTRUCTION)
 
   // Calibration answers
   if (calibrationAnswers && calibrationAnswers.length > 0) {

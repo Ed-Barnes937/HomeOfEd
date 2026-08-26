@@ -5,6 +5,7 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 
 import { ChatInput } from '../components/chat/ChatInput.tsx'
 import { ChatTranscript } from '../components/chat/ChatTranscript.tsx'
+import { DisclosureLine } from '../components/chat/Disclosure.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { useChat } from '../features/chat/useChat.ts'
 import styles from './ChatContinuePage.module.scss'
@@ -21,6 +22,7 @@ export function ChatContinuePage() {
     streaming,
     loading,
     summary,
+    presetName,
     reportedMessages,
     isAtLimit,
     isNearLimit,
@@ -93,6 +95,7 @@ export function ChatContinuePage() {
         messagesEndRef={messagesEndRef}
       />
 
+      <DisclosureLine preset={presetName} />
       <ChatInput
         value={input}
         onChange={setInput}

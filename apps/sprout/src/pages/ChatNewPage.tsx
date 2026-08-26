@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 
 import { ChatInput } from '../components/chat/ChatInput.tsx'
 import { ChatTranscript } from '../components/chat/ChatTranscript.tsx'
+import { DisclosureCard, DisclosureLine } from '../components/chat/Disclosure.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { useChat } from '../features/chat/useChat.ts'
 import {
@@ -29,6 +30,7 @@ export function ChatNewPage() {
     setInput,
     streaming,
     sliders,
+    presetName,
     reportedMessages,
     isAtLimit,
     isNearLimit,
@@ -126,11 +128,10 @@ export function ChatNewPage() {
         isNearLimit={isNearLimit}
         isAtLimit={isAtLimit}
         messagesEndRef={messagesEndRef}
-        emptyState={
-          <p className={styles.emptyText}>Ask me anything! I&apos;m here to help you learn.</p>
-        }
+        emptyState={<DisclosureCard preset={presetName} />}
       />
 
+      <DisclosureLine preset={presetName} />
       <ChatInput
         value={input}
         onChange={setInput}

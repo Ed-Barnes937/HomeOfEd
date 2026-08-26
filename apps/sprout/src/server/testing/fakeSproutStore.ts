@@ -93,6 +93,8 @@ export class FakeSproutStore implements SproutStore {
       createdAt: input.createdAt ?? this.now(),
       updatedAt: input.updatedAt ?? this.now(),
       subscriptionStatus: input.subscriptionStatus ?? 'trial',
+      ukResidenceAttestedAt: input.ukResidenceAttestedAt,
+      tosAgreedAt: input.tosAgreedAt,
     })
     return Promise.resolve(id)
   }
