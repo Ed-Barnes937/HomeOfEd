@@ -71,9 +71,13 @@ export class DoodlePagePom extends BasePage {
     )
   }
 
-  /** The intro definition splash shows on load and then unmounts. */
+  /**
+   * The intro definition splash shows on load and then unmounts. One atomic
+   * assertion (toContainText waits for the element too): the splash lives
+   * ~1.5s, and on a starved CI runner it can unmount in the gap between two
+   * separate awaits.
+   */
   async verifyIntroShown(): Promise<void> {
-    await expect(this.intro).toBeVisible()
     await expect(this.intro).toContainText('espy')
   }
 
