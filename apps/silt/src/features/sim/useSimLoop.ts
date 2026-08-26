@@ -13,6 +13,7 @@ import {
 } from '../../sim/index.ts'
 import { SimRenderer } from '../render/renderer.ts'
 import { brushOffsets } from './brushOffsets.ts'
+import { strokeSteps } from './strokeSteps.ts'
 import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
 import { emitSpawners, isUnderBrush, type Spawner } from '../spawners/spawners.ts'
 
@@ -186,9 +187,10 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     }
 
     let painting = false
-    const paintAt = (clientX: number, clientY: number): void => {
-      const cell = cellAt(clientX, clientY)
-      if (!cell) return
+    // The last cell the current stroke stamped — what `paintAt` interpolates
+    // from, so a fast drag reads as a line, not a dot per pointer sample.
+    let lastPaintCell: { x: number; y: number } | null = null
+    const stampAt = (cell: { x: number; y: number }): void => {
       for (const { dx, dy } of brushOffsets(brushRef.current)) {
         const x = cell.x + dx
         const y = cell.y + dy
@@ -199,6 +201,17 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       // world even though it isn't a cell — leaving it behind would refill the
       // hole the stroke just made.
       if (selectedRef.current === EMPTY) eraseSpawnersUnder(cell)
+    }
+    const paintAt = (clientX: number, clientY: number): void => {
+      const cell = cellAt(clientX, clientY)
+      if (!cell) return
+      const from = lastPaintCell
+      lastPaintCell = cell
+      if (from) {
+        for (const step of strokeSteps(from, cell, brushRef.current)) stampAt(step)
+      } else {
+        stampAt(cell)
+      }
       onPaintRef.current?.()
     }
 
@@ -235,6 +248,8 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
         return
       }
       painting = true
+      // A fresh press starts a fresh stroke — never a line from the last one.
+      lastPaintCell = null
       paintAt(event.clientX, event.clientY)
     }
     const onPointerMove = (event: PointerEvent): void => {
@@ -254,6 +269,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     }
     const stopPainting = (): void => {
       painting = false
+      lastPaintCell = null
     }
     const onPointerLeave = (): void => {
       stopPainting()
