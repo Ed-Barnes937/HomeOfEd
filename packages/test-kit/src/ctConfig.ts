@@ -11,6 +11,13 @@ import react from '@vitejs/plugin-react'
 export function defineIwftConfig(opts: {
   /** Unique per app — CT dev-server port. */
   ctPort: number
+  /**
+   * Serve the CT pages with COOP/COEP so the browser is cross-origin
+   * isolated — for apps whose production server sends those headers (they
+   * unlock SharedArrayBuffer, e.g. silt's sim worker). The tests then
+   * exercise the same mode the deployed app runs in.
+   */
+  crossOriginIsolated?: boolean
   overrides?: PlaywrightTestConfig
 }) {
   return defineConfig({
@@ -32,6 +39,16 @@ export function defineIwftConfig(opts: {
         optimizeDeps: {
           exclude: ['@electric-sql/pglite'],
         },
+        ...(opts.crossOriginIsolated
+          ? {
+              server: {
+                headers: {
+                  'Cross-Origin-Opener-Policy': 'same-origin',
+                  'Cross-Origin-Embedder-Policy': 'require-corp',
+                },
+              },
+            }
+          : {}),
       },
     },
     projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

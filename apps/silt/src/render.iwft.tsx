@@ -67,6 +67,39 @@ test('the app still renders and paints when webgl2 is unavailable', async ({ mou
   await root.verifyCellIs(150, FLOOR - 9, SAND)
 })
 
+test('the sim ticks in a worker when the page is cross-origin isolated', async ({
+  mountApp,
+  page,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // The CT server sends COOP/COEP (playwright-ct.config.ts), the same pair
+  // production sends — so this asserts the mode users actually get.
+  expect(await page.evaluate(() => crossOriginIsolated)).toBe(true)
+  expect(await root.simHostKind()).toBe('worker')
+})
+
+test('the sim still runs, on the main thread, when workers are unavailable', async ({
+  mountApp,
+  page,
+}) => {
+  // Knock out Worker before the app mounts — host selection happens once,
+  // when the canvas mounts.
+  await page.evaluate(() => {
+    Object.defineProperty(window, 'Worker', { value: undefined, configurable: true })
+  })
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  expect(await root.simHostKind()).toBe('local')
+
+  // The fallback is a live sim, not just a mounted canvas.
+  await root.paintCell(150, FLOOR - 9)
+  await root.verifyCellIs(150, FLOOR - 9, SAND)
+})
+
 test('a fast drag paints a continuous stroke, not a dot per pointer sample', async ({
   mountApp,
 }) => {

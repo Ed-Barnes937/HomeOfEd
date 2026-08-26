@@ -15,6 +15,13 @@ export interface SimOptions {
   seed?: number
   elements?: readonly ElementDef[]
   reactions?: readonly ReactionRow[]
+  /**
+   * The cell storage to run over — a `SharedArrayBuffer` here is how the
+   * worker integration lets the render thread read the world live (120fps
+   * ticket 02). Must be exactly the cell-plane size; omitted, the grid
+   * allocates its own.
+   */
+  buffer?: ArrayBufferLike
 }
 
 /**
@@ -55,7 +62,7 @@ export class Sim {
   constructor(options: SimOptions = {}) {
     const { seed = 1, elements = v1Elements, reactions = v1Reactions } = options
     this.registry = createRegistry(elements, reactions)
-    this.#grid = new Grid(GRID_WIDTH, GRID_HEIGHT)
+    this.#grid = new Grid(GRID_WIDTH, GRID_HEIGHT, options.buffer)
     this.#seed = seed
     this.#rng = new Rng(seed)
     this.#moves = new DeferredMoves()
@@ -78,8 +85,8 @@ export class Sim {
     return this.#revision
   }
 
-  /** The single transferable buffer holding the whole world. */
-  get buffer(): ArrayBuffer {
+  /** The single buffer holding the whole world — transferable or shared. */
+  get buffer(): ArrayBufferLike {
     return this.#grid.buffer
   }
 

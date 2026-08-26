@@ -1,9 +1,33 @@
 # 02 — Move the sim into a worker
 
-**Status:** needs-triage
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 01
+
+## Answer
+
+Landed 2026-08-26 on `silt-120fps` — see
+[ADR 0036](../../../docs/adr/0036-silt-sim-in-a-worker.md) for the design.
+
+- **The fork:** SharedArrayBuffer, chosen by the repo owner. The header audit
+  came back clean (silt loads no cross-origin assets), and COOP/COEP turned
+  out to be app code — Fastify's `registerRoutes` hook, Vite `server.headers`,
+  and a `defineIwftConfig` option — not a Fly/Cloudflare change, so nothing
+  was human-gated after all.
+- **The measurement precondition:** waived by the repo owner (2026-08-26),
+  after the perf-epic PRs merged to main (#109) and were brought into this
+  branch with ticket 01 — the combined build exists, but the worker is wanted
+  for the 120 Hz goal regardless of where the Air's ceiling sits. The bench
+  (`pnpm --filter silt run bench`) can put a number on the Air any time.
+- **What shipped:** `SimWorkerCore` (all behaviour, vitest-covered) behind
+  the `SimHost` seam — `WorkerSimHost` over shared memory when the page is
+  cross-origin isolated, `LocalSimHost` as the live main-thread fallback.
+  Batched per-event painting, spawner emission inside the worker loop
+  (spec §7 order intact), the test seam synchronous over the shared bytes,
+  scenes encode main-side / restore by message. Every `.iwft` suite now runs
+  through the worker (CT serves the isolation headers), plus dedicated
+  worker-mode and fallback tests.
 
 Move the tick off the main thread. A heavy world then degrades the
 *simulation* rate while the page holds the display's refresh rate — the tick

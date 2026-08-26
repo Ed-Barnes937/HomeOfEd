@@ -30,14 +30,24 @@ if (!Number.isInteger(CELL_SHIFT)) {
 export class Grid {
   readonly width: number
   readonly height: number
-  readonly buffer: ArrayBuffer
+  readonly buffer: ArrayBufferLike
   readonly cells: Uint8Array
   readonly chunks: ChunkMap
 
-  constructor(width: number, height: number) {
+  /**
+   * A caller may provide the buffer — that is how the worker integration puts
+   * the world in a `SharedArrayBuffer` the render thread reads live (120fps
+   * ticket 02). The grid neither knows nor cares whether it is shared; it must
+   * only be the exact cell-plane size.
+   */
+  constructor(width: number, height: number, buffer?: ArrayBufferLike) {
     this.width = width
     this.height = height
-    this.buffer = new ArrayBuffer(width * height * BYTES_PER_CELL)
+    const byteLength = width * height * BYTES_PER_CELL
+    if (buffer && buffer.byteLength !== byteLength) {
+      throw new Error(`grid buffer must be ${byteLength} bytes, got ${buffer.byteLength}`)
+    }
+    this.buffer = buffer ?? new ArrayBuffer(byteLength)
     this.cells = new Uint8Array(this.buffer)
     this.chunks = new ChunkMap(width, height)
   }

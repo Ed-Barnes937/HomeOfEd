@@ -343,6 +343,17 @@ export class SiltPagePom extends BasePage {
     )
   }
 
+  /** Which thread the mounted app's sim ticks on. */
+  async simHostKind(): Promise<string> {
+    return this.canvas.evaluate(
+      (el, key) => {
+        const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
+        return seam.simHostKind()
+      },
+      TEST_SEAM_KEY,
+    )
+  }
+
   async countSpecies(species: number): Promise<number> {
     return this.canvas.evaluate(
       (el, { species, key }) => {

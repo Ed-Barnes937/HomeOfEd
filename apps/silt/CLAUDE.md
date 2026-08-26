@@ -14,9 +14,9 @@ starter's `greeting` procedure, kept only as the layered-DI seam later server
 features would slot into:
 
 ```
-HomePage → useSimLoop → Sim + Renderer      (the app)
-         → useScenes  → SceneStore          (localStorage)
-router → GreetingHandler → ctx.auth         (the seam, no frontend caller)
+HomePage → useSimLoop → SimHost + Renderer  (the app; the sim ticks in a
+         → useScenes  → SceneStore           worker over shared memory —
+router → GreetingHandler → ctx.auth          ADR 0036; scenes: localStorage)
 ```
 
 ## Layout
@@ -29,6 +29,8 @@ src/
     router.ts       tRPC router; createTRPC<void>() (no Store); exports AppRouter
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
     main.ts         prod entrypoint: createAppServer + shallow /health
+    headers.ts      COOP/COEP on every response — cross-origin isolation for
+                    the sim worker (ADR 0036); dev and CT serve the same pair
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
   pages/            HomePage — the rail, header, status bar, selection state
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
@@ -38,7 +40,12 @@ src/
                               the Canvas 2D fallback and createRenderer picking
                               between them, WorldOverlay — the chrome drawn
                               over the canvas)
-                    sim/     (useSimLoop — the RAF loop, pointer painting, DPR fit)
+                    sim/     (useSimLoop — the render loop, pointer painting,
+                              DPR fit; simHost — worker vs main-thread hosting
+                              behind one seam; simWorkerCore — the ticking
+                              brain, vitest-covered; simWorker — the entry
+                              glue; simProtocol — messages + shared buffers.
+                              ADR 0036)
                     spawners/(continuous emitters — entities, not cells)
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +
                               quota; useScenes: page state; the popover)
@@ -46,8 +53,8 @@ src/
   *.iwft.tsx        whole-frontend tests: render (paint/canvas), blit (WebGL↔2D
                     pixel parity + the env-gated blit bench), chrome, scenes,
                     spawners, mobile
-vite.config.ts      react + simulatorPlugin (dev simulator mode)
-playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109 })
+vite.config.ts      react + simulatorPlugin (dev simulator mode) + COOP/COEP
+playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109, crossOriginIsolated: true })
 ```
 
 No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or

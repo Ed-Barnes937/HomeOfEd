@@ -126,6 +126,28 @@ describe('grid storage', () => {
 
     expect(() => sim.paint(0, 0, 99)).toThrow(/unknown species/i)
   })
+
+  it('runs over a caller-provided SharedArrayBuffer, identically to its own', () => {
+    const shared = new SharedArrayBuffer(GRID_WIDTH * GRID_HEIGHT * 4)
+    const a = new Sim({ seed: 0xc0ffee, buffer: shared })
+    const b = new Sim({ seed: 0xc0ffee })
+    for (const sim of [a, b]) {
+      withDirtFloor(sim)
+      for (let x = 40; x < 60; x++) sim.paint(x, 0, SAND)
+    }
+
+    for (let i = 0; i < 30; i++) {
+      a.tick()
+      b.tick()
+    }
+
+    expect(a.buffer).toBe(shared)
+    expect(Array.from(a.cells)).toEqual(Array.from(b.cells))
+  })
+
+  it('rejects a provided buffer of the wrong size', () => {
+    expect(() => new Sim({ buffer: new SharedArrayBuffer(8) })).toThrow(/byte/i)
+  })
 })
 
 describe('revision', () => {
