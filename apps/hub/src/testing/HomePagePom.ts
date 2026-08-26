@@ -64,6 +64,25 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByText('SOON')).toHaveCount(1)
   }
 
+  // The pills sit inside the card, so they are part of the link's accessible
+  // name — scope to the card first, then look for the exact pill text.
+  async verifyCardShowsNewPill(app: string): Promise<void> {
+    const card = this.page.getByRole('link', { name: app })
+    await expect(card.getByText('New', { exact: true })).toBeVisible()
+    await expect(card.getByText('Updated', { exact: true })).toHaveCount(0)
+  }
+
+  async verifyCardShowsUpdatedPill(app: string): Promise<void> {
+    const card = this.page.getByRole('link', { name: app })
+    await expect(card.getByText('Updated', { exact: true })).toBeVisible()
+    await expect(card.getByText('New', { exact: true })).toHaveCount(0)
+  }
+
+  async verifyNoCardShowsAPill(): Promise<void> {
+    await expect(this.page.getByText('New', { exact: true })).toHaveCount(0)
+    await expect(this.page.getByText('Updated', { exact: true })).toHaveCount(0)
+  }
+
   // Each app is a gallery card with a live <canvas> preview — one per app.
   async verifyPreviewsRender(): Promise<void> {
     await expect(this.page.locator('canvas')).toHaveCount(8)
