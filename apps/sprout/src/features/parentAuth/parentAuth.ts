@@ -33,6 +33,8 @@ export const parentAuth = {
     password: string
     ukResidenceAttested: boolean
     tosAgreed: boolean
+    // ADR-0019 family pilot: checked server-side, never persisted.
+    inviteCode: string
   }): Promise<{ error: AuthError | null }> => {
     const { ukResidenceAttested, tosAgreed, ...rest } = data
     // The claims ride in the payload as the two additionalFields (ADR-0014 /

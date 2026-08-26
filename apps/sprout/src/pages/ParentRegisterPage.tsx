@@ -18,6 +18,7 @@ export function ParentRegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [ukResidenceAttested, setUkResidenceAttested] = useState(false)
   const [tosAgreed, setTosAgreed] = useState(false)
   const [error, setError] = useState('')
@@ -44,6 +45,7 @@ export function ParentRegisterPage() {
         name,
         ukResidenceAttested,
         tosAgreed,
+        inviteCode,
       })
       if (signUpError) {
         setError(signUpError.message)
@@ -106,6 +108,19 @@ export function ParentRegisterPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* ADR-0019 family pilot: the field is UX; the server-side
+                sign-up hook is the control. */}
+            <div className={styles.field}>
+              <Label htmlFor="inviteCode">Invite code</Label>
+              <Input
+                id="inviteCode"
+                type="text"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
                 required
               />
             </div>

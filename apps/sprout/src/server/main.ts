@@ -55,9 +55,17 @@ const pipelineOpts = {
 }
 const pipeline = createHttpPipelineClient(pipelineOpts)
 
+// Family-pilot invite gate (ADR-0019): registration is closed to holders of
+// the invite code while counsel sign-off is deferred. Required in prod so the
+// pilot cannot silently open; remove this guard at public launch.
+const registrationInviteCode = process.env.REGISTRATION_INVITE_CODE
+if (!registrationInviteCode && process.env.NODE_ENV === 'production') {
+  throw new Error('REGISTRATION_INVITE_CODE is required in production (ADR-0019 family pilot)')
+}
+
 // Better Auth instance over the shared client — its handler is mounted at
 // /api/auth/* below, and its session lookup backs parent resolution.
-const auth = createSproutAuth(db)
+const auth = createSproutAuth(db, { inviteCode: registrationInviteCode })
 
 // The child AuthProvider reads the signed child-session cookie + verifies its
 // HMAC (plan §5.2, #34). Reused by both the tRPC auth seam and the SSE route.

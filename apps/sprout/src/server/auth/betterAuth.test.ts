@@ -114,6 +114,62 @@ describe('createSproutAuth over the injected client', () => {
     }
   })
 
+  // ADR-0019 (family pilot): with an invite code configured, the sign-up
+  // endpoint is the control — the form field is UX only. Unset (all the tests
+  // above) means open registration, unchanged.
+  describe('invite-code gate', () => {
+    let gated: SproutAuth
+
+    beforeAll(() => {
+      gated = createSproutAuth(db, {
+        secret: 'integration-test-secret',
+        inviteCode: 'pilot-code',
+      })
+    })
+
+    // Through the real HTTP handler (the prod path): the API-level before-hook
+    // rejects over the wire; a server-side `api.signUpEmail` call would see the
+    // middleware error as a throw instead of a Response.
+    const signUpWith = (email: string, extra: Record<string, unknown> = {}) =>
+      gated.handler(
+        new Request('http://localhost:3004/api/auth/sign-up/email', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password: 'correct-horse-battery',
+            name: 'Gated',
+            ...attested,
+            ...extra,
+          }),
+        }),
+      )
+
+    const expectNoRow = async (email: string) => {
+      const rows = await db.select().from(userTable).where(eq(userTable.email, email))
+      expect(rows).toHaveLength(0)
+    }
+
+    it('rejects a signup carrying no invite code', async () => {
+      const res = await signUpWith('no-code@example.com')
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      await expectNoRow('no-code@example.com')
+    })
+
+    it('rejects a signup carrying the wrong invite code', async () => {
+      const res = await signUpWith('wrong-code@example.com', { inviteCode: 'guess' })
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      await expectNoRow('wrong-code@example.com')
+    })
+
+    it('accepts a signup carrying the matching invite code', async () => {
+      const res = await signUpWith('coded@example.com', { inviteCode: 'pilot-code' })
+      expect(res.status).toBe(200)
+      const rows = await db.select().from(userTable).where(eq(userTable.email, 'coded@example.com'))
+      expect(rows).toHaveLength(1)
+    })
+  })
+
   it('rejects attempts to overwrite the stamps via update-user', async () => {
     const res = await auth.api.signUpEmail({
       body: {

@@ -125,6 +125,7 @@ test('registration submit is blocked until both legal checkboxes are ticked', as
   await root.fillByLabel('Email', 'alice@test.com')
   await root.fillByLabel('Password', 'correct-horse-battery')
   await root.fillByLabel('Confirm password', 'correct-horse-battery')
+  await root.fillByLabel('Invite code', 'family-pilot')
 
   await root.verifyButtonEnabled('Create account', false)
 

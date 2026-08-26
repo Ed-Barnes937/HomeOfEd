@@ -11,13 +11,19 @@
 import type { DbClient } from '@hoe/db'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { APIError } from 'better-auth/api'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
 
 import { account, session, user, verification, type SproutSchema } from '../schema.ts'
 
 export interface CreateSproutAuthOpts {
   baseURL?: string
   secret?: string
+  /**
+   * ADR-0019 (supervised family pilot): when set, sign-ups must carry a
+   * matching `inviteCode` in the payload. The code is checked here and never
+   * persisted. Unset (dev/simulator/tests) means open registration.
+   */
+  inviteCode?: string
 }
 
 /**
@@ -26,7 +32,27 @@ export interface CreateSproutAuthOpts {
  * its queries through it regardless of driver.
  */
 export function createSproutAuth(db: DbClient<SproutSchema>, opts: CreateSproutAuthOpts = {}) {
+  const inviteCode = opts.inviteCode
   return betterAuth({
+    // The invite gate runs at the API layer (not the user-record hook) so the
+    // code is read from the raw sign-up body and never touches the user row.
+    ...(inviteCode
+      ? {
+          hooks: {
+            before: createAuthMiddleware((ctx) => {
+              if (ctx.path === '/sign-up/email') {
+                const supplied = (ctx.body as { inviteCode?: unknown } | undefined)?.inviteCode
+                if (supplied !== inviteCode) {
+                  throw new APIError('FORBIDDEN', {
+                    message: 'A valid invite code is required to register.',
+                  })
+                }
+              }
+              return Promise.resolve()
+            }),
+          },
+        }
+      : {}),
     baseURL: opts.baseURL ?? process.env.BETTER_AUTH_URL ?? 'http://localhost:3004',
     secret: opts.secret ?? process.env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
