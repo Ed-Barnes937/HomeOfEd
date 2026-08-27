@@ -38,10 +38,11 @@ Values:
 3. **A private second app.** `hoe-sprout-pipeline` gets **no public IP, no
    Cloudflare CNAME, no Fly cert** — it stays on the private `.flycast` network.
    Flycast is not free, though: it needs a **private IPv6 allocated before the
-   first deploy** (step 1a) and the `[http_service]` block in its `fly.toml`
-   (the Fly Proxy routes flycast traffic by that service definition; privacy
-   comes from the app holding only the private IP). The Cloudflare step is
-   sprout-only.
+   first deploy** (step 1a) and the `[[services]]` block in its `fly.toml`
+   exposing port 8080 (the Fly Proxy routes flycast traffic by that service
+   definition, and the `[http_service]` shorthand can only expose 80/443;
+   privacy comes from the app holding only the private IP). The Cloudflare
+   step is sprout-only.
 4. **A worker process group.** `hoe-sprout` runs `web` + `worker` from one image;
    the worker's machine count is set out of band after the first deploy.
 
