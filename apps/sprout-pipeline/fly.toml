@@ -6,11 +6,12 @@
 #
 # PRIVATE-ONLY app: it is reached by hoe-sprout over Fly's private network
 # (hoe-sprout-pipeline.flycast:8080), never from the public internet, and gets
-# NO Cloudflare CNAME / cert (plan §3, §9.3, §10 — LLM keys live only here). It
-# therefore has NO `[http_service]` and NO `[[services]]` public binding: with
-# neither, Fly assigns no public IPs / edge hostname, and the app is only
-# resolvable on the org's 6PN private network via .flycast. Stateless (no
-# database), so there is NO [deploy] release_command.
+# NO Cloudflare CNAME / cert (plan §3, §9.3, §10 — LLM keys live only here).
+# Flycast = Fly Proxy over the private network, so it needs BOTH a PRIVATE
+# IPv6 allocation (`fly ips allocate-v6 --private`, go-live note 1 below) AND
+# the [http_service] block for the proxy to route to port 8080. Privacy comes
+# from the app holding ONLY that private IP — never allocate a public one.
+# Stateless (no database), so there is NO [deploy] release_command.
 app = 'hoe-sprout-pipeline'
 primary_region = 'lhr'
 
@@ -20,26 +21,39 @@ primary_region = 'lhr'
 [env]
   PORT = '8080'
 
-# Machine lifecycle without a public service: keep min 1 running so the private
-# .flycast endpoint is always reachable when the web app calls it. (No
-# auto_stop/auto_start — those are http_service concerns; this app has none.)
+# Routes flycast (private) traffic only — the app holds no public IP, so the
+# Fly Proxy never serves this from the public internet. A [[services]] block
+# rather than the [http_service] shorthand: the shorthand pins the proxy's
+# listen ports to 80/443, but every caller (main.ts's PIPELINE_URL default,
+# the docker stack, the docs) expects hoe-sprout-pipeline.flycast:8080, so
+# the proxy must listen on 8080. Plain http handler — flycast traffic never
+# leaves the 6PN. Machines never auto-stop, so the endpoint stays warm.
+[[services]]
+  protocol = 'tcp'
+  internal_port = 8080
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 8080
+    handlers = ['http']
+
 [[vm]]
   size = 'shared-cpu-1x'
   memory = '512mb'
-
-# NOTE: Fly's TCP-level health checks (`[[services.tcp_checks]]`) require a
-# `[[services]]` block, which would allocate a public binding. To stay strictly
-# private we rely on the platform's process liveness + the web app's own
-# fail-closed behaviour if the pipeline is unreachable (plan §12). The service
-# still exposes a shallow GET /health on 8080 for private-network probes
-# (`fly ssh` / an internal curl) — see src/index.ts.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HUMAN GO-LIVE NOTES (P11 — plan §9.3 / §10). An agent must NOT run these.
 #
 # 1. NO PUBLIC HOSTNAME. Do NOT run `scripts/go-live.sh`'s CNAME/cert flow for
-#    this app, and do NOT `fly ips allocate`. It must remain private (.flycast).
-#    The CNAME/cert flow applies ONLY to hoe-sprout.
+#    this app, and do NOT allocate any PUBLIC IP. It must remain private, which
+#    for .flycast means allocating the PRIVATE IPv6 — and doing it BEFORE the
+#    first deploy with [http_service], or `fly deploy` auto-allocates public
+#    IPs when it sees a service and no IPs at all:
+#        fly ips allocate-v6 --private --app hoe-sprout-pipeline
+#    Verify after deploy: `fly ips list --app hoe-sprout-pipeline` shows ONLY
+#    the private address. The CNAME/cert flow applies ONLY to hoe-sprout.
 #
 # 2. ORG-SCOPED DEPLOY TOKEN. Same as hoe-sprout: the app-scoped hoe-hub
 #    FLY_API_TOKEN cannot deploy this app — an ORG-scoped token is required.
