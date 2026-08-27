@@ -18,6 +18,10 @@ export interface ConversationSummaryDto {
   summary: string | null
   createdAt: string
   updatedAt: string
+  /** Set when the child soft-deleted the conversation. Only ever non-null in
+   * the parent's view (the child's list excludes deleted rows), so the
+   * dashboard can label it deleted-by-child. */
+  deletedAt: string | null
 }
 
 /** conversations.{messages,saveMessage}'s output. */

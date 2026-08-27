@@ -17,7 +17,7 @@ async function seedConversation(store: FakeSproutStore, parentId: string) {
 }
 
 describe('DeleteConversationHandler (source: child-initiated; kept open to the owning parent too)', () => {
-  it('deletes the conversation for its own child', async () => {
+  it('soft-deletes the conversation for its own child — the row survives with deletedAt set', async () => {
     const store = new FakeSproutStore()
     const { child, conversation } = await seedConversation(store, 'p1')
     const ctx = makeCtx({ store, user: childUser(child.id, 'p1') })
@@ -25,7 +25,33 @@ describe('DeleteConversationHandler (source: child-initiated; kept open to the o
     await expect(
       new DeleteConversationHandler().run({ conversationId: conversation.id }, ctx),
     ).resolves.toEqual({ success: true })
-    expect(await store.getConversation(conversation.id)).toBeNull()
+    const row = await store.getConversation(conversation.id)
+    expect(row?.deletedAt).toBeInstanceOf(Date)
+  })
+
+  // The safeguarding point of pilot issue 03: the old hard delete cascaded the
+  // conversation's messages AND safety flags away; a child's delete must not.
+  it('leaves the messages and flags of a child-deleted conversation untouched', async () => {
+    const store = new FakeSproutStore()
+    const { child, conversation } = await seedConversation(store, 'p1')
+    const message = await store.addMessage({
+      conversationId: conversation.id,
+      role: 'ai',
+      content: 'flagged answer',
+    })
+    await store.createFlag({
+      childId: child.id,
+      conversationId: conversation.id,
+      messageId: message.id,
+      type: 'sensitive',
+      reason: 'test',
+    })
+    const ctx = makeCtx({ store, user: childUser(child.id, 'p1') })
+
+    await new DeleteConversationHandler().run({ conversationId: conversation.id }, ctx)
+
+    await expect(store.listMessages(conversation.id)).resolves.toHaveLength(1)
+    await expect(store.listFlagsByChild(child.id)).resolves.toHaveLength(1)
   })
 
   it('also allows the owning parent to delete', async () => {
@@ -36,7 +62,19 @@ describe('DeleteConversationHandler (source: child-initiated; kept open to the o
     await expect(
       new DeleteConversationHandler().run({ conversationId: conversation.id }, ctx),
     ).resolves.toEqual({ success: true })
-    expect(await store.getConversation(conversation.id)).toBeNull()
+    const row = await store.getConversation(conversation.id)
+    expect(row?.deletedAt).toBeInstanceOf(Date)
+  })
+
+  it('404s the child re-deleting an already-deleted conversation (gone from their view)', async () => {
+    const store = new FakeSproutStore()
+    const { child, conversation } = await seedConversation(store, 'p1')
+    await store.softDeleteConversation(conversation.id)
+    const ctx = makeCtx({ store, user: childUser(child.id, 'p1') })
+
+    await expect(
+      new DeleteConversationHandler().run({ conversationId: conversation.id }, ctx),
+    ).rejects.toThrow(NotFoundError)
   })
 
   it("403s a different parent (cross-family IDOR)", async () => {

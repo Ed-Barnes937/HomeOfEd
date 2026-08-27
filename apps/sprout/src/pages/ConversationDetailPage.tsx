@@ -5,7 +5,10 @@ import { useMemo } from 'react'
 
 import { ReadOnlyTranscript } from '../components/dashboard/ReadOnlyTranscript.tsx'
 import { Button } from '../components/ui/button.tsx'
-import { conversationMessagesQueryOptions } from '../features/conversations/conversationsQueries.ts'
+import {
+  conversationMessagesQueryOptions,
+  conversationSummaryQueryOptions,
+} from '../features/conversations/conversationsQueries.ts'
 import { flagsQueryOptions } from '../features/flags/flagsQueries.ts'
 import { useRequireParent } from '../features/parentAuth/useRequireParent.ts'
 import styles from './ConversationDetailPage.module.scss'
@@ -19,6 +22,10 @@ export function ConversationDetailPage() {
   const { data: flags } = useQuery({ ...flagsQueryOptions, enabled: Boolean(session.data) })
   const { data: messages = [], isLoading: loadingMessages } = useQuery({
     ...conversationMessagesQueryOptions(conversationId),
+    enabled: Boolean(session.data),
+  })
+  const { data: conversationSummary } = useQuery({
+    ...conversationSummaryQueryOptions(conversationId),
     enabled: Boolean(session.data),
   })
 
@@ -60,6 +67,12 @@ export function ConversationDetailPage() {
           </Button>
         </Link>
       </div>
+
+      {conversationSummary?.deletedAt && (
+        <p className={styles.deletedBadge} data-testid="deleted-by-child">
+          Deleted by your child — kept here for your records.
+        </p>
+      )}
 
       <div className={styles.body}>
         {loadingMessages ? (

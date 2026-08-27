@@ -78,6 +78,22 @@ describe('SaveMessageHandler', () => {
     ).rejects.toThrow(NotFoundError)
   })
 
+  // Pilot issue 03: a soft-deleted conversation is gone from the child's view,
+  // so the chat continue flow cannot append to it.
+  it('404s a soft-deleted conversation', async () => {
+    const store = new FakeSproutStore()
+    const { child, conversation } = await seedConversation(store, 'p1')
+    await store.softDeleteConversation(conversation.id)
+    const ctx = makeCtx({ store, user: childUser(child.id, 'p1') })
+
+    await expect(
+      new SaveMessageHandler().run(
+        { conversationId: conversation.id, role: 'child', content: 'hi' },
+        ctx,
+      ),
+    ).rejects.toThrow(NotFoundError)
+  })
+
   it('401s an anonymous caller', async () => {
     const store = new FakeSproutStore()
     const { conversation } = await seedConversation(store, 'p1')

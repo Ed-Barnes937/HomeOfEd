@@ -36,6 +36,16 @@
   font-weight: 700;
 }
 
+.deletedBadge {
+  margin-top: 0.75rem;
+  width: fit-content;
+  border-radius: 0.375rem;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  padding: 0.25rem 0.625rem;
+}
+
 .body {
   margin-top: 1.5rem;
 }
