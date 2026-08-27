@@ -107,7 +107,10 @@ export const decidePinLock = (failCount: number, limits: BehaviouralLimits): Pin
 /** The slice of the Store the behavioural layer needs. */
 export type BehaviouralStore = Pick<
   SproutStore,
-  'recordBehaviouralEvent' | 'countBehaviouralEvents' | 'pruneBehaviouralEvents'
+  | 'recordBehaviouralEvent'
+  | 'countBehaviouralEvents'
+  | 'pruneBehaviouralEvents'
+  | 'deleteBehaviouralEvents'
 >
 
 export const recordEvent = async (
@@ -163,6 +166,15 @@ export const evaluateChatRequest = async (
   ])
 
   return decideChatThrottle({ messageCount, sessionProbeCount, deviceProbeCount }, limits)
+}
+
+// Drop a child's pin_fail signals (children.resetPin) — a lockout earned on the
+// forgotten PIN must not survive the parent's reset.
+export const clearPinFailures = async (
+  store: BehaviouralStore,
+  key: { childId: string },
+): Promise<void> => {
+  await store.deleteBehaviouralEvents({ kind: 'pin_fail', childId: key.childId })
 }
 
 // Read-only: is PIN entry for this child currently locked out?

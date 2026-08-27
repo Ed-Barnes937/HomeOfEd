@@ -33,6 +33,18 @@ test('parent adds an inspire-me topic', async ({ mountApp }) => {
   await root.expectText('Dinosaurs')
 })
 
+test('parent resets a child PIN behind a confirm step', async ({ mountApp }) => {
+  const { root } = await mountApp({ user: asParent('p1'), seed: seedChild })
+  await root.goto(`/parent/children/${CHILD_ID}`)
+
+  await root.expectText("Ben's Settings")
+  await root.clickButton('Reset PIN')
+  // The confirm step spells out the consequence before anything changes.
+  await root.expectText('resets their password to their username (ben1234)')
+  await root.clickButton('Confirm reset')
+  await root.expectText('PIN reset.')
+})
+
 test('a parent cannot open a child they do not own', async ({ mountApp }) => {
   // Authenticated as a different parent with no children → ownership check 403s,
   // so the child is never found and the page shows the not-found state.

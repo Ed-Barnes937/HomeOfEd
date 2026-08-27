@@ -7,10 +7,9 @@ import {
 } from '@hoe/backend-kit'
 import { z } from 'zod'
 
-import type { PresetName } from '@hoe/sprout-shared'
 import type { PasswordHasher } from '../../password.ts'
 import type { SproutStore } from '../../store.ts'
-import type { ChildAuthProfile } from './schemas.ts'
+import { toChildAuthProfile, type ChildAuthProfile } from './schemas.ts'
 
 // Minimum length for a child-chosen password. The only credential before this
 // point is the username (the temp default), so any real password is an
@@ -22,6 +21,9 @@ export const changePasswordInputSchema = z.object({
   newPassword: z.string(),
   password: z.string().optional(),
   pin: z.string().optional(),
+  /** A fresh child-chosen PIN, set in the same step — the recovery path after
+   * children.resetPin cleared the old one. */
+  newPin: z.string().optional(),
 })
 export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>
 
@@ -80,22 +82,23 @@ export class ChangePasswordHandler extends Handler<
     if (input.newPassword === child.username) {
       throw new ValidationError("Pick a password that isn't your username.")
     }
+    // A reset child (children.resetPin cleared the PIN) must leave this step
+    // with BOTH credentials — a PIN-less but established child is a state
+    // nothing else in the flow wants (ADR 0037).
+    if (child.pinHash === null && input.newPin === undefined) {
+      throw new ValidationError('Choose a 4-digit PIN.')
+    }
+    if (input.newPin !== undefined && !/^\d{4}$/.test(input.newPin)) {
+      throw new ValidationError('PIN must be exactly 4 digits.')
+    }
 
     const updated = await ctx.store.updateChild(child.id, {
       passwordHash: this.hasher.hash(input.newPassword),
       mustChangePassword: false,
+      ...(input.newPin !== undefined && { pinHash: this.hasher.hash(input.newPin) }),
     })
     if (!updated) throw new NotFoundError('Child not found.')
 
-    return {
-      child: {
-        id: updated.id,
-        displayName: updated.displayName,
-        username: updated.username,
-        presetName: updated.presetName as PresetName,
-        parentId: updated.parentId,
-        mustChangePassword: updated.mustChangePassword,
-      },
-    }
+    return { child: toChildAuthProfile(updated) }
   }
 }

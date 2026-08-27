@@ -28,6 +28,7 @@ interface ChildProfile {
   id: string
   displayName: string
   presetName: string
+  hasPin: boolean
 }
 
 const routeApi = getRouteApi('/child/login')
@@ -56,9 +57,13 @@ export function ChildLoginPage() {
     // a password change (it carries no password), so we set the cookie with it
     // once onboarding completes.
     childToken?: string
+    // The child has no PIN (a parent reset cleared it) — the change screen also
+    // collects a fresh child-chosen one.
+    needsPin?: boolean
   } | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [newPin, setNewPin] = useState('')
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -79,7 +84,9 @@ export function ChildLoginPage() {
     setSelectedChild(child)
     setPin('')
     setError('')
-    setModeOverride('pin')
+    // A reset child has no PIN — the PIN screen could never pass, so send them
+    // to username/password login (their password is their username again).
+    setModeOverride(child.hasPin ? 'pin' : 'password')
   }
 
   // Deep-link pre-selection: the parent dashboard links here with ?child=<id>.
@@ -123,7 +130,13 @@ export function ChildLoginPage() {
       try {
         const result = await loginWithPassword({ username, password, deviceToken: token })
         if (result.child.mustChangePassword) {
-          setPendingChange({ childId: result.child.id, password, token, childToken: result.token })
+          setPendingChange({
+            childId: result.child.id,
+            password,
+            token,
+            childToken: result.token,
+            needsPin: !result.child.hasPin,
+          })
           setLoading(false)
           return
         }
@@ -150,6 +163,10 @@ export function ChildLoginPage() {
       setError('Passwords do not match.')
       return
     }
+    if (pendingChange.needsPin && !/^\d{4}$/.test(newPin)) {
+      setError('Your PIN must be exactly 4 digits.')
+      return
+    }
     setLoading(true)
     void (async () => {
       try {
@@ -158,6 +175,7 @@ export function ChildLoginPage() {
           newPassword,
           password: pendingChange.password,
           pin: pendingChange.pin,
+          newPin: pendingChange.needsPin ? newPin : undefined,
         })
         if (pendingChange.token) {
           setDeviceToken(pendingChange.token)
@@ -204,6 +222,21 @@ export function ChildLoginPage() {
                   required
                 />
               </div>
+              {pendingChange.needsPin && (
+                <div className={styles.field}>
+                  <Label htmlFor="new-pin">Choose a 4-digit PIN</Label>
+                  <Input
+                    id="new-pin"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    maxLength={4}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    required
+                  />
+                </div>
+              )}
               {error && <p className={styles.errorText}>{error}</p>}
               <Button type="submit" size="lg" disabled={loading}>
                 {loading ? 'Saving...' : 'Save and continue'}

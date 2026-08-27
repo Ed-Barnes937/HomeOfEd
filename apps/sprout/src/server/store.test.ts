@@ -93,6 +93,32 @@ describe('DrizzleSproutStore over PGlite with the generated migrations', () => {
     ).resolves.toBe(1)
   })
 
+  // PIN reset (children.resetPin): clearing the pin_fail lockout must drop only
+  // that child's pin_fail rows — other kinds and other children keep theirs.
+  it('deletes behavioural events by child + kind only', async () => {
+    const store = await freshStore()
+    const parentId = await makeParent(store)
+    const child = await store.createChild(childInput(parentId, 'kid1'))
+    const sibling = await store.createChild(childInput(parentId, 'kid2'))
+
+    await store.recordBehaviouralEvent({ childId: child.id, kind: 'pin_fail' })
+    await store.recordBehaviouralEvent({ childId: child.id, kind: 'message' })
+    await store.recordBehaviouralEvent({ childId: sibling.id, kind: 'pin_fail' })
+
+    await store.deleteBehaviouralEvents({ kind: 'pin_fail', childId: child.id })
+
+    const since = new Date('2020-01-01T00:00:00Z')
+    await expect(
+      store.countBehaviouralEvents({ childId: child.id, kind: 'pin_fail', since }),
+    ).resolves.toBe(0)
+    await expect(
+      store.countBehaviouralEvents({ childId: child.id, kind: 'message', since }),
+    ).resolves.toBe(1)
+    await expect(
+      store.countBehaviouralEvents({ childId: sibling.id, kind: 'pin_fail', since }),
+    ).resolves.toBe(1)
+  })
+
   // Feature check 3 — unique-constraint conflict (children.username is unique).
   it('rejects a duplicate child username (unique constraint)', async () => {
     const store = await freshStore()
