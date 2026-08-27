@@ -1,18 +1,20 @@
-# 04 — Parent can remove a child
+# 04 — EPIC: parent can remove a child
 
-**What to build:** There is no way for a parent to remove a child account. The
-intended behaviour (per Ed): deleting the child removes the child account, their
-chat history, and the parent↔child link. The schema already cascades from
+**What to build (epic — needs the retention discussion + a spec before any
+build):** There is no way for a parent to remove a child account. The intended
+behaviour (per Ed): deleting the child removes the child account, their chat
+history, and the parent↔child link. The schema already cascades from
 `children` (presets, conversations→messages→flags, behavioural events all hang
 off `childId` with `onDelete: cascade`), so the mechanical delete is one row —
-the work is the decision about what SHOULD be erased, then the handler + UI.
+the epic is really the decision about what SHOULD be erased, then the handler,
+UI, and any retention machinery that decision demands.
 
-**Blocked by:** Discussion below — do not build until the retention questions
-are settled with Ed.
+**Blocked by:** Discussion below — Ed explicitly asked for the implications to
+be talked through before this is specced.
 
-**Status:** needs-info
+**Status:** needs-triage
 
-**Implications to talk through before building** (Ed explicitly asked for this):
+**Implications to settle in the spec discussion:**
 
 - Deleting chat history also deletes **safety flags and behavioural events**
   (same cascade as ticket 03). If a flag ever needs to be part of a
@@ -29,18 +31,21 @@ are settled with Ed.
   that path's semantics, or that path should change too.
 - Soft-deleted conversations (ticket 03) must not resurrect or block removal.
 
-Once decided:
+**Likely ticket shape once specced:**
 
-- [ ] Parent-scoped `children.remove` handler (ownership check, then delete /
-      retain per the decision above), with unit tests.
-- [ ] Child settings page gains a remove action behind a strong confirm (type
-      the child's name, or similar) — this is irreversible for real data.
-- [ ] Any retained records are inaccessible from normal parent/child UI and
-      documented in the privacy policy if retention is chosen.
-- [ ] `.iwft`: removed child disappears from the children list and their
-      session can no longer authenticate.
+- Parent-scoped `children.remove` handler (ownership check, then delete /
+  retain per the decision above), with unit tests.
+- Child settings page remove action behind a strong confirm (type the child's
+  name, or similar) — irreversible for real data.
+- Any retained records made inaccessible from normal parent/child UI, and the
+  privacy policy updated if retention is chosen.
+- `.iwft`: removed child disappears from the children list and their session
+  can no longer authenticate.
 
 ## Comments
 
 **2026-08-27 (Ed, pilot feedback):** Requested with the explicit instruction
 that the ticket flag the implications of deleting chat history for discussion.
+
+**2026-08-27 (Ed):** Promoted to an epic; tickets 01–03 to be built in a
+separate session first.
