@@ -67,6 +67,8 @@ test('dashboard links to the child login for the active child, pre-selected', as
     'href',
     '/child/login?child=11111111-1111-4111-8111-111111111111',
   )
+  // The username is visible at the point of use so the parent can relay it.
+  await root.expectText('signs in as ben1234')
 
   // The link follows the active child.
   await root.selectChildTab('Clara')
@@ -75,6 +77,15 @@ test('dashboard links to the child login for the active child, pre-selected', as
     'href',
     '/child/login?child=22222222-2222-4222-8222-222222222222',
   )
+  await root.expectText('signs in as clara5678')
+})
+
+test('children list shows each child sign-in username', async ({ mountApp }) => {
+  const { root } = await mountApp({ user: asParent('p1'), seed: seedDashboard })
+  await root.goto('/parent/children')
+
+  await root.expectText('signs in as ben1234')
+  await root.expectText('signs in as clara5678')
 })
 
 test('switching tabs changes the summary panel', async ({ mountApp }) => {

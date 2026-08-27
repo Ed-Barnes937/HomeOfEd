@@ -113,6 +113,9 @@ export function DashboardPage() {
                   >
                     Log in as {kids.find((k) => k.id === activeChildId)?.displayName}
                   </Link>
+                  <p className={styles.mutedSm}>
+                    signs in as {kids.find((k) => k.id === activeChildId)?.username}
+                  </p>
                 </div>
               </div>
             )}
