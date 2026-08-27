@@ -36,6 +36,7 @@ describe('LoginPinHandler', () => {
     )
 
     expect(result.child.id).toBe(child.id)
+    expect(result.child.hasPin).toBe(true)
     expect(result.token.split('.')).toHaveLength(2)
   })
 

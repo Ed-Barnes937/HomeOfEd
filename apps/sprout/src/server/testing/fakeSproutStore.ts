@@ -451,6 +451,11 @@ export class FakeSproutStore implements SproutStore {
     )
   }
 
+  deleteBehaviouralEvents(opts: { kind: string; childId: string }): Promise<void> {
+    this.events = this.events.filter((e) => !(e.kind === opts.kind && e.childId === opts.childId))
+    return Promise.resolve()
+  }
+
   pruneBehaviouralEvents(opts: {
     childId?: string
     deviceToken?: string

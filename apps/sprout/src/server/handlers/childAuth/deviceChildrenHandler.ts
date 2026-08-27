@@ -13,6 +13,9 @@ export interface DeviceChildSummary {
   id: string
   displayName: string
   presetName: PresetName
+  /** False after a parent PIN reset — the picker sends a PIN-less child to
+   * username/password login instead of a PIN screen that can never pass. */
+  hasPin: boolean
 }
 
 export interface DeviceChildrenResult {
@@ -43,6 +46,7 @@ export class DeviceChildrenHandler extends Handler<
         id: c.id,
         displayName: c.displayName,
         presetName: c.presetName as PresetName,
+        hasPin: c.pinHash !== null,
       })),
     }
   }

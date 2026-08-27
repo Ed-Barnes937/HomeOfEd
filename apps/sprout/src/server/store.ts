@@ -166,6 +166,9 @@ export interface SproutStore {
     childId?: string
     deviceToken?: string
   }): Promise<number>
+  /** Drop ALL of a child's events of one kind (children.resetPin clears the
+   * pin_fail lockout so a reset child isn't still locked out). */
+  deleteBehaviouralEvents(opts: { kind: string; childId: string }): Promise<void>
   /** Drop this child's / device's events older than `before` (retention). */
   pruneBehaviouralEvents(opts: {
     childId?: string
@@ -464,6 +467,14 @@ export class DrizzleSproutStore implements SproutStore {
       .from(behaviouralEvents)
       .where(and(...conditions))
     return rows[0]?.value ?? 0
+  }
+
+  async deleteBehaviouralEvents(opts: { kind: string; childId: string }): Promise<void> {
+    await this.db
+      .delete(behaviouralEvents)
+      .where(
+        and(eq(behaviouralEvents.kind, opts.kind), eq(behaviouralEvents.childId, opts.childId)),
+      )
   }
 
   async pruneBehaviouralEvents(opts: {

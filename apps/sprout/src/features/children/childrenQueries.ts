@@ -41,3 +41,6 @@ export const fetchMyConfig = () => trpcClient.children.myConfig.query()
 export const createChild = (input: CreateChildInput) => trpcClient.children.create.mutate(input)
 export const updateChild = (input: UpdateChildInput) => trpcClient.children.update.mutate(input)
 export const updatePreset = (input: UpdatePresetInput) => trpcClient.children.preset.mutate(input)
+/** children.resetPin — forgotten-PIN recovery; the child picks the new PIN at
+ * their next login, the parent never sees it. */
+export const resetPin = (childId: string) => trpcClient.children.resetPin.mutate({ childId })
