@@ -9,6 +9,10 @@ export type GetConversationSummaryInput = z.infer<typeof getConversationSummaryI
 
 export interface ConversationSummaryResult {
   summary: string | null
+  /** Set when the child soft-deleted the conversation — only ever non-null for
+   * the owning parent (the child's own read 404s a deleted conversation), so
+   * the conversation-detail page can label it deleted-by-child. */
+  deletedAt: string | null
 }
 
 /**
@@ -26,6 +30,9 @@ export class GetConversationSummaryHandler extends Handler<
     ctx: AppContext<SproutStore>,
   ): Promise<ConversationSummaryResult> {
     const conversation = await authorizeConversationRead(ctx, input.conversationId)
-    return { summary: conversation.summary }
+    return {
+      summary: conversation.summary,
+      deletedAt: conversation.deletedAt?.toISOString() ?? null,
+    }
   }
 }

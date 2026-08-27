@@ -43,6 +43,32 @@ describe('ListMessagesHandler (dual-role: owning parent OR the conversation chil
     expect(result).toHaveLength(1)
   })
 
+  // Pilot issue 03: a soft-deleted conversation is gone from the child's view
+  // but stays fully readable for the owning parent (flag review must survive).
+  it('404s the child on a soft-deleted conversation', async () => {
+    const store = new FakeSproutStore()
+    const { child, conversation } = await seedConversationWithMessage(store, 'p1')
+    await store.softDeleteConversation(conversation.id)
+    const ctx = makeCtx({ store, user: childUser(child.id, 'p1') })
+
+    await expect(
+      new ListMessagesHandler().run({ conversationId: conversation.id }, ctx),
+    ).rejects.toThrow(NotFoundError)
+  })
+
+  it('still returns messages of a soft-deleted conversation to the owning parent', async () => {
+    const store = new FakeSproutStore()
+    const { conversation } = await seedConversationWithMessage(store, 'p1')
+    await store.softDeleteConversation(conversation.id)
+    const ctx = makeCtx({ store, user: parentUser('p1') })
+
+    const result = await new ListMessagesHandler().run(
+      { conversationId: conversation.id },
+      ctx,
+    )
+    expect(result).toHaveLength(1)
+  })
+
   it("403s a different parent (cross-family IDOR)", async () => {
     const store = new FakeSproutStore()
     const { conversation } = await seedConversationWithMessage(store, 'p1')

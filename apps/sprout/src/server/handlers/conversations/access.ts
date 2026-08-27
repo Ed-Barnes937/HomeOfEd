@@ -53,5 +53,8 @@ export async function authorizeConversationRead(
     return conversation
   }
   if (user.id !== conversation.childId) throw new ForbiddenError('not your conversation')
+  // A soft-deleted conversation is gone from the child's own view (pilot issue
+  // 03) — only the owning parent can still read it.
+  if (conversation.deletedAt) throw new NotFoundError('conversation not found')
   return conversation
 }

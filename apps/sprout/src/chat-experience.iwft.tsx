@@ -148,6 +148,48 @@ test('new chat shows the statement card and disclosure line in the strictest reg
   )
 })
 
+// Pilot issue 03 (child flow): deleting a conversation is a SOFT delete —
+// it disappears from the child's home list; other conversations stay. The
+// seed is self-contained (serialised into the browser — no module closures).
+const seedSummarisedConversations = async (db: {
+  execute: (sql: string) => Promise<unknown>
+}): Promise<void> => {
+  await db.execute(`insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Parent', 'p@test.com', now(), now())`)
+  await db.execute(
+    `insert into children (id, parent_id, display_name, username, password_hash, pin_hash, must_change_password, preset_name)
+     values ('11111111-1111-4111-8111-111111111111', 'p1', 'Alex', 'alex1234', 'test:pw', 'test:5678', false, 'independent-explorer')`,
+  )
+  await db.execute(
+    `insert into presets (child_id, name, vocabulary_level, response_depth, answering_style, interaction_mode, topic_access, session_limits, parent_visibility)
+     values ('11111111-1111-4111-8111-111111111111', 'independent-explorer', 5, 5, 5, 5, 4, 5, 2)`,
+  )
+  // The delete button lives on the summary view (summary set, no messages).
+  await db.execute(
+    `insert into conversations (id, child_id, title, summary)
+     values ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111', 'Space adventure', 'We talked about space.'),
+            ('33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111111', 'Volcano facts', null)`,
+  )
+}
+
+test('deleting a conversation removes it from the child home list', async ({ mountApp }) => {
+  const { root, page } = await mountApp({
+    seed: seedSummarisedConversations,
+    user: asChild(CHILD_ID, PARENT_ID),
+  })
+  await plantChildProfile(page)
+
+  await root.goto('/child/home')
+  await root.expectText('Space adventure')
+  await root.expectText('Volcano facts')
+
+  await root.goto(`/child/chat/${CONVO_ID}`)
+  await root.clickButton('Delete conversation')
+
+  // Back on home: the deleted conversation is gone, the other survives.
+  await expect(page.getByText('Volcano facts')).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText('Space adventure')).toHaveCount(0)
+})
+
 test('shows the session-limit banner and blocks input at the limit', async ({ mountApp }) => {
   const { root, page } = await mountApp({
     seed: seedChildAtLimit,

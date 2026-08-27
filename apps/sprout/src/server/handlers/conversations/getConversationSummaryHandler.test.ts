@@ -24,7 +24,7 @@ describe('GetConversationSummaryHandler (dual-role: owning parent OR the convers
 
     await expect(
       new GetConversationSummaryHandler().run({ conversationId: conversation.id }, ctx),
-    ).resolves.toEqual({ summary: null })
+    ).resolves.toEqual({ summary: null, deletedAt: null })
   })
 
   it('returns the summary for the conversation own child', async () => {
@@ -34,7 +34,34 @@ describe('GetConversationSummaryHandler (dual-role: owning parent OR the convers
 
     await expect(
       new GetConversationSummaryHandler().run({ conversationId: conversation.id }, ctx),
-    ).resolves.toEqual({ summary: 'condensed' })
+    ).resolves.toEqual({ summary: 'condensed', deletedAt: null })
+  })
+
+  // Pilot issue 03: the parent's read carries the deleted-by-child marker so
+  // the dashboard can label it; the child's own read 404s.
+  it('marks a soft-deleted conversation with deletedAt for the owning parent', async () => {
+    const store = new FakeSproutStore()
+    const { conversation } = await seedConversation(store, 'p1', 'condensed')
+    await store.softDeleteConversation(conversation.id)
+    const ctx = makeCtx({ store, user: parentUser('p1') })
+
+    const result = await new GetConversationSummaryHandler().run(
+      { conversationId: conversation.id },
+      ctx,
+    )
+    expect(result.summary).toBe('condensed')
+    expect(result.deletedAt).toEqual(expect.any(String))
+  })
+
+  it('404s the child on a soft-deleted conversation', async () => {
+    const store = new FakeSproutStore()
+    const { child, conversation } = await seedConversation(store, 'p1', 'condensed')
+    await store.softDeleteConversation(conversation.id)
+    const ctx = makeCtx({ store, user: childUser(child.id, 'p1') })
+
+    await expect(
+      new GetConversationSummaryHandler().run({ conversationId: conversation.id }, ctx),
+    ).rejects.toThrow(NotFoundError)
   })
 
   it("403s a different parent (cross-family IDOR)", async () => {

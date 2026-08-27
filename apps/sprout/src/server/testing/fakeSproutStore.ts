@@ -298,6 +298,7 @@ export class FakeSproutStore implements SproutStore {
       summary: input.summary ?? null,
       createdAt: input.createdAt ?? this.now(),
       updatedAt: input.updatedAt ?? this.now(),
+      deletedAt: input.deletedAt ?? null,
     }
     this.conversationRows.set(row.id, row)
     return Promise.resolve(row)
@@ -307,16 +308,21 @@ export class FakeSproutStore implements SproutStore {
     return Promise.resolve(this.conversationRows.get(id) ?? null)
   }
 
-  listConversationsByChild(childId: string): Promise<ConversationRow[]> {
+  listConversationsByChild(
+    childId: string,
+    opts?: { excludeDeleted?: boolean },
+  ): Promise<ConversationRow[]> {
     return Promise.resolve(
       [...this.conversationRows.values()]
         .filter((c) => c.childId === childId)
+        .filter((c) => !opts?.excludeDeleted || c.deletedAt === null)
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
     )
   }
 
-  deleteConversation(id: string): Promise<void> {
-    this.removeConversation(id)
+  softDeleteConversation(id: string): Promise<void> {
+    const existing = this.conversationRows.get(id)
+    if (existing) this.conversationRows.set(id, { ...existing, deletedAt: this.now() })
     return Promise.resolve()
   }
 
