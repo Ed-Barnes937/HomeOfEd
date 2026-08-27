@@ -51,6 +51,8 @@
 // The per-child actions sit below the summary card, spaced away from it.
 .childActions {
   display: flex;
+  align-items: center;
+  gap: 0.75rem;
   margin-top: 1.5rem;
 }
 

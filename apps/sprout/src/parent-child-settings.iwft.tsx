@@ -19,6 +19,7 @@ test('parent changes a child preset and it is saved', async ({ mountApp }) => {
   await root.goto(`/parent/children/${CHILD_ID}`)
 
   await root.expectText("Ben's Settings")
+  await root.expectText('signs in as ben1234')
   await root.clickButton('Independent explorer')
   await root.expectText('Preset saved')
 })

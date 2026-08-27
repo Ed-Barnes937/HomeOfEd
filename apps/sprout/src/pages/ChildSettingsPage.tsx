@@ -146,6 +146,7 @@ export function ChildSettingsPage() {
       </Link>
 
       <h1 className={styles.heading}>{child.displayName}&apos;s Settings</h1>
+      <p className={styles.mutedTextSm}>signs in as {child.username}</p>
 
       <div className={styles.sections}>
         <Card>
