@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — water opinion field (ticket 01)</title>
+<style>
+  :root { --accent: #2563eb; --ink: #1f2430; --muted: #6b7280; --line: #e5e7eb; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.5rem 4rem; color: var(--ink); background: #fafafa;
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 1080px; margin-inline: auto;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  .badge { display: inline-block; background: #fde68a; color: #713f12; font-size: .72rem;
+    font-weight: 700; letter-spacing: .05em; padding: .15rem .5rem; border-radius: 4px;
+    vertical-align: middle; margin-left: .5rem; }
+  .intro { color: var(--muted); max-width: 62rem; margin: 0 0 1.25rem; }
+  .intro strong { color: var(--ink); }
+
+  .tabs { display: flex; gap: .25rem; border-bottom: 2px solid var(--line); margin-bottom: .75rem; }
+  .tabs button { border: 0; background: none; padding: .5rem .9rem; font: inherit; cursor: pointer;
+    color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+  .scenario { background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    padding: .9rem 1rem; margin-bottom: 1rem; }
+  .scenario p { margin: 0 0 .6rem; }
+  .steps { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .steps button { font: inherit; padding: .35rem .8rem; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: #f9fafb; }
+  .steps button.next { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .steps button:disabled { opacity: .45; cursor: default; }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem;
+    padding: .6rem .2rem; font-size: .9rem; }
+  .controls button { font: inherit; padding: .3rem .75rem; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; }
+  .controls label { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; }
+  .controls .grp { display: inline-flex; align-items: center; gap: .5rem; padding-right: .9rem;
+    border-right: 1px solid var(--line); }
+  .controls .grp:last-child { border-right: 0; }
+
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .pane { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: .7rem; }
+  .pane h2 { font-size: .95rem; margin: 0 0 .5rem; font-weight: 600; }
+  .pane h2 small { color: var(--muted); font-weight: 400; }
+  canvas { width: 100%; image-rendering: pixelated; border-radius: 4px; display: block;
+    background: #10151d; cursor: crosshair; }
+  .metrics { font-size: .82rem; color: var(--muted); margin-top: .45rem; min-height: 2.4em; }
+  .metrics b { color: var(--ink); font-weight: 600; }
+  .metrics .flag { color: #15803d; font-weight: 600; }
+
+  .hint { color: var(--muted); font-size: .85rem; margin-top: .9rem; }
+</style>
+</head>
+<body>
+
+<h1>Water with a memory <span class="badge">PROTOTYPE — throwaway</span></h1>
+<p class="intro">
+  <strong>The question:</strong> Silt's water re-rolls its left/right choice every tick, so pools
+  jitter instead of flowing. Sandspiel gives each water cell a <strong>remembered direction</strong>,
+  lets movers <strong>recruit a neighbour</strong> to their direction (so currents organise), and adds
+  a little <strong>momentum</strong> (blocked water presses a wall for a few frames before turning).
+  Does that stack actually make Silt's water read as currents — and is momentum needed, or do the
+  first two carry it? Both panels run the same scenario from the same random seed; only the water
+  rule differs. Paint on either canvas — strokes land on both.
+</p>
+
+<div class="tabs" id="tabs"></div>
+<div class="scenario"><p id="scDesc"></p><div class="steps" id="scSteps"></div></div>
+
+<div class="controls">
+  <span class="grp">
+    <button id="btnRun">⏸ Pause</button>
+    <button id="btnStep">Step 1 tick</button>
+    <label>speed <input id="speed" type="range" min="1" max="10" value="4" style="width:90px"></label>
+  </span>
+  <span class="grp">
+    brush
+    <label><input type="radio" name="brush" value="water" checked> water</label>
+    <label><input type="radio" name="brush" value="wall"> wall</label>
+    <label><input type="radio" name="brush" value="erase"> erase</label>
+  </span>
+  <span class="grp">
+    right panel:
+    <label><input id="optContagion" type="checkbox" checked> recruit neighbours</label>
+    <label><input id="optMomentum" type="checkbox" checked> momentum</label>
+  </span>
+  <label><input id="optTint" type="checkbox" checked> tint by direction</label>
+</div>
+
+<div class="panes">
+  <div class="pane">
+    <h2>Today's Silt <small>— fresh coin flip every tick</small></h2>
+    <canvas id="cvA" width="150" height="100"></canvas>
+    <div class="metrics" id="metA"></div>
+  </div>
+  <div class="pane">
+    <h2>Opinion field <small>— remembered direction (+ toggles above)</small></h2>
+    <canvas id="cvB" width="150" height="100"></canvas>
+    <div class="metrics" id="metB"></div>
+  </div>
+</div>
+
+<p class="hint">
+  Tint: on the right panel, <span style="color:#38bdf8">◼ light</span> water wants to flow left and
+  <span style="color:#2563eb">◼ dark</span> wants to flow right — coherent single-colour regions are
+  the "currents" the ticket is after. The left panel has no memory, so it stays one colour.
+  "Surface ±" is how uneven the water surface is (lower levels faster); "agreement" is how often a
+  cell's direction matches its neighbours'.
+</p>
+
+<!-- ============================================================================
+     THE LIFTABLE MODULE — a miniature of Silt's liquid kernel, DOM-free.
+     Mirrors kernels.ts semantics: bottom-up scan, alternating sweep, clock
+     stamp against double-moves, coin-ordered diagonals, dispersion walked one
+     validated cell at a time, and the isStray gate on lateral flow.
+     The opinion field lives in ra, packed exactly as ticket 01 proposes:
+     bit 0 = direction parity, bits 1–3 = momentum (0–7), bit 7 = seeded.
+     (No chunk sleeping here — this prototype answers feel, not perf.)
+============================================================================ -->
+<script>
+'use strict';
+
+const EMPTY = 0, WALL = 1, WATER = 2;
+const DISPERSION = 5;          // water's dispersion in the real roster
+const MOMENTUM_SET = 6;        // counter value granted by a successful move
+const N8 = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+
+/** mulberry32 — stands in for Silt's seeded Rng. */
+function makeRng(seed) {
+  let s = seed >>> 0;
+  const next = () => {
+    let t = (s += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return { rand: next, randInt: (n) => Math.floor(next() * n) };
+}
+
+class Sim {
+  /** opts: { opinion, contagion, momentum } — left panel runs {opinion:false}. */
+  constructor(w, h, seed, opts) {
+    this.w = w; this.h = h;
+    this.species = new Uint8Array(w * h);
+    this.ra = new Uint8Array(w * h);
+    this.clock = new Uint32Array(w * h);
+    this.gen = 0;
+    this.rng = makeRng(seed);
+    this.opts = opts;
+    for (let x = 0; x < w; x++) { this.species[x] = WALL; this.species[(h - 1) * w + x] = WALL; }
+    for (let y = 0; y < h; y++) { this.species[y * w] = WALL; this.species[y * w + w - 1] = WALL; }
+  }
+
+  idx(x, y) { return y * this.w + x; }
+  get(x, y) {
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return WALL;
+    return this.species[y * this.w + x];
+  }
+  set(x, y, s, ra = 0) {
+    if (x <= 0 || y <= 0 || x >= this.w - 1 || y >= this.h - 1) return; // keep the border
+    const i = this.idx(x, y);
+    this.species[i] = s; this.ra[i] = ra;
+  }
+
+  tick() {
+    this.gen++;
+    const rtl = this.gen % 2 === 0;
+    for (let y = this.h - 2; y >= 1; y--) {
+      for (let k = 1; k < this.w - 1; k++) {
+        const x = rtl ? this.w - 1 - k : k;
+        const i = this.idx(x, y);
+        if (this.species[i] !== WATER || this.clock[i] === this.gen) continue;
+        this.clock[i] = this.gen;
+        this.updateWater({ x, y });
+      }
+    }
+  }
+
+  tryMove(c, dx, dy) {
+    const nx = c.x + dx, ny = c.y + dy;
+    if (this.get(nx, ny) !== EMPTY) return false;
+    const si = this.idx(c.x, c.y), di = this.idx(nx, ny);
+    this.species[di] = WATER; this.ra[di] = this.ra[si];
+    this.species[si] = EMPTY; this.ra[si] = 0;
+    this.clock[di] = this.gen;
+    c.x = nx; c.y = ny;
+    return true;
+  }
+
+  occupied(x, y) { const s = this.get(x, y); return s !== EMPTY && s !== WALL; }
+
+  /** Lone droplet: nothing resting on it, no same liquid beside — no claim to lateral flow. */
+  isStray(c) {
+    return !this.occupied(c.x, c.y - 1)
+      && this.get(c.x - 1, c.y) !== WATER && this.get(c.x + 1, c.y) !== WATER;
+  }
+
+  /** Sideways travel, one validated cell at a time. True if the cell moved at all. */
+  spread(c, dx) {
+    if (this.get(c.x + dx, c.y) !== EMPTY || this.isStray(c)) return false;
+    for (let step = 0; step < DISPERSION; step++) {
+      if (!this.tryMove(c, dx, 0)) return true;
+    }
+    return true;
+  }
+
+  updateWater(c) {
+    // Fall, then coin-ordered diagonals — identical in both kernels (the ticket
+    // changes only the lateral choice).
+    if (this.tryMove(c, 0, 1)) return;
+    const first = this.rng.randInt(2) === 0 ? -1 : 1;
+    if (this.tryMove(c, first, 1)) return;
+    if (this.tryMove(c, -first, 1)) return;
+
+    if (this.opts.opinion) this.lateralOpinion(c);
+    else this.lateralCoin(c);
+  }
+
+  /** Today's Silt: coin picks the order, both sides get a chance. */
+  lateralCoin(c) {
+    const along = this.rng.randInt(2) === 0 ? -1 : 1;
+    if (!this.spread(c, along)) this.spread(c, -along);
+  }
+
+  /** Ticket 01: parity is the direction; contagion and momentum per the toggles. */
+  lateralOpinion(c) {
+    if (this.isStray(c)) return;
+    let i = this.idx(c.x, c.y);
+    let r = this.ra[i];
+    if (r === 0) { r = 0x80 | this.rng.randInt(2); this.ra[i] = r; } // seed on first sight
+    const parity = r & 1;
+    const dir = parity ? 1 : -1;
+
+    if (this.spread(c, dir)) {
+      i = this.idx(c.x, c.y); // the cursor moved
+      if (this.opts.momentum) {
+        this.ra[i] = (this.ra[i] & ~0x0E) | (MOMENTUM_SET << 1);
+      }
+      if (this.opts.contagion) {
+        const [ndx, ndy] = N8[this.rng.randInt(8)];
+        const ni = this.idx(c.x + ndx, c.y + ndy);
+        if (this.get(c.x + ndx, c.y + ndy) === WATER) {
+          this.ra[ni] = ((this.ra[ni] | 0x80) & ~1) | parity; // recruit to my parity
+        }
+      }
+      return;
+    }
+
+    // Blocked in my direction. Momentum lets me press for a few frames; at
+    // zero, an open cell behind me means I turn around. (In real Silt these
+    // ra writes are also what keep the chunk awake.)
+    const m = (r >> 1) & 7;
+    if (this.opts.momentum && m > 0) {
+      this.ra[i] = (r & ~0x0E) | ((m - 1) << 1);
+    } else if (this.get(c.x - dir, c.y) === EMPTY) {
+      this.ra[i] = ((r ^ 1) & ~0x0E) | 0x80; // flip parity, momentum cleared
+    }
+  }
+
+  // --- read-only helpers for the page ---------------------------------------
+
+  waterCount() {
+    let n = 0;
+    for (let i = 0; i < this.species.length; i++) if (this.species[i] === WATER) n++;
+    return n;
+  }
+
+  /** Std-dev of the water surface height across columns that hold water. */
+  surfaceRoughness() {
+    const tops = [];
+    for (let x = 1; x < this.w - 1; x++) {
+      for (let y = 1; y < this.h - 1; y++) {
+        if (this.species[this.idx(x, y)] === WATER) { tops.push(y); break; }
+      }
+    }
+    if (tops.length < 2) return 0;
+    const mean = tops.reduce((a, b) => a + b, 0) / tops.length;
+    const varr = tops.reduce((a, b) => a + (b - mean) ** 2, 0) / tops.length;
+    return Math.sqrt(varr);
+  }
+
+  /** How often a seeded cell's direction matches each seeded water neighbour's. */
+  agreement() {
+    let match = 0, pairs = 0;
+    for (let y = 1; y < this.h - 1; y++) {
+      for (let x = 1; x < this.w - 1; x++) {
+        const i = this.idx(x, y);
+        if (this.species[i] !== WATER || this.ra[i] === 0) continue;
+        const p = this.ra[i] & 1;
+        for (const [dx, dy] of N8) {
+          const ni = this.idx(x + dx, y + dy);
+          if (this.get(x + dx, y + dy) !== WATER || this.ra[ni] === 0) continue;
+          pairs++;
+          if ((this.ra[ni] & 1) === p) match++;
+        }
+      }
+    }
+    return pairs === 0 ? null : match / pairs;
+  }
+}
+</script>
+
+<!-- ============================================================================
+     THE THROWAWAY SHELL — canvases, tabs, brushes. Nothing below this line is
+     meant to outlive the prototype.
+============================================================================ -->
+<script>
+'use strict';
+
+const W = 150, H = 100, SEED = 1337;
+let simA, simB;          // A = today's kernel, B = opinion field
+let running = true;
+let pour = null;         // { x, y, until } — emitter driven per tick
+let runBudget = Infinity; // ticks left to run before auto-pausing
+let levelledA = null, levelledB = null, watchLevel = false;
+
+function freshSims() {
+  simA = new Sim(W, H, SEED, { opinion: false });
+  simB = new Sim(W, H, SEED, {
+    opinion: true,
+    contagion: document.getElementById('optContagion').checked,
+    momentum: document.getElementById('optMomentum').checked,
+  });
+  pour = null; runBudget = Infinity;
+  levelledA = null; levelledB = null; watchLevel = false;
+}
+
+function both(fn) { fn(simA); fn(simB); }
+
+function paintBlob(sim, cx, cy, r, brush) {
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (dx * dx + dy * dy > r * r) continue;
+    const x = cx + dx, y = cy + dy;
+    if (brush === 'water') { if (sim.get(x, y) === EMPTY) sim.set(x, y, WATER); }
+    else if (brush === 'wall') sim.set(x, y, WALL);
+    else sim.set(x, y, EMPTY);
+  }
+}
+
+// --- scenarios ---------------------------------------------------------------
+
+const SCENARIOS = [
+  {
+    name: 'Pour',
+    desc: 'An empty tank; water pours in from the top centre. On the left every cell decides ' +
+          'alone, so the pool shimmers in place. On the right, watch the tint organise into ' +
+          'single-colour regions — those are currents. Try the toggles while it runs.',
+    steps: [
+      { label: 'Pour for 300 ticks', run() { pour = { x: Math.floor(W / 2), y: 4, until: simA.gen + 300 }; running = true; } },
+      { label: 'Second pour, off-centre', run() { pour = { x: Math.floor(W / 4), y: 4, until: simA.gen + 300 }; running = true; } },
+    ],
+    setup() {},
+  },
+  {
+    name: 'Dam break',
+    desc: 'A tall column of water is held behind a dam. Release it and watch the front race ' +
+          'across the floor. The question: does the right side level out visibly faster and ' +
+          'flow as one body rather than a crumbling powder pile?',
+    steps: [
+      { label: 'Release the dam', run() {
+          both(s => { for (let y = 1; y < H - 1; y++) if (s.get(46, y) === WALL) s.set(46, y, EMPTY); });
+          watchLevel = true; running = true;
+        } },
+      { label: 'Run 600 more ticks', run() { runBudget = 600; running = true; } },
+    ],
+    setup() {
+      both(s => {
+        for (let y = H - 2; y > H - 62; y--) {
+          for (let x = 1; x <= 45; x++) s.set(x, y, WATER);
+          s.set(46, y, WALL);
+        }
+        for (let y = H - 62; y > H - 68; y--) s.set(46, y, WALL);
+      });
+    },
+  },
+  {
+    name: 'Stepped pool',
+    desc: 'A staircase of stone with a basin at the right. Water lands on the top step and has ' +
+          'to cascade down and settle level. "Levelled at tick N" appears under each panel when ' +
+          'its surface flattens — the ticket claims the right side should get there sooner.',
+    steps: [
+      { label: 'Pour onto the top step (200 ticks)', run() {
+          pour = { x: 16, y: 6, until: simA.gen + 200 }; watchLevel = true; running = true;
+        } },
+      { label: 'Run until level (or 1500 ticks)', run() { runBudget = 1500; running = true; } },
+    ],
+    setup() {
+      both(s => {
+        const stepH = [64, 48, 32, 16];
+        for (let k = 0; k < 4; k++) {
+          for (let x = 1 + k * 37; x < Math.min(W - 1, (k + 1) * 37 + 1); x++) {
+            for (let y = H - 2; y > H - 2 - stepH[k]; y--) s.set(x, y, WALL);
+          }
+        }
+      });
+    },
+  },
+  {
+    name: 'Wall slam',
+    desc: 'A shallow basin where every cell on the right panel starts wanting to flow RIGHT. ' +
+          'The whole body surges into the wall, presses for a few frames (momentum), then a ' +
+          'reversal wave rolls back through it. Untick momentum and rerun — the water should ' +
+          'churn at the wall instead of turning as a body. The left panel has no direction to ' +
+          'force, so it just sloshes.',
+    steps: [
+      { label: 'Run 400 ticks', run() { runBudget = 400; running = true; } },
+      { label: 'Reset & rerun (after toggling momentum)', run() { setScenario(current); runBudget = 400; running = true; } },
+    ],
+    setup() {
+      both(s => {
+        for (let y = H - 2; y > H - 22; y--) for (let x = 1; x < W - 1; x++) s.set(x, y, WATER);
+      });
+      // force the opinion side to a single direction: everyone flows right
+      for (let i = 0; i < simB.species.length; i++) {
+        if (simB.species[i] === WATER) simB.ra[i] = 0x80 | 1 | (6 << 1);
+      }
+    },
+  },
+];
+
+let current = 0;
+function setScenario(n) {
+  current = n;
+  freshSims();
+  SCENARIOS[n].setup();
+  document.querySelectorAll('#tabs button').forEach((b, i) => b.classList.toggle('active', i === n));
+  document.getElementById('scDesc').textContent = SCENARIOS[n].desc;
+  const stepsEl = document.getElementById('scSteps');
+  stepsEl.innerHTML = '';
+  const reset = document.createElement('button');
+  reset.textContent = '↺ Reset scenario';
+  reset.onclick = () => setScenario(current);
+  SCENARIOS[n].steps.forEach((st, i) => {
+    const b = document.createElement('button');
+    b.textContent = `${i + 1}. ${st.label}`;
+    if (i === 0) b.classList.add('next');
+    b.onclick = () => {
+      st.run();
+      stepsEl.querySelectorAll('button').forEach(x => x.classList.remove('next'));
+      const nxt = stepsEl.querySelectorAll('button')[i + 1];
+      if (nxt && nxt !== reset) nxt.classList.add('next');
+    };
+    stepsEl.appendChild(b);
+  });
+  stepsEl.appendChild(reset);
+}
+
+const tabsEl = document.getElementById('tabs');
+SCENARIOS.forEach((sc, i) => {
+  const b = document.createElement('button');
+  b.textContent = sc.name;
+  b.onclick = () => setScenario(i);
+  tabsEl.appendChild(b);
+});
+
+// --- rendering ----------------------------------------------------------------
+
+const COL = {
+  empty: [16, 21, 29], wall: [90, 98, 112], water: [37, 99, 235],
+  left: [56, 189, 248], right: [37, 99, 235],
+};
+
+function render(sim, ctx, img, tint) {
+  const d = img.data;
+  for (let i = 0; i < sim.species.length; i++) {
+    let c;
+    const s = sim.species[i];
+    if (s === WALL) c = COL.wall;
+    else if (s === WATER) {
+      // tint shows the remembered direction; the baseline has none to show
+      c = (tint && sim.opts.opinion && sim.ra[i] !== 0)
+        ? ((sim.ra[i] & 1) ? COL.right : COL.left)
+        : COL.water;
+    } else c = COL.empty;
+    const o = i * 4;
+    d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function metricsLine(sim, levelled) {
+  const rough = sim.surfaceRoughness();
+  const agree = sim.agreement();
+  let s = `tick <b>${sim.gen}</b> · water <b>${sim.waterCount()}</b> · surface ±<b>${rough.toFixed(1)}</b>`;
+  if (agree !== null && sim.opts.opinion) s += ` · agreement <b>${Math.round(agree * 100)}%</b>`;
+  if (levelled !== null) s += ` · <span class="flag">levelled at tick ${levelled}</span>`;
+  return s;
+}
+
+// --- main loop ------------------------------------------------------------------
+
+const cvA = document.getElementById('cvA'), cvB = document.getElementById('cvB');
+const ctxA = cvA.getContext('2d'), ctxB = cvB.getContext('2d');
+const imgA = ctxA.createImageData(W, H), imgB = ctxB.createImageData(W, H);
+const metA = document.getElementById('metA'), metB = document.getElementById('metB');
+
+function frame() {
+  simB.opts.contagion = document.getElementById('optContagion').checked;
+  simB.opts.momentum = document.getElementById('optMomentum').checked;
+
+  if (running) {
+    const tps = Number(document.getElementById('speed').value);
+    for (let t = 0; t < tps && runBudget > 0; t++) {
+      if (pour && simA.gen < pour.until) both(s => paintBlob(s, pour.x, pour.y, 2, 'water'));
+      else pour = null;
+      both(s => s.tick());
+      runBudget--;
+      if (watchLevel && !pour) {
+        if (levelledA === null && simA.surfaceRoughness() < 0.8) levelledA = simA.gen;
+        if (levelledB === null && simB.surfaceRoughness() < 0.8) levelledB = simB.gen;
+      }
+    }
+    if (runBudget <= 0) { running = false; runBudget = Infinity; syncRunButton(); }
+  }
+
+  const tint = document.getElementById('optTint').checked;
+  render(simA, ctxA, imgA, tint);
+  render(simB, ctxB, imgB, tint);
+  metA.innerHTML = metricsLine(simA, levelledA);
+  metB.innerHTML = metricsLine(simB, levelledB);
+  requestAnimationFrame(frame);
+}
+
+// --- controls --------------------------------------------------------------------
+
+const btnRun = document.getElementById('btnRun');
+function syncRunButton() { btnRun.textContent = running ? '⏸ Pause' : '▶ Run'; }
+btnRun.onclick = () => { running = !running; syncRunButton(); };
+document.getElementById('btnStep').onclick = () => { both(s => s.tick()); };
+
+function wirePainting(cv) {
+  let down = false;
+  const paintAt = (e) => {
+    const r = cv.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / r.width * W);
+    const y = Math.floor((e.clientY - r.top) / r.height * H);
+    const brush = document.querySelector('input[name=brush]:checked').value;
+    both(s => paintBlob(s, x, y, brush === 'wall' ? 1 : 3, brush));
+  };
+  cv.addEventListener('pointerdown', e => { down = true; cv.setPointerCapture(e.pointerId); paintAt(e); });
+  cv.addEventListener('pointermove', e => { if (down) paintAt(e); });
+  cv.addEventListener('pointerup', () => { down = false; });
+}
+wirePainting(cvA); wirePainting(cvB);
+
+setScenario(0);
+syncRunButton();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
