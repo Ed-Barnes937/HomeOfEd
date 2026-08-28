@@ -77,6 +77,62 @@ describe('powder movement', () => {
   })
 })
 
+/**
+ * A grain resting on dirt with dirt to its lower right and open world to its
+ * lower left: exactly one way out, and the coin decides each tick whether the
+ * grain even looks that way.
+ */
+function inANotch(seed: number): Sim {
+  const sim = new Sim({ seed })
+  for (let x = 10; x < 20; x++) sim.paint(x, FLOOR, DIRT)
+  sim.paint(10, FLOOR - 1, SAND)
+  return sim
+}
+
+const escaped = (sim: Sim) => sim.speciesAt(9, FLOOR) === SAND
+
+describe('a one-sided notch', () => {
+  it('is escaped on some ticks and not others', () => {
+    const seeds = Array.from({ length: 40 }, (_, i) => i + 1)
+
+    const escapedFirstTick = seeds.filter((seed) => {
+      const sim = inANotch(seed)
+      sim.tick()
+      return escaped(sim)
+    })
+
+    // The coin picks the direction, not the order: trying both diagonals would
+    // escape on every tick, trying one escapes on about half of them.
+    expect(escapedFirstTick.length).toBeGreaterThan(5)
+    expect(escapedFirstTick.length).toBeLessThan(35)
+  })
+
+  it('keeps the grain awake once its paint rect has run out', () => {
+    // A paint keeps the chunk awake for exactly two ticks — the dirty rect is
+    // double-buffered, so the notch gets two free draws before sleeping is even
+    // on the table. Anything asserted before the third tick passes whether or
+    // not the kernel calls `keepAwake`, which is what makes the naive version of
+    // this test vacuous.
+    const stuck = Array.from({ length: 40 }, (_, i) => inANotch(i + 1)).filter((sim) => {
+      sim.tick()
+      sim.tick()
+      return !escaped(sim)
+    })
+    expect(stuck.length).toBeGreaterThan(0)
+
+    for (const sim of stuck) {
+      // The third tick is the one that tells the two kernels apart: a declined
+      // diagonal writes nothing, so without `keepAwake` the chunk is asleep here
+      // and the grain is wedged in the notch for good.
+      sim.tick()
+      expect(sim.scannedLastTick).toBeGreaterThan(0)
+
+      for (let i = 0; i < 30; i++) sim.tick()
+      expect(escaped(sim)).toBe(true)
+    }
+  })
+})
+
 describe('determinism', () => {
   const paintPile = (sim: Sim) => {
     withDirtFloor(sim)

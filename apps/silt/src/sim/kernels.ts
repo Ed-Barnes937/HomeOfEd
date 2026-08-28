@@ -96,9 +96,20 @@ function canFlow(api: MovementApi, spec: Fluid, dy: number): boolean {
 }
 
 /**
- * Down first; when that is blocked, one diagonal chosen by coin flip so a pile
- * does not lean. `slide` gates the attempt — 0 makes an unmoving heap, 1 the
- * classic falling-sand angle of repose.
+ * Down first; when that is blocked, **one** diagonal chosen by coin flip — the
+ * coin picks the direction, not the order, so a grain whose only way out is the
+ * side the coin missed stays put this tick and draws again next.
+ *
+ * That stickiness is what makes sand avalanche as a granular flow rather than
+ * drain like a liquid. It does *not* change the settled angle of repose, which
+ * is geometric — at `slide: 1` a grain slides whenever its downhill diagonal is
+ * open, so halving the rate delays the slide without moving the angle. A poured
+ * cone comes out identical either way; a collapsing column takes about 2.2× as
+ * long to settle. Measurements in ADR 0039.
+ *
+ * `slide` gates the attempt — 0 makes an unmoving heap, 1 the classic
+ * falling-sand angle. Under the one-diagonal rule a one-sided notch is escaped
+ * with probability `slide × 0.5` per tick rather than `slide`.
  */
 function powder(api: MovementApi, slide: number): void {
   if (api.tryMove(0, 1)) return
@@ -108,9 +119,14 @@ function powder(api: MovementApi, slide: number): void {
   // much of the RNG stream this branch eats.
   if (api.rand() >= slide) return
 
-  const first = api.randInt(2) === 0 ? -1 : 1
-  if (api.tryMove(first, 1)) return
-  api.tryMove(-first, 1)
+  const dx = api.randInt(2) === 0 ? -1 : 1
+  if (api.tryMove(dx, 1)) return
+
+  // A wasted coin writes nothing, so the chunk would sleep with the grain
+  // frozen mid-notch and it would never get its next draw. Sandspiel has no
+  // chunk sleeping and never meets this; the liquid kernel above solves the
+  // same problem the same way.
+  if (api.canMove(-dx, 1)) api.keepAwake()
 }
 
 /**
@@ -151,9 +167,11 @@ function fluid(api: MovementApi, spec: Fluid, dy: number, useOpinionField: boole
     return
   }
 
-  // Both directions, like the powder's two diagonals: the coin picks the order,
-  // not the opportunity. Giving up after one blocked side would leave a cell
-  // that wrote nothing, and its chunk would sleep with the puddle still uneven.
+  // Both directions: the coin picks the order, not the opportunity. Giving up
+  // after one blocked side would leave a cell that wrote nothing, and its chunk
+  // would sleep with the puddle still uneven. The powder kernel takes the other
+  // road — one diagonal and a `keepAwake` (ADR 0039) — because a wedged grain
+  // *should* stick, where an uneven puddle should not.
   const along = api.randInt(2) === 0 ? -1 : 1
   if (!spread(api, along, dy, spec.dispersion)) spread(api, -along, dy, spec.dispersion)
 }

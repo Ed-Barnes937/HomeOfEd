@@ -84,7 +84,8 @@ moves.ts      DeferredMoves — the cross-chunk move queue and its PRNG tie-brea
 api.ts        CellApi — the chunk-relative (dx, dy) surface, one reused cursor
 kernels.ts    applyArchetype — the only code that moves cells. Liquids keep
               their lateral direction, momentum and seeded flag packed in `ra`
-              (the "opinion field", ADR 0038) instead of re-rolling a coin
+              (the "opinion field", ADR 0038) instead of re-rolling a coin;
+              a blocked powder tries one random diagonal, not both (ADR 0039)
 lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
               has moved; neither moves anything
 growth.ts     the roster's one `onTick`: moss and vine grow into water, up
@@ -107,7 +108,12 @@ Rules that are easy to break by accident:
   on the last, so an element's code never runs on a cell it no longer is.
 - **A cell that should keep acting must write, or call `api.keepAwake()`.**
   Chunk sleeping is driven by writes, so a `move` probability that does not come
-  up would otherwise freeze a liquid in mid-air.
+  up would otherwise freeze a liquid in mid-air, and a powder that drew the one
+  diagonal it could not take would sit frozen in its notch (ADR 0039). The
+  judgement is whether *this* cell still has business next tick — declining a
+  step is not the same as having nowhere to step. Not every decline qualifies:
+  the liquid kernel's stray gate deliberately lets a lone droplet settle
+  ([ADR 0038](../../docs/adr/0038-silt-liquids-keep-their-direction-in-ra.md)).
 - **No `Math.random()` under `src/sim`.** Randomness comes from the sim's `Rng`
   via `api.rand()` / `api.randInt()`; the determinism test guards this.
 - **`Api` is `(dx, dy)`-relative only**, never absolute — chunked iteration
