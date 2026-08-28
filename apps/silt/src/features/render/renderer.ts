@@ -1,4 +1,10 @@
-import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, SPECIES_OFFSET } from '../../sim/index.ts'
+import {
+  BYTES_PER_CELL,
+  GRID_HEIGHT,
+  GRID_WIDTH,
+  RB_OFFSET,
+  SPECIES_OFFSET,
+} from '../../sim/index.ts'
 import type { ElementRegistry } from '../../sim/index.ts'
 import {
   canvasPointToGrid,
@@ -8,6 +14,7 @@ import {
 } from './letterboxFit.ts'
 import {
   buildPackedSpeciesPalette,
+  paletteSlot,
   WORLD_COLOUR,
   type PackedSpeciesPalette,
 } from './speciesPalette.ts'
@@ -142,8 +149,12 @@ export class SimRenderer implements WorldRenderer {
     const { cells } = sim
     const pixels = this.pixels
     const palette = this.palette
-    for (let cell = 0, i = SPECIES_OFFSET; i < cells.length; i += BYTES_PER_CELL, cell++) {
-      pixels[cell] = palette[cells[i]!]!
+    // Species picks the palette row, the variant in `rb` the slot within it —
+    // one indexed load per pixel, no second table and no division (sandspiel
+    // ticket 03). `paletteSlot` is the one place that arithmetic lives, so the
+    // 2D path cannot drift from the shader without the blit gate saying so.
+    for (let cell = 0, i = 0; i < cells.length; i += BYTES_PER_CELL, cell++) {
+      pixels[cell] = palette[paletteSlot(cells[i + SPECIES_OFFSET]!, cells[i + RB_OFFSET]!)]!
     }
     this.bufferCtx.putImageData(this.imageData, 0, 0)
 

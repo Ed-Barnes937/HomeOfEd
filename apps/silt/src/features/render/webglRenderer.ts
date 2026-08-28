@@ -12,6 +12,7 @@ import {
   hexToRgb,
   packPaletteTexture,
   rasteriseSpecies,
+  VARIANT_SLOTS,
   WORLD_COLOUR,
   type SpeciesPalette,
 } from './speciesPalette.ts'
@@ -28,9 +29,14 @@ void main() {
 }
 `
 
-// The grid uploads as-is (RGBA8UI, species in R, rb in B for later per-cell
-// variance shading); colour is a palette-texture lookup, so the canvas reads
-// the same registry-derived table as the rail (spec §9).
+// The grid uploads as-is (RGBA8UI, species in R, the colour variant in B);
+// colour is a palette-texture lookup, so the canvas reads the same
+// registry-derived table as the rail (spec §9). The palette texture is
+// `VARIANT_SLOTS` wide and 256 tall — species picks the row, the low bits of
+// `rb` the column, which is `paletteSlot` (./speciesPalette.ts) written in
+// GLSL (sandspiel ticket 03). The mask is interpolated from the same constant
+// the texture is sized from, so the one thing left to drift is the shape of
+// the expression — and the blit parity gate holds it to that.
 const FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 precision highp usampler2D;
@@ -43,8 +49,9 @@ void main() {
   // v_uv.y = 0 is the viewport's bottom edge; grid row 0 is the world's top.
   ivec2 cell = ivec2(vec2(v_uv.x, 1.0 - v_uv.y) * vec2(gridSize));
   cell = clamp(cell, ivec2(0), gridSize - 1);
-  uint species = texelFetch(u_grid, cell, 0).r;
-  outColour = texelFetch(u_palette, ivec2(int(species), 0), 0);
+  uvec4 packed = texelFetch(u_grid, cell, 0);
+  uint variant = packed.b & ${VARIANT_SLOTS - 1}u;
+  outColour = texelFetch(u_palette, ivec2(int(variant), int(packed.r)), 0);
 }
 `
 
@@ -130,14 +137,14 @@ export class WebGLSimRenderer implements WorldRenderer {
     const paletteTexture = gl.createTexture()
     gl.bindTexture(gl.TEXTURE_2D, paletteTexture)
     configureTexture(gl)
-    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, 256, 1)
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, VARIANT_SLOTS, 256)
     gl.texSubImage2D(
       gl.TEXTURE_2D,
       0,
       0,
       0,
+      VARIANT_SLOTS,
       256,
-      1,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
       packPaletteTexture(this.palette),

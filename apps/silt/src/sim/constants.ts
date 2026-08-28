@@ -37,6 +37,16 @@ export const CHUNK_MARGIN = 2
  */
 export const MAX_LIFETIME_TICKS = 255
 
+/**
+ * Colour variants a species can be drawn in. The renderer gives every species
+ * exactly this many palette slots and picks between them with the low bits of
+ * `rb`, so it is also the most colours an element may usefully declare — the
+ * registry enforces that at boot, the same way it enforces `MAX_LIFETIME_TICKS`
+ * on behalf of `ra`. Must stay a power of two: the variant is a mask, not a
+ * division. See [ADR 0040](../../../../docs/adr/0040-silt-colour-variants-in-rb.md).
+ */
+export const VARIANT_SLOTS = 8
+
 /** Sim steps per second; the tick is fixed-timestep and render-independent. */
 export const TICKS_PER_SECOND = 60
 export const MS_PER_TICK = 1000 / TICKS_PER_SECOND

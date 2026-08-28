@@ -40,13 +40,32 @@ test('the WebGL path draws the same colours the palette rasterises', async ({ mo
     )
     expect(result.species).toBe(species)
     expect(result.webgl).toEqual(result.palette)
+    expect(result.canvas2d).toEqual(result.palette)
   }
+
+  // The parity that colour variants added (sandspiel ticket 03): one species,
+  // a run of cells, mixed `rb` bytes. The shader picks its variant from the B
+  // channel and the CPU palette from the same byte, so a shader that indexes
+  // the palette texture differently fails here rather than merely looking odd.
+  const run = await page.evaluate(
+    (key) => (window as unknown as Record<string, BlitProbeApi>)[key]!.compareRun(210, 280, 185),
+    BLIT_PROBE_KEY,
+  )
+  expect(run.every((cell) => cell.species === DIRT)).toBe(true)
+  for (const cell of run) {
+    expect(cell.webgl).toEqual(cell.palette)
+    expect(cell.canvas2d).toEqual(cell.palette)
+  }
+  // Four shades over 71 cells: anything less than all four means the sim is not
+  // seeding `rb`, or the renderer is not reading it.
+  expect(new Set(run.map((cell) => cell.webgl.join(','))).size).toBe(4)
 
   const margin = await page.evaluate(
     (key) => (window as unknown as Record<string, BlitProbeApi>)[key]!.compareMargin(),
     BLIT_PROBE_KEY,
   )
   expect(margin.webgl).toEqual(margin.world)
+  expect(margin.canvas2d).toEqual(margin.world)
 })
 
 test('measure the blit: Canvas 2D vs WebGL draw cost', async ({ mount, page }) => {

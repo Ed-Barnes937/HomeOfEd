@@ -10,6 +10,7 @@ export {
   RB_OFFSET,
   SPECIES_OFFSET,
   TICKS_PER_SECOND,
+  VARIANT_SLOTS,
 } from './constants.ts'
 export {
   ACID,

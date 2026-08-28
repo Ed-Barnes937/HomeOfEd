@@ -48,7 +48,7 @@ export class CellApi implements MovementApi {
   }
 
   set(dx: number, dy: number, species: number): void {
-    this.#grid.write(this.#x + dx, this.#y + dy, species, this.#clock)
+    this.#grid.write(this.#x + dx, this.#y + dy, species, this.#clock, this.#variant())
   }
 
   /**
@@ -77,7 +77,17 @@ export class CellApi implements MovementApi {
   }
 
   become(species: number): void {
-    this.#grid.write(this.#x, this.#y, species, this.#clock)
+    this.#grid.write(this.#x, this.#y, species, this.#clock, this.#variant())
+  }
+
+  /**
+   * A colour variant for a cell being born here. Seeded centrally so that every
+   * transmutation gets one — water→steam→water would otherwise collapse back to
+   * variant 0 and the cloud would flatten into a slab. Drawn from the sim PRNG,
+   * so determinism holds.
+   */
+  #variant(): number {
+    return this.#rng.randInt(256)
   }
 
   has(dx: number, dy: number, tag: string): boolean {
@@ -98,6 +108,14 @@ export class CellApi implements MovementApi {
 
   set rb(value: number) {
     this.#grid.setRb(this.#x, this.#y, value)
+  }
+
+  raAt(dx: number, dy: number): number {
+    return this.#grid.raAt(this.#x + dx, this.#y + dy)
+  }
+
+  setRaAt(dx: number, dy: number, value: number): void {
+    this.#grid.setRa(this.#x + dx, this.#y + dy, value)
   }
 
   rand(): number {

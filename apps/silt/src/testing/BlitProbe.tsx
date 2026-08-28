@@ -1,15 +1,22 @@
 // Test-only probe for the two frame paths (120fps ticket 01): mounts one
 // canvas per renderer, a paused Sim behind both, and exposes pixel-parity and
-// draw-timing hooks on the window. Parity reads the WebGL framebuffer back and
-// compares it with the registry palette the CPU path rasterises from — the
-// two lookups share a table but nothing else, so a shader that drifts fails.
+// draw-timing hooks on the window. Parity reads back what each path actually
+// put on screen — the WebGL framebuffer and the 2D canvas — and compares both
+// with the registry palette. The three share a table and nothing else: the
+// shader indexes it with its own arithmetic and the 2D loop with its own, so
+// either drifting fails here (sandspiel ticket 03).
 import { useEffect, useRef } from 'react'
 
 import { SimRenderer } from '../features/render/renderer.ts'
-import { buildSpeciesPalette, hexToRgb, WORLD_COLOUR } from '../features/render/speciesPalette.ts'
+import {
+  buildSpeciesPalette,
+  hexToRgb,
+  paletteSlot,
+  WORLD_COLOUR,
+} from '../features/render/speciesPalette.ts'
 import { WebGLSimRenderer } from '../features/render/webglRenderer.ts'
 import { DIRT, GRID_HEIGHT, GRID_WIDTH, Sim, STONE, WATER, WOOD } from '../sim/index.ts'
-import { BLIT_PROBE_KEY, type BlitProbeApi } from './blitProbeApi.ts'
+import { BLIT_PROBE_KEY, type BlitProbeApi, type BlitProbeCell } from './blitProbeApi.ts'
 
 /** CSS px; dpr fixed at 1 so CSS px = device px and cell centres land exactly. */
 const CANVAS_WIDTH = 1240
@@ -65,10 +72,10 @@ export function BlitProbe() {
       revision: ++probeRevision,
     })
 
+    // Reads only — the caller draws first, in the same task, so the buffer is
+    // still live. Kept apart from the draw so a run of cells costs one frame.
     const readPixel = (deviceX: number, deviceYFromTop: number): number[] => {
-      rendererGl.draw(renderable())
       const out = new Uint8Array(4)
-      // readPixels in the same task as the draw, so the buffer is still live.
       gl.readPixels(
         deviceX,
         webglCanvas.height - 1 - deviceYFromTop,
@@ -81,25 +88,55 @@ export function BlitProbe() {
       return [out[0] ?? 0, out[1] ?? 0, out[2] ?? 0]
     }
 
+    const ctx2d = canvas2d.getContext('2d')
+    if (!ctx2d) throw new Error('BlitProbe needs a 2D context')
+    const read2dPixel = (deviceX: number, deviceYFromTop: number): number[] => {
+      const { data } = ctx2d.getImageData(deviceX, deviceYFromTop, 1, 1)
+      return [data[0] ?? 0, data[1] ?? 0, data[2] ?? 0]
+    }
+
+    const readCell = (x: number, y: number): BlitProbeCell => {
+      const species = sim.speciesAt(x, y)
+      const rb = sim.rbAt(x, y)
+      const point = rendererGl.gridToCanvasPoint(x, y)
+      const deviceX = Math.round(point.x)
+      const deviceY = Math.round(point.y)
+      const slot = paletteSlot(species, rb) * 3
+      return {
+        species,
+        rb,
+        webgl: readPixel(deviceX, deviceY),
+        canvas2d: read2dPixel(deviceX, deviceY),
+        palette: [palette[slot] ?? 0, palette[slot + 1] ?? 0, palette[slot + 2] ?? 0],
+      }
+    }
+
+    /** Both paths draw the same world, in one task, so both readbacks are live. */
+    const drawBoth = (): void => {
+      const frame = renderable()
+      renderer2d.draw(frame)
+      rendererGl.draw(frame)
+    }
+
     const api: BlitProbeApi = {
       compareCell: (x, y) => {
-        const species = sim.speciesAt(x, y)
-        const point = rendererGl.gridToCanvasPoint(x, y)
+        drawBoth()
+        return readCell(x, y)
+      },
+      compareRun: (x0, x1, y) => {
+        drawBoth()
+        return Array.from({ length: x1 - x0 + 1 }, (_, i) => readCell(x0 + i, y))
+      },
+      compareMargin: () => {
+        drawBoth()
+        const deviceY = Math.round(CANVAS_HEIGHT / 2)
         return {
-          species,
-          webgl: readPixel(Math.round(point.x), Math.round(point.y)),
-          palette: [
-            palette[species * 3] ?? 0,
-            palette[species * 3 + 1] ?? 0,
-            palette[species * 3 + 2] ?? 0,
-          ],
+          // The fit is centred, so device x=2 sits in the left letterbox bar.
+          webgl: readPixel(2, deviceY),
+          canvas2d: read2dPixel(2, deviceY),
+          world: [...hexToRgb(WORLD_COLOUR)],
         }
       },
-      compareMargin: () => ({
-        // The fit is centred, so device x=2 sits in the left letterbox bar.
-        webgl: readPixel(2, Math.round(CANVAS_HEIGHT / 2)),
-        world: [...hexToRgb(WORLD_COLOUR)],
-      }),
       benchDraw: (frames) => {
         const time = (draw: () => void): number => {
           const start = performance.now()

@@ -1,5 +1,5 @@
 import { EMPTY, WALL } from './elements.ts'
-import { MAX_LIFETIME_TICKS } from './constants.ts'
+import { MAX_LIFETIME_TICKS, VARIANT_SLOTS } from './constants.ts'
 import type { Archetype, ElementDef, ReactionRow } from './types.ts'
 
 /**
@@ -235,6 +235,12 @@ export function createRegistry(
     }
 
     if (def.colours.length === 0) fail('needs at least one colour')
+    // The renderer folds the colours into a fixed variant window and picks
+    // between them with the low bits of `rb`. A colour past the last slot would
+    // simply never be drawn, so say so at boot rather than never.
+    if (def.colours.length > VARIANT_SLOTS) {
+      fail(`may declare at most ${VARIANT_SLOTS} colours — one per variant slot`)
+    }
     for (const colour of def.colours) {
       if (!HEX.test(colour)) fail(`colour ${colour} is not #rrggbb`)
     }

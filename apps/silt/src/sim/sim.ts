@@ -5,7 +5,7 @@ import { DeferredMoves } from './moves.ts'
 import { Grid } from './grid.ts'
 import { applyArchetype } from './kernels.ts'
 import { applyLifetime, applyReactions } from './lifecycle.ts'
-import { createRegistry, type ElementRegistry } from './registry.ts'
+import { createRegistry, type ElementRegistry, type ResolvedLifetime } from './registry.ts'
 import { Rng } from './rng.ts'
 import type { Chunk } from './chunks.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
@@ -99,6 +99,11 @@ export class Sim {
     return this.#grid.speciesAt(x, y)
   }
 
+  /** The cell's colour variant — what the renderer shades it by. 0 out of bounds. */
+  rbAt(x: number, y: number): number {
+    return this.#grid.rbAt(x, y)
+  }
+
   /**
    * Cells the last tick actually visited. Chunk sleeping leaves no trace in the
    * grid, so this is how the skip path is asserted — it is observability, not
@@ -110,13 +115,16 @@ export class Sim {
 
   /**
    * Stamped with the settled-cell clock so the next tick still considers it —
-   * painting between ticks must not cost the grain a tick of falling.
+   * painting between ticks must not cost the grain a tick of falling. The cell
+   * is born with a colour variant in `rb` (sandspiel ticket 03), which is what
+   * keeps a poured heap from reading as one flat slab; spawners emit through
+   * here, so their grains are seeded too.
    */
   paint(x: number, y: number, species: number): void {
     if (species !== EMPTY && !this.registry.get(species)) {
       throw new Error(`unknown species ${species}`)
     }
-    this.#grid.write(x, y, species, this.#settledClock())
+    this.#grid.write(x, y, species, this.#settledClock(), this.#rng.randInt(256))
     // `write` only marks the chunk dirty for the *next* tick; a paint lands
     // between ticks, so it has to wake the chunk for the one about to run.
     this.#grid.chunks.activate(x, y)
@@ -145,6 +153,9 @@ export class Sim {
    * freshly cleared generation 0. Every occupied cell is activated, so the
    * first tick after a load scans the world it was handed rather than a
    * sleeping one.
+   *
+   * The saved `rb` plane is put back verbatim rather than reseeded, so a scene
+   * reloads with the exact grain it was saved with (sandspiel ticket 03).
    */
   restore(species: Uint8Array, ra: Uint8Array, rb: Uint8Array): void {
     const size = this.width * this.height
@@ -160,7 +171,9 @@ export class Sim {
       if (!this.registry.get(id)) throw new Error(`unknown species ${id}`)
       const x = i % this.width
       const y = (i / this.width) | 0
-      grid.write(x, y, id, this.#settledClock())
+      // Variant 0 for a beat, then the saved one — `write` takes no default,
+      // so a restore says out loud that it is not seeding a fresh grain.
+      grid.write(x, y, id, this.#settledClock(), 0)
       grid.setRa(x, y, ra[i]!)
       grid.setRb(x, y, rb[i]!)
       grid.chunks.activate(x, y)
@@ -235,11 +248,16 @@ export class Sim {
         const def = this.registry.get(species)
         if (!def) continue
 
+        // Looked up once and handed to both halves: it decides whether the
+        // liquid kernel may keep its direction in `ra` (ADR 0038) as well as
+        // whether the cell ages.
+        const lifetime = this.registry.lifetimeOf(species)
+
         grid.stampAtBase(base, clock)
         this.#api.moveTo(x, y, clock)
-        applyArchetype(this.#api, def.archetype)
+        applyArchetype(this.#api, def.archetype, lifetime === undefined)
         this.#scanned++
-        this.#afterMovement(def)
+        this.#afterMovement(def, lifetime)
       }
     }
   }
@@ -254,13 +272,12 @@ export class Sim {
    * cursor is wherever movement left it (or where it started, if the move was
    * only queued), so all of this is relative to the cell's new home.
    */
-  #afterMovement(def: ElementDef): void {
+  #afterMovement(def: ElementDef, lifetime: ResolvedLifetime | undefined): void {
     const api = this.#api
 
     applyReactions(api, this.registry)
     if (api.get(0, 0) !== def.id) return
 
-    const lifetime = this.registry.lifetimeOf(def.id)
     if (lifetime && !applyLifetime(api, lifetime)) return
 
     def.onTick?.(api)

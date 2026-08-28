@@ -36,7 +36,11 @@ src/
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches)
   features/         palette/ (the paintable roster + brush widths)
-                    render/  (letterboxFit, grid palette, the WebGL2 renderer +
+                    render/  (letterboxFit, the grid palette — 256 species ×
+                              `VARIANT_SLOTS` variant slots, indexed by
+                              `paletteSlot` from both frame paths and by the
+                              same arithmetic in the shader (ADR 0040) — the
+                              WebGL2 renderer +
                               the Canvas 2D fallback and createRenderer picking
                               between them, WorldOverlay — the chrome drawn
                               over the canvas)
@@ -70,7 +74,10 @@ constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick 
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
-              moss, vine) and v1Reactions — config plus one hook. Gas densities
+              moss, vine) and v1Reactions — config plus one hook. Everything
+              that forms a mass declares four shades rather than one, picked
+              per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
+              rail reads it. The three gases stay flat. Gas densities
               read backwards: `canDisplace` is `mine > theirs`, so the gas
               closest to zero rises highest. Reaction row order is load-bearing:
               a specific pair must precede any tag row covering it (acid + wood)
@@ -82,7 +89,10 @@ chunks.ts     Chunk / ChunkMap — two dirty rects swapped at frame end, 2-cell
               margin, filled-cell count; `all` is the fixed row-major order
 moves.ts      DeferredMoves — the cross-chunk move queue and its PRNG tie-break
 api.ts        CellApi — the chunk-relative (dx, dy) surface, one reused cursor
-kernels.ts    applyArchetype — the only code that moves cells
+kernels.ts    applyArchetype — the only code that moves cells. Liquids keep
+              their lateral direction, momentum and seeded flag packed in `ra`
+              (the "opinion field", ADR 0038) instead of re-rolling a coin;
+              a blocked powder tries one random diagonal, not both (ADR 0039)
 lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
               has moved; neither moves anything
 growth.ts     the roster's one `onTick`: moss and vine grow into water, up
@@ -105,7 +115,12 @@ Rules that are easy to break by accident:
   on the last, so an element's code never runs on a cell it no longer is.
 - **A cell that should keep acting must write, or call `api.keepAwake()`.**
   Chunk sleeping is driven by writes, so a `move` probability that does not come
-  up would otherwise freeze a liquid in mid-air.
+  up would otherwise freeze a liquid in mid-air, and a powder that drew the one
+  diagonal it could not take would sit frozen in its notch (ADR 0039). The
+  judgement is whether *this* cell still has business next tick — declining a
+  step is not the same as having nowhere to step. Not every decline qualifies:
+  the liquid kernel's stray gate deliberately lets a lone droplet settle
+  ([ADR 0038](../../docs/adr/0038-silt-liquids-keep-their-direction-in-ra.md)).
 - **No `Math.random()` under `src/sim`.** Randomness comes from the sim's `Rng`
   via `api.rand()` / `api.randInt()`; the determinism test guards this.
 - **`Api` is `(dx, dy)`-relative only**, never absolute — chunked iteration
@@ -119,14 +134,32 @@ Rules that are easy to break by accident:
 - **`Grid.stamp` must never mark a chunk dirty** — it runs on every occupied
   cell each tick, so nothing would ever sleep.
 - **Byte ownership**: `lifetime` owns `ra` (engine-managed — an element never
-  writes it; `0` means "not seeded yet"), colour variant owns `rb`. New per-cell
-  fields are parallel grids; the cell never widens past 4 bytes. **The one
-  exception is the growth hook** (`growth.ts`): moss and vine declare no
-  `lifetime`, so nothing is claiming `ra` and it holds their branch count.
-  Giving either of them a lifetime hands the byte back and uncaps growth. Full
-  reasoning in [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md)
-  §3 — this entry and the comment in `growth.ts` are summaries of it, so a
+  writes it; `0` means "not seeded yet"), colour variant owns `rb` — **seeded at
+  birth, preserved by `restore`**: `Grid.write` takes the variant as an argument
+  and `Sim.paint` / `CellApi.set` / `CellApi.become` each pass a fresh
+  `randInt(256)`, so a transmuted cell does not fall back to variant 0; only
+  `Sim.restore` takes the default, because it puts the saved plane back straight
+  after. No element writes it either.
+  [ADR 0040](../../docs/adr/0040-silt-colour-variants-in-rb.md).
+  New per-cell fields are parallel grids; the cell never widens past 4 bytes. There are
+  **two exceptions, both conditional on the element declaring no `lifetime`**,
+  and they cannot collide (one is static-only, the other liquid-only):
+  - **The growth hook** (`growth.ts`): moss and vine hold their branch count in
+    `ra`. Giving either a lifetime hands the byte back and uncaps growth.
+    [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md) §3.
+  - **The liquid opinion field** (`kernels.ts`): a liquid keeps its lateral
+    direction, momentum and seeded marker in `ra` — bit 0, bits 1–3, bit 7.
+    Unlike growth this one is *enforced*, not just documented: the scan passes
+    `applyArchetype` a `raIsFree` flag, so a liquid that declares a lifetime
+    degrades to the old coin flip instead of corrupting its countdown.
+    [ADR 0038](../../docs/adr/0038-silt-liquids-keep-their-direction-in-ra.md).
+
+  This entry and the comments at both sites are summaries of those ADRs, so a
   change to the rule belongs in the ADR first.
+- **`Api` reaches a neighbour's `ra` nowhere; `MovementApi` does.** `raAt` /
+  `setRaAt` exist for the liquid kernel's opinion contagion and are engine-only
+  on purpose — an element hook scribbling on another cell's engine-owned byte is
+  the failure mode the ownership rule exists to prevent.
 - **A hook cannot keep its own cell awake.** `Api` has no `keepAwake` (it is on
   the engine-internal `MovementApi`), so a hook that must go on being offered a
   draw has to *write* — `growth.ts` writes `ra` every tick it has water to
