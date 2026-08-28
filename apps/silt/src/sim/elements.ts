@@ -30,10 +30,33 @@ export const VINE = 17
  */
 export const WALL = 255
 
+/*
+ * ## Colour variants — the rule every element below follows
+ *
+ * Every element that forms a mass — a heap, a pool, a wall — declares four
+ * shades rather than one, and each cell picks between them by the variant byte
+ * the sim seeds into `rb` at birth (ADR 0040). Without it a pile of sand renders
+ * as a slab. The shades are the base colour at ×1.00, ×0.90, ×1.08 and ×0.96,
+ * roughly ±10% of luminance: enough to read as grain at the 300×200 grid's
+ * on-screen scale, not enough to read as a second material.
+ *
+ * Two rules hold this together, both load-bearing:
+ *
+ * - **`colours[0]` is the base**, because the rail swatch reads `colours[0]`
+ *   and the rail must not drift from the canvas (spec §9).
+ * - **Four divides `VARIANT_SLOTS` (8)**, so the shades come up in equal shares
+ *   (`../features/render/speciesPalette.ts`).
+ *
+ * The three gases keep their single colour. Their motion already breaks up the
+ * mass, and the gas archetype is the one the sandspiel spec flags as possibly
+ * changing — `rb` is what an isotropic-walk gas would want for its molecule
+ * count, so leaving it unclaimed there costs nothing today.
+ */
+
 const dirt: ElementDef = {
   id: DIRT,
   name: 'dirt',
-  colours: ['#8a7358'],
+  colours: ['#8a7358', '#7c684f', '#957c5f', '#846e54'],
   tags: ['solid'],
   archetype: { kind: 'static' },
   // The hardness pass (materials spec §3) lands here, where acid first reads
@@ -44,7 +67,7 @@ const dirt: ElementDef = {
 const sand: ElementDef = {
   id: SAND,
   name: 'sand',
-  colours: ['#d9b978'],
+  colours: ['#d9b978', '#c3a76c', '#eac882', '#d0b273'],
   tags: ['powder'],
   // slide 1 = always tries a diagonal when blocked below, the classic
   // falling-sand angle of repose. Density 60 is the top of the roster, so a
@@ -56,7 +79,7 @@ const sand: ElementDef = {
 const water: ElementDef = {
   id: WATER,
   name: 'water',
-  colours: ['#6f9fc4'],
+  colours: ['#6f9fc4', '#648fb0', '#78acd4', '#6b99bc'],
   tags: ['liquid'],
   // Five cells of sideways travel a tick is what makes a poured column read as
   // spreading rather than as a wobbling stack.
@@ -66,7 +89,7 @@ const water: ElementDef = {
 const lava: ElementDef = {
   id: LAVA,
   name: 'lava',
-  colours: ['#d4622a'],
+  colours: ['#d4622a', '#bf5826', '#e56a2d', '#cc5e28'],
   tags: ['liquid'],
   // The "slow liquid" (spec §4): it acts on roughly one tick in seven, and
   // spreads two cells rather than five when it does, so it oozes.
@@ -79,7 +102,7 @@ const obsidian: ElementDef = {
   // Not in the design brief's swatch list — the brief only names the paintable
   // elements, and obsidian is a reaction product. Chosen to sit between the
   // world's near-black and the cooled-rock purple the lava suggests.
-  colours: ['#2a2430'],
+  colours: ['#2a2430', '#26202b', '#2d2734', '#28232e'],
   tags: ['solid'],
   archetype: { kind: 'static' },
   // The top of the hardness ladder: nothing in the roster corrodes it, which
@@ -90,7 +113,7 @@ const obsidian: ElementDef = {
 const wood: ElementDef = {
   id: WOOD,
   name: 'wood',
-  colours: ['#6b4a2a'],
+  colours: ['#6b4a2a', '#604326', '#74502d', '#674728'],
   tags: ['solid', 'flammable'],
   archetype: { kind: 'static' },
   // Hardness 1 is what later lets acid eat wood while obsidian shrugs it off
@@ -101,7 +124,7 @@ const wood: ElementDef = {
 const oil: ElementDef = {
   id: OIL,
   name: 'oil',
-  colours: ['#46402c'],
+  colours: ['#46402c', '#3f3a28', '#4c4530', '#433d2a'],
   tags: ['liquid', 'flammable'],
   // Lighter than water (30), so water sinks past it and the oil ends up as the
   // film on top — the displacement rule does this, not a special case.
@@ -151,7 +174,7 @@ const steam: ElementDef = {
 const acid: ElementDef = {
   id: ACID,
   name: 'acid',
-  colours: ['#8fd128'],
+  colours: ['#8fd128', '#81bc24', '#9ae22b', '#89c926'],
   tags: ['liquid'],
   // Denser than water (30), so it sinks under a pool rather than sitting on
   // it, and lighter than sand (60), so a grain still falls through it.
@@ -164,7 +187,7 @@ const acid: ElementDef = {
 const stone: ElementDef = {
   id: STONE,
   name: 'stone',
-  colours: ['#6f6a63'],
+  colours: ['#6f6a63', '#645f59', '#78726b', '#6b665f'],
   tags: ['solid'],
   archetype: { kind: 'static' },
   // Hardness 3 is above rows 6–7's `maxHardness: 1`, so acid + stone is never
@@ -175,7 +198,7 @@ const stone: ElementDef = {
 const sulphur: ElementDef = {
   id: SULPHUR,
   name: 'sulphur',
-  colours: ['#d6c53c'],
+  colours: ['#d6c53c', '#c1b136', '#e7d541', '#cdbd3a'],
   tags: ['powder', 'flammable'],
   archetype: { kind: 'powder', density: 55, slide: 1 },
   // 2 is above rows 6–7's `maxHardness: 1`, so the acid that just made this
@@ -189,7 +212,7 @@ const mud: ElementDef = {
   name: 'mud',
   // Wet dirt: the same hue as dirt, darkened, so a wetted bed reads as the
   // same ground rather than as a new material dropped on top of it.
-  colours: ['#5b4632'],
+  colours: ['#5b4632', '#523f2d', '#624c36', '#574330'],
   tags: ['liquid'],
   // Denser than water (30), so it settles under a pool rather than clouding
   // it, and lighter than sand (60), so a grain still sinks through. The
@@ -210,7 +233,7 @@ const seed: ElementDef = {
   name: 'seed',
   // A husk, not a grain: darker and greener than sand and than sulphur, both
   // of which it otherwise sits between on the powder shelf.
-  colours: ['#9c8348'],
+  colours: ['#9c8348', '#8c7641', '#a88d4e', '#967e45'],
   tags: ['powder', 'flammable'],
   // Denser than water (30) and lighter than mud (50), so a seed sinks through
   // a pool and comes to rest *on* the soil instead of burying itself in it —
@@ -224,7 +247,7 @@ const seed: ElementDef = {
 const moss: ElementDef = {
   id: MOSS,
   name: 'moss',
-  colours: ['#4a7a34'],
+  colours: ['#4a7a34', '#436e2f', '#508438', '#477532'],
   tags: ['solid', 'flammable'],
   archetype: { kind: 'static' },
   hardness: 0,
@@ -239,7 +262,7 @@ const vine: ElementDef = {
   name: 'vine',
   // Brighter than moss: a climbing shoot reads as newer growth than the mat it
   // came from.
-  colours: ['#79b74a'],
+  colours: ['#79b74a', '#6da543', '#83c650', '#74b047'],
   tags: ['solid', 'flammable'],
   archetype: { kind: 'static' },
   hardness: 0,

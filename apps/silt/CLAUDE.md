@@ -36,7 +36,11 @@ src/
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches)
   features/         palette/ (the paintable roster + brush widths)
-                    render/  (letterboxFit, grid palette, the WebGL2 renderer +
+                    render/  (letterboxFit, the grid palette — 256 species ×
+                              `VARIANT_SLOTS` variant slots, indexed by
+                              `paletteSlot` from both frame paths and by the
+                              same arithmetic in the shader (ADR 0040) — the
+                              WebGL2 renderer +
                               the Canvas 2D fallback and createRenderer picking
                               between them, WorldOverlay — the chrome drawn
                               over the canvas)
@@ -70,7 +74,10 @@ constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick 
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
-              moss, vine) and v1Reactions — config plus one hook. Gas densities
+              moss, vine) and v1Reactions — config plus one hook. Everything
+              that forms a mass declares four shades rather than one, picked
+              per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
+              rail reads it. The three gases stay flat. Gas densities
               read backwards: `canDisplace` is `mine > theirs`, so the gas
               closest to zero rises highest. Reaction row order is load-bearing:
               a specific pair must precede any tag row covering it (acid + wood)
@@ -127,8 +134,14 @@ Rules that are easy to break by accident:
 - **`Grid.stamp` must never mark a chunk dirty** — it runs on every occupied
   cell each tick, so nothing would ever sleep.
 - **Byte ownership**: `lifetime` owns `ra` (engine-managed — an element never
-  writes it; `0` means "not seeded yet"), colour variant owns `rb`. New per-cell
-  fields are parallel grids; the cell never widens past 4 bytes. There are
+  writes it; `0` means "not seeded yet"), colour variant owns `rb` — **seeded at
+  birth, preserved by `restore`**: `Grid.write` takes the variant as an argument
+  and `Sim.paint` / `CellApi.set` / `CellApi.become` each pass a fresh
+  `randInt(256)`, so a transmuted cell does not fall back to variant 0; only
+  `Sim.restore` takes the default, because it puts the saved plane back straight
+  after. No element writes it either.
+  [ADR 0040](../../docs/adr/0040-silt-colour-variants-in-rb.md).
+  New per-cell fields are parallel grids; the cell never widens past 4 bytes. There are
   **two exceptions, both conditional on the element declaring no `lifetime`**,
   and they cannot collide (one is static-only, the other liquid-only):
   - **The growth hook** (`growth.ts`): moss and vine hold their branch count in

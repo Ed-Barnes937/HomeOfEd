@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DIRT, EMPTY, Sim, WATER } from '../../sim/index.ts'
+import { DIRT, EMPTY, Sim, VARIANT_SLOTS, WATER } from '../../sim/index.ts'
 import { brushOffsets } from '../sim/brushOffsets.ts'
 import { emitSpawners, isUnderBrush, type Spawner } from './spawners.ts'
 
@@ -22,6 +22,23 @@ describe('emitSpawners', () => {
     emitSpawners(sim, spawners)
 
     expect(sim.speciesAt(10, 10)).toBe(WATER)
+  })
+
+  it('seeds a colour variant on every grain it emits', () => {
+    const sim = new Sim()
+    const spawner: Spawner = { x: 10, y: 10, element: WATER }
+
+    // Emit, clear the cell, emit again — an emitter that ran for a while would
+    // otherwise lay down one flat column. Emission goes through `Sim.paint`,
+    // which is what seeds `rb` (ADR 0040); this pins that it keeps doing so.
+    const variants = new Set<number>()
+    for (let i = 0; i < 40; i++) {
+      emitSpawners(sim, [spawner])
+      variants.add(sim.rbAt(10, 10) & (VARIANT_SLOTS - 1))
+      sim.paint(10, 10, EMPTY)
+    }
+
+    expect(variants.size).toBe(VARIANT_SLOTS)
   })
 
   it('leaves the grid untouched when there are no spawners', () => {

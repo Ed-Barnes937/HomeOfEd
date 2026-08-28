@@ -71,7 +71,15 @@ export interface ElementDef {
   id: number
   /** One word; the scene format remaps species bytes by this name. */
   name: string
-  /** At least one `#rrggbb`; the renderer picks a variant via `rb`. */
+  /**
+   * One to `VARIANT_SLOTS` (8) shades of `#rrggbb`; each cell is drawn in one of
+   * them, picked by its `rb` byte, which is what keeps a mass of one element
+   * from reading as a slab. `colours[0]` is the base — the rail swatch shows it,
+   * so it must be the colour the element is *recognised* by. Declaring a count
+   * that divides 8 gets the shades in equal shares. The registry refuses a
+   * ninth, since no `rb` could reach it. See
+   * [ADR 0040](../../../../docs/adr/0040-silt-colour-variants-in-rb.md).
+   */
   colours: readonly string[]
   tags: readonly string[]
   archetype: Archetype
@@ -99,20 +107,27 @@ export interface ElementDef {
 export interface Api {
   /** Species id at the offset; WALL out of bounds. */
   get(dx: number, dy: number): number
-  /** Overwrite the cell at the offset, clearing its scratch bytes. */
+  /**
+   * Overwrite the cell at the offset. Its `ra` is cleared and its `rb` is given
+   * a fresh colour variant — the cell is newly born, and a transmutation that
+   * left it at variant 0 would flatten the product into a slab (ADR 0040).
+   */
   set(dx: number, dy: number, species: number): void
   /**
    * Exchange this cell with the one at the offset. The cursor follows, so
    * subsequent calls stay relative to the element's new home.
    */
   swap(dx: number, dy: number): void
-  /** Transmute this cell in place, keeping its position. */
+  /** Transmute this cell in place, keeping its position. Rewrites `ra`/`rb` as `set` does. */
   become(species: number): void
   has(dx: number, dy: number, tag: string): boolean
   /** Scratch byte of this cell — owned by `lifetime`. */
   get ra(): number
   set ra(value: number)
-  /** Scratch byte of this cell — owned by colour variant. */
+  /**
+   * Scratch byte of this cell — owned by colour variant, seeded by the engine
+   * whenever a cell is born and never written by an element.
+   */
   get rb(): number
   set rb(value: number)
   rand(): number

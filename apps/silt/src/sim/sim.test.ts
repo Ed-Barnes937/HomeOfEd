@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { DIRT, EMPTY, SAND } from './elements.ts'
-import { GRID_HEIGHT, GRID_WIDTH } from './constants.ts'
+import { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, WATER } from './elements.ts'
+import { GRID_HEIGHT, GRID_WIDTH, VARIANT_SLOTS } from './constants.ts'
 import { Sim } from './sim.ts'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -203,6 +203,55 @@ describe('grid storage', () => {
 
   it('rejects a provided buffer of the wrong size', () => {
     expect(() => new Sim({ buffer: new SharedArrayBuffer(8) })).toThrow(/byte/i)
+  })
+})
+
+describe('colour variants in `rb`', () => {
+  const rbOf = (sim: Sim, cells: readonly (readonly [number, number])[]) =>
+    new Set(cells.map(([x, y]) => sim.rbAt(x, y)))
+
+  it('seeds a painted cell, so a fresh pour is not one flat slab', () => {
+    const sim = new Sim({ seed: 1 })
+    const cells = Array.from({ length: 200 }, (_, i) => [i % 100, (i / 100) | 0] as const)
+    for (const [x, y] of cells) sim.paint(x, y, SAND)
+
+    // The renderer takes the low bits, so what matters is that the byte spreads
+    // across the variant slots rather than merely varying.
+    const slots = new Set([...rbOf(sim, cells)].map((rb) => rb & (VARIANT_SLOTS - 1)))
+    expect(slots.size).toBe(VARIANT_SLOTS)
+  })
+
+  it('seeds a transmuted cell, so a reaction product is not one flat slab', () => {
+    const sim = new Sim({ seed: 1 })
+    const band = Array.from({ length: 60 }, (_, i) => 40 + i)
+    for (const x of band) {
+      sim.paint(x, 100, WATER)
+      sim.paint(x, 101, LAVA)
+    }
+
+    for (let i = 0; i < 5; i++) sim.tick()
+
+    // `grid.write` clears the cell, so without seeding in `CellApi` every one of
+    // these would be variant 0 and the crust would read as a single slab.
+    const obsidian = band
+      .flatMap((x) => [100, 101].map((y) => [x, y] as const))
+      .filter(([x, y]) => sim.speciesAt(x, y) === OBSIDIAN)
+    expect(obsidian.length).toBeGreaterThan(10)
+    expect(rbOf(sim, obsidian).size).toBeGreaterThan(1)
+  })
+
+  it('keeps the stored variant through a restore, so a saved world loads grain-exact', () => {
+    const sim = new Sim({ seed: 1 })
+    const size = GRID_WIDTH * GRID_HEIGHT
+    const species = new Uint8Array(size)
+    const rb = new Uint8Array(size)
+    const index = GRID_WIDTH + 200
+    species[index] = SAND
+    rb[index] = 200
+
+    sim.restore(species, new Uint8Array(size), rb)
+
+    expect(sim.rbAt(200, 1)).toBe(200)
   })
 })
 

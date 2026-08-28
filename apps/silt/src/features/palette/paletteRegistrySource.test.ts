@@ -15,7 +15,7 @@ import {
   WOOD,
   type ElementDef,
 } from '../../sim/index.ts'
-import { buildSpeciesPalette } from '../render/speciesPalette.ts'
+import { buildSpeciesPalette, paletteSlot } from '../render/speciesPalette.ts'
 import { buildRailPalette } from './paletteGroups.ts'
 
 function hexToRgb(hex: string): readonly [number, number, number] {
@@ -108,7 +108,9 @@ describe('rail and grid colours share one registry', () => {
 
     for (const entry of railPalette.entries) {
       const [r, g, b] = hexToRgb(entry.colour)
-      const offset = entry.id * 3
+      // The rail shows `colours[0]`, which the grid palette keeps in variant
+      // slot 0 — that is what stops a shaded roster drifting from its swatches.
+      const offset = paletteSlot(entry.id, 0) * 3
       expect([speciesPalette[offset], speciesPalette[offset + 1], speciesPalette[offset + 2]]).toEqual([
         r,
         g,

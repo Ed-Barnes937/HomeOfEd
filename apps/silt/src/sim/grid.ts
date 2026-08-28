@@ -162,14 +162,25 @@ export class Grid {
     }
   }
 
-  /** Overwrite a whole cell, clearing its scratch bytes. */
-  write(x: number, y: number, species: number, clock: number): void {
+  /**
+   * Overwrite a whole cell, clearing `ra` and setting `rb` to the colour
+   * variant the caller drew for it. `rb` is a parameter rather than another
+   * cleared byte because every write here is a *birth* — paint, transmutation,
+   * a spawner's emission — and a cell born at variant 0 is why silt rendered as
+   * slabs (ADR 0040).
+   *
+   * It is **required, with no default**, deliberately: a default of 0 is the
+   * exact bug this fixed, silently available to whatever calls `write` next.
+   * The one caller that legitimately wants 0 is `Sim.restore`, which passes it
+   * explicitly and then puts the saved variant back.
+   */
+  write(x: number, y: number, species: number, clock: number, rb: number): void {
     if (!this.inBounds(x, y)) return
     const i = this.#at(x, y, 0)
     const before = this.cells[i + SPECIES_OFFSET]!
     this.cells[i + SPECIES_OFFSET] = species
     this.cells[i + RA_OFFSET] = 0
-    this.cells[i + RB_OFFSET] = 0
+    this.cells[i + RB_OFFSET] = rb
     this.cells[i + CLOCK_OFFSET] = clock
 
     if ((before === EMPTY) !== (species === EMPTY)) {

@@ -57,6 +57,13 @@ describe('createRegistry', () => {
     expect(() => createRegistry([dirt, decaying])).toThrow(/steam/)
   })
 
+  it('rejects more colour variants than the renderer has slots for', () => {
+    const nine = Array.from({ length: 9 }, (_, i) => `#00000${i}`)
+
+    expect(() => createRegistry([{ ...sand, colours: nine }])).toThrow(/at most 8 colours/i)
+    expect(() => createRegistry([{ ...sand, colours: nine.slice(0, 8) }])).not.toThrow()
+  })
+
   it('rejects a lifetime too long for the byte it lives in', () => {
     const immortal: ElementDef = { ...sand, lifetime: { ticks: 200, jitter: 100, becomes: null } }
 
