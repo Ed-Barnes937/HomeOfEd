@@ -82,7 +82,9 @@ chunks.ts     Chunk / ChunkMap — two dirty rects swapped at frame end, 2-cell
               margin, filled-cell count; `all` is the fixed row-major order
 moves.ts      DeferredMoves — the cross-chunk move queue and its PRNG tie-break
 api.ts        CellApi — the chunk-relative (dx, dy) surface, one reused cursor
-kernels.ts    applyArchetype — the only code that moves cells
+kernels.ts    applyArchetype — the only code that moves cells. Liquids keep
+              their lateral direction, momentum and seeded flag packed in `ra`
+              (the "opinion field", ADR 0038) instead of re-rolling a coin
 lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
               has moved; neither moves anything
 growth.ts     the roster's one `onTick`: moss and vine grow into water, up
@@ -120,13 +122,25 @@ Rules that are easy to break by accident:
   cell each tick, so nothing would ever sleep.
 - **Byte ownership**: `lifetime` owns `ra` (engine-managed — an element never
   writes it; `0` means "not seeded yet"), colour variant owns `rb`. New per-cell
-  fields are parallel grids; the cell never widens past 4 bytes. **The one
-  exception is the growth hook** (`growth.ts`): moss and vine declare no
-  `lifetime`, so nothing is claiming `ra` and it holds their branch count.
-  Giving either of them a lifetime hands the byte back and uncaps growth. Full
-  reasoning in [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md)
-  §3 — this entry and the comment in `growth.ts` are summaries of it, so a
+  fields are parallel grids; the cell never widens past 4 bytes. There are
+  **two exceptions, both conditional on the element declaring no `lifetime`**,
+  and they cannot collide (one is static-only, the other liquid-only):
+  - **The growth hook** (`growth.ts`): moss and vine hold their branch count in
+    `ra`. Giving either a lifetime hands the byte back and uncaps growth.
+    [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md) §3.
+  - **The liquid opinion field** (`kernels.ts`): a liquid keeps its lateral
+    direction, momentum and seeded marker in `ra` — bit 0, bits 1–3, bit 7.
+    Unlike growth this one is *enforced*, not just documented: the scan passes
+    `applyArchetype` a `raIsFree` flag, so a liquid that declares a lifetime
+    degrades to the old coin flip instead of corrupting its countdown.
+    [ADR 0038](../../docs/adr/0038-silt-liquids-keep-their-direction-in-ra.md).
+
+  This entry and the comments at both sites are summaries of those ADRs, so a
   change to the rule belongs in the ADR first.
+- **`Api` reaches a neighbour's `ra` nowhere; `MovementApi` does.** `raAt` /
+  `setRaAt` exist for the liquid kernel's opinion contagion and are engine-only
+  on purpose — an element hook scribbling on another cell's engine-owned byte is
+  the failure mode the ownership rule exists to prevent.
 - **A hook cannot keep its own cell awake.** `Api` has no `keepAwake` (it is on
   the engine-internal `MovementApi`), so a hook that must go on being offered a
   draw has to *write* — `growth.ts` writes `ra` every tick it has water to

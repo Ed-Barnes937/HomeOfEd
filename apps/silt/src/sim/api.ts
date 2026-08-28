@@ -100,6 +100,14 @@ export class CellApi implements MovementApi {
     this.#grid.setRb(this.#x, this.#y, value)
   }
 
+  raAt(dx: number, dy: number): number {
+    return this.#grid.raAt(this.#x + dx, this.#y + dy)
+  }
+
+  setRaAt(dx: number, dy: number, value: number): void {
+    this.#grid.setRa(this.#x + dx, this.#y + dy, value)
+  }
+
   rand(): number {
     return this.#rng.rand()
   }

@@ -1,6 +1,6 @@
 # 01 — Water directional persistence (the opinion field)
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 
@@ -117,3 +117,38 @@ throwaway before the ADR and tests are written.
   only. Prototype kept as a primary source on branch
   `silt-water-opinion-prototype` (single file, double-click to rerun).
   Status → ready-for-agent.
+- 2026-08-28 — **Implemented**, all three mechanisms, packing exactly as
+  proposed. [ADR 0038](../../../docs/adr/0038-silt-liquids-keep-their-direction-in-ra.md)
+  (0037 was taken by sprout) plus the byte-ownership entry in
+  `apps/silt/CLAUDE.md`. `MovementApi` gained `raAt`/`setRaAt` rather than the
+  suggested `convert(dx, dy)`, so the bit packing stays in the kernel that
+  defines it. No registry refusal: the `raIsFree` gate already degrades a liquid
+  with a lifetime to the coin flip, which is the safer failure.
+
+  Two results worth carrying forward.
+
+  **No exact-layout assertion moved.** The ticket expected some to; the whole
+  suite passed unedited (219 vitest + 50 iwft). Only one assertion changed, and
+  for the opposite reason —
+
+  **A levelled pool now goes completely still, which it never did before.** The
+  coin re-drew every tick and a cell with a neighbour kept finding one of its
+  two sides open, so an unconfined pool shuffled for ever. Bench `settled world`
+  went 0.052 → 0.006 ms/tick with `scanned` 275 → 0, and that is real settling,
+  not lost simulation: the pool spreads 71 → 120 columns, conserves all 1562
+  cells and ends 13–14 deep across the span. `liquids.test.ts` now pins
+  `scannedLastTick === 0` where it allowed under 100.
+
+  Bench elsewhere is flat to slightly better (mixed 0.549 → 0.506, churn
+  0.674 → 0.633, plants 0.751 → 0.759), so the extra neighbour write per moving
+  liquid cell costs nothing measurable.
+- 2026-08-28 — `/code-review` (standards + spec). Spec axis found no defects and
+  confirmed the kernel is semantically equivalent to the validated prototype.
+  Standards axis found one real gap, now closed: the ADR sold the `raIsFree`
+  gate as "enforced, not just documented" but nothing tested it, since no roster
+  liquid declares a lifetime. `liquids.test.ts` now registers a throwaway one
+  that does; removing the gate makes it fail with `ra` at 131 (a packed opinion)
+  instead of 195 (the countdown), which is the corruption the gate exists to
+  stop. Also took two naming notes — `convert` → `recruitNeighbour`, and
+  `fluid`'s flag → `useOpinionField` so it no longer reads as a different
+  concept from `applyArchetype`'s `raIsFree`.

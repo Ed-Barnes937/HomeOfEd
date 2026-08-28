@@ -129,6 +129,18 @@ export interface MovementApi extends Api {
   /** Whether `tryMove` to the offset would succeed, without taking the step. */
   canMove(dx: number, dy: number): boolean
   /**
+   * A *neighbour's* scratch byte. `Api.ra` is cursor-only, and the liquid
+   * kernel's opinion contagion is the one thing in the engine that has to reach
+   * across a cell boundary to write it. Kept off `Api` deliberately: an element
+   * hook scribbling on another cell's engine-owned byte is the failure mode the
+   * byte-ownership rule exists to prevent.
+   *
+   * Reads out of bounds answer 0 and writes out of bounds are dropped, as
+   * everywhere else. A write marks the neighbour's chunk dirty.
+   */
+  raAt(dx: number, dy: number): number
+  setRaAt(dx: number, dy: number, value: number): void
+  /**
    * Keep this cell's chunk awake for the next tick without changing anything.
    * A cell that *could* move and declined — a `move` probability that did not
    * come up — writes nothing, and the chunk would otherwise sleep with the cell

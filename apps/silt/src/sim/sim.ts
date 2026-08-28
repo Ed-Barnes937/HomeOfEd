@@ -5,7 +5,7 @@ import { DeferredMoves } from './moves.ts'
 import { Grid } from './grid.ts'
 import { applyArchetype } from './kernels.ts'
 import { applyLifetime, applyReactions } from './lifecycle.ts'
-import { createRegistry, type ElementRegistry } from './registry.ts'
+import { createRegistry, type ElementRegistry, type ResolvedLifetime } from './registry.ts'
 import { Rng } from './rng.ts'
 import type { Chunk } from './chunks.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
@@ -235,11 +235,16 @@ export class Sim {
         const def = this.registry.get(species)
         if (!def) continue
 
+        // Looked up once and handed to both halves: it decides whether the
+        // liquid kernel may keep its direction in `ra` (ADR 0038) as well as
+        // whether the cell ages.
+        const lifetime = this.registry.lifetimeOf(species)
+
         grid.stampAtBase(base, clock)
         this.#api.moveTo(x, y, clock)
-        applyArchetype(this.#api, def.archetype)
+        applyArchetype(this.#api, def.archetype, lifetime === undefined)
         this.#scanned++
-        this.#afterMovement(def)
+        this.#afterMovement(def, lifetime)
       }
     }
   }
@@ -254,13 +259,12 @@ export class Sim {
    * cursor is wherever movement left it (or where it started, if the move was
    * only queued), so all of this is relative to the cell's new home.
    */
-  #afterMovement(def: ElementDef): void {
+  #afterMovement(def: ElementDef, lifetime: ResolvedLifetime | undefined): void {
     const api = this.#api
 
     applyReactions(api, this.registry)
     if (api.get(0, 0) !== def.id) return
 
-    const lifetime = this.registry.lifetimeOf(def.id)
     if (lifetime && !applyLifetime(api, lifetime)) return
 
     def.onTick?.(api)
