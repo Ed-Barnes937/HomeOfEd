@@ -796,7 +796,7 @@ export class HomePagePom extends BasePage {
 
   /**
    * A "My boops" row's dot matrix: the rows it actually drew, and the box it
-   * drew them in. A clip owns its rows (ADR 0041), so the count moves — the
+   * drew them in. A clip owns its rows (ADR 0042), so the count moves — the
    * box must not, or the list would jump about as a child adds sounds.
    */
   async readBoopThumbnail(
@@ -1278,7 +1278,7 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The rows the grid shows, in order. A clip owns its rows since ADR 0041, so
+   * The rows the grid shows, in order. A clip owns its rows since ADR 0042, so
    * "which instruments are on the grid" is a question a test can ask — of
    * either renderer, since both label their rows the same way.
    */

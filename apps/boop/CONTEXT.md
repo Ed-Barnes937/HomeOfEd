@@ -58,7 +58,7 @@ that sound themselves, and turning a cell off or editing while the loop runs
 auditions nothing (the step itself will sound it). On **request**:
 `audition(instrumentId)` on the engine seam, the instrument picker's tap - it
 sounds whether or not the loop is running and touches neither the pattern nor
-the transport (ADR 0041).
+the transport (ADR 0042).
 _Avoid_: Preview, echo.
 
 **`AudioDriver`**:
@@ -103,7 +103,7 @@ _Avoid_: Kit (the kit is the manifest as a whole), palette.
 
 **Row**:
 One lane of a clip: an instrument choice plus its 16 cells. A clip owns its
-rows (ADR 0041) - an ordered list of 1..roster-size rows, no instrument twice,
+rows (ADR 0042) - an ordered list of 1..roster-size rows, no instrument twice,
 six by default. Tapping a row's rail artwork opens the instrument picker;
 row *colour* is positional (top-to-bottom rainbow), so it belongs to the
 position, not to the instrument.
@@ -114,7 +114,7 @@ A clip's rows and their on/off cells - an ordered list of rows, each carrying
 its `instrumentId` and 16 booleans. The engine-level term for the raw grid; a
 pattern with a name and identity inside a boop is a **Clip**. Always 16 steps /
 4 bars - clips are never variable-length (boop-loops ticket 10) - but the row
-count is the clip's own (ADR 0041).
+count is the clip's own (ADR 0042).
 _Avoid_: Song (a song is an arrangement of clips, not one grid), sequence.
 
 **Clip**:

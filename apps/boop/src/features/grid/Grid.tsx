@@ -71,7 +71,7 @@ export interface GridViewProps {
 }
 
 /**
- * The grid well: bar-numeral row + the clip's own instrument rows (ADR 0041,
+ * The grid well: bar-numeral row + the clip's own instrument rows (ADR 0042,
  * so a row's artwork and name come from the kit by id), a sweeping playhead
  * column, and hit motion (squash on struck cells, bob on struck row labels) —
  * driven entirely by state the caller derives from the engine's draw-time

@@ -28,7 +28,7 @@ const kit: Kit = {
 }
 
 /**
- * A roster-shaped kit (ADR 0041): the classic six first, then instruments a
+ * A roster-shaped kit (ADR 0042): the classic six first, then instruments a
  * clip may pick but a pre-dynamic-rows document never named.
  */
 const rosterKit: Kit = {
@@ -69,7 +69,7 @@ describe('patternToStored', () => {
   })
 })
 
-// Ticket 03 / ADR 0041: the stored rows ARE the clip's selection, so decode
+// Ticket 03 / ADR 0042: the stored rows ARE the clip's selection, so decode
 // honours them verbatim - membership and order - rather than rebuilding one
 // row per kit instrument.
 describe('storedToPattern', () => {
@@ -104,7 +104,7 @@ describe('storedToPattern', () => {
     expect(storedToPattern(kit, stored)).toEqual([row('snare', 4), row('kick', 8)])
   })
 
-  // A `Pattern` is 1..roster rows (ADR 0041) and `setPattern` throws on an
+  // A `Pattern` is 1..roster rows (ADR 0042) and `setPattern` throws on an
   // empty one, so an all-unknown row set degrades to a fresh grid rather than
   // handing the engine something it must refuse.
   it('falls back to the kit’s default rows when it knows none of the stored rows', () => {
@@ -300,7 +300,7 @@ describe('parseSaveDocument (defensive decode)', () => {
         patterns: [{ rows: [{ instrumentId: 'kick', steps: 'x'.repeat(STEPS_PER_PATTERN) }] }],
       }),
     ],
-    // Ticket 03 / ADR 0041: a clip holds 1..roster rows with unique
+    // Ticket 03 / ADR 0042: a clip holds 1..roster rows with unique
     // instrument ids, so neither of these is data.
     ['a pattern with no rows', withWorking({ ...boop, patterns: [{ rows: [] }] })],
     [

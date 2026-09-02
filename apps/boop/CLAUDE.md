@@ -2,7 +2,7 @@
 
 A kid-friendly (6+) music toy at `boop.homeofed.com`: a 16-step step-sequencer
 whose rows a clip picks from the kit's roster (six by default -
-[ADR 0041](../../docs/adr/0041-boop-dynamic-clip-rows.md)), music-first (no
+[ADR 0042](../../docs/adr/0042-boop-dynamic-clip-rows.md)), music-first (no
 reactive visual layer in V1). The grid always
 edits one **clip**; clips arrange into a **song** on the lane grid (the
 boop-loops effort — spec: [`.scratch/boop-loops/spec.md`](../../.scratch/boop-loops/spec.md)).
@@ -75,7 +75,7 @@ src/
                                   which is also the phone's clip scrubber
                                   (boop-playhead ticket 06)
                     rowInstruments.ts  the kit by id - a row's position does not
-                                  index the kit any more (ADR 0041)
+                                  index the kit any more (ADR 0042)
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
@@ -193,7 +193,7 @@ share-link snapshot.
   A `Pattern` is **the clip's own rows** - ordered, unique `instrumentId`s,
   1..roster, six by default - so a row's position never indexes the kit; look
   an instrument up by id. `setPattern` is the only way a row set changes, and
-  `audition(instrumentId)` is the picker's play-it-now (ADR 0041). Test engine
+  `audition(instrumentId)` is the picker's play-it-now (ADR 0042). Test engine
   behaviour against `FakeAudioDriver`, never a real AudioContext. The engine
   **borrows** its driver: `App` owns the one `AudioDriver` for the life of the
   page, and `engine.dispose()` must never dispose it (ADR 0024, as amended) —
@@ -241,7 +241,7 @@ share-link snapshot.
   classic vertical scrollbar cannot start a sideways one.
 - **The grid never shrinks**
   ([ADR 0027](../../docs/adr/0027-boop-small-phone-layout.md), as amended by
-  [ADR 0041](../../docs/adr/0041-boop-dynamic-clip-rows.md)). 16 steps always;
+  [ADR 0042](../../docs/adr/0042-boop-dynamic-clip-rows.md)). 16 steps always;
   the rows are the clip's own, default six, minimum one - and no breakpoint may
   drop a row or a step. Below 1024px (`useIsPhone`) the instrument rail is pinned and the 16
   step columns scroll inside a snap-to-the-bar-line window, with the loop map
@@ -307,7 +307,7 @@ share-link snapshot.
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids: an
   instrument's picker section is a manifest `group` for exactly that reason
-  ([ADR 0041 §6](../../docs/adr/0041-boop-dynamic-clip-rows.md)).
+  ([ADR 0042 §6](../../docs/adr/0042-boop-dynamic-clip-rows.md)).
 - **Adding a database?** Follow
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only) —
   this is only expected for the share-link snapshot store, not the toy itself.

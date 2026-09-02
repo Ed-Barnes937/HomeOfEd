@@ -44,10 +44,13 @@ not need ticket 01's real roster).
 
 **2026-09-02** - Built.
 
-- **ADR 0041** (`docs/adr/0041-boop-dynamic-clip-rows.md`): 0035-0040 are all
-  taken on `origin/main` (silt, sprout, deploy), so 0041 was the next free
-  number across every branch. Amendment notes appended to ADRs 0024, 0027 and
-  0031; ADR 0030 deliberately untouched, and the new ADR says why.
+- **ADR 0042** (`docs/adr/0042-boop-dynamic-clip-rows.md`): 0035-0040 are all
+  taken on `origin/main` (silt, sprout, deploy), so 0041 looked like the next
+  free number - but `0041-silt-liquid-momentum-steers-the-fall.md` landed on
+  `origin/main` too, so the orchestrator renumbered this ADR to 0042 (the next
+  genuinely free slot) and rewrote every reference. Amendment notes appended to
+  ADRs 0024, 0027 and 0031; ADR 0030 deliberately untouched, and the new ADR
+  says why.
 - `Pattern` is now the clip's own rows. The engine keeps a `Map` (insertion
   order = row order), rebuilt wholesale by `setPattern`; a fresh grid is
   `kit.instruments.slice(0, DEFAULT_CLIP_ROWS)` with `DEFAULT_CLIP_ROWS = 6`
@@ -62,7 +65,7 @@ not need ticket 01's real roster).
   *ignored*, not thrown - unlike every other id-taking method on the seam. It
   is a fire-and-forget side effect wired to a child's finger, so a stale
   picker row must not be able to crash the toy. Recorded in the contract and
-  in ADR 0041 §3. It also sounds while the loop is running (a picker tap is a
+  in ADR 0042 §3. It also sounds while the loop is running (a picker tap is a
   request for a sound), which is the opposite of audition-on-toggle's rule.
 - **`toneAudioDriver.ts` is unchanged, on purpose.** `audition` needs nothing
   new from the `AudioDriver` seam - it is `play(instrumentId)`, which the

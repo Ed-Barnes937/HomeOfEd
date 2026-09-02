@@ -45,7 +45,7 @@ describe('encodeShare / decodeShare', () => {
     expect(decodeShare(encodeShare(song))).toEqual(song)
   })
 
-  // Ticket 03 / ADR 0041: a clip owns its rows, so two clips of one song may
+  // Ticket 03 / ADR 0042: a clip owns its rows, so two clips of one song may
   // hold different instruments in different orders. The link carries that with
   // no SHARE_FORMAT_VERSION bump, because it is still just `StoredPattern.rows`.
   it('round-trips a mixed-row song - different instruments, different orders', () => {
@@ -208,7 +208,7 @@ describe('pre-song compatibility (ticket 13)', () => {
   })
 })
 
-// Ticket 03 / ADR 0041: making the stored rows authoritative changes what a
+// Ticket 03 / ADR 0042: making the stored rows authoritative changes what a
 // pattern means, so pin a token that was actually in the world before it - the
 // launch six in kit order, written by hand rather than by today's encoder.
 describe('pre-dynamic-rows compatibility (ticket 03)', () => {

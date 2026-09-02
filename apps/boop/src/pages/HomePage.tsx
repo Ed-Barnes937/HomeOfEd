@@ -71,7 +71,7 @@ const NO_PLACEMENTS: readonly (readonly number[])[] = []
 
 /**
  * The same rows with nothing painted — what "Clear grid" leaves behind. It
- * keeps the clip's *rows*: since ADR 0041 those are the child's own choice of
+ * keeps the clip's *rows*: since ADR 0042 those are the child's own choice of
  * instruments, and clearing the beats is not a reason to take them away.
  */
 function clearedPattern(pattern: Pattern): Pattern {
@@ -948,7 +948,7 @@ export function HomePage() {
       {/* The instrument picker opens over the clip editor card, on a row of
           the clip that card is editing (ticket 05). "Remove this row" is
           offered only while there is a row to spare: the grid's floor is one
-          row (ADR 0041), and this toy disables nothing it can simply not
+          row (ADR 0042), and this toy disables nothing it can simply not
           show. */}
       {instrumentRow !== null && (
         <InstrumentPicker

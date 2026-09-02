@@ -42,7 +42,7 @@ const kit: Kit = {
 
 /**
  * A roster bigger than a clip's default row count, so the two can differ and
- * the row mutations have somewhere to add to and swap to (ADR 0041).
+ * the row mutations have somewhere to add to and swap to (ADR 0042).
  */
 const roster: Kit = {
   kitId: 'roster',
@@ -249,7 +249,7 @@ describe('mergePatterns', () => {
     ])
   })
 
-  // Since ADR 0041 a clip owns its rows, so a row's position says nothing
+  // Since ADR 0042 a clip owns its rows, so a row's position says nothing
   // about which instrument it is: two layered clips can name entirely
   // different ones, and the union has to key on `instrumentId` (spec §1).
   it('unions layered clips by instrument, never by row position', () => {

@@ -1,4 +1,4 @@
-# 0041 - boop: a clip owns its rows
+# 0042 - boop: a clip owns its rows
 
 - **Status:** Accepted
 - **Date:** 2026-09-02

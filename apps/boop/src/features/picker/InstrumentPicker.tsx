@@ -5,7 +5,7 @@ import { instrumentSections } from './instrumentGroups.ts'
 import styles from './InstrumentPicker.module.scss'
 
 interface InstrumentPickerProps {
-  /** The roster (ADR 0041): the only enumeration of instruments there is. */
+  /** The roster (ADR 0042): the only enumeration of instruments there is. */
   kit: Kit
   /** The dialog's title and accessible name — "Change this sound", "Add a sound". */
   title: string

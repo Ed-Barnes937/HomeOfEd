@@ -23,7 +23,7 @@ export interface SequencerEngineOptions {
 /**
  * Build an engine over a loaded kit and await its samples, so the very first
  * cell tap is audible. The **whole roster** is preloaded, not just the rows a
- * clip happens to hold (ADR 0041): rows change under a child's finger and the
+ * clip happens to hold (ADR 0042): rows change under a child's finger and the
  * picker auditions instruments no clip has yet, so anything less would be
  * silence at the tap. They are 20 short one-shots.
  */
@@ -43,7 +43,7 @@ export async function createSequencerEngine({
 
 class BoopSequencerEngine implements SequencerEngine {
   /**
-   * The clip's rows, in their own order (ADR 0041) - a Map because cells are
+   * The clip's rows, in their own order (ADR 0042) - a Map because cells are
    * addressed by `instrumentId`, and Map iteration is insertion order, which
    * is exactly the row order hits and `getPattern()` must report. Replaced
    * wholesale by `setPattern`: that is how a row set changes.
@@ -84,7 +84,7 @@ class BoopSequencerEngine implements SequencerEngine {
     this.kitIds = new Set(kit.instruments.map((instrument) => instrument.instrumentId))
     // A fresh grid is the roster's first six, empty - a starting point for the
     // child to change, not the shape of every clip. `blankPattern` is the one
-    // place that says so, shared with clip creation (ADR 0041).
+    // place that says so, shared with clip creation (ADR 0042).
     this.rows = new Map(blankPattern(kit).map((row) => [row.instrumentId, [...row.steps]]))
     driver.setBpm(this.bpm)
     driver.onStep((audioTime) => this.onScheduledStep(audioTime))

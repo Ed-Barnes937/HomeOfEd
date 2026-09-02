@@ -45,7 +45,7 @@ Spec: §4 (UX), §2 (groups), §10.1.
   Ticket 01's note called this: roles cannot express the groups (Notes and
   Silly are both `melodic`), and a list of ids in the picker would break the
   standing rule that nothing outside the manifest may enumerate instrument
-  ids. Recorded as **ADR 0041 §6** (a decision this ticket added to the ADR
+  ids. Recorded as **ADR 0042 §6** (a decision this ticket added to the ADR
   that owns the model) and in `apps/boop/CLAUDE.md`'s "Kits are pure data".
   `instrumentGroups.ts` turns the roster into sections - each group in
   `INSTRUMENT_GROUPS` order, each section in *manifest* order, empty groups

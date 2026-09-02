@@ -3,7 +3,7 @@
 //
 // The matrix height is **fixed at the six-row height** at every breakpoint
 // (6 x 4px dots on 5 x 4px gaps = 44px here) and the rows divide it — a clip
-// owns its rows now (ADR 0041), and neither a one-row clip nor a twenty-row
+// owns its rows now (ADR 0042), and neither a one-row clip nor a twenty-row
 // one may move the layout around the thumbnail: the picker's fixed-width cards
 // and a "My boops" row both keep their geometry. The rule, and why the shares
 // are percentages rather than pixels, is in `thumbnailGeometry.ts`.

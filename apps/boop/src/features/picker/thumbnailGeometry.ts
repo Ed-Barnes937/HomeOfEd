@@ -1,6 +1,6 @@
 /**
  * How a `PatternThumbnail` lays its rows out when a clip holds more than the
- * default six (ADR 0041 — a clip owns its rows, 1..the kit roster).
+ * default six (ADR 0042 — a clip owns its rows, 1..the kit roster).
  *
  * The rule: **the footprint is fixed, and the rows divide it.** The matrix
  * keeps the six-row height the design handoff gives it at every breakpoint

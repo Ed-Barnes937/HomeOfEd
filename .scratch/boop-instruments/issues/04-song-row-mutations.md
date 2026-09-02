@@ -76,7 +76,7 @@ Decisions and deviations:
   constructor, `saveFormat`'s private `defaultRows`, and `HomePage`'s local
   `blankPattern` (which emitted the **whole** 20-voice roster, the cause of the
   11 `.iwft` geometry failures). All three now call it, which is the drift ADR
-  0041 was explicit about wanting closed; a test asserts a fresh engine's
+  0042 was explicit about wanting closed; a test asserts a fresh engine's
   pattern *equals* `blankPattern`.
 - **`samplePattern` resolves over `blankPattern`**, so a sample clip on the
   20-voice roster is the classic six it was authored against, not twenty rows.

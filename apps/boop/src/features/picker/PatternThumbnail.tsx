@@ -13,7 +13,7 @@ interface PatternThumbnailProps {
  * matrix ... dots `#14262A` for active steps"): one dot per cell. Reads
  * straight off position-only rows, with no need to know which kit is loaded.
  *
- * The row count is **the clip's own** (ADR 0041), not the handoff's six: a
+ * The row count is **the clip's own** (ADR 0042), not the handoff's six: a
  * one-row clip draws one row and a twenty-row clip draws twenty, both inside
  * the same fixed box, because the layouts either side of a thumbnail must not
  * move as a child adds sounds. `thumbnailGeometry.ts` owns that rule; six rows

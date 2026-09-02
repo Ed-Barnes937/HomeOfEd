@@ -43,7 +43,7 @@ describe('loopMapTicks', () => {
     expect(loopMapTicks(patternWith({ kick: [0] }), 7)[7]).toBe('playhead')
   })
 
-  // A clip owns its rows (ADR 0041), so the map must read whatever the clip
+  // A clip owns its rows (ADR 0042), so the map must read whatever the clip
   // holds — the band is a *step* readout, aggregating every row onto 16 ticks,
   // which is what lets its reserved height stay the same at any row count.
   it('reads a row past the default six — the twentieth row lights its step', () => {

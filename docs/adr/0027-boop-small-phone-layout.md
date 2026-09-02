@@ -137,7 +137,7 @@ inside the boops panel).
 ## Amendment (2026-09-02): 16 steps always, and every row the clip has
 
 The grid is no longer 6 x 16. A clip owns its rows
-([ADR 0041](0041-boop-dynamic-clip-rows.md)), so the rule this ADR is built on
+([ADR 0042](0042-boop-dynamic-clip-rows.md)), so the rule this ADR is built on
 is restated rather than repealed:
 
 > **16 steps always; the rows are the clip's own, default six, minimum one -

@@ -7,7 +7,7 @@ import {
   thumbnailRowGeometry,
 } from './thumbnailGeometry.ts'
 
-/** Every row count a clip can hold (ADR 0041: 1..the launch roster's 20). */
+/** Every row count a clip can hold (ADR 0042: 1..the launch roster's 20). */
 const ROW_COUNTS = Array.from({ length: 20 }, (_, index) => index + 1)
 
 describe('thumbnailRowGeometry', () => {

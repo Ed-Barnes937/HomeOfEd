@@ -122,7 +122,7 @@ export function patternToStored(pattern: Pattern): StoredPattern {
 export const WORKING_NAME = ''
 
 /**
- * The clip's rows, exactly as stored - membership *and* order (ADR 0041). The
+ * The clip's rows, exactly as stored - membership *and* order (ADR 0042). The
  * stored row list **is** the clip's instrument selection, so nothing is added
  * for a kit instrument the clip left out and an all-off row is kept: a child
  * who picked instruments without painting anything gets them back (spec §5).
@@ -278,7 +278,7 @@ function isValidPlacements(placements: string, clipCount: number): boolean {
 }
 
 /**
- * A clip holds 1..roster rows with unique `instrumentId`s (ADR 0041), so an
+ * A clip holds 1..roster rows with unique `instrumentId`s (ADR 0042), so an
  * empty row list or an instrument named twice is a broken document, not data -
  * and per ADR 0025 that discards the whole save document.
  *

@@ -14,7 +14,7 @@ export const STEPS_PER_PATTERN = 16
  * Rows a fresh clip starts with: the roster's first six (the classic
  * kick/snare/hat/tom/marimba/boop, which stay first in the manifest). A
  * smaller roster simply gets all of it. Rows are dynamic from here on
- * (ADR 0041) - this is a starting point, not a shape.
+ * (ADR 0042) - this is a starting point, not a shape.
  */
 export const DEFAULT_CLIP_ROWS = 6
 
@@ -38,7 +38,7 @@ export type InstrumentRole = (typeof INSTRUMENT_ROLES)[number]
  * not the `role`: roles are behavioural, and they cannot express these groups —
  * Notes and Silly are both `melodic`. Manifest data rather than a list in the
  * picker, because the manifest stays the only place instrument ids are
- * enumerated (ADR 0041; `apps/boop/CLAUDE.md`, "Kits are pure data").
+ * enumerated (ADR 0042; `apps/boop/CLAUDE.md`, "Kits are pure data").
  */
 export const INSTRUMENT_GROUPS = ['drums', 'notes', 'silly'] as const
 export type InstrumentGroup = (typeof INSTRUMENT_GROUPS)[number]
@@ -103,7 +103,7 @@ export interface PatternRow {
 }
 
 /**
- * The working grid: **the clip's own rows** (ADR 0041) - an ordered list of
+ * The working grid: **the clip's own rows** (ADR 0042) - an ordered list of
  * 1..roster-size rows with unique `instrumentId`s, every one of them a kit
  * instrument. It is not one row per kit instrument in kit order: two clips of
  * one song may hold entirely different rows, and a row's position no longer
@@ -113,7 +113,7 @@ export type Pattern = readonly PatternRow[]
 
 /**
  * A fresh clip's rows: the roster's first `DEFAULT_CLIP_ROWS`, nothing painted
- * (ADR 0041). The **one** definition of "a fresh grid", so the engine's own
+ * (ADR 0042). The **one** definition of "a fresh grid", so the engine's own
  * starting pattern, a Blank clip, a sample clip's resolved rows and decode's
  * fallback cannot drift apart - the reason the default row count is a constant
  * on this contract at all. A roster shorter than six simply gets all of it,

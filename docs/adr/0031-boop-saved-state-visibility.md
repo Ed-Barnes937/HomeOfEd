@@ -105,7 +105,7 @@ sample clips, which likewise get no identity.
 
 ## Amendment (2026-09-02): row add, row remove and instrument swap are edits
 
-Dynamic clip rows ([ADR 0041](0041-boop-dynamic-clip-rows.md)) give a boop
+Dynamic clip rows ([ADR 0042](0042-boop-dynamic-clip-rows.md)) give a boop
 three more ways to mutate. All three are "edited" under the single definition:
 **adding a row, removing a row, and swapping a row's instrument** each mutate
 the song, so each pairs with `afterEdit` exactly like a cell toggle or a lane

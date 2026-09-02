@@ -139,7 +139,7 @@ describe('against the real launch roster', () => {
   })
 
   // A clip is six rows by default, not "one per instrument the kit can play"
-  // (ADR 0041) — a sample clip on the big roster must still be the classic six.
+  // (ADR 0042) — a sample clip on the big roster must still be the classic six.
   it('resolves to the default six rows, not the whole twenty-voice roster', async () => {
     const roster = parseKitManifest(
       JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),

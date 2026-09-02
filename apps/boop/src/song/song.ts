@@ -25,7 +25,7 @@ import {
 
 /**
  * A named, tinted pattern within the song — its own rows by 16 steps, six rows
- * by default (ADR 0041). See `CONTEXT.md`: Clip, Row, Tint.
+ * by default (ADR 0042). See `CONTEXT.md`: Clip, Row, Tint.
  */
 export interface Clip {
   name: string
@@ -156,7 +156,7 @@ export function togglePlacement(song: Song, clipIndex: number, position: number)
  * `instrumentId`**, a step on when any clip holding that instrument has it on
  * (spec §1, "layered placements just sound their union"). Overlaying by row
  * *index* was only safe while every pattern was one row per kit instrument in
- * kit order; since ADR 0041 a clip owns its rows, so two layered clips can
+ * kit order; since ADR 0042 a clip owns its rows, so two layered clips can
  * name entirely different instruments and a row's position says nothing about
  * which one it is.
  *
@@ -258,7 +258,7 @@ export function moveClip(song: Song, from: number, to: number): Song {
   }
 }
 
-// --- The active clip's rows (ADR 0041) ---
+// --- The active clip's rows (ADR 0042) ---
 //
 // A clip owns its rows, so which instruments it holds is a mutation of the
 // *song*, not a shape of the kit. The model's three rules live here rather

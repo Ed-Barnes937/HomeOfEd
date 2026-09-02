@@ -675,7 +675,7 @@ describe('SequencerEngine', () => {
 })
 
 /**
- * The one definition of "a fresh grid" (ADR 0041), so the engine's own
+ * The one definition of "a fresh grid" (ADR 0042), so the engine's own
  * starting pattern, a Blank clip, a sample clip's rows and decode's fallback
  * cannot drift apart.
  */

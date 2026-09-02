@@ -7,7 +7,7 @@ import { test } from './testing/iwftTest.tsx'
 // miniatures at once — the loop map under the grid, and "My boops" thumbnails.
 test.use({ viewport: { width: 390, height: 844 } })
 
-/** The launch kit's whole roster, in manifest order — a clip's ceiling (ADR 0041). */
+/** The launch kit's whole roster, in manifest order — a clip's ceiling (ADR 0042). */
 const ROSTER = [
   'kick',
   'snare',
@@ -51,7 +51,7 @@ const boop = (name: string, rowCount: number, painted: Record<string, string>) =
 /**
  * One look at a clip that holds the whole roster, through the two places a
  * pattern is drawn in miniature: the loop map and `PatternThumbnail`. Both must
- * read the clip's real rows (ADR 0041) inside the footprint they had at six,
+ * read the clip's real rows (ADR 0042) inside the footprint they had at six,
  * because the layouts around them — the reserved band under the grid, a "My
  * boops" row — cannot be allowed to move as a child adds sounds. The maths
  * itself is unit-tested (`thumbnailGeometry.test.ts`, `loopMap.test.ts`); this

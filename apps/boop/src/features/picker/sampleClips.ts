@@ -115,7 +115,7 @@ export const SAMPLE_CLIPS: readonly SampleClip[] = [
  * Materialises position-only rows into a real `Pattern` for `kit` — the rows a
  * fresh clip has (`blankPattern`: the roster's first six, in manifest order),
  * matched by position. A clip is six rows by default, not one per instrument
- * the kit can play (ADR 0041), and the authored positions were written against
+ * the kit can play (ADR 0042), and the authored positions were written against
  * exactly those six; a kit with fewer just gets a shorter pattern, and a
  * position past its end is dropped.
  */

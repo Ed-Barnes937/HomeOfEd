@@ -18,7 +18,7 @@ const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
 /**
  * The small-phone grid (ticket 27; design handoff, "Main screen — small
  * phone"). The grid never drops a row or a column: **16 steps always, and
- * every row the clip has** (ADR 0027, as amended by ADR 0041).
+ * every row the clip has** (ADR 0027, as amended by ADR 0042).
  * Instead the instrument rail is pinned at 92px and the 16 step
  * columns scroll horizontally inside a ~246px window that snaps to the 4-step
  * groups, so a swipe always lands on a bar line. The part-cut cell at the

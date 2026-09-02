@@ -290,7 +290,7 @@ test('Clear grid clears only the clip on screen, and marks the loaded boop edite
 })
 
 /**
- * Clear grid empties the beats and keeps the rows. Since ADR 0041 a clip's
+ * Clear grid empties the beats and keeps the rows. Since ADR 0042 a clip's
  * rows are the child's own choice of instruments, and clearing the beats is no
  * reason to take that away — it must not fall back to the default six.
  * Seeded, because nothing picks rows through the UI until the picker lands.

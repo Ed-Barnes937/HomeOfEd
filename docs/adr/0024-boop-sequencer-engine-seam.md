@@ -154,7 +154,7 @@ no longer wiped by the play meant to sound it.
 
 ## Amendment (2026-09-02): `Pattern` is the clip's rows, and the seam gains `audition`
 
-Recorded in full by [ADR 0041](0041-boop-dynamic-clip-rows.md); the parts that
+Recorded in full by [ADR 0042](0042-boop-dynamic-clip-rows.md); the parts that
 belong to this contract:
 
 - **`Pattern` is redefined** as the clip's own rows - an ordered list of
