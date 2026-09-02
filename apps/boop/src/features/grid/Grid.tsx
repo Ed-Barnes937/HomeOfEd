@@ -1,10 +1,11 @@
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
+import { useMemo, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
 import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
 import styles from './Grid.module.scss'
 import { ROW_COLOR_VARS } from './instrumentColors.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
+import { instrumentsById } from './rowInstruments.ts'
 import { useDragPaint } from './useDragPaint.ts'
 import { useGridKeyboardNav } from './useGridKeyboardNav.ts'
 import { useLoadStagger } from './useLoadStagger.ts'
@@ -63,7 +64,8 @@ export interface GridViewProps {
 }
 
 /**
- * The 6x16 grid well: bar-numeral row + instrument rows, a sweeping playhead
+ * The grid well: bar-numeral row + the clip's own instrument rows (ADR 0041,
+ * so a row's artwork and name come from the kit by id), a sweeping playhead
  * column, and hit motion (squash on struck cells, bob on struck row labels) —
  * driven entirely by state the caller derives from the engine's draw-time
  * channel (`usePlayheadMotion`), never touched from here.
@@ -89,6 +91,7 @@ export function Grid({
   wellFooter,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
+  const instruments = useMemo(() => instrumentsById(kit), [kit])
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: true })
   const staggerDelayFor = useLoadStagger(loadToken)
   const keyboardNav = useGridKeyboardNav({
@@ -191,7 +194,7 @@ export function Grid({
           )}
           <div className={styles.rows}>
             {pattern.map((row, rowIndex) => {
-              const instrument = kit.instruments[rowIndex]
+              const instrument = instruments.get(row.instrumentId)
               if (!instrument) return null
               const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
               const rowStyle = { '--row-color': `var(${colorVar})` } as CSSProperties

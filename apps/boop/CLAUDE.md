@@ -1,7 +1,9 @@
 # apps/boop — scoped rules
 
-A kid-friendly (6+) music toy at `boop.homeofed.com`: a 6-instrument x 16-step
-step-sequencer, music-first (no reactive visual layer in V1). The grid always
+A kid-friendly (6+) music toy at `boop.homeofed.com`: a 16-step step-sequencer
+whose rows a clip picks from the kit's roster (six by default -
+[ADR 0041](../../docs/adr/0041-boop-dynamic-clip-rows.md)), music-first (no
+reactive visual layer in V1). The grid always
 edits one **clip**; clips arrange into a **song** on the lane grid (the
 boop-loops effort — spec: [`.scratch/boop-loops/spec.md`](../../.scratch/boop-loops/spec.md)).
 Original product spec: [`.scratch/music-app/spec.md`](../../.scratch/music-app/spec.md).
@@ -67,11 +69,13 @@ src/
     shareLink.ts      encode/decode a creation to `#g=<base64url>`; total decode
     shareAction.ts    share sheet vs clipboard, behind an injected ShareTarget
   features/grid/    the grid well. Two renderers, one behaviour:
-                    Grid.tsx      laptop/tablet — the full 6x16 laid out flat
+                    Grid.tsx      laptop/tablet - the clip's rows x 16 flat
                     PhoneGrid.tsx <1024px — pinned rail + snap-scrolling step
                                   window + the "WHOLE LOOP" map (ticket 27),
                                   which is also the phone's clip scrubber
                                   (boop-playhead ticket 06)
+                    rowInstruments.ts  the kit by id - a row's position does not
+                                  index the kit any more (ADR 0041)
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
@@ -168,7 +172,11 @@ share-link snapshot.
   beat events are the canonical seam
   (`{ tick, step, audioTime, hits: [{ instrumentId }] }`) and must do no DOM
   work; UI subscribes via `onDrawBeat`. Pattern edits are readable state, not
-  an event stream, and audition-on-toggle is the engine's job. Test engine
+  an event stream, and audition-on-toggle is the engine's job.
+  A `Pattern` is **the clip's own rows** - ordered, unique `instrumentId`s,
+  1..roster, six by default - so a row's position never indexes the kit; look
+  an instrument up by id. `setPattern` is the only way a row set changes, and
+  `audition(instrumentId)` is the picker's play-it-now (ADR 0041). Test engine
   behaviour against `FakeAudioDriver`, never a real AudioContext. The engine
   **borrows** its driver: `App` owns the one `AudioDriver` for the life of the
   page, and `engine.dispose()` must never dispose it (ADR 0024, as amended) —
@@ -215,8 +223,10 @@ share-link snapshot.
   shrink but never grow past it, and the box reserves a `scrollbar-gutter` so a
   classic vertical scrollbar cannot start a sideways one.
 - **The grid never shrinks**
-  ([ADR 0027](../../docs/adr/0027-boop-small-phone-layout.md)). 6 x 16, always — no breakpoint may drop a row or
-  a step. Below 1024px (`useIsPhone`) the instrument rail is pinned and the 16
+  ([ADR 0027](../../docs/adr/0027-boop-small-phone-layout.md), as amended by
+  [ADR 0041](../../docs/adr/0041-boop-dynamic-clip-rows.md)). 16 steps always;
+  the rows are the clip's own, default six, minimum one - and no breakpoint may
+  drop a row or a step. Below 1024px (`useIsPhone`) the instrument rail is pinned and the 16
   step columns scroll inside a snap-to-the-bar-line window, with the loop map
   carrying the playhead when it is off screen. Playback must never scroll that
   window for the child. Paint vs scroll inside it: the browser owns horizontal

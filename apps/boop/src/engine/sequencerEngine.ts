@@ -10,6 +10,14 @@
 /** Columns in one pattern. `step` is always `tick mod STEPS_PER_PATTERN`. */
 export const STEPS_PER_PATTERN = 16
 
+/**
+ * Rows a fresh clip starts with: the roster's first six (the classic
+ * kick/snare/hat/tom/marimba/boop, which stay first in the manifest). A
+ * smaller roster simply gets all of it. Rows are dynamic from here on
+ * (ADR 0041) - this is a starting point, not a shape.
+ */
+export const DEFAULT_CLIP_ROWS = 6
+
 /** Tempo bounds the toy allows (design handoff: slider range 60–200). */
 export const MIN_BPM = 60
 export const MAX_BPM = 200
@@ -33,7 +41,11 @@ export interface KitInstrument {
   role?: InstrumentRole
 }
 
-/** A loaded kit manifest. Row order is the manifest's instrument order. */
+/**
+ * A loaded kit manifest - boop's **roster**, and the only enumeration of
+ * instruments. A clip picks its rows from it, so manifest order is the
+ * picker's order and the order of a fresh clip's default rows, not the grid's.
+ */
 export interface Kit {
   kitId: string
   name: string
@@ -57,7 +69,7 @@ export interface BeatEvent {
   step: number
   /** AudioContext time at which this step sounds. */
   audioTime: number
-  /** Rows sounding on this step, in kit order; possibly empty. */
+  /** Rows sounding on this step, in the pattern's own row order; possibly empty. */
   hits: readonly Hit[]
 }
 
@@ -77,22 +89,50 @@ export interface PatternRow {
   readonly steps: readonly boolean[]
 }
 
-/** The working grid: one row per kit instrument, in kit order. */
+/**
+ * The working grid: **the clip's own rows** (ADR 0041) - an ordered list of
+ * 1..roster-size rows with unique `instrumentId`s, every one of them a kit
+ * instrument. It is not one row per kit instrument in kit order: two clips of
+ * one song may hold entirely different rows, and a row's position no longer
+ * indexes the kit (look an instrument up by id).
+ */
 export type Pattern = readonly PatternRow[]
 
 export interface SequencerEngine {
   /** The loaded kit — readable state, the only place instruments are enumerated. */
   readonly kit: Kit
 
-  /** The working grid as readable state. Edits are not an event stream. */
+  /**
+   * The working grid as readable state, in its own row order. Edits are not an
+   * event stream. A fresh grid holds the roster's first `DEFAULT_CLIP_ROWS`.
+   */
   getPattern(): Pattern
   /**
    * Toggle one cell. Turning a cell on while stopped auditions the sample —
-   * that is engine-internal, callers do not trigger sound themselves.
+   * that is engine-internal, callers do not trigger sound themselves. Throws
+   * for an instrument this pattern has no row for: cells belong to rows.
    */
   setCell(instrumentId: string, step: number, on: boolean): void
-  /** Replace the whole grid (loading a preset, a saved boop, a share link). */
+  /**
+   * Replace the whole grid - the row set included, which is how rows are
+   * added, removed, reordered or swapped (loading a clip, a saved boop, a
+   * share link). Rejected, leaving the grid untouched, if the list is empty,
+   * names an instrument twice, names one the kit does not have, or carries a
+   * row that is not `STEPS_PER_PATTERN` long.
+   */
   setPattern(pattern: Pattern): void
+
+  /**
+   * Play one instrument's sample now, from a user gesture - the instrument
+   * picker's audition-by-ear. Sounds whether or not the loop is running and
+   * whether or not the clip has a row for it, and touches neither the pattern
+   * nor the transport. While the context is still `locked` it unlocks first
+   * (the gesture that called it is what allows that), so nothing is heard
+   * synchronously - audition-on-toggle behaves the same way. An instrument the
+   * kit does not know is ignored rather than thrown: a tap must never crash
+   * the toy.
+   */
+  audition(instrumentId: string): void
 
   /**
    * Unlock audio (must be called from a user gesture) and start the loop —

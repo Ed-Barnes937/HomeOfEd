@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type UIEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type UIEvent } from 'react'
 
 import { STEPS_PER_PATTERN } from '../../engine/sequencerEngine.ts'
 import type { GridViewProps } from './Grid.tsx'
@@ -7,6 +7,7 @@ import { LoopMap } from './LoopMap.tsx'
 import styles from './PhoneGrid.module.scss'
 import { PHONE_WINDOW_WIDTH, phoneOffscreenSide } from './phoneWindow.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
+import { instrumentsById } from './rowInstruments.ts'
 import { useDragPaint } from './useDragPaint.ts'
 import { useGridKeyboardNav } from './useGridKeyboardNav.ts'
 import { useLoadStagger } from './useLoadStagger.ts'
@@ -16,8 +17,9 @@ const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
 
 /**
  * The small-phone grid (ticket 27; design handoff, "Main screen — small
- * phone"). The grid stays **6 x 16, always** — no row or column is ever
- * dropped. Instead the instrument rail is pinned at 92px and the 16 step
+ * phone"). The grid never drops a row or a column: **16 steps always, and
+ * every row the clip has** (ADR 0027, as amended by ADR 0041).
+ * Instead the instrument rail is pinned at 92px and the 16 step
  * columns scroll horizontally inside a ~246px window that snaps to the 4-step
  * groups, so a swipe always lands on a bar line. The part-cut cell at the
  * window's edge is kept deliberately: it is the affordance that says there is
@@ -53,6 +55,7 @@ export function PhoneGrid({
   onScrubToSongStart,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
+  const instruments = useMemo(() => instrumentsById(kit), [kit])
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: false })
   const staggerDelayFor = useLoadStagger(loadToken)
   const keyboardNav = useGridKeyboardNav({
@@ -96,7 +99,7 @@ export function PhoneGrid({
             <div className={styles.barSpacer} aria-hidden="true" />
             <div className={styles.railRows}>
               {pattern.map((row, rowIndex) => {
-                const instrument = kit.instruments[rowIndex]
+                const instrument = instruments.get(row.instrumentId)
                 if (!instrument) return null
                 const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
                 const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
@@ -168,7 +171,7 @@ export function PhoneGrid({
                   </div>
                   <div className={styles.rows}>
                     {pattern.map((row, rowIndex) => {
-                      const instrument = kit.instruments[rowIndex]
+                      const instrument = instruments.get(row.instrumentId)
                       if (!instrument) return null
                       const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
                       return (
