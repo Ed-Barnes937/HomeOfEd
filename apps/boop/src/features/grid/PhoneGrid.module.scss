@@ -67,6 +67,41 @@ $row-inset: 6px;
   flex: none;
 }
 
+// "+ Add a sound" (ticket 06, spec §4). Inside `.wellScroll`, under both
+// columns, so it scrolls with the rows while the loop map and clip play below
+// stay pinned. `Grid.module.scss` records the reasoning; these are the phone's
+// numbers, on its own smaller scale: the 10px plate radius, the row-label face
+// a size up, and 40px of height rather than 44 because this button is the only
+// thing on its line and the rows above are 44 themselves.
+.addRow {
+  display: flex;
+}
+
+.addRowButton {
+  flex: none;
+  height: 40px;
+  padding: 0 12px;
+  border: 2px dashed rgba(242, 239, 230, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: -0.015em;
+  color: rgba(242, 239, 230, 0.62);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
 .layout {
   display: flex;
   gap: 8px; // rail gap

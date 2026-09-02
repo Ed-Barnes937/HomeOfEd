@@ -74,8 +74,14 @@ src/
                                   window + the "WHOLE LOOP" map (ticket 27),
                                   which is also the phone's clip scrubber
                                   (boop-playhead ticket 06)
+                    Both carry "+ Add a sound" under the last row, inside the
+                    well's scrolling rows box (ticket 06) - it opens the
+                    instrument picker in append mode and is disabled only at
+                    the whole roster
                     rowInstruments.ts  the kit by id - a row's position does not
                                   index the kit any more (ADR 0042)
+                    instrumentColors.ts  `rowColorVar(rowIndex)` - the one
+                                  definition of the positional hue cycle
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
@@ -245,8 +251,10 @@ share-link snapshot.
   the rows are the clip's own, default six, minimum one - and no breakpoint may
   drop a row or a step. Below 1024px (`useIsPhone`) the instrument rail is pinned and the 16
   step columns scroll inside a snap-to-the-bar-line window, with the loop map
-  carrying the playhead when it is off screen. Playback must never scroll that
-  window for the child. Paint vs scroll inside it: the browser owns horizontal
+  carrying the playhead when it is off screen. Playback must never scroll for
+  the child, **on either axis** (ADR 0042): not the step window sideways, and
+  not the rows box or the frame's region vertically when the playhead is
+  striking a row below the fold. Paint vs scroll inside it: the browser owns horizontal
   pans (`touch-action: pan-x`), a tap toggles, and a drag paints only once it
   crosses a cell boundary — see `PhoneGrid.tsx`'s header.
 - **The song bar is the home surface; the grid opens as a card**

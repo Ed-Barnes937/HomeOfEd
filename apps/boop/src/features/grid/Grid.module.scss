@@ -76,6 +76,62 @@
   flex: none;
 }
 
+// "+ Add a sound" (ticket 06, spec §4). It sits in `.wellScroll`, under the
+// rows, so it scrolls with them: it is the end of the list of rows, not a
+// control of the well, and the pinned footer below it is clip play's alone.
+//
+// Geometry the handoff does not draw, so it is derived from what it stands
+// under: the row gap for its offset, the plate's 16px radius, the cell's own
+// 52px-ish tap height (44 is the handoff's tap-target floor), and the row
+// label's display face a size down. Left-aligned with the rail, hugging its
+// text rather than filling a column, so no breakpoint can make the label
+// collide with the box.
+.addRow {
+  display: flex;
+  margin-top: 10px;
+
+  @media (max-width: 1279px) {
+    margin-top: 8px;
+  }
+}
+
+.addRowButton {
+  flex: none;
+  height: 44px;
+  padding: 0 18px;
+  // Dashed, because it is an empty slot rather than a filled one: the same
+  // "there could be more here" reading as the well's empty cells.
+  border: 2px dashed rgba(242, 239, 230, 0.22);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.015em;
+  color: rgba(242, 239, 230, 0.62);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  // The one place this toy disables a button rather than hiding it: at the
+  // whole roster the slot is still where a child looks, so it stays and says
+  // why (its label carries the reason).
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  @media (max-width: 1279px) {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+}
+
 .barNumerals {
   display: flex;
   gap: 18px;

@@ -316,6 +316,139 @@ export class HomePagePom extends BasePage {
     await expect(this.removeRowButton).toBeVisible()
   }
 
+  // --- "+ Add a sound" and the row-count geometry (boop-instruments ticket 06) ---
+
+  private readonly addRowButton = this.page.getByTestId('add-row-button')
+
+  /**
+   * Open the picker in append mode. The button sits under the last row *inside*
+   * the well's rows box, so with enough rows it is below that box's fold -
+   * bring it into view the way a child would, by scrolling the rows.
+   */
+  async openAddSoundPicker(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.addRowButton.scrollIntoViewIfNeeded()
+    await this.addRowButton.click()
+    await expect(this.instrumentPicker).toBeVisible()
+  }
+
+  /** The whole append flow: "add" is one decision, so the dialog closes (spec §4). */
+  async addSound(instrumentId: string): Promise<void> {
+    await this.openAddSoundPicker()
+    await this.chooseInstrument(instrumentId)
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  async verifyAddSoundOffered(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.addRowButton).toBeEnabled()
+  }
+
+  /** At the whole roster there is no sound left to add (spec §4). */
+  async verifyAddSoundDisabled(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.addRowButton).toBeDisabled()
+  }
+
+  /**
+   * The button belongs to the rows, not to the pinned footer (ADR 0030 as
+   * amended by ticket 23): scrolling the well's rows box moves it by the scroll
+   * delta and leaves clip play exactly where it was.
+   */
+  async verifyAddSoundScrollsWithTheRows(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const addBefore = await this.topOf('add-row-button')
+    const playBefore = await this.topOf('play-button')
+
+    const scrolled = await this.gridWellScroll.evaluate((element) => {
+      const from = element.scrollTop
+      element.scrollTop = element.scrollHeight
+      return element.scrollTop - from
+    })
+    expect(scrolled).toBeGreaterThan(0)
+
+    expect(
+      Math.abs(addBefore - (await this.topOf('add-row-button')) - scrolled),
+    ).toBeLessThanOrEqual(1)
+    expect(Math.abs((await this.topOf('play-button')) - playBefore)).toBeLessThanOrEqual(1)
+  }
+
+  private async topOf(testId: string): Promise<number> {
+    const box = await this.page.getByTestId(testId).boundingBox()
+    if (!box) throw new Error(`${testId} is not visible`)
+    return box.y
+  }
+
+  /** The aria copy counts the clip's own rows rather than a hardcoded six (spec §4). */
+  async verifyGridRowCountAnnounced(rowCount: number): Promise<void> {
+    await expect(
+      this.page.getByRole('application', { name: new RegExp(`^${rowCount} by 16 step grid\\.`) }),
+    ).toBeVisible()
+  }
+
+  /**
+   * The hue each row wears, top to bottom, as the browser resolves it - the
+   * rail artwork is painted in `--row-color`. Hues are positional and cycle
+   * every six rows (spec §10.2), which is a decision, so it is read off the
+   * page rather than trusted to the constant.
+   */
+  async readRowHues(): Promise<string[]> {
+    return this.page.getByTestId(/^row-instrument-button-/).evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const artwork = node.firstElementChild
+        return artwork === null ? '' : getComputedStyle(artwork).backgroundColor
+      }),
+    )
+  }
+
+  /**
+   * The phone's pinned rail and its scrolling step window are two columns of
+   * the same rows: whatever the row count, they line up row for row.
+   */
+  async verifyRailAlignedWithSteps(instrumentIds: readonly string[]): Promise<void> {
+    for (const instrumentId of instrumentIds) {
+      const label = await this.page.getByTestId(`row-label-${instrumentId}`).boundingBox()
+      const cell = await this.cell(instrumentId, 0).boundingBox()
+      if (!label || !cell) throw new Error(`row ${instrumentId} is not on the page`)
+      const centres = Math.abs(label.y + label.height / 2 - (cell.y + cell.height / 2))
+      expect(centres).toBeLessThanOrEqual(1)
+    }
+  }
+
+  /**
+   * ADR 0027's rule on the vertical axis (ADR 0042): playback never scrolls a
+   * row into view. Crank the transport and nothing that could carry a row out
+   * from under the child moves - the well's rows box, the frame's region, or
+   * the page.
+   */
+  async verifyPlaybackDoesNotScrollVertically(steps: number): Promise<void> {
+    const before = await this.readVerticalScrolls()
+    await this.crankSteps(steps)
+    await expect.poll(async () => this.readVerticalScrolls()).toEqual(before)
+  }
+
+  private async readVerticalScrolls(): Promise<{ well: number; region: number; page: number }> {
+    return {
+      well: await this.gridWellScroll.evaluate((element) => element.scrollTop),
+      region: await this.stageScroller.evaluate((element) => element.scrollTop),
+      page: await this.page.evaluate(() => Math.round(window.scrollY)),
+    }
+  }
+
+  /**
+   * The well's rows box hugs its rows rather than stretching to fill a tall
+   * window - `flex: 0 1 auto`, never `flex: 1` (ADR 0030 as amended by ticket
+   * 23). A stretched box shows up as a client height beyond its content.
+   */
+  async verifyWellHugsItsRows(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const box = await this.gridWellScroll.evaluate((element) => ({
+      client: element.clientHeight,
+      content: element.scrollHeight,
+    }))
+    expect(box.client).toBeLessThanOrEqual(box.content + 1)
+  }
+
   // --- The song bar as the home surface, and the clip editor card
   // (screenspace ticket 03) ---
 

@@ -155,7 +155,17 @@ and the autosave see them.
 
 The vertical overflow more rows create is absorbed by machinery that ADR is
 already the record of: the grid well's nested rows scroller with its pinned
-clip-play footer, the phone's scrolling region, the dock cap, and the
-three-rows floor (which becomes `min(3, rowCount)` rows plus the loop map - a
-narrowing of an existing number, not a new arrangement). No new scroller, so
-no new decision.
+clip-play footer, and the frame's own scrolling region. No new scroller, so no
+new decision.
+
+**Corrected while building ticket 06:** this section first also named the dock
+cap and the phone's three-rows floor, and said the floor would become
+`min(3, rowCount)` rows plus the loop map. Both props were already retired by
+screenspace ticket 04, each verified by measurement, and the floor in
+particular is now forbidden: it pushed clip play - which lives *inside* the
+well - below the fold, so `Grid.module.scss` and `PhoneGrid.module.scss` both
+record that neither renderer has a floor and neither may be given one. A
+narrowed floor would have re-opened exactly that conflict, for a promise the
+card already keeps: the well is bounded by the card, not by the region, and
+`min-height: 0` is what lets it degrade proportionally. So there is no floor to
+narrow, and none was added.
