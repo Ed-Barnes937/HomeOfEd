@@ -11,7 +11,7 @@
  * tints to the clip's position — the writer then always states them.
  */
 
-import type { Kit, Pattern } from '../engine/sequencerEngine.ts'
+import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
 import {
   MAX_CLIPS,
   SONG_POSITIONS,
@@ -23,7 +23,10 @@ import {
   type StoredBoop,
 } from '../persistence/saveFormat.ts'
 
-/** A named, tinted 6×16 pattern within the song. See `CONTEXT.md`: Clip, Tint. */
+/**
+ * A named, tinted pattern within the song — its own rows by 16 steps, six rows
+ * by default (ADR 0041). See `CONTEXT.md`: Clip, Row, Tint.
+ */
 export interface Clip {
   name: string
   /** Index into the fixed 5-tint list; the clip's for its whole life. */
@@ -149,19 +152,34 @@ export function togglePlacement(song: Song, clipIndex: number, position: number)
 }
 
 /**
- * What a layered position sounds like: the clips' patterns overlaid, so a step
- * is on when any of them has it on. Rows line up by index — every clip's
- * pattern is built for the same kit, in kit order (`storedToPattern`).
+ * What a layered position sounds like: the clips' rows unioned **by
+ * `instrumentId`**, a step on when any clip holding that instrument has it on
+ * (spec §1, "layered placements just sound their union"). Overlaying by row
+ * *index* was only safe while every pattern was one row per kit instrument in
+ * kit order; since ADR 0041 a clip owns its rows, so two layered clips can
+ * name entirely different instruments and a row's position says nothing about
+ * which one it is.
+ *
+ * Row order is **first appearance in lane order**: the lowest-lane clip's rows
+ * in its own order, then whatever rows the next lane adds, in theirs. Nothing
+ * renders a merged pattern - it is what the conductor hands the engine and
+ * what the export renders - so the order only has to be deterministic, and
+ * this one leaves a single-clip position's pattern exactly as it was.
  */
 export function mergePatterns(patterns: readonly Pattern[]): Pattern {
   const [first, ...rest] = patterns
   if (rest.length === 0) return first!
-  return first!.map((row, rowIndex) => ({
-    instrumentId: row.instrumentId,
-    steps: row.steps.map(
-      (on, step) => on || rest.some((pattern) => pattern[rowIndex]?.steps[step] === true),
-    ),
-  }))
+  const union = new Map<string, readonly boolean[]>()
+  for (const pattern of patterns) {
+    for (const row of pattern) {
+      const held = union.get(row.instrumentId)
+      union.set(
+        row.instrumentId,
+        held ? held.map((on, step) => on || row.steps[step] === true) : row.steps,
+      )
+    }
+  }
+  return [...union].map(([instrumentId, steps]) => ({ instrumentId, steps }))
 }
 
 /**
@@ -238,4 +256,77 @@ export function moveClip(song: Song, from: number, to: number): Song {
       clips.map((held) => newIndex.get(held)!).sort((a, b) => a - b),
     ),
   }
+}
+
+// --- The active clip's rows (ADR 0041) ---
+//
+// A clip owns its rows, so which instruments it holds is a mutation of the
+// *song*, not a shape of the kit. The model's three rules live here rather
+// than in the UI, and they are the reason nothing invalid can reach the
+// engine: `setPattern` throws for an empty, duplicate-naming or unknown-id
+// row set, and these are what stand between a child's finger and that throw.
+// A refused mutation is a no-op — it returns the song it was given, so the
+// `afterEdit` pairing (ADR 0031, as amended) marks nothing.
+
+/** Whether the roster has an instrument by this id. */
+function rosterHas(kit: Kit, instrumentId: string): boolean {
+  return kit.instruments.some((instrument) => instrument.instrumentId === instrumentId)
+}
+
+/** Whether these rows already hold an instrument by this id. */
+function rowsHold(rows: Pattern, instrumentId: string): boolean {
+  return rows.some((row) => row.instrumentId === instrumentId)
+}
+
+/**
+ * Add a row for `instrumentId` at the bottom of the active clip, nothing
+ * painted ("+ Add a sound", spec §4). Refused for an instrument the clip
+ * already holds or the roster does not have.
+ *
+ * The 1..roster row cap needs no check of its own: rows are unique ids drawn
+ * from the roster, so they can never outnumber it.
+ */
+export function addRow(kit: Kit, song: Song, instrumentId: string): Song {
+  const rows = activeClip(song).pattern
+  if (!rosterHas(kit, instrumentId) || rowsHold(rows, instrumentId)) return song
+  return withActivePattern(song, [
+    ...rows,
+    { instrumentId, steps: new Array<boolean>(STEPS_PER_PATTERN).fill(false) },
+  ])
+}
+
+/**
+ * Delete row `rowIndex` of the active clip, the steps painted on it and all
+ * (the picker's "Remove this row", spec §4 — no confirm; re-adding is one
+ * tap). Refused at one row, the floor that keeps a clip a clip, and for an
+ * index the clip has no row at.
+ */
+export function removeRow(song: Song, rowIndex: number): Song {
+  const rows = activeClip(song).pattern
+  if (rows.length <= 1 || !rows[rowIndex]) return song
+  return withActivePattern(
+    song,
+    rows.filter((_, index) => index !== rowIndex),
+  )
+}
+
+/**
+ * Point row `rowIndex` of the active clip at another instrument, keeping the
+ * steps it has painted: same rhythm, new sound (spec §4). Refused for an
+ * instrument the clip already holds — which makes a re-tap of the row's own
+ * sound a no-op, as the picker's browse-by-ear needs — one the roster does not
+ * have, or an index the clip has no row at.
+ */
+export function swapRowInstrument(
+  kit: Kit,
+  song: Song,
+  rowIndex: number,
+  instrumentId: string,
+): Song {
+  const rows = activeClip(song).pattern
+  if (!rows[rowIndex] || !rosterHas(kit, instrumentId) || rowsHold(rows, instrumentId)) return song
+  return withActivePattern(
+    song,
+    rows.map((row, index) => (index === rowIndex ? { instrumentId, steps: row.steps } : row)),
+  )
 }

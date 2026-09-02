@@ -1,6 +1,15 @@
+import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_BPM, STEPS_PER_PATTERN, type Kit } from '../../engine/sequencerEngine.ts'
+import { parseKitManifest } from '../../engine/kitManifest.ts'
+import {
+  DEFAULT_BPM,
+  DEFAULT_CLIP_ROWS,
+  STEPS_PER_PATTERN,
+  type Kit,
+} from '../../engine/sequencerEngine.ts'
 import { SONG_POSITIONS } from '../../persistence/saveFormat.ts'
 import { firstVisitSong, SAMPLE_CLIPS, samplePattern } from './sampleClips.ts'
 
@@ -95,6 +104,60 @@ describe('the sample-clip roster', () => {
     const pattern = samplePattern(shortKit, sample.rows)
     expect(pattern).toHaveLength(2)
     expect(pattern.map((row) => row.instrumentId)).toEqual(['kick', 'snare'])
+  })
+})
+
+// Ticket 03 / spec §5: the authored clips are position-keyed over the roster's
+// first six, so growing the manifest to twenty must not move them. This reads
+// the real `kit.json` because the manifest is the only enumeration of
+// instrument ids (apps/boop/CLAUDE.md).
+describe('against the real launch roster', () => {
+  const publicDir = fileURLToPath(new URL('../../../public/', import.meta.url))
+
+  it('resolves every authored position to the classic six it was written for', async () => {
+    const roster = parseKitManifest(
+      JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),
+    )
+
+    expect(roster.instruments.slice(0, 6).map((i) => i.instrumentId)).toEqual([
+      'kick',
+      'snare',
+      'hat',
+      'tom',
+      'marimba',
+      'boop',
+    ])
+    // Same sounding rows on the twenty-instrument roster as on the six.
+    for (const sample of SAMPLE_CLIPS) {
+      const sounding = (kit: Kit) =>
+        samplePattern(kit, sample.rows)
+          .filter((row) => row.steps.some((on) => on))
+          .map((row) => `${row.instrumentId}:${row.steps.map((on) => (on ? 1 : 0)).join('')}`)
+
+      expect(sounding(roster)).toEqual(sounding(launchKit))
+    }
+  })
+
+  // A clip is six rows by default, not "one per instrument the kit can play"
+  // (ADR 0041) — a sample clip on the big roster must still be the classic six.
+  it('resolves to the default six rows, not the whole twenty-voice roster', async () => {
+    const roster = parseKitManifest(
+      JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),
+    )
+
+    expect(roster.instruments.length).toBeGreaterThan(DEFAULT_CLIP_ROWS)
+    for (const sample of SAMPLE_CLIPS) {
+      const pattern = samplePattern(roster, sample.rows)
+      expect(pattern).toHaveLength(DEFAULT_CLIP_ROWS)
+      expect(pattern.map((row) => row.instrumentId)).toEqual([
+        'kick',
+        'snare',
+        'hat',
+        'tom',
+        'marimba',
+        'boop',
+      ])
+    }
   })
 })
 

@@ -1117,6 +1117,23 @@ export class HomePagePom extends BasePage {
       .toBeGreaterThan(0)
   }
 
+  /**
+   * The rows the grid shows, in order. A clip owns its rows since ADR 0041, so
+   * "which instruments are on the grid" is a question a test can ask — of
+   * either renderer, since both label their rows the same way.
+   */
+  async verifyGridRows(instrumentIds: readonly string[]): Promise<void> {
+    await expect
+      .poll(async () =>
+        this.page
+          .getByTestId(/^row-label-/)
+          .evaluateAll((nodes) =>
+            nodes.map((node) => node.getAttribute('data-testid')!.replace('row-label-', '')),
+          ),
+      )
+      .toEqual([...instrumentIds])
+  }
+
   /** 6 rows × 16 steps, at every breakpoint — no ticket may drop one (ADR 0027). */
   async verifyGridIsSixBySixteen(): Promise<void> {
     await expect(this.page.getByTestId(/^cell-[a-z]+-\d+$/)).toHaveCount(96)

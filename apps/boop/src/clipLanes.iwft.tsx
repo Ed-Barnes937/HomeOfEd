@@ -1,3 +1,4 @@
+import { SAVE_KEY } from './persistence/storage.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // The clip-lanes laptop layout (boop-loops ticket 15, the handoff's 2a frame),
@@ -286,6 +287,46 @@ test('Clear grid clears only the clip on screen, and marks the loaded boop edite
   // Clip 1 kept its kick — the clear was clip-scoped.
   await root.selectClip(0)
   await root.verifyCellOn('kick', 0)
+})
+
+/**
+ * Clear grid empties the beats and keeps the rows. Since ADR 0041 a clip's
+ * rows are the child's own choice of instruments, and clearing the beats is no
+ * reason to take that away — it must not fall back to the default six.
+ * Seeded, because nothing picks rows through the UI until the picker lands.
+ */
+test('Clear grid keeps the clip’s own rows, and only empties them', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+
+  const rows = [
+    { instrumentId: 'cowbell', steps: '1000000000000000' },
+    { instrumentId: 'kick', steps: '0000000010000000' },
+    { instrumentId: 'chime', steps: '0000000000000000' },
+  ]
+  // Seeded after the reload: the outgoing page flushes its autosave on the way out.
+  await page.reload()
+  await page.evaluate(({ key, doc }) => window.localStorage.setItem(key, JSON.stringify(doc)), {
+    key: SAVE_KEY,
+    doc: {
+      version: 1,
+      working: { name: '', kitId: 'launch', tempo: 100, patterns: [{ rows }] },
+      creations: [],
+    },
+  })
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openClipEditor()
+  await root.verifyGridRows(['cowbell', 'kick', 'chime'])
+  await root.verifyCellOn('cowbell', 0)
+
+  await root.openClearGridConfirm()
+  await root.clearIt()
+
+  await root.verifyGridRows(['cowbell', 'kick', 'chime'])
+  await root.verifyCellOff('cowbell', 0)
+  await root.verifyCellOff('kick', 8)
 })
 
 test('clip add, rename and placement each mark the loaded boop edited', async ({ mountApp }) => {

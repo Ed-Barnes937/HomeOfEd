@@ -182,13 +182,22 @@ test('a multi-clip working song survives a reload, landing on the clip being edi
   // A two-clip song with placements, edited on clip 2 (ticket 14). Written
   // straight into the slot: no UI makes clips yet — that is the point of the
   // expand step.
+  //
+  // Each clip lists the launch six, which is what a real document lists: since
+  // ticket 03 the stored rows ARE the clip's rows, so a fixture naming one row
+  // would be a genuine one-row clip rather than a shorthand for the six.
+  const sixRows = (painted: Record<string, string>) =>
+    ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop'].map((instrumentId) => ({
+      instrumentId,
+      steps: painted[instrumentId] ?? '0'.repeat(16),
+    }))
   const working = {
     name: '',
     kitId: 'launch',
     tempo: 120,
     patterns: [
-      { rows: [{ instrumentId: 'kick', steps: '1000000000000000' }], name: 'Clip 1', tint: 0 },
-      { rows: [{ instrumentId: 'snare', steps: '0010000000000000' }], name: 'Drums', tint: 3 },
+      { rows: sixRows({ kick: '1000000000000000' }), name: 'Clip 1', tint: 0 },
+      { rows: sixRows({ snare: '0010000000000000' }), name: 'Drums', tint: 3 },
     ],
     placements: '112.............',
     gridClip: 1,
