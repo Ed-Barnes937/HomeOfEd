@@ -1,5 +1,7 @@
 import {
+  INSTRUMENT_GROUPS,
   INSTRUMENT_ROLES,
+  type InstrumentGroup,
   type InstrumentRole,
   type Kit,
   type KitInstrument,
@@ -63,11 +65,23 @@ function parseInstrument(raw: unknown): KitInstrument {
     }
     instrument.role = entry.role
   }
+  if (entry.group !== undefined) {
+    if (!isGroup(entry.group)) {
+      throw new Error(
+        `kit manifest instrument group must be one of: ${INSTRUMENT_GROUPS.join(', ')}`,
+      )
+    }
+    instrument.group = entry.group
+  }
   return instrument
 }
 
 function isRole(value: unknown): value is InstrumentRole {
   return INSTRUMENT_ROLES.some((role) => role === value)
+}
+
+function isGroup(value: unknown): value is InstrumentGroup {
+  return INSTRUMENT_GROUPS.some((group) => group === value)
 }
 
 function asRecord(raw: unknown, what: string): Record<string, unknown> {

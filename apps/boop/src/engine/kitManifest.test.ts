@@ -16,6 +16,7 @@ const validManifest = {
       artwork: '/kits/launch/artwork/drum.svg',
       sound: '/kits/launch/sounds/kick.wav',
       role: 'kick',
+      group: 'drums',
     },
     {
       instrumentId: 'boop',
@@ -35,6 +36,12 @@ describe('parseKitManifest', () => {
     expect(kit.instruments[1]?.role).toBeUndefined()
   })
 
+  it('reads the picker group, which is optional the way the role is', () => {
+    const kit = parseKitManifest(validManifest)
+    expect(kit.instruments[0]?.group).toBe('drums')
+    expect(kit.instruments[1]?.group).toBeUndefined()
+  })
+
   it.each([
     ['a non-object', 42],
     ['a missing version', { ...validManifest, version: undefined }],
@@ -51,6 +58,10 @@ describe('parseKitManifest', () => {
     [
       'an unknown role',
       { ...validManifest, instruments: [{ ...dupInstrument(), role: 'bagpipe' }] },
+    ],
+    [
+      'an unknown group',
+      { ...validManifest, instruments: [{ ...dupInstrument(), group: 'orchestral' }] },
     ],
   ])('rejects %s', (_case, raw) => {
     expect(() => parseKitManifest(raw)).toThrow(/kit manifest/i)
@@ -73,16 +84,45 @@ describe('loadKit', () => {
 })
 
 describe('the shipped launch kit', () => {
-  it('is a valid manifest of six instruments whose files exist', async () => {
-    const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
-    const kit = parseKitManifest(
-      JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),
-    )
-    expect(kit.instruments).toHaveLength(6)
+  const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
+
+  async function shippedKit() {
+    return parseKitManifest(JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')))
+  }
+
+  it('is a valid manifest of the 20-instrument roster whose files exist', async () => {
+    const kit = await shippedKit()
+    expect(kit.instruments).toHaveLength(20)
     for (const instrument of kit.instruments) {
       await expect(readFile(publicDir + instrument.sound.slice(1))).resolves.toBeDefined()
       await expect(readFile(publicDir + instrument.artwork.slice(1))).resolves.toBeDefined()
     }
+  })
+
+  it('puts every instrument in one of the picker groups (spec §2: 10 / 6 / 4)', async () => {
+    // The picker sections the roster by this field; an instrument without one
+    // would fall out of its group (it stays pickable, but unsectioned).
+    const kit = await shippedKit()
+    const counts = new Map<string, number>()
+    for (const instrument of kit.instruments) {
+      expect(instrument.group, instrument.instrumentId).toBeDefined()
+      counts.set(instrument.group!, (counts.get(instrument.group!) ?? 0) + 1)
+    }
+    expect(Object.fromEntries(counts)).toEqual({ drums: 10, notes: 6, silly: 4 })
+  })
+
+  it('leads with the classic six, in their original order', async () => {
+    // Defaults and the authored sample clips key off these positions, so the
+    // six that shipped at launch must stay first in manifest order.
+    const kit = await shippedKit()
+    expect(kit.instruments.slice(0, 6).map((i) => i.instrumentId)).toEqual([
+      'kick',
+      'snare',
+      'hat',
+      'tom',
+      'marimba',
+      'boop',
+    ])
   })
 })
 

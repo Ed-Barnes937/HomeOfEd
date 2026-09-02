@@ -1,0 +1,185 @@
+// The overlay + paper card shell is "My boops"'s (design handoff §4), the same
+// shell `NewClipPicker` inherits — restated here rather than shared, because
+// each feature owns its SCSS module in this app and there is no partial/mixin
+// convention to hang a dialog shell on.
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  // Above the clip editor card (z-index 30) this opens over, and level with
+  // the app's other dialogs.
+  z-index: 40;
+}
+
+// A fixed width rather than `fit-content`: 20 entries in a fixed column count
+// is what makes the sections read as rows of sounds, and it is the width the
+// list scrolls inside.
+.card {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px;
+  border-radius: var(--r-popover);
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+  // The card takes focus on mount so a keyboard user lands inside the dialog;
+  // that is a move, not a control, so it wears no ring.
+  outline: none;
+
+  @media (max-width: 1023px) {
+    padding: 14px;
+  }
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  font: 900 19px var(--font-display);
+  color: var(--ink-dark);
+}
+
+.closeButton {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--r-control);
+  background: transparent;
+  font: 700 20px var(--font-display);
+  line-height: 1;
+  color: rgba(20, 38, 42, 0.4);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+}
+
+// The list scrolls, not the card — the same division `NewClipPicker` makes, and
+// what keeps the title and the footer in place while a child browses 20 sounds.
+.list {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel {
+  font: 800 12px var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(20, 38, 42, 0.45);
+}
+
+.entries {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+
+  @media (max-width: 1023px) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+}
+
+// Geometry from the design handoff's preset row (§1); palette from §4, since
+// this sits on paper — the same trade `NewClipPicker`'s cards make.
+.entry {
+  padding: 10px 8px;
+  border: none;
+  border-radius: var(--r-preset-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(20, 38, 42, 0.04);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+
+  // "Already in this clip": a clip may not hold a sound twice, and the row's
+  // own sound is one of these.
+  &:disabled {
+    opacity: 0.34;
+    cursor: default;
+  }
+}
+
+.artwork {
+  width: 34px;
+  height: 34px;
+  // The opening row's hue, handed down the card as `--row-color`.
+  background: var(--row-color);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+
+  @media (max-width: 1023px) {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.name {
+  font: 800 13px var(--font-display);
+  color: var(--ink-dark);
+  text-align: center;
+
+  @media (max-width: 1023px) {
+    font-size: 12px;
+  }
+}
+
+.footer {
+  flex: none;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(20, 38, 42, 0.1);
+  display: flex;
+  justify-content: center;
+}
+
+// No confirm behind it: it is one tap to put the sound back, and this toy
+// confirms nothing anywhere (spec §4).
+.removeButton {
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--r-control);
+  background: rgba(255, 138, 122, 0.22);
+  font: 800 14px var(--font-display);
+  color: var(--danger-text);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+}

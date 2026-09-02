@@ -151,3 +151,31 @@ What can now reach the next run is a **seek**, which is a child deliberately
 putting the playhead somewhere and is the one thing that should be honoured. The
 rewind on stop happens before that seek, not after it, so an explicit choice is
 no longer wiped by the play meant to sound it.
+
+## Amendment (2026-09-02): `Pattern` is the clip's rows, and the seam gains `audition`
+
+Recorded in full by [ADR 0042](0042-boop-dynamic-clip-rows.md); the parts that
+belong to this contract:
+
+- **`Pattern` is redefined** as the clip's own rows - an ordered list of
+  1..roster-size rows with unique `instrumentId`s, each a kit instrument -
+  rather than "one row per kit instrument, in kit order". `setCell`,
+  `setPattern` and `getPattern` keep their signatures, and `setPattern` is how
+  a row set changes (membership and order included). A fresh grid is the
+  roster's first `DEFAULT_CLIP_ROWS` (six), empty. `BeatEvent.hits` is ordered
+  by the pattern's rows, which is no longer the same promise as kit order.
+- **New method: `audition(instrumentId)`** - play one instrument's sample now,
+  from a user gesture. It sounds whether or not the loop is running and whether
+  or not the clip has a row for that instrument, touches neither the pattern nor
+  the transport, unlocks first when the context is still `locked` (so nothing is
+  heard synchronously), and ignores an id the kit does not know rather than
+  throwing: it is wired straight to a child's finger. Audition-on-toggle stays
+  engine-internal, and keeps its own rule of staying silent while playing.
+- **The `AudioDriver` seam does not change.** `audition` is `play(instrumentId)`,
+  which the driver already has, so `ToneAudioDriver` remains the only file that
+  imports `tone`. The whole roster's samples are preloaded up front, regardless
+  of which rows a clip holds - the picker auditions instruments no clip has yet.
+- Decision 6's "six rows can land on the same step" becomes "as many rows as
+  the clip holds, across the clips a position layers". The gain-and-limiter
+  staging stands; the number it was tuned against is re-measured by the
+  boop-instruments effort's ticket 08.

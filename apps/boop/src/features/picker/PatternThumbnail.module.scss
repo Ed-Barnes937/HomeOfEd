@@ -1,14 +1,37 @@
 // Dot matrix from the design handoff ("Preset row" — "Thumbnail"): 8px pitch,
 // dot size round(8 x 0.55) = 4px at laptop, so the gap between dots is 4px.
+//
+// The matrix height is **fixed at the six-row height** at every breakpoint
+// (6 x 4px dots on 5 x 4px gaps = 44px here) and the rows divide it — a clip
+// owns its rows now (ADR 0042), and neither a one-row clip nor a twenty-row
+// one may move the layout around the thumbnail: the picker's fixed-width cards
+// and a "My boops" row both keep their geometry. The rule, and why the shares
+// are percentages rather than pixels, is in `thumbnailGeometry.ts`.
 .matrix {
   display: flex;
   flex-direction: column;
+  justify-content: center; // six rows or fewer sit centred in the fixed box
+  height: 44px;
   gap: 4px;
+
+  // Past six rows the gap between rows comes out of each row's own pitch
+  // instead (see `.matrix[data-dense='true'] .row`), so there is nothing left
+  // for a `gap` to do — and a shrinking `gap` could not have kept the box.
+  &[data-dense='true'] {
+    gap: 0;
+  }
 }
 
 .row {
   display: flex;
   gap: 4px;
+}
+
+// A dense row takes its share of the footprint and centres its dots in it.
+.matrix[data-dense='true'] .row {
+  flex: none;
+  height: var(--row-pitch);
+  align-items: center;
 }
 
 // Both cards this appears on are paper (design handoff §4), so the dots are
@@ -25,20 +48,38 @@
   }
 }
 
+// Only the dot's *height* scales with the row count: 16 steps on a fixed-width
+// card means the width cannot move, so many rows read as finer and finer
+// horizontal dashes — the pattern as texture (`thumbnailGeometry.ts`).
+.matrix[data-dense='true'] .dot {
+  height: var(--dot-height);
+}
+
 // Tablet pitch drops to 7px (design handoff, "Main screen — tablet" table);
-// dot size stays round(7 x 0.55) = 4px, so only the gap tightens.
+// dot size stays round(7 x 0.55) = 4px, so only the gap tightens — and the
+// six-row footprint with it (6 x 4 + 5 x 3).
 @media (max-width: 1279px) {
   .matrix,
   .row {
     gap: 3px;
   }
+
+  .matrix {
+    height: 39px;
+  }
 }
 
 // Phone pitch is 6px (design handoff, "Phone preset row"); dot size
-// round(6 x 0.55) = 3px, so both the dot and the gap tighten.
+// round(6 x 0.55) = 3px, so both the dot and the gap tighten. 6 x 3 + 5 x 3 is
+// the shortest footprint any breakpoint gives the matrix, which is the one the
+// dot floor in `thumbnailGeometry.ts` is derived from.
 @media (max-width: 1023px) {
   .dot {
     width: 3px;
     height: 3px;
+  }
+
+  .matrix {
+    height: 33px;
   }
 }

@@ -45,6 +45,34 @@ describe('encodeShare / decodeShare', () => {
     expect(decodeShare(encodeShare(song))).toEqual(song)
   })
 
+  // Ticket 03 / ADR 0042: a clip owns its rows, so two clips of one song may
+  // hold different instruments in different orders. The link carries that with
+  // no SHARE_FORMAT_VERSION bump, because it is still just `StoredPattern.rows`.
+  it('round-trips a mixed-row song - different instruments, different orders', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: [
+        {
+          rows: [
+            { instrumentId: 'cowbell', steps: '0010001000100010' },
+            { instrumentId: 'kick', steps: '1000000010000000' },
+          ],
+          name: 'Cowbell',
+          tint: 0,
+        },
+        {
+          rows: [{ instrumentId: 'bell', steps: '0000000000000000' }],
+          name: 'Bell, unpainted',
+          tint: 1,
+        },
+      ],
+      placements: '12..............',
+      gridClip: 1,
+    }
+
+    expect(decodeShare(encodeShare(song))).toEqual(song)
+  })
+
   it('round-trips a name with non-latin characters', () => {
     const named = { ...boop, name: 'ドラム 🥁' }
     expect(decodeShare(encodeShare(named))).toEqual(named)
@@ -177,6 +205,35 @@ describe('pre-song compatibility (ticket 13)', () => {
     expect('gridClip' in decoded).toBe(false)
     expect('name' in decoded.patterns[0]!).toBe(false)
     expect('tint' in decoded.patterns[0]!).toBe(false)
+  })
+})
+
+// Ticket 03 / ADR 0042: making the stored rows authoritative changes what a
+// pattern means, so pin a token that was actually in the world before it - the
+// launch six in kit order, written by hand rather than by today's encoder.
+describe('pre-dynamic-rows compatibility (ticket 03)', () => {
+  const preDynamicRowsToken =
+    'eyJ2ZXJzaW9uIjoxLCJjcmVhdGlvbiI6eyJuYW1lIjoiT2xkIHNpeCIsImtpdElkIjoibGF1bmNoIiwidGVtcG8iOjExMCwi' +
+    'cGF0dGVybnMiOlt7InJvd3MiOlt7Imluc3RydW1lbnRJZCI6ImtpY2siLCJzdGVwcyI6IjEwMDAxMDAwMTAwMDEwMDAifSx7' +
+    'Imluc3RydW1lbnRJZCI6InNuYXJlIiwic3RlcHMiOiIxMDAwMTAwMDEwMDAxMDAwIn0seyJpbnN0cnVtZW50SWQiOiJoYXQi' +
+    'LCJzdGVwcyI6IjEwMDAxMDAwMTAwMDEwMDAifSx7Imluc3RydW1lbnRJZCI6InRvbSIsInN0ZXBzIjoiMTAwMDEwMDAxMDAw' +
+    'MTAwMCJ9LHsiaW5zdHJ1bWVudElkIjoibWFyaW1iYSIsInN0ZXBzIjoiMTAwMDEwMDAxMDAwMTAwMCJ9LHsiaW5zdHJ1bWVu' +
+    'dElkIjoiYm9vcCIsInN0ZXBzIjoiMTAwMDEwMDAxMDAwMTAwMCJ9XX1dfX0'
+
+  it('still opens an old #g= link, its six rows in the order they were sent', () => {
+    const decoded = decodeShareHash(`${SHARE_HASH_PREFIX}${preDynamicRowsToken}`)!
+
+    expect(decoded.name).toBe('Old six')
+    expect(decoded.tempo).toBe(110)
+    expect(decoded.patterns).toHaveLength(1)
+    expect(decoded.patterns[0]!.rows.map((r) => r.instrumentId)).toEqual([
+      'kick',
+      'snare',
+      'hat',
+      'tom',
+      'marimba',
+      'boop',
+    ])
   })
 })
 

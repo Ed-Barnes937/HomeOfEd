@@ -42,4 +42,47 @@ describe('loopMapTicks', () => {
   it('shows the playhead on an empty step too', () => {
     expect(loopMapTicks(patternWith({ kick: [0] }), 7)[7]).toBe('playhead')
   })
+
+  // A clip owns its rows (ADR 0042), so the map must read whatever the clip
+  // holds — the band is a *step* readout, aggregating every row onto 16 ticks,
+  // which is what lets its reserved height stay the same at any row count.
+  it('reads a row past the default six — the twentieth row lights its step', () => {
+    const roster = [
+      'kick',
+      'snare',
+      'hat',
+      'tom',
+      'marimba',
+      'boop',
+      'clap',
+      'shaker',
+      'cowbell',
+      'woodblock',
+      'triangle',
+      'cymbal',
+      'bass',
+      'bell',
+      'chime',
+      'pluck',
+      'boing',
+      'pop',
+      'zap',
+      'drip',
+    ]
+    const pattern: Pattern = roster.map((instrumentId) =>
+      instrumentId === 'drip' ? patternWith({ drip: [3] })[0]! : emptyRow(instrumentId),
+    )
+
+    const ticks = loopMapTicks(pattern, null)
+    expect(ticks).toHaveLength(STEPS_PER_PATTERN)
+    expect(ticks[3]).toBe('note')
+    expect(ticks[2]).toBe('empty')
+  })
+
+  it('reads a one-row clip', () => {
+    const ticks = loopMapTicks(patternWith({ kick: [0, 4, 8, 12] }), null)
+    expect(ticks).toHaveLength(STEPS_PER_PATTERN)
+    expect(ticks[0]).toBe('note')
+    expect(ticks[1]).toBe('empty')
+  })
 })

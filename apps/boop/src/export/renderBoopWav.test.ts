@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { MASTER_GAIN } from '../engine/audioDriver.ts'
 import type { Kit, Pattern } from '../engine/sequencerEngine.ts'
 import type { Song } from '../song/song.ts'
 import { renderBoopWav } from './renderBoopWav.ts'
@@ -96,6 +97,74 @@ describe('renderBoopWav', () => {
     const second = dv.getInt16(44 + 16 * samplesPerStep * 2, true)
     expect(first).toBeLessThan(0)
     expect(second).toBeGreaterThan(0)
+  })
+
+  it('exports layered clips with uneven row sets as their instrumentId union', async () => {
+    // Ticket 08, spec §6: a clip owns its rows (ADR 0042), so layered clips can
+    // hold different counts of different instruments. Export must sound the
+    // union `mergePatterns` builds - the same one `songConductor` hands live
+    // playback - not one clip's rows, and not the kit's.
+    const wideKit: Kit = {
+      kitId: 'test',
+      name: 'Test kit',
+      instruments: ['kick', 'snare', 'hat', 'cowbell'].map((instrumentId) => ({
+        instrumentId,
+        name: instrumentId,
+        artwork: '',
+        sound: `/kits/launch/sounds/${instrumentId}.wav`,
+      })),
+    }
+    // One row; three rows, one of them shared; and a row the other two lack.
+    const oneRow: Pattern = [rowOf('kick', 0)]
+    const threeRows: Pattern = [rowOf('kick', 0), rowOf('hat', 0), rowOf('cowbell', 0)]
+    const song: Song = {
+      bpm: 100,
+      clips: [
+        { name: 'Clip 1', tint: 0, pattern: oneRow },
+        { name: 'Clip 2', tint: 1, pattern: threeRows },
+      ],
+      activeClipIndex: 0,
+      placements: [[0, 1], ...EMPTY.slice(1)],
+    }
+
+    const blob = await renderBoopWav({
+      kit: wideKit,
+      song,
+      sampleRate: 4,
+      // Every instrument decodes to +1, so the first sample counts the voices.
+      decode: () => Promise.resolve(new Float32Array([1])),
+    })
+    const dv = new DataView(await blob.arrayBuffer())
+
+    // The union is {kick, hat, cowbell} = 3 voices, NOT 4 (kick is shared, so
+    // it sounds once, not once per clip) and NOT 4 (snare is in the kit but in
+    // neither clip). 3 * MASTER_GAIN as a 16-bit sample.
+    expect(dv.getInt16(44, true)).toBe(Math.round(3 * MASTER_GAIN * 32767))
+  })
+
+  it('exports a placed but unpainted clip as a silent slot that still holds its place', async () => {
+    // A clip picked from the picker and placed without a single cell painted.
+    const unpainted: Pattern = [rowOf('kick'), rowOf('snare')]
+    const song: Song = {
+      bpm: 100,
+      clips: [
+        { name: 'Clip 1', tint: 0, pattern: unpainted },
+        { name: 'Clip 2', tint: 1, pattern: kickPattern },
+      ],
+      activeClipIndex: 0,
+      placements: [[0], [1], ...EMPTY.slice(2)],
+    }
+
+    const blob = await renderBoopWav({ kit, song, sampleRate: 4, decode: signedDecode })
+    const dv = new DataView(await blob.arrayBuffer())
+
+    // Two slots long: the empty clip is placed, so it takes its 16 steps.
+    expect(dv.getUint32(40, true) / 2).toBe(2 * 16 + 1)
+    // Silent through slot 1, then the kick lands at the top of slot 2.
+    for (let sample = 0; sample < 16; sample += 1) {
+      expect(dv.getInt16(44 + sample * 2, true)).toBe(0)
+    }
+    expect(dv.getInt16(44 + 16 * 2, true)).toBeGreaterThan(0)
   })
 
   it('exports a layered position as one slot with every clip in it sounding', async () => {

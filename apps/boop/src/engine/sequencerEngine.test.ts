@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { createSequencerEngine } from './createSequencerEngine.ts'
 import {
+  blankPattern,
   DEFAULT_BPM,
+  DEFAULT_CLIP_ROWS,
+  STEPS_PER_PATTERN,
   type BeatEvent,
   type Kit,
+  type KitInstrument,
   type SequencerEngine,
   type TransportEvent,
 } from './sequencerEngine.ts'
@@ -18,6 +22,16 @@ const kit: Kit = {
     { instrumentId: 'snare', name: 'Snare', artwork: 'snare.svg', sound: 'snare.wav' },
     { instrumentId: 'boop', name: 'Boop', artwork: 'boop.svg', sound: 'boop.wav' },
   ],
+}
+
+/** A roster bigger than a clip's default row count, so the two can differ. */
+const bigKit: Kit = {
+  kitId: 'big',
+  name: 'Big test kit',
+  instruments: Array.from({ length: DEFAULT_CLIP_ROWS + 2 }, (_, i): KitInstrument => {
+    const id = `voice-${i}`
+    return { instrumentId: id, name: `Voice ${i}`, artwork: `${id}.svg`, sound: `${id}.wav` }
+  }),
 }
 
 describe('SequencerEngine', () => {
@@ -38,7 +52,7 @@ describe('SequencerEngine', () => {
       ])
     })
 
-    it('starts with an empty grid, one row per kit instrument in kit order', () => {
+    it('starts with an empty grid of the roster’s first rows, in kit order', () => {
       const pattern = engine.getPattern()
       expect(pattern.map((row) => row.instrumentId)).toEqual(['kick', 'snare', 'boop'])
       expect(pattern.every((row) => row.steps.length === 16)).toBe(true)
@@ -75,13 +89,177 @@ describe('SequencerEngine', () => {
     })
   })
 
+  describe('dynamic clip rows', () => {
+    let bigDriver: FakeAudioDriver
+    let big: SequencerEngine
+
+    beforeEach(async () => {
+      bigDriver = new FakeAudioDriver()
+      big = await createSequencerEngine({ kit: bigKit, driver: bigDriver })
+    })
+
+    it('defaults a fresh grid to the roster’s first six rows, empty', () => {
+      const pattern = big.getPattern()
+      expect(pattern.map((row) => row.instrumentId)).toEqual([
+        'voice-0',
+        'voice-1',
+        'voice-2',
+        'voice-3',
+        'voice-4',
+        'voice-5',
+      ])
+      expect(pattern).toHaveLength(DEFAULT_CLIP_ROWS)
+      expect(pattern.every((row) => row.steps.every((on) => !on))).toBe(true)
+    })
+
+    it('gives a roster smaller than the default all of it', () => {
+      expect(engine.getPattern().map((row) => row.instrumentId)).toEqual(['kick', 'snare', 'boop'])
+    })
+
+    it('takes the row set from setPattern - membership and order included', () => {
+      big.setPattern([
+        { instrumentId: 'voice-7', steps: row([1]) },
+        { instrumentId: 'voice-2', steps: row([]) },
+      ])
+      expect(big.getPattern().map((r) => r.instrumentId)).toEqual(['voice-7', 'voice-2'])
+      expect(big.getPattern()[0]?.steps[1]).toBe(true)
+    })
+
+    it('plays exactly its own rows, in pattern-row order - not kit order', async () => {
+      big.setPattern([
+        { instrumentId: 'voice-7', steps: row([0]) },
+        { instrumentId: 'voice-2', steps: row([0]) },
+      ])
+      await big.start()
+      bigDriver.played = []
+      const events: BeatEvent[] = []
+      const off = big.onBeat((e) => events.push(e))
+      bigDriver.fireStep()
+      off()
+
+      expect(events[0]?.hits).toEqual([{ instrumentId: 'voice-7' }, { instrumentId: 'voice-2' }])
+      expect(bigDriver.played).toEqual([
+        { instrumentId: 'voice-7', audioTime: 0.1 },
+        { instrumentId: 'voice-2', audioTime: 0.1 },
+      ])
+    })
+
+    it('never sounds an instrument the pattern has dropped', async () => {
+      big.setCell('voice-1', 0, true)
+      big.setPattern([{ instrumentId: 'voice-0', steps: row([0]) }])
+      await big.start()
+      bigDriver.played = []
+      bigDriver.fireStep()
+
+      expect(bigDriver.played).toEqual([{ instrumentId: 'voice-0', audioTime: 0.1 }])
+    })
+
+    it('accepts a single row - the floor of the model', () => {
+      big.setPattern([{ instrumentId: 'voice-3', steps: row([2]) }])
+      expect(big.getPattern().map((r) => r.instrumentId)).toEqual(['voice-3'])
+    })
+
+    it('accepts the whole roster - its ceiling', () => {
+      big.setPattern(
+        bigKit.instruments.map((i) => ({ instrumentId: i.instrumentId, steps: row([]) })),
+      )
+      expect(big.getPattern()).toHaveLength(bigKit.instruments.length)
+    })
+
+    it('rejects an empty row list, a duplicate row and an instrument the kit lacks', () => {
+      expect(() => big.setPattern([])).toThrow(/at least one row/)
+      expect(() =>
+        big.setPattern([
+          { instrumentId: 'voice-0', steps: row([]) },
+          { instrumentId: 'voice-0', steps: row([1]) },
+        ]),
+      ).toThrow(/twice/)
+      expect(() => big.setPattern([{ instrumentId: 'cowbell', steps: row([]) }])).toThrow(/cowbell/)
+    })
+
+    it('leaves the grid alone when any row is bad', () => {
+      big.setCell('voice-0', 0, true)
+      expect(() =>
+        big.setPattern([
+          { instrumentId: 'voice-1', steps: row([4]) },
+          { instrumentId: 'voice-1', steps: row([5]) },
+        ]),
+      ).toThrow()
+      expect(big.getPattern().map((r) => r.instrumentId)).toHaveLength(DEFAULT_CLIP_ROWS)
+      expect(big.getPattern()[0]?.steps[0]).toBe(true)
+    })
+
+    it('refuses a cell on an instrument this clip has no row for', () => {
+      expect(() => big.setCell('voice-7', 0, true)).toThrow(/voice-7/)
+    })
+
+    it('loads every kit instrument once, whatever rows the pattern holds', () => {
+      expect(bigDriver.loaded.map((s) => s.instrumentId)).toEqual(
+        bigKit.instruments.map((i) => i.instrumentId),
+      )
+      big.setPattern([{ instrumentId: 'voice-0', steps: row([]) }])
+      expect(bigDriver.loaded).toHaveLength(bigKit.instruments.length)
+    })
+  })
+
+  describe('audition(instrumentId)', () => {
+    it('plays the sample now when the context is running', async () => {
+      await engine.start()
+      engine.stop()
+      driver.played = []
+      engine.audition('boop')
+      expect(driver.played).toEqual([{ instrumentId: 'boop', audioTime: undefined }])
+    })
+
+    it('unlocks first when the tap that called it is the first gesture', async () => {
+      engine.audition('snare')
+      expect(driver.played).toEqual([])
+      await Promise.resolve()
+      expect(driver.unlockCalls).toBe(1)
+      expect(driver.played).toEqual([{ instrumentId: 'snare', audioTime: undefined }])
+    })
+
+    it('sounds even while the loop is running - the tap is its own sound', async () => {
+      await engine.start()
+      driver.played = []
+      engine.audition('kick')
+      expect(driver.played).toEqual([{ instrumentId: 'kick', audioTime: undefined }])
+    })
+
+    it('touches neither the pattern nor the transport', async () => {
+      await engine.start()
+      engine.stop()
+      const before = engine.getPattern()
+      engine.audition('kick')
+      expect(engine.getPattern()).toEqual(before)
+      expect(engine.isPlaying()).toBe(false)
+      expect(driver.transportRunning).toBe(false)
+    })
+
+    it('ignores an instrument the kit does not know, rather than throwing at a tap', async () => {
+      await engine.start()
+      driver.played = []
+      expect(() => engine.audition('cowbell')).not.toThrow()
+      expect(driver.played).toEqual([])
+    })
+
+    it('auditions a kit instrument this clip has no row for - the picker browses by ear', async () => {
+      const bigDriver = new FakeAudioDriver()
+      const big = await createSequencerEngine({ kit: bigKit, driver: bigDriver })
+      await big.start()
+      bigDriver.played = []
+      big.audition('voice-7')
+      expect(bigDriver.played).toEqual([{ instrumentId: 'voice-7', audioTime: undefined }])
+    })
+  })
+
   describe('beat events', () => {
     it('emits one event per step including empty steps', async () => {
       const events = await startAndCollect(engine, 3)
       expect(events.map((e) => e.hits)).toEqual([[], [], []])
     })
 
-    it('carries the hits sounding on the step, in kit order', async () => {
+    it('carries the hits sounding on the step, in pattern-row order', async () => {
       engine.setCell('boop', 0, true)
       engine.setCell('kick', 0, true)
       const [first] = await startAndCollect(engine, 1)
@@ -494,6 +672,39 @@ describe('SequencerEngine', () => {
     off()
     return events
   }
+})
+
+/**
+ * The one definition of "a fresh grid" (ADR 0042), so the engine's own
+ * starting pattern, a Blank clip, a sample clip's rows and decode's fallback
+ * cannot drift apart.
+ */
+describe('blankPattern', () => {
+  it("is the roster's first six rows, nothing painted", () => {
+    const pattern = blankPattern(bigKit)
+
+    expect(pattern.map((r) => r.instrumentId)).toEqual([
+      'voice-0',
+      'voice-1',
+      'voice-2',
+      'voice-3',
+      'voice-4',
+      'voice-5',
+    ])
+    expect(pattern.every((r) => r.steps.length === STEPS_PER_PATTERN)).toBe(true)
+    expect(pattern.every((r) => r.steps.every((on) => !on))).toBe(true)
+  })
+
+  it('gives a roster smaller than the default all of it', () => {
+    expect(blankPattern(kit).map((r) => r.instrumentId)).toEqual(['kick', 'snare', 'boop'])
+  })
+
+  it('is exactly what a fresh engine starts on', async () => {
+    const fresh = await createSequencerEngine({ kit: bigKit, driver: new FakeAudioDriver() })
+
+    expect(fresh.getPattern()).toEqual(blankPattern(bigKit))
+    expect(fresh.getPattern()).toHaveLength(DEFAULT_CLIP_ROWS)
+  })
 })
 
 function row(activeSteps: number[]): boolean[] {
