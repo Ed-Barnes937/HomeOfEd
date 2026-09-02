@@ -130,11 +130,19 @@ field still offers every sound it has, in one unsectioned block.
 ### ADR 0024 - the `Pattern` wording, and `audition`
 
 Decision 6's "six rows can land on the same step" is now "as many rows as the
-clip holds, across the clips a position layers". The master gain and limiter
-staging stands; the number it was tuned against does not, and re-measuring it
-is this effort's ticket 08. `ToneAudioDriver` remains the only file importing
-`tone`: `audition` needs nothing new from the `AudioDriver` seam, which already
-has `play(instrumentId)`.
+clip holds, across the clips a position layers". Re-measuring the master gain
+against that was this effort's ticket 08, and the measurement overturned the
+staging's premise: Tone's `Limiter` inherits the compressor's default 30 dB
+knee, so it applies ~1.22 dB of reduction where a brick wall was assumed - the
+old `MASTER_GAIN` 0.6 was hard-clipping dense patterns (even the classic six
+painted solid). `MASTER_GAIN` is now **0.30** (worst case, the whole roster on
+every 16th at 200 bpm, peaks at 0.911 with zero clipped samples and the limiter
+never engaging), lives in the Tone-free seam (`engine/audioDriver.ts`) so
+playback and WAV export share one constant, and `kitLevels` asserts the budget
+closes (`3.1 x MASTER_GAIN <= 1`). Full measurement method and rationale live
+with the constant. `ToneAudioDriver` remains the only file importing `tone`:
+`audition` needs nothing new from the `AudioDriver` seam, which already has
+`play(instrumentId)`.
 
 ### ADR 0027 - "6 x 16, always" becomes "16 steps always, and every row"
 

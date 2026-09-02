@@ -7,7 +7,7 @@ import type { AudioState, Unsubscribe } from './sequencerEngine.ts'
  * `export/renderSequence.ts` both need it and neither may import the other.
  *
  * **The worst case: 0.30 x 3.035 raw = 0.91 peak.** A clip owns its rows
- * (ADR 0041) and layered placements sound their `instrumentId` union
+ * (ADR 0042) and layered placements sound their `instrumentId` union
  * (`mergePatterns`), so the most voices that can ever land on one step is the
  * whole 20-instrument roster - one voice per instrument, however many clips
  * are stacked. Painted solid and retriggering on every 16th at MAX_BPM (200),

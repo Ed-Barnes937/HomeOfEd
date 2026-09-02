@@ -137,7 +137,7 @@ describe('renderSequenceSamples', () => {
   })
 
   it('renders passes whose row sets differ in count and in instrument', () => {
-    // Ticket 08: a clip owns its rows (ADR 0041), so consecutive passes can
+    // Ticket 08: a clip owns its rows (ADR 0042), so consecutive passes can
     // hold wholly different rosters. Pass 1 is one row, pass 2 is three, and
     // they share only `b`.
     const kit = kitOf('a', 'b', 'c', 'd')

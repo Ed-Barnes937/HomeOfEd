@@ -100,7 +100,7 @@ describe('renderBoopWav', () => {
   })
 
   it('exports layered clips with uneven row sets as their instrumentId union', async () => {
-    // Ticket 08, spec §6: a clip owns its rows (ADR 0041), so layered clips can
+    // Ticket 08, spec §6: a clip owns its rows (ADR 0042), so layered clips can
     // hold different counts of different instruments. Export must sound the
     // union `mergePatterns` builds - the same one `songConductor` hands live
     // playback - not one clip's rows, and not the kit's.
