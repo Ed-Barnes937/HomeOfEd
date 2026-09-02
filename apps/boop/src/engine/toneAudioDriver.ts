@@ -9,20 +9,21 @@ import {
   start,
 } from 'tone'
 
-import type { AudioDriver, SampleSource } from './audioDriver.ts'
+import { MASTER_GAIN, type AudioDriver, type SampleSource } from './audioDriver.ts'
 import type { AudioState, Unsubscribe } from './sequencerEngine.ts'
 
 /**
  * The production `AudioDriver`: Tone.js, and the only file in the app that
  * imports it. Imports are named so the bundle stays tree-shaken (the research
  * ticket measured ~69 KB gzip that way vs ~92 KB for the whole library).
+ *
+ * The master bus is `MASTER_GAIN` into `Limiter(-1)`. The gain carries the
+ * whole headroom budget and is sized so the worst case never reaches full
+ * scale - see `audioDriver.ts` for the measurement, including why the limiter
+ * cannot be leaned on (Tone's `Limiter` inherits a 30 dB knee, so it reduces
+ * by only ~1.2 dB even 12 dB over threshold). The limiter stays as the
+ * backstop it is; it is not the thing keeping the output clean.
  */
-/**
- * Headroom for the master bus. Six placeholder one-shots landing on the same
- * step sum to ~1.83 raw; at this gain, measured through the limiter behind it,
- * the worst case peaks at ~0.83 — loud, and nowhere near clipping.
- */
-const MASTER_GAIN = 0.6
 
 export class ToneAudioDriver implements AudioDriver {
   private readonly limiter = new Limiter(-1).toDestination()

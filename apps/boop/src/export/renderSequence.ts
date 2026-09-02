@@ -1,19 +1,21 @@
+import { MASTER_GAIN } from '../engine/audioDriver.ts'
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
 
 /**
- * Per-voice headroom, matching the placeholder kit's own peak
- * (`scripts/generatePlaceholderSamples.mjs`) so six simultaneous rows don't
- * clip before the master stage.
+ * The render applies `MASTER_GAIN` and nothing else, so an exported file is
+ * exactly as loud as live playback. It used to apply a second per-voice 0.5 on
+ * top, on the assumption that decoded samples were full scale - they are not,
+ * the kit normalises every one-shot to 0.5 itself
+ * (`scripts/generatePlaceholderSamples.mjs`, pinned by `kitLevels.test.ts`) -
+ * which made every export 6 dB quieter than the app (ticket 08). Removing it
+ * while the master gain came 0.60 -> 0.30 leaves rendered files bit-identical
+ * and brings playback down to meet them.
+ *
+ * Production also runs the live bus through a `Limiter(-1)` that the offline
+ * render has no equivalent for, so the final clamp below is a hard ceiling.
+ * Nothing the app can build should reach it: `MASTER_GAIN` is sized so the
+ * whole-roster worst case peaks at 0.91 (see `audioDriver.ts`).
  */
-const VOICE_GAIN = 0.5
-/**
- * Master bus gain, matching `ToneAudioDriver`'s `MASTER_GAIN`. Production
- * also runs this through a `Limiter(-1)`; the offline render has no
- * equivalent, so the final clamp below is a hard ceiling rather than a
- * limiter — loud enough patterns clip in the file even though they don't
- * live, on the same six-simultaneous-hit case `MASTER_GAIN` is sized for.
- */
-const MASTER_GAIN = 0.6
 
 export interface RenderSequenceOptions {
   kit: Kit
@@ -58,7 +60,7 @@ export function renderSequenceSamples(options: RenderSequenceOptions): Float32Ar
       const sample = samples[instrument.instrumentId]
       if (!sample) continue
       for (let i = 0; i < sample.length; i += 1) {
-        out[offset + i]! += sample[i]! * VOICE_GAIN
+        out[offset + i]! += sample[i]!
       }
     }
   }
