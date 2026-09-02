@@ -200,6 +200,122 @@ export class HomePagePom extends BasePage {
     await expect(this.boopsCard).toHaveCount(0)
   }
 
+  // --- The instrument picker (boop-instruments ticket 05) ---
+
+  private readonly instrumentPicker = this.page.getByTestId('instrument-picker')
+  private readonly instrumentPickerList = this.page.getByTestId('instrument-picker-list')
+  private readonly removeRowButton = this.page.getByTestId('instrument-picker-remove-row')
+
+  /** A row's rail artwork — a button since ticket 05, at every width. */
+  rowInstrumentButton(instrumentId: string) {
+    return this.page.getByTestId(`row-instrument-button-${instrumentId}`)
+  }
+
+  instrumentEntry(instrumentId: string) {
+    return this.page.getByTestId(`instrument-picker-entry-${instrumentId}`)
+  }
+
+  /** Tap a row's artwork — the one route into the picker, on laptop and phone. */
+  async openRowInstrumentPicker(instrumentId: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.rowInstrumentButton(instrumentId).click()
+    await expect(this.instrumentPicker).toBeVisible()
+  }
+
+  /** The rail button says whose sound it changes (spec §4). */
+  async verifyRowInstrumentButtonLabel(instrumentId: string, label: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.rowInstrumentButton(instrumentId)).toHaveAttribute('aria-label', label)
+  }
+
+  async verifyInstrumentPickerShown(): Promise<void> {
+    await expect(this.instrumentPicker).toBeVisible()
+  }
+
+  async verifyInstrumentPickerClosed(): Promise<void> {
+    await expect(this.instrumentPicker).toHaveCount(0)
+  }
+
+  /** The dialog's accessible name — the picker's title. */
+  async verifyInstrumentPickerLabelled(title: string): Promise<void> {
+    await expect(this.page.getByRole('dialog', { name: title })).toBeVisible()
+  }
+
+  /** The section headings, in order — Drums / Notes / Silly (spec §2). */
+  async verifyInstrumentSections(labels: string[]): Promise<void> {
+    await expect(this.page.getByTestId(/^instrument-picker-section-label-/)).toHaveText(labels)
+  }
+
+  /** One section's entries, in order — the manifest's order is the picker's. */
+  async verifyInstrumentSectionEntries(sectionId: string, names: string[]): Promise<void> {
+    await expect(
+      this.page.getByTestId(`instrument-picker-section-${sectionId}`).getByRole('button'),
+    ).toHaveText(names)
+  }
+
+  /**
+   * Tap a sound: it auditions and the row swaps live, and the dialog stays open
+   * so the child can browse by ear (spec §4).
+   */
+  async chooseInstrument(instrumentId: string): Promise<void> {
+    await this.instrumentEntry(instrumentId).click()
+  }
+
+  /** The dialog scrolls rather than growing: the last sound is reachable inside it. */
+  async verifyInstrumentPickerScrolls(lastInstrumentId: string): Promise<void> {
+    const overflow = await this.instrumentPickerList.evaluate((element) =>
+      getComputedStyle(element).overflowY,
+    )
+    expect(overflow).toBe('auto')
+    await this.instrumentEntry(lastInstrumentId).scrollIntoViewIfNeeded()
+    await expect(this.instrumentEntry(lastInstrumentId)).toBeInViewport()
+  }
+
+  /** An instrument the clip already holds — the row's own included (spec §4). */
+  async verifyInstrumentEntryDisabled(instrumentId: string, name: string): Promise<void> {
+    await expect(this.instrumentEntry(instrumentId)).toBeDisabled()
+    await expect(this.instrumentEntry(instrumentId)).toHaveAttribute(
+      'aria-label',
+      `${name}. Already in this clip.`,
+    )
+  }
+
+  async verifyInstrumentEntryEnabled(instrumentId: string): Promise<void> {
+    await expect(this.instrumentEntry(instrumentId)).toBeEnabled()
+  }
+
+  async closeInstrumentPicker(): Promise<void> {
+    await this.page.getByTestId('instrument-picker-close-button').click()
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** Escape: it closes the picker and leaves the clip editor card behind it open. */
+  async dismissInstrumentPickerByEscape(): Promise<void> {
+    await this.page.keyboard.press('Escape')
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** A tap on the dimmed backdrop, the way every other dialog dismisses. */
+  async dismissInstrumentPickerByOutsideTap(): Promise<void> {
+    await this.page.getByTestId('instrument-picker-overlay').click({ position: { x: 5, y: 5 } })
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** The picker's footer action — no confirm anywhere in this toy. */
+  async removeThisRow(): Promise<void> {
+    await this.removeRowButton.click()
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** At one row there is nothing to remove, so the footer is not offered. */
+  async verifyRemoveRowAbsent(): Promise<void> {
+    await expect(this.removeRowButton).toHaveCount(0)
+  }
+
+  async verifyRemoveRowOffered(): Promise<void> {
+    await expect(this.removeRowButton).toBeVisible()
+  }
+
   // --- The song bar as the home surface, and the clip editor card
   // (screenspace ticket 03) ---
 

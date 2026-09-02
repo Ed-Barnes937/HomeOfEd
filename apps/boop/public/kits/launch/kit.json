@@ -8,140 +8,160 @@
       "name": "Kick",
       "artwork": "/kits/launch/artwork/drum.svg",
       "sound": "/kits/launch/sounds/kick.wav",
-      "role": "kick"
+      "role": "kick",
+      "group": "drums"
     },
     {
       "instrumentId": "snare",
       "name": "Snare",
       "artwork": "/kits/launch/artwork/drum-kit.svg",
       "sound": "/kits/launch/sounds/snare.wav",
-      "role": "snare"
+      "role": "snare",
+      "group": "drums"
     },
     {
       "instrumentId": "hat",
       "name": "Hi-hat",
       "artwork": "/kits/launch/artwork/gong.svg",
       "sound": "/kits/launch/sounds/hat.wav",
-      "role": "hat"
+      "role": "hat",
+      "group": "drums"
     },
     {
       "instrumentId": "tom",
       "name": "Tom",
       "artwork": "/kits/launch/artwork/tambourine.svg",
       "sound": "/kits/launch/sounds/tom.wav",
-      "role": "perc"
+      "role": "perc",
+      "group": "drums"
     },
     {
       "instrumentId": "marimba",
       "name": "Marimba",
       "artwork": "/kits/launch/artwork/xylophone.svg",
       "sound": "/kits/launch/sounds/marimba.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "notes"
     },
     {
       "instrumentId": "boop",
       "name": "Boop",
       "artwork": "/kits/launch/artwork/boombox.svg",
       "sound": "/kits/launch/sounds/boop.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "notes"
     },
     {
       "instrumentId": "clap",
       "name": "Clap",
       "artwork": "/kits/launch/artwork/high-five.svg",
       "sound": "/kits/launch/sounds/clap.wav",
-      "role": "perc"
+      "role": "perc",
+      "group": "drums"
     },
     {
       "instrumentId": "shaker",
       "name": "Shaker",
       "artwork": "/kits/launch/artwork/maracas.svg",
       "sound": "/kits/launch/sounds/shaker.wav",
-      "role": "perc"
+      "role": "perc",
+      "group": "drums"
     },
     {
       "instrumentId": "cowbell",
       "name": "Cowbell",
       "artwork": "/kits/launch/artwork/cow.svg",
       "sound": "/kits/launch/sounds/cowbell.wav",
-      "role": "perc"
+      "role": "perc",
+      "group": "drums"
     },
     {
       "instrumentId": "woodblock",
       "name": "Woodblock",
       "artwork": "/kits/launch/artwork/wood-beam.svg",
       "sound": "/kits/launch/sounds/woodblock.wav",
-      "role": "perc"
+      "role": "perc",
+      "group": "drums"
     },
     {
       "instrumentId": "triangle",
       "name": "Triangle",
       "artwork": "/kits/launch/artwork/pool-triangle.svg",
       "sound": "/kits/launch/sounds/triangle.wav",
-      "role": "perc"
+      "role": "perc",
+      "group": "drums"
     },
     {
       "instrumentId": "cymbal",
       "name": "Cymbal",
       "artwork": "/kits/launch/artwork/metal-disc.svg",
       "sound": "/kits/launch/sounds/cymbal.wav",
-      "role": "perc"
+      "role": "perc",
+      "group": "drums"
     },
     {
       "instrumentId": "bass",
       "name": "Bass",
       "artwork": "/kits/launch/artwork/guitar-bass-head.svg",
       "sound": "/kits/launch/sounds/bass.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "notes"
     },
     {
       "instrumentId": "bell",
       "name": "Bell",
       "artwork": "/kits/launch/artwork/ringing-bell.svg",
       "sound": "/kits/launch/sounds/bell.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "notes"
     },
     {
       "instrumentId": "chime",
       "name": "Chime",
       "artwork": "/kits/launch/artwork/windchimes.svg",
       "sound": "/kits/launch/sounds/chime.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "notes"
     },
     {
       "instrumentId": "pluck",
       "name": "Pluck",
       "artwork": "/kits/launch/artwork/harp.svg",
       "sound": "/kits/launch/sounds/pluck.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "notes"
     },
     {
       "instrumentId": "boing",
       "name": "Boing",
       "artwork": "/kits/launch/artwork/bouncing-spring.svg",
       "sound": "/kits/launch/sounds/boing.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "silly"
     },
     {
       "instrumentId": "pop",
       "name": "Pop",
       "artwork": "/kits/launch/artwork/bubbles.svg",
       "sound": "/kits/launch/sounds/pop.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "silly"
     },
     {
       "instrumentId": "zap",
       "name": "Zap",
       "artwork": "/kits/launch/artwork/lightning-arc.svg",
       "sound": "/kits/launch/sounds/zap.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "silly"
     },
     {
       "instrumentId": "drip",
       "name": "Drip",
       "artwork": "/kits/launch/artwork/drop.svg",
       "sound": "/kits/launch/sounds/drip.wav",
-      "role": "melodic"
+      "role": "melodic",
+      "group": "silly"
     }
   ]
 }

@@ -14,9 +14,11 @@ import { ClipHeader } from '../features/clips/ClipHeader.tsx'
 import { ClipLauncher } from '../features/clips/ClipLauncher.tsx'
 import { clipTint } from '../features/clips/clipTints.ts'
 import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
+import { ROW_COLOR_VARS } from '../features/grid/instrumentColors.ts'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
+import { InstrumentPicker } from '../features/picker/InstrumentPicker.tsx'
 import { NewClipPicker } from '../features/picker/NewClipPicker.tsx'
 import { firstVisitSong, samplePattern, type SampleClip } from '../features/picker/sampleClips.ts'
 import {
@@ -38,10 +40,12 @@ import {
   addClip,
   deleteClip,
   moveClip,
+  removeRow,
   renameClip,
   singleClipSong,
   songFromStored,
   storedBoopFromSong,
+  swapRowInstrument,
   togglePlacement,
   withActivePattern,
   withBpm,
@@ -103,6 +107,13 @@ export function HomePage() {
   const [boopsOpen, setBoopsOpen] = useState(false)
   // The "+ New clip" picker (ticket 17): Blank first, then the sample clips.
   const [pickerOpen, setPickerOpen] = useState(false)
+  /**
+   * Which row the instrument picker is open on (boop-instruments ticket 05), or
+   * `null` for closed. A row *index*: the grid's rows are identified by
+   * position (their hues are positional, and the mutations take an index), so
+   * the dialog stays pointed at the same row while its sound swaps underneath.
+   */
+  const [instrumentRow, setInstrumentRow] = useState<number | null>(null)
   /**
    * Whether the clip editor card is open (screenspace ticket 03). It lives
    * here rather than in the card because there are two routes in — the dock's
@@ -677,6 +688,40 @@ export function HomePage() {
     updateSong((s) => withActivePattern(s, engine.getPattern()))
   }, [engine, stopSongPlayback, updateSong])
 
+  /**
+   * A sound was tapped in the instrument picker (spec §4, §10.1): it plays and
+   * the row swaps to it, keeping its painted steps — same rhythm, new sound.
+   *
+   * The audition happens whatever the swap does, because the tap is a request
+   * for a sound: `swapRowInstrument` refuses an instrument the clip already
+   * holds (the row's own included), so re-tapping the current sound auditions
+   * it and changes nothing, which is exactly what browsing by ear needs. The
+   * dialog stays open — closing is the ✕, the backdrop or Escape.
+   */
+  const chooseRowInstrument = useCallback(
+    (instrumentId: string) => {
+      if (!engine || instrumentRow === null) return
+      engine.audition(instrumentId)
+      const next = updateSong((s) => swapRowInstrument(engine.kit, s, instrumentRow, instrumentId))
+      if (!next) return
+      engine.setPattern(activeClip(next).pattern)
+    },
+    [engine, instrumentRow, updateSong],
+  )
+
+  /**
+   * The picker's footer: drop the row and its painted steps. No confirm — it is
+   * one tap to put the sound back (spec §4) — and the dialog closes, because
+   * the row it was opened on has gone.
+   */
+  const removeRowFromClip = useCallback(() => {
+    if (!engine || instrumentRow === null) return
+    setInstrumentRow(null)
+    const next = updateSong((s) => removeRow(s, instrumentRow))
+    if (!next) return
+    engine.setPattern(activeClip(next).pattern)
+  }, [engine, instrumentRow, updateSong])
+
   const loadBoop = useCallback(
     (boop: StoredBoop, index: number) => {
       if (!engine) return
@@ -735,7 +780,12 @@ export function HomePage() {
     loadToken,
     onScrubToStep: scrubClipToStep,
     onScrubToSongStart: () => scrubSongToBar(0),
+    onOpenInstrumentPicker: setInstrumentRow,
   }
+
+  // The picker's rows: the clip it is open on, and the hue of the row that
+  // opened it (positional, like every row hue — `ROW_COLOR_VARS[i % 6]`).
+  const pickerRows = activeClip(song).pattern
 
   return (
     // Three frame sections (ticket 33): pinned chrome, the one scrolling
@@ -895,6 +945,22 @@ export function HomePage() {
         />
       )}
       {pickerOpen && <NewClipPicker onPick={pickClip} onClose={() => setPickerOpen(false)} />}
+      {/* The instrument picker opens over the clip editor card, on a row of
+          the clip that card is editing (ticket 05). "Remove this row" is
+          offered only while there is a row to spare: the grid's floor is one
+          row (ADR 0041), and this toy disables nothing it can simply not
+          show. */}
+      {instrumentRow !== null && (
+        <InstrumentPicker
+          kit={engine.kit}
+          title="Change this sound"
+          inClip={pickerRows.map((row) => row.instrumentId)}
+          colorVar={ROW_COLOR_VARS[instrumentRow % ROW_COLOR_VARS.length]!}
+          onChoose={chooseRowInstrument}
+          onClose={() => setInstrumentRow(null)}
+          onRemoveRow={pickerRows.length > 1 ? removeRowFromClip : undefined}
+        />
+      )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>
   )

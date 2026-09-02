@@ -53,6 +53,7 @@ export function PhoneGrid({
   loadToken,
   onScrubToStep,
   onScrubToSongStart,
+  onOpenInstrumentPicker,
   wellFooter,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
@@ -110,7 +111,16 @@ export function PhoneGrid({
                     className={styles.railRow}
                     style={{ '--row-color': `var(${colorVar})` } as CSSProperties}
                   >
-                    <span className={styles.plate}>
+                    {/* The rail is pinned, so this button is always reachable
+                        — the phone's one route into the instrument picker
+                        (ticket 05, spec §4). */}
+                    <button
+                      type="button"
+                      className={styles.plate}
+                      onClick={() => onOpenInstrumentPicker(rowIndex)}
+                      aria-label={`${instrument.name}. Change this row's sound.`}
+                      data-testid={`row-instrument-button-${row.instrumentId}`}
+                    >
                       <span
                         className={styles.artwork}
                         style={{
@@ -118,7 +128,7 @@ export function PhoneGrid({
                           WebkitMaskImage: `url(${instrument.artwork})`,
                         }}
                       />
-                    </span>
+                    </button>
                     <span
                       key={rowStrikeEpoch}
                       className={styles.nameBob}

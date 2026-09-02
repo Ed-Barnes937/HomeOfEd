@@ -59,6 +59,13 @@ export interface GridViewProps {
    * landed yet (tablet/phone) — the well then looks exactly as it always has.
    */
   tintColor?: string
+  /**
+   * A row's rail artwork was tapped (ticket 05): open the instrument picker on
+   * that row. Addressed by **row index**, not by the instrument it holds —
+   * index is a row's identity on the grid (the hues are positional), and it is
+   * what `swapRowInstrument`/`removeRow` take.
+   */
+  onOpenInstrumentPicker: (rowIndex: number) => void
   /** Rendered inside the well, below the rows — the laptop clip control. */
   wellFooter?: ReactNode
 }
@@ -87,6 +94,7 @@ export function Grid({
   loadToken,
   onScrubToStep,
   onScrubToSongStart,
+  onOpenInstrumentPicker,
   tintColor,
   wellFooter,
 }: GridViewProps) {
@@ -203,7 +211,16 @@ export function Grid({
               return (
                 <div key={row.instrumentId} className={styles.row} style={rowStyle}>
                   <div className={styles.rail}>
-                    <span className={styles.plate}>
+                    {/* The artwork is the row's instrument button (ticket 05,
+                        spec §4): the thing that shows the sound is the thing
+                        that changes it. */}
+                    <button
+                      type="button"
+                      className={styles.plate}
+                      onClick={() => onOpenInstrumentPicker(rowIndex)}
+                      aria-label={`${instrument.name}. Change this row's sound.`}
+                      data-testid={`row-instrument-button-${row.instrumentId}`}
+                    >
                       <span
                         className={styles.artwork}
                         style={{
@@ -211,7 +228,7 @@ export function Grid({
                           WebkitMaskImage: `url(${instrument.artwork})`,
                         }}
                       />
-                    </span>
+                    </button>
                     <span
                       key={rowStrikeEpoch}
                       className={styles.nameBob}

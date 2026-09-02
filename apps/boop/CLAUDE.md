@@ -121,7 +121,11 @@ src/
                     Blank first, then the sample clips), sampleClips.ts (the
                     eight-clip roster + the first-visit seed, pure data), and
                     PatternThumbnail.tsx (the dot-matrix preview, shared with
-                    "My boops")
+                    "My boops"). Also the **instrument** picker
+                    (boop-instruments ticket 05): InstrumentPicker.tsx (the
+                    same shell, but browse-by-ear — it stays open and the
+                    caller applies each tap) and instrumentGroups.ts (the
+                    roster as Drums / Notes / Silly, pure)
   features/topbar/  TopBar.tsx (desktop, incl. the plain New boop reset) and
                     PhoneBar.tsx (the 52px strip + "⋯" menu); `useIsPhone.ts`
                     (at src/) picks the layout: ≥1024 is clip-lanes (the
@@ -301,7 +305,9 @@ share-link snapshot.
   still needs another ADR.
 - **Kits are pure data.** Adding or swapping instruments means editing
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
-  engine. Nothing outside the manifest may enumerate instrument ids.
+  engine. Nothing outside the manifest may enumerate instrument ids: an
+  instrument's picker section is a manifest `group` for exactly that reason
+  ([ADR 0041 §6](../../docs/adr/0041-boop-dynamic-clip-rows.md)).
 - **Adding a database?** Follow
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only) —
   this is only expected for the share-link snapshot store, not the toy itself.

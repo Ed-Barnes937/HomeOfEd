@@ -99,15 +99,25 @@ $row-inset: 6px;
   gap: 7px;
 }
 
+// The row's instrument button since ticket 05 (the pinned rail is always
+// reachable) — the handoff's 32px plate, with a button's own chrome reset off.
 .plate {
   flex: none;
   width: 32px;
   height: 32px;
+  border: none;
+  padding: 0;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
 }
 
 .artwork {

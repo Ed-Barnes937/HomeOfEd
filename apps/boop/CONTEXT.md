@@ -131,6 +131,16 @@ deleting other clips never recolours it (boop-loops ticket 09). At most one
 clip per tint; a new clip takes the lowest unused one.
 _Avoid_: Colour (fine casually, but the term of art is tint), theme.
 
+**Instrument picker**:
+The dialog a row's rail artwork opens: the whole roster, sectioned Drums /
+Notes / Silly (a manifest `group` per instrument), each entry tinted in the
+opening row's hue. Tapping a sound auditions it *and* swaps the row live, and
+the dialog stays open — it is for finding a sound by ear, so unlike the
+"+ New clip" picker it does not close on a choice. Sounds the clip already
+holds, the row's own included, read "already in this clip". Always two words —
+a bare *picker* is the "+ New clip" one.
+_Avoid_: Instrument browser, sound library, kit picker.
+
 **Sample clip**:
 A pre-made, pattern-only clip offered in the "+ New clip" picker (after
 Blank) — a single-role, layerable phrase with a plain label ("Slow bass"),

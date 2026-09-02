@@ -32,6 +32,17 @@ export type Unsubscribe = () => void
 export const INSTRUMENT_ROLES = ['kick', 'snare', 'hat', 'perc', 'melodic'] as const
 export type InstrumentRole = (typeof INSTRUMENT_ROLES)[number]
 
+/**
+ * Which section of the instrument picker an entry belongs to (spec §2), in the
+ * order the picker shows them. It is a *presentation* grouping and deliberately
+ * not the `role`: roles are behavioural, and they cannot express these groups —
+ * Notes and Silly are both `melodic`. Manifest data rather than a list in the
+ * picker, because the manifest stays the only place instrument ids are
+ * enumerated (ADR 0041; `apps/boop/CLAUDE.md`, "Kits are pure data").
+ */
+export const INSTRUMENT_GROUPS = ['drums', 'notes', 'silly'] as const
+export type InstrumentGroup = (typeof INSTRUMENT_GROUPS)[number]
+
 /** One instrument as described by the kit manifest. `instrumentId` is opaque. */
 export interface KitInstrument {
   instrumentId: string
@@ -39,6 +50,8 @@ export interface KitInstrument {
   artwork: string
   sound: string
   role?: InstrumentRole
+  /** Optional like `role`: an entry without one is still pickable, just unsectioned. */
+  group?: InstrumentGroup
 }
 
 /**

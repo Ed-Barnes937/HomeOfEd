@@ -97,6 +97,16 @@ recolours the rows below it, which is accepted. A colour field per manifest
 instrument is the rejected alternative - revisit if the cycling reads badly
 with ten or more rows.
 
+### 6. The picker's groups are manifest data (added by ticket 05)
+
+`KitInstrument` gains an optional `group` (`drums` | `notes` | `silly`), and
+the instrument picker sections the roster by it, in that order, each section in
+manifest order. The alternative - a list of ids in the picker - is barred by
+the standing rule that **nothing outside the manifest may enumerate instrument
+ids**, and `role` cannot carry it: roles are behavioural, and Notes and Silly
+are both `melodic`. It is optional like `role`, so a kit written before the
+field still offers every sound it has, in one unsectioned block.
+
 ## Consequences
 
 - **The save format does not change shape.** `StoredPattern.rows` is already an
