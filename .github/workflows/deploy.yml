@@ -105,6 +105,9 @@ jobs:
 
   deploy-boids:
     runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-boids.fly.dev
@@ -174,6 +177,9 @@ jobs:
 
   deploy-espy:
     runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-espy.fly.dev
@@ -243,6 +249,9 @@ jobs:
 
   deploy-karesansui:
     runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-karesansui.fly.dev
@@ -312,6 +321,9 @@ jobs:
 
   deploy-boop:
     runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-boop.fly.dev
@@ -381,6 +393,9 @@ jobs:
 
   deploy-silt:
     runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-silt.fly.dev
@@ -450,6 +465,9 @@ jobs:
 
   deploy-fridge:
     runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-fridge.fly.dev
@@ -519,6 +537,9 @@ jobs:
 
   deploy-wotd:
     runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-wotd.fly.dev
@@ -657,19 +678,25 @@ jobs:
         # build context (turbo prune).
         run: flyctl deploy --config apps/sprout/fly.toml --remote-only
 
+      # SMOKE CONSTRAINT (ADR-0011 item 4): smoke URLs must stay on
+      # hoe-sprout.fly.dev and touch only geo-exempt paths (/health, /terms,
+      # /privacy). The UK geo boundary refuses everything else with 451 —
+      # direct .fly.dev requests carry no CF-IPCountry header (fail-closed) —
+      # so the former SPA-index/asset checks cannot pass from a US runner and
+      # were removed by design. The final check asserts the refusal itself:
+      # the load-bearing boundary is live on the deployed app.
       - name: Post-deploy smoke
         if: steps.affected.outputs.deploy == 'true'
         run: |
           set -euo pipefail
           echo "deep /health (real Store → Postgres round-trip)"
           curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
-          echo "SPA index"
-          index=$(curl -fsS "$APP_URL/")
-          echo "$index" | grep -q '<div id="root">'
-          echo "one hashed static asset"
-          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
-          test -n "$asset"
-          curl -fsS "$APP_URL/$asset" > /dev/null
+          echo "geo-exempt legal documents"
+          curl -fsS "$APP_URL/terms" > /dev/null
+          curl -fsS "$APP_URL/privacy" > /dev/null
+          echo "geo boundary refuses headerless non-exempt traffic (451)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/")
+          test "$code" = "451"
           echo "smoke OK"
 
   # sprout-pipeline — headless, PRIVATE safety service (plan 0004 §5.5 / §9.3).
@@ -747,3 +774,147 @@ jobs:
           echo "sprout-pipeline is private (no public hostname) — the deploy above"
           echo "gates the rollout on the machine booting healthy. Machine status:"
           flyctl status --config apps/sprout-pipeline/fly.toml
+
+  # Records what actually shipped, so the homepage's New / Updated pills follow
+  # real deploys instead of somebody remembering to edit a date by hand.
+  # Spec: .scratch/automatic-homepage-labels/spec.md.
+  #
+  # One collector rather than a step inside each deploy job: the deploy-* jobs
+  # run in parallel, and a shared-package change makes every app affected, so
+  # ten jobs racing to push to main is ten rejected pushes.
+  #
+  # Not in `needs`: deploy-sprout and deploy-sprout-pipeline. They are gated on
+  # SPROUT_GO_LIVE and neither has a homepage card, so waiting on them would buy
+  # nothing. deploy-hub IS in `needs` — not because hub has a card on its own
+  # homepage (it doesn't), but so this job's hub deploy cannot race that one.
+  record-deploys:
+    runs-on: ubuntu-latest
+    needs:
+      [
+        deploy-hub,
+        deploy-boids,
+        deploy-espy,
+        deploy-karesansui,
+        deploy-boop,
+        deploy-silt,
+        deploy-fridge,
+        deploy-wotd,
+      ]
+    # One app failing to deploy must not stop the apps that succeeded from being
+    # recorded — the per-app check below is what decides, not the overall run.
+    if: always()
+    permissions:
+      contents: write
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP_URL: https://hoe-hub.fly.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # main, not the triggering commit: another deploy may have landed
+          # while this run was building. fetch-depth 0 so the rebase-on-reject
+          # below has real history to work with.
+          ref: main
+          fetch-depth: 0
+
+      - name: Gate on deploy token (inert until Phase 4)
+        id: gate
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      # No pnpm install: the recorder is dependency-free and runs under Node 22
+      # type-stripping, the same way apps/hub's `start` script runs its server.
+      - name: Record the deploys that actually shipped
+        id: record
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          # An app shipped only when its job succeeded AND it was affected — a
+          # skipped app's job is "success" too, so `result` alone would record
+          # every app on every push.
+          BOIDS: ${{ needs.deploy-boids.result == 'success' && needs.deploy-boids.outputs.deployed == 'true' }}
+          ESPY: ${{ needs.deploy-espy.result == 'success' && needs.deploy-espy.outputs.deployed == 'true' }}
+          KARESANSUI: ${{ needs.deploy-karesansui.result == 'success' && needs.deploy-karesansui.outputs.deployed == 'true' }}
+          BOOP: ${{ needs.deploy-boop.result == 'success' && needs.deploy-boop.outputs.deployed == 'true' }}
+          SILT: ${{ needs.deploy-silt.result == 'success' && needs.deploy-silt.outputs.deployed == 'true' }}
+          FRIDGE: ${{ needs.deploy-fridge.result == 'success' && needs.deploy-fridge.outputs.deployed == 'true' }}
+          WOTD: ${{ needs.deploy-wotd.result == 'success' && needs.deploy-wotd.outputs.deployed == 'true' }}
+        run: |
+          set -euo pipefail
+          apps=""
+          add() { if [ "$2" = "true" ]; then apps="$apps $1"; fi; }
+          add boids "$BOIDS"
+          add boop "$BOOP"
+          add espy "$ESPY"
+          add fridge "$FRIDGE"
+          add karesansui "$KARESANSUI"
+          add silt "$SILT"
+          add wotd "$WOTD"
+          # $apps is deliberately unquoted — it is a list of app names.
+          node apps/hub/src/deployments/recordDeploys.ts --at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" $apps
+          if git diff --quiet -- apps/hub/src/generated/deployments.json; then
+            echo "::notice::no homepage app deployed in this push — nothing to record."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "apps=${apps# }" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push the record
+        if: steps.record.outputs.changed == 'true'
+        env:
+          APPS: ${{ steps.record.outputs.apps }}
+        # Pushed with the checkout's default GITHUB_TOKEN. GitHub raises no
+        # workflow events for pushes made with that token, and that is the only
+        # thing stopping this job from triggering itself forever. Do NOT swap in
+        # a PAT or a deploy key — `[skip ci]` in the message is a courtesy to
+        # whoever is reading the log, not the guard.
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/hub/src/generated/deployments.json
+          git commit -m "chore: record deploys ($APPS) [skip ci]"
+          for attempt in 1 2; do
+            if git push origin HEAD:main; then exit 0; fi
+            echo "push rejected — a human landed on main mid-run; rebasing and retrying"
+            git pull --rebase origin main
+          done
+          exit 1
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.record.outputs.changed == 'true'
+
+      - name: Redeploy hub so the recorded dates reach the browser
+        if: steps.record.outputs.changed == 'true'
+        # Load-bearing. The commit above raises no workflow event by design, so
+        # nothing else will rebuild hub — without this the dates are correct in
+        # git and stale on the site, which looks like the feature working right
+        # up until you check. When hub was itself in the push this is its second
+        # deploy of the run: two minutes of remote build, cheaper than a
+        # conditional that could get the ordering wrong.
+        run: flyctl deploy --config apps/hub/fly.toml --remote-only
+
+      - name: Post-deploy smoke
+        if: steps.record.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          echo "deep /health (real Store → Postgres round-trip)"
+          curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
+          echo "one hashed static asset"
+          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          curl -fsS "$APP_URL/$asset" > /dev/null
+          echo "smoke OK"

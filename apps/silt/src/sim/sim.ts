@@ -5,7 +5,7 @@ import { DeferredMoves } from './moves.ts'
 import { Grid } from './grid.ts'
 import { applyArchetype } from './kernels.ts'
 import { applyLifetime, applyReactions } from './lifecycle.ts'
-import { createRegistry, type ElementRegistry } from './registry.ts'
+import { createRegistry, type ElementRegistry, type ResolvedLifetime } from './registry.ts'
 import { Rng } from './rng.ts'
 import type { Chunk } from './chunks.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
@@ -15,6 +15,13 @@ export interface SimOptions {
   seed?: number
   elements?: readonly ElementDef[]
   reactions?: readonly ReactionRow[]
+  /**
+   * The cell storage to run over — a `SharedArrayBuffer` here is how the
+   * worker integration lets the render thread read the world live (120fps
+   * ticket 02). Must be exactly the cell-plane size; omitted, the grid
+   * allocates its own.
+   */
+  buffer?: ArrayBufferLike
 }
 
 /**
@@ -50,11 +57,12 @@ export class Sim {
   #api: CellApi
   #generation = 0
   #scanned = 0
+  #revision = 0
 
   constructor(options: SimOptions = {}) {
     const { seed = 1, elements = v1Elements, reactions = v1Reactions } = options
     this.registry = createRegistry(elements, reactions)
-    this.#grid = new Grid(GRID_WIDTH, GRID_HEIGHT)
+    this.#grid = new Grid(GRID_WIDTH, GRID_HEIGHT, options.buffer)
     this.#seed = seed
     this.#rng = new Rng(seed)
     this.#moves = new DeferredMoves()
@@ -66,8 +74,19 @@ export class Sim {
     return this.#generation
   }
 
-  /** The single transferable buffer holding the whole world. */
-  get buffer(): ArrayBuffer {
+  /**
+   * Bumps on everything that can change what the world looks like — `tick`,
+   * `paint`, `clear`, `restore` — and on nothing else. A renderer holding the
+   * revision it last drew knows whether a redraw would produce a new picture
+   * (ticket 06). Deliberately coarser than the grid: a tick that moved nothing
+   * still bumps it, because proving otherwise costs more than the redraw.
+   */
+  get revision(): number {
+    return this.#revision
+  }
+
+  /** The single buffer holding the whole world — transferable or shared. */
+  get buffer(): ArrayBufferLike {
     return this.#grid.buffer
   }
 
@@ -78,6 +97,11 @@ export class Sim {
 
   speciesAt(x: number, y: number): number {
     return this.#grid.speciesAt(x, y)
+  }
+
+  /** The cell's colour variant — what the renderer shades it by. 0 out of bounds. */
+  rbAt(x: number, y: number): number {
+    return this.#grid.rbAt(x, y)
   }
 
   /**
@@ -91,16 +115,20 @@ export class Sim {
 
   /**
    * Stamped with the settled-cell clock so the next tick still considers it —
-   * painting between ticks must not cost the grain a tick of falling.
+   * painting between ticks must not cost the grain a tick of falling. The cell
+   * is born with a colour variant in `rb` (sandspiel ticket 03), which is what
+   * keeps a poured heap from reading as one flat slab; spawners emit through
+   * here, so their grains are seeded too.
    */
   paint(x: number, y: number, species: number): void {
     if (species !== EMPTY && !this.registry.get(species)) {
       throw new Error(`unknown species ${species}`)
     }
-    this.#grid.write(x, y, species, this.#settledClock())
+    this.#grid.write(x, y, species, this.#settledClock(), this.#rng.randInt(256))
     // `write` only marks the chunk dirty for the *next* tick; a paint lands
     // between ticks, so it has to wake the chunk for the one about to run.
     this.#grid.chunks.activate(x, y)
+    this.#revision++
   }
 
   /**
@@ -115,6 +143,7 @@ export class Sim {
     this.#generation = 0
     this.#scanned = 0
     this.#rng.reset(this.#seed)
+    this.#revision++
   }
 
   /**
@@ -124,6 +153,9 @@ export class Sim {
    * freshly cleared generation 0. Every occupied cell is activated, so the
    * first tick after a load scans the world it was handed rather than a
    * sleeping one.
+   *
+   * The saved `rb` plane is put back verbatim rather than reseeded, so a scene
+   * reloads with the exact grain it was saved with (sandspiel ticket 03).
    */
   restore(species: Uint8Array, ra: Uint8Array, rb: Uint8Array): void {
     const size = this.width * this.height
@@ -139,11 +171,14 @@ export class Sim {
       if (!this.registry.get(id)) throw new Error(`unknown species ${id}`)
       const x = i % this.width
       const y = (i / this.width) | 0
-      grid.write(x, y, id, this.#settledClock())
+      // Variant 0 for a beat, then the saved one — `write` takes no default,
+      // so a restore says out loud that it is not seeding a fresh grain.
+      grid.write(x, y, id, this.#settledClock(), 0)
       grid.setRa(x, y, ra[i]!)
       grid.setRb(x, y, rb[i]!)
       grid.chunks.activate(x, y)
     }
+    this.#revision++
   }
 
   /**
@@ -178,6 +213,7 @@ export class Sim {
     this.#moves.resolve(this.#grid, this.registry, this.#rng, clock)
     chunks.endFrame()
     this.#generation++
+    this.#revision++
   }
 
   /** See the class comment: stamp everything about to be scanned, first. */
@@ -187,9 +223,7 @@ export class Sim {
       if (!chunk.awake) continue
       const area = chunk.active
       for (let y = area.minY; y <= area.maxY; y++) {
-        for (let x = area.minX; x <= area.maxX; x++) {
-          this.#grid.stamp(x, y, settled)
-        }
+        this.#grid.stampRow(y, area.minX, area.maxX, settled)
       }
     }
   }
@@ -204,18 +238,26 @@ export class Sim {
     for (let y = area.maxY; y >= area.minY; y--) {
       for (let i = 0; i < width; i++) {
         const x = rightToLeft ? area.maxX - i : area.minX + i
-        const species = grid.speciesAt(x, y)
+        // The chunk rect is clamped to the grid, so `x, y` is known in bounds:
+        // one base index serves all three field touches, no bounds check each.
+        const base = grid.baseIndexOf(x, y)
+        const species = grid.speciesAtBase(base)
         if (species === EMPTY) continue
-        if (grid.clockAt(x, y) === clock) continue
+        if (grid.clockAtBase(base) === clock) continue
 
         const def = this.registry.get(species)
         if (!def) continue
 
-        grid.stamp(x, y, clock)
+        // Looked up once and handed to both halves: it decides whether the
+        // liquid kernel may keep its direction in `ra` (ADR 0038) as well as
+        // whether the cell ages.
+        const lifetime = this.registry.lifetimeOf(species)
+
+        grid.stampAtBase(base, clock)
         this.#api.moveTo(x, y, clock)
-        applyArchetype(this.#api, def.archetype)
+        applyArchetype(this.#api, def.archetype, lifetime === undefined)
         this.#scanned++
-        this.#afterMovement(def)
+        this.#afterMovement(def, lifetime)
       }
     }
   }
@@ -230,13 +272,12 @@ export class Sim {
    * cursor is wherever movement left it (or where it started, if the move was
    * only queued), so all of this is relative to the cell's new home.
    */
-  #afterMovement(def: ElementDef): void {
+  #afterMovement(def: ElementDef, lifetime: ResolvedLifetime | undefined): void {
     const api = this.#api
 
     applyReactions(api, this.registry)
     if (api.get(0, 0) !== def.id) return
 
-    const lifetime = this.registry.lifetimeOf(def.id)
     if (lifetime && !applyLifetime(api, lifetime)) return
 
     def.onTick?.(api)

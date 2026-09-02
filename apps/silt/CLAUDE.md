@@ -5,7 +5,8 @@ A falling-sand cellular-automaton playground at `silt.homeofed.com`.
 client-side simulation, scenes in `localStorage`, nothing server-owned.
 Scaffolded from `templates/starter`
 ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)). Spec:
-`.scratch/sand-sim/spec.md`; tickets in `.scratch/silt/`.
+`.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
+(materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`.
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -13,9 +14,9 @@ starter's `greeting` procedure, kept only as the layered-DI seam later server
 features would slot into:
 
 ```
-HomePage → useSimLoop → Sim + Renderer      (the app)
-         → useScenes  → SceneStore          (localStorage)
-router → GreetingHandler → ctx.auth         (the seam, no frontend caller)
+HomePage → useSimLoop → SimHost + Renderer  (the app; the sim ticks in a
+         → useScenes  → SceneStore           worker over shared memory —
+router → GreetingHandler → ctx.auth          ADR 0036; scenes: localStorage)
 ```
 
 ## Layout
@@ -28,22 +29,36 @@ src/
     router.ts       tRPC router; createTRPC<void>() (no Store); exports AppRouter
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
     main.ts         prod entrypoint: createAppServer + shallow /health
+    headers.ts      COOP/COEP on every response — cross-origin isolation for
+                    the sim worker (ADR 0036); dev and CT serve the same pair
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
   pages/            HomePage — the rail, header, status bar, selection state
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches)
   features/         palette/ (the paintable roster + brush widths)
-                    render/  (letterboxFit, the Canvas 2D renderer, grid palette,
-                              WorldOverlay — the chrome drawn over the canvas)
-                    sim/     (useSimLoop — the RAF loop, pointer painting, DPR fit)
+                    render/  (letterboxFit, the grid palette — 256 species ×
+                              `VARIANT_SLOTS` variant slots, indexed by
+                              `paletteSlot` from both frame paths and by the
+                              same arithmetic in the shader (ADR 0040) — the
+                              WebGL2 renderer +
+                              the Canvas 2D fallback and createRenderer picking
+                              between them, WorldOverlay — the chrome drawn
+                              over the canvas)
+                    sim/     (useSimLoop — the render loop, pointer painting,
+                              DPR fit; simHost — worker vs main-thread hosting
+                              behind one seam; simWorkerCore — the ticking
+                              brain, vitest-covered; simWorker — the entry
+                              glue; simProtocol — messages + shared buffers.
+                              ADR 0036)
                     spawners/(continuous emitters — entities, not cells)
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +
                               quota; useScenes: page state; the popover)
   testing/          IwftApp harness (in-browser backend) + iwft fixture + SiltPagePom
-  *.iwft.tsx        whole-frontend tests: render (paint/canvas), chrome, scenes,
+  *.iwft.tsx        whole-frontend tests: render (paint/canvas), blit (WebGL↔2D
+                    pixel parity + the env-gated blit bench), chrome, scenes,
                     spawners, mobile
-vite.config.ts      react + simulatorPlugin (dev simulator mode)
-playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109 })
+vite.config.ts      react + simulatorPlugin (dev simulator mode) + COOP/COEP
+playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109, crossOriginIsolated: true })
 ```
 
 No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
@@ -57,8 +72,15 @@ Pure TypeScript, no DOM, no `Math.random()` — see `.scratch/sand-sim/spec.md` 
 constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick rate,
               CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
-elements.ts   pinned species ids + the v1 roster (dirt, sand, water, lava,
-              obsidian) and v1Reactions — pure config, zero behavioural code
+elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
+              wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
+              moss, vine) and v1Reactions — config plus one hook. Everything
+              that forms a mass declares four shades rather than one, picked
+              per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
+              rail reads it. The three gases stay flat. Gas densities
+              read backwards: `canDisplace` is `mine > theirs`, so the gas
+              closest to zero rises highest. Reaction row order is load-bearing:
+              a specific pair must precede any tag row covering it (acid + wood)
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
@@ -67,9 +89,15 @@ chunks.ts     Chunk / ChunkMap — two dirty rects swapped at frame end, 2-cell
               margin, filled-cell count; `all` is the fixed row-major order
 moves.ts      DeferredMoves — the cross-chunk move queue and its PRNG tie-break
 api.ts        CellApi — the chunk-relative (dx, dy) surface, one reused cursor
-kernels.ts    applyArchetype — the only code that moves cells
+kernels.ts    applyArchetype — the only code that moves cells. Liquids keep
+              their lateral direction, momentum and seeded flag packed in `ra`
+              (the "opinion field", ADR 0038) instead of re-rolling a coin;
+              a blocked powder tries one random diagonal, not both (ADR 0039)
 lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
               has moved; neither moves anything
+growth.ts     the roster's one `onTick`: moss and vine grow into water, up
+              first, capped per cell by a branch count kept in `ra` and bounded
+              overall by refusing any cell that already touches two plants
 sim.ts        the world: chunk scan order, the clock guard, paint/tick
 loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
 ```
@@ -87,7 +115,12 @@ Rules that are easy to break by accident:
   on the last, so an element's code never runs on a cell it no longer is.
 - **A cell that should keep acting must write, or call `api.keepAwake()`.**
   Chunk sleeping is driven by writes, so a `move` probability that does not come
-  up would otherwise freeze a liquid in mid-air.
+  up would otherwise freeze a liquid in mid-air, and a powder that drew the one
+  diagonal it could not take would sit frozen in its notch (ADR 0039). The
+  judgement is whether *this* cell still has business next tick — declining a
+  step is not the same as having nowhere to step. Not every decline qualifies:
+  the liquid kernel's stray gate deliberately lets a lone droplet settle
+  ([ADR 0038](../../docs/adr/0038-silt-liquids-keep-their-direction-in-ra.md)).
 - **No `Math.random()` under `src/sim`.** Randomness comes from the sim's `Rng`
   via `api.rand()` / `api.randInt()`; the determinism test guards this.
 - **`Api` is `(dx, dy)`-relative only**, never absolute — chunked iteration
@@ -101,8 +134,43 @@ Rules that are easy to break by accident:
 - **`Grid.stamp` must never mark a chunk dirty** — it runs on every occupied
   cell each tick, so nothing would ever sleep.
 - **Byte ownership**: `lifetime` owns `ra` (engine-managed — an element never
-  writes it; `0` means "not seeded yet"), colour variant owns `rb`. New per-cell
-  fields are parallel grids; the cell never widens past 4 bytes.
+  writes it; `0` means "not seeded yet"), colour variant owns `rb` — **seeded at
+  birth, preserved by `restore`**: `Grid.write` takes the variant as an argument
+  and `Sim.paint` / `CellApi.set` / `CellApi.become` each pass a fresh
+  `randInt(256)`, so a transmuted cell does not fall back to variant 0; only
+  `Sim.restore` takes the default, because it puts the saved plane back straight
+  after. No element writes it either.
+  [ADR 0040](../../docs/adr/0040-silt-colour-variants-in-rb.md).
+  New per-cell fields are parallel grids; the cell never widens past 4 bytes. There are
+  **two exceptions, both conditional on the element declaring no `lifetime`**,
+  and they cannot collide (one is static-only, the other liquid-only):
+  - **The growth hook** (`growth.ts`): moss and vine hold their branch count in
+    `ra`. Giving either a lifetime hands the byte back and uncaps growth.
+    [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md) §3.
+  - **The liquid opinion field** (`kernels.ts`): a liquid keeps its lateral
+    direction, momentum and seeded marker in `ra` — bit 0, bits 1–3, bit 7.
+    Unlike growth this one is *enforced*, not just documented: the scan passes
+    `applyArchetype` a `raIsFree` flag, so a liquid that declares a lifetime
+    degrades to the old coin flip instead of corrupting its countdown.
+    [ADR 0038](../../docs/adr/0038-silt-liquids-keep-their-direction-in-ra.md).
+
+  This entry and the comments at both sites are summaries of those ADRs, so a
+  change to the rule belongs in the ADR first.
+- **`Api` reaches a neighbour's `ra` nowhere; `MovementApi` does.** `raAt` /
+  `setRaAt` exist for the liquid kernel's opinion contagion and are engine-only
+  on purpose — an element hook scribbling on another cell's engine-owned byte is
+  the failure mode the ownership rule exists to prevent.
+- **A hook cannot keep its own cell awake.** `Api` has no `keepAwake` (it is on
+  the engine-internal `MovementApi`), so a hook that must go on being offered a
+  draw has to *write* — `growth.ts` writes `ra` every tick it has water to
+  reach, because settled water writes nothing and the chunk would sleep under
+  the plant.
+- **`CHUNK_MARGIN` is fully spent.** The crowding check in `growth.ts` reads two
+  cells out (the candidate is one away, its neighbours one past that), which is
+  exactly the margin — a write wakes every chunk within two cells of it, so
+  nothing is missed, but there is no slack left. A hook that needs a third cell
+  needs the margin raised in the same change. See
+  [ADR 0035](../../docs/adr/0035-silt-plant-growth-is-bounded-by-crowding.md).
 - **Species ids are pinned**, but scenes remap by *name*: the envelope's
   `elements` table records what each byte meant, so renumbering an id is safe
   and renaming an element silently empties those cells (with a warning).
@@ -138,6 +206,12 @@ Spec §8; the calls the spec leaves open are in
   persistence; restart to pick up server changes).
 - `pnpm test --filter=silt` — Vitest (`*.test.ts`) then Playwright CT
   (`*.iwft.tsx`, CT port **3109**).
+- `pnpm --filter silt run bench` — `bench/sim.bench.ts`, ms/tick for four named
+  scenarios under native Node. A tool, not a gate: it is deliberately outside
+  `pnpm test`, since a timing assertion in CI would only flake. It prints
+  `scannedLastTick` beside every timing — a scenario that got faster because it
+  stopped simulating is not a win, and the scanned count is what tells the two
+  apart.
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).
 
 ## Rules

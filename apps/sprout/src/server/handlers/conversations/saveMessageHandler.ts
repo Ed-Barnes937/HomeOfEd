@@ -26,6 +26,9 @@ export class SaveMessageHandler extends Handler<SaveMessageInput, MessageDto, Sp
     const conversation = await ctx.store.getConversation(input.conversationId)
     if (!conversation) throw new NotFoundError('conversation not found')
     if (conversation.childId !== child.id) throw new ForbiddenError('not your conversation')
+    // A soft-deleted conversation is gone from the child's view (pilot issue
+    // 03) — the continue flow cannot append to it.
+    if (conversation.deletedAt) throw new NotFoundError('conversation not found')
 
     const message = await ctx.store.addMessage({
       conversationId: input.conversationId,

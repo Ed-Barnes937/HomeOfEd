@@ -9,10 +9,9 @@ import { z } from 'zod'
 
 import type { ChildTokenMinter } from '../../auth/childTokenPort.ts'
 import { evaluatePinAttempt, recordEvent } from '../../behavioural-limits.ts'
-import type { PresetName } from '@hoe/sprout-shared'
 import type { PasswordHasher } from '../../password.ts'
 import type { SproutStore } from '../../store.ts'
-import type { ChildAuthProfile } from './schemas.ts'
+import { toChildAuthProfile, type ChildAuthProfile } from './schemas.ts'
 
 export const loginPinInputSchema = z.object({
   childId: z.string().uuid(),
@@ -69,16 +68,6 @@ export class LoginPinHandler extends Handler<LoginPinInput, LoginPinResult, Spro
 
     const token = this.mintChildToken({ childId: child.id, parentId: child.parentId })
 
-    return {
-      child: {
-        id: child.id,
-        displayName: child.displayName,
-        username: child.username,
-        presetName: child.presetName as PresetName,
-        parentId: child.parentId,
-        mustChangePassword: child.mustChangePassword,
-      },
-      token,
-    }
+    return { child: toChildAuthProfile(child), token }
   }
 }

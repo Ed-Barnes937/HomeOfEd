@@ -1,11 +1,20 @@
 import { useEffect, useRef } from 'react'
 
+/**
+ * How many palette entries a digit can reach. There are only nine single
+ * digits, and the roster is longer than that (materials spec §8), so the rail
+ * reads this to decide which swatches may advertise a shortcut — a badge past
+ * this number would name a key nothing binds. **One number, two readers:** the
+ * binding below and `HomePage`'s badge. Raising it means finding real keys.
+ */
+export const HOTKEYED_ENTRIES = 9
+
 export interface UseSiltHotkeysOptions {
   /** Space. */
   onToggleRunning: () => void
   /** `.` — the caller decides whether a step is allowed right now. */
   onStep: () => void
-  /** A digit 1–9: the nth rail entry, zero-based. The caller owns rail order. */
+  /** A digit up to `HOTKEYED_ENTRIES`: the nth rail entry, zero-based. The caller owns rail order. */
   onSelectNth: (index: number) => void
   /** `e`. */
   onSelectErase: () => void
@@ -46,7 +55,7 @@ export function useSiltHotkeys(options: UseSiltHotkeysOptions): void {
         actions.onCloseScenes()
         return
       }
-      if (event.key >= '1' && event.key <= '9') {
+      if (event.key >= '1' && event.key <= String(HOTKEYED_ENTRIES)) {
         actions.onSelectNth(Number(event.key) - 1)
         return
       }

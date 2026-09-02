@@ -8,6 +8,7 @@
     "dev": "vite --port 3009",
     "build": "vite build",
     "start": "node src/server/main.ts",
+    "bench": "node --experimental-strip-types bench/sim.bench.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && playwright test -c playwright-ct.config.ts"

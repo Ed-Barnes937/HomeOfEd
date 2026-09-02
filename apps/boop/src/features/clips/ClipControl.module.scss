@@ -9,6 +9,17 @@
   display: flex;
   align-items: center;
   gap: 16px;
+
+  // The phone (screenspace ticket 03): the same strip at the phone's scale,
+  // tucked under the loop map inside the card. Play and its two lines only —
+  // Clear grid is in the "⋯" menu at this width.
+  @media (max-width: 1023px) {
+    margin-top: 10px;
+    height: 64px;
+    padding: 0 12px;
+    border-radius: 14px;
+    gap: 12px;
+  }
 }
 
 // The old transport's play button at 56px scale.
@@ -35,6 +46,12 @@
     outline: 2px solid var(--cyan);
     outline-offset: 2px;
   }
+
+  @media (max-width: 1023px) {
+    width: 48px;
+    height: 48px;
+    box-shadow: var(--shadow-play-phone);
+  }
 }
 
 .triangle {
@@ -44,6 +61,13 @@
   border-top: 12px solid transparent;
   border-bottom: 12px solid transparent;
   border-left: 19px solid var(--ink-dark);
+
+  @media (max-width: 1023px) {
+    margin-left: 4px;
+    border-top-width: 10px;
+    border-bottom-width: 10px;
+    border-left-width: 16px;
+  }
 }
 
 .pause {
@@ -67,11 +91,19 @@
 .title {
   font: 800 15px var(--font-display);
   color: var(--ink);
+
+  @media (max-width: 1023px) {
+    font-size: 14px;
+  }
 }
 
 .sub {
   font: 400 13px var(--font-display);
   color: rgba(242, 239, 230, 0.45);
+
+  @media (max-width: 1023px) {
+    font-size: 12px;
+  }
 }
 
 .spacer {

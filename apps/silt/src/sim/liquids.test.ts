@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { DIRT, EMPTY, LAVA, SAND, WATER, v1Elements } from './elements.ts'
-import { GRID_HEIGHT, GRID_WIDTH } from './constants.ts'
+import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, RA_OFFSET } from './constants.ts'
+import { EMPTY, LAVA, OBSIDIAN, SAND, WATER, v1Elements } from './elements.ts'
+import { MOMENTUM_TICKS, momentumOf, packOpinion, parityOf } from './kernels.ts'
 import { Sim } from './sim.ts'
 import type { ElementDef } from './types.ts'
 
 const FLOOR = GRID_HEIGHT - 1
 
-function withDirtFloor(sim: Sim): Sim {
-  for (let x = 0; x < GRID_WIDTH; x++) sim.paint(x, FLOOR, DIRT)
+/** Obsidian, not dirt: water turns dirt into mud (materials spec §4 row 10),
+ * and these cases are about how a liquid moves, not what it reacts with. */
+function withFloor(sim: Sim): Sim {
+  for (let x = 0; x < GRID_WIDTH; x++) sim.paint(x, FLOOR, OBSIDIAN)
   return sim
 }
 
@@ -28,14 +31,46 @@ function pourColumn(sim: Sim, x: number, height: number, species: number): void 
   for (let i = 1; i <= height; i++) sim.paint(x, FLOOR - i, species)
 }
 
-/** A one-cell-wide dirt shaft, so a liquid inside it can only move vertically. */
+/** A one-cell-wide shaft, so a liquid inside it can only move vertically. */
 function wellAt(sim: Sim, x: number, depth: number): Sim {
-  withDirtFloor(sim)
+  withFloor(sim)
   for (let i = 1; i <= depth; i++) {
-    sim.paint(x - 1, FLOOR - i, DIRT)
-    sim.paint(x + 1, FLOOR - i, DIRT)
+    sim.paint(x - 1, FLOOR - i, OBSIDIAN)
+    sim.paint(x + 1, FLOOR - i, OBSIDIAN)
   }
   return sim
+}
+
+/** A floor with a wall at either end, so a pool inside it is conserved. */
+function basinBetween(sim: Sim, left: number, right: number, height: number): Sim {
+  withFloor(sim)
+  for (let i = 1; i <= height; i++) {
+    sim.paint(left, FLOOR - i, OBSIDIAN)
+    sim.paint(right, FLOOR - i, OBSIDIAN)
+  }
+  return sim
+}
+
+function raAt(sim: Sim, x: number, y: number): number {
+  return sim.cells[(y * GRID_WIDTH + x) * BYTES_PER_CELL + RA_OFFSET]!
+}
+
+type Place = (x: number, y: number, species: number, ra?: number) => void
+
+/**
+ * A world built plane by plane and loaded with `restore` — the only way to
+ * start a cell with an `ra` already set, which is what a current *already
+ * running* looks like. `paint` clears the scratch bytes.
+ */
+function restoreWith(sim: Sim, place: (put: Place) => void): void {
+  const size = GRID_WIDTH * GRID_HEIGHT
+  const species = new Uint8Array(size)
+  const ra = new Uint8Array(size)
+  place((x, y, id, scratch = 0) => {
+    species[y * GRID_WIDTH + x] = id
+    ra[y * GRID_WIDTH + x] = scratch
+  })
+  sim.restore(species, ra, new Uint8Array(size))
 }
 
 describe('liquid movement', () => {
@@ -50,7 +85,7 @@ describe('liquid movement', () => {
   })
 
   it('spreads sideways along a floor it cannot fall through', () => {
-    const sim = withDirtFloor(new Sim({ seed: 1 }))
+    const sim = withFloor(new Sim({ seed: 1 }))
     pourColumn(sim, 150, 12, WATER)
 
     for (let i = 0; i < 200; i++) sim.tick()
@@ -67,7 +102,7 @@ describe('liquid movement', () => {
   })
 
   it('flattens to one layer on open ground and lets the world go quiet', () => {
-    const sim = withDirtFloor(new Sim({ seed: 1 }))
+    const sim = withFloor(new Sim({ seed: 1 }))
     pourColumn(sim, 150, 12, WATER)
 
     for (let i = 0; i < 400; i++) sim.tick()
@@ -75,15 +110,17 @@ describe('liquid movement', () => {
     const water = cellsOf(sim, WATER)
     expect(water).toHaveLength(12)
     expect(water.every((c) => c.y === FLOOR - 1)).toBe(true)
-    // Unconfined liquid never goes perfectly still — cells that still have a
-    // neighbour keep shuffling. What must hold is that the *world* sleeps: a
-    // handful of live cells, not the 60 000 in the grid.
-    expect(sim.scannedLastTick).toBeLessThan(100)
+    // And then stops dead. Under the coin this never quite happened — a cell
+    // with a neighbour drew a fresh direction every tick and kept finding one
+    // of its two sides open, so a levelled pool shuffled for ever. A cell that
+    // commits to one direction runs out of moves and writes nothing, which is
+    // what finally lets the chunk sleep (ADR 0038).
+    expect(sim.scannedLastTick).toBe(0)
   })
 
   it('does not displace an equally dense neighbour', () => {
     // Two water cells stacked on the floor must not trade places forever.
-    const sim = withDirtFloor(new Sim({ seed: 1 }))
+    const sim = withFloor(new Sim({ seed: 1 }))
     sim.paint(10, FLOOR - 1, WATER)
     sim.paint(10, FLOOR - 2, WATER)
 
@@ -102,6 +139,146 @@ describe('liquid movement', () => {
     // The grain sank to the bottom of the well and the water closed over it.
     expect(sim.speciesAt(150, FLOOR - 1)).toBe(SAND)
     expect(sim.speciesAt(150, FLOOR - 2)).toBe(WATER)
+  })
+})
+
+/**
+ * Sandspiel's opinion field (ticket 01, ADR 0038): a liquid keeps its lateral
+ * direction in `ra` rather than re-rolling it every tick, spreads that opinion
+ * to a neighbour whenever it moves, and holds it against a wall for a few
+ * frames before turning around.
+ */
+describe('liquid direction persistence', () => {
+  /** Parity 0 is leftward, 1 is rightward — the kernel reads bit 0 as a sign. */
+  const LEFT = 0
+  const RIGHT = 1
+
+  /**
+   * A throwaway liquid that spends `ra` on a countdown. No liquid in the roster
+   * declares a `lifetime`, so this is the only way to reach the `raIsFree` gate
+   * — and the gate is the whole reason the opinion field is safe to add.
+   */
+  const BRINE_TICKS = 200
+  const brine: ElementDef = {
+    id: 101,
+    name: 'brine',
+    colours: ['#7fb2c8'],
+    tags: ['liquid'],
+    archetype: { kind: 'liquid', density: 30, dispersion: 5 },
+    lifetime: { ticks: BRINE_TICKS, becomes: null },
+  }
+
+  it('stands down for a liquid that spends `ra` on a lifetime', () => {
+    // Walled in and stacked, so the cell is not a stray and the lateral step
+    // really is reached. On the first tick `ra` is still 0, which reads as
+    // "not seeded yet" to the opinion field *and* to the countdown — so an
+    // ungated kernel would write a parity here and the cell would then age from
+    // 128 rather than from 200.
+    const sim = wellAt(new Sim({ seed: 1, elements: [...v1Elements, brine] }), 150, 8)
+    sim.paint(150, FLOOR - 1, brine.id)
+    sim.paint(150, FLOOR - 2, brine.id)
+
+    for (let i = 0; i < 5; i++) sim.tick()
+
+    expect(raAt(sim, 150, FLOOR - 1)).toBe(BRINE_TICKS - 5)
+  })
+
+  /** Fraction of side-by-side water pairs that want to go the same way. */
+  function agreementIn(sim: Sim): number {
+    let pairs = 0
+    let agreed = 0
+    for (const c of cellsOf(sim, WATER)) {
+      if (sim.speciesAt(c.x + 1, c.y) !== WATER) continue
+      pairs++
+      if (parityOf(raAt(sim, c.x, c.y)) === parityOf(raAt(sim, c.x + 1, c.y))) agreed++
+    }
+    expect(pairs).toBeGreaterThan(50)
+    return agreed / pairs
+  }
+
+  it('seeds a fresh pour with both directions rather than letting it lean', () => {
+    const sim = basinBetween(new Sim({ seed: 1 }), 100, 160, 20)
+    for (let x = 105; x < 125; x++) pourColumn(sim, x, 10, WATER)
+
+    for (let i = 0; i < 25; i++) sim.tick()
+
+    // `paint` clears `ra`, so a pour arrives with no opinion at all. Every cell
+    // must draw one, and bit 7 is what stops a cell whose parity and momentum
+    // are both spent from reading as unseeded and drawing again.
+    const water = cellsOf(sim, WATER)
+    expect(water.every((c) => raAt(sim, c.x, c.y) !== 0)).toBe(true)
+    expect(new Set(water.map((c) => parityOf(raAt(sim, c.x, c.y))))).toEqual(new Set([LEFT, RIGHT]))
+  })
+
+  it('spreads one opinion through a pool that starts divided', () => {
+    // The worst case for contagion: a pool in which every neighbour disagrees.
+    const sim = new Sim({ seed: 1 })
+    restoreWith(sim, (put) => {
+      for (let x = 0; x < GRID_WIDTH; x++) put(x, FLOOR, OBSIDIAN)
+      for (let i = 1; i <= 20; i++) {
+        put(100, FLOOR - i, OBSIDIAN)
+        put(160, FLOOR - i, OBSIDIAN)
+      }
+      for (let x = 105; x < 125; x++) {
+        for (let i = 1; i <= 10; i++) put(x, FLOOR - i, WATER, packOpinion((x + i) & 1, 0))
+      }
+    })
+    expect(agreementIn(sim)).toBe(0)
+
+    for (let i = 0; i < 100; i++) sim.tick()
+
+    // Every successful step recruits one neighbour, so the body votes itself
+    // into currents. It never reaches 1: the pool is open at the top, and cells
+    // at the ends of the surface go on turning around.
+    expect(agreementIn(sim)).toBeGreaterThan(0.7)
+  })
+
+  it('presses against a wall for the momentum window before turning around', () => {
+    // Three cells of a current already running rightwards into a wall. Only the
+    // leftmost has an open cell behind it, so it is the one that can turn.
+    const sim = new Sim({ seed: 1 })
+    const running = packOpinion(RIGHT, MOMENTUM_TICKS)
+    restoreWith(sim, (put) => {
+      for (let x = 0; x < GRID_WIDTH; x++) put(x, FLOOR, OBSIDIAN)
+      put(20, FLOOR - 1, OBSIDIAN)
+      for (const x of [17, 18, 19]) put(x, FLOOR - 1, WATER, running)
+    })
+
+    for (let tick = 1; tick <= MOMENTUM_TICKS; tick++) {
+      sim.tick()
+      const ra = raAt(sim, 17, FLOOR - 1)
+      expect(parityOf(ra)).toBe(RIGHT)
+      expect(momentumOf(ra)).toBe(MOMENTUM_TICKS - tick)
+    }
+
+    // Momentum spent, and an open cell behind: now it turns.
+    sim.tick()
+    expect(parityOf(raAt(sim, 17, FLOOR - 1))).toBe(LEFT)
+
+    sim.tick()
+    expect(Math.min(...cellsOf(sim, WATER).map((c) => c.x))).toBeLessThan(17)
+  })
+
+  it('levels a stepped pool across the step', () => {
+    const sim = basinBetween(new Sim({ seed: 1 }), 100, 160, 20)
+    // A shelf five cells tall over the right half of the bed.
+    for (let x = 131; x < 160; x++) {
+      for (let d = 1; d <= 5; d++) sim.paint(x, FLOOR - d, OBSIDIAN)
+    }
+    for (let x = 101; x <= 130; x++) pourColumn(sim, x, 12, WATER)
+
+    for (let i = 0; i < 600; i++) sim.tick()
+
+    const water = cellsOf(sim, WATER)
+    expect(water).toHaveLength(30 * 12)
+
+    const surfaceOf = (from: number, to: number) => {
+      const side = water.filter((c) => c.x >= from && c.x <= to)
+      expect(side).not.toHaveLength(0)
+      return Math.min(...side.map((c) => c.y))
+    }
+    // Water stands over the shelf, and at the same height as over the deep end.
+    expect(Math.abs(surfaceOf(101, 130) - surfaceOf(131, 159))).toBeLessThanOrEqual(2)
   })
 })
 
@@ -159,10 +336,10 @@ describe('move probability', () => {
   })
 })
 
-/** A gas exists only to prove the archetype — no v1 element is one. */
-const steam: ElementDef = {
+/** A throwaway gas: this suite tests the archetype, not the roster's gases. */
+const plume: ElementDef = {
   id: 100,
-  name: 'steam',
+  name: 'plume',
   colours: ['#cfd6da'],
   tags: ['gas'],
   archetype: { kind: 'gas', density: -20, dispersion: 3 },
@@ -170,32 +347,32 @@ const steam: ElementDef = {
 
 describe('gas movement', () => {
   it('rises one cell per tick', () => {
-    const sim = new Sim({ seed: 1, elements: [...v1Elements, steam] })
-    sim.paint(10, 10, steam.id)
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, plume] })
+    sim.paint(10, 10, plume.id)
 
     sim.tick()
 
     expect(sim.speciesAt(10, 10)).toBe(EMPTY)
-    expect(sim.speciesAt(10, 9)).toBe(steam.id)
+    expect(sim.speciesAt(10, 9)).toBe(plume.id)
   })
 
   it('stops at the ceiling', () => {
-    const sim = new Sim({ seed: 1, elements: [...v1Elements, steam] })
-    sim.paint(10, 0, steam.id)
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, plume] })
+    sim.paint(10, 0, plume.id)
 
     for (let i = 0; i < 5; i++) sim.tick()
 
-    expect(cellsOf(sim, steam.id).map((c) => c.y)).toEqual([0])
+    expect(cellsOf(sim, plume.id).map((c) => c.y)).toEqual([0])
   })
 
   it('bubbles up through a denser liquid', () => {
-    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, steam] }))
+    const sim = withFloor(new Sim({ seed: 1, elements: [...v1Elements, plume] }))
     pourColumn(sim, 150, 8, WATER)
-    sim.paint(150, FLOOR - 1, steam.id)
+    sim.paint(150, FLOOR - 1, plume.id)
 
     for (let i = 0; i < 40; i++) sim.tick()
 
-    const bubble = cellsOf(sim, steam.id)
+    const bubble = cellsOf(sim, plume.id)
     expect(bubble).toHaveLength(1)
     // Negative density means the water sinks past it rather than the other way
     // round, but the bubble still ends up above the water it started under.
@@ -205,7 +382,7 @@ describe('gas movement', () => {
 
 describe('liquid determinism', () => {
   const pourBoth = (sim: Sim) => {
-    withDirtFloor(sim)
+    withFloor(sim)
     for (let x = 140; x < 160; x++) pourColumn(sim, x, 10, WATER)
     for (let x = 100; x < 110; x++) pourColumn(sim, x, 6, LAVA)
   }

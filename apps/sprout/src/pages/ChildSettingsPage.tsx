@@ -9,10 +9,10 @@ import { PresetSelector } from '../components/dashboard/PresetSelector.tsx'
 import { SliderControls } from '../components/dashboard/SliderControls.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.tsx'
-import { Input } from '../components/ui/input.tsx'
 import {
   childConfigQueryOptions,
   childrenQueryOptions,
+  resetPin,
   updateChild,
   updatePreset,
 } from '../features/children/childrenQueries.ts'
@@ -41,8 +41,7 @@ export function ChildSettingsPage() {
 
   const [sliderOverrides, setSliderOverrides] = useState<Partial<PresetSliders>>({})
   const [showPinReset, setShowPinReset] = useState(false)
-  const [newPin, setNewPin] = useState('')
-  const [pinSaved, setPinSaved] = useState(false)
+  const [pinReset, setPinReset] = useState(false)
   const [presetSaved, setPresetSaved] = useState(false)
   const [slidersSaved, setSlidersSaved] = useState(false)
 
@@ -55,6 +54,14 @@ export function ChildSettingsPage() {
   const updateChildMutation = useMutation({
     mutationFn: updateChild,
     onSuccess: invalidateChild,
+  })
+  const resetPinMutation = useMutation({
+    mutationFn: resetPin,
+    onSuccess: () => {
+      invalidateChild()
+      setShowPinReset(false)
+      setPinReset(true)
+    },
   })
   const updatePresetMutation = useMutation({
     mutationFn: updatePreset,
@@ -124,21 +131,6 @@ export function ChildSettingsPage() {
     )
   }
 
-  const handlePinReset = () => {
-    if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) return
-    setPinSaved(false)
-    updateChildMutation.mutate(
-      { childId, pin: newPin },
-      {
-        onSuccess: () => {
-          setNewPin('')
-          setShowPinReset(false)
-          setPinSaved(true)
-        },
-      },
-    )
-  }
-
   return (
     <div className={styles.page}>
       <Link to="/parent/children" className={styles.backLink}>
@@ -146,6 +138,7 @@ export function ChildSettingsPage() {
       </Link>
 
       <h1 className={styles.heading}>{child.displayName}&apos;s Settings</h1>
+      <p className={styles.mutedTextSm}>signs in as {child.username}</p>
 
       <div className={styles.sections}>
         <Card>
@@ -202,42 +195,42 @@ export function ChildSettingsPage() {
             <CardTitle className={styles.cardTitle}>PIN Management</CardTitle>
           </CardHeader>
           <CardContent>
-            {pinSaved && <p className={styles.savedMessageTop}>PIN updated</p>}
+            {pinReset && (
+              <p className={styles.savedMessageTop}>
+                PIN reset. {child.displayName}&apos;s password is now their username (
+                {child.username}) — they&apos;ll choose a new password and PIN when they next
+                log in.
+              </p>
+            )}
             {!showPinReset ? (
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowPinReset(true)
-                  setPinSaved(false)
+                  setPinReset(false)
                 }}
               >
                 Reset PIN
               </Button>
             ) : (
-              <div className={styles.pinRow}>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d{4}"
-                  maxLength={4}
-                  placeholder="New 4-digit PIN"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  aria-label="New PIN"
-                />
-                <Button onClick={handlePinReset} disabled={newPin.length !== 4 || updateChildMutation.isPending}>
-                  Confirm
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowPinReset(false)
-                    setNewPin('')
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
+              <>
+                <p className={styles.mutedTextSm}>
+                  This clears {child.displayName}&apos;s PIN and resets their password to their
+                  username ({child.username}). They&apos;ll choose a new password and PIN at
+                  their next login — you won&apos;t see either.
+                </p>
+                <div className={styles.pinRow}>
+                  <Button
+                    onClick={() => resetPinMutation.mutate(childId)}
+                    disabled={resetPinMutation.isPending}
+                  >
+                    Confirm reset
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowPinReset(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

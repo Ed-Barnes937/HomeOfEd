@@ -32,6 +32,8 @@ async function seedChild(store: DrizzleSproutStore): Promise<string> {
     id: 'parent-1',
     name: 'Parent',
     email: 'parent@example.com',
+    ukResidenceAttestedAt: new Date(),
+    tosAgreedAt: new Date(),
   })
   const child = await store.createChild({
     parentId,
@@ -100,6 +102,35 @@ describe('runRetentionSweep over PGlite', () => {
 
     // The summariser saw only the past-window conversation.
     expect(summarise).toHaveBeenCalledTimes(1)
+  })
+
+  // Pilot issue 03: a child's soft delete hides a conversation from the child,
+  // nothing more — the retention windows stay the only path to purging content,
+  // so the sweep must treat soft-deleted conversations exactly like live ones.
+  it('summarises + purges a soft-deleted conversation past the window like a live one', async () => {
+    const store = await freshStore()
+    const childId = await seedChild(store)
+
+    const convo = await store.createConversation({
+      childId,
+      createdAt: daysAgo(40),
+      updatedAt: daysAgo(40),
+    })
+    await store.addMessage({ conversationId: convo.id, role: 'child', content: 'hidden' })
+    await store.softDeleteConversation(convo.id)
+
+    const result = await runRetentionSweep({
+      store,
+      summarise: () => Promise.resolve('summary'),
+      now: () => NOW,
+      logger: silentLogger,
+      retentionDays: 30,
+      behaviouralEventRetentionDays: 30,
+    })
+
+    expect(result).toMatchObject({ conversationsSummarised: 1 })
+    await expect(store.listMessages(convo.id)).resolves.toHaveLength(0)
+    await expect(store.getConversation(convo.id)).resolves.toMatchObject({ summary: 'summary' })
   })
 
   it('continues the sweep when the summariser fails on one conversation', async () => {

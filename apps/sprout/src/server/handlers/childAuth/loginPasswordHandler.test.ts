@@ -37,6 +37,8 @@ describe('LoginPasswordHandler', () => {
       username: child.username,
       parentId: child.parentId,
       mustChangePassword: true,
+      // The seed has no pinHash — the client uses this to collect a fresh PIN.
+      hasPin: false,
     })
     expect(result.token.split('.')).toHaveLength(2)
   })

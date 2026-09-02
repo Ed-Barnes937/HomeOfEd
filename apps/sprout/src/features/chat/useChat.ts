@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { PresetSliders } from '@hoe/sprout-shared'
+import type { PresetName, PresetSliders } from '@hoe/sprout-shared'
 
 import { getSessionLimit, MAX_CONVERSATION_TITLE_LEN } from '../../lib/chatConfig.ts'
 import { getChildSession, type ChildSession } from '../../lib/childSession.ts'
@@ -34,6 +34,12 @@ export interface UseChatResult {
   loading: boolean
   summary: string | null
   sliders: PresetSliders | null
+  /**
+   * The child's preset from `children.myConfig` — selects the disclosure
+   * register (ADR-0017). Null until the server read resolves; the Disclosure
+   * components fall back to the strictest register (ADR-0016) meanwhile.
+   */
+  presetName: PresetName | null
   reportedMessages: Set<number>
   isAtLimit: boolean
   isNearLimit: boolean
@@ -61,6 +67,7 @@ export function useChat({ conversationId }: UseChatOptions = {}): UseChatResult 
   const [loading, setLoading] = useState<boolean>(Boolean(conversationId))
   const [summary, setSummary] = useState<string | null>(null)
   const [sliders, setSliders] = useState<PresetSliders | null>(null)
+  const [presetName, setPresetName] = useState<PresetName | null>(null)
   const [reportedMessages, setReportedMessages] = useState<Set<number>>(new Set())
   const [messageCount, setMessageCount] = useState(0)
 
@@ -86,6 +93,7 @@ export function useChat({ conversationId }: UseChatOptions = {}): UseChatResult 
         const config = await fetchMyConfig()
         if (cancelled) return
         setSliders(config.sliders)
+        setPresetName(config.presetName)
       } catch {
         // Chat still works with the pipeline's own preset defaults.
       }
@@ -304,6 +312,7 @@ export function useChat({ conversationId }: UseChatOptions = {}): UseChatResult 
     loading,
     summary,
     sliders,
+    presetName,
     reportedMessages,
     isAtLimit,
     isNearLimit,

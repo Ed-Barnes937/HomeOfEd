@@ -19,6 +19,8 @@ async function makeParent(store: DrizzleSproutStore): Promise<string> {
     id: `parent-${parentSeq}`,
     name: `Parent ${parentSeq}`,
     email: `parent-${parentSeq}@example.com`,
+    ukResidenceAttestedAt: new Date(),
+    tosAgreedAt: new Date(),
   })
 }
 
@@ -91,12 +93,84 @@ describe('DrizzleSproutStore over PGlite with the generated migrations', () => {
     ).resolves.toBe(1)
   })
 
+  // PIN reset (children.resetPin): clearing the pin_fail lockout must drop only
+  // that child's pin_fail rows — other kinds and other children keep theirs.
+  it('deletes behavioural events by child + kind only', async () => {
+    const store = await freshStore()
+    const parentId = await makeParent(store)
+    const child = await store.createChild(childInput(parentId, 'kid1'))
+    const sibling = await store.createChild(childInput(parentId, 'kid2'))
+
+    await store.recordBehaviouralEvent({ childId: child.id, kind: 'pin_fail' })
+    await store.recordBehaviouralEvent({ childId: child.id, kind: 'message' })
+    await store.recordBehaviouralEvent({ childId: sibling.id, kind: 'pin_fail' })
+
+    await store.deleteBehaviouralEvents({ kind: 'pin_fail', childId: child.id })
+
+    const since = new Date('2020-01-01T00:00:00Z')
+    await expect(
+      store.countBehaviouralEvents({ childId: child.id, kind: 'pin_fail', since }),
+    ).resolves.toBe(0)
+    await expect(
+      store.countBehaviouralEvents({ childId: child.id, kind: 'message', since }),
+    ).resolves.toBe(1)
+    await expect(
+      store.countBehaviouralEvents({ childId: sibling.id, kind: 'pin_fail', since }),
+    ).resolves.toBe(1)
+  })
+
   // Feature check 3 — unique-constraint conflict (children.username is unique).
   it('rejects a duplicate child username (unique constraint)', async () => {
     const store = await freshStore()
     const parentId = await makeParent(store)
     await store.createChild(childInput(parentId, 'dupe'))
     await expect(store.createChild(childInput(parentId, 'dupe'))).rejects.toThrow()
+  })
+
+  // Soft delete (pilot issue 03) — the child's delete keeps the row, its
+  // messages AND its safety flags. The old hard delete cascaded flags away
+  // (flags.conversationId onDelete: cascade), erasing exactly the history the
+  // parent-visibility posture depends on.
+  it('soft-deleting a conversation keeps the row, its messages and its flags', async () => {
+    const store = await freshStore()
+    const parentId = await makeParent(store)
+    const child = await store.createChild(childInput(parentId, 'kid1'))
+    const conversation = await store.createConversation({ childId: child.id, title: 'chat' })
+    const message = await store.addMessage({
+      conversationId: conversation.id,
+      role: 'ai',
+      content: 'flagged answer',
+    })
+    await store.createFlag({
+      childId: child.id,
+      conversationId: conversation.id,
+      messageId: message.id,
+      type: 'sensitive',
+      reason: 'test',
+    })
+
+    await store.softDeleteConversation(conversation.id)
+
+    const row = await store.getConversation(conversation.id)
+    expect(row?.deletedAt).toBeInstanceOf(Date)
+    await expect(store.listMessages(conversation.id)).resolves.toHaveLength(1)
+    await expect(store.listFlagsByChild(child.id)).resolves.toHaveLength(1)
+  })
+
+  it('listConversationsByChild excludes soft-deleted rows only when asked', async () => {
+    const store = await freshStore()
+    const parentId = await makeParent(store)
+    const child = await store.createChild(childInput(parentId, 'kid1'))
+    const kept = await store.createConversation({ childId: child.id, title: 'kept' })
+    const deleted = await store.createConversation({ childId: child.id, title: 'deleted' })
+    await store.softDeleteConversation(deleted.id)
+
+    const childView = await store.listConversationsByChild(child.id, { excludeDeleted: true })
+    expect(childView.map((c) => c.id)).toEqual([kept.id])
+
+    const parentView = await store.listConversationsByChild(child.id)
+    expect(parentView).toHaveLength(2)
+    expect(parentView.find((c) => c.id === deleted.id)?.deletedAt).toBeInstanceOf(Date)
   })
 
   // Feature check 4 — cascade delete: deleting a parent user cascades through

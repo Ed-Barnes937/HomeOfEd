@@ -14,13 +14,17 @@ test('the clip-lanes chrome replaces the old transport at tablet widths', async 
   await root.verifyIsShown()
 
   await root.verifyNoTransportBar()
-  // The laptop pieces are all here: the clip header over the grid, the clip
-  // control in the well, Speed in the song bar, New boop in the top bar.
-  await root.verifyActiveClipName('Boom clap') // the first-visit seed
+  // The laptop pieces are all here: Speed and song play in the song bar, New
+  // boop in the top bar, and — inside the card the launcher opens — the clip
+  // header over the grid and the clip control in the well.
   await root.verifyPaused()
   await root.verifyTempo(100)
   await root.verifySongLength('0 bars')
+  await root.verifyLauncherClip('Boom clap') // the first-visit seed
+  await root.openClipEditor()
+  await root.verifyActiveClipName('Boom clap')
   await root.pressNewBoop()
+  await root.openClipEditor()
   await root.verifyCellOff('kick', 0)
 })
 
@@ -38,16 +42,22 @@ test('the lane grid fits the column, even at the five-clip cap', async ({ mountA
   await root.addClip()
   await root.verifyClipCount(5)
   await root.verifyAddClipDisabled()
-  await root.verifyCopyClipDisabled()
 
   await root.verifyLaneGridFitsColumn()
   await root.verifyNoSidewaysScroller()
-  // The song bar is pinned and the grid still scrolls inside its own well
-  // (ADR 0030, as amended by ticket 23) — five lanes squeeze the region, they
-  // don't unpin the bar, and at this width they don't make it scroll either.
-  await root.verifyTransportFullyInViewport()
-  await root.verifyGridWellIsTheScroller()
+  // The dock is pinned and the song bar's lanes scroll inside their own box —
+  // five lanes fill the region, they don't unpin anything, and at this width
+  // nothing else has to scroll at all.
+  await root.verifyLauncherFullyInViewport()
   await root.verifyNothingIsScrolled()
+
+  // A copy is a new clip too, so the cap greys it the same way — and the grid
+  // the card opens on is whole: five lanes cost it nothing now that the two
+  // surfaces are not sharing the frame.
+  await root.openClipEditor()
+  await root.verifyCopyClipDisabled()
+  await root.verifyNotOccluded('play-button')
+  await root.verifyPageDoesNotScroll()
 })
 
 test('placements, clip switching and reordering work unchanged at this width', async ({
@@ -122,17 +132,19 @@ test('the new scrub rows fit the band: strip cells still track the squares', asy
   await root.toggleLaneSquare(0, 0)
   await root.toggleLaneSquare(0, 15)
 
-  // The song strip and the clip rail (boop-playhead ticket 05) compress with
-  // the lane grid rather than pushing the column into a sideways scroll.
+  // The song strip compresses with the lane grid rather than pushing the
+  // column into a sideways scroll.
   await root.verifyStripCellAlignsWithLane(0, 0)
   await root.verifyStripCellAlignsWithLane(15, 0)
-  await root.verifyClipRailAlignsWithSteps(0)
-  await root.verifyClipRailAlignsWithSteps(15)
   await root.verifyNoSidewaysScroller()
-
-  // ...and the gestures work here too.
   await root.tapSongStrip(15, 2)
   await root.verifySongStripMarkerAt(15, 2, false)
+
+  // The clip rail (boop-playhead ticket 05) rides on the grid, so it is inside
+  // the card — same alignment question, asked where the rail now lives.
+  await root.openClipEditor()
+  await root.verifyClipRailAlignsWithSteps(0)
+  await root.verifyClipRailAlignsWithSteps(15)
   await root.tapClipRail(6)
   await root.verifyClipRailAtStep(6, false)
 })

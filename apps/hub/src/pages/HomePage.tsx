@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
+import { appDates } from './appDates.ts'
 import styles from './HomePage.module.scss'
-import { isNew } from './isNew.ts'
+import { pillFor } from './pillFor.ts'
 import { useColourTheme } from './useColourTheme'
 
 type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'idle'
@@ -9,44 +10,39 @@ type AppLink = {
   status: 'LIVE' | 'SOON'
   kind: PreviewKind
   href?: string
-  // ISO date the app went live; drives the "New" pill (see isNew.ts).
-  deployedAt?: string
+  // Workspace package name — the key CI records deploys against, which is what
+  // drives both pills (see appDates.ts). A card without one shows no pill.
+  pkg?: string
   // Overrides the default "SOON" text for a not-yet-live card.
   soonLabel?: string
 }
 
 const APPS: AppLink[] = [
-  { name: 'Boids', status: 'LIVE', kind: 'boids', href: 'https://boids.homeofed.com' },
-  { name: 'fridge magnets', status: 'LIVE', kind: 'magnets', href: 'https://fridge.homeofed.com' },
-  { name: 'WOTD', status: 'LIVE', kind: 'word', href: 'https://wotd.homeofed.com' },
   {
-    name: 'espy',
+    name: 'Boids',
     status: 'LIVE',
-    kind: 'ink',
-    href: 'https://espy.homeofed.com',
-    deployedAt: '2026-07-09',
+    kind: 'boids',
+    href: 'https://boids.homeofed.com',
+    pkg: 'boids',
   },
+  {
+    name: 'fridge magnets',
+    status: 'LIVE',
+    kind: 'magnets',
+    href: 'https://fridge.homeofed.com',
+    pkg: 'fridge',
+  },
+  { name: 'WOTD', status: 'LIVE', kind: 'word', href: 'https://wotd.homeofed.com', pkg: 'wotd' },
+  { name: 'espy', status: 'LIVE', kind: 'ink', href: 'https://espy.homeofed.com', pkg: 'espy' },
   {
     name: 'karesansui',
     status: 'LIVE',
     kind: 'garden',
     href: 'https://karesansui.homeofed.com',
-    deployedAt: '2026-07-10',
+    pkg: 'karesansui',
   },
-  {
-    name: 'boop',
-    status: 'LIVE',
-    kind: 'boop',
-    href: 'https://boop.homeofed.com',
-    deployedAt: '2026-08-07',
-  },
-  {
-    name: 'Silt',
-    status: 'LIVE',
-    kind: 'silt',
-    href: 'https://silt.homeofed.com',
-    deployedAt: '2026-08-07',
-  },
+  { name: 'boop', status: 'LIVE', kind: 'boop', href: 'https://boop.homeofed.com', pkg: 'boop' },
+  { name: 'Silt', status: 'LIVE', kind: 'silt', href: 'https://silt.homeofed.com', pkg: 'silt' },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
 
@@ -99,9 +95,11 @@ export function HomePage() {
       <nav className={styles.apps} aria-label="apps">
         <div className={styles.gallery} ref={galleryRef}>
           {APPS.map((app) => {
+            const pill = pillFor(appDates(app.pkg), now)
             const inner = (
               <>
-                {isNew(app.deployedAt, now) && <span className={styles.newPill}>New</span>}
+                {pill === 'new' && <span className={styles.newPill}>New</span>}
+                {pill === 'updated' && <span className={styles.updatedPill}>Updated</span>}
                 <canvas className={styles.preview} data-kind={app.kind} aria-hidden="true" />
                 <div className={styles.cardFoot}>
                   <span className={styles.name}>{app.name}</span>

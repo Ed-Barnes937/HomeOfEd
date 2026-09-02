@@ -1,9 +1,11 @@
 import { test } from './testing/iwftTest.tsx'
 
-// Ticket 23: the play bar never scrolls away. The clip play button (the well's
-// footer at >=1024) and the song play button (the phone song bar's header) are
-// on screen at every width and every window height — when there is not enough
-// room the *grid* scrolls, inside its own well, and the bar stays put.
+// Ticket 23: the play bar never scrolls away. Screenspace ticket 03 kept the
+// promise and moved both halves of it. Clip play is the dock's launcher, at
+// every width — pinned, never scrolled, and there whether or not the editor is
+// open. Song play is the song bar's header, and the song bar is the scrolling
+// region's whole content now, so what gives way when the room runs out is the
+// lane grid inside its own box, never the header above it.
 //
 // Every viewport here is deliberately short, so the stack genuinely does not
 // fit and something has to give; on a tall window nothing moves and the suite
@@ -12,33 +14,39 @@ import { test } from './testing/iwftTest.tsx'
 test.describe('laptop, short window', () => {
   test.use({ viewport: { width: 1280, height: 600 } })
 
-  test('the clip play button is on screen, with nothing scrolled', async ({ mountApp }) => {
+  test('both play buttons are on screen, with nothing scrolled', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
-    // The whole complaint in one assertion: play this clip is right there.
+    // The whole complaint in one pair of assertions: both buttons are right
+    // there, on the resting home surface.
     await root.verifyClipPlayFullyInViewport()
+    await root.verifyNotOccluded('clip-launcher-play')
+    await root.verifySongPlayFullyInViewport()
+    await root.verifyNotOccluded('song-play-button')
     await root.verifyNothingIsScrolled()
-    // And it stays there once the child has scrolled the grid.
-    await root.scrollGridWellToBottom()
-    await root.verifyClipPlayFullyInViewport()
   })
 
-  test('the well scrolls, not the frame — the grid region and the page stay put', async ({
-    mountApp,
-  }) => {
+  test('the well scrolls inside the card, not the frame', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
 
     await root.verifyGridWellIsTheScroller()
-    // Here the stronger claim does hold: the well swallows the whole squeeze,
-    // so neither the region nor the page has anything to scroll.
-    await root.verifyNothingIsScrolled()
+    // The card bounds the grid, so nothing behind it moved: neither the region
+    // nor the page has anything to scroll.
+    await root.verifyPageDoesNotScroll()
+    // Clip play is reachable from both sides of the card — the well's footer
+    // inside it and the launcher outside.
+    await root.scrollGridWellToBottom()
+    await root.verifyNotOccluded('play-button')
+    await root.verifyClipPlayFullyInViewport()
   })
 
   test('the grid is still 6 x 16, at the laptop cell geometry', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
 
     await root.verifyGridIsSixBySixteen()
     await root.verifyCellGeometry(52, 56)
@@ -47,6 +55,7 @@ test.describe('laptop, short window', () => {
   test('the playhead column lands on its step, scrolled well or not', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
 
     await root.pressPlay()
     await root.verifyPlaying()
@@ -68,13 +77,16 @@ test.describe('laptop, short window', () => {
 // The column fits whole at 1440, so the well's scroll box has no business
 // scrolling sideways — which makes this the width where the playhead column's
 // 8px overhang shows up if `.wellScroll`'s padding stops holding it. Step 15
-// is the only step that puts the overhang past the last cell.
+// is the only step that puts the overhang past the last cell. Since the card
+// contains that column, this is also where the card's own width is measured.
 test.describe('laptop, the whole column', () => {
   test.use({ viewport: { width: 1440, height: 700 } })
 
   test('the playhead at the last step does not push the well sideways', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
+    await root.verifyCardHoldsTheColumn()
     await root.verifyGridWellHasNoSidewaysScroll()
 
     await root.pressPlay()
@@ -90,56 +102,83 @@ test.describe('laptop, the whole column', () => {
   })
 })
 
-// The song bar grows with the song, and until ticket 23 the dock it sits in
-// was `flex: none` — so at the five-clip cap it took 476 of 600px and left the
-// grid 16px, with the clip control drawn over the bar and eating its taps. The
-// dock is capped now, and these are the states that has to hold in: one clip
-// and five, at both laptop heights and in the tablet band. `elementFromPoint`,
-// not viewport intersection, because "drawn but covered" was the old failure.
-test.describe('the five-clip cap', () => {
-  // What the dock cap leaves the well at these viewports, in laptop numbers:
-  // the bar-numeral row (15 + 8) and two 66px rows with their 10px gap. Named
-  // for what it is — `Grid.module.scss` has no floor and must not be given
-  // one — and pinned so that a change to the cap is loud.
-  const TWO_ROWS_VISIBLE = 15 + 8 + 2 * 66 + 10
+// Screenspace ticket 04's verify list, at the two viewports it names. A short
+// window and a short laptop: the two shapes the retired compromises were each
+// written for. Every control the width offers, whole and uncovered, with the
+// page still — one clip and five, since five is the state that made the dock
+// grow and the grid starve.
+for (const [width, height] of [
+  [390, 460],
+  [1280, 600],
+] as const) {
+  test.describe(`every control is reachable at ${width}x${height}`, () => {
+    test.use({ viewport: { width, height } })
 
-  async function fiveClips(root: {
-    startBlank: () => Promise<void>
-    addClip: () => Promise<void>
-    verifyClipCount: (count: number) => Promise<void>
-  }) {
-    await root.startBlank()
-    await root.addClip()
-    await root.addClip()
-    await root.addClip()
-    await root.addClip()
-    await root.verifyClipCount(5)
-  }
+    test('at one clip and at five, with the page still', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+
+      await root.verifyEveryControlIsReachable()
+
+      await fiveClips(root)
+
+      await root.verifyEveryControlIsReachable()
+    })
+  })
+}
+
+// The five-clip cap: the most a song can hold, and so the most any bar or well
+// ever has to survive. Shared by the laptop suites below.
+async function fiveClips(root: {
+  startBlank: () => Promise<void>
+  addClip: () => Promise<void>
+  verifyClipCount: (count: number) => Promise<void>
+}) {
+  await root.startBlank()
+  await root.addClip()
+  await root.addClip()
+  await root.addClip()
+  await root.addClip()
+  await root.verifyClipCount(5)
+}
+
+// The song bar grows with the song, and it is what the scrolling region holds
+// now. These are the states that has to survive: one clip and five, at both
+// laptop heights and in the tablet band. `elementFromPoint`, not viewport
+// intersection, because "drawn but covered" was the old failure mode.
+test.describe('the five-clip cap', () => {
+  // What the card leaves the well at these viewports, in laptop numbers: the
+  // bar-numeral row (15 + 8) and two 66px rows with their 10px gap. Named for
+  // what it is — `Grid.module.scss` has no floor and must not be given one —
+  // and pinned so that a change to the card's height is loud.
+  const TWO_ROWS_VISIBLE = 15 + 8 + 2 * 66 + 10
 
   test.describe('1280x600', () => {
     test.use({ viewport: { width: 1280, height: 600 } })
 
-    test('clip play survives one clip and five, and the grid keeps its floor', async ({
-      mountApp,
-    }) => {
+    test('both play buttons survive one clip and five', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
 
-      await root.verifyNotOccluded('play-button')
-      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
+      await root.verifyNotOccluded('clip-launcher-play')
+      await root.verifyNotOccluded('song-play-button')
       await root.verifyNothingIsScrolled()
 
       await fiveClips(root)
 
       // The whole regression in one assertion: five clips used to leave 16px
       // of grid and a play button the song bar was swallowing.
-      await root.verifyNotOccluded('play-button')
+      await root.verifyNotOccluded('clip-launcher-play')
+      await root.verifyNotOccluded('song-play-button')
       await root.verifyClipPlayFullyInViewport()
-      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
       await root.verifyNothingIsScrolled()
+
+      // And the grid the card opens on is still a usable grid.
+      await root.openClipEditor()
+      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
     })
 
-    test('the capped dock scrolls its lanes without slicing their focus rings', async ({
+    test('the song bar scrolls its lanes without slicing their focus rings', async ({
       mountApp,
     }) => {
       const { root } = await mountApp()
@@ -155,45 +194,54 @@ test.describe('the five-clip cap', () => {
   test.describe('1440x700', () => {
     test.use({ viewport: { width: 1440, height: 700 } })
 
-    test('clip play survives one clip and five here too', async ({ mountApp }) => {
+    test('both play buttons survive one clip and five here too', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
 
-      await root.verifyNotOccluded('play-button')
+      await root.verifyNotOccluded('clip-launcher-play')
       await fiveClips(root)
-      await root.verifyNotOccluded('play-button')
+      await root.verifyNotOccluded('clip-launcher-play')
+      await root.verifyNotOccluded('song-play-button')
       await root.verifyClipPlayFullyInViewport()
-      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
       await root.verifyNothingIsScrolled()
+
+      await root.openClipEditor()
+      await root.verifyGridShowsAtLeast(TWO_ROWS_VISIBLE)
     })
   })
 
   test.describe('tablet band, 1100x800', () => {
     test.use({ viewport: { width: 1100, height: 800 } })
 
-    test('the tablet band keeps its floor and its play button at five clips', async ({
-      mountApp,
-    }) => {
+    test('the tablet band keeps both play buttons at five clips', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
       await fiveClips(root)
 
-      await root.verifyNotOccluded('play-button')
+      await root.verifyNotOccluded('clip-launcher-play')
+      await root.verifyNotOccluded('song-play-button')
       await root.verifyClipPlayFullyInViewport()
-      // The tablet's own numbers: 12 + 8, then two 50px rows with an 8px gap.
-      await root.verifyGridShowsAtLeast(12 + 8 + 2 * 50 + 8)
       await root.verifyNothingIsScrolled()
+
+      // The tablet's own numbers: 12 + 8, then two 50px rows with an 8px gap.
+      await root.openClipEditor()
+      await root.verifyGridShowsAtLeast(12 + 8 + 2 * 50 + 8)
     })
   })
 })
 
-// The dock cap's own failure mode, found in review: the song bar has an
-// irreducible 193px, and a cap below that does not shrink it — the dock is
-// `overflow: visible`, so the excess lands in the document and the page
-// scrolls. 32dvh falls under 193 below 610px tall, which put a scrolling page
-// on every laptop height from 600 down: 1px at 600, small enough for the `+1`
-// tolerance to swallow, 33px at 500. These heights sit inside that band, and
-// the assertion asks the browser to scroll rather than reading a number.
+// **The >=1024 dock cap is retired** (screenspace ticket 04), and this is the
+// block that measured it. The cap existed because the dock held the song bar
+// and the song bar grows with the song: five clips at 1280x600 took 476 of
+// 600px. The dock holds a fixed-height launcher since screenspace ticket 03,
+// so nothing in it grows — measured with the cap gone, the dock is 132px at
+// 1280x600 and at 1280x900, one clip or five, against a cap that would have
+// allowed 192. It never bound.
+//
+// What the cap was really guarding is the rule below, so the rule is what these
+// heights assert now: a dock that outgrew its cap spilled into the document and
+// scrolled the *page*, because the dock is `overflow: visible`. Five clips as
+// well as one, since the growth the cap feared only ever appeared at five.
 test.describe('laptop, short windows — the frame must not become a page', () => {
   for (const [width, height] of [
     [1280, 600],
@@ -204,12 +252,26 @@ test.describe('laptop, short windows — the frame must not become a page', () =
     test.describe(`${width}x${height}`, () => {
       test.use({ viewport: { width, height } })
 
-      test('the page does not scroll, and clip play is still uncovered', async ({ mountApp }) => {
+      test('the page does not scroll, and both play buttons are uncovered', async ({
+        mountApp,
+      }) => {
         const { root } = await mountApp()
         await root.verifyIsShown()
 
-        await root.verifyPageDoesNotMove()
-        await root.verifyNotOccluded('play-button')
+        await root.verifyStageIsAFixedFrame()
+        await root.verifyNotOccluded('clip-launcher-play')
+        await root.verifyNotOccluded('song-play-button')
+        await root.verifyDockDoesNotGrow()
+
+        await fiveClips(root)
+
+        await root.verifyStageIsAFixedFrame()
+        await root.verifyNotOccluded('clip-launcher-play')
+        await root.verifyNotOccluded('song-play-button')
+        // The cap's own claim, asserted rather than only written down: five
+        // clips is what used to take the dock to 476px, and it does not move
+        // the launcher by a pixel now.
+        await root.verifyDockDoesNotGrow()
       })
     })
   }
@@ -218,17 +280,19 @@ test.describe('laptop, short windows — the frame must not become a page', () =
 test.describe('tablet band, short window', () => {
   test.use({ viewport: { width: 1100, height: 600 } })
 
-  test('the clip play button is on screen here too', async ({ mountApp }) => {
+  test('both play buttons are on screen here too', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
     await root.verifyClipPlayFullyInViewport()
+    await root.verifySongPlayFullyInViewport()
     await root.verifyNothingIsScrolled()
   })
 
   test('the grid is still 6 x 16, at the tablet cell geometry', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
 
     await root.verifyGridIsSixBySixteen()
     await root.verifyCellGeometry(42, 50)
@@ -237,6 +301,7 @@ test.describe('tablet band, short window', () => {
   test('the playhead column lands on its step at the tablet numbers too', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
 
     await root.pressPlay()
     await root.verifyPlaying()
@@ -255,22 +320,19 @@ test.describe('tablet band, short window', () => {
 test.describe('small phone, short window', () => {
   test.use({ viewport: { width: 390, height: 640 } })
 
-  test('the song play button is on screen, with nothing scrolled', async ({ mountApp }) => {
+  test('both play buttons are on screen, with nothing scrolled', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
     await root.verifyPhoneChromeShown()
 
     await root.verifySongPlayFullyInViewport()
-    // The region scrolls here, and the page still does not. Since boop-playhead
-    // ticket 06 the phone bar also carries the WHOLE SONG band, and at 640px
-    // there is nowhere left to put its 47px: the grid well is already at its
-    // three-row floor. ADR 0030 as amended allows exactly this — a phone short
-    // enough scrolls the region rather than shrink the grid away — and the
-    // promise this test exists for is untouched, since both play buttons are
-    // still whole and on screen.
-    await root.verifyGridWellIsTheScroller()
-    // The pinned transport's clip play is the other half of the same promise.
-    await root.verifyTransportFullyInViewport()
+    await root.verifyNotOccluded('song-play-button')
+    await root.verifyLauncherFullyInViewport()
+    await root.verifyNotOccluded('clip-launcher-play')
+    // The region has nothing left to scroll now the grid is behind a tap: the
+    // song bar's `max-height: 100%` clamps it to the region and its lane strip
+    // is what gives way.
+    await root.verifyNothingIsScrolled()
   })
 
   test('the lane strip scrolls under a header that stays put', async ({ mountApp }) => {
@@ -280,21 +342,23 @@ test.describe('small phone, short window', () => {
     await root.verifySongPlayOutsideTheLaneScroller()
   })
 
-  test('the grid gives up its slack before the lane strip gives up any', async ({ mountApp }) => {
+  // The phone grid's three-row floor is retired (screenspace ticket 04) and
+  // this is what stands in its place. 320px is what the card leaves the rows
+  // here, measured — seven rows' worth of room for six rows of grid, against
+  // the 170px the floor guaranteed. The floor was written when the well and
+  // the song bar fought over the frame's one scrolling region; the card bounds
+  // the grid now, so there is nothing to fight.
+  test('the card leaves the grid more than its old floor ever did', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
 
-    // The default first-run screen: one clip, and its lane row whole. The grid
-    // is what is short here — it still has 162px of content it is not showing,
-    // but it is well clear of its floor.
-    await root.verifyLaneStripWhole()
-    await root.verifyGridWellIsTheScroller()
-    await root.verifyGridFloor(3)
+    await root.verifyGridShowsAtLeast(320)
+    await root.verifyClipPlayInWellIsReachable()
   })
 
   // `phoneLanes.iwft.tsx` runs at 390x844; this is the same interaction on a
-  // window short enough that the grid is scrolling. The strip itself is whole
-  // here — the squeezed-strip case is the five-lane describe below.
+  // window short enough that something has to give.
   test('placing and painting a lane still works on a short window', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
@@ -317,37 +381,39 @@ test.describe('small phone, short window', () => {
   test('the grid is still 6 x 16, at the phone cell geometry', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
+    await root.openClipEditor()
 
     await root.verifyGridIsSixBySixteen()
     await root.verifyCellGeometry(32, 44)
   })
 })
 
-// Below 500px of viewport height the frame gives up and the whole page scrolls
-// (ADR 0030, as amended by ticket 23 — the repo owner's call). It is the one
-// band where this app's page-never-scrolls rule inverts, and the reason is that
-// no fixed arrangement keeps both play buttons reachable down here: the grid's
-// floor plus the song bar's header is taller than the room between the two
-// pinned bars, so song play ends up behind the transport from 492px down.
-// Scrolling the page reaches both; a fixed frame that hides one reaches
-// neither.
-// 460 and 492 are comfortably inside the band; 504 is its top edge, the last
-// height the exception covers. Testing the edge is what stops the threshold
-// drifting without anyone noticing — the four pixels between the measured
-// occlusion boundary (503) and the shipped threshold (505) are exactly where a
-// silent change would hide.
-for (const height of [460, 492, 504]) {
-  test.describe(`small phone, 390x${height} — under the short-window threshold`, () => {
+// **The 505px page-scroll exception is retired** (screenspace ticket 04), and
+// this band is where it was measured. It existed because no fixed arrangement
+// kept both play buttons reachable while the grid and the song bar were both
+// up; only the song bar is up now, so there is nothing left for it to buy.
+//
+// 504 and 505 were the deciding pair — the last page-scrolling height and the
+// first fixed-frame one. That boundary is gone rather than moved, so the pair
+// is kept and pointed the other way: every height here asserts the *same*
+// promise, and `verifyStageIsAFixedFrame` is what would fail if 504 started
+// behaving differently from 505 again. The heights below 505 are the ones that
+// used to scroll the document; they are the whole point of running these.
+//
+// 380 and 420 are new, and they are the heights the retired grid floor failed
+// at: with the floor on, clip play sat wholly below the fold at 380 (y 381-429
+// against a 380px window) and 13px below it at 420, because screenspace ticket
+// 03 put that button inside the well the floor refused to shrink.
+for (const height of [380, 420, 460, 492, 504, 505, 520]) {
+  test.describe(`small phone, 390x${height}`, () => {
     test.use({ viewport: { width: 390, height } })
 
-    test('the page scrolls, and both play buttons are reachable and uncovered', async ({
+    test('both play buttons are reachable and uncovered, at one clip and at five', async ({
       mountApp,
     }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
 
-      // One clip, then three, then five: the floor has to hold at each, and
-      // both buttons have to stay reachable as the song grows.
       for (const clips of [1, 3, 5]) {
         if (clips > 1) {
           await root.startBlank()
@@ -355,48 +421,68 @@ for (const height of [460, 492, 504]) {
           await root.verifyClipCount(clips)
         }
 
-        await root.verifyPageIsTheScroller()
-
-        // Reachable means reachable by scrolling, which is the whole point of
-        // the exception — and unoccluded when you get there, by
-        // `elementFromPoint` rather than viewport intersection.
-        await root.scrollPageToTop()
         await root.verifyNotOccluded('song-play-button')
-        await root.verifyGridFloor(3)
-
-        await root.scrollPageToBottom()
-        await root.verifyNotOccluded('play-button')
-        await root.verifyNotOccluded('song-play-button')
+        await root.verifyNotOccluded('clip-launcher-play')
+        await root.verifyStageIsAFixedFrame()
       }
     })
-  })
-}
 
-// The other side of the boundary. 505 is the first fixed-frame height and the
-// first height at which song play is wholly clear of the transport — the two
-// have to be the same number or the threshold fails at its own edge, which is
-// why this runs at 505 exactly rather than somewhere comfortable.
-// 505 is the first fixed-frame height, and it has to be a height at which song
-// play is wholly clear or the threshold fails at its own edge. The measured
-// boundary is 503, so there are 2px of margin — and this runs at 505 exactly,
-// not somewhere comfortable, so anything that moves the header, the floor or
-// the transport eats that margin loudly.
-for (const height of [505, 520]) {
-  test.describe(`small phone, 390x${height} — at and above the threshold`, () => {
-    test.use({ viewport: { width: 390, height } })
-
-    test('the frame is still fixed, and song play is wholly clear', async ({ mountApp }) => {
+    test('the grid fits the card, and clip play under it is reachable', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
+      await root.openClipEditor()
 
-      // The page does not scroll here — that is the invariant the band below
-      // gives up. The *region* does, which is the floor being paid for and has
-      // been allowed since the floor landed.
-      await root.verifyPageDoesNotScroll()
-      await root.verifyGridWellIsTheScroller()
-      await root.verifyGridFloor(3)
-      await root.verifyNotOccluded('song-play-button')
-      await root.verifyTransportFullyInViewport()
+      // The grid is now a straight function of the window, with no step in it
+      // anywhere: the card is `max-height: 88dvh` and everything between the
+      // card's edge and the rows — the ×, the clip header, the well's padding,
+      // the loop map, the clip control — is a fixed 243px. Measured at 91px of
+      // rows at 380, 127 at 420, 162 at 460 and 201 at 505, all within 1px of
+      // this. It is a *measurement*, not a layout rule; nothing holds the grid
+      // here. What it pins is that the relationship stays linear — the retired
+      // floor and the retired 505 exception were both steps in it, and a step
+      // is as wrong upwards as downwards, so this is asserted both ways.
+      await root.verifyGridTracksTheCard(Math.floor(height * 0.88) - 243)
+      await root.verifyClipPlayInWellIsReachable()
+      await root.verifyStageIsAFixedFrame()
     })
   })
 }
+
+// The landscape phone cited in `PhoneGrid.module.scss`'s retirement note. It
+// is the shortest window boop is likely to meet on a real device, and it is
+// where the three-row floor put clip play wholly off screen (y 380-428 against
+// a 375px window). Pinned so the cited measurement has a test behind it.
+test.describe('landscape phone, 667x375', () => {
+  test.use({ viewport: { width: 667, height: 375 } })
+
+  test('every control is reachable, and clip play is inside the card', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    await root.verifyEveryControlIsReachable()
+
+    await root.openClipEditor()
+    await root.verifyClipPlayInWellIsReachable()
+    await root.verifyStageIsAFixedFrame()
+  })
+})
+
+// The boundary itself, asserted as absent. 504 and 505 were the pair the
+// exception turned on — 126px of page overflow on one side and zero on the
+// other. One viewport, resized across the old threshold: the grid must not
+// step, because nothing keys off 505 any more.
+test.describe('small phone, across the retired 505 threshold', () => {
+  test.use({ viewport: { width: 390, height: 505 } })
+
+  test('504 and 505 differ by a pixel of window, not by a layout mode', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.openClipEditor()
+    await root.verifyStageIsAFixedFrame()
+
+    await root.verifyResizingDoesNotStepTheGrid(390, 504)
+
+    await root.verifyStageIsAFixedFrame()
+    await root.verifyClipPlayInWellIsReachable()
+  })
+})

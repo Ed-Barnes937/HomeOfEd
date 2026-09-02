@@ -31,11 +31,23 @@ export const parentAuth = {
     name: string
     email: string
     password: string
+    ukResidenceAttested: boolean
+    tosAgreed: boolean
+    // ADR-0019 family pilot: checked server-side, never persisted.
+    inviteCode: string
   }): Promise<{ error: AuthError | null }> => {
+    const { ukResidenceAttested, tosAgreed, ...rest } = data
+    // The claims ride in the payload as the two additionalFields (ADR-0014 /
+    // ADR-0015); the server ignores these timestamps and stamps its own.
+    const now = new Date().toISOString()
     const res = await fetch('/api/auth/sign-up/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...rest,
+        ...(ukResidenceAttested ? { ukResidenceAttestedAt: now } : {}),
+        ...(tosAgreed ? { tosAgreedAt: now } : {}),
+      }),
       credentials: 'include',
     })
     if (!res.ok) return { error: { message: await readErrorMessage(res, 'Sign up failed') } }

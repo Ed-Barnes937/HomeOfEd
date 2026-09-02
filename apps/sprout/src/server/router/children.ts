@@ -23,6 +23,7 @@ import {
   RemoveTopicHandler,
   removeTopicInputSchema,
 } from '../handlers/children/removeTopicHandler.ts'
+import { ResetPinHandler, resetPinInputSchema } from '../handlers/children/resetPinHandler.ts'
 import {
   UpdateCalibrationHandler,
   updateCalibrationInputSchema,
@@ -51,7 +52,12 @@ export function createChildrenRouter(deps: RouterDeps) {
       ),
     update: publicProcedure
       .input(updateChildInputSchema)
-      .mutation(({ input, ctx }) => new UpdateChildHandler(deps.hasher).run(input, ctx)),
+      .mutation(({ input, ctx }) => new UpdateChildHandler().run(input, ctx)),
+    // Forgotten-PIN recovery (ADR 0037): clears the PIN and revives the
+    // first-login convention — the parent never chooses the new PIN.
+    resetPin: publicProcedure
+      .input(resetPinInputSchema)
+      .mutation(({ input, ctx }) => new ResetPinHandler(deps.hasher).run(input, ctx)),
     config: publicProcedure
       .input(getChildConfigInputSchema)
       .query(({ input, ctx }) => new GetChildConfigHandler().run(input, ctx)),

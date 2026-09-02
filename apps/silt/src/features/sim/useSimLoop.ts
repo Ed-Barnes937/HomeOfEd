@@ -1,18 +1,13 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 
-import {
-  createRegistry,
-  FixedTimestep,
-  GRID_WIDTH,
-  MS_PER_TICK,
-  Sim,
-  v1Elements,
-  v1Reactions,
-  type ElementRegistry,
-} from '../../sim/index.ts'
-import { SimRenderer } from '../render/renderer.ts'
+import { createRegistry, EMPTY, GRID_WIDTH, v1Elements, v1Reactions, type ElementRegistry } from '../../sim/index.ts'
+import { createRenderer } from '../render/createRenderer.ts'
+import type { WorldRenderer } from '../render/renderer.ts'
+import { brushOffsets } from './brushOffsets.ts'
+import { createSimHost, type SimHost } from './simHost.ts'
+import { strokeSteps } from './strokeSteps.ts'
 import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
-import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
+import { isUnderBrush, type Spawner } from '../spawners/spawners.ts'
 
 /**
  * Test-only seam (mirrors boids' window-key pattern): a property on the
@@ -28,6 +23,10 @@ export interface SiltTestSeam {
    * asserting "painting worked" without racing the sim's own movement. */
   countSpecies(species: number): number
   gridToCanvasPoint(x: number, y: number): { x: number; y: number }
+  /** Which frame path is live — WebGL2, or the Canvas 2D fallback (120fps ticket 01). */
+  rendererKind(): '2d' | 'webgl2'
+  /** Which thread ticks the sim — a worker, or the main-thread fallback (120fps ticket 02). */
+  simHostKind(): 'local' | 'worker'
 }
 
 /** Where the pointer is, in both grid and CSS-px terms — enough to draw a
@@ -48,9 +47,11 @@ export interface UseSimLoopOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
   /** Paused = setup mode (spec §3); painting works in both states. */
   running: boolean
-  /** The species painting or spawner placement applies — EMPTY when the erase tool is active. */
+  /** The species painting or spawner placement applies — EMPTY when the erase
+   * tool is active, which is also what makes an erase stroke sweep spawners
+   * out of its brush footprint. */
   selectedElement: number
-  /** Square brush width in cells (odd, so it has a centre); 1 = single cell. Spawners ignore this — one entity per click. */
+  /** Round brush diameter in cells (odd, so it has a centre); 1 = single cell. Spawners ignore this — one entity per click. */
   brushWidth: number
   /** Paint vs spawner-placement mode (spec §3, §7); the rail toggle from ticket 07. */
   mode: SimMode
@@ -62,20 +63,6 @@ export interface UseSimLoopOptions {
   onFps?: (fps: number) => void
   /** Fires whenever a spawner is placed or removed, with the current list (a fresh copy). */
   onSpawnersChange?: (spawners: readonly Spawner[]) => void
-}
-
-/** `(dx, dy)` offsets covering a centred square brush of this cell width (odd, so it has a centre). */
-function brushOffsets(width: number): readonly { dx: number; dy: number }[] {
-  const half = (width - 1) / 2
-  const lo = Math.floor(half)
-  const hi = Math.ceil(half)
-  const offsets: { dx: number; dy: number }[] = []
-  for (let dy = -lo; dy <= hi; dy++) {
-    for (let dx = -lo; dx <= hi; dx++) {
-      offsets.push({ dx, dy })
-    }
-  }
-  return offsets
 }
 
 export interface UseSimLoopControls {
@@ -104,15 +91,17 @@ export interface UseSimLoopControls {
 }
 
 /**
- * Owns the Sim/renderer lifecycle for the page: the fixed-timestep tick loop
- * (decoupled from rAF per spec §5.3), DPR-aware canvas sizing (a
- * ResizeObserver for CSS-size changes plus a `resolution` media-query watcher
- * for zoom-only devicePixelRatio changes — both refit the canvas only, the
- * sim is never touched), and click/drag painting. React owns
+ * Owns the SimHost/renderer lifecycle for the page: the sim ticks in its host
+ * (a worker where the page is cross-origin isolated, the main thread
+ * otherwise — 120fps ticket 02), the rAF loop here only draws the host's live
+ * world view. DPR-aware canvas sizing (a ResizeObserver for CSS-size changes
+ * plus a `resolution` media-query watcher for zoom-only devicePixelRatio
+ * changes — both refit the canvas only, the sim is never touched) and
+ * click/drag painting stay main-side. React owns
  * `running`/`selectedElement`/`brushWidth`; changes are pushed into the loop
  * via refs, never by restarting the effect, so toggling play/pause never
  * resets the world. `step`/`reset` are exposed so the page's header buttons
- * can reach into the same sim instance.
+ * can reach into the same host.
  */
 export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   const runningRef = useRef(opts.running)
@@ -123,16 +112,21 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   const onCursorChangeRef = useRef(opts.onCursorChange)
   const onFpsRef = useRef(opts.onFps)
   const onSpawnersChangeRef = useRef(opts.onSpawnersChange)
-  const simRef = useRef<Sim | null>(null)
-  const rendererRef = useRef<SimRenderer | null>(null)
+  const hostRef = useRef<SimHost | null>(null)
+  /** The `running` value the host last heard — sends happen on change only. */
+  const sentRunningRef = useRef<boolean | null>(null)
+  const rendererRef = useRef<WorldRenderer | null>(null)
   const spawnersRef = useRef<Spawner[]>([])
   // Same defaults `Sim` itself falls back to, so the rail matches the canvas
-  // from first paint — swapped for the sim's own `registry` once it mounts.
+  // from first paint — swapped for the host's own `registry` once it mounts.
   const [registry, setRegistry] = useState<ElementRegistry>(() => createRegistry(v1Elements, v1Reactions))
 
   // One effect syncing all the latest-value refs (ticket 15), rather than one
   // per option — still an effect, not a render-phase write, so it doesn't
   // misbehave under concurrent rendering and StrictMode double-invocation.
+  // Running is the one value the host must *hear about* (it owns the tick
+  // loop now), so a change is also forwarded — deduplicated, or every render
+  // would send a message.
   useEffect(() => {
     runningRef.current = opts.running
     selectedRef.current = opts.selectedElement
@@ -142,6 +136,10 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     onCursorChangeRef.current = opts.onCursorChange
     onFpsRef.current = opts.onFps
     onSpawnersChangeRef.current = opts.onSpawnersChange
+    if (hostRef.current && sentRunningRef.current !== opts.running) {
+      sentRunningRef.current = opts.running
+      hostRef.current.send({ type: 'setRunning', running: opts.running })
+    }
   })
 
   // canvasRef identity is stable across renders; the options above are synced
@@ -150,28 +148,66 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     const canvas = opts.canvasRef.current
     if (!canvas) return
 
-    const sim = new Sim()
-    simRef.current = sim
-    setRegistry(sim.registry)
-    const renderer = new SimRenderer(canvas, sim.registry)
+    // A worker when the page is cross-origin isolated, the main thread
+    // otherwise (120fps ticket 02). The host owns the tick loop; this effect
+    // owns input and drawing.
+    const host = createSimHost()
+    hostRef.current = host
+    setRegistry(host.registry)
+    sentRunningRef.current = runningRef.current
+    host.send({ type: 'setRunning', running: runningRef.current })
+
+    // Hidden pauses ticking (without touching `running`), matching the old
+    // rAF-driven loop, where a backgrounded tab stopped advancing.
+    const onVisibility = (): void => {
+      host.send({ type: 'setVisible', visible: document.visibilityState === 'visible' })
+    }
+    onVisibility()
+    document.addEventListener('visibilitychange', onVisibility)
+
+    // WebGL2 when available, the Canvas 2D renderer otherwise (120fps ticket 01).
+    const renderer = createRenderer(canvas, host.registry)
     rendererRef.current = renderer
 
     const width = canvas.clientWidth || window.innerWidth
     const height = canvas.clientHeight || window.innerHeight
     renderer.resize(width, height, window.devicePixelRatio || 1)
 
+    // The canvas's on-screen box, cached. `getBoundingClientRect` forces a
+    // layout, and `onPointerMove` would otherwise pay for two of them per
+    // event while dragging (once for the cursor readout, once inside
+    // `paintAt`) — at a trackpad's 120 Hz report rate, on the frame the sim is
+    // busiest. Read eagerly here so it is already right on the first pointer
+    // event, before any observer has fired.
+    //
+    // A stale rect is a *correctness* bug — paint lands in the wrong cell and
+    // the brush outline detaches from the pointer — so every way the box can
+    // move refreshes it: the ResizeObserver and the DPR watcher (the canvas's
+    // own size), window resize (the viewport, which moves a centred canvas
+    // without resizing it), and scroll. Scroll is captured on `window` because
+    // scroll events do not bubble: only the capture phase sees an ancestor
+    // scroller's scroll.
+    let rect = canvas.getBoundingClientRect()
+    const refreshRect = (): void => {
+      rect = canvas.getBoundingClientRect()
+    }
+
     const refit = (): void => {
-      const rect = canvas.getBoundingClientRect()
+      refreshRect()
       renderer.resize(rect.width, rect.height, window.devicePixelRatio || 1)
     }
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
+      refreshRect()
       const { width: w, height: h } = entry.contentRect
       renderer.resize(w, h, window.devicePixelRatio || 1)
     })
     resizeObserver.observe(canvas)
+
+    window.addEventListener('scroll', refreshRect, { capture: true, passive: true })
+    window.addEventListener('resize', refreshRect, { passive: true })
 
     // devicePixelRatio changes (browser/OS zoom) don't touch the canvas's CSS
     // size, so ResizeObserver never fires for them — spec §6 requires the
@@ -190,26 +226,61 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     }
     watchDpr()
 
-    const cellAt = (clientX: number, clientY: number): { x: number; y: number } | null => {
-      const rect = canvas.getBoundingClientRect()
-      return renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
-    }
+    const cellAt = (clientX: number, clientY: number): { x: number; y: number } | null =>
+      renderer.canvasPointToGrid(clientX - rect.left, clientY - rect.top)
 
+    const view = host.view
     let painting = false
-    const paintAt = (clientX: number, clientY: number): void => {
-      const cell = cellAt(clientX, clientY)
-      if (!cell) return
+    // The last cell the current stroke stamped — what `paintAt` interpolates
+    // from, so a fast drag reads as a line, not a dot per pointer sample.
+    let lastPaintCell: { x: number; y: number } | null = null
+    // Brush geometry (round footprint, stroke interpolation, the spawner
+    // erase sweep) stays main-side; the host only hears cell indices. One
+    // batched message per pointer event — the round trip is longer than a
+    // pointer event, so per-cell messages would flood the channel.
+    const stampAt = (cell: { x: number; y: number }, out: number[]): void => {
       for (const { dx, dy } of brushOffsets(brushRef.current)) {
         const x = cell.x + dx
         const y = cell.y + dy
-        if (x < 0 || y < 0 || x >= sim.width || y >= sim.height) continue
-        sim.paint(x, y, selectedRef.current)
+        if (x < 0 || y < 0 || x >= view.width || y >= view.height) continue
+        out.push(y * view.width + x)
+      }
+      // Erase clears the world under the brush, and a spawner is part of that
+      // world even though it isn't a cell — leaving it behind would refill the
+      // hole the stroke just made.
+      if (selectedRef.current === EMPTY) eraseSpawnersUnder(cell)
+    }
+    const paintAt = (clientX: number, clientY: number): void => {
+      const cell = cellAt(clientX, clientY)
+      if (!cell) return
+      const from = lastPaintCell
+      lastPaintCell = cell
+      const cellIndices: number[] = []
+      if (from) {
+        for (const step of strokeSteps(from, cell, brushRef.current)) stampAt(step, cellIndices)
+      } else {
+        stampAt(cell, cellIndices)
+      }
+      if (cellIndices.length > 0) {
+        host.send({ type: 'paintCells', cellIndices, species: selectedRef.current })
       }
       onPaintRef.current?.()
     }
 
-    const notifySpawners = (): void => {
+    // Spawners are entities owned here (the page draws their chrome); the
+    // host holds a copy purely for per-tick emission, refreshed on every
+    // change alongside the React notification.
+    const syncSpawners = (): void => {
+      host.send({ type: 'setSpawners', spawners: spawnersRef.current.slice() })
       onSpawnersChangeRef.current?.(spawnersRef.current.slice())
+    }
+
+    const eraseSpawnersUnder = (cell: { x: number; y: number }): void => {
+      const spawners = spawnersRef.current
+      const kept = spawners.filter((spawner) => !isUnderBrush(spawner, cell, brushRef.current))
+      if (kept.length === spawners.length) return
+      spawners.splice(0, spawners.length, ...kept)
+      syncSpawners()
     }
 
     // Spawner mode places or removes one entity per click — no drag, unlike
@@ -223,7 +294,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       } else {
         spawners.push({ x, y, element: selectedRef.current })
       }
-      notifySpawners()
+      syncSpawners()
     }
 
     const onPointerDown = (event: PointerEvent): void => {
@@ -233,6 +304,8 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
         return
       }
       painting = true
+      // A fresh press starts a fresh stroke — never a line from the last one.
+      lastPaintCell = null
       paintAt(event.clientX, event.clientY)
     }
     const onPointerMove = (event: PointerEvent): void => {
@@ -252,6 +325,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     }
     const stopPainting = (): void => {
       painting = false
+      lastPaintCell = null
     }
     const onPointerLeave = (): void => {
       stopPainting()
@@ -262,41 +336,26 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     canvas.addEventListener('pointerup', stopPainting)
     canvas.addEventListener('pointerleave', onPointerLeave)
 
-    const timestep = new FixedTimestep(MS_PER_TICK)
-
     ;(canvas as unknown as Record<string, SiltTestSeam>)[TEST_SEAM_KEY] = {
-      speciesAt: (x, y) => sim.speciesAt(x, y),
-      countSpecies: (species) => {
-        let count = 0
-        for (let y = 0; y < sim.height; y++) {
-          for (let x = 0; x < sim.width; x++) {
-            if (sim.speciesAt(x, y) === species) count++
-          }
-        }
-        return count
-      },
+      // Reads go straight to the (shared) cell bytes, so the seam stays
+      // synchronous in worker mode too — its consumers poll, so a paint that
+      // is still in flight simply shows up a read later.
+      speciesAt: (x, y) => view.speciesAt(x, y),
+      countSpecies: (species) => view.countSpecies(species),
       gridToCanvasPoint: (x, y) => renderer.gridToCanvasPoint(x, y),
+      rendererKind: () => renderer.kind,
+      simHostKind: () => host.kind,
     }
 
+    // The tick loop lives in the host — this rAF loop only draws whatever
+    // revision the world has reached (spec §5.3's decoupling, now literal).
     let rafId = 0
-    let lastTime = performance.now()
-    let lastFpsSample = lastTime
+    let lastFpsSample = performance.now()
     let framesSinceSample = 0
     function frame(time: number): void {
-      const dt = time - lastTime
-      lastTime = time
-      // Emission is tied to sim ticks, not render frames (spec §7): it runs
-      // once per tick, inside the running gate, so it stops the moment the
-      // sim pauses — placement itself works regardless.
-      if (runningRef.current) {
-        timestep.advance(dt, () => {
-          emitSpawners(sim, spawnersRef.current)
-          sim.tick()
-        })
-      }
-      renderer.draw(sim)
-
-      framesSinceSample++
+      // `draw` skips an unchanged world (ticket 06), so this counts frames
+      // silt actually drew — a paused, untouched world honestly reads 0.
+      if (renderer.draw(view)) framesSinceSample++
       const sinceSample = time - lastFpsSample
       if (sinceSample >= 250) {
         onFpsRef.current?.(Math.round((framesSinceSample * 1000) / sinceSample))
@@ -309,10 +368,15 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     rafId = requestAnimationFrame(frame)
 
     return () => {
-      simRef.current = null
+      hostRef.current = null
       rendererRef.current = null
+      host.dispose()
+      renderer.dispose?.()
       resizeObserver.disconnect()
       stopWatchingDpr()
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('scroll', refreshRect, { capture: true })
+      window.removeEventListener('resize', refreshRect)
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', stopPainting)
@@ -324,18 +388,18 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   return {
     registry,
     // A step is exactly one sim tick (spec §3), and emission is per tick
-    // (spec §7) — so it runs here too, or a spawner scene stays dead under the
-    // step button while playing produces material.
+    // (spec §7) — the host runs both in order, or a spawner scene stays dead
+    // under the step button while playing produces material.
     step: () => {
-      const sim = simRef.current
-      if (!sim) return
-      emitSpawners(sim, spawnersRef.current)
-      sim.tick()
+      hostRef.current?.send({ type: 'step' })
     },
     // Reset clears cells and spawners together (spec §3, §7).
     reset: () => {
-      simRef.current?.clear()
+      const host = hostRef.current
+      if (!host) return
+      host.send({ type: 'reset' })
       spawnersRef.current.splice(0, spawnersRef.current.length)
+      host.send({ type: 'setSpawners', spawners: [] })
       onSpawnersChangeRef.current?.([])
     },
     gridToCanvasPoint: (x, y) => rendererRef.current?.gridToCanvasPoint(x, y) ?? null,
@@ -344,25 +408,36 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       return fit ? fit.width / GRID_WIDTH : 0
     },
     saveScene: () => {
-      const sim = requireSim(simRef.current)
-      const envelope = encodeScene(sim, spawnersRef.current, sim.registry)
+      const host = requireHost(hostRef.current)
+      // A consistent read, not a racy one: the sim may be mid-tick on its own
+      // thread, and a tear stored into a scene is permanent (unlike the
+      // renderer's, which the next frame repairs).
+      const envelope = host.view.readConsistent(() =>
+        encodeScene(host.view, spawnersRef.current, host.registry),
+      )
+      // A frame can be skipped now (ticket 06), so a save landing between a
+      // paint and the next rAF would snapshot the previous world. This is a
+      // no-op whenever the canvas is already current.
+      const renderer = rendererRef.current
+      renderer?.draw(host.view)
       return {
         json: JSON.stringify(envelope),
-        thumbnail: rendererRef.current?.snapshot() ?? null,
+        thumbnail: renderer?.snapshot() ?? null,
       }
     },
     loadScene: (json) => {
-      const sim = requireSim(simRef.current)
-      const scene = decodeScene(json, { width: sim.width, height: sim.height }, sim.registry)
-      sim.restore(scene.species, scene.ra, scene.rb)
+      const host = requireHost(hostRef.current)
+      const scene = decodeScene(json, { width: host.view.width, height: host.view.height }, host.registry)
+      host.send({ type: 'restore', species: scene.species, ra: scene.ra, rb: scene.rb })
       spawnersRef.current.splice(0, spawnersRef.current.length, ...scene.spawners)
+      host.send({ type: 'setSpawners', spawners: spawnersRef.current.slice() })
       onSpawnersChangeRef.current?.(spawnersRef.current.slice())
       return scene.warnings
     },
   }
 }
 
-function requireSim(sim: Sim | null): Sim {
-  if (!sim) throw new Error('the simulation is not running yet')
-  return sim
+function requireHost(host: SimHost | null): SimHost {
+  if (!host) throw new Error('the simulation is not running yet')
+  return host
 }

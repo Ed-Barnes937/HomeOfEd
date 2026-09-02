@@ -7,7 +7,7 @@ import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
 import { type Spawner } from '../features/spawners/spawners.ts'
 import { useArmedConfirm } from '../hooks/useArmedConfirm.ts'
-import { useSiltHotkeys } from '../hooks/useSiltHotkeys.ts'
+import { HOTKEYED_ENTRIES, useSiltHotkeys } from '../hooks/useSiltHotkeys.ts'
 import { EMPTY, GRID_HEIGHT, GRID_WIDTH, SAND } from '../sim/index.ts'
 import styles from './HomePage.module.scss'
 
@@ -211,10 +211,19 @@ export function HomePage() {
         <nav className={styles.rail} aria-label="tools">
           <div className={styles.palette} data-testid="palette">
             {palette.groups.map((group) => (
-              <div key={group.label} className={styles.paletteGroup}>
+              <div
+                key={group.label}
+                className={styles.paletteGroup}
+                data-testid={`palette-group-${group.label}`}
+              >
                 <span className={styles.groupLabel}>{group.label}</span>
                 {group.entries.map((entry) => {
-                  const hotkey = palette.entries.indexOf(entry) + 1
+                  // Only the first `HOTKEYED_ENTRIES` swatches have a key to
+                  // advertise, and the roster is longer than that. A badge
+                  // reading "10" would name a shortcut that does nothing — see
+                  // the hotkey gap in `.scratch/silt-materials/spec.md` §8.
+                  const nth = palette.entries.indexOf(entry) + 1
+                  const hotkey = nth <= HOTKEYED_ENTRIES ? nth : undefined
                   return (
                     <button
                       key={entry.id}
@@ -230,7 +239,11 @@ export function HomePage() {
                         aria-hidden="true"
                       />
                       <span className={styles.swatchName}>{entry.name}</span>
-                      <span className={styles.hotkey}>{hotkey}</span>
+                      {hotkey !== undefined && (
+                        <span className={styles.hotkey} data-testid="hotkey-badge">
+                          {hotkey}
+                        </span>
+                      )}
                     </button>
                   )
                 })}
@@ -251,9 +264,10 @@ export function HomePage() {
                   onClick={() => setBrushIndex(index)}
                 >
                   <span
-                    className={styles.brushSquare}
-                    // True relative scale (spec §9): each icon's side is proportional
+                    className={styles.brushDot}
+                    // True relative scale (spec §9): each icon's diameter is proportional
                     // to the brush's actual cell width, not just its position in the list.
+                    // Drawn as a circle, not the spec's square, since the brush itself is round.
                     style={{ width: width * BRUSH_ICON_SCALE, height: width * BRUSH_ICON_SCALE }}
                     aria-hidden="true"
                   />
@@ -333,6 +347,7 @@ export function HomePage() {
               fit={controls}
               palette={palette}
               selectedElement={selectedElement}
+              erasing={tool === 'erase'}
             />
           </div>
 

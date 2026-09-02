@@ -26,6 +26,13 @@ export class SiltPagePom extends BasePage {
     return pressed === 'true'
   }
 
+  /** A rail group section and one of the swatches inside it (spec §9). */
+  async verifyPaletteGroupContains(label: string, name: string): Promise<void> {
+    const group = this.page.getByTestId(`palette-group-${label}`)
+    await expect(group).toBeVisible()
+    await expect(group.getByTestId(`element-${name}`)).toBeVisible()
+  }
+
   async selectBrush(index: number): Promise<void> {
     await this.page.getByTestId(`brush-${index}`).click()
   }
@@ -68,6 +75,15 @@ export class SiltPagePom extends BasePage {
 
   async verifyNoSpawnerAt(x: number, y: number): Promise<void> {
     await expect(this.page.getByTestId(`spawner-${x}-${y}`)).toHaveCount(0)
+  }
+
+  /** The chrome saying a click or stroke here will take this spawner (spec §7). */
+  async verifySpawnerMarkedForRemoval(x: number, y: number): Promise<void> {
+    await expect(this.page.getByTestId(`spawner-${x}-${y}`)).toHaveClass(/spawnerRemove/)
+  }
+
+  async verifySpawnerNotMarkedForRemoval(x: number, y: number): Promise<void> {
+    await expect(this.page.getByTestId(`spawner-${x}-${y}`)).not.toHaveClass(/spawnerRemove/)
   }
 
   async spawnerCount(): Promise<string> {
@@ -159,12 +175,18 @@ export class SiltPagePom extends BasePage {
     return this.statusText(`scene-updated-${name}`)
   }
 
-  async verifySceneThumbnail(name: string): Promise<void> {
+  /** The row's thumbnail as its PNG data URL — comparable between rows. */
+  async sceneThumbnail(name: string): Promise<string> {
     const src = await this.page
       .getByTestId(`scene-row-${name}`)
       .getByTestId('scene-thumb')
       .getAttribute('src')
     expect(src).toMatch(/^data:image\/png;base64,/)
+    return src ?? ''
+  }
+
+  async verifySceneThumbnail(name: string): Promise<void> {
+    await this.sceneThumbnail(name)
   }
 
   async renameScene(from: string, to: string): Promise<void> {
@@ -211,6 +233,22 @@ export class SiltPagePom extends BasePage {
     await this.canvas.dispatchEvent('pointerup', { clientX, clientY, bubbles: true })
   }
 
+  /** Drags from one cell to another delivered as a single pointermove — the
+   * event pattern of a fast flick, where samples land many cells apart. */
+  async dragPaint(from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
+    const start = await this.canvasClientPoint(from.x, from.y)
+    const end = await this.canvasClientPoint(to.x, to.y)
+    await this.canvas.dispatchEvent('pointerdown', { ...start, bubbles: true })
+    await this.canvas.dispatchEvent('pointermove', { ...end, bubbles: true })
+    await this.canvas.dispatchEvent('pointerup', { ...end, bubbles: true })
+  }
+
+  /** Moves the pointer over a cell without pressing — drives the hover chrome. */
+  async hoverCell(x: number, y: number): Promise<void> {
+    const { clientX, clientY } = await this.canvasClientPoint(x, y)
+    await this.canvas.dispatchEvent('pointermove', { clientX, clientY, bubbles: true })
+  }
+
   /** Paints one cell via a real single-finger touch tap (spec §9: one finger paints). */
   async touchPaintCell(x: number, y: number): Promise<void> {
     const { clientX, clientY } = await this.canvasClientPoint(x, y)
@@ -239,6 +277,25 @@ export class SiltPagePom extends BasePage {
       if (!box) throw new Error('palette swatch has no bounding box')
       expect(eraseBox.x).toBeGreaterThan(box.x)
     }
+  }
+
+  /** Every paintable swatch the rail is currently rendering. */
+  async paletteElementNames(): Promise<string[]> {
+    const testIds = await this.page.getByTestId(/^element-/).evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('data-testid') ?? ''),
+    )
+    return testIds.map((id) => id.replace('element-', ''))
+  }
+
+  /**
+   * The rail overflows into its own scroller, never into the page: a bottom bar
+   * that pushes the document sideways drags the canvas out of view with it.
+   */
+  async verifyNoHorizontalPageOverflow(): Promise<void> {
+    const overflow = await this.page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(1)
   }
 
   private async boundingBoxOrThrow(testId: string): Promise<{ width: number; height: number }> {
@@ -272,6 +329,28 @@ export class SiltPagePom extends BasePage {
         return seam.speciesAt(x, y)
       },
       { x, y, key: TEST_SEAM_KEY },
+    )
+  }
+
+  /** Which frame path the mounted app is rendering through. */
+  async rendererKind(): Promise<string> {
+    return this.canvas.evaluate(
+      (el, key) => {
+        const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
+        return seam.rendererKind()
+      },
+      TEST_SEAM_KEY,
+    )
+  }
+
+  /** Which thread the mounted app's sim ticks on. */
+  async simHostKind(): Promise<string> {
+    return this.canvas.evaluate(
+      (el, key) => {
+        const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
+        return seam.simHostKind()
+      },
+      TEST_SEAM_KEY,
     )
   }
 

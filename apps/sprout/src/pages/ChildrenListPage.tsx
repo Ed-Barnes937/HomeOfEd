@@ -66,6 +66,7 @@ export function ChildrenListPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  <p className={styles.mutedSm}>signs in as {child.username}</p>
                   <p className={styles.mutedSm}>Tap to manage settings</p>
                 </CardContent>
               </Card>

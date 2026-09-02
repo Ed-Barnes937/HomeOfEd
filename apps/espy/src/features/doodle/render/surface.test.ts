@@ -240,7 +240,10 @@ describe('DoodleSurface paper', () => {
     expect(sheets.made[0]!.ctx.calls.filter((c) => c.m === 'putImageData')).toHaveLength(1)
   })
 
-  it('generates the sheet once per size, not per paint', () => {
+  // These two run the REAL paper generator over megapixel sheets (~300ms
+  // warm); on a contended CI runner (a shared-package change re-tests every
+  // app at once) that can blow the 5s default.
+  it('generates the sheet once per size, not per paint', { timeout: 20_000 }, () => {
     const ctx = recordingContext()
     const sheets = fakeSheets()
     const surface = new DoodleSurface(fakeCanvas(ctx), sheets.create)
@@ -266,7 +269,7 @@ describe('DoodleSurface paper', () => {
     expect(sheets.made).toHaveLength(2)
   })
 
-  it('caps the sheet, stretching it across an over-wide canvas', () => {
+  it('caps the sheet, stretching it across an over-wide canvas', { timeout: 20_000 }, () => {
     const ctx = recordingContext()
     const sheets = fakeSheets()
     const surface = new DoodleSurface(fakeCanvas(ctx), sheets.create)

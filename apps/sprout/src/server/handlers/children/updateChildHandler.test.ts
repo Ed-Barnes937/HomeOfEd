@@ -1,7 +1,6 @@
-import { ForbiddenError, ValidationError } from '@hoe/backend-kit'
+import { ForbiddenError } from '@hoe/backend-kit'
 import { describe, expect, it } from 'vitest'
 
-import { scryptHasher, verifySecret } from '../../password.ts'
 import { FakeSproutStore } from '../../testing/fakeSproutStore.ts'
 import { makeCtx, parentUser } from '../../testing/makeCtx.ts'
 import { UpdateChildHandler } from './updateChildHandler.ts'
@@ -16,19 +15,17 @@ async function seed(store: FakeSproutStore, parentId: string) {
 }
 
 describe('UpdateChildHandler', () => {
-  it('updates the display name and hashes a new PIN', async () => {
+  it('updates the display name', async () => {
     const store = new FakeSproutStore()
     const child = await seed(store, 'p1')
     const ctx = makeCtx({ store, user: parentUser('p1') })
 
-    const result = await new UpdateChildHandler(scryptHasher).run(
-      { childId: child.id, displayName: 'New', pin: '9999' },
+    const result = await new UpdateChildHandler().run(
+      { childId: child.id, displayName: 'New' },
       ctx,
     )
 
     expect(result.displayName).toBe('New')
-    const updated = await store.getChild(child.id)
-    expect(verifySecret('9999', updated?.pinHash ?? '')).toBe(true)
   })
 
   it('is a no-op that returns the current child when no fields are given', async () => {
@@ -36,18 +33,8 @@ describe('UpdateChildHandler', () => {
     const child = await seed(store, 'p1')
     const ctx = makeCtx({ store, user: parentUser('p1') })
 
-    const result = await new UpdateChildHandler(scryptHasher).run({ childId: child.id }, ctx)
+    const result = await new UpdateChildHandler().run({ childId: child.id }, ctx)
     expect(result.displayName).toBe('Old')
-  })
-
-  it('rejects a bad PIN', async () => {
-    const store = new FakeSproutStore()
-    const child = await seed(store, 'p1')
-    const ctx = makeCtx({ store, user: parentUser('p1') })
-
-    await expect(
-      new UpdateChildHandler(scryptHasher).run({ childId: child.id, pin: 'abcd' }, ctx),
-    ).rejects.toThrow(ValidationError)
   })
 
   it("403s a cross-family write", async () => {
@@ -56,7 +43,7 @@ describe('UpdateChildHandler', () => {
     const ctx = makeCtx({ store, user: parentUser('p2') })
 
     await expect(
-      new UpdateChildHandler(scryptHasher).run({ childId: child.id, displayName: 'Hacked' }, ctx),
+      new UpdateChildHandler().run({ childId: child.id, displayName: 'Hacked' }, ctx),
     ).rejects.toThrow(ForbiddenError)
   })
 })

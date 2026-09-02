@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, WATER, v1Elements, v1Reactions } from './elements.ts'
+import { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, STEAM, WATER, v1Elements } from './elements.ts'
 import { GRID_HEIGHT, GRID_WIDTH, RA_OFFSET } from './constants.ts'
 import { Sim } from './sim.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
@@ -22,32 +22,41 @@ function raAt(sim: Sim, x: number, y: number): number {
 }
 
 /**
- * Two cells wedged into a dirt pocket at `(x, FLOOR - 1)` and `(x + 1, FLOOR -
- * 1)` with nowhere to move, so a reaction is the only thing that can change
- * them and one tick is enough to see it.
+ * Two cells wedged into a pocket at `(x, FLOOR - 1)` and `(x + 1, FLOOR - 1)`
+ * with nowhere to move, so a reaction is the only thing that can change them
+ * and one tick is enough to see it.
+ *
+ * `walls` is **required, and has no safe default**. Water turns dirt into mud
+ * (materials spec §4 row 10) at p 0.4, so a dirt pocket holding water reacts
+ * with its own walls — a case on the *default* table needs obsidian, while the
+ * cases with a bespoke table below want dirt as the subject of their own row.
+ * Defaulting it either way makes the wrong choice silently, and the wrong
+ * choice is a test that passes on the committed seed and fails on others.
  */
-function pocket(sim: Sim, x: number, left: number, right: number): void {
-  for (let i = -2; i <= 3; i++) sim.paint(x + i, FLOOR, DIRT)
-  sim.paint(x - 1, FLOOR - 1, DIRT)
-  sim.paint(x + 2, FLOOR - 1, DIRT)
+function pocket(sim: Sim, x: number, left: number, right: number, walls: number): void {
+  for (let i = -2; i <= 3; i++) sim.paint(x + i, FLOOR, walls)
+  sim.paint(x - 1, FLOOR - 1, walls)
+  sim.paint(x + 2, FLOOR - 1, walls)
   sim.paint(x, FLOOR - 1, left)
   sim.paint(x + 1, FLOOR - 1, right)
 }
 
 describe('reaction table', () => {
-  it('turns both touching cells into obsidian', () => {
+  it('flashes the water to steam and freezes the lava to obsidian', () => {
     const sim = new Sim({ seed: 1 })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, OBSIDIAN)
 
     sim.tick()
 
-    expect(sim.speciesAt(100, FLOOR - 1)).toBe(OBSIDIAN)
+    expect(sim.speciesAt(100, FLOOR - 1)).toBe(STEAM)
     expect(sim.speciesAt(101, FLOOR - 1)).toBe(OBSIDIAN)
   })
 
   it('does nothing when the table is empty — the rule is data, not element code', () => {
+    // Dirt walls, not obsidian: this case counts obsidian to mean "nothing
+    // happened", and the table is empty so dirt cannot react either.
     const sim = new Sim({ seed: 1, elements: v1Elements, reactions: [] })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, DIRT)
 
     for (let i = 0; i < 10; i++) sim.tick()
 
@@ -61,7 +70,7 @@ describe('reaction table', () => {
       { a: 'dirt', b: 'liquid', p: 1, aBecomes: 'sand', bBecomes: null },
     ]
     const sim = new Sim({ seed: 1, reactions: byTag })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, DIRT)
 
     sim.tick()
 
@@ -79,7 +88,7 @@ describe('reaction table', () => {
       { a: 'dirt', b: 'water', p: 1, aBecomes: 'sand', bBecomes: null, maxHardness: 1 },
     ]
     const sim = new Sim({ seed: 1, elements: hard, reactions: soft })
-    pocket(sim, 100, WATER, LAVA)
+    pocket(sim, 100, WATER, LAVA, DIRT)
 
     sim.tick()
 
@@ -93,7 +102,7 @@ describe('reaction table', () => {
     ]
     const reactedIn = (seed: number) => {
       const sim = new Sim({ seed, reactions: coinFlip })
-      for (let x = 0; x < 40; x++) pocket(sim, 4 + x * 6, WATER, LAVA)
+      for (let x = 0; x < 40; x++) pocket(sim, 4 + x * 6, WATER, LAVA, DIRT)
       sim.tick()
       return count(sim, OBSIDIAN)
     }
@@ -202,7 +211,7 @@ describe('onTick hook', () => {
       { a: 'shouter', b: 'water', p: 1, aBecomes: 'obsidian', bBecomes: null },
     ]
     const sim = new Sim({ seed: 1, elements: [...v1Elements, shouter], reactions: rule })
-    pocket(sim, 100, shouter.id, WATER)
+    pocket(sim, 100, shouter.id, WATER, DIRT)
 
     sim.tick()
 
@@ -226,11 +235,6 @@ describe('onTick hook', () => {
 })
 
 describe('the v1 roster', () => {
-  it('registers exactly one reaction row', () => {
-    expect(v1Reactions).toHaveLength(1)
-    expect(v1Reactions[0]).toMatchObject({ a: 'water', b: 'lava', p: 1 })
-  })
-
   it('makes obsidian where a poured stream of water meets lava', () => {
     const sim = new Sim({ seed: 1 })
     for (let x = 0; x < GRID_WIDTH; x++) sim.paint(x, FLOOR, DIRT)

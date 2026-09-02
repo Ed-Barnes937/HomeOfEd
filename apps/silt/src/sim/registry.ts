@@ -1,5 +1,5 @@
 import { EMPTY, WALL } from './elements.ts'
-import { MAX_LIFETIME_TICKS } from './constants.ts'
+import { MAX_LIFETIME_TICKS, VARIANT_SLOTS } from './constants.ts'
 import type { Archetype, ElementDef, ReactionRow } from './types.ts'
 
 /**
@@ -114,6 +114,19 @@ function pairKey(a: number, b: number): number {
   return (a << 8) | b
 }
 
+/** Every id is a byte, so every lookup keyed by one is a 256-slot array. */
+const SPECIES_SLOTS = 256
+const PAIR_SLOTS = SPECIES_SLOTS * SPECIES_SLOTS
+const NO_REACTION = -1
+/** `Int16Array` holds indices up to this; a roster past it must not truncate. */
+const MAX_REACTIONS = 32767
+
+interface PairTable {
+  /** `NO_REACTION`, or an index into `list`. */
+  index: Int16Array
+  list: readonly Reaction[]
+}
+
 /** Every element a reaction side names — one by name, or all carrying the tag. */
 function sidesOf(defs: readonly ElementDef[], byName: ByName, side: string): ElementDef[] {
   const named = byName.get(side)
@@ -131,12 +144,22 @@ function resolvePairs(
   defs: readonly ElementDef[],
   byName: ByName,
   reactions: readonly ReactionRow[],
-): Map<number, Reaction> {
-  const pairs = new Map<number, Reaction>()
+): PairTable {
+  // 65536 slots is every ordered byte pair, so the lookup is one indexed load
+  // and no hashing. `-1` is "no rule"; anything else indexes `list`.
+  const index = new Int16Array(PAIR_SLOTS).fill(NO_REACTION)
+  const list: Reaction[] = []
   const speciesOf = (name: string | null) => (name === null ? EMPTY : byName.get(name)!.id)
   const add = (a: number, b: number, reaction: Reaction) => {
     const key = pairKey(a, b)
-    if (!pairs.has(key)) pairs.set(key, reaction)
+    // The earlier row wins, exactly as the `Map` form did: a specific pair must
+    // survive a later tag row that also covers it (acid + wood).
+    if (index[key] !== NO_REACTION) return
+    if (list.length > MAX_REACTIONS) {
+      throw new Error(`too many distinct reactions — the pair table holds ${MAX_REACTIONS}`)
+    }
+    index[key] = list.length
+    list.push(reaction)
   }
 
   for (const row of reactions) {
@@ -157,22 +180,22 @@ function resolvePairs(
     }
   }
 
-  return pairs
+  return { index, list }
 }
 
 function resolveLifetimes(
   defs: readonly ElementDef[],
   byName: ByName,
-): Map<number, ResolvedLifetime> {
-  const lifetimes = new Map<number, ResolvedLifetime>()
+): (ResolvedLifetime | undefined)[] {
+  const lifetimes = new Array<ResolvedLifetime | undefined>(SPECIES_SLOTS).fill(undefined)
   for (const def of defs) {
     const { lifetime } = def
     if (!lifetime) continue
-    lifetimes.set(def.id, {
+    lifetimes[def.id] = {
       ticks: lifetime.ticks,
       jitter: lifetime.jitter ?? 0,
       becomes: lifetime.becomes === null ? EMPTY : byName.get(lifetime.becomes)!.id,
-    })
+    }
   }
   return lifetimes
 }
@@ -212,6 +235,12 @@ export function createRegistry(
     }
 
     if (def.colours.length === 0) fail('needs at least one colour')
+    // The renderer folds the colours into a fixed variant window and picks
+    // between them with the low bits of `rb`. A colour past the last slot would
+    // simply never be drawn, so say so at boot rather than never.
+    if (def.colours.length > VARIANT_SLOTS) {
+      fail(`may declare at most ${VARIANT_SLOTS} colours — one per variant slot`)
+    }
     for (const colour of def.colours) {
       if (!HEX.test(colour)) fail(`colour ${colour} is not #rrggbb`)
     }
@@ -273,10 +302,21 @@ export function createRegistry(
   byId.set(WALL, wall)
 
   const tagsById = new Map<number, ReadonlySet<string>>()
-  const densityById = new Map<number, number | undefined>()
+  // The hot lookups are id-keyed, and an id is a byte, so each one is a flat
+  // 256-slot array rather than a hash. `hasDensity` keeps "density 0" apart
+  // from "no density" — a static element has none, and `canDisplace` needs the
+  // difference.
+  const defById = new Array<ElementDef | undefined>(SPECIES_SLOTS).fill(undefined)
+  const densityById = new Float64Array(SPECIES_SLOTS)
+  const hasDensity = new Uint8Array(SPECIES_SLOTS)
   for (const [id, def] of byId) {
     tagsById.set(id, new Set(def.tags))
-    densityById.set(id, densityOf(def.archetype))
+    defById[id] = def
+    const density = densityOf(def.archetype)
+    if (density !== undefined) {
+      densityById[id] = density
+      hasDensity[id] = 1
+    }
   }
 
   const pairs = resolvePairs(defs, byName, reactions)
@@ -285,11 +325,14 @@ export function createRegistry(
   const roster = [...defs]
 
   return {
-    get: (id) => byId.get(id),
+    get: (id) => defById[id],
     all: () => roster,
     has: (id, tag) => tagsById.get(id)?.has(tag) ?? false,
-    density: (id) => densityById.get(id),
-    reactionFor: (a, b) => pairs.get(pairKey(a, b)),
-    lifetimeOf: (id) => lifetimes.get(id),
+    density: (id) => (hasDensity[id] === 1 ? densityById[id] : undefined),
+    reactionFor: (a, b) => {
+      const slot = pairs.index[pairKey(a, b)] ?? NO_REACTION
+      return slot === NO_REACTION ? undefined : pairs.list[slot]
+    },
+    lifetimeOf: (id) => lifetimes[id],
   }
 }

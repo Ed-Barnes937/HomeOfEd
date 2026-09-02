@@ -37,15 +37,16 @@ test('save, edit the grid, then load the saved boop back — the original is res
   // Edit the grid further and change the tempo — none of this touches the
   // saved boop, only the working grid.
   await root.toggleCell('boop', 15)
-  await root.setTempoPercent(90)
   await root.verifyCellOn('boop', 15)
+  await root.setTempoPercent(90)
 
   await root.openBoops()
   await root.loadBoop(0)
 
+  await root.verifyTempo(110)
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
   await root.verifyCellOff('boop', 15)
-  await root.verifyTempo(110)
 })
 
 test('renaming a saved boop is optional', async ({ mountApp }) => {

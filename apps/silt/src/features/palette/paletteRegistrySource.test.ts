@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
-import { createRegistry, DIRT, LAVA, SAND, WATER, type ElementDef } from '../../sim/index.ts'
-import { buildSpeciesPalette } from '../render/speciesPalette.ts'
+import {
+  ACID,
+  createRegistry,
+  DIRT,
+  FIRE,
+  LAVA,
+  MUD,
+  OIL,
+  SAND,
+  SEED,
+  STONE,
+  WATER,
+  WOOD,
+  type ElementDef,
+} from '../../sim/index.ts'
+import { buildSpeciesPalette, paletteSlot } from '../render/speciesPalette.ts'
 import { buildRailPalette } from './paletteGroups.ts'
 
 function hexToRgb(hex: string): readonly [number, number, number] {
@@ -41,6 +55,49 @@ describe('rail and grid colours share one registry', () => {
         tags: ['liquid'],
         archetype: { kind: 'liquid', density: 45, dispersion: 2, move: 0.15 },
       },
+      { id: WOOD, name: 'wood', colours: ['#010203'], tags: ['solid'], archetype: { kind: 'static' } },
+      {
+        id: OIL,
+        name: 'oil',
+        colours: ['#040506'],
+        tags: ['liquid'],
+        archetype: { kind: 'liquid', density: 20, dispersion: 4 },
+      },
+      {
+        id: FIRE,
+        name: 'fire',
+        colours: ['#070809'],
+        tags: ['energy'],
+        archetype: { kind: 'gas', density: -20, dispersion: 1 },
+      },
+      {
+        id: ACID,
+        name: 'acid',
+        colours: ['#0a0b0c'],
+        tags: ['liquid'],
+        archetype: { kind: 'liquid', density: 35, dispersion: 4 },
+      },
+      {
+        id: STONE,
+        name: 'stone',
+        colours: ['#0d0e0f'],
+        tags: ['solid'],
+        archetype: { kind: 'static' },
+      },
+      {
+        id: MUD,
+        name: 'mud',
+        colours: ['#101112'],
+        tags: ['liquid'],
+        archetype: { kind: 'liquid', density: 50, dispersion: 1, move: 0.1 },
+      },
+      {
+        id: SEED,
+        name: 'seed',
+        colours: ['#131415'],
+        tags: ['powder'],
+        archetype: { kind: 'powder', density: 40, slide: 1 },
+      },
     ]
     const registry = createRegistry(nonDefaultRoster)
 
@@ -51,7 +108,9 @@ describe('rail and grid colours share one registry', () => {
 
     for (const entry of railPalette.entries) {
       const [r, g, b] = hexToRgb(entry.colour)
-      const offset = entry.id * 3
+      // The rail shows `colours[0]`, which the grid palette keeps in variant
+      // slot 0 — that is what stops a shaded roster drifting from its swatches.
+      const offset = paletteSlot(entry.id, 0) * 3
       expect([speciesPalette[offset], speciesPalette[offset + 1], speciesPalette[offset + 2]]).toEqual([
         r,
         g,

@@ -28,7 +28,7 @@ test('"+ New clip" opens the picker: Blank first, then the eight sample clips', 
   ])
 })
 
-test('picking a sample clip lands it named, on the grid, unplaced — and playing', async ({
+test('picking a sample clip lands it named, on the grid, unplaced — and silent', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -40,6 +40,8 @@ test('picking a sample clip lands it named, on the grid, unplaced — and playin
 
   await root.verifyClipCount(2)
   await root.verifyClipChipActive(1)
+  // The picked clip is what the editor now opens on.
+  await root.openClipEditor()
   await root.verifyActiveClipName('Boom clap')
   // The sample's pattern is on the grid…
   await root.verifyCellOn('kick', 0)
@@ -48,8 +50,13 @@ test('picking a sample clip lands it named, on the grid, unplaced — and playin
   // sample clips are pattern-only, playing at the boop's one bpm.
   await root.verifySongLength('0 bars')
   await root.verifyTempo(100)
-  // No per-card preview: picking is how you hear one.
-  await root.verifyPlaying()
+  // Adding a clip is an edit, not a transport command: the child decides when
+  // sound happens. This used to start the loop on the sample path only, which
+  // made the picker's two routes disagree (boop-screenspace ticket 01).
+  // Keep the awaited assertions above: the play button reads paused before the
+  // pick too, and `engine.start()` awaits `driver.unlock()` before it flips —
+  // those round-trips are what give a regression time to show up here.
+  await root.verifyPaused()
 })
 
 test('picking Blank lands the automatic "Clip N", silent', async ({ mountApp }) => {
@@ -61,6 +68,7 @@ test('picking Blank lands the automatic "Clip N", silent', async ({ mountApp }) 
   await root.pickClip('blank')
 
   await root.verifyClipCount(2)
+  await root.openClipEditor()
   await root.verifyActiveClipName('Clip 2')
   await root.verifyPaused()
 })
@@ -90,6 +98,7 @@ test("a sample clip's name is renameable like any other clip's", async ({ mountA
 
   await root.openNewClipPicker()
   await root.pickClip('twinkle-tune')
+  await root.openClipEditor()
   await root.verifyActiveClipName('Twinkle tune')
 
   await root.renameActiveClip('Sparkles')

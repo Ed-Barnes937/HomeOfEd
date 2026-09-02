@@ -79,8 +79,10 @@ Status key: ✅ shipped · ⚠️ partial / confirm · ⬜ outstanding
     judge** (see follow-up below).
 
 - ✅ **6.5.6 Behavioural signals + rate limiting** (Q5) — `behavioural-limits.ts`, wired into `chat-sse.ts`
-  - **Confirm:** thresholds are placeholders until tuned against real traffic (this layer is
-    medium-confidence by design). Tuning is a launch-window task, not a code gap.
+  - **Launch values chosen** ([ADR-0018](product-legal-adrs.md#adr-0018--launch-day-behavioural-limit-values-ship-the-code-defaults-extend-signal-retention-to-7-days)):
+    code defaults for eight knobs, `RATE_LIMIT_RETENTION_S` extended to 7 days, all nine
+    pinned in `fly.toml [env]`. Tuning happens against week-one traffic via the documented
+    `behavioural_events` query — no longer an open placeholder.
 
 - ✅ **6.5.7 Prompt-injection shield on input** — `prompt-injection.ts` (wired at input stage)
   - Instruction-override, fake system/developer roles, persona jailbreaks. Precision-tuned so
@@ -100,10 +102,22 @@ Status key: ✅ shipped · ⚠️ partial / confirm · ⬜ outstanding
 
 ### Tier P2 — control into real control
 
-- ⚠️ **6.5.9 Safe-by-default + honest disclosure + parent visibility**
+- ✅ **6.5.9 Safe-by-default + honest disclosure + parent visibility**
   - Preset plumbing and flag persistence exist (`loadChildConfig.ts`, onboarding, flags).
-  - **Confirm:** that the **strictest** preset is the default on new-child creation, and that
-    the disclosure copy + parent-visible flag log are present. Not verified during the port.
+  - **Safe-by-default: confirmed** (ADR-0016 in [`product-legal-adrs.md`](product-legal-adrs.md)) —
+    the strictest preset (`early-learner`, verified per-slider) is the tested fallback at the
+    read seam (`loadChildConfig`), onboarding pre-selects it, and `presetName` stays required
+    at creation by design.
+  - **Honest disclosure: built** (ADR-0017 in [`product-legal-adrs.md`](product-legal-adrs.md)) —
+    first-run statement card + persistent line above the chat input, per-preset wording
+    incl. the parent-visibility sentence (whole-frontend-tested for the strictest and
+    least-strict registers), plus the positive identity instruction in the pipeline
+    system prompt.
+  - **Parent visibility: confirmed** (launch-clearance ticket 09) — `/parent/flags` is
+    linked from the dashboard, parent-scoped at the handler (cross-parent flags never
+    leak, the `childId` input is ignored), and the SSE write path and the read path
+    agree on shape. Whole-frontend-tested: topics render as badges (never raw JSON)
+    and the dashboard "View flags" link reaches the flag log (`parent-flags.iwft.tsx`).
 
 - ✅ **6.5.10 Hash PINs / child password** — auth is app-owned (ADR-0012); scrypt hashing carried from the source repo.
   - **Confirm:** re-verify the hashing path survived the auth rebuild in sprout.

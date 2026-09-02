@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_PARAMS, type SimParams } from './params.ts'
-import { Simulation, type Rng } from './simulation.ts'
+import { BEACON_HIT_RADIUS, Simulation, type Rng } from './simulation.ts'
 
 /** Deterministic PRNG (mulberry32) — same seed → same sequence, every call. */
 function mulberry32(seed: number): Rng {
@@ -207,6 +207,99 @@ describe('Simulation', () => {
       sim.step(16)
       expect(a.vx).toBe(0)
       expect(a.vy).toBe(0)
+    })
+  })
+
+  describe('beacons', () => {
+    // Flocking off and cursor at 0 so beacons are the only influence.
+    const flat = { separation: 0, alignment: 0, cohesion: 0 } as const
+    function loneBoid(cursor = 0) {
+      const sim = makeSim({ ...flat, cursor })
+      isolate(sim, [0])
+      const a = boidAt(sim, 0)
+      a.x = 100
+      a.y = 100
+      a.vx = 0
+      a.vy = 0
+      return { sim, a }
+    }
+
+    it('toggleBeaconAt adds a beacon frozen at the given strength on empty space', () => {
+      const { sim } = loneBoid()
+      expect(sim.toggleBeaconAt(200, 100, 2)).toBe('added')
+      expect(sim.beacons).toEqual([{ x: 200, y: 100, strength: 2 }])
+    })
+
+    it('toggleBeaconAt removes a beacon hit within BEACON_HIT_RADIUS even when strength is 0', () => {
+      const { sim } = loneBoid()
+      sim.toggleBeaconAt(200, 100, 2)
+      expect(sim.toggleBeaconAt(200 + BEACON_HIT_RADIUS - 1, 100, 0)).toBe('removed')
+      expect(sim.beacons).toEqual([])
+    })
+
+    it('toggleBeaconAt is a noop when strength is 0 and nothing is hit', () => {
+      const { sim } = loneBoid()
+      expect(sim.toggleBeaconAt(200, 100, 0)).toBe('noop')
+      expect(sim.beacons).toEqual([])
+    })
+
+    it('toggleBeaconAt removes the nearest beacon when two are within hit range', () => {
+      const { sim } = loneBoid()
+      // 30px apart: far enough that placing the second doesn't hit the first
+      // (30 > BEACON_HIT_RADIUS), close enough that a click between hits both.
+      sim.toggleBeaconAt(100, 100, 2)
+      sim.toggleBeaconAt(130, 100, 2)
+      expect(sim.toggleBeaconAt(118, 100, 2)).toBe('removed') // 18px vs 12px — second wins
+      expect(sim.beacons).toEqual([{ x: 100, y: 100, strength: 2 }])
+    })
+
+    it('pulls a lone boid toward a positive beacon', () => {
+      const { sim, a } = loneBoid()
+      sim.toggleBeaconAt(200, 100, 2) // 100px right — inside CURSOR_RADIUS
+      sim.step(16)
+      expect(a.vx).toBeGreaterThan(0)
+    })
+
+    it('pushes a lone boid away from a negative beacon', () => {
+      const { sim, a } = loneBoid()
+      sim.toggleBeaconAt(200, 100, -2)
+      sim.step(16)
+      expect(a.vx).toBeLessThan(0)
+    })
+
+    it('freezes strength at placement — a later params.cursor change does not alter it', () => {
+      const { sim, a } = loneBoid()
+      sim.toggleBeaconAt(200, 100, 2)
+      sim.setParams({ ...DEFAULT_PARAMS, ...flat, cursor: -3 })
+      // no pointer set, so the live cursor force never fires
+      sim.step(16)
+      expect(a.vx).toBeGreaterThan(0) // still attracting
+    })
+
+    it('applies no force to a boid well beyond CURSOR_RADIUS of a beacon', () => {
+      const { sim, a } = loneBoid()
+      sim.toggleBeaconAt(350, 100, 2) // 250px away — outside CURSOR_RADIUS (180)
+      sim.step(16)
+      expect(a.vx).toBe(0)
+      expect(a.vy).toBe(0)
+    })
+
+    it('multiple beacons each contribute steering', () => {
+      const { sim, a } = loneBoid()
+      sim.toggleBeaconAt(200, 100, 2) // pull +x
+      sim.toggleBeaconAt(100, 200, 2) // pull +y
+      sim.step(16)
+      expect(a.vx).toBeGreaterThan(0)
+      expect(a.vy).toBeGreaterThan(0)
+    })
+
+    it('beacon force and live pointer force stack', () => {
+      const { sim, a } = loneBoid(2)
+      sim.toggleBeaconAt(200, 100, 2) // pull +x
+      sim.setPointer({ x: 100, y: 200 }) // pull +y
+      sim.step(16)
+      expect(a.vx).toBeGreaterThan(0)
+      expect(a.vy).toBeGreaterThan(0)
     })
   })
 

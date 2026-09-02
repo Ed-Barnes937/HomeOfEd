@@ -53,6 +53,7 @@ export function PhoneGrid({
   loadToken,
   onScrubToStep,
   onScrubToSongStart,
+  wellFooter,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
   const instruments = useMemo(() => instrumentsById(kit), [kit])
@@ -268,6 +269,13 @@ export function PhoneGrid({
           onScrubToSongStart={onScrubToSongStart}
         />
       </div>
+
+      {/* Clip play, pinned under the rows and the map the way it is at ≥1024
+          (screenspace ticket 03). The phone used to reach it on the pinned
+          transport beside the grid; the grid is in a card now and the dock's
+          launcher is behind that card's backdrop, so without this there would
+          be no way to hear the clip you are editing. */}
+      {wellFooter && <div className={styles.wellFooter}>{wellFooter}</div>}
     </div>
   )
 }

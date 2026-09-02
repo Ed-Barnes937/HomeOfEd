@@ -1,5 +1,5 @@
 import type { DbClient } from '@hoe/db'
-import { and, count, desc, eq, gte, inArray, lt } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, isNull, lt } from 'drizzle-orm'
 
 import {
   behaviouralEvents,
@@ -130,8 +130,17 @@ export interface SproutStore {
   // --- conversations.{create,list,summary,delete,summariseAndPurge} --------
   createConversation(input: ConversationInsert): Promise<ConversationRow>
   getConversation(id: string): Promise<ConversationRow | null>
-  listConversationsByChild(childId: string): Promise<ConversationRow[]>
-  deleteConversation(id: string): Promise<void>
+  /** `excludeDeleted` hides soft-deleted rows (the child's own view); parent-facing reads take everything. */
+  listConversationsByChild(
+    childId: string,
+    opts?: { excludeDeleted?: boolean },
+  ): Promise<ConversationRow[]>
+  /**
+   * Set `deletedAt` — never a row delete (pilot issue 03: a hard delete
+   * cascaded messages AND safety flags away). Leaves `updatedAt` alone so the
+   * retention clock keeps running.
+   */
+  softDeleteConversation(id: string): Promise<void>
   /** Bump `updatedAt` to now (called when a message is saved). */
   touchConversation(id: string): Promise<void>
   /** Set the summary and purge all messages atomically (summariseAndPurge / worker). */
@@ -166,6 +175,9 @@ export interface SproutStore {
     childId?: string
     deviceToken?: string
   }): Promise<number>
+  /** Drop ALL of a child's events of one kind (children.resetPin clears the
+   * pin_fail lockout so a reset child isn't still locked out). */
+  deleteBehaviouralEvents(opts: { kind: string; childId: string }): Promise<void>
   /** Drop this child's / device's events older than `before` (retention). */
   pruneBehaviouralEvents(opts: {
     childId?: string
@@ -335,16 +347,23 @@ export class DrizzleSproutStore implements SproutStore {
     return rows[0] ?? null
   }
 
-  async listConversationsByChild(childId: string): Promise<ConversationRow[]> {
+  async listConversationsByChild(
+    childId: string,
+    opts?: { excludeDeleted?: boolean },
+  ): Promise<ConversationRow[]> {
+    const byChild = eq(conversations.childId, childId)
     return this.db
       .select()
       .from(conversations)
-      .where(eq(conversations.childId, childId))
+      .where(opts?.excludeDeleted ? and(byChild, isNull(conversations.deletedAt)) : byChild)
       .orderBy(desc(conversations.updatedAt))
   }
 
-  async deleteConversation(id: string): Promise<void> {
-    await this.db.delete(conversations).where(eq(conversations.id, id))
+  async softDeleteConversation(id: string): Promise<void> {
+    await this.db
+      .update(conversations)
+      .set({ deletedAt: new Date() })
+      .where(eq(conversations.id, id))
   }
 
   async touchConversation(id: string): Promise<void> {
@@ -372,6 +391,7 @@ export class DrizzleSproutStore implements SproutStore {
         summary: conversations.summary,
         createdAt: conversations.createdAt,
         updatedAt: conversations.updatedAt,
+        deletedAt: conversations.deletedAt,
       })
       .from(conversations)
       .innerJoin(messages, eq(messages.conversationId, conversations.id))
@@ -464,6 +484,14 @@ export class DrizzleSproutStore implements SproutStore {
       .from(behaviouralEvents)
       .where(and(...conditions))
     return rows[0]?.value ?? 0
+  }
+
+  async deleteBehaviouralEvents(opts: { kind: string; childId: string }): Promise<void> {
+    await this.db
+      .delete(behaviouralEvents)
+      .where(
+        and(eq(behaviouralEvents.kind, opts.kind), eq(behaviouralEvents.childId, opts.childId)),
+      )
   }
 
   async pruneBehaviouralEvents(opts: {

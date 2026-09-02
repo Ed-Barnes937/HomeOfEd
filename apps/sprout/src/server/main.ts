@@ -15,6 +15,8 @@ import { fixedAuthProvider, resolveParentUser, type ChildUser } from './auth/pro
 import { mintChildToken } from './auth/childToken.ts'
 import { registerChatSseRoute } from './chat-sse.ts'
 import { toFetchHeaders, toFetchRequest } from './fastifyBridge.ts'
+import { assertGeoEnvSafe, geoEnforcementEnabled, registerGeoBoundary } from './geo-boundary.ts'
+import { registerLegalDocRoutes } from './legal-docs.ts'
 import { createHttpPipelineClient, createHttpSummariser } from './pipeline/pipelineClient.ts'
 import { scryptHasher } from './password.ts'
 import { createAppRouter } from './router.ts'
@@ -34,6 +36,12 @@ if (!childSessionSecret) {
   throw new Error('CHILD_SESSION_SECRET is required')
 }
 
+// The UK geo boundary's escape hatch must never reach real infrastructure
+// (ADR-0012 item 4): Fly injects FLY_APP_NAME into every machine, so a set
+// GEO_ENFORCEMENT there crashes the deploy visibly rather than silently
+// opening the boundary. Only the docker-stack compose file sets it.
+assertGeoEnvSafe(process.env)
+
 // Pipeline over Fly's PRIVATE network (plan §3/§10): never a public URL. The
 // real pipeline app is P6; this client is exercised end-to-end at P6 + deploy.
 // PIPELINE_API_KEY must be set in prod — refuse an insecure default there.
@@ -47,9 +55,17 @@ const pipelineOpts = {
 }
 const pipeline = createHttpPipelineClient(pipelineOpts)
 
+// Family-pilot invite gate (ADR-0019): registration is closed to holders of
+// the invite code while counsel sign-off is deferred. Required in prod so the
+// pilot cannot silently open; remove this guard at public launch.
+const registrationInviteCode = process.env.REGISTRATION_INVITE_CODE
+if (!registrationInviteCode && process.env.NODE_ENV === 'production') {
+  throw new Error('REGISTRATION_INVITE_CODE is required in production (ADR-0019 family pilot)')
+}
+
 // Better Auth instance over the shared client — its handler is mounted at
 // /api/auth/* below, and its session lookup backs parent resolution.
-const auth = createSproutAuth(db)
+const auth = createSproutAuth(db, { inviteCode: registrationInviteCode })
 
 // The child AuthProvider reads the signed child-session cookie + verifies its
 // HMAC (plan §5.2, #34). Reused by both the tRPC auth seam and the SSE route.
@@ -88,6 +104,14 @@ const appRouter = createAppRouter({
 // App-owned Fastify routes (D9), mounted ahead of the SPA fallback: parent
 // session resolution + Better Auth handler + the chat SSE stream.
 const registerRoutes = (app: FastifyInstance): void => {
+  // UK geo boundary (ADR-0011/0012/0013): refuse every non-GB request with
+  // the 451 status notice before any app surface. A root-level onRequest hook
+  // added here applies to ALL routes, including /health and the tRPC plugin
+  // registered before this hook runs — exemption (/health, /terms, /privacy)
+  // is an exact-path check inside the hook. Registered FIRST so refusal
+  // happens before parent-session resolution below.
+  if (geoEnforcementEnabled(process.env)) registerGeoBoundary(app)
+
   // Parent session resolution (discharges the P2 /api/auth TODO): resolve the
   // Better Auth cookie session per tRPC HTTP request (async) and stamp the
   // trusted PARENT_HEADER the auth seam reads. Strip any inbound value first —
@@ -114,6 +138,9 @@ const registerRoutes = (app: FastifyInstance): void => {
     if (setCookies.length > 0) reply.header('set-cookie', setCookies)
     return reply.send(await response.text())
   })
+
+  // ToS/Privacy draft documents (ADR-0015): static, versioned, not SPA routes.
+  registerLegalDocRoutes(app)
 
   // Chat SSE stream: authenticates the child from the cookie via the same
   // child provider the auth seam uses.

@@ -31,7 +31,7 @@ export class SproutAppPom extends BasePage {
   }
 
   async clickLink(name: string): Promise<void> {
-    await this.page.getByRole('link', { name }).click()
+    await this.page.getByRole('link', { name, exact: true }).click()
   }
 
   async fillByLabel(label: string, value: string): Promise<void> {
@@ -40,6 +40,19 @@ export class SproutAppPom extends BasePage {
 
   async fillByPlaceholder(placeholder: string, value: string): Promise<void> {
     await this.page.getByPlaceholder(placeholder).fill(value)
+  }
+
+  async tickCheckbox(name: string): Promise<void> {
+    await this.page.getByRole('checkbox', { name }).check()
+  }
+
+  async verifyButtonEnabled(name: string, enabled: boolean): Promise<void> {
+    const button = this.page.getByRole('button', { name })
+    if (enabled) {
+      await expect(button).toBeEnabled({ timeout: 10_000 })
+    } else {
+      await expect(button).toBeDisabled({ timeout: 10_000 })
+    }
   }
 
   // --- parent dashboard ---
@@ -82,6 +95,16 @@ export class SproutAppPom extends BasePage {
 
   async filterFlagsByChild(displayName: string): Promise<void> {
     await this.page.getByTestId('child-filter').selectOption({ label: displayName })
+  }
+
+  /** Every seeded topic renders as its own badge — never raw JSON. */
+  async verifyFlagTopics(topics: string[]): Promise<void> {
+    const badges = this.page.getByTestId('flag-topic')
+    await expect(badges).toHaveCount(topics.length, { timeout: 10_000 })
+    for (const topic of topics) {
+      // Exact match: a badge leaking raw JSON ('["space"]') must not pass as 'space'.
+      await expect(badges.filter({ hasText: new RegExp(`^${topic}$`) })).toHaveCount(1)
+    }
   }
 
   // --- settings switches ---

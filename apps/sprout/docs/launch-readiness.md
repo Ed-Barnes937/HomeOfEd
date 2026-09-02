@@ -9,6 +9,13 @@ and parents start using the product under the legal assumptions we've made.
 **Gate owner:** _[NAME — TO BE CONFIRMED]_ (signs off that every blocker below is closed
 before launch).
 
+> **Supervised family pilot (2026-08-26).** Per
+> [ADR-0019](product-legal-adrs.md#adr-0019--supervised-family-pilot-precedes-counsel-sign-off-invite-code-closed-registration),
+> the owner's household is using the product ahead of this gate, behind an
+> invite-code-closed registration with every technical control live. Nothing below is
+> ticked by that pilot. Opening registration beyond the household is the release this
+> gate protects and requires every item below first.
+
 ---
 
 ## 🚫 Legal / compliance sign-off (counsel)
@@ -25,11 +32,21 @@ not tick these — they require a human lawyer.**
       test. This is the one feature that could flip the service into the user-to-user regime
       (and its threshold-free CSEA reporting duty). Do **not** self-certify.
 - [ ] **UK-only enforcement is confirmed adequate** ("reasonable measures" — 6.5.12 /
-      ADR-0008). The whole analysis is UK-only; if non-UK users can register, US (COPPA +
+      ADR-0008; implementation spec in
+      [ADR-0011](product-legal-adrs.md#adr-0011--uk-only-enforcement-layers-app-level-hook-is-load-bearing-edge-waf-is-belt-and-braces)
+      and
+      [ADR-0012](product-legal-adrs.md#adr-0012--uk-boundary-refusal-matrix-health-exemption-and-environment-controls)).
+      The whole analysis is UK-only; if non-UK users can register, US (COPPA +
       NCMEC) and EU (AI Act) regimes pull in.
 - [ ] **Written-content position confirmed** — strict CSAM (imagery) is out of surface
       (text-only, no upload/generation), but the law on *written* sexual material involving
       children is narrower and greyer; counsel confirms our position.
+- [ ] **ToS and Privacy Policy contain counsel-approved text** — the `/terms` and
+      `/privacy` pages ship as skeleton drafts ("Draft — not yet in force",
+      [ADR-0015](product-legal-adrs.md#adr-0015--tosprivacy-pages-geo-exempt-static-documents-skeleton-drafts-and-a-second-consent-checkbox))
+      until counsel drafts against
+      [legal-content-requirements.md](legal-content-requirements.md); placeholders are
+      replaced before launch.
 
 ## 🚫 Safeguarding path is operational (6.5.8 / ADR-0009)
 
@@ -39,6 +56,15 @@ not tick these — they require a human lawyer.**
 - [ ] **Flag-review cadence set** and the secure incident-log location + access controls
       exist (runbook §3, §6).
 - [ ] ADR-0009 moved from **Proposed** to **Accepted** once the above are done.
+
+## Launch configuration (code-side)
+
+Dev-owned; an agent may tick these once the change is merged to `main`.
+
+- [ ] **Behavioural limit launch values are pinned in `fly.toml [env]`** and match
+      [ADR-0018](product-legal-adrs.md#adr-0018--launch-day-behavioural-limit-values-ship-the-code-defaults-extend-signal-retention-to-7-days)
+      (code defaults; `RATE_LIMIT_RETENTION_S = 604800`). The week-one firing-rate review
+      is a post-launch follow-up recorded in the ADR, deliberately not a gate row.
 
 ---
 

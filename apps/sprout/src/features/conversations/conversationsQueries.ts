@@ -26,6 +26,15 @@ export function conversationMessagesQueryOptions(conversationId: string) {
   })
 }
 
+/** conversations.summary — also carries `deletedAt`, so the parent's
+ * conversation-detail page can label a child-deleted conversation. */
+export function conversationSummaryQueryOptions(conversationId: string) {
+  return queryOptions({
+    queryKey: ['conversation-summary', conversationId],
+    queryFn: () => trpcClient.conversations.summary.query({ conversationId }),
+  })
+}
+
 export type CreateConversationInput = Parameters<typeof trpcClient.conversations.create.mutate>[0]
 export type SaveMessageInput = Parameters<typeof trpcClient.conversations.saveMessage.mutate>[0]
 

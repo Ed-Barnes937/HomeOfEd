@@ -35,9 +35,14 @@ Values:
    `--app hoe-hub` (app-scoped) and **cannot** deploy either new app. Mint an
    **org-scoped** token and replace the repo secret before the `deploy-sprout*` CI
    jobs run.
-3. **A private second app.** `hoe-sprout-pipeline` has no `[http_service]`, so it
-   gets **no public IP, no Cloudflare CNAME, no Fly cert** — it stays on the
-   private `.flycast` network. The Cloudflare step is sprout-only.
+3. **A private second app.** `hoe-sprout-pipeline` gets **no public IP, no
+   Cloudflare CNAME, no Fly cert** — it stays on the private `.flycast` network.
+   Flycast is not free, though: it needs a **private IPv6 allocated before the
+   first deploy** (step 1a) and the `[[services]]` block in its `fly.toml`
+   exposing port 8080 (the Fly Proxy routes flycast traffic by that service
+   definition, and the `[http_service]` shorthand can only expose 80/443;
+   privacy comes from the app holding only the private IP). The Cloudflare
+   step is sprout-only.
 4. **A worker process group.** `hoe-sprout` runs `web` + `worker` from one image;
    the worker's machine count is set out of band after the first deploy.
 
@@ -51,6 +56,19 @@ Values:
 fly apps create hoe-sprout
 fly apps create hoe-sprout-pipeline
 ```
+
+#### 1a. Allocate the pipeline's private flycast IP
+
+`hoe-sprout-pipeline.flycast` does not resolve until a **private** IPv6 exists.
+Allocate it **before the first deploy** — if the app has a service defined and
+no IPs at deploy time, `fly deploy` auto-allocates *public* ones:
+
+```bash
+fly ips allocate-v6 --private --app hoe-sprout-pipeline
+```
+
+Never allocate a public IP on this app. After its first deploy, confirm
+`fly ips list --app hoe-sprout-pipeline` shows only the private address.
 
 ### 2. Managed Postgres for hoe-sprout (D10)
 
@@ -67,8 +85,9 @@ Do **not** run `fly postgres attach hoe-pg` for this app.
 ### 3. Secrets
 
 `main.ts` and `worker.ts` refuse to boot in prod without `CHILD_SESSION_SECRET`
-and `PIPELINE_API_KEY`; the pipeline refuses to boot without `OPENROUTER_API_KEY`
-and `PIPELINE_API_KEY`. `PIPELINE_API_KEY` must be the **same value** on both apps
+and `PIPELINE_API_KEY`; `main.ts` also requires `REGISTRATION_INVITE_CODE` (the
+ADR-0019 family-pilot gate); the pipeline refuses to boot without
+`OPENROUTER_API_KEY` and `PIPELINE_API_KEY`. `PIPELINE_API_KEY` must be the **same value** on both apps
 (the caller sends it as `x-pipeline-key`).
 
 ```bash
@@ -76,7 +95,8 @@ fly secrets set --app hoe-sprout \
   BETTER_AUTH_SECRET='…' \
   BETTER_AUTH_URL='https://sprout.homeofed.com' \
   CHILD_SESSION_SECRET='…' \
-  PIPELINE_API_KEY='…shared…'
+  PIPELINE_API_KEY='…shared…' \
+  REGISTRATION_INVITE_CODE='…family-pilot invite code (ADR-0019) — required in prod…'
 # (DATABASE_URL already set in step 2.)
 
 fly secrets set --app hoe-sprout-pipeline \

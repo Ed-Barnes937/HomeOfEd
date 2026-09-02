@@ -79,3 +79,62 @@ test('reset clears spawners along with cells', async ({ mountApp }) => {
   await root.verifyNoSpawnerAt(70, 70)
   expect(await root.spawnerCount()).toContain('0')
 })
+
+test('the erase tool removes a spawner under the brush', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('water')
+  await root.enterSpawnerMode()
+  await root.clickCell(40, 40)
+  await root.verifySpawnerAt(40, 40)
+
+  // Erase is a paint-mode tool, so this is a stroke over the world — not a
+  // trip back through spawner mode to click the entity off.
+  await root.selectErase()
+  await root.paintCell(40, 40)
+
+  await root.verifyNoSpawnerAt(40, 40)
+  expect(await root.spawnerCount()).toContain('0')
+})
+
+test('a wide erase brush takes a spawner it covers, a narrow one next door does not', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('water')
+  await root.enterSpawnerMode()
+  await root.clickCell(40, 40)
+  await root.verifySpawnerAt(40, 40)
+
+  // 1x1 brush two cells away: the spawner is outside the footprint.
+  await root.selectErase()
+  await root.selectBrush(0)
+  await root.paintCell(42, 40)
+  await root.verifySpawnerAt(40, 40)
+
+  // 5x5 brush from the same cell reaches it.
+  await root.selectBrush(2)
+  await root.paintCell(42, 40)
+  await root.verifyNoSpawnerAt(40, 40)
+})
+
+test('the erase brush marks the spawners it is over for removal', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('water')
+  await root.enterSpawnerMode()
+  await root.clickCell(40, 40)
+
+  await root.selectErase()
+  await root.selectBrush(0)
+
+  await root.hoverCell(42, 40)
+  await root.verifySpawnerNotMarkedForRemoval(40, 40)
+
+  await root.hoverCell(40, 40)
+  await root.verifySpawnerMarkedForRemoval(40, 40)
+})

@@ -82,6 +82,7 @@ test('the loop map tracks the playhead, and playback never yanks the scroll posi
 test('a playhead inside the window needs no edge glow', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.openClipEditor()
   await root.verifyNoPlayheadEdgeGlow() // stopped
 
   await root.pressPlay()
@@ -116,7 +117,16 @@ test('the "⋯" menu holds every action the phone chrome drops, Clear grid last'
   await root.verifyPhoneChromeTapTargets()
 
   await root.openPhoneMenu()
-  await root.verifyPhoneMenuItems(['My boops', 'Share', 'How boop works', 'Clear grid'])
+  // New boop joined the list when the transport went (screenspace ticket 03):
+  // the menu is where every action the phone chrome drops lives, and `TopBar`
+  // leads its own action group with New boop too.
+  await root.verifyPhoneMenuItems([
+    'New boop',
+    'My boops',
+    'Share',
+    'How boop works',
+    'Clear grid',
+  ])
 })
 
 test('the "⋯" menu opens My boops and the hint sheet, closing itself behind them', async ({
@@ -178,11 +188,13 @@ test('clearing the grid from the "⋯" menu still goes through the confirm', asy
   await root.openClearGridConfirm()
   await root.verifyClearGridConfirmShown()
   await root.keepPlaying()
+  await root.openClipEditor()
   await root.verifyCellOn('kick', 0)
 
   await root.openPhoneMenu()
   await root.openClearGridConfirm()
   await root.clearIt()
+  await root.openClipEditor()
   await root.verifyCellOff('kick', 0)
   await root.verifyLoopTick(0, 'empty')
 })

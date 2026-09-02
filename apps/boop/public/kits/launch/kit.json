@@ -44,6 +44,104 @@
       "artwork": "/kits/launch/artwork/boombox.svg",
       "sound": "/kits/launch/sounds/boop.wav",
       "role": "melodic"
+    },
+    {
+      "instrumentId": "clap",
+      "name": "Clap",
+      "artwork": "/kits/launch/artwork/high-five.svg",
+      "sound": "/kits/launch/sounds/clap.wav",
+      "role": "perc"
+    },
+    {
+      "instrumentId": "shaker",
+      "name": "Shaker",
+      "artwork": "/kits/launch/artwork/maracas.svg",
+      "sound": "/kits/launch/sounds/shaker.wav",
+      "role": "perc"
+    },
+    {
+      "instrumentId": "cowbell",
+      "name": "Cowbell",
+      "artwork": "/kits/launch/artwork/cow.svg",
+      "sound": "/kits/launch/sounds/cowbell.wav",
+      "role": "perc"
+    },
+    {
+      "instrumentId": "woodblock",
+      "name": "Woodblock",
+      "artwork": "/kits/launch/artwork/wood-beam.svg",
+      "sound": "/kits/launch/sounds/woodblock.wav",
+      "role": "perc"
+    },
+    {
+      "instrumentId": "triangle",
+      "name": "Triangle",
+      "artwork": "/kits/launch/artwork/pool-triangle.svg",
+      "sound": "/kits/launch/sounds/triangle.wav",
+      "role": "perc"
+    },
+    {
+      "instrumentId": "cymbal",
+      "name": "Cymbal",
+      "artwork": "/kits/launch/artwork/metal-disc.svg",
+      "sound": "/kits/launch/sounds/cymbal.wav",
+      "role": "perc"
+    },
+    {
+      "instrumentId": "bass",
+      "name": "Bass",
+      "artwork": "/kits/launch/artwork/guitar-bass-head.svg",
+      "sound": "/kits/launch/sounds/bass.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "bell",
+      "name": "Bell",
+      "artwork": "/kits/launch/artwork/ringing-bell.svg",
+      "sound": "/kits/launch/sounds/bell.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "chime",
+      "name": "Chime",
+      "artwork": "/kits/launch/artwork/windchimes.svg",
+      "sound": "/kits/launch/sounds/chime.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "pluck",
+      "name": "Pluck",
+      "artwork": "/kits/launch/artwork/harp.svg",
+      "sound": "/kits/launch/sounds/pluck.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "boing",
+      "name": "Boing",
+      "artwork": "/kits/launch/artwork/bouncing-spring.svg",
+      "sound": "/kits/launch/sounds/boing.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "pop",
+      "name": "Pop",
+      "artwork": "/kits/launch/artwork/bubbles.svg",
+      "sound": "/kits/launch/sounds/pop.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "zap",
+      "name": "Zap",
+      "artwork": "/kits/launch/artwork/lightning-arc.svg",
+      "sound": "/kits/launch/sounds/zap.wav",
+      "role": "melodic"
+    },
+    {
+      "instrumentId": "drip",
+      "name": "Drip",
+      "artwork": "/kits/launch/artwork/drop.svg",
+      "sound": "/kits/launch/sounds/drip.wav",
+      "role": "melodic"
     }
   ]
 }

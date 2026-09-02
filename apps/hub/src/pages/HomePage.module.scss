@@ -281,6 +281,24 @@
   box-shadow: 0 2px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
+// Same pill as .newPill, but outlined on the card rather than filled with the
+// accent — quieter than "New", obviously the same family.
+.updatedPill {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 1;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .cardFoot {
   display: flex;
   align-items: center;
