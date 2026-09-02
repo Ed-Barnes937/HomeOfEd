@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'vitest'
 
-import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
+import { createSequencerEngine } from '../engine/createSequencerEngine.ts'
+import {
+  blankPattern,
+  DEFAULT_CLIP_ROWS,
+  STEPS_PER_PATTERN,
+  type Kit,
+  type Pattern,
+} from '../engine/sequencerEngine.ts'
+import { FakeAudioDriver } from '../engine/testing/fakeAudioDriver.ts'
 import { patternToStored, type StoredBoop } from '../persistence/saveFormat.ts'
 import { afterEdit } from '../savedState.ts'
 import {
   activeClip,
   addClip,
+  addRow,
   deleteClip,
   mergePatterns,
   moveClip,
+  removeRow,
   renameClip,
   singleClipSong,
   songFromStored,
   storedBoopFromSong,
+  swapRowInstrument,
   togglePlacement,
   withActivePattern,
   withBpm,
@@ -29,11 +40,32 @@ const kit: Kit = {
   ],
 }
 
+/**
+ * A roster bigger than a clip's default row count, so the two can differ and
+ * the row mutations have somewhere to add to and swap to (ADR 0041).
+ */
+const roster: Kit = {
+  kitId: 'roster',
+  name: 'Roster kit',
+  instruments: ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop', 'clap', 'cowbell'].map((id) => ({
+    instrumentId: id,
+    name: id,
+    artwork: `${id}.svg`,
+    sound: `${id}.wav`,
+  })),
+}
+
 function row(instrumentId: string, ...onSteps: number[]) {
   const steps = new Array<boolean>(STEPS_PER_PATTERN).fill(false)
   for (const step of onSteps) steps[step] = true
   return { instrumentId, steps }
 }
+
+/** A one-clip song on `roster`: the default six rows, the hat row painted. */
+const rowSong: Song = singleClipSong(
+  blankPattern(roster).map((r) => (r.instrumentId === 'hat' ? row('hat', 2, 6) : r)),
+  100,
+)
 
 const kickPattern: Pattern = [row('kick', 0, 4), row('snare')]
 const snarePattern: Pattern = [row('kick'), row('snare', 2, 10)]
@@ -216,6 +248,172 @@ describe('mergePatterns', () => {
       row('snare'),
     ])
   })
+
+  // Since ADR 0041 a clip owns its rows, so a row's position says nothing
+  // about which instrument it is: two layered clips can name entirely
+  // different ones, and the union has to key on `instrumentId` (spec §1).
+  it('unions layered clips by instrument, never by row position', () => {
+    const kicks: Pattern = [row('kick', 0, 8)]
+    const withHat: Pattern = [row('hat', 2), row('kick', 4)]
+
+    expect(mergePatterns([kicks, withHat])).toEqual([row('kick', 0, 4, 8), row('hat', 2)])
+  })
+
+  it('carries a row only one clip holds through untouched', () => {
+    expect(mergePatterns([[row('kick', 0)], [row('cowbell', 5, 6)]])).toEqual([
+      row('kick', 0),
+      row('cowbell', 5, 6),
+    ])
+  })
+
+  it('orders the union by first appearance in lane order', () => {
+    const merged = mergePatterns([
+      [row('boop', 1)],
+      [row('kick', 2), row('boop', 3)],
+      [row('hat', 4)],
+    ])
+
+    expect(merged.map((r) => r.instrumentId)).toEqual(['boop', 'kick', 'hat'])
+    expect(merged[0]).toEqual(row('boop', 1, 3))
+  })
+})
+
+describe('addRow', () => {
+  it('appends the instrument at the bottom of the active clip, nothing painted', () => {
+    const rows = activeClip(addRow(roster, rowSong, 'clap')).pattern
+
+    expect(rows.map((r) => r.instrumentId)).toEqual([
+      'kick',
+      'snare',
+      'hat',
+      'tom',
+      'marimba',
+      'boop',
+      'clap',
+    ])
+    expect(rows.at(-1)).toEqual(row('clap'))
+  })
+
+  it('adds to the clip on the grid and no other', () => {
+    const two = addClip(rowSong, blankPattern(roster))
+    const next = addRow(roster, two, 'clap')
+
+    expect(activeClip(next).pattern).toHaveLength(DEFAULT_CLIP_ROWS + 1)
+    expect(next.clips[0]).toBe(two.clips[0])
+  })
+
+  it('refuses an instrument the clip already holds', () => {
+    expect(addRow(roster, rowSong, 'hat')).toBe(rowSong)
+  })
+
+  it('refuses an instrument the kit does not have', () => {
+    expect(addRow(roster, rowSong, 'tuba')).toBe(rowSong)
+  })
+
+  it('refuses to grow past the roster', () => {
+    const full = addRow(roster, addRow(roster, rowSong, 'clap'), 'cowbell')
+
+    expect(activeClip(full).pattern).toHaveLength(roster.instruments.length)
+    for (const instrument of roster.instruments) {
+      expect(addRow(roster, full, instrument.instrumentId)).toBe(full)
+    }
+  })
+})
+
+describe('removeRow', () => {
+  it('drops the row and the steps painted on it', () => {
+    const rows = activeClip(removeRow(rowSong, 2)).pattern
+
+    expect(rows.map((r) => r.instrumentId)).toEqual(['kick', 'snare', 'tom', 'marimba', 'boop'])
+    expect(rows.some((r) => r.steps.some((on) => on))).toBe(false)
+  })
+
+  it('removes from the clip on the grid and no other', () => {
+    const two = addClip(rowSong, blankPattern(roster))
+    const next = removeRow(two, 0)
+
+    expect(activeClip(next).pattern).toHaveLength(DEFAULT_CLIP_ROWS - 1)
+    expect(next.clips[0]).toBe(two.clips[0])
+  })
+
+  it('refuses the last row — a clip is never rowless', () => {
+    const one = singleClipSong([row('kick', 0)], 100)
+
+    expect(removeRow(one, 0)).toBe(one)
+  })
+
+  it('refuses an index the clip has no row at', () => {
+    expect(removeRow(rowSong, DEFAULT_CLIP_ROWS)).toBe(rowSong)
+    expect(removeRow(rowSong, -1)).toBe(rowSong)
+  })
+})
+
+describe('swapRowInstrument', () => {
+  it("keeps the row's position and its painted steps — same rhythm, new sound", () => {
+    const rows = activeClip(swapRowInstrument(roster, rowSong, 2, 'cowbell')).pattern
+
+    expect(rows.map((r) => r.instrumentId)).toEqual([
+      'kick',
+      'snare',
+      'cowbell',
+      'tom',
+      'marimba',
+      'boop',
+    ])
+    expect(rows[2]).toEqual(row('cowbell', 2, 6))
+  })
+
+  it('swaps on the clip on the grid and no other', () => {
+    const two = addClip(rowSong, blankPattern(roster))
+    const next = swapRowInstrument(roster, two, 0, 'clap')
+
+    expect(activeClip(next).pattern[0]!.instrumentId).toBe('clap')
+    expect(next.clips[0]).toBe(two.clips[0])
+  })
+
+  it("refuses an instrument the clip already holds, the row's own included", () => {
+    expect(swapRowInstrument(roster, rowSong, 2, 'boop')).toBe(rowSong)
+    expect(swapRowInstrument(roster, rowSong, 2, 'hat')).toBe(rowSong)
+  })
+
+  it('refuses an instrument the kit does not have', () => {
+    expect(swapRowInstrument(roster, rowSong, 2, 'tuba')).toBe(rowSong)
+  })
+
+  it('refuses an index the clip has no row at', () => {
+    expect(swapRowInstrument(roster, rowSong, DEFAULT_CLIP_ROWS, 'clap')).toBe(rowSong)
+    expect(swapRowInstrument(roster, rowSong, -1, 'clap')).toBe(rowSong)
+  })
+})
+
+/**
+ * Spec §5 at the state level: a clip's instrument selection *is* its pattern's
+ * row list, so it needs no state of its own to survive a trip to another clip.
+ * This exercises the seam the app actually switches clips over — `setPattern`
+ * out, `getPattern` back. The `.iwft` version lands with the picker (ticket 05).
+ */
+describe('a clip switch carries each clip’s own rows through the engine', () => {
+  it('gives clip 1 its rows back after a clip 2 with nothing painted', async () => {
+    const engine = await createSequencerEngine({ kit: roster, driver: new FakeAudioDriver() })
+
+    // Clip 1: swap a row and add one, painting nothing new.
+    let current = addRow(roster, swapRowInstrument(roster, rowSong, 2, 'cowbell'), 'clap')
+    const chosen = activeClip(current).pattern.map((r) => r.instrumentId)
+    engine.setPattern(activeClip(current).pattern)
+
+    // Clip 2: a blank clip on the grid, its own default rows, nothing painted.
+    current = addClip(current, blankPattern(roster))
+    engine.setPattern(activeClip(current).pattern)
+    expect(engine.getPattern()).toHaveLength(DEFAULT_CLIP_ROWS)
+
+    // Back to clip 1, the way `selectClip` does it.
+    current = { ...current, activeClipIndex: 0 }
+    engine.setPattern(activeClip(current).pattern)
+
+    expect(engine.getPattern().map((r) => r.instrumentId)).toEqual(chosen)
+    // And the steps travelled with the row the swap re-pointed.
+    expect(engine.getPattern()[2]).toEqual(row('cowbell', 2, 6))
+  })
 })
 
 describe('addClip', () => {
@@ -352,7 +550,8 @@ describe('every song mutation kind marks the loaded boop edited', () => {
     return mutate(input) === input ? loaded : afterEdit(loaded)
   }
 
-  const kinds: [string, (input: Song) => Song][] = [
+  /** The song each kind is applied to; the two-clip `song` unless it needs a roster. */
+  const kinds: [string, (input: Song) => Song, Song?][] = [
     ['a cell toggle', (input) => withActivePattern(input, emptyPattern)],
     ['a speed change', (input) => withBpm(input, 84)],
     ['a placement change', (input) => withPlacement(input, 3, [0])],
@@ -360,12 +559,15 @@ describe('every song mutation kind marks the loaded boop edited', () => {
     ['a clip delete', (input) => deleteClip(input, 0)],
     ['a clip rename', (input) => renameClip(input, 0, 'Thunder')],
     ['a lane reorder', (input) => moveClip(input, 0, 1)],
+    ['a row add', (input) => addRow(roster, input, 'clap'), rowSong],
+    ['a row remove', (input) => removeRow(input, 2), rowSong],
+    ['an instrument swap', (input) => swapRowInstrument(roster, input, 2, 'clap'), rowSong],
   ]
 
-  for (const [kind, mutate] of kinds) {
+  for (const [kind, mutate, on = song] of kinds) {
     it(`${kind} is a real mutation, and the transition marks it`, () => {
-      expect(mutate(song)).not.toEqual(song)
-      expect(apply(song, mutate)).toEqual({ ...loaded, edited: true })
+      expect(mutate(on)).not.toEqual(on)
+      expect(apply(on, mutate)).toEqual({ ...loaded, edited: true })
     })
   }
 
@@ -373,8 +575,12 @@ describe('every song mutation kind marks the loaded boop edited', () => {
     let full = song
     while (full.clips.length < 5) full = addClip(full, emptyPattern)
     const one = singleClipSong(kickPattern, 100)
+    const oneRow = singleClipSong([row('kick', 0)], 100)
 
     expect(apply(full, (input) => addClip(input, emptyPattern))).toBe(loaded)
     expect(apply(one, (input) => deleteClip(input, 0))).toBe(loaded)
+    expect(apply(rowSong, (input) => addRow(roster, input, 'hat'))).toBe(loaded)
+    expect(apply(oneRow, (input) => removeRow(input, 0))).toBe(loaded)
+    expect(apply(rowSong, (input) => swapRowInstrument(roster, input, 2, 'hat'))).toBe(loaded)
   })
 })

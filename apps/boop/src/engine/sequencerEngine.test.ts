@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { createSequencerEngine } from './createSequencerEngine.ts'
 import {
+  blankPattern,
   DEFAULT_BPM,
   DEFAULT_CLIP_ROWS,
+  STEPS_PER_PATTERN,
   type BeatEvent,
   type Kit,
   type KitInstrument,
@@ -670,6 +672,39 @@ describe('SequencerEngine', () => {
     off()
     return events
   }
+})
+
+/**
+ * The one definition of "a fresh grid" (ADR 0041), so the engine's own
+ * starting pattern, a Blank clip, a sample clip's rows and decode's fallback
+ * cannot drift apart.
+ */
+describe('blankPattern', () => {
+  it("is the roster's first six rows, nothing painted", () => {
+    const pattern = blankPattern(bigKit)
+
+    expect(pattern.map((r) => r.instrumentId)).toEqual([
+      'voice-0',
+      'voice-1',
+      'voice-2',
+      'voice-3',
+      'voice-4',
+      'voice-5',
+    ])
+    expect(pattern.every((r) => r.steps.length === STEPS_PER_PATTERN)).toBe(true)
+    expect(pattern.every((r) => r.steps.every((on) => !on))).toBe(true)
+  })
+
+  it('gives a roster smaller than the default all of it', () => {
+    expect(blankPattern(kit).map((r) => r.instrumentId)).toEqual(['kick', 'snare', 'boop'])
+  })
+
+  it('is exactly what a fresh engine starts on', async () => {
+    const fresh = await createSequencerEngine({ kit: bigKit, driver: new FakeAudioDriver() })
+
+    expect(fresh.getPattern()).toEqual(blankPattern(bigKit))
+    expect(fresh.getPattern()).toHaveLength(DEFAULT_CLIP_ROWS)
+  })
 })
 
 function row(activeSteps: number[]): boolean[] {

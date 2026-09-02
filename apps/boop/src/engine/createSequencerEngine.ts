@@ -1,7 +1,7 @@
 import type { AudioDriver } from './audioDriver.ts'
 import {
+  blankPattern,
   DEFAULT_BPM,
-  DEFAULT_CLIP_ROWS,
   MAX_BPM,
   MIN_BPM,
   STEPS_PER_PATTERN,
@@ -83,15 +83,9 @@ class BoopSequencerEngine implements SequencerEngine {
   ) {
     this.kitIds = new Set(kit.instruments.map((instrument) => instrument.instrumentId))
     // A fresh grid is the roster's first six, empty - a starting point for the
-    // child to change, not the shape of every clip.
-    this.rows = new Map(
-      kit.instruments
-        .slice(0, DEFAULT_CLIP_ROWS)
-        .map((instrument) => [
-          instrument.instrumentId,
-          new Array<boolean>(STEPS_PER_PATTERN).fill(false),
-        ]),
-    )
+    // child to change, not the shape of every clip. `blankPattern` is the one
+    // place that says so, shared with clip creation (ADR 0041).
+    this.rows = new Map(blankPattern(kit).map((row) => [row.instrumentId, [...row.steps]]))
     driver.setBpm(this.bpm)
     driver.onStep((audioTime) => this.onScheduledStep(audioTime))
     this.offDriverState = driver.onStateChange((state) => this.onAudioStateChange(state))

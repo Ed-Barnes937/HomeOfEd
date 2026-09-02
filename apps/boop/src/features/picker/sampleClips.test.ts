@@ -4,7 +4,12 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { parseKitManifest } from '../../engine/kitManifest.ts'
-import { DEFAULT_BPM, STEPS_PER_PATTERN, type Kit } from '../../engine/sequencerEngine.ts'
+import {
+  DEFAULT_BPM,
+  DEFAULT_CLIP_ROWS,
+  STEPS_PER_PATTERN,
+  type Kit,
+} from '../../engine/sequencerEngine.ts'
 import { SONG_POSITIONS } from '../../persistence/saveFormat.ts'
 import { firstVisitSong, SAMPLE_CLIPS, samplePattern } from './sampleClips.ts'
 
@@ -130,6 +135,28 @@ describe('against the real launch roster', () => {
           .map((row) => `${row.instrumentId}:${row.steps.map((on) => (on ? 1 : 0)).join('')}`)
 
       expect(sounding(roster)).toEqual(sounding(launchKit))
+    }
+  })
+
+  // A clip is six rows by default, not "one per instrument the kit can play"
+  // (ADR 0041) — a sample clip on the big roster must still be the classic six.
+  it('resolves to the default six rows, not the whole twenty-voice roster', async () => {
+    const roster = parseKitManifest(
+      JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),
+    )
+
+    expect(roster.instruments.length).toBeGreaterThan(DEFAULT_CLIP_ROWS)
+    for (const sample of SAMPLE_CLIPS) {
+      const pattern = samplePattern(roster, sample.rows)
+      expect(pattern).toHaveLength(DEFAULT_CLIP_ROWS)
+      expect(pattern.map((row) => row.instrumentId)).toEqual([
+        'kick',
+        'snare',
+        'hat',
+        'tom',
+        'marimba',
+        'boop',
+      ])
     }
   })
 })

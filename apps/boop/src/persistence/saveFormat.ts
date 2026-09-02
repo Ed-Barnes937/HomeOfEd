@@ -11,7 +11,7 @@
  */
 
 import {
-  DEFAULT_CLIP_ROWS,
+  blankPattern,
   MAX_BPM,
   MIN_BPM,
   STEPS_PER_PATTERN,
@@ -141,15 +141,7 @@ export function storedToPattern(kit: Kit, stored: StoredPattern): Pattern {
       instrumentId: row.instrumentId,
       steps: Array.from({ length: STEPS_PER_PATTERN }, (_, step) => row.steps[step] === '1'),
     }))
-  return rows.length > 0 ? rows : defaultRows(kit)
-}
-
-/** A fresh grid: the roster's first `DEFAULT_CLIP_ROWS`, empty (ADR 0041). */
-function defaultRows(kit: Kit): Pattern {
-  return kit.instruments.slice(0, DEFAULT_CLIP_ROWS).map((instrument) => ({
-    instrumentId: instrument.instrumentId,
-    steps: new Array<boolean>(STEPS_PER_PATTERN).fill(false),
-  }))
+  return rows.length > 0 ? rows : blankPattern(kit)
 }
 
 /**

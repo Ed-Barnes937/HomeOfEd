@@ -98,6 +98,21 @@ export interface PatternRow {
  */
 export type Pattern = readonly PatternRow[]
 
+/**
+ * A fresh clip's rows: the roster's first `DEFAULT_CLIP_ROWS`, nothing painted
+ * (ADR 0041). The **one** definition of "a fresh grid", so the engine's own
+ * starting pattern, a Blank clip, a sample clip's resolved rows and decode's
+ * fallback cannot drift apart - the reason the default row count is a constant
+ * on this contract at all. A roster shorter than six simply gets all of it,
+ * which is what keeps the small test kits meaningful.
+ */
+export function blankPattern(kit: Kit): Pattern {
+  return kit.instruments.slice(0, DEFAULT_CLIP_ROWS).map((instrument) => ({
+    instrumentId: instrument.instrumentId,
+    steps: new Array<boolean>(STEPS_PER_PATTERN).fill(false),
+  }))
+}
+
 export interface SequencerEngine {
   /** The loaded kit — readable state, the only place instruments are enumerated. */
   readonly kit: Kit
