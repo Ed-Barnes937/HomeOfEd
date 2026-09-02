@@ -1,7 +1,7 @@
 # boop
 
-A kid-friendly music toy: a 6-instrument x 16-step step-sequencer that loops
-forever. The domain is small — one pattern, one kit, one clock — but the
+A kid-friendly music toy: a 16-step step-sequencer that loops forever, its rows
+picked from the kit's roster. The domain is small — one pattern, one kit, one clock — but the
 vocabulary matters because it is shared between the audio engine, the grid UI,
 and the future visual layer riding the beat-event seam.
 
@@ -51,10 +51,14 @@ sounds (ADR 0024, as amended).
 _Avoid_: Jump, scrub (**Scrub** is the gesture; `seek` is what it calls).
 
 **Audition**:
-The single sample the engine plays when a cell is turned **on while stopped**,
-so an edit is always heard. Engine-internal: callers toggle cells and never
-trigger sound themselves. Turning a cell off, or editing while the loop runs,
-does not audition (the step itself will sound it).
+A single sample played on its own, outside the loop. Two forms. On **toggle**:
+the engine plays the row's sample when a cell is turned on while stopped, so an
+edit is always heard - engine-internal, callers toggle cells and never trigger
+that sound themselves, and turning a cell off or editing while the loop runs
+auditions nothing (the step itself will sound it). On **request**:
+`audition(instrumentId)` on the engine seam, the instrument picker's tap - it
+sounds whether or not the loop is running and touches neither the pattern nor
+the transport (ADR 0041).
 _Avoid_: Preview, echo.
 
 **`AudioDriver`**:
@@ -90,16 +94,31 @@ An opaque, manifest-defined identifier for one instrument/row. The
 ever carries this id.
 _Avoid_: Instrument name, row id.
 
+**Roster**:
+The kit manifest's full instrument list - every voice boop can play (20 at
+launch). A clip's rows are chosen from it, and it is the only enumeration of
+instrument ids anywhere in the app. Distinct from a clip's rows: the roster is
+what exists, the rows are what this clip uses.
+_Avoid_: Kit (the kit is the manifest as a whole), palette.
+
+**Row**:
+One lane of a clip: an instrument choice plus its 16 cells. A clip owns its
+rows (ADR 0041) - an ordered list of 1..roster-size rows, no instrument twice,
+six by default. Tapping a row's rail artwork opens the instrument picker;
+row *colour* is positional (top-to-bottom rainbow), so it belongs to the
+position, not to the instrument.
+_Avoid_: Track, voice (a voice is the sound, not the lane), instrument row.
+
 **Pattern**:
-A grid of on/off cells, `boolean[6][16]` — exposed by the
-engine as one row per kit instrument, in kit order, each carrying its
-`instrumentId`. The engine-level term for the raw grid; a pattern with a name
-and identity inside a boop is a **Clip**. Always 16 steps / 4 bars — clips are
-never variable-length (boop-loops ticket 10).
+A clip's rows and their on/off cells - an ordered list of rows, each carrying
+its `instrumentId` and 16 booleans. The engine-level term for the raw grid; a
+pattern with a name and identity inside a boop is a **Clip**. Always 16 steps /
+4 bars - clips are never variable-length (boop-loops ticket 10) - but the row
+count is the clip's own (ADR 0041).
 _Avoid_: Song (a song is an arrangement of clips, not one grid), sequence.
 
 **Clip**:
-A named 6×16 pattern within a boop — `{ name, steps }`. Names are automatic
+A named pattern within a boop — `{ name, steps }`. Names are automatic
 (`Clip 1`, `Clip 2`, …) and renameable inline, never forced. The working grid
 always edits exactly one clip; every edit writes straight into it.
 _Avoid_: Pattern (the engine-level term for the raw grid), loop, part.
@@ -217,8 +236,8 @@ _Avoid_: Using it for new work; say **Sample clip**.
 On a phone, the horizontally scrolling viewport over the 16 step columns —
 about 6.9 of them at the 390px reference width, snapping to the four 4-step
 groups so it always settles on a bar line. It is a *view* onto the pattern, not
-a smaller pattern: the grid is still 6 x 16 and the instrument rail beside it
-never scrolls.
+a smaller pattern: every step and every row is still there, and the instrument
+rail beside it never scrolls.
 _Avoid_: Viewport (that is the browser's), page, visible grid.
 
 **Loop map**:

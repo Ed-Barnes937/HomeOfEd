@@ -102,3 +102,12 @@ One adjacent change from the same map
 "Clear grid" becomes clip-scoped and is an *edit* under this definition — it no
 longer drops the loaded boop. Decision 5's starters are retired in favour of
 sample clips, which likewise get no identity.
+
+## Amendment (2026-09-02): row add, row remove and instrument swap are edits
+
+Dynamic clip rows ([ADR 0041](0041-boop-dynamic-clip-rows.md)) give a boop
+three more ways to mutate. All three are "edited" under the single definition:
+**adding a row, removing a row, and swapping a row's instrument** each mutate
+the song, so each pairs with `afterEdit` exactly like a cell toggle or a lane
+reorder. Decision 3 and its 2026-08-13 amendment are otherwise untouched - the
+definition is still "any mutation of the song", and there is still only one.

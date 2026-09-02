@@ -1,5 +1,6 @@
 import type { AudioDriver } from './audioDriver.ts'
 import {
+  blankPattern,
   DEFAULT_BPM,
   MAX_BPM,
   MIN_BPM,
@@ -21,7 +22,10 @@ export interface SequencerEngineOptions {
 
 /**
  * Build an engine over a loaded kit and await its samples, so the very first
- * cell tap is audible.
+ * cell tap is audible. The **whole roster** is preloaded, not just the rows a
+ * clip happens to hold (ADR 0041): rows change under a child's finger and the
+ * picker auditions instruments no clip has yet, so anything less would be
+ * silence at the tap. They are 20 short one-shots.
  */
 export async function createSequencerEngine({
   kit,
@@ -38,7 +42,15 @@ export async function createSequencerEngine({
 }
 
 class BoopSequencerEngine implements SequencerEngine {
-  private readonly rows: Map<string, boolean[]>
+  /**
+   * The clip's rows, in their own order (ADR 0041) - a Map because cells are
+   * addressed by `instrumentId`, and Map iteration is insertion order, which
+   * is exactly the row order hits and `getPattern()` must report. Replaced
+   * wholesale by `setPattern`: that is how a row set changes.
+   */
+  private rows: Map<string, boolean[]>
+  /** The roster, for the id checks. `kit.instruments` stays the enumeration. */
+  private readonly kitIds: ReadonlySet<string>
   private readonly beatListeners = new Set<(event: BeatEvent) => void>()
   private readonly drawListeners = new Set<(event: BeatEvent) => void>()
   private readonly transportListeners = new Set<(event: TransportEvent) => void>()
@@ -69,12 +81,11 @@ class BoopSequencerEngine implements SequencerEngine {
     readonly kit: Kit,
     private readonly driver: AudioDriver,
   ) {
-    this.rows = new Map(
-      kit.instruments.map((instrument) => [
-        instrument.instrumentId,
-        new Array<boolean>(STEPS_PER_PATTERN).fill(false),
-      ]),
-    )
+    this.kitIds = new Set(kit.instruments.map((instrument) => instrument.instrumentId))
+    // A fresh grid is the roster's first six, empty - a starting point for the
+    // child to change, not the shape of every clip. `blankPattern` is the one
+    // place that says so, shared with clip creation (ADR 0041).
+    this.rows = new Map(blankPattern(kit).map((row) => [row.instrumentId, [...row.steps]]))
     driver.setBpm(this.bpm)
     driver.onStep((audioTime) => this.onScheduledStep(audioTime))
     this.offDriverState = driver.onStateChange((state) => this.onAudioStateChange(state))
@@ -93,27 +104,41 @@ class BoopSequencerEngine implements SequencerEngine {
   }
 
   setPattern(pattern: Pattern): void {
-    const incoming = new Map(pattern.map((row) => [row.instrumentId, row.steps]))
-    if (incoming.size !== this.rows.size) {
-      throw new Error(
-        `pattern must have one row per kit instrument (expected ${this.rows.size}, got ${incoming.size})`,
-      )
-    }
-    // Validate every row before writing any, so a bad pattern leaves the grid alone.
-    const writes: { target: boolean[]; steps: readonly boolean[] }[] = []
-    for (const [instrumentId, target] of this.rows) {
-      const steps = incoming.get(instrumentId)
-      if (!steps) throw new Error(`pattern is missing a row for instrument "${instrumentId}"`)
+    if (pattern.length === 0) throw new Error('pattern must have at least one row')
+    // Build the whole row set before adopting any of it, so a bad pattern
+    // leaves the grid alone.
+    const rows = new Map<string, boolean[]>()
+    for (const row of pattern) {
+      const { instrumentId, steps } = row
+      if (!this.kitIds.has(instrumentId)) {
+        throw new Error(`unknown instrument "${instrumentId}" for this kit`)
+      }
+      if (rows.has(instrumentId)) {
+        throw new Error(`pattern names instrument "${instrumentId}" twice`)
+      }
       if (steps.length !== STEPS_PER_PATTERN) {
         throw new Error(
           `pattern row "${instrumentId}" must have ${STEPS_PER_PATTERN} steps, got ${steps.length}`,
         )
       }
-      writes.push({ target, steps })
+      rows.set(
+        instrumentId,
+        Array.from({ length: STEPS_PER_PATTERN }, (_, step) => steps[step] === true),
+      )
     }
-    for (const { target, steps } of writes) {
-      for (let step = 0; step < STEPS_PER_PATTERN; step += 1) target[step] = steps[step] === true
+    this.rows = rows
+  }
+
+  audition(instrumentId: string): void {
+    // Called straight from a tap, so an id the kit does not know is ignored
+    // rather than thrown (the contract says so). The driver would no-op anyway.
+    if (!this.kitIds.has(instrumentId)) return
+    if (this.driver.state() === 'running') {
+      this.driver.play(instrumentId)
+      return
     }
+    // The tap that called us is itself a gesture, so it may unlock.
+    void this.driver.unlock().then(() => this.driver.play(instrumentId))
   }
 
   async start(): Promise<void> {
@@ -268,18 +293,17 @@ class BoopSequencerEngine implements SequencerEngine {
     for (const listener of this.audioStateListeners) listener(state)
   }
 
-  private audition(instrumentId: string): void {
-    if (this.driver.state() === 'running') {
-      this.driver.play(instrumentId)
-      return
-    }
-    // The tap that turned the cell on is itself a gesture, so it may unlock.
-    void this.driver.unlock().then(() => this.driver.play(instrumentId))
-  }
-
   private rowFor(instrumentId: string): boolean[] {
     const steps = this.rows.get(instrumentId)
-    if (!steps) throw new Error(`unknown instrument "${instrumentId}" for this kit`)
+    if (!steps) {
+      // The kit knowing an instrument no longer means this clip has a row for
+      // it, so the two failures read differently.
+      throw new Error(
+        this.kitIds.has(instrumentId)
+          ? `instrument "${instrumentId}" is not a row of this pattern`
+          : `unknown instrument "${instrumentId}" for this kit`,
+      )
+    }
     return steps
   }
 

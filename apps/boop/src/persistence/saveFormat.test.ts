@@ -12,13 +12,30 @@ import {
   type StoredBoop,
 } from './saveFormat.ts'
 
+function instrument(instrumentId: string) {
+  return {
+    instrumentId,
+    name: instrumentId,
+    artwork: `${instrumentId}.svg`,
+    sound: `${instrumentId}.wav`,
+  }
+}
+
 const kit: Kit = {
   kitId: 'launch',
   name: 'Launch kit',
-  instruments: [
-    { instrumentId: 'kick', name: 'Kick', artwork: 'k.svg', sound: 'k.wav' },
-    { instrumentId: 'snare', name: 'Snare', artwork: 's.svg', sound: 's.wav' },
-  ],
+  instruments: [instrument('kick'), instrument('snare')],
+}
+
+/**
+ * A roster-shaped kit (ADR 0041): the classic six first, then instruments a
+ * clip may pick but a pre-dynamic-rows document never named.
+ */
+const rosterKit: Kit = {
+  ...kit,
+  instruments: ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop', 'cowbell', 'bell'].map(
+    instrument,
+  ),
 }
 
 function row(instrumentId: string, ...onSteps: number[]) {
@@ -52,28 +69,113 @@ describe('patternToStored', () => {
   })
 })
 
+// Ticket 03 / ADR 0041: the stored rows ARE the clip's selection, so decode
+// honours them verbatim - membership and order - rather than rebuilding one
+// row per kit instrument.
 describe('storedToPattern', () => {
-  it('rebuilds a full pattern for the kit, in kit order', () => {
+  it('honours the stored rows verbatim', () => {
     expect(storedToPattern(kit, patternToStored(pattern))).toEqual(pattern)
   })
 
-  it('leaves rows the stored pattern does not mention switched off', () => {
-    const stored = { rows: [{ instrumentId: 'snare', steps: '1'.repeat(STEPS_PER_PATTERN) }] }
-    const result = storedToPattern(kit, stored)
+  it('reads the rows in stored order, not kit order', () => {
+    const stored = patternToStored([row('snare', 0), row('kick', 1)])
 
-    expect(result.map((r) => r.instrumentId)).toEqual(['kick', 'snare'])
-    expect(result[0]!.steps.every((on) => on === false)).toBe(true)
-    expect(result[1]!.steps.every((on) => on === true)).toBe(true)
+    expect(storedToPattern(kit, stored)).toEqual([row('snare', 0), row('kick', 1)])
   })
 
-  it('ignores instruments that are not in the kit', () => {
-    const stored = { rows: [{ instrumentId: 'cowbell', steps: '1'.repeat(STEPS_PER_PATTERN) }] }
+  it('keeps an all-off row, so an instrument chosen but never painted comes back', () => {
+    const chosen: Pattern = [row('snare'), row('kick', 0)]
+
+    expect(storedToPattern(kit, patternToStored(chosen))).toEqual(chosen)
+  })
+
+  it('does not invent rows for kit instruments the clip left out', () => {
+    const stored = { rows: [{ instrumentId: 'snare', steps: '1'.repeat(STEPS_PER_PATTERN) }] }
+
+    const result = storedToPattern(kit, stored)
+
+    expect(result.map((r) => r.instrumentId)).toEqual(['snare'])
+    expect(result[0]!.steps.every((on) => on === true)).toBe(true)
+  })
+
+  it('drops an instrument the kit does not know and keeps the rest, in place', () => {
+    const stored = patternToStored([row('cowbell', 0), row('snare', 4), row('kick', 8)])
+
+    expect(storedToPattern(kit, stored)).toEqual([row('snare', 4), row('kick', 8)])
+  })
+
+  // A `Pattern` is 1..roster rows (ADR 0041) and `setPattern` throws on an
+  // empty one, so an all-unknown row set degrades to a fresh grid rather than
+  // handing the engine something it must refuse.
+  it('falls back to the kit’s default rows when it knows none of the stored rows', () => {
+    const stored = patternToStored([row('cowbell', 0), row('bell', 4)])
 
     expect(storedToPattern(kit, stored)).toEqual([row('kick'), row('snare')])
+  })
+
+  it('caps that fallback at the default row count on a big roster', () => {
+    const stored = patternToStored([row('nothing-here', 0)])
+
+    expect(storedToPattern(rosterKit, stored)).toEqual([
+      row('kick'),
+      row('snare'),
+      row('hat'),
+      row('tom'),
+      row('marimba'),
+      row('boop'),
+    ])
   })
 })
 
 describe('round-trip', () => {
+  // Spec §5, the "come back to clip 1" scenario at the unit level: the
+  // selection was never separate state, so it needs no new field.
+  it('preserves a chosen row set with nothing painted on it', () => {
+    const chosen = patternToStored([row('snare'), row('kick')])
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...boop, name: '', patterns: [chosen] },
+      creations: [],
+    }
+
+    const restored = reparse(saveDocument).working!
+
+    expect(restored.patterns[0]).toEqual({
+      rows: [
+        { instrumentId: 'snare', steps: '0'.repeat(STEPS_PER_PATTERN) },
+        { instrumentId: 'kick', steps: '0'.repeat(STEPS_PER_PATTERN) },
+      ],
+    })
+    expect(storedToPattern(kit, restored.patterns[0]!)).toEqual([row('snare'), row('kick')])
+  })
+
+  // Ticket 03: every pre-dynamic-rows document listed exactly the launch six
+  // in kit order, which is why making the rows authoritative changes nothing
+  // for data already on disk.
+  it('decodes a pre-dynamic-rows document byte-honest and re-encodes it identically', () => {
+    const classicSix = ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop']
+    const legacyRaw = JSON.stringify({
+      version: 1,
+      working: {
+        name: '',
+        kitId: 'launch',
+        tempo: 120,
+        patterns: [
+          { rows: classicSix.map((instrumentId) => ({ instrumentId, steps: '1000100010001000' })) },
+        ],
+      },
+      creations: [],
+    })
+
+    const decoded = parseSaveDocument(legacyRaw)
+
+    expect(serializeSaveDocument(decoded)).toBe(legacyRaw)
+    // On the grown roster it still reads as the classic six, in the order the
+    // old build wrote them.
+    const rebuilt = storedToPattern(rosterKit, decoded.working!.patterns[0]!)
+    expect(rebuilt.map((r) => r.instrumentId)).toEqual(classicSix)
+  })
+
   it('preserves a pattern name and tint (ADR 0032)', () => {
     const named = { ...patternToStored(pattern), name: 'Drums', tint: 3 }
     const saveDocument: SaveDocument = {
@@ -198,6 +300,23 @@ describe('parseSaveDocument (defensive decode)', () => {
         patterns: [{ rows: [{ instrumentId: 'kick', steps: 'x'.repeat(STEPS_PER_PATTERN) }] }],
       }),
     ],
+    // Ticket 03 / ADR 0041: a clip holds 1..roster rows with unique
+    // instrument ids, so neither of these is data.
+    ['a pattern with no rows', withWorking({ ...boop, patterns: [{ rows: [] }] })],
+    [
+      'a pattern naming the same instrument twice',
+      withWorking({
+        ...boop,
+        patterns: [
+          {
+            rows: [
+              { instrumentId: 'kick', steps: '1000100010001000' },
+              { instrumentId: 'kick', steps: '0000100000000000' },
+            ],
+          },
+        ],
+      }),
+    ],
     ['a non-numeric tempo', withWorking({ ...boop, tempo: 'fast' })],
     ['a tempo outside the allowed range', withWorking({ ...boop, tempo: 5000 })],
     [
@@ -256,6 +375,28 @@ describe('parseSaveDocument (defensive decode)', () => {
     ['a fractional gridClip', withWorking({ ...boop, gridClip: 0.5 })],
   ])('degrades to an empty document on %s', (_label, raw) => {
     expect(parseSaveDocument(raw)).toEqual(empty)
+  })
+
+  // The other half of ticket 03's rule: a document from a *newer* roster must
+  // not be rejected. Unknown ids are a decode-time tolerance, not a document
+  // error - they drop later, at `storedToPattern`.
+  it('decodes a pattern naming an instrument no kit here has', () => {
+    const raw = withWorking({
+      ...boop,
+      patterns: [
+        {
+          rows: [
+            { instrumentId: 'kick', steps: '1000100010001000' },
+            { instrumentId: 'cowbell', steps: '0010001000100010' },
+          ],
+        },
+      ],
+    })
+
+    const rows = parseSaveDocument(raw).working!.patterns[0]!.rows
+
+    expect(rows.map((r) => r.instrumentId)).toEqual(['kick', 'cowbell'])
+    expect(storedToPattern(kit, { rows })).toEqual([row('kick', 0, 4, 8, 12)])
   })
 
   it('discards the whole document when one saved boop breaks a song rule', () => {

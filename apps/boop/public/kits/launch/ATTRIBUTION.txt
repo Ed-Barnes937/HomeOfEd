@@ -1,61 +1,126 @@
-Launch kit — real kit content (ticket 18).
+Launch kit - real kit content (ticket 18), grown to the 20-instrument roster
+by the boop-instruments effort (ticket 01).
 
 artwork/*.svg
-  Placeholder icons from game-icons.net, CC BY 3.0, taken from the design
-  handoff bundle (docs/reference/boop-design/assets/instruments/). Final
-  artwork replacing these is ticket 28. Per-icon author, verified against the
-  upstream game-icons/icons source tree (github.com/game-icons/icons):
+  Placeholder icons from game-icons.net, CC BY 3.0. The classic six were taken
+  from the design handoff bundle (docs/reference/boop-design/assets/instruments/);
+  the fourteen added for the roster were taken from the upstream source tree
+  (github.com/game-icons/icons), where each author owns a top-level directory -
+  which is how per-icon authorship below was verified (file listing read from
+  the repo's git tree, 2026-09-02). Upstream wraps every glyph in a full-canvas
+  background rect behind a white glyph; the app tints these files through
+  mask-image, so that rect was dropped and only the glyph path kept - the same
+  shape the handoff's six already had. Final artwork replacing all twenty is
+  ticket 28.
 
-    drum.svg        — Delapouite  (icons/delapouite/drum.svg)
-    drum-kit.svg    — Caro Asercion (icons/caro-asercion/drum-kit.svg)
-    gong.svg        — Delapouite  (icons/delapouite/gong.svg)
-    tambourine.svg  — Delapouite  (icons/delapouite/tambourine.svg)
-    xylophone.svg   — Delapouite  (icons/delapouite/xylophone.svg)
-    boombox.svg     — Delapouite  (icons/delapouite/boombox.svg)
+  Per-icon author (paths are relative to the game-icons/icons repo root):
 
-  Icons made by Delapouite and Caro Asercion. Full game-icons.net contributor
-  list and the CC BY 3.0 terms: docs/reference/boop-design/ATTRIBUTION.txt.
-  (The design brief's broader credit list — Lorc and Skoll among them — covers
-  game-icons.net contributors generally; verified per-file authorship above is
-  the accurate attribution for the six files actually shipped here.)
+    the classic six
+      drum.svg               - Delapouite    (delapouite/drum.svg)
+      drum-kit.svg           - Caro Asercion (caro-asercion/drum-kit.svg)
+      gong.svg               - Delapouite    (delapouite/gong.svg)
+      tambourine.svg         - Delapouite    (delapouite/tambourine.svg)
+      xylophone.svg          - Delapouite    (delapouite/xylophone.svg)
+      boombox.svg            - Delapouite    (delapouite/boombox.svg)
+
+    the fourteen new voices
+      high-five.svg          - Lorc          (lorc/high-five.svg)          Clap
+      maracas.svg            - Delapouite    (delapouite/maracas.svg)      Shaker
+      cow.svg                - Delapouite    (delapouite/cow.svg)          Cowbell
+      wood-beam.svg          - Delapouite    (delapouite/wood-beam.svg)    Woodblock
+      pool-triangle.svg      - Delapouite    (delapouite/pool-triangle.svg) Triangle
+      metal-disc.svg         - Lorc          (lorc/metal-disc.svg)         Cymbal
+      guitar-bass-head.svg   - Delapouite    (delapouite/guitar-bass-head.svg) Bass
+      ringing-bell.svg       - Lorc          (lorc/ringing-bell.svg)       Bell
+      windchimes.svg         - Caro Asercion (caro-asercion/windchimes.svg) Chime
+      harp.svg               - Delapouite    (delapouite/harp.svg)         Pluck
+      bouncing-spring.svg    - Delapouite    (delapouite/bouncing-spring.svg) Boing
+      bubbles.svg            - Lorc          (lorc/bubbles.svg)            Pop
+      lightning-arc.svg      - Lorc          (lorc/lightning-arc.svg)      Zap
+      drop.svg               - Lorc          (lorc/drop.svg)               Drip
+
+  Icons made by Delapouite, Lorc and Caro Asercion. Full game-icons.net
+  contributor list and the CC BY 3.0 terms:
+  docs/reference/boop-design/ATTRIBUTION.txt. (The design brief's broader
+  credit list - Skoll among them - covers game-icons.net contributors
+  generally; the verified per-file authorship above is the accurate
+  attribution for the twenty files actually shipped here.)
 
 sounds/*.wav
-  Synthesized in this repo — original work, no third-party audio, no
+  Synthesized in this repo - original work, no third-party audio, no
   attribution owed. Real CC0-sourced one-shots were the first choice (per the
   ticket's sourcing guidance) but weren't reachable from this environment:
 
     - freesound.org: search/browse works without auth, but every sound's
       actual audio file (including CC0-licensed ones, e.g.
       people/deadrobotmusic/sounds/737300 "Lil Lofi Snare 9", CC0) sits behind
-      a login-gated download endpoint — confirmed by fetching the download URL
+      a login-gated download endpoint - confirmed by fetching the download URL
       directly, which returns the HTML login page rather than audio data, no
       API token available in this environment.
     - opengameart.org "CC0 Sound Effects": browsed the pack; no kick / snare /
-      hi-hat / tom / marimba-ish / synth-hit content in it — mostly retro UI
+      hi-hat / tom / marimba-ish / synth-hit content in it - mostly retro UI
       bleeps, creature and ambience sounds.
     - kenney.nl audio packs: CC0 and directly downloadable, but built for UI /
-      sci-fi / RPG sound effects, not tuned percussive or pitched one-shots —
+      sci-fi / RPG sound effects, not tuned percussive or pitched one-shots -
       using them would misrepresent the instruments in the design brief.
 
-  Six voices synthesized with the same gain-staging budget as the ticket-12
-  placeholder generator (apps/boop/scripts/generatePlaceholderSamples.mjs:
-  peak 0.5 per voice), which combine to ~1.83 raw in the worst case — the
-  same combined figure apps/boop/src/engine/toneAudioDriver.ts's
-  MASTER_GAIN/Limiter comment was tuned against. Verified by
-  apps/boop/src/engine/kitLevels.test.ts (peak, duration and 200bpm
-  16th-note retrigger checks).
+  All twenty voices share the same per-voice budget: normalised to peak 0.5
+  (the shaker deliberately sits under that, per the spec's "quieter than the
+  hat") and under 400 ms, no long tails. Verified by
+  apps/boop/src/engine/kitLevels.test.ts - duration, per-voice peak, the
+  200 bpm 16th-note retrigger check, and the dense-hit sums (the classic six
+  land at ~1.81 raw, the whole roster at ~2.97; the roster figure is what
+  ticket 08 sizes MASTER_GAIN against).
 
-    kick    — sine pitch sweep 150→48 Hz + a 20ms noise click for attack.
-    snare   — noise body + two short tonal snaps (330→210 Hz, 200→170 Hz).
-    hat     — three inharmonic high partials + a touch of high-passed noise,
+  The classic six (ticket 18):
+
+    kick    - sine pitch sweep 150→48 Hz + a 20ms noise click for attack.
+    snare   - noise body + two short tonal snaps (330→210 Hz, 200→170 Hz).
+    hat     - three inharmonic high partials + a touch of high-passed noise,
               for a metallic tick rather than plain hiss.
-    tom     — sine pitch sweep 200→85 Hz, longer and lower than the kick.
-    marimba — fundamental (C5, 523.25 Hz) + a bright overtone + a 15ms click
+    tom     - sine pitch sweep 200→85 Hz, longer and lower than the kick.
+    marimba - fundamental (C5, 523.25 Hz) + a bright overtone + a 15ms click
               for mallet attack.
-    boop    — two slightly detuned sine sweeps (660→520 Hz, 666→524 Hz) for a
+    boop    - two slightly detuned sine sweeps (660→520 Hz, 666→524 Hz) for a
               chorused, electronic, cheeky character.
 
-  No third-party audio. The generator script itself lives outside the kit
-  data path (apps/boop/public/kits/launch/**) that this ticket is scoped to,
-  so it wasn't committed here; apps/boop/src/engine/kitLevels.test.ts is the
-  durable, committed check on the claims above.
+  The fourteen new voices (ticket 01), rendered by the committed generator
+  apps/boop/scripts/generatePlaceholderSamples.mjs:
+
+    Drums
+      clap      - three staggered high-passed noise bursts (0 / 9 / 18 ms) over
+                  a short noise body: one seed re-struck, 909-style.
+      shaker    - a soft high-passed noise pair (0 / 30 ms), scaled to 0.55 of
+                  the per-voice peak so it sits under the hat.
+      cowbell   - two inharmonic mid partials (540 Hz + 800 Hz), fast decay.
+      woodblock - a resonant 1.15 kHz tick with a 4 ms noise click transient.
+      triangle  - a high inharmonic stack (4.2 / 5.75 / 7.3 kHz), shimmery,
+                  260 ms.
+      cymbal    - bright high-passed noise across 390 ms, the longest tail the
+                  400 ms cap allows (spec §10.3). Its decay is set by the
+                  retrigger rule, not the length: slower tails measured 1.74x
+                  at 200 bpm, because even incoherent noise sums in power over
+                  eight overlapping hits.
+
+    Notes
+      bass      - a ~90 Hz sine pluck (96→88 Hz) with a quiet 180 Hz snap: the
+                  low anchor the kit lacked.
+      bell      - glockenspiel-ish: C6 (1046.5 Hz) + an inharmonic 2.89 kHz
+                  partial, above the marimba's register.
+      chime     - three stacked partials (1.57 / 2.35 / 3.14 kHz) under a 30 ms
+                  raised-cosine attack, so it arrives softly.
+      pluck     - harmonics 330 / 660 / 990 / 1320 Hz with staggered decays, so
+                  the tone brightens then dulls like a plucked string.
+
+    Silly
+      boing     - a springy vibrato voice (320→150 Hz glide, 17 Hz wobble at
+                  30% depth) - the generator's new vibrato block.
+      pop       - a 40 ms upward blip (380→1100 Hz), bubble-wrap.
+      zap       - a 2 kHz→200 Hz laser sweep in 140 ms.
+      drip      - an upward water-drop chirp (620→1700 Hz) with a splash tick.
+
+  No third-party audio. The generator's `voices` map holds all twenty
+  definitions, but a bare run rebuilds only the fourteen: the six on disk came
+  from ticket 18's generator, which was never committed, so the six definitions
+  in the script are ticket 12's originals and no longer match those files
+  sample-for-sample. Their recipes above are the record of what shipped.

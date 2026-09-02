@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
-import { DEFAULT_BPM, STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
+import { blankPattern, DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { boopFilename } from '../export/boopFilename.ts'
 import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
 import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
@@ -65,11 +65,15 @@ import styles from './HomePage.module.scss'
 /** No placements at all — the timeline of a song that has not loaded yet. */
 const NO_PLACEMENTS: readonly (readonly number[])[] = []
 
-/** An all-off pattern for `kit` — what a new or cleared clip starts as. */
-function blankPattern(kit: Kit): Pattern {
-  return kit.instruments.map((instrument) => ({
-    instrumentId: instrument.instrumentId,
-    steps: Array.from({ length: STEPS_PER_PATTERN }, () => false),
+/**
+ * The same rows with nothing painted — what "Clear grid" leaves behind. It
+ * keeps the clip's *rows*: since ADR 0041 those are the child's own choice of
+ * instruments, and clearing the beats is not a reason to take them away.
+ */
+function clearedPattern(pattern: Pattern): Pattern {
+  return pattern.map((row) => ({
+    instrumentId: row.instrumentId,
+    steps: row.steps.map(() => false),
   }))
 }
 
@@ -669,7 +673,7 @@ export function HomePage() {
     // Stop the song before blanking the engine — `leaveSongMode`'s resync
     // would otherwise overwrite the blank with the active clip again.
     stopSongPlayback()
-    engine.setPattern(blankPattern(engine.kit))
+    engine.setPattern(clearedPattern(engine.getPattern()))
     updateSong((s) => withActivePattern(s, engine.getPattern()))
   }, [engine, stopSongPlayback, updateSong])
 
