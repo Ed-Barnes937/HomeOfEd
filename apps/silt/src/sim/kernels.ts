@@ -154,6 +154,27 @@ function fluid(api: MovementApi, spec: Fluid, dy: number, useOpinionField: boole
     return
   }
 
+  // Momentum steers the fall (ADR 0041): a cell whose last act was a successful
+  // lateral spread falls diagonally in its parity direction, spending one
+  // momentum per step, and only falls straight once the counter is empty or the
+  // diagonal is blocked. Fresh paint has `ra === 0` and settled interiors have
+  // momentum 0, so the pour stream still falls straight; the only cells that
+  // arc are the ones stripped off a plateau's top layer, thrown clear of its
+  // vertical face instead of curtaining down it, which is what lets a poured
+  // block shed from three surfaces instead of one. `tryMove` draws no
+  // randomness, so the branch costs nothing from the RNG stream on success.
+  if (useOpinionField) {
+    const packed = api.ra
+    const momentum = momentumOf(packed)
+    if (packed !== 0 && momentum > 0) {
+      const along = parityOf(packed) === 0 ? -1 : 1
+      if (api.tryMove(along, dy)) {
+        api.ra = packOpinion(parityOf(packed), momentum - 1)
+        return
+      }
+    }
+  }
+
   if (api.tryMove(0, dy)) return
 
   const first = api.randInt(2) === 0 ? -1 : 1
