@@ -73,16 +73,33 @@ describe('loadKit', () => {
 })
 
 describe('the shipped launch kit', () => {
-  it('is a valid manifest of six instruments whose files exist', async () => {
-    const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
-    const kit = parseKitManifest(
-      JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),
-    )
-    expect(kit.instruments).toHaveLength(6)
+  const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
+
+  async function shippedKit() {
+    return parseKitManifest(JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')))
+  }
+
+  it('is a valid manifest of the 20-instrument roster whose files exist', async () => {
+    const kit = await shippedKit()
+    expect(kit.instruments).toHaveLength(20)
     for (const instrument of kit.instruments) {
       await expect(readFile(publicDir + instrument.sound.slice(1))).resolves.toBeDefined()
       await expect(readFile(publicDir + instrument.artwork.slice(1))).resolves.toBeDefined()
     }
+  })
+
+  it('leads with the classic six, in their original order', async () => {
+    // Defaults and the authored sample clips key off these positions, so the
+    // six that shipped at launch must stay first in manifest order.
+    const kit = await shippedKit()
+    expect(kit.instruments.slice(0, 6).map((i) => i.instrumentId)).toEqual([
+      'kick',
+      'snare',
+      'hat',
+      'tom',
+      'marimba',
+      'boop',
+    ])
   })
 })
 
