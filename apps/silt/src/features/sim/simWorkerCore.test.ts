@@ -25,6 +25,29 @@ describe('SimWorkerCore', () => {
     expect(revisionOf(world)).toBeGreaterThan(before)
   })
 
+  it('painting never replaces an occupied cell — a stroke through water leaves the water', () => {
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world)
+    const pond = 10 * GRID_WIDTH + 20
+    core.handle({ type: 'paintCells', cellIndices: [pond], species: WATER })
+
+    core.handle({ type: 'paintCells', cellIndices: [pond, pond + 1], species: SAND })
+
+    expect(speciesAt(world, 20, 10)).toBe(WATER)
+    expect(speciesAt(world, 21, 10)).toBe(SAND)
+  })
+
+  it('erasing still clears occupied cells', () => {
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world)
+    const basin = 10 * GRID_WIDTH + 20
+    core.handle({ type: 'paintCells', cellIndices: [basin], species: WATER })
+
+    core.handle({ type: 'paintCells', cellIndices: [basin], species: EMPTY })
+
+    expect(speciesAt(world, 20, 10)).toBe(EMPTY)
+  })
+
   it('ticks at the fixed rate while running — sand falls one cell per tick', () => {
     const world = createSharedWorld()
     const core = new SimWorkerCore(world)
