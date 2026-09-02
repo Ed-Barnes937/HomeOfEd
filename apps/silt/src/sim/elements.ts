@@ -127,8 +127,10 @@ const oil: ElementDef = {
   colours: ['#46402c', '#3f3a28', '#4c4530', '#433d2a'],
   tags: ['liquid', 'flammable'],
   // Lighter than water (30), so water sinks past it and the oil ends up as the
-  // film on top — the displacement rule does this, not a special case.
-  archetype: { kind: 'liquid', density: 20, dispersion: 4 },
+  // film on top — the displacement rule does this, not a special case. The
+  // `move` throttle is what makes it read as viscous: half of water's pace,
+  // well clear of lava's ooze (0.15), with one cell less spread than water.
+  archetype: { kind: 'liquid', density: 20, dispersion: 3, move: 0.5 },
 }
 
 /**
