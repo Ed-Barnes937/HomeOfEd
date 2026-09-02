@@ -91,8 +91,10 @@ moves.ts      DeferredMoves — the cross-chunk move queue and its PRNG tie-brea
 api.ts        CellApi — the chunk-relative (dx, dy) surface, one reused cursor
 kernels.ts    applyArchetype — the only code that moves cells. Liquids keep
               their lateral direction, momentum and seeded flag packed in `ra`
-              (the "opinion field", ADR 0038) instead of re-rolling a coin;
-              a blocked powder tries one random diagonal, not both (ADR 0039)
+              (the "opinion field", ADR 0038) instead of re-rolling a coin, and
+              a liquid still carrying momentum falls diagonally in its parity
+              direction rather than straight down (ADR 0041); a blocked powder
+              tries one random diagonal, not both (ADR 0039)
 lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
               has moved; neither moves anything
 growth.ts     the roster's one `onTick`: moss and vine grow into water, up
