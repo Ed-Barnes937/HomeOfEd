@@ -11,6 +11,7 @@
  */
 
 import {
+  DEFAULT_CLIP_ROWS,
   MAX_BPM,
   MIN_BPM,
   STEPS_PER_PATTERN,
@@ -121,19 +122,34 @@ export function patternToStored(pattern: Pattern): StoredPattern {
 export const WORKING_NAME = ''
 
 /**
- * Rebuild a full pattern for `kit` — one row per kit instrument, in kit order.
- * Rows the stored pattern omits come back empty and instruments the kit does
- * not have are dropped, so a kit that gained or lost an instrument still loads.
+ * The clip's rows, exactly as stored - membership *and* order (ADR 0041). The
+ * stored row list **is** the clip's instrument selection, so nothing is added
+ * for a kit instrument the clip left out and an all-off row is kept: a child
+ * who picked instruments without painting anything gets them back (spec §5).
+ *
+ * A row naming an instrument this kit does not have is dropped, which is how a
+ * document from a newer roster degrades instead of failing (the class of risk
+ * ADR 0032 accepted for layering). If that drops every row, the result is a
+ * fresh grid instead of an empty pattern: a `Pattern` is 1..roster rows, and
+ * `setPattern` refuses an empty one.
  */
 export function storedToPattern(kit: Kit, stored: StoredPattern): Pattern {
-  const byInstrument = new Map(stored.rows.map((row) => [row.instrumentId, row.steps]))
-  return kit.instruments.map((instrument) => {
-    const steps = byInstrument.get(instrument.instrumentId)
-    return {
-      instrumentId: instrument.instrumentId,
-      steps: Array.from({ length: STEPS_PER_PATTERN }, (_, step) => steps?.[step] === '1'),
-    }
-  })
+  const known = new Set(kit.instruments.map((instrument) => instrument.instrumentId))
+  const rows: Pattern = stored.rows
+    .filter((row) => known.has(row.instrumentId))
+    .map((row) => ({
+      instrumentId: row.instrumentId,
+      steps: Array.from({ length: STEPS_PER_PATTERN }, (_, step) => row.steps[step] === '1'),
+    }))
+  return rows.length > 0 ? rows : defaultRows(kit)
+}
+
+/** A fresh grid: the roster's first `DEFAULT_CLIP_ROWS`, empty (ADR 0041). */
+function defaultRows(kit: Kit): Pattern {
+  return kit.instruments.slice(0, DEFAULT_CLIP_ROWS).map((instrument) => ({
+    instrumentId: instrument.instrumentId,
+    steps: new Array<boolean>(STEPS_PER_PATTERN).fill(false),
+  }))
 }
 
 /**
@@ -269,8 +285,18 @@ function isValidPlacements(placements: string, clipCount: number): boolean {
   return true
 }
 
+/**
+ * A clip holds 1..roster rows with unique `instrumentId`s (ADR 0041), so an
+ * empty row list or an instrument named twice is a broken document, not data -
+ * and per ADR 0025 that discards the whole save document.
+ *
+ * An id this build's kit does not know is **not** an error: it decodes here and
+ * drops at `storedToPattern`, so a document written against a bigger roster
+ * still opens.
+ */
 function decodePattern(value: unknown): StoredPattern | undefined {
   if (!isRecord(value) || !Array.isArray(value.rows)) return undefined
+  if (value.rows.length === 0) return undefined
 
   const rows: StoredRow[] = []
   for (const entry of value.rows) {
@@ -280,6 +306,7 @@ function decodePattern(value: unknown): StoredPattern | undefined {
     if (steps.length !== STEPS_PER_PATTERN || !/^[01]+$/.test(steps)) return undefined
     rows.push({ instrumentId, steps })
   }
+  if (new Set(rows.map((row) => row.instrumentId)).size !== rows.length) return undefined
 
   const pattern: StoredPattern = { rows }
   if (value.name !== undefined) {

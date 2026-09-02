@@ -150,8 +150,13 @@ export function togglePlacement(song: Song, clipIndex: number, position: number)
 
 /**
  * What a layered position sounds like: the clips' patterns overlaid, so a step
- * is on when any of them has it on. Rows line up by index — every clip's
- * pattern is built for the same kit, in kit order (`storedToPattern`).
+ * is on when any of them has it on. Rows line up by **index**, which was safe
+ * while every pattern was one row per kit instrument in kit order.
+ *
+ * Since ADR 0041 a clip owns its rows, so two layered clips can hold different
+ * instruments and this merges by position rather than by `instrumentId` - a
+ * known gap this effort still has to close (spec §1: "layered placements just
+ * sound their union"). Ticket 03 only made decode honour the stored rows.
  */
 export function mergePatterns(patterns: readonly Pattern[]): Pattern {
   const [first, ...rest] = patterns
