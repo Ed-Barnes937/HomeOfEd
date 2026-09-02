@@ -282,6 +282,109 @@ describe('liquid direction persistence', () => {
   })
 })
 
+/**
+ * Momentum steers the fall (ADR 0041): a liquid that still has momentum in its
+ * `ra` falls diagonally in its parity direction, spending one momentum per
+ * step, instead of straight down. Only a cell whose last act was a successful
+ * lateral spread carries momentum, so the pour stream and a fresh drop still
+ * fall straight; the arc is what throws cells stripped off a plateau clear of
+ * its vertical faces, which is what lets a poured block shed from three
+ * surfaces instead of one (`.scratch/silt-water-towers/spec.md`).
+ */
+describe('liquid momentum steers the fall', () => {
+  const LEFT = 0
+  const RIGHT = 1
+
+  it('falls diagonally in its parity direction, spending one momentum per step', () => {
+    const sim = new Sim({ seed: 1 })
+    restoreWith(sim, (put) => {
+      put(10, 10, WATER, packOpinion(RIGHT, MOMENTUM_TICKS))
+      put(50, 10, WATER, packOpinion(LEFT, MOMENTUM_TICKS))
+    })
+
+    sim.tick()
+
+    expect(sim.speciesAt(11, 11)).toBe(WATER)
+    expect(sim.speciesAt(49, 11)).toBe(WATER)
+    for (const x of [11, 49]) {
+      expect(momentumOf(raAt(sim, x, 11))).toBe(MOMENTUM_TICKS - 1)
+    }
+  })
+
+  it('falls straight once momentum is spent', () => {
+    const sim = new Sim({ seed: 1 })
+    restoreWith(sim, (put) => {
+      put(10, 10, WATER, packOpinion(RIGHT, 0))
+    })
+
+    sim.tick()
+
+    expect(sim.speciesAt(10, 11)).toBe(WATER)
+  })
+
+  it('falls straight when the diagonal is blocked, keeping its momentum', () => {
+    const sim = new Sim({ seed: 1 })
+    restoreWith(sim, (put) => {
+      put(10, 10, WATER, packOpinion(RIGHT, MOMENTUM_TICKS))
+      put(11, 11, OBSIDIAN)
+    })
+
+    sim.tick()
+
+    expect(sim.speciesAt(10, 11)).toBe(WATER)
+    expect(momentumOf(raAt(sim, 10, 11))).toBe(MOMENTUM_TICKS)
+  })
+
+  /** Highest water column minus the median column: how far from level. */
+  function towerExcess(sim: Sim): number {
+    const heights: number[] = []
+    for (let x = 0; x < GRID_WIDTH; x++) {
+      for (let y = 0; y < FLOOR; y++) {
+        if (sim.speciesAt(x, y) === WATER) {
+          heights.push(FLOOR - y)
+          break
+        }
+      }
+    }
+    heights.sort((a, b) => a - b)
+    if (heights.length === 0) return 0
+    return Math.max(0, heights[heights.length - 1]! - heights[heights.length >> 1]!)
+  }
+
+  it('levels a solid block on a floor in bounded ticks', () => {
+    // The spec's mechanism-2 scenario: without the drift the same block still
+    // shows excess 14 at t=200 (probe, seed 1); with it, 3.
+    const sim = withFloor(new Sim({ seed: 1 }))
+    for (let y = FLOOR - 40; y <= FLOOR - 1; y++) {
+      for (let x = 135; x < 165; x++) sim.paint(x, y, WATER)
+    }
+
+    for (let i = 0; i < 200; i++) sim.tick()
+
+    expect(towerExcess(sim)).toBeLessThan(5)
+  })
+
+  it('collapses a poured column in bounded ticks once the pour stops', () => {
+    // The pour that motivated the epic: a fat stream held long enough to grow
+    // a standing block, then stopped. Without the drift this pour's remnant
+    // tower still shows excess 10 two hundred ticks after the pour ends; with
+    // it, 6. (The spec harness's longer pour measured 18 -> 6.)
+    const sim = withFloor(new Sim({ seed: 1 }))
+    for (let tick = 0; tick < 150; tick++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          if (dx * dx + dy * dy <= 4) sim.paint(150 + dx, 20 + dy, WATER)
+        }
+      }
+      sim.tick()
+    }
+
+    for (let i = 0; i < 200; i++) sim.tick()
+
+    expect(towerExcess(sim)).toBeLessThan(8)
+  })
+})
+
 describe('move probability', () => {
   it('makes lava fall far slower than water', () => {
     const water = new Sim({ seed: 1 })

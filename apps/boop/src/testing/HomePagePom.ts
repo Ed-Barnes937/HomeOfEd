@@ -794,6 +794,50 @@ export class HomePagePom extends BasePage {
     return this.page.getByTestId(`boop-row-${index}`)
   }
 
+  /**
+   * A "My boops" row's dot matrix: the rows it actually drew, and the box it
+   * drew them in. A clip owns its rows (ADR 0041), so the count moves — the
+   * box must not, or the list would jump about as a child adds sounds.
+   */
+  async readBoopThumbnail(
+    index: number,
+  ): Promise<{ rows: number; box: number; row: number; ink: number; shortestRow: number }> {
+    const thumbnail = this.boopRow(index).getByTestId('pattern-thumbnail')
+    const drawn = await thumbnail.getAttribute('data-rows')
+    const box = await thumbnail.boundingBox()
+    const row = await this.boopRow(index).boundingBox()
+    if (!box || !row) throw new Error(`the thumbnail on boop row ${index} is not visible`)
+    // What the dots actually occupy, measured rather than derived: the rule is
+    // that the rows *divide* the box, so the ink must fill it and stay in it.
+    const dots = await thumbnail.evaluate((matrix) => {
+      const boxes = [...matrix.querySelectorAll('span')].map((dot) => dot.getBoundingClientRect())
+      return {
+        top: Math.min(...boxes.map((r) => r.top)),
+        bottom: Math.max(...boxes.map((r) => r.bottom)),
+        shortest: Math.min(...boxes.map((r) => r.height)),
+      }
+    })
+    return {
+      rows: Number(drawn),
+      box: box.height,
+      row: row.height,
+      ink: dots.bottom - dots.top,
+      shortestRow: dots.shortest,
+    }
+  }
+
+  /**
+   * The "WHOLE LOOP" band's reserved height (design handoff, "Main screen —
+   * small phone": 34px of band inside a 44px border box). It is a step readout,
+   * not a miniature of the grid, so no row count may move it.
+   */
+  async verifyLoopMapBandHeight(px: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const band = await this.page.getByTestId('loop-map').boundingBox()
+    if (!band) throw new Error('the loop map is not visible')
+    expect(band.height).toBe(px)
+  }
+
   // --- The saved/edited indicator (ticket 31) ---
 
   /** The whole of the desktop indicator's text — `Boop 1`, `Boop 1 • edited`, or `Not saved yet`. */
