@@ -16,7 +16,7 @@
  * at least `MIN_MS_PER_TURN` of wall clock per carrier revolution. Short trains
  * are untouched (a 3-turn train at `speed: 100` still finishes in 1500 ms) and
  * every pattern is still drawn in full. See
- * [ADR 0043](../../../../../docs/adr/0043-karesansui-rotation-rate-floor.md).
+ * [ADR 0045](../../../../../docs/adr/0045-karesansui-rotation-rate-floor.md).
  */
 import { fullTurns } from './engine/gears.ts'
 import { clampSpeed, type GardenConfig } from './engine/state.ts'
@@ -24,7 +24,7 @@ import { clampSpeed, type GardenConfig } from './engine/state.ts'
 /**
  * Minimum draw time per carrier revolution (ms). Settled analytically at 500 ms
  * so the fastest cog's carrier is bounded at `1000 / 500 = 2` rev/s, inside the
- * spec's ~3 rev/s ceiling with headroom (ADR 0043).
+ * spec's ~3 rev/s ceiling with headroom (ADR 0045).
  */
 export const MIN_MS_PER_TURN = 500
 

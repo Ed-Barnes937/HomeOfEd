@@ -1,4 +1,4 @@
-# 0043 - karesansui: a rotation-rate floor on the draw duration
+# 0045 - karesansui: a rotation-rate floor on the draw duration
 
 - **Status:** Accepted (2026-09-03, landed with
   `.scratch/a11y-pass/issues/04-karesansui-rotation-cap.md`)

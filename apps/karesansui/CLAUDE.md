@@ -34,7 +34,7 @@ src/
       SandRenderer.ts     resize / renderStatic / beginCarve+carveTo / clearTo / finishCarve / toDataURL
       MechRenderer.ts     resize / setPattern(config) / draw(progress) — planetary: N cogs + marbles; getMarbles()
     settings.ts            Preset type; load/save/rename/delete presets in localStorage (`karesansui:presets:v2`, v1→v2 migration)
-    carveDuration.ts       pure: speed curve + the rotation-rate floor (MIN_MS_PER_TURN), ADR 0043
+    carveDuration.ts       pure: speed curve + the rotation-rate floor (MIN_MS_PER_TURN), ADR 0045
     useRakeLoop.ts         owns the rAF loop + both canvases: draw / pause / resume / clear / perpetual loop / export, resize rebuild
   features/controls/       StripCycle (Ring/Rake/Preview), StripRange (Offset/Speed), CogDots, ActionButtons, PresetsMenu — shared Strip.module.scss (minimal console, ADR 0021)
   pages/KaresansuiPage.tsx  holds GardenConfig state, wires useRakeLoop; room → wordmark → stage → dim console strip; sand-hero-first reflow at ~760px
@@ -76,7 +76,7 @@ playwright-ct.config.ts    defineIwftConfig({ ctPort: 3107 })
 - **Motion safety:** the draw duration comes from `carveDuration.ts`, never a
   raw speed-to-ms expression. Its `MIN_MS_PER_TURN` floor caps the fastest cog's
   carrier at 2 rev/s so no bright marble or disc orbits in the photosensitive
-  band ([ADR 0043](../../docs/adr/0043-karesansui-rotation-rate-floor.md)). The
+  band ([ADR 0045](../../docs/adr/0045-karesansui-rotation-rate-floor.md)). The
   option-space pin in `carveDuration.test.ts` will fail if `ringOpts`/`wheelOpts`
   or the speed ceiling widen past what the floor covers; retune the floor rather
   than relaxing the pin.

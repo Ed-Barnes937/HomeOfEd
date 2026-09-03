@@ -181,7 +181,7 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
         return
       }
       // brisk ≈ 1.5s → meditative ≈ 31s (reference startRake curve), floored so
-      // no cog's carrier outruns the rotation-rate cap (ADR 0043).
+      // no cog's carrier outruns the rotation-rate cap (ADR 0045).
       carve = {
         duration: carveDurationMs(configRef.current),
         elapsed: 0,
