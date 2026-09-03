@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACID,
+  ASH,
   BURIED,
   DIRT,
   EMPTY,
@@ -14,6 +15,7 @@ import {
   SEED,
   SPROUT,
   STALK,
+  STEAM,
   TIP,
   VINE,
   WATER,
@@ -43,7 +45,18 @@ function count(sim: Sim, species: number): number {
 /** The bounding box of `pool(sim, 140, 160, 10)`, walls included. Counting a
  * window rather than the whole grid keeps a per-tick assertion affordable. */
 const POOL = { x0: 139, x1: 161, y0: FLOOR - 12, y1: FLOOR } as const
-type Box = typeof POOL
+
+/**
+ * An inclusive cell window. The ledger cases sample every tick, and a per-tick
+ * pass over 60,000 cells is not affordable, so each one counts a box its scene
+ * cannot leave.
+ */
+interface Box {
+  x0: number
+  x1: number
+  y0: number
+  y1: number
+}
 
 function countIn(sim: Sim, box: Box, species: number): number {
   let total = 0
@@ -164,6 +177,8 @@ describe('seed, moss and vine', () => {
       ['fire', 'seed'],
       ['fire', 'moss'],
       ['fire', 'wood'],
+      ['fire', 'flower'],
+      ['fire', 'sprout'],
       ['fire', 'flammable'],
       ['fire', 'ember'],
       ['lava', 'wood'],
@@ -263,6 +278,12 @@ describe('seed, moss and vine', () => {
     for (let i = 1; i <= 3; i++) sim.paint(150, FLOOR - i, MUD)
     sim.paint(150, FLOOR - 3, BURIED)
     sim.paint(150, FLOOR - 4, WATER)
+    // **Lidded since life ticket 05.** A droplet resting on the bank is a film -
+    // air above, something other than water below - so it now lifts as steam in
+    // about 130 ticks, and this case would be measuring evaporation rather than
+    // the soak. The lid keeps it about the soak; `the water cycle` below is
+    // where the same droplet is left open to the sky on purpose.
+    sim.paint(150, FLOOR - 5, OBSIDIAN)
 
     // Twenty times the soak window. Mud oozes and water settles, so the chunk
     // is awake for plenty of it; the bank writes its own soak in any case.
@@ -303,7 +324,12 @@ describe('seed, moss and vine', () => {
     const grown = count(sim, VINE)
     expect(grown).toBeGreaterThan(0)
     // One for one: growth converts water, it does not conjure vine out of air.
-    expect(waterBefore - count(sim, WATER)).toBe(grown)
+    // **Steam is in the sum since life ticket 05**: growth eats into the pool
+    // from below, so cells of it end up one deep over a vine and lift as film
+    // (`evaporation.ts`). Water still only ever leaves into the plant or into
+    // the sky, and condensation puts a cell back on the water side of the same
+    // sum (ADR 0045).
+    expect(waterBefore - count(sim, WATER) - count(sim, STEAM)).toBe(grown)
   })
 
   /**
@@ -626,7 +652,18 @@ describe('the land plant', () => {
         bBecomes: EMPTY,
       })
       expect(registry.has(part, 'flammable')).toBe(true)
-      expect(registry.reactionFor(FIRE, part)).toMatchObject({ aBecomes: FIRE, bBecomes: FIRE })
+    }
+
+    // **Dry parts burn, wet parts steam** (life spec §4.5, ticket 05). The stem
+    // and the travelling tip are the plant's dry tissue and stay on the ignition
+    // ladder, which is what carries a fire up a meadow at all; the sprout and
+    // the flower are mostly water, so what leaves them is the water. The engine
+    // cannot split one row by probability, so the split is per species.
+    for (const dry of [TIP, STALK]) {
+      expect(registry.reactionFor(FIRE, dry)).toMatchObject({ aBecomes: FIRE, bBecomes: FIRE })
+    }
+    for (const wet of [SPROUT, FLOWER]) {
+      expect(registry.reactionFor(FIRE, wet)).toMatchObject({ aBecomes: FIRE, bBecomes: STEAM })
     }
 
     // **The growers own `ra`, so neither may ever be given a lifetime** - doing
@@ -782,6 +819,11 @@ describe('the land plant', () => {
     shaftAt(sim, 200, 12)
     sim.paint(200, FLOOR - 1, SPROUT)
     sim.paint(200, FLOOR - 2, WATER)
+    // **Lidded since life ticket 05**, as the droplet case above: an open
+    // droplet is a film and lifts, and the sprout under it would then rise. The
+    // lid also puts the evaporation hook's own dormancy in this case - a roofed
+    // film declines without a keep-awake, so all three cells here are silent.
+    sim.paint(200, FLOOR - 3, OBSIDIAN)
 
     run(sim, 400)
 
@@ -1293,5 +1335,383 @@ describe('the meadow loop', () => {
     // The bed really did dry, and it is most of the way there.
     expect(driest).toBeGreaterThan(opening / 2)
     expect(count(sim, MUD)).toBeLessThan(opening / 2)
+  })
+})
+
+/** A sealed box: floor, two walls and a lid, so nothing at all can leave it. */
+function sealedBox(sim: Sim, left: number, right: number, height: number): void {
+  for (let x = left - 1; x <= right + 1; x++) {
+    sim.paint(x, FLOOR, OBSIDIAN)
+    sim.paint(x, FLOOR - height - 1, OBSIDIAN)
+  }
+  for (let i = 1; i <= height; i++) {
+    sim.paint(left - 1, FLOOR - i, OBSIDIAN)
+    sim.paint(right + 1, FLOOR - i, OBSIDIAN)
+  }
+}
+
+/** An open tank - floor and walls, no lid - with a bed of `soil` on the floor. */
+function tank(sim: Sim, left: number, right: number, height: number, soil: number): void {
+  for (let x = left - 1; x <= right + 1; x++) sim.paint(x, FLOOR, OBSIDIAN)
+  for (let i = 1; i <= height; i++) {
+    sim.paint(left - 1, FLOOR - i, OBSIDIAN)
+    sim.paint(right + 1, FLOOR - i, OBSIDIAN)
+  }
+  for (let x = left; x <= right; x++) sim.paint(x, FLOOR - 1, soil)
+}
+
+/** Everything a land plant is made of, standing or growing. */
+function plantCells(sim: Sim): number {
+  return count(sim, SPROUT) + count(sim, TIP) + count(sim, STALK) + count(sim, FLOWER)
+}
+
+/** One growing or terminal end per living plant - see `the seed bank` above. */
+function crowns(sim: Sim): number {
+  return count(sim, SPROUT) + count(sim, TIP) + count(sim, FLOWER)
+}
+
+/**
+ * The water cycle (life spec §4.5), and the half of the epic that is not about
+ * plants at all: standing water drains, fire dries wet soil instead of deleting
+ * it, wet biomass returns its water to the sky, and every one of those rules
+ * transmutes rather than deletes
+ * ([ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md),
+ * [ADR 0045](../../../../docs/adr/0045-silt-the-water-ledger.md)). The hook
+ * itself is pinned against a stub in `evaporation.test.ts`.
+ */
+describe('the water cycle', () => {
+  /**
+   * **The rate, at the scale it was tuned at.** A lone film cell is the unit:
+   * the prototype's `evapP` 0.03 drawn one tick in four gives it a mean life of
+   * about 130 ticks, which is what makes a poured puddle - thirteen independent
+   * draws, the last of them roughly three times the mean - clear in the few
+   * hundred ticks the ruling asks for rather than in a few thousand.
+   *
+   * Swept over eight seeds rather than pinned to one, since a rate measured on a
+   * single draw is not a rate: measured 3, 23, 96, 125, 158, 169, 278 and 281.
+   */
+  it('lifts a lone film off saturated ground on the rate the ruling was tuned at', () => {
+    const lives: number[] = []
+
+    for (let seed = 1; seed <= 8; seed++) {
+      const sim = new Sim({ seed })
+      sealedBox(sim, 40, 60, 20)
+      for (let x = 40; x <= 60; x++) sim.paint(x, FLOOR - 1, MUD)
+      sim.paint(50, FLOOR - 2, WATER)
+
+      let ticks = 0
+      while (count(sim, WATER) > 0 && ticks < 4000) {
+        sim.tick()
+        ticks++
+      }
+      lives.push(ticks)
+    }
+
+    // Every one of them lifted, and none of them instantly: the draw is a rate,
+    // not a countdown, so the spread is the point.
+    expect(Math.max(...lives)).toBeLessThan(1000)
+    expect(Math.max(...lives)).toBeGreaterThan(100)
+    // Water on wet soil is the one case with no reaction to take it, so this is
+    // the only thing standing between a saturated bed and a permanent puddle.
+    expect(new Set(lives).size).toBeGreaterThan(4)
+  })
+
+  /**
+   * The same rule at puddle scale, which is what a person actually pours. The
+   * bed is already saturated, so `water + mud` is not a reaction and there is
+   * nowhere for it to soak: without evaporation this puddle stands for the rest
+   * of the run.
+   *
+   * **The bound is loose on purpose.** What lifts rains back down, and some of
+   * it lands on the same bed, so the bed is not monotonically drying - measured
+   * over eight seeds it was clear of all but a raindrop by 195-1659 ticks on
+   * seven of them and went on being re-rained on one. What is pinned is that the
+   * poured body is gone, not that the sky is.
+   */
+  it('drains a poured puddle off a bed with nowhere left to take it', () => {
+    for (const seed of [1, 2, 3]) {
+      const sim = new Sim({ seed })
+      for (let x = 0; x < GRID_WIDTH; x++) sim.paint(x, FLOOR, OBSIDIAN)
+      for (let x = 120; x <= 180; x++) sim.paint(x, FLOOR - 1, MUD)
+      const puddle = { x0: 120, x1: 180, y0: FLOOR - 6, y1: FLOOR - 1 }
+      for (let i = 0; i < 13; i++) sim.paint(144 + i, FLOOR - 4, WATER)
+      expect(countIn(sim, puddle, WATER)).toBe(13)
+
+      let ticks = 0
+      while (countIn(sim, puddle, WATER) > 1 && ticks < 4000) {
+        sim.tick()
+        ticks++
+      }
+
+      expect(ticks).toBeLessThan(4000)
+    }
+  })
+
+  /**
+   * **The ruling, stated as the thing it protects** (spec ruling 1): a level
+   * pool two cells deep has no film anywhere in it - every cell has either water
+   * above it or water below it - and neither has a pond. Standing water is a
+   * thing you are meant to be able to make, so both are permanent by
+   * construction rather than by a rule saying so.
+   *
+   * And **asleep**, which is the other half: a surface cell that is not a film
+   * takes no keep-awake, so a pond costs a world at rest exactly nothing.
+   */
+  it('leaves a pond and a level two-deep pool exactly as it found them, asleep', () => {
+    for (const seed of [1, 2, 3]) {
+      const sim = new Sim({ seed })
+      // A nine-deep pond and, beside it, a pool standing dead level at two.
+      pool(sim, 40, 60, 9)
+      for (let x = 99; x <= 131; x++) sim.paint(x, FLOOR, OBSIDIAN)
+      for (let i = 1; i <= 4; i++) {
+        sim.paint(99, FLOOR - i, OBSIDIAN)
+        sim.paint(131, FLOOR - i, OBSIDIAN)
+      }
+      for (let x = 100; x <= 130; x++) {
+        for (let i = 1; i <= 2; i++) sim.paint(x, FLOOR - i, WATER)
+      }
+      const standing = count(sim, WATER)
+
+      run(sim, 8000)
+
+      // Not slow loss - no loss at all, on every seed.
+      expect(count(sim, WATER)).toBe(standing)
+      expect(sim.scannedLastTick).toBe(0)
+    }
+  })
+
+  /**
+   * **A fall is not a film**, and the reason the rule reads one cell *down*
+   * rather than only up (ADR 0044 §5). Falling water given a draw every tick of
+   * a hundred-cell fall loses about half of itself on the way, and the half that
+   * lifts rises, condenses and falls again - the rule meant to dry standing
+   * water manufacturing permanent cloud instead, which is the any-surface trap
+   * in miniature.
+   *
+   * Measured over three seeds with air-below allowed: 87-107 of 200 droplets
+   * landed and 55-74 were still aloft at 400 ticks. Refusing it: 179-183 landed,
+   * 3-9 aloft.
+   */
+  it('lands its rain on the bed instead of turning it back into cloud', () => {
+    for (const seed of [1, 2, 3]) {
+      const sim = new Sim({ seed })
+      for (let x = 20; x <= 280; x++) {
+        sim.paint(x, FLOOR, OBSIDIAN)
+        sim.paint(x, FLOOR - 1, DIRT)
+      }
+      for (let i = 0; i < 200; i++) sim.paint(21 + i, FLOOR - 100, WATER)
+
+      run(sim, 400)
+
+      // Each cell of mud is a cell of rain that arrived and soaked in.
+      expect(count(sim, MUD)).toBeGreaterThan(150)
+      expect(count(sim, STEAM)).toBeLessThan(30)
+    }
+  })
+
+  /**
+   * **The self-termination the hook is required to have** (spec §2.7). A bed
+   * with no free water on it is finished either way round - dry, or saturated -
+   * and the hook writes nothing at all on both, so the chunk under it sleeps.
+   * The mirror of the pond above: this is the case where evaporation *could*
+   * have left a permanent keep-awake behind and does not.
+   */
+  it('lets a finished bed sleep, wet or dry', () => {
+    for (const soil of [MUD, DIRT]) {
+      const sim = new Sim({ seed: 1 })
+      tank(sim, 40, 80, 8, soil)
+
+      run(sim, 500)
+
+      expect(sim.scannedLastTick).toBe(0)
+      expect(count(sim, soil)).toBe(41)
+    }
+  })
+
+  /**
+   * **The ledger** (spec §7.3, ADR 0045), and the acceptance ticket 05 exists
+   * for: free water, water aloft and water in the soil are one quantity, and no
+   * rule in the table may spend it. Sampled every tick rather than at the end,
+   * since a ledger that dipped and recovered would still be a leak.
+   *
+   * The burn is the case that used to break it: `mud + fire` left *smoke*, and
+   * smoke fades to nothing, so drying a bed deleted its water outright. Measured
+   * drift zero at every tick of every seed, exactly as the prototype measured it.
+   */
+  it('holds the ledger cell for cell through a pour, a burn and the rain that follows', () => {
+    for (const seed of [1, 2]) {
+      const sim = new Sim({ seed })
+      sealedBox(sim, 40, 80, 40)
+      for (let x = 40; x <= 80; x++) sim.paint(x, FLOOR - 1, DIRT)
+      for (let i = 0; i < 20; i++) sim.paint(50 + i, FLOOR - 6, WATER)
+
+      // Free water, water aloft, water in the soil. Nothing else in this scene
+      // holds any, because nothing in it is alive. Counted over the box rather
+      // than the grid, as the bank's ledger case does: a per-tick assertion over
+      // 60,000 cells is not affordable, and nothing can leave a sealed box.
+      const BOX = { x0: 39, x1: 81, y0: FLOOR - 41, y1: FLOOR } as const
+      const ledger = (): number =>
+        countIn(sim, BOX, WATER) + countIn(sim, BOX, STEAM) + countIn(sim, BOX, MUD)
+      const opening = ledger()
+      let wettest = 0
+      let peakSteam = 0
+
+      for (let t = 0; t < 3000; t++) {
+        // Torched once the pour has soaked in, so the fire meets wet soil - and
+        // dragged through the *air* over the bed, never over a cell that holds
+        // any of the water being counted. A brush that painted over a droplet
+        // would be the test deleting the water, not the world.
+        if (t === 800) {
+          for (let x = 45; x <= 75; x++) {
+            if (sim.speciesAt(x, FLOOR - 2) === EMPTY) sim.paint(x, FLOOR - 2, FIRE)
+          }
+        }
+        sim.tick()
+        expect(ledger()).toBe(opening)
+        wettest = Math.max(wettest, countIn(sim, BOX, MUD))
+        peakSteam = Math.max(peakSteam, countIn(sim, BOX, STEAM))
+      }
+
+      // Not vacuous: the water really did move through all three states.
+      expect(wettest).toBeGreaterThan(0)
+      expect(peakSteam).toBeGreaterThan(0)
+    }
+  })
+
+  /**
+   * **Dry parts burn, wet parts steam** (spec §4.5), on a bare shelf so that
+   * every cell of steam in the world came out of a plant rather than out of the
+   * soil. The stem carries the fire - which is what lets a burn travel up a
+   * plant at all - and the flower and the seedling hand it nothing.
+   */
+  it('steams the wet parts of a plant and lets the dry ones carry the fire', () => {
+    const sim = new Sim({ seed: 1 })
+    shelf(sim, 20, 120)
+    const stands = [30, 45, 60, 75, 90, 105]
+    for (const x of stands) {
+      // A stem with a flower on it, and a seedling beside it.
+      for (let i = 1; i <= 4; i++) sim.paint(x, FLOOR - i, STALK)
+      sim.paint(x, FLOOR - 5, FLOWER)
+      sim.paint(x + 3, FLOOR - 1, SPROUT)
+      sim.paint(x, FLOOR - 6, FIRE)
+      sim.paint(x + 3, FLOOR - 2, FIRE)
+    }
+    const stems = count(sim, STALK)
+    const wet = count(sim, FLOWER) + count(sim, SPROUT)
+
+    const steamed = peakOver(sim, 300, STEAM)
+
+    // Most of the wet parts are gone, and what left them was **steam**: there is
+    // no soil anywhere in this scene for a single cell of it to have come from.
+    // Not all of them, and that is fire being a rate rather than a switch - a
+    // flame rises off a flower and dies before every draw has come up.
+    expect(wet - count(sim, FLOWER) - count(sim, SPROUT)).toBeGreaterThan(wet / 2)
+    expect(steamed).toBeGreaterThan(4)
+    // And the stem went the other way, which is the half that matters for a
+    // burn travelling: it burned rather than quenching the flame.
+    expect(stems).toBeGreaterThan(20)
+    // Not to nothing: fire is a rate and it dies to smoke in 40-60 ticks, so a
+    // stem outlives the flame that reached it as often as not. What is pinned is
+    // that the stem is *fuel* - it took the fire rather than quenching it - not
+    // that one spark is thorough. Measured: 10 of 24 cells left standing.
+    expect(count(sim, STALK)).toBeLessThan(stems / 2)
+  })
+
+  /**
+   * **A wildfire rains on its own ashes** (spec §4.5), end to end and with no
+   * water painted anywhere: a dragged torch clears the standing meadow, the
+   * soil's own water is lofted by the quench rather than deleted, it condenses
+   * and falls back, the bed re-wets, and the bank - which the fire never
+   * reached - germinates into the clearing.
+   *
+   * Measured over three seeds: the standing plants were gone in 10-12 ticks, the
+   * plume peaked at 36-38 cells, the bed was wet again by 369-379 ticks and the
+   * first new crown was up between 370 and 2088. That is the 500-3000 tick
+   * recovery the ticket asks for, from the bank rather than from a seed rain.
+   */
+  it('clears a meadow with a dragged torch and rains the bed back to life', () => {
+    for (const seed of [1, 2, 3]) {
+      const sim = new Sim({ seed })
+      tank(sim, 40, 80, 60, MUD)
+      for (const x of [44, 50, 56, 62, 68, 74]) sim.paint(x, FLOOR - 1, BURIED)
+
+      let ticks = 0
+      while (count(sim, FLOWER) < 3 && ticks < 8000) {
+        sim.tick()
+        ticks++
+      }
+      expect(plantCells(sim)).toBeGreaterThan(10)
+
+      for (let x = 40; x <= 80; x++) sim.paint(x, FLOOR - 2, FIRE)
+
+      let cleared = -1
+      let rewet = -1
+      let regrown = -1
+      let plume = 0
+      for (let t = 0; t < 4000; t++) {
+        sim.tick()
+        plume = Math.max(plume, count(sim, STEAM))
+        if (cleared < 0 && plantCells(sim) === 0) cleared = t
+        if (cleared >= 0 && rewet < 0 && count(sim, MUD) > 5) rewet = t
+        if (cleared >= 0 && regrown < 0 && crowns(sim) > 0) regrown = t
+      }
+
+      // Swept clean, and quickly - a dragged torch is the ignition story.
+      expect(cleared).toBeGreaterThanOrEqual(0)
+      expect(cleared).toBeLessThan(100)
+      // The plume is the bed's own water, lofted rather than deleted.
+      expect(plume).toBeGreaterThan(20)
+      // And it came back down on the ground it came off.
+      expect(rewet).toBeGreaterThan(0)
+      expect(rewet).toBeLessThan(3000)
+      // The bank survived the fire (it is not flammable and it lives *under* the
+      // surface) and regrew the clearing on the ticket's timescale.
+      expect(regrown).toBeGreaterThan(0)
+      expect(regrown).toBeLessThan(3000)
+    }
+  })
+
+  /**
+   * The last link of the burn-to-regrowth loop (spec §4.5, burnables ADR 0042
+   * §6), and the only one this epic did not have to write: `ash + water -> mud`
+   * was already there, and what ticket 05 supplies is the *water*. No rain is
+   * painted - every cell of it is soil the fire dried and the sky handed back.
+   *
+   * Measured over three seeds: the torch dried 17 of the bed's 35 cells and
+   * lofted 17, the bed was wetter than it started by 1000 ticks (mud 18 -> 29-34),
+   * a cell or two of the ash drift washed in with it, and the first crown was up
+   * between 237 and 1517 ticks.
+   */
+  it('washes its own ash into the bed with the rain the burn made', () => {
+    for (const seed of [1, 2, 3]) {
+      const sim = new Sim({ seed })
+      tank(sim, 40, 80, 60, MUD)
+      for (const x of [44, 50, 56, 62, 68, 74]) sim.paint(x, FLOOR - 1, BURIED)
+      // A drift of ash over one half of the bed and a torch over the other, so
+      // the water that reaches the ash can only have come from the burn.
+      for (let x = 62; x <= 78; x++) sim.paint(x, FLOOR - 2, ASH)
+      const drift = count(sim, ASH)
+      for (let x = 41; x <= 60; x++) sim.paint(x, FLOOR - 2, FIRE)
+
+      let regrown = -1
+      let scorched = 0
+      let wettest = 0
+      for (let t = 0; t < 6000; t++) {
+        sim.tick()
+        // The torch dries half the bed in the first few ticks - that is the
+        // quench - so the number to beat is what it left, not what it found.
+        if (t === 100) scorched = count(sim, MUD)
+        if (t > 100) wettest = Math.max(wettest, count(sim, MUD))
+        if (regrown < 0 && crowns(sim) > 0) regrown = t
+      }
+
+      // The bed ended up wetter than the fire left it, and some of the extra is
+      // ash that the rain turned back into soil.
+      expect(scorched).toBeGreaterThan(0)
+      expect(wettest).toBeGreaterThan(scorched + 8)
+      expect(count(sim, ASH)).toBeLessThan(drift)
+      expect(regrown).toBeGreaterThan(0)
+      expect(regrown).toBeLessThan(3000)
+    }
   })
 })

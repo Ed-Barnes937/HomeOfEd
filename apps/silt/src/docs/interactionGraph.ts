@@ -101,6 +101,12 @@ export interface InteractionGraph {
  * 0043 names for giving the generator a `HookEdge` shape - out of ticket 03's
  * scope, and the graph reports every one of the four species' chemistry and
  * decay meanwhile.
+ *
+ * Evaporation (`evaporation.ts`, life ticket 05) is unreported too, and for the
+ * opposite reason: `water -> steam` consumes no neighbour at all, so a
+ * `GrowthEdge` has no shape for it either. The condition is the whole rule - open
+ * air above, something other than water below - and that is what a `HookEdge`
+ * would have to be able to say.
  */
 const GROWERS: readonly number[] = [MOSS, VINE]
 

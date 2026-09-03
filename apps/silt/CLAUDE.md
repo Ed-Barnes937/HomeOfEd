@@ -8,8 +8,8 @@ Scaffolded from `templates/starter`
 `.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
 (materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`. Every
 effort since carries its own spec and tickets under `.scratch/silt-*/` - most
-recently `.scratch/silt-life-followup/` (the seed bank, the land plant, and the
-water cycle still to come).
+recently `.scratch/silt-life-followup/` (the seed bank, the land plant and the
+water cycle; tuning and scenes still to come).
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -82,7 +82,7 @@ types.ts      ElementDef / Archetype / Api / Lifetime / Emission / SetOptions /
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
               moss, vine, ember, ash, buried, sprout, tip, stalk, flower,
-              petal) and v1Reactions - config plus five hooks. Everything
+              petal) and v1Reactions - config plus six hooks. Everything
               that forms a mass declares four shades rather than one, picked
               per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
               rail reads it. The three gases stay flat. Gas densities
@@ -93,7 +93,12 @@ elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian
               `lava + wood` above `lava + flammable`). Wood never becomes fire
               directly - it chars to ember, which creeps, erupts, is doused
               back to wood, or is burned down to ash, which rain wets to mud
-              and a seed regrows (ADR 0042). A seed on wet soil no longer
+              and a seed regrows (ADR 0042). Fire drying a bed leaves **steam**,
+              not smoke, so a wildfire rains on its own ashes, and a burning
+              plant splits by wetness rather than by a probability the engine
+              cannot express - stem and tip burn, sprout and flower steam
+              ([ADR 0045](../../docs/adr/0045-silt-the-water-ledger.md)). A seed
+              on wet soil no longer
               sprouts on contact - it buries (`seed + mud -> buried`, p 0.1),
               because one row per pair cannot both sprout and bury (ADR 0043).
               A withering flower leaves a seed where it stood and throws 3-4
@@ -121,6 +126,14 @@ petals.ts     the fifth `onTick`, and the smallest: a living flower sheds a peta
               runs on the tick a lifetime expires, so the engine scatters the
               brood (ADR 0043 §4). The one hook needing no keep-awake write: the
               flower's own countdown already writes every tick
+evaporation.ts the sixth hook, and the only one on an element that was always
+              here: a one-cell film of water - open air above, something other
+              than water below - lifts as steam. A pond and a level two-deep pool
+              have no film anywhere in them, so both are permanent by
+              construction; steam overhead counts as "not open air", which is the
+              humidity brake. The one hook owning no byte, and so the one that
+              made `keepAwake` public
+              ([ADR 0044](../../docs/adr/0044-silt-thin-film-evaporation.md))
 emit.ts       emitInto - scattering a brood into the empty cells around one cell,
               shared by `lifetime.emits` and the shedding hook. Displaces
               nothing, so a crowded flower simply sheds fewer
@@ -232,20 +245,29 @@ Rules that are easy to break by accident:
   widening the cell rather than for adding a row here.
 - **`Api` reaches a neighbour's `ra` nowhere; `MovementApi` does.** `raAt` /
   `setRaAt` exist for the liquid kernel's opinion contagion and are engine-only
-  on purpose — an element hook scribbling on another cell's engine-owned byte is
-  the failure mode the ownership rule exists to prevent.
-- **A hook cannot keep its own cell awake.** `Api` has no `keepAwake` (it is on
-  the engine-internal `MovementApi`), so a hook that must go on being offered a
-  draw has to *write* — `growth.ts` writes `ra` every tick it has water to
-  reach, because settled water writes nothing and the chunk would sleep under
-  the plant, `seedBank.ts` writes its soak for the same reason, and the stalk tip
-  re-states its budget on any tick its climb draw misses. Each of the three
-  writes a byte it already owns; **a hook that would have to write a byte it
-  otherwise has no use for is the trigger to promote a real `keepAwake` onto
-  `Api`** instead (life spec §8) - which is why the sprout raises its tip with no
-  probability at all rather than drawing for it. The mirror image matters as
-  much: a *dormant* buried seed and a roofed sprout write nothing at all, which
-  is what lets the bed under a crowded meadow sleep.
+  on purpose (`keepAwake` no longer is - see the next rule) - an element hook
+  scribbling on another cell's engine-owned byte is the failure mode the
+  ownership rule exists to prevent.
+- **A cell that must go on acting has to write, or say so.** Chunk sleeping is
+  driven by writes, so a hook that must keep being offered a draw either rewrites
+  a byte it already owns or calls `api.keepAwake()` - `growth.ts` writes `ra`
+  every tick it has water to reach, because settled water writes nothing and the
+  chunk would sleep under the plant, `seedBank.ts` writes its soak for the same
+  reason, and the stalk tip re-states its budget on any tick its climb draw
+  misses. Each of those three writes a byte it already owns, and the rule was
+  that **a hook that would have to write a byte it otherwise has no use for is
+  the trigger to promote a real `keepAwake` onto `Api`** (life spec §8) - which is
+  why the sprout raises its tip with no probability at all rather than drawing
+  for it. **That trigger has now fired**: `evaporation.ts` lives on water, whose
+  `ra` is the *enforced* liquid opinion field, so it has no byte to disguise a
+  write in and `keepAwake` is public
+  ([ADR 0044](../../docs/adr/0044-silt-thin-film-evaporation.md) §3). It stays
+  judgement rather than a convenience: the question is whether *this* cell still
+  has business next tick. A film that declined its draw does; a pond surface,
+  which is not a film at all, does not - and calling it there would hold every
+  pond in the world awake for ever. The mirror image matters as much: a *dormant*
+  buried seed, a roofed sprout and a roofed film write nothing at all, which is
+  what lets the bed under a crowded meadow sleep.
 - **`CHUNK_MARGIN` is fully spent.** The crowding check in `growth.ts` reads two
   cells out (the candidate is one away, its neighbours one past that), and the
   seed bank's depth test reads exactly two up - both are exactly the margin. A
@@ -302,7 +324,8 @@ Spec §8; the calls the spec leaves open are in
   Hooks are the edges the registry cannot report: growth's are declared in the
   generator, so a change to `growth.ts` has to be mirrored there, while the seed
   bank's germination and the land plant's two hooks are unreported entirely - a
-  `GrowthEdge` has no shape for a rule that writes two cells (ADR 0043). A
+  `GrowthEdge` has no shape for a rule that writes two cells (ADR 0043), nor for
+  evaporation, which consumes no neighbour and is all condition. A
   coarse `lifetime` is reported in real ticks, not in countdown draws, and a
   `lifetime.emits` death drop is reported beside the decay it rides on.
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).

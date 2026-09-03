@@ -65,9 +65,11 @@ export function applyReactions(api: Api, registry: ElementRegistry): void {
  * - A cell placed mid-run waits out the remainder of the current coarse step
  *   before its first draw, so a life is accurate to within `every` ticks.
  *
- * `api` is the engine-internal `MovementApi` only for `keepAwake` - a skipped
- * tick genuinely has nothing to write, and `keepAwake` is kept off `Api` so no
- * element hook can reach it. Nothing here moves anything, as before.
+ * `api` is the engine-internal `MovementApi` for `keepAwake` - a skipped tick
+ * genuinely has nothing to write. It is no longer engine-only: the evaporation
+ * hook needed the same affordance and `keepAwake` has been promoted onto `Api`
+ * (life ticket 05, [ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md) §3).
+ * Nothing here moves anything, as before.
  */
 export function applyLifetime(api: MovementApi, lifetime: ResolvedLifetime, tick: number): boolean {
   let remaining = api.ra

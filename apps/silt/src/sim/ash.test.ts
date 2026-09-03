@@ -13,6 +13,7 @@ import {
   SAND,
   SEED,
   SMOKE,
+  STEAM,
   WATER,
   WOOD,
   v1Elements,
@@ -247,7 +248,10 @@ describe('ash and the burn-to-regrowth loop', () => {
     expect(wetted).toBeGreaterThan(0)
     // Two cells in, one out: each cell of mud costs a cell of water.
     expect(count(sim, MUD)).toBe(wetted)
-    expect(waterBefore - count(sim, WATER)).toBe(wetted)
+    // Steam is in the sum since life ticket 05, exactly as in `soil.test.ts`'s
+    // twin of this case: the film left on the wetted bed lifts, so the water is
+    // spent into the soil or into the sky and never anywhere else (ADR 0045).
+    expect(waterBefore - count(sim, WATER) - count(sim, STEAM)).toBe(wetted)
   })
 
   // The loop, end to end (spec §3): what burned leaves ash, rain turns the ash

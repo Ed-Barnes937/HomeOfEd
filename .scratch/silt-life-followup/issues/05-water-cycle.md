@@ -1,6 +1,6 @@
 # 05 — The water cycle: evaporation, quench, wet biomass, ash regrowth
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** 02, burnables epic merge (ash 19 and the ignition ladder)
 **Spec:** [../spec.md](../spec.md) §4.5, §2.7, §6, §7.2, §7.3
@@ -37,17 +37,80 @@ standing. Every rule transmutes; none deletes (spec §7.3).
 
 ## Acceptance
 
-- [ ] A film on saturated ground clears in the target window; a stone pond
+- [x] A film on saturated ground clears in the target window; a stone pond
       and a level 2-deep pool are volume-stable over a long seeded run.
-- [ ] Conservation soak test: free water + steam + mud (+ biomass proxy)
+      A lone film cell lifts in 3-281 ticks over 8 seeds (the rate the prototype
+      tuned); a 13-cell poured puddle is off the bed in 195-1659. A nine-deep
+      pond and a level 2-deep pool beside it: 251 cells -> 251 over 8000 ticks on
+      three seeds, with `scannedLastTick` at 0.
+- [x] Conservation soak test: free water + steam + mud (+ biomass proxy)
       constant through pour/burn/rain cycles on a closed scene.
-- [ ] Torch a meadow: steam plume, rain, ash washed to mud, bank germinates
-      into the clearing — recovery on the order of 500–3000 ticks.
-- [ ] Chunks under a finished (dry or fully wet) bed sleep — no permanent
+      Sealed box, dirt bed, pour + torch + the rain that followed: drift **zero
+      at every one of 3000 ticks**, two seeds. The quench row leaving smoke was
+      the one leak in the table and is now steam.
+- [x] Torch a meadow: steam plume, rain, ash washed to mud, bank germinates
+      into the clearing - recovery on the order of 500-3000 ticks.
+      Standing plants gone in 10-12 ticks, plume 36-38 cells, bed wet again by
+      369-379, first new crown 370-2088. With an ash drift on the bed the burn's
+      own rain washed some of it in and the crown was up in 237-1517.
+- [x] Chunks under a finished (dry or fully wet) bed sleep - no permanent
       keep-awake (measure, don't assume).
-- [ ] ADRs: thin-film evaporation recording the any-surface trap and the
+      `scannedLastTick` 0 over a saturated bed, a dry bed, a pond and a level
+      2-deep pool. Free water over ground that *cannot* absorb it is the
+      exception, and deliberate - see below.
+- [x] ADRs: thin-film evaporation recording the any-surface trap and the
       declined shallow-pool numbers (spec §7.2); the water ledger (§7.3).
-- [ ] Verify loop green.
+      Two: [ADR 0044](../../../docs/adr/0044-silt-thin-film-evaporation.md) and
+      [ADR 0045](../../../docs/adr/0045-silt-the-water-ledger.md). Split because
+      one is a mechanism with rejected alternatives and the other an invariant
+      every future reaction row has to obey - different readers, different
+      lifetimes.
+- [x] Verify loop green.
+      `pnpm lint` and `pnpm typecheck` clean; vitest 359 passed with only the
+      four pre-existing `interactionGraph.test.ts` reds (open regen PR #124), and
+      the graph doc regenerated so its drift test is green again; Playwright CT
+      51 passed.
+
+## What building it turned up
+
+- **Keep-awake: promoted, not disguised, and the trigger fired for the reason
+  rather than for the count.** Water's `ra` is the *enforced* liquid opinion field
+  (`applyArchetype` is handed a `raIsFree` flag), so the growers' trick was not
+  available here at any price - this hook has no byte of its own at all.
+  `keepAwake` moved from `MovementApi` to `Api`, and `CellApi` already implemented
+  it. Measured rather than assumed: a film holds its chunk awake until it lifts,
+  and a pond surface, a roofed film and a finished bed all scan 0.
+- **A fall is not a film** - the one deviation from the prototype, and it was
+  measured. The prototype lifted any water with air above it, which on a 200-cell
+  grid hands a falling droplet a draw every tick of its fall: 200 droplets
+  released 100 cells up landed 87-107 with air-below allowed and 179-183 with it
+  refused, 55-74 against 3-9 still aloft at 400 ticks. Half a burn's plume never
+  coming back down is the any-surface trap in miniature.
+- **A drain needs somewhere to drain to.** Free water over ground that cannot
+  absorb it - stone, or a bed already saturated - lifts, rains, lands and lifts
+  again indefinitely, so that world never sleeps. Over soil it terminates,
+  because `water + dirt -> mud` is a sink. Recorded in ADR 0044 as a consequence
+  rather than papered over.
+- **The cycle is closed under fire and open under old age.** A burnt flower hands
+  back exactly the cell of soil its germination drank; a flower that *withers*
+  does not, because the stem crumbles to nothing and the flower becomes a seed
+  (ADR 0043's split meeting ruling 2's plant drinking). So ticket 04's extinction
+  horizon is **not** beaten on an unburnt bed: measured over two seeds to 40,000
+  ticks, a 261-cell bed with a one-deep sheet of water on it still thinned to
+  nothing by 25,000-30,000. Both obvious closures are wrong - stem-to-steam
+  inflates the ledger eightfold, flower-to-steam costs the meadow its only
+  reproduction step - so ADR 0045 §4 names the hole and leaves it to ticket 06.
+- **Adding a hook to water moved the world.** Water is the most common element in
+  the suite, so the new rows and the new draw broke 29 cases. All but three were
+  table-order lists or one-for-one ledgers that now have to count steam as well.
+  The three real ones: two liquid-kernel cases moved to oil, because a one-deep
+  sheet of water on open ground is no longer a resting state, and a third gained
+  a lid.
+- **The fire brush already has its guard.** Spec §8 flagged the prototype's
+  radius-3 fire brush excavating the soil row; the real app fixed that
+  independently in
+  [ADR 0042](../../../docs/adr/0042-silt-brush-fills-never-converts.md) - a paint
+  stroke only writes cells that are empty. Nothing to do.
 
 ## Context pointers
 

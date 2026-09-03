@@ -89,6 +89,12 @@ class StubApi implements Api {
     return this.#draws.shift() ?? 0
   }
 
+  keepAwake(): void {
+    // As `growth.test.ts`: the bank holds its chunk awake by rewriting its own
+    // soak counter, and a dormant one deliberately writes nothing at all.
+    throw new Error('the seed bank holds its chunk awake by writing its soak')
+  }
+
   randInt(): number {
     throw new Error('the seed bank draws rand(), not randInt()')
   }

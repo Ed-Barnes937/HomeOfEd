@@ -1,3 +1,4 @@
+import { createEvaporation } from './evaporation.ts'
 import { createGrowth } from './growth.ts'
 import { createSeedBank } from './seedBank.ts'
 import { createShed } from './petals.ts'
@@ -87,6 +88,16 @@ const sand: ElementDef = {
   hardness: 0,
 }
 
+/**
+ * The roster's sixth hook, and the only one on something that was always here:
+ * a one-cell film of water with open air over it lifts as steam (life spec §4.5,
+ * ruling 1). It is what stops a puddle poured on saturated ground standing there
+ * for the rest of the run, and it leaves ponds and level pools alone by
+ * construction. See `evaporation.ts` and
+ * [ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md).
+ */
+const evaporate = createEvaporation({ empty: EMPTY, water: WATER, steam: STEAM })
+
 const water: ElementDef = {
   id: WATER,
   name: 'water',
@@ -95,6 +106,11 @@ const water: ElementDef = {
   // Five cells of sideways travel a tick is what makes a poured column read as
   // spreading rather than as a wobbling stack.
   archetype: { kind: 'liquid', density: 30, dispersion: 5 },
+  // **No `lifetime`, so `ra` stays the liquid opinion field** (ADR 0038) - and
+  // this hook claims no byte at all, which is exactly why it needed `keepAwake`
+  // on `Api` instead (life ticket 05, ADR 0044 §3). An element may carry a hook
+  // without claiming a byte; water is the first one that does.
+  onTick: evaporate,
 }
 
 const lava: ElementDef = {
@@ -639,6 +655,28 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'fire', b: 'seed', p: 0.3, aBecomes: 'fire', bBecomes: 'fire' },
   { a: 'fire', b: 'moss', p: 0.2, aBecomes: 'fire', bBecomes: 'fire' },
   { a: 'fire', b: 'wood', p: 0.2, aBecomes: 'fire', bBecomes: 'ember' },
+  // **Dry parts burn, wet parts steam** (life spec §4.5, §2.4). The prototype
+  // ignited every plant cell into a weighted three-way split - 30% steam, 15%
+  // ash, 55% fire - and the engine cannot express that: one row per pair, and
+  // `p` is a rate and never a share. So the split becomes a *per-species*
+  // choice, and these two rows are the wet half: a flower and a seedling are
+  // mostly water, so what leaves them is the water, not a flame.
+  //
+  // The rate is the fallback's own 0.4, unchanged: these rows swap the product,
+  // not the ignition. And the fire cell survives as fire, exactly as it does on
+  // every other rung - what makes a flower a poor fuel is that it hands the
+  // flame nothing, not that it puts it out. `water + fire` is the row that puts
+  // fire out, and a flower is not a bucket of water.
+  //
+  // **Above the tag row below them**, the same trap as `acid + wood`: the tag row
+  // covers both of these pairs and `resolvePairs` keeps the first registration
+  // and drops the rest without a word. Reorder them and wet biomass silently
+  // goes back to burning. The stem and the travelling tip are deliberately *not*
+  // here: the stem is the plant's dry tissue and the tip is on screen for about
+  // thirty ticks, so both stay on the ladder and are what carries a fire up a
+  // meadow at all.
+  { a: 'fire', b: 'flower', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
+  { a: 'fire', b: 'sprout', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
   // The fallback, and the default every future flammable arrives on.
   { a: 'fire', b: 'flammable', p: 0.4, aBecomes: 'fire', bBecomes: 'fire' },
   // **The residue branch** (spec §3): open flame beside a smoldering cell
@@ -712,7 +750,15 @@ export const v1Reactions: readonly ReactionRow[] = [
   // neither `fire + [flammable]` nor acid's `[solid]`/`[powder]` rows cover
   // these pairs — naming both sides explicitly keeps them out of the tags
   // regardless of where they sit in the table.
-  { a: 'mud', b: 'fire', p: 1, aBecomes: 'dirt', bBecomes: 'smoke' },
+  //
+  // **The quench** (life spec §4.5): the flame dries one cell of soil and is
+  // itself lofted as the steam that soil's water became. It used to leave smoke,
+  // which *deleted* the water - the one rule in the table that did, and the
+  // reason a burnt bed could never rain on its own ashes
+  // ([ADR 0045](../../../../docs/adr/0045-silt-the-water-ledger.md)). Two things
+  // fall out of it for free: fire spreads through the plants standing on a bed
+  // but never along it, and a wildfire makes its own weather.
+  { a: 'mud', b: 'fire', p: 1, aBecomes: 'dirt', bBecomes: 'steam' },
   // Lava bakes rather than dries, and survives — a heat source, not a reagent.
   { a: 'mud', b: 'lava', p: 1, aBecomes: 'stone', bBecomes: 'lava' },
   // **Burial, which replaced instant germination rather than joining it** (life

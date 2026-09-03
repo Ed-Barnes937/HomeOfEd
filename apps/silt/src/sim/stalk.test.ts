@@ -89,6 +89,12 @@ class StubApi implements Api {
     return this.#draws.shift() ?? 0
   }
 
+  keepAwake(): void {
+    // As `growth.test.ts`: the tip re-states the budget it owns on a missed
+    // climb, and the sprout draws no probability at all so it never needs to.
+    throw new Error('the land plant holds its chunk awake by writing its budget')
+  }
+
   randInt(): number {
     // Default 0: the shortest jittered budget, so a test that does not care
     // about height gets the same one every time.

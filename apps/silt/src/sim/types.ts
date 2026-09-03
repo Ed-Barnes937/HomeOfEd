@@ -192,6 +192,27 @@ export interface Api {
    */
   get rb(): number
   set rb(value: number)
+  /**
+   * Keep this cell's chunk awake for the next tick without changing anything.
+   * The motion kernels have always needed it: a cell that *could* move and
+   * declined - a `move` probability that did not come up - writes nothing, and
+   * the chunk would otherwise sleep with the cell still in mid-air.
+   *
+   * **Promoted from `MovementApi` for the evaporation hook** (life ticket 05,
+   * [ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md) §3).
+   * Chunk sleeping is driven by writes, so a hook that must go on being offered
+   * a draw has to write something - and the three hooks before this one each
+   * rewrote a byte they already owned (`growth.ts`, `seedBank.ts`, `stalk.ts`).
+   * Evaporation is the case life spec §8 named in advance: it lives on *water*,
+   * whose `ra` is the liquid opinion field (ADR 0038), so the disguised write is
+   * not merely inelegant here but actively corrupting.
+   *
+   * **Judgement, not a habit**: the question is whether *this* cell still has
+   * business next tick. A film that declined its draw does; a pond surface that
+   * is not a film at all does not, and calling this on one would hold every pond
+   * in the world awake for ever.
+   */
+  keepAwake(): void
   rand(): number
   randInt(maxExclusive: number): number
 }
@@ -217,13 +238,6 @@ export interface MovementApi extends Api {
    */
   raAt(dx: number, dy: number): number
   setRaAt(dx: number, dy: number, value: number): void
-  /**
-   * Keep this cell's chunk awake for the next tick without changing anything.
-   * A cell that *could* move and declined — a `move` probability that did not
-   * come up — writes nothing, and the chunk would otherwise sleep with the cell
-   * still in mid-air.
-   */
-  keepAwake(): void
   /**
    * Whether the last successful `tryMove` merely *queued* a cross-chunk move
    * rather than committing it. The cursor did not follow, so a kernel that

@@ -72,6 +72,12 @@ class StubApi implements Api {
     return this.#draws.shift() ?? 0
   }
 
+  keepAwake(): void {
+    // The one hook that needs nothing: the flower's own countdown writes (or
+    // calls `keepAwake` itself) on every tick of its life.
+    throw new Error('a blooming flower is already kept awake by its countdown')
+  }
+
   randInt(): number {
     return this.#ints.shift() ?? 0
   }

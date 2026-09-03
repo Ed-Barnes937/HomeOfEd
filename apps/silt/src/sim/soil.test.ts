@@ -9,7 +9,7 @@ import {
   MUD,
   OBSIDIAN,
   SAND,
-  SMOKE,
+  STEAM,
   STONE,
   WATER,
   v1Elements,
@@ -77,8 +77,8 @@ describe('mud', () => {
 
   // Only this stage's own rows — see the same note in `acid.test.ts`: later
   // stages append, so a whole-table assertion here breaks on every later stage.
-  it('declares rows 1–23 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 23).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–25 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 25).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -87,6 +87,8 @@ describe('mud', () => {
       ['fire', 'seed'],
       ['fire', 'moss'],
       ['fire', 'wood'],
+      ['fire', 'flower'],
+      ['fire', 'sprout'],
       ['fire', 'flammable'],
       ['fire', 'ember'],
       ['lava', 'wood'],
@@ -141,7 +143,13 @@ describe('mud', () => {
     expect(wetted).toBeGreaterThan(0)
     // Two cells in, one out: each cell of mud costs a cell of water.
     expect(count(sim, MUD)).toBe(wetted)
-    expect(waterBefore - count(sim, WATER)).toBe(wetted)
+    // **Steam is in the sum since life ticket 05**: the film left on top of the
+    // wetted bed lifts (`evaporation.ts`), so water now leaves this pocket two
+    // ways rather than one. It is still spent one for one - into the soil or
+    // into the sky - and condensation puts a cell back on the water side of the
+    // same sum, so this holds however the two swap
+    // ([ADR 0045](../../../../docs/adr/0045-silt-the-water-ledger.md)).
+    expect(waterBefore - count(sim, WATER) - count(sim, STEAM)).toBe(wetted)
   })
 
   it('sand still sinks through it', () => {
@@ -168,14 +176,21 @@ describe('mud', () => {
     expect(sim.speciesAt(150, FLOOR - 2)).toBe(WATER)
   })
 
-  it('is dried back to dirt by fire, which leaves smoke', () => {
+  /**
+   * **The quench** (life spec §4.5). This row used to leave smoke, and smoke
+   * fades to nothing - so the one thing in the table that *deleted* water was
+   * fire drying a bed. Now the soil's water is lofted as the steam it became,
+   * which is what lets a wildfire rain on its own ashes
+   * ([ADR 0045](../../../../docs/adr/0045-silt-the-water-ledger.md)).
+   */
+  it('is dried back to dirt by fire, and the flame is lofted as the soil water', () => {
     const sim = new Sim({ seed: 1 })
     sealedPair(sim, 100, MUD, FIRE)
 
     sim.tick()
 
     expect(sim.speciesAt(100, FLOOR - 1)).toBe(DIRT)
-    expect(sim.speciesAt(101, FLOOR - 1)).toBe(SMOKE)
+    expect(sim.speciesAt(101, FLOOR - 1)).toBe(STEAM)
   })
 
   it('is baked to stone by lava, and the lava survives', () => {
@@ -198,7 +213,7 @@ describe('mud', () => {
     // Fire and lava reach mud through its own rows, not through the fuel rows.
     expect(registry.reactionFor(MUD, FIRE)).toMatchObject({
       aBecomes: DIRT,
-      bBecomes: SMOKE,
+      bBecomes: STEAM,
     })
     expect(registry.reactionFor(MUD, LAVA)).toMatchObject({
       aBecomes: STONE,

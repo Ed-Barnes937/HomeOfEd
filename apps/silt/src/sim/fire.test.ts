@@ -120,10 +120,10 @@ describe('the fire group', () => {
     expect(registry.get(EMBER)?.colours).toHaveLength(4)
   })
 
-  // Rows 1–14 are this group's; later groups append to the same table, so this
+  // Rows 1–16 are this group's; later groups append to the same table, so this
   // pins the head of it rather than the whole thing.
-  it('registers rows 1–14 in the declared order', () => {
-    expect(v1Reactions.slice(0, 14).map((row) => [row.a, row.b])).toEqual([
+  it('registers rows 1–16 in the declared order', () => {
+    expect(v1Reactions.slice(0, 16).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -132,6 +132,8 @@ describe('the fire group', () => {
       ['fire', 'seed'],
       ['fire', 'moss'],
       ['fire', 'wood'],
+      ['fire', 'flower'],
+      ['fire', 'sprout'],
       ['fire', 'flammable'],
       ['fire', 'ember'],
       ['lava', 'wood'],
