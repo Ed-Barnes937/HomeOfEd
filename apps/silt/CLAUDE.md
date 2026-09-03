@@ -6,7 +6,9 @@ client-side simulation, scenes in `localStorage`, nothing server-owned.
 Scaffolded from `templates/starter`
 ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)). Spec:
 `.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
-(materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`.
+(materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`. Every
+effort since carries its own spec and tickets under `.scratch/silt-*/` - most
+recently `.scratch/silt-burnables/` (the ignition ladder, the ember, ash).
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -74,13 +76,18 @@ constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick 
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
-              moss, vine) and v1Reactions — config plus one hook. Everything
+              moss, vine, ember, ash) and v1Reactions — config plus one hook. Everything
               that forms a mass declares four shades rather than one, picked
               per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
               rail reads it. The three gases stay flat. Gas densities
               read backwards: `canDisplace` is `mine > theirs`, so the gas
               closest to zero rises highest. Reaction row order is load-bearing:
-              a specific pair must precede any tag row covering it (acid + wood)
+              a specific pair must precede any tag row covering it (acid + wood,
+              the `fire + <fuel>` ignition ladder above `fire + flammable`, and
+              `lava + wood` above `lava + flammable`). Wood never becomes fire
+              directly - it chars to ember, which creeps, erupts, is doused
+              back to wood, or is burned down to ash, which rain wets to mud
+              and a seed regrows (ADR 0042)
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
@@ -208,7 +215,7 @@ Spec §8; the calls the spec leaves open are in
   persistence; restart to pick up server changes).
 - `pnpm test --filter=silt` — Vitest (`*.test.ts`) then Playwright CT
   (`*.iwft.tsx`, CT port **3109**).
-- `pnpm --filter silt run bench` — `bench/sim.bench.ts`, ms/tick for four named
+- `pnpm --filter silt run bench` — `bench/sim.bench.ts`, ms/tick for five named
   scenarios under native Node. A tool, not a gate: it is deliberately outside
   `pnpm test`, since a timing assertion in CI would only flake. It prints
   `scannedLastTick` beside every timing — a scenario that got faster because it

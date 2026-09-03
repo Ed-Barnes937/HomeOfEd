@@ -96,8 +96,11 @@ across this change; nothing depended on that.
 
 ### 3. Four shades for everything that forms a mass; gases stay flat
 
-Fourteen of the seventeen elements declare four shades — the base colour at
-×1.00, ×0.90, ×1.08 and ×0.96, roughly ±10% of luminance. Two rules hold:
+Everything that forms a mass declares four shades — the base colour at
+×1.00, ×0.90, ×1.08 and ×0.96, roughly ±10% of luminance. That was fourteen of
+seventeen elements when this landed, and sixteen of nineteen once the burnables
+effort added ember and ash ([ADR 0042](0042-silt-wood-smolders-as-ember.md));
+the count moves with the roster, the rule does not. Two rules hold:
 
 - **`colours[0]` is the base and stays in slot 0**, because the rail swatch reads
   `colours[0]` and the rail must not drift from the canvas (spec §9).

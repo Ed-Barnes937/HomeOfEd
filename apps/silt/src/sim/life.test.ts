@@ -145,18 +145,29 @@ describe('seed, moss and vine', () => {
     expect(registry.get(VINE)?.archetype).toEqual({ kind: 'static' })
   })
 
-  it('declares row 13 last, after the tag rows stage 02 registered', () => {
+  it('declares its row last, after the tag rows stage 02 registered', () => {
     expect(v1Reactions.map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
+      ['fire', 'sulphur'],
+      ['fire', 'oil'],
+      ['fire', 'vine'],
+      ['fire', 'seed'],
+      ['fire', 'moss'],
+      ['fire', 'wood'],
       ['fire', 'flammable'],
+      ['fire', 'ember'],
+      ['lava', 'wood'],
       ['lava', 'flammable'],
+      ['ember', 'wood'],
+      ['water', 'ember'],
       ['acid', 'wood'],
       ['acid', 'solid'],
       ['acid', 'powder'],
       ['acid', 'water'],
       ['acid', 'lava'],
       ['water', 'dirt'],
+      ['water', 'ash'],
       ['mud', 'fire'],
       ['mud', 'lava'],
       ['seed', 'mud'],
@@ -365,7 +376,9 @@ describe('seed, moss and vine', () => {
         aBecomes: EMPTY,
         bBecomes: EMPTY,
       })
-      // `flammable` puts all three under `fire + [flammable]`.
+      // All three are `flammable`, and all three now have their own rung on the
+      // ignition ladder as well. The rates are `fire.test.ts`'s to pin; what
+      // matters here is that a plant burns at all.
       expect(registry.has(plant, 'flammable')).toBe(true)
       expect(registry.reactionFor(FIRE, plant)).toMatchObject({
         aBecomes: FIRE,
