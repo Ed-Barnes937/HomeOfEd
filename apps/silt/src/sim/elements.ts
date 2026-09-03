@@ -400,11 +400,18 @@ export const v1Reactions: readonly ReactionRow[] = [
   // This is the probabilistic fork a single-valued `lifetime.becomes` cannot
   // express - most embers flame, some become residue - so it is a row.
   //
+  // **Read the `p` as a rate, not as a share**, which is why it is this small.
+  // The draw is offered every tick and an ember glows for 120-180 of them, so
+  // what "most embers flame" costs is `1 - (1 - p)^150`, not `p` - and the
+  // spec's first 0.05 turned out to mean an exposed ember almost never erupts.
+  // The sweep behind 0.003 is in
+  // [ADR 0042](../../../../docs/adr/0042-silt-wood-smolders-as-ember.md) §6.
+  //
   // Below the tag row rather than above it because it is not part of the
   // ignition ladder: ember carries no `flammable` tag, so no tag row claims
   // this pair and its position is free. It sits with the fire rows for
   // legibility, not for precedence.
-  { a: 'fire', b: 'ember', p: 0.05, aBecomes: 'fire', bBecomes: 'ash' },
+  { a: 'fire', b: 'ember', p: 0.003, aBecomes: 'fire', bBecomes: 'ash' },
   // Lava chars wood too, and more slowly than it lights anything else - but it
   // is still the heat source it is everywhere else, so it survives. **Above
   // the tag row**, which covers this pair as well.

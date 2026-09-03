@@ -12,6 +12,7 @@ import {
   OBSIDIAN,
   SAND,
   SEED,
+  SMOKE,
   WATER,
   WOOD,
   v1Elements,
@@ -37,6 +38,10 @@ function count(sim: Sim, species: number): number {
 function run(sim: Sim, ticks: number): void {
   for (let i = 0; i < ticks; i++) sim.tick()
 }
+
+/** As in `fire.test.ts`: enough draws that a majority reads as a rank rather
+ * than as luck. Named for the PRNG, not for the `SEED` species. */
+const RNG_SEEDS = Array.from({ length: 40 }, (_, i) => i + 1)
 
 /** An obsidian shaft one cell wide — obsidian, not dirt, which water wets. */
 function shaftAt(sim: Sim, x: number, depth: number): void {
@@ -95,7 +100,6 @@ describe('ash and the burn-to-regrowth loop', () => {
   // slice; `fire.test.ts` and `soil.test.ts` pin the order.
   it('registers the residue branch off fire + ember, both ways round', () => {
     expect(registry.reactionFor(FIRE, EMBER)).toMatchObject({
-      p: 0.05,
       aBecomes: FIRE,
       bBecomes: ASH,
     })
@@ -103,13 +107,51 @@ describe('ash and the burn-to-regrowth loop', () => {
       aBecomes: ASH,
       bBecomes: FIRE,
     })
-    // Worth reading carefully: 0.05 is a *per-tick* draw, and an ember glows
-    // for 120–180 ticks, so an ember held against open flame for its whole life
-    // ends as ash all but certainly. What keeps open flame the common outcome
-    // is not the probability but the geometry - the creep front runs away from
-    // the cell that lit it, so most embers never touch a flame at all. The
-    // mix that comes out of that is ticket 04's to judge; measured on the
-    // wall below, about half.
+  })
+
+  // The `p` is not pinned as a number, because the number is not what spec §3
+  // asks for - "most embers flame, some become residue" is a *statement about
+  // outcomes*, and the row's `p` is a per-tick draw over a 120–180-tick glow, so
+  // the two are related by `1 - (1 - p)^150` rather than by equality. Ticket 03
+  // shipped the spec's literal 0.05 and measured that it inverted the sentence
+  // (an exposed ember erupted on 2 of these 40 seeds); ticket 04 retuned to
+  // 0.003 on this measurement. So this is the assertion that fails if someone
+  // "tidies" the p back up - and it fails for the right reason.
+  it('lets an ember held against open flame usually still erupt', () => {
+    const outcomes = RNG_SEEDS.map((seed): 'erupted' | 'ashed' | 'still glowing' => {
+      const sim = new Sim({ seed })
+      // A sealed pocket: obsidian on all sides, so the flame cannot rise away
+      // and the ember is exposed to it for its whole life. The harshest case
+      // the row ever sees - in open play a flame drifts off long before this.
+      for (let i = -2; i <= 3; i++) {
+        sim.paint(100 + i, FLOOR, OBSIDIAN)
+        sim.paint(100 + i, FLOOR - 2, OBSIDIAN)
+      }
+      sim.paint(99, FLOOR - 1, OBSIDIAN)
+      sim.paint(102, FLOOR - 1, OBSIDIAN)
+      sim.paint(100, FLOOR - 1, FIRE)
+      sim.paint(101, FLOOR - 1, EMBER)
+
+      for (let t = 0; t < 400; t++) {
+        sim.tick()
+        const at = sim.speciesAt(101, FLOOR - 1)
+        if (at === ASH) return 'ashed'
+        // Smoke counts as erupted: the eruption's flame lives 40–60 ticks and
+        // this loop may look after it has already died back.
+        if (at === FIRE || at === SMOKE) return 'erupted'
+      }
+      return 'still glowing'
+    })
+
+    const erupted = outcomes.filter((o) => o === 'erupted').length
+    const ashed = outcomes.filter((o) => o === 'ashed').length
+    // Most flame: measured 26 of these 40 pockets (65%) at 0.003, against 2
+    // (5%) at ticket 03's 0.05 and 18 (45%) at 0.01. A bare majority is the
+    // bound, so the test is a discriminator rather than a snapshot - and both
+    // of those alternatives fail it.
+    expect(erupted).toBeGreaterThan(outcomes.length / 2)
+    // And some residue: a row that never fires is a row that is not there.
+    expect(ashed).toBeGreaterThan(0)
   })
 
   // Ash-to-mud is `water + dirt` with the bed swapped: two cells in, one out,
@@ -166,10 +208,11 @@ describe('ash and the burn-to-regrowth loop', () => {
   })
 
   // The payoff of the branch row: a torched block of wood does not simply
-  // vanish. Presence, not quantity - the yield is ticket 04's to tune, so the
-  // bounds are only "some, and not all of it". Measured on the same 20×13 wall
-  // `fire.test.ts` smolders, seed 1: the first ash lands at tick 4 and 126 of
-  // the 260 cells end as residue.
+  // vanish, and what it leaves is noticeable without blanketing the ground
+  // (ticket 04's own words for the yield). Measured on the same 20×13 wall
+  // `fire.test.ts` smolders, seeds 1-3: the first ash lands at tick 25-59 and
+  // 28-40 of the 260 cells end as residue - 11-15%, against 45-54% at ticket
+  // 03's p of 0.05.
   it('leaves residue behind when a block of wood is burned down', () => {
     const sim = new Sim({ seed: 1 })
     for (let y = FLOOR - 12; y <= FLOOR; y++) {
@@ -181,12 +224,13 @@ describe('ash and the burn-to-regrowth loop', () => {
     run(sim, 600)
 
     expect(count(sim, WOOD)).toBe(0)
-    expect(count(sim, ASH)).toBeGreaterThan(0)
-    // And the branch stays a branch rather than becoming the only ending: some
-    // of the block goes up as smoke instead. Not a yield assertion - ticket 04
-    // owns the mix, and this bound holds for any of it short of "every cell
-    // ends as residue".
-    expect(count(sim, ASH)).toBeLessThan(woodBefore)
+    // Noticeable: more than a grain or two, so a burnt-out block reads as
+    // having left something rather than as having been erased.
+    expect(count(sim, ASH)).toBeGreaterThan(10)
+    // Not blanketing: most of the block went up as smoke instead. A quarter is
+    // a generous ceiling over the measured 15%, and a real one - the p that
+    // ticket 03 shipped puts half the block on the floor and fails this.
+    expect(count(sim, ASH)).toBeLessThan(woodBefore / 4)
   })
 
   // Wetting, as `soil.test.ts` pins it for dirt: statistical at p 0.4, so a

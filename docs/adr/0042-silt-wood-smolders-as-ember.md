@@ -2,9 +2,11 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-03
-- **Related:** `.scratch/silt-burnables/spec.md` §2-3 and tickets 02 and 03
+- **Related:** `.scratch/silt-burnables/spec.md` §2-3 and tickets 02, 03 and 04
   (`.scratch/silt-burnables/issues/02-ember.md`,
-  `.scratch/silt-burnables/issues/03-ash-loop.md`);
+  `.scratch/silt-burnables/issues/03-ash-loop.md`,
+  `.scratch/silt-burnables/issues/04-feel-and-tuning.md` - the measured feel
+  pass, which retuned one `p` and left every other value alone);
   [ADR 0028](0028-silt-simulation-engine.md) for the engine and its byte
   ownership; [ADR 0040](0040-silt-colour-variants-in-rb.md) for the shade rule
   the new element follows; [ADR 0038](0038-silt-liquids-keep-their-direction-in-ra.md)
@@ -124,9 +126,13 @@ Ticket 03's addition (spec §3). A burn should leave something behind, and that
 something should feed the plant cycle rather than being litter:
 
 ```ts
-{ a: 'fire',  b: 'ember', p: 0.05, aBecomes: 'fire', bBecomes: 'ash' },
-{ a: 'water', b: 'ash',   p: 0.4,  aBecomes: null,   bBecomes: 'mud' },
+{ a: 'fire',  b: 'ember', p: 0.003, aBecomes: 'fire', bBecomes: 'ash' },
+{ a: 'water', b: 'ash',   p: 0.4,   aBecomes: null,   bBecomes: 'mud' },
 ```
+
+(Ticket 03 shipped the first row at the spec's literal 0.05 and ticket 04's
+measured feel pass retuned it to 0.003 - a rate, not a decision, and the
+consequences below carry the arithmetic and the sweep.)
 
 `ASH = 19` is a pale-grey inert powder, `tags: ['powder']`, hardness 0,
 `{ kind: 'powder', density: 35, slide: 1 }`, four shades by the mass rule
@@ -188,35 +194,49 @@ shaft.
 ## Consequences
 
 **A torched wall now has three acts.** Measured on a 20×13 wall with one fire
-cell painted in the middle of it (seed 1), **with §6's ash branch in place**:
-the fire chars its four contacts within two ticks and then stays that one cell -
-it never spreads, because char is not flammable, and it does not go out either,
-because the ash branch renews it (it lives to tick 133 rather than dying at 55,
-which is what ticket 03 changed). Meanwhile the burn is carried by the creep: 97
-of the 260 cells glow at tick 70 with 150 still wood, and the wall is entirely
-charred by tick 180. Eruptions then do the rest - 33 open flames at tick 320 -
-and the last ember is gone by tick 340, leaving 126 cells of ash and 126 of
-smoke. The old behaviour consumed the same wall inside 70 ticks and left
-nothing.
+cell painted in the middle of it (seeds 1-3), at ticket 04's shipped `p`: the
+fire chars its four contacts within two ticks and then stays that one cell - it
+never spreads, because char is not flammable. The burn is carried by the creep:
+87-121 of the 260 cells glow at tick 70 with 136-171 still wood, and eruptions
+then do the rest, peaking at 100-122 open flames. The last wood is gone at tick
+173-223 and the last ember at 339-400, leaving 28-40 cells of ash. The old
+behaviour consumed the same wall inside 70 ticks and left nothing.
 
-Ticket 02 measured the same wall before the branch existed: the flame died at
-tick 55, the first eruption landed at 128, and the last wood was gone at 232.
-The branch both feeds the flame and slows the finish, which is worth an eyeball
-in ticket 04 - along with the yield, since **roughly half the wall (126 of 260
-cells) ends as ash**, which is a lot of pale grey for one fire.
+**Read the `p` as a rate, not as a share** - the one thing about §6 that does
+not survive contact with the arithmetic, and the reason ticket 04 retuned it.
+The draw is offered every tick and an ember glows for 120-180 of them, so the
+chance an ember beside a flame ends as residue is roughly `1 - (1 - p)^150`, not
+`p`. Measured over 40 sealed pockets each holding one ember against one flame
+for its whole life:
 
-**Read the 0.05 carefully, because "most embers flame, some ash" is not what the
-probability says.** The draw is offered every tick, and an ember glows for
-120-180 of them, so an ember held against open flame for its whole life becomes
-ash all but certainly - the per-contact fork is not a fork at all. What keeps
-open flame the common ending is the *geometry*: the creep front runs away from
-the cell that lit it, so most embers never touch a flame. The mix that falls out
-of that is 48% ash on the wall above, and `p` is still the lever for it (fewer
-draws land before the front moves on), but nobody should expect `p` to read as
-"5% of embers". Worth Ed's eye in ticket 04 as a *feel* question - half a wall
-of grey may simply be too much residue - and if the wanted story really is "an
-ember beside a flame usually still erupts", that is a `p` nearer 0.001 than
-0.05, not a structural change.
+| `fire + ember` p | exposed ember erupts | ash left of a 20×13 wall | ash left of a 40×21 copse |
+| ---------------- | -------------------- | ------------------------ | ------------------------- |
+| 0.05 (ticket 03) | 2/40 (5%)            | 45-54%                    | 54-57%, piled 13 cells deep |
+| 0.01             | 18/40 (45%)          | 27-33%                    | 30-32%, 9 deep            |
+| 0.005            | 24/40 (60%)          | 20-24%                    | 17-22%, 5-6 deep          |
+| **0.003**        | **26/40 (65%)**      | **11-15%**                | **12-15%, 4 deep**        |
+| 0.002            | 29/40 (73%)          | 9-12%                     | 8-12%, 3-4 deep           |
+| 0.001            | 34/40 (85%)          | 4-7%                      | 5-6%, 2 deep              |
+
+0.05 inverted the decision's own sentence - "most embers erupt into flame, a few
+burn down to residue" - for any ember a flame could actually reach, and put half
+of every burnt structure on the floor as grey. 0.003 is where both halves hold
+at once: an exposed ember still usually erupts, and what a burnt-out copse
+leaves is a bed about a fifth of its own height. Nothing structural changed;
+this is the row's rate, and the decision above is untouched.
+
+A second effect worth recording, because it was not predicted: **the lower `p`
+also made a large structure burn faster and far more evenly**. Embers that erupt
+do more work than embers that are consumed, since an eruption makes a flame that
+chars its own neighbours. A hollow 60×51 cabin torched at one corner finished in
+1301-3285 ticks at 0.05 and in 1109-1498 at 0.003 - a mean 34.3 s down to 21.7 s
+with a fifth of the spread. The `p` is therefore a lever on pace as well as on
+yield, which is the sort of coupling only a measured pass finds.
+
+Ticket 02 measured the same wall before the branch existed at all: the flame
+died at tick 55, the first eruption landed at 128, and the last wood was gone at
+232 - so the branch, at 0.003, leaves that timeline essentially where it was
+while adding the residue.
 
 **Cost: a smoldering mass is awake by construction, and it shows up in the scan
 count rather than in the per-cell work.** A lifetime writes `ra` every tick, so
@@ -230,12 +250,28 @@ either side of the change:
 | plant growth           | 0.731–0.744 ms/tick, scanned 6226 | 0.787–0.810, scanned 6226 |
 | settled world          | 0.002 ms/tick, scanned 0 | 0.002, scanned 0   |
 
-Reaction churn - the scenario with a 240-cell wood slab and two fire spawners in
-it - is the honest reading: **+25% cells scanned for +8% of a tick**, because
-the wood block that used to flash and vanish now sits there glowing. That is
-0.68 ms against a 16.7 ms frame, so the ember is affordable at the scale the
-bench pours fire at; a whole-screen wood world set alight would be the
-interesting case, and ticket 04 owns that eyeball.
+Reaction churn - the scenario with a wood slab and two fire spawners in it - is
+the honest reading: **+25% cells scanned for +8% of a tick**, because the wood
+block that used to flash and vanish now sits there glowing. That is 0.68 ms
+against a 16.7 ms frame, so the ember is affordable at the scale the bench pours
+fire at.
+
+**A whole-screen wood world set alight is the case that was missing, and ticket
+04 added it to the bench as `wood world ablaze`** - 53,000 cells of wood lit
+along the entire top edge, which holds a steady front of ~4.3k embers and ~1.3k
+flames across the measured window. Three runs either side, against this
+branch's base:
+
+| | before | after |
+| --- | --- | --- |
+| wood world ablaze | 1.135-1.145 ms/tick, scanned **0** | 1.908-1.943, scanned **16454** |
+
+The `scanned=0` before is not a bug in the row: pre-ember, a screen of wood
+flashed and was over long before the window ended, so the old behaviour is
+measured as an empty world. **The answer to "what does a whole-screen burn cost"
+is therefore about 1.9 ms of a 16.7 ms frame at ~16k cells awake** - a ninth of
+the budget for the largest burn the grid can hold, and the smolder is affordable
+at any scale silt can reach.
 
 The other two rows are noise, not signal. The mixed world and plant growth scan
 *exactly* the same cells as before (7093 and 6226), which is the tell -
@@ -249,15 +285,19 @@ cell - it is a cell with business every tick, and it says so by writing. The
 settled-world row is unchanged at 0.002 ms.
 
 **The ash branch costs scanning and nothing else.** Same bench, three runs
-after §6 landed: churn 0.680–0.711 ms/tick at **scanned=3399**, against
-0.678–0.694 at 2184 with the ember alone. Half again as many cells awake for no
-measurable per-tick change - the extra cells are the longer-lived flames and the
-ash piles that keep a chunk awake while a grain sits in a notch it cannot leave
-(ADR 0039), and none of them do expensive work. The other three scenarios are
-untouched, `scannedLastTick` included (7093, 6226, 0).
+after §6 landed at ticket 03's 0.05: churn 0.680–0.711 ms/tick at
+**scanned=3399**, against 0.678–0.694 at 2184 with the ember alone. Half again
+as many cells awake for no measurable per-tick change - the extra cells are the
+longer-lived flames and the ash piles that keep a chunk awake while a grain sits
+in a notch it cannot leave (ADR 0039), and none of them do expensive work.
+
+Ticket 04's retune to 0.003 gave most of that back, for the same reason: churn
+settles at 0.692–0.696 ms/tick at **scanned=2168**, essentially the ember's own
+figure, because there are far fewer grains lying in notches. The other
+scenarios are untouched, `scannedLastTick` included (7093, 6226, 0).
 
 **Determinism is unaffected**, and no existing determinism or layout test needed
-an edit. Three behavioural tests moved across the two tickets, and were
+an edit. Five behavioural tests moved across the three tickets, and were
 rewritten rather than loosened:
 
 - `keeps burning while it is touching wood` asserted the wall gone in 70 ticks.
@@ -267,6 +307,29 @@ rewritten rather than loosened:
   `count(FIRE) === 0` to `=== 1`, for the reason §6 gives: the branch renews the
   flame. Its companion `flamed` flag became a peak-fire count, since "any flame
   at all" is now satisfied for free by the cell that never went out.
+- and *again* in ticket 04, from `=== 1` to `<= 1`. At 0.05 "still exactly the
+  one flame" was an invariant; at 0.003 whether that walled-in cell is alight at
+  tick 70 is a coin, so what the test pins is the half that is a fact - the fire
+  never *spread*, because char is not fuel. A one-sided bound is the assertion
+  that was meant all along; the two-sided one was pinning the old `p`.
+- `creeps along a wood beam through orthogonal contacts only` asserted every
+  cell of a floating beam consumed, on all 40 seeds. At 0.003 one seed strands
+  its last two cells, and legitimately: the creep front's last ember can erupt
+  before its 0.02 draw lands, and the flame that eruption makes is a gas with
+  nothing under the beam to hold it, so it rises away and nothing is left that
+  can light the rest. The test now allows a stub of at most two cells per seed
+  and pins the frequency instead (over 90% of seeds clear it outright), which is
+  the behaviour rather than the number. A *structure* does not do this - the
+  cabin scene burns to zero wood on every seed measured.
+- `registers the residue branch off fire + ember` pinned `p: 0.05` outright.
+  The `p` is gone from it and the products stay; the rate it stood for is now a
+  separate behavioural case, `lets an ember held against open flame usually
+  still erupt`, which is the sentence §6 actually decided and which both 0.05
+  and 0.01 fail.
+- `leaves residue behind when a block of wood is burned down` asserted only
+  "some ash, and less than the whole block", which the old `p` satisfied at 48%.
+  It now brackets the yield the way the ticket words it - noticeable (more than
+  ten cells) and not blanketing (under a quarter of the block).
 - `lets lava ignite wood and survive it` counted fire; its lit condition is now
   fire *or* ember, since lava chars wood and lights oil. The lava-count
   assertion is untouched - lava is still a heat source, not a fuel.

@@ -26,7 +26,13 @@ fallback rather than the whole story).
 | wood    | -    | never becomes fire directly - see the ember (§2)   |
 | (tag)   | 0.4  | fallback for future flammables                     |
 
-All ps are starting points; ticket 04 is the tuning pass. Vine-as-fuse is a
+**Shipped as written.** Ticket 04's measured tuning pass left every rung of the
+ladder alone, because each one tells its story: a settled sulphur heap chains
+end to end in 0.2 s from one touch, a dammed 60-cell oil pool is fully alight in
+0.17 s and then chars 17-22 cells of the wall it is banked against, a 59-cell
+grown vine burns to the top on 10 of 10 seeds in 0.6-0.8 s, and consumption
+times rank the way the rungs do (vine 0.5 s, seed 1.0 s, moss 1.5 s over the
+same mat). Vine-as-fuse is a
 deliberate design goal, not a side effect: vines already grow in long climbing
 lines, so a reliable fast burn makes them a player-buildable way to route fire.
 
@@ -57,6 +63,16 @@ paintable (a reaction product, like obsidian - `PAINTABLE_IDS` untouched).
 So the story of a torched wall becomes: the contact point chars and glows, the
 glow crawls, then erupts - instead of the whole wall detonating on touch.
 
+**All four rows and the lifetime shipped as written**; ticket 04 measured each
+and moved none. A 20x13 wall chars fully in 3.2 s and is spent by 5.8 s; a
+hollow 60x51 cabin torched at a corner goes up section by section - left wall
+4.6 s, near floor 5.4 s, mid floor 11.4 s, far floor 17.8 s, roof 17.9 s, last
+ember 24.4 s. The lifetime's own reading is the eruption: first open flame at
+2.5 s, inside the 2-3 s the ticks/jitter pair was chosen for. The creep is the
+one value the pass considered raising, since the cabin's pace is creep-rate
+times path length - and refused, because halving the crawl is halving the thing
+the phase exists to show.
+
 Byte ownership is clean: ember's lifetime countdown lives in `ra`
 (engine-managed, as designed), colour variant in `rb`, static archetype so no
 opinion-field conflict.
@@ -71,10 +87,18 @@ same trap `acid + wood` already documents. Tests pin it.
 New pinned species `ASH = 19`. A pale-grey inert powder (not flammable, not
 paintable), density 35 - sinks through water (30), rests on mud (50).
 
-- `fire + ember, p 0.05 -> fire + ash` - open flame occasionally burns a
+- `fire + ember, p 0.003 -> fire + ash` - open flame occasionally burns a
   smoldering cell straight down to residue instead of letting it erupt. This
   is the probabilistic branch `lifetime.becomes` (single-valued) cannot
   express, done as a reaction row: most embers flame, some become ash.
+
+  **0.003, not the 0.05 this spec first wrote** - ticket 04's one retune. The
+  draw is per tick over a 120-180-tick glow, so the chance an exposed ember
+  ends as residue is `1 - (1 - p)^150`, not `p`: at 0.05 an ember held against
+  open flame erupted on 2 of 40 seeded pockets, which inverts the sentence
+  above, and roughly half of every burnt wall ended as grey. At 0.003 it erupts
+  on 26 of 40, and a burnt-out copse is left under a bed of residue about a
+  fifth of its own height. See ticket 04's Answer for the whole sweep.
 - `water + ash, p 0.4 -> (water spent) + mud` - mirrors the existing
   `water + dirt` row shape (a-side null, water is consumed).
 
