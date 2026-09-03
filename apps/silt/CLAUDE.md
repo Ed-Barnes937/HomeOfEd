@@ -8,7 +8,8 @@ Scaffolded from `templates/starter`
 `.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
 (materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`. Every
 effort since carries its own spec and tickets under `.scratch/silt-*/` - most
-recently `.scratch/silt-burnables/` (the ignition ladder, the ember, ash).
+recently `.scratch/silt-life-followup/` (the seed bank, the land plant, and the
+water cycle still to come).
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -79,7 +80,8 @@ constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick 
 types.ts      ElementDef / Archetype / Api / Lifetime / SetOptions / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
-              moss, vine, ember, ash, buried) and v1Reactions - config plus two hooks. Everything
+              moss, vine, ember, ash, buried, sprout, tip, stalk, flower) and
+              v1Reactions - config plus four hooks. Everything
               that forms a mass declares four shades rather than one, picked
               per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
               rail reads it. The three gases stay flat. Gas densities
@@ -99,9 +101,15 @@ growth.ts     the roster's first `onTick`: moss and vine grow into water, up
 seedBank.ts   the second `onTick`: a buried seed soaks (counter in `ra`), sleeps
               while roofed, and germinates once the sky above it opens - moss if
               2 cells of water have stood over it for 120 continuous ticks,
-              otherwise the land sprout (ticket 03's seam, `null` today). The
-              soil cell is refunded as dirt, never mud: the plant drank it. See
+              otherwise the land sprout. The soil cell is refunded as dirt,
+              never mud: the plant drank it. See
               [ADR 0043](../../docs/adr/0043-silt-growers-and-products-split-the-byte.md)
+stalk.ts      hooks three and four, the land plant: a sprout raises a stalk tip
+              into empty air (never into water) and is spent becoming the base
+              of the stem; the tip climbs at p 0.3 on a travelling energy budget
+              in `ra`, leaving inert stalk behind, and blooms when the budget
+              runs out or when it is boxed in. Stem and flower are the products
+              and both crumble - a meadow of immortal columns silts up (ADR 0043)
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
@@ -173,7 +181,7 @@ Rules that are easy to break by accident:
   the call site (`requireRaIsFree`): the registry cannot see it at boot, since
   which species a hook seeds is known only when it seeds it.
   New per-cell fields are parallel grids; the cell never widens past 4 bytes. There are
-  **three exceptions, all conditional on the element declaring no `lifetime`**,
+  **four exceptions, all conditional on the element declaring no `lifetime`**,
   and none can collide: the claim is per *species*, and a cell is one species
   (ADR 0043):
   - **The growth hook** (`growth.ts`): moss and vine hold their branch count in
@@ -191,10 +199,18 @@ Rules that are easy to break by accident:
     splits the same way, into a grower that owns the byte and a product that
     expires.
     [ADR 0043](../../docs/adr/0043-silt-growers-and-products-split-the-byte.md).
+  - **The stalk tip** (`stalk.ts`): the tip holds its travelling energy budget in
+    `ra` - height + 1, so 1 is spent and 0 (unseeded) blooms on the spot rather
+    than climbing forever. Same split as the seed: the tip grows and cannot die,
+    the stalk behind it expires and cannot grow.
+    [ADR 0043](../../docs/adr/0043-silt-growers-and-products-split-the-byte.md) §2.1.
 
-  This entry and the comments at all three sites are summaries of those ADRs, so
-  a change to the rule belongs in the ADR first. A **fourth** claimant is the
-  trigger to revisit the byte itself rather than to add a row here (ADR 0043).
+  This entry and the comments at all four sites are summaries of those ADRs, so
+  a change to the rule belongs in the ADR first. The **fourth** claimant was the
+  trigger to revisit the byte itself; the revisit is ADR 0043 §2.1 and it held.
+  The next one fires the same way - and it is not about the count: a claimant
+  that is anything other than a grower which never dies is the argument for
+  widening the cell rather than for adding a row here.
 - **`Api` reaches a neighbour's `ra` nowhere; `MovementApi` does.** `raAt` /
   `setRaAt` exist for the liquid kernel's opinion contagion and are engine-only
   on purpose — an element hook scribbling on another cell's engine-owned byte is
@@ -203,9 +219,14 @@ Rules that are easy to break by accident:
   the engine-internal `MovementApi`), so a hook that must go on being offered a
   draw has to *write* — `growth.ts` writes `ra` every tick it has water to
   reach, because settled water writes nothing and the chunk would sleep under
-  the plant, and `seedBank.ts` writes its soak for the same reason. The mirror
-  image matters as much: a *dormant* buried seed writes nothing at all, which is
-  what lets the bed under a crowded meadow sleep.
+  the plant, `seedBank.ts` writes its soak for the same reason, and the stalk tip
+  re-states its budget on any tick its climb draw misses. Each of the three
+  writes a byte it already owns; **a hook that would have to write a byte it
+  otherwise has no use for is the trigger to promote a real `keepAwake` onto
+  `Api`** instead (life spec §8) - which is why the sprout raises its tip with no
+  probability at all rather than drawing for it. The mirror image matters as
+  much: a *dormant* buried seed and a roofed sprout write nothing at all, which
+  is what lets the bed under a crowded meadow sleep.
 - **`CHUNK_MARGIN` is fully spent.** The crowding check in `growth.ts` reads two
   cells out (the candidate is one away, its neighbours one past that), and the
   seed bank's depth test reads exactly two up - both are exactly the margin. A
@@ -260,9 +281,10 @@ Spec §8; the calls the spec leaves open are in
   `src/docs/interactionGraph.test.ts` fails if the checked-in file has drifted,
   so a new element or reaction row means running the script in the same change.
   Hooks are the edges the registry cannot report: growth's are declared in the
-  generator, so a change to `growth.ts` has to be mirrored there, and the seed
-  bank's germination is unreported entirely - a `GrowthEdge` has no shape for a
-  rule that writes two cells (ADR 0043).
+  generator, so a change to `growth.ts` has to be mirrored there, while the seed
+  bank's germination and the land plant's two hooks are unreported entirely - a
+  `GrowthEdge` has no shape for a rule that writes two cells (ADR 0043). A
+  coarse `lifetime` is reported in real ticks, not in countdown draws.
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).
 
 ## Rules

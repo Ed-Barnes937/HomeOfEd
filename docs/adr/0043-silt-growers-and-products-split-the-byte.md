@@ -2,13 +2,17 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-03
-- **Related:** `.scratch/silt-life-followup/spec.md` §2.1 and §7.1, ticket 02
-  (`.scratch/silt-life-followup/issues/02-seed-bank.md`);
+- **Related:** `.scratch/silt-life-followup/spec.md` §2.1 and §7.1, tickets 02
+  and 03 (`.scratch/silt-life-followup/issues/`);
   [ADR 0028](0028-silt-simulation-engine.md) for the byte-ownership rule;
   [ADR 0035](0035-silt-plant-growth-is-bounded-by-crowding.md) §3 and
   [ADR 0038](0038-silt-liquids-keep-their-direction-in-ra.md) §1 for the first
   two conditional claims on `ra`. Implemented in `apps/silt/src/sim/seedBank.ts`
-  and the roster in `apps/silt/src/sim/elements.ts`.
+  and `apps/silt/src/sim/stalk.ts`, with the roster in
+  `apps/silt/src/sim/elements.ts`.
+- **Amended** 2026-09-03 (ticket 03) with §2.1 - the fourth claimant this
+  decision named as its own trigger - and the two things the stalk tip taught
+  (§3).
 
 ## Context
 
@@ -49,8 +53,13 @@ product expires and owns nothing:
 | organism | grower (owns `ra`, no lifetime)     | product (engine owns `ra`)          |
 | -------- | ----------------------------------- | ----------------------------------- |
 | seed     | **buried seed 20** - soak counter   | seed 15 - a falling grain, burns    |
-| stalk    | stalk tip 22 - energy budget (t03)  | stalk 23 - inert stem, expires      |
-| flower   | -                                   | flower 24, petal 25 - expire (t04)  |
+| stalk    | **stalk tip 22** - energy budget    | **stalk 23** - inert stem, expires  |
+| flower   | -                                   | **flower 24**, petal 25 (t04)       |
+
+Sprout 21 is the odd one out: it is the cell a land germination writes, it
+raises a tip and is spent doing it, and it needs no per-cell state at all - so
+it declares neither a lifetime nor a claim on `ra`. Being *able* to grow is not
+the same as needing a byte to do it.
 
 The transition between the two is a transmutation, which the sim already does on
 every reaction: a seed *becomes* a buried seed when it reaches wet soil, a tip
@@ -82,6 +91,29 @@ trade would be worth it for an element that genuinely needs a counter *and* a
 finite life, and this decision is precisely the claim that no such element is
 needed: a thing that dies is a product, and a product does not count.
 
+### 2.1 The fourth claimant, and why it does not overturn §2 (ticket 03)
+
+The consequences below name a **fourth** claimant as the trigger to revisit this
+decision. The stalk tip's travelling energy budget is that fourth claimant, and
+it arrived one ticket later - so the revisit happened, and it lands the same way,
+for the reason §2 gave rather than in spite of it:
+
+- The trigger was never the *count*. It was the worry that the count is a proxy
+  for the pattern breaking down, and §2 says exactly when it would: the economy
+  holds "for as long as every claimant is a grower that never dies". The tip is
+  the purest instance of that condition in the roster - it declares no lifetime,
+  it cannot die of old age, and the cell it leaves behind (stalk 23) is what
+  expires. A claimant that *fails* the condition is still the trigger to widen
+  the cell, whether it is the fourth or the tenth.
+- The tip also settles the question the count was standing in for. Two of the
+  four claims are now on species this epic introduced, and both fell out of the
+  split rather than needing an argument, so the pattern is the roster's shape and
+  not a run of luck.
+
+What the fourth claimant does change is the honesty of the count: `ra` means four
+different things depending on which species you are looking at, and the
+consequences section is where that cost is recorded.
+
 ### 3. Where the split changes the mechanics, say so at the site
 
 The split is not free. Two consequences are load-bearing enough that the code
@@ -97,6 +129,19 @@ carries them as comments rather than leaving them to this file:
   to swap-and-backfill - movement inside a hook, which the element model forbids.
   The grower half of a pair is therefore only implementable *because* that
   affordance landed first.
+- **A travelling budget counts from 1, not from 0** (ticket 03). `ra` is 0 on any
+  cell nothing has seeded, which is the engine's own "not seeded yet", so the
+  tip's budget holds *height + 1* and treats 1 as spent. A budget that counted
+  from 0 would make an unseeded tip - one painted into a scene, or restored from
+  a saved world - indistinguishable from a fresh one, and it would climb until
+  something stopped it. Blooming on the spot is the safe reading of "no budget".
+- **The keep-awake write belongs to the branch that did not act.** A grower has
+  to write every tick it still has business or its chunk sleeps under it
+  (`growth.ts` and `seedBank.ts` do the same), and the tip's write is its own
+  budget re-stated. But it must not happen on the *climbing* branch: that cell is
+  stalk by then, and the stem's `lifetime` owns `ra` - writing there would
+  pre-spend a countdown that had not started. The split makes this a two-line
+  ordering question rather than a bug that shows up as stems crumbling early.
 
 ## Consequences
 
@@ -105,20 +150,25 @@ carries them as comments rather than leaving them to this file:
 - **A species with a claim on `ra` can never be given a `lifetime` later.** Doing
   so silently hands the byte back to the engine: growth's brake would uncap, and
   the bank's biome test would read a countdown instead of a soak. The comments at
-  all three sites say so, and `life.test.ts` asserts that the buried seed
-  declares no lifetime, so the trap is a failing test rather than a surprise.
+  all four sites say so, and `life.test.ts` asserts that the buried seed and the
+  stalk tip declare no lifetime, so the trap is a failing test rather than a
+  surprise.
 - **`ra` semantics are now genuinely per-species.** A future reader cannot ask
   "what does `ra` mean" and get one answer; they have to ask which species. That
   is the cost of not widening the cell, and it is why the app's scoped
   `CLAUDE.md` lists the claimants beside the rule they are exceptions to.
-- **The generated interaction graph under-reports germination.** Burial is a row
-  and appears; germination writes two cells (a plant above, dirt in place) and a
-  `GrowthEdge` has no shape for that, so `apps/silt/docs/interaction-graph.md`
-  reports the bank's chemistry but not its hook - the same gap growth has, one
-  step wider. Worth a `HookEdge` if a third hook arrives.
-- **A fourth claimant is the trigger to revisit this.** Not a third one: the
-  economy of the split is what buys the third, and it holds only for as long as
-  every claimant is a grower that never dies.
+- **The generated interaction graph under-reports every two-cell hook.** Burial is
+  a row and appears; germination writes two cells (a plant above, dirt in place)
+  and a `GrowthEdge` has no shape for that, so
+  `apps/silt/docs/interaction-graph.md` reports the bank's chemistry but not its
+  hook - the same gap growth has, one step wider. The land plant's two hooks
+  (ticket 03) are unreported for the same reason, which makes three, so the
+  `HookEdge` this said would be worth writing now is. It stays open: the graph
+  reports all four new species' chemistry and decay meanwhile, and the shape is a
+  doc-generator change rather than a sim one.
+- **The fourth claimant arrived, and the decision held** - see §2.1. The trigger
+  stands for the *next* one, and it is not about the count: it fires the moment a
+  claimant is something other than a grower that never dies.
 
 ## Alternatives considered
 

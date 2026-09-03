@@ -1,6 +1,6 @@
 # 03 — Sprout, stalk tip, stalk, flower
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** 02
 **Spec:** [../spec.md](../spec.md) §4.3, §2.1, §2.2, §2.5, §3
@@ -35,18 +35,34 @@ own commit as the materials epic did with growth.
 
 ## Acceptance
 
-- [ ] A buried seed under open air becomes sprout -> climbing tip -> inert
+- [x] A buried seed under open air becomes sprout -> climbing tip -> inert
       stalk column -> flower, with heights varying by the seeded budget.
-- [ ] Tip budget travels: a mid-climb tip cell holds exactly
+- [x] Tip budget travels: a mid-climb tip cell holds exactly
       initial - height in `ra` (unit test through the Api, not pixels).
-- [ ] Spent plants disappear: after flower + stalk lifetimes, the column is
+- [x] Spent plants disappear: after flower + stalk lifetimes, the column is
       gone and the soil below is dirt (drunk) — the bed can host a successor.
-- [ ] Water against a sprout/stalk/flower changes nothing (land plants are
+- [x] Water against a sprout/stalk/flower changes nothing (land plants are
       splash-immune).
-- [ ] iwft: paint seed on a wet bed, run, a flower blooms (state-through-UI
+- [x] iwft: paint seed on a wet bed, run, a flower blooms (state-through-UI
       per the pragmatic test split; unit tests carry the layer below).
-- [ ] ADR: grower/product split (spec §7.1) if 02 didn't write it.
-- [ ] Verify loop green.
+- [x] ADR: grower/product split (spec §7.1) if 02 didn't write it. 02 wrote
+      ADR 0043; this ticket amended it with §2.1 (the fourth `ra` claimant the
+      decision named as its own trigger) and what the tip taught (§3).
+- [x] Verify loop green, bar the four pre-existing hard-coded expectations in
+      `interactionGraph.test.ts` (open regen PR #124) - the drift test itself
+      passes, since the doc was regenerated.
+
+## Deviations from the prototype
+
+- **The sprout draws no probability** (prototype: p 0.2). A failed draw would
+  need a keep-awake write on a byte the sprout does not otherwise use, which
+  is the third disguised `ra` write spec §8 says to promote a real `keepAwake`
+  for instead; germination's own slow draw already paces the seedling.
+- **The sprout has no lifetime** (prototype: 120-180 ticks), per spec §3's
+  roster. It cannot be orphaned for long: it is born under open sky and rises
+  on its next tick.
+- **The soil is charged once, at germination** (`seedBank.ts` refunds dirt), so
+  the sprout requires only air above it and never re-checks for wet soil.
 
 ## Context pointers
 
