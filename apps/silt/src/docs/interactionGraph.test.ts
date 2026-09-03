@@ -36,7 +36,7 @@ describe('the interaction graph doc', () => {
 describe('deriveInteractionGraph', () => {
   it('finds every registered pair once, unordered', () => {
     // Registry-derived, so this count moves only when the chemistry does.
-    expect(graph.reactions).toHaveLength(26)
+    expect(graph.reactions).toHaveLength(32)
     const keys = graph.reactions.map((edge) => `${edge.a}+${edge.b}`)
     expect(new Set(keys).size).toBe(keys.length)
   })
@@ -57,14 +57,22 @@ describe('deriveInteractionGraph', () => {
 
   it('keeps the first matching row, so acid + wood leaves sulphur', () => {
     expect(products('acid', 'wood')).toEqual(['sulphur', 'empty'])
-    expect(pair('acid', 'wood')?.source).toBe('row 5 (acid + wood)')
+    expect(pair('acid', 'wood')?.source).toBe('row 15 (acid + wood)')
     // The generic row it precedes digs a cavity instead.
     expect(products('acid', 'dirt')).toEqual(['empty', 'empty'])
   })
 
-  it('expands fire + flammable to every fuel', () => {
+  it('gives every fuel on the ignition ladder its own row, ahead of the flammable fallback', () => {
+    // Burnables gave each historical fuel its own probability (spec §1), so the
+    // generic `fire + flammable` tag row (still present for the next fuel that
+    // arrives without one) never wins attribution for any of these six today.
     const fuels = graph.reactions
-      .filter((edge) => edge.source.startsWith('row 3 '))
+      .filter(
+        (edge) =>
+          edge.source.includes('(fire + ') &&
+          !edge.source.includes('flammable') &&
+          !edge.source.includes('ember'),
+      )
       .map((edge) => (edge.a === 'fire' ? edge.b : edge.a))
 
     expect(fuels.toSorted()).toEqual(['moss', 'oil', 'seed', 'sulphur', 'vine', 'wood'])
@@ -75,6 +83,7 @@ describe('deriveInteractionGraph', () => {
       { from: 'fire', becomes: 'smoke', minTicks: 40, maxTicks: 60 },
       { from: 'smoke', becomes: 'empty', minTicks: 200, maxTicks: 255 },
       { from: 'steam', becomes: 'water', minTicks: 180, maxTicks: 240 },
+      { from: 'ember', becomes: 'fire', minTicks: 120, maxTicks: 180 },
     ])
   })
 
