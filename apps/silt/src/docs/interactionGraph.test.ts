@@ -78,6 +78,29 @@ describe('deriveInteractionGraph', () => {
     ])
   })
 
+  /**
+   * A coarse countdown (`every: n`) counts draws rather than ticks, so the
+   * roster's numbers are in units of `n` and the doc has to multiply them back
+   * out - a flower printed as "75-150 ticks" would be off by a factor of eight
+   * (life ticket 03).
+   */
+  it('reports a coarse lifetime in real ticks, not in countdown draws', () => {
+    expect(graph.decays.find((decay) => decay.from === 'flower')).toEqual({
+      from: 'flower',
+      becomes: 'empty',
+      minTicks: 600,
+      maxTicks: 1200,
+    })
+    expect(graph.decays.find((decay) => decay.from === 'stalk')).toEqual({
+      from: 'stalk',
+      becomes: 'empty',
+      minTicks: 1400,
+      maxTicks: 1800,
+    })
+    // The tick-by-tick form is untouched: `every` defaults to 1.
+    expect(graph.decays.find((decay) => decay.from === 'fire')?.minTicks).toBe(40)
+  })
+
   it('declares the growth hook the registry cannot report', () => {
     expect(graph.growth.map((edge) => edge.grower)).toEqual(['moss', 'vine'])
     for (const edge of graph.growth) {

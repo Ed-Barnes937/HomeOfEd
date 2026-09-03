@@ -56,6 +56,12 @@ export interface DecayEdge {
   from: string
   /** `empty` for a fade: smoke leaves nothing behind. */
   becomes: string
+  /**
+   * **Real ticks, not countdown draws.** A coarse lifetime (`every: n`) counts
+   * draws in the byte, so its `ticks` and `jitter` are in units of `n` - a doc
+   * that printed them raw would report a 600-tick flower as a 75-tick one (life
+   * ticket 03).
+   */
   minTicks: number
   maxTicks: number
 }
@@ -81,6 +87,13 @@ export interface InteractionGraph {
  * buried`) is a reaction row and arrives with the rest; germination is the seed
  * bank's hook (`seedBank.ts`) and goes unreported, since a `GrowthEdge` has no
  * shape for a rule that writes two cells (life ticket 02).
+ *
+ * The land plant's hooks (`stalk.ts`) are unreported for the same reason: both
+ * the sprout raising a tip and the tip climbing write a new cell *and* transmute
+ * the one they stand in. That is the third such hook, which is the trigger ADR
+ * 0043 names for giving the generator a `HookEdge` shape - out of ticket 03's
+ * scope, and the graph reports every one of the four species' chemistry and
+ * decay meanwhile.
  */
 const GROWERS: readonly number[] = [MOSS, VINE]
 
@@ -149,8 +162,8 @@ export function deriveInteractionGraph(): InteractionGraph {
     decays.push({
       from: def.name,
       becomes: nameOf(lifetime.becomes),
-      minTicks: lifetime.ticks,
-      maxTicks: lifetime.ticks + lifetime.jitter,
+      minTicks: lifetime.ticks * lifetime.every,
+      maxTicks: (lifetime.ticks + lifetime.jitter) * lifetime.every,
     })
   }
 

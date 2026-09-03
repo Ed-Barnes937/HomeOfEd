@@ -1,5 +1,6 @@
 import { createGrowth } from './growth.ts'
 import { createSeedBank } from './seedBank.ts'
+import { createSprout } from './stalk.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
 
 /**
@@ -27,6 +28,10 @@ export const VINE = 17
 export const EMBER = 18
 export const ASH = 19
 export const BURIED = 20
+export const SPROUT = 21
+export const TIP = 22
+export const STALK = 23
+export const FLOWER = 24
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -340,12 +345,12 @@ const ash: ElementDef = {
 }
 
 /**
- * The seed bank (life spec §4.1), the roster's second hook. `null` is the land
- * germination seam: ticket 03 pins sprout 21 and passes it here, and until then
- * an unroofed seed on dry ground stays banked. The aquatic half is live. See
+ * The seed bank (life spec §4.1), the roster's second hook. Both halves of the
+ * biome commitment are live now that sprout 21 exists: standing water above a
+ * germination makes aquatic moss, open air makes the land sprout. See
  * `seedBank.ts`.
  */
-const bank = createSeedBank({ empty: EMPTY, water: WATER, moss: MOSS, dirt: DIRT, sprout: null })
+const bank = createSeedBank({ empty: EMPTY, water: WATER, moss: MOSS, dirt: DIRT, sprout: SPROUT })
 
 /**
  * Where a seed goes when it reaches wet soil (life spec §3, §4.1): into it. The
@@ -381,6 +386,103 @@ const buried: ElementDef = {
   onTick: bank,
 }
 
+/**
+ * The land plant's third hook (life spec §4.3): the sprout raises a stalk tip
+ * above itself and is spent doing it. Code rather than a reaction row for the
+ * same reason growth is - a row has no direction, and this one only ever grows
+ * *up*. See `stalk.ts`.
+ */
+const raiseStalk = createSprout({ empty: EMPTY, tip: TIP, stalk: STALK })
+
+/**
+ * What a seed germinates into on land (life spec §4.2-4.3) - moss's opposite
+ * number, and the only one of the two that never touches water. It raises a
+ * stalk and nothing else.
+ */
+const sprout: ElementDef = {
+  id: SPROUT,
+  name: 'sprout',
+  // The brightest green in the roster: a seedling reads as newer growth than
+  // either the mat (moss) or the stem it becomes. A product, so not in the
+  // design brief's swatch list.
+  colours: ['#8ec44a', '#82b543', '#98d150', '#88bd47'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // **No `lifetime`**, per the roster in life spec §3. Nothing here borrows `ra`
+  // either - the sprout is the one member of the pair that needs no per-cell
+  // state at all, and it rises on the first tick it has air (`stalk.ts`), so an
+  // orphaned seedling is a cell that never got its sky rather than litter.
+  onTick: raiseStalk,
+}
+
+/**
+ * The grower (life spec §2.1, §4.3): it owns `ra` as a travelling energy budget
+ * and climbs until the budget is spent, leaving stem behind and blooming at the
+ * end. Its hook lands in the second half of ticket 03 - until then a tip stands
+ * where the sprout planted it.
+ */
+const tip: ElementDef = {
+  id: TIP,
+  name: 'tip',
+  // **One colour, not four.** The mass rule above is about heaps and walls; a
+  // tip is a single travelling cell, and a pale bud reads as the growing end of
+  // the stem it leaves behind.
+  colours: ['#a9de63'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // **No `lifetime`.** `ra` is the energy budget, so the byte must stay free -
+  // giving the tip a lifetime would hand it back to the engine and the plant
+  // would climb on a countdown
+  // ([ADR 0043](../../../../docs/adr/0043-silt-growers-and-products-split-the-byte.md)).
+}
+
+/**
+ * The product (life spec §2.1, §4.3): inert stem, left behind the tip, and it
+ * crumbles. **The lifetime is the load-bearing half** - without it a meadow
+ * silts up with immortal dead columns, which was the prototype's single most
+ * important finding.
+ */
+const stalk: ElementDef = {
+  id: STALK,
+  name: 'stalk',
+  // Darker than the sprout it grew from and than the tip that left it: the stem
+  // is the oldest tissue on the plant.
+  colours: ['#5f8f3c', '#568237', '#679a40', '#5b8a3a'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // 1400-1800 ticks - 23 to 30 s at 60 tps, comfortably longer than the flower
+  // it holds up. Written coarsely because the flat form does not fit the byte at
+  // all: `every: 8` makes the countdown count draws rather than ticks (life
+  // ticket 01), so `ticks` and `jitter` here are in units of 8.
+  lifetime: { ticks: 175, jitter: 50, every: 8, becomes: null },
+}
+
+/**
+ * The plant's last cell (life spec §4.3). Eight pastels rather than four shades
+ * of one: per-cell variety is free in `rb` (ADR 0040), and it is what makes a
+ * meadow read as a meadow rather than as one flower stamped out twenty times.
+ */
+const flower: ElementDef = {
+  id: FLOWER,
+  name: 'flower',
+  // Eight divides `VARIANT_SLOTS` exactly, so each colour comes up in one slot
+  // in eight - `rb & 7` and nothing else. `colours[0]` still leads, as
+  // everywhere: it is the flower a reader pictures.
+  colours: ['#f2b8c6', '#f7d6e0', '#e3c2ef', '#c8d6f6', '#bde5df', '#f8e3b2', '#f6c9a8', '#e8bcd9'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // 600-1200 ticks (10-20 s), coarse for the same reason the stem is: the flat
+  // form is more than three times `MAX_LIFETIME_TICKS` and the registry refuses
+  // it at boot. Expiring to nothing for now - the death drop (a seed plus
+  // petals) is ticket 04, and it needs an engine affordance a single-valued
+  // `lifetime.becomes` does not have.
+  lifetime: { ticks: 75, jitter: 75, every: 8, becomes: null },
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -403,6 +505,10 @@ export const v1Elements: readonly ElementDef[] = [
   ember,
   ash,
   buried,
+  sprout,
+  tip,
+  stalk,
+  flower,
 ]
 
 /**

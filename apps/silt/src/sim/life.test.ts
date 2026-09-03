@@ -6,10 +6,14 @@ import {
   DIRT,
   EMPTY,
   FIRE,
+  FLOWER,
   MOSS,
   MUD,
   OBSIDIAN,
   SEED,
+  SPROUT,
+  STALK,
+  TIP,
   VINE,
   WATER,
   v1Elements,
@@ -17,7 +21,8 @@ import {
 } from './elements.ts'
 import { BRANCH_BUDGET } from './growth.ts'
 import { SOAK_TO_DROWN } from './seedBank.ts'
-import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, RA_OFFSET } from './constants.ts'
+import { STALK_HEIGHT_JITTER, STALK_HEIGHT_MIN } from './stalk.ts'
+import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, RA_OFFSET, VARIANT_SLOTS } from './constants.ts'
 import { createRegistry } from './registry.ts'
 import { Sim } from './sim.ts'
 
@@ -525,6 +530,14 @@ describe('the seed bank', () => {
    * The bank's reason to exist (spec §4.1). Fire clears everything standing on a
    * bed and dries its surface, and the seeds under it come through untouched -
    * which is what turns recovery from a total burn into one generation.
+   *
+   * **The ledger, not the count** (life ticket 03). Fire clearing the bed is
+   * also fire *opening the sky*, so a seed the flames could not touch may
+   * germinate into the burn a moment later - which is the regrowth half of the
+   * same design (spec §4.5), not a loss. Every land plant has exactly one
+   * growing or terminal end at a time (a sprout, then a tip, then a flower), so
+   * counting those alongside the bank is what says "no seed was lost" while
+   * letting the bed come back.
    */
   it('survives a fire swept over the bed, seed for seed', () => {
     const sim = new Sim({ seed: 1 })
@@ -533,10 +546,14 @@ describe('the seed bank', () => {
     const banked = count(sim, BURIED)
     for (let x = 40; x <= 60; x++) sim.paint(x, FLOOR - 2, FIRE)
 
+    // Short of the flower's 600-tick life, so nothing has had time to leave the
+    // ledger by withering.
     run(sim, 300)
 
-    // Not one lost, and nothing germinated in the panic either.
-    expect(count(sim, BURIED)).toBe(banked)
+    // Not one lost: every seed is either still banked or standing in the burn.
+    const crowns = count(sim, SPROUT) + count(sim, TIP) + count(sim, FLOWER)
+    expect(count(sim, BURIED) + crowns).toBe(banked)
+    // Nothing committed aquatic: there is no standing water over a burnt bed.
     expect(count(sim, MOSS)).toBe(0)
     // Not vacuous: the fire really did act on the bed it swept, drying the
     // surface mud it touched to dirt (`mud + fire`).
@@ -582,5 +599,189 @@ describe('the seed bank', () => {
     expect(peak).toBeGreaterThan(0)
     expect(count(sim, MOSS)).toBeGreaterThan(0)
     expect(count(sim, BURIED)).toBeLessThan(peak)
+  })
+})
+
+/**
+ * The land plant (life spec §4.3), four species deep because one byte cannot
+ * both grow and expire (ADR 0043). The hooks themselves are pinned against a
+ * stub in `stalk.test.ts`; what these cases are for is the plant in a world that
+ * is also falling, burning and drying.
+ */
+describe('the land plant', () => {
+  it('boots with its four ids pinned and the byte split down the middle', () => {
+    expect([SPROUT, TIP, STALK, FLOWER]).toEqual([21, 22, 23, 24])
+
+    for (const part of [SPROUT, TIP, STALK, FLOWER]) {
+      // Static: a plant is structure, and nothing in the roster displaces it.
+      expect(registry.get(part)?.archetype).toEqual({ kind: 'static' })
+      // Corrodible and burnable for free, through the tag rows alone - no row
+      // names any of the four, exactly as none names moss or vine.
+      expect(registry.get(part)?.hardness).toBe(0)
+      expect(registry.reactionFor(ACID, part)).toMatchObject({
+        aBecomes: EMPTY,
+        bBecomes: EMPTY,
+      })
+      expect(registry.has(part, 'flammable')).toBe(true)
+      expect(registry.reactionFor(FIRE, part)).toMatchObject({ aBecomes: FIRE, bBecomes: FIRE })
+    }
+
+    // **The growers own `ra`, so neither may ever be given a lifetime** - doing
+    // so hands the byte back to the engine and the tip would climb on a
+    // countdown (ADR 0043). The trap is this assertion rather than a surprise.
+    expect(registry.lifetimeOf(SPROUT)).toBeUndefined()
+    expect(registry.lifetimeOf(TIP)).toBeUndefined()
+
+    // And the products expire, coarsely: 1400-1800 ticks of stem and 600-1200
+    // of flower are both past `MAX_LIFETIME_TICKS`, so `every` is what makes
+    // them fit the byte at all (life ticket 01).
+    expect(registry.lifetimeOf(STALK)).toEqual({
+      ticks: 175,
+      jitter: 50,
+      every: 8,
+      becomes: EMPTY,
+    })
+    expect(registry.lifetimeOf(FLOWER)).toEqual({
+      ticks: 75,
+      jitter: 75,
+      every: 8,
+      becomes: EMPTY,
+    })
+    // Eight pastels, one per variant slot: `rb & 7` and nothing else (ADR 0040).
+    expect(registry.get(FLOWER)?.colours).toHaveLength(VARIANT_SLOTS)
+  })
+
+  /**
+   * The land half of the biome commitment (spec §4.2), end to end: a seed banked
+   * in a bed with the sky open germinates into a sprout, the sprout raises a tip
+   * with its budget already in it, and the soil it drank is left as dirt.
+   */
+  it('germinates on land and raises a tip carrying a jittered budget', () => {
+    const sim = new Sim({ seed: 1 })
+    bed(sim, 40, 60)
+    sim.paint(50, FLOOR - 1, BURIED)
+
+    // Germination is ~800 ticks on average under open sky, so this is a horizon
+    // rather than a bound - as the aquatic case does it.
+    let ticks = 0
+    while (count(sim, TIP) === 0 && ticks < 8000) {
+      sim.tick()
+      ticks++
+    }
+
+    // The column so far: soil drunk to dirt, the ex-sprout as the bottom of the
+    // stem, and the tip one cell up with the budget the sprout prepaid it.
+    expect(sim.speciesAt(50, FLOOR - 1)).toBe(DIRT)
+    expect(sim.speciesAt(50, FLOOR - 2)).toBe(STALK)
+    expect(sim.speciesAt(50, FLOOR - 3)).toBe(TIP)
+    // `ra` is height + 1, read straight off the byte the tip owns.
+    expect(raAt(sim, 50, FLOOR - 3)).toBeGreaterThanOrEqual(STALK_HEIGHT_MIN + 1)
+    expect(raAt(sim, 50, FLOOR - 3)).toBeLessThanOrEqual(STALK_HEIGHT_MIN + STALK_HEIGHT_JITTER + 1)
+    // Land, not water: a dry bed can never commit aquatic, however long it runs.
+    expect(count(sim, MOSS)).toBe(0)
+  })
+
+  /**
+   * **The stem crumbles**, and it is the most important line in the ticket: a
+   * meadow whose dead columns are immortal silts up until nothing can germinate
+   * (the prototype's single most important finding).
+   */
+  it('crumbles a stem to nothing, on a countdown far longer than the byte holds', () => {
+    const sim = new Sim({ seed: 1 })
+    shaftAt(sim, 200, 12)
+    for (let i = 1; i <= 8; i++) sim.paint(200, FLOOR - i, STALK)
+    const standing = count(sim, STALK)
+
+    // Well inside the shortest life (8 × 175 = 1400 ticks): a stem that decayed
+    // at the flat rate would already be half gone here.
+    run(sim, 1200)
+    expect(count(sim, STALK)).toBe(standing)
+
+    // And past the longest (8 × 225, plus up to `every` ticks of phase).
+    run(sim, 700)
+    expect(count(sim, STALK)).toBe(0)
+    // To nothing: a stem leaves no husk behind.
+    expect(sim.speciesAt(200, FLOOR - 1)).toBe(EMPTY)
+  })
+
+  it('withers its flowers over a spread, not all in one frame', () => {
+    const sim = new Sim({ seed: 1 })
+    shaftAt(sim, 200, 12)
+    for (let i = 1; i <= 8; i++) sim.paint(200, FLOOR - i, FLOWER)
+    const blooming = count(sim, FLOWER)
+
+    // Inside 8 × 75 = 600 ticks, so not one has had its last draw.
+    run(sim, 500)
+    expect(count(sim, FLOWER)).toBe(blooming)
+
+    // The jitter is coarse too, so the cohort dies over a window rather than
+    // together - which is what stops a painted meadow vanishing in one frame.
+    run(sim, 400)
+    const half = count(sim, FLOWER)
+    expect(half).toBeGreaterThan(0)
+    expect(half).toBeLessThan(blooming)
+
+    // Past 8 × 150 plus the phase.
+    run(sim, 500)
+    expect(count(sim, FLOWER)).toBe(0)
+  })
+
+  /**
+   * **Land plants are splash-immune** (spec §4.2). The biome was decided once,
+   * at germination, and nothing here has a rule that consumes water - so a
+   * droplet against a plant is just a droplet, in either direction.
+   */
+  it('is inert against water, plant for plant', () => {
+    for (const part of [SPROUT, STALK, FLOWER]) {
+      const sim = new Sim({ seed: 1 })
+      sealedPair(sim, 100, part, WATER)
+
+      run(sim, 200)
+
+      expect(sim.speciesAt(100, FLOOR - 1)).toBe(part)
+      expect(sim.speciesAt(101, FLOOR - 1)).toBe(WATER)
+    }
+  })
+
+  /**
+   * The other half of the same rule, and the one a sprout could get wrong: it
+   * grows into *empty air* and nothing else. Before the commitment moved into
+   * the seed bank, water against a plant was eaten and turned to vine.
+   */
+  it('never raises a stalk into water, however long the water stands there', () => {
+    const sim = new Sim({ seed: 1 })
+    shaftAt(sim, 200, 12)
+    sim.paint(200, FLOOR - 1, SPROUT)
+    for (let i = 2; i <= 6; i++) sim.paint(200, FLOOR - i, WATER)
+    const flooded = count(sim, WATER)
+
+    run(sim, 600)
+
+    expect(count(sim, TIP)).toBe(0)
+    expect(count(sim, STALK)).toBe(0)
+    // Still a sprout, and still under the same water: neither side spent a cell.
+    expect(sim.speciesAt(200, FLOOR - 1)).toBe(SPROUT)
+    expect(count(sim, WATER)).toBe(flooded)
+  })
+
+  /**
+   * The keep-awake half of the sprout's design, and why it draws no probability
+   * (`stalk.ts`): a sprout that cannot rise writes nothing at all, so the bed
+   * under it sleeps. A failed draw would have needed a write to hold the chunk
+   * awake, and that write is the one spec §8 says to stop and promote a real
+   * `keepAwake` for.
+   */
+  it('lets its chunk sleep while it is roofed, rather than spinning on a draw', () => {
+    const sim = new Sim({ seed: 1 })
+    shaftAt(sim, 200, 12)
+    sim.paint(200, FLOOR - 1, SPROUT)
+    sim.paint(200, FLOOR - 2, WATER)
+
+    run(sim, 400)
+
+    // Nothing in the shaft is writing any more - the droplet settled and the
+    // sprout is silent under it.
+    expect(sim.scannedLastTick).toBe(0)
+    expect(sim.speciesAt(200, FLOOR - 1)).toBe(SPROUT)
   })
 })
