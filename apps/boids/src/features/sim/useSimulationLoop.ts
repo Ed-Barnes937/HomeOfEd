@@ -12,6 +12,8 @@ export interface UseSimulationLoopOptions {
   theme: Theme
   shape: BoidShape
   params: SimParams
+  /** False pauses the simulation: no `sim.step`, no rAF scheduled. */
+  running: boolean
 }
 
 /** Read from outside React — see TEST_SEAM_KEY. */
@@ -43,15 +45,26 @@ export const TEST_SEAM_KEY = '__boidsTestSeam'
  * DOM). React owns `theme`/`shape`/`params`; changes are pushed into the
  * engine/renderer imperatively, never by restarting the loop.
  *
- * `prefers-reduced-motion: reduce` renders one static frame instead of
- * animating; settings changes still repaint that frame (tested in B5).
+ * The loop has two modes, switched by `applyRunState` (ADR 0043): animating
+ * (the rAF loop runs) and static (one frame, no loop, repainted on demand via
+ * `redrawIfStaticRef`). `running: false` and
+ * `prefers-reduced-motion: reduce` both mean static.
  */
 export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
   const themeRef = useRef(opts.theme)
   const shapeRef = useRef(opts.shape)
   const paramsRef = useRef(opts.params)
+  const runningRef = useRef(opts.running)
   const simRef = useRef<Simulation | null>(null)
   const redrawIfStaticRef = useRef<(() => void) | null>(null)
+  const applyRunStateRef = useRef<(() => void) | null>(null)
+
+  // Pausing/resuming must not re-run the loop effect below - that would rebuild
+  // the Simulation and scatter the flock. The flag goes in via a ref instead.
+  useEffect(() => {
+    runningRef.current = opts.running
+    applyRunStateRef.current?.()
+  }, [opts.running])
 
   useEffect(() => {
     themeRef.current = opts.theme
@@ -146,7 +159,6 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
 
     const draw = () => renderer.draw(sim, themeRef.current, shapeRef.current, paramsRef.current)
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    redrawIfStaticRef.current = reducedMotion ? draw : null
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0]
@@ -154,7 +166,7 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
       const { width: w, height: h } = entry.contentRect
       renderer.resize(w, h, window.devicePixelRatio || 1)
       sim.setBounds(w, h)
-      if (reducedMotion) draw()
+      redrawIfStaticRef.current?.()
     })
     resizeObserver.observe(canvas)
 
@@ -169,13 +181,39 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
       rafId = requestAnimationFrame(frame)
     }
 
-    if (reducedMotion) {
+    /** Paused and reduced-motion are the same thing to the loop: stay static. */
+    const isAnimating = (): boolean => runningRef.current && !reducedMotion
+
+    /**
+     * The one animate/static switch, re-read whenever `running` changes. Static
+     * mode leaves nothing scheduled and hands `draw` to `redrawIfStaticRef` so
+     * settings changes still repaint the frame; animating mode owns the paint
+     * and needs no on-demand repaint.
+     */
+    function applyRunState(): void {
+      if (isAnimating()) {
+        redrawIfStaticRef.current = null
+        if (rafId) return
+        // Restart the clock so the first dt after a resume is one frame, not
+        // the whole paused interval.
+        lastTime = performance.now()
+        rafId = requestAnimationFrame(frame)
+        return
+      }
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = 0
+      redrawIfStaticRef.current = draw
+      draw()
+    }
+    applyRunStateRef.current = applyRunState
+
+    // A frame that opens static gets one step first, so it shows a stepped
+    // flock rather than the raw spawn; the animating path steps per frame anyway.
+    if (!isAnimating()) {
       sim.setPointer(pointerRef.current)
       sim.step(16)
-      draw()
-    } else {
-      rafId = requestAnimationFrame(frame)
     }
+    applyRunState()
 
     return () => {
       resizeObserver.disconnect()
@@ -186,6 +224,7 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
       canvas.removeEventListener('pointercancel', onPointerCancel)
       if (rafId) cancelAnimationFrame(rafId)
       redrawIfStaticRef.current = null
+      applyRunStateRef.current = null
       simRef.current = null
     }
   }, [opts.canvasRef])

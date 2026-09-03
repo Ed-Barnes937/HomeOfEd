@@ -247,6 +247,44 @@ test('each beacon freezes the strength set at placement', async ({ mountApp }) =
   await root.verifyBeaconStrengths([1.5, -2])
 })
 
+test('the run control pauses the flock and plays it again', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyRunToggleOffers('pause') // autostarted
+  await root.verifySimulationAdvances()
+
+  await root.toggleRun()
+  await root.verifyRunToggleOffers('play')
+  await root.verifyStaticFrame()
+
+  await root.toggleRun()
+  await root.verifyRunToggleOffers('pause')
+  await root.verifySimulationAdvances()
+})
+
+test('the run control is reachable and operable from the keyboard', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.focusRunToggle()
+  await root.pressSpace()
+
+  await root.verifyRunToggleOffers('play')
+  await root.verifyStaticFrame()
+})
+
+test('a settings change while paused repaints the static frame and holds it', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.toggleRun()
+  await root.verifyStaticFrame()
+
+  await root.verifyRepaintsOnce(() => root.selectTheme('retro'))
+})
+
 test('dropping a beacon under reduced motion repaints without starting the animation', async ({
   mountApp,
   page,
