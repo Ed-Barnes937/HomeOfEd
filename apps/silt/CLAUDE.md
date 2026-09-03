@@ -62,7 +62,11 @@ src/
                               shared brain: the one involves() predicate, tiers
                               and the witnessed-set derivations, built off
                               src/docs's graph, never a second derivation from
-                              the registry. Both pure.
+                              the registry. Both pure. fieldNotesStore -
+                              localStorage, one global key, edges only;
+                              fieldNotesView - the pure derivation the panel
+                              renders; useFieldNotes - the page's single seam,
+                              React wiring over those two.
                               `.scratch/silt-discovery-tree/spec.md`)
   docs/             interactionGraph - derives the element graph from the live
                     registry and renders docs/interaction-graph.md; pure, so the
@@ -235,6 +239,30 @@ Spec §8; the calls the spec leaves open are in
 - **Never destructive on failure**: a scene that will not load keeps its blob
   and its row, and gains an error. A load always enters paused.
 - `ra`/`rb` are persisted; `clock` is not (it is zeroed by `Sim.restore`).
+
+## Field notes progression (`src/features/fieldNotes/`)
+
+Discovery-tree spec §5. `fieldNotesStore.ts` owns `silt:fieldNotes` and nothing
+else touches it.
+
+- **Global, not per scene, and edges only.** The blob is
+  `{ version, edges, reviewed }`; discovery, mastery and the rail unlock are
+  recomputed by `entries.ts` on every load, so nothing derived is stored and
+  nothing stored can disagree with the roster. A new denominator is a roster
+  change, not a migration.
+- **`reviewed` is a count into `edges`, which is append-ordered** - the
+  watermark the `NEW n` chip is measured against, so no element name is stored
+  for it. `markReviewed()` is called **when the panel closes**: advancing it on
+  open would empty the chip on the render that exists to show it.
+- **Unknown edge keys are carried, never dropped**; a blob that will not parse,
+  or is of another version, reads as empty with a warning and is left on disk
+  until a real write replaces it.
+- **Clearing the world does not clear discoveries.** The only thing that does is
+  the panel's armed "forget discoveries" (`store.reset()`), which removes the
+  key outright.
+- `useFieldNotes` is the one seam the header, panel, rail and moments read. It
+  is React wiring only: the store and the pure `fieldNotesView` behind it are
+  where the behaviour, and the tests, live.
 
 ## Commands
 
