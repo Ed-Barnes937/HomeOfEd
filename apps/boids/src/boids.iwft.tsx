@@ -191,14 +191,78 @@ test('the native cursor is hidden over the canvas only while a glyph is shown', 
   await root.verifyCanvasCursorHidden(false) // icon off → native cursor returns
 })
 
-test('prefers-reduced-motion renders a static frame instead of animating', async ({
+test('a device asking for less motion starts the flock paused, and says why', async ({
   mountApp,
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   const { root } = await mountApp()
   await root.verifyIsShown()
+
   await root.verifyStaticFrame()
+  await root.verifyRunToggleOffers('play')
+  await root.verifyReducedMotionHint()
+})
+
+test('pressing play under reduced motion animates, and a re-render must not undo it', async ({
+  mountApp,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.toggleRun()
+
+  await root.verifyRunToggleOffers('pause')
+  await root.verifySimulationAdvances()
+  await root.verifyReducedMotionHintHidden() // the explanation is spent once they choose
+
+  await root.selectTheme('retro') // a re-render must not fight the consent just given
+  await root.verifyRunToggleOffers('pause')
+  await root.verifySimulationAdvances()
+})
+
+test('pausing again under reduced motion returns to the static frame', async ({
+  mountApp,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.toggleRun()
+  await root.verifySimulationAdvances()
+
+  await root.toggleRun()
+  await root.verifyRunToggleOffers('play')
+  await root.verifyStaticFrame()
+})
+
+test('without that device setting the flock plays on load with nothing to explain', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyRunToggleOffers('pause')
+  await root.verifySimulationAdvances()
+  await root.verifyReducedMotionHintHidden()
+})
+
+test('turning the device setting on mid-session pauses the flock and says why', async ({
+  mountApp,
+  page,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifySimulationAdvances()
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+
+  await root.verifyRunToggleOffers('play')
+  await root.verifyStaticFrame()
+  await root.verifyReducedMotionHint()
 })
 
 test('clicking the canvas with the cursor force on drops a beacon; clicking it again removes it', async ({
@@ -247,7 +311,45 @@ test('each beacon freezes the strength set at placement', async ({ mountApp }) =
   await root.verifyBeaconStrengths([1.5, -2])
 })
 
-test('dropping a beacon under reduced motion repaints without starting the animation', async ({
+test('the run control pauses the flock and plays it again', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyRunToggleOffers('pause') // autostarted
+  await root.verifySimulationAdvances()
+
+  await root.toggleRun()
+  await root.verifyRunToggleOffers('play')
+  await root.verifyStaticFrame()
+
+  await root.toggleRun()
+  await root.verifyRunToggleOffers('pause')
+  await root.verifySimulationAdvances()
+})
+
+test('the run control is reachable and operable from the keyboard', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.focusRunToggle()
+  await root.pressSpace()
+
+  await root.verifyRunToggleOffers('play')
+  await root.verifyStaticFrame()
+})
+
+test('a settings change while paused repaints the static frame and holds it', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.toggleRun()
+  await root.verifyStaticFrame()
+
+  await root.verifyRepaintsOnce(() => root.selectTheme('retro'))
+})
+
+test('dropping a beacon while reduced motion holds it paused repaints without animating', async ({
   mountApp,
   page,
 }) => {

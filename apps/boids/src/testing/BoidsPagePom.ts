@@ -15,6 +15,8 @@ export class BoidsPagePom extends BasePage {
   private readonly panel = this.page.getByRole('dialog', { name: 'Simulation settings' })
   private readonly fab = this.page.getByRole('button', { name: 'Open settings' })
   private readonly collapseButton = this.page.getByRole('button', { name: 'Collapse settings' })
+  private readonly runToggle = this.page.getByTestId('run-toggle')
+  private readonly runHint = this.page.getByTestId('run-hint')
   private readonly cursorOverlay = this.page.getByTestId('cursor-overlay')
   private readonly cursorField = this.page.getByTestId('cursor-field')
   private readonly cursorGlyph = this.page.getByTestId('cursor-glyph')
@@ -236,12 +238,73 @@ export class BoidsPagePom extends BasePage {
     await expect(this.cursorField).toHaveCount(0)
   }
 
-  /** Positions must NOT change between frames — the reduced-motion static frame. */
+  /** Positions must NOT change between frames - the static frame (paused, or reduced motion). */
   async verifyStaticFrame(): Promise<void> {
     const before = await this.getBoidPositions()
     await this.page.waitForTimeout(150)
     const after = await this.getBoidPositions()
     expect(after).toEqual(before)
+  }
+
+  async toggleRun(): Promise<void> {
+    await this.runToggle.click()
+  }
+
+  /** The one control's accessible name flips to name the action it offers. */
+  async verifyRunToggleOffers(action: 'play' | 'pause'): Promise<void> {
+    await expect(this.runToggle).toHaveAccessibleName(new RegExp(action, 'i'))
+  }
+
+  /**
+   * The line that explains an OS-driven pause. Asserted on the wording a child
+   * would read, and on it describing the run control rather than floating free.
+   */
+  async verifyReducedMotionHint(): Promise<void> {
+    await expect(this.runHint).toBeVisible()
+    await expect(this.runHint).toContainText('less motion')
+    await expect(this.runToggle).toHaveAccessibleDescription(/less motion/i)
+  }
+
+  async verifyReducedMotionHintHidden(): Promise<void> {
+    await expect(this.runHint).toHaveCount(0)
+  }
+
+  async focusRunToggle(): Promise<void> {
+    await this.runToggle.focus()
+    await expect(this.runToggle).toBeFocused()
+  }
+
+  async pressSpace(): Promise<void> {
+    await this.page.keyboard.press(' ')
+  }
+
+  /**
+   * A settings change on a static frame must repaint it exactly once: the
+   * picture changes, then holds. Pixels, not positions - a theme swap recolours
+   * the frame without moving a single boid.
+   */
+  async verifyRepaintsOnce(change: () => Promise<void>): Promise<void> {
+    const before = await this.snapshotCanvas()
+    await change()
+    await expect.poll(async () => (await this.snapshotCanvas()) !== before).toBe(true)
+
+    const repainted = await this.snapshotCanvas()
+    await this.page.waitForTimeout(150)
+    expect(await this.snapshotCanvas()).toBe(repainted)
+  }
+
+  /** A cheap content hash of the painted canvas - sampled, so it stays small
+   * over the wire; a theme recolour shifts every sample. */
+  private snapshotCanvas(): Promise<number> {
+    return this.canvas.evaluate((el) => {
+      const canvas = el as HTMLCanvasElement
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return -1
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      let hash = 0
+      for (let i = 0; i < data.length; i += 401) hash = (hash * 31 + (data[i] ?? 0)) | 0
+      return hash
+    })
   }
 
   private async readPersistedSettings(): Promise<PersistedSettings | null> {

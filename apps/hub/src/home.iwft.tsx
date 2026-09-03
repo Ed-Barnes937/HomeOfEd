@@ -29,6 +29,33 @@ test('home page renders a live preview canvas for every app card', async ({ moun
   await root.verifyPreviewsRender()
 })
 
+test('prefers-reduced-motion gives every preview one static frame, not a loop', async ({
+  page,
+  mountApp,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyPreviewsAreStaticAndPainted()
+})
+
+test('without prefers-reduced-motion the previews keep animating', async ({ page, mountApp }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyPreviewsAnimate()
+})
+
+test('a theme toggle repaints the static frames under prefers-reduced-motion', async ({
+  page,
+  mountApp,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyStaticPreviewsRepaintOnThemeChange()
+})
+
 test('home page keeps the wordmark reachable on a narrow phone viewport', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyWordmarkReachableOnNarrowViewport()
