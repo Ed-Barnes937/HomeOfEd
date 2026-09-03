@@ -300,7 +300,12 @@ type DarkRef = { current: boolean }
 /** 'motion' runs the rAF loop; 'still' draws one frame and stops there. */
 type Drive = 'motion' | 'still'
 
-/** A running preview: stopped on unmount, repainted when the theme changes. */
+/**
+ * A running preview: stopped on unmount, repainted when something outside the
+ * frame clock changes (the theme, the webfont arriving). A still `redraw` is
+ * the drawer's own frame, so it costs one frame of the drawer's state - the
+ * price of not splitting all eight drawers into update/paint halves.
+ */
 type Preview = { stop: () => void; redraw: () => void }
 
 function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string): void {
@@ -336,7 +341,21 @@ function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string)
       }
     }, 90)
 
+    // Three cards paint text in Space Grotesk, which arrives over the network.
+    // A motion loop picks the real face up on its next frame; a still card
+    // painted once would keep the fallback face for good, so repaint when the
+    // font lands. (Same reason the reduce branch of the boids sim keeps a
+    // redraw hook for its ResizeObserver.)
+    let gone = false
+    if (document.fonts) {
+      void document.fonts.ready.then(() => {
+        if (gone) return
+        for (const preview of previews) preview.redraw()
+      })
+    }
+
     return () => {
+      gone = true
       clearTimeout(start)
       for (const preview of previews) preview.stop()
       previews.length = 0
@@ -722,10 +741,9 @@ function drawBoop(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Previe
     }
     ctx.globalAlpha = 1
   }
-  // 45 frames land the implied playhead squarely on the second cell, so the
-  // still card reads as a sequencer mid-bar rather than one caught between
-  // steps with nothing lit.
-  return drivePreview(step, drive, 45)
+  // The first frame already has all four cells with the playhead on the first,
+  // so it needs no settling.
+  return drivePreview(step, drive)
 }
 
 // silt: grains of sand fall from the top, pile up, and settle into small

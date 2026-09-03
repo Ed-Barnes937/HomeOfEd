@@ -1,6 +1,9 @@
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 
+/** What one preview canvas is showing: how much is painted, and what. */
+type PreviewSignature = { painted: number; checksum: number }
+
 export class HomePagePom extends BasePage {
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'home of ed' })).toBeVisible()
@@ -94,19 +97,13 @@ export class HomePagePom extends BasePage {
    * sampled again a few hundred ms later.
    */
   async verifyPreviewsAreStaticAndPainted(): Promise<void> {
-    await this.waitForPaintedPreviews()
-    const before = await this.previewSignatures()
-    await this.page.waitForTimeout(400)
-    const after = await this.previewSignatures()
+    const [before, after] = await this.sampleTwice()
     expect(after).toEqual(before)
   }
 
   /** Without the preference the rAF loops still run, so a card keeps changing. */
   async verifyPreviewsAnimate(): Promise<void> {
-    await this.waitForPaintedPreviews()
-    const before = await this.previewSignatures()
-    await this.page.waitForTimeout(400)
-    const after = await this.previewSignatures()
+    const [before, after] = await this.sampleTwice()
     expect(after).not.toEqual(before)
   }
 
@@ -128,8 +125,19 @@ export class HomePagePom extends BasePage {
     expect(await this.previewSignatures()).toEqual(repainted)
   }
 
+  /** Every preview, sampled twice far enough apart for a loop to have moved. */
+  private async sampleTwice(): Promise<[PreviewSignature[], PreviewSignature[]]> {
+    await this.waitForPaintedPreviews()
+    const before = await this.previewSignatures()
+    await this.page.waitForTimeout(400)
+    return [before, await this.previewSignatures()]
+  }
+
   private async waitForPaintedPreviews(): Promise<void> {
     await expect(this.page.locator('canvas[data-kind]')).toHaveCount(8)
+    // A still card repaints once when Space Grotesk arrives, so let the font
+    // settle before sampling: that repaint is not the animation under test.
+    await this.page.evaluate(() => document.fonts.ready.then(() => undefined))
     await expect
       .poll(async () => (await this.previewSignatures()).filter((s) => s.painted > 0).length)
       .toBe(8)
@@ -139,7 +147,7 @@ export class HomePagePom extends BasePage {
    * A cheap per-canvas fingerprint of the painted pixels: enough to tell
    * "nothing was drawn" from "drawn", and one frame from the next.
    */
-  private previewSignatures(): Promise<{ painted: number; checksum: number }[]> {
+  private previewSignatures(): Promise<PreviewSignature[]> {
     return this.page.evaluate(() =>
       Array.from(document.querySelectorAll<HTMLCanvasElement>('canvas[data-kind]')).map((cv) => {
         const ctx = cv.getContext('2d')
