@@ -9,6 +9,7 @@
     "build": "vite build",
     "start": "node src/server/main.ts",
     "bench": "node --experimental-strip-types bench/sim.bench.ts",
+    "graph": "node --experimental-strip-types scripts/interaction-graph.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && playwright test -c playwright-ct.config.ts"

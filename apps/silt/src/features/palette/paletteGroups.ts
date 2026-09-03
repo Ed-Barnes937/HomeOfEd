@@ -35,7 +35,7 @@ import {
  * is a change to the shortcut scheme rather than to an element. Appending here
  * is what keeps every existing digit where it was.
  */
-const PAINTABLE_IDS: readonly number[] = [
+export const PAINTABLE_IDS: readonly number[] = [
   DIRT,
   SAND,
   WATER,
