@@ -55,11 +55,14 @@ src/
                     spawners/(continuous emitters — entities, not cells)
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +
                               quota; useScenes: page state; the popover)
-                    fieldNotes/ (entries - the discovery metagame's shared
-                              brain: canonical edge keys, the one involves()
-                              predicate, tiers and the witnessed-set
-                              derivations. Pure; built off src/docs's graph,
-                              never a second derivation from the registry.
+                    fieldNotes/ (edgeKeys - the canonical edge-key codec, incl.
+                              witnessedKey, the single place a sim witness
+                              event becomes a key; a leaf module so the worker
+                              can import it. entries - the discovery metagame's
+                              shared brain: the one involves() predicate, tiers
+                              and the witnessed-set derivations, built off
+                              src/docs's graph, never a second derivation from
+                              the registry. Both pure.
                               `.scratch/silt-discovery-tree/spec.md`)
   docs/             interactionGraph - derives the element graph from the live
                     registry and renders docs/interaction-graph.md; pure, so the
@@ -118,6 +121,12 @@ growth.ts     the roster's one `onTick`: moss and vine grow into water, up
               overall by refusing any cell that already touches two plants
 sim.ts        the world: chunk scan order, the clock guard, paint/tick
 loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
+witness.ts    the discovery recorder - flat already-seen tables indexed by
+              species id and by a packed species pair, fed from exactly three
+              sites (a reaction applying, a decay with a product, the growth
+              hook's successful `set`) and drained as rare, name-carrying
+              events. Owned by the sim core so both hosts get it; it never
+              draws from the `Rng` and never touches a cell
 ```
 
 Engine decisions that are not in the spec are in
@@ -178,6 +187,15 @@ Rules that are easy to break by accident:
   `setRaAt` exist for the liquid kernel's opinion contagion and are engine-only
   on purpose — an element hook scribbling on another cell's engine-owned byte is
   the failure mode the ownership rule exists to prevent.
+- **The witness recorder is off to the side of the simulation.** It is fed from
+  three sites, records a flag and nothing else, and never draws from the `Rng` -
+  which is why the determinism test is the assertion that guards it. A hook
+  reports its own transmutation through `Api.witnessGrowth()`, the one thing on
+  that surface that is not simulation; reactions and decay the engine sees for
+  itself. Discoveries reach the page as a `simProtocol` message (rare events, so
+  no shared-buffer slot to poll), and a `Sim` keeps what it has witnessed across
+  `clear`/`restore` - resetting the world does not reset discovery.
+  [ADR 0043](../../docs/adr/0043-silt-discovery-witness-in-the-sim-core.md).
 - **A hook cannot keep its own cell awake.** `Api` has no `keepAwake` (it is on
   the engine-internal `MovementApi`), so a hook that must go on being offered a
   draw has to *write* — `growth.ts` writes `ra` every tick it has water to

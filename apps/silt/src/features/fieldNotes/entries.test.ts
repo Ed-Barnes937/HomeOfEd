@@ -7,6 +7,7 @@ import {
   entryIndex,
   growthKey,
   reactionKey,
+  witnessedKey,
   type Entry,
 } from './entries.ts'
 
@@ -31,6 +32,26 @@ describe('canonical edge keys', () => {
   test('decay and growth keys name their single subject', () => {
     expect(decayKey('fire')).toBe('decay:fire')
     expect(growthKey('moss')).toBe('grow:moss')
+  })
+
+  test('a witnessed event maps onto the key of the entry it fired', () => {
+    // The sim reports the interaction; this is where it becomes an entry. Each
+    // key below is one the roster actually holds, so a drifting format shows up
+    // as an entry that cannot be found rather than as a silent miss.
+    const witnessed = [
+      witnessedKey({ kind: 'react', a: 'lava', b: 'water' }),
+      witnessedKey({ kind: 'react', a: 'water', b: 'lava' }),
+      witnessedKey({ kind: 'decay', a: 'fire' }),
+      witnessedKey({ kind: 'grow', a: 'moss' }),
+    ]
+
+    expect(witnessed).toEqual([
+      'react:lava+water',
+      'react:lava+water',
+      'decay:fire',
+      'grow:moss',
+    ])
+    for (const key of witnessed) expect(notes.get(key)).toBeDefined()
   })
 
   test('a fade decay is not an entry: smoke leaves nothing behind', () => {

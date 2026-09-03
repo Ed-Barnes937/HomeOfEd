@@ -132,6 +132,19 @@ export interface Api {
   set rb(value: number)
   rand(): number
   randInt(maxExclusive: number): number
+  /**
+   * Report that this cell just grew into a neighbour - one of the three
+   * discovery sites (discovery-tree spec §3), and the only one the engine
+   * cannot see for itself: a reaction and a decay are engine business, a hook's
+   * transmutation is not. The cell's own species is the grower, so the hook
+   * says *that it grew*, not what it is.
+   *
+   * Records nothing but a flag: no cell is touched and no randomness is drawn,
+   * so calling it can never change what the world does. It is the one thing on
+   * this surface that is not simulation - an element with nothing to declare
+   * simply never calls it.
+   */
+  witnessGrowth(): void
 }
 
 /**

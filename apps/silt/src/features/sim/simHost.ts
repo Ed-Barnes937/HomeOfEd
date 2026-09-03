@@ -16,17 +16,48 @@ import {
   WALL,
   type ElementRegistry,
 } from '../../sim/index.ts'
+import type { EdgeKey } from '../fieldNotes/edgeKeys.ts'
 import type { RenderableSim } from '../render/renderer.ts'
 import {
   createLocalWorld,
   createSharedWorld,
   STATUS_REVISION,
   STATUS_WRITE_SEQ,
+  type SimPageMessage,
   type SimWorkerInit,
   type SimWorkerMessage,
   type WorldBuffers,
 } from './simProtocol.ts'
 import { SimWorkerCore } from './simWorkerCore.ts'
+
+/** Told about interactions the player has just witnessed for the first time. */
+export type WitnessListener = (keys: readonly EdgeKey[]) => void
+
+/**
+ * The page's subscription to what the sim reports back (discovery-tree spec
+ * §4). One tiny channel both hosts hold, so a worker `postMessage` and a local
+ * dispatch arrive at the page identically - the seam is the point.
+ */
+class WitnessChannel {
+  readonly #listeners = new Set<WitnessListener>()
+
+  subscribe(listener: WitnessListener): () => void {
+    this.#listeners.add(listener)
+    return () => {
+      this.#listeners.delete(listener)
+    }
+  }
+
+  /**
+   * Discriminated on `type` even though `SimPageMessage` has one member today:
+   * a second one would otherwise arrive here as a witness with no keys, and the
+   * page would never say so.
+   */
+  deliver(message: SimPageMessage): void {
+    if (message.type !== 'witnessed') return
+    for (const listener of this.#listeners) listener(message.keys)
+  }
+}
 
 /**
  * The page's read side of a world: the live cell bytes (shared memory in
@@ -104,6 +135,13 @@ export interface SimHost {
   readonly registry: ElementRegistry
   readonly view: WorldView
   send(message: SimWorkerMessage): void
+  /**
+   * Subscribe to first witnesses - the discovery metagame's one read that does
+   * not come through `view`, because it is an event rather than a state the
+   * render loop could poll (discovery-tree spec §4). Returns its unsubscribe.
+   * Keys already seeded through `seedWitnessed` never arrive here.
+   */
+  onWitnessed(listener: WitnessListener): () => void
   dispose(): void
 }
 
@@ -114,17 +152,26 @@ export class LocalSimHost implements SimHost {
   readonly view: WorldView
   readonly #core: SimWorkerCore
   readonly #interval: ReturnType<typeof setInterval>
+  readonly #witnesses = new WitnessChannel()
 
   /** `now` is injectable so tests can drive the clock deterministically. */
   constructor(now: () => number = () => performance.now()) {
     const world = createLocalWorld()
     this.view = new WorldView(world)
-    this.#core = new SimWorkerCore(world)
+    // No wire to cross, so the core's report lands on the subscribers directly
+    // - the same call the worker path makes after a `postMessage` hop.
+    this.#core = new SimWorkerCore(world, {
+      report: (message) => this.#witnesses.deliver(message),
+    })
     this.#interval = setInterval(() => this.#core.advance(now()), MS_PER_TICK)
   }
 
   send(message: SimWorkerMessage): void {
     this.#core.handle(message)
+  }
+
+  onWitnessed(listener: WitnessListener): () => void {
+    return this.#witnesses.subscribe(listener)
   }
 
   dispose(): void {
@@ -138,17 +185,34 @@ export class WorkerSimHost implements SimHost {
   readonly registry: ElementRegistry = createRegistry(v1Elements, v1Reactions)
   readonly view: WorldView
   readonly #worker: Worker
+  readonly #witnesses = new WitnessChannel()
 
-  constructor() {
+  /**
+   * The worker is constructed through a factory for the same reason
+   * `LocalSimHost` takes its clock: vitest cannot run a worker thread, and the
+   * host's whole job here is relaying, which a fake is enough to pin.
+   */
+  constructor(
+    createWorker: () => Worker = () =>
+      new Worker(new URL('./simWorker.ts', import.meta.url), { type: 'module' }),
+  ) {
     const world = createSharedWorld()
     this.view = new WorldView(world)
-    this.#worker = new Worker(new URL('./simWorker.ts', import.meta.url), { type: 'module' })
+    this.#worker = createWorker()
+    // The world itself never travels, so this is the only traffic coming back.
+    this.#worker.onmessage = (event: MessageEvent<SimPageMessage>) => {
+      this.#witnesses.deliver(event.data)
+    }
     const init: SimWorkerInit = { type: 'init', world }
     this.#worker.postMessage(init)
   }
 
   send(message: SimWorkerMessage): void {
     this.#worker.postMessage(message)
+  }
+
+  onWitnessed(listener: WitnessListener): () => void {
+    return this.#witnesses.subscribe(listener)
   }
 
   dispose(): void {

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { EMPTY, MS_PER_TICK, SAND, SPECIES_OFFSET, BYTES_PER_CELL, GRID_WIDTH, WATER } from '../../sim/index.ts'
-import { createSharedWorld, STATUS_REVISION, STATUS_WRITE_SEQ } from './simProtocol.ts'
+import { EMPTY, GRID_HEIGHT, LAVA, MS_PER_TICK, SAND, SPECIES_OFFSET, BYTES_PER_CELL, GRID_WIDTH, WATER } from '../../sim/index.ts'
+import {
+  createSharedWorld,
+  STATUS_REVISION,
+  STATUS_WRITE_SEQ,
+  type SimPageMessage,
+} from './simProtocol.ts'
 import { SimWorkerCore } from './simWorkerCore.ts'
 
 function speciesAt(world: ReturnType<typeof createSharedWorld>, x: number, y: number): number {
@@ -11,6 +16,17 @@ function speciesAt(world: ReturnType<typeof createSharedWorld>, x: number, y: nu
 
 function revisionOf(world: ReturnType<typeof createSharedWorld>): number {
   return Atomics.load(new Int32Array(world.status), STATUS_REVISION)
+}
+
+/**
+ * Water and lava side by side on the floor, where neither can fall away from
+ * the other: the `p: 1` row fires on the first tick, so one interaction is
+ * witnessed and no other is.
+ */
+function wetLava(core: SimWorkerCore): void {
+  const floor = (GRID_HEIGHT - 1) * GRID_WIDTH
+  core.handle({ type: 'paintCells', cellIndices: [floor + 40], species: WATER })
+  core.handle({ type: 'paintCells', cellIndices: [floor + 41], species: LAVA })
 }
 
 describe('SimWorkerCore', () => {
@@ -137,6 +153,55 @@ describe('SimWorkerCore', () => {
     expect(seq() % 2).toBe(0)
     // …and ticking moved it on: a reader that overlapped those writes can tell.
     expect(seq()).toBeGreaterThan(0)
+  })
+
+  it('reports a first witness to the page as a canonical edge key', () => {
+    const reported: SimPageMessage[] = []
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world, { report: (message) => reported.push(message) })
+    wetLava(core)
+
+    core.handle({ type: 'step' })
+
+    expect(reported).toEqual([{ type: 'witnessed', keys: ['react:lava+water'] }])
+  })
+
+  it('reports a key once, and says nothing on a tick that witnessed nothing', () => {
+    const reported: SimPageMessage[] = []
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world, { report: (message) => reported.push(message) })
+    wetLava(core)
+
+    for (let i = 0; i < 5; i++) core.handle({ type: 'step' })
+
+    // Firsts are rare by construction, so the wire stays quiet: one message for
+    // the interaction, nothing for the four ticks that followed.
+    expect(reported).toHaveLength(1)
+  })
+
+  it('never reports a key the page seeded - a reload does not re-discover', () => {
+    const reported: SimPageMessage[] = []
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world, { report: (message) => reported.push(message) })
+    core.handle({ type: 'seedWitnessed', keys: ['react:lava+water', 'react:nothing+here'] })
+    wetLava(core)
+
+    for (let i = 0; i < 5; i++) core.handle({ type: 'step' })
+
+    expect(reported).toEqual([])
+  })
+
+  it('reports through a running tick too, not only a step', () => {
+    const reported: SimPageMessage[] = []
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world, { report: (message) => reported.push(message) })
+    wetLava(core)
+    core.handle({ type: 'setRunning', running: true })
+
+    core.advance(0)
+    core.advance(MS_PER_TICK)
+
+    expect(reported).toEqual([{ type: 'witnessed', keys: ['react:lava+water'] }])
   })
 
   it('restore replaces the world with the given planes', () => {

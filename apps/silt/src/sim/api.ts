@@ -3,6 +3,7 @@ import type { DeferredMoves } from './moves.ts'
 import type { Grid } from './grid.ts'
 import type { Rng } from './rng.ts'
 import type { MovementApi } from './types.ts'
+import type { WitnessTable } from './witness.ts'
 
 /**
  * The one `Api` instance the sim reuses for every cell it visits — a cursor, not
@@ -18,16 +19,24 @@ export class CellApi implements MovementApi {
   #registry: ElementRegistry
   #rng: Rng
   #moves: DeferredMoves
+  #witness: WitnessTable
   #x = 0
   #y = 0
   #clock = 0
   #deferred = false
 
-  constructor(grid: Grid, registry: ElementRegistry, rng: Rng, moves: DeferredMoves) {
+  constructor(
+    grid: Grid,
+    registry: ElementRegistry,
+    rng: Rng,
+    moves: DeferredMoves,
+    witness: WitnessTable,
+  ) {
     this.#grid = grid
     this.#registry = registry
     this.#rng = rng
     this.#moves = moves
+    this.#witness = witness
   }
 
   /** Point the cursor at a cell before dispatching its archetype. */
@@ -124,6 +133,15 @@ export class CellApi implements MovementApi {
 
   randInt(maxExclusive: number): number {
     return this.#rng.randInt(maxExclusive)
+  }
+
+  /**
+   * See `Api.witnessGrowth`. The grower is read off the cursor rather than
+   * taken as an argument, so a hook cannot claim a growth it did not perform -
+   * and the read costs a single indexed load, only on a tick that grew.
+   */
+  witnessGrowth(): void {
+    this.#witness.growth(this.get(0, 0))
   }
 
   /**

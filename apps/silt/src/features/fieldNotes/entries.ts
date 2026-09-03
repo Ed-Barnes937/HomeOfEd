@@ -7,9 +7,10 @@
  *
  * Two rules do most of the work here:
  *
- * - **Edge identity is name-based and canonical** (spec §2): `react:acid+wood`
- *   with the two names sorted, `decay:fire`, `grow:moss`. Names, not ids,
- *   because names are already the stable identity the scene codec persists.
+ * - **Edge identity is name-based and canonical** (spec §2), which `edgeKeys.ts`
+ *   owns and this module re-exports: `react:acid+wood` with the two names
+ *   sorted, `decay:fire`, `grow:moss`. Names, not ids, because names are
+ *   already the stable identity the scene codec persists.
  * - **One definition of "an entry"** (spec §6): an edge counts for an element
  *   when the element is a reagent *or* a product. `involves()` is that single
  *   predicate - the picker counts, the ring, the still-to-find footer and mud's
@@ -23,14 +24,22 @@
  * paintables for itself.
  */
 import { deriveInteractionGraph, type InteractionGraph } from '../../docs/interactionGraph.ts'
+import { decayKey, growthKey, reactionKey, type EdgeKey, type EdgeKind } from './edgeKeys.ts'
+
+// The codec lives one module down (`edgeKeys.ts`) so the sim's reporting edge
+// can reach it without the graph derivation, and is re-exported here because
+// this is the module the rest of field notes reads.
+export {
+  decayKey,
+  growthKey,
+  reactionKey,
+  witnessedKey,
+  type EdgeKey,
+  type EdgeKind,
+} from './edgeKeys.ts'
 
 /** How the graph writes a cleared cell. Not an element, so never a product. */
 const CLEARED = 'empty'
-
-/** A canonical, name-based edge id: `react:<a>+<b>`, `decay:<from>`, `grow:<grower>`. */
-export type EdgeKey = string
-
-export type EdgeKind = 'react' | 'decay' | 'grow'
 
 /**
  * One witnessable interaction. `reagents` are the elements that must meet;
@@ -62,21 +71,6 @@ export interface Discoveries {
  * chain before it is earned.
  */
 export const UNLOCKABLE_NAMES: readonly string[] = ['mud']
-
-/** The key for an unordered reaction pair; the two names are sorted. */
-export function reactionKey(a: string, b: string): EdgeKey {
-  return a <= b ? `react:${a}+${b}` : `react:${b}+${a}`
-}
-
-/** The key for a decay with a product. A fade has no entry, so no key is asked for. */
-export function decayKey(from: string): EdgeKey {
-  return `decay:${from}`
-}
-
-/** The key for a growth hook edge, named for the plant doing the growing. */
-export function growthKey(grower: string): EdgeKey {
-  return `grow:${grower}`
-}
 
 export interface EntryIndex {
   /** Every entry, reactions then decays then growth. */

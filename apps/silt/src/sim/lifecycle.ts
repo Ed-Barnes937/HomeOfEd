@@ -1,5 +1,7 @@
+import { EMPTY } from './elements.ts'
 import type { Api } from './types.ts'
 import type { ElementRegistry, ResolvedLifetime } from './registry.ts'
+import type { WitnessTable } from './witness.ts'
 
 /**
  * What happens to a cell *after* its archetype has moved it. Neither of these
@@ -24,17 +26,23 @@ const CONTACTS: readonly (readonly [number, number])[] = [
  * what it was, so nothing after this may keep running its element's code.
  * Neighbours are visited in a fixed order and the probability draw happens only
  * once a pair actually matches, so the RNG stream stays a function of the world.
+ *
+ * The pair is handed to the witness recorder as it applies - one of the three
+ * discovery sites (discovery-tree spec §3). Recording draws no randomness and
+ * writes no cell, so nothing above changes because of it.
  */
-export function applyReactions(api: Api, registry: ElementRegistry): void {
+export function applyReactions(api: Api, registry: ElementRegistry, witness: WitnessTable): void {
   const self = api.get(0, 0)
 
   for (const [dx, dy] of CONTACTS) {
-    const reaction = registry.reactionFor(self, api.get(dx, dy))
+    const other = api.get(dx, dy)
+    const reaction = registry.reactionFor(self, other)
     if (!reaction) continue
     if (reaction.p < 1 && api.rand() >= reaction.p) continue
 
     api.set(dx, dy, reaction.bBecomes)
     api.become(reaction.aBecomes)
+    witness.reaction(self, other)
     return
   }
 }
@@ -48,8 +56,19 @@ export function applyReactions(api: Api, registry: ElementRegistry): void {
  *
  * Returns whether the cell survived. Writing `ra` also marks the chunk dirty,
  * which is what keeps a decaying cell awake in an otherwise settled corner.
+ *
+ * `species` is what the cell still is - the scan has already checked that a
+ * reaction did not transmute it - and is passed rather than re-read so the
+ * witness recorder costs nothing beyond its own flag. A decay **with a product**
+ * is a discovery; a fade is not an interaction at all (spec §1), so smoke
+ * expiring records nothing.
  */
-export function applyLifetime(api: Api, lifetime: ResolvedLifetime): boolean {
+export function applyLifetime(
+  api: Api,
+  lifetime: ResolvedLifetime,
+  species: number,
+  witness: WitnessTable,
+): boolean {
   let remaining = api.ra
   if (remaining === 0) {
     remaining = lifetime.ticks + (lifetime.jitter > 0 ? api.randInt(lifetime.jitter + 1) : 0)
@@ -57,6 +76,7 @@ export function applyLifetime(api: Api, lifetime: ResolvedLifetime): boolean {
 
   remaining--
   if (remaining <= 0) {
+    if (lifetime.becomes !== EMPTY) witness.decay(species)
     api.become(lifetime.becomes)
     return false
   }
