@@ -33,6 +33,50 @@ export class SiltPagePom extends BasePage {
     await expect(group.getByTestId(`element-${name}`)).toBeVisible()
   }
 
+  // ---- the rail's EARNED control (discovery-tree spec §6, §9.8) ---------
+
+  /** The control only exists once something has been unlocked. */
+  async verifyNoEarnedControl(): Promise<void> {
+    await expect(this.page.getByTestId('earned-button')).toHaveCount(0)
+  }
+
+  async openEarned(): Promise<void> {
+    await this.page.getByTestId('earned-button').click()
+    await expect(this.page.getByTestId('earned-popover')).toBeVisible()
+  }
+
+  /**
+   * The open popover must not be clipped by the rail, which is a scroll
+   * container: anything positioned against the control inside it turns the rail
+   * into a sideways scroller and cuts the popover off at its edge.
+   */
+  async verifyEarnedPopoverClearsTheRail(): Promise<void> {
+    const scrolls = await this.page.evaluate(() => {
+      const rail = document.querySelector('nav[aria-label="tools"]')
+      if (!rail) throw new Error('the rail is not on the page')
+      return rail.scrollWidth > rail.clientWidth
+    })
+    expect(scrolls).toBe(false)
+  }
+
+  /** Picks an earned element for painting, exactly as a rail swatch does. */
+  async selectEarnedElement(name: string): Promise<void> {
+    await this.page.getByTestId(`earned-element-${name}`).click()
+  }
+
+  async earnedElementNames(): Promise<string[]> {
+    const testIds = await this.page
+      .getByTestId(/^earned-element-/)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid') ?? ''))
+    return testIds.map((id) => id.replace('earned-element-', ''))
+  }
+
+  /** Whether the rail's control shows that the current selection lives inside it. */
+  async isEarnedSelected(): Promise<boolean> {
+    const pressed = await this.page.getByTestId('earned-button').getAttribute('aria-pressed')
+    return pressed === 'true'
+  }
+
   async selectBrush(index: number): Promise<void> {
     await this.page.getByTestId(`brush-${index}`).click()
   }

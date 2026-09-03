@@ -118,9 +118,9 @@ describe('totals', () => {
 
   test('19 elements today, the rail among them pre-known', () => {
     expect(notes.elements).toHaveLength(19)
-    // 11 until ticket 04 trims mud out of `PAINTABLE_IDS`; read at runtime, so
-    // this module needs no edit when it does.
-    expect(notes.preKnown).toHaveLength(11)
+    // Ten since the rail trim took mud out of `PAINTABLE_IDS` (spec §9.5) - mud
+    // is now earned back by mastering it, and an earned unlock is not pre-known.
+    expect(notes.preKnown).toHaveLength(10)
     for (const name of notes.preKnown) expect(notes.elements).toContain(name)
   })
 })
@@ -143,8 +143,8 @@ describe('tiers', () => {
   })
 
   test("regression fixture for today's roster", () => {
-    // mud is still in `PAINTABLE_IDS`, so it is tier 0 here; ticket 04 trims the
-    // rail and mud becomes tier 1, moss 2 and vine 3 (spec §6).
+    // Post-trim: mud is dirt + water's product, so it sits at tier 1 and pushes
+    // moss (seed + mud) to 2 and vine (grown from moss) to 3 (spec §6).
     const byTier = new Map<number, string[]>()
     for (const name of notes.elements) {
       const tier = notes.tierOf(name)!
@@ -160,12 +160,11 @@ describe('tiers', () => {
       'fire',
       'acid',
       'stone',
-      'mud',
       'seed',
     ])
-    expect(byTier.get(1)).toEqual(['obsidian', 'smoke', 'steam', 'sulphur', 'moss', 'ember'])
-    expect(byTier.get(2)).toEqual(['vine', 'ash'])
-    expect(byTier.get(3)).toBeUndefined()
+    expect(byTier.get(1)).toEqual(['obsidian', 'smoke', 'steam', 'sulphur', 'mud', 'ember'])
+    expect(byTier.get(2)).toEqual(['moss', 'ash'])
+    expect(byTier.get(3)).toEqual(['vine'])
   })
 
   test('a deeper chain pushes its product deeper (structure, not the table)', () => {

@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 
+import { useFieldNotes } from '../features/fieldNotes/useFieldNotes.ts'
+import { EarnedElements } from '../features/palette/EarnedElements.tsx'
 import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
 import { WorldOverlay } from '../features/render/WorldOverlay.tsx'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
@@ -57,7 +59,12 @@ export function HomePage() {
   const [fps, setFps] = useState(0)
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
   const [scenesOpen, setScenesOpen] = useState(false)
+  const [earnedOpen, setEarnedOpen] = useState(false)
   const resetConfirm = useArmedConfirm<true>()
+
+  // Field notes' progression, which the rail reads for one thing only: the
+  // elements the player has mastered and so earned back into it (spec §6).
+  const fieldNotes = useFieldNotes()
 
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
   const paintSpecies = tool === 'erase' ? EMPTY : selectedElement
@@ -84,7 +91,12 @@ export function HomePage() {
 
   // Derived from the same registry the canvas paints from — never from
   // `v1Elements` directly — so the rail can't drift from the grid (ticket 16).
-  const palette = useMemo(() => buildRailPalette(controls.registry), [controls.registry])
+  // Base plus earned: the unlocked names arrive derived from the witnessed set,
+  // so nothing here decides what has been mastered.
+  const palette = useMemo(
+    () => buildRailPalette(controls.registry, fieldNotes.unlocked),
+    [controls.registry, fieldNotes.unlocked],
+  )
 
   const scenes = useScenes({
     saveScene: controls.saveScene,
@@ -250,6 +262,25 @@ export function HomePage() {
               </div>
             ))}
           </div>
+
+          {/* The foot of the palette, and only once something has been earned
+              (spec §6 "The unlock"): one control, never an inline swatch, so
+              the rail's length and the 1-9 hotkeys above never move. It sits
+              with the elements rather than after erase, which the bottom bar
+              needs to keep as its last child (design brief §02). */}
+          {palette.earned.length > 0 ? (
+            <EarnedElements
+              entries={palette.earned}
+              open={earnedOpen}
+              onToggle={() => setEarnedOpen((open) => !open)}
+              onClose={() => setEarnedOpen(false)}
+              selectedId={tool === 'paint' ? selectedElement : EMPTY}
+              onSelect={(id) => {
+                selectElement(id)
+                setEarnedOpen(false)
+              }}
+            />
+          ) : null}
 
           <div className={styles.section}>
             <span className={styles.groupLabel}>Brush</span>

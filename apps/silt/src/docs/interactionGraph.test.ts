@@ -36,14 +36,17 @@ describe('the interaction graph doc', () => {
 describe('deriveInteractionGraph', () => {
   it('finds every registered pair once, unordered', () => {
     // Registry-derived, so this count moves only when the chemistry does.
-    expect(graph.reactions).toHaveLength(26)
+    expect(graph.reactions).toHaveLength(32)
     const keys = graph.reactions.map((edge) => `${edge.a}+${edge.b}`)
     expect(new Set(keys).size).toBe(keys.length)
   })
 
   it('marks products as unpaintable and the rail as paintable', () => {
-    expect(graph.nodes.filter((node) => node.paintable)).toHaveLength(11)
+    // Ten since the discovery tree took mud out of the base rail (spec §9.5) -
+    // read off `PAINTABLE_IDS` at runtime, so an earned unlock never shows here.
+    expect(graph.nodes.filter((node) => node.paintable)).toHaveLength(10)
     expect(graph.nodes.find((node) => node.name === 'obsidian')?.paintable).toBe(false)
+    expect(graph.nodes.find((node) => node.name === 'mud')?.paintable).toBe(false)
     expect(graph.nodes.find((node) => node.name === 'water')?.paintable).toBe(true)
   })
 
@@ -57,17 +60,20 @@ describe('deriveInteractionGraph', () => {
 
   it('keeps the first matching row, so acid + wood leaves sulphur', () => {
     expect(products('acid', 'wood')).toEqual(['sulphur', 'empty'])
-    expect(pair('acid', 'wood')?.source).toBe('row 5 (acid + wood)')
+    expect(pair('acid', 'wood')?.source).toBe('row 15 (acid + wood)')
     // The generic row it precedes digs a cavity instead.
     expect(products('acid', 'dirt')).toEqual(['empty', 'empty'])
   })
 
-  it('expands fire + flammable to every fuel', () => {
+  it('expands lava + flammable to every fuel a specific row has not already claimed', () => {
+    // Burnables broke `fire + flammable` up into a per-fuel ignition ladder
+    // (ADR 0042), so `lava + flammable` is the tag row left to expand - and
+    // wood is absent from it because `lava + wood` (chars it to ember) precedes.
     const fuels = graph.reactions
-      .filter((edge) => edge.source.startsWith('row 3 '))
-      .map((edge) => (edge.a === 'fire' ? edge.b : edge.a))
+      .filter((edge) => edge.source.endsWith('(lava + flammable)'))
+      .map((edge) => (edge.a === 'lava' ? edge.b : edge.a))
 
-    expect(fuels.toSorted()).toEqual(['moss', 'oil', 'seed', 'sulphur', 'vine', 'wood'])
+    expect(fuels.toSorted()).toEqual(['moss', 'oil', 'seed', 'sulphur', 'vine'])
   })
 
   it('reads decay off the registry, fades included', () => {
@@ -75,6 +81,7 @@ describe('deriveInteractionGraph', () => {
       { from: 'fire', becomes: 'smoke', minTicks: 40, maxTicks: 60 },
       { from: 'smoke', becomes: 'empty', minTicks: 200, maxTicks: 255 },
       { from: 'steam', becomes: 'water', minTicks: 180, maxTicks: 240 },
+      { from: 'ember', becomes: 'fire', minTicks: 120, maxTicks: 180 },
     ])
   })
 

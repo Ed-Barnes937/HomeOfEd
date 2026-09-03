@@ -37,7 +37,10 @@ src/
   pages/            HomePage — the rail, header, status bar, selection state
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches)
-  features/         palette/ (the paintable roster + brush widths)
+  features/         palette/ (the base paintable roster + brush widths, and
+                              EarnedElements - the rail's one EARNED control,
+                              where mastered unlockables live so the 1-9 hotkeys
+                              and the rail's length never move)
                     render/  (letterboxFit, the grid palette — 256 species ×
                               `VARIANT_SLOTS` variant slots, indexed by
                               `paletteSlot` from both frame paths and by the
@@ -257,6 +260,13 @@ else touches it.
 - **Unknown edge keys are carried, never dropped**; a blob that will not parse,
   or is of another version, reads as empty with a warning and is left on disk
   until a real write replaces it.
+- **The rail is base + earned, never base with something inserted.**
+  `PAINTABLE_IDS` is the ten base elements; a mastered unlockable (mud today)
+  reaches the rail through `buildRailPalette`'s `earned` list and the EARNED
+  control at the palette's foot, so no hotkey ever moves (spec §9.8). An earned
+  element is paintable in every other way, spawners included. Mud leaving the
+  rail did **not** take it out of `v1Elements` - scenes remap by name, and a
+  pre-trim scene's mud cells depend on it still being a species.
 - **Clearing the world does not clear discoveries.** The only thing that does is
   the panel's armed "forget discoveries" (`store.reset()`), which removes the
   key outright.

@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { DIRT, EMPTY, GRID_HEIGHT, SAND } from './sim/index.ts'
+import { DIRT, EMPTY, GRID_HEIGHT, MUD, SAND } from './sim/index.ts'
+import { seedMastery } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -148,19 +149,18 @@ test('the rail advertises a hotkey only where one exists', async ({ mountApp, pa
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  // Digits stop at `HOTKEYED_ENTRIES` (nine) and the roster is eleven
-  // paintables. The first nine carry a badge; mud and seed must not claim a
-  // dead key. Asserting the *badge* is absent, not that some particular text
-  // is: "no element reading 10" also passes when the badge renders "99".
+  // Digits stop at `HOTKEYED_ENTRIES` (nine) and the base rail is ten
+  // paintables. The first nine carry a badge; seed must not claim a dead key.
+  // Asserting the *badge* is absent, not that some particular text is: "no
+  // element reading 10" also passes when the badge renders "99".
   await expect(page.getByTestId('element-dirt').getByTestId('hotkey-badge')).toHaveText('1')
-  await expect(page.getByTestId('element-mud').getByTestId('hotkey-badge')).toHaveCount(0)
   await expect(page.getByTestId('element-seed').getByTestId('hotkey-badge')).toHaveCount(0)
   // And exactly nine of them exist in the rail, so the cut is where it says.
   await expect(page.getByTestId('palette').getByTestId('hotkey-badge')).toHaveCount(9)
 
   // The swatch still works; it just does not claim a shortcut.
-  await root.selectElement('mud')
-  expect(await root.isSelected('mud')).toBe(true)
+  await root.selectElement('seed')
+  expect(await root.isSelected('seed')).toBe(true)
 })
 
 test('the Energy group appears in the rail now fire is paintable', async ({ mountApp }) => {
@@ -175,20 +175,55 @@ test('the Energy group appears in the rail now fire is paintable', async ({ moun
   expect(await root.isSelected('fire')).toBe(true)
 })
 
-// Mud is a reaction product that is still paintable in its own right, unlike
-// obsidian — so unlike smoke and steam, it has to reach the rail.
-test('mud is paintable and sits in the Liquid group', async ({ mountApp }) => {
+// Mud is dirt + water's product, and the one element the player earns back
+// (discovery-tree spec §9.5): a fresh rail is ten base elements with no way in
+// to it, and nothing hinting at one either.
+test('a fresh rail is the ten base elements, with no earned control', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.verifyPaletteGroupContains('Liquid', 'mud')
-
-  await root.selectElement('mud')
-  expect(await root.isSelected('mud')).toBe(true)
+  const names = await root.paletteElementNames()
+  expect(names).toHaveLength(10)
+  expect(names).not.toContain('mud')
+  await root.verifyNoEarnedControl()
 })
 
-// Seed is the eleventh paintable, and the roster's last: moss and vine are the
-// reward for planting it, so neither reaches the rail.
+// The unlock, from the rail's side (spec §6 "The unlock", §9.8): one control at
+// the rail's foot, never an inline swatch - so hotkeys and rail length hold
+// however many unlockables follow.
+test('mastering mud puts it in the earned control, where it paints like any element', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Still ten in the rail proper, and the digits have not moved.
+  expect(await root.paletteElementNames()).toHaveLength(10)
+  await expect(page.getByTestId('palette').getByTestId('hotkey-badge')).toHaveCount(9)
+
+  await root.openEarned()
+  expect(await root.earnedElementNames()).toEqual(['mud'])
+  await root.verifyEarnedPopoverClearsTheRail()
+
+  await root.selectEarnedElement('mud')
+  expect(await root.isEarnedSelected()).toBe(true)
+  expect(await root.statusText('status-element')).toBe('mud')
+
+  await root.paintCell(40, 40)
+  await root.verifyCellIs(40, 40, MUD)
+
+  // "Fully paintable" includes the spawners (spec §3) - an earned element is a
+  // rail element in every way except where it is kept.
+  await root.enterSpawnerMode()
+  await root.clickCell(150, 20)
+  await root.step()
+  await expect.poll(() => root.countSpecies(MUD)).toBeGreaterThan(1)
+})
+
+// Seed is the base rail's tenth and last entry: moss and vine are the reward
+// for planting it, so neither reaches the rail.
 test('seed is paintable and sits in the Powder group, with no plant beside it', async ({
   mountApp,
 }) => {

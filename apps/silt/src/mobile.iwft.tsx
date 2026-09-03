@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { DIRT, GRID_HEIGHT, SAND, SEED } from './sim/index.ts'
+import { DIRT, GRID_HEIGHT, MUD, SAND, SEED } from './sim/index.ts'
+import { seedMastery } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -82,15 +83,16 @@ test('the Energy group survives the rotation into the bottom bar', async ({ moun
 
 /**
  * Materials spec §8: the rail was built for a roster "that will triple" — 12 —
- * and stage 04 takes it to 11 paintables. Checked at phone width rather than
+ * and it carries ten base paintables now the discovery tree has taken mud out
+ * to be earned (discovery-tree spec §9.5). Checked at phone width rather than
  * assumed: the bottom bar is the tightest place the roster has to fit.
  */
-test('the bottom bar still carries the full eleven-element roster', async ({ mountApp }) => {
+test('the bottom bar still carries the full ten-element base roster', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
   // Rail order is *group* order, not `PAINTABLE_IDS` order — the bar renders
-  // Solid, Powder, Liquid, Energy, and every one of the eleven is in it.
+  // Solid, Powder, Liquid, Energy, and every one of the ten is in it.
   expect(await root.paletteElementNames()).toEqual([
     'dirt',
     'wood',
@@ -101,7 +103,6 @@ test('the bottom bar still carries the full eleven-element roster', async ({ mou
     'lava',
     'oil',
     'acid',
-    'mud',
     'fire',
   ])
   await root.verifyNoHorizontalPageOverflow()
@@ -116,4 +117,27 @@ test('the bottom bar still carries the full eleven-element roster', async ({ mou
 
   // Erase stays at the tail of the same row, behind the new swatch.
   await root.verifyEraseIsLastInPaletteRow()
+})
+
+// The bottom bar is the tightest place an unlock has to fit, and the one where
+// the popover has to open upwards instead of off the side of the screen
+// (discovery-tree spec §6 "The unlock").
+test('an earned element reaches the bottom bar without pushing the page sideways', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Still the ten base elements in the bar itself, plus one control beside them.
+  expect(await root.paletteElementNames()).toHaveLength(10)
+  await root.verifyTouchTargetSize('earned-button')
+  await root.verifyNoHorizontalPageOverflow()
+
+  await root.openEarned()
+  await root.selectEarnedElement('mud')
+  expect(await root.isEarnedSelected()).toBe(true)
+  await root.touchPaintCell(150, FLOOR - 9)
+  await root.verifyCellIs(150, FLOOR - 9, MUD)
 })
