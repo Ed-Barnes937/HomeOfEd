@@ -36,7 +36,7 @@ describe('the interaction graph doc', () => {
 describe('deriveInteractionGraph', () => {
   it('finds every registered pair once, unordered', () => {
     // Registry-derived, so this count moves only when the chemistry does.
-    expect(graph.reactions).toHaveLength(26)
+    expect(graph.reactions).toHaveLength(48)
     const keys = graph.reactions.map((edge) => `${edge.a}+${edge.b}`)
     expect(new Set(keys).size).toBe(keys.length)
   })
@@ -57,17 +57,20 @@ describe('deriveInteractionGraph', () => {
 
   it('keeps the first matching row, so acid + wood leaves sulphur', () => {
     expect(products('acid', 'wood')).toEqual(['sulphur', 'empty'])
-    expect(pair('acid', 'wood')?.source).toBe('row 5 (acid + wood)')
+    expect(pair('acid', 'wood')?.source).toBe('row 17 (acid + wood)')
     // The generic row it precedes digs a cavity instead.
     expect(products('acid', 'dirt')).toEqual(['empty', 'empty'])
   })
 
-  it('expands fire + flammable to every fuel', () => {
+  it('expands fire + flammable to the fuels without a ladder row of their own', () => {
+    // The ignition ladder (burnables) gives each fuel its own preceding row, so
+    // the tag row is the fallback and only stalk and tip still fall through to
+    // it - the land plant's dry tissue, burning at the generic rate.
     const fuels = graph.reactions
-      .filter((edge) => edge.source.startsWith('row 3 '))
+      .filter((edge) => edge.source.endsWith('(fire + flammable)'))
       .map((edge) => (edge.a === 'fire' ? edge.b : edge.a))
 
-    expect(fuels.toSorted()).toEqual(['moss', 'oil', 'seed', 'sulphur', 'vine', 'wood'])
+    expect(fuels.toSorted()).toEqual(['stalk', 'tip'])
   })
 
   it('reads decay off the registry, fades included', () => {
@@ -75,6 +78,17 @@ describe('deriveInteractionGraph', () => {
       { from: 'fire', becomes: 'smoke', minTicks: 40, maxTicks: 60 },
       { from: 'smoke', becomes: 'empty', minTicks: 200, maxTicks: 255 },
       { from: 'steam', becomes: 'water', minTicks: 180, maxTicks: 240 },
+      { from: 'seed', becomes: 'empty', minTicks: 1280, maxTicks: 2000 },
+      { from: 'ember', becomes: 'fire', minTicks: 120, maxTicks: 180 },
+      { from: 'stalk', becomes: 'empty', minTicks: 2720, maxTicks: 3200 },
+      {
+        from: 'flower',
+        becomes: 'seed',
+        minTicks: 1200,
+        maxTicks: 2400,
+        emits: { species: 'petal', min: 3, max: 4 },
+      },
+      { from: 'petal', becomes: 'empty', minTicks: 80, maxTicks: 150 },
     ])
   })
 

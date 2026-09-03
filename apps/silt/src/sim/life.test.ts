@@ -1333,7 +1333,9 @@ describe('the meadow loop', () => {
    * its soil dries, which is `drinks the bed as it grows` below and ADR 0045 §4,
    * not this case.
    */
-  it('holds a population over a long seeded run, neither dying out nor exploding', () => {
+  // ~21s locally (3 seeds x 12k ticks) - a shared CI runner needs more than the
+  // file's 30s ceiling, same reasoning as vitest.config.ts.
+  it('holds a population over a long seeded run, neither dying out nor exploding', { timeout: 180_000 }, () => {
     for (const seed of [1, 2, 3]) {
       const sim = new Sim({ seed })
       meadowBed(sim, 20, 280)
@@ -1759,7 +1761,8 @@ describe('the water cycle', () => {
    * raindrop used to get at the bed once it had landed. Still inside the
    * ticket's window, with less headroom at the top than it had.
    */
-  it('clears a meadow with a dragged torch and rains the bed back to life', () => {
+  // ~19s locally (3 seeds, grow-burn-recover) - see the population soak above.
+  it('clears a meadow with a dragged torch and rains the bed back to life', { timeout: 180_000 }, () => {
     for (const seed of [1, 2, 3]) {
       const sim = new Sim({ seed })
       tank(sim, 40, 80, 60, MUD)
@@ -1839,7 +1842,8 @@ describe('the water cycle', () => {
    * against 29-34 before the ruling - the quench is untouched, so the burn's own
    * rain is the same rain), and the first crown was up between 32 and 311 ticks.
    */
-  it('washes its own ash into the bed with the rain the burn made', () => {
+  // ~17s locally (6 seeds) - see the population soak above.
+  it('washes its own ash into the bed with the rain the burn made', { timeout: 180_000 }, () => {
     let washedOverall = 0
     for (const seed of [1, 2, 3]) {
       const sim = new Sim({ seed })
