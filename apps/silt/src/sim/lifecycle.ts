@@ -1,3 +1,5 @@
+import { emitInto } from './emit.ts'
+import { EMPTY } from './elements.ts'
 import type { Api, MovementApi } from './types.ts'
 import type { ElementRegistry, ResolvedLifetime } from './registry.ts'
 
@@ -88,6 +90,16 @@ export function applyLifetime(api: MovementApi, lifetime: ResolvedLifetime, tick
 
   remaining--
   if (remaining <= 0) {
+    // **The death drop** (life ticket 04), and the reason it lives here rather
+    // than in the element: `onTick` is gated on the cell surviving this call, so
+    // a product has no way at all to act on the tick it dies. `becomes` alone
+    // can only rewrite the one cell, and a withering flower leaves a seed *and*
+    // throws petals clear of itself. Emitted before `become`, so the cell being
+    // scattered from is still the parent and its own slot is never a candidate.
+    const { emits } = lifetime
+    if (emits) {
+      emitInto(api, EMPTY, emits.species, emits.min + api.randInt(emits.max - emits.min + 1))
+    }
     api.become(lifetime.becomes)
     return false
   }

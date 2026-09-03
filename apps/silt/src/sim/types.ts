@@ -41,6 +41,24 @@ export type Archetype =
   | ({ kind: 'gas' } & Fluid)
 
 /**
+ * A brood scattered into the free cells around a cell that has just expired
+ * (life ticket 04). `becomes` says what is left *in* the cell; this says what is
+ * thrown clear of it.
+ *
+ * It is on `lifetime` rather than in a hook because **`onTick` never runs on the
+ * tick a lifetime expires** - the scan gates the hook on the cell surviving, so
+ * a product has no way at all to act on its own death. See
+ * [ADR 0043](../../../../docs/adr/0043-silt-growers-and-products-split-the-byte.md) §4.
+ */
+export interface Emission {
+  /** Element name to scatter. */
+  species: string
+  /** Inclusive brood size, drawn per death. `min` must be at least 1. */
+  min: number
+  max: number
+}
+
+/**
  * Engine-managed decay. Countdown lives in `ra` — see the byte-ownership rule
  * on `Api`. The engine seeds it on the cell's first tick and decrements it
  * every tick after, so an element never writes it itself.
@@ -61,6 +79,8 @@ export interface Lifetime {
   every?: number
   /** Element name to turn into on expiry, or `null` to vanish. */
   becomes: string | null
+  /** What is thrown clear of the cell on expiry, if anything. See `Emission`. */
+  emits?: Emission
 }
 
 /**

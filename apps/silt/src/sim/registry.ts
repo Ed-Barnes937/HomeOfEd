@@ -14,6 +14,13 @@ export interface Reaction {
   bBecomes: number
 }
 
+/** An `Emission` with its species name resolved to an id. */
+export interface ResolvedEmission {
+  species: number
+  min: number
+  max: number
+}
+
 /** A `Lifetime` with `becomes` resolved and `jitter`/`every` defaulted. */
 export interface ResolvedLifetime {
   ticks: number
@@ -21,6 +28,8 @@ export interface ResolvedLifetime {
   /** Ticks between countdown draws; 1 is the tick-by-tick countdown. */
   every: number
   becomes: number
+  /** The death drop, or `undefined` for the elements that leave nothing behind. */
+  emits?: ResolvedEmission
 }
 
 export interface ElementRegistry {
@@ -216,11 +225,15 @@ function resolveLifetimes(
   for (const def of defs) {
     const { lifetime } = def
     if (!lifetime) continue
+    const { emits } = lifetime
     lifetimes[def.id] = {
       ticks: lifetime.ticks,
       jitter: lifetime.jitter ?? 0,
       every: lifetime.every ?? 1,
       becomes: lifetime.becomes === null ? EMPTY : byName.get(lifetime.becomes)!.id,
+      ...(emits && {
+        emits: { species: byName.get(emits.species)!.id, min: emits.min, max: emits.max },
+      }),
     }
   }
   return lifetimes
@@ -305,6 +318,21 @@ export function createRegistry(
     }
     if (lifetime.becomes !== null && !byName.has(lifetime.becomes)) {
       fail(`lifetime.becomes names unknown element ${lifetime.becomes}`)
+    }
+
+    // The death drop (life ticket 04). Unlike `becomes` it has a size as well as
+    // a species, and a backwards or fractional range would silently scatter
+    // nothing rather than throwing where the draw is made.
+    const { emits } = lifetime
+    if (emits) {
+      if (!byName.has(emits.species)) {
+        fail(`lifetime.emits names unknown element ${emits.species}`)
+      }
+      if (!(Number.isInteger(emits.min) && Number.isInteger(emits.max) && emits.min >= 1)) {
+        fail('lifetime.emits.min and .max must be whole numbers, and min at least 1')
+      } else if (emits.max < emits.min) {
+        fail('lifetime.emits.max must be at least .min')
+      }
     }
   }
 

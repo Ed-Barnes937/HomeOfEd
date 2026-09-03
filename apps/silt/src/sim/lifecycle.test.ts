@@ -227,6 +227,111 @@ describe('coarse lifetimes', () => {
   })
 })
 
+/**
+ * The death drop of life ticket 04, in miniature: a cell that expires leaves one
+ * thing behind *in its own cell* and scatters a handful of others into the free
+ * cells around it. `becomes` alone cannot express that, and a hook cannot either
+ * - `onTick` never runs on the tick a lifetime expires, which is the case two
+ * tests above pin.
+ */
+const seedpod: ElementDef = {
+  id: 103,
+  name: 'seedpod',
+  colours: ['#ffffff'],
+  tags: [],
+  archetype: { kind: 'static' },
+  lifetime: { ticks: 2, becomes: 'dirt', emits: { species: 'sand', min: 3, max: 3 } },
+}
+
+describe('`lifetime.emits`', () => {
+  it('scatters its brood into the free cells around it and still becomes `becomes`', () => {
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, seedpod] })
+    sim.paint(10, 100, seedpod.id)
+
+    sim.tick()
+    expect(count(sim, SAND)).toBe(0)
+
+    sim.tick()
+
+    expect(sim.speciesAt(10, 100)).toBe(DIRT)
+    expect(count(sim, seedpod.id)).toBe(0)
+    expect(count(sim, SAND)).toBe(3)
+  })
+
+  it('emits nothing at all when there is nowhere free to emit into', () => {
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, seedpod] })
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) sim.paint(10 + dx, 100 + dy, OBSIDIAN)
+    }
+    sim.paint(10, 100, seedpod.id)
+
+    for (let i = 0; i < 2; i++) sim.tick()
+
+    // Boxed in: the drop is a scatter into what is free, never a displacement.
+    expect(count(sim, SAND)).toBe(0)
+    expect(sim.speciesAt(10, 100)).toBe(DIRT)
+  })
+
+  it('draws the brood size between min and max, so a stand does not die in lockstep', () => {
+    const spread: ElementDef = {
+      ...seedpod,
+      lifetime: { ticks: 2, becomes: null, emits: { species: 'sand', min: 3, max: 4 } },
+    }
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, spread] })
+    // Spaced five apart, so no two broods can compete for the same free cell.
+    const columns = Array.from({ length: 20 }, (_, i) => 10 + i * 5)
+    for (const x of columns) sim.paint(x, 100, spread.id)
+
+    for (let i = 0; i < 2; i++) sim.tick()
+
+    // 20 broods of 3 or 4, and really both: a fixed 3 or a fixed 4 would land on
+    // one end of this range rather than inside it.
+    const grains = count(sim, SAND)
+    expect(grains).toBeGreaterThan(20 * 3)
+    expect(grains).toBeLessThan(20 * 4)
+  })
+
+  it('bears each of the brood fresh: a cleared countdown and its own colour variant', () => {
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, seedpod] })
+    const columns = Array.from({ length: 20 }, (_, i) => 10 + i * 5)
+    for (const x of columns) sim.paint(x, 100, seedpod.id)
+
+    for (let i = 0; i < 2; i++) sim.tick()
+
+    const variants = new Set<number>()
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+      for (let x = 0; x < GRID_WIDTH; x++) {
+        if (sim.speciesAt(x, y) !== SAND) continue
+        // Sand borrows no byte, so a grain the drop bore carries nothing from
+        // the parent's countdown - `set` clears `ra` as it does on any birth.
+        expect(raAt(sim, x, y)).toBe(0)
+        variants.add(sim.rbAt(x, y))
+      }
+    }
+
+    // And `rb` is reseeded per cell (ADR 0040): a drift of petals is not one shade.
+    expect(variants.size).toBeGreaterThan(1)
+  })
+
+  it('refuses a roster whose brood names an element that does not exist', () => {
+    const bogus: ElementDef = {
+      ...seedpod,
+      lifetime: { ticks: 2, becomes: null, emits: { species: 'petunia', min: 1, max: 1 } },
+    }
+
+    expect(() => new Sim({ elements: [...v1Elements, bogus] })).toThrow(/petunia/)
+  })
+
+  it('refuses a brood size that is not a whole range of at least one', () => {
+    const backwards: ElementDef = {
+      ...seedpod,
+      lifetime: { ticks: 2, becomes: null, emits: { species: 'sand', min: 4, max: 3 } },
+    }
+
+    expect(() => new Sim({ elements: [...v1Elements, backwards] })).toThrow(/emits/)
+  })
+})
+
 describe('onTick hook', () => {
   it('runs strictly after the archetype has moved the cell', () => {
     // The hook stamps the cell above wherever it now is. Run before movement it
