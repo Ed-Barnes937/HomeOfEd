@@ -133,3 +133,19 @@ inside the boops panel).
   link under Share in the desktop `TopBar`, and the "⋯" menu's four entries were
   specified before that ticket existed. Adding a fifth is a design call, not a
   merge call — left for a follow-up.
+
+## Amendment (2026-09-02): 16 steps always, and every row the clip has
+
+The grid is no longer 6 x 16. A clip owns its rows
+([ADR 0042](0042-boop-dynamic-clip-rows.md)), so the rule this ADR is built on
+is restated rather than repealed:
+
+> **16 steps always; the rows are the clip's own, default six, minimum one -
+> and no breakpoint may drop a row or a step.**
+
+The spirit is unchanged, and that is the point of restating it: layout never
+hides music. The pinned rail, the snapping step window and the "WHOLE LOOP" map
+all gain rows the same way the grid does, and playback still never scrolls a
+row or a step into view for the child - now on both axes. The three-rows floor
+of the phone well becomes `min(3, rowCount)` rows plus the loop map, so a
+one-row clip is not padded with empty space.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, RA_OFFSET } from './constants.ts'
-import { EMPTY, LAVA, OBSIDIAN, SAND, WATER, v1Elements } from './elements.ts'
+import { EMPTY, LAVA, OBSIDIAN, OIL, SAND, WATER, v1Elements } from './elements.ts'
 import { MOMENTUM_TICKS, momentumOf, packOpinion, parityOf } from './kernels.ts'
 import { Sim } from './sim.ts'
 import type { ElementDef } from './types.ts'
@@ -401,6 +401,26 @@ describe('move probability', () => {
     // move: 0.15 — roughly one or two steps in ten ticks, never ten.
     const fell = cellsOf(lava, LAVA)[0]!.y
     expect(fell).toBeLessThan(5)
+  })
+
+  it('makes oil fall slower than water but quicker than lava', () => {
+    const water = new Sim({ seed: 1 })
+    water.paint(10, 0, WATER)
+    const oil = new Sim({ seed: 1 })
+    oil.paint(10, 0, OIL)
+
+    for (let i = 0; i < 10; i++) {
+      water.tick()
+      oil.tick()
+    }
+
+    expect(water.speciesAt(10, 10)).toBe(WATER)
+    // move: 0.5 - roughly five steps in ten ticks, never all ten. The floor of
+    // 3 is what separates "viscous" from lava's ooze (0.15, pinned above at
+    // fewer than 5): oil is still a liquid, not tar.
+    const fell = cellsOf(oil, OIL)[0]!.y
+    expect(fell).toBeLessThan(9)
+    expect(fell).toBeGreaterThanOrEqual(3)
   })
 
   /**

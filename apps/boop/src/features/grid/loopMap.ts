@@ -13,6 +13,11 @@ export type LoopTickState = 'playhead' | 'note' | 'empty'
  * of the map: the playhead is never lost, it just moves from the grid to here.
  * The playhead tick wins over a note on the same step, so the child's eye
  * always finds one unambiguous marker.
+ *
+ * A tick aggregates **every** row of the clip, so the map already reads the
+ * clip's own row count (ADR 0042) — one row or the whole roster — and its
+ * reserved 44px band under the grid never has to grow to keep up. That is
+ * deliberate: the band is a step readout, not a miniature of the grid.
  */
 export function loopMapTicks(
   pattern: Pattern,

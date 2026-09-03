@@ -17,7 +17,13 @@
  * is what resolves a position to whatever the loaded kit actually has there,
  * the same way `instrumentColors.ts` maps colours by row position.
  */
-import { DEFAULT_BPM, STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
+import {
+  blankPattern,
+  DEFAULT_BPM,
+  STEPS_PER_PATTERN,
+  type Kit,
+  type Pattern,
+} from '../../engine/sequencerEngine.ts'
 import { singleClipSong, type Song } from '../../song/song.ts'
 
 /** One kit row's on-steps, position-keyed. */
@@ -106,15 +112,17 @@ export const SAMPLE_CLIPS: readonly SampleClip[] = [
 ]
 
 /**
- * Materialises position-only rows into a real `Pattern` for `kit` — one row
- * per kit instrument, in kit order, matched by position. A kit with fewer
- * rows just gets a shorter pattern; the engine, not this module, is the
- * source of truth for how many rows exist.
+ * Materialises position-only rows into a real `Pattern` for `kit` — the rows a
+ * fresh clip has (`blankPattern`: the roster's first six, in manifest order),
+ * matched by position. A clip is six rows by default, not one per instrument
+ * the kit can play (ADR 0042), and the authored positions were written against
+ * exactly those six; a kit with fewer just gets a shorter pattern, and a
+ * position past its end is dropped.
  */
 export function samplePattern(kit: Kit, rows: readonly SampleRowSteps[]): Pattern {
-  return kit.instruments.map((instrument, rowIndex) => ({
-    instrumentId: instrument.instrumentId,
-    steps: rows[rowIndex]?.steps ?? Array.from({ length: STEPS_PER_PATTERN }, () => false),
+  return blankPattern(kit).map((row, rowIndex) => ({
+    instrumentId: row.instrumentId,
+    steps: rows[rowIndex]?.steps ?? row.steps,
   }))
 }
 

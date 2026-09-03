@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
-import { DEFAULT_BPM, STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
+import { blankPattern, DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { boopFilename } from '../export/boopFilename.ts'
 import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
 import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
@@ -14,9 +14,11 @@ import { ClipHeader } from '../features/clips/ClipHeader.tsx'
 import { ClipLauncher } from '../features/clips/ClipLauncher.tsx'
 import { clipTint } from '../features/clips/clipTints.ts'
 import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
+import { rowColorVar } from '../features/grid/instrumentColors.ts'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
 import { usePlayheadMotion } from '../features/grid/usePlayheadMotion.ts'
 import { HintSheet } from '../features/hints/HintSheet.tsx'
+import { InstrumentPicker } from '../features/picker/InstrumentPicker.tsx'
 import { NewClipPicker } from '../features/picker/NewClipPicker.tsx'
 import { firstVisitSong, samplePattern, type SampleClip } from '../features/picker/sampleClips.ts'
 import {
@@ -36,12 +38,15 @@ import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLi
 import {
   activeClip,
   addClip,
+  addRow,
   deleteClip,
   moveClip,
+  removeRow,
   renameClip,
   singleClipSong,
   songFromStored,
   storedBoopFromSong,
+  swapRowInstrument,
   togglePlacement,
   withActivePattern,
   withBpm,
@@ -65,11 +70,15 @@ import styles from './HomePage.module.scss'
 /** No placements at all — the timeline of a song that has not loaded yet. */
 const NO_PLACEMENTS: readonly (readonly number[])[] = []
 
-/** An all-off pattern for `kit` — what a new or cleared clip starts as. */
-function blankPattern(kit: Kit): Pattern {
-  return kit.instruments.map((instrument) => ({
-    instrumentId: instrument.instrumentId,
-    steps: Array.from({ length: STEPS_PER_PATTERN }, () => false),
+/**
+ * The same rows with nothing painted — what "Clear grid" leaves behind. It
+ * keeps the clip's *rows*: since ADR 0042 those are the child's own choice of
+ * instruments, and clearing the beats is not a reason to take them away.
+ */
+function clearedPattern(pattern: Pattern): Pattern {
+  return pattern.map((row) => ({
+    instrumentId: row.instrumentId,
+    steps: row.steps.map(() => false),
   }))
 }
 
@@ -99,6 +108,18 @@ export function HomePage() {
   const [boopsOpen, setBoopsOpen] = useState(false)
   // The "+ New clip" picker (ticket 17): Blank first, then the sample clips.
   const [pickerOpen, setPickerOpen] = useState(false)
+  /**
+   * What the instrument picker is open on, or `null` for closed - one dialog
+   * with two callers, because the picker itself has no modes (ticket 05):
+   *
+   * - a row *index* (ticket 05), the row whose sound is being changed. An
+   *   index, because the grid's rows are identified by position (their hues are
+   *   positional, and the mutations take an index), so the dialog stays pointed
+   *   at the same row while its sound swaps underneath.
+   * - `'add'` (ticket 06), "+ Add a sound": there is no row yet, and the row it
+   *   makes lands at the bottom.
+   */
+  const [pickerTarget, setPickerTarget] = useState<number | 'add' | null>(null)
   /**
    * Whether the clip editor card is open (screenspace ticket 03). It lives
    * here rather than in the card because there are two routes in — the dock's
@@ -669,9 +690,65 @@ export function HomePage() {
     // Stop the song before blanking the engine — `leaveSongMode`'s resync
     // would otherwise overwrite the blank with the active clip again.
     stopSongPlayback()
-    engine.setPattern(blankPattern(engine.kit))
+    engine.setPattern(clearedPattern(engine.getPattern()))
     updateSong((s) => withActivePattern(s, engine.getPattern()))
   }, [engine, stopSongPlayback, updateSong])
+
+  /**
+   * A sound was tapped in the instrument picker (spec §4, §10.1): it plays and
+   * the row swaps to it, keeping its painted steps — same rhythm, new sound.
+   *
+   * The audition happens whatever the swap does, because the tap is a request
+   * for a sound: `swapRowInstrument` refuses an instrument the clip already
+   * holds (the row's own included), so re-tapping the current sound auditions
+   * it and changes nothing, which is exactly what browsing by ear needs. The
+   * dialog stays open — closing is the ✕, the backdrop or Escape.
+   */
+  const chooseRowInstrument = useCallback(
+    (instrumentId: string) => {
+      if (!engine || typeof pickerTarget !== 'number') return
+      engine.audition(instrumentId)
+      const next = updateSong((s) => swapRowInstrument(engine.kit, s, pickerTarget, instrumentId))
+      if (!next) return
+      engine.setPattern(activeClip(next).pattern)
+    },
+    [engine, pickerTarget, updateSong],
+  )
+
+  /**
+   * "+ Add a sound" (ticket 06, spec §4): the sound plays, a row of it appends
+   * at the bottom with 16 off steps, and the dialog **closes** - "add" is a
+   * single decision, not the browsing-by-ear the swap route is for.
+   *
+   * The audition happens whatever `addRow` does, for the same reason a swap's
+   * does: the tap is a request for a sound. `addRow` refuses a duplicate by
+   * no-op, and the button is disabled at the whole roster, so there is nothing
+   * else to guard here.
+   */
+  const addRowToClip = useCallback(
+    (instrumentId: string) => {
+      if (!engine) return
+      engine.audition(instrumentId)
+      setPickerTarget(null)
+      const next = updateSong((s) => addRow(engine.kit, s, instrumentId))
+      if (!next) return
+      engine.setPattern(activeClip(next).pattern)
+    },
+    [engine, updateSong],
+  )
+
+  /**
+   * The picker's footer: drop the row and its painted steps. No confirm — it is
+   * one tap to put the sound back (spec §4) — and the dialog closes, because
+   * the row it was opened on has gone.
+   */
+  const removeRowFromClip = useCallback(() => {
+    if (!engine || typeof pickerTarget !== 'number') return
+    setPickerTarget(null)
+    const next = updateSong((s) => removeRow(s, pickerTarget))
+    if (!next) return
+    engine.setPattern(activeClip(next).pattern)
+  }, [engine, pickerTarget, updateSong])
 
   const loadBoop = useCallback(
     (boop: StoredBoop, index: number) => {
@@ -731,7 +808,19 @@ export function HomePage() {
     loadToken,
     onScrubToStep: scrubClipToStep,
     onScrubToSongStart: () => scrubSongToBar(0),
+    onOpenInstrumentPicker: setPickerTarget,
+    onAddRow: () => setPickerTarget('add'),
+    // The clip's ceiling is the roster (ADR 0042): unique ids drawn from it
+    // cannot outnumber it, so "full" is simply a row per instrument.
+    canAddRow: activeClip(song).pattern.length < engine.kit.instruments.length,
   }
+
+  // The picker's rows: the clip it is open on, and the hue of the row that
+  // opened it (positional, like every row hue — `rowColorVar`). In append mode
+  // that is the hue of the row about to be made, so the dialog is already
+  // wearing the colour the new row will land in.
+  const pickerRows = activeClip(song).pattern
+  const pickerHue = rowColorVar(pickerTarget === 'add' ? pickerRows.length : (pickerTarget ?? 0))
 
   return (
     // Three frame sections (ticket 33): pinned chrome, the one scrolling
@@ -891,6 +980,30 @@ export function HomePage() {
         />
       )}
       {pickerOpen && <NewClipPicker onPick={pickClip} onClose={() => setPickerOpen(false)} />}
+      {/* The instrument picker opens over the clip editor card, on a row of
+          the clip that card is editing (ticket 05). "Remove this row" is
+          offered only while there is a row to spare: the grid's floor is one
+          row (ADR 0042), and this toy disables nothing it can simply not
+          show.
+
+          One component, two flows, no mode flag (ticket 06): the difference is
+          entirely in what the caller hands it. Append mode has no row, so no
+          footer, and its `onChoose` closes the dialog because adding a sound is
+          a single decision - where changing one keeps it open for browsing by
+          ear (spec §4). */}
+      {pickerTarget !== null && (
+        <InstrumentPicker
+          kit={engine.kit}
+          title={pickerTarget === 'add' ? 'Add a sound' : 'Change this sound'}
+          inClip={pickerRows.map((row) => row.instrumentId)}
+          colorVar={pickerHue}
+          onChoose={pickerTarget === 'add' ? addRowToClip : chooseRowInstrument}
+          onClose={() => setPickerTarget(null)}
+          onRemoveRow={
+            pickerTarget !== 'add' && pickerRows.length > 1 ? removeRowFromClip : undefined
+          }
+        />
+      )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>
   )

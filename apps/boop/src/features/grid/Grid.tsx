@@ -1,10 +1,11 @@
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
+import { useMemo, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
 import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
 import styles from './Grid.module.scss'
-import { ROW_COLOR_VARS } from './instrumentColors.ts'
+import { rowColorVar } from './instrumentColors.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
+import { instrumentsById } from './rowInstruments.ts'
 import { useDragPaint } from './useDragPaint.ts'
 import { useGridKeyboardNav } from './useGridKeyboardNav.ts'
 import { useLoadStagger } from './useLoadStagger.ts'
@@ -58,12 +59,31 @@ export interface GridViewProps {
    * landed yet (tablet/phone) — the well then looks exactly as it always has.
    */
   tintColor?: string
+  /**
+   * A row's rail artwork was tapped (ticket 05): open the instrument picker on
+   * that row. Addressed by **row index**, not by the instrument it holds —
+   * index is a row's identity on the grid (the hues are positional), and it is
+   * what `swapRowInstrument`/`removeRow` take.
+   */
+  onOpenInstrumentPicker: (rowIndex: number) => void
+  /**
+   * "+ Add a sound" was tapped (ticket 06): open the picker in append mode. The
+   * button has no row of its own - the row it makes lands at the bottom.
+   */
+  onAddRow: () => void
+  /**
+   * Whether there is a sound left to add. False only at the whole roster, where
+   * the button is disabled rather than hidden: it is where a child looks, so it
+   * has to be there saying why (spec §4).
+   */
+  canAddRow: boolean
   /** Rendered inside the well, below the rows — the laptop clip control. */
   wellFooter?: ReactNode
 }
 
 /**
- * The 6x16 grid well: bar-numeral row + instrument rows, a sweeping playhead
+ * The grid well: bar-numeral row + the clip's own instrument rows (ADR 0042,
+ * so a row's artwork and name come from the kit by id), a sweeping playhead
  * column, and hit motion (squash on struck cells, bob on struck row labels) —
  * driven entirely by state the caller derives from the engine's draw-time
  * channel (`usePlayheadMotion`), never touched from here.
@@ -85,10 +105,14 @@ export function Grid({
   loadToken,
   onScrubToStep,
   onScrubToSongStart,
+  onOpenInstrumentPicker,
+  onAddRow,
+  canAddRow,
   tintColor,
   wellFooter,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
+  const instruments = useMemo(() => instrumentsById(kit), [kit])
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: true })
   const staggerDelayFor = useLoadStagger(loadToken)
   const keyboardNav = useGridKeyboardNav({
@@ -178,7 +202,9 @@ export function Grid({
           ref={keyboardNav.containerRef}
           className={styles.body}
           role="application"
-          aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses."
+          // The clip's own row count, not a constant six: a clip holds 1..the
+          // roster since ADR 0042, and what is announced has to be what is there.
+          aria-label={`${pattern.length} by ${STEPS_PER_PATTERN} step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses.`}
         >
           {playheadStep !== null && (
             <div
@@ -191,16 +217,24 @@ export function Grid({
           )}
           <div className={styles.rows}>
             {pattern.map((row, rowIndex) => {
-              const instrument = kit.instruments[rowIndex]
+              const instrument = instruments.get(row.instrumentId)
               if (!instrument) return null
-              const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
-              const rowStyle = { '--row-color': `var(${colorVar})` } as CSSProperties
+              const rowStyle = { '--row-color': `var(${rowColorVar(rowIndex)})` } as CSSProperties
               const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
 
               return (
                 <div key={row.instrumentId} className={styles.row} style={rowStyle}>
                   <div className={styles.rail}>
-                    <span className={styles.plate}>
+                    {/* The artwork is the row's instrument button (ticket 05,
+                        spec §4): the thing that shows the sound is the thing
+                        that changes it. */}
+                    <button
+                      type="button"
+                      className={styles.plate}
+                      onClick={() => onOpenInstrumentPicker(rowIndex)}
+                      aria-label={`${instrument.name}. Change this row's sound.`}
+                      data-testid={`row-instrument-button-${row.instrumentId}`}
+                    >
                       <span
                         className={styles.artwork}
                         style={{
@@ -208,7 +242,7 @@ export function Grid({
                           WebkitMaskImage: `url(${instrument.artwork})`,
                         }}
                       />
-                    </span>
+                    </button>
                     <span
                       key={rowStrikeEpoch}
                       className={styles.nameBob}
@@ -288,6 +322,25 @@ export function Grid({
               )
             })}
           </div>
+        </div>
+        {/* "+ Add a sound" (ticket 06, spec §4): under the last row and *inside*
+            the well's rows box, so it scrolls with the rows while the clip play
+            footer below stays pinned (ADR 0030 as amended by ticket 23). It is
+            aligned with the rail, where the row labels are: it belongs to the
+            rows, not to a step column. */}
+        <div className={styles.addRow}>
+          <button
+            type="button"
+            className={styles.addRowButton}
+            onClick={onAddRow}
+            disabled={!canAddRow}
+            aria-label={
+              canAddRow ? 'Add a sound' : 'Add a sound. Every sound is already in this clip.'
+            }
+            data-testid="add-row-button"
+          >
+            + Add a sound
+          </button>
         </div>
       </div>
       {wellFooter && <div className={styles.wellFooter}>{wellFooter}</div>}

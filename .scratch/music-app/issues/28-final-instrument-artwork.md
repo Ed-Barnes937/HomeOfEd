@@ -39,3 +39,11 @@ attributed placeholders.** Per this ticket's own clause: the CC BY
 attribution ships with them (already in
 `apps/boop/public/kits/launch/ATTRIBUTION.txt`) and this ticket stays
 open for the real artwork. This unblocks ticket 26's artwork gate.
+
+2026-09-02 (boop-instruments spec §3): **scope grows from 6 to 20
+characters.** The boop-instruments effort
+(`.scratch/boop-instruments/spec.md`) expands the launch kit's roster to 20
+instruments, each landing with a game-icons.net CC BY placeholder in the
+same pattern as V1. When this ticket is picked up, the real artwork set is
+20 characters (both crops each), not six - see the roster table in that
+spec's §2.

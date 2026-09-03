@@ -94,6 +94,29 @@ const scenarios: readonly Scenario[] = [
     },
   },
   {
+    // The burnables case none of the rows above reaches: a *whole screen* of
+    // wood alight at once (burnables ticket 04; ADR 0042 named this as the
+    // gap). "Reaction churn" pours fire onto a wood slab, but the burn there
+    // stays a local front and only ~2k cells are ever awake. A smoldering mass
+    // is awake by construction - a lifetime writes `ra` every tick - so the
+    // number this row exists to print is `scanned`, which sits five to eight
+    // times higher.
+    //
+    // Lit along the whole top edge rather than at a corner, which is what makes
+    // it a steady state over the measured window instead of a ramp: measured,
+    // the front holds ~4.3k embers and ~1.3k flames from tick 250 to the end
+    // while the wood drains roughly linearly, so every tick of the window is
+    // paid for by a real burn rather than by drifting smoke.
+    name: 'wood world ablaze',
+    setup: (sim) => {
+      fill(sim, 0, FLOOR_TOP, RIGHT, GRID_HEIGHT - 1, STONE)
+      fill(sim, 0, 20, RIGHT, FLOOR_TOP - 1, WOOD)
+      for (let x = 0; x <= RIGHT; x += 6) {
+        sim.paint(x, 20, FIRE)
+      }
+    },
+  },
+  {
     name: 'plant growth',
     setup: (sim) => {
       fill(sim, 0, FLOOR_TOP, RIGHT, GRID_HEIGHT - 1, STONE)

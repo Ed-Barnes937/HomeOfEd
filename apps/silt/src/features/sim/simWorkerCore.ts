@@ -4,7 +4,7 @@
 // cells), the fixed-timestep clock, and the spawner list — emission runs
 // inside the tick loop, before each tick, exactly as the main-thread loop did
 // (spec §7).
-import { FixedTimestep, MS_PER_TICK, Sim } from '../../sim/index.ts'
+import { EMPTY, FixedTimestep, MS_PER_TICK, Sim } from '../../sim/index.ts'
 import { emitSpawners, type Spawner } from '../spawners/spawners.ts'
 import {
   STATUS_REVISION,
@@ -40,9 +40,16 @@ export class SimWorkerCore {
       case 'paintCells':
         // Applied on receipt, not deferred to the next tick — between ticks is
         // exactly when a main-thread paint landed, and the next rAF sees it.
+        // The brush fills, it never converts: an occupied cell is skipped (the
+        // same stance emitSpawners takes), so a stroke through a stone basin
+        // or a pond adds material around it instead of cutting through it.
+        // Erasing (EMPTY) is exempt — clearing occupied cells is its job.
         this.#mutate(() => {
           for (const index of message.cellIndices) {
-            sim.paint(index % sim.width, (index / sim.width) | 0, message.species)
+            const x = index % sim.width
+            const y = (index / sim.width) | 0
+            if (message.species !== EMPTY && sim.speciesAt(x, y) !== EMPTY) continue
+            sim.paint(x, y, message.species)
           }
         })
         break

@@ -200,6 +200,255 @@ export class HomePagePom extends BasePage {
     await expect(this.boopsCard).toHaveCount(0)
   }
 
+  // --- The instrument picker (boop-instruments ticket 05) ---
+
+  private readonly instrumentPicker = this.page.getByTestId('instrument-picker')
+  private readonly instrumentPickerList = this.page.getByTestId('instrument-picker-list')
+  private readonly removeRowButton = this.page.getByTestId('instrument-picker-remove-row')
+
+  /** A row's rail artwork — a button since ticket 05, at every width. */
+  rowInstrumentButton(instrumentId: string) {
+    return this.page.getByTestId(`row-instrument-button-${instrumentId}`)
+  }
+
+  instrumentEntry(instrumentId: string) {
+    return this.page.getByTestId(`instrument-picker-entry-${instrumentId}`)
+  }
+
+  /** Tap a row's artwork — the one route into the picker, on laptop and phone. */
+  async openRowInstrumentPicker(instrumentId: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.rowInstrumentButton(instrumentId).click()
+    await expect(this.instrumentPicker).toBeVisible()
+  }
+
+  /** The rail button says whose sound it changes (spec §4). */
+  async verifyRowInstrumentButtonLabel(instrumentId: string, label: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.rowInstrumentButton(instrumentId)).toHaveAttribute('aria-label', label)
+  }
+
+  async verifyInstrumentPickerShown(): Promise<void> {
+    await expect(this.instrumentPicker).toBeVisible()
+  }
+
+  async verifyInstrumentPickerClosed(): Promise<void> {
+    await expect(this.instrumentPicker).toHaveCount(0)
+  }
+
+  /** The dialog's accessible name — the picker's title. */
+  async verifyInstrumentPickerLabelled(title: string): Promise<void> {
+    await expect(this.page.getByRole('dialog', { name: title })).toBeVisible()
+  }
+
+  /** The section headings, in order — Drums / Notes / Silly (spec §2). */
+  async verifyInstrumentSections(labels: string[]): Promise<void> {
+    await expect(this.page.getByTestId(/^instrument-picker-section-label-/)).toHaveText(labels)
+  }
+
+  /** One section's entries, in order — the manifest's order is the picker's. */
+  async verifyInstrumentSectionEntries(sectionId: string, names: string[]): Promise<void> {
+    await expect(
+      this.page.getByTestId(`instrument-picker-section-${sectionId}`).getByRole('button'),
+    ).toHaveText(names)
+  }
+
+  /**
+   * Tap a sound: it auditions and the row swaps live, and the dialog stays open
+   * so the child can browse by ear (spec §4).
+   */
+  async chooseInstrument(instrumentId: string): Promise<void> {
+    await this.instrumentEntry(instrumentId).click()
+  }
+
+  /** The dialog scrolls rather than growing: the last sound is reachable inside it. */
+  async verifyInstrumentPickerScrolls(lastInstrumentId: string): Promise<void> {
+    const overflow = await this.instrumentPickerList.evaluate((element) =>
+      getComputedStyle(element).overflowY,
+    )
+    expect(overflow).toBe('auto')
+    await this.instrumentEntry(lastInstrumentId).scrollIntoViewIfNeeded()
+    await expect(this.instrumentEntry(lastInstrumentId)).toBeInViewport()
+  }
+
+  /** An instrument the clip already holds — the row's own included (spec §4). */
+  async verifyInstrumentEntryDisabled(instrumentId: string, name: string): Promise<void> {
+    await expect(this.instrumentEntry(instrumentId)).toBeDisabled()
+    await expect(this.instrumentEntry(instrumentId)).toHaveAttribute(
+      'aria-label',
+      `${name}. Already in this clip.`,
+    )
+  }
+
+  async verifyInstrumentEntryEnabled(instrumentId: string): Promise<void> {
+    await expect(this.instrumentEntry(instrumentId)).toBeEnabled()
+  }
+
+  async closeInstrumentPicker(): Promise<void> {
+    await this.page.getByTestId('instrument-picker-close-button').click()
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** Escape: it closes the picker and leaves the clip editor card behind it open. */
+  async dismissInstrumentPickerByEscape(): Promise<void> {
+    await this.page.keyboard.press('Escape')
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** A tap on the dimmed backdrop, the way every other dialog dismisses. */
+  async dismissInstrumentPickerByOutsideTap(): Promise<void> {
+    await this.page.getByTestId('instrument-picker-overlay').click({ position: { x: 5, y: 5 } })
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** The picker's footer action — no confirm anywhere in this toy. */
+  async removeThisRow(): Promise<void> {
+    await this.removeRowButton.click()
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  /** At one row there is nothing to remove, so the footer is not offered. */
+  async verifyRemoveRowAbsent(): Promise<void> {
+    await expect(this.removeRowButton).toHaveCount(0)
+  }
+
+  async verifyRemoveRowOffered(): Promise<void> {
+    await expect(this.removeRowButton).toBeVisible()
+  }
+
+  // --- "+ Add a sound" and the row-count geometry (boop-instruments ticket 06) ---
+
+  private readonly addRowButton = this.page.getByTestId('add-row-button')
+
+  /**
+   * Open the picker in append mode. The button sits under the last row *inside*
+   * the well's rows box, so with enough rows it is below that box's fold -
+   * bring it into view the way a child would, by scrolling the rows.
+   */
+  async openAddSoundPicker(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.addRowButton.scrollIntoViewIfNeeded()
+    await this.addRowButton.click()
+    await expect(this.instrumentPicker).toBeVisible()
+  }
+
+  /** The whole append flow: "add" is one decision, so the dialog closes (spec §4). */
+  async addSound(instrumentId: string): Promise<void> {
+    await this.openAddSoundPicker()
+    await this.chooseInstrument(instrumentId)
+    await this.verifyInstrumentPickerClosed()
+  }
+
+  async verifyAddSoundOffered(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.addRowButton).toBeEnabled()
+  }
+
+  /** At the whole roster there is no sound left to add (spec §4). */
+  async verifyAddSoundDisabled(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.addRowButton).toBeDisabled()
+  }
+
+  /**
+   * The button belongs to the rows, not to the pinned footer (ADR 0030 as
+   * amended by ticket 23): scrolling the well's rows box moves it by the scroll
+   * delta and leaves clip play exactly where it was.
+   */
+  async verifyAddSoundScrollsWithTheRows(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const addBefore = await this.topOf('add-row-button')
+    const playBefore = await this.topOf('play-button')
+
+    const scrolled = await this.gridWellScroll.evaluate((element) => {
+      const from = element.scrollTop
+      element.scrollTop = element.scrollHeight
+      return element.scrollTop - from
+    })
+    expect(scrolled).toBeGreaterThan(0)
+
+    expect(
+      Math.abs(addBefore - (await this.topOf('add-row-button')) - scrolled),
+    ).toBeLessThanOrEqual(1)
+    expect(Math.abs((await this.topOf('play-button')) - playBefore)).toBeLessThanOrEqual(1)
+  }
+
+  private async topOf(testId: string): Promise<number> {
+    const box = await this.page.getByTestId(testId).boundingBox()
+    if (!box) throw new Error(`${testId} is not visible`)
+    return box.y
+  }
+
+  /** The aria copy counts the clip's own rows rather than a hardcoded six (spec §4). */
+  async verifyGridRowCountAnnounced(rowCount: number): Promise<void> {
+    await expect(
+      this.page.getByRole('application', { name: new RegExp(`^${rowCount} by 16 step grid\\.`) }),
+    ).toBeVisible()
+  }
+
+  /**
+   * The hue each row wears, top to bottom, as the browser resolves it - the
+   * rail artwork is painted in `--row-color`. Hues are positional and cycle
+   * every six rows (spec §10.2), which is a decision, so it is read off the
+   * page rather than trusted to the constant.
+   */
+  async readRowHues(): Promise<string[]> {
+    return this.page.getByTestId(/^row-instrument-button-/).evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const artwork = node.firstElementChild
+        return artwork === null ? '' : getComputedStyle(artwork).backgroundColor
+      }),
+    )
+  }
+
+  /**
+   * The phone's pinned rail and its scrolling step window are two columns of
+   * the same rows: whatever the row count, they line up row for row.
+   */
+  async verifyRailAlignedWithSteps(instrumentIds: readonly string[]): Promise<void> {
+    for (const instrumentId of instrumentIds) {
+      const label = await this.page.getByTestId(`row-label-${instrumentId}`).boundingBox()
+      const cell = await this.cell(instrumentId, 0).boundingBox()
+      if (!label || !cell) throw new Error(`row ${instrumentId} is not on the page`)
+      const centres = Math.abs(label.y + label.height / 2 - (cell.y + cell.height / 2))
+      expect(centres).toBeLessThanOrEqual(1)
+    }
+  }
+
+  /**
+   * ADR 0027's rule on the vertical axis (ADR 0042): playback never scrolls a
+   * row into view. Crank the transport and nothing that could carry a row out
+   * from under the child moves - the well's rows box, the frame's region, or
+   * the page.
+   */
+  async verifyPlaybackDoesNotScrollVertically(steps: number): Promise<void> {
+    const before = await this.readVerticalScrolls()
+    await this.crankSteps(steps)
+    await expect.poll(async () => this.readVerticalScrolls()).toEqual(before)
+  }
+
+  private async readVerticalScrolls(): Promise<{ well: number; region: number; page: number }> {
+    return {
+      well: await this.gridWellScroll.evaluate((element) => element.scrollTop),
+      region: await this.stageScroller.evaluate((element) => element.scrollTop),
+      page: await this.page.evaluate(() => Math.round(window.scrollY)),
+    }
+  }
+
+  /**
+   * The well's rows box hugs its rows rather than stretching to fill a tall
+   * window - `flex: 0 1 auto`, never `flex: 1` (ADR 0030 as amended by ticket
+   * 23). A stretched box shows up as a client height beyond its content.
+   */
+  async verifyWellHugsItsRows(): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const box = await this.gridWellScroll.evaluate((element) => ({
+      client: element.clientHeight,
+      content: element.scrollHeight,
+    }))
+    expect(box.client).toBeLessThanOrEqual(box.content + 1)
+  }
+
   // --- The song bar as the home surface, and the clip editor card
   // (screenspace ticket 03) ---
 
@@ -678,6 +927,50 @@ export class HomePagePom extends BasePage {
     return this.page.getByTestId(`boop-row-${index}`)
   }
 
+  /**
+   * A "My boops" row's dot matrix: the rows it actually drew, and the box it
+   * drew them in. A clip owns its rows (ADR 0042), so the count moves — the
+   * box must not, or the list would jump about as a child adds sounds.
+   */
+  async readBoopThumbnail(
+    index: number,
+  ): Promise<{ rows: number; box: number; row: number; ink: number; shortestRow: number }> {
+    const thumbnail = this.boopRow(index).getByTestId('pattern-thumbnail')
+    const drawn = await thumbnail.getAttribute('data-rows')
+    const box = await thumbnail.boundingBox()
+    const row = await this.boopRow(index).boundingBox()
+    if (!box || !row) throw new Error(`the thumbnail on boop row ${index} is not visible`)
+    // What the dots actually occupy, measured rather than derived: the rule is
+    // that the rows *divide* the box, so the ink must fill it and stay in it.
+    const dots = await thumbnail.evaluate((matrix) => {
+      const boxes = [...matrix.querySelectorAll('span')].map((dot) => dot.getBoundingClientRect())
+      return {
+        top: Math.min(...boxes.map((r) => r.top)),
+        bottom: Math.max(...boxes.map((r) => r.bottom)),
+        shortest: Math.min(...boxes.map((r) => r.height)),
+      }
+    })
+    return {
+      rows: Number(drawn),
+      box: box.height,
+      row: row.height,
+      ink: dots.bottom - dots.top,
+      shortestRow: dots.shortest,
+    }
+  }
+
+  /**
+   * The "WHOLE LOOP" band's reserved height (design handoff, "Main screen —
+   * small phone": 34px of band inside a 44px border box). It is a step readout,
+   * not a miniature of the grid, so no row count may move it.
+   */
+  async verifyLoopMapBandHeight(px: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const band = await this.page.getByTestId('loop-map').boundingBox()
+    if (!band) throw new Error('the loop map is not visible')
+    expect(band.height).toBe(px)
+  }
+
   // --- The saved/edited indicator (ticket 31) ---
 
   /** The whole of the desktop indicator's text — `Boop 1`, `Boop 1 • edited`, or `Not saved yet`. */
@@ -1115,6 +1408,23 @@ export class HomePagePom extends BasePage {
     await expect
       .poll(async () => this.gridWellScroll.evaluate((element) => element.scrollTop))
       .toBeGreaterThan(0)
+  }
+
+  /**
+   * The rows the grid shows, in order. A clip owns its rows since ADR 0042, so
+   * "which instruments are on the grid" is a question a test can ask — of
+   * either renderer, since both label their rows the same way.
+   */
+  async verifyGridRows(instrumentIds: readonly string[]): Promise<void> {
+    await expect
+      .poll(async () =>
+        this.page
+          .getByTestId(/^row-label-/)
+          .evaluateAll((nodes) =>
+            nodes.map((node) => node.getAttribute('data-testid')!.replace('row-label-', '')),
+          ),
+      )
+      .toEqual([...instrumentIds])
   }
 
   /** 6 rows × 16 steps, at every breakpoint — no ticket may drop one (ADR 0027). */

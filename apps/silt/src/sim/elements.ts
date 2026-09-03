@@ -23,6 +23,8 @@ export const MUD = 14
 export const SEED = 15
 export const MOSS = 16
 export const VINE = 17
+export const EMBER = 18
+export const ASH = 19
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -127,8 +129,10 @@ const oil: ElementDef = {
   colours: ['#46402c', '#3f3a28', '#4c4530', '#433d2a'],
   tags: ['liquid', 'flammable'],
   // Lighter than water (30), so water sinks past it and the oil ends up as the
-  // film on top — the displacement rule does this, not a special case.
-  archetype: { kind: 'liquid', density: 20, dispersion: 4 },
+  // film on top — the displacement rule does this, not a special case. The
+  // `move` throttle is what makes it read as viscous: half of water's pace,
+  // well clear of lava's ooze (0.15), with one cell less spread than water.
+  archetype: { kind: 'liquid', density: 20, dispersion: 3, move: 0.5 },
 }
 
 /**
@@ -271,6 +275,68 @@ const vine: ElementDef = {
   onTick: grow,
 }
 
+/**
+ * Wood's smolder phase (burnables spec §2), and the reason wood reads as wood
+ * rather than as slow oil: the contact point chars and glows, the glow creeps
+ * along the beam, and only then does it erupt into open flame.
+ *
+ * A species rather than a per-cell heat field, because everything it needs is
+ * already here: a lifetime for the glow, reaction rows for the creep and the
+ * douse. See [ADR 0042](../../../../docs/adr/0042-silt-wood-smolders-as-ember.md).
+ */
+const ember: ElementDef = {
+  id: EMBER,
+  name: 'ember',
+  // Glowing char. Not in the design brief's swatch list, like obsidian and
+  // sulphur - a reaction product, not something you paint. Ticket 04 may tune
+  // the base; the other three follow it by the mass rule above.
+  colours: ['#b3401d', '#a13a1a', '#c1451f', '#ac3d1c'],
+  // **Not `flammable`.** It is already burning, so no ignition row may reach
+  // it - including the `fire + [flammable]` fallback, which would otherwise
+  // flash a smoldering wall the moment its own eruption lit a neighbour.
+  tags: ['solid'],
+  archetype: { kind: 'static' },
+  // As wood: acid's `[solid]` row at maxHardness 1 still eats a charred wall.
+  hardness: 1,
+  // 2–3 s of glow at 60 tps, then open flame - which cascades, rises and dies
+  // to smoke exactly as fire always has. 180 total is under
+  // `MAX_LIFETIME_TICKS`, and the countdown owns `ra`, which is why this is a
+  // static element: no opinion field and no growth count to collide with.
+  lifetime: { ticks: 120, jitter: 60, becomes: 'fire' },
+}
+
+/**
+ * What a fire leaves behind (burnables spec §3), and the first half of the
+ * ecology loop: ash falls, rain wets it to mud, and `seed + mud -> moss`
+ * regrows what burned. See
+ * [ADR 0042](../../../../docs/adr/0042-silt-wood-smolders-as-ember.md) §6.
+ */
+const ash: ElementDef = {
+  id: ASH,
+  name: 'ash',
+  // Pale grey, and the only grey in the roster that is neither stone nor
+  // gas - a burnt-out bed should read as absence rather than as material. A
+  // product, so not in the design brief's swatch list; ticket 04 may tune the
+  // base and the other three follow it by the mass rule above.
+  colours: ['#9b948b', '#8c857d', '#a7a096', '#958e85'],
+  // **Not `flammable`.** As ember: the ignition ladder and its
+  // `fire + [flammable]` fallback both key on the tag, so leaving it off is
+  // what keeps a bed of residue out of the fire rather than a rule saying so.
+  tags: ['powder'],
+  // Density 35 puts ash between water (30) and mud (50), which is what closes
+  // the loop: a grain sinks into a pool instead of floating on it, and rests
+  // *on* a wetted bed instead of burying itself in it. Sand (60) and seed (40)
+  // both sink past it, so neither a sandfall nor a dropped seed is stopped by
+  // a layer of it. It *ties* acid at 35, and `canDisplace` is `mine > theirs`,
+  // so ash floats on an acid pool rather than sinking through it - moot in
+  // practice, since acid's `[powder]` row dissolves the grain on contact.
+  archetype: { kind: 'powder', density: 35, slide: 1 },
+  // 0 is the softest rung, so acid's `[powder]` row at maxHardness 1 reaches
+  // it: acid erases a bed of ash. Deliberate - it is spent material, not a
+  // building block. `ash.test.ts` pins it as a choice rather than a surprise.
+  hardness: 0,
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -290,6 +356,8 @@ export const v1Elements: readonly ElementDef[] = [
   seed,
   moss,
   vine,
+  ember,
+  ash,
 ]
 
 /**
@@ -305,12 +373,69 @@ export const v1Reactions: readonly ReactionRow[] = [
   // makes the water cycle visible. (v1 made obsidian on both sides.)
   { a: 'water', b: 'lava', p: 1, aBecomes: 'steam', bBecomes: 'obsidian' },
   { a: 'water', b: 'fire', p: 1, aBecomes: 'steam', bBecomes: 'smoke' },
-  // One row covers every fuel, now and later. Rewriting the fire cell clears
-  // its `ra` and so restarts its countdown: fire burns while its fuel lasts,
-  // then dies to smoke. That is the point of the row, not a side effect.
+  // **The ignition ladder** (burnables spec §1). Each fuel has its own
+  // probability, which is its whole character: sulphur is flash powder and a
+  // heap chains instantly, oil flashes, a vine burns as a fuse fast enough to
+  // route fire along a grown line, a seed pops, and a mat of moss takes visible
+  // time to consume. Every row here rewrites the fire cell, which clears its
+  // `ra` and so restarts its countdown: fire burns while its fuel lasts, then
+  // dies to smoke. That is the point of the rows, not a side effect.
+  //
+  // **These rows must stay above the tag row below them**, the same trap as
+  // `acid + wood` further down: the tag row covers every one of these pairs as
+  // well, and `resolvePairs` keeps the first registration and drops the rest
+  // without a word - reorder them and a fuel silently reverts to 0.4, and wood
+  // silently goes back to flashing rather than charring. `fire.test.ts` pins it.
+  //
+  // Wood is the one fuel that never becomes fire directly: it chars first
+  // (spec §2, the ember rows below).
+  { a: 'fire', b: 'sulphur', p: 1, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'oil', p: 0.9, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'vine', p: 0.6, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'seed', p: 0.3, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'moss', p: 0.2, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'wood', p: 0.2, aBecomes: 'fire', bBecomes: 'ember' },
+  // The fallback, and the default every future flammable arrives on.
   { a: 'fire', b: 'flammable', p: 0.4, aBecomes: 'fire', bBecomes: 'fire' },
+  // **The residue branch** (spec §3): open flame beside a smoldering cell
+  // occasionally burns it straight down to ash instead of letting it erupt.
+  // This is the probabilistic fork a single-valued `lifetime.becomes` cannot
+  // express - most embers flame, some become residue - so it is a row.
+  //
+  // **Read the `p` as a rate, not as a share**, which is why it is this small.
+  // The draw is offered every tick and an ember glows for 120-180 of them, so
+  // what "most embers flame" costs is `1 - (1 - p)^150`, not `p` - and the
+  // spec's first 0.05 turned out to mean an exposed ember almost never erupts.
+  // The sweep behind 0.003 is in
+  // [ADR 0042](../../../../docs/adr/0042-silt-wood-smolders-as-ember.md) §6.
+  //
+  // Below the tag row rather than above it because it is not part of the
+  // ignition ladder: ember carries no `flammable` tag, so no tag row claims
+  // this pair and its position is free. It sits with the fire rows for
+  // legibility, not for precedence.
+  { a: 'fire', b: 'ember', p: 0.003, aBecomes: 'fire', bBecomes: 'ash' },
+  // Lava chars wood too, and more slowly than it lights anything else - but it
+  // is still the heat source it is everywhere else, so it survives. **Above
+  // the tag row**, which covers this pair as well.
+  { a: 'lava', b: 'wood', p: 0.1, aBecomes: 'lava', bBecomes: 'ember' },
   // Lava ignites and survives — it is a heat source, not a fuel.
   { a: 'lava', b: 'flammable', p: 0.15, aBecomes: 'lava', bBecomes: 'fire' },
+  // **The creep** (spec §2): a smolder walks through a beam one orthogonal
+  // contact at a time, slowly enough to watch. The a-side rewrite is not a
+  // typo - rewriting the ember cell clears its `ra` and so restarts its
+  // countdown, which is exactly the intent: an ember with fuel still beside it
+  // goes on smoldering, and only once its wood is gone (or the 0.02 draws keep
+  // missing) does the countdown run out and the cell erupt. It also re-rolls
+  // `rb`, so a smoldering mass shimmers a little - also a feature.
+  //
+  // No tag row above claims this pair, since ember is not `flammable` and the
+  // acid rows are acid-keyed, so this row is safe here.
+  { a: 'ember', b: 'wood', p: 0.02, aBecomes: 'ember', bBecomes: 'ember' },
+  // **The douse**: rain saves a smoldering structure, which is a player verb
+  // the instant burn never offered. Back to wood rather than to char, because
+  // a "damp char" species would earn its place only if this reads wrong in
+  // play. Mirrors `water + fire` at p 1.
+  { a: 'water', b: 'ember', p: 1, aBecomes: 'steam', bBecomes: 'wood' },
   // **This row must stay above the two below it.** They cover acid + wood as
   // well, via `[solid]` at hardness 1, and `resolvePairs` keeps the first
   // registration and drops the rest without a word — reorder these three and
@@ -332,6 +457,13 @@ export const v1Reactions: readonly ReactionRow[] = [
   // dirt. Dirt only — sand plus water is wet sand, and a lake quietly turning a
   // whole sand bed to ooze annoys more than it delights.
   { a: 'water', b: 'dirt', p: 0.4, aBecomes: null, bBecomes: 'mud' },
+  // The same row with the bed swapped, and the second half of the ash loop
+  // (spec §3): wetting a bed of residue is the same act as wetting a bed of
+  // soil, so it is the same shape and the same p. Which is what makes what
+  // burned fertile again - `seed + mud -> moss` does the rest, unchanged.
+  // Ash is a powder, so acid's `[powder]` row covers `acid + ash`, but nothing
+  // above claims *this* pair, so the row is safe here beside its twin.
+  { a: 'water', b: 'ash', p: 0.4, aBecomes: null, bBecomes: 'mud' },
   // The two heat levels. Mud carries no `flammable` tag and is a liquid, so
   // neither `fire + [flammable]` nor acid's `[solid]`/`[powder]` rows cover
   // these pairs — naming both sides explicitly keeps them out of the tags

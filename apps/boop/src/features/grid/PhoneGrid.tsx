@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, type CSSProperties, type UIEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type UIEvent } from 'react'
 
 import { STEPS_PER_PATTERN } from '../../engine/sequencerEngine.ts'
 import type { GridViewProps } from './Grid.tsx'
-import { ROW_COLOR_VARS } from './instrumentColors.ts'
+import { rowColorVar } from './instrumentColors.ts'
 import { LoopMap } from './LoopMap.tsx'
 import styles from './PhoneGrid.module.scss'
 import { PHONE_WINDOW_WIDTH, phoneOffscreenSide } from './phoneWindow.ts'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
+import { instrumentsById } from './rowInstruments.ts'
 import { useDragPaint } from './useDragPaint.ts'
 import { useGridKeyboardNav } from './useGridKeyboardNav.ts'
 import { useLoadStagger } from './useLoadStagger.ts'
@@ -16,8 +17,9 @@ const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
 
 /**
  * The small-phone grid (ticket 27; design handoff, "Main screen — small
- * phone"). The grid stays **6 x 16, always** — no row or column is ever
- * dropped. Instead the instrument rail is pinned at 92px and the 16 step
+ * phone"). The grid never drops a row or a column: **16 steps always, and
+ * every row the clip has** (ADR 0027, as amended by ADR 0042).
+ * Instead the instrument rail is pinned at 92px and the 16 step
  * columns scroll horizontally inside a ~246px window that snaps to the 4-step
  * groups, so a swipe always lands on a bar line. The part-cut cell at the
  * window's edge is kept deliberately: it is the affordance that says there is
@@ -51,9 +53,13 @@ export function PhoneGrid({
   loadToken,
   onScrubToStep,
   onScrubToSongStart,
+  onOpenInstrumentPicker,
+  onAddRow,
+  canAddRow,
   wellFooter,
 }: GridViewProps) {
   const groups = Array.from({ length: GROUP_COUNT }, (_, i) => i)
+  const instruments = useMemo(() => instrumentsById(kit), [kit])
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: false })
   const staggerDelayFor = useLoadStagger(loadToken)
   const keyboardNav = useGridKeyboardNav({
@@ -97,17 +103,25 @@ export function PhoneGrid({
             <div className={styles.barSpacer} aria-hidden="true" />
             <div className={styles.railRows}>
               {pattern.map((row, rowIndex) => {
-                const instrument = kit.instruments[rowIndex]
+                const instrument = instruments.get(row.instrumentId)
                 if (!instrument) return null
-                const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
                 const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
                 return (
                   <div
                     key={row.instrumentId}
                     className={styles.railRow}
-                    style={{ '--row-color': `var(${colorVar})` } as CSSProperties}
+                    style={{ '--row-color': `var(${rowColorVar(rowIndex)})` } as CSSProperties}
                   >
-                    <span className={styles.plate}>
+                    {/* The rail is pinned, so this button is always reachable
+                        — the phone's one route into the instrument picker
+                        (ticket 05, spec §4). */}
+                    <button
+                      type="button"
+                      className={styles.plate}
+                      onClick={() => onOpenInstrumentPicker(rowIndex)}
+                      aria-label={`${instrument.name}. Change this row's sound.`}
+                      data-testid={`row-instrument-button-${row.instrumentId}`}
+                    >
                       <span
                         className={styles.artwork}
                         style={{
@@ -115,7 +129,7 @@ export function PhoneGrid({
                           WebkitMaskImage: `url(${instrument.artwork})`,
                         }}
                       />
-                    </span>
+                    </button>
                     <span
                       key={rowStrikeEpoch}
                       className={styles.nameBob}
@@ -154,7 +168,8 @@ export function PhoneGrid({
                   ref={keyboardNav.containerRef}
                   className={styles.body}
                   role="application"
-                  aria-label="6 by 16 step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses. Swipe sideways for the other bars."
+                  // The clip's own row count, as on the laptop (ADR 0042).
+                  aria-label={`${pattern.length} by ${STEPS_PER_PATTERN} step grid. Tap a cell to turn a beat on or off. Arrow keys move, Enter toggles, Backspace removes. Space plays or pauses. Swipe sideways for the other bars.`}
                 >
                   <div className={styles.playheadLayer} aria-hidden="true">
                     {playheadStep !== null && (
@@ -169,14 +184,15 @@ export function PhoneGrid({
                   </div>
                   <div className={styles.rows}>
                     {pattern.map((row, rowIndex) => {
-                      const instrument = kit.instruments[rowIndex]
+                      const instrument = instruments.get(row.instrumentId)
                       if (!instrument) return null
-                      const colorVar = ROW_COLOR_VARS[rowIndex % ROW_COLOR_VARS.length]
                       return (
                         <div
                           key={row.instrumentId}
                           className={styles.stepsRow}
-                          style={{ '--row-color': `var(${colorVar})` } as CSSProperties}
+                          style={
+                            { '--row-color': `var(${rowColorVar(rowIndex)})` } as CSSProperties
+                          }
                         >
                           {groups.map((group) => (
                             <div key={group} className={styles.group}>
@@ -253,6 +269,26 @@ export function PhoneGrid({
               />
             )}
           </div>
+        </div>
+
+        {/* "+ Add a sound" (ticket 06, spec §4): the same button the laptop
+            has, under the rows and inside the well's scroll box, so it scrolls
+            with them while the loop map and clip play stay pinned. It sits
+            under both columns rather than inside the 92px rail, which is the
+            only place a phone has room for its label. */}
+        <div className={styles.addRow}>
+          <button
+            type="button"
+            className={styles.addRowButton}
+            onClick={onAddRow}
+            disabled={!canAddRow}
+            aria-label={
+              canAddRow ? 'Add a sound' : 'Add a sound. Every sound is already in this clip.'
+            }
+            data-testid="add-row-button"
+          >
+            + Add a sound
+          </button>
         </div>
       </div>
 
