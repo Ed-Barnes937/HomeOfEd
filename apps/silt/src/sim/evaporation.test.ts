@@ -10,7 +10,9 @@ const STEAM = 10
 const MUD = 14
 const WALL = 255
 
-const ids: EvaporationIds = { empty: EMPTY, water: WATER, steam: STEAM }
+// `STEAM` is still a constant here but no longer one of the hook's ids: since
+// the deletion ruling it is only ever a *roof* in these cases, never a product.
+const ids: EvaporationIds = { empty: EMPTY, water: WATER }
 
 /**
  * The hook against a stub, as `stalk.test.ts` and `seedBank.test.ts` do it: the
@@ -84,23 +86,33 @@ class StubApi implements Api {
 const evaporate = createEvaporation(ids)
 
 describe('the evaporation hook', () => {
-  it('lofts a film with open air over it and something other than water under it', () => {
+  /**
+   * **It dries to nothing, and that is the ruling** (ADR 0044 §6): the film
+   * becomes `empty`, not `steam`. The transmuting version shipped first and was
+   * ruled out on feel with the app running - a cell of cloud over every drying
+   * film put a permanent haze on every wet bed, and the haze read as noise. The
+   * cost is that this cell of water has left the world for good, which is why
+   * the ledger has a named exception now (ADR 0045 §4) rather than an invariant.
+   */
+  it('dries a film with open air over it and something other than water under it', () => {
     const api = new StubApi({ '0,0': WATER, '0,-1': EMPTY, '0,1': MUD })
 
     evaporate(api)
 
-    expect(api.becomes).toEqual([STEAM])
-    // Transmuted, not drained: nothing was left awake and no byte was touched.
+    expect(api.becomes).toEqual([EMPTY])
+    // Never steam: the ambient plume is exactly what the ruling took out.
+    expect(api.becomes).not.toContain(STEAM)
+    // Drained and done: nothing was left awake and no byte was touched.
     expect(api.wakes).toBe(0)
     expect(api.raWrites).toEqual([])
   })
 
-  it('counts the world edge below it as ground, so a film on the floor still lifts', () => {
+  it('counts the world edge below it as ground, so a film on the floor still dries', () => {
     const api = new StubApi({ '0,0': WATER, '0,-1': EMPTY, '0,1': WALL })
 
     evaporate(api)
 
-    expect(api.becomes).toEqual([STEAM])
+    expect(api.becomes).toEqual([EMPTY])
   })
 
   /**
@@ -120,7 +132,7 @@ describe('the evaporation hook', () => {
     expect(api.wakes).toBe(0)
   })
 
-  it('never lifts water from inside a body of water, whichever side is closed', () => {
+  it('never dries water from inside a body of water, whichever side is closed', () => {
     for (const cells of [
       // Roofed by more water: this cell is the middle of a pool.
       { '0,0': WATER, '0,-1': WATER, '0,1': MUD },
@@ -172,7 +184,7 @@ describe('the evaporation hook', () => {
    * `ra` is the liquid opinion field (ADR 0038), so the disguised write the
    * growers use is not available here at any price.
    */
-  it('holds its chunk awake when the draw misses, and lets it go once it lifts', () => {
+  it('holds its chunk awake when the draw misses, and lets it go once it dries', () => {
     const missed = new StubApi({ '0,0': WATER, '0,-1': EMPTY, '0,1': MUD }, [EVAPORATE_P])
 
     evaporate(missed)

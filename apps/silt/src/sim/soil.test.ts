@@ -143,13 +143,20 @@ describe('mud', () => {
     expect(wetted).toBeGreaterThan(0)
     // Two cells in, one out: each cell of mud costs a cell of water.
     expect(count(sim, MUD)).toBe(wetted)
-    // **Steam is in the sum since life ticket 05**: the film left on top of the
-    // wetted bed lifts (`evaporation.ts`), so water now leaves this pocket two
-    // ways rather than one. It is still spent one for one - into the soil or
-    // into the sky - and condensation puts a cell back on the water side of the
-    // same sum, so this holds however the two swap
-    // ([ADR 0045](../../../../docs/adr/0045-silt-the-water-ledger.md)).
-    expect(waterBefore - count(sim, WATER) - count(sim, STEAM)).toBe(wetted)
+    // **Water leaves this pocket two ways, and only two.** The pocket is walled
+    // in obsidian and there is no fire in it, so the only rules that can touch
+    // its water are `water + dirt` and the film that dries on the wetted bed
+    // (`evaporation.ts`). The first is the one-for-one above; the second is the
+    // deliberate leak
+    // ([ADR 0045](../../../../docs/adr/0045-silt-the-water-ledger.md) §4), so
+    // what is pinned is that the remainder is *exactly* the drying and nothing
+    // else has a hand in it.
+    //
+    // Measured at seed 1: of the 44 cells poured, 21 soaked into the bed and 21
+    // dried off it, leaving 2 standing. Before the deletion ruling this line
+    // read `.toBe(wetted)`, because the 21 came back as steam.
+    const spent = waterBefore - count(sim, WATER) - count(sim, STEAM)
+    expect(spent - wetted).toBe(21)
   })
 
   it('sand still sinks through it', () => {

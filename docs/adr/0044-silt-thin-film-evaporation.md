@@ -1,7 +1,10 @@
 # 0044 - silt: only a thin film evaporates, and its own plume brakes it
 
 - **Status:** Accepted
-- **Date:** 2026-09-03
+- **Date:** 2026-09-03 (**amended** the same day by §6: a film dries to nothing
+  rather than lofting as steam. The gates, the rate and the keep-awake are
+  unchanged, and every measurement below of the transmuting variant is kept as
+  the record of what was tried.)
 - **Related:** `.scratch/silt-life-followup/spec.md` ruling 1, §4.5, §6 and §8,
   ticket 05 (`.scratch/silt-life-followup/issues/05-water-cycle.md`);
   [ADR 0038](0038-silt-liquids-keep-their-direction-in-ra.md) for the liquid
@@ -50,8 +53,10 @@ Two further constraints came with the ground rather than with the rule:
 
 ### 1. Only a **thin film** evaporates
 
-A water cell becomes steam when there is open air directly above it **and
-something other than water directly below it**. Everything else is refused.
+A water cell evaporates when there is open air directly above it **and something
+other than water directly below it**. Everything else is refused. (It became
+*steam* as this section was first written; §6 amends that to nothing at all. The
+gate is what this section is about and the gate did not move.)
 
 That makes a level pool two cells deep permanent: its floor has water above it
 and its surface has water below it, so no cell of it is a film anywhere. A pond
@@ -139,6 +144,64 @@ miniature: the rule meant to dry standing water manufacturing permanent cloud
 instead. So the cell below must be neither water **nor empty** - a film rests on
 something. The prototype's scenes were small and static enough never to meet it.
 
+### 6. **A film dries to nothing** - amended 2026-09-03, on feel
+
+Everything above shipped with the film becoming **steam**. It does not any more:
+the draw now writes `empty`, and the cell of water is gone.
+
+**The ruling, and how it was made.** Ed watched the transmuting version running
+and called it: *"1 layer water disappearing instead of constant steam
+everywhere."* Every wet bed in the world has film on it somewhere most of the
+time, so a rule that lofts every drying film puts a permanent low haze over the
+whole world - and the haze read as **noise**, not as weather. Silt's whole
+posture is that it stays calm until it is provoked (§ *Ambient weather* below,
+which declined the same thing from the other direction), and this was ambient
+weather arriving by the back door of a drainage rule.
+
+Nothing above is retracted. The thin-film gate, the fall gate, the humidity
+brake, the rate and the keep-awake are all unchanged, and the measurements of
+the transmuting variant recorded in §3, §4 and §5 stand as the record of what was
+tried - they are measurements of *when a film lifts*, and the ruling changed only
+*what it leaves*.
+
+**What it trades away, stated rather than glossed:**
+
+- **Evaporated water leaves the world.** A dried film never comes back as rain.
+  ADR 0045's "every rule transmutes, none deletes" is no longer true of this one,
+  and this hook is now that ADR's fifth named exception - the deliberate leak
+  rather than a hole. Measured on the sealed box that used to hold drift zero:
+  drift 2, 5, 7 and 4 cells of an opening 20 over 3000 ticks, four seeds. Never a
+  rise, never a fall bigger than one cell on a tick, and never a fall that
+  outran the films standing at the top of that tick - which is what makes
+  "evaporation is the *only* leak" a pin rather than a hope.
+- **A raindrop gets one pass at the ground.** This is the consequence with teeth
+  and it is not obvious from the rule. Water that landed and did not react used
+  to loft, drift and land again; now it dries where it fell. Two measured
+  effects: the rain a wildfire makes washes noticeably less of a neighbouring ash
+  drift into the bed (the drift lost 0-2 cells over six seeds, against a cell or
+  two on every seed before), and the slow tail of a meadow's burn recovery
+  stretched from 342-884 ticks to 342-2577 - the fast seeds unmoved, the slow
+  ones losing their second and third pass. Both are inside the epic's targets and
+  neither was tuned around.
+- **Watering a meadow no longer buys it anything.** A one-deep sheet is film
+  along its whole length, so it dries out of the world in 696-702 ticks instead
+  of cycling. ADR 0045 §4 carries the number.
+- **The humidity brake survives, and is not dead code.** It looked like the
+  obvious casualty - if this hook makes no steam, what plume brakes it? The
+  answer is that the ruling removed *this hook* as a source of steam, not steam:
+  the quench (`mud + fire -> dirt + steam`) and the wet-biomass ignition rows are
+  untouched, so a burn still raises a real plume, and under one the brake is what
+  stops a bed drying out from under its own rain before the rain has landed. The
+  only case it loses is the ambient one, which is the case that went.
+- **The hook no longer knows what steam is.** `EvaporationIds` dropped its
+  `steam` field: the hook reads two species and produces none. The ruling made
+  structural, and the smallest way to keep it from drifting back.
+
+**What was not weighed.** A middle rule - lofting *sometimes*, deleting
+otherwise - is not available: the engine cannot split one outcome by probability
+without a second draw, and a second draw here would be a knob with no feel behind
+it. The ruling was a binary and was taken as one.
+
 ## Alternatives measured and declined
 
 - **Shallow pool** - a film, *or* the surface of a level two-deep pool (read one
@@ -171,12 +234,17 @@ something. The prototype's scenes were small and static enough never to meet it.
   unchanged over 8000 ticks, with `scannedLastTick` at zero.
 - **A finished bed sleeps either way round** - dry or saturated - because a bed
   with no free water on it has no film and the hook writes nothing.
-- **Free water over ground that cannot absorb it is permanent light weather.**
-  A puddle on impermeable stone lifts, rains, lands and lifts again; measured in
-  a sealed box with a half-dry bed, five of thirteen poured cells soaked in and
-  the rest were still cycling at 40,000 ticks. That world never sleeps, and it is
-  the honest consequence of a drain with nowhere to drain *to*. Over soil it
-  terminates, because `water + dirt -> mud` is a sink.
+- ~~**Free water over ground that cannot absorb it is permanent light
+  weather.**~~ **Superseded by §6, and this is the consequence the ruling
+  improved.** While a film lofted, a puddle on impermeable stone lifted, rained,
+  landed and lifted again: measured in a sealed box with a half-dry bed, five of
+  thirteen poured cells soaked in and the rest were still cycling at 40,000
+  ticks, and that world never slept. A film now dries out of the world instead,
+  so the puddle terminates on stone exactly as it does over soil: **measured on
+  the same scene, the last of the water was gone by 406-641 ticks over three
+  seeds and `scannedLastTick` was zero two ticks later.** A drain with nowhere to
+  drain *to* now drains anyway. Kept rather than deleted because it is the
+  strongest evidence for the ruling and was not the reason for it.
 - **Water is the first element carrying a hook without claiming a byte**, which
   is what promoting `keepAwake` bought. The byte-ownership rule is unchanged and
   still has exactly four conditional claimants (ADR 0043).

@@ -96,7 +96,9 @@ const sand: ElementDef = {
  * construction. See `evaporation.ts` and
  * [ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md).
  */
-const evaporate = createEvaporation({ empty: EMPTY, water: WATER, steam: STEAM })
+// No `steam` id: a film dries to nothing rather than lofting (ADR 0044 §6), so
+// the hook reads two species and produces none of its own.
+const evaporate = createEvaporation({ empty: EMPTY, water: WATER })
 
 const water: ElementDef = {
   id: WATER,

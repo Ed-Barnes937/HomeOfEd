@@ -136,12 +136,17 @@ petals.ts     the fifth `onTick`, and the smallest: a living flower sheds a peta
               flower's own countdown already writes every tick
 evaporation.ts the sixth hook, and the only one on an element that was always
               here: a one-cell film of water - open air above, something other
-              than water below - lifts as steam. A pond and a level two-deep pool
+              than water below - **dries to nothing**, and it is the one rule in
+              the table that spends water outright rather than moving it (Ed's
+              feel ruling; it lofted steam until 2026-09-03 and the ambient plume
+              read as noise). A pond and a level two-deep pool
               have no film anywhere in them, so both are permanent by
               construction; steam overhead counts as "not open air", which is the
-              humidity brake. The one hook owning no byte, and so the one that
+              humidity brake - still load-bearing, because the quench and the
+              wet-biomass rows are untouched and still raise real plumes. The one
+              hook owning no byte, and so the one that
               made `keepAwake` public
-              ([ADR 0044](../../docs/adr/0044-silt-thin-film-evaporation.md))
+              ([ADR 0044](../../docs/adr/0044-silt-thin-film-evaporation.md) §6)
 emit.ts       emitInto - scattering a brood into the empty cells around one cell,
               shared by `lifetime.emits` and the shedding hook. Displaces
               nothing, so a crowded flower simply sheds fewer

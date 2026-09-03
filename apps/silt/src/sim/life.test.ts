@@ -68,6 +68,27 @@ function countIn(sim: Sim, box: Box, species: number): number {
   return total
 }
 
+/**
+ * Film cells inside `box`, by the hook's own two structural gates: open air
+ * above, and something that is neither water nor air below (`evaporation.ts`).
+ * Exactly the cells that are offered a draw, and so the ceiling on how far the
+ * ledger can fall in one tick now that a film dries out of the world rather than
+ * lofting (ADR 0044 §6).
+ */
+function filmsIn(sim: Sim, box: Box): number {
+  let total = 0
+  for (let y = box.y0; y <= box.y1; y++) {
+    for (let x = box.x0; x <= box.x1; x++) {
+      if (sim.speciesAt(x, y) !== WATER) continue
+      if (sim.speciesAt(x, y - 1) !== EMPTY) continue
+      const below = sim.speciesAt(x, y + 1)
+      if (below === WATER || below === EMPTY) continue
+      total++
+    }
+  }
+  return total
+}
+
 /** 2×2 squares inside `box` whose four cells are all plant. Should always be 0. */
 function blocksIn(sim: Sim, box: Box): number {
   const plant = (x: number, y: number): boolean => {
@@ -324,12 +345,17 @@ describe('seed, moss and vine', () => {
     const grown = count(sim, VINE)
     expect(grown).toBeGreaterThan(0)
     // One for one: growth converts water, it does not conjure vine out of air.
-    // **Steam is in the sum since life ticket 05**: growth eats into the pool
-    // from below, so cells of it end up one deep over a vine and lift as film
-    // (`evaporation.ts`). Water still only ever leaves into the plant or into
-    // the sky, and condensation puts a cell back on the water side of the same
-    // sum (ADR 0045).
-    expect(waterBefore - count(sim, WATER) - count(sim, STEAM)).toBe(grown)
+    // **Two routes out since life ticket 05, and only two**: growth eats into
+    // the pool from below, so cells of it end up one deep over a vine and dry as
+    // film (`evaporation.ts`). Growth is the one-for-one; the drying is the
+    // deliberate leak (ADR 0045 §4), so what is pinned is that the remainder is
+    // the drying and nothing else has a hand in it.
+    //
+    // Measured at seed 1: 112 cells of the 209-cell pool became vine and 8 dried
+    // off the top of it. Before the deletion ruling this line read `.toBe(grown)`
+    // with steam in the sum, because those 8 came back.
+    const spent = waterBefore - count(sim, WATER) - count(sim, STEAM)
+    expect(spent - grown).toBe(8)
   })
 
   /**
@@ -1578,15 +1604,32 @@ describe('the water cycle', () => {
 
   /**
    * **The ledger** (spec §7.3, ADR 0045), and the acceptance ticket 05 exists
-   * for: free water, water aloft and water in the soil are one quantity, and no
-   * rule in the table may spend it. Sampled every tick rather than at the end,
-   * since a ledger that dipped and recovered would still be a leak.
+   * for: free water, water aloft and water in the soil are one quantity, and
+   * every rule in the table has to say what it does to it. Sampled every tick
+   * rather than at the end, since a leak that showed up only at the close could
+   * be hiding a dip and a recovery.
    *
-   * The burn is the case that used to break it: `mud + fire` left *smoke*, and
-   * smoke fades to nothing, so drying a bed deleted its water outright. Measured
-   * drift zero at every tick of every seed, exactly as the prototype measured it.
+   * **Reframed by the deletion ruling** (ADR 0044 §6, ADR 0045 §4). This case
+   * used to pin `ledger() === opening` on every tick of every seed, and that
+   * claim is no longer true: a film dries out of the world rather than lofting,
+   * so the ledger really does fall. What replaces it is the claim the ruling
+   * actually leaves standing - **evaporation is the *only* leak** - pinned three
+   * ways rather than by widening a band:
+   *
+   * - the ledger **never rises**, so nothing manufactures water;
+   * - it **never falls by more than the number of films standing at the top of
+   *   the tick**, which is the shape only evaporation can have. A quench, a
+   *   fading smoke or a lost condensation would all breach it, and the fall is
+   *   one cell at a time;
+   * - the total drift over 3000 ticks is small and measured.
+   *
+   * Measured over four seeds (two are pinned): drift 2, 5, 7 and 4 cells of an
+   * opening 20; zero rises; the largest fall on any tick 1; and not one fall
+   * anywhere that outran the films counted before it. The burn still moves the
+   * water through all three states - the bed peaked at 18-20 mud and the plume
+   * at 18-20 steam, unchanged - because the quench is untouched.
    */
-  it('holds the ledger cell for cell through a pour, a burn and the rain that follows', () => {
+  it('leaks only by evaporation through a pour, a burn and the rain that follows', () => {
     for (const seed of [1, 2]) {
       const sim = new Sim({ seed })
       sealedBox(sim, 40, 80, 40)
@@ -1601,8 +1644,10 @@ describe('the water cycle', () => {
       const ledger = (): number =>
         countIn(sim, BOX, WATER) + countIn(sim, BOX, STEAM) + countIn(sim, BOX, MUD)
       const opening = ledger()
+      let previous = opening
       let wettest = 0
       let peakSteam = 0
+      let biggestFall = 0
 
       for (let t = 0; t < 3000; t++) {
         // Torched once the pour has soaked in, so the fire meets wet soil - and
@@ -1614,12 +1659,30 @@ describe('the water cycle', () => {
             if (sim.speciesAt(x, FLOOR - 2) === EMPTY) sim.paint(x, FLOOR - 2, FIRE)
           }
         }
+        // Counted before the tick, because a film is what the hook is offered.
+        const films = filmsIn(sim, BOX)
         sim.tick()
-        expect(ledger()).toBe(opening)
+        const now = ledger()
+        // **Nothing makes water.** The half of the old invariant that survives
+        // the ruling untouched.
+        expect(now).toBeLessThanOrEqual(previous)
+        // **And what spends it is shaped like evaporation and nothing else**: a
+        // fall of N needs N films to have been standing. The quench, a smoke
+        // that faded or a condensation that went missing would all show up here
+        // as a fall with no film under it.
+        expect(previous - now).toBeLessThanOrEqual(films)
+        biggestFall = Math.max(biggestFall, previous - now)
+        previous = now
         wettest = Math.max(wettest, countIn(sim, BOX, MUD))
         peakSteam = Math.max(peakSteam, countIn(sim, BOX, STEAM))
       }
 
+      // A film at a time, never a gulp. Measured: the largest fall on any tick
+      // of any of four seeds was 1.
+      expect(biggestFall).toBeLessThanOrEqual(1)
+      // And small: 2-7 cells of the opening 20 over 3000 ticks, four seeds.
+      expect(opening - previous).toBeGreaterThan(0)
+      expect(opening - previous).toBeLessThan(10)
       // Not vacuous: the water really did move through all three states.
       expect(wettest).toBeGreaterThan(0)
       expect(peakSteam).toBeGreaterThan(0)
@@ -1685,8 +1748,16 @@ describe('the water cycle', () => {
    * Measured over six seeds: the crowns were down to one or none in 6-17 ticks,
    * the plume peaked at 36-39 cells, the bed was wet again by 368-382 ticks, the
    * bank had a new plant up by 118-334, and the meadow was back to the mass and
-   * the crown count the fire found by 342-884. That is the recovery on the
+   * the crown count the fire found by 342-2577. That is the recovery on the
    * ticket's 500-3000 tick order, from the bank rather than from a seed rain.
+   *
+   * **The deletion ruling stretched the tail and nothing else** (ADR 0044 §6).
+   * Clearing, plume and re-wetting are identical to the numbers ticket 06
+   * recorded, because the quench is what makes this rain and the quench is
+   * untouched. Full recovery was 342-884 before and is 342-2577 now: the fast
+   * seeds did not move, and the slow ones lost the second and third pass a
+   * raindrop used to get at the bed once it had landed. Still inside the
+   * ticket's window, with less headroom at the top than it had.
    */
   it('clears a meadow with a dragged torch and rains the bed back to life', () => {
     for (const seed of [1, 2, 3]) {
@@ -1752,12 +1823,24 @@ describe('the water cycle', () => {
    * was already there, and what ticket 05 supplies is the *water*. No rain is
    * painted - every cell of it is soil the fire dried and the sky handed back.
    *
-   * Measured over three seeds: the torch dried 17 of the bed's 35 cells and
-   * lofted 17, the bed was wetter than it started by 1000 ticks (mud 18 -> 29-34),
-   * a cell or two of the ash drift washed in with it, and the first crown was up
-   * between 237 and 1517 ticks.
+   * **The ash washing is now marginal, and that is the deletion ruling's one
+   * real cost** (ADR 0044 §6). While a film lofted, a raindrop that landed on
+   * the bed beside the drift got another pass at it, and another - so the drift
+   * lost a cell or two on every seed. A raindrop now dries where it lands and
+   * has exactly one chance to fall on ash. Measured over six seeds the drift
+   * lost 0, 2, 2, 2, 1 and 0 cells: it still happens, on four seeds of six, but
+   * it is no longer a per-seed claim and pinning it as one would be tuning
+   * around the ruling. So the sweep is what carries it - over three seeds the
+   * rain reaches the ash at least once - and the per-seed pins are the ones the
+   * ruling left alone.
+   *
+   * Measured over six seeds: the torch dried 17 of the bed's 35 cells and lofted
+   * 17, the bed was wetter than the fire left it by 13-16 cells (mud 18 -> 31-34,
+   * against 29-34 before the ruling - the quench is untouched, so the burn's own
+   * rain is the same rain), and the first crown was up between 32 and 311 ticks.
    */
   it('washes its own ash into the bed with the rain the burn made', () => {
+    let washedOverall = 0
     for (const seed of [1, 2, 3]) {
       const sim = new Sim({ seed })
       tank(sim, 40, 80, 60, MUD)
@@ -1780,13 +1863,19 @@ describe('the water cycle', () => {
         if (regrown < 0 && crowns(sim) > 0) regrown = t
       }
 
-      // The bed ended up wetter than the fire left it, and some of the extra is
-      // ash that the rain turned back into soil.
+      // The bed ended up wetter than the fire left it - all of it the burn's own
+      // water, none of it painted. Measured 13-16 cells over six seeds.
       expect(scorched).toBeGreaterThan(0)
       expect(wettest).toBeGreaterThan(scorched + 8)
-      expect(count(sim, ASH)).toBeLessThan(drift)
       expect(regrown).toBeGreaterThan(0)
       expect(regrown).toBeLessThan(3000)
+      washedOverall += drift - count(sim, ASH)
     }
+
+    // **And the rain does reach the ash** - across the sweep rather than on
+    // every seed, which is the honest shape of it since a drop that lands now
+    // dries instead of getting a second pass. Measured 4 cells over these three
+    // seeds (0, 2, 2), and 7 over six.
+    expect(washedOverall).toBeGreaterThan(0)
   })
 })
