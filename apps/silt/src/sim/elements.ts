@@ -24,6 +24,7 @@ export const SEED = 15
 export const MOSS = 16
 export const VINE = 17
 export const EMBER = 18
+export const ASH = 19
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -302,6 +303,38 @@ const ember: ElementDef = {
   lifetime: { ticks: 120, jitter: 60, becomes: 'fire' },
 }
 
+/**
+ * What a fire leaves behind (burnables spec §3), and the first half of the
+ * ecology loop: ash falls, rain wets it to mud, and `seed + mud -> moss`
+ * regrows what burned. See
+ * [ADR 0042](../../../../docs/adr/0042-silt-wood-smolders-as-ember.md) §6.
+ */
+const ash: ElementDef = {
+  id: ASH,
+  name: 'ash',
+  // Pale grey, and the only grey in the roster that is neither stone nor
+  // gas - a burnt-out bed should read as absence rather than as material. A
+  // product, so not in the design brief's swatch list; ticket 04 may tune the
+  // base and the other three follow it by the mass rule above.
+  colours: ['#9b948b', '#8c857d', '#a7a096', '#958e85'],
+  // **Not `flammable`.** As ember: the ignition ladder and its
+  // `fire + [flammable]` fallback both key on the tag, so leaving it off is
+  // what keeps a bed of residue out of the fire rather than a rule saying so.
+  tags: ['powder'],
+  // Density 35 puts ash between water (30) and mud (50), which is what closes
+  // the loop: a grain sinks into a pool instead of floating on it, and rests
+  // *on* a wetted bed instead of burying itself in it. Sand (60) and seed (40)
+  // both sink past it, so neither a sandfall nor a dropped seed is stopped by
+  // a layer of it. It *ties* acid at 35, and `canDisplace` is `mine > theirs`,
+  // so ash floats on an acid pool rather than sinking through it - moot in
+  // practice, since acid's `[powder]` row dissolves the grain on contact.
+  archetype: { kind: 'powder', density: 35, slide: 1 },
+  // 0 is the softest rung, so acid's `[powder]` row at maxHardness 1 reaches
+  // it: acid erases a bed of ash. Deliberate - it is spent material, not a
+  // building block. `ash.test.ts` pins it as a choice rather than a surprise.
+  hardness: 0,
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -322,6 +355,7 @@ export const v1Elements: readonly ElementDef[] = [
   moss,
   vine,
   ember,
+  ash,
 ]
 
 /**
@@ -361,6 +395,16 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'fire', b: 'wood', p: 0.2, aBecomes: 'fire', bBecomes: 'ember' },
   // The fallback, and the default every future flammable arrives on.
   { a: 'fire', b: 'flammable', p: 0.4, aBecomes: 'fire', bBecomes: 'fire' },
+  // **The residue branch** (spec §3): open flame beside a smoldering cell
+  // occasionally burns it straight down to ash instead of letting it erupt.
+  // This is the probabilistic fork a single-valued `lifetime.becomes` cannot
+  // express - most embers flame, some become residue - so it is a row.
+  //
+  // Below the tag row rather than above it because it is not part of the
+  // ignition ladder: ember carries no `flammable` tag, so no tag row claims
+  // this pair and its position is free. It sits with the fire rows for
+  // legibility, not for precedence.
+  { a: 'fire', b: 'ember', p: 0.05, aBecomes: 'fire', bBecomes: 'ash' },
   // Lava chars wood too, and more slowly than it lights anything else - but it
   // is still the heat source it is everywhere else, so it survives. **Above
   // the tag row**, which covers this pair as well.
@@ -404,6 +448,13 @@ export const v1Reactions: readonly ReactionRow[] = [
   // dirt. Dirt only — sand plus water is wet sand, and a lake quietly turning a
   // whole sand bed to ooze annoys more than it delights.
   { a: 'water', b: 'dirt', p: 0.4, aBecomes: null, bBecomes: 'mud' },
+  // The same row with the bed swapped, and the second half of the ash loop
+  // (spec §3): wetting a bed of residue is the same act as wetting a bed of
+  // soil, so it is the same shape and the same p. Which is what makes what
+  // burned fertile again - `seed + mud -> moss` does the rest, unchanged.
+  // Ash is a powder, so acid's `[powder]` row covers `acid + ash`, but nothing
+  // above claims *this* pair, so the row is safe here beside its twin.
+  { a: 'water', b: 'ash', p: 0.4, aBecomes: null, bBecomes: 'mud' },
   // The two heat levels. Mud carries no `flammable` tag and is a liquid, so
   // neither `fire + [flammable]` nor acid's `[solid]`/`[powder]` rows cover
   // these pairs — naming both sides explicitly keeps them out of the tags

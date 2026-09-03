@@ -76,7 +76,7 @@ constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick 
 types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
-              moss, vine, ember) and v1Reactions — config plus one hook. Everything
+              moss, vine, ember, ash) and v1Reactions — config plus one hook. Everything
               that forms a mass declares four shades rather than one, picked
               per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
               rail reads it. The three gases stay flat. Gas densities
@@ -85,8 +85,9 @@ elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian
               a specific pair must precede any tag row covering it (acid + wood,
               the `fire + <fuel>` ignition ladder above `fire + flammable`, and
               `lava + wood` above `lava + flammable`). Wood never becomes fire
-              directly - it chars to ember, which creeps, erupts, or is doused
-              back to wood (ADR 0042)
+              directly - it chars to ember, which creeps, erupts, is doused
+              back to wood, or is burned down to ash, which rain wets to mud
+              and a seed regrows (ADR 0042)
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;

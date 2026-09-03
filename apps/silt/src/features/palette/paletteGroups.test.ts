@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  ASH,
   createRegistry,
   EMBER,
   OBSIDIAN,
@@ -35,11 +36,12 @@ describe('paletteGroups', () => {
       'mud',
       'seed',
     ])
-    // Obsidian, smoke, steam, sulphur, moss, vine and ember are what the world
-    // makes, not what you paint — sulphur only exists where acid has eaten
-    // wood, the plants only where a seed found wet soil, and an ember only
-    // where something set wood smoldering.
-    for (const id of [OBSIDIAN, SMOKE, STEAM, SULPHUR, MOSS, VINE, EMBER]) {
+    // Obsidian, smoke, steam, sulphur, moss, vine, ember and ash are what the
+    // world makes, not what you paint — sulphur only exists where acid has
+    // eaten wood, the plants only where a seed found wet soil, an ember only
+    // where something set wood smoldering, and ash only where a fire finished
+    // the job.
+    for (const id of [OBSIDIAN, SMOKE, STEAM, SULPHUR, MOSS, VINE, EMBER, ASH]) {
       expect(entries.some((entry) => entry.id === id)).toBe(false)
     }
   })

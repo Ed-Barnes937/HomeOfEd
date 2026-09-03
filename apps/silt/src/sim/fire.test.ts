@@ -113,10 +113,10 @@ describe('the fire group', () => {
     expect(registry.get(EMBER)?.colours).toHaveLength(4)
   })
 
-  // Rows 1–13 are this group's; later groups append to the same table, so this
+  // Rows 1–14 are this group's; later groups append to the same table, so this
   // pins the head of it rather than the whole thing.
-  it('registers rows 1–13 in the declared order', () => {
-    expect(v1Reactions.slice(0, 13).map((row) => [row.a, row.b])).toEqual([
+  it('registers rows 1–14 in the declared order', () => {
+    expect(v1Reactions.slice(0, 14).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -126,6 +126,7 @@ describe('the fire group', () => {
       ['fire', 'moss'],
       ['fire', 'wood'],
       ['fire', 'flammable'],
+      ['fire', 'ember'],
       ['lava', 'wood'],
       ['lava', 'flammable'],
       ['ember', 'wood'],
@@ -335,7 +336,7 @@ describe('the fire group', () => {
   // by design, so this asserts the new story rather than a loosened old one:
   // char, crawl, erupt. Its point is the same one - a torched wall goes on
   // burning long past a lone fire cell's 60-tick ceiling - but what carries the
-  // burn now is the char, not a fire cell being re-lit.
+  // burn now is the char rather than a wave of ignitions through the wood.
   it('smolders through a wall of wood rather than detonating it', () => {
     const sim = new Sim({ seed: 1 })
     for (let y = FLOOR - 12; y <= FLOOR; y++) {
@@ -346,24 +347,33 @@ describe('the fire group', () => {
     run(sim, 70)
 
     // Charring, and nowhere near consumed: this is the whole change. Measured,
-    // 102 of the wall's 260 cells glow here and the other 157 are still wood.
+    // 97 of the wall's 260 cells glow here and the other 150 are still wood.
     expect(count(sim, EMBER)).toBeGreaterThan(0)
     expect(count(sim, WOOD)).toBeGreaterThan(0)
-    // And the flame that started it is already out: the fire cell was walled in
-    // by wood, charred its four contacts, and ember carries no `flammable` tag,
-    // so nothing re-lit it and its countdown ran out. Past this point the burn
-    // lives entirely in the char - which is what the creep row is for.
-    expect(count(sim, FIRE)).toBe(0)
+    // Still exactly the one flame that was painted, which is two facts at once.
+    // It has not *spread*: ember carries no `flammable` tag, so the four
+    // contacts it charred are not fuel any ignition row can reach. And it has
+    // not gone *out*, which ticket 03 changed - the ash branch
+    // (`fire + ember -> fire + ash`) rewrites the fire side, and a rewrite
+    // clears `ra`, so a flame walled in by char is renewed every time it burns
+    // a neighbour down to residue. Measured on this seed it lives from tick 1
+    // to tick 133 rather than dying at 55. Same reading as `ember + wood`
+    // resetting the ember's countdown: something with fuel beside it goes on
+    // burning.
+    expect(count(sim, FIRE)).toBe(1)
 
     // Then the char erupts, and the open flame it becomes is what finishes the
-    // wall off. Slow, in other words, not stalled.
-    let flamed = false
+    // wall off. Slow, in other words, not stalled. Counted as *more* flame than
+    // the one cell above rather than as "any flame at all", which the ash
+    // branch keeping that cell alive would now satisfy for free - measured, the
+    // eruptions take it to 33 cells by the end of this window.
+    let mostFire = 0
     for (let i = 0; i < 250; i++) {
       sim.tick()
-      flamed ||= count(sim, FIRE) > 0
+      mostFire = Math.max(mostFire, count(sim, FIRE))
     }
 
-    expect(flamed).toBe(true)
+    expect(mostFire).toBeGreaterThan(1)
     expect(count(sim, WOOD)).toBe(0)
   })
 

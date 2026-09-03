@@ -19,8 +19,9 @@ import {
  * smoke, steam and sulphur — sulphur is what corroding wood leaves behind, and
  * painting it directly would make acid a second eraser rather than a tool.
  * Moss and vine are products too, and deliberately so: they are what a seed
- * planted in wet soil earns you. So is ember - a cell of wood that something
- * set smoldering, never something you place.
+ * planted in wet soil earns you. So are ember and ash - a cell of wood that
+ * something set smoldering, and what the fire left of it, never something you
+ * place.
  * Listed explicitly, rather than derived by excluding a tag,
  * so a future reaction product doesn't have to remember to also carry an
  * "un-paintable" marker to stay out of the rail.
