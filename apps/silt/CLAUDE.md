@@ -53,6 +53,9 @@ src/
                     spawners/(continuous emitters — entities, not cells)
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +
                               quota; useScenes: page state; the popover)
+  docs/             interactionGraph - derives the element graph from the live
+                    registry and renders docs/interaction-graph.md; pure, so the
+                    drift test can regenerate and compare
   testing/          IwftApp harness (in-browser backend) + iwft fixture + SiltPagePom
   *.iwft.tsx        whole-frontend tests: render (paint/canvas), blit (WebGL↔2D
                     pixel parity + the env-gated blit bench), chrome, scenes,
@@ -214,6 +217,13 @@ Spec §8; the calls the spec leaves open are in
   `scannedLastTick` beside every timing — a scenario that got faster because it
   stopped simulating is not a win, and the scanned count is what tells the two
   apart.
+- `pnpm --filter silt run graph` — rewrites
+  [`docs/interaction-graph.md`](docs/interaction-graph.md) (mermaid graph plus a
+  row-by-row table) from the registry. Unlike `bench` this one **is** gated:
+  `src/docs/interactionGraph.test.ts` fails if the checked-in file has drifted,
+  so a new element or reaction row means running the script in the same change.
+  Growth is the only edge the registry cannot report, so it is declared in the
+  generator - a change to `growth.ts` has to be mirrored there.
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).
 
 ## Rules
