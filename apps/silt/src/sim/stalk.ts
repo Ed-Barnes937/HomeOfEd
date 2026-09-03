@@ -50,6 +50,17 @@ export interface SproutIds {
   stalk: number
 }
 
+/** What the tip needs to know about: the cell it makes, and the two it becomes. */
+export interface TipIds {
+  empty: number
+  /** Itself, one cell up, carrying the rest of the budget. */
+  tip: number
+  /** What it leaves behind, one cell of stem at a time. */
+  stalk: number
+  /** What it becomes when the budget runs out - or when it is boxed in. */
+  flower: number
+}
+
 /**
  * The travelling budget, in the byte the tip owns. It counts **height + 1**, so
  * `1` means spent and `0` keeps clear of the engine's "not seeded yet" - a tip
@@ -83,5 +94,50 @@ export function createSprout(ids: SproutIds): (api: Api) => void {
     // The sprout is consumed by sprouting - it becomes the bottom cell of the
     // stem, so the column crumbles from the ground up like the rest of it.
     api.become(ids.stalk)
+  }
+}
+
+/**
+ * **The grower** (spec §4.3), and the reason `set` had to learn to carry a byte
+ * (life ticket 01): a plant that grows *and* dies cannot be one species, so the
+ * tip climbs and the stem it leaves behind is what expires.
+ *
+ * The budget travels with the tip rather than being counted from the ground up.
+ * The alternative - a cell that looks down its own stem to work out how tall it
+ * is - reads further than `CHUNK_MARGIN` allows on anything but the shortest
+ * plant, and the one after that (swap into the cell above and backfill stem)
+ * is movement inside a hook, which the element model forbids (spec §2.2).
+ */
+export function createTip(ids: TipIds): (api: Api) => void {
+  return (api) => {
+    const budget = api.ra
+
+    // **Terminate, never spin.** Two ways to be finished: the budget is spent,
+    // or the plant is boxed in - roofed by anything at all, the world's ceiling
+    // included. Waiting out a roof would mean writing every tick for as long as
+    // the tip is trapped, on the chance the roof moves; blooming early costs the
+    // plant the rest of its height and nothing else.
+    if (budget <= 1 || api.get(0, -1) !== ids.empty) {
+      api.become(ids.flower)
+      return
+    }
+
+    if (api.rand() < CLIMB_P) {
+      // The budget is handed on, and this cell is inert stem from here.
+      api.set(0, -1, ids.tip, { ra: budget - 1 })
+      api.become(ids.stalk)
+      return
+    }
+
+    // **The keep-awake write, on the missed draw only.** A cell that should keep
+    // acting must write or its chunk sleeps and the plant freezes mid-air, and
+    // `Api` has no `keepAwake` - so the tip rewrites the byte it already owns,
+    // exactly as `growth.ts` rewrites its branch count. It must not happen on
+    // the climbing branch: that cell is stalk by then, and the stem's `lifetime`
+    // owns `ra` (ADR 0043) - a write there would pre-spend its countdown.
+    //
+    // Self-terminating, as a hook has to be: the writes stop the tick the tip
+    // blooms, and a bloomed cell has no candidate left to write for.
+    api.ra = budget
   }
 }

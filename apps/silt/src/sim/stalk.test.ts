@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { createSprout, STALK_HEIGHT_JITTER, STALK_HEIGHT_MIN, type SproutIds } from './stalk.ts'
+import {
+  CLIMB_P,
+  createSprout,
+  createTip,
+  STALK_HEIGHT_JITTER,
+  STALK_HEIGHT_MIN,
+  type SproutIds,
+  type TipIds,
+} from './stalk.ts'
 import type { Api, SetOptions } from './types.ts'
 
 const EMPTY = 0
@@ -12,7 +20,8 @@ const STALK = 23
 const FLOWER = 24
 const WALL = 255
 
-const ids: SproutIds = { empty: EMPTY, tip: TIP, stalk: STALK }
+const sproutIds: SproutIds = { empty: EMPTY, tip: TIP, stalk: STALK }
+const tipIds: TipIds = { empty: EMPTY, tip: TIP, stalk: STALK, flower: FLOWER }
 
 /**
  * The hooks against a stub rather than a `Sim`, as `growth.test.ts` and
@@ -87,7 +96,8 @@ class StubApi implements Api {
   }
 }
 
-const sprout = createSprout(ids)
+const sprout = createSprout(sproutIds)
+const tip = createTip(tipIds)
 
 describe('the sprout hook', () => {
   it('raises a tip into the air above it and is spent becoming the stem', () => {
@@ -156,5 +166,88 @@ describe('the sprout hook', () => {
     sprout(api)
 
     expect(api.raWrites).toEqual([])
+  })
+})
+
+describe('the stalk tip hook', () => {
+  it('hands its budget on to the cell above and leaves inert stem behind', () => {
+    const api = new StubApi({ '0,0': TIP }, 9)
+
+    tip(api)
+
+    expect(api.writes).toEqual([{ dx: 0, dy: -1, species: TIP, options: { ra: 8 } }])
+    expect(api.becomes).toEqual([STALK])
+  })
+
+  it('blooms when the budget is spent', () => {
+    const api = new StubApi({ '0,0': TIP }, 1)
+
+    tip(api)
+
+    expect(api.writes).toEqual([])
+    expect(api.becomes).toEqual([FLOWER])
+  })
+
+  /**
+   * `ra` is 0 on a cell nothing has seeded - the engine's own "not seeded yet"
+   * convention, which the budget stays clear of by counting from 1. A tip
+   * painted into a scene therefore blooms at once rather than climbing forever.
+   */
+  it('blooms at once when it was planted with no budget at all', () => {
+    const api = new StubApi({ '0,0': TIP })
+
+    tip(api)
+
+    expect(api.becomes).toEqual([FLOWER])
+  })
+
+  /**
+   * **A boxed-in tip terminates rather than spinning.** It has nowhere to spend
+   * the rest of its budget, and the alternative - waiting for the roof to move -
+   * is a cell that must write every tick for as long as it is trapped. Blooming
+   * early costs the plant its height and nothing else.
+   */
+  it('blooms early when it is boxed in, whatever budget is left', () => {
+    for (const above of [STALK, FLOWER, WATER, MUD, WALL]) {
+      const api = new StubApi({ '0,0': TIP, '0,-1': above }, 11)
+
+      tip(api)
+
+      expect(api.writes).toEqual([])
+      expect(api.becomes).toEqual([FLOWER])
+      // And it stops writing the moment it blooms: the flower's lifetime owns
+      // the byte from here on.
+      expect(api.raWrites).toEqual([])
+    }
+  })
+
+  /**
+   * The keep-awake write, and the reason it is in the *failed* branch only. A
+   * climb rewrites this cell as stalk, whose `lifetime` owns `ra` - writing the
+   * budget after that would pre-spend the stem's countdown (ADR 0043).
+   */
+  it('rewrites its own budget on a missed draw, so the chunk stays awake', () => {
+    const api = new StubApi({ '0,0': TIP }, 9, [CLIMB_P, CLIMB_P])
+
+    tip(api)
+    tip(api)
+
+    expect(api.writes).toEqual([])
+    expect(api.becomes).toEqual([])
+    // The same value twice: this is a keep-awake write, not a countdown.
+    expect(api.raWrites).toEqual([9, 9])
+  })
+
+  it('writes nothing but the new tip on a climb, so the stem keeps a clean byte', () => {
+    const api = new StubApi({ '0,0': TIP }, 9, [CLIMB_P, 0])
+
+    tip(api)
+    expect(api.raWrites).toEqual([9])
+
+    tip(api)
+    // One write for the climb, and no second write onto the cell that is now
+    // stem: `set`'s `{ ra }` is how the budget travels, not `api.ra`.
+    expect(api.raWrites).toEqual([9])
+    expect(api.writes).toHaveLength(1)
   })
 })

@@ -785,3 +785,161 @@ describe('the land plant', () => {
     expect(sim.speciesAt(200, FLOOR - 1)).toBe(SPROUT)
   })
 })
+
+/** Where the one tip in column `x` is, or `undefined` once it has bloomed. */
+function tipYIn(sim: Sim, x: number): number | undefined {
+  for (let y = 0; y < GRID_HEIGHT; y++) {
+    if (sim.speciesAt(x, y) === TIP) return y
+  }
+  return undefined
+}
+
+/**
+ * The travelling budget in a real world (spec §4.3) - the half of ticket 03
+ * that needed an engine change to be possible at all (`set` carrying an `ra`,
+ * life ticket 01).
+ */
+describe('the stalk tip', () => {
+  it('climbs into a column of stem and blooms at the top of it', () => {
+    const sim = new Sim({ seed: 1 })
+    bed(sim, 40, 60)
+    sim.paint(50, FLOOR - 2, SPROUT)
+
+    let ticks = 0
+    while (count(sim, FLOWER) === 0 && ticks < 400) {
+      sim.tick()
+      ticks++
+    }
+
+    // One flower, and a contiguous stem under it from the cell the sprout stood
+    // in - the plant is a column, not a scattering.
+    expect(count(sim, FLOWER)).toBe(1)
+    const stems = count(sim, STALK)
+    for (let i = 0; i < stems; i++) expect(sim.speciesAt(50, FLOOR - 2 - i)).toBe(STALK)
+    expect(sim.speciesAt(50, FLOOR - 2 - stems)).toBe(FLOWER)
+    expect(count(sim, TIP)).toBe(0)
+
+    // The pace the prototype settled on: 6-10 cells in roughly 20-35 ticks at
+    // p 0.3. A horizon rather than an assertion about the draws.
+    expect(ticks).toBeLessThan(200)
+  })
+
+  /**
+   * **Heights vary because the budget does** (spec §4.3), which is what stops a
+   * meadow reading as a fence. Swept over seeds rather than pinned to one, since
+   * the claim is about the spread and not about where seed 1 landed.
+   */
+  it('grows a stalk 6 to 10 cells tall, and not always the same one', () => {
+    const heights = new Set<number>()
+
+    for (let seed = 1; seed <= 12; seed++) {
+      const sim = new Sim({ seed })
+      bed(sim, 40, 60)
+      sim.paint(50, FLOOR - 2, SPROUT)
+
+      let ticks = 0
+      while (count(sim, FLOWER) === 0 && ticks < 400) {
+        sim.tick()
+        ticks++
+      }
+
+      const stems = count(sim, STALK)
+      // The stem includes the cell the sprout was spent on, so a budget of
+      // `height + 1` leaves exactly `height + 1` cells of it.
+      expect(stems).toBeGreaterThanOrEqual(STALK_HEIGHT_MIN + 1)
+      expect(stems).toBeLessThanOrEqual(STALK_HEIGHT_MIN + STALK_HEIGHT_JITTER + 1)
+      heights.add(stems)
+    }
+
+    expect(heights.size).toBeGreaterThan(1)
+  })
+
+  /**
+   * The acceptance the engine change exists for: a mid-climb tip holds exactly
+   * `initial - height climbed` in `ra`. Read off the byte rather than off the
+   * pixels, and checked on **every** tick of the climb - a budget that was
+   * re-seeded, re-jittered or left behind by one cell would break it somewhere.
+   */
+  it('holds exactly its initial budget less the height it has climbed', () => {
+    const sim = new Sim({ seed: 1 })
+    bed(sim, 40, 60)
+    sim.paint(50, FLOOR - 2, SPROUT)
+
+    let initial = 0
+    let start = 0
+    let climbed = 0
+
+    for (let t = 0; t < 400 && count(sim, FLOWER) === 0; t++) {
+      sim.tick()
+      const y = tipYIn(sim, 50)
+      if (y === undefined) continue
+      const budget = raAt(sim, 50, y)
+      if (initial === 0) {
+        initial = budget
+        start = y
+      }
+      climbed = start - y
+      expect(budget).toBe(initial - climbed)
+    }
+
+    // Not vacuous: there was a real budget and it really travelled.
+    expect(initial).toBeGreaterThan(1)
+    expect(climbed).toBeGreaterThan(0)
+    // And it was spent to the last unit: the budget counts height + 1, so the
+    // final tip - the one that blooms - is the one holding 1.
+    expect(climbed).toBe(initial - 1)
+    // The flower stands in the cell that last tip bloomed in.
+    expect(sim.speciesAt(50, start - climbed)).toBe(FLOWER)
+  })
+
+  /**
+   * **Terminate, never spin.** A tip with nowhere left to climb blooms on the
+   * spot rather than waiting for the roof to move - waiting would mean a cell
+   * writing every tick for as long as it is trapped.
+   */
+  it('blooms early when it is boxed in, rather than holding its budget', () => {
+    const sim = new Sim({ seed: 1 })
+    shaftAt(sim, 200, 6)
+    for (let i = -1; i <= 1; i++) sim.paint(200 + i, FLOOR - 3, OBSIDIAN)
+    sim.paint(200, FLOOR - 1, SPROUT)
+
+    run(sim, 200)
+
+    // One cell of stem and a flower pressed against the lid: the plant stopped
+    // where the box did, and nothing is still climbing.
+    expect(sim.speciesAt(200, FLOOR - 1)).toBe(STALK)
+    expect(sim.speciesAt(200, FLOOR - 2)).toBe(FLOWER)
+    expect(count(sim, TIP)).toBe(0)
+  })
+
+  /**
+   * The whole loop this ticket closes, in one world: bank -> sprout -> climbing
+   * tip -> stem -> flower -> nothing, and the bed left able to host a successor.
+   * Ticket 04 hangs the death drop (a seed and petals) off the last step.
+   */
+  it('leaves a clear bed and drunk soil once the plant is spent', () => {
+    const sim = new Sim({ seed: 1 })
+    bed(sim, 40, 60)
+    sim.paint(50, FLOOR - 1, BURIED)
+
+    let ticks = 0
+    while (count(sim, FLOWER) === 0 && ticks < 8000) {
+      sim.tick()
+      ticks++
+    }
+    expect(count(sim, FLOWER)).toBe(1)
+    // The soil the plant drank is dirt, and the bank cell went with it.
+    expect(sim.speciesAt(50, FLOOR - 1)).toBe(DIRT)
+    expect(count(sim, BURIED)).toBe(0)
+
+    // Past both lifetimes: 1800 ticks of stem, 1200 of flower.
+    run(sim, 2000)
+
+    const plant = count(sim, SPROUT) + count(sim, TIP) + count(sim, STALK) + count(sim, FLOWER)
+    expect(plant).toBe(0)
+    // Nothing left standing over the bed, so a successor can germinate here -
+    // which is the whole reason the stem crumbles.
+    expect(sim.speciesAt(50, FLOOR - 1)).toBe(DIRT)
+    expect(sim.speciesAt(50, FLOOR - 2)).toBe(EMPTY)
+  })
+})

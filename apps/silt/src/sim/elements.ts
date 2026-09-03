@@ -1,6 +1,6 @@
 import { createGrowth } from './growth.ts'
 import { createSeedBank } from './seedBank.ts'
-import { createSprout } from './stalk.ts'
+import { createSprout, createTip } from './stalk.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
 
 /**
@@ -395,6 +395,13 @@ const buried: ElementDef = {
 const raiseStalk = createSprout({ empty: EMPTY, tip: TIP, stalk: STALK })
 
 /**
+ * The fourth hook, and the grower half of the pair: the tip climbs on its
+ * travelling energy budget, leaves stem behind and blooms when the budget runs
+ * out. See `stalk.ts`.
+ */
+const climb = createTip({ empty: EMPTY, tip: TIP, stalk: STALK, flower: FLOWER })
+
+/**
  * What a seed germinates into on land (life spec §4.2-4.3) - moss's opposite
  * number, and the only one of the two that never touches water. It raises a
  * stalk and nothing else.
@@ -419,8 +426,7 @@ const sprout: ElementDef = {
 /**
  * The grower (life spec §2.1, §4.3): it owns `ra` as a travelling energy budget
  * and climbs until the budget is spent, leaving stem behind and blooming at the
- * end. Its hook lands in the second half of ticket 03 - until then a tip stands
- * where the sprout planted it.
+ * end. The only cell of the plant that is ever busy.
  */
 const tip: ElementDef = {
   id: TIP,
@@ -436,6 +442,7 @@ const tip: ElementDef = {
   // giving the tip a lifetime would hand it back to the engine and the plant
   // would climb on a countdown
   // ([ADR 0043](../../../../docs/adr/0043-silt-growers-and-products-split-the-byte.md)).
+  onTick: climb,
 }
 
 /**
