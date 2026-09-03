@@ -150,6 +150,17 @@ back; leave it alone and the bed dries on the timescale ticket 04 pinned. Whethe
 a meadow should be perpetual without a match at all is a roster question for
 ticket 06's tuning pass, not a rule in this table.
 
+**Ticket 06 answered it with a measurement rather than a rule**
+([ADR 0046](0046-silt-a-meadow-s-density-is-its-flower-s-lifetime.md)). It left
+the hole open - a question about how an unattended meadow should *feel* wants a
+person watching one - and what it owed this ADR was the number. The number is
+that the density pass did not move it: doubling the standing population by
+doubling the flower's life left the 261-cell bed drying at 20,000-21,600 ticks
+against 20,600-22,400 before, because a crown that lasts longer spends the bed
+more slowly per crown. Buying the same density out of the germination rate
+instead would have cut the horizon to 11,400-13,200 - which is the argument for
+where that knob lives, and it is in 0046.
+
 ## Consequences
 
 - **Measured, on a scene with no life in it**: free water + steam + mud, sampled

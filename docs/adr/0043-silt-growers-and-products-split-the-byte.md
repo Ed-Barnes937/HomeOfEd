@@ -16,6 +16,11 @@
 - **Amended** 2026-09-03 (ticket 04) with §4 - the death drop, which is the bill
   for the split arriving: a product cannot act on the tick it dies, so the engine
   acts for it (`lifetime.emits`, `apps/silt/src/sim/emit.ts`).
+- The flower and stem lifetimes quoted throughout are the ones this decision was
+  taken against (600-1200 and 1400-1800 ticks). Ticket 06 doubled both -
+  [ADR 0046](0046-silt-a-meadow-s-density-is-its-flower-s-lifetime.md) - which
+  changes none of the reasoning here: what the split is about is *which byte* a
+  countdown owns, not how long it runs.
 
 ## Context
 

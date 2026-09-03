@@ -8,8 +8,8 @@ Scaffolded from `templates/starter`
 `.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
 (materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`. Every
 effort since carries its own spec and tickets under `.scratch/silt-*/` - most
-recently `.scratch/silt-life-followup/` (the seed bank, the land plant and the
-water cycle; tuning and scenes still to come).
+recently `.scratch/silt-life-followup/` (the seed bank, the land plant, the water
+cycle and the density tuning that closed it).
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -120,7 +120,15 @@ stalk.ts      hooks three and four, the land plant: a sprout raises a stalk tip
               of the stem; the tip climbs at p 0.3 on a travelling energy budget
               in `ra`, leaving inert stalk behind, and blooms when the budget
               runs out or when it is boxed in. Stem and flower are the products
-              and both crumble - a meadow of immortal columns silts up (ADR 0043)
+              and both crumble - a meadow of immortal columns silts up (ADR 0043).
+              **The flower's 1200-2400 tick life is the meadow's density knob,
+              not `GERMINATE_P`**: a plant drinks a cell of soil to exist, so a
+              bed of N cells pays for N plants however fast they come, and the
+              standing crown count is a plant's lifetime over the window.
+              Raising germination alone spends the bed sooner (measured: 33-41
+              crowns by tick 2000, 0-3 by 12,000). The stem's countdown has to
+              stay above the flower's or a crumbling stalk leaves a flower
+              hanging (life ticket 06)
 petals.ts     the fifth `onTick`, and the smallest: a living flower sheds a petal
               at p 0.005 a tick. The *death* drop is not a hook - `onTick` never
               runs on the tick a lifetime expires, so the engine scatters the
@@ -303,6 +311,16 @@ Spec §8; the calls the spec leaves open are in
 - **Never destructive on failure**: a scene that will not load keeps its blob
   and its row, and gains an error. A load always enters paused.
 - `ra`/`rb` are persisted; `clock` is not (it is zeroed by `Sim.restore`).
+- **Two rules for *building* a scene**, both easy to get wrong and neither
+  enforced anywhere (life ticket 06, pinned in `sceneRoundTrip.test.ts`):
+  - **A pond is stone-lined and stone-floored.** An earth basin does not hold
+    water - `water + dirt -> mud` and mud is a *liquid*, so the walls wet
+    through and the pond oozes away with them.
+  - **A pre-grown meadow is pre-aged, through the growers only.** `paint`'s
+    `{ ra }` seed is what a built scene has for this, and `requireRaIsFree`
+    means only the stalk tip and the buried seed can take it; give each tip a
+    different travelling budget and the plants climb, bloom and wither apart.
+    Everything else spreads by `lifetime.jitter`, drawn on its first tick.
 
 ## Commands
 

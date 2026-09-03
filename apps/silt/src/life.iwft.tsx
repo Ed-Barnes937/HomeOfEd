@@ -1,6 +1,6 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { BURIED, FLOWER, GRID_HEIGHT, MUD } from './sim/index.ts'
+import { BURIED, FLOWER, GRID_HEIGHT, MUD, PETAL, SPROUT, TIP } from './sim/index.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -37,4 +37,20 @@ test('seed scattered on a wet bed banks, germinates and blooms', async ({ mountA
   // ...and out of it as a plant: germination under an open sky, a sprout, a tip
   // climbing 6-10 cells at p 0.3, and a flower on the top of the stem.
   await expect.poll(() => root.countSpecies(FLOWER)).toBeGreaterThan(0)
+
+  // **And what grows is a meadow, not scrub** (ruling 4, life ticket 06) - the
+  // one part of that tuning a person actually sees, checked here at the real
+  // tick rate rather than only in the sim's own seeded soak. Several crowns
+  // standing at once, and petals in the air off the flowers already up.
+  await expect
+    .poll(async () => {
+      const [sprouts, tips, flowers] = await Promise.all([
+        root.countSpecies(SPROUT),
+        root.countSpecies(TIP),
+        root.countSpecies(FLOWER),
+      ])
+      return sprouts + tips + flowers
+    })
+    .toBeGreaterThanOrEqual(5)
+  await expect.poll(() => root.countSpecies(PETAL)).toBeGreaterThan(0)
 })

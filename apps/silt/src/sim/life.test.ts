@@ -672,21 +672,27 @@ describe('the land plant', () => {
     expect(registry.lifetimeOf(SPROUT)).toBeUndefined()
     expect(registry.lifetimeOf(TIP)).toBeUndefined()
 
-    // And the products expire, coarsely: 1400-1800 ticks of stem and 600-1200
-    // of flower are both past `MAX_LIFETIME_TICKS`, so `every` is what makes
+    // And the products expire, coarsely: 2720-3200 ticks of stem and 1200-2400
+    // of flower are both far past `MAX_LIFETIME_TICKS`, so `every` is what makes
     // them fit the byte at all (life ticket 01).
+    //
+    // **The stem's minimum has to clear the flower's maximum**, and that is the
+    // half of ticket 06's density tuning that is not about density: the flower's
+    // life is what buys standing crowns per cell of the bed's water, and a stem
+    // that crumbled under a living flower would leave it hanging in the air.
     expect(registry.lifetimeOf(STALK)).toEqual({
-      ticks: 175,
-      jitter: 50,
-      every: 8,
+      ticks: 170,
+      jitter: 30,
+      every: 16,
       becomes: EMPTY,
     })
+    expect(170 * 16).toBeGreaterThan((75 + 75) * 16)
     // The flower's is also the death drop (life ticket 04): the seed is what is
     // left in its own cell, the petals are what is thrown clear of it.
     expect(registry.lifetimeOf(FLOWER)).toEqual({
       ticks: 75,
       jitter: 75,
-      every: 8,
+      every: 16,
       becomes: SEED,
       emits: { species: PETAL, min: 3, max: 4 },
     })
@@ -735,12 +741,12 @@ describe('the land plant', () => {
     for (let i = 1; i <= 8; i++) sim.paint(200, FLOOR - i, STALK)
     const standing = count(sim, STALK)
 
-    // Well inside the shortest life (8 × 175 = 1400 ticks): a stem that decayed
-    // at the flat rate would already be half gone here.
-    run(sim, 1200)
+    // Well inside the shortest life (16 × 170 = 2720 ticks): a stem that decayed
+    // at the flat rate would have been gone ten times over by here.
+    run(sim, 2600)
     expect(count(sim, STALK)).toBe(standing)
 
-    // And past the longest (8 × 225, plus up to `every` ticks of phase).
+    // And past the longest (16 × 200, plus up to `every` ticks of phase).
     run(sim, 700)
     expect(count(sim, STALK)).toBe(0)
     // To nothing: a stem leaves no husk behind.
@@ -753,18 +759,21 @@ describe('the land plant', () => {
     for (let i = 1; i <= 8; i++) sim.paint(200, FLOOR - i, FLOWER)
     const blooming = count(sim, FLOWER)
 
-    // Inside 8 × 75 = 600 ticks, so not one has had its last draw.
-    run(sim, 500)
+    // Inside 16 × 75 = 1200 ticks, so not one has had its last draw.
+    run(sim, 1100)
     expect(count(sim, FLOWER)).toBe(blooming)
 
     // The jitter is coarse too, so the cohort dies over a window rather than
-    // together - which is what stops a painted meadow vanishing in one frame.
-    run(sim, 400)
+    // together - which is what stops a painted meadow vanishing in one frame,
+    // and the whole reason a scene can paint a bank of flowers at all: `ra` is
+    // the countdown here, so `paint` cannot pre-age one (`the stranded seed`
+    // below), and the jitter is the only spread there is.
+    run(sim, 900)
     const half = count(sim, FLOWER)
     expect(half).toBeGreaterThan(0)
     expect(half).toBeLessThan(blooming)
 
-    // Past 8 × 150 plus the phase.
+    // Past 16 × 150 plus the phase.
     run(sim, 500)
     expect(count(sim, FLOWER)).toBe(0)
   })
@@ -982,8 +991,8 @@ describe('the stalk tip', () => {
     expect(sim.speciesAt(50, FLOOR - 1)).toBe(DIRT)
     expect(count(sim, BURIED)).toBe(0)
 
-    // Past both lifetimes: 1800 ticks of stem, 1200 of flower.
-    run(sim, 2000)
+    // Past both lifetimes: 3200 ticks of stem, 2400 of flower.
+    run(sim, 3400)
 
     // The plant's own column is clear again - the stem crumbled, which is the
     // whole reason it has a lifetime, and the soil it drank is still dirt.
@@ -1161,9 +1170,11 @@ describe('the flower death drop', () => {
     for (let i = 1; i <= 6; i++) sim.paint(50, FLOOR - i, STALK)
     sim.paint(50, FLOOR - 7, FLOWER)
 
-    // Past the longest flower (1200 ticks) and inside the shortest stem (1400),
-    // so the plant it stood on is still there to read the drop against.
-    const petals = peakOver(sim, 1300, PETAL)
+    // Past the longest flower (2400 ticks) and inside the shortest stem (2720),
+    // so the plant it stood on is still there to read the drop against. The two
+    // moved together in ticket 06 and this case is why the *order* matters, not
+    // just the numbers.
+    const petals = peakOver(sim, 2500, PETAL)
 
     expect(count(sim, FLOWER)).toBe(0)
     // **3-4 is the floor** - the prototype measured 1-2 as very nearly
@@ -1183,8 +1194,8 @@ describe('the flower death drop', () => {
     shelf(sim, 20, 180)
     for (let i = 0; i < 10; i++) sim.paint(30 + i * 15, FLOOR - 1, FLOWER)
 
-    // Inside 8 x 75 = 600 ticks, the shortest life any of them can have, so not
-    // one of these petals can have come from a death drop.
+    // Inside 16 x 75 = 1200 ticks, the shortest life any of them can have, so
+    // not one of these petals can have come from a death drop.
     const petals = peakOver(sim, 500, PETAL)
 
     expect(count(sim, FLOWER)).toBe(10)
@@ -1263,16 +1274,38 @@ function meadowBed(sim: Sim, left: number, right: number): void {
  */
 describe('the meadow loop', () => {
   /**
-   * **The soak** (ticket 04's acceptance). Seven banked seeds on a 261-cell bed
-   * and nothing else: the meadow establishes itself and then holds, neither
-   * dying out nor running away. Measured over seeds 1-8, sampled every 1000
-   * ticks from 2000 on: the low sample was 5-11 crowns and the high 17-23, which
-   * is the "20+ crowns" ruling 4 asked for. The thresholds sit well outside both,
-   * since what is pinned is that a population *settles*, not the arithmetic of
-   * one bed - ticket 06 owns the density knob.
+   * **The soak, and ruling 4's density target** (tickets 04 and 06). Seven banked
+   * seeds on a 261-cell bed and nothing else: the meadow establishes itself, and
+   * what it establishes is a meadow rather than scrub.
    *
-   * Swept over three seeds rather than pinned to one: a self-seeding meadow that
-   * only survives on seed 1 is a coincidence, not a loop.
+   * **The tuning finding, because it refuted the ticket's own premise.** The
+   * knob was expected to be the germination probability - it was the one that
+   * moved the standing population most in the prototype. It is not the one here,
+   * and the difference is ruling 2: the prototype refunded the soil cell as mud,
+   * while germination *drinks* it now, so a bed of N cells pays for exactly N
+   * plants however fast they arrive. That makes the standing count a plant's
+   * lifetime divided by the window and nothing else, and germination only the
+   * speed the bed is spent at. Measured on this bed, raising `GERMINATE_P` alone
+   * to 0.005 filled it to 33-41 crowns by tick 2000 and left 0-3 by 12,000, with
+   * every cell of soil dry - a meadow that flowers once and is gone. **Doubling
+   * the flower's life is what bought the density**, because a crown that lasts
+   * twice as long holds up twice as many crowns per cell of water:
+   *
+   * | tuning | settled band | bed dry by |
+   * | --- | --- | --- |
+   * | ticket 04 (`0.005/4`, flower 600-1200) | 5-23 | 20,600-22,400 |
+   * | germination alone (`0.005`, flower 600-1200) | 0-41 | 11,400-13,200 |
+   * | ticket 06 (`0.008/4`, flower 1200-2400) | 19-47 | 20,000-21,600 |
+   *
+   * So the germination bump that stayed is small, and it buys *establishment*
+   * rather than density: 20 crowns by 1300-2000 ticks instead of 3300-7100.
+   *
+   * Sampled every 1000 ticks over seeds 1-6 (three are pinned; six were measured,
+   * because a meadow that only holds on seed 1 is a coincidence). The band from
+   * 3000 on was 26-47 crowns and the 2000 sample - still establishing - 19-27.
+   * The window ends at 12,000 deliberately: past it the bed thins as the last of
+   * its soil dries, which is `drinks the bed as it grows` below and ADR 0045 §4,
+   * not this case.
    */
   it('holds a population over a long seeded run, neither dying out nor exploding', () => {
     for (const seed of [1, 2, 3]) {
@@ -1281,39 +1314,54 @@ describe('the meadow loop', () => {
 
       let low = Number.POSITIVE_INFINITY
       let high = 0
+      let settled = -1
+      const crowns = (): number => count(sim, SPROUT) + count(sim, TIP) + count(sim, FLOWER)
       for (let t = 0; t <= 12000; t++) {
-        if (t % 1000 === 0 && t >= 2000) {
-          const crowns = count(sim, SPROUT) + count(sim, TIP) + count(sim, FLOWER)
-          low = Math.min(low, crowns)
-          high = Math.max(high, crowns)
+        if (settled < 0 && crowns() >= 20) settled = t
+        // From 3000 rather than 2000: the first thousand ticks are one cohort
+        // climbing, and what is pinned here is the settled band.
+        if (t % 1000 === 0 && t >= 3000) {
+          low = Math.min(low, crowns())
+          high = Math.max(high, crowns())
         }
         sim.tick()
       }
 
-      // Never extinct: there was a living crown at every sample past the first
-      // generation. Before the death drop this bed grew seven plants and stopped.
-      expect(low).toBeGreaterThan(0)
-      // Really a meadow, not one straggler holding on.
-      expect(high).toBeGreaterThan(10)
-      // And not a runaway: reproduction is limited by open wet ground, and a
-      // full meadow roofs its own bed, so the bank under it sleeps.
-      expect(high).toBeLessThan(40)
+      // **Ruling 4, measured**: an established bed carries 20+ crowns, not the
+      // 4-16 scrub the dormancy tuning left. Low sample measured 26-31 over the
+      // three pinned seeds and 26 at worst over six.
+      expect(low).toBeGreaterThanOrEqual(20)
+      // And it gets there promptly - the germination bump is what this buys.
+      // Measured 1335-2005 ticks over the three, 1325-2005 over six.
+      expect(settled).toBeGreaterThan(0)
+      expect(settled).toBeLessThan(2500)
+      // Not a runaway either: reproduction is limited by open wet ground, and a
+      // full meadow roofs its own bed, so the bank under it sleeps. Measured
+      // high 37-42 over the three seeds, 47 at most over six.
+      expect(high).toBeLessThan(70)
     }
   })
 
   /**
-   * **What ends it, and why that is ticket 05's problem rather than a bug here.**
+   * **What ends it, and why it is a design question rather than a bug here.**
    * Ruling 2 reinstated plant drinking: germination refunds the soil cell it
    * grew out of as *dirt*, not mud, so every generation spends one cell of the
    * bed's water. The prototype refunded mud and so never met this - measured
-   * here, a 261-cell bed carries a meadow for something over 12,000 ticks and
-   * then thins out as the last of the soil dries, around 20,000-30,000.
+   * here, a 261-cell bed carries a meadow past 12,000 ticks and then thins out as
+   * the last of the soil dries, gone around 20,000.
    *
-   * That is the water cycle's absence, not the loop's failure: fire lofting the
-   * soil's water as steam and raining it back (spec §4.5) is what returns it,
-   * and it lands in ticket 05. What is pinned here is the ledger - the bed's
-   * soil is conserved and only ever moves one way - so the day the cycle arrives
-   * there is a number to hold it against.
+   * Ticket 05's water cycle does not close it and deliberately does not try to:
+   * **the cycle is closed under fire and open under old age**, and both obvious
+   * closures are wrong for reasons ADR 0045 §4 sets out. Ticket 06's density pass
+   * was measured against this number and left it where it found it - the flower
+   * living twice as long is what bought the crowns, and a plant that lasts longer
+   * spends the bed *slower* per crown, which is why doubling the standing
+   * population cost the horizon nothing (20,600-22,400 ticks before, 20,000-21,600
+   * after, two seeds each). Raising germination alone would have cut it to
+   * 11,400-13,200.
+   *
+   * What is pinned here is the ledger - the bed's soil is conserved and only ever
+   * moves one way - so any future change to that ruling has a number to beat.
    */
   it('drinks the bed as it grows, one cell of soil per germination', () => {
     const sim = new Sim({ seed: 1 })
@@ -1624,10 +1672,21 @@ describe('the water cycle', () => {
    * and falls back, the bed re-wets, and the bank - which the fire never
    * reached - germinates into the clearing.
    *
-   * Measured over three seeds: the standing plants were gone in 10-12 ticks, the
-   * plume peaked at 36-38 cells, the bed was wet again by 369-379 ticks and the
-   * first new crown was up between 370 and 2088. That is the 500-3000 tick
-   * recovery the ticket asks for, from the bank rather than from a seed rain.
+   * **What "cleared" means, and why ticket 06 had to loosen it.** Ticket 05 read
+   * the torch as taking the meadow to *nothing*, which held while a stem lived
+   * 1400-1800 ticks. With the stem at 2720-3200 there is more standing fuel and
+   * more of it to get through, and fire is a rate: over six seeds the torch left
+   * a single straggler on four of them (0-10 plant cells of the 27-46 it found).
+   * That is the same "fire is a rate rather than a switch" the case above pins,
+   * and buffing the torch to beat it would be exactly the over-buffing the ticket
+   * warns against - so what is pinned is the *crown* count, which goes to at most
+   * one on every seed, and the survivor is left to burn or wither on its own.
+   *
+   * Measured over six seeds: the crowns were down to one or none in 6-17 ticks,
+   * the plume peaked at 36-39 cells, the bed was wet again by 368-382 ticks, the
+   * bank had a new plant up by 118-334, and the meadow was back to the mass and
+   * the crown count the fire found by 342-884. That is the recovery on the
+   * ticket's 500-3000 tick order, from the bank rather than from a seed rain.
    */
   it('clears a meadow with a dragged torch and rains the bed back to life', () => {
     for (const seed of [1, 2, 3]) {
@@ -1640,34 +1699,50 @@ describe('the water cycle', () => {
         sim.tick()
         ticks++
       }
-      expect(plantCells(sim)).toBeGreaterThan(10)
+      const standing = plantCells(sim)
+      const blooming = crowns(sim)
+      expect(standing).toBeGreaterThan(10)
 
       for (let x = 40; x <= 80; x++) sim.paint(x, FLOOR - 2, FIRE)
 
       let cleared = -1
       let rewet = -1
       let regrown = -1
+      let recovered = -1
+      let survivors = -1
       let plume = 0
       for (let t = 0; t < 4000; t++) {
         sim.tick()
         plume = Math.max(plume, count(sim, STEAM))
-        if (cleared < 0 && plantCells(sim) === 0) cleared = t
-        if (cleared >= 0 && rewet < 0 && count(sim, MUD) > 5) rewet = t
-        if (cleared >= 0 && regrown < 0 && crowns(sim) > 0) regrown = t
+        if (cleared < 0 && crowns(sim) <= 1) cleared = t
+        // The straggler, counted once the flames are out, so "regrown" means the
+        // *bank* put a plant up rather than one having stood through the fire.
+        if (t === 100) survivors = crowns(sim)
+        if (survivors >= 0 && rewet < 0 && count(sim, MUD) > 5) rewet = t
+        if (survivors >= 0 && regrown < 0 && crowns(sim) > survivors) regrown = t
+        if (recovered < 0 && t > 100 && plantCells(sim) >= standing && crowns(sim) >= blooming)
+          recovered = t
       }
 
-      // Swept clean, and quickly - a dragged torch is the ignition story.
+      // Swept, and quickly - a dragged torch is the ignition story. Measured
+      // 6-17 ticks over six seeds; at most one crown is left standing.
       expect(cleared).toBeGreaterThanOrEqual(0)
       expect(cleared).toBeLessThan(100)
+      expect(survivors).toBeLessThanOrEqual(1)
       // The plume is the bed's own water, lofted rather than deleted.
       expect(plume).toBeGreaterThan(20)
       // And it came back down on the ground it came off.
       expect(rewet).toBeGreaterThan(0)
       expect(rewet).toBeLessThan(3000)
       // The bank survived the fire (it is not flammable and it lives *under* the
-      // surface) and regrew the clearing on the ticket's timescale.
+      // surface) and put up a plant the fire had not left standing.
       expect(regrown).toBeGreaterThan(0)
       expect(regrown).toBeLessThan(3000)
+      // **The whole cycle**, not just its first sign: the meadow is back to the
+      // mass and the crown count the torch found. Measured 342-884 ticks over
+      // six seeds, which is the burn-and-recover feel the ticket asks for.
+      expect(recovered).toBeGreaterThan(0)
+      expect(recovered).toBeLessThan(3000)
     }
   })
 

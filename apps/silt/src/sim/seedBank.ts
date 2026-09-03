@@ -46,12 +46,25 @@ export const SOAK_DEPTH = 2
  * same reason it exists: it is the cheap way to spell a slow rate. A hook cannot
  * see the world's tick (only the engine's countdown can), so the pair collapses
  * into one draw a tick at the same effective rate, and a buried seed under open
- * sky waits ~800 ticks.
+ * sky waits ~500 ticks.
  *
- * This is the single knob that moved the standing population most, so tuning it
- * against the ~20-crown target is ticket 06's job, not this one's.
+ * **This is not the density knob, and measuring it is how that was found out**
+ * (life ticket 06). In the prototype it was, because the prototype refunded the
+ * soil cell as mud; here germination *drinks* it (ruling 2), so a bed of N cells
+ * pays for exactly N plants however fast they come. Raising this alone spends
+ * the bed sooner rather than holding more of it standing: on the 261-cell
+ * reference bed, 0.005 filled it to 33-41 crowns by tick 2000 and then died back
+ * to 0-3 by 12,000, with every cell of soil dry. What buys standing crowns per
+ * cell of water is how long a crown *lasts* - see the flower's lifetime in
+ * `elements.ts`.
+ *
+ * So this one is tuned for **establishment speed** instead: 0.008 every four
+ * ticks puts 20 crowns on the reference bed by 1300-2000 ticks (was 3300-7100)
+ * and leaves 14-43 cells of the bed still wet at 12,000. Measured over seeds 1-6
+ * with the flower's life doubled alongside it; see `life.test.ts` under
+ * `the meadow loop`.
  */
-export const GERMINATE_P = 0.005 / 4
+export const GERMINATE_P = 0.008 / 4
 
 /**
  * The species the hook needs to know about, passed in rather than imported so

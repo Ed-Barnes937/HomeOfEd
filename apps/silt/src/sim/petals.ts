@@ -17,9 +17,17 @@ import type { Api } from './types.ts'
 
 /**
  * Per-tick chance a living flower lets a petal go. A rate rather than a share,
- * as every `p` here is: a flower lives 600-1200 ticks, so 0.005 means three to
- * six shed petals over a life rather than one in two hundred flowers shedding.
- * Which is the point - the drift is meant to be continuous, not an event.
+ * as every `p` here is: a flower lives 1200-2400 ticks, so 0.005 means six to
+ * twelve shed petals over a life rather than one in two hundred flowers
+ * shedding. Which is the point - the drift is meant to be continuous, not an
+ * event.
+ *
+ * **Left alone when the flower's life doubled** (life ticket 06), because what a
+ * reader sees is petals in the air, and that is the rate times a petal's own
+ * 80-150 ticks - not the total a flower gets through. Measured on the settled
+ * 261-cell reference bed: 9-39 petals aloft at any sample, against 30-40 crowns.
+ * A denser meadow drifting more petals is the density showing, not a second
+ * change.
  */
 export const SHED_P = 0.005
 

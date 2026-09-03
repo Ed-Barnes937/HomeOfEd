@@ -491,11 +491,13 @@ const stalk: ElementDef = {
   tags: ['solid', 'flammable'],
   archetype: { kind: 'static' },
   hardness: 0,
-  // 1400-1800 ticks - 23 to 30 s at 60 tps, comfortably longer than the flower
-  // it holds up. Written coarsely because the flat form does not fit the byte at
-  // all: `every: 8` makes the countdown count draws rather than ticks (life
-  // ticket 01), so `ticks` and `jitter` here are in units of 8.
-  lifetime: { ticks: 175, jitter: 50, every: 8, becomes: null },
+  // 2720-3200 ticks - 45 to 53 s at 60 tps, and the number that matters is that
+  // the *minimum* clears the flower's maximum: a stem that crumbled first would
+  // leave a static flower hanging in the air. Written coarsely because the flat
+  // form does not fit the byte at all: `every: 16` makes the countdown count
+  // draws rather than ticks (life ticket 01), so `ticks` and `jitter` here are
+  // in units of 16. Doubled with the flower in life ticket 06.
+  lifetime: { ticks: 170, jitter: 30, every: 16, becomes: null },
 }
 
 /**
@@ -541,9 +543,18 @@ const flower: ElementDef = {
   tags: ['solid', 'flammable'],
   archetype: { kind: 'static' },
   hardness: 0,
-  // 600-1200 ticks (10-20 s), coarse for the same reason the stem is: the flat
-  // form is more than three times `MAX_LIFETIME_TICKS` and the registry refuses
-  // it at boot.
+  // 1200-2400 ticks (20-40 s), coarse for the same reason the stem is: the flat
+  // form is many times `MAX_LIFETIME_TICKS` and the registry refuses it at boot.
+  //
+  // **This is the density knob, and it is here rather than in `seedBank.ts`**
+  // (life ticket 06, ruling 4). A land plant drinks one cell of soil to exist
+  // (ruling 2), so a bed of N cells only ever pays for N plants - which makes
+  // the standing crown count a plant's *lifetime* divided by the window, and
+  // germination merely the speed the bed is spent at. Doubling this from
+  // 600-1200 doubles the crowns a cell of water holds up: measured on the
+  // 261-cell reference bed over seeds 1-6, the settled band went from 5-23 to
+  // 19-47, with the bed's drying horizon unmoved at ~20,000 ticks. The stem's
+  // countdown moved with it - it has to outlast the flower it carries.
   //
   // **The death drop** (life ticket 04). `emits` is the engine affordance a
   // single-valued `becomes` could not give this: the seed is what is left *in*
@@ -554,7 +565,7 @@ const flower: ElementDef = {
   lifetime: {
     ticks: 75,
     jitter: 75,
-    every: 8,
+    every: 16,
     becomes: 'seed',
     emits: { species: 'petal', min: 3, max: 4 },
   },

@@ -88,8 +88,8 @@ describe('deriveInteractionGraph', () => {
     expect(graph.decays.find((decay) => decay.from === 'flower')).toEqual({
       from: 'flower',
       becomes: 'seed',
-      minTicks: 600,
-      maxTicks: 1200,
+      minTicks: 1200,
+      maxTicks: 2400,
       // The death drop rides along on the lifetime, so it is reported with it -
       // a flower listed as decaying to a seed and nothing else would leave out
       // half of what a withering flower does (life ticket 04).
@@ -98,8 +98,8 @@ describe('deriveInteractionGraph', () => {
     expect(graph.decays.find((decay) => decay.from === 'stalk')).toEqual({
       from: 'stalk',
       becomes: 'empty',
-      minTicks: 1400,
-      maxTicks: 1800,
+      minTicks: 2720,
+      maxTicks: 3200,
     })
     // The tick-by-tick form is untouched: `every` defaults to 1.
     expect(graph.decays.find((decay) => decay.from === 'fire')?.minTicks).toBe(40)
