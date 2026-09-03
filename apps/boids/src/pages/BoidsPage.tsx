@@ -22,6 +22,10 @@ export function BoidsPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const [settings, setSettings] = useState(() => loadSettings(window.localStorage))
+  // Session state, deliberately not in `settings`: a pause is about this sitting,
+  // not a preference to restore, and ticket 03 wants the initial value to come
+  // from the reduced-motion query rather than from storage.
+  const [running, setRunning] = useState(true)
 
   useSimulationLoop({
     canvasRef,
@@ -29,6 +33,7 @@ export function BoidsPage() {
     theme: getTheme(settings.theme),
     shape: settings.shape,
     params: settings.params,
+    running,
   })
 
   // Theme swap sets data-theme on <html>, which flips every CSS token
@@ -120,6 +125,8 @@ export function BoidsPage() {
         )}
       </div>
       <ControlPanel
+        running={running}
+        onRunningChange={setRunning}
         theme={settings.theme}
         onThemeChange={handleThemeChange}
         shape={settings.shape}

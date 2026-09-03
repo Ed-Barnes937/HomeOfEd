@@ -113,7 +113,41 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+/**
+ * The play/pause toggle (WCAG 2.2.2). One button whose accessible name states
+ * the action it offers - no `aria-pressed`, which would double up with a label
+ * that already flips. The visible word is part of that name (WCAG 2.5.3).
+ */
+function RunToggle({
+  running,
+  onChange,
+}: {
+  running: boolean
+  onChange: (running: boolean) => void
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.runToggle}
+      data-testid="run-toggle"
+      aria-label={running ? 'pause the flock' : 'play the flock'}
+      onClick={() => onChange(!running)}
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+        {running ? (
+          <path d="M2.5 1.5h2.6v9H2.5zM6.9 1.5h2.6v9H6.9z" />
+        ) : (
+          <path d="M3 1.6 10 6l-7 4.4z" />
+        )}
+      </svg>
+      <span className={styles.runToggleLabel}>{running ? 'pause' : 'play'}</span>
+    </button>
+  )
+}
+
 export interface ControlPanelProps {
+  running: boolean
+  onRunningChange: (running: boolean) => void
   theme: ThemeId
   onThemeChange: (theme: ThemeId) => void
   shape: BoidShape
@@ -126,6 +160,8 @@ export interface ControlPanelProps {
 
 /** The frosted-glass settings panel: header, theme, shape, cursor, sliders, collapse↔FAB. */
 export function ControlPanel({
+  running,
+  onRunningChange,
   theme,
   onThemeChange,
   shape,
@@ -191,6 +227,8 @@ export function ControlPanel({
           </svg>
         </button>
       </div>
+
+      <RunToggle running={running} onChange={onRunningChange} />
 
       <div className={styles.groupLabel}>theme</div>
       <ThemePicker value={theme} onChange={onThemeChange} />
