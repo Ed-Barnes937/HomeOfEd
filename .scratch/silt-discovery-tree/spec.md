@@ -16,24 +16,26 @@ This spec defines behaviour, data, and UI structure/states. Visual design
 
 ## 1. Vocabulary
 
-- **Node** - an element in the roster (17 today; `v1Elements`).
+- **Node** - an element in the roster (19 today; `v1Elements`).
 - **Edge** - one concrete interaction. Three kinds:
   - **Reaction** - an unordered pair from the resolved registry
     (`reactionFor`), tag rows expanded, `maxHardness` exclusions applied.
-    26 pairs today.
+    32 pairs today.
   - **Decay** - a `lifetime.becomes` transition with a product:
-    fire -> smoke, steam -> water. 2 today. (Smoke fades to nothing; a
-    `becomes: null` decay is not an edge and not a discovery.)
+    fire -> smoke, steam -> water, ember -> fire. 3 today. (Smoke fades to
+    nothing; a `becomes: null` decay is not an edge and not a discovery.)
   - **Growth** - the growth hook: moss + water -> vine, vine + water -> vine.
     2 today. (seed + mud -> moss is already a reaction row.)
 - **Pre-known** - the 11 paintable elements (`PAINTABLE_IDS`). They sit in the
   rail from the first launch, so they are never "undiscovered".
 - **Discoverable element** - a non-paintable product: obsidian, smoke, steam,
-  sulphur, moss, vine. 6 today.
+  sulphur, moss, vine, ember, ash. 8 today.
 - **Witnessed** - the sim actually performed the transmutation in front of the
   player. Discovery is event-driven, never inferred from world contents.
 
-Totals with today's roster: **17 elements (6 discoverable) and 30 interactions**.
+Totals with today's roster: **19 elements (8 discoverable) and 37 interactions**.
+(This paragraph was written against the pre-burnables roster and already had to
+be updated once - the counts here are illustrative; the registry is the truth.)
 All counts are derived from the registry at runtime, never hardcoded - a new
 element or row changes the denominators automatically.
 
@@ -42,8 +44,8 @@ element or row changes the denominators automatically.
 Single source of truth: `createRegistry(v1Elements, v1Reactions)` plus the two
 declared hook edges. The same derivation drives three consumers:
 
-1. The repo's generated `apps/silt/docs/interaction-graph.md` (PR #122, branch
-   `silt-interaction-graph`). Its derivation is a pure, DOM-free module at
+1. The repo's generated `apps/silt/docs/interaction-graph.md` (PR #122;
+   regenerated for the burnables roster in PR #124). Its derivation is a pure, DOM-free module at
    `apps/silt/src/docs/interactionGraph.ts`; this feature imports that module
    rather than re-deriving. (It lives under `src/docs/`, not `src/sim/`,
    because it also reads `PAINTABLE_IDS` from features/palette - importing
@@ -65,8 +67,8 @@ scene codec already treats as the stable identity across renumbering.
   names it as a product. There is no separate element-detection path: every
   discoverable element is the product of at least one edge (obsidian and steam
   from water + lava, sulphur from acid + wood, moss from seed + mud, vine from
-  growth, smoke from several). This keeps the engine seam to exactly one
-  surface: edge witnessing.
+  growth, ember from fire + wood, ash from fire + ember, smoke from several).
+  This keeps the engine seam to exactly one surface: edge witnessing.
 - **Not** discoveries:
   - Painting (only pre-known elements are paintable) and spawner emission
     (spawners emit paintable species).
@@ -120,8 +122,8 @@ Reactions fire inside the sim core, which runs in a worker over shared memory
   (water -> steam -> water is a cycle), but it layers naturally:
   - Tier 0: the 11 paintables (the rail roster, ideally in rail order).
   - Tier n: products, placed by minimum transmutation steps from tier 0
-    (obsidian/steam/smoke/sulphur/mud*/moss at 1, vine at 2).
-    (*mud and stone are both paintable and products; they stay in tier 0.)
+    (obsidian/steam/smoke/sulphur/moss/ember at 1, vine and ash at 2).
+    (Mud, stone and wood are both paintable and products; they stay in tier 0.)
   - Layout is deterministic and derived from the same data, so a new element
     slots in without hand-editing positions. Design may curate within a tier.
 - **Node states**: pre-known / discovered / undiscovered. Nodes are pixel-art
