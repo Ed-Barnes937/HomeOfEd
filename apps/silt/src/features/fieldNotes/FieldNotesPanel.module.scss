@@ -1,0 +1,494 @@
+// The Field notes panel (discovery-tree spec §6). Same paper and ink as the
+// rest of the chrome, in the scenes popover's own hard border and offset shadow
+// - the panel is a bigger pocket of the app, not a new kind of surface.
+$ink: #1a1714;
+$paper: #e7e2d5;
+$panel: #efeadd;
+$raised: #f5f2e9;
+$muted: #8a8478;
+$body: #3a352e;
+$destructive: #e2542a;
+$live: #3ecf6b;
+
+$font-label: 'Silkscreen', monospace;
+$font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+// The app's own breakpoint (../../pages/HomePage.module.scss): the overlay
+// becomes a full-screen sheet under exactly the rule that turns the rail into a
+// bottom bar.
+$mobile: '(pointer: coarse), (max-width: 700px)';
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(24, 21, 16, 0.55);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 1040px;
+  max-width: 100%;
+  max-height: 100%;
+  background: $panel;
+  border: 2px solid $ink;
+  box-shadow: 6px 6px 0 $ink;
+  color: $ink;
+  font-family: $font-mono;
+  text-align: left;
+}
+
+// ---- header: title, counters, close ------------------------------------
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.8rem;
+  background: $paper;
+  border-bottom: 2px solid $ink;
+}
+
+.headTitle {
+  font-family: $font-label;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.counters {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.counter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.counterLabel {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $muted;
+}
+
+.counterValue {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+// Untouched numerals recede, exactly as the header chip's do (spec §6).
+.zero {
+  color: $muted;
+}
+
+.newChip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 2px solid $ink;
+  background: $raised;
+  padding: 0.2rem 0.45rem;
+}
+
+.newMark {
+  width: 11px;
+  height: 11px;
+  border: 2px solid $live;
+  flex: none;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  color: $ink;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  cursor: pointer;
+}
+
+// ---- body: picker | ring ------------------------------------------------
+
+.body {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  // Takes whatever height the header and footer leave, which is the whole sheet
+  // on a phone and nothing extra on a desktop panel sized by its own picker.
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.5rem;
+  background: $paper;
+  border-right: 2px solid $ink;
+  overflow-y: auto;
+}
+
+.pickerLabel {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $muted;
+  padding: 0 0.35rem 0.3rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 30px;
+  padding: 0.28rem 0.35rem;
+  border: none;
+  background: transparent;
+  color: $ink;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: $ink;
+    color: $paper;
+  }
+
+  // An undiscovered slot: still there, still shaped, not a control.
+  &:disabled {
+    color: $muted;
+    cursor: default;
+  }
+}
+
+.rowName {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rowCount {
+  font-size: 10px;
+  color: #6b665d;
+}
+
+.row[aria-pressed='true'] .rowCount {
+  color: $paper;
+}
+
+.star {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  display: block;
+}
+
+// ---- the ring -----------------------------------------------------------
+
+.ringWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  min-height: 0;
+  overflow: auto;
+}
+
+// Square in both layouts, so one set of 0-100 coordinates drives the SVG and
+// the absolutely positioned tiles at either size. The mockup drew the desktop
+// ring as a wide ellipse and the phone's as a circle; two aspect ratios would
+// mean two coordinate systems (and an SVG viewBox a media query cannot reach),
+// for a layout difference the labels do not need - so the ring is one circle
+// that changes size, and only size.
+.ring {
+  position: relative;
+  width: 560px;
+  height: 560px;
+  flex: none;
+  font-size: 0;
+}
+
+.spokes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+
+  line {
+    stroke: rgba(26, 23, 20, 0.55);
+    stroke-width: 0.5;
+  }
+
+  polygon {
+    fill: rgba(26, 23, 20, 0.7);
+  }
+}
+
+// Edge kinds (spec §6): reaction solid, decay long dash, growth dotted.
+.decay line {
+  stroke-dasharray: 2 1.2;
+}
+
+.grow line {
+  stroke-dasharray: 0.5 1.5;
+}
+
+.centre,
+.centreName,
+.spokeTile,
+.spokeName,
+.spokeOutcome,
+.spokeTiles {
+  position: absolute;
+}
+
+.centre {
+  transform: translate(-50%, -50%);
+}
+
+.centreName {
+  transform: translate(-50%, 34px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  background: $panel;
+  font-family: $font-label;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.spokeTile,
+.productTile {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.spokeTile {
+  transform: translate(-50%, -50%);
+}
+
+.spokeName {
+  transform: translate(-50%, 24px);
+  padding: 1px 4px;
+  background: $panel;
+  font-family: $font-label;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.spokeOutcome {
+  transform: translate(-50%, -50%);
+  padding: 1px 4px;
+  background: $panel;
+  font-size: 11px;
+  color: $body;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.spokeTiles {
+  transform: translate(-50%, 10px);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+// ---- empty state --------------------------------------------------------
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 2.5rem 1rem;
+}
+
+.emptyTitle {
+  font-family: $font-label;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.emptyBody {
+  max-width: 380px;
+  font-size: 11.5px;
+  color: $body;
+  text-align: center;
+}
+
+// ---- footer -------------------------------------------------------------
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0.8rem;
+  background: $paper;
+  border-top: 2px solid $ink;
+  font-size: 11px;
+  color: $body;
+}
+
+.footText {
+  text-transform: uppercase;
+}
+
+.footHint {
+  color: $muted;
+  text-transform: none;
+}
+
+.footRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notches {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notch {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 1px dashed rgba(26, 23, 20, 0.4);
+  background: $panel;
+}
+
+.footCount {
+  font-size: 11px;
+  color: #6b665d;
+}
+
+.forget {
+  flex: none;
+  border: 2px solid $ink;
+  background: $panel;
+  color: $ink;
+  padding: 0.25rem 0.4rem;
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.armed {
+  background: $destructive;
+  color: $paper;
+}
+
+// ---- phone: the overlay becomes a full-screen sheet ---------------------
+
+@media #{$mobile} {
+  .scrim {
+    padding: 0;
+  }
+
+  .panel {
+    width: 100%;
+    height: 100%;
+    border: none;
+    box-shadow: none;
+  }
+
+  // The sheet's only way out, so it gets the comfortable square chip rather
+  // than the 44px floor.
+  .close {
+    min-width: 48px;
+    min-height: 48px;
+    border: 2px solid $ink;
+    background: $raised;
+  }
+
+  // Picker and ring stack, and the picker becomes wrapped rows of bigger
+  // tiles - the names go with the column that held them.
+  .body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .picker {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 0.5rem 0.6rem;
+    border-right: none;
+    border-bottom: 2px solid $ink;
+  }
+
+  .pickerLabel,
+  .rowName,
+  .rowCount {
+    display: none;
+  }
+
+  // A tile grid rather than a list: the names go with the column that held
+  // them, and each slot is the rail's own comfortable 48px square chip around
+  // its 30px tile (spec §9's touch sizing, as the palette swatches use).
+  .row {
+    flex: none;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 3px;
+  }
+
+  .ring {
+    width: min(340px, 100%);
+    height: min(340px, 100vw);
+  }
+
+  // Too little room for the words; the product tiles carry the outcome.
+  .spokeOutcome,
+  .notches,
+  .footHint {
+    display: none;
+  }
+
+  .foot {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .forget {
+    min-height: 44px;
+  }
+}

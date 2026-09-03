@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 
+import { FieldNotesButton } from '../features/fieldNotes/FieldNotesButton.tsx'
+import { FieldNotesPanel } from '../features/fieldNotes/FieldNotesPanel.tsx'
 import { useFieldNotes } from '../features/fieldNotes/useFieldNotes.ts'
 import { EarnedElements } from '../features/palette/EarnedElements.tsx'
 import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
@@ -60,11 +62,21 @@ export function HomePage() {
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
   const [scenesOpen, setScenesOpen] = useState(false)
   const [earnedOpen, setEarnedOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
   const resetConfirm = useArmedConfirm<true>()
 
-  // Field notes' progression, which the rail reads for one thing only: the
-  // elements the player has mastered and so earned back into it (spec §6).
+  // Field notes' progression: the rail reads it for the elements the player has
+  // mastered and so earned back into it, and the header chip and panel read it
+  // for everything else (spec §6).
   const fieldNotes = useFieldNotes()
+
+  // Reviewing happens on **close**, not open: advancing the watermark as the
+  // panel opens would empty the `NEW n` chip on the very render that exists to
+  // show it (`FieldNotesStore.markReviewed`).
+  const closeNotes = (): void => {
+    setNotesOpen(false)
+    fieldNotes.markReviewed()
+  }
 
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
   const paintSpecies = tool === 'erase' ? EMPTY : selectedElement
@@ -141,7 +153,10 @@ export function HomePage() {
       setScenesOpen(true)
       scenes.save()
     },
-    onCloseScenes: () => setScenesOpen(false),
+    onDismissOverlays: () => {
+      setScenesOpen(false)
+      if (notesOpen) closeNotes()
+    },
   })
 
   const armReset = (): void => {
@@ -194,30 +209,47 @@ export function HomePage() {
             {resetConfirm.armed ? 'confirm?' : 'reset'}
           </button>
         </div>
-        <div className={styles.scenesAnchor}>
-          <button
-            type="button"
-            className={styles.headerButton}
-            data-testid="scenes-button"
-            aria-expanded={scenesOpen}
-            onClick={() => setScenesOpen((open) => !open)}
-          >
-            scenes
-          </button>
-          {scenesOpen ? (
-            <ScenesPopover
-              scenes={scenes.scenes}
-              status={scenes.status}
-              onSave={scenes.save}
-              onLoad={scenes.load}
-              onRename={scenes.rename}
-              onDuplicate={scenes.duplicate}
-              onDelete={scenes.delete}
-              onClose={() => setScenesOpen(false)}
-            />
-          ) : null}
+        <div className={styles.headerRight}>
+          <FieldNotesButton
+            seen={fieldNotes.totals.interactions.seen}
+            total={fieldNotes.totals.interactions.total}
+            open={notesOpen}
+            onToggle={() => (notesOpen ? closeNotes() : setNotesOpen(true))}
+          />
+          <div className={styles.scenesAnchor}>
+            <button
+              type="button"
+              className={styles.headerButton}
+              data-testid="scenes-button"
+              aria-expanded={scenesOpen}
+              onClick={() => setScenesOpen((open) => !open)}
+            >
+              scenes
+            </button>
+            {scenesOpen ? (
+              <ScenesPopover
+                scenes={scenes.scenes}
+                status={scenes.status}
+                onSave={scenes.save}
+                onLoad={scenes.load}
+                onRename={scenes.rename}
+                onDuplicate={scenes.duplicate}
+                onDelete={scenes.delete}
+                onClose={() => setScenesOpen(false)}
+              />
+            ) : null}
+          </div>
         </div>
       </header>
+
+      {notesOpen ? (
+        <FieldNotesPanel
+          view={fieldNotes}
+          registry={controls.registry}
+          onClose={closeNotes}
+          onForget={fieldNotes.reset}
+        />
+      ) : null}
 
       <div className={styles.body}>
         <nav className={styles.rail} aria-label="tools">
@@ -271,6 +303,7 @@ export function HomePage() {
           {palette.earned.length > 0 ? (
             <EarnedElements
               entries={palette.earned}
+              moreToEarn={fieldNotes.moreToEarn}
               open={earnedOpen}
               onToggle={() => setEarnedOpen((open) => !open)}
               onClose={() => setEarnedOpen(false)}

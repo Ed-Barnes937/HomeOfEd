@@ -22,8 +22,8 @@ export interface UseSiltHotkeysOptions {
   onNudgeBrush: (delta: number) => void
   /** Ctrl/Cmd+S. */
   onSaveScene: () => void
-  /** Escape. */
-  onCloseScenes: () => void
+  /** Escape - dismisses whatever overlay is open (scenes, field notes). */
+  onDismissOverlays: () => void
 }
 
 /**
@@ -52,7 +52,7 @@ export function useSiltHotkeys(options: UseSiltHotkeysOptions): void {
         return
       }
       if (event.key === 'Escape') {
-        actions.onCloseScenes()
+        actions.onDismissOverlays()
         return
       }
       if (event.key >= '1' && event.key <= String(HOTKEYED_ENTRIES)) {

@@ -160,6 +160,21 @@ $rail-width: 176px;
   letter-spacing: 0.04em;
 }
 
+// The row that says there is more to earn without saying what (spec §7): the
+// chart's own "?" tile, and no name.
+.teaser {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.35rem;
+  color: $muted;
+}
+
+.teaserText {
+  flex: 1;
+  font-size: 10px;
+}
+
 .footer {
   margin: 0;
   border-top: 2px solid $ink;

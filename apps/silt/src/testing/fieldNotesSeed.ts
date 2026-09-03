@@ -13,9 +13,25 @@ import { PROGRESS_KEY, PROGRESS_VERSION } from '../features/fieldNotes/fieldNote
  * tests.
  */
 export async function seedMastery(page: Page, elementName: string): Promise<void> {
-  const edges = entryIndex().entriesFor(elementName)
+  await seedWitnessed(page, entryIndex().entriesFor(elementName))
+}
+
+/**
+ * Writes an arbitrary witnessed set. `reviewed` defaults to "all of it already
+ * shown", so a test that says nothing about the `NEW` chip does not get one;
+ * pass `0` to open the panel as a player who has just witnessed the lot.
+ */
+export async function seedWitnessed(
+  page: Page,
+  edges: readonly string[],
+  options: { reviewed?: number } = {},
+): Promise<void> {
   await page.evaluate(({ key, blob }) => window.localStorage.setItem(key, blob), {
     key: PROGRESS_KEY,
-    blob: JSON.stringify({ version: PROGRESS_VERSION, edges, reviewed: edges.length }),
+    blob: JSON.stringify({
+      version: PROGRESS_VERSION,
+      edges,
+      reviewed: options.reviewed ?? edges.length,
+    }),
   })
 }

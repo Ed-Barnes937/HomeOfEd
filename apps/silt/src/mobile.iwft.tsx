@@ -1,7 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { DIRT, GRID_HEIGHT, MUD, SAND, SEED } from './sim/index.ts'
-import { seedMastery } from './testing/fieldNotesSeed.ts'
+import { seedMastery, seedWitnessed } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -117,6 +117,31 @@ test('the bottom bar still carries the full ten-element base roster', async ({ m
 
   // Erase stays at the tail of the same row, behind the new swatch.
   await root.verifyEraseIsLastInPaletteRow()
+})
+
+// Field notes is a desktop overlay and a phone takeover of the same DOM
+// (discovery-tree spec §6): the picker turns into a wrapped grid of tiles, and
+// every one of them still has to be tappable.
+test('field notes opens as a full-screen sheet whose picker is still tappable', async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, ['react:lava+water'])
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyTouchTargetSize('field-notes-button')
+  await root.openFieldNotes()
+  await root.verifyTouchTargetSize('field-notes-row-water')
+  await root.verifyTouchTargetSize('field-notes-close')
+
+  await root.selectNote('water')
+  expect(await root.focusedNote()).toBe('water')
+  await root.followProduct('obsidian')
+  expect(await root.focusedNote()).toBe('obsidian')
+
+  await root.verifyNoHorizontalPageOverflow()
+  await root.closeFieldNotes()
 })
 
 // The bottom bar is the tightest place an unlock has to fit, and the one where

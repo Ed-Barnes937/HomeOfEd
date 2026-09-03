@@ -77,6 +77,125 @@ export class SiltPagePom extends BasePage {
     return pressed === 'true'
   }
 
+  // ---- field notes (discovery-tree spec §6) -----------------------------
+
+  private readonly notesButton = this.page.getByTestId('field-notes-button')
+  private readonly notesPanel = this.page.getByTestId('field-notes-panel')
+
+  /** What the header chip reads, `witnessed/total`. */
+  async fieldNotesCount(): Promise<string> {
+    return this.statusText('field-notes-count')
+  }
+
+  /**
+   * The chip's three resting states (spec §6): greyed numerals until the first
+   * witness, plain in progress, inverted for good at `n/n`. The fourth - the
+   * ~250ms inversion as a count ticks up - needs a live witness, which is
+   * ticket 06's wiring.
+   */
+  async verifyFieldNotesChip(state: 'untouched' | 'in progress' | 'complete'): Promise<void> {
+    const chip = this.notesButton
+    if (state === 'untouched') await expect(chip).toHaveClass(/untouched/)
+    else await expect(chip).not.toHaveClass(/untouched/)
+
+    if (state === 'complete') await expect(chip).toHaveClass(/inverted/)
+    else await expect(chip).not.toHaveClass(/inverted/)
+  }
+
+  /** The rail's teaser: it says there is more to earn, never what (spec §7). */
+  async verifyMoreToEarn(shown: boolean): Promise<void> {
+    const teaser = this.page.getByTestId('earned-more')
+    if (shown) await expect(teaser).toBeVisible()
+    else await expect(teaser).toHaveCount(0)
+  }
+
+  async openFieldNotes(): Promise<void> {
+    await this.notesButton.click()
+    await expect(this.notesPanel).toBeVisible()
+  }
+
+  async closeFieldNotes(): Promise<void> {
+    await this.page.getByTestId('field-notes-close').click()
+    await expect(this.notesPanel).toHaveCount(0)
+  }
+
+  /** The panel's two pinned counters, and the `NEW n` chip when it is showing. */
+  async fieldNotesCounters(): Promise<{ elements: string; interactions: string; fresh: string }> {
+    const chip = this.page.getByTestId('field-notes-new')
+    return {
+      elements: await this.statusText('field-notes-elements'),
+      interactions: await this.statusText('field-notes-interactions'),
+      fresh: (await chip.count()) === 0 ? '' : ((await chip.textContent()) ?? ''),
+    }
+  }
+
+  /** Picks an element in the picker column; the ring follows. */
+  async selectNote(name: string): Promise<void> {
+    await this.page.getByTestId(`field-notes-row-${name}`).click()
+  }
+
+  /** The name under the ring's centre tile. */
+  async focusedNote(): Promise<string> {
+    return this.statusText('field-notes-centre')
+  }
+
+  /** What a picker row says about itself: its label and its `seen/total`. */
+  async noteRow(name: string): Promise<string> {
+    return (await this.page.getByTestId(`field-notes-row-${name}`).textContent()) ?? ''
+  }
+
+  /** Fresh install: no ring at all, just the copy that says where to start. */
+  async verifyFieldNotesEmpty(): Promise<void> {
+    await expect(this.page.getByTestId('field-notes-empty')).toBeVisible()
+    await expect(this.page.getByTestId('field-notes-ring')).toHaveCount(0)
+  }
+
+  /** The drawn star after a mastered element's name (spec §6). */
+  async verifyNoteMastered(name: string, mastered: boolean): Promise<void> {
+    const star = this.page.getByTestId(`field-notes-row-${name}`).getByLabel('mastered')
+    if (mastered) await expect(star).toBeVisible()
+    else await expect(star).toHaveCount(0)
+  }
+
+  /** An undiscovered element keeps its slot but is not a control (spec §7). */
+  async verifyNoteRowIsInert(name: string): Promise<void> {
+    const row = this.page.getByTestId(`field-notes-row-${name}`)
+    await expect(row).toBeVisible()
+    await expect(row).toBeDisabled()
+    await expect(row).toContainText('?')
+  }
+
+  /** Follows a product tile under a spoke's words - the way into its own entry. */
+  async followProduct(name: string): Promise<void> {
+    await this.page.getByTestId(`field-notes-product-${name}`).click()
+  }
+
+  /** Follows the element on the ring itself. */
+  async followSpoke(name: string): Promise<void> {
+    await this.page.getByTestId(`field-notes-spoke-${name}`).click()
+  }
+
+  async noteSpokeCount(): Promise<number> {
+    return this.page.getByTestId(/^field-notes-spoke-/).count()
+  }
+
+  async noteStillToFind(): Promise<string> {
+    return this.statusText('field-notes-still-to-find')
+  }
+
+  /** Every word the open panel renders - the assertion the spoiler policy needs. */
+  async fieldNotesText(): Promise<string> {
+    return (await this.notesPanel.innerText()) ?? ''
+  }
+
+  /** One click arms, the second forgets everything (spec §5). */
+  async forgetDiscoveries(): Promise<void> {
+    const button = this.page.getByTestId('field-notes-forget')
+    await button.click()
+    await expect(button).toHaveText(/sure/)
+    await button.click()
+  }
+
   async selectBrush(index: number): Promise<void> {
     await this.page.getByTestId(`brush-${index}`).click()
   }
@@ -299,7 +418,10 @@ export class SiltPagePom extends BasePage {
     await this.page.touchscreen.tap(clientX, clientY)
   }
 
-  private async canvasClientPoint(x: number, y: number): Promise<{ clientX: number; clientY: number }> {
+  private async canvasClientPoint(
+    x: number,
+    y: number,
+  ): Promise<{ clientX: number; clientY: number }> {
     const point = await this.gridToCanvasPoint(x, y)
     const box = await this.canvas.boundingBox()
     if (!box) throw new Error('silt-canvas has no bounding box')
@@ -325,9 +447,9 @@ export class SiltPagePom extends BasePage {
 
   /** Every paintable swatch the rail is currently rendering. */
   async paletteElementNames(): Promise<string[]> {
-    const testIds = await this.page.getByTestId(/^element-/).evaluateAll((nodes) =>
-      nodes.map((node) => node.getAttribute('data-testid') ?? ''),
-    )
+    const testIds = await this.page
+      .getByTestId(/^element-/)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid') ?? ''))
     return testIds.map((id) => id.replace('element-', ''))
   }
 
@@ -378,24 +500,18 @@ export class SiltPagePom extends BasePage {
 
   /** Which frame path the mounted app is rendering through. */
   async rendererKind(): Promise<string> {
-    return this.canvas.evaluate(
-      (el, key) => {
-        const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
-        return seam.rendererKind()
-      },
-      TEST_SEAM_KEY,
-    )
+    return this.canvas.evaluate((el, key) => {
+      const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
+      return seam.rendererKind()
+    }, TEST_SEAM_KEY)
   }
 
   /** Which thread the mounted app's sim ticks on. */
   async simHostKind(): Promise<string> {
-    return this.canvas.evaluate(
-      (el, key) => {
-        const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
-        return seam.simHostKind()
-      },
-      TEST_SEAM_KEY,
-    )
+    return this.canvas.evaluate((el, key) => {
+      const seam = (el as unknown as Record<string, SiltTestSeam>)[key]!
+      return seam.simHostKind()
+    }, TEST_SEAM_KEY)
   }
 
   async countSpecies(species: number): Promise<number> {

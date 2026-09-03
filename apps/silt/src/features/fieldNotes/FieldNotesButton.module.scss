@@ -1,0 +1,59 @@
+// Field notes' header chip (discovery-tree spec §6). The header's own button
+// treatment (../../pages/HomePage.module.scss) with a count beside the words.
+$ink: #1a1714;
+$paper: #e7e2d5;
+$raised: #f5f2e9;
+$muted: #8a8478;
+
+$font-label: 'Silkscreen', monospace;
+$font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+$mobile: '(pointer: coarse), (max-width: 700px)';
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 2px solid $ink;
+  background: $raised;
+  color: $ink;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.label {
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.count {
+  font-family: $font-mono;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+// Untouched: the numerals recede until there is progress to read.
+.untouched .count {
+  color: $muted;
+}
+
+// The tick-up and the finished chart share one treatment - a beat of it, then
+// nothing, or all of it, for good (decision 4).
+.inverted {
+  background: $ink;
+  color: $paper;
+}
+
+.inverted .count {
+  color: $paper;
+}
+
+@media #{$mobile} {
+  .button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

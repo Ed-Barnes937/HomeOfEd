@@ -82,6 +82,14 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   }
 }
 
+// Field notes' chip sits beside SCENES (discovery-tree spec §6), so the two
+// share the header's right-hand cluster.
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 // Positioning context for the scenes popover, which hangs off the header
 // button rather than floating over the world.
 .scenesAnchor {

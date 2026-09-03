@@ -9,7 +9,7 @@
  * or reaction row moves every number without a migration.
  */
 import type { EdgeKey } from './edgeKeys.ts'
-import { entryIndex, type EntryIndex } from './entries.ts'
+import { entryIndex, UNLOCKABLE_NAMES, type EntryIndex } from './entries.ts'
 import type { Progress } from './fieldNotesStore.ts'
 
 /** `seen of total` - what the counters, the picker rows and the chip all show. */
@@ -28,6 +28,13 @@ export interface FieldNotesView {
   mastered: ReadonlySet<string>
   /** Mastered unlockables: the elements that join the paint rail. */
   unlocked: readonly string[]
+  /**
+   * Whether the roster still holds an unlockable nobody has mastered - the
+   * rail's "more to earn" teaser. A boolean, and derived here rather than in
+   * the page, so the rail says only *that* there is more, never what (spec §7),
+   * and so unlock state has one source like everything else.
+   */
+  moreToEarn: boolean
   /** Elements discovered since the panel last showed them - the `NEW n` chip. */
   newElements: ReadonlySet<string>
   /** Per element, how many of the entries involving it have been witnessed. */
@@ -60,6 +67,7 @@ export function fieldNotesView(
     discovered,
     mastered,
     unlocked,
+    moreToEarn: unlocked.length < UNLOCKABLE_NAMES.length,
     newElements: new Set([...discovered].filter((name) => !reviewed.has(name))),
     counts: new Map(
       index.elements.map((name) => {

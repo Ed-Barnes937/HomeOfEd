@@ -66,6 +66,19 @@ describe('fieldNotesView()', () => {
     expect(view.counts.get('mud')).toEqual({ seen: 5, total: 5 })
   })
 
+  test('the rail is told there is more to earn only while there is (spec §7)', () => {
+    expect(fieldNotesView(store.progress, notes).moreToEarn).toBe(true)
+
+    // Four of mud's five: something is still to be earned, and the teaser must
+    // still say nothing about what.
+    for (const key of MUD_KEYS.slice(0, 4)) store.witness([key])
+    expect(reloaded().moreToEarn).toBe(true)
+
+    // Mud is the roster's only unlockable, so mastering it empties the promise.
+    store.witness([MUD_KEYS[4]!])
+    expect(reloaded().moreToEarn).toBe(false)
+  })
+
   test('an edge key this roster cannot resolve counts for nothing', () => {
     store.witness([...MUD_KEYS, 'react:unobtanium+water'])
 

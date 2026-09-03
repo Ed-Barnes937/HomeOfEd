@@ -36,7 +36,10 @@ src/
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
   pages/            HomePage — the rail, header, status bar, selection state
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
-                    global keydown map, given the actions it dispatches)
+                    global keydown map, given the actions it dispatches),
+                    useMobileLayout (the $mobile breakpoint in JS - for the
+                    handful of *numbers* a media query cannot hand a component;
+                    CSS is still the default answer)
   features/         palette/ (the base paintable roster + brush widths, and
                               EarnedElements - the rail's one EARNED control,
                               where mastered unlockables live so the 1-9 hotkeys
@@ -69,7 +72,14 @@ src/
                               localStorage, one global key, edges only;
                               fieldNotesView - the pure derivation the panel
                               renders; useFieldNotes - the page's single seam,
-                              React wiring over those two.
+                              React wiring over those two. panelModel - the
+                              picker rows and one element's ring as data, incl.
+                              the masking every rendered name goes through;
+                              ElementTile - *the* tile helper, hex + archetype
+                              in, every tile in the feature out;
+                              elementAppearance - name -> hex/shape off the
+                              registry; FieldNotesButton (the header chip) and
+                              FieldNotesPanel (overlay + phone sheet).
                               `.scratch/silt-discovery-tree/spec.md`)
   docs/             interactionGraph - derives the element graph from the live
                     registry and renders docs/interaction-graph.md; pure, so the
@@ -273,6 +283,20 @@ else touches it.
 - `useFieldNotes` is the one seam the header, panel, rail and moments read. It
   is React wiring only: the store and the pure `fieldNotesView` behind it are
   where the behaviour, and the tests, live.
+- **One tile helper, one masking seam.** Every tile the feature draws - picker
+  row, phone grid, ring, product tiles, the rail's teaser - comes from
+  `ElementTile`, built from the element's `colours[0]` and archetype alone
+  (square / cut-corner / diamond / hexagon), so a new element needs no art.
+  `ElementRefTile` is the only thing that decides whether a colour may be drawn
+  at all: a hidden element's hex is as much a spoiler as its name (spec §7), and
+  every name the panel renders goes through `panelModel`'s `refOf`, which is
+  why the invariant is a vitest case and not a review habit. The masking is not
+  hypothetical - a pre-trim scene restores painted mud, so `react:lava+mud` can
+  be witnessed while mud itself has never been discovered.
+- **The panel picks, it does not know.** Selection and the green-edge clearing
+  are panel-local `useState`; the counts, mastery, `NEW` set and denominators
+  all arrive from the view. `markReviewed()` fires from `HomePage`'s
+  `closeNotes`, never on open.
 
 ## Commands
 

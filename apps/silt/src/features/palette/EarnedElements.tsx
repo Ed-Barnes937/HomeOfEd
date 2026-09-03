@@ -1,9 +1,16 @@
+import { ElementTile } from '../fieldNotes/ElementTile.tsx'
 import type { PaletteEntry } from './paletteGroups.ts'
 import styles from './EarnedElements.module.scss'
 
 export interface EarnedElementsProps {
   /** The unlocked elements, in unlock order. Never empty - see the note below. */
   entries: readonly PaletteEntry[]
+  /**
+   * Whether the roster still holds something that can be earned. It says only
+   * *that* there is more, never what: a silhouette, like the chart's own "?"
+   * slots (spec §7).
+   */
+  moreToEarn: boolean
   open: boolean
   onToggle: () => void
   onClose: () => void
@@ -83,6 +90,13 @@ export function EarnedElements(props: EarnedElementsProps) {
               <span className={styles.rowName}>{entry.name}</span>
             </button>
           ))}
+
+          {props.moreToEarn ? (
+            <span className={styles.teaser} data-testid="earned-more">
+              <ElementTile shape="static" size={22} />
+              <span className={styles.teaserText}>more to earn in Field notes</span>
+            </span>
+          ) : null}
 
           <p className={styles.footer}>earned by mastering an element</p>
         </div>
