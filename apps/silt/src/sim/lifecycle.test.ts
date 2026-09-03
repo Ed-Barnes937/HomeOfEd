@@ -176,6 +176,57 @@ describe('lifetime', () => {
   })
 })
 
+/**
+ * Static, so nothing but the countdown can change it - a coarse lifetime is
+ * only observable in how long the cell stands, and a cell that also fell would
+ * confound that with chunk waking.
+ */
+const lichen: ElementDef = {
+  id: 102,
+  name: 'lichen',
+  colours: ['#9fb08a'],
+  tags: [],
+  archetype: { kind: 'static' },
+  lifetime: { ticks: 100, every: 4, becomes: null },
+}
+
+describe('coarse lifetimes', () => {
+  it('outlives the one-byte cap by counting draws rather than ticks', () => {
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, lichen] })
+    sim.paint(10, 100, lichen.id)
+
+    // 100 draws every 4 ticks is ~400 - well past the 255 the byte holds, and
+    // the whole reason `every` exists.
+    for (let i = 0; i < 300; i++) sim.tick()
+    expect(count(sim, lichen.id)).toBe(1)
+
+    for (let i = 0; i < 120; i++) sim.tick()
+    expect(count(sim, lichen.id)).toBe(0)
+  })
+
+  it('spreads a cohort with a jitter that is in coarse units too', () => {
+    const drifting: ElementDef = {
+      ...lichen,
+      lifetime: { ticks: 10, jitter: 10, every: 8, becomes: null },
+    }
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, drifting] })
+    for (let x = 0; x < 40; x++) sim.paint(x, 100, drifting.id)
+
+    // The shortest life here is 10 draws - 72 ticks - so every cell is still
+    // standing long past the 20 ticks the same numbers buy at `every: 1`.
+    for (let i = 0; i < 70; i++) sim.tick()
+    expect(count(sim, drifting.id)).toBe(40)
+
+    for (let i = 0; i < 50; i++) sim.tick()
+    const left = count(sim, drifting.id)
+    expect(left).toBeGreaterThan(0)
+    expect(left).toBeLessThan(40)
+
+    for (let i = 0; i < 50; i++) sim.tick()
+    expect(count(sim, drifting.id)).toBe(0)
+  })
+})
+
 describe('onTick hook', () => {
   it('runs strictly after the archetype has moved the cell', () => {
     // The hook stamps the cell above wherever it now is. Run before movement it
@@ -231,6 +282,80 @@ describe('onTick hook', () => {
     sim.tick()
 
     expect(count(sim, SAND)).toBe(0)
+  })
+})
+
+/**
+ * The travelling budget of spec §2.2, in miniature: a static tip writes the cell
+ * above *with* the state it is handing on and then stops being a tip, so the
+ * budget travels without the hook ever moving anything.
+ */
+function climber(carries: boolean): ElementDef {
+  const def: ElementDef = {
+    id: 101,
+    name: 'climber',
+    colours: ['#ffffff'],
+    tags: [],
+    archetype: { kind: 'static' },
+    onTick: (api) => {
+      if (carries) api.set(0, -1, def.id, { ra: api.ra + 1 })
+      else api.set(0, -1, def.id)
+      api.become(DIRT)
+    },
+  }
+  return def
+}
+
+describe('`set` carrying an `ra` seed', () => {
+  const climbed = (carries: boolean): Sim => {
+    const def = climber(carries)
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, def] })
+    sim.paint(10, 100, def.id)
+    for (let i = 0; i < 3; i++) sim.tick()
+    return sim
+  }
+
+  it('hands the new cell the byte instead of clearing it', () => {
+    const sim = climbed(true)
+
+    expect(sim.speciesAt(10, 97)).toBe(101)
+    expect(raAt(sim, 10, 97)).toBe(3)
+  })
+
+  it('clears the byte when the hook hands none over, as every other birth does', () => {
+    const sim = climbed(false)
+
+    expect(sim.speciesAt(10, 97)).toBe(101)
+    expect(raAt(sim, 10, 97)).toBe(0)
+  })
+
+  it('reseeds `rb` regardless, so a brood of children is not one flat shade', () => {
+    const def = climber(true)
+    const sim = new Sim({ seed: 1, elements: [...v1Elements, def] })
+    const row = Array.from({ length: 40 }, (_, x) => x)
+    for (const x of row) sim.paint(x, 100, def.id)
+
+    sim.tick()
+
+    // Colour variants stay engine-owned (ADR 0040): a child shares its parent's
+    // palette but never its exact shade.
+    expect(row.map((x) => raAt(sim, x, 99))).toEqual(row.map(() => 1))
+    expect(new Set(row.map((x) => sim.rbAt(x, 99))).size).toBeGreaterThan(1)
+  })
+
+  it('refuses a species whose `lifetime` owns the byte', () => {
+    const meddler: ElementDef = {
+      id: 101,
+      name: 'meddler',
+      colours: ['#ffffff'],
+      tags: [],
+      archetype: { kind: 'static' },
+      onTick: (api) => api.set(0, -1, vapour.id, { ra: 3 }),
+    }
+    const sim = new Sim({ seed: 1, elements: [...withVapour, meddler] })
+    sim.paint(10, 100, meddler.id)
+
+    expect(() => sim.tick()).toThrow(/lifetime/i)
   })
 })
 

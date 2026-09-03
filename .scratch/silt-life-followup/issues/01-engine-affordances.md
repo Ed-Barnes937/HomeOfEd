@@ -1,6 +1,6 @@
 # 01 — Engine: `set` carries a byte, coarse lifetimes, powder `move`
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** nothing — this is the one ticket that can go straight to main
 before the burnables epic merges.
@@ -45,15 +45,20 @@ kernel pattern in `kernels.ts`; no behaviour change for existing powders
 
 ## Acceptance
 
-- [ ] `set` with `{ ra }` seeds the byte; without it, clears as today; `rb`
+- [x] `set` with `{ ra }` seeds the byte; without it, clears as today; `rb`
       reseeds in both cases; lifetime-declaring targets are rejected at the
-      call site or boot (pick one, document it).
-- [ ] A `lifetime.every` element outlives 255 ticks and dies within its
-      declared window; determinism test still green.
-- [ ] A `move: 0.25` powder falls visibly slower than sand and settles; sand
-      unchanged.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
+      call site or boot (pick one, document it). **Call site**:
+      `requireRaIsFree`, since the registry cannot know at boot which species a
+      hook seeds. Covers `Sim.paint` too.
+- [x] A `lifetime.every` element outlives 255 ticks and dies within its
+      declared window; determinism test still green. Jitter is in **coarse
+      units** and the phase is the world's tick, documented at `applyLifetime`.
+- [x] A `move: 0.25` powder falls visibly slower than sand and settles; sand
+      unchanged (no `move` on the roster, so no powder draws the throttle).
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm --filter silt run test` green
       (use `pnpm --filter`, not `turbo --filter` — known cyclic-dep issue).
+      Caveat: `src/docs/interactionGraph.test.ts` was already red on main
+      (five cases, burnables drift awaiting the regen PR) - untouched here.
 
 ## Context pointers
 

@@ -16,6 +16,17 @@ export interface Fluid {
 }
 
 /**
+ * How readily a blocked grain takes a diagonal, and the per-step probability
+ * that it moves at all. `move` is what makes a petal a *slow* powder - it drifts
+ * down where sand drops, without the liquid archetype's levelling (spec §3).
+ */
+export interface Grain {
+  density: number
+  slide: number
+  move?: number
+}
+
+/**
  * Engine-owned, **closed** set of four motion kernels (spec §5.2). Density
  * orders displacement; a gas has a negative density, which is what makes
  * everything else sink past it rather than the gas push its way up.
@@ -25,7 +36,7 @@ export interface Fluid {
  */
 export type Archetype =
   | { kind: 'static' }
-  | { kind: 'powder'; density: number; slide: number }
+  | ({ kind: 'powder' } & Grain)
   | ({ kind: 'liquid' } & Fluid)
   | ({ kind: 'gas' } & Fluid)
 
@@ -38,8 +49,37 @@ export interface Lifetime {
   ticks: number
   /** Random spread added to `ticks`, in ticks. */
   jitter?: number
+  /**
+   * Ticks between countdown draws, so the byte counts *draws* rather than ticks
+   * and a life longer than `MAX_LIFETIME_TICKS` fits without widening the cell.
+   * Defaults to 1, which is the tick-by-tick countdown.
+   *
+   * `ticks` and `jitter` are then both in **coarse units**: `ticks: 200,
+   * every: 6` is a 1200-tick life, jittered in steps of 6. See `applyLifetime`
+   * for why the phase is the world's and what that costs.
+   */
+  every?: number
   /** Element name to turn into on expiry, or `null` to vanish. */
   becomes: string | null
+}
+
+/**
+ * The optional state `set` may hand a cell it creates (life ticket 01). Without
+ * it a birth clears `ra`, so a hook wanting to pass a travelling budget on to
+ * the cell it makes would have to swap-and-backfill instead - movement inside a
+ * hook, which the element model forbids (spec §2.2).
+ */
+export interface SetOptions {
+  /**
+   * Seed for the new cell's `ra` instead of clearing it. Only for an element
+   * that owns its own byte: seeding one whose `lifetime` owns `ra` would
+   * pre-spend the countdown, and the call is refused rather than allowed to
+   * quietly shorten a life.
+   *
+   * `rb` is reseeded either way - the colour variant stays engine-owned, so a
+   * child shares its parent's palette but never its exact shade (ADR 0040).
+   */
+  ra?: number
 }
 
 /**
@@ -111,8 +151,10 @@ export interface Api {
    * Overwrite the cell at the offset. Its `ra` is cleared and its `rb` is given
    * a fresh colour variant — the cell is newly born, and a transmutation that
    * left it at variant 0 would flatten the product into a slab (ADR 0040).
+   *
+   * `options.ra` is the one exception to the clearing: see `SetOptions`.
    */
-  set(dx: number, dy: number, species: number): void
+  set(dx: number, dy: number, species: number, options?: SetOptions): void
   /**
    * Exchange this cell with the one at the offset. The cursor follows, so
    * subsequent calls stay relative to the element's new home.

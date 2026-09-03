@@ -107,7 +107,14 @@ describe('the fire group', () => {
     expect(registry.get(EMBER)?.hardness).toBe(1)
     // 120 + 60 is under MAX_LIFETIME_TICKS (255), and the countdown owns `ra`
     // - which is why ember is static: no opinion field to collide with.
-    expect(registry.lifetimeOf(EMBER)).toEqual({ ticks: 120, jitter: 60, becomes: FIRE })
+    // `every: 1` is the default the registry fills in: a tick-by-tick countdown,
+    // which is every lifetime on the roster (life ticket 01).
+    expect(registry.lifetimeOf(EMBER)).toEqual({
+      ticks: 120,
+      jitter: 60,
+      every: 1,
+      becomes: FIRE,
+    })
     expect(registry.get(EMBER)?.archetype).toEqual({ kind: 'static' })
     // The mass rule (ADR 0040): four shades, base first.
     expect(registry.get(EMBER)?.colours).toHaveLength(4)

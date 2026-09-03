@@ -14,10 +14,12 @@ export interface Reaction {
   bBecomes: number
 }
 
-/** A `Lifetime` with `becomes` resolved and `jitter` defaulted. */
+/** A `Lifetime` with `becomes` resolved and `jitter`/`every` defaulted. */
 export interface ResolvedLifetime {
   ticks: number
   jitter: number
+  /** Ticks between countdown draws; 1 is the tick-by-tick countdown. */
+  every: number
   becomes: number
 }
 
@@ -52,6 +54,23 @@ export function canDisplace(registry: ElementRegistry, mover: number, target: nu
   return mine !== undefined && theirs !== undefined && mine > theirs
 }
 
+/**
+ * The one thing a caller may not do with `set`'s optional `ra` (life ticket 01):
+ * hand a seed to an element whose `lifetime` owns the byte, which would
+ * pre-spend its countdown.
+ *
+ * **The check is at the call site rather than at boot, deliberately.**
+ * `createRegistry` cannot see it: which species a hook seeds is known only when
+ * it seeds it. So it throws instead - loudly, on the first draw that gets it
+ * wrong, rather than quietly halving a life somewhere in a meadow. The cost is
+ * one registry lookup, and only on the `ra`-carrying branch.
+ */
+export function requireRaIsFree(registry: ElementRegistry, species: number): void {
+  if (registry.lifetimeOf(species) === undefined) return
+  const name = registry.get(species)?.name ?? species
+  throw new Error(`${name} declares a lifetime, which owns its ra - it cannot be seeded with one`)
+}
+
 const HEX = /^#[0-9a-f]{6}$/i
 
 /** Engine-owned pseudo-elements. Registering them keeps every lookup total. */
@@ -75,6 +94,13 @@ function densityOf(archetype: Archetype): number | undefined {
   return archetype.kind === 'static' ? undefined : archetype.density
 }
 
+/** Shared by every archetype that can be slow - powders included, since ticket 01. */
+function checkMove(move: number | undefined, fail: (message: string) => void): void {
+  if (move !== undefined && !(move > 0 && move <= 1)) {
+    fail('move must be a probability in (0, 1]')
+  }
+}
+
 function checkArchetype(archetype: Archetype, fail: (message: string) => void): void {
   switch (archetype.kind) {
     case 'static':
@@ -84,6 +110,7 @@ function checkArchetype(archetype: Archetype, fail: (message: string) => void): 
       if (!(archetype.slide >= 0 && archetype.slide <= 1)) {
         fail('slide must be a probability in [0, 1]')
       }
+      checkMove(archetype.move, fail)
       return
     case 'liquid':
     case 'gas':
@@ -96,9 +123,7 @@ function checkArchetype(archetype: Archetype, fail: (message: string) => void): 
       if (!(Number.isInteger(archetype.dispersion) && archetype.dispersion >= 0)) {
         fail('dispersion must be a non-negative whole number of cells')
       }
-      if (archetype.move !== undefined && !(archetype.move > 0 && archetype.move <= 1)) {
-        fail('move must be a probability in (0, 1]')
-      }
+      checkMove(archetype.move, fail)
       return
     default: {
       const exhaustive: never = archetype
@@ -194,6 +219,7 @@ function resolveLifetimes(
     lifetimes[def.id] = {
       ticks: lifetime.ticks,
       jitter: lifetime.jitter ?? 0,
+      every: lifetime.every ?? 1,
       becomes: lifetime.becomes === null ? EMPTY : byName.get(lifetime.becomes)!.id,
     }
   }
@@ -266,8 +292,16 @@ export function createRegistry(
     }
     // The countdown lives in one byte, so a longer life is not a long life —
     // it is a silently clamped one. Say so at boot rather than at runtime.
+    // `every` is what buys a longer *life*: the cap is on draws, not ticks, so a
+    // roster wanting more than 255 ticks coarsens rather than overflows.
     if (lifetime.ticks + (lifetime.jitter ?? 0) > MAX_LIFETIME_TICKS) {
       fail(`lifetime.ticks + jitter must not exceed ${MAX_LIFETIME_TICKS} — it lives in one byte`)
+    }
+    if (
+      lifetime.every !== undefined &&
+      !(Number.isInteger(lifetime.every) && lifetime.every >= 1 && lifetime.every <= 255)
+    ) {
+      fail('lifetime.every must be a whole number of ticks in [1, 255]')
     }
     if (lifetime.becomes !== null && !byName.has(lifetime.becomes)) {
       fail(`lifetime.becomes names unknown element ${lifetime.becomes}`)

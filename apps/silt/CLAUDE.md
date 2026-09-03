@@ -76,7 +76,7 @@ Pure TypeScript, no DOM, no `Math.random()` — see `.scratch/sand-sim/spec.md` 
 ```
 constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick rate,
               CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
-types.ts      ElementDef / Archetype / Api / Lifetime / ReactionRow
+types.ts      ElementDef / Archetype / Api / Lifetime / SetOptions / ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
               moss, vine, ember, ash) and v1Reactions — config plus one hook. Everything
@@ -104,9 +104,14 @@ kernels.ts    applyArchetype — the only code that moves cells. Liquids keep
               (the "opinion field", ADR 0038) instead of re-rolling a coin, and
               a liquid still carrying momentum falls diagonally in its parity
               direction rather than straight down (ADR 0041); a blocked powder
-              tries one random diagonal, not both (ADR 0039)
+              tries one random diagonal, not both (ADR 0039). Powders take the
+              same optional `move` throttle as fluids, so a petal can be a slow
+              powder rather than a pooling liquid (life ticket 01)
 lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
-              has moved; neither moves anything
+              has moved; neither moves anything. `lifetime.every` makes the
+              countdown coarse - the byte counts draws, not ticks, so a life
+              longer than 255 ticks fits; the phase is the world's tick, so
+              `jitter` (coarse too) is the only thing spreading a cohort out
 growth.ts     the roster's one `onTick`: moss and vine grow into water, up
               first, capped per cell by a branch count kept in `ra` and bounded
               overall by refusing any cell that already touches two plants
@@ -153,6 +158,12 @@ Rules that are easy to break by accident:
   `Sim.restore` takes the default, because it puts the saved plane back straight
   after. No element writes it either.
   [ADR 0040](../../docs/adr/0040-silt-colour-variants-in-rb.md).
+  The one exception to the clearing of `ra` is `CellApi.set` / `Sim.paint`'s
+  optional `{ ra }` (life ticket 01) - how a travelling per-cell budget reaches
+  the cell a hook creates, and how a built scene pre-ages its cells. `rb` still
+  reseeds, and seeding `ra` on a species that declares a `lifetime` throws at
+  the call site (`requireRaIsFree`): the registry cannot see it at boot, since
+  which species a hook seeds is known only when it seeds it.
   New per-cell fields are parallel grids; the cell never widens past 4 bytes. There are
   **two exceptions, both conditional on the element declaring no `lifetime`**,
   and they cannot collide (one is static-only, the other liquid-only):

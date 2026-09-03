@@ -1,5 +1,5 @@
 import { EMPTY, WALL } from './elements.ts'
-import type { Archetype, Fluid, MovementApi } from './types.ts'
+import type { Archetype, Fluid, Grain, MovementApi } from './types.ts'
 
 /**
  * ## The opinion field (ADR 0038)
@@ -96,6 +96,19 @@ function canFlow(api: MovementApi, spec: Fluid, dy: number): boolean {
 }
 
 /**
+ * Whether any step the powder kernel would try is open to this grain. Must stay
+ * in step with the kernel below, and is only ever consulted on a tick a slow
+ * powder declined to act on - answering "no" while a step is available would let
+ * the chunk sleep on a grain still in mid-air. `slide: 0` never looks sideways,
+ * so for such a powder a blocked cell below really is nowhere to go.
+ */
+function canFall(api: MovementApi, slide: number): boolean {
+  if (api.canMove(0, 1)) return true
+  if (slide === 0) return false
+  return api.canMove(-1, 1) || api.canMove(1, 1)
+}
+
+/**
  * Down first; when that is blocked, **one** diagonal chosen by coin flip — the
  * coin picks the direction, not the order, so a grain whose only way out is the
  * side the coin missed stays put this tick and draws again next.
@@ -111,7 +124,18 @@ function canFlow(api: MovementApi, spec: Fluid, dy: number): boolean {
  * falling-sand angle. Under the one-diagonal rule a one-sided notch is escaped
  * with probability `slide × 0.5` per tick rather than `slide`.
  */
-function powder(api: MovementApi, slide: number): void {
+function powder(api: MovementApi, spec: Grain): void {
+  const { slide, move } = spec
+
+  // `move` gates the whole step, exactly as it does for a fluid: a petal is
+  // sand's kernel taken one tick in four, which is a slow *powder* rather than
+  // the pooling a slow liquid would give it. Undefined for every powder on the
+  // roster, so none of them draws here at all and the RNG stream is unmoved.
+  if (move !== undefined && api.rand() >= move) {
+    if (canFall(api, slide)) api.keepAwake()
+    return
+  }
+
   if (api.tryMove(0, 1)) return
 
   // No `slide === 1` short-circuit: the draw happens whenever a grain is
@@ -296,7 +320,7 @@ export function applyArchetype(api: MovementApi, archetype: Archetype, raIsFree:
     case 'static':
       return
     case 'powder':
-      powder(api, archetype.slide)
+      powder(api, archetype)
       return
     case 'liquid':
       fluid(api, archetype, 1, raIsFree)

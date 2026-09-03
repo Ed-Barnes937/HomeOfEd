@@ -1,4 +1,4 @@
-import type { Api } from './types.ts'
+import type { Api, MovementApi } from './types.ts'
 import type { ElementRegistry, ResolvedLifetime } from './registry.ts'
 
 /**
@@ -48,11 +48,42 @@ export function applyReactions(api: Api, registry: ElementRegistry): void {
  *
  * Returns whether the cell survived. Writing `ra` also marks the chunk dirty,
  * which is what keeps a decaying cell awake in an otherwise settled corner.
+ *
+ * ## The coarse countdown (life ticket 01)
+ *
+ * `every: n` makes the byte count *draws* rather than ticks, so a 1200-tick
+ * flower fits in it without widening the cell. `tick` is the world's generation
+ * - the phase is **global, not per-cell**, because a cell has no second byte to
+ * keep a phase in. Two consequences, both deliberate:
+ *
+ * - `ticks` and `jitter` are in **coarse units**. `ticks: 200, every: 6` is a
+ *   1200-tick life and its jitter moves in steps of 6. Jitter is therefore the
+ *   only thing that spreads a cohort's deaths out (the lockstep phase spreads
+ *   nothing), which is also why a pre-grown scene wants `paint`'s `ra` seed.
+ * - A cell placed mid-run waits out the remainder of the current coarse step
+ *   before its first draw, so a life is accurate to within `every` ticks.
+ *
+ * `api` is the engine-internal `MovementApi` only for `keepAwake` - a skipped
+ * tick genuinely has nothing to write, and `keepAwake` is kept off `Api` so no
+ * element hook can reach it. Nothing here moves anything, as before.
  */
-export function applyLifetime(api: Api, lifetime: ResolvedLifetime): boolean {
+export function applyLifetime(api: MovementApi, lifetime: ResolvedLifetime, tick: number): boolean {
   let remaining = api.ra
   if (remaining === 0) {
     remaining = lifetime.ticks + (lifetime.jitter > 0 ? api.randInt(lifetime.jitter + 1) : 0)
+    // A coarse countdown can leave below without decrementing, and an unwritten
+    // seed would be re-drawn on every skipped tick - re-rolling the jitter and
+    // eating the RNG stream with it. A tick-by-tick countdown always reaches the
+    // write at the end, so it pays nothing for this.
+    if (lifetime.every > 1) api.ra = remaining
+  }
+
+  if (lifetime.every > 1 && tick % lifetime.every !== 0) {
+    // A skipped tick changes nothing, so nothing marks the chunk dirty and it
+    // would sleep with the cell frozen mid-life. Same judgement the `move`
+    // probabilities make in the kernels: declining to act is not being done.
+    api.keepAwake()
+    return true
   }
 
   remaining--
