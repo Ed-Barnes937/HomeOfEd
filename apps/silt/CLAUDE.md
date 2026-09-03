@@ -55,6 +55,12 @@ src/
                     spawners/(continuous emitters — entities, not cells)
                     scenes/  (sceneCodec: pure format; sceneStore: localStorage +
                               quota; useScenes: page state; the popover)
+                    fieldNotes/ (entries - the discovery metagame's shared
+                              brain: canonical edge keys, the one involves()
+                              predicate, tiers and the witnessed-set
+                              derivations. Pure; built off src/docs's graph,
+                              never a second derivation from the registry.
+                              `.scratch/silt-discovery-tree/spec.md`)
   docs/             interactionGraph - derives the element graph from the live
                     registry and renders docs/interaction-graph.md; pure, so the
                     drift test can regenerate and compare
