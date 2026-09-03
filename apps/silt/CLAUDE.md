@@ -77,11 +77,12 @@ Pure TypeScript, no DOM, no `Math.random()` — see `.scratch/sand-sim/spec.md` 
 ```
 constants.ts  GRID_WIDTH/HEIGHT (300×200, build-time), cell byte offsets, tick rate,
               CHUNK_SIZE / CHUNK_MARGIN (tunables, not commitments)
-types.ts      ElementDef / Archetype / Api / Lifetime / SetOptions / ReactionRow
+types.ts      ElementDef / Archetype / Api / Lifetime / Emission / SetOptions /
+              ReactionRow
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
-              moss, vine, ember, ash, buried, sprout, tip, stalk, flower) and
-              v1Reactions - config plus four hooks. Everything
+              moss, vine, ember, ash, buried, sprout, tip, stalk, flower,
+              petal) and v1Reactions - config plus five hooks. Everything
               that forms a mass declares four shades rather than one, picked
               per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
               rail reads it. The three gases stay flat. Gas densities
@@ -94,7 +95,12 @@ elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian
               back to wood, or is burned down to ash, which rain wets to mud
               and a seed regrows (ADR 0042). A seed on wet soil no longer
               sprouts on contact - it buries (`seed + mud -> buried`, p 0.1),
-              because one row per pair cannot both sprout and bury (ADR 0043)
+              because one row per pair cannot both sprout and bury (ADR 0043).
+              A withering flower leaves a seed where it stood and throws 3-4
+              petals clear (`lifetime.emits`); a petal is a slow floating powder
+              that strikes back into a seed on wet soil (p 0.01) and, as garnish,
+              on water (p 0.001). A loose seed rots after 1280-2000 ticks - the
+              buried one does not, and that is why they are two species
 growth.ts     the roster's first `onTick`: moss and vine grow into water, up
               first, capped per cell by a branch count kept in `ra` and bounded
               overall by refusing any cell that already touches two plants
@@ -110,6 +116,14 @@ stalk.ts      hooks three and four, the land plant: a sprout raises a stalk tip
               in `ra`, leaving inert stalk behind, and blooms when the budget
               runs out or when it is boxed in. Stem and flower are the products
               and both crumble - a meadow of immortal columns silts up (ADR 0043)
+petals.ts     the fifth `onTick`, and the smallest: a living flower sheds a petal
+              at p 0.005 a tick. The *death* drop is not a hook - `onTick` never
+              runs on the tick a lifetime expires, so the engine scatters the
+              brood (ADR 0043 §4). The one hook needing no keep-awake write: the
+              flower's own countdown already writes every tick
+emit.ts       emitInto - scattering a brood into the empty cells around one cell,
+              shared by `lifetime.emits` and the shedding hook. Displaces
+              nothing, so a crowded flower simply sheds fewer
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;
@@ -130,7 +144,10 @@ lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
               has moved; neither moves anything. `lifetime.every` makes the
               countdown coarse - the byte counts draws, not ticks, so a life
               longer than 255 ticks fits; the phase is the world's tick, so
-              `jitter` (coarse too) is the only thing spreading a cohort out
+              `jitter` (coarse too) is the only thing spreading a cohort out.
+              `lifetime.emits` is the death drop: `becomes` rewrites the dying
+              cell, `emits` scatters a brood into the free cells around it,
+              because a product has no way to act on its own death (ADR 0043 §4)
 sim.ts        the world: chunk scan order, the clock guard, paint/tick
 loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
 ```
@@ -179,7 +196,9 @@ Rules that are easy to break by accident:
   the cell a hook creates, and how a built scene pre-ages its cells. `rb` still
   reseeds, and seeding `ra` on a species that declares a `lifetime` throws at
   the call site (`requireRaIsFree`): the registry cannot see it at boot, since
-  which species a hook seeds is known only when it seeds it.
+  which species a hook seeds is known only when it seeds it. That guard bites on
+  seed 15 since life ticket 04 gave it one - a built scene cannot pre-age a loose
+  grain, only the plants that own their byte.
   New per-cell fields are parallel grids; the cell never widens past 4 bytes. There are
   **four exceptions, all conditional on the element declaring no `lifetime`**,
   and none can collide: the claim is per *species*, and a cell is one species
@@ -284,7 +303,8 @@ Spec §8; the calls the spec leaves open are in
   generator, so a change to `growth.ts` has to be mirrored there, while the seed
   bank's germination and the land plant's two hooks are unreported entirely - a
   `GrowthEdge` has no shape for a rule that writes two cells (ADR 0043). A
-  coarse `lifetime` is reported in real ticks, not in countdown draws.
+  coarse `lifetime` is reported in real ticks, not in countdown draws, and a
+  `lifetime.emits` death drop is reported beside the decay it rides on.
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).
 
 ## Rules

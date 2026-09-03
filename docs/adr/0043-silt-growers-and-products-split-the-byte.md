@@ -13,6 +13,9 @@
 - **Amended** 2026-09-03 (ticket 03) with §2.1 - the fourth claimant this
   decision named as its own trigger - and the two things the stalk tip taught
   (§3).
+- **Amended** 2026-09-03 (ticket 04) with §4 - the death drop, which is the bill
+  for the split arriving: a product cannot act on the tick it dies, so the engine
+  acts for it (`lifetime.emits`, `apps/silt/src/sim/emit.ts`).
 
 ## Context
 
@@ -143,10 +146,57 @@ carries them as comments rather than leaving them to this file:
   pre-spend a countdown that had not started. The split makes this a two-line
   ordering question rather than a bug that shows up as stems crumbling early.
 
+### 4. A product cannot act on its own death, so the engine acts for it (ticket 04)
+
+The split's bill came due at the end of the plant's life. A withering flower has
+to leave **two different things**: a falling seed in the cell it stood in, and
+3-4 petals thrown into whatever is free around it (life spec §4.4). Neither of
+the two obvious homes for that works:
+
+- **`lifetime.becomes` rewrites one cell**, singular by construction. It can make
+  the seed or a petal, never both.
+- **`onTick` never runs on the tick a lifetime expires.** The per-cell order is
+  movement -> reactions -> lifetime -> hook, each step gated on the cell still
+  being this element, and `applyLifetime` returns `false` on the tick it kills
+  the cell. That gate is deliberate and pinned (`lifecycle.test.ts`) - it is what
+  stops an element's code running on a cell it no longer is.
+
+So the flower has no way at all to act on its own death - **which is exactly what
+§1 says a product is**. A product expires and owns nothing; asking it to
+orchestrate its ending would make it a grower, and a grower cannot expire. The
+split does not have a hole here; it has an edge, and the edge belongs to the
+engine.
+
+`lifetime.emits: { species, min, max }` is that edge, and it is data on the
+lifetime rather than behaviour on the element: on expiry the engine scatters a
+drawn number of the named species into the empty neighbours of the dying cell,
+then applies `becomes` as before. It displaces nothing (a crowded flower simply
+sheds fewer, which is density dependence for free) and it moves nothing, so it is
+safe where it runs.
+
+Two smaller consequences follow, both recorded at their sites:
+
+- **The flower keeps its hook for the half it *can* do.** Shedding while alive is
+  an ordinary per-tick draw, so it stays a hook (`petals.ts`) - and it is the one
+  hook in the roster that needs no keep-awake write, because the flower's own
+  countdown already writes or calls `keepAwake` every tick of its life.
+- **The seed had to be given a lifetime to close the loop** (life ticket 04), and
+  that only works because of §1: `ra` on a *loose* seed is now the engine's
+  countdown, while the buried seed's soak counter is untouched, because they were
+  already two species. Had the seed been one species, "seeds rot" and "the bank
+  waits indefinitely" would have been the same byte. The visible cost is that
+  `Sim.paint(x, y, SEED, { ra })` now throws (`requireRaIsFree`): a built scene
+  can no longer pre-age a loose seed.
+
 ## Consequences
 
 - **Two ids per organism**, and the roster grows faster than the number of things
   a player can name. Six of this epic's ids are three organisms.
+- **The engine gained a second death-time affordance** (`lifetime.emits`, §4).
+  It is general - nothing in it names a flower - but it exists for one element,
+  and the honest reading is that a *third* thing wanted at death (a weighted
+  `becomes`, say, which the prototype also asked for) is the argument for giving
+  the engine a real death hook rather than a third field on `lifetime`.
 - **A species with a claim on `ra` can never be given a `lifetime` later.** Doing
   so silently hands the byte back to the engine: growth's brake would uncap, and
   the bank's biome test would read a countdown instead of a soak. The comments at
@@ -188,3 +238,18 @@ carries them as comments rather than leaving them to this file:
   4-bit countdown. Rejected as false economy: bit-packing two engine features
   into one byte is the same collision with more arithmetic, and the soak window
   (120 ticks) is a tuning value ticket 06 is expected to move.
+- **Making the flower a grower so it can orchestrate its own death** (§4):
+  declare no lifetime, keep an age in `ra`, drop and transmute itself when the
+  age runs out. Rejected. A hook cannot see the world's tick, so a 600-1200-tick
+  life would have to be counted as a per-tick probability - a geometric
+  distribution with a long tail, where the roster asks for a bounded window - and
+  it would put a fifth claimant on `ra` that is *not* a grower, which §2.1 names
+  as the trigger to widen the cell rather than to add a row. Spending the cell
+  width on a flower that only wants to die tidily is the wrong trade.
+- **The flower reading its own countdown and dropping one draw early**
+  (`onTick` when `api.ra === 1`, letting `becomes` make the seed). Rejected, and
+  worth recording because it looks like it works: under a coarse lifetime the
+  engine writes `remaining` once and then *skips* up to `every - 1` ticks, so the
+  hook sees `ra === 1` on every one of them and would drop up to eight broods.
+  The flower cannot mark itself done either - it does not own the byte. The bug
+  would be a meadow quietly producing eight times the petals it should.

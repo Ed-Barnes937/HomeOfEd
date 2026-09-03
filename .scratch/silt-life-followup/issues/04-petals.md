@@ -1,6 +1,6 @@
 # 04 — Petals and the closed meadow loop
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** 03
 **Spec:** [../spec.md](../spec.md) §4.4, §3
@@ -29,13 +29,39 @@ seed -> buried -> sprout -> stalk -> flower -> seed.
 
 ## Acceptance
 
-- [ ] A meadow left running self-seeds: population stable over a long run
+- [x] A meadow left running self-seeds: population stable over a long run
       (neither extinct nor exploding — pin with a seeded soak test at the
       sim level, not wall-clock).
-- [ ] Petals visibly shed and drift; some strike seeds on open mud; a pond
+      Measured over seeds 1-8 on a 261-cell bed, sampled every 1000 ticks from
+      2000 on: low 5-11 crowns, high 17-23. Pinned over seeds 1-3.
+- [x] Petals visibly shed and drift; some strike seeds on open mud; a pond
       beside a meadow gains floor vines on the measured timescale.
-- [ ] Stuck seeds expire (no permanent seed litter on stone).
-- [ ] Verify loop green.
+      35-36 of 40 petals resting on mud struck; a drift of 30 on a pond struck
+      4-8, and the pond floor carried 220-242 vine by 1500 ticks.
+- [x] Stuck seeds expire (no permanent seed litter on stone).
+- [x] Verify loop green.
+
+## What building it turned up
+
+- **The death drop needed an engine affordance, and the split says why.** A
+  product cannot act on the tick it dies (`onTick` is gated on the cell
+  surviving `applyLifetime`) and `becomes` rewrites one cell, so a flower has no
+  way to leave both a seed and petals. `lifetime.emits` is that affordance,
+  recorded as ADR 0043 §4 - "a thing that dies is a product, and a product does
+  not act" is the same decision seen from its far end. Two alternatives are
+  recorded as rejected there; the second looks correct and is not, because a
+  coarse countdown holds `ra` at 1 for up to `every` ticks, so a hook firing on
+  `ra === 1` would drop eight broods instead of one.
+- **A closed dry bed dies of thirst, and that is ruling 2 rather than a bug.**
+  Germination refunds its soil cell as *dirt* (plant drinking, reinstated), so
+  every generation spends a cell of the bed's water: a 261-cell bed carries a
+  meadow past 12,000 ticks and then thins, gone by 20,000-30,000. The prototype
+  refunded mud and never met this. So the soak test pins a horizon rather than
+  perpetuity, and a second case pins the ledger (mud + bank + dirt constant, and
+  only ever moving one way) so ticket 05's water cycle has a number to beat.
+- **The petal-water strike really is garnish.** 30 petals on a pond strike 4-8
+  times, enough to colonise a floor - but only because the drift is 30. A single
+  petal is a coin a test would lose, which is ruling 3 arriving as a measurement.
 
 ## Context pointers
 
