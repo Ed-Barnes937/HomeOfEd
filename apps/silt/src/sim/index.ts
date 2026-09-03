@@ -14,7 +14,9 @@ export {
 } from './constants.ts'
 export {
   ACID,
+  ASH,
   DIRT,
+  EMBER,
   EMPTY,
   FIRE,
   LAVA,

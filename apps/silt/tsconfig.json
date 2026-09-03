@@ -5,5 +5,5 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src", "bench", "*.ts", "playwright", "eslint.config.js"]
+  "include": ["src", "bench", "scripts", "*.ts", "playwright", "eslint.config.js"]
 }
