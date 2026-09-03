@@ -87,35 +87,45 @@ function rowOf(sim: Sim, x: number, species: number): number {
 }
 
 describe('a slow powder', () => {
-  /** A petal: the same fall as sand, taken about one tick in four (spec §3). */
-  const petal: ElementDef = {
+  /**
+   * A drifting grain: the same fall as sand, taken about one tick in four
+   * (spec §3), and the case the powder `move` throttle exists for.
+   *
+   * **Still a throwaway element, now that the real petal exists** (life ticket
+   * 04). The roster's petal also declares a lifetime, and both cases here
+   * outlast it - a grain that expired mid-drift would confound "the throttle
+   * slowed it down" with "the countdown removed it". The archetype belongs to
+   * the kernel, so it is pinned against the kernel alone; `life.test.ts` covers
+   * the petal that carries it.
+   */
+  const drifter: ElementDef = {
     id: 103,
-    name: 'petal',
+    name: 'drifter',
     colours: ['#f0c0cf'],
     tags: [],
     archetype: { kind: 'powder', density: 10, slide: 1, move: 0.25 },
   }
 
   it('drifts down while sand of the same slide falls a cell a tick', () => {
-    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, petal] }))
-    sim.paint(10, 10, petal.id)
+    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, drifter] }))
+    sim.paint(10, 10, drifter.id)
     sim.paint(20, 10, SAND)
 
     for (let i = 0; i < 24; i++) sim.tick()
 
     expect(rowOf(sim, 20, SAND)).toBe(34)
-    const drifted = rowOf(sim, 10, petal.id)
+    const drifted = rowOf(sim, 10, drifter.id)
     expect(drifted).toBeGreaterThan(10)
     expect(drifted).toBeLessThan(28)
   })
 
   it('still settles, so a declined step never freezes it mid-air', () => {
-    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, petal] }))
-    sim.paint(10, 10, petal.id)
+    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, drifter] }))
+    sim.paint(10, 10, drifter.id)
 
     for (let i = 0; i < 1200; i++) sim.tick()
 
-    expect(sim.speciesAt(10, FLOOR - 1)).toBe(petal.id)
+    expect(sim.speciesAt(10, FLOOR - 1)).toBe(drifter.id)
   })
 })
 
@@ -249,8 +259,7 @@ describe('grid storage', () => {
 })
 
 describe('painting a pre-aged cell', () => {
-  const raAt = (sim: Sim, x: number, y: number) =>
-    sim.cells[(y * GRID_WIDTH + x) * 4 + RA_OFFSET]!
+  const raAt = (sim: Sim, x: number, y: number) => sim.cells[(y * GRID_WIDTH + x) * 4 + RA_OFFSET]!
 
   it('seeds `ra`, so a built scene need not start as one synchronised cohort', () => {
     const sim = new Sim({ seed: 1 })

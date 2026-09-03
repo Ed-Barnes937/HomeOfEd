@@ -1,5 +1,6 @@
 import { createGrowth } from './growth.ts'
 import { createSeedBank } from './seedBank.ts'
+import { createShed } from './petals.ts'
 import { createSprout, createTip } from './stalk.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
 
@@ -32,6 +33,7 @@ export const SPROUT = 21
 export const TIP = 22
 export const STALK = 23
 export const FLOWER = 24
+export const PETAL = 25
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -253,6 +255,19 @@ const seed: ElementDef = {
   // 0 is all three plants need to dissolve: rows 6-7 already cover `[powder]`
   // and `[solid]` at `maxHardness: 1`, so acid needs no row of its own here.
   hardness: 0,
+  // **Seeds rot** (life ticket 04), and it is not a detail. A seed that lands
+  // where it cannot germinate - on stone, on a stem, on another seed - was
+  // immortal litter, and litter *roofs* the ground it fell on, so the bed under
+  // it goes dormant as well. The prototype measured a meadow held hostage to the
+  // petal-seed rate without this and holding one population across a tenfold
+  // change in that rate with it.
+  //
+  // Generous on purpose: 1280-2000 ticks is long enough that no seed on its way
+  // to soil ever notices, and `every: 8` is what fits it in the byte (the flat
+  // form is eight times `MAX_LIFETIME_TICKS`). The *buried* seed keeps no
+  // lifetime at all - it is a different species precisely so it can hold its
+  // soak counter in `ra` (ADR 0043), so burial is untouched by this.
+  lifetime: { ticks: 160, jitter: 90, every: 8, becomes: null },
 }
 
 const moss: ElementDef = {
@@ -468,26 +483,96 @@ const stalk: ElementDef = {
 }
 
 /**
- * The plant's last cell (life spec §4.3). Eight pastels rather than four shades
- * of one: per-cell variety is free in `rb` (ADR 0040), and it is what makes a
- * meadow read as a meadow rather than as one flower stamped out twenty times.
+ * The meadow's palette, shared by the flower and the petals it drops. Eight
+ * divides `VARIANT_SLOTS` exactly, so each colour comes up in one slot in eight -
+ * `rb & 7` and nothing else, and per-cell variety is free (ADR 0040). It is what
+ * makes a meadow read as a meadow rather than as one flower stamped out twenty
+ * times. `colours[0]` still leads, as everywhere: it is the flower a reader
+ * pictures.
+ *
+ * **A petal shares the palette, never the parent's shade** (life spec §2.5).
+ * `rb` is reseeded on every birth and no element may write it, so a petal's
+ * colour is drawn afresh - the same pastels, statistically identical in a drift,
+ * and no way to trace one back to the flower it came from.
+ */
+const PASTELS: readonly string[] = [
+  '#f2b8c6',
+  '#f7d6e0',
+  '#e3c2ef',
+  '#c8d6f6',
+  '#bde5df',
+  '#f8e3b2',
+  '#f6c9a8',
+  '#e8bcd9',
+]
+
+/**
+ * The fifth hook (life spec §4.4): a living flower lets the odd petal go. The
+ * *death* drop is not a hook - see `petals.ts`.
+ */
+const shed = createShed({ empty: EMPTY, petal: PETAL })
+
+/**
+ * The plant's last cell (life spec §4.3-4.4), and where the meadow loop closes:
+ * a withering flower leaves a falling seed in its own cell and throws 3-4 petals
+ * clear of it, so seed -> buried -> sprout -> stalk -> flower -> seed comes round
+ * without a rule anywhere that says "reproduce".
  */
 const flower: ElementDef = {
   id: FLOWER,
   name: 'flower',
-  // Eight divides `VARIANT_SLOTS` exactly, so each colour comes up in one slot
-  // in eight - `rb & 7` and nothing else. `colours[0]` still leads, as
-  // everywhere: it is the flower a reader pictures.
-  colours: ['#f2b8c6', '#f7d6e0', '#e3c2ef', '#c8d6f6', '#bde5df', '#f8e3b2', '#f6c9a8', '#e8bcd9'],
+  colours: PASTELS,
   tags: ['solid', 'flammable'],
   archetype: { kind: 'static' },
   hardness: 0,
   // 600-1200 ticks (10-20 s), coarse for the same reason the stem is: the flat
   // form is more than three times `MAX_LIFETIME_TICKS` and the registry refuses
-  // it at boot. Expiring to nothing for now - the death drop (a seed plus
-  // petals) is ticket 04, and it needs an engine affordance a single-valued
-  // `lifetime.becomes` does not have.
-  lifetime: { ticks: 75, jitter: 75, every: 8, becomes: null },
+  // it at boot.
+  //
+  // **The death drop** (life ticket 04). `emits` is the engine affordance a
+  // single-valued `becomes` could not give this: the seed is what is left *in*
+  // the cell, the petals are thrown into whatever is free around it, and neither
+  // could be a hook because `onTick` never runs on the tick a lifetime expires
+  // (ADR 0043 §4). **3-4, and 3 is the floor** - 1-2 measured as very nearly
+  // invisible in the prototype.
+  lifetime: {
+    ticks: 75,
+    jitter: 75,
+    every: 8,
+    becomes: 'seed',
+    emits: { species: 'petal', min: 3, max: 4 },
+  },
+  onTick: shed,
+}
+
+/**
+ * The garnish, and quietly also the offspring (life spec §4.4). A slow powder
+ * rather than a liquid: it needs a drifting, jittery fall, and the liquid
+ * archetype's levelling would have a drift of petals pool like spilled paint.
+ */
+const petal: ElementDef = {
+  id: PETAL,
+  name: 'petal',
+  // The flower's palette, drawn afresh per petal - see `PASTELS`.
+  colours: PASTELS,
+  // **Not `flammable`, on purpose.** The ignition ladder and its
+  // `fire + [flammable]` fallback both key on the tag, so leaving it off is what
+  // keeps fire from riding a drift of petals across the world - which is funny
+  // once and then ruins every meadow downwind of a spark.
+  tags: ['powder'],
+  // Density 10 is the lightest thing in the roster, so a petal displaces
+  // nothing at all and **floats on water** (10 against water's 30) - deliberate,
+  // petals on a pond are the point. The seed it may strike into is denser (40)
+  // and sinks straight through, which is the whole of pond succession. `move`
+  // 0.25 is the powder throttle life ticket 01 added for exactly this case: sand's
+  // kernel taken one tick in four, so a petal wanders down where a grain drops.
+  archetype: { kind: 'powder', density: 10, slide: 1, move: 0.25 },
+  // As every plant part: hardness 0 puts it in reach of acid's `[powder]` row.
+  hardness: 0,
+  // 80-150 ticks - 1.5 to 2.5 s, and the one lifetime in this epic that fits the
+  // byte flat, so no `every`. Long enough to drift a few cells and to get its
+  // draws where it lands, short enough that a meadow is not buried in litter.
+  lifetime: { ticks: 80, jitter: 70, becomes: null },
 }
 
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
@@ -516,6 +601,7 @@ export const v1Elements: readonly ElementDef[] = [
   tip,
   stalk,
   flower,
+  petal,
 ]
 
 /**
@@ -645,4 +731,28 @@ export const v1Reactions: readonly ReactionRow[] = [
   // table: nothing above claims this pair, since mud is a liquid and acid's
   // `[solid]`/`[powder]` rows never reach it.
   { a: 'seed', b: 'mud', p: 0.1, aBecomes: null, bBecomes: 'buried' },
+  // **The petal strikes** (life spec §4.4, ruling 3): petal drift doubles as
+  // reproduction. A petal that comes to rest on open wet soil usually takes -
+  // read the `p` as a rate and not as a share, as with the ember's residue
+  // branch: the draw is offered every tick the petal touches the soil and a petal
+  // lives 80-150 of them, so 0.01 is about two thirds over its life rather than
+  // one in a hundred.
+  //
+  // The rate is also **not the knob it looks like**. Measured across a tenfold
+  // change in it, the meadow settles at the same size, because what limits
+  // reproduction is how often a petal reaches open wet ground at all - a dense
+  // meadow roofs its own bed. Petal-seeds hold at about a sixth of all
+  // germinations however hard it is pushed.
+  { a: 'petal', b: 'mud', p: 0.01, aBecomes: 'seed', bBecomes: 'mud' },
+  // An order of magnitude below it, and **deliberately garnish** (ruling 3): at
+  // one strike in a thousand per contact tick, petals landing on a pond fire
+  // about once in twenty thousand ticks. What actually turns a pond into a marsh
+  // is seeds tumbling in over the bank, and that is fine - the struck seed is
+  // denser than water so it sinks, the pond floor banks it, and a floor of vine
+  // arrives on a 5000-10,000 tick timescale, never before the meadow itself.
+  //
+  // Both rows are safe at the tail of the table: petal carries only `powder`, so
+  // no `fire + [flammable]` reaches it, and every water and mud row above names
+  // both of its sides.
+  { a: 'petal', b: 'water', p: 0.001, aBecomes: 'seed', bBecomes: 'water' },
 ]

@@ -26,6 +26,7 @@ export {
   MUD,
   OBSIDIAN,
   OIL,
+  PETAL,
   SAND,
   SEED,
   SMOKE,
@@ -47,8 +48,9 @@ export {
   createRegistry,
   type ElementRegistry,
   type Reaction,
+  type ResolvedEmission,
   type ResolvedLifetime,
 } from './registry.ts'
 export { Rng } from './rng.ts'
 export { Sim, type SimOptions } from './sim.ts'
-export type { Api, Archetype, ElementDef, Lifetime, ReactionRow } from './types.ts'
+export type { Api, Archetype, ElementDef, Emission, Lifetime, ReactionRow } from './types.ts'

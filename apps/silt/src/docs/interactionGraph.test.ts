@@ -87,9 +87,13 @@ describe('deriveInteractionGraph', () => {
   it('reports a coarse lifetime in real ticks, not in countdown draws', () => {
     expect(graph.decays.find((decay) => decay.from === 'flower')).toEqual({
       from: 'flower',
-      becomes: 'empty',
+      becomes: 'seed',
       minTicks: 600,
       maxTicks: 1200,
+      // The death drop rides along on the lifetime, so it is reported with it -
+      // a flower listed as decaying to a seed and nothing else would leave out
+      // half of what a withering flower does (life ticket 04).
+      emits: { species: 'petal', min: 3, max: 4 },
     })
     expect(graph.decays.find((decay) => decay.from === 'stalk')).toEqual({
       from: 'stalk',

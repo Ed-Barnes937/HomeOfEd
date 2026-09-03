@@ -10,6 +10,7 @@ import {
   MOSS,
   MUD,
   OBSIDIAN,
+  PETAL,
   SEED,
   SPROUT,
   STALK,
@@ -23,7 +24,7 @@ import { BRANCH_BUDGET } from './growth.ts'
 import { SOAK_TO_DROWN } from './seedBank.ts'
 import { STALK_HEIGHT_JITTER, STALK_HEIGHT_MIN } from './stalk.ts'
 import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, RA_OFFSET, VARIANT_SLOTS } from './constants.ts'
-import { createRegistry } from './registry.ts'
+import { canDisplace, createRegistry } from './registry.ts'
 import { Sim } from './sim.ts'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -179,6 +180,8 @@ describe('seed, moss and vine', () => {
       ['mud', 'fire'],
       ['mud', 'lava'],
       ['seed', 'mud'],
+      ['petal', 'mud'],
+      ['petal', 'water'],
     ])
   })
 
@@ -641,11 +644,14 @@ describe('the land plant', () => {
       every: 8,
       becomes: EMPTY,
     })
+    // The flower's is also the death drop (life ticket 04): the seed is what is
+    // left in its own cell, the petals are what is thrown clear of it.
     expect(registry.lifetimeOf(FLOWER)).toEqual({
       ticks: 75,
       jitter: 75,
       every: 8,
-      becomes: EMPTY,
+      becomes: SEED,
+      emits: { species: PETAL, min: 3, max: 4 },
     })
     // Eight pastels, one per variant slot: `rb & 7` and nothing else (ADR 0040).
     expect(registry.get(FLOWER)?.colours).toHaveLength(VARIANT_SLOTS)
@@ -913,11 +919,13 @@ describe('the stalk tip', () => {
   })
 
   /**
-   * The whole loop this ticket closes, in one world: bank -> sprout -> climbing
-   * tip -> stem -> flower -> nothing, and the bed left able to host a successor.
-   * Ticket 04 hangs the death drop (a seed and petals) off the last step.
+   * The whole loop, in one world: bank -> sprout -> climbing tip -> stem ->
+   * flower -> seed, and the cell the plant stood in handed on rather than
+   * silted up. Before the death drop (life ticket 04) the last step was
+   * "-> nothing" and this case ended with an empty bed; now the plant leaves
+   * offspring, which is what makes the meadow a loop rather than a single run.
    */
-  it('leaves a clear bed and drunk soil once the plant is spent', () => {
+  it('hands the bed on to a successor once the first plant is spent', () => {
     const sim = new Sim({ seed: 1 })
     bed(sim, 40, 60)
     sim.paint(50, FLOOR - 1, BURIED)
@@ -935,11 +943,355 @@ describe('the stalk tip', () => {
     // Past both lifetimes: 1800 ticks of stem, 1200 of flower.
     run(sim, 2000)
 
-    const plant = count(sim, SPROUT) + count(sim, TIP) + count(sim, STALK) + count(sim, FLOWER)
-    expect(plant).toBe(0)
-    // Nothing left standing over the bed, so a successor can germinate here -
-    // which is the whole reason the stem crumbles.
+    // The plant's own column is clear again - the stem crumbled, which is the
+    // whole reason it has a lifetime, and the soil it drank is still dirt.
     expect(sim.speciesAt(50, FLOOR - 1)).toBe(DIRT)
-    expect(sim.speciesAt(50, FLOOR - 2)).toBe(EMPTY)
+    expect(sim.speciesAt(50, FLOOR - 2)).not.toBe(STALK)
+    // And the generation it left behind is somewhere in the bed: a seed still
+    // drifting, one banked in the soil, or a seedling already up.
+    const heirs =
+      count(sim, SEED) +
+      count(sim, BURIED) +
+      count(sim, SPROUT) +
+      count(sim, TIP) +
+      count(sim, FLOWER)
+    expect(heirs).toBeGreaterThan(0)
+  })
+})
+
+/** An obsidian floor with open air over it, and nothing on it that reacts. */
+function shelf(sim: Sim, left: number, right: number): void {
+  for (let x = left; x <= right; x++) sim.paint(x, FLOOR, OBSIDIAN)
+}
+
+/** The highest count of `species` seen over `ticks`, sampled every tick. */
+function peakOver(sim: Sim, ticks: number, species: number): number {
+  let peak = 0
+  for (let t = 0; t < ticks; t++) {
+    sim.tick()
+    peak = Math.max(peak, count(sim, species))
+  }
+  return peak
+}
+
+/**
+ * Petals (life spec §4.4) - the garnish that is also the offspring. Everything
+ * about them is data: a slow, floating powder, a short lifetime, and two
+ * reaction rows. The one piece of code is the flower's shedding hook, pinned
+ * against a stub in `petals.test.ts`.
+ */
+describe('petals', () => {
+  it('boots light enough to float, slow enough to drift, and out of the fire', () => {
+    expect(PETAL).toBe(25)
+    // `move` 0.25 is the powder throttle ticket 01 added for exactly this: sand's
+    // kernel taken one tick in four, so it wanders down where a grain drops.
+    expect(registry.get(PETAL)?.archetype).toEqual({
+      kind: 'powder',
+      density: 10,
+      slide: 1,
+      move: 0.25,
+    })
+    // The one lifetime in this epic that fits the byte flat - 80-150 ticks, so
+    // `every` stays at the tick-by-tick default.
+    expect(registry.lifetimeOf(PETAL)).toEqual({
+      ticks: 80,
+      jitter: 70,
+      every: 1,
+      becomes: EMPTY,
+    })
+    // **The flower's palette, and not a shade of it.** `rb` is reseeded on every
+    // birth and no element may write it (ADR 0040), so a petal is drawn from the
+    // same eight pastels afresh - statistically identical in a drift, and never
+    // traceable back to the flower it fell from (spec §2.5).
+    expect(registry.get(PETAL)?.colours).toEqual(registry.get(FLOWER)?.colours)
+    expect(registry.get(PETAL)?.colours).toHaveLength(VARIANT_SLOTS)
+    // **Not flammable**, and no ignition row of its own: fire riding a drift of
+    // petals across the world is funny once and then ruins every meadow.
+    expect(registry.has(PETAL, 'flammable')).toBe(false)
+    expect(registry.reactionFor(FIRE, PETAL)).toBeUndefined()
+    // Acid still reaches it, through the `[powder]` row every grain sits under.
+    expect(registry.reactionFor(ACID, PETAL)).toMatchObject({ aBecomes: EMPTY, bBecomes: EMPTY })
+
+    // The lightest thing in the roster, which is the whole pond trick: a petal
+    // displaces nothing and floats, and the seed it strikes into sinks past it.
+    expect(canDisplace(registry, PETAL, WATER)).toBe(false)
+    expect(canDisplace(registry, WATER, PETAL)).toBe(true)
+    expect(canDisplace(registry, SEED, WATER)).toBe(true)
+  })
+
+  it('registers both strikes as rates, the pond one an order of magnitude below', () => {
+    expect(registry.reactionFor(PETAL, MUD)).toEqual({ p: 0.01, aBecomes: SEED, bBecomes: MUD })
+    // Garnish, deliberately (ruling 3): about one strike per 20,000 ticks of
+    // petals landing on a pond, so what colonises water is seeds tumbling in.
+    expect(registry.reactionFor(PETAL, WATER)).toEqual({
+      p: 0.001,
+      aBecomes: SEED,
+      bBecomes: WATER,
+    })
+    // Symmetric, as every row is: reached from the soil side, the petal is still
+    // the cell that becomes the seed.
+    expect(registry.reactionFor(MUD, PETAL)).toEqual({ p: 0.01, aBecomes: MUD, bBecomes: SEED })
+  })
+
+  it('floats on a pond instead of sinking through it', () => {
+    const sim = new Sim({ seed: 1 })
+    pool(sim, 140, 160, 10)
+    sim.paint(150, FLOOR - 12, PETAL)
+
+    // Well inside the shortest petal life (80 ticks), so what is read here is
+    // where it came to rest rather than where it happened to expire.
+    run(sim, 60)
+
+    // One cell above the pool, on the surface - and nowhere in the water below.
+    expect(countIn(sim, POOL, PETAL)).toBe(1)
+    for (let i = 1; i <= 10; i++) {
+      for (let x = 140; x <= 160; x++) expect(sim.speciesAt(x, FLOOR - i)).not.toBe(PETAL)
+    }
+  })
+
+  /**
+   * **Read the `p` as a rate, not as a share.** A petal at rest gets a draw
+   * every tick for the whole of its 80-150 ticks, and from both sides of the
+   * pair, so 0.01 means "a petal that settles on open wet soil usually takes":
+   * 35-36 of these 40 struck, measured over seeds 1-3.
+   */
+  it('strikes into a seed where it settles on open wet soil', () => {
+    const sim = new Sim({ seed: 1 })
+    for (let i = 0; i < 40; i++) sealedPair(sim, 4 + i * 6, PETAL, MUD)
+
+    // Past the longest petal life, so every pair has had all the draws it will
+    // ever get. The pockets are lidded, so the struck seeds bank and stay banked.
+    run(sim, 400)
+
+    // Most struck, and the strike went all the way through burial: the seed the
+    // petal became was resting on the soil that made it.
+    expect(count(sim, BURIED)).toBeGreaterThan(25)
+    // A closed ledger: every pocket holds either a bank or the soil it started
+    // with, and no petal outlived its countdown.
+    expect(count(sim, BURIED) + count(sim, MUD)).toBe(40)
+    expect(count(sim, PETAL)).toBe(0)
+  })
+
+  /**
+   * Pond succession, end to end (spec §4.4): a drift of petals floats on the
+   * water, a few strike into seeds, those sink past the petals still floating,
+   * bank in the pond floor, drown into moss and climb as vine. Measured over
+   * seeds 1-6: 4-8 of 30 petals struck, and the floor carried 220-242 vine by
+   * 1500 ticks.
+   *
+   * A whole drift rather than one petal, because at p 0.001 a single petal is a
+   * coin this test would flip and lose. That is the ruling, not a workaround -
+   * the strike is garnish, and a pond turns to marsh mostly from seeds tumbling
+   * in over the bank.
+   */
+  it('turns a pond floor to vine, on the timescale succession is meant to read at', () => {
+    const sim = new Sim({ seed: 1 })
+    for (let x = 139; x <= 201; x++) sim.paint(x, FLOOR, OBSIDIAN)
+    for (let i = 1; i <= 14; i++) {
+      sim.paint(139, FLOOR - i, OBSIDIAN)
+      sim.paint(201, FLOOR - i, OBSIDIAN)
+    }
+    for (let x = 140; x <= 200; x++) {
+      sim.paint(x, FLOOR - 1, MUD)
+      for (let i = 2; i <= 8; i++) sim.paint(x, FLOOR - i, WATER)
+    }
+    for (let i = 0; i < 30; i++) sim.paint(141 + i * 2, FLOOR - 10, PETAL)
+
+    run(sim, 1200)
+
+    // Nothing but a petal strike could have put a plant in this pond: no seed
+    // was painted, and there is no bed above it for one to fall off.
+    expect(count(sim, MOSS)).toBeGreaterThan(0)
+    expect(count(sim, VINE)).toBeGreaterThan(20)
+  })
+})
+
+/**
+ * The death drop (spec §4.4), and the engine affordance it needed: a lifetime
+ * can leave one thing in the cell it kills and throw a brood clear of it
+ * (`lifetime.emits`, pinned in `lifecycle.test.ts`). A hook could not do this -
+ * `onTick` never runs on the tick a lifetime expires.
+ */
+describe('the flower death drop', () => {
+  it('leaves a falling seed where it stood and throws petals clear of it', () => {
+    const sim = new Sim({ seed: 1 })
+    shelf(sim, 40, 60)
+    for (let i = 1; i <= 6; i++) sim.paint(50, FLOOR - i, STALK)
+    sim.paint(50, FLOOR - 7, FLOWER)
+
+    // Past the longest flower (1200 ticks) and inside the shortest stem (1400),
+    // so the plant it stood on is still there to read the drop against.
+    const petals = peakOver(sim, 1300, PETAL)
+
+    expect(count(sim, FLOWER)).toBe(0)
+    // **3-4 is the floor** - the prototype measured 1-2 as very nearly
+    // invisible. The peak runs a little above the drop itself, because the
+    // flower also sheds while it is alive.
+    expect(petals).toBeGreaterThanOrEqual(3)
+    expect(petals).toBeLessThanOrEqual(8)
+    // And exactly one seed, in the cell the flower stood in - `becomes` is what
+    // is left behind, `emits` is what is thrown clear.
+    expect(count(sim, SEED)).toBe(1)
+    // The stem is untouched: only the crown died.
+    expect(count(sim, STALK)).toBe(6)
+  })
+
+  it('sheds the odd petal while it is still alive, well before it withers', () => {
+    const sim = new Sim({ seed: 1 })
+    shelf(sim, 20, 180)
+    for (let i = 0; i < 10; i++) sim.paint(30 + i * 15, FLOOR - 1, FLOWER)
+
+    // Inside 8 x 75 = 600 ticks, the shortest life any of them can have, so not
+    // one of these petals can have come from a death drop.
+    const petals = peakOver(sim, 500, PETAL)
+
+    expect(count(sim, FLOWER)).toBe(10)
+    expect(petals).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * **Seeds rot** (life ticket 04), and it is not a detail: a seed that lands
+ * where it cannot germinate was immortal litter, and litter roofs the ground it
+ * fell on, so the bed under it goes dormant too.
+ */
+describe('a stranded seed', () => {
+  it('clears itself from stone it can never germinate on', () => {
+    const sim = new Sim({ seed: 1 })
+    shelf(sim, 20, 180)
+    const stranded = Array.from({ length: 10 }, (_, i) => 30 + i * 15)
+    for (const x of stranded) sim.paint(x, FLOOR - 1, SEED)
+
+    // Inside 8 x 160 = 1280 ticks: generous on purpose, so no seed on its way to
+    // soil ever notices the countdown.
+    run(sim, 1270)
+    expect(count(sim, SEED)).toBe(stranded.length)
+
+    // And past 8 x 250, plus the phase.
+    run(sim, 800)
+    expect(count(sim, SEED)).toBe(0)
+    expect(sim.speciesAt(stranded[0]!, FLOOR - 1)).toBe(EMPTY)
+  })
+
+  /**
+   * **The bank is untouched by it**, and that is why the seed is two species at
+   * all: the buried seed holds its soak counter in `ra`, so it can declare no
+   * lifetime, so it cannot rot (ADR 0043). A bank that expired would undo the
+   * one thing it exists for.
+   */
+  it('leaves the bank alone: a buried seed keeps its byte and waits indefinitely', () => {
+    expect(registry.lifetimeOf(BURIED)).toBeUndefined()
+
+    const sim = new Sim({ seed: 1 })
+    sealedPair(sim, 100, BURIED, MUD)
+
+    // Twice the longest a loose seed lives, under a lid it can never germinate
+    // through.
+    run(sim, 4000)
+
+    expect(count(sim, BURIED)).toBe(1)
+  })
+
+  /**
+   * The cost of the lifetime, said out loud: `ra` is now the engine's countdown
+   * on a loose seed, so a built scene can no longer pre-age one. The guard is at
+   * the call site because the registry cannot see it at boot (life ticket 01).
+   */
+  it('refuses an `ra` seed now that the countdown owns the byte', () => {
+    const sim = new Sim({ seed: 1 })
+
+    expect(() => sim.paint(50, 50, SEED, { ra: 40 })).toThrow(/lifetime/i)
+  })
+})
+
+/** A long bed of wet soil with the sky open over it and walls it cannot leave. */
+function meadowBed(sim: Sim, left: number, right: number): void {
+  for (let x = left - 1; x <= right + 1; x++) sim.paint(x, FLOOR, OBSIDIAN)
+  for (let i = 1; i <= 30; i++) {
+    sim.paint(left - 1, FLOOR - i, OBSIDIAN)
+    sim.paint(right + 1, FLOOR - i, OBSIDIAN)
+  }
+  for (let x = left; x <= right; x++) sim.paint(x, FLOOR - 1, MUD)
+  for (let x = left + 10; x < right; x += 40) sim.paint(x, FLOOR - 1, BURIED)
+}
+
+/**
+ * The whole point of the epic, in one world: seed -> buried -> sprout -> stalk ->
+ * flower -> seed, closing on itself with no rule anywhere that says "reproduce".
+ */
+describe('the meadow loop', () => {
+  /**
+   * **The soak** (ticket 04's acceptance). Seven banked seeds on a 261-cell bed
+   * and nothing else: the meadow establishes itself and then holds, neither
+   * dying out nor running away. Measured over seeds 1-8, sampled every 1000
+   * ticks from 2000 on: the low sample was 5-11 crowns and the high 17-23, which
+   * is the "20+ crowns" ruling 4 asked for. The thresholds sit well outside both,
+   * since what is pinned is that a population *settles*, not the arithmetic of
+   * one bed - ticket 06 owns the density knob.
+   *
+   * Swept over three seeds rather than pinned to one: a self-seeding meadow that
+   * only survives on seed 1 is a coincidence, not a loop.
+   */
+  it('holds a population over a long seeded run, neither dying out nor exploding', () => {
+    for (const seed of [1, 2, 3]) {
+      const sim = new Sim({ seed })
+      meadowBed(sim, 20, 280)
+
+      let low = Number.POSITIVE_INFINITY
+      let high = 0
+      for (let t = 0; t <= 12000; t++) {
+        if (t % 1000 === 0 && t >= 2000) {
+          const crowns = count(sim, SPROUT) + count(sim, TIP) + count(sim, FLOWER)
+          low = Math.min(low, crowns)
+          high = Math.max(high, crowns)
+        }
+        sim.tick()
+      }
+
+      // Never extinct: there was a living crown at every sample past the first
+      // generation. Before the death drop this bed grew seven plants and stopped.
+      expect(low).toBeGreaterThan(0)
+      // Really a meadow, not one straggler holding on.
+      expect(high).toBeGreaterThan(10)
+      // And not a runaway: reproduction is limited by open wet ground, and a
+      // full meadow roofs its own bed, so the bank under it sleeps.
+      expect(high).toBeLessThan(40)
+    }
+  })
+
+  /**
+   * **What ends it, and why that is ticket 05's problem rather than a bug here.**
+   * Ruling 2 reinstated plant drinking: germination refunds the soil cell it
+   * grew out of as *dirt*, not mud, so every generation spends one cell of the
+   * bed's water. The prototype refunded mud and so never met this - measured
+   * here, a 261-cell bed carries a meadow for something over 12,000 ticks and
+   * then thins out as the last of the soil dries, around 20,000-30,000.
+   *
+   * That is the water cycle's absence, not the loop's failure: fire lofting the
+   * soil's water as steam and raining it back (spec §4.5) is what returns it,
+   * and it lands in ticket 05. What is pinned here is the ledger - the bed's
+   * soil is conserved and only ever moves one way - so the day the cycle arrives
+   * there is a number to hold it against.
+   */
+  it('drinks the bed as it grows, one cell of soil per germination', () => {
+    const sim = new Sim({ seed: 1 })
+    meadowBed(sim, 20, 280)
+    const soil = (): number => count(sim, MUD) + count(sim, DIRT) + count(sim, BURIED)
+    const opening = soil()
+    let driest = 0
+
+    for (let t = 0; t <= 12000; t++) {
+      if (t % 500 === 0) {
+        // Nothing here creates or destroys soil: burial moves a cell of mud into
+        // the bank and germination hands it back as dirt.
+        expect(soil()).toBe(opening)
+        driest = Math.max(driest, count(sim, DIRT))
+      }
+      sim.tick()
+    }
+
+    // The bed really did dry, and it is most of the way there.
+    expect(driest).toBeGreaterThan(opening / 2)
+    expect(count(sim, MUD)).toBeLessThan(opening / 2)
   })
 })
