@@ -23,6 +23,7 @@ export const MUD = 14
 export const SEED = 15
 export const MOSS = 16
 export const VINE = 17
+export const EMBER = 18
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -271,6 +272,36 @@ const vine: ElementDef = {
   onTick: grow,
 }
 
+/**
+ * Wood's smolder phase (burnables spec §2), and the reason wood reads as wood
+ * rather than as slow oil: the contact point chars and glows, the glow creeps
+ * along the beam, and only then does it erupt into open flame.
+ *
+ * A species rather than a per-cell heat field, because everything it needs is
+ * already here: a lifetime for the glow, reaction rows for the creep and the
+ * douse. See [ADR 0042](../../../../docs/adr/0042-silt-wood-smolders-as-ember.md).
+ */
+const ember: ElementDef = {
+  id: EMBER,
+  name: 'ember',
+  // Glowing char. Not in the design brief's swatch list, like obsidian and
+  // sulphur - a reaction product, not something you paint. Ticket 04 may tune
+  // the base; the other three follow it by the mass rule above.
+  colours: ['#b3401d', '#a13a1a', '#c1451f', '#ac3d1c'],
+  // **Not `flammable`.** It is already burning, so no ignition row may reach
+  // it - including the `fire + [flammable]` fallback, which would otherwise
+  // flash a smoldering wall the moment its own eruption lit a neighbour.
+  tags: ['solid'],
+  archetype: { kind: 'static' },
+  // As wood: acid's `[solid]` row at maxHardness 1 still eats a charred wall.
+  hardness: 1,
+  // 2–3 s of glow at 60 tps, then open flame - which cascades, rises and dies
+  // to smoke exactly as fire always has. 180 total is under
+  // `MAX_LIFETIME_TICKS`, and the countdown owns `ra`, which is why this is a
+  // static element: no opinion field and no growth count to collide with.
+  lifetime: { ticks: 120, jitter: 60, becomes: 'fire' },
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -290,6 +321,7 @@ export const v1Elements: readonly ElementDef[] = [
   seed,
   moss,
   vine,
+  ember,
 ]
 
 /**
@@ -316,20 +348,41 @@ export const v1Reactions: readonly ReactionRow[] = [
   // **These rows must stay above the tag row below them**, the same trap as
   // `acid + wood` further down: the tag row covers every one of these pairs as
   // well, and `resolvePairs` keeps the first registration and drops the rest
-  // without a word - reorder them and a fuel silently reverts to 0.4.
-  // `fire.test.ts` pins it.
+  // without a word - reorder them and a fuel silently reverts to 0.4, and wood
+  // silently goes back to flashing rather than charring. `fire.test.ts` pins it.
   //
-  // Wood is deliberately absent: it ignites through the tag fallback until it
-  // gets its ember (spec §2).
+  // Wood is the one fuel that never becomes fire directly: it chars first
+  // (spec §2, the ember rows below).
   { a: 'fire', b: 'sulphur', p: 1, aBecomes: 'fire', bBecomes: 'fire' },
   { a: 'fire', b: 'oil', p: 0.9, aBecomes: 'fire', bBecomes: 'fire' },
   { a: 'fire', b: 'vine', p: 0.6, aBecomes: 'fire', bBecomes: 'fire' },
   { a: 'fire', b: 'seed', p: 0.3, aBecomes: 'fire', bBecomes: 'fire' },
   { a: 'fire', b: 'moss', p: 0.2, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'wood', p: 0.2, aBecomes: 'fire', bBecomes: 'ember' },
   // The fallback, and the default every future flammable arrives on.
   { a: 'fire', b: 'flammable', p: 0.4, aBecomes: 'fire', bBecomes: 'fire' },
+  // Lava chars wood too, and more slowly than it lights anything else - but it
+  // is still the heat source it is everywhere else, so it survives. **Above
+  // the tag row**, which covers this pair as well.
+  { a: 'lava', b: 'wood', p: 0.1, aBecomes: 'lava', bBecomes: 'ember' },
   // Lava ignites and survives — it is a heat source, not a fuel.
   { a: 'lava', b: 'flammable', p: 0.15, aBecomes: 'lava', bBecomes: 'fire' },
+  // **The creep** (spec §2): a smolder walks through a beam one orthogonal
+  // contact at a time, slowly enough to watch. The a-side rewrite is not a
+  // typo - rewriting the ember cell clears its `ra` and so restarts its
+  // countdown, which is exactly the intent: an ember with fuel still beside it
+  // goes on smoldering, and only once its wood is gone (or the 0.02 draws keep
+  // missing) does the countdown run out and the cell erupt. It also re-rolls
+  // `rb`, so a smoldering mass shimmers a little - also a feature.
+  //
+  // No tag row above claims this pair, since ember is not `flammable` and the
+  // acid rows are acid-keyed, so this row is safe here.
+  { a: 'ember', b: 'wood', p: 0.02, aBecomes: 'ember', bBecomes: 'ember' },
+  // **The douse**: rain saves a smoldering structure, which is a player verb
+  // the instant burn never offered. Back to wood rather than to char, because
+  // a "damp char" species would earn its place only if this reads wrong in
+  // play. Mirrors `water + fire` at p 1.
+  { a: 'water', b: 'ember', p: 1, aBecomes: 'steam', bBecomes: 'wood' },
   // **This row must stay above the two below it.** They cover acid + wood as
   // well, via `[solid]` at hardness 1, and `resolvePairs` keeps the first
   // registration and drops the rest without a word — reorder these three and

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   DIRT,
+  EMBER,
   EMPTY,
   OBSIDIAN,
   FIRE,
@@ -94,10 +95,28 @@ describe('the fire group', () => {
     expect(registry.has(OIL, 'flammable')).toBe(true)
   })
 
-  // Rows 1–9 are this group's; later groups append to the same table, so this
+  // Ember is what makes wood read as wood (burnables spec §2): it chars and
+  // glows rather than flashing, and it is already burning, so it carries no
+  // `flammable` tag and no fuel row of its own can reach it.
+  it('boots the ember as a glowing char that is not itself a fuel', () => {
+    expect(EMBER).toBe(18)
+    expect(registry.get(EMBER)?.tags).toEqual(['solid'])
+    expect(registry.has(EMBER, 'flammable')).toBe(false)
+    // As wood: acid's `[solid]` rows at maxHardness 1 still reach a smoldering
+    // wall, so it is no more acid-proof than the wood it came from.
+    expect(registry.get(EMBER)?.hardness).toBe(1)
+    // 120 + 60 is under MAX_LIFETIME_TICKS (255), and the countdown owns `ra`
+    // - which is why ember is static: no opinion field to collide with.
+    expect(registry.lifetimeOf(EMBER)).toEqual({ ticks: 120, jitter: 60, becomes: FIRE })
+    expect(registry.get(EMBER)?.archetype).toEqual({ kind: 'static' })
+    // The mass rule (ADR 0040): four shades, base first.
+    expect(registry.get(EMBER)?.colours).toHaveLength(4)
+  })
+
+  // Rows 1–13 are this group's; later groups append to the same table, so this
   // pins the head of it rather than the whole thing.
-  it('registers rows 1–9 in the declared order', () => {
-    expect(v1Reactions.slice(0, 9).map((row) => [row.a, row.b])).toEqual([
+  it('registers rows 1–13 in the declared order', () => {
+    expect(v1Reactions.slice(0, 13).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -105,8 +124,12 @@ describe('the fire group', () => {
       ['fire', 'vine'],
       ['fire', 'seed'],
       ['fire', 'moss'],
+      ['fire', 'wood'],
       ['fire', 'flammable'],
+      ['lava', 'wood'],
       ['lava', 'flammable'],
+      ['ember', 'wood'],
+      ['water', 'ember'],
     ])
   })
 
@@ -140,18 +163,25 @@ describe('the fire group', () => {
   // heap of sulphur chains where a mat of moss smoulders through. The values
   // are ticket 04's to tune, so only sulphur's certainty and the *ranks* are
   // pinned here.
-  it('gives each fuel its own ignition rate rather than the tag row rate', () => {
+  it('ranks the fuels by ignition rate, flash powder down to a slow mat', () => {
     const p = (fuel: number) => registry.reactionFor(FIRE, fuel)?.p
-    const tagRow = v1Reactions.find((row) => row.a === 'fire' && row.b === 'flammable')!
 
     expect(p(SULPHUR)).toBe(1)
     expect(p(SULPHUR)).toBeGreaterThan(p(OIL)!)
     expect(p(OIL)).toBeGreaterThan(p(VINE)!)
     expect(p(VINE)).toBeGreaterThan(p(SEED)!)
     expect(p(SEED)).toBeGreaterThan(p(MOSS)!)
-    // Wood has no row of its own yet: it keeps igniting through the tag
-    // fallback until ticket 02 gives it the ember.
-    expect(p(WOOD)).toBe(tagRow.p)
+  })
+
+  // The ordering trap, on the ember's side: wood is flammable, so both tag rows
+  // cover these pairs too, and `resolvePairs` keeps the first registration and
+  // drops the rest without a word. Reorder the table and wood silently goes
+  // back to flashing - these two assertions are what turn that into a failure.
+  it('chars wood to ember rather than lighting it, from fire and from lava alike', () => {
+    expect(registry.reactionFor(FIRE, WOOD)).toMatchObject({ aBecomes: FIRE, bBecomes: EMBER })
+    expect(registry.reactionFor(LAVA, WOOD)).toMatchObject({ aBecomes: LAVA, bBecomes: EMBER })
+    // Reached from the wood side the answer is the same pair, sides swapped.
+    expect(registry.reactionFor(WOOD, FIRE)).toMatchObject({ aBecomes: EMBER, bBecomes: FIRE })
   })
 
   it('lights sulphur the moment fire touches it', () => {
@@ -200,22 +230,140 @@ describe('the fire group', () => {
     expect(sim.speciesAt(10, 0)).toBe(EMPTY)
   })
 
-  // The ignition rows rewrite the fire cell, which clears `ra` and so restarts
-  // its countdown: fire burns while its fuel lasts. That is the design, not a
-  // bug. Wood reaches them through the tag fallback until ticket 02 lands.
-  it('keeps burning while it is touching wood', () => {
+  // The contact point chars rather than catching (spec §2): whatever the draw
+  // does, the cell on the wood side is never fire.
+  it('chars the wood it touches rather than lighting it', () => {
+    const touched = RNG_SEEDS.map((seed) => {
+      const sim = new Sim({ seed })
+      pocket(sim, 100, FIRE, WOOD)
+
+      sim.tick()
+
+      return sim.speciesAt(101, FLOOR - 1)
+    })
+
+    // Never fire, whichever way the draw went: that is the invariant.
+    expect(touched.filter((species) => species !== WOOD && species !== EMBER)).toEqual([])
+    // p 0.2, plus the fire cell's own draw at the same pair, so this reads a
+    // little above the row - measured, 11 of the 40 seeds. Both ends matter: no
+    // ember at all would be a missing row, and every seed charring would be
+    // certainty the row does not claim.
+    const charred = touched.filter((species) => species === EMBER)
+    expect(charred.length).toBeGreaterThan(0)
+    expect(charred.length).toBeLessThan(RNG_SEEDS.length)
+  })
+
+  // The creep (spec §2). The first window is deliberately under the 120-tick
+  // floor on the ember's own life, so it sees the `ember + wood` row and
+  // nothing else - no eruption, and none of the fire an eruption spawns.
+  it('creeps along a wood beam through orthogonal contacts only', () => {
+    const beam = (seed: number) => {
+      const sim = new Sim({ seed })
+      for (let x = 100; x <= 110; x++) sim.paint(x, 100, WOOD)
+      // A cell touching the beam's lit end at a corner and nowhere else.
+      sim.paint(99, 99, WOOD)
+      sim.paint(100, 100, EMBER)
+      return sim
+    }
+    const beamHolds = (sim: Sim, species: number) => {
+      let held = 0
+      for (let x = 100; x <= 110; x++) if (sim.speciesAt(x, 100) === species) held++
+      return held
+    }
+
+    for (const seed of RNG_SEEDS) {
+      const sim = beam(seed)
+      run(sim, 100)
+
+      // The glow has spread - measured, 2 to 10 cells over these seeds at
+      // p 0.02 a contact - and nothing has erupted yet.
+      const lit = count(sim, EMBER)
+      expect(lit).toBeGreaterThan(1)
+      expect(count(sim, FIRE)).toBe(0)
+      // Into the beam and nowhere else: a contiguous run from the lit end.
+      for (let x = 100; x < 100 + lit; x++) expect(sim.speciesAt(x, 100)).toBe(EMBER)
+      // The corner is an invariant, not a probability: `applyReactions` counts
+      // orthogonal contacts only, so no seed may ever reach the diagonal cell
+      // inside this window. Past it the eruption's fire drifts and does reach
+      // it, which is movement rather than contact and is not this row's story.
+      expect(sim.speciesAt(99, 99)).toBe(WOOD)
+
+      // And the beam goes all the way: creep, eruption and the fire it leaves
+      // finish every cell of it. Measured, the slowest of these seeds clears at
+      // tick 423, so 800 is roughly twice the horizon it needs.
+      run(sim, 700)
+      expect(beamHolds(sim, WOOD)).toBe(0)
+    }
+  })
+
+  it('erupts into open flame once nothing is left to smolder, and that flame dies to smoke', () => {
+    const sim = new Sim({ seed: 1 })
+    sim.paint(10, 0, EMBER)
+
+    // `jitter` is added, never subtracted, so an unfed ember glows for 120–180
+    // ticks: long enough to read as a smolder, not long enough to stall.
+    let erupted = 0
+    for (let i = 1; i <= 181 && erupted === 0; i++) {
+      sim.tick()
+      if (count(sim, FIRE) > 0) erupted = i
+    }
+
+    expect(erupted).toBeGreaterThanOrEqual(120)
+    expect(erupted).toBeLessThanOrEqual(180)
+    expect(count(sim, EMBER)).toBe(0)
+
+    // And from there it is fire like any other: 40–60 ticks, then smoke.
+    run(sim, 61)
+    expect(count(sim, FIRE)).toBe(0)
+    expect(count(sim, SMOKE)).toBe(1)
+  })
+
+  // The douse (spec §2) - the new player verb: a smoldering structure can be
+  // saved. Quenching to wood rather than to char keeps the roster tight.
+  it('lets water save a smoldering structure, quenching the ember back to wood', () => {
+    const sim = new Sim({ seed: 1 })
+    pocket(sim, 100, WATER, EMBER)
+
+    sim.tick()
+
+    expect(sim.speciesAt(100, FLOOR - 1)).toBe(STEAM)
+    expect(sim.speciesAt(101, FLOOR - 1)).toBe(WOOD)
+  })
+
+  // Was `keeps burning while it is touching wood`, which asserted a wall of
+  // wood entirely gone inside 70 ticks. With the ember that timeline is wrong
+  // by design, so this asserts the new story rather than a loosened old one:
+  // char, crawl, erupt. Its point is the same one - a torched wall goes on
+  // burning long past a lone fire cell's 60-tick ceiling - but what carries the
+  // burn now is the char, not a fire cell being re-lit.
+  it('smolders through a wall of wood rather than detonating it', () => {
     const sim = new Sim({ seed: 1 })
     for (let y = FLOOR - 12; y <= FLOOR; y++) {
       for (let x = 40; x < 60; x++) sim.paint(x, y, WOOD)
     }
     sim.paint(50, FLOOR - 6, FIRE)
 
-    // 70 is past the 60-tick ceiling on a lone fire cell's life, so a fire
-    // still alight here has been re-lit by its fuel rather than merely not
-    // having expired yet.
     run(sim, 70)
 
-    expect(count(sim, FIRE)).toBeGreaterThan(0)
+    // Charring, and nowhere near consumed: this is the whole change. Measured,
+    // 102 of the wall's 260 cells glow here and the other 157 are still wood.
+    expect(count(sim, EMBER)).toBeGreaterThan(0)
+    expect(count(sim, WOOD)).toBeGreaterThan(0)
+    // And the flame that started it is already out: the fire cell was walled in
+    // by wood, charred its four contacts, and ember carries no `flammable` tag,
+    // so nothing re-lit it and its countdown ran out. Past this point the burn
+    // lives entirely in the char - which is what the creep row is for.
+    expect(count(sim, FIRE)).toBe(0)
+
+    // Then the char erupts, and the open flame it becomes is what finishes the
+    // wall off. Slow, in other words, not stalled.
+    let flamed = false
+    for (let i = 0; i < 250; i++) {
+      sim.tick()
+      flamed ||= count(sim, FIRE) > 0
+    }
+
+    expect(flamed).toBe(true)
     expect(count(sim, WOOD)).toBe(0)
   })
 
@@ -266,10 +414,12 @@ describe('the fire group', () => {
     // running when it reaches the fuel.
     for (let i = 3; i < 8; i++) sim.paint(100, FLOOR - i, LAVA)
 
+    // "Lit" now means either product: oil catches, wood chars to ember first
+    // (spec §2). Lava reaches both through its own rows, not the tag row.
     let lit = false
     for (let i = 0; i < 60 && !lit; i++) {
       sim.tick()
-      lit = count(sim, FIRE) > 0
+      lit = count(sim, FIRE) + count(sim, EMBER) > 0
     }
 
     expect(lit).toBe(true)

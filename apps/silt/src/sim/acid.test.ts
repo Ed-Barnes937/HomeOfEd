@@ -98,8 +98,8 @@ describe('the acid group', () => {
   // whole-table assertion here would make every later stage break this file.
   // The slice still pins order — which is load-bearing (spec §1.2) — over the
   // prefix this stage owns, and the last stage's test pins the full length.
-  it('declares rows 1–14 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 14).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–18 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 18).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -107,8 +107,12 @@ describe('the acid group', () => {
       ['fire', 'vine'],
       ['fire', 'seed'],
       ['fire', 'moss'],
+      ['fire', 'wood'],
       ['fire', 'flammable'],
+      ['lava', 'wood'],
       ['lava', 'flammable'],
+      ['ember', 'wood'],
+      ['water', 'ember'],
       ['acid', 'wood'],
       ['acid', 'solid'],
       ['acid', 'powder'],

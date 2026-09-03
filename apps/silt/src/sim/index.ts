@@ -15,6 +15,7 @@ export {
 export {
   ACID,
   DIRT,
+  EMBER,
   EMPTY,
   FIRE,
   LAVA,
