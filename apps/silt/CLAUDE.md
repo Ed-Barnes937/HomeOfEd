@@ -6,7 +6,9 @@ client-side simulation, scenes in `localStorage`, nothing server-owned.
 Scaffolded from `templates/starter`
 ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)). Spec:
 `.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
-(materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`.
+(materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`. Every
+effort since carries its own spec and tickets under `.scratch/silt-*/` - most
+recently `.scratch/silt-burnables/` (the ignition ladder, the ember, ash).
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -80,7 +82,8 @@ elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian
               rail reads it. The three gases stay flat. Gas densities
               read backwards: `canDisplace` is `mine > theirs`, so the gas
               closest to zero rises highest. Reaction row order is load-bearing:
-              a specific pair must precede any tag row covering it (acid + wood)
+              a specific pair must precede any tag row covering it (acid + wood,
+              and the `fire + <fuel>` ignition ladder above `fire + flammable`)
 registry.ts   createRegistry — boot-time validation; refuses a bad roster. Also
               flattens the tag-keyed reaction table into an id-pair lookup
 grid.ts       one ArrayBuffer, interleaved { species, ra, rb, clock } per cell;

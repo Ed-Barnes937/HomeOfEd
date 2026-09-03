@@ -6,9 +6,13 @@ import {
   OBSIDIAN,
   FIRE,
   LAVA,
+  MOSS,
   OIL,
+  SEED,
   SMOKE,
   STEAM,
+  SULPHUR,
+  VINE,
   WATER,
   WOOD,
   v1Elements,
@@ -19,6 +23,7 @@ import { createRegistry } from './registry.ts'
 import { Sim } from './sim.ts'
 
 const FLOOR = GRID_HEIGHT - 1
+const registry = createRegistry(v1Elements, v1Reactions)
 
 function count(sim: Sim, species: number): number {
   let total = 0
@@ -56,10 +61,30 @@ function pocket(sim: Sim, x: number, left: number, right: number): void {
   sim.paint(x + 1, FLOOR - 1, right)
 }
 
+/**
+ * Whether one tick of a wedged pocket lights `fuel`. The fuel sits on the
+ * right-hand side, which the first tick's right-to-left scan reaches before the
+ * fire, so the fuel cell gets its draw whatever the fire cell then does - a gas
+ * that rises a cell is no longer an orthogonal contact, and `applyReactions`
+ * counts nothing else. A fuel that misses that draw may still be reached by the
+ * fire cell's own draw the same tick, so this reads a little above the row's `p`
+ * for anything short of certainty.
+ */
+function ignitesOnFirstTick(seed: number, fuel: number): boolean {
+  const sim = new Sim({ seed })
+  pocket(sim, 100, FIRE, fuel)
+
+  sim.tick()
+
+  return sim.speciesAt(101, FLOOR - 1) === FIRE
+}
+
+/** Enough draws that the two ladder ends are separated by rank, not by luck.
+ * Named for the PRNG, not for the `SEED` species this file also burns. */
+const RNG_SEEDS = Array.from({ length: 40 }, (_, i) => i + 1)
+
 describe('the fire group', () => {
   it('boots with its five ids pinned', () => {
-    const registry = createRegistry(v1Elements, v1Reactions)
-
     expect([WOOD, OIL, FIRE, SMOKE, STEAM]).toEqual([6, 7, 8, 9, 10])
     for (const id of [WOOD, OIL, FIRE, SMOKE, STEAM]) {
       expect(registry.get(id)).toBeDefined()
@@ -69,15 +94,82 @@ describe('the fire group', () => {
     expect(registry.has(OIL, 'flammable')).toBe(true)
   })
 
-  // Rows 1–4 are this group's; later groups append to the same table, so this
+  // Rows 1–9 are this group's; later groups append to the same table, so this
   // pins the head of it rather than the whole thing.
-  it('registers rows 1–4 in the declared order', () => {
-    expect(v1Reactions.slice(0, 4).map((row) => [row.a, row.b])).toEqual([
+  it('registers rows 1–9 in the declared order', () => {
+    expect(v1Reactions.slice(0, 9).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
+      ['fire', 'sulphur'],
+      ['fire', 'oil'],
+      ['fire', 'vine'],
+      ['fire', 'seed'],
+      ['fire', 'moss'],
       ['fire', 'flammable'],
       ['lava', 'flammable'],
     ])
+  })
+
+  // The same trap `acid + wood` documents, on the fire side, stated as the
+  // invariant rather than as a slice: the tag row covers every fuel pair too,
+  // and `resolvePairs` keeps the first registration and drops the rest without
+  // a word. Written this way it goes on holding as later rows are appended.
+  // Either ordering counts, because `resolvePairs` registers a row both ways
+  // round: a later `{ a: 'wood', b: 'fire' }` would take the pair just as
+  // silently as `{ a: 'fire', b: 'wood' }` would.
+  it('declares every specific fire row above the fire tag row', () => {
+    const tag = v1Reactions.findIndex((row) => row.a === 'fire' && row.b === 'flammable')
+    const flammable = new Set(
+      v1Elements.filter((element) => element.tags.includes('flammable')).map((el) => el.name),
+    )
+    // Only a pair the tag row would itself claim is at risk. `water + fire` and
+    // `mud + fire` name partners carrying no `flammable` tag, so where they sit
+    // is nobody's business.
+    const late = v1Reactions
+      .slice(tag + 1)
+      .filter(
+        (row) =>
+          (row.a === 'fire' && flammable.has(row.b)) || (row.b === 'fire' && flammable.has(row.a)),
+      )
+      .map((row) => `${row.a} + ${row.b}`)
+
+    expect(late).toEqual([])
+  })
+
+  // The ladder itself (spec §1): each fuel has its own ignition character, so a
+  // heap of sulphur chains where a mat of moss smoulders through. The values
+  // are ticket 04's to tune, so only sulphur's certainty and the *ranks* are
+  // pinned here.
+  it('gives each fuel its own ignition rate rather than the tag row rate', () => {
+    const p = (fuel: number) => registry.reactionFor(FIRE, fuel)?.p
+    const tagRow = v1Reactions.find((row) => row.a === 'fire' && row.b === 'flammable')!
+
+    expect(p(SULPHUR)).toBe(1)
+    expect(p(SULPHUR)).toBeGreaterThan(p(OIL)!)
+    expect(p(OIL)).toBeGreaterThan(p(VINE)!)
+    expect(p(VINE)).toBeGreaterThan(p(SEED)!)
+    expect(p(SEED)).toBeGreaterThan(p(MOSS)!)
+    // Wood has no row of its own yet: it keeps igniting through the tag
+    // fallback until ticket 02 gives it the ember.
+    expect(p(WOOD)).toBe(tagRow.p)
+  })
+
+  it('lights sulphur the moment fire touches it', () => {
+    expect(RNG_SEEDS.filter((seed) => ignitesOnFirstTick(seed, SULPHUR))).toHaveLength(
+      RNG_SEEDS.length,
+    )
+  })
+
+  it('usually leaves moss unlit on the first tick, so a mat takes time to burn', () => {
+    const lit = RNG_SEEDS.filter((seed) => ignitesOnFirstTick(seed, MOSS))
+
+    // Both ends matter: moss that never lit would be a missing row, and moss
+    // that lit as readily as sulphur would be the tag row still winning. The
+    // bound is a real discriminator rather than decoration - measured, this
+    // pocket lights moss on 11 of the 40 seeds at its own 0.2 and on 25 of
+    // them at the tag row's 0.4, so losing the rung fails this.
+    expect(lit.length).toBeGreaterThan(0)
+    expect(lit.length).toBeLessThan(RNG_SEEDS.length / 2)
   })
 
   // `canDisplace` is `mine > theirs` and is not direction-aware, so the gas
@@ -108,8 +200,9 @@ describe('the fire group', () => {
     expect(sim.speciesAt(10, 0)).toBe(EMPTY)
   })
 
-  // Row 3 rewrites the fire cell, which clears `ra` and so restarts its
-  // countdown: fire burns while its fuel lasts. That is the design, not a bug.
+  // The ignition rows rewrite the fire cell, which clears `ra` and so restarts
+  // its countdown: fire burns while its fuel lasts. That is the design, not a
+  // bug. Wood reaches them through the tag fallback until ticket 02 lands.
   it('keeps burning while it is touching wood', () => {
     const sim = new Sim({ seed: 1 })
     for (let y = FLOOR - 12; y <= FLOOR; y++) {

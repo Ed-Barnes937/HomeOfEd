@@ -98,10 +98,15 @@ describe('the acid group', () => {
   // whole-table assertion here would make every later stage break this file.
   // The slice still pins order — which is load-bearing (spec §1.2) — over the
   // prefix this stage owns, and the last stage's test pins the full length.
-  it('declares rows 1–9 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 9).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–14 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 14).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
+      ['fire', 'sulphur'],
+      ['fire', 'oil'],
+      ['fire', 'vine'],
+      ['fire', 'seed'],
+      ['fire', 'moss'],
       ['fire', 'flammable'],
       ['lava', 'flammable'],
       ['acid', 'wood'],
@@ -216,7 +221,9 @@ describe('the acid group', () => {
     expect(sim.speciesAt(101, FLOOR - 1)).toBe(LAVA)
   })
 
-  // No new row for this: sulphur is `flammable`, so row 3 already covers it.
+  // No new row for this: sulphur burns because the ignition ladder gives it one
+  // (at p 1 - it is the flash powder), and did so through `fire + [flammable]`
+  // before that. Either way, acid's residue is a fuel and nothing here says so.
   it('burns the sulphur it makes, because sulphur is flammable', () => {
     const sim = new Sim({ seed: 1 })
     expect(registry.reactionFor(FIRE, SULPHUR)).toMatchObject({

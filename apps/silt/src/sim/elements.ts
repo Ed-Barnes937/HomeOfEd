@@ -305,9 +305,28 @@ export const v1Reactions: readonly ReactionRow[] = [
   // makes the water cycle visible. (v1 made obsidian on both sides.)
   { a: 'water', b: 'lava', p: 1, aBecomes: 'steam', bBecomes: 'obsidian' },
   { a: 'water', b: 'fire', p: 1, aBecomes: 'steam', bBecomes: 'smoke' },
-  // One row covers every fuel, now and later. Rewriting the fire cell clears
-  // its `ra` and so restarts its countdown: fire burns while its fuel lasts,
-  // then dies to smoke. That is the point of the row, not a side effect.
+  // **The ignition ladder** (burnables spec §1). Each fuel has its own
+  // probability, which is its whole character: sulphur is flash powder and a
+  // heap chains instantly, oil flashes, a vine burns as a fuse fast enough to
+  // route fire along a grown line, a seed pops, and a mat of moss takes visible
+  // time to consume. Every row here rewrites the fire cell, which clears its
+  // `ra` and so restarts its countdown: fire burns while its fuel lasts, then
+  // dies to smoke. That is the point of the rows, not a side effect.
+  //
+  // **These rows must stay above the tag row below them**, the same trap as
+  // `acid + wood` further down: the tag row covers every one of these pairs as
+  // well, and `resolvePairs` keeps the first registration and drops the rest
+  // without a word - reorder them and a fuel silently reverts to 0.4.
+  // `fire.test.ts` pins it.
+  //
+  // Wood is deliberately absent: it ignites through the tag fallback until it
+  // gets its ember (spec §2).
+  { a: 'fire', b: 'sulphur', p: 1, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'oil', p: 0.9, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'vine', p: 0.6, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'seed', p: 0.3, aBecomes: 'fire', bBecomes: 'fire' },
+  { a: 'fire', b: 'moss', p: 0.2, aBecomes: 'fire', bBecomes: 'fire' },
+  // The fallback, and the default every future flammable arrives on.
   { a: 'fire', b: 'flammable', p: 0.4, aBecomes: 'fire', bBecomes: 'fire' },
   // Lava ignites and survives — it is a heat source, not a fuel.
   { a: 'lava', b: 'flammable', p: 0.15, aBecomes: 'lava', bBecomes: 'fire' },
