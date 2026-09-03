@@ -1,4 +1,5 @@
 import { createGrowth } from './growth.ts'
+import { createSeedBank } from './seedBank.ts'
 import type { ElementDef, ReactionRow } from './types.ts'
 
 /**
@@ -25,6 +26,7 @@ export const MOSS = 16
 export const VINE = 17
 export const EMBER = 18
 export const ASH = 19
+export const BURIED = 20
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -226,8 +228,8 @@ const mud: ElementDef = {
 }
 
 /**
- * The one hook in the roster (materials spec §5), shared by moss and vine.
- * Everything else here is data; growth is not, because a reaction row has
+ * The first of the roster's two hooks (materials spec §5), shared by moss and
+ * vine. Everything else here is data; growth is not, because a reaction row has
  * neither a direction nor a brake. See `growth.ts`.
  */
 const grow = createGrowth(WATER, MOSS, VINE)
@@ -307,8 +309,8 @@ const ember: ElementDef = {
 
 /**
  * What a fire leaves behind (burnables spec §3), and the first half of the
- * ecology loop: ash falls, rain wets it to mud, and `seed + mud -> moss`
- * regrows what burned. See
+ * ecology loop: ash falls, rain wets it to mud, and a seed banks in it and
+ * germinates (life spec §4.1) to regrow what burned. See
  * [ADR 0042](../../../../docs/adr/0042-silt-wood-smolders-as-ember.md) §6.
  */
 const ash: ElementDef = {
@@ -337,6 +339,48 @@ const ash: ElementDef = {
   hardness: 0,
 }
 
+/**
+ * The seed bank (life spec §4.1), the roster's second hook. `null` is the land
+ * germination seam: ticket 03 pins sprout 21 and passes it here, and until then
+ * an unroofed seed on dry ground stays banked. The aquatic half is live. See
+ * `seedBank.ts`.
+ */
+const bank = createSeedBank({ empty: EMPTY, water: WATER, moss: MOSS, dirt: DIRT, sprout: null })
+
+/**
+ * Where a seed goes when it reaches wet soil (life spec §3, §4.1): into it. The
+ * bank is what makes a meadow survive a total burn, and what makes germination
+ * density dependent without a rule about density - see `seedBank.ts`.
+ */
+const buried: ElementDef = {
+  id: BURIED,
+  name: 'buried',
+  // **One word**, as every name here is: a name is a mermaid node id in the
+  // generated interaction graph and a scene's remap key. The spec calls the
+  // element a buried seed; the roster calls it `buried`.
+  //
+  // A seed husk darkened into the soil - between seed and mud, so a bed reads as
+  // ground with lumps in it rather than as seeds sitting on a floor. A product,
+  // so not in the design brief's swatch list.
+  colours: ['#6e5a33', '#63512e', '#7a6438', '#695531'],
+  // **Not `flammable`**, and that is the whole job: the ignition ladder and its
+  // `fire + [flammable]` fallback both key on the tag, so leaving it off is what
+  // makes the bank survive a fire that clears everything standing over it.
+  // `solid` still puts it in acid's reach, which is deliberate - acid erases,
+  // fire does not.
+  tags: ['solid'],
+  // Static, so mud (a liquid, and denser) oozes around it rather than washing it
+  // out of the bed it is buried in.
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // **No `lifetime`.** The hook keeps its soak counter in `ra`, which the
+  // engine's lifetime feature owns; giving the buried seed a lifetime would hand
+  // the byte back and the biome test would read a countdown. This is the
+  // grower/product split the seed pair exists for
+  // ([ADR 0043](../../../../docs/adr/0043-silt-growers-and-products-split-the-byte.md)).
+  onTick: bank,
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -358,6 +402,7 @@ export const v1Elements: readonly ElementDef[] = [
   vine,
   ember,
   ash,
+  buried,
 ]
 
 /**
@@ -460,7 +505,7 @@ export const v1Reactions: readonly ReactionRow[] = [
   // The same row with the bed swapped, and the second half of the ash loop
   // (spec §3): wetting a bed of residue is the same act as wetting a bed of
   // soil, so it is the same shape and the same p. Which is what makes what
-  // burned fertile again - `seed + mud -> moss` does the rest, unchanged.
+  // burned fertile again - the burial row and the bank's hook do the rest.
   // Ash is a powder, so acid's `[powder]` row covers `acid + ash`, but nothing
   // above claims *this* pair, so the row is safe here beside its twin.
   { a: 'water', b: 'ash', p: 0.4, aBecomes: null, bBecomes: 'mud' },
@@ -471,9 +516,20 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'mud', b: 'fire', p: 1, aBecomes: 'dirt', bBecomes: 'smoke' },
   // Lava bakes rather than dries, and survives — a heat source, not a reagent.
   { a: 'mud', b: 'lava', p: 1, aBecomes: 'stone', bBecomes: 'lava' },
-  // Sprouting **is** a reaction — it has a fixed outcome and needs no
-  // direction. The soil is not consumed: mud is the bed, not the fuel. Nothing
-  // above claims this pair (mud is a liquid, so acid's `[solid]`/`[powder]`
-  // rows never reach it), so the row is safe at the tail of the table.
-  { a: 'seed', b: 'mud', p: 1, aBecomes: 'moss', bBecomes: 'mud' },
+  // **Burial, which replaced instant germination rather than joining it** (life
+  // spec §4.1). One reaction row per pair and `p` is a rate, never a split
+  // (spec §2.4), so `seed + mud -> moss` at p 1 and this row **cannot coexist**:
+  // a seed cannot both sprout on contact and sink one time in ten. All
+  // germination therefore routes through the bank's hook (`seedBank.ts`), which
+  // is what buys the fire-proof bank and the one-shot biome decision.
+  //
+  // The *soil* cell is the one that becomes the seed and the seed cell is spent:
+  // the bank lives in the ground, under the surface fire cannot reach. It also
+  // costs a cell of soil, which germination gives back as dirt - that trade is
+  // the whole of what caps the bank.
+  //
+  // Still a reaction rather than a hook, and still safe at the tail of the
+  // table: nothing above claims this pair, since mud is a liquid and acid's
+  // `[solid]`/`[powder]` rows never reach it.
+  { a: 'seed', b: 'mud', p: 0.1, aBecomes: null, bBecomes: 'buried' },
 ]

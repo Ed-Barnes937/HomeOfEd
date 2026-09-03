@@ -1,6 +1,6 @@
 # 02 — Seed bank and biome commitment
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Blocked by:** 01, burnables epic merge (ids 18/19 must be pinned first)
 **Spec:** [../spec.md](../spec.md) §4.1, §4.2, §2.1, §2.4
@@ -33,16 +33,22 @@ the one-shot biome decision. This ticket changes how ALL germination works.
 
 ## Acceptance
 
-- [ ] Seeds on wet soil bury, then sprout after dormancy; nothing germinates
+- [x] Seeds on wet soil bury, then sprout after dormancy; nothing germinates
       instantly any more (update the pinned tests in `life.test.ts` that
-      assume `seed + mud -> moss` at p 1).
-- [ ] A droplet resting on a buried seed for < soak window does NOT commit
+      assume `seed + mud -> moss` at p 1). Land germination is one `null`
+      away - ticket 03 passes sprout 21 to `createSeedBank`; the aquatic half
+      is live end to end.
+- [x] A droplet resting on a buried seed for < soak window does NOT commit
       aquatic; a 2-deep soak for the window does (both directions tested).
-- [ ] Fire swept over a bed leaves the bank intact (buried seeds not
+- [x] Fire swept over a bed leaves the bank intact (buried seeds not
       flammable, count unchanged through a burn).
-- [ ] Bank self-caps: long-run bank + mud + dirt is constant for a closed bed.
-- [ ] Verify loop green (`pnpm --filter silt run test`, lint, typecheck).
-- [ ] ADR: the grower/product split (spec §7.1) if 03 hasn't landed it.
+- [x] Bank self-caps: long-run bank + mud + dirt is constant for a closed bed.
+- [x] Verify loop green (`pnpm --filter silt run test`, lint, typecheck) -
+      apart from the 4 stale `interactionGraph.test.ts` expectations that are
+      red on `main` (regen PR #124). The checked-in graph doc was regenerated,
+      so the drift check itself is green.
+- [x] ADR: the grower/product split (spec §7.1) - [ADR
+      0043](../../../docs/adr/0043-silt-growers-and-products-split-the-byte.md).
 
 ## Context pointers
 

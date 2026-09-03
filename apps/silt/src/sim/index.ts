@@ -15,6 +15,7 @@ export {
 export {
   ACID,
   ASH,
+  BURIED,
   DIRT,
   EMBER,
   EMPTY,

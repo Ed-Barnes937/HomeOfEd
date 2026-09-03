@@ -77,8 +77,10 @@ export interface InteractionGraph {
 /**
  * The growth hook is code rather than a row - `createGrowth(WATER, MOSS, VINE)`
  * in `elements.ts` - so no registry lookup can report it and these edges are
- * declared. Mirror any change to `growth.ts` here. Sprouting (`seed + mud ->
- * moss`) is a reaction row and arrives with the rest.
+ * declared. Mirror any change to `growth.ts` here. Burial (`seed + mud ->
+ * buried`) is a reaction row and arrives with the rest; germination is the seed
+ * bank's hook (`seedBank.ts`) and goes unreported, since a `GrowthEdge` has no
+ * shape for a rule that writes two cells (life ticket 02).
  */
 const GROWERS: readonly number[] = [MOSS, VINE]
 

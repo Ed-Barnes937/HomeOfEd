@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACID,
+  BURIED,
+  DIRT,
   EMPTY,
   FIRE,
   MOSS,
@@ -14,6 +16,7 @@ import {
   v1Reactions,
 } from './elements.ts'
 import { BRANCH_BUDGET } from './growth.ts'
+import { SOAK_TO_DROWN } from './seedBank.ts'
 import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH, RA_OFFSET } from './constants.ts'
 import { createRegistry } from './registry.ts'
 import { Sim } from './sim.ts'
@@ -174,36 +177,94 @@ describe('seed, moss and vine', () => {
     ])
   })
 
-  it('sprouts moss where a seed meets mud, and the soil is not consumed', () => {
+  /**
+   * **Burial replaced instant germination** (life spec §4.1). The old row here
+   * was `seed + mud -> moss` at p 1, and it could not survive alongside burial:
+   * one reaction row per pair, and `p` is a rate rather than a split. So this
+   * case now pins the trade the burial row makes, and germination has moved to
+   * the bank's hook below.
+   */
+  it('buries a seed into the soil it meets, and germinates nothing on the spot', () => {
     const sim = new Sim({ seed: 1 })
     sealedPair(sim, 100, SEED, MUD)
 
-    sim.tick()
+    // p 0.1 a contact tick, so this needs draws rather than one: the pair is
+    // sealed, and mud writes every tick it oozes, so the chunk stays awake.
+    run(sim, 200)
 
-    // Which of the two cells ends up holding the moss is not pinnable: mud is
-    // a liquid and denser than seed (50 to 40), so it may displace the seed
-    // sideways in the movement pass before reactions run, and on some seeds it
-    // does. What the row promises is the trade, not the address — one moss out,
-    // the bed still there, and the seed spent.
-    expect(count(sim, MOSS)).toBe(1)
-    expect(count(sim, MUD)).toBe(1)
+    // One cell of soil in, one cell of bank out, and the seed spent. Which cell
+    // holds it is not pinnable - mud is a liquid and denser than seed (50 to
+    // 40), so it may displace the grain sideways before reactions run.
+    expect(count(sim, BURIED)).toBe(1)
+    expect(count(sim, MUD)).toBe(0)
     expect(count(sim, SEED)).toBe(0)
+    // Nothing germinated: the sky above the pair is sealed obsidian, so the
+    // bank is dormant and stays that way for as long as the lid is on.
+    expect(count(sim, MOSS)).toBe(0)
   })
 
-  it('sinks a seed through water and rests it on the mud rather than in it', () => {
+  /**
+   * The aquatic half of the biome commitment (spec §4.2), end to end in a real
+   * world: a seed sinks through a pool, rests *on* the bed, banks into it, and
+   * commits aquatic only after `SOAK_TO_DROWN` ticks under `SOAK_DEPTH` cells of
+   * standing water. The shaft is water all the way up, so depth is never the
+   * thing being waited for here - the soak is.
+   */
+  it('sinks a seed through water, banks it in the bed, and drowns it into moss', () => {
     const sim = new Sim({ seed: 1 })
     shaftAt(sim, 150, 12)
     for (let i = 1; i <= 3; i++) sim.paint(150, FLOOR - i, MUD)
     for (let i = 4; i <= 9; i++) sim.paint(150, FLOOR - i, WATER)
     sim.paint(150, FLOOR - 10, SEED)
 
-    run(sim, 60)
+    // Long enough for the grain to fall (measured at ~10 ticks), the burial draw
+    // to come up (p 0.1), the soak window to fill (120) and the germination draw
+    // to land (~800 ticks on average). A horizon, not a bound.
+    let ticks = 0
+    while (count(sim, MOSS) === 0 && ticks < 8000) {
+      sim.tick()
+      ticks++
+      // Whatever else happens, the seed never germinated instantly: the soak
+      // window alone is 120 ticks, and the burial has to precede it.
+      if (ticks < SOAK_TO_DROWN) expect(count(sim, MOSS)).toBe(0)
+    }
 
-    // It stopped on top of the bed: the moss it sprouted into is the cell
-    // above the mud, and all three cells of soil are still there.
+    // It banked in the top cell of the bed - the seed rested *on* the soil, so
+    // the soil cell it touched is the one that became the bank - and the moss it
+    // germinated into is the water cell above that.
+    expect(count(sim, MOSS)).toBe(1)
     expect(sim.speciesAt(150, FLOOR - 4)).toBe(MOSS)
-    for (let i = 1; i <= 3; i++) expect(sim.speciesAt(150, FLOOR - i)).toBe(MUD)
+    // And the soil is refunded as dirt, not mud: the plant drank the moisture
+    // (ruling 2). The two cells below it never took part.
+    expect(sim.speciesAt(150, FLOOR - 3)).toBe(DIRT)
+    for (let i = 1; i <= 2; i++) expect(sim.speciesAt(150, FLOOR - i)).toBe(MUD)
     expect(count(sim, SEED)).toBe(0)
+    expect(count(sim, BURIED)).toBe(0)
+  })
+
+  /**
+   * The other direction, and the reason the aquatic test is depth **and** soak
+   * (spec §4.2): a droplet is not a pond. One cell of water resting on the bank
+   * soaks it for as long as you like and commits nothing, because the cell above
+   * *that* is air. Depth alone was faked by two droplets landing in one column,
+   * so the rule needs both - and this is the half a one-shot look-above failed.
+   */
+  it('never commits aquatic under a single droplet, however long it rests', () => {
+    const sim = new Sim({ seed: 1 })
+    shaftAt(sim, 150, 12)
+    for (let i = 1; i <= 3; i++) sim.paint(150, FLOOR - i, MUD)
+    sim.paint(150, FLOOR - 3, BURIED)
+    sim.paint(150, FLOOR - 4, WATER)
+
+    // Twenty times the soak window. Mud oozes and water settles, so the chunk
+    // is awake for plenty of it; the bank writes its own soak in any case.
+    run(sim, SOAK_TO_DROWN * 20)
+
+    expect(count(sim, MOSS)).toBe(0)
+    expect(count(sim, VINE)).toBe(0)
+    // Still banked, still waiting, and still under its droplet.
+    expect(sim.speciesAt(150, FLOOR - 3)).toBe(BURIED)
+    expect(sim.speciesAt(150, FLOOR - 4)).toBe(WATER)
   })
 
   it('grows upward first: the first vine a submerged plant makes is above it', () => {
@@ -416,5 +477,110 @@ describe('seed, moss and vine', () => {
       // Spent, not merely stalled: the acid was consumed doing it.
       expect(count(dissolving, ACID)).toBeLessThan(10)
     }
+  })
+})
+
+/** A bed of mud on an obsidian floor, with the sky left open over it. */
+function bed(sim: Sim, left: number, right: number): void {
+  for (let x = left - 1; x <= right + 1; x++) sim.paint(x, FLOOR, OBSIDIAN)
+  for (let i = 1; i <= 4; i++) {
+    sim.paint(left - 1, FLOOR - i, OBSIDIAN)
+    sim.paint(right + 1, FLOOR - i, OBSIDIAN)
+  }
+  for (let x = left; x <= right; x++) sim.paint(x, FLOOR - 1, MUD)
+}
+
+describe('the seed bank', () => {
+  it('boots with its id pinned, static, fireproof and free of any lifetime', () => {
+    expect(BURIED).toBe(20)
+    // Static, so the mud it displaced cannot wash it out of the bed.
+    expect(registry.get(BURIED)?.archetype).toEqual({ kind: 'static' })
+    expect(registry.has(BURIED, 'solid')).toBe(true)
+    // **Not flammable, and no ignition row of its own** - that is the whole job
+    // of the bank. The `fire + [flammable]` fallback keys on the tag, so leaving
+    // it off is what keeps fire out rather than a rule saying so.
+    expect(registry.has(BURIED, 'flammable')).toBe(false)
+    expect(registry.reactionFor(FIRE, BURIED)).toBeUndefined()
+    // **No lifetime**: `ra` is the soak counter, so the byte must stay free
+    // (ADR 0043). Giving it one would hand the byte back to the engine.
+    expect(registry.lifetimeOf(BURIED)).toBeUndefined()
+  })
+
+  it('registers burial as a rate that spends the seed and takes the soil cell', () => {
+    expect(registry.reactionFor(SEED, MUD)).toEqual({
+      p: 0.1,
+      aBecomes: EMPTY,
+      bBecomes: BURIED,
+    })
+    // Symmetric, as every row is: reached from the mud side, the mud is still
+    // the cell that becomes the bank.
+    expect(registry.reactionFor(MUD, SEED)).toEqual({
+      p: 0.1,
+      aBecomes: BURIED,
+      bBecomes: EMPTY,
+    })
+  })
+
+  /**
+   * The bank's reason to exist (spec §4.1). Fire clears everything standing on a
+   * bed and dries its surface, and the seeds under it come through untouched -
+   * which is what turns recovery from a total burn into one generation.
+   */
+  it('survives a fire swept over the bed, seed for seed', () => {
+    const sim = new Sim({ seed: 1 })
+    bed(sim, 40, 60)
+    for (const x of [42, 46, 50, 54, 58]) sim.paint(x, FLOOR - 1, BURIED)
+    const banked = count(sim, BURIED)
+    for (let x = 40; x <= 60; x++) sim.paint(x, FLOOR - 2, FIRE)
+
+    run(sim, 300)
+
+    // Not one lost, and nothing germinated in the panic either.
+    expect(count(sim, BURIED)).toBe(banked)
+    expect(count(sim, MOSS)).toBe(0)
+    // Not vacuous: the fire really did act on the bed it swept, drying the
+    // surface mud it touched to dirt (`mud + fire`).
+    expect(count(sim, DIRT)).toBeGreaterThan(0)
+  })
+
+  /**
+   * The self-cap, which is structural rather than a rule (spec §4.1): burial
+   * costs a cell of soil and germination gives one back as dirt, so
+   * **bank + mud + dirt is constant** for a closed bed however long it runs.
+   * Nothing anywhere counts the bank or limits it.
+   *
+   * Sampled every tick rather than at the end, since a ledger that dipped and
+   * recovered would still be a leak. Water is not in the ledger - a germination
+   * drinks a cell of it, and `water + dirt` spends another wetting the refund
+   * back to mud, which is the point of ruling 2.
+   */
+  it('caps its own bank: bank + mud + dirt never moves for a closed bed', () => {
+    const sim = new Sim({ seed: 1 })
+    pool(sim, 140, 160, 10)
+    for (let x = 140; x <= 160; x++) {
+      sim.paint(x, FLOOR - 1, MUD)
+      sim.paint(x, FLOOR - 2, MUD)
+    }
+    for (const x of [142, 146, 150, 154, 158]) sim.paint(x, FLOOR - 9, SEED)
+
+    // Counted over the pool's window rather than the grid, as the growth cases
+    // do: a per-tick assertion over 60,000 cells is not affordable, and the bed
+    // cannot leave the tank.
+    const ledger = (): number =>
+      countIn(sim, POOL, BURIED) + countIn(sim, POOL, MUD) + countIn(sim, POOL, DIRT)
+    const opening = ledger()
+    let peak = 0
+
+    for (let t = 0; t < 6000; t++) {
+      sim.tick()
+      expect(ledger()).toBe(opening)
+      peak = Math.max(peak, count(sim, BURIED))
+    }
+
+    // Not vacuous at either end: seeds really banked, and the bank really spent
+    // itself germinating rather than sitting there.
+    expect(peak).toBeGreaterThan(0)
+    expect(count(sim, MOSS)).toBeGreaterThan(0)
+    expect(count(sim, BURIED)).toBeLessThan(peak)
   })
 })

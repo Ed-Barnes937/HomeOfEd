@@ -84,8 +84,11 @@ describe('deriveInteractionGraph', () => {
       expect(edge.consumes).toBe('water')
       expect(edge.becomes).toBe('vine')
     }
-    // Sprouting is a row, so it arrives with the reactions and is not duplicated.
-    expect(products('seed', 'mud')).toEqual(['moss', 'mud'])
+    // Burial is a row, so it arrives with the reactions and is not duplicated.
+    // Germination is not: it is the seed bank's hook, and the graph has no shape
+    // for a rule with two products, so `seedBank.ts` goes unreported here (life
+    // ticket 02).
+    expect(products('seed', 'mud')).toEqual(['empty', 'buried'])
   })
 })
 

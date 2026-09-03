@@ -13,11 +13,11 @@ in the generator and must be kept in step with it.
 
 |                          | count |
 | ------------------------ | ----- |
-| elements                 | 17    |
+| elements                 | 20    |
 | paintable                | 11    |
-| products only            | 6     |
-| reaction pairs           | 26    |
-| decays                   | 3     |
+| products only            | 9     |
+| reaction pairs           | 33    |
+| decays                   | 4     |
 | of which fade to nothing | 1     |
 | growth edges             | 2     |
 
@@ -42,6 +42,9 @@ graph LR
   seed("seed")
   moss{{"moss"}}
   vine{{"vine"}}
+  ember{{"ember"}}
+  ash{{"ash"}}
+  buried{{"buried"}}
 
   %% reactions
   dirt ---|"mud / empty"| water
@@ -50,7 +53,9 @@ graph LR
   water ---|"steam / obsidian"| lava
   water ---|"steam / smoke"| fire
   water ---|"water / water"| acid
-  lava ---|"lava / fire"| wood
+  water ---|"steam / wood"| ember
+  water ---|"empty / mud"| ash
+  lava ---|"lava / ember"| wood
   lava ---|"lava / fire"| oil
   lava ---|"lava / smoke"| acid
   lava ---|"lava / fire"| sulphur
@@ -58,22 +63,28 @@ graph LR
   lava ---|"lava / fire"| seed
   lava ---|"lava / fire"| moss
   lava ---|"lava / fire"| vine
-  wood ---|"fire / fire"| fire
+  wood ---|"ember / fire"| fire
   wood ---|"empty / sulphur"| acid
+  wood ---|"ember / ember"| ember
   oil ---|"fire / fire"| fire
   fire ---|"fire / fire"| sulphur
   fire ---|"smoke / dirt"| mud
   fire ---|"fire / fire"| seed
   fire ---|"fire / fire"| moss
   fire ---|"fire / fire"| vine
+  fire ---|"fire / ash"| ember
   acid ---|"empty / empty"| seed
   acid ---|"empty / empty"| moss
   acid ---|"empty / empty"| vine
-  mud ---|"mud / moss"| seed
+  acid ---|"empty / empty"| ember
+  acid ---|"empty / empty"| ash
+  acid ---|"empty / empty"| buried
+  mud ---|"buried / empty"| seed
 
   %% decay
   fire -->|"decays, 40-60 ticks"| smoke
   steam -->|"decays, 180-240 ticks"| water
+  ember -->|"decays, 120-180 ticks"| fire
 
   %% growth
   water -->|"beside moss, p 0.04"| vine
@@ -87,36 +98,44 @@ only by reacting. A reaction edge is undirected and its label reads
 
 ## Interactions
 
-| reagents       | p    | outcome                            | mechanism                         |
-| -------------- | ---- | ---------------------------------- | --------------------------------- |
-| dirt + water   | 0.4  | dirt -> mud, water -> empty        | reaction row 10 (water + dirt)    |
-| dirt + acid    | 0.3  | dirt -> empty, acid -> empty       | reaction row 6 (acid + solid)     |
-| sand + acid    | 0.3  | sand -> empty, acid -> empty       | reaction row 7 (acid + powder)    |
-| water + lava   | 1    | water -> steam, lava -> obsidian   | reaction row 1 (water + lava)     |
-| water + fire   | 1    | water -> steam, fire -> smoke      | reaction row 2 (water + fire)     |
-| water + acid   | 1    | water -> water, acid -> water      | reaction row 8 (acid + water)     |
-| lava + wood    | 0.15 | lava -> lava, wood -> fire         | reaction row 4 (lava + flammable) |
-| lava + oil     | 0.15 | lava -> lava, oil -> fire          | reaction row 4 (lava + flammable) |
-| lava + acid    | 1    | lava -> lava, acid -> smoke        | reaction row 9 (acid + lava)      |
-| lava + sulphur | 0.15 | lava -> lava, sulphur -> fire      | reaction row 4 (lava + flammable) |
-| lava + mud     | 1    | lava -> lava, mud -> stone         | reaction row 12 (mud + lava)      |
-| lava + seed    | 0.15 | lava -> lava, seed -> fire         | reaction row 4 (lava + flammable) |
-| lava + moss    | 0.15 | lava -> lava, moss -> fire         | reaction row 4 (lava + flammable) |
-| lava + vine    | 0.15 | lava -> lava, vine -> fire         | reaction row 4 (lava + flammable) |
-| wood + fire    | 0.4  | wood -> fire, fire -> fire         | reaction row 3 (fire + flammable) |
-| wood + acid    | 0.3  | wood -> empty, acid -> sulphur     | reaction row 5 (acid + wood)      |
-| oil + fire     | 0.4  | oil -> fire, fire -> fire          | reaction row 3 (fire + flammable) |
-| fire + sulphur | 0.4  | fire -> fire, sulphur -> fire      | reaction row 3 (fire + flammable) |
-| fire + mud     | 1    | fire -> smoke, mud -> dirt         | reaction row 11 (mud + fire)      |
-| fire + seed    | 0.4  | fire -> fire, seed -> fire         | reaction row 3 (fire + flammable) |
-| fire + moss    | 0.4  | fire -> fire, moss -> fire         | reaction row 3 (fire + flammable) |
-| fire + vine    | 0.4  | fire -> fire, vine -> fire         | reaction row 3 (fire + flammable) |
-| acid + seed    | 0.3  | acid -> empty, seed -> empty       | reaction row 7 (acid + powder)    |
-| acid + moss    | 0.3  | acid -> empty, moss -> empty       | reaction row 6 (acid + solid)     |
-| acid + vine    | 0.3  | acid -> empty, vine -> empty       | reaction row 6 (acid + solid)     |
-| mud + seed     | 1    | mud -> mud, seed -> moss           | reaction row 13 (seed + mud)      |
-| fire           | -    | fire -> smoke after 40-60 ticks    | lifetime                          |
-| smoke          | -    | smoke -> empty after 200-255 ticks | lifetime                          |
-| steam          | -    | steam -> water after 180-240 ticks | lifetime                          |
-| moss + water   | 0.04 | water -> vine                      | growth hook (growth.ts)           |
-| vine + water   | 0.04 | water -> vine                      | growth hook (growth.ts)           |
+| reagents       | p     | outcome                            | mechanism                          |
+| -------------- | ----- | ---------------------------------- | ---------------------------------- |
+| dirt + water   | 0.4   | dirt -> mud, water -> empty        | reaction row 20 (water + dirt)     |
+| dirt + acid    | 0.3   | dirt -> empty, acid -> empty       | reaction row 16 (acid + solid)     |
+| sand + acid    | 0.3   | sand -> empty, acid -> empty       | reaction row 17 (acid + powder)    |
+| water + lava   | 1     | water -> steam, lava -> obsidian   | reaction row 1 (water + lava)      |
+| water + fire   | 1     | water -> steam, fire -> smoke      | reaction row 2 (water + fire)      |
+| water + acid   | 1     | water -> water, acid -> water      | reaction row 18 (acid + water)     |
+| water + ember  | 1     | water -> steam, ember -> wood      | reaction row 14 (water + ember)    |
+| water + ash    | 0.4   | water -> empty, ash -> mud         | reaction row 21 (water + ash)      |
+| lava + wood    | 0.1   | lava -> lava, wood -> ember        | reaction row 11 (lava + wood)      |
+| lava + oil     | 0.15  | lava -> lava, oil -> fire          | reaction row 12 (lava + flammable) |
+| lava + acid    | 1     | lava -> lava, acid -> smoke        | reaction row 19 (acid + lava)      |
+| lava + sulphur | 0.15  | lava -> lava, sulphur -> fire      | reaction row 12 (lava + flammable) |
+| lava + mud     | 1     | lava -> lava, mud -> stone         | reaction row 23 (mud + lava)       |
+| lava + seed    | 0.15  | lava -> lava, seed -> fire         | reaction row 12 (lava + flammable) |
+| lava + moss    | 0.15  | lava -> lava, moss -> fire         | reaction row 12 (lava + flammable) |
+| lava + vine    | 0.15  | lava -> lava, vine -> fire         | reaction row 12 (lava + flammable) |
+| wood + fire    | 0.2   | wood -> ember, fire -> fire        | reaction row 8 (fire + wood)       |
+| wood + acid    | 0.3   | wood -> empty, acid -> sulphur     | reaction row 15 (acid + wood)      |
+| wood + ember   | 0.02  | wood -> ember, ember -> ember      | reaction row 13 (ember + wood)     |
+| oil + fire     | 0.9   | oil -> fire, fire -> fire          | reaction row 4 (fire + oil)        |
+| fire + sulphur | 1     | fire -> fire, sulphur -> fire      | reaction row 3 (fire + sulphur)    |
+| fire + mud     | 1     | fire -> smoke, mud -> dirt         | reaction row 22 (mud + fire)       |
+| fire + seed    | 0.3   | fire -> fire, seed -> fire         | reaction row 6 (fire + seed)       |
+| fire + moss    | 0.2   | fire -> fire, moss -> fire         | reaction row 7 (fire + moss)       |
+| fire + vine    | 0.6   | fire -> fire, vine -> fire         | reaction row 5 (fire + vine)       |
+| fire + ember   | 0.003 | fire -> fire, ember -> ash         | reaction row 10 (fire + ember)     |
+| acid + seed    | 0.3   | acid -> empty, seed -> empty       | reaction row 17 (acid + powder)    |
+| acid + moss    | 0.3   | acid -> empty, moss -> empty       | reaction row 16 (acid + solid)     |
+| acid + vine    | 0.3   | acid -> empty, vine -> empty       | reaction row 16 (acid + solid)     |
+| acid + ember   | 0.3   | acid -> empty, ember -> empty      | reaction row 16 (acid + solid)     |
+| acid + ash     | 0.3   | acid -> empty, ash -> empty        | reaction row 17 (acid + powder)    |
+| acid + buried  | 0.3   | acid -> empty, buried -> empty     | reaction row 16 (acid + solid)     |
+| mud + seed     | 0.1   | mud -> buried, seed -> empty       | reaction row 24 (seed + mud)       |
+| fire           | -     | fire -> smoke after 40-60 ticks    | lifetime                           |
+| smoke          | -     | smoke -> empty after 200-255 ticks | lifetime                           |
+| steam          | -     | steam -> water after 180-240 ticks | lifetime                           |
+| ember          | -     | ember -> fire after 120-180 ticks  | lifetime                           |
+| moss + water   | 0.04  | water -> vine                      | growth hook (growth.ts)            |
+| vine + water   | 0.04  | water -> vine                      | growth hook (growth.ts)            |

@@ -15,11 +15,13 @@ import {
 import { decodeScene, encodeScene } from './sceneCodec.ts'
 
 /** An element with a lifetime, so `ra` carries a real countdown to round-trip.
- * Test-only, and named so it stays out of the roster's namespace - the registry
- * refuses a duplicate name, and this fixture used to be called `ember`, which
- * the burnables effort then took for a real species. */
+ * Test-only, and named *and numbered* to stay out of the roster's way - the
+ * registry refuses a duplicate of either. This fixture used to be called
+ * `ember`, which the burnables effort then took for a real species, and used to
+ * sit on id 20, which the life effort then took for the buried seed. 250 is far
+ * enough above the roster that it will not be walked into a third time. */
 const decay: ElementDef = {
-  id: 20,
+  id: 250,
   name: 'decay',
   colours: ['#ff5522'],
   tags: ['powder'],
