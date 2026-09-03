@@ -88,6 +88,76 @@ export class HomePagePom extends BasePage {
     await expect(this.page.locator('canvas')).toHaveCount(8)
   }
 
+  /**
+   * Under `prefers-reduced-motion: reduce` every preview must show one
+   * representative frame: painted (not a blank card) and unchanged when
+   * sampled again a few hundred ms later.
+   */
+  async verifyPreviewsAreStaticAndPainted(): Promise<void> {
+    await this.waitForPaintedPreviews()
+    const before = await this.previewSignatures()
+    await this.page.waitForTimeout(400)
+    const after = await this.previewSignatures()
+    expect(after).toEqual(before)
+  }
+
+  /** Without the preference the rAF loops still run, so a card keeps changing. */
+  async verifyPreviewsAnimate(): Promise<void> {
+    await this.waitForPaintedPreviews()
+    const before = await this.previewSignatures()
+    await this.page.waitForTimeout(400)
+    const after = await this.previewSignatures()
+    expect(after).not.toEqual(before)
+  }
+
+  /**
+   * A theme toggle recolours the static frame; otherwise a reduce-motion
+   * viewer would be left with a preview drawn for the other theme.
+   */
+  async verifyStaticPreviewsRepaintOnThemeChange(): Promise<void> {
+    await this.waitForPaintedPreviews()
+    const before = await this.previewSignatures()
+    await this.page.getByRole('button', { name: 'Toggle light/dark theme' }).click()
+    await expect
+      .poll(async () => (await this.previewSignatures()).map((s) => s.checksum))
+      .not.toEqual(before.map((s) => s.checksum))
+    const repainted = await this.previewSignatures()
+    expect(repainted.every((s) => s.painted > 0)).toBe(true)
+    // ...and it is one repaint, not the loop starting up.
+    await this.page.waitForTimeout(400)
+    expect(await this.previewSignatures()).toEqual(repainted)
+  }
+
+  private async waitForPaintedPreviews(): Promise<void> {
+    await expect(this.page.locator('canvas[data-kind]')).toHaveCount(8)
+    await expect
+      .poll(async () => (await this.previewSignatures()).filter((s) => s.painted > 0).length)
+      .toBe(8)
+  }
+
+  /**
+   * A cheap per-canvas fingerprint of the painted pixels: enough to tell
+   * "nothing was drawn" from "drawn", and one frame from the next.
+   */
+  private previewSignatures(): Promise<{ painted: number; checksum: number }[]> {
+    return this.page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLCanvasElement>('canvas[data-kind]')).map((cv) => {
+        const ctx = cv.getContext('2d')
+        if (!ctx || cv.width === 0 || cv.height === 0) return { painted: 0, checksum: 0 }
+        const { data } = ctx.getImageData(0, 0, cv.width, cv.height)
+        let painted = 0
+        let checksum = 0
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] === 0) continue
+          painted++
+          const px = data[i]! + data[i + 1]! * 3 + data[i + 2]! * 7 + data[i + 3]! * 11
+          checksum = (checksum * 31 + px * (i + 1)) % 2147483647
+        }
+        return { painted, checksum }
+      }),
+    )
+  }
+
   // On a short, narrow phone the bottom-anchored stack can exceed the viewport;
   // the page must scroll so the wordmark stays reachable (not clipped away by
   // the desktop `overflow: hidden`).

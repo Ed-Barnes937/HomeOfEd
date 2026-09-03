@@ -289,40 +289,80 @@ function useHopAnimation(ref: React.RefObject<HTMLHeadingElement | null>): void 
  * (reference/home-page-v2/home-of-ed.html). They read the current theme through
  * a ref every frame, so a theme toggle recolours the loops without restarting
  * them; the loops themselves start once on mount and stop on unmount.
+ *
+ * Under `prefers-reduced-motion: reduce` a preview draws one representative
+ * frame and never schedules a frame after it - same shape as the boids app
+ * (apps/boids/src/features/sim/useSimulationLoop.ts). The preference is read
+ * once here, at the dispatch, and handed to every drawer as its `drive`.
  */
 type DarkRef = { current: boolean }
 
+/** 'motion' runs the rAF loop; 'still' draws one frame and stops there. */
+type Drive = 'motion' | 'still'
+
+/** A running preview: stopped on unmount, repainted when the theme changes. */
+type Preview = { stop: () => void; redraw: () => void }
+
 function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string): void {
   const darkRef = useRef(theme === 'dark')
+  const previewsRef = useRef<Preview[]>([])
   useEffect(() => {
     darkRef.current = theme === 'dark'
+    // Under 'motion' the loop picks the new colour up on its next frame, so
+    // this is a no-op; a 'still' preview would otherwise keep the old theme's
+    // colours forever.
+    for (const preview of previewsRef.current) preview.redraw()
   }, [theme])
 
   useEffect(() => {
     const root = ref.current
     if (!root) return
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('canvas[data-kind]'))
-    const stops: Array<() => void> = []
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    const drive: Drive = reduce ? 'still' : 'motion'
+    const previews = previewsRef.current
     // Delay so each canvas has its laid-out CSS size before we scale for DPR.
     const start = setTimeout(() => {
       for (const cv of canvases) {
         const kind = cv.dataset.kind
-        if (kind === 'boids') stops.push(drawBoids(cv, darkRef))
-        else if (kind === 'magnets') stops.push(drawMagnets(cv))
-        else if (kind === 'word') stops.push(drawWord(cv, darkRef))
-        else if (kind === 'ink') stops.push(drawInk(cv, darkRef))
-        else if (kind === 'garden') stops.push(drawGarden(cv, darkRef))
-        else if (kind === 'boop') stops.push(drawBoop(cv, darkRef))
-        else if (kind === 'silt') stops.push(drawSilt(cv, darkRef))
-        else stops.push(drawIdle(cv, darkRef))
+        if (kind === 'boids') previews.push(drawBoids(cv, darkRef, drive))
+        else if (kind === 'magnets') previews.push(drawMagnets(cv, drive))
+        else if (kind === 'word') previews.push(drawWord(cv, darkRef, drive))
+        else if (kind === 'ink') previews.push(drawInk(cv, darkRef, drive))
+        else if (kind === 'garden') previews.push(drawGarden(cv, darkRef, drive))
+        else if (kind === 'boop') previews.push(drawBoop(cv, darkRef, drive))
+        else if (kind === 'silt') previews.push(drawSilt(cv, darkRef, drive))
+        else previews.push(drawIdle(cv, darkRef, drive))
       }
     }, 90)
 
     return () => {
       clearTimeout(start)
-      for (const stop of stops) stop()
+      for (const preview of previews) preview.stop()
+      previews.length = 0
     }
   }, [ref])
+}
+
+/**
+ * Drives one preview's frame function. Under 'still' the frame runs `settle`
+ * times and nothing is ever scheduled: several drawers start from an empty
+ * canvas (the silt grid, the karesansui bed), so a few frames of their own
+ * logic is what turns the first frame into a representative one that still
+ * advertises the app.
+ */
+function drivePreview(frame: () => void, drive: Drive, settle = 1): Preview {
+  if (drive === 'still') {
+    for (let i = 0; i < settle; i++) frame()
+    return { stop: () => {}, redraw: frame }
+  }
+  let raf = 0
+  const loop = (): void => {
+    frame()
+    raf = requestAnimationFrame(loop)
+  }
+  loop()
+  return { stop: () => cancelAnimationFrame(raf), redraw: () => {} }
 }
 
 type Ctx = { ctx: CanvasRenderingContext2D; w: number; h: number }
@@ -340,7 +380,7 @@ function cvctx(cv: HTMLCanvasElement): Ctx {
 
 const ACCENT = { light: '#c07a35', dark: '#e0955f' }
 
-function drawBoids(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+function drawBoids(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const N = 11
   const B = Array.from({ length: N }, () => ({
@@ -349,7 +389,6 @@ function drawBoids(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     vx: (Math.random() - 0.5) * 1.2,
     vy: (Math.random() - 0.5) * 1.2,
   }))
-  let raf = 0
   const step = (): void => {
     ctx.clearRect(0, 0, w, h)
     const col = darkRef.current ? ACCENT.dark : ACCENT.light
@@ -408,13 +447,12 @@ function drawBoids(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
       ctx.fill()
       ctx.restore()
     }
-    raf = requestAnimationFrame(step)
   }
-  step()
-  return () => cancelAnimationFrame(raf)
+  // One frame already scatters the whole flock across the card.
+  return drivePreview(step, drive)
 }
 
-function drawMagnets(cv: HTMLCanvasElement): () => void {
+function drawMagnets(cv: HTMLCanvasElement, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const cols = ['#d98a5b', '#7fa99b', '#c96a58', '#8b93b0']
   const chars = ['w', 'o', 'r', 'd']
@@ -427,7 +465,6 @@ function drawMagnets(cv: HTMLCanvasElement): () => void {
     ch: chars[i]!,
     col: cols[i]!,
   }))
-  let raf = 0
   let t = 0
   const step = (): void => {
     ctx.clearRect(0, 0, w, h)
@@ -449,20 +486,20 @@ function drawMagnets(cv: HTMLCanvasElement): () => void {
       ctx.fillText(s.ch, 0, 1)
       ctx.restore()
     }
-    raf = requestAnimationFrame(step)
   }
-  step()
-  return () => cancelAnimationFrame(raf)
+  // The four lettered tiles are all there on the first frame.
+  return drivePreview(step, drive)
 }
 
-function drawWord(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+function drawWord(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const words = ['petrichor', 'gossamer', 'susurrus', 'limerence']
   let wi = 0
   let ci = 0
   let phase: 'type' | 'hold' | 'erase' = 'type'
   let hold = 0
-  const iv = setInterval(() => {
+  // The typewriter runs on its own clock, not the frame clock.
+  const tick = (): void => {
     if (phase === 'type') {
       ci++
       if (ci >= words[wi]!.length) {
@@ -479,8 +516,15 @@ function drawWord(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
         wi = (wi + 1) % words.length
       }
     }
-  }, 120)
-  let raf = 0
+  }
+  let iv: ReturnType<typeof setInterval> | undefined
+  if (drive === 'motion') {
+    iv = setInterval(tick, 120)
+  } else {
+    // A blank line advertises nothing, so type the first word out in full
+    // before the one frame the still card gets.
+    for (let i = 0; i < words[wi]!.length; i++) tick()
+  }
   const loop = (): void => {
     const dark = darkRef.current
     ctx.clearRect(0, 0, w, h)
@@ -493,19 +537,21 @@ function drawWord(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     ctx.fillStyle = dark ? '#ece5da' : '#2c322e'
     ctx.font = "700 17px 'Space Grotesk',sans-serif"
     ctx.fillText(words[wi]!.slice(0, ci) + cur, w / 2, h / 2 + 4)
-    raf = requestAnimationFrame(loop)
   }
-  loop()
-  return () => {
-    clearInterval(iv)
-    cancelAnimationFrame(raf)
+  const preview = drivePreview(loop, drive)
+  return {
+    redraw: preview.redraw,
+    stop: () => {
+      if (iv !== undefined) clearInterval(iv)
+      preview.stop()
+    },
   }
 }
 
 // espy: an ink blot that breathes gently, with a couple of stray splats and a
 // pair of eyes — the app in miniature. Ink + eye colours track the hub theme so
 // the blot reads on the card in both light and dark.
-function drawInk(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+function drawInk(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const cx = w / 2
   const cy = h / 2 + 2
@@ -520,7 +566,6 @@ function drawInk(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     dy: (Math.random() - 0.5) * 46,
     r: 1.5 + Math.random() * 3,
   }))
-  let raf = 0
   let t = 0
   const step = (): void => {
     const dark = darkRef.current
@@ -560,16 +605,15 @@ function drawInk(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     eye(-8)
     eye(9)
     ctx.restore()
-    raf = requestAnimationFrame(step)
   }
-  step()
-  return () => cancelAnimationFrame(raf)
+  // The blot, its splats and the eyes are all on the first frame.
+  return drivePreview(step, drive)
 }
 
 // karesansui: a single marble grooves a gold rosette into a round sand bed, holds,
 // then fades away (the clearing rake) and redraws — the "many pens, one garden"
 // app in miniature. Groove colour tracks the hub theme.
-function drawGarden(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+function drawGarden(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const cx = w / 2
   const cy = h / 2
@@ -582,7 +626,6 @@ function drawGarden(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     cx + carrierR * Math.cos(t) + penR * Math.cos(FREQ * t),
     cy + carrierR * Math.sin(t) - penR * Math.sin(FREQ * t),
   ]
-  let raf = 0
   let prog = 0
   let phase: 'draw' | 'hold' | 'fade' = 'draw'
   let hold = 0
@@ -640,23 +683,22 @@ function drawGarden(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
         phase = 'draw'
       }
     }
-    raf = requestAnimationFrame(step)
   }
-  step()
-  return () => cancelAnimationFrame(raf)
+  // The first frame is a bare sand bed; 55 carve the rosette most of the way
+  // round, marble still at the tip, which is the picture worth stopping on.
+  return drivePreview(step, drive, 55)
 }
 
 // boop: a tiny four-step groove — coloured note cells brighten and swell in
 // turn as an implied playhead advances, echoing the step-sequencer at boop's
 // heart. The pulse is a smooth scale/alpha curve rather than an on/off flash,
 // so the preview never strobes.
-function drawBoop(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+function drawBoop(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const NOTES = ['#FF6B5C', '#FFB03A', '#6FE0A8', '#B78BFF']
   const STEPS = NOTES.length
   const cellW = w / (STEPS + 1)
   const cy = h / 2
-  let raf = 0
   let t = 0
   const step = (): void => {
     const dark = darkRef.current
@@ -679,17 +721,18 @@ function drawBoop(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
       ctx.restore()
     }
     ctx.globalAlpha = 1
-    raf = requestAnimationFrame(step)
   }
-  step()
-  return () => cancelAnimationFrame(raf)
+  // 45 frames land the implied playhead squarely on the second cell, so the
+  // still card reads as a sequencer mid-bar rather than one caught between
+  // steps with nothing lit.
+  return drivePreview(step, drive, 45)
 }
 
 // silt: grains of sand fall from the top, pile up, and settle into small
 // slopes — the falling-sand playground in miniature. Runs a tiny falling-sand
 // cellular automaton on a coarse grid; once the pile nears the top the grid
 // clears and the loop starts over. Grain colour tracks the hub theme.
-function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const cols = 22
   const rows = 16
@@ -700,7 +743,6 @@ function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false))
   let grid = makeGrid()
   let frame = 0
-  let raf = 0
   const step = (): void => {
     frame++
     if (frame % 3 === 0) {
@@ -745,15 +787,15 @@ function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
         if (row[x]) ctx.fillRect(offX + x * cell, offY + y * cell, cell - 0.5, cell - 0.5)
       }
     }
-    raf = requestAnimationFrame(step)
   }
-  step()
-  return () => cancelAnimationFrame(raf)
+  // The grid starts empty and a grain only spawns every third frame, so the
+  // still card needs enough frames for a settled pile (~60 grains, well short
+  // of the reset threshold).
+  return drivePreview(step, drive, 190)
 }
 
-function drawIdle(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
+function drawIdle(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
-  let raf = 0
   let t = 0
   const step = (): void => {
     const dark = darkRef.current
@@ -772,8 +814,7 @@ function drawIdle(cv: HTMLCanvasElement, darkRef: DarkRef): () => void {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('IN THE WORKS', w / 2, h / 2 + 20)
-    raf = requestAnimationFrame(step)
   }
-  step()
-  return () => cancelAnimationFrame(raf)
+  // The dashed ring and its label are both on the first frame.
+  return drivePreview(step, drive)
 }

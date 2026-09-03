@@ -57,3 +57,8 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3100 })
   `schema.ts` + `pnpm generate`.
 - Ports: dev 3000, CT 3100 — a copied app must pick fresh ones (root CLAUDE.md
   checklist).
+- Card previews honour `prefers-reduced-motion`: a new card's drawer returns
+  `drivePreview(frame, drive, settle)` (`pages/HomePage.tsx`) so that under
+  reduce it draws `settle` frames once, never schedules rAF, and repaints on a
+  theme change. Any other per-frame clock (the WOTD typewriter's interval) must
+  be skipped under reduce too.
