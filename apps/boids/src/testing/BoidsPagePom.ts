@@ -16,6 +16,7 @@ export class BoidsPagePom extends BasePage {
   private readonly fab = this.page.getByRole('button', { name: 'Open settings' })
   private readonly collapseButton = this.page.getByRole('button', { name: 'Collapse settings' })
   private readonly runToggle = this.page.getByTestId('run-toggle')
+  private readonly runHint = this.page.getByTestId('run-hint')
   private readonly cursorOverlay = this.page.getByTestId('cursor-overlay')
   private readonly cursorField = this.page.getByTestId('cursor-field')
   private readonly cursorGlyph = this.page.getByTestId('cursor-glyph')
@@ -252,6 +253,20 @@ export class BoidsPagePom extends BasePage {
   /** The one control's accessible name flips to name the action it offers. */
   async verifyRunToggleOffers(action: 'play' | 'pause'): Promise<void> {
     await expect(this.runToggle).toHaveAccessibleName(new RegExp(action, 'i'))
+  }
+
+  /**
+   * The line that explains an OS-driven pause. Asserted on the wording a child
+   * would read, and on it describing the run control rather than floating free.
+   */
+  async verifyReducedMotionHint(): Promise<void> {
+    await expect(this.runHint).toBeVisible()
+    await expect(this.runHint).toContainText('less motion')
+    await expect(this.runToggle).toHaveAccessibleDescription(/less motion/i)
+  }
+
+  async verifyReducedMotionHintHidden(): Promise<void> {
+    await expect(this.runHint).toHaveCount(0)
   }
 
   async focusRunToggle(): Promise<void> {

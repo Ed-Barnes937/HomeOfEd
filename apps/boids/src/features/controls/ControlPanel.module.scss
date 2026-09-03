@@ -41,6 +41,12 @@
   color: var(--sub);
 }
 
+/* The run control and, when the device asked for the pause, its reason. The
+ * group owns the 22px rhythm so the hint can sit inside it. */
+.run {
+  margin-bottom: 22px;
+}
+
 /* The play/pause toggle. First control in the panel and full width on purpose:
  * stopping the motion has to be the one thing you cannot miss. */
 .runToggle {
@@ -49,7 +55,6 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  margin-bottom: 22px;
   padding: 11px 0;
   border-radius: var(--radius-btn);
   border: 1px solid var(--accent);
@@ -63,6 +68,15 @@
   font: 500 10.5px/1 var(--font-mono);
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+/* Plain sentence, not a label: lowercase mono at the tooltip's reading size,
+ * dimmer than the button it explains. */
+.runHint {
+  margin: 9px 0 0;
+  font: 400 10.5px/1.5 var(--font-mono);
+  letter-spacing: 0.01em;
+  color: var(--sub);
 }
 
 .groupLabel {

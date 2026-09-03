@@ -6,6 +6,7 @@ import type { SimParams } from '../features/sim/engine/params.ts'
 import type { BoidShape } from '../features/sim/render/renderer.ts'
 import { CURSOR_RADIUS } from '../features/sim/engine/simulation.ts'
 import { loadSettings, saveSettings, type CursorIcon, type ThemeId } from '../features/sim/settings.ts'
+import { prefersReducedMotion, REDUCED_MOTION_QUERY } from '../features/sim/reducedMotion.ts'
 import { getTheme, THEMES } from '../features/sim/themes.ts'
 import { useSimulationLoop } from '../features/sim/useSimulationLoop.ts'
 import { hubUrl } from '../hubUrl.ts'
@@ -23,9 +24,33 @@ export function BoidsPage() {
   const overlayRef = useRef<HTMLDivElement>(null)
   const [settings, setSettings] = useState(() => loadSettings(window.localStorage))
   // Session state, deliberately not in `settings`: a pause is about this sitting,
-  // not a preference to restore, and ticket 03 wants the initial value to come
-  // from the reduced-motion query rather than from storage.
-  const [running, setRunning] = useState(true)
+  // not a preference to restore, and the initial value comes from the
+  // reduced-motion query rather than from storage (ADR 0044).
+  const [running, setRunning] = useState(() => !prefersReducedMotion())
+  // Whether the *current* pause is the device's doing rather than the user's -
+  // the only case that needs explaining. Cleared the moment they touch the
+  // control, because from then on the state is theirs.
+  const [pausedByDevice, setPausedByDevice] = useState(() => prefersReducedMotion())
+
+  // A mid-session switch to less motion pauses the flock. Only the change event
+  // does this, so nothing here can re-pause someone who already pressed play;
+  // switching the setting back off leaves them paused rather than starting
+  // motion they did not ask for.
+  useEffect(() => {
+    const query = window.matchMedia(REDUCED_MOTION_QUERY)
+    const onChange = (event: MediaQueryListEvent): void => {
+      if (!event.matches) return
+      setRunning(false)
+      setPausedByDevice(true)
+    }
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+
+  function handleRunningChange(next: boolean): void {
+    setRunning(next)
+    setPausedByDevice(false)
+  }
 
   useSimulationLoop({
     canvasRef,
@@ -126,7 +151,8 @@ export function BoidsPage() {
       </div>
       <ControlPanel
         running={running}
-        onRunningChange={setRunning}
+        onRunningChange={handleRunningChange}
+        pausedByDevice={pausedByDevice}
         theme={settings.theme}
         onThemeChange={handleThemeChange}
         shape={settings.shape}

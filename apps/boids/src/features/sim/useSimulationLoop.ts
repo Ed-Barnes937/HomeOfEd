@@ -12,7 +12,8 @@ export interface UseSimulationLoopOptions {
   theme: Theme
   shape: BoidShape
   params: SimParams
-  /** False pauses the simulation: no `sim.step`, no rAF scheduled. */
+  /** False pauses the simulation: no `sim.step`, no rAF scheduled. A device
+   * asking for less motion starts this false; it does not veto motion. */
   running: boolean
 }
 
@@ -47,8 +48,9 @@ export const TEST_SEAM_KEY = '__boidsTestSeam'
  *
  * The loop has two modes, switched by `applyRunState` (ADR 0043): animating
  * (the rAF loop runs) and static (one frame, no loop, repainted on demand via
- * `redrawIfStaticRef`). `running: false` and
- * `prefers-reduced-motion: reduce` both mean static.
+ * `redrawIfStaticRef`). `running: false` is the only way to be static -
+ * `prefers-reduced-motion: reduce` reaches the hook as an initial `running` of
+ * false, chosen by `BoidsPage` (ADR 0044), never as a gate of its own.
  */
 export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
   const themeRef = useRef(opts.theme)
@@ -158,7 +160,6 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
     canvas.addEventListener('pointercancel', onPointerCancel)
 
     const draw = () => renderer.draw(sim, themeRef.current, shapeRef.current, paramsRef.current)
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0]
@@ -181,9 +182,6 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
       rafId = requestAnimationFrame(frame)
     }
 
-    /** Paused and reduced-motion are the same thing to the loop: stay static. */
-    const isAnimating = (): boolean => runningRef.current && !reducedMotion
-
     /**
      * The one animate/static switch, re-read whenever `running` changes. Static
      * mode leaves nothing scheduled and hands `draw` to `redrawIfStaticRef` so
@@ -191,7 +189,7 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
      * and needs no on-demand repaint.
      */
     function applyRunState(): void {
-      if (isAnimating()) {
+      if (runningRef.current) {
         redrawIfStaticRef.current = null
         if (rafId) return
         // Restart the clock so the first dt after a resume is one frame, not
@@ -209,7 +207,7 @@ export function useSimulationLoop(opts: UseSimulationLoopOptions): void {
 
     // A frame that opens static gets one step first, so it shows a stepped
     // flock rather than the raw spawn; the animating path steps per frame anyway.
-    if (!isAnimating()) {
+    if (!runningRef.current) {
       sim.setPointer(pointerRef.current)
       sim.step(16)
     }
