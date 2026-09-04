@@ -1,9 +1,8 @@
 # 17 - Product tiles overlap the outward arrowhead on the ring's lower half
 
-**Status:** needs-triage
+**Status:** absorbed into 09 (Ed's triage ruling, 2026-09-04) - same drawing
+pass; 09's decision 4 carries this fix and its tests
 **Type:** task
-**Blocked by:** 09 (same drawing pass; whatever 09 does to spoke layout decides
-where the tiles can go)
 **Source:** found during ticket 10 (2026-09-04) - both of 10's review passes
 independently flagged it. Pre-existing, not a regression from 10.
 **Spec:** [../spec.md](../spec.md) §6.
