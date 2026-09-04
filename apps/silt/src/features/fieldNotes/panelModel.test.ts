@@ -5,7 +5,7 @@ import { elementTags } from './elementAppearance.ts'
 import { entryIndex } from './entries.ts'
 import { fieldNotesView } from './fieldNotesView.ts'
 import type { Progress } from './fieldNotesStore.ts'
-import { HIDDEN_NAME, pickerRows, ringFor } from './panelModel.ts'
+import { HIDDEN_NAME, LEGEND_RULES, legendRows, pickerRows, ringFor } from './panelModel.ts'
 
 const notes = entryIndex()
 const tags = elementTags(createRegistry(v1Elements, v1Reactions))
@@ -237,6 +237,48 @@ describe('tag chips (ticket 12)', () => {
     expect('tags' in ringFor('wood', viewOf()).centre).toBe(false)
     const row = pickerRows(viewOf()).find((candidate) => candidate.name === 'wood')
     expect(row && 'tags' in row).toBe(false)
+  })
+})
+
+describe('the key (ticket 11)', () => {
+  test('every kind the graph draws is in the key, and each of them once', () => {
+    const kinds = legendRows().flatMap((row) => row.kinds)
+    expect(new Set(kinds)).toEqual(new Set(notes.all.map((entry) => entry.kind)))
+    expect(kinds).toHaveLength(new Set(kinds).size)
+  })
+
+  test('the kinds drawn with one stroke share its row, in graph order', () => {
+    const rows = legendRows()
+    // Three strokes today (spec §6): reaction, decay, and the dots every hook
+    // shares. A kind with a stroke of its own would be a fourth row for free.
+    expect(rows.map((row) => row.stroke)).toEqual(['react', 'decay', 'grow'])
+    expect(rows.map((row) => row.label)).toEqual([
+      'reaction',
+      'decay',
+      'growth · germination · raise · bloom',
+    ])
+  })
+
+  test('a roster without hooks keeps the key to the strokes it actually draws', () => {
+    // The list is derived, so a graph missing a kind is simply a shorter key.
+    const rows = legendRows({
+      ...notes,
+      all: notes.all.filter((entry) => entry.kind === 'react' || entry.kind === 'decay'),
+    })
+    expect(rows.map((row) => row.stroke)).toEqual(['react', 'decay'])
+  })
+
+  test('the key names no element at all, hidden or not (spec §7)', () => {
+    // Static text about line kinds only - which is what makes the key immune to
+    // the spoiler policy rather than merely compliant with it. Substrings count:
+    // "long-dashed" would smuggle ash in, and "remember" ember.
+    const words = [
+      ...legendRows().flatMap((row) => [row.label, row.meaning]),
+      ...LEGEND_RULES.map((rule) => rule.text),
+    ]
+      .join(' ')
+      .toLowerCase()
+    for (const name of notes.elements) expect(words).not.toContain(name)
   })
 })
 

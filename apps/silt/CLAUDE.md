@@ -75,9 +75,12 @@ src/
                               renders; useFieldNotes - the page's single seam,
                               React wiring over those two. panelModel - the
                               picker rows and one element's ring as data, incl.
-                              the masking every rendered name goes through and
+                              the masking every rendered name goes through,
                               the allowlist deciding which sim tags a player
-                              ever reads; ElementTile - *the* tile helper,
+                              ever reads, the footer key's rows, and
+                              `strokeOf` - the one place a line kind becomes a
+                              stroke, so a spoke and its sample in the key
+                              cannot disagree; ElementTile - *the* tile helper,
                               hex + archetype in, every tile in the feature out;
                               elementAppearance - name -> hex/shape and name ->
                               raw tags, both off the
@@ -439,6 +442,13 @@ else touches it.
   one at a time and a burst collapses to the newest few: quiet beats complete.
   The seed the page sends the sim at boot (`witnessedAtBoot`) is noise
   reduction only - the store would dedupe a re-report anyway.
+- **The key is static text about line kinds, and that is what keeps it safe.**
+  The footer's key derives its rows from the graph (`legendRows`) and names no
+  element at all, so it sits outside the spoiler policy rather than merely
+  inside it (spec §7) - an illustrative example would be the regression, and
+  `panelModel.test.ts` checks its words against every name in the roster,
+  substrings included ("long-dashed" would smuggle ash in). It explains only
+  what the screen draws: the phone hides the notches, so it hides their row too.
 - **The panel picks, it does not know.** Selection and the green-edge clearing
   are panel-local `useState`; the counts, mastery, `NEW` set and denominators
   all arrive from the view. `markReviewed()` fires from `HomePage`'s

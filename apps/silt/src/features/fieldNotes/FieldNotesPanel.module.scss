@@ -243,15 +243,20 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 }
 
 // Edge kinds (spec §6): reaction solid, decay long dash, growth dotted. The
-// hook transmutations (ticket 07) are hooks like growth, so they share its dots.
+// hook transmutations (ticket 07) are hooks like growth, so they share its dots
+// - but that grouping lives in `panelModel.ts`'s `strokeOf`, not in a selector
+// list here. One class per *stroke*: the ring's spokes and the key's samples
+// both name their class through `strokeOf`, so a kind cannot be drawn one way
+// on the chart and sampled another way in the key.
+.react line {
+  stroke-dasharray: none;
+}
+
 .decay line {
   stroke-dasharray: 2 1.2;
 }
 
-.grow line,
-.germinate line,
-.raise line,
-.bloom line {
+.grow line {
   stroke-dasharray: 0.5 1.5;
 }
 
@@ -384,14 +389,21 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 
 .foot {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.55rem 0.8rem;
   background: $paper;
   border-top: 2px solid $ink;
   font-size: 11px;
   color: $body;
+}
+
+// The footer's own row: the key opens underneath it, inside the same band.
+.footBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .footText {
@@ -407,12 +419,19 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
+// A long tail of notches gives way rather than pushing the controls off the
+// panel: the count beside them is the honest number, the strip is the feel of
+// it. (Twenty-two of them is an ordinary early chart, not an edge case.)
 .notches {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
 }
 
 .notch {
@@ -428,7 +447,8 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   color: #6b665d;
 }
 
-.forget {
+.forget,
+.keyToggle {
   flex: none;
   border: 2px solid $ink;
   background: $panel;
@@ -444,6 +464,63 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 .armed {
   background: $destructive;
   color: $paper;
+}
+
+// Open reads as pressed, in the chrome's one inversion - the same thing a
+// selected picker row does.
+.keyOpen {
+  background: $ink;
+  color: $paper;
+}
+
+// ---- the key: what the ring's line kinds mean (ticket 11) ---------------
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.55rem;
+  border: 2px solid $ink;
+  background: $panel;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// The sample box. The stroke itself comes from the ring's own kind classes
+// (`.decay`, `.grow`), so the key cannot drift from what the chart draws.
+.sample {
+  width: 48px;
+  height: 16px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  line {
+    stroke: rgba(26, 23, 20, 0.55);
+    stroke-width: 1;
+  }
+
+  polygon {
+    fill: rgba(26, 23, 20, 0.7);
+  }
+}
+
+.legendLabel {
+  flex: none;
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.legendMeaning {
+  min-width: 0;
+  color: $body;
 }
 
 // ---- phone: the overlay becomes a full-screen sheet ---------------------
@@ -507,19 +584,30 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
     height: min(340px, 100vw);
   }
 
-  // Too little room for the words; the product tiles carry the outcome.
+  // Too little room for the words; the product tiles carry the outcome. The
+  // notches go with them, and the key's line about them goes too - a key may
+  // only explain what the screen it is on actually draws.
   .spokeOutcome,
   .notches,
+  .notchRule,
   .footHint {
     display: none;
   }
 
-  .foot {
+  .footBar {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
 
-  .forget {
+  .forget,
+  .keyToggle {
     min-height: 44px;
+  }
+
+  // The key is the same block at the sheet's foot, with the rows free to wrap
+  // under their own sample rather than squeezing the words to nothing.
+  .legendRow {
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
   }
 }

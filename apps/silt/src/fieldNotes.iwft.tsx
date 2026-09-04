@@ -150,6 +150,33 @@ test('nothing in the panel names an element the player has not discovered', asyn
   }
 })
 
+/**
+ * The key (ticket 11). Thin on purpose: which rows the key holds is derived and
+ * pinned in `panelModel.test.ts`, so what this case is for is the toggle - the
+ * block is collapsed until asked for, and it is the chart's footer that asks.
+ */
+test('the footer opens a key for the line kinds the chart draws', async ({ mountApp, page }) => {
+  await seedWitnessed(page, SEEDED)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openFieldNotes()
+
+  await root.verifyFieldNotesKey(false)
+
+  await root.toggleFieldNotesKey()
+  await root.verifyFieldNotesKey(true)
+  await root.verifyFieldNotesKeyRow('decay')
+  // The labels wear the chrome's uppercase, as every Silkscreen label does.
+  expect((await root.fieldNotesKeyText()).toLowerCase()).toContain('decay')
+
+  // It remembers nothing: closed again here, and gone entirely on the next open.
+  await root.toggleFieldNotesKey()
+  await root.verifyFieldNotesKey(false)
+  await root.closeFieldNotes()
+  await root.openFieldNotes()
+  await root.verifyFieldNotesKey(false)
+})
+
 test('a mastered element wears its star, and mud states what it costs to unlock', async ({
   mountApp,
   page,

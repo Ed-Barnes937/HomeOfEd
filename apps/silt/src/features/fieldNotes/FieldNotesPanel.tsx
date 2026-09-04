@@ -18,7 +18,15 @@ import type { ElementRegistry } from '../../sim/index.ts'
 import { ElementRefTile, ElementTile, type TileSize } from './ElementTile.tsx'
 import { elementAppearances, elementTags, type ElementAppearances } from './elementAppearance.ts'
 import type { FieldNotesView } from './fieldNotesView.ts'
-import { pickerRows, ringFor, type ElementRef, type Spoke } from './panelModel.ts'
+import {
+  LEGEND_RULES,
+  legendRows,
+  pickerRows,
+  ringFor,
+  strokeOf,
+  type ElementRef,
+  type Spoke,
+} from './panelModel.ts'
 import {
   arrowPoints,
   outcomePoint,
@@ -66,6 +74,9 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
   // so neither is stored - closing the panel reviews everything anyway.
   const [selected, setSelected] = useState<string | null>(null)
   const [cleared, setCleared] = useState<ReadonlySet<string>>(() => new Set())
+  // The key is collapsed by default and remembers nothing (ticket 11): the
+  // panel unmounts on close, so there is no state to clear either.
+  const [keyOpen, setKeyOpen] = useState(false)
   const forget = useArmedConfirm<true>()
   // The one thing the breakpoint cannot do in CSS: the picker's tile is a
   // number handed to the helper, 22px in the desktop column and 30px in the
@@ -200,7 +211,7 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                     const point = spokePoint(index, chart.spokes.length)
                     const { from, to } = spokeLine(point)
                     return (
-                      <g key={spoke.key} className={styles[spoke.kind]}>
+                      <g key={spoke.key} className={styles[strokeOf(spoke.kind)]}>
                         <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
                         {spoke.direction === 'out' ? (
                           <polygon points={arrowPoints(to.x, to.y, point.ux, point.uy)} />
@@ -254,35 +265,107 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
             nothing left to find that means anything, and nothing to forget. */}
         {chart ? (
           <div className={styles.foot}>
-            <span className={styles.footText} data-testid="field-notes-seen">
-              {`${chart.seen} ${chart.seen === 1 ? 'entry' : 'entries'} for ${chart.centre.label}`}
-              <span className={styles.footHint}> · tap any small tile to follow it</span>
-            </span>
+            <div className={styles.footBar}>
+              <span className={styles.footText} data-testid="field-notes-seen">
+                {`${chart.seen} ${chart.seen === 1 ? 'entry' : 'entries'} for ${chart.centre.label}`}
+                <span className={styles.footHint}> · tap any small tile to follow it</span>
+              </span>
 
-            <span className={styles.footRight}>
-              <span className={styles.counterLabel}>still to find</span>
-              {/* The notches carry what is left without naming any of it
-                  (spec §7, decision 9). */}
-              <span className={styles.notches} aria-hidden="true">
-                {Array.from({ length: chart.stillToFind }, (_, index) => (
-                  <span key={index} className={styles.notch} />
-                ))}
+              <span className={styles.footRight}>
+                <span className={styles.counterLabel}>still to find</span>
+                {/* The notches carry what is left without naming any of it
+                    (spec §7, decision 9). */}
+                <span className={styles.notches} aria-hidden="true">
+                  {Array.from({ length: chart.stillToFind }, (_, index) => (
+                    <span key={index} className={styles.notch} />
+                  ))}
+                </span>
+                <span className={styles.footCount} data-testid="field-notes-still-to-find">
+                  {chart.stillToFind}
+                </span>
+                <button
+                  type="button"
+                  className={`${styles.keyToggle} ${keyOpen ? styles.keyOpen : ''}`}
+                  data-testid="field-notes-key-toggle"
+                  aria-expanded={keyOpen}
+                  onClick={() => setKeyOpen((open) => !open)}
+                >
+                  key
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.forget} ${forget.armed ? styles.armed : ''}`}
+                  data-testid="field-notes-forget"
+                  onClick={armForget}
+                >
+                  {forget.armed ? 'sure?' : 'forget discoveries'}
+                </button>
               </span>
-              <span className={styles.footCount} data-testid="field-notes-still-to-find">
-                {chart.stillToFind}
-              </span>
-              <button
-                type="button"
-                className={`${styles.forget} ${forget.armed ? styles.armed : ''}`}
-                data-testid="field-notes-forget"
-                onClick={armForget}
-              >
-                {forget.armed ? 'sure?' : 'forget discoveries'}
-              </button>
-            </span>
+            </div>
+
+            {keyOpen ? <LegendBlock /> : null}
           </div>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+/**
+ * The key (ticket 11): what the chart's small visual language means, in static
+ * text about line kinds alone. The rows come from the derived graph, so a kind
+ * with a stroke of its own joins the key for free; the samples wear the ring's
+ * own kind classes, so a stroke cannot be drawn one way here and another there.
+ *
+ * It names nothing, which is what makes it immune to the spoiler policy (§7)
+ * rather than merely compliant with it.
+ */
+function LegendBlock() {
+  const rows = useMemo(() => legendRows(), [])
+
+  return (
+    <div className={styles.legend} data-testid="field-notes-key">
+      {rows.map((row) => (
+        <span
+          key={row.stroke}
+          className={styles.legendRow}
+          data-testid={`field-notes-key-${row.stroke}`}
+        >
+          <svg
+            className={`${styles.sample} ${styles[row.stroke]}`}
+            viewBox="0 0 24 8"
+            aria-hidden="true"
+          >
+            <line x1="1" y1="4" x2="23" y2="4" />
+          </svg>
+          <span className={styles.legendLabel}>{row.label}</span>
+          <span className={styles.legendMeaning}>{row.meaning}</span>
+        </span>
+      ))}
+
+      {LEGEND_RULES.map((rule) => (
+        <span
+          key={rule.id}
+          // The notches are a desktop affordance - the phone's footer has no
+          // room for them and drops them for the bare count - so the key drops
+          // that row with them rather than teaching a mark the sheet never
+          // draws. Same principle as deriving the kinds: only what is drawn.
+          className={`${styles.legendRow} ${rule.id === 'notch' ? styles.notchRule : ''}`}
+          data-testid={`field-notes-key-${rule.id}`}
+        >
+          {rule.id === 'arrow' ? (
+            <svg className={styles.sample} viewBox="0 0 24 8" aria-hidden="true">
+              <line x1="8" y1="4" x2="23" y2="4" />
+              <polygon points="1,4 8,1.6 8,6.4" />
+            </svg>
+          ) : (
+            <span className={styles.sample} aria-hidden="true">
+              <span className={styles.notch} />
+            </span>
+          )}
+          <span className={styles.legendMeaning}>{rule.text}</span>
+        </span>
+      ))}
     </div>
   )
 }

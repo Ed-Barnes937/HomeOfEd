@@ -223,6 +223,28 @@ export class SiltPagePom extends BasePage {
     return this.statusText('field-notes-still-to-find')
   }
 
+  /** Opens or closes the footer's key - the line kinds the ring draws (ticket 11). */
+  async toggleFieldNotesKey(): Promise<void> {
+    await this.page.getByTestId('field-notes-key-toggle').click()
+  }
+
+  /** Whether the key is open at all - collapsed means it is not in the DOM. */
+  async verifyFieldNotesKey(shown: boolean): Promise<void> {
+    const key = this.page.getByTestId('field-notes-key')
+    if (shown) await expect(key).toBeVisible()
+    else await expect(key).toHaveCount(0)
+  }
+
+  /** One row of the open key, by the stroke or rule it explains. */
+  async verifyFieldNotesKeyRow(row: string): Promise<void> {
+    await expect(this.page.getByTestId(`field-notes-key-${row}`)).toBeVisible()
+  }
+
+  async fieldNotesKeyText(): Promise<string> {
+    const key = this.page.getByTestId('field-notes-key')
+    return (await key.count()) === 0 ? '' : ((await key.innerText()) ?? '')
+  }
+
   /** Every word the open panel renders - the assertion the spoiler policy needs. */
   async fieldNotesText(): Promise<string> {
     return (await this.notesPanel.innerText()) ?? ''

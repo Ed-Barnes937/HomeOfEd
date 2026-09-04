@@ -1,6 +1,6 @@
 # 11 - A key for the line kinds
 
-**Status:** ready-for-agent
+**Status:** done (built on worktree-agent-a110a628bd393cf67, 2026-09-04)
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - "can we add a helper for
 what the different line types in the field notes mean".

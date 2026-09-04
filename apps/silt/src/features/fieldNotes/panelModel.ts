@@ -65,7 +65,7 @@ function chipsOf(raw: readonly string[]): readonly string[] {
 /** Separates the two reagents of the pair that makes the focused element. */
 const REAGENT_JOIN = ' + '
 
-/** Separates an entry's products. */
+/** Separates an entry's products, and the key's kinds sharing one stroke. */
 const PRODUCT_JOIN = ' · '
 
 /** What an entry that consumes both cells leaves behind (spec §6). */
@@ -129,6 +129,104 @@ export interface RingModel {
   /** Entries involving the element that have not been witnessed - the empty notches. */
   stillToFind: number
   mastered: boolean
+}
+
+/** A stroke the ring draws, named for the kind whose class carries it. */
+export type LegendStroke = 'react' | 'decay' | 'grow'
+
+/** One row of the key: a sample stroke, the kinds drawn with it, what it means. */
+export interface LegendRow {
+  stroke: LegendStroke
+  /** Every kind sharing the stroke, in graph order. */
+  kinds: readonly EdgeKind[]
+  /** Those kinds as words: `growth · germination · raise · bloom`. */
+  label: string
+  /** What the line says, in the chart's own terms - never an element (spec §7). */
+  meaning: string
+}
+
+/** A rule of the chart that is not a line kind: the arrowhead, and the notches. */
+export interface LegendRule {
+  id: 'arrow' | 'notch'
+  text: string
+}
+
+/** Every kind as a word. A new kind fails to compile until it has one. */
+const KIND_WORDS: Record<EdgeKind, string> = {
+  react: 'reaction',
+  decay: 'decay',
+  grow: 'growth',
+  germinate: 'germination',
+  raise: 'raise',
+  bloom: 'bloom',
+}
+
+/**
+ * Which stroke draws a kind (spec §6): reaction solid, decay long dash, growth
+ * dotted, with the hook transmutations sharing growth's dots.
+ */
+const KIND_STROKE: Record<EdgeKind, LegendStroke> = {
+  react: 'react',
+  decay: 'decay',
+  grow: 'grow',
+  germinate: 'grow',
+  raise: 'grow',
+  bloom: 'grow',
+}
+
+/**
+ * The one place the kind-to-stroke mapping lives. Both the ring's spokes and
+ * the key's samples go through it and wear the stroke's own class, so a kind
+ * cannot be drawn one way on the chart and sampled another way in the key -
+ * which is the whole point of a key.
+ */
+export function strokeOf(kind: EdgeKind): LegendStroke {
+  return KIND_STROKE[kind]
+}
+
+/**
+ * What a stroke means. Deliberately about *shape of interaction*, not about any
+ * element: nothing here can leak, because there is nothing in it to leak.
+ */
+const STROKE_MEANING: Record<LegendStroke, string> = {
+  react: 'two elements meeting',
+  decay: 'one element changing on its own, in time',
+  grow: 'a living thing acting on what is next to it',
+}
+
+/** The two rules the strokes cannot state: what an arrowhead and a notch mean. */
+export const LEGEND_RULES: readonly LegendRule[] = [
+  {
+    id: 'arrow',
+    text: 'an arrowhead into the middle: that entry is what makes the one in the centre',
+  },
+  { id: 'notch', text: 'an empty notch: an entry for this one you have not witnessed yet' },
+]
+
+/**
+ * The key's rows (ticket 11): one per stroke actually present in the derived
+ * graph, carrying every kind that shares it. Which rows exist is derived rather
+ * than written down, so the key teaches exactly the language the chart speaks -
+ * a roster that stops drawing a kind drops it from the key, and a new kind is
+ * in the key the moment it is in the graph. What a new kind still owes is its
+ * word and its stroke: `KIND_WORDS` and `KIND_STROKE` are exhaustive, so it
+ * cannot compile without them rather than appearing nameless.
+ */
+export function legendRows(index: EntryIndex = entryIndex()): readonly LegendRow[] {
+  // Insertion order is graph order: reactions, decays, growth, then the hooks.
+  const kindsByStroke = new Map<LegendStroke, EdgeKind[]>()
+  for (const entry of index.all) {
+    const kinds = kindsByStroke.get(KIND_STROKE[entry.kind]) ?? []
+    if (!kinds.includes(entry.kind)) kinds.push(entry.kind)
+    kindsByStroke.set(KIND_STROKE[entry.kind], kinds)
+  }
+
+  return [...kindsByStroke].map(([stroke, kinds]) => ({
+    stroke,
+    kinds,
+    label: kinds.map((kind) => KIND_WORDS[kind]).join(PRODUCT_JOIN),
+    meaning: STROKE_MEANING[stroke],
+  }))
 }
 
 /**
