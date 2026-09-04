@@ -76,7 +76,9 @@ test('Play advances the draw to completion', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.dragSlider('speed', 100) // brisk ≈1.5s draw — keeps the test quick
+  // Brisk. Not 1.5s: the default 13-turn train floors at 13 × MIN_MS_PER_TURN
+  // ≈ 6.5s so its carrier stays under 2 rev/s (ADR 0043).
+  await root.dragSlider('speed', 100)
   await root.clickPlay()
 
   await root.verifyProgressAdvancesPast(0)

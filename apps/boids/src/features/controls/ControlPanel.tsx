@@ -113,7 +113,62 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+/** One panel per page, so the hint's id can be a constant (aria-describedby). */
+const RUN_HINT_ID = 'boids-run-hint'
+
+/**
+ * The play/pause toggle (WCAG 2.2.2). One button whose accessible name states
+ * the action it offers - no `aria-pressed`, which would double up with a label
+ * that already flips. The visible word is part of that name (WCAG 2.5.3).
+ *
+ * `pausedByDevice` adds the reason for a pause nobody asked for: plain words a
+ * child can read, and the button's accessible description so it is not
+ * sighted-only. Nothing to explain once the pause is the user's own choice.
+ */
+function RunToggle({
+  running,
+  pausedByDevice,
+  onChange,
+}: {
+  running: boolean
+  pausedByDevice: boolean
+  onChange: (running: boolean) => void
+}) {
+  return (
+    <div className={styles.run}>
+      <button
+        type="button"
+        className={styles.runToggle}
+        data-testid="run-toggle"
+        aria-label={running ? 'pause the flock' : 'play the flock'}
+        aria-describedby={pausedByDevice ? RUN_HINT_ID : undefined}
+        onClick={() => onChange(!running)}
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+          {running ? (
+            <path d="M2.5 1.5h2.6v9H2.5zM6.9 1.5h2.6v9H6.9z" />
+          ) : (
+            <path d="M3 1.6 10 6l-7 4.4z" />
+          )}
+        </svg>
+        <span className={styles.runToggleLabel}>{running ? 'pause' : 'play'}</span>
+      </button>
+      {pausedByDevice && (
+        <p className={styles.runHint} id={RUN_HINT_ID} data-testid="run-hint">
+          paused because your device asks for less motion. press play when you want the flock to
+          move.
+        </p>
+      )}
+    </div>
+  )
+}
+
 export interface ControlPanelProps {
+  running: boolean
+  onRunningChange: (running: boolean) => void
+  /** True only while the flock is paused because the device asked for less
+   * motion - the one pause that needs explaining. */
+  pausedByDevice: boolean
   theme: ThemeId
   onThemeChange: (theme: ThemeId) => void
   shape: BoidShape
@@ -126,6 +181,9 @@ export interface ControlPanelProps {
 
 /** The frosted-glass settings panel: header, theme, shape, cursor, sliders, collapse↔FAB. */
 export function ControlPanel({
+  running,
+  onRunningChange,
+  pausedByDevice,
   theme,
   onThemeChange,
   shape,
@@ -191,6 +249,8 @@ export function ControlPanel({
           </svg>
         </button>
       </div>
+
+      <RunToggle running={running} pausedByDevice={pausedByDevice} onChange={onRunningChange} />
 
       <div className={styles.groupLabel}>theme</div>
       <ThemePicker value={theme} onChange={onThemeChange} />

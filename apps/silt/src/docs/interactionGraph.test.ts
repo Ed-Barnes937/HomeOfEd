@@ -62,6 +62,32 @@ describe('deriveInteractionGraph', () => {
     expect(products('acid', 'dirt')).toEqual(['empty', 'empty'])
   })
 
+  it('gives every fuel on the ignition ladder its own row, ahead of the flammable fallback', () => {
+    // Burnables gave each historical fuel its own probability (spec §1), and the
+    // land plant's wet tissue steams on its own rows too, so the generic
+    // `fire + flammable` tag row (still present for the next fuel that arrives
+    // without one) never wins attribution for any of these eight today.
+    const laddered = graph.reactions
+      .filter(
+        (edge) =>
+          edge.source.includes('(fire + ') &&
+          !edge.source.includes('flammable') &&
+          !edge.source.includes('ember'),
+      )
+      .map((edge) => (edge.a === 'fire' ? edge.b : edge.a))
+
+    expect(laddered.toSorted()).toEqual([
+      'flower',
+      'moss',
+      'oil',
+      'seed',
+      'sprout',
+      'sulphur',
+      'vine',
+      'wood',
+    ])
+  })
+
   it('expands fire + flammable to the fuels without a ladder row of their own', () => {
     // The ignition ladder (burnables) gives each fuel its own preceding row, so
     // the tag row is the fallback and only stalk and tip still fall through to

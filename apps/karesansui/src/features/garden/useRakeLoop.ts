@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
 
+import { carveDurationMs } from './carveDuration.ts'
 import { gardenCurves, type Garden } from './engine/garden.ts'
 import type { GardenConfig } from './engine/state.ts'
 import { MechRenderer } from './render/MechRenderer.ts'
@@ -179,9 +180,10 @@ export function useRakeLoop(opts: UseRakeLoopOptions): {
         onCompleteRef.current()
         return
       }
-      // brisk ≈ 1.5s → meditative ≈ 31s (reference startRake curve).
+      // brisk ≈ 1.5s → meditative ≈ 31s (reference startRake curve), floored so
+      // no cog's carrier outruns the rotation-rate cap (ADR 0045).
       carve = {
-        duration: 1500 + Math.pow((100 - configRef.current.speed) / 100, 1.7) * 30000,
+        duration: carveDurationMs(configRef.current),
         elapsed: 0,
         lastTs: performance.now(),
       }
