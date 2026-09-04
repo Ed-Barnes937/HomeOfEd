@@ -21,6 +21,7 @@ const MUD_KEYS = [
   'react:fire+mud',
   'react:lava+mud',
   'react:mud+seed',
+  'react:mud+petal',
 ]
 
 describe('canonical edge keys', () => {
@@ -75,9 +76,9 @@ describe('canonical edge keys', () => {
 
 describe('involves()', () => {
   test("today's totals: an element's entries are its reagent and product edges", () => {
-    expect(notes.entriesFor('water')).toHaveLength(9)
-    expect(notes.entriesFor('mud')).toHaveLength(5)
-    expect(notes.entriesFor('fire')).toHaveLength(16)
+    expect(notes.entriesFor('water')).toHaveLength(10)
+    expect(notes.entriesFor('mud')).toHaveLength(6)
+    expect(notes.entriesFor('fire')).toHaveLength(24)
   })
 
   test('stone has exactly the one edge that makes it', () => {
@@ -102,22 +103,24 @@ describe('involves()', () => {
     expect(notes.involves('react:unobtanium+water', 'water')).toBe(false)
   })
 
-  test("mud's entries are the five the spec names", () => {
+  test("mud's entries are the six the registry derives (the spec's five plus mud + petal)", () => {
     expect([...notes.entriesFor('mud')].sort()).toEqual([...MUD_KEYS].sort())
   })
 })
 
 describe('totals', () => {
-  test('37 entries today: 32 reaction pairs, 3 productive decays, 2 growth edges', () => {
+  test('54 entries today: 48 reaction pairs, 4 productive decays, 2 growth edges', () => {
     const kinds = (kind: Entry['kind']) => notes.all.filter((entry) => entry.kind === kind)
-    expect(kinds('react')).toHaveLength(32)
-    expect(kinds('decay')).toHaveLength(3)
+    expect(kinds('react')).toHaveLength(48)
+    // The flower's decay is productive twice over: it leaves a seed and its
+    // death drop throws petals - one entry, two products.
+    expect(kinds('decay')).toHaveLength(4)
     expect(kinds('grow')).toHaveLength(2)
-    expect(notes.all).toHaveLength(37)
+    expect(notes.all).toHaveLength(54)
   })
 
-  test('19 elements today, the rail among them pre-known', () => {
-    expect(notes.elements).toHaveLength(19)
+  test('25 elements today, the rail among them pre-known', () => {
+    expect(notes.elements).toHaveLength(25)
     // Ten since the rail trim took mud out of `PAINTABLE_IDS` (spec §9.5) - mud
     // is now earned back by mastering it, and an earned unlock is not pre-known.
     expect(notes.preKnown).toHaveLength(10)
@@ -134,7 +137,7 @@ describe('tiers', () => {
     for (const name of notes.elements) {
       if (notes.preKnown.includes(name)) continue
       const tier = notes.tierOf(name)
-      expect(tier).toBeDefined()
+      if (tier === undefined) continue // the hook-born, until ticket 07 charts the hooks
       const recipes = notes.all
         .filter((entry) => entry.products.includes(name))
         .map((entry) => 1 + Math.max(...entry.reagents.map((r) => notes.tierOf(r) ?? Infinity)))
@@ -142,12 +145,31 @@ describe('tiers', () => {
     }
   })
 
+  test('the untiered are exactly the hook-born and their downstream (ticket 07 retires this)', () => {
+    // moss, sprout, tip, stalk and flower are made by onTick hooks the graph
+    // does not chart, so no entry produces them and no depth can be computed;
+    // vine and petal have producing entries whose reagents are those five, so
+    // their depth cannot resolve either. Ticket 07 charts the hooks and this
+    // fixture should then fail - delete it and pin the real tiers.
+    const untiered = notes.elements.filter((name) => notes.tierOf(name) === undefined)
+    expect(untiered.toSorted()).toEqual([
+      'flower',
+      'moss',
+      'petal',
+      'sprout',
+      'stalk',
+      'tip',
+      'vine',
+    ])
+  })
+
   test("regression fixture for today's roster", () => {
-    // Post-trim: mud is dirt + water's product, so it sits at tier 1 and pushes
-    // moss (seed + mud) to 2 and vine (grown from moss) to 3 (spec §6).
-    const byTier = new Map<number, string[]>()
+    // Post-trim: mud is dirt + water's product, so it sits at tier 1; the life
+    // epic's seed + mud row now buries the seed, so buried joins ash at 2 and
+    // moss (hook-germinated, uncharted until ticket 07) has no tier at all.
+    const byTier = new Map<number | undefined, string[]>()
     for (const name of notes.elements) {
-      const tier = notes.tierOf(name)!
+      const tier = notes.tierOf(name)
       byTier.set(tier, [...(byTier.get(tier) ?? []), name])
     }
     expect(byTier.get(0)).toEqual([
@@ -163,15 +185,15 @@ describe('tiers', () => {
       'seed',
     ])
     expect(byTier.get(1)).toEqual(['obsidian', 'smoke', 'steam', 'sulphur', 'mud', 'ember'])
-    expect(byTier.get(2)).toEqual(['moss', 'ash'])
-    expect(byTier.get(3)).toEqual(['vine'])
+    expect(byTier.get(2)).toEqual(['ash', 'buried'])
+    expect(byTier.get(3)).toBeUndefined()
   })
 
   test('a deeper chain pushes its product deeper (structure, not the table)', () => {
     // Whatever the roster, ember comes from wood + fire and ash comes from ember,
-    // so ash is strictly deeper than ember.
+    // so ash is strictly deeper than ember; buried needs mud, which needs water.
     expect(notes.tierOf('ash')!).toBeGreaterThan(notes.tierOf('ember')!)
-    expect(notes.tierOf('vine')!).toBeGreaterThan(notes.tierOf('moss')!)
+    expect(notes.tierOf('buried')!).toBeGreaterThan(notes.tierOf('mud')!)
   })
 })
 
@@ -196,7 +218,7 @@ describe('derivations from a witnessed-key set', () => {
     expect([...derived.discovered].sort()).toEqual([...notes.preKnown].sort())
   })
 
-  test("mud's full five keys unlock mud; any four do not", () => {
+  test("mud's full six keys unlock mud; any five do not", () => {
     expect(UNLOCKABLE_NAMES).toEqual(['mud'])
     const full = notes.derive(new Set(MUD_KEYS))
     expect(full.mastered.has('mud')).toBe(true)

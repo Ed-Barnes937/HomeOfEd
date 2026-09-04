@@ -70,6 +70,36 @@ describe('createRegistry', () => {
     expect(() => createRegistry([immortal])).toThrow(/one byte/i)
   })
 
+  it('rejects a powder with a bad move probability', () => {
+    const slow = (move: number) =>
+      ({ ...sand, archetype: { kind: 'powder', density: 4, slide: 1, move } }) as ElementDef
+
+    expect(() => createRegistry([slow(0)])).toThrow(/move/i)
+    expect(() => createRegistry([slow(1.5)])).toThrow(/move/i)
+    expect(() => createRegistry([slow(0.25)])).not.toThrow()
+  })
+
+  it('rejects a coarse lifetime whose `every` is not a whole number in [1, 255]', () => {
+    const coarse = (every: number): ElementDef => ({
+      ...sand,
+      lifetime: { ticks: 100, every, becomes: null },
+    })
+
+    expect(() => createRegistry([coarse(0)])).toThrow(/every/i)
+    expect(() => createRegistry([coarse(1.5)])).toThrow(/every/i)
+    expect(() => createRegistry([coarse(256)])).toThrow(/every/i)
+    expect(() => createRegistry([coarse(6)])).not.toThrow()
+  })
+
+  it('holds a coarse lifetime to the same one-byte cap, counted in coarse units', () => {
+    const overflowing: ElementDef = {
+      ...sand,
+      lifetime: { ticks: 200, jitter: 100, every: 6, becomes: null },
+    }
+
+    expect(() => createRegistry([overflowing])).toThrow(/one byte/i)
+  })
+
   it('rejects a reaction naming an unknown target', () => {
     expect(() =>
       createRegistry(

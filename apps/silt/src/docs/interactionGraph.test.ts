@@ -36,7 +36,7 @@ describe('the interaction graph doc', () => {
 describe('deriveInteractionGraph', () => {
   it('finds every registered pair once, unordered', () => {
     // Registry-derived, so this count moves only when the chemistry does.
-    expect(graph.reactions).toHaveLength(32)
+    expect(graph.reactions).toHaveLength(48)
     const keys = graph.reactions.map((edge) => `${edge.a}+${edge.b}`)
     expect(new Set(keys).size).toBe(keys.length)
   })
@@ -60,9 +60,46 @@ describe('deriveInteractionGraph', () => {
 
   it('keeps the first matching row, so acid + wood leaves sulphur', () => {
     expect(products('acid', 'wood')).toEqual(['sulphur', 'empty'])
-    expect(pair('acid', 'wood')?.source).toBe('row 15 (acid + wood)')
+    expect(pair('acid', 'wood')?.source).toBe('row 17 (acid + wood)')
     // The generic row it precedes digs a cavity instead.
     expect(products('acid', 'dirt')).toEqual(['empty', 'empty'])
+  })
+
+  it('gives every fuel on the ignition ladder its own row, ahead of the flammable fallback', () => {
+    // Burnables gave each historical fuel its own probability (spec §1), and the
+    // land plant's wet tissue steams on its own rows too, so the generic
+    // `fire + flammable` tag row (still present for the next fuel that arrives
+    // without one) never wins attribution for any of these eight today.
+    const laddered = graph.reactions
+      .filter(
+        (edge) =>
+          edge.source.includes('(fire + ') &&
+          !edge.source.includes('flammable') &&
+          !edge.source.includes('ember'),
+      )
+      .map((edge) => (edge.a === 'fire' ? edge.b : edge.a))
+
+    expect(laddered.toSorted()).toEqual([
+      'flower',
+      'moss',
+      'oil',
+      'seed',
+      'sprout',
+      'sulphur',
+      'vine',
+      'wood',
+    ])
+  })
+
+  it('expands fire + flammable to the fuels without a ladder row of their own', () => {
+    // The ignition ladder (burnables) gives each fuel its own preceding row, so
+    // the tag row is the fallback and only stalk and tip still fall through to
+    // it - the land plant's dry tissue, burning at the generic rate.
+    const fuels = graph.reactions
+      .filter((edge) => edge.source.endsWith('(fire + flammable)'))
+      .map((edge) => (edge.a === 'fire' ? edge.b : edge.a))
+
+    expect(fuels.toSorted()).toEqual(['stalk', 'tip'])
   })
 
   it('expands lava + flammable to every fuel a specific row has not already claimed', () => {
@@ -73,7 +110,17 @@ describe('deriveInteractionGraph', () => {
       .filter((edge) => edge.source.endsWith('(lava + flammable)'))
       .map((edge) => (edge.a === 'lava' ? edge.b : edge.a))
 
-    expect(fuels.toSorted()).toEqual(['moss', 'oil', 'seed', 'sulphur', 'vine'])
+    expect(fuels.toSorted()).toEqual([
+      'flower',
+      'moss',
+      'oil',
+      'seed',
+      'sprout',
+      'stalk',
+      'sulphur',
+      'tip',
+      'vine',
+    ])
   })
 
   it('reads decay off the registry, fades included', () => {
@@ -81,8 +128,45 @@ describe('deriveInteractionGraph', () => {
       { from: 'fire', becomes: 'smoke', minTicks: 40, maxTicks: 60 },
       { from: 'smoke', becomes: 'empty', minTicks: 200, maxTicks: 255 },
       { from: 'steam', becomes: 'water', minTicks: 180, maxTicks: 240 },
+      { from: 'seed', becomes: 'empty', minTicks: 1280, maxTicks: 2000 },
       { from: 'ember', becomes: 'fire', minTicks: 120, maxTicks: 180 },
+      { from: 'stalk', becomes: 'empty', minTicks: 2720, maxTicks: 3200 },
+      {
+        from: 'flower',
+        becomes: 'seed',
+        minTicks: 1200,
+        maxTicks: 2400,
+        emits: { species: 'petal', min: 3, max: 4 },
+      },
+      { from: 'petal', becomes: 'empty', minTicks: 80, maxTicks: 150 },
     ])
+  })
+
+  /**
+   * A coarse countdown (`every: n`) counts draws rather than ticks, so the
+   * roster's numbers are in units of `n` and the doc has to multiply them back
+   * out - a flower printed as "75-150 ticks" would be off by a factor of eight
+   * (life ticket 03).
+   */
+  it('reports a coarse lifetime in real ticks, not in countdown draws', () => {
+    expect(graph.decays.find((decay) => decay.from === 'flower')).toEqual({
+      from: 'flower',
+      becomes: 'seed',
+      minTicks: 1200,
+      maxTicks: 2400,
+      // The death drop rides along on the lifetime, so it is reported with it -
+      // a flower listed as decaying to a seed and nothing else would leave out
+      // half of what a withering flower does (life ticket 04).
+      emits: { species: 'petal', min: 3, max: 4 },
+    })
+    expect(graph.decays.find((decay) => decay.from === 'stalk')).toEqual({
+      from: 'stalk',
+      becomes: 'empty',
+      minTicks: 2720,
+      maxTicks: 3200,
+    })
+    // The tick-by-tick form is untouched: `every` defaults to 1.
+    expect(graph.decays.find((decay) => decay.from === 'fire')?.minTicks).toBe(40)
   })
 
   it('declares the growth hook the registry cannot report', () => {
@@ -91,8 +175,11 @@ describe('deriveInteractionGraph', () => {
       expect(edge.consumes).toBe('water')
       expect(edge.becomes).toBe('vine')
     }
-    // Sprouting is a row, so it arrives with the reactions and is not duplicated.
-    expect(products('seed', 'mud')).toEqual(['moss', 'mud'])
+    // Burial is a row, so it arrives with the reactions and is not duplicated.
+    // Germination is not: it is the seed bank's hook, and the graph has no shape
+    // for a rule with two products, so `seedBank.ts` goes unreported here (life
+    // ticket 02).
+    expect(products('seed', 'mud')).toEqual(['empty', 'buried'])
   })
 })
 

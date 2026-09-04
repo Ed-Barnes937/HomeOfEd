@@ -6,13 +6,14 @@ import { fieldNotesView } from './fieldNotesView.ts'
 
 const notes = entryIndex()
 
-/** Spec §1: the five edges that master mud, and so unlock the rail slot. */
+/** The six edges that master mud, and so unlock the rail slot (spec §1's five plus mud + petal, life epic). */
 const MUD_KEYS = [
   'react:dirt+water',
   'react:ash+water',
   'react:fire+mud',
   'react:lava+mud',
   'react:mud+seed',
+  'react:mud+petal',
 ]
 
 let storage: FieldNotesStorage
@@ -46,7 +47,7 @@ describe('fieldNotesView()', () => {
     store.witness(['react:lava+water'])
     const view = reloaded()
 
-    // lava + water is one of water's nine entries, and obsidian's only one.
+    // lava + water is one of water's ten entries, and obsidian's only one.
     expect(view.counts.get('water')).toEqual({ seen: 1, total: notes.entriesFor('water').length })
     expect(view.counts.get('obsidian')).toEqual({ seen: 1, total: 1 })
     expect(view.counts.get('sand')).toEqual({ seen: 0, total: notes.entriesFor('sand').length })
@@ -56,26 +57,26 @@ describe('fieldNotesView()', () => {
     expect(view.discovered.has('ash')).toBe(false)
   })
 
-  test("mud's five keys unlock mud, and survive the reload that proves nothing derived is stored", () => {
+  test("mud's six keys unlock mud, and survive the reload that proves nothing derived is stored", () => {
     for (const key of MUD_KEYS) store.witness([key])
 
     const view = reloaded()
 
     expect(view.mastered.has('mud')).toBe(true)
     expect(view.unlocked).toEqual(['mud'])
-    expect(view.counts.get('mud')).toEqual({ seen: 5, total: 5 })
+    expect(view.counts.get('mud')).toEqual({ seen: 6, total: 6 })
   })
 
   test('the rail is told there is more to earn only while there is (spec §7)', () => {
     expect(fieldNotesView(store.progress, notes).moreToEarn).toBe(true)
 
-    // Four of mud's five: something is still to be earned, and the teaser must
+    // Five of mud's six: something is still to be earned, and the teaser must
     // still say nothing about what.
-    for (const key of MUD_KEYS.slice(0, 4)) store.witness([key])
+    for (const key of MUD_KEYS.slice(0, 5)) store.witness([key])
     expect(reloaded().moreToEarn).toBe(true)
 
     // Mud is the roster's only unlockable, so mastering it empties the promise.
-    store.witness([MUD_KEYS[4]!])
+    store.witness([MUD_KEYS[5]!])
     expect(reloaded().moreToEarn).toBe(false)
   })
 

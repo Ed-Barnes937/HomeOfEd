@@ -100,6 +100,13 @@ class StubApi implements Api {
     return this.#draws.shift() ?? 0
   }
 
+  keepAwake(): void {
+    // The growers keep themselves awake by rewriting a byte they own, which is
+    // what makes evaporation's promoted `keepAwake` a decision rather than a
+    // convenience (ADR 0044 §3). Reaching for it here would be a regression.
+    throw new Error('the growth hook holds its chunk awake by writing its branch count')
+  }
+
   randInt(): number {
     throw new Error('the growth hook draws rand(), not randInt()')
   }

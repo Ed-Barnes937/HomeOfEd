@@ -103,6 +103,9 @@ export function refOf(name: string, view: FieldNotesView): ElementRef {
  * order, and a stable sort by tier turns that into the columns the design
  * calls for. Tier 0 is the base rail; the products follow at their own depth.
  */
+/** Sorts producer-less elements after every element with a computable depth. */
+const UNTIERED = Number.MAX_SAFE_INTEGER
+
 export function pickerRows(
   view: FieldNotesView,
   index: EntryIndex = entryIndex(),
@@ -117,7 +120,10 @@ export function pickerRows(
     const unlockable = UNLOCKABLE_NAMES.includes(name) && !mastered
     return {
       ...ref,
-      tier: index.tierOf(name) ?? 0,
+      // An element no charted edge produces has no depth to compute (the life
+      // plant's hook-born five, until ticket 07 charts the hooks); it sorts
+      // after everything a player can actually dig towards.
+      tier: index.tierOf(name) ?? UNTIERED,
       count: ref.discovered ? `${tally.seen}/${tally.total}${unlockable ? ' to unlock' : ''}` : '',
       mastered,
       isNew: view.newElements.has(name),

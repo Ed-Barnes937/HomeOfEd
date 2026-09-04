@@ -236,6 +236,9 @@ test('seed is paintable and sits in the Powder group, with no plant beside it', 
   expect(await root.isSelected('seed')).toBe(true)
 
   const names = await root.paletteElementNames()
-  expect(names).not.toContain('moss')
-  expect(names).not.toContain('vine')
+  // Every plant is a reward rather than a swatch (life spec ruling 6), the land
+  // roster included: the rail stays at eleven.
+  for (const plant of ['moss', 'vine', 'buried', 'sprout', 'tip', 'stalk', 'flower']) {
+    expect(names).not.toContain(plant)
+  }
 })

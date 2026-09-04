@@ -56,8 +56,21 @@ export interface DecayEdge {
   from: string
   /** `empty` for a fade: smoke leaves nothing behind. */
   becomes: string
+  /**
+   * **Real ticks, not countdown draws.** A coarse lifetime (`every: n`) counts
+   * draws in the byte, so its `ticks` and `jitter` are in units of `n` - a doc
+   * that printed them raw would report a 600-tick flower as a 75-tick one (life
+   * ticket 03).
+   */
   minTicks: number
   maxTicks: number
+  /**
+   * The brood thrown clear of the cell on death (`lifetime.emits`, life ticket
+   * 04), where `becomes` is only what is left *in* it. Reported because it is
+   * registry state like the rest of the lifetime - a flower listed as decaying
+   * to a seed and nothing else would be a doc that misses half of what happens.
+   */
+  emits?: { species: string; min: number; max: number }
 }
 
 export interface GrowthEdge {
@@ -77,8 +90,23 @@ export interface InteractionGraph {
 /**
  * The growth hook is code rather than a row - `createGrowth(WATER, MOSS, VINE)`
  * in `elements.ts` - so no registry lookup can report it and these edges are
- * declared. Mirror any change to `growth.ts` here. Sprouting (`seed + mud ->
- * moss`) is a reaction row and arrives with the rest.
+ * declared. Mirror any change to `growth.ts` here. Burial (`seed + mud ->
+ * buried`) is a reaction row and arrives with the rest; germination is the seed
+ * bank's hook (`seedBank.ts`) and goes unreported, since a `GrowthEdge` has no
+ * shape for a rule that writes two cells (life ticket 02).
+ *
+ * The land plant's hooks (`stalk.ts`) are unreported for the same reason: both
+ * the sprout raising a tip and the tip climbing write a new cell *and* transmute
+ * the one they stand in. That is the third such hook, which is the trigger ADR
+ * 0043 names for giving the generator a `HookEdge` shape - out of ticket 03's
+ * scope, and the graph reports every one of the four species' chemistry and
+ * decay meanwhile.
+ *
+ * Evaporation (`evaporation.ts`, life ticket 05) is unreported too, and for the
+ * opposite reason: `water -> steam` consumes no neighbour at all, so a
+ * `GrowthEdge` has no shape for it either. The condition is the whole rule - open
+ * air above, something other than water below - and that is what a `HookEdge`
+ * would have to be able to say.
  */
 const GROWERS: readonly number[] = [MOSS, VINE]
 
@@ -144,11 +172,15 @@ export function deriveInteractionGraph(): InteractionGraph {
   for (const def of roster) {
     const lifetime = registry.lifetimeOf(def.id)
     if (!lifetime) continue
+    const { emits } = lifetime
     decays.push({
       from: def.name,
       becomes: nameOf(lifetime.becomes),
-      minTicks: lifetime.ticks,
-      maxTicks: lifetime.ticks + lifetime.jitter,
+      minTicks: lifetime.ticks * lifetime.every,
+      maxTicks: (lifetime.ticks + lifetime.jitter) * lifetime.every,
+      ...(emits && {
+        emits: { species: nameOf(emits.species), min: emits.min, max: emits.max },
+      }),
     })
   }
 
@@ -175,6 +207,11 @@ function ticks(decay: DecayEdge): string {
     : `${decay.minTicks}-${decay.maxTicks} ticks`
 }
 
+/** How many of the brood a death throws clear: "3" or "3-4". */
+function broodSize(emits: NonNullable<DecayEdge['emits']>): string {
+  return emits.min === emits.max ? `${emits.min}` : `${emits.min}-${emits.max}`
+}
+
 function mermaid(graph: InteractionGraph): string {
   const lines = ['graph LR']
   for (const node of graph.nodes) lines.push(`  ${mermaidNode(node)}`)
@@ -185,11 +222,19 @@ function mermaid(graph: InteractionGraph): string {
   }
 
   // A fade has no destination node, so it gets no edge - the table carries it.
-  const shown = graph.decays.filter((decay) => decay.becomes !== CLEARED)
+  // The brood does have one, on a species that fades: a flower's petals are an
+  // edge even though the flower's own cell is not.
+  const shown = graph.decays.filter((decay) => decay.becomes !== CLEARED || decay.emits)
   if (shown.length > 0) {
     lines.push('', '  %% decay')
     for (const decay of shown) {
-      lines.push(`  ${decay.from} -->|"decays, ${ticks(decay)}"| ${decay.becomes}`)
+      if (decay.becomes !== CLEARED) {
+        lines.push(`  ${decay.from} -->|"decays, ${ticks(decay)}"| ${decay.becomes}`)
+      }
+      if (decay.emits) {
+        // The edge already points at the species, so the label only counts.
+        lines.push(`  ${decay.from} -->|"sheds ${broodSize(decay.emits)}"| ${decay.emits.species}`)
+      }
     }
   }
 
@@ -223,7 +268,9 @@ function rows(graph: InteractionGraph): Row[] {
       reagents: decay.from,
       // Decay is certain once the countdown runs out; the spread is in the outcome.
       p: '-',
-      outcome: `${decay.from} -> ${decay.becomes} after ${ticks(decay)}`,
+      outcome:
+        `${decay.from} -> ${decay.becomes} after ${ticks(decay)}` +
+        (decay.emits ? `, shedding ${broodSize(decay.emits)} ${decay.emits.species}` : ''),
       mechanism: 'lifetime',
     })
   }

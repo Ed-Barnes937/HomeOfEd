@@ -1,4 +1,4 @@
-# 0043 - silt: the discovery witness lives in the sim core
+# 0048 - silt: the discovery witness lives in the sim core
 
 - **Status:** Accepted (2026-09-03, landed with
   `.scratch/silt-discovery-tree/issues/02-engine-witness-recorder.md`)

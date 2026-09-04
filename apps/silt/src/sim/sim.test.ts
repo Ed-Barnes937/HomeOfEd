@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, WATER } from './elements.ts'
-import { GRID_HEIGHT, GRID_WIDTH, VARIANT_SLOTS } from './constants.ts'
+import { DIRT, EMPTY, LAVA, OBSIDIAN, SAND, STEAM, WATER, v1Elements } from './elements.ts'
+import { GRID_HEIGHT, GRID_WIDTH, RA_OFFSET, VARIANT_SLOTS } from './constants.ts'
 import { Sim } from './sim.ts'
+import type { ElementDef } from './types.ts'
 
 const FLOOR = GRID_HEIGHT - 1
 
@@ -74,6 +75,57 @@ describe('powder movement', () => {
     for (let x = 0; x < GRID_WIDTH; x++) {
       expect(sim.speciesAt(x, FLOOR)).toBe(DIRT)
     }
+  })
+})
+
+/** The row a species has reached in one column, or -1 if it is not there. */
+function rowOf(sim: Sim, x: number, species: number): number {
+  for (let y = 0; y < GRID_HEIGHT; y++) {
+    if (sim.speciesAt(x, y) === species) return y
+  }
+  return -1
+}
+
+describe('a slow powder', () => {
+  /**
+   * A drifting grain: the same fall as sand, taken about one tick in four
+   * (spec §3), and the case the powder `move` throttle exists for.
+   *
+   * **Still a throwaway element, now that the real petal exists** (life ticket
+   * 04). The roster's petal also declares a lifetime, and both cases here
+   * outlast it - a grain that expired mid-drift would confound "the throttle
+   * slowed it down" with "the countdown removed it". The archetype belongs to
+   * the kernel, so it is pinned against the kernel alone; `life.test.ts` covers
+   * the petal that carries it.
+   */
+  const drifter: ElementDef = {
+    id: 103,
+    name: 'drifter',
+    colours: ['#f0c0cf'],
+    tags: [],
+    archetype: { kind: 'powder', density: 10, slide: 1, move: 0.25 },
+  }
+
+  it('drifts down while sand of the same slide falls a cell a tick', () => {
+    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, drifter] }))
+    sim.paint(10, 10, drifter.id)
+    sim.paint(20, 10, SAND)
+
+    for (let i = 0; i < 24; i++) sim.tick()
+
+    expect(rowOf(sim, 20, SAND)).toBe(34)
+    const drifted = rowOf(sim, 10, drifter.id)
+    expect(drifted).toBeGreaterThan(10)
+    expect(drifted).toBeLessThan(28)
+  })
+
+  it('still settles, so a declined step never freezes it mid-air', () => {
+    const sim = withDirtFloor(new Sim({ seed: 1, elements: [...v1Elements, drifter] }))
+    sim.paint(10, 10, drifter.id)
+
+    for (let i = 0; i < 1200; i++) sim.tick()
+
+    expect(sim.speciesAt(10, FLOOR - 1)).toBe(drifter.id)
   })
 })
 
@@ -203,6 +255,34 @@ describe('grid storage', () => {
 
   it('rejects a provided buffer of the wrong size', () => {
     expect(() => new Sim({ buffer: new SharedArrayBuffer(8) })).toThrow(/byte/i)
+  })
+})
+
+describe('painting a pre-aged cell', () => {
+  const raAt = (sim: Sim, x: number, y: number) => sim.cells[(y * GRID_WIDTH + x) * 4 + RA_OFFSET]!
+
+  it('seeds `ra`, so a built scene need not start as one synchronised cohort', () => {
+    const sim = new Sim({ seed: 1 })
+
+    sim.paint(10, 10, SAND, { ra: 42 })
+
+    expect(raAt(sim, 10, 10)).toBe(42)
+  })
+
+  it('clears `ra` when nothing is handed over, as every other birth does', () => {
+    const sim = new Sim({ seed: 1 })
+
+    sim.paint(10, 10, SAND, { ra: 42 })
+    sim.paint(10, 10, SAND)
+
+    expect(raAt(sim, 10, 10)).toBe(0)
+  })
+
+  it('refuses a species whose `lifetime` owns the byte', () => {
+    const sim = new Sim({ seed: 1 })
+
+    expect(() => sim.paint(10, 10, STEAM, { ra: 42 })).toThrow(/lifetime/i)
+    expect(sim.speciesAt(10, 10)).toBe(EMPTY)
   })
 })
 

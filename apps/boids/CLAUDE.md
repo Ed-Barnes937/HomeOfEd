@@ -45,6 +45,16 @@ playwright-ct.config.ts   defineIwftConfig({ ctPort: 3102 })
   in refs; `useSimulationLoop` drives `requestAnimationFrame`. Settings changes
   go to the engine imperatively via `sim.setParams(...)` — no engine state in
   React, no per-frame re-render.
+- **Animate vs static:** `useSimulationLoop` has exactly two modes, switched by
+  `applyRunState` - animating (rAF loop owns the paint) and static (no loop, one
+  frame, repainted on demand via `redrawIfStaticRef`). `running: false` is the
+  only way to be still; don't add a second - see
+  [ADR 0043](../../docs/adr/0043-boids-one-static-frame-mechanism.md).
+- **Reduced motion is a default, not a veto:** `prefers-reduced-motion: reduce`
+  only seeds `running` to false on `BoidsPage` (and pauses on a mid-session
+  switch-on); pressing play is consent and really animates. The query is named
+  once, in `features/sim/reducedMotion.ts` - the loop never reads it. See
+  [ADR 0044](../../docs/adr/0044-boids-reduced-motion-opt-in.md).
 - Visual work (panel, canvas draw, themes, shapes) recreates
   `docs/reference/boids-design/` pixel-accurately — port token *values* from
   its `styles.css`, don't copy the file; the `boids.js` `draw()` function is

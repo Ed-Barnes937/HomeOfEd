@@ -36,12 +36,13 @@ This spec defines behaviour, data, and UI structure/states. Visual design
 - **Mastered** - every edge that names the element (as reagent or product) has
   been witnessed. Derived, like element discovery, from the witnessed-edge set.
 - **Unlockable** - a discoverable element that joins the paint rail when
-  mastered. v1 has exactly one: mud (its 5 edges: dirt+water, ash+water,
-  mud+fire, mud+lava, mud+seed).
+  mastered. v1 has exactly one: mud (6 edges since the life epic: dirt+water,
+  ash+water, mud+fire, mud+lava, mud+seed, mud+petal).
 
-Totals with today's roster: **19 elements (9 discoverable) and 37 interactions**.
-(This paragraph was written against the pre-burnables roster and already had to
-be updated once - the counts here are illustrative; the registry is the truth.)
+Totals with today's roster: **25 elements and 54 interactions** (48 reactions +
+4 productive decays + 2 growth edges, after the life-followup epic).
+(This paragraph has now been updated twice - the counts here are illustrative;
+the registry is the truth.)
 All counts are derived from the registry at runtime, never hardcoded - a new
 element or row changes the denominators automatically.
 
@@ -240,6 +241,17 @@ element at a time, so the picture does not get busier as the roster grows.
    stable however many unlockables arrive.
 9. **Still-to-find notches accepted** over faint dashed unwitnessed edges:
    unwitnessed entries are never drawn; counts carry the remaining mystery.
+10. **The life epic's hook-born elements are uncharted, interim** (2026-09-04,
+    on merging life-followup): moss, sprout, tip, stalk and flower are created
+    by onTick hooks the derived graph cannot yet express, so no edge produces
+    them and they are undiscoverable silhouettes (and untiered, along with
+    vine and petal, whose recipes' reagents are among the five - both stay
+    discoverable through `grow:moss` and `decay:flower`). This breaks §3's
+    "every discoverable element is the product of at least one edge" premise
+    on purpose and only for now: ticket 07 charts the hooks (germinate/raise/
+    bloom edges + their witness sites) and restores it. A death drop's brood
+    (`lifetime.emits`, the flower's petals) counts as a product of the decay
+    it rides on - that is what keeps petal discoverable meanwhile.
 
 ## 10. Handoff plan
 

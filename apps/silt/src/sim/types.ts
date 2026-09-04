@@ -16,6 +16,17 @@ export interface Fluid {
 }
 
 /**
+ * How readily a blocked grain takes a diagonal, and the per-step probability
+ * that it moves at all. `move` is what makes a petal a *slow* powder - it drifts
+ * down where sand drops, without the liquid archetype's levelling (spec §3).
+ */
+export interface Grain {
+  density: number
+  slide: number
+  move?: number
+}
+
+/**
  * Engine-owned, **closed** set of four motion kernels (spec §5.2). Density
  * orders displacement; a gas has a negative density, which is what makes
  * everything else sink past it rather than the gas push its way up.
@@ -25,9 +36,27 @@ export interface Fluid {
  */
 export type Archetype =
   | { kind: 'static' }
-  | { kind: 'powder'; density: number; slide: number }
+  | ({ kind: 'powder' } & Grain)
   | ({ kind: 'liquid' } & Fluid)
   | ({ kind: 'gas' } & Fluid)
+
+/**
+ * A brood scattered into the free cells around a cell that has just expired
+ * (life ticket 04). `becomes` says what is left *in* the cell; this says what is
+ * thrown clear of it.
+ *
+ * It is on `lifetime` rather than in a hook because **`onTick` never runs on the
+ * tick a lifetime expires** - the scan gates the hook on the cell surviving, so
+ * a product has no way at all to act on its own death. See
+ * [ADR 0043](../../../../docs/adr/0043-silt-growers-and-products-split-the-byte.md) §4.
+ */
+export interface Emission {
+  /** Element name to scatter. */
+  species: string
+  /** Inclusive brood size, drawn per death. `min` must be at least 1. */
+  min: number
+  max: number
+}
 
 /**
  * Engine-managed decay. Countdown lives in `ra` — see the byte-ownership rule
@@ -38,8 +67,39 @@ export interface Lifetime {
   ticks: number
   /** Random spread added to `ticks`, in ticks. */
   jitter?: number
+  /**
+   * Ticks between countdown draws, so the byte counts *draws* rather than ticks
+   * and a life longer than `MAX_LIFETIME_TICKS` fits without widening the cell.
+   * Defaults to 1, which is the tick-by-tick countdown.
+   *
+   * `ticks` and `jitter` are then both in **coarse units**: `ticks: 200,
+   * every: 6` is a 1200-tick life, jittered in steps of 6. See `applyLifetime`
+   * for why the phase is the world's and what that costs.
+   */
+  every?: number
   /** Element name to turn into on expiry, or `null` to vanish. */
   becomes: string | null
+  /** What is thrown clear of the cell on expiry, if anything. See `Emission`. */
+  emits?: Emission
+}
+
+/**
+ * The optional state `set` may hand a cell it creates (life ticket 01). Without
+ * it a birth clears `ra`, so a hook wanting to pass a travelling budget on to
+ * the cell it makes would have to swap-and-backfill instead - movement inside a
+ * hook, which the element model forbids (spec §2.2).
+ */
+export interface SetOptions {
+  /**
+   * Seed for the new cell's `ra` instead of clearing it. Only for an element
+   * that owns its own byte: seeding one whose `lifetime` owns `ra` would
+   * pre-spend the countdown, and the call is refused rather than allowed to
+   * quietly shorten a life.
+   *
+   * `rb` is reseeded either way - the colour variant stays engine-owned, so a
+   * child shares its parent's palette but never its exact shade (ADR 0040).
+   */
+  ra?: number
 }
 
 /**
@@ -111,8 +171,10 @@ export interface Api {
    * Overwrite the cell at the offset. Its `ra` is cleared and its `rb` is given
    * a fresh colour variant — the cell is newly born, and a transmutation that
    * left it at variant 0 would flatten the product into a slab (ADR 0040).
+   *
+   * `options.ra` is the one exception to the clearing: see `SetOptions`.
    */
-  set(dx: number, dy: number, species: number): void
+  set(dx: number, dy: number, species: number, options?: SetOptions): void
   /**
    * Exchange this cell with the one at the offset. The cursor follows, so
    * subsequent calls stay relative to the element's new home.
@@ -130,6 +192,27 @@ export interface Api {
    */
   get rb(): number
   set rb(value: number)
+  /**
+   * Keep this cell's chunk awake for the next tick without changing anything.
+   * The motion kernels have always needed it: a cell that *could* move and
+   * declined - a `move` probability that did not come up - writes nothing, and
+   * the chunk would otherwise sleep with the cell still in mid-air.
+   *
+   * **Promoted from `MovementApi` for the evaporation hook** (life ticket 05,
+   * [ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md) §3).
+   * Chunk sleeping is driven by writes, so a hook that must go on being offered
+   * a draw has to write something - and the three hooks before this one each
+   * rewrote a byte they already owned (`growth.ts`, `seedBank.ts`, `stalk.ts`).
+   * Evaporation is the case life spec §8 named in advance: it lives on *water*,
+   * whose `ra` is the liquid opinion field (ADR 0038), so the disguised write is
+   * not merely inelegant here but actively corrupting.
+   *
+   * **Judgement, not a habit**: the question is whether *this* cell still has
+   * business next tick. A film that declined its draw does; a pond surface that
+   * is not a film at all does not, and calling this on one would hold every pond
+   * in the world awake for ever.
+   */
+  keepAwake(): void
   rand(): number
   randInt(maxExclusive: number): number
   /**
@@ -168,13 +251,6 @@ export interface MovementApi extends Api {
    */
   raAt(dx: number, dy: number): number
   setRaAt(dx: number, dy: number, value: number): void
-  /**
-   * Keep this cell's chunk awake for the next tick without changing anything.
-   * A cell that *could* move and declined — a `move` probability that did not
-   * come up — writes nothing, and the chunk would otherwise sleep with the cell
-   * still in mid-air.
-   */
-  keepAwake(): void
   /**
    * Whether the last successful `tryMove` merely *queued* a cross-chunk move
    * rather than committing it. The cursor did not follow, so a kernel that

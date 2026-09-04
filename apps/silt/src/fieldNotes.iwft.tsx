@@ -20,13 +20,13 @@ test('a fresh chart is untouched, and says so without naming anything', async ({
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('0/37')
+  expect(await root.fieldNotesCount()).toBe('0/54')
   await root.verifyFieldNotesChip('untouched')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
-  expect(counters.elements).toContain('10/19')
-  expect(counters.interactions).toContain('0/37')
+  expect(counters.elements).toContain('10/25')
+  expect(counters.interactions).toContain('0/54')
   // No chip until something has been discovered since the panel last closed.
   expect(counters.fresh).toBe('')
 
@@ -38,19 +38,19 @@ test('a seeded chart opens on the counts its witnessed set implies', async ({ mo
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('2/37')
+  expect(await root.fieldNotesCount()).toBe('2/54')
   await root.verifyFieldNotesChip('in progress')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
   // Ten pre-known plus steam, obsidian and smoke.
-  expect(counters.elements).toContain('13/19')
-  expect(counters.interactions).toContain('2/37')
+  expect(counters.elements).toContain('13/25')
+  expect(counters.interactions).toContain('2/54')
   expect(counters.fresh).toContain('3')
 
   // The picker counts every entry that involves an element, reagent or product
-  // (spec §6): water has nine, one of them witnessed; obsidian's one is done.
-  expect(await root.noteRow('water')).toContain('1/9')
+  // (spec §6): water has ten, one of them witnessed; obsidian's one is done.
+  expect(await root.noteRow('water')).toContain('1/10')
   expect(await root.noteRow('obsidian')).toContain('1/1')
 
   // Closing the panel is what marks it all reviewed, so the chip is gone next time.
@@ -87,9 +87,9 @@ test('the ring draws only witnessed entries, and a product tile follows itself',
 
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
-  // One of water's nine entries has been witnessed; the other eight are notches.
+  // One of water's ten entries has been witnessed; the other nine are notches.
   expect(await root.noteSpokeCount()).toBe(1)
-  expect(await root.noteStillToFind()).toBe('8')
+  expect(await root.noteStillToFind()).toBe('9')
 
   // Tapping the outcome's own tile is the way into its entry (spec §6).
   await root.followProduct('obsidian')
@@ -136,7 +136,7 @@ test('a mastered element wears its star, and mud states what it costs to unlock'
   await root.verifyIsShown()
   await root.openFieldNotes()
 
-  expect(await root.noteRow('mud')).toContain('1/5 to unlock')
+  expect(await root.noteRow('mud')).toContain('1/6 to unlock')
   await root.verifyNoteMastered('mud', false)
 
   await root.closeFieldNotes()
@@ -145,7 +145,7 @@ test('a mastered element wears its star, and mud states what it costs to unlock'
   const { root: mastered } = await mountApp()
   await mastered.openFieldNotes()
 
-  expect(await mastered.noteRow('mud')).toContain('5/5')
+  expect(await mastered.noteRow('mud')).toContain('6/6')
   expect(await mastered.noteRow('mud')).not.toContain('to unlock')
   await mastered.verifyNoteMastered('mud', true)
 })
@@ -161,15 +161,15 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 
   await root.forgetDiscoveries()
 
-  expect((await root.fieldNotesCounters()).interactions).toContain('0/37')
+  expect((await root.fieldNotesCounters()).interactions).toContain('0/54')
   await root.verifyFieldNotesEmpty()
   await root.closeFieldNotes()
-  expect(await root.fieldNotesCount()).toBe('0/37')
+  expect(await root.fieldNotesCount()).toBe('0/54')
 
   // It really is gone, not just gone from this render.
   await page.reload()
   const { root: reloaded } = await mountApp()
-  expect(await reloaded.fieldNotesCount()).toBe('0/37')
+  expect(await reloaded.fieldNotesCount()).toBe('0/54')
 })
 
 /**
@@ -181,7 +181,7 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 test('a first witness raises a card, ticks the chip and lights the panel', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('0/37')
+  expect(await root.fieldNotesCount()).toBe('0/54')
   await root.verifyNoMomentCard()
 
   // A pool of water dropped straight onto lava: obsidian and steam, both new.
@@ -197,7 +197,7 @@ test('a first witness raises a card, ticks the chip and lights the panel', async
   expect(card).toContain('obsidian')
   expect(card).toContain('steam')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/37')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
 
   // The panel is derived from the same store, so there is nothing to refresh.
   await root.openFieldNotes()
@@ -234,11 +234,11 @@ test('a first witnessed while the panel is open lands in the ring in place', asy
   // the world.
   await root.pressKey('.')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/37')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
   expect(await root.noteSpokeCount()).toBe(1)
-  expect(await root.noteStillToFind()).toBe('8')
+  expect(await root.noteStillToFind()).toBe('9')
 })
 
 test("the fifth of mud's entries unlocks it, rail and all, without a reload", async ({
@@ -276,7 +276,7 @@ test('the last entry of all raises the completion line, once ever', async ({ mou
   )
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('36/37')
+  expect(await root.fieldNotesCount()).toBe('53/54')
   await root.verifyNoChartCompleteLine()
 
   await root.selectBrush(2)
@@ -287,7 +287,7 @@ test('the last entry of all raises the completion line, once ever', async ({ mou
   await root.step()
 
   await root.verifyChartCompleteLine()
-  await expect.poll(() => root.fieldNotesCount()).toBe('37/37')
+  await expect.poll(() => root.fieldNotesCount()).toBe('54/54')
   await root.verifyFieldNotesChip('complete')
 
   // Once, at the transition - a finished chart is not greeted on every load.
@@ -307,7 +307,7 @@ test('the header chip inverts for good once every interaction is witnessed', asy
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('37/37')
+  expect(await root.fieldNotesCount()).toBe('54/54')
   await root.verifyFieldNotesChip('complete')
 
   // Everything mastered means everything earned, so the rail stops promising

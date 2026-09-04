@@ -14,6 +14,13 @@ name: PR
 
 on:
   pull_request:
+  # The deploy workflow's record-deploys job pushes its deploy-record branch
+  # with GITHUB_TOKEN, which raises no pull_request event (GitHub suppresses
+  # that token's events to stop workflow recursion), so that job dispatches
+  # this workflow onto the branch instead - workflow_dispatch is exempt from
+  # the suppression - and the check runs land on the PR's head SHA, where the
+  # branch protection required checks find them. ADR 0047.
+  workflow_dispatch:
 
 jobs:
   verify:
@@ -58,7 +65,9 @@ jobs:
         # everywhere else. Single-app PRs never hit the cap.
         run: pnpm exec turbo run lint typecheck build test --affected --concurrency=3
         env:
-          TURBO_SCM_BASE: origin/${{ github.base_ref }}
+          # base_ref is empty on workflow_dispatch (the deploy-record run);
+          # main is that PR's base by construction.
+          TURBO_SCM_BASE: origin/${{ github.base_ref || 'main' }}
 
   postgres:
     name: real-Postgres suite

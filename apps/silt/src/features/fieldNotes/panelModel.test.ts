@@ -43,9 +43,17 @@ describe('picker ordering', () => {
       'sulphur',
       'mud',
       'ember',
-      'moss',
       'ash',
+      'buried',
+      // The untiered hook-born (and their downstream) sort last, roster order,
+      // until ticket 07 charts the hooks and gives them real depths.
+      'moss',
       'vine',
+      'sprout',
+      'tip',
+      'stalk',
+      'flower',
+      'petal',
     ])
   })
 
@@ -67,9 +75,9 @@ describe('picker rows', () => {
   })
 
   test('a discovered row counts the entries that involve it, reagent or product', () => {
-    // Water has nine entries; one of them has now been witnessed.
-    expect(rowFor('water', 'react:lava+water').count).toBe('1/9')
-    expect(rowFor('water').count).toBe('0/9')
+    // Water has ten entries; one of them has now been witnessed.
+    expect(rowFor('water', 'react:lava+water').count).toBe('1/10')
+    expect(rowFor('water').count).toBe('0/10')
   })
 
   test('a product-only element is discovered by the entry that makes it, and mastered by it', () => {
@@ -81,8 +89,8 @@ describe('picker rows', () => {
   })
 
   test("mud's row states what it costs to unlock, until it is earned (spec §6)", () => {
-    expect(rowFor('mud', 'react:dirt+water').count).toBe('1/5 to unlock')
-    expect(rowFor('mud', ...notes.entriesFor('mud')).count).toBe('5/5')
+    expect(rowFor('mud', 'react:dirt+water').count).toBe('1/6 to unlock')
+    expect(rowFor('mud', ...notes.entriesFor('mud')).count).toBe('6/6')
   })
 
   test('newly discovered elements are marked until the panel is reviewed', () => {
@@ -99,11 +107,11 @@ describe('the ring', () => {
     const ring = ringFor('water', viewOf('react:lava+water'))
     expect(ring.spokes.map((spoke) => spoke.key)).toEqual(['react:lava+water'])
     expect(ring.seen).toBe(1)
-    expect(ring.stillToFind).toBe(8)
+    expect(ring.stillToFind).toBe(9)
 
     const empty = ringFor('water', viewOf())
     expect(empty.spokes).toEqual([])
-    expect(empty.stillToFind).toBe(9)
+    expect(empty.stillToFind).toBe(10)
   })
 
   test('a spoke resolves the entry products into words and tappable tiles', () => {

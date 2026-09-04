@@ -108,13 +108,18 @@ function entriesOf(graph: InteractionGraph): readonly Entry[] {
 
   for (const decay of graph.decays) {
     // A fade is not an entry and not a discovery (spec §1): smoke expiring
-    // transmutes into nothing, so there is nothing to witness.
-    if (decay.becomes === CLEARED) continue
+    // transmutes into nothing, so there is nothing to witness. A death drop
+    // (`emits`, life ticket 04) rides on the decay it belongs to: the brood is
+    // a product of the same entry, and it is what makes the entry an entry even
+    // when the dying cell itself clears - petal has no other edge naming it as
+    // a product, so dropping the brood here would make it undiscoverable.
+    const emits = decay.emits?.species
+    if (decay.becomes === CLEARED && emits === undefined) continue
     entries.push({
       key: decayKey(decay.from),
       kind: 'decay',
       reagents: [decay.from],
-      products: productsOf(decay.becomes),
+      products: emits === undefined ? productsOf(decay.becomes) : productsOf(decay.becomes, emits),
     })
   }
 

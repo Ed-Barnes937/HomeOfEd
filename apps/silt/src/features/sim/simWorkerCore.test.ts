@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { EMPTY, GRID_HEIGHT, LAVA, MS_PER_TICK, SAND, SPECIES_OFFSET, BYTES_PER_CELL, GRID_WIDTH, WATER } from '../../sim/index.ts'
+import {
+  BURIED,
+  EMPTY,
+  FIRE,
+  GRID_HEIGHT,
+  LAVA,
+  MS_PER_TICK,
+  MUD,
+  SAND,
+  SPECIES_OFFSET,
+  BYTES_PER_CELL,
+  GRID_WIDTH,
+  WATER,
+} from '../../sim/index.ts'
 import {
   createSharedWorld,
   STATUS_REVISION,
@@ -51,6 +64,31 @@ describe('SimWorkerCore', () => {
 
     expect(speciesAt(world, 20, 10)).toBe(WATER)
     expect(speciesAt(world, 21, 10)).toBe(SAND)
+  })
+
+  /**
+   * **The fire brush does not dig** (life spec §8). In the prototype a dragged
+   * radius-3 fire brush excavated the soil row and took the seed bank with it,
+   * and it read as "the bank doesn't work" until it was diagnosed. The real app
+   * never had the trap - [ADR 0042](../../../../../docs/adr/0042-silt-brush-fills-never-converts.md)
+   * fixed it independently - so this pins the *life* half of that guard next to
+   * the water one: fire ignites what stands on the ground, it does not replace
+   * the ground.
+   */
+  it('a fire brush over a seed bank leaves the bed and the bank where they are', () => {
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world)
+    const bed = 10 * GRID_WIDTH + 20
+    core.handle({ type: 'paintCells', cellIndices: [bed], species: MUD })
+    core.handle({ type: 'paintCells', cellIndices: [bed + 1], species: BURIED })
+
+    core.handle({ type: 'paintCells', cellIndices: [bed, bed + 1, bed + 2], species: FIRE })
+
+    expect(speciesAt(world, 20, 10)).toBe(MUD)
+    expect(speciesAt(world, 21, 10)).toBe(BURIED)
+    // The empty cell beside them still takes the flame - the guard is about what
+    // is already there, not about fire.
+    expect(speciesAt(world, 22, 10)).toBe(FIRE)
   })
 
   it('erasing still clears occupied cells', () => {

@@ -1,8 +1,8 @@
-import { canDisplace, type ElementRegistry } from './registry.ts'
+import { canDisplace, requireRaIsFree, type ElementRegistry } from './registry.ts'
 import type { DeferredMoves } from './moves.ts'
 import type { Grid } from './grid.ts'
 import type { Rng } from './rng.ts'
-import type { MovementApi } from './types.ts'
+import type { MovementApi, SetOptions } from './types.ts'
 import type { WitnessTable } from './witness.ts'
 
 /**
@@ -56,8 +56,21 @@ export class CellApi implements MovementApi {
     return this.#grid.speciesAt(this.#x + dx, this.#y + dy)
   }
 
-  set(dx: number, dy: number, species: number): void {
-    this.#grid.write(this.#x + dx, this.#y + dy, species, this.#clock, this.#variant())
+  /**
+   * `options.ra` is how a travelling per-cell budget gets from one cell to the
+   * next (spec §2.2): the hook writes the new cell *with* its state rather than
+   * swapping into it and backfilling, which would be movement inside a hook.
+   * The guard runs before the write, so a refused call leaves the world exactly
+   * as it was.
+   */
+  set(dx: number, dy: number, species: number, options?: SetOptions): void {
+    const ra = options?.ra
+    if (ra !== undefined) requireRaIsFree(this.#registry, species)
+
+    const x = this.#x + dx
+    const y = this.#y + dy
+    this.#grid.write(x, y, species, this.#clock, this.#variant())
+    if (ra !== undefined) this.#grid.setRa(x, y, ra)
   }
 
   /**

@@ -1,5 +1,6 @@
+import { emitInto } from './emit.ts'
 import { EMPTY } from './elements.ts'
-import type { Api } from './types.ts'
+import type { Api, MovementApi } from './types.ts'
 import type { ElementRegistry, ResolvedLifetime } from './registry.ts'
 import type { WitnessTable } from './witness.ts'
 
@@ -57,26 +58,70 @@ export function applyReactions(api: Api, registry: ElementRegistry, witness: Wit
  * Returns whether the cell survived. Writing `ra` also marks the chunk dirty,
  * which is what keeps a decaying cell awake in an otherwise settled corner.
  *
+ * ## The coarse countdown (life ticket 01)
+ *
+ * `every: n` makes the byte count *draws* rather than ticks, so a 1200-tick
+ * flower fits in it without widening the cell. `tick` is the world's generation
+ * - the phase is **global, not per-cell**, because a cell has no second byte to
+ * keep a phase in. Two consequences, both deliberate:
+ *
+ * - `ticks` and `jitter` are in **coarse units**. `ticks: 200, every: 6` is a
+ *   1200-tick life and its jitter moves in steps of 6. Jitter is therefore the
+ *   only thing that spreads a cohort's deaths out (the lockstep phase spreads
+ *   nothing), which is also why a pre-grown scene wants `paint`'s `ra` seed.
+ * - A cell placed mid-run waits out the remainder of the current coarse step
+ *   before its first draw, so a life is accurate to within `every` ticks.
+ *
+ * `api` is the engine-internal `MovementApi` for `keepAwake` - a skipped tick
+ * genuinely has nothing to write. It is no longer engine-only: the evaporation
+ * hook needed the same affordance and `keepAwake` has been promoted onto `Api`
+ * (life ticket 05, [ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md) §3).
+ * Nothing here moves anything, as before.
+ *
  * `species` is what the cell still is - the scan has already checked that a
  * reaction did not transmute it - and is passed rather than re-read so the
  * witness recorder costs nothing beyond its own flag. A decay **with a product**
- * is a discovery; a fade is not an interaction at all (spec §1), so smoke
- * expiring records nothing.
+ * is a discovery (a death drop's brood rides on that same entry); a fade is not
+ * an interaction at all (spec §1), so smoke expiring records nothing.
  */
 export function applyLifetime(
-  api: Api,
+  api: MovementApi,
   lifetime: ResolvedLifetime,
+  tick: number,
   species: number,
   witness: WitnessTable,
 ): boolean {
   let remaining = api.ra
   if (remaining === 0) {
     remaining = lifetime.ticks + (lifetime.jitter > 0 ? api.randInt(lifetime.jitter + 1) : 0)
+    // A coarse countdown can leave below without decrementing, and an unwritten
+    // seed would be re-drawn on every skipped tick - re-rolling the jitter and
+    // eating the RNG stream with it. A tick-by-tick countdown always reaches the
+    // write at the end, so it pays nothing for this.
+    if (lifetime.every > 1) api.ra = remaining
+  }
+
+  if (lifetime.every > 1 && tick % lifetime.every !== 0) {
+    // A skipped tick changes nothing, so nothing marks the chunk dirty and it
+    // would sleep with the cell frozen mid-life. Same judgement the `move`
+    // probabilities make in the kernels: declining to act is not being done.
+    api.keepAwake()
+    return true
   }
 
   remaining--
   if (remaining <= 0) {
-    if (lifetime.becomes !== EMPTY) witness.decay(species)
+    if (lifetime.becomes !== EMPTY || lifetime.emits) witness.decay(species)
+    // **The death drop** (life ticket 04), and the reason it lives here rather
+    // than in the element: `onTick` is gated on the cell surviving this call, so
+    // a product has no way at all to act on the tick it dies. `becomes` alone
+    // can only rewrite the one cell, and a withering flower leaves a seed *and*
+    // throws petals clear of itself. Emitted before `become`, so the cell being
+    // scattered from is still the parent and its own slot is never a candidate.
+    const { emits } = lifetime
+    if (emits) {
+      emitInto(api, EMPTY, emits.species, emits.min + api.randInt(emits.max - emits.min + 1))
+    }
     api.become(lifetime.becomes)
     return false
   }
