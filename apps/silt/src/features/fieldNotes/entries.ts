@@ -24,7 +24,14 @@
  * paintables for itself.
  */
 import { deriveInteractionGraph, type InteractionGraph } from '../../docs/interactionGraph.ts'
-import { decayKey, growthKey, reactionKey, type EdgeKey, type EdgeKind } from './edgeKeys.ts'
+import {
+  decayKey,
+  growthKey,
+  hookKey,
+  reactionKey,
+  type EdgeKey,
+  type EdgeKind,
+} from './edgeKeys.ts'
 
 // The codec lives one module down (`edgeKeys.ts`) so the sim's reporting edge
 // can reach it without the graph derivation, and is re-exported here because
@@ -32,6 +39,7 @@ import { decayKey, growthKey, reactionKey, type EdgeKey, type EdgeKind } from '.
 export {
   decayKey,
   growthKey,
+  hookKey,
   reactionKey,
   witnessedKey,
   type EdgeKey,
@@ -73,7 +81,7 @@ export interface Discoveries {
 export const UNLOCKABLE_NAMES: readonly string[] = ['mud']
 
 export interface EntryIndex {
-  /** Every entry, reactions then decays then growth. */
+  /** Every entry: reactions, then decays, then growth, then the hook transmutations. */
   all: readonly Entry[]
   /** `all`'s keys, same order - the set the witness recorder may report. */
   keys: readonly EdgeKey[]
@@ -129,6 +137,18 @@ function entriesOf(graph: InteractionGraph): readonly Entry[] {
       kind: 'grow',
       reagents: [edge.grower, edge.consumes],
       products: productsOf(edge.becomes),
+    })
+  }
+
+  // The hook transmutations (ticket 07) arrive shaped as entries already:
+  // reagents, products and the key's two halves are what the generator
+  // declares, so nothing here re-derives them.
+  for (const edge of graph.hooks) {
+    entries.push({
+      key: hookKey(edge.kind, edge.name),
+      kind: edge.kind,
+      reagents: edge.reagents,
+      products: productsOf(...edge.products),
     })
   }
 

@@ -216,18 +216,39 @@ export interface Api {
   rand(): number
   randInt(maxExclusive: number): number
   /**
-   * Report that this cell just grew into a neighbour - one of the three
-   * discovery sites (discovery-tree spec §3), and the only one the engine
-   * cannot see for itself: a reaction and a decay are engine business, a hook's
-   * transmutation is not. The cell's own species is the grower, so the hook
-   * says *that it grew*, not what it is.
+   * Report that this cell just grew into a neighbour - one of the discovery
+   * sites (discovery-tree spec §3), and the kind the engine cannot see for
+   * itself: a reaction and a decay are engine business, a hook's transmutation
+   * is not. The cell's own species is the grower, so the hook says *that it
+   * grew*, not what it is.
    *
    * Records nothing but a flag: no cell is touched and no randomness is drawn,
-   * so calling it can never change what the world does. It is the one thing on
-   * this surface that is not simulation - an element with nothing to declare
-   * simply never calls it.
+   * so calling it can never change what the world does. It and its three
+   * siblings below are the only things on this surface that are not
+   * simulation - an element with nothing to declare simply never calls them.
    */
   witnessGrowth(): void
+  /**
+   * Report that this buried seed just germinated (discovery ticket 07). Unlike
+   * the other witnesses this one takes an argument: germination is one site
+   * with **two** entries (`germinate:moss` / `germinate:sprout`), and which
+   * plant came up is the biome decision the bank has just made - so it passes
+   * the species it set, nothing the cursor could know. Same discipline
+   * otherwise: a flag, no cell, no randomness.
+   */
+  witnessGermination(product: number): void
+  /**
+   * Report that this sprout just raised its tip (`raise:sprout`). Reads the
+   * reagent off the cursor as `witnessGrowth` does, so call it *before*
+   * `become` spends the sprout into stem.
+   */
+  witnessRaise(): void
+  /**
+   * Report that this tip just bloomed (`bloom:tip`) - budget spent, or boxed
+   * in; the two ends are one entry. Cursor-read like `witnessRaise`, so call
+   * it before `become`.
+   */
+  witnessBloom(): void
 }
 
 /**

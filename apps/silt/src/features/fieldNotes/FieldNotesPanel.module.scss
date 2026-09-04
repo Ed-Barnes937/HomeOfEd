@@ -242,12 +242,16 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   }
 }
 
-// Edge kinds (spec §6): reaction solid, decay long dash, growth dotted.
+// Edge kinds (spec §6): reaction solid, decay long dash, growth dotted. The
+// hook transmutations (ticket 07) are hooks like growth, so they share its dots.
 .decay line {
   stroke-dasharray: 2 1.2;
 }
 
-.grow line {
+.grow line,
+.germinate line,
+.raise line,
+.bloom line {
   stroke-dasharray: 0.5 1.5;
 }
 

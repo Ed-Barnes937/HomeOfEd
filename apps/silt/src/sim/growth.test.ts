@@ -114,6 +114,15 @@ class StubApi implements Api {
   witnessGrowth(): void {
     this.witnessed++
   }
+  witnessGermination(): void {
+    throw new Error('the growth hook reports growth, nothing else')
+  }
+  witnessRaise(): void {
+    throw new Error('the growth hook reports growth, nothing else')
+  }
+  witnessBloom(): void {
+    throw new Error('the growth hook reports growth, nothing else')
+  }
 }
 
 describe('the growth hook', () => {

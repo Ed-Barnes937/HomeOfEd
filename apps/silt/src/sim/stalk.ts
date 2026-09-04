@@ -91,6 +91,9 @@ export function createSprout(ids: SproutIds): (api: Api) => void {
     // a cell it creates any other way, and swapping into it and backfilling
     // would be movement inside a hook.
     api.set(0, -1, ids.tip, { ra: sproutBudget(api) })
+    // Reported before `become`: the witness reads the sprout off the cursor,
+    // and the next line spends it into stem (discovery ticket 07).
+    api.witnessRaise()
     // The sprout is consumed by sprouting - it becomes the bottom cell of the
     // stem, so the column crumbles from the ground up like the rest of it.
     api.become(ids.stalk)
@@ -118,6 +121,9 @@ export function createTip(ids: TipIds): (api: Api) => void {
     // the tip is trapped, on the chance the roof moves; blooming early costs the
     // plant the rest of its height and nothing else.
     if (budget <= 1 || api.get(0, -1) !== ids.empty) {
+      // Both ends are the one `bloom:tip` entry - a bloom is a bloom, however
+      // it was forced - reported before `become` spends the tip (ticket 07).
+      api.witnessBloom()
       api.become(ids.flower)
       return
     }

@@ -206,11 +206,13 @@ lifecycle.ts  applyReactions / applyLifetime — what happens to a cell after it
 sim.ts        the world: chunk scan order, the clock guard, paint/tick
 loop.ts       FixedTimestep — the tick rate, decoupled from any render loop
 witness.ts    the discovery recorder - flat already-seen tables indexed by
-              species id and by a packed species pair, fed from exactly three
-              sites (a reaction applying, a decay with a product, the growth
-              hook's successful `set`) and drained as rare, name-carrying
-              events. Owned by the sim core so both hosts get it; it never
-              draws from the `Rng` and never touches a cell
+              species id and by a packed species pair, fed from the
+              transmutation sites (a reaction applying, a decay with a product,
+              and the hooks' own reports: growth's `set`, the seed bank's
+              germination, the sprout's raise, the tip's bloom - ticket 07) and
+              drained as rare, name-carrying events. Owned by the sim core so
+              both hosts get it; it never draws from the `Rng` and never
+              touches a cell
 ```
 
 Engine decisions that are not in the spec are in
@@ -296,12 +298,14 @@ Rules that are easy to break by accident:
   on purpose (`keepAwake` no longer is - see the next rule) - an element hook
   scribbling on another cell's engine-owned byte is the failure mode the
   ownership rule exists to prevent.
-- **The witness recorder is off to the side of the simulation.** It is fed from
-  three sites, records a flag and nothing else, and never draws from the `Rng` -
-  which is why the determinism test is the assertion that guards it. A hook
-  reports its own transmutation through `Api.witnessGrowth()`, the one thing on
-  that surface that is not simulation; reactions and decay the engine sees for
-  itself. Discoveries reach the page as a `simProtocol` message (rare events, so
+- **The witness recorder is off to the side of the simulation.** It records a
+  flag and nothing else, and never draws from the `Rng` - which is why the
+  determinism test is the assertion that guards it. A hook reports its own
+  transmutation through `Api.witnessGrowth()` and its ticket-07 siblings
+  (`witnessGermination(product)` - the argument because one site decides two
+  entries - and the cursor-read `witnessRaise()`/`witnessBloom()`, called
+  before `become`), the only things on that surface that are not simulation;
+  reactions and decay the engine sees for itself. Discoveries reach the page as a `simProtocol` message (rare events, so
   no shared-buffer slot to poll), and a `Sim` keeps what it has witnessed across
   `clear`/`restore` - resetting the world does not reset discovery.
   [ADR 0048](../../docs/adr/0048-silt-discovery-witness-in-the-sim-core.md).
@@ -443,11 +447,11 @@ else touches it.
   row-by-row table) from the registry. Unlike `bench` this one **is** gated:
   `src/docs/interactionGraph.test.ts` fails if the checked-in file has drifted,
   so a new element or reaction row means running the script in the same change.
-  Hooks are the edges the registry cannot report: growth's are declared in the
-  generator, so a change to `growth.ts` has to be mirrored there, while the seed
-  bank's germination and the land plant's two hooks are unreported entirely - a
-  `GrowthEdge` has no shape for a rule that writes two cells (ADR 0043), nor for
-  evaporation, which consumes no neighbour and is all condition. A
+  Hooks are the edges the registry cannot report, so they are declared in the
+  generator and mirrored by hand: growth's two (`growth.ts`) and the four
+  `HookEdge` transmutations (ticket 07) - germination's pair (`seedBank.ts`)
+  and the raise and bloom (`stalk.ts`). Evaporation stays unreported: it
+  produces nothing, and a fade is not an entry. A
   coarse `lifetime` is reported in real ticks, not in countdown draws, and a
   `lifetime.emits` death drop is reported beside the decay it rides on.
 - Prod (container): `pnpm build` then `pnpm start` (default port 8080).

@@ -157,6 +157,11 @@ export function createSeedBank(ids: SeedBankIds): (api: Api) => void {
     if (api.rand() >= GERMINATE_P) return
 
     api.set(0, -1, becomes)
+    // Which of the two germination entries fired is decided here and nowhere
+    // else - the biome commitment above *is* the decision - so this site
+    // reports it (discovery ticket 07). A flag and nothing more: no draw, no
+    // cell, so the determinism suite holds with the recorder in place.
+    api.witnessGermination(becomes)
     // **The soil cell is refunded as dirt, not mud**: the plant drank the
     // moisture it grew out of (spec ruling 2). So the bed's ledger is
     // bank + mud + dirt, and it is burial costing a soil cell against

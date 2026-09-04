@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { FIRE, MOSS, MUD, OBSIDIAN, SEED, SMOKE, STEAM, WATER, LAVA } from './elements.ts'
+import {
+  BURIED,
+  FIRE,
+  FLOWER,
+  LAVA,
+  MOSS,
+  MUD,
+  OBSIDIAN,
+  SEED,
+  SMOKE,
+  SPROUT,
+  STEAM,
+  WATER,
+} from './elements.ts'
 import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH } from './constants.ts'
 import { Sim } from './sim.ts'
 import type { WitnessEvent } from './witness.ts'
@@ -116,6 +129,54 @@ describe('the witness recorder', () => {
     runUntil(sim, (world) => world.speciesAt(150, FLOOR - 2) !== WATER, 4000)
 
     expect(keysOf(sim)).toEqual(['grow:moss'])
+  })
+
+  /**
+   * The hook edges (discovery ticket 07): germination, the raise and the bloom
+   * reach the recorder through the same `Api` seam growth does, so all five
+   * hook-born elements are now the product of a witnessable entry. The dirt
+   * refund and every fade along the way record nothing, which is what the
+   * exact-key assertions say.
+   */
+  it('records an aquatic germination as germinate:moss, and nothing else', () => {
+    const sim = new Sim({ seed: 1 })
+    pool(sim, 140, 160, 4)
+    // A whole bed of banks rather than one: each draws GERMINATE_P a tick once
+    // soaked, so the first germination lands within the budget on any seed.
+    for (let x = 142; x <= 158; x++) sim.paint(x, FLOOR - 1, BURIED)
+
+    runUntil(sim, (world) => count(world, MOSS) > 0, 2000)
+
+    expect(count(sim, MOSS)).toBeGreaterThan(0)
+    // One key: the soil refund (buried -> dirt) is not an interaction.
+    expect(keysOf(sim)).toEqual(['germinate:moss'])
+  })
+
+  it('records a dry germination and the whole land plant: sprout, raise, bloom', () => {
+    const sim = new Sim({ seed: 1 })
+    for (let x = 140; x <= 149; x++) sim.paint(x, FLOOR, BURIED)
+
+    runUntil(sim, (world) => count(world, FLOWER) > 0, 6000)
+
+    expect(count(sim, FLOWER)).toBeGreaterThan(0)
+    // In witness order, deduped however many of the bed came up behind the
+    // first: the germination, the sprout raising its tip, and the tip's bloom.
+    // The tip's climb records nothing - stalk is already raise:sprout's product.
+    expect(keysOf(sim)).toEqual(['germinate:sprout', 'raise:sprout', 'bloom:tip'])
+  })
+
+  it('records a boxed-in bloom as the same bloom:tip entry', () => {
+    const sim = new Sim({ seed: 1 })
+    // A sprout under a low obsidian roof: it raises its tip into the one free
+    // cell, and the tip is boxed in on its first draw and blooms early.
+    sim.paint(150, FLOOR, OBSIDIAN)
+    sim.paint(150, FLOOR - 1, SPROUT)
+    sim.paint(150, FLOOR - 3, OBSIDIAN)
+
+    runUntil(sim, (world) => count(world, FLOWER) > 0, 60)
+
+    expect(count(sim, FLOWER)).toBe(1)
+    expect(keysOf(sim)).toEqual(['raise:sprout', 'bloom:tip'])
   })
 
   it('records nothing for painting, however unpaintable the species', () => {

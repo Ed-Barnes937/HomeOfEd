@@ -25,7 +25,12 @@ This spec defines behaviour, data, and UI structure/states. Visual design
     fire -> smoke, steam -> water, ember -> fire. 3 today. (Smoke fades to
     nothing; a `becomes: null` decay is not an edge and not a discovery.)
   - **Growth** - the growth hook: moss + water -> vine, vine + water -> vine.
-    2 today. (seed + mud -> moss is already a reaction row.)
+    2 today. (seed + mud -> buried is a reaction row.)
+  - **Hook** - a hook transmutation the derived graph declares (ticket 07):
+    `germinate:moss` (buried + standing water -> moss), `germinate:sprout`
+    (buried, sky open -> sprout), `raise:sprout` (sprout -> tip + stalk),
+    `bloom:tip` (tip -> flower). 4 today. The tip's climb, petal shedding,
+    evaporation and the germination dirt refund are deliberately not entries.
 - **Pre-known** - the 10 base paintable elements (`PAINTABLE_IDS`, with mud
   removed - see Mastery below). They sit in the rail from the first launch, so
   they are never "undiscovered".
@@ -39,17 +44,19 @@ This spec defines behaviour, data, and UI structure/states. Visual design
   mastered. v1 has exactly one: mud (6 edges since the life epic: dirt+water,
   ash+water, mud+fire, mud+lava, mud+seed, mud+petal).
 
-Totals with today's roster: **25 elements and 54 interactions** (48 reactions +
-4 productive decays + 2 growth edges, after the life-followup epic).
-(This paragraph has now been updated twice - the counts here are illustrative;
-the registry is the truth.)
+Totals with today's roster: **25 elements and 58 interactions** (48 reactions +
+4 productive decays + 2 growth edges + 4 hook edges, after ticket 07 charted
+the life epic's hooks).
+(This paragraph has now been updated three times - the counts here are
+illustrative; the registry is the truth.)
 All counts are derived from the registry at runtime, never hardcoded - a new
 element or row changes the denominators automatically.
 
 ## 2. The graph is derived, not authored
 
-Single source of truth: `createRegistry(v1Elements, v1Reactions)` plus the two
-declared hook edges. The same derivation drives three consumers:
+Single source of truth: `createRegistry(v1Elements, v1Reactions)` plus the
+declared hook edges (growth's two, and ticket 07's four transmutations). The
+same derivation drives three consumers:
 
 1. The repo's generated `apps/silt/docs/interaction-graph.md` (PR #122;
    regenerated for the burnables roster in PR #124). Its derivation is a pure, DOM-free module at
@@ -69,13 +76,17 @@ scene codec already treats as the stable identity across renumbering.
 - The 10 base paintables are known from first launch.
 - An **edge is discovered** the first time that interaction fires in the sim:
   `applyReactions` applies its pair, `applyLifetime` fires a decay with a
-  product, or the growth hook grows a vine cell.
+  product, or a hook reports its own transmutation (growth's vine cell, a
+  germination, the sprout's raise, the tip's bloom - ticket 07).
 - An **element is discovered** when it is pre-known, or when any witnessed edge
   names it as a product. There is no separate element-detection path: every
   discoverable element is the product of at least one edge (obsidian and steam
-  from water + lava, sulphur from acid + wood, moss from seed + mud, vine from
-  growth, ember from fire + wood, ash from fire + ember, mud from dirt + water
-  or ash + water, smoke from several).
+  from water + lava, sulphur from acid + wood, buried from seed + mud, moss and
+  sprout from germination, tip and stalk from the raise, flower from the bloom,
+  petal from the flower's decay, vine from growth, ember from fire + wood, ash
+  from fire + ember, mud from dirt + water or ash + water, smoke from several).
+  The premise was broken on purpose between the life-followup merge and ticket
+  07 (decision 10); the hook edges restored it.
   This keeps the engine seam to exactly one surface: edge witnessing.
 - An **element is mastered** when every edge naming it is witnessed. Mastery is
   derived from the same edge set - nothing extra is recorded.
@@ -106,11 +117,12 @@ Reactions fire inside the sim core, which runs in a worker over shared memory
 - The recorder is owned by the sim core (not the worker glue), so both hosts
   get it. It is a flat witness table indexed by pair key / species id: one
   store per event, no allocation, no branching beyond a single "already seen"
-  check, on the hot path only at the three transmutation sites
-  (`applyReactions`, `applyLifetime`, the growth hook's `api.set`).
+  check, on the hot path only at the transmutation sites (`applyReactions`,
+  `applyLifetime`, and the hooks' own reports - growth's `api.set`, the seed
+  bank's germination, the sprout's raise and the tip's bloom).
 - Recording never touches the RNG and never changes sim behaviour - the
   determinism test must stay green with the recorder in place.
-- Transport: discoveries are rare (30 firsts, ever), so the worker reports a
+- Transport: discoveries are rare (a few dozen firsts, ever), so the worker reports a
   first-witness as a message to the page rather than a per-frame shared-buffer
   poll. The simHost seam hides worker vs local, as it does for everything else.
 - The page maps witnessed keys to the derived graph, updates persistence, and
@@ -252,6 +264,10 @@ element at a time, so the picture does not get busier as the roster grows.
     bloom edges + their witness sites) and restores it. A death drop's brood
     (`lifetime.emits`, the flower's petals) counts as a product of the decay
     it rides on - that is what keeps petal discoverable meanwhile.
+    **Resolved 2026-09-04 by ticket 07**: the four hook edges are in the graph
+    (`HookEdge` in the generator, witness sites in `seedBank.ts`/`stalk.ts`),
+    the premise above holds again, every element is tiered, and the interim
+    producer-less picker fallback is gone. 58 entries with today's roster.
 
 ## 10. Handoff plan
 

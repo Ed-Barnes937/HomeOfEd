@@ -158,6 +158,26 @@ export class CellApi implements MovementApi {
   }
 
   /**
+   * See `Api.witnessGermination`. The one witness that takes an argument: the
+   * bank passes the plant it just set, because which of the two germination
+   * entries fired is decided at the site, not readable off the cursor (the
+   * cursor is still the buried seed).
+   */
+  witnessGermination(product: number): void {
+    this.#witness.germination(product)
+  }
+
+  /** See `Api.witnessRaise`. Cursor-read, as `witnessGrowth` is, so the hook cannot misreport. */
+  witnessRaise(): void {
+    this.#witness.raise(this.get(0, 0))
+  }
+
+  /** See `Api.witnessBloom`. Cursor-read; the caller reports before `become` spends the tip. */
+  witnessBloom(): void {
+    this.#witness.bloom(this.get(0, 0))
+  }
+
+  /**
    * True also for a move that was only *queued* because it left the chunk — the
    * kernel has committed to it and stops looking, and a queued move that later
    * loses its destination costs the cell that tick. Accepted: the alternative

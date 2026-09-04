@@ -5,15 +5,23 @@
  * this module imports one type and no module at all.
  *
  * **Edge identity is name-based and canonical** (spec §2): `react:acid+wood`
- * with the two names sorted, `decay:fire`, `grow:moss`. Names, not ids, because
- * names are already the stable identity the scene codec persists.
+ * with the two names sorted, `decay:fire`, `grow:moss`, and since ticket 07 the
+ * hook transmutations `germinate:moss`, `raise:sprout`, `bloom:tip`. Names, not
+ * ids, because names are already the stable identity the scene codec persists.
  */
 import type { WitnessEvent } from '../../sim/index.ts'
 
-/** A canonical, name-based edge id: `react:<a>+<b>`, `decay:<from>`, `grow:<grower>`. */
+/** A canonical, name-based edge id: `react:<a>+<b>`, `decay:<from>`, `grow:<grower>`, `<hook kind>:<name>`. */
 export type EdgeKey = string
 
-export type EdgeKind = 'react' | 'decay' | 'grow'
+/**
+ * The hook transmutations (ticket 07). `germinate` is keyed by the *plant that
+ * came up* - one site, two entries - while `raise` and `bloom` are keyed by the
+ * cell that transmuted, as `grow` is by the grower.
+ */
+export type HookEdgeKind = 'germinate' | 'raise' | 'bloom'
+
+export type EdgeKind = 'react' | 'decay' | 'grow' | HookEdgeKind
 
 /** The key for an unordered reaction pair; the two names are sorted. */
 export function reactionKey(a: string, b: string): EdgeKey {
@@ -30,6 +38,11 @@ export function growthKey(grower: string): EdgeKey {
   return `grow:${grower}`
 }
 
+/** The key for a hook transmutation: `germinate:moss`, `raise:sprout`, `bloom:tip`. */
+export function hookKey(kind: HookEdgeKind, name: string): EdgeKey {
+  return `${kind}:${name}`
+}
+
 /**
  * The key for what the sim just witnessed. The sim reports the interaction and
  * names its elements, but deliberately knows nothing of this format - it sits
@@ -43,5 +56,9 @@ export function witnessedKey(event: WitnessEvent): EdgeKey {
       return decayKey(event.a)
     case 'grow':
       return growthKey(event.a)
+    case 'germinate':
+    case 'raise':
+    case 'bloom':
+      return hookKey(event.kind, event.a)
   }
 }

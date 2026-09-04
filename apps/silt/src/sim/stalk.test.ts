@@ -39,6 +39,8 @@ class StubApi implements Api {
   readonly writes: { dx: number; dy: number; species: number; options?: SetOptions }[] = []
   readonly raWrites: number[] = []
   readonly becomes: number[] = []
+  raises = 0
+  blooms = 0
 
   #cells: Map<string, number>
   #ra: number
@@ -101,8 +103,18 @@ class StubApi implements Api {
     return this.#jitters.shift() ?? 0
   }
   witnessGrowth(): void {
+    throw new Error('the land plant reports raises and blooms, not growth')
+  }
+  witnessGermination(): void {
+    throw new Error('the land plant never germinates - the seed bank does')
+  }
+  witnessRaise(): void {
     // The witness recorder is off to the side of the simulation (ADR 0048);
-    // this hook's behaviour under test does not depend on it.
+    // recorded so the cases below can pin *when* each hook reports.
+    this.raises += 1
+  }
+  witnessBloom(): void {
+    this.blooms += 1
   }
 }
 
@@ -259,5 +271,51 @@ describe('the stalk tip hook', () => {
     // stem: `set`'s `{ ra }` is how the budget travels, not `api.ra`.
     expect(api.raWrites).toEqual([9])
     expect(api.writes).toHaveLength(1)
+  })
+})
+
+/**
+ * The raise and bloom witnesses (discovery ticket 07). Each fires on the tick
+ * its transmutation happens and at no other time: a waiting sprout, a climbing
+ * tip and a missed draw all report nothing, so the recorder only ever hears
+ * about what the player could actually see change.
+ */
+describe('the raise and bloom witnesses', () => {
+  it('the sprout reports its raise on the tick it raises', () => {
+    const api = new StubApi({ '0,0': SPROUT })
+
+    sprout(api)
+
+    expect(api.raises).toBe(1)
+    expect(api.blooms).toBe(0)
+  })
+
+  it('a sprout that cannot rise reports nothing', () => {
+    const api = new StubApi({ '0,0': SPROUT, '0,-1': WATER })
+
+    sprout(api)
+
+    expect(api.raises).toBe(0)
+  })
+
+  it('the tip reports its bloom at both endings: budget spent, and boxed in', () => {
+    const spent = new StubApi({ '0,0': TIP }, 1)
+    tip(spent)
+    expect(spent.blooms).toBe(1)
+
+    const boxed = new StubApi({ '0,0': TIP, '0,-1': MUD }, 9)
+    tip(boxed)
+    expect(boxed.blooms).toBe(1)
+  })
+
+  it('a climb reports nothing - the raise made the stalk an entry product already', () => {
+    const climbing = new StubApi({ '0,0': TIP }, 9)
+    tip(climbing)
+    expect(climbing.blooms).toBe(0)
+    expect(climbing.raises).toBe(0)
+
+    const missed = new StubApi({ '0,0': TIP }, 9, [0.99])
+    tip(missed)
+    expect(missed.blooms).toBe(0)
   })
 })

@@ -8,8 +8,8 @@ import type { ElementRegistry } from './registry.ts'
  *
  * Perf is the whole design. Reactions fire on the hot path of a 60/120fps
  * simulation, so an event costs one index computation, one load and one branch;
- * only the first witness of an interaction - 37 of them, ever - stores a flag
- * and allocates anything. Nothing here draws from the `Rng` or touches a cell,
+ * only the first witness of an interaction - a few dozen of them, ever - stores
+ * a flag and allocates anything. Nothing here draws from the `Rng` or touches a cell,
  * so the sim behaves identically whether or not anybody is watching.
  *
  * The tables are indexed by species id (and by a species *pair* packed into one
@@ -18,8 +18,8 @@ import type { ElementRegistry } from './registry.ts'
  */
 
 /**
- * One interaction seen for the first time, tagged by which of the three sites
- * fired (the tags match field notes' `EdgeKind`). Named, not numbered: names
+ * One interaction seen for the first time, tagged by which kind of site fired
+ * (the tags match field notes' `EdgeKind`). Named, not numbered: names
  * are the identity the scene codec and the field-notes edge keys already share,
  * and by the time an event exists a name lookup no longer costs anything.
  *
@@ -33,6 +33,12 @@ export type WitnessEvent =
   | { kind: 'decay'; a: string }
   /** The plant that grew into a neighbour. */
   | { kind: 'grow'; a: string }
+  /** A buried seed germinated - named for the *plant that came up*, because one site decides two entries. */
+  | { kind: 'germinate'; a: string }
+  /** The sprout that raised its tip and became the base of the stem. */
+  | { kind: 'raise'; a: string }
+  /** The tip that bloomed - budget spent, or boxed in; the two ends are one entry. */
+  | { kind: 'bloom'; a: string }
 
 /** Every species id is a byte, so every table keyed by one is a flat 256 slots. */
 const SPECIES_SLOTS = 256
@@ -47,6 +53,9 @@ export class WitnessTable {
   readonly #reactions = new Uint8Array(PAIR_SLOTS)
   readonly #decays = new Uint8Array(SPECIES_SLOTS)
   readonly #growth = new Uint8Array(SPECIES_SLOTS)
+  readonly #germinations = new Uint8Array(SPECIES_SLOTS)
+  readonly #raises = new Uint8Array(SPECIES_SLOTS)
+  readonly #blooms = new Uint8Array(SPECIES_SLOTS)
   #pending: WitnessEvent[] = []
 
   constructor(registry: ElementRegistry) {
@@ -92,6 +101,38 @@ export class WitnessTable {
 
     const name = this.#name(grower)
     if (name !== undefined) this.#pending.push({ kind: 'grow', a: name })
+  }
+
+  /**
+   * The seed bank germinated. Keyed by the *product* rather than the seed,
+   * because germination is one site with two entries (discovery ticket 07):
+   * which plant came up is the biome decision, and it is what the player
+   * witnessed.
+   */
+  germination(product: number): void {
+    if (this.#germinations[product] === 1) return
+    this.#germinations[product] = 1
+
+    const name = this.#name(product)
+    if (name !== undefined) this.#pending.push({ kind: 'germinate', a: name })
+  }
+
+  /** A sprout raised its tip. Named for the sprout - the cell that transmuted. */
+  raise(from: number): void {
+    if (this.#raises[from] === 1) return
+    this.#raises[from] = 1
+
+    const name = this.#name(from)
+    if (name !== undefined) this.#pending.push({ kind: 'raise', a: name })
+  }
+
+  /** A tip bloomed. Named for the tip; how it ended (budget or roof) is not part of the entry. */
+  bloom(from: number): void {
+    if (this.#blooms[from] === 1) return
+    this.#blooms[from] = 1
+
+    const name = this.#name(from)
+    if (name !== undefined) this.#pending.push({ kind: 'bloom', a: name })
   }
 
   /**

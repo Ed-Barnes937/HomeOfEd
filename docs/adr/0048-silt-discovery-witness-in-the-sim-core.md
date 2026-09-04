@@ -41,6 +41,17 @@ reports something the engine cannot see, and how a discovery reaches the page.
    surface it has. The method takes no arguments and reads the grower off the
    cursor, so a hook cannot claim a growth it did not perform. It is the one
    thing on that surface that is not simulation.
+
+   **Amended by discovery ticket 07** (2026-09-04): the life epic's hooks
+   report through *sibling methods* rather than a widened `witnessGrowth` -
+   `witnessRaise()` and `witnessBloom()` are cursor-read exactly as growth is
+   (called before `become` spends the cell), while `witnessGermination(product)`
+   is the one witness that takes an argument: germination is a single site with
+   two entries (`germinate:moss` / `germinate:sprout`), and which plant came up
+   is the biome decision the bank has just made - nothing the cursor could
+   know. The bank passes the species it just `set`, so the report is still tied
+   to a transmutation it actually performed. All four are flags only: no cell,
+   no randomness, and the recorder stays off to the side of the simulation.
 4. **Recording never draws from the `Rng` and never touches a cell**, so the
    determinism test is what guards it - and every seeded outcome pinned across
    the sim suite with it.

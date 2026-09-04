@@ -1,6 +1,6 @@
 # 07 - Hook edges: the life plant's transmutations join the graph
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-interaction-tree, 2026-09-04)
 **Type:** task
 **Blocked by:** 01, 02 (both landed; written after merging the life-followup epic)
 **Spec:** [../spec.md](../spec.md) §2, §3; life epic context in

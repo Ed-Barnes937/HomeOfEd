@@ -36,7 +36,10 @@ describe('picker ordering', () => {
       'acid',
       'stone',
       'seed',
-      // Then each tier of products, roster order inside it.
+      // Then each tier of products, roster order inside it. The plant chain
+      // hangs off buried through the hook edges (ticket 07): germination at 3,
+      // what the sprout raises (and vine, grown off moss) at 4, the bloom at 5,
+      // the flower's brood at 6.
       'obsidian',
       'smoke',
       'steam',
@@ -45,11 +48,9 @@ describe('picker ordering', () => {
       'ember',
       'ash',
       'buried',
-      // The untiered hook-born (and their downstream) sort last, roster order,
-      // until ticket 07 charts the hooks and gives them real depths.
       'moss',
-      'vine',
       'sprout',
+      'vine',
       'tip',
       'stalk',
       'flower',
@@ -75,9 +76,10 @@ describe('picker rows', () => {
   })
 
   test('a discovered row counts the entries that involve it, reagent or product', () => {
-    // Water has ten entries; one of them has now been witnessed.
-    expect(rowFor('water', 'react:lava+water').count).toBe('1/10')
-    expect(rowFor('water').count).toBe('0/10')
+    // Water has eleven entries since ticket 07 charted the soaked germination;
+    // one of them has now been witnessed.
+    expect(rowFor('water', 'react:lava+water').count).toBe('1/11')
+    expect(rowFor('water').count).toBe('0/11')
   })
 
   test('a product-only element is discovered by the entry that makes it, and mastered by it', () => {
@@ -107,11 +109,11 @@ describe('the ring', () => {
     const ring = ringFor('water', viewOf('react:lava+water'))
     expect(ring.spokes.map((spoke) => spoke.key)).toEqual(['react:lava+water'])
     expect(ring.seen).toBe(1)
-    expect(ring.stillToFind).toBe(9)
+    expect(ring.stillToFind).toBe(10)
 
     const empty = ringFor('water', viewOf())
     expect(empty.spokes).toEqual([])
-    expect(empty.stillToFind).toBe(10)
+    expect(empty.stillToFind).toBe(11)
   })
 
   test('a spoke resolves the entry products into words and tappable tiles', () => {
@@ -165,6 +167,17 @@ describe('the ring', () => {
   test('growth is directed too: the edge that makes vine points into vine', () => {
     expect(ringFor('vine', viewOf('grow:moss')).spokes[0]?.direction).toBe('in')
     expect(ringFor('water', viewOf('grow:moss')).spokes[0]?.direction).toBe('out')
+  })
+
+  test('a hook edge is directed the same way (ticket 07)', () => {
+    // The raise seen from its products points in; seen from the sprout, out.
+    expect(ringFor('tip', viewOf('raise:sprout')).spokes[0]?.direction).toBe('in')
+    expect(ringFor('stalk', viewOf('raise:sprout')).spokes[0]?.direction).toBe('in')
+    expect(ringFor('sprout', viewOf('raise:sprout')).spokes[0]?.direction).toBe('out')
+    // Germination from the water reagent's side is an outward arrow at moss.
+    expect(ringFor('moss', viewOf('germinate:moss')).spokes[0]?.direction).toBe('in')
+    expect(ringFor('water', viewOf('germinate:moss')).spokes[0]?.direction).toBe('out')
+    expect(ringFor('flower', viewOf('bloom:tip')).spokes[0]?.direction).toBe('in')
   })
 
   test('the centre carries its own mastery, and its name only once discovered', () => {

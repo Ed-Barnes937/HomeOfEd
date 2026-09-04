@@ -175,11 +175,33 @@ describe('deriveInteractionGraph', () => {
       expect(edge.consumes).toBe('water')
       expect(edge.becomes).toBe('vine')
     }
-    // Burial is a row, so it arrives with the reactions and is not duplicated.
-    // Germination is not: it is the seed bank's hook, and the graph has no shape
-    // for a rule with two products, so `seedBank.ts` goes unreported here (life
-    // ticket 02).
+    // Burial is a row, so it arrives with the reactions and is not duplicated;
+    // germination is a hook edge below, not a second reaction.
     expect(products('seed', 'mud')).toEqual(['empty', 'buried'])
+  })
+
+  /**
+   * The hook transmutations (discovery ticket 07): the entries that make every
+   * hook-born element the product of something. Pinned whole because they are
+   * declared, not derived - a change to `seedBank.ts` or `stalk.ts` has to be
+   * mirrored here by hand, and this fixture is what says so out loud.
+   */
+  it('declares the four hook edges: two germinations, the raise and the bloom', () => {
+    expect(
+      graph.hooks.map((edge) => ({
+        key: `${edge.kind}:${edge.name}`,
+        reagents: edge.reagents,
+        products: edge.products,
+      })),
+    ).toEqual([
+      { key: 'germinate:moss', reagents: ['buried', 'water'], products: ['moss'] },
+      { key: 'germinate:sprout', reagents: ['buried'], products: ['sprout'] },
+      { key: 'raise:sprout', reagents: ['sprout'], products: ['tip', 'stalk'] },
+      { key: 'bloom:tip', reagents: ['tip'], products: ['flower'] },
+    ])
+    // The climb, petal shedding, evaporation and the dirt refund are not
+    // entries (ticket 07's NOT list), so nothing else is declared.
+    expect(graph.hooks).toHaveLength(4)
   })
 })
 

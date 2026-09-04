@@ -44,6 +44,10 @@ describe('canonical edge keys', () => {
       witnessedKey({ kind: 'react', a: 'water', b: 'lava' }),
       witnessedKey({ kind: 'decay', a: 'fire' }),
       witnessedKey({ kind: 'grow', a: 'moss' }),
+      witnessedKey({ kind: 'germinate', a: 'moss' }),
+      witnessedKey({ kind: 'germinate', a: 'sprout' }),
+      witnessedKey({ kind: 'raise', a: 'sprout' }),
+      witnessedKey({ kind: 'bloom', a: 'tip' }),
     ]
 
     expect(witnessed).toEqual([
@@ -51,6 +55,10 @@ describe('canonical edge keys', () => {
       'react:lava+water',
       'decay:fire',
       'grow:moss',
+      'germinate:moss',
+      'germinate:sprout',
+      'raise:sprout',
+      'bloom:tip',
     ])
     for (const key of witnessed) expect(notes.get(key)).toBeDefined()
   })
@@ -76,7 +84,8 @@ describe('canonical edge keys', () => {
 
 describe('involves()', () => {
   test("today's totals: an element's entries are its reagent and product edges", () => {
-    expect(notes.entriesFor('water')).toHaveLength(10)
+    // Eleven since ticket 07: water is a reagent of the soaked germination.
+    expect(notes.entriesFor('water')).toHaveLength(11)
     expect(notes.entriesFor('mud')).toHaveLength(6)
     expect(notes.entriesFor('fire')).toHaveLength(24)
   })
@@ -109,14 +118,35 @@ describe('involves()', () => {
 })
 
 describe('totals', () => {
-  test('54 entries today: 48 reaction pairs, 4 productive decays, 2 growth edges', () => {
+  test('58 entries today: 48 reactions, 4 productive decays, 2 growth, 4 hook edges', () => {
     const kinds = (kind: Entry['kind']) => notes.all.filter((entry) => entry.kind === kind)
     expect(kinds('react')).toHaveLength(48)
     // The flower's decay is productive twice over: it leaves a seed and its
     // death drop throws petals - one entry, two products.
     expect(kinds('decay')).toHaveLength(4)
     expect(kinds('grow')).toHaveLength(2)
-    expect(notes.all).toHaveLength(54)
+    // The hook transmutations (ticket 07): two germinations, the raise, the bloom.
+    expect(kinds('germinate')).toHaveLength(2)
+    expect(kinds('raise')).toHaveLength(1)
+    expect(kinds('bloom')).toHaveLength(1)
+    expect(notes.all).toHaveLength(58)
+  })
+
+  test('every hook-born element is the product of a hook edge (spec §3 restored)', () => {
+    // The life epic's five arrived undiscoverable (spec decision 10, interim);
+    // ticket 07 charts the hooks, so each now has a producing entry.
+    const producers = (name: string) =>
+      notes.entriesFor(name).filter((key) => notes.get(key)!.products.includes(name))
+    expect(producers('moss')).toContain('germinate:moss')
+    expect(producers('sprout')).toContain('germinate:sprout')
+    expect(producers('tip')).toEqual(['raise:sprout'])
+    expect(producers('stalk')).toEqual(['raise:sprout'])
+    expect(producers('flower')).toEqual(['bloom:tip'])
+    // And so does everything else that is not pre-known: the premise itself.
+    for (const name of notes.elements) {
+      if (notes.preKnown.includes(name)) continue
+      expect(producers(name).length, `${name} has no producing entry`).toBeGreaterThan(0)
+    }
   })
 
   test('25 elements today, the rail among them pre-known', () => {
@@ -133,40 +163,29 @@ describe('tiers', () => {
     for (const name of notes.preKnown) expect(notes.tierOf(name)).toBe(0)
   })
 
+  test('every element has a tier: no producer-less element is left (ticket 07)', () => {
+    // The premise the picker's removed fallback leans on (spec §3 restored):
+    // every discoverable element is the product of at least one edge, so a
+    // depth is always computable.
+    for (const name of notes.elements) expect(notes.tierOf(name)).toBeDefined()
+  })
+
   test('a non-pre-known element sits one past the deepest reagent of its shallowest recipe', () => {
     for (const name of notes.elements) {
       if (notes.preKnown.includes(name)) continue
-      const tier = notes.tierOf(name)
-      if (tier === undefined) continue // the hook-born, until ticket 07 charts the hooks
       const recipes = notes.all
         .filter((entry) => entry.products.includes(name))
         .map((entry) => 1 + Math.max(...entry.reagents.map((r) => notes.tierOf(r) ?? Infinity)))
-      expect(tier).toBe(Math.min(...recipes))
+      expect(notes.tierOf(name)).toBe(Math.min(...recipes))
     }
   })
 
-  test('the untiered are exactly the hook-born and their downstream (ticket 07 retires this)', () => {
-    // moss, sprout, tip, stalk and flower are made by onTick hooks the graph
-    // does not chart, so no entry produces them and no depth can be computed;
-    // vine and petal have producing entries whose reagents are those five, so
-    // their depth cannot resolve either. Ticket 07 charts the hooks and this
-    // fixture should then fail - delete it and pin the real tiers.
-    const untiered = notes.elements.filter((name) => notes.tierOf(name) === undefined)
-    expect(untiered.toSorted()).toEqual([
-      'flower',
-      'moss',
-      'petal',
-      'sprout',
-      'stalk',
-      'tip',
-      'vine',
-    ])
-  })
-
   test("regression fixture for today's roster", () => {
-    // Post-trim: mud is dirt + water's product, so it sits at tier 1; the life
-    // epic's seed + mud row now buries the seed, so buried joins ash at 2 and
-    // moss (hook-germinated, uncharted until ticket 07) has no tier at all.
+    // Post-trim: mud is dirt + water's product, so it sits at tier 1; buried
+    // needs mud, so it joins ash at 2; the hook edges (ticket 07) hang the
+    // whole plant chain off buried - germination at 3, what a sprout raises at
+    // 4 (vine grows off moss there too), the tip's bloom at 5, and petal, the
+    // flower's brood, at the bottom of the chart at 6.
     const byTier = new Map<number | undefined, string[]>()
     for (const name of notes.elements) {
       const tier = notes.tierOf(name)
@@ -186,7 +205,11 @@ describe('tiers', () => {
     ])
     expect(byTier.get(1)).toEqual(['obsidian', 'smoke', 'steam', 'sulphur', 'mud', 'ember'])
     expect(byTier.get(2)).toEqual(['ash', 'buried'])
-    expect(byTier.get(3)).toBeUndefined()
+    expect(byTier.get(3)).toEqual(['moss', 'sprout'])
+    expect(byTier.get(4)).toEqual(['vine', 'tip', 'stalk'])
+    expect(byTier.get(5)).toEqual(['flower'])
+    expect(byTier.get(6)).toEqual(['petal'])
+    expect(byTier.get(undefined)).toBeUndefined()
   })
 
   test('a deeper chain pushes its product deeper (structure, not the table)', () => {
@@ -269,6 +292,7 @@ describe('buildEntryIndex()', () => {
         { from: 'delta', becomes: 'empty', minTicks: 1, maxTicks: 1 },
       ],
       growth: [],
+      hooks: [],
     })
 
     expect(custom.keys).toEqual(['react:alpha+beta', 'decay:gamma'])

@@ -1,8 +1,11 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { entryIndex } from './features/fieldNotes/entries.ts'
+import { GRID_HEIGHT } from './sim/index.ts'
 import { seedMastery, seedWitnessed } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
+
+const FLOOR = GRID_HEIGHT - 1
 
 /**
  * The Field notes panel end to end (discovery-tree spec §6, §7). The picker
@@ -20,13 +23,13 @@ test('a fresh chart is untouched, and says so without naming anything', async ({
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('0/54')
+  expect(await root.fieldNotesCount()).toBe('0/58')
   await root.verifyFieldNotesChip('untouched')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
   expect(counters.elements).toContain('10/25')
-  expect(counters.interactions).toContain('0/54')
+  expect(counters.interactions).toContain('0/58')
   // No chip until something has been discovered since the panel last closed.
   expect(counters.fresh).toBe('')
 
@@ -38,19 +41,19 @@ test('a seeded chart opens on the counts its witnessed set implies', async ({ mo
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('2/54')
+  expect(await root.fieldNotesCount()).toBe('2/58')
   await root.verifyFieldNotesChip('in progress')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
   // Ten pre-known plus steam, obsidian and smoke.
   expect(counters.elements).toContain('13/25')
-  expect(counters.interactions).toContain('2/54')
+  expect(counters.interactions).toContain('2/58')
   expect(counters.fresh).toContain('3')
 
   // The picker counts every entry that involves an element, reagent or product
-  // (spec §6): water has ten, one of them witnessed; obsidian's one is done.
-  expect(await root.noteRow('water')).toContain('1/10')
+  // (spec §6): water has eleven, one of them witnessed; obsidian's one is done.
+  expect(await root.noteRow('water')).toContain('1/11')
   expect(await root.noteRow('obsidian')).toContain('1/1')
 
   // Closing the panel is what marks it all reviewed, so the chip is gone next time.
@@ -87,9 +90,9 @@ test('the ring draws only witnessed entries, and a product tile follows itself',
 
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
-  // One of water's ten entries has been witnessed; the other nine are notches.
+  // One of water's eleven entries has been witnessed; the other ten are notches.
   expect(await root.noteSpokeCount()).toBe(1)
-  expect(await root.noteStillToFind()).toBe('9')
+  expect(await root.noteStillToFind()).toBe('10')
 
   // Tapping the outcome's own tile is the way into its entry (spec §6).
   await root.followProduct('obsidian')
@@ -161,15 +164,15 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 
   await root.forgetDiscoveries()
 
-  expect((await root.fieldNotesCounters()).interactions).toContain('0/54')
+  expect((await root.fieldNotesCounters()).interactions).toContain('0/58')
   await root.verifyFieldNotesEmpty()
   await root.closeFieldNotes()
-  expect(await root.fieldNotesCount()).toBe('0/54')
+  expect(await root.fieldNotesCount()).toBe('0/58')
 
   // It really is gone, not just gone from this render.
   await page.reload()
   const { root: reloaded } = await mountApp()
-  expect(await reloaded.fieldNotesCount()).toBe('0/54')
+  expect(await reloaded.fieldNotesCount()).toBe('0/58')
 })
 
 /**
@@ -181,7 +184,7 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 test('a first witness raises a card, ticks the chip and lights the panel', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('0/54')
+  expect(await root.fieldNotesCount()).toBe('0/58')
   await root.verifyNoMomentCard()
 
   // A pool of water dropped straight onto lava: obsidian and steam, both new.
@@ -197,7 +200,7 @@ test('a first witness raises a card, ticks the chip and lights the panel', async
   expect(card).toContain('obsidian')
   expect(card).toContain('steam')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/58')
 
   // The panel is derived from the same store, so there is nothing to refresh.
   await root.openFieldNotes()
@@ -234,11 +237,11 @@ test('a first witnessed while the panel is open lands in the ring in place', asy
   // the world.
   await root.pressKey('.')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/58')
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
   expect(await root.noteSpokeCount()).toBe(1)
-  expect(await root.noteStillToFind()).toBe('9')
+  expect(await root.noteStillToFind()).toBe('10')
 })
 
 test("the fifth of mud's entries unlocks it, rail and all, without a reload", async ({
@@ -276,7 +279,7 @@ test('the last entry of all raises the completion line, once ever', async ({ mou
   )
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('53/54')
+  expect(await root.fieldNotesCount()).toBe('57/58')
   await root.verifyNoChartCompleteLine()
 
   await root.selectBrush(2)
@@ -287,7 +290,7 @@ test('the last entry of all raises the completion line, once ever', async ({ mou
   await root.step()
 
   await root.verifyChartCompleteLine()
-  await expect.poll(() => root.fieldNotesCount()).toBe('54/54')
+  await expect.poll(() => root.fieldNotesCount()).toBe('58/58')
   await root.verifyFieldNotesChip('complete')
 
   // Once, at the transition - a finished chart is not greeted on every load.
@@ -307,11 +310,74 @@ test('the header chip inverts for good once every interaction is witnessed', asy
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('54/54')
+  expect(await root.fieldNotesCount()).toBe('58/58')
   await root.verifyFieldNotesChip('complete')
 
   // Everything mastered means everything earned, so the rail stops promising
   // more (spec §7 - it may say that there is more, never what).
   await root.openEarned()
   await root.verifyMoreToEarn(false)
+})
+
+/**
+ * The hook edges, as a player lives them (ticket 07): a bed built from the rail
+ * alone - dirt wetted to mud, seeds dropped in - buries and germinates on the
+ * sim's own slow draws, and the plant that comes up is a discovery like any
+ * other: its "?" tile reveals and the element count moves. Thin on purpose; the
+ * key-by-key behaviour is pinned in `witness.test.ts` and `entries.test.ts`.
+ */
+test('a plant grown live from the bed reveals its tile and moves the element count', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Built paused, so the world is identical every run: a wide dirt mound, two
+  // thin pinches of seed above it, water above those. On play the water wets
+  // the bed to mud, the seeds bury into it, and the open sky germinates the
+  // bank. Seeds are the narrow brush on purpose - a pile of them roofs its own
+  // bed and the bank sleeps under it (measured: a wide dab pushed germination
+  // past 1500 ticks; this shape lands within a few hundred).
+  await root.selectBrush(3)
+  await root.selectElement('dirt')
+  await root.paintCell(146, FLOOR)
+  await root.paintCell(150, FLOOR)
+  await root.paintCell(154, FLOOR)
+  await root.selectBrush(1)
+  await root.selectElement('seed')
+  await root.paintCell(147, FLOOR - 8)
+  await root.paintCell(153, FLOOR - 8)
+  await root.selectBrush(2)
+  await root.selectElement('water')
+  await root.paintCell(146, FLOOR - 14)
+  await root.paintCell(154, FLOOR - 14)
+
+  await root.openFieldNotes()
+  const before = await root.fieldNotesCounters()
+  expect(before.elements).toContain('10/25')
+  await root.verifyNoteRowIsInert('sprout')
+  await root.verifyNoteRowIsInert('moss')
+
+  // The panel is an overlay, not a modal on the world: the sim runs behind it
+  // and firsts land in the open picker - so play via the hotkey, since the
+  // pill is under the scrim. Germination is a slow draw by design (~one in
+  // five hundred ticks per bank), so the poll is generous.
+  await root.pressKey(' ')
+  await expect
+    .poll(
+      async () => {
+        const sprout = await root.noteRow('sprout')
+        const moss = await root.noteRow('moss')
+        return sprout.includes('sprout') || moss.includes('moss')
+      },
+      { timeout: 40_000 },
+    )
+    .toBe(true)
+
+  // The bed's own chain (mud, buried) came up on the way, so the count has
+  // moved well past the pre-knowns - the exact tally depends on how far the
+  // plant got before this read.
+  const after = await root.fieldNotesCounters()
+  const discovered = Number(/(\d+)\/25/.exec(after.elements)?.[1])
+  expect(discovered).toBeGreaterThanOrEqual(13)
 })
