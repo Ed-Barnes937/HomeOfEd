@@ -772,7 +772,7 @@ export const v1Reactions: readonly ReactionRow[] = [
   // The measured cost of all this is that **acid is a weaker tool against a
   // plant wall than it was**: the residue backfills the cavity and acid cannot
   // eat sulphur, so a bath armours the bed it is eating. The numbers are in
-  // [ADR 0049](../../../../docs/adr/0049-silt-acid-corrodes-living-matter-and-lets-water-be.md)
+  // [ADR 0050](../../../../docs/adr/0050-silt-acid-corrodes-living-matter-and-lets-water-be.md)
   // §1, which supersedes the materials spec's "residue is wood only" ruling and
   // records that the objection that ruling made was correct and accepted.
   { a: 'acid', b: 'moss', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
@@ -797,7 +797,7 @@ export const v1Reactions: readonly ReactionRow[] = [
   // whole job. Nothing migrates - the field notes' denominators are derived, and
   // a stored `react:acid+water` key is carried-but-ignored like any other
   // unknown key.
-  // [ADR 0049](../../../../docs/adr/0049-silt-acid-corrodes-living-matter-and-lets-water-be.md)
+  // [ADR 0050](../../../../docs/adr/0050-silt-acid-corrodes-living-matter-and-lets-water-be.md)
   // §2 supersedes the materials spec's row 8 and records the two alternatives
   // (a dilution residue, and acid tainting water) that were turned down.
   //

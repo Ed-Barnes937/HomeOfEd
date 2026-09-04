@@ -132,7 +132,7 @@ elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian
               it eats - wood and all eight plants - and nothing on ember, ash or
               buried, which are spent material; it has **no row against water at
               all**, so the two coexist and density decides the layering
-              ([ADR 0049](../../docs/adr/0049-silt-acid-corrodes-living-matter-and-lets-water-be.md),
+              ([ADR 0050](../../docs/adr/0050-silt-acid-corrodes-living-matter-and-lets-water-be.md),
               which supersedes the materials spec on both counts). Wood never becomes fire
               directly - it chars to ember, which creeps, erupts, is doused
               back to wood, or is burned down to ash, which rain wets to mud

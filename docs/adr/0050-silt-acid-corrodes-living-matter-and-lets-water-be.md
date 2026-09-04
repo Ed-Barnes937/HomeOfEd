@@ -1,4 +1,4 @@
-# 0049 - silt: acid corrodes living matter to sulphur, and leaves water alone
+# 0050 - silt: acid corrodes living matter to sulphur, and leaves water alone
 
 - **Status:** Accepted
 - **Date:** 2026-09-04
