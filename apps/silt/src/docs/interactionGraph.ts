@@ -20,6 +20,8 @@ import {
   EMPTY,
   FLOWER,
   MOSS,
+  PETAL,
+  SEED,
   SPROUT,
   STALK,
   TIP,
@@ -118,7 +120,38 @@ export interface InteractionGraph {
   decays: readonly DecayEdge[]
   growth: readonly GrowthEdge[]
   hooks: readonly HookEdge[]
+  /**
+   * Species this chart does not name, and the element each belongs to
+   * (`CHARTED_AS`). Everything else here is raw; this is the one presentation
+   * concern the graph carries, because the mapping is roster knowledge and the
+   * roster is what this module owns.
+   */
+  chartAs: ReadonlyMap<string, string>
 }
+
+/**
+ * **Charted identities** (discovery ticket 08). The sim's unit is a species -
+ * `buried` exists because a soak counter needs a byte to live in (ADR 0043) -
+ * but the player's unit is an element, and `buried` is not a thing you can
+ * have: it is what a seed does in mud. Sprout, tip, stalk and petal are stages
+ * and parts of one plant, split into species by that same byte-ownership rule.
+ *
+ * So field notes charts each of them as the element it belongs to, and does it
+ * here rather than in the sim: nothing below changes (the doc reports the
+ * chemistry as it resolves, stage rows and all), the witness keys the store
+ * holds stay raw and name-based, and `features/fieldNotes/entries.ts` folds the
+ * mapping in as it derives its entries. Nothing migrates.
+ *
+ * Ids rather than names, so a rename cannot leave the mapping pointing at a
+ * species that no longer exists.
+ */
+const CHARTED_AS: readonly (readonly [species: number, charted: number])[] = [
+  [BURIED, SEED],
+  [SPROUT, FLOWER],
+  [TIP, FLOWER],
+  [STALK, FLOWER],
+  [PETAL, FLOWER],
+]
 
 /**
  * The growth hook is code rather than a row - `createGrowth(WATER, MOSS, VINE)`
@@ -267,7 +300,14 @@ export function deriveInteractionGraph(): InteractionGraph {
     p: GROWTH_P,
   }))
 
-  return { nodes, reactions, decays, growth, hooks: hookEdges(nameOf) }
+  return {
+    nodes,
+    reactions,
+    decays,
+    growth,
+    hooks: hookEdges(nameOf),
+    chartAs: new Map(CHARTED_AS.map(([species, charted]) => [nameOf(species), nameOf(charted)])),
+  }
 }
 
 /** Mermaid node ids are the element names, which are single words by contract. */
@@ -409,6 +449,14 @@ function table(graph: InteractionGraph): string {
   )
 }
 
+/** The charted identities as a table: the species, and the element it is named as. */
+function chartedTable(graph: InteractionGraph): string {
+  return markdownTable(
+    ['species', 'charted as'],
+    [...graph.chartAs].map(([species, name]) => [species, name]),
+  )
+}
+
 function summary(graph: InteractionGraph): string {
   const paintable = graph.nodes.filter((node) => node.paintable).length
   const fades = graph.decays.filter((decay) => decay.becomes === CLEARED).length
@@ -460,5 +508,15 @@ only by reacting. A reaction edge is undirected and its label reads
 ## Interactions
 
 ${table(graph)}
+
+## Charted as
+
+Everything above is the sim's own vocabulary, where a species owns a byte
+(ADR 0043). Field notes charts these ones as the element they belong to, so the
+player's chart counts a flower rather than four of its parts (discovery ticket
+08). Presentation only: the chemistry above and the witnessed edge keys are
+unaffected.
+
+${chartedTable(graph)}
 `
 }

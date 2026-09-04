@@ -23,13 +23,13 @@ test('a fresh chart is untouched, and says so without naming anything', async ({
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('0/58')
+  expect(await root.fieldNotesCount()).toBe('0/47')
   await root.verifyFieldNotesChip('untouched')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
-  expect(counters.elements).toContain('10/25')
-  expect(counters.interactions).toContain('0/58')
+  expect(counters.elements).toContain('10/20')
+  expect(counters.interactions).toContain('0/47')
   // No chip until something has been discovered since the panel last closed.
   expect(counters.fresh).toBe('')
 
@@ -41,14 +41,14 @@ test('a seeded chart opens on the counts its witnessed set implies', async ({ mo
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('2/58')
+  expect(await root.fieldNotesCount()).toBe('2/47')
   await root.verifyFieldNotesChip('in progress')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
   // Ten pre-known plus steam, obsidian and smoke.
-  expect(counters.elements).toContain('13/25')
-  expect(counters.interactions).toContain('2/58')
+  expect(counters.elements).toContain('13/20')
+  expect(counters.interactions).toContain('2/47')
   expect(counters.fresh).toContain('3')
 
   // The picker counts every entry that involves an element, reagent or product
@@ -211,15 +211,15 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 
   await root.forgetDiscoveries()
 
-  expect((await root.fieldNotesCounters()).interactions).toContain('0/58')
+  expect((await root.fieldNotesCounters()).interactions).toContain('0/47')
   await root.verifyFieldNotesEmpty()
   await root.closeFieldNotes()
-  expect(await root.fieldNotesCount()).toBe('0/58')
+  expect(await root.fieldNotesCount()).toBe('0/47')
 
   // It really is gone, not just gone from this render.
   await page.reload()
   const { root: reloaded } = await mountApp()
-  expect(await reloaded.fieldNotesCount()).toBe('0/58')
+  expect(await reloaded.fieldNotesCount()).toBe('0/47')
 })
 
 /**
@@ -231,7 +231,7 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 test('a first witness raises a card, ticks the chip and lights the panel', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('0/58')
+  expect(await root.fieldNotesCount()).toBe('0/47')
   await root.verifyNoMomentCard()
 
   // A pool of water dropped straight onto lava: obsidian and steam, both new.
@@ -247,7 +247,7 @@ test('a first witness raises a card, ticks the chip and lights the panel', async
   expect(card).toContain('obsidian')
   expect(card).toContain('steam')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/58')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/47')
 
   // The panel is derived from the same store, so there is nothing to refresh.
   await root.openFieldNotes()
@@ -284,7 +284,7 @@ test('a first witnessed while the panel is open lands in the ring in place', asy
   // the world.
   await root.pressKey('.')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/58')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/47')
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
   expect(await root.noteSpokeCount()).toBe(1)
@@ -295,7 +295,9 @@ test("the fifth of mud's entries unlocks it, rail and all, without a reload", as
   mountApp,
   page,
 }) => {
-  const mudEdges = entryIndex().entriesFor('mud')
+  // The raw edges, because that is what a witness set holds: an entry is
+  // mastered only once every edge behind it has fired (ticket 08).
+  const mudEdges = entryIndex().witnessKeysFor('mud')
   await seedWitnessed(
     page,
     mudEdges.filter((key) => key !== 'react:dirt+water'),
@@ -322,11 +324,11 @@ test("the fifth of mud's entries unlocks it, rail and all, without a reload", as
 test('the last entry of all raises the completion line, once ever', async ({ mountApp, page }) => {
   await seedWitnessed(
     page,
-    entryIndex().keys.filter((key) => key !== 'react:dirt+water'),
+    entryIndex().witnessKeys.filter((key) => key !== 'react:dirt+water'),
   )
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('57/58')
+  expect(await root.fieldNotesCount()).toBe('46/47')
   await root.verifyNoChartCompleteLine()
 
   await root.selectBrush(2)
@@ -337,7 +339,7 @@ test('the last entry of all raises the completion line, once ever', async ({ mou
   await root.step()
 
   await root.verifyChartCompleteLine()
-  await expect.poll(() => root.fieldNotesCount()).toBe('58/58')
+  await expect.poll(() => root.fieldNotesCount()).toBe('47/47')
   await root.verifyFieldNotesChip('complete')
 
   // Once, at the transition - a finished chart is not greeted on every load.
@@ -353,11 +355,11 @@ test('the header chip inverts for good once every interaction is witnessed', asy
   mountApp,
   page,
 }) => {
-  await seedWitnessed(page, entryIndex().keys)
+  await seedWitnessed(page, entryIndex().witnessKeys)
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('58/58')
+  expect(await root.fieldNotesCount()).toBe('47/47')
   await root.verifyFieldNotesChip('complete')
 
   // Everything mastered means everything earned, so the rail stops promising
@@ -401,8 +403,10 @@ test('a plant grown live from the bed reveals its tile and moves the element cou
 
   await root.openFieldNotes()
   const before = await root.fieldNotesCounters()
-  expect(before.elements).toContain('10/25')
-  await root.verifyNoteRowIsInert('sprout')
+  expect(before.elements).toContain('10/20')
+  // The plant is one row since ticket 08: what comes up out of the bed is a
+  // flower, not a sprout that is also a tip that is also a stalk.
+  await root.verifyNoteRowIsInert('flower')
   await root.verifyNoteRowIsInert('moss')
 
   // The panel is an overlay, not a modal on the world: the sim runs behind it
@@ -413,18 +417,46 @@ test('a plant grown live from the bed reveals its tile and moves the element cou
   await expect
     .poll(
       async () => {
-        const sprout = await root.noteRow('sprout')
+        const flower = await root.noteRow('flower')
         const moss = await root.noteRow('moss')
-        return sprout.includes('sprout') || moss.includes('moss')
+        return flower.includes('flower') || moss.includes('moss')
       },
       { timeout: 40_000 },
     )
     .toBe(true)
 
-  // The bed's own chain (mud, buried) came up on the way, so the count has
-  // moved well past the pre-knowns - the exact tally depends on how far the
-  // plant got before this read.
+  // Mud came up on the way, so the count has moved past the pre-knowns - the
+  // exact tally depends on how far the plant got before this read. Burial is no
+  // longer an element of its own (ticket 08): it is what the seed is doing.
   const after = await root.fieldNotesCounters()
-  const discovered = Number(/(\d+)\/25/.exec(after.elements)?.[1])
-  expect(discovered).toBeGreaterThanOrEqual(13)
+  const discovered = Number(/(\d+)\/20/.exec(after.elements)?.[1])
+  expect(discovered).toBeGreaterThanOrEqual(12)
+})
+
+/**
+ * The charted grouping through the whole stack (ticket 08): the sim reports raw
+ * keys naming species the chart does not - a bloomed tip, a burnt stalk - and
+ * what the player sees move is the flower's own row. Seeded rather than grown,
+ * because landing lava on a live stalk means waiting out a germination first;
+ * what the sim reports is pinned in `witness.test.ts` and the fold in
+ * `entries.test.ts`.
+ */
+test("a raw edge of one of the plant's parts lands on the flower's row", async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, ['bloom:tip', 'react:lava+stalk'])
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  expect(await root.fieldNotesCount()).toBe('2/47')
+
+  await root.openFieldNotes()
+  // Two of the flower's nine, and no row for the stalk that actually burned.
+  expect(await root.noteRow('flower')).toContain('2/9')
+  expect(await root.fieldNotesText()).not.toContain('stalk')
+
+  await root.selectNote('flower')
+  expect(await root.focusedNote()).toBe('flower')
+  expect(await root.noteSpokeCount()).toBe(2)
+  expect(await root.noteStillToFind()).toBe('7')
 })

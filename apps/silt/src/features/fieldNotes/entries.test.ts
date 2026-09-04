@@ -13,8 +13,9 @@ import {
 
 const notes = entryIndex()
 
-/** Spec §1: the five edges that master mud. Pinned as a literal so the fixture
- * fails loudly if the roster changes what "mastering mud" costs. */
+/** Spec §1: the five edges that master mud, as the sim reports them. Pinned as a
+ * literal so the fixture fails loudly if the roster changes what "mastering
+ * mud" costs. */
 const MUD_KEYS = [
   'react:dirt+water',
   'react:ash+water',
@@ -22,6 +23,16 @@ const MUD_KEYS = [
   'react:lava+mud',
   'react:mud+seed',
   'react:mud+petal',
+]
+
+/** The same six as the chart names them: the petal's is charted under flower. */
+const CHARTED_MUD_KEYS = [
+  'react:dirt+water',
+  'react:ash+water',
+  'react:fire+mud',
+  'react:lava+mud',
+  'react:mud+seed',
+  'react:flower+mud',
 ]
 
 describe('canonical edge keys', () => {
@@ -82,12 +93,104 @@ describe('canonical edge keys', () => {
   })
 })
 
+describe('charted grouping (ticket 08)', () => {
+  test('a bookkeeping species is never a node: buried is what a seed does in mud', () => {
+    for (const species of ['buried', 'sprout', 'tip', 'stalk', 'petal']) {
+      expect(notes.elements).not.toContain(species)
+      expect(notes.entriesFor(species)).toEqual([])
+    }
+    expect(notes.elements).toContain('seed')
+    expect(notes.elements).toContain('flower')
+  })
+
+  test('every raw edge reaches exactly one charted entry - no orphans, no doubles', () => {
+    const raw = notes.witnessKeys
+    expect(new Set(raw).size).toBe(raw.length)
+    // The ungrouped graph's own count: nothing was dropped on the way in.
+    expect(raw).toHaveLength(58)
+    for (const key of raw) expect(notes.get(key)).toBeDefined()
+    // And every charted entry is backed by at least one of them.
+    for (const entry of notes.all) {
+      expect(entry.sources.length).toBeGreaterThan(0)
+      for (const source of entry.sources) expect(raw).toContain(source.key)
+    }
+  })
+
+  test('one charted entry absorbs the raw edges of every part of the plant', () => {
+    const lava = notes.get('react:flower+lava')
+    expect(lava?.sources.map((source) => source.key).toSorted()).toEqual([
+      'react:flower+lava',
+      'react:lava+sprout',
+      'react:lava+stalk',
+      'react:lava+tip',
+    ])
+    // Acid takes the petal too, and the seed's burial joins acid + seed.
+    expect(notes.get('react:acid+flower')?.sources).toHaveLength(5)
+    expect(notes.get('react:acid+seed')?.sources.map((source) => source.key).toSorted()).toEqual([
+      'react:acid+buried',
+      'react:acid+seed',
+    ])
+    // A key a raw edge no longer answers to still names its charted entry.
+    expect(notes.get('react:mud+petal')).toBe(notes.get('react:flower+mud'))
+  })
+
+  test('a grouped entry is witnessed by any of its raw edges, mastered by all (decision 1)', () => {
+    const one = new Set(['react:lava+stalk'])
+    expect(notes.isWitnessed('react:flower+lava', one)).toBe(true)
+    // The charted entry answers to the raw key it was reported under, too.
+    expect(notes.isWitnessed('react:lava+stalk', one)).toBe(true)
+    expect(notes.derive(one).mastered.has('flower')).toBe(false)
+
+    const every = new Set(notes.witnessKeysFor('flower'))
+    expect(notes.derive(every).mastered.has('flower')).toBe(true)
+    expect(notes.derive(new Set([...every].slice(1))).mastered.has('flower')).toBe(false)
+  })
+
+  test('witnessing one part discovers what that part makes, and nothing its siblings do', () => {
+    // fire + stalk leaves fire; fire + sprout leaves steam. One charted entry,
+    // but discovery stays what the sim actually performed (spec §1).
+    const entry = notes.get('react:fire+flower')!
+    expect([...entry.products].toSorted()).toEqual(['fire', 'steam'])
+    expect(notes.derive(new Set(['react:fire+stalk'])).discovered.has('steam')).toBe(false)
+    expect(notes.derive(new Set(['react:fire+sprout'])).discovered.has('steam')).toBe(true)
+  })
+
+  test('the plant chain stays a story: germinate, raise and bloom keep their own entries', () => {
+    // Decision 2 - the stages chart under flower rather than dropping out as
+    // self-loops, so the life cycle is still there to be found one step at a time.
+    expect(notes.get('germinate:flower')?.sources.map((source) => source.key)).toEqual([
+      'germinate:sprout',
+    ])
+    expect(notes.get('raise:flower')?.sources.map((source) => source.key)).toEqual(['raise:sprout'])
+    expect(notes.get('bloom:flower')?.sources.map((source) => source.key)).toEqual(['bloom:tip'])
+    expect(notes.get('raise:flower')?.reagents).toEqual(['flower'])
+    expect(notes.get('raise:flower')?.products).toEqual(['flower'])
+  })
+
+  test("a charted node's entries are the raw ones its species collected", () => {
+    // The flower's ring: four reactions, its decay, and the three stages.
+    expect(notes.entriesFor('flower')).toEqual([
+      'react:flower+water',
+      'react:flower+lava',
+      'react:fire+flower',
+      'react:acid+flower',
+      'react:flower+mud',
+      'decay:flower',
+      'germinate:flower',
+      'raise:flower',
+      'bloom:flower',
+    ])
+  })
+})
+
 describe('involves()', () => {
   test("today's totals: an element's entries are its reagent and product edges", () => {
     // Eleven since ticket 07: water is a reagent of the soaked germination.
     expect(notes.entriesFor('water')).toHaveLength(11)
     expect(notes.entriesFor('mud')).toHaveLength(6)
-    expect(notes.entriesFor('fire')).toHaveLength(24)
+    // Eighteen since ticket 08 folded the plant's parts into one flower: lava's
+    // and fire's four stage spokes each became one.
+    expect(notes.entriesFor('fire')).toHaveLength(18)
   })
 
   test('stone has exactly the one edge that makes it', () => {
@@ -113,14 +216,20 @@ describe('involves()', () => {
   })
 
   test("mud's entries are the six the registry derives (the spec's five plus mud + petal)", () => {
-    expect([...notes.entriesFor('mud')].sort()).toEqual([...MUD_KEYS].sort())
+    expect([...notes.entriesFor('mud')].sort()).toEqual([...CHARTED_MUD_KEYS].sort())
+    // And the raw edges behind them are still the six the sim reports: charting
+    // renames an entry, it never adds or drops one.
+    expect([...notes.witnessKeysFor('mud')].sort()).toEqual([...MUD_KEYS].sort())
   })
 })
 
 describe('totals', () => {
-  test('58 entries today: 48 reactions, 4 productive decays, 2 growth, 4 hook edges', () => {
+  test('47 charted entries today: 37 reactions, 4 productive decays, 2 growth, 4 hook edges', () => {
     const kinds = (kind: Entry['kind']) => notes.all.filter((entry) => entry.kind === kind)
-    expect(kinds('react')).toHaveLength(48)
+    // Thirty-seven since ticket 08: the graph's 48 raw pairs, less the three
+    // stage spokes lava and fire each grew, the four acid grew, and the burial
+    // that folded into acid + seed.
+    expect(kinds('react')).toHaveLength(37)
     // The flower's decay is productive twice over: it leaves a seed and its
     // death drop throws petals - one entry, two products.
     expect(kinds('decay')).toHaveLength(4)
@@ -129,19 +238,17 @@ describe('totals', () => {
     expect(kinds('germinate')).toHaveLength(2)
     expect(kinds('raise')).toHaveLength(1)
     expect(kinds('bloom')).toHaveLength(1)
-    expect(notes.all).toHaveLength(58)
+    expect(notes.all).toHaveLength(47)
   })
 
   test('every hook-born element is the product of a hook edge (spec §3 restored)', () => {
     // The life epic's five arrived undiscoverable (spec decision 10, interim);
-    // ticket 07 charts the hooks, so each now has a producing entry.
+    // ticket 07 charts the hooks, so each now has a producing entry - and since
+    // ticket 08 the plant's parts are charted as the one flower they make up.
     const producers = (name: string) =>
       notes.entriesFor(name).filter((key) => notes.get(key)!.products.includes(name))
     expect(producers('moss')).toContain('germinate:moss')
-    expect(producers('sprout')).toContain('germinate:sprout')
-    expect(producers('tip')).toEqual(['raise:sprout'])
-    expect(producers('stalk')).toEqual(['raise:sprout'])
-    expect(producers('flower')).toEqual(['bloom:tip'])
+    expect(producers('flower')).toContain('germinate:flower')
     // And so does everything else that is not pre-known: the premise itself.
     for (const name of notes.elements) {
       if (notes.preKnown.includes(name)) continue
@@ -149,8 +256,10 @@ describe('totals', () => {
     }
   })
 
-  test('25 elements today, the rail among them pre-known', () => {
-    expect(notes.elements).toHaveLength(25)
+  test('20 charted elements today, the rail among them pre-known', () => {
+    // Twenty since ticket 08: the roster's 25 species, less the five the chart
+    // names as the seed and the flower they belong to.
+    expect(notes.elements).toHaveLength(20)
     // Ten since the rail trim took mud out of `PAINTABLE_IDS` (spec §9.5) - mud
     // is now earned back by mastering it, and an earned unlock is not pre-known.
     expect(notes.preKnown).toHaveLength(10)
@@ -181,11 +290,10 @@ describe('tiers', () => {
   })
 
   test("regression fixture for today's roster", () => {
-    // Post-trim: mud is dirt + water's product, so it sits at tier 1; buried
-    // needs mud, so it joins ash at 2; the hook edges (ticket 07) hang the
-    // whole plant chain off buried - germination at 3, what a sprout raises at
-    // 4 (vine grows off moss there too), the tip's bloom at 5, and petal, the
-    // flower's brood, at the bottom of the chart at 6.
+    // Post-trim: mud is dirt + water's product, so it sits at tier 1. Charting
+    // buried as the seed it is (ticket 08) shortens the plant chain to what the
+    // player does: a seed in the ground germinates, so moss and the flower are
+    // one step off the rail, and vine - grown off moss - is two, beside ash.
     const byTier = new Map<number | undefined, string[]>()
     for (const name of notes.elements) {
       const tier = notes.tierOf(name)
@@ -203,20 +311,26 @@ describe('tiers', () => {
       'stone',
       'seed',
     ])
-    expect(byTier.get(1)).toEqual(['obsidian', 'smoke', 'steam', 'sulphur', 'mud', 'ember'])
-    expect(byTier.get(2)).toEqual(['ash', 'buried'])
-    expect(byTier.get(3)).toEqual(['moss', 'sprout'])
-    expect(byTier.get(4)).toEqual(['vine', 'tip', 'stalk'])
-    expect(byTier.get(5)).toEqual(['flower'])
-    expect(byTier.get(6)).toEqual(['petal'])
+    expect(byTier.get(1)).toEqual([
+      'obsidian',
+      'smoke',
+      'steam',
+      'sulphur',
+      'mud',
+      'moss',
+      'ember',
+      'flower',
+    ])
+    expect(byTier.get(2)).toEqual(['vine', 'ash'])
     expect(byTier.get(undefined)).toBeUndefined()
   })
 
   test('a deeper chain pushes its product deeper (structure, not the table)', () => {
     // Whatever the roster, ember comes from wood + fire and ash comes from ember,
-    // so ash is strictly deeper than ember; buried needs mud, which needs water.
+    // so ash is strictly deeper than ember; vine is grown on moss, so it is
+    // deeper than moss.
     expect(notes.tierOf('ash')!).toBeGreaterThan(notes.tierOf('ember')!)
-    expect(notes.tierOf('buried')!).toBeGreaterThan(notes.tierOf('mud')!)
+    expect(notes.tierOf('vine')!).toBeGreaterThan(notes.tierOf('moss')!)
   })
 })
 
@@ -269,7 +383,9 @@ describe('derivations from a witnessed-key set', () => {
   })
 
   test('witnessing everything masters every element', () => {
-    const derived = notes.derive(new Set(notes.keys))
+    // The raw keys, because that is what a witnessed set holds: the store keeps
+    // what the sim reported, and the grouping is derived over it (ticket 08).
+    const derived = notes.derive(new Set(notes.witnessKeys))
     expect([...derived.mastered].sort()).toEqual([...notes.elements].sort())
     expect(derived.unlocked).toEqual([...UNLOCKABLE_NAMES])
   })
@@ -293,6 +409,7 @@ describe('buildEntryIndex()', () => {
       ],
       growth: [],
       hooks: [],
+      chartAs: new Map(),
     })
 
     expect(custom.keys).toEqual(['react:alpha+beta', 'decay:gamma'])
@@ -301,6 +418,41 @@ describe('buildEntryIndex()', () => {
     expect(custom.tierOf('gamma')).toBe(1)
     expect(custom.tierOf('delta')).toBe(2)
     expect(custom.derive(new Set(['decay:gamma'])).discovered.has('delta')).toBe(true)
+  })
+
+  test('a graph that charts one element as another folds its edges into one entry', () => {
+    // The mechanism in miniature, away from the live roster: gamma is delta's
+    // bookkeeping half, so the two reactions become one entry with two sources.
+    const custom = buildEntryIndex({
+      nodes: [
+        { id: 1, name: 'alpha', paintable: true },
+        { id: 2, name: 'gamma', paintable: false },
+        { id: 3, name: 'delta', paintable: false },
+      ],
+      reactions: [
+        { a: 'alpha', b: 'gamma', p: 1, aBecomes: 'empty', bBecomes: 'empty', source: 'test' },
+        { a: 'alpha', b: 'delta', p: 1, aBecomes: 'empty', bBecomes: 'gamma', source: 'test' },
+      ],
+      decays: [],
+      growth: [],
+      hooks: [],
+      chartAs: new Map([['gamma', 'delta']]),
+    })
+
+    expect(custom.elements).toEqual(['alpha', 'delta'])
+    expect(custom.keys).toEqual(['react:alpha+delta'])
+    expect(custom.witnessKeys).toEqual(['react:alpha+gamma', 'react:alpha+delta'])
+    // Witnessed by either raw edge; mastered only by both.
+    expect(custom.isWitnessed('react:alpha+delta', new Set(['react:alpha+gamma']))).toBe(true)
+    expect(custom.derive(new Set(['react:alpha+gamma'])).mastered.has('delta')).toBe(false)
+    expect(custom.derive(new Set(custom.witnessKeys)).mastered.has('delta')).toBe(true)
+    // The entry says what the pair can leave; each source says what its own raw
+    // edge left, which is what discovery counts.
+    const entry = custom.get('react:alpha+gamma')
+    expect(entry).toBe(custom.get('react:alpha+delta'))
+    expect(entry?.products).toEqual(['delta'])
+    expect(entry?.sources.map((source) => source.products)).toEqual([[], ['delta']])
+    expect(custom.derive(new Set(['react:alpha+gamma'])).discovered.has('delta')).toBe(false)
   })
 
   test('the memoized default index is the live graph, built once', () => {

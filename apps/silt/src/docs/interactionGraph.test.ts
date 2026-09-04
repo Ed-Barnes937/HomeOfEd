@@ -33,6 +33,39 @@ describe('the interaction graph doc', () => {
   })
 })
 
+describe('charted identities', () => {
+  /**
+   * Ticket 08: the species the sim keeps because a byte needs an owner (ADR
+   * 0043), named as the element a player actually holds. Presentation only -
+   * the chemistry below is derived raw, and the witness keys stay raw with it.
+   */
+  it('names a bookkeeping species as the element it belongs to', () => {
+    expect(Object.fromEntries(graph.chartAs)).toEqual({
+      buried: 'seed',
+      sprout: 'flower',
+      tip: 'flower',
+      stalk: 'flower',
+      petal: 'flower',
+    })
+  })
+
+  it('charts onto real elements, and never onto another charted one', () => {
+    const names = new Set(graph.nodes.map((node) => node.name))
+    for (const [species, charted] of graph.chartAs) {
+      expect(names.has(species)).toBe(true)
+      expect(names.has(charted)).toBe(true)
+      // A chain would make the mapping order-dependent; one hop is the contract.
+      expect(graph.chartAs.has(charted)).toBe(false)
+    }
+  })
+
+  it('leaves the graph itself raw: the doc reports the chemistry, not the chart', () => {
+    expect(graph.nodes.map((node) => node.name)).toContain('buried')
+    expect(pair('lava', 'stalk')).toBeDefined()
+    expect(pair('lava', 'flower')).toBeDefined()
+  })
+})
+
 describe('deriveInteractionGraph', () => {
   it('finds every registered pair once, unordered', () => {
     // Registry-derived, so this count moves only when the chemistry does.

@@ -63,10 +63,21 @@ describe('discovery cards', () => {
     expect(movingTo(['decay:fire'], ['decay:fire'])).toEqual([])
     expect(movingTo(['decay:fire'], [])).toEqual([])
   })
+
+  test('a second raw edge of an entry already witnessed is not news (ticket 08)', () => {
+    // Burning a sprout and burning a stalk are one charted entry: the first
+    // raises the card, and the rest of the plant raises nothing.
+    const [first, ...rest] = movingTo([], ['react:fire+sprout'])
+    expect(first?.title).toBe('steam')
+    expect(rest).toEqual([])
+    expect(movingTo(['react:fire+sprout'], ['react:fire+sprout', 'react:fire+stalk'])).toEqual([])
+    // Nor do two of them arriving in the same batch raise two cards.
+    expect(movingTo([], ['react:fire+sprout', 'react:fire+stalk'])).toHaveLength(1)
+  })
 })
 
 describe('the mastery unlock card', () => {
-  const mudEdges = notes.entriesFor('mud')
+  const mudEdges = notes.witnessKeysFor('mud')
 
   test('mastering an unlockable follows its discovery card', () => {
     const before = mudEdges.slice(0, -1)
@@ -82,7 +93,7 @@ describe('the mastery unlock card', () => {
 
   test('mastering something that is not unlockable is not a card', () => {
     // Obsidian's one entry masters it, but nothing joins the rail for it.
-    const cards = movingTo([], notes.entriesFor('obsidian'))
+    const cards = movingTo([], notes.witnessKeysFor('obsidian'))
     expect(cards.every((card) => card.kind === 'discovery')).toBe(true)
   })
 })
@@ -97,7 +108,10 @@ describe('the mastery unlock card', () => {
  */
 describe('the spoiler rule', () => {
   test('no card ever names an element the player has not discovered', () => {
-    for (const key of notes.keys) {
+    // Every raw edge the sim can report, since that is what a witness holds -
+    // and since ticket 08 a charted entry can name products no single one of
+    // them leaves.
+    for (const key of notes.witnessKeys) {
       const after = viewOf(key)
       const shown = momentsFor(viewOf(), after).map(wordsOf).join(' ')
       for (const name of notes.elements) {

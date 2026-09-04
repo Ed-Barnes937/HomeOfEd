@@ -39,26 +39,30 @@ describe('picker ordering', () => {
       'acid',
       'stone',
       'seed',
-      // Then each tier of products, roster order inside it. The plant chain
-      // hangs off buried through the hook edges (ticket 07): germination at 3,
-      // what the sprout raises (and vine, grown off moss) at 4, the bloom at 5,
-      // the flower's brood at 6.
+      // Then each tier of products, roster order inside it. Since ticket 08 the
+      // plant is one node - buried is charted as the seed it is, so germination
+      // is one step off the rail and the whole chain shortens with it: moss and
+      // flower at 1, and vine, grown on moss, at 2 beside ash.
       'obsidian',
       'smoke',
       'steam',
       'sulphur',
       'mud',
-      'ember',
-      'ash',
-      'buried',
       'moss',
-      'sprout',
-      'vine',
-      'tip',
-      'stalk',
+      'ember',
       'flower',
-      'petal',
+      'vine',
+      'ash',
     ])
+  })
+
+  test('a species the chart does not name gets no row at all (ticket 08)', () => {
+    const names = pickerRows(viewOf()).map((row) => row.name)
+    for (const species of ['buried', 'sprout', 'tip', 'stalk', 'petal']) {
+      expect(names).not.toContain(species)
+    }
+    expect(names).toContain('flower')
+    expect(names).toContain('seed')
   })
 
   test('every element in the roster gets a slot, discovered or not (spec §7)', () => {
@@ -95,7 +99,7 @@ describe('picker rows', () => {
 
   test("mud's row states what it costs to unlock, until it is earned (spec §6)", () => {
     expect(rowFor('mud', 'react:dirt+water').count).toBe('1/6 to unlock')
-    expect(rowFor('mud', ...notes.entriesFor('mud')).count).toBe('6/6')
+    expect(rowFor('mud', ...notes.witnessKeysFor('mud')).count).toBe('6/6')
   })
 
   test('newly discovered elements are marked until the panel is reviewed', () => {
@@ -173,14 +177,28 @@ describe('the ring', () => {
   })
 
   test('a hook edge is directed the same way (ticket 07)', () => {
-    // The raise seen from its products points in; seen from the sprout, out.
-    expect(ringFor('tip', viewOf('raise:sprout')).spokes[0]?.direction).toBe('in')
-    expect(ringFor('stalk', viewOf('raise:sprout')).spokes[0]?.direction).toBe('in')
-    expect(ringFor('sprout', viewOf('raise:sprout')).spokes[0]?.direction).toBe('out')
-    // Germination from the water reagent's side is an outward arrow at moss.
+    // Germination seen from its product points in; seen from a reagent, out.
     expect(ringFor('moss', viewOf('germinate:moss')).spokes[0]?.direction).toBe('in')
     expect(ringFor('water', viewOf('germinate:moss')).spokes[0]?.direction).toBe('out')
-    expect(ringFor('flower', viewOf('bloom:tip')).spokes[0]?.direction).toBe('in')
+    expect(ringFor('flower', viewOf('germinate:sprout')).spokes[0]?.direction).toBe('in')
+    expect(ringFor('seed', viewOf('germinate:sprout')).spokes[0]?.direction).toBe('out')
+  })
+
+  test("a stage of the plant's own chain carries no arrowhead (ticket 08)", () => {
+    // The raise and the bloom happen inside one charted element, so both ends
+    // of the arrow would be the centre. The entry is still there to be found -
+    // the life cycle stays a story (decision 2) - it just points nowhere.
+    const raise = ringFor('flower', viewOf('raise:sprout')).spokes[0]
+    expect(raise?.key).toBe('raise:flower')
+    expect(raise?.direction).toBe('none')
+    expect(raise?.tiles).toEqual([])
+    expect(ringFor('flower', viewOf('bloom:tip')).spokes[0]?.direction).toBe('none')
+
+    // The flower's decay leaves a seed, so from the flower it still points out
+    // even though its own petals are charted back onto it.
+    const decay = ringFor('flower', viewOf('decay:flower')).spokes[0]
+    expect(decay?.direction).toBe('out')
+    expect(decay?.outcome).toBe('seed · flower')
   })
 
   test('the centre carries its own mastery, and its name only once discovered', () => {

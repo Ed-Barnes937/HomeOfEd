@@ -16,8 +16,18 @@ This spec defines behaviour, data, and UI structure/states. Visual design
 
 ## 1. Vocabulary
 
-- **Node** - an element in the roster (19 today; `v1Elements`).
-- **Edge** - one concrete interaction. Three kinds:
+- **Species** - the sim's own unit: one row of `v1Elements`, one owner of a
+  byte (ADR 0043). 25 today.
+- **Charted element** - the player's unit, and the only one this feature counts.
+  Most species are one; the ones that exist because a byte needed an owner are
+  **charted as** the element they belong to: `buried` as **seed** (it is what a
+  seed does in mud, not a thing you can hold) and sprout, tip, stalk and petal
+  as **flower** (stages and parts of one plant). 20 today. The mapping is
+  presentation - it is declared in the graph derivation
+  (`chartAs`, `src/docs/interactionGraph.ts`), never in the sim, and the doc
+  that derivation generates still reports the raw chemistry (ticket 08).
+- **Node** - a charted element, as the picker lists it. 20 today.
+- **Edge** - one concrete interaction, in the sim's own names. Three kinds:
   - **Reaction** - an unordered pair from the resolved registry
     (`reactionFor`), tag rows expanded, `maxHardness` exclusions applied.
     32 pairs today.
@@ -31,11 +41,17 @@ This spec defines behaviour, data, and UI structure/states. Visual design
     (buried, sky open -> sprout), `raise:sprout` (sprout -> tip + stalk),
     `bloom:tip` (tip -> flower). 4 today. The tip's climb, petal shedding,
     evaporation and the germination dirt refund are deliberately not entries.
+- **Entry** - an edge as the chart counts it: the same edge with every name
+  charted. Several edges can land on one entry - `acid + flower` is backed by
+  the five acid has with the plant's parts - and the entry is **witnessed when
+  any of them fires, mastered only when all of them have** (ticket 08). What is
+  stored stays raw and name-based, so nothing about this migrates.
 - **Pre-known** - the 10 base paintable elements (`PAINTABLE_IDS`, with mud
   removed - see Mastery below). They sit in the rail from the first launch, so
   they are never "undiscovered".
-- **Discoverable element** - a product not in the base rail: obsidian, smoke,
-  steam, sulphur, moss, vine, ember, ash, and now mud. 9 today.
+- **Discoverable element** - a charted element that is not in the base rail:
+  obsidian, smoke, steam, sulphur, moss, vine, ember, ash, mud, and - since the
+  plant's parts chart as one (ticket 08) - flower. 10 today.
 - **Witnessed** - the sim actually performed the transmutation in front of the
   player. Discovery is event-driven, never inferred from world contents.
 - **Mastered** - every edge that names the element (as reagent or product) has
@@ -44,10 +60,11 @@ This spec defines behaviour, data, and UI structure/states. Visual design
   mastered. v1 has exactly one: mud (6 edges since the life epic: dirt+water,
   ash+water, mud+fire, mud+lava, mud+seed, mud+petal).
 
-Totals with today's roster: **25 elements and 58 interactions** (48 reactions +
-4 productive decays + 2 growth edges + 4 hook edges, after ticket 07 charted
-the life epic's hooks).
-(This paragraph has now been updated three times - the counts here are
+Totals with today's roster: **20 elements and 47 interactions** - the graph's 58
+raw edges (48 reactions + 4 productive decays + 2 growth + 4 hook edges) folded
+onto the charted names, where lava's, fire's and acid's spokes to the plant's
+parts become one apiece and the burial joins `acid + seed` (ticket 08).
+(This paragraph has now been updated four times - the counts here are
 illustrative; the registry is the truth.)
 All counts are derived from the registry at runtime, never hardcoded - a new
 element or row changes the denominators automatically.
@@ -78,18 +95,24 @@ scene codec already treats as the stable identity across renumbering.
   `applyReactions` applies its pair, `applyLifetime` fires a decay with a
   product, or a hook reports its own transmutation (growth's vine cell, a
   germination, the sprout's raise, the tip's bloom - ticket 07).
-- An **element is discovered** when it is pre-known, or when any witnessed edge
-  names it as a product. There is no separate element-detection path: every
-  discoverable element is the product of at least one edge (obsidian and steam
-  from water + lava, sulphur from acid + wood, buried from seed + mud, moss and
-  sprout from germination, tip and stalk from the raise, flower from the bloom,
-  petal from the flower's decay, vine from growth, ember from fire + wood, ash
-  from fire + ember, mud from dirt + water or ash + water, smoke from several).
+- An **element is discovered** when it is pre-known, or when a witnessed edge
+  names it as a product - the edge the player actually saw, charted. A grouped
+  entry never discovers what the parts of it that have *not* fired would leave:
+  burning a stalk gives fire, not the steam a sprout gives (ticket 08). There is
+  no separate element-detection path: every discoverable element is the product
+  of at least one edge (obsidian and steam from water + lava, sulphur from acid
+  + wood, moss from germination, flower from the germination that comes up dry,
+  vine from growth, ember from fire + wood, ash from fire + ember, mud from dirt
+  + water or ash + water, smoke from several).
   The premise was broken on purpose between the life-followup merge and ticket
   07 (decision 10); the hook edges restored it.
   This keeps the engine seam to exactly one surface: edge witnessing.
-- An **element is mastered** when every edge naming it is witnessed. Mastery is
-  derived from the same edge set - nothing extra is recorded.
+- An **element is mastered** when every edge naming it is witnessed - every
+  *raw* edge, so a grouped entry masters nothing until all of the edges behind
+  it have fired (decision 11). Mastery is derived from the same edge set -
+  nothing extra is recorded. Note the consequence: an element can read its full
+  `seen/total` and still be unstarred, because the count is over charted entries
+  and the star is over the edges behind them.
 - An **unlockable element joins the paint rail when mastered** (appended after
   seed; the 1-9 hotkeys never move). v1: mastering mud's 5 edges makes mud
   paintable. Note the pacing this buys: two of mud's edges need ash, so the
@@ -155,17 +178,18 @@ element at a time, so the picture does not get busier as the roster grows.
 - **Entry point**: a "Field notes" control in the header next to SCENES:
   the words plus `witnessed/total` interactions. States: untouched (greyed
   numerals), in progress, a ~250ms inverted tick-up on witness, complete
-  (inverted chip). Nothing persists after 37/37. Desktop opens an overlay
+  (inverted chip). Nothing persists after 47/47. Desktop opens an overlay
   (1040px, scenes-popover chrome: 2px ink border, 6px offset shadow); mobile
   is a full-screen sheet.
-- **Counters** pinned in the panel header: elements `n/19`, interactions
-  `n/37`, plus a `NEW n` chip counting elements newly seen since the panel
+- **Counters** pinned in the panel header: elements `n/20`, interactions
+  `n/47`, plus a `NEW n` chip counting elements newly seen since the panel
   was last opened. All derived, never stored.
 - **Picker** (left column desktop, wrapped tile rows on phone): every element
   in tier order then rail order, each with its own `seen/total` count.
   Tier 0 = the 10 base paintables in rail order; products at minimum
-  transmutation depth (obsidian/steam/smoke/sulphur/mud/ember 1, moss/ash 2,
-  vine 3). Undiscovered elements keep their slot as a dark "?" tile with
+  transmutation depth (obsidian/steam/smoke/sulphur/mud/moss/ember/flower 1,
+  vine/ash 2 - charting buried as the seed it is put the whole plant one step
+  off the rail, ticket 08). Undiscovered elements keep their slot as a dark "?" tile with
   `- - -` for the name, and are not selectable. Layout is deterministic from
   the data - no hand-placed nodes.
 - **Ring**: the selected element centred, one spoke per **witnessed** entry.
@@ -189,7 +213,10 @@ element at a time, so the picture does not get busier as the roster grows.
   the name - no colour, no badge.
 - **Edge kinds**: reaction solid, decay long-dashed with an arrowhead at the
   product, growth dotted with an arrowhead. An arrowhead pointing into the
-  centre means the pair produces the focused element.
+  centre means the pair produces the focused element. A **stage** spoke - one
+  whose every name is the focused element itself, which is what the raise and
+  the bloom become once charted (ticket 08) - carries none: both ends of the
+  arrow would be the centre.
 - **The unlock**: mud's picker row states `n/5 to unlock`. On mastery an
   **EARNED control appears at the rail's foot** (scenes-popover chrome) and
   holds everything earned since - one control, however many unlocks follow
@@ -267,7 +294,28 @@ element at a time, so the picture does not get busier as the roster grows.
     **Resolved 2026-09-04 by ticket 07**: the four hook edges are in the graph
     (`HookEdge` in the generator, witness sites in `seedBank.ts`/`stalk.ts`),
     the premise above holds again, every element is tiered, and the interim
-    producer-less picker fallback is gone. 58 entries with today's roster.
+    producer-less picker fallback is gone. 58 raw edges with today's roster.
+11. **Species are charted, not listed** (2026-09-04, ticket 08, on PR #128
+    review): the chart's unit is the player's element, not the sim's species,
+    so `buried` charts as seed and sprout/tip/stalk/petal as flower (§1). Three
+    rulings shape it: a grouped entry is witnessed by *any* of the raw edges
+    behind it and mastered only by all of them (depth kept, hunting removed);
+    germinate, raise and bloom stay as separate charted stage entries under
+    flower rather than dropping out as self-loops, so the life cycle is still a
+    story to find; and the group's name is **flower**. The mapping is
+    presentation, in the graph derivation and not the sim, and the stored
+    witness keys stay raw - nothing migrates. 20 elements, 47 entries.
+
+    **Open, for Ed** (raised by ticket 08's review, not resolved by it): the two
+    halves of the first ruling pull apart on the elements that own a grouped
+    entry - flower, fire, lava, acid, seed. Their picker row counts charted
+    entries, so it can read `9/9` with `still to find: 0`, while the star waits
+    on raw edges the panel has no way to mention (spec §7 forbids naming them).
+    "Hunting removed" holds for the counts and not for the star. Mud is
+    unaffected - its six entries are one raw edge each - so the unlock and the
+    completion moment are honest today; this is a picker-legibility question,
+    and a candidate for its own ticket beside 09-11. The code implements the
+    ruling as written.
 
 ## 10. Handoff plan
 

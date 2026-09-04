@@ -59,10 +59,13 @@ function interactionOf(entry: Entry, view: FieldNotesView): readonly ElementRef[
 }
 
 function discoveryOf(entry: Entry, before: FieldNotesView, after: FieldNotesView): Moment {
-  // Witnessing an edge discovers every product of it, so these are exactly the
-  // products the player had not seen before - and all of them are discovered by
-  // the time this card exists, which is what makes naming them safe.
-  const found = entry.products.filter((name) => !before.discovered.has(name))
+  // Exactly the products the player had not seen before *and* has now, which is
+  // what makes naming them safe. Both halves are load-bearing since ticket 08: a
+  // charted entry lists what its raw edges can leave between them, and burning a
+  // stalk does not reveal the steam a sprout would have made.
+  const found = entry.products.filter(
+    (name) => !before.discovered.has(name) && after.discovered.has(name),
+  )
   const fresh = found.length > 0
   const tiles = fresh ? found.map((name) => refOf(name, after)) : interactionOf(entry, after)
 
@@ -106,13 +109,20 @@ export function momentsFor(
   index: EntryIndex = entryIndex(),
 ): readonly Moment[] {
   const moments: Moment[] = []
+  const raised = new Set<string>()
 
   for (const key of after.witnessed) {
     if (before.witnessed.has(key)) continue
     // A key this roster cannot resolve (a hand-edited blob, a renamed element)
     // counts for nothing anywhere else either - spec §5's forward compatibility.
     const entry = index.get(key)
-    if (entry) moments.push(discoveryOf(entry, before, after))
+    if (!entry) continue
+    // The card is for a new *entry*, not a new key: since ticket 08 several raw
+    // edges can share one charted entry, and the second flower part to burn is
+    // not news. `raised` catches the ones that arrive in the same batch.
+    if (raised.has(entry.key) || index.isWitnessed(entry.key, before.witnessed)) continue
+    raised.add(entry.key)
+    moments.push(discoveryOf(entry, before, after))
   }
   // Nothing was witnessed, so nothing can have been mastered either: a reset or
   // a `markReviewed` gets no cards, without either needing a case of its own.

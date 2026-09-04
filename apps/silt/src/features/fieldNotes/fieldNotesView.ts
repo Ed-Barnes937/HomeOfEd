@@ -43,9 +43,17 @@ export interface FieldNotesView {
   totals: { elements: Tally; interactions: Tally }
 }
 
-/** How many of `keys` have been witnessed. */
-function seenAmong(keys: readonly EdgeKey[], witnessed: ReadonlySet<EdgeKey>): number {
-  return keys.reduce((count, key) => (witnessed.has(key) ? count + 1 : count), 0)
+/**
+ * How many of `keys` have been witnessed. Through the index, never against the
+ * set directly: a charted entry is witnessed when any of the raw edges behind
+ * it has fired (ticket 08), and the stored set holds those raw keys.
+ */
+function seenAmong(
+  keys: readonly EdgeKey[],
+  witnessed: ReadonlySet<EdgeKey>,
+  index: EntryIndex,
+): number {
+  return keys.reduce((count, key) => (index.isWitnessed(key, witnessed) ? count + 1 : count), 0)
 }
 
 /**
@@ -72,13 +80,13 @@ export function fieldNotesView(
     counts: new Map(
       index.elements.map((name) => {
         const keys = index.entriesFor(name)
-        return [name, { seen: seenAmong(keys, witnessed), total: keys.length }]
+        return [name, { seen: seenAmong(keys, witnessed, index), total: keys.length }]
       }),
     ),
     totals: {
       elements: { seen: discovered.size, total: index.elements.length },
       // Only keys this roster knows count towards the denominator it shows.
-      interactions: { seen: seenAmong(index.keys, witnessed), total: index.keys.length },
+      interactions: { seen: seenAmong(index.keys, witnessed, index), total: index.keys.length },
     },
   }
 }

@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, test } from 'vitest'
 
 import { entryIndex } from './entries.ts'
-import { FieldNotesStore, createMemoryStorage, type FieldNotesStorage } from './fieldNotesStore.ts'
+import {
+  FieldNotesStore,
+  PROGRESS_KEY,
+  PROGRESS_VERSION,
+  createMemoryStorage,
+  type FieldNotesStorage,
+} from './fieldNotesStore.ts'
 import { fieldNotesView } from './fieldNotesView.ts'
 
 const notes = entryIndex()
@@ -104,6 +110,41 @@ describe('fieldNotesView()', () => {
 
     store.witness(['react:acid+wood'])
     expect([...reloaded().newElements]).toEqual(['sulphur'])
+  })
+
+  /**
+   * The migration that is not one (ticket 08). Charting the plant's parts as
+   * flower changed the view, not the store: these are the keys a player's blob
+   * held before the change, written by hand exactly as the sim reported them,
+   * and every one of them still lands on the entry it always did.
+   */
+  test('a blob written before the grouping derives the same progress after it', () => {
+    const written = [
+      'react:lava+water',
+      'react:mud+petal',
+      'react:lava+stalk',
+      'react:acid+buried',
+      'bloom:tip',
+      'raise:sprout',
+    ]
+    storage.setItem(
+      PROGRESS_KEY,
+      JSON.stringify({ version: PROGRESS_VERSION, edges: written, reviewed: written.length }),
+    )
+
+    const view = reloaded()
+
+    // Nothing is lost on the way in: the raw keys are still what is stored.
+    expect([...view.witnessed].sort()).toEqual([...written].sort())
+    // Six raw edges, six entries - none of these six shares a charted key.
+    expect(view.totals.interactions.seen).toBe(6)
+    // And what they discovered is what they always discovered, under the name
+    // the chart now gives it: a bloomed tip is a flower.
+    expect(view.discovered.has('flower')).toBe(true)
+    expect(view.discovered.has('steam')).toBe(true)
+    expect(view.counts.get('flower')).toEqual({ seen: 4, total: 9 })
+    // Mud's petal edge still counts for mud, charted as `react:flower+mud`.
+    expect(view.counts.get('mud')?.seen).toBe(1)
   })
 
   test('reset takes the derived sets back to a fresh install', () => {

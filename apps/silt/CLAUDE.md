@@ -392,6 +392,13 @@ else touches it.
   recomputed by `entries.ts` on every load, so nothing derived is stored and
   nothing stored can disagree with the roster. A new denominator is a roster
   change, not a migration.
+- **The chart counts elements, the sim counts species.** `buried` charts as
+  seed and sprout/tip/stalk/petal as flower, through `chartAs` on the derived
+  graph; `entries.ts` folds it in, so one charted entry can be backed by several
+  raw edges - witnessed by any of them, mastered only by all. **What is stored
+  and what the sim reports stay raw**: `witnessKeys`/`witnessKeysFor` are those
+  keys, `keys`/`entriesFor` are the charted ones, and confusing the two silently
+  breaks mastery. Changing the mapping needs no migration.
 - **`reviewed` is a count into `edges`, which is append-ordered** - the
   watermark the `NEW n` chip is measured against, so no element name is stored
   for it. `markReviewed()` is called **when the panel closes**: advancing it on

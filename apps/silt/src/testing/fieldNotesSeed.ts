@@ -7,13 +7,15 @@ import { entryIndex } from '../features/fieldNotes/entries.ts'
 import { PROGRESS_KEY, PROGRESS_VERSION } from '../features/fieldNotes/fieldNotesStore.ts'
 
 /**
- * Masters an element the way the sim eventually will: every entry that names it,
- * written into field notes' own key. The edges come off the live index rather
- * than a list here, so mud's five becoming six changes the roster and not the
- * tests.
+ * Masters an element the way the sim eventually will: every raw edge that names
+ * it, written into field notes' own key. Raw, because that is what the sim
+ * reports and the store holds - a charted entry is only mastered once every
+ * edge behind it has fired (ticket 08). The edges come off the live index
+ * rather than a list here, so mud's five becoming six changes the roster and
+ * not the tests.
  */
 export async function seedMastery(page: Page, elementName: string): Promise<void> {
-  await seedWitnessed(page, entryIndex().entriesFor(elementName))
+  await seedWitnessed(page, entryIndex().witnessKeysFor(elementName))
 }
 
 /**

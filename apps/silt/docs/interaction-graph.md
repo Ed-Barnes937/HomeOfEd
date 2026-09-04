@@ -193,3 +193,19 @@ only by reacting. A reaction edge is undirected and its label reads
 | buried         | 0.002 | air above -> sprout, buried -> dirt (sky open, no standing water)                      | germinate hook (seedBank.ts)       |
 | sprout         | -     | air above -> tip, sprout -> stalk (on the first tick the sky above is open)            | raise hook (stalk.ts)              |
 | tip            | -     | tip -> flower (budget spent, or boxed in)                                              | bloom hook (stalk.ts)              |
+
+## Charted as
+
+Everything above is the sim's own vocabulary, where a species owns a byte
+(ADR 0043). Field notes charts these ones as the element they belong to, so the
+player's chart counts a flower rather than four of its parts (discovery ticket
+08). Presentation only: the chemistry above and the witnessed edge keys are
+unaffected.
+
+| species | charted as |
+| ------- | ---------- |
+| buried  | seed       |
+| sprout  | flower     |
+| tip     | flower     |
+| stalk   | flower     |
+| petal   | flower     |

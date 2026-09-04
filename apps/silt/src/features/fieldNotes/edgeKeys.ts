@@ -44,6 +44,28 @@ export function hookKey(kind: HookEdgeKind, name: string): EdgeKey {
 }
 
 /**
+ * The same key with every element name in it put through `charted` (discovery
+ * ticket 08). The format is this module's business, and a charted key is an
+ * ordinary key over the charted names - `react:lava+stalk` becomes
+ * `react:flower+lava`, re-sorted, and `bloom:tip` becomes `bloom:flower`.
+ *
+ * Only ever called on keys this codec produced, which is why the two halves of
+ * a reaction key can be taken as read. Note what this is *not*: the keys the
+ * sim reports and the store holds are the raw ones, always. Charting happens on
+ * the way into the view (`entries.ts`), so nothing stored has to migrate when
+ * the mapping changes.
+ */
+export function chartedKey(key: EdgeKey, charted: (name: string) => string): EdgeKey {
+  const separator = key.indexOf(':')
+  const kind = key.slice(0, separator)
+  const rest = key.slice(separator + 1)
+
+  if (kind !== 'react') return `${kind}:${charted(rest)}`
+  const [a, b] = rest.split('+')
+  return reactionKey(charted(a!), charted(b!))
+}
+
+/**
  * The key for what the sim just witnessed. The sim reports the interaction and
  * names its elements, but deliberately knows nothing of this format - it sits
  * below field notes - so this is the one place the two vocabularies meet.

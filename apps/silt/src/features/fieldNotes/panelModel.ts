@@ -299,13 +299,19 @@ function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
       entry.products.find((name) => name !== focus) ??
       focus)
 
+  // Charting the plant's parts as one flower (ticket 08) leaves stage entries
+  // whose every name is the focus itself - the raise, the bloom. An arrowhead
+  // from an element to itself says nothing, so a stage carries none; anything
+  // else the focus is a reagent of points out at what it leaves, and only an
+  // edge that leaves the focus and nothing else points back in.
+  const stage = [...entry.reagents, ...entry.products].every((name) => name === focus)
   const direction: SpokeDirection = madeBy
     ? 'in'
-    : entry.kind === 'react'
+    : entry.kind === 'react' || stage
       ? 'none'
-      : entry.products.includes(focus)
-        ? 'in'
-        : 'out'
+      : entry.products.some((name) => name !== focus)
+        ? 'out'
+        : 'in'
 
   // A tile leading back to the centre is a dead tap, so the focused element is
   // never offered as one; the words still say what the interaction leaves.
@@ -336,7 +342,9 @@ export function ringFor(
 ): RingModel {
   const keys = index.entriesFor(focus)
   const spokes = keys
-    .filter((key) => view.witnessed.has(key))
+    // Through the index: a charted entry is witnessed when any of the raw edges
+    // behind it has fired (ticket 08), and the witnessed set holds raw keys.
+    .filter((key) => index.isWitnessed(key, view.witnessed))
     .flatMap((key) => {
       const entry = index.get(key)
       return entry ? [spokeOf(entry, focus, view)] : []
