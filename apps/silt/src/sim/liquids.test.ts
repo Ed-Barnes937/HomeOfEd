@@ -84,13 +84,22 @@ describe('liquid movement', () => {
     expect(sim.speciesAt(10, 11)).toBe(WATER)
   })
 
+  /**
+   * **Oil rather than water since life ticket 05.** These two cases are about
+   * the *kernel* - spreading, levelling, and then going quiet (ADR 0038) - and a
+   * one-cell-deep sheet of water on open ground is no longer a resting state: it
+   * is a film, and it lifts as steam (`evaporation.ts`, ADR 0044). Oil is the
+   * roster's other plain liquid and carries no hook, so the claim survives the
+   * chemistry. Its `move` throttle is half water's pace, which is the whole of
+   * why the tick budgets here are doubled.
+   */
   it('spreads sideways along a floor it cannot fall through', () => {
     const sim = withFloor(new Sim({ seed: 1 }))
-    pourColumn(sim, 150, 12, WATER)
+    pourColumn(sim, 150, 12, OIL)
 
-    for (let i = 0; i < 200; i++) sim.tick()
+    for (let i = 0; i < 400; i++) sim.tick()
 
-    const water = cellsOf(sim, WATER)
+    const water = cellsOf(sim, OIL)
     expect(water).toHaveLength(12)
 
     // A column 12 tall has levelled when it is no longer 12 tall and has
@@ -103,11 +112,11 @@ describe('liquid movement', () => {
 
   it('flattens to one layer on open ground and lets the world go quiet', () => {
     const sim = withFloor(new Sim({ seed: 1 }))
-    pourColumn(sim, 150, 12, WATER)
+    pourColumn(sim, 150, 12, OIL)
 
-    for (let i = 0; i < 400; i++) sim.tick()
+    for (let i = 0; i < 800; i++) sim.tick()
 
-    const water = cellsOf(sim, WATER)
+    const water = cellsOf(sim, OIL)
     expect(water).toHaveLength(12)
     expect(water.every((c) => c.y === FLOOR - 1)).toBe(true)
     // And then stops dead. Under the coin this never quite happened — a cell
@@ -241,6 +250,12 @@ describe('liquid direction persistence', () => {
     restoreWith(sim, (put) => {
       for (let x = 0; x < GRID_WIDTH; x++) put(x, FLOOR, OBSIDIAN)
       put(20, FLOOR - 1, OBSIDIAN)
+      // **Lidded since life ticket 05.** The current is one cell deep, so under
+      // an open sky every cell of it is a film with a draw to make every tick
+      // (`evaporation.ts`) - which moves the shared PRNG stream out from under
+      // an assertion that is about the opinion byte and nothing else. Roofed,
+      // the hook returns before it draws and the current is left alone.
+      for (const x of [16, 17, 18, 19, 20]) put(x, FLOOR - 2, OBSIDIAN)
       for (const x of [17, 18, 19]) put(x, FLOOR - 1, WATER, running)
     })
 
@@ -270,7 +285,15 @@ describe('liquid direction persistence', () => {
     for (let i = 0; i < 600; i++) sim.tick()
 
     const water = cellsOf(sim, WATER)
-    expect(water).toHaveLength(30 * 12)
+    // **359 of the 360 poured, and the missing one is not the kernel's.** The
+    // pool spends the first of these 600 ticks stepped rather than level, and a
+    // stepped surface has film on it - open sky above, shelf below - which since
+    // the deletion ruling dries out of the world instead of lofting and raining
+    // back in (`evaporation.ts`, ADR 0044 §6). This read `30 * 12` while that
+    // cell came back as steam. Measured at seed 1: exactly one cell, once the
+    // pool is level there is no film left anywhere in it, and the count is then
+    // stable - which is the kernel claim this case is really making.
+    expect(water).toHaveLength(30 * 12 - 1)
 
     const surfaceOf = (from: number, to: number) => {
       const side = water.filter((c) => c.x >= from && c.x <= to)

@@ -5,10 +5,15 @@ import { DeferredMoves } from './moves.ts'
 import { Grid } from './grid.ts'
 import { applyArchetype } from './kernels.ts'
 import { applyLifetime, applyReactions } from './lifecycle.ts'
-import { createRegistry, type ElementRegistry, type ResolvedLifetime } from './registry.ts'
+import {
+  createRegistry,
+  requireRaIsFree,
+  type ElementRegistry,
+  type ResolvedLifetime,
+} from './registry.ts'
 import { Rng } from './rng.ts'
 import type { Chunk } from './chunks.ts'
-import type { ElementDef, ReactionRow } from './types.ts'
+import type { ElementDef, ReactionRow, SetOptions } from './types.ts'
 
 export interface SimOptions {
   /** Per-session, not persisted — determinism serves tests, not replay. */
@@ -119,12 +124,20 @@ export class Sim {
    * is born with a colour variant in `rb` (sandspiel ticket 03), which is what
    * keeps a poured heap from reading as one flat slab; spawners emit through
    * here, so their grains are seeded too.
+   *
+   * `options.ra` is the scene-builder half of ticket 01: a built scene can hand
+   * a cell its `ra` so a pre-grown meadow is not one synchronised cohort that
+   * dies together on the tick its whole generation was placed.
    */
-  paint(x: number, y: number, species: number): void {
+  paint(x: number, y: number, species: number, options?: SetOptions): void {
     if (species !== EMPTY && !this.registry.get(species)) {
       throw new Error(`unknown species ${species}`)
     }
+    const ra = options?.ra
+    if (ra !== undefined) requireRaIsFree(this.registry, species)
+
     this.#grid.write(x, y, species, this.#settledClock(), this.#rng.randInt(256))
+    if (ra !== undefined) this.#grid.setRa(x, y, ra)
     // `write` only marks the chunk dirty for the *next* tick; a paint lands
     // between ticks, so it has to wake the chunk for the one about to run.
     this.#grid.chunks.activate(x, y)
@@ -278,7 +291,9 @@ export class Sim {
     applyReactions(api, this.registry)
     if (api.get(0, 0) !== def.id) return
 
-    if (lifetime && !applyLifetime(api, lifetime)) return
+    // `#generation` is the tick being run - it is bumped only once the scan is
+    // over - and is the phase a coarse countdown draws on.
+    if (lifetime && !applyLifetime(api, lifetime, this.#generation)) return
 
     def.onTick?.(api)
   }

@@ -3,16 +3,17 @@ import { describe, expect, it } from 'vitest'
 import {
   ACID,
   ASH,
+  BURIED,
   DIRT,
   EMBER,
   EMPTY,
   FIRE,
-  MOSS,
   MUD,
   OBSIDIAN,
   SAND,
   SEED,
   SMOKE,
+  STEAM,
   WATER,
   WOOD,
   v1Elements,
@@ -247,29 +248,47 @@ describe('ash and the burn-to-regrowth loop', () => {
     expect(wetted).toBeGreaterThan(0)
     // Two cells in, one out: each cell of mud costs a cell of water.
     expect(count(sim, MUD)).toBe(wetted)
-    expect(waterBefore - count(sim, WATER)).toBe(wetted)
+    // Two routes out and only two, exactly as in `soil.test.ts`'s twin of this
+    // case: `water + ash` takes it into the soil, and a film left standing on
+    // the wetted bed dries out of the world (ADR 0045 §4). What is pinned is
+    // that the remainder is the drying and nothing else.
+    //
+    // Measured at seed 1: 42 of the 44 poured cells wetted ash and 2 dried.
+    // `soil.test.ts` leaks 21 on the same geometry and the same p 0.4, and the
+    // difference is that ash is a *powder* denser than water (35 against 30):
+    // the pour sinks into the drift and meets it all, where a static dirt bed
+    // only ever offers its surface and leaves the rest of the pour standing on
+    // top as film.
+    const spent = waterBefore - count(sim, WATER) - count(sim, STEAM)
+    expect(spent - wetted).toBe(2)
   })
 
   // The loop, end to end (spec §3): what burned leaves ash, rain turns the ash
-  // to soil, and a seed planted in it regrows. One loose assertion on purpose -
-  // every row it crosses is pinned above or in `life.test.ts`, so what is worth
-  // asserting here is only that the chain joins up at all.
-  it('closes the loop: rain on an ash bed grows a seed into moss', () => {
+  // to soil, and a seed dropped on it banks for the next generation. One loose
+  // assertion on purpose - every row it crosses is pinned above or in
+  // `life.test.ts`, so what is worth asserting here is only that the chain joins
+  // up at all.
+  //
+  // **The far end of the chain moved with the seed bank** (life spec §4.1): the
+  // seed used to sprout moss on contact, and now it buries instead, so what
+  // closes the loop here is the bank rather than a plant. Germination is the
+  // bank's own business and `life.test.ts` pins it.
+  it('closes the loop: rain on an ash bed banks a seed in what burned', () => {
     const sim = new Sim({ seed: 1 })
     pour(sim, ASH)
     sim.paint(50, FLOOR - 16, SEED)
 
-    // Ticked until it sprouts rather than for a fixed budget: what is pinned is
-    // that the chain joins up, not how long it took. Measured, the water
-    // reaches the bed and the first mud appears at tick 5 and the moss at tick
-    // 12, so 400 is a horizon rather than a bound.
+    // Ticked until it banks rather than for a fixed budget: what is pinned is
+    // that the chain joins up, not how long it took. Measured, the water reaches
+    // the bed and the first mud appears at tick 5; burial is a rate (p 0.1) on
+    // top of that, so 400 is a horizon rather than a bound.
     let ticks = 0
-    while (count(sim, MOSS) === 0 && ticks < 400) {
+    while (count(sim, BURIED) === 0 && ticks < 400) {
       sim.tick()
       ticks++
     }
 
-    expect(count(sim, MOSS)).toBeGreaterThan(0)
+    expect(count(sim, BURIED)).toBeGreaterThan(0)
     // And it came through the ash: nothing else in this world makes mud.
     expect(count(sim, MUD)).toBeGreaterThan(0)
   })
