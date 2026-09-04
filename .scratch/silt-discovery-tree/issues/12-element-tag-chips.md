@@ -1,6 +1,6 @@
 # 12 - Tag chips on the focused element's entry
 
-**Status:** ready-for-agent
+**Status:** done (built on worktree-agent-ab8a8a41d080b143c, 2026-09-04)
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - "add tags for the element
 at the top of its field notes entry, `[flammable]` for e.g.".
@@ -35,3 +35,42 @@ has business with it.
 - panelModel: wood's row model carries `[solid] [flammable]`; an unknown tag is
   dropped; a hidden element's model carries no tags field at all.
 - iwft (thin): select wood in the panel, the flammable chip is visible.
+
+## As built
+
+- `elementTags(registry)` joins `elementAppearances` in
+  `features/fieldNotes/elementAppearance.ts` - the **raw** name-keyed sim tags,
+  off the same registry the tiles are drawn from. No sim change, no store
+  change, and the panel is still the only thing that reads a registry.
+- The allowlist (`TAG_LABELS`) and `chipsOf` live in `panelModel.ts`. It is
+  ordered, and the chip order is the allowlist's, not the roster's - so wood
+  reads `[solid] [flammable]` whichever way its `tags` array is written.
+- **`energy` shows.** The paint rail already groups fire under a player-facing
+  "Energy" heading (`features/palette/paletteGroups.ts`), so dropping the word
+  here would leave two surfaces disagreeing about one element; and it says
+  something the gas hexagon does not. It keys no reaction row today, which
+  makes it the weakest chip on the list rather than a wrong one. Recorded in
+  the allowlist comment, as the ticket asked. `wall` is deliberately absent:
+  it belongs to the out-of-bounds sentinel, not to any element.
+- Styling is `.newChip`'s 2px ink border with `.counterLabel`'s type. The chips
+  sit at a fixed 55px under the centre name; because that offset does not scale
+  with the ring, `mobile.iwft.tsx` holds them clear of the spoke tiles at a real
+  phone viewport rather than trusting the arithmetic.
+
+## Deviations from the ticket
+
+Both were raised by the review pass and are deliberate.
+
+1. **"Nothing new goes through `refOf`"** - reversed. The chips *are* filled in
+   by `refOf`, because that is the existing masking seam: putting them there
+   means the one `discovered` check that withholds a hidden element's name
+   withholds its tags on the same line, instead of a second guard that a future
+   caller could forget. The cost is that `refOf`'s three `moments.ts` call sites
+   now have a tags channel; none passes a source, so no moment card can grow
+   chips by accident, but it is a channel that did not exist before.
+2. **"wood's row model carries `[solid] [flammable]`"** - the *ring centre*
+   carries them, not the picker row. Threading a tag source into `pickerRows`
+   put an allowlist pass over all 25 rows on every view change to populate a
+   field nothing renders (the Design section puts the chips in the ring header
+   only), so `ringFor` is the sole supplier. `PickerRow` still inherits the
+   optional `tags`, and a test pins that it stays absent.

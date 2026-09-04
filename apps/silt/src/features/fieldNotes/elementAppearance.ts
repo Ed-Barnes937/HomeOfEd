@@ -34,3 +34,16 @@ export function elementAppearances(registry: ElementRegistry): ElementAppearance
       .map((def) => [def.name, { hex: def.colours[0] ?? '#000000', shape: def.archetype.kind }]),
   )
 }
+
+/**
+ * An element's **raw** sim tags, name-keyed. Raw on purpose: the allowlist that
+ * decides which of them a player ever reads, and under what word, is
+ * `panelModel`'s (ticket 12), so a tag invented in the roster tomorrow cannot
+ * leak into the panel without a decision there.
+ */
+export type ElementTags = ReadonlyMap<string, readonly string[]>
+
+/** Every element's declared tags, off the same registry the tiles are drawn from. */
+export function elementTags(registry: ElementRegistry): ElementTags {
+  return new Map(registry.all().map((def) => [def.name, def.tags]))
+}

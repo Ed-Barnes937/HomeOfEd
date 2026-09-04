@@ -16,7 +16,7 @@ import { useArmedConfirm } from '../../hooks/useArmedConfirm.ts'
 import { useMobileLayout } from '../../hooks/useMobileLayout.ts'
 import type { ElementRegistry } from '../../sim/index.ts'
 import { ElementRefTile, ElementTile, type TileSize } from './ElementTile.tsx'
-import { elementAppearances, type ElementAppearances } from './elementAppearance.ts'
+import { elementAppearances, elementTags, type ElementAppearances } from './elementAppearance.ts'
 import type { FieldNotesView } from './fieldNotesView.ts'
 import { pickerRows, ringFor, type ElementRef, type Spoke } from './panelModel.ts'
 import {
@@ -57,6 +57,8 @@ function MasteryStar() {
 
 export function FieldNotesPanel(props: FieldNotesPanelProps) {
   const appearances = useMemo(() => elementAppearances(props.registry), [props.registry])
+  // The raw sim tags; `panelModel` decides which of them a player ever reads.
+  const tags = useMemo(() => elementTags(props.registry), [props.registry])
   const rows = useMemo(() => pickerRows(props.view), [props.view])
 
   // Panel-local, both of them: which element the ring holds, and which rows
@@ -71,7 +73,10 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
   const pickerTile: TileSize = useMobileLayout() ? 30 : 22
 
   const focus = selected ?? rows.find((row) => row.discovered)?.name ?? null
-  const ring = useMemo(() => (focus ? ringFor(focus, props.view) : null), [focus, props.view])
+  const ring = useMemo(
+    () => (focus ? ringFor(focus, props.view, tags) : null),
+    [focus, props.view, tags],
+  )
   // Nothing witnessed at all is the empty state, not a ring with no spokes:
   // there is no entry count to give, nothing left to find that means anything,
   // and nothing to forget either, so the footer goes with it.
@@ -215,6 +220,21 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                   <span data-testid="field-notes-centre">{chart.centre.label}</span>
                   {chart.mastered ? <MasteryStar /> : null}
                 </span>
+                {/* The focused element's sim tags, under its name (ticket 12).
+                    `panelModel` withholds them from anything undiscovered, so
+                    there is no spoiler check to repeat here. */}
+                {chart.centre.tags?.length ? (
+                  <span
+                    className={styles.centreTags}
+                    style={at(RING.centre, RING.centre)}
+                  >
+                    {chart.centre.tags.map((tag) => (
+                      <span key={tag} className={styles.tagChip} data-testid="field-notes-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
 
                 {chart.spokes.map((spoke, index) => (
                   <SpokeView

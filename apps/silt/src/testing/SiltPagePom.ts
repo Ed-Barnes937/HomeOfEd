@@ -140,6 +140,45 @@ export class SiltPagePom extends BasePage {
     return this.statusText('field-notes-centre')
   }
 
+  /**
+   * The tag chips under the ring centre's name, in the order they are drawn.
+   * `allTextContents`, not `allInnerTexts`: the chips are uppercased in CSS, and
+   * the words the model chose are what this is asserting.
+   */
+  async focusedNoteTags(): Promise<string[]> {
+    return this.page.getByTestId('field-notes-tag').allTextContents()
+  }
+
+  /**
+   * The chips sit at a fixed px offset under the centre name while the ring
+   * itself is sized off the viewport, so the phone sheet's smaller ring is the
+   * one layout where they could end up under a spoke tile (ticket 12). Asserts
+   * they are drawn and that no spoke tile overlaps them.
+   */
+  async verifyFocusedNoteTagsAreClearOfTheRing(): Promise<void> {
+    const chips = this.page.getByTestId('field-notes-tag')
+    await expect(chips.first()).toBeVisible()
+
+    const boxes = await chips.all().then((all) => Promise.all(all.map((chip) => chip.boundingBox())))
+    const tiles = await this.page
+      .getByTestId(/^field-notes-spoke-/)
+      .all()
+      .then((all) => Promise.all(all.map((tile) => tile.boundingBox())))
+
+    for (const chip of boxes) {
+      expect(chip).not.toBeNull()
+      for (const tile of tiles) {
+        if (!chip || !tile) continue
+        const apart =
+          chip.x + chip.width <= tile.x ||
+          tile.x + tile.width <= chip.x ||
+          chip.y + chip.height <= tile.y ||
+          tile.y + tile.height <= chip.y
+        expect(apart).toBe(true)
+      }
+    }
+  }
+
   /** What a picker row says about itself: its label and its `seen/total`. */
   async noteRow(name: string): Promise<string> {
     return (await this.page.getByTestId(`field-notes-row-${name}`).textContent()) ?? ''

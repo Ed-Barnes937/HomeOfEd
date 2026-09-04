@@ -257,6 +257,7 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 
 .centre,
 .centreName,
+.centreTags,
 .spokeTile,
 .spokeName,
 .spokeOutcome,
@@ -280,6 +281,32 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+// The focused element's tags, one line under its name (ticket 12). 55px clears
+// `.centreName` (34px, ~18px tall) and still sits well inside the nearest ring
+// tile, whose own top edge is 92px down even in the phone sheet's smaller 340px
+// ring - `mobile.iwft.tsx` holds that clearance to a real phone viewport, since
+// the offset is a fixed px like `.centreName`'s and does not scale with the ring.
+.centreTags {
+  transform: translate(-50%, 55px);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+// `.newChip`'s border and `.counterLabel`'s type: a tag is a fact about the
+// element, read the same way as a count.
+.tagChip {
+  border: 2px solid $ink;
+  background: $raised;
+  padding: 1px 4px;
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $body;
 }
 
 .spokeTile,

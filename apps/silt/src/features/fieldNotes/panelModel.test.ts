@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'vitest'
 
+import { createRegistry, v1Elements, v1Reactions } from '../../sim/index.ts'
+import { elementTags } from './elementAppearance.ts'
 import { entryIndex } from './entries.ts'
 import { fieldNotesView } from './fieldNotesView.ts'
 import type { Progress } from './fieldNotesStore.ts'
 import { HIDDEN_NAME, pickerRows, ringFor } from './panelModel.ts'
 
 const notes = entryIndex()
+const tags = elementTags(createRegistry(v1Elements, v1Reactions))
 
 /** A player who has witnessed exactly `edges`, with nothing left unreviewed. */
 function progressOf(...edges: string[]): Progress {
@@ -188,6 +191,52 @@ describe('the ring', () => {
     })
     expect(ringFor('obsidian', viewOf('react:lava+water')).mastered).toBe(true)
     expect(ringFor('water', viewOf('react:lava+water')).mastered).toBe(false)
+  })
+})
+
+describe('tag chips (ticket 12)', () => {
+  test("the focused element's chips name the sim tags the reaction table keys on", () => {
+    // Wood is the whole point of the ticket: "flammable" on wood *is* the hint
+    // that fire has business with it.
+    expect(ringFor('wood', viewOf(), tags).centre.tags).toEqual(['solid', 'flammable'])
+    expect(ringFor('water', viewOf(), tags).centre.tags).toEqual(['liquid'])
+  })
+
+  test('chips come out in allowlist order, never in the roster declaration order', () => {
+    const shuffled = new Map([['wood', ['flammable', 'solid']]])
+    expect(ringFor('wood', viewOf(), shuffled).centre.tags).toEqual(['solid', 'flammable'])
+  })
+
+  test('an unknown tag is dropped, never shown raw (the allowlist)', () => {
+    const invented = new Map([['wood', ['solid', 'sticky', 'flammable']]])
+    expect(ringFor('wood', viewOf(), invented).centre.tags).toEqual(['solid', 'flammable'])
+  })
+
+  test('energy is shown: the rail already groups fire under that word', () => {
+    expect(ringFor('fire', viewOf(), tags).centre.tags).toEqual(['gas', 'energy'])
+  })
+
+  test('a hidden element carries no tags field at all (spec §7)', () => {
+    const view = viewOf()
+    expect(view.discovered.has('obsidian')).toBe(false)
+    expect('tags' in ringFor('obsidian', view, tags).centre).toBe(false)
+
+    // Discovering it is the only thing that turns the chips on.
+    expect(ringFor('obsidian', viewOf('react:lava+water'), tags).centre.tags).toEqual([
+      'solid',
+    ])
+  })
+
+  test('chips reach the ring centre only, never a spoke partner or a product tile', () => {
+    const [spoke] = ringFor('water', viewOf('react:lava+water'), tags).spokes
+    expect(spoke && 'tags' in spoke.partner).toBe(false)
+    expect(spoke?.tiles.every((tile) => !('tags' in tile))).toBe(true)
+  })
+
+  test('no tag source, no chips: the picker rows and a default ring carry none', () => {
+    expect('tags' in ringFor('wood', viewOf()).centre).toBe(false)
+    const row = pickerRows(viewOf()).find((candidate) => candidate.name === 'wood')
+    expect(row && 'tags' in row).toBe(false)
   })
 })
 

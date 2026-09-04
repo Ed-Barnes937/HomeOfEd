@@ -20,11 +20,47 @@
  *   witnesses `lava + mud` without mud ever having been discovered.
  */
 import type { EdgeKey, EdgeKind } from './edgeKeys.ts'
+import type { ElementTags } from './elementAppearance.ts'
 import { entryIndex, UNLOCKABLE_NAMES, type Entry, type EntryIndex } from './entries.ts'
 import type { FieldNotesView } from './fieldNotesView.ts'
 
 /** What an undiscovered element reads as, anywhere its name would go (spec §7). */
 export const HIDDEN_NAME = '- - -'
+
+/**
+ * The sim tags a player is allowed to read (ticket 12), in the order they are
+ * chipped. An allowlist rather than a pass-through, in this one place, because
+ * the tags are engine vocabulary - the reaction table's keys - and a tag
+ * invented for the roster tomorrow must not leak into the panel as jargon
+ * without a decision here. The order is this array's, not the roster's, so wood
+ * reads `[solid] [flammable]` whichever way its `tags` happen to be written.
+ *
+ * Every tag currently reads as itself, which is why this is a list and not a
+ * tag -> word map: the day a tag needs a different word is the day the map
+ * earns its shape.
+ *
+ * - The four archetype-ish tags are in. The tile shape already carries them
+ *   (square, cut corners, diamond, hexagon), but a shape has no accessible
+ *   name, and the word is what a screen reader has.
+ * - `flammable` is the tag the ticket is really about: it is what the
+ *   `fire + [flammable]` row keys on, so it is a hint the player can act on.
+ * - **`energy` is in.** The call was left open in the ticket. It goes in
+ *   because the paint rail already groups fire under a player-facing "Energy"
+ *   heading (`features/palette/paletteGroups.ts`), so hiding the same word here
+ *   would leave two surfaces disagreeing about one element; and unlike the
+ *   other four it says something the hexagon does not - fire is a gas that
+ *   burns things, not just a gas. It keys no reaction row today, which makes it
+ *   the weakest chip on the list, not a wrong one.
+ * - `wall` is out: it belongs to the out-of-bounds sentinel and names no
+ *   element the player can ever reach.
+ */
+const TAG_CHIPS: readonly string[] = ['solid', 'powder', 'liquid', 'gas', 'energy', 'flammable']
+
+/** The allowlisted tags of `raw`, in `TAG_CHIPS` order. Everything else is dropped. */
+function chipsOf(raw: readonly string[]): readonly string[] {
+  const declared = new Set(raw)
+  return TAG_CHIPS.filter((tag) => declared.has(tag))
+}
 
 /** Separates the two reagents of the pair that makes the focused element. */
 const REAGENT_JOIN = ' + '
@@ -42,6 +78,14 @@ export interface ElementRef {
   label: string
   /** Discovered elements are the only selectable ones. */
   discovered: boolean
+  /**
+   * The element's tag chips, already allowlisted and ordered (ticket 12).
+   * **Absent unless the element has been discovered *and* the caller supplied a
+   * tag source**, so a hidden element carries no tags at all. Only `ringFor`
+   * supplies one, and only for the centre: the picker rows, the spoke partners
+   * and the product tiles are drawn too small for words, so they carry none.
+   */
+  tags?: readonly string[]
 }
 
 export interface PickerRow extends ElementRef {
@@ -91,10 +135,16 @@ export interface RingModel {
  * The masking seam (spec §7): the one place a name becomes something that may
  * be drawn. The moment cards use it too - a card raised over the world is as
  * public as a row in the panel.
+ *
+ * `tags` is optional and only ever consulted for a *discovered* element, which
+ * is what makes the chips spoiler-safe by construction rather than by the
+ * caller remembering: the same guard that masks the name withholds them.
  */
-export function refOf(name: string, view: FieldNotesView): ElementRef {
+export function refOf(name: string, view: FieldNotesView, tags?: ElementTags): ElementRef {
   const discovered = view.discovered.has(name)
-  return { name, label: discovered ? name : HIDDEN_NAME, discovered }
+  const ref: ElementRef = { name, label: discovered ? name : HIDDEN_NAME, discovered }
+  if (discovered && tags) ref.tags = chipsOf(tags.get(name) ?? [])
+  return ref
 }
 
 /**
@@ -183,6 +233,7 @@ function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
 export function ringFor(
   focus: string,
   view: FieldNotesView,
+  tags?: ElementTags,
   index: EntryIndex = entryIndex(),
 ): RingModel {
   const keys = index.entriesFor(focus)
@@ -194,7 +245,10 @@ export function ringFor(
     })
 
   return {
-    centre: refOf(focus, view),
+    // Only the centre gets chips: it is the one element the panel is focused
+    // on, and the spokes' partners and product tiles are drawn small and
+    // wordless (ticket 12).
+    centre: refOf(focus, view, tags),
     spokes,
     seen: spokes.length,
     stillToFind: keys.length - spokes.length,

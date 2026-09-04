@@ -75,10 +75,12 @@ src/
                               renders; useFieldNotes - the page's single seam,
                               React wiring over those two. panelModel - the
                               picker rows and one element's ring as data, incl.
-                              the masking every rendered name goes through;
-                              ElementTile - *the* tile helper, hex + archetype
-                              in, every tile in the feature out;
-                              elementAppearance - name -> hex/shape off the
+                              the masking every rendered name goes through and
+                              the allowlist deciding which sim tags a player
+                              ever reads; ElementTile - *the* tile helper,
+                              hex + archetype in, every tile in the feature out;
+                              elementAppearance - name -> hex/shape and name ->
+                              raw tags, both off the
                               registry; FieldNotesButton (the header chip) and
                               FieldNotesPanel (overlay + phone sheet); moments -
                               the cards, derived as a *diff of two views*, with
@@ -414,7 +416,19 @@ else touches it.
   every name the panel renders goes through `panelModel`'s `refOf`, which is
   why the invariant is a vitest case and not a review habit. The masking is not
   hypothetical - a pre-trim scene restores painted mud, so `react:lava+mud` can
-  be witnessed while mud itself has never been discovered.
+  be witnessed while mud itself has never been discovered. **A second spoiler
+  surface now rides the same seam**: an element's tag chips (ticket 12) are
+  filled in by `refOf` under the same discovered check that masks the name, so
+  a hidden element carries no tags at all. Anything else the panel learns to
+  say about an element belongs there too, rather than in a fresh guard.
+- **Engine vocabulary never reaches the player raw.** The sim's tags are the
+  reaction table's keys, not player-facing words, so `panelModel`'s `TAG_LABELS`
+  is an allowlist rather than a pass-through: a tag invented for the roster
+  tomorrow is dropped from the panel until someone decides what it should read
+  as. `elementAppearance`'s `elementTags` deliberately hands over the **raw**
+  tags so that decision has exactly one home. `energy` is in (the rail already
+  groups fire under that word - `features/palette/paletteGroups.ts`); `wall` is
+  out (it belongs to the out-of-bounds sentinel, not to any element).
 - **A moment is a diff of two views, not a second reading of the sim.** The
   sim reports a first witness once (`useSimLoop`'s `onWitnessed` into
   `witness`); everything after that - the chip's tick, the panel, the rail's

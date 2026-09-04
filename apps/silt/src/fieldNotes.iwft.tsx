@@ -105,6 +105,26 @@ test('the ring draws only witnessed entries, and a product tile follows itself',
   expect(await root.focusedNote()).toBe('lava')
 })
 
+test('the focused element wears its sim tags under its name (ticket 12)', async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, SEEDED)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openFieldNotes()
+
+  // Which words the allowlist picks is `panelModel.test.ts`'s; what this is for
+  // is that they reach the screen and follow the focus. "flammable" on wood *is*
+  // the hint that fire has business with it.
+  await root.selectNote('wood')
+  expect(await root.focusedNote()).toBe('wood')
+  expect(await root.focusedNoteTags()).toContain('flammable')
+
+  await root.selectNote('water')
+  expect(await root.focusedNoteTags()).not.toContain('flammable')
+})
+
 /**
  * The invariant, from the design notes: nothing in the panel may name a hidden
  * element. It is not hypothetical - a scene saved before the rail trim restores

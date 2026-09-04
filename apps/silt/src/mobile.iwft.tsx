@@ -137,6 +137,11 @@ test('field notes opens as a full-screen sheet whose picker is still tappable', 
 
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
+  // The tag chips sit at a fixed offset under the centre name, so the sheet's
+  // smaller ring is the layout that could bury them under a spoke tile
+  // (ticket 12).
+  await root.verifyFocusedNoteTagsAreClearOfTheRing()
+
   await root.followProduct('obsidian')
   expect(await root.focusedNote()).toBe('obsidian')
 
