@@ -29,7 +29,7 @@ import {
 } from './panelModel.ts'
 import {
   arrowPoints,
-  outcomePoint,
+  labelPoint,
   RING,
   spokeLine,
   spokePoint,
@@ -380,7 +380,9 @@ interface SpokeViewProps {
 /** One witnessed entry: its partner on the ring, its outcome on the line. */
 function SpokeView(props: SpokeViewProps) {
   const { appearances, spoke, point } = props
-  const outcome = outcomePoint(point)
+  // One point for the words and the tiles that hang under them, and it steps
+  // clear of the arrowheads rather than sitting on one (`labelPoint`).
+  const outcome = labelPoint(point)
 
   return (
     <>

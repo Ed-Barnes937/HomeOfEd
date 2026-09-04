@@ -1,6 +1,6 @@
 # 10 - Arrowheads hide behind outcome labels at some spoke angles
 
-**Status:** ready-for-agent
+**Status:** done (built on worktree-agent-ae01313fc83184d94, 2026-09-04)
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04), with screenshot - tip's
 ring, the `tip · stalk` label sitting on top of the arrowhead so the direction
