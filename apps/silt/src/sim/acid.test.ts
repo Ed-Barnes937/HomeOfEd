@@ -2,16 +2,26 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACID,
+  ASH,
   DIRT,
+  EMBER,
   EMPTY,
   FIRE,
+  FLOWER,
   LAVA,
+  MOSS,
   OBSIDIAN,
   OIL,
+  PETAL,
   SAND,
+  SEED,
   SMOKE,
+  SPROUT,
+  STALK,
   STONE,
   SULPHUR,
+  TIP,
+  VINE,
   WATER,
   WOOD,
   v1Elements,
@@ -98,8 +108,8 @@ describe('the acid group', () => {
   // whole-table assertion here would make every later stage break this file.
   // The slice still pins order — which is load-bearing (spec §1.2) — over the
   // prefix this stage owns, and the last stage's test pins the full length.
-  it('declares rows 1–21 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 21).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–29 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 29).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -117,6 +127,14 @@ describe('the acid group', () => {
       ['ember', 'wood'],
       ['water', 'ember'],
       ['acid', 'wood'],
+      ['acid', 'moss'],
+      ['acid', 'vine'],
+      ['acid', 'seed'],
+      ['acid', 'sprout'],
+      ['acid', 'stalk'],
+      ['acid', 'tip'],
+      ['acid', 'flower'],
+      ['acid', 'petal'],
       ['acid', 'solid'],
       ['acid', 'powder'],
       ['acid', 'water'],
@@ -138,6 +156,46 @@ describe('the acid group', () => {
     expect(registry.reactionFor(WOOD, ACID)).toMatchObject({
       aBecomes: EMPTY,
       bBecomes: SULPHUR,
+    })
+  })
+
+  // The same trap, eight more times: every plant is hardness 0, so acid's
+  // `[solid]`/`[powder]` rows cover all eight pairs and would erase them with no
+  // residue if any of these rows slipped below them (ticket 15).
+  it.each([
+    ['moss', MOSS],
+    ['vine', VINE],
+    ['seed', SEED],
+    ['sprout', SPROUT],
+    ['stalk', STALK],
+    ['tip', TIP],
+    ['flower', FLOWER],
+    ['petal', PETAL],
+  ])('registers acid + %s as a sulphur row, not the plain-dissolve row', (_name, plant) => {
+    expect(registry.reactionFor(ACID, plant)).toMatchObject({
+      p: 0.3,
+      aBecomes: SULPHUR,
+      bBecomes: EMPTY,
+    })
+    // Symmetric, as acid + wood is: reached from the plant side, the residue
+    // still lands on the acid cell and the plant cell is the cavity.
+    expect(registry.reactionFor(plant, ACID)).toMatchObject({
+      p: 0.3,
+      aBecomes: EMPTY,
+      bBecomes: SULPHUR,
+    })
+  })
+
+  // The other half of the roster ruling: ember and ash are spent material, not
+  // living tissue, so they keep the tag rows' plain dissolve. This is the case
+  // that fails if a later change reaches for a "burnt things too" tag.
+  it.each([
+    ['ember', EMBER],
+    ['ash', ASH],
+  ])('erases %s with no residue — it is already spent', (_name, spent) => {
+    expect(registry.reactionFor(ACID, spent)).toMatchObject({
+      aBecomes: EMPTY,
+      bBecomes: EMPTY,
     })
   })
 
@@ -205,6 +263,22 @@ describe('the acid group', () => {
     expect(eaten).toBeGreaterThan(0)
     expect(acidBefore - count(sim, ACID)).toBe(eaten)
     // Two cells in, one out: the residue is the spent acid, not the wall.
+    expect(count(sim, SULPHUR)).toBe(eaten)
+  })
+
+  // The runtime half of the roster ruling, on the one plant that neither decays
+  // nor grows without water beside it - so the count is as clean as wood's.
+  it('eats a plant and leaves sulphur behind, one grain per cell eaten', () => {
+    const sim = new Sim({ seed: 1 })
+    pour(sim, MOSS)
+    const acidBefore = count(sim, ACID)
+    const mossBefore = count(sim, MOSS)
+
+    run(sim, 120)
+
+    const eaten = mossBefore - count(sim, MOSS)
+    expect(eaten).toBeGreaterThan(0)
+    expect(acidBefore - count(sim, ACID)).toBe(eaten)
     expect(count(sim, SULPHUR)).toBe(eaten)
   })
 

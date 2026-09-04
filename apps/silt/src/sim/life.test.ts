@@ -16,6 +16,7 @@ import {
   SPROUT,
   STALK,
   STEAM,
+  SULPHUR,
   TIP,
   VINE,
   WATER,
@@ -207,6 +208,14 @@ describe('seed, moss and vine', () => {
       ['ember', 'wood'],
       ['water', 'ember'],
       ['acid', 'wood'],
+      ['acid', 'moss'],
+      ['acid', 'vine'],
+      ['acid', 'seed'],
+      ['acid', 'sprout'],
+      ['acid', 'stalk'],
+      ['acid', 'tip'],
+      ['acid', 'flower'],
+      ['acid', 'petal'],
       ['acid', 'solid'],
       ['acid', 'powder'],
       ['acid', 'water'],
@@ -488,13 +497,15 @@ describe('seed, moss and vine', () => {
     expect(sim.speciesAt(200, FLOOR - 1)).toBe(MOSS)
   })
 
-  it('is dissolved by acid and burnt by fire through the rows stages 01–02 already wrote', () => {
+  it('is dissolved to sulphur by acid and burnt by fire', () => {
     for (const plant of [SEED, MOSS, VINE]) {
-      // Hardness 0 plus `solid`/`powder` is the whole of it — no `[corrodible]`
-      // tag, and no row naming any of the three.
+      // Hardness 0 plus `solid`/`powder` is what puts a plant in acid's reach at
+      // all. What it *leaves* is a row of its own now (discovery ticket 15):
+      // living tissue is wood's case, so the spent acid leaves a grain of
+      // sulphur where a bare tag row would have dug an empty cavity.
       expect(registry.get(plant)?.hardness).toBe(0)
       expect(registry.reactionFor(ACID, plant)).toMatchObject({
-        aBecomes: EMPTY,
+        aBecomes: SULPHUR,
         bBecomes: EMPTY,
       })
       // All three are `flammable`, and all three now have their own rung on the
@@ -519,23 +530,33 @@ describe('seed, moss and vine', () => {
       run(burning, 30)
       expect(burning.speciesAt(100, FLOOR - 1)).not.toBe(plant)
 
-      // Acid cannot be fixed with ticks the same way. Rows 6–7 are p 0.3 and
-      // acid has no lifetime, so a sealed pair that fails its first draws
+      // Acid cannot be fixed with ticks the same way. The acid rows are p 0.3
+      // and acid has no lifetime, so a sealed pair that fails its first draws
       // settles, its chunk sleeps, and the pair is never offered the reaction
       // again — it stays undissolved for any number of ticks. So this side
       // uses `acid.test.ts`' idiom instead: pour acid over a bed of the
       // target, where the outcome is set by how much acid there is rather
-      // than by the draws. Every acid cell that lands takes a cell of plant
-      // with it, so 44 cells of acid clear all but ~20 of the 63-cell bed.
-      // Over 100 seeds the survivors were 19–24 and the unspent acid 0–5; the
-      // thresholds sit well outside both, since what is being pinned is that
-      // acid eats plants at all, not the exact arithmetic of one bath.
+      // than by the draws.
+      //
+      // Counted rather than thresholded, and the reason is discovery ticket 15:
+      // the residue **backfills the cavity**, and acid cannot eat sulphur
+      // (hardness 2 against `maxHardness: 1`), so a bath now armours the bed it
+      // is eating instead of clearing it. Measured over 30 seeds, the 63-cell
+      // bed keeps 31–41 cells of moss or vine with 12–22 cells of acid stalled
+      // on top of its own brimstone — where the old cavity-digging row cleared
+      // all but ~20 and spent nearly every drop. A powder bed still clears
+      // (seed: 19–21 survivors), because the grains shift and the acid follows.
+      // So what is pinned here is wood's shape, which this now is: cells were
+      // eaten, every dissolve cost exactly one cell of acid, and one grain of
+      // sulphur came back.
       const dissolving = new Sim({ seed: 1 })
       const bed = bath(dissolving, plant)
+      const acidBefore = count(dissolving, ACID)
       run(dissolving, 120)
-      expect(count(dissolving, plant)).toBeLessThan(bed - 30)
-      // Spent, not merely stalled: the acid was consumed doing it.
-      expect(count(dissolving, ACID)).toBeLessThan(10)
+      const eaten = bed - count(dissolving, plant)
+      expect(eaten).toBeGreaterThan(0)
+      expect(acidBefore - count(dissolving, ACID)).toBe(eaten)
+      expect(count(dissolving, SULPHUR)).toBe(eaten)
     }
   })
 })
@@ -670,11 +691,13 @@ describe('the land plant', () => {
     for (const part of [SPROUT, TIP, STALK, FLOWER]) {
       // Static: a plant is structure, and nothing in the roster displaces it.
       expect(registry.get(part)?.archetype).toEqual({ kind: 'static' })
-      // Corrodible and burnable for free, through the tag rows alone - no row
-      // names any of the four, exactly as none names moss or vine.
+      // Corrodible and burnable, and hardness 0 is what puts each of the four in
+      // acid's reach. Since discovery ticket 15 each is *named* by an acid row
+      // as well, so the dissolve leaves sulphur rather than an empty cavity -
+      // the whole living roster is wood's case now.
       expect(registry.get(part)?.hardness).toBe(0)
       expect(registry.reactionFor(ACID, part)).toMatchObject({
-        aBecomes: EMPTY,
+        aBecomes: SULPHUR,
         bBecomes: EMPTY,
       })
       expect(registry.has(part, 'flammable')).toBe(true)
@@ -1086,8 +1109,13 @@ describe('petals', () => {
     // petals across the world is funny once and then ruins every meadow.
     expect(registry.has(PETAL, 'flammable')).toBe(false)
     expect(registry.reactionFor(FIRE, PETAL)).toBeUndefined()
-    // Acid still reaches it, through the `[powder]` row every grain sits under.
-    expect(registry.reactionFor(ACID, PETAL)).toMatchObject({ aBecomes: EMPTY, bBecomes: EMPTY })
+    // Acid still reaches it - by its own row since discovery ticket 15, so a
+    // dissolved petal leaves sulphur like every other piece of living tissue,
+    // rather than the empty cavity the `[powder]` row used to dig.
+    expect(registry.reactionFor(ACID, PETAL)).toMatchObject({
+      aBecomes: SULPHUR,
+      bBecomes: EMPTY,
+    })
 
     // The lightest thing in the roster, which is the whole pond trick: a petal
     // displaces nothing and floats, and the seed it strikes into sinks past it.

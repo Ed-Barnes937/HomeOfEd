@@ -77,8 +77,8 @@ describe('mud', () => {
 
   // Only this stage's own rows — see the same note in `acid.test.ts`: later
   // stages append, so a whole-table assertion here breaks on every later stage.
-  it('declares rows 1–25 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 25).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–33 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 33).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -96,6 +96,14 @@ describe('mud', () => {
       ['ember', 'wood'],
       ['water', 'ember'],
       ['acid', 'wood'],
+      ['acid', 'moss'],
+      ['acid', 'vine'],
+      ['acid', 'seed'],
+      ['acid', 'sprout'],
+      ['acid', 'stalk'],
+      ['acid', 'tip'],
+      ['acid', 'flower'],
+      ['acid', 'petal'],
       ['acid', 'solid'],
       ['acid', 'powder'],
       ['acid', 'water'],

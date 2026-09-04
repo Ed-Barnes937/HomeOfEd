@@ -1,6 +1,6 @@
 # 15 - Acid + plant matter leaves sulphur, like wood does
 
-**Status:** ready-for-agent
+**Status:** done (built on worktree-agent-a44d34bc8bfe5240f, 2026-09-04)
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - "acid + wood is the only
 way to make sulphur - maybe we should make acid + [life] (wood/vine/flower/etc)

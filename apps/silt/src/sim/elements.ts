@@ -731,15 +731,50 @@ export const v1Reactions: readonly ReactionRow[] = [
   // a "damp char" species would earn its place only if this reads wrong in
   // play. Mirrors `water + fire` at p 1.
   { a: 'water', b: 'ember', p: 1, aBecomes: 'steam', bBecomes: 'wood' },
-  // **This row must stay above the two below it.** They cover acid + wood as
-  // well, via `[solid]` at hardness 1, and `resolvePairs` keeps the first
-  // registration and drops the rest without a word — reorder these three and
-  // the residue silently stops happening. `acid.test.ts` pins it.
+  // **This row must stay above the `[solid]`/`[powder]` pair below.** They cover
+  // acid + wood as well, via `[solid]` at hardness 1, and `resolvePairs` keeps
+  // the first registration and drops the rest without a word — reorder these
+  // rows and the residue silently stops happening. `acid.test.ts` pins it, for
+  // wood and for each of the eight plants that follow.
   //
   // The residue goes on the *acid* side: the wood is gone, the cavity is
   // genuinely dug, and the spent acid leaves a grain behind. The other way
   // round turns the wall into a sulphur wall and digs nothing.
   { a: 'acid', b: 'wood', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  // **The same row, once per living thing** (discovery ticket 15), and the same
+  // precedence warning applies to all eight: every plant is hardness 0, so the
+  // two rows below cover these pairs as well and a reorder would silently take
+  // the residue away. Wood's numbers exactly - the rationale is wood's too, that
+  // spent acid leaves a grain behind, and organic matter is organic matter.
+  //
+  // Before this, `acid + wood` was sulphur's only recipe: acid digesting a
+  // meadow left nothing while acid digesting a plank left brimstone. Now the
+  // life loop is a renewable route to it.
+  //
+  // **Eight literal rows rather than a `plantMatter` tag**, though the tag would
+  // read tidier here. The registry expands tag rows before anything downstream
+  // sees them, so the graph doc and the field-notes denominators come out
+  // identical either way and the tag buys nothing but this block's length. What
+  // it would cost is a membership question nobody has ruled on: `buried` is
+  // plant matter by any plain reading and is deliberately *not* on Ed's roster,
+  // and every plant part added later would join the sulphur rule silently rather
+  // than by decision. The tags already here (`flammable`, `solid`, `powder`) are
+  // broad contracts many rows read; a tag with one consumer would move a
+  // reaction's membership into the element defs, which is the split this file's
+  // rules draw the other way round. The `fire + <fuel>` ladder above
+  // `fire + flammable` is the precedent: named rows first, tag row behind them.
+  //
+  // Ember and ash are the roster's other half and get no row: they are already
+  // spent material, so the tag rows erase them with no residue (the ash comment
+  // above rules it), and `acid.test.ts` pins that as a choice.
+  { a: 'acid', b: 'moss', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'vine', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'seed', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'sprout', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'stalk', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'tip', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'flower', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'petal', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
   // Two cells in, none out. `maxHardness` is checked once at boot, so stone,
   // obsidian and sulphur are not "immune" — their pairs simply do not exist.
   { a: 'acid', b: 'solid', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
