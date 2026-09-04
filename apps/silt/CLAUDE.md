@@ -79,7 +79,10 @@ src/
                               in, every tile in the feature out;
                               elementAppearance - name -> hex/shape off the
                               registry; FieldNotesButton (the header chip) and
-                              FieldNotesPanel (overlay + phone sheet).
+                              FieldNotesPanel (overlay + phone sheet); moments -
+                              the cards, derived as a *diff of two views*, with
+                              useMoments owning their timing and MomentCard
+                              drawing them over the world.
                               `.scratch/silt-discovery-tree/spec.md`)
   docs/             interactionGraph - derives the element graph from the live
                     registry and renders docs/interaction-graph.md; pure, so the
@@ -293,6 +296,16 @@ else touches it.
   why the invariant is a vitest case and not a review habit. The masking is not
   hypothetical - a pre-trim scene restores painted mud, so `react:lava+mud` can
   be witnessed while mud itself has never been discovered.
+- **A moment is a diff of two views, not a second reading of the sim.** The
+  sim reports a first witness once (`useSimLoop`'s `onWitnessed` into
+  `witness`); everything after that - the chip's tick, the panel, the rail's
+  unlock, the card, the 100% line - re-derives from the store, so a card can
+  never claim something the chip beside it has not counted. `momentsFor` takes
+  the view before and the view after, which is also why closing the panel and
+  forgetting discoveries raise nothing without a case for either. Cards queue
+  one at a time and a burst collapses to the newest few: quiet beats complete.
+  The seed the page sends the sim at boot (`witnessedAtBoot`) is noise
+  reduction only - the store would dedupe a re-report anyway.
 - **The panel picks, it does not know.** Selection and the green-edge clearing
   are panel-local `useState`; the counts, mastery, `NEW` set and denominators
   all arrive from the view. `markReviewed()` fires from `HomePage`'s

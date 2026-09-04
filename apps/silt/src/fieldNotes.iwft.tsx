@@ -172,6 +172,131 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
   expect(await reloaded.fieldNotesCount()).toBe('0/37')
 })
 
+/**
+ * The loop as a player lives it (ticket 06): the sim witnesses something, the
+ * card rises over the world, the header ticks, and the entry is already in the
+ * panel when they go looking. The sim's seed is fixed, so a stepped world does
+ * exactly this every run.
+ */
+test('a first witness raises a card, ticks the chip and lights the panel', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  expect(await root.fieldNotesCount()).toBe('0/37')
+  await root.verifyNoMomentCard()
+
+  // A pool of water dropped straight onto lava: obsidian and steam, both new.
+  await root.selectBrush(2)
+  await root.selectElement('lava')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+
+  await root.verifyMomentCard('new entry')
+  const card = await root.momentText()
+  expect(card).toContain('obsidian')
+  expect(card).toContain('steam')
+
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/37')
+
+  // The panel is derived from the same store, so there is nothing to refresh.
+  await root.openFieldNotes()
+  expect(await root.noteRow('obsidian')).toContain('1/1')
+  await root.selectNote('water')
+  expect(await root.noteSpokeCount()).toBe(1)
+})
+
+/**
+ * The panel is a window on the store, not a snapshot of it: the world goes on
+ * behind it, and a first witnessed while it is open lands in the ring the
+ * player is already looking at. No special path - React re-renders off the same
+ * store the chip reads.
+ */
+test('a first witnessed while the panel is open lands in the ring in place', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Set up but not yet run: painting is never a discovery, so the chart is
+  // still empty with the two of them touching.
+  await root.selectBrush(2)
+  await root.selectElement('lava')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+
+  // Nothing witnessed yet, so the panel opens on its empty state.
+  await root.openFieldNotes()
+  await root.verifyFieldNotesEmpty()
+
+  // One tick, from the step hotkey - the panel is an overlay, not a modal on
+  // the world.
+  await root.pressKey('.')
+
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/37')
+  await root.selectNote('water')
+  expect(await root.focusedNote()).toBe('water')
+  expect(await root.noteSpokeCount()).toBe(1)
+  expect(await root.noteStillToFind()).toBe('8')
+})
+
+test("the fifth of mud's entries unlocks it, rail and all, without a reload", async ({
+  mountApp,
+  page,
+}) => {
+  const mudEdges = entryIndex().entriesFor('mud')
+  await seedWitnessed(
+    page,
+    mudEdges.filter((key) => key !== 'react:dirt+water'),
+  )
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyNoEarnedControl()
+
+  // dirt + water is the one left. Mud itself was discovered long ago (ash +
+  // water makes it too), so this witnesses the entry, not the element.
+  await root.selectBrush(2)
+  await root.selectElement('dirt')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+
+  // The unlock card queues behind the entry's own card - one at a time.
+  await root.verifyMomentCard('mud joins your rail')
+  await root.openEarned()
+  expect(await root.earnedElementNames()).toEqual(['mud'])
+})
+
+test('the last entry of all raises the completion line, once ever', async ({ mountApp, page }) => {
+  await seedWitnessed(
+    page,
+    entryIndex().keys.filter((key) => key !== 'react:dirt+water'),
+  )
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  expect(await root.fieldNotesCount()).toBe('36/37')
+  await root.verifyNoChartCompleteLine()
+
+  await root.selectBrush(2)
+  await root.selectElement('dirt')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+
+  await root.verifyChartCompleteLine()
+  await expect.poll(() => root.fieldNotesCount()).toBe('37/37')
+  await root.verifyFieldNotesChip('complete')
+
+  // Once, at the transition - a finished chart is not greeted on every load.
+  await page.reload()
+  const { root: reloaded } = await mountApp()
+  await reloaded.verifyIsShown()
+  await reloaded.verifyNoChartCompleteLine()
+})
+
 // The chart's only reward for finishing is that it is finished (decision 4):
 // the chip inverts, and nothing else is left behind.
 test('the header chip inverts for good once every interaction is witnessed', async ({

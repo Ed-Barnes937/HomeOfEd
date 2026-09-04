@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 
 import { createRegistry, EMPTY, GRID_WIDTH, v1Elements, v1Reactions, type ElementRegistry } from '../../sim/index.ts'
+import type { EdgeKey } from '../fieldNotes/edgeKeys.ts'
 import { createRenderer } from '../render/createRenderer.ts'
 import type { WorldRenderer } from '../render/renderer.ts'
 import { brushOffsets } from './brushOffsets.ts'
@@ -63,6 +64,18 @@ export interface UseSimLoopOptions {
   onFps?: (fps: number) => void
   /** Fires whenever a spawner is placed or removed, with the current list (a fresh copy). */
   onSpawnersChange?: (spawners: readonly Spawner[]) => void
+  /**
+   * Fires with the interactions the sim has just witnessed for the first time
+   * (discovery-tree spec §4). Batched per tick, and never a re-report of
+   * anything in `witnessedAtBoot`.
+   */
+  onWitnessed?: (keys: readonly EdgeKey[]) => void
+  /**
+   * What the player had already witnessed when the page loaded, seeded into the
+   * sim as it starts. Read once, at mount - later changes are the sim's own
+   * reports coming back, and re-seeding them would be circular.
+   */
+  witnessedAtBoot?: ReadonlySet<EdgeKey>
 }
 
 export interface UseSimLoopControls {
@@ -112,6 +125,10 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   const onCursorChangeRef = useRef(opts.onCursorChange)
   const onFpsRef = useRef(opts.onFps)
   const onSpawnersChangeRef = useRef(opts.onSpawnersChange)
+  const onWitnessedRef = useRef(opts.onWitnessed)
+  // The first render's set, and only ever that one: the seed is a boot-time
+  // fact, and the mount effect below is the only reader.
+  const witnessedAtBootRef = useRef(opts.witnessedAtBoot)
   const hostRef = useRef<SimHost | null>(null)
   /** The `running` value the host last heard — sends happen on change only. */
   const sentRunningRef = useRef<boolean | null>(null)
@@ -136,6 +153,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     onCursorChangeRef.current = opts.onCursorChange
     onFpsRef.current = opts.onFps
     onSpawnersChangeRef.current = opts.onSpawnersChange
+    onWitnessedRef.current = opts.onWitnessed
     if (hostRef.current && sentRunningRef.current !== opts.running) {
       sentRunningRef.current = opts.running
       hostRef.current.send({ type: 'setRunning', running: opts.running })
@@ -156,6 +174,13 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     setRegistry(host.registry)
     sentRunningRef.current = runningRef.current
     host.send({ type: 'setRunning', running: runningRef.current })
+
+    // Field notes' two wires (discovery-tree spec §4). The seed is noise
+    // reduction, not correctness - the page's store dedupes a re-report anyway
+    // - but without it a long-running world announces its firsts all over again
+    // after every reload.
+    host.send({ type: 'seedWitnessed', keys: [...(witnessedAtBootRef.current ?? [])] })
+    const stopWitnessing = host.onWitnessed((keys) => onWitnessedRef.current?.(keys))
 
     // Hidden pauses ticking (without touching `running`), matching the old
     // rAF-driven loop, where a backgrounded tab stopped advancing.
@@ -370,6 +395,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     return () => {
       hostRef.current = null
       rendererRef.current = null
+      stopWitnessing()
       host.dispose()
       renderer.dispose?.()
       resizeObserver.disconnect()

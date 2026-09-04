@@ -78,5 +78,8 @@ export function useFieldNotes(options: UseFieldNotesOptions = {}): FieldNotesCon
     [store],
   )
 
-  return { ...view, ...actions }
+  // Memoized, so the controller's identity changes only when progress does.
+  // The moments watch it for what has just been witnessed (`useMoments`), and a
+  // fresh object every render would read as a discovery every render.
+  return useMemo(() => ({ ...view, ...actions }), [view, actions])
 }

@@ -90,8 +90,9 @@ export class SiltPagePom extends BasePage {
   /**
    * The chip's three resting states (spec §6): greyed numerals until the first
    * witness, plain in progress, inverted for good at `n/n`. The fourth - the
-   * ~250ms inversion as a count ticks up - needs a live witness, which is
-   * ticket 06's wiring.
+   * ~250ms inversion as a count ticks up - is deliberately not asserted here:
+   * catching a quarter-second of styling in a browser is a flake, and the count
+   * itself ticking is what the witness tests watch.
    */
   async verifyFieldNotesChip(state: 'untouched' | 'in progress' | 'complete'): Promise<void> {
     const chip = this.notesButton
@@ -186,6 +187,33 @@ export class SiltPagePom extends BasePage {
   /** Every word the open panel renders - the assertion the spoiler policy needs. */
   async fieldNotesText(): Promise<string> {
     return (await this.notesPanel.innerText()) ?? ''
+  }
+
+  // ---- moments over the world (discovery-tree spec §6) -------------------
+
+  private readonly moment = this.page.getByTestId('field-notes-moment')
+
+  /** What the card over the canvas reads, or '' while there is no card. */
+  async momentText(): Promise<string> {
+    return (await this.moment.count()) === 0 ? '' : ((await this.moment.textContent()) ?? '')
+  }
+
+  /** Waits for a card saying `text` - a burst shows one card at a time. */
+  async verifyMomentCard(text: string | RegExp): Promise<void> {
+    await expect(this.moment).toContainText(text, { timeout: 15_000 })
+  }
+
+  async verifyNoMomentCard(): Promise<void> {
+    await expect(this.moment).toHaveCount(0)
+  }
+
+  /** The one-time 100% line, in the first-visit hint's own type (spec §6). */
+  async verifyChartCompleteLine(): Promise<void> {
+    await expect(this.page.getByTestId('field-notes-complete')).toBeVisible()
+  }
+
+  async verifyNoChartCompleteLine(): Promise<void> {
+    await expect(this.page.getByTestId('field-notes-complete')).toHaveCount(0)
   }
 
   /** One click arms, the second forgets everything (spec §5). */

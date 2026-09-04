@@ -2,7 +2,9 @@ import { useMemo, useRef, useState } from 'react'
 
 import { FieldNotesButton } from '../features/fieldNotes/FieldNotesButton.tsx'
 import { FieldNotesPanel } from '../features/fieldNotes/FieldNotesPanel.tsx'
+import { MomentCard } from '../features/fieldNotes/MomentCard.tsx'
 import { useFieldNotes } from '../features/fieldNotes/useFieldNotes.ts'
+import { useMoments } from '../features/fieldNotes/useMoments.ts'
 import { EarnedElements } from '../features/palette/EarnedElements.tsx'
 import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
 import { WorldOverlay } from '../features/render/WorldOverlay.tsx'
@@ -70,6 +72,11 @@ export function HomePage() {
   // for everything else (spec §6).
   const fieldNotes = useFieldNotes()
 
+  // The cards over the world, derived from field notes rather than from the
+  // sim's report: the chip, the panel and the card are three readings of one
+  // store, so none of them can be a discovery ahead of the others.
+  const moments = useMoments(fieldNotes)
+
   // Reviewing happens on **close**, not open: advancing the watermark as the
   // panel opens would empty the `NEW n` chip on the very render that exists to
   // show it (`FieldNotesStore.markReviewed`).
@@ -99,6 +106,11 @@ export function HomePage() {
     onCursorChange: setCursor,
     onFps: setFps,
     onSpawnersChange: setSpawners,
+    // The sim's one report back (spec §4). Everything downstream - the chip's
+    // tick, the panel if it happens to be open, the rail's unlock, the card -
+    // re-derives from the store this feeds; there is no second path.
+    onWitnessed: fieldNotes.witness,
+    witnessedAtBoot: fieldNotes.witnessed,
   })
 
   // Derived from the same registry the canvas paints from — never from
@@ -392,6 +404,27 @@ export function HomePage() {
               {running ? <span className={styles.blinkDot} aria-hidden="true" /> : null}
               {running ? 'running' : 'paused'}
             </div>
+
+            {moments.card ? (
+              <MomentCard
+                moment={moments.card}
+                registry={controls.registry}
+                leaving={moments.leaving}
+              />
+            ) : null}
+
+            {/* The 100% moment (spec §6): one line over the world, in the
+                first-visit hint's own type and its own place, once ever. The
+                two can never collide - the hint is gone before the first
+                stroke, and this needs all 37. */}
+            {moments.completing ? (
+              <div
+                className={`${styles.firstVisitHint} ${styles.chartComplete}`}
+                data-testid="field-notes-complete"
+              >
+                every interaction witnessed
+              </div>
+            ) : null}
 
             {hintVisible ? (
               <div

@@ -87,7 +87,12 @@ export interface RingModel {
   mastered: boolean
 }
 
-function refOf(name: string, view: FieldNotesView): ElementRef {
+/**
+ * The masking seam (spec §7): the one place a name becomes something that may
+ * be drawn. The moment cards use it too - a card raised over the world is as
+ * public as a row in the panel.
+ */
+export function refOf(name: string, view: FieldNotesView): ElementRef {
   const discovered = view.discovered.has(name)
   return { name, label: discovered ? name : HIDDEN_NAME, discovered }
 }
