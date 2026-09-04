@@ -1,6 +1,6 @@
 # 05 - Field notes panel: tiles, picker, ring, header control
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-interaction-tree, 2026-09-04)
 **Type:** task
 **Blocked by:** 01, 03
 **Spec:** [../spec.md](../spec.md) §6, §7

@@ -1,6 +1,6 @@
 # 02 - Engine witness recorder + first-witness transport
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-interaction-tree, 2026-09-04)
 **Type:** task
 **Spec:** [../spec.md](../spec.md) §3, §4
 

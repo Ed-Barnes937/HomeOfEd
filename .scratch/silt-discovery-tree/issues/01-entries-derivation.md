@@ -1,6 +1,6 @@
 # 01 - Entries derivation: keys, involves(), tiers, mastery
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-interaction-tree, 2026-09-04)
 **Type:** task
 **Spec:** [../spec.md](../spec.md) §1, §2, §6
 

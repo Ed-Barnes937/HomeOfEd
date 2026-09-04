@@ -1,6 +1,6 @@
 # 03 - Progression store: witnessed edges in localStorage
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-interaction-tree, 2026-09-04)
 **Type:** task
 **Blocked by:** 01
 **Spec:** [../spec.md](../spec.md) §5

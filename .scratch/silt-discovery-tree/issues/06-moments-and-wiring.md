@@ -1,6 +1,6 @@
 # 06 - Moments + end-to-end wiring
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-interaction-tree, 2026-09-04)
 **Type:** task
 **Blocked by:** 02, 03, 04, 05
 **Spec:** [../spec.md](../spec.md) §3, §6 "Moments"

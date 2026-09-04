@@ -1,6 +1,6 @@
 # 04 - Rail trim: mud out of PAINTABLE_IDS, EARNED control in
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-interaction-tree, 2026-09-04)
 **Type:** task
 **Blocked by:** 03
 **Spec:** [../spec.md](../spec.md) §9 decisions 5-6, 8; §6 "The unlock"
