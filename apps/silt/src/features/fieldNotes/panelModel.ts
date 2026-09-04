@@ -23,6 +23,7 @@ import type { EdgeKey, EdgeKind } from './edgeKeys.ts'
 import type { ElementTags } from './elementAppearance.ts'
 import { entryIndex, type Entry, type EntryIndex } from './entries.ts'
 import type { FieldNotesView } from './fieldNotesView.ts'
+import { RING_CAPACITY } from './ringGeometry.ts'
 
 /** What an undiscovered element reads as, anywhere its name would go (spec §7). */
 export const HIDDEN_NAME = '- - -'
@@ -108,8 +109,38 @@ export type SpokeDirection =
   /** An undirected reaction between two reagents. */
   | 'none'
 
-export interface Spoke {
+/**
+ * One pair a grouped spoke stands for: the element that tells it apart from
+ * the others in the stack, and the entry it leads back to. An `ElementRef`
+ * like every other tile, so it is masked by the same `refOf` and drawn by the
+ * same helper - a member the player has not discovered is a silhouette.
+ */
+export interface GroupMember extends ElementRef {
+  /** The charted entry behind this member. */
   key: EdgeKey
+}
+
+/**
+ * What a spoke stands for when it stands for more than itself (ticket 09): the
+ * witnessed pairs that share its verb and its result, and how many pairs like
+ * it there are in all.
+ */
+export interface SpokeGroup {
+  /** One tile each, in entry order. The first of them is the spoke's `partner`. */
+  members: readonly GroupMember[]
+  /** Witnessed pairs - `members.length`, named for the chip it is half of. */
+  seen: number
+  /**
+   * Every charted pair with this spoke's verb and result, witnessed or not, so
+   * the chip reads `2/5`. Counting the unwitnessed ones names none of them: it
+   * is the still-to-find notch's rule (spec §7, decision 9) said per spoke.
+   */
+  total: number
+}
+
+export interface Spoke {
+  /** The charted entry's key, or the group's own when this spoke merges several. */
+  key: string
   kind: EdgeKind
   /** The element on the ring: the other reagent, or the first of the pair that makes the focus. */
   partner: ElementRef
@@ -118,13 +149,19 @@ export interface Spoke {
   outcome: string
   /** The outcome's own tiles, under the words. Tapping a discovered one follows it. */
   tiles: readonly ElementRef[]
+  /** Present when the ring is crowded and this spoke merges several pairs (ticket 09). */
+  group?: SpokeGroup
 }
 
 export interface RingModel {
   centre: ElementRef
-  /** One per **witnessed** entry, in entry order. Nothing else is ever drawn (spec §7). */
+  /**
+   * What the ring draws, in entry order: one spoke per **witnessed** entry, or
+   * one per group of them once the ring is too crowded to give each its own
+   * (ticket 09). Nothing unwitnessed is ever drawn (spec §7).
+   */
   spokes: readonly Spoke[]
-  /** `spokes.length`, named for the footer's "n entries for x". */
+  /** Witnessed entries, for the footer's "n entries for x" - never the spoke count. */
   seen: number
   /** Entries involving the element that have not been witnessed - the empty notches. */
   stillToFind: number
@@ -286,11 +323,36 @@ function outcomeOf(entry: Entry, view: FieldNotesView): string {
   return entry.products.map((name) => refOf(name, view).label).join(PRODUCT_JOIN)
 }
 
+/**
+ * "This makes me": the focused element takes no part in the interaction and is
+ * only its product, so the whole pair sits on the ring.
+ */
+function isMadeBy(entry: Entry, focus: string): boolean {
+  return !entry.reagents.includes(focus)
+}
+
+/**
+ * Which way the entry's arrowhead points from `focus`'s side of it.
+ *
+ * Charting the plant's parts as one flower (ticket 08) leaves stage entries
+ * whose every name is the focus itself - the raise, the bloom. An arrowhead
+ * from an element to itself says nothing, so a stage carries none; anything
+ * else the focus is a reagent of points out at what it leaves, and only an
+ * edge that leaves the focus and nothing else points back in.
+ *
+ * Its own function because grouping asks it of *unwitnessed* entries too: a
+ * pair the player has not seen still has to land in the right group to be
+ * counted in its chip, and that costs nothing and names nothing.
+ */
+function directionOf(entry: Entry, focus: string): SpokeDirection {
+  if (isMadeBy(entry, focus)) return 'in'
+  const stage = [...entry.reagents, ...entry.products].every((name) => name === focus)
+  if (entry.kind === 'react' || stage) return 'none'
+  return entry.products.some((name) => name !== focus) ? 'out' : 'in'
+}
+
 function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
-  // "This makes me": the focused element takes no part in the interaction and
-  // is only its product, so the whole pair sits on the ring and the arrowhead
-  // points inwards.
-  const madeBy = !entry.reagents.includes(focus)
+  const madeBy = isMadeBy(entry, focus)
   const partner = madeBy
     ? entry.reagents[0]!
     : // A decay has one reagent, so from the decaying element's own side the
@@ -299,19 +361,7 @@ function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
       entry.products.find((name) => name !== focus) ??
       focus)
 
-  // Charting the plant's parts as one flower (ticket 08) leaves stage entries
-  // whose every name is the focus itself - the raise, the bloom. An arrowhead
-  // from an element to itself says nothing, so a stage carries none; anything
-  // else the focus is a reagent of points out at what it leaves, and only an
-  // edge that leaves the focus and nothing else points back in.
-  const stage = [...entry.reagents, ...entry.products].every((name) => name === focus)
-  const direction: SpokeDirection = madeBy
-    ? 'in'
-    : entry.kind === 'react' || stage
-      ? 'none'
-      : entry.products.some((name) => name !== focus)
-        ? 'out'
-        : 'in'
+  const direction = directionOf(entry, focus)
 
   // A tile leading back to the centre is a dead tap, so the focused element is
   // never offered as one; the words still say what the interaction leaves.
@@ -329,6 +379,148 @@ function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
   }
 }
 
+/** What a group writes where its members disagree. Stands for the stack beside it. */
+const ELIDED = '…'
+
+/**
+ * The unit a crowded ring merges on (ticket 09, decision 1): **the same verb
+ * producing the same result**, however the reaction table spells the rows
+ * behind it. Not the tag row, not the entry key - eight literal
+ * `acid + <plant>` rows and one `acid + wood` are one thing to the player, and
+ * a table refactor that turned them into a tag row would not change what they
+ * are. Direction is in the key because it is the shape of the interaction the
+ * player reads off the arrowhead, not extra bookkeeping.
+ */
+function groupKeyOf(entry: Entry, focus: string): string {
+  return [entry.kind, directionOf(entry, focus), [...entry.products].sort().join(PRODUCT_JOIN)].join(
+    '|',
+  )
+}
+
+/** Every element a spoke draws besides the centre: its ring tile and its product tiles. */
+function shownBy(spoke: Spoke): readonly ElementRef[] {
+  return [spoke.partner, ...spoke.tiles]
+}
+
+/** The names every member of a group draws - what the merged spoke can still say. */
+function sharedNames(members: readonly Spoke[]): ReadonlySet<string> {
+  const [first, ...rest] = members
+  const others = rest.map((member) => new Set(shownBy(member).map((ref) => ref.name)))
+  return new Set(
+    shownBy(first!)
+      .map((ref) => ref.name)
+      .filter((name) => others.every((names) => names.has(name))),
+  )
+}
+
+/**
+ * One merged spoke: what its members share stays on the line, and what they do
+ * not becomes the stack at the ring point.
+ *
+ * A group of one is the interesting case, not the degenerate one. It keeps the
+ * pair's own words verbatim - grouping must never cost the player a reading of
+ * the interaction they actually witnessed - and still carries the chip, which
+ * is the only thing that says the pair is one of several.
+ */
+function mergedSpoke(groupKey: string, members: readonly Spoke[], total: number): Spoke {
+  const first = members[0]!
+  if (members.length === 1 && total === 1) return first
+
+  const shared = sharedNames(members)
+  const stack = members.map((member) => ({
+    // The element that tells this member apart from the rest of the stack, or -
+    // when the members draw the same elements and only their words differ - its
+    // own ring tile. Already masked: it is one of the spoke's own refs.
+    ...(shownBy(member).find((ref) => !shared.has(ref.name)) ?? member.partner),
+    key: member.key,
+  }))
+  // Whether the members read the same, judged on their names rather than on
+  // their masked words: two elements the player has not discovered both write
+  // `- - -`, and a tie there is a coincidence of masking, not a shared reading.
+  const readings = new Set(
+    members.map((member) => member.tiles.map((ref) => ref.name).join(PRODUCT_JOIN)),
+  )
+  // The words are built from the outcome's own tiles - the reagent pair, or the
+  // products - so that is what a shared reading is left with. The ring tile is
+  // one of them again on a `made by` spoke, and saying "acid + acid" would be a
+  // worse spoke than the crowd this is fixing.
+  const kept = first.tiles.filter((ref) => shared.has(ref.name))
+
+  return {
+    // What the group merged on: unique on the ring by construction, which is
+    // what a drawn spoke's key has to be.
+    key: `group:${groupKey}`,
+    kind: first.kind,
+    direction: first.direction,
+    // Identical words are the members' own; where they differ, the shared half
+    // stays and the varying half is the stack, which is drawn right beside it.
+    outcome:
+      readings.size === 1
+        ? first.outcome
+        : [...kept.map((ref) => ref.label), ELIDED].join(REAGENT_JOIN),
+    // The stack sits where a lone partner would, so the first of it is the
+    // partner: nothing reads a `partner` this spoke does not draw.
+    partner: stack[0]!,
+    tiles: readings.size === 1 ? first.tiles : kept,
+    group: { members: stack, seen: members.length, total },
+  }
+}
+
+/**
+ * The ring's spokes, merged whole-ring once there are more of them than the
+ * geometry can draw (ticket 09, decision 3).
+ *
+ * Two rules, both from the triage. It is all or nothing: below the capacity
+ * every pair keeps its own spoke, and above it every groupable set on the ring
+ * merges - a ring half grouped would make the merge look like a property of
+ * some pairs rather than of the crowd. And the flip is computed here, at
+ * render, from the witnessed degree, so a ring that crosses the capacity
+ * regroups the next time it is opened.
+ *
+ * Counting is untouched: the entry count under the ring, the picker's
+ * `seen/total` and mastery are all per pair (ticket 08, decision 1), and a
+ * group's own chip is that same per-pair progress said locally.
+ *
+ * One fold, not a loop: a ring whose groups still outnumber the capacity is
+ * drawn crowded rather than merged further, because a second fold would have to
+ * merge things the player would not read as one. Today's roster leaves the
+ * worst ring (fire's eighteen) at nine, and `ringGeometry.test.ts` holds every
+ * element's ring to the capacity, so the day a roster outgrows this it fails
+ * there rather than on the screen.
+ */
+export function groupRing(
+  spokes: readonly Spoke[],
+  focus: string,
+  capacity: number = RING_CAPACITY,
+  index: EntryIndex = entryIndex(),
+): readonly Spoke[] {
+  if (spokes.length <= capacity) return spokes
+
+  // Over every charted entry, not just the witnessed ones, so a chip can say
+  // how many pairs like this there are. Unwitnessed entries reach the model
+  // nowhere else and are still drawn nowhere: they are a number.
+  const totals = new Map<string, number>()
+  for (const key of index.entriesFor(focus)) {
+    const entry = index.get(key)
+    if (!entry) continue
+    const groupKey = groupKeyOf(entry, focus)
+    totals.set(groupKey, (totals.get(groupKey) ?? 0) + 1)
+  }
+
+  // Insertion order is entry order, so a group takes the ring position of its
+  // first witnessed member and the ring does not reshuffle as it fills.
+  const byKey = new Map<string, Spoke[]>()
+  for (const spoke of spokes) {
+    const entry = index.get(spoke.key)
+    const groupKey = entry ? groupKeyOf(entry, focus) : spoke.key
+    byKey.set(groupKey, [...(byKey.get(groupKey) ?? []), spoke])
+  }
+
+  return [...byKey].map(([groupKey, members]) =>
+    mergedSpoke(groupKey, members, totals.get(groupKey) ?? members.length),
+  )
+}
+
 /**
  * One element's ring: the entries involving it that have actually been
  * witnessed, and a count of the ones that have not. Unwitnessed entries are
@@ -341,7 +533,7 @@ export function ringFor(
   index: EntryIndex = entryIndex(),
 ): RingModel {
   const keys = index.entriesFor(focus)
-  const spokes = keys
+  const witnessed = keys
     // Through the index: a charted entry is witnessed when any of the raw edges
     // behind it has fired (ticket 08), and the witnessed set holds raw keys.
     .filter((key) => index.isWitnessed(key, view.witnessed))
@@ -349,6 +541,10 @@ export function ringFor(
       const entry = index.get(key)
       return entry ? [spokeOf(entry, focus, view)] : []
     })
+  // A second, view-level fold over the first (ticket 09): ticket 08 merged the
+  // *species* a row names, this merges the *rows* a crowded ring draws. Counts
+  // come from `keys` either way, so neither fold moves a number.
+  const spokes = groupRing(witnessed, focus, RING_CAPACITY, index)
 
   return {
     // Only the centre gets chips: it is the one element the panel is focused
@@ -356,8 +552,10 @@ export function ringFor(
     // wordless (ticket 12).
     centre: refOf(focus, view, tags),
     spokes,
-    seen: spokes.length,
-    stillToFind: keys.length - spokes.length,
+    // The witnessed *entries*, not the spokes drawn for them: grouping is a
+    // drawing, and the footer counts what the player has found.
+    seen: witnessed.length,
+    stillToFind: keys.length - witnessed.length,
     mastered: view.mastered.has(focus),
   }
 }

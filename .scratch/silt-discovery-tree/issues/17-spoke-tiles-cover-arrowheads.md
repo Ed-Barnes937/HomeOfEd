@@ -1,7 +1,9 @@
 # 17 - Product tiles overlap the outward arrowhead on the ring's lower half
 
-**Status:** absorbed into 09 (Ed's triage ruling, 2026-09-04) - same drawing
-pass; 09's decision 4 carries this fix and its tests
+**Status:** done, absorbed into 09 (Ed's triage ruling, 2026-09-04) - same
+drawing pass; 09's decision 4 carried this fix and its tests, and it landed
+with 09 on worktree-agent-aebff6377210aafd6, 2026-09-04. `ringGeometry.tileSide`
+is the placement; `.spokeTiles.above` draws it.
 **Type:** task
 **Source:** found during ticket 10 (2026-09-04) - both of 10's review passes
 independently flagged it. Pre-existing, not a regression from 10.

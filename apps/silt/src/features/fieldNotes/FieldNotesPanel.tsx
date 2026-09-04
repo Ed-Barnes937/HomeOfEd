@@ -31,8 +31,10 @@ import {
   arrowPoints,
   labelPoint,
   RING,
+  RING_TILES,
   spokeLine,
   spokePoint,
+  tileSide,
   type RingPoint,
 } from './ringGeometry.ts'
 import styles from './FieldNotesPanel.module.scss'
@@ -211,7 +213,11 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                     const point = spokePoint(index, chart.spokes.length)
                     const { from, to } = spokeLine(point)
                     return (
-                      <g key={spoke.key} className={styles[strokeOf(spoke.kind)]}>
+                      <g
+                        key={spoke.key}
+                        className={styles[strokeOf(spoke.kind)]}
+                        data-testid="field-notes-line"
+                      >
                         <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
                         {spoke.direction === 'out' ? (
                           <polygon points={arrowPoints(to.x, to.y, point.ux, point.uy)} />
@@ -377,33 +383,86 @@ interface SpokeViewProps {
   onSelect: (name: string) => void
 }
 
-/** One witnessed entry: its partner on the ring, its outcome on the line. */
+/**
+ * One drawn spoke: its partner on the ring, its outcome on the line. When the
+ * ring was too crowded to give every pair its own spoke (ticket 09) the partner
+ * position carries the group's stack of member tiles and a `2/5` chip instead
+ * of one tile and a name - every member still its own control, so a discovered
+ * one is still the way into its entry.
+ */
 function SpokeView(props: SpokeViewProps) {
   const { appearances, spoke, point } = props
-  // One point for the words and the tiles that hang under them, and it steps
+  // One point for the words and the tiles that hang off them, and it steps
   // clear of the arrowheads rather than sitting on one (`labelPoint`).
   const outcome = labelPoint(point)
+  // The tiles take the side of that point the outward head is not on, so they
+  // clear it at every angle rather than only on the ring's upper half
+  // (ticket 17, absorbed into 09).
+  const above = tileSide(point) < 0
 
   return (
     <>
-      <button
-        type="button"
-        className={styles.spokeTile}
-        style={at(point.x, point.y)}
-        data-testid={`field-notes-spoke-${spoke.partner.name}`}
-        disabled={!spoke.partner.discovered}
-        aria-label={spoke.partner.label}
-        onClick={() => props.onSelect(spoke.partner.name)}
-      >
-        <ElementRefTile element={spoke.partner} appearances={appearances} size={40} />
-      </button>
-      <span className={styles.spokeName} style={at(point.x, point.y)}>
-        {spoke.partner.label}
-      </span>
+      {spoke.group ? (
+        <span
+          className={styles.spokeStack}
+          // The two numbers the stylesheet needs to lay the stack out are the
+          // two the capacity was derived from, so they are handed over rather
+          // than written down twice (`ringGeometry.RING_TILES`).
+          style={{
+            ...at(point.x, point.y),
+            '--stack-columns': RING_TILES.columns,
+            '--stack-gap': `${RING_TILES.gap}px`,
+          } as CSSProperties}
+        >
+          {spoke.group.members.map((member) => (
+            <button
+              key={member.key}
+              type="button"
+              className={styles.memberTile}
+              data-testid={`field-notes-spoke-${member.name}`}
+              disabled={!member.discovered}
+              aria-label={member.label}
+              onClick={() => props.onSelect(member.name)}
+            >
+              <ElementRefTile element={member} appearances={appearances} size={RING_TILES.member} />
+            </button>
+          ))}
+          {/* The pairs behind the stack, counted and never named - the
+              still-to-find notches' own rule, said for one spoke (spec §7,
+              decision 9). It hangs off the stack rather than off the ring
+              point, so it stays under a stack of any height. */}
+          <span className={styles.spokeCount} data-testid="field-notes-group-count">
+            {spoke.group.seen}/{spoke.group.total}
+          </span>
+        </span>
+      ) : (
+        // The plain spoke: one tile and the partner's name under it. A group
+        // has no one partner to name, which is what its chip stands in for.
+        <>
+          <button
+            type="button"
+            className={styles.spokeTile}
+            style={at(point.x, point.y)}
+            data-testid={`field-notes-spoke-${spoke.partner.name}`}
+            disabled={!spoke.partner.discovered}
+            aria-label={spoke.partner.label}
+            onClick={() => props.onSelect(spoke.partner.name)}
+          >
+            <ElementRefTile element={spoke.partner} appearances={appearances} size={RING_TILES.spoke} />
+          </button>
+          <span className={styles.spokeName} style={at(point.x, point.y)}>
+            {spoke.partner.label}
+          </span>
+        </>
+      )}
       <span className={styles.spokeOutcome} style={at(outcome.x, outcome.y)}>
         {spoke.outcome}
       </span>
-      <span className={styles.spokeTiles} style={at(outcome.x, outcome.y)}>
+      <span
+        className={`${styles.spokeTiles} ${above ? styles.above : ''}`}
+        data-testid="field-notes-tiles"
+        style={at(outcome.x, outcome.y)}
+      >
         {spoke.tiles.map((product) => (
           <button
             key={product.name}

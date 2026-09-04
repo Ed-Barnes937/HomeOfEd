@@ -264,6 +264,7 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 .centreName,
 .centreTags,
 .spokeTile,
+.spokeStack,
 .spokeName,
 .spokeOutcome,
 .spokeTiles {
@@ -315,6 +316,7 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 }
 
 .spokeTile,
+.memberTile,
 .productTile {
   display: block;
   padding: 0;
@@ -329,6 +331,38 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 
 .spokeTile {
   transform: translate(-50%, -50%);
+}
+
+// A crowded ring's merged spoke (ticket 09): the pairs it stands for, stacked
+// where the one 40px tile would have been. Two columns of 18px tiles keep the
+// stack the width of that tile, so it grows downwards as the group does rather
+// than sideways into its neighbours. The column count and the gap come in from
+// `ringGeometry.RING_TILES`, which is the same arithmetic `spokeTileBox` uses
+// to decide whether a ring's tiles still clear each other - one source, so the
+// capacity cannot quietly stop matching the pixels.
+.spokeStack {
+  display: grid;
+  grid-template-columns: repeat(var(--stack-columns, 2), auto);
+  gap: var(--stack-gap, 3px);
+  transform: translate(-50%, -50%);
+}
+
+// `2/5` under a merged spoke's stack, where a single spoke has its partner's
+// name. Anchored to the stack, not to the ring point, so it clears a stack of
+// any height.
+.spokeCount {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 4px;
+  background: $panel;
+  font-family: $font-label;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: $body;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .spokeName {
@@ -353,11 +387,21 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   pointer-events: none;
 }
 
+// The outcome's own tiles. They hang 10px off the label's point on the side the
+// spoke's outward arrowhead is not on (ticket 17, absorbed into 09): below it on
+// the ring's upper half, where they have always hung, and above it on the lower
+// half, where the old fixed placement sat them right on the head. `tileSide`
+// picks the class; `ringGeometry.test.ts` holds both sides clear of both heads
+// at every angle.
 .spokeTiles {
   transform: translate(-50%, 10px);
   display: inline-flex;
   align-items: center;
   gap: 3px;
+
+  &.above {
+    transform: translate(-50%, calc(-100% - 10px));
+  }
 }
 
 // ---- empty state --------------------------------------------------------

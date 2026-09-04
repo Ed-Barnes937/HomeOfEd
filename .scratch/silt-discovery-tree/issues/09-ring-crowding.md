@@ -1,6 +1,6 @@
 # 09 - The ring does not scale: fire's chart is a crowd
 
-**Status:** ready-for-agent
+**Status:** done (built on worktree-agent-aebff6377210aafd6, 2026-09-04)
 **Type:** task
 **Blocked by:** 08 (landed 2026-09-04 - the stage-species duplicate spokes are
 gone; what follows sizes the residual problem)

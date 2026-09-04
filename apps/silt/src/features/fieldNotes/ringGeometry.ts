@@ -29,6 +29,32 @@ export const RING = {
   labelHalfHeight: 1.5,
 } as const
 
+/**
+ * The pixels the ring is actually drawn at, which is what turns a tile size
+ * into ring units. **The phone sheet's ring is the one that counts**: the panel
+ * has one model for both layouts (`FieldNotesPanel.module.scss` sizes the
+ * desktop's at 560px and the sheet's at `min(340px, 100vw)`), so a capacity
+ * derived from the roomier of the two would crowd the tighter one.
+ */
+const RING_PX = 340
+
+/**
+ * What a spoke draws at its ring point, in CSS pixels: one tile (spec §6), or
+ * the grouped stack of smaller ones that replaces it (ticket 09).
+ *
+ * **The panel draws from these, rather than repeating them.** The capacity
+ * below is only honest if the tiles really are this size and the stack really
+ * wraps at this column, so `FieldNotesPanel` takes its tile sizes from here and
+ * hands the two the stylesheet needs (`columns`, `gap`) to `.spokeStack` as
+ * custom properties.
+ */
+export const RING_TILES = { spoke: 40, member: 18, gap: 3, columns: 2 } as const
+
+/** CSS pixels as ring units, at the smallest ring the panel draws. */
+function units(px: number): number {
+  return (px / RING_PX) * 100
+}
+
 export interface RingPoint {
   /** The ring tile's centre. */
   x: number
@@ -121,6 +147,71 @@ export function labelPoint(point: RingPoint): { x: number; y: number } {
     y: anchor.y + side * point.ux * step,
   }
 }
+
+/**
+ * Which side of `labelPoint` the product tiles hang off: -1 above it, +1 below
+ * (ticket 17, absorbed into 09). The words got a side of their own from the
+ * step across the line; the tiles hang a fixed distance off that point, so near
+ * the vertical the step is nothing and the side is the whole fix.
+ *
+ * The rule is the same one the words follow, read down instead of across: go to
+ * the side the spoke's outward end is not on. A downward spoke's outward head
+ * is below its label, so the tiles go above; an upward spoke's is above, so
+ * they stay below, which is where they have always hung. On the horizontal
+ * neither head is above or below, and the tiles take the side the words
+ * stepped to - up - rather than a coin toss.
+ */
+export function tileSide(point: RingPoint): -1 | 1 {
+  return point.uy < 0 ? 1 : -1
+}
+
+/**
+ * Half the box a spoke draws at its ring point: one 40px tile, or the grouped
+ * stack of `members` 18px tiles that replaces it (ticket 09). In ring units at
+ * the smallest ring, so a box that fits here fits on the desktop too.
+ */
+export function spokeTileBox(members: number): { halfWidth: number; halfHeight: number } {
+  if (members <= 1) {
+    const half = units(RING_TILES.spoke) / 2
+    return { halfWidth: half, halfHeight: half }
+  }
+
+  const span = (count: number): number =>
+    units(count * RING_TILES.member + (count - 1) * RING_TILES.gap) / 2
+  return {
+    halfWidth: span(Math.min(members, RING_TILES.columns)),
+    halfHeight: span(Math.ceil(members / RING_TILES.columns)),
+  }
+}
+
+/**
+ * Whether `count` ring tiles, evenly spaced, still clear each other.
+ *
+ * A tile is an axis-aligned square that does not turn with the ring, so two
+ * neighbours miss each other only if they are a whole tile apart on *one* axis.
+ * Their separation is a chord, and the worst chord for that test is the one
+ * lying at 45 degrees, whose whole length buys only `1/root 2` of itself on
+ * either axis - so a chord of a tile's width times root 2 is what a ring needs
+ * at every rotation, not just the ones that happen to line up.
+ */
+function tilesFit(count: number): boolean {
+  if (count < 2) return true
+  const chord = 2 * RING.radius * Math.sin(Math.PI / count)
+  return chord >= units(RING_TILES.spoke) * Math.SQRT2 - 1e-9
+}
+
+/**
+ * The most spokes a ring can draw one tile each for (ticket 09) - a dozen, on
+ * today's numbers. Derived rather than written down: it moves when the tile
+ * size, the radius or the phone's ring does, which is the whole reason the
+ * panel asks a geometry module instead of carrying a number of its own. A ring
+ * with more witnessed entries than this groups them (`panelModel.groupRing`).
+ */
+export const RING_CAPACITY = ((): number => {
+  let count = 1
+  while (count < 360 && tilesFit(count + 1)) count += 1
+  return count
+})()
 
 /**
  * An SVG triangle with its tip at (x, y), pointing along the unit vector

@@ -1,12 +1,18 @@
 import { describe, expect, test } from 'vitest'
 
+import { entryIndex } from './entries.ts'
+import { fieldNotesView } from './fieldNotesView.ts'
+import { ringFor } from './panelModel.ts'
 import {
   arrowPoints,
   labelPoint,
   outcomePoint,
   RING,
+  RING_CAPACITY,
   spokeLine,
   spokePoint,
+  spokeTileBox,
+  tileSide,
   type RingPoint,
 } from './ringGeometry.ts'
 
@@ -69,9 +75,10 @@ const LABEL_WIDTHS = [4, 8, 12, 16]
 
 /**
  * The product tiles as `.spokeTiles` draws them: an 18px row translated 10px
- * below the label's point, hanging 1.8 to 5.0 ring units under it. A spoke
+ * off the label's point, hanging 1.8 to 5.0 ring units from it. A spoke
  * carries one or two - no entry in the graph has more than two products, and
- * none has more than two reagents.
+ * none has more than two reagents. Which *side* of the point they take is
+ * `tileSide`'s (ticket 17).
  */
 const TILES = {
   top: 10 / UNIT,
@@ -97,13 +104,18 @@ function wordsBox(anchor: { x: number; y: number }, width: number): Box {
   return { x: anchor.x, y: anchor.y, halfWidth: width / 2, halfHeight: RING.labelHalfHeight }
 }
 
-function tilesBox(anchor: { x: number; y: number }, width: number): Box {
+function tilesBox(anchor: { x: number; y: number }, width: number, side = 1): Box {
   return {
     x: anchor.x,
-    y: anchor.y + (TILES.top + TILES.bottom) / 2,
+    y: anchor.y + (side * (TILES.top + TILES.bottom)) / 2,
     halfWidth: width / 2,
     halfHeight: (TILES.bottom - TILES.top) / 2,
   }
+}
+
+/** The tiles where the panel actually draws them: `labelPoint`, on `tileSide`. */
+function drawnTilesBox(point: RingPoint, width: number): Box {
+  return tilesBox(labelPoint(point), width, tileSide(point))
 }
 
 function labelBox(point: RingPoint, width: number): Box {
@@ -218,10 +230,9 @@ describe('outcome labels step clear of the arrowheads', () => {
   })
 
   test('the product tiles ride along, no closer to a head than they have always sat', () => {
-    // The tiles hang below their point whatever the spoke does, so the six
-    // o'clock spoke has always held them out towards its own outward head. That
-    // clearance is the floor, and the step never digs below it - the tiles
-    // sitting that close to a head is older than this change and outlives it.
+    // The tiles used to hang below their point whatever the spoke did, so the
+    // six o'clock spoke held them out towards its own outward head. That
+    // clearance is the floor ticket 10 pinned, and nothing since digs below it.
     const sixOclock = spokePoint(2, 4)
 
     for (const width of TILES.widths) {
@@ -230,8 +241,165 @@ describe('outcome labels step clear of the arrowheads', () => {
 
       for (let index = 0; index < 360; index += 1) {
         const point = spokePoint(index, 360)
-        const gap = tipGap(tilesBox(labelPoint(point), width), point)
+        const gap = tipGap(drawnTilesBox(point, width), point)
         expect({ index, width, kept: gap >= floor - 1e-9 }).toEqual({ index, width, kept: true })
+      }
+    }
+  })
+})
+
+/**
+ * Ticket 17, absorbed into 09: the tiles get a side of their own, so they stop
+ * sitting on the outward arrowhead of a downward spoke - the one place the old
+ * fixed "below the point" placement put them right on top of a head.
+ */
+describe('the product tiles take the side away from the heads (ticket 17)', () => {
+  test('at every angle, the tiles clear both arrowheads by a whole head', () => {
+    for (let index = 0; index < 360; index += 1) {
+      const point = spokePoint(index, 360)
+      for (const width of TILES.widths) {
+        const clear = tipGap(drawnTilesBox(point, width), point) >= TIP_ROOM - 1e-9
+        expect({ index, width, clear }).toEqual({ index, width, clear: true })
+      }
+    }
+  })
+
+  test('a downward spoke lifts them above the point; an upward one keeps them below', () => {
+    expect(tileSide(spokePoint(2, 4))).toBe(-1) // six o'clock, pointing down
+    expect(tileSide(spokePoint(0, 4))).toBe(1) // twelve o'clock, pointing up
+    // The horizontal has no outward head above or below it, so it takes the
+    // same side the words stepped to rather than a coin toss.
+    expect(tileSide(spokePoint(1, 4))).toBe(-1)
+    expect(tileSide(spokePoint(3, 4))).toBe(-1)
+  })
+
+  test('the old fixed placement really did sit on the six o\'clock head', () => {
+    const sixOclock = spokePoint(2, 4)
+    const width = TILES.widths[1]!
+
+    expect(tipGap(tilesBox(labelPoint(sixOclock), width), sixOclock)).toBeLessThan(TIP_ROOM)
+    expect(tipGap(drawnTilesBox(sixOclock, width), sixOclock)).toBeGreaterThanOrEqual(TIP_ROOM)
+  })
+})
+
+/**
+ * How many spokes the ring can hold before its tiles collide (ticket 09). The
+ * capacity is derived from the drawing - the tile size against the smallest
+ * ring the panel lays out - so it moves when the design does, and the numbers
+ * below are consequences of it rather than a second copy of it.
+ */
+describe('ring capacity', () => {
+  /** Whether two boxes centred on these points overlap at all. */
+  function overlap(
+    a: { x: number; y: number },
+    b: { x: number; y: number },
+    box: { halfWidth: number; halfHeight: number },
+  ): boolean {
+    return Math.abs(a.x - b.x) < box.halfWidth * 2 && Math.abs(a.y - b.y) < box.halfHeight * 2
+  }
+
+  /**
+   * `count` tiles evenly spaced, the ring turned `turn` degrees. Tiles are
+   * squares that do not turn with it, so which rotation a ring happens to be
+   * drawn at decides whether a given count collides - and the capacity has to
+   * hold for all of them, not just for the twelve o'clock start `spokePoint`
+   * uses.
+   */
+  function ringAt(count: number, turn: number): Array<{ x: number; y: number }> {
+    return Array.from({ length: count }, (_, index) => {
+      const angle = ((-90 + turn + (index * 360) / count) * Math.PI) / 180
+      return {
+        x: RING.centre + RING.radius * Math.cos(angle),
+        y: RING.centre + RING.radius * Math.sin(angle),
+      }
+    })
+  }
+
+  function collidesAt(count: number, turn: number): boolean {
+    const box = spokeTileBox(1)
+    const points = ringAt(count, turn)
+    return points.some((point, index) =>
+      points.slice(index + 1).some((other) => overlap(point, other, box)),
+    )
+  }
+
+  const turns = Array.from({ length: 91 }, (_, degree) => degree)
+
+  test('it lands where the crowd starts, not on a number someone liked', () => {
+    // Not an assertion about the number so much as about the derivation: the
+    // screenshot that opened the ticket put the crowd at a dozen-odd spokes,
+    // and a capacity outside that band would mean the geometry has moved. What
+    // the number *means* is the two cases below.
+    expect(RING_CAPACITY).toBeGreaterThanOrEqual(10)
+    expect(RING_CAPACITY).toBeLessThanOrEqual(16)
+  })
+
+  test('a ring at the capacity draws no two tiles over each other, at any rotation', () => {
+    for (const turn of turns) {
+      expect({ turn, collides: collidesAt(RING_CAPACITY, turn) }).toEqual({ turn, collides: false })
+    }
+  })
+
+  test('one spoke over, some rotation of it does - which is what the capacity is for', () => {
+    // Not every rotation: at thirteen the twelve o'clock ring happens to miss
+    // itself, and a capacity that trusted that would collide the day a spoke
+    // count moved the angles by a few degrees.
+    expect(turns.some((turn) => collidesAt(RING_CAPACITY + 1, turn))).toBe(true)
+  })
+
+  test('no tile, single or stacked, leaves the 0-100 box', () => {
+    for (const members of [1, 2, 5, 8]) {
+      const box = spokeTileBox(members)
+      for (let index = 0; index < 360; index += 1) {
+        const point = spokePoint(index, 360)
+        expect(point.x - box.halfWidth).toBeGreaterThan(0)
+        expect(point.x + box.halfWidth).toBeLessThan(100)
+        expect(point.y - box.halfHeight).toBeGreaterThan(0)
+        expect(point.y + box.halfHeight).toBeLessThan(100)
+      }
+    }
+  })
+})
+
+/**
+ * The capacity against the graph the app actually ships, rather than against a
+ * count chosen to make it pass: every element's ring, fully witnessed, has to
+ * draw without collisions - which for the crowded ones is grouping's job
+ * (`panelModel`), and for the rest is the plain one-tile-per-spoke case.
+ */
+describe('every ring the roster can draw', () => {
+  const notes = entryIndex()
+  const witnessed = [...notes.witnessKeys]
+  const view = fieldNotesView({ edges: witnessed, reviewed: witnessed.length })
+  const degrees = notes.elements.map((name) => notes.entriesFor(name).length)
+
+  test('the roster still has a ring on both sides of the capacity', () => {
+    // Without this the two cases below could quietly stop being tested at all.
+    expect(Math.max(...degrees)).toBeGreaterThan(RING_CAPACITY)
+    expect(Math.min(...degrees)).toBeLessThanOrEqual(RING_CAPACITY)
+  })
+
+  test('fits, tiles and stacks alike, under the capacity and over it', () => {
+    for (const name of notes.elements) {
+      const spokes = ringFor(name, view).spokes
+      expect({ name, over: spokes.length <= RING_CAPACITY }).toEqual({ name, over: true })
+
+      const drawn = spokes.map((spoke, index) => ({
+        point: spokePoint(index, spokes.length),
+        box: spokeTileBox(spoke.group?.members.length ?? 1),
+      }))
+      for (const [index, one] of drawn.entries()) {
+        expect(one.point.x - one.box.halfWidth).toBeGreaterThan(0)
+        expect(one.point.x + one.box.halfWidth).toBeLessThan(100)
+        expect(one.point.y - one.box.halfHeight).toBeGreaterThan(0)
+        expect(one.point.y + one.box.halfHeight).toBeLessThan(100)
+
+        for (const other of drawn.slice(index + 1)) {
+          const apart =
+            Math.abs(one.point.x - other.point.x) >= one.box.halfWidth + other.box.halfWidth ||
+            Math.abs(one.point.y - other.point.y) >= one.box.halfHeight + other.box.halfHeight
+          expect({ name, index, apart }).toEqual({ name, index, apart: true })
+        }
       }
     }
   })

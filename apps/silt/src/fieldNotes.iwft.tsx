@@ -460,3 +460,59 @@ test("a raw edge of one of the plant's parts lands on the flower's row", async (
   expect(await root.noteSpokeCount()).toBe(2)
   expect(await root.noteStillToFind()).toBe('7')
 })
+
+/**
+ * The ring at the size the roster can actually reach (ticket 09). Fire sits on
+ * two tag rows, so its degree grows with the roster: eighteen witnessed entries
+ * is more than the geometry can give a tile each, and the pairs that share a
+ * verb and a result merge into stacks rather than overlapping. Screenshot-free
+ * on purpose - what is asserted is how many spokes are drawn, what their chips
+ * say, and that every pair behind them is still reachable.
+ */
+test("fire's crowded ring draws as stacks, and every pair stays reachable", async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, entryIndex().witnessKeysFor('fire'))
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openFieldNotes()
+
+  await root.selectNote('fire')
+  expect(await root.focusedNote()).toBe('fire')
+
+  // Eighteen entries, all of them found - and far fewer lines than that drawn.
+  expect(await root.noteStillToFind()).toBe('0')
+  expect(await root.noteDrawnSpokeCount()).toBe(9)
+  // Every pair still has its own tile: the crowd moved into the stacks.
+  expect(await root.noteSpokeCount()).toBe(18)
+  expect(await root.noteGroupCounts()).toEqual(['6/6', '5/5'])
+
+  // And a member of a stack is still the way into its own entry. Seed is in
+  // both stacks - lava melts it, fire burns it - and every tile of it leads to
+  // the same ring, which is the whole point of following one.
+  await root.followSpoke('seed')
+  expect(await root.focusedNote()).toBe('seed')
+})
+
+/**
+ * Ticket 17, absorbed into 09: the phone is where the tiles are all that is
+ * drawn - the outcome words are hidden at this width - so a tile row sitting on
+ * an arrowhead is the whole spoke misreading. Every angle is pinned in
+ * `ringGeometry.test.ts`; this is that arithmetic reaching a real layout.
+ */
+test('the product tiles clear the arrowheads on a downward spoke', async ({ mountApp, page }) => {
+  await page.setViewportSize({ width: 390, height: 780 })
+  await seedWitnessed(page, entryIndex().witnessKeysFor('steam'))
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openFieldNotes()
+
+  // Steam's ring is nearly all arrowheads - five pairs make it, one decay
+  // leaves it - and six spokes put one at six o'clock, pointing straight down.
+  await root.selectNote('steam')
+  expect(await root.focusedNote()).toBe('steam')
+  expect(await root.noteDrawnSpokeCount()).toBe(6)
+
+  await root.verifySpokeTilesClearArrowheads()
+})

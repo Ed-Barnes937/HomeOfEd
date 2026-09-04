@@ -291,13 +291,63 @@ export class SiltPagePom extends BasePage {
     await this.page.getByTestId(`field-notes-product-${name}`).click()
   }
 
-  /** Follows the element on the ring itself. */
+  /**
+   * Follows the element on the ring itself. The first of them: a ring can draw
+   * one element on several spokes - and, since ticket 09, in several stacks -
+   * and every tile with that name leads to the same place.
+   */
   async followSpoke(name: string): Promise<void> {
-    await this.page.getByTestId(`field-notes-spoke-${name}`).click()
+    await this.page.getByTestId(`field-notes-spoke-${name}`).first().click()
   }
 
+  /** Every tile on the ring: one per spoke, or one per member of a merged one. */
   async noteSpokeCount(): Promise<number> {
     return this.page.getByTestId(/^field-notes-spoke-/).count()
+  }
+
+  /** The spokes actually drawn - lines on the ring, however many pairs each stands for. */
+  async noteDrawnSpokeCount(): Promise<number> {
+    return this.page.getByTestId('field-notes-line').count()
+  }
+
+  /** The `2/5` chips under the merged spokes' stacks (ticket 09), in ring order. */
+  async noteGroupCounts(): Promise<string[]> {
+    return this.page.getByTestId('field-notes-group-count').allTextContents()
+  }
+
+  /**
+   * Ticket 17: the product tiles used to hang below their point whatever the
+   * spoke did, which put them on top of the outward arrowhead on the ring's
+   * lower half - worst on a phone, where the words are hidden and the tiles are
+   * all that is drawn. Asserts no tile row overlaps any arrowhead.
+   */
+  async verifySpokeTilesClearArrowheads(): Promise<void> {
+    const tiles = await this.page
+      .getByTestId('field-notes-tiles')
+      .all()
+      .then((all) => Promise.all(all.map((row) => row.boundingBox())))
+    const heads = await this.page
+      .locator('[data-testid="field-notes-ring"] polygon')
+      .all()
+      .then((all) => Promise.all(all.map((head) => head.boundingBox())))
+
+    // Both sides have to be on the screen for the comparison to mean anything:
+    // a sheet that stopped drawing either would otherwise pass this vacuously.
+    expect(heads.length).toBeGreaterThan(0)
+    expect(tiles.filter((row) => row && row.width > 0).length).toBeGreaterThan(0)
+
+    for (const row of tiles) {
+      if (!row || row.width === 0) continue
+      for (const head of heads) {
+        if (!head) continue
+        const apart =
+          row.x + row.width <= head.x ||
+          head.x + head.width <= row.x ||
+          row.y + row.height <= head.y ||
+          head.y + head.height <= row.y
+        expect(apart).toBe(true)
+      }
+    }
   }
 
   async noteStillToFind(): Promise<string> {

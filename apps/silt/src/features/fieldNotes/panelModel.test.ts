@@ -5,7 +5,16 @@ import { elementTags } from './elementAppearance.ts'
 import { entryIndex } from './entries.ts'
 import { fieldNotesView } from './fieldNotesView.ts'
 import type { Progress } from './fieldNotesStore.ts'
-import { HIDDEN_NAME, LEGEND_RULES, legendRows, pickerRows, ringFor } from './panelModel.ts'
+import {
+  groupRing,
+  HIDDEN_NAME,
+  LEGEND_RULES,
+  legendRows,
+  pickerRows,
+  ringFor,
+  type Spoke,
+} from './panelModel.ts'
+import { RING_CAPACITY } from './ringGeometry.ts'
 
 const notes = entryIndex()
 const tags = elementTags(createRegistry(v1Elements, v1Reactions))
@@ -315,6 +324,146 @@ describe('the key (ticket 11)', () => {
   })
 })
 
+describe('grouped spokes (ticket 09)', () => {
+  /** A player who has witnessed every raw edge in the graph. */
+  const everything = viewOf(...notes.witnessKeys)
+
+  /** The stack a grouped spoke draws at its ring point, by name. */
+  function stackOf(spoke: Spoke | undefined): string[] {
+    return (spoke?.group?.members ?? []).map((member) => member.name)
+  }
+
+  test('the ring groups nothing while it fits, however many pairs share a result', () => {
+    // Sulphur's seven fit, so its five acid pairs stay five spokes: below the
+    // capacity, full fidelity is worth more than tidiness (decision 3).
+    const spokes = ringFor('sulphur', everything).spokes
+    expect(spokes).toHaveLength(7)
+    expect(spokes.every((spoke) => spoke.group === undefined)).toBe(true)
+  })
+
+  test('a ring at the capacity exactly does not group; one over does', () => {
+    const spokes = ringFor('sulphur', everything).spokes
+
+    expect(groupRing(spokes, 'sulphur', spokes.length)).toEqual(spokes)
+    expect(groupRing(spokes, 'sulphur', spokes.length - 1).length).toBeLessThan(spokes.length)
+  })
+
+  test("ticket 15's acid rows collapse to one spoke: same verb, same result", () => {
+    const spokes = ringFor('sulphur', everything).spokes
+    const grouped = groupRing(spokes, 'sulphur', spokes.length - 1)
+
+    // Three verbs-and-results on sulphur's ring: what makes it, what burns it,
+    // and what lava does to it.
+    expect(grouped).toHaveLength(3)
+    const [made] = grouped.filter((spoke) => spoke.direction === 'in')
+    expect(made?.group?.seen).toBe(5)
+    expect(made?.group?.total).toBe(5)
+    expect(stackOf(made)).toEqual(['wood', 'seed', 'moss', 'vine', 'flower'])
+
+    // The grouping key is the verb and the result, not the rows behind them:
+    // ticket 15's eight literal `acid + <plant>` rows, the wood one and the
+    // buried seed land on five charted entries (ticket 08) and, here, on one
+    // spoke. A table refactor into a `[plant]` tag row would move none of this.
+    const raw = (made?.group?.members ?? []).flatMap(
+      (member) => notes.get(member.key)?.sources ?? [],
+    )
+    expect(raw).toHaveLength(10)
+  })
+
+  test('a group says what its members share, and stacks what they do not', () => {
+    const spokes = ringFor('sulphur', everything).spokes
+    const [made] = groupRing(spokes, 'sulphur', spokes.length - 1).filter(
+      (spoke) => spoke.direction === 'in',
+    )
+
+    // Every member is `acid + something`, so acid is the words and the product
+    // tile, and the somethings are the stack. Nothing is invented: the ellipsis
+    // stands for the stack, which is drawn right beside it.
+    expect(made?.outcome).toBe('acid + …')
+    expect(made?.tiles.map((tile) => tile.name)).toEqual(['acid'])
+    expect(made?.kind).toBe('react')
+  })
+
+  test('a lone witnessed pair keeps its own words, and states what it is one of', () => {
+    // Grouping must not cost the player a reading of the pair they actually
+    // witnessed - with one member there is nothing to elide, so nothing is.
+    const view = viewOf('react:acid+wood')
+    const spokes = ringFor('sulphur', view).spokes
+    const [only] = groupRing(spokes, 'sulphur', 0)
+
+    expect(only?.outcome).toBe('acid + wood')
+    expect(stackOf(only)).toEqual(['acid'])
+    expect(only?.group).toMatchObject({ seen: 1, total: 5 })
+  })
+
+  test('the chip counts pairs, not raw edges: the still-to-find rule, localised', () => {
+    const view = viewOf('react:acid+wood', 'react:acid+moss')
+    const spokes = ringFor('sulphur', view).spokes
+    const [made] = groupRing(spokes, 'sulphur', 0).filter((spoke) => spoke.direction === 'in')
+
+    expect(made?.group).toMatchObject({ seen: 2, total: 5 })
+    expect(stackOf(made)).toEqual(['wood', 'moss'])
+  })
+
+  test('a member the player has not discovered is a silhouette, counted and unnamed', () => {
+    const view = viewOf(
+      'react:acid+wood',
+      'react:acid+seed',
+      'react:acid+moss',
+      'react:acid+vine',
+      'react:acid+flower',
+    )
+    const spokes = ringFor('sulphur', view).spokes
+    const [made] = groupRing(spokes, 'sulphur', 0)
+
+    // Acid dissolving a plant discovers sulphur, never the plant: three of the
+    // five members are elements this player has never seen.
+    expect(made?.group?.members.map((member) => member.label)).toEqual([
+      'wood',
+      'seed',
+      HIDDEN_NAME,
+      HIDDEN_NAME,
+      HIDDEN_NAME,
+    ])
+    expect(made?.group?.members.map((member) => member.discovered)).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+    ])
+    expect(made?.group?.seen).toBe(5)
+  })
+
+  test("fire's ring is the one the roster actually crowds, and it groups itself", () => {
+    // The ticket's own case: eighteen witnessed spokes, a solid wall of
+    // arrowheads at twelve o'clock. Nothing is dropped - the pairs move into
+    // the stacks - so the entry count under the ring does not move either.
+    const ring = ringFor('fire', everything)
+    expect(notes.entriesFor('fire')).toHaveLength(18)
+    expect(ring.spokes.length).toBeLessThanOrEqual(RING_CAPACITY)
+    expect(ring.seen).toBe(18)
+    expect(ring.stillToFind).toBe(0)
+
+    const pairs = ring.spokes.reduce((sum, spoke) => sum + (spoke.group?.seen ?? 1), 0)
+    expect(pairs).toBe(18)
+
+    // Six of them are `lava + something -> lava · fire`, and lava is what they
+    // share: it stays on the line while the somethings become the stack.
+    const [lava] = ring.spokes.filter((spoke) => (spoke.group?.seen ?? 1) > 1 && spoke.direction === 'in')
+    expect(lava?.outcome).toBe('lava + …')
+    expect(stackOf(lava)).toEqual(['oil', 'sulphur', 'seed', 'moss', 'vine', 'flower'])
+  })
+
+  test('a grouped ring is still every witnessed pair, and only witnessed ones', () => {
+    const ring = ringFor('fire', everything)
+    const keys = ring.spokes.flatMap((spoke) =>
+      spoke.group ? spoke.group.members.map((member) => member.key) : [spoke.key],
+    )
+    expect(new Set(keys)).toEqual(new Set(notes.entriesFor('fire')))
+  })
+})
+
 describe('the spoiler invariant (spec §7)', () => {
   /**
    * A witnessed entry can still name an element the chart is hiding: a scene
@@ -354,6 +503,35 @@ describe('the spoiler invariant (spec §7)', () => {
           ...spoke.tiles.map((tile) => tile.label),
         ]),
       ].join(' ')
+      for (const secret of hidden) expect(words).not.toContain(secret)
+    }
+  })
+
+  test('nor does a grouped one, whose stacks are silhouettes like everything else', () => {
+    // Every ring forced to group (capacity 0) against a witnessed set that runs
+    // ahead of what has been discovered: the stacks and the elided words are
+    // new places a name could reach the DOM, and neither may carry one.
+    // Everything witnessed except the edges that would *make* mud, so every
+    // ring is full while mud itself has still never been seen.
+    const view = viewOf(
+      ...notes.all
+        .flatMap((entry) => entry.sources)
+        .filter((source) => !source.products.includes('mud'))
+        .map((source) => source.key),
+    )
+    const hidden = notes.elements.filter((name) => !view.discovered.has(name))
+    expect(hidden).toContain('mud')
+
+    for (const name of notes.elements) {
+      const grouped = groupRing(ringFor(name, view).spokes, name, 0)
+      const words = grouped
+        .flatMap((spoke) => [
+          spoke.outcome,
+          spoke.partner.label,
+          ...spoke.tiles.map((tile) => tile.label),
+          ...(spoke.group?.members ?? []).map((member) => member.label),
+        ])
+        .join(' ')
       for (const secret of hidden) expect(words).not.toContain(secret)
     }
   })
