@@ -7,7 +7,12 @@ import type { PaletteEntry } from './paletteGroups.ts'
 import styles from './EarnedElements.module.scss'
 
 export interface EarnedElementsProps {
-  /** The unlocked elements, in unlock order. Never empty - see the note below. */
+  /**
+   * The unlocked elements, in roster order - the order `entryIndex().unlockable`
+   * declares, not the order the player earned them in (ticket 14: mastery is
+   * derived from a set of edges, which remembers no chronology). Never empty -
+   * see the note below.
+   */
   entries: readonly PaletteEntry[]
   /**
    * Whether the roster still holds something that can be earned. It says only

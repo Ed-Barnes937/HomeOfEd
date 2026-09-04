@@ -21,7 +21,7 @@
  */
 import type { EdgeKey, EdgeKind } from './edgeKeys.ts'
 import type { ElementTags } from './elementAppearance.ts'
-import { entryIndex, UNLOCKABLE_NAMES, type Entry, type EntryIndex } from './entries.ts'
+import { entryIndex, type Entry, type EntryIndex } from './entries.ts'
 import type { FieldNotesView } from './fieldNotesView.ts'
 
 /** What an undiscovered element reads as, anywhere its name would go (spec §7). */
@@ -91,7 +91,7 @@ export interface ElementRef {
 export interface PickerRow extends ElementRef {
   /** Minimum transmutation depth: the column, and the sort key (spec §6). */
   tier: number
-  /** `seen/total`, or `n/5 to unlock` on an unearned unlockable. Empty while hidden. */
+  /** `seen/total`, or `n/m to unlock` on an unearned unlockable. Empty while hidden. */
   count: string
   /** Every entry involving the element has been witnessed - the drawn star. */
   mastered: boolean
@@ -262,7 +262,7 @@ export function pickerRows(
     // The unlock is the row's own goal, so it replaces the bare count rather
     // than repeating it (spec §6 "The unlock"). Once earned it is just a count
     // again - the element is in the rail, and there is nothing left to state.
-    const unlockable = UNLOCKABLE_NAMES.includes(name) && !mastered
+    const unlockable = index.unlockable.includes(name) && !mastered
     return {
       ...ref,
       // Always computable: every discoverable element is the product of at

@@ -9,7 +9,7 @@
  * or reaction row moves every number without a migration.
  */
 import type { EdgeKey } from './edgeKeys.ts'
-import { entryIndex, UNLOCKABLE_NAMES, type EntryIndex } from './entries.ts'
+import { entryIndex, type EntryIndex } from './entries.ts'
 import type { Progress } from './fieldNotesStore.ts'
 
 /** `seen of total` - what the counters, the picker rows and the chip all show. */
@@ -75,7 +75,7 @@ export function fieldNotesView(
     discovered,
     mastered,
     unlocked,
-    moreToEarn: unlocked.length < UNLOCKABLE_NAMES.length,
+    moreToEarn: unlocked.length < index.unlockable.length,
     newElements: new Set([...discovered].filter((name) => !reviewed.has(name))),
     counts: new Map(
       index.elements.map((name) => {

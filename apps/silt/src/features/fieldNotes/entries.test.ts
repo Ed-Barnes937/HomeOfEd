@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { deriveInteractionGraph } from '../../docs/interactionGraph.ts'
 import {
-  UNLOCKABLE_NAMES,
   buildEntryIndex,
   decayKey,
   entryIndex,
@@ -357,8 +356,40 @@ describe('derivations from a witnessed-key set', () => {
     expect([...derived.discovered].sort()).toEqual([...notes.preKnown].sort())
   })
 
+  test('every charted non-base element is unlockable, base elements never (ticket 14)', () => {
+    // Pinned as a literal rather than as the predicate retyped: a derivation
+    // asserted against its own shape cannot fail. This is spec §1's ten
+    // discoverables, in roster order - which is the order the EARNED control
+    // shows them in, and the order `unlocked` comes back in.
+    expect(notes.unlockable).toEqual([
+      'obsidian',
+      'smoke',
+      'steam',
+      'sulphur',
+      'mud',
+      'moss',
+      'vine',
+      'ember',
+      'ash',
+      'flower',
+    ])
+    // The rail is never earnable - it is already in hand.
+    for (const name of notes.preKnown) expect(notes.unlockable).not.toContain(name)
+    // The plant's stages are charted under flower and seed (ticket 08), so they
+    // are not elements here and cannot be unlocked in their own right: the
+    // player earns flower, and flower is what they paint (ADR 0049).
+    for (const stage of ['buried', 'sprout', 'tip', 'stalk', 'petal']) {
+      expect(notes.unlockable).not.toContain(stage)
+    }
+  })
+
+  test("mastering obsidian's edge set unlocks obsidian", () => {
+    const derived = notes.derive(new Set(notes.witnessKeysFor('obsidian')))
+    expect(derived.mastered.has('obsidian')).toBe(true)
+    expect(derived.unlocked).toContain('obsidian')
+  })
+
   test("mud's full six keys unlock mud; any five do not", () => {
-    expect(UNLOCKABLE_NAMES).toEqual(['mud'])
     const full = notes.derive(new Set(MUD_KEYS))
     expect(full.mastered.has('mud')).toBe(true)
     expect(full.unlocked).toEqual(['mud'])
@@ -403,7 +434,7 @@ describe('derivations from a witnessed-key set', () => {
     // what the sim reported, and the grouping is derived over it (ticket 08).
     const derived = notes.derive(new Set(notes.witnessKeys))
     expect([...derived.mastered].sort()).toEqual([...notes.elements].sort())
-    expect(derived.unlocked).toEqual([...UNLOCKABLE_NAMES])
+    expect(derived.unlocked).toEqual([...notes.unlockable])
   })
 })
 

@@ -57,8 +57,17 @@ This spec defines behaviour, data, and UI structure/states. Visual design
 - **Mastered** - every edge that names the element (as reagent or product) has
   been witnessed. Derived, like element discovery, from the witnessed-edge set.
 - **Unlockable** - a discoverable element that joins the paint rail when
-  mastered. v1 has exactly one: mud (6 edges since the life epic: dirt+water,
-  ash+water, mud+fire, mud+lava, mud+seed, mud+petal).
+  mastered. **Every** discoverable is one (ticket 14, amending decision 6):
+  mastery is the unlock, full stop, so the set is derived - charted elements
+  minus the base rail - rather than a kept list, and a new discoverable is
+  earnable the day it lands. 10 today, and the EARNED control lists them in
+  that derived roster order rather than the order they were earned in: mastery
+  is derived from a *set* of witnessed edges, which remembers no chronology, and
+  a list that reorders itself as the roster fills would be the worse of the two.
+  Mud stays the natural first unlock (two
+  of its 6 edges need ash, so it pulls the player through the char chain); easy
+  ones like steam and obsidian come early, which is fine - painting a gas is a
+  toy, not an economy.
 
 Totals with today's roster: **20 elements and 47 interactions** - the graph's 58
 raw edges (48 reactions + 4 productive decays + 2 growth + 4 hook edges) folded
@@ -113,11 +122,12 @@ scene codec already treats as the stable identity across renumbering.
   nothing extra is recorded. Note the consequence: an element can read its full
   `seen/total` and still be unstarred, because the count is over charted entries
   and the star is over the edges behind them.
-- An **unlockable element joins the paint rail when mastered** (appended after
-  seed; the 1-9 hotkeys never move). v1: mastering mud's 5 edges makes mud
-  paintable. Note the pacing this buys: two of mud's edges need ash, so the
-  unlock is a mid-game goal that pulls the player through the char chain
-  (wood -> ember -> ash), not a freebie.
+- An **unlockable element joins the paint rail when mastered** - and every
+  discoverable is unlockable (ticket 14), so mastering an element is what earns
+  it, whichever one it is. Earned elements live in the EARNED control at the
+  rail's foot (decision 8), so the 1-9 hotkeys never move however many arrive.
+  Note the pacing mud still buys: two of its edges need ash, so it is a mid-game
+  goal that pulls the player through the char chain (wood -> ember -> ash).
 - **Not** discoveries:
   - Painting (painting requires a known element - the base rail or an earned
     unlock, whose edges are by definition already witnessed) and spawner
@@ -200,7 +210,7 @@ element at a time, so the picture does not get busier as the roster grows.
   read "both consumed".
 - **One definition of "an entry"**: an edge counts for an element when the
   element is a reagent *or* a product. The picker count, the ring, the
-  still-to-find footer and mud's unlock chip all read the same predicate -
+  still-to-find footer and the unlock chip all read the same predicate -
   splitting them is the bug that empties the ring for product-only elements.
 - **Element tiles**: one helper builds every tile from `hex` + archetype.
   Shape carries behaviour: static square, powder cut-corner, liquid diamond,
@@ -217,7 +227,8 @@ element at a time, so the picture does not get busier as the roster grows.
   whose every name is the focused element itself, which is what the raise and
   the bloom become once charted (ticket 08) - carries none: both ends of the
   arrow would be the centre.
-- **The unlock**: mud's picker row states `n/5 to unlock`. On mastery an
+- **The unlock**: every unearned discoverable's picker row states
+  `n/m to unlock` (ticket 14 - mud's is `n/6`). On mastery an
   **EARNED control appears at the rail's foot** (scenes-popover chrome) and
   holds everything earned since - one control, however many unlocks follow
   (decision 8). No locked placeholder beforehand; hotkeys 1-9 never move.
@@ -268,9 +279,16 @@ element at a time, so the picture does not get busier as the roster grows.
    are core tools whose product status is incidental, and wood's only recipe
    (dousing ember) needs wood, so trimming it would kill the whole char chain.
 6. **Mastery unlock**: witnessing every edge that names an element masters it;
-   a mastered unlockable joins the paint rail. v1's only unlockable is mud.
-   This is an app change (`PAINTABLE_IDS` shrinks; the rail becomes base +
-   unlocked), not just a chart change - it gets its own ticket.
+   a mastered unlockable joins the paint rail. This is an app change
+   (`PAINTABLE_IDS` shrinks; the rail becomes base + unlocked), not just a chart
+   change - it gets its own ticket.
+   *Amended 2026-09-04 (ticket 14, Ed on PR #128):* the unlockables were mud
+   alone; they are now **every charted non-base element**, derived rather than
+   listed. Mastery is the unlock full stop - a per-element opt-in was a knob with
+   no case to turn it, and shipping one earnable element out of ten made the
+   other nine's `n/m` counts a dead end. The derivation runs over *charted*
+   elements (ticket 08), so a grouped element is earned and painted as its own
+   canonical species: flower earns flower, never tip or stalk.
 7. **Ring + picker accepted** over the brief's whole-graph chart (design's
    pivot, accepted): scales with the roster; the picker's "?" slots and
    per-element counts preserve the goal-map function. A whole-graph overview

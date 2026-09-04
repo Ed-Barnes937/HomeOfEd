@@ -33,7 +33,9 @@ function wordsOf(moment: Moment): string {
 describe('discovery cards', () => {
   test('a first witness that revealed elements names them, and wears their tiles', () => {
     const [card, ...rest] = movingTo([], ['react:lava+water'])
-    expect(rest).toEqual([])
+    // Obsidian's one entry is this one, so mastering it earns it in the same
+    // breath (ticket 14) - the unlock card rides behind the discovery.
+    expect(rest.map((moment) => moment.kind)).toEqual(['unlock'])
     expect(card?.kind).toBe('discovery')
     expect(card?.lead).toBe('new entry')
     expect(card?.title).toBe('steam · obsidian')
@@ -91,10 +93,19 @@ describe('the mastery unlock card', () => {
     expect(unlock?.tiles.map((tile) => tile.name)).toEqual(['mud'])
   })
 
-  test('mastering something that is not unlockable is not a card', () => {
-    // Obsidian's one entry masters it, but nothing joins the rail for it.
-    const cards = movingTo([], notes.witnessKeysFor('obsidian'))
-    expect(cards.every((card) => card.kind === 'discovery')).toBe(true)
+  test('mastering any discoverable earns it into the rail (ticket 14)', () => {
+    // Obsidian's one entry masters it, and since mastery is the unlock full stop
+    // that entry now earns it too.
+    const unlock = movingTo([], notes.witnessKeysFor('obsidian')).at(-1)
+    expect(unlock?.kind).toBe('unlock')
+    expect(unlock?.title).toBe('obsidian joins your rail')
+  })
+
+  test('mastering a base element is not a card - it is in the rail already', () => {
+    const unlocks = movingTo([], notes.witnessKeysFor('stone')).filter(
+      (card) => card.kind === 'unlock',
+    )
+    expect(unlocks.map((card) => card.title)).not.toContain('stone joins your rail')
   })
 })
 

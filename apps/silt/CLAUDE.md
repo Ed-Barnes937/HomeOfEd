@@ -414,9 +414,11 @@ else touches it.
   or is of another version, reads as empty with a warning and is left on disk
   until a real write replaces it.
 - **The rail is base + earned, never base with something inserted.**
-  `PAINTABLE_IDS` is the ten base elements; a mastered unlockable (mud today)
-  reaches the rail through `buildRailPalette`'s `earned` list and the EARNED
-  control at the palette's foot, so no hotkey ever moves (spec §9.8). An earned
+  `PAINTABLE_IDS` is the ten base elements; a mastered unlockable - since ticket
+  14 that is **every charted non-base element**, derived as the index's
+  `unlockable` rather than a kept list - reaches the rail through
+  `buildRailPalette`'s `earned` list and the EARNED control at the palette's
+  foot, so no hotkey ever moves (spec §9.8). An earned
   element is paintable in every other way, spawners included. Mud leaving the
   rail did **not** take it out of `v1Elements` - scenes remap by name, and a
   pre-trim scene's mud cells depend on it still being a species.

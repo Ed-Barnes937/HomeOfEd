@@ -103,6 +103,18 @@ describe('picker rows', () => {
     expect(rowFor('mud', ...notes.witnessKeysFor('mud')).count).toBe('6/6')
   })
 
+  test('every discoverable row states its unlock, not just mud (ticket 14)', () => {
+    // Mud stops being special: any charted non-base element joins the rail when
+    // mastered, so any discovered one that is not yet mastered says so.
+    const steam = rowFor('steam', 'react:lava+water')
+    expect(steam.mastered).toBe(false)
+    expect(steam.count).toBe(`1/${notes.entriesFor('steam').length} to unlock`)
+
+    // A base element is not unlockable, so its row is a bare count however far
+    // along it is - it is in the rail already.
+    expect(rowFor('water', 'react:lava+water').count).toBe('1/10')
+  })
+
   test('newly discovered elements are marked until the panel is reviewed', () => {
     const fresh = pickerRows(fieldNotesView({ edges: ['react:lava+water'], reviewed: 0 }))
     const marked = fresh.filter((row) => row.isNew).map((row) => row.name)

@@ -81,9 +81,27 @@ describe('fieldNotesView()', () => {
     for (const key of MUD_KEYS.slice(0, 5)) store.witness([key])
     expect(reloaded().moreToEarn).toBe(true)
 
-    // Mud is the roster's only unlockable, so mastering it empties the promise.
+    // Mud is no longer the only unlockable (ticket 14), so mastering it leaves
+    // the promise standing; only the whole roster empties it.
     store.witness([MUD_KEYS[5]!])
+    expect(reloaded().moreToEarn).toBe(true)
+
+    store.witness([...notes.witnessKeys])
     expect(reloaded().moreToEarn).toBe(false)
+  })
+
+  test("the unlock denominator is the whole discoverable roster (ticket 14)", () => {
+    // What the view promises against: `moreToEarn` is measured over every
+    // charted non-base element, so witnessing the lot must empty it exactly.
+    // The roster itself is pinned as a literal in `entries.test.ts`.
+    expect(notes.unlockable).toHaveLength(notes.elements.length - notes.preKnown.length)
+
+    store.witness([...notes.witnessKeys])
+    const view = reloaded()
+
+    expect(view.unlocked).toEqual([...notes.unlockable])
+    expect(view.moreToEarn).toBe(false)
+    for (const name of notes.preKnown) expect(view.unlocked).not.toContain(name)
   })
 
   test('an edge key this roster cannot resolve counts for nothing', () => {

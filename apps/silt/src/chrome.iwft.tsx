@@ -1,6 +1,6 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { DIRT, EMPTY, GRID_HEIGHT, MUD, SAND } from './sim/index.ts'
+import { DIRT, EMPTY, GRID_HEIGHT, MUD, SAND, STEAM } from './sim/index.ts'
 import { seedMastery } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
 
@@ -220,6 +220,26 @@ test('mastering mud puts it in the earned control, where it paints like any elem
   await root.clickCell(150, 20)
   await root.step()
   await expect.poll(() => root.countSpecies(MUD)).toBeGreaterThan(1)
+})
+
+// Ticket 14: mud is no longer the only way in. Mastery of *any* charted non-base
+// element earns it, so a player who has exhausted steam's edges paints steam.
+test('mastering steam earns it too - the unlock is mastery, not a chosen element', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'steam')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openEarned()
+  expect(await root.earnedElementNames()).toContain('steam')
+
+  await root.selectEarnedElement('steam')
+  expect(await root.statusText('status-element')).toBe('steam')
+
+  await root.paintCell(40, 40)
+  await root.verifyCellIs(40, 40, STEAM)
 })
 
 // Ticket 13: the popover used to be pinned to the viewport's bottom-left corner,

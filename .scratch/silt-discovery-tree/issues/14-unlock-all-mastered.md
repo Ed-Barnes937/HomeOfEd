@@ -1,6 +1,6 @@
 # 14 - Every mastered non-base element joins the EARNED control
 
-**Status:** ready-for-agent
+**Status:** done (built on ticket-14-unlock-all-mastered, 2026-09-04)
 **Type:** task
 **Blocked by:** 08 (the unlock predicate must run over *charted* elements -
 without the grouping, "master tip, paint tip" and "master buried, paint buried"

@@ -20,7 +20,7 @@
  *   already the stable identity the scene codec persists.
  * - **One definition of "an entry"** (spec §6): an edge counts for an element
  *   when the element is a reagent *or* a product. `involves()` is that single
- *   predicate - the picker counts, the ring, the still-to-find footer and mud's
+ *   predicate - the picker counts, the ring, the still-to-find footer and the
  *   unlock chip must all read it rather than re-deriving, since splitting it is
  *   exactly what empties the ring for a product-only element like obsidian.
  *
@@ -98,17 +98,9 @@ export interface Discoveries {
   discovered: ReadonlySet<string>
   /** Elements whose every entry has been witnessed. */
   mastered: ReadonlySet<string>
-  /** Mastered unlockables, in `UNLOCKABLE_NAMES` order: these join the rail. */
+  /** Mastered unlockables, in `unlockable` order: these join the rail. */
   unlocked: readonly string[]
 }
-
-/**
- * Discoverable elements that join the paint rail once mastered (spec §1, §9.6).
- * Declared beside the derivation that consumes it so the two cannot drift.
- * v1 has exactly one: mud, whose five edges pull the player through the char
- * chain before it is earned.
- */
-export const UNLOCKABLE_NAMES: readonly string[] = ['mud']
 
 export interface EntryIndex {
   /** Every charted entry: reactions, then decays, then growth, then the hook transmutations. */
@@ -121,6 +113,15 @@ export interface EntryIndex {
   elements: readonly string[]
   /** The elements known from first launch: whatever sits in the rail today. */
   preKnown: readonly string[]
+  /**
+   * The elements that join the paint rail once mastered (spec §1, §9.6): every
+   * charted element that is not already in the rail, in `elements` order. A
+   * predicate rather than a list (ticket 14) - mastery *is* the unlock, so a new
+   * discoverable is earnable the day it lands, with nothing to keep in step.
+   * Charted, so the plant's stages are never unlockable in their own right: the
+   * player earns flower and paints flower (ADR 0049).
+   */
+  unlockable: readonly string[]
   /** The charted entry a key names - charted or raw alike - or `undefined` for one this roster does not know. */
   get(key: EdgeKey): Entry | undefined
   /** The one definition of "an entry": reagent *or* product. Unknown keys are false. */
@@ -304,6 +305,7 @@ export function buildEntryIndex(graph: InteractionGraph = deriveInteractionGraph
   const preKnown = [
     ...new Set(graph.nodes.filter((node) => node.paintable).map((node) => charted(node.name))),
   ]
+  const unlockable = elements.filter((name) => !preKnown.includes(name))
 
   // Keyed by the charted key *and* by every raw key behind it, so a witness the
   // sim reports lands on its entry without the caller knowing about the fold.
@@ -358,7 +360,7 @@ export function buildEntryIndex(graph: InteractionGraph = deriveInteractionGraph
     return {
       discovered,
       mastered,
-      unlocked: UNLOCKABLE_NAMES.filter((name) => mastered.has(name)),
+      unlocked: unlockable.filter((name) => mastered.has(name)),
     }
   }
 
@@ -368,6 +370,7 @@ export function buildEntryIndex(graph: InteractionGraph = deriveInteractionGraph
     witnessKeys,
     elements,
     preKnown,
+    unlockable,
     get: (key) => byKey.get(key),
     involves: (key, elementName) => {
       const entry = byKey.get(key)
