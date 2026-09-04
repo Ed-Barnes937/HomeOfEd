@@ -28,6 +28,12 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # The deploy-record PR (record-deploys below) lands a commit touching only
+    # this generated file. Ignoring it here is the recursion guard: the record
+    # reaching main must not start another deploy run (record-deploys already
+    # redeployed hub with the new record before opening that PR). ADR 0047.
+    paths-ignore:
+      - apps/hub/src/generated/deployments.json
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -805,6 +811,10 @@ jobs:
     if: always()
     permissions:
       contents: write
+      # The record lands through a PR now that main requires status checks
+      # (ADR 0047): pull-requests to open it, actions to dispatch its checks.
+      pull-requests: write
+      actions: write
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       APP_URL: https://hoe-hub.fly.dev
@@ -850,6 +860,12 @@ jobs:
           WOTD: ${{ needs.deploy-wotd.result == 'success' && needs.deploy-wotd.outputs.deployed == 'true' }}
         run: |
           set -euo pipefail
+          # A record may still be waiting in an unmerged deploy-record PR; start
+          # from that branch's file so this run accumulates onto it instead of
+          # clobbering it.
+          if git fetch origin deploy-record; then
+            git checkout FETCH_HEAD -- apps/hub/src/generated/deployments.json
+          fi
           apps=""
           add() { if [ "$2" = "true" ]; then apps="$apps $1"; fi; }
           add boids "$BOIDS"
@@ -861,7 +877,10 @@ jobs:
           add wotd "$WOTD"
           # $apps is deliberately unquoted — it is a list of app names.
           node apps/hub/src/deployments/recordDeploys.ts --at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" $apps
-          if git diff --quiet -- apps/hub/src/generated/deployments.json; then
+          # Diffed against HEAD (main), not the index: a carry-forward staged by
+          # the checkout above must count as changed, so a stalled record PR is
+          # re-armed by the next deploy instead of waiting on new content.
+          if git diff --quiet HEAD -- apps/hub/src/generated/deployments.json; then
             echo "::notice::no homepage app deployed in this push — nothing to record."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
@@ -869,37 +888,59 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit and push the record
+      # Main is protected (required checks), so the record cannot be pushed to
+      # it directly. It lands through a short-lived PR instead (ADR 0047):
+      # commit on `deploy-record`, open or refresh the PR, arm auto-merge, and
+      # dispatch the PR checks onto the branch ourselves - a branch pushed with
+      # GITHUB_TOKEN raises no pull_request event (GitHub suppresses that
+      # token's events to stop workflow recursion; workflow_dispatch is the
+      # documented exception, which is exactly the loophole used here).
+      # Recursion safety no longer hangs on the token: the merge commit touches
+      # only deployments.json, which this workflow's paths-ignore skips, and
+      # `[skip ci]` in the message is a second, independent lock.
+      - name: Land the record through a PR (main is protected)
         if: steps.record.outputs.changed == 'true'
         env:
           APPS: ${{ steps.record.outputs.apps }}
-        # Pushed with the checkout's default GITHUB_TOKEN. GitHub raises no
-        # workflow events for pushes made with that token, and that is the only
-        # thing stopping this job from triggering itself forever. Do NOT swap in
-        # a PAT or a deploy key — `[skip ci]` in the message is a courtesy to
-        # whoever is reading the log, not the guard.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B deploy-record
           git add apps/hub/src/generated/deployments.json
-          git commit -m "chore: record deploys ($APPS) [skip ci]"
-          for attempt in 1 2; do
-            if git push origin HEAD:main; then exit 0; fi
-            echo "push rejected — a human landed on main mid-run; rebasing and retrying"
-            git pull --rebase origin main
-          done
-          exit 1
+          git commit -m "chore: record deploys (${APPS:-carry-forward}) [skip ci]"
+          # Always exactly one commit ahead of main. Any pending record was
+          # carried into the file before the recorder ran, so the force push
+          # rewrites nothing but history this job itself wrote.
+          git push --force origin deploy-record
+          pr=$(gh pr list --head deploy-record --base main --state open \
+            --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            url=$(gh pr create --head deploy-record --base main \
+              --title "chore: record deploys (${APPS:-carry-forward}) [skip ci]" \
+              --body "Generated by the record-deploys job: the homepage deploy record for the apps that shipped. Lands via PR because main requires status checks - see ADR 0047. The site is already fresh (hub was redeployed by the same job); this PR only makes git agree.")
+            pr=${url##*/}
+          fi
+          if [ "$(gh pr view "$pr" --json autoMergeRequest --jq '.autoMergeRequest == null')" = "true" ]; then
+            gh pr merge "$pr" --squash --auto
+          fi
+          # The force push raised no pull_request event (GITHUB_TOKEN), so put
+          # the required checks onto the branch head explicitly.
+          gh workflow run pr.yml --ref deploy-record
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
         if: steps.record.outputs.changed == 'true'
 
       - name: Redeploy hub so the recorded dates reach the browser
         if: steps.record.outputs.changed == 'true'
-        # Load-bearing. The commit above raises no workflow event by design, so
-        # nothing else will rebuild hub — without this the dates are correct in
-        # git and stale on the site, which looks like the feature working right
-        # up until you check. When hub was itself in the push this is its second
+        # Load-bearing. The record reaches main through the PR above minutes
+        # from now, and that merge is deliberately invisible to this workflow
+        # (paths-ignore), so nothing else will rebuild hub - without this the
+        # dates are correct in git and stale on the site, which looks like the
+        # feature working right up until you check. Deployed from this job's
+        # working tree, which already holds the new record - no need to wait
+        # for the PR. When hub was itself in the push this is its second
         # deploy of the run: two minutes of remote build, cheaper than a
         # conditional that could get the ordering wrong.
         run: flyctl deploy --config apps/hub/fly.toml --remote-only

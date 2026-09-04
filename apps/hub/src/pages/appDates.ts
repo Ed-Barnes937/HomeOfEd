@@ -19,9 +19,13 @@ export type AppDates = {
   updatedAt?: string
 }
 
-export function appDates(pkg: string | undefined): AppDates {
+export function lookupAppDates(record: Deployments, pkg: string | undefined): AppDates {
   if (!pkg) return {}
-  const record = (deployments as Deployments)[pkg]
-  if (!record) return {}
-  return { deployedAt: record.firstDeployedAt, updatedAt: record.lastDeployedAt }
+  const dates = record[pkg]
+  if (!dates) return {}
+  return { deployedAt: dates.firstDeployedAt, updatedAt: dates.lastDeployedAt }
+}
+
+export function appDates(pkg: string | undefined): AppDates {
+  return lookupAppDates(deployments, pkg)
 }
