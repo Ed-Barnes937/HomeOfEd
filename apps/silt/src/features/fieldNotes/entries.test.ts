@@ -107,7 +107,8 @@ describe('charted grouping (ticket 08)', () => {
     const raw = notes.witnessKeys
     expect(new Set(raw).size).toBe(raw.length)
     // The ungrouped graph's own count: nothing was dropped on the way in.
-    expect(raw).toHaveLength(58)
+    // Fifty-seven since ticket 16 removed the acid + water row.
+    expect(raw).toHaveLength(57)
     for (const key of raw) expect(notes.get(key)).toBeDefined()
     // And every charted entry is backed by at least one of them.
     for (const entry of notes.all) {
