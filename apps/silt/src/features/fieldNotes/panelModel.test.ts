@@ -83,10 +83,11 @@ describe('picker rows', () => {
   })
 
   test('a discovered row counts the entries that involve it, reagent or product', () => {
-    // Water has eleven entries since ticket 07 charted the soaked germination;
-    // one of them has now been witnessed.
-    expect(rowFor('water', 'react:lava+water').count).toBe('1/11')
-    expect(rowFor('water').count).toBe('0/11')
+    // Water has ten entries - eleven after ticket 07 charted the soaked
+    // germination, one fewer since ticket 16 removed `acid + water`; one of them
+    // has now been witnessed.
+    expect(rowFor('water', 'react:lava+water').count).toBe('1/10')
+    expect(rowFor('water').count).toBe('0/10')
   })
 
   test('a product-only element is discovered by the entry that makes it, and mastered by it', () => {
@@ -116,11 +117,11 @@ describe('the ring', () => {
     const ring = ringFor('water', viewOf('react:lava+water'))
     expect(ring.spokes.map((spoke) => spoke.key)).toEqual(['react:lava+water'])
     expect(ring.seen).toBe(1)
-    expect(ring.stillToFind).toBe(10)
+    expect(ring.stillToFind).toBe(9)
 
     const empty = ringFor('water', viewOf())
     expect(empty.spokes).toEqual([])
-    expect(empty.stillToFind).toBe(11)
+    expect(empty.stillToFind).toBe(10)
   })
 
   test('a spoke resolves the entry products into words and tappable tiles', () => {
@@ -132,10 +133,12 @@ describe('the ring', () => {
   })
 
   test('a product of the focused element is not offered as a tile back to itself', () => {
-    // acid + water leaves water: the words still say so, but the only tile
-    // would lead back to the centre.
-    const [spoke] = ringFor('water', viewOf('react:acid+water')).spokes
-    expect(spoke?.outcome).toBe('water')
+    // fire + sulphur leaves fire on both sides, and `productsOf` collapses the
+    // pair to one: the words still say so, but the only tile would lead back to
+    // the centre. This case read off `react:acid+water` until that row was
+    // removed (ticket 16) - the shape it pins is the roster's, not that row's.
+    const [spoke] = ringFor('fire', viewOf('react:fire+sulphur')).spokes
+    expect(spoke?.outcome).toBe('fire')
     expect(spoke?.tiles).toEqual([])
   })
 

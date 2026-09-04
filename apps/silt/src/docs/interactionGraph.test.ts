@@ -68,8 +68,11 @@ describe('charted identities', () => {
 
 describe('deriveInteractionGraph', () => {
   it('finds every registered pair once, unordered', () => {
-    // Registry-derived, so this count moves only when the chemistry does.
-    expect(graph.reactions).toHaveLength(48)
+    // Registry-derived, so this count moves only when the chemistry does. 47
+    // since `acid + water` was removed (ticket 16); ticket 15's eight plant rows
+    // did not move it, because they *replaced* pairs the `[solid]`/`[powder]`
+    // tag rows were already registering rather than adding new ones.
+    expect(graph.reactions).toHaveLength(47)
     const keys = graph.reactions.map((edge) => `${edge.a}+${edge.b}`)
     expect(new Set(keys).size).toBe(keys.length)
   })

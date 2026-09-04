@@ -1,6 +1,6 @@
 # 16 - Acid + water = water reads wrong
 
-**Status:** ready-for-agent
+**Status:** done (built on worktree-agent-a44d34bc8bfe5240f, 2026-09-04)
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - "acid + water = water
 doesn't make a huge amount of sense". No direction given, so this needs Ed's

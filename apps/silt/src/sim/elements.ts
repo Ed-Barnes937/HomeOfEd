@@ -733,7 +733,7 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'water', b: 'ember', p: 1, aBecomes: 'steam', bBecomes: 'wood' },
   // **This row must stay above the `[solid]`/`[powder]` pair below.** They cover
   // acid + wood as well, via `[solid]` at hardness 1, and `resolvePairs` keeps
-  // the first registration and drops the rest without a word — reorder these
+  // the first registration and drops the rest without a word - reorder these
   // rows and the residue silently stops happening. `acid.test.ts` pins it, for
   // wood and for each of the eight plants that follow.
   //
@@ -756,9 +756,9 @@ export const v1Reactions: readonly ReactionRow[] = [
   // sees them, so the graph doc and the field-notes denominators come out
   // identical either way and the tag buys nothing but this block's length. What
   // it would cost is a membership question nobody has ruled on: `buried` is
-  // plant matter by any plain reading and is deliberately *not* on Ed's roster,
-  // and every plant part added later would join the sulphur rule silently rather
-  // than by decision. The tags already here (`flammable`, `solid`, `powder`) are
+  // plant matter by any plain reading and is not among the eight the roster
+  // names, and every plant part added later would join the sulphur rule silently
+  // rather than by decision. The tags already here (`flammable`, `solid`, `powder`) are
   // broad contracts many rows read; a tag with one consumer would move a
   // reaction's membership into the element defs, which is the split this file's
   // rules draw the other way round. The `fire + <fuel>` ladder above
@@ -766,7 +766,15 @@ export const v1Reactions: readonly ReactionRow[] = [
   //
   // Ember and ash are the roster's other half and get no row: they are already
   // spent material, so the tag rows erase them with no residue (the ash comment
-  // above rules it), and `acid.test.ts` pins that as a choice.
+  // above rules it), and `acid.test.ts` pins that as a choice. `buried` keeps the
+  // tag rows too, for want of a ruling either way.
+  //
+  // The measured cost of all this is that **acid is a weaker tool against a
+  // plant wall than it was**: the residue backfills the cavity and acid cannot
+  // eat sulphur, so a bath armours the bed it is eating. The numbers are in
+  // [ADR 0049](../../../../docs/adr/0049-silt-acid-corrodes-living-matter-and-lets-water-be.md)
+  // §1, which supersedes the materials spec's "residue is wood only" ruling and
+  // records that the objection that ruling made was correct and accepted.
   { a: 'acid', b: 'moss', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
   { a: 'acid', b: 'vine', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
   { a: 'acid', b: 'seed', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
@@ -779,8 +787,20 @@ export const v1Reactions: readonly ReactionRow[] = [
   // obsidian and sulphur are not "immune" — their pairs simply do not exist.
   { a: 'acid', b: 'solid', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
   { a: 'acid', b: 'powder', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
-  // Water wins: the acid ends up as more water rather than as a hole.
-  { a: 'acid', b: 'water', p: 1, aBecomes: 'water', bBecomes: 'water' },
+  // **No `acid + water` row, and that is a decision** (discovery ticket 16).
+  // There was one - `-> water + water` at p 1, "water wins" - and it made a
+  // single drip a total, instant counter to a whole pool while charting, in the
+  // field notes, as two things going in and one of them coming out unchanged.
+  // The two liquids simply coexist now: acid is denser (35 against 30), so
+  // density decides the layering exactly as it does for every other pair of
+  // liquids, and **stone stays the one acid-proof answer**, which is stone's
+  // whole job. Nothing migrates - the field notes' denominators are derived, and
+  // a stored `react:acid+water` key is carried-but-ignored like any other
+  // unknown key.
+  // [ADR 0049](../../../../docs/adr/0049-silt-acid-corrodes-living-matter-and-lets-water-be.md)
+  // §2 supersedes the materials spec's row 8 and records the two alternatives
+  // (a dilution residue, and acid tainting water) that were turned down.
+  //
   // Acid boils off; lava is the heat source and survives, as it does with fuel.
   { a: 'acid', b: 'lava', p: 1, aBecomes: 'smoke', bBecomes: 'lava' },
   // Two cells in, one out, as with acid + wood: the water is spent soaking the

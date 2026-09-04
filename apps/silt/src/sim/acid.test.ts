@@ -108,8 +108,8 @@ describe('the acid group', () => {
   // whole-table assertion here would make every later stage break this file.
   // The slice still pins order — which is load-bearing (spec §1.2) — over the
   // prefix this stage owns, and the last stage's test pins the full length.
-  it('declares rows 1–29 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 29).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–28 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 28).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -137,7 +137,6 @@ describe('the acid group', () => {
       ['acid', 'petal'],
       ['acid', 'solid'],
       ['acid', 'powder'],
-      ['acid', 'water'],
       ['acid', 'lava'],
     ])
   })
@@ -192,7 +191,7 @@ describe('the acid group', () => {
   it.each([
     ['ember', EMBER],
     ['ash', ASH],
-  ])('erases %s with no residue — it is already spent', (_name, spent) => {
+  ])('erases %s with no residue - it is already spent', (_name, spent) => {
     expect(registry.reactionFor(ACID, spent)).toMatchObject({
       aBecomes: EMPTY,
       bBecomes: EMPTY,
@@ -282,14 +281,27 @@ describe('the acid group', () => {
     expect(count(sim, SULPHUR)).toBe(eaten)
   })
 
-  it('is neutralised by water', () => {
+  // Was `acid + water -> water` at p 1 until ticket 16. It made a single drip a
+  // total, instant counter to a whole pool, and it charted as two things going
+  // in and one of them coming out unchanged. There is no pair now: the two
+  // liquids coexist and their densities decide the layering, which leaves stone
+  // as the one acid-proof answer - stone's whole job.
+  it('coexists with water - the pair is not registered at all', () => {
+    expect(registry.reactionFor(ACID, WATER)).toBeUndefined()
+    expect(registry.reactionFor(WATER, ACID)).toBeUndefined()
+  })
+
+  it('is not spent by the water it is poured into', () => {
     const sim = new Sim({ seed: 1 })
-    pocket(sim, 100, ACID, WATER)
+    pour(sim, WATER)
+    const acidBefore = count(sim, ACID)
 
-    sim.tick()
+    run(sim, 120)
 
-    expect(sim.speciesAt(100, FLOOR - 1)).toBe(WATER)
-    expect(sim.speciesAt(101, FLOOR - 1)).toBe(WATER)
+    // Neither side eats the other: every drop of acid is still acid, and the
+    // pool it fell into is still there.
+    expect(count(sim, ACID)).toBe(acidBefore)
+    expect(count(sim, WATER)).toBeGreaterThan(0)
   })
 
   it('boils off to smoke on lava, and the lava survives', () => {

@@ -218,7 +218,6 @@ describe('seed, moss and vine', () => {
       ['acid', 'petal'],
       ['acid', 'solid'],
       ['acid', 'powder'],
-      ['acid', 'water'],
       ['acid', 'lava'],
       ['water', 'dirt'],
       ['water', 'ash'],
@@ -543,7 +542,7 @@ describe('seed, moss and vine', () => {
       // (hardness 2 against `maxHardness: 1`), so a bath now armours the bed it
       // is eating instead of clearing it. Measured over 30 seeds, the 63-cell
       // bed keeps 31–41 cells of moss or vine with 12–22 cells of acid stalled
-      // on top of its own brimstone — where the old cavity-digging row cleared
+      // on top of its own brimstone - where the old cavity-digging row cleared
       // all but ~20 and spent nearly every drop. A powder bed still clears
       // (seed: 19–21 survivors), because the grains shift and the acid follows.
       // So what is pinned here is wood's shape, which this now is: cells were

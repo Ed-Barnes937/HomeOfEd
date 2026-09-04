@@ -124,9 +124,16 @@ elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian
               rail reads it. The three gases stay flat. Gas densities
               read backwards: `canDisplace` is `mine > theirs`, so the gas
               closest to zero rises highest. Reaction row order is load-bearing:
-              a specific pair must precede any tag row covering it (acid + wood,
-              the `fire + <fuel>` ignition ladder above `fire + flammable`, and
-              `lava + wood` above `lava + flammable`). Wood never becomes fire
+              a specific pair must precede any tag row covering it (acid + wood
+              **and the eight `acid + <plant>` rows behind it**, above acid's
+              `[solid]`/`[powder]` pair; the `fire + <fuel>` ignition ladder
+              above `fire + flammable`; and `lava + wood` above
+              `lava + flammable`). Acid leaves **sulphur** on everything living
+              it eats - wood and all eight plants - and nothing on ember, ash or
+              buried, which are spent material; it has **no row against water at
+              all**, so the two coexist and density decides the layering
+              ([ADR 0049](../../docs/adr/0049-silt-acid-corrodes-living-matter-and-lets-water-be.md),
+              which supersedes the materials spec on both counts). Wood never becomes fire
               directly - it chars to ember, which creeps, erupts, is doused
               back to wood, or is burned down to ash, which rain wets to mud
               and a seed regrows (ADR 0042). Fire drying a bed leaves **steam**,

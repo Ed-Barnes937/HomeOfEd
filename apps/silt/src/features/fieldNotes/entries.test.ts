@@ -185,8 +185,9 @@ describe('charted grouping (ticket 08)', () => {
 
 describe('involves()', () => {
   test("today's totals: an element's entries are its reagent and product edges", () => {
-    // Eleven since ticket 07: water is a reagent of the soaked germination.
-    expect(notes.entriesFor('water')).toHaveLength(11)
+    // Eleven from ticket 07, which made water a reagent of the soaked
+    // germination; ten since ticket 16 removed the `acid + water` row.
+    expect(notes.entriesFor('water')).toHaveLength(10)
     expect(notes.entriesFor('mud')).toHaveLength(6)
     // Eighteen since ticket 08 folded the plant's parts into one flower: lava's
     // and fire's four stage spokes each became one.
@@ -224,12 +225,12 @@ describe('involves()', () => {
 })
 
 describe('totals', () => {
-  test('47 charted entries today: 37 reactions, 4 productive decays, 2 growth, 4 hook edges', () => {
+  test('46 charted entries today: 36 reactions, 4 productive decays, 2 growth, 4 hook edges', () => {
     const kinds = (kind: Entry['kind']) => notes.all.filter((entry) => entry.kind === kind)
-    // Thirty-seven since ticket 08: the graph's 48 raw pairs, less the three
-    // stage spokes lava and fire each grew, the four acid grew, and the burial
-    // that folded into acid + seed.
-    expect(kinds('react')).toHaveLength(37)
+    // Thirty-six: the graph's 47 raw pairs (48 less the acid + water row,
+    // ticket 16), less the three stage spokes lava and fire each grew, the
+    // four acid grew, and the burial that folded into acid + seed (ticket 08).
+    expect(kinds('react')).toHaveLength(36)
     // The flower's decay is productive twice over: it leaves a seed and its
     // death drop throws petals - one entry, two products.
     expect(kinds('decay')).toHaveLength(4)
@@ -238,7 +239,7 @@ describe('totals', () => {
     expect(kinds('germinate')).toHaveLength(2)
     expect(kinds('raise')).toHaveLength(1)
     expect(kinds('bloom')).toHaveLength(1)
-    expect(notes.all).toHaveLength(47)
+    expect(notes.all).toHaveLength(46)
   })
 
   test('every hook-born element is the product of a hook edge (spec §3 restored)', () => {
@@ -370,6 +371,20 @@ describe('derivations from a witnessed-key set', () => {
 
   test('unknown keys are inert, never an error', () => {
     const derived = notes.derive(new Set([...MUD_KEYS, 'react:unobtanium+water', 'nonsense']))
+    expect(derived.unlocked).toEqual(['mud'])
+    expect([...derived.discovered].sort()).toEqual(
+      [...notes.derive(new Set(MUD_KEYS)).discovered].sort(),
+    )
+  })
+
+  // The retired key by name (ticket 16). A player who witnessed `acid + water`
+  // before the row was removed still has it on disk, so the promise above is not
+  // hypothetical for them: it is the one key the roster is known to have dropped.
+  test('a retired edge is carried, not counted: react:acid+water is inert', () => {
+    expect(notes.get('react:acid+water')).toBeUndefined()
+    expect(notes.keys).not.toContain('react:acid+water')
+
+    const derived = notes.derive(new Set([...MUD_KEYS, 'react:acid+water']))
     expect(derived.unlocked).toEqual(['mud'])
     expect([...derived.discovered].sort()).toEqual(
       [...notes.derive(new Set(MUD_KEYS)).discovered].sort(),
