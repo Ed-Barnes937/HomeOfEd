@@ -166,6 +166,9 @@ test('an earned element reaches the bottom bar without pushing the page sideways
   await root.verifyNoHorizontalPageOverflow()
 
   await root.openEarned()
+  // The phone keeps its sheet across the foot of the screen: anchoring the
+  // popover to the control (ticket 13) is the desktop rail's rule only.
+  await root.verifyEarnedPopoverIsASheet()
   await root.selectEarnedElement('mud')
   expect(await root.isEarnedSelected()).toBe(true)
   await root.touchPaintCell(150, FLOOR - 9)

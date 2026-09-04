@@ -59,6 +59,87 @@ export class SiltPagePom extends BasePage {
     expect(scrolls).toBe(false)
   }
 
+  /**
+   * The popover belongs to the control, not to the viewport's corner (ticket
+   * 13): it opens clear of the rail, level with the control, and lies wholly on
+   * screen.
+   */
+  async verifyEarnedPopoverIsAnchoredToTheControl(): Promise<void> {
+    // Polled: a resize is placed on the frame after the event, so reading the
+    // boxes once would be a race rather than an assertion.
+    await expect
+      .poll(() => this.earnedPopoverPlacement())
+      .toEqual({
+        clearOfTheRail: true,
+        levelWithTheControl: true,
+        onScreen: true,
+      })
+  }
+
+  /**
+   * The three things the desktop placement has to be true of, read in one pass
+   * off the live boxes so they can be polled together. Every box comes from
+   * inside the page: `boundingBox()` is in document coordinates, and a `fixed`
+   * box has to be compared against the viewport it is pinned to.
+   */
+  private async earnedPopoverPlacement(): Promise<{
+    clearOfTheRail: boolean
+    levelWithTheControl: boolean
+    onScreen: boolean
+  }> {
+    return this.page.evaluate(() => {
+      const rail = document.querySelector('nav[aria-label="tools"]')?.getBoundingClientRect()
+      const control = document
+        .querySelector('[data-testid="earned-button"]')
+        ?.getBoundingClientRect()
+      const popover = document
+        .querySelector('[data-testid="earned-popover"]')
+        ?.getBoundingClientRect()
+      if (!rail || !control || !popover)
+        throw new Error('the rail, control or popover is not shown')
+
+      return {
+        // Beside the rail rather than over its trailing edge - the placement
+        // both tested viewports have room for.
+        clearOfTheRail: popover.left >= rail.right,
+        // Clamping may lift the box, but never as far as the screen's corner:
+        // it still overlaps the control's own band.
+        levelWithTheControl: popover.top <= control.bottom && popover.bottom >= control.top,
+        onScreen:
+          popover.left >= 0 &&
+          popover.top >= 0 &&
+          popover.right <= window.innerWidth &&
+          popover.bottom <= window.innerHeight,
+      }
+    })
+  }
+
+  /**
+   * The phone's variant: a sheet taking the bar's place across the foot of the
+   * screen, which is the mobile idiom and is not what ticket 13 changed. This
+   * is also what catches the two halves of the breakpoint drifting apart - the
+   * sheet is a stylesheet rule, and an inline offset would beat it.
+   */
+  async verifyEarnedPopoverIsASheet(): Promise<void> {
+    const sheet = await this.page.evaluate(() => {
+      const popover = document
+        .querySelector('[data-testid="earned-popover"]')
+        ?.getBoundingClientRect()
+      if (!popover) throw new Error('the earned popover is not shown')
+
+      return {
+        atTheLeftEdge: popover.left === 0,
+        // The layout viewport, which under Playwright's mobile emulation is
+        // *not* `viewportSize()`: with no meta viewport tag it falls back to
+        // 980 CSS px, and that is the frame a fixed box is laid out in.
+        fullWidth: Math.abs(popover.width - window.innerWidth) < 0.5,
+        atTheFoot: Math.abs(popover.bottom - window.innerHeight) < 0.5,
+      }
+    })
+
+    expect(sheet).toEqual({ atTheLeftEdge: true, fullWidth: true, atTheFoot: true })
+  }
+
   /** Picks an earned element for painting, exactly as a rail swatch does. */
   async selectEarnedElement(name: string): Promise<void> {
     await this.page.getByTestId(`earned-element-${name}`).click()

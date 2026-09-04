@@ -44,7 +44,9 @@ src/
   features/         palette/ (the base paintable roster + brush widths, and
                               EarnedElements - the rail's one EARNED control,
                               where mastered unlockables live so the 1-9 hotkeys
-                              and the rail's length never move)
+                              and the rail's length never move; earnedAnchor -
+                              the pure arithmetic placing its popover beside the
+                              control and inside the viewport)
                     render/  (letterboxFit, the grid palette — 256 species ×
                               `VARIANT_SLOTS` variant slots, indexed by
                               `paletteSlot` from both frame paths and by the

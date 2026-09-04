@@ -222,6 +222,29 @@ test('mastering mud puts it in the earned control, where it paints like any elem
   await expect.poll(() => root.countSpecies(MUD)).toBeGreaterThan(1)
 })
 
+// Ticket 13: the popover used to be pinned to the viewport's bottom-left corner,
+// however far that was from the control the player had just clicked. It stays
+// `fixed` - the rail is a scroll container - but the offsets now come from the
+// control's own box, and follow it when the window changes size.
+test('the earned popover opens at the control and stays on screen when the window shrinks', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openEarned()
+  await root.verifyEarnedPopoverIsAnchoredToTheControl()
+  await root.verifyEarnedPopoverClearsTheRail()
+
+  // Still a desktop viewport - narrower than this is the bottom bar's sheet,
+  // which is a different layout and not what this test is about.
+  await page.setViewportSize({ width: 820, height: 520 })
+  await root.verifyEarnedPopoverIsAnchoredToTheControl()
+  await root.verifyEarnedPopoverClearsTheRail()
+})
+
 // Seed is the base rail's tenth and last entry: moss and vine are the reward
 // for planting it, so neither reaches the rail.
 test('seed is paintable and sits in the Powder group, with no plant beside it', async ({

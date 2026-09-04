@@ -1,4 +1,8 @@
+import { type RefObject, useLayoutEffect, useRef, useState } from 'react'
+
+import { MOBILE_QUERY, useMobileLayout } from '../../hooks/useMobileLayout.ts'
 import { ElementTile } from '../fieldNotes/ElementTile.tsx'
+import { type AnchorPlacement, type AnchorRect, anchorPopover } from './earnedAnchor.ts'
 import type { PaletteEntry } from './paletteGroups.ts'
 import styles from './EarnedElements.module.scss'
 
@@ -33,12 +37,14 @@ export interface EarnedElementsProps {
  */
 export function EarnedElements(props: EarnedElementsProps) {
   const selectedHere = props.entries.some((entry) => entry.id === props.selectedId)
+  const placement = usePopoverPlacement(props.open)
 
   return (
     <div className={styles.anchor}>
       <span className={styles.label}>Earned</span>
       <button
         type="button"
+        ref={placement.controlRef}
         className={styles.control}
         data-testid="earned-button"
         aria-expanded={props.open}
@@ -55,7 +61,9 @@ export function EarnedElements(props: EarnedElementsProps) {
 
       {props.open ? (
         <div
+          ref={placement.popoverRef}
           className={styles.popover}
+          style={placement.offsets ?? undefined}
           data-testid="earned-popover"
           role="dialog"
           aria-label="earned elements"
@@ -103,4 +111,82 @@ export function EarnedElements(props: EarnedElementsProps) {
       ) : null}
     </div>
   )
+}
+
+/**
+ * Where the open popover sits (ticket 13). The stylesheet cannot do this on its
+ * own: the popover has to be `position: fixed` (the rail is a scroll container -
+ * see the note in the stylesheet), and a fixed box is placed against the
+ * viewport, so the offsets have to be measured off the control at open time
+ * rather than written down as a corner.
+ *
+ * The phone keeps the sheet the stylesheet gives it - a bar replacing a bar -
+ * so it gets no inline offsets at all, which an `inset` rule would only have to
+ * fight. `useMobileLayout` is the same breakpoint the stylesheet uses.
+ */
+function usePopoverPlacement(open: boolean): {
+  controlRef: RefObject<HTMLButtonElement | null>
+  popoverRef: RefObject<HTMLDivElement | null>
+  offsets: AnchorPlacement | null
+} {
+  const controlRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const phone = useMobileLayout()
+  const [offsets, setOffsets] = useState<AnchorPlacement | null>(null)
+
+  useLayoutEffect(() => {
+    if (!open || phone) {
+      setOffsets(null)
+      return
+    }
+
+    const place = (): void => {
+      const control = controlRef.current
+      const popover = popoverRef.current
+      if (!control || !popover) return
+      // A resize that crosses the breakpoint fires here as well as at
+      // `useMobileLayout`'s listener, and inline offsets beat the sheet's
+      // `inset` rule - so this reads the live query rather than depending on
+      // which of the two listeners the browser runs first.
+      if (window.matchMedia?.(MOBILE_QUERY).matches) {
+        setOffsets(null)
+        return
+      }
+      setOffsets(
+        anchorPopover(anchorBoxFor(control), popover.getBoundingClientRect(), {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }),
+      )
+    }
+
+    // Before paint, so the popover never shows up in one place and jumps.
+    place()
+    // The rail scrolling under an open popover is deliberately ignored: picking
+    // an element closes it, and it was fixed before this ticket too.
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [open, phone])
+
+  return { controlRef, popoverRef, offsets }
+}
+
+/**
+ * The box the popover opens against, taken off two elements on purpose: the
+ * rail's edges horizontally, because the rail is the scroll container the
+ * popover had to be lifted out of and opening inside its trailing padding
+ * would read as sitting on it, and the control's own band vertically, because
+ * the control is what the player clicked. The rail is the control's `nav`; with
+ * no such ancestor the control speaks for both axes.
+ */
+function anchorBoxFor(control: HTMLElement): AnchorRect {
+  const box = control.getBoundingClientRect()
+  const rail = control.closest('nav')?.getBoundingClientRect()
+
+  return {
+    top: box.top,
+    bottom: box.bottom,
+    left: rail?.left ?? box.left,
+    right: rail?.right ?? box.right,
+  }
 }

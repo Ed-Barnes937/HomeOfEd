@@ -1,6 +1,6 @@
 # 13 - The EARNED popover opens at the viewport corner, not at the control
 
-**Status:** ready-for-agent
+**Status:** done (built on worktree-agent-a94db92460afe9744, 2026-09-04)
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - "the element picker
 appears in the bottom left - unintuitive. Make it a dropdown pinned either to
