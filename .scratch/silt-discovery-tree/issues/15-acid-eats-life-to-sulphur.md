@@ -1,6 +1,6 @@
 # 15 - Acid + plant matter leaves sulphur, like wood does
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - "acid + wood is the only
 way to make sulphur - maybe we should make acid + [life] (wood/vine/flower/etc)
@@ -35,10 +35,11 @@ through the paintable wood supply.
   friends, which keeps sulphur's ring sane - a reason to land 08 first, though
   nothing breaks if this goes first.
 
-## Open question for Ed
+## Decision (Ed, 2026-09-04 triage)
 
-Confirm the roster above (in or out: seed? petal?) and that ember/ash stay
-excluded.
+Roster confirmed as proposed: moss, vine, seed, sprout, stalk, tip, flower,
+petal all leave sulphur (p 0.3, wood's numbers); ember and ash stay
+residue-free.
 
 ## Tests
 

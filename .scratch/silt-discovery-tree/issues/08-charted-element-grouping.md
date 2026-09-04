@@ -1,6 +1,6 @@
 # 08 - Charted elements: species are the sim's unit, not the player's
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - items "Buried doesn't make
 sense as an element" and "sprout + stalk + tip + flower + petal as individual
@@ -23,7 +23,7 @@ Add a presentation-level mapping to the graph derivation
 declare a charted identity, e.g. `chartAs`:
 
 - `buried -> seed`
-- `sprout, tip, stalk, petal -> flower` (naming open: "flower" vs "plant")
+- `sprout, tip, stalk, petal -> flower` (name decided: "flower")
 
 Everything downstream derives:
 
@@ -36,23 +36,22 @@ Everything downstream derives:
   as today (forward-compatible, nothing migrates); only the view derivation
   groups them. The sim and `witness.ts` are untouched.
 - **Edges that become self-loops** after mapping (`raise:sprout`,
-  `bloom:tip` -> flower->flower; `germinate:sprout` stays seed->flower) either
-  drop from the chart or merge into one "seed grows into flower" entry - see
-  open questions.
+  `bloom:tip` -> flower->flower; `germinate:sprout` stays seed->flower) stay
+  charted as distinct stage entries under flower (decision 2 below).
 - Mastery, tiers, denominators, the unlock predicate and the moments all run
   over charted entries via the existing single `involves()` seam in
   `entries.ts` - that seam is why this is one change, not five.
 
-## Open questions for Ed (why this is needs-triage)
+## Decisions (Ed, 2026-09-04 triage)
 
-1. **Witnessed-when semantics for a grouped entry**: witnessed when *any*
-   underlying raw edge fires (recommended - the player should not hunt
-   `lava + stalk` vs `lava + tip`), or all?
-2. **The plant's internal chain**: do germinate/raise/bloom collapse to a
-   single "seed -> flower" growth entry, or stay as 2-3 charted stage entries
-   under flower ("the seed wakes", "the stem rises", "the tip blooms")? The
-   latter keeps the life epic discoverable as a story; recommended.
-3. The charted name for the plant group: "flower" or "plant"?
+1. **Witnessed-when semantics**: a grouped entry is witnessed when *any*
+   underlying raw edge fires. Mastery (the star) still requires every raw edge
+   in the backing set - depth preserved, hunting removed.
+2. **The plant's internal chain**: germinate/raise/bloom stay as separate
+   charted stage entries under flower - the life cycle remains discoverable as
+   a story. Self-loop edges after mapping chart as stages, they do not drop.
+3. The charted name for the plant group is **"flower"** (Ed's original
+   feedback wording).
 
 ## Consequences
 

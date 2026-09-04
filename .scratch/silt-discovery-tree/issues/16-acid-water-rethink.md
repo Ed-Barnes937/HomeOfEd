@@ -1,6 +1,6 @@
 # 16 - Acid + water = water reads wrong
 
-**Status:** needs-info
+**Status:** ready-for-agent
 **Type:** task
 **Source:** PR #128 review feedback (Ed, 2026-09-04) - "acid + water = water
 doesn't make a huge amount of sense". No direction given, so this needs Ed's
@@ -31,9 +31,16 @@ water a total, instant counter to acid - a single drip erases a pool.
    makes acid self-multiplying - a real balance change that deserves its own
    play-test, not a footnote here.
 
-Whichever wins: regenerate the graph doc in the same change (drift test), keep
-`acid.test.ts` green with a row-order regression if a row remains, and note the
-ruling in this file's Comments.
+## Decision (Ed, 2026-09-04 triage)
+
+Option 1: **remove the row**. Acid and water coexist; density decides
+layering; stone stays the one acid-proof answer. The stored
+`react:acid+water` witness key is carried-but-ignored, as the store already
+promises for unknown keys.
+
+Regenerate the graph doc in the same change (drift test) and keep
+`acid.test.ts` green - pin the new coexistence behaviour in place of the old
+neutralise row.
 
 ## Tests
 
