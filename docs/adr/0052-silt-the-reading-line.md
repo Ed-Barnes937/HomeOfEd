@@ -1,4 +1,4 @@
-# 0051 - silt: the ring is icons, and one reading line holds the words
+# 0052 - silt: the ring is icons, and one reading line holds the words
 
 - **Status:** Accepted (2026-09-05, landed with
   `.scratch/silt-discovery-tree/issues/25-reading-line.md`)

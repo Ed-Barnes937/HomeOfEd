@@ -444,7 +444,7 @@ else touches it.
   its spoke into the band, a band tile *follows* an element. A ring tile is
   therefore never disabled - a masked reading names nothing, and disabling it
   would leave a spoke with a hidden partner the one spoke nobody could read
-  ([ADR 0051](../../docs/adr/0051-silt-the-reading-line.md)). The masking is not
+  ([ADR 0052](../../docs/adr/0052-silt-the-reading-line.md)). The masking is not
   hypothetical - a pre-trim scene restores painted mud, so `react:lava+mud` can
   be witnessed while mud itself has never been discovered. **A second spoiler
   surface now rides the same seam**: an element's tag chips (ticket 12) are

@@ -9,7 +9,7 @@ order, land together)
 not in agent worktrees; everything needed is restated here). Ed adopted the
 recommendation 2026-09-05.
 **Spec:** [../spec.md](../spec.md) §6 (amend the ring's label story), §7.
-**ADR:** [0051](../../../docs/adr/0051-silt-the-reading-line.md) - the ring
+**ADR:** [0052](../../../docs/adr/0052-silt-the-reading-line.md) - the ring
 goes icons-only, and the four calls this ticket left open (see Built).
 
 The research's load-bearing finding: always-on per-spoke labels are
@@ -74,7 +74,7 @@ icons-only graph, one detail region for the active node.
 - The panel: a `.band` between the body and the footer holds the chips row then
   the reading line, both fixed height. Ring tiles read a spoke into the band on
   hover, focus or tap; reading-line tiles navigate.
-- Decisions this ticket did not make, all recorded in ADR 0051: the enabled
+- Decisions this ticket did not make, all recorded in ADR 0052: the enabled
   ring tile, the sticky active spoke, the stage's missing right-hand side, and
   the reading line's polite live region.
 - **Deviation worth knowing**: a ring tile is no longer `disabled` for an
