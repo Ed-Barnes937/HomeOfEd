@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACID,
+  ASH,
   BURIED,
   DIRT,
   EMPTY,
@@ -9,6 +10,8 @@ import {
   LAVA,
   MUD,
   OBSIDIAN,
+  OIL,
+  PETAL,
   SAND,
   SEED,
   SPROUT,
@@ -178,32 +181,37 @@ describe('mud', () => {
    * there - and mud is now the densest liquid, above lava (45), acid (35) and
    * water (30).
    *
-   * Pinned as `canDisplace` as well as as a fall, for the reason `ash.test.ts`
-   * gives: a shaft is the honest end-to-end check, and the ladder is what says
-   * *why* rather than *that*.
+   * Pinned twice over, for the reason `ash.test.ts` gives: the fall below is the
+   * honest end-to-end check, and this ladder is what says *why* rather than
+   * *that*.
    */
-  it('is the densest liquid: every powder rests on it and every liquid floats', () => {
-    expect(canDisplace(registry, SAND, MUD)).toBe(false)
-    expect(canDisplace(registry, SULPHUR, MUD)).toBe(false)
-    expect(canDisplace(registry, SEED, MUD)).toBe(false)
-    // And from the other side: mud settles under every liquid it meets.
-    expect(canDisplace(registry, MUD, WATER)).toBe(true)
-    expect(canDisplace(registry, MUD, LAVA)).toBe(true)
-    expect(canDisplace(registry, MUD, ACID)).toBe(true)
-    expect(canDisplace(registry, WATER, MUD)).toBe(false)
+  it('is the densest thing that moves: no powder sinks in it, every liquid floats', () => {
+    // The whole powder shelf, so the claim in the name is the claim being made
+    // rather than a sample of it.
+    for (const powder of [SAND, SULPHUR, SEED, ASH, PETAL]) {
+      expect(canDisplace(registry, powder, MUD)).toBe(false)
+    }
+    // And from the other side: mud settles under every liquid it meets, so a
+    // pool of anything sits on top of the soil it soaks into.
+    for (const liquid of [WATER, LAVA, ACID, OIL]) {
+      expect(canDisplace(registry, MUD, liquid)).toBe(true)
+      expect(canDisplace(registry, liquid, MUD)).toBe(false)
+    }
   })
 
-  it('holds a sand grain and a sulphur grain up on its surface', () => {
+  it('catches a falling sand grain and a falling sulphur grain on its surface', () => {
     for (const grain of [SAND, SULPHUR]) {
       const sim = new Sim({ seed: 1 })
       shaftAt(sim, 150, 8)
-      for (let i = 1; i <= 6; i++) sim.paint(150, FLOOR - i, MUD)
-      sim.paint(150, FLOOR - 7, grain)
+      for (let i = 1; i <= 4; i++) sim.paint(150, FLOOR - i, MUD)
+      // Dropped from four cells clear of the bed rather than placed on it: the
+      // grain has to arrive under gravity for this to be about the landing.
+      sim.paint(150, FLOOR - 8, grain)
 
       run(sim, 400)
 
-      expect(sim.speciesAt(150, FLOOR - 7)).toBe(grain)
-      for (let i = 1; i <= 6; i++) expect(sim.speciesAt(150, FLOOR - i)).toBe(MUD)
+      expect(sim.speciesAt(150, FLOOR - 5)).toBe(grain)
+      for (let i = 1; i <= 4; i++) expect(sim.speciesAt(150, FLOOR - i)).toBe(MUD)
     }
   })
 

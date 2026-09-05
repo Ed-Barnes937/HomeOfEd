@@ -82,8 +82,9 @@ const sand: ElementDef = {
   colours: ['#d9b978', '#c3a76c', '#eac882', '#d0b273'],
   tags: ['powder'],
   // slide 1 = always tries a diagonal when blocked below, the classic
-  // falling-sand angle of repose. Density 60 is the top of the roster, so a
-  // grain sinks through both liquids.
+  // falling-sand angle of repose. Density 60 is the top of the powder shelf, so
+  // a grain sinks through every liquid it meets **except mud** (65), which it
+  // comes to rest on - see the mud def for why the bed outranks the grain.
   archetype: { kind: 'powder', density: 60, slide: 1 },
   hardness: 0,
 }
@@ -258,7 +259,9 @@ const mud: ElementDef = {
   //
   // Still a `liquid`, and the ooze numbers are why: one cell of spread and
   // roughly one tick in ten is the slowest thing in the roster, which is what
-  // makes it creep rather than flow.
+  // makes it creep rather than flow. See
+  // [ADR 0051](../../../../docs/adr/0051-silt-mud-is-the-densest-thing-that-moves.md),
+  // which supersedes the materials spec's ladder.
   archetype: { kind: 'liquid', density: 65, dispersion: 1, move: 0.1 },
 }
 

@@ -1,6 +1,6 @@
 # 23 - Mud should be one of the densest things in the world
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-mud-density, 2026-09-05)
 **Type:** task
 **Source:** local testing feedback (Ed, 2026-09-04) - "Mud should be one of
 the most dense liquids (feels odd calling it a liquid) - currently sand and
@@ -38,3 +38,29 @@ grains resting ON a mud bed is the felt-right behaviour.
   buries in mud and germinates.
 - Determinism test green; full life.test.ts green (run it alone if the
   machine is loaded - known flake under load).
+
+## Outcome (2026-09-05)
+
+The seed path needed **nothing**. Three findings, in the order they were
+checked:
+
+1. Seed density 40 was already *below* mud at 50 and is still below it at 65,
+   so the ordering the seed relies on ("rests on the bed, does not sink into
+   it") is unchanged - the raise moved mud away from the seed, not past it.
+2. `elements.ts:551`'s "density knob" is the flower's **lifetime**, not a
+   density number - it is population density (standing crowns per cell of
+   water). Same for `seedBank.ts`'s "density dependent": the hook reads only
+   the species ids above and below a cell and never asks the registry for a
+   density. Neither is reachable from this change.
+3. `buried` is `static`, so it has no density at all and mud oozes around it
+   exactly as before.
+
+Confirmed rather than reasoned: the new soil-side seed case (burial ->
+germination on a mud bed) passed *before* the number changed as well as after,
+and the whole of `life.test.ts` - burial, the aquatic soak, land germination,
+the meadow loop and the bed ledger - is green at 65 with no test edited except
+two stale `mud (50)` parentheticals.
+
+The interaction-graph drift test is green and `docs/interaction-graph.md` holds
+no density content, which is the ticket's "regenerate nothing" verified rather
+than assumed.
