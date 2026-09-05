@@ -467,6 +467,11 @@ else touches it.
   `panelModel.test.ts` checks its words against every name in the roster,
   substrings included ("long-dashed" would smuggle ash in). It explains only
   what the screen draws: the phone hides the notches, so it hides their row too.
+  That is also why it stays with the **ring** rather than the panel (ticket 22) -
+  every row it holds is a line kind, and a panel with no chart on it draws none
+  of them. Its toggle leads the footer's controls at its own size: sharing
+  `forget discoveries`' 8px footnote rule, at the tail of a strip of up to
+  twenty-two notches, is how a control that was live all along went unfound.
 - **The panel picks, it does not know.** Selection and the green-edge clearing
   are panel-local `useState`; the counts, mastery, `NEW` set and denominators
   all arrive from the view. `markReviewed()` fires from `HomePage`'s

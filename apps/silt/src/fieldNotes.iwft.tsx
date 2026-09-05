@@ -177,6 +177,37 @@ test('the footer opens a key for the line kinds the chart draws', async ({ mount
   await root.verifyFieldNotesKey(false)
 })
 
+/**
+ * Ticket 22: ticket 11's key was live all along and the person who asked for one
+ * still could not find it - an 8px chip wedged behind a tail of still-to-find
+ * notches, beside a much wider `forget discoveries`, reads as a footnote rather
+ * than as a control. It stays with the ring (the line kinds are the only thing
+ * it explains) and has to be legible there.
+ */
+test('the key toggle reads as a control and leads the footer', async ({ mountApp, page }) => {
+  await seedWitnessed(page, SEEDED)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openFieldNotes()
+  await root.selectNote('water')
+
+  // What the player reads, uppercased by the chrome as every label is - the
+  // word, and the "?" that says the word is a question you may ask.
+  const label = await root.fieldNotesKeyToggleText()
+  expect(label).toContain('KEY')
+  expect(label).toContain('?')
+
+  await root.verifyFieldNotesKeyToggleLeadsTheFooter()
+  await root.verifyFieldNotesKeyToggleIsOnScreen()
+  await root.verifyFieldNotesKeyToggleOutsizesForget()
+
+  // And it still opens the thing it names: a stroke row and the arrowhead rule.
+  await root.toggleFieldNotesKey()
+  await root.verifyFieldNotesKeyRow('decay')
+  await root.verifyFieldNotesKeyRow('react')
+  await root.verifyFieldNotesKeyRow('arrow')
+})
+
 test('a mastered element wears its star, and mud states what it costs to unlock', async ({
   mountApp,
   page,

@@ -278,6 +278,24 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
               </span>
 
               <span className={styles.footRight}>
+                {/* The key leads the footer's controls (ticket 22). It sat last,
+                    behind a strip of up to twenty-two notches, at the same 8px
+                    as `forget discoveries` - which is how a control that was
+                    there all along went unfound. It stays with the ring: line
+                    kinds are the only thing it explains, and a panel with no
+                    ring on it draws none of them. */}
+                <button
+                  type="button"
+                  className={`${styles.keyToggle} ${keyOpen ? styles.keyOpen : ''}`}
+                  data-testid="field-notes-key-toggle"
+                  aria-expanded={keyOpen}
+                  onClick={() => setKeyOpen((open) => !open)}
+                >
+                  <span className={styles.keyMark} aria-hidden="true">
+                    ?
+                  </span>
+                  Key
+                </button>
                 <span className={styles.counterLabel}>still to find</span>
                 {/* The notches carry what is left without naming any of it
                     (spec §7, decision 9). */}
@@ -289,15 +307,6 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                 <span className={styles.footCount} data-testid="field-notes-still-to-find">
                   {chart.stillToFind}
                 </span>
-                <button
-                  type="button"
-                  className={`${styles.keyToggle} ${keyOpen ? styles.keyOpen : ''}`}
-                  data-testid="field-notes-key-toggle"
-                  aria-expanded={keyOpen}
-                  onClick={() => setKeyOpen((open) => !open)}
-                >
-                  key
-                </button>
                 <button
                   type="button"
                   className={`${styles.forget} ${forget.armed ? styles.armed : ''}`}

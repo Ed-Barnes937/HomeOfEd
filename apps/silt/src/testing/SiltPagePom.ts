@@ -375,6 +375,83 @@ export class SiltPagePom extends BasePage {
     await this.page.getByTestId('field-notes-key-toggle').click()
   }
 
+  /**
+   * What the key's toggle actually reads on screen. `innerText`, not
+   * `textContent`: the chrome uppercases its Silkscreen labels in CSS, so the
+   * case in the source is not what the player sees - asserting the source's
+   * "Key" would be asserting a word nobody reads.
+   */
+  async fieldNotesKeyToggleText(): Promise<string> {
+    return (await this.page.getByTestId('field-notes-key-toggle').innerText()) ?? ''
+  }
+
+  /**
+   * Ticket 22's thesis, as one measurement: the explanatory control is no longer
+   * sized by the destructive footnote beside it. The two shared a CSS rule, and
+   * `forget discoveries` - the one you should have to look for - set the 8px
+   * both were drawn at.
+   */
+  async verifyFieldNotesKeyToggleOutsizesForget(): Promise<void> {
+    const key = await this.boundingBoxOrThrow('field-notes-key-toggle')
+    const forget = await this.boundingBoxOrThrow('field-notes-forget')
+    expect(key.height).toBeGreaterThan(forget.height)
+  }
+
+  /**
+   * Ticket 22, half one: the key is on the screen the ring is on, with nothing
+   * to scroll to reach it. Read off the live box from inside the page - a
+   * viewport comparison has to be made in the frame the layout was done in,
+   * which under Playwright's mobile emulation is not `viewportSize()`.
+   */
+  async verifyFieldNotesKeyToggleIsOnScreen(): Promise<void> {
+    const placement = await this.page.evaluate(() => {
+      const toggle = document
+        .querySelector('[data-testid="field-notes-key-toggle"]')
+        ?.getBoundingClientRect()
+      if (!toggle) throw new Error('the key toggle is not shown')
+
+      return {
+        drawn: toggle.width > 0 && toggle.height > 0,
+        inTheViewport:
+          toggle.top >= 0 &&
+          toggle.left >= 0 &&
+          toggle.right <= window.innerWidth &&
+          toggle.bottom <= window.innerHeight,
+      }
+    })
+
+    expect(placement).toEqual({ drawn: true, inTheViewport: true })
+  }
+
+  /**
+   * Ticket 22, half two, and the regression the finding was actually about: the
+   * key leads the footer's controls rather than trailing a tail of up to
+   * twenty-two still-to-find notches, which is where it was when the person who
+   * asked for a key could not find one. "Leads" is reading order, not just x:
+   * the phone's footer wraps, and a toggle that dropped to the line *below* the
+   * counter would still be to its left while failing the whole point.
+   */
+  async verifyFieldNotesKeyToggleLeadsTheFooter(): Promise<void> {
+    const lead = await this.page.evaluate(() => {
+      const toggle = document
+        .querySelector('[data-testid="field-notes-key-toggle"]')
+        ?.getBoundingClientRect()
+      const stillToFind = document
+        .querySelector('[data-testid="field-notes-still-to-find"]')
+        ?.getBoundingClientRect()
+      if (!toggle || !stillToFind) throw new Error('the ring footer is not shown')
+
+      return {
+        // Not on a later wrapped line: the two overlap vertically, or the
+        // toggle sits above.
+        notWrappedBelow: toggle.top < stillToFind.bottom,
+        aheadOfTheNotches: toggle.left < stillToFind.left,
+      }
+    })
+
+    expect(lead).toEqual({ notWrappedBelow: true, aheadOfTheNotches: true })
+  }
+
   /** Whether the key is open at all - collapsed means it is not in the DOM. */
   async verifyFieldNotesKey(shown: boolean): Promise<void> {
     const key = this.page.getByTestId('field-notes-key')

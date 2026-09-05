@@ -149,6 +149,32 @@ test('field notes opens as a full-screen sheet whose picker is still tappable', 
   await root.closeFieldNotes()
 })
 
+// Ticket 22: the key explains the ring's line kinds and nothing else, so it
+// lives with the ring - which makes the phone sheet the place it is easiest to
+// lose, since the footer wraps there and the notch strip it used to sit behind
+// is not even drawn. It has to be on the screen the ring is on, at a real touch
+// size, with nothing to scroll for.
+test('the ring key is on screen and tappable at the foot of the phone sheet', async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, ['react:lava+water'])
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openFieldNotes()
+  await root.selectNote('water')
+
+  await root.verifyFieldNotesKeyToggleIsOnScreen()
+  await root.verifyFieldNotesKeyToggleLeadsTheFooter()
+  await root.verifyTouchTargetSize('field-notes-key-toggle')
+
+  await root.toggleFieldNotesKey()
+  await root.verifyFieldNotesKeyRow('decay')
+  await root.verifyFieldNotesKeyRow('arrow')
+  await root.verifyNoHorizontalPageOverflow()
+})
+
 // The bottom bar is the tightest place an unlock has to fit, and the one where
 // the popover has to open upwards instead of off the side of the screen
 // (discovery-tree spec §6 "The unlock").
