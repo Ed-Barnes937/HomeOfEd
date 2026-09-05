@@ -1,6 +1,7 @@
 # 19 - Tag chips move to the bottom middle of the entry
 
-**Status:** ready-for-agent
+**Status:** absorbed into 25 (Ed's ruling, 2026-09-05) - the chips move into
+the same bottom band as 25's reading line, with the stack order decided there
 **Type:** task
 **Source:** local testing feedback (Ed, 2026-09-04, post tickets 08-16) - "can
 we move the tags in the element field notes to the bottom middle?"

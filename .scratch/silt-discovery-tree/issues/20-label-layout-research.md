@@ -1,6 +1,10 @@
 # 20 - Label layout research: how do other apps and games label node graphs?
 
-**Status:** ready-for-agent
+**Status:** done (research 2026-09-04, ruling 2026-09-05) - findings in
+`../research/20-label-layout.md` (local-only); Ed adopted the reading-line
+recommendation; build ticket is 25. Headline finding: always-on spoke labels
+are geometrically impossible at the ring's own constants (~10.4 arc units per
+label at capacity vs real widths up to 16) - never a tuning problem.
 **Type:** research
 **Source:** local testing feedback (Ed, 2026-09-04) - "labels have moved and
 are now off center and conflict with other labels, we should do some market
