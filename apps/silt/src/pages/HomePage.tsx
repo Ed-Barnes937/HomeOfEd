@@ -1,5 +1,11 @@
 import { useMemo, useRef, useState } from 'react'
 
+import { FieldNotesButton } from '../features/fieldNotes/FieldNotesButton.tsx'
+import { FieldNotesPanel } from '../features/fieldNotes/FieldNotesPanel.tsx'
+import { MomentCard } from '../features/fieldNotes/MomentCard.tsx'
+import { useFieldNotes } from '../features/fieldNotes/useFieldNotes.ts'
+import { useMoments } from '../features/fieldNotes/useMoments.ts'
+import { EarnedElements } from '../features/palette/EarnedElements.tsx'
 import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
 import { WorldOverlay } from '../features/render/WorldOverlay.tsx'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
@@ -57,7 +63,27 @@ export function HomePage() {
   const [fps, setFps] = useState(0)
   const [spawners, setSpawners] = useState<readonly Spawner[]>([])
   const [scenesOpen, setScenesOpen] = useState(false)
+  const [earnedOpen, setEarnedOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
   const resetConfirm = useArmedConfirm<true>()
+
+  // Field notes' progression: the rail reads it for the elements the player has
+  // mastered and so earned back into it, and the header chip and panel read it
+  // for everything else (spec §6).
+  const fieldNotes = useFieldNotes()
+
+  // The cards over the world, derived from field notes rather than from the
+  // sim's report: the chip, the panel and the card are three readings of one
+  // store, so none of them can be a discovery ahead of the others.
+  const moments = useMoments(fieldNotes)
+
+  // Reviewing happens on **close**, not open: advancing the watermark as the
+  // panel opens would empty the `NEW n` chip on the very render that exists to
+  // show it (`FieldNotesStore.markReviewed`).
+  const closeNotes = (): void => {
+    setNotesOpen(false)
+    fieldNotes.markReviewed()
+  }
 
   const brushWidth = BRUSH_WIDTHS[brushIndex] ?? 1
   const paintSpecies = tool === 'erase' ? EMPTY : selectedElement
@@ -80,11 +106,21 @@ export function HomePage() {
     onCursorChange: setCursor,
     onFps: setFps,
     onSpawnersChange: setSpawners,
+    // The sim's one report back (spec §4). Everything downstream - the chip's
+    // tick, the panel if it happens to be open, the rail's unlock, the card -
+    // re-derives from the store this feeds; there is no second path.
+    onWitnessed: fieldNotes.witness,
+    witnessedAtBoot: fieldNotes.witnessed,
   })
 
   // Derived from the same registry the canvas paints from — never from
   // `v1Elements` directly — so the rail can't drift from the grid (ticket 16).
-  const palette = useMemo(() => buildRailPalette(controls.registry), [controls.registry])
+  // Base plus earned: the unlocked names arrive derived from the witnessed set,
+  // so nothing here decides what has been mastered.
+  const palette = useMemo(
+    () => buildRailPalette(controls.registry, fieldNotes.unlocked),
+    [controls.registry, fieldNotes.unlocked],
+  )
 
   const scenes = useScenes({
     saveScene: controls.saveScene,
@@ -104,8 +140,17 @@ export function HomePage() {
     setSelectedElement(id)
   }
 
-  const selectErase = (): void => {
-    setTool('erase')
+  /**
+   * Erase is a toggle, not a one-way door (ticket 24). While it is active no
+   * rail swatch reads as pressed, so the erase button is the only lit control
+   * and has to be the way back out; pressing it again resumes painting with
+   * `selectedElement`, which erase never overwrote - it only shadowed it.
+   */
+  const toggleErase = (): void => {
+    setTool((current) => (current === 'erase' ? 'paint' : 'erase'))
+    // Entering erase leaves spawner mode - erase has no element to spawn, the
+    // mirror of what the spawner button does to the tool. On the way back out
+    // this is already true, so the one call covers both directions.
     setMode('paint')
   }
 
@@ -120,7 +165,7 @@ export function HomePage() {
       const entry = palette.entries[index]
       if (entry) selectElement(entry.id)
     },
-    onSelectErase: selectErase,
+    onToggleErase: toggleErase,
     onNudgeBrush: (delta) =>
       setBrushIndex((current) => Math.min(BRUSH_WIDTHS.length - 1, Math.max(0, current + delta))),
     // The popover opens with the save, so the result — a new row, or a rename
@@ -129,7 +174,10 @@ export function HomePage() {
       setScenesOpen(true)
       scenes.save()
     },
-    onCloseScenes: () => setScenesOpen(false),
+    onDismissOverlays: () => {
+      setScenesOpen(false)
+      if (notesOpen) closeNotes()
+    },
   })
 
   const armReset = (): void => {
@@ -182,30 +230,47 @@ export function HomePage() {
             {resetConfirm.armed ? 'confirm?' : 'reset'}
           </button>
         </div>
-        <div className={styles.scenesAnchor}>
-          <button
-            type="button"
-            className={styles.headerButton}
-            data-testid="scenes-button"
-            aria-expanded={scenesOpen}
-            onClick={() => setScenesOpen((open) => !open)}
-          >
-            scenes
-          </button>
-          {scenesOpen ? (
-            <ScenesPopover
-              scenes={scenes.scenes}
-              status={scenes.status}
-              onSave={scenes.save}
-              onLoad={scenes.load}
-              onRename={scenes.rename}
-              onDuplicate={scenes.duplicate}
-              onDelete={scenes.delete}
-              onClose={() => setScenesOpen(false)}
-            />
-          ) : null}
+        <div className={styles.headerRight}>
+          <FieldNotesButton
+            seen={fieldNotes.totals.interactions.seen}
+            total={fieldNotes.totals.interactions.total}
+            open={notesOpen}
+            onToggle={() => (notesOpen ? closeNotes() : setNotesOpen(true))}
+          />
+          <div className={styles.scenesAnchor}>
+            <button
+              type="button"
+              className={styles.headerButton}
+              data-testid="scenes-button"
+              aria-expanded={scenesOpen}
+              onClick={() => setScenesOpen((open) => !open)}
+            >
+              scenes
+            </button>
+            {scenesOpen ? (
+              <ScenesPopover
+                scenes={scenes.scenes}
+                status={scenes.status}
+                onSave={scenes.save}
+                onLoad={scenes.load}
+                onRename={scenes.rename}
+                onDuplicate={scenes.duplicate}
+                onDelete={scenes.delete}
+                onClose={() => setScenesOpen(false)}
+              />
+            ) : null}
+          </div>
         </div>
       </header>
+
+      {notesOpen ? (
+        <FieldNotesPanel
+          view={fieldNotes}
+          registry={controls.registry}
+          onClose={closeNotes}
+          onForget={fieldNotes.reset}
+        />
+      ) : null}
 
       <div className={styles.body}>
         <nav className={styles.rail} aria-label="tools">
@@ -250,6 +315,26 @@ export function HomePage() {
               </div>
             ))}
           </div>
+
+          {/* The foot of the palette, and only once something has been earned
+              (spec §6 "The unlock"): one control, never an inline swatch, so
+              the rail's length and the 1-9 hotkeys above never move. It sits
+              with the elements rather than after erase, which the bottom bar
+              needs to keep as its last child (design brief §02). */}
+          {palette.earned.length > 0 ? (
+            <EarnedElements
+              entries={palette.earned}
+              moreToEarn={fieldNotes.moreToEarn}
+              open={earnedOpen}
+              onToggle={() => setEarnedOpen((open) => !open)}
+              onClose={() => setEarnedOpen(false)}
+              selectedId={tool === 'paint' ? selectedElement : EMPTY}
+              onSelect={(id) => {
+                selectElement(id)
+                setEarnedOpen(false)
+              }}
+            />
+          ) : null}
 
           <div className={styles.section}>
             <span className={styles.groupLabel}>Brush</span>
@@ -311,7 +396,7 @@ export function HomePage() {
             className={styles.eraseButton}
             data-testid="erase-tool"
             aria-pressed={tool === 'erase'}
-            onClick={selectErase}
+            onClick={toggleErase}
           >
             erase
           </button>
@@ -328,6 +413,27 @@ export function HomePage() {
               {running ? <span className={styles.blinkDot} aria-hidden="true" /> : null}
               {running ? 'running' : 'paused'}
             </div>
+
+            {moments.card ? (
+              <MomentCard
+                moment={moments.card}
+                registry={controls.registry}
+                leaving={moments.leaving}
+              />
+            ) : null}
+
+            {/* The 100% moment (spec §6): one line over the world, in the
+                first-visit hint's own type and its own place, once ever. The
+                two can never collide - the hint is gone before the first
+                stroke, and this needs all 37. */}
+            {moments.completing ? (
+              <div
+                className={`${styles.firstVisitHint} ${styles.chartComplete}`}
+                data-testid="field-notes-complete"
+              >
+                every interaction witnessed
+              </div>
+            ) : null}
 
             {hintVisible ? (
               <div

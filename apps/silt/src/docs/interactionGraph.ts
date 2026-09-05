@@ -13,10 +13,18 @@
  */
 import { PAINTABLE_IDS } from '../features/palette/paletteGroups.ts'
 import { GROWTH_P } from '../sim/growth.ts'
+import { GERMINATE_P } from '../sim/seedBank.ts'
 import {
+  BURIED,
   createRegistry,
   EMPTY,
+  FLOWER,
   MOSS,
+  PETAL,
+  SEED,
+  SPROUT,
+  STALK,
+  TIP,
   VINE,
   WATER,
   v1Elements,
@@ -80,35 +88,136 @@ export interface GrowthEdge {
   p: number
 }
 
+/**
+ * A transmutation performed by an `onTick` hook that neither a `GrowthEdge` nor
+ * any registry lookup can carry: germination writes two cells and depends on
+ * soak history, the raise and the bloom each transmute the cell *and* (for the
+ * raise) write another. The shape ADR 0043 said the third such hook would force,
+ * landed with discovery ticket 07.
+ *
+ * `kind` and `name` are the two halves of the canonical entry key
+ * (`germinate:moss`, `raise:sprout`, `bloom:tip`); reagents and products are
+ * what field notes counts. `outcome` is the doc table's whole outcome column,
+ * condition included, because a hook's condition is code no derivation can read.
+ */
+export interface HookEdge {
+  kind: 'germinate' | 'raise' | 'bloom'
+  /** The name half of the key: the plant germinated, the sprout, the tip. */
+  name: string
+  reagents: readonly string[]
+  products: readonly string[]
+  /** Per-tick probability once the condition holds; absent when the hook fires on sight. */
+  p?: number
+  /** The outcome as the doc table prints it. */
+  outcome: string
+  /** The module whose hook performs it, for attribution. */
+  source: string
+}
+
 export interface InteractionGraph {
   nodes: readonly GraphNode[]
   reactions: readonly ReactionEdge[]
   decays: readonly DecayEdge[]
   growth: readonly GrowthEdge[]
+  hooks: readonly HookEdge[]
+  /**
+   * Species this chart does not name, and the element each belongs to
+   * (`CHARTED_AS`). Everything else here is raw; this is the one presentation
+   * concern the graph carries, because the mapping is roster knowledge and the
+   * roster is what this module owns.
+   */
+  chartAs: ReadonlyMap<string, string>
 }
+
+/**
+ * **Charted identities** (discovery ticket 08). The sim's unit is a species -
+ * `buried` exists because a soak counter needs a byte to live in (ADR 0043) -
+ * but the player's unit is an element, and `buried` is not a thing you can
+ * have: it is what a seed does in mud. Sprout, tip, stalk and petal are stages
+ * and parts of one plant, split into species by that same byte-ownership rule.
+ *
+ * So field notes charts each of them as the element it belongs to, and does it
+ * here rather than in the sim: nothing below changes (the doc reports the
+ * chemistry as it resolves, stage rows and all), the witness keys the store
+ * holds stay raw and name-based, and `features/fieldNotes/entries.ts` folds the
+ * mapping in as it derives its entries. Nothing migrates.
+ *
+ * Ids rather than names, so a rename cannot leave the mapping pointing at a
+ * species that no longer exists.
+ */
+const CHARTED_AS: readonly (readonly [species: number, charted: number])[] = [
+  [BURIED, SEED],
+  [SPROUT, FLOWER],
+  [TIP, FLOWER],
+  [STALK, FLOWER],
+  [PETAL, FLOWER],
+]
 
 /**
  * The growth hook is code rather than a row - `createGrowth(WATER, MOSS, VINE)`
  * in `elements.ts` - so no registry lookup can report it and these edges are
  * declared. Mirror any change to `growth.ts` here. Burial (`seed + mud ->
- * buried`) is a reaction row and arrives with the rest; germination is the seed
- * bank's hook (`seedBank.ts`) and goes unreported, since a `GrowthEdge` has no
- * shape for a rule that writes two cells (life ticket 02).
+ * buried`) is a reaction row and arrives with the rest.
  *
- * The land plant's hooks (`stalk.ts`) are unreported for the same reason: both
- * the sprout raising a tip and the tip climbing write a new cell *and* transmute
- * the one they stand in. That is the third such hook, which is the trigger ADR
- * 0043 names for giving the generator a `HookEdge` shape - out of ticket 03's
- * scope, and the graph reports every one of the four species' chemistry and
- * decay meanwhile.
+ * The other hook transmutations - germination (`seedBank.ts`) and the land
+ * plant's raise and bloom (`stalk.ts`) - are declared too, as `HookEdge`s
+ * (discovery ticket 07): no existing shape could carry a rule that writes two
+ * cells or depends on soak history, and leaving them out made the five
+ * hook-born elements undiscoverable. Mirror any change to those two modules in
+ * `hookEdges` below.
  *
- * Evaporation (`evaporation.ts`, life ticket 05) is unreported too, and for the
- * opposite reason: `water -> steam` consumes no neighbour at all, so a
- * `GrowthEdge` has no shape for it either. The condition is the whole rule - open
- * air above, something other than water below - and that is what a `HookEdge`
- * would have to be able to say.
+ * Two hook behaviours stay deliberately unreported: the tip's *climb* (it
+ * leaves stalk behind, but stalk is already the raise's product, and a climb is
+ * movement to the player's eye, not a new transmutation) and evaporation
+ * (`evaporation.ts`), which produces nothing at all - a fade, like smoke's, and
+ * a fade is not an entry (spec §1).
  */
 const GROWERS: readonly number[] = [MOSS, VINE]
+
+/**
+ * The hook transmutations a player can witness, one entry each - the minimum
+ * set that makes every hook-born element the product of something (ticket 07).
+ * The dirt refund on germination is not listed as a product: dirt is pre-known,
+ * and the entry is about what came *up*.
+ */
+function hookEdges(nameOf: (id: number) => string): readonly HookEdge[] {
+  return [
+    {
+      kind: 'germinate',
+      name: nameOf(MOSS),
+      reagents: [nameOf(BURIED), nameOf(WATER)],
+      products: [nameOf(MOSS)],
+      p: GERMINATE_P,
+      outcome: `${nameOf(WATER)} above -> ${nameOf(MOSS)}, ${nameOf(BURIED)} -> dirt (soaked 120 ticks under 2 cells of standing water)`,
+      source: 'seedBank.ts',
+    },
+    {
+      kind: 'germinate',
+      name: nameOf(SPROUT),
+      reagents: [nameOf(BURIED)],
+      products: [nameOf(SPROUT)],
+      p: GERMINATE_P,
+      outcome: `air above -> ${nameOf(SPROUT)}, ${nameOf(BURIED)} -> dirt (sky open, no standing water)`,
+      source: 'seedBank.ts',
+    },
+    {
+      kind: 'raise',
+      name: nameOf(SPROUT),
+      reagents: [nameOf(SPROUT)],
+      products: [nameOf(TIP), nameOf(STALK)],
+      outcome: `air above -> ${nameOf(TIP)}, ${nameOf(SPROUT)} -> ${nameOf(STALK)} (on the first tick the sky above is open)`,
+      source: 'stalk.ts',
+    },
+    {
+      kind: 'bloom',
+      name: nameOf(TIP),
+      reagents: [nameOf(TIP)],
+      products: [nameOf(FLOWER)],
+      outcome: `${nameOf(TIP)} -> ${nameOf(FLOWER)} (budget spent, or boxed in)`,
+      source: 'stalk.ts',
+    },
+  ]
+}
 
 /**
  * Whether `row` covers the unordered pair - the same test `resolvePairs` applies,
@@ -191,7 +300,14 @@ export function deriveInteractionGraph(): InteractionGraph {
     p: GROWTH_P,
   }))
 
-  return { nodes, reactions, decays, growth }
+  return {
+    nodes,
+    reactions,
+    decays,
+    growth,
+    hooks: hookEdges(nameOf),
+    chartAs: new Map(CHARTED_AS.map(([species, charted]) => [nameOf(species), nameOf(charted)])),
+  }
 }
 
 /** Mermaid node ids are the element names, which are single words by contract. */
@@ -245,6 +361,18 @@ function mermaid(graph: InteractionGraph): string {
     }
   }
 
+  if (graph.hooks.length > 0) {
+    lines.push('', '  %% hook transmutations')
+    for (const edge of graph.hooks) {
+      // One arrow per product, from the cell whose hook fired. 'germinate' +
+      // 's' and friends all read as verbs, which is what the label needs.
+      const label = edge.p === undefined ? `${edge.kind}s` : `${edge.kind}s, p ${edge.p}`
+      for (const product of edge.products) {
+        lines.push(`  ${edge.reagents[0]} -->|"${label}"| ${product}`)
+      }
+    }
+  }
+
   return lines.join('\n')
 }
 
@@ -284,6 +412,15 @@ function rows(graph: InteractionGraph): Row[] {
     })
   }
 
+  for (const edge of graph.hooks) {
+    table.push({
+      reagents: edge.reagents.join(' + '),
+      p: edge.p === undefined ? '-' : String(edge.p),
+      outcome: edge.outcome,
+      mechanism: `${edge.kind} hook (${edge.source})`,
+    })
+  }
+
   return table
 }
 
@@ -312,6 +449,14 @@ function table(graph: InteractionGraph): string {
   )
 }
 
+/** The charted identities as a table: the species, and the element it is named as. */
+function chartedTable(graph: InteractionGraph): string {
+  return markdownTable(
+    ['species', 'charted as'],
+    [...graph.chartAs].map(([species, name]) => [species, name]),
+  )
+}
+
 function summary(graph: InteractionGraph): string {
   const paintable = graph.nodes.filter((node) => node.paintable).length
   const fades = graph.decays.filter((decay) => decay.becomes === CLEARED).length
@@ -323,6 +468,7 @@ function summary(graph: InteractionGraph): string {
     ['decays', graph.decays.length],
     ['of which fade to nothing', fades],
     ['growth edges', graph.growth.length],
+    ['hook transmutations', graph.hooks.length],
   ]
   return markdownTable(
     ['', 'count'],
@@ -339,9 +485,10 @@ export function renderInteractionGraph(graph = deriveInteractionGraph()): string
 Every reaction and decay below is read back out of the live registry
 (\`createRegistry(v1Elements, v1Reactions)\`), so what is listed is what the sim
 resolves: tag rows already expanded, \`maxHardness\` pairs absent rather than
-"immune", and the first matching row winning. Growth is the one exception - it is
-a hook in \`src/sim/growth.ts\` rather than a table row, so its edges are declared
-in the generator and must be kept in step with it.
+"immune", and the first matching row winning. The hooks are the exception - growth
+(\`src/sim/growth.ts\`), germination (\`src/sim/seedBank.ts\`) and the land plant's
+raise and bloom (\`src/sim/stalk.ts\`) are code rather than table rows, so their
+edges are declared in the generator and must be kept in step with them.
 
 ## Summary
 
@@ -361,5 +508,15 @@ only by reacting. A reaction edge is undirected and its label reads
 ## Interactions
 
 ${table(graph)}
+
+## Charted as
+
+Everything above is the sim's own vocabulary, where a species owns a byte
+(ADR 0043). Field notes charts these ones as the element they belong to, so the
+player's chart counts a flower rather than four of its parts (discovery ticket
+08). Presentation only: the chemistry above and the witnessed edge keys are
+unaffected.
+
+${chartedTable(graph)}
 `
 }

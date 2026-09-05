@@ -2,6 +2,7 @@ import { emitInto } from './emit.ts'
 import { EMPTY } from './elements.ts'
 import type { Api, MovementApi } from './types.ts'
 import type { ElementRegistry, ResolvedLifetime } from './registry.ts'
+import type { WitnessTable } from './witness.ts'
 
 /**
  * What happens to a cell *after* its archetype has moved it. Neither of these
@@ -26,17 +27,23 @@ const CONTACTS: readonly (readonly [number, number])[] = [
  * what it was, so nothing after this may keep running its element's code.
  * Neighbours are visited in a fixed order and the probability draw happens only
  * once a pair actually matches, so the RNG stream stays a function of the world.
+ *
+ * The pair is handed to the witness recorder as it applies - one of the three
+ * discovery sites (discovery-tree spec §3). Recording draws no randomness and
+ * writes no cell, so nothing above changes because of it.
  */
-export function applyReactions(api: Api, registry: ElementRegistry): void {
+export function applyReactions(api: Api, registry: ElementRegistry, witness: WitnessTable): void {
   const self = api.get(0, 0)
 
   for (const [dx, dy] of CONTACTS) {
-    const reaction = registry.reactionFor(self, api.get(dx, dy))
+    const other = api.get(dx, dy)
+    const reaction = registry.reactionFor(self, other)
     if (!reaction) continue
     if (reaction.p < 1 && api.rand() >= reaction.p) continue
 
     api.set(dx, dy, reaction.bBecomes)
     api.become(reaction.aBecomes)
+    witness.reaction(self, other)
     return
   }
 }
@@ -70,8 +77,20 @@ export function applyReactions(api: Api, registry: ElementRegistry): void {
  * hook needed the same affordance and `keepAwake` has been promoted onto `Api`
  * (life ticket 05, [ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md) §3).
  * Nothing here moves anything, as before.
+ *
+ * `species` is what the cell still is - the scan has already checked that a
+ * reaction did not transmute it - and is passed rather than re-read so the
+ * witness recorder costs nothing beyond its own flag. A decay **with a product**
+ * is a discovery (a death drop's brood rides on that same entry); a fade is not
+ * an interaction at all (spec §1), so smoke expiring records nothing.
  */
-export function applyLifetime(api: MovementApi, lifetime: ResolvedLifetime, tick: number): boolean {
+export function applyLifetime(
+  api: MovementApi,
+  lifetime: ResolvedLifetime,
+  tick: number,
+  species: number,
+  witness: WitnessTable,
+): boolean {
   let remaining = api.ra
   if (remaining === 0) {
     remaining = lifetime.ticks + (lifetime.jitter > 0 ? api.randInt(lifetime.jitter + 1) : 0)
@@ -92,6 +111,7 @@ export function applyLifetime(api: MovementApi, lifetime: ResolvedLifetime, tick
 
   remaining--
   if (remaining <= 0) {
+    if (lifetime.becomes !== EMPTY || lifetime.emits) witness.decay(species)
     // **The death drop** (life ticket 04), and the reason it lives here rather
     // than in the element: `onTick` is gated on the cell surviving this call, so
     // a product has no way at all to act on the tick it dies. `becomes` alone

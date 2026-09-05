@@ -33,17 +33,56 @@ describe('the interaction graph doc', () => {
   })
 })
 
+describe('charted identities', () => {
+  /**
+   * Ticket 08: the species the sim keeps because a byte needs an owner (ADR
+   * 0043), named as the element a player actually holds. Presentation only -
+   * the chemistry below is derived raw, and the witness keys stay raw with it.
+   */
+  it('names a bookkeeping species as the element it belongs to', () => {
+    expect(Object.fromEntries(graph.chartAs)).toEqual({
+      buried: 'seed',
+      sprout: 'flower',
+      tip: 'flower',
+      stalk: 'flower',
+      petal: 'flower',
+    })
+  })
+
+  it('charts onto real elements, and never onto another charted one', () => {
+    const names = new Set(graph.nodes.map((node) => node.name))
+    for (const [species, charted] of graph.chartAs) {
+      expect(names.has(species)).toBe(true)
+      expect(names.has(charted)).toBe(true)
+      // A chain would make the mapping order-dependent; one hop is the contract.
+      expect(graph.chartAs.has(charted)).toBe(false)
+    }
+  })
+
+  it('leaves the graph itself raw: the doc reports the chemistry, not the chart', () => {
+    expect(graph.nodes.map((node) => node.name)).toContain('buried')
+    expect(pair('lava', 'stalk')).toBeDefined()
+    expect(pair('lava', 'flower')).toBeDefined()
+  })
+})
+
 describe('deriveInteractionGraph', () => {
   it('finds every registered pair once, unordered', () => {
-    // Registry-derived, so this count moves only when the chemistry does.
-    expect(graph.reactions).toHaveLength(48)
+    // Registry-derived, so this count moves only when the chemistry does. 47
+    // since `acid + water` was removed (ticket 16); ticket 15's eight plant rows
+    // did not move it, because they *replaced* pairs the `[solid]`/`[powder]`
+    // tag rows were already registering rather than adding new ones.
+    expect(graph.reactions).toHaveLength(47)
     const keys = graph.reactions.map((edge) => `${edge.a}+${edge.b}`)
     expect(new Set(keys).size).toBe(keys.length)
   })
 
   it('marks products as unpaintable and the rail as paintable', () => {
-    expect(graph.nodes.filter((node) => node.paintable)).toHaveLength(11)
+    // Ten since the discovery tree took mud out of the base rail (spec §9.5) -
+    // read off `PAINTABLE_IDS` at runtime, so an earned unlock never shows here.
+    expect(graph.nodes.filter((node) => node.paintable)).toHaveLength(10)
     expect(graph.nodes.find((node) => node.name === 'obsidian')?.paintable).toBe(false)
+    expect(graph.nodes.find((node) => node.name === 'mud')?.paintable).toBe(false)
     expect(graph.nodes.find((node) => node.name === 'water')?.paintable).toBe(true)
   })
 
@@ -99,6 +138,27 @@ describe('deriveInteractionGraph', () => {
     expect(fuels.toSorted()).toEqual(['stalk', 'tip'])
   })
 
+  it('expands lava + flammable to every fuel a specific row has not already claimed', () => {
+    // Burnables broke `fire + flammable` up into a per-fuel ignition ladder
+    // (ADR 0042), so `lava + flammable` is the tag row left to expand - and
+    // wood is absent from it because `lava + wood` (chars it to ember) precedes.
+    const fuels = graph.reactions
+      .filter((edge) => edge.source.endsWith('(lava + flammable)'))
+      .map((edge) => (edge.a === 'lava' ? edge.b : edge.a))
+
+    expect(fuels.toSorted()).toEqual([
+      'flower',
+      'moss',
+      'oil',
+      'seed',
+      'sprout',
+      'stalk',
+      'sulphur',
+      'tip',
+      'vine',
+    ])
+  })
+
   it('reads decay off the registry, fades included', () => {
     expect(graph.decays).toEqual([
       { from: 'fire', becomes: 'smoke', minTicks: 40, maxTicks: 60 },
@@ -151,11 +211,33 @@ describe('deriveInteractionGraph', () => {
       expect(edge.consumes).toBe('water')
       expect(edge.becomes).toBe('vine')
     }
-    // Burial is a row, so it arrives with the reactions and is not duplicated.
-    // Germination is not: it is the seed bank's hook, and the graph has no shape
-    // for a rule with two products, so `seedBank.ts` goes unreported here (life
-    // ticket 02).
+    // Burial is a row, so it arrives with the reactions and is not duplicated;
+    // germination is a hook edge below, not a second reaction.
     expect(products('seed', 'mud')).toEqual(['empty', 'buried'])
+  })
+
+  /**
+   * The hook transmutations (discovery ticket 07): the entries that make every
+   * hook-born element the product of something. Pinned whole because they are
+   * declared, not derived - a change to `seedBank.ts` or `stalk.ts` has to be
+   * mirrored here by hand, and this fixture is what says so out loud.
+   */
+  it('declares the four hook edges: two germinations, the raise and the bloom', () => {
+    expect(
+      graph.hooks.map((edge) => ({
+        key: `${edge.kind}:${edge.name}`,
+        reagents: edge.reagents,
+        products: edge.products,
+      })),
+    ).toEqual([
+      { key: 'germinate:moss', reagents: ['buried', 'water'], products: ['moss'] },
+      { key: 'germinate:sprout', reagents: ['buried'], products: ['sprout'] },
+      { key: 'raise:sprout', reagents: ['sprout'], products: ['tip', 'stalk'] },
+      { key: 'bloom:tip', reagents: ['tip'], products: ['flower'] },
+    ])
+    // The climb, petal shedding, evaporation and the dirt refund are not
+    // entries (ticket 07's NOT list), so nothing else is declared.
+    expect(graph.hooks).toHaveLength(4)
   })
 })
 

@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { DIRT, EMPTY, GRID_HEIGHT, SAND } from './sim/index.ts'
+import { DIRT, EMPTY, GRID_HEIGHT, MUD, SAND, STEAM } from './sim/index.ts'
+import { seedMastery } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -42,6 +43,68 @@ test('erase is a tool, not a palette entry, and clears painted cells', async ({ 
 
   await root.paintCell(30, 30)
   await root.verifyCellIs(30, 30, EMPTY)
+})
+
+test('erase is a toggle: a second press returns to the element it interrupted', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('dirt')
+  await root.selectErase()
+  expect(await root.isEraseSelected()).toBe(true)
+  // The rail must not read as though it were still painting: with erase active
+  // nothing in it is pressed, so the erase button is the one lit control and
+  // visibly the way back (ticket 24).
+  await root.verifyNoElementSelected()
+
+  await root.selectErase()
+  expect(await root.isEraseSelected()).toBe(false)
+  // The interrupted element was remembered, not forgotten, so painting resumes
+  // where it left off rather than on some default.
+  expect(await root.isSelected('dirt')).toBe(true)
+  expect(await root.statusText('status-element')).toBe('dirt')
+  await root.paintCell(30, 30)
+  await root.verifyCellIs(30, 30, DIRT)
+})
+
+test('the erase hotkey toggles exactly as the button does', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('dirt')
+  await root.pressKey('e')
+  expect(await root.isEraseSelected()).toBe(true)
+  await root.verifyNoElementSelected()
+
+  await root.pressKey('e')
+  expect(await root.isEraseSelected()).toBe(false)
+  expect(await root.isSelected('dirt')).toBe(true)
+})
+
+// The EARNED control stands in for a selection that lives inside it, so it is
+// the second thing in the rail that can read as pressed - and it has to go dark
+// while erasing for the same reason a swatch does (ticket 24).
+test('an earned selection goes dark while erasing and comes back with it', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openEarned()
+  await root.selectEarnedElement('mud')
+  expect(await root.isEarnedSelected()).toBe(true)
+
+  await root.selectErase()
+  expect(await root.isEarnedSelected()).toBe(false)
+  await root.verifyNoElementSelected()
+
+  await root.selectErase()
+  expect(await root.isEarnedSelected()).toBe(true)
+  expect(await root.statusText('status-element')).toBe('mud')
 })
 
 test('a wider brush paints more than one cell at a time', async ({ mountApp }) => {
@@ -148,19 +211,18 @@ test('the rail advertises a hotkey only where one exists', async ({ mountApp, pa
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  // Digits stop at `HOTKEYED_ENTRIES` (nine) and the roster is eleven
-  // paintables. The first nine carry a badge; mud and seed must not claim a
-  // dead key. Asserting the *badge* is absent, not that some particular text
-  // is: "no element reading 10" also passes when the badge renders "99".
+  // Digits stop at `HOTKEYED_ENTRIES` (nine) and the base rail is ten
+  // paintables. The first nine carry a badge; seed must not claim a dead key.
+  // Asserting the *badge* is absent, not that some particular text is: "no
+  // element reading 10" also passes when the badge renders "99".
   await expect(page.getByTestId('element-dirt').getByTestId('hotkey-badge')).toHaveText('1')
-  await expect(page.getByTestId('element-mud').getByTestId('hotkey-badge')).toHaveCount(0)
   await expect(page.getByTestId('element-seed').getByTestId('hotkey-badge')).toHaveCount(0)
   // And exactly nine of them exist in the rail, so the cut is where it says.
   await expect(page.getByTestId('palette').getByTestId('hotkey-badge')).toHaveCount(9)
 
   // The swatch still works; it just does not claim a shortcut.
-  await root.selectElement('mud')
-  expect(await root.isSelected('mud')).toBe(true)
+  await root.selectElement('seed')
+  expect(await root.isSelected('seed')).toBe(true)
 })
 
 test('the Energy group appears in the rail now fire is paintable', async ({ mountApp }) => {
@@ -175,20 +237,98 @@ test('the Energy group appears in the rail now fire is paintable', async ({ moun
   expect(await root.isSelected('fire')).toBe(true)
 })
 
-// Mud is a reaction product that is still paintable in its own right, unlike
-// obsidian — so unlike smoke and steam, it has to reach the rail.
-test('mud is paintable and sits in the Liquid group', async ({ mountApp }) => {
+// Mud is dirt + water's product, and the one element the player earns back
+// (discovery-tree spec §9.5): a fresh rail is ten base elements with no way in
+// to it, and nothing hinting at one either.
+test('a fresh rail is the ten base elements, with no earned control', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.verifyPaletteGroupContains('Liquid', 'mud')
-
-  await root.selectElement('mud')
-  expect(await root.isSelected('mud')).toBe(true)
+  const names = await root.paletteElementNames()
+  expect(names).toHaveLength(10)
+  expect(names).not.toContain('mud')
+  await root.verifyNoEarnedControl()
 })
 
-// Seed is the eleventh paintable, and the roster's last: moss and vine are the
-// reward for planting it, so neither reaches the rail.
+// The unlock, from the rail's side (spec §6 "The unlock", §9.8): one control at
+// the rail's foot, never an inline swatch - so hotkeys and rail length hold
+// however many unlockables follow.
+test('mastering mud puts it in the earned control, where it paints like any element', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Still ten in the rail proper, and the digits have not moved.
+  expect(await root.paletteElementNames()).toHaveLength(10)
+  await expect(page.getByTestId('palette').getByTestId('hotkey-badge')).toHaveCount(9)
+
+  await root.openEarned()
+  expect(await root.earnedElementNames()).toEqual(['mud'])
+  await root.verifyEarnedPopoverClearsTheRail()
+
+  await root.selectEarnedElement('mud')
+  expect(await root.isEarnedSelected()).toBe(true)
+  expect(await root.statusText('status-element')).toBe('mud')
+
+  await root.paintCell(40, 40)
+  await root.verifyCellIs(40, 40, MUD)
+
+  // "Fully paintable" includes the spawners (spec §3) - an earned element is a
+  // rail element in every way except where it is kept.
+  await root.enterSpawnerMode()
+  await root.clickCell(150, 20)
+  await root.step()
+  await expect.poll(() => root.countSpecies(MUD)).toBeGreaterThan(1)
+})
+
+// Ticket 14: mud is no longer the only way in. Mastery of *any* charted non-base
+// element earns it, so a player who has exhausted steam's edges paints steam.
+test('mastering steam earns it too - the unlock is mastery, not a chosen element', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'steam')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openEarned()
+  expect(await root.earnedElementNames()).toContain('steam')
+
+  await root.selectEarnedElement('steam')
+  expect(await root.statusText('status-element')).toBe('steam')
+
+  await root.paintCell(40, 40)
+  await root.verifyCellIs(40, 40, STEAM)
+})
+
+// Ticket 13: the popover used to be pinned to the viewport's bottom-left corner,
+// however far that was from the control the player had just clicked. It stays
+// `fixed` - the rail is a scroll container - but the offsets now come from the
+// control's own box, and follow it when the window changes size.
+test('the earned popover opens at the control and stays on screen when the window shrinks', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openEarned()
+  await root.verifyEarnedPopoverIsAnchoredToTheControl()
+  await root.verifyEarnedPopoverClearsTheRail()
+
+  // Still a desktop viewport - narrower than this is the bottom bar's sheet,
+  // which is a different layout and not what this test is about.
+  await page.setViewportSize({ width: 820, height: 520 })
+  await root.verifyEarnedPopoverIsAnchoredToTheControl()
+  await root.verifyEarnedPopoverClearsTheRail()
+})
+
+// Seed is the base rail's tenth and last entry: moss and vine are the reward
+// for planting it, so neither reaches the rail.
 test('seed is paintable and sits in the Powder group, with no plant beside it', async ({
   mountApp,
 }) => {

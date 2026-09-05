@@ -1,8 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { EMPTY, GRID_WIDTH, MS_PER_TICK, SAND } from '../../sim/index.ts'
-import { createLocalWorld, STATUS_WRITE_SEQ } from './simProtocol.ts'
-import { LocalSimHost, selectSimHostKind, WorldView } from './simHost.ts'
+import { EMPTY, GRID_HEIGHT, GRID_WIDTH, LAVA, MS_PER_TICK, SAND, WATER } from '../../sim/index.ts'
+import { createLocalWorld, STATUS_WRITE_SEQ, type SimPageMessage } from './simProtocol.ts'
+import { LocalSimHost, selectSimHostKind, WorkerSimHost, WorldView, type SimHost } from './simHost.ts'
+
+/**
+ * Water and lava wedged side by side on the floor - the `p: 1` row fires on the
+ * first tick, so one step is one first witness. Same fixture as the core's.
+ */
+function wetLava(host: SimHost): void {
+  const floor = (GRID_HEIGHT - 1) * GRID_WIDTH
+  host.send({ type: 'paintCells', cellIndices: [floor + 40], species: WATER })
+  host.send({ type: 'paintCells', cellIndices: [floor + 41], species: LAVA })
+}
 
 describe('selectSimHostKind', () => {
   it('picks the worker only when the page is cross-origin isolated and has workers', () => {
@@ -68,6 +78,88 @@ describe('LocalSimHost', () => {
   it('exposes the same element registry the sim renders from', () => {
     const host = new LocalSimHost()
     expect(host.registry.get(SAND)?.name).toBe('sand')
+    host.dispose()
+  })
+
+  it('calls back on a first witness, once per key', () => {
+    const host = new LocalSimHost()
+    const seen: string[][] = []
+    host.onWitnessed((keys) => seen.push([...keys]))
+    wetLava(host)
+
+    for (let i = 0; i < 4; i++) host.send({ type: 'step' })
+
+    expect(seen).toEqual([['react:lava+water']])
+    host.dispose()
+  })
+
+  it('stops calling back once unsubscribed, and never reports a seeded key', () => {
+    const host = new LocalSimHost()
+    const seen: string[][] = []
+    const unsubscribe = host.onWitnessed((keys) => seen.push([...keys]))
+    unsubscribe()
+    host.send({ type: 'seedWitnessed', keys: ['decay:fire'] })
+    wetLava(host)
+
+    host.send({ type: 'step' })
+
+    expect(seen).toEqual([])
+    host.dispose()
+  })
+})
+
+/**
+ * A stand-in for the real `Worker`, injected the way `LocalSimHost` takes its
+ * clock: the host's whole job in worker mode is relaying, so what is worth
+ * pinning is that intent goes out and witnesses come back - not that a worker
+ * thread exists, which vitest has no way to run.
+ */
+class FakeWorker {
+  onmessage: ((event: MessageEvent<SimPageMessage>) => void) | null = null
+  readonly posted: unknown[] = []
+  terminated = false
+
+  postMessage(message: unknown): void {
+    this.posted.push(message)
+  }
+
+  terminate(): void {
+    this.terminated = true
+  }
+
+  /** What the worker thread would post back. */
+  emit(message: SimPageMessage): void {
+    this.onmessage?.({ data: message } as MessageEvent<SimPageMessage>)
+  }
+}
+
+describe('WorkerSimHost', () => {
+  const hostOver = (worker: FakeWorker) =>
+    new WorkerSimHost(() => worker as unknown as Worker)
+
+  it('hands the worker its buffers, then relays intent to it', () => {
+    const worker = new FakeWorker()
+    const host = hostOver(worker)
+
+    host.send({ type: 'setRunning', running: true })
+
+    expect(worker.posted[0]).toMatchObject({ type: 'init' })
+    expect(worker.posted[1]).toEqual({ type: 'setRunning', running: true })
+    host.dispose()
+    expect(worker.terminated).toBe(true)
+  })
+
+  it('delivers a first witness posted back by the worker to its subscribers', () => {
+    const worker = new FakeWorker()
+    const host = hostOver(worker)
+    const seen: string[][] = []
+    const unsubscribe = host.onWitnessed((keys) => seen.push([...keys]))
+
+    worker.emit({ type: 'witnessed', keys: ['react:lava+water'] })
+    unsubscribe()
+    worker.emit({ type: 'witnessed', keys: ['decay:fire'] })
+
+    expect(seen).toEqual([['react:lava+water']])
     host.dispose()
   })
 })

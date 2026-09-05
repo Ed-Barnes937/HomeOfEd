@@ -1,0 +1,88 @@
+// The one element tile (discovery-tree spec §6 "Element tiles"): a 2px ink
+// plate, the archetype's shape clipped out of both plate and fill, and the
+// sim's own two-stop pixel shade over the element's base colour.
+//
+// The size arrives as `--tile-size` rather than a width, so a *context* can
+// resize every tile inside it in one rule - which is exactly what the picker
+// does when it becomes a phone's wrapped tile grid (22px -> 30px).
+$ink: #1a1714;
+$muted: #6b665d;
+$live: #3ecf6b;
+
+// Undiscovered: the same shape, gone dark, its edge faded back (spec §7).
+$hidden-fill: #241f1a;
+$hidden-edge: rgba(26, 23, 20, 0.45);
+
+$cut: 6px;
+
+.plate {
+  display: block;
+  flex: none;
+  box-sizing: border-box;
+  width: var(--tile-size);
+  height: var(--tile-size);
+  padding: var(--tile-pad);
+  background: $ink;
+}
+
+.fill {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // The pixel shade: one lighter row on top, one darker below, over the
+  // element's own colour, which arrives as the inline background-color.
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.24) 0 22%,
+    rgba(0, 0, 0, 0) 22% 74%,
+    rgba(0, 0, 0, 0.26) 74%
+  );
+  font-family: 'Silkscreen', monospace;
+  font-size: max(8px, calc(var(--tile-size) * 0.38));
+  line-height: 1;
+  color: $muted;
+}
+
+// Shape is clipped from the plate and the fill alike, so the ink edge follows
+// the silhouette instead of boxing it.
+.powder {
+  clip-path: polygon(
+    #{$cut} 0,
+    calc(100% - #{$cut}) 0,
+    100% #{$cut},
+    100% calc(100% - #{$cut}),
+    calc(100% - #{$cut}) 100%,
+    #{$cut} 100%,
+    0 calc(100% - #{$cut}),
+    0 #{$cut}
+  );
+}
+
+.liquid {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.gas {
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+// `static` needs no clip - a square is the shape.
+
+.hidden {
+  background: $hidden-edge;
+}
+
+// The fill a tile falls back to when no colour is passed for it, which is the
+// only way an element is ever drawn dark.
+.hidden .fill {
+  background-color: $hidden-fill;
+}
+
+// The one place the live green appears outside the run pill: an element the
+// player has not been shown yet (spec §6 "Node states"). It gives way to the
+// selected treatment the moment the row is picked.
+.fresh {
+  background: $live;
+}

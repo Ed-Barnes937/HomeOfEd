@@ -39,6 +39,7 @@ class StubApi implements Api {
   readonly reads: { dx: number; dy: number }[] = []
   readonly raWrites: number[] = []
   readonly becomes: number[] = []
+  readonly germinations: number[] = []
 
   #cells: Map<string, number>
   #ra = 0
@@ -97,6 +98,20 @@ class StubApi implements Api {
 
   randInt(): number {
     throw new Error('the seed bank draws rand(), not randInt()')
+  }
+  witnessGrowth(): void {
+    throw new Error('the seed bank reports germination, not growth')
+  }
+  witnessGermination(product: number): void {
+    // The witness recorder is off to the side of the simulation (ADR 0048);
+    // recorded so the cases below can pin *when* the bank reports, and what.
+    this.germinations.push(product)
+  }
+  witnessRaise(): void {
+    throw new Error('the seed bank never raises a tip')
+  }
+  witnessBloom(): void {
+    throw new Error('the seed bank never blooms')
   }
 }
 
@@ -265,5 +280,39 @@ describe('the seed bank hook', () => {
 
     expect(api.writes).toEqual([])
     expect(api.raWrites).toEqual([])
+  })
+})
+
+/**
+ * The germination witness (discovery ticket 07): one site, two entries, and the
+ * biome decision is what picks between them - so the bank reports the plant it
+ * just set, on the tick it sets it, and at no other time.
+ */
+describe('the germination witness', () => {
+  it('reports moss on the soaked path', () => {
+    const api = new StubApi({ '0,-1': WATER, '0,-2': WATER }, SOAK_TO_DROWN)
+
+    bank(api)
+
+    expect(api.germinations).toEqual([MOSS])
+  })
+
+  it('reports sprout on the dry path', () => {
+    const api = new StubApi({ '0,-1': EMPTY })
+
+    bankWithSprout(api)
+
+    expect(api.germinations).toEqual([SPROUT])
+  })
+
+  it('reports nothing while dormant, soaking, or on a failed draw', () => {
+    const dormant = new StubApi({ '0,-1': MUD })
+    bank(dormant)
+    const soaking = new StubApi({ '0,-1': WATER, '0,-2': WATER }, 10)
+    bank(soaking)
+    const missed = new StubApi({ '0,-1': WATER, '0,-2': WATER }, SOAK_TO_DROWN, [GERMINATE_P])
+    bank(missed)
+
+    for (const api of [dormant, soaking, missed]) expect(api.germinations).toEqual([])
   })
 })

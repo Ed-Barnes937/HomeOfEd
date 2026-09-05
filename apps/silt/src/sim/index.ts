@@ -54,3 +54,4 @@ export {
 export { Rng } from './rng.ts'
 export { Sim, type SimOptions } from './sim.ts'
 export type { Api, Archetype, ElementDef, Emission, Lifetime, ReactionRow } from './types.ts'
+export type { WitnessEvent } from './witness.ts'

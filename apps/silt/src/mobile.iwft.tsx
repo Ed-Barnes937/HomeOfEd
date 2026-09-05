@@ -1,6 +1,8 @@
 import { expect } from '@playwright/experimental-ct-react'
 
-import { DIRT, GRID_HEIGHT, SAND, SEED } from './sim/index.ts'
+import { RING_MIN_PX } from './features/fieldNotes/ringGeometry.ts'
+import { DIRT, GRID_HEIGHT, MUD, SAND, SEED } from './sim/index.ts'
+import { seedMastery, seedWitnessed } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -82,15 +84,16 @@ test('the Energy group survives the rotation into the bottom bar', async ({ moun
 
 /**
  * Materials spec §8: the rail was built for a roster "that will triple" — 12 —
- * and stage 04 takes it to 11 paintables. Checked at phone width rather than
+ * and it carries ten base paintables now the discovery tree has taken mud out
+ * to be earned (discovery-tree spec §9.5). Checked at phone width rather than
  * assumed: the bottom bar is the tightest place the roster has to fit.
  */
-test('the bottom bar still carries the full eleven-element roster', async ({ mountApp }) => {
+test('the bottom bar still carries the full ten-element base roster', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
   // Rail order is *group* order, not `PAINTABLE_IDS` order — the bar renders
-  // Solid, Powder, Liquid, Energy, and every one of the eleven is in it.
+  // Solid, Powder, Liquid, Energy, and every one of the ten is in it.
   expect(await root.paletteElementNames()).toEqual([
     'dirt',
     'wood',
@@ -101,7 +104,6 @@ test('the bottom bar still carries the full eleven-element roster', async ({ mou
     'lava',
     'oil',
     'acid',
-    'mud',
     'fire',
   ])
   await root.verifyNoHorizontalPageOverflow()
@@ -116,4 +118,190 @@ test('the bottom bar still carries the full eleven-element roster', async ({ mou
 
   // Erase stays at the tail of the same row, behind the new swatch.
   await root.verifyEraseIsLastInPaletteRow()
+})
+
+// Field notes is a desktop overlay and a phone takeover of the same DOM
+// (discovery-tree spec §6): the picker turns into a wrapped grid of tiles, and
+// every one of them still has to be tappable.
+test('field notes opens as a full-screen sheet whose picker is still tappable', async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, ['react:lava+water'])
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyTouchTargetSize('field-notes-button')
+  await root.openFieldNotes()
+  await root.verifyTouchTargetSize('field-notes-row-water')
+  await root.verifyTouchTargetSize('field-notes-close')
+
+  await root.selectNote('water')
+  expect(await root.focusedNote()).toBe('water')
+  // The chips and the reading line are one band under the ring (ticket 25), in
+  // that order: the chips describe the element, the line describes the spoke.
+  await root.verifyBottomBandOrder()
+
+  // The phone's way in is the tap: on the ring it reads the spoke, and in the
+  // band it follows the element. Both are touch targets at this width.
+  await root.readSpoke('lava')
+  expect(await root.focusedNote()).toBe('water')
+  await root.verifyTouchTargetSize('field-notes-reading-obsidian')
+  await root.followReadingTile('obsidian')
+  expect(await root.focusedNote()).toBe('obsidian')
+
+  await root.verifyNoHorizontalPageOverflow()
+  await root.closeFieldNotes()
+})
+
+// Ticket 22: the key explains the ring's line kinds and nothing else, so it
+// lives with the ring - which makes the phone sheet the place it is easiest to
+// lose, since the footer wraps there and the notch strip it used to sit behind
+// is not even drawn. It has to be on the screen the ring is on, at a real touch
+// size, with nothing to scroll for.
+test('the ring key is on screen and tappable at the foot of the phone sheet', async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, ['react:lava+water'])
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openFieldNotes()
+  await root.selectNote('water')
+
+  await root.verifyFieldNotesKeyToggleIsOnScreen()
+  await root.verifyFieldNotesKeyToggleLeadsTheFooter()
+  await root.verifyTouchTargetSize('field-notes-key-toggle')
+
+  await root.toggleFieldNotesKey()
+  await root.verifyFieldNotesKeyRow('decay')
+  await root.verifyFieldNotesKeyRow('arrow')
+  await root.verifyNoHorizontalPageOverflow()
+})
+
+/**
+ * Ticket 21 (Ed, local testing): "the graph looks poo on mobile, can we make it
+ * bigger, add labels to the elements at the top". The sheet capped the ring at
+ * 340px however big the phone and read its focused element's name only in the
+ * ring's cramped centre.
+ */
+test('the phone sheet gives the ring the screen, and names the focused element above it', async ({
+  mountApp,
+  page,
+}) => {
+  // Every edge water is named in: the busiest ring the sheet has to draw, so
+  // the size and the tiles' clearance are pinned at the crowded end.
+  await seedMastery(page, 'water')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openFieldNotes()
+  await root.selectNote('water')
+
+  await root.verifyRingFillsTheSheet(0.9)
+  await root.verifyFocusedNameIsAboveTheRing('water')
+  await root.verifyRingFitsAboveTheFooter()
+  await root.verifyRingTilesDoNotOverlap()
+  await root.verifyNoHorizontalPageOverflow()
+})
+
+/**
+ * The other side of the same sizing: a sheet whose height runs out before its
+ * width does has to give the ring up rather than run it into the footer, and it
+ * has to stay square while it does - the SVG's coordinate box and its tiles
+ * depend on that (ticket 21).
+ *
+ * Re-measured at a true 390px (ticket 26), and the height had to move with the
+ * name: this case is the band where the ring is *height*-bound but still above
+ * its floor, which at 390 wide is roughly 800-844px tall. At 844 the ring is
+ * width-bound (380px of a 390px sheet); below ~795 it is pinned to
+ * `RING_MIN_PX` and scrolls, which is the case below, not this one. 810 sits in
+ * the middle and draws a 353px ring. The old 480 was picked when the harness
+ * laid this out at 980x1206 - at a true 390x480 the panel's 244px of fixed
+ * head/band/foot cannot fit a 340px ring above the footer at all.
+ */
+test.describe('a phone whose height runs out before its width', () => {
+  test.use({ viewport: { width: 390, height: 810 } })
+
+  test('the ring gives up width rather than running into the footer', async ({
+    mountApp,
+    page,
+  }) => {
+    await seedMastery(page, 'water')
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    await root.openFieldNotes()
+    await root.selectNote('water')
+
+    await root.verifyRingIsSquare()
+    await root.verifyRingGaveUpWidthForHeight()
+    // ...but gave up width because its *height* ran out, not because it hit the
+    // floor - that is the case below, and without this the two would be the
+    // same test whenever the sheet's chrome grows (ticket 26).
+    await root.verifyRingIsAboveItsFloor(RING_MIN_PX)
+    await root.verifyFocusedNameIsAboveTheRing('water')
+    await root.verifyRingFitsAboveTheFooter()
+    await root.verifyRingTilesDoNotOverlap()
+  })
+})
+
+/**
+ * The floor under all of it: the ring's tiles are a fixed pixel size, so a ring
+ * drawn smaller than `RING_MIN_PX` would have them overlapping and would make a
+ * liar of the capacity that decides when spokes group (`ringGeometry`). A sheet
+ * with less room than that scrolls instead of shrinking (ticket 21).
+ *
+ * Re-measured at a true 390px (ticket 26): a real phone reaches this case a lot
+ * sooner than the harness's 980px fallback suggested. 390x480 leaves 236px of
+ * body under the head, band and foot - well under the 376px the floor plus its
+ * name band needs - so the ring stops at `RING_MIN_PX` and `.ringWrap` scrolls.
+ * The old 200 is not a phone at all: the panel's own fixed chrome is 244px, so
+ * nothing in the sheet could be laid out, let alone tapped.
+ */
+test.describe('a sheet with less room than the ring needs', () => {
+  test.use({ viewport: { width: 390, height: 480 } })
+
+  test('the ring stops at its floor rather than drawing tiles that overlap', async ({
+    mountApp,
+    page,
+  }) => {
+    await seedMastery(page, 'water')
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    await root.openFieldNotes()
+    await root.selectNote('water')
+
+    await root.verifyRingIsAtItsFloor(RING_MIN_PX)
+    await root.verifyRingTilesDoNotOverlap()
+  })
+})
+
+
+// The bottom bar is the tightest place an unlock has to fit, and the one where
+// the popover has to open upwards instead of off the side of the screen
+// (discovery-tree spec §6 "The unlock").
+test('an earned element reaches the bottom bar without pushing the page sideways', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Still the ten base elements in the bar itself, plus one control beside them.
+  expect(await root.paletteElementNames()).toHaveLength(10)
+  await root.verifyTouchTargetSize('earned-button')
+  await root.verifyNoHorizontalPageOverflow()
+
+  await root.openEarned()
+  // The phone keeps its sheet across the foot of the screen: anchoring the
+  // popover to the control (ticket 13) is the desktop rail's rule only.
+  await root.verifyEarnedPopoverIsASheet()
+  await root.selectEarnedElement('mud')
+  expect(await root.isEarnedSelected()).toBe(true)
+  await root.touchPaintCell(150, FLOOR - 9)
+  await root.verifyCellIs(150, FLOOR - 9, MUD)
 })

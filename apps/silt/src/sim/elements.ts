@@ -82,8 +82,9 @@ const sand: ElementDef = {
   colours: ['#d9b978', '#c3a76c', '#eac882', '#d0b273'],
   tags: ['powder'],
   // slide 1 = always tries a diagonal when blocked below, the classic
-  // falling-sand angle of repose. Density 60 is the top of the roster, so a
-  // grain sinks through both liquids.
+  // falling-sand angle of repose. Density 60 is the top of the powder shelf, so
+  // a grain sinks through every liquid it meets **except mud** (65), which it
+  // comes to rest on - see the mud def for why the bed outranks the grain.
   archetype: { kind: 'powder', density: 60, slide: 1 },
   hardness: 0,
 }
@@ -245,11 +246,23 @@ const mud: ElementDef = {
   // same ground rather than as a new material dropped on top of it.
   colours: ['#5b4632', '#523f2d', '#624c36', '#574330'],
   tags: ['liquid'],
-  // Denser than water (30), so it settles under a pool rather than clouding
-  // it, and lighter than sand (60), so a grain still sinks through. The
-  // slowest liquid in the roster: one cell of spread and roughly one tick in
-  // ten, which is what makes it ooze rather than flow.
-  archetype: { kind: 'liquid', density: 50, dispersion: 1, move: 0.1 },
+  // **65 makes mud the densest thing that moves** - above sand (60) and
+  // sulphur (55), the two powders that used to fall through it at 50, and so
+  // above every powder in the roster. Mud is a bed, not a cloud: a grain that
+  // lands on wet ground rests on it, which is the felt-right reading and the
+  // one the old number contradicted (discovery ticket 23). It still settles
+  // under water (30), lava (45) and acid (35), because a pool of anything
+  // belongs on top of the soil it soaks into. The seed is untouched by the
+  // move: at 40 it was lighter than mud before and is lighter now, so it goes
+  // on resting on the bed until the `seed + mud` row buries it - burial is a
+  // reaction, never a sinking.
+  //
+  // Still a `liquid`, and the ooze numbers are why: one cell of spread and
+  // roughly one tick in ten is the slowest thing in the roster, which is what
+  // makes it creep rather than flow. See
+  // [ADR 0051](../../../../docs/adr/0051-silt-mud-is-the-densest-thing-that-moves.md),
+  // which supersedes the materials spec's ladder.
+  archetype: { kind: 'liquid', density: 65, dispersion: 1, move: 0.1 },
 }
 
 /**
@@ -266,7 +279,7 @@ const seed: ElementDef = {
   // of which it otherwise sits between on the powder shelf.
   colours: ['#9c8348', '#8c7641', '#a88d4e', '#967e45'],
   tags: ['powder', 'flammable'],
-  // Denser than water (30) and lighter than mud (50), so a seed sinks through
+  // Denser than water (30) and lighter than mud (65), so a seed sinks through
   // a pool and comes to rest *on* the soil instead of burying itself in it —
   // which is what puts the sprout on the surface where it can be seen.
   archetype: { kind: 'powder', density: 40, slide: 1 },
@@ -363,7 +376,7 @@ const ash: ElementDef = {
   // `fire + [flammable]` fallback both key on the tag, so leaving it off is
   // what keeps a bed of residue out of the fire rather than a rule saying so.
   tags: ['powder'],
-  // Density 35 puts ash between water (30) and mud (50), which is what closes
+  // Density 35 puts ash between water (30) and mud (65), which is what closes
   // the loop: a grain sinks into a pool instead of floating on it, and rests
   // *on* a wetted bed instead of burying itself in it. Sand (60) and seed (40)
   // both sink past it, so neither a sandfall nor a dropped seed is stopped by
@@ -731,21 +744,76 @@ export const v1Reactions: readonly ReactionRow[] = [
   // a "damp char" species would earn its place only if this reads wrong in
   // play. Mirrors `water + fire` at p 1.
   { a: 'water', b: 'ember', p: 1, aBecomes: 'steam', bBecomes: 'wood' },
-  // **This row must stay above the two below it.** They cover acid + wood as
-  // well, via `[solid]` at hardness 1, and `resolvePairs` keeps the first
-  // registration and drops the rest without a word — reorder these three and
-  // the residue silently stops happening. `acid.test.ts` pins it.
+  // **This row must stay above the `[solid]`/`[powder]` pair below.** They cover
+  // acid + wood as well, via `[solid]` at hardness 1, and `resolvePairs` keeps
+  // the first registration and drops the rest without a word - reorder these
+  // rows and the residue silently stops happening. `acid.test.ts` pins it, for
+  // wood and for each of the eight plants that follow.
   //
   // The residue goes on the *acid* side: the wood is gone, the cavity is
   // genuinely dug, and the spent acid leaves a grain behind. The other way
   // round turns the wall into a sulphur wall and digs nothing.
   { a: 'acid', b: 'wood', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  // **The same row, once per living thing** (discovery ticket 15), and the same
+  // precedence warning applies to all eight: every plant is hardness 0, so the
+  // two rows below cover these pairs as well and a reorder would silently take
+  // the residue away. Wood's numbers exactly - the rationale is wood's too, that
+  // spent acid leaves a grain behind, and organic matter is organic matter.
+  //
+  // Before this, `acid + wood` was sulphur's only recipe: acid digesting a
+  // meadow left nothing while acid digesting a plank left brimstone. Now the
+  // life loop is a renewable route to it.
+  //
+  // **Eight literal rows rather than a `plantMatter` tag**, though the tag would
+  // read tidier here. The registry expands tag rows before anything downstream
+  // sees them, so the graph doc and the field-notes denominators come out
+  // identical either way and the tag buys nothing but this block's length. What
+  // it would cost is a membership question nobody has ruled on: `buried` is
+  // plant matter by any plain reading and is not among the eight the roster
+  // names, and every plant part added later would join the sulphur rule silently
+  // rather than by decision. The tags already here (`flammable`, `solid`, `powder`) are
+  // broad contracts many rows read; a tag with one consumer would move a
+  // reaction's membership into the element defs, which is the split this file's
+  // rules draw the other way round. The `fire + <fuel>` ladder above
+  // `fire + flammable` is the precedent: named rows first, tag row behind them.
+  //
+  // Ember and ash are the roster's other half and get no row: they are already
+  // spent material, so the tag rows erase them with no residue (the ash comment
+  // above rules it), and `acid.test.ts` pins that as a choice. `buried` keeps the
+  // tag rows too, for want of a ruling either way.
+  //
+  // The measured cost of all this is that **acid is a weaker tool against a
+  // plant wall than it was**: the residue backfills the cavity and acid cannot
+  // eat sulphur, so a bath armours the bed it is eating. The numbers are in
+  // [ADR 0050](../../../../docs/adr/0050-silt-acid-corrodes-living-matter-and-lets-water-be.md)
+  // §1, which supersedes the materials spec's "residue is wood only" ruling and
+  // records that the objection that ruling made was correct and accepted.
+  { a: 'acid', b: 'moss', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'vine', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'seed', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'sprout', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'stalk', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'tip', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'flower', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'petal', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
   // Two cells in, none out. `maxHardness` is checked once at boot, so stone,
   // obsidian and sulphur are not "immune" — their pairs simply do not exist.
   { a: 'acid', b: 'solid', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
   { a: 'acid', b: 'powder', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
-  // Water wins: the acid ends up as more water rather than as a hole.
-  { a: 'acid', b: 'water', p: 1, aBecomes: 'water', bBecomes: 'water' },
+  // **No `acid + water` row, and that is a decision** (discovery ticket 16).
+  // There was one - `-> water + water` at p 1, "water wins" - and it made a
+  // single drip a total, instant counter to a whole pool while charting, in the
+  // field notes, as two things going in and one of them coming out unchanged.
+  // The two liquids simply coexist now: acid is denser (35 against 30), so
+  // density decides the layering exactly as it does for every other pair of
+  // liquids, and **stone stays the one acid-proof answer**, which is stone's
+  // whole job. Nothing migrates - the field notes' denominators are derived, and
+  // a stored `react:acid+water` key is carried-but-ignored like any other
+  // unknown key.
+  // [ADR 0050](../../../../docs/adr/0050-silt-acid-corrodes-living-matter-and-lets-water-be.md)
+  // §2 supersedes the materials spec's row 8 and records the two alternatives
+  // (a dilution residue, and acid tainting water) that were turned down.
+  //
   // Acid boils off; lava is the heat source and survives, as it does with fuel.
   { a: 'acid', b: 'lava', p: 1, aBecomes: 'smoke', bBecomes: 'lava' },
   // Two cells in, one out, as with acid + wood: the water is spent soaking the

@@ -119,7 +119,15 @@ export function createGrowth(water: number, moss: number, vine: number): (api: A
       // stays a function of the world rather than of how much air a plant
       // stands in.
       const grew = api.rand() < GROWTH_P
-      if (grew) api.set(dx, dy, vine)
+      if (grew) {
+        api.set(dx, dy, vine)
+        // The one discovery the engine cannot see for itself: reactions and
+        // decay are engine business, this transmutation is the hook's
+        // (discovery-tree spec §3). Reported on the successful `set` only - a
+        // failed draw grew nothing, and a blocked or crowded candidate never
+        // got as far as the draw.
+        api.witnessGrowth()
+      }
       // **Written every tick, not only when it changes.** A cell that should
       // keep acting must write or the chunk sleeps, and `Api` has no
       // `keepAwake` — writing `ra` marks the chunk dirty, so this is the only

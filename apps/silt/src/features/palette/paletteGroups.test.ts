@@ -4,6 +4,7 @@ import {
   ASH,
   createRegistry,
   EMBER,
+  MUD,
   OBSIDIAN,
   MOSS,
   SMOKE,
@@ -21,7 +22,7 @@ import { BRUSH_WIDTHS, buildRailPalette } from './paletteGroups.ts'
 const registry = createRegistry(v1Elements, v1Reactions)
 
 describe('paletteGroups', () => {
-  it('lists only the paintable roster, never a reaction product', () => {
+  it('lists only the base roster, never a reaction product and never mud', () => {
     const { entries } = buildRailPalette(registry)
     expect(entries.map((entry) => entry.name)).toEqual([
       'dirt',
@@ -33,9 +34,11 @@ describe('paletteGroups', () => {
       'fire',
       'acid',
       'stone',
-      'mud',
       'seed',
     ])
+    // Mud is dirt + water's product now (discovery-tree spec §9.5): it is
+    // earned, not shipped, so a fresh rail is ten entries long.
+    expect(entries.some((entry) => entry.id === MUD)).toBe(false)
     // Obsidian, smoke, steam, sulphur, moss, vine, ember and ash are what the
     // world makes, not what you paint — sulphur only exists where acid has
     // eaten wood, the plants only where a seed found wet soil, an ember only
@@ -53,9 +56,42 @@ describe('paletteGroups', () => {
     ).toEqual([
       ['Solid', ['dirt', 'wood', 'stone']],
       ['Powder', ['sand', 'seed']],
-      ['Liquid', ['water', 'lava', 'oil', 'acid', 'mud']],
+      ['Liquid', ['water', 'lava', 'oil', 'acid']],
       ['Energy', ['fire']],
     ])
+  })
+
+  it('earns nothing until something is unlocked', () => {
+    expect(buildRailPalette(registry).earned).toEqual([])
+  })
+
+  it('carries an unlocked element in the earned list, never in the base groups', () => {
+    const { entries, groups, earned } = buildRailPalette(registry, ['mud'])
+
+    expect(earned.map((entry) => entry.name)).toEqual(['mud'])
+    // The base rail is what the 1-9 hotkeys index, so an unlock must not touch
+    // it (spec §9.8): the EARNED control is the only place mud shows up.
+    expect(entries.some((entry) => entry.id === MUD)).toBe(false)
+    for (const group of groups) {
+      expect(group.entries.some((entry) => entry.id === MUD)).toBe(false)
+    }
+  })
+
+  it('names and colours an earned element, so the status bar and cursor can read it', () => {
+    const palette = buildRailPalette(registry, ['mud'])
+    expect(palette.nameOf(MUD)).toBe('mud')
+    expect(palette.colourOf(MUD)).toBe(registry.get(MUD)?.colours[0])
+  })
+
+  // Scenes remap by name (spec §8), so a scene saved while mud was still in the
+  // rail restores its mud cells for as long as mud is a species. Leaving the
+  // rail is not leaving the roster - that is what would empty those cells.
+  it('keeps mud in the roster it left the rail from', () => {
+    expect(registry.all().some((def) => def.name === 'mud')).toBe(true)
+  })
+
+  it('ignores an unlock this roster does not know', () => {
+    expect(buildRailPalette(registry, ['unobtainium']).earned).toEqual([])
   })
 
   it('offers four brush sizes, ascending', () => {

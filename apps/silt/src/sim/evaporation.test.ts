@@ -81,6 +81,20 @@ class StubApi implements Api {
   randInt(): number {
     throw new Error('evaporation draws a rate, never an integer')
   }
+  witnessGrowth(): void {
+    // The witness recorder is off to the side of the simulation (ADR 0048);
+    // this hook's behaviour under test does not depend on it - and it reports
+    // no hook edge of its own, so the three below refuse the call.
+  }
+  witnessGermination(): void {
+    throw new Error('this hook reports no hook edge')
+  }
+  witnessRaise(): void {
+    throw new Error('this hook reports no hook edge')
+  }
+  witnessBloom(): void {
+    throw new Error('this hook reports no hook edge')
+  }
 }
 
 const evaporate = createEvaporation(ids)

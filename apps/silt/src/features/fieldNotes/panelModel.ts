@@ -1,0 +1,648 @@
+/**
+ * The Field notes panel as data (spec §6): the picker's rows and one element's
+ * ring, derived from the witnessed set and nothing else. Pure and DOM-free -
+ * the panel component positions this and hands it to the tile helper, which is
+ * why the ordering, the spoke model and the spoiler masking are vitest cases
+ * rather than browser ones.
+ *
+ * Two rules shape everything here:
+ *
+ * - **One definition of "an entry"** (spec §6): `entriesFor()` is the only
+ *   source of an element's edges, so the picker count, the ring, the
+ *   still-to-find footer and mud's unlock chip cannot disagree. Re-deriving any
+ *   one of them from the reagents alone is what empties the ring for a
+ *   product-only element like obsidian.
+ * - **Never name a hidden element** (spec §7): every name that reaches the DOM
+ *   passes through `refOf`, so an element the player has not discovered reads
+ *   as `- - -` wherever it appears - picker row, ring centre, spoke partner and
+ *   every tile of the reading line alike. It is not hypothetical: a scene saved
+ *   before the rail trim can restore painted mud, and dropping lava on it
+ *   witnesses `lava + mud` without mud ever having been discovered.
+ *
+ * Since ticket 25 the ring itself is icons-only and the words all live in one
+ * reading line under it, so a spoke's own model is what the ring draws (a tile,
+ * a direction) plus the `ReadingLine` that band renders when the spoke is the
+ * active one. That is the whole spoiler surface for a chart: one row, not the
+ * two dozen text sites a lettered ring had.
+ */
+import type { EdgeKey, EdgeKind } from './edgeKeys.ts'
+import type { ElementTags } from './elementAppearance.ts'
+import { entryIndex, type Entry, type EntryIndex } from './entries.ts'
+import type { FieldNotesView } from './fieldNotesView.ts'
+import { RING_CAPACITY } from './ringGeometry.ts'
+
+/** What an undiscovered element reads as, anywhere its name would go (spec §7). */
+export const HIDDEN_NAME = '- - -'
+
+/**
+ * The sim tags a player is allowed to read (ticket 12), in the order they are
+ * chipped. An allowlist rather than a pass-through, in this one place, because
+ * the tags are engine vocabulary - the reaction table's keys - and a tag
+ * invented for the roster tomorrow must not leak into the panel as jargon
+ * without a decision here. The order is this array's, not the roster's, so wood
+ * reads `[solid] [flammable]` whichever way its `tags` happen to be written.
+ *
+ * Every tag currently reads as itself, which is why this is a list and not a
+ * tag -> word map: the day a tag needs a different word is the day the map
+ * earns its shape.
+ *
+ * - The four archetype-ish tags are in. The tile shape already carries them
+ *   (square, cut corners, diamond, hexagon), but a shape has no accessible
+ *   name, and the word is what a screen reader has.
+ * - `flammable` is the tag the ticket is really about: it is what the
+ *   `fire + [flammable]` row keys on, so it is a hint the player can act on.
+ * - **`energy` is in.** The call was left open in the ticket. It goes in
+ *   because the paint rail already groups fire under a player-facing "Energy"
+ *   heading (`features/palette/paletteGroups.ts`), so hiding the same word here
+ *   would leave two surfaces disagreeing about one element; and unlike the
+ *   other four it says something the hexagon does not - fire is a gas that
+ *   burns things, not just a gas. It keys no reaction row today, which makes it
+ *   the weakest chip on the list, not a wrong one.
+ * - `wall` is out: it belongs to the out-of-bounds sentinel and names no
+ *   element the player can ever reach.
+ */
+const TAG_CHIPS: readonly string[] = ['solid', 'powder', 'liquid', 'gas', 'energy', 'flammable']
+
+/** The allowlisted tags of `raw`, in `TAG_CHIPS` order. Everything else is dropped. */
+function chipsOf(raw: readonly string[]): readonly string[] {
+  const declared = new Set(raw)
+  return TAG_CHIPS.filter((tag) => declared.has(tag))
+}
+
+/**
+ * The two separators the reading line writes between its tiles, and what the
+ * key joins its kinds with. Exported because the panel draws them: the words
+ * of a recipe belong with the model that decides what the recipe *is*, so a
+ * `·` cannot be a `,` in one place and a `·` in the other.
+ */
+export const REAGENT_JOIN = '+'
+export const PRODUCT_JOIN = '·'
+
+/** The same dot, spaced, for the runs of words the model still joins itself. */
+const PRODUCT_RUN = ` ${PRODUCT_JOIN} `
+
+/**
+ * What an entry that consumes both cells leaves behind (spec §6). The reading
+ * line draws it where the product tiles would go, and it is exported because
+ * that is the panel's only word about an entry it did not get from a tile.
+ */
+export const CONSUMED = 'both consumed'
+
+/** An element as a tile: what to draw, and what it is allowed to be called. */
+export interface ElementRef {
+  name: string
+  /** The name, or the mask when the element has not been discovered. */
+  label: string
+  /** Discovered elements are the only selectable ones. */
+  discovered: boolean
+  /**
+   * The element's tag chips, already allowlisted and ordered (ticket 12).
+   * **Absent unless the element has been discovered *and* the caller supplied a
+   * tag source**, so a hidden element carries no tags at all. Only `ringFor`
+   * supplies one, and only for the centre: the picker rows, the spoke partners
+   * and the product tiles are drawn too small for words, so they carry none.
+   */
+  tags?: readonly string[]
+}
+
+/**
+ * What the star after an element's name says (ticket 18). Three states because
+ * charting made the count and the star ask different questions: the row counts
+ * *charted* entries, while mastery still waits on every *raw* edge behind them
+ * (ticket 08, decision 1), so an element owning a grouped entry can read `9/9`
+ * with a star that has not lit.
+ *
+ * - `none` - entries left to witness, or the element is still hidden.
+ * - `partial` - every charted entry witnessed, some raw edge behind a grouped
+ *   one not. Display only: it changes no unlock and no count. The ring says
+ *   where the gap is without naming it (the group's `x/y` chip, ticket 09/25),
+ *   which is what lets the star be honest inside spec §7.
+ * - `mastered` - every raw edge witnessed. Unchanged: this is mastery, and the
+ *   unlock trigger.
+ *
+ * An element whose entries are each backed by one raw edge - mud's six - can
+ * never be `partial`: the two questions have the same answer for it.
+ */
+export type MasteryState = 'none' | 'partial' | 'mastered'
+
+export interface PickerRow extends ElementRef {
+  /** Minimum transmutation depth: the column, and the sort key (spec §6). */
+  tier: number
+  /** `seen/total`, or `n/m to unlock` on an unearned unlockable. Empty while hidden. */
+  count: string
+  /** Which star the row wears (ticket 18) - filled, hollow or none. */
+  mastery: MasteryState
+  /** Discovered since the panel was last closed - the green plate edge. */
+  isNew: boolean
+}
+
+/** Which way a spoke's arrowhead points, if it has one. */
+export type SpokeDirection =
+  /** Into the centre: this pair is what makes the focused element. */
+  | 'in'
+  /** Out at the ring tile, which is the entry's product. */
+  | 'out'
+  /** An undirected reaction between two reagents. */
+  | 'none'
+
+/**
+ * One pair a grouped spoke stands for: the element that tells it apart from
+ * the others in the stack, and the entry it leads back to. An `ElementRef`
+ * like every other tile, so it is masked by the same `refOf` and drawn by the
+ * same helper - a member the player has not discovered is a silhouette.
+ */
+export interface GroupMember extends ElementRef {
+  /** The charted entry behind this member. */
+  key: EdgeKey
+}
+
+/**
+ * What a spoke stands for when it stands for more than itself (ticket 09): the
+ * witnessed pairs that share its verb and its result, and how many pairs like
+ * it there are in all.
+ */
+export interface SpokeGroup {
+  /** One tile each, in entry order. The first of them is the spoke's `partner`. */
+  members: readonly GroupMember[]
+  /** Witnessed pairs - `members.length`, named for the chip it is half of. */
+  seen: number
+  /**
+   * Every charted pair with this spoke's verb and result, witnessed or not, so
+   * the chip reads `2/5`. Counting the unwitnessed ones names none of them: it
+   * is the still-to-find notch's rule (spec §7, decision 9) said per spoke.
+   */
+  total: number
+}
+
+/**
+ * What the reading line says about the active spoke (ticket 25): the entry as a
+ * recipe, in tiles the band draws with their names beside them. The whole entry,
+ * not the half a spoke's own end of it saw - which end of it the ring is centred
+ * on moves the arrowhead, never the reading.
+ *
+ * Every ref is masked, and this is now the *only* place the panel says anything
+ * about an interaction, which is why the spoiler invariant is one assertion over
+ * this object rather than a sweep of the ring.
+ */
+export interface ReadingLine {
+  /** The elements that must meet, in entry order. */
+  reagents: readonly ElementRef[]
+  /**
+   * What the interaction leaves. Empty in two different ways, told apart by
+   * `consumed`: an entry that eats both cells, and a **stage** of one element's
+   * own life (ticket 08), which names the focus at both ends and so reads as
+   * that element alone - an arrow from a thing to itself says nothing.
+   */
+  products: readonly ElementRef[]
+  /** The entry leaves nothing at all: the row reads `CONSUMED` (spec §6). */
+  consumed: boolean
+  /**
+   * The group a merged spoke stands for (ticket 09), present whenever the spoke
+   * is one - so the `2/5` chip is always in the line, which is the only thing
+   * that says the pair is one of several. Its `members` are the alternatives in
+   * the reagent slot they disagree about (`acid + <wood | seed | ...>`) when
+   * there is more than one of them; a group of one has nothing to choose
+   * between, so its member is simply a reagent of the recipe and the chip
+   * carries the fact on its own.
+   */
+  group?: SpokeGroup
+}
+
+export interface Spoke {
+  /** The charted entry's key, or the group's own when this spoke merges several. */
+  key: string
+  kind: EdgeKind
+  /** The element on the ring: the other reagent, or the first of the pair that makes the focus. */
+  partner: ElementRef
+  direction: SpokeDirection
+  /** What the band reads while this spoke is the active one (ticket 25). */
+  reading: ReadingLine
+  /** Present when the ring is crowded and this spoke merges several pairs (ticket 09). */
+  group?: SpokeGroup
+}
+
+export interface RingModel {
+  centre: ElementRef
+  /**
+   * What the ring draws, in entry order: one spoke per **witnessed** entry, or
+   * one per group of them once the ring is too crowded to give each its own
+   * (ticket 09). Nothing unwitnessed is ever drawn (spec §7).
+   */
+  spokes: readonly Spoke[]
+  /** Witnessed entries, for the footer's "n entries for x" - never the spoke count. */
+  seen: number
+  /** Entries involving the element that have not been witnessed - the empty notches. */
+  stillToFind: number
+  /** The centre's own star, by the same rule as the picker row's (ticket 18). */
+  mastery: MasteryState
+}
+
+/** A stroke the ring draws, named for the kind whose class carries it. */
+export type LegendStroke = 'react' | 'decay' | 'grow'
+
+/** One row of the key: a sample stroke, the kinds drawn with it, what it means. */
+export interface LegendRow {
+  stroke: LegendStroke
+  /** Every kind sharing the stroke, in graph order. */
+  kinds: readonly EdgeKind[]
+  /** Those kinds as words: `growth · germination · raise · bloom`. */
+  label: string
+  /** What the line says, in the chart's own terms - never an element (spec §7). */
+  meaning: string
+}
+
+/** A rule of the chart that is not a line kind: the arrowhead, and the notches. */
+export interface LegendRule {
+  id: 'arrow' | 'notch'
+  text: string
+}
+
+/** Every kind as a word. A new kind fails to compile until it has one. */
+const KIND_WORDS: Record<EdgeKind, string> = {
+  react: 'reaction',
+  decay: 'decay',
+  grow: 'growth',
+  germinate: 'germination',
+  raise: 'raise',
+  bloom: 'bloom',
+}
+
+/**
+ * Which stroke draws a kind (spec §6): reaction solid, decay long dash, growth
+ * dotted, with the hook transmutations sharing growth's dots.
+ */
+const KIND_STROKE: Record<EdgeKind, LegendStroke> = {
+  react: 'react',
+  decay: 'decay',
+  grow: 'grow',
+  germinate: 'grow',
+  raise: 'grow',
+  bloom: 'grow',
+}
+
+/**
+ * The one place the kind-to-stroke mapping lives. Both the ring's spokes and
+ * the key's samples go through it and wear the stroke's own class, so a kind
+ * cannot be drawn one way on the chart and sampled another way in the key -
+ * which is the whole point of a key.
+ */
+export function strokeOf(kind: EdgeKind): LegendStroke {
+  return KIND_STROKE[kind]
+}
+
+/**
+ * What a stroke means. Deliberately about *shape of interaction*, not about any
+ * element: nothing here can leak, because there is nothing in it to leak.
+ */
+const STROKE_MEANING: Record<LegendStroke, string> = {
+  react: 'two elements meeting',
+  decay: 'one element changing on its own, in time',
+  grow: 'a living thing acting on what is next to it',
+}
+
+/** The two rules the strokes cannot state: what an arrowhead and a notch mean. */
+export const LEGEND_RULES: readonly LegendRule[] = [
+  {
+    id: 'arrow',
+    text: 'an arrowhead into the middle: that entry is what makes the one in the centre',
+  },
+  { id: 'notch', text: 'an empty notch: an entry for this one you have not witnessed yet' },
+]
+
+/**
+ * The key's rows (ticket 11): one per stroke actually present in the derived
+ * graph, carrying every kind that shares it. Which rows exist is derived rather
+ * than written down, so the key teaches exactly the language the chart speaks -
+ * a roster that stops drawing a kind drops it from the key, and a new kind is
+ * in the key the moment it is in the graph. What a new kind still owes is its
+ * word and its stroke: `KIND_WORDS` and `KIND_STROKE` are exhaustive, so it
+ * cannot compile without them rather than appearing nameless.
+ */
+export function legendRows(index: EntryIndex = entryIndex()): readonly LegendRow[] {
+  // Insertion order is graph order: reactions, decays, growth, then the hooks.
+  const kindsByStroke = new Map<LegendStroke, EdgeKind[]>()
+  for (const entry of index.all) {
+    const kinds = kindsByStroke.get(KIND_STROKE[entry.kind]) ?? []
+    if (!kinds.includes(entry.kind)) kinds.push(entry.kind)
+    kindsByStroke.set(KIND_STROKE[entry.kind], kinds)
+  }
+
+  return [...kindsByStroke].map(([stroke, kinds]) => ({
+    stroke,
+    kinds,
+    label: kinds.map((kind) => KIND_WORDS[kind]).join(PRODUCT_RUN),
+    meaning: STROKE_MEANING[stroke],
+  }))
+}
+
+/**
+ * The masking seam (spec §7): the one place a name becomes something that may
+ * be drawn. The moment cards use it too - a card raised over the world is as
+ * public as a row in the panel.
+ *
+ * `tags` is optional and only ever consulted for a *discovered* element, which
+ * is what makes the chips spoiler-safe by construction rather than by the
+ * caller remembering: the same guard that masks the name withholds them.
+ */
+export function refOf(name: string, view: FieldNotesView, tags?: ElementTags): ElementRef {
+  const discovered = view.discovered.has(name)
+  const ref: ElementRef = { name, label: discovered ? name : HIDDEN_NAME, discovered }
+  if (discovered && tags) ref.tags = chipsOf(tags.get(name) ?? [])
+  return ref
+}
+
+/**
+ * Which star an element wears (ticket 18). Module-private: the star reaches the
+ * panel on the row and the ring that carry it, so nothing outside has to know
+ * how the state is worked out. Both places a star is drawn go through this, so the picker row and the ring centre cannot disagree - and it
+ * is written against the row's own count rather than beside it, which is what
+ * makes "the count is full but the star is not" a state instead of a bug: the
+ * `partial` case is *defined* as `seen === total` without mastery.
+ *
+ * Hidden elements wear no star at all. A hollow star on a `- - -` row would be
+ * the panel saying "you are nearly done with this one" about an element it will
+ * not name, and the row has no count beside it to make sense of the claim.
+ */
+function masteryOf(name: string, view: FieldNotesView): MasteryState {
+  // The masking rule first: a hidden element has no state to show, whatever its
+  // edges have done. Mastery implies discovery today - an element is a product
+  // of at least one of its own entries - so the order is a statement of the
+  // rule rather than a live branch.
+  if (!view.discovered.has(name)) return 'none'
+  if (view.mastered.has(name)) return 'mastered'
+  const tally = view.counts.get(name)
+  return tally && tally.total > 0 && tally.seen === tally.total ? 'partial' : 'none'
+}
+
+/**
+ * Every element, tier order then rail order. Deterministic from the data, never
+ * hand-placed: `index.elements` is the roster, whose paintables are in rail
+ * order, and a stable sort by tier turns that into the columns the design
+ * calls for. Tier 0 is the base rail; the products follow at their own depth.
+ */
+export function pickerRows(
+  view: FieldNotesView,
+  index: EntryIndex = entryIndex(),
+): readonly PickerRow[] {
+  const rows = index.elements.map((name): PickerRow => {
+    const tally = view.counts.get(name) ?? { seen: 0, total: 0 }
+    const ref = refOf(name, view)
+    const mastered = view.mastered.has(name)
+    // The unlock is the row's own goal, so it replaces the bare count rather
+    // than repeating it (spec §6 "The unlock"). Once earned it is just a count
+    // again - the element is in the rail, and there is nothing left to state.
+    const unlockable = index.unlockable.includes(name) && !mastered
+    return {
+      ...ref,
+      // Always computable: every discoverable element is the product of at
+      // least one edge (spec §3, restored by ticket 07's hook edges), and
+      // `entries.test.ts` pins that no element is left untiered.
+      tier: index.tierOf(name)!,
+      count: ref.discovered ? `${tally.seen}/${tally.total}${unlockable ? ' to unlock' : ''}` : '',
+      mastery: masteryOf(name, view),
+      isNew: view.newElements.has(name),
+    }
+  })
+
+  // Sorting in place is safe - `rows` is this call's own array - and `sort` is
+  // stable, which is what keeps roster order inside a tier.
+  return rows.sort((a, b) => a.tier - b.tier)
+}
+
+/**
+ * "This makes me": the focused element takes no part in the interaction and is
+ * only its product, so the whole pair sits on the ring.
+ */
+function isMadeBy(entry: Entry, focus: string): boolean {
+  return !entry.reagents.includes(focus)
+}
+
+/**
+ * Which way the entry's arrowhead points from `focus`'s side of it.
+ *
+ * Charting the plant's parts as one flower (ticket 08) leaves stage entries
+ * whose every name is the focus itself - the raise, the bloom. An arrowhead
+ * from an element to itself says nothing, so a stage carries none; anything
+ * else the focus is a reagent of points out at what it leaves, and only an
+ * edge that leaves the focus and nothing else points back in.
+ *
+ * Its own function because grouping asks it of *unwitnessed* entries too: a
+ * pair the player has not seen still has to land in the right group to be
+ * counted in its chip, and that costs nothing and names nothing.
+ */
+function directionOf(entry: Entry, focus: string): SpokeDirection {
+  if (isMadeBy(entry, focus)) return 'in'
+  if (entry.kind === 'react' || isStage(entry, focus)) return 'none'
+  return entry.products.some((name) => name !== focus) ? 'out' : 'in'
+}
+
+/**
+ * A stage of the focused element's own life (ticket 08): every name at both ends
+ * of the entry is the focus itself, which is what the raise and the bloom become
+ * once the plant is charted as one flower.
+ */
+function isStage(entry: Entry, focus: string): boolean {
+  return [...entry.reagents, ...entry.products].every((name) => name === focus)
+}
+
+function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
+  const madeBy = isMadeBy(entry, focus)
+  const partner = madeBy
+    ? entry.reagents[0]!
+    : // A decay has one reagent, so from the decaying element's own side the
+      // partner is what it turns into.
+      (entry.reagents.find((name) => name !== focus) ??
+      entry.products.find((name) => name !== focus) ??
+      focus)
+
+  return {
+    key: entry.key,
+    kind: entry.kind,
+    partner: refOf(partner, view),
+    direction: directionOf(entry, focus),
+    reading: {
+      reagents: entry.reagents.map((name) => refOf(name, view)),
+      // A stage has a right-hand side that is the left-hand side; drawing it
+      // would be an arrow from an element to itself.
+      products: isStage(entry, focus) ? [] : entry.products.map((name) => refOf(name, view)),
+      consumed: entry.products.length === 0,
+    },
+  }
+}
+
+/**
+ * The unit a crowded ring merges on (ticket 09, decision 1): **the same verb
+ * producing the same result**, however the reaction table spells the rows
+ * behind it. Not the tag row, not the entry key - eight literal
+ * `acid + <plant>` rows and one `acid + wood` are one thing to the player, and
+ * a table refactor that turned them into a tag row would not change what they
+ * are. Direction is in the key because it is the shape of the interaction the
+ * player reads off the arrowhead, not extra bookkeeping.
+ */
+function groupKeyOf(entry: Entry, focus: string): string {
+  return [entry.kind, directionOf(entry, focus), [...entry.products].sort().join(PRODUCT_RUN)].join(
+    '|',
+  )
+}
+
+/**
+ * The reagents every member of a group has in common - what the merged spoke's
+ * recipe can still state outright. Names, not masked labels: two elements the
+ * player has not discovered both write `- - -`, and a tie there is a coincidence
+ * of masking rather than a shared reading.
+ *
+ * Only the reagents, because a group is keyed on its products (`groupKeyOf`):
+ * the members agree about what the interaction leaves by construction, and the
+ * one slot they can disagree about is what goes into it.
+ */
+function sharedReagents(members: readonly Spoke[]): ReadonlySet<string> {
+  const [first, ...rest] = members
+  const others = rest.map((member) => new Set(member.reading.reagents.map((ref) => ref.name)))
+  return new Set(
+    first!.reading.reagents
+      .map((ref) => ref.name)
+      .filter((name) => others.every((names) => names.has(name))),
+  )
+}
+
+/**
+ * One merged spoke: what its members share stays in the recipe, and what they do
+ * not becomes both the stack at the ring point and the alternatives slot in the
+ * reading line.
+ *
+ * A group of one is the interesting case, not the degenerate one. It keeps the
+ * pair's own recipe verbatim - grouping must never cost the player a reading of
+ * the interaction they actually witnessed - and still carries the chip, which
+ * is the only thing that says the pair is one of several.
+ */
+function mergedSpoke(groupKey: string, members: readonly Spoke[], total: number): Spoke {
+  const first = members[0]!
+  if (members.length === 1 && total === 1) return first
+
+  const shared = sharedReagents(members)
+  const stack = members.map((member) => ({
+    // The element that tells this member apart from the rest of the stack, or -
+    // when the members put the same reagents in and only the entry differs -
+    // its own ring tile. Already masked: it is one of the spoke's own refs.
+    ...(member.reading.reagents.find((ref) => !shared.has(ref.name)) ?? member.partner),
+    key: member.key,
+  }))
+  const group: SpokeGroup = { members: stack, seen: members.length, total }
+
+  return {
+    // What the group merged on: unique on the ring by construction, which is
+    // what a drawn spoke's key has to be.
+    key: `group:${groupKey}`,
+    kind: first.kind,
+    direction: first.direction,
+    // The stack sits where a lone partner would, so the first of it is the
+    // partner: nothing reads a `partner` this spoke does not draw.
+    partner: stack[0]!,
+    reading:
+      // One member is one recipe: there is nothing to choose between, so the
+      // reading line keeps the pair the player actually witnessed whole and the
+      // chip does the rest of the work.
+      members.length === 1
+        ? { ...first.reading, group }
+        : {
+            ...first.reading,
+            reagents: first.reading.reagents.filter((ref) => shared.has(ref.name)),
+            group,
+          },
+    group,
+  }
+}
+
+/**
+ * The ring's spokes, merged whole-ring once there are more of them than the
+ * geometry can draw (ticket 09, decision 3).
+ *
+ * Two rules, both from the triage. It is all or nothing: below the capacity
+ * every pair keeps its own spoke, and above it every groupable set on the ring
+ * merges - a ring half grouped would make the merge look like a property of
+ * some pairs rather than of the crowd. And the flip is computed here, at
+ * render, from the witnessed degree, so a ring that crosses the capacity
+ * regroups the next time it is opened.
+ *
+ * Counting is untouched: the entry count under the ring, the picker's
+ * `seen/total` and mastery are all per pair (ticket 08, decision 1), and a
+ * group's own chip is that same per-pair progress said locally.
+ *
+ * One fold, not a loop: a ring whose groups still outnumber the capacity is
+ * drawn crowded rather than merged further, because a second fold would have to
+ * merge things the player would not read as one. Today's roster leaves the
+ * worst ring (fire's eighteen) at nine, and `ringGeometry.test.ts` holds every
+ * element's ring to the capacity, so the day a roster outgrows this it fails
+ * there rather than on the screen.
+ */
+export function groupRing(
+  spokes: readonly Spoke[],
+  focus: string,
+  capacity: number = RING_CAPACITY,
+  index: EntryIndex = entryIndex(),
+): readonly Spoke[] {
+  if (spokes.length <= capacity) return spokes
+
+  // Over every charted entry, not just the witnessed ones, so a chip can say
+  // how many pairs like this there are. Unwitnessed entries reach the model
+  // nowhere else and are still drawn nowhere: they are a number.
+  const totals = new Map<string, number>()
+  for (const key of index.entriesFor(focus)) {
+    const entry = index.get(key)
+    if (!entry) continue
+    const groupKey = groupKeyOf(entry, focus)
+    totals.set(groupKey, (totals.get(groupKey) ?? 0) + 1)
+  }
+
+  // Insertion order is entry order, so a group takes the ring position of its
+  // first witnessed member and the ring does not reshuffle as it fills.
+  const byKey = new Map<string, Spoke[]>()
+  for (const spoke of spokes) {
+    const entry = index.get(spoke.key)
+    const groupKey = entry ? groupKeyOf(entry, focus) : spoke.key
+    byKey.set(groupKey, [...(byKey.get(groupKey) ?? []), spoke])
+  }
+
+  return [...byKey].map(([groupKey, members]) =>
+    mergedSpoke(groupKey, members, totals.get(groupKey) ?? members.length),
+  )
+}
+
+/**
+ * One element's ring: the entries involving it that have actually been
+ * witnessed, and a count of the ones that have not. Unwitnessed entries are
+ * never modelled, let alone drawn (spec §7, decision 9).
+ */
+export function ringFor(
+  focus: string,
+  view: FieldNotesView,
+  tags?: ElementTags,
+  index: EntryIndex = entryIndex(),
+): RingModel {
+  const keys = index.entriesFor(focus)
+  const witnessed = keys
+    // Through the index: a charted entry is witnessed when any of the raw edges
+    // behind it has fired (ticket 08), and the witnessed set holds raw keys.
+    .filter((key) => index.isWitnessed(key, view.witnessed))
+    .flatMap((key) => {
+      const entry = index.get(key)
+      return entry ? [spokeOf(entry, focus, view)] : []
+    })
+  // A second, view-level fold over the first (ticket 09): ticket 08 merged the
+  // *species* a row names, this merges the *rows* a crowded ring draws. Counts
+  // come from `keys` either way, so neither fold moves a number.
+  const spokes = groupRing(witnessed, focus, RING_CAPACITY, index)
+
+  return {
+    // Only the centre gets chips: it is the one element the panel is focused
+    // on, and the spokes' partners and product tiles are drawn small and
+    // wordless (ticket 12).
+    centre: refOf(focus, view, tags),
+    spokes,
+    // The witnessed *entries*, not the spokes drawn for them: grouping is a
+    // drawing, and the footer counts what the player has found.
+    seen: witnessed.length,
+    stillToFind: keys.length - witnessed.length,
+    mastery: masteryOf(focus, view),
+  }
+}

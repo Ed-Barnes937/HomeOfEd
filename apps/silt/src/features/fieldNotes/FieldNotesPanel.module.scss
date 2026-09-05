@@ -1,0 +1,906 @@
+// The Field notes panel (discovery-tree spec §6). Same paper and ink as the
+// rest of the chrome, in the scenes popover's own hard border and offset shadow
+// - the panel is a bigger pocket of the app, not a new kind of surface.
+$ink: #1a1714;
+$paper: #e7e2d5;
+$panel: #efeadd;
+$raised: #f5f2e9;
+$muted: #8a8478;
+$body: #3a352e;
+$destructive: #e2542a;
+$live: #3ecf6b;
+
+$font-label: 'Silkscreen', monospace;
+$font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+// The app's own breakpoint (../../pages/HomePage.module.scss): the overlay
+// becomes a full-screen sheet under exactly the rule that turns the rail into a
+// bottom bar.
+$mobile: '(pointer: coarse), (max-width: 700px)';
+
+// The phone header band's height and the gap under it (ticket 21). They are
+// constants rather than measurements because the ring's size is taken from the
+// room they leave, and a band that changed height would resize the ring under
+// it every time the focused element changed.
+$ring-head: 30px;
+$ring-head-gap: 6px;
+
+// How much of a phone's glass the picker may take before it scrolls (ticket
+// 26). The share is the point: the ring gets what is left, so this is the
+// picker's ceiling and the ring's floor written once. `$picker-min` keeps one
+// 48px tile row whole on the shortest screens, where the share is a sliver.
+$picker-max-share: 18dvh;
+$picker-min: 64px;
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(24, 21, 16, 0.55);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 1040px;
+  max-width: 100%;
+  max-height: 100%;
+  // The scrim is a flex row, so a wide child - a long recipe in the reading
+  // line - would otherwise stretch the panel past the viewport through the
+  // panel's automatic minimum size, and take the page sideways with it.
+  min-width: 0;
+  background: $panel;
+  border: 2px solid $ink;
+  box-shadow: 6px 6px 0 $ink;
+  color: $ink;
+  font-family: $font-mono;
+  text-align: left;
+}
+
+// ---- header: title, counters, close ------------------------------------
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.8rem;
+  background: $paper;
+  border-bottom: 2px solid $ink;
+}
+
+.headTitle {
+  font-family: $font-label;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.counters {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.counter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.counterLabel {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $muted;
+}
+
+.counterValue {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+// Untouched numerals recede, exactly as the header chip's do (spec §6).
+.zero {
+  color: $muted;
+}
+
+.newChip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 2px solid $ink;
+  background: $raised;
+  padding: 0.2rem 0.45rem;
+}
+
+.newMark {
+  width: 11px;
+  height: 11px;
+  border: 2px solid $live;
+  flex: none;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  color: $ink;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  cursor: pointer;
+}
+
+// ---- body: picker | ring ------------------------------------------------
+
+.body {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  // Takes whatever height the header and footer leave, which is the whole sheet
+  // on a phone and nothing extra on a desktop panel sized by its own picker.
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.5rem;
+  background: $paper;
+  border-right: 2px solid $ink;
+  overflow-y: auto;
+}
+
+.pickerLabel {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $muted;
+  padding: 0 0.35rem 0.3rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 30px;
+  padding: 0.28rem 0.35rem;
+  border: none;
+  background: transparent;
+  color: $ink;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: $ink;
+    color: $paper;
+  }
+
+  // An undiscovered slot: still there, still shaped, not a control.
+  &:disabled {
+    color: $muted;
+    cursor: default;
+  }
+}
+
+.rowName {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rowCount {
+  font-size: 10px;
+  color: #6b665d;
+}
+
+.row[aria-pressed='true'] .rowCount {
+  color: $paper;
+}
+
+.star {
+  // 10.8px over a 12-unit viewBox draws the glyph at exactly the 9px the
+  // 10-unit box did - the filled star a mastered row already wore does not
+  // change size - with a unit of margin round it for the hollow star's stroke
+  // to sit in rather than be clipped off at the box's edge.
+  width: 10.8px;
+  height: 10.8px;
+  flex: none;
+  display: block;
+
+  path {
+    fill: currentColor;
+  }
+}
+
+// The partial star (ticket 18): every charted entry witnessed, one raw edge
+// behind a grouped one still out there. The same outline unfilled - "this
+// element's star, not lit yet" - rather than a second glyph to learn. Written
+// against both classes, which is how it outranks `.star path` on specificity
+// rather than on source order: the hollow star must not depend on which of the
+// two blocks happens to come second in this file.
+.star.starPartial path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+}
+
+// ---- the ring -----------------------------------------------------------
+
+.ringWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  min-height: 0;
+  overflow: auto;
+}
+
+// Square in both layouts, so one set of 0-100 coordinates drives the SVG and
+// the absolutely positioned tiles at either size. The mockup drew the desktop
+// ring as a wide ellipse and the phone's as a circle; two aspect ratios would
+// mean two coordinate systems (and an SVG viewBox a media query cannot reach),
+// for a layout difference the labels do not need - so the ring is one circle
+// that changes size, and only size.
+.ring {
+  position: relative;
+  width: 560px;
+  height: 560px;
+  flex: none;
+  font-size: 0;
+}
+
+// The phone's header band (ticket 21): the focused element named above the
+// ring, in the panel's own chip chrome. It is only ever rendered on a phone -
+// the desktop reads the same name in the ring's centre - and its height is
+// fixed, so the ring below it is the same size whatever the name says.
+.ringHead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  // Border box, and only here: the app sets no global one, and the ring below
+  // is sized off the room this band leaves, so its 2px border has to be inside
+  // the height the arithmetic subtracts rather than 4px the ring never hears
+  // about.
+  box-sizing: border-box;
+  height: $ring-head;
+  // A flex item in the sheet's column: it keeps its stated height rather than
+  // giving it up to the ring beside it.
+  flex: none;
+  padding: 0 0.6rem;
+  border: 2px solid $ink;
+  background: $raised;
+  font-family: $font-label;
+  font-size: 13px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.spokes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+
+  line {
+    stroke: rgba(26, 23, 20, 0.55);
+    stroke-width: 0.5;
+  }
+
+  polygon {
+    fill: rgba(26, 23, 20, 0.7);
+  }
+}
+
+// Edge kinds (spec §6): reaction solid, decay long dash, growth dotted. The
+// hook transmutations (ticket 07) are hooks like growth, so they share its dots
+// - but that grouping lives in `panelModel.ts`'s `strokeOf`, not in a selector
+// list here. One class per *stroke*: the ring's spokes and the key's samples
+// both name their class through `strokeOf`, so a kind cannot be drawn one way
+// on the chart and sampled another way in the key.
+.react line {
+  stroke-dasharray: none;
+}
+
+.decay line {
+  stroke-dasharray: 2 1.2;
+}
+
+.grow line {
+  stroke-dasharray: 0.5 1.5;
+}
+
+.centre,
+.centreName,
+.spokeTile,
+.spokeStack,
+.spokeName {
+  position: absolute;
+}
+
+.centre {
+  transform: translate(-50%, -50%);
+}
+
+.centreName {
+  transform: translate(-50%, 34px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  background: $panel;
+  font-family: $font-label;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// `.newChip`'s border and `.counterLabel`'s type: a tag is a fact about the
+// element, read the same way as a count.
+.tagChip {
+  border: 2px solid $ink;
+  background: $raised;
+  padding: 1px 4px;
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $body;
+}
+
+// A ring tile reads its spoke into the band rather than navigating (ticket 25),
+// so it is a control whatever the element's state - there is no inert one here.
+.spokeTile,
+.memberTile {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.spokeTile {
+  transform: translate(-50%, -50%);
+}
+
+// A crowded ring's merged spoke (ticket 09): the pairs it stands for, stacked
+// where the one 40px tile would have been. Two columns of 18px tiles keep the
+// stack the width of that tile, so it grows downwards as the group does rather
+// than sideways into its neighbours. The column count and the gap come in from
+// `ringGeometry.RING_TILES`, which is the same arithmetic `spokeTileBox` uses
+// to decide whether a ring's tiles still clear each other - one source, so the
+// capacity cannot quietly stop matching the pixels.
+.spokeStack {
+  display: grid;
+  grid-template-columns: repeat(var(--stack-columns, 2), auto);
+  gap: var(--stack-gap, 3px);
+  transform: translate(-50%, -50%);
+}
+
+// `2/5` under a merged spoke's stack, where a single spoke has its partner's
+// name. Anchored to the stack, not to the ring point, so it clears a stack of
+// any height.
+.spokeCount {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 4px;
+  background: $panel;
+  font-family: $font-label;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: $body;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.spokeName {
+  transform: translate(-50%, 24px);
+  padding: 1px 4px;
+  background: $panel;
+  font-family: $font-label;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+// ---- the bottom band: chips, then the reading line (ticket 25) ----------
+
+// One band under the ring, in the footer's paper: the focused element's chips
+// first (they describe the ELEMENT), the reading line beneath (it describes the
+// active SPOKE). Both rows are fixed heights, so reading one spoke after another
+// - or none at all - never moves the ring above it.
+.band {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.45rem 0.8rem;
+  background: $paper;
+  border-top: 2px solid $ink;
+}
+
+// One line, never two: the band's height is the promise that the ring above it
+// does not move, and an element with enough tags to wrap would break that
+// promise between one element and the next. A row too long for the panel
+// scrolls, exactly as the reading line under it does.
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+// The one place in the panel where words about an interaction happen. Fixed
+// height whatever it holds: 22px tiles with their names under them, the hint,
+// or a merged spoke's row of 18px members.
+.reading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 48px;
+  // A recipe wider than the band scrolls inside it rather than widening the
+  // panel: a long one is a long one, and the ring above must not move for it.
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.readingTile {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $ink;
+  cursor: pointer;
+
+  &:disabled {
+    color: $muted;
+    cursor: default;
+  }
+}
+
+.readingName {
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// The words that are not names: the `+` between reagents, the `·` between
+// products, the arrow, and "both consumed".
+.readingJoin,
+.readingMakes,
+.readingConsumed {
+  flex: none;
+  font-size: 11px;
+  color: $body;
+  white-space: nowrap;
+}
+
+.readingMakes {
+  padding: 0 2px;
+  font-family: $font-label;
+  font-size: 10px;
+}
+
+.readingConsumed {
+  text-transform: uppercase;
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: $muted;
+}
+
+// A merged spoke's alternatives, in the slot its members disagree about: the
+// list the ring point never had room for, bracketed so it reads as one term of
+// the recipe rather than as more reagents.
+.readingMembers {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  padding: 2px 4px;
+  border: 2px solid rgba(26, 23, 20, 0.25);
+}
+
+.readingMember {
+  display: block;
+  flex: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.readingChip {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  color: $body;
+  white-space: nowrap;
+}
+
+.readingHint {
+  font-size: 11px;
+  color: $muted;
+}
+
+// ---- empty state --------------------------------------------------------
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 2.5rem 1rem;
+}
+
+.emptyTitle {
+  font-family: $font-label;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.emptyBody {
+  max-width: 380px;
+  font-size: 11.5px;
+  color: $body;
+  text-align: center;
+}
+
+// ---- footer -------------------------------------------------------------
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  background: $paper;
+  border-top: 2px solid $ink;
+  font-size: 11px;
+  color: $body;
+}
+
+// The footer's own row: the key opens underneath it, inside the same band.
+.footBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.footText {
+  text-transform: uppercase;
+}
+
+.footHint {
+  color: $muted;
+  text-transform: none;
+}
+
+.footRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+// A long tail of notches gives way rather than pushing the controls off the
+// panel: the count beside them is the honest number, the strip is the feel of
+// it. (Twenty-two of them is an ordinary early chart, not an edge case.)
+.notches {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
+.notch {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 1px dashed rgba(26, 23, 20, 0.4);
+  background: $panel;
+}
+
+.footCount {
+  font-size: 11px;
+  color: #6b665d;
+}
+
+.forget {
+  flex: none;
+  border: 2px solid $ink;
+  background: $panel;
+  color: $ink;
+  padding: 0.25rem 0.4rem;
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.armed {
+  background: $destructive;
+  color: $paper;
+}
+
+// The key was the same rule as `forget discoveries` - an 8px footnote, last in
+// the row - and nobody found it (ticket 22). It is a control now, and the only
+// one in the footer sized to be seen first: the panel's raised paper, 11px, and
+// a bordered "?" ahead of the word. `forget` stays the footnote it should be;
+// they were one rule and the destructive one set the size.
+.keyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+  border: 2px solid $ink;
+  background: $raised;
+  color: $ink;
+  padding: 0.3rem 0.5rem;
+  font-family: $font-label;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.keyMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border: 2px solid $ink;
+  font-size: 9px;
+  line-height: 1;
+}
+
+// Open reads as pressed, in the chrome's one inversion - the same thing a
+// selected picker row does.
+.keyOpen {
+  background: $ink;
+  color: $paper;
+}
+
+.keyOpen .keyMark {
+  border-color: $paper;
+}
+
+// ---- the key: what the ring's line kinds mean (ticket 11) ---------------
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.55rem;
+  border: 2px solid $ink;
+  background: $panel;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// The sample box. The stroke itself comes from the ring's own kind classes
+// (`.decay`, `.grow`), so the key cannot drift from what the chart draws.
+.sample {
+  width: 48px;
+  height: 16px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  line {
+    stroke: rgba(26, 23, 20, 0.55);
+    stroke-width: 1;
+  }
+
+  polygon {
+    fill: rgba(26, 23, 20, 0.7);
+  }
+}
+
+.legendLabel {
+  flex: none;
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.legendMeaning {
+  min-width: 0;
+  color: $body;
+}
+
+// ---- phone: the overlay becomes a full-screen sheet ---------------------
+
+@media #{$mobile} {
+  .scrim {
+    padding: 0;
+  }
+
+  .panel {
+    width: 100%;
+    height: 100%;
+    border: none;
+    box-shadow: none;
+  }
+
+  // The sheet's only way out, so it gets the comfortable square chip rather
+  // than the 44px floor.
+  .close {
+    min-width: 48px;
+    min-height: 48px;
+    border: 2px solid $ink;
+    background: $raised;
+  }
+
+  // Picker and ring stack, and the picker becomes wrapped rows of bigger
+  // tiles - the names go with the column that held them.
+  .body {
+    grid-template-columns: 1fr;
+    // Both tracks may shrink below their content: the picker scrolls (it
+    // already does on a desktop, in the column this row replaces) and the ring
+    // area has its own `overflow: auto` for the screens below the ring's floor.
+    grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+  }
+
+  // The picker wraps, so its height is however many rows the roster happens to
+  // make - and an `auto` track hands it every one of them, out of the same
+  // column the ring is in. At a true 390px that was 231px of an 844px sheet
+  // (four rows), which pushed the ring down onto its 340px floor and, on a
+  // shorter phone, left it 13px of room to draw 340px in (ticket 26; the CT
+  // harness's 980px fallback had been hiding it by fitting the roster into
+  // fewer, wider rows). The ring is what the panel is *for*
+  // ([ADR 0053](../../../../../docs/adr/0053-silt-the-ring-outranks-the-picker-on-a-phone.md)),
+  // so the picker takes its share and scrolls past it, exactly as its desktop
+  // column does.
+  .picker {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 0.5rem 0.6rem;
+    max-height: max(#{$picker-min}, #{$picker-max-share});
+    border-right: none;
+    border-bottom: 2px solid $ink;
+  }
+
+  .pickerLabel,
+  .rowName,
+  .rowCount {
+    display: none;
+  }
+
+  // A tile grid rather than a list: the names go with the column that held
+  // them, and each slot is the rail's own comfortable 48px square chip around
+  // its 30px tile (spec §9's touch sizing, as the palette swatches use).
+  .row {
+    flex: none;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 3px;
+  }
+
+  // The ring area is a column on a phone: the header band, then the ring under
+  // it with everything that is left. `container-type: size` makes `cqw`/`cqh`
+  // this box's own content width and height, which is what lets the ring be the
+  // largest square that fits the room the band leaves - no viewport arithmetic
+  // guessing at the header, the picker and the footer above and below it, and
+  // no growing to fit its own contents either. It stays *square* on purpose:
+  // the SVG's 0-100 viewBox and the absolutely positioned tiles share one
+  // coordinate system, so an oblong ring would draw the lines and the tiles in
+  // different places (see `.ring`).
+  .ringWrap {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: $ring-head-gap;
+    padding: 0.4rem 0.3rem;
+    container-type: size;
+    // A screen with less room than the ring's floor scrolls rather than
+    // clipping - see `--ring-min` below.
+    overflow: auto;
+  }
+
+  // It used to be a 340px circle on every phone, which left a 390px screen
+  // drawing a small ring in a wide sheet (ticket 21). `--ring-min` is
+  // `ringGeometry.RING_MIN_PX`, handed over by the panel: the ring's tiles are
+  // a fixed pixel size, so below that floor they would start to overlap and the
+  // capacity that decides when spokes group would be a lie. The room the sheet
+  // has is the ring's size right up to that point, and never past it.
+  .ring {
+    $room: min(100cqw, calc(100cqh - #{$ring-head} - #{$ring-head-gap}));
+
+    width: max(var(--ring-min), #{$room});
+    height: max(var(--ring-min), #{$room});
+    // The leftover height falls above and below the ring rather than all of it
+    // underneath; the width is centred by the column's own `align-items`.
+    margin: auto 0;
+  }
+
+  // No room for the notch strip at this width; the key's line about them goes
+  // with it - a key may only explain what the screen it is on actually draws.
+  .notches,
+  .notchRule,
+  .footHint {
+    display: none;
+  }
+
+  .footBar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .forget {
+    min-height: 44px;
+  }
+
+  // The sheet is where the key is easiest to lose - the footer wraps and the
+  // notches it used to sit behind are not drawn at all - so it takes the full
+  // touch target on both sides, not just the height (spec §9's 44px floor).
+  .keyToggle {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  // The reading line is a row of controls on a phone, so its tiles take the
+  // touch floor rather than the 22px the tile itself is drawn at. The band's
+  // own height already has the room - it is the fixed height that keeps the
+  // ring still, and it does not change between the hint and a full recipe.
+  .readingTile,
+  .readingMember {
+    min-height: 46px;
+  }
+
+  // The key is the same block at the sheet's foot, with the rows free to wrap
+  // under their own sample rather than squeezing the words to nothing.
+  .legendRow {
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
+  }
+}

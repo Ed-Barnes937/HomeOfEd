@@ -5,6 +5,7 @@
 // status block carries the one datum the render loop polls every frame — the
 // revision — without a message round trip.
 import { BYTES_PER_CELL, GRID_HEIGHT, GRID_WIDTH } from '../../sim/index.ts'
+import type { EdgeKey } from '../fieldNotes/edgeKeys.ts'
 import type { Spawner } from '../spawners/spawners.ts'
 
 /** Slot index of the sim's revision counter in the shared status block. */
@@ -68,3 +69,18 @@ export type SimWorkerMessage =
   | { type: 'reset' }
   /** A decoded scene's planes (scene load; the page enters paused itself). */
   | { type: 'restore'; species: Uint8Array; ra: Uint8Array; rb: Uint8Array }
+  /**
+   * The interactions the player has already witnessed, sent once at boot
+   * (discovery-tree spec §4). Noise reduction rather than correctness: without
+   * it a long-running world re-reports its firsts after every reload, and the
+   * page's store would dedupe them anyway. Unknown keys are harmless.
+   */
+  | { type: 'seedWitnessed'; keys: readonly EdgeKey[] }
+
+/**
+ * The one thing the sim says back. Discoveries are rare - 37 in the life of a
+ * roster - so a first witness travels as a message rather than as another slot
+ * the render loop polls every frame (discovery-tree spec §4). Batched per tick:
+ * a single tick can witness more than one interaction.
+ */
+export type SimPageMessage = { type: 'witnessed'; keys: readonly EdgeKey[] }

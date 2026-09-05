@@ -2,21 +2,28 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACID,
+  ASH,
+  BURIED,
   DIRT,
   EMPTY,
   FIRE,
   LAVA,
   MUD,
   OBSIDIAN,
+  OIL,
+  PETAL,
   SAND,
+  SEED,
+  SPROUT,
   STEAM,
   STONE,
+  SULPHUR,
   WATER,
   v1Elements,
   v1Reactions,
 } from './elements.ts'
 import { GRID_HEIGHT, GRID_WIDTH } from './constants.ts'
-import { createRegistry } from './registry.ts'
+import { canDisplace, createRegistry } from './registry.ts'
 import { Sim } from './sim.ts'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -68,7 +75,7 @@ describe('mud', () => {
     expect(MUD).toBe(14)
     expect(registry.get(MUD)?.archetype).toEqual({
       kind: 'liquid',
-      density: 50,
+      density: 65,
       dispersion: 1,
       move: 0.1,
     })
@@ -77,8 +84,8 @@ describe('mud', () => {
 
   // Only this stage's own rows — see the same note in `acid.test.ts`: later
   // stages append, so a whole-table assertion here breaks on every later stage.
-  it('declares rows 1–25 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 25).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–32 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 32).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -96,9 +103,16 @@ describe('mud', () => {
       ['ember', 'wood'],
       ['water', 'ember'],
       ['acid', 'wood'],
+      ['acid', 'moss'],
+      ['acid', 'vine'],
+      ['acid', 'seed'],
+      ['acid', 'sprout'],
+      ['acid', 'stalk'],
+      ['acid', 'tip'],
+      ['acid', 'flower'],
+      ['acid', 'petal'],
       ['acid', 'solid'],
       ['acid', 'powder'],
-      ['acid', 'water'],
       ['acid', 'lava'],
       ['water', 'dirt'],
       ['water', 'ash'],
@@ -159,16 +173,78 @@ describe('mud', () => {
     expect(spent - wetted).toBe(21)
   })
 
-  it('sand still sinks through it', () => {
+  /**
+   * **The ruling this number exists for** (discovery ticket 23): mud is a bed,
+   * not a cloud. At 50 it sat below sand (60) and sulphur (55) and both grains
+   * fell through it, which read as a puddle of dust rather than as ground. At 65
+   * it outranks every powder in the roster, so a grain lands on the bed and stays
+   * there - and mud is now the densest liquid, above lava (45), acid (35) and
+   * water (30).
+   *
+   * Pinned twice over, for the reason `ash.test.ts` gives: the fall below is the
+   * honest end-to-end check, and this ladder is what says *why* rather than
+   * *that*.
+   */
+  it('is the densest thing that moves: no powder sinks in it, every liquid floats', () => {
+    // The whole powder shelf, so the claim in the name is the claim being made
+    // rather than a sample of it.
+    for (const powder of [SAND, SULPHUR, SEED, ASH, PETAL]) {
+      expect(canDisplace(registry, powder, MUD)).toBe(false)
+    }
+    // And from the other side: mud settles under every liquid it meets, so a
+    // pool of anything sits on top of the soil it soaks into.
+    for (const liquid of [WATER, LAVA, ACID, OIL]) {
+      expect(canDisplace(registry, MUD, liquid)).toBe(true)
+      expect(canDisplace(registry, liquid, MUD)).toBe(false)
+    }
+  })
+
+  it('catches a falling sand grain and a falling sulphur grain on its surface', () => {
+    for (const grain of [SAND, SULPHUR]) {
+      const sim = new Sim({ seed: 1 })
+      shaftAt(sim, 150, 8)
+      for (let i = 1; i <= 4; i++) sim.paint(150, FLOOR - i, MUD)
+      // Dropped from four cells clear of the bed rather than placed on it: the
+      // grain has to arrive under gravity for this to be about the landing.
+      sim.paint(150, FLOOR - 8, grain)
+
+      run(sim, 400)
+
+      expect(sim.speciesAt(150, FLOOR - 5)).toBe(grain)
+      for (let i = 1; i <= 4; i++) expect(sim.speciesAt(150, FLOOR - i)).toBe(MUD)
+    }
+  })
+
+  /**
+   * **The seed path, pinned from the mud side** (discovery ticket 23). Raising
+   * mud past sand and sulphur moves nothing here, and this is the case that says
+   * so end to end: a seed is lighter than mud at 40 either way, so it still rests
+   * *on* the bed rather than in it, and burial is a reaction row rather than a
+   * sinking, so the grain still goes into the soil and germinates out of it. The
+   * bank's own tests live in `life.test.ts`; this one guards the number.
+   */
+  it('still takes a seed in and lets it germinate back out', () => {
     const sim = new Sim({ seed: 1 })
-    shaftAt(sim, 150, 8)
-    for (let i = 1; i <= 6; i++) sim.paint(150, FLOOR - i, MUD)
-    sim.paint(150, FLOOR - 7, SAND)
+    shaftAt(sim, 150, 10)
+    for (let i = 1; i <= 3; i++) sim.paint(150, FLOOR - i, MUD)
+    sim.paint(150, FLOOR - 8, SEED)
 
-    run(sim, 400)
+    // The grain has to fall, the burial draw to come up (p 0.1 a contact tick)
+    // and the germination draw to land (~500 ticks under open sky). A horizon,
+    // not a bound - and the shaft is open to the air, so this is the land half.
+    let ticks = 0
+    while (count(sim, SPROUT) === 0 && ticks < 8000) {
+      sim.tick()
+      ticks++
+    }
 
-    expect(sim.speciesAt(150, FLOOR - 1)).toBe(SAND)
-    expect(sim.speciesAt(150, FLOOR - 2)).toBe(MUD)
+    // It rested on the bed, so the top cell of soil is the one that banked it,
+    // and the sprout stands in the air above that. The soil is refunded as dirt.
+    expect(count(sim, SPROUT)).toBe(1)
+    expect(sim.speciesAt(150, FLOOR - 4)).toBe(SPROUT)
+    expect(sim.speciesAt(150, FLOOR - 3)).toBe(DIRT)
+    expect(count(sim, SEED)).toBe(0)
+    expect(count(sim, BURIED)).toBe(0)
   })
 
   it('sinks under water', () => {

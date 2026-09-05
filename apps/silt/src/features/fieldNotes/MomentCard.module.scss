@@ -1,0 +1,101 @@
+// The moment card (discovery-tree spec §6), straight off the mockup: the run
+// pill's chrome at the opposite corner of the world, one tile and two lines.
+$ink: #1a1714;
+$paper: #e7e2d5;
+$muted: #8a8478;
+
+$font-label: 'Silkscreen', monospace;
+
+.card {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  // Never wider than the world it sits over: an absolutely positioned card that
+  // outgrew a phone would take the whole page sideways with it.
+  max-width: calc(100% - 2rem);
+  padding: 0.45rem 0.6rem;
+  background: $paper;
+  border: 2px solid $ink;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+  color: $ink;
+  // It is an announcement over a canvas the player is drawing on: a card that
+  // swallowed a stroke would be worse than no card at all.
+  pointer-events: none;
+  // 400ms, matching `RISE_MS` in useMoments.ts - the hold there starts once
+  // this has finished.
+  animation: fnRise 400ms ease both;
+}
+
+@keyframes fnRise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// The last beat: it fades rather than vanishing, and the next card rises into
+// the space it leaves. It has to be an animation rather than an `opacity` of
+// its own: the rise above is filled `both`, and an animation's value outranks
+// any plain declaration, so a transition here would never be seen. Declared
+// after `.card` so this one wins while it lasts (`FADE_MS`).
+.leaving {
+  animation: fnFade 400ms ease both;
+}
+
+@keyframes fnFade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.tiles {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.lead {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $muted;
+}
+
+.title {
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+// The card still arrives and still leaves - it is the *travel* that goes, so
+// the entrance is redefined rather than switched off. Turning the animation off
+// here instead would take the fade with it, since `.leaving` is an animation
+// too.
+@media (prefers-reduced-motion: reduce) {
+  @keyframes fnRise {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

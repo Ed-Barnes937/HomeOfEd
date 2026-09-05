@@ -12,6 +12,7 @@ import {
   type ResolvedLifetime,
 } from './registry.ts'
 import { Rng } from './rng.ts'
+import { WitnessTable, type WitnessEvent } from './witness.ts'
 import type { Chunk } from './chunks.ts'
 import type { ElementDef, ReactionRow, SetOptions } from './types.ts'
 
@@ -59,6 +60,7 @@ export class Sim {
   #seed: number
   #rng: Rng
   #moves: DeferredMoves
+  #witness: WitnessTable
   #api: CellApi
   #generation = 0
   #scanned = 0
@@ -71,7 +73,8 @@ export class Sim {
     this.#seed = seed
     this.#rng = new Rng(seed)
     this.#moves = new DeferredMoves()
-    this.#api = new CellApi(this.#grid, this.registry, this.#rng, this.#moves)
+    this.#witness = new WitnessTable(this.registry)
+    this.#api = new CellApi(this.#grid, this.registry, this.#rng, this.#moves, this.#witness)
   }
 
   /** Ticks completed. Also the parity that flips the horizontal scan. */
@@ -102,6 +105,17 @@ export class Sim {
 
   speciesAt(x: number, y: number): number {
     return this.#grid.speciesAt(x, y)
+  }
+
+  /**
+   * Interactions witnessed for the first time since the last call - the
+   * discovery metagame's one engine seam (discovery-tree spec §4). Empty on
+   * almost every tick; 37 events in the life of a roster. Deliberately
+   * **not** cleared by `clear` or `restore`: discovery is global progression,
+   * and resetting the world does not reset it (spec §5).
+   */
+  drainWitnessed(): readonly WitnessEvent[] {
+    return this.#witness.drain()
   }
 
   /** The cell's colour variant — what the renderer shades it by. 0 out of bounds. */
@@ -288,12 +302,12 @@ export class Sim {
   #afterMovement(def: ElementDef, lifetime: ResolvedLifetime | undefined): void {
     const api = this.#api
 
-    applyReactions(api, this.registry)
+    applyReactions(api, this.registry, this.#witness)
     if (api.get(0, 0) !== def.id) return
 
     // `#generation` is the tick being run - it is bumped only once the scan is
     // over - and is the phase a coarse countdown draws on.
-    if (lifetime && !applyLifetime(api, lifetime, this.#generation)) return
+    if (lifetime && !applyLifetime(api, lifetime, this.#generation, def.id, this.#witness)) return
 
     def.onTick?.(api)
   }

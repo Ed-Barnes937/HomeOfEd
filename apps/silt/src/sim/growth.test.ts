@@ -29,6 +29,8 @@ class StubApi implements Api {
   rb = 0
   readonly writes: { dx: number; dy: number; species: number }[] = []
   readonly reads: { dx: number; dy: number }[] = []
+  /** How often the hook reported a growth - the discovery seam, counted. */
+  witnessed = 0
 
   #cells: Map<string, number>
   #scratch = new Map<string, number>()
@@ -107,6 +109,19 @@ class StubApi implements Api {
 
   randInt(): number {
     throw new Error('the growth hook draws rand(), not randInt()')
+  }
+
+  witnessGrowth(): void {
+    this.witnessed++
+  }
+  witnessGermination(): void {
+    throw new Error('the growth hook reports growth, nothing else')
+  }
+  witnessRaise(): void {
+    throw new Error('the growth hook reports growth, nothing else')
+  }
+  witnessBloom(): void {
+    throw new Error('the growth hook reports growth, nothing else')
   }
 }
 
@@ -213,6 +228,20 @@ describe('the growth hook', () => {
 
     expect(MAX_PLANT_NEIGHBOURS).toBe(1)
     expect(api.writes).toEqual([{ dx: 0, dy: -1, species: VINE }])
+  })
+
+  it('reports a growth it made, and only a growth it made', () => {
+    // The draw fails, then succeeds: one write, one report. A tick that grew
+    // nothing is not a discovery, and neither is a blocked candidate.
+    const api = new StubApi({ '0,-1': WATER }, [1, 0])
+
+    grow(api)
+    expect(api.witnessed).toBe(0)
+
+    grow(api)
+
+    expect(api.writes).toEqual([{ dx: 0, dy: -1, species: VINE }])
+    expect(api.witnessed).toBe(1)
   })
 
   it('spends one branch of the budget per cell it grows', () => {

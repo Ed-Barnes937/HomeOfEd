@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { BURIED, FLOWER, GRID_HEIGHT, MUD, PETAL, SPROUT, TIP } from './sim/index.ts'
+import { seedMastery } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
 
 const FLOOR = GRID_HEIGHT - 1
@@ -13,13 +14,18 @@ const FLOOR = GRID_HEIGHT - 1
  * `sim/life.test.ts`; what this case is for is that the chain runs end to end in
  * the app, in a worker, at the real tick rate.
  */
-test('seed scattered on a wet bed banks, germinates and blooms', async ({ mountApp }) => {
+test('seed scattered on a wet bed banks, germinates and blooms', async ({ mountApp, page }) => {
+  // Mud left the base rail with the discovery tree (spec §9.5): a player paints
+  // it only once they have mastered it, so this scenario earns it first and
+  // takes it from the EARNED control - the same path a real meadow-builder has.
+  await seedMastery(page, 'mud')
   const { root } = await mountApp()
   await root.verifyIsShown()
 
   // A wide, wet bed along the floor. The widest brush at the floor row paints
   // several cells deep, and mud is dense enough to stay where it lands.
-  await root.selectElement('mud')
+  await root.openEarned()
+  await root.selectEarnedElement('mud')
   await root.selectBrush(3)
   await root.dragPaint({ x: 100, y: FLOOR }, { x: 200, y: FLOOR })
   expect(await root.countSpecies(MUD)).toBeGreaterThan(100)

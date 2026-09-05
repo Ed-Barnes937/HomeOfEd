@@ -16,14 +16,14 @@ export interface UseSiltHotkeysOptions {
   onStep: () => void
   /** A digit up to `HOTKEYED_ENTRIES`: the nth rail entry, zero-based. The caller owns rail order. */
   onSelectNth: (index: number) => void
-  /** `e`. */
-  onSelectErase: () => void
+  /** `e` - a toggle: into erase, and back to the element it interrupted. */
+  onToggleErase: () => void
   /** `[` / `]` — a step of -1 or +1 along the brush widths; the caller clamps. */
   onNudgeBrush: (delta: number) => void
   /** Ctrl/Cmd+S. */
   onSaveScene: () => void
-  /** Escape. */
-  onCloseScenes: () => void
+  /** Escape - dismisses whatever overlay is open (scenes, field notes). */
+  onDismissOverlays: () => void
 }
 
 /**
@@ -52,7 +52,7 @@ export function useSiltHotkeys(options: UseSiltHotkeysOptions): void {
         return
       }
       if (event.key === 'Escape') {
-        actions.onCloseScenes()
+        actions.onDismissOverlays()
         return
       }
       if (event.key >= '1' && event.key <= String(HOTKEYED_ENTRIES)) {
@@ -77,7 +77,7 @@ export function useSiltHotkeys(options: UseSiltHotkeysOptions): void {
         return
       }
       if (event.key === 'e' || event.key === 'E') {
-        actions.onSelectErase()
+        actions.onToggleErase()
       }
     }
     window.addEventListener('keydown', onKeyDown)
