@@ -276,6 +276,118 @@ export class SiltPagePom extends BasePage {
     }
   }
 
+  /**
+   * Ticket 21: the phone sheet capped the ring at 340px whatever the phone, so
+   * a 390px screen drew a small circle in a wide sheet. Asserts the ring takes
+   * essentially the width of the screen, and that it is still square - the
+   * SVG's 0-100 box and the absolutely positioned tiles share one coordinate
+   * system, so an oblong ring would draw the lines and the tiles apart.
+   */
+  async verifyRingFillsTheSheet(fraction: number): Promise<void> {
+    const ring = await this.ringBox()
+    // The sheet's own width, not `viewportSize()`: the component harness's page
+    // carries no viewport meta, so a mobile-emulated run lays out at Chromium's
+    // 980px fallback and scales down. Measuring the ring against the width the
+    // layout actually had is what makes this assert the fluid property - the
+    // ring takes the sheet it is given - at whatever width that is.
+    const sheet = await this.page.evaluate(() => document.documentElement.clientWidth)
+
+    expect(ring.width).toBeGreaterThanOrEqual(sheet * fraction)
+    await this.verifyRingIsSquare()
+  }
+
+  /**
+   * The 0-100 box the SVG and the absolutely positioned tiles share: an oblong
+   * ring would draw the lines and the tiles in different places, which is why
+   * the sheet's ring is sized as a square and not as a width with a height.
+   */
+  async verifyRingIsSquare(): Promise<void> {
+    const ring = await this.ringBox()
+    expect(Math.abs(ring.width - ring.height)).toBeLessThanOrEqual(1)
+  }
+
+  /**
+   * The other half of the sheet's sizing (ticket 21): a ring taking the width
+   * of a short sheet would run into the footer, so it gives up width instead.
+   * Measured against `field-notes-seen`, the footer band's own text.
+   */
+  async verifyRingFitsAboveTheFooter(): Promise<void> {
+    const ring = await this.ringBox()
+    const foot = await this.page.getByTestId('field-notes-seen').boundingBox()
+    if (!foot) throw new Error('field-notes-seen has no bounding box')
+    expect(ring.y + ring.height).toBeLessThanOrEqual(foot.y + 1)
+  }
+
+  /**
+   * The ring's floor (`ringGeometry.RING_MIN_PX`): below it the fixed-size
+   * tiles would overlap, so a sheet with less room than that gets a ring at the
+   * floor and a scroll, not a smaller ring (ticket 21).
+   */
+  async verifyRingIsAtItsFloor(floorPx: number): Promise<void> {
+    const ring = await this.ringBox()
+    expect(Math.abs(ring.width - floorPx)).toBeLessThanOrEqual(1)
+    await this.verifyRingIsSquare()
+  }
+
+  /**
+   * ...and that it really was the height that held it back, rather than the
+   * test having found room for the full width after all: a ring narrower than
+   * the sheet can only be the height branch of its size (ticket 21).
+   */
+  async verifyRingGaveUpWidthForHeight(): Promise<void> {
+    const ring = await this.ringBox()
+    const sheet = await this.page.evaluate(() => document.documentElement.clientWidth)
+    expect(ring.width).toBeLessThan(sheet)
+  }
+
+  /**
+   * Ticket 21: on a phone the focused element is named in a band above the
+   * ring rather than in its centre, which is where Ed could not read it.
+   */
+  async verifyFocusedNameIsAboveTheRing(name: string): Promise<void> {
+    const label = this.page.getByTestId('field-notes-centre')
+    await expect(label).toBeVisible()
+    await expect(label).toHaveText(name)
+
+    const box = await label.boundingBox()
+    if (!box) throw new Error('field-notes-centre has no bounding box')
+    const ring = await this.ringBox()
+    expect(box.y + box.height).toBeLessThanOrEqual(ring.y + 1)
+  }
+
+  /**
+   * The ring's tiles keep clear of each other at whatever size the ring is
+   * drawn: the geometry is proportional, so a bigger ring should hold this by
+   * construction - which is worth pinning rather than assuming (ticket 21).
+   */
+  async verifyRingTilesDoNotOverlap(): Promise<void> {
+    const tiles = await this.page
+      .getByTestId(/^field-notes-spoke-/)
+      .all()
+      .then((all) => Promise.all(all.map((tile) => tile.boundingBox())))
+
+    expect(tiles.length).toBeGreaterThan(1)
+    for (let i = 0; i < tiles.length; i += 1) {
+      for (let j = i + 1; j < tiles.length; j += 1) {
+        const a = tiles[i]
+        const b = tiles[j]
+        if (!a || !b) continue
+        const apart =
+          a.x + a.width <= b.x ||
+          b.x + b.width <= a.x ||
+          a.y + a.height <= b.y ||
+          b.y + b.height <= a.y
+        expect(apart).toBe(true)
+      }
+    }
+  }
+
+  private async ringBox(): Promise<{ x: number; y: number; width: number; height: number }> {
+    const box = await this.page.getByTestId('field-notes-ring').boundingBox()
+    if (!box) throw new Error('field-notes-ring has no bounding box')
+    return box
+  }
+
   /** What a picker row says about itself: its label and its `seen/total`. */
   async noteRow(name: string): Promise<string> {
     return (await this.page.getByTestId(`field-notes-row-${name}`).textContent()) ?? ''

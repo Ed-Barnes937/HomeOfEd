@@ -472,6 +472,15 @@ else touches it.
   of them. Its toggle leads the footer's controls at its own size: sharing
   `forget discoveries`' 8px footnote rule, at the tail of a strip of up to
   twenty-two notches, is how a control that was live all along went unfound.
+- **The phone sheet's ring is sized by its room and stays square.** The ring
+  area is a container (`container-type: size`), so the ring is the largest
+  square fitting under the header band that names the focused element (ticket
+  21) - not a fixed 340px, and never a width with a height of its own: the
+  SVG's 0-100 viewBox and the absolutely positioned tiles share one coordinate
+  system, so an oblong ring draws the lines and the tiles apart. The name is
+  *moved*, not duplicated - one `FocusName`, in the ring's centre on a desktop
+  and in the band on a phone - which is the second thing `useMobileLayout`
+  decides in this panel.
 - **The panel picks, it does not know.** Selection and the green-edge clearing
   are panel-local `useState`; the counts, mastery, `NEW` set and denominators
   all arrive from the view. `markReviewed()` fires from `HomePage`'s
@@ -509,6 +518,12 @@ else touches it.
   first, `.iwft` only for whole-page behaviour (keep it thin).
 - Relative imports carry explicit `.ts`/`.tsx` extensions; server code sticks to
   erasable TS syntax (ADR 0004) — `simulator.ts`/`main.ts` run under native Node.
+- **A mobile `.iwft` emulates touch, not a phone's width.** `playwright/index.html`
+  carries no viewport meta (the app's `index.html` does), so a
+  `viewport: { width: 390 }` run lays out at Chromium's 980px fallback and
+  scales the picture down: `$mobile` matches on `pointer: coarse` alone. Assert
+  against `document.documentElement.clientWidth` rather than `viewportSize()`,
+  and prefer a proportional claim to a pixel one.
 - Ports: dev 3009, CT 3109.
 - No database, no migrations, no `@hoe/db` — see
   [ADR 0008](../../docs/adr/0008-apps-without-a-database.md).

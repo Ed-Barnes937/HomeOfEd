@@ -30,13 +30,21 @@ export const RING = {
 } as const
 
 /**
- * The pixels the ring is actually drawn at, which is what turns a tile size
- * into ring units. **The phone sheet's ring is the one that counts**: the panel
- * has one model for both layouts (`FieldNotesPanel.module.scss` sizes the
- * desktop's at 560px and the sheet's at `min(340px, 100vw)`), so a capacity
- * derived from the roomier of the two would crowd the tighter one.
+ * The pixels the ring is drawn at when it is at its smallest, which is what
+ * turns a tile size into ring units. A ring tile is a fixed number of *pixels*
+ * while the ring itself is a box of percentages, so the smaller the ring the
+ * more of it a tile covers: a capacity derived from the roomier layout would
+ * crowd the tighter one, and everything below is therefore worked out at the
+ * floor.
+ *
+ * **It is a floor the stylesheet is held to, not a size it writes down.** The
+ * desktop ring is a fixed 560px and the phone sheet's takes the room it is in
+ * (ticket 21), so the sheet is the one that could go under - which is why the
+ * panel hands this number to `.ring` as `--ring-min` rather than the stylesheet
+ * repeating it. A phone with less room than this scrolls; it does not draw a
+ * ring whose tiles overlap.
  */
-const RING_PX = 340
+export const RING_MIN_PX = 340
 
 /**
  * What a spoke draws at its ring point, in CSS pixels: one tile (spec §6), or
@@ -52,7 +60,7 @@ export const RING_TILES = { spoke: 40, member: 18, gap: 3, columns: 2 } as const
 
 /** CSS pixels as ring units, at the smallest ring the panel draws. */
 function units(px: number): number {
-  return (px / RING_PX) * 100
+  return (px / RING_MIN_PX) * 100
 }
 
 export interface RingPoint {

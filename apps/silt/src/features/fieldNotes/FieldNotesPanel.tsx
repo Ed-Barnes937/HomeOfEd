@@ -31,6 +31,7 @@ import {
   arrowPoints,
   labelPoint,
   RING,
+  RING_MIN_PX,
   RING_TILES,
   spokeLine,
   spokePoint,
@@ -65,6 +66,21 @@ function MasteryStar() {
   )
 }
 
+/**
+ * The focused element's name, wherever the layout puts it: the ring's centre on
+ * a desktop, the sheet's header band on a phone (ticket 21). One component so
+ * the two places cannot drift, and one `field-notes-centre` in the document
+ * either way - the name is moved, not duplicated and half-hidden.
+ */
+function FocusName(props: { centre: ElementRef; mastered: boolean }) {
+  return (
+    <>
+      <span data-testid="field-notes-centre">{props.centre.label}</span>
+      {props.mastered ? <MasteryStar /> : null}
+    </>
+  )
+}
+
 export function FieldNotesPanel(props: FieldNotesPanelProps) {
   const appearances = useMemo(() => elementAppearances(props.registry), [props.registry])
   // The raw sim tags; `panelModel` decides which of them a player ever reads.
@@ -80,10 +96,14 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
   // panel unmounts on close, so there is no state to clear either.
   const [keyOpen, setKeyOpen] = useState(false)
   const forget = useArmedConfirm<true>()
-  // The one thing the breakpoint cannot do in CSS: the picker's tile is a
-  // number handed to the helper, 22px in the desktop column and 30px in the
-  // phone's tile grid (spec §6).
-  const pickerTile: TileSize = useMobileLayout() ? 30 : 22
+  // The two things the breakpoint cannot do in CSS. The picker's tile is a
+  // *number* handed to the helper, 22px in the desktop column and 30px in the
+  // phone's tile grid (spec §6). The focused element's name is a *place*: it
+  // reads in the ring's centre on a desktop and in a band above the ring on a
+  // phone (ticket 21), and one name in one place beats two nodes with one of
+  // them hidden - there is a single `field-notes-centre` either way.
+  const phone = useMobileLayout()
+  const pickerTile: TileSize = phone ? 30 : 22
 
   const focus = selected ?? rows.find((row) => row.discovered)?.name ?? null
   const ring = useMemo(
@@ -207,7 +227,22 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
             </div>
           ) : (
             <div className={styles.ringWrap}>
-              <div className={styles.ring} data-testid="field-notes-ring">
+              {/* The phone's header band: the focused element named where it
+                  can be read, rather than in the middle of the tiles. */}
+              {phone ? (
+                <span className={styles.ringHead}>
+                  <FocusName centre={chart.centre} mastered={chart.mastered} />
+                </span>
+              ) : null}
+
+              <div
+                className={styles.ring}
+                data-testid="field-notes-ring"
+                // The floor the sheet's ring is sized against, from the module
+                // that works the tile capacity out at it - handed over rather
+                // than written down twice, as `.spokeStack`'s numbers are.
+                style={{ '--ring-min': `${RING_MIN_PX}px` } as CSSProperties}
+              >
                 <svg className={styles.spokes} viewBox="0 0 100 100" aria-hidden="true">
                   {chart.spokes.map((spoke, index) => {
                     const point = spokePoint(index, chart.spokes.length)
@@ -233,10 +268,11 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                 <span className={styles.centre} style={at(RING.centre, RING.centre)}>
                   {tileFor(chart.centre, 56)}
                 </span>
-                <span className={styles.centreName} style={at(RING.centre, RING.centre)}>
-                  <span data-testid="field-notes-centre">{chart.centre.label}</span>
-                  {chart.mastered ? <MasteryStar /> : null}
-                </span>
+                {phone ? null : (
+                  <span className={styles.centreName} style={at(RING.centre, RING.centre)}>
+                    <FocusName centre={chart.centre} mastered={chart.mastered} />
+                  </span>
+                )}
                 {/* The focused element's sim tags, under its name (ticket 12).
                     `panelModel` withholds them from anything undiscovered, so
                     there is no spoiler check to repeat here. */}

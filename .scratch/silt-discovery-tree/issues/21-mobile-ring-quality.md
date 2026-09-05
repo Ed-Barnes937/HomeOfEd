@@ -1,6 +1,6 @@
 # 21 - The ring on mobile: bigger, and the focused element labelled at the top
 
-**Status:** ready-for-agent
+**Status:** done (built on ticket-21-mobile-ring-quality, 2026-09-05)
 **Type:** task
 **Source:** local testing feedback (Ed, 2026-09-04) - "The graph looks poo on
 mobile, can we make it bigger, add labels to the elements at the top."
