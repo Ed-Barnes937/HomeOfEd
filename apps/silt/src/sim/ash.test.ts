@@ -181,7 +181,7 @@ describe('ash and the burn-to-regrowth loop', () => {
     })
   })
 
-  // Density 35 puts ash between water (30) and mud (50), which is the whole
+  // Density 35 puts ash between water (30) and mud (65), which is the whole
   // reason the loop closes: it sinks into a pool instead of floating on it, and
   // it rests *on* a wetted bed instead of burying itself in it. Pinned as
   // `canDisplace` rather than as a fall through a shaft, because a shaft full of

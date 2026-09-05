@@ -245,11 +245,21 @@ const mud: ElementDef = {
   // same ground rather than as a new material dropped on top of it.
   colours: ['#5b4632', '#523f2d', '#624c36', '#574330'],
   tags: ['liquid'],
-  // Denser than water (30), so it settles under a pool rather than clouding
-  // it, and lighter than sand (60), so a grain still sinks through. The
-  // slowest liquid in the roster: one cell of spread and roughly one tick in
-  // ten, which is what makes it ooze rather than flow.
-  archetype: { kind: 'liquid', density: 50, dispersion: 1, move: 0.1 },
+  // **65 makes mud the densest thing that moves** - above sand (60) and
+  // sulphur (55), the two powders that used to fall through it at 50, and so
+  // above every powder in the roster. Mud is a bed, not a cloud: a grain that
+  // lands on wet ground rests on it, which is the felt-right reading and the
+  // one the old number contradicted (discovery ticket 23). It still settles
+  // under water (30), lava (45) and acid (35), because a pool of anything
+  // belongs on top of the soil it soaks into. The seed is untouched by the
+  // move: at 40 it was lighter than mud before and is lighter now, so it goes
+  // on resting on the bed until the `seed + mud` row buries it - burial is a
+  // reaction, never a sinking.
+  //
+  // Still a `liquid`, and the ooze numbers are why: one cell of spread and
+  // roughly one tick in ten is the slowest thing in the roster, which is what
+  // makes it creep rather than flow.
+  archetype: { kind: 'liquid', density: 65, dispersion: 1, move: 0.1 },
 }
 
 /**
@@ -266,7 +276,7 @@ const seed: ElementDef = {
   // of which it otherwise sits between on the powder shelf.
   colours: ['#9c8348', '#8c7641', '#a88d4e', '#967e45'],
   tags: ['powder', 'flammable'],
-  // Denser than water (30) and lighter than mud (50), so a seed sinks through
+  // Denser than water (30) and lighter than mud (65), so a seed sinks through
   // a pool and comes to rest *on* the soil instead of burying itself in it —
   // which is what puts the sprout on the surface where it can be seen.
   archetype: { kind: 'powder', density: 40, slide: 1 },
@@ -363,7 +373,7 @@ const ash: ElementDef = {
   // `fire + [flammable]` fallback both key on the tag, so leaving it off is
   // what keeps a bed of residue out of the fire rather than a rule saying so.
   tags: ['powder'],
-  // Density 35 puts ash between water (30) and mud (50), which is what closes
+  // Density 35 puts ash between water (30) and mud (65), which is what closes
   // the loop: a grain sinks into a pool instead of floating on it, and rests
   // *on* a wetted bed instead of burying itself in it. Sand (60) and seed (40)
   // both sink past it, so neither a sandfall nor a dropped seed is stopped by

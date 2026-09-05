@@ -182,7 +182,7 @@ function bath(sim: Sim, target: number): number {
 describe('seed, moss and vine', () => {
   it('boot with their ids pinned and their archetypes as the spec sets them', () => {
     expect([SEED, MOSS, VINE]).toEqual([15, 16, 17])
-    // Denser than water (30), lighter than mud (50): a seed sinks through a
+    // Denser than water (30), lighter than mud (65): a seed sinks through a
     // pool and comes to rest on the soil rather than burying itself in it.
     expect(registry.get(SEED)?.archetype).toEqual({ kind: 'powder', density: 40, slide: 1 })
     expect(registry.get(MOSS)?.archetype).toEqual({ kind: 'static' })
@@ -245,7 +245,7 @@ describe('seed, moss and vine', () => {
     run(sim, 200)
 
     // One cell of soil in, one cell of bank out, and the seed spent. Which cell
-    // holds it is not pinnable - mud is a liquid and denser than seed (50 to
+    // holds it is not pinnable - mud is a liquid and denser than seed (65 to
     // 40), so it may displace the grain sideways before reactions run.
     expect(count(sim, BURIED)).toBe(1)
     expect(count(sim, MUD)).toBe(0)
