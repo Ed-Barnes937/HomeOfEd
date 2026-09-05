@@ -206,10 +206,31 @@ $ring-head-gap: 6px;
 }
 
 .star {
-  width: 9px;
-  height: 9px;
+  // 10.8px over a 12-unit viewBox draws the glyph at exactly the 9px the
+  // 10-unit box did - the filled star a mastered row already wore does not
+  // change size - with a unit of margin round it for the hollow star's stroke
+  // to sit in rather than be clipped off at the box's edge.
+  width: 10.8px;
+  height: 10.8px;
   flex: none;
   display: block;
+
+  path {
+    fill: currentColor;
+  }
+}
+
+// The partial star (ticket 18): every charted entry witnessed, one raw edge
+// behind a grouped one still out there. The same outline unfilled - "this
+// element's star, not lit yet" - rather than a second glyph to learn. Written
+// against both classes, which is how it outranks `.star path` on specificity
+// rather than on source order: the hollow star must not depend on which of the
+// two blocks happens to come second in this file.
+.star.starPartial path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.1;
+  stroke-linejoin: round;
 }
 
 // ---- the ring -----------------------------------------------------------

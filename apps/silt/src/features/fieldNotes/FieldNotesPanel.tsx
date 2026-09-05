@@ -28,6 +28,7 @@ import {
   ringFor,
   strokeOf,
   type ElementRef,
+  type MasteryState,
   type Spoke,
   type SpokeGroup,
 } from './panelModel.ts'
@@ -56,14 +57,29 @@ function at(x: number, y: number): CSSProperties {
   return { left: `${x}%`, top: `${y}%` }
 }
 
-/** The drawn star that marks a mastered element - no colour, no badge (spec §6). */
-function MasteryStar() {
+/** The star's own outline. One path, drawn filled or hollow (ticket 18). */
+const STAR_PATH = 'M5 0 L6.2 3.4 L9.8 3.4 L6.9 5.7 L8 9.4 L5 7.1 L2 9.4 L3.1 5.7 L0.2 3.4 L3.8 3.4 Z'
+
+/**
+ * The drawn star after an element's name - no colour, no badge (spec §6).
+ * Filled means mastered; hollow means every charted entry is witnessed but a
+ * raw edge behind a grouped one is not (ticket 18). One glyph in two weights
+ * rather than two glyphs: the shape says "this element's star", the fill says
+ * whether it is earned, and the accessible name says which in words, since a
+ * fill is nothing to a screen reader. The words never name what is missing -
+ * the panel is not allowed to (spec §7) - only that something is.
+ */
+function MasteryStar(props: { state: MasteryState }) {
+  if (props.state === 'none') return null
+  const partial = props.state === 'partial'
   return (
-    <svg className={styles.star} viewBox="0 0 10 10" role="img" aria-label="mastered">
-      <path
-        d="M5 0 L6.2 3.4 L9.8 3.4 L6.9 5.7 L8 9.4 L5 7.1 L2 9.4 L3.1 5.7 L0.2 3.4 L3.8 3.4 Z"
-        fill="currentColor"
-      />
+    <svg
+      className={partial ? `${styles.star} ${styles.starPartial}` : styles.star}
+      viewBox="-1 -1 12 12"
+      role="img"
+      aria-label={partial ? 'more to see here' : 'mastered'}
+    >
+      <path d={STAR_PATH} />
     </svg>
   )
 }
@@ -74,11 +90,11 @@ function MasteryStar() {
  * the two places cannot drift, and one `field-notes-centre` in the document
  * either way - the name is moved, not duplicated and half-hidden.
  */
-function FocusName(props: { centre: ElementRef; mastered: boolean }) {
+function FocusName(props: { centre: ElementRef; mastery: MasteryState }) {
   return (
     <>
       <span data-testid="field-notes-centre">{props.centre.label}</span>
-      {props.mastered ? <MasteryStar /> : null}
+      <MasteryStar state={props.mastery} />
     </>
   )
 }
@@ -223,7 +239,7 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                 {tileFor(row, pickerTile, row.isNew && !cleared.has(row.name))}
                 <span className={styles.rowName}>
                   {row.label}
-                  {row.mastered ? <MasteryStar /> : null}
+                  <MasteryStar state={row.mastery} />
                 </span>
                 <span className={styles.rowCount}>{row.count}</span>
               </button>
@@ -247,7 +263,7 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                   can be read, rather than in the middle of the tiles. */}
               {phone ? (
                 <span className={styles.ringHead}>
-                  <FocusName centre={chart.centre} mastered={chart.mastered} />
+                  <FocusName centre={chart.centre} mastery={chart.mastery} />
                 </span>
               ) : null}
 
@@ -289,7 +305,7 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                     the bottom band entirely (ticket 25). */}
                 {phone ? null : (
                   <span className={styles.centreName} style={at(RING.centre, RING.centre)}>
-                    <FocusName centre={chart.centre} mastered={chart.mastered} />
+                    <FocusName centre={chart.centre} mastery={chart.mastery} />
                   </span>
                 )}
                 {chart.spokes.map((spoke, index) => (

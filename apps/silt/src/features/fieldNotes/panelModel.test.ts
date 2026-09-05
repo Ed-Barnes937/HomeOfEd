@@ -115,7 +115,7 @@ describe('picker rows', () => {
     expect(row.discovered).toBe(false)
     expect(row.label).toBe(HIDDEN_NAME)
     expect(row.count).toBe('')
-    expect(row.mastered).toBe(false)
+    expect(row.mastery).toBe('none')
   })
 
   test('a discovered row counts the entries that involve it, reagent or product', () => {
@@ -131,7 +131,7 @@ describe('picker rows', () => {
     expect(row.discovered).toBe(true)
     expect(row.label).toBe('obsidian')
     expect(row.count).toBe('1/1')
-    expect(row.mastered).toBe(true)
+    expect(row.mastery).toBe('mastered')
   })
 
   test("mud's row states what it costs to unlock, until it is earned (spec §6)", () => {
@@ -143,7 +143,7 @@ describe('picker rows', () => {
     // Mud stops being special: any charted non-base element joins the rail when
     // mastered, so any discovered one that is not yet mastered says so.
     const steam = rowFor('steam', 'react:lava+water')
-    expect(steam.mastered).toBe(false)
+    expect(steam.mastery).toBe('none')
     expect(steam.count).toBe(`1/${notes.entriesFor('steam').length} to unlock`)
 
     // A base element is not unlockable, so its row is a bare count however far
@@ -278,8 +278,92 @@ describe('the ring', () => {
       label: HIDDEN_NAME,
       discovered: false,
     })
-    expect(ringFor('obsidian', viewOf('react:lava+water')).mastered).toBe(true)
-    expect(ringFor('water', viewOf('react:lava+water')).mastered).toBe(false)
+    expect(ringFor('obsidian', viewOf('react:lava+water')).mastery).toBe('mastered')
+    expect(ringFor('water', viewOf('react:lava+water')).mastery).toBe('none')
+  })
+})
+
+describe('the mastery star (ticket 18)', () => {
+  /**
+   * One raw edge behind a *grouped* entry of `name` - the thing a charted count
+   * cannot see. Off the live index rather than written down, so the day the
+   * roster regroups its species the case still asks the same question.
+   */
+  function groupedSource(name: string): string {
+    for (const key of notes.entriesFor(name)) {
+      const entry = notes.get(key)
+      if (entry && entry.sources.length > 1) return entry.sources[1]!.key
+    }
+    throw new Error(`no grouped entry for ${name}`)
+  }
+
+  test('every entry witnessed but a raw edge behind a grouped one missing reads partial', () => {
+    const nearly = notes.witnessKeysFor('flower').filter((key) => key !== groupedSource('flower'))
+    const entries = notes.entriesFor('flower').length
+
+    // The pinning case: the count, the footer and the star cannot contradict
+    // each other. The row is full and there is nothing left to notch, so the
+    // star is the only thing left that can say a raw edge is still out there -
+    // and spec §7 forbids naming which, which is why it is a state and not a
+    // sentence.
+    const row = rowFor('flower', ...nearly)
+    // The unlock is still owed, so the row still says so - a full count that
+    // reads "to unlock" is exactly the reading the hollow star explains.
+    expect(row.count).toBe(`${entries}/${entries} to unlock`)
+    expect(row.mastery).toBe('partial')
+
+    const ring = ringFor('flower', viewOf(...nearly))
+    expect(ring.stillToFind).toBe(0)
+    expect(ring.seen).toBe(entries)
+    expect(ring.mastery).toBe('partial')
+  })
+
+  test('the last raw edge fills the star, and that is still what unlocks', () => {
+    const every = notes.witnessKeysFor('flower')
+    expect(rowFor('flower', ...every).mastery).toBe('mastered')
+    expect(ringFor('flower', viewOf(...every)).mastery).toBe('mastered')
+    // Mastery itself is untouched: the filled star is the unlock trigger it
+    // always was (ticket 08, decision 1).
+    expect(viewOf(...every).unlocked).toContain('flower')
+    expect(viewOf(...notes.witnessKeysFor('flower').slice(1)).unlocked).not.toContain('flower')
+  })
+
+  test('a partly charted element wears no star at all', () => {
+    expect(rowFor('flower', 'germinate:sprout').mastery).toBe('none')
+  })
+
+  test('a single-source element can never read partial, only none or mastered', () => {
+    // Mud's six entries are one raw edge each, so there is no gap for a hollow
+    // star to stand in: dropping any one of them drops an entry from the count
+    // too, and the row says so in numbers.
+    const every = notes.witnessKeysFor('mud')
+    for (const dropped of every) {
+      expect(rowFor('mud', ...every.filter((key) => key !== dropped)).mastery).toBe('none')
+    }
+    expect(rowFor('mud', ...every).mastery).toBe('mastered')
+  })
+
+  test('no element with single-source entries alone can ever be partial', () => {
+    // The rule stated over the whole roster rather than over mud: partial is
+    // exactly the state grouping created, so an element the fold never touched
+    // must be unable to reach it however its edges are witnessed.
+    const ungrouped = notes.elements.filter((name) =>
+      notes.entriesFor(name).every((key) => notes.get(key)!.sources.length === 1),
+    )
+    expect(ungrouped.length).toBeGreaterThan(0)
+    for (const name of ungrouped) {
+      const every = notes.witnessKeysFor(name)
+      expect(rowFor(name, ...every).mastery).toBe('mastered')
+      for (const dropped of every) {
+        expect(rowFor(name, ...every.filter((key) => key !== dropped)).mastery).not.toBe('partial')
+      }
+    }
+  })
+
+  test('a hidden element wears no star, however its edges happen to have fired', () => {
+    const row = rowFor('obsidian')
+    expect(row.discovered).toBe(false)
+    expect(row.mastery).toBe('none')
   })
 })
 

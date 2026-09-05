@@ -273,7 +273,7 @@ test('a mastered element wears its star, and mud states what it costs to unlock'
   await root.openFieldNotes()
 
   expect(await root.noteRow('mud')).toContain('1/6 to unlock')
-  await root.verifyNoteMastered('mud', false)
+  await root.verifyNoteStar('mud', 'none')
 
   await root.closeFieldNotes()
   await seedMastery(page, 'mud')
@@ -283,7 +283,60 @@ test('a mastered element wears its star, and mud states what it costs to unlock'
 
   expect(await mastered.noteRow('mud')).toContain('6/6')
   expect(await mastered.noteRow('mud')).not.toContain('to unlock')
-  await mastered.verifyNoteMastered('mud', true)
+  await mastered.verifyNoteStar('mud', 'mastered')
+})
+
+/**
+ * The hollow star (ticket 18). The flower's row counts *charted* entries, so it
+ * fills one raw edge before mastery does - and spec §7 forbids naming the edge
+ * it is waiting on. The star is what says the wait is real; the last edge is
+ * what ends it, and the unlock still rides on that and nothing else.
+ */
+test('a full count with a raw edge still out reads hollow, and the last edge fills it', async ({
+  mountApp,
+  page,
+}) => {
+  const notes = entryIndex()
+  // One raw edge behind a grouped flower entry - acid on one of the plant's
+  // parts, say - off the live index rather than written down here.
+  const grouped = notes
+    .entriesFor('flower')
+    .map((key) => notes.get(key)!)
+    .find((entry) => entry.sources.length > 1)!
+  const every = notes.witnessKeysFor('flower')
+  const missing = grouped.sources[1]!.key
+
+  await seedWitnessed(
+    page,
+    every.filter((key) => key !== missing),
+  )
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openFieldNotes()
+
+  const entries = notes.entriesFor('flower').length
+  expect(await root.noteRow('flower')).toContain(`${entries}/${entries}`)
+  await root.verifyNoteStar('flower', 'partial')
+  // Both star sites say the same thing: the row, and the focused element's own
+  // name on the ring.
+  await root.selectNote('flower')
+  await root.verifyFocusedNoteStar('partial')
+  // The star is hollow because the unlock has not happened: there is no EARNED
+  // control on the rail at all yet.
+  await root.closeFieldNotes()
+  await root.verifyNoEarnedControl()
+
+  await seedWitnessed(page, every)
+  await page.reload()
+  const { root: filled } = await mountApp()
+  await filled.openFieldNotes()
+
+  await filled.verifyNoteStar('flower', 'mastered')
+  await filled.selectNote('flower')
+  await filled.verifyFocusedNoteStar('mastered')
+  await filled.closeFieldNotes()
+  await filled.openEarned()
+  expect(await filled.earnedElementNames()).toEqual(['flower'])
 })
 
 test('"forget discoveries" needs a second click, and empties the chart when it gets one', async ({

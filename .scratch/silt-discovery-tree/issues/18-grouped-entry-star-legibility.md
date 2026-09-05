@@ -1,6 +1,6 @@
 # 18 - A grouped entry can read 9/9 while its star still waits
 
-**Status:** ready-for-agent
+**Status:** done (built on ticket-18-star-legibility, 2026-09-05)
 **Type:** task
 **Source:** found during ticket 08 (2026-09-04) - its spec review flagged that
 decision 1's two halves pull apart on elements owning a grouped entry.

@@ -407,6 +407,15 @@ else touches it.
   and what the sim reports stay raw**: `witnessKeys`/`witnessKeysFor` are those
   keys, `keys`/`entriesFor` are the charted ones, and confusing the two silently
   breaks mastery. Changing the mapping needs no migration.
+- **The star has three states, the unlock still has two** (ticket 18).
+  `panelModel`'s `masteryOf` is the only one that decides: filled = mastered =
+  every raw edge = what earns the rail slot, unchanged; **hollow** = every
+  charted entry witnessed with a raw edge behind a grouped one still out, which
+  is the `9/9 to unlock` a grouped element can honestly show; none otherwise, and
+  none at all while the element is hidden. It is defined as `seen === total`
+  without mastery, so the row's count and its star cannot disagree - and it names
+  nothing (spec §7), which is why the words a screen reader gets are "mastered"
+  and "more to see here" rather than the missing edge.
 - **`reviewed` is a count into `edges`, which is append-ordered** - the
   watermark the `NEW n` chip is measured against, so no element name is stored
   for it. `markReviewed()` is called **when the panel closes**: advancing it on

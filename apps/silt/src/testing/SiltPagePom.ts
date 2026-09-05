@@ -1,6 +1,8 @@
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
+import type { Locator } from '@playwright/test'
 
+import type { MasteryState } from '../features/fieldNotes/panelModel.ts'
 import { TEST_SEAM_KEY, type SiltTestSeam } from '../features/sim/useSimLoop.ts'
 
 export class SiltPagePom extends BasePage {
@@ -395,11 +397,36 @@ export class SiltPagePom extends BasePage {
     await expect(this.page.getByTestId('field-notes-ring')).toHaveCount(0)
   }
 
-  /** The drawn star after a mastered element's name (spec §6). */
-  async verifyNoteMastered(name: string, mastered: boolean): Promise<void> {
-    const star = this.page.getByTestId(`field-notes-row-${name}`).getByLabel('mastered')
-    if (mastered) await expect(star).toBeVisible()
-    else await expect(star).toHaveCount(0)
+  /**
+   * The drawn star after an element's name (spec §6), asserted through the words
+   * a screen reader gets rather than the fill a sighted player reads: `mastered`
+   * is filled, `partial` is the hollow one ticket 18 added, `none` is no star at
+   * all. One helper for the three, over the model's own `MasteryState`, so a
+   * fourth state cannot reach one side only - and so a case cannot assert the
+   * absence of one star while another is sitting there.
+   */
+  async verifyNoteStar(name: string, state: MasteryState): Promise<void> {
+    await this.verifyStarIn(this.page.getByTestId(`field-notes-row-${name}`), state)
+  }
+
+  /**
+   * The same star beside the focused element's name in the ring (desktop; the
+   * phone's band is ticket 21's move of the same node). Its own assertion
+   * because the design's rule is "where a star renders, the state renders":
+   * a row and a centre that disagreed would be the bug.
+   */
+  async verifyFocusedNoteStar(state: MasteryState): Promise<void> {
+    await this.verifyStarIn(this.page.getByTestId('field-notes-ring'), state)
+  }
+
+  /** Both star sites, asserted the same way: the words, and the absence of the other. */
+  private async verifyStarIn(within: Locator, state: MasteryState): Promise<void> {
+    await expect(within.getByLabel('mastered', { exact: true })).toHaveCount(
+      state === 'mastered' ? 1 : 0,
+    )
+    await expect(within.getByLabel('more to see here', { exact: true })).toHaveCount(
+      state === 'partial' ? 1 : 0,
+    )
   }
 
   /** An undiscovered element keeps its slot but is not a control (spec §7). */

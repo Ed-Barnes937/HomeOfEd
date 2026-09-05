@@ -236,7 +236,10 @@ element at a time, so the picture does not get busier as the roster grows.
   edge); undiscovered is the dark "?" tile; **new since last opened** swaps
   the plate edge to the live green `#3ecf6b` until selected; **mastered**
   (every edge touching the element witnessed) adds a small drawn star after
-  the name - no colour, no badge.
+  the name - no colour, no badge. The same star is drawn **hollow** when every
+  charted entry is witnessed but a raw edge behind a grouped one is not
+  (ticket 18, decision 11): one glyph in two weights, since the fill is what
+  says "earned" and the shape is what says "this element's star".
 - **Edge kinds**: reaction solid, decay long-dashed with an arrowhead at the
   product, growth dotted with an arrowhead. An arrowhead pointing into the
   centre means the pair produces the focused element. A **stage** spoke - one
@@ -344,16 +347,23 @@ element at a time, so the picture does not get busier as the roster grows.
     presentation, in the graph derivation and not the sim, and the stored
     witness keys stay raw - nothing migrates. 20 elements, 47 entries.
 
-    **Open, for Ed** (raised by ticket 08's review, not resolved by it): the two
-    halves of the first ruling pull apart on the elements that own a grouped
-    entry - flower, fire, lava, acid, seed. Their picker row counts charted
-    entries, so it can read `9/9` with `still to find: 0`, while the star waits
-    on raw edges the panel has no way to mention (spec §7 forbids naming them).
-    "Hunting removed" holds for the counts and not for the star. Mud is
-    unaffected - its six entries are one raw edge each - so the unlock and the
-    completion moment are honest today; this is a picker-legibility question,
-    and a candidate for its own ticket beside 09-11. The code implements the
-    ruling as written.
+    **Resolved 2026-09-05 by ticket 18 (Ed's triage: the partial star).** The
+    two halves of the first ruling pull apart on the elements that own a grouped
+    entry - flower, fire, lava, acid, seed: their picker row counts charted
+    entries, so it can read `9/9` with `still to find: 0` while the star waits on
+    raw edges §7 forbids the panel from naming. The ruling is unchanged and the
+    star gains a third state instead: **hollow/partial** when every charted entry
+    involving the element is witnessed but a raw edge behind a grouped one is
+    not. Display only - no count, no unlock and no derivation moves, and the
+    filled star is still all raw edges and still the unlock trigger. It is
+    honest inside §7 because it says only *that* something is left, never what;
+    the tapped spoke's members and its `x/y` chip (tickets 09/25) are where the
+    gap is already visible. Elements whose entries are each one raw edge - mud's
+    six - can never show it, so the unlock and completion moments read exactly as
+    before. `panelModel`'s `masteryOf` is the one derivation, defined as
+    `seen === total` without mastery, so the row count and the star cannot
+    contradict each other by construction; a screen reader gets "mastered" or
+    "more to see here".
 
 ## 10. Handoff plan
 

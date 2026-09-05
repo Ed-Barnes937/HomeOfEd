@@ -105,13 +105,33 @@ export interface ElementRef {
   tags?: readonly string[]
 }
 
+/**
+ * What the star after an element's name says (ticket 18). Three states because
+ * charting made the count and the star ask different questions: the row counts
+ * *charted* entries, while mastery still waits on every *raw* edge behind them
+ * (ticket 08, decision 1), so an element owning a grouped entry can read `9/9`
+ * with a star that has not lit.
+ *
+ * - `none` - entries left to witness, or the element is still hidden.
+ * - `partial` - every charted entry witnessed, some raw edge behind a grouped
+ *   one not. Display only: it changes no unlock and no count. The ring says
+ *   where the gap is without naming it (the group's `x/y` chip, ticket 09/25),
+ *   which is what lets the star be honest inside spec §7.
+ * - `mastered` - every raw edge witnessed. Unchanged: this is mastery, and the
+ *   unlock trigger.
+ *
+ * An element whose entries are each backed by one raw edge - mud's six - can
+ * never be `partial`: the two questions have the same answer for it.
+ */
+export type MasteryState = 'none' | 'partial' | 'mastered'
+
 export interface PickerRow extends ElementRef {
   /** Minimum transmutation depth: the column, and the sort key (spec §6). */
   tier: number
   /** `seen/total`, or `n/m to unlock` on an unearned unlockable. Empty while hidden. */
   count: string
-  /** Every entry involving the element has been witnessed - the drawn star. */
-  mastered: boolean
+  /** Which star the row wears (ticket 18) - filled, hollow or none. */
+  mastery: MasteryState
   /** Discovered since the panel was last closed - the green plate edge. */
   isNew: boolean
 }
@@ -213,7 +233,8 @@ export interface RingModel {
   seen: number
   /** Entries involving the element that have not been witnessed - the empty notches. */
   stillToFind: number
-  mastered: boolean
+  /** The centre's own star, by the same rule as the picker row's (ticket 18). */
+  mastery: MasteryState
 }
 
 /** A stroke the ring draws, named for the kind whose class carries it. */
@@ -331,6 +352,29 @@ export function refOf(name: string, view: FieldNotesView, tags?: ElementTags): E
 }
 
 /**
+ * Which star an element wears (ticket 18). Module-private: the star reaches the
+ * panel on the row and the ring that carry it, so nothing outside has to know
+ * how the state is worked out. Both places a star is drawn go through this, so the picker row and the ring centre cannot disagree - and it
+ * is written against the row's own count rather than beside it, which is what
+ * makes "the count is full but the star is not" a state instead of a bug: the
+ * `partial` case is *defined* as `seen === total` without mastery.
+ *
+ * Hidden elements wear no star at all. A hollow star on a `- - -` row would be
+ * the panel saying "you are nearly done with this one" about an element it will
+ * not name, and the row has no count beside it to make sense of the claim.
+ */
+function masteryOf(name: string, view: FieldNotesView): MasteryState {
+  // The masking rule first: a hidden element has no state to show, whatever its
+  // edges have done. Mastery implies discovery today - an element is a product
+  // of at least one of its own entries - so the order is a statement of the
+  // rule rather than a live branch.
+  if (!view.discovered.has(name)) return 'none'
+  if (view.mastered.has(name)) return 'mastered'
+  const tally = view.counts.get(name)
+  return tally && tally.total > 0 && tally.seen === tally.total ? 'partial' : 'none'
+}
+
+/**
  * Every element, tier order then rail order. Deterministic from the data, never
  * hand-placed: `index.elements` is the roster, whose paintables are in rail
  * order, and a stable sort by tier turns that into the columns the design
@@ -355,7 +399,7 @@ export function pickerRows(
       // `entries.test.ts` pins that no element is left untiered.
       tier: index.tierOf(name)!,
       count: ref.discovered ? `${tally.seen}/${tally.total}${unlockable ? ' to unlock' : ''}` : '',
-      mastered,
+      mastery: masteryOf(name, view),
       isNew: view.newElements.has(name),
     }
   })
@@ -599,6 +643,6 @@ export function ringFor(
     // drawing, and the footer counts what the player has found.
     seen: witnessed.length,
     stillToFind: keys.length - witnessed.length,
-    mastered: view.mastered.has(focus),
+    mastery: masteryOf(focus, view),
   }
 }
