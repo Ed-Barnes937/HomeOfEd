@@ -45,6 +45,68 @@ test('erase is a tool, not a palette entry, and clears painted cells', async ({ 
   await root.verifyCellIs(30, 30, EMPTY)
 })
 
+test('erase is a toggle: a second press returns to the element it interrupted', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('dirt')
+  await root.selectErase()
+  expect(await root.isEraseSelected()).toBe(true)
+  // The rail must not read as though it were still painting: with erase active
+  // nothing in it is pressed, so the erase button is the one lit control and
+  // visibly the way back (ticket 24).
+  await root.verifyNoElementSelected()
+
+  await root.selectErase()
+  expect(await root.isEraseSelected()).toBe(false)
+  // The interrupted element was remembered, not forgotten, so painting resumes
+  // where it left off rather than on some default.
+  expect(await root.isSelected('dirt')).toBe(true)
+  expect(await root.statusText('status-element')).toBe('dirt')
+  await root.paintCell(30, 30)
+  await root.verifyCellIs(30, 30, DIRT)
+})
+
+test('the erase hotkey toggles exactly as the button does', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectElement('dirt')
+  await root.pressKey('e')
+  expect(await root.isEraseSelected()).toBe(true)
+  await root.verifyNoElementSelected()
+
+  await root.pressKey('e')
+  expect(await root.isEraseSelected()).toBe(false)
+  expect(await root.isSelected('dirt')).toBe(true)
+})
+
+// The EARNED control stands in for a selection that lives inside it, so it is
+// the second thing in the rail that can read as pressed - and it has to go dark
+// while erasing for the same reason a swatch does (ticket 24).
+test('an earned selection goes dark while erasing and comes back with it', async ({
+  mountApp,
+  page,
+}) => {
+  await seedMastery(page, 'mud')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.openEarned()
+  await root.selectEarnedElement('mud')
+  expect(await root.isEarnedSelected()).toBe(true)
+
+  await root.selectErase()
+  expect(await root.isEarnedSelected()).toBe(false)
+  await root.verifyNoElementSelected()
+
+  await root.selectErase()
+  expect(await root.isEarnedSelected()).toBe(true)
+  expect(await root.statusText('status-element')).toBe('mud')
+})
+
 test('a wider brush paints more than one cell at a time', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

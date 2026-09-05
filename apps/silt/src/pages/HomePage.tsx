@@ -140,8 +140,17 @@ export function HomePage() {
     setSelectedElement(id)
   }
 
-  const selectErase = (): void => {
-    setTool('erase')
+  /**
+   * Erase is a toggle, not a one-way door (ticket 24). While it is active no
+   * rail swatch reads as pressed, so the erase button is the only lit control
+   * and has to be the way back out; pressing it again resumes painting with
+   * `selectedElement`, which erase never overwrote - it only shadowed it.
+   */
+  const toggleErase = (): void => {
+    setTool((current) => (current === 'erase' ? 'paint' : 'erase'))
+    // Entering erase leaves spawner mode - erase has no element to spawn, the
+    // mirror of what the spawner button does to the tool. On the way back out
+    // this is already true, so the one call covers both directions.
     setMode('paint')
   }
 
@@ -156,7 +165,7 @@ export function HomePage() {
       const entry = palette.entries[index]
       if (entry) selectElement(entry.id)
     },
-    onSelectErase: selectErase,
+    onToggleErase: toggleErase,
     onNudgeBrush: (delta) =>
       setBrushIndex((current) => Math.min(BRUSH_WIDTHS.length - 1, Math.max(0, current + delta))),
     // The popover opens with the save, so the result — a new row, or a rename
@@ -387,7 +396,7 @@ export function HomePage() {
             className={styles.eraseButton}
             data-testid="erase-tool"
             aria-pressed={tool === 'erase'}
-            onClick={selectErase}
+            onClick={toggleErase}
           >
             erase
           </button>

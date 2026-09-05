@@ -1,6 +1,6 @@
 # 24 - Erase mode has no visible way back to painting
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-erase-mode-exit, 2026-09-05)
 **Type:** task
 **Source:** local testing feedback (Ed, 2026-09-04) - "There's no way to come
 out of erase mode back to paint mode other than clicking spawner + paint."
@@ -31,3 +31,22 @@ The escape hatch exists; the UI hides it.
 - unit/iwft: enter erase, click erase again - painting resumes with the prior
   element; while erasing, no rail element reads as pressed; hotkey round-trip
   does the same.
+
+## Outcome
+
+Half the diagnosis was already stale: the rail was **not** lying. `aria-pressed`
+on a swatch has read `tool === 'paint' && selectedElement === entry.id` since the
+app shipped, and the EARNED control is handed `EMPTY` while erasing, so neither
+lights up. What was actually missing was the toggle - the erase button and `e`
+both set erase one way, so the only exit was picking another element, and with
+nothing else lit the rail simply looked inert.
+
+So the change is small: `toggleErase` flips the tool instead of setting it, and
+`useSiltHotkeys`' option is renamed `onSelectErase` -> `onToggleErase` to say so.
+`selectedElement` was never overwritten by erase, only shadowed, so the way back
+needs no remembering of its own. Three iwft cases now pin all of it, the
+already-true half included: the button round-trip, the `e` round-trip, and an
+earned selection going dark and coming back.
+
+Esc was **not** taken up: `useSiltHotkeys` already routes it to
+`onDismissOverlays` and `ScenesPopover` consumes it too, so it is not free.

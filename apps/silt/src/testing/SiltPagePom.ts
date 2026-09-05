@@ -26,6 +26,22 @@ export class SiltPagePom extends BasePage {
     return pressed === 'true'
   }
 
+  /**
+   * Nothing that holds an element reads as pressed - the palette's swatches and
+   * the EARNED control alike, which sits outside the palette div and stands in
+   * for a selection kept inside it. That is the state erase has to leave the
+   * rail in: a lit swatch would say the rail is still painting, which is what
+   * hid the way out of erase (ticket 24). The brush, mode and erase controls are
+   * deliberately out of scope - they are not elements and stay lit.
+   */
+  async verifyNoElementSelected(): Promise<void> {
+    await expect(
+      this.page.locator(
+        '[data-testid="palette"] [aria-pressed="true"], [data-testid="earned-button"][aria-pressed="true"]',
+      ),
+    ).toHaveCount(0)
+  }
+
   /** A rail group section and one of the swatches inside it (spec §9). */
   async verifyPaletteGroupContains(label: string, name: string): Promise<void> {
     const group = this.page.getByTestId(`palette-group-${label}`)
