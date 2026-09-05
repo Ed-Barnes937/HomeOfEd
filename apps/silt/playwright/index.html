@@ -1,4 +1,14 @@
+<!doctype html>
 <html lang="en">
+  <head>
+    <!-- The head is the app's own (../index.html), and for the same reason in
+         both cases: without the doctype the page renders in *quirks* mode, and
+         without the meta Chromium falls back to a 980px layout width, so every
+         mobile-project iwft only looks like a phone. A harness that lays out
+         differently from the app passes bugs a real phone has (ticket 26). -->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="./index.ts"></script>

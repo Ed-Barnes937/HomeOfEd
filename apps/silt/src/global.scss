@@ -1,0 +1,15 @@
+// silt's only global stylesheet - everything else in the app is a CSS module.
+//
+// It exists for one rule, and the rule is load-bearing: `.app` is
+// `height: 100dvh` and stretches to the document's width, so the UA's default
+// 8px `body` margin makes the page 16px taller and 16px wider than the screen
+// it was measured against. On a phone that is a scrollbar in both axes around
+// a layout that was meant to fill the glass.
+//
+// **Both entry points import this** - the app's `src/main.tsx` and the CT
+// harness's `playwright/index.ts`. A reset the harness does not load is a
+// harness that lays out differently from the app, which is the trap ticket 26
+// was written about.
+body {
+  margin: 0;
+}

@@ -536,12 +536,25 @@ else touches it.
   first, `.iwft` only for whole-page behaviour (keep it thin).
 - Relative imports carry explicit `.ts`/`.tsx` extensions; server code sticks to
   erasable TS syntax (ADR 0004) — `simulator.ts`/`main.ts` run under native Node.
-- **A mobile `.iwft` emulates touch, not a phone's width.** `playwright/index.html`
-  carries no viewport meta (the app's `index.html` does), so a
-  `viewport: { width: 390 }` run lays out at Chromium's 980px fallback and
-  scales the picture down: `$mobile` matches on `pointer: coarse` alone. Assert
-  against `document.documentElement.clientWidth` rather than `viewportSize()`,
-  and prefer a proportional claim to a pixel one.
+- **A mobile `.iwft` lays out at the width it says it does** - and it did not
+  always (ticket 26). `playwright/index.html` now carries the same viewport meta
+  as the app's `index.html`, and `playwright/index.ts` imports the same
+  `src/global.scss`, so `viewport: { width: 390 }` is a real 390px page. Before
+  that the meta was missing, Chromium fell back to 980px and scaled the picture
+  down, and the harness passed three bugs a real phone had all along: the
+  header's min-content sized `.app`'s auto grid column and so pushed the whole
+  **document** sideways - 69px behind the bottom bar, 76px behind the field-notes
+  sheet - and the phone picker, in an unbounded `auto` row, took 231px of an
+  844px sheet off the ring. The rules that came out of it:
+  **the two entry points stay in step** (a stylesheet or a meta tag the harness
+  does not load is a harness that lays out differently from the app), and
+  **every full-width child of `.app` needs `min-width: 0`**, because a grid
+  item's automatic minimum is its min-content and the widest child sizes the
+  document. Both are
+  [ADR 0053](../../docs/adr/0053-silt-the-ring-outranks-the-picker-on-a-phone.md),
+  which also settles that the ring outranks the picker for a phone's height.
+  Assert against `document.documentElement.clientWidth` rather than
+  `viewportSize()`, and prefer a proportional claim to a pixel one.
 - Ports: dev 3009, CT 3109.
 - No database, no migrations, no `@hoe/db` — see
   [ADR 0008](../../docs/adr/0008-apps-without-a-database.md).

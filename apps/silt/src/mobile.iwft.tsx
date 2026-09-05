@@ -207,13 +207,22 @@ test('the phone sheet gives the ring the screen, and names the focused element a
 })
 
 /**
- * The other side of the same sizing: a sheet with less height than width has to
- * give the ring up rather than run it into the footer, and it has to stay
- * square while it does - the SVG's coordinate box and its tiles depend on that
- * (ticket 21).
+ * The other side of the same sizing: a sheet whose height runs out before its
+ * width does has to give the ring up rather than run it into the footer, and it
+ * has to stay square while it does - the SVG's coordinate box and its tiles
+ * depend on that (ticket 21).
+ *
+ * Re-measured at a true 390px (ticket 26), and the height had to move with the
+ * name: this case is the band where the ring is *height*-bound but still above
+ * its floor, which at 390 wide is roughly 800-844px tall. At 844 the ring is
+ * width-bound (380px of a 390px sheet); below ~795 it is pinned to
+ * `RING_MIN_PX` and scrolls, which is the case below, not this one. 810 sits in
+ * the middle and draws a 353px ring. The old 480 was picked when the harness
+ * laid this out at 980x1206 - at a true 390x480 the panel's 244px of fixed
+ * head/band/foot cannot fit a 340px ring above the footer at all.
  */
-test.describe('a phone with little height to spare', () => {
-  test.use({ viewport: { width: 390, height: 480 } })
+test.describe('a phone whose height runs out before its width', () => {
+  test.use({ viewport: { width: 390, height: 810 } })
 
   test('the ring gives up width rather than running into the footer', async ({
     mountApp,
@@ -228,6 +237,10 @@ test.describe('a phone with little height to spare', () => {
 
     await root.verifyRingIsSquare()
     await root.verifyRingGaveUpWidthForHeight()
+    // ...but gave up width because its *height* ran out, not because it hit the
+    // floor - that is the case below, and without this the two would be the
+    // same test whenever the sheet's chrome grows (ticket 26).
+    await root.verifyRingIsAboveItsFloor(RING_MIN_PX)
     await root.verifyFocusedNameIsAboveTheRing('water')
     await root.verifyRingFitsAboveTheFooter()
     await root.verifyRingTilesDoNotOverlap()
@@ -239,9 +252,16 @@ test.describe('a phone with little height to spare', () => {
  * drawn smaller than `RING_MIN_PX` would have them overlapping and would make a
  * liar of the capacity that decides when spokes group (`ringGeometry`). A sheet
  * with less room than that scrolls instead of shrinking (ticket 21).
+ *
+ * Re-measured at a true 390px (ticket 26): a real phone reaches this case a lot
+ * sooner than the harness's 980px fallback suggested. 390x480 leaves 236px of
+ * body under the head, band and foot - well under the 376px the floor plus its
+ * name band needs - so the ring stops at `RING_MIN_PX` and `.ringWrap` scrolls.
+ * The old 200 is not a phone at all: the panel's own fixed chrome is 244px, so
+ * nothing in the sheet could be laid out, let alone tapped.
  */
 test.describe('a sheet with less room than the ring needs', () => {
-  test.use({ viewport: { width: 390, height: 200 } })
+  test.use({ viewport: { width: 390, height: 480 } })
 
   test('the ring stops at its floor rather than drawing tiles that overlap', async ({
     mountApp,

@@ -25,6 +25,13 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 $ring-head: 30px;
 $ring-head-gap: 6px;
 
+// How much of a phone's glass the picker may take before it scrolls (ticket
+// 26). The share is the point: the ring gets what is left, so this is the
+// picker's ceiling and the ring's floor written once. `$picker-min` keeps one
+// 48px tile row whole on the shortest screens, where the share is a sliver.
+$picker-max-share: 18dvh;
+$picker-min: 64px;
+
 .scrim {
   position: fixed;
   inset: 0;
@@ -775,14 +782,28 @@ $ring-head-gap: 6px;
   // tiles - the names go with the column that held them.
   .body {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    // Both tracks may shrink below their content: the picker scrolls (it
+    // already does on a desktop, in the column this row replaces) and the ring
+    // area has its own `overflow: auto` for the screens below the ring's floor.
+    grid-template-rows: minmax(0, auto) minmax(0, 1fr);
   }
 
+  // The picker wraps, so its height is however many rows the roster happens to
+  // make - and an `auto` track hands it every one of them, out of the same
+  // column the ring is in. At a true 390px that was 231px of an 844px sheet
+  // (four rows), which pushed the ring down onto its 340px floor and, on a
+  // shorter phone, left it 13px of room to draw 340px in (ticket 26; the CT
+  // harness's 980px fallback had been hiding it by fitting the roster into
+  // fewer, wider rows). The ring is what the panel is *for*
+  // ([ADR 0053](../../../../../docs/adr/0053-silt-the-ring-outranks-the-picker-on-a-phone.md)),
+  // so the picker takes its share and scrolls past it, exactly as its desktop
+  // column does.
   .picker {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 7px;
     padding: 0.5rem 0.6rem;
+    max-height: max(#{$picker-min}, #{$picker-max-share});
     border-right: none;
     border-bottom: 2px solid $ink;
   }

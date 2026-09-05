@@ -147,9 +147,10 @@ export class SiltPagePom extends BasePage {
 
       return {
         atTheLeftEdge: popover.left === 0,
-        // The layout viewport, which under Playwright's mobile emulation is
-        // *not* `viewportSize()`: with no meta viewport tag it falls back to
-        // 980 CSS px, and that is the frame a fixed box is laid out in.
+        // The layout viewport - the frame a fixed box is laid out in - rather
+        // than `viewportSize()`. Since ticket 26 the harness carries the app's
+        // viewport meta so the two agree, but the layout viewport is what a
+        // `position: fixed` sheet is actually measured against.
         fullWidth: Math.abs(popover.width - window.innerWidth) < 0.5,
         atTheFoot: Math.abs(popover.bottom - window.innerHeight) < 0.5,
       }
@@ -283,11 +284,10 @@ export class SiltPagePom extends BasePage {
    */
   async verifyRingFillsTheSheet(fraction: number): Promise<void> {
     const ring = await this.ringBox()
-    // The sheet's own width, not `viewportSize()`: the component harness's page
-    // carries no viewport meta, so a mobile-emulated run lays out at Chromium's
-    // 980px fallback and scales down. Measuring the ring against the width the
-    // layout actually had is what makes this assert the fluid property - the
-    // ring takes the sheet it is given - at whatever width that is.
+    // The sheet's own width, not `viewportSize()`. Since ticket 26 the harness
+    // carries the app's viewport meta, so the two agree on a phone - but the
+    // layout width is still the honest thing to measure a fluid property
+    // against: the ring takes the sheet it is given, at whatever width that is.
     const sheet = await this.page.evaluate(() => document.documentElement.clientWidth)
 
     expect(ring.width).toBeGreaterThanOrEqual(sheet * fraction)
@@ -314,6 +314,18 @@ export class SiltPagePom extends BasePage {
     const foot = await this.page.getByTestId('field-notes-seen').boundingBox()
     if (!foot) throw new Error('field-notes-seen has no bounding box')
     expect(ring.y + ring.height).toBeLessThanOrEqual(foot.y + 1)
+  }
+
+  /**
+   * The other side of the floor, and the reason it is worth asserting: a case
+   * written for a ring that *shrank* to fit its height says nothing once the
+   * layout drifts far enough for the ring to sit on its floor instead, because
+   * a floored ring is narrower than the sheet too. Pinning it above the floor
+   * is what keeps that case about shrinking (ticket 26).
+   */
+  async verifyRingIsAboveItsFloor(floorPx: number): Promise<void> {
+    const ring = await this.ringBox()
+    expect(ring.width).toBeGreaterThan(floorPx + 1)
   }
 
   /**

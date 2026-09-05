@@ -27,12 +27,19 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 
 // ---- header (58px) ---------------------------------------------------
 
+// `min-width: 0` for the same reason `.stage` carries it: `.app` is a grid, and
+// a grid item's automatic minimum is its *min-content*, so without this the
+// header's widest possible content sizes the column - and the column sizes the
+// document. The header would rather be narrow and let the scene name ellipsize
+// (which is what `.sceneName` is built to do) than drag the world canvas off
+// the side of a phone (ticket 26).
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0 1rem;
+  min-width: 0;
   background: $paper;
   border-bottom: 2px solid $ink;
 }
@@ -51,7 +58,16 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   text-transform: uppercase;
 }
 
+// The scene name is the header's one elastic word, so it is the one that gives
+// when the header above it is squeezed under its content width. The rigid parts
+// (the title, and the buttons on their 44px floor) hold their size, and a long
+// name ellipsizes into whatever is left rather than shouldering them off the
+// screen. `flex: 1 1 0` is what makes it the elastic one - a zero basis, so it
+// asks for none of the row and takes what is spare; `min-width: 0` is what lets
+// it then shrink past its own text (ticket 26).
 .sceneName {
+  flex: 1 1 0;
+  min-width: 0;
   font-size: 0.75rem;
   color: $muted;
   overflow: hidden;
@@ -105,14 +121,27 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 // Step has no meaning without a keyboard, and there's no room for it once the
 // rail becomes a bottom bar — play and reset stay, sized as touch targets
 // (spec §9, design brief §02).
+//
+// The header is also the one row of chrome that cannot scroll or wrap: SILT ·
+// scene name | play · reset | notes · scenes all have to be on the glass at
+// once. At 390px the desktop spacing came to 458px of content - see `.header`
+// above for why that sized the whole document rather than just this row, and
+// ticket 26 for what the CT harness had been hiding. The padding and gaps come
+// in here; the 44px touch floor does not move.
 @media #{$mobile} {
   .stepButton {
     display: none;
   }
 
+  .header {
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+  }
+
   .headerButton {
     min-width: 44px;
     min-height: 44px;
+    padding: 0.35rem 0.6rem;
   }
 }
 
