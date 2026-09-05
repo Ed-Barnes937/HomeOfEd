@@ -1,6 +1,6 @@
 # 18 - A grouped entry can read 9/9 while its star still waits
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 **Type:** task
 **Source:** found during ticket 08 (2026-09-04) - its spec review flagged that
 decision 1's two halves pull apart on elements owning a grouped entry.
@@ -34,7 +34,31 @@ player staring at 9/9 with no star has no visible path to the unlock.
 Option 2 pairs naturally with 09 (the chip exists there) and keeps 08's
 ruling intact; it is the natural recommendation once 09 lands.
 
+## Decision (Ed, 2026-09-05 triage)
+
+**Option 2: the partial star.** Landed context since this was written: ticket
+25's reading line shows a tapped grouped spoke's member silhouettes and its
+x/y chip in the band, so the gap is already visible without naming anything -
+the star just has to stop overstating.
+
+## Design
+
+- A third star state: **hollow/partial** when every charted entry involving
+  the element is witnessed but some raw edge behind a grouped entry is not;
+  the filled star stays all-raw-edges (mastery, the unlock trigger,
+  unchanged). Elements whose entries are all single-source can never show it.
+- Where a star renders, the state renders: the picker row and the FocusName
+  (ring centre on desktop, header band on phone). Screen-reader text tells
+  the states apart ("mastered" vs "more to see here").
+- No store change, no derivation change beyond exposing the distinction the
+  entry sources already carry (isWitnessed vs the mastered set).
+
 ## Tests
 
-- Per the chosen option; at minimum a panelModel case pinning that a grouped
-  element's row, ring footer and star cannot contradict each other.
+- panelModel: a grouped element with all entries witnessed but one raw edge
+  missing reports partial (not mastered); all raw edges flips it to mastered;
+  a single-source element never reports partial. The pinning case: row count,
+  ring footer and star cannot contradict each other.
+- iwft (thin): seed flower to all-entries-witnessed-minus-one-raw-edge; the
+  row shows the hollow star; seed the last edge; it fills and EARNED gains
+  flower.
