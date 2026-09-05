@@ -14,10 +14,16 @@
  *   product-only element like obsidian.
  * - **Never name a hidden element** (spec §7): every name that reaches the DOM
  *   passes through `refOf`, so an element the player has not discovered reads
- *   as `- - -` wherever it appears - picker row, ring centre, spoke partner,
- *   outcome words and product tiles alike. It is not hypothetical: a scene saved
+ *   as `- - -` wherever it appears - picker row, ring centre, spoke partner and
+ *   every tile of the reading line alike. It is not hypothetical: a scene saved
  *   before the rail trim can restore painted mud, and dropping lava on it
  *   witnesses `lava + mud` without mud ever having been discovered.
+ *
+ * Since ticket 25 the ring itself is icons-only and the words all live in one
+ * reading line under it, so a spoke's own model is what the ring draws (a tile,
+ * a direction) plus the `ReadingLine` that band renders when the spoke is the
+ * active one. That is the whole spoiler surface for a chart: one row, not the
+ * two dozen text sites a lettered ring had.
  */
 import type { EdgeKey, EdgeKind } from './edgeKeys.ts'
 import type { ElementTags } from './elementAppearance.ts'
@@ -63,14 +69,24 @@ function chipsOf(raw: readonly string[]): readonly string[] {
   return TAG_CHIPS.filter((tag) => declared.has(tag))
 }
 
-/** Separates the two reagents of the pair that makes the focused element. */
-const REAGENT_JOIN = ' + '
+/**
+ * The two separators the reading line writes between its tiles, and what the
+ * key joins its kinds with. Exported because the panel draws them: the words
+ * of a recipe belong with the model that decides what the recipe *is*, so a
+ * `·` cannot be a `,` in one place and a `·` in the other.
+ */
+export const REAGENT_JOIN = '+'
+export const PRODUCT_JOIN = '·'
 
-/** Separates an entry's products, and the key's kinds sharing one stroke. */
-const PRODUCT_JOIN = ' · '
+/** The same dot, spaced, for the runs of words the model still joins itself. */
+const PRODUCT_RUN = ` ${PRODUCT_JOIN} `
 
-/** What an entry that consumes both cells leaves behind (spec §6). */
-const CONSUMED = 'both consumed'
+/**
+ * What an entry that consumes both cells leaves behind (spec §6). The reading
+ * line draws it where the product tiles would go, and it is exported because
+ * that is the panel's only word about an entry it did not get from a tile.
+ */
+export const CONSUMED = 'both consumed'
 
 /** An element as a tile: what to draw, and what it is allowed to be called. */
 export interface ElementRef {
@@ -138,6 +154,40 @@ export interface SpokeGroup {
   total: number
 }
 
+/**
+ * What the reading line says about the active spoke (ticket 25): the entry as a
+ * recipe, in tiles the band draws with their names beside them. The whole entry,
+ * not the half a spoke's own end of it saw - which end of it the ring is centred
+ * on moves the arrowhead, never the reading.
+ *
+ * Every ref is masked, and this is now the *only* place the panel says anything
+ * about an interaction, which is why the spoiler invariant is one assertion over
+ * this object rather than a sweep of the ring.
+ */
+export interface ReadingLine {
+  /** The elements that must meet, in entry order. */
+  reagents: readonly ElementRef[]
+  /**
+   * What the interaction leaves. Empty in two different ways, told apart by
+   * `consumed`: an entry that eats both cells, and a **stage** of one element's
+   * own life (ticket 08), which names the focus at both ends and so reads as
+   * that element alone - an arrow from a thing to itself says nothing.
+   */
+  products: readonly ElementRef[]
+  /** The entry leaves nothing at all: the row reads `CONSUMED` (spec §6). */
+  consumed: boolean
+  /**
+   * The group a merged spoke stands for (ticket 09), present whenever the spoke
+   * is one - so the `2/5` chip is always in the line, which is the only thing
+   * that says the pair is one of several. Its `members` are the alternatives in
+   * the reagent slot they disagree about (`acid + <wood | seed | ...>`) when
+   * there is more than one of them; a group of one has nothing to choose
+   * between, so its member is simply a reagent of the recipe and the chip
+   * carries the fact on its own.
+   */
+  group?: SpokeGroup
+}
+
 export interface Spoke {
   /** The charted entry's key, or the group's own when this spoke merges several. */
   key: string
@@ -145,10 +195,8 @@ export interface Spoke {
   /** The element on the ring: the other reagent, or the first of the pair that makes the focus. */
   partner: ElementRef
   direction: SpokeDirection
-  /** The words on the line, already masked. */
-  outcome: string
-  /** The outcome's own tiles, under the words. Tapping a discovered one follows it. */
-  tiles: readonly ElementRef[]
+  /** What the band reads while this spoke is the active one (ticket 25). */
+  reading: ReadingLine
   /** Present when the ring is crowded and this spoke merges several pairs (ticket 09). */
   group?: SpokeGroup
 }
@@ -261,7 +309,7 @@ export function legendRows(index: EntryIndex = entryIndex()): readonly LegendRow
   return [...kindsByStroke].map(([stroke, kinds]) => ({
     stroke,
     kinds,
-    label: kinds.map((kind) => KIND_WORDS[kind]).join(PRODUCT_JOIN),
+    label: kinds.map((kind) => KIND_WORDS[kind]).join(PRODUCT_RUN),
     meaning: STROKE_MEANING[stroke],
   }))
 }
@@ -317,12 +365,6 @@ export function pickerRows(
   return rows.sort((a, b) => a.tier - b.tier)
 }
 
-/** The entry's outcome as words: its products, or "both consumed" (spec §6). */
-function outcomeOf(entry: Entry, view: FieldNotesView): string {
-  if (entry.products.length === 0) return CONSUMED
-  return entry.products.map((name) => refOf(name, view).label).join(PRODUCT_JOIN)
-}
-
 /**
  * "This makes me": the focused element takes no part in the interaction and is
  * only its product, so the whole pair sits on the ring.
@@ -346,9 +388,17 @@ function isMadeBy(entry: Entry, focus: string): boolean {
  */
 function directionOf(entry: Entry, focus: string): SpokeDirection {
   if (isMadeBy(entry, focus)) return 'in'
-  const stage = [...entry.reagents, ...entry.products].every((name) => name === focus)
-  if (entry.kind === 'react' || stage) return 'none'
+  if (entry.kind === 'react' || isStage(entry, focus)) return 'none'
   return entry.products.some((name) => name !== focus) ? 'out' : 'in'
+}
+
+/**
+ * A stage of the focused element's own life (ticket 08): every name at both ends
+ * of the entry is the focus itself, which is what the raise and the bloom become
+ * once the plant is charted as one flower.
+ */
+function isStage(entry: Entry, focus: string): boolean {
+  return [...entry.reagents, ...entry.products].every((name) => name === focus)
 }
 
 function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
@@ -361,26 +411,20 @@ function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
       entry.products.find((name) => name !== focus) ??
       focus)
 
-  const direction = directionOf(entry, focus)
-
-  // A tile leading back to the centre is a dead tap, so the focused element is
-  // never offered as one; the words still say what the interaction leaves.
-  const tiles = (madeBy ? entry.reagents : entry.products).filter((name) => name !== focus)
-
   return {
     key: entry.key,
     kind: entry.kind,
     partner: refOf(partner, view),
-    direction,
-    outcome: madeBy
-      ? entry.reagents.map((name) => refOf(name, view).label).join(REAGENT_JOIN)
-      : outcomeOf(entry, view),
-    tiles: tiles.map((name) => refOf(name, view)),
+    direction: directionOf(entry, focus),
+    reading: {
+      reagents: entry.reagents.map((name) => refOf(name, view)),
+      // A stage has a right-hand side that is the left-hand side; drawing it
+      // would be an arrow from an element to itself.
+      products: isStage(entry, focus) ? [] : entry.products.map((name) => refOf(name, view)),
+      consumed: entry.products.length === 0,
+    },
   }
 }
-
-/** What a group writes where its members disagree. Stands for the stack beside it. */
-const ELIDED = '…'
 
 /**
  * The unit a crowded ring merges on (ticket 09, decision 1): **the same verb
@@ -392,33 +436,38 @@ const ELIDED = '…'
  * player reads off the arrowhead, not extra bookkeeping.
  */
 function groupKeyOf(entry: Entry, focus: string): string {
-  return [entry.kind, directionOf(entry, focus), [...entry.products].sort().join(PRODUCT_JOIN)].join(
+  return [entry.kind, directionOf(entry, focus), [...entry.products].sort().join(PRODUCT_RUN)].join(
     '|',
   )
 }
 
-/** Every element a spoke draws besides the centre: its ring tile and its product tiles. */
-function shownBy(spoke: Spoke): readonly ElementRef[] {
-  return [spoke.partner, ...spoke.tiles]
-}
-
-/** The names every member of a group draws - what the merged spoke can still say. */
-function sharedNames(members: readonly Spoke[]): ReadonlySet<string> {
+/**
+ * The reagents every member of a group has in common - what the merged spoke's
+ * recipe can still state outright. Names, not masked labels: two elements the
+ * player has not discovered both write `- - -`, and a tie there is a coincidence
+ * of masking rather than a shared reading.
+ *
+ * Only the reagents, because a group is keyed on its products (`groupKeyOf`):
+ * the members agree about what the interaction leaves by construction, and the
+ * one slot they can disagree about is what goes into it.
+ */
+function sharedReagents(members: readonly Spoke[]): ReadonlySet<string> {
   const [first, ...rest] = members
-  const others = rest.map((member) => new Set(shownBy(member).map((ref) => ref.name)))
+  const others = rest.map((member) => new Set(member.reading.reagents.map((ref) => ref.name)))
   return new Set(
-    shownBy(first!)
+    first!.reading.reagents
       .map((ref) => ref.name)
       .filter((name) => others.every((names) => names.has(name))),
   )
 }
 
 /**
- * One merged spoke: what its members share stays on the line, and what they do
- * not becomes the stack at the ring point.
+ * One merged spoke: what its members share stays in the recipe, and what they do
+ * not becomes both the stack at the ring point and the alternatives slot in the
+ * reading line.
  *
  * A group of one is the interesting case, not the degenerate one. It keeps the
- * pair's own words verbatim - grouping must never cost the player a reading of
+ * pair's own recipe verbatim - grouping must never cost the player a reading of
  * the interaction they actually witnessed - and still carries the chip, which
  * is the only thing that says the pair is one of several.
  */
@@ -426,25 +475,15 @@ function mergedSpoke(groupKey: string, members: readonly Spoke[], total: number)
   const first = members[0]!
   if (members.length === 1 && total === 1) return first
 
-  const shared = sharedNames(members)
+  const shared = sharedReagents(members)
   const stack = members.map((member) => ({
     // The element that tells this member apart from the rest of the stack, or -
-    // when the members draw the same elements and only their words differ - its
-    // own ring tile. Already masked: it is one of the spoke's own refs.
-    ...(shownBy(member).find((ref) => !shared.has(ref.name)) ?? member.partner),
+    // when the members put the same reagents in and only the entry differs -
+    // its own ring tile. Already masked: it is one of the spoke's own refs.
+    ...(member.reading.reagents.find((ref) => !shared.has(ref.name)) ?? member.partner),
     key: member.key,
   }))
-  // Whether the members read the same, judged on their names rather than on
-  // their masked words: two elements the player has not discovered both write
-  // `- - -`, and a tie there is a coincidence of masking, not a shared reading.
-  const readings = new Set(
-    members.map((member) => member.tiles.map((ref) => ref.name).join(PRODUCT_JOIN)),
-  )
-  // The words are built from the outcome's own tiles - the reagent pair, or the
-  // products - so that is what a shared reading is left with. The ring tile is
-  // one of them again on a `made by` spoke, and saying "acid + acid" would be a
-  // worse spoke than the crowd this is fixing.
-  const kept = first.tiles.filter((ref) => shared.has(ref.name))
+  const group: SpokeGroup = { members: stack, seen: members.length, total }
 
   return {
     // What the group merged on: unique on the ring by construction, which is
@@ -452,17 +491,21 @@ function mergedSpoke(groupKey: string, members: readonly Spoke[], total: number)
     key: `group:${groupKey}`,
     kind: first.kind,
     direction: first.direction,
-    // Identical words are the members' own; where they differ, the shared half
-    // stays and the varying half is the stack, which is drawn right beside it.
-    outcome:
-      readings.size === 1
-        ? first.outcome
-        : [...kept.map((ref) => ref.label), ELIDED].join(REAGENT_JOIN),
     // The stack sits where a lone partner would, so the first of it is the
     // partner: nothing reads a `partner` this spoke does not draw.
     partner: stack[0]!,
-    tiles: readings.size === 1 ? first.tiles : kept,
-    group: { members: stack, seen: members.length, total },
+    reading:
+      // One member is one recipe: there is nothing to choose between, so the
+      // reading line keeps the pair the player actually witnessed whole and the
+      // chip does the rest of the work.
+      members.length === 1
+        ? { ...first.reading, group }
+        : {
+            ...first.reading,
+            reagents: first.reading.reagents.filter((ref) => shared.has(ref.name)),
+            group,
+          },
+    group,
   }
 }
 

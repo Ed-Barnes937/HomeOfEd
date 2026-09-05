@@ -6,6 +6,7 @@ import { entryIndex } from './entries.ts'
 import { fieldNotesView } from './fieldNotesView.ts'
 import type { Progress } from './fieldNotesStore.ts'
 import {
+  CONSUMED,
   groupRing,
   HIDDEN_NAME,
   LEGEND_RULES,
@@ -32,6 +33,32 @@ function rowFor(name: string, ...edges: string[]) {
   const row = pickerRows(viewOf(...edges)).find((candidate) => candidate.name === name)
   if (!row) throw new Error(`no picker row for ${name}`)
   return row
+}
+
+/** The real names on one side of a reading line, in the order the band draws them. */
+function namesOf(refs: readonly { name: string }[] = []): string[] {
+  return refs.map((ref) => ref.name)
+}
+
+/**
+ * The reading line as the band reads it, left to right, in the labels the model
+ * allows (ticket 25). The panel draws the same order as tiles with these words
+ * beside them - this is the reading, spelled out, so a case can assert what a
+ * player sees rather than four fields at once.
+ */
+function readingOf(spoke: Spoke | undefined): string {
+  const line = spoke?.reading
+  if (!line) return ''
+  const left = [
+    ...line.reagents.map((ref) => ref.label),
+    ...(line.group && line.group.members.length > 1
+      ? [line.group.members.map((member) => member.label).join(' / ')]
+      : []),
+  ].join(' + ')
+  // A stage of one element's own life has no right-hand side at all.
+  if (line.products.length === 0 && !line.consumed) return left
+  const right = line.consumed ? CONSUMED : line.products.map((ref) => ref.label).join(' · ')
+  return `${left} -> ${right}`
 }
 
 describe('picker ordering', () => {
@@ -145,36 +172,50 @@ describe('the ring', () => {
     expect(empty.stillToFind).toBe(10)
   })
 
-  test('a spoke resolves the entry products into words and tappable tiles', () => {
+  test('a spoke carries the whole recipe for the reading line, in tappable tiles', () => {
+    // The ring itself is icons-only since ticket 25: the words are the reading
+    // line's, and it reads the entry whole - both reagents, then what they
+    // leave - rather than the half a spoke used to letter along its line.
     const [spoke] = ringFor('water', viewOf('react:lava+water')).spokes
     expect(spoke?.partner.name).toBe('lava')
-    expect(spoke?.outcome).toBe('steam · obsidian')
-    expect(spoke?.tiles.map((tile) => tile.name)).toEqual(['steam', 'obsidian'])
-    expect(spoke?.tiles.every((tile) => tile.discovered)).toBe(true)
+    expect(readingOf(spoke)).toBe('lava + water -> steam · obsidian')
+    expect(namesOf(spoke?.reading.reagents)).toEqual(['lava', 'water'])
+    expect(namesOf(spoke?.reading.products)).toEqual(['steam', 'obsidian'])
+    expect(spoke?.reading.products.every((tile) => tile.discovered)).toBe(true)
+    expect(spoke?.reading.consumed).toBe(false)
+    // Nothing is left on the spoke for the ring to letter along its line: the
+    // words moved wholesale, they were not copied (ticket 25).
+    expect(spoke && 'outcome' in spoke).toBe(false)
+    expect(spoke && 'tiles' in spoke).toBe(false)
   })
 
-  test('a product of the focused element is not offered as a tile back to itself', () => {
-    // fire + sulphur leaves fire on both sides, and `productsOf` collapses the
-    // pair to one: the words still say so, but the only tile would lead back to
-    // the centre. This case read off `react:acid+water` until that row was
-    // removed (ticket 16) - the shape it pins is the roster's, not that row's.
+  test('the focused element stays in its own recipe: the line is the whole entry', () => {
+    // fire + sulphur leaves fire on both sides. The old spoke dropped any tile
+    // leading back to the centre, because a tile hanging off the ring was a
+    // dead tap; in the reading line the recipe is the point, so the focus is in
+    // it at both ends. The other reagent is still masked - burning sulphur
+    // leaves fire, so it discovers nothing, which is the seam doing its job.
     const [spoke] = ringFor('fire', viewOf('react:fire+sulphur')).spokes
-    expect(spoke?.outcome).toBe('fire')
-    expect(spoke?.tiles).toEqual([])
+    expect(readingOf(spoke)).toBe(`fire + ${HIDDEN_NAME} -> fire`)
+    expect(namesOf(spoke?.reading.reagents)).toEqual(['fire', 'sulphur'])
+
+    // Once sulphur has been discovered elsewhere the same line names it.
+    const known = ringFor('fire', viewOf('react:fire+sulphur', 'react:acid+wood')).spokes[0]
+    expect(readingOf(known)).toBe('fire + sulphur -> fire')
   })
 
   test('a zero-product entry is an entry too, and reads "both consumed" (spec §6)', () => {
     const [spoke] = ringFor('dirt', viewOf('react:acid+dirt')).spokes
     expect(spoke?.partner.name).toBe('acid')
-    expect(spoke?.outcome).toBe('both consumed')
-    expect(spoke?.tiles).toEqual([])
+    expect(spoke?.reading.consumed).toBe(true)
+    expect(spoke?.reading.products).toEqual([])
+    expect(readingOf(spoke)).toBe('acid + dirt -> both consumed')
   })
 
   test('an arrowhead points into the centre when the pair is what makes it', () => {
     const [spoke] = ringFor('obsidian', viewOf('react:lava+water')).spokes
     expect(spoke?.direction).toBe('in')
-    expect(spoke?.outcome).toBe('lava + water')
-    expect(spoke?.tiles.map((tile) => tile.name)).toEqual(['lava', 'water'])
+    expect(readingOf(spoke)).toBe('lava + water -> steam · obsidian')
     expect(spoke?.partner.name).toBe('lava')
   })
 
@@ -183,12 +224,14 @@ describe('the ring', () => {
     expect(source?.kind).toBe('decay')
     expect(source?.partner.name).toBe('smoke')
     expect(source?.direction).toBe('out')
-    expect(source?.outcome).toBe('smoke')
+    expect(readingOf(source)).toBe('fire -> smoke')
 
+    // The same entry from the other side is the same recipe: which end of it
+    // the ring is centred on moves the arrowhead, never the reading.
     const product = ringFor('smoke', viewOf('decay:fire')).spokes[0]
     expect(product?.partner.name).toBe('fire')
     expect(product?.direction).toBe('in')
-    expect(product?.outcome).toBe('fire')
+    expect(readingOf(product)).toBe('fire -> smoke')
   })
 
   test('a reaction between two reagents carries no arrowhead', () => {
@@ -215,14 +258,18 @@ describe('the ring', () => {
     const raise = ringFor('flower', viewOf('raise:sprout')).spokes[0]
     expect(raise?.key).toBe('raise:flower')
     expect(raise?.direction).toBe('none')
-    expect(raise?.tiles).toEqual([])
+    // And the reading line says it once rather than as an arrow from a thing to
+    // itself: "flower -> flower" would be a worse line than no line.
+    expect(raise?.reading.products).toEqual([])
+    expect(raise?.reading.consumed).toBe(false)
+    expect(readingOf(raise)).toBe('flower')
     expect(ringFor('flower', viewOf('bloom:tip')).spokes[0]?.direction).toBe('none')
 
     // The flower's decay leaves a seed, so from the flower it still points out
     // even though its own petals are charted back onto it.
     const decay = ringFor('flower', viewOf('decay:flower')).spokes[0]
     expect(decay?.direction).toBe('out')
-    expect(decay?.outcome).toBe('seed · flower')
+    expect(readingOf(decay)).toBe('flower -> seed · flower')
   })
 
   test('the centre carries its own mastery, and its name only once discovered', () => {
@@ -269,10 +316,11 @@ describe('tag chips (ticket 12)', () => {
     ])
   })
 
-  test('chips reach the ring centre only, never a spoke partner or a product tile', () => {
+  test('chips reach the focused element only, never a spoke partner or a reading tile', () => {
     const [spoke] = ringFor('water', viewOf('react:lava+water'), tags).spokes
     expect(spoke && 'tags' in spoke.partner).toBe(false)
-    expect(spoke?.tiles.every((tile) => !('tags' in tile))).toBe(true)
+    const line = [...(spoke?.reading.reagents ?? []), ...(spoke?.reading.products ?? [])]
+    expect(line.every((tile) => !('tags' in tile))).toBe(true)
   })
 
   test('no tag source, no chips: the picker rows and a default ring carry none', () => {
@@ -370,30 +418,38 @@ describe('grouped spokes (ticket 09)', () => {
     expect(raw).toHaveLength(10)
   })
 
-  test('a group says what its members share, and stacks what they do not', () => {
+  test('a group says what its members share, and lists the rest in the reading line', () => {
     const spokes = ringFor('sulphur', everything).spokes
     const [made] = groupRing(spokes, 'sulphur', spokes.length - 1).filter(
       (spoke) => spoke.direction === 'in',
     )
 
-    // Every member is `acid + something`, so acid is the words and the product
-    // tile, and the somethings are the stack. Nothing is invented: the ellipsis
-    // stands for the stack, which is drawn right beside it.
-    expect(made?.outcome).toBe('acid + …')
-    expect(made?.tiles.map((tile) => tile.name)).toEqual(['acid'])
+    // Every member is `acid + something`, so acid stays in the recipe and the
+    // somethings become the slot the members stand in. Nothing is elided: the
+    // reading line has the room the ring never had, so the "…" is gone with it.
+    expect(readingOf(made)).toBe('acid + wood / seed / moss / vine / flower -> sulphur')
+    expect(namesOf(made?.reading.reagents)).toEqual(['acid'])
+    // One field for the tiles and the chip, so the band cannot draw a list of
+    // members and a count of something else.
+    expect(namesOf(made?.reading.group?.members)).toEqual(stackOf(made))
+    expect(made?.reading.group).toBe(made?.group)
     expect(made?.kind).toBe('react')
   })
 
   test('a lone witnessed pair keeps its own words, and states what it is one of', () => {
     // Grouping must not cost the player a reading of the pair they actually
-    // witnessed - with one member there is nothing to elide, so nothing is.
+    // witnessed - with one member there is nothing to choose between, so the
+    // recipe is its own and the chip is all the group adds.
     const view = viewOf('react:acid+wood')
     const spokes = ringFor('sulphur', view).spokes
     const [only] = groupRing(spokes, 'sulphur', 0)
 
-    expect(only?.outcome).toBe('acid + wood')
+    expect(readingOf(only)).toBe('acid + wood -> sulphur')
     expect(stackOf(only)).toEqual(['acid'])
     expect(only?.group).toMatchObject({ seen: 1, total: 5 })
+    // The chip is the whole of what the group adds here, so the line carries it
+    // too: without it nothing at all would say the pair is one of five.
+    expect(only?.reading.group).toBe(only?.group)
   })
 
   test('the chip counts pairs, not raw edges: the still-to-find rule, localised', () => {
@@ -450,8 +506,12 @@ describe('grouped spokes (ticket 09)', () => {
 
     // Six of them are `lava + something -> lava · fire`, and lava is what they
     // share: it stays on the line while the somethings become the stack.
-    const [lava] = ring.spokes.filter((spoke) => (spoke.group?.seen ?? 1) > 1 && spoke.direction === 'in')
-    expect(lava?.outcome).toBe('lava + …')
+    const [lava] = ring.spokes.filter(
+      (spoke) => (spoke.group?.seen ?? 1) > 1 && spoke.direction === 'in',
+    )
+    expect(readingOf(lava)).toBe(
+      'lava + oil / sulphur / seed / moss / vine / flower -> lava · fire',
+    )
     expect(stackOf(lava)).toEqual(['oil', 'sulphur', 'seed', 'moss', 'vine', 'flower'])
   })
 
@@ -476,13 +536,13 @@ describe('the spoiler invariant (spec §7)', () => {
     expect(view.discovered.has('mud')).toBe(false)
 
     const [spoke] = ringFor('stone', view).spokes
-    expect(spoke?.outcome).toBe(`lava + ${HIDDEN_NAME}`)
-    expect(spoke?.tiles.map((tile) => tile.label)).toEqual(['lava', HIDDEN_NAME])
-    expect(spoke?.tiles.map((tile) => tile.discovered)).toEqual([true, false])
+    expect(readingOf(spoke)).toBe(`lava + ${HIDDEN_NAME} -> lava · stone`)
+    expect(spoke?.reading.reagents.map((tile) => tile.label)).toEqual(['lava', HIDDEN_NAME])
+    expect(spoke?.reading.reagents.map((tile) => tile.discovered)).toEqual([true, false])
 
     const fromLava = ringFor('lava', view).spokes[0]
     expect(fromLava?.partner.label).toBe(HIDDEN_NAME)
-    expect(fromLava?.outcome).toBe('lava · stone')
+    expect(readingOf(fromLava)).toBe(`lava + ${HIDDEN_NAME} -> lava · stone`)
   })
 
   test('no rendered word of any ring names an element the player has not discovered', () => {
@@ -495,14 +555,9 @@ describe('the spoiler invariant (spec §7)', () => {
 
     for (const name of notes.elements) {
       const ring = ringFor(name, view)
-      const words = [
-        ring.centre.label,
-        ...ring.spokes.flatMap((spoke) => [
-          spoke.outcome,
-          spoke.partner.label,
-          ...spoke.tiles.map((tile) => tile.label),
-        ]),
-      ].join(' ')
+      const words = [ring.centre.label, ...ring.spokes.map((spoke) => readingOf(spoke))]
+        .concat(ring.spokes.map((spoke) => spoke.partner.label))
+        .join(' ')
       for (const secret of hidden) expect(words).not.toContain(secret)
     }
   })
@@ -526,9 +581,8 @@ describe('the spoiler invariant (spec §7)', () => {
       const grouped = groupRing(ringFor(name, view).spokes, name, 0)
       const words = grouped
         .flatMap((spoke) => [
-          spoke.outcome,
+          readingOf(spoke),
           spoke.partner.label,
-          ...spoke.tiles.map((tile) => tile.label),
           ...(spoke.group?.members ?? []).map((member) => member.label),
         ])
         .join(' ')

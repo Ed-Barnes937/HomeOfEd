@@ -27,3 +27,17 @@ Ed's ruling: bottom middle of the entry.
 - Adjust the existing iwft/mobile assertions from "clear of the spoke tiles at
   55px" to "chips render in the bottom band, horizontally centred".
 - panelModel tests untouched (no data change).
+
+## Landed here (2026-09-05)
+
+Built as part of ticket 25, on branch `ticket-25-reading-line`: the chips left
+the ring's coordinate space and the 55px offset with it, and now sit as the
+first row of the bottom band, above the reading line - the stack order 25
+decided (chips describe the ELEMENT, the line describes the SPOKE).
+
+One deviation from the design above: the chips row is **left-aligned**, not
+centred. It shares a left edge with the reading line under it so the two read
+as one band; "horizontally centred" was written for a chips row with nothing
+beneath it. The mobile clearance test became trivial exactly as predicted - it
+is now `verifyBottomBandOrder`, which asserts the chips are out of the ring
+entirely rather than measuring a px offset against the spoke tiles.

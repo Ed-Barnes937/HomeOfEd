@@ -42,6 +42,10 @@ $ring-head-gap: 6px;
   width: 1040px;
   max-width: 100%;
   max-height: 100%;
+  // The scrim is a flex row, so a wide child - a long recipe in the reading
+  // line - would otherwise stretch the panel past the viewport through the
+  // panel's automatic minimum size, and take the page sideways with it.
+  min-width: 0;
   background: $panel;
   border: 2px solid $ink;
   box-shadow: 6px 6px 0 $ink;
@@ -297,12 +301,9 @@ $ring-head-gap: 6px;
 
 .centre,
 .centreName,
-.centreTags,
 .spokeTile,
 .spokeStack,
-.spokeName,
-.spokeOutcome,
-.spokeTiles {
+.spokeName {
   position: absolute;
 }
 
@@ -324,20 +325,6 @@ $ring-head-gap: 6px;
   white-space: nowrap;
 }
 
-// The focused element's tags, one line under its name (ticket 12). 55px clears
-// `.centreName` (34px, ~18px tall) and still sits well inside the nearest ring
-// tile, whose own top edge is 92px down at the smallest ring the panel draws -
-// the sheet's `--ring-min` floor, which is what makes that the worst case
-// rather than one phone's number. `mobile.iwft.tsx` holds the clearance,
-// since the offset is a fixed px like `.centreName`'s and does not scale.
-.centreTags {
-  transform: translate(-50%, 55px);
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-}
-
 // `.newChip`'s border and `.counterLabel`'s type: a tag is a fact about the
 // element, read the same way as a count.
 .tagChip {
@@ -351,18 +338,15 @@ $ring-head-gap: 6px;
   color: $body;
 }
 
+// A ring tile reads its spoke into the band rather than navigating (ticket 25),
+// so it is a control whatever the element's state - there is no inert one here.
 .spokeTile,
-.memberTile,
-.productTile {
+.memberTile {
   display: block;
   padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
-
-  &:disabled {
-    cursor: default;
-  }
 }
 
 .spokeTile {
@@ -413,31 +397,135 @@ $ring-head-gap: 6px;
   pointer-events: none;
 }
 
-.spokeOutcome {
-  transform: translate(-50%, -50%);
-  padding: 1px 4px;
-  background: $panel;
+// ---- the bottom band: chips, then the reading line (ticket 25) ----------
+
+// One band under the ring, in the footer's paper: the focused element's chips
+// first (they describe the ELEMENT), the reading line beneath (it describes the
+// active SPOKE). Both rows are fixed heights, so reading one spoke after another
+// - or none at all - never moves the ring above it.
+.band {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.45rem 0.8rem;
+  background: $paper;
+  border-top: 2px solid $ink;
+}
+
+// One line, never two: the band's height is the promise that the ring above it
+// does not move, and an element with enough tags to wrap would break that
+// promise between one element and the next. A row too long for the panel
+// scrolls, exactly as the reading line under it does.
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+// The one place in the panel where words about an interaction happen. Fixed
+// height whatever it holds: 22px tiles with their names under them, the hint,
+// or a merged spoke's row of 18px members.
+.reading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 48px;
+  // A recipe wider than the band scrolls inside it rather than widening the
+  // panel: a long one is a long one, and the ring above must not move for it.
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.readingTile {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $ink;
+  cursor: pointer;
+
+  &:disabled {
+    color: $muted;
+    cursor: default;
+  }
+}
+
+.readingName {
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// The words that are not names: the `+` between reagents, the `·` between
+// products, the arrow, and "both consumed".
+.readingJoin,
+.readingMakes,
+.readingConsumed {
+  flex: none;
   font-size: 11px;
   color: $body;
   white-space: nowrap;
-  pointer-events: none;
 }
 
-// The outcome's own tiles. They hang 10px off the label's point on the side the
-// spoke's outward arrowhead is not on (ticket 17, absorbed into 09): below it on
-// the ring's upper half, where they have always hung, and above it on the lower
-// half, where the old fixed placement sat them right on the head. `tileSide`
-// picks the class; `ringGeometry.test.ts` holds both sides clear of both heads
-// at every angle.
-.spokeTiles {
-  transform: translate(-50%, 10px);
+.readingMakes {
+  padding: 0 2px;
+  font-family: $font-label;
+  font-size: 10px;
+}
+
+.readingConsumed {
+  text-transform: uppercase;
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: $muted;
+}
+
+// A merged spoke's alternatives, in the slot its members disagree about: the
+// list the ring point never had room for, bracketed so it reads as one term of
+// the recipe rather than as more reagents.
+.readingMembers {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  flex: none;
+  padding: 2px 4px;
+  border: 2px solid rgba(26, 23, 20, 0.25);
+}
 
-  &.above {
-    transform: translate(-50%, calc(-100% - 10px));
+.readingMember {
+  display: block;
+  flex: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
   }
+}
+
+.readingChip {
+  font-family: $font-label;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  color: $body;
+  white-space: nowrap;
+}
+
+.readingHint {
+  font-size: 11px;
+  color: $muted;
 }
 
 // ---- empty state --------------------------------------------------------
@@ -732,10 +820,8 @@ $ring-head-gap: 6px;
     margin: auto 0;
   }
 
-  // Too little room for the words; the product tiles carry the outcome. The
-  // notches go with them, and the key's line about them goes too - a key may
-  // only explain what the screen it is on actually draws.
-  .spokeOutcome,
+  // No room for the notch strip at this width; the key's line about them goes
+  // with it - a key may only explain what the screen it is on actually draws.
   .notches,
   .notchRule,
   .footHint {
@@ -758,6 +844,15 @@ $ring-head-gap: 6px;
     min-height: 44px;
     min-width: 44px;
     justify-content: center;
+  }
+
+  // The reading line is a row of controls on a phone, so its tiles take the
+  // touch floor rather than the 22px the tile itself is drawn at. The band's
+  // own height already has the room - it is the fixed height that keeps the
+  // ring still, and it does not change between the hint and a full recipe.
+  .readingTile,
+  .readingMember {
+    min-height: 46px;
   }
 
   // The key is the same block at the sheet's foot, with the rows free to wrap

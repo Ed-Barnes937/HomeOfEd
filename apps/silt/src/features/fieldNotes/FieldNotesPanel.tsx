@@ -19,23 +19,25 @@ import { ElementRefTile, ElementTile, type TileSize } from './ElementTile.tsx'
 import { elementAppearances, elementTags, type ElementAppearances } from './elementAppearance.ts'
 import type { FieldNotesView } from './fieldNotesView.ts'
 import {
+  CONSUMED,
   LEGEND_RULES,
+  PRODUCT_JOIN,
+  REAGENT_JOIN,
   legendRows,
   pickerRows,
   ringFor,
   strokeOf,
   type ElementRef,
   type Spoke,
+  type SpokeGroup,
 } from './panelModel.ts'
 import {
   arrowPoints,
-  labelPoint,
   RING,
   RING_MIN_PX,
   RING_TILES,
   spokeLine,
   spokePoint,
-  tileSide,
   type RingPoint,
 } from './ringGeometry.ts'
 import styles from './FieldNotesPanel.module.scss'
@@ -92,6 +94,11 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
   // so neither is stored - closing the panel reviews everything anyway.
   const [selected, setSelected] = useState<string | null>(null)
   const [cleared, setCleared] = useState<ReadonlySet<string>>(() => new Set())
+  // Which spoke the reading line is reading (ticket 25). Set by hovering,
+  // focusing or tapping a ring tile, and cleared only by moving the ring to
+  // another element: a spoke stays read after the pointer has left it, so a
+  // stray mouse never wipes the line out from under whoever is reading it.
+  const [active, setActive] = useState<string | null>(null)
   // The key is collapsed by default and remembers nothing (ticket 11): the
   // panel unmounts on close, so there is no state to clear either.
   const [keyOpen, setKeyOpen] = useState(false)
@@ -114,10 +121,18 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
   // there is no entry count to give, nothing left to find that means anything,
   // and nothing to forget either, so the footer goes with it.
   const chart = props.view.totals.interactions.seen > 0 ? ring : null
+  // Looked up rather than held: a spoke can stop existing under the reading
+  // line - the world goes on witnessing behind the panel, and a ring that
+  // crosses the grouping capacity redraws - and an active key that no longer
+  // names a spoke is simply the empty state again.
+  const reading = chart?.spokes.find((spoke) => spoke.key === active) ?? null
 
   const select = (name: string): void => {
     setSelected(name)
     setCleared((current) => new Set(current).add(name))
+    // The line describes a spoke of the ring it was read on, so moving the ring
+    // empties it rather than leaving the last element's entry under the new one.
+    setActive(null)
   }
 
   const armForget = (): void => {
@@ -127,6 +142,7 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
     }
     forget.disarm()
     setSelected(null)
+    setActive(null)
     setCleared(new Set())
     props.onForget()
   }
@@ -268,40 +284,48 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
                 <span className={styles.centre} style={at(RING.centre, RING.centre)}>
                   {tileFor(chart.centre, 56)}
                 </span>
+                {/* The name lives in the header band on a phone (ticket 21) and
+                    in the centre on a desktop; the tag chips left the ring for
+                    the bottom band entirely (ticket 25). */}
                 {phone ? null : (
                   <span className={styles.centreName} style={at(RING.centre, RING.centre)}>
                     <FocusName centre={chart.centre} mastered={chart.mastered} />
                   </span>
                 )}
-                {/* The focused element's sim tags, under its name (ticket 12).
-                    `panelModel` withholds them from anything undiscovered, so
-                    there is no spoiler check to repeat here. */}
-                {chart.centre.tags?.length ? (
-                  <span
-                    className={styles.centreTags}
-                    style={at(RING.centre, RING.centre)}
-                  >
-                    {chart.centre.tags.map((tag) => (
-                      <span key={tag} className={styles.tagChip} data-testid="field-notes-tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </span>
-                ) : null}
-
                 {chart.spokes.map((spoke, index) => (
                   <SpokeView
                     key={spoke.key}
                     spoke={spoke}
                     point={spokePoint(index, chart.spokes.length)}
                     appearances={appearances}
-                    onSelect={select}
+                    onActivate={setActive}
                   />
                 ))}
               </div>
             </div>
           )}
         </div>
+
+        {/* The bottom band (ticket 25): the focused element's chips, then the
+            one place in the panel where words about an interaction happen. The
+            chips describe the ELEMENT and the line describes the SPOKE, which
+            is the stack order - and both sit in a band of a fixed height, so
+            reading a spoke never moves the ring above it. */}
+        {chart ? (
+          <div className={styles.band} data-testid="field-notes-band">
+            {/* The focused element's sim tags (ticket 12, moved here by 25).
+                `panelModel` withholds them from anything undiscovered, so there
+                is no spoiler check to repeat here. */}
+            <div className={styles.chips} data-testid="field-notes-chips">
+              {(chart.centre.tags ?? []).map((tag) => (
+                <span key={tag} className={styles.tagChip} data-testid="field-notes-tag">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <ReadingLineView spoke={reading} appearances={appearances} onSelect={select} />
+          </div>
+        ) : null}
 
         {/* The footer belongs to the ring: an empty chart has no entry count,
             nothing left to find that means anything, and nothing to forget. */}
@@ -310,7 +334,7 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
             <div className={styles.footBar}>
               <span className={styles.footText} data-testid="field-notes-seen">
                 {`${chart.seen} ${chart.seen === 1 ? 'entry' : 'entries'} for ${chart.centre.label}`}
-                <span className={styles.footHint}> · tap any small tile to follow it</span>
+                <span className={styles.footHint}> · tap a tile in the line to follow it</span>
               </span>
 
               <span className={styles.footRight}>
@@ -425,103 +449,241 @@ interface SpokeViewProps {
   spoke: Spoke
   point: RingPoint
   appearances: ElementAppearances
+  /** Reads this spoke into the band: hover, keyboard focus, or a tap (ticket 25). */
+  onActivate: (key: string) => void
+}
+
+/**
+ * One drawn spoke: its partner on the ring and the partner's name under it, and
+ * nothing else. The ring is icons-only since ticket 25 - always-on outcome text
+ * never fitted the arc it had (about ten units of room against labels half again
+ * as wide), so the words moved wholesale into the reading line and the
+ * arrowheads got the line to themselves.
+ *
+ * A ring tile no longer navigates, either: it reads its spoke into the band.
+ * Following an element is the reading line's job, which is what stops a mis-tap
+ * throwing the player onto another element's chart.
+ *
+ * When the ring was too crowded to give every pair its own spoke (ticket 09) the
+ * partner position carries the group's stack of member tiles and a `2/5` chip
+ * instead of one tile and a name - every member still its own control, and any
+ * of them reads the same group into the band.
+ */
+function SpokeView(props: SpokeViewProps) {
+  const { appearances, spoke, point } = props
+  // Hover and keyboard focus are the desktop's two ways in; the click is the
+  // phone's, and does no harm on a mouse that has already hovered.
+  const reads = {
+    onClick: () => props.onActivate(spoke.key),
+    onMouseEnter: () => props.onActivate(spoke.key),
+    onFocus: () => props.onActivate(spoke.key),
+  }
+  // A ring tile is never disabled, undiscovered or not. It used to be, because
+  // it navigated and an undiscovered element is not somewhere the panel will go
+  // (spec §7); it now reads its spoke into the band, and a masked reading is the
+  // one thing the player *is* allowed - `lava + - - -` names nothing. Leaving it
+  // inert would have made a spoke with a hidden partner the one spoke that
+  // could not be read at all. The picker's rows are still inert: those navigate.
+
+  if (spoke.group) {
+    return (
+      <span
+        className={styles.spokeStack}
+        // The two numbers the stylesheet needs to lay the stack out are the
+        // two the capacity was derived from, so they are handed over rather
+        // than written down twice (`ringGeometry.RING_TILES`).
+        style={
+          {
+            ...at(point.x, point.y),
+            '--stack-columns': RING_TILES.columns,
+            '--stack-gap': `${RING_TILES.gap}px`,
+          } as CSSProperties
+        }
+      >
+        {spoke.group.members.map((member) => (
+          <button
+            key={member.key}
+            type="button"
+            className={styles.memberTile}
+            data-testid={`field-notes-spoke-${member.name}`}
+            aria-label={member.label}
+            {...reads}
+          >
+            <ElementRefTile element={member} appearances={appearances} size={RING_TILES.member} />
+          </button>
+        ))}
+        {/* The pairs behind the stack, counted and never named - the
+            still-to-find notches' own rule, said for one spoke (spec §7,
+            decision 9). It hangs off the stack rather than off the ring
+            point, so it stays under a stack of any height. */}
+        <span className={styles.spokeCount} data-testid="field-notes-group-count">
+          {spoke.group.seen}/{spoke.group.total}
+        </span>
+      </span>
+    )
+  }
+
+  // The plain spoke: one tile and the partner's name under it. A group has no
+  // one partner to name, which is what its chip stands in for.
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.spokeTile}
+        style={at(point.x, point.y)}
+        data-testid={`field-notes-spoke-${spoke.partner.name}`}
+        aria-label={spoke.partner.label}
+        {...reads}
+      >
+        <ElementRefTile
+          element={spoke.partner}
+          appearances={appearances}
+          size={RING_TILES.spoke}
+        />
+      </button>
+      <span className={styles.spokeName} style={at(point.x, point.y)}>
+        {spoke.partner.label}
+      </span>
+    </>
+  )
+}
+
+/**
+ * `2/5`: the pairs a merged spoke stands for, counted and never named - the
+ * still-to-find notches' own rule said for one spoke (spec §7, decision 9).
+ * Its test id sits outside the `field-notes-reading-<element>` namespace on
+ * purpose: a chip is not a tile to follow.
+ */
+function GroupChip(props: { group: SpokeGroup }) {
+  return (
+    <span className={styles.readingChip} data-testid="field-notes-line-count">
+      {props.group.seen}/{props.group.total}
+    </span>
+  )
+}
+
+/** The hint the band holds while nothing has been read yet - never a name. */
+const READING_HINT = 'tap a spoke to read it'
+
+interface ReadingLineViewProps {
+  /** The active spoke, or `null` for the quiet hint. */
+  spoke: Spoke | null
+  appearances: ElementAppearances
   onSelect: (name: string) => void
 }
 
 /**
- * One drawn spoke: its partner on the ring, its outcome on the line. When the
- * ring was too crowded to give every pair its own spoke (ticket 09) the partner
- * position carries the group's stack of member tiles and a `2/5` chip instead
- * of one tile and a name - every member still its own control, so a discovered
- * one is still the way into its entry.
+ * The reading line (ticket 25): the active spoke as a recipe row - tiles with
+ * their names beside them, `lava + water -> steam · obsidian`. It is the one
+ * place in the panel that says anything about an interaction, so it is also the
+ * whole of the spoiler surface: every label here is `panelModel`'s, masked.
+ *
+ * Its tiles are where following an element lives now. The band's height is
+ * fixed in the stylesheet whether it holds a recipe or the hint, so the ring
+ * above it never jumps as the player moves along the spokes.
  */
-function SpokeView(props: SpokeViewProps) {
-  const { appearances, spoke, point } = props
-  // One point for the words and the tiles that hang off them, and it steps
-  // clear of the arrowheads rather than sitting on one (`labelPoint`).
-  const outcome = labelPoint(point)
-  // The tiles take the side of that point the outward head is not on, so they
-  // clear it at every angle rather than only on the ring's upper half
-  // (ticket 17, absorbed into 09).
-  const above = tileSide(point) < 0
+function ReadingLineView(props: ReadingLineViewProps) {
+  const { spoke } = props
+  // The members are drawn as a list only when there is a choice between them.
+  const group = spoke?.reading.group
+  const alternatives = group && group.members.length > 1 ? group : null
+
+  const tile = (element: ElementRef, key: string) => (
+    <button
+      key={key}
+      type="button"
+      className={styles.readingTile}
+      data-testid={`field-notes-reading-${element.name}`}
+      disabled={!element.discovered}
+      onClick={() => props.onSelect(element.name)}
+    >
+      <ElementRefTile element={element} appearances={props.appearances} size={22} />
+      <span className={styles.readingName}>{element.label}</span>
+    </button>
+  )
+
+  /** One side of the recipe: its tiles, with `join` between them rather than run together. */
+  const side = (elements: readonly ElementRef[], join: string) =>
+    elements.flatMap((element, index) => [
+      ...(index > 0
+        ? [
+            <span key={`join-${element.name}-${index}`} className={styles.readingJoin}>
+              {join}
+            </span>,
+          ]
+        : []),
+      tile(element, `${element.name}-${index}`),
+    ])
 
   return (
-    <>
-      {spoke.group ? (
-        <span
-          className={styles.spokeStack}
-          // The two numbers the stylesheet needs to lay the stack out are the
-          // two the capacity was derived from, so they are handed over rather
-          // than written down twice (`ringGeometry.RING_TILES`).
-          style={{
-            ...at(point.x, point.y),
-            '--stack-columns': RING_TILES.columns,
-            '--stack-gap': `${RING_TILES.gap}px`,
-          } as CSSProperties}
-        >
-          {spoke.group.members.map((member) => (
-            <button
-              key={member.key}
-              type="button"
-              className={styles.memberTile}
-              data-testid={`field-notes-spoke-${member.name}`}
-              disabled={!member.discovered}
-              aria-label={member.label}
-              onClick={() => props.onSelect(member.name)}
-            >
-              <ElementRefTile element={member} appearances={appearances} size={RING_TILES.member} />
-            </button>
-          ))}
-          {/* The pairs behind the stack, counted and never named - the
-              still-to-find notches' own rule, said for one spoke (spec §7,
-              decision 9). It hangs off the stack rather than off the ring
-              point, so it stays under a stack of any height. */}
-          <span className={styles.spokeCount} data-testid="field-notes-group-count">
-            {spoke.group.seen}/{spoke.group.total}
-          </span>
-        </span>
+    // Polite rather than assertive, and polite is what makes it bearable on a
+    // mouse: a sweep across the ring refills this several times a second, and a
+    // polite region waits for a pause and announces the last of them. A
+    // keyboard, which moves one spoke at a time, gets one reading per spoke -
+    // and without this it would get none, since the line is not where focus is.
+    <div
+      className={styles.reading}
+      data-testid="field-notes-reading"
+      role="status"
+      aria-live="polite"
+    >
+      {spoke === null ? (
+        <span className={styles.readingHint}>{READING_HINT}</span>
       ) : (
-        // The plain spoke: one tile and the partner's name under it. A group
-        // has no one partner to name, which is what its chip stands in for.
         <>
-          <button
-            type="button"
-            className={styles.spokeTile}
-            style={at(point.x, point.y)}
-            data-testid={`field-notes-spoke-${spoke.partner.name}`}
-            disabled={!spoke.partner.discovered}
-            aria-label={spoke.partner.label}
-            onClick={() => props.onSelect(spoke.partner.name)}
-          >
-            <ElementRefTile element={spoke.partner} appearances={appearances} size={RING_TILES.spoke} />
-          </button>
-          <span className={styles.spokeName} style={at(point.x, point.y)}>
-            {spoke.partner.label}
-          </span>
+          {side(spoke.reading.reagents, REAGENT_JOIN)}
+          {/* A merged spoke's alternatives, in the reagent slot its members
+              disagree about (ticket 09) - the list the ring had no room for,
+              silhouettes and all. A group of one has nothing to choose between,
+              so its member stays a plain reagent of the recipe above and only
+              the chip is drawn, at the end of the line. */}
+          {alternatives ? (
+            <>
+              {spoke.reading.reagents.length > 0 ? (
+                <span className={styles.readingJoin}>{REAGENT_JOIN}</span>
+              ) : null}
+              <span className={styles.readingMembers}>
+                {alternatives.members.map((member) => (
+                  <button
+                    key={member.key}
+                    type="button"
+                    className={styles.readingMember}
+                    data-testid={`field-notes-reading-${member.name}`}
+                    disabled={!member.discovered}
+                    aria-label={member.label}
+                    onClick={() => props.onSelect(member.name)}
+                  >
+                    <ElementRefTile
+                      element={member}
+                      appearances={props.appearances}
+                      size={RING_TILES.member}
+                    />
+                  </button>
+                ))}
+                <GroupChip group={alternatives} />
+              </span>
+            </>
+          ) : null}
+          {/* A stage of one element's own life has no right-hand side at all:
+              the model empties it rather than pointing an arrow at itself. */}
+          {spoke.reading.products.length > 0 || spoke.reading.consumed ? (
+            <>
+              <span className={styles.readingMakes}>-&gt;</span>
+              {spoke.reading.consumed ? (
+                <span className={styles.readingConsumed}>{CONSUMED}</span>
+              ) : (
+                side(spoke.reading.products, PRODUCT_JOIN)
+              )}
+            </>
+          ) : null}
+          {/* The chip a lone member's recipe still owes: it is the only thing
+              saying the pair is one of several, so it never goes missing just
+              because there was nothing to list. */}
+          {spoke.reading.group && !alternatives ? (
+            <GroupChip group={spoke.reading.group} />
+          ) : null}
         </>
       )}
-      <span className={styles.spokeOutcome} style={at(outcome.x, outcome.y)}>
-        {spoke.outcome}
-      </span>
-      <span
-        className={`${styles.spokeTiles} ${above ? styles.above : ''}`}
-        data-testid="field-notes-tiles"
-        style={at(outcome.x, outcome.y)}
-      >
-        {spoke.tiles.map((product) => (
-          <button
-            key={product.name}
-            type="button"
-            className={styles.productTile}
-            data-testid={`field-notes-product-${product.name}`}
-            disabled={!product.discovered}
-            aria-label={product.label}
-            onClick={() => props.onSelect(product.name)}
-          >
-            <ElementRefTile element={product} appearances={appearances} size={18} />
-          </button>
-        ))}
-      </span>
-    </>
+    </div>
   )
 }

@@ -7,6 +7,13 @@
  * It lives beside the panel rather than inside it because a layout that can be
  * wrong (a spoke behind the centre tile, an arrowhead pointing the wrong way)
  * is worth a vitest case, and none of it needs a DOM.
+ *
+ * There is no label arithmetic here any more. Ticket 10 spent a module on
+ * stepping outcome words clear of the arrowheads; ticket 20's measurement then
+ * found the words could never fit at all - about 10.4 arc units of room per
+ * spoke at the ring's capacity, against labels half again as wide - so ticket 25
+ * moved every word into the reading line under the ring and the ring became
+ * icons and arrowheads. What is left is the geometry the drawing still needs.
  */
 
 /** The box everything below is measured in: percentages of the ring's square. */
@@ -17,16 +24,8 @@ export const RING = {
   centreInset: 8,
   /** Where it stops, clear of the 40px ring tile. */
   tileInset: 6,
-  /** How far along the spoke the outcome words sit. */
-  outcomeAt: 0.62,
   /** Length of an arrowhead, along the line it sits on. */
   arrow: 3.2,
-  /**
-   * Half the outcome words' line box: the 11px text and 1px padding of
-   * `.spokeOutcome` (`FieldNotesPanel.module.scss`), in ring units at the 560px
-   * desktop ring. Change that rule's font and this number moves with it.
-   */
-  labelHalfHeight: 1.5,
 } as const
 
 /**
@@ -106,71 +105,6 @@ export function spokeLine(point: RingPoint): Segment {
       y: point.y - point.uy * RING.tileInset,
     },
   }
-}
-
-/**
- * The outcome's anchor on the spoke: where the words would sit if nothing were
- * in their way. `labelPoint` is what the panel actually draws them at.
- */
-export function outcomePoint(point: RingPoint): { x: number; y: number } {
-  return {
-    x: RING.centre + (point.x - RING.centre) * RING.outcomeAt,
-    y: RING.centre + (point.y - RING.centre) * RING.outcomeAt,
-  }
-}
-
-/**
- * Where the outcome words and their product tiles actually sit: `outcomePoint`
- * stepped across the line, so the words stop covering the arrowhead that says
- * which end of the edge is the product.
- *
- * The words are a wide, short box that does not turn with the spoke, so how
- * much of the line they hide depends entirely on the angle. Near the vertical
- * their short side lies along the line and the arrowheads are well clear -
- * those labels keep exactly the place they had, which is why the step scales by
- * `|ux|`. Near the horizontal the box lies *along* the line and reaches an
- * arrowhead however long or short the words are: the way out is across the
- * line, not along it, so the label's width does not come into it.
- *
- * The side to step to is the one the spoke's outward end is not on - an
- * ascending spoke's words drop below its line, a descending one's rise above
- * it. Stepping the other way would carry the box over the outward head instead
- * of away from it.
- *
- * The product tiles ride along, because they hang off this same point. They
- * hang *below* it whatever the spoke does, though, which is a placement of
- * their own: on a downward spoke they have always sat close to the outward head
- * and they still do. The step never leaves them closer to one than that
- * (`ringGeometry.test.ts` pins the floor); giving them a side of their own is a
- * change to how the panel draws them, not to where this point is.
- */
-export function labelPoint(point: RingPoint): { x: number; y: number } {
-  const anchor = outcomePoint(point)
-  // Half the words plus a whole arrowhead: at the horizontal, where the step is
-  // at its longest, that clears the head's tip and the body behind it.
-  const step = (RING.labelHalfHeight + RING.arrow) * Math.abs(point.ux)
-  const side = -(Math.sign(point.ux) || 1) * (Math.sign(point.uy) || 1)
-  return {
-    x: anchor.x + side * -point.uy * step,
-    y: anchor.y + side * point.ux * step,
-  }
-}
-
-/**
- * Which side of `labelPoint` the product tiles hang off: -1 above it, +1 below
- * (ticket 17, absorbed into 09). The words got a side of their own from the
- * step across the line; the tiles hang a fixed distance off that point, so near
- * the vertical the step is nothing and the side is the whole fix.
- *
- * The rule is the same one the words follow, read down instead of across: go to
- * the side the spoke's outward end is not on. A downward spoke's outward head
- * is below its label, so the tiles go above; an upward spoke's is above, so
- * they stay below, which is where they have always hung. On the horizontal
- * neither head is above or below, and the tiles take the side the words
- * stepped to - up - rather than a coin toss.
- */
-export function tileSide(point: RingPoint): -1 | 1 {
-  return point.uy < 0 ? 1 : -1
 }
 
 /**

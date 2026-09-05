@@ -138,12 +138,16 @@ test('field notes opens as a full-screen sheet whose picker is still tappable', 
 
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
-  // The tag chips sit at a fixed offset under the centre name, so the sheet's
-  // smaller ring is the layout that could bury them under a spoke tile
-  // (ticket 12).
-  await root.verifyFocusedNoteTagsAreClearOfTheRing()
+  // The chips and the reading line are one band under the ring (ticket 25), in
+  // that order: the chips describe the element, the line describes the spoke.
+  await root.verifyBottomBandOrder()
 
-  await root.followProduct('obsidian')
+  // The phone's way in is the tap: on the ring it reads the spoke, and in the
+  // band it follows the element. Both are touch targets at this width.
+  await root.readSpoke('lava')
+  expect(await root.focusedNote()).toBe('water')
+  await root.verifyTouchTargetSize('field-notes-reading-obsidian')
+  await root.followReadingTile('obsidian')
   expect(await root.focusedNote()).toBe('obsidian')
 
   await root.verifyNoHorizontalPageOverflow()

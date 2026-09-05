@@ -1,6 +1,6 @@
 # 25 - The reading line: one place under the ring where words happen
 
-**Status:** ready-for-agent
+**Status:** done (built on ticket-25-reading-line, 2026-09-05)
 **Type:** task
 **Absorbs:** 19 (tag chips to the bottom band - same band, explicit stack
 order, land together)
@@ -9,6 +9,8 @@ order, land together)
 not in agent worktrees; everything needed is restated here). Ed adopted the
 recommendation 2026-09-05.
 **Spec:** [../spec.md](../spec.md) §6 (amend the ring's label story), §7.
+**ADR:** [0051](../../../docs/adr/0051-silt-the-reading-line.md) - the ring
+goes icons-only, and the four calls this ticket left open (see Built).
 
 The research's load-bearing finding: always-on per-spoke labels are
 geometrically impossible at the ring's own constants (about 10.4 arc units of
@@ -57,3 +59,30 @@ icons-only graph, one detail region for the active node.
   vs filled; chips stacked above the line.
 - Spoiler: a spoke naming a hidden element renders the hidden name in the
   reading line only, masked.
+
+## Built
+
+- `panelModel`: `Spoke.outcome` and `Spoke.tiles` are gone; a spoke carries a
+  `ReadingLine` instead - the whole entry as masked refs, `consumed` telling a
+  zero-product entry from a stage (which reads as its one element, no arrow),
+  and `members` for a merged spoke's alternatives. Grouping now folds on the
+  *reagents* the members share, which is the same stack it produced before and
+  a directly useful recipe; the `…` is gone with the words it stood in for.
+- `ringGeometry`: `labelPoint`, `outcomePoint`, `tileSide`, `RING.outcomeAt`
+  and `RING.labelHalfHeight` retired with their tests (ticket 10 and 17's two
+  describes). Arrowheads, insets, the tile box and the capacity all stand.
+- The panel: a `.band` between the body and the footer holds the chips row then
+  the reading line, both fixed height. Ring tiles read a spoke into the band on
+  hover, focus or tap; reading-line tiles navigate.
+- Decisions this ticket did not make, all recorded in ADR 0051: the enabled
+  ring tile, the sticky active spoke, the stage's missing right-hand side, and
+  the reading line's polite live region.
+- **Deviation worth knowing**: a ring tile is no longer `disabled` for an
+  undiscovered element. It used to be because it navigated; it now reads, and a
+  masked reading names nothing - leaving it inert would have made a spoke with
+  a hidden partner the one spoke that could not be read. The picker's rows are
+  still inert.
+- The active spoke is sticky: hovering fills the line and moving away leaves it
+  filled. Only selecting another element (or forgetting discoveries) empties
+  it. A hover that wiped the line as the pointer left would take it away from
+  whoever was reading it.

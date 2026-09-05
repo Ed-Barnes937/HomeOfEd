@@ -79,7 +79,7 @@ test('an undiscovered element keeps its slot as a "?" and cannot be picked (spec
   expect(await root.focusedNote()).toBe('water')
 })
 
-test('the ring draws only witnessed entries, and a product tile follows itself', async ({
+test('the ring draws only witnessed entries, and reading one is a tap on it', async ({
   mountApp,
   page,
 }) => {
@@ -94,18 +94,63 @@ test('the ring draws only witnessed entries, and a product tile follows itself',
   expect(await root.noteSpokeCount()).toBe(1)
   expect(await root.noteStillToFind()).toBe('9')
 
-  // Tapping the outcome's own tile is the way into its entry (spec §6).
-  await root.followProduct('obsidian')
+  // Nothing read yet: the band holds its hint, and it is the same height as it
+  // will be with a recipe in it (ticket 25).
+  expect(await root.readingLine()).toContain('tap a spoke')
+  const empty = await root.readingBandHeight()
+
+  // A tap on the ring reads the spoke into the band. It does *not* navigate -
+  // that is the whole point: a mis-tap no longer throws you onto lava's chart.
+  await root.readSpoke('lava')
+  expect(await root.focusedNote()).toBe('water')
+  expect((await root.readingLine()).toLowerCase()).toContain('lava')
+  expect((await root.readingLine()).toLowerCase()).toContain('obsidian')
+  expect(await root.readingLineTiles()).toEqual(['lava', 'water', 'steam', 'obsidian'])
+  expect(await root.readingBandHeight()).toBe(empty)
+
+  // Following an element is the reading line's job now (spec §6).
+  await root.followReadingTile('obsidian')
   expect(await root.focusedNote()).toBe('obsidian')
   // Obsidian is made by the one pair, which is witnessed: nothing left to find.
   expect(await root.noteStillToFind()).toBe('0')
+  // And the new ring starts unread rather than carrying the last one's line.
+  expect(await root.readingLine()).toContain('tap a spoke')
 
-  // And the ring's own tile follows too - back the way it came.
-  await root.followSpoke('lava')
+  await root.readSpoke('lava')
+  await root.followReadingTile('lava')
   expect(await root.focusedNote()).toBe('lava')
 })
 
-test('the focused element wears its sim tags under its name (ticket 12)', async ({
+/**
+ * The desktop's own two ways into the band (ticket 25): the pointer and the tab
+ * key. The phone has the tap, which the case above covers - one band, three
+ * ways in, so a mouse never has to click to read and a keyboard never has to
+ * hover.
+ */
+test('hovering a spoke reads it into the band, and so does keyboard focus', async ({
+  mountApp,
+  page,
+}) => {
+  await seedWitnessed(page, SEEDED)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openFieldNotes()
+
+  await root.selectNote('fire')
+  expect(await root.readingLine()).toContain('tap a spoke')
+
+  await root.hoverSpoke('smoke')
+  expect((await root.readingLine()).toLowerCase()).toContain('smoke')
+
+  // A different element's ring starts empty again, and the tab key fills it
+  // without a pointer anywhere near the ring.
+  await root.selectNote('water')
+  expect(await root.readingLine()).toContain('tap a spoke')
+  await root.focusSpoke('lava')
+  expect((await root.readingLine()).toLowerCase()).toContain('steam')
+})
+
+test('the focused element wears its sim tags in the bottom band (ticket 12)', async ({
   mountApp,
   page,
 }) => {
@@ -123,6 +168,9 @@ test('the focused element wears its sim tags under its name (ticket 12)', async 
 
   await root.selectNote('water')
   expect(await root.focusedNoteTags()).not.toContain('flammable')
+  // Chips above the reading line, both under the ring (ticket 25): the chips
+  // describe the element, the line describes the spoke.
+  await root.verifyBottomBandOrder()
 })
 
 /**
@@ -142,6 +190,13 @@ test('nothing in the panel names an element the player has not discovered', asyn
 
   await root.selectNote('stone')
   expect(await root.focusedNote()).toBe('stone')
+  // With the spoke read into the band, since ticket 25 that band is the one
+  // place in the panel where an interaction is put into words at all - so this
+  // is the assertion that has to hold there above anywhere else.
+  // Lava is the tile on the ring; the pair's other half is the one that has
+  // never been discovered, and the line is where it would be named.
+  await root.readSpoke('lava')
+  expect(await root.readingLine()).toContain('- - -')
 
   const shown = (await root.fieldNotesText()).toLowerCase()
   expect(shown).toContain('stone')
@@ -519,20 +574,32 @@ test("fire's crowded ring draws as stacks, and every pair stays reachable", asyn
   expect(await root.noteSpokeCount()).toBe(18)
   expect(await root.noteGroupCounts()).toEqual(['6/6', '5/5'])
 
-  // And a member of a stack is still the way into its own entry. Seed is in
-  // both stacks - lava melts it, fire burns it - and every tile of it leads to
-  // the same ring, which is the whole point of following one.
-  await root.followSpoke('seed')
+  // And a member of a stack is still the way into its own entry, in two steps
+  // rather than one since ticket 25: the tile reads the whole group into the
+  // band - members listed properly, chip and all, where the merged spoke used
+  // to write "…" - and the band is where following happens.
+  await root.readSpoke('seed')
+  expect(await root.focusedNote()).toBe('fire')
+  // Members listed properly where the merged spoke used to write "…", and the
+  // chip that says how many pairs like it there are in all.
+  expect(await root.readingLine()).not.toContain('…')
+  expect(await root.readingLineCount()).toBe('6/6')
+  expect(await root.readingLineTiles()).toContain('seed')
+
+  await root.followReadingTile('seed')
   expect(await root.focusedNote()).toBe('seed')
 })
 
 /**
- * Ticket 17, absorbed into 09: the phone is where the tiles are all that is
- * drawn - the outcome words are hidden at this width - so a tile row sitting on
- * an arrowhead is the whole spoke misreading. Every angle is pinned in
- * `ringGeometry.test.ts`; this is that arithmetic reaching a real layout.
+ * The band's fixed height (ticket 25), at the width it matters at: a phone.
+ * The ring is sized off the viewport here, so a band that grew as a spoke was
+ * read would push the ring - and every spoke of it - out from under the finger
+ * that had just tapped one.
  */
-test('the product tiles clear the arrowheads on a downward spoke', async ({ mountApp, page }) => {
+test('the reading line is the same box empty and read, at phone width', async ({
+  mountApp,
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 780 })
   await seedWitnessed(page, entryIndex().witnessKeysFor('steam'))
   const { root } = await mountApp()
@@ -540,10 +607,21 @@ test('the product tiles clear the arrowheads on a downward spoke', async ({ moun
   await root.openFieldNotes()
 
   // Steam's ring is nearly all arrowheads - five pairs make it, one decay
-  // leaves it - and six spokes put one at six o'clock, pointing straight down.
+  // leaves it - and six spokes are enough to read one after another.
   await root.selectNote('steam')
   expect(await root.focusedNote()).toBe('steam')
   expect(await root.noteDrawnSpokeCount()).toBe(6)
 
-  await root.verifySpokeTilesClearArrowheads()
+  const empty = await root.readingBandHeight()
+  expect(await root.readingLine()).toContain('tap a spoke')
+
+  await root.readSpoke('water')
+  expect((await root.readingLine()).toLowerCase()).toContain('water')
+  expect(await root.readingBandHeight()).toBe(empty)
+
+  await root.readSpoke('lava')
+  expect(await root.readingBandHeight()).toBe(empty)
+  // A recipe wider than the sheet scrolls inside the band rather than widening
+  // it, which is what would push the whole panel sideways.
+  await root.verifyReadingLineFitsThePanel()
 })

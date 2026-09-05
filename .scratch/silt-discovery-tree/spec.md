@@ -203,11 +203,27 @@ element at a time, so the picture does not get busier as the roster grows.
   `- - -` for the name, and are not selectable. Layout is deterministic from
   the data - no hand-placed nodes.
 - **Ring**: the selected element centred, one spoke per **witnessed** entry.
-  A spoke carries its outcome as text plus the product elements' own small
-  tiles, which are tappable (focus follows). Unwitnessed entries are never
-  drawn; a `still to find: n` row with empty notches counts what remains
-  without naming it (decision 9). Zero-product edges are entries too - they
-  read "both consumed".
+  The ring is **icons-only**: a tile at each spoke point, its name under it, and
+  the arrowhead - no words along the line. Ticket 20's measurement is why (the
+  ring has about 10.4 arc units of label room per spoke at capacity, against
+  labels up to 16), and ticket 25 is the change; PoE, constellation UIs and
+  Neo4j Bloom all land in the same place. Unwitnessed entries are never drawn;
+  a `still to find: n` row with empty notches counts what remains without
+  naming it (decision 9).
+- **The reading line**: one fixed-height band under the ring holding the
+  **active** spoke - hovered or keyboard-focused on desktop, tapped on phone -
+  as a recipe row of tiles with their names: `lava + water -> steam · obsidian`.
+  Zero-product edges are entries too and read "both consumed"; a stage of one
+  element's own life (ticket 08) reads as that element alone, since an arrow
+  from a thing to itself says nothing; a merged spoke (ticket 09) lists its
+  members in the reagent slot they differ in, with its `2/5` chip. The band's
+  height never changes - an unread ring shows a quiet hint - so the ring above
+  never jumps. **Tapping is split in two**: a ring tile *reads* its spoke into
+  the band, and a tile *in the band* is what follows an element, so a mis-tap
+  on the ring no longer throws the player onto another element's chart.
+- **The bottom band** is those two rows: the focused element's tag chips
+  (ticket 12) first, because they describe the ELEMENT, then the reading line,
+  because it describes the SPOKE.
 - **One definition of "an entry"**: an edge counts for an element when the
   element is a reagent *or* a product. The picker count, the ring, the
   still-to-find footer and the unlock chip all read the same predicate -
@@ -250,7 +266,11 @@ element at a time, so the picture does not get busier as the roster grows.
   `still to find: n` notches and per-row `seen/total` counts stand in for the
   brief's faint dashed edges.
 - The invariant, from the design notes: **nothing in the panel - not even the
-  NEW list - may name a hidden element's name, hex or products.**
+  NEW list - may name a hidden element's name, hex or products.** Since ticket
+  25 the reading line is the only place the panel puts an interaction into
+  words at all, so the invariant has one text site to hold rather than up to
+  two dozen per ring. A ring tile is a control whatever its element's state -
+  it reads a spoke rather than navigating, and a masked reading names nothing.
 - Alternatives considered: full fog (only counts visible - makes the panel
   useless as a goal map) and full reveal (kills the mystery).
 

@@ -238,42 +238,38 @@ export class SiltPagePom extends BasePage {
   }
 
   /**
-   * The tag chips under the ring centre's name, in the order they are drawn.
-   * `allTextContents`, not `allInnerTexts`: the chips are uppercased in CSS, and
-   * the words the model chose are what this is asserting.
+   * The focused element's tag chips, in the order they are drawn - in the bottom
+   * band since ticket 25, above the reading line. `allTextContents`, not
+   * `allInnerTexts`: the chips are uppercased in CSS, and the words the model
+   * chose are what this is asserting.
    */
   async focusedNoteTags(): Promise<string[]> {
     return this.page.getByTestId('field-notes-tag').allTextContents()
   }
 
   /**
-   * The chips sit at a fixed px offset under the centre name while the ring
-   * itself is sized off the viewport, so the phone sheet's smaller ring is the
-   * one layout where they could end up under a spoke tile (ticket 12). Asserts
-   * they are drawn and that no spoke tile overlaps them.
+   * The band's stack order (ticket 25): the ring, then the chips - they describe
+   * the ELEMENT - then the reading line, which describes the active SPOKE. The
+   * chips left the ring's fixed px offset to get here, so what this replaces is
+   * the old "are they clear of a spoke tile" check: nothing of the band is on
+   * the ring at all now.
    */
-  async verifyFocusedNoteTagsAreClearOfTheRing(): Promise<void> {
-    const chips = this.page.getByTestId('field-notes-tag')
-    await expect(chips.first()).toBeVisible()
+  async verifyBottomBandOrder(): Promise<void> {
+    // The chips are out of the ring altogether, which is the move itself: they
+    // used to hang off the centre at a fixed px offset. Containment rather than
+    // geometry, because the ring is bigger than the box that scrolls it.
+    await expect(
+      this.page.locator('[data-testid="field-notes-ring"] [data-testid="field-notes-tag"]'),
+    ).toHaveCount(0)
+    await expect(this.page.getByTestId('field-notes-band').getByTestId('field-notes-tag').first()).toBeVisible()
 
-    const boxes = await chips.all().then((all) => Promise.all(all.map((chip) => chip.boundingBox())))
-    const tiles = await this.page
-      .getByTestId(/^field-notes-spoke-/)
-      .all()
-      .then((all) => Promise.all(all.map((tile) => tile.boundingBox())))
+    const chip = await this.page.getByTestId('field-notes-tag').first().boundingBox()
+    const line = await this.page.getByTestId('field-notes-reading').boundingBox()
+    expect(chip).not.toBeNull()
+    expect(line).not.toBeNull()
+    if (!chip || !line) return
 
-    for (const chip of boxes) {
-      expect(chip).not.toBeNull()
-      for (const tile of tiles) {
-        if (!chip || !tile) continue
-        const apart =
-          chip.x + chip.width <= tile.x ||
-          tile.x + tile.width <= chip.x ||
-          chip.y + chip.height <= tile.y ||
-          tile.y + tile.height <= chip.y
-        expect(apart).toBe(true)
-      }
-    }
+    expect(line.y).toBeGreaterThanOrEqual(chip.y + chip.height)
   }
 
   /**
@@ -414,18 +410,76 @@ export class SiltPagePom extends BasePage {
     await expect(row).toContainText('?')
   }
 
-  /** Follows a product tile under a spoke's words - the way into its own entry. */
-  async followProduct(name: string): Promise<void> {
-    await this.page.getByTestId(`field-notes-product-${name}`).click()
+  /**
+   * Follows a tile in the reading line - the way into its own entry, and since
+   * ticket 25 the only way: the ring's own tiles select into the band instead.
+   * The first of them, because a recipe can name one element twice.
+   */
+  async followReadingTile(name: string): Promise<void> {
+    await this.page.getByTestId(`field-notes-reading-${name}`).first().click()
   }
 
   /**
-   * Follows the element on the ring itself. The first of them: a ring can draw
-   * one element on several spokes - and, since ticket 09, in several stacks -
-   * and every tile with that name leads to the same place.
+   * Taps an element on the ring, which reads its spoke into the band (ticket
+   * 25) rather than navigating. The first of them: a ring can draw one element
+   * on several spokes - and, since ticket 09, in several stacks.
    */
-  async followSpoke(name: string): Promise<void> {
+  async readSpoke(name: string): Promise<void> {
     await this.page.getByTestId(`field-notes-spoke-${name}`).first().click()
+  }
+
+  /** The desktop's other two ways into the band: the pointer, and the tab key. */
+  async hoverSpoke(name: string): Promise<void> {
+    await this.page.getByTestId(`field-notes-spoke-${name}`).first().hover()
+  }
+
+  async focusSpoke(name: string): Promise<void> {
+    const tile = this.page.getByTestId(`field-notes-spoke-${name}`).first()
+    await tile.focus()
+    // Proof it is really focusable rather than merely asked to be: a disabled
+    // or `tabindex=-1` tile would take no focus, and a keyboard could never
+    // reach the reading line at all.
+    await expect(tile).toBeFocused()
+  }
+
+  /**
+   * What the reading line says: the active spoke's recipe, or the hint. Every
+   * word of it is masked by `panelModel`, which is what makes this the one text
+   * site the spoiler policy has to hold (ticket 25).
+   */
+  async readingLine(): Promise<string> {
+    return (await this.page.getByTestId('field-notes-reading').innerText()) ?? ''
+  }
+
+  /**
+   * The tiles the reading line offers to follow, in the order it draws them.
+   * Every id under `field-notes-reading-` is an element: the group chip has an
+   * id of its own, so no name has to be filtered back out of the namespace.
+   */
+  async readingLineTiles(): Promise<string[]> {
+    const tiles = await this.page.getByTestId(/^field-notes-reading-/).all()
+    const ids = await Promise.all(tiles.map((tile) => tile.getAttribute('data-testid')))
+    return ids.flatMap((id) => (id ? [id.replace('field-notes-reading-', '')] : []))
+  }
+
+  /** A long recipe scrolls inside the band rather than widening the panel. */
+  async verifyReadingLineFitsThePanel(): Promise<void> {
+    const line = await this.page.getByTestId('field-notes-reading').boundingBox()
+    const panel = await this.notesPanel.boundingBox()
+    expect(line).not.toBeNull()
+    expect(panel).not.toBeNull()
+    if (!line || !panel) return
+    expect(line.width).toBeLessThanOrEqual(panel.width)
+  }
+
+  /**
+   * The band's height, which must not move between the hint and a full recipe -
+   * a band that grew as a spoke was read would jump the ring above it.
+   */
+  async readingBandHeight(): Promise<number> {
+    const box = await this.page.getByTestId('field-notes-band').boundingBox()
+    expect(box).not.toBeNull()
+    return box?.height ?? 0
   }
 
   /** Every tile on the ring: one per spoke, or one per member of a merged one. */
@@ -443,39 +497,10 @@ export class SiltPagePom extends BasePage {
     return this.page.getByTestId('field-notes-group-count').allTextContents()
   }
 
-  /**
-   * Ticket 17: the product tiles used to hang below their point whatever the
-   * spoke did, which put them on top of the outward arrowhead on the ring's
-   * lower half - worst on a phone, where the words are hidden and the tiles are
-   * all that is drawn. Asserts no tile row overlaps any arrowhead.
-   */
-  async verifySpokeTilesClearArrowheads(): Promise<void> {
-    const tiles = await this.page
-      .getByTestId('field-notes-tiles')
-      .all()
-      .then((all) => Promise.all(all.map((row) => row.boundingBox())))
-    const heads = await this.page
-      .locator('[data-testid="field-notes-ring"] polygon')
-      .all()
-      .then((all) => Promise.all(all.map((head) => head.boundingBox())))
-
-    // Both sides have to be on the screen for the comparison to mean anything:
-    // a sheet that stopped drawing either would otherwise pass this vacuously.
-    expect(heads.length).toBeGreaterThan(0)
-    expect(tiles.filter((row) => row && row.width > 0).length).toBeGreaterThan(0)
-
-    for (const row of tiles) {
-      if (!row || row.width === 0) continue
-      for (const head of heads) {
-        if (!head) continue
-        const apart =
-          row.x + row.width <= head.x ||
-          head.x + head.width <= row.x ||
-          row.y + row.height <= head.y ||
-          head.y + head.height <= row.y
-        expect(apart).toBe(true)
-      }
-    }
+  /** The reading line's own `2/5` chip, when the spoke it holds is a merged one. */
+  async readingLineCount(): Promise<string> {
+    const chip = this.page.getByTestId('field-notes-line-count')
+    return (await chip.count()) === 0 ? '' : ((await chip.textContent()) ?? '')
   }
 
   async noteStillToFind(): Promise<string> {

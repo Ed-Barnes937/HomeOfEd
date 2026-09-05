@@ -79,7 +79,8 @@ src/
                               picker rows and one element's ring as data, incl.
                               the masking every rendered name goes through,
                               the allowlist deciding which sim tags a player
-                              ever reads, the footer key's rows, and
+                              ever reads, the reading line's recipe for the
+                              active spoke (ticket 25), the footer key's rows, and
                               `strokeOf` - the one place a line kind becomes a
                               stroke, so a spoke and its sample in the key
                               cannot disagree; ElementTile - *the* tile helper,
@@ -435,7 +436,15 @@ else touches it.
   `ElementRefTile` is the only thing that decides whether a colour may be drawn
   at all: a hidden element's hex is as much a spoiler as its name (spec §7), and
   every name the panel renders goes through `panelModel`'s `refOf`, which is
-  why the invariant is a vitest case and not a review habit. The masking is not
+  why the invariant is a vitest case and not a review habit.
+  **The reading line is the panel's one text site for an interaction** (ticket
+  25): the ring draws tiles and arrowheads only, and the band under it renders
+  the *active* spoke - hovered, focused or tapped - as a recipe of tiles
+  (`Spoke.reading`). That is also why the two taps differ: a ring tile *reads*
+  its spoke into the band, a band tile *follows* an element. A ring tile is
+  therefore never disabled - a masked reading names nothing, and disabling it
+  would leave a spoke with a hidden partner the one spoke nobody could read
+  ([ADR 0051](../../docs/adr/0051-silt-the-reading-line.md)). The masking is not
   hypothetical - a pre-trim scene restores painted mud, so `react:lava+mud` can
   be witnessed while mud itself has never been discovered. **A second spoiler
   surface now rides the same seam**: an element's tag chips (ticket 12) are
