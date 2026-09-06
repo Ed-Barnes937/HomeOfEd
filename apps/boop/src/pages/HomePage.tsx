@@ -34,6 +34,7 @@ import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
 import { MAX_CLIPS, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
+import { useFavourites } from '../persistence/useFavourites.ts'
 import { useWorkingSong } from '../persistence/useWorkingSong.ts'
 import { afterEdit, isUnsaved, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
@@ -160,6 +161,10 @@ export function HomePage() {
   // The restore hands back the whole autosaved song, its active clip and tempo
   // already in the engine; adopting it here is what un-gates the render below.
   const restoredSong = useWorkingSong(engine, song, sharedBoop.current, firstVisitSong)
+
+  // Favourite sounds (ticket 01) — a preference under its own key, not part of
+  // the save document.
+  const { favourites, toggle: toggleFavourite } = useFavourites()
 
   useEffect(() => {
     if (restoredSong) setSong(restoredSong)
@@ -1048,6 +1053,8 @@ export function HomePage() {
           colorVar={pickerHue}
           onChoose={pickerTarget === 'add' ? addRowToClip : chooseRowInstrument}
           onClose={() => setPickerTarget(null)}
+          favourites={favourites}
+          onToggleFavourite={toggleFavourite}
           onRemoveRow={
             pickerTarget !== 'add' && pickerRows.length > 1 ? removeRowFromClip : undefined
           }

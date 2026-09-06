@@ -70,12 +70,20 @@ export type SimWorkerMessage =
   /** A decoded scene's planes (scene load; the page enters paused itself). */
   | { type: 'restore'; species: Uint8Array; ra: Uint8Array; rb: Uint8Array }
   /**
-   * The interactions the player has already witnessed, sent once at boot
-   * (discovery-tree spec §4). Noise reduction rather than correctness: without
-   * it a long-running world re-reports its firsts after every reload, and the
-   * page's store would dedupe them anyway. Unknown keys are harmless.
+   * **This is what the page knows** - the whole of it, replacing whatever the
+   * sim side thought before (discovery-tree spec §4, ticket 31). Sent at boot
+   * with what the player has persisted, and again whenever the working
+   * progression is swapped out from under the sim: the reported set is rebuilt
+   * from these keys and the sim's own witness table is forgotten in the same
+   * message, so a shrunken progression can earn its interactions back without
+   * a reload. Unknown keys are harmless.
+   *
+   * At boot it is still only noise reduction - the page's store dedupes a
+   * re-report anyway - but a resync mid-session is correctness, which is why
+   * there is one message shape rather than an add-flavoured and a
+   * replace-flavoured one.
    */
-  | { type: 'seedWitnessed'; keys: readonly EdgeKey[] }
+  | { type: 'resyncWitnessed'; keys: readonly EdgeKey[] }
 
 /**
  * The one thing the sim says back. Discoveries are rare - 37 in the life of a

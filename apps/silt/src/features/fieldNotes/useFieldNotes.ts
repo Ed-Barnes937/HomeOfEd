@@ -12,12 +12,25 @@
 import { useMemo, useRef, useState } from 'react'
 
 import type { EdgeKey } from './edgeKeys.ts'
-import { FieldNotesStore, createMemoryStorage, type FieldNotesStorage } from './fieldNotesStore.ts'
+import {
+  FieldNotesStore,
+  createMemoryStorage,
+  type FieldNotesStorage,
+  type Progress,
+} from './fieldNotesStore.ts'
 import { fieldNotesView, type FieldNotesView } from './fieldNotesView.ts'
 
 export type { FieldNotesView, Tally } from './fieldNotesView.ts'
 
 export interface FieldNotesController extends FieldNotesView {
+  /** The stored progression as it is - what a scene save snapshots (ticket 28). */
+  progress: Progress
+  /**
+   * Which progression timeline the view derives from: `replace` starts a new
+   * one. The moments resync off it (`useMoments`), because the edges a scene
+   * load brings in were witnessed wherever the scene was played - not just now.
+   */
+  generation: number
   /** Records first witnesses reported by the sim; re-reports cost nothing. */
   witness: (keys: readonly EdgeKey[]) => void
   /**
@@ -28,6 +41,11 @@ export interface FieldNotesController extends FieldNotesView {
   markReviewed: () => void
   /** "Forget discoveries". The world on screen is not touched. */
   reset: () => void
+  /**
+   * A scene load replaces the working progression with the scene's snapshot
+   * (ticket 28) - wholesale, never a merge. See `FieldNotesStore.replace`.
+   */
+  replace: (progress: Progress) => void
 }
 
 export interface UseFieldNotesOptions {
@@ -55,6 +73,7 @@ export function useFieldNotes(options: UseFieldNotesOptions = {}): FieldNotesCon
   const store = storeRef.current
 
   const [progress, setProgress] = useState(() => store.progress)
+  const [generation, setGeneration] = useState(0)
   const view = useMemo(() => fieldNotesView(progress), [progress])
 
   // The three actions are stable for the life of the page: the sim
@@ -74,6 +93,13 @@ export function useFieldNotes(options: UseFieldNotesOptions = {}): FieldNotesCon
         store.reset()
         setProgress(store.progress)
       },
+      replace: (next: Progress) => {
+        store.replace(next)
+        setProgress(store.progress)
+        // Batched with the progress write above, so the swapped view and the
+        // new generation arrive in the same render - never a diffable gap.
+        setGeneration((current) => current + 1)
+      },
     }),
     [store],
   )
@@ -81,5 +107,8 @@ export function useFieldNotes(options: UseFieldNotesOptions = {}): FieldNotesCon
   // Memoized, so the controller's identity changes only when progress does.
   // The moments watch it for what has just been witnessed (`useMoments`), and a
   // fresh object every render would read as a discovery every render.
-  return useMemo(() => ({ ...view, ...actions }), [view, actions])
+  return useMemo(
+    () => ({ ...view, progress, generation, ...actions }),
+    [view, progress, generation, actions],
+  )
 }

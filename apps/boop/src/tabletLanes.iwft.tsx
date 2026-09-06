@@ -1,3 +1,4 @@
+import { MAX_CLIPS } from './persistence/saveFormat.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // The tablet band (boop-loops ticket 20, spec §4 — variant E): between 1024
@@ -28,7 +29,7 @@ test('the clip-lanes chrome replaces the old transport at tablet widths', async 
   await root.verifyCellOff('kick', 0)
 })
 
-test('the lane grid fits the column, even at the five-clip cap', async ({ mountApp }) => {
+test('the lane grid fits the column, even at the clip cap', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.startBlank()
@@ -36,23 +37,20 @@ test('the lane grid fits the column, even at the five-clip cap', async ({ mountA
   await root.verifyLaneGridFitsColumn()
   await root.verifyNoPlacementHint()
 
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.verifyClipCount(5)
+  await root.fillClipsTo(MAX_CLIPS)
   await root.verifyAddClipDisabled()
 
   await root.verifyLaneGridFitsColumn()
   await root.verifyNoSidewaysScroller()
   // The dock is pinned and the song bar's lanes scroll inside their own box —
-  // five lanes fill the region, they don't unpin anything, and at this width
-  // nothing else has to scroll at all.
+  // a full song's lanes fill the region, they don't unpin anything, and at this
+  // width nothing else has to scroll at all.
   await root.verifyLauncherFullyInViewport()
+  await root.verifyEveryClipIsReachable(MAX_CLIPS)
   await root.verifyNothingIsScrolled()
 
   // A copy is a new clip too, so the cap greys it the same way — and the grid
-  // the card opens on is whole: five lanes cost it nothing now that the two
+  // the card opens on is whole: the lanes cost it nothing now that the two
   // surfaces are not sharing the frame.
   await root.openClipEditor()
   await root.verifyCopyClipDisabled()

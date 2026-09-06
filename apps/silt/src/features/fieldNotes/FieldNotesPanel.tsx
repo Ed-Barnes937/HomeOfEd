@@ -10,7 +10,14 @@
  * never shown whole: the ring holds one element at a time, so the picture does
  * not get busier as the roster grows (decision 7).
  */
-import { useMemo, useState, type CSSProperties } from 'react'
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 import { useArmedConfirm } from '../../hooks/useArmedConfirm.ts'
 import { useMobileLayout } from '../../hooks/useMobileLayout.ts'
@@ -21,10 +28,14 @@ import type { FieldNotesView } from './fieldNotesView.ts'
 import {
   CONSUMED,
   LEGEND_RULES,
+  MAKES,
   PRODUCT_JOIN,
   REAGENT_JOIN,
+  RECENT_ROW_PX,
   legendRows,
   pickerRows,
+  recentCapacity,
+  recentRows,
   ringFor,
   strokeOf,
   type ElementRef,
@@ -320,6 +331,13 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
               </div>
             </div>
           )}
+
+          {/* The recents sidebar (ticket 29): desktop only - the phone sheet
+              keeps its layout as it is - and only once there is a chart at all,
+              like the footer. */}
+          {chart !== null && !phone ? (
+            <RecentsSidebar view={props.view} appearances={appearances} />
+          ) : null}
         </div>
 
         {/* The bottom band (ticket 25): the focused element's chips, then the
@@ -397,6 +415,114 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
             {keyOpen ? <LegendBlock /> : null}
           </div>
         ) : null}
+      </div>
+    </div>
+  )
+}
+
+interface RecentsSidebarProps {
+  view: FieldNotesView
+  appearances: ElementAppearances
+}
+
+/**
+ * One side of a recipe: `elements` drawn by `tile`, with `join` between them
+ * rather than run together. Shared by the two places that spell an interaction
+ * out - the reading line's tappable row and a recents row's stacked one - which
+ * differ in what a tile *is* and agree about the grammar around it. The marks
+ * themselves are the model's (`REAGENT_JOIN`, `PRODUCT_JOIN`, `MAKES`), so a
+ * recipe cannot be punctuated one way in the band and another in the sidebar.
+ */
+function recipeSide(
+  elements: readonly ElementRef[],
+  join: string,
+  joinClass: string | undefined,
+  tile: (element: ElementRef, key: string) => ReactNode,
+): ReactNode[] {
+  return elements.flatMap((element, index) => [
+    ...(index > 0
+      ? [
+          <span key={`join-${element.name}-${index}`} className={joinClass}>
+            {join}
+          </span>,
+        ]
+      : []),
+    tile(element, `${element.name}-${index}`),
+  ])
+}
+
+/**
+ * The recents sidebar (ticket 29): the most recently witnessed discoveries,
+ * newest first, in the ring's own visual vocabulary - display-first, nothing to
+ * tap. Since ticket 33 a row is the whole interaction rather than the discovery
+ * at the end of it: the combination, an arrow, and what it left, each element a
+ * tile with its name stacked underneath. The model (`recentRows`) decides what
+ * a row is, what it may be called and whether it has a right-hand side at all;
+ * this component's one job is the height rule: measure the column and render
+ * `floor(height / row)` whole rows - no scrolling, no "show more", no partial
+ * row - re-deriving on resize.
+ *
+ * Never rendered on the phone sheet: the panel gates it on the same
+ * `useMobileLayout` it already lays the picker out with.
+ */
+function RecentsSidebar(props: RecentsSidebarProps) {
+  const rows = useMemo(() => recentRows(props.view), [props.view])
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const [capacity, setCapacity] = useState(0)
+
+  // Layout effect, so the first paint already holds the measured rows rather
+  // than flashing an empty column; the observer keeps it true across resizes.
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    const measure = (): void => setCapacity(recentCapacity(list.clientHeight))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [])
+
+  /** One element of a row: the tile, with the name it is allowed under it. */
+  const tile = (element: ElementRef, key: string) => (
+    <span key={key} className={styles.recentTile}>
+      <ElementRefTile element={element} appearances={props.appearances} size={18} />
+      <span className={styles.recentName}>{element.label}</span>
+    </span>
+  )
+
+  const side = (elements: readonly ElementRef[], join: string) =>
+    recipeSide(elements, join, styles.recentJoin, tile)
+
+  return (
+    <div
+      className={styles.recents}
+      data-testid="field-notes-recents"
+      // The row height the capacity was computed from, handed to the
+      // stylesheet so the arithmetic and the pixels cannot disagree.
+      style={{ '--recent-row': `${RECENT_ROW_PX}px` } as CSSProperties}
+    >
+      <span className={styles.pickerLabel}>Recent</span>
+      <div ref={listRef} className={styles.recentList}>
+        {rows.slice(0, capacity).map((row) => (
+          // Keyed and identified by the entry, not by an element: a row names
+          // several of them now, and the entry is what the timeline holds.
+          <span
+            key={row.key}
+            className={styles.recentRow}
+            data-testid={`field-notes-recent-${row.key}`}
+          >
+            {side(row.reagents, REAGENT_JOIN)}
+            {/* No products means no arrow - an entry that consumes both cells,
+                and a stage of one element's own life, both come out of the
+                model empty rather than pointing at nothing. */}
+            {row.products.length > 0 ? (
+              <>
+                <span className={styles.recentMakes}>{MAKES}</span>
+                {side(row.products, PRODUCT_JOIN)}
+              </>
+            ) : null}
+          </span>
+        ))}
       </div>
     </div>
   )
@@ -618,18 +744,8 @@ function ReadingLineView(props: ReadingLineViewProps) {
     </button>
   )
 
-  /** One side of the recipe: its tiles, with `join` between them rather than run together. */
   const side = (elements: readonly ElementRef[], join: string) =>
-    elements.flatMap((element, index) => [
-      ...(index > 0
-        ? [
-            <span key={`join-${element.name}-${index}`} className={styles.readingJoin}>
-              {join}
-            </span>,
-          ]
-        : []),
-      tile(element, `${element.name}-${index}`),
-    ])
+    recipeSide(elements, join, styles.readingJoin, tile)
 
   return (
     // Polite rather than assertive, and polite is what makes it bearable on a

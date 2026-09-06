@@ -180,6 +180,18 @@ export function advanceCompletion(state: CompletionState, complete: boolean): Co
   return { wasComplete: true, spent: true, showing: !state.spent }
 }
 
+/**
+ * A scene load swapped the progression wholesale (ticket 28): the chart on
+ * screen is a different timeline arriving, not a transition being earned. The
+ * line never fires for a load - a loaded-complete chart had its moment wherever
+ * it was earned, so completeness arriving this way is spent on arrival, exactly
+ * as `completionAtBoot` rules for a page that opens complete. A showing already
+ * on screen, and a `spent` already latched, are the session's own and survive.
+ */
+export function resyncCompletion(state: CompletionState, complete: boolean): CompletionState {
+  return { ...state, wasComplete: complete, spent: state.spent || complete }
+}
+
 /** The line's time is up. */
 export function dismissCompletion(state: CompletionState): CompletionState {
   return state.showing ? { ...state, showing: false } : state

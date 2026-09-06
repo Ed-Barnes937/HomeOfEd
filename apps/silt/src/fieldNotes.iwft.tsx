@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { entryIndex } from './features/fieldNotes/entries.ts'
+import { PROGRESS_KEY } from './features/fieldNotes/fieldNotesStore.ts'
 import { GRID_HEIGHT } from './sim/index.ts'
 import { seedMastery, seedWitnessed } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
@@ -359,6 +360,184 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
   await page.reload()
   const { root: reloaded } = await mountApp()
   expect(await reloaded.fieldNotesCount()).toBe('0/54')
+})
+
+/**
+ * Forgetting is not a door that locks behind you (ticket 31): the sim reports
+ * each first once per session, so before the witness resync existed a
+ * forgotten interaction stayed forgotten until the page was reloaded. This is
+ * the loop a player lives - witness, forget, do it again - with no reload in it.
+ */
+test('an interaction forgotten mid-session is earned again by doing it again', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectBrush(2)
+  await root.selectElement('lava')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+
+  await root.openFieldNotes()
+  await root.forgetDiscoveries()
+  await root.closeFieldNotes()
+  expect(await root.fieldNotesCount()).toBe('0/54')
+
+  // The same pour, somewhere else on the same running page: the chart earns it
+  // back rather than swallowing it.
+  await root.selectElement('lava')
+  await root.paintCell(80, 120)
+  await root.selectElement('water')
+  await root.paintCell(80, 115)
+  await root.step()
+
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+})
+
+/**
+ * The same seam from the other side (ticket 32). A scene load replaces the
+ * working progression with the scene's snapshot, wholesale (ADR 0055), so a
+ * scene whose snapshot is emptier than the chart drops entries the session has
+ * already reported - the second way the progression shrinks under a sim that
+ * reports each first once (ticket 30). The load has to carry the same resync
+ * "forget discoveries" does, or the dropped entry stays unearnable until a
+ * reload.
+ */
+test('an entry a scene load drops is earned again by doing it again', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Saved before anything was witnessed, so its snapshot is empty - which is
+  // also exactly how a scene saved before snapshots existed loads (ADR 0055).
+  await root.openScenes()
+  await root.saveScene()
+  await root.verifySceneRow('scene 1')
+  await root.closeScenes()
+
+  await root.selectBrush(2)
+  await root.selectElement('lava')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+
+  // Loading the emptier scene takes the entry back out of the chart.
+  await root.openScenes()
+  await root.loadScene('scene 1')
+  await expect.poll(() => root.fieldNotesCount()).toBe('0/54')
+
+  // The same pour on the world that arrived with it: earned back, no reload.
+  await root.selectElement('lava')
+  await root.paintCell(80, 120)
+  await root.selectElement('water')
+  await root.paintCell(80, 115)
+  await root.step()
+
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+})
+
+/**
+ * The recents sidebar (ticket 29): the most recently witnessed discoveries,
+ * newest first, as many rows as the dialog's height fits and not one more, each
+ * one the whole interaction - combination, arrow, outcome (ticket 33). The
+ * derivation (order, dedupe, unknown keys, masking, what a row's two sides are)
+ * is pinned in `panelModel.test.ts`; this is the loop through the UI - witness,
+ * open the panel, read it off the top row - plus the height rule against a real
+ * layout, which is the only place the row's pixels can be measured.
+ */
+test('a fresh witness leads the recents sidebar, and the rows track the height', async ({
+  mountApp,
+  page,
+}) => {
+  // Everything but two entries seeded, so the sidebar is height-limited rather
+  // than count-limited and the resize below has rows to give up. The two held
+  // back are the ones this test witnesses, in the order it wants them read.
+  const held = ['react:lava+water', 'react:dirt+water']
+  await seedWitnessed(
+    page,
+    entryIndex().witnessKeys.filter((key) => !held.includes(key)),
+  )
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.selectBrush(2)
+
+  // lava + water first: two products, which is the widest recipe the roster
+  // writes and so the row the column has to draw whole.
+  await root.selectElement('lava')
+  await root.paintCell(80, 120)
+  await root.selectElement('water')
+  await root.paintCell(80, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('53/54')
+
+  // dirt + water is the one entry left: witnessed now, it must arrive on top.
+  await root.selectElement('dirt')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('54/54')
+
+  await root.openFieldNotes()
+  const rows = await root.recentRows()
+  // Each row tells the whole story of the edge: what met, and what it left.
+  expect(rows.slice(0, 2)).toEqual(['dirt + water -> mud', 'lava + water -> steam · obsidian'])
+  // Nowhere near all 54 fit, and every row that renders sits whole in the
+  // column - no scrollbar, no clipped sliver.
+  expect(rows.length).toBeGreaterThan(3)
+  expect(rows.length).toBeLessThan(54)
+  await root.verifyRecentRowsFitTheSidebar()
+
+  // A shorter dialog renders fewer rows: floor(height / row), re-derived on
+  // resize.
+  await page.setViewportSize({ width: 1280, height: 520 })
+  await expect.poll(async () => (await root.recentRows()).length).toBeLessThan(rows.length)
+  expect(await root.recentRows()).toContain('dirt + water -> mud')
+  await root.verifyRecentRowsFitTheSidebar()
+})
+
+/**
+ * Progression belongs to the scene (ticket 28): a save snapshots the working
+ * field notes into the envelope, and a load replaces them - edges and the
+ * NEW-chip watermark alike. The strict semantics (a pre-change scene clears, A
+ * then B shows B's, forget-then-save persists the cleared state) are pinned at
+ * the store/format layer; this is the loop through the UI on a fresh profile.
+ */
+test('a saved scene restores its field notes on a fresh profile', async ({ mountApp, page }) => {
+  // Reviewed 1 - a watermark neither empty nor full, so only a genuinely
+  // restored one can produce the NEW count asserted below: a snapshot that
+  // dropped it would read 3, one clamped to the end would read 0.
+  await seedWitnessed(page, SEEDED, { reviewed: 1 })
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await first.root.openScenes()
+  await first.root.saveScene()
+  await first.root.verifySceneRow('scene 1')
+
+  // A fresh profile: the scene survives, the working progression does not.
+  await page.evaluate((key) => window.localStorage.removeItem(key), PROGRESS_KEY)
+  await page.reload()
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  expect(await root.fieldNotesCount()).toBe('0/54')
+
+  await root.openScenes()
+  await root.loadScene('scene 1')
+  await expect.poll(() => root.fieldNotesCount()).toBe('2/54')
+  // A load is an arrival, not a witness: the restored edges raise no card.
+  await root.verifyNoMomentCard()
+
+  // The watermark came back with the edges: the reviewed prefix already
+  // implied steam and obsidian, so only fire's smoke still reads as new.
+  await root.openFieldNotes()
+  const counters = await root.fieldNotesCounters()
+  expect(counters.interactions).toContain('2/54')
+  expect(counters.fresh).toContain('1')
 })
 
 /**

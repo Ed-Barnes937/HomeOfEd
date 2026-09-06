@@ -47,6 +47,9 @@ src/
   persistence/      the save format + autosave (ADR 0025) — no React except the hook
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
+    favourites.ts     favourite sounds under their own key (boop:favourites) —
+                      a preference, not part of the save document; same
+                      never-throws seam idiom (+ useFavourites.ts, the hook)
     autosave.ts       debounced (2 s lull) writer of the working song
     useWorkingSong.ts hook: restore the whole song on mount, autosave on edit,
                       flush on pagehide, and seed a first visit (tickets 36/17)
@@ -98,7 +101,11 @@ src/
                     card's first row at every width; ≤1023px slims it with CSS),
                     ClipControl.tsx (Play this clip inside the grid well at
                     every width, plus clip-scoped Clear grid at ≥1024 only),
-                    clipTints.ts (the fixed 5-tint list)
+                    clipTints.ts (the fixed 10-tint list - the handoff's five
+                    plus five derived companions, ADR 0032 as amended: the one
+                    place in the app whose colours are not the handoff's own.
+                    Ten colours to 35 clips, so past the tenth a colour is
+                    shared and the clip's *name* is what names it)
   features/songbar/ SongBar.tsx — the song bar (≥1024, tickets 15/20; the
                     tablet band shrinks the lane grid to fit). The home surface
                     since screenspace ticket 03, in the scrolling region: a
@@ -134,7 +141,8 @@ src/
                     (boop-instruments ticket 05): InstrumentPicker.tsx (the
                     same shell, but browse-by-ear — it stays open and the
                     caller applies each tap) and instrumentGroups.ts (the
-                    roster as Drums / Notes / Silly, pure)
+                    roster as Drums / Notes / Silly, pure; a Favourites
+                    section leads when any sound is starred — copy, not move)
   features/confirm/ the one confirm shape (design handoff, "Both confirms share
                     one shape"): ConfirmCard.tsx, plus the copy each caller
                     hands it - clearGridConfirm.ts and newBoopConfirm.ts (the
@@ -216,11 +224,18 @@ share-link snapshot.
   for songs by [ADR 0032](../../docs/adr/0032-boop-save-format-songs.md)). One
   versioned save document under one `localStorage` key (`boop:save`), holding
   the autosaved working grid and the "My boops" list. A stored boop is a whole
-  song: `patterns` is the clip list (≤5, optional `name`/`tint` per clip), plus
+  song: `patterns` is the clip list (≤35, optional `name`/`tint` per clip), plus
   optional `placements` (the 16 positions, comma-separated — each field the
   clips sounding there, so a position can hold several; a comma-less string is
   read in the pre-layering one-clip-per-position form) and `gridClip` — all additive, still
-  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. Anything that persists
+  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. A position names its
+  clips by **single character** - digits `1`-`9`, then letters `a`-`z` from
+  clip 10 - so old digit-only strings are a strict subset and the writer emits
+  a letter only when a clip past the ninth is placed. That alphabet's ceiling
+  **is** `MAX_CLIPS` (35), which is why raising the cap again is not an option:
+  do not widen a field to two characters, it would break every string already
+  on disk. `tint` (0-9) has no uniqueness rule - past ten clips the colours
+  repeat (boop-clips ticket 05). Anything that persists
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error. A browser with **no** working
