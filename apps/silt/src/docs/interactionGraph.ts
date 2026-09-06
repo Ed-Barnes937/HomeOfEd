@@ -13,14 +13,24 @@
  */
 import { PAINTABLE_IDS } from '../features/palette/paletteGroups.ts'
 import { GROWTH_P } from '../sim/growth.ts'
-import { GERMINATE_P } from '../sim/seedBank.ts'
+// The two banks each have a `GERMINATE_P`, and they are deliberately different
+// numbers (the desert establishes at half the meadow's pace - `sandBank.ts`), so
+// both are aliased rather than one of them silently shadowing the other.
+import { GERMINATE_P as MUD_GERMINATE_P } from '../sim/seedBank.ts'
+import { GERMINATE_P as SAND_GERMINATE_P } from '../sim/sandBank.ts'
 import {
+  APEX,
+  BLOSSOM,
   BURIED,
+  CACTUS,
   createRegistry,
+  DUNED,
   EMPTY,
   FLOWER,
   MOSS,
+  NUB,
   PETAL,
+  SAND,
   SEED,
   SPROUT,
   STALK,
@@ -151,6 +161,18 @@ const CHARTED_AS: readonly (readonly [species: number, charted: number])[] = [
   [TIP, FLOWER],
   [STALK, FLOWER],
   [PETAL, FLOWER],
+  // The desert folds the same way, one biome across (cactus spec §6): `duned` is
+  // what a seed does in sand, so it charts as the seed exactly as `buried` does,
+  // and the nub, the apex and the blossom are stages and parts of the one plant
+  // a player holds - **the cactus is the charted element**, and the rail
+  // unlockable that comes with it. The blossom folding in is the one that is not
+  // an obvious mirror: it is the crown rather than a stage, but it is the flower
+  // *of* a cactus and there is no cactus without one, exactly as the meadow's
+  // flower is the element its four parts chart onto.
+  [DUNED, SEED],
+  [NUB, CACTUS],
+  [APEX, CACTUS],
+  [BLOSSOM, CACTUS],
 ]
 
 /**
@@ -159,12 +181,12 @@ const CHARTED_AS: readonly (readonly [species: number, charted: number])[] = [
  * declared. Mirror any change to `growth.ts` here. Burial (`seed + mud ->
  * buried`) is a reaction row and arrives with the rest.
  *
- * The other hook transmutations - germination (`seedBank.ts`) and the land
- * plant's raise and bloom (`stalk.ts`) - are declared too, as `HookEdge`s
- * (discovery ticket 07): no existing shape could carry a rule that writes two
- * cells or depends on soak history, and leaving them out made the five
- * hook-born elements undiscoverable. Mirror any change to those two modules in
- * `hookEdges` below.
+ * The other hook transmutations - germination (`seedBank.ts`, `sandBank.ts`) and
+ * both plants' raise and bloom (`stalk.ts`, which the desert reuses with its own
+ * ids and numbers) - are declared too, as `HookEdge`s (discovery ticket 07): no
+ * existing shape could carry a rule that writes two cells or depends on soak
+ * history, and leaving them out made the hook-born elements undiscoverable.
+ * Mirror any change to those three modules in `hookEdges` below.
  *
  * Two hook behaviours stay deliberately unreported: the tip's *climb* (it
  * leaves stalk behind, but stalk is already the raise's product, and a climb is
@@ -177,8 +199,8 @@ const GROWERS: readonly number[] = [MOSS, VINE]
 /**
  * The hook transmutations a player can witness, one entry each - the minimum
  * set that makes every hook-born element the product of something (ticket 07).
- * The dirt refund on germination is not listed as a product: dirt is pre-known,
- * and the entry is about what came *up*.
+ * The bed refund on germination is not listed as a product - dirt in the meadow,
+ * sand in the desert: both are pre-known, and the entry is about what came *up*.
  */
 function hookEdges(nameOf: (id: number) => string): readonly HookEdge[] {
   return [
@@ -187,7 +209,7 @@ function hookEdges(nameOf: (id: number) => string): readonly HookEdge[] {
       name: nameOf(MOSS),
       reagents: [nameOf(BURIED), nameOf(WATER)],
       products: [nameOf(MOSS)],
-      p: GERMINATE_P,
+      p: MUD_GERMINATE_P,
       outcome: `${nameOf(WATER)} above -> ${nameOf(MOSS)}, ${nameOf(BURIED)} -> dirt (soaked 120 ticks under 2 cells of standing water)`,
       source: 'seedBank.ts',
     },
@@ -196,7 +218,7 @@ function hookEdges(nameOf: (id: number) => string): readonly HookEdge[] {
       name: nameOf(SPROUT),
       reagents: [nameOf(BURIED)],
       products: [nameOf(SPROUT)],
-      p: GERMINATE_P,
+      p: MUD_GERMINATE_P,
       outcome: `air above -> ${nameOf(SPROUT)}, ${nameOf(BURIED)} -> dirt (sky open, no standing water)`,
       source: 'seedBank.ts',
     },
@@ -214,6 +236,47 @@ function hookEdges(nameOf: (id: number) => string): readonly HookEdge[] {
       reagents: [nameOf(TIP)],
       products: [nameOf(FLOWER)],
       outcome: `${nameOf(TIP)} -> ${nameOf(FLOWER)} (budget spent, or boxed in)`,
+      source: 'stalk.ts',
+    },
+    // **The desert's three** (cactus spec §6), mirrored by hand exactly as the
+    // meadow's four are: `sandBank.ts` and the two factories in `stalk.ts` are
+    // code, so no registry lookup can report them and a change to either module
+    // has to be reflected here.
+    {
+      kind: 'germinate',
+      name: nameOf(NUB),
+      reagents: [nameOf(DUNED)],
+      products: [nameOf(NUB)],
+      p: SAND_GERMINATE_P,
+      // The sand refund is named in the outcome but is **not a product**, the
+      // same call the mud bank's dirt refund gets: sand is pre-known, and the
+      // entry is about what came *up*. It is worth saying out loud here even so,
+      // because a refunded bed is the visible difference between the two banks -
+      // a dune germinates and is still a dune.
+      outcome: `air above -> ${nameOf(NUB)}, ${nameOf(DUNED)} -> ${nameOf(SAND)} (sky open; the bed is refunded, not drunk)`,
+      source: 'sandBank.ts',
+    },
+    {
+      kind: 'raise',
+      name: nameOf(NUB),
+      reagents: [nameOf(NUB)],
+      products: [nameOf(APEX), nameOf(CACTUS)],
+      outcome: `air above -> ${nameOf(APEX)}, ${nameOf(NUB)} -> ${nameOf(CACTUS)} (on the first tick the sky above is open)`,
+      source: 'stalk.ts',
+    },
+    {
+      // **Two products from one terminal draw** (ADR 0054 §4), and the shape
+      // already carries it: `products` is a list, as the raise's pair of them
+      // shows, and the mermaid pass draws one arrow per product. What the shape
+      // cannot carry is the *split*, since `p` here means "per-tick chance the
+      // hook fires" and the bloom is certain once the apex is finished - so the
+      // 0.3 goes in the outcome, where a hook's conditions already live, and `p`
+      // stays absent exactly as it is on the meadow's bloom.
+      kind: 'bloom',
+      name: nameOf(APEX),
+      reagents: [nameOf(APEX)],
+      products: [nameOf(BLOSSOM), nameOf(CACTUS)],
+      outcome: `${nameOf(APEX)} -> ${nameOf(BLOSSOM)} at p 0.3, else ${nameOf(CACTUS)} (budget spent, or boxed in)`,
       source: 'stalk.ts',
     },
   ]
@@ -486,9 +549,10 @@ Every reaction and decay below is read back out of the live registry
 (\`createRegistry(v1Elements, v1Reactions)\`), so what is listed is what the sim
 resolves: tag rows already expanded, \`maxHardness\` pairs absent rather than
 "immune", and the first matching row winning. The hooks are the exception - growth
-(\`src/sim/growth.ts\`), germination (\`src/sim/seedBank.ts\`) and the land plant's
-raise and bloom (\`src/sim/stalk.ts\`) are code rather than table rows, so their
-edges are declared in the generator and must be kept in step with them.
+(\`src/sim/growth.ts\`), germination (\`src/sim/seedBank.ts\` in mud,
+\`src/sim/sandBank.ts\` in sand) and each plant's raise and bloom
+(\`src/sim/stalk.ts\`, which both plants share) are code rather than table rows, so
+their edges are declared in the generator and must be kept in step with them.
 
 ## Summary
 

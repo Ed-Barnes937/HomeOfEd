@@ -94,20 +94,36 @@ describe('canonical edge keys', () => {
 
 describe('charted grouping (ticket 08)', () => {
   test('a bookkeeping species is never a node: buried is what a seed does in mud', () => {
-    for (const species of ['buried', 'sprout', 'tip', 'stalk', 'petal']) {
+    // And `duned` is what a seed does in sand - the desert's four fold exactly
+    // as the meadow's five do (ADR 0054), onto the seed and onto the cactus.
+    for (const species of [
+      'buried',
+      'sprout',
+      'tip',
+      'stalk',
+      'petal',
+      'duned',
+      'nub',
+      'apex',
+      'blossom',
+    ]) {
       expect(notes.elements).not.toContain(species)
       expect(notes.entriesFor(species)).toEqual([])
     }
     expect(notes.elements).toContain('seed')
     expect(notes.elements).toContain('flower')
+    expect(notes.elements).toContain('cactus')
   })
 
   test('every raw edge reaches exactly one charted entry - no orphans, no doubles', () => {
     const raw = notes.witnessKeys
     expect(new Set(raw).size).toBe(raw.length)
     // The ungrouped graph's own count: nothing was dropped on the way in.
-    // Fifty-seven since ticket 16 removed the acid + water row.
-    expect(raw).toHaveLength(57)
+    // Fifty-seven since ticket 16 removed the acid + water row; seventy-five
+    // with the desert (ADR 0054) - fourteen new reaction pairs, the blossom's
+    // productive decay, and the sand bank's germination with the desert's own
+    // raise and bloom.
+    expect(raw).toHaveLength(75)
     for (const key of raw) expect(notes.get(key)).toBeDefined()
     // And every charted entry is backed by at least one of them.
     for (const entry of notes.all) {
@@ -124,11 +140,20 @@ describe('charted grouping (ticket 08)', () => {
       'react:lava+stalk',
       'react:lava+tip',
     ])
-    // Acid takes the petal too, and the seed's burial joins acid + seed.
+    // Acid takes the petal too, and *both* burials join acid + seed: a seed in
+    // mud and a seed in sand are one element to the player (ADR 0054).
     expect(notes.get('react:acid+flower')?.sources).toHaveLength(5)
     expect(notes.get('react:acid+seed')?.sources.map((source) => source.key).toSorted()).toEqual([
       'react:acid+buried',
+      'react:acid+duned',
       'react:acid+seed',
+    ])
+    // And the desert folds the same way, four parts onto the one plant.
+    expect(notes.get('react:acid+cactus')?.sources.map((source) => source.key).toSorted()).toEqual([
+      'react:acid+apex',
+      'react:acid+blossom',
+      'react:acid+cactus',
+      'react:acid+nub',
     ])
     // A key a raw edge no longer answers to still names its charted entry.
     expect(notes.get('react:mud+petal')).toBe(notes.get('react:flower+mud'))
@@ -169,6 +194,8 @@ describe('charted grouping (ticket 08)', () => {
 
   test("a charted node's entries are the raw ones its species collected", () => {
     // The flower's ring: four reactions, its decay, and the three stages.
+    // `decay:cactus` is on it too, and that is the chart working rather than a
+    // leak: a blossom's death throws petals, and a petal charts as the flower.
     expect(notes.entriesFor('flower')).toEqual([
       'react:flower+water',
       'react:flower+lava',
@@ -176,10 +203,30 @@ describe('charted grouping (ticket 08)', () => {
       'react:acid+flower',
       'react:flower+mud',
       'decay:flower',
+      'decay:cactus',
       'germinate:flower',
       'raise:flower',
       'bloom:flower',
     ])
+  })
+
+  test("the desert's ring is the same story, one biome across", () => {
+    // Three reactions rather than the meadow's four (nothing in the roster wets
+    // a cactus - the biome was committed at burial), its own decay, and the
+    // three stages: germinate, raise, bloom.
+    expect(notes.entriesFor('cactus')).toEqual([
+      'react:cactus+lava',
+      'react:cactus+fire',
+      'react:acid+cactus',
+      'decay:cactus',
+      'germinate:cactus',
+      'raise:cactus',
+      'bloom:cactus',
+    ])
+    // The flesh's own fade is not an entry - a cactus crumbling to nothing
+    // transmutes into nothing (spec §1). `decay:cactus` is the *blossom's*
+    // decay, charted: it leaves a seed and sheds petals.
+    expect([...notes.get('decay:cactus')!.products].toSorted()).toEqual(['flower', 'seed'])
   })
 })
 
@@ -190,8 +237,10 @@ describe('involves()', () => {
     expect(notes.entriesFor('water')).toHaveLength(10)
     expect(notes.entriesFor('mud')).toHaveLength(6)
     // Eighteen since ticket 08 folded the plant's parts into one flower: lava's
-    // and fire's four stage spokes each became one.
-    expect(notes.entriesFor('fire')).toHaveLength(18)
+    // and fire's four stage spokes each became one. Twenty with the desert, and
+    // only two: its four parts fold onto the one cactus on both fire's row and
+    // lava's.
+    expect(notes.entriesFor('fire')).toHaveLength(20)
   })
 
   test('stone has exactly the one edge that makes it', () => {
@@ -225,21 +274,25 @@ describe('involves()', () => {
 })
 
 describe('totals', () => {
-  test('46 charted entries today: 36 reactions, 4 productive decays, 2 growth, 4 hook edges', () => {
+  test('54 charted entries today: 40 reactions, 5 productive decays, 2 growth, 7 hook edges', () => {
     const kinds = (kind: Entry['kind']) => notes.all.filter((entry) => entry.kind === kind)
-    // Thirty-six: the graph's 47 raw pairs (48 less the acid + water row,
-    // ticket 16), less the three stage spokes lava and fire each grew, the
-    // four acid grew, and the burial that folded into acid + seed (ticket 08).
-    expect(kinds('react')).toHaveLength(36)
+    // Forty: the graph's 61 raw pairs, less the three stage spokes lava and fire
+    // each grew and the four acid grew (ticket 08), and less the desert's own
+    // foldings - three each on lava, fire and acid, plus the sand burial that
+    // joined acid + seed and the two burials' pairs collapsing (ADR 0054).
+    expect(kinds('react')).toHaveLength(40)
     // The flower's decay is productive twice over: it leaves a seed and its
-    // death drop throws petals - one entry, two products.
-    expect(kinds('decay')).toHaveLength(4)
+    // death drop throws petals - one entry, two products. The blossom's is the
+    // fifth, and the same shape; the flesh's own fade is not an entry at all.
+    expect(kinds('decay')).toHaveLength(5)
     expect(kinds('grow')).toHaveLength(2)
-    // The hook transmutations (ticket 07): two germinations, the raise, the bloom.
-    expect(kinds('germinate')).toHaveLength(2)
-    expect(kinds('raise')).toHaveLength(1)
-    expect(kinds('bloom')).toHaveLength(1)
-    expect(notes.all).toHaveLength(46)
+    // The hook transmutations (ticket 07, and the desert's three): the mud
+    // bank's two germinations and the sand bank's one, then a raise and a bloom
+    // per plant.
+    expect(kinds('germinate')).toHaveLength(3)
+    expect(kinds('raise')).toHaveLength(2)
+    expect(kinds('bloom')).toHaveLength(2)
+    expect(notes.all).toHaveLength(54)
   })
 
   test('every hook-born element is the product of a hook edge (spec §3 restored)', () => {
@@ -257,10 +310,13 @@ describe('totals', () => {
     }
   })
 
-  test('20 charted elements today, the rail among them pre-known', () => {
+  test('21 charted elements today, the rail among them pre-known', () => {
     // Twenty since ticket 08: the roster's 25 species, less the five the chart
-    // names as the seed and the flower they belong to.
-    expect(notes.elements).toHaveLength(20)
+    // names as the seed and the flower they belong to. Twenty-one with the
+    // desert: five more species, four of which chart as the seed or the cactus,
+    // so the roster's 30 leave 21 - one net new element, which is the cactus
+    // itself (ADR 0054).
+    expect(notes.elements).toHaveLength(21)
     // Ten since the rail trim took mud out of `PAINTABLE_IDS` (spec §9.5) - mud
     // is now earned back by mastering it, and an earned unlock is not pre-known.
     expect(notes.preKnown).toHaveLength(10)
@@ -321,6 +377,10 @@ describe('tiers', () => {
       'moss',
       'ember',
       'flower',
+      // One step off the rail, exactly as the flower is, and for the same
+      // reason: a seed in the ground germinates. Sand is pre-known, so burial
+      // and the whole desert chain sit at the same depth as the meadow's.
+      'cactus',
     ])
     expect(byTier.get(2)).toEqual(['vine', 'ash'])
     expect(byTier.get(undefined)).toBeUndefined()
@@ -372,6 +432,7 @@ describe('derivations from a witnessed-key set', () => {
       'ember',
       'ash',
       'flower',
+      'cactus',
     ])
     // The rail is never earnable - it is already in hand.
     for (const name of notes.preKnown) expect(notes.unlockable).not.toContain(name)

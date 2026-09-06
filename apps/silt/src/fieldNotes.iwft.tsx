@@ -23,13 +23,13 @@ test('a fresh chart is untouched, and says so without naming anything', async ({
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('0/46')
+  expect(await root.fieldNotesCount()).toBe('0/54')
   await root.verifyFieldNotesChip('untouched')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
-  expect(counters.elements).toContain('10/20')
-  expect(counters.interactions).toContain('0/46')
+  expect(counters.elements).toContain('10/21')
+  expect(counters.interactions).toContain('0/54')
   // No chip until something has been discovered since the panel last closed.
   expect(counters.fresh).toBe('')
 
@@ -41,14 +41,14 @@ test('a seeded chart opens on the counts its witnessed set implies', async ({ mo
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('2/46')
+  expect(await root.fieldNotesCount()).toBe('2/54')
   await root.verifyFieldNotesChip('in progress')
 
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
   // Ten pre-known plus steam, obsidian and smoke.
-  expect(counters.elements).toContain('13/20')
-  expect(counters.interactions).toContain('2/46')
+  expect(counters.elements).toContain('13/21')
+  expect(counters.interactions).toContain('2/54')
   expect(counters.fresh).toContain('3')
 
   // The picker counts every entry that involves an element, reagent or product
@@ -350,15 +350,15 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 
   await root.forgetDiscoveries()
 
-  expect((await root.fieldNotesCounters()).interactions).toContain('0/46')
+  expect((await root.fieldNotesCounters()).interactions).toContain('0/54')
   await root.verifyFieldNotesEmpty()
   await root.closeFieldNotes()
-  expect(await root.fieldNotesCount()).toBe('0/46')
+  expect(await root.fieldNotesCount()).toBe('0/54')
 
   // It really is gone, not just gone from this render.
   await page.reload()
   const { root: reloaded } = await mountApp()
-  expect(await reloaded.fieldNotesCount()).toBe('0/46')
+  expect(await reloaded.fieldNotesCount()).toBe('0/54')
 })
 
 /**
@@ -370,7 +370,7 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 test('a first witness raises a card, ticks the chip and lights the panel', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('0/46')
+  expect(await root.fieldNotesCount()).toBe('0/54')
   await root.verifyNoMomentCard()
 
   // A pool of water dropped straight onto lava: obsidian and steam, both new.
@@ -386,7 +386,7 @@ test('a first witness raises a card, ticks the chip and lights the panel', async
   expect(card).toContain('obsidian')
   expect(card).toContain('steam')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/46')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
 
   // The panel is derived from the same store, so there is nothing to refresh.
   await root.openFieldNotes()
@@ -423,7 +423,7 @@ test('a first witnessed while the panel is open lands in the ring in place', asy
   // the world.
   await root.pressKey('.')
 
-  await expect.poll(() => root.fieldNotesCount()).toBe('1/46')
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')
   expect(await root.noteSpokeCount()).toBe(1)
@@ -467,7 +467,7 @@ test('the last entry of all raises the completion line, once ever', async ({ mou
   )
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('45/46')
+  expect(await root.fieldNotesCount()).toBe('53/54')
   await root.verifyNoChartCompleteLine()
 
   await root.selectBrush(2)
@@ -478,7 +478,7 @@ test('the last entry of all raises the completion line, once ever', async ({ mou
   await root.step()
 
   await root.verifyChartCompleteLine()
-  await expect.poll(() => root.fieldNotesCount()).toBe('46/46')
+  await expect.poll(() => root.fieldNotesCount()).toBe('54/54')
   await root.verifyFieldNotesChip('complete')
 
   // Once, at the transition - a finished chart is not greeted on every load.
@@ -498,7 +498,7 @@ test('the header chip inverts for good once every interaction is witnessed', asy
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  expect(await root.fieldNotesCount()).toBe('46/46')
+  expect(await root.fieldNotesCount()).toBe('54/54')
   await root.verifyFieldNotesChip('complete')
 
   // Everything mastered means everything earned, so the rail stops promising
@@ -542,7 +542,7 @@ test('a plant grown live from the bed reveals its tile and moves the element cou
 
   await root.openFieldNotes()
   const before = await root.fieldNotesCounters()
-  expect(before.elements).toContain('10/20')
+  expect(before.elements).toContain('10/21')
   // The plant is one row since ticket 08: what comes up out of the bed is a
   // flower, not a sprout that is also a tip that is also a stalk.
   await root.verifyNoteRowIsInert('flower')
@@ -568,7 +568,7 @@ test('a plant grown live from the bed reveals its tile and moves the element cou
   // exact tally depends on how far the plant got before this read. Burial is no
   // longer an element of its own (ticket 08): it is what the seed is doing.
   const after = await root.fieldNotesCounters()
-  const discovered = Number(/(\d+)\/20/.exec(after.elements)?.[1])
+  const discovered = Number(/(\d+)\/21/.exec(after.elements)?.[1])
   expect(discovered).toBeGreaterThanOrEqual(12)
 })
 
@@ -587,24 +587,27 @@ test("a raw edge of one of the plant's parts lands on the flower's row", async (
   await seedWitnessed(page, ['bloom:tip', 'react:lava+stalk'])
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('2/46')
+  expect(await root.fieldNotesCount()).toBe('2/54')
 
   await root.openFieldNotes()
-  // Two of the flower's nine, and no row for the stalk that actually burned.
-  expect(await root.noteRow('flower')).toContain('2/9')
+  // Two of the flower's ten, and no row for the stalk that actually burned.
+  // Ten rather than nine since the desert: a blossom's death sheds petals, so
+  // `decay:cactus` is on the flower's ring too (ADR 0054).
+  expect(await root.noteRow('flower')).toContain('2/10')
   expect(await root.fieldNotesText()).not.toContain('stalk')
 
   await root.selectNote('flower')
   expect(await root.focusedNote()).toBe('flower')
   expect(await root.noteSpokeCount()).toBe(2)
-  expect(await root.noteStillToFind()).toBe('7')
+  expect(await root.noteStillToFind()).toBe('8')
 })
 
 /**
  * The ring at the size the roster can actually reach (ticket 09). Fire sits on
- * two tag rows, so its degree grows with the roster: eighteen witnessed entries
- * is more than the geometry can give a tile each, and the pairs that share a
- * verb and a result merge into stacks rather than overlapping. Screenshot-free
+ * two tag rows, so its degree grows with the roster - twenty witnessed entries
+ * since the desert added a cactus to each of them (ADR 0054) - which is more
+ * than the geometry can give a tile each, and the pairs that share a verb and a
+ * result merge into stacks rather than overlapping. Screenshot-free
  * on purpose - what is asserted is how many spokes are drawn, what their chips
  * say, and that every pair behind them is still reachable.
  */
@@ -620,12 +623,15 @@ test("fire's crowded ring draws as stacks, and every pair stays reachable", asyn
   await root.selectNote('fire')
   expect(await root.focusedNote()).toBe('fire')
 
-  // Eighteen entries, all of them found - and far fewer lines than that drawn.
+  // Twenty entries, all of them found - and far fewer lines than that drawn.
+  // The drawn count did not move when the desert arrived, which is the grouping
+  // doing its job: one new pair joined the stack that was already there, and
+  // the other turned `fire + flower` from a lone spoke into a stack of two.
   expect(await root.noteStillToFind()).toBe('0')
   expect(await root.noteDrawnSpokeCount()).toBe(9)
   // Every pair still has its own tile: the crowd moved into the stacks.
-  expect(await root.noteSpokeCount()).toBe(18)
-  expect(await root.noteGroupCounts()).toEqual(['6/6', '5/5'])
+  expect(await root.noteSpokeCount()).toBe(20)
+  expect(await root.noteGroupCounts()).toEqual(['7/7', '5/5', '2/2'])
 
   // And a member of a stack is still the way into its own entry, in two steps
   // rather than one since ticket 25: the tile reads the whole group into the
@@ -636,7 +642,7 @@ test("fire's crowded ring draws as stacks, and every pair stays reachable", asyn
   // Members listed properly where the merged spoke used to write "…", and the
   // chip that says how many pairs like it there are in all.
   expect(await root.readingLine()).not.toContain('…')
-  expect(await root.readingLineCount()).toBe('6/6')
+  expect(await root.readingLineCount()).toBe('7/7')
   expect(await root.readingLineTiles()).toContain('seed')
 
   await root.followReadingTile('seed')
@@ -659,11 +665,12 @@ test('the reading line is the same box empty and read, at phone width', async ({
   await root.verifyIsShown()
   await root.openFieldNotes()
 
-  // Steam's ring is nearly all arrowheads - five pairs make it, one decay
-  // leaves it - and six spokes are enough to read one after another.
+  // Steam's ring is nearly all arrowheads - six pairs make it, one decay
+  // leaves it - and seven spokes are enough to read one after another. The
+  // sixth pair is the desert's: a burning cactus steams rather than catching.
   await root.selectNote('steam')
   expect(await root.focusedNote()).toBe('steam')
-  expect(await root.noteDrawnSpokeCount()).toBe(6)
+  expect(await root.noteDrawnSpokeCount()).toBe(7)
 
   const empty = await root.readingBandHeight()
   expect(await root.readingLine()).toContain('tap a spoke')

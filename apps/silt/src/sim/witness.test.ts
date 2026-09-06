@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  APEX,
+  BLOSSOM,
   BURIED,
+  CACTUS,
+  DUNED,
   FIRE,
   FLOWER,
   LAVA,
   MOSS,
   MUD,
+  NUB,
   OBSIDIAN,
   SEED,
   SMOKE,
@@ -177,6 +182,58 @@ describe('the witness recorder', () => {
 
     expect(count(sim, FLOWER)).toBe(1)
     expect(keysOf(sim)).toEqual(['raise:sprout', 'bloom:tip'])
+  })
+
+  /**
+   * **The desert keys its own entries, and nothing here says so** (cactus spec
+   * §6). The sand bank and the two stalk factories are the meadow's code with
+   * the cactus's ids passed in, so the only thing standing between one plant's
+   * discovery and the other's is that `witnessRaise`/`witnessBloom` are
+   * *cursor-read* - they name the species the cell actually is, so a second
+   * plant gets its own keys with no argument at either call site. That is the
+   * assumption the spec said to verify rather than assume, and this is the
+   * verification: the same three verbs, three different names.
+   */
+  it('records the sand germination under its own key, not the mud bank’s', () => {
+    const sim = new Sim({ seed: 1 })
+    // A whole bed of dunes rather than one: each draws the desert's slow
+    // `GERMINATE_P` a tick under open sky, so the first one lands well inside
+    // the budget on any seed.
+    for (let x = 140; x <= 156; x++) sim.paint(x, FLOOR, DUNED)
+
+    runUntil(sim, (world) => count(world, NUB) > 0, 3000)
+
+    expect(count(sim, NUB)).toBeGreaterThan(0)
+    // One key, and it is the nub's: the sand refund (duned -> sand) is not an
+    // interaction, exactly as the mud bank's dirt refund is not.
+    expect(keysOf(sim)).toEqual(['germinate:nub'])
+  })
+
+  it('records the desert’s raise and bloom under the desert’s names', () => {
+    const sim = new Sim({ seed: 1 })
+    // A nub under a low obsidian roof, as the boxed-in bloom above: it raises
+    // its apex into the one free cell, and the apex is boxed in on its first
+    // draw and finishes there - which is what makes this fast and certain
+    // rather than a 150-tick climb at p 0.08.
+    sim.paint(150, FLOOR, OBSIDIAN)
+    sim.paint(150, FLOOR - 1, NUB)
+    sim.paint(150, FLOOR - 3, OBSIDIAN)
+
+    const crowned = (world: Sim): boolean =>
+      world.speciesAt(150, FLOOR - 2) === BLOSSOM || world.speciesAt(150, FLOOR - 2) === CACTUS
+    runUntil(sim, crowned, 60)
+
+    // Never `raise:sprout` or `bloom:tip`: two plants, two chains. The terminal
+    // draw picks the blossom or the flesh, and **both are the one `bloom:apex`
+    // entry** - a bloom is a bloom, whichever product it landed on, which is the
+    // same ruling the meadow's forced-versus-spent endings got.
+    expect(keysOf(sim)).toEqual(['raise:nub', 'bloom:apex'])
+    expect([BLOSSOM, CACTUS]).toContain(sim.speciesAt(150, FLOOR - 2))
+    // The grower is spent either way - it is the one cell of the plant that is
+    // ever busy, and the climb itself records nothing (the flesh is already the
+    // raise's product).
+    expect(count(sim, APEX)).toBe(0)
+    expect(sim.speciesAt(150, FLOOR - 1)).toBe(CACTUS)
   })
 
   it('records nothing for painting, however unpaintable the species', () => {
