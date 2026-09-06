@@ -1,6 +1,6 @@
 # 01 - Remove the 5-clip cap on a song
 
-**Status:** ready-for-agent
+**Status:** split (see 04, 05)
 **Type:** task
 **Reported:** 2026-09-06, user request via Ed
 
@@ -68,3 +68,8 @@ Confirm option (1) or pick another, then this is ready-for-agent.
     "at most 5 clips") to the shipped model. Persistence direction context:
     [ADR 0056](../../../docs/adr/0056-boop-clips-stay-local.md) - this ticket
     changes no storage substrate.
+- 2026-09-06 (/to-tickets, Ed approved): split into two tracer-bullet slices -
+  **04** (ten clips, ten unique tints - the palette growth, the letter `a`,
+  the overflow UI) and **05** (thirty-five clips, cycling tints - blocked by
+  04). This file stays as the decision log; the slices are the grabbable
+  tickets. Do not implement from this file.
