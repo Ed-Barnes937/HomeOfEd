@@ -115,9 +115,9 @@ export class HomePagePom extends BasePage {
 
   /**
    * Replaces `speechSynthesis.speak` with a recorder so the CT browser plays no
-   * real audio, and stubs `cancel` (called before every speak). Utterances are
-   * kept so tests can fire their start/end events. Call before clicking the
-   * speak button.
+   * real audio, and stubs `cancel` (called when an utterance is in flight).
+   * Utterances are kept so tests can fire their start/end events. Call before
+   * clicking the speak button.
    */
   async stubSpeech(): Promise<void> {
     await this.page.evaluate(() => {

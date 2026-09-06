@@ -4,7 +4,8 @@ import { useState } from 'react'
 
 import { SpeakerIcon } from '../components/icons.tsx'
 import { WordHeader } from '../components/WordHeader.tsx'
-import { speak, speechSupported } from '../features/speech/speak.ts'
+import { speak } from '../features/speech/speak.ts'
+import { useSpeechAvailable } from '../features/speech/useSpeechAvailable.ts'
 import { todayWordsQueryOptions } from '../features/wotd/todayWordsQuery.ts'
 import { yesterdayWordQueryOptions } from '../features/wotd/yesterdayWordQuery.ts'
 import { formatShortDate } from '../formatDate.ts'
@@ -186,7 +187,8 @@ function SynonymPills({ synonyms }: { synonyms: string[] }) {
  */
 function HearItButton({ word, variant }: { word: string; variant: 'pill' | 'circle' }) {
   const [playing, setPlaying] = useState(false)
-  if (!speechSupported()) return null
+  const speechAvailable = useSpeechAvailable()
+  if (!speechAvailable) return null
   return (
     <button
       className={variant === 'pill' ? styles.hearIt : styles.hearItCircle}
