@@ -8,11 +8,14 @@ import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
 import { DEFAULT_SAMPLE_RATE, renderBoopWav } from '../export/renderBoopWav.ts'
 import { webAudioSampleDecoder } from '../export/sampleDecoder.ts'
 import { BoopsPanel } from '../features/boops/BoopsPanel.tsx'
+import { quickSaveBoop } from '../features/boops/quickSaveBoop.ts'
 import { ClipControl } from '../features/clips/ClipControl.tsx'
 import { ClipEditorCard } from '../features/clips/ClipEditorCard.tsx'
 import { ClipHeader } from '../features/clips/ClipHeader.tsx'
 import { ClipLauncher } from '../features/clips/ClipLauncher.tsx'
 import { clipTint } from '../features/clips/clipTints.ts'
+import { ConfirmCard } from '../features/confirm/ConfirmCard.tsx'
+import { NEW_BOOP_CONFIRM } from '../features/confirm/newBoopConfirm.ts'
 import { Grid, type GridViewProps } from '../features/grid/Grid.tsx'
 import { rowColorVar } from '../features/grid/instrumentColors.ts'
 import { PhoneGrid } from '../features/grid/PhoneGrid.tsx'
@@ -33,7 +36,7 @@ import { isEditableTarget } from '../isEditableTarget.ts'
 import { MAX_CLIPS, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
 import { useFavourites } from '../persistence/useFavourites.ts'
 import { useWorkingSong } from '../persistence/useWorkingSong.ts'
-import { afterEdit, type LoadedBoop } from '../savedState.ts'
+import { afterEdit, isUnsaved, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
 import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
 import {
@@ -46,6 +49,7 @@ import {
   renameClip,
   singleClipSong,
   songFromStored,
+  songHasContent,
   storedBoopFromSong,
   swapRowInstrument,
   togglePlacement,
@@ -129,6 +133,12 @@ export function HomePage() {
    */
   const [clipOpen, setClipOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
+  /**
+   * Whether the New boop keep-card is open (boop-clips ticket 03). It lives
+   * here because the reset does: New boop has two homes - the top bar and the
+   * phone's "⋯" menu - and both press the same guarded action.
+   */
+  const [keepCardOpen, setKeepCardOpen] = useState(false)
   const motion = usePlayheadMotion(engine)
   // Below the tablet layout's 1024px floor the grid would have to shrink, so
   // the pinned-rail scroll window takes over (ticket 27) — chrome and grid
@@ -557,7 +567,7 @@ export function HomePage() {
 
   // --- The clip-lanes handlers (tickets 15/20, laptop and tablet) ---
 
-  /** "New boop" as a plain reset (spec §7): one blank clip, default tempo, no confirm. */
+  /** The "New boop" reset itself (spec §7): one blank clip, default tempo. */
   const newBoop = useCallback(() => {
     if (!engine) return
     stopSongPlayback()
@@ -570,6 +580,45 @@ export function HomePage() {
     setLoaded(null)
     setLoadToken((token) => token + 1)
   }, [engine, stopSongPlayback])
+
+  /**
+   * What the New boop *button* does (boop-clips ticket 03). The reset is the
+   * one action besides a clip delete that destroys clips (ADR 0056 §2), so it
+   * asks first whenever it would really take something away: the boop is not
+   * a row in "My boops" or has drifted from the row it came from (`isUnsaved`)
+   * *and* has something in it (`songHasContent`). Otherwise it still runs on
+   * the one tap it always did.
+   */
+  const requestNewBoop = useCallback(() => {
+    const current = songRef.current
+    if (engine && current && isUnsaved(loaded) && songHasContent(engine.kit, current)) {
+      setKeepCardOpen(true)
+      return
+    }
+    newBoop()
+  }, [engine, loaded, newBoop])
+
+  /** "Start fresh": the reset the card was asked about, and nothing kept. */
+  const startFresh = useCallback(() => {
+    setKeepCardOpen(false)
+    newBoop()
+  }, [newBoop])
+
+  /**
+   * "Save it": the working song into "My boops" under the automatic name the
+   * save form would have offered, and then the reset it was asked for. No name
+   * field and no dialog - one tap has to be enough, or the card is not a real
+   * alternative to losing the boop.
+   *
+   * This is the one write to "My boops" outside `BoopsPanel`, and it needs no
+   * `savedState.ts` transition (ADR 0031 §4): the reset it runs into drops the
+   * loaded boop outright, so there is no identity left to follow the new row.
+   */
+  const keepThisBoop = useCallback(() => {
+    setKeepCardOpen(false)
+    quickSaveBoop(window.localStorage, getWorkingBoop)
+    newBoop()
+  }, [getWorkingBoop, newBoop])
 
   /**
    * Tapping a chip puts that clip on the grid — a view change, not an edit.
@@ -848,7 +897,7 @@ export function HomePage() {
             <PhoneBar
               getShareUrl={getShareUrl}
               onClearGrid={clearClip}
-              onNewBoop={newBoop}
+              onNewBoop={requestNewBoop}
               onSave={() => setBoopsOpen(true)}
               onOpenMyBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
@@ -860,7 +909,7 @@ export function HomePage() {
               onOpenBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
               loaded={loaded}
-              onNewBoop={newBoop}
+              onNewBoop={requestNewBoop}
             />
           )}
         </div>
@@ -1010,6 +1059,13 @@ export function HomePage() {
             pickerTarget !== 'add' && pickerRows.length > 1 ? removeRowFromClip : undefined
           }
         />
+      )}
+      {/* The New boop keep-card (boop-clips ticket 03): two big choices, both
+          of which end on the fresh boop the child asked for - one of them
+          keeps this one first. Raised only when the reset would really lose
+          something, so a child who has nothing to lose never meets it. */}
+      {keepCardOpen && (
+        <ConfirmCard {...NEW_BOOP_CONFIRM} onSafe={keepThisBoop} onDestructive={startFresh} />
       )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>

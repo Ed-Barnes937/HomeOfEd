@@ -12,11 +12,13 @@ export interface PhoneBarProps {
   getShareUrl: () => string
   onClearGrid: () => void
   /**
-   * The plain New boop reset (spec §7) — one blank clip, no dialog, no
-   * confirm. It moved into this menu when the transport went (screenspace
-   * ticket 03), which was its only phone home. The menu is where every action
-   * the phone chrome drops lives, and `TopBar` leads its action group with
-   * New boop too, so the two widths agree on the order.
+   * The New boop reset (spec §7) - one blank clip, and no starters to choose
+   * from. Since boop-clips ticket 03 the page may put its keep-card in front
+   * of the reset; that is the page's business, not the menu's. It moved into
+   * this menu when the transport went (screenspace ticket 03), which was its
+   * only phone home. The menu is where every action the phone chrome drops
+   * lives, and `TopBar` leads its action group with New boop too, so the two
+   * widths agree on the order.
    */
   onNewBoop: () => void
   /**

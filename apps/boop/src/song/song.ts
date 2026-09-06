@@ -11,7 +11,7 @@
  * tints to the clip's position — the writer then always states them.
  */
 
-import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
+import { blankPattern, STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
 import {
   MAX_CLIPS,
   SONG_POSITIONS,
@@ -75,6 +75,33 @@ export function singleClipSong(pattern: Pattern, bpm: number): Song {
 /** The clip on the grid. */
 export function activeClip(song: Song): Clip {
   return song.clips[song.activeClipIndex]!
+}
+
+/**
+ * Is there anything in this song a child would miss if it went? A second clip,
+ * a placement, a painted step, or a clip whose rows are no longer the kit's
+ * default six - picking sounds is making something, even before a step is
+ * painted (ADR 0042).
+ *
+ * `singleClipSong(blankPattern(kit), …)` is what "New boop" *makes*, so this is
+ * false for exactly that song: the one thing that asks (boop-clips ticket 03)
+ * therefore stays quiet about a screen with nothing on it. Deliberately not
+ * "differs from a fresh boop in any way": speed and clip names are edits under
+ * ADR 0031, but not worth interrupting a child over on an empty grid.
+ */
+export function songHasContent(kit: Kit, song: Song): boolean {
+  const defaultRows = blankPattern(kit).map((row) => row.instrumentId)
+  const sameRows = (pattern: Pattern) =>
+    pattern.length === defaultRows.length &&
+    pattern.every((row, index) => row.instrumentId === defaultRows[index])
+  return (
+    song.clips.length > 1 ||
+    song.placements.some((clipIndices) => clipIndices.length > 0) ||
+    song.clips.some(
+      (clip) =>
+        clip.pattern.some((row) => row.steps.includes(true)) || !sameRows(clip.pattern),
+    )
+  )
 }
 
 /**
