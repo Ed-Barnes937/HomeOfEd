@@ -24,6 +24,20 @@ export interface CellSource {
   readonly cells: Uint8Array
 }
 
+/**
+ * The field-note progression snapshotted into a scene (ticket 28): the working
+ * `Progress` as the save found it - witnessed edge keys in first-seen order,
+ * and the reviewed watermark into them. Declared structurally rather than
+ * imported from `fieldNotes`, so the scene format depends on no other feature;
+ * the store's `Progress` satisfies it as it is.
+ */
+export interface SceneFieldNotes {
+  edges: readonly string[]
+  reviewed: number
+}
+
+const EMPTY_FIELD_NOTES: SceneFieldNotes = { edges: [], reviewed: 0 }
+
 export interface SceneEnvelope {
   version: number
   width: number
@@ -36,6 +50,12 @@ export interface SceneEnvelope {
   ra: string
   rb: string
   spawners: readonly { x: number; y: number; element: string }[]
+  /**
+   * Progression belongs to the scene (ticket 28). Optional because scenes
+   * saved before it existed have none - and by decision they load exactly as
+   * an empty snapshot would, so the field's absence needs no version bump.
+   */
+  fieldNotes?: SceneFieldNotes
 }
 
 /** The world a scene decoded to, sized to the *current* grid and ready to apply. */
@@ -44,6 +64,12 @@ export interface DecodedScene {
   ra: Uint8Array
   rb: Uint8Array
   spawners: Spawner[]
+  /**
+   * The scene's own progression, always present: a scene without a snapshot -
+   * saved before ticket 28 - reads as the empty one, so loading it clears the
+   * working field notes rather than keeping whatever the browser had.
+   */
+  fieldNotes: SceneFieldNotes
   /** Non-fatal losses (a retired element, a dropped spawner). The load still succeeded. */
   warnings: string[]
 }
@@ -91,12 +117,15 @@ function plane(source: CellSource, offset: number): Uint8Array {
 
 /**
  * Snapshot a world. `clock` is runtime bookkeeping and is deliberately not
- * persisted; `ra`/`rb` are, so a reload is pixel-identical.
+ * persisted; `ra`/`rb` are, so a reload is pixel-identical. The field-note
+ * progression rides in the same envelope (ticket 28) - one blob, so a save is
+ * atomic and `sceneStore`'s orphan cleanup never grows a third key prefix.
  */
 export function encodeScene(
   source: CellSource,
   spawners: readonly Spawner[],
   registry: ElementRegistry,
+  fieldNotes: SceneFieldNotes,
 ): SceneEnvelope {
   const elements: Record<string, string> = {}
   for (const def of registry.all()) elements[String(def.id)] = def.name
@@ -114,6 +143,7 @@ export function encodeScene(
       const name = registry.get(spawner.element)?.name
       return name ? [{ x: spawner.x, y: spawner.y, element: name }] : []
     }),
+    fieldNotes,
   }
 }
 
@@ -155,6 +185,35 @@ function speciesMap(
     else known.set(Number(byte), id)
   }
   return { known, missing }
+}
+
+/**
+ * The envelope's progression snapshot, trusted only whole - the same rule the
+ * field-notes store applies to its own blob, for the same reason: half a
+ * snapshot would quietly report progress the player never made. Absent means
+ * a pre-snapshot scene and is the empty progression by decision (ticket 28),
+ * with nothing to warn about; malformed is worth a warning, but never the
+ * load - the world in the scene is fine.
+ */
+function fieldNotesOf(value: unknown, warnings: string[]): SceneFieldNotes {
+  if (value === undefined) return EMPTY_FIELD_NOTES
+
+  const malformed = (): SceneFieldNotes => {
+    warnings.push('the scene’s field notes could not be read - starting empty')
+    return EMPTY_FIELD_NOTES
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return malformed()
+
+  const { edges, reviewed } = value as Partial<SceneFieldNotes>
+  if (!Array.isArray(edges) || edges.some((key) => typeof key !== 'string')) return malformed()
+
+  return {
+    edges,
+    // A watermark outside the timeline only ever means "some of this is not
+    // new any more", so it is clamped rather than rejected - the store's rule.
+    reviewed:
+      typeof reviewed === 'number' ? Math.min(Math.max(Math.trunc(reviewed), 0), edges.length) : 0,
+  }
 }
 
 /**
@@ -261,5 +320,5 @@ export function decodeScene(
     spawners.push({ x: sx, y: sy, element: id })
   }
 
-  return { species, ra, rb, spawners, warnings }
+  return { species, ra, rb, spawners, fieldNotes: fieldNotesOf(envelope.fieldNotes, warnings), warnings }
 }

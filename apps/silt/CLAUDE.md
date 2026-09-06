@@ -73,7 +73,8 @@ src/
                               and the witnessed-set derivations, built off
                               src/docs's graph, never a second derivation from
                               the registry. Both pure. fieldNotesStore -
-                              localStorage, one global key, edges only;
+                              localStorage, the working progression, edges
+                              only (scenes snapshot it - ADR 0055);
                               fieldNotesView - the pure derivation the panel
                               renders; useFieldNotes - the page's single seam,
                               React wiring over those two. panelModel - the
@@ -81,7 +82,17 @@ src/
                               the masking every rendered name goes through,
                               the allowlist deciding which sim tags a player
                               ever reads, the reading line's recipe for the
-                              active spoke (ticket 25), the footer key's rows, and
+                              active spoke (ticket 25), the footer key's rows,
+                              the recents timeline (`recentRows`, ticket 29:
+                              witnessed entries newest first off the view's
+                              first-seen iteration order, drawn as a
+                              desktop-only sidebar of floor(height / row)
+                              whole rows - never on the phone sheet; a row is
+                              the whole interaction since ticket 33 -
+                              combination, arrow, outcome, each element a tile
+                              with its name under it - and has no right-hand
+                              side at all when the edge left nothing or was a
+                              stage of one element's own life), and
                               `strokeOf` - the one place a line kind becomes a
                               stroke, so a spoke and its sample in the key
                               cannot disagree; ElementTile - *the* tile helper,
@@ -346,7 +357,14 @@ Rules that are easy to break by accident:
   before `become`), the only things on that surface that are not simulation;
   reactions and decay the engine sees for itself. Discoveries reach the page as a `simProtocol` message (rare events, so
   no shared-buffer slot to poll), and a `Sim` keeps what it has witnessed across
-  `clear`/`restore` - resetting the world does not reset discovery.
+  `clear`/`restore` - resetting the world does not reset discovery. **One thing
+  does**: an explicit progression resync. `resyncWitnessed` is the page saying
+  "this is what I know", whole - it *replaces* `simWorkerCore`'s reported set
+  and calls `Sim.forgetWitnessed()` in the same message - sent at boot and
+  again whenever the working progression is swapped out from under the sim
+  ("forget discoveries", and a scene load - ADR 0055), because the sim reports
+  each first once a session and would otherwise swallow the re-earn until a
+  reload. Rare and message-driven, so the per-event hot path is untouched.
   [ADR 0048](../../docs/adr/0048-silt-discovery-witness-in-the-sim-core.md).
 - **A cell that must go on acting has to write, or say so.** Chunk sleeping is
   driven by writes, so a hook that must keep being offered a draw either rewrites
@@ -422,11 +440,20 @@ Spec §8; the calls the spec leaves open are in
 Discovery-tree spec §5. `fieldNotesStore.ts` owns `silt:fieldNotes` and nothing
 else touches it.
 
-- **Global, not per scene, and edges only.** The blob is
+- **The key is the working progression, and edges only.** The blob is
   `{ version, edges, reviewed }`; discovery, mastery and the rail unlock are
   recomputed by `entries.ts` on every load, so nothing derived is stored and
   nothing stored can disagree with the roster. A new denominator is a roster
   change, not a migration.
+- **Progression belongs to the scene**
+  ([ADR 0055](../../docs/adr/0055-silt-progression-belongs-to-the-scene.md),
+  superseding spec §5's "global"). A save snapshots the working `Progress` into
+  the scene envelope (`sceneCodec`'s `SceneFieldNotes` - `sceneStore` still
+  treats the envelope as opaque); a load `replace`s the working progression
+  with the scene's snapshot, wholesale. A scene saved before snapshots existed
+  loads as an empty one - strict semantics, no migration. A load raises no
+  moment cards and never fires the 100% line: `useFieldNotes.generation` moves
+  with each `replace` and `useMoments` resyncs its baseline off it.
 - **The chart counts elements, the sim counts species.** `buried` charts as
   seed and sprout/tip/stalk/petal as flower, through `chartAs` on the derived
   graph; `entries.ts` folds it in, so one charted entry can be backed by several
@@ -459,9 +486,22 @@ else touches it.
   element is paintable in every other way, spawners included. Mud leaving the
   rail did **not** take it out of `v1Elements` - scenes remap by name, and a
   pre-trim scene's mud cells depend on it still being a species.
-- **Clearing the world does not clear discoveries.** The only thing that does is
-  the panel's armed "forget discoveries" (`store.reset()`), which removes the
-  key outright.
+- **Clearing the world does not clear discoveries.** Only two things move the
+  working progression besides a witness: the panel's armed "forget discoveries"
+  (`store.reset()`, which removes the key outright and touches no saved
+  snapshot until the next save writes over one) and an explicit scene load
+  (`store.replace()`). **Whichever of the two moves it, the sim has to be
+  told**, or the recorder goes on swallowing what it has already shown this
+  session (see the witness-recorder rule above). Both call sites are in
+  `HomePage`, and each pairs the swap with the resync **after** it:
+  `forgetDiscoveries` sends `controls.resyncWitnessed([])`, and the `useScenes`
+  load callback sends `controls.resyncWitnessed(snapshot.edges)` after
+  `fieldNotes.replace` (tickets 31, 32). Two call sites is a deliberate choice
+  over an effect keyed on `generation` - the swap and the telling stay in one
+  synchronous breath, with nothing able to land between them, and the resync
+  carries the *new* progression's edges (the reasoning is in ticket 32).
+  **A third way to move the working progression is a third resync**, and this
+  bullet is the list.
 - `useFieldNotes` is the one seam the header, panel, rail and moments read. It
   is React wiring only: the store and the pure `fieldNotesView` behind it are
   where the behaviour, and the tests, live.
@@ -477,7 +517,13 @@ else touches it.
   25): the ring draws tiles and arrowheads only, and the band under it renders
   the *active* spoke - hovered, focused or tapped - as a recipe of tiles
   (`Spoke.reading`). That is also why the two taps differ: a ring tile *reads*
-  its spoke into the band, a band tile *follows* an element. A ring tile is
+  its spoke into the band, a band tile *follows* an element. **The recents row
+  is the one other place an interaction is spelled out** (ticket 33) - the same
+  grammar, drawn from `RecentRow` rather than from a spoke, and the reason both
+  renderers share `recipeSide` and the model's own `REAGENT_JOIN` /
+  `PRODUCT_JOIN` / `MAKES`: a recipe must not be punctuated one way in the band
+  and another in the sidebar. It stays display-only - the row is not a way into
+  an element, so the *chart* is still read in one place. A ring tile is
   therefore never disabled - a masked reading names nothing, and disabling it
   would leave a spoke with a hidden partner the one spoke nobody could read
   ([ADR 0052](../../docs/adr/0052-silt-the-reading-line.md)). The masking is not
@@ -503,8 +549,9 @@ else touches it.
   the view before and the view after, which is also why closing the panel and
   forgetting discoveries raise nothing without a case for either. Cards queue
   one at a time and a burst collapses to the newest few: quiet beats complete.
-  The seed the page sends the sim at boot (`witnessedAtBoot`) is noise
-  reduction only - the store would dedupe a re-report anyway.
+  The boot resync the page sends the sim (`witnessedAtBoot`) is noise
+  reduction only - the store would dedupe a re-report anyway. A *later* resync
+  is not: see the witness-recorder rule.
 - **The key is static text about line kinds, and that is what keeps it safe.**
   The footer's key derives its rows from the graph (`legendRows`) and names no
   element at all, so it sits outside the spoiler policy rather than merely

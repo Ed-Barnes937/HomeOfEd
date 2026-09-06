@@ -74,8 +74,10 @@ export function HomePage() {
 
   // The cards over the world, derived from field notes rather than from the
   // sim's report: the chip, the panel and the card are three readings of one
-  // store, so none of them can be a discovery ahead of the others.
-  const moments = useMoments(fieldNotes)
+  // store, so none of them can be a discovery ahead of the others. The
+  // generation is what keeps a scene load quiet (ticket 28): the edges it
+  // brings in are an arrival, not a witness.
+  const moments = useMoments(fieldNotes, fieldNotes.generation)
 
   // Reviewing happens on **close**, not open: advancing the watermark as the
   // panel opens would empty the `NEW n` chip on the very render that exists to
@@ -123,8 +125,26 @@ export function HomePage() {
   )
 
   const scenes = useScenes({
-    saveScene: controls.saveScene,
-    loadScene: controls.loadScene,
+    // Progression belongs to the scene (ticket 28): a save snapshots the
+    // working field notes into the envelope, and a load replaces them with the
+    // scene's own - empty for a scene saved before snapshots existed. The
+    // replace sits inside the load, after the world has applied, so a scene
+    // that will not load leaves the notes exactly as it leaves the world.
+    saveScene: () => controls.saveScene(fieldNotes.progress),
+    loadScene: (json) => {
+      const { warnings, fieldNotes: snapshot } = controls.loadScene(json)
+      fieldNotes.replace(snapshot)
+      // The second progression swap, and so the second resync (ticket 32): the
+      // snapshot can be *emptier* than the chart it replaces, and the sim
+      // reports each first once a session, so without this the dropped entries
+      // stay unearnable until a reload. What matters is that it carries the
+      // *snapshot's* edges rather than what the page knew a moment ago, and
+      // that it sits in the same synchronous breath as the `replace` - no
+      // report can land between the two, and a load that threw never reaches
+      // either.
+      controls.resyncWitnessed(snapshot.edges)
+      return warnings
+    },
     // A load always enters paused (spec §8), and the world it brought in is
     // not a first visit any more. The name is the controller's — it names the
     // scene a save would write to, whoever last changed it.
@@ -179,6 +199,21 @@ export function HomePage() {
       if (notesOpen) closeNotes()
     },
   })
+
+  /**
+   * "Forget discoveries" (spec §5): the working progression goes, and the sim
+   * is told so in the same breath (ticket 31). It reports each first once a
+   * session, so without the resync an interaction the player has already
+   * witnessed is swallowed rather than earned back - the chart stays empty
+   * until a reload. The world on screen is not touched either way; whatever is
+   * still standing in it may re-fire and re-report, which is exactly the point.
+   */
+  const forgetDiscoveries = (): void => {
+    fieldNotes.reset()
+    // The whole of what the page now knows: nothing. `reset` removes the key
+    // outright rather than leaving an empty blob behind it.
+    controls.resyncWitnessed([])
+  }
 
   const armReset = (): void => {
     if (!resetConfirm.armed) {
@@ -268,7 +303,7 @@ export function HomePage() {
           view={fieldNotes}
           registry={controls.registry}
           onClose={closeNotes}
-          onForget={fieldNotes.reset}
+          onForget={forgetDiscoveries}
         />
       ) : null}
 

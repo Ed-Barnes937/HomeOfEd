@@ -7,7 +7,7 @@ import type { WorldRenderer } from '../render/renderer.ts'
 import { brushOffsets } from './brushOffsets.ts'
 import { createSimHost, type SimHost } from './simHost.ts'
 import { strokeSteps } from './strokeSteps.ts'
-import { decodeScene, encodeScene } from '../scenes/sceneCodec.ts'
+import { decodeScene, encodeScene, type SceneFieldNotes } from '../scenes/sceneCodec.ts'
 import { isUnderBrush, type Spawner } from '../spawners/spawners.ts'
 
 /**
@@ -71,9 +71,11 @@ export interface UseSimLoopOptions {
    */
   onWitnessed?: (keys: readonly EdgeKey[]) => void
   /**
-   * What the player had already witnessed when the page loaded, seeded into the
-   * sim as it starts. Read once, at mount - later changes are the sim's own
-   * reports coming back, and re-seeding them would be circular.
+   * What the player had already witnessed when the page loaded, resynced into
+   * the sim as it starts. Read once, at mount - later changes are the sim's own
+   * reports coming back, and sending those again would be circular. A
+   * progression swapped out from under the sim is not one of those, and goes
+   * through `resyncWitnessed` instead.
    */
   witnessedAtBoot?: ReadonlySet<EdgeKey>
 }
@@ -88,19 +90,34 @@ export interface UseSimLoopControls {
   step: () => void
   /** Back to a freshly constructed world, cells and spawners alike (spec §3, §7). */
   reset: () => void
+  /**
+   * Tell the sim what the page knows now (ticket 31), replacing what it was
+   * told before: the recorder forgets, and the reported set is rebuilt from
+   * these keys. Called when the working progression is swapped out - "forget
+   * discoveries" - so an interaction the session has already shown can be
+   * earned back without a reload. Not a witness: nothing is recorded by it.
+   */
+  resyncWitnessed: (keys: Iterable<EdgeKey>) => void
   /** Grid cell → CSS-px point on the on-screen canvas (cell centre), for drawing spawner chrome over the world. `null` before the canvas has a fit. */
   gridToCanvasPoint: (x: number, y: number) => { x: number; y: number } | null
   /** CSS px per cell, matching `CursorInfo.cellSize` — for sizing spawner chrome. */
   cellSize: () => number
-  /** The world and its spawners as a scene envelope, plus a thumbnail of the last drawn frame. */
-  saveScene: () => { json: string; thumbnail: string | null }
+  /**
+   * The world and its spawners as a scene envelope, plus a thumbnail of the
+   * last drawn frame. The caller hands over the field-note progression to ride
+   * in the envelope (ticket 28) - the loop knows how to package it, never
+   * where it lives.
+   */
+  saveScene: (fieldNotes: SceneFieldNotes) => { json: string; thumbnail: string | null }
   /**
    * Replace the world (and its spawners) with a saved scene. Throws
    * `SceneLoadError` if the scene cannot be applied; otherwise returns the
-   * non-fatal warnings the load collected. The caller is responsible for
-   * entering paused — the loop never changes `running` behind React's back.
+   * non-fatal warnings the load collected, plus the scene's own field-note
+   * snapshot for the caller to apply (ticket 28) - empty for a scene saved
+   * before snapshots existed. The caller is responsible for entering paused -
+   * the loop never changes `running` behind React's back.
    */
-  loadScene: (json: string) => string[]
+  loadScene: (json: string) => { warnings: string[]; fieldNotes: SceneFieldNotes }
 }
 
 /**
@@ -126,8 +143,9 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
   const onFpsRef = useRef(opts.onFps)
   const onSpawnersChangeRef = useRef(opts.onSpawnersChange)
   const onWitnessedRef = useRef(opts.onWitnessed)
-  // The first render's set, and only ever that one: the seed is a boot-time
-  // fact, and the mount effect below is the only reader.
+  // The first render's set, and only ever that one: what the page knew at boot
+  // is a boot-time fact, and the mount effect below is the only reader. Every
+  // later resync is a call, not a prop.
   const witnessedAtBootRef = useRef(opts.witnessedAtBoot)
   const hostRef = useRef<SimHost | null>(null)
   /** The `running` value the host last heard — sends happen on change only. */
@@ -175,11 +193,12 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
     sentRunningRef.current = runningRef.current
     host.send({ type: 'setRunning', running: runningRef.current })
 
-    // Field notes' two wires (discovery-tree spec §4). The seed is noise
+    // Field notes' two wires (discovery-tree spec §4). The boot resync is noise
     // reduction, not correctness - the page's store dedupes a re-report anyway
     // - but without it a long-running world announces its firsts all over again
-    // after every reload.
-    host.send({ type: 'seedWitnessed', keys: [...(witnessedAtBootRef.current ?? [])] })
+    // after every reload. It is the same message `resyncWitnessed` sends later
+    // (ticket 31), because "this is what the page knows" is what it always was.
+    host.send({ type: 'resyncWitnessed', keys: [...(witnessedAtBootRef.current ?? [])] })
     const stopWitnessing = host.onWitnessed((keys) => onWitnessedRef.current?.(keys))
 
     // Hidden pauses ticking (without touching `running`), matching the old
@@ -428,18 +447,25 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       host.send({ type: 'setSpawners', spawners: [] })
       onSpawnersChangeRef.current?.([])
     },
+    // The sim reports each first once a session, so it has to be told when the
+    // page's progression is swapped out from under it (ticket 31) - otherwise
+    // an interaction forgotten mid-session stays swallowed until a reload.
+    // Fire-and-forget: the sim answers by reporting firsts as it always does.
+    resyncWitnessed: (keys) => {
+      hostRef.current?.send({ type: 'resyncWitnessed', keys: [...keys] })
+    },
     gridToCanvasPoint: (x, y) => rendererRef.current?.gridToCanvasPoint(x, y) ?? null,
     cellSize: () => {
       const fit = rendererRef.current?.getFit()
       return fit ? fit.width / GRID_WIDTH : 0
     },
-    saveScene: () => {
+    saveScene: (fieldNotes) => {
       const host = requireHost(hostRef.current)
       // A consistent read, not a racy one: the sim may be mid-tick on its own
       // thread, and a tear stored into a scene is permanent (unlike the
       // renderer's, which the next frame repairs).
       const envelope = host.view.readConsistent(() =>
-        encodeScene(host.view, spawnersRef.current, host.registry),
+        encodeScene(host.view, spawnersRef.current, host.registry, fieldNotes),
       )
       // A frame can be skipped now (ticket 06), so a save landing between a
       // paint and the next rAF would snapshot the previous world. This is a
@@ -458,7 +484,7 @@ export function useSimLoop(opts: UseSimLoopOptions): UseSimLoopControls {
       spawnersRef.current.splice(0, spawnersRef.current.length, ...scene.spawners)
       host.send({ type: 'setSpawners', spawners: spawnersRef.current.slice() })
       onSpawnersChangeRef.current?.(spawnersRef.current.slice())
-      return scene.warnings
+      return { warnings: scene.warnings, fieldNotes: scene.fieldNotes }
     },
   }
 }

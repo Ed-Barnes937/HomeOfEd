@@ -139,7 +139,7 @@ export interface SimHost {
    * Subscribe to first witnesses - the discovery metagame's one read that does
    * not come through `view`, because it is an event rather than a state the
    * render loop could poll (discovery-tree spec §4). Returns its unsubscribe.
-   * Keys already seeded through `seedWitnessed` never arrive here.
+   * Keys the page last sent through `resyncWitnessed` never arrive here.
    */
   onWitnessed(listener: WitnessListener): () => void
   dispose(): void
