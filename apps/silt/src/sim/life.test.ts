@@ -189,7 +189,14 @@ describe('seed, moss and vine', () => {
     expect(registry.get(VINE)?.archetype).toEqual({ kind: 'static' })
   })
 
-  it('declares its row last, after the tag rows stage 02 registered', () => {
+  // The whole table, in order, and the only case in the suite that pins all of
+  // it - order is load-bearing everywhere (spec §1.2) and this is where a row
+  // inserted in the wrong place is caught. The two burial rows and the petal
+  // strikes sit at the tail because nothing above claims their pairs; the
+  // cactus's eight named rows do not, because the `fire + [flammable]` and
+  // `acid + [solid]`/`[powder]` tag rows would swallow every one of them
+  // (ADR 0054 §5).
+  it('declares its rows last, after the tag rows stage 02 registered', () => {
     expect(v1Reactions.map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
@@ -201,6 +208,10 @@ describe('seed, moss and vine', () => {
       ['fire', 'wood'],
       ['fire', 'flower'],
       ['fire', 'sprout'],
+      ['fire', 'nub'],
+      ['fire', 'apex'],
+      ['fire', 'cactus'],
+      ['fire', 'blossom'],
       ['fire', 'flammable'],
       ['fire', 'ember'],
       ['lava', 'wood'],
@@ -216,6 +227,10 @@ describe('seed, moss and vine', () => {
       ['acid', 'tip'],
       ['acid', 'flower'],
       ['acid', 'petal'],
+      ['acid', 'nub'],
+      ['acid', 'apex'],
+      ['acid', 'cactus'],
+      ['acid', 'blossom'],
       ['acid', 'solid'],
       ['acid', 'powder'],
       ['acid', 'lava'],
@@ -226,6 +241,7 @@ describe('seed, moss and vine', () => {
       ['seed', 'mud'],
       ['petal', 'mud'],
       ['petal', 'water'],
+      ['seed', 'sand'],
     ])
   })
 

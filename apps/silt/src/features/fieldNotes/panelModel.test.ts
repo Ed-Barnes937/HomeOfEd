@@ -87,6 +87,10 @@ describe('picker ordering', () => {
       'moss',
       'ember',
       'flower',
+      // The desert lands beside the meadow, at the same depth and for the same
+      // reason: a seed in the ground germinates, and sand is on the rail
+      // already (ADR 0054).
+      'cactus',
       'vine',
       'ash',
     ])
@@ -94,7 +98,17 @@ describe('picker ordering', () => {
 
   test('a species the chart does not name gets no row at all (ticket 08)', () => {
     const names = pickerRows(viewOf()).map((row) => row.name)
-    for (const species of ['buried', 'sprout', 'tip', 'stalk', 'petal']) {
+    for (const species of [
+      'buried',
+      'sprout',
+      'tip',
+      'stalk',
+      'petal',
+      'duned',
+      'nub',
+      'apex',
+      'blossom',
+    ]) {
       expect(names).not.toContain(species)
     }
     expect(names).toContain('flower')
@@ -466,10 +480,11 @@ describe('grouped spokes (ticket 09)', () => {
   }
 
   test('the ring groups nothing while it fits, however many pairs share a result', () => {
-    // Sulphur's seven fit, so its five acid pairs stay five spokes: below the
-    // capacity, full fidelity is worth more than tidiness (decision 3).
+    // Sulphur's eight fit, so its six acid pairs stay six spokes: below the
+    // capacity, full fidelity is worth more than tidiness (decision 3). Seven
+    // and five until the desert's four plant rows folded onto one cactus spoke.
     const spokes = ringFor('sulphur', everything).spokes
-    expect(spokes).toHaveLength(7)
+    expect(spokes).toHaveLength(8)
     expect(spokes.every((spoke) => spoke.group === undefined)).toBe(true)
   })
 
@@ -488,18 +503,19 @@ describe('grouped spokes (ticket 09)', () => {
     // and what lava does to it.
     expect(grouped).toHaveLength(3)
     const [made] = grouped.filter((spoke) => spoke.direction === 'in')
-    expect(made?.group?.seen).toBe(5)
-    expect(made?.group?.total).toBe(5)
-    expect(stackOf(made)).toEqual(['wood', 'seed', 'moss', 'vine', 'flower'])
+    expect(made?.group?.seen).toBe(6)
+    expect(made?.group?.total).toBe(6)
+    expect(stackOf(made)).toEqual(['wood', 'seed', 'moss', 'vine', 'flower', 'cactus'])
 
     // The grouping key is the verb and the result, not the rows behind them:
-    // ticket 15's eight literal `acid + <plant>` rows, the wood one and the
-    // buried seed land on five charted entries (ticket 08) and, here, on one
-    // spoke. A table refactor into a `[plant]` tag row would move none of this.
+    // ticket 15's eight literal `acid + <plant>` rows, the desert's four, the
+    // wood one and the two bedded seeds land on six charted entries (ticket 08,
+    // ADR 0054) and, here, on one spoke. A table refactor into a `[plant]` tag
+    // row would move none of this.
     const raw = (made?.group?.members ?? []).flatMap(
       (member) => notes.get(member.key)?.sources ?? [],
     )
-    expect(raw).toHaveLength(10)
+    expect(raw).toHaveLength(15)
   })
 
   test('a group says what its members share, and lists the rest in the reading line', () => {
@@ -511,7 +527,7 @@ describe('grouped spokes (ticket 09)', () => {
     // Every member is `acid + something`, so acid stays in the recipe and the
     // somethings become the slot the members stand in. Nothing is elided: the
     // reading line has the room the ring never had, so the "…" is gone with it.
-    expect(readingOf(made)).toBe('acid + wood / seed / moss / vine / flower -> sulphur')
+    expect(readingOf(made)).toBe('acid + wood / seed / moss / vine / flower / cactus -> sulphur')
     expect(namesOf(made?.reading.reagents)).toEqual(['acid'])
     // One field for the tiles and the chip, so the band cannot draw a list of
     // members and a count of something else.
@@ -530,7 +546,7 @@ describe('grouped spokes (ticket 09)', () => {
 
     expect(readingOf(only)).toBe('acid + wood -> sulphur')
     expect(stackOf(only)).toEqual(['acid'])
-    expect(only?.group).toMatchObject({ seen: 1, total: 5 })
+    expect(only?.group).toMatchObject({ seen: 1, total: 6 })
     // The chip is the whole of what the group adds here, so the line carries it
     // too: without it nothing at all would say the pair is one of five.
     expect(only?.reading.group).toBe(only?.group)
@@ -541,7 +557,7 @@ describe('grouped spokes (ticket 09)', () => {
     const spokes = ringFor('sulphur', view).spokes
     const [made] = groupRing(spokes, 'sulphur', 0).filter((spoke) => spoke.direction === 'in')
 
-    expect(made?.group).toMatchObject({ seen: 2, total: 5 })
+    expect(made?.group).toMatchObject({ seen: 2, total: 6 })
     expect(stackOf(made)).toEqual(['wood', 'moss'])
   })
 
@@ -557,7 +573,8 @@ describe('grouped spokes (ticket 09)', () => {
     const [made] = groupRing(spokes, 'sulphur', 0)
 
     // Acid dissolving a plant discovers sulphur, never the plant: three of the
-    // five members are elements this player has never seen.
+    // five members witnessed here are elements this player has never seen. The
+    // sixth pair (the cactus) is not witnessed at all, so it is not a member.
     expect(made?.group?.members.map((member) => member.label)).toEqual([
       'wood',
       'seed',
@@ -580,23 +597,26 @@ describe('grouped spokes (ticket 09)', () => {
     // arrowheads at twelve o'clock. Nothing is dropped - the pairs move into
     // the stacks - so the entry count under the ring does not move either.
     const ring = ringFor('fire', everything)
-    expect(notes.entriesFor('fire')).toHaveLength(18)
+    expect(notes.entriesFor('fire')).toHaveLength(20)
     expect(ring.spokes.length).toBeLessThanOrEqual(RING_CAPACITY)
-    expect(ring.seen).toBe(18)
+    expect(ring.seen).toBe(20)
     expect(ring.stillToFind).toBe(0)
 
     const pairs = ring.spokes.reduce((sum, spoke) => sum + (spoke.group?.seen ?? 1), 0)
-    expect(pairs).toBe(18)
+    expect(pairs).toBe(20)
 
-    // Six of them are `lava + something -> lava · fire`, and lava is what they
-    // share: it stays on the line while the somethings become the stack.
+    // Seven of them are `lava + something -> lava · fire`, and lava is what they
+    // share: it stays on the line while the somethings become the stack. The
+    // cactus is on this list and not on fire's own, which is ADR 0054 §5 read
+    // straight off the ring: lava is a heat source and lights anything
+    // flammable, while fire gets nothing out of wet tissue.
     const [lava] = ring.spokes.filter(
       (spoke) => (spoke.group?.seen ?? 1) > 1 && spoke.direction === 'in',
     )
     expect(readingOf(lava)).toBe(
-      'lava + oil / sulphur / seed / moss / vine / flower -> lava · fire',
+      'lava + oil / sulphur / seed / moss / vine / flower / cactus -> lava · fire',
     )
-    expect(stackOf(lava)).toEqual(['oil', 'sulphur', 'seed', 'moss', 'vine', 'flower'])
+    expect(stackOf(lava)).toEqual(['oil', 'sulphur', 'seed', 'moss', 'vine', 'flower', 'cactus'])
   })
 
   test('a grouped ring is still every witnessed pair, and only witnessed ones', () => {
