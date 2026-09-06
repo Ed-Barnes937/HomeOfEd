@@ -20,6 +20,13 @@ const GROUP_LABELS: Record<InstrumentGroup, string> = {
  */
 export const UNGROUPED_SECTION_LABEL = 'Sounds'
 
+/**
+ * The Favourites section's id (ticket 01). Not a manifest group: `favourites`
+ * can never collide with `InstrumentGroup` or the `other` tail, so a testid or
+ * key built on section ids stays unambiguous.
+ */
+export const FAVOURITES_SECTION_ID = 'favourites'
+
 /** One labelled block of the instrument picker. */
 export interface InstrumentSection {
   /** The group, or `other` for the ungrouped tail. */
@@ -33,9 +40,29 @@ export interface InstrumentSection {
  * each holding its instruments **in manifest order** — so the manifest is still
  * the only thing that decides which sounds exist and in what order they read.
  * An empty group is dropped; ungrouped instruments follow in one last section.
+ *
+ * `favourites` (ticket 01) prepends a Favourites section — a *copy*, not a
+ * move, so a kid still finds Cowbell under Drums — present only when at least
+ * one favourited id is in this kit. Manifest order there too: stable and
+ * predictable, unlike favouriting order. Ids the kit does not contain are
+ * ignored (they stay in storage for the kit that does — forward-compat).
  */
-export function instrumentSections(kit: Kit): InstrumentSection[] {
+export function instrumentSections(
+  kit: Kit,
+  favourites: readonly string[] = [],
+): InstrumentSection[] {
   const sections: InstrumentSection[] = []
+  const starred = new Set(favourites)
+  const favouriteInstruments = kit.instruments.filter((instrument) =>
+    starred.has(instrument.instrumentId),
+  )
+  if (favouriteInstruments.length > 0) {
+    sections.push({
+      id: FAVOURITES_SECTION_ID,
+      label: 'Favourites',
+      instruments: favouriteInstruments,
+    })
+  }
   for (const group of INSTRUMENT_GROUPS) {
     const instruments = kit.instruments.filter((instrument) => instrument.group === group)
     if (instruments.length > 0) {
