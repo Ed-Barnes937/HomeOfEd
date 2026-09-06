@@ -134,6 +134,15 @@ export function HomePage() {
     loadScene: (json) => {
       const { warnings, fieldNotes: snapshot } = controls.loadScene(json)
       fieldNotes.replace(snapshot)
+      // The second progression swap, and so the second resync (ticket 32): the
+      // snapshot can be *emptier* than the chart it replaces, and the sim
+      // reports each first once a session, so without this the dropped entries
+      // stay unearnable until a reload. What matters is that it carries the
+      // *snapshot's* edges rather than what the page knew a moment ago, and
+      // that it sits in the same synchronous breath as the `replace` - no
+      // report can land between the two, and a load that threw never reaches
+      // either.
+      controls.resyncWitnessed(snapshot.edges)
       return warnings
     },
     // A load always enters paused (spec §8), and the world it brought in is

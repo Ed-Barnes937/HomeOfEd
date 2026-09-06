@@ -357,9 +357,9 @@ Rules that are easy to break by accident:
   "this is what I know", whole - it *replaces* `simWorkerCore`'s reported set
   and calls `Sim.forgetWitnessed()` in the same message - sent at boot and
   again whenever the working progression is swapped out from under the sim
-  ("forget discoveries"), because the sim reports each first once a session and
-  would otherwise swallow the re-earn until a reload. Rare and message-driven,
-  so the per-event hot path is untouched.
+  ("forget discoveries", and a scene load - ADR 0055), because the sim reports
+  each first once a session and would otherwise swallow the re-earn until a
+  reload. Rare and message-driven, so the per-event hot path is untouched.
   [ADR 0048](../../docs/adr/0048-silt-discovery-witness-in-the-sim-core.md).
 - **A cell that must go on acting has to write, or say so.** Chunk sleeping is
   driven by writes, so a hook that must keep being offered a draw either rewrites
@@ -487,9 +487,16 @@ else touches it.
   snapshot until the next save writes over one) and an explicit scene load
   (`store.replace()`). **Whichever of the two moves it, the sim has to be
   told**, or the recorder goes on swallowing what it has already shown this
-  session (see the witness-recorder rule above). `HomePage`'s
-  `forgetDiscoveries` pairs the reset with `controls.resyncWitnessed([])`; the
-  scene-load path is **not** wired yet (discovery ticket 32).
+  session (see the witness-recorder rule above). Both call sites are in
+  `HomePage`, and each pairs the swap with the resync **after** it:
+  `forgetDiscoveries` sends `controls.resyncWitnessed([])`, and the `useScenes`
+  load callback sends `controls.resyncWitnessed(snapshot.edges)` after
+  `fieldNotes.replace` (tickets 31, 32). Two call sites is a deliberate choice
+  over an effect keyed on `generation` - the swap and the telling stay in one
+  synchronous breath, with nothing able to land between them, and the resync
+  carries the *new* progression's edges (the reasoning is in ticket 32).
+  **A third way to move the working progression is a third resync**, and this
+  bullet is the list.
 - `useFieldNotes` is the one seam the header, panel, rail and moments read. It
   is React wiring only: the store and the pure `fieldNotesView` behind it are
   where the behaviour, and the tests, live.

@@ -42,9 +42,19 @@ builds for that future.
    that `replace` advances, and `useMoments` resynchronises its baseline when
    it moves instead of diffing across it. The 100% line follows the same rule
    as a page that boots complete (`resyncCompletion`): a loaded-complete chart
-   had its moment wherever it was earned. The sim-side witness recorder is
-   untouched: within a session it still never re-reports what it has seen,
-   whatever the working progression says (ADR 0048).
+   had its moment wherever it was earned. The sim-side witness recorder was
+   untouched by this change: within a session it never re-reported what it had
+   seen, whatever the working progression said (ADR 0048).
+
+   **Amended by discovery ticket 32** (2026-09-06): that last sentence was the
+   bug. A snapshot can be *emptier* than the chart it replaces - a scene saved
+   before snapshots existed is the extreme case - so a load can drop an entry
+   the session has already reported, and the recorder went on swallowing the
+   re-earn until a reload (ticket 30). The load now sends the resync ticket 31
+   built, carrying the snapshot's edges, in the same breath as the `replace`
+   and after it. It is still not a witness: the resync tells the sim what the
+   page knows and raises nothing, so a *fuller* scene stays as quiet as this
+   point's generation rule already made it.
 
 ## Consequences
 

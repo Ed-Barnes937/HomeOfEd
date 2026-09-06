@@ -399,6 +399,49 @@ test('an interaction forgotten mid-session is earned again by doing it again', a
 })
 
 /**
+ * The same seam from the other side (ticket 32). A scene load replaces the
+ * working progression with the scene's snapshot, wholesale (ADR 0055), so a
+ * scene whose snapshot is emptier than the chart drops entries the session has
+ * already reported - the second way the progression shrinks under a sim that
+ * reports each first once (ticket 30). The load has to carry the same resync
+ * "forget discoveries" does, or the dropped entry stays unearnable until a
+ * reload.
+ */
+test('an entry a scene load drops is earned again by doing it again', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // Saved before anything was witnessed, so its snapshot is empty - which is
+  // also exactly how a scene saved before snapshots existed loads (ADR 0055).
+  await root.openScenes()
+  await root.saveScene()
+  await root.verifySceneRow('scene 1')
+  await root.closeScenes()
+
+  await root.selectBrush(2)
+  await root.selectElement('lava')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+
+  // Loading the emptier scene takes the entry back out of the chart.
+  await root.openScenes()
+  await root.loadScene('scene 1')
+  await expect.poll(() => root.fieldNotesCount()).toBe('0/54')
+
+  // The same pour on the world that arrived with it: earned back, no reload.
+  await root.selectElement('lava')
+  await root.paintCell(80, 120)
+  await root.selectElement('water')
+  await root.paintCell(80, 115)
+  await root.step()
+
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+})
+
+/**
  * The recents sidebar (ticket 29): the most recently witnessed discoveries,
  * newest first, as many rows as the dialog's height fits and not one more. The
  * derivation (order, dedupe, unknown keys, the element a row draws) is pinned
