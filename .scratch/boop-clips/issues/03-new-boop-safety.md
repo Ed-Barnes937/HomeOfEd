@@ -95,3 +95,9 @@ Option **1 - confirm first**, as a two-big-button kid card, not prose:
   Play check still owed by a human: the card on a real phone (390px) from the
   "⋯" menu, and that "Save it" feels like it did something (the screen simply
   resets - there is no confirmation flash, since the panel is not opened).
+
+- 2026-09-06, Ed (decision sitting): all five judgement calls **pass as
+  built** - wording stays ("and lose it" included), the content gate stays
+  (speed/rename-only edits do not raise the card), the first-visit seed
+  tripping the card is accepted, two buttons only, shared confirm visuals.
+  The phone play check is still owed before merge.
