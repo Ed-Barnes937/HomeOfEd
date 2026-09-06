@@ -191,6 +191,21 @@ export function HomePage() {
     },
   })
 
+  /**
+   * "Forget discoveries" (spec §5): the working progression goes, and the sim
+   * is told so in the same breath (ticket 31). It reports each first once a
+   * session, so without the resync an interaction the player has already
+   * witnessed is swallowed rather than earned back - the chart stays empty
+   * until a reload. The world on screen is not touched either way; whatever is
+   * still standing in it may re-fire and re-report, which is exactly the point.
+   */
+  const forgetDiscoveries = (): void => {
+    fieldNotes.reset()
+    // The whole of what the page now knows: nothing. `reset` removes the key
+    // outright rather than leaving an empty blob behind it.
+    controls.resyncWitnessed([])
+  }
+
   const armReset = (): void => {
     if (!resetConfirm.armed) {
       resetConfirm.arm(true)
@@ -279,7 +294,7 @@ export function HomePage() {
           view={fieldNotes}
           registry={controls.registry}
           onClose={closeNotes}
-          onForget={fieldNotes.reset}
+          onForget={forgetDiscoveries}
         />
       ) : null}
 

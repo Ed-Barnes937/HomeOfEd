@@ -363,6 +363,42 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 })
 
 /**
+ * Forgetting is not a door that locks behind you (ticket 31): the sim reports
+ * each first once per session, so before the witness resync existed a
+ * forgotten interaction stayed forgotten until the page was reloaded. This is
+ * the loop a player lives - witness, forget, do it again - with no reload in it.
+ */
+test('an interaction forgotten mid-session is earned again by doing it again', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.selectBrush(2)
+  await root.selectElement('lava')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+
+  await root.openFieldNotes()
+  await root.forgetDiscoveries()
+  await root.closeFieldNotes()
+  expect(await root.fieldNotesCount()).toBe('0/54')
+
+  // The same pour, somewhere else on the same running page: the chart earns it
+  // back rather than swallowing it.
+  await root.selectElement('lava')
+  await root.paintCell(80, 120)
+  await root.selectElement('water')
+  await root.paintCell(80, 115)
+  await root.step()
+
+  await expect.poll(() => root.fieldNotesCount()).toBe('1/54')
+})
+
+/**
  * The recents sidebar (ticket 29): the most recently witnessed discoveries,
  * newest first, as many rows as the dialog's height fits and not one more. The
  * derivation (order, dedupe, unknown keys, the element a row draws) is pinned

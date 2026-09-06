@@ -111,11 +111,22 @@ export class Sim {
    * Interactions witnessed for the first time since the last call - the
    * discovery metagame's one engine seam (discovery-tree spec §4). Empty on
    * almost every tick; 37 events in the life of a roster. Deliberately
-   * **not** cleared by `clear` or `restore`: discovery is global progression,
-   * and resetting the world does not reset it (spec §5).
+   * **not** cleared by `clear` or `restore`: resetting the world does not
+   * reset discovery (spec §5). Only `forgetWitnessed` does.
    */
   drainWitnessed(): readonly WitnessEvent[] {
     return this.#witness.drain()
+  }
+
+  /**
+   * Unsee everything: the recorder goes back to a session that has shown the
+   * player nothing (discovery ticket 31). The one thing that resets it, and
+   * driven by a message rather than by anything the tick does - the page's
+   * progression shrank (a "forget discoveries"), so what the sim would swallow
+   * as already-shown has to be earnable again. Never called by the simulation.
+   */
+  forgetWitnessed(): void {
+    this.#witness.forget()
   }
 
   /** The cell's colour variant — what the renderer shades it by. 0 out of bounds. */

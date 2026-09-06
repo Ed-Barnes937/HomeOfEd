@@ -272,6 +272,48 @@ describe('the witness recorder', () => {
     expect(keysOf(sim)).toEqual([])
   })
 
+  it('forgets everything on an explicit resync, so the same interaction is earned again', () => {
+    const sim = new Sim({ seed: 1 })
+    pocket(sim, 100, WATER, LAVA, OBSIDIAN)
+    sim.tick()
+    expect(keysOf(sim)).toEqual(['react:lava+water'])
+
+    // The one thing that resets the recorder (ticket 31): the page's
+    // progression shrank, so the session's memory of what it has shown has to
+    // shrink with it.
+    sim.forgetWitnessed()
+    sim.clear()
+    pocket(sim, 100, WATER, LAVA, OBSIDIAN)
+    sim.tick()
+
+    expect(keysOf(sim)).toEqual(['react:lava+water'])
+  })
+
+  it('drops firsts a resync arrives on top of, rather than draining them after it', () => {
+    const sim = new Sim({ seed: 1 })
+    pocket(sim, 100, WATER, LAVA, OBSIDIAN)
+    sim.tick()
+
+    sim.forgetWitnessed()
+
+    expect(sim.drainWitnessed()).toEqual([])
+  })
+
+  it('a resync mid-run leaves the world exactly as it was - forgetting is not a draw', () => {
+    const forgetting = new Sim({ seed: 0xc0ffee })
+    const quiet = new Sim({ seed: 0xc0ffee })
+    for (const sim of [forgetting, quiet]) {
+      pocket(sim, 100, WATER, LAVA, OBSIDIAN)
+      for (let i = 0; i < 10; i++) sim.tick()
+    }
+    forgetting.forgetWitnessed()
+    for (const sim of [forgetting, quiet]) {
+      for (let i = 0; i < 10; i++) sim.tick()
+    }
+
+    expect(Array.from(forgetting.cells)).toEqual(Array.from(quiet.cells))
+  })
+
   it('hands back one drained array of events, then nothing until the next witness', () => {
     const sim = new Sim({ seed: 1 })
     pocket(sim, 100, WATER, LAVA, OBSIDIAN)

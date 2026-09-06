@@ -352,7 +352,14 @@ Rules that are easy to break by accident:
   before `become`), the only things on that surface that are not simulation;
   reactions and decay the engine sees for itself. Discoveries reach the page as a `simProtocol` message (rare events, so
   no shared-buffer slot to poll), and a `Sim` keeps what it has witnessed across
-  `clear`/`restore` - resetting the world does not reset discovery.
+  `clear`/`restore` - resetting the world does not reset discovery. **One thing
+  does**: an explicit progression resync. `resyncWitnessed` is the page saying
+  "this is what I know", whole - it *replaces* `simWorkerCore`'s reported set
+  and calls `Sim.forgetWitnessed()` in the same message - sent at boot and
+  again whenever the working progression is swapped out from under the sim
+  ("forget discoveries"), because the sim reports each first once a session and
+  would otherwise swallow the re-earn until a reload. Rare and message-driven,
+  so the per-event hot path is untouched.
   [ADR 0048](../../docs/adr/0048-silt-discovery-witness-in-the-sim-core.md).
 - **A cell that must go on acting has to write, or say so.** Chunk sleeping is
   driven by writes, so a hook that must keep being offered a draw either rewrites
@@ -478,7 +485,11 @@ else touches it.
   working progression besides a witness: the panel's armed "forget discoveries"
   (`store.reset()`, which removes the key outright and touches no saved
   snapshot until the next save writes over one) and an explicit scene load
-  (`store.replace()`).
+  (`store.replace()`). **Whichever of the two moves it, the sim has to be
+  told**, or the recorder goes on swallowing what it has already shown this
+  session (see the witness-recorder rule above). `HomePage`'s
+  `forgetDiscoveries` pairs the reset with `controls.resyncWitnessed([])`; the
+  scene-load path is **not** wired yet (discovery ticket 32).
 - `useFieldNotes` is the one seam the header, panel, rail and moments read. It
   is React wiring only: the store and the pure `fieldNotesView` behind it are
   where the behaviour, and the tests, live.
@@ -520,8 +531,9 @@ else touches it.
   the view before and the view after, which is also why closing the panel and
   forgetting discoveries raise nothing without a case for either. Cards queue
   one at a time and a burst collapses to the newest few: quiet beats complete.
-  The seed the page sends the sim at boot (`witnessedAtBoot`) is noise
-  reduction only - the store would dedupe a re-report anyway.
+  The boot resync the page sends the sim (`witnessedAtBoot`) is noise
+  reduction only - the store would dedupe a re-report anyway. A *later* resync
+  is not: see the witness-recorder rule.
 - **The key is static text about line kinds, and that is what keeps it safe.**
   The footer's key derives its rows from the graph (`legendRows`) and names no
   element at all, so it sits outside the spoiler policy rather than merely
