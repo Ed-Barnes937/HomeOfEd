@@ -1,6 +1,6 @@
 # 03 - Options paper: the account layer
 
-**Status:** open
+**Status:** claimed
 **Type:** research
 **Map:** ../map.md
 Blocked by: 01

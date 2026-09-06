@@ -28,6 +28,15 @@ and Ed's decisions. No builds, no infra mutation.
 
 <!-- one line per closed ticket: gist + link -->
 
+- [01 - Inventory: accounts and save data today](issues/01-current-state-inventory.md) -
+  sprout is the only app with accounts (Better Auth parent + HMAC child token,
+  deliberately app-owned V1 per ADR 0012, swap path pre-recorded); the
+  `ctx.auth` `AuthProvider` seam is universal across all ten apps and ADR 0008
+  already commits to "central identity service, not per-app user tables". All
+  per-user data outside sprout is single-device localStorage (boop KBs, silt up
+  to ~5MB of scene blobs); only 4 of 10 apps have a DB; sprout's legal gate
+  (ADR-0019) is open and anything coupling to its user table inherits it.
+
 - [02 - Fly cost baseline](issues/02-fly-cost-baseline.md) - HomeOfEd costs
   ~$13/mo; the ticket's premise was inverted: hoe-pg is only ~$2.17/mo and the
   three always-on machines (hub, sprout web, sprout-pipeline) are ~75% of the

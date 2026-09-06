@@ -1,6 +1,6 @@
 # 04 - Options paper: machine-per-app vs consolidation
 
-**Status:** open
+**Status:** claimed
 **Type:** research
 **Map:** ../map.md
 Blocked by: 01, 02
