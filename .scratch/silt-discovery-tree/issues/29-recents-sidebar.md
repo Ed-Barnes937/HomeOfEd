@@ -1,6 +1,6 @@
 # 29 - Recents sidebar in the field notes dialog
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-per-scene-notes, 2026-09-06)
 **Type:** task
 **Reported:** 2026-09-06, Ed
 
@@ -37,12 +37,25 @@ stored state; the sidebar is a derived view, same family as
 
 ## Acceptance
 
-- [ ] Witnessing a new discovery puts it at the top of the sidebar
-- [ ] The row count tracks dialog height (shorter viewport = fewer rows),
+- [x] Witnessing a new discovery puts it at the top of the sidebar
+- [x] The row count tracks dialog height (shorter viewport = fewer rows),
       with no scrollbar and no clipped partial row
-- [ ] Hidden on the phone layout
-- [ ] Unknown stored edge keys never render a row
-- [ ] Unit tests for the recents derivation; one `.iwft`: witness, open
+- [x] Hidden on the phone layout
+- [x] Unknown stored edge keys never render a row
+- [x] Unit tests for the recents derivation; one `.iwft`: witness, open
       panel, see it listed first (pragmatic split)
 
 ## Comments
+
+- (agent, 2026-09-06, on landing) One reading the ticket left open: which
+  single element a row wears for a multi-element entry. Built as **what the
+  witnessed edge left behind** - the witnessed source's first charted product
+  (`recentRows` in `panelModel.ts`), falling back to the first reagent for an
+  entry that consumes both cells - since the sidebar is "recently witnessed
+  discoveries" and an edge's own products are exactly what the player saw. One
+  row per charted entry, held at its first witness: a second raw edge behind a
+  grouped entry is progress, not news (the moment cards' rule). Taps were left
+  out - the ticket made them optional and rows are display-first.
+- Also for ticket 28, noted here since the two landed together: a scene load
+  raises no moment cards and never fires the 100% line (ADR 0054 §4) - the
+  edges a snapshot brings in were witnessed wherever the scene was played.

@@ -135,6 +135,9 @@ test('field notes opens as a full-screen sheet whose picker is still tappable', 
   await root.openFieldNotes()
   await root.verifyTouchTargetSize('field-notes-row-water')
   await root.verifyTouchTargetSize('field-notes-close')
+  // The recents sidebar is a desktop column (ticket 29): the phone layout
+  // keeps the sheet exactly as it is.
+  await root.verifyNoRecentsSidebar()
 
   await root.selectNote('water')
   expect(await root.focusedNote()).toBe('water')

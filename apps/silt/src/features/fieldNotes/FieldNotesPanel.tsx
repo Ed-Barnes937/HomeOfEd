@@ -10,7 +10,7 @@
  * never shown whole: the ring holds one element at a time, so the picture does
  * not get busier as the roster grows (decision 7).
  */
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import { useArmedConfirm } from '../../hooks/useArmedConfirm.ts'
 import { useMobileLayout } from '../../hooks/useMobileLayout.ts'
@@ -23,8 +23,11 @@ import {
   LEGEND_RULES,
   PRODUCT_JOIN,
   REAGENT_JOIN,
+  RECENT_ROW_PX,
   legendRows,
   pickerRows,
+  recentCapacity,
+  recentRows,
   ringFor,
   strokeOf,
   type ElementRef,
@@ -320,6 +323,13 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
               </div>
             </div>
           )}
+
+          {/* The recents sidebar (ticket 29): desktop only - the phone sheet
+              keeps its layout as it is - and only once there is a chart at all,
+              like the footer. */}
+          {chart !== null && !phone ? (
+            <RecentsSidebar view={props.view} appearances={appearances} />
+          ) : null}
         </div>
 
         {/* The bottom band (ticket 25): the focused element's chips, then the
@@ -397,6 +407,64 @@ export function FieldNotesPanel(props: FieldNotesPanelProps) {
             {keyOpen ? <LegendBlock /> : null}
           </div>
         ) : null}
+      </div>
+    </div>
+  )
+}
+
+interface RecentsSidebarProps {
+  view: FieldNotesView
+  appearances: ElementAppearances
+}
+
+/**
+ * The recents sidebar (ticket 29): the most recently witnessed discoveries,
+ * newest first, in the ring's own visual vocabulary - a tile and a name per
+ * row, display-first, nothing to tap. The model (`recentRows`) decides what a
+ * row is and what it may be called; this component's one job is the height
+ * rule: measure the column and render `floor(height / row)` whole rows - no
+ * scrolling, no "show more", no partial row - re-deriving on resize.
+ *
+ * Never rendered on the phone sheet: the panel gates it on the same
+ * `useMobileLayout` it already lays the picker out with.
+ */
+function RecentsSidebar(props: RecentsSidebarProps) {
+  const rows = useMemo(() => recentRows(props.view), [props.view])
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const [capacity, setCapacity] = useState(0)
+
+  // Layout effect, so the first paint already holds the measured rows rather
+  // than flashing an empty column; the observer keeps it true across resizes.
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    const measure = (): void => setCapacity(recentCapacity(list.clientHeight))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      className={styles.recents}
+      data-testid="field-notes-recents"
+      // The row height the capacity was computed from, handed to the
+      // stylesheet so the arithmetic and the pixels cannot disagree.
+      style={{ '--recent-row': `${RECENT_ROW_PX}px` } as CSSProperties}
+    >
+      <span className={styles.pickerLabel}>Recent</span>
+      <div ref={listRef} className={styles.recentList}>
+        {rows.slice(0, capacity).map((row) => (
+          <span
+            key={row.key}
+            className={styles.recentRow}
+            data-testid={`field-notes-recent-${row.element.name}`}
+          >
+            <ElementRefTile element={row.element} appearances={props.appearances} size={22} />
+            <span className={styles.recentName}>{row.element.label}</span>
+          </span>
+        ))}
       </div>
     </div>
   )

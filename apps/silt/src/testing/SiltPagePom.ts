@@ -441,6 +441,43 @@ export class SiltPagePom extends BasePage {
     )
   }
 
+  /**
+   * The recents sidebar's rows (ticket 29), top to bottom, by the element each
+   * one draws. Every id under `field-notes-recent-` is an element name. Read in
+   * one evaluation, not per-locator: the sidebar re-renders as the panel
+   * resizes, and an `nth()` read of a row that has just unmounted would wait
+   * on it forever.
+   */
+  async recentRows(): Promise<string[]> {
+    return this.page
+      .locator('[data-testid^="field-notes-recent-"]')
+      .evaluateAll((rows) =>
+        rows.map((row) => row.getAttribute('data-testid')!.replace('field-notes-recent-', '')),
+      )
+  }
+
+  /** The phone sheet keeps its layout as it is: no sidebar there (ticket 29). */
+  async verifyNoRecentsSidebar(): Promise<void> {
+    await expect(this.page.getByTestId('field-notes-recents')).toHaveCount(0)
+  }
+
+  /**
+   * Whole rows only (ticket 29): every rendered row sits fully inside the
+   * sidebar's own box - nothing clipped, nothing to scroll for.
+   */
+  async verifyRecentRowsFitTheSidebar(): Promise<void> {
+    const sidebar = await this.page.getByTestId('field-notes-recents').boundingBox()
+    expect(sidebar).not.toBeNull()
+    if (!sidebar) return
+    for (const row of await this.page.getByTestId(/^field-notes-recent-/).all()) {
+      const box = await row.boundingBox()
+      expect(box).not.toBeNull()
+      if (!box) continue
+      expect(box.y).toBeGreaterThanOrEqual(sidebar.y)
+      expect(box.y + box.height).toBeLessThanOrEqual(sidebar.y + sidebar.height + 0.5)
+    }
+  }
+
   /** An undiscovered element keeps its slot but is not a control (spec §7). */
   async verifyNoteRowIsInert(name: string): Promise<void> {
     const row = this.page.getByTestId(`field-notes-row-${name}`)

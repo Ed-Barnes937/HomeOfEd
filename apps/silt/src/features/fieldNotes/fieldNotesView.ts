@@ -20,7 +20,11 @@ export interface Tally {
 
 /** Everything derived from the witnessed set. None of it is ever stored (spec §5). */
 export interface FieldNotesView {
-  /** The witnessed edge keys, ones this roster cannot resolve included. */
+  /**
+   * The witnessed edge keys, ones this roster cannot resolve included. Built
+   * from the stored timeline, so it **iterates in first-seen order** - the
+   * recents sidebar derives its recency from exactly that (ticket 29).
+   */
   witnessed: ReadonlySet<EdgeKey>
   /** Pre-knowns plus every element a witnessed entry produced. */
   discovered: ReadonlySet<string>

@@ -409,6 +409,58 @@ export function pickerRows(
   return rows.sort((a, b) => a.tier - b.tier)
 }
 
+/** One row of the recents sidebar (ticket 29). */
+export interface RecentRow {
+  /** The charted entry's key: the row's identity, stable as the timeline grows. */
+  key: EdgeKey
+  /**
+   * The element the row draws: what witnessing the edge left behind - the
+   * discovery - falling back to the first reagent for an entry that leaves
+   * nothing. Masked by `refOf` like every other tile, though a witnessed
+   * edge's own products are discovered by definition.
+   */
+  element: ElementRef
+}
+
+/**
+ * The height of one rendered row, handed to the stylesheet by the panel so the
+ * capacity arithmetic and the pixels cannot quietly disagree.
+ */
+export const RECENT_ROW_PX = 30
+
+/** Whole rows only (ticket 29): no scrolling, no clipped partial row. */
+export function recentCapacity(heightPx: number): number {
+  return Math.max(0, Math.floor(heightPx / RECENT_ROW_PX))
+}
+
+/**
+ * The recents timeline (ticket 29): witnessed charted entries, newest first.
+ * Derived - never stored, never cached across scene loads - from the view's
+ * witnessed set, whose iteration order is the store's append-only timeline.
+ * An entry appears once, at its first witness: a second raw edge behind a
+ * grouped entry is progress towards mastery, not news (the moment cards'
+ * own rule). Keys this roster cannot resolve render no row, matching how
+ * every other derivation ignores them (spec §5).
+ */
+export function recentRows(
+  view: FieldNotesView,
+  index: EntryIndex = entryIndex(),
+): readonly RecentRow[] {
+  const rows: RecentRow[] = []
+  const listed = new Set<EdgeKey>()
+  for (const key of view.witnessed) {
+    const entry = index.get(key)
+    if (!entry || listed.has(entry.key)) continue
+    listed.add(entry.key)
+    // What this particular edge left (its source's charted products), not the
+    // entry's whole union: the row shows the discovery the player actually saw.
+    const source = entry.sources.find((candidate) => candidate.key === key)
+    const name = source?.products[0] ?? entry.reagents[0]!
+    rows.push({ key: entry.key, element: refOf(name, view) })
+  }
+  return rows.reverse()
+}
+
 /**
  * "This makes me": the focused element takes no part in the interaction and is
  * only its product, so the whole pair sits on the ring.

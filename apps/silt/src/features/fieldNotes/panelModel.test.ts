@@ -12,6 +12,9 @@ import {
   LEGEND_RULES,
   legendRows,
   pickerRows,
+  RECENT_ROW_PX,
+  recentCapacity,
+  recentRows,
   ringFor,
   type Spoke,
 } from './panelModel.ts'
@@ -692,5 +695,49 @@ describe('the spoiler invariant (spec §7)', () => {
         .join(' ')
       for (const secret of hidden) expect(words).not.toContain(secret)
     }
+  })
+})
+
+describe('the recents timeline (ticket 29)', () => {
+  test('witnessed entries come out newest first, shown by what they left', () => {
+    const rows = recentRows(viewOf('decay:fire', 'react:lava+water'))
+
+    expect(rows.map((row) => row.key)).toEqual(['react:lava+water', 'decay:fire'])
+    // The row's element is what witnessing the edge left behind: the discovery.
+    expect(rows.map((row) => row.element.name)).toEqual(['steam', 'smoke'])
+    // Both were left by the witnessed edges themselves, so both may be named.
+    expect(rows.map((row) => row.element.label)).toEqual(['steam', 'smoke'])
+  })
+
+  test('a key this roster cannot resolve renders no row (spec §5)', () => {
+    const rows = recentRows(viewOf('react:unobtanium+water', 'decay:fire'))
+    expect(rows.map((row) => row.key)).toEqual(['decay:fire'])
+  })
+
+  test('one row per charted entry, held at its first witness (ticket 08)', () => {
+    // A grouped flower entry, off the live index rather than written down here.
+    const grouped = notes
+      .entriesFor('flower')
+      .map((key) => notes.get(key)!)
+      .find((entry) => entry.sources.length > 1)!
+    const [first, second] = grouped.sources.map((source) => source.key)
+
+    const rows = recentRows(viewOf(first!, 'decay:fire', second!))
+
+    // The second raw edge is progress towards mastery, not news: the entry
+    // keeps the position its first witness earned, behind the fresher decay.
+    expect(rows.map((row) => row.key)).toEqual(['decay:fire', grouped.key])
+  })
+
+  test('an entry that leaves nothing falls back to what met (spec §6)', () => {
+    const rows = recentRows(viewOf('react:acid+dirt'))
+    expect(rows.map((row) => row.element.name)).toEqual(['acid'])
+  })
+
+  test('the sidebar renders whole rows only: floor of the height, never a sliver', () => {
+    expect(recentCapacity(RECENT_ROW_PX * 3)).toBe(3)
+    expect(recentCapacity(RECENT_ROW_PX * 3 - 1)).toBe(2)
+    expect(recentCapacity(0)).toBe(0)
+    expect(recentCapacity(-40)).toBe(0)
   })
 })

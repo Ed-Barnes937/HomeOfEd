@@ -1,6 +1,6 @@
 # 28 - Field note progression is global; tie it to the scene
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-per-scene-notes, 2026-09-06)
 **Type:** task
 **Reported:** 2026-09-06, user bug report via Ed
 
@@ -51,14 +51,14 @@ build for that future, just make the scene the unit today.
 
 ## Acceptance
 
-- [ ] Saving a scene and loading it on a fresh profile restores its field
+- [x] Saving a scene and loading it on a fresh profile restores its field
       notes (edges and the NEW-chip watermark)
-- [ ] Loading scene A then scene B shows B's progression, not A's or a merge
-- [ ] Loading a pre-change scene (no snapshot) clears the notes, same as an
+- [x] Loading scene A then scene B shows B's progression, not A's or a merge
+- [x] Loading a pre-change scene (no snapshot) clears the notes, same as an
       empty snapshot
-- [ ] The panel's "Forget discoveries" button still clears (working
+- [x] The panel's "Forget discoveries" button still clears (working
       progression only), and save-after-forget persists the cleared state
-- [ ] Unknown edge keys in a snapshot survive a save/load cycle (spec §5
+- [x] Unknown edge keys in a snapshot survive a save/load cycle (spec §5
       forward-compat holds per scene)
-- [ ] Unit tests at the store/format layer; one `.iwft` for
+- [x] Unit tests at the store/format layer; one `.iwft` for
       save-load-restores-notes through the UI (pragmatic split)

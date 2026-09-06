@@ -82,7 +82,12 @@ src/
                               the masking every rendered name goes through,
                               the allowlist deciding which sim tags a player
                               ever reads, the reading line's recipe for the
-                              active spoke (ticket 25), the footer key's rows, and
+                              active spoke (ticket 25), the footer key's rows,
+                              the recents timeline (`recentRows`, ticket 29:
+                              witnessed entries newest first off the view's
+                              first-seen iteration order, drawn as a
+                              desktop-only sidebar of floor(height / row)
+                              whole rows - never on the phone sheet), and
                               `strokeOf` - the one place a line kind becomes a
                               stroke, so a spoke and its sample in the key
                               cannot disagree; ElementTile - *the* tile helper,

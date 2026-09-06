@@ -363,6 +363,53 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
 })
 
 /**
+ * The recents sidebar (ticket 29): the most recently witnessed discoveries,
+ * newest first, as many rows as the dialog's height fits and not one more. The
+ * derivation (order, dedupe, unknown keys, the element a row draws) is pinned
+ * in `panelModel.test.ts`; this is the loop through the UI - witness, open the
+ * panel, see it listed first - plus the height rule against a real layout.
+ */
+test('a fresh witness leads the recents sidebar, and the rows track the height', async ({
+  mountApp,
+  page,
+}) => {
+  // Everything but one entry seeded, so the sidebar is height-limited rather
+  // than count-limited and the resize below has rows to give up.
+  await seedWitnessed(
+    page,
+    entryIndex().witnessKeys.filter((key) => key !== 'react:dirt+water'),
+  )
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  // dirt + water is the one entry left: witnessed now, it must arrive on top.
+  await root.selectBrush(2)
+  await root.selectElement('dirt')
+  await root.paintCell(150, 120)
+  await root.selectElement('water')
+  await root.paintCell(150, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('46/46')
+
+  await root.openFieldNotes()
+  const rows = await root.recentRows()
+  // The row wears what the entry left behind: dirt + water leaves mud.
+  expect(rows[0]).toBe('mud')
+  // Nowhere near all 46 fit, and every row that renders sits whole in the
+  // column - no scrollbar, no clipped sliver.
+  expect(rows.length).toBeGreaterThan(3)
+  expect(rows.length).toBeLessThan(46)
+  await root.verifyRecentRowsFitTheSidebar()
+
+  // A shorter dialog renders fewer rows: floor(height / row), re-derived on
+  // resize.
+  await page.setViewportSize({ width: 1280, height: 520 })
+  await expect.poll(async () => (await root.recentRows()).length).toBeLessThan(rows.length)
+  expect(await root.recentRows()).toContain('mud')
+  await root.verifyRecentRowsFitTheSidebar()
+})
+
+/**
  * Progression belongs to the scene (ticket 28): a save snapshots the working
  * field notes into the envelope, and a load replaces them - edges and the
  * NEW-chip watermark alike. The strict semantics (a pre-change scene clears, A

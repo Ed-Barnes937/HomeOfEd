@@ -136,11 +136,13 @@ $picker-min: 64px;
   cursor: pointer;
 }
 
-// ---- body: picker | ring ------------------------------------------------
+// ---- body: picker | ring | recents ---------------------------------------
 
 .body {
   display: grid;
-  grid-template-columns: 216px 1fr;
+  // The recents column is `auto` so the grid collapses it to nothing wherever
+  // the sidebar is not rendered - the phone sheet, and the empty state.
+  grid-template-columns: 216px 1fr auto;
   // Takes whatever height the header and footer leave, which is the whole sheet
   // on a phone and nothing extra on a desktop panel sized by its own picker.
   flex: 1;
@@ -238,6 +240,48 @@ $picker-min: 64px;
   stroke: currentColor;
   stroke-width: 1.1;
   stroke-linejoin: round;
+}
+
+// ---- the recents sidebar (ticket 29): desktop only -----------------------
+
+// The picker's own paper and label, mirrored on the ring's other side. Height
+// is whatever the body row gives it; the *list* inside is what the component
+// measures, so the label never eats a row's worth of arithmetic.
+.recents {
+  display: flex;
+  flex-direction: column;
+  width: 170px;
+  min-height: 0;
+  padding: 0.6rem 0.5rem;
+  background: $paper;
+  border-left: 2px solid $ink;
+  // Belt and braces: the component renders only whole rows, so nothing should
+  // ever be here to clip - but a row must never half-show while it measures.
+  overflow: hidden;
+}
+
+.recentList {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+// Exactly `--recent-row` tall (`RECENT_ROW_PX`, handed over by the panel), so
+// the capacity floor(height / row) is the pixel truth and not a guess.
+.recentRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  box-sizing: border-box;
+  height: var(--recent-row, 30px);
+  padding: 0 0.35rem;
+}
+
+.recentName {
+  font-family: $font-label;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 // ---- the ring -----------------------------------------------------------
