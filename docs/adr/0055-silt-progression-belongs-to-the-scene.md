@@ -1,4 +1,4 @@
-# 0054 - silt: field-note progression belongs to the scene
+# 0055 - silt: field-note progression belongs to the scene
 
 - **Status:** Accepted (2026-09-06, landed with
   `.scratch/silt-discovery-tree/issues/28-per-scene-progression.md`)

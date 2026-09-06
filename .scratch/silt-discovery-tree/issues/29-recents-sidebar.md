@@ -57,5 +57,5 @@ stored state; the sidebar is a derived view, same family as
   grouped entry is progress, not news (the moment cards' rule). Taps were left
   out - the ticket made them optional and rows are display-first.
 - Also for ticket 28, noted here since the two landed together: a scene load
-  raises no moment cards and never fires the 100% line (ADR 0054 §4) - the
+  raises no moment cards and never fires the 100% line (ADR 0055 §4) - the
   edges a snapshot brings in were witnessed wherever the scene was played.

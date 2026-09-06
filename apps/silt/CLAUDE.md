@@ -74,7 +74,7 @@ src/
                               src/docs's graph, never a second derivation from
                               the registry. Both pure. fieldNotesStore -
                               localStorage, the working progression, edges
-                              only (scenes snapshot it - ADR 0054);
+                              only (scenes snapshot it - ADR 0055);
                               fieldNotesView - the pure derivation the panel
                               renders; useFieldNotes - the page's single seam,
                               React wiring over those two. panelModel - the
@@ -434,7 +434,7 @@ else touches it.
   nothing stored can disagree with the roster. A new denominator is a roster
   change, not a migration.
 - **Progression belongs to the scene**
-  ([ADR 0054](../../docs/adr/0054-silt-progression-belongs-to-the-scene.md),
+  ([ADR 0055](../../docs/adr/0055-silt-progression-belongs-to-the-scene.md),
   superseding spec §5's "global"). A save snapshots the working `Progress` into
   the scene envelope (`sceneCodec`'s `SceneFieldNotes` - `sceneStore` still
   treats the envelope as opaque); a load `replace`s the working progression
