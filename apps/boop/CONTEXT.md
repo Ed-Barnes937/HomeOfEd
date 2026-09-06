@@ -124,11 +124,13 @@ always edits exactly one clip; every edit writes straight into it.
 _Avoid_: Pattern (the engine-level term for the raw grid), loop, part.
 
 **Tint**:
-A clip's colour, one of the fixed list of 5 — how a child recognises a clip
+A clip's colour, one of the fixed list of 10 - how a child recognises a clip
 across its chip, its placement squares, the clip header dot, and the grid-well
-ring. A tint belongs to the clip for the clip's whole life: reordering or
-deleting other clips never recolours it (boop-loops ticket 09). At most one
-clip per tint; a new clip takes the lowest unused one.
+ring. The first five are the design handoff's; the other five are their derived
+companions (boop-clips ticket 04). A tint belongs to the clip for the clip's
+whole life: reordering or deleting other clips never recolours it (boop-loops
+ticket 09). At most one clip per tint; a new clip takes the lowest unused one,
+and the clip cap exists because of it.
 _Avoid_: Colour (fine casually, but the term of art is tint), theme.
 
 **Instrument picker**:
@@ -152,7 +154,9 @@ _Avoid_: Sample (taken — the audio one-shot), starter, preset, loop.
 **Song**:
 The arrangement a boop holds: ordered clips, placements, and one bpm for the
 whole boop. Played left to right through its placements, looping. Fixed at 16
-positions, and holds at most 5 clips — one per tint (boop-loops ticket 01).
+positions, and holds at most 10 clips - one per tint (boop-clips ticket 04,
+raising boop-loops ticket 01's five). Its `placements` string indexes those
+clips by single character: digits `1`–`9`, then `a` for clip 10.
 _Avoid_: Arrangement, track, sequence.
 
 **Placement**:

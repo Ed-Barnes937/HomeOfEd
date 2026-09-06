@@ -1,3 +1,6 @@
+import { expect } from '@playwright/experimental-ct-react'
+
+import { MAX_CLIPS, TINT_COUNT } from './persistence/saveFormat.ts'
 import { SAVE_KEY } from './persistence/storage.ts'
 import { test } from './testing/iwftTest.tsx'
 
@@ -38,7 +41,7 @@ test('New boop is a plain reset: one blank clip, no dialog, no confirm', async (
   await root.verifyActiveClipName('Clip 1')
 })
 
-test('+ New clip adds a blank clip onto the grid, unplaced, and disables at five', async ({
+test('+ New clip adds a blank clip onto the grid, unplaced, and disables at the cap', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -52,17 +55,64 @@ test('+ New clip adds a blank clip onto the grid, unplaced, and disables at five
   await root.verifySongLength('0 bars')
   await root.openClipEditor()
   await root.verifyActiveClipName('Clip 2')
-  // The new clip is blank — the kick lives in Clip 1 — and nothing was placed.
+  // The new clip is blank - the kick lives in Clip 1 - and nothing was placed.
   await root.verifyCellOff('kick', 0)
 
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.verifyClipCount(5)
+  for (let clip = 3; clip <= MAX_CLIPS; clip += 1) await root.addClip()
+  await root.verifyClipCount(MAX_CLIPS)
   await root.verifyAddClipDisabled()
   // A copy is a new clip too, so the cap greys it the same way.
   await root.openClipEditor()
   await root.verifyCopyClipDisabled()
+})
+
+test('a clip per tint: ten clips wear ten different colours, and the lane grid scrolls to reach them', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.fillClipsTo(TINT_COUNT)
+
+  // One tint per clip, read off the page rather than trusted to the constant
+  // (boop-clips ticket 04): what matters is that a child sees ten colours.
+  const tints = await root.readChipTints()
+  expect(new Set(tints).size).toBe(TINT_COUNT)
+
+  // And the lane grid takes the extra lanes in its own scroller.
+  await root.verifyEveryClipIsReachable(TINT_COUNT)
+  await root.verifyLastSongPositionIsReachable(TINT_COUNT - 1)
+  await root.verifyFocusRingsFitTheScrollBox('song-lanes')
+  await root.verifyNoHorizontalOverflow()
+})
+
+test('a ten-clip song is written with the letter a, plays, and survives a reload', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  // Ten exactly, whatever the cap: the tenth clip is the first one the digits
+  // cannot name, so it is what the letter is for.
+  await first.root.fillClipsTo(10)
+
+  await first.root.toggleLaneSquare(9, 0)
+  await first.root.toggleLaneSquare(0, 1)
+  await first.root.verifySongLength('8 bars')
+  await first.root.pressSongPlay()
+  await first.root.verifySongPlaying()
+  await first.root.crankSteps(1)
+  await first.root.verifyPositionPlaying(9, 0)
+
+  await first.root.waitForAutosavedPlacements('a1..............')
+
+  await page.reload()
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyClipCount(10)
+  await root.verifyPlacementOn(9, 0)
+  await root.verifyPlacementOn(0, 1)
+  await root.verifySongLength('8 bars')
 })
 
 test('chips switch the grid between clips, and every edit writes into the one on screen', async ({

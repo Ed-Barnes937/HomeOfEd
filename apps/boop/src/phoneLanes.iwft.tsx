@@ -1,3 +1,4 @@
+import { MAX_CLIPS } from './persistence/saveFormat.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // Phone clip lanes (boop-loops ticket 21, spec §5 — variant B): at ≤1023px the
@@ -28,15 +29,14 @@ test('the song bar renders in the scrolling region; only the launcher is pinned'
   await root.verifyLauncherCarriesClipPlayOnly()
   await root.verifyTempo(100)
 
-  // Even at the five-clip cap the lanes stay inside the bar's own scroller,
-  // never a pinned bar: the bar is clamped to the region (`max-height: 100%`),
-  // nothing else has to scroll at all, and the page never scrolls sideways.
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.verifyClipCount(5)
+  // Even at the clip cap the lanes stay inside the bar's own scroller, never a
+  // pinned bar: the bar is clamped to the region (`max-height: 100%`), so the
+  // lane rows are what would give way. At this height they do not have to -
+  // measured at ten clips, neither the bar's scroller nor the region has
+  // anything to scroll - and every clip is reachable either way.
+  await root.fillClipsTo(MAX_CLIPS)
   await root.verifyLauncherFullyInViewport()
+  await root.verifyEveryClipIsReachable(MAX_CLIPS)
   await root.verifyNothingIsScrolled()
   await root.verifyNoHorizontalOverflow()
 })
@@ -129,7 +129,7 @@ test('song play works from the song bar header and the playing ring walks the la
   await root.verifyNoPositionPlaying()
 })
 
-test('compact chips select clips, "+ New" caps at five, and the slim header carries rename, copy and delete', async ({
+test('compact chips select clips, "+ New" caps at the cap, and the slim header carries rename, copy and delete', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
@@ -159,10 +159,8 @@ test('compact chips select clips, "+ New" caps at five, and the slim header carr
   await root.deleteClip()
   await root.verifyClipCount(2)
 
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.verifyClipCount(5)
+  for (let clip = 3; clip <= MAX_CLIPS; clip += 1) await root.addClip()
+  await root.verifyClipCount(MAX_CLIPS)
   await root.verifyAddClipDisabled()
   await root.openClipEditor()
   await root.verifyCopyClipDisabled()
@@ -213,6 +211,28 @@ test.describe('narrow phone', () => {
     await root.verifySpeedInSongBarHeader()
     await root.verifySpeedRowFitsSongBar()
     await root.verifySongBarHasNoOverflow()
+    await root.verifyNoHorizontalOverflow()
+  })
+
+  // The tightest case the cap has (boop-clips ticket 04): the shortest phone,
+  // where the lanes really do outgrow the bar - measured at ten clips, the
+  // bar's own scroller takes 50px of them and the region 12 - so this is where
+  // "scroll rather than clip" has to hold, with the dock still on screen and
+  // the page still (ADR 0030).
+  test('every clip is reachable here, and neither the page nor the dock moves', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.fillClipsTo(MAX_CLIPS)
+
+    await root.verifyEveryClipIsReachable(MAX_CLIPS)
+    // The song-position picker too: the last numeral and the last square of
+    // the last lane, sideways on the window that already scrolls for the 16
+    // positions.
+    await root.verifyLastSongPositionIsReachable(MAX_CLIPS - 1)
+    await root.verifyLauncherFullyInViewport()
+    await root.verifyPageDoesNotScroll()
     await root.verifyNoHorizontalOverflow()
   })
 })

@@ -9,7 +9,7 @@ import {
   type Pattern,
 } from '../engine/sequencerEngine.ts'
 import { FakeAudioDriver } from '../engine/testing/fakeAudioDriver.ts'
-import { patternToStored, type StoredBoop } from '../persistence/saveFormat.ts'
+import { MAX_CLIPS, patternToStored, type StoredBoop } from '../persistence/saveFormat.ts'
 import { afterEdit } from '../savedState.ts'
 import {
   activeClip,
@@ -133,6 +133,29 @@ describe('songFromStored / storedBoopFromSong', () => {
 
     const layered: Song = { ...song, placements: columns({ 0: [0, 1] }) }
     expect(storedBoopFromSong(kit, layered, 'Layers').placements).toBe('12,,,,,,,,,,,,,,,')
+  })
+
+  // Ticket 04: clips are indexed by single character, so clip 10 is `a` in
+  // either form. A song of nine clips or fewer stays digit-only, byte-identical
+  // to what earlier builds wrote.
+  it('writes clip 10 as the letter a, and reads it back', () => {
+    const tenClips: Song = {
+      bpm: 120,
+      clips: Array.from({ length: 10 }, (_, index) => ({
+        name: `Clip ${index + 1}`,
+        tint: index,
+        pattern: kickPattern,
+      })),
+      activeClipIndex: 9,
+      placements: columns({ 0: [9], 1: [8], 2: [0, 9] }),
+    }
+
+    const flat: Song = { ...tenClips, placements: columns({ 0: [9], 1: [8] }) }
+    expect(storedBoopFromSong(kit, flat, 'Ten').placements).toBe('a9..............')
+
+    const stored = storedBoopFromSong(kit, tenClips, 'Ten')
+    expect(stored.placements).toBe('a,9,1a,,,,,,,,,,,,,')
+    expect(songFromStored(kit, stored).placements).toEqual(tenClips.placements)
   })
 
   it('reads a pre-layering placements string — one clip per position', () => {
@@ -433,11 +456,26 @@ describe('addClip', () => {
     expect(twice.clips.map((clip) => clip.tint)).toEqual([0, 3, 1, 2])
   })
 
-  it('refuses to grow past the clip cap', () => {
+  // Ticket 04: the cap is ten, and uniqueness holds the whole way there - a
+  // tenth clip still gets a tint of its own (cycling arrives in ticket 05).
+  it('grows to ten clips, each on its own tint, and refuses the eleventh', () => {
     let full = song
-    while (full.clips.length < 5) full = addClip(full, emptyPattern)
+    while (full.clips.length < MAX_CLIPS) full = addClip(full, emptyPattern)
 
+    expect(full.clips).toHaveLength(10)
+    expect([...full.clips.map((clip) => clip.tint)].sort((a, b) => a - b)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    ])
     expect(addClip(full, emptyPattern)).toBe(full)
+
+    // A tint belongs to its clip for the clip's whole life: deleting a clip
+    // recolours none of the others, and the freed tint is the one the next
+    // clip takes - which is what keeps uniqueness holding at the cap.
+    const gap = deleteClip(full, 4)
+    expect(gap.clips.map((clip) => clip.tint)).toEqual(
+      full.clips.filter((_, index) => index !== 4).map((clip) => clip.tint),
+    )
+    expect(addClip(gap, emptyPattern).clips[9]!.tint).toBe(full.clips[4]!.tint)
   })
 
   it("takes a sample clip's label as the name, still on the lowest unused tint", () => {
@@ -573,7 +611,7 @@ describe('every song mutation kind marks the loaded boop edited', () => {
 
   it('a refused no-op is not a mutation and marks nothing', () => {
     let full = song
-    while (full.clips.length < 5) full = addClip(full, emptyPattern)
+    while (full.clips.length < MAX_CLIPS) full = addClip(full, emptyPattern)
     const one = singleClipSong(kickPattern, 100)
     const oneRow = singleClipSong([row('kick', 0)], 100)
 

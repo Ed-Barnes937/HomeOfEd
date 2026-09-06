@@ -219,6 +219,44 @@ describe('round-trip', () => {
     expect(reparse(saveDocument)).toEqual(saveDocument)
   })
 
+  // Ticket 04: a placements string indexes clips by single character - digits
+  // `1`-`9`, then the letter `a` for clip 10. Old digit-only strings are a
+  // strict subset, so nothing already on disk changes meaning.
+  it('preserves a ten-clip song, clip 10 written as the letter a', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: Array.from({ length: 10 }, (_, index) => ({
+        ...patternToStored(pattern),
+        name: `Clip ${index + 1}`,
+        tint: index,
+      })),
+      placements: '19a.............',
+      gridClip: 9,
+    }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...song, name: '' },
+      creations: [song],
+    }
+
+    expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
+  it('preserves a layered position holding clip 10', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: Array.from({ length: 10 }, () => patternToStored(pattern)),
+      placements: '9a,,,,,,,,,,,,,,,1',
+    }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...song, name: '' },
+      creations: [],
+    }
+
+    expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
   it('preserves the working boop and the saved list', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
@@ -324,11 +362,11 @@ describe('parseSaveDocument (defensive decode)', () => {
       withWorking({ kitId: 'launch', tempo: 120, patterns: [patternToStored(pattern)] }),
     ],
     [
-      'more than 5 patterns',
-      withWorking({ ...boop, patterns: new Array(6).fill(patternToStored(pattern)) }),
+      'more than 10 patterns',
+      withWorking({ ...boop, patterns: new Array(11).fill(patternToStored(pattern)) }),
     ],
     ['a non-string pattern name', withWorking(withPattern({ name: 7 }))],
-    ['a tint above the tint list', withWorking(withPattern({ tint: 5 }))],
+    ['a tint above the tint list', withWorking(withPattern({ tint: 10 }))],
     ['a negative tint', withWorking(withPattern({ tint: -1 }))],
     ['a fractional tint', withWorking(withPattern({ tint: 1.5 }))],
     [
@@ -354,8 +392,18 @@ describe('parseSaveDocument (defensive decode)', () => {
     ],
     ['a placements string of the wrong length', withWorking({ ...boop, placements: '1...' })],
     [
-      'placement characters that are not . or 1-5',
+      'placement characters that are not . or a clip character',
       withWorking({ ...boop, placements: '0x..............' }),
+    ],
+    // Ticket 04: `a` is clip 10, so it is as dangling on a one-clip boop as a
+    // digit past the clip list - and a letter past the cap is never a clip.
+    [
+      'a placement letter with no clip behind it',
+      withWorking({ ...boop, placements: 'a...............' }),
+    ],
+    [
+      'a placement letter past the clip cap',
+      withWorking({ ...boop, placements: 'z...............' }),
     ],
     ['a non-string placements', withWorking({ ...boop, placements: 16 })],
     [

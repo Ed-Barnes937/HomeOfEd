@@ -1,6 +1,6 @@
 /**
  * The working song (boop-loops ticket 14, spec §2) — the state shape the app
- * edits: 1–5 clips (order is lane order), one bpm, the clip on the grid, and
+ * edits: 1–10 clips (order is lane order), one bpm, the clip on the grid, and
  * the 16 placements. Pure: types, conversions to and from the save format's
  * `StoredBoop`, and the mutation kinds the UI wires up (tickets 15/18). Every
  * mutation returns a new song; callers pair each one with `afterEdit`
@@ -29,7 +29,7 @@ import {
  */
 export interface Clip {
   name: string
-  /** Index into the fixed 5-tint list; the clip's for its whole life. */
+  /** Index into the fixed 10-tint list; the clip's for its whole life. */
   tint: number
   pattern: Pattern
 }
@@ -38,7 +38,7 @@ export interface Clip {
 export interface Song {
   /** 60–180, the whole boop's one speed, driving both play modes. */
   bpm: number
-  /** 1–5, ordered; order IS lane order. */
+  /** 1–10, ordered; order IS lane order. */
   clips: readonly Clip[]
   /** The clip on the grid — what every grid edit writes into. */
   activeClipIndex: number

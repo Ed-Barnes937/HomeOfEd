@@ -73,6 +73,23 @@ describe('encodeShare / decodeShare', () => {
     expect(decodeShare(encodeShare(song))).toEqual(song)
   })
 
+  // Ticket 04: ten clips, and clip 10 indexed by the letter `a`. The link is
+  // still the save format's own decoder, so it needs nothing of its own.
+  it('round-trips a ten-clip song whose tenth clip is placed', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: Array.from({ length: 10 }, (_, index) => ({
+        ...boop.patterns[0]!,
+        name: `Clip ${index + 1}`,
+        tint: index,
+      })),
+      placements: '19a.............',
+      gridClip: 9,
+    }
+
+    expect(decodeShare(encodeShare(song))).toEqual(song)
+  })
+
   it('round-trips a name with non-latin characters', () => {
     const named = { ...boop, name: 'ドラム 🥁' }
     expect(decodeShare(encodeShare(named))).toEqual(named)
