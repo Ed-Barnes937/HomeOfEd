@@ -249,8 +249,42 @@ export class HomePagePom extends BasePage {
   /** One section's entries, in order — the manifest's order is the picker's. */
   async verifyInstrumentSectionEntries(sectionId: string, names: string[]): Promise<void> {
     await expect(
-      this.page.getByTestId(`instrument-picker-section-${sectionId}`).getByRole('button'),
+      this.page
+        .getByTestId(`instrument-picker-section-${sectionId}`)
+        .getByTestId(/^instrument-picker-entry-/),
     ).toHaveText(names)
+  }
+
+  // --- Favourite sounds (boop-favourites ticket 01) ---
+
+  /**
+   * An entry's star, addressed through its section: a favourited sound appears
+   * twice (Favourites *and* its home group — copy, not move), so the id alone
+   * would be ambiguous.
+   */
+  favouriteStar(sectionId: string, instrumentId: string) {
+    return this.page.getByTestId(`instrument-picker-star-${sectionId}-${instrumentId}`)
+  }
+
+  async toggleFavourite(sectionId: string, instrumentId: string): Promise<void> {
+    await this.favouriteStar(sectionId, instrumentId).click()
+  }
+
+  /** The star is a toggle: a constant name, with `aria-pressed` carrying the state. */
+  async verifyFavouriteStar(
+    sectionId: string,
+    instrumentId: string,
+    name: string,
+    pressed: boolean,
+  ): Promise<void> {
+    const star = this.favouriteStar(sectionId, instrumentId)
+    await expect(star).toHaveAttribute('aria-label', `Favourite ${name}`)
+    await expect(star).toHaveAttribute('aria-pressed', String(pressed))
+  }
+
+  /** No favourites, no section — it never renders empty. */
+  async verifyNoFavouritesSection(): Promise<void> {
+    await expect(this.page.getByTestId('instrument-picker-section-favourites')).toHaveCount(0)
   }
 
   /**

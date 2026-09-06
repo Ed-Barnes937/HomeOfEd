@@ -47,6 +47,9 @@ src/
   persistence/      the save format + autosave (ADR 0025) — no React except the hook
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
+    favourites.ts     favourite sounds under their own key (boop:favourites) —
+                      a preference, not part of the save document; same
+                      never-throws seam idiom (+ useFavourites.ts, the hook)
     autosave.ts       debounced (2 s lull) writer of the working song
     useWorkingSong.ts hook: restore the whole song on mount, autosave on edit,
                       flush on pagehide, and seed a first visit (tickets 36/17)
@@ -135,7 +138,8 @@ src/
                     (boop-instruments ticket 05): InstrumentPicker.tsx (the
                     same shell, but browse-by-ear — it stays open and the
                     caller applies each tap) and instrumentGroups.ts (the
-                    roster as Drums / Notes / Silly, pure)
+                    roster as Drums / Notes / Silly, pure; a Favourites
+                    section leads when any sound is starred — copy, not move)
   features/topbar/  TopBar.tsx (desktop, incl. the plain New boop reset) and
                     PhoneBar.tsx (the 52px strip + "⋯" menu); `useIsPhone.ts`
                     (at src/) picks the layout: ≥1024 is clip-lanes (the

@@ -160,7 +160,12 @@ describe('fieldNotesView()', () => {
     // the chart now gives it: a bloomed tip is a flower.
     expect(view.discovered.has('flower')).toBe(true)
     expect(view.discovered.has('steam')).toBe(true)
-    expect(view.counts.get('flower')).toEqual({ seen: 4, total: 9 })
+    // Ten rather than nine since the desert: a blossom's death sheds petals, so
+    // `decay:cactus` is on the flower's ring as well (ADR 0054). **A denominator
+    // is roster arithmetic, not stored state** - which is the whole point of
+    // this case: the blob above was written before any of that existed and
+    // needs no migration to sit correctly against the new total.
+    expect(view.counts.get('flower')).toEqual({ seen: 4, total: 10 })
     // Mud's petal edge still counts for mud, charted as `react:flower+mud`.
     expect(view.counts.get('mud')?.seen).toBe(1)
   })

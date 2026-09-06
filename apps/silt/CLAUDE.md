@@ -9,7 +9,8 @@ Scaffolded from `templates/starter`
 (materials); tickets in `.scratch/silt/` and `.scratch/silt-materials/`. Every
 effort since carries its own spec and tickets under `.scratch/silt-*/` - most
 recently `.scratch/silt-life-followup/` (the seed bank, the land plant, the water
-cycle and the density tuning that closed it).
+cycle and the density tuning that closed it) and `.scratch/silt-cactus/` (the
+desert biome: seeds bury in sand and grow a cactus - ADR 0054).
 
 The whole app is one route. There is no data-fetching frontend path at all —
 the world lives in the browser, so the backend surface is `/health` plus the
@@ -119,19 +120,20 @@ types.ts      ElementDef / Archetype / Api / Lifetime / Emission / SetOptions /
 elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian,
               wood, oil, fire, smoke, steam, acid, stone, sulphur, mud, seed,
               moss, vine, ember, ash, buried, sprout, tip, stalk, flower,
-              petal) and v1Reactions - config plus six hooks. Everything
+              petal, duned, nub, apex, cactus, blossom) and v1Reactions -
+              config plus seven hooks. Everything
               that forms a mass declares four shades rather than one, picked
               per cell by `rb` (ADR 0040); `colours[0]` is the base, because the
               rail reads it. The three gases stay flat. Gas densities
               read backwards: `canDisplace` is `mine > theirs`, so the gas
               closest to zero rises highest. Reaction row order is load-bearing:
               a specific pair must precede any tag row covering it (acid + wood
-              **and the eight `acid + <plant>` rows behind it**, above acid's
+              **and the twelve `acid + <plant>` rows behind it**, above acid's
               `[solid]`/`[powder]` pair; the `fire + <fuel>` ignition ladder
-              above `fire + flammable`; and `lava + wood` above
-              `lava + flammable`). Acid leaves **sulphur** on everything living
-              it eats - wood and all eight plants - and nothing on ember, ash or
-              buried, which are spent material; it has **no row against water at
+              and the wet-tissue steam rows above `fire + flammable`; and
+              `lava + wood` above `lava + flammable`). Acid leaves **sulphur**
+              on everything living it eats - wood and all twelve plants - and
+              nothing on ember, ash, buried or duned, which are spent material; it has **no row against water at
               all**, so the two coexist and density decides the layering
               ([ADR 0050](../../docs/adr/0050-silt-acid-corrodes-living-matter-and-lets-water-be.md),
               which supersedes the materials spec on both counts). Wood never becomes fire
@@ -141,10 +143,15 @@ elements.ts   pinned species ids + the roster (dirt, sand, water, lava, obsidian
               not smoke, so a wildfire rains on its own ashes, and a burning
               plant splits by wetness rather than by a probability the engine
               cannot express - stem and tip burn, sprout and flower steam
-              ([ADR 0045](../../docs/adr/0045-silt-the-water-ledger.md)). A seed
+              ([ADR 0045](../../docs/adr/0045-silt-the-water-ledger.md)), and
+              all four living cactus parts steam, so **fire cannot clear a
+              desert** - acid and old age remove cacti (ADR 0054 §5). A seed
               on wet soil no longer
               sprouts on contact - it buries (`seed + mud -> buried`, p 0.1),
-              because one row per pair cannot both sprout and bury (ADR 0043).
+              because one row per pair cannot both sprout and bury (ADR 0043);
+              a seed on **sand** buries too (`seed + sand -> duned`, p 0.03,
+              the third biome - ADR 0054), and the same seed makes a meadow
+              plant, moss or a cactus depending only on the bed it reached.
               A withering flower leaves a seed where it stood and throws 3-4
               petals clear (`lifetime.emits`); a petal is a slow floating powder
               that strikes back into a seed on wet soil (p 0.01) and, as garnish,
@@ -159,6 +166,13 @@ seedBank.ts   the second `onTick`: a buried seed soaks (counter in `ra`), sleeps
               otherwise the land sprout. The soil cell is refunded as dirt,
               never mud: the plant drank it. See
               [ADR 0043](../../docs/adr/0043-silt-growers-and-products-split-the-byte.md)
+sandBank.ts   the seventh `onTick`, the desert's bank: a `duned` seed sleeps
+              silently while roofed (water included - the biome was committed
+              at burial) and under open sky germinates a nub, **refunding the
+              bed cell as sand**: nothing is drunk, so the desert's cap is seed
+              scarcity - low burial p, seed rot, rare flowering - not a
+              moisture ledger (ADR 0054 §6). Owning no byte, it is the second
+              customer of the public `keepAwake` (ADR 0044)
 stalk.ts      hooks three and four, the land plant: a sprout raises a stalk tip
               into empty air (never into water) and is spent becoming the base
               of the stem; the tip climbs at p 0.3 on a travelling energy budget
@@ -172,7 +186,14 @@ stalk.ts      hooks three and four, the land plant: a sprout raises a stalk tip
               Raising germination alone spends the bed sooner (measured: 33-41
               crowns by tick 2000, 0-3 by 12,000). The stem's countdown has to
               stay above the flower's or a crumbling stalk leaves a flower
-              hanging (life ticket 06)
+              hanging (life ticket 06). **Both factories are parameterised**
+              (ADR 0054 §3): the meadow runs the defaults - bit-identical,
+              including the RNG stream, because `flowerP: 1` spends no draw -
+              and the cactus (nub raises apex, apex climbs 10-16 cells at
+              p 0.08 leaving flesh) is the same code as data. The terminal
+              transition is one draw, flower at `flowerP` else the inert cap,
+              which is what "potentially flowering" means (ADR 0054 §4); the
+              flesh/blossom lifetimes keep the same hanging-flower invariant
 petals.ts     the fifth `onTick`, and the smallest: a living flower sheds a petal
               at p 0.005 a tick. The *death* drop is not a hook - `onTick` never
               runs on the tick a lifetime expires, so the engine scatters the
@@ -278,7 +299,7 @@ Rules that are easy to break by accident:
   seed 15 since life ticket 04 gave it one - a built scene cannot pre-age a loose
   grain, only the plants that own their byte.
   New per-cell fields are parallel grids; the cell never widens past 4 bytes. There are
-  **four exceptions, all conditional on the element declaring no `lifetime`**,
+  **five exceptions, all conditional on the element declaring no `lifetime`**,
   and none can collide: the claim is per *species*, and a cell is one species
   (ADR 0043):
   - **The growth hook** (`growth.ts`): moss and vine hold their branch count in
@@ -301,11 +322,14 @@ Rules that are easy to break by accident:
     than climbing forever. Same split as the seed: the tip grows and cannot die,
     the stalk behind it expires and cannot grow.
     [ADR 0043](../../docs/adr/0043-silt-growers-and-products-split-the-byte.md) §2.1.
+  - **The cactus apex** (`stalk.ts`, same hook, cactus ids): the fifth
+    claimant, and the revisit ADR 0043 §2.1 demands was re-run for it - it is
+    the permitted shape verbatim, a grower that never dies, so the byte held
+    ([ADR 0054](../../docs/adr/0054-silt-sand-is-the-third-biome.md) §2).
 
-  This entry and the comments at all four sites are summaries of those ADRs, so
-  a change to the rule belongs in the ADR first. The **fourth** claimant was the
-  trigger to revisit the byte itself; the revisit is ADR 0043 §2.1 and it held.
-  The next one fires the same way - and it is not about the count: a claimant
+  This entry and the comments at the sites are summaries of those ADRs, so
+  a change to the rule belongs in the ADR first. Each new claimant re-fires
+  the revisit - and it is not about the count: a claimant
   that is anything other than a grower which never dies is the argument for
   widening the cell rather than for adding a row here.
 - **`Api` reaches a neighbour's `ra` nowhere; `MovementApi` does.** `raAt` /
@@ -337,13 +361,16 @@ Rules that are easy to break by accident:
   for it. **That trigger has now fired**: `evaporation.ts` lives on water, whose
   `ra` is the *enforced* liquid opinion field, so it has no byte to disguise a
   write in and `keepAwake` is public
-  ([ADR 0044](../../docs/adr/0044-silt-thin-film-evaporation.md) §3). It stays
+  ([ADR 0044](../../docs/adr/0044-silt-thin-film-evaporation.md) §3), and
+  `sandBank.ts` is its second customer for the same reason - a bank that owns
+  no counter has no byte to disguise a write in. It stays
   judgement rather than a convenience: the question is whether *this* cell still
   has business next tick. A film that declined its draw does; a pond surface,
   which is not a film at all, does not - and calling it there would hold every
   pond in the world awake for ever. The mirror image matters as much: a *dormant*
-  buried seed, a roofed sprout and a roofed film write nothing at all, which is
-  what lets the bed under a crowded meadow sleep.
+  buried seed, a roofed sprout, a roofed film and a roofed `duned` write
+  nothing at all, which is what lets the bed under a crowded meadow - or a
+  standing cactus - sleep.
 - **`CHUNK_MARGIN` is fully spent.** The crowding check in `growth.ts` reads two
   cells out (the candidate is one away, its neighbours one past that), and the
   seed bank's depth test reads exactly two up - both are exactly the margin. A

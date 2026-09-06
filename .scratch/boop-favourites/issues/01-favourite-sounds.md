@@ -1,6 +1,6 @@
 # 01 - Favourite sounds, with a Favourites section atop the picker
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** task
 **Reported:** 2026-09-06, user request via Ed
 
@@ -31,13 +31,13 @@ sound; the star fills gold when the sound is a favourite.
 
 ## Acceptance
 
-- [ ] Starring a sound shows the Favourites section with it; unstarring the
+- [x] Starring a sound shows the Favourites section with it; unstarring the
       last one removes the section
-- [ ] Favourites survive a reload; a corrupt/missing blob means no favourites
+- [x] Favourites survive a reload; a corrupt/missing blob means no favourites
       and no error
-- [ ] The star toggles without selecting/auditioning the sound, and works by
+- [x] The star toggles without selecting/auditioning the sound, and works by
       keyboard
-- [ ] Unit tests for the favourites store + group derivation; one `.iwft`:
+- [x] Unit tests for the favourites store + group derivation; one `.iwft`:
       star, reload, see the section (pragmatic split)
 
 ## Comments
@@ -45,3 +45,9 @@ sound; the star fills gold when the sound is a favourite.
 **2026-09-06 (Ed):** design approved as written after walking through the
 decisions (separate `boop:favourites` key, copy-not-move into the Favourites
 group, manifest order, separate star hit target). No changes.
+
+**2026-09-06 (agent):** built as designed on branch `boop-favourite-sounds`:
+`persistence/favourites.ts` (+ `useFavourites.ts`), the Favourites section in
+`instrumentGroups.ts`, and the star buttons in `InstrumentPicker.tsx`. Unit
+tests for the store and the derivation, one `favouriteSounds.iwft.tsx`. All
+acceptance boxes verified by tests; ready-for-human review.

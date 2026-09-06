@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Kit, KitInstrument, InstrumentGroup } from '../../engine/sequencerEngine.ts'
-import { instrumentSections, UNGROUPED_SECTION_LABEL } from './instrumentGroups.ts'
+import {
+  FAVOURITES_SECTION_ID,
+  instrumentSections,
+  UNGROUPED_SECTION_LABEL,
+} from './instrumentGroups.ts'
 
 function instrument(instrumentId: string, group?: InstrumentGroup): KitInstrument {
   const entry: KitInstrument = {
@@ -54,6 +58,43 @@ describe('instrumentSections', () => {
 
     expect(sections.map((section) => section.label)).toEqual(['Drums', UNGROUPED_SECTION_LABEL])
     expect(sections[1]?.instruments.map((i) => i.instrumentId)).toEqual(['mystery', 'other'])
+  })
+
+  it('prepends a Favourites section, and the sound keeps its home group too', () => {
+    // Copy, not move (ticket 01): a kid should still find Cowbell under Drums.
+    const sections = instrumentSections(
+      kit([instrument('kick', 'drums'), instrument('cowbell', 'drums')]),
+      ['cowbell'],
+    )
+
+    expect(sections.map((section) => [section.id, section.label])).toEqual([
+      [FAVOURITES_SECTION_ID, 'Favourites'],
+      ['drums', 'Drums'],
+    ])
+    expect(sections[0]?.instruments.map((i) => i.instrumentId)).toEqual(['cowbell'])
+    expect(sections[1]?.instruments.map((i) => i.instrumentId)).toEqual(['kick', 'cowbell'])
+  })
+
+  it('orders favourites in manifest order, not favouriting order', () => {
+    const sections = instrumentSections(
+      kit([instrument('kick', 'drums'), instrument('boing', 'silly')]),
+      ['boing', 'kick'],
+    )
+
+    expect(sections[0]?.instruments.map((i) => i.instrumentId)).toEqual(['kick', 'boing'])
+  })
+
+  it('has no Favourites section when there are none', () => {
+    const sections = instrumentSections(kit([instrument('kick', 'drums')]), [])
+
+    expect(sections.map((section) => section.id)).toEqual(['drums'])
+  })
+
+  it('ignores favourited ids the kit does not contain', () => {
+    // A favourite from a bigger future kit: kept in storage, invisible here.
+    const sections = instrumentSections(kit([instrument('kick', 'drums')]), ['from-a-future-kit'])
+
+    expect(sections.map((section) => section.id)).toEqual(['drums'])
   })
 
   it('lists every instrument of the roster exactly once', () => {
