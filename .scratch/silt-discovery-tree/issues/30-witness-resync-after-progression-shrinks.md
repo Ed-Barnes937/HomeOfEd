@@ -1,6 +1,7 @@
 # 30 - Sim never re-reports a witness after the progression shrinks
 
-**Status:** needs-triage
+**Status:** broken down into tickets 31 + 32 (2026-09-06, Ed approved) - work
+the children, not this file
 **Type:** bug (pre-existing for "forget discoveries"; ticket 28 added a second
 trigger)
 **Reported:** 2026-09-06, noticed while building ticket 28 (per-scene
@@ -36,7 +37,16 @@ from the now-smaller store, so everything self-heals).
 3. Pour water on lava again. Nothing is recorded; the entry stays undiscovered
    until a page reload, after which the same pour records normally.
 
-## Design sketch (untriaged)
+## Breakdown
+
+- 31-witness-resync-forget-re-earns.md - the seam through every layer, demoed
+  via "Forget discoveries" (no blockers)
+- 32-scene-load-rides-the-resync.md - the scene-load path wired onto the same
+  seam (blocked by 31)
+
+The wontfix option below was not taken.
+
+## Design sketch (superseded by the breakdown)
 
 The clean seam already exists: `seedWitnessed` is additive today. Either
 
