@@ -2,14 +2,20 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACID,
+  APEX,
   ASH,
+  BLOSSOM,
+  BURIED,
+  CACTUS,
   DIRT,
+  DUNED,
   EMBER,
   EMPTY,
   FIRE,
   FLOWER,
   LAVA,
   MOSS,
+  NUB,
   OBSIDIAN,
   OIL,
   PETAL,
@@ -108,8 +114,8 @@ describe('the acid group', () => {
   // whole-table assertion here would make every later stage break this file.
   // The slice still pins order — which is load-bearing (spec §1.2) — over the
   // prefix this stage owns, and the last stage's test pins the full length.
-  it('declares rows 1–28 in the order the spec pins', () => {
-    expect(v1Reactions.slice(0, 28).map((row) => [row.a, row.b])).toEqual([
+  it('declares rows 1–36 in the order the spec pins', () => {
+    expect(v1Reactions.slice(0, 36).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -120,6 +126,10 @@ describe('the acid group', () => {
       ['fire', 'wood'],
       ['fire', 'flower'],
       ['fire', 'sprout'],
+      ['fire', 'nub'],
+      ['fire', 'apex'],
+      ['fire', 'cactus'],
+      ['fire', 'blossom'],
       ['fire', 'flammable'],
       ['fire', 'ember'],
       ['lava', 'wood'],
@@ -135,6 +145,10 @@ describe('the acid group', () => {
       ['acid', 'tip'],
       ['acid', 'flower'],
       ['acid', 'petal'],
+      ['acid', 'nub'],
+      ['acid', 'apex'],
+      ['acid', 'cactus'],
+      ['acid', 'blossom'],
       ['acid', 'solid'],
       ['acid', 'powder'],
       ['acid', 'lava'],
@@ -158,9 +172,12 @@ describe('the acid group', () => {
     })
   })
 
-  // The same trap, eight more times: every plant is hardness 0, so acid's
-  // `[solid]`/`[powder]` rows cover all eight pairs and would erase them with no
-  // residue if any of these rows slipped below them (ticket 15).
+  // The same trap, twelve more times: every plant is hardness 0, so acid's
+  // `[solid]`/`[powder]` rows cover all twelve pairs and would erase them with
+  // no residue if any of these rows slipped below them (ticket 15, and the
+  // desert's four from ADR 0054 §5). The four cactus parts sit *beside* the
+  // meadow's eight rather than behind them, because living matter is living
+  // matter - and they are named rows for the same reason the eight are.
   it.each([
     ['moss', MOSS],
     ['vine', VINE],
@@ -170,6 +187,10 @@ describe('the acid group', () => {
     ['tip', TIP],
     ['flower', FLOWER],
     ['petal', PETAL],
+    ['nub', NUB],
+    ['apex', APEX],
+    ['cactus', CACTUS],
+    ['blossom', BLOSSOM],
   ])('registers acid + %s as a sulphur row, not the plain-dissolve row', (_name, plant) => {
     expect(registry.reactionFor(ACID, plant)).toMatchObject({
       p: 0.3,
@@ -188,9 +209,16 @@ describe('the acid group', () => {
   // The other half of the roster ruling: ember and ash are spent material, not
   // living tissue, so they keep the tag rows' plain dissolve. This is the case
   // that fails if a later change reaches for a "burnt things too" tag.
+  //
+  // `duned` joins them (ADR 0054 §5), on the same reading `buried` gets: a
+  // bedded seed is spent material, so the bank dissolves with nothing left
+  // behind. It is also the only way to clear one - fire cannot reach a `duned`
+  // at all, which is what makes the desert's bank fire-proof.
   it.each([
     ['ember', EMBER],
     ['ash', ASH],
+    ['buried', BURIED],
+    ['duned', DUNED],
   ])('erases %s with no residue - it is already spent', (_name, spent) => {
     expect(registry.reactionFor(ACID, spent)).toMatchObject({
       aBecomes: EMPTY,

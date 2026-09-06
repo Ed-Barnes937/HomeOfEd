@@ -18,6 +18,12 @@ const SPROUT = 21
 const TIP = 22
 const STALK = 23
 const FLOWER = 24
+/**
+ * A stand-in for a second terminal product - the desert column's flesh (cactus
+ * spec §4). Only the parameterisation cases below name it; the meadow's ids
+ * carry no `cap` at all, which is the default this file pins.
+ */
+const CAP = 29
 const WALL = 255
 
 const sproutIds: SproutIds = { empty: EMPTY, tip: TIP, stalk: STALK }
@@ -33,12 +39,19 @@ const tipIds: TipIds = { empty: EMPTY, tip: TIP, stalk: STALK, flower: FLOWER }
  * (`raWrites`), because keep-awake is half the tip's design: chunk sleeping is
  * driven by writes, so a tip that wrote nothing between climbs would freeze
  * mid-air the first time its draw missed.
+ *
+ * It counts its draws too (`randCalls`, `randIntBounds`). A hook's draws are as
+ * much a part of its contract as its writes: the `Rng` is one shared stream, so
+ * a draw spent where there is nothing to decide shifts every downstream draw in
+ * the world and moves a determinism-pinned test that never touched this file.
  */
 class StubApi implements Api {
   rb = 0
   readonly writes: { dx: number; dy: number; species: number; options?: SetOptions }[] = []
   readonly raWrites: number[] = []
   readonly becomes: number[] = []
+  readonly randIntBounds: number[] = []
+  randCalls = 0
   raises = 0
   blooms = 0
 
@@ -88,6 +101,7 @@ class StubApi implements Api {
   rand(): number {
     // Default 0: every draw succeeds, so a test only supplies draws when the
     // failing path is what it cares about.
+    this.randCalls += 1
     return this.#draws.shift() ?? 0
   }
 
@@ -97,9 +111,12 @@ class StubApi implements Api {
     throw new Error('the land plant holds its chunk awake by writing its budget')
   }
 
-  randInt(): number {
+  randInt(maxExclusive: number): number {
     // Default 0: the shortest jittered budget, so a test that does not care
-    // about height gets the same one every time.
+    // about height gets the same one every time. The bound is recorded because
+    // it is the jitter's *width*, and a factory that took its minimum from its
+    // options but not its spread would otherwise pass.
+    this.randIntBounds.push(maxExclusive)
     return this.#jitters.shift() ?? 0
   }
   witnessGrowth(): void {
@@ -189,6 +206,39 @@ describe('the sprout hook', () => {
 
     expect(api.raWrites).toEqual([])
   })
+
+  /**
+   * The heights are options rather than module constants because the same
+   * factory raises the desert's column (cactus spec §4): a saguaro is 10-16
+   * cells where the meadow's stalk is 6-10. Nothing about *how* a sprout is
+   * spent differs, so a second copy of this hook would be a second copy of the
+   * keep-awake and never-into-water rules as well.
+   */
+  it('takes the height it prepays from the options it was built with', () => {
+    const tall = createSprout(sproutIds, { heightMin: 10, heightJitter: 6 })
+
+    const budgets = [0, 6].map((jitter) => {
+      const api = new StubApi({ '0,0': SPROUT }, 0, [], [jitter])
+      tall(api)
+      // The jitter is drawn inclusively, so the bound is the spread plus one.
+      expect(api.randIntBounds).toEqual([7])
+      return api.writes[0]?.options?.ra
+    })
+
+    // Height + 1 as ever: a 10-16 cell column prepays 11-17.
+    expect(budgets).toEqual([11, 17])
+  })
+
+  it('falls back to the meadow constants when it is given none', () => {
+    for (const opts of [undefined, {}]) {
+      const api = new StubApi({ '0,0': SPROUT }, 0, [], [STALK_HEIGHT_JITTER])
+
+      createSprout(sproutIds, opts)(api)
+
+      expect(api.randIntBounds).toEqual([STALK_HEIGHT_JITTER + 1])
+      expect(api.writes[0]?.options?.ra).toBe(STALK_HEIGHT_MIN + STALK_HEIGHT_JITTER + 1)
+    }
+  })
 })
 
 describe('the stalk tip hook', () => {
@@ -271,6 +321,103 @@ describe('the stalk tip hook', () => {
     // stem: `set`'s `{ ra }` is how the budget travels, not `api.ra`.
     expect(api.raWrites).toEqual([9])
     expect(api.writes).toHaveLength(1)
+  })
+
+  /**
+   * The pace is a per-plant option because the desert grows at a saguaro's rate
+   * (0.08, cactus spec §4) and the meadow at 0.3. It is still a rate rather than
+   * a split: a missed draw is a tick not climbed, not a plant that stopped.
+   */
+  it('climbs on the probability it was built with', () => {
+    // One draw, taken at the meadow's 0.3 and missed at the desert's 0.08.
+    const slow = new StubApi({ '0,0': TIP }, 9, [0.2])
+    createTip(tipIds, { climbP: 0.08 })(slow)
+    expect(slow.writes).toEqual([])
+    // Missing is still the keep-awake path, whatever the rate was.
+    expect(slow.raWrites).toEqual([9])
+
+    const fast = new StubApi({ '0,0': TIP }, 9, [0.2])
+    tip(fast)
+    expect(fast.writes).toHaveLength(1)
+  })
+})
+
+/**
+ * **"Potentially flowering" is one draw at the end** (cactus spec §4) - the one
+ * thing the rest of the machinery cannot express, since `lifetime.becomes` is
+ * deterministic and a reaction row has no pair to key on. The meadow keeps
+ * `flowerP: 1` and is unchanged by every case here.
+ */
+describe('the terminal draw', () => {
+  const cactusIds: TipIds = { empty: EMPTY, tip: TIP, stalk: STALK, flower: FLOWER, cap: CAP }
+  const sometimes = createTip(cactusIds, { flowerP: 0.3 })
+
+  it('picks the flower or the cap on one draw, at both endings', () => {
+    // Budget spent.
+    const crowned = new StubApi({ '0,0': TIP }, 1, [0.29])
+    sometimes(crowned)
+    expect(crowned.becomes).toEqual([FLOWER])
+    expect(crowned.randCalls).toBe(1)
+
+    // Boxed in - the same draw, because a forced ending is still an ending.
+    const capped = new StubApi({ '0,0': TIP, '0,-1': STALK }, 9, [0.3])
+    sometimes(capped)
+    expect(capped.becomes).toEqual([CAP])
+    expect(capped.randCalls).toBe(1)
+  })
+
+  /**
+   * **The determinism pin.** The `Rng` is one stream shared by the whole world,
+   * so a draw spent where there is nothing to decide shifts every draw after it
+   * and silently moves tests that never mention a plant. At `flowerP: 1` the
+   * answer is known before the draw, so there is no draw.
+   */
+  it('spends no draw at all when the plant always flowers', () => {
+    const spent = new StubApi({ '0,0': TIP }, 1)
+    tip(spent)
+    expect(spent.becomes).toEqual([FLOWER])
+    expect(spent.randCalls).toBe(0)
+
+    const boxed = new StubApi({ '0,0': TIP, '0,-1': STALK }, 9)
+    tip(boxed)
+    expect(boxed.becomes).toEqual([FLOWER])
+    expect(boxed.randCalls).toBe(0)
+  })
+
+  /**
+   * The cap is optional, and its default is the flower: a roster that names no
+   * second product has only one thing a tip can become, whatever the draw says.
+   * That is what lets the meadow's ids stay exactly as `elements.ts` writes them.
+   */
+  it('falls back to the flower when no cap species was named', () => {
+    const api = new StubApi({ '0,0': TIP }, 1, [0.99])
+
+    createTip(tipIds, { flowerP: 0.3 })(api)
+
+    expect(api.becomes).toEqual([FLOWER])
+  })
+
+  it('witnesses a bloom whichever product the draw picked', () => {
+    // A bloom is a bloom, however it ends: the witness is cursor-read, so it
+    // keys on the tip and a future apex keys its own entry (discovery ticket 07).
+    const api = new StubApi({ '0,0': TIP }, 1, [0.99])
+
+    sometimes(api)
+
+    expect(api.becomes).toEqual([CAP])
+    expect(api.blooms).toBe(1)
+  })
+
+  it('leaves the climb alone: a tip mid-column draws once, for its step', () => {
+    const api = new StubApi({ '0,0': TIP }, 9, [0.99])
+
+    sometimes(api)
+
+    // The missed climb, and nothing else - the terminal draw belongs to the
+    // ending, not to every tick.
+    expect(api.randCalls).toBe(1)
+    expect(api.becomes).toEqual([])
+    expect(api.raWrites).toEqual([9])
   })
 })
 
