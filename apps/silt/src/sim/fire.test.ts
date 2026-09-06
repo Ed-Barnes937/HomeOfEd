@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  APEX,
+  BLOSSOM,
+  CACTUS,
   DIRT,
+  DUNED,
   EMBER,
   EMPTY,
   OBSIDIAN,
   FIRE,
   LAVA,
   MOSS,
+  NUB,
   OIL,
   SEED,
   SMOKE,
@@ -120,10 +125,12 @@ describe('the fire group', () => {
     expect(registry.get(EMBER)?.colours).toHaveLength(4)
   })
 
-  // Rows 1–16 are this group's; later groups append to the same table, so this
-  // pins the head of it rather than the whole thing.
-  it('registers rows 1–16 in the declared order', () => {
-    expect(v1Reactions.slice(0, 16).map((row) => [row.a, row.b])).toEqual([
+  // Rows 1–20 are this group's; later groups append to the same table, so this
+  // pins the head of it rather than the whole thing. Four longer since the
+  // cactus arrived (ADR 0054 §5): its four living parts each steam on a named
+  // row, and every one of them has to sit above `fire + flammable`.
+  it('registers rows 1–20 in the declared order', () => {
+    expect(v1Reactions.slice(0, 20).map((row) => [row.a, row.b])).toEqual([
       ['water', 'lava'],
       ['water', 'fire'],
       ['fire', 'sulphur'],
@@ -134,6 +141,10 @@ describe('the fire group', () => {
       ['fire', 'wood'],
       ['fire', 'flower'],
       ['fire', 'sprout'],
+      ['fire', 'nub'],
+      ['fire', 'apex'],
+      ['fire', 'cactus'],
+      ['fire', 'blossom'],
       ['fire', 'flammable'],
       ['fire', 'ember'],
       ['lava', 'wood'],
@@ -192,6 +203,67 @@ describe('the fire group', () => {
     expect(registry.reactionFor(LAVA, WOOD)).toMatchObject({ aBecomes: LAVA, bBecomes: EMBER })
     // Reached from the wood side the answer is the same pair, sides swapped.
     expect(registry.reactionFor(WOOD, FIRE)).toMatchObject({ aBecomes: EMBER, bBecomes: FIRE })
+  })
+
+  /**
+   * **Fire cannot clear a desert** (cactus spec §3, ADR 0054 §5). A cactus is a
+   * water tank, so all four of its living parts steam rather than burn - the
+   * meadow's wet/dry split with no dry half to keep. The same precedence trap as
+   * `acid + wood`: `fire + [flammable]` covers every one of these pairs, and
+   * `resolvePairs` keeps the first registration and drops the rest without a
+   * word, so a reorder puts the desert back on the burn ladder in silence.
+   *
+   * The apex is the deliberate departure from the meadow, where the travelling
+   * tip stayed on the ladder: it is on screen for 150+ ticks at p 0.08 rather
+   * than about 30, so it is a thing you can aim a flame at, and it is as wet as
+   * the column under it.
+   */
+  it.each([
+    ['nub', NUB],
+    ['apex', APEX],
+    ['cactus', CACTUS],
+    ['blossom', BLOSSOM],
+  ])('steams %s rather than lighting it, so a flame gets nothing from it', (_name, part) => {
+    expect(registry.reactionFor(FIRE, part)).toMatchObject({
+      p: 0.4,
+      aBecomes: FIRE,
+      bBecomes: STEAM,
+    })
+    // Symmetric, as every named row is: reached from the plant side the flame is
+    // still the flame and the plant is still the steam.
+    expect(registry.reactionFor(part, FIRE)).toMatchObject({
+      p: 0.4,
+      aBecomes: STEAM,
+      bBecomes: FIRE,
+    })
+    // And the flame survives as fire, exactly as it does on every other rung:
+    // what makes a cactus a poor fuel is that it hands the flame nothing, not
+    // that it puts it out. `water + fire` is the row that puts fire out.
+  })
+
+  /**
+   * The other side of that ruling, and the reason it is a ruling rather than an
+   * oversight: **lava still lights a cactus**, through `lava + [flammable]`. The
+   * wet-tissue split is about what fire *gets* from a plant; lava is a heat
+   * source that needs nothing from anything, and it lights the meadow's wet
+   * parts on the same tag row today.
+   */
+  it.each([
+    ['cactus', CACTUS],
+    ['blossom', BLOSSOM],
+  ])('still lets lava light %s - the split is fire’s, not heat’s', (_name, part) => {
+    expect(registry.reactionFor(LAVA, part)).toMatchObject({ aBecomes: LAVA, bBecomes: FIRE })
+  })
+
+  /**
+   * And the bank underneath survives, which is what makes the desert regrow
+   * after a burn: `duned` carries no `flammable` tag at all, so neither the
+   * ladder nor its fallback can reach the pair - exactly `buried`'s trick.
+   */
+  it('never registers fire against the sand bank at all', () => {
+    expect(registry.has(DUNED, 'flammable')).toBe(false)
+    expect(registry.reactionFor(FIRE, DUNED)).toBeUndefined()
+    expect(registry.reactionFor(DUNED, FIRE)).toBeUndefined()
   })
 
   it('lights sulphur the moment fire touches it', () => {

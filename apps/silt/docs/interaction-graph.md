@@ -6,22 +6,23 @@ Every reaction and decay below is read back out of the live registry
 (`createRegistry(v1Elements, v1Reactions)`), so what is listed is what the sim
 resolves: tag rows already expanded, `maxHardness` pairs absent rather than
 "immune", and the first matching row winning. The hooks are the exception - growth
-(`src/sim/growth.ts`), germination (`src/sim/seedBank.ts`) and the land plant's
-raise and bloom (`src/sim/stalk.ts`) are code rather than table rows, so their
-edges are declared in the generator and must be kept in step with them.
+(`src/sim/growth.ts`), germination (`src/sim/seedBank.ts` in mud,
+`src/sim/sandBank.ts` in sand) and each plant's raise and bloom
+(`src/sim/stalk.ts`, which both plants share) are code rather than table rows, so
+their edges are declared in the generator and must be kept in step with them.
 
 ## Summary
 
 |                          | count |
 | ------------------------ | ----- |
-| elements                 | 25    |
+| elements                 | 30    |
 | paintable                | 10    |
-| products only            | 15    |
-| reaction pairs           | 47    |
-| decays                   | 8     |
-| of which fade to nothing | 4     |
+| products only            | 20    |
+| reaction pairs           | 61    |
+| decays                   | 10    |
+| of which fade to nothing | 5     |
 | growth edges             | 2     |
-| hook transmutations      | 4     |
+| hook transmutations      | 7     |
 
 ## Graph
 
@@ -52,11 +53,17 @@ graph LR
   stalk{{"stalk"}}
   flower{{"flower"}}
   petal{{"petal"}}
+  duned{{"duned"}}
+  nub{{"nub"}}
+  apex{{"apex"}}
+  cactus{{"cactus"}}
+  blossom{{"blossom"}}
 
   %% reactions
   dirt ---|"mud / empty"| water
   dirt ---|"empty / empty"| acid
   sand ---|"empty / empty"| acid
+  sand ---|"duned / empty"| seed
   water ---|"steam / obsidian"| lava
   water ---|"steam / smoke"| fire
   water ---|"steam / wood"| ember
@@ -74,6 +81,10 @@ graph LR
   lava ---|"lava / fire"| tip
   lava ---|"lava / fire"| stalk
   lava ---|"lava / fire"| flower
+  lava ---|"lava / fire"| nub
+  lava ---|"lava / fire"| apex
+  lava ---|"lava / fire"| cactus
+  lava ---|"lava / fire"| blossom
   wood ---|"ember / fire"| fire
   wood ---|"empty / sulphur"| acid
   wood ---|"ember / ember"| ember
@@ -88,6 +99,10 @@ graph LR
   fire ---|"fire / fire"| tip
   fire ---|"fire / fire"| stalk
   fire ---|"fire / steam"| flower
+  fire ---|"fire / steam"| nub
+  fire ---|"fire / steam"| apex
+  fire ---|"fire / steam"| cactus
+  fire ---|"fire / steam"| blossom
   acid ---|"sulphur / empty"| seed
   acid ---|"sulphur / empty"| moss
   acid ---|"sulphur / empty"| vine
@@ -99,6 +114,11 @@ graph LR
   acid ---|"sulphur / empty"| stalk
   acid ---|"sulphur / empty"| flower
   acid ---|"sulphur / empty"| petal
+  acid ---|"empty / empty"| duned
+  acid ---|"sulphur / empty"| nub
+  acid ---|"sulphur / empty"| apex
+  acid ---|"sulphur / empty"| cactus
+  acid ---|"sulphur / empty"| blossom
   mud ---|"buried / empty"| seed
   mud ---|"mud / seed"| petal
 
@@ -108,6 +128,8 @@ graph LR
   ember -->|"decays, 120-180 ticks"| fire
   flower -->|"decays, 1200-2400 ticks"| seed
   flower -->|"sheds 3-4"| petal
+  blossom -->|"decays, 1600-2400 ticks"| seed
+  blossom -->|"sheds 1-2"| petal
 
   %% growth
   water -->|"beside moss, p 0.04"| vine
@@ -119,6 +141,11 @@ graph LR
   sprout -->|"raises"| tip
   sprout -->|"raises"| stalk
   tip -->|"blooms"| flower
+  duned -->|"germinates, p 0.001"| nub
+  nub -->|"raises"| apex
+  nub -->|"raises"| cactus
+  apex -->|"blooms"| blossom
+  apex -->|"blooms"| cactus
 ```
 
 Rounded nodes are paintable (the rail's `PAINTABLE_IDS`); hexagons are reachable
@@ -130,53 +157,67 @@ only by reacting. A reaction edge is undirected and its label reads
 
 | reagents       | p     | outcome                                                                                | mechanism                          |
 | -------------- | ----- | -------------------------------------------------------------------------------------- | ---------------------------------- |
-| dirt + water   | 0.4   | dirt -> mud, water -> empty                                                            | reaction row 29 (water + dirt)     |
-| dirt + acid    | 0.3   | dirt -> empty, acid -> empty                                                           | reaction row 26 (acid + solid)     |
-| sand + acid    | 0.3   | sand -> empty, acid -> empty                                                           | reaction row 27 (acid + powder)    |
+| dirt + water   | 0.4   | dirt -> mud, water -> empty                                                            | reaction row 37 (water + dirt)     |
+| dirt + acid    | 0.3   | dirt -> empty, acid -> empty                                                           | reaction row 34 (acid + solid)     |
+| sand + acid    | 0.3   | sand -> empty, acid -> empty                                                           | reaction row 35 (acid + powder)    |
+| sand + seed    | 0.03  | sand -> duned, seed -> empty                                                           | reaction row 44 (seed + sand)      |
 | water + lava   | 1     | water -> steam, lava -> obsidian                                                       | reaction row 1 (water + lava)      |
 | water + fire   | 1     | water -> steam, fire -> smoke                                                          | reaction row 2 (water + fire)      |
-| water + ember  | 1     | water -> steam, ember -> wood                                                          | reaction row 16 (water + ember)    |
-| water + ash    | 0.4   | water -> empty, ash -> mud                                                             | reaction row 30 (water + ash)      |
-| water + petal  | 0.001 | water -> water, petal -> seed                                                          | reaction row 35 (petal + water)    |
-| lava + wood    | 0.1   | lava -> lava, wood -> ember                                                            | reaction row 13 (lava + wood)      |
-| lava + oil     | 0.15  | lava -> lava, oil -> fire                                                              | reaction row 14 (lava + flammable) |
-| lava + acid    | 1     | lava -> lava, acid -> smoke                                                            | reaction row 28 (acid + lava)      |
-| lava + sulphur | 0.15  | lava -> lava, sulphur -> fire                                                          | reaction row 14 (lava + flammable) |
-| lava + mud     | 1     | lava -> lava, mud -> stone                                                             | reaction row 32 (mud + lava)       |
-| lava + seed    | 0.15  | lava -> lava, seed -> fire                                                             | reaction row 14 (lava + flammable) |
-| lava + moss    | 0.15  | lava -> lava, moss -> fire                                                             | reaction row 14 (lava + flammable) |
-| lava + vine    | 0.15  | lava -> lava, vine -> fire                                                             | reaction row 14 (lava + flammable) |
-| lava + sprout  | 0.15  | lava -> lava, sprout -> fire                                                           | reaction row 14 (lava + flammable) |
-| lava + tip     | 0.15  | lava -> lava, tip -> fire                                                              | reaction row 14 (lava + flammable) |
-| lava + stalk   | 0.15  | lava -> lava, stalk -> fire                                                            | reaction row 14 (lava + flammable) |
-| lava + flower  | 0.15  | lava -> lava, flower -> fire                                                           | reaction row 14 (lava + flammable) |
+| water + ember  | 1     | water -> steam, ember -> wood                                                          | reaction row 20 (water + ember)    |
+| water + ash    | 0.4   | water -> empty, ash -> mud                                                             | reaction row 38 (water + ash)      |
+| water + petal  | 0.001 | water -> water, petal -> seed                                                          | reaction row 43 (petal + water)    |
+| lava + wood    | 0.1   | lava -> lava, wood -> ember                                                            | reaction row 17 (lava + wood)      |
+| lava + oil     | 0.15  | lava -> lava, oil -> fire                                                              | reaction row 18 (lava + flammable) |
+| lava + acid    | 1     | lava -> lava, acid -> smoke                                                            | reaction row 36 (acid + lava)      |
+| lava + sulphur | 0.15  | lava -> lava, sulphur -> fire                                                          | reaction row 18 (lava + flammable) |
+| lava + mud     | 1     | lava -> lava, mud -> stone                                                             | reaction row 40 (mud + lava)       |
+| lava + seed    | 0.15  | lava -> lava, seed -> fire                                                             | reaction row 18 (lava + flammable) |
+| lava + moss    | 0.15  | lava -> lava, moss -> fire                                                             | reaction row 18 (lava + flammable) |
+| lava + vine    | 0.15  | lava -> lava, vine -> fire                                                             | reaction row 18 (lava + flammable) |
+| lava + sprout  | 0.15  | lava -> lava, sprout -> fire                                                           | reaction row 18 (lava + flammable) |
+| lava + tip     | 0.15  | lava -> lava, tip -> fire                                                              | reaction row 18 (lava + flammable) |
+| lava + stalk   | 0.15  | lava -> lava, stalk -> fire                                                            | reaction row 18 (lava + flammable) |
+| lava + flower  | 0.15  | lava -> lava, flower -> fire                                                           | reaction row 18 (lava + flammable) |
+| lava + nub     | 0.15  | lava -> lava, nub -> fire                                                              | reaction row 18 (lava + flammable) |
+| lava + apex    | 0.15  | lava -> lava, apex -> fire                                                             | reaction row 18 (lava + flammable) |
+| lava + cactus  | 0.15  | lava -> lava, cactus -> fire                                                           | reaction row 18 (lava + flammable) |
+| lava + blossom | 0.15  | lava -> lava, blossom -> fire                                                          | reaction row 18 (lava + flammable) |
 | wood + fire    | 0.2   | wood -> ember, fire -> fire                                                            | reaction row 8 (fire + wood)       |
-| wood + acid    | 0.3   | wood -> empty, acid -> sulphur                                                         | reaction row 17 (acid + wood)      |
-| wood + ember   | 0.02  | wood -> ember, ember -> ember                                                          | reaction row 15 (ember + wood)     |
+| wood + acid    | 0.3   | wood -> empty, acid -> sulphur                                                         | reaction row 21 (acid + wood)      |
+| wood + ember   | 0.02  | wood -> ember, ember -> ember                                                          | reaction row 19 (ember + wood)     |
 | oil + fire     | 0.9   | oil -> fire, fire -> fire                                                              | reaction row 4 (fire + oil)        |
 | fire + sulphur | 1     | fire -> fire, sulphur -> fire                                                          | reaction row 3 (fire + sulphur)    |
-| fire + mud     | 1     | fire -> steam, mud -> dirt                                                             | reaction row 31 (mud + fire)       |
+| fire + mud     | 1     | fire -> steam, mud -> dirt                                                             | reaction row 39 (mud + fire)       |
 | fire + seed    | 0.3   | fire -> fire, seed -> fire                                                             | reaction row 6 (fire + seed)       |
 | fire + moss    | 0.2   | fire -> fire, moss -> fire                                                             | reaction row 7 (fire + moss)       |
 | fire + vine    | 0.6   | fire -> fire, vine -> fire                                                             | reaction row 5 (fire + vine)       |
-| fire + ember   | 0.003 | fire -> fire, ember -> ash                                                             | reaction row 12 (fire + ember)     |
+| fire + ember   | 0.003 | fire -> fire, ember -> ash                                                             | reaction row 16 (fire + ember)     |
 | fire + sprout  | 0.4   | fire -> fire, sprout -> steam                                                          | reaction row 10 (fire + sprout)    |
-| fire + tip     | 0.4   | fire -> fire, tip -> fire                                                              | reaction row 11 (fire + flammable) |
-| fire + stalk   | 0.4   | fire -> fire, stalk -> fire                                                            | reaction row 11 (fire + flammable) |
+| fire + tip     | 0.4   | fire -> fire, tip -> fire                                                              | reaction row 15 (fire + flammable) |
+| fire + stalk   | 0.4   | fire -> fire, stalk -> fire                                                            | reaction row 15 (fire + flammable) |
 | fire + flower  | 0.4   | fire -> fire, flower -> steam                                                          | reaction row 9 (fire + flower)     |
-| acid + seed    | 0.3   | acid -> sulphur, seed -> empty                                                         | reaction row 20 (acid + seed)      |
-| acid + moss    | 0.3   | acid -> sulphur, moss -> empty                                                         | reaction row 18 (acid + moss)      |
-| acid + vine    | 0.3   | acid -> sulphur, vine -> empty                                                         | reaction row 19 (acid + vine)      |
-| acid + ember   | 0.3   | acid -> empty, ember -> empty                                                          | reaction row 26 (acid + solid)     |
-| acid + ash     | 0.3   | acid -> empty, ash -> empty                                                            | reaction row 27 (acid + powder)    |
-| acid + buried  | 0.3   | acid -> empty, buried -> empty                                                         | reaction row 26 (acid + solid)     |
-| acid + sprout  | 0.3   | acid -> sulphur, sprout -> empty                                                       | reaction row 21 (acid + sprout)    |
-| acid + tip     | 0.3   | acid -> sulphur, tip -> empty                                                          | reaction row 23 (acid + tip)       |
-| acid + stalk   | 0.3   | acid -> sulphur, stalk -> empty                                                        | reaction row 22 (acid + stalk)     |
-| acid + flower  | 0.3   | acid -> sulphur, flower -> empty                                                       | reaction row 24 (acid + flower)    |
-| acid + petal   | 0.3   | acid -> sulphur, petal -> empty                                                        | reaction row 25 (acid + petal)     |
-| mud + seed     | 0.1   | mud -> buried, seed -> empty                                                           | reaction row 33 (seed + mud)       |
-| mud + petal    | 0.01  | mud -> mud, petal -> seed                                                              | reaction row 34 (petal + mud)      |
+| fire + nub     | 0.4   | fire -> fire, nub -> steam                                                             | reaction row 11 (fire + nub)       |
+| fire + apex    | 0.4   | fire -> fire, apex -> steam                                                            | reaction row 12 (fire + apex)      |
+| fire + cactus  | 0.4   | fire -> fire, cactus -> steam                                                          | reaction row 13 (fire + cactus)    |
+| fire + blossom | 0.4   | fire -> fire, blossom -> steam                                                         | reaction row 14 (fire + blossom)   |
+| acid + seed    | 0.3   | acid -> sulphur, seed -> empty                                                         | reaction row 24 (acid + seed)      |
+| acid + moss    | 0.3   | acid -> sulphur, moss -> empty                                                         | reaction row 22 (acid + moss)      |
+| acid + vine    | 0.3   | acid -> sulphur, vine -> empty                                                         | reaction row 23 (acid + vine)      |
+| acid + ember   | 0.3   | acid -> empty, ember -> empty                                                          | reaction row 34 (acid + solid)     |
+| acid + ash     | 0.3   | acid -> empty, ash -> empty                                                            | reaction row 35 (acid + powder)    |
+| acid + buried  | 0.3   | acid -> empty, buried -> empty                                                         | reaction row 34 (acid + solid)     |
+| acid + sprout  | 0.3   | acid -> sulphur, sprout -> empty                                                       | reaction row 25 (acid + sprout)    |
+| acid + tip     | 0.3   | acid -> sulphur, tip -> empty                                                          | reaction row 27 (acid + tip)       |
+| acid + stalk   | 0.3   | acid -> sulphur, stalk -> empty                                                        | reaction row 26 (acid + stalk)     |
+| acid + flower  | 0.3   | acid -> sulphur, flower -> empty                                                       | reaction row 28 (acid + flower)    |
+| acid + petal   | 0.3   | acid -> sulphur, petal -> empty                                                        | reaction row 29 (acid + petal)     |
+| acid + duned   | 0.3   | acid -> empty, duned -> empty                                                          | reaction row 34 (acid + solid)     |
+| acid + nub     | 0.3   | acid -> sulphur, nub -> empty                                                          | reaction row 30 (acid + nub)       |
+| acid + apex    | 0.3   | acid -> sulphur, apex -> empty                                                         | reaction row 31 (acid + apex)      |
+| acid + cactus  | 0.3   | acid -> sulphur, cactus -> empty                                                       | reaction row 32 (acid + cactus)    |
+| acid + blossom | 0.3   | acid -> sulphur, blossom -> empty                                                      | reaction row 33 (acid + blossom)   |
+| mud + seed     | 0.1   | mud -> buried, seed -> empty                                                           | reaction row 41 (seed + mud)       |
+| mud + petal    | 0.01  | mud -> mud, petal -> seed                                                              | reaction row 42 (petal + mud)      |
 | fire           | -     | fire -> smoke after 40-60 ticks                                                        | lifetime                           |
 | smoke          | -     | smoke -> empty after 200-255 ticks                                                     | lifetime                           |
 | steam          | -     | steam -> water after 180-240 ticks                                                     | lifetime                           |
@@ -185,12 +226,17 @@ only by reacting. A reaction edge is undirected and its label reads
 | stalk          | -     | stalk -> empty after 2720-3200 ticks                                                   | lifetime                           |
 | flower         | -     | flower -> seed after 1200-2400 ticks, shedding 3-4 petal                               | lifetime                           |
 | petal          | -     | petal -> empty after 80-150 ticks                                                      | lifetime                           |
+| cactus         | -     | cactus -> empty after 6400-8160 ticks                                                  | lifetime                           |
+| blossom        | -     | blossom -> seed after 1600-2400 ticks, shedding 1-2 petal                              | lifetime                           |
 | moss + water   | 0.04  | water -> vine                                                                          | growth hook (growth.ts)            |
 | vine + water   | 0.04  | water -> vine                                                                          | growth hook (growth.ts)            |
 | buried + water | 0.002 | water above -> moss, buried -> dirt (soaked 120 ticks under 2 cells of standing water) | germinate hook (seedBank.ts)       |
 | buried         | 0.002 | air above -> sprout, buried -> dirt (sky open, no standing water)                      | germinate hook (seedBank.ts)       |
 | sprout         | -     | air above -> tip, sprout -> stalk (on the first tick the sky above is open)            | raise hook (stalk.ts)              |
 | tip            | -     | tip -> flower (budget spent, or boxed in)                                              | bloom hook (stalk.ts)              |
+| duned          | 0.001 | air above -> nub, duned -> sand (sky open; the bed is refunded, not drunk)             | germinate hook (sandBank.ts)       |
+| nub            | -     | air above -> apex, nub -> cactus (on the first tick the sky above is open)             | raise hook (stalk.ts)              |
+| apex           | -     | apex -> blossom at p 0.3, else cactus (budget spent, or boxed in)                      | bloom hook (stalk.ts)              |
 
 ## Charted as
 
@@ -207,3 +253,7 @@ unaffected.
 | tip     | flower     |
 | stalk   | flower     |
 | petal   | flower     |
+| duned   | seed       |
+| nub     | cactus     |
+| apex    | cactus     |
+| blossom | cactus     |

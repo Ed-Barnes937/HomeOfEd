@@ -34,6 +34,13 @@ interface InstrumentPickerProps {
    * the one-row floor, and the add-a-row route, which has no row yet.
    */
   onRemoveRow?: () => void
+  /**
+   * The starred instrument ids (ticket 01). Ids the kit does not contain are
+   * ignored here and kept in storage — `instrumentSections` filters.
+   */
+  favourites: readonly string[]
+  /** An entry's star was tapped — its own hit target, never a choose. */
+  onToggleFavourite: (instrumentId: string) => void
 }
 
 /**
@@ -65,9 +72,12 @@ export function InstrumentPicker({
   onChoose,
   onClose,
   onRemoveRow,
+  favourites,
+  onToggleFavourite,
 }: InstrumentPickerProps) {
   const card = useRef<HTMLDivElement>(null)
   const held = new Set(inClip)
+  const starred = new Set(favourites)
 
   useEffect(() => {
     card.current?.focus()
@@ -110,7 +120,7 @@ export function InstrumentPicker({
         </div>
 
         <div className={styles.list} data-testid="instrument-picker-list">
-          {instrumentSections(kit).map((section) => (
+          {instrumentSections(kit, favourites).map((section) => (
             <div
               key={section.id}
               className={styles.section}
@@ -125,28 +135,48 @@ export function InstrumentPicker({
               <div className={styles.entries}>
                 {section.instruments.map((instrument) => {
                   const alreadyHere = held.has(instrument.instrumentId)
+                  const isFavourite = starred.has(instrument.instrumentId)
                   return (
-                    <button
-                      key={instrument.instrumentId}
-                      type="button"
-                      className={styles.entry}
-                      disabled={alreadyHere}
-                      onClick={() => onChoose(instrument.instrumentId)}
-                      aria-label={
-                        alreadyHere ? `${instrument.name}. Already in this clip.` : instrument.name
-                      }
-                      data-in-clip={alreadyHere}
-                      data-testid={`instrument-picker-entry-${instrument.instrumentId}`}
-                    >
-                      <span
-                        className={styles.artwork}
-                        style={{
-                          maskImage: `url(${instrument.artwork})`,
-                          WebkitMaskImage: `url(${instrument.artwork})`,
-                        }}
-                      />
-                      <span className={styles.name}>{instrument.name}</span>
-                    </button>
+                    <div key={instrument.instrumentId} className={styles.entryCell}>
+                      <button
+                        type="button"
+                        className={styles.entry}
+                        disabled={alreadyHere}
+                        onClick={() => onChoose(instrument.instrumentId)}
+                        aria-label={
+                          alreadyHere
+                            ? `${instrument.name}. Already in this clip.`
+                            : instrument.name
+                        }
+                        data-in-clip={alreadyHere}
+                        data-testid={`instrument-picker-entry-${instrument.instrumentId}`}
+                      >
+                        <span
+                          className={styles.artwork}
+                          style={{
+                            maskImage: `url(${instrument.artwork})`,
+                            WebkitMaskImage: `url(${instrument.artwork})`,
+                          }}
+                        />
+                        <span className={styles.name}>{instrument.name}</span>
+                      </button>
+                      {/* Its own hit target, over the tile's corner: starring
+                          must never audition or select the sound (ticket 01).
+                          The testid carries the section — a favourited sound
+                          renders twice, so the id alone would be ambiguous. */}
+                      <button
+                        type="button"
+                        className={styles.star}
+                        onClick={() => onToggleFavourite(instrument.instrumentId)}
+                        aria-pressed={isFavourite}
+                        aria-label={`Favourite ${instrument.name}`}
+                        data-testid={`instrument-picker-star-${section.id}-${instrument.instrumentId}`}
+                      >
+                        <svg viewBox="0 0 24 24" className={styles.starIcon} aria-hidden="true">
+                          <path d="M12 2.6l2.9 5.9 6.5 1-4.7 4.6 1.1 6.5L12 17.5l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-1z" />
+                        </svg>
+                      </button>
+                    </div>
                   )
                 })}
               </div>

@@ -148,6 +148,12 @@ keeps `speak()` synchronous inside the click handler.
 
 ## Comments
 
+**2026-09-06 (Ed):** repro environment corrected - Safari 26.5 on an old
+Intel MacBook Air, not Chrome. Ticket rewritten: Chrome empty-voices theory
+demoted, WebKit cancel-then-speak race promoted to prime suspect, and the
+goal reframed from "hide on incompatible browsers" to "fix capable browsers,
+hide only truly voiceless ones". No more info owed by the reporter.
+
 **2026-09-06 (agent):** diagnosed and fixed on branch `wotd-say-it-safari`.
 `speak()` now cancels only when `speaking || pending` and nudges `resume()`
 when wedged paused; the button is gated on `useSpeechAvailable()` (API +
@@ -156,9 +162,3 @@ voice list non-empty, listening for `voiceschanged`) instead of bare
 "Hear it" on the household Air's Safari 26.5. If it is *still* silent there,
 the next hypothesis to chase is the stuck-paused wedge surviving page loads
 (check `speechSynthesis.paused` in the Air's console before any click).
-
-**2026-09-06 (Ed):** repro environment corrected - Safari 26.5 on an old
-Intel MacBook Air, not Chrome. Ticket rewritten: Chrome empty-voices theory
-demoted, WebKit cancel-then-speak race promoted to prime suspect, and the
-goal reframed from "hide on incompatible browsers" to "fix capable browsers,
-hide only truly voiceless ones". No more info owed by the reporter.
