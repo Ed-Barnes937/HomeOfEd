@@ -9,7 +9,7 @@ interface ClipHeaderProps {
   clip: Clip
   /** False at one clip remaining: the minimum is one (spec §2). */
   canDelete: boolean
-  /** False at the 5-clip cap — a copy is a new clip, so it disables like "+ New clip". */
+  /** False at the clip cap - a copy is a new clip, so it disables like "+ New clip". */
   canCopy: boolean
   /** Commits a rename of the active clip. Blank names are the caller's no-op. */
   onRename: (name: string) => void

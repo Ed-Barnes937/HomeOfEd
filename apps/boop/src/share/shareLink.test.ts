@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { StoredBoop } from '../persistence/saveFormat.ts'
+import { MAX_CLIPS, TINT_COUNT, type StoredBoop } from '../persistence/saveFormat.ts'
 import {
   buildShareUrl,
   clearShareHash,
@@ -68,6 +68,40 @@ describe('encodeShare / decodeShare', () => {
       ],
       placements: '12..............',
       gridClip: 1,
+    }
+
+    expect(decodeShare(encodeShare(song))).toEqual(song)
+  })
+
+  // Ticket 04: ten clips, and clip 10 indexed by the letter `a`. The link is
+  // still the save format's own decoder, so it needs nothing of its own.
+  it('round-trips a ten-clip song whose tenth clip is placed', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: Array.from({ length: 10 }, (_, index) => ({
+        ...boop.patterns[0]!,
+        name: `Clip ${index + 1}`,
+        tint: index,
+      })),
+      placements: '19a.............',
+      gridClip: 9,
+    }
+
+    expect(decodeShare(encodeShare(song))).toEqual(song)
+  })
+
+  // Ticket 05: the cap is 35 and tints repeat past ten, so the biggest song
+  // there is - repeated tints, the letter `z` - has to travel in a link too.
+  it('round-trips a thirty-five clip song with repeated tints', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: Array.from({ length: MAX_CLIPS }, (_, index) => ({
+        ...boop.patterns[0]!,
+        name: `Clip ${index + 1}`,
+        tint: index % TINT_COUNT,
+      })),
+      placements: '1az.............',
+      gridClip: MAX_CLIPS - 1,
     }
 
     expect(decodeShare(encodeShare(song))).toEqual(song)

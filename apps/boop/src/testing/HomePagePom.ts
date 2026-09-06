@@ -3,7 +3,7 @@ import type { Locator } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
-import { parseSaveDocument, type StoredBoop } from '../persistence/saveFormat.ts'
+import { parseSaveDocument, SONG_POSITIONS, type StoredBoop } from '../persistence/saveFormat.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 
@@ -794,6 +794,16 @@ export class HomePagePom extends BasePage {
         return row?.steps[step] === '1'
       })
       .toBe(true)
+  }
+
+  /**
+   * Wait for the debounced autosave to reach localStorage with exactly this
+   * `placements` string - the written bytes, not a rendering of them, which is
+   * how the single-character clip index (digits, then `a` for clip 10 -
+   * boop-clips ticket 04) is pinned end to end.
+   */
+  async waitForAutosavedPlacements(placements: string): Promise<void> {
+    await expect.poll(async () => (await this.readAutosavedGrid())?.placements).toBe(placements)
   }
 
   async pressShare(): Promise<void> {
@@ -1848,6 +1858,81 @@ export class HomePagePom extends BasePage {
     await expect(this.clipChip(index)).toBeFocused()
   }
 
+  /**
+   * The name each chip carries, lane by lane. Past ten clips two lanes can
+   * wear one tint (boop-clips ticket 05), so the name is what tells them
+   * apart - and that is a property of the whole shelf, which only reading
+   * every name at once can see. By its own test id rather than by position in
+   * the chip: the name is identity now, so what it is must not depend on
+   * which child of the chip it happens to be.
+   */
+  async readChipNames(): Promise<string[]> {
+    return this.page.getByTestId(/^clip-name-\d+$/).allInnerTexts()
+  }
+
+  /**
+   * A lane square says whose lane it is, not what colour it is - the same
+   * answer for a screen reader that the chip's name is for a child, and the
+   * one that has to keep working once two lanes share a tint.
+   */
+  async verifyLaneSquareNamesItsClip(
+    clipIndex: number,
+    position: number,
+    name: string,
+  ): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute(
+      'aria-label',
+      new RegExp(`^${name}, position ${position + 1}, `),
+    )
+  }
+
+  /**
+   * The colour each chip's tint dot actually wears, lane by lane, as the
+   * browser resolves it - `readRowHues`' idiom, for the same reason. Read off
+   * the page rather than trusted to the constant: how many colours a child
+   * sees is a product rule (ADR 0032, as amended by boop-clips tickets 04 and
+   * 05) - ten clips wear ten, and the eleventh starts the palette again.
+   */
+  async readChipTints(): Promise<string[]> {
+    return this.page.getByTestId(/^clip-chip-\d+$/).evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const dot = node.firstElementChild
+        return dot === null ? '' : getComputedStyle(dot).backgroundColor
+      }),
+    )
+  }
+
+  /**
+   * A full song's shelf can outgrow the space it has, and when it does it must
+   * scroll rather than clip - the instrument picker's answer (boop-instruments
+   * ticket 06): the lane box is a scroller itself, and every chip and
+   * "+ New clip" is reachable inside it whether or not it has had to move.
+   */
+  async verifyEveryClipIsReachable(count: number): Promise<void> {
+    const lanes = this.page.getByTestId('song-lanes').or(this.page.getByTestId('phone-song-lanes'))
+    expect(await lanes.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto')
+    for (let index = 0; index < count; index += 1) {
+      await this.clipChip(index).scrollIntoViewIfNeeded()
+      await expect(this.clipChip(index)).toBeInViewport({ ratio: 1 })
+    }
+    const newClip = this.page.getByTestId('new-clip-button')
+    await newClip.scrollIntoViewIfNeeded()
+    await expect(newClip).toBeInViewport({ ratio: 1 })
+  }
+
+  /**
+   * The song-position picker at the clip cap: the ruler numeral and the lane
+   * square of the last position are both reachable - sideways, on the box that
+   * already scrolls for the 16 positions.
+   */
+  async verifyLastSongPositionIsReachable(clipIndex: number): Promise<void> {
+    const numeral = this.page.getByTestId(`song-position-numeral-${SONG_POSITIONS - 1}`)
+    await numeral.scrollIntoViewIfNeeded()
+    await expect(numeral).toBeInViewport({ ratio: 1 })
+    await this.laneSquare(clipIndex, SONG_POSITIONS - 1).scrollIntoViewIfNeeded()
+    await expect(this.laneSquare(clipIndex, SONG_POSITIONS - 1)).toBeInViewport({ ratio: 1 })
+  }
+
   /** Drag a chip vertically onto another chip's lane (ticket 18). */
   async dragChip(from: number, to: number): Promise<void> {
     await this.ensureClipEditorClosed()
@@ -1930,7 +2015,7 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('clip-delete-button')).toBeDisabled()
   }
 
-  /** A copy is a new clip, so the 5-clip cap greys it like "+ New clip". */
+  /** A copy is a new clip, so the clip cap greys it like "+ New clip". */
   async verifyCopyClipDisabled(): Promise<void> {
     await expect(this.page.getByTestId('clip-copy-button')).toBeDisabled()
   }
@@ -1939,6 +2024,18 @@ export class HomePagePom extends BasePage {
   async addClip(): Promise<void> {
     await this.openNewClipPicker()
     await this.pickClip('blank')
+  }
+
+  /**
+   * Blank clips until the song holds `count` of them, starting from a reset -
+   * the state a suite wants when it is testing what a *full* song does to a
+   * layout. Pass `MAX_CLIPS` and the assertion follows the cap instead of
+   * pinning whatever number the cap was on the day.
+   */
+  async fillClipsTo(count: number): Promise<void> {
+    await this.startBlank()
+    for (let clip = 2; clip <= count; clip += 1) await this.addClip()
+    await this.verifyClipCount(count)
   }
 
   async verifyAddClipDisabled(): Promise<void> {

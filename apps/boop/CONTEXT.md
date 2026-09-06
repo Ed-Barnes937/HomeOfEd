@@ -124,11 +124,17 @@ always edits exactly one clip; every edit writes straight into it.
 _Avoid_: Pattern (the engine-level term for the raw grid), loop, part.
 
 **Tint**:
-A clip's colour, one of the fixed list of 5 — how a child recognises a clip
+A clip's colour, one of the fixed list of 10 - how a child follows a clip
 across its chip, its placement squares, the clip header dot, and the grid-well
-ring. A tint belongs to the clip for the clip's whole life: reordering or
-deleting other clips never recolours it (boop-loops ticket 09). At most one
-clip per tint; a new clip takes the lowest unused one.
+ring. The first five are the design handoff's; the other five are their derived
+companions (boop-clips ticket 04). A tint belongs to the clip for the clip's
+whole life: reordering or deleting other clips never recolours it (boop-loops
+ticket 09), and neither does another clip taking the same tint. A new clip
+takes the **least-used** tint, the lowest of them on a tie - so the first ten
+clips wear ten colours and the eleventh starts the palette again (boop-clips
+ticket 05). Past ten clips, then, a tint no longer *names* a clip: what tells
+two clips on one colour apart is the **name** they carry on the chip, on the
+dock launcher and in every lane square's label.
 _Avoid_: Colour (fine casually, but the term of art is tint), theme.
 
 **Instrument picker**:
@@ -152,7 +158,12 @@ _Avoid_: Sample (taken — the audio one-shot), starter, preset, loop.
 **Song**:
 The arrangement a boop holds: ordered clips, placements, and one bpm for the
 whole boop. Played left to right through its placements, looping. Fixed at 16
-positions, and holds at most 5 clips — one per tint (boop-loops ticket 01).
+positions, and holds at most **35** clips - "no cap" for any actual child
+(boop-clips ticket 05, past ticket 04's ten and boop-loops ticket 01's five).
+Its `placements` string indexes those clips by single character: digits `1`–`9`,
+then letters `a`–`z` from clip 10. That alphabet's ceiling *is* the cap: 35 is
+the last clip a position can name in one character, and widening the field
+would break every string already saved or shared.
 _Avoid_: Arrangement, track, sequence.
 
 **Placement**:
