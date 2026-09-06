@@ -104,7 +104,7 @@ export interface UseSimLoopControls {
    * `SceneLoadError` if the scene cannot be applied; otherwise returns the
    * non-fatal warnings the load collected, plus the scene's own field-note
    * snapshot for the caller to apply (ticket 28) - empty for a scene saved
-   * before snapshots existed. The caller is responsible for entering paused —
+   * before snapshots existed. The caller is responsible for entering paused -
    * the loop never changes `running` behind React's back.
    */
   loadScene: (json: string) => { warnings: string[]; fieldNotes: SceneFieldNotes }

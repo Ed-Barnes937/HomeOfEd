@@ -417,8 +417,10 @@ test('a fresh witness leads the recents sidebar, and the rows track the height',
  * the store/format layer; this is the loop through the UI on a fresh profile.
  */
 test('a saved scene restores its field notes on a fresh profile', async ({ mountApp, page }) => {
-  // Reviewed 0, so the watermark itself has something to restore.
-  await seedWitnessed(page, SEEDED, { reviewed: 0 })
+  // Reviewed 1 - a watermark neither empty nor full, so only a genuinely
+  // restored one can produce the NEW count asserted below: a snapshot that
+  // dropped it would read 3, one clamped to the end would read 0.
+  await seedWitnessed(page, SEEDED, { reviewed: 1 })
   const first = await mountApp()
   await first.root.verifyIsShown()
   await first.root.openScenes()
@@ -438,12 +440,12 @@ test('a saved scene restores its field notes on a fresh profile', async ({ mount
   // A load is an arrival, not a witness: the restored edges raise no card.
   await root.verifyNoMomentCard()
 
-  // The watermark came back with the edges: all three discoveries still read
-  // as new, because the snapshot was saved unreviewed.
+  // The watermark came back with the edges: the reviewed prefix already
+  // implied steam and obsidian, so only fire's smoke still reads as new.
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
   expect(counters.interactions).toContain('2/54')
-  expect(counters.fresh).toContain('3')
+  expect(counters.fresh).toContain('1')
 })
 
 /**

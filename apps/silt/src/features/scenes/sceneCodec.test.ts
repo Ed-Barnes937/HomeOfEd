@@ -13,6 +13,7 @@ import {
   WATER,
   type ElementDef,
 } from '../../sim/index.ts'
+import { FieldNotesStore, createMemoryStorage } from '../fieldNotes/fieldNotesStore.ts'
 import {
   decodeScene,
   encodeScene,
@@ -210,6 +211,25 @@ describe('field notes travel with the scene (ticket 28)', () => {
       // Half a snapshot is worse than none, but it is never worth the world.
       expect(speciesAt(scene, 4, 0, 0)).toBe(SAND)
     }
+  })
+
+  it('forget-then-save persists the cleared state into the scene (ticket 28)', () => {
+    // The composition the acceptance names, at the layer that owns each step:
+    // forget clears the working progression, the next save snapshots that
+    // cleared state, and loading it lands a fresh profile back on empty.
+    const storage = createMemoryStorage()
+    const store = new FieldNotesStore(storage)
+    store.witness(['react:lava+water'])
+    store.reset()
+
+    const envelope = encodeScene(source(4, 4), [], v1, store.progress)
+    const scene = decodeScene(JSON.stringify(envelope), { width: 4, height: 4 }, v1)
+    const loaded = new FieldNotesStore(storage)
+    loaded.witness(['decay:fire'])
+    loaded.replace(scene.fieldNotes)
+
+    expect(loaded.progress).toEqual({ edges: [], reviewed: 0 })
+    expect(new FieldNotesStore(storage).progress).toEqual({ edges: [], reviewed: 0 })
   })
 
   it('a watermark outside the snapshot is clamped, not trusted', () => {

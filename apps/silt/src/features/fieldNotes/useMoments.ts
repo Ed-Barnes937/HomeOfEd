@@ -49,7 +49,7 @@ export interface Moments {
  * now. When it moves, the diff baseline resyncs and nothing is raised - a load
  * is an arrival, not a witness.
  */
-export function useMoments(view: FieldNotesView, generation = 0): Moments {
+export function useMoments(view: FieldNotesView, generation: number): Moments {
   const [queue, setQueue] = useState<readonly Moment[]>([])
   const [leaving, setLeaving] = useState(false)
   const [completion, setCompletion] = useState(() => completionAtBoot(isComplete(view)))

@@ -732,6 +732,9 @@ describe('the recents timeline (ticket 29)', () => {
   test('an entry that leaves nothing falls back to what met (spec §6)', () => {
     const rows = recentRows(viewOf('react:acid+dirt'))
     expect(rows.map((row) => row.element.name)).toEqual(['acid'])
+    // Acid is pre-known, so the fallback may be named; an undiscovered fallback
+    // would come back masked, since the ref is `refOf`'s like every tile's.
+    expect(rows.map((row) => row.element.label)).toEqual(['acid'])
   })
 
   test('the sidebar renders whole rows only: floor of the height, never a sliver', () => {

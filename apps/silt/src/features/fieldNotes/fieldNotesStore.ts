@@ -51,6 +51,17 @@ export interface Progress {
 
 const EMPTY: Progress = { edges: [], reviewed: 0 }
 
+/**
+ * A watermark outside its own timeline (or absent, or nonsense) only ever means
+ * "some of what is stored is not new any more", so it is clamped, not rejected
+ * - the one rule `parse` and `replace` share.
+ */
+function clampReviewed(reviewed: unknown, edges: readonly EdgeKey[]): number {
+  return typeof reviewed === 'number'
+    ? Math.min(Math.max(Math.trunc(reviewed), 0), edges.length)
+    : 0
+}
+
 /** The stored shape, as written. `Progress` plus the version it was written at. */
 interface StoredProgress extends Progress {
   version: number
@@ -84,13 +95,7 @@ function parse(raw: string): Progress | null {
   if (version !== PROGRESS_VERSION) return null
   if (!Array.isArray(edges) || edges.some((key) => typeof key !== 'string')) return null
 
-  return {
-    edges,
-    // A watermark past the end (or absent, or nonsense) only ever means "some
-    // of what is stored is not new any more", so it is clamped, not rejected.
-    reviewed:
-      typeof reviewed === 'number' ? Math.min(Math.max(Math.trunc(reviewed), 0), edges.length) : 0,
-  }
+  return { edges, reviewed: clampReviewed(reviewed, edges) }
 }
 
 /**
@@ -164,9 +169,7 @@ export class FieldNotesStore {
     }
     this.#write({
       edges: progress.edges,
-      // Clamped like `parse` clamps a stored watermark: outside the timeline it
-      // only ever means "some of this is not new any more".
-      reviewed: Math.min(Math.max(Math.trunc(progress.reviewed), 0), progress.edges.length),
+      reviewed: clampReviewed(progress.reviewed, progress.edges),
     })
   }
 
