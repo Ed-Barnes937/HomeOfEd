@@ -64,3 +64,12 @@ decision itself is Ed's - expect a grilling session after the brief.
   "revisit under global accounts" note.
 
 ## Comments
+
+**2026-09-06 (agent):** Charted into the joint wayfinder map
+[account layer + infra consolidation](../../account-infra-discovery/map.md)
+together with `.scratch/infra-cost/issues/01`, per the "decide these together"
+note. The discovery brief this ticket asks for is produced by that map's
+tickets [01 - Inventory](../../account-infra-discovery/issues/01-current-state-inventory.md)
+and [03 - Options paper: the account layer](../../account-infra-discovery/issues/03-account-layer-options.md);
+the direction decision is queued for Ed as
+[05 - Decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md).

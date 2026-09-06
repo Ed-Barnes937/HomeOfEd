@@ -49,3 +49,12 @@ commands is fine.
   that ignores it will be redone.
 
 ## Comments
+
+**2026-09-06 (agent):** Charted into the joint wayfinder map
+[account layer + infra consolidation](../../account-infra-discovery/map.md)
+together with `.scratch/account-layer/issues/01`, per the "decide these
+together" note. The cost analysis this ticket asks for is produced by that
+map's tickets [02 - Fly cost baseline](../../account-infra-discovery/issues/02-fly-cost-baseline.md)
+and [04 - Options paper: machine-per-app vs consolidation](../../account-infra-discovery/issues/04-consolidation-options.md);
+the decision is queued for Ed as
+[05 - Decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md).
