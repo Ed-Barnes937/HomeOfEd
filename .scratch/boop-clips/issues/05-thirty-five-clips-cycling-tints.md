@@ -100,3 +100,7 @@ Acceptance criteria:
   docstring, a `clip-name-N` test id so the shelf's names are read by identity
   rather than by position in the chip's markup, and the laptop 35-clip case
   now re-reads the names too.
+
+- 2026-09-06, Ed (decision sitting): **no follow-up ticket** for the
+  same-name-same-tint twin past ten clips - lane order disambiguates and the
+  collision is rare; naming stays the child's own.

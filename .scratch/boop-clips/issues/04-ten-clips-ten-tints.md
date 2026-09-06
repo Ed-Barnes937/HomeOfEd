@@ -109,3 +109,7 @@ Acceptance criteria:
   the song-position picker too, and the ten-clip tint-lifetime case (delete a
   clip, the rest keep their colours, the next clip takes the freed tint) is
   unit-tested at the cap.
+
+- 2026-09-06, Ed (decision sitting): **palette approved as-is** - the warm-arc
+  squeeze (four pairs at 29-30 degrees) is accepted; the existing palette's own
+  cyan/mint pair sits at 37 degrees. Ready to merge.
