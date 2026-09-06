@@ -1,6 +1,6 @@
 # 01 - Infra cost review: machine-per-app vs consolidation
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** research
 **Reported:** 2026-09-06, Ed (dev)
 
@@ -58,3 +58,14 @@ map's tickets [02 - Fly cost baseline](../../account-infra-discovery/issues/02-f
 and [04 - Options paper: machine-per-app vs consolidation](../../account-infra-discovery/issues/04-consolidation-options.md);
 the decision is queued for Ed as
 [05 - Decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md).
+
+**2026-09-06 (agent):** Deliverable done; status moved to ready-for-human. The
+[cost baseline](../../account-infra-discovery/issues/02-fly-cost-baseline.md)
+found the hypothesis inverted: HomeOfEd is ~$13.30/mo, hoe-pg is only ~$2.17/mo,
+and ~75% of the bill is the three always-on machines (hub, sprout web,
+sprout-pipeline); consolidating the seven scale-to-zero apps reclaims ~$1.20/mo.
+The [options paper](../../account-infra-discovery/issues/04-consolidation-options.md)
+recommends status quo + letting hub scale to zero (net ~$3.24/mo), and declines
+folding sprout-pipeline into sprout (ADR 0013 key isolation). Five decisions
+await Ed in that paper's "Decisions for Ed" list, to be taken together with the
+account-layer direction in the decision sitting.

@@ -42,6 +42,13 @@ and Ed's decisions. No builds, no infra mutation.
   three always-on machines (hub, sprout web, sprout-pipeline) are ~75% of the
   bill. Consolidating the seven scale-to-zero apps would reclaim only ~$1.20/mo
   in stopped rootfs - the real levers are the always-on trio.
+- [04 - Options paper: machine-per-app vs consolidation](issues/04-consolidation-options.md) -
+  recommends status quo (options 2/3 save ~$1.20/~$0.50 per month for days of
+  work and permanent deploy coupling), plus Lever A (hub scales to zero, net
+  ~$3.24/mo) and declining Lever B (folding sprout-pipeline into sprout undoes
+  ADR 0013's key isolation). Any account service slots in additively as its own
+  scale-to-zero app + logical DB in hoe-pg; no consolidation redo under any
+  account option. Five decisions queued for Ed.
 
 ## Not yet specified
 
