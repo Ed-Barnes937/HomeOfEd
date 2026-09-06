@@ -116,7 +116,10 @@ export class HomePagePom extends BasePage {
   /**
    * Replaces `speechSynthesis.speak` with a recorder so the CT browser plays no
    * real audio, and stubs `cancel` (called when an utterance is in flight).
-   * Utterances are kept so tests can fire their start/end events. Call before
+   * Utterances are kept so tests can fire their start/end events. Also stubs a
+   * voice and fires `voiceschanged`: headless CI browsers have no system
+   * voices, and the hear-it button hides itself on genuinely voiceless
+   * browsers, so without this the button never appears there. Call before
    * clicking the speak button.
    */
   async stubSpeech(): Promise<void> {
@@ -134,6 +137,9 @@ export class HomePagePom extends BasePage {
         utterances.push(u)
       }
       window.speechSynthesis.cancel = () => {}
+      window.speechSynthesis.getVoices = () =>
+        [{ name: 'CT Voice', lang: 'en-GB' }] as unknown as SpeechSynthesisVoice[]
+      window.speechSynthesis.dispatchEvent(new Event('voiceschanged'))
     })
   }
 
