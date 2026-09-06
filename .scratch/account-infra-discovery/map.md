@@ -28,6 +28,12 @@ and Ed's decisions. No builds, no infra mutation.
 
 <!-- one line per closed ticket: gist + link -->
 
+- [02 - Fly cost baseline](issues/02-fly-cost-baseline.md) - HomeOfEd costs
+  ~$13/mo; the ticket's premise was inverted: hoe-pg is only ~$2.17/mo and the
+  three always-on machines (hub, sprout web, sprout-pipeline) are ~75% of the
+  bill. Consolidating the seven scale-to-zero apps would reclaim only ~$1.20/mo
+  in stopped rootfs - the real levers are the always-on trio.
+
 ## Not yet specified
 
 - Smallest-first-slice spec (likely one app's saves behind an account): which
