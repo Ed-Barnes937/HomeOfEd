@@ -145,7 +145,7 @@ export class HomePagePom extends BasePage {
     await this.confirmDestructiveButton.click()
   }
 
-  // --- New boop (the plain reset) and the "+ New clip" picker (ticket 17) ---
+  // --- New boop (the reset) and the "+ New clip" picker (ticket 17) ---
 
   private readonly newBoopButton = this.page.getByTestId('new-boop-button')
   private readonly pickerDialog = this.page.getByRole('dialog', { name: 'New clip' })
@@ -190,10 +190,11 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * New boop is a plain reset: it puts no picker and no panel on screen. The
-   * clip editor card is a dialog too since screenspace ticket 03, so this asks
-   * about the two dialogs New boop could plausibly have opened rather than
-   * about `role=dialog` in general.
+   * New boop puts no picker and no panel on screen. The clip editor card is a
+   * dialog too since screenspace ticket 03, so this asks about the two dialogs
+   * New boop could plausibly have opened rather than about `role=dialog` in
+   * general - and deliberately not about the keep-card, which is a separate
+   * question `verifyNoKeepBoopCard` asks (boop-clips ticket 03).
    */
   async verifyNoDialogOpen(): Promise<void> {
     await expect(this.pickerDialog).toHaveCount(0)

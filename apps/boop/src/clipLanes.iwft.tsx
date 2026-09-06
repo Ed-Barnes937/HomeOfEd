@@ -5,7 +5,7 @@ import { test } from './testing/iwftTest.tsx'
 // at the default 1280px CT viewport — the width the design is normative for.
 // A fresh browser is seeded with a sample clip (tickets 36/17), so suites that
 // care about their starting grid say so with `startBlank()` — the top bar's
-// plain New boop reset.
+// New boop reset.
 
 test('the old transport bar is gone; its pieces have their new homes', async ({ mountApp }) => {
   const { root } = await mountApp()

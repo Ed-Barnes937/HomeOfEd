@@ -105,6 +105,22 @@ test('a blank boop holds nothing, so a second New boop resets straight away', as
   await root.verifyClipCount(1)
 })
 
+test('picking sounds counts, even with no step painted yet', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.pressNewBoop()
+
+  // Nothing is painted, but the rows are no longer the kit's default six
+  // (ADR 0042) - choosing what a boop is made of is making something.
+  await root.openRowInstrumentPicker('kick')
+  await root.chooseInstrument('cowbell')
+  await root.closeInstrumentPicker()
+
+  await root.pressNewBoopAction()
+  await root.verifyKeepBoopCardShown()
+  await root.startFresh()
+})
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 

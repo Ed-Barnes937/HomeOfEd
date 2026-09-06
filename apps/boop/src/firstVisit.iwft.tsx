@@ -3,13 +3,14 @@ import { expect } from '@playwright/experimental-ct-react'
 import { SAVE_KEY } from './persistence/storage.ts'
 import { test } from './testing/iwftTest.tsx'
 
-// The first-visit seed (tickets 36/17) and the plain New boop reset (spec §7).
+// The first-visit seed (tickets 36/17) and the New boop reset (spec §7).
 // Since ticket 17 retired the starters, a browser that has never been here is
 // seeded with a one-clip song whose clip is a sample clip (Boom clap) — it
-// still sounds like something and demos the model — and "New boop" resets to
-// one blank clip at every width, with no starters to choose from. The one card
-// it can raise is the keep-card `newBoopSafety.iwft.tsx` owns (boop-clips
-// ticket 03), which `pressNewBoop` steps past here.
+// still sounds like something and demos the model.
+// "New boop" resets to one blank clip at every width, with no starters to
+// choose from. The one card it can raise is the keep-card
+// `newBoopSafety.iwft.tsx` owns (boop-clips ticket 03), which `pressNewBoop`
+// steps past here.
 
 test('a fresh browser opens on a sample clip, and autosaves it', async ({ mountApp, page }) => {
   const first = await mountApp()

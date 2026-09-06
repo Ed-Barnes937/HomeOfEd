@@ -22,6 +22,7 @@ import {
   renameClip,
   singleClipSong,
   songFromStored,
+  songHasContent,
   storedBoopFromSong,
   swapRowInstrument,
   togglePlacement,
@@ -170,6 +171,43 @@ describe('songFromStored / storedBoopFromSong', () => {
       { name: 'Clip 1', tint: 0 },
       { name: 'Clip 2', tint: 1 },
     ])
+  })
+})
+
+describe('songHasContent', () => {
+  it('is false for the blank one-clip song "New boop" makes - nothing to keep', () => {
+    expect(songHasContent(roster, singleClipSong(blankPattern(roster), 100))).toBe(false)
+  })
+
+  it('is true once a step is painted', () => {
+    expect(songHasContent(roster, rowSong)).toBe(true)
+  })
+
+  it('is true for a second clip, even with nothing painted in either', () => {
+    const two = addClip(singleClipSong(blankPattern(roster), 100), blankPattern(roster))
+
+    expect(songHasContent(roster, two)).toBe(true)
+  })
+
+  it('is true for an arrangement, even with nothing painted', () => {
+    const placed = withPlacement(singleClipSong(blankPattern(roster), 100), 3, [0])
+
+    expect(songHasContent(roster, placed)).toBe(true)
+  })
+
+  it('is true once the rows are no longer the default six - picking sounds is making something', () => {
+    const blank = singleClipSong(blankPattern(roster), 100)
+
+    expect(songHasContent(roster, swapRowInstrument(roster, blank, 0, 'cowbell'))).toBe(true)
+    expect(songHasContent(roster, addRow(roster, blank, 'cowbell'))).toBe(true)
+    expect(songHasContent(roster, removeRow(blank, 0))).toBe(true)
+  })
+
+  it('ignores speed and clip names - not worth interrupting a child over an empty grid', () => {
+    const blank = singleClipSong(blankPattern(roster), 100)
+
+    expect(songHasContent(roster, withBpm(blank, 180))).toBe(false)
+    expect(songHasContent(roster, renameClip(blank, 0, 'Bangers'))).toBe(false)
   })
 })
 

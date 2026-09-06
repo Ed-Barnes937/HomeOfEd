@@ -8,17 +8,19 @@ import { generateBoopName } from './boopNames.ts'
  * name the panel's save form would have offered, with no dialog and no typing.
  * Returns the name it used.
  *
- * The names are read off disk at the moment of the tap rather than from any
- * list held in React, for the reason `useBoops.save` gives: a `BoopsPanel`
- * mounted earlier in the session holds its own copy, and generating from a
- * stale one would hand two boops the same name.
+ * `BoopsPanel` derives that name from the list it is rendering; this caller
+ * renders no list at all, so it reads the names off disk at the moment of the
+ * tap - the same discipline `getShareUrl` and `getWorkingBoop` follow, and the
+ * only way the two save routes cannot hand two boops the same name. The naming
+ * rule itself is `generateBoopName`'s, shared, so there is one definition of
+ * "Boop N" however a boop is saved.
  */
 export function quickSaveBoop(
   storage: SaveStorage,
-  workingBoop: (name: string) => StoredBoop,
+  boopNamed: (name: string) => StoredBoop,
 ): string {
   const existing = loadSaveDocument(storage).creations
   const name = generateBoopName(existing.map((boop) => boop.name))
-  saveBoop(storage, workingBoop(name))
+  saveBoop(storage, boopNamed(name))
   return name
 }

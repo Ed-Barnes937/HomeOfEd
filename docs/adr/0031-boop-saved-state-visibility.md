@@ -5,9 +5,10 @@
 - **Related:** [ADR 0025](0025-boop-save-format.md) (the working grid vs the
   saved list, which is what makes this question answerable at all), the design
   handoff ([`docs/reference/boop-design/README.md`](../reference/boop-design/README.md),
-  §1 "Top bar", §3 "Main screen — small phone" and §4 "My boops", all amended),
-  [ADR 0056](0056-boop-clips-stay-local.md) (what "New boop" destroys, and why
-  the 2026-09-06 amendment below exists). Implements ticket 31.
+  §1 "Top bar", §3 "Main screen — small phone" and §4 "My boops", all amended).
+  Implements ticket 31.
+- **Also related:** [ADR 0056](0056-boop-clips-stay-local.md) - what "New boop"
+  destroys, and why the 2026-09-06 amendment below exists.
 
 ## Context
 
@@ -122,12 +123,14 @@ it. ADR 0056 §2 makes that explicit ("the only destroyers are the clip header's
 own delete and New boop's whole-song reset") and hands the feel-bad to
 [ticket 03](../../.scratch/boop-clips/issues/03-new-boop-safety.md).
 
-So New boop asks first, and nothing else does:
+So New boop asks first. It is the only thing in the app that asks about
+*losing a boop* - the clear-grid and delete-boop confirms ask about their own
+narrow, visible act, and neither is a warning about unsaved work:
 
-- An **in-app card**, `ConfirmCard`'s shape like the clear-grid and
-  delete-boop confirms, never the browser's own dialog. Decision 2's real
-  objection was unreadable wording warning about nothing; a card with two
-  labelled choices a 6-year-old can read answers both halves.
+- An **in-app card**, `ConfirmCard`'s shape like those two, never the
+  browser's own dialog. Decision 2's real objection was unreadable wording
+  warning about nothing; a card with two labelled choices a 6-year-old can
+  read answers both halves.
 - **Two choices, both of which reset**: "Save it" puts the working song in
   "My boops" under the automatic name the save form would have offered, then
   resets; "Start fresh" resets as before. There is no third "never mind" -
@@ -136,8 +139,13 @@ So New boop asks first, and nothing else does:
 - **Raised only when the reset would really take something away**: the boop is
   not a row in "My boops" or has drifted from the row it came from - decision
   1's own question, so `savedState.ts` already answers it - *and* has something
-  in it: a second clip, a placement, or one painted step. The reset's own
-  output is a blank one-clip song, so New boop twice in a row asks once.
+  in it: a second clip, a placement, a painted step, or rows that are no longer
+  the kit's default six, since picking sounds is making something too
+  (ADR 0042). That second half is `songHasContent`, and it is deliberately
+  *narrower* than decision 3's "edited": a speed nudge or a clip rename on an
+  otherwise empty grid is an edit but not worth interrupting a child over. The
+  reset's own output has no content by that definition, so New boop twice in a
+  row asks once.
 - **No save-format change** (ADR 0056 decision 5): this is a UX change. The
   chrome's indicator, its wording and its one definition of "edited" are all
   untouched, and there is still no "unsaved work" language anywhere in the app.
