@@ -389,16 +389,16 @@ test('a fresh witness leads the recents sidebar, and the rows track the height',
   await root.selectElement('water')
   await root.paintCell(150, 115)
   await root.step()
-  await expect.poll(() => root.fieldNotesCount()).toBe('46/46')
+  await expect.poll(() => root.fieldNotesCount()).toBe('54/54')
 
   await root.openFieldNotes()
   const rows = await root.recentRows()
   // The row wears what the entry left behind: dirt + water leaves mud.
   expect(rows[0]).toBe('mud')
-  // Nowhere near all 46 fit, and every row that renders sits whole in the
+  // Nowhere near all 54 fit, and every row that renders sits whole in the
   // column - no scrollbar, no clipped sliver.
   expect(rows.length).toBeGreaterThan(3)
-  expect(rows.length).toBeLessThan(46)
+  expect(rows.length).toBeLessThan(54)
   await root.verifyRecentRowsFitTheSidebar()
 
   // A shorter dialog renders fewer rows: floor(height / row), re-derived on
@@ -430,11 +430,11 @@ test('a saved scene restores its field notes on a fresh profile', async ({ mount
   await page.reload()
   const { root } = await mountApp()
   await root.verifyIsShown()
-  expect(await root.fieldNotesCount()).toBe('0/46')
+  expect(await root.fieldNotesCount()).toBe('0/54')
 
   await root.openScenes()
   await root.loadScene('scene 1')
-  await expect.poll(() => root.fieldNotesCount()).toBe('2/46')
+  await expect.poll(() => root.fieldNotesCount()).toBe('2/54')
   // A load is an arrival, not a witness: the restored edges raise no card.
   await root.verifyNoMomentCard()
 
@@ -442,7 +442,7 @@ test('a saved scene restores its field notes on a fresh profile', async ({ mount
   // as new, because the snapshot was saved unreviewed.
   await root.openFieldNotes()
   const counters = await root.fieldNotesCounters()
-  expect(counters.interactions).toContain('2/46')
+  expect(counters.interactions).toContain('2/54')
   expect(counters.fresh).toContain('3')
 })
 
