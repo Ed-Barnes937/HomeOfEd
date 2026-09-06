@@ -12,8 +12,11 @@ import {
   LEGEND_RULES,
   legendRows,
   pickerRows,
+  PRODUCT_JOIN,
+  REAGENT_JOIN,
   RECENT_ROW_PX,
   recentCapacity,
+  type RecentRow,
   recentRows,
   ringFor,
   type Spoke,
@@ -698,15 +701,44 @@ describe('the spoiler invariant (spec §7)', () => {
   })
 })
 
+/** A recents row as the sidebar draws it: `lava + water -> steam · obsidian`. */
+function recentOf(row: RecentRow): string {
+  const left = row.reagents.map((ref) => ref.label).join(` ${REAGENT_JOIN} `)
+  if (row.products.length === 0) return left
+  return `${left} -> ${row.products.map((ref) => ref.label).join(` ${PRODUCT_JOIN} `)}`
+}
+
 describe('the recents timeline (ticket 29)', () => {
-  test('witnessed entries come out newest first, shown by what they left', () => {
+  test('witnessed entries come out newest first, as combination and outcome', () => {
     const rows = recentRows(viewOf('decay:fire', 'react:lava+water'))
 
     expect(rows.map((row) => row.key)).toEqual(['react:lava+water', 'decay:fire'])
-    // The row's element is what witnessing the edge left behind: the discovery.
-    expect(rows.map((row) => row.element.name)).toEqual(['steam', 'smoke'])
-    // Both were left by the witnessed edges themselves, so both may be named.
-    expect(rows.map((row) => row.element.label)).toEqual(['steam', 'smoke'])
+    // The whole story of the edge the player witnessed (ticket 33): what met,
+    // and what it left - not just the discovery at the end of it.
+    expect(rows.map(recentOf)).toEqual(['lava + water -> steam · obsidian', 'fire -> smoke'])
+  })
+
+  test('a row draws what this edge left, not the whole entry union (ticket 08)', () => {
+    // Fire burns a tip and steams a sprout: one charted `fire + flower` entry,
+    // two sources that leave different things.
+    const entry = notes.get('react:fire+flower')!
+    const bySource = new Map(entry.sources.map((source) => [source.key, source.products]))
+    const [key, products] = [...bySource].find(([, left]) => left.includes('steam'))!
+
+    const rows = recentRows(viewOf(key))
+
+    expect(rows).toHaveLength(1)
+    expect(namesOf(rows[0]!.products)).toEqual([...products])
+    expect(namesOf(rows[0]!.reagents)).toEqual([...entry.reagents])
+  })
+
+  test('every name in a row is masked like any other tile (spec §7)', () => {
+    // Dropping lava on restored mud witnesses the pair without mud ever having
+    // been discovered - the case the whole masking seam exists for.
+    const [row] = recentRows(viewOf('react:lava+mud'))
+
+    expect(namesOf(row!.reagents)).toEqual(['lava', 'mud'])
+    expect(recentOf(row!)).toBe(`lava + ${HIDDEN_NAME} -> lava · stone`)
   })
 
   test('a key this roster cannot resolve renders no row (spec §5)', () => {
@@ -729,12 +761,23 @@ describe('the recents timeline (ticket 29)', () => {
     expect(rows.map((row) => row.key)).toEqual(['decay:fire', grouped.key])
   })
 
-  test('an entry that leaves nothing falls back to what met (spec §6)', () => {
-    const rows = recentRows(viewOf('react:acid+dirt'))
-    expect(rows.map((row) => row.element.name)).toEqual(['acid'])
-    // Acid is pre-known, so the fallback may be named; an undiscovered fallback
-    // would come back masked, since the ref is `refOf`'s like every tile's.
-    expect(rows.map((row) => row.element.label)).toEqual(['acid'])
+  test('an entry that leaves nothing is the combination alone (spec §6)', () => {
+    const [row] = recentRows(viewOf('react:acid+dirt'))
+
+    // No products means no arrow: the row states what met and stops, rather
+    // than pointing at an empty right-hand side.
+    expect(row!.products).toEqual([])
+    expect(recentOf(row!)).toBe('acid + dirt')
+  })
+
+  test('a stage of one element life is one tile, never x -> x (ticket 08)', () => {
+    // The raise and the bloom chart as flower at both ends, so an arrow there
+    // would point an element at itself.
+    const [row] = recentRows(viewOf('raise:sprout'))
+
+    expect(row!.key).toBe('raise:flower')
+    expect(row!.products).toEqual([])
+    expect(recentOf(row!)).toBe('flower')
   })
 
   test('the sidebar renders whole rows only: floor of the height, never a sliver', () => {

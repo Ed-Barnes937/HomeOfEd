@@ -87,7 +87,12 @@ src/
                               witnessed entries newest first off the view's
                               first-seen iteration order, drawn as a
                               desktop-only sidebar of floor(height / row)
-                              whole rows - never on the phone sheet), and
+                              whole rows - never on the phone sheet; a row is
+                              the whole interaction since ticket 33 -
+                              combination, arrow, outcome, each element a tile
+                              with its name under it - and has no right-hand
+                              side at all when the edge left nothing or was a
+                              stage of one element's own life), and
                               `strokeOf` - the one place a line kind becomes a
                               stroke, so a spoke and its sample in the key
                               cannot disagree; ElementTile - *the* tile helper,
@@ -512,7 +517,13 @@ else touches it.
   25): the ring draws tiles and arrowheads only, and the band under it renders
   the *active* spoke - hovered, focused or tapped - as a recipe of tiles
   (`Spoke.reading`). That is also why the two taps differ: a ring tile *reads*
-  its spoke into the band, a band tile *follows* an element. A ring tile is
+  its spoke into the band, a band tile *follows* an element. **The recents row
+  is the one other place an interaction is spelled out** (ticket 33) - the same
+  grammar, drawn from `RecentRow` rather than from a spoke, and the reason both
+  renderers share `recipeSide` and the model's own `REAGENT_JOIN` /
+  `PRODUCT_JOIN` / `MAKES`: a recipe must not be punctuated one way in the band
+  and another in the sidebar. It stays display-only - the row is not a way into
+  an element, so the *chart* is still read in one place. A ring tile is
   therefore never disabled - a masked reading names nothing, and disabling it
   would leave a spoke with a hidden partner the one spoke nobody could read
   ([ADR 0052](../../docs/adr/0052-silt-the-reading-line.md)). The masking is not

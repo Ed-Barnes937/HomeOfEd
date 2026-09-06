@@ -250,7 +250,11 @@ $picker-min: 64px;
 .recents {
   display: flex;
   flex-direction: column;
-  width: 170px;
+  // Wide enough for the longest recipe the roster can write on one line -
+  // `lava + water -> steam · obsidian`, four tiles and three separators
+  // (ticket 33). A longer one still cannot spill: the tiles shrink and the
+  // names ellipsis rather than the column clipping mid-word.
+  width: 210px;
   min-height: 0;
   padding: 0.6rem 0.5rem;
   background: $paper;
@@ -267,21 +271,56 @@ $picker-min: 64px;
 }
 
 // Exactly `--recent-row` tall (`RECENT_ROW_PX`, handed over by the panel), so
-// the capacity floor(height / row) is the pixel truth and not a guess.
+// the capacity floor(height / row) is the pixel truth and not a guess. The row
+// is a recipe read left to right (ticket 33), so it never wraps: a row that ran
+// to two lines would break that arithmetic silently.
 .recentRow {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 3px;
   box-sizing: border-box;
-  height: var(--recent-row, 30px);
+  height: var(--recent-row, 34px);
   padding: 0 0.35rem;
+  flex-wrap: nowrap;
+}
+
+// The stacked tile: icon over name (ticket 33), which is what lets four of them
+// sit in a 210px column and still be read as elements rather than as a caption.
+.recentTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  // The safety valve for a recipe wider than the column: the tiles give up
+  // name width before the row overflows the sidebar's `overflow: hidden`.
+  min-width: 0;
 }
 
 .recentName {
+  max-width: 100%;
   font-family: $font-label;
-  font-size: 9px;
+  font-size: 8px;
+  line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// The separators sit on the icons' line rather than on the row's middle, so a
+// `+` reads between two tiles instead of between two names.
+.recentJoin,
+.recentMakes {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 4px;
+  font-size: 9px;
+  color: $muted;
+}
+
+.recentMakes {
+  color: $body;
 }
 
 // ---- the ring -----------------------------------------------------------

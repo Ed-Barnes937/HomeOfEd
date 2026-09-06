@@ -443,26 +443,39 @@ test('an entry a scene load drops is earned again by doing it again', async ({ m
 
 /**
  * The recents sidebar (ticket 29): the most recently witnessed discoveries,
- * newest first, as many rows as the dialog's height fits and not one more. The
- * derivation (order, dedupe, unknown keys, the element a row draws) is pinned
- * in `panelModel.test.ts`; this is the loop through the UI - witness, open the
- * panel, see it listed first - plus the height rule against a real layout.
+ * newest first, as many rows as the dialog's height fits and not one more, each
+ * one the whole interaction - combination, arrow, outcome (ticket 33). The
+ * derivation (order, dedupe, unknown keys, masking, what a row's two sides are)
+ * is pinned in `panelModel.test.ts`; this is the loop through the UI - witness,
+ * open the panel, read it off the top row - plus the height rule against a real
+ * layout, which is the only place the row's pixels can be measured.
  */
 test('a fresh witness leads the recents sidebar, and the rows track the height', async ({
   mountApp,
   page,
 }) => {
-  // Everything but one entry seeded, so the sidebar is height-limited rather
-  // than count-limited and the resize below has rows to give up.
+  // Everything but two entries seeded, so the sidebar is height-limited rather
+  // than count-limited and the resize below has rows to give up. The two held
+  // back are the ones this test witnesses, in the order it wants them read.
+  const held = ['react:lava+water', 'react:dirt+water']
   await seedWitnessed(
     page,
-    entryIndex().witnessKeys.filter((key) => key !== 'react:dirt+water'),
+    entryIndex().witnessKeys.filter((key) => !held.includes(key)),
   )
   const { root } = await mountApp()
   await root.verifyIsShown()
+  await root.selectBrush(2)
+
+  // lava + water first: two products, which is the widest recipe the roster
+  // writes and so the row the column has to draw whole.
+  await root.selectElement('lava')
+  await root.paintCell(80, 120)
+  await root.selectElement('water')
+  await root.paintCell(80, 115)
+  await root.step()
+  await expect.poll(() => root.fieldNotesCount()).toBe('53/54')
 
   // dirt + water is the one entry left: witnessed now, it must arrive on top.
-  await root.selectBrush(2)
   await root.selectElement('dirt')
   await root.paintCell(150, 120)
   await root.selectElement('water')
@@ -472,8 +485,8 @@ test('a fresh witness leads the recents sidebar, and the rows track the height',
 
   await root.openFieldNotes()
   const rows = await root.recentRows()
-  // The row wears what the entry left behind: dirt + water leaves mud.
-  expect(rows[0]).toBe('mud')
+  // Each row tells the whole story of the edge: what met, and what it left.
+  expect(rows.slice(0, 2)).toEqual(['dirt + water -> mud', 'lava + water -> steam · obsidian'])
   // Nowhere near all 54 fit, and every row that renders sits whole in the
   // column - no scrollbar, no clipped sliver.
   expect(rows.length).toBeGreaterThan(3)
@@ -484,7 +497,7 @@ test('a fresh witness leads the recents sidebar, and the rows track the height',
   // resize.
   await page.setViewportSize({ width: 1280, height: 520 })
   await expect.poll(async () => (await root.recentRows()).length).toBeLessThan(rows.length)
-  expect(await root.recentRows()).toContain('mud')
+  expect(await root.recentRows()).toContain('dirt + water -> mud')
   await root.verifyRecentRowsFitTheSidebar()
 })
 

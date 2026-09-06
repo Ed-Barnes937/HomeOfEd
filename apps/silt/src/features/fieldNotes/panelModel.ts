@@ -70,13 +70,17 @@ function chipsOf(raw: readonly string[]): readonly string[] {
 }
 
 /**
- * The two separators the reading line writes between its tiles, and what the
- * key joins its kinds with. Exported because the panel draws them: the words
- * of a recipe belong with the model that decides what the recipe *is*, so a
- * `·` cannot be a `,` in one place and a `·` in the other.
+ * The three marks a recipe is written with: the two separators between its
+ * tiles, and the arrow to what it leaves. Exported because the panel draws
+ * them: the words of a recipe belong with the model that decides what the
+ * recipe *is*, so a `·` cannot be a `,` in one place and a `·` in the other -
+ * and since ticket 33 there are two renderers of a recipe, the reading line and
+ * a recents row, which is what makes that a live risk rather than a principle.
+ * `REAGENT_JOIN` is also what the key joins its kinds with.
  */
 export const REAGENT_JOIN = '+'
 export const PRODUCT_JOIN = '·'
+export const MAKES = '->'
 
 /** The same dot, spaced, for the runs of words the model still joins itself. */
 const PRODUCT_RUN = ` ${PRODUCT_JOIN} `
@@ -409,28 +413,55 @@ export function pickerRows(
   return rows.sort((a, b) => a.tier - b.tier)
 }
 
-/** One row of the recents sidebar (ticket 29). */
+/**
+ * One row of the recents sidebar (ticket 29), as the recipe the player
+ * witnessed (ticket 33): `lava + water -> steam · obsidian`, drawn as stacked
+ * tiles rather than the single product tile the row began as. The same shape as
+ * a `ReadingLine` minus the group, and for the same reason - a row of the
+ * timeline is a reading of one interaction.
+ */
 export interface RecentRow {
   /** The charted entry's key: the row's identity, stable as the timeline grows. */
   key: EdgeKey
   /**
-   * The element the row draws: what witnessing the edge left behind - the
-   * discovery - falling back to the first reagent for an entry that leaves
-   * nothing. Masked by `refOf` like every other tile, though a witnessed
-   * edge's own products are discovered by definition.
+   * The elements that met, in entry order. Charting has already collapsed the
+   * duplicates - `fire + tip` and `fire + stalk` chart as one `fire + flower` -
+   * so a row never reads `x + x`, and nothing here re-does that work.
    */
-  element: ElementRef
+  reagents: readonly ElementRef[]
+  /**
+   * What *this* edge left behind: the witnessed source's charted products, not
+   * the entry's whole union, so the row shows the discovery the player actually
+   * saw. **Empty in two ways, and neither draws an arrow**: an entry that
+   * consumes both cells leaves nothing to point at, and a stage of one
+   * element's own life (the raise, the bloom - ticket 08) names the same
+   * element at both ends, which the reagents have already said.
+   */
+  products: readonly ElementRef[]
 }
 
 /**
  * The height of one rendered row, handed to the stylesheet by the panel so the
- * capacity arithmetic and the pixels cannot quietly disagree.
+ * capacity arithmetic and the pixels cannot quietly disagree. Tall enough for
+ * the stacked tile the row is built from - an 18px icon over its 8px name - with
+ * the breathing room that keeps two rows apart; `fieldNotes.iwft.tsx` measures
+ * a real row against it, so a taller tile fails there rather than clipping.
  */
-export const RECENT_ROW_PX = 30
+export const RECENT_ROW_PX = 34
 
 /** Whole rows only (ticket 29): no scrolling, no clipped partial row. */
 export function recentCapacity(heightPx: number): number {
   return Math.max(0, Math.floor(heightPx / RECENT_ROW_PX))
+}
+
+/**
+ * A recipe that names one element at both ends: the raise and the bloom, once
+ * the plant is charted as one flower (ticket 08). Asked of the recipe itself,
+ * because the timeline has no focus to ask it of; `isStage` is this question
+ * plus the focus, so the two cannot drift into different ideas of a stage.
+ */
+function isSelfStage(reagents: readonly string[], products: readonly string[]): boolean {
+  return new Set([...reagents, ...products]).size === 1
 }
 
 /**
@@ -455,8 +486,19 @@ export function recentRows(
     // What this particular edge left (its source's charted products), not the
     // entry's whole union: the row shows the discovery the player actually saw.
     const source = entry.sources.find((candidate) => candidate.key === key)
-    const name = source?.products[0] ?? entry.reagents[0]!
-    rows.push({ key: entry.key, element: refOf(name, view) })
+    const products = source?.products ?? []
+    rows.push({
+      key: entry.key,
+      reagents: entry.reagents.map((name) => refOf(name, view)),
+      // A stage says the same element at both ends, so the arrow would point at
+      // what the left-hand side has already named. The reading line drops the
+      // right-hand side for exactly this (`isStage`); here the focus the ring
+      // asks it about does not exist, so the question is simply whether the
+      // whole recipe is one element.
+      products: isSelfStage(entry.reagents, products)
+        ? []
+        : products.map((name) => refOf(name, view)),
+    })
   }
   return rows.reverse()
 }
@@ -491,10 +533,11 @@ function directionOf(entry: Entry, focus: string): SpokeDirection {
 /**
  * A stage of the focused element's own life (ticket 08): every name at both ends
  * of the entry is the focus itself, which is what the raise and the bloom become
- * once the plant is charted as one flower.
+ * once the plant is charted as one flower. The ring's own question, asked as the
+ * timeline's (`isSelfStage`) plus which element the recipe turned out to name.
  */
 function isStage(entry: Entry, focus: string): boolean {
-  return [...entry.reagents, ...entry.products].every((name) => name === focus)
+  return isSelfStage(entry.reagents, entry.products) && entry.reagents[0] === focus
 }
 
 function spokeOf(entry: Entry, focus: string, view: FieldNotesView): Spoke {
