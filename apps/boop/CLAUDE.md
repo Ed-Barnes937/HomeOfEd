@@ -97,7 +97,9 @@ src/
                     every width, plus clip-scoped Clear grid at ≥1024 only),
                     clipTints.ts (the fixed 10-tint list - the handoff's five
                     plus five derived companions, ADR 0032 as amended: the one
-                    place in the app whose colours are not the handoff's own)
+                    place in the app whose colours are not the handoff's own.
+                    Ten colours to 35 clips, so past the tenth a colour is
+                    shared and the clip's *name* is what names it)
   features/songbar/ SongBar.tsx — the song bar (≥1024, tickets 15/20; the
                     tablet band shrinks the lane grid to fit). The home surface
                     since screenspace ticket 03, in the scrolling region: a
@@ -210,15 +212,18 @@ share-link snapshot.
   for songs by [ADR 0032](../../docs/adr/0032-boop-save-format-songs.md)). One
   versioned save document under one `localStorage` key (`boop:save`), holding
   the autosaved working grid and the "My boops" list. A stored boop is a whole
-  song: `patterns` is the clip list (≤10, optional `name`/`tint` per clip), plus
+  song: `patterns` is the clip list (≤35, optional `name`/`tint` per clip), plus
   optional `placements` (the 16 positions, comma-separated — each field the
   clips sounding there, so a position can hold several; a comma-less string is
   read in the pre-layering one-clip-per-position form) and `gridClip` — all additive, still
   `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. A position names its
-  clips by **single character** - digits `1`-`9`, then letters from `a` for
+  clips by **single character** - digits `1`-`9`, then letters `a`-`z` from
   clip 10 - so old digit-only strings are a strict subset and the writer emits
-  a letter only when a clip past the ninth is placed. Do not widen a field to
-  two characters: that would break every string already on disk. Anything that persists
+  a letter only when a clip past the ninth is placed. That alphabet's ceiling
+  **is** `MAX_CLIPS` (35), which is why raising the cap again is not an option:
+  do not widen a field to two characters, it would break every string already
+  on disk. `tint` (0-9) has no uniqueness rule - past ten clips the colours
+  repeat (boop-clips ticket 05). Anything that persists
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error. A browser with **no** working

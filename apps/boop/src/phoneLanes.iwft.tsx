@@ -1,3 +1,5 @@
+import { expect } from '@playwright/experimental-ct-react'
+
 import { MAX_CLIPS } from './persistence/saveFormat.ts'
 import { test } from './testing/iwftTest.tsx'
 
@@ -31,14 +33,22 @@ test('the song bar renders in the scrolling region; only the launcher is pinned'
 
   // Even at the clip cap the lanes stay inside the bar's own scroller, never a
   // pinned bar: the bar is clamped to the region (`max-height: 100%`), so the
-  // lane rows are what would give way. At this height they do not have to -
-  // measured at ten clips, neither the bar's scroller nor the region has
-  // anything to scroll - and every clip is reachable either way.
+  // lane rows are what give way. At 35 clips (boop-clips ticket 05) they have
+  // to: the bar's scroller takes almost all of it and the region the last 12px,
+  // which ADR 0030 allows - what may not move is the page, and every clip is
+  // reachable either way. (At ten clips neither box had anything to scroll.)
   await root.fillClipsTo(MAX_CLIPS)
   await root.verifyLauncherFullyInViewport()
   await root.verifyEveryClipIsReachable(MAX_CLIPS)
-  await root.verifyNothingIsScrolled()
+  await root.verifyPageDoesNotScroll()
   await root.verifyNoHorizontalOverflow()
+
+  // Three and a half laps of the palette at the cap (ticket 05), so a colour
+  // names several clips: what has to be readable on a 92px chip column is the
+  // name, and all 35 are different. The dock names its clip too.
+  const names = await root.readChipNames()
+  expect(new Set(names).size).toBe(MAX_CLIPS)
+  await root.verifyLauncherClip(`Clip ${MAX_CLIPS}`)
 })
 
 test('lane squares align column-for-column with the step window, and the strip snaps to bar lines', async ({
@@ -214,11 +224,12 @@ test.describe('narrow phone', () => {
     await root.verifyNoHorizontalOverflow()
   })
 
-  // The tightest case the cap has (boop-clips ticket 04): the shortest phone,
-  // where the lanes really do outgrow the bar - measured at ten clips, the
-  // bar's own scroller takes 50px of them and the region 12 - so this is where
-  // "scroll rather than clip" has to hold, with the dock still on screen and
-  // the page still (ADR 0030).
+  // The tightest case the cap has (boop-clips tickets 04 and 05): the shortest
+  // phone, where the lanes really do outgrow the bar - measured at the 35-clip
+  // cap, the bar's own scroller takes 925px of them and the region the last 12
+  // (it was 50 and 12 at ten clips) - so this is where "scroll rather than
+  // clip" has to hold, with the dock still on screen and the page still
+  // (ADR 0030).
   test('every clip is reachable here, and neither the page nor the dock moves', async ({
     mountApp,
   }) => {

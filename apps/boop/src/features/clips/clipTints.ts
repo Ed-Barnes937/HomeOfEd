@@ -1,8 +1,12 @@
 /**
- * The fixed 10-tint list (ADR 0032, as amended by boop-clips ticket 04).
- * A clip's `tint` (0–9) indexes into this - the colour a child traces from a
- * chip to its lane squares, the clip header dot and the grid-well ring. The
- * list has exactly `TINT_COUNT` entries; the clip cap exists because of it.
+ * The fixed 10-tint list (ADR 0032, as amended by boop-clips tickets 04 and
+ * 05). A clip's `tint` (0–9) indexes into this - the colour a child traces
+ * from a chip to its lane squares, the clip header dot and the grid-well ring.
+ * The list has exactly `TINT_COUNT` entries.
+ *
+ * Ten colours to 35 clips, so past the tenth clip a colour is shared: it says
+ * "this lane, these squares and that dot are one clip", and stops being a name
+ * for the clip. The clip's *name* is what names it, everywhere it shows.
  *
  * The first five are the design handoff's "Clip tints", untouched. The next
  * five are their companions, derived rather than invented. Two are the
@@ -13,9 +17,9 @@
  * band the five were drawn in (61-77% L), because they are read on the same
  * dark stage.
  *
- * Order is not decoration: a new clip takes the lowest unused tint, so this is
- * the sequence a child meets, and each new entry is far in hue from the one
- * before it.
+ * Order is not decoration: a new clip takes the least-used tint, lowest first,
+ * so this is the sequence a child meets - once on the first lap, again on
+ * every lap after it - and each entry is far in hue from the one before it.
  */
 export const CLIP_TINTS = [
   '#6fe0f0', // cyan (handoff)

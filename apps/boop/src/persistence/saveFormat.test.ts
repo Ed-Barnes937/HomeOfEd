@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
 import {
   EMPTY_DOCUMENT,
+  MAX_CLIPS,
   SAVE_FORMAT_VERSION,
+  TINT_COUNT,
   parseSaveDocument,
   patternToStored,
   serializeSaveDocument,
@@ -257,6 +259,46 @@ describe('round-trip', () => {
     expect(reparse(saveDocument)).toEqual(saveDocument)
   })
 
+  // Ticket 05: the cap is the alphabet's own ceiling - 35 clips, the last of
+  // them `z` - and tints repeat past the palette, so two clips sharing one is
+  // now legal data rather than a broken document.
+  it('preserves a thirty-five clip song with repeated tints, clip 35 written as z', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: Array.from({ length: MAX_CLIPS }, (_, index) => ({
+        ...patternToStored(pattern),
+        name: `Clip ${index + 1}`,
+        tint: index % TINT_COUNT,
+      })),
+      placements: '1z9a............',
+      gridClip: MAX_CLIPS - 1,
+    }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...song, name: '' },
+      creations: [song],
+    }
+
+    expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
+  it('preserves two clips on the same tint - a duplicate tint is legal now', () => {
+    const song: StoredBoop = {
+      ...boop,
+      patterns: [
+        { ...patternToStored(pattern), tint: 2 },
+        { ...patternToStored(pattern), tint: 2 },
+      ],
+    }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...song, name: '' },
+      creations: [],
+    }
+
+    expect(reparse(saveDocument)).toEqual(saveDocument)
+  })
+
   it('preserves the working boop and the saved list', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
@@ -361,31 +403,15 @@ describe('parseSaveDocument (defensive decode)', () => {
       'a missing name',
       withWorking({ kitId: 'launch', tempo: 120, patterns: [patternToStored(pattern)] }),
     ],
+    // Ticket 05: the cap is 35, the last clip the placement alphabet can name.
     [
-      'more than 10 patterns',
-      withWorking({ ...boop, patterns: new Array(11).fill(patternToStored(pattern)) }),
+      'more than 35 patterns',
+      withWorking({ ...boop, patterns: new Array(36).fill(patternToStored(pattern)) }),
     ],
     ['a non-string pattern name', withWorking(withPattern({ name: 7 }))],
     ['a tint above the tint list', withWorking(withPattern({ tint: 10 }))],
     ['a negative tint', withWorking(withPattern({ tint: -1 }))],
     ['a fractional tint', withWorking(withPattern({ tint: 1.5 }))],
-    [
-      'a duplicate tint across two patterns',
-      withWorking({
-        ...boop,
-        patterns: [
-          { ...patternToStored(pattern), tint: 2 },
-          { ...patternToStored(pattern), tint: 2 },
-        ],
-      }),
-    ],
-    [
-      'a tint colliding with another pattern’s defaulted tint',
-      withWorking({
-        ...boop,
-        patterns: [patternToStored(pattern), { ...patternToStored(pattern), tint: 0 }],
-      }),
-    ],
     [
       'a placement digit with no clip behind it',
       withWorking({ ...boop, placements: '2...............' }),
@@ -396,13 +422,14 @@ describe('parseSaveDocument (defensive decode)', () => {
       withWorking({ ...boop, placements: '0x..............' }),
     ],
     // Ticket 04: `a` is clip 10, so it is as dangling on a one-clip boop as a
-    // digit past the clip list - and a letter past the cap is never a clip.
+    // digit past the clip list - and so is `z`, clip 35, the last character the
+    // alphabet has (ticket 05).
     [
       'a placement letter with no clip behind it',
       withWorking({ ...boop, placements: 'a...............' }),
     ],
     [
-      'a placement letter past the clip cap',
+      'the last placement letter with no clip behind it',
       withWorking({ ...boop, placements: 'z...............' }),
     ],
     ['a non-string placements', withWorking({ ...boop, placements: 16 })],

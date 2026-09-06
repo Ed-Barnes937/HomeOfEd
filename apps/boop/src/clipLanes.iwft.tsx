@@ -85,6 +85,93 @@ test('a clip per tint: ten clips wear ten different colours, and the lane grid s
   await root.verifyNoHorizontalOverflow()
 })
 
+// Ticket 05: past ten clips the palette repeats rather than the clip being
+// refused, so a colour stops naming one clip. What has to carry identity
+// instead is the name - on the chip in the shelf, on the launcher in the dock,
+// and in the lane square's own label. (Thumbnails wear no tint at all: the ones
+// in "My boops" and the "+ New clip" picker are drawn in ink, so a repeated
+// tint cannot reach them.)
+test('past ten clips the tints repeat, and the names tell the sharing clips apart', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.fillClipsTo(TINT_COUNT + 1)
+
+  // Eleven clips, ten colours: the eleventh takes the least-used tint, which on
+  // a full palette is the first one again.
+  const tints = await root.readChipTints()
+  expect(new Set(tints).size).toBe(TINT_COUNT)
+  expect(tints[TINT_COUNT]).toBe(tints[0])
+
+  // The shelf is still readable: every chip has a name of its own, and the two
+  // that share a colour are the two the names have to separate.
+  const names = await root.readChipNames()
+  expect(new Set(names).size).toBe(TINT_COUNT + 1)
+  expect(names[0]).toBe('Clip 1')
+  expect(names[TINT_COUNT]).toBe(`Clip ${TINT_COUNT + 1}`)
+
+  // The dock names the clip it would open, and each lane square names its own.
+  await root.verifyLauncherClip(`Clip ${TINT_COUNT + 1}`)
+  await root.verifyLaneSquareNamesItsClip(0, 0, 'Clip 1')
+  await root.verifyLaneSquareNamesItsClip(TINT_COUNT, 0, `Clip ${TINT_COUNT + 1}`)
+})
+
+test('a thirty-five clip song plays, is written with the letter z, and refuses the thirty-sixth', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await first.root.fillClipsTo(MAX_CLIPS)
+
+  // The cap, at both routes to a new clip.
+  await first.root.verifyAddClipDisabled()
+  await first.root.openClipEditor()
+  await first.root.verifyCopyClipDisabled()
+  await first.root.closeClipEditor()
+
+  await first.root.toggleLaneSquare(MAX_CLIPS - 1, 0)
+  await first.root.toggleLaneSquare(0, 1)
+  await first.root.verifySongLength('8 bars')
+  await first.root.pressSongPlay()
+  await first.root.verifySongPlaying()
+  await first.root.crankSteps(1)
+  await first.root.verifyPositionPlaying(MAX_CLIPS - 1, 0)
+
+  // `z` is the last character the placement alphabet has, and the cap is there
+  // because of it - so this is the byte the ceiling is made of.
+  await first.root.waitForAutosavedPlacements('z1..............')
+
+  await page.reload()
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyClipCount(MAX_CLIPS)
+  await root.verifyPlacementOn(MAX_CLIPS - 1, 0)
+  await root.verifyPlacementOn(0, 1)
+  await root.verifySongLength('8 bars')
+  await root.verifyAddClipDisabled()
+  await root.verifyEveryClipIsReachable(MAX_CLIPS)
+  await root.verifyLastSongPositionIsReachable(MAX_CLIPS - 1)
+  await root.verifyNoHorizontalOverflow()
+
+  // Three and a half laps of the palette at this width too: every one of the
+  // 35 chips carries a name of its own, and the dock names the clip it would
+  // open - which is what a child reads a shared colour by.
+  const names = await root.readChipNames()
+  expect(new Set(names).size).toBe(MAX_CLIPS)
+  await root.verifyLauncherClip(`Clip ${MAX_CLIPS}`)
+
+  // Saved into "My boops" as well as autosaved: the same writer, so the row
+  // carries all 35 clips and the same bytes the working slot has.
+  await root.openBoops()
+  await root.saveBoop()
+  const saved = await root.readSavedBoops()
+  expect(saved[0]?.patterns).toHaveLength(MAX_CLIPS)
+  expect(saved[0]?.placements).toBe('z1..............')
+})
+
 test('a ten-clip song is written with the letter a, plays, and survives a reload', async ({
   mountApp,
   page,

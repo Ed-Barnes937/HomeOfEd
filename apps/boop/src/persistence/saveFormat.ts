@@ -25,8 +25,29 @@ export const SAVE_FORMAT_VERSION = 1
 /** The fixed tint list has exactly this many colours; `tint` indexes into it. */
 export const TINT_COUNT = 10
 
-/** Hard cap on clips per boop - one per tint (ADR 0032, as amended by boop-clips ticket 04). */
-export const MAX_CLIPS = TINT_COUNT
+/**
+ * The characters a `placements` string indexes clips by, one per clip: digits
+ * `1`–`9`, then letters from `a` for clip 10 (ADR 0032, as amended by
+ * boop-clips tickets 04 and 05).
+ *
+ * The digits are the pre-letter encoding unchanged, so every placements string
+ * already on disk or in a share link is a strict subset of this one.
+ */
+const PLACEMENT_CHARS = '123456789abcdefghijklmnopqrstuvwxyz'
+
+/**
+ * Hard cap on clips per boop: the ceiling of the single-character placement
+ * encoding, which is *why* it is a cap at all (ADR 0032, as amended by
+ * boop-clips ticket 05 - "no cap" for any actual child). Derived from the
+ * alphabet rather than stated, so the legal set of clip characters is exactly
+ * what this build can write and a character past the cap can only ever be
+ * dangling. A bigger cap would mean widening the field, which every string on
+ * disk forbids.
+ *
+ * It used to be `TINT_COUNT` - one clip per tint. Past ten clips the tints
+ * repeat instead (`addClip`), so the two numbers are no longer one decision.
+ */
+export const MAX_CLIPS = PLACEMENT_CHARS.length
 
 /** A song is fixed at 16 positions; `placements` is one field per position. */
 export const SONG_POSITIONS = 16
@@ -37,19 +58,6 @@ export const SONG_POSITIONS = 16
  * one character per position (ADR 0032, as amended).
  */
 const PLACEMENT_SEPARATOR = ','
-
-/**
- * The characters a `placements` string indexes clips by, one per clip: digits
- * `1`–`9`, then letters from `a` for clip 10. The whole alphabet is the
- * encoding the owner settled (ADR 0032, as amended by boop-clips ticket 04),
- * and it is `slice`d to the cap so the *legal* set is only ever what this
- * build can write - which makes a bigger cap a `MAX_CLIPS` edit and nothing
- * else, up to the 35 the alphabet runs out at.
- *
- * The digits are the pre-letter encoding unchanged, so every placements string
- * already on disk or in a share link is a strict subset of this one.
- */
-const PLACEMENT_CHARS = '123456789abcdefghijklmnopqrstuvwxyz'.slice(0, MAX_CLIPS)
 
 /** The character standing for a clip index in a `placements` string. */
 function placementChar(clipIndex: number): string {
@@ -75,19 +83,20 @@ export interface StoredRow {
  * One pattern — the storage shape of a **clip** (ADR 0032: the field keeps its
  * frozen V1 name while the domain says Clip). `name` and `tint` are optional
  * and additive: the decoder passes them through when present and adds nothing
- * when absent — defaults ("Clip N", tint = position) are the reader's job, so
- * an old document round-trips byte-honest.
+ * when absent — defaults ("Clip N", and the position wrapped at the palette
+ * for the tint) are the reader's job, so an old document round-trips
+ * byte-honest.
  */
 export interface StoredPattern {
   rows: readonly StoredRow[]
   name?: string
-  /** Index into the fixed 10-tint list (0–9), unique per clip. */
+  /** Index into the fixed 10-tint list (0–9). Clips past the tenth repeat one. */
   tint?: number
 }
 
 /**
  * A boop: a named thing a child made — since ADR 0032, a whole **song**.
- * `patterns` is the clip list (1–10, order is lane order). `placements` and
+ * `patterns` is the clip list (1–35, order is lane order). `placements` and
  * `gridClip` are optional and additive: absent on every pre-song document,
  * which therefore decodes as a one-clip song with an empty song bar.
  */
@@ -98,7 +107,7 @@ export interface StoredBoop {
   patterns: readonly StoredPattern[]
   /**
    * The 16 song positions, comma-separated: each field is the clip characters
-   * sounding there (digits `1`–`9`, then `a` for clip 10), ascending, and an
+   * sounding there (digits `1`–`9`, then `a`–`z` from clip 10), ascending, and an
    * empty field is an empty position (e.g. `"1,12,,3,,,,,,,,,,,,"`). Several
    * characters in one field is a layered position - several clips sounding
    * together.
@@ -265,11 +274,8 @@ export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
     decoded.push(pattern)
   }
 
-  // One tint per clip (ADR 0032 amendment). An absent tint defaults to the
-  // pattern's own position, so uniqueness is checked on the effective values.
-  const tints = decoded.map((pattern, index) => pattern.tint ?? index)
-  if (new Set(tints).size !== tints.length) return undefined
-
+  // No uniqueness rule on `tint`: past ten clips the tints repeat (ADR 0032,
+  // as amended by boop-clips ticket 05), so two clips sharing one is data.
   const boop: StoredBoop = { name, kitId, tempo, patterns: decoded }
 
   if (value.placements !== undefined) {

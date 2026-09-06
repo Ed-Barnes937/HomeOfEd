@@ -1825,11 +1825,39 @@ export class HomePagePom extends BasePage {
   }
 
   /**
+   * The name each chip carries, lane by lane. Past ten clips two lanes can
+   * wear one tint (boop-clips ticket 05), so the name is what tells them
+   * apart - and that is a property of the whole shelf, which only reading
+   * every name at once can see. By its own test id rather than by position in
+   * the chip: the name is identity now, so what it is must not depend on
+   * which child of the chip it happens to be.
+   */
+  async readChipNames(): Promise<string[]> {
+    return this.page.getByTestId(/^clip-name-\d+$/).allInnerTexts()
+  }
+
+  /**
+   * A lane square says whose lane it is, not what colour it is - the same
+   * answer for a screen reader that the chip's name is for a child, and the
+   * one that has to keep working once two lanes share a tint.
+   */
+  async verifyLaneSquareNamesItsClip(
+    clipIndex: number,
+    position: number,
+    name: string,
+  ): Promise<void> {
+    await expect(this.laneSquare(clipIndex, position)).toHaveAttribute(
+      'aria-label',
+      new RegExp(`^${name}, position ${position + 1}, `),
+    )
+  }
+
+  /**
    * The colour each chip's tint dot actually wears, lane by lane, as the
    * browser resolves it - `readRowHues`' idiom, for the same reason. Read off
-   * the page rather than trusted to the constant: one tint per clip is a
-   * product rule (ADR 0032, as amended by boop-clips ticket 04), so what
-   * matters is that a child sees a different colour on every chip.
+   * the page rather than trusted to the constant: how many colours a child
+   * sees is a product rule (ADR 0032, as amended by boop-clips tickets 04 and
+   * 05) - ten clips wear ten, and the eleventh starts the palette again.
    */
   async readChipTints(): Promise<string[]> {
     return this.page.getByTestId(/^clip-chip-\d+$/).evaluateAll((nodes) =>
@@ -1953,7 +1981,7 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByTestId('clip-delete-button')).toBeDisabled()
   }
 
-  /** A copy is a new clip, so the 5-clip cap greys it like "+ New clip". */
+  /** A copy is a new clip, so the clip cap greys it like "+ New clip". */
   async verifyCopyClipDisabled(): Promise<void> {
     await expect(this.page.getByTestId('clip-copy-button')).toBeDisabled()
   }

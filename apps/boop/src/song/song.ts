@@ -1,6 +1,6 @@
 /**
  * The working song (boop-loops ticket 14, spec §2) — the state shape the app
- * edits: 1–10 clips (order is lane order), one bpm, the clip on the grid, and
+ * edits: 1–35 clips (order is lane order), one bpm, the clip on the grid, and
  * the 16 placements. Pure: types, conversions to and from the save format's
  * `StoredBoop`, and the mutation kinds the UI wires up (tickets 15/18). Every
  * mutation returns a new song; callers pair each one with `afterEdit`
@@ -29,7 +29,10 @@ import {
  */
 export interface Clip {
   name: string
-  /** Index into the fixed 10-tint list; the clip's for its whole life. */
+  /**
+   * Index into the fixed 10-tint list; the clip's for its whole life. Past
+   * ten clips the tints repeat, so a tint names a colour, never a clip.
+   */
   tint: number
   pattern: Pattern
 }
@@ -38,7 +41,7 @@ export interface Clip {
 export interface Song {
   /** 60–180, the whole boop's one speed, driving both play modes. */
   bpm: number
-  /** 1–10, ordered; order IS lane order. */
+  /** 1–35, ordered; order IS lane order. */
   clips: readonly Clip[]
   /** The clip on the grid — what every grid edit writes into. */
   activeClipIndex: number
@@ -78,13 +81,20 @@ export function activeClip(song: Song): Clip {
  * Read a decoded `StoredBoop` as a song, applying ADR 0032's defaults: an
  * absent name reads "Clip N", an absent tint reads the clip's position, absent
  * placements read empty, an absent `gridClip` reads 0.
+ *
+ * The position wraps at the palette (ticket 05): there are 35 clips to a song
+ * and 10 tints, so past the tenth clip the bare position is not a tint at all.
+ * Every document the app writes states its tints, so only a hand-made or
+ * corrupt one takes that branch - and it still has to land on a real colour,
+ * or the clip would read as tint 11 and fail to decode when it was written
+ * back. Under ten clips this is the position, exactly as before.
  */
 export function songFromStored(kit: Kit, boop: StoredBoop): Song {
   return {
     bpm: boop.tempo,
     clips: boop.patterns.map((stored, index) => ({
       name: stored.name ?? clipName(index + 1),
-      tint: stored.tint ?? index,
+      tint: stored.tint ?? index % TINT_COUNT,
       pattern: storedToPattern(kit, stored),
     })),
     activeClipIndex: boop.gridClip ?? 0,
@@ -183,24 +193,40 @@ export function mergePatterns(patterns: readonly Pattern[]): Pattern {
 }
 
 /**
+ * The tint a new clip takes: the **least-used** one, the lowest of them on a
+ * tie (ADR 0032, as amended by boop-clips ticket 05). There are 35 clips to a
+ * song and 10 tints, so past the tenth clip a tint has to be reused; counting
+ * uses spreads the ten as evenly as a song of any length allows, and the
+ * lowest-wins tie-break makes it the *lowest unused* tint while any tint is
+ * still unused - which is the ≤10-clip rule, unchanged.
+ *
+ * A tint out of range (only a hand-made document can hold one, and the reader
+ * wraps those) counts towards nothing rather than throwing the tally off.
+ */
+function leastUsedTint(clips: readonly Clip[]): number {
+  const uses = Array.from(
+    { length: TINT_COUNT },
+    (_, tint) => clips.filter((clip) => clip.tint === tint).length,
+  )
+  return uses.indexOf(Math.min(...uses))
+}
+
+/**
  * Append a new clip and put it on the grid, unplaced — placing it in the song
  * is a separate tap (spec §6). A sample clip lands under its plain label via
  * `name`; without one (Blank), the name takes the lowest unused "Clip N".
- * The tint always takes the lowest unused value, which keeps one-tint-per-clip
- * after deletes. A no-op at the cap: the "+ New clip" button is disabled
- * there, so this is only belt-and-braces.
+ * The tint is the least-used one, so ten clips wear ten colours and the
+ * eleventh starts the palette again. A no-op at the cap: the "+ New clip"
+ * button is disabled there, so this is only belt-and-braces.
  */
 export function addClip(song: Song, pattern: Pattern, name?: string): Song {
   if (song.clips.length >= MAX_CLIPS) return song
   const names = new Set(song.clips.map((clip) => clip.name))
-  const tints = new Set(song.clips.map((clip) => clip.tint))
   let n = 1
   while (names.has(clipName(n))) n += 1
-  let tint = 0
-  while (tint < TINT_COUNT && tints.has(tint)) tint += 1
   return {
     ...song,
-    clips: [...song.clips, { name: name ?? clipName(n), tint, pattern }],
+    clips: [...song.clips, { name: name ?? clipName(n), tint: leastUsedTint(song.clips), pattern }],
     activeClipIndex: song.clips.length,
   }
 }

@@ -9,7 +9,12 @@ import {
   type Pattern,
 } from '../engine/sequencerEngine.ts'
 import { FakeAudioDriver } from '../engine/testing/fakeAudioDriver.ts'
-import { MAX_CLIPS, patternToStored, type StoredBoop } from '../persistence/saveFormat.ts'
+import {
+  MAX_CLIPS,
+  TINT_COUNT,
+  patternToStored,
+  type StoredBoop,
+} from '../persistence/saveFormat.ts'
 import { afterEdit } from '../savedState.ts'
 import {
   activeClip,
@@ -28,6 +33,7 @@ import {
   withActivePattern,
   withBpm,
   withPlacement,
+  type Clip,
   type Song,
 } from './song.ts'
 
@@ -87,6 +93,25 @@ const song: Song = {
   ],
   activeClipIndex: 1,
   placements: columns({ 0: [0], 1: [0], 2: [1], 15: [1] }),
+}
+
+/** Blank clips until the song holds `count` of them - the tint cycle's subject. */
+function fillTo(start: Song, count: number): Song {
+  let filled = start
+  while (filled.clips.length < count) filled = addClip(filled, emptyPattern)
+  return filled
+}
+
+/**
+ * How many clips wear each tint - one entry per tint, so a gap reads as 0.
+ * Deliberately its own tally rather than a peek at `addClip`'s: the spread it
+ * checks is the decision, so the test must count for itself.
+ */
+function tintUses(clips: readonly Clip[]): number[] {
+  return Array.from(
+    { length: TINT_COUNT },
+    (_, tint) => clips.filter((clip) => clip.tint === tint).length,
+  )
 }
 
 describe('singleClipSong', () => {
@@ -156,6 +181,49 @@ describe('songFromStored / storedBoopFromSong', () => {
     const stored = storedBoopFromSong(kit, tenClips, 'Ten')
     expect(stored.placements).toBe('a,9,1a,,,,,,,,,,,,,')
     expect(songFromStored(kit, stored).placements).toEqual(tenClips.placements)
+  })
+
+  // Ticket 05: the cap is the alphabet's ceiling, so clip 35 is `z` - and two
+  // clips may share a tint, which the writer states as plainly as any other.
+  it('writes clip 35 as the letter z, repeated tints and all', () => {
+    const full: Song = {
+      bpm: 120,
+      clips: Array.from({ length: MAX_CLIPS }, (_, index) => ({
+        name: `Clip ${index + 1}`,
+        tint: index % TINT_COUNT,
+        pattern: kickPattern,
+      })),
+      activeClipIndex: MAX_CLIPS - 1,
+      placements: columns({ 0: [MAX_CLIPS - 1], 1: [9, MAX_CLIPS - 1] }),
+    }
+
+    const stored = storedBoopFromSong(kit, full, 'All of them')
+    expect(stored.placements).toBe('z,az,,,,,,,,,,,,,,')
+    expect(stored.patterns.map((clip) => clip.tint)).toEqual(
+      Array.from({ length: MAX_CLIPS }, (_, index) => index % TINT_COUNT),
+    )
+    expect(songFromStored(kit, stored)).toEqual(full)
+  })
+
+  /**
+   * The reader's default for an absent tint is the clip's own position
+   * (ADR 0032), and the cap is 35 while the palette is 10 - so past the tenth
+   * position that default has to wrap, or a document without stated tints
+   * would read as a tint the palette has no colour for and could not be
+   * written back. The writer always states tints, so only a hand-made or
+   * corrupt document takes this path; it still has to land inside the palette.
+   */
+  it('wraps the defaulted tint into the palette past the tenth clip', () => {
+    const stored: StoredBoop = {
+      name: '',
+      kitId: 'launch',
+      tempo: 120,
+      patterns: Array.from({ length: 12 }, () => patternToStored(kickPattern)),
+    }
+
+    expect(songFromStored(kit, stored).clips.map((clip) => clip.tint)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1,
+    ])
   })
 
   it('reads a pre-layering placements string — one clip per position', () => {
@@ -440,7 +508,7 @@ describe('a clip switch carries each clip’s own rows through the engine', () =
 })
 
 describe('addClip', () => {
-  it('appends a clip on the lowest unused tint and puts it on the grid, unplaced', () => {
+  it('appends a clip on the least-used tint and puts it on the grid, unplaced', () => {
     const next = addClip(song, emptyPattern)
 
     expect(next.clips).toHaveLength(3)
@@ -449,36 +517,70 @@ describe('addClip', () => {
     expect(next.placements).toEqual(song.placements)
   })
 
-  it('names the clip with the lowest unused number, like its tint', () => {
+  it('names the clip with the lowest unused number, whatever tint it lands on', () => {
     const twice = addClip(addClip(song, emptyPattern), emptyPattern)
 
     expect(twice.clips.map((clip) => clip.name)).toEqual(['Clip 1', 'Drums', 'Clip 2', 'Clip 3'])
     expect(twice.clips.map((clip) => clip.tint)).toEqual([0, 3, 1, 2])
   })
 
-  // Ticket 04: the cap is ten, and uniqueness holds the whole way there - a
-  // tenth clip still gets a tint of its own (cycling arrives in ticket 05).
-  it('grows to ten clips, each on its own tint, and refuses the eleventh', () => {
-    let full = song
-    while (full.clips.length < MAX_CLIPS) full = addClip(full, emptyPattern)
+  // Ticket 04: while a tint is still unused, the least-used tint *is* the
+  // lowest unused one, so the first ten clips each get one of their own.
+  it('gives the first ten clips a tint each', () => {
+    const lapped = fillTo(song, TINT_COUNT)
 
-    expect(full.clips).toHaveLength(10)
-    expect([...full.clips.map((clip) => clip.tint)].sort((a, b) => a - b)).toEqual([
+    expect(lapped.clips).toHaveLength(TINT_COUNT)
+    expect([...lapped.clips.map((clip) => clip.tint)].sort((a, b) => a - b)).toEqual([
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
     ])
-    expect(addClip(full, emptyPattern)).toBe(full)
 
     // A tint belongs to its clip for the clip's whole life: deleting a clip
-    // recolours none of the others, and the freed tint is the one the next
-    // clip takes - which is what keeps uniqueness holding at the cap.
-    const gap = deleteClip(full, 4)
+    // recolours none of the others, and the freed tint is the least-used one,
+    // so it is what the next clip takes.
+    const gap = deleteClip(lapped, 4)
     expect(gap.clips.map((clip) => clip.tint)).toEqual(
-      full.clips.filter((_, index) => index !== 4).map((clip) => clip.tint),
+      lapped.clips.filter((_, index) => index !== 4).map((clip) => clip.tint),
     )
-    expect(addClip(gap, emptyPattern).clips[9]!.tint).toBe(full.clips[4]!.tint)
+    expect(addClip(gap, emptyPattern).clips.at(-1)!.tint).toBe(lapped.clips[4]!.tint)
   })
 
-  it("takes a sample clip's label as the name, still on the lowest unused tint", () => {
+  // Ticket 05: past the palette the tints repeat rather than the clip being
+  // refused. Each new clip takes the *least-used* tint, so the colours stay as
+  // evenly spread as ten of them can be over a song of any length.
+  it('cycles the palette past ten clips, a lap at a time', () => {
+    let lapped = fillTo(song, TINT_COUNT)
+
+    for (let tint = 0; tint < TINT_COUNT; tint += 1) {
+      lapped = addClip(lapped, emptyPattern)
+      expect(lapped.clips.at(-1)!.tint).toBe(tint)
+    }
+
+    // Twenty clips, two to a tint - and the next lap starts at 0 again.
+    expect(tintUses(lapped.clips)).toEqual(new Array<number>(TINT_COUNT).fill(2))
+    expect(addClip(lapped, emptyPattern).clips.at(-1)!.tint).toBe(0)
+  })
+
+  it('breaks a tie for the least-used tint on the lowest tint', () => {
+    // Every tint used once, tint 0 used twice: the next clip must take tint 1 -
+    // the lowest of the nine still on a single use - not tint 0 again.
+    const lapped = addClip(fillTo(song, TINT_COUNT), emptyPattern)
+    expect(lapped.clips.at(-1)!.tint).toBe(0)
+
+    expect(addClip(lapped, emptyPattern).clips.at(-1)!.tint).toBe(1)
+  })
+
+  it('grows to thirty-five clips and refuses the thirty-sixth', () => {
+    const full = fillTo(song, MAX_CLIPS)
+
+    expect(full.clips).toHaveLength(35)
+    // Three and a half laps of the palette: the first five tints carry four
+    // clips, the other five carry three. No tint is left doing more than its
+    // share, which is the whole point of counting uses.
+    expect(tintUses(full.clips)).toEqual([4, 4, 4, 4, 4, 3, 3, 3, 3, 3])
+    expect(addClip(full, emptyPattern)).toBe(full)
+  })
+
+  it("takes a sample clip's label as the name, still on the least-used tint", () => {
     const next = addClip(song, emptyPattern, 'Boom clap')
 
     expect(next.clips[2]).toEqual({ name: 'Boom clap', tint: 1, pattern: emptyPattern })
