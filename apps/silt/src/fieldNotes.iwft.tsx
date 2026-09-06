@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { entryIndex } from './features/fieldNotes/entries.ts'
+import { PROGRESS_KEY } from './features/fieldNotes/fieldNotesStore.ts'
 import { GRID_HEIGHT } from './sim/index.ts'
 import { seedMastery, seedWitnessed } from './testing/fieldNotesSeed.ts'
 import { test } from './testing/iwftTest.tsx'
@@ -359,6 +360,43 @@ test('"forget discoveries" needs a second click, and empties the chart when it g
   await page.reload()
   const { root: reloaded } = await mountApp()
   expect(await reloaded.fieldNotesCount()).toBe('0/54')
+})
+
+/**
+ * Progression belongs to the scene (ticket 28): a save snapshots the working
+ * field notes into the envelope, and a load replaces them - edges and the
+ * NEW-chip watermark alike. The strict semantics (a pre-change scene clears, A
+ * then B shows B's, forget-then-save persists the cleared state) are pinned at
+ * the store/format layer; this is the loop through the UI on a fresh profile.
+ */
+test('a saved scene restores its field notes on a fresh profile', async ({ mountApp, page }) => {
+  // Reviewed 0, so the watermark itself has something to restore.
+  await seedWitnessed(page, SEEDED, { reviewed: 0 })
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await first.root.openScenes()
+  await first.root.saveScene()
+  await first.root.verifySceneRow('scene 1')
+
+  // A fresh profile: the scene survives, the working progression does not.
+  await page.evaluate((key) => window.localStorage.removeItem(key), PROGRESS_KEY)
+  await page.reload()
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  expect(await root.fieldNotesCount()).toBe('0/46')
+
+  await root.openScenes()
+  await root.loadScene('scene 1')
+  await expect.poll(() => root.fieldNotesCount()).toBe('2/46')
+  // A load is an arrival, not a witness: the restored edges raise no card.
+  await root.verifyNoMomentCard()
+
+  // The watermark came back with the edges: all three discoveries still read
+  // as new, because the snapshot was saved unreviewed.
+  await root.openFieldNotes()
+  const counters = await root.fieldNotesCounters()
+  expect(counters.interactions).toContain('2/46')
+  expect(counters.fresh).toContain('3')
 })
 
 /**

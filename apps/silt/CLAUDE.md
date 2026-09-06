@@ -73,7 +73,8 @@ src/
                               and the witnessed-set derivations, built off
                               src/docs's graph, never a second derivation from
                               the registry. Both pure. fieldNotesStore -
-                              localStorage, one global key, edges only;
+                              localStorage, the working progression, edges
+                              only (scenes snapshot it - ADR 0054);
                               fieldNotesView - the pure derivation the panel
                               renders; useFieldNotes - the page's single seam,
                               React wiring over those two. panelModel - the
@@ -422,11 +423,20 @@ Spec §8; the calls the spec leaves open are in
 Discovery-tree spec §5. `fieldNotesStore.ts` owns `silt:fieldNotes` and nothing
 else touches it.
 
-- **Global, not per scene, and edges only.** The blob is
+- **The key is the working progression, and edges only.** The blob is
   `{ version, edges, reviewed }`; discovery, mastery and the rail unlock are
   recomputed by `entries.ts` on every load, so nothing derived is stored and
   nothing stored can disagree with the roster. A new denominator is a roster
   change, not a migration.
+- **Progression belongs to the scene**
+  ([ADR 0054](../../docs/adr/0054-silt-progression-belongs-to-the-scene.md),
+  superseding spec §5's "global"). A save snapshots the working `Progress` into
+  the scene envelope (`sceneCodec`'s `SceneFieldNotes` - `sceneStore` still
+  treats the envelope as opaque); a load `replace`s the working progression
+  with the scene's snapshot, wholesale. A scene saved before snapshots existed
+  loads as an empty one - strict semantics, no migration. A load raises no
+  moment cards and never fires the 100% line: `useFieldNotes.generation` moves
+  with each `replace` and `useMoments` resyncs its baseline off it.
 - **The chart counts elements, the sim counts species.** `buried` charts as
   seed and sprout/tip/stalk/petal as flower, through `chartAs` on the derived
   graph; `entries.ts` folds it in, so one charted entry can be backed by several
@@ -459,9 +469,11 @@ else touches it.
   element is paintable in every other way, spawners included. Mud leaving the
   rail did **not** take it out of `v1Elements` - scenes remap by name, and a
   pre-trim scene's mud cells depend on it still being a species.
-- **Clearing the world does not clear discoveries.** The only thing that does is
-  the panel's armed "forget discoveries" (`store.reset()`), which removes the
-  key outright.
+- **Clearing the world does not clear discoveries.** Only two things move the
+  working progression besides a witness: the panel's armed "forget discoveries"
+  (`store.reset()`, which removes the key outright and touches no saved
+  snapshot until the next save writes over one) and an explicit scene load
+  (`store.replace()`).
 - `useFieldNotes` is the one seam the header, panel, rail and moments read. It
   is React wiring only: the store and the pure `fieldNotesView` behind it are
   where the behaviour, and the tests, live.
