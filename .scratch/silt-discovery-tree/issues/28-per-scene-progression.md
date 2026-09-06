@@ -28,16 +28,21 @@ build for that future, just make the scene the unit today.
   not grow a third prefix. `sceneStore` treats the envelope as opaque JSON, so
   the change lands in the scene format module, not the store.
 - **Load scene** replaces the working progression with the scene's snapshot.
-- **Reset** (`useFieldNotes.ts:73` / `fieldNotesStore.reset()`) keeps its
-  current meaning: it clears the working progression. A subsequent save
-  persists the reset state into that scene.
+- **Reset** already has UI: the "Forget discoveries" button in the panel
+  (`FieldNotesPanel.tsx:390`, behind its armed confirm, wired to
+  `fieldNotes.reset` at `HomePage.tsx:271`). Keep it, and pin its meaning
+  under the new model: it clears the **working** progression; a subsequent
+  save persists the cleared state into that scene. Saved snapshots are
+  untouched until saved over.
 
-## Decisions taken here (deviate with a note if the code disagrees)
+## Decisions (Ed, 2026-09-06)
 
-- A scene saved before this change carries no progression. Loading it leaves
-  the working progression **untouched** rather than wiping it to empty -
-  destroying a player's existing notes on loading an old scene is the worse
-  surprise. New saves always carry a snapshot (possibly empty).
+- A scene saved before this change carries no progression snapshot. Loading
+  it **clears** the field notes - exactly as if a scene with an empty
+  snapshot had been loaded. Strict per-scene semantics; no special case for
+  old scenes. (The player's pre-existing global progression survives only as
+  the working progression until they load a scene, and in any scene they
+  save from here on.)
 - No migration of the existing global blob: it simply continues as the
   working progression.
 - "New scene" / clearing the world keeps today's behaviour
@@ -49,8 +54,10 @@ build for that future, just make the scene the unit today.
 - [ ] Saving a scene and loading it on a fresh profile restores its field
       notes (edges and the NEW-chip watermark)
 - [ ] Loading scene A then scene B shows B's progression, not A's or a merge
-- [ ] Loading a pre-change scene (no snapshot) leaves current notes alone
-- [ ] Reset still clears, and save-after-reset persists the cleared state
+- [ ] Loading a pre-change scene (no snapshot) clears the notes, same as an
+      empty snapshot
+- [ ] The panel's "Forget discoveries" button still clears (working
+      progression only), and save-after-forget persists the cleared state
 - [ ] Unknown edge keys in a snapshot survive a save/load cycle (spec §5
       forward-compat holds per scene)
 - [ ] Unit tests at the store/format layer; one `.iwft` for

@@ -41,3 +41,7 @@ sound; the star fills gold when the sound is a favourite.
       star, reload, see the section (pragmatic split)
 
 ## Comments
+
+**2026-09-06 (Ed):** design approved as written after walking through the
+decisions (separate `boop:favourites` key, copy-not-move into the Favourites
+group, manifest order, separate star hit target). No changes.
