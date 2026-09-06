@@ -1,6 +1,6 @@
 # 02 - Talk through how clips are persisted
 
-**Status:** ready-for-human
+**Status:** resolved
 **Type:** grilling
 **Reported:** 2026-09-06, Ed
 
@@ -28,4 +28,27 @@ Things the chat probably needs to settle:
   an owner. Decide the ordering.
 - Whatever direction, keep decode-is-total and the frozen v1 readable.
 
+## Answer
+
+Settled in a grilling session with Ed, 2026-09-06 - recorded as
+[ADR 0056](../../../docs/adr/0056-boop-clips-stay-local.md). The short form:
+
+- The concern behind the ticket was neither durability, size, nor reach: Ed
+  wanted the guarantee that a clip, once made, is kept - un-placing or
+  replacing it in the song must never destroy it. That is already today's
+  behaviour; the ADR promotes it from accident to rule.
+- boop stays a stateless localStorage app. The account layer was deliberately
+  ruled out of this conversation ("pretend it doesn't exist"); no server, no
+  IndexedDB, no export file. localStorage's per-browser/evictable limits are
+  accepted, with share links as the manual escape hatch.
+- Size was measured out of the question for clips (~400 bytes each); only
+  recorded sounds threaten the quota, and that ticket already points at a
+  future account-layer home.
+- One feel-bad survived the session: "New boop" resets the working song and
+  loses unsaved clips. Spun out as ticket 03 (New boop safety), a UX
+  follow-up, not a persistence change.
+
 ## Comments
+
+- 2026-09-06 (grilling session): resolved as above; see ADR 0056 for the full
+  context and consequences.

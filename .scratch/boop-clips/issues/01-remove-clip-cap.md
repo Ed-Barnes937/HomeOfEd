@@ -1,6 +1,6 @@
 # 01 - Remove the 5-clip cap on a song
 
-**Status:** needs-info
+**Status:** ready-for-agent
 **Type:** task
 **Reported:** 2026-09-06, user request via Ed
 
@@ -43,3 +43,28 @@ Confirm option (1) or pick another, then this is ready-for-agent.
 - Amend ADR 0032 rather than writing a new one.
 
 ## Comments
+
+- 2026-09-06 (grilling session, Ed): needs-info answered. The tint model is a
+  **hybrid of options 1 and 2**, plus a hard ceiling the ticket's options
+  didn't surface:
+  - **Palette grows to 10 tints.** The 5 new colours are derived by the
+    implementing agent from the existing 5 (which stay exactly as the handoff
+    fixed them); Ed vetoes at review from a screenshot. `tint` becomes 0-9;
+    save-format note: a stale build meeting `tint` 5-9 rejects the boop and
+    discards the document - the same accepted stale-build class as layering.
+  - **Uniqueness holds up to 10 clips, then tints cycle**: past 10, a new clip
+    takes the least-used tint. The decoder's duplicate-tint rejection and the
+    ADR 0032 amendment's uniqueness invariant are lifted accordingly.
+  - **The cap is 35, not none.** The `placements` string indexes clips by
+    single character, so >9 clips can't be written in digits; the settled
+    encoding is digits `1`-`9` then letters `a`-`z` (clip 10 = `a`), in both
+    placement forms. Old strings are a strict subset, so every existing save
+    and share link still decodes; the writer only emits letters once a 10th
+    clip exists. Beyond 35 is out of scope for good ("no cap" for any actual
+    child).
+  - Implementer additions to the scope notes: amend ADR 0032 (as the ticket
+    says) covering all three points above, and update `apps/boop/CONTEXT.md`'s
+    **Tint** and **Song** entries (both state "at most one clip per tint" /
+    "at most 5 clips") to the shipped model. Persistence direction context:
+    [ADR 0056](../../../docs/adr/0056-boop-clips-stay-local.md) - this ticket
+    changes no storage substrate.
