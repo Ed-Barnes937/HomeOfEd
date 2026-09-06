@@ -8,7 +8,7 @@ mechanism and repro).
 
 **Blocked by:** None - can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done (built on silt-per-scene-notes, 2026-09-06)
 **Parent:** 30-witness-resync-after-progression-shrinks.md
 **Reported:** 2026-09-06, breakdown approved by Ed.
 
@@ -39,12 +39,12 @@ builds.
 
 ## Acceptance
 
-- [ ] After "Forget discoveries", re-firing a previously witnessed interaction
+- [x] After "Forget discoveries", re-firing a previously witnessed interaction
       records it again in the same session (one `.iwft`:
       forget-then-rewitness through the UI)
-- [ ] The determinism test stays green; no new work per already-witnessed
+- [x] The determinism test stays green; no new work per already-witnessed
       event in the sim core
-- [ ] Vitest at the witness-table, worker-core and host layers (resync
+- [x] Vitest at the witness-table, worker-core and host layers (resync
       replaces rather than extends; a resynced table re-reports; keys in the
       resync are not re-announced to the page)
-- [ ] ADR 0048 amended; the scoped CLAUDE.md bullet updated
+- [x] ADR 0048 amended; the scoped CLAUDE.md bullet updated
