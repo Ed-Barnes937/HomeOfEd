@@ -166,7 +166,7 @@ for (const { name, viewport } of WIDTHS) {
 test.describe('the phone, where the transport used to be', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('New boop moved into the "⋯" menu, and still resets in one tap', async ({ mountApp }) => {
+  test('New boop moved into the "⋯" menu, and still resets from there', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 

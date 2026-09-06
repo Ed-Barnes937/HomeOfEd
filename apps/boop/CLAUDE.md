@@ -85,7 +85,9 @@ src/
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
-                    form (ticket 32), the list, per-row load/rename/delete/export
+                    form (ticket 32), the list, per-row load/rename/delete/export;
+                    boopNames.ts (the automatic "Boop N") and quickSaveBoop.ts
+                    (the same save with no dialog, for the New boop keep-card)
   features/clips/   the clip chrome (boop-loops tickets 15/20/21, rehoused by
                     screenspace ticket 03):
                     ClipEditorCard.tsx — the dialog the grid opens in, over the
@@ -132,7 +134,12 @@ src/
                     same shell, but browse-by-ear — it stays open and the
                     caller applies each tap) and instrumentGroups.ts (the
                     roster as Drums / Notes / Silly, pure)
-  features/topbar/  TopBar.tsx (desktop, incl. the plain New boop reset) and
+  features/confirm/ the one confirm shape (design handoff, "Both confirms share
+                    one shape"): ConfirmCard.tsx, plus the copy each caller
+                    hands it - clearGridConfirm.ts and newBoopConfirm.ts, which
+                    also owns `wouldLoseWork`, the question that decides
+                    whether New boop asks at all (boop-clips ticket 03)
+  features/topbar/  TopBar.tsx (desktop, incl. the New boop reset) and
                     PhoneBar.tsx (the 52px strip + "⋯" menu); `useIsPhone.ts`
                     (at src/) picks the layout: ≥1024 is clip-lanes (the
                     tablet band 1024–1279 shrinks the lane grid via CSS,
@@ -229,6 +236,13 @@ share-link snapshot.
   placement change, clip add/delete/rename, or a lane reorder (ADR 0031, as
   amended). Identity is the boop's *row*, so every mutation of "My boops"
   goes through `savedState.ts`'s transitions or the ring lands on the wrong boop.
+  **"New boop" is the one action that does ask** (ADR 0031, as amended
+  2026-09-06; [ADR 0056](../../docs/adr/0056-boop-clips-stay-local.md) §2): it
+  is the only thing besides a clip delete that destroys clips, so it raises the
+  keep-card ("Keep this boop?" - Save it / Start fresh) when, and only when,
+  `wouldLoseWork` says the reset would really take something away. That is an
+  in-app card, not a browser confirm, and it is the *only* place the app may
+  ask; nothing else grows a guard.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the
   save format's own validator, cleared with `replaceState` once loaded. One

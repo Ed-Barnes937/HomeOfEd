@@ -1768,15 +1768,58 @@ export class HomePagePom extends BasePage {
   }
 
   /**
-   * The plain, no-dialog New boop reset (spec §7). It is a top-bar button at
-   * ≥1024 and the first entry in the phone's "⋯" menu, where it moved when the
-   * transport went (screenspace ticket 03) — so the phone route opens the menu
-   * first, exactly as a child would.
+   * The whole New boop reset as a child gets it, ending on the blank boop: the
+   * action, plus "Start fresh" when the keep-card is raised over it (boop-clips
+   * ticket 03). Callers who are about the *card* press the action themselves
+   * and answer it - see `newBoopSafety.iwft.tsx`.
    */
   async pressNewBoop(): Promise<void> {
+    await this.pressNewBoopAction()
+    if ((await this.keepBoopCard.count()) > 0) await this.startFresh()
+  }
+
+  /**
+   * The New boop action and nothing after it. It is a top-bar button at ≥1024
+   * and the first entry in the phone's "⋯" menu, where it moved when the
+   * transport went (screenspace ticket 03) - so the phone route opens the menu
+   * first, exactly as a child would.
+   */
+  async pressNewBoopAction(): Promise<void> {
     await this.ensureClipEditorClosed()
     if (await this.isPhoneLayout()) await this.openPhoneMenu()
     await this.newBoopButton.click()
+  }
+
+  // --- The New boop keep-card (boop-clips ticket 03) ---
+
+  private readonly keepBoopCard = this.page.getByRole('alertdialog', {
+    name: 'Keep this boop?',
+  })
+
+  async verifyKeepBoopCardShown(): Promise<void> {
+    await expect(this.keepBoopCard).toBeVisible()
+  }
+
+  async verifyNoKeepBoopCard(): Promise<void> {
+    await expect(this.keepBoopCard).toHaveCount(0)
+  }
+
+  /** The card's two choices, in the order they are drawn - the words are the design. */
+  async verifyKeepBoopCardChoices(safeLabel: string, destructiveLabel: string): Promise<void> {
+    await expect(this.confirmSafeButton).toHaveText(safeLabel)
+    await expect(this.confirmDestructiveButton).toHaveText(destructiveLabel)
+  }
+
+  /** "Save it": one tap saves the working boop under an automatic name, then resets. */
+  async saveIt(): Promise<void> {
+    await this.confirmSafeButton.click()
+    await this.verifyNoKeepBoopCard()
+  }
+
+  /** "Start fresh": the reset, exactly as it was before the card existed. */
+  async startFresh(): Promise<void> {
+    await this.confirmDestructiveButton.click()
+    await this.verifyNoKeepBoopCard()
   }
 
   /** Which chrome is mounted — `useIsPhone`'s answer, read off the DOM. */

@@ -6,8 +6,10 @@ import { test } from './testing/iwftTest.tsx'
 // The first-visit seed (tickets 36/17) and the plain New boop reset (spec §7).
 // Since ticket 17 retired the starters, a browser that has never been here is
 // seeded with a one-clip song whose clip is a sample clip (Boom clap) — it
-// still sounds like something and demos the model — and "New boop" is a
-// plain, no-dialog reset at every width.
+// still sounds like something and demos the model — and "New boop" resets to
+// one blank clip at every width, with no starters to choose from. The one card
+// it can raise is the keep-card `newBoopSafety.iwft.tsx` owns (boop-clips
+// ticket 03), which `pressNewBoop` steps past here.
 
 test('a fresh browser opens on a sample clip, and autosaves it', async ({ mountApp, page }) => {
   const first = await mountApp()
@@ -80,7 +82,7 @@ test('the seed leaves the save format alone — same shape, same version', async
 test.describe('tablet', () => {
   test.use({ viewport: { width: 1100, height: 800 } })
 
-  test('New boop is a plain reset below 1280 too: no dialog, straight to blank', async ({
+  test('New boop resets straight to blank below 1280 too', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()

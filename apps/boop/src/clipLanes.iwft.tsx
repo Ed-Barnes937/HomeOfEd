@@ -23,7 +23,11 @@ test('the old transport bar is gone; its pieces have their new homes', async ({ 
   await root.verifyCellOff('kick', 0)
 })
 
-test('New boop is a plain reset: one blank clip, no dialog, no confirm', async ({ mountApp }) => {
+// What the reset lands on. There is no starter dialog to choose from any more
+// (boop-loops ticket 07) - the only thing New boop can raise is the keep-card,
+// which `pressNewBoop` answers with "Start fresh" and `newBoopSafety.iwft.tsx`
+// owns (boop-clips ticket 03).
+test('New boop resets to one blank clip, with no starters to choose from', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
