@@ -1,6 +1,6 @@
 # 05 - Decision sitting: account direction + consolidation, together
 
-**Status:** open
+**Status:** ready-for-human
 **Type:** grilling
 **Map:** ../map.md
 Blocked by: 03, 04, 06, 07

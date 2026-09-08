@@ -64,6 +64,15 @@ and Ed's decisions. No builds, no infra mutation.
   scale-to-zero losing. Whole decision space spans ~$14/mo; account layer adds
   ~$2/mo s2z; hoe-pg needs a +$1.60/mo step (512MB node + 3GB volume) for
   SaveStore blobs at 100 users. Cost is a tiebreaker, not a decider.
+- [07 - Hosting landscape survey](issues/07-hosting-landscape-survey.md) - Fly
+  at ~$13/mo is near this estate's floor: Hetzner VPS saves ~$2/mo for the
+  highest ops burden (and UK->EU jurisdiction shift), Render/DO App Platform
+  are 2-5x on per-service pricing, Railway ~$15-25 estimated, hybrid Pages
+  saves $0.75/mo for weeks of work and amputates the ctx.auth seam, Workers+D1
+  is $0-5/mo but a foundation rewrite with fuzzy kids-data residency.
+  Shortlist: stay on Fly (and rehearse the hoe-pg restore - the real gap);
+  hold Hetzner+Coolify as a documented exit runbook only; Cloudflare Pages for
+  future genuinely-static toys at creation time.
 
 ## Not yet specified
 
@@ -81,6 +90,11 @@ and Ed's decisions. No builds, no infra mutation.
   (`.scratch/boop-clips/issues/02`), boop recorded sounds
   (`.scratch/boop-recorded-sounds/issues/01`), silt per-scene progression's
   "revisit under global accounts" note.
+
+- hoe-pg backup/restore rehearsal: the hosting survey flagged the single
+  postgres-flex node with a never-rehearsed restore as the estate's real ops
+  gap (kids' chat data). Probably its own small effort outside this map -
+  raise at the decision sitting.
 
 ## Out of scope
 
