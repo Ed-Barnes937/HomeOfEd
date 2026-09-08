@@ -56,6 +56,14 @@ and Ed's decisions. No builds, no infra mutation.
   swap in later via its ADR 0012 path), boop `boop:save` as the first slice,
   hub owning the account UI, copy-never-move localStorage import. Eight
   decisions queued for Ed; the legal gate is flagged, not solved.
+- [06 - Cost model: growth to ~100 users](issues/06-cost-model-100-users.md) -
+  scale-to-zero does NOT stop being cheap by 100 users: the leaf fleet's
+  variable cost (~$4-5/mo) lands at parity with a 1GB always-on host
+  (crossover ~34 machine-awake-h/day, estimated ~28-34 at 100 users). The
+  one-host setup's headline saving is the always-on trio collapsing, not
+  scale-to-zero losing. Whole decision space spans ~$14/mo; account layer adds
+  ~$2/mo s2z; hoe-pg needs a +$1.60/mo step (512MB node + 3GB volume) for
+  SaveStore blobs at 100 users. Cost is a tiebreaker, not a decider.
 
 ## Not yet specified
 
