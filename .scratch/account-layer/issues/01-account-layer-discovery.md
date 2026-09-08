@@ -1,6 +1,6 @@
 # 01 - Discovery: a global Account layer
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** research
 **Reported:** 2026-09-06, Ed (dev)
 
@@ -73,3 +73,15 @@ tickets [01 - Inventory](../../account-infra-discovery/issues/01-current-state-i
 and [03 - Options paper: the account layer](../../account-infra-discovery/issues/03-account-layer-options.md);
 the direction decision is queued for Ed as
 [05 - Decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md).
+
+**2026-09-06 (agent):** Discovery brief done; status moved to ready-for-human.
+The [current-state inventory](../../account-infra-discovery/issues/01-current-state-inventory.md)
+confirmed sprout's accounts are extractable in mechanism but sprout-shaped in
+model, the `ctx.auth` seam is universal, and all per-user data outside sprout is
+single-device localStorage. The
+[options paper](../../account-infra-discovery/issues/03-account-layer-options.md)
+lays out four options and recommends a fresh minimal identity service + central
+opaque-blob SaveStore (sprout swaps in later via its ADR 0012 path), boop
+`boop:save` as the first slice, and hub owning the account UI. Eight decisions
+await Ed in that paper, to be taken together with the infra-cost decisions in
+the decision sitting.

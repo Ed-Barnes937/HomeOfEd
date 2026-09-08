@@ -49,6 +49,13 @@ and Ed's decisions. No builds, no infra mutation.
   ADR 0013's key isolation). Any account service slots in additively as its own
   scale-to-zero app + logical DB in hoe-pg; no consolidation redo under any
   account option. Five decisions queued for Ed.
+- [03 - Options paper: the account layer](issues/03-account-layer-options.md) -
+  four options laid out (extract sprout / fresh identity + per-app DBs / fresh
+  identity + central SaveStore / SaveStore hosted in hub). Recommends Option C
+  (fresh minimal identity + central opaque-blob SaveStore, sprout left alone to
+  swap in later via its ADR 0012 path), boop `boop:save` as the first slice,
+  hub owning the account UI, copy-never-move localStorage import. Eight
+  decisions queued for Ed; the legal gate is flagged, not solved.
 
 ## Not yet specified
 
