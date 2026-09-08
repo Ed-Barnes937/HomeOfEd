@@ -1,9 +1,13 @@
 # 05 - Decision sitting: account direction + consolidation, together
 
-**Status:** ready-for-human
+**Status:** open
 **Type:** grilling
 **Map:** ../map.md
-Blocked by: 03, 04
+Blocked by: 03, 04, 06, 07
+
+> 2026-09-08: re-blocked at Ed's request - before the sitting he wants a cost
+> model of growth to ~100 users across setups (06) and a survey of cheap
+> hosting options beyond Fly (07). Back to ready-for-human when both resolve.
 
 ## Question
 
