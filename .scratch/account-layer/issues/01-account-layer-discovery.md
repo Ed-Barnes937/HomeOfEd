@@ -1,6 +1,6 @@
 # 01 - Discovery: a global Account layer
 
-**Status:** ready-for-human
+**Status:** resolved
 **Type:** research
 **Reported:** 2026-09-06, Ed (dev)
 
@@ -85,3 +85,19 @@ opaque-blob SaveStore (sprout swaps in later via its ADR 0012 path), boop
 `boop:save` as the first slice, and hub owning the account UI. Eight decisions
 await Ed in that paper, to be taken together with the infra-cost decisions in
 the decision sitting.
+
+**2026-09-10 (agent):** Direction DECIDED by Ed at the
+[decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md);
+resolved. The account layer is a **fresh minimal identity service + central
+opaque-blob SaveStore, one scale-to-zero "family" Fly app** with a logical DB
+in `hoe-pg` (Option C proper; hub-hosting rejected). Sprout is left alone and
+swaps in later via its ADR 0012 AuthProvider path; its ADR-0019 gate stays
+scoped to sprout. Hub owns the account UI; save wiring is browser-direct to
+the family service's tRPC with contract types in `packages/accounts`; import
+is copy-never-move with LWW-per-slot + per-app merge hooks; the layer gets
+its own fresh ADR-0019-style legal gate (household pilot + invite-code; ADR
+before any non-household account). **First slice: boop `boop:save`.** Next
+steps: spec ticket
+[08](../../account-infra-discovery/issues/08-first-slice-spec-boop.md), gate
+ADR [09](../../account-infra-discovery/issues/09-legal-gate-adr.md), consumer
+re-pointing [10](../../account-infra-discovery/issues/10-repoint-waiting-consumers.md).

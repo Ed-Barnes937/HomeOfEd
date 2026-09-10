@@ -1,6 +1,6 @@
 # 01 - Infra cost review: machine-per-app vs consolidation
 
-**Status:** ready-for-human
+**Status:** resolved
 **Type:** research
 **Reported:** 2026-09-06, Ed (dev)
 
@@ -69,3 +69,22 @@ recommends status quo + letting hub scale to zero (net ~$3.24/mo), and declines
 folding sprout-pipeline into sprout (ADR 0013 key isolation). Five decisions
 await Ed in that paper's "Decisions for Ed" list, to be taken together with the
 account-layer direction in the decision sitting.
+
+**2026-09-10 (agent):** DECIDED by Ed at the
+[decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md);
+resolved. **Consolidation: status quo, question closed** - refuted by
+measurement at 0 users AND at the ~100-user ceiling (the growth cost model in
+[ticket 06](../../account-infra-discovery/issues/06-cost-model-100-users.md)
+found fleet-vs-one-host a wash at scale). Sprout-pipeline stays its own app
+(ADR 0013 isolation kept). The remaining ~$13.30/mo is accepted as the
+baseline - the hosting survey
+([ticket 07](../../account-infra-discovery/issues/07-hosting-landscape-survey.md))
+showed Fly is near this estate's floor. **Lever A (hub scale-to-zero,
+~$3.24/mo) is deferred, not declined**: revisit once the account layer's
+first slice ships and the apex/login cold start can be felt (checkpoint
+recorded in
+[ticket 08](../../account-infra-discovery/issues/08-first-slice-spec-boop.md)).
+The account service the sitting approved slots in additively as its own
+scale-to-zero app + logical DB in hoe-pg (~$0.08/mo marginal). Spawned from
+the survey's real finding: the hoe-pg restore rehearsal effort at
+`.scratch/hoe-pg-restore-rehearsal/issues/01-restore-rehearsal.md`.

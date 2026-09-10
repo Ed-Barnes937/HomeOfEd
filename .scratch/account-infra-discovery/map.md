@@ -2,6 +2,9 @@
 
 **Label:** wayfinder:map
 **Charted:** 2026-09-06
+**Destination reached:** 2026-09-10 - both directions decided in
+[ticket 05](issues/05-decision-sitting.md); fog graduated to tickets 08-10 and
+the `.scratch/hoe-pg-restore-rehearsal/` effort.
 **Source tickets:** [account-layer discovery](../account-layer/issues/01-account-layer-discovery.md), [infra cost review](../infra-cost/issues/01-cost-consolidation-review.md)
 
 ## Destination
@@ -73,28 +76,34 @@ and Ed's decisions. No builds, no infra mutation.
   Shortlist: stay on Fly (and rehearse the hoe-pg restore - the real gap);
   hold Hetzner+Coolify as a documented exit runbook only; Cloudflare Pages for
   future genuinely-static toys at creation time.
+- [05 - Decision sitting](issues/05-decision-sitting.md) - Ed decided all 13
+  (2026-09-08/10, grilling over Lavish): fresh minimal identity service +
+  central opaque-blob SaveStore as one scale-to-zero "family" app with a
+  logical DB in hoe-pg (Option C proper - D rejected as ~$3.16/mo dearer once
+  it forfeits Lever A, and it makes hub critical); browser-direct save
+  wiring; hub owns account UI; boop `boop:save` first slice; fresh
+  ADR-0019-style legal gate (household + invite-code, ADR before any
+  non-household account); LWW-per-slot + per-app import merge hooks;
+  consolidation closed at status quo; sprout-pipeline stays isolated (ADR
+  0013); bill accepted as baseline; Lever A deferred until the first slice
+  ships. Fog graduated to tickets 08/09/10 + the hoe-pg-restore-rehearsal
+  effort.
 
 ## Not yet specified
 
-- Smallest-first-slice spec (likely one app's saves behind an account): which
-  app, what the slice contains. Tickets once Ed picks a direction.
-- Migration plan for anonymous localStorage saves (a kid must not lose their
-  boops the day accounts arrive). Sharpens after the direction decision.
-- COPPA/GDPR-K legal gate follow-up: does sprout's ADR-0019 pilot gate extend to
-  a global account layer? Flag only for now.
-- Where the account UI lives (hub? per-app? sprout?) - probably settled inside
-  the decision sitting, but may need its own ticket if it survives it.
-- If Ed picks a consolidation option: execution plan (CI deploy restructure,
-  release_command / migration story across co-hosted apps, cutover runbook).
-- Re-point waiting consumers once direction is set: boop clip persistence
-  (`.scratch/boop-clips/issues/02`), boop recorded sounds
-  (`.scratch/boop-recorded-sounds/issues/01`), silt per-scene progression's
-  "revisit under global accounts" note.
+All fog graduated or dropped at the decision sitting (2026-09-10):
 
-- hoe-pg backup/restore rehearsal: the hosting survey flagged the single
-  postgres-flex node with a never-rehearsed restore as the estate's real ops
-  gap (kids' chat data). Probably its own small effort outside this map -
-  raise at the decision sitting.
+- First-slice spec + localStorage migration plan -> [ticket 08](issues/08-first-slice-spec-boop.md)
+  (boop `boop:save`; copy-never-move; LWW-per-slot + boop merge hook).
+- COPPA/GDPR-K gate -> [ticket 09](issues/09-legal-gate-adr.md) (fresh
+  ADR-0019-style gate, sprout's stays scoped to sprout).
+- Waiting consumers -> [ticket 10](issues/10-repoint-waiting-consumers.md).
+- hoe-pg restore rehearsal -> own effort,
+  `.scratch/hoe-pg-restore-rehearsal/issues/01-restore-rehearsal.md`.
+- Account UI location: settled in the sitting (hub), no ticket needed.
+- Consolidation execution plan: moot (status quo won).
+- Lever A (hub scale-to-zero): deferred by Ed until the first slice ships;
+  checkpoint recorded in ticket 08.
 
 ## Out of scope
 
