@@ -89,6 +89,15 @@ and Ed's decisions. No builds, no infra mutation.
   ships. Fog graduated to tickets 08/09/10 + the hoe-pg-restore-rehearsal
   effort.
 
+- [08 - First-slice spec: boop saves behind a family account](issues/08-first-slice-spec-boop.md) -
+  spec written at [`.scratch/family-first-slice/spec.md`](../family-first-slice/spec.md)
+  (Draft for Ed's review): `apps/family` on ports 3010/3110/8090, two routers
+  (Better Auth identity + opaque SaveStore), `.homeofed.com` session cookie,
+  `packages/accounts` with fakes, hub `/account` route, boop sync with union
+  merge hook, `FAMILY_GO_LIVE` CI gate, Lever A checkpoint after ship. Five
+  spec-level proposals flagged for Ed (name final, Ed25519 vs HMAC, no child
+  credentials v1, slotKey/quota conventions, no email machinery v1).
+
 ## Not yet specified
 
 All fog graduated or dropped at the decision sitting (2026-09-10):
