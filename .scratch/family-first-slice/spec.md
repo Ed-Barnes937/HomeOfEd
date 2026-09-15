@@ -1,6 +1,8 @@
 # Spec: family service first slice - boop saves behind a family account
 
-**Status:** Draft - for Ed's review
+**Status:** Accepted - Ed reviewed and approved 2026-09-15 (spec as written,
+including the five flagged proposals: name `family` final, Ed25519 tokens, no
+child credentials v1, slotKey/quota conventions, no email machinery v1)
 **Written:** 2026-09-15, resolving
 [account-infra-discovery ticket 08](../account-infra-discovery/issues/08-first-slice-spec-boop.md)
 **Decisions honoured:** all 13 from
