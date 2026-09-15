@@ -62,3 +62,15 @@ build for that future, just make the scene the unit today.
       forward-compat holds per scene)
 - [ ] Unit tests at the store/format layer; one `.iwft` for
       save-load-restores-notes through the UI (pragmatic split)
+
+## Comments
+
+**2026-09-15 (agent, from the account-infra map):** the "future global-account
+layer may revisit this" note now has a decided direction - see the
+[decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md).
+A central family-service SaveStore syncs whole localStorage documents as
+opaque blobs; silt is the deliberate **second** slice (the blob-size/quota
+stress test), after boop `boop:save` proves the shape
+([first-slice spec ticket](../../account-infra-discovery/issues/08-first-slice-spec-boop.md)).
+Nothing to do here until then; scene-owned progression (ADR 0055) composes
+cleanly with it, since scenes sync as the same self-contained envelopes.

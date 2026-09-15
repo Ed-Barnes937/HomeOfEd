@@ -25,3 +25,23 @@ Grounding for that conversation:
 - Related: `.scratch/boop-clips/issues/02` (clip persistence direction).
 
 ## Comments
+
+**2026-09-15 (agent, from the account-infra map):** The BlobStore home this
+idea was missing now has a decided shape - see the
+[decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md)
+and the [first-slice spec ticket](../../account-infra-discovery/issues/08-first-slice-spec-boop.md).
+What it means here:
+
+- The **family service's central SaveStore** (opaque blobs keyed
+  `(appId, accountId, slotKey)`) is the natural off-device home for recorded
+  sounds; boop itself stays stateless. First slice is boop `boop:save` -
+  audio would come after that proves the shape (and note the spec's
+  slotKey/quota conventions are one of the proposals awaiting Ed).
+- **Sensitivity flag, from the gate ADR
+  ([ADR 0057](../../../docs/adr/0057-family-service-legal-gate.md), proposed):**
+  recorded child voice audio is explicitly named a step up from
+  boops/scenes/doodles - it never lands in the SaveStore by default, and
+  storing it re-opens the legal gate's question even inside the household
+  pilot. The shaping conversation this ticket wants must treat off-device
+  voice persistence as a deliberate, gate-citing decision, not a storage
+  detail.

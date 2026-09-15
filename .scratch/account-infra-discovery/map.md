@@ -5,6 +5,8 @@
 **Destination reached:** 2026-09-10 - both directions decided in
 [ticket 05](issues/05-decision-sitting.md); fog graduated to tickets 08-10 and
 the `.scratch/hoe-pg-restore-rehearsal/` effort.
+**Map complete:** 2026-09-15 - all tickets resolved. Awaiting Ed: the
+first-slice spec review (ticket 08) and ADR 0057 (ticket 09).
 **Source tickets:** [account-layer discovery](../account-layer/issues/01-account-layer-discovery.md), [infra cost review](../infra-cost/issues/01-cost-consolidation-review.md)
 
 ## Destination
@@ -104,6 +106,13 @@ and Ed's decisions. No builds, no infra mutation.
   child profiles never accounts, counsel + ToS/Privacy + safeguarding review
   gate any non-household account, voice audio flagged as a gate-reopening step
   up, sprout's ADR-0019 kept separate.
+
+- [10 - Re-point the waiting consumers at the decided direction](issues/10-repoint-waiting-consumers.md) -
+  boop-clips 02 (clips ride the `boop:save` blob; boop is the first slice),
+  boop-recorded-sounds 01 (SaveStore is the home, voice-audio gate flag from
+  ADR 0057 carried), and silt discovery-tree 28 (silt is the deliberate
+  second slice) all commented, no status changes. **Last open ticket - the
+  map is fully worked.**
 
 ## Not yet specified
 

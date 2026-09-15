@@ -29,3 +29,27 @@ Things the chat probably needs to settle:
 - Whatever direction, keep decode-is-total and the frozen v1 readable.
 
 ## Comments
+
+**2026-09-15 (agent, from the account-infra map):** The direction this ticket
+was waiting on is decided - see the
+[decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md)
+and the [first-slice spec ticket](../../account-infra-discovery/issues/08-first-slice-spec-boop.md)
+(spec draft at `.scratch/family-first-slice/spec.md`). What it means here:
+
+- boop stays stateless - no boop DB, ever, for saves. Durability and reach
+  land via the central **family service SaveStore**: the browser syncs the
+  whole `boop:save` document as an opaque blob under
+  `(appId: boop, accountId, slotKey)`, decoded client-side exactly as
+  localStorage is today. Clips ride inside that document as they already do
+  (`StoredPattern`s in songs); clip durability arrives with the first slice,
+  no clip-specific storage needed.
+- boop `boop:save` **is the first slice** of the account layer, so the
+  ordering question this ticket raised is answered: the account layer leads,
+  boop is its proving ground.
+- localStorage keeps working signed-out (copy-never-move import,
+  LWW-per-slot + a boop union merge hook); decode-is-total and frozen v1
+  readability are preserved by construction since the blob is the same
+  document.
+
+The grilling this ticket asked for can now react to a concrete spec rather
+than an open space.
