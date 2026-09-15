@@ -98,6 +98,13 @@ and Ed's decisions. No builds, no infra mutation.
   spec-level proposals flagged for Ed (name final, Ed25519 vs HMAC, no child
   credentials v1, slotKey/quota conventions, no email machinery v1).
 
+- [09 - Legal gate ADR for the family service](issues/09-legal-gate-adr.md) -
+  drafted as [`docs/adr/0057-family-service-legal-gate.md`](../../docs/adr/0057-family-service-legal-gate.md)
+  (proposed, awaiting Ed): household pilot behind `REGISTRATION_INVITE_CODE`,
+  child profiles never accounts, counsel + ToS/Privacy + safeguarding review
+  gate any non-household account, voice audio flagged as a gate-reopening step
+  up, sprout's ADR-0019 kept separate.
+
 ## Not yet specified
 
 All fog graduated or dropped at the decision sitting (2026-09-10):
