@@ -1,3 +1,4 @@
+import { MAX_CLIPS } from './persistence/saveFormat.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // Ticket 23: the play bar never scrolls away. Screenspace ticket 03 kept the
@@ -105,8 +106,8 @@ test.describe('laptop, the whole column', () => {
 // Screenspace ticket 04's verify list, at the two viewports it names. A short
 // window and a short laptop: the two shapes the retired compromises were each
 // written for. Every control the width offers, whole and uncovered, with the
-// page still — one clip and five, since five is the state that made the dock
-// grow and the grid starve.
+// page still - one clip and the clip cap, since a full song is the state that
+// made the dock grow and the grid starve.
 for (const [width, height] of [
   [390, 460],
   [1280, 600],
@@ -114,39 +115,24 @@ for (const [width, height] of [
   test.describe(`every control is reachable at ${width}x${height}`, () => {
     test.use({ viewport: { width, height } })
 
-    test('at one clip and at five, with the page still', async ({ mountApp }) => {
+    test('at one clip and at the cap, with the page still', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
 
       await root.verifyEveryControlIsReachable()
 
-      await fiveClips(root)
+      await root.fillClipsTo(MAX_CLIPS)
 
       await root.verifyEveryControlIsReachable()
     })
   })
 }
 
-// The five-clip cap: the most a song can hold, and so the most any bar or well
-// ever has to survive. Shared by the laptop suites below.
-async function fiveClips(root: {
-  startBlank: () => Promise<void>
-  addClip: () => Promise<void>
-  verifyClipCount: (count: number) => Promise<void>
-}) {
-  await root.startBlank()
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.addClip()
-  await root.verifyClipCount(5)
-}
-
 // The song bar grows with the song, and it is what the scrolling region holds
-// now. These are the states that has to survive: one clip and five, at both
-// laptop heights and in the tablet band. `elementFromPoint`, not viewport
+// now. These are the states that has to survive: one clip and a full song, at
+// both laptop heights and in the tablet band. `elementFromPoint`, not viewport
 // intersection, because "drawn but covered" was the old failure mode.
-test.describe('the five-clip cap', () => {
+test.describe('the clip cap', () => {
   // What the card leaves the well at these viewports, in laptop numbers: the
   // bar-numeral row (15 + 8) and two 66px rows with their 10px gap. Named for
   // what it is — `Grid.module.scss` has no floor and must not be given one —
@@ -156,7 +142,7 @@ test.describe('the five-clip cap', () => {
   test.describe('1280x600', () => {
     test.use({ viewport: { width: 1280, height: 600 } })
 
-    test('both play buttons survive one clip and five', async ({ mountApp }) => {
+    test('both play buttons survive one clip and a full song', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
 
@@ -164,7 +150,7 @@ test.describe('the five-clip cap', () => {
       await root.verifyNotOccluded('song-play-button')
       await root.verifyNothingIsScrolled()
 
-      await fiveClips(root)
+      await root.fillClipsTo(MAX_CLIPS)
 
       // The whole regression in one assertion: five clips used to leave 16px
       // of grid and a play button the song bar was swallowing.
@@ -183,7 +169,7 @@ test.describe('the five-clip cap', () => {
     }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
-      await fiveClips(root)
+      await root.fillClipsTo(MAX_CLIPS)
 
       // Ticket 25's 4px padding has to survive the box gaining a second axis.
       await root.verifyFocusRingsFitTheScrollBox('song-lanes')
@@ -194,12 +180,12 @@ test.describe('the five-clip cap', () => {
   test.describe('1440x700', () => {
     test.use({ viewport: { width: 1440, height: 700 } })
 
-    test('both play buttons survive one clip and five here too', async ({ mountApp }) => {
+    test('both play buttons survive one clip and a full song here too', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
 
       await root.verifyNotOccluded('clip-launcher-play')
-      await fiveClips(root)
+      await root.fillClipsTo(MAX_CLIPS)
       await root.verifyNotOccluded('clip-launcher-play')
       await root.verifyNotOccluded('song-play-button')
       await root.verifyClipPlayFullyInViewport()
@@ -213,10 +199,10 @@ test.describe('the five-clip cap', () => {
   test.describe('tablet band, 1100x800', () => {
     test.use({ viewport: { width: 1100, height: 800 } })
 
-    test('the tablet band keeps both play buttons at five clips', async ({ mountApp }) => {
+    test('the tablet band keeps both play buttons at the clip cap', async ({ mountApp }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
-      await fiveClips(root)
+      await root.fillClipsTo(MAX_CLIPS)
 
       await root.verifyNotOccluded('clip-launcher-play')
       await root.verifyNotOccluded('song-play-button')
@@ -263,14 +249,14 @@ test.describe('laptop, short windows — the frame must not become a page', () =
         await root.verifyNotOccluded('song-play-button')
         await root.verifyDockDoesNotGrow()
 
-        await fiveClips(root)
+        await root.fillClipsTo(MAX_CLIPS)
 
         await root.verifyStageIsAFixedFrame()
         await root.verifyNotOccluded('clip-launcher-play')
         await root.verifyNotOccluded('song-play-button')
-        // The cap's own claim, asserted rather than only written down: five
-        // clips is what used to take the dock to 476px, and it does not move
-        // the launcher by a pixel now.
+        // The cap's own claim, asserted rather than only written down: a full
+        // song is what used to take the dock to 476px (at five clips, the cap
+        // of the day), and it does not move the launcher by a pixel now.
         await root.verifyDockDoesNotGrow()
       })
     })
@@ -408,18 +394,14 @@ for (const height of [380, 420, 460, 492, 504, 505, 520]) {
   test.describe(`small phone, 390x${height}`, () => {
     test.use({ viewport: { width: 390, height } })
 
-    test('both play buttons are reachable and uncovered, at one clip and at five', async ({
+    test('both play buttons are reachable and uncovered, at one clip and at the cap', async ({
       mountApp,
     }) => {
       const { root } = await mountApp()
       await root.verifyIsShown()
 
-      for (const clips of [1, 3, 5]) {
-        if (clips > 1) {
-          await root.startBlank()
-          for (let i = 1; i < clips; i += 1) await root.addClip()
-          await root.verifyClipCount(clips)
-        }
+      for (const clips of [1, 5, MAX_CLIPS]) {
+        if (clips > 1) await root.fillClipsTo(clips)
 
         await root.verifyNotOccluded('song-play-button')
         await root.verifyNotOccluded('clip-launcher-play')

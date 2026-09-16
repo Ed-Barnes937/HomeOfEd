@@ -1,9 +1,14 @@
 /**
- * The localStorage half of field notes (spec §5). Progression is **global, not
- * per scene**: one small key of its own, holding the witnessed edge keys and
- * nothing derived - discovery, mastery and the rail unlock are all recomputed
- * from the edges by `entries.ts` on every load, so stored state can never
- * disagree with the roster it is read against.
+ * The localStorage half of field notes (spec §5, amended by ticket 28). The key
+ * holds the **working progression** - the canvas being played on right now -
+ * as witnessed edge keys and nothing derived: discovery, mastery and the rail
+ * unlock are all recomputed from the edges by `entries.ts` on every load, so
+ * stored state can never disagree with the roster it is read against.
+ *
+ * Since ticket 28 progression belongs to the scene: a save snapshots this
+ * store's `Progress` into the scene envelope (`sceneCodec.ts`), and a load
+ * `replace`s the working progression with the scene's snapshot. Nothing else
+ * swaps it - clearing the world never resets notes.
  *
  * The `FieldNotesStorage` seam is what lets all of this be tested without a
  * browser, exactly as `sceneStore.ts` does for scenes. Quota is a non-issue
@@ -46,6 +51,17 @@ export interface Progress {
 
 const EMPTY: Progress = { edges: [], reviewed: 0 }
 
+/**
+ * A watermark outside its own timeline (or absent, or nonsense) only ever means
+ * "some of what is stored is not new any more", so it is clamped, not rejected
+ * - the one rule `parse` and `replace` share.
+ */
+function clampReviewed(reviewed: unknown, edges: readonly EdgeKey[]): number {
+  return typeof reviewed === 'number'
+    ? Math.min(Math.max(Math.trunc(reviewed), 0), edges.length)
+    : 0
+}
+
 /** The stored shape, as written. `Progress` plus the version it was written at. */
 interface StoredProgress extends Progress {
   version: number
@@ -79,13 +95,7 @@ function parse(raw: string): Progress | null {
   if (version !== PROGRESS_VERSION) return null
   if (!Array.isArray(edges) || edges.some((key) => typeof key !== 'string')) return null
 
-  return {
-    edges,
-    // A watermark past the end (or absent, or nonsense) only ever means "some
-    // of what is stored is not new any more", so it is clamped, not rejected.
-    reviewed:
-      typeof reviewed === 'number' ? Math.min(Math.max(Math.trunc(reviewed), 0), edges.length) : 0,
-  }
+  return { edges, reviewed: clampReviewed(reviewed, edges) }
 }
 
 /**
@@ -146,10 +156,29 @@ export class FieldNotesStore {
   }
 
   /**
+   * Loading a scene (ticket 28): the scene's snapshot becomes the working
+   * progression wholesale - never a merge with what the browser had. An empty
+   * snapshot - which is also what a scene saved before snapshots existed
+   * decodes to - clears the key outright, exactly as `reset` does, because an
+   * empty progression is "no key", never an empty blob.
+   */
+  replace(progress: Progress): void {
+    if (progress.edges.length === 0) {
+      this.reset()
+      return
+    }
+    this.#write({
+      edges: progress.edges,
+      reviewed: clampReviewed(progress.reviewed, progress.edges),
+    })
+  }
+
+  /**
    * "Forget discoveries" (spec §5): the key goes entirely, rather than being
    * left as an empty blob claiming a player who has witnessed nothing. Note
    * what does *not* do this - clearing or reloading the world never resets
    * discovery, which is why this is the only path here that removes anything.
+   * Only an explicit scene load (`replace`) swaps the progression out.
    */
   reset(): void {
     this.#storage.removeItem(PROGRESS_KEY)

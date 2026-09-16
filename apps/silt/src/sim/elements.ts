@@ -1,5 +1,6 @@
 import { createEvaporation } from './evaporation.ts'
 import { createGrowth } from './growth.ts'
+import { createSandBank } from './sandBank.ts'
 import { createSeedBank } from './seedBank.ts'
 import { createShed } from './petals.ts'
 import { createSprout, createTip } from './stalk.ts'
@@ -35,6 +36,18 @@ export const TIP = 22
 export const STALK = 23
 export const FLOWER = 24
 export const PETAL = 25
+/**
+ * The desert (cactus spec §2). Five species for one plant, the same
+ * grower/product split the meadow is built from
+ * ([ADR 0054](../../../../docs/adr/0054-silt-sand-is-the-third-biome.md) §2):
+ * `duned` is the bank, `nub` the seedling, `apex` the grower that owns `ra`, and
+ * `cactus` / `blossom` the two products that expire.
+ */
+export const DUNED = 26
+export const NUB = 27
+export const APEX = 28
+export const CACTUS = 29
+export const BLOSSOM = 30
 
 /**
  * Out-of-bounds sentinel. Reads past the edge return this, so no element ever
@@ -617,6 +630,190 @@ const petal: ElementDef = {
   lifetime: { ticks: 80, jitter: 70, becomes: null },
 }
 
+/**
+ * The seventh hook, and the desert's half of the biome decision (cactus spec §4,
+ * [ADR 0054](../../../../docs/adr/0054-silt-sand-is-the-third-biome.md) §6): a
+ * dune waits under its roof, and raises a seedling the moment the sky over it
+ * opens. Deliberately *not* a third branch inside `seedBank.ts` - see
+ * `sandBank.ts` for why the mud bank's soak counter and depth test have no
+ * question to answer here.
+ *
+ * `sand` is the refund, not a reagent: the bed is handed straight back, because
+ * a cactus fills its tank from somewhere other than the grain it grew out of.
+ */
+const dune = createSandBank({ empty: EMPTY, nub: NUB, sand: SAND })
+
+/**
+ * The desert's raise and climb, and the whole of what ADR 0054 §3 bought: the
+ * *same two factories* the meadow uses, handed the cactus's ids and the cactus's
+ * numbers (cactus spec §4). A forked copy would have been a second copy of the
+ * never-into-water rule, the keep-awake and the prepaid budget as well.
+ *
+ * - **Height 10-16** (`heightMin: 10, heightJitter: 6`) against the meadow's
+ *   6-10: a saguaro is the tallest thing in the roster, and `createSprout`
+ *   prepays it into the apex as height + 1.
+ * - **Climb p 0.08** against the stalk's 0.3. A rate, not a split - it is what
+ *   makes the column take roughly 150 ticks to reach its height where a stalk
+ *   takes 30, which is the whole of "tall and slow".
+ * - **`flowerP: 0.3` with `cap: CACTUS`** - the terminal draw (ADR 0054 §4).
+ *   Three columns in ten crown; the rest simply stop, capped with their own
+ *   flesh. That is what makes a blossom an event rather than a stage.
+ */
+const raiseCactus = createSprout(
+  { empty: EMPTY, tip: APEX, stalk: CACTUS },
+  { heightMin: 10, heightJitter: 6 },
+)
+const climbCactus = createTip(
+  { empty: EMPTY, tip: APEX, stalk: CACTUS, flower: BLOSSOM, cap: CACTUS },
+  { climbP: 0.08, flowerP: 0.3 },
+)
+
+/**
+ * The bank (cactus spec §2): a seed bedded in a dune, and `buried`'s opposite
+ * number on the dry side of the biome decision. The `seed + sand` row at the
+ * tail of the table is what makes one.
+ */
+const duned: ElementDef = {
+  id: DUNED,
+  name: 'duned',
+  // **One word**, as every name here is: a name is a mermaid node id in the
+  // generated interaction graph and a scene's remap key.
+  //
+  // A husk darkened into the dune - between sand and seed, so a bedded grain
+  // reads as the dune having swallowed it rather than as litter lying on top.
+  // A product, so not in the design brief's swatch list; the other three follow
+  // the base by the mass rule above.
+  colours: ['#a98f54', '#98814c', '#b79a5b', '#a28951'],
+  // **Not `flammable`, and it is the whole job** - exactly `buried`'s trick
+  // (cactus spec §2). The ignition ladder and its `fire + [flammable]` fallback
+  // both key on the tag, so leaving it off is what makes the desert's bank
+  // survive a fire that clears everything standing over it. `solid` still puts
+  // it in acid's reach, which is deliberate: acid erases, fire does not.
+  tags: ['solid'],
+  // Static, so sand pouring past it does not wash the bed out from under it.
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // **No `lifetime`**, as with every grower here - but unlike the apex it
+  // claims no byte at all. `sandBank.ts` remembers nothing from tick to tick,
+  // which is why it is the second customer of the public `keepAwake`
+  // ([ADR 0044](../../../../docs/adr/0044-silt-thin-film-evaporation.md) §3)
+  // rather than the owner of a counter invented to have something to write.
+  onTick: dune,
+}
+
+/**
+ * The seedling (cactus spec §2), and `sprout`'s opposite number: it raises the
+ * apex and is spent doing it, becoming the bottom cell of the column.
+ */
+const nub: ElementDef = {
+  id: NUB,
+  name: 'nub',
+  // A grey-green seedling, duller than the meadow's sprout: desert growth reads
+  // as tougher and thirstier than the same stage in a meadow. A product, so not
+  // in the design brief's swatch list.
+  colours: ['#7fae62', '#729d58', '#89bc6a', '#7aa75e'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // **No `lifetime`**, as `sprout` has none: the nub rises on the first tick it
+  // has air, so an orphaned seedling is a cell that never got its sky rather
+  // than litter. Nothing here borrows `ra` either.
+  onTick: raiseCactus,
+}
+
+/**
+ * The grower, and the roster's **fifth `ra` claimant** (cactus spec §2). It owns
+ * the byte as the travelling energy budget and declares no lifetime, so it can
+ * never die of old age - which is exactly the shape the byte-ownership rule
+ * permits, and the revisit ADR 0043 §2.1 demands was re-run in
+ * [ADR 0054](../../../../docs/adr/0054-silt-sand-is-the-third-biome.md) §2.
+ */
+const apex: ElementDef = {
+  id: APEX,
+  name: 'apex',
+  // **One colour, not four**, exactly as the stalk tip is: the mass rule above
+  // is about heaps and walls, and the apex is a single travelling cell. Pale
+  // against the flesh it leaves behind, so the growing end is findable.
+  colours: ['#b7d98a'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // **No `lifetime`.** `ra` is the energy budget, so the byte must stay free -
+  // giving the apex a lifetime would hand it back to the engine and the column
+  // would climb on a countdown
+  // ([ADR 0043](../../../../docs/adr/0043-silt-growers-and-products-split-the-byte.md)).
+  onTick: climbCactus,
+}
+
+/**
+ * The flesh (cactus spec §2): inert column, left behind the apex, and the
+ * ordinary ending of a plant that never crowned. **The lifetime is the
+ * load-bearing half**, for the meadow's reason - a desert of immortal columns
+ * silts up exactly as a meadow of them does.
+ */
+const cactus: ElementDef = {
+  id: CACTUS,
+  name: 'cactus',
+  // Teal-leaning desert green, deliberately clear of moss's yellow-green
+  // (#4a7a34) and of the stalk's (#5f8f3c): the two biomes must not read as the
+  // same plant in a different place.
+  colours: ['#3f7d55', '#39714d', '#44875c', '#3c7852'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // 6400-8160 ticks - roughly 107 to 136 s at 60 tps, and two and a half times
+  // the stalk's, because slow is the whole character of the plant. Written
+  // coarsely for the reason every long life here is: `every: 32` makes the
+  // countdown count draws rather than ticks, so `ticks` and `jitter` are in
+  // units of 32 and 200 + 55 is exactly the one-byte cap.
+  //
+  // **The number that matters is that the minimum (6400) clears the blossom's
+  // maximum (2400)** - the hanging-flower invariant carried over from the meadow
+  // (life ticket 06): a column that crumbled first would leave a static blossom
+  // in mid-air.
+  lifetime: { ticks: 200, jitter: 55, every: 32, becomes: null },
+}
+
+/**
+ * The crown (cactus spec §2), and where the desert loop closes: a withering
+ * blossom leaves a falling seed in its own cell and throws a petal or two clear,
+ * so seed -> duned -> nub -> apex -> cactus/blossom -> seed comes round with no
+ * rule anywhere saying "reproduce" - the meadow's ending, on the dry side.
+ */
+const blossom: ElementDef = {
+  id: BLOSSOM,
+  name: 'blossom',
+  // **Four colours, and four divides `VARIANT_SLOTS`** - so each comes up in two
+  // slots in eight and a stand of them reads as a stand rather than as one
+  // flower stamped out. A desert bloom: magenta base with a yellow beside it and
+  // a paler pair behind, hot where `PASTELS` are soft.
+  colours: ['#e86fa4', '#f2c94c', '#f4a1b8', '#f7e08a'],
+  tags: ['solid', 'flammable'],
+  archetype: { kind: 'static' },
+  hardness: 0,
+  // 1600-2400 ticks (27-40 s), coarse for the flower's reason: the flat form is
+  // many times `MAX_LIFETIME_TICKS` and the registry refuses it at boot.
+  //
+  // **The death drop**, as the flower's: `becomes` is what is left *in* the cell
+  // and `emits` is what is thrown into whatever is free around it, because
+  // `onTick` never runs on the tick a lifetime expires (ADR 0043 §4). **1-2
+  // petals against the meadow's 3-4**, and that is the desert being sparse
+  // rather than a tuning slip - a blossom is already a rare event, and a fistful
+  // of petals off each one would read as a meadow's abundance.
+  lifetime: {
+    ticks: 100,
+    jitter: 50,
+    every: 16,
+    becomes: 'seed',
+    emits: { species: 'petal', min: 1, max: 2 },
+  },
+  // The shedding hook unchanged, petal and all (cactus spec §4): a living
+  // blossom lets the odd petal go at the same p 0.005, and the petal that lands
+  // on wet soil is the meadow's seed - which is the point. The bed decides the
+  // biome, so a desert bloom's petal drifting onto mud makes a meadow plant.
+  onTick: shed,
+}
+
 /** The roster (spec §4, materials spec §3). Pure config — zero behavioural code. */
 export const v1Elements: readonly ElementDef[] = [
   dirt,
@@ -644,6 +841,11 @@ export const v1Elements: readonly ElementDef[] = [
   stalk,
   flower,
   petal,
+  duned,
+  nub,
+  apex,
+  cactus,
+  blossom,
 ]
 
 /**
@@ -703,6 +905,33 @@ export const v1Reactions: readonly ReactionRow[] = [
   // meadow at all.
   { a: 'fire', b: 'flower', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
   { a: 'fire', b: 'sprout', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
+  // **The wet-tissue split, taken to its conclusion** (cactus spec §3, ADR 0054
+  // §5): a cactus is a water tank, so *all four* of its living parts steam
+  // rather than burn. The meadow split its plant by wetness - sprout and flower
+  // steam, stem and tip burn - and the desert has no dry tissue to split off.
+  //
+  // The apex is the deliberate departure from the meadow's reasoning. The stalk
+  // tip stayed on the burn ladder because it is on screen for about thirty
+  // ticks; an apex climbs at p 0.08 and so stands there for 150 or more, long
+  // enough to be the thing a player aims a flame at, and it is as wet as the
+  // column under it.
+  //
+  // **The net effect is that fire cannot clear a desert, and that is the
+  // decision** - a burning cactus hands the flame nothing, so a stand of them
+  // simply steams and stays put. Acid and old age are what remove cacti. Lava
+  // still lights them, through `lava + [flammable]` below: the wet-tissue split
+  // is about what fire *gets* from a plant, and lava is a heat source that needs
+  // nothing from anything.
+  //
+  // Rate 0.4 is the fallback's own, unchanged: these rows swap the product, not
+  // the ignition. **All four must stay above the tag row below them** - it
+  // covers every one of these pairs, and `resolvePairs` keeps the first
+  // registration and drops the rest without a word, so a reorder silently puts
+  // the desert back on the burn ladder. `fire.test.ts` pins it.
+  { a: 'fire', b: 'nub', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
+  { a: 'fire', b: 'apex', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
+  { a: 'fire', b: 'cactus', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
+  { a: 'fire', b: 'blossom', p: 0.4, aBecomes: 'fire', bBecomes: 'steam' },
   // The fallback, and the default every future flammable arrives on.
   { a: 'fire', b: 'flammable', p: 0.4, aBecomes: 'fire', bBecomes: 'fire' },
   // **The residue branch** (spec §3): open flame beside a smoldering cell
@@ -796,6 +1025,26 @@ export const v1Reactions: readonly ReactionRow[] = [
   { a: 'acid', b: 'tip', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
   { a: 'acid', b: 'flower', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
   { a: 'acid', b: 'petal', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  // **And four more, for the desert** (cactus spec §3, ADR 0054 §5). Living
+  // matter is living matter, so these are the eight above them verbatim -
+  // wood's numbers, wood's rationale, that spent acid leaves a grain behind -
+  // and they carry the same precedence warning: every cactus part is hardness 0,
+  // so the two rows below cover these pairs too and a reorder would take the
+  // residue away in silence. `acid.test.ts` pins all twelve.
+  //
+  // Named rows rather than the `plantMatter` tag the block above turned down,
+  // for that block's reason: a tag would decide membership in the element defs,
+  // and these four are exactly the "every plant part added later joins silently"
+  // case it was declining. They joined by decision.
+  //
+  // **`duned` gets no row, and that is the same ruling twice** - it is spent
+  // material like `buried`, `ember` and `ash`, so the tag rows erase it with no
+  // residue. Acid is therefore the one thing that clears a desert's bank, since
+  // fire cannot reach it at all.
+  { a: 'acid', b: 'nub', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'apex', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'cactus', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
+  { a: 'acid', b: 'blossom', p: 0.3, aBecomes: 'sulphur', bBecomes: null },
   // Two cells in, none out. `maxHardness` is checked once at boot, so stone,
   // obsidian and sulphur are not "immune" — their pairs simply do not exist.
   { a: 'acid', b: 'solid', p: 0.3, aBecomes: null, bBecomes: null, maxHardness: 1 },
@@ -882,4 +1131,28 @@ export const v1Reactions: readonly ReactionRow[] = [
   // no `fire + [flammable]` reaches it, and every water and mud row above names
   // both of its sides.
   { a: 'petal', b: 'water', p: 0.001, aBecomes: 'seed', bBecomes: 'water' },
+  // **Burial, on the dry side** (cactus spec §3, ADR 0054 §1), and the one row
+  // this whole epic turns on: sand was the roster's only dead-end bed, because
+  // it has no water row and so no route into the ground. Now it beds a seed
+  // exactly as mud does, and **no new seed species was needed** - the bed
+  // decides the biome, as `seedBank.ts` has framed germination since ADR 0043.
+  // A meadow flower's seed blown onto a dune becomes a cactus; a blossom's seed
+  // rolled onto mud becomes a meadow plant.
+  //
+  // The *sand* cell is the one that becomes the bank and the seed cell is spent,
+  // exactly as `seed + mud` does it: the bank lives in the ground, under the
+  // surface fire cannot reach. Unlike mud's, this bed is handed straight back at
+  // germination (`sandBank.ts`) - nothing is drunk.
+  //
+  // **p 0.03 against mud's 0.1, and the gap is the desert's whole attrition.**
+  // Sand is a stingier bed, so a loose seed's 1280-2000 tick rot clock is racing
+  // a burial it usually loses - which is what stops every grain of sand within
+  // reach of a meadow becoming a cactus farm, with no crowding rule anywhere
+  // saying so (cactus spec §5; measured in ticket 04).
+  //
+  // Safe at the tail of the table, and checked rather than assumed: seed is a
+  // `powder` and sand is a `powder`, so the only tag rows that could reach the
+  // pair are acid's - and both name acid on their other side. Nothing above
+  // claims it.
+  { a: 'seed', b: 'sand', p: 0.03, aBecomes: null, bBecomes: 'duned' },
 ]

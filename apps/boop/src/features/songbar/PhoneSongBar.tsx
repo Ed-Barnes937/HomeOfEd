@@ -267,7 +267,9 @@ export function PhoneSongBar({
                   data-testid={`clip-chip-${clipIndex}`}
                 >
                   <span className={styles.chipDot} aria-hidden="true" />
-                  <span className={styles.chipName}>{clip.name}</span>
+                  <span className={styles.chipName} data-testid={`clip-name-${clipIndex}`}>
+                    {clip.name}
+                  </span>
                   {count > 0 && (
                     <span className={styles.chipCount} data-testid={`clip-count-${clipIndex}`}>
                       ×{count}

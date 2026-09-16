@@ -1,6 +1,6 @@
 # 0047 - the deploy record lands on main through a PR
 
-- Status: accepted
+- Status: accepted (amended 2026-09-06 - step 2 replaced, see Amendment)
 - Date: 2026-09-04
 
 ## Context
@@ -63,3 +63,37 @@ moves from the token to the workflow triggers:
   required checks per-actor needs rulesets, not classic protection); moving
   the record out of git (the record is build-time input to hub, and git is
   what makes it reviewable and revertable).
+
+## Amendment (2026-09-06): the branch is pushed with a PAT, not dispatched at
+
+The first real record PR (#129, silt then boop deploys) disproved step 2's
+premise. The dispatched pr.yml runs went green, and their check runs did land
+on the PR's head SHA (the REST check-runs API shows `verify` and
+`real-Postgres suite` succeeding on it) - but a `workflow_dispatch` check
+suite is never *associated with the PR*: the PR's `statusCheckRollup` stays
+null, the merge box reads that rollup, so the required checks show as never
+reported and the armed auto-merge hangs forever. Four green dispatches over
+two days, zero merges. The suppression is deeper than this ADR assumed: it is
+not just the missing event, it is that no bot-side workaround's checks attach
+to the PR context branch protection actually reads.
+
+So step 2 is replaced: `record-deploys` pushes the `deploy-record` branch and
+drives its PR with **`DEPLOY_RECORD_TOKEN`** - a fine-grained PAT, Contents +
+Pull requests read/write on this repo only (creation and rotation:
+[docs/runbooks/deploy-record-token.md](../runbooks/deploy-record-token.md)).
+A PAT push raises real `pull_request` events, the required checks run in PR
+context, and the auto-merge armed in step 1 lands. pr.yml loses the now-dead
+`workflow_dispatch` trigger; the job's `GITHUB_TOKEN` permissions drop to
+`contents: read`.
+
+This is *not* the rejected "PAT pushing straight to main": the PAT pushes the
+record **branch**, the record still enters main only through the PR and its
+required checks. Recursion stays actor-independent as designed - paths-ignore
+on deployments.json plus `[skip ci]` hold whoever performs the merge.
+
+Consequences: a secret to create once and rotate on expiry (the land step
+fails with a pointed error when it is missing or expired, and the next deploy
+carries the un-landed record forward - nothing is lost); a record PR stalled
+from the dispatch era is self-healing under the new flow, because the next
+deploy's PAT force-push raises a `synchronize` event that runs the checks the
+old flow could not attach.

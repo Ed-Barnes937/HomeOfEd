@@ -217,16 +217,52 @@ describe('SimWorkerCore', () => {
     expect(reported).toHaveLength(1)
   })
 
-  it('never reports a key the page seeded - a reload does not re-discover', () => {
+  it('never reports a key the page resynced in - a reload does not re-discover', () => {
     const reported: SimPageMessage[] = []
     const world = createSharedWorld()
     const core = new SimWorkerCore(world, { report: (message) => reported.push(message) })
-    core.handle({ type: 'seedWitnessed', keys: ['react:lava+water', 'react:nothing+here'] })
+    core.handle({ type: 'resyncWitnessed', keys: ['react:lava+water', 'react:nothing+here'] })
     wetLava(core)
 
     for (let i = 0; i < 5; i++) core.handle({ type: 'step' })
 
     expect(reported).toEqual([])
+  })
+
+  it('a resync replaces what the page knows rather than extending it', () => {
+    const reported: SimPageMessage[] = []
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world, { report: (message) => reported.push(message) })
+    core.handle({ type: 'resyncWitnessed', keys: ['react:lava+water'] })
+    // The second resync is the page's whole answer, not an addition to the
+    // first: lava + water is no longer something the page knows.
+    core.handle({ type: 'resyncWitnessed', keys: ['decay:fire'] })
+    wetLava(core)
+
+    core.handle({ type: 'step' })
+
+    expect(reported).toEqual([{ type: 'witnessed', keys: ['react:lava+water'] }])
+  })
+
+  it('re-reports an interaction the session already witnessed once a resync forgets it', () => {
+    const reported: SimPageMessage[] = []
+    const world = createSharedWorld()
+    const core = new SimWorkerCore(world, { report: (message) => reported.push(message) })
+    wetLava(core)
+    core.handle({ type: 'step' })
+
+    // "Forget discoveries": the page now knows nothing, so both dedupe layers
+    // - this set and the sim's own witness table - have to let it through
+    // again (ticket 31).
+    core.handle({ type: 'resyncWitnessed', keys: [] })
+    core.handle({ type: 'reset' })
+    wetLava(core)
+    core.handle({ type: 'step' })
+
+    expect(reported).toEqual([
+      { type: 'witnessed', keys: ['react:lava+water'] },
+      { type: 'witnessed', keys: ['react:lava+water'] },
+    ])
   })
 
   it('reports through a running tick too, not only a step', () => {

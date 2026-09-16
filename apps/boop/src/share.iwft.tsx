@@ -1,5 +1,6 @@
 import { expect } from '@playwright/experimental-ct-react'
 
+import { MAX_CLIPS } from './persistence/saveFormat.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // Reading back what the button copied is the point of the test; Chromium needs
@@ -43,6 +44,32 @@ test('sharing copies a link, and opening that link loads the boop ready to play'
   await root.verifyPlaying()
   await root.fireStep() // tick 0 → step 0, the shared kick is on
   await root.verifyPlayed([{ instrumentId: 'kick', audioTime: 0.1 }])
+})
+
+// Ticket 05: the biggest song there is - 35 clips, tints repeated three and a
+// half times over, the letter `z` in its placements - has to travel in a link
+// as well as into localStorage. The link carries the save format's own bytes,
+// so this is the fragment's own ceiling rather than a second encoding's.
+test('a song at the clip cap survives a share link', async ({ mountApp }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await first.root.fillClipsTo(MAX_CLIPS)
+  await first.root.toggleLaneSquare(MAX_CLIPS - 1, 0)
+
+  await first.root.pressShare()
+  await first.root.verifyShareCopied()
+  const link = await first.root.readCopiedShareLink()
+
+  await first.root.openShareLink(link)
+  // A different visitor's browser: only the fragment, no autosave of their own.
+  await first.root.clearSavedState()
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyClipCount(MAX_CLIPS)
+  await root.verifyPlacementOn(MAX_CLIPS - 1, 0)
+  await root.verifySongLength('4 bars')
+  await root.verifyAddClipDisabled()
 })
 
 test('the "Copied!" flip reverts on its own, leaving no modal or link field behind', async ({

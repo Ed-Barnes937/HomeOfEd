@@ -162,6 +162,35 @@ describe('FieldNotesStore', () => {
     expect(new FieldNotesStore(storage).progress).toEqual({ edges: [], reviewed: 0 })
   })
 
+  test('loading a scene replaces the working progression wholesale (ticket 28)', () => {
+    store.witness(['react:lava+water', 'decay:fire'])
+    store.markReviewed()
+
+    store.replace({ edges: ['grow:moss', 'react:unobtanium+water'], reviewed: 1 })
+
+    const replaced = { edges: ['grow:moss', 'react:unobtanium+water'], reviewed: 1 }
+    expect(store.progress).toEqual(replaced)
+    // Written through, and never a merge: a reload reads the scene's progression.
+    expect(new FieldNotesStore(storage).progress).toEqual(replaced)
+  })
+
+  test('replacing with an empty snapshot clears the key, exactly as reset does', () => {
+    // A scene saved before snapshots existed loads as an empty snapshot
+    // (ticket 28, decision 1), and an empty progression is "no key", never an
+    // empty blob - the same rule `reset` states.
+    store.witness(['react:lava+water'])
+
+    store.replace({ edges: [], reviewed: 0 })
+
+    expect(store.progress).toEqual({ edges: [], reviewed: 0 })
+    expect(storage.getItem(PROGRESS_KEY)).toBeNull()
+  })
+
+  test("a snapshot's watermark is clamped into its own timeline", () => {
+    store.replace({ edges: ['decay:fire'], reviewed: 9 })
+    expect(store.progress).toEqual({ edges: ['decay:fire'], reviewed: 1 })
+  })
+
   test('progress keeps its identity until something changes', () => {
     // The hook re-renders off this identity, so a no-op witness must not
     // produce a new snapshot.

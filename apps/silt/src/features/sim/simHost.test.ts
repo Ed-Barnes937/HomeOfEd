@@ -93,17 +93,45 @@ describe('LocalSimHost', () => {
     host.dispose()
   })
 
-  it('stops calling back once unsubscribed, and never reports a seeded key', () => {
+  it('stops calling back once unsubscribed', () => {
     const host = new LocalSimHost()
     const seen: string[][] = []
     const unsubscribe = host.onWitnessed((keys) => seen.push([...keys]))
     unsubscribe()
-    host.send({ type: 'seedWitnessed', keys: ['decay:fire'] })
     wetLava(host)
 
     host.send({ type: 'step' })
 
     expect(seen).toEqual([])
+    host.dispose()
+  })
+
+  it('never announces a key the resync carried - the page already knows it', () => {
+    const host = new LocalSimHost()
+    const seen: string[][] = []
+    host.onWitnessed((keys) => seen.push([...keys]))
+    host.send({ type: 'resyncWitnessed', keys: ['react:lava+water'] })
+    wetLava(host)
+
+    host.send({ type: 'step' })
+
+    expect(seen).toEqual([])
+    host.dispose()
+  })
+
+  it('carries a resync to the core, so a forgotten first is witnessed all over again', () => {
+    const host = new LocalSimHost()
+    const seen: string[][] = []
+    host.onWitnessed((keys) => seen.push([...keys]))
+    wetLava(host)
+    host.send({ type: 'step' })
+
+    host.send({ type: 'resyncWitnessed', keys: [] })
+    host.send({ type: 'reset' })
+    wetLava(host)
+    host.send({ type: 'step' })
+
+    expect(seen).toEqual([['react:lava+water'], ['react:lava+water']])
     host.dispose()
   })
 })
@@ -142,9 +170,13 @@ describe('WorkerSimHost', () => {
     const host = hostOver(worker)
 
     host.send({ type: 'setRunning', running: true })
+    host.send({ type: 'resyncWitnessed', keys: ['decay:fire'] })
 
     expect(worker.posted[0]).toMatchObject({ type: 'init' })
     expect(worker.posted[1]).toEqual({ type: 'setRunning', running: true })
+    // The resync is a message like any other, so both hosts carry it with no
+    // second seam (ticket 31).
+    expect(worker.posted[2]).toEqual({ type: 'resyncWitnessed', keys: ['decay:fire'] })
     host.dispose()
     expect(worker.terminated).toBe(true)
   })

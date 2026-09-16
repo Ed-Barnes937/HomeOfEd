@@ -31,10 +31,12 @@ export class SimWorkerCore {
   readonly #timestep = new FixedTimestep(MS_PER_TICK)
   readonly #report: ((message: SimPageMessage) => void) | undefined
   /**
-   * Edge keys the page has already been told about - seeded at boot with what
-   * it has persisted, then grown as firsts are reported. The sim's own witness
-   * table is the hot-path guard; this is the far cheaper question of whether
-   * the *page* would learn anything from the message (discovery-tree spec §4).
+   * Edge keys the page has already been told about - set from what it has
+   * persisted by `resyncWitnessed` (at boot, and again whenever its
+   * progression is swapped out), then grown as firsts are reported. The sim's
+   * own witness table is the hot-path guard; this is the far cheaper question
+   * of whether the *page* would learn anything from the message
+   * (discovery-tree spec §4).
    */
   readonly #reported = new Set<EdgeKey>()
   #spawners: readonly Spawner[] = []
@@ -86,8 +88,16 @@ export class SimWorkerCore {
       case 'restore':
         this.#mutate(() => sim.restore(message.species, message.ra, message.rb))
         break
-      case 'seedWitnessed':
+      case 'resyncWitnessed':
+        // Replace, never extend (ticket 31): the message is the page's whole
+        // answer to "what do you know", so a progression that shrank shrinks
+        // this set with it. The sim's table is the other dedupe layer and has
+        // to go with it, or the core would keep swallowing the re-earn on the
+        // hot path where this set never gets a look in. Off the tick and
+        // touching no cell, so it stays outside `#mutate`.
+        this.#reported.clear()
         for (const key of message.keys) this.#reported.add(key)
+        sim.forgetWitnessed()
         break
     }
     this.#publish()

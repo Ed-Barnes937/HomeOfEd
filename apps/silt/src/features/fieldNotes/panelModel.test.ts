@@ -12,6 +12,12 @@ import {
   LEGEND_RULES,
   legendRows,
   pickerRows,
+  PRODUCT_JOIN,
+  REAGENT_JOIN,
+  RECENT_ROW_PX,
+  recentCapacity,
+  type RecentRow,
+  recentRows,
   ringFor,
   type Spoke,
 } from './panelModel.ts'
@@ -87,6 +93,10 @@ describe('picker ordering', () => {
       'moss',
       'ember',
       'flower',
+      // The desert lands beside the meadow, at the same depth and for the same
+      // reason: a seed in the ground germinates, and sand is on the rail
+      // already (ADR 0054).
+      'cactus',
       'vine',
       'ash',
     ])
@@ -94,7 +104,17 @@ describe('picker ordering', () => {
 
   test('a species the chart does not name gets no row at all (ticket 08)', () => {
     const names = pickerRows(viewOf()).map((row) => row.name)
-    for (const species of ['buried', 'sprout', 'tip', 'stalk', 'petal']) {
+    for (const species of [
+      'buried',
+      'sprout',
+      'tip',
+      'stalk',
+      'petal',
+      'duned',
+      'nub',
+      'apex',
+      'blossom',
+    ]) {
       expect(names).not.toContain(species)
     }
     expect(names).toContain('flower')
@@ -466,10 +486,11 @@ describe('grouped spokes (ticket 09)', () => {
   }
 
   test('the ring groups nothing while it fits, however many pairs share a result', () => {
-    // Sulphur's seven fit, so its five acid pairs stay five spokes: below the
-    // capacity, full fidelity is worth more than tidiness (decision 3).
+    // Sulphur's eight fit, so its six acid pairs stay six spokes: below the
+    // capacity, full fidelity is worth more than tidiness (decision 3). Seven
+    // and five until the desert's four plant rows folded onto one cactus spoke.
     const spokes = ringFor('sulphur', everything).spokes
-    expect(spokes).toHaveLength(7)
+    expect(spokes).toHaveLength(8)
     expect(spokes.every((spoke) => spoke.group === undefined)).toBe(true)
   })
 
@@ -488,18 +509,19 @@ describe('grouped spokes (ticket 09)', () => {
     // and what lava does to it.
     expect(grouped).toHaveLength(3)
     const [made] = grouped.filter((spoke) => spoke.direction === 'in')
-    expect(made?.group?.seen).toBe(5)
-    expect(made?.group?.total).toBe(5)
-    expect(stackOf(made)).toEqual(['wood', 'seed', 'moss', 'vine', 'flower'])
+    expect(made?.group?.seen).toBe(6)
+    expect(made?.group?.total).toBe(6)
+    expect(stackOf(made)).toEqual(['wood', 'seed', 'moss', 'vine', 'flower', 'cactus'])
 
     // The grouping key is the verb and the result, not the rows behind them:
-    // ticket 15's eight literal `acid + <plant>` rows, the wood one and the
-    // buried seed land on five charted entries (ticket 08) and, here, on one
-    // spoke. A table refactor into a `[plant]` tag row would move none of this.
+    // ticket 15's eight literal `acid + <plant>` rows, the desert's four, the
+    // wood one and the two bedded seeds land on six charted entries (ticket 08,
+    // ADR 0054) and, here, on one spoke. A table refactor into a `[plant]` tag
+    // row would move none of this.
     const raw = (made?.group?.members ?? []).flatMap(
       (member) => notes.get(member.key)?.sources ?? [],
     )
-    expect(raw).toHaveLength(10)
+    expect(raw).toHaveLength(15)
   })
 
   test('a group says what its members share, and lists the rest in the reading line', () => {
@@ -511,7 +533,7 @@ describe('grouped spokes (ticket 09)', () => {
     // Every member is `acid + something`, so acid stays in the recipe and the
     // somethings become the slot the members stand in. Nothing is elided: the
     // reading line has the room the ring never had, so the "…" is gone with it.
-    expect(readingOf(made)).toBe('acid + wood / seed / moss / vine / flower -> sulphur')
+    expect(readingOf(made)).toBe('acid + wood / seed / moss / vine / flower / cactus -> sulphur')
     expect(namesOf(made?.reading.reagents)).toEqual(['acid'])
     // One field for the tiles and the chip, so the band cannot draw a list of
     // members and a count of something else.
@@ -530,7 +552,7 @@ describe('grouped spokes (ticket 09)', () => {
 
     expect(readingOf(only)).toBe('acid + wood -> sulphur')
     expect(stackOf(only)).toEqual(['acid'])
-    expect(only?.group).toMatchObject({ seen: 1, total: 5 })
+    expect(only?.group).toMatchObject({ seen: 1, total: 6 })
     // The chip is the whole of what the group adds here, so the line carries it
     // too: without it nothing at all would say the pair is one of five.
     expect(only?.reading.group).toBe(only?.group)
@@ -541,7 +563,7 @@ describe('grouped spokes (ticket 09)', () => {
     const spokes = ringFor('sulphur', view).spokes
     const [made] = groupRing(spokes, 'sulphur', 0).filter((spoke) => spoke.direction === 'in')
 
-    expect(made?.group).toMatchObject({ seen: 2, total: 5 })
+    expect(made?.group).toMatchObject({ seen: 2, total: 6 })
     expect(stackOf(made)).toEqual(['wood', 'moss'])
   })
 
@@ -557,7 +579,8 @@ describe('grouped spokes (ticket 09)', () => {
     const [made] = groupRing(spokes, 'sulphur', 0)
 
     // Acid dissolving a plant discovers sulphur, never the plant: three of the
-    // five members are elements this player has never seen.
+    // five members witnessed here are elements this player has never seen. The
+    // sixth pair (the cactus) is not witnessed at all, so it is not a member.
     expect(made?.group?.members.map((member) => member.label)).toEqual([
       'wood',
       'seed',
@@ -580,23 +603,26 @@ describe('grouped spokes (ticket 09)', () => {
     // arrowheads at twelve o'clock. Nothing is dropped - the pairs move into
     // the stacks - so the entry count under the ring does not move either.
     const ring = ringFor('fire', everything)
-    expect(notes.entriesFor('fire')).toHaveLength(18)
+    expect(notes.entriesFor('fire')).toHaveLength(20)
     expect(ring.spokes.length).toBeLessThanOrEqual(RING_CAPACITY)
-    expect(ring.seen).toBe(18)
+    expect(ring.seen).toBe(20)
     expect(ring.stillToFind).toBe(0)
 
     const pairs = ring.spokes.reduce((sum, spoke) => sum + (spoke.group?.seen ?? 1), 0)
-    expect(pairs).toBe(18)
+    expect(pairs).toBe(20)
 
-    // Six of them are `lava + something -> lava · fire`, and lava is what they
-    // share: it stays on the line while the somethings become the stack.
+    // Seven of them are `lava + something -> lava · fire`, and lava is what they
+    // share: it stays on the line while the somethings become the stack. The
+    // cactus is on this list and not on fire's own, which is ADR 0054 §5 read
+    // straight off the ring: lava is a heat source and lights anything
+    // flammable, while fire gets nothing out of wet tissue.
     const [lava] = ring.spokes.filter(
       (spoke) => (spoke.group?.seen ?? 1) > 1 && spoke.direction === 'in',
     )
     expect(readingOf(lava)).toBe(
-      'lava + oil / sulphur / seed / moss / vine / flower -> lava · fire',
+      'lava + oil / sulphur / seed / moss / vine / flower / cactus -> lava · fire',
     )
-    expect(stackOf(lava)).toEqual(['oil', 'sulphur', 'seed', 'moss', 'vine', 'flower'])
+    expect(stackOf(lava)).toEqual(['oil', 'sulphur', 'seed', 'moss', 'vine', 'flower', 'cactus'])
   })
 
   test('a grouped ring is still every witnessed pair, and only witnessed ones', () => {
@@ -672,5 +698,92 @@ describe('the spoiler invariant (spec §7)', () => {
         .join(' ')
       for (const secret of hidden) expect(words).not.toContain(secret)
     }
+  })
+})
+
+/** A recents row as the sidebar draws it: `lava + water -> steam · obsidian`. */
+function recentOf(row: RecentRow): string {
+  const left = row.reagents.map((ref) => ref.label).join(` ${REAGENT_JOIN} `)
+  if (row.products.length === 0) return left
+  return `${left} -> ${row.products.map((ref) => ref.label).join(` ${PRODUCT_JOIN} `)}`
+}
+
+describe('the recents timeline (ticket 29)', () => {
+  test('witnessed entries come out newest first, as combination and outcome', () => {
+    const rows = recentRows(viewOf('decay:fire', 'react:lava+water'))
+
+    expect(rows.map((row) => row.key)).toEqual(['react:lava+water', 'decay:fire'])
+    // The whole story of the edge the player witnessed (ticket 33): what met,
+    // and what it left - not just the discovery at the end of it.
+    expect(rows.map(recentOf)).toEqual(['lava + water -> steam · obsidian', 'fire -> smoke'])
+  })
+
+  test('a row draws what this edge left, not the whole entry union (ticket 08)', () => {
+    // Fire burns a tip and steams a sprout: one charted `fire + flower` entry,
+    // two sources that leave different things.
+    const entry = notes.get('react:fire+flower')!
+    const bySource = new Map(entry.sources.map((source) => [source.key, source.products]))
+    const [key, products] = [...bySource].find(([, left]) => left.includes('steam'))!
+
+    const rows = recentRows(viewOf(key))
+
+    expect(rows).toHaveLength(1)
+    expect(namesOf(rows[0]!.products)).toEqual([...products])
+    expect(namesOf(rows[0]!.reagents)).toEqual([...entry.reagents])
+  })
+
+  test('every name in a row is masked like any other tile (spec §7)', () => {
+    // Dropping lava on restored mud witnesses the pair without mud ever having
+    // been discovered - the case the whole masking seam exists for.
+    const [row] = recentRows(viewOf('react:lava+mud'))
+
+    expect(namesOf(row!.reagents)).toEqual(['lava', 'mud'])
+    expect(recentOf(row!)).toBe(`lava + ${HIDDEN_NAME} -> lava · stone`)
+  })
+
+  test('a key this roster cannot resolve renders no row (spec §5)', () => {
+    const rows = recentRows(viewOf('react:unobtanium+water', 'decay:fire'))
+    expect(rows.map((row) => row.key)).toEqual(['decay:fire'])
+  })
+
+  test('one row per charted entry, held at its first witness (ticket 08)', () => {
+    // A grouped flower entry, off the live index rather than written down here.
+    const grouped = notes
+      .entriesFor('flower')
+      .map((key) => notes.get(key)!)
+      .find((entry) => entry.sources.length > 1)!
+    const [first, second] = grouped.sources.map((source) => source.key)
+
+    const rows = recentRows(viewOf(first!, 'decay:fire', second!))
+
+    // The second raw edge is progress towards mastery, not news: the entry
+    // keeps the position its first witness earned, behind the fresher decay.
+    expect(rows.map((row) => row.key)).toEqual(['decay:fire', grouped.key])
+  })
+
+  test('an entry that leaves nothing is the combination alone (spec §6)', () => {
+    const [row] = recentRows(viewOf('react:acid+dirt'))
+
+    // No products means no arrow: the row states what met and stops, rather
+    // than pointing at an empty right-hand side.
+    expect(row!.products).toEqual([])
+    expect(recentOf(row!)).toBe('acid + dirt')
+  })
+
+  test('a stage of one element life is one tile, never x -> x (ticket 08)', () => {
+    // The raise and the bloom chart as flower at both ends, so an arrow there
+    // would point an element at itself.
+    const [row] = recentRows(viewOf('raise:sprout'))
+
+    expect(row!.key).toBe('raise:flower')
+    expect(row!.products).toEqual([])
+    expect(recentOf(row!)).toBe('flower')
+  })
+
+  test('the sidebar renders whole rows only: floor of the height, never a sliver', () => {
+    expect(recentCapacity(RECENT_ROW_PX * 3)).toBe(3)
+    expect(recentCapacity(RECENT_ROW_PX * 3 - 1)).toBe(2)
+    expect(recentCapacity(0)).toBe(0)
+    expect(recentCapacity(-40)).toBe(0)
   })
 })

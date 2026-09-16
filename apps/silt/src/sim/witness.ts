@@ -148,6 +148,30 @@ export class WitnessTable {
   }
 
   /**
+   * Everything seen so far, unseen again: the tables go back to zero and
+   * anything witnessed but not yet drained is dropped. The one thing that
+   * resets the recorder (ADR 0048 point 7) - the page's progression shrank
+   * (discovery ticket 31), so a session that has already shown an interaction
+   * has to be able to show it again.
+   *
+   * A rare, message-driven operation off the tick, so it costs the hot path
+   * nothing: no per-event branch is added for it, and like every other method
+   * here it draws no `Rng` and touches no cell. The tables are refilled rather
+   * than replaced - they are the 64KB the recorder owns for the life of a
+   * `Sim`; the pending list is replaced, because `drain` hands its array to
+   * the caller and this must not reach in and empty one already handed over.
+   */
+  forget(): void {
+    this.#reactions.fill(0)
+    this.#decays.fill(0)
+    this.#growth.fill(0)
+    this.#germinations.fill(0)
+    this.#raises.fill(0)
+    this.#blooms.fill(0)
+    this.#pending = []
+  }
+
+  /**
    * The reporting edge, reached once per interaction in a session and never on
    * a tick that witnessed nothing new. A species nothing is registered under
    * cannot be named, so it is dropped rather than reported as `undefined` - its

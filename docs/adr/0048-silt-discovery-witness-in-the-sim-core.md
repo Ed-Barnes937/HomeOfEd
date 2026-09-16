@@ -60,11 +60,30 @@ reports something the engine cannot see, and how a discovery reaches the page.
    of them in the life of a roster. The `simHost` seam hides worker from local,
    and the page subscribes with a callback.
 6. **What the page already knows is filtered at the reporting edge**, not
-   seeded into the core's table: `seedWitnessed` fills a `Set` of edge keys in
+   seeded into the core's table: `resyncWitnessed` fills a `Set` of edge keys in
    `SimWorkerCore`, which is what a `witnessed` message is checked against.
+
+   **Amended by discovery ticket 31** (2026-09-06): the message *replaces* that
+   set rather than extending it, and is no longer boot-only. It is one shape -
+   "this is what the page knows" - sent at boot and again whenever the working
+   progression is swapped out from under the sim, which is what makes point 7's
+   amendment reachable from the page at all. Both hosts carry it as they carry
+   every other `SimWorkerMessage`; `useSimLoop` exposes it as
+   `resyncWitnessed`.
 7. **A `Sim` keeps what it has witnessed across `clear` and `restore`** -
-   discovery is global progression, and resetting the world does not reset it
-   (spec §5).
+   resetting the world does not reset discovery (spec §5).
+
+   **Amended by discovery ticket 31** (2026-09-06): still true for world
+   clears, and still true that nothing the simulation does resets the recorder.
+   What changed is that **an explicit progression resync is the one thing that
+   does** - `Sim.forgetWitnessed()`, driven by the message in point 6 and
+   nothing else. The bug it fixes is that the recorder deduped per session
+   while the progression it dedupes *for* can shrink mid-session ("forget
+   discoveries", and a scene load since ADR 0055): the sim swallowed the
+   re-earn, and only a reload healed it. The forget zeroes the tables and drops
+   anything pending; it is rare and message-driven, so it adds nothing to the
+   per-event hot path, and like every other method on the recorder it draws no
+   `Rng` and touches no cell.
 
 ## Consequences
 
@@ -78,8 +97,10 @@ reports something the engine cannot see, and how a discovery reaches the page.
 - Two things dedupe: the core's table (per session, on the hot path, by id) and
   the host's key set (against what has been persisted). They answer different
   questions, so the redundancy is deliberate - but a future consumer of
-  `Sim.drainWitnessed()` will see seeded firsts once per session, because the
-  table itself is never seeded.
+  `Sim.drainWitnessed()` will see resynced firsts once per session, because the
+  table is only ever cleared, never filled. Both layers move together on a
+  resync, and they have to: clearing only the host's set leaves the sim's table
+  swallowing the event before the set is ever asked (ticket 31).
 - `witness.ts` allocates 64KB of pair table per `Sim`. That is half what
   `createRegistry` already spends on its pair index, and it buys a lookup with
   no hashing.

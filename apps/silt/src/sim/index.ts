@@ -14,9 +14,13 @@ export {
 } from './constants.ts'
 export {
   ACID,
+  APEX,
   ASH,
+  BLOSSOM,
   BURIED,
+  CACTUS,
   DIRT,
+  DUNED,
   EMBER,
   EMPTY,
   FIRE,
@@ -24,6 +28,7 @@ export {
   LAVA,
   MOSS,
   MUD,
+  NUB,
   OBSIDIAN,
   OIL,
   PETAL,

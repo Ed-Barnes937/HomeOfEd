@@ -13,14 +13,13 @@
 name: PR
 
 on:
+  # This also covers the deploy-record PRs: record-deploys pushes that branch
+  # with a PAT (DEPLOY_RECORD_TOKEN), so the pull_request events fire for real
+  # and the required checks run in PR context. The workflow_dispatch loophole
+  # ADR 0047 originally used is gone - dispatched check runs never associate
+  # with the PR, so they cannot satisfy its required checks (ADR 0047, as
+  # amended 2026-09-06).
   pull_request:
-  # The deploy workflow's record-deploys job pushes its deploy-record branch
-  # with GITHUB_TOKEN, which raises no pull_request event (GitHub suppresses
-  # that token's events to stop workflow recursion), so that job dispatches
-  # this workflow onto the branch instead - workflow_dispatch is exempt from
-  # the suppression - and the check runs land on the PR's head SHA, where the
-  # branch protection required checks find them. ADR 0047.
-  workflow_dispatch:
 
 jobs:
   verify:
@@ -65,9 +64,8 @@ jobs:
         # everywhere else. Single-app PRs never hit the cap.
         run: pnpm exec turbo run lint typecheck build test --affected --concurrency=3
         env:
-          # base_ref is empty on workflow_dispatch (the deploy-record run);
-          # main is that PR's base by construction.
-          TURBO_SCM_BASE: origin/${{ github.base_ref || 'main' }}
+          # Always set on pull_request, the workflow's only trigger.
+          TURBO_SCM_BASE: origin/${{ github.base_ref }}
 
   postgres:
     name: real-Postgres suite

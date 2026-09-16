@@ -18,6 +18,7 @@ import {
   isComplete,
   momentsFor,
   queueMoments,
+  resyncCompletion,
   type Moment,
 } from './moments.ts'
 
@@ -39,8 +40,16 @@ export interface Moments {
   completing: boolean
 }
 
-/** Field notes' moments, driven by the view the rest of the page renders. */
-export function useMoments(view: FieldNotesView): Moments {
+/**
+ * Field notes' moments, driven by the view the rest of the page renders.
+ *
+ * `generation` names which progression timeline the view derives from
+ * (ticket 28): a scene load replaces the working progression wholesale, and the
+ * edges it brings in were witnessed wherever the scene was played, not just
+ * now. When it moves, the diff baseline resyncs and nothing is raised - a load
+ * is an arrival, not a witness.
+ */
+export function useMoments(view: FieldNotesView, generation: number): Moments {
   const [queue, setQueue] = useState<readonly Moment[]>([])
   const [leaving, setLeaving] = useState(false)
   const [completion, setCompletion] = useState(() => completionAtBoot(isComplete(view)))
@@ -48,14 +57,20 @@ export function useMoments(view: FieldNotesView): Moments {
   // during render - a card is a side effect of progress moving, and under
   // StrictMode's double invocation a render-phase write would swallow it.
   const previous = useRef(view)
+  const generationRef = useRef(generation)
 
   useEffect(() => {
     const before = previous.current
     previous.current = view
+    if (generationRef.current !== generation) {
+      generationRef.current = generation
+      setCompletion((current) => resyncCompletion(current, isComplete(view)))
+      return
+    }
     const arriving = momentsFor(before, view)
     if (arriving.length > 0) setQueue((current) => queueMoments(current, arriving))
     setCompletion((current) => advanceCompletion(current, isComplete(view)))
-  }, [view])
+  }, [view, generation])
 
   const card = queue[0] ?? null
 

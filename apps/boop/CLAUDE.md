@@ -47,13 +47,17 @@ src/
   persistence/      the save format + autosave (ADR 0025) — no React except the hook
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
+    favourites.ts     favourite sounds under their own key (boop:favourites) —
+                      a preference, not part of the save document; same
+                      never-throws seam idiom (+ useFavourites.ts, the hook)
     autosave.ts       debounced (2 s lull) writer of the working song
     useWorkingSong.ts hook: restore the whole song on mount, autosave on edit,
                       flush on pagehide, and seed a first visit (tickets 36/17)
   song/             the working-song domain (ticket 14) — pure, no React
     song.ts           Song/Clip types, StoredBoop↔Song conversions, and the
                       mutation kinds (placement, add/delete/rename clip, lane
-                      reorder) later tickets wire to UI
+                      reorder) later tickets wire to UI; `songHasContent` -
+                      whether there is anything in a song to lose
     songConductor.ts  song playback (ticket 16): the ~30-line layer above the
                       SequencerEngine seam — swap at step 15 on onBeat, the
                       sounding position advances on onDrawBeat
@@ -85,7 +89,9 @@ src/
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
-                    form (ticket 32), the list, per-row load/rename/delete/export
+                    form (ticket 32), the list, per-row load/rename/delete/export;
+                    boopNames.ts (the automatic "Boop N") and quickSaveBoop.ts
+                    (the same save with no dialog, for the New boop keep-card)
   features/clips/   the clip chrome (boop-loops tickets 15/20/21, rehoused by
                     screenspace ticket 03):
                     ClipEditorCard.tsx — the dialog the grid opens in, over the
@@ -95,7 +101,11 @@ src/
                     card's first row at every width; ≤1023px slims it with CSS),
                     ClipControl.tsx (Play this clip inside the grid well at
                     every width, plus clip-scoped Clear grid at ≥1024 only),
-                    clipTints.ts (the fixed 5-tint list)
+                    clipTints.ts (the fixed 10-tint list - the handoff's five
+                    plus five derived companions, ADR 0032 as amended: the one
+                    place in the app whose colours are not the handoff's own.
+                    Ten colours to 35 clips, so past the tenth a colour is
+                    shared and the clip's *name* is what names it)
   features/songbar/ SongBar.tsx — the song bar (≥1024, tickets 15/20; the
                     tablet band shrinks the lane grid to fit). The home surface
                     since screenspace ticket 03, in the scrolling region: a
@@ -131,8 +141,14 @@ src/
                     (boop-instruments ticket 05): InstrumentPicker.tsx (the
                     same shell, but browse-by-ear — it stays open and the
                     caller applies each tap) and instrumentGroups.ts (the
-                    roster as Drums / Notes / Silly, pure)
-  features/topbar/  TopBar.tsx (desktop, incl. the plain New boop reset) and
+                    roster as Drums / Notes / Silly, pure; a Favourites
+                    section leads when any sound is starred — copy, not move)
+  features/confirm/ the one confirm shape (design handoff, "Both confirms share
+                    one shape"): ConfirmCard.tsx, plus the copy each caller
+                    hands it - clearGridConfirm.ts and newBoopConfirm.ts (the
+                    New boop keep-card, boop-clips ticket 03). Copy only: when
+                    a card is raised is the page's business
+  features/topbar/  TopBar.tsx (desktop, incl. the New boop reset) and
                     PhoneBar.tsx (the 52px strip + "⋯" menu); `useIsPhone.ts`
                     (at src/) picks the layout: ≥1024 is clip-lanes (the
                     tablet band 1024–1279 shrinks the lane grid via CSS,
@@ -208,11 +224,18 @@ share-link snapshot.
   for songs by [ADR 0032](../../docs/adr/0032-boop-save-format-songs.md)). One
   versioned save document under one `localStorage` key (`boop:save`), holding
   the autosaved working grid and the "My boops" list. A stored boop is a whole
-  song: `patterns` is the clip list (≤5, optional `name`/`tint` per clip), plus
+  song: `patterns` is the clip list (≤35, optional `name`/`tint` per clip), plus
   optional `placements` (the 16 positions, comma-separated — each field the
   clips sounding there, so a position can hold several; a comma-less string is
   read in the pre-layering one-clip-per-position form) and `gridClip` — all additive, still
-  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. Anything that persists
+  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. A position names its
+  clips by **single character** - digits `1`-`9`, then letters `a`-`z` from
+  clip 10 - so old digit-only strings are a strict subset and the writer emits
+  a letter only when a clip past the ninth is placed. That alphabet's ceiling
+  **is** `MAX_CLIPS` (35), which is why raising the cap again is not an option:
+  do not widen a field to two characters, it would break every string already
+  on disk. `tint` (0-9) has no uniqueness rule - past ten clips the colours
+  repeat (boop-clips ticket 05). Anything that persists
   or shares a boop goes through `persistence/saveFormat.ts` — don't invent a
   second encoding for share links. Decode is total: corrupt or future-versioned
   data reads as an empty grid, never an error. A browser with **no** working
@@ -229,6 +252,15 @@ share-link snapshot.
   placement change, clip add/delete/rename, or a lane reorder (ADR 0031, as
   amended). Identity is the boop's *row*, so every mutation of "My boops"
   goes through `savedState.ts`'s transitions or the ring lands on the wrong boop.
+  **"New boop" is the one action that asks about losing a boop** (ADR 0031, as
+  amended 2026-09-06; [ADR 0056](../../docs/adr/0056-boop-clips-stay-local.md)
+  §2): it is the only thing besides a clip delete that destroys clips, so it
+  raises the keep-card ("Keep this boop?" - Save it / Start fresh) when, and
+  only when, the reset would really take something away - `isUnsaved(loaded)`
+  and `songHasContent(kit, song)` together, composed in `HomePage`. An in-app
+  card, never a browser confirm. Nothing else in the app may grow a
+  losing-your-work guard; the clear-grid and delete-boop confirms are about
+  their own narrow act, not about unsaved work.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the
   save format's own validator, cleared with `replaceState` once loaded. One

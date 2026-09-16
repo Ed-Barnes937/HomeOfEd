@@ -16,8 +16,10 @@ export interface TopBarProps {
   /** The saved boop this grid came from, or `null` (ticket 31) — drives the indicator. */
   loaded: LoadedBoop | null
   /**
-   * The plain, no-dialog New boop reset (boop-loops ticket 15) — rendered
-   * before "My boops" on the clip-lanes layouts (laptop and tablet, ≥1024px).
+   * The New boop reset (boop-loops ticket 15) - rendered before "My boops" on
+   * the clip-lanes layouts (laptop and tablet, ≥1024px). No starters to choose
+   * from; since boop-clips ticket 03 the page may raise its keep-card first,
+   * which is the page's business rather than the bar's.
    */
   onNewBoop?: () => void
 }

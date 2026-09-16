@@ -1,6 +1,6 @@
 # 02 - Talk through how clips are persisted
 
-**Status:** ready-for-human
+**Status:** resolved
 **Type:** grilling
 **Reported:** 2026-09-06, Ed
 
@@ -28,28 +28,38 @@ Things the chat probably needs to settle:
   an owner. Decide the ordering.
 - Whatever direction, keep decode-is-total and the frozen v1 readable.
 
+## Answer
+
+Settled in a grilling session with Ed, 2026-09-06 - recorded as
+[ADR 0056](../../../docs/adr/0056-boop-clips-stay-local.md). The short form:
+
+- The concern behind the ticket was neither durability, size, nor reach: Ed
+  wanted the guarantee that a clip, once made, is kept - un-placing or
+  replacing it in the song must never destroy it. That is already today's
+  behaviour; the ADR promotes it from accident to rule.
+- boop stays a stateless localStorage app. The account layer was deliberately
+  ruled out of this conversation ("pretend it doesn't exist"); no server, no
+  IndexedDB, no export file. localStorage's per-browser/evictable limits are
+  accepted, with share links as the manual escape hatch.
+- Size was measured out of the question for clips (~400 bytes each); only
+  recorded sounds threaten the quota, and that ticket already points at a
+  future account-layer home.
+- One feel-bad survived the session: "New boop" resets the working song and
+  loses unsaved clips. Spun out as ticket 03 (New boop safety), a UX
+  follow-up, not a persistence change.
+
 ## Comments
 
-**2026-09-15 (agent, from the account-infra map):** The direction this ticket
-was waiting on is decided - see the
+- 2026-09-06 (grilling session): resolved as above; see ADR 0056 for the full
+  context and consequences.
+
+**2026-09-15 (agent, from the account-infra map):** a footnote from the other
+direction: the account layer this session deliberately set aside is now
+decided - see the
 [decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md)
-and the [first-slice spec ticket](../../account-infra-discovery/issues/08-first-slice-spec-boop.md)
-(spec draft at `.scratch/family-first-slice/spec.md`). What it means here:
-
-- boop stays stateless - no boop DB, ever, for saves. Durability and reach
-  land via the central **family service SaveStore**: the browser syncs the
-  whole `boop:save` document as an opaque blob under
-  `(appId: boop, accountId, slotKey)`, decoded client-side exactly as
-  localStorage is today. Clips ride inside that document as they already do
-  (`StoredPattern`s in songs); clip durability arrives with the first slice,
-  no clip-specific storage needed.
-- boop `boop:save` **is the first slice** of the account layer, so the
-  ordering question this ticket raised is answered: the account layer leads,
-  boop is its proving ground.
-- localStorage keeps working signed-out (copy-never-move import,
-  LWW-per-slot + a boop union merge hook); decode-is-total and frozen v1
-  readability are preserved by construction since the blob is the same
-  document.
-
-The grilling this ticket asked for can now react to a concrete spec rather
-than an open space.
+and the [first-slice spec](../../family-first-slice/spec.md) (Accepted).
+Nothing here changes ADR 0056: boop stays a stateless localStorage app and
+clips stay local. When the boop first slice ships, the whole `boop:save`
+document syncs to the family SaveStore as one opaque blob, so clips gain
+cross-device durability by riding along - no clip-specific storage, and the
+frozen v1 format and decode-is-total are untouched.

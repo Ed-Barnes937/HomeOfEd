@@ -104,9 +104,18 @@
   }
 }
 
+// One grid cell: the sound tile plus its star, which needs to be a *separate*
+// hit target (ticket 01) — so it cannot live inside the tile's button.
+.entryCell {
+  position: relative;
+  display: flex;
+}
+
 // Geometry from the design handoff's preset row (§1); palette from §4, since
 // this sits on paper — the same trade `NewClipPicker`'s cards make.
 .entry {
+  flex: 1;
+  min-width: 0;
   padding: 10px 8px;
   border: none;
   border-radius: var(--r-preset-card);
@@ -146,6 +155,46 @@
     width: 30px;
     height: 30px;
   }
+}
+
+// The star: a kid-sized 36px hit target in the tile's top-right corner (the
+// icon itself stays 18px), drawn over the tile but its own button — a tap here
+// toggles the favourite and nothing else. It stays full-strength on a disabled
+// (already-in-clip) tile: a sound a clip holds can still be starred.
+.star {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-control);
+  background: transparent;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+}
+
+.starIcon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: rgba(20, 38, 42, 0.4);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+// Gold fill when the sound is a favourite (ticket 01).
+.star[aria-pressed='true'] .starIcon {
+  fill: #f7b733;
+  stroke: #c98f00;
 }
 
 .name {

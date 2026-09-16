@@ -46,6 +46,13 @@ describe('charted identities', () => {
       tip: 'flower',
       stalk: 'flower',
       petal: 'flower',
+      // The desert folds the same way, one biome across (cactus spec §6): a
+      // `duned` is what a seed does in sand, and the nub, the apex and the
+      // blossom are stages and parts of the one plant a player holds.
+      duned: 'seed',
+      nub: 'cactus',
+      apex: 'cactus',
+      blossom: 'cactus',
     })
   })
 
@@ -72,7 +79,14 @@ describe('deriveInteractionGraph', () => {
     // since `acid + water` was removed (ticket 16); ticket 15's eight plant rows
     // did not move it, because they *replaced* pairs the `[solid]`/`[powder]`
     // tag rows were already registering rather than adding new ones.
-    expect(graph.reactions).toHaveLength(47)
+    //
+    // 61 with the desert (ADR 0054), and the arithmetic is worth stating because
+    // most of it is *not* the eight named rows either: the burial row is one new
+    // pair, and the four living parts bring three pairs each - acid, fire and
+    // `lava + [flammable]` - while `duned` brings only acid's. The eight cactus
+    // rows themselves add nothing, for ticket 15's reason: they replace pairs
+    // the tag rows registered anyway. 47 + 1 + 12 + 1 = 61.
+    expect(graph.reactions).toHaveLength(61)
     const keys = graph.reactions.map((edge) => `${edge.a}+${edge.b}`)
     expect(new Set(keys).size).toBe(keys.length)
   })
@@ -96,16 +110,18 @@ describe('deriveInteractionGraph', () => {
 
   it('keeps the first matching row, so acid + wood leaves sulphur', () => {
     expect(products('acid', 'wood')).toEqual(['sulphur', 'empty'])
-    expect(pair('acid', 'wood')?.source).toBe('row 17 (acid + wood)')
+    expect(pair('acid', 'wood')?.source).toBe('row 21 (acid + wood)')
     // The generic row it precedes digs a cavity instead.
     expect(products('acid', 'dirt')).toEqual(['empty', 'empty'])
   })
 
   it('gives every fuel on the ignition ladder its own row, ahead of the flammable fallback', () => {
-    // Burnables gave each historical fuel its own probability (spec §1), and the
-    // land plant's wet tissue steams on its own rows too, so the generic
+    // Burnables gave each historical fuel its own probability (spec §1), and
+    // both plants' wet tissue steams on its own rows too, so the generic
     // `fire + flammable` tag row (still present for the next fuel that arrives
-    // without one) never wins attribution for any of these eight today.
+    // without one) never wins attribution for any of these twelve today. The
+    // desert's four are all wet (ADR 0054 §5), which is why a cactus is on this
+    // list without being a fuel at all.
     const laddered = graph.reactions
       .filter(
         (edge) =>
@@ -116,8 +132,12 @@ describe('deriveInteractionGraph', () => {
       .map((edge) => (edge.a === 'fire' ? edge.b : edge.a))
 
     expect(laddered.toSorted()).toEqual([
+      'apex',
+      'blossom',
+      'cactus',
       'flower',
       'moss',
+      'nub',
       'oil',
       'seed',
       'sprout',
@@ -142,13 +162,23 @@ describe('deriveInteractionGraph', () => {
     // Burnables broke `fire + flammable` up into a per-fuel ignition ladder
     // (ADR 0042), so `lava + flammable` is the tag row left to expand - and
     // wood is absent from it because `lava + wood` (chars it to ember) precedes.
+    //
+    // The desert's four are here, and that is the ruling rather than a leak
+    // (ADR 0054 §5): the wet-tissue split is about what *fire* gets from a
+    // plant, and lava is a heat source that needs nothing from anything - it
+    // lights the meadow's wet parts on this same row already. `duned` is absent
+    // because it carries no `flammable` tag at all, so no heat reaches the bank.
     const fuels = graph.reactions
       .filter((edge) => edge.source.endsWith('(lava + flammable)'))
       .map((edge) => (edge.a === 'lava' ? edge.b : edge.a))
 
     expect(fuels.toSorted()).toEqual([
+      'apex',
+      'blossom',
+      'cactus',
       'flower',
       'moss',
+      'nub',
       'oil',
       'seed',
       'sprout',
@@ -175,6 +205,17 @@ describe('deriveInteractionGraph', () => {
         emits: { species: 'petal', min: 3, max: 4 },
       },
       { from: 'petal', becomes: 'empty', minTicks: 80, maxTicks: 150 },
+      // The desert's two products, and the hanging-flower invariant is readable
+      // straight off them: the flesh's 6400 clears the blossom's 2400, so a
+      // column never crumbles out from under a living crown (ADR 0054 §2).
+      { from: 'cactus', becomes: 'empty', minTicks: 6400, maxTicks: 8160 },
+      {
+        from: 'blossom',
+        becomes: 'seed',
+        minTicks: 1600,
+        maxTicks: 2400,
+        emits: { species: 'petal', min: 1, max: 2 },
+      },
     ])
   })
 
@@ -222,7 +263,7 @@ describe('deriveInteractionGraph', () => {
    * declared, not derived - a change to `seedBank.ts` or `stalk.ts` has to be
    * mirrored here by hand, and this fixture is what says so out loud.
    */
-  it('declares the four hook edges: two germinations, the raise and the bloom', () => {
+  it('declares the seven hook edges: the meadow’s four and the desert’s three', () => {
     expect(
       graph.hooks.map((edge) => ({
         key: `${edge.kind}:${edge.name}`,
@@ -234,10 +275,23 @@ describe('deriveInteractionGraph', () => {
       { key: 'germinate:sprout', reagents: ['buried'], products: ['sprout'] },
       { key: 'raise:sprout', reagents: ['sprout'], products: ['tip', 'stalk'] },
       { key: 'bloom:tip', reagents: ['tip'], products: ['flower'] },
+      // The desert's chain (cactus spec §6). Its germination is one entry rather
+      // than the mud bank's two, because the bed already committed the biome and
+      // there is nothing left to decide; the sand refund is not a product, on
+      // the same reading the dirt refund gets.
+      { key: 'germinate:nub', reagents: ['duned'], products: ['nub'] },
+      { key: 'raise:nub', reagents: ['nub'], products: ['apex', 'cactus'] },
+      // **The two-product bloom** (ADR 0054 §4), and the shape carried it with
+      // no change at all: `products` was already a list - the raise above proves
+      // it - and the mermaid pass draws one arrow per product. What it could not
+      // carry is the 0.3 split, because `p` on a hook edge means "chance the
+      // hook fires" and this bloom is certain once the apex is finished; that
+      // goes in the outcome string, where a hook's conditions already live.
+      { key: 'bloom:apex', reagents: ['apex'], products: ['blossom', 'cactus'] },
     ])
-    // The climb, petal shedding, evaporation and the dirt refund are not
+    // The climb, petal shedding, evaporation and both bed refunds are not
     // entries (ticket 07's NOT list), so nothing else is declared.
-    expect(graph.hooks).toHaveLength(4)
+    expect(graph.hooks).toHaveLength(7)
   })
 })
 

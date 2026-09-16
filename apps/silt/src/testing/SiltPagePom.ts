@@ -441,6 +441,88 @@ export class SiltPagePom extends BasePage {
     )
   }
 
+  /**
+   * The recents sidebar's rows (ticket 29), top to bottom, each read as the
+   * recipe it draws - `dirt + water -> mud` (ticket 33). Off the rendered
+   * words, not the row's key: a row is a combination and an outcome now, and
+   * what a player reads off it is the thing worth asserting. One element per
+   * child span - a stacked tile's own name, a separator - so joining them with
+   * spaces is the line as it is laid out.
+   *
+   * Read in one evaluation, not per-locator: the sidebar re-renders as the
+   * panel resizes, and an `nth()` read of a row that has just unmounted would
+   * wait on it forever.
+   */
+  async recentRows(): Promise<string[]> {
+    return this.page
+      .locator('[data-testid^="field-notes-recent-"]')
+      .evaluateAll((rows) =>
+        rows.map((row) =>
+          [...row.children].map((part) => part.textContent?.trim() ?? '').join(' '),
+        ),
+      )
+  }
+
+  /** The phone sheet keeps its layout as it is: no sidebar there (ticket 29). */
+  async verifyNoRecentsSidebar(): Promise<void> {
+    await expect(this.page.getByTestId('field-notes-recents')).toHaveCount(0)
+  }
+
+  /**
+   * Whole rows only (ticket 29): every rendered row sits fully inside the
+   * sidebar's own box - nothing clipped, nothing to scroll for - and, since the
+   * row became a stacked recipe (ticket 33), holds its own content at the row
+   * height the capacity was computed from. That second half is what stops
+   * `RECENT_ROW_PX` drifting away from what the layout actually measures.
+   *
+   * The names are measured too, and separately, because they are the one thing
+   * a passing `recentRows()` cannot vouch for: an ellipsised name still reads
+   * whole in `textContent`, so `obsidian` shown as `obs…` would slip through
+   * every other assertion here. A roster with a longer name than the column
+   * fits fails this rather than quietly abbreviating on screen.
+   *
+   * One evaluation over the whole list, for the same reason `recentRows` is:
+   * the sidebar re-renders under a resize.
+   */
+  async verifyRecentRowsFitTheSidebar(): Promise<void> {
+    const fits = await this.page.getByTestId('field-notes-recents').evaluate((sidebar) => {
+      const box = sidebar.getBoundingClientRect()
+      return [...sidebar.querySelectorAll('[data-testid^="field-notes-recent-"]')].map((row) => {
+        const rect = row.getBoundingClientRect()
+        // The row's own content, measured rather than inferred from
+        // `scrollHeight`: a span with visible overflow reports no overflow.
+        const parts = [...row.children].map((part) => part.getBoundingClientRect())
+        // A tile is the only child with children of its own - the plate and the
+        // name under it; a separator is bare text.
+        const names = [...row.children].flatMap((part) =>
+          part.children.length > 1 ? [part.lastElementChild!] : [],
+        )
+        return {
+          above: rect.top - box.top,
+          below: box.bottom - rect.bottom,
+          spillY: Math.max(
+            ...parts.map((part) => Math.max(rect.top - part.top, part.bottom - rect.bottom)),
+          ),
+          spillX: Math.max(
+            ...parts.map((part) => Math.max(rect.left - part.left, part.right - rect.right)),
+          ),
+          ellipsised: Math.max(...names.map((name) => name.scrollWidth - name.clientWidth)),
+        }
+      })
+    })
+
+    expect(fits.length).toBeGreaterThan(0)
+    for (const row of fits) {
+      expect(row.above).toBeGreaterThanOrEqual(-0.5)
+      expect(row.below).toBeGreaterThanOrEqual(-0.5)
+      expect(row.spillY).toBeLessThanOrEqual(0)
+      expect(row.spillX).toBeLessThanOrEqual(0)
+      // A pixel of tolerance: both figures are rounded to integers, so a name
+      // measuring 30.6px can report a 31px scroll width in a 30px box.
+      expect(row.ellipsised).toBeLessThanOrEqual(1)
+    }
+  }
+
   /** An undiscovered element keeps its slot but is not a control (spec §7). */
   async verifyNoteRowIsInert(name: string): Promise<void> {
     const row = this.page.getByTestId(`field-notes-row-${name}`)

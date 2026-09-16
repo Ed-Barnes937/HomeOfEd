@@ -55,7 +55,8 @@ take per-pattern fields later.
    share links open as a one-clip song with an empty song bar — the decoder
    adds nothing the child didn't make. (An empty song playing the grid clip is
    today's behaviour, so the round-trip is byte-honest.)
-6. **Decode stays strict and all-or-nothing.** More than 5 patterns, a
+6. **Decode stays strict and all-or-nothing.** More than 5 patterns (10, then
+   35, since the two 2026-09-06 amendments), a
    placement digit referencing a clip that doesn't exist, or an out-of-range
    `gridClip` makes the boop invalid — and one invalid boop discards the whole
    document, per ADR 0025. These documents have a single writer; violations
@@ -76,6 +77,9 @@ take per-pattern fields later.
   and reorder rewrites `placements` in the same update.
 - The 16-char placement string caps the clip ceiling at 9 for as long as the
   field exists. Accepted knowingly: the product cap is 5, one tint per clip.
+  *(Superseded by the 2026-09-06 amendments: clips are indexed by single
+  character rather than single digit, the cap is the alphabet's own ceiling of
+  35, and a tint is no longer unique to a clip.)*
 - The stale-build clobber risk in (1) and (6) is documented, not mitigated.
   If boop ever stops being a single self-hosted app, revisit before relaxing
   anything else (ADR 0025 already flags the same boundary).
@@ -94,6 +98,10 @@ duplicate `tint` invalidates the boop). Uniqueness is checked on **effective**
 tints — an absent `tint` counts as the pattern's position — so a stated tint
 colliding with another pattern's default is also invalid; the single writer
 never mixes stated and defaulted tints, so a mix that collides is corruption.
+*(The tint's travelling with its clip stands. Everything from "New clips and
+copies" on is superseded by the cycling amendment (2026-09-06): a new clip
+takes the least-used tint, duplicate tints are legal data, and the defaulted
+tint wraps at the palette.)*
 
 ## Amendment (2026-08-15): a position holds any number of clips
 
@@ -127,3 +135,114 @@ the 5-clip cap: a position may hold all five.
 - **A layered position is still one position.** It occupies one slot in the
   song, counts once in the bars readout, and the grid shows its **topmost lane**
   while it sounds, since the grid can only show one clip.
+
+## Amendment (2026-09-06): ten clips, ten tints, and clips indexed by character
+
+Resolving [Ten clips, ten tints](../../.scratch/boop-clips/issues/04-ten-clips-ten-tints.md)
+(the tint-model half of
+[Remove the 5-clip cap](../../.scratch/boop-clips/issues/01-remove-clip-cap.md);
+persistence direction unchanged - [ADR 0056](0056-boop-clips-stay-local.md)).
+Five clips ran out before a child's song did, and the cap was never about
+storage: `MAX_CLIPS = TINT_COUNT`, one clip per tint. So the palette grows and
+the cap follows it.
+
+- **`TINT_COUNT` and `MAX_CLIPS` become 10.** The handoff's five clip tints are
+  untouched; the five new ones are their companions, derived from the handoff's
+  own instrument hues and the gaps those leave in the hue circle
+  (`features/clips/clipTints.ts` records which is which). `tint` is now 0–9.
+  **One tint per clip still holds** in this regime - a new clip takes the lowest
+  unused tint, exactly as before - so decision (6)'s duplicate-tint rejection
+  and the 2026-08-13 amendment's uniqueness invariant stand as written. (Past
+  ten, tints cycle and the invariant lifts; that is
+  [ticket 05](../../.scratch/boop-clips/issues/05-thirty-five-clips-cycling-tints.md),
+  not this amendment.)
+- **A `placements` field indexes clips by single character: digits `1`–`9`,
+  then letters from `a` (clip 10)** - in both forms, superseding decision (3)'s
+  "single-digit characters cap any future clip ceiling at 9". The digits are
+  unchanged, so every string already on disk or in a link is a **strict subset**
+  of the new encoding and decodes to the same song. The writer emits a letter
+  only when a clip past the ninth is actually placed: a song of nine clips or
+  fewer is still written byte-identically to what earlier builds wrote, which
+  keeps the stale-build blast radius exactly as small as the layering
+  amendment's. The alphabet itself allows 35 clips (`1`–`9`, `a`–`z`); the
+  product cap is what stops at 10. *(Superseded by the cycling amendment: the
+  cap is the alphabet's ceiling, 35.)*
+- **Decode stays total and all-or-nothing** (decision 6). A character past the
+  clip list is dangling, and so is one past the cap; the two placement forms
+  still never mix. **The stale-build class is the accepted one:** an
+  un-refreshed old tab meeting `tint` 5–9, an 11th pattern, or the letter `a`
+  rejects that boop, and one invalid boop discards the whole save document
+  (ADR 0025) - the same risk decision (1) and the layering amendment accepted,
+  and it can only be tripped by a song a child has genuinely grown past five
+  clips. Not mitigated, documented: boop is one self-hosted app and a refresh
+  is the fix.
+- **Nothing else moves.** No version bump, no new field, no
+  `SHARE_FORMAT_VERSION` bump (decision 7): the share codec calls the same
+  decoder and a ten-clip song travels in a link unchanged. The UI's answer to
+  ten lanes is the overflow shape the boxes already had - the clip shelf, the
+  lanes and the song-position picker scroll inside their own scrollers (the
+  nested scrollers ADR 0030 was amended for), so playback still never scrolls
+  for the child.
+
+## Amendment (2026-09-06): thirty-five clips, cycling tints
+
+The second half of the same day's work, resolving
+[Thirty-five clips, cycling tints](../../.scratch/boop-clips/issues/05-thirty-five-clips-cycling-tints.md)
+and finishing [Remove the 5-clip cap](../../.scratch/boop-clips/issues/01-remove-clip-cap.md).
+The amendment above took the cap to ten because a tint had to be a clip's
+unique name; that is what the owner lifted. Read the two together: the
+encoding is that amendment's, the numbers and the tint rule are these.
+
+- **`MAX_CLIPS` is 35 - the placement alphabet's own ceiling** (`1`–`9`,
+  `a`–`z`), *derived* from the alphabet rather than stated beside it, so the
+  legal set of clip characters is exactly what this build can write and a
+  character past the cap can only ever be dangling. 35 is "no cap" for any
+  actual child, and raising it again is not a `MAX_CLIPS` edit but a change of
+  encoding: widening a field to two characters would break every string
+  already on disk or in a link. `TINT_COUNT` stays 10, so the two constants
+  are no longer one decision.
+- **One tint per clip is lifted; tints cycle.** A new clip takes the
+  **least-used** tint, the lowest of them on a tie - so ten clips still wear
+  ten colours (the tie-break makes "least-used" mean "lowest unused" while any
+  tint is unused, which is the previous regime exactly), the eleventh starts
+  the palette again, and 35 clips spread three to four apiece over the ten. A
+  tint is still the clip's **for its whole life**: cycling changes what a clip
+  is *given at birth*, and nothing ever recolours a clip that exists. The
+  decoder's duplicate-tint rejection is therefore **gone** (superseding the
+  2026-08-13 amendment's uniqueness invariant, and the part of decision (6)
+  that enforced it): two clips on one tint is data, and every other decode
+  rule stands - `tint` is still an integer 0–9 or the boop is invalid.
+- **A tint stops naming a clip, so the name does it.** Past ten clips a colour
+  is shared, which is only readable because every place a clip shows already
+  carries its name: the chip in the shelf (tint dot *plus* name plus ×n), the
+  dock launcher ("Edit <name>"), and every lane square's own label
+  ("<name>, position 4, on"). The tint's job narrows to "this lane, these
+  squares and that dot are one clip" - which is what a child follows while a
+  clip is on screen, and needs no uniqueness. Thumbnails were never at risk:
+  the ones in "My boops" and the "+ New clip" picker are drawn in ink, not in
+  tints.
+- **The reader's default for an absent tint wraps at the palette.** ADR 0032's
+  default was the clip's own position, which past the tenth position is not a
+  tint at all; it is now the position modulo `TINT_COUNT`. Under ten clips that
+  is the position, unchanged - and every document the app writes states its
+  tints, so only a hand-made or corrupt document takes the branch. Without the
+  wrap such a document would decode to a tint the palette has no colour for and
+  then fail to decode once written back.
+- **Decode stays total and all-or-nothing** (decision 6), and the **stale-build
+  class is the accepted one** again, now for the letters `b`–`z` and for
+  duplicate tints. A pre-ticket-04 tab rejects any boop naming a clip past the
+  ninth, exactly as it does for `a`; a *ticket-04* tab (ten clips, uniqueness
+  still enforced) additionally rejects a boop with two clips on one tint, and
+  by ADR 0025 one invalid boop discards the whole save document. Only a song a
+  child has genuinely grown past ten clips can trip it. Not mitigated,
+  documented: boop is one self-hosted app, a refresh is the fix, and the
+  writer keeps the blast radius as small as it can - a song of nine clips or
+  fewer is still written byte-identically to what every earlier build wrote.
+- **Nothing else moves.** No version bump, no new field, no
+  `SHARE_FORMAT_VERSION` bump: a 35-clip song travels in a link through the
+  same decoder. The UI needed no new overflow either - the clip shelf, the
+  lanes and the song-position picker scroll inside the scrollers they already
+  had. One measured consequence at the cap: on a 390x844 phone the song bar's
+  own scroller takes almost all of the 35 lanes and the region the last 12px,
+  which ADR 0030 allows (the *page* is what may never move); at ten clips
+  neither box had anything to scroll.

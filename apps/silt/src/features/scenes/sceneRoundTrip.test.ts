@@ -19,7 +19,10 @@ import {
   WATER,
   type ElementDef,
 } from '../../sim/index.ts'
-import { decodeScene, encodeScene } from './sceneCodec.ts'
+import { decodeScene, encodeScene, type SceneFieldNotes } from './sceneCodec.ts'
+
+/** These cases are about the cells; the snapshot's own rules live in `sceneCodec.test.ts`. */
+const NO_NOTES: SceneFieldNotes = { edges: [], reviewed: 0 }
 
 /** An element with a lifetime, so `ra` carries a real countdown to round-trip.
  * Test-only, and named *and numbered* to stay out of the roster's way - the
@@ -58,7 +61,7 @@ it('a painted, simmed world survives encode → decode → restore pixel-identic
   expect(planeOf(sim, CLOCK_OFFSET).some((value) => value > 0)).toBe(true)
 
   const spawners = [{ x: 10, y: 10, element: WATER }]
-  const envelope = encodeScene(sim, spawners, sim.registry)
+  const envelope = encodeScene(sim, spawners, sim.registry, NO_NOTES)
 
   const loaded = new Sim({ elements: roster, reactions: v1Reactions })
   const scene = decodeScene(
@@ -144,7 +147,7 @@ it('a built meadow keeps its bed, its stone pond and its pre-aged plants across 
   for (const [x, grown] of ages) plantAt(sim, x, grown, 10 - grown)
   sim.paint(115, floor - 1, SPROUT)
 
-  const envelope = encodeScene(sim, [], sim.registry)
+  const envelope = encodeScene(sim, [], sim.registry, NO_NOTES)
   const loaded = new Sim({ seed: 1 })
   const scene = decodeScene(
     JSON.stringify(envelope),

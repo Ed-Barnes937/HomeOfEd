@@ -23,10 +23,31 @@ import {
 export const SAVE_FORMAT_VERSION = 1
 
 /** The fixed tint list has exactly this many colours; `tint` indexes into it. */
-export const TINT_COUNT = 5
+export const TINT_COUNT = 10
 
-/** Hard cap on clips per boop — one per tint (ADR 0032, spec §2). */
-export const MAX_CLIPS = TINT_COUNT
+/**
+ * The characters a `placements` string indexes clips by, one per clip: digits
+ * `1`–`9`, then letters from `a` for clip 10 (ADR 0032, as amended by
+ * boop-clips tickets 04 and 05).
+ *
+ * The digits are the pre-letter encoding unchanged, so every placements string
+ * already on disk or in a share link is a strict subset of this one.
+ */
+const PLACEMENT_CHARS = '123456789abcdefghijklmnopqrstuvwxyz'
+
+/**
+ * Hard cap on clips per boop: the ceiling of the single-character placement
+ * encoding, which is *why* it is a cap at all (ADR 0032, as amended by
+ * boop-clips ticket 05 - "no cap" for any actual child). Derived from the
+ * alphabet rather than stated, so the legal set of clip characters is exactly
+ * what this build can write and a character past the cap can only ever be
+ * dangling. A bigger cap would mean widening the field, which every string on
+ * disk forbids.
+ *
+ * It used to be `TINT_COUNT` - one clip per tint. Past ten clips the tints
+ * repeat instead (`addClip`), so the two numbers are no longer one decision.
+ */
+export const MAX_CLIPS = PLACEMENT_CHARS.length
 
 /** A song is fixed at 16 positions; `placements` is one field per position. */
 export const SONG_POSITIONS = 16
@@ -38,6 +59,20 @@ export const SONG_POSITIONS = 16
  */
 const PLACEMENT_SEPARATOR = ','
 
+/** The character standing for a clip index in a `placements` string. */
+function placementChar(clipIndex: number): string {
+  return PLACEMENT_CHARS[clipIndex]!
+}
+
+/**
+ * The clip index a placements character names, or `-1` for none. The empty
+ * string is named explicitly: `indexOf('')` answers 0, which would read a
+ * character that is not there as clip 1.
+ */
+function placementClipIndex(char: string): number {
+  return char === '' ? -1 : PLACEMENT_CHARS.indexOf(char)
+}
+
 /** One instrument's 16 cells as a bitstring, e.g. `1000100010001000`. */
 export interface StoredRow {
   instrumentId: string
@@ -48,19 +83,20 @@ export interface StoredRow {
  * One pattern — the storage shape of a **clip** (ADR 0032: the field keeps its
  * frozen V1 name while the domain says Clip). `name` and `tint` are optional
  * and additive: the decoder passes them through when present and adds nothing
- * when absent — defaults ("Clip N", tint = position) are the reader's job, so
- * an old document round-trips byte-honest.
+ * when absent — defaults ("Clip N", and the position wrapped at the palette
+ * for the tint) are the reader's job, so an old document round-trips
+ * byte-honest.
  */
 export interface StoredPattern {
   rows: readonly StoredRow[]
   name?: string
-  /** Index into the fixed 5-tint list (0–4), unique per clip. */
+  /** Index into the fixed 10-tint list (0–9). Clips past the tenth repeat one. */
   tint?: number
 }
 
 /**
  * A boop: a named thing a child made — since ADR 0032, a whole **song**.
- * `patterns` is the clip list (1–5, order is lane order). `placements` and
+ * `patterns` is the clip list (1–35, order is lane order). `placements` and
  * `gridClip` are optional and additive: absent on every pre-song document,
  * which therefore decodes as a one-clip song with an empty song bar.
  */
@@ -70,10 +106,11 @@ export interface StoredBoop {
   tempo: number
   patterns: readonly StoredPattern[]
   /**
-   * The 16 song positions, comma-separated: each field is the 1-based clip
-   * indices sounding there, ascending, and an empty field is an empty position
-   * (e.g. `"1,12,,3,,,,,,,,,,,,"`). Several digits in one field is a layered
-   * position — several clips sounding together.
+   * The 16 song positions, comma-separated: each field is the clip characters
+   * sounding there (digits `1`–`9`, then `a`–`z` from clip 10), ascending, and an
+   * empty field is an empty position (e.g. `"1,12,,3,,,,,,,,,,,,"`). Several
+   * characters in one field is a layered position - several clips sounding
+   * together.
    *
    * A pre-layering string is also read: no commas, one character per position,
    * `.` empty (e.g. `"1112..3311......"`).
@@ -154,11 +191,11 @@ export function storedToPattern(kit: Kit, stored: StoredPattern): Pattern {
  */
 export function placementsToStored(placements: readonly (readonly number[])[]): string {
   if (placements.every((clips) => clips.length <= 1)) {
-    return placements.map((clips) => (clips[0] === undefined ? '.' : String(clips[0] + 1))).join('')
+    return placements
+      .map((clips) => (clips[0] === undefined ? '.' : placementChar(clips[0])))
+      .join('')
   }
-  return placements
-    .map((clips) => clips.map((clipIndex) => String(clipIndex + 1)).join(''))
-    .join(PLACEMENT_SEPARATOR)
+  return placements.map((clips) => clips.map(placementChar).join('')).join(PLACEMENT_SEPARATOR)
 }
 
 /**
@@ -170,7 +207,7 @@ export function storedToPlacements(placements: string): readonly (readonly numbe
   return placementFields(placements).map((field) =>
     Array.from(field)
       .filter((char) => char !== '.')
-      .map((char) => Number(char) - 1)
+      .map(placementClipIndex)
       .sort((a, b) => a - b),
   )
 }
@@ -237,11 +274,8 @@ export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
     decoded.push(pattern)
   }
 
-  // One tint per clip (ADR 0032 amendment). An absent tint defaults to the
-  // pattern's own position, so uniqueness is checked on the effective values.
-  const tints = decoded.map((pattern, index) => pattern.tint ?? index)
-  if (new Set(tints).size !== tints.length) return undefined
-
+  // No uniqueness rule on `tint`: past ten clips the tints repeat (ADR 0032,
+  // as amended by boop-clips ticket 05), so two clips sharing one is data.
   const boop: StoredBoop = { name, kitId, tempo, patterns: decoded }
 
   if (value.placements !== undefined) {
@@ -260,19 +294,25 @@ export function decodeStoredBoop(value: unknown): StoredBoop | undefined {
 }
 
 /**
- * Both forms: exactly 16 positions, only clip digits (plus `.` in the old
- * form), and no position naming the same clip twice. A digit past the clip
- * list is dangling — a bug or corruption, not data.
+ * Both forms: exactly 16 positions, only clip characters (plus `.`, which the
+ * pre-layering form spells an empty position with and the layered form has no
+ * business holding), and no position naming the same clip twice. A character
+ * past the clip list is dangling - a bug or corruption, not data - and so is
+ * one past the cap, which names no clip at all.
+ *
+ * The pre-layering form needs no length rule of its own: its fields are the
+ * string's characters, one each, so a field is a position by construction.
  */
 function isValidPlacements(placements: string, clipCount: number): boolean {
   const layered = placements.includes(PLACEMENT_SEPARATOR)
   const fields = placementFields(placements)
   if (fields.length !== SONG_POSITIONS) return false
   for (const field of fields) {
-    if (!(layered ? /^[1-5]*$/ : /^[.1-5]$/).test(field)) return false
-    const digits = Array.from(field).filter((char) => char !== '.')
-    if (new Set(digits).size !== digits.length) return false
-    if (digits.some((char) => Number(char) > clipCount)) return false
+    if (!layered && field === '.') continue
+    const chars = Array.from(field)
+    const held = chars.map(placementClipIndex)
+    if (held.some((clipIndex) => clipIndex < 0 || clipIndex >= clipCount)) return false
+    if (new Set(chars).size !== chars.length) return false
   }
   return true
 }

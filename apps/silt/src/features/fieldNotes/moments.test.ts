@@ -9,6 +9,7 @@ import {
   MOMENT_QUEUE_LIMIT,
   momentsFor,
   queueMoments,
+  resyncCompletion,
   type Moment,
 } from './moments.ts'
 import { HIDDEN_NAME } from './panelModel.ts'
@@ -189,5 +190,33 @@ describe('the 100% moment', () => {
 
   test('forgetting and re-finishing does not fire it again', () => {
     expect(showings(false, true, false, true)).toBe(1)
+  })
+
+  test('a scene load never fires it: a loaded-complete chart had its moment elsewhere (ticket 28)', () => {
+    // Loading a scene whose snapshot is already complete is an arrival, not the
+    // transition that earns the line - the resync is `completionAtBoot`'s rule
+    // said mid-session.
+    const loaded = resyncCompletion(completionAtBoot(false), true)
+    expect(loaded.showing).toBe(false)
+    // And it counts as spent: witnessing the chart complete again later (after
+    // a forget, say) is not a second earning.
+    expect(advanceCompletion(advanceCompletion(loaded, false), true).showing).toBe(false)
+  })
+
+  test('a scene load resets the baseline without touching an earned showing', () => {
+    // The line is on screen as the load lands: the load neither dismisses it
+    // nor re-arms it.
+    const showing = advanceCompletion(completionAtBoot(false), true)
+    expect(showing.showing).toBe(true)
+    expect(resyncCompletion(showing, false)).toEqual({
+      wasComplete: false,
+      spent: true,
+      showing: true,
+    })
+
+    // Loading an incomplete scene after the chart was complete re-arms nothing:
+    // completing it again by witnessing stays a spent transition.
+    const reset = resyncCompletion(advanceCompletion(completionAtBoot(true), true), false)
+    expect(advanceCompletion(reset, true).showing).toBe(false)
   })
 })

@@ -24,6 +24,11 @@ import type { Api } from './types.ts'
  */
 
 /**
+ * The meadow's numbers, and the defaults every option below falls back to. They
+ * are constants rather than literals in `elements.ts` because they are the plant
+ * the whole file is written about; a second plant passes its own
+ * ([the cactus spec](../../../../.scratch/silt-cactus/spec.md) §4).
+ *
  * How tall a stalk grows, in cells: 6 to 10. The budget the sprout prepays is
  * this plus one - see `sproutBudget`.
  */
@@ -38,6 +43,15 @@ export const STALK_HEIGHT_JITTER = 4
 export const CLIMB_P = 0.3
 
 /**
+ * Chance the terminal transition ends in the flower rather than in the cap
+ * species. **1 for the meadow, and that is load-bearing**: the tip's whole life
+ * is one flower, so there is nothing to decide and `createTip` spends no draw at
+ * all (see the terminal branch). The `Rng` is one stream shared by the world, so
+ * a draw spent here would shift every draw downstream of it.
+ */
+export const FLOWER_P = 1
+
+/**
  * The species the sprout needs to know about, passed in rather than imported so
  * this module stays independent of the roster (and of a cycle through
  * `elements.ts`), exactly as `createGrowth` and `createSeedBank` take theirs.
@@ -50,6 +64,19 @@ export interface SproutIds {
   stalk: number
 }
 
+/**
+ * How tall this plant grows. Options rather than constants because the same two
+ * hooks raise the desert's column (cactus spec §4) - a saguaro is 10-16 cells
+ * where the meadow's stalk is 6-10, and nothing else about being spent into a
+ * stem differs. Omit either and the meadow's number stands.
+ */
+export interface SproutOptions {
+  /** Shortest column, in cells. */
+  heightMin?: number
+  /** How much taller than that a column may draw, inclusive. */
+  heightJitter?: number
+}
+
 /** What the tip needs to know about: the cell it makes, and the two it becomes. */
 export interface TipIds {
   empty: number
@@ -59,6 +86,23 @@ export interface TipIds {
   stalk: number
   /** What it becomes when the budget runs out - or when it is boxed in. */
   flower: number
+  /**
+   * The other thing it may become at that same moment: the plant that finished
+   * without crowning. Optional, and it defaults to the flower - a roster naming
+   * no second product has only one ending, which is exactly the meadow.
+   */
+  cap?: number
+}
+
+/** How this plant climbs, and how it ends. See `SproutOptions` for the pair's why. */
+export interface TipOptions {
+  /** Per-tick chance of taking the next cell. Defaults to `CLIMB_P`. */
+  climbP?: number
+  /**
+   * Chance the ending is the flower rather than `ids.cap`. Defaults to
+   * `FLOWER_P` (1), which costs no draw.
+   */
+  flowerP?: number
 }
 
 /**
@@ -67,11 +111,16 @@ export interface TipIds {
  * that reaches the world with no budget at all (painted, or restored from a
  * scene) blooms on the spot rather than climbing forever.
  */
-function sproutBudget(api: Api): number {
-  return STALK_HEIGHT_MIN + 1 + api.randInt(STALK_HEIGHT_JITTER + 1)
+function sproutBudget(api: Api, heightMin: number, heightJitter: number): number {
+  return heightMin + 1 + api.randInt(heightJitter + 1)
 }
 
-export function createSprout(ids: SproutIds): (api: Api) => void {
+export function createSprout(ids: SproutIds, opts: SproutOptions = {}): (api: Api) => void {
+  // Resolved once, at build time: the defaults are a property of *this plant*,
+  // not a decision to re-make on every cell of it every tick.
+  const heightMin = opts.heightMin ?? STALK_HEIGHT_MIN
+  const heightJitter = opts.heightJitter ?? STALK_HEIGHT_JITTER
+
   return (api) => {
     // Roofed, under water, or against the world's edge: just wait. There is no
     // draw and no write on this path, so a sprout that cannot rise costs its
@@ -90,7 +139,7 @@ export function createSprout(ids: SproutIds): (api: Api) => void {
     // carrying an `ra` exists for (life ticket 01): a hook cannot hand state to
     // a cell it creates any other way, and swapping into it and backfilling
     // would be movement inside a hook.
-    api.set(0, -1, ids.tip, { ra: sproutBudget(api) })
+    api.set(0, -1, ids.tip, { ra: sproutBudget(api, heightMin, heightJitter) })
     // Reported before `become`: the witness reads the sprout off the cursor,
     // and the next line spends it into stem (discovery ticket 07).
     api.witnessRaise()
@@ -111,7 +160,15 @@ export function createSprout(ids: SproutIds): (api: Api) => void {
  * plant, and the one after that (swap into the cell above and backfill stem)
  * is movement inside a hook, which the element model forbids (spec §2.2).
  */
-export function createTip(ids: TipIds): (api: Api) => void {
+export function createTip(ids: TipIds, opts: TipOptions = {}): (api: Api) => void {
+  // Resolved once, at build time - as in `createSprout`, and for the same
+  // reason. `cap` is one of them: an unnamed cap *is* the flower, so the
+  // terminal branch below has a species either way and never a `?? ids.flower`
+  // of its own.
+  const climbP = opts.climbP ?? CLIMB_P
+  const flowerP = opts.flowerP ?? FLOWER_P
+  const cap = ids.cap ?? ids.flower
+
   return (api) => {
     const budget = api.ra
 
@@ -121,14 +178,25 @@ export function createTip(ids: TipIds): (api: Api) => void {
     // the tip is trapped, on the chance the roof moves; blooming early costs the
     // plant the rest of its height and nothing else.
     if (budget <= 1 || api.get(0, -1) !== ids.empty) {
-      // Both ends are the one `bloom:tip` entry - a bloom is a bloom, however
-      // it was forced - reported before `become` spends the tip (ticket 07).
+      // **One draw decides the product, and only when there is a product to
+      // decide.** `flowerP >= 1` short-circuits before `rand()` is ever reached:
+      // the `Rng` is a single stream, so a draw taken where the answer is
+      // already known shifts every draw after it in the world and moves tests
+      // that have nothing to do with plants. This is also the only place the two
+      // endings differ from each other in no way at all - a plant that was boxed
+      // in gets the same odds as one that ran out of budget, because the draw is
+      // about what the plant *is*, not about how it stopped.
+      const product = flowerP >= 1 || api.rand() < flowerP ? ids.flower : cap
+      // Both ends are the one `bloom:tip` entry - a bloom is a bloom, however it
+      // was forced and whichever product it picked - reported before `become`
+      // spends the tip (ticket 07). It is cursor-read, so a second plant's
+      // grower keys its own entry with no argument here.
       api.witnessBloom()
-      api.become(ids.flower)
+      api.become(product)
       return
     }
 
-    if (api.rand() < CLIMB_P) {
+    if (api.rand() < climbP) {
       // The budget is handed on, and this cell is inert stem from here.
       api.set(0, -1, ids.tip, { ra: budget - 1 })
       api.become(ids.stalk)
