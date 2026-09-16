@@ -32,3 +32,6 @@ test-results/
 # misc
 *.log
 .DS_Store
+
+# Lavish review artifacts stay local
+.lavish/

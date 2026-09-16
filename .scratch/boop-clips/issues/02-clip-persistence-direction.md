@@ -52,3 +52,14 @@ Settled in a grilling session with Ed, 2026-09-06 - recorded as
 
 - 2026-09-06 (grilling session): resolved as above; see ADR 0056 for the full
   context and consequences.
+
+**2026-09-15 (agent, from the account-infra map):** a footnote from the other
+direction: the account layer this session deliberately set aside is now
+decided - see the
+[decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md)
+and the [first-slice spec](../../family-first-slice/spec.md) (Accepted).
+Nothing here changes ADR 0056: boop stays a stateless localStorage app and
+clips stay local. When the boop first slice ships, the whole `boop:save`
+document syncs to the family SaveStore as one opaque blob, so clips gain
+cross-device durability by riding along - no clip-specific storage, and the
+frozen v1 format and decode-is-total are untouched.
