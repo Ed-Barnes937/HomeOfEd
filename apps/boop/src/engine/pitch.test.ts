@@ -3,15 +3,19 @@ import { describe, expect, it } from 'vitest'
 import {
   ANCHOR_PITCH_MASK,
   hasPitch,
+  laneNoteMidi,
+  noteNameToMidi,
   pitchMask,
   pitchesInMask,
   rowPitchMasks,
+  semitonesForInstrument,
   semitonesFromAnchor,
 } from './pitch.ts'
 import {
   ANCHOR_PITCH_INDEX,
   PITCHES_PER_LANE,
   STEPS_PER_PATTERN,
+  type KitInstrument,
   type PatternRow,
 } from './sequencerEngine.ts'
 
@@ -77,6 +81,80 @@ describe('rowPitchMasks', () => {
     expect(masks.filter((mask) => mask !== 0)).toHaveLength(2)
   })
 })
+
+describe('noteNameToMidi', () => {
+  it('reads scientific pitch notation, middle C being C4', () => {
+    expect(noteNameToMidi('C4')).toBe(60)
+    expect(noteNameToMidi('G3')).toBe(55)
+    expect(noteNameToMidi('A4')).toBe(69)
+  })
+
+  it('reads sharps and flats, which name the same key', () => {
+    expect(noteNameToMidi('F#4')).toBe(66)
+    expect(noteNameToMidi('Gb4')).toBe(66)
+  })
+
+  it('spans the whole MIDI range and nothing outside it', () => {
+    expect(noteNameToMidi('C-1')).toBe(0)
+    expect(noteNameToMidi('G9')).toBe(127)
+    expect(noteNameToMidi('A9')).toBeUndefined()
+  })
+
+  it.each(['H4', 'G', '4G', 'g3', 'G#', 'C10', '', ' G3'])('refuses %o', (name) => {
+    expect(noteNameToMidi(name)).toBeUndefined()
+  })
+})
+
+describe('semitonesForInstrument', () => {
+  // The one function the lane and the driver ask: a pitched instrument walks
+  // the ladder from its root sample, a one-note one cannot be transposed at
+  // all - whatever a document claims about it.
+  it('walks the ladder for a pitched instrument', () => {
+    const scale = Array.from({ length: PITCHES_PER_LANE }, (_, index) =>
+      semitonesForInstrument(pitchedInstrument(), index),
+    )
+
+    expect(scale).toEqual([-7, -5, -3, -2, 0, 2, 4, 5])
+  })
+
+  it('is zero at every pitch for a one-note instrument', () => {
+    const drum = instrument('kick')
+
+    for (let pitchIndex = 0; pitchIndex < PITCHES_PER_LANE; pitchIndex += 1) {
+      expect(semitonesForInstrument(drum, pitchIndex)).toBe(0)
+    }
+  })
+})
+
+describe('laneNoteMidi', () => {
+  // The register: the root sample is "so", so the manifest's note says where
+  // the whole lane sits. A G root puts do on the C below it - the key of C
+  // major (spec §3).
+  const register = pitchedInstrument().pitched!
+
+  it('plays the root sample untouched at the anchor', () => {
+    expect(laneNoteMidi(register, ANCHOR_PITCH_INDEX)).toBe(register.rootMidi)
+  })
+
+  it('puts do a fifth below the root and high do an octave above do', () => {
+    expect(laneNoteMidi(register, 0)).toBe(noteNameToMidi('C3'))
+    expect(laneNoteMidi(register, PITCHES_PER_LANE - 1)).toBe(noteNameToMidi('C4'))
+    expect(laneNoteMidi(register, PITCHES_PER_LANE - 1) - laneNoteMidi(register, 0)).toBe(12)
+  })
+})
+
+function instrument(instrumentId: string): KitInstrument {
+  return {
+    instrumentId,
+    name: instrumentId,
+    artwork: `/kits/test/artwork/${instrumentId}.svg`,
+    sound: `/kits/test/sounds/${instrumentId}.wav`,
+  }
+}
+
+function pitchedInstrument(): KitInstrument {
+  return { ...instrument('trumpet'), pitched: { rootNote: 'G3', rootMidi: 55 } }
+}
 
 function steps(length: number): boolean[] {
   return new Array<boolean>(length).fill(false)
