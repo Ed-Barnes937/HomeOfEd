@@ -28,8 +28,10 @@ _Avoid_: Tick event, note event.
 
 **Hit**:
 One instrument sounding on a given step — an entry in a beat event's `hits`
-array, `{ instrumentId }`. A step can carry zero or several hits (one per
-active instrument row).
+array, `{ instrumentId }`, carrying a `pitchIndex` too when a pitched row
+sounds it (ADR 0024, as amended 2026-09-17). A step can carry zero or several
+hits: one per active instrument row, and one per pitch a pitched row's column
+holds, so two hits may name the same instrument.
 _Avoid_: Note, trigger.
 
 **`songPos()`**:
@@ -58,7 +60,8 @@ that sound themselves, and turning a cell off or editing while the loop runs
 auditions nothing (the step itself will sound it). On **request**:
 `audition(instrumentId)` on the engine seam, the instrument picker's tap - it
 sounds whether or not the loop is running and touches neither the pattern nor
-the transport (ADR 0042).
+the transport (ADR 0042). Either form may name a pitch, and then sounds that
+one rather than the root sample (ADR 0024, as amended 2026-09-17).
 _Avoid_: Preview, echo.
 
 **`AudioDriver`**:
@@ -111,7 +114,9 @@ _Avoid_: Track, voice (a voice is the sound, not the lane), instrument row.
 
 **Pattern**:
 A clip's rows and their on/off cells - an ordered list of rows, each carrying
-its `instrumentId` and 16 booleans. The engine-level term for the raw grid; a
+its `instrumentId` and 16 booleans, and on a pitched row 16 masks of the
+pitches each cell holds (ADR 0024, as amended 2026-09-17). The engine-level
+term for the raw grid; a
 pattern with a name and identity inside a boop is a **Clip**. Always 16 steps /
 4 bars - clips are never variable-length (boop-loops ticket 10) - but the row
 count is the clip's own (ADR 0042).
