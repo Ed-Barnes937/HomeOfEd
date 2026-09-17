@@ -75,30 +75,13 @@ function placementClipIndex(char: string): number {
   return char === '' ? -1 : PLACEMENT_CHARS.indexOf(char)
 }
 
-/**
- * Two lowercase hex characters per step, in step order - the shape of a
- * `pitches` field (spec §4). Pinned as a literal because it is the wire format:
- * `32` is `STEPS_PER_PATTERN * 2`, and neither number may drift without every
- * string already on disk saying so.
- */
+/** Literal, not derived: it is the wire format, so neither number may drift. */
 const PITCHES_PATTERN = /^[0-9a-f]{32}$/
 
 /**
- * One instrument's 16 cells as a bitstring, e.g. `1000100010001000`, and - on a
- * **pitched** row - which notes each cell holds.
- *
- * `pitches` is additive and optional (ADR 0058, still `SAVE_FORMAT_VERSION` 1):
- * 32 lowercase hex characters, two per step in step order, each byte a bitmask
- * of pitch indexes with **bit 0 (the LSB) = pitch index 0 = the bottom of the
- * lane = do**. `steps` stays the `[01]` **any-note projection** - `steps[s]` is
- * `'1'` iff step `s`'s byte is non-zero - and the writer derives it from
- * `pitches`, so the two can never disagree on the way out; decode rejects a
- * document where they disagree on the way in.
- *
- * A row **without** `pitches` is legal and is the degrade path: on a pitched
- * instrument every on step reads as the anchor "so" (`rowPitchMasks`), which is
- * the untransposed sample, which is why converting a one-note instrument leaves
- * every saved boop sounding as it always did.
+ * One instrument's 16 cells, and on a pitched row which notes each holds
+ * (ADR 0058). `steps` is the any-note projection of `pitches`; an absent
+ * `pitches` is the degrade path, read through `rowPitchMasks`.
  */
 export interface StoredRow {
   instrumentId: string
@@ -168,12 +151,7 @@ export const EMPTY_DOCUMENT: SaveDocument = {
   creations: [],
 }
 
-/**
- * A row's notes as the stored hex, and its `steps` derived from them. A row
- * carrying no `pitches` is written exactly as it was before pitch existed -
- * same two fields, same bytes - which is what keeps every un-pitched boop
- * byte-identical on disk (spec §11).
- */
+/** An un-pitched row is written exactly as it was before pitch existed. */
 function rowToStored(row: PatternRow): StoredRow {
   if (row.pitches === undefined) {
     return {
@@ -224,10 +202,8 @@ export const WORKING_NAME = ''
  * fresh grid instead of an empty pattern: a `Pattern` is 1..roster rows, and
  * `setPattern` refuses an empty one.
  *
- * A row that stored no `pitches` keeps the field **absent** rather than being
- * expanded here: what an absent field means is `rowPitchMasks`'s single ruling
- * (ADR 0058), and materialising the anchor at decode time would put a second
- * copy of it in the app.
+ * A row that stored no `pitches` keeps the field absent rather than expanding
+ * it here: what an absent field means is `rowPitchMasks`'s alone (ADR 0058).
  */
 export function storedToPattern(kit: Kit, stored: StoredPattern): Pattern {
   const known = new Set(kit.instruments.map((instrument) => instrument.instrumentId))
@@ -383,10 +359,8 @@ function isValidPlacements(placements: string, clipCount: number): boolean {
 /**
  * A clip holds 1..roster rows with unique `instrumentId`s (ADR 0042), so an
  * empty row list or an instrument named twice is a broken document, not data -
- * and per ADR 0025 that discards the whole save document. `pitches` is held to
- * the same bar (ADR 0058): a bad length, a character outside lowercase hex, or
- * a byte that does not project onto this row's own `steps` is corruption, not
- * something to guess at.
+ * and per ADR 0025 that discards the whole save document. A malformed `pitches`
+ * is held to the same bar (ADR 0058).
  *
  * An id this build's kit does not know is **not** an error: it decodes here and
  * drops at `storedToPattern`, so a document written against a bigger roster
@@ -409,9 +383,7 @@ function decodePattern(value: unknown): StoredPattern | undefined {
         return undefined
       }
       const masks = storedToPitchMasks(entry.pitches)
-      // Two hex characters is exactly the eight bits a lane has today, so this
-      // only bites if the lane ever narrows - but the lane's shape is
-      // `pitch.ts`'s to state, not this file's to assume.
+      // Unreachable while a lane is 8 bits wide; the lane's shape is pitch.ts's.
       if (!masks.every(isPitchMask)) return undefined
       if (stepsFromPitches(masks) !== steps) return undefined
       row.pitches = entry.pitches
