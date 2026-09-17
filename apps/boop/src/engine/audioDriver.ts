@@ -81,8 +81,17 @@ export interface AudioDriver {
   startTransport(): void
   stopTransport(): void
 
-  /** Play one loaded sample, at `audioTime` if given, otherwise immediately. */
-  play(instrumentId: string, audioTime?: number): void
+  /**
+   * Play one loaded sample, at `audioTime` if given, otherwise immediately.
+   *
+   * `semitones` transposes it - a pitched instrument has one root sample and
+   * every note of its lane is that sample repitched (spec §5). Plain
+   * semitones, not a pitch index: the scale is the engine's business, and the
+   * driver only has to resample. Omitted (or 0) is the sample untouched, which
+   * is what every one-note instrument passes and therefore byte-identical to
+   * before pitch existed.
+   */
+  play(instrumentId: string, audioTime?: number, semitones?: number): void
 
   /** Run `callback` at draw time for the given `audioTime`. */
   scheduleDraw(audioTime: number, callback: () => void): void
