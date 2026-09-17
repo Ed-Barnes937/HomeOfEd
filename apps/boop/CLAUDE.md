@@ -243,7 +243,12 @@ share-link snapshot.
   optional `placements` (the 16 positions, comma-separated — each field the
   clips sounding there, so a position can hold several; a comma-less string is
   read in the pre-layering one-clip-per-position form) and `gridClip` — all additive, still
-  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. A position names its
+  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode.
+  A **pitched** row also stores `pitches` - 32 lowercase hex chars, two per step,
+  bit 0 = the bottom of the lane - with `steps` the any-note projection the
+  *writer derives from it*; absent means the anchor "so", which is what makes
+  converting an instrument cost no saved boop anything
+  ([ADR 0058](../../docs/adr/0058-boop-save-format-pitches.md)). A position names its
   clips by **single character** - digits `1`-`9`, then letters `a`-`z` from
   clip 10 - so old digit-only strings are a strict subset and the writer emits
   a letter only when a clip past the ninth is placed. That alphabet's ceiling

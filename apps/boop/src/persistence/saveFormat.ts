@@ -76,7 +76,7 @@ function placementClipIndex(char: string): number {
 }
 
 /**
- * Two lowercase hex characters per step, in step order — the shape of a
+ * Two lowercase hex characters per step, in step order - the shape of a
  * `pitches` field (spec §4). Pinned as a literal because it is the wire format:
  * `32` is `STEPS_PER_PATTERN * 2`, and neither number may drift without every
  * string already on disk saying so.
@@ -84,14 +84,14 @@ function placementClipIndex(char: string): number {
 const PITCHES_PATTERN = /^[0-9a-f]{32}$/
 
 /**
- * One instrument's 16 cells as a bitstring, e.g. `1000100010001000`, and — on a
- * **pitched** row — which notes each cell holds.
+ * One instrument's 16 cells as a bitstring, e.g. `1000100010001000`, and - on a
+ * **pitched** row - which notes each cell holds.
  *
  * `pitches` is additive and optional (ADR 0058, still `SAVE_FORMAT_VERSION` 1):
  * 32 lowercase hex characters, two per step in step order, each byte a bitmask
  * of pitch indexes with **bit 0 (the LSB) = pitch index 0 = the bottom of the
- * lane = do**. `steps` stays the `[01]` **any-note projection** — `steps[s]` is
- * `'1'` iff step `s`'s byte is non-zero — and the writer derives it from
+ * lane = do**. `steps` stays the `[01]` **any-note projection** - `steps[s]` is
+ * `'1'` iff step `s`'s byte is non-zero - and the writer derives it from
  * `pitches`, so the two can never disagree on the way out; decode rejects a
  * document where they disagree on the way in.
  *
@@ -170,8 +170,8 @@ export const EMPTY_DOCUMENT: SaveDocument = {
 
 /**
  * A row's notes as the stored hex, and its `steps` derived from them. A row
- * carrying no `pitches` is written exactly as it was before pitch existed —
- * same two fields, same bytes — which is what keeps every un-pitched boop
+ * carrying no `pitches` is written exactly as it was before pitch existed -
+ * same two fields, same bytes - which is what keeps every un-pitched boop
  * byte-identical on disk (spec §11).
  */
 function rowToStored(row: PatternRow): StoredRow {

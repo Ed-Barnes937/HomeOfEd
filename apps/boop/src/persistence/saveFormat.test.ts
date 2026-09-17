@@ -408,7 +408,7 @@ describe('round-trip', () => {
 
   // Ticket 02: notes, a chord and empty steps in one row, through the string
   // form and back onto the grid.
-  it('preserves a pitched row — notes, chords and empty steps alike', () => {
+  it('preserves a pitched row - notes, chords and empty steps alike', () => {
     const pitched: Pattern = [
       row('kick', 0, 8),
       lane('snare', { 0: [0], 3: [7], 8: [0, 1, 2, 3, 4, 5, 6, 7], 12: [4] }),
