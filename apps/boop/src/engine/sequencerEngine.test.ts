@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { createSequencerEngine } from './createSequencerEngine.ts'
+import { ANCHOR_PITCH_MASK, pitchMask } from './pitch.ts'
 import {
+  ANCHOR_PITCH_INDEX,
   blankPattern,
   DEFAULT_BPM,
   DEFAULT_CLIP_ROWS,
@@ -9,6 +11,7 @@ import {
   type BeatEvent,
   type Kit,
   type KitInstrument,
+  type PatternRow,
   type SequencerEngine,
   type TransportEvent,
 } from './sequencerEngine.ts'
@@ -202,7 +205,239 @@ describe('SequencerEngine', () => {
     })
   })
 
+  describe('pitched rows', () => {
+    it('carries the painted notes as readable state, beside the steps projection', () => {
+      engine.setPattern([pitchedRow('boop', { 0: [4], 4: [0, 2, 7] })])
+
+      const [boop] = engine.getPattern()
+      expect(boop?.pitches?.[0]).toBe(pitchMask(4))
+      expect(boop?.pitches?.[4]).toBe(pitchMask(0) | pitchMask(2) | pitchMask(7))
+      expect(boop?.steps.filter(Boolean)).toHaveLength(2)
+    })
+
+    it('returns a snapshot later edits do not mutate', () => {
+      engine.setPattern([pitchedRow('boop', { 0: [4] })])
+      const before = engine.getPattern()
+      engine.setCell('boop', 0, true, 7)
+      expect(before[0]?.pitches?.[0]).toBe(pitchMask(4))
+    })
+
+    it('rejects pitch data that does not describe 16 steps', () => {
+      expect(() =>
+        engine.setPattern([{ instrumentId: 'boop', steps: row([0]), pitches: [pitchMask(4)] }]),
+      ).toThrow(/pitches/)
+    })
+
+    it('rejects a pitch mask that is not a byte of pitch bits', () => {
+      for (const bad of [-1, 1.5, 256, Number.NaN]) {
+        expect(() =>
+          engine.setPattern([
+            { instrumentId: 'boop', steps: row([0]), pitches: masks({ 0: bad }) },
+          ]),
+        ).toThrow(/pitches/)
+      }
+    })
+
+    // `steps` is the any-note projection of `pitches` (spec §4); letting the
+    // two drift would mean a painted note that never sounds, or a step that
+    // sounds nothing.
+    it('rejects pitch data the steps projection disagrees with', () => {
+      expect(() =>
+        engine.setPattern([
+          { instrumentId: 'boop', steps: row([0, 5]), pitches: masks({ 0: pitchMask(4) }) },
+        ]),
+      ).toThrow(/pitches/)
+    })
+
+    it('leaves the grid alone when a row’s pitch data is bad', () => {
+      engine.setCell('kick', 0, true)
+      expect(() =>
+        engine.setPattern([{ instrumentId: 'boop', steps: row([]), pitches: [] }]),
+      ).toThrow()
+      expect(engine.getPattern()[0]?.steps[0]).toBe(true)
+    })
+
+    it('schedules one play per painted note, all at the step’s own audio time', async () => {
+      engine.setPattern([pitchedRow('boop', { 0: [0, 4, 7] })])
+      await engine.start()
+      driver.played = []
+
+      driver.fireStep()
+
+      expect(driver.played).toEqual([
+        { instrumentId: 'boop', audioTime: 0.1, semitones: -7 },
+        { instrumentId: 'boop', audioTime: 0.1, semitones: 0 },
+        { instrumentId: 'boop', audioTime: 0.1, semitones: 5 },
+      ])
+    })
+
+    it('carries one hit per sounding note, low note first', async () => {
+      engine.setPattern([pitchedRow('boop', { 0: [2, 6] })])
+      const [first] = await startAndCollect(engine, 1)
+
+      expect(first?.hits).toEqual([
+        { instrumentId: 'boop', pitchIndex: 2 },
+        { instrumentId: 'boop', pitchIndex: 6 },
+      ])
+    })
+
+    // The whole point of the anchor rule (spec §3): every existing saved boop
+    // and share link using a converted instrument sounds exactly as it did.
+    it('sounds a row with no pitch data exactly as it does today', async () => {
+      engine.setPattern([{ instrumentId: 'boop', steps: row([0]) }])
+      await engine.start()
+      driver.played = []
+      const [first] = await startAndCollect(engine, 1)
+
+      expect(driver.played).toEqual([{ instrumentId: 'boop', audioTime: 0.1 }])
+      expect(first?.hits).toEqual([{ instrumentId: 'boop' }])
+    })
+
+    it('sounds the anchor pitch as the untransposed sample', async () => {
+      engine.setPattern([pitchedRow('boop', { 0: [ANCHOR_PITCH_INDEX] })])
+      await engine.start()
+      driver.played = []
+      driver.fireStep()
+
+      expect(driver.played).toEqual([{ instrumentId: 'boop', audioTime: 0.1, semitones: 0 }])
+    })
+
+    // The unison +6dB guard (spec §5). One row cannot name a pitch twice - a
+    // mask holds each note once - and `setPattern` already refuses to name an
+    // instrument twice, so there is no route to two sources on one note.
+    it('never schedules the same pitch of the same instrument twice on a step', async () => {
+      engine.setPattern([pitchedRow('boop', { 0: [4] })])
+      engine.setCell('boop', 0, true, 4)
+      engine.setCell('boop', 0, true, 4)
+      await engine.start()
+      driver.played = []
+      driver.fireStep()
+
+      expect(driver.played).toEqual([{ instrumentId: 'boop', audioTime: 0.1, semitones: 0 }])
+    })
+
+    describe('setCell with a pitch', () => {
+      it('adds to the column rather than replacing it - a column is a chord', () => {
+        engine.setPattern([pitchedRow('boop', { 0: [4] })])
+        engine.setCell('boop', 0, true, 7)
+
+        expect(engine.getPattern()[0]?.pitches?.[0]).toBe(pitchMask(4) | pitchMask(7))
+      })
+
+      it('turns off just that note, leaving the rest of the chord sounding', () => {
+        engine.setPattern([pitchedRow('boop', { 0: [1, 4] })])
+        engine.setCell('boop', 0, false, 1)
+
+        expect(engine.getPattern()[0]?.pitches?.[0]).toBe(pitchMask(4))
+        expect(engine.getPattern()[0]?.steps[0]).toBe(true)
+      })
+
+      it('clears the step once the last note of the column goes', () => {
+        engine.setPattern([pitchedRow('boop', { 0: [1] })])
+        engine.setCell('boop', 0, false, 1)
+
+        expect(engine.getPattern()[0]?.pitches?.[0]).toBe(0)
+        expect(engine.getPattern()[0]?.steps[0]).toBe(false)
+      })
+
+      // A row only grows pitch data when a pitch is actually painted on it, so
+      // nothing a child has already recorded moves: spec §3's anchor rule says
+      // what those steps were, and this is where it is written down.
+      it('gives a row with no pitch data the anchor on its existing steps', () => {
+        engine.setPattern([{ instrumentId: 'boop', steps: row([2]) }])
+        engine.setCell('boop', 8, true, 0)
+
+        const [boop] = engine.getPattern()
+        expect(boop?.pitches?.[2]).toBe(ANCHOR_PITCH_MASK)
+        expect(boop?.pitches?.[8]).toBe(pitchMask(0))
+      })
+
+      it('leaves a row with no pitch data alone when no pitch is named', () => {
+        engine.setCell('kick', 0, true)
+
+        expect(engine.getPattern()[0]?.pitches).toBeUndefined()
+      })
+
+      // Clearing a cell is about the cell, not one note in it - that is what
+      // the grid's drag-to-erase and Clear grid mean by "off".
+      it('clears the whole column when no pitch is named', () => {
+        engine.setPattern([pitchedRow('boop', { 0: [1, 4, 7] })])
+        engine.setCell('boop', 0, false)
+
+        expect(engine.getPattern()[0]?.pitches?.[0]).toBe(0)
+        expect(engine.getPattern()[0]?.steps[0]).toBe(false)
+      })
+
+      it('paints the anchor when a pitched row is turned on with no pitch named', () => {
+        engine.setPattern([pitchedRow('boop', { 0: [1] })])
+        engine.setCell('boop', 9, true)
+
+        expect(engine.getPattern()[0]?.pitches?.[9]).toBe(ANCHOR_PITCH_MASK)
+      })
+
+      it('refuses a pitch index outside the lane', () => {
+        for (const bad of [-1, 8, 1.5, Number.NaN]) {
+          expect(() => engine.setCell('boop', 0, true, bad)).toThrow(/pitch/)
+        }
+      })
+    })
+
+    describe('audition on toggle', () => {
+      it('sounds the pitch that was tapped', async () => {
+        await engine.start()
+        engine.stop()
+        engine.setPattern([pitchedRow('boop', {})])
+        driver.played = []
+
+        engine.setCell('boop', 3, true, 7)
+
+        expect(driver.played).toEqual([
+          { instrumentId: 'boop', audioTime: undefined, semitones: 5 },
+        ])
+      })
+
+      it('stays quiet for a note that was already painted', async () => {
+        await engine.start()
+        engine.stop()
+        engine.setPattern([pitchedRow('boop', { 3: [7] })])
+        driver.played = []
+
+        engine.setCell('boop', 3, true, 7)
+
+        expect(driver.played).toEqual([])
+      })
+
+      it('sounds the new note when a chord grows under a finger', async () => {
+        await engine.start()
+        engine.stop()
+        engine.setPattern([pitchedRow('boop', { 3: [7] })])
+        driver.played = []
+
+        engine.setCell('boop', 3, true, 0)
+
+        expect(driver.played).toEqual([
+          { instrumentId: 'boop', audioTime: undefined, semitones: -7 },
+        ])
+      })
+    })
+  })
+
   describe('audition(instrumentId)', () => {
+    it('plays the tapped pitch when one is named - the lane’s tap-to-hear', async () => {
+      await engine.start()
+      engine.stop()
+      driver.played = []
+      engine.audition('boop', 0)
+      expect(driver.played).toEqual([{ instrumentId: 'boop', audioTime: undefined, semitones: -7 }])
+    })
+
+    it('ignores a pitch index outside the lane rather than throwing at a tap', async () => {
+      await engine.start()
+      driver.played = []
+      expect(() => engine.audition('boop', 99)).not.toThrow()
+      expect(driver.played).toEqual([])
+    })
+
     it('plays the sample now when the context is running', async () => {
       await engine.start()
       engine.stop()
@@ -709,4 +944,17 @@ describe('blankPattern', () => {
 
 function row(activeSteps: number[]): boolean[] {
   return Array.from({ length: 16 }, (_, step) => activeSteps.includes(step))
+}
+
+/** 16 pitch masks, `byStep` naming the ones that are not empty. */
+function masks(byStep: Record<number, number>): number[] {
+  return Array.from({ length: STEPS_PER_PATTERN }, (_, step) => byStep[step] ?? 0)
+}
+
+/** A pitched row: `notes` maps a step to the pitch indexes painted in its column. */
+function pitchedRow(instrumentId: string, notes: Record<number, number[]>): PatternRow {
+  const pitches = Array.from({ length: STEPS_PER_PATTERN }, (_, step) =>
+    (notes[step] ?? []).reduce((mask, pitchIndex) => mask | pitchMask(pitchIndex), 0),
+  )
+  return { instrumentId, steps: pitches.map((mask) => mask !== 0), pitches }
 }

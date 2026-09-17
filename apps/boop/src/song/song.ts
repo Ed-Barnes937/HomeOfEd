@@ -11,7 +11,14 @@
  * tints to the clip's position — the writer then always states them.
  */
 
-import { blankPattern, STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
+import { rowPitchMasks } from '../engine/pitch.ts'
+import {
+  blankPattern,
+  STEPS_PER_PATTERN,
+  type Kit,
+  type Pattern,
+  type PatternRow,
+} from '../engine/sequencerEngine.ts'
 import {
   MAX_CLIPS,
   SONG_POSITIONS,
@@ -202,21 +209,37 @@ export function togglePlacement(song: Song, clipIndex: number, position: number)
  * renders a merged pattern - it is what the conductor hands the engine and
  * what the export renders - so the order only has to be deterministic, and
  * this one leaves a single-clip position's pattern exactly as it was.
+ *
+ * On a pitched row the union is of **notes**, not just steps: layering is the
+ * one way the same instrument can sound twice on one step, so a shared note
+ * has to collapse to one rather than become a sample-exact unison (spec §5).
+ * A contributing row carrying no note data reads as the anchor pitch first
+ * (`rowPitchMasks`, spec §3); rows that all carry none keep the field absent,
+ * so a drum-only song merges exactly as it did.
  */
 export function mergePatterns(patterns: readonly Pattern[]): Pattern {
   const [first, ...rest] = patterns
   if (rest.length === 0) return first!
-  const union = new Map<string, readonly boolean[]>()
+  const union = new Map<string, PatternRow>()
   for (const pattern of patterns) {
     for (const row of pattern) {
       const held = union.get(row.instrumentId)
-      union.set(
-        row.instrumentId,
-        held ? held.map((on, step) => on || row.steps[step] === true) : row.steps,
-      )
+      union.set(row.instrumentId, held ? mergeRows(held, row) : row)
     }
   }
-  return [...union].map(([instrumentId, steps]) => ({ instrumentId, steps }))
+  return [...union.values()]
+}
+
+function mergeRows(held: PatternRow, row: PatternRow): PatternRow {
+  const steps = held.steps.map((on, step) => on || row.steps[step] === true)
+  if (!held.pitches && !row.pitches) return { instrumentId: held.instrumentId, steps }
+  const heldPitches = rowPitchMasks(held)
+  const rowPitches = rowPitchMasks(row)
+  return {
+    instrumentId: held.instrumentId,
+    steps,
+    pitches: heldPitches.map((mask, step) => mask | (rowPitches[step] ?? 0)),
+  }
 }
 
 /**
