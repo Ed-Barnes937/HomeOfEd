@@ -34,7 +34,7 @@ Acceptance criteria:
       one-note rows.
 
 ## Comments
-
+=
 - 2026-09-17: **built** on branch `pitched-01-engine` (PR #141). Verify loop
   green (`pnpm lint`, `pnpm typecheck`, boop's full suite: 525 vitest + 267
   playwright-ct). Vitest only, per the ticket's testing note - no UI paints a
