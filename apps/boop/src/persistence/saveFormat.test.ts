@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
+import { ANCHOR_PITCH_MASK, pitchMask, rowPitchMasks } from '../engine/pitch.ts'
+import {
+  STEPS_PER_PATTERN,
+  type Kit,
+  type Pattern,
+  type PatternRow,
+} from '../engine/sequencerEngine.ts'
 import {
   EMPTY_DOCUMENT,
   MAX_CLIPS,
@@ -46,6 +52,23 @@ function row(instrumentId: string, ...onSteps: number[]) {
   return { instrumentId, steps }
 }
 
+/**
+ * A pitched row (spec §4): `notes` maps a step to the pitch indexes painted in
+ * its lane column, counted from the bottom. `steps` is the any-note projection,
+ * which is exactly what the writer has to derive for itself.
+ */
+function lane(instrumentId: string, notes: Record<number, readonly number[]>): PatternRow {
+  const pitches = new Array<number>(STEPS_PER_PATTERN).fill(0)
+  for (const [step, pitchIndexes] of Object.entries(notes)) {
+    pitches[Number(step)] = pitchIndexes.reduce((mask, index) => mask | pitchMask(index), 0)
+  }
+  return {
+    instrumentId,
+    steps: pitches.map((mask) => mask !== 0),
+    pitches,
+  }
+}
+
 const pattern: Pattern = [row('kick', 0, 4), row('snare', 4)]
 
 const boop: StoredBoop = {
@@ -68,6 +91,34 @@ describe('patternToStored', () => {
         { instrumentId: 'snare', steps: '0000100000000000' },
       ],
     })
+  })
+
+  // Ticket 02 / spec §4: two lowercase hex characters per step, in step order,
+  // bit 0 = pitch index 0 = the bottom of the lane.
+  it('writes a pitched row as 32 hex characters, low bit first', () => {
+    const chord = lane('snare', { 0: [4], 4: [0, 2, 4], 15: [7] })
+
+    expect(patternToStored([chord]).rows[0]).toEqual({
+      instrumentId: 'snare',
+      steps: '1000100000000001',
+      pitches: `1000000015${'0'.repeat(20)}80`,
+    })
+  })
+
+  // The writer is the only place the two can be made to agree, so it derives
+  // one from the other rather than trusting what it was handed.
+  it('derives `steps` from `pitches`, never the other way round', () => {
+    const lying: PatternRow = {
+      ...lane('snare', { 2: [1] }),
+      steps: new Array<boolean>(STEPS_PER_PATTERN).fill(true),
+    }
+
+    expect(patternToStored([lying]).rows[0]!.steps).toBe('0010000000000000')
+  })
+
+  // The dormancy guarantee (spec §11): nothing pitched, nothing new on disk.
+  it('adds no `pitches` field to a row that carries none', () => {
+    expect('pitches' in patternToStored(pattern).rows[0]!).toBe(false)
   })
 })
 
@@ -125,6 +176,29 @@ describe('storedToPattern', () => {
       row('tom'),
       row('marimba'),
       row('boop'),
+    ])
+  })
+
+  it('reads a pitched row back as its masks', () => {
+    const chord = lane('snare', { 0: [4], 4: [0, 2, 4], 15: [7] })
+
+    expect(storedToPattern(kit, patternToStored([chord]))).toEqual([chord])
+  })
+
+  // Spec §3's conversion rule, and the whole reason the field is optional: a
+  // row with no note data is every on step at the anchor. `rowPitchMasks` is
+  // the one place that is decided, so decode leaves the field absent.
+  it('leaves `pitches` absent on a row that stored none, which reads as the anchor', () => {
+    const decoded = storedToPattern(kit, {
+      rows: [{ instrumentId: 'snare', steps: '1010' + '0'.repeat(12) }],
+    })
+
+    expect(decoded[0]!.pitches).toBeUndefined()
+    expect(rowPitchMasks(decoded[0]!)).toEqual([
+      ANCHOR_PITCH_MASK,
+      0,
+      ANCHOR_PITCH_MASK,
+      ...new Array<number>(13).fill(0),
     ])
   })
 })
@@ -332,6 +406,38 @@ describe('round-trip', () => {
     expect(serializeSaveDocument(decoded)).toBe(v1Raw)
   })
 
+  // Ticket 02: notes, a chord and empty steps in one row, through the string
+  // form and back onto the grid.
+  it('preserves a pitched row — notes, chords and empty steps alike', () => {
+    const pitched: Pattern = [
+      row('kick', 0, 8),
+      lane('snare', { 0: [0], 3: [7], 8: [0, 1, 2, 3, 4, 5, 6, 7], 12: [4] }),
+    ]
+    const song: StoredBoop = { ...boop, patterns: [patternToStored(pitched)] }
+    const saveDocument: SaveDocument = {
+      version: SAVE_FORMAT_VERSION,
+      working: { ...song, name: '' },
+      creations: [song],
+    }
+
+    const restored = reparse(saveDocument)
+
+    expect(restored).toEqual(saveDocument)
+    expect(storedToPattern(kit, restored.working!.patterns[0]!)).toEqual(pitched)
+  })
+
+  // Spec §11: this ticket lands dormant, so a boop with nothing pitched in it
+  // has to hit the disk exactly as an earlier build wrote it.
+  it('writes a boop with no pitched rows byte-identically to a pre-pitch build', () => {
+    const prePitchRaw = JSON.stringify({
+      version: 1,
+      working: { name: '', kitId: 'launch', tempo: 120, patterns: [patternToStored(pattern)] },
+      creations: [],
+    })
+
+    expect(serializeSaveDocument(parseSaveDocument(prePitchRaw))).toBe(prePitchRaw)
+  })
+
   it('survives a full trip back onto the grid', () => {
     const saveDocument: SaveDocument = {
       version: SAVE_FORMAT_VERSION,
@@ -445,6 +551,27 @@ describe('parseSaveDocument (defensive decode)', () => {
       'a layered position with a . in it — the two forms never mix',
       withWorking({ ...boop, placements: '1,.,,,,,,,,,,,,,,' }),
     ],
+    // Ticket 02 / spec §4: `pitches` is 32 lowercase hex characters and
+    // nothing else, and `steps` must be its exact any-note projection.
+    ['a pitches string one character short', withWorking(withRow({ pitches: '0'.repeat(31) }))],
+    ['a pitches string two characters long', withWorking(withRow({ pitches: '0'.repeat(34) }))],
+    [
+      'uppercase hex in pitches',
+      withWorking(withRow({ steps: `1${'0'.repeat(15)}`, pitches: `1A${'0'.repeat(30)}` })),
+    ],
+    [
+      'pitches characters that are not hex',
+      withWorking(withRow({ pitches: `g0${'0'.repeat(30)}` })),
+    ],
+    ['a non-string pitches', withWorking(withRow({ pitches: 16 }))],
+    [
+      'a step marked on with no note behind it',
+      withWorking(withRow({ steps: `1${'0'.repeat(15)}`, pitches: '0'.repeat(32) })),
+    ],
+    [
+      'a note on a step marked off',
+      withWorking(withRow({ steps: '0'.repeat(16), pitches: `10${'0'.repeat(30)}` })),
+    ],
     ['a gridClip past the clip list', withWorking({ ...boop, gridClip: 1 })],
     ['a negative gridClip', withWorking({ ...boop, gridClip: -1 })],
     ['a fractional gridClip', withWorking({ ...boop, gridClip: 0.5 })],
@@ -499,6 +626,16 @@ function withWorking(working: unknown): string {
 /** The valid boop with its one pattern carrying the (possibly invalid) extra fields. */
 function withPattern(extra: Record<string, unknown>): unknown {
   return { ...boop, patterns: [{ ...patternToStored(pattern), ...extra }] }
+}
+
+/** The valid boop with its one pattern holding a single row built from `extra`. */
+function withRow(extra: Record<string, unknown>): unknown {
+  return {
+    ...boop,
+    patterns: [
+      { rows: [{ instrumentId: 'snare', steps: '0'.repeat(STEPS_PER_PATTERN), ...extra }] },
+    ],
+  }
 }
 
 // Ticket 35: the "groove" → "boop" rename touches types and identifiers only.

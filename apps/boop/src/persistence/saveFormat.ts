@@ -10,6 +10,7 @@
  * these boop shapes, inherits the same guarantee).
  */
 
+import { isPitchMask } from '../engine/pitch.ts'
 import {
   blankPattern,
   MAX_BPM,
@@ -17,6 +18,7 @@ import {
   STEPS_PER_PATTERN,
   type Kit,
   type Pattern,
+  type PatternRow,
 } from '../engine/sequencerEngine.ts'
 
 /** Bumped only for a breaking shape change; an unknown version reads as empty. */
@@ -73,10 +75,35 @@ function placementClipIndex(char: string): number {
   return char === '' ? -1 : PLACEMENT_CHARS.indexOf(char)
 }
 
-/** One instrument's 16 cells as a bitstring, e.g. `1000100010001000`. */
+/**
+ * Two lowercase hex characters per step, in step order — the shape of a
+ * `pitches` field (spec §4). Pinned as a literal because it is the wire format:
+ * `32` is `STEPS_PER_PATTERN * 2`, and neither number may drift without every
+ * string already on disk saying so.
+ */
+const PITCHES_PATTERN = /^[0-9a-f]{32}$/
+
+/**
+ * One instrument's 16 cells as a bitstring, e.g. `1000100010001000`, and — on a
+ * **pitched** row — which notes each cell holds.
+ *
+ * `pitches` is additive and optional (ADR 0058, still `SAVE_FORMAT_VERSION` 1):
+ * 32 lowercase hex characters, two per step in step order, each byte a bitmask
+ * of pitch indexes with **bit 0 (the LSB) = pitch index 0 = the bottom of the
+ * lane = do**. `steps` stays the `[01]` **any-note projection** — `steps[s]` is
+ * `'1'` iff step `s`'s byte is non-zero — and the writer derives it from
+ * `pitches`, so the two can never disagree on the way out; decode rejects a
+ * document where they disagree on the way in.
+ *
+ * A row **without** `pitches` is legal and is the degrade path: on a pitched
+ * instrument every on step reads as the anchor "so" (`rowPitchMasks`), which is
+ * the untransposed sample, which is why converting a one-note instrument leaves
+ * every saved boop sounding as it always did.
+ */
 export interface StoredRow {
   instrumentId: string
   steps: string
+  pitches?: string
 }
 
 /**
@@ -141,13 +168,40 @@ export const EMPTY_DOCUMENT: SaveDocument = {
   creations: [],
 }
 
-export function patternToStored(pattern: Pattern): StoredPattern {
-  return {
-    rows: pattern.map((row) => ({
+/**
+ * A row's notes as the stored hex, and its `steps` derived from them. A row
+ * carrying no `pitches` is written exactly as it was before pitch existed —
+ * same two fields, same bytes — which is what keeps every un-pitched boop
+ * byte-identical on disk (spec §11).
+ */
+function rowToStored(row: PatternRow): StoredRow {
+  if (row.pitches === undefined) {
+    return {
       instrumentId: row.instrumentId,
       steps: row.steps.map((on) => (on ? '1' : '0')).join(''),
-    })),
+    }
   }
+  return {
+    instrumentId: row.instrumentId,
+    steps: stepsFromPitches(row.pitches),
+    pitches: row.pitches.map((mask) => mask.toString(16).padStart(2, '0')).join(''),
+  }
+}
+
+/** The any-note projection: a step is on iff its column holds a note (spec §4). */
+function stepsFromPitches(masks: readonly number[]): string {
+  return masks.map((mask) => (mask === 0 ? '0' : '1')).join('')
+}
+
+/** The 16 masks a validated `pitches` string holds, in step order. */
+function storedToPitchMasks(pitches: string): number[] {
+  return Array.from({ length: STEPS_PER_PATTERN }, (_, step) =>
+    Number.parseInt(pitches.slice(step * 2, step * 2 + 2), 16),
+  )
+}
+
+export function patternToStored(pattern: Pattern): StoredPattern {
+  return { rows: pattern.map(rowToStored) }
 }
 
 /**
@@ -169,15 +223,24 @@ export const WORKING_NAME = ''
  * ADR 0032 accepted for layering). If that drops every row, the result is a
  * fresh grid instead of an empty pattern: a `Pattern` is 1..roster rows, and
  * `setPattern` refuses an empty one.
+ *
+ * A row that stored no `pitches` keeps the field **absent** rather than being
+ * expanded here: what an absent field means is `rowPitchMasks`'s single ruling
+ * (ADR 0058), and materialising the anchor at decode time would put a second
+ * copy of it in the app.
  */
 export function storedToPattern(kit: Kit, stored: StoredPattern): Pattern {
   const known = new Set(kit.instruments.map((instrument) => instrument.instrumentId))
   const rows: Pattern = stored.rows
     .filter((row) => known.has(row.instrumentId))
-    .map((row) => ({
-      instrumentId: row.instrumentId,
-      steps: Array.from({ length: STEPS_PER_PATTERN }, (_, step) => row.steps[step] === '1'),
-    }))
+    .map((row) => {
+      const decoded: PatternRow = {
+        instrumentId: row.instrumentId,
+        steps: Array.from({ length: STEPS_PER_PATTERN }, (_, step) => row.steps[step] === '1'),
+      }
+      if (row.pitches === undefined) return decoded
+      return { ...decoded, pitches: storedToPitchMasks(row.pitches) }
+    })
   return rows.length > 0 ? rows : blankPattern(kit)
 }
 
@@ -320,7 +383,10 @@ function isValidPlacements(placements: string, clipCount: number): boolean {
 /**
  * A clip holds 1..roster rows with unique `instrumentId`s (ADR 0042), so an
  * empty row list or an instrument named twice is a broken document, not data -
- * and per ADR 0025 that discards the whole save document.
+ * and per ADR 0025 that discards the whole save document. `pitches` is held to
+ * the same bar (ADR 0058): a bad length, a character outside lowercase hex, or
+ * a byte that does not project onto this row's own `steps` is corruption, not
+ * something to guess at.
  *
  * An id this build's kit does not know is **not** an error: it decodes here and
  * drops at `storedToPattern`, so a document written against a bigger roster
@@ -336,7 +402,21 @@ function decodePattern(value: unknown): StoredPattern | undefined {
     const { instrumentId, steps } = entry
     if (typeof instrumentId !== 'string' || typeof steps !== 'string') return undefined
     if (steps.length !== STEPS_PER_PATTERN || !/^[01]+$/.test(steps)) return undefined
-    rows.push({ instrumentId, steps })
+
+    const row: StoredRow = { instrumentId, steps }
+    if (entry.pitches !== undefined) {
+      if (typeof entry.pitches !== 'string' || !PITCHES_PATTERN.test(entry.pitches)) {
+        return undefined
+      }
+      const masks = storedToPitchMasks(entry.pitches)
+      // Two hex characters is exactly the eight bits a lane has today, so this
+      // only bites if the lane ever narrows - but the lane's shape is
+      // `pitch.ts`'s to state, not this file's to assume.
+      if (!masks.every(isPitchMask)) return undefined
+      if (stepsFromPitches(masks) !== steps) return undefined
+      row.pitches = entry.pitches
+    }
+    rows.push(row)
   }
   if (new Set(rows.map((row) => row.instrumentId)).size !== rows.length) return undefined
 
