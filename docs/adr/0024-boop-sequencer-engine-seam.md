@@ -238,6 +238,24 @@ pitch and every existing boop schedules exactly the calls it did before.
   instrument twice, and `mergePatterns` - the only way one instrument sounds
   from two clips at once - now unions *notes* rather than concatenating rows.
 
+- **Being pitched is manifest data, and the data is one number** (ticket 03).
+  `KitInstrument` gains an optional `pitched` config, and it carries only the
+  instrument's **register** - `rootNote`, scientific pitch notation for what
+  note its root sample actually is, parsed to `rootMidi` at load. Everything
+  else about a lane is identical for every instrument and already lives in
+  `pitch.ts`, so the manifest says where the ladder sits and never restates it:
+  `semitonesForInstrument` walks `semitonesFromAnchor` for a flagged instrument
+  and returns zero for an unflagged one at *every* pitch index, which is why a
+  document claiming pitches for a drum cannot repitch it. `laneNoteMidi` is the
+  one place register and ladder meet. The config is deliberately not a boolean
+  and deliberately not `role: 'melodic'` (picker taxonomy - spec §3), so
+  activation is a `kit.json` edit plus a sample file, with no engine change.
+  The roster's **key is not in the engine**: the ladder is the same in any key,
+  a key is a property of the registers together, and C major (spec §3) is
+  therefore asserted over the shipped kit in `kitManifest.test.ts` rather than
+  enforced by the parser - which validates well-formedness only, and fails the
+  whole kit load on a malformed config like any other corrupt field.
+
 **Still open, deliberately.** The loudness budget behind `MASTER_GAIN` assumes
 at most one voice per instrument per step, which an 8-note chord breaks; ticket
 09 re-measures and re-pins it. The offline WAV export (`renderSequence.ts`)

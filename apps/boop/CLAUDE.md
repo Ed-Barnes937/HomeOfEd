@@ -362,7 +362,10 @@ share-link snapshot.
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids: an
   instrument's picker section is a manifest `group` for exactly that reason
-  ([ADR 0042 §6](../../docs/adr/0042-boop-dynamic-clip-rows.md)).
+  ([ADR 0042 §6](../../docs/adr/0042-boop-dynamic-clip-rows.md)). A **pitched**
+  instrument is the same deal: an optional `pitched` register in the entry plus
+  a root sample, never a code path, and `role: "melodic"` does not imply it
+  (ADR 0024, as amended 2026-09-17).
 - **Adding a database?** Follow
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only) —
   this is only expected for the share-link snapshot store, not the toy itself.

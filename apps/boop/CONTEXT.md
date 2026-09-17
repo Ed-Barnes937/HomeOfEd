@@ -80,9 +80,22 @@ _Avoid_: Muted, suspended.
 
 **Kit manifest**:
 The pure-data JSON description of a kit: one entry per instrument with its
-`instrumentId`, display name, artwork, sound file, and optional `role`. Kits
+`instrumentId`, display name, artwork, sound file, optional `role` and picker
+`group`, and - on a pitched instrument - a `pitched` **register**. Kits
 are swappable by shipping a new manifest — V1 ships exactly one.
 _Avoid_: Instrument list, sound pack.
+
+**Register**:
+Where an instrument's lane sits: the note its root sample actually is, written
+in the manifest as `rootNote` ("G3", middle C being C4). The sample is the
+anchor pitch, so the register alone decides what every cell of the lane sounds
+- a G3 root puts the lane's bottom cell on C3 and its top cell on C4. It is
+the only thing the `pitched` config holds, and the only per-instrument pitch
+data anywhere: the scale itself is the same for every instrument (`pitch.ts`).
+The roster's key (C major) is a property of the registers together, not of any
+one of them.
+_Avoid_: Octave, tuning, transpose (a transpose is the move, the register is
+the home).
 
 **Role**:
 An optional semantic tag on a kit-manifest instrument entry (kick / snare /
