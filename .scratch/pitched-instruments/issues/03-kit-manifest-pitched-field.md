@@ -1,6 +1,6 @@
 # 03 - Kit manifest: the `pitched` instrument config
 
-**Status:** ready-for-human (built, PR open)
+**Status:** ready-for-human (built, PR #143 open)
 **Blocked by:** 01
 
 **What to build:** `KitInstrument` and `kit.json` parsing gain an additive,
@@ -53,3 +53,12 @@ baked into the engine, which knows no key.
 
 Dormant per spec §11: `kit.json` untouched, and a test asserts the shipped kit
 is still all one-note - ticket 10 rewrites that expectation.
+
+**For ticket 10, not resolved here:** `semitonesForInstrument` is defined but
+uncalled - the engine still asks `semitonesFromAnchor` directly, so the flag
+gates nothing at playback time yet. Moving the two call sites over is ticket
+10's, and it forces a choice this ticket has no business making: a row with
+pitches on an *unflagged* instrument either plays them at the root pitch
+(zeroed here, silent) or is refused by `setPattern` (loud, but the save format
+decodes such a document happily today, so decode would have to cope). Recorded
+in ADR 0024's "still open".

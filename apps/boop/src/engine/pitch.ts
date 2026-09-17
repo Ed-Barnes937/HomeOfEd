@@ -74,10 +74,16 @@ export function semitonesFromAnchor(pitchIndex: number): number {
 /**
  * How far a note is transposed from **this instrument's** sample: the ladder
  * above for a pitched instrument, and zero for a one-note one, at every pitch
- * index. The lane and the driver ask this rather than `semitonesFromAnchor`,
- * so a drum cannot be repitched by a document claiming pitches for it - only
- * the manifest can make an instrument transposable, which is the same rule as
- * "kits are pure data" said from the audio side.
+ * index. Only the manifest can make an instrument transposable, which is "kits
+ * are pure data" said from the audio side.
+ *
+ * **Nothing calls it yet.** The engine still asks `semitonesFromAnchor`
+ * directly (`createSequencerEngine`), so today a row carrying pitches is
+ * repitched whether or not its instrument is flagged - which no document can
+ * be, since nothing paints a pitch until the lane exists. Ticket 10 activates
+ * the roster and is where the call sites move over, with the choice of whether
+ * pitches on an unflagged instrument are zeroed here or refused loudly by
+ * `setPattern` (the save format decodes them happily today).
  */
 export function semitonesForInstrument(instrument: KitInstrument, pitchIndex: number): number {
   return instrument.pitched ? semitonesFromAnchor(pitchIndex) : 0
