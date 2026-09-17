@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { createSequencerEngine } from '../engine/createSequencerEngine.ts'
+import { pitchMask } from '../engine/pitch.ts'
 import {
+  ANCHOR_PITCH_INDEX,
   blankPattern,
   DEFAULT_CLIP_ROWS,
   STEPS_PER_PATTERN,
   type Kit,
   type Pattern,
+  type PatternRow,
 } from '../engine/sequencerEngine.ts'
 import { FakeAudioDriver } from '../engine/testing/fakeAudioDriver.ts'
 import {
@@ -66,6 +69,14 @@ function row(instrumentId: string, ...onSteps: number[]) {
   const steps = new Array<boolean>(STEPS_PER_PATTERN).fill(false)
   for (const step of onSteps) steps[step] = true
   return { instrumentId, steps }
+}
+
+/** A pitched row: `notes` maps a step to the pitch indexes painted in its column. */
+function pitched(instrumentId: string, notes: Record<number, number[]>): PatternRow {
+  const pitches = Array.from({ length: STEPS_PER_PATTERN }, (_, step) =>
+    (notes[step] ?? []).reduce((mask, pitchIndex) => mask | pitchMask(pitchIndex), 0),
+  )
+  return { instrumentId, steps: pitches.map((mask) => mask !== 0), pitches }
 }
 
 /** A one-clip song on `roster`: the default six rows, the hat row painted. */
@@ -404,6 +415,32 @@ describe('mergePatterns', () => {
 
     expect(merged.map((r) => r.instrumentId)).toEqual(['boop', 'kick', 'hat'])
     expect(merged[0]).toEqual(row('boop', 1, 3))
+  })
+
+  // Layering is what makes the same instrument sound twice on one step, so it
+  // is the one place a unison could be double-scheduled (spec §5): the notes
+  // of a shared column have to union, exactly as its steps do.
+  it('unions the notes of a pitched row, a shared note sounding once', () => {
+    const merged = mergePatterns([
+      [pitched('boop', { 0: [4], 8: [1] })],
+      [pitched('boop', { 0: [4, 7] })],
+    ])
+
+    expect(merged).toEqual([pitched('boop', { 0: [4, 7], 8: [1] })])
+  })
+
+  // Spec §3: a pitched row carrying no note data is every on step at the
+  // anchor, so that is what it contributes to the union.
+  it('layers a row with no note data at the anchor pitch', () => {
+    const merged = mergePatterns([[pitched('boop', { 0: [7] })], [row('boop', 0, 4)]])
+
+    expect(merged).toEqual([
+      pitched('boop', { 0: [ANCHOR_PITCH_INDEX, 7], 4: [ANCHOR_PITCH_INDEX] }),
+    ])
+  })
+
+  it('leaves a union of rows with no note data exactly as it was', () => {
+    expect(mergePatterns([[row('kick', 0)], [row('kick', 4)]])).toEqual([row('kick', 0, 4)])
   })
 })
 

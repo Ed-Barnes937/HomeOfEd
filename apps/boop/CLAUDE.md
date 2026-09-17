@@ -36,6 +36,8 @@ src/
     createSequencerEngine.ts  the implementation: ticks, hits, songPos, events
     audioDriver.ts    the seam to the audio library
     toneAudioDriver.ts  the only file importing Tone.js
+    pitch.ts          the lane's eight pitches: the mask a row packs its notes
+                      in, and the semitones each one asks the driver for
     kitManifest.ts    manifest parse/load (kits are pure data)
     testing/fakeAudioDriver.ts  hand-cranked clock the contract tests use
   server/           the app's backend (runs in Node for dev/prod, in-browser for .iwft)
@@ -216,7 +218,20 @@ share-link snapshot.
   1..roster, six by default - so a row's position never indexes the kit; look
   an instrument up by id. `setPattern` is the only way a row set changes, and
   `audition(instrumentId)` is the picker's play-it-now (ADR 0042). Test engine
-  behaviour against `FakeAudioDriver`, never a real AudioContext. The engine
+  behaviour against `FakeAudioDriver`, never a real AudioContext.
+  **Pitch** (ADR 0024, as amended 2026-09-17; pitched-lane spec §4/§5). A row
+  may carry `pitches` - 16 bitmasks of lane notes, **bit 0 = pitch index 0 =
+  the bottom of the lane = do, counted from the bottom app-wide** - with
+  `steps` as the any-note projection `setPattern` enforces. The field is
+  *absent* until a note is painted, and absent reads as the anchor pitch "so"
+  (`ANCHOR_PITCH_INDEX`), which is zero semitones, which is the untransposed
+  sample: that is the one rule making converted instruments sound identical in
+  every old boop, and it lives in `pitch.ts`'s `rowPitchMasks` alone. A chord
+  is one `Hit` and one `play` per note. `AudioDriver.play` takes plain
+  semitones, never a pitch index - the lane is the engine's business, and
+  `ToneAudioDriver` repitches by `playbackRate` on its existing
+  one-source-per-hit pattern (never `Tone.Sampler` or `GrainPlayer`; both were
+  evaluated and rejected). The engine
   **borrows** its driver: `App` owns the one `AudioDriver` for the life of the
   page, and `engine.dispose()` must never dispose it (ADR 0024, as amended) —
   React's dev double-mount builds two engines over that one driver.

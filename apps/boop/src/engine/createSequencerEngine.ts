@@ -1,9 +1,20 @@
 import type { AudioDriver } from './audioDriver.ts'
 import {
+  ANCHOR_PITCH_MASK,
+  hasPitch,
+  isPitchIndex,
+  isPitchMask,
+  pitchMask,
+  pitchesInMask,
+  rowPitchMasks,
+  semitonesFromAnchor,
+} from './pitch.ts'
+import {
   blankPattern,
   DEFAULT_BPM,
   MAX_BPM,
   MIN_BPM,
+  PITCHES_PER_LANE,
   STEPS_PER_PATTERN,
   type AudioState,
   type BeatEvent,
@@ -41,6 +52,18 @@ export async function createSequencerEngine({
   return engine
 }
 
+/**
+ * One row as the engine holds it: the 16 cells, and the notes in them once
+ * there are any. `pitches` stays **null** until a pitch is actually painted on
+ * the row, which is what keeps a drum row - and a pitched row nobody has
+ * touched - exactly the shape it was before pitch existed. Null reads as the
+ * anchor on every on step (`rowPitchMasks`, spec §3).
+ */
+interface EngineRow {
+  steps: boolean[]
+  pitches: number[] | null
+}
+
 class BoopSequencerEngine implements SequencerEngine {
   /**
    * The clip's rows, in their own order (ADR 0042) - a Map because cells are
@@ -48,7 +71,7 @@ class BoopSequencerEngine implements SequencerEngine {
    * is exactly the row order hits and `getPattern()` must report. Replaced
    * wholesale by `setPattern`: that is how a row set changes.
    */
-  private rows: Map<string, boolean[]>
+  private rows: Map<string, EngineRow>
   /** The roster, for the id checks. `kit.instruments` stays the enumeration. */
   private readonly kitIds: ReadonlySet<string>
   private readonly beatListeners = new Set<(event: BeatEvent) => void>()
@@ -85,31 +108,58 @@ class BoopSequencerEngine implements SequencerEngine {
     // A fresh grid is the roster's first six, empty - a starting point for the
     // child to change, not the shape of every clip. `blankPattern` is the one
     // place that says so, shared with clip creation (ADR 0042).
-    this.rows = new Map(blankPattern(kit).map((row) => [row.instrumentId, [...row.steps]]))
+    this.rows = new Map(
+      blankPattern(kit).map((row) => [row.instrumentId, { steps: [...row.steps], pitches: null }]),
+    )
     driver.setBpm(this.bpm)
     driver.onStep((audioTime) => this.onScheduledStep(audioTime))
     this.offDriverState = driver.onStateChange((state) => this.onAudioStateChange(state))
   }
 
   getPattern(): Pattern {
-    return [...this.rows].map(([instrumentId, steps]) => ({ instrumentId, steps: [...steps] }))
+    return [...this.rows].map(([instrumentId, row]) => ({
+      instrumentId,
+      steps: [...row.steps],
+      // Absent rather than empty when the row holds no notes of its own, so a
+      // one-note row's shape is untouched and `blankPattern` still compares
+      // equal to a fresh engine's grid.
+      ...(row.pitches ? { pitches: [...row.pitches] } : {}),
+    }))
   }
 
-  setCell(instrumentId: string, step: number, on: boolean): void {
-    const steps = this.rowFor(instrumentId)
+  setCell(instrumentId: string, step: number, on: boolean, pitchIndex?: number): void {
+    const row = this.rowFor(instrumentId)
     assertStep(step)
-    if (steps[step] === on) return
-    steps[step] = on
-    if (on && !this.playing) this.audition(instrumentId)
+    if (pitchIndex === undefined) {
+      // The whole column: off clears every note in it, on paints the anchor -
+      // the untransposed sample, so a one-note row behaves as it always has.
+      if (row.steps[step] === on) return
+      row.steps[step] = on
+      if (row.pitches) row.pitches[step] = on ? ANCHOR_PITCH_MASK : 0
+      if (on && !this.playing) this.audition(instrumentId)
+      return
+    }
+    assertPitchIndex(pitchIndex)
+    // Read through the anchor rule before deciding, so erasing a note a row
+    // never had stays a no-op rather than growing it pitch data.
+    const held = row.pitches?.[step] ?? (row.steps[step] === true ? ANCHOR_PITCH_MASK : 0)
+    if (hasPitch(held, pitchIndex) === on) return
+    const pitches = row.pitches ?? [...rowPitchMasks({ instrumentId, steps: row.steps })]
+    // A column is a chord (spec §6): a note joins or leaves it, the rest sound on.
+    const mask = on ? held | pitchMask(pitchIndex) : held & ~pitchMask(pitchIndex)
+    pitches[step] = mask
+    row.pitches = pitches
+    row.steps[step] = mask !== 0
+    if (on && !this.playing) this.audition(instrumentId, pitchIndex)
   }
 
   setPattern(pattern: Pattern): void {
     if (pattern.length === 0) throw new Error('pattern must have at least one row')
     // Build the whole row set before adopting any of it, so a bad pattern
     // leaves the grid alone.
-    const rows = new Map<string, boolean[]>()
+    const rows = new Map<string, EngineRow>()
     for (const row of pattern) {
-      const { instrumentId, steps } = row
+      const { instrumentId, steps, pitches } = row
       if (!this.kitIds.has(instrumentId)) {
         throw new Error(`unknown instrument "${instrumentId}" for this kit`)
       }
@@ -121,24 +171,27 @@ class BoopSequencerEngine implements SequencerEngine {
           `pattern row "${instrumentId}" must have ${STEPS_PER_PATTERN} steps, got ${steps.length}`,
         )
       }
-      rows.set(
-        instrumentId,
-        Array.from({ length: STEPS_PER_PATTERN }, (_, step) => steps[step] === true),
-      )
+      rows.set(instrumentId, {
+        steps: Array.from({ length: STEPS_PER_PATTERN }, (_, step) => steps[step] === true),
+        pitches: pitches === undefined ? null : checkedPitches(instrumentId, steps, pitches),
+      })
     }
     this.rows = rows
   }
 
-  audition(instrumentId: string): void {
+  audition(instrumentId: string, pitchIndex?: number): void {
     // Called straight from a tap, so an id the kit does not know is ignored
     // rather than thrown (the contract says so). The driver would no-op anyway.
     if (!this.kitIds.has(instrumentId)) return
+    // A pitch outside the lane is ignored the same way, for the same reason.
+    if (pitchIndex !== undefined && !isPitchIndex(pitchIndex)) return
+    const semitones = pitchIndex === undefined ? undefined : semitonesFromAnchor(pitchIndex)
     if (this.driver.state() === 'running') {
-      this.driver.play(instrumentId)
+      this.driver.play(instrumentId, undefined, semitones)
       return
     }
     // The tap that called us is itself a gesture, so it may unlock.
-    void this.driver.unlock().then(() => this.driver.play(instrumentId))
+    void this.driver.unlock().then(() => this.driver.play(instrumentId, undefined, semitones))
   }
 
   async start(): Promise<void> {
@@ -268,10 +321,21 @@ class BoopSequencerEngine implements SequencerEngine {
     const step = tick % STEPS_PER_PATTERN
 
     const hits: Hit[] = []
-    for (const [instrumentId, steps] of this.rows) {
-      if (steps[step]) {
+    for (const [instrumentId, row] of this.rows) {
+      if (!row.steps[step]) continue
+      if (!row.pitches) {
+        // No notes of its own: the root sample, untransposed. A drum, or a
+        // pitched row still reading at the anchor (spec §3) - the same call.
         hits.push({ instrumentId })
         this.driver.play(instrumentId, audioTime)
+        continue
+      }
+      // One hit and one source per note of the column, low note first. A mask
+      // holds each pitch once, and `setPattern` refuses to name an instrument
+      // twice, so no pitch of an instrument can be scheduled twice on a step.
+      for (const pitchIndex of pitchesInMask(row.pitches[step] ?? 0)) {
+        hits.push({ instrumentId, pitchIndex })
+        this.driver.play(instrumentId, audioTime, semitonesFromAnchor(pitchIndex))
       }
     }
 
@@ -293,9 +357,9 @@ class BoopSequencerEngine implements SequencerEngine {
     for (const listener of this.audioStateListeners) listener(state)
   }
 
-  private rowFor(instrumentId: string): boolean[] {
-    const steps = this.rows.get(instrumentId)
-    if (!steps) {
+  private rowFor(instrumentId: string): EngineRow {
+    const row = this.rows.get(instrumentId)
+    if (!row) {
       // The kit knowing an instrument no longer means this clip has a row for
       // it, so the two failures read differently.
       throw new Error(
@@ -304,7 +368,7 @@ class BoopSequencerEngine implements SequencerEngine {
           : `unknown instrument "${instrumentId}" for this kit`,
       )
     }
-    return steps
+    return row
   }
 
   /** `songPos()` without the zero clamp — the value re-anchoring must use. */
@@ -326,6 +390,44 @@ function assertStep(step: number): void {
   if (!Number.isInteger(step) || step < 0 || step >= STEPS_PER_PATTERN) {
     throw new Error(`step must be an integer in 0..${STEPS_PER_PATTERN - 1}, got ${step}`)
   }
+}
+
+function assertPitchIndex(pitchIndex: number): void {
+  if (!isPitchIndex(pitchIndex)) {
+    throw new Error(`pitch must be an integer in 0..${PITCHES_PER_LANE - 1}, got ${pitchIndex}`)
+  }
+}
+
+/**
+ * A row's `pitches` as the engine will hold them, or a thrown explanation.
+ * `steps` is the any-note projection of `pitches` (spec §4) and the two
+ * drifting apart would mean a painted note that never sounds, or a step that
+ * sounds nothing - so the seam refuses it the way the save format does.
+ */
+function checkedPitches(
+  instrumentId: string,
+  steps: readonly boolean[],
+  pitches: readonly number[],
+): number[] {
+  if (pitches.length !== STEPS_PER_PATTERN) {
+    throw new Error(
+      `pattern row "${instrumentId}" must have ${STEPS_PER_PATTERN} pitches, got ${pitches.length}`,
+    )
+  }
+  return Array.from({ length: STEPS_PER_PATTERN }, (_, step) => {
+    const mask = pitches[step] ?? Number.NaN
+    if (!isPitchMask(mask)) {
+      throw new Error(
+        `pattern row "${instrumentId}" has pitches that are not lane notes at step ${step}`,
+      )
+    }
+    if ((mask !== 0) !== (steps[step] === true)) {
+      throw new Error(
+        `pattern row "${instrumentId}" has pitches its steps disagree with at step ${step}`,
+      )
+    }
+    return mask
+  })
 }
 
 function subscribe<T>(listeners: Set<T>, listener: T): Unsubscribe {

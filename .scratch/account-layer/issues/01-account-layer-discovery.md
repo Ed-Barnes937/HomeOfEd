@@ -1,6 +1,6 @@
 # 01 - Discovery: a global Account layer
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** research
 **Reported:** 2026-09-06, Ed (dev)
 
@@ -64,3 +64,40 @@ decision itself is Ed's - expect a grilling session after the brief.
   "revisit under global accounts" note.
 
 ## Comments
+
+**2026-09-06 (agent):** Charted into the joint wayfinder map
+[account layer + infra consolidation](../../account-infra-discovery/map.md)
+together with `.scratch/infra-cost/issues/01`, per the "decide these together"
+note. The discovery brief this ticket asks for is produced by that map's
+tickets [01 - Inventory](../../account-infra-discovery/issues/01-current-state-inventory.md)
+and [03 - Options paper: the account layer](../../account-infra-discovery/issues/03-account-layer-options.md);
+the direction decision is queued for Ed as
+[05 - Decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md).
+
+**2026-09-06 (agent):** Discovery brief done; status moved to ready-for-human.
+The [current-state inventory](../../account-infra-discovery/issues/01-current-state-inventory.md)
+confirmed sprout's accounts are extractable in mechanism but sprout-shaped in
+model, the `ctx.auth` seam is universal, and all per-user data outside sprout is
+single-device localStorage. The
+[options paper](../../account-infra-discovery/issues/03-account-layer-options.md)
+lays out four options and recommends a fresh minimal identity service + central
+opaque-blob SaveStore (sprout swaps in later via its ADR 0012 path), boop
+`boop:save` as the first slice, and hub owning the account UI. Eight decisions
+await Ed in that paper, to be taken together with the infra-cost decisions in
+the decision sitting.
+
+**2026-09-10 (agent):** Direction DECIDED by Ed at the
+[decision sitting](../../account-infra-discovery/issues/05-decision-sitting.md);
+resolved. The account layer is a **fresh minimal identity service + central
+opaque-blob SaveStore, one scale-to-zero "family" Fly app** with a logical DB
+in `hoe-pg` (Option C proper; hub-hosting rejected). Sprout is left alone and
+swaps in later via its ADR 0012 AuthProvider path; its ADR-0019 gate stays
+scoped to sprout. Hub owns the account UI; save wiring is browser-direct to
+the family service's tRPC with contract types in `packages/accounts`; import
+is copy-never-move with LWW-per-slot + per-app merge hooks; the layer gets
+its own fresh ADR-0019-style legal gate (household pilot + invite-code; ADR
+before any non-household account). **First slice: boop `boop:save`.** Next
+steps: spec ticket
+[08](../../account-infra-discovery/issues/08-first-slice-spec-boop.md), gate
+ADR [09](../../account-infra-discovery/issues/09-legal-gate-adr.md), consumer
+re-pointing [10](../../account-infra-discovery/issues/10-repoint-waiting-consumers.md).
