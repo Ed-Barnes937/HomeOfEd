@@ -1,7 +1,9 @@
 Launch kit - real kit content (ticket 18), grown to the 20-instrument roster
-by the boop-instruments effort (ticket 01).
+by the boop-instruments effort (ticket 01). Three further icons, drawn in this
+repo for the pitched-lane effort (ticket 05), have their own block below the
+sourced twenty - different provenance, different terms.
 
-artwork/*.svg
+artwork/*.svg - the sourced twenty
   Placeholder icons from game-icons.net, CC BY 3.0. The classic six were taken
   from the design handoff bundle (docs/reference/boop-design/assets/instruments/);
   the fourteen added for the roster were taken from the upstream source tree
@@ -45,6 +47,32 @@ artwork/*.svg
   credit list - Skoll among them - covers game-icons.net contributors
   generally; the verified per-file authorship above is the accurate
   attribution for the twenty files actually shipped here.)
+
+artwork/trumpet.svg, artwork/double-bass.svg, artwork/piano.svg
+  Drawn in this repo - original work, no third-party source, no licence and no
+  attribution owed, the same standing as sounds/*.wav below. Agent-drawn SVG is
+  what the pitched-lane grill session settled on (spec §9, ticket 05) and Ed
+  approves them by eye before the roster activates.
+
+  They match the sourced set by construction, because the app tints every icon
+  through mask-image and a mask only sees the filled area: one
+  viewBox="0 0 512 512", one currentColor path, flat silhouette, no strokes,
+  no embedded raster and no external reference. Interior detail is negative
+  space - subpaths wound against the body so they read as holes.
+
+    trumpet.svg     - side view, bell flaring right: leadpipe and mouthpiece at
+                      the left, three valve casings and finger buttons on top,
+                      the tuning-slide loop hanging under the tube.
+    double-bass.svg - upright bass stood on its endpin: scrolled head with four
+                      tuning pegs, long neck, violin-family body cut with two
+                      f-holes and the bridge line between them.
+    piano.svg       - grand piano from above: the wing-shaped case with the
+                      open-lid line following the bent side, and a seven-key
+                      keyboard along the front edge.
+
+  Nothing in kit.json references these three yet. The pitched roster activates
+  in ticket 10; until then they are files on disk and nothing user-visible
+  changes.
 
 sounds/*.wav
   Synthesized in this repo - original work, no third-party audio, no
