@@ -2,7 +2,9 @@ import {
   ANCHOR_PITCH_INDEX,
   PITCHES_PER_LANE,
   STEPS_PER_PATTERN,
+  type KitInstrument,
   type PatternRow,
+  type PitchedConfig,
 } from './sequencerEngine.ts'
 
 /**
@@ -67,6 +69,62 @@ export function isPitchMask(mask: number): boolean {
  */
 export function semitonesFromAnchor(pitchIndex: number): number {
   return MAJOR_SCALE_SEMITONES[pitchIndex]! - MAJOR_SCALE_SEMITONES[ANCHOR_PITCH_INDEX]!
+}
+
+/**
+ * How far a note is transposed from **this instrument's** sample: the ladder
+ * above for a pitched instrument, and zero for a one-note one, at every pitch
+ * index. The lane and the driver ask this rather than `semitonesFromAnchor`,
+ * so a drum cannot be repitched by a document claiming pitches for it - only
+ * the manifest can make an instrument transposable, which is the same rule as
+ * "kits are pure data" said from the audio side.
+ */
+export function semitonesForInstrument(instrument: KitInstrument, pitchIndex: number): number {
+  return instrument.pitched ? semitonesFromAnchor(pitchIndex) : 0
+}
+
+/**
+ * What note a lane cell actually sounds, as MIDI: the instrument's **register**
+ * (its root sample's own pitch, from the manifest) walked by the same ladder.
+ * The one place the two meet, and therefore what "do lands where the manifest
+ * says" means - a G3 root puts do on C3 and high do on C4.
+ *
+ * Nothing in playback needs it (the driver takes semitones, not notes); it is
+ * how the registers can be checked against each other - the roster is in C
+ * major (spec §3), which is a statement about these numbers.
+ */
+export function laneNoteMidi(pitched: PitchedConfig, pitchIndex: number): number {
+  return pitched.rootMidi + semitonesFromAnchor(pitchIndex)
+}
+
+/** Semitones each note letter sits above the C below it. */
+const NOTE_LETTER_SEMITONES: Readonly<Record<string, number>> = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11,
+}
+
+/** Scientific pitch notation: a letter, an optional accidental, an octave. */
+const NOTE_NAME = /^([A-G])([#b]?)(-1|[0-9])$/
+
+/**
+ * A note name to its MIDI number, or `undefined` if that is not a note - the
+ * manifest parser's validator for a register, and the only place the app reads
+ * pitch notation at all. Middle C is C4 (60), the convention the samples are
+ * measured in; anything outside MIDI 0-127 is not a note we could name.
+ */
+export function noteNameToMidi(name: string): number | undefined {
+  const match = NOTE_NAME.exec(name)
+  if (!match) return undefined
+  const [, letter, accidental, octave] = match
+  const semitone =
+    NOTE_LETTER_SEMITONES[letter!]! + (accidental === '#' ? 1 : accidental === 'b' ? -1 : 0)
+  const midi = (Number(octave) + 1) * 12 + semitone
+  return midi >= 0 && midi <= 127 ? midi : undefined
 }
 
 /**

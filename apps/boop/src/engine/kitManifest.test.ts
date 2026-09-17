@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { KIT_MANIFEST_VERSION, loadKit, parseKitManifest } from './kitManifest.ts'
+import { laneNoteMidi } from './pitch.ts'
 
 const validManifest = {
   version: KIT_MANIFEST_VERSION,
@@ -42,8 +43,33 @@ describe('parseKitManifest', () => {
     expect(kit.instruments[1]?.group).toBeUndefined()
   })
 
+  it('reads the pitched config, and leaves an entry without one one-note', () => {
+    const kit = parseKitManifest({
+      ...validManifest,
+      instruments: [validManifest.instruments[0], pitchedInstrument()],
+    })
+
+    expect(kit.instruments[0]?.pitched).toBeUndefined()
+    expect(kit.instruments[1]?.pitched).toEqual({ rootNote: 'G3', rootMidi: 55 })
+  })
+
+  it('does not read pitched off the role: melodic is picker taxonomy (spec §3)', () => {
+    const kit = parseKitManifest({
+      ...validManifest,
+      instruments: [{ ...dupInstrument(), role: 'melodic', group: 'notes' }],
+    })
+
+    expect(kit.instruments[0]?.pitched).toBeUndefined()
+  })
+
   it.each([
     ['a non-object', 42],
+    ['a boolean pitched', withPitched(true)],
+    ['a pitched with no root note', withPitched({})],
+    ['a root note that is not a string', withPitched({ rootNote: 55 })],
+    ['a root note that is not a note', withPitched({ rootNote: 'H4' })],
+    ['a root note with no octave', withPitched({ rootNote: 'G' })],
+    ['a root note off the MIDI range', withPitched({ rootNote: 'A9' })],
     ['a missing version', { ...validManifest, version: undefined }],
     ['a future version', { ...validManifest, version: KIT_MANIFEST_VERSION + 1 }],
     ['no instruments', { ...validManifest, instruments: [] }],
@@ -111,6 +137,24 @@ describe('the shipped launch kit', () => {
     expect(Object.fromEntries(counts)).toEqual({ drums: 10, notes: 6, silly: 4 })
   })
 
+  it('is still all one-note - the lane lands dormant (spec §11)', async () => {
+    // Tickets 01-09 build the lane with no instrument flagged, so every PR of
+    // this epic changes nothing a child can hear. Ticket 10 is the activation
+    // and rewrites this expectation.
+    const kit = await shippedKit()
+    expect(kit.instruments.filter((i) => i.pitched !== undefined)).toEqual([])
+  })
+
+  it('keeps every pitched instrument in the key of C major (spec §3)', async () => {
+    // Vacuous until ticket 10, and armed from now on: a register whose "do" is
+    // not a C would put one instrument in a different key from the rest.
+    const kit = await shippedKit()
+    for (const instrument of kit.instruments) {
+      if (!instrument.pitched) continue
+      expect(laneNoteMidi(instrument.pitched, 0) % 12, instrument.instrumentId).toBe(0)
+    }
+  })
+
   it('leads with the classic six, in their original order', async () => {
     // Defaults and the authored sample clips key off these positions, so the
     // six that shipped at launch must stay first in manifest order.
@@ -133,4 +177,12 @@ function dupInstrument() {
     artwork: '/kits/launch/artwork/drum.svg',
     sound: '/kits/launch/sounds/kick.wav',
   }
+}
+
+function pitchedInstrument() {
+  return { ...dupInstrument(), instrumentId: 'trumpet', pitched: { rootNote: 'G3' } }
+}
+
+function withPitched(pitched: unknown) {
+  return { ...validManifest, instruments: [{ ...dupInstrument(), pitched }] }
 }

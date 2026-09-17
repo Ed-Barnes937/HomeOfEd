@@ -63,6 +63,32 @@ export type InstrumentRole = (typeof INSTRUMENT_ROLES)[number]
 export const INSTRUMENT_GROUPS = ['drums', 'notes', 'silly'] as const
 export type InstrumentGroup = (typeof INSTRUMENT_GROUPS)[number]
 
+/**
+ * What makes an instrument **pitched**: its row is a lane of
+ * `PITCHES_PER_LANE` cells rather than 16 on/off ones, and its one `sound` is
+ * repitched to play them (spec §3/§5).
+ *
+ * The config holds exactly one thing - the instrument's **register**, meaning
+ * what note its root sample actually is. Everything else about a lane is the
+ * same for every instrument and lives in `pitch.ts`: the sample is the anchor
+ * "so", the anchor is zero semitones, and the eight cells are the major scale
+ * around it. So the manifest never restates the ladder, it only says where the
+ * ladder sits, and `laneNoteMidi` is what puts the two together.
+ *
+ * `rootNote` is scientific pitch notation ("G3", middle C being C4) because
+ * that is what ticket 04 *measures* off the wav and what an author choosing a
+ * register by ear writes down; `rootMidi` is the same note parsed, so nothing
+ * downstream re-reads a string. The key the roster sits in is not recorded
+ * here - it is a property of the registers together, asserted over the shipped
+ * kit (C major, spec §3) rather than baked into the engine.
+ */
+export interface PitchedConfig {
+  /** Scientific pitch notation: the measured pitch of the instrument's `sound`. */
+  rootNote: string
+  /** `rootNote` as a MIDI note number - the form the arithmetic uses. */
+  rootMidi: number
+}
+
 /** One instrument as described by the kit manifest. `instrumentId` is opaque. */
 export interface KitInstrument {
   instrumentId: string
@@ -72,6 +98,14 @@ export interface KitInstrument {
   role?: InstrumentRole
   /** Optional like `role`: an entry without one is still pickable, just unsectioned. */
   group?: InstrumentGroup
+  /**
+   * Present iff this instrument plays a **lane**. Absent is one-note, exactly
+   * as every instrument was before the lane existed - and absent is what
+   * `role: 'melodic'` leaves it, because the role is picker taxonomy and says
+   * nothing about pitch (spec §3). Flagging an instrument is a manifest edit
+   * plus a sample file, never an engine change ("Kits are pure data").
+   */
+  pitched?: PitchedConfig
 }
 
 /**

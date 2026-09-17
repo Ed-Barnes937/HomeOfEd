@@ -1,3 +1,4 @@
+import { noteNameToMidi } from './pitch.ts'
 import {
   INSTRUMENT_GROUPS,
   INSTRUMENT_ROLES,
@@ -5,6 +6,7 @@ import {
   type InstrumentRole,
   type Kit,
   type KitInstrument,
+  type PitchedConfig,
 } from './sequencerEngine.ts'
 
 /**
@@ -73,7 +75,32 @@ function parseInstrument(raw: unknown): KitInstrument {
     }
     instrument.group = entry.group
   }
+  if (entry.pitched !== undefined) {
+    instrument.pitched = parsePitched(entry.pitched)
+  }
   return instrument
+}
+
+/**
+ * The optional `pitched` config: a register, and nothing else (spec §3). An
+ * entry without one is one-note, so a malformed one is corruption like any
+ * other field's and fails the whole kit load rather than quietly demoting an
+ * instrument to a drum.
+ *
+ * Only well-formedness is checked here. Whether the registers agree on a key
+ * is a property of the roster *together*, not of one entry, and the engine
+ * knows no key - that is asserted over the shipped kit in `kitManifest.test.ts`.
+ */
+function parsePitched(raw: unknown): PitchedConfig {
+  const config = asRecord(raw, 'kit manifest instrument pitched')
+  const rootNote = requireString(config.rootNote, 'kit manifest instrument pitched rootNote')
+  const rootMidi = noteNameToMidi(rootNote)
+  if (rootMidi === undefined) {
+    throw new Error(
+      `kit manifest instrument pitched rootNote must be a note name like "G3", not "${rootNote}"`,
+    )
+  }
+  return { rootNote, rootMidi }
 }
 
 function isRole(value: unknown): value is InstrumentRole {
