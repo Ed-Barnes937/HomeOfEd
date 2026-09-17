@@ -247,9 +247,9 @@ pitch and every existing boop schedules exactly the calls it did before.
   `semitonesForInstrument` walks `semitonesFromAnchor` for a flagged instrument
   and returns zero for an unflagged one at *every* pitch index, and
   `laneNoteMidi` is the one place register and ladder meet. The config is
-  deliberately not a boolean
-  and deliberately not `role: 'melodic'` (picker taxonomy - spec §3), so
-  activation is a `kit.json` edit plus a sample file, with no engine change.
+  deliberately not a boolean and deliberately not `role: 'melodic'` (picker
+  taxonomy - spec §3), so activation is a `kit.json` edit plus a sample file,
+  with no engine change.
   The roster's **key is not in the engine**: the ladder is the same in any key,
   a key is a property of the registers together, and C major (spec §3) is
   therefore asserted over the shipped kit in `kitManifest.test.ts` rather than
