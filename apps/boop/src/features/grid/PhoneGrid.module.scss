@@ -13,6 +13,14 @@ $bar-row-gap: 6px;
 // under-playhead cell's scale(1.11); applied identically to both columns.
 $row-inset: 6px;
 
+// A pitched row's height, spent by the rail and by the lane alike (ADR 0063).
+// 156 leaves the eight tiles 16px on a 4px gap - the handoff's own tile-to-
+// column ratio on the phone's 32px column, and 20px hit bands. Folded, the row
+// is the chevron's line plus the name's, which is what the rail needs and what
+// the pebble summary then fills.
+$lane-row-height: 156px;
+$lane-collapsed-row-height: 60px;
+
 .well {
   margin-top: 12px;
   padding: 10px;
@@ -102,7 +110,11 @@ $row-inset: 6px;
   }
 }
 
+// One definition of a pitched row's height for both columns: the rail and the
+// step strip are separate trees, and the lane derives its tile from this.
 .layout {
+  --pitched-row-height: #{$lane-row-height};
+  --pitched-collapsed-row-height: #{$lane-collapsed-row-height};
   display: flex;
   gap: 8px; // rail gap
   margin-bottom: 6px;
@@ -132,6 +144,38 @@ $row-inset: 6px;
   display: flex;
   align-items: center;
   gap: 7px;
+
+  // A pitched row's rail is three lines: plate + chevron, the name, then the
+  // pitch key with whatever is left (ADR 0063).
+  &[data-lane] {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
+  }
+
+  &[data-lane='expanded'] {
+    height: var(--pitched-row-height);
+  }
+
+  &[data-lane='collapsed'] {
+    height: var(--pitched-collapsed-row-height);
+  }
+}
+
+.railHead {
+  flex: none;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.railNameLine {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 // The row's instrument button since ticket 05 (the pinned rail is always
@@ -301,6 +345,19 @@ $row-inset: 6px;
 .stepsRow {
   display: flex;
   gap: 11px; // group gutter
+
+  // The lane brings its own gutters, and the row is the height the rail is.
+  &[data-lane] {
+    gap: 0;
+  }
+
+  &[data-lane='expanded'] {
+    height: var(--pitched-row-height);
+  }
+
+  &[data-lane='collapsed'] {
+    height: var(--pitched-collapsed-row-height);
+  }
 }
 
 .group {

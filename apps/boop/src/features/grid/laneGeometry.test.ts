@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { PITCHES_PER_LANE } from '../../engine/sequencerEngine.ts'
 import {
   LANE_DESKTOP,
+  LANE_PHONE,
   LANE_TABLET,
   laneHeight,
   pitchIndexAtOffset,
@@ -37,6 +38,7 @@ function bandOf(pitchIndex: number, g: LaneGeometry): { top: number; bottom: num
 describe.each([
   ['desktop', LANE_DESKTOP],
   ['tablet', LANE_TABLET],
+  ['phone', LANE_PHONE],
 ])('pitchIndexAtOffset (%s column)', (_name, g) => {
   it('answers with the pitch of the tile the tap is over', () => {
     for (let visualIndex = 0; visualIndex < PITCHES_PER_LANE; visualIndex += 1) {
@@ -85,5 +87,6 @@ describe('laneHeight', () => {
   it('stacks the eight tiles and the gaps between them', () => {
     expect(laneHeight(LANE_DESKTOP)).toBe(8 * 24 + 7 * 4)
     expect(laneHeight(LANE_TABLET)).toBe(8 * 20 + 7 * 4)
+    expect(laneHeight(LANE_PHONE)).toBe(8 * 16 + 7 * 4)
   })
 })

@@ -3,6 +3,7 @@ import type { Locator } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
+import { PHONE_STRIP_WIDTH } from '../features/grid/phoneWindow.ts'
 import { parseSaveDocument, SONG_POSITIONS, type StoredBoop } from '../persistence/saveFormat.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
@@ -154,6 +155,138 @@ export class HomePagePom extends BasePage {
     await this.page.mouse.up()
   }
 
+  /**
+   * `dragLane`, but the finger settles before it moves - a couple of pixels
+   * inside the note it landed on, which is what a real one does. A lane column
+   * reports every `pointermove`, so those reports have to be told from a
+   * crossing (ticket 08) or the note the drag started on is lost.
+   */
+  async dragLaneFromRest(
+    instrumentId: string,
+    step: number,
+    fromPitch: number,
+    toPitch: number,
+  ): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const from = this.laneCell(instrumentId, step, fromPitch)
+    await this.laneCell(instrumentId, step, toPitch).scrollIntoViewIfNeeded()
+    await from.scrollIntoViewIfNeeded()
+    const start = await this.boxOf(from)
+    const centre = { x: start.x + start.width / 2, y: start.y + start.height / 2 }
+    await this.page.mouse.move(centre.x, centre.y)
+    await this.page.mouse.down()
+    await this.page.mouse.move(centre.x + 2, centre.y + 1)
+    const direction = toPitch > fromPitch ? 1 : -1
+    for (let pitch = fromPitch + direction; ; pitch += direction) {
+      const box = await this.boxOf(this.laneCell(instrumentId, step, pitch))
+      await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      if (pitch === toPitch) break
+    }
+    await this.page.mouse.up()
+  }
+
+  /**
+   * Press on a note, wander inside it, and let go somewhere that is not the
+   * lane - on the phone, the first few pixels of a bar swipe. A press that
+   * crosses nothing paints nothing.
+   */
+  async pressAndWanderOffTheLane(
+    instrumentId: string,
+    step: number,
+    pitchIndex: number,
+  ): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const cell = this.laneCell(instrumentId, step, pitchIndex)
+    await cell.scrollIntoViewIfNeeded()
+    const box = await this.boxOf(cell)
+    const rail = await this.boxOf(this.page.getByTestId(`row-label-${instrumentId}`))
+    await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await this.page.mouse.down()
+    await this.page.mouse.move(box.x + box.width / 2 + 2, box.y + box.height / 2 + 1)
+    await this.page.mouse.move(rail.x + rail.width / 2, rail.y + rail.height / 2)
+    await this.page.mouse.up()
+  }
+
+  /**
+   * The lane sits on the grid's own step columns (spec §2), which on the phone
+   * is what keeps the strip 605px wide and the snap on its bar lines.
+   */
+  async verifyLaneColumnOnStepColumn(
+    instrumentId: string,
+    drumInstrumentId: string,
+    step: number,
+  ): Promise<void> {
+    const column = await this.boxOf(this.page.getByTestId(`lane-column-${instrumentId}-${step}`))
+    const cell = await this.boxOf(this.cell(drumInstrumentId, step))
+    expect(Math.round(column.x)).toBe(Math.round(cell.x))
+    expect(Math.round(column.width)).toBe(Math.round(cell.width))
+  }
+
+  /**
+   * The phone's rail and its step strip are separate trees, so a pitched row
+   * only lines up if both give it the same height. Nothing in CSS makes them
+   * agree; this is what notices when they stop.
+   */
+  async verifyPitchedRowAligns(instrumentId: string): Promise<void> {
+    const rowBoxOf = (locator: Locator) =>
+      locator.evaluate((element) => {
+        const { top, height } = element.closest('[data-lane]')!.getBoundingClientRect()
+        return { top, height }
+      })
+    const railRow = await rowBoxOf(this.page.getByTestId(`row-label-${instrumentId}`))
+    const stepsRow = await rowBoxOf(
+      this.page
+        .getByTestId(`lane-column-${instrumentId}-0`)
+        .or(this.page.getByTestId(`lane-summary-cell-${instrumentId}-0`)),
+    )
+    expect(railRow.height).toBeGreaterThan(0)
+    expect(Math.round(stepsRow.top)).toBe(Math.round(railRow.top))
+    expect(Math.round(stepsRow.height)).toBe(Math.round(railRow.height))
+  }
+
+  /**
+   * The step strip is exactly 16 columns wide and nothing overhangs it: a lane
+   * plate that bled sideways the way the laptop's does would give the window
+   * scrollable width the snap offsets do not know about (`phoneWindow.ts`).
+   */
+  async verifyStepStripIsNotOverhung(): Promise<void> {
+    const strip = await this.stepWindow().evaluate((element) => element.scrollWidth)
+    expect(strip).toBe(PHONE_STRIP_WIDTH)
+  }
+
+  /**
+   * The scroll boxes inside the grid well, in document order - ADR 0030's
+   * nested-scroller inventory, asserted rather than assumed. The phone's one is
+   * the step window; a lane may not add another.
+   */
+  async verifyGridScrollBoxes(expected: readonly string[]): Promise<void> {
+    const found = await this.gridWellScroll.evaluate((box) => {
+      const ids: string[] = []
+      for (const element of Array.from(box.querySelectorAll('*'))) {
+        const { overflowX, overflowY } = getComputedStyle(element)
+        if (!/auto|scroll/.test(`${overflowX} ${overflowY}`)) continue
+        ids.push(element.getAttribute('data-testid') ?? element.tagName.toLowerCase())
+      }
+      return ids
+    })
+    expect(found).toEqual([...expected])
+  }
+
+  /**
+   * The lane takes no gesture from the layers around it: the step window still
+   * hands horizontal pans to the browser, and the rail beside it is still the
+   * place a finger pans the rows box (ADR 0030/0042).
+   */
+  async verifyLaneLeavesTheScrollGesturesAlone(instrumentId: string): Promise<void> {
+    const touchActionOf = (locator: Locator) =>
+      locator.evaluate((element) => getComputedStyle(element).touchAction)
+    expect(await touchActionOf(this.stepWindow())).toBe('pan-x')
+    expect(await touchActionOf(this.page.getByTestId(`lane-${instrumentId}`))).toBe('auto')
+    expect(
+      await touchActionOf(this.page.getByTestId(`row-instrument-button-${instrumentId}`)),
+    ).toBe('auto')
+  }
+
   async verifyNoteOn(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
     await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute(
       'data-active',
@@ -230,6 +363,25 @@ export class HomePagePom extends BasePage {
 
   async verifyLaneToggleLabel(instrumentId: string, label: string): Promise<void> {
     await expect(this.laneToggle(instrumentId)).toHaveAttribute('aria-label', label)
+  }
+
+  /** Every control clears 44px except the lane cells the column's bands cover (spec §7). */
+  async verifyLaneToggleTapTarget(instrumentId: string): Promise<void> {
+    const box = await this.boxOf(this.laneToggle(instrumentId))
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(44)
+  }
+
+  /** How tall the rows box's content is - what folding a lane is meant to shorten. */
+  async readRowsHeight(): Promise<number> {
+    await this.ensureClipEditorOpen()
+    return this.gridWellScroll.evaluate((element) => element.scrollHeight)
+  }
+
+  /** Playback never scrolls for the child, on either axis (ADR 0042). */
+  async verifyGridRowsNotScrolled(): Promise<void> {
+    const scrollTop = await this.gridWellScroll.evaluate((element) => element.scrollTop)
+    expect(scrollTop).toBe(0)
   }
 
   async verifyPebbleShown(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
@@ -475,8 +627,8 @@ export class HomePagePom extends BasePage {
 
   /** The dialog scrolls rather than growing: the last sound is reachable inside it. */
   async verifyInstrumentPickerScrolls(lastInstrumentId: string): Promise<void> {
-    const overflow = await this.instrumentPickerList.evaluate((element) =>
-      getComputedStyle(element).overflowY,
+    const overflow = await this.instrumentPickerList.evaluate(
+      (element) => getComputedStyle(element).overflowY,
     )
     expect(overflow).toBe('auto')
     await this.instrumentEntry(lastInstrumentId).scrollIntoViewIfNeeded()
@@ -775,9 +927,9 @@ export class HomePagePom extends BasePage {
    * footer carries play alone there — two Clear buttons would be one too many.
    */
   async verifyNoClearGridInTheWell(): Promise<void> {
-    await expect(this.page.getByTestId('clip-control').getByTestId('clear-grid-button')).toHaveCount(
-      0,
-    )
+    await expect(
+      this.page.getByTestId('clip-control').getByTestId('clear-grid-button'),
+    ).toHaveCount(0)
   }
 
   /** The launcher names the clip the card would open on. */
@@ -1900,9 +2052,6 @@ export class HomePagePom extends BasePage {
     })
     expect(covered).toEqual([])
   }
-
-
-
 
   /**
    * Stronger than reading `scrollHeight`, and the assertion that would have

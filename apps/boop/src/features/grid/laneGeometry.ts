@@ -15,6 +15,7 @@ export interface LaneGeometry {
 // pin the arithmetic rather than drive it.
 export const LANE_DESKTOP: LaneGeometry = { platePadding: 8, cellHeight: 24, gap: 4 }
 export const LANE_TABLET: LaneGeometry = { platePadding: 8, cellHeight: 20, gap: 4 }
+export const LANE_PHONE: LaneGeometry = { platePadding: 4, cellHeight: 16, gap: 4 }
 
 /** The tiles and the gaps between them, without the plate's padding. */
 export function laneHeight({ cellHeight, gap }: LaneGeometry): number {
