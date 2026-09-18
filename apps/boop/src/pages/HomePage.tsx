@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import '../styles/tokens.scss'
 import { useEngine } from '../engine/EngineContext.tsx'
+import { hasPitch, rowPitchMasks } from '../engine/pitch.ts'
 import { blankPattern, DEFAULT_BPM, type Pattern } from '../engine/sequencerEngine.ts'
 import { boopFilename } from '../export/boopFilename.ts'
 import { exportBoopWav, navigatorExportTarget } from '../export/exportAction.ts'
@@ -412,15 +413,18 @@ export function HomePage() {
   )
 
   const toggleCell = useCallback(
-    (instrumentId: string, step: number) => {
+    (instrumentId: string, step: number, pitchIndex?: number) => {
       if (!engine) return
       // Stop the song before reading the engine back: while it plays the
       // engine may already hold the next position's clip, and the stop's
       // resync is what makes this read the clip on the grid.
       stopSongPlayback()
       const row = engine.getPattern().find((r) => r.instrumentId === instrumentId)
-      const on = row?.steps[step] !== true
-      engine.setCell(instrumentId, step, on)
+      const on =
+        pitchIndex === undefined
+          ? row?.steps[step] !== true
+          : !(row && hasPitch(rowPitchMasks(row)[step] ?? 0, pitchIndex))
+      engine.setCell(instrumentId, step, on, pitchIndex)
       updateSong((s) => withActivePattern(s, engine.getPattern()))
     },
     [engine, stopSongPlayback, updateSong],

@@ -6,6 +6,8 @@ interface Origin {
   instrumentId: string
   step: number
   isOn: boolean
+  /** The lane cell, on a pitched row (ticket 06); absent addresses the whole column. */
+  pitchIndex?: number
 }
 
 interface Latch {
@@ -17,22 +19,35 @@ interface Latch {
 
 export interface DragPaintHandlers {
   onPointerDown: (
-    event: ReactPointerEvent<HTMLButtonElement>,
+    event: ReactPointerEvent<HTMLElement>,
     instrumentId: string,
     step: number,
     isOn: boolean,
+    pitchIndex?: number,
   ) => void
+  /**
+   * The pointer is now over this cell. A drum cell says so with `pointerenter`;
+   * a lane's cells share one hit surface, so its column says so with
+   * `pointermove` (ticket 06). Re-applying the latch to a cell it has already
+   * painted is a no-op, so the flood of moves costs nothing.
+   */
   onPointerEnter: (
-    event: ReactPointerEvent<HTMLButtonElement>,
+    event: ReactPointerEvent<HTMLElement>,
     instrumentId: string,
     step: number,
     isOn: boolean,
+    pitchIndex?: number,
   ) => void
-  onClick: (event: ReactMouseEvent<HTMLButtonElement>, instrumentId: string, step: number) => void
+  onClick: (
+    event: ReactMouseEvent<HTMLElement>,
+    instrumentId: string,
+    step: number,
+    pitchIndex?: number,
+  ) => void
 }
 
 interface DragPaintOptions {
-  onToggleCell: (instrumentId: string, step: number) => void
+  onToggleCell: (instrumentId: string, step: number, pitchIndex?: number) => void
   /**
    * `true` (desktop): the pointer-down cell flips immediately — the original
    * ticket-15 behaviour, and the right one when nothing competes for the
@@ -74,19 +89,31 @@ export function useDragPaint({ onToggleCell, applyOnPointerDown }: DragPaintOpti
     }
   }, [])
 
-  const applyMode = (mode: PaintMode, instrumentId: string, step: number, isOn: boolean) => {
-    if (isOn !== paintModeToOn(mode)) onToggleCell(instrumentId, step)
+  const applyMode = (
+    mode: PaintMode,
+    instrumentId: string,
+    step: number,
+    isOn: boolean,
+    pitchIndex?: number,
+  ) => {
+    if (isOn !== paintModeToOn(mode)) onToggleCell(instrumentId, step, pitchIndex)
   }
 
-  const onPointerDown: DragPaintHandlers['onPointerDown'] = (event, instrumentId, step, isOn) => {
+  const onPointerDown: DragPaintHandlers['onPointerDown'] = (
+    event,
+    instrumentId,
+    step,
+    isOn,
+    pitchIndex,
+  ) => {
     painted.current = false
     const mode = decidePaintMode(isOn)
     latches.current.set(event.pointerId, {
       mode,
-      origin: { instrumentId, step, isOn },
+      origin: { instrumentId, step, isOn, pitchIndex },
       applied: applyOnPointerDown,
     })
-    if (applyOnPointerDown) applyMode(mode, instrumentId, step, isOn)
+    if (applyOnPointerDown) applyMode(mode, instrumentId, step, isOn, pitchIndex)
     // Touch pointers get *implicit* capture to the pointerdown target (Pointer
     // Events spec); without releasing it, `pointerenter` never fires on
     // sibling cells on real touch hardware and the drag can't cross cells.
@@ -94,20 +121,27 @@ export function useDragPaint({ onToggleCell, applyOnPointerDown }: DragPaintOpti
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  const onPointerEnter: DragPaintHandlers['onPointerEnter'] = (event, instrumentId, step, isOn) => {
+  const onPointerEnter: DragPaintHandlers['onPointerEnter'] = (
+    event,
+    instrumentId,
+    step,
+    isOn,
+    pitchIndex,
+  ) => {
     const latch = latches.current.get(event.pointerId)
     if (!latch) return
     if (!latch.applied) {
       // Deferred mode: crossing a cell boundary is what proves this is a paint
       // and not a swipe, so the origin cell is painted now, alongside this one.
       latch.applied = true
-      applyMode(latch.mode, latch.origin.instrumentId, latch.origin.step, latch.origin.isOn)
+      const { origin } = latch
+      applyMode(latch.mode, origin.instrumentId, origin.step, origin.isOn, origin.pitchIndex)
     }
-    applyMode(latch.mode, instrumentId, step, isOn)
+    applyMode(latch.mode, instrumentId, step, isOn, pitchIndex)
     painted.current = true
   }
 
-  const onClick: DragPaintHandlers['onClick'] = (event, instrumentId, step) => {
+  const onClick: DragPaintHandlers['onClick'] = (event, instrumentId, step, pitchIndex) => {
     // Keyboard-triggered clicks (Enter/Space on a focused button) carry
     // `detail: 0`; real pointer clicks carry `detail >= 1`. Both guards below
     // are scoped to pointer clicks, so the keyboard path always toggles — a
@@ -123,7 +157,7 @@ export function useDragPaint({ onToggleCell, applyOnPointerDown }: DragPaintOpti
       // Pointer-down already toggled, so this click is the tap's echo.
       if (applyOnPointerDown) return
     }
-    onToggleCell(instrumentId, step)
+    onToggleCell(instrumentId, step, pitchIndex)
   }
 
   return { onPointerDown, onPointerEnter, onClick }

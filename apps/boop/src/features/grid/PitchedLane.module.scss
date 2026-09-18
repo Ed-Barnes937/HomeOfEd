@@ -1,0 +1,148 @@
+// The pitched lane (design handoff docs/reference/design_handoff_pitched_lane,
+// rescaled onto boop's own step columns per pitched-lane spec §2: the columns
+// stay 52px / 42px and only the lane's internals move). The tile and gap sizes
+// are mirrored in `laneGeometry.ts` as LANE_DESKTOP / LANE_TABLET — change them
+// together, though the component measures the rendered lane rather than
+// trusting either.
+$cell-height: 24px;
+$cell-height-tablet: 20px;
+$cell-gap: 4px;
+$plate-pad-y: 8px;
+
+// The hue ladder, bottom-first: the handoff's table indexes from the top, and
+// this is the one place it is turned around (spec §4).
+$hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
+
+// Dark inside, light outside: legible on both the pale ladder and the dark
+// lane. The handoff's playhead ring is also its focus ring.
+@mixin ring {
+  box-shadow:
+    inset 0 0 0 2px var(--ink-dark),
+    0 0 0 2px var(--ink),
+    0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
+// The negative margin cancels the padding, so the lane's columns sit flush
+// with the drum columns above instead of inset by the plate.
+.lane {
+  display: flex;
+  gap: 18px;
+  padding: $plate-pad-y 8px;
+  margin: (-$plate-pad-y) -8px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+
+  @media (max-width: 1279px) {
+    gap: 14px;
+    padding: $plate-pad-y 6px;
+    margin: (-$plate-pad-y) -6px;
+  }
+}
+
+.group {
+  display: flex;
+  gap: 8px;
+
+  @media (max-width: 1279px) {
+    gap: 6px;
+  }
+}
+
+// The column carries the hit, not the 24px tile (spec §6): its vertical padding
+// reaches to the plate's edge, which is what the end bands absorb.
+.column {
+  flex: none;
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  gap: $cell-gap;
+  padding: $plate-pad-y 0;
+  margin: (-$plate-pad-y) 0;
+  cursor: pointer;
+
+  @media (max-width: 1279px) {
+    width: 42px;
+  }
+}
+
+.cell {
+  // The hit belongs to the column; the tile is what it looks like and what a
+  // screen reader reads. Keyboard focus and Enter are unaffected.
+  pointer-events: none;
+  flex: none;
+  height: $cell-height;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+
+  @media (max-width: 1279px) {
+    height: $cell-height-tablet;
+  }
+
+  // Alternating by drawn position, brightest on the anchor "so" — the cell an
+  // unpainted pitched row already sounds (design handoff reference file).
+  &[data-pitch='7'],
+  &[data-pitch='5'],
+  &[data-pitch='3'],
+  &[data-pitch='1'] {
+    background: rgba(255, 255, 255, 0.055);
+  }
+
+  &[data-pitch='4'] {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  @each $hue in $hues {
+    $pitch: index($hues, $hue) - 1;
+
+    &[data-pitch='#{$pitch}'][data-active='true'] {
+      background: $hue;
+      box-shadow:
+        0 2px 0 rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    }
+  }
+
+  &[data-playhead='true'] {
+    background: rgba(255, 255, 255, 0.11);
+  }
+
+  &[data-active='true'][data-playhead='true'],
+  &:focus-visible {
+    outline: none;
+    @include ring;
+  }
+}
+
+// The rail's pitch legend (design handoff, "Pitched row, expanded"): the only
+// pitch key there is — no note names.
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.legendEdge {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 239, 230, 0.6);
+}
+
+.legendBar {
+  flex: none;
+  width: 4px;
+  height: 130px;
+  margin: 2px 0;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #ffeed2, #b87a1e);
+
+  @media (max-width: 1279px) {
+    height: 110px;
+  }
+}
