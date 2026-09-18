@@ -1,4 +1,9 @@
-import { useEffect, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 
 import { decidePaintMode, paintModeToOn, type PaintMode } from './paintMode.ts'
 
@@ -70,7 +75,10 @@ interface DragPaintOptions {
  * to one element — so two fingers paint independently and `pointerenter` keeps
  * firing as a pointer crosses cells.
  */
-export function useDragPaint({ onToggleCell, applyOnPointerDown }: DragPaintOptions): DragPaintHandlers {
+export function useDragPaint({
+  onToggleCell,
+  applyOnPointerDown,
+}: DragPaintOptions): DragPaintHandlers {
   const latches = useRef(new Map<number, Latch>())
   // Set when a drag painted something; consumed by the `click` that a
   // pointer-up over the origin cell still fires, so a drag that wanders back
@@ -133,6 +141,9 @@ export function useDragPaint({ onToggleCell, applyOnPointerDown }: DragPaintOpti
     if (!latch.applied) {
       // Deferred mode: crossing a cell boundary is what proves this is a paint
       // and not a swipe, so the origin cell is painted now, alongside this one.
+      // A lane column reports every `pointermove`, the cell the drag started on
+      // included, and that report is not a crossing (ticket 08).
+      if (isOrigin(latch.origin, instrumentId, step, pitchIndex)) return
       latch.applied = true
       const { origin } = latch
       applyMode(latch.mode, origin.instrumentId, origin.step, origin.isOn, origin.pitchIndex)
@@ -161,4 +172,15 @@ export function useDragPaint({ onToggleCell, applyOnPointerDown }: DragPaintOpti
   }
 
   return { onPointerDown, onPointerEnter, onClick }
+}
+
+function isOrigin(
+  origin: Origin,
+  instrumentId: string,
+  step: number,
+  pitchIndex: number | undefined,
+): boolean {
+  return (
+    origin.instrumentId === instrumentId && origin.step === step && origin.pitchIndex === pitchIndex
+  )
 }

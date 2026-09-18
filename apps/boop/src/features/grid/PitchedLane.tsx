@@ -1,9 +1,4 @@
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  PointerEvent as ReactPointerEvent,
-  ReactNode,
-} from 'react'
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
 
 import { hasPitch, pitchesInMask } from '../../engine/pitch.ts'
 import { PITCHES_PER_LANE, STEPS_PER_PATTERN } from '../../engine/sequencerEngine.ts'
@@ -72,6 +67,14 @@ export function PitchedLane({
               const pitchIndex = pitchAtPointer(event)
               if (pitchIndex === null) return
               paint.onPointerEnter(event, instrumentId, step, onAt(pitchIndex), pitchIndex)
+            }}
+            onClick={(event) => {
+              // Tiles take no pointer events (ADR 0060), so a pointer click
+              // lands here; a keyboard one is only passing through.
+              if (event.target !== event.currentTarget) return
+              const pitchIndex = pitchAtPointer(event)
+              if (pitchIndex === null) return
+              paint.onClick(event, instrumentId, step, pitchIndex)
             }}
           >
             {PITCHES.map((pitchIndex) => {
@@ -152,7 +155,7 @@ export function LaneSummary({
  * rather than assumed, so the bands cannot drift from the tiles the stylesheet
  * actually drew (`laneGeometry.ts`).
  */
-function pitchAtPointer(event: ReactPointerEvent<HTMLDivElement>): number | null {
+function pitchAtPointer(event: { currentTarget: HTMLDivElement; clientY: number }): number | null {
   const column = event.currentTarget.getBoundingClientRect()
   const cells = event.currentTarget.children
   const first = cells[0]?.getBoundingClientRect()
@@ -191,32 +194,66 @@ export function PitchedRail({
     <span className={styles.railStack}>
       {children}
       <span className={styles.railFoot}>
-        {collapsed ? (
-          <MiniContour instrumentId={instrumentId} masks={masks} />
-        ) : (
-          <span className={styles.pitchKey}>
-            <span className={styles.legendEdge}>HIGH</span>
-            <span className={styles.legendBar} aria-hidden="true" />
-            <span className={styles.legendEdge}>LOW</span>
-          </span>
-        )}
-        <button
-          type="button"
-          className={styles.toggle}
-          aria-expanded={!collapsed}
-          aria-label={`${collapsed ? 'Expand' : 'Collapse'} the ${instrumentName} row`}
-          data-testid={`lane-toggle-${instrumentId}`}
-          onClick={onToggleCollapsed}
-        >
-          <span aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
-        </button>
+        {collapsed ? <MiniContour instrumentId={instrumentId} masks={masks} /> : <PitchKey />}
+        <LaneToggle
+          instrumentId={instrumentId}
+          instrumentName={instrumentName}
+          collapsed={collapsed}
+          onToggleCollapsed={onToggleCollapsed}
+        />
       </span>
     </span>
   )
 }
 
+/**
+ * The chevron that folds a pitched row. The two rails arrange their own lines
+ * around it (ADR 0061), so it is a piece rather than part of one layout.
+ */
+export function LaneToggle({
+  instrumentId,
+  instrumentName,
+  collapsed,
+  onToggleCollapsed,
+}: {
+  instrumentId: string
+  instrumentName: string
+  collapsed: boolean
+  onToggleCollapsed: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.toggle}
+      aria-expanded={!collapsed}
+      aria-label={`${collapsed ? 'Expand' : 'Collapse'} the ${instrumentName} row`}
+      data-testid={`lane-toggle-${instrumentId}`}
+      onClick={onToggleCollapsed}
+    >
+      <span aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
+    </button>
+  )
+}
+
+/** The rail's HIGH/LOW gradient legend - the only pitch key there is (spec §7). */
+export function PitchKey() {
+  return (
+    <span className={styles.pitchKey}>
+      <span className={styles.legendEdge}>HIGH</span>
+      <span className={styles.legendBar} aria-hidden="true" />
+      <span className={styles.legendEdge}>LOW</span>
+    </span>
+  )
+}
+
 /** The four-bar pitch contour a folded row shows in place of its pitch key. */
-function MiniContour({ instrumentId, masks }: { instrumentId: string; masks: readonly number[] }) {
+export function MiniContour({
+  instrumentId,
+  masks,
+}: {
+  instrumentId: string
+  masks: readonly number[]
+}) {
   return (
     <span className={styles.contour} aria-hidden="true">
       {pitchContour(masks).map((pitch, bar) => (

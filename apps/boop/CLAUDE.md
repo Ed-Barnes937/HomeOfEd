@@ -324,7 +324,12 @@ share-link snapshot.
   crosses a cell boundary — see `PhoneGrid.tsx`'s header. On a **pitched** row
   the step column carries the hit and the eight tiles take no pointer events at
   all ([ADR 0060](../../docs/adr/0060-boop-pitched-lane-geometry.md)): aim a
-  test at the tile, but expect the column to receive it.
+  test at the tile, but expect the column to receive it. The phone's vertical
+  axis inside the step window was always paint's, not scroll's, so the lane
+  needs no gesture of its own there
+  ([ADR 0063](../../docs/adr/0063-boop-pitched-lane-on-the-phone.md)) - but the
+  column reports on `pointermove`, so a report of the cell a press started on is
+  not a crossing, and the column has to take the click a deferred tap ends in.
 - **The song bar is the home surface; the grid opens as a card**
   ([ADR 0035](../../docs/adr/0035-boop-song-bar-is-the-home-surface.md),
   superseding [ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)
