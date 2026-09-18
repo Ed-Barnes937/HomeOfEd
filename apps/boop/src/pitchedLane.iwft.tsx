@@ -20,6 +20,9 @@ test('a pitched row is a lane of eight notes, and the drum rows are untouched', 
 
   await root.verifyIsLane(LANE)
   await root.verifyCellOff('kick', 0)
+  // The plate bleeds 8px past the end columns; the well's scroll padding is
+  // what holds it, exactly as it holds the playhead column's overhang.
+  await root.verifyGridWellHasNoSidewaysScroll()
 })
 
 test('a tap paints that note, and a second tap in the column adds a chord', async ({

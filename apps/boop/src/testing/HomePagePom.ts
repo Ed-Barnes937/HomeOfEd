@@ -393,8 +393,8 @@ export class HomePagePom extends BasePage {
 
   /** The dialog scrolls rather than growing: the last sound is reachable inside it. */
   async verifyInstrumentPickerScrolls(lastInstrumentId: string): Promise<void> {
-    const overflow = await this.instrumentPickerList.evaluate(
-      (element) => getComputedStyle(element).overflowY,
+    const overflow = await this.instrumentPickerList.evaluate((element) =>
+      getComputedStyle(element).overflowY,
     )
     expect(overflow).toBe('auto')
     await this.instrumentEntry(lastInstrumentId).scrollIntoViewIfNeeded()
@@ -693,9 +693,9 @@ export class HomePagePom extends BasePage {
    * footer carries play alone there — two Clear buttons would be one too many.
    */
   async verifyNoClearGridInTheWell(): Promise<void> {
-    await expect(
-      this.page.getByTestId('clip-control').getByTestId('clear-grid-button'),
-    ).toHaveCount(0)
+    await expect(this.page.getByTestId('clip-control').getByTestId('clear-grid-button')).toHaveCount(
+      0,
+    )
   }
 
   /** The launcher names the clip the card would open on. */
@@ -1818,6 +1818,9 @@ export class HomePagePom extends BasePage {
     })
     expect(covered).toEqual([])
   }
+
+
+
 
   /**
    * Stronger than reading `scrollHeight`, and the assertion that would have

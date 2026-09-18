@@ -134,6 +134,8 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
   color: rgba(242, 239, 230, 0.6);
 }
 
+// The handoff's 110px, kept where the lane is its 188px and scaled with the
+// lane where it is taller: the gradient reads against the tiles beside it.
 .legendBar {
   flex: none;
   width: 4px;
