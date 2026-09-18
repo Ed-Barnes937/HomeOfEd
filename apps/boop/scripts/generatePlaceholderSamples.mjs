@@ -15,12 +15,12 @@
  * quietly change shipped audio. Naming one on the command line does exactly
  * that, deliberately - don't, unless a ticket asks for it.
  */
-import { Buffer } from 'node:buffer'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
 import { URL, fileURLToPath } from 'node:url'
 
-const SAMPLE_RATE = 44100
+import { SAMPLE_RATE, wav } from './wav.mjs'
+
 /** Peak level per voice — balanced so six simultaneous rows do not clip. */
 const PEAK = 0.5
 
@@ -342,28 +342,4 @@ function declick(samples) {
     out[out.length - 1 - i] *= i / fadeOut
   }
   return out
-}
-
-/** 16-bit mono PCM WAV — the most universally decodable thing a browser can be handed. */
-function wav(samples) {
-  const data = Buffer.alloc(samples.length * 2)
-  for (let i = 0; i < samples.length; i += 1) {
-    const clamped = Math.max(-1, Math.min(1, samples[i]))
-    data.writeInt16LE(Math.round(clamped * 32767), i * 2)
-  }
-  const header = Buffer.alloc(44)
-  header.write('RIFF', 0)
-  header.writeUInt32LE(36 + data.length, 4)
-  header.write('WAVE', 8)
-  header.write('fmt ', 12)
-  header.writeUInt32LE(16, 16)
-  header.writeUInt16LE(1, 20) // PCM
-  header.writeUInt16LE(1, 22) // mono
-  header.writeUInt32LE(SAMPLE_RATE, 24)
-  header.writeUInt32LE(SAMPLE_RATE * 2, 28)
-  header.writeUInt16LE(2, 32)
-  header.writeUInt16LE(16, 34)
-  header.write('data', 36)
-  header.writeUInt32LE(data.length, 40)
-  return Buffer.concat([header, data])
 }

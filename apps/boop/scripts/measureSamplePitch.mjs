@@ -12,7 +12,8 @@ import { readFileSync, readdirSync } from 'node:fs'
 import process from 'node:process'
 import { URL, fileURLToPath } from 'node:url'
 
-const SAMPLE_RATE = 44100
+import { SAMPLE_RATE, readWav } from './wav.mjs'
+
 const FRAME = 2048
 const HOP = 256
 /** Below this a frame is tail, not tone: it would drag a glide's average down. */
@@ -135,13 +136,4 @@ function describe(hz) {
   const cents = Math.round((midi - nearest) * 100)
   const name = `${NOTE_NAMES[((nearest % 12) + 12) % 12]}${Math.floor(nearest / 12) - 1}`
   return `${name} ${cents >= 0 ? '+' : ''}${cents}c`
-}
-
-function readWav(buffer) {
-  const dataIndex = buffer.indexOf('data')
-  const dataLength = buffer.readUInt32LE(dataIndex + 4)
-  const dataOffset = dataIndex + 8
-  const out = new Float32Array(dataLength / 2)
-  for (let i = 0; i < out.length; i += 1) out[i] = buffer.readInt16LE(dataOffset + i * 2) / 32767
-  return out
 }

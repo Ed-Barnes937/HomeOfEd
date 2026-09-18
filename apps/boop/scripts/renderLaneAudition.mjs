@@ -10,14 +10,14 @@
  * the table below rather than kit.json, which stays dormant until ticket 10
  * (ADR 0059).
  */
-import { Buffer } from 'node:buffer'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
 import { URL, fileURLToPath } from 'node:url'
 
-const SAMPLE_RATE = 44100
+import { SAMPLE_RATE, readWav, wav } from './wav.mjs'
+
 /** The lane: one major octave, do to high do, with "so" the untransposed root. */
 const MAJOR_SCALE_SEMITONES = [0, 2, 4, 5, 7, 9, 11, 12]
 const ANCHOR_PITCH_INDEX = 4
@@ -132,34 +132,4 @@ function noteNameToMidi(name) {
 function noteName(midi) {
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
   return `${names[midi % 12]}${Math.floor(midi / 12) - 1}`
-}
-
-function readWav(buffer) {
-  const dataIndex = buffer.indexOf('data')
-  const dataLength = buffer.readUInt32LE(dataIndex + 4)
-  const out = new Float32Array(dataLength / 2)
-  for (let i = 0; i < out.length; i += 1) out[i] = buffer.readInt16LE(dataIndex + 8 + i * 2) / 32767
-  return out
-}
-
-function wav(samples) {
-  const data = Buffer.alloc(samples.length * 2)
-  for (let i = 0; i < samples.length; i += 1) {
-    data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, samples[i])) * 32767), i * 2)
-  }
-  const header = Buffer.alloc(44)
-  header.write('RIFF', 0)
-  header.writeUInt32LE(36 + data.length, 4)
-  header.write('WAVE', 8)
-  header.write('fmt ', 12)
-  header.writeUInt32LE(16, 16)
-  header.writeUInt16LE(1, 20)
-  header.writeUInt16LE(1, 22)
-  header.writeUInt32LE(SAMPLE_RATE, 24)
-  header.writeUInt32LE(SAMPLE_RATE * 2, 28)
-  header.writeUInt16LE(2, 32)
-  header.writeUInt16LE(16, 34)
-  header.write('data', 36)
-  header.writeUInt32LE(data.length, 40)
-  return Buffer.concat([header, data])
 }
