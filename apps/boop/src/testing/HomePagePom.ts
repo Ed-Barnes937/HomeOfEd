@@ -197,6 +197,88 @@ export class HomePagePom extends BasePage {
     await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute('aria-label', label)
   }
 
+  // ---- The collapsed lane (pitched-lane ticket 07) ----
+
+  laneToggle(instrumentId: string) {
+    return this.page.getByTestId(`lane-toggle-${instrumentId}`)
+  }
+
+  laneSummaryCell(instrumentId: string, step: number) {
+    return this.page.getByTestId(`lane-summary-cell-${instrumentId}-${step}`)
+  }
+
+  lanePebble(instrumentId: string, step: number, pitchIndex: number) {
+    return this.page.getByTestId(`lane-pebble-${instrumentId}-${step}-${pitchIndex}`)
+  }
+
+  async toggleLane(instrumentId: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneToggle(instrumentId).click()
+  }
+
+  async verifyLaneCollapsed(instrumentId: string): Promise<void> {
+    await expect(this.page.getByTestId(`lane-summary-${instrumentId}`)).toBeVisible()
+    await expect(this.page.getByTestId(`lane-${instrumentId}`)).toHaveCount(0)
+    await expect(this.laneToggle(instrumentId)).toHaveAttribute('aria-expanded', 'false')
+  }
+
+  async verifyLaneExpanded(instrumentId: string): Promise<void> {
+    await expect(this.page.getByTestId(`lane-${instrumentId}`)).toBeVisible()
+    await expect(this.page.getByTestId(`lane-summary-${instrumentId}`)).toHaveCount(0)
+    await expect(this.laneToggle(instrumentId)).toHaveAttribute('aria-expanded', 'true')
+  }
+
+  async verifyLaneToggleLabel(instrumentId: string, label: string): Promise<void> {
+    await expect(this.laneToggle(instrumentId)).toHaveAttribute('aria-label', label)
+  }
+
+  async verifyPebbleShown(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.lanePebble(instrumentId, step, pitchIndex)).toBeVisible()
+  }
+
+  async verifyNoPebble(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.lanePebble(instrumentId, step, pitchIndex)).toHaveCount(0)
+  }
+
+  /** The summary positions by pitch: the higher note's pebble sits above the lower one's. */
+  async verifyPebbleAbove(
+    instrumentId: string,
+    step: number,
+    higherPitch: number,
+    lowerPitch: number,
+  ): Promise<void> {
+    const higher = await this.boxOf(this.lanePebble(instrumentId, step, higherPitch))
+    const lower = await this.boxOf(this.lanePebble(instrumentId, step, lowerPitch))
+    expect(higher.y + higher.height).toBeLessThanOrEqual(lower.y)
+  }
+
+  /** The summary sits on the grid's own step columns, so the playhead lands over it. */
+  async verifySummaryUnderPlayhead(instrumentId: string, step: number): Promise<void> {
+    await expect(this.laneSummaryCell(instrumentId, step)).toHaveAttribute('data-playhead', 'true')
+    const cell = await this.boxOf(this.laneSummaryCell(instrumentId, step))
+    const playhead = await this.boxOf(this.page.getByTestId('playhead'))
+    expect(playhead.x + playhead.width / 2).toBeGreaterThan(cell.x)
+    expect(playhead.x + playhead.width / 2).toBeLessThan(cell.x + cell.width)
+    expect(playhead.y).toBeLessThan(cell.y)
+    expect(playhead.y + playhead.height).toBeGreaterThan(cell.y + cell.height)
+  }
+
+  /** The contour bar a bar of the pattern draws, or `off` where the bar holds no notes. */
+  async verifyContourBar(instrumentId: string, bar: number, pitch: number | 'off'): Promise<void> {
+    await expect(this.page.getByTestId(`lane-contour-bar-${instrumentId}-${bar}`)).toHaveAttribute(
+      'data-pitch',
+      String(pitch),
+    )
+  }
+
+  private async boxOf(
+    locator: Locator,
+  ): Promise<{ x: number; y: number; width: number; height: number }> {
+    const box = await locator.boundingBox()
+    if (!box) throw new Error('the element is not on screen')
+    return box
+  }
+
   async focusClearGridButton(): Promise<void> {
     await this.reachClearGrid()
     await this.clearGridButton.focus()

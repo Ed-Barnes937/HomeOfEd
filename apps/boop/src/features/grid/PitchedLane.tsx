@@ -1,8 +1,14 @@
-import type { KeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type {
+  CSSProperties,
+  KeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from 'react'
 
-import { hasPitch } from '../../engine/pitch.ts'
+import { hasPitch, pitchesInMask } from '../../engine/pitch.ts'
 import { PITCHES_PER_LANE, STEPS_PER_PATTERN } from '../../engine/sequencerEngine.ts'
 import { pitchIndexAtOffset } from './laneGeometry.ts'
+import { pebbleOffset, pitchContour } from './laneSummary.ts'
 import styles from './PitchedLane.module.scss'
 import { laneCellLabel } from './solfege.ts'
 import type { DragPaintHandlers } from './useDragPaint.ts'
@@ -15,7 +21,7 @@ const PITCHES = Array.from({ length: PITCHES_PER_LANE }, (_, i) => PITCHES_PER_L
 interface PitchedLaneProps {
   instrumentId: string
   instrumentName: string
-  /** The row's notes, one bitmask per step — already read through the anchor rule. */
+  /** The row's notes, one bitmask per step - already read through the anchor rule. */
   masks: readonly number[]
   playheadStep: number | null
   paint: DragPaintHandlers
@@ -48,50 +54,92 @@ export function PitchedLane({
       aria-label={`${instrumentName} lane`}
       data-testid={`lane-${instrumentId}`}
     >
-      {Array.from({ length: GROUP_COUNT }, (_, group) => (
-        <div key={group} className={styles.group}>
-          {Array.from({ length: GROUP_SIZE }, (_, i) => {
-            const step = group * GROUP_SIZE + i
-            const mask = masks[step] ?? 0
-            const onAt = (pitchIndex: number) => hasPitch(mask, pitchIndex)
-            const underPlayhead = step === playheadStep
-            return (
-              <div
-                key={step}
-                className={styles.column}
-                data-testid={`lane-column-${instrumentId}-${step}`}
-                onPointerDown={(event) => {
-                  const pitchIndex = pitchAtPointer(event)
-                  if (pitchIndex === null) return
-                  paint.onPointerDown(event, instrumentId, step, onAt(pitchIndex), pitchIndex)
-                }}
-                onPointerMove={(event) => {
-                  const pitchIndex = pitchAtPointer(event)
-                  if (pitchIndex === null) return
-                  paint.onPointerEnter(event, instrumentId, step, onAt(pitchIndex), pitchIndex)
-                }}
-              >
-                {PITCHES.map((pitchIndex) => {
-                  const on = onAt(pitchIndex)
-                  return (
-                    <button
-                      key={pitchIndex}
-                      type="button"
-                      className={styles.cell}
-                      data-pitch={pitchIndex}
-                      data-active={on}
-                      data-playhead={underPlayhead}
-                      data-testid={`lane-cell-${instrumentId}-${step}-${pitchIndex}`}
-                      aria-pressed={on}
-                      aria-label={laneCellLabel(pitchIndex, step, on)}
-                      onClick={(event) => paint.onClick(event, instrumentId, step, pitchIndex)}
-                      onKeyDown={(event) => onCellKeyDown(event, step, pitchIndex, on)}
-                    />
-                  )
-                })}
-              </div>
-            )
-          })}
+      {stepGroups((step) => {
+        const mask = masks[step] ?? 0
+        const onAt = (pitchIndex: number) => hasPitch(mask, pitchIndex)
+        const underPlayhead = step === playheadStep
+        return (
+          <div
+            key={step}
+            className={styles.column}
+            data-testid={`lane-column-${instrumentId}-${step}`}
+            onPointerDown={(event) => {
+              const pitchIndex = pitchAtPointer(event)
+              if (pitchIndex === null) return
+              paint.onPointerDown(event, instrumentId, step, onAt(pitchIndex), pitchIndex)
+            }}
+            onPointerMove={(event) => {
+              const pitchIndex = pitchAtPointer(event)
+              if (pitchIndex === null) return
+              paint.onPointerEnter(event, instrumentId, step, onAt(pitchIndex), pitchIndex)
+            }}
+          >
+            {PITCHES.map((pitchIndex) => {
+              const on = onAt(pitchIndex)
+              return (
+                <button
+                  key={pitchIndex}
+                  type="button"
+                  className={styles.cell}
+                  data-pitch={pitchIndex}
+                  data-active={on}
+                  data-playhead={underPlayhead}
+                  data-testid={`lane-cell-${instrumentId}-${step}-${pitchIndex}`}
+                  aria-pressed={on}
+                  aria-label={laneCellLabel(pitchIndex, step, on)}
+                  onClick={(event) => paint.onClick(event, instrumentId, step, pitchIndex)}
+                  onKeyDown={(event) => onCellKeyDown(event, step, pitchIndex, on)}
+                />
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** The 16 steps in their four bar groups - the columns both lane views sit on. */
+function stepGroups(renderStep: (step: number) => ReactNode): ReactNode {
+  return Array.from({ length: GROUP_COUNT }, (_, group) => (
+    <div key={group} className={styles.group}>
+      {Array.from({ length: GROUP_SIZE }, (_, i) => renderStep(group * GROUP_SIZE + i))}
+    </div>
+  ))
+}
+
+/**
+ * A collapsed pitched row (design handoff, "Collapse"): the same 16 step
+ * columns, each holding a pebble per painted note at that note's height. It is
+ * a picture of the row and nothing more - painting means expanding first.
+ */
+export function LaneSummary({
+  instrumentId,
+  masks,
+  playheadStep,
+}: {
+  instrumentId: string
+  masks: readonly number[]
+  playheadStep: number | null
+}) {
+  return (
+    <div className={styles.summary} aria-hidden="true" data-testid={`lane-summary-${instrumentId}`}>
+      {stepGroups((step) => (
+        <div
+          key={step}
+          className={styles.summaryCell}
+          data-playhead={step === playheadStep}
+          data-testid={`lane-summary-cell-${instrumentId}-${step}`}
+        >
+          {pitchesInMask(masks[step] ?? 0).map((pitchIndex) => (
+            <span
+              key={pitchIndex}
+              className={styles.pebble}
+              style={{ '--pebble-offset': pebbleOffset(pitchIndex) } as CSSProperties}
+              data-pitch={pitchIndex}
+              data-testid={`lane-pebble-${instrumentId}-${step}-${pitchIndex}`}
+            />
+          ))}
         </div>
       ))}
     </div>
@@ -116,14 +164,71 @@ function pitchAtPointer(event: ReactPointerEvent<HTMLDivElement>): number | null
   })
 }
 
-/** A pitched row's rail: its name over the HIGH / gradient / LOW pitch key, the only pitch legend there is. */
-export function PitchLegend({ children }: { children: ReactNode }) {
+interface PitchedRailProps {
+  instrumentId: string
+  instrumentName: string
+  masks: readonly number[]
+  collapsed: boolean
+  onToggleCollapsed: () => void
+  /** The row's name, rendered by the grid so it keeps its hit-bob. */
+  children: ReactNode
+}
+
+/**
+ * A pitched row's rail: the name, then the pitch key (or the mini contour, once
+ * the row is folded) with the collapse chevron beside it. The handoff puts the
+ * chevron on the name's own line; boop's 160px rail cannot hold a 52px art
+ * plate, a 17px name and a 44px control at once, so it takes the line below
+ * (ADR 0061).
+ */
+export function PitchedRail({
+  instrumentId,
+  instrumentName,
+  masks,
+  collapsed,
+  onToggleCollapsed,
+  children,
+}: PitchedRailProps) {
   return (
-    <span className={styles.legend}>
+    <span className={styles.railStack}>
       {children}
-      <span className={styles.legendEdge}>HIGH</span>
-      <span className={styles.legendBar} aria-hidden="true" />
-      <span className={styles.legendEdge}>LOW</span>
+      <span className={styles.railFoot}>
+        {collapsed ? (
+          <MiniContour instrumentId={instrumentId} masks={masks} />
+        ) : (
+          <span className={styles.pitchKey}>
+            <span className={styles.legendEdge}>HIGH</span>
+            <span className={styles.legendBar} aria-hidden="true" />
+            <span className={styles.legendEdge}>LOW</span>
+          </span>
+        )}
+        <button
+          type="button"
+          className={styles.toggle}
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? 'Expand' : 'Collapse'} the ${instrumentName} row`}
+          data-testid={`lane-toggle-${instrumentId}`}
+          onClick={onToggleCollapsed}
+        >
+          <span aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
+        </button>
+      </span>
+    </span>
+  )
+}
+
+/** The four-bar pitch contour a folded row shows in place of its pitch key. */
+function MiniContour({ instrumentId, masks }: { instrumentId: string; masks: readonly number[] }) {
+  return (
+    <span className={styles.contour} aria-hidden="true">
+      {pitchContour(masks).map((pitch, bar) => (
+        <span
+          key={bar}
+          className={styles.contourBar}
+          data-pitch={pitch ?? 'off'}
+          data-testid={`lane-contour-bar-${instrumentId}-${bar}`}
+        />
+      ))}
     </span>
   )
 }

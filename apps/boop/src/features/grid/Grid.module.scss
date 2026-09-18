@@ -327,6 +327,17 @@
       align-items: flex-start;
       padding-top: 6px;
     }
+
+    // Folded, the row is back to a drum row's height and centres again
+    // (pitched-lane handoff, "Pitched row, collapsed").
+    &[data-collapsed='true'] {
+      align-items: center;
+
+      .rail {
+        align-items: center;
+        padding-top: 0;
+      }
+    }
   }
 }
 
