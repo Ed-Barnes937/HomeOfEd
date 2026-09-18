@@ -7,7 +7,7 @@ import type { AudioState, Unsubscribe } from './sequencerEngine.ts'
  * `export/renderSequence.ts` both need it and neither may import the other.
  *
  * **The invariant: one voice per instrument per step, and 0.30 x 3.325 raw =
- * 1.00 at the very worst.** A clip owns its rows (ADR 0042) and layered
+ * 0.998 at the very worst.** A clip owns its rows (ADR 0042) and layered
  * placements sound their `instrumentId` union (`mergePatterns`), so a step
  * carries at most the whole roster; `chordGain` below is what keeps a lane's
  * chord inside one instrument's share of that. The gain has to hold the raw

@@ -215,10 +215,18 @@ describe('launch kit one-shot levels', () => {
       )
     }
 
-    it('costs one voice, not eight - so a drum row and a single note are untouched', () => {
+    it('leaves a single note at full level, so a drum row is untouched', () => {
       expect(chordGain(1)).toBe(1)
-      // Equal power: n notes at this gain carry one note's worth of level.
-      expect(chordGain(8) * Math.sqrt(8)).toBeCloseTo(1, 12)
+    })
+
+    it('keeps a full lane inside two voices, where eight raw notes would be five', async () => {
+      // What "costs one voice" is worth in the real samples: doublebass is the
+      // loudest, its repitched low notes running long enough to stay in step.
+      for (const { id, samples } of await activatedVoices()) {
+        if (!PITCHED_IDS.includes(id)) continue
+        const chord = peakOf(sumOf(fullLaneChord(samples, chordGain(PITCHES_PER_LANE))))
+        expect(chord / peakOf(samples), `${id} full lane against one note`).toBeLessThan(2)
+      }
     })
 
     it('stays inside the budget with the chord law applied', async () => {
