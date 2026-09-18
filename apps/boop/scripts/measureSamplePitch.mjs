@@ -5,9 +5,8 @@
  *   node apps/boop/scripts/measureSamplePitch.mjs              # the whole kit
  *   node apps/boop/scripts/measureSamplePitch.mjs marimba boop # named voices
  *
- * A converted instrument's anchor **is** its shipped sample's pitch (pitched-lane
- * spec §3), so what this prints is the fact a `pitched` register has to agree
- * with - see ADR 0058's family and `.scratch/pitched-instruments/`.
+ * A converted instrument's anchor **is** its shipped sample's pitch, so this is
+ * what a `pitched` register has to agree with (pitched-lane spec §3).
  */
 import { readFileSync, readdirSync } from 'node:fs'
 import process from 'node:process'
@@ -37,9 +36,10 @@ for (const id of ids) {
     process.stdout.write(`${id.padEnd(10)} no pitch found (unpitched or too quiet)\n`)
     continue
   }
-  const onset = frames[0].hz
-  const centre = energyWeightedHz(frames)
-  const drift = Math.abs(midiOf(frames.at(-1).hz) - midiOf(onset))
+  const octave = octaveCorrection(samples, energyWeightedHz(frames))
+  const onset = frames[0].hz * octave
+  const centre = energyWeightedHz(frames) * octave
+  const drift = Math.abs(midiOf(frames.at(-1).hz) - midiOf(frames[0].hz))
   const glide = drift > 0.5 ? `  glides ${drift.toFixed(1)}st` : ''
   process.stdout.write(
     `${id.padEnd(10)} ${describe(centre).padEnd(22)} centre ${centre.toFixed(1).padStart(7)} Hz` +
@@ -57,6 +57,30 @@ function analyse(samples) {
     if (hz !== null) frames.push({ hz, rms })
   }
   return frames
+}
+
+/**
+ * Autocorrelation locks to the period of the whole waveform, which for a voice
+ * built from high partials alone (bell, chime) is a subharmonic carrying no
+ * energy. Octave up to the lowest partial that actually sounds.
+ */
+function octaveCorrection(samples, hz) {
+  const octaves = [1, 2, 4, 8].filter((n) => hz * n < SAMPLE_RATE / 2)
+  const levels = octaves.map((n) => goertzel(samples, hz * n))
+  const strongest = Math.max(...levels)
+  return octaves[levels.findIndex((level) => level >= strongest * 0.25)]
+}
+
+function goertzel(samples, hz) {
+  const n = Math.min(samples.length, SAMPLE_RATE / 2)
+  const w = (2 * Math.PI * hz) / SAMPLE_RATE
+  let re = 0
+  let im = 0
+  for (let i = 0; i < n; i += 1) {
+    re += samples[i] * Math.cos(w * i)
+    im += samples[i] * Math.sin(w * i)
+  }
+  return Math.hypot(re, im)
 }
 
 /** Averaged in semitones, not Hz, and weighted by level: what the ear lands on. */
