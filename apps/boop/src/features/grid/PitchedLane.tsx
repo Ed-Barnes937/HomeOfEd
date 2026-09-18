@@ -114,19 +114,29 @@ function stepGroups(renderStep: (step: number) => ReactNode): ReactNode {
 /**
  * A collapsed pitched row (design handoff, "Collapse"): a pebble per painted
  * note, at that note's height, on the lane's own step columns. Read-only -
- * painting means expanding first (ADR 0061).
+ * painting means expanding first - but a tap anywhere on it is that expansion
+ * (ADR 0061, as amended). It stays out of the a11y tree; the chevron is the
+ * labelled control for both, and `onClick` rather than `onPointerDown` is what
+ * leaves a sideways pan to the step window.
  */
 export function LaneSummary({
   instrumentId,
   masks,
   playheadStep,
+  onExpand,
 }: {
   instrumentId: string
   masks: readonly number[]
   playheadStep: number | null
+  onExpand: () => void
 }) {
   return (
-    <div className={styles.summary} aria-hidden="true" data-testid={`lane-summary-${instrumentId}`}>
+    <div
+      className={styles.summary}
+      aria-hidden="true"
+      data-testid={`lane-summary-${instrumentId}`}
+      onClick={onExpand}
+    >
       {stepGroups((step) => (
         <div
           key={step}

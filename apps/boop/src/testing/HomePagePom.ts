@@ -395,6 +395,45 @@ export class HomePagePom extends BasePage {
     )
   }
 
+  // ---- Tap a folded row to open it (pitched-lane ticket 12) ----
+
+  /** A child's tap on the folded row itself, rather than on the chevron. */
+  async tapFoldedRow(instrumentId: string, step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneSummaryCell(instrumentId, step).click()
+  }
+
+  /**
+   * A sideways pan that begins on a folded row, as the browser delivers one it
+   * has claimed for the step window: moves, then `pointercancel`, and no click
+   * at all. Expanding on `pointerdown` would open the row instead of panning.
+   */
+  async panAcrossFoldedRow(instrumentId: string, step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const cell = this.laneSummaryCell(instrumentId, step)
+    const box = await this.boxOf(cell)
+    const y = box.y + box.height / 2
+    const from = box.x + box.width / 2
+    const pointer = { bubbles: true, cancelable: true, composed: true, pointerId: 1 }
+    await cell.dispatchEvent('pointerdown', { ...pointer, clientX: from, clientY: y })
+    for (const dx of [-12, -48, -110]) {
+      await cell.dispatchEvent('pointermove', { ...pointer, clientX: from + dx, clientY: y })
+    }
+    await cell.dispatchEvent('pointercancel', { ...pointer, clientX: from - 110, clientY: y })
+  }
+
+  /**
+   * The folded row adds no second way in for the keyboard or a screen reader:
+   * the summary stays out of the tree, and the chevron is still the only node
+   * carrying the row's expand action (ADR 0061, as amended).
+   */
+  async verifyFoldedRowIsOneControl(instrumentId: string, label: string): Promise<void> {
+    const summary = this.page.getByTestId(`lane-summary-${instrumentId}`)
+    await expect(summary).toHaveAttribute('aria-hidden', 'true')
+    await expect(summary.locator('button, a, input, [tabindex], [role]')).toHaveCount(0)
+    await expect(this.page.getByRole('button', { name: label })).toHaveCount(1)
+  }
+
   private async boxOf(
     locator: Locator,
   ): Promise<{ x: number; y: number; width: number; height: number }> {

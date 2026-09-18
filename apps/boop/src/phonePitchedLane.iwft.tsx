@@ -165,6 +165,48 @@ test('the chevron folds the lane to its pebbles and hands the rows back', async 
   await root.verifyNoteOn(LANE, 0, 6)
 })
 
+// ---- Tapping a folded row opens it (ticket 12) ----
+
+test('a tap on a folded row opens it, and a pan that starts there still pans', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.toggleLane(LANE)
+  await root.verifyLaneCollapsed(LANE)
+
+  // The gesture a child makes to reach bar 3: it must move the bars, not open
+  // the row - which is why the row opens on the tap and never on pointer-down.
+  await root.panAcrossFoldedRow(LANE, 1)
+  await root.verifyLaneCollapsed(LANE)
+  await root.swipeSteps(300)
+  await root.verifyStepWindowAt(308)
+  await root.verifyLaneCollapsed(LANE)
+
+  await root.tapFoldedRow(LANE, 9)
+  await root.verifyLaneExpanded(LANE)
+  for (const pitchIndex of [0, 1, 2, 3, 4, 5, 6, 7]) {
+    await root.verifyNoteOff(LANE, 9, pitchIndex)
+  }
+})
+
+test('a folded row adds no second control for the keyboard or a screen reader', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.toggleLane(LANE)
+  await root.verifyFoldedRowIsOneControl(LANE, 'Expand the Marimba row')
+})
+
 test('the playhead sweeps a pitched row the swipe has left behind, and the map carries it', async ({
   mountApp,
   page,
