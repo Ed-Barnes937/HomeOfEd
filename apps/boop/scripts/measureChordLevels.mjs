@@ -106,6 +106,17 @@ for (const exponent of EXPONENTS) {
   )
 }
 
+process.stdout.write('\nif every voice on disk were pitched and playing the full lane\n')
+for (const exponent of EXPONENTS) {
+  const lanesEverywhere = activated.flatMap(({ samples }) => {
+    const gain = PITCHES_PER_LANE ** -exponent
+    return [...MAJOR_SCALE_SEMITONES.keys()].map((pitchIndex) =>
+      repitch(samples, semitonesFromAnchor(pitchIndex)).map((s) => s * gain),
+    )
+  })
+  report(`  ${lawName(exponent)}`, peakOf(dense(lanesEverywhere)))
+}
+
 process.stdout.write('\nhow a chord sits against one note, worst chord of each size (peak dB / RMS dB)\n')
 for (const exponent of [0.5, 0.75, 1]) {
   process.stdout.write(`\n  ${lawName(exponent)}\n    notes${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => String(n).padStart(13)).join('')}\n`)

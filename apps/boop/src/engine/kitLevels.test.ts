@@ -1,10 +1,12 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { MASTER_GAIN } from './audioDriver.ts'
+import { MASTER_GAIN, chordGain } from './audioDriver.ts'
 import { parseKitManifest } from './kitManifest.ts'
+import { semitonesFromAnchor } from './pitch.ts'
+import { PITCHES_PER_LANE } from './sequencerEngine.ts'
 
 /**
  * Ticket 18's data-side check on the shipped launch kit's one-shots, extended
@@ -25,12 +27,27 @@ const STEP_SECONDS = 60 / 200 / 4 // one 16th note at 200 BPM
 /** Per-voice ceiling the generator normalises to, plus 16-bit rounding slack. */
 const VOICE_PEAK = 0.5 + 0.001
 /**
- * The master bus's stated worst case (ticket 08): the whole-roster union
- * painted solid at 200 bpm sums to a measured 3.035 raw. Pinned a little above
- * that so no new or re-tuned voice can inflate it unnoticed - and asserted
- * against `MASTER_GAIN` below, so raising it forces the gain down too.
+ * The manifest roster painted solid at 200 bpm, one voice each: measured 3.035
+ * raw (ticket 08). Kept tight so no new or re-tuned voice can inflate it
+ * unnoticed.
  */
-const WORST_CASE_BUDGET = 3.1
+const ROSTER_BUDGET = 3.1
+
+/**
+ * The master bus's stated worst case: every row of the activated roster solid
+ * at 200 bpm with every lane cell painted, measured 3.325 raw (ADR 0062).
+ * Asserted against `MASTER_GAIN` below, so raising it forces the gain down too
+ * - and at 0.3 the budget is spent, so the next voice has to buy its own.
+ */
+const WORST_CASE_BUDGET = 3.33
+
+/**
+ * The instruments ticket 10 flags `pitched`. They live here rather than coming
+ * from the manifest because nothing in `kit.json` is flagged until then (spec
+ * §11's dormancy); ADR 0059 holds their registers, which do not affect level -
+ * the lane transposes by the same -7..+5 semitones whatever the root note is.
+ */
+const PITCHED_IDS = ['marimba', 'trumpet', 'piano', 'doublebass']
 
 function readWav(buffer: Buffer): Float32Array {
   const dataIndex = buffer.indexOf('data')
@@ -77,6 +94,26 @@ function denseTrain(tracks: readonly Float32Array[], bars: number): Float32Array
     }
   }
   return out
+}
+
+/** What `playbackRate = 2^(semitones/12)` does to a buffer, linearly interpolated. */
+function repitch(samples: Float32Array, semitones: number): Float32Array {
+  const rate = 2 ** (semitones / 12)
+  const out = new Float32Array(Math.floor(samples.length / rate))
+  for (let i = 0; i < out.length; i += 1) {
+    const at = i * rate
+    const low = Math.floor(at)
+    const frac = at - low
+    out[i] = (samples[low] ?? 0) * (1 - frac) + (samples[low + 1] ?? 0) * frac
+  }
+  return out
+}
+
+/** A full lane painted on one step: every pitch of `samples`, at `gain` each. */
+function fullLaneChord(samples: Float32Array, gain: number): Float32Array[] {
+  return Array.from({ length: PITCHES_PER_LANE }, (_, pitchIndex) =>
+    repitch(samples, semitonesFromAnchor(pitchIndex)).map((s) => s * gain),
+  )
 }
 
 describe('launch kit one-shot levels', () => {
@@ -132,7 +169,7 @@ describe('launch kit one-shot levels', () => {
     // roster, one voice per instrument per step. Measured: 2.970 raw (well
     // under the 10.0 the per-voice peaks would give if they all peaked in
     // phase, which they don't).
-    expect(peakOf(sumOf(voices.map((v) => v.samples)))).toBeLessThanOrEqual(WORST_CASE_BUDGET)
+    expect(peakOf(sumOf(voices.map((v) => v.samples)))).toBeLessThanOrEqual(ROSTER_BUDGET)
   })
 
   it('the true worst case - every roster row painted solid at 200bpm - stays inside the budget', async () => {
@@ -145,7 +182,60 @@ describe('launch kit one-shot levels', () => {
       voices.map((v) => v.samples),
       4,
     )
-    expect(peakOf(dense)).toBeLessThanOrEqual(WORST_CASE_BUDGET)
+    expect(peakOf(dense)).toBeLessThanOrEqual(ROSTER_BUDGET)
+  })
+
+  describe('a chord of a pitched lane', () => {
+    /**
+     * The voices ticket 10 activates: every one-shot in the kit's sounds
+     * directory, which is the manifest's 20 plus the three ticket 04 added and
+     * left unlisted. Read from disk rather than listed here, so activation does
+     * not change what this measures.
+     */
+    async function activatedVoices(): Promise<{ id: string; samples: Float32Array }[]> {
+      const soundsDir = `${publicDir}kits/launch/sounds/`
+      const files = (await readdir(soundsDir)).filter((f) => f.endsWith('.wav')).sort()
+      return Promise.all(
+        files.map(async (file) => ({
+          id: file.replace('.wav', ''),
+          samples: readWav(await readFile(soundsDir + file)),
+        })),
+      )
+    }
+
+    /** Every voice solid at 200 bpm, the pitched ones with every lane cell painted. */
+    async function pitchedWorstCase(gain: number): Promise<Float32Array> {
+      const voices = await activatedVoices()
+      expect(voices.map((v) => v.id)).toEqual(expect.arrayContaining(PITCHED_IDS))
+      return denseTrain(
+        voices.flatMap((v) =>
+          PITCHED_IDS.includes(v.id) ? fullLaneChord(v.samples, gain) : [v.samples],
+        ),
+        4,
+      )
+    }
+
+    it('costs one voice, not eight - so a drum row and a single note are untouched', () => {
+      expect(chordGain(1)).toBe(1)
+      // Equal power: n notes at this gain carry one note's worth of level.
+      expect(chordGain(8) * Math.sqrt(8)).toBeCloseTo(1, 12)
+    })
+
+    it('stays inside the budget with the chord law applied', async () => {
+      // Measured 3.325 raw (ADR 0062): four lanes chording on top of the other
+      // nineteen voices costs only 0.16 more than the same roster playing one
+      // voice each, because the law hands a column one voice's worth of gain.
+      expect(peakOf(await pitchedWorstCase(chordGain(PITCHES_PER_LANE)))).toBeLessThanOrEqual(
+        WORST_CASE_BUDGET,
+      )
+    })
+
+    it('would clip without it', async () => {
+      // Why the law exists: eight notes of one sample start on the same audio
+      // frame, so their attacks add coherently. Measured 4.553 raw - 1.37 at
+      // the master gain, and the `Limiter(-1)` cannot catch a transient.
+      expect(peakOf(await pitchedWorstCase(1)) * MASTER_GAIN).toBeGreaterThan(1)
+    })
   })
 
   it('the stated budget still fits under full scale once the master gain is applied', () => {

@@ -10,6 +10,8 @@ export interface PlayedSample {
    * pitch existed and the existing suites read unchanged.
    */
   semitones?: number
+  /** The note's own level. Recorded only when it is not unity, for the same reason. */
+  gain?: number
 }
 
 /**
@@ -70,12 +72,13 @@ export class FakeAudioDriver implements AudioDriver {
     this.transportRunning = false
   }
 
-  play(instrumentId: string, audioTime?: number, semitones?: number): void {
-    this.played.push(
-      semitones === undefined
-        ? { instrumentId, audioTime }
-        : { instrumentId, audioTime, semitones },
-    )
+  play(instrumentId: string, audioTime?: number, semitones?: number, gain?: number): void {
+    this.played.push({
+      instrumentId,
+      audioTime,
+      ...(semitones === undefined ? {} : { semitones }),
+      ...(gain === undefined || gain === 1 ? {} : { gain }),
+    })
   }
 
   scheduleDraw(audioTime: number, callback: () => void): void {

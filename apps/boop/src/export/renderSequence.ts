@@ -15,6 +15,11 @@ import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEn
  * render has no equivalent for, so the final clamp below is a hard ceiling.
  * Nothing the app can build should reach it: `MASTER_GAIN` is sized so the
  * whole-roster worst case peaks at 0.91 (see `audioDriver.ts`).
+ *
+ * The other half of that staging is `chordGain`, which playback applies per
+ * note of a chord. This render has no notes to apply it to yet - it copies one
+ * unpitched sample per on step - and picks it up when ticket 11 teaches it
+ * pitch, from the same `audioDriver.ts` the master gain comes from.
  */
 
 export interface RenderSequenceOptions {

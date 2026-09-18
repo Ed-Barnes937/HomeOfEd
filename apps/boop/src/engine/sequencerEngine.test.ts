@@ -264,10 +264,29 @@ describe('SequencerEngine', () => {
 
       driver.fireStep()
 
+      // Three notes share one voice's worth of level (ADR 0062) - their
+      // attacks are the same sample on the same audio frame.
+      const gain = 1 / Math.sqrt(3)
       expect(driver.played).toEqual([
-        { instrumentId: 'boop', audioTime: 0.1, semitones: -7 },
-        { instrumentId: 'boop', audioTime: 0.1, semitones: 0 },
-        { instrumentId: 'boop', audioTime: 0.1, semitones: 5 },
+        { instrumentId: 'boop', audioTime: 0.1, semitones: -7, gain },
+        { instrumentId: 'boop', audioTime: 0.1, semitones: 0, gain },
+        { instrumentId: 'boop', audioTime: 0.1, semitones: 5, gain },
+      ])
+    })
+
+    it('leaves a one-note column at full level, as a drum row is', async () => {
+      engine.setPattern([
+        { instrumentId: 'kick', steps: row([0]) },
+        pitchedRow('boop', { 0: [2] }),
+      ])
+      await engine.start()
+      driver.played = []
+
+      driver.fireStep()
+
+      expect(driver.played).toEqual([
+        { instrumentId: 'kick', audioTime: 0.1 },
+        { instrumentId: 'boop', audioTime: 0.1, semitones: -3 },
       ])
     })
 

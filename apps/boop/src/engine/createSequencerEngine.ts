@@ -1,4 +1,4 @@
-import type { AudioDriver } from './audioDriver.ts'
+import { chordGain, type AudioDriver } from './audioDriver.ts'
 import {
   ANCHOR_PITCH_MASK,
   hasPitch,
@@ -333,9 +333,11 @@ class BoopSequencerEngine implements SequencerEngine {
       // One hit and one source per note of the column, low note first. A mask
       // holds each pitch once, and `setPattern` refuses to name an instrument
       // twice, so no pitch of an instrument can be scheduled twice on a step.
-      for (const pitchIndex of pitchesInMask(row.pitches[step] ?? 0)) {
+      const pitches = pitchesInMask(row.pitches[step] ?? 0)
+      const gain = chordGain(pitches.length)
+      for (const pitchIndex of pitches) {
         hits.push({ instrumentId, pitchIndex })
-        this.driver.play(instrumentId, audioTime, semitonesFromAnchor(pitchIndex))
+        this.driver.play(instrumentId, audioTime, semitonesFromAnchor(pitchIndex), gain)
       }
     }
 

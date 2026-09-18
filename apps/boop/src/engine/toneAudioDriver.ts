@@ -103,7 +103,7 @@ export class ToneAudioDriver implements AudioDriver {
     getTransport().stop()
   }
 
-  play(instrumentId: string, audioTime?: number, semitones = 0): void {
+  play(instrumentId: string, audioTime?: number, semitones = 0, gain = 1): void {
     const buffers = this.buffers
     if (!buffers?.has(instrumentId)) return
     // One source per hit, so a fast retrigger layers instead of cutting itself
@@ -117,7 +117,9 @@ export class ToneAudioDriver implements AudioDriver {
       playbackRate: 2 ** (semitones / 12),
     }).connect(this.master)
     source.onended = () => source.dispose()
-    source.start(audioTime)
+    // `start`'s fourth argument is the source's own gain envelope - the one
+    // place a chord's per-note level is applied (ADR 0062).
+    source.start(audioTime, undefined, undefined, gain)
   }
 
   scheduleDraw(audioTime: number, callback: () => void): void {
