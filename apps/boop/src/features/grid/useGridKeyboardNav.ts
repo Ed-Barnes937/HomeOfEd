@@ -65,9 +65,9 @@ export function useGridKeyboardNav({
   const containerRef = useRef<HTMLDivElement>(null)
 
   /** Which cell of a lane an arrow lands on when it arrives from outside the row. */
-  function focusCell(rowIndex: number, step: number, entry: 'top' | 'bottom' | number) {
+  function focusCell(rowIndex: number, step: number, entry: 'top' | 'bottom' | number): boolean {
     const instrumentId = instrumentIdAt(rowIndex)
-    if (instrumentId === undefined) return
+    if (instrumentId === undefined) return false
     const pitches = lanePitchesAt(rowIndex)
     const testId =
       pitches === undefined
@@ -81,7 +81,9 @@ export function useGridKeyboardNav({
                 ? pitches - 1
                 : 0,
           )
-    containerRef.current?.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)?.focus()
+    const cell = containerRef.current?.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)
+    cell?.focus()
+    return cell !== null && cell !== undefined
   }
 
   function onCellKeyDown(
@@ -105,10 +107,16 @@ export function useGridKeyboardNav({
           return
         }
       }
-      const nextRow = Math.min(rowCount - 1, Math.max(0, rowIndex + delta[0]))
-      // Sideways keeps the pitch; leaving a row enters the next one at the end
-      // the move came from, so the cursor keeps travelling in one direction.
-      focusCell(nextRow, nextStep, delta[0] === 0 ? (pitchIndex ?? 'top') : up ? 'bottom' : 'top')
+      if (delta[0] === 0) {
+        focusCell(rowIndex, nextStep, pitchIndex ?? 'top')
+        return
+      }
+      // Leaving a row enters the next one at the end the move came from, so the
+      // cursor keeps travelling in one direction - and a row with nothing to
+      // focus (a collapsed lane) is stepped over rather than swallowing it.
+      for (let row = rowIndex + delta[0]; row >= 0 && row < rowCount; row += delta[0]) {
+        if (focusCell(row, nextStep, up ? 'bottom' : 'top')) return
+      }
       return
     }
     if (event.key === 'Backspace') {

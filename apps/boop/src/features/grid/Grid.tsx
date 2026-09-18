@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 
 import { rowPitchMasks } from '../../engine/pitch.ts'
 import {
@@ -10,7 +10,7 @@ import {
 import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
 import styles from './Grid.module.scss'
 import { rowColorVar } from './instrumentColors.ts'
-import { PitchedLane, PitchLegend } from './PitchedLane.tsx'
+import { LaneSummary, PitchedLane, PitchedRail } from './PitchedLane.tsx'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
 import { instrumentsById } from './rowInstruments.ts'
 import { useDragPaint } from './useDragPaint.ts'
@@ -129,6 +129,15 @@ export function Grid({
   const staggerDelayFor = useLoadStagger(loadToken)
   const isPitched = (rowIndex: number) =>
     instruments.get(pattern[rowIndex]?.instrumentId ?? '')?.pitched !== undefined
+  // Which pitched rows are folded. Component state on purpose: collapse is a
+  // way of looking at a clip, not part of it (spec §4, ADR 0061).
+  const [collapsedRows, setCollapsedRows] = useState<ReadonlySet<string>>(() => new Set())
+  const toggleCollapsed = (instrumentId: string) =>
+    setCollapsedRows((rows) => {
+      const next = new Set(rows)
+      if (!next.delete(instrumentId)) next.add(instrumentId)
+      return next
+    })
   const keyboardNav = useGridKeyboardNav({
     rowCount: pattern.length,
     stepCount: STEPS_PER_PATTERN,
@@ -237,6 +246,8 @@ export function Grid({
               const rowStyle = { '--row-color': `var(${rowColorVar(rowIndex)})` } as CSSProperties
               const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
               const pitched = instrument.pitched !== undefined
+              const collapsed = pitched && collapsedRows.has(row.instrumentId)
+              const masks = pitched ? rowPitchMasks(row) : []
               const name = (
                 <span
                   key={rowStrikeEpoch}
@@ -254,6 +265,7 @@ export function Grid({
                   className={styles.row}
                   style={rowStyle}
                   data-pitched={pitched}
+                  data-collapsed={collapsed}
                 >
                   <div className={styles.rail}>
                     {/* The artwork is the row's instrument button (ticket 05,
@@ -274,13 +286,31 @@ export function Grid({
                         }}
                       />
                     </button>
-                    {pitched ? <PitchLegend>{name}</PitchLegend> : name}
+                    {pitched ? (
+                      <PitchedRail
+                        instrumentId={row.instrumentId}
+                        instrumentName={instrument.name}
+                        masks={masks}
+                        collapsed={collapsed}
+                        onToggleCollapsed={() => toggleCollapsed(row.instrumentId)}
+                      >
+                        {name}
+                      </PitchedRail>
+                    ) : (
+                      name
+                    )}
                   </div>
-                  {pitched ? (
+                  {collapsed ? (
+                    <LaneSummary
+                      instrumentId={row.instrumentId}
+                      masks={masks}
+                      playheadStep={playheadStep}
+                    />
+                  ) : pitched ? (
                     <PitchedLane
                       instrumentId={row.instrumentId}
                       instrumentName={instrument.name}
-                      masks={rowPitchMasks(row)}
+                      masks={masks}
                       playheadStep={playheadStep}
                       paint={paint}
                       onCellKeyDown={(event, step, pitchIndex, on) =>
