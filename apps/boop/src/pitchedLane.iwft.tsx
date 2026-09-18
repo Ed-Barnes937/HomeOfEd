@@ -45,12 +45,14 @@ test('a tap paints that note, and a second tap in the column adds a chord', asyn
   await root.verifyPlaying()
   await root.fireStep()
   // Each note transposed from the anchor "so", low note first: the two paints
-  // above auditioned their own pitch as they landed, and the step sounds both.
+  // above auditioned their own pitch as they landed at full level, and the
+  // step sounds both, sharing one voice's worth of gain (ADR 0062).
+  const chord = 1 / Math.sqrt(2)
   await root.verifyPlayed([
     { instrumentId: LANE, audioTime: undefined, semitones: 0 },
     { instrumentId: LANE, audioTime: undefined, semitones: 5 },
-    { instrumentId: LANE, audioTime: 0.1, semitones: 0 },
-    { instrumentId: LANE, audioTime: 0.1, semitones: 5 },
+    { instrumentId: LANE, audioTime: 0.1, semitones: 0, gain: chord },
+    { instrumentId: LANE, audioTime: 0.1, semitones: 5, gain: chord },
   ])
 })
 
