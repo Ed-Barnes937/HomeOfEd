@@ -128,6 +128,7 @@ export function LaneSummary({
         <div
           key={step}
           className={styles.summaryCell}
+          data-parity={Math.floor(step / GROUP_SIZE) % 2 === 0 ? 'even' : 'odd'}
           data-playhead={step === playheadStep}
           data-testid={`lane-summary-cell-${instrumentId}-${step}`}
         >
