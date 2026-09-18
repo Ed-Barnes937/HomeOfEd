@@ -21,7 +21,7 @@ import { URL, fileURLToPath } from 'node:url'
 
 import { SAMPLE_RATE, wav } from './wav.mjs'
 
-/** Peak level per voice — balanced so six simultaneous rows do not clip. */
+/** Peak level per voice - balanced so six simultaneous rows do not clip. */
 const PEAK = 0.5
 
 /**
@@ -149,6 +149,21 @@ const voices = {
       }),
       0.014,
     ),
+  /**
+   * Upright bass at C3, pizzicato. Distinct from the one-note `bass`, which is
+   * an electric-ish 90 Hz pluck and stays exactly as it is (ADR 0059).
+   */
+  doublebass: () =>
+    mix(
+      harmonics({
+        seconds: 0.34,
+        root: 130.81,
+        partials: [1, 0.42, 0.18, 0.09, 0.04],
+        decay: 10,
+        damping: 4,
+      }),
+      scale(highpass(noise({ seconds: 0.012, decay: 260, seed: 13 })), 0.18),
+    ),
   /** Piano at C4: stretched partials over a hammer thump. */
   piano: () =>
     mix(
@@ -209,7 +224,7 @@ const NEW_VOICE_IDS = [
 ]
 
 /** The pitched lane's root samples (ticket 04) - see ADR 0059 for the registers. */
-const PITCHED_ROOT_IDS = ['trumpet', 'piano']
+const PITCHED_ROOT_IDS = ['trumpet', 'piano', 'doublebass']
 
 const requested = process.argv.slice(2)
 const ids = requested.length > 0 ? requested : [...NEW_VOICE_IDS, ...PITCHED_ROOT_IDS]
@@ -224,7 +239,7 @@ mkdirSync(outDir, { recursive: true })
 for (const id of ids) {
   const samples = declick(scale(normalise(voices[id]()), levels[id] ?? 1))
   writeFileSync(`${outDir}${id}.wav`, wav(samples))
-  process.stdout.write(`${id}.wav — ${(samples.length / SAMPLE_RATE).toFixed(2)}s\n`)
+  process.stdout.write(`${id}.wav - ${(samples.length / SAMPLE_RATE).toFixed(2)}s\n`)
 }
 
 function sweep({ seconds, from, to, decay }) {
@@ -242,11 +257,10 @@ function sweep({ seconds, from, to, decay }) {
 }
 
 /**
- * An additive tone: `partials[n]` is harmonic n+1's level, each decaying at
- * `decay + damping * n` so the voice darkens as it rings. `inharmonicity`
- * stretches the upper partials sharp, which is what a piano string does.
- * Partials start out of phase, or they would all peak at t=0 and normalising
- * would leave the body quiet.
+ * An additive tone: `partials[n]` is harmonic n+1's level, decaying at
+ * `decay + damping * n`, with `inharmonicity` stretching the upper partials
+ * sharp. Partials start out of phase or they would all peak at t=0 and
+ * normalising would leave the body quiet.
  */
 function harmonics({ seconds, root, partials, decay, damping = 0, inharmonicity = 0 }) {
   const length = Math.round(seconds * SAMPLE_RATE)
@@ -292,7 +306,7 @@ function noise({ seconds, decay, seed = 1 }) {
   return out
 }
 
-/** One-pole difference — enough to turn white noise into a hi-hat tick. */
+/** One-pole difference - enough to turn white noise into a hi-hat tick. */
 function highpass(samples) {
   const out = new Float32Array(samples.length)
   for (let i = 1; i < samples.length; i += 1) out[i] = samples[i] - samples[i - 1]

@@ -157,8 +157,15 @@ sounds/*.wav
     piano   - C4. Seven harmonics of 261.63 Hz stretched sharp by an
               inharmonicity term (what a real string does), over a short
               174->131 Hz hammer thump. 300 ms.
+    doublebass - C3. Five fast-damped harmonics of 130.81 Hz with a short
+              high-passed noise tick for the pizzicato finger. 340 ms. This is
+              a NEW instrument, not a retune of bass.wav above: bass (the
+              electric-ish 90 Hz pluck) stays one-note and untouched so saved
+              boops using it keep sounding the same. Its artwork is
+              artwork/double-bass.svg; bass keeps guitar-bass-head.svg. Do not
+              merge the two.
 
-  Neither is referenced by kit.json yet - the pitched roster activates in
+  None of the three is referenced by kit.json yet - the pitched roster activates in
   ticket 10, after Ed's ear check. marimba.wav is *not* regenerated: its
   measured C5 is the anchor every existing saved boop depends on.
 

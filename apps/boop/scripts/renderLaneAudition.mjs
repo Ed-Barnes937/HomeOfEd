@@ -28,6 +28,7 @@ const REGISTERS = [
   { id: 'marimba', rootNote: 'C5' },
   { id: 'trumpet', rootNote: 'C5' },
   { id: 'piano', rootNote: 'C4' },
+  { id: 'doublebass', rootNote: 'C3' },
 ]
 
 const BPM = 120

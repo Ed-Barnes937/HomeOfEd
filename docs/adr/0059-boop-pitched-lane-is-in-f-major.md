@@ -62,42 +62,52 @@ Registers, for ticket 10 to copy:
 | ---------- | ---------- | ------------------ | ------------------------------------------------ |
 | `marimba`  | **C5**     | F4..F5             | measured, not chosen - the anchor rule fixes it   |
 | `trumpet`  | **C5**     | F4..F5             | the brass singing register; bright, and it cuts   |
-| `piano`    | **C4**     | F3..F4             | an octave under the other two, so the ensemble has a low end and a two-octave spread |
+| `piano`    | **C4**     | F3..F4             | an octave under the marimba and trumpet |
+| `doublebass` | **C3**   | F2..F3             | an octave under the piano again, so the roster spans three octaves. C2 was rejected: it puts `do` at F1, 44 Hz, which a tablet speaker cannot reproduce |
 
-**The bass is deliberately absent.** The shipped `bass` measures ~F#2 +23c with
-a 1.2 semitone glide, so converting it would put its lane in B major against
-everyone else's F - the same defect that disqualified boop. Whether the pitched
-bass is a new instrument (new id, new root sample on a C) or nothing at all is
-an open question at the time of writing, and a slot ticket 10 can fill without
-disturbing anything above.
+**There are two basses, on purpose.** The shipped one-note `bass` measures
+~F#2 +23c with a 1.2 semitone glide, so *converting* it would have put its lane
+in B major against everyone else's F - boop's exact defect - and would have
+changed how it sounds in every boop already saved with it. So it is left
+completely alone: same id, same sample, same artwork, no `pitched` config. The
+pitched instrument is a **new** one, `doublebass`, with its own root sample on
+a C and ticket 05's `double-bass.svg`. They are different instruments - an
+electric-ish 90 Hz pluck and an upright played pizzicato - and **merging or
+"tidying up" the pair later would break saved boops.**
 
 ## Consequences
 
 - **The key is inaudible as a label, so this costs nothing.** No note name is
   ever shown in the UI (spec §10 puts note names out of scope) and there is no
   user-settable register. F versus C is a fact about numbers in `kit.json`;
-  what a child hears is only whether the five instruments agree, and they do.
-- **The launch roster is smaller than the grill session planned.** Four pitched
-  instruments were specified (five with the bass); three are ready here, and
-  spec §10 already sanctions converting further one-note instruments as a cheap
-  follow-up once the lane exists. `bell` measures an exact C6 and `chime` an
-  exact G6, so bell is the natural next conversion in F major.
+  what a child hears is only whether the four instruments agree, and they do.
+- **The launch roster is four, not the five the grill session planned.** Boop
+  is the one that fell out. Spec §10 already sanctions converting further
+  one-note instruments as a cheap follow-up once the lane exists: `bell`
+  measures an exact C6, so it is the natural next conversion in F major
+  (`chime` is an exact G6, which is C major's "so" and so does not fit).
 - **Pitched retrigger buildup exceeds the one-shot rule at some pitches, for
   every instrument including the converted one.** `kitLevels.test.ts` caps a
   voice at 1.4x when retriggered on 200bpm 16ths; repitching moves a voice's
   period, and where it goes coherent with the 75 ms step the tails add nearly
   in phase. Worst case measured per instrument: marimba **1.44x** at `mi`,
-  trumpet **1.50x** at `mi`, piano **1.45x** at `do`. The marimba figure is a
+  trumpet **1.50x** at `mi`, piano **1.45x** at `do`, doublebass **1.53x** at
+  `la`. The marimba figure is a
   shipped sample being repitched, so this is a property of the lane, not of the
   new samples, and it is ticket 09's to re-pin (spec §5 already charters that).
   Trumpet and piano were shortened to 260 ms and 300 ms to bring them level
   with marimba rather than past it.
-- **Activating these two voices puts the roster's dense worst case at 3.105
+- **Activating the three new voices puts the roster's dense worst case at 3.168
   raw against a budget pinned at 3.1.** Gain staging still closes
-  (3.105 x `MASTER_GAIN` 0.3 = 0.932, under full scale), so this is a constant
+  (3.168 x `MASTER_GAIN` 0.3 = 0.950, under full scale), so this is a constant
   to re-pin and not a clipping risk - again ticket 09, which has to re-measure
   for chords regardless.
-- **Nothing here is user-visible.** `kit.json` is untouched; the two new WAVs
+- **This reversal invalidated three C-major assertions already on main**, all
+  corrected here: `kitManifest.test.ts`'s key check (which asserted a pitch
+  class of C and would have gone red the moment ticket 10 activated the roster,
+  since it is vacuous while nothing is pitched), and doc comments in `pitch.ts`
+  and `sequencerEngine.ts`.
+- **Nothing here is user-visible.** `kit.json` is untouched; the three new WAVs
   are unreferenced files on disk, exactly as ticket 05's artwork is
   (spec §11's dormancy rule).
 
@@ -116,3 +126,8 @@ disturbing anything above.
 - **Pitch boop in its own Ab.** Its lane would clash with all four others, and
   its 3.2 semitone glide means it has no note to be in tune with in the first
   place.
+- **Convert the shipped `bass` instead of adding `doublebass`.** It measures
+  ~F#2 with a glide, so its lane would be B major against everyone else's F,
+  and flagging it pitched would change a sound that saved boops already use.
+  Rejected for both reasons; a new instrument costs one sample and breaks
+  nothing.

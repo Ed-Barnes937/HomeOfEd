@@ -25,10 +25,9 @@ Acceptance criteria:
 - [x] Marimba/boop sample pitches measured and written down in this ticket's
       comments; C-major compatibility **escalated**, and resolved as F major
       (ADR 0059).
-- [x] New root samples in `public/kits/launch/sounds/`, loudness-normal
+- [x] Three new root samples in `public/kits/launch/sounds/`, loudness-normal
       against the kit (kitLevels-style measurement, before ticket 09's chord
-      re-pin). **Two of three**: trumpet and piano. The bass is held back
-      deliberately - see "The bass is an open slot" below.
+      re-pin): trumpet, piano and doublebass.
 - [x] Registers recorded, as copy-paste data for ticket 10 rather than in
       `kit.json` - writing a `pitched` block *is* what activates an
       instrument, so recording them in the manifest now would break spec §11's
@@ -96,9 +95,9 @@ C major before anything was measured.
 - **boop stays one-note.** No key exists for a sample that glides 3.2
   semitones. `bell` (exact C6) is the natural next conversion under spec §10's
   cheap-follow-up clause, but that is not this ticket.
-- **trumpet and piano** are new, synthesized by the kit's own generator
-  (`generatePlaceholderSamples.mjs`, new `harmonics` block) - no third-party
-  audio, same route as the other fourteen.
+- **trumpet, piano and doublebass** are new, synthesized by the kit's own
+  generator (`generatePlaceholderSamples.mjs`, new `harmonics` block) - no
+  third-party audio, same route as the other fourteen.
 
 Measured after generating, with the same script:
 
@@ -107,14 +106,16 @@ Measured after generating, with the same script:
 | `marimba` | **C5**     | C5 +0c      | F4..F5 |
 | `trumpet` | **C5**     | C5 +0c      | F4..F5 |
 | `piano`   | **C4**     | C4 +3c      | F3..F4 |
+| `doublebass` | **C3**  | C3 +2c      | F2..F3 |
 
 Piano's +3c is the inharmonicity stretch pulling the measured centre a hair
 sharp; ~5 cents is the just-noticeable difference, so it is inaudible.
 
 Registers by ear: trumpet at C5 puts its lane in the brass singing register
-where it is bright and cuts; piano at C4 sits an octave under the other two so
-the ensemble has a low end and a two-octave spread rather than three voices
-stacked in one place.
+where it is bright and cuts; piano at C4 sits an octave under it; doublebass at
+C3 an octave under that again. Three octaves of spread rather than four voices
+stacked in one place. C2 was tried for the doublebass and rejected - it puts
+`do` at F1, 44 Hz, which a tablet speaker simply cannot reproduce.
 
 ### Loudness
 
@@ -123,14 +124,15 @@ retrigger <1.4x at 200bpm 16ths):
 
 | voice     | duration | peak   | retrigger |
 | --------- | -------- | ------ | --------- |
-| `trumpet` | 260 ms   | 0.5000 | 1.061x    |
-| `piano`   | 300 ms   | 0.5000 | 1.030x    |
+| `trumpet`    | 260 ms | 0.5000 | 1.061x |
+| `piano`      | 300 ms | 0.5000 | 1.030x |
+| `doublebass` | 340 ms | 0.5000 | 1.295x |
 
 Both at the kit's exact per-voice peak - loudness-normal, not quietly ducked.
 
-**One number for ticket 09:** activating these two takes the whole-roster dense
-worst case from 3.035 to **3.105**, against a `WORST_CASE_BUDGET` pinned at
-3.1. Gain staging still closes (3.105 x `MASTER_GAIN` 0.3 = 0.932 < 1.0), so
+**One number for ticket 09:** activating these three takes the whole-roster
+dense worst case from 3.035 to **3.168**, against a `WORST_CASE_BUDGET` pinned
+at 3.1. Gain staging still closes (3.168 x `MASTER_GAIN` 0.3 = 0.950 < 1.0), so
 it is a constant to re-pin rather than a clipping risk - and ticket 09 has to
 re-measure for chords anyway. The committed test is **green today** because it
 reads the roster from `kit.json`, which this ticket does not touch.
@@ -142,39 +144,46 @@ octave costs -7..+5 semitones, and nothing sounds torn or aliased at either
 end. Two things to note:
 
 1. **Note length scales with pitch** - spec §5's accepted sampler physics.
-   `do` is the longest: marimba 420 ms, trumpet 390 ms, piano 449 ms, all past
-   the 400 ms one-shot cap once repitched. Expected, not fixable without
+   `do` is the longest: marimba 420 ms, trumpet 390 ms, piano 449 ms,
+   doublebass 509 ms, all past the 400 ms one-shot cap once repitched. Expected, not fixable without
    giving up the anchor rule.
 2. **Retrigger buildup spikes where the repitched period goes coherent with
    the 75 ms step.** Worst per instrument: marimba **1.44x** at `mi`, trumpet
-   **1.50x** at `mi`, piano **1.45x** at `do`. Trumpet's `mi` is A4 = 440 Hz,
+   **1.50x** at `mi`, piano **1.45x** at `do`, doublebass **1.53x** at `la`. Trumpet's `mi` is A4 = 440 Hz,
    and 440 x 0.075 = exactly 33 cycles, so its tails add nearly in phase.
    **The marimba figure is a shipped sample**, so this is a property of the
    lane rather than of the new samples; trumpet and piano were shortened (from
    300/360 ms) specifically to sit level with it rather than past it. Ticket 09
    owns the re-pin.
 
-### The bass is an open slot
+### Two basses, on purpose
 
-Not in this PR, deliberately. The shipped `bass` measures ~F#2 +23c with a 1.2
-semitone glide, so converting it would put its lane in B major against
-everyone else's F - the same defect that disqualified boop. Note `kit.json`
-already ships a one-note `bass`, so a pitched one would need its own
-`instrumentId` and its own file; overwriting `sounds/bass.wav` would change
-shipped audio under every saved boop using it. Ed is deciding. Nothing above
-depends on the answer - ticket 10 can add a fourth row to the table below.
+`kit.json` already ships a one-note `bass` - an electric-ish ~90 Hz pluck. It
+measures ~F#2 +23c with a 1.2 semitone glide, so **converting** it would have
+put its lane in B major against everyone else's F (boop's exact defect) *and*
+changed a sound saved boops already use. Ed ruled it a new instrument instead:
+
+- `bass` is untouched. Same id, same `sounds/bass.wav`, same
+  `guitar-bass-head.svg`, **no `pitched` config, ever.**
+- `doublebass` is new: upright, pizzicato, rooted C3, artwork
+  `double-bass.svg` from ticket 05.
+
+**Do not let anyone "tidy up" these two into one later** - merging them, or
+pointing `bass` at the new sample, silently rewrites every saved boop that uses
+it.
 
 ### Ticket 10's copy-paste
 
 Add to each entry in `apps/boop/public/kits/launch/kit.json`:
 
 ```json
-"marimba": { "pitched": { "rootNote": "C5" } },
-"trumpet": { "pitched": { "rootNote": "C5" } },
-"piano":   { "pitched": { "rootNote": "C4" } }
+"marimba":    { "pitched": { "rootNote": "C5" } },
+"trumpet":    { "pitched": { "rootNote": "C5" } },
+"piano":      { "pitched": { "rootNote": "C4" } },
+"doublebass": { "pitched": { "rootNote": "C3" } }
 ```
 
-concretely, the two new entries in full:
+concretely, the three new entries in full:
 
 ```json
 {
@@ -194,13 +203,25 @@ concretely, the two new entries in full:
   "role": "melodic",
   "group": "notes",
   "pitched": { "rootNote": "C4" }
+},
+{
+  "instrumentId": "doublebass",
+  "name": "Double bass",
+  "artwork": "/kits/launch/artwork/double-bass.svg",
+  "sound": "/kits/launch/sounds/doublebass.wav",
+  "role": "melodic",
+  "group": "notes",
+  "pitched": { "rootNote": "C3" }
 }
 ```
 
 and `marimba`'s existing entry gains `"pitched": { "rootNote": "C5" }` and
-nothing else. **`boop` gains nothing** - it stays one-note. Ticket 10 will also
-need to bump `kitLevels.test.ts`'s roster count from 20 and its
-`WORST_CASE_BUDGET` past 3.105, unless ticket 09 has already re-pinned it.
+nothing else. **`boop` gains nothing** and **`bass` gains nothing** - both stay
+one-note. Ticket 10 will also need to bump `kitLevels.test.ts`'s roster count
+from 20 (to 23) and its `WORST_CASE_BUDGET` past 3.168, unless ticket 09 has
+already re-pinned it. The key assertion in `kitManifest.test.ts` is **already**
+F major - this ticket corrected it, along with the stale C-major doc comments
+in `pitch.ts` and `sequencerEngine.ts`, so ticket 10 inherits no surprise.
 
 ### Listening steps for Ed
 
@@ -214,9 +235,10 @@ Four WAVs, plus the repitch table printed to the terminal:
   back. *The one that matters most:* the 5th note up (`so`, C5) is the
   untransposed shipped sample, so every old boop sounds exactly like that note.
   Listen for whether the ends (F4, F5) still sound like the same instrument.
-- **`trumpet-octave.wav`**, **`piano-octave.wav`** - same walk, new voices.
-  Are they kid-comfy? Is the piano too low / trumpet too high?
-- **`ensemble.wav`** - all three playing an F major phrase in a round, then the
+- **`trumpet-octave.wav`**, **`piano-octave.wav`**,
+  **`doublebass-octave.wav`** - same walk, new voices. Are they kid-comfy? Is
+  the doublebass too low to hear on a laptop, the trumpet too high?
+- **`ensemble.wav`** - all four playing an F major phrase in a round, then the
   whole 8-note lane as one chord each. This is the consonance check: do the
   three registers sit together, or does anything poke out or muddy?
 
