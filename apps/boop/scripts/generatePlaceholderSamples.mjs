@@ -135,6 +135,34 @@ const voices = {
       scale(sweep({ seconds: 0.26, from: 1320, to: 1320, decay: 38 }), 0.18),
     ),
 
+  // The pitched lane's root samples (ticket 04), each recorded at its lane's
+  // "so" - a C, because the ensemble is in F major (ADR 0059).
+  /** Brass at C5: a full harmonic series that darkens as it decays. */
+  trumpet: () =>
+    softAttack(
+      harmonics({
+        seconds: 0.26,
+        root: 523.25,
+        partials: [1, 0.85, 0.66, 0.52, 0.38, 0.27, 0.18, 0.11, 0.06],
+        decay: 14,
+        damping: 1.6,
+      }),
+      0.014,
+    ),
+  /** Piano at C4: stretched partials over a hammer thump. */
+  piano: () =>
+    mix(
+      harmonics({
+        seconds: 0.3,
+        root: 261.63,
+        partials: [1, 0.55, 0.32, 0.2, 0.12, 0.07, 0.04],
+        decay: 12,
+        damping: 2.4,
+        inharmonicity: 0.0005,
+      }),
+      scale(sweep({ seconds: 0.03, from: 174, to: 131, decay: 90 }), 0.3),
+    ),
+
   // Silly.
   /**
    * Springy: a falling pitch with a wobble on top. Decay 12 measured 1.50x
@@ -180,8 +208,11 @@ const NEW_VOICE_IDS = [
   'drip',
 ]
 
+/** The pitched lane's root samples (ticket 04) - see ADR 0059 for the registers. */
+const PITCHED_ROOT_IDS = ['trumpet', 'piano']
+
 const requested = process.argv.slice(2)
-const ids = requested.length > 0 ? requested : NEW_VOICE_IDS
+const ids = requested.length > 0 ? requested : [...NEW_VOICE_IDS, ...PITCHED_ROOT_IDS]
 const unknown = ids.filter((id) => !(id in voices))
 if (unknown.length > 0) {
   process.stderr.write(`unknown voice(s): ${unknown.join(', ')}\n`)
@@ -207,6 +238,28 @@ function sweep({ seconds, from, to, decay }) {
     phase += (2 * Math.PI * freq) / SAMPLE_RATE
     out[i] = Math.sin(phase) * Math.exp(-decay * t)
   }
+  return out
+}
+
+/**
+ * An additive tone: `partials[n]` is harmonic n+1's level, each decaying at
+ * `decay + damping * n` so the voice darkens as it rings. `inharmonicity`
+ * stretches the upper partials sharp, which is what a piano string does.
+ * Partials start out of phase, or they would all peak at t=0 and normalising
+ * would leave the body quiet.
+ */
+function harmonics({ seconds, root, partials, decay, damping = 0, inharmonicity = 0 }) {
+  const length = Math.round(seconds * SAMPLE_RATE)
+  const out = new Float32Array(length)
+  partials.forEach((level, n) => {
+    const harmonic = n + 1
+    const freq = root * harmonic * Math.sqrt(1 + inharmonicity * harmonic * harmonic)
+    const fade = decay + damping * n
+    for (let i = 0; i < length; i += 1) {
+      const t = i / SAMPLE_RATE
+      out[i] += level * Math.sin(2 * Math.PI * freq * t + harmonic * 1.7) * Math.exp(-fade * t)
+    }
+  })
   return out
 }
 
