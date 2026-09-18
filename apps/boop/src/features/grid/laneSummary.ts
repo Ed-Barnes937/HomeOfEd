@@ -10,9 +10,8 @@ import { PITCHES_PER_LANE, STEPS_PER_PATTERN } from '../../engine/sequencerEngin
 export const BARS_PER_PATTERN = 4
 const STEPS_PER_BAR = STEPS_PER_PATTERN / BARS_PER_PATTERN
 
-// Mirrors PitchedLane.module.scss: the pebble's own height and the inset it
-// keeps from its track's edges. The stylesheet spends what is left on the
-// travel below, so the summary rescales with the column (spec §2).
+// Mirrors PitchedLane.module.scss, which spends whatever the track has left on
+// the travel below - so these pin the arithmetic rather than drive it.
 export const PEBBLE_HEIGHT = 16
 export const PEBBLE_INSET = 4
 
@@ -22,9 +21,9 @@ export function pebbleOffset(pitchIndex: number): number {
 }
 
 /**
- * One height per bar for the rail's mini contour: the rounded mean of the
- * pitches painted in that bar, or `null` where the bar holds no notes. A mean
- * rather than a peak, so a chord reads at its middle the way the ear hears it.
+ * One pitch per bar for the rail's mini contour: the rounded mean of the notes
+ * painted in that bar, or `null` where the bar holds none. A mean rather than a
+ * peak, so a chord reads where the ear puts it.
  */
 export function pitchContour(masks: readonly number[]): (number | null)[] {
   return Array.from({ length: BARS_PER_PATTERN }, (_, bar) => {

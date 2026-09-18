@@ -109,9 +109,9 @@ function stepGroups(renderStep: (step: number) => ReactNode): ReactNode {
 }
 
 /**
- * A collapsed pitched row (design handoff, "Collapse"): the same 16 step
- * columns, each holding a pebble per painted note at that note's height. It is
- * a picture of the row and nothing more - painting means expanding first.
+ * A collapsed pitched row (design handoff, "Collapse"): a pebble per painted
+ * note, at that note's height, on the lane's own step columns. Read-only -
+ * painting means expanding first (ADR 0061).
  */
 export function LaneSummary({
   instrumentId,
@@ -176,11 +176,8 @@ interface PitchedRailProps {
 }
 
 /**
- * A pitched row's rail: the name, then the pitch key (or the mini contour, once
- * the row is folded) with the collapse chevron beside it. The handoff puts the
- * chevron on the name's own line; boop's 160px rail cannot hold a 52px art
- * plate, a 17px name and a 44px control at once, so it takes the line below
- * (ADR 0061).
+ * A pitched row's rail: the name, then the pitch key - or the mini contour,
+ * once the row is folded - with the collapse chevron beside it (ADR 0061).
  */
 export function PitchedRail({
   instrumentId,

@@ -129,9 +129,8 @@ export function Grid({
   const staggerDelayFor = useLoadStagger(loadToken)
   const isPitched = (rowIndex: number) =>
     instruments.get(pattern[rowIndex]?.instrumentId ?? '')?.pitched !== undefined
-  // Which pitched rows are folded to their summary. Deliberately component
-  // state: collapse is a way of looking at a clip, not part of it, so it never
-  // reaches the save document and a reload opens every row (spec §4, Q8).
+  // Which pitched rows are folded. Component state on purpose: collapse is a
+  // way of looking at a clip, not part of it (spec §4, ADR 0061).
   const [collapsedRows, setCollapsedRows] = useState<ReadonlySet<string>>(() => new Set())
   const toggleCollapsed = (instrumentId: string) =>
     setCollapsedRows((rows) => {
