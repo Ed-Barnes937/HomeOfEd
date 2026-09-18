@@ -1,10 +1,9 @@
 # 04 - Root samples and registers for the five pitched instruments
 
-**Status:** needs-info - **escalated**: the measurement in the comments fires
-spec §3's C-major clash rule. Neither converted sample is a C-major anchor, so
-the key has to be settled before the three new roots can be pitched at all.
-Back to ready-for-agent the moment Ed picks a resolution.
-**Blocked by:** 03; now also Ed's key call (see Comments)
+**Status:** ready-for-human - Ed's ear check is the only thing left (listening
+steps in the PR body and below). The C-major escalation this ticket raised is
+resolved: **F major**, ADR 0059.
+**Blocked by:** 03 (done)
 
 **What to build:** Sound content for activation. (1) **Measure** the actual
 pitch of the current `marimba.wav` and `boop.wav` - their pitch becomes their
@@ -24,17 +23,20 @@ registers by ear, Ed ear-checks), research §5 (mid-range root, ±6st max).
 Acceptance criteria:
 
 - [x] Marimba/boop sample pitches measured and written down in this ticket's
-      comments; C-major compatibility confirmed or **escalated** (it is).
-- [ ] Three new root samples in `public/kits/launch/sounds/`, loudness-normal
+      comments; C-major compatibility **escalated**, and resolved as F major
+      (ADR 0059).
+- [x] New root samples in `public/kits/launch/sounds/`, loudness-normal
       against the kit (kitLevels-style measurement, before ticket 09's chord
-      re-pin).
-- [ ] Registers recorded in the manifest config (values inert until
-      ticket 10 flips `pitched` on).
-- [ ] Repitch quality across the full octave spot-checked at both ends for
-      all five (offline render or dev listen); anything gnarly noted for the
-      ear check.
-- [ ] Ed's ear check requested with concrete listening steps (this ticket
-      flips to ready-for-human at that point).
+      re-pin). **Two of three**: trumpet and piano. The bass is held back
+      deliberately - see "The bass is an open slot" below.
+- [x] Registers recorded, as copy-paste data for ticket 10 rather than in
+      `kit.json` - writing a `pitched` block *is* what activates an
+      instrument, so recording them in the manifest now would break spec §11's
+      dormancy. ADR 0059 and "Ticket 10's copy-paste" below hold them.
+- [x] Repitch quality across the full octave spot-checked at both ends
+      (`renderLaneAudition.mjs`); the gnarly bits are noted below and in
+      ADR 0059's consequences.
+- [ ] Ed's ear check - requested, steps below. **This is the open gate.**
 
 ## Comments
 
@@ -67,60 +69,156 @@ retuning a shipped sample. **Nothing here retunes anything** - `sounds/*.wav`
 is untouched.
 
 **Rest of the kit, for the option space** (same script). The only exact
-C-major "so" in the whole kit is `chime`:
+C-major "so" in the whole kit is `chime`. (These two were first reported an
+octave low: autocorrelation locks to the period of the whole waveform, and a
+voice built only from high partials has no energy there. The script now
+octave-corrects with a Goertzel probe, and both agree with their recipes in
+ATTRIBUTION.txt. Marimba and boop are genuine fundamentals and did not move.)
 
 | sample  | measured | implied key if pitched |
 | ------- | -------- | ---------------------- |
-| `chime` | **G5 +0c** | **C major** (lane C5..C6) |
-| `bell`  | **C4 +3c** fundamental (C6 partial dominates the spectrum) | F major |
+| `chime` | **G6 +0c** | C major (lane C6..C7 - very high) |
+| `bell`  | **C6 +3c** | **F major** - agrees with marimba |
 | `pluck` | E4 +1c | A major |
 | `bass`  | ~F#2 +23c, glides 1.2st | none - not on a note |
 
-### Resolutions for Ed
+### 2026-09-18 - resolved: F major, and what shipped
 
-Marimba is a C, so **C major and a pitched marimba cannot both hold.** Ranked:
+Ed picked **F major, boop dropped** (option A2). Recorded in
+**[ADR 0059](../../../docs/adr/0059-boop-pitched-lane-is-in-f-major.md)**,
+which is the durable home for the reversal - the grill session had settled on
+C major before anything was measured.
 
-**A - the ensemble key becomes F major (recommended).** Marimba fits exactly
-and byte-identically, at zero risk. Trumpet/bass/piano are synthesized here,
-so their roots go on **C** (the "so" of F) for free. No note name is ever shown
-in the UI (spec §10 puts note names out of scope), so C-vs-F is inaudible as a
-label - all that matters is that the five agree. Boop still cannot join any
-shared key; two sub-options:
+- A lane's `do` is 7 semitones under the root sample, so an F-major lane needs
+  a **C** root. Marimba already is one, exactly.
+- **marimba converts unchanged.** Not regenerated, not retuned; old boops and
+  share links stay byte-identical.
+- **boop stays one-note.** No key exists for a sample that glides 3.2
+  semitones. `bell` (exact C6) is the natural next conversion under spec §10's
+  cheap-follow-up clause, but that is not this ticket.
+- **trumpet and piano** are new, synthesized by the kit's own generator
+  (`generatePlaceholderSamples.mjs`, new `harmonics` block) - no third-party
+  audio, same route as the other fourteen.
 
-- **A1 - swap boop for `bell`.** Bell measures an exact C, so it fits F major
-  as cleanly as marimba, keeps the roster at five, needs no new artwork, and
-  drops the one sample that has no pitch to speak of. Recommended.
-- **A2 - drop boop, ship four pitched instruments.** Spec §10 already makes
-  converting more one-note instruments a cheap follow-up.
+Measured after generating, with the same script:
 
-**B - keep C major, swap boop for `chime` (exact G5), drop marimba.** Key
-holds perfectly, but it costs the kit's flagship melodic voice from the lane.
+| sample    | `rootNote` | measured    | lane   |
+| --------- | ---------- | ----------- | ------ |
+| `marimba` | **C5**     | C5 +0c      | F4..F5 |
+| `trumpet` | **C5**     | C5 +0c      | F4..F5 |
+| `piano`   | **C4**     | C4 +3c      | F3..F4 |
 
-**C - keep C major and pitch marimba anyway.** Its lane is then F major
-against everyone else's C. Same-index notes land a perfect 4th apart, which is
-consonant in parallel, but the note sets differ by one accidental (Bb vs B),
-so independent melodies occasionally sour. Boop still cannot join.
+Piano's +3c is the inharmonicity stretch pulling the measured centre a hair
+sharp; ~5 cents is the just-noticeable difference, so it is inaudible.
 
-Recommendation: **A1**. The key is a label nobody sees; the sample pitches are
-facts nobody may change.
+Registers by ear: trumpet at C5 puts its lane in the brass singing register
+where it is bright and cuts; piano at C4 sits an octave under the other two so
+the ensemble has a low end and a two-octave spread rather than three voices
+stacked in one place.
 
-### Also needs a call: `bass` already exists
+### Loudness
 
-`kit.json` already ships a one-note `bass` (a ~90 Hz pluck, artwork
-`guitar-bass-head.svg`), but spec §1 and ticket 10 both list bass among the
-**new** instruments, and ticket 05 drew a *separate* `double-bass.svg` rather
-than reusing the existing icon. So the pitched bass looks like a new
-instrument, not a conversion - which means a new `instrumentId` and a new
-sound file, because overwriting `sounds/bass.wav` would change shipped audio
-under every saved boop that uses it. Proposed: id `doublebass`, name
-"Double bass", `sounds/doublebass.wav`, artwork `double-bass.svg`; the
-existing `bass` stays exactly as it is. Confirm before ticket 10 writes it.
+Measured the `kitLevels.test.ts` way (`VOICE_PEAK` 0.501, <400 ms,
+retrigger <1.4x at 200bpm 16ths):
 
-### What is blocked, and what is not
+| voice     | duration | peak   | retrigger |
+| --------- | -------- | ------ | --------- |
+| `trumpet` | 260 ms   | 0.5000 | 1.061x    |
+| `piano`   | 300 ms   | 0.5000 | 1.030x    |
 
-Every remaining AC depends on the key: the three new roots cannot be pitched,
-the registers cannot be chosen, and there is no point spending Ed's ear check
-on a provisional key. Work stopped here deliberately (spec §3's resolution
-rule). `kit.json` is untouched, per spec §11 - the registers land as data for
-ticket 10 once the key is settled, alongside ADR 0059 recording the measured
-anchors and the key decision together.
+Both at the kit's exact per-voice peak - loudness-normal, not quietly ducked.
+
+**One number for ticket 09:** activating these two takes the whole-roster dense
+worst case from 3.035 to **3.105**, against a `WORST_CASE_BUDGET` pinned at
+3.1. Gain staging still closes (3.105 x `MASTER_GAIN` 0.3 = 0.932 < 1.0), so
+it is a constant to re-pin rather than a clipping risk - and ticket 09 has to
+re-measure for chords anyway. The committed test is **green today** because it
+reads the roster from `kit.json`, which this ticket does not touch.
+
+### Repitch spot-check, both ends
+
+`node apps/boop/scripts/renderLaneAudition.mjs` prints the full table. The
+octave costs -7..+5 semitones, and nothing sounds torn or aliased at either
+end. Two things to note:
+
+1. **Note length scales with pitch** - spec §5's accepted sampler physics.
+   `do` is the longest: marimba 420 ms, trumpet 390 ms, piano 449 ms, all past
+   the 400 ms one-shot cap once repitched. Expected, not fixable without
+   giving up the anchor rule.
+2. **Retrigger buildup spikes where the repitched period goes coherent with
+   the 75 ms step.** Worst per instrument: marimba **1.44x** at `mi`, trumpet
+   **1.50x** at `mi`, piano **1.45x** at `do`. Trumpet's `mi` is A4 = 440 Hz,
+   and 440 x 0.075 = exactly 33 cycles, so its tails add nearly in phase.
+   **The marimba figure is a shipped sample**, so this is a property of the
+   lane rather than of the new samples; trumpet and piano were shortened (from
+   300/360 ms) specifically to sit level with it rather than past it. Ticket 09
+   owns the re-pin.
+
+### The bass is an open slot
+
+Not in this PR, deliberately. The shipped `bass` measures ~F#2 +23c with a 1.2
+semitone glide, so converting it would put its lane in B major against
+everyone else's F - the same defect that disqualified boop. Note `kit.json`
+already ships a one-note `bass`, so a pitched one would need its own
+`instrumentId` and its own file; overwriting `sounds/bass.wav` would change
+shipped audio under every saved boop using it. Ed is deciding. Nothing above
+depends on the answer - ticket 10 can add a fourth row to the table below.
+
+### Ticket 10's copy-paste
+
+Add to each entry in `apps/boop/public/kits/launch/kit.json`:
+
+```json
+"marimba": { "pitched": { "rootNote": "C5" } },
+"trumpet": { "pitched": { "rootNote": "C5" } },
+"piano":   { "pitched": { "rootNote": "C4" } }
+```
+
+concretely, the two new entries in full:
+
+```json
+{
+  "instrumentId": "trumpet",
+  "name": "Trumpet",
+  "artwork": "/kits/launch/artwork/trumpet.svg",
+  "sound": "/kits/launch/sounds/trumpet.wav",
+  "role": "melodic",
+  "group": "notes",
+  "pitched": { "rootNote": "C5" }
+},
+{
+  "instrumentId": "piano",
+  "name": "Piano",
+  "artwork": "/kits/launch/artwork/piano.svg",
+  "sound": "/kits/launch/sounds/piano.wav",
+  "role": "melodic",
+  "group": "notes",
+  "pitched": { "rootNote": "C4" }
+}
+```
+
+and `marimba`'s existing entry gains `"pitched": { "rootNote": "C5" }` and
+nothing else. **`boop` gains nothing** - it stays one-note. Ticket 10 will also
+need to bump `kitLevels.test.ts`'s roster count from 20 and its
+`WORST_CASE_BUDGET` past 3.105, unless ticket 09 has already re-pinned it.
+
+### Listening steps for Ed
+
+```bash
+node apps/boop/scripts/renderLaneAudition.mjs ~/Desktop/boop-lane
+```
+
+Four WAVs, plus the repitch table printed to the terminal:
+
+- **`marimba-octave.wav`** - the converted instrument walking F4 up to F5 and
+  back. *The one that matters most:* the 5th note up (`so`, C5) is the
+  untransposed shipped sample, so every old boop sounds exactly like that note.
+  Listen for whether the ends (F4, F5) still sound like the same instrument.
+- **`trumpet-octave.wav`**, **`piano-octave.wav`** - same walk, new voices.
+  Are they kid-comfy? Is the piano too low / trumpet too high?
+- **`ensemble.wav`** - all three playing an F major phrase in a round, then the
+  whole 8-note lane as one chord each. This is the consonance check: do the
+  three registers sit together, or does anything poke out or muddy?
+
+If a register is wrong, the fix is one note name in ADR 0059's table and a
+re-run - no re-synthesis for marimba, and a one-line change for the other two.
