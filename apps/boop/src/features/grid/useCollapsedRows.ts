@@ -6,9 +6,8 @@ export interface CollapsedRows {
 }
 
 /**
- * Which pitched rows are folded. Component state on purpose: collapse is a way
- * of looking at a clip, not part of it (spec §4, ADR 0061). Shared by the two
- * renderers so they cannot diverge in what folding a row means.
+ * Which pitched rows are folded. Component state on purpose (spec §4, ADR
+ * 0061), shared so the two renderers cannot diverge on what folding means.
  */
 export function useCollapsedRows(): CollapsedRows {
   const [rows, setRows] = useState<ReadonlySet<string>>(() => new Set())

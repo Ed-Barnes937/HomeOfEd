@@ -155,12 +155,7 @@ export class HomePagePom extends BasePage {
     await this.page.mouse.up()
   }
 
-  /**
-   * `dragLane`, but the finger settles before it moves - a couple of pixels
-   * inside the note it landed on, which is what a real one does. A lane column
-   * reports every `pointermove`, so those reports have to be told from a
-   * crossing (ticket 08) or the note the drag started on is lost.
-   */
+  /** `dragLane`, but the finger settles inside the note it landed on first, as a real one does. */
   async dragLaneFromRest(
     instrumentId: string,
     step: number,
@@ -185,11 +180,7 @@ export class HomePagePom extends BasePage {
     await this.page.mouse.up()
   }
 
-  /**
-   * Press on a note, wander inside it, and let go somewhere that is not the
-   * lane - on the phone, the first few pixels of a bar swipe. A press that
-   * crosses nothing paints nothing.
-   */
+  /** Press on a note, wander inside it, and let go off the lane - the start of a bar swipe. */
   async pressAndWanderOffTheLane(
     instrumentId: string,
     step: number,
@@ -207,10 +198,7 @@ export class HomePagePom extends BasePage {
     await this.page.mouse.up()
   }
 
-  /**
-   * The lane sits on the grid's own step columns (spec §2), which on the phone
-   * is what keeps the strip 605px wide and the snap on its bar lines.
-   */
+  /** The lane sits on the grid's own step columns (spec §2). */
   async verifyLaneColumnOnStepColumn(
     instrumentId: string,
     drumInstrumentId: string,
@@ -222,11 +210,7 @@ export class HomePagePom extends BasePage {
     expect(Math.round(column.width)).toBe(Math.round(cell.width))
   }
 
-  /**
-   * The phone's rail and its step strip are separate trees, so a pitched row
-   * only lines up if both give it the same height. Nothing in CSS makes them
-   * agree; this is what notices when they stop.
-   */
+  /** The pinned rail and the scrolling steps are separate trees; a pitched row has to span both alike. */
   async verifyPitchedRowAligns(instrumentId: string): Promise<void> {
     const rowBoxOf = (locator: Locator) =>
       locator.evaluate((element) => {
@@ -244,21 +228,13 @@ export class HomePagePom extends BasePage {
     expect(Math.round(stepsRow.height)).toBe(Math.round(railRow.height))
   }
 
-  /**
-   * The step strip is exactly 16 columns wide and nothing overhangs it: a lane
-   * plate that bled sideways the way the laptop's does would give the window
-   * scrollable width the snap offsets do not know about (`phoneWindow.ts`).
-   */
+  /** Nothing overhangs the 16 columns, or the window gains scroll the snap offsets do not know about. */
   async verifyStepStripIsNotOverhung(): Promise<void> {
     const strip = await this.stepWindow().evaluate((element) => element.scrollWidth)
     expect(strip).toBe(PHONE_STRIP_WIDTH)
   }
 
-  /**
-   * The scroll boxes inside the grid well, in document order - ADR 0030's
-   * nested-scroller inventory, asserted rather than assumed. The phone's one is
-   * the step window; a lane may not add another.
-   */
+  /** ADR 0030's nested-scroller inventory inside the well, asserted rather than assumed. */
   async verifyGridScrollBoxes(expected: readonly string[]): Promise<void> {
     const found = await this.gridWellScroll.evaluate((box) => {
       const ids: string[] = []
@@ -272,11 +248,7 @@ export class HomePagePom extends BasePage {
     expect(found).toEqual([...expected])
   }
 
-  /**
-   * The lane takes no gesture from the layers around it: the step window still
-   * hands horizontal pans to the browser, and the rail beside it is still the
-   * place a finger pans the rows box (ADR 0030/0042).
-   */
+  /** The window still hands horizontal pans to the browser, and the rail still pans the rows box. */
   async verifyLaneLeavesTheScrollGesturesAlone(instrumentId: string): Promise<void> {
     const touchActionOf = (locator: Locator) =>
       locator.evaluate((element) => getComputedStyle(element).touchAction)

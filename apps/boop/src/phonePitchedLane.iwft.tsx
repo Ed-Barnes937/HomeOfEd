@@ -2,14 +2,7 @@ import { test } from './testing/iwftTest.tsx'
 import { routePitchedKit } from './testing/pitchedKit.ts'
 
 // The pitched lane on the phone (ticket 08, ADR 0063). Nothing in the shipped
-// kit is pitched yet (spec §11), so every test here flags its own instrument -
-// `marimba`, one of the spec's conversions and one of the blank clip's six.
-//
-// The gesture question this suite answers: the phone's vertical axis inside the
-// step window was already paint's rather than scroll's (`touch-action: pan-x`,
-// ADR 0027/0030), so the lane inherits it. What is new is that a lane column
-// reports every `pointermove`, which the deferred latch had to learn to tell
-// from a crossing.
+// kit is pitched yet (spec §11), so every test here flags its own instrument.
 
 const LANE = 'marimba'
 const OTHER_LANE = 'boop'

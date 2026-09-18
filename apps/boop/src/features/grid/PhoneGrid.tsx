@@ -45,10 +45,9 @@ const GROUP_COUNT = STEPS_PER_PATTERN / GROUP_SIZE
  * 06 that map is also the phone's clip scrubber, so the scrub props of
  * `GridViewProps` go straight through to it.
  *
- * **A pitched row** (ADR 0063) is a lane of eight notes on those same columns.
- * The vertical axis inside the window was already paint's, not scroll's, so the
- * lane needs no new gesture: a tap paints, a drag down the column fills what it
- * crosses, and the rows box still pans from the rail beside it.
+ * **A pitched row** is a lane of eight notes on those same columns, and needs
+ * no gesture of its own: the vertical axis in here was already paint's, not
+ * scroll's (ADR 0063).
  */
 export function PhoneGrid({
   kit,
@@ -175,9 +174,8 @@ export function PhoneGrid({
                   >
                     {pitched ? (
                       <>
-                        {/* The chevron takes the rail's first line beside the
-                            plate, and the name the one below (ADR 0063): a 92px
-                            rail cannot hold 32 + a name + 44 side by side. */}
+                        {/* A 92px rail cannot hold the plate, a name and a 44px
+                            chevron on one line (ADR 0063). */}
                         <span className={styles.railHead}>
                           {plate}
                           <LaneToggle

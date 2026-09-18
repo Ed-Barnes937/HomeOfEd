@@ -1,11 +1,9 @@
 // The pitched lane (design handoff docs/reference/design_handoff_pitched_lane,
 // rescaled onto boop's own step columns per pitched-lane spec §2: the columns
 // stay 52px / 42px / the phone's 32px and only the lane's internals move). Each
-// breakpoint is a set of custom properties on `.lane` / `.summary`; the tile and
-// gap sizes are mirrored in `laneGeometry.ts` as LANE_DESKTOP / LANE_TABLET /
-// LANE_PHONE, though the component measures the rendered lane rather than
-// trusting either. Below 1024px `PhoneGrid` is the renderer (`useIsPhone`) and
-// the row's height is its (`--pitched-row-height`); the lane spends it.
+// breakpoint is a set of custom properties on `.lane` / `.summary`, mirrored in
+// `laneGeometry.ts` - though the component measures the rendered lane rather
+// than trusting either. The phone's are `PhoneGrid`'s (ADR 0063).
 
 // The collapsed summary, on the drum cell's own box (ticket 07). The pebble
 // numbers are mirrored in `laneSummary.ts`.
@@ -47,9 +45,8 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
     --lane-pad-x: 6px;
   }
 
-  // The phone's tile is derived from the row height `PhoneGrid` gives both of
-  // its columns, so the rail and the lane cannot disagree about how tall a
-  // pitched row is (ADR 0063).
+  // Derived from the row height `PhoneGrid` gives both of its columns, so the
+  // rail and the lane cannot disagree about how tall a pitched row is.
   @media (max-width: 1023px) {
     --lane-gutter: 11px;
     --lane-column-gap: 5px;
@@ -159,8 +156,6 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
     --lane-track-radius: 9px;
   }
 
-  // The phone's folded row is the rail's two lines tall (ADR 0063), and the
-  // track takes all of it - which is what keeps the pebbles readable there.
   @media (max-width: 1023px) {
     --lane-gutter: 11px;
     --lane-column-gap: 5px;

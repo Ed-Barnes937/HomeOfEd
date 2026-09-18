@@ -14,10 +14,6 @@ $bar-row-gap: 6px;
 $row-inset: 6px;
 
 // A pitched row's height, spent by the rail and by the lane alike (ADR 0063).
-// 156 leaves the eight tiles 16px on a 4px gap - the handoff's own tile-to-
-// column ratio on the phone's 32px column, and 20px hit bands. Folded, the row
-// is the chevron's line plus the name's, which is what the rail needs and what
-// the pebble summary then fills.
 $lane-row-height: 156px;
 $lane-collapsed-row-height: 60px;
 
@@ -110,8 +106,6 @@ $lane-collapsed-row-height: 60px;
   }
 }
 
-// One definition of a pitched row's height for both columns: the rail and the
-// step strip are separate trees, and the lane derives its tile from this.
 .layout {
   --pitched-row-height: #{$lane-row-height};
   --pitched-collapsed-row-height: #{$lane-collapsed-row-height};

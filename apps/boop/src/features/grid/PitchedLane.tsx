@@ -69,9 +69,8 @@ export function PitchedLane({
               paint.onPointerEnter(event, instrumentId, step, onAt(pitchIndex), pitchIndex)
             }}
             onClick={(event) => {
-              // A tile takes no pointer events (ADR 0060), so a pointer click
-              // lands here; a keyboard one belongs to the cell it came from and
-              // is only passing through on its way up.
+              // Tiles take no pointer events (ADR 0060), so a pointer click
+              // lands here; a keyboard one is only passing through.
               if (event.target !== event.currentTarget) return
               const pitchIndex = pitchAtPointer(event)
               if (pitchIndex === null) return
