@@ -145,12 +145,13 @@ end. Two things to note:
 
 1. **Note length scales with pitch** - spec §5's accepted sampler physics.
    `do` is the longest: marimba 420 ms, trumpet 390 ms, piano 449 ms,
-   doublebass 509 ms, all past the 400 ms one-shot cap once repitched. Expected, not fixable without
-   giving up the anchor rule.
+   doublebass 509 ms, all past the 400 ms one-shot cap once repitched.
+   Expected, and not fixable without giving up the anchor rule.
 2. **Retrigger buildup spikes where the repitched period goes coherent with
    the 75 ms step.** Worst per instrument: marimba **1.44x** at `mi`, trumpet
-   **1.50x** at `mi`, piano **1.45x** at `do`, doublebass **1.53x** at `la`. Trumpet's `mi` is A4 = 440 Hz,
-   and 440 x 0.075 = exactly 33 cycles, so its tails add nearly in phase.
+   **1.50x** at `mi`, piano **1.45x** at `do`, doublebass **1.53x** at `la`.
+   Trumpet's `mi` is A4 = 440 Hz, and 440 x 0.075 = exactly 33 cycles, so its
+   tails add nearly in phase.
    **The marimba figure is a shipped sample**, so this is a property of the
    lane rather than of the new samples; trumpet and piano were shortened (from
    300/360 ms) specifically to sit level with it rather than past it. Ticket 09
