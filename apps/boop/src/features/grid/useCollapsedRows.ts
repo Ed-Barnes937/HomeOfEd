@@ -3,6 +3,7 @@ import { useState } from 'react'
 export interface CollapsedRows {
   isCollapsed: (instrumentId: string) => boolean
   toggle: (instrumentId: string) => void
+  expand: (instrumentId: string) => void
 }
 
 /**
@@ -17,6 +18,13 @@ export function useCollapsedRows(): CollapsedRows {
       setRows((current) => {
         const next = new Set(current)
         if (!next.delete(instrumentId)) next.add(instrumentId)
+        return next
+      }),
+    expand: (instrumentId) =>
+      setRows((current) => {
+        if (!current.has(instrumentId)) return current
+        const next = new Set(current)
+        next.delete(instrumentId)
         return next
       }),
   }

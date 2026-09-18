@@ -403,6 +403,12 @@ export class HomePagePom extends BasePage {
     await this.laneSummaryCell(instrumentId, step).click()
   }
 
+  /** The same tap, aimed at a pebble - the thing a child is actually looking at. */
+  async tapPebble(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.lanePebble(instrumentId, step, pitchIndex).click()
+  }
+
   /**
    * A sideways pan that begins on a folded row, as the browser delivers one it
    * has claimed for the step window: moves, then `pointercancel`, and no click
@@ -430,6 +436,8 @@ export class HomePagePom extends BasePage {
   async verifyFoldedRowIsOneControl(instrumentId: string, label: string): Promise<void> {
     const summary = this.page.getByTestId(`lane-summary-${instrumentId}`)
     await expect(summary).toHaveAttribute('aria-hidden', 'true')
+    await expect(summary).not.toHaveAttribute('tabindex')
+    await expect(summary).not.toHaveAttribute('role')
     await expect(summary.locator('button, a, input, [tabindex], [role]')).toHaveCount(0)
     await expect(this.page.getByRole('button', { name: label })).toHaveCount(1)
   }

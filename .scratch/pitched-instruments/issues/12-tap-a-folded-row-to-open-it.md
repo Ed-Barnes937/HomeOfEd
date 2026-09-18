@@ -98,3 +98,20 @@ real decision was the test shape above.
 **For Ed, on real touch hardware:** that a pan starting on a folded row still
 reaches bar 3 rather than unfolding the row, and that a deliberate tap on the
 pebbles opens it first time. The `cursor: pointer` is desktop-only dressing.
+
+**2026-09-18 - fresh-context review round.**
+
+One real find, and it was in the a11y pin rather than the feature.
+`verifyFoldedRowIsOneControl` only walked the summary's *descendants*, so a
+`tabIndex={0}` added to the summary root itself - exactly the "let's make it
+focusable too" regression criterion 3 exists to stop - slipped through green.
+It now asserts `tabindex` and `role` on the summary element as well;
+mutation-checked, and that mutation turns both the desktop and the phone test
+red.
+
+Two nits taken: `useCollapsedRows` gained an idempotent `expand`, so the prop
+named `onExpand` is one, rather than a `toggle` whose correctness rests on
+`LaneSummary` only ever being mounted while folded; and a test now taps a
+**pebble** rather than an empty track, which is the thing a child is actually
+aiming at. A prose section header in `pitchedLane.iwft.tsx` was trimmed to a
+line.

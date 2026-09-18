@@ -179,8 +179,6 @@ test('a tap on a folded row opens it, and a pan that starts there still pans', a
   await root.toggleLane(LANE)
   await root.verifyLaneCollapsed(LANE)
 
-  // The gesture a child makes to reach bar 3: it must move the bars, not open
-  // the row - which is why the row opens on the tap and never on pointer-down.
   await root.panAcrossFoldedRow(LANE, 1)
   await root.verifyLaneCollapsed(LANE)
   await root.swipeSteps(300)

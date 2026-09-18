@@ -243,11 +243,7 @@ test('the summary is read-only, and the keys step over a folded row', async ({
   await root.verifyCellFocused('boop', 3)
 })
 
-// ---- Tapping a folded row opens it (ticket 12) ----
-//
-// The chevron was the only way back in, and it is 44px in a rail a six-year-old
-// is not aiming at. The summary takes the tap too - to *open*, never to paint
-// (ADR 0061, as amended).
+// ---- Tapping a folded row opens it (ticket 12, ADR 0061 as amended) ----
 
 test('a tap anywhere on a folded row opens it, and paints nothing', async ({ mountApp, page }) => {
   await routePitchedKit(page, LANE)
@@ -264,6 +260,20 @@ test('a tap anywhere on a folded row opens it, and paints nothing', async ({ mou
   for (const pitchIndex of [0, 1, 2, 3, 4, 5, 6, 7]) {
     await root.verifyNoteOff(LANE, 3, pitchIndex)
   }
+})
+
+test('a tap on a pebble opens the row too', async ({ mountApp, page }) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.paintNote(LANE, 5, 6)
+  await root.toggleLane(LANE)
+  await root.tapPebble(LANE, 5, 6)
+
+  await root.verifyLaneExpanded(LANE)
+  await root.verifyNoteOn(LANE, 5, 6)
 })
 
 test('the folded row is still one control, and it is the chevron', async ({ mountApp, page }) => {
