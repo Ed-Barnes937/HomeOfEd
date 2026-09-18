@@ -97,8 +97,11 @@ src/
                                   definition of the positional hue cycle
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     PitchedLane.tsx  a pitched row's 8-cells-per-step lane, on
-                                  the same step columns (ADR 0060); laneGeometry.ts
-                                  is its hit bands, solfege.ts its note names
+                                  the same step columns (ADR 0060), plus the
+                                  read-only pebble summary it folds to
+                                  (ADR 0061); laneGeometry.ts is its hit bands,
+                                  laneSummary.ts the pebble and contour
+                                  arithmetic, solfege.ts its note names
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export;

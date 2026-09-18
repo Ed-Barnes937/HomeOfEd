@@ -214,6 +214,17 @@ instrument's property, so swapping a row's sound can change a row's kind; a
 `role: "melodic"` tag does not imply it.
 _Avoid_: Melody row, note row, instrument row.
 
+**Pebble summary**:
+What a pitched row folds to when its chevron is tapped: the same 16 step
+columns at a drum row's height, each holding one **pebble** per painted note at
+that note's height, with a mini four-bar contour where the pitch key was
+([ADR 0061](../../docs/adr/0061-boop-collapsed-pitched-row.md)). Read-only - it
+shows the row, it cannot be painted on, and the playhead still sweeps it.
+Folding is a way of looking at a clip, not part of it: it is component state,
+per row, and a reload opens every row again.
+_Avoid_: Minimised row, thumbnail (the **loop map** and the pattern thumbnail
+are the other summaries, and neither is this), preview.
+
 **Pitch index**:
 Which cell of a lane, **counted from the bottom, app-wide**: 0 is do, 7 is the
 high do an octave up. The engine's masks, the save format's bytes, the hit
