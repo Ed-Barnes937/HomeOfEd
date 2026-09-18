@@ -57,9 +57,8 @@ function mixNote(
 }
 
 /**
- * How much room past the last step the render needs. The kit's longest sample
- * is the floor, so an unpitched render is exactly the length it always was;
- * only a note actually painted below the anchor stretches past it.
+ * Room past the last step. The kit's longest sample is the floor - an unpitched
+ * render is the length it always was - and a painted low note stretches past it.
  */
 function tailLength(
   kit: Kit,

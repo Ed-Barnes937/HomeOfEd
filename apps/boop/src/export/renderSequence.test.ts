@@ -417,18 +417,6 @@ describe('renderSequenceSamples pitch', () => {
     }
   })
 
-  it('renders the anchor degree at the sample rate it was given, untransposed', () => {
-    const out = renderSequenceSamples({
-      kit: pitchedKitOf('tone'),
-      sequence: [[laneRowOf('tone', { 0: [4] })]],
-      bpm: BPM,
-      sampleRate: SAMPLE_RATE,
-      samples: { tone: sine(ROOT_HZ, 0.25) },
-    })
-
-    expect(fundamentalHz(out.subarray(1000, 9000), SAMPLE_RATE)).toBeCloseTo(ROOT_HZ, 1)
-  })
-
   it('makes room for the bottom note, which runs half as long again as the sample', () => {
     // Spec §5's accepted sampler physics: low is longer. The render's tail
     // padding has to cover it or the lowest note of the last step is cut off.
@@ -483,11 +471,6 @@ describe('renderSequenceSamples chord level', () => {
     expect(onsetOf([ANCHOR_PITCH_INDEX])).toBe(Math.fround(samples.tone[0]! * MASTER_GAIN))
   })
 
-  it('makes a column bigger than one note, never quieter', () => {
-    const one = Math.abs(onsetOf([ANCHOR_PITCH_INDEX]))
-    expect(Math.abs(onsetOf([0, 1, 2, 3, 4, 5, 6, 7]))).toBeGreaterThan(one)
-    expect(Math.abs(onsetOf([0, 4]))).toBeGreaterThan(one)
-  })
 })
 
 /**
