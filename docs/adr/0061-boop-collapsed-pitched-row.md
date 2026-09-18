@@ -74,3 +74,34 @@ goes, and whether the summary can be painted on.
   tracks are its own, and the fraction follows whatever it draws.
 - It lands dormant with the rest of the lane (spec §11): no kit entry is
   pitched, so nothing in the shipped app renders a chevron.
+
+## Amendment (2026-09-18): read-only is about painting, and a tap opens the row
+
+[Ticket 12](../../.scratch/pitched-instruments/issues/12-tap-a-folded-row-to-open-it.md).
+Decision 1 made the summary inert, which left the 44x44 chevron the only way
+back into a folded row. Ed, watching the phone lane, called that wrong: a
+six-year-old who wants their marimba back taps the row, not a small control in
+the rail. The inertness was reasoning about *painting*, and it still holds
+there; it over-reached into *opening*.
+
+1. **A tap anywhere on the summary expands the row**, at every breakpoint -
+   the folded row is one component and one rule. **Expand only: nothing is
+   painted.** A folded row is ~64px tall (60 on the phone), so its eight
+   pitches would be ~8px bands aimed at blind; painting on that tap was
+   considered and rejected. Once the row is open the lane's own gestures take
+   over unchanged, so decision 1's "a one-pixel-per-pitch tap target would be
+   a second, worse paint surface" is untouched.
+2. **It is an `onClick`, never a `pointerdown`.** On the phone a horizontal pan
+   of the step window begins with a press on whatever is under the finger; the
+   browser claims it (`touch-action: pan-x`, ADR 0027 §3), cancels the pointer
+   and fires no click. Expanding on the press would open a row every time a
+   child reached for bar 3. This is ADR 0063 §1's trap one level up - the lane
+   found it in the paint latch, the folded row meets it in the tap - and it is
+   pinned by a test that plays the pan the browser actually delivers: moves,
+   then `pointercancel`.
+3. **The chevron is still the only control.** The summary keeps `aria-hidden`
+   and nothing focusable inside it, so the tap adds no tab stop, no second
+   announcement and no duplicate accessible name; `aria-expanded` and
+   "Expand/Collapse the <name> row" stay where they were. A keyboard or screen
+   reader user's path through a folded row is exactly what it was, decision 7's
+   arrow-key step-over included.

@@ -47,12 +47,54 @@ affordance on the whole row with the chevron unchanged as the labelled control.
 
 Acceptance criteria:
 
-- [ ] Tap/click a folded row's summary at any breakpoint and the lane expands;
+- [x] Tap/click a folded row's summary at any breakpoint and the lane expands;
       nothing is painted, at any step or pitch.
-- [ ] A horizontal swipe beginning on a folded row scrolls the phone's step
+- [x] A horizontal swipe beginning on a folded row scrolls the phone's step
       window and does **not** expand. Pinned by test.
-- [ ] No new tab stop and no duplicate accessible name: the keyboard and
+- [x] No new tab stop and no duplicate accessible name: the keyboard and
       screen-reader path is the chevron, exactly as today.
-- [ ] Arrow-key traversal over a folded row and playhead sweep are unchanged.
+- [x] Arrow-key traversal over a folded row and playhead sweep are unchanged.
 
 ## Comments
+
+**2026-09-18 - built. ADR 0061 amended in place.**
+
+`LaneSummary` takes an `onExpand` and hangs it off the strip's own `onClick`.
+Both renderers pass `collapsedRows.toggle`, so desktop, tablet and phone share
+the one rule the ticket asked for. Eight lines of component, one `cursor:
+pointer`.
+
+**The swipe trap, and why the test looks the way it does.** The handler is an
+`onClick` because a pan the browser claims (`touch-action: pan-x`, ADR 0027 §3)
+arrives as `pointerdown` + moves + `pointercancel` and **never a click** - so
+there is nothing to suppress, and the row simply does not open. Playwright
+cannot drive that with `page.mouse`: a mouse down-move-up inside the summary
+fires a real `click` on the common ancestor, which is not what a phone does, so
+a mouse-drag test would fail on a gesture that is correct in the browser. The
+POM's `panAcrossFoldedRow` therefore dispatches the sequence the browser really
+delivers, and the test then does a real wheel `swipeSteps(300)` and asserts the
+window landed on 308 with the row still folded. **Mutation-checked:** swapping
+the handler to `onPointerDown` turns that one test red and nothing else.
+
+**A11y.** The summary keeps `aria-hidden="true"` and has nothing focusable in
+it, so nothing new reaches the tree - a div with a click handler and no
+`tabindex` is not a tab stop. `verifyFoldedRowIsOneControl` pins all three
+halves: the `aria-hidden`, zero `button|a|input|[tabindex]|[role]` descendants,
+and exactly one button named "Expand the Marimba row" on the page. Arrow-key
+step-over and the playhead sweep are untouched and their ticket-07 tests still
+pass unchanged.
+
+**One existing test had to change**, which is the ticket's point: the old "the
+summary is read-only: a tap on it paints nothing" clicked a summary cell and
+then used the chevron to reopen the row. That now reads as two taps. It split
+into the read-only/arrow-traversal half (unchanged assertions) and a new tap
+test that opens the row and checks all eight pitches at the tapped step are
+still off.
+
+**Surprise worth recording:** none in the mechanism - `useDragPaint` never sees
+the summary at all, so nothing in the paint latch needed touching. The only
+real decision was the test shape above.
+
+**For Ed, on real touch hardware:** that a pan starting on a folded row still
+reaches bar 3 rather than unfolding the row, and that a deliberate tap on the
+pebbles opens it first time. The `cursor: pointer` is desktop-only dressing.

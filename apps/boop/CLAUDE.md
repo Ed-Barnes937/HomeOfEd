@@ -98,7 +98,8 @@ src/
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
                     PitchedLane.tsx  a pitched row's 8-cells-per-step lane, on
                                   the same step columns (ADR 0060), plus the
-                                  read-only pebble summary it folds to
+                                  pebble summary it folds to - paints nothing,
+                                  and a tap on it opens the row
                                   (ADR 0061); laneGeometry.ts is its hit bands,
                                   laneSummary.ts the pebble and contour
                                   arithmetic, solfege.ts its note names
@@ -330,6 +331,9 @@ share-link snapshot.
   ([ADR 0063](../../docs/adr/0063-boop-pitched-lane-on-the-phone.md)) - but the
   column reports on `pointermove`, so a report of the cell a press started on is
   not a crossing, and the column has to take the click a deferred tap ends in.
+  A **folded** row opens on a tap anywhere on its summary, and that handler is
+  an `onClick` for the same reason: on `pointerdown` a pan to the next bar would
+  open the row instead of panning (ADR 0061, as amended).
 - **The song bar is the home surface; the grid opens as a card**
   ([ADR 0035](../../docs/adr/0035-boop-song-bar-is-the-home-surface.md),
   superseding [ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)
