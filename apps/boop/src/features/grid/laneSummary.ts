@@ -1,5 +1,6 @@
 import { pitchesInMask } from '../../engine/pitch.ts'
 import { PITCHES_PER_LANE, STEPS_PER_PATTERN } from '../../engine/sequencerEngine.ts'
+import { STEPS_PER_BAR } from '../../song/songTimeline.ts'
 
 /**
  * The arithmetic behind a collapsed pitched row (design handoff, "Collapse";
@@ -7,8 +8,8 @@ import { PITCHES_PER_LANE, STEPS_PER_PATTERN } from '../../engine/sequencerEngin
  * four-bar contour the rail draws in place of the pitch legend.
  */
 
-export const BARS_PER_PATTERN = 4
-const STEPS_PER_BAR = STEPS_PER_PATTERN / BARS_PER_PATTERN
+// `songTimeline.ts` owns what a bar is (CONTEXT.md, "Bar").
+export const BARS_PER_PATTERN = STEPS_PER_PATTERN / STEPS_PER_BAR
 
 // Mirrors PitchedLane.module.scss, which spends whatever the track has left on
 // the travel below - so these pin the arithmetic rather than drive it.
