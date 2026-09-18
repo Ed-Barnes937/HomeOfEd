@@ -6,26 +6,17 @@ import type { AudioState, Unsubscribe } from './sequencerEngine.ts'
  * here, in the Tone-free seam, because `ToneAudioDriver` and
  * `export/renderSequence.ts` both need it and neither may import the other.
  *
- * **The invariant: one voice per instrument per step, and 0.30 x 3.325 raw =
- * 0.998 at the very worst.** A clip owns its rows (ADR 0042) and layered
- * placements sound their `instrumentId` union (`mergePatterns`), so a step
- * carries at most the whole roster; `chordGain` below is what keeps a lane's
- * chord inside one instrument's share of that. The gain has to hold the raw
- * sum under full scale on its own - the `Limiter(-1)` behind it inherits a
- * 30 dB knee and reduces by ~1.2 dB even 12 dB over threshold, which cannot
- * catch one-shot attacks landing in the same sample (ticket 08).
- *
- * The budget is now spent: `kitLevels.test.ts` pins it, and the next voice or
- * register buys its headroom from this constant. ADR 0062 has the numbers.
+ * It has to hold the raw sum under full scale on its own: the `Limiter(-1)`
+ * behind it cannot catch one-shot attacks landing in the same sample. At 0.3
+ * the budget is spent, and `kitLevels.test.ts` goes red before anything that
+ * would overspend it ships. ADR 0062 has the measurements.
  */
 export const MASTER_GAIN = 0.3
 
 /**
- * The gain each note of a chord sounds at, so a column of `noteCount` notes
- * costs one instrument's voice however many notes are in it - the invariant
- * `MASTER_GAIN` is sized against. Equal power, so the chord's loudness barely
- * moves as notes join it, and exactly 1 for a single note: a drum row and an
- * unchorded lane are untouched. ADR 0062.
+ * The gain each note of a chord sounds at, so a column costs one instrument's
+ * voice however many notes are in it - the invariant `MASTER_GAIN` is sized
+ * against. Exactly 1 for a single note. ADR 0062.
  */
 export function chordGain(noteCount: number): number {
   return noteCount > 1 ? 1 / Math.sqrt(noteCount) : 1
@@ -77,8 +68,7 @@ export interface AudioDriver {
    * is what every one-note instrument passes and therefore byte-identical to
    * before pitch existed.
    *
-   * `gain` is the note's own level, which is how a chord stays inside one
-   * instrument's share of the master budget (`chordGain`). Omitted is unity.
+   * `gain` is the note's own level (`chordGain`); omitted is unity.
    */
   play(instrumentId: string, audioTime?: number, semitones?: number, gain?: number): void
 

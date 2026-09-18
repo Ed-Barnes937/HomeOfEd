@@ -14,7 +14,8 @@ import { PITCHES_PER_LANE } from './sequencerEngine.ts'
  * capped, and no build-up when retriggered at the top of the tempo range.
  *
  * The ids come from the manifest, never a list in here - kits are pure data
- * and nothing outside `kit.json` may enumerate instrument ids.
+ * and nothing outside `kit.json` may enumerate instrument ids. `PITCHED_IDS`
+ * below is the one exception, and only until ticket 10 flags them.
  *
  * Kit data plus the one number the data has to fit under: `MASTER_GAIN`, the
  * master bus's headroom, which ticket 08 sized from the worst case measured
@@ -109,12 +110,25 @@ function repitch(samples: Float32Array, semitones: number): Float32Array {
   return out
 }
 
-/** A full lane painted on one step: every pitch of `samples`, at `gain` each. */
-function fullLaneChord(samples: Float32Array, gain: number): Float32Array[] {
-  return Array.from({ length: PITCHES_PER_LANE }, (_, pitchIndex) =>
-    repitch(samples, semitonesFromAnchor(pitchIndex)).map((s) => s * gain),
-  )
+function rmsOf(samples: Float32Array): number {
+  let sum = 0
+  for (const s of samples) sum += s * s
+  return Math.sqrt(sum / samples.length)
 }
+
+function countNotes(mask: number): number {
+  return [...Array(PITCHES_PER_LANE).keys()].filter((bit) => mask & (1 << bit)).length
+}
+
+/** One column of a lane, as the row's pitch bitmask holds it, at `chordGain`. */
+function chordOf(samples: Float32Array, mask: number): Float32Array[] {
+  const gain = chordGain(countNotes(mask))
+  return [...Array(PITCHES_PER_LANE).keys()]
+    .filter((bit) => mask & (1 << bit))
+    .map((pitchIndex) => repitch(samples, semitonesFromAnchor(pitchIndex)).map((s) => s * gain))
+}
+
+const FULL_LANE = (1 << PITCHES_PER_LANE) - 1
 
 describe('launch kit one-shot levels', () => {
   const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
@@ -203,46 +217,66 @@ describe('launch kit one-shot levels', () => {
       )
     }
 
-    /** Every voice solid at 200 bpm, the pitched ones with every lane cell painted. */
-    async function pitchedWorstCase(gain: number): Promise<Float32Array> {
+    /** Every voice solid at 200 bpm, the pitched ones holding `shape`. */
+    async function pitchedDense(
+      shape: (id: string) => number,
+      notes: (samples: Float32Array, mask: number) => Float32Array[] = chordOf,
+    ): Promise<Float32Array> {
       const voices = await activatedVoices()
       expect(voices.map((v) => v.id)).toEqual(expect.arrayContaining(PITCHED_IDS))
       return denseTrain(
-        voices.flatMap((v) =>
-          PITCHED_IDS.includes(v.id) ? fullLaneChord(v.samples, gain) : [v.samples],
-        ),
+        voices.flatMap((v) => (shape(v.id) === 0 ? [v.samples] : notes(v.samples, shape(v.id)))),
         4,
       )
     }
+
+    const everyCell = (id: string): number => (PITCHED_IDS.includes(id) ? FULL_LANE : 0)
 
     it('leaves a single note at full level, so a drum row is untouched', () => {
       expect(chordGain(1)).toBe(1)
     })
 
-    it('keeps a full lane inside two voices, where eight raw notes would be five', async () => {
-      // What "costs one voice" is worth in the real samples: doublebass is the
-      // loudest, its repitched low notes running long enough to stay in step.
+    it('makes a full lane bigger than one note but not louder, and never quieter', async () => {
       for (const { id, samples } of await activatedVoices()) {
         if (!PITCHED_IDS.includes(id)) continue
-        const chord = peakOf(sumOf(fullLaneChord(samples, chordGain(PITCHES_PER_LANE))))
-        expect(chord / peakOf(samples), `${id} full lane against one note`).toBeLessThan(2)
+        const chord = sumOf(chordOf(samples, FULL_LANE))
+        // Upper bound: eight raw notes would peak at five voices, doublebass
+        // loudest of all. Lower bound: adding notes must not duck the column.
+        expect(peakOf(chord) / peakOf(samples), `${id} full lane peak`).toBeLessThan(2)
+        expect(rmsOf(chord) / rmsOf(samples), `${id} full lane loudness`).toBeGreaterThan(0.5)
       }
     })
 
     it('stays inside the budget with the chord law applied', async () => {
-      // Measured 3.325 raw (ADR 0062): four lanes chording on top of the other
-      // nineteen voices costs only 0.16 more than the same roster playing one
-      // voice each, because the law hands a column one voice's worth of gain.
-      expect(peakOf(await pitchedWorstCase(chordGain(PITCHES_PER_LANE)))).toBeLessThanOrEqual(
-        WORST_CASE_BUDGET,
-      )
+      // Measured 3.325 raw (ADR 0062), against 3.168 for the same roster
+      // playing one voice each: a column costs one voice, so the budget holds.
+      expect(peakOf(await pitchedDense(everyCell))).toBeLessThanOrEqual(WORST_CASE_BUDGET)
     })
 
     it('would clip without it', async () => {
-      // Why the law exists: eight notes of one sample start on the same audio
-      // frame, so their attacks add coherently. Measured 4.553 raw - 1.37 at
-      // the master gain, and the `Limiter(-1)` cannot catch a transient.
-      expect(peakOf(await pitchedWorstCase(1)) * MASTER_GAIN).toBeGreaterThan(1)
+      // Eight notes of one sample start on the same audio frame, so their
+      // attacks add coherently. Measured 4.553 raw, 1.37 at the master gain.
+      const raw = (samples: Float32Array, mask: number): Float32Array[] =>
+        chordOf(samples, mask).map((note) => note.map((s) => s / chordGain(countNotes(mask))))
+      expect(peakOf(await pitchedDense(everyCell, raw)) * MASTER_GAIN).toBeGreaterThan(1)
+    })
+
+    /**
+     * The loudest of the 625 chord shapes `scripts/measureChordLevels.mjs`
+     * searches, and the one case the budget above does **not** cover: 3.787
+     * raw, 1.136 at the master gain. It stays out of scope because the same
+     * search over which drum rows are on reaches 4.057 with no pitch involved
+     * at all, so peak control - not this constant - is what would fix it
+     * (ADR 0062). Pinned so the law cannot quietly make it worse.
+     */
+    it('pins the shaped chord the budget does not cover, so it cannot grow', async () => {
+      const shapes: Record<string, number> = {
+        marimba: 0xce,
+        trumpet: 0x7b,
+        piano: 0xff,
+        doublebass: 0xfd,
+      }
+      expect(peakOf(await pitchedDense((id) => shapes[id] ?? 0))).toBeLessThanOrEqual(3.79)
     })
   })
 

@@ -65,6 +65,25 @@ goes red at 2%, not 10%.
 
 ## Consequences
 
+- **One chord shape still clips, and it is not covered.** The budget is the
+  *representative* dense case - every row solid, every cell painted - the same
+  class of case ticket 08 measured, and never a searched maximum. Search it and
+  a **shaped** chord does better: marimba `0xce`, trumpet `0x7b`, piano full,
+  doublebass `0xfd`, repeated in every column with all 23 rows solid, reaches
+  **3.787 raw = 1.136 after the gain**, still over. That is a child skipping a
+  cell or two while dragging, not an adversarial pattern.
+
+  It is out of scope because the same search says the shape of the chord is not
+  what is wrong: hill-climbing over which of today's 20 **drum** rows are on
+  reaches **4.057 raw = 1.217, with no pitch involved at all, on `main`
+  today**. Both numbers are the same pre-existing fact - this app has no peak
+  control, only gain staging sized against a representative case - and closing
+  either needs a look-ahead limiter in an `AudioWorklet`, not a constant.
+  `kitLevels.test.ts` pins the 3.787 so the law cannot quietly make it worse.
+
+  If it has to be closed without that redesign, the lever is this ADR's
+  exponent: `1/n` takes the shaped case to 3.279 (0.984) and the representative
+  one to 3.061, at the cost in the alternatives below.
 - **The budget is spent.** 3.33 x 0.3 = 0.999. The next instrument, register or
   louder sample has to buy its headroom from `MASTER_GAIN`, and the test goes
   red first. That is the intended tripwire, not an accident.
@@ -105,10 +124,7 @@ goes red at 2%, not 10%.
 
 ## What this does not fix
 
-The budget is a *representative* dense case - every row solid - and never was a
-searched maximum. Searching is much harder on it: hill-climbing over which of
-today's 20 drum rows are on reaches **4.057 raw (1.217 after the gain) with no
-pitch involved at all**, on `main` today. Chords do not make that worse (the
-same search over chord shapes reaches 3.787 at this law), and fixing it means
-real peak control rather than a constant, so it stays out of scope here and is
-written down so nobody re-derives it.
+The app has no peak control, only gain staging sized against a representative
+dense case. The first consequence above has the two numbers that show it -
+3.787 with chords, 4.057 on the drums alone with no pitch - and neither is
+closed here. Written down so nobody re-derives them.

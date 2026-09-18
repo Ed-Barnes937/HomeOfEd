@@ -117,8 +117,7 @@ export class ToneAudioDriver implements AudioDriver {
       playbackRate: 2 ** (semitones / 12),
     }).connect(this.master)
     source.onended = () => source.dispose()
-    // `start`'s fourth argument is the source's own gain envelope - the one
-    // place a chord's per-note level is applied (ADR 0062).
+    // `start`'s fourth argument is the source's own gain envelope (ADR 0062).
     source.start(audioTime, undefined, undefined, gain)
   }
 

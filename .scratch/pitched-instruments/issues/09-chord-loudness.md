@@ -25,7 +25,10 @@ Acceptance criteria:
 - [x] No clipping at the pinned worst case; single-note and drum-only
       loudness unchanged (or the change is stated and justified for Ed's
       standing loudness verdict). **Unchanged** - `chordGain(1)` is exactly 1
-      and a drum row passes no gain at all.
+      and a drum row passes no gain at all. Read "the pinned worst case"
+      literally: a *shaped* chord still clips at 1.136 and is pinned rather
+      than fixed - see "What is still over" below, which is the one thing in
+      this ticket that needs a decision rather than a tick.
 - [x] `kitLevels.test.ts` re-pinned; headroom comment updated.
 - [ ] Ed's ear check on chord-versus-note balance. **This is the open gate.**
 
@@ -120,17 +123,33 @@ The alternative that would also close is `MASTER_GAIN` 0.3 -> 0.264, which
 makes the whole app 1.1 dB quieter, drums included, to pay for a chord feature.
 Rejected - ticket 08 already spent 6 dB and Ed's loudness verdict is owed.
 
-### A pre-existing finding, not fixed here
+### What is still over, and the one decision left
 
-The budget has always been a *representative* dense case (every row solid), not
-a searched maximum. Searching is much harder on it. Hill-climbing over which of
-today's 20 drum rows are on reaches **4.057 raw = 1.217 after the gain, with no
-pitch involved at all, on `main` today**. The equivalent search over chord
-shapes reaches 3.787 at this law - i.e. **chords do not make the app's searched
-worst case any worse than it already is**, which is why the representative case
-is the right like-for-like pin here. Fixing the searched case needs real peak
-control (a look-ahead limiter in an `AudioWorklet`), not a constant. Written
-down in ADR 0062 so nobody re-derives it.
+The budget is the *representative* dense case - every row solid, every cell
+painted - which is the same class of case ticket 08 measured, and never a
+searched maximum. **Search it and one chord shape still clips.** Marimba
+`0xce`, trumpet `0x7b`, piano full lane, doublebass `0xfd`, repeated in every
+column with all 23 rows solid: **3.787 raw = 1.136 after the gain**, the
+loudest of the 625 combinations the script searches. That is a child skipping a
+cell or two while dragging, not an adversarial pattern, so I am not going to
+dress it up as covered.
+
+What makes it out of scope rather than a bug in the law: the same search says
+the chord shape is not the thing that is wrong. Hill-climbing over which of
+today's **20 drum rows** are on reaches **4.057 raw = 1.217, with no pitch
+involved at all, on `main` today**. Both numbers are one pre-existing fact -
+this app has no peak control, only gain staging sized against a representative
+case - and closing either needs a look-ahead limiter in an `AudioWorklet`.
+`kitLevels.test.ts` now pins the 3.787 as a named uncovered case so the law
+cannot quietly make it worse.
+
+**The decision, if you want it closed anyway:** it is one constant, the
+exponent in `chordGain`. `1/n` takes the shaped case to 3.279 (0.984) and the
+representative case to 3.061 - clean everywhere - at the cost of a two-note
+chord losing 3.9 dB of RMS against a single note and a full lane losing 11 dB.
+I would not: it makes adding a note turn the volume down, in an app for a
+child, to buy a case that is already reachable without pitch. But it is a
+one-line change if the ear check says otherwise.
 
 ### Carry-forward
 
@@ -167,5 +186,10 @@ The numbers are all offline renders; nobody has heard this.
    chord get bigger.
 2. Fill a whole column (8 notes), on the doublebass especially. It should sound
    fuller, not louder, and must not distort.
-3. Drums and a one-note marimba row should sound **exactly** as they do on
+3. **The uncovered case.** Fill the grid: every row on, every step on, and
+   paint most but *not all* of each lane column - skip a cell here and there,
+   which is what a drag does. Run it at 200 bpm. This is the 1.136 above, and
+   it is the one thing offline measurement says can audibly clip. If it does,
+   the fix is the exponent decision two sections up, not a tweak.
+4. Drums and a one-note marimba row should sound **exactly** as they do on
    `main`. If anything there moved, that is a bug, not a decision.
