@@ -13,6 +13,13 @@ Visual references: [`docs/reference/boop-design/README.md`](../../docs/reference
 (the ≥1280px clip-lanes frame) — high-fidelity handoffs; read them before
 touching anything visual: colours, type, spacing, radii, shadows and grid
 geometry are final and exact.
+[`docs/reference/design_handoff_pitched_lane/README.md`](../../docs/reference/design_handoff_pitched_lane/README.md)
+(the pitched row) is the **one exception, and only on geometry**: it draws a
+40px-step world and narrows every existing row to it, which Ed rejected - the
+lane rescales onto boop's own columns instead
+([ADR 0060](../../docs/adr/0060-boop-pitched-lane-geometry.md), pitched-lane
+spec §2). Everything else in it - hues, plate, ring, legend, type - is exact
+like any other handoff.
 Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
@@ -89,6 +96,9 @@ src/
                     instrumentColors.ts  `rowColorVar(rowIndex)` - the one
                                   definition of the positional hue cycle
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
+                    PitchedLane.tsx  a pitched row's 8-cells-per-step lane, on
+                                  the same step columns (ADR 0060); laneGeometry.ts
+                                  is its hit bands, solfege.ts its note names
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export;
@@ -308,7 +318,10 @@ share-link snapshot.
   not the rows box or the frame's region vertically when the playhead is
   striking a row below the fold. Paint vs scroll inside it: the browser owns horizontal
   pans (`touch-action: pan-x`), a tap toggles, and a drag paints only once it
-  crosses a cell boundary — see `PhoneGrid.tsx`'s header.
+  crosses a cell boundary — see `PhoneGrid.tsx`'s header. On a **pitched** row
+  the step column carries the hit and the eight tiles take no pointer events at
+  all ([ADR 0060](../../docs/adr/0060-boop-pitched-lane-geometry.md)): aim a
+  test at the tile, but expect the column to receive it.
 - **The song bar is the home surface; the grid opens as a card**
   ([ADR 0035](../../docs/adr/0035-boop-song-bar-is-the-home-surface.md),
   superseding [ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)

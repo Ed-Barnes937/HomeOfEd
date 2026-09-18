@@ -197,9 +197,41 @@ lane while it sounds.
 _Avoid_: Stack, chord, overlay (the mechanism, not the thing).
 
 **Lane**:
-One clip's row in the song bar: its chip (tint dot, name, ×n count) followed
-by its placement squares. Each clip owns exactly one lane.
-_Avoid_: Track, row (fine for the grid well; a lane belongs to the song bar).
+Two surfaces, one word - which is meant is always clear from where you are
+standing. In the **song bar**: one clip's row - its chip (tint dot, name, ×n
+count) followed by its placement squares, one per clip. In the **grid well**: a
+pitched row's cells, eight stacked pitches per step instead of one on/off cell,
+the child's whole melody surface (pitched-lane spec §1). The grid one is also
+what `PITCHES_PER_LANE` and `pitch.ts` name.
+_Avoid_: Track, melody lane (it is just the lane), row (a grid row may *be* a
+lane; a song-bar lane is never called a row).
+
+**Pitched row**:
+A row whose instrument the kit manifest flags `pitched`: it renders as a lane
+and its notes carry a pitch. Everything else about it is an ordinary row - the
+same 16 steps, bars, playhead, add/remove and layering. Being pitched is the
+instrument's property, so swapping a row's sound can change a row's kind; a
+`role: "melodic"` tag does not imply it.
+_Avoid_: Melody row, note row, instrument row.
+
+**Pitch index**:
+Which cell of a lane, **counted from the bottom, app-wide**: 0 is do, 7 is the
+high do an octave up. The engine's masks, the save format's bytes, the hit
+bands and the solfège names all agree on that direction. The design handoff's
+hue-ladder table happens to index from the top, and the ladder is the one place
+that is turned around.
+_Avoid_: Note number, pitch (a pitch is the sound; the index is the cell),
+row (the lane's cells are not rows).
+
+**Anchor pitch**:
+"so", pitch index 4, the middle of the lane - what a pitched row's on step
+means when it carries no note data, and zero semitones, which is the
+instrument's root sample untransposed. It is what makes converting a one-note
+instrument cost nothing: every boop and share link saved before the conversion
+sounds byte-identical and shows its notes mid-lane. The rule lives in
+`pitch.ts`'s `rowPitchMasks` alone ([ADR 0058](../../docs/adr/0058-boop-save-format-pitches.md)).
+_Avoid_: Default note, root (the **register**'s `rootNote` is where the lane
+sits; the anchor is which cell of it the sample is), middle C.
 
 **Bar**:
 A quarter of a clip — 4 steps. A position is 4 bars, and a bar is the

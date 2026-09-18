@@ -102,6 +102,101 @@ export class HomePagePom extends BasePage {
     await this.page.keyboard.press('Backspace')
   }
 
+  async pressEnter(): Promise<void> {
+    await this.page.keyboard.press('Enter')
+  }
+
+  // ---- The pitched lane (pitched-lane ticket 06) ----
+  //
+  // A lane cell is the visual and the screen reader's node; the hit belongs to
+  // the step column it sits in (spec §6), so a tap has to be aimed at the
+  // tile's own coordinates and dispatched through the column underneath it.
+
+  laneCell(instrumentId: string, step: number, pitchIndex: number) {
+    return this.page.getByTestId(`lane-cell-${instrumentId}-${step}-${pitchIndex}`)
+  }
+
+  async verifyIsLane(instrumentId: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.page.getByTestId(`lane-${instrumentId}`)).toBeVisible()
+    await expect(this.cell(instrumentId, 0)).toHaveCount(0)
+  }
+
+  async paintNote(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneCell(instrumentId, step, pitchIndex).click({ force: true })
+  }
+
+  /** Press on one note and drag through the column to another - the vertical cluster of spec §6. */
+  async dragLane(
+    instrumentId: string,
+    step: number,
+    fromPitch: number,
+    toPitch: number,
+  ): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const from = this.laneCell(instrumentId, step, fromPitch)
+    // Both ends of the drag have to be on screen before it starts: the rows
+    // scroll inside the well, and a lane is tall enough to be half below it.
+    await this.laneCell(instrumentId, step, toPitch).scrollIntoViewIfNeeded()
+    await from.scrollIntoViewIfNeeded()
+    const start = await from.boundingBox()
+    if (!start) throw new Error(`lane cell ${instrumentId}-${step}-${fromPitch} is not visible`)
+    await this.page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
+    await this.page.mouse.down()
+    const direction = toPitch > fromPitch ? 1 : -1
+    for (let pitch = fromPitch + direction; ; pitch += direction) {
+      const box = await this.laneCell(instrumentId, step, pitch).boundingBox()
+      if (!box) throw new Error(`lane cell ${instrumentId}-${step}-${pitch} is not visible`)
+      await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      if (pitch === toPitch) break
+    }
+    await this.page.mouse.up()
+  }
+
+  async verifyNoteOn(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute(
+      'data-active',
+      'true',
+    )
+  }
+
+  async verifyNoteOff(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute(
+      'data-active',
+      'false',
+    )
+  }
+
+  async verifyNoteUnderPlayhead(
+    instrumentId: string,
+    step: number,
+    pitchIndex: number,
+  ): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute(
+      'data-playhead',
+      'true',
+    )
+  }
+
+  async focusNote(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneCell(instrumentId, step, pitchIndex).focus()
+  }
+
+  async verifyNoteFocused(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toBeFocused()
+  }
+
+  async verifyNoteLabel(
+    instrumentId: string,
+    step: number,
+    pitchIndex: number,
+    label: string,
+  ): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute('aria-label', label)
+  }
+
   async focusClearGridButton(): Promise<void> {
     await this.reachClearGrid()
     await this.clearGridButton.focus()
