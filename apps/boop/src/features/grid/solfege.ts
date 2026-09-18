@@ -1,9 +1,4 @@
-/**
- * What a lane cell is called, everywhere a pitch needs a name (spec §7): the
- * one naming decision, so nothing else has to pick between solfège, letters and
- * ordinals. Indexed from the bottom like every other `pitchIndex`, and the top
- * cell is "high do" - the same note as the bottom one, an octave up.
- */
+/** What a lane cell is called wherever a pitch needs a name (spec §7), from the bottom up. */
 const SOLFEGE = ['do', 're', 'mi', 'fa', 'so', 'la', 'ti', 'high do'] as const
 
 export function solfegeName(pitchIndex: number): string {
