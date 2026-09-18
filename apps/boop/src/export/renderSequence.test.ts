@@ -49,7 +49,10 @@ function rowOf(instrumentId: string, ...onSteps: number[]): { instrumentId: stri
 }
 
 /** A row carrying notes: a pitch-index list per on step, the rest silent. */
-function laneRowOf(instrumentId: string, notesByStep: Record<number, readonly number[]>): PatternRow {
+function laneRowOf(
+  instrumentId: string,
+  notesByStep: Record<number, readonly number[]>,
+): PatternRow {
   const pitches = new Array<number>(STEPS_PER_PATTERN).fill(0)
   for (const [step, pitchIndexes] of Object.entries(notesByStep)) {
     pitches[Number(step)] = pitchIndexes.reduce((mask, i) => mask | pitchMask(i), 0)
@@ -330,7 +333,10 @@ describe('renderSequenceSamples byte-identity at the anchor', () => {
     const options = {
       kit: pitchedKitOf('kick', 'boop'),
       sequence: [
-        [laneRowOf('kick', { 0: anchor, 3: anchor, 15: anchor }), laneRowOf('boop', { 2: anchor, 15: anchor })],
+        [
+          laneRowOf('kick', { 0: anchor, 3: anchor, 15: anchor }),
+          laneRowOf('boop', { 2: anchor, 15: anchor }),
+        ],
       ],
       bpm: 120,
       sampleRate: 8000,
@@ -383,7 +389,9 @@ describe('renderSequenceSamples pitch', () => {
 
   function sine(hz: number, seconds: number): Float32Array {
     const out = new Float32Array(Math.round(seconds * SAMPLE_RATE))
-    for (let i = 0; i < out.length; i += 1) out[i] = 0.5 * Math.sin((2 * Math.PI * hz * i) / SAMPLE_RATE)
+    for (let i = 0; i < out.length; i += 1) {
+      out[i] = 0.5 * Math.sin((2 * Math.PI * hz * i) / SAMPLE_RATE)
+    }
     return out
   }
 
@@ -498,7 +506,9 @@ describe('the pitched worst case, rendered', () => {
   function readWav(buffer: Buffer): Float32Array {
     const dataIndex = buffer.indexOf('data')
     const out = new Float32Array(buffer.readUInt32LE(dataIndex + 4) / 2)
-    for (let i = 0; i < out.length; i += 1) out[i] = buffer.readInt16LE(dataIndex + 8 + i * 2) / 32767
+    for (let i = 0; i < out.length; i += 1) {
+      out[i] = buffer.readInt16LE(dataIndex + 8 + i * 2) / 32767
+    }
     return out
   }
 

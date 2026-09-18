@@ -86,7 +86,7 @@ function tailLength(
 
 /**
  * The pure scheduling + mixing core of the WAV export: no AudioContext, no
- * Tone.js — just where each note lands in sample space, what it is transposed
+ * Tone.js - just where each note lands in sample space, what it is transposed
  * by and how loud it is once several of them land on the same step. Mirrors
  * `secondsPerStep` from `createSequencerEngine.ts` so the render matches what
  * playback actually sounds like.
@@ -107,12 +107,14 @@ export function renderSequenceSamples(options: RenderSequenceOptions): Float32Ar
     const step = tick % STEPS_PER_PATTERN
     const offset = tick * samplesPerStep
     for (const instrument of kit.instruments) {
+      const mask = rows.get(instrument.instrumentId)?.[step] ?? 0
       const sample = samples[instrument.instrumentId]
-      if (!sample) continue
-      const pitches = pitchesInMask(rows.get(instrument.instrumentId)?.[step] ?? 0)
+      if (mask === 0 || !sample) continue
+      const pitches = pitchesInMask(mask)
       const gain = chordGain(pitches.length)
       for (const pitchIndex of pitches) {
-        mixNote(out, offset, sample, playbackRate(semitonesForInstrument(instrument, pitchIndex)), gain)
+        const rate = playbackRate(semitonesForInstrument(instrument, pitchIndex))
+        mixNote(out, offset, sample, rate, gain)
       }
     }
   }
