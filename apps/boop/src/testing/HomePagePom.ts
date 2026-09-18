@@ -136,6 +136,9 @@ export class HomePagePom extends BasePage {
   ): Promise<void> {
     await this.ensureClipEditorOpen()
     const from = this.laneCell(instrumentId, step, fromPitch)
+    // Both ends of the drag have to be on screen before it starts: the rows
+    // scroll inside the well, and a lane is tall enough to be half below it.
+    await this.laneCell(instrumentId, step, toPitch).scrollIntoViewIfNeeded()
     await from.scrollIntoViewIfNeeded()
     const start = await from.boundingBox()
     if (!start) throw new Error(`lane cell ${instrumentId}-${step}-${fromPitch} is not visible`)

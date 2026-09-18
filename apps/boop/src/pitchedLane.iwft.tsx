@@ -41,9 +41,11 @@ test('a tap paints that note, and a second tap in the column adds a chord', asyn
   await root.pressPlay()
   await root.verifyPlaying()
   await root.fireStep()
-  // Low note first, each transposed from the anchor "so": do..high do is
-  // -7..+5 semitones, so the anchor itself is the untransposed sample.
+  // Each note transposed from the anchor "so", low note first: the two paints
+  // above auditioned their own pitch as they landed, and the step sounds both.
   await root.verifyPlayed([
+    { instrumentId: LANE, audioTime: undefined, semitones: 0 },
+    { instrumentId: LANE, audioTime: undefined, semitones: 5 },
     { instrumentId: LANE, audioTime: 0.1, semitones: 0 },
     { instrumentId: LANE, audioTime: 0.1, semitones: 5 },
   ])
@@ -88,8 +90,7 @@ test('a painted note under the playhead wears the ring', async ({ mountApp, page
   await root.paintNote(LANE, 1, 2)
   await root.pressPlay()
   await root.verifyPlaying()
-  await root.fireStep()
-  await root.fireStep()
+  await root.crankSteps(2)
 
   await root.verifyPlayheadAtStep(1)
   await root.verifyNoteUnderPlayhead(LANE, 1, 2)
