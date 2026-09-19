@@ -1,7 +1,7 @@
 # 10 - Activation: four pitched instruments go live
 
 **Status:** ready-for-agent (merge gated ready-for-human: ear check + art eye)
-**Blocked by:** 02, 04, 05, 06, 07, 08, 09, 11, 12
+**Blocked by:** 02, 04, 05, 06, 07, 08, 09, 11, 12, 13, 14, 15
 
 **What to build:** The switch-flip. `kit.json` gains trumpet, piano and
 doublebass (group `notes`, ticket 05 artwork, ticket 04 sounds) and flags those
@@ -76,6 +76,30 @@ Acceptance criteria:
       listen for), per the house merge ritual.
 
 ## Comments
+
+### 2026-09-19 - Ed's play-through added three blockers, and the key changed
+
+Ed previewed the activated roster locally (a temporary uncommitted `kit.json`)
+and the registers passed: the instruments sound in tune alone and together.
+Three things came out of it, all chartered rather than folded in here:
+
+- **13** - swapping a pitched row's instrument drops its `pitches` and
+  flattens the melody. A defect in the epic's own work, dormant on main.
+- **14** - real sourced samples (CC BY 3.0) replacing the synthesized ones,
+  **and the key moves to C major**. Ed ruled "assume no real users", which
+  removes the single constraint that made ADR 0059 pick F major. Ticket 14
+  supersedes 0059 and re-roots every pitched instrument on G.
+- **15** - note names down the left of the lane, reversing spec §10.
+
+**Two things here are now stale and ticket 14 replaces them.** The registers
+in ticket 04's Comments are F-major roots on C and must not be copy-pasted;
+take the C-major roots from ticket 14 instead. And the ear check in the
+criteria below is **not** discharged by the play-through above - it has to be
+redone against the samples that actually ship.
+
+The `kitLevels` and chord-budget carry-forwards below still stand, but ticket
+14 re-runs those measurements first, so read its numbers rather than ticket
+09's.
 
 ### 2026-09-18 - ticket text corrected to match ADR 0059
 
