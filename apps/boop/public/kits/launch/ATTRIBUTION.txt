@@ -1,7 +1,9 @@
 Launch kit - real kit content (ticket 18), grown to the 20-instrument roster
-by the boop-instruments effort (ticket 01).
+by the boop-instruments effort (ticket 01). Three further icons, drawn in this
+repo for the pitched-lane effort (ticket 05), have their own block below the
+sourced twenty - different provenance, different terms.
 
-artwork/*.svg
+artwork/*.svg - the sourced twenty
   Placeholder icons from game-icons.net, CC BY 3.0. The classic six were taken
   from the design handoff bundle (docs/reference/boop-design/assets/instruments/);
   the fourteen added for the roster were taken from the upstream source tree
@@ -45,6 +47,32 @@ artwork/*.svg
   credit list - Skoll among them - covers game-icons.net contributors
   generally; the verified per-file authorship above is the accurate
   attribution for the twenty files actually shipped here.)
+
+artwork/trumpet.svg, artwork/double-bass.svg, artwork/piano.svg
+  Drawn in this repo - original work, no third-party source, no licence and no
+  attribution owed, the same standing as sounds/*.wav below. Agent-drawn SVG is
+  what the pitched-lane grill session settled on (spec §9, ticket 05) and Ed
+  approves them by eye before the roster activates.
+
+  They match the sourced set by construction, because the app tints every icon
+  through mask-image and a mask only sees the filled area: one
+  viewBox="0 0 512 512", one currentColor path, flat silhouette, no strokes,
+  no embedded raster and no external reference. Interior detail is negative
+  space - subpaths wound against the body so they read as holes.
+
+    trumpet.svg     - side view, bell flaring right: leadpipe and mouthpiece at
+                      the left, three valve casings and finger buttons on top,
+                      the tuning-slide loop hanging under the tube.
+    double-bass.svg - upright bass stood on its endpin: scrolled head with four
+                      tuning pegs, long neck, violin-family body cut with two
+                      f-holes and the bridge line between them.
+    piano.svg       - grand piano from above: the wing-shaped case with the
+                      open-lid line following the bent side, and a seven-key
+                      keyboard along the front edge.
+
+  Nothing in kit.json references these three yet. The pitched roster activates
+  in ticket 10; until then they are files on disk and nothing user-visible
+  changes.
 
 sounds/*.wav
   Synthesized in this repo - original work, no third-party audio, no
@@ -118,6 +146,28 @@ sounds/*.wav
       pop       - a 40 ms upward blip (380→1100 Hz), bubble-wrap.
       zap       - a 2 kHz→200 Hz laser sweep in 140 ms.
       drip      - an upward water-drop chirp (620→1700 Hz) with a splash tick.
+
+  The pitched lane's root samples (ticket 04), same generator. Each is
+  recorded at its lane's "so", which is a C because the ensemble is in F major
+  (docs/adr/0059-boop-pitched-lane-is-in-f-major.md):
+
+    trumpet - C5. Nine harmonics of 523.25 Hz at falling levels, each partial
+              damped harder than the one below it so the tone darkens as it
+              rings, under a 14 ms raised-cosine attack. 260 ms.
+    piano   - C4. Seven harmonics of 261.63 Hz stretched sharp by an
+              inharmonicity term (what a real string does), over a short
+              174->131 Hz hammer thump. 300 ms.
+    doublebass - C3. Five fast-damped harmonics of 130.81 Hz with a short
+              high-passed noise tick for the pizzicato finger. 340 ms. This is
+              a NEW instrument, not a retune of bass.wav above: bass (the
+              electric-ish 90 Hz pluck) stays one-note and untouched so saved
+              boops using it keep sounding the same. Its artwork is
+              artwork/double-bass.svg; bass keeps guitar-bass-head.svg. Do not
+              merge the two.
+
+  None of the three is referenced by kit.json yet - the pitched roster activates in
+  ticket 10, after Ed's ear check. marimba.wav is *not* regenerated: its
+  measured C5 is the anchor every existing saved boop depends on.
 
   No third-party audio. The generator's `voices` map holds all twenty
   definitions, but a bare run rebuilds only the fourteen: the six on disk came

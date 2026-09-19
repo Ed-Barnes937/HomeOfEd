@@ -4,6 +4,14 @@ import type { AudioState, Unsubscribe } from '../sequencerEngine.ts'
 export interface PlayedSample {
   instrumentId: string
   audioTime?: number
+  /**
+   * How far the sample was transposed. Recorded only when the engine asked for
+   * a pitch, so a one-note instrument's record is exactly what it was before
+   * pitch existed and the existing suites read unchanged.
+   */
+  semitones?: number
+  /** The note's own level. Recorded only when it is not unity, for the same reason. */
+  gain?: number
 }
 
 /**
@@ -64,8 +72,13 @@ export class FakeAudioDriver implements AudioDriver {
     this.transportRunning = false
   }
 
-  play(instrumentId: string, audioTime?: number): void {
-    this.played.push({ instrumentId, audioTime })
+  play(instrumentId: string, audioTime?: number, semitones?: number, gain?: number): void {
+    this.played.push({
+      instrumentId,
+      audioTime,
+      ...(semitones === undefined ? {} : { semitones }),
+      ...(gain === undefined || gain === 1 ? {} : { gain }),
+    })
   }
 
   scheduleDraw(audioTime: number, callback: () => void): void {

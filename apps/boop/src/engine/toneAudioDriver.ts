@@ -103,13 +103,22 @@ export class ToneAudioDriver implements AudioDriver {
     getTransport().stop()
   }
 
-  play(instrumentId: string, audioTime?: number): void {
+  play(instrumentId: string, audioTime?: number, semitones = 0, gain = 1): void {
     const buffers = this.buffers
     if (!buffers?.has(instrumentId)) return
-    // One source per hit, so a fast retrigger layers instead of cutting itself off.
-    const source = new ToneBufferSource(buffers.get(instrumentId)).connect(this.master)
+    // One source per hit, so a fast retrigger layers instead of cutting itself
+    // off - and one source per *note*, so a chord is n sources over the one
+    // shared buffer (spec §5; `Tone.Sampler` and `GrainPlayer` were evaluated
+    // and rejected by the 2026-09-17 research). Resampling is what transposes:
+    // playing the buffer faster raises it, which also shortens it, so low
+    // notes ring longer than high ones - the accepted sampler physics.
+    const source = new ToneBufferSource({
+      url: buffers.get(instrumentId),
+      playbackRate: 2 ** (semitones / 12),
+    }).connect(this.master)
     source.onended = () => source.dispose()
-    source.start(audioTime)
+    // `start`'s fourth argument is the source's own gain envelope (ADR 0062).
+    source.start(audioTime, undefined, undefined, gain)
   }
 
   scheduleDraw(audioTime: number, callback: () => void): void {

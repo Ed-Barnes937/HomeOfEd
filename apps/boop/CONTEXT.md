@@ -28,8 +28,10 @@ _Avoid_: Tick event, note event.
 
 **Hit**:
 One instrument sounding on a given step — an entry in a beat event's `hits`
-array, `{ instrumentId }`. A step can carry zero or several hits (one per
-active instrument row).
+array, `{ instrumentId }`, carrying a `pitchIndex` too when a pitched row
+sounds it (ADR 0024, as amended 2026-09-17). A step can carry zero or several
+hits: one per active instrument row, and one per pitch a pitched row's column
+holds, so two hits may name the same instrument.
 _Avoid_: Note, trigger.
 
 **`songPos()`**:
@@ -58,7 +60,8 @@ that sound themselves, and turning a cell off or editing while the loop runs
 auditions nothing (the step itself will sound it). On **request**:
 `audition(instrumentId)` on the engine seam, the instrument picker's tap - it
 sounds whether or not the loop is running and touches neither the pattern nor
-the transport (ADR 0042).
+the transport (ADR 0042). Either form may name a pitch, and then sounds that
+one rather than the root sample (ADR 0024, as amended 2026-09-17).
 _Avoid_: Preview, echo.
 
 **`AudioDriver`**:
@@ -77,9 +80,22 @@ _Avoid_: Muted, suspended.
 
 **Kit manifest**:
 The pure-data JSON description of a kit: one entry per instrument with its
-`instrumentId`, display name, artwork, sound file, and optional `role`. Kits
+`instrumentId`, display name, artwork, sound file, optional `role` and picker
+`group`, and - on a pitched instrument - a `pitched` **register**. Kits
 are swappable by shipping a new manifest — V1 ships exactly one.
 _Avoid_: Instrument list, sound pack.
+
+**Register**:
+Where an instrument's lane sits: the note its root sample actually is, written
+in the manifest as `rootNote` ("G3", middle C being C4). The sample is the
+anchor pitch, so the register alone decides what every cell of the lane sounds
+- a G3 root puts the lane's bottom cell on C3 and its top cell on C4. It is
+the only thing the `pitched` config holds, and the only per-instrument pitch
+data anywhere: the scale itself is the same for every instrument (`pitch.ts`).
+The roster's key (C major) is a property of the registers together, not of any
+one of them.
+_Avoid_: Octave, tuning, transpose (a transpose is the move, the register is
+the home).
 
 **Role**:
 An optional semantic tag on a kit-manifest instrument entry (kick / snare /
@@ -111,7 +127,9 @@ _Avoid_: Track, voice (a voice is the sound, not the lane), instrument row.
 
 **Pattern**:
 A clip's rows and their on/off cells - an ordered list of rows, each carrying
-its `instrumentId` and 16 booleans. The engine-level term for the raw grid; a
+its `instrumentId` and 16 booleans, and on a pitched row 16 masks of the
+pitches each cell holds (ADR 0024, as amended 2026-09-17). The engine-level
+term for the raw grid; a
 pattern with a name and identity inside a boop is a **Clip**. Always 16 steps /
 4 bars - clips are never variable-length (boop-loops ticket 10) - but the row
 count is the clip's own (ADR 0042).
@@ -179,9 +197,52 @@ lane while it sounds.
 _Avoid_: Stack, chord, overlay (the mechanism, not the thing).
 
 **Lane**:
-One clip's row in the song bar: its chip (tint dot, name, ×n count) followed
-by its placement squares. Each clip owns exactly one lane.
-_Avoid_: Track, row (fine for the grid well; a lane belongs to the song bar).
+Two surfaces, one word - which is meant is always clear from where you are
+standing. In the **song bar**: one clip's row - its chip (tint dot, name, ×n
+count) followed by its placement squares, one per clip. In the **grid well**: a
+pitched row's cells, eight stacked pitches per step instead of one on/off cell,
+the child's whole melody surface (pitched-lane spec §1). The grid one is also
+what `PITCHES_PER_LANE` and `pitch.ts` name.
+_Avoid_: Track, melody lane (it is just the lane), row (a grid row may *be* a
+lane; a song-bar lane is never called a row).
+
+**Pitched row**:
+A row whose instrument the kit manifest flags `pitched`: it renders as a lane
+and its notes carry a pitch. Everything else about it is an ordinary row - the
+same 16 steps, bars, playhead, add/remove and layering. Being pitched is the
+instrument's property, so swapping a row's sound can change a row's kind; a
+`role: "melodic"` tag does not imply it.
+_Avoid_: Melody row, note row, instrument row.
+
+**Pebble summary**:
+What a pitched row folds to when its chevron is tapped: the same 16 step
+columns at a drum row's height, each holding one **pebble** per painted note at
+that note's height, with a mini four-bar contour where the pitch key was
+([ADR 0061](../../docs/adr/0061-boop-collapsed-pitched-row.md)). Read-only - it
+shows the row, it cannot be painted on, and the playhead still sweeps it.
+Folding is a way of looking at a clip, not part of it: it is component state,
+per row, and a reload opens every row again.
+_Avoid_: Minimised row, thumbnail (the **loop map** and the pattern thumbnail
+are the other summaries, and neither is this), preview.
+
+**Pitch index**:
+Which cell of a lane, **counted from the bottom, app-wide**: 0 is do, 7 is the
+high do an octave up. The engine's masks, the save format's bytes, the hit
+bands and the solfège names all agree on that direction. The design handoff's
+hue-ladder table happens to index from the top, and the ladder is the one place
+that is turned around.
+_Avoid_: Note number, pitch (a pitch is the sound; the index is the cell),
+row (the lane's cells are not rows).
+
+**Anchor pitch**:
+"so", pitch index 4, the middle of the lane - what a pitched row's on step
+means when it carries no note data, and zero semitones, which is the
+instrument's root sample untransposed. It is what makes converting a one-note
+instrument cost nothing: every boop and share link saved before the conversion
+sounds byte-identical and shows its notes mid-lane. The rule lives in
+`pitch.ts`'s `rowPitchMasks` alone ([ADR 0058](../../docs/adr/0058-boop-save-format-pitches.md)).
+_Avoid_: Default note, root (the **register**'s `rootNote` is where the lane
+sits; the anchor is which cell of it the sample is), middle C.
 
 **Bar**:
 A quarter of a clip — 4 steps. A position is 4 bars, and a bar is the

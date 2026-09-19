@@ -1,0 +1,334 @@
+// The pitched lane (design handoff docs/reference/design_handoff_pitched_lane,
+// rescaled onto boop's own step columns per pitched-lane spec §2: the columns
+// stay 52px / 42px / the phone's 32px and only the lane's internals move). Each
+// breakpoint is a set of custom properties on `.lane` / `.summary`, mirrored in
+// `laneGeometry.ts` - though the component measures the rendered lane rather
+// than trusting either. The phone's are `PhoneGrid`'s (ADR 0063).
+
+// The collapsed summary, on the drum cell's own box (ticket 07). The pebble
+// numbers are mirrored in `laneSummary.ts`.
+$summary-height: 56px;
+$summary-height-tablet: 50px;
+$pebble-height: 16px;
+$pebble-inset: 4px;
+
+// The hue ladder, bottom-first: the handoff's table indexes from the top, and
+// this is the one place it is turned around (spec §4).
+$hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
+
+// Dark inside, light outside: legible on both the pale ladder and the dark
+// lane. The handoff's playhead ring is also its focus ring.
+@mixin ring {
+  box-shadow:
+    inset 0 0 0 2px var(--ink-dark),
+    0 0 0 2px var(--ink),
+    0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
+// The negative margin cancels the padding, so the lane's columns sit flush
+// with the drum columns above instead of inset by the plate.
+.lane {
+  --lane-gutter: 18px;
+  --lane-column-gap: 8px;
+  --lane-column-width: 52px;
+  --lane-cell-height: 24px;
+  --lane-cell-gap: 4px;
+  --lane-pad-x: 8px;
+  --lane-pad-y: 8px;
+  --lane-radius: 16px;
+
+  @media (max-width: 1279px) {
+    --lane-gutter: 14px;
+    --lane-column-gap: 6px;
+    --lane-column-width: 42px;
+    --lane-cell-height: 20px;
+    --lane-pad-x: 6px;
+  }
+
+  // Derived from the row height `PhoneGrid` gives both of its columns, so the
+  // rail and the lane cannot disagree about how tall a pitched row is.
+  @media (max-width: 1023px) {
+    --lane-gutter: 11px;
+    --lane-column-gap: 5px;
+    --lane-column-width: 32px;
+    --lane-cell-gap: 4px;
+    --lane-cell-height: calc((var(--pitched-row-height, 156px) - 7 * var(--lane-cell-gap)) / 8);
+    // No horizontal bleed: the strip is exactly 605px wide and a plate wider
+    // than it would give the step window scroll it must not have.
+    --lane-pad-x: 0px;
+    --lane-pad-y: 4px;
+    --lane-radius: 10px;
+  }
+
+  display: flex;
+  gap: var(--lane-gutter);
+  padding: var(--lane-pad-y) var(--lane-pad-x);
+  margin: calc(-1 * var(--lane-pad-y)) calc(-1 * var(--lane-pad-x));
+  border-radius: var(--lane-radius);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.group {
+  display: flex;
+  gap: var(--lane-column-gap);
+}
+
+// The column carries the hit, not the tile (spec §6): its vertical padding
+// reaches to the plate's edge, which is what the end bands absorb.
+.column {
+  flex: none;
+  width: var(--lane-column-width);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lane-cell-gap);
+  padding: var(--lane-pad-y) 0;
+  margin: calc(-1 * var(--lane-pad-y)) 0;
+  cursor: pointer;
+}
+
+.cell {
+  // The hit belongs to the column; the tile is what it looks like and what a
+  // screen reader reads. Keyboard focus and Enter are unaffected.
+  pointer-events: none;
+  flex: none;
+  height: var(--lane-cell-height);
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+
+  @media (max-width: 1023px) {
+    border-radius: 5px;
+  }
+
+  // Alternating by drawn position, brightest on the anchor "so" - the cell an
+  // unpainted pitched row already sounds (design handoff reference file).
+  &[data-pitch='7'],
+  &[data-pitch='5'],
+  &[data-pitch='3'],
+  &[data-pitch='1'] {
+    background: rgba(255, 255, 255, 0.055);
+  }
+
+  &[data-pitch='4'] {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  @each $hue in $hues {
+    $pitch: index($hues, $hue) - 1;
+
+    &[data-pitch='#{$pitch}'][data-active='true'] {
+      background: $hue;
+      box-shadow:
+        0 2px 0 rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    }
+  }
+
+  &[data-playhead='true'] {
+    background: rgba(255, 255, 255, 0.11);
+  }
+
+  &[data-active='true'][data-playhead='true'],
+  &:focus-visible {
+    outline: none;
+    @include ring;
+  }
+}
+
+// A folded row (design handoff, "Collapse"): one drum-cell-shaped track per
+// step, each holding a pebble per painted note. No plate, and nothing to paint
+// on - the one thing a tap on it does is open the row (ticket 12).
+.summary {
+  cursor: pointer;
+
+  --lane-gutter: 18px;
+  --lane-column-gap: 8px;
+  --lane-column-width: 52px;
+  --lane-track-height: #{$summary-height};
+  --lane-track-radius: 12px;
+  --lane-pebble-height: #{$pebble-height};
+
+  @media (max-width: 1279px) {
+    --lane-gutter: 14px;
+    --lane-column-gap: 6px;
+    --lane-column-width: 42px;
+    --lane-track-height: #{$summary-height-tablet};
+    --lane-track-radius: 9px;
+  }
+
+  @media (max-width: 1023px) {
+    --lane-gutter: 11px;
+    --lane-column-gap: 5px;
+    --lane-column-width: 32px;
+    --lane-track-height: var(--pitched-collapsed-row-height, 60px);
+    --lane-track-radius: 7px;
+    --lane-pebble-height: 12px;
+  }
+
+  display: flex;
+  gap: var(--lane-gutter);
+}
+
+.summaryCell {
+  position: relative;
+  flex: none;
+  width: var(--lane-column-width);
+  height: var(--lane-track-height);
+  border-radius: var(--lane-track-radius);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  // The drum cell's own alternation, so the bars stay countable across the row.
+  &[data-parity='odd'] {
+    background: rgba(255, 255, 255, 0.075);
+  }
+
+  &[data-playhead='true'] {
+    background: rgba(255, 255, 255, 0.14);
+  }
+}
+
+// Positioned by pitch: the top pitch rides the inset, the bottom one the far
+// end of what the track has left, so the pebbles rescale with the column.
+.pebble {
+  position: absolute;
+  left: $pebble-inset;
+  right: $pebble-inset;
+  top: calc(
+    #{$pebble-inset} + var(--pebble-offset) *
+      (100% - #{$pebble-inset * 2} - var(--lane-pebble-height))
+  );
+  height: var(--lane-pebble-height);
+  border-radius: 8px;
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+// The mini four-bar contour the rail shows in place of the pitch key. A bar
+// with no notes keeps a stub, so four bars are always countable.
+.contour {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.contourBar {
+  width: 4px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(242, 239, 230, 0.25);
+}
+
+// The summary wears the lane's own ladder: same pitch, same hue, expanded or
+// folded. A contour bar carries it as height too.
+@each $hue in $hues {
+  $pitch: index($hues, $hue) - 1;
+
+  .pebble[data-pitch='#{$pitch}'] {
+    background: $hue;
+  }
+
+  .contourBar[data-pitch='#{$pitch}'] {
+    height: 5px + $pitch * 1px;
+    background: $hue;
+  }
+}
+
+// The rail's own column: the name, then the pitch key or the contour with the
+// chevron pushed to the far edge (ADR 0061).
+.railStack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.railFoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle {
+  flex: none;
+  margin-left: auto;
+  // Beside the name while the lane is open (the pitch key below it is 130px
+  // tall), centred on the contour once the row is a single strip.
+  align-self: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.11);
+  font-size: 14px;
+  color: rgba(242, 239, 230, 0.9);
+  cursor: pointer;
+
+  &[aria-expanded='true'] {
+    align-self: flex-start;
+  }
+
+  &[aria-expanded='false'] {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(242, 239, 230, 0.7);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cyan-solid);
+    outline-offset: 2px;
+  }
+}
+
+// The rail's pitch legend (design handoff, "Pitched row, expanded"): the only
+// pitch key there is - no note names.
+.pitchKey {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+
+  // On the phone the key is the rail's last line, so it takes what the chevron
+  // and the row's name leave rather than a height of its own.
+  @media (max-width: 1023px) {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+.legendEdge {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 239, 230, 0.6);
+}
+
+// The handoff's 110px, kept where the lane is its 188px and scaled with the
+// lane where it is taller: the gradient reads against the tiles beside it.
+.legendBar {
+  flex: none;
+  width: 4px;
+  height: 130px;
+  margin: 2px 0;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #ffeed2, #b87a1e);
+
+  @media (max-width: 1279px) {
+    height: 110px;
+  }
+
+  @media (max-width: 1023px) {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+}

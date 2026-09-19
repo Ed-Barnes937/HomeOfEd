@@ -179,3 +179,93 @@ belong to this contract:
   the clip holds, across the clips a position layers". The gain-and-limiter
   staging stands; the number it was tuned against is re-measured by the
   boop-instruments effort's ticket 08.
+
+## Amendment (2026-09-17): the seam learns pitch, and the driver takes semitones
+
+The pitched-lane effort ([`.scratch/pitched-instruments/spec.md`](../../.scratch/pitched-instruments/spec.md),
+ticket 01) replaces a pitched row's step cells with a **lane** of eight stacked
+cells - one major octave, do to high do. The contract grows to carry that, and
+for the first time the `AudioDriver` seam grows with it. This lands **dormant**:
+no manifest entry is pitched yet (ticket 03), so nothing in the app paints a
+pitch and every existing boop schedules exactly the calls it did before.
+
+- **`pitchIndex` counts from the bottom, app-wide**: 0 is do, 7 the high do
+  above it (`PITCHES_PER_LANE`). The design handoff's hue ladder tables its
+  colours from the top; that is converted at the ladder and nowhere else.
+- **`PatternRow` gains an optional `pitches`** - 16 bitmasks, one per step, bit
+  0 the bottom cell. `steps` stays the **any-note projection**
+  (`steps[s] === (pitches[s] !== 0)`), which `setPattern` now enforces the way
+  it already enforces row length and uniqueness: a painted note that never
+  sounds, or a step that sounds nothing, is a bad pattern, not a state to
+  recover from. The same shape the save format stores as hex (spec §4, ticket
+  02), so the in-memory model and the document do not need a translation layer.
+  A mask is plain data, compares with `===`, and cannot hold the same note
+  twice - which is most of the unison guard below.
+- **The field is absent, not empty, until a note is painted.** A drum row has
+  no lane, and a pitched row nobody has touched has nothing to say. Absent
+  reads as the **anchor pitch** `ANCHOR_PITCH_INDEX` ("so", the middle) on
+  every on step (spec §3), and that is applied in exactly one place,
+  `rowPitchMasks`.
+- **`Hit` gains `pitchIndex`, and a chord is several hits.** A beat event
+  carries one hit per sounding *note*, in row order and then ascending pitch;
+  `pitchIndex` is absent for a one-note row and for a row still reading at the
+  anchor, so existing consumers see byte-identical events.
+- **`AudioDriver.play` gains an optional `semitones`.** The driver resamples;
+  the scale, the anchor and the index-to-semitone conversion stay in the
+  engine, so nothing outside it has to know what a lane is and Tone stays
+  confined to `toneAudioDriver.ts` (decision 1 holds). `ToneAudioDriver`
+  implements it as its existing one-`ToneBufferSource`-per-hit pattern with
+  `playbackRate = 2 ** (semitones / 12)` - one source per *note* over the one
+  shared buffer. `Tone.Sampler` (the same mechanism wrapped in note-name,
+  envelope and buffer-ownership machinery the seam does not want) and
+  `GrainPlayer` (grain artifacts, single-voice) were both evaluated and
+  rejected by the 2026-09-17 research.
+- **The anchor is zero semitones.** A root sample is recorded at "so" (spec
+  §3), so the anchor plays the buffer untouched - which is what makes an on
+  step with no note data and a one-note row the *same call*, and why converting
+  marimba and boop leaves every saved boop and share link sounding
+  byte-identical. The lane spans -7..+5 semitones around it.
+- **`setCell` and `audition` take an optional pitch.** With one, `setCell`
+  addresses a single note in the column: on adds it (a column is a chord, spec
+  §6), off removes only it, and the audition sounds the pitch that was tapped.
+  Without one it addresses the whole column - off clears every note, on paints
+  the anchor - which is exactly today's behaviour for a drum. `audition`
+  ignores a pitch outside the lane the same way it ignores an unknown
+  instrument: it is wired straight to a finger.
+- **No pitch of an instrument can be scheduled twice on one step** (the
+  sample-exact +6 dB unison, spec §5), and it is structure rather than a guard
+  that says so: a mask holds each note once, `setPattern` refuses to name an
+  instrument twice, and `mergePatterns` - the only way one instrument sounds
+  from two clips at once - now unions *notes* rather than concatenating rows.
+
+- **Being pitched is manifest data, and the data is one number** (ticket 03).
+  `KitInstrument` gains an optional `pitched` config, and it carries only the
+  instrument's **register** - `rootNote`, scientific pitch notation for what
+  note its root sample actually is, parsed to `rootMidi` at load. Everything
+  else about a lane is identical for every instrument and already lives in
+  `pitch.ts`, so the manifest says where the ladder sits and never restates it:
+  `semitonesForInstrument` walks `semitonesFromAnchor` for a flagged instrument
+  and returns zero for an unflagged one at *every* pitch index, and
+  `laneNoteMidi` is the one place register and ladder meet. The config is
+  deliberately not a boolean and deliberately not `role: 'melodic'` (picker
+  taxonomy - spec §3), so activation is a `kit.json` edit plus a sample file,
+  with no engine change.
+  The roster's **key is not in the engine**: the ladder is the same in any key,
+  a key is a property of the registers together, and C major (spec §3) is
+  therefore asserted over the shipped kit in `kitManifest.test.ts` rather than
+  enforced by the parser - which validates well-formedness only, and fails the
+  whole kit load on a malformed config like any other corrupt field.
+
+**Still open, deliberately.** `semitonesForInstrument` is defined but not
+called: the engine still asks `semitonesFromAnchor` directly, so being flagged
+does not yet gate anything at playback time. Nothing can exploit that while no
+instrument is pitched and no UI paints a pitch, and ticket 10 is where the call
+sites move over - together with the decision it forces, whether pitches on an
+unflagged instrument are zeroed in `pitch.ts` or refused loudly by
+`setPattern`, which today decodes and accepts them.
+The loudness budget behind `MASTER_GAIN` assumes
+at most one voice per instrument per step, which an 8-note chord breaks; ticket
+09 re-measures and re-pins it. The offline WAV export (`renderSequence.ts`)
+renders `steps` only, so it would play a pitched row's notes at the root pitch;
+no ticket covers it yet and nothing is pitched until ticket 10, but it is the
+one consumer of `Pattern` that pitch has left behind.

@@ -15,13 +15,13 @@
  * quietly change shipped audio. Naming one on the command line does exactly
  * that, deliberately - don't, unless a ticket asks for it.
  */
-import { Buffer } from 'node:buffer'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
 import { URL, fileURLToPath } from 'node:url'
 
-const SAMPLE_RATE = 44100
-/** Peak level per voice — balanced so six simultaneous rows do not clip. */
+import { SAMPLE_RATE, wav } from './wav.mjs'
+
+/** Peak level per voice - balanced so six simultaneous rows do not clip. */
 const PEAK = 0.5
 
 /**
@@ -135,6 +135,49 @@ const voices = {
       scale(sweep({ seconds: 0.26, from: 1320, to: 1320, decay: 38 }), 0.18),
     ),
 
+  // The pitched lane's root samples (ticket 04), each recorded at its lane's
+  // "so" - a C, because the ensemble is in F major (ADR 0059).
+  /** Brass at C5: a full harmonic series that darkens as it decays. */
+  trumpet: () =>
+    softAttack(
+      harmonics({
+        seconds: 0.26,
+        root: 523.25,
+        partials: [1, 0.85, 0.66, 0.52, 0.38, 0.27, 0.18, 0.11, 0.06],
+        decay: 14,
+        damping: 1.6,
+      }),
+      0.014,
+    ),
+  /**
+   * Upright bass at C3, pizzicato. Distinct from the one-note `bass`, which is
+   * an electric-ish 90 Hz pluck and stays exactly as it is (ADR 0059).
+   */
+  doublebass: () =>
+    mix(
+      harmonics({
+        seconds: 0.34,
+        root: 130.81,
+        partials: [1, 0.42, 0.18, 0.09, 0.04],
+        decay: 10,
+        damping: 4,
+      }),
+      scale(highpass(noise({ seconds: 0.012, decay: 260, seed: 13 })), 0.18),
+    ),
+  /** Piano at C4: stretched partials over a hammer thump. */
+  piano: () =>
+    mix(
+      harmonics({
+        seconds: 0.3,
+        root: 261.63,
+        partials: [1, 0.55, 0.32, 0.2, 0.12, 0.07, 0.04],
+        decay: 12,
+        damping: 2.4,
+        inharmonicity: 0.0005,
+      }),
+      scale(sweep({ seconds: 0.03, from: 174, to: 131, decay: 90 }), 0.3),
+    ),
+
   // Silly.
   /**
    * Springy: a falling pitch with a wobble on top. Decay 12 measured 1.50x
@@ -180,8 +223,11 @@ const NEW_VOICE_IDS = [
   'drip',
 ]
 
+/** The pitched lane's root samples (ticket 04) - see ADR 0059 for the registers. */
+const PITCHED_ROOT_IDS = ['trumpet', 'piano', 'doublebass']
+
 const requested = process.argv.slice(2)
-const ids = requested.length > 0 ? requested : NEW_VOICE_IDS
+const ids = requested.length > 0 ? requested : [...NEW_VOICE_IDS, ...PITCHED_ROOT_IDS]
 const unknown = ids.filter((id) => !(id in voices))
 if (unknown.length > 0) {
   process.stderr.write(`unknown voice(s): ${unknown.join(', ')}\n`)
@@ -193,7 +239,7 @@ mkdirSync(outDir, { recursive: true })
 for (const id of ids) {
   const samples = declick(scale(normalise(voices[id]()), levels[id] ?? 1))
   writeFileSync(`${outDir}${id}.wav`, wav(samples))
-  process.stdout.write(`${id}.wav — ${(samples.length / SAMPLE_RATE).toFixed(2)}s\n`)
+  process.stdout.write(`${id}.wav - ${(samples.length / SAMPLE_RATE).toFixed(2)}s\n`)
 }
 
 function sweep({ seconds, from, to, decay }) {
@@ -207,6 +253,27 @@ function sweep({ seconds, from, to, decay }) {
     phase += (2 * Math.PI * freq) / SAMPLE_RATE
     out[i] = Math.sin(phase) * Math.exp(-decay * t)
   }
+  return out
+}
+
+/**
+ * An additive tone: `partials[n]` is harmonic n+1's level, decaying at
+ * `decay + damping * n`, with `inharmonicity` stretching the upper partials
+ * sharp. Partials start out of phase or they would all peak at t=0 and
+ * normalising would leave the body quiet.
+ */
+function harmonics({ seconds, root, partials, decay, damping = 0, inharmonicity = 0 }) {
+  const length = Math.round(seconds * SAMPLE_RATE)
+  const out = new Float32Array(length)
+  partials.forEach((level, n) => {
+    const harmonic = n + 1
+    const freq = root * harmonic * Math.sqrt(1 + inharmonicity * harmonic * harmonic)
+    const fade = decay + damping * n
+    for (let i = 0; i < length; i += 1) {
+      const t = i / SAMPLE_RATE
+      out[i] += level * Math.sin(2 * Math.PI * freq * t + harmonic * 1.7) * Math.exp(-fade * t)
+    }
+  })
   return out
 }
 
@@ -239,7 +306,7 @@ function noise({ seconds, decay, seed = 1 }) {
   return out
 }
 
-/** One-pole difference — enough to turn white noise into a hi-hat tick. */
+/** One-pole difference - enough to turn white noise into a hi-hat tick. */
 function highpass(samples) {
   const out = new Float32Array(samples.length)
   for (let i = 1; i < samples.length; i += 1) out[i] = samples[i] - samples[i - 1]
@@ -289,28 +356,4 @@ function declick(samples) {
     out[out.length - 1 - i] *= i / fadeOut
   }
   return out
-}
-
-/** 16-bit mono PCM WAV — the most universally decodable thing a browser can be handed. */
-function wav(samples) {
-  const data = Buffer.alloc(samples.length * 2)
-  for (let i = 0; i < samples.length; i += 1) {
-    const clamped = Math.max(-1, Math.min(1, samples[i]))
-    data.writeInt16LE(Math.round(clamped * 32767), i * 2)
-  }
-  const header = Buffer.alloc(44)
-  header.write('RIFF', 0)
-  header.writeUInt32LE(36 + data.length, 4)
-  header.write('WAVE', 8)
-  header.write('fmt ', 12)
-  header.writeUInt32LE(16, 16)
-  header.writeUInt16LE(1, 20) // PCM
-  header.writeUInt16LE(1, 22) // mono
-  header.writeUInt32LE(SAMPLE_RATE, 24)
-  header.writeUInt32LE(SAMPLE_RATE * 2, 28)
-  header.writeUInt16LE(2, 32)
-  header.writeUInt16LE(16, 34)
-  header.write('data', 36)
-  header.writeUInt32LE(data.length, 40)
-  return Buffer.concat([header, data])
 }

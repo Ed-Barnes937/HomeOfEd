@@ -317,6 +317,28 @@
   @media (max-width: 1279px) {
     gap: 14px;
   }
+
+  // A lane is taller than its label, so the rail sits at the top of it rather
+  // than beside its middle (pitched-lane handoff, "Pitched row, expanded").
+  &[data-pitched='true'] {
+    align-items: stretch;
+
+    .rail {
+      align-items: flex-start;
+      padding-top: 6px;
+    }
+
+    // Folded, the row is back to a drum row's height and centres again
+    // (pitched-lane handoff, "Pitched row, collapsed").
+    &[data-collapsed='true'] {
+      align-items: center;
+
+      .rail {
+        align-items: center;
+        padding-top: 0;
+      }
+    }
+  }
 }
 
 .rail {

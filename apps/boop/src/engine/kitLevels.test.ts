@@ -1,10 +1,12 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { MASTER_GAIN } from './audioDriver.ts'
+import { MASTER_GAIN, chordGain } from './audioDriver.ts'
 import { parseKitManifest } from './kitManifest.ts'
+import { semitonesFromAnchor } from './pitch.ts'
+import { PITCHES_PER_LANE } from './sequencerEngine.ts'
 
 /**
  * Ticket 18's data-side check on the shipped launch kit's one-shots, extended
@@ -12,7 +14,8 @@ import { parseKitManifest } from './kitManifest.ts'
  * capped, and no build-up when retriggered at the top of the tempo range.
  *
  * The ids come from the manifest, never a list in here - kits are pure data
- * and nothing outside `kit.json` may enumerate instrument ids.
+ * and nothing outside `kit.json` may enumerate instrument ids. `PITCHED_IDS`
+ * below is the one exception, and only until ticket 10 flags them.
  *
  * Kit data plus the one number the data has to fit under: `MASTER_GAIN`, the
  * master bus's headroom, which ticket 08 sized from the worst case measured
@@ -25,12 +28,27 @@ const STEP_SECONDS = 60 / 200 / 4 // one 16th note at 200 BPM
 /** Per-voice ceiling the generator normalises to, plus 16-bit rounding slack. */
 const VOICE_PEAK = 0.5 + 0.001
 /**
- * The master bus's stated worst case (ticket 08): the whole-roster union
- * painted solid at 200 bpm sums to a measured 3.035 raw. Pinned a little above
- * that so no new or re-tuned voice can inflate it unnoticed - and asserted
- * against `MASTER_GAIN` below, so raising it forces the gain down too.
+ * The manifest roster painted solid at 200 bpm, one voice each: measured 3.035
+ * raw (ticket 08). Kept tight so no new or re-tuned voice can inflate it
+ * unnoticed.
  */
-const WORST_CASE_BUDGET = 3.1
+const ROSTER_BUDGET = 3.1
+
+/**
+ * The master bus's stated worst case: every row of the activated roster solid
+ * at 200 bpm with every lane cell painted, measured 3.325 raw (ADR 0062).
+ * Asserted against `MASTER_GAIN` below, so raising it forces the gain down too
+ * - and at 0.3 the budget is spent, so the next voice has to buy its own.
+ */
+const WORST_CASE_BUDGET = 3.33
+
+/**
+ * The instruments ticket 10 flags `pitched`. They live here rather than coming
+ * from the manifest because nothing in `kit.json` is flagged until then (spec
+ * §11's dormancy); ADR 0059 holds their registers, which do not affect level -
+ * the lane transposes by the same -7..+5 semitones whatever the root note is.
+ */
+const PITCHED_IDS = ['marimba', 'trumpet', 'piano', 'doublebass']
 
 function readWav(buffer: Buffer): Float32Array {
   const dataIndex = buffer.indexOf('data')
@@ -78,6 +96,39 @@ function denseTrain(tracks: readonly Float32Array[], bars: number): Float32Array
   }
   return out
 }
+
+/** What `playbackRate = 2^(semitones/12)` does to a buffer, linearly interpolated. */
+function repitch(samples: Float32Array, semitones: number): Float32Array {
+  const rate = 2 ** (semitones / 12)
+  const out = new Float32Array(Math.floor(samples.length / rate))
+  for (let i = 0; i < out.length; i += 1) {
+    const at = i * rate
+    const low = Math.floor(at)
+    const frac = at - low
+    out[i] = (samples[low] ?? 0) * (1 - frac) + (samples[low + 1] ?? 0) * frac
+  }
+  return out
+}
+
+function rmsOf(samples: Float32Array): number {
+  let sum = 0
+  for (const s of samples) sum += s * s
+  return Math.sqrt(sum / samples.length)
+}
+
+function countNotes(mask: number): number {
+  return [...Array(PITCHES_PER_LANE).keys()].filter((bit) => mask & (1 << bit)).length
+}
+
+/** One column of a lane, as the row's pitch bitmask holds it, at `chordGain`. */
+function chordOf(samples: Float32Array, mask: number): Float32Array[] {
+  const gain = chordGain(countNotes(mask))
+  return [...Array(PITCHES_PER_LANE).keys()]
+    .filter((bit) => mask & (1 << bit))
+    .map((pitchIndex) => repitch(samples, semitonesFromAnchor(pitchIndex)).map((s) => s * gain))
+}
+
+const FULL_LANE = (1 << PITCHES_PER_LANE) - 1
 
 describe('launch kit one-shot levels', () => {
   const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
@@ -132,7 +183,7 @@ describe('launch kit one-shot levels', () => {
     // roster, one voice per instrument per step. Measured: 2.970 raw (well
     // under the 10.0 the per-voice peaks would give if they all peaked in
     // phase, which they don't).
-    expect(peakOf(sumOf(voices.map((v) => v.samples)))).toBeLessThanOrEqual(WORST_CASE_BUDGET)
+    expect(peakOf(sumOf(voices.map((v) => v.samples)))).toBeLessThanOrEqual(ROSTER_BUDGET)
   })
 
   it('the true worst case - every roster row painted solid at 200bpm - stays inside the budget', async () => {
@@ -145,7 +196,88 @@ describe('launch kit one-shot levels', () => {
       voices.map((v) => v.samples),
       4,
     )
-    expect(peakOf(dense)).toBeLessThanOrEqual(WORST_CASE_BUDGET)
+    expect(peakOf(dense)).toBeLessThanOrEqual(ROSTER_BUDGET)
+  })
+
+  describe('a chord of a pitched lane', () => {
+    /**
+     * The voices ticket 10 activates: every one-shot in the kit's sounds
+     * directory, which is the manifest's 20 plus the three ticket 04 added and
+     * left unlisted. Read from disk rather than listed here, so activation does
+     * not change what this measures.
+     */
+    async function activatedVoices(): Promise<{ id: string; samples: Float32Array }[]> {
+      const soundsDir = `${publicDir}kits/launch/sounds/`
+      const files = (await readdir(soundsDir)).filter((f) => f.endsWith('.wav')).sort()
+      return Promise.all(
+        files.map(async (file) => ({
+          id: file.replace('.wav', ''),
+          samples: readWav(await readFile(soundsDir + file)),
+        })),
+      )
+    }
+
+    /** Every voice solid at 200 bpm, the pitched ones holding `shape`. */
+    async function pitchedDense(
+      shape: (id: string) => number,
+      notes: (samples: Float32Array, mask: number) => Float32Array[] = chordOf,
+    ): Promise<Float32Array> {
+      const voices = await activatedVoices()
+      expect(voices.map((v) => v.id)).toEqual(expect.arrayContaining(PITCHED_IDS))
+      return denseTrain(
+        voices.flatMap((v) => (shape(v.id) === 0 ? [v.samples] : notes(v.samples, shape(v.id)))),
+        4,
+      )
+    }
+
+    const everyCell = (id: string): number => (PITCHED_IDS.includes(id) ? FULL_LANE : 0)
+
+    it('leaves a single note at full level, so a drum row is untouched', () => {
+      expect(chordGain(1)).toBe(1)
+    })
+
+    it('makes a full lane bigger than one note but not louder, and never quieter', async () => {
+      for (const { id, samples } of await activatedVoices()) {
+        if (!PITCHED_IDS.includes(id)) continue
+        const chord = sumOf(chordOf(samples, FULL_LANE))
+        // Upper bound: eight raw notes would peak at five voices, doublebass
+        // loudest of all. Lower bound: adding notes must not duck the column.
+        expect(peakOf(chord) / peakOf(samples), `${id} full lane peak`).toBeLessThan(2)
+        expect(rmsOf(chord) / rmsOf(samples), `${id} full lane loudness`).toBeGreaterThan(0.5)
+      }
+    })
+
+    it('stays inside the budget with the chord law applied', async () => {
+      // Measured 3.325 raw (ADR 0062), against 3.168 for the same roster
+      // playing one voice each: a column costs one voice, so the budget holds.
+      expect(peakOf(await pitchedDense(everyCell))).toBeLessThanOrEqual(WORST_CASE_BUDGET)
+    })
+
+    it('would clip without it', async () => {
+      // Eight notes of one sample start on the same audio frame, so their
+      // attacks add coherently. Measured 4.553 raw, 1.37 at the master gain.
+      const raw = (samples: Float32Array, mask: number): Float32Array[] =>
+        chordOf(samples, mask).map((note) => note.map((s) => s / chordGain(countNotes(mask))))
+      expect(peakOf(await pitchedDense(everyCell, raw)) * MASTER_GAIN).toBeGreaterThan(1)
+    })
+
+    /**
+     * The loudest of the 625 chord shapes `scripts/measureChordLevels.mjs`
+     * searches, and the one case the budget above does **not** cover: 3.787
+     * raw, 1.136 at the master gain. It stays out of scope because the same
+     * search over which drum rows are on reaches 4.057 with no pitch involved
+     * at all, so peak control - not this constant - is what would fix it
+     * (ADR 0062). Pinned so the law cannot quietly make it worse.
+     */
+    it('pins the shaped chord the budget does not cover, so it cannot grow', async () => {
+      const shapes: Record<string, number> = {
+        marimba: 0xce,
+        trumpet: 0x7b,
+        piano: 0xff,
+        doublebass: 0xfd,
+      }
+      expect(peakOf(await pitchedDense((id) => shapes[id] ?? 0))).toBeLessThanOrEqual(3.79)
+    })
   })
 
   it('the stated budget still fits under full scale once the master gain is applied', () => {
