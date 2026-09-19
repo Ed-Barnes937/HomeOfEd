@@ -24,10 +24,11 @@ import { songFromStored } from './song/song.ts'
  * semitones is the untransposed sample - so the test is not that the audio is
  * close, it is that it is the same samples.
  *
- * The comparison is against the same document rendered through a kit with the
- * `pitched` blocks stripped, which is exactly this build one commit earlier.
- * Comparing against audio captured before ticket 14 would measure that ticket's
- * sample swap instead (ADR 0065), which is a change Ed accepted separately.
+ * The comparison is against the same document rendered through the manifest as
+ * it was one commit earlier - the three new entries dropped and the registers
+ * taken back off - rather than against audio captured before the epic began.
+ * Marimba's sample changed in ticket 14, so comparing against that would
+ * measure that ticket's swap instead (ADR 0065), which Ed accepted separately.
  */
 
 /**
@@ -46,15 +47,25 @@ async function shippedKit(): Promise<Kit> {
   return parseKitManifest(raw)
 }
 
-/** The same kit as it was before this ticket: every register taken back off. */
-function withoutPitch(kit: Kit): Kit {
+/** The three entries activation added; the rest of the manifest predates it. */
+const ADDED_BY_ACTIVATION = ['trumpet', 'piano', 'doublebass']
+
+/**
+ * The manifest as it was one commit earlier: the three new entries gone and
+ * every register taken back off. Both halves matter - dropping the registers
+ * alone would leave the render's tail padding reading three samples that were
+ * not in the kit, so the comparison would be weaker than the claim.
+ */
+function beforeActivation(kit: Kit): Kit {
   return {
     ...kit,
-    instruments: kit.instruments.map((instrument) => {
-      const stripped = { ...instrument }
-      delete stripped.pitched
-      return stripped
-    }),
+    instruments: kit.instruments
+      .filter((instrument) => !ADDED_BY_ACTIVATION.includes(instrument.instrumentId))
+      .map((instrument) => {
+        const stripped = { ...instrument }
+        delete stripped.pitched
+        return stripped
+      }),
   }
 }
 
@@ -123,22 +134,22 @@ describe('a boop saved before the lane existed', () => {
     const document = parseSaveDocument(PRE_EPIC_DOCUMENT)
     const song = songFromStored(kit, document.creations[0]!)
     const sequence = song.clips.map((clip) => clip.pattern)
+    const render = (against: Kit): Float32Array =>
+      renderSequenceSamples({
+        kit: against,
+        sequence,
+        bpm: song.bpm,
+        sampleRate: 44100,
+        samples,
+      })
 
-    const activated = renderSequenceSamples({
-      kit,
-      sequence,
-      bpm: song.bpm,
-      sampleRate: 44100,
-      samples,
-    })
-    const before = renderSequenceSamples({
-      kit: withoutPitch(kit),
-      sequence,
-      bpm: song.bpm,
-      sampleRate: 44100,
-      samples,
-    })
+    const activated = render(kit)
+    const before = render(beforeActivation(kit))
 
+    // Same length as well as same samples: the render pads its tail by the
+    // longest sample in the kit, so three new voices could have lengthened an
+    // old boop's exported file without changing a note of it. They did not -
+    // cymbal and marimba are both 390 ms and both predate this ticket.
     expect(activated.length).toBe(before.length)
     expect(activated.every((sample, i) => sample === before[i])).toBe(true)
   })

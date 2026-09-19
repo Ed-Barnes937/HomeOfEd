@@ -88,7 +88,11 @@ Acceptance criteria:
 
 - [x] A pre-epic save-document fixture (built from today's `saveFormat` output
       with marimba rows) loads with every old hit at the anchor pitch; an
-      offline render of that boop is sample-identical to the pre-epic render.
+      offline render of that boop is sample-identical to a render through the
+      manifest as it was one commit earlier. (**Corrected wording:** this bullet
+      said "the pre-epic render", which ticket 14 made impossible to mean
+      literally - marimba's sample changed then, so a pre-epic render would
+      differ for a reason that is not this ticket's. See the build comment.)
 - [x] Old share links round-trip the same way.
 - [x] Fresh-grid defaults, sample clips and the first-visit seed still make
       sense, checked **on a phone** against the vertical budget above. Any
@@ -128,6 +132,32 @@ round-trips to the same document. The comparison is deliberately against this
 build one commit earlier rather than against pre-epic audio: marimba's sample
 changed in ticket 14, and folding that in would measure a decision Ed already
 took separately.
+
+### 2026-09-19 - fresh-context review round
+
+A Sonnet reviewer went over the branch with the ticket, the spec and the ADRs
+and nothing of my reasoning. It found nothing blocking and no standards
+violations, and it re-derived the level constants independently rather than
+taking them on trust - tightening `ROSTER_BUDGET` and `SINGLE_HIT_BUDGET` by
+hand and watching the tests fail at exactly the measured values (3.386 and
+3.1106), which is the check that would have caught a loosened pin. Three
+observations, all acted on:
+
+- **The acceptance criterion's own wording was stale.** It asked for a render
+  "sample-identical to the pre-epic render", and ticket 14 made that impossible
+  to mean literally. The bullet is corrected above.
+- **The "before" kit in the identity test was the 23 with registers stripped,
+  not the real 20.** A fair catch, and it mattered more than it looked: the
+  render pads its tail by the longest sample in the kit, so three new voices
+  could have lengthened an old boop's exported file without changing a note.
+  The test now drops the three entries as well, and asserts the length. They
+  turn out not to have mattered - cymbal and marimba are both 390 ms and both
+  predate this ticket - but that is now measured rather than assumed.
+- **`setCell` does not refuse a pitch on a one-note row.** Unreachable from the
+  UI, since lanes only render for pitched instruments, and deliberate: accepting
+  and then ignoring is what `setPattern` and the save format both do, so
+  refusing here would be the only write in the app that behaved differently.
+  There is now a comment saying so.
 
 ### The three calls you asked me to bring back
 

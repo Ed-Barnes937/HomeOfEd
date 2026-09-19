@@ -145,6 +145,10 @@ class BoopSequencerEngine implements SequencerEngine {
       return
     }
     assertPitchIndex(pitchIndex)
+    // A pitch on a one-note row is accepted and then ignored at playback, the
+    // same way `setPattern` and the save format accept it (ADR 0067). Refusing
+    // here would be the only write in the app that did.
+    //
     // Read through the anchor rule before deciding, so erasing a note a row
     // never had stays a no-op rather than growing it pitch data.
     const held = row.pitches?.[step] ?? (row.steps[step] === true ? ANCHOR_PITCH_MASK : 0)
