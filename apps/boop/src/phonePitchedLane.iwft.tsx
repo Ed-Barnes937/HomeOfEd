@@ -134,6 +134,35 @@ test('the lane takes no gesture from the window or the rail, and adds no scroll 
   await root.verifyStepWindowAt(0)
 })
 
+test('the note names are pinned with the rail while the steps scroll out from under them', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyLaneNoteNames(LANE, ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'])
+  await root.verifyNoteNamesAlignToTiles(LANE)
+  await root.verifyRailClearsTheGutter(LANE)
+  const pinned = await root.readNoteGutterLeft(LANE)
+
+  // The gutter belongs to the rail, not the step window: a swipe to bar 3 must
+  // leave it where it was, still naming the tiles beside it (ADR 0066).
+  await root.swipeSteps(300)
+  await root.verifyStepWindowAt(308)
+  if ((await root.readNoteGutterLeft(LANE)) !== pinned) {
+    throw new Error('the note names scrolled away with the steps')
+  }
+  await root.verifyNoteNamesAlignToTiles(LANE, 8)
+
+  // And the frame is what it was: no new strip width, no sideways page scroll.
+  await root.verifyStepStripIsNotOverhung()
+  await root.verifyNoHorizontalOverflow()
+  await root.verifyGridScrollBoxes(['phone-step-window'])
+})
+
 test('the chevron folds the lane to its pebbles and hands the rows back', async ({
   mountApp,
   page,

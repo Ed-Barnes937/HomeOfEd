@@ -141,6 +141,71 @@ test('every lane cell is announced by its solfège name', async ({ mountApp, pag
   await root.verifyNoteLabel(LANE, 0, 0, 'do, step 1, off')
 })
 
+// ---- Note names in the gutter (ticket 15, ADR 0066) ----
+//
+// `routePitchedKit`'s root sits on the anchor "so" (spec §3), so the G3 the
+// other tests use is a lane in C major.
+
+test('a lane names its eight notes down the gutter, beside the tiles they belong to', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyLaneNoteNames(LANE, ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'])
+  await root.verifyNoteNamesAlignToTiles(LANE)
+  await root.verifyRailClearsTheGutter(LANE)
+  await root.verifyGridWellHasNoSidewaysScroll()
+})
+
+test('re-rooting the instrument carries its note names with it', async ({ mountApp, page }) => {
+  // The guard against ticket 14: nothing about the key is written down in the
+  // UI, so moving the kit's root moves the gutter and nothing else.
+  await routePitchedKit(page, LANE, 'C4')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyLaneNoteNames(LANE, ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F'])
+  await root.verifyRailClearsTheGutter(LANE)
+})
+
+test('the gutter is decoration: a cell is still announced once, in solfège', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyNoteGutterIsOutOfTheA11yTree(LANE)
+  await root.verifyNoteLabel(LANE, 0, 0, 'do, step 1, off')
+
+  // A folded row has no tiles to name, so it has no gutter either.
+  await root.toggleLane(LANE)
+  await expect(root.laneGutter(LANE)).toHaveCount(0)
+})
+
+test.describe('the tablet band', () => {
+  test.use({ viewport: { width: 1100, height: 800 } })
+
+  test('names the lane on its own smaller tiles', async ({ mountApp, page }) => {
+    await routePitchedKit(page, LANE, 'C4')
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.startBlank()
+
+    await root.verifyLaneNoteNames(LANE, ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F'])
+    await root.verifyNoteNamesAlignToTiles(LANE)
+    await root.verifyRailClearsTheGutter(LANE)
+    await root.verifyGridWellHasNoSidewaysScroll()
+  })
+})
+
 test('the shipped kit has no pitched instrument, so no row is a lane', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

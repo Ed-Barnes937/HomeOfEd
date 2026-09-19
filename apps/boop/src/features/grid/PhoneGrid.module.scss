@@ -139,10 +139,13 @@ $lane-collapsed-row-height: 60px;
   align-items: center;
   gap: 7px;
 
-  // A pitched row's rail is three lines: plate + chevron, the name, then the
-  // pitch key with whatever is left (ADR 0063).
+  // A pitched row's rail is two columns: its own lines, and the note-name
+  // gutter pinned beside them (ADR 0063, ADR 0066). The gutter belongs here
+  // rather than in the step window, which scrolls out from under the rail.
+  // 92 = the 12px gutter less its 2px overhang, this gap, and the 79 the head
+  // below spends. The rail has no slack left at this width, so the numbers have
+  // to add up rather than nearly add up.
   &[data-lane] {
-    flex-direction: column;
     align-items: stretch;
     gap: 3px;
   }
@@ -156,12 +159,24 @@ $lane-collapsed-row-height: 60px;
   }
 }
 
+// The rail's own lines - plate + chevron, then the name - beside the gutter.
+.railBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+
+// 32 + 3 + 44 = 79, which is what the gutter leaves. Neither the plate nor the
+// chevron may shrink, so a wider gap here is a chevron over the gutter.
 .railHead {
   flex: none;
   height: 44px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 3px;
 }
 
 .railNameLine {

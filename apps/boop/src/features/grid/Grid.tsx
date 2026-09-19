@@ -279,10 +279,11 @@ export function Grid({
                         }}
                       />
                     </button>
-                    {pitched ? (
+                    {instrument.pitched ? (
                       <PitchedRail
                         instrumentId={row.instrumentId}
                         instrumentName={instrument.name}
+                        pitched={instrument.pitched}
                         masks={masks}
                         collapsed={collapsed}
                         onToggleCollapsed={() => collapsedRows.toggle(row.instrumentId)}

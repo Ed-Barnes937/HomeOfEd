@@ -1,9 +1,14 @@
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
 
 import { hasPitch, pitchesInMask } from '../../engine/pitch.ts'
-import { PITCHES_PER_LANE, STEPS_PER_PATTERN } from '../../engine/sequencerEngine.ts'
+import {
+  PITCHES_PER_LANE,
+  STEPS_PER_PATTERN,
+  type PitchedConfig,
+} from '../../engine/sequencerEngine.ts'
 import { pitchIndexAtOffset } from './laneGeometry.ts'
 import { pebbleOffset, pitchContour } from './laneSummary.ts'
+import { laneNoteNames } from './noteNames.ts'
 import styles from './PitchedLane.module.scss'
 import { laneCellLabel } from './solfege.ts'
 import type { DragPaintHandlers } from './useDragPaint.ts'
@@ -181,6 +186,8 @@ function pitchAtPointer(event: { currentTarget: HTMLDivElement; clientY: number 
 interface PitchedRailProps {
   instrumentId: string
   instrumentName: string
+  /** The instrument's register - what the gutter's names are derived from. */
+  pitched: PitchedConfig
   masks: readonly number[]
   collapsed: boolean
   onToggleCollapsed: () => void
@@ -189,30 +196,35 @@ interface PitchedRailProps {
 }
 
 /**
- * A pitched row's rail: the name, then the pitch key - or the mini contour,
- * once the row is folded - with the collapse chevron beside it (ADR 0061).
+ * A pitched row's rail: the name with the collapse chevron under it (ADR 0061),
+ * the mini contour once the row is folded, and - while it is open - the gutter
+ * of note names down the rail's edge, beside the tiles they belong to.
  */
 export function PitchedRail({
   instrumentId,
   instrumentName,
+  pitched,
   masks,
   collapsed,
   onToggleCollapsed,
   children,
 }: PitchedRailProps) {
   return (
-    <span className={styles.railStack}>
-      {children}
-      <span className={styles.railFoot}>
-        {collapsed ? <MiniContour instrumentId={instrumentId} masks={masks} /> : <PitchKey />}
-        <LaneToggle
-          instrumentId={instrumentId}
-          instrumentName={instrumentName}
-          collapsed={collapsed}
-          onToggleCollapsed={onToggleCollapsed}
-        />
+    <>
+      <span className={styles.railStack}>
+        {children}
+        <span className={styles.railFoot}>
+          {collapsed && <MiniContour instrumentId={instrumentId} masks={masks} />}
+          <LaneToggle
+            instrumentId={instrumentId}
+            instrumentName={instrumentName}
+            collapsed={collapsed}
+            onToggleCollapsed={onToggleCollapsed}
+          />
+        </span>
       </span>
-    </span>
+      {!collapsed && <LaneGutter instrumentId={instrumentId} pitched={pitched} />}
+    </>
   )
 }
 
@@ -245,18 +257,38 @@ export function LaneToggle({
   )
 }
 
-/** The rail's HIGH/LOW gradient legend - the only pitch key there is (spec §7). */
-export function PitchKey() {
+/**
+ * The lane's note names, down the left of its cells (spec §7, ADR 0066): one
+ * per tile, on the tile's own height, so the column reads as a scale. Letter
+ * names derived from the instrument's own root, never a key written down here.
+ *
+ * It stays out of the a11y tree the way `LaneSummary` does: every cell already
+ * announces its solfège name, so a label here would read each one twice.
+ */
+export function LaneGutter({
+  instrumentId,
+  pitched,
+}: {
+  instrumentId: string
+  pitched: PitchedConfig
+}) {
+  const names = laneNoteNames(pitched)
   return (
-    <span className={styles.pitchKey}>
-      <span className={styles.legendEdge}>HIGH</span>
-      <span className={styles.legendBar} aria-hidden="true" />
-      <span className={styles.legendEdge}>LOW</span>
+    <span className={styles.gutter} aria-hidden="true" data-testid={`lane-gutter-${instrumentId}`}>
+      {PITCHES.map((pitchIndex) => (
+        <span
+          key={pitchIndex}
+          className={styles.noteName}
+          data-testid={`lane-note-name-${instrumentId}-${pitchIndex}`}
+        >
+          {names[pitchIndex]}
+        </span>
+      ))}
     </span>
   )
 }
 
-/** The four-bar pitch contour a folded row shows in place of its pitch key. */
+/** The four-bar pitch contour a folded row shows in the rail, its notes gone. */
 export function MiniContour({
   instrumentId,
   masks,

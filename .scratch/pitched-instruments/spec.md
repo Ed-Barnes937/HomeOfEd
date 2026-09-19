@@ -154,9 +154,17 @@ Per the handoff, on the rescaled geometry:
 
 ## 7. Accessibility
 
-- **Solfège** names pitches everywhere a pitch needs a name (Q6): do, re, mi,
-  fa, so, la, ti, high do. Screen readers announce cell = "<solfège>, step N"
-  (exact copy: ticket 06); the octave duplicate is "high do".
+- **Solfège is what a pitch is called out loud** (Q6): do, re, mi, fa, so, la,
+  ti, high do. Screen readers announce cell = "<solfège>, step N" (exact copy:
+  ticket 06); the octave duplicate is "high do".
+- **Letter names are what the lane shows**, in a gutter down the left of the
+  cells (ticket 15, ADR 0066): one per tile, no octave number, derived from the
+  instrument's `rootNote` through `pitch.ts` so the manifest's key is the only
+  key. It is `aria-hidden` - the cells already announce themselves, and a label
+  per tile would read every cell twice. The gutter takes the rail's last column
+  at every width and **replaces the HIGH/LOW gradient legend**, which said less
+  about the same thing. A second scheme (solfège in the gutter, on a preference)
+  is an array swap, and is deliberately not built.
 - Focus follows the existing grid keyboard model, extended vertically within
   a lane column; the handoff's ring is the focus ring.
 - Pitch is conveyed by position; the hue ladder stays secondary. Do not
@@ -183,8 +191,10 @@ fixed-frame rules (ADR 0030/0035) are unbreakable.
 
 - Chord affordances beyond stacking taps (the originating design file's
   turn 7 - explicitly not in the handoff).
-- User-settable octave/register, note names in the UI, scales other than
-  major, more than 8 cells.
+- User-settable octave/register, scales other than major, more than 8 cells.
+- Choosing between naming schemes. Note names in the UI **were** out of scope;
+  Ed reversed that and ticket 15 built the gutter (§7, ADR 0066). What stays out
+  is the preferences switch between letters and solfège - later, additive.
 - Persisting collapse state (additive later if wanted).
 - Converting any further one-note instruments (cheap follow-ups once the
   lane exists).

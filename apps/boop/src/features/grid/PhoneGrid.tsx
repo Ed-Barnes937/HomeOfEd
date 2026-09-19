@@ -7,7 +7,7 @@ import { rowColorVar } from './instrumentColors.ts'
 import { LoopMap } from './LoopMap.tsx'
 import styles from './PhoneGrid.module.scss'
 import { PHONE_WINDOW_WIDTH, phoneOffscreenSide } from './phoneWindow.ts'
-import { LaneSummary, LaneToggle, MiniContour, PitchedLane, PitchKey } from './PitchedLane.tsx'
+import { LaneGutter, LaneSummary, LaneToggle, MiniContour, PitchedLane } from './PitchedLane.tsx'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
 import { instrumentsById } from './rowInstruments.ts'
 import { useCollapsedRows } from './useCollapsedRows.ts'
@@ -134,7 +134,7 @@ export function PhoneGrid({
           <div className={styles.railCol}>
             <div className={styles.barSpacer} aria-hidden="true" />
             <div className={styles.railRows}>
-              {rows.map(({ row, rowIndex, instrument, pitched, collapsed, masks, lane, style }) => {
+              {rows.map(({ row, rowIndex, instrument, collapsed, masks, lane, style }) => {
                 const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
                 // The rail is pinned, so this button is always reachable - the
                 // phone's one route into the instrument picker (ticket 05).
@@ -172,26 +172,34 @@ export function PhoneGrid({
                     data-lane={lane}
                     style={style}
                   >
-                    {pitched ? (
+                    {instrument.pitched ? (
                       <>
-                        {/* A 92px rail cannot hold the plate, a name and a 44px
-                            chevron on one line (ADR 0063). */}
-                        <span className={styles.railHead}>
-                          {plate}
-                          <LaneToggle
+                        {/* The rail's lines take what the gutter beside them
+                            leaves; a 92px rail cannot hold the plate, a name
+                            and a 44px chevron on one line (ADR 0063). */}
+                        <span className={styles.railBody}>
+                          <span className={styles.railHead}>
+                            {plate}
+                            <LaneToggle
+                              instrumentId={row.instrumentId}
+                              instrumentName={instrument.name}
+                              collapsed={collapsed}
+                              onToggleCollapsed={() => collapsedRows.toggle(row.instrumentId)}
+                            />
+                          </span>
+                          <span className={styles.railNameLine}>
+                            {name}
+                            {collapsed && (
+                              <MiniContour instrumentId={row.instrumentId} masks={masks} />
+                            )}
+                          </span>
+                        </span>
+                        {!collapsed && (
+                          <LaneGutter
                             instrumentId={row.instrumentId}
-                            instrumentName={instrument.name}
-                            collapsed={collapsed}
-                            onToggleCollapsed={() => collapsedRows.toggle(row.instrumentId)}
+                            pitched={instrument.pitched}
                           />
-                        </span>
-                        <span className={styles.railNameLine}>
-                          {name}
-                          {collapsed && (
-                            <MiniContour instrumentId={row.instrumentId} masks={masks} />
-                          )}
-                        </span>
-                        {!collapsed && <PitchKey />}
+                        )}
                       </>
                     ) : (
                       <>
