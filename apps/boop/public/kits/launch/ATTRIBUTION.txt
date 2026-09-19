@@ -1,7 +1,8 @@
-Launch kit - real kit content (ticket 18), grown to the 20-instrument roster
-by the boop-instruments effort (ticket 01). Three further icons, drawn in this
-repo for the pitched-lane effort (ticket 05), have their own block below the
-sourced twenty - different provenance, different terms.
+Launch kit - real kit content (ticket 18), grown to a 20-instrument roster by
+the boop-instruments effort (ticket 01) and to 23 when the pitched-lane effort
+activated trumpet, piano and doublebass (ticket 10). Those three icons were
+drawn in this repo for the pitched-lane effort (ticket 05) and have their own
+block below the sourced twenty - different provenance, different terms.
 
 artwork/*.svg - the sourced twenty
   Placeholder icons from game-icons.net, CC BY 3.0. The classic six were taken
@@ -215,10 +216,10 @@ sounds/*.wav - the other nineteen
   artwork/guitar-bass-head.svg; doublebass keeps artwork/double-bass.svg.
   Do not merge the two.
 
-  trumpet, piano and doublebass are still unreferenced by kit.json - the
-  pitched roster activates in ticket 10, after Ed's ear check. marimba is in
-  the roster and its file did change, which is the one user-audible thing in
-  ticket 14.
+  trumpet, piano and doublebass reached kit.json in ticket 10, which flagged
+  them and marimba `pitched` on ADR 0065's registers (ADR 0067). marimba's file
+  had already changed in ticket 14, which is the one user-audible thing that
+  ticket did on its own.
 
   The generator's `voices` map holds twenty-three definitions, but a bare run
   rebuilds only the fourteen it still matches; see its header for which nine it

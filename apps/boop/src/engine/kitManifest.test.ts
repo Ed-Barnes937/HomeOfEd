@@ -119,16 +119,16 @@ describe('the shipped launch kit', () => {
     return parseKitManifest(JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')))
   }
 
-  it('is a valid manifest of the 20-instrument roster whose files exist', async () => {
+  it('is a valid manifest of the 23-instrument roster whose files exist', async () => {
     const kit = await shippedKit()
-    expect(kit.instruments).toHaveLength(20)
+    expect(kit.instruments).toHaveLength(23)
     for (const instrument of kit.instruments) {
       await expect(readFile(publicDir + instrument.sound.slice(1))).resolves.toBeDefined()
       await expect(readFile(publicDir + instrument.artwork.slice(1))).resolves.toBeDefined()
     }
   })
 
-  it('puts every instrument in one of the picker groups (spec §2: 10 / 6 / 4)', async () => {
+  it('puts every instrument in one of the picker groups (spec §2, now 10 / 9 / 4)', async () => {
     // The picker sections the roster by this field; an instrument without one
     // would fall out of its group (it stays pickable, but unsectioned).
     const kit = await shippedKit()
@@ -137,23 +137,35 @@ describe('the shipped launch kit', () => {
       expect(instrument.group, instrument.instrumentId).toBeDefined()
       counts.set(instrument.group!, (counts.get(instrument.group!) ?? 0) + 1)
     }
-    expect(Object.fromEntries(counts)).toEqual({ drums: 10, notes: 6, silly: 4 })
+    expect(Object.fromEntries(counts)).toEqual({ drums: 10, notes: 9, silly: 4 })
   })
 
-  it('is still all one-note - the lane lands dormant (spec §11)', async () => {
-    // Tickets 01-09 build the lane with no instrument flagged, so every PR of
-    // this epic changes nothing a child can hear. Ticket 10 is the activation
-    // and rewrites this expectation.
+  it('flags four instruments pitched, on the registers ADR 0065 measured', async () => {
+    // The activation itself (ticket 10, ADR 0067). Marimba converts and the
+    // other three are new; `boop` glides so it has no root, and `bass` is left
+    // alone forever because saved boops name it - `doublebass` is a second
+    // instrument, never a rename of it.
     const kit = await shippedKit()
-    expect(kit.instruments.filter((i) => i.pitched !== undefined)).toEqual([])
+    expect(
+      kit.instruments
+        .filter((i) => i.pitched !== undefined)
+        .map((i) => [i.instrumentId, i.pitched!.rootNote]),
+    ).toEqual([
+      ['marimba', 'G4'],
+      ['trumpet', 'G4'],
+      ['piano', 'G3'],
+      ['doublebass', 'G2'],
+    ])
+    expect(kit.instruments.find((i) => i.instrumentId === 'bass')?.pitched).toBeUndefined()
+    expect(kit.instruments.find((i) => i.instrumentId === 'boop')?.pitched).toBeUndefined()
   })
 
   it('keeps every pitched instrument in the key of C major (ADR 0065)', async () => {
-    // Vacuous until ticket 10, and armed from now on: a register whose "do" is
-    // not a C would put one instrument in a different key from the rest. The
-    // anchor is "so", so every root sample is a G. `pitchedRoots.test.ts`
-    // makes the same assertion over the four registers today, against the
-    // audio; this one takes over the moment they reach the manifest.
+    // Armed since ticket 10 put the registers in the manifest: a register whose
+    // "do" is not a C would put one instrument in a different key from the
+    // rest. The anchor is "so", so every root sample is a G.
+    // `pitchedRoots.test.ts` asks the other half of the question - whether the
+    // audio really sounds the note its register names.
     const kit = await shippedKit()
     for (const instrument of kit.instruments) {
       if (!instrument.pitched) continue

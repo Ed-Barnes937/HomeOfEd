@@ -1,16 +1,16 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
 import { MASTER_GAIN, chordGain } from '../engine/audioDriver.ts'
+import { parseKitManifest } from '../engine/kitManifest.ts'
 import { pitchMask, semitonesFromAnchor } from '../engine/pitch.ts'
 import {
   ANCHOR_PITCH_INDEX,
   PITCHES_PER_LANE,
   STEPS_PER_PATTERN,
   type Kit,
-  type KitInstrument,
   type Pattern,
   type PatternRow,
 } from '../engine/sequencerEngine.ts'
@@ -362,6 +362,24 @@ describe('renderSequenceSamples byte-identity at the anchor', () => {
       unpitchedReference({ ...options, sequence: [[rowOf('kick', 0, 4)]] }),
     )
   })
+
+  it('sounds a chord on an unflagged row once, not once per note', () => {
+    // A newer build's document is the only way a one-note row carries a chord
+    // (ADR 0067). Rendering it note by note would be several copies of one
+    // untransposed sample on the same frame - a coherent unison the chord law
+    // does not cover - so the column collapses to the single hit `steps` means.
+    const options = {
+      kit: kitOf('kick'),
+      sequence: [[laneRowOf('kick', { 0: [0, 2, 4, 7] })]],
+      bpm: 120,
+      sampleRate: 8000,
+      samples,
+    }
+
+    expect(renderSequenceSamples(options)).toEqual(
+      unpitchedReference({ ...options, sequence: [[rowOf('kick', 0)]] }),
+    )
+  })
 })
 
 /**
@@ -482,8 +500,6 @@ describe('renderSequenceSamples chord level', () => {
  */
 describe('the pitched worst case, rendered', () => {
   const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
-  /** Ticket 10 flags these in `kit.json`; until then nothing on main is pitched (spec §11). */
-  const PITCHED_IDS = ['marimba', 'trumpet', 'piano', 'doublebass']
   const FULL_LANE = [...Array(PITCHES_PER_LANE).keys()]
 
   function readWav(buffer: Buffer): Float32Array {
@@ -495,42 +511,42 @@ describe('the pitched worst case, rendered', () => {
     return out
   }
 
-  /** Every one-shot on disk - the roster ticket 10 activates, read rather than listed. */
-  async function activatedVoices(): Promise<{ id: string; samples: Float32Array }[]> {
-    const soundsDir = `${publicDir}kits/launch/sounds/`
-    const files = (await readdir(soundsDir)).filter((file) => file.endsWith('.wav')).sort()
-    return Promise.all(
-      files.map(async (file) => ({
-        id: file.replace('.wav', ''),
-        samples: readWav(await readFile(soundsDir + file)),
-      })),
+  /** The shipped kit and its audio - the activated roster, read rather than listed. */
+  async function shippedRoster(): Promise<{ kit: Kit; samples: Record<string, Float32Array> }> {
+    const kit = parseKitManifest(
+      JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),
     )
+    const loaded = await Promise.all(
+      kit.instruments.map(
+        async (instrument) =>
+          [instrument.instrumentId, readWav(await readFile(publicDir + instrument.sound.slice(1)))] as const,
+      ),
+    )
+    return { kit, samples: Object.fromEntries(loaded) }
   }
 
   it('renders under full scale, so the export never reaches its hard ceiling', async () => {
-    const voices = await activatedVoices()
-    expect(voices.map((voice) => voice.id)).toEqual(expect.arrayContaining(PITCHED_IDS))
+    const { kit, samples } = await shippedRoster()
+    expect(kit.instruments.filter((i) => i.pitched).map((i) => i.instrumentId)).toEqual([
+      'marimba',
+      'trumpet',
+      'piano',
+      'doublebass',
+    ])
 
-    const instruments: KitInstrument[] = voices.map(({ id }) => ({
-      instrumentId: id,
-      name: id,
-      artwork: '',
-      sound: `${id}.wav`,
-      ...(PITCHED_IDS.includes(id) ? { pitched: { rootNote: 'G3', rootMidi: 55 } } : {}),
-    }))
     const solid = [...Array(STEPS_PER_PATTERN).keys()]
     const everyCell: Record<number, readonly number[]> = {}
     for (const step of solid) everyCell[step] = FULL_LANE
-    const pattern: Pattern = voices.map(({ id }) =>
-      PITCHED_IDS.includes(id) ? laneRowOf(id, everyCell) : rowOf(id, ...solid),
+    const pattern: Pattern = kit.instruments.map(({ instrumentId, pitched }) =>
+      pitched ? laneRowOf(instrumentId, everyCell) : rowOf(instrumentId, ...solid),
     )
 
     const out = renderSequenceSamples({
-      kit: { kitId: 'launch', name: 'Launch', instruments },
+      kit,
       sequence: [pattern, pattern, pattern, pattern],
       bpm: 200,
       sampleRate: 44100,
-      samples: Object.fromEntries(voices.map(({ id, samples }) => [id, samples])),
+      samples,
     })
 
     // Measured 0.9265 rendered, 3.0884 raw - ADR 0065's 3.088 to the digit,

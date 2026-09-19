@@ -3,31 +3,21 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { laneNoteMidi, noteNameToMidi } from './pitch.ts'
-import { PITCHES_PER_LANE } from './sequencerEngine.ts'
+import { parseKitManifest } from './kitManifest.ts'
+import type { KitInstrument } from './sequencerEngine.ts'
 
 /**
- * The four root samples measured back off the shipped `.wav` files: that each
- * one really is the note ticket 10 will write into `kit.json`, and that the
- * four together put every lane's `do` on a C (ADR 0065).
+ * The root samples measured back off the shipped `.wav` files: that each one
+ * really sounds the note the manifest says it does (ADR 0065, activated by
+ * ticket 10). The registers used to live in this file, because nothing was
+ * flagged `pitched` while the epic was dormant; `kit.json` carries them now, so
+ * this suite reads them from there and asks only the question the manifest
+ * cannot answer - what the audio actually is.
  *
- * The manifest cannot carry this yet - nothing is flagged `pitched` until
- * ticket 10 (spec §11) - so `REGISTERS` below is the register data itself,
- * held against the audio rather than asserted about it. It is what ticket 10
- * copies across, and `kitManifest.test.ts` takes the key check over from here
- * once it does.
+ * Whether the registers agree on a key is `kitManifest.test.ts`'s assertion.
  */
 
-/** Ticket 10's registers. Copy verbatim into each instrument's `pitched`. */
-const REGISTERS = [
-  { instrumentId: 'marimba', rootNote: 'G4' },
-  { instrumentId: 'trumpet', rootNote: 'G4' },
-  { instrumentId: 'piano', rootNote: 'G3' },
-  { instrumentId: 'doublebass', rootNote: 'G2' },
-]
-
 const SAMPLE_RATE = 44100
-const C_PITCH_CLASS = 0
 /** Wide enough for a real recording's vibrato and bow noise, tight enough to catch a wrong note. */
 const CENTS_TOLERANCE = 30
 /**
@@ -94,44 +84,41 @@ function fundamentalMidiOf(samples: Float32Array, expectedMidi: number): number 
 }
 
 describe('the pitched lane root samples', () => {
-  const soundsDir = fileURLToPath(new URL('../../public/kits/launch/sounds/', import.meta.url))
+  const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
 
-  async function headOf(instrumentId: string): Promise<Float32Array> {
-    const samples = readWav(await readFile(`${soundsDir}${instrumentId}.wav`))
+  async function pitchedInstruments(): Promise<KitInstrument[]> {
+    const kit = parseKitManifest(
+      JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')),
+    )
+    return kit.instruments.filter((instrument) => instrument.pitched !== undefined)
+  }
+
+  async function headOf(instrument: KitInstrument): Promise<Float32Array> {
+    const samples = readWav(await readFile(publicDir + instrument.sound.slice(1)))
     const from = Math.round((HEAD_START_MS / 1000) * SAMPLE_RATE)
     const to = Math.min(Math.round((HEAD_END_MS / 1000) * SAMPLE_RATE), samples.length)
     return samples.subarray(from, to)
   }
 
   it('each one sounds the note its register names', async () => {
-    for (const { instrumentId, rootNote } of REGISTERS) {
-      const expectedMidi = noteNameToMidi(rootNote)!
-      const measured = fundamentalMidiOf(await headOf(instrumentId), expectedMidi)
-      expect(Math.abs(measured - expectedMidi) * 100, `${instrumentId} is not ${rootNote}`).toBeLessThan(
-        CENTS_TOLERANCE,
-      )
+    const instruments = await pitchedInstruments()
+    expect(instruments).not.toHaveLength(0)
+    for (const instrument of instruments) {
+      const { rootNote, rootMidi } = instrument.pitched!
+      const measured = fundamentalMidiOf(await headOf(instrument), rootMidi)
+      expect(
+        Math.abs(measured - rootMidi) * 100,
+        `${instrument.instrumentId} is not ${rootNote}`,
+      ).toBeLessThan(CENTS_TOLERANCE)
     }
   })
 
-  it('puts every lane in C major, because the anchor is "so"', () => {
-    // The lane's `do` sits seven semitones below the root sample, so a roster
-    // of G roots is a roster of C-major lanes. Asserted over the registers
-    // above rather than the manifest, which stays dormant until ticket 10.
-    for (const { instrumentId, rootNote } of REGISTERS) {
-      const rootMidi = noteNameToMidi(rootNote)!
-      const pitched = { rootNote, rootMidi }
-      expect(laneNoteMidi(pitched, 0) % 12, `${instrumentId} do`).toBe(C_PITCH_CLASS)
-      expect(laneNoteMidi(pitched, PITCHES_PER_LANE - 1) % 12, `${instrumentId} high do`).toBe(
-        C_PITCH_CLASS,
-      )
-    }
-  })
-
-  it('keeps the octave relationships the F-major layout was approved on', () => {
+  it('keeps the octave relationships the F-major layout was approved on', async () => {
     // Marimba and trumpet together at the top, piano an octave down,
     // doublebass an octave below that (ADR 0059, carried into ADR 0065).
+    const instruments = await pitchedInstruments()
     const midiOf = (id: string): number =>
-      noteNameToMidi(REGISTERS.find((r) => r.instrumentId === id)!.rootNote)!
+      instruments.find((i) => i.instrumentId === id)!.pitched!.rootMidi
     expect(midiOf('trumpet')).toBe(midiOf('marimba'))
     expect(midiOf('marimba') - midiOf('piano')).toBe(12)
     expect(midiOf('piano') - midiOf('doublebass')).toBe(12)

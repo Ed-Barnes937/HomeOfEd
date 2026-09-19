@@ -14,8 +14,9 @@
  *   It counts linear interpolation's high-frequency droop as well as its
  *   aliasing, so it is an upper bound on the damage.
  *
- * Registers are ADR 0065's; they do not enter the arithmetic - the lane
- * transposes by the same -7..+5 semitones whatever the root note is.
+ * The pitched roster comes from kit.json (ADR 0067). Registers do not enter the
+ * arithmetic - the lane transposes by the same -7..+5 semitones whatever the
+ * root note is.
  */
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
@@ -28,9 +29,10 @@ const ANCHOR_PITCH_INDEX = 4
 /** Half the kernel width of the reference resampler, in source samples. */
 const SINC_HALF = 32
 
-const PITCHED = ['marimba', 'trumpet', 'piano', 'doublebass']
-
-const soundsDir = fileURLToPath(new URL('../public/kits/launch/sounds/', import.meta.url))
+const publicDir = fileURLToPath(new URL('../public/', import.meta.url))
+const PITCHED = JSON.parse(readFileSync(`${publicDir}kits/launch/kit.json`, 'utf8'))
+  .instruments.filter((instrument) => instrument.pitched !== undefined)
+  .map((instrument) => ({ id: instrument.instrumentId, sound: publicDir + instrument.sound.slice(1) }))
 
 process.stdout.write(
   `nyquist ${SAMPLE_RATE / 2} Hz\n\n` +
@@ -39,8 +41,8 @@ process.stdout.write(
     ).join('')}\n`,
 )
 
-for (const id of PITCHED) {
-  const samples = readWav(readFileSync(`${soundsDir}${id}.wav`))
+for (const { id, sound } of PITCHED) {
+  const samples = readWav(readFileSync(sound))
   const spectrum = energyByBin(samples)
   const fold = []
   const error = []

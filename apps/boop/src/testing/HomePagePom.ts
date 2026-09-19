@@ -850,6 +850,13 @@ export class HomePagePom extends BasePage {
    */
   async verifyRailAlignedWithSteps(instrumentIds: readonly string[]): Promise<void> {
     for (const instrumentId of instrumentIds) {
+      // A pitched row's name is deliberately off its lane's centre - the 92px
+      // rail gives the chevron the first line and drops the name below it
+      // (ADR 0063) - so those rows are compared as whole rows instead.
+      if ((await this.page.getByTestId(`lane-${instrumentId}`).count()) > 0) {
+        await this.verifyPitchedRowAligns(instrumentId)
+        continue
+      }
       const label = await this.page.getByTestId(`row-label-${instrumentId}`).boundingBox()
       const cell = await this.cell(instrumentId, 0).boundingBox()
       if (!label || !cell) throw new Error(`row ${instrumentId} is not on the page`)
@@ -1880,12 +1887,23 @@ export class HomePagePom extends BasePage {
       .toEqual([...instrumentIds])
   }
 
+  /**
+   * A row's step column whichever shape the row has: a drum cell, or the lane
+   * column a pitched row spends the same width on (ADR 0060).
+   */
+  private stepColumn(instrumentId: string, step: number) {
+    return this.page.getByTestId(new RegExp(`^(cell|lane-column)-${instrumentId}-${step}$`))
+  }
+
   /** 6 rows × 16 steps, at every breakpoint — no ticket may drop one (ADR 0027). */
   async verifyGridIsSixBySixteen(): Promise<void> {
-    await expect(this.page.getByTestId(/^cell-[a-z]+-\d+$/)).toHaveCount(96)
+    // Marimba is a lane since activation (ticket 10), so a sixth of the columns
+    // are lane columns. The rule is about the 6 x 16 frame, not about what a
+    // row paints inside it.
+    await expect(this.page.getByTestId(/^(cell|lane-column)-[a-z]+-\d+$/)).toHaveCount(96)
     for (const instrumentId of ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop']) {
-      await expect(this.cell(instrumentId, 0)).toHaveCount(1)
-      await expect(this.cell(instrumentId, 15)).toHaveCount(1)
+      await expect(this.stepColumn(instrumentId, 0)).toHaveCount(1)
+      await expect(this.stepColumn(instrumentId, 15)).toHaveCount(1)
     }
   }
 

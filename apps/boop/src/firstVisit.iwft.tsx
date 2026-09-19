@@ -89,13 +89,13 @@ test.describe('tablet', () => {
     const { root } = await mountApp()
     await root.verifyIsShown()
 
-    await root.toggleCell('marimba', 3)
+    await root.toggleCell('snare', 3)
     await root.pressNewBoop()
 
     await root.verifyNoDialogOpen()
     await root.verifyTempo(100)
     await root.openClipEditor()
-    await root.verifyCellOff('marimba', 3)
+    await root.verifyCellOff('snare', 3)
     await root.verifyCellOff('kick', 0)
   })
 

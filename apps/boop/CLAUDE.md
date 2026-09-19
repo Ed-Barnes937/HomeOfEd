@@ -242,8 +242,13 @@ share-link snapshot.
   *absent* until a note is painted, and absent reads as the anchor pitch "so"
   (`ANCHOR_PITCH_INDEX`), which is zero semitones, which is the untransposed
   sample: that is the one rule making converted instruments sound identical in
-  every old boop, and it lives in `pitch.ts`'s `rowPitchMasks` alone. A chord
-  is one `Hit` and one `play` per note. `AudioDriver.play` takes plain
+  every old boop, and it lives in `pitch.ts`'s `rowPitchMasks` alone. Only the
+  manifest can transpose an instrument: `semitonesForInstrument` answers
+  `undefined` for one with no register, and both mixers read that as "sound the
+  column once, on the base sample" rather than as zero
+  ([ADR 0067](../../docs/adr/0067-boop-the-pitched-roster-goes-live.md)) - zero
+  would be a coherent unison of one sample the chord law is not sized for.
+  A chord is one `Hit` and one `play` per note. `AudioDriver.play` takes plain
   semitones, never a pitch index - the lane is the engine's business, and
   `ToneAudioDriver` repitches by `playbackRate` on its existing
   one-source-per-hit pattern (never `Tone.Sampler` or `GrainPlayer`; both were

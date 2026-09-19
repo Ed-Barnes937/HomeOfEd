@@ -1,6 +1,11 @@
 import { MASTER_GAIN, chordGain } from '../engine/audioDriver.ts'
 import { pitchesInMask, rowPitchMasks, semitonesForInstrument } from '../engine/pitch.ts'
-import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../engine/sequencerEngine.ts'
+import {
+  ANCHOR_PITCH_INDEX,
+  STEPS_PER_PATTERN,
+  type Kit,
+  type Pattern,
+} from '../engine/sequencerEngine.ts'
 
 /**
  * The render applies the same two gains live playback does and nothing else -
@@ -75,7 +80,7 @@ function tailLength(
         if (lowest === undefined) continue
         longest = Math.max(
           longest,
-          noteLength(length, playbackRate(semitonesForInstrument(instrument, lowest))),
+          noteLength(length, playbackRate(semitonesForInstrument(instrument, lowest) ?? 0)),
         )
       }
     }
@@ -109,10 +114,14 @@ export function renderSequenceSamples(options: RenderSequenceOptions): Float32Ar
       const mask = rows.get(instrument.instrumentId)?.[step] ?? 0
       const sample = samples[instrument.instrumentId]
       if (mask === 0 || !sample) continue
-      const pitches = pitchesInMask(mask)
+      // A one-note instrument sounds once whatever the column holds, the way
+      // playback does (ADR 0067): its pitch data can only have come from a
+      // newer build, and rendering it as several copies of one untransposed
+      // sample would be a unison the chord law does not cover.
+      const pitches = instrument.pitched ? pitchesInMask(mask) : [ANCHOR_PITCH_INDEX]
       const gain = chordGain(pitches.length)
       for (const pitchIndex of pitches) {
-        const rate = playbackRate(semitonesForInstrument(instrument, pitchIndex))
+        const rate = playbackRate(semitonesForInstrument(instrument, pitchIndex) ?? 0)
         mixNote(out, offset, sample, rate, gain)
       }
     }
