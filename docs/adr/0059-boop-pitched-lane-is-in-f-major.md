@@ -1,6 +1,6 @@
 # 0059 - boop: the pitched lane is in F major, because the marimba says so
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0065](0065-boop-real-instrument-samples-in-c-major.md)
 - **Date:** 2026-09-18
 - **Related:** [ADR 0024](0024-boop-sequencer-engine-seam.md) as amended
   2026-09-17 (the anchor rule and the `pitched` register this fixes values

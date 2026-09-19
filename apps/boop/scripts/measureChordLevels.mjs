@@ -7,7 +7,7 @@
  * Raw sums, the `kitLevels.test.ts` way: every voice normalised to 0.5, hits
  * landing on every 16th at 200 bpm (the top of the tempo range), peak read off
  * the sum before any master gain. Registers come from the table below rather
- * than kit.json, which stays dormant until ticket 10 (ADR 0059).
+ * than kit.json, which stays dormant until ticket 10 (ADR 0065).
  *
  * The worst case is searched, not assumed: every one of the 255 chords is
  * scanned per instrument, and the strongest few are then combined across the
@@ -28,12 +28,12 @@ const BARS = 4
 /** Strongest chords per instrument carried into the joint search, plus the full lane. */
 const CANDIDATES_PER_INSTRUMENT = 4
 
-/** ADR 0059's registers - the four instruments ticket 10 will flag pitched. */
+/** ADR 0065's registers - the four instruments ticket 10 will flag pitched. */
 const PITCHED = [
-  { id: 'marimba', rootNote: 'C5' },
-  { id: 'trumpet', rootNote: 'C5' },
-  { id: 'piano', rootNote: 'C4' },
-  { id: 'doublebass', rootNote: 'C3' },
+  { id: 'marimba', rootNote: 'G4' },
+  { id: 'trumpet', rootNote: 'G4' },
+  { id: 'piano', rootNote: 'G3' },
+  { id: 'doublebass', rootNote: 'G2' },
 ]
 
 /** Candidate per-note gains for a column of n notes. */

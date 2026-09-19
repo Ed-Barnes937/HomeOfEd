@@ -8,7 +8,7 @@
  * One WAV per instrument walking its lane up and back down, one ensemble WAV
  * of all of them together, and a printed repitch report. Registers come from
  * the table below rather than kit.json, which stays dormant until ticket 10
- * (ADR 0059).
+ * (ADR 0065).
  */
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,12 +23,12 @@ const MAJOR_SCALE_SEMITONES = [0, 2, 4, 5, 7, 9, 11, 12]
 const ANCHOR_PITCH_INDEX = 4
 const SOLFEGE = ['do', 're', 'mi', 'fa', 'so', 'la', 'ti', 'high do']
 
-/** ADR 0059's registers. Every root is a C: the "so" of F major. */
+/** ADR 0065's registers. Every root is a G: the "so" of C major. */
 const REGISTERS = [
-  { id: 'marimba', rootNote: 'C5' },
-  { id: 'trumpet', rootNote: 'C5' },
-  { id: 'piano', rootNote: 'C4' },
-  { id: 'doublebass', rootNote: 'C3' },
+  { id: 'marimba', rootNote: 'G4' },
+  { id: 'trumpet', rootNote: 'G4' },
+  { id: 'piano', rootNote: 'G3' },
+  { id: 'doublebass', rootNote: 'G2' },
 ]
 
 const BPM = 120
@@ -54,7 +54,7 @@ for (const { id, samples } of voices) {
 }
 
 const ensemble = new Float32Array(Math.round(18 * stepSeconds * SAMPLE_RATE))
-// A little F major phrase, then the whole lane as one chord.
+// A little C major phrase, then the whole lane as one chord.
 const phrase = [0, 2, 4, 7, 4, 2, 0]
 voices.forEach(({ samples }, voiceIndex) => {
   phrase.forEach((pitchIndex, n) => {

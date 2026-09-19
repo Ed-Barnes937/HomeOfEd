@@ -29,14 +29,14 @@ function kitOf(...instrumentIds: string[]): Kit {
   }
 }
 
-/** The same kit with every instrument flagged pitched. ADR 0059's marimba register. */
+/** The same kit with every instrument flagged pitched. ADR 0065's marimba register. */
 function pitchedKitOf(...instrumentIds: string[]): Kit {
   const kit = kitOf(...instrumentIds)
   return {
     ...kit,
     instruments: kit.instruments.map((instrument) => ({
       ...instrument,
-      pitched: { rootNote: 'C5', rootMidi: 72 },
+      pitched: { rootNote: 'G4', rootMidi: 67 },
     })),
   }
 }
@@ -516,7 +516,7 @@ describe('the pitched worst case, rendered', () => {
       name: id,
       artwork: '',
       sound: `${id}.wav`,
-      ...(PITCHED_IDS.includes(id) ? { pitched: { rootNote: 'C4', rootMidi: 60 } } : {}),
+      ...(PITCHED_IDS.includes(id) ? { pitched: { rootNote: 'G3', rootMidi: 55 } } : {}),
     }))
     const solid = [...Array(STEPS_PER_PATTERN).keys()]
     const everyCell: Record<number, readonly number[]> = {}
@@ -533,11 +533,13 @@ describe('the pitched worst case, rendered', () => {
       samples: Object.fromEntries(voices.map(({ id, samples }) => [id, samples])),
     })
 
-    // Measured 0.9976 rendered, 3.3252 raw - ADR 0062's 3.325 to the digit,
-    // reached through the export rather than reconstructed. The lower bound is
-    // above the 0.950 the same roster gives with no lane painted, so a render
-    // that quietly dropped the chords could not pass this either.
+    // Measured 0.9265 rendered, 3.0884 raw - ADR 0065's 3.088 to the digit,
+    // reached through the export rather than reconstructed. On the real
+    // samples the *upper* bound is what proves the chords were rendered: the
+    // same roster with no lane painted reaches 1.016, so a render that quietly
+    // dropped them would fail `toBeLessThan(1)`. The lower bound is now only a
+    // guard against a render that fell silent.
     expect(peakOf(out)).toBeLessThan(1)
-    expect(peakOf(out)).toBeGreaterThan(0.97)
+    expect(peakOf(out)).toBeGreaterThan(0.9)
   })
 })

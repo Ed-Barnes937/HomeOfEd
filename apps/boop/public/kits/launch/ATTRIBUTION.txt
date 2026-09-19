@@ -50,7 +50,8 @@ artwork/*.svg - the sourced twenty
 
 artwork/trumpet.svg, artwork/double-bass.svg, artwork/piano.svg
   Drawn in this repo - original work, no third-party source, no licence and no
-  attribution owed, the same standing as sounds/*.wav below. Agent-drawn SVG is
+  attribution owed, the same standing as the synthesized sounds below (not the
+  four sourced ones, which are CC BY 3.0). Agent-drawn SVG is
   what the pitched-lane grill session settled on (spec §9, ticket 05) and Ed
   approves them by eye before the roster activates.
 
@@ -74,10 +75,64 @@ artwork/trumpet.svg, artwork/double-bass.svg, artwork/piano.svg
   in ticket 10; until then they are files on disk and nothing user-visible
   changes.
 
-sounds/*.wav
+sounds/marimba.wav, sounds/trumpet.wav, sounds/piano.wav, sounds/doublebass.wav
+  Real instrument recordings, CC BY 3.0 - the pitched lane's four root samples
+  (ticket 14). Attribution is required for these four; the other nineteen
+  voices below are synthesized here and owe none.
+
+  Source: nbrosowsky/tonejs-instruments
+  (github.com/nbrosowsky/tonejs-instruments), whose own LICENSE.md releases its
+  samples under CC BY 3.0 (creativecommons.org/licenses/by/3.0/) while the
+  library code is MIT. Its sample-source-info.txt names the upstream recording
+  for every instrument, and all four used here are the same one:
+
+    Versilian Studios Chamber Orchestra 2, Community Edition ("VSCO2 CE"),
+    by Versilian Studios - vis.versilstudios.net/vsco-community.html
+
+  Per-sample provenance (upstream path -> shipped file), read from the
+  repository on 2026-09-19:
+
+    samples/xylophone/G4.wav  -> marimba.wav     VSCO2 CE, xylophone
+    samples/trumpet/G4.wav    -> trumpet.wav     VSCO2 CE, trumpet
+    samples/piano/G3.wav      -> piano.wav       VSCO2 CE, piano
+    samples/contrabass/C2.wav -> doublebass.wav  VSCO2 CE, contrabass
+
+  The kit ships what upstream ships: 44.1 kHz mono 16-bit WAV, so there is no
+  decode and no resample. What was changed is the envelope and, for one file,
+  the pitch - `apps/boop/scripts/sourceInstrumentSamples.mjs` holds the exact
+  recipe and docs/adr/0065 the reasoning:
+
+    marimba    - xylophone G4, cut to 390 ms. A struck bar is already a
+                 one-shot, so nothing but the cut and a 40 ms release.
+                 Our instrument is named Marimba and the library has only a
+                 xylophone; pitched down to a C4..C5 lane it reads closer to
+                 a marimba than to a concert xylophone.
+    trumpet    - trumpet G4, 340 ms. 70 ms of the natural note, then a 48 dB
+                 exponential fall and an 80 ms release. The source is a flat
+                 7.2 s sustain with no decay of its own, so the whole envelope
+                 is imposed: this is a staccato note, not a held one.
+    piano      - piano G3, 320 ms. 45 ms held, 46 dB fall, 70 ms release - the
+                 real hammer and string, damped early.
+    doublebass - contrabass C2 transposed up 7 semitones to G2, 360 ms. Every
+                 contrabass upstream is bowed, not plucked, and there is no G2
+                 among them; C2 is the fastest-blooming note in the set and
+                 the transpose shortens its bloom to 80 ms, which `holdMs`
+                 keeps whole so the onset is the real bow.
+
+  All four are normalised to the same 0.5 per-voice peak as everything else.
+
+  These four are Marimba (in the shipped roster) and the three the pitched
+  roster activates in ticket 10. Marimba's file changed with them: it moved
+  from a synthesized C5 to a real G4, which is what puts every lane in C major
+  (ADR 0065, superseding ADR 0059's F). Nothing else in the kit moved.
+
+sounds/*.wav - the other nineteen
   Synthesized in this repo - original work, no third-party audio, no
   attribution owed. Real CC0-sourced one-shots were the first choice (per the
-  ticket's sourcing guidance) but weren't reachable from this environment:
+  ticket's sourcing guidance) but weren't reachable from this environment at
+  the time. That record is kept because it is why these nineteen are
+  synthesized, and the blocker on the four above turned out to be a different
+  one: CC BY 3.0 audio, which is fine as long as it is credited:
 
     - freesound.org: search/browse works without auth, but every sound's
       actual audio file (including CC0-licensed ones, e.g.
@@ -92,23 +147,23 @@ sounds/*.wav
       sci-fi / RPG sound effects, not tuned percussive or pitched one-shots -
       using them would misrepresent the instruments in the design brief.
 
-  All twenty voices share the same per-voice budget: normalised to peak 0.5
-  (the shaker deliberately sits under that, per the spec's "quieter than the
-  hat") and under 400 ms, no long tails. Verified by
+  Every voice in the kit, sourced or synthesized, shares one per-voice budget:
+  normalised to peak 0.5 (the shaker deliberately sits under that, per the
+  spec's "quieter than the hat") and under 400 ms, no long tails. Verified by
   apps/boop/src/engine/kitLevels.test.ts - duration, per-voice peak, the
   200 bpm 16th-note retrigger check, and the dense-hit sums (the classic six
-  land at ~1.81 raw, the whole roster at ~2.97; the roster figure is what
-  ticket 08 sizes MASTER_GAIN against).
+  land at ~1.81 raw, the whole roster at 3.301 on a solid 200 bpm train; that
+  figure is what MASTER_GAIN is sized against, and ADR 0065 records why the
+  real xylophone raised it from 2.97).
 
-  The classic six (ticket 18):
+  The classic five that remain synthesized (ticket 18; marimba was the sixth
+  and is a real recording now):
 
     kick    - sine pitch sweep 150→48 Hz + a 20ms noise click for attack.
     snare   - noise body + two short tonal snaps (330→210 Hz, 200→170 Hz).
     hat     - three inharmonic high partials + a touch of high-passed noise,
               for a metallic tick rather than plain hiss.
     tom     - sine pitch sweep 200→85 Hz, longer and lower than the kick.
-    marimba - fundamental (C5, 523.25 Hz) + a bright overtone + a 15ms click
-              for mallet attack.
     boop    - two slightly detuned sine sweeps (660→520 Hz, 666→524 Hz) for a
               chorused, electronic, cheeky character.
 
@@ -147,30 +202,24 @@ sounds/*.wav
       zap       - a 2 kHz→200 Hz laser sweep in 140 ms.
       drip      - an upward water-drop chirp (620→1700 Hz) with a splash tick.
 
-  The pitched lane's root samples (ticket 04), same generator. Each is
-  recorded at its lane's "so", which is a C because the ensemble is in F major
-  (docs/adr/0059-boop-pitched-lane-is-in-f-major.md):
+  The pitched lane's root samples were synthesized here too, at first (ticket
+  04): trumpet C5, piano C4, doublebass C3, each a C because the ensemble was
+  then in F major. Ticket 14 replaced all three with the real recordings at the
+  top of this file, and marimba with them, so those recipes are history now -
+  they stay in the generator, unbuilt, and ADR 0059 holds the reasoning that
+  ADR 0065 superseded.
 
-    trumpet - C5. Nine harmonics of 523.25 Hz at falling levels, each partial
-              damped harder than the one below it so the tone darkens as it
-              rings, under a 14 ms raised-cosine attack. 260 ms.
-    piano   - C4. Seven harmonics of 261.63 Hz stretched sharp by an
-              inharmonicity term (what a real string does), over a short
-              174->131 Hz hammer thump. 300 ms.
-    doublebass - C3. Five fast-damped harmonics of 130.81 Hz with a short
-              high-passed noise tick for the pizzicato finger. 340 ms. This is
-              a NEW instrument, not a retune of bass.wav above: bass (the
-              electric-ish 90 Hz pluck) stays one-note and untouched so saved
-              boops using it keep sounding the same. Its artwork is
-              artwork/double-bass.svg; bass keeps guitar-bass-head.svg. Do not
-              merge the two.
+  `doublebass` remains a **separate instrument** from `bass`, whatever their
+  sources: bass is the electric-ish 90 Hz pluck, stays one-note and stays
+  synthesized, so saved boops using it keep sounding the same. Its artwork is
+  artwork/guitar-bass-head.svg; doublebass keeps artwork/double-bass.svg.
+  Do not merge the two.
 
-  None of the three is referenced by kit.json yet - the pitched roster activates in
-  ticket 10, after Ed's ear check. marimba.wav is *not* regenerated: its
-  measured C5 is the anchor every existing saved boop depends on.
+  trumpet, piano and doublebass are still unreferenced by kit.json - the
+  pitched roster activates in ticket 10, after Ed's ear check. marimba is in
+  the roster and its file did change, which is the one user-audible thing in
+  ticket 14.
 
-  No third-party audio. The generator's `voices` map holds all twenty
-  definitions, but a bare run rebuilds only the fourteen: the six on disk came
-  from ticket 18's generator, which was never committed, so the six definitions
-  in the script are ticket 12's originals and no longer match those files
-  sample-for-sample. Their recipes above are the record of what shipped.
+  The generator's `voices` map holds all twenty definitions, but a bare run
+  rebuilds only the fourteen it still matches; see its header for which ten it
+  does not and why. The recipes above are the record of what shipped.

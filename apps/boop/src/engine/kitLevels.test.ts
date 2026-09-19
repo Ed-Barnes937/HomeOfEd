@@ -28,24 +28,33 @@ const STEP_SECONDS = 60 / 200 / 4 // one 16th note at 200 BPM
 /** Per-voice ceiling the generator normalises to, plus 16-bit rounding slack. */
 const VOICE_PEAK = 0.5 + 0.001
 /**
- * The manifest roster painted solid at 200 bpm, one voice each: measured 3.035
- * raw (ticket 08). Kept tight so no new or re-tuned voice can inflate it
- * unnoticed.
+ * The manifest roster painted solid at 200 bpm, one voice each: measured 3.301
+ * raw once marimba became a real xylophone recording (ADR 0065), up from 3.035
+ * when it was synthesized. A struck bar's transient is 19.6 dB above its own
+ * RMS and lands 5 ms in, right on the other voices' bodies - so this figure is
+ * phase coincidence, not loudness, and trimming 1 ms off the front of the
+ * sample swings it between 2.74 and 3.30. Still a tripwire against unnoticed
+ * drift in a fixed set of files, but not a property of the kit.
  */
-const ROSTER_BUDGET = 3.1
+const ROSTER_BUDGET = 3.31
+/** The same roster on one step rather than a solid train - far less sensitive. */
+const SINGLE_HIT_BUDGET = 3.1
 
 /**
  * The master bus's stated worst case: every row of the activated roster solid
- * at 200 bpm with every lane cell painted, measured 3.325 raw (ADR 0062).
- * Asserted against `MASTER_GAIN` below, so raising it forces the gain down too
- * - and at 0.3 the budget is spent, so the next voice has to buy its own.
+ * at 200 bpm with every lane cell painted, measured 3.325 raw (ADR 0062) and
+ * **3.088** on the real samples (ADR 0065) - a chord of real recordings adds
+ * less coherently than a chord of synthesized tones. Held at 3.33 rather than
+ * re-pinned down to the new figure, because it is what `MASTER_GAIN` is sized
+ * against and 3.33 x 0.3 is already 0.999: tightening it would buy nothing and
+ * would make the roster pin above the only thing with any slack.
  */
 const WORST_CASE_BUDGET = 3.33
 
 /**
  * The instruments ticket 10 flags `pitched`. They live here rather than coming
  * from the manifest because nothing in `kit.json` is flagged until then (spec
- * §11's dormancy); ADR 0059 holds their registers, which do not affect level -
+ * §11's dormancy); ADR 0065 holds their registers, which do not affect level -
  * the lane transposes by the same -7..+5 semitones whatever the root note is.
  */
 const PITCHED_IDS = ['marimba', 'trumpet', 'piano', 'doublebass']
@@ -180,18 +189,18 @@ describe('launch kit one-shot levels', () => {
     // The six-row sum above is no longer the worst case: a clip may hold all
     // 20 rows, and layered clips sound their union - and because
     // `mergePatterns` unions rows by `instrumentId`, that union caps at the
-    // roster, one voice per instrument per step. Measured: 2.970 raw (well
+    // roster, one voice per instrument per step. Measured: 2.931 raw (well
     // under the 10.0 the per-voice peaks would give if they all peaked in
     // phase, which they don't).
-    expect(peakOf(sumOf(voices.map((v) => v.samples)))).toBeLessThanOrEqual(ROSTER_BUDGET)
+    expect(peakOf(sumOf(voices.map((v) => v.samples)))).toBeLessThanOrEqual(SINGLE_HIT_BUDGET)
   })
 
   it('the true worst case - every roster row painted solid at 200bpm - stays inside the budget', async () => {
     const voices = await roster()
     // The stated worst case (ticket 08): the whole-roster union retriggering
     // on every 16th at the top of the tempo range, so tails overlap on top of
-    // the simultaneous sum. Measured: 3.035 raw - only 0.26 dB above the
-    // single-step union, because the tails add incoherently.
+    // the simultaneous sum. Measured: 3.301 raw - 1.0 dB above the
+    // single-step union, almost all of it the xylophone's mallet transient.
     const dense = denseTrain(
       voices.map((v) => v.samples),
       4,
@@ -248,14 +257,15 @@ describe('launch kit one-shot levels', () => {
     })
 
     it('stays inside the budget with the chord law applied', async () => {
-      // Measured 3.325 raw (ADR 0062), against 3.168 for the same roster
-      // playing one voice each: a column costs one voice, so the budget holds.
+      // Measured 3.088 raw (ADR 0065; 3.325 when these four were synthesized),
+      // against 3.386 for the same roster playing one voice each: a column
+      // costs one voice, so the budget holds.
       expect(peakOf(await pitchedDense(everyCell))).toBeLessThanOrEqual(WORST_CASE_BUDGET)
     })
 
     it('would clip without it', async () => {
       // Eight notes of one sample start on the same audio frame, so their
-      // attacks add coherently. Measured 4.553 raw, 1.37 at the master gain.
+      // attacks add coherently. Measured 4.349 raw, 1.30 at the master gain.
       const raw = (samples: Float32Array, mask: number): Float32Array[] =>
         chordOf(samples, mask).map((note) => note.map((s) => s / chordGain(countNotes(mask))))
       expect(peakOf(await pitchedDense(everyCell, raw)) * MASTER_GAIN).toBeGreaterThan(1)
@@ -263,20 +273,22 @@ describe('launch kit one-shot levels', () => {
 
     /**
      * The loudest of the 625 chord shapes `scripts/measureChordLevels.mjs`
-     * searches, and the one case the budget above does **not** cover: 3.787
-     * raw, 1.136 at the master gain. It stays out of scope because the same
-     * search over which drum rows are on reaches 4.057 with no pitch involved
-     * at all, so peak control - not this constant - is what would fix it
-     * (ADR 0062). Pinned so the law cannot quietly make it worse.
+     * searches, and the one case the budget above does **not** cover: 3.477
+     * raw, 1.043 at the master gain, down from 3.787 on the synthesized
+     * samples. It stays out of scope because the same search over which drum
+     * rows are on reaches 3.703 with no pitch involved at all, so peak control
+     * - not this constant - is what would fix it (ADR 0062, ADR 0065). Pinned
+     * so the law cannot quietly make it worse; the shapes are the search's own
+     * winners on the shipped audio, so they move when the audio does.
      */
     it('pins the shaped chord the budget does not cover, so it cannot grow', async () => {
       const shapes: Record<string, number> = {
-        marimba: 0xce,
-        trumpet: 0x7b,
-        piano: 0xff,
-        doublebass: 0xfd,
+        marimba: 0xdb,
+        trumpet: 0xdd,
+        piano: 0xb9,
+        doublebass: 0xbb,
       }
-      expect(peakOf(await pitchedDense((id) => shapes[id] ?? 0))).toBeLessThanOrEqual(3.79)
+      expect(peakOf(await pitchedDense((id) => shapes[id] ?? 0))).toBeLessThanOrEqual(3.48)
     })
   })
 

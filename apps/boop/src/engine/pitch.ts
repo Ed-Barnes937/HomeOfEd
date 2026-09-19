@@ -21,8 +21,8 @@ import {
 
 /**
  * Semitones above "do" for each cell of the lane: the major scale, one octave,
- * the top cell the same note as the bottom one (spec §1). The ensemble is in F
- * major (ADR 0059), which is the register data's business - the shape of the
+ * the top cell the same note as the bottom one (spec §1). The ensemble is in C
+ * major (ADR 0065), which is the register data's business - the shape of the
  * ladder is the same in any key.
  */
 const MAJOR_SCALE_SEMITONES: readonly number[] = [0, 2, 4, 5, 7, 9, 11, 12]
