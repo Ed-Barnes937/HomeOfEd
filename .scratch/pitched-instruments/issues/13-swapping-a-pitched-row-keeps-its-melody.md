@@ -109,6 +109,7 @@ autosaved row back out of `localStorage` and expects exactly
 | `saveFormat.ts` `rowToStored` | branches on presence, derives `steps` from it | correct |
 | `saveFormat.ts` `storedToPattern` (incl. the all-rows-dropped fallback) | kept absent when the document has none; the fallback is `blankPattern` | correct |
 | `sequencerEngine.ts` `blankPattern` | omitted | correct - same reason as `addRow` |
+| `createSequencerEngine.ts` `getPattern` | spread in only when the engine row holds notes | correct - the engine keeps `pitches: null` internally and the boundary is where absence is restored, which is what keeps a fresh engine's grid equal to `blankPattern` |
 | `HomePage.tsx` `clearedPattern` ("Clear grid") | dropped | correct *and deliberate*: no on steps means no notes, and absent is the canonical form for that |
 | `sampleClips.ts` `samplePattern` | dropped | correct today - see the watch-item below |
 | `HomePage.tsx` `copyClip`, `withActivePattern`, `addClip`, `deleteClip`, `renameClip`, `moveClip`, `removeRow`, `singleClipSong` | pattern passed by reference | nothing rebuilt, nothing to lose |
@@ -136,3 +137,27 @@ tune on marimba, open the picker from the rail, and tap through two or three
 other lane instruments by ear. The tune should stay put at its own degrees each
 time, and tapping a drum should leave the rhythm with the notes gone rather
 than a row of mid-lane notes.
+
+**2026-09-19 - fresh-context review round.**
+
+Nothing blocking, and the reviewer re-ran the mutation check independently
+rather than taking the claim on trust. It went further than I did, with three
+mutations rather than one: deleting the carrying branch (the iwft and the
+pitched-to-pitched unit test go red), dropping the target-pitched check so the
+predicate is `!row.pitches` alone (the byte-identity test goes red), and
+flipping the `||` to `&&` (the same test goes red). So each half of the
+predicate is pinned by a test, not just the branch as a whole.
+
+**One real find, and it was in the audit rather than the code.** The table
+claimed to cover every path that constructs a `PatternRow`, and it missed
+`createSequencerEngine`'s `getPattern`, which spreads `pitches` in only when
+the engine row holds notes. That is correct - the engine stores `pitches: null`
+internally and `getPattern` is the boundary where absence is restored, which is
+exactly what keeps a fresh engine's grid equal to `blankPattern` - but an audit
+whose value to ticket 10 is its completeness should not have a hole in it. The
+table now has the row.
+
+The reviewer also raised the length of `swappedRow`'s doc comment against the
+comment-density rule, and then argued itself out of it: every function in
+`song.ts` carries a comment of that length or more, and matching surrounding
+style is the rule that wins. Left as written.
