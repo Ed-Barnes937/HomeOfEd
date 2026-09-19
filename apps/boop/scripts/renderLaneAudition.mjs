@@ -1,14 +1,13 @@
 /**
- * Renders what a pitched lane will sound like, so the registers can be
- * ear-checked before ticket 10 activates anything.
+ * Renders what a pitched lane sounds like, for the ear check the activation
+ * merge is gated on.
  *
  *   node apps/boop/scripts/renderLaneAudition.mjs           # to a temp dir
  *   node apps/boop/scripts/renderLaneAudition.mjs ~/Desktop
  *
  * One WAV per instrument walking its lane up and back down, one ensemble WAV
- * of all of them together, and a printed repitch report. Registers come from
- * the table below rather than kit.json, which stays dormant until ticket 10
- * (ADR 0065).
+ * of all of them together, and a printed repitch report. The roster and its
+ * registers come from `kit.json`, which has carried them since ticket 10.
  */
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,27 +22,22 @@ const MAJOR_SCALE_SEMITONES = [0, 2, 4, 5, 7, 9, 11, 12]
 const ANCHOR_PITCH_INDEX = 4
 const SOLFEGE = ['do', 're', 'mi', 'fa', 'so', 'la', 'ti', 'high do']
 
-/** ADR 0065's registers. Every root is a G: the "so" of C major. */
-const REGISTERS = [
-  { id: 'marimba', rootNote: 'G4' },
-  { id: 'trumpet', rootNote: 'G4' },
-  { id: 'piano', rootNote: 'G3' },
-  { id: 'doublebass', rootNote: 'G2' },
-]
-
 const BPM = 120
-const soundsDir = fileURLToPath(new URL('../public/kits/launch/sounds/', import.meta.url))
+const kitDir = fileURLToPath(new URL('../public/kits/launch/', import.meta.url))
 const outDir = process.argv[2] ?? mkdtempSync(join(tmpdir(), 'boop-lane-'))
 mkdirSync(outDir, { recursive: true })
 
 const stepSeconds = 60 / BPM / 2
 const walk = [...MAJOR_SCALE_SEMITONES.keys(), ...[...MAJOR_SCALE_SEMITONES.keys()].reverse()]
 
-const voices = REGISTERS.map(({ id, rootNote }) => ({
-  id,
-  rootNote,
-  samples: readWav(readFileSync(`${soundsDir}${id}.wav`)),
-}))
+/** The pitched roster, in manifest order. Every root is a G: the "so" of C major. */
+const voices = JSON.parse(readFileSync(`${kitDir}kit.json`, 'utf8'))
+  .instruments.filter((instrument) => instrument.pitched !== undefined)
+  .map((instrument) => ({
+    id: instrument.instrumentId,
+    rootNote: instrument.pitched.rootNote,
+    samples: readWav(readFileSync(kitDir + instrument.sound.replace('/kits/launch/', ''))),
+  }))
 
 for (const { id, samples } of voices) {
   const track = new Float32Array(Math.round((walk.length + 2) * stepSeconds * SAMPLE_RATE))

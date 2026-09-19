@@ -117,11 +117,13 @@ describe('semitonesForInstrument', () => {
     expect(scale).toEqual([-7, -5, -3, -2, 0, 2, 4, 5])
   })
 
-  it('is zero at every pitch for a one-note instrument', () => {
+  it('has no answer at all for a one-note instrument', () => {
+    // Undefined rather than zero, so a caller cannot read it as "play the
+    // sample once per painted note at unison" (ADR 0067).
     const drum = instrument('kick')
 
     for (let pitchIndex = 0; pitchIndex < PITCHES_PER_LANE; pitchIndex += 1) {
-      expect(semitonesForInstrument(drum, pitchIndex)).toBe(0)
+      expect(semitonesForInstrument(drum, pitchIndex)).toBeUndefined()
     }
   })
 })

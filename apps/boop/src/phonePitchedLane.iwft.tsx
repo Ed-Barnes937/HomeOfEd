@@ -332,3 +332,34 @@ for (const height of [844, 640, 505, 420, 380]) {
     })
   })
 }
+
+// ---- What a child actually opens on (ticket 10) ----
+
+test.describe('the shipped default clip on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('opens on one lane, and the rows box holds it without scrolling', async ({
+    mountApp,
+    page,
+  }) => {
+    // Activation makes marimba a lane, and marimba is one of the six rows a
+    // fresh clip and the first-visit seed both start from, so the default clip
+    // gained 112px of grid. Measured 484 of content against a 484 box: exactly
+    // the one expanded lane the phone's budget affords (ADR 0063), and a second
+    // would overflow it. That is why nothing else in the default six converted.
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.startBlank()
+
+    await root.verifyIsLane('marimba')
+    const rows = await page.getByTestId('grid-scroll').evaluate((element) => ({
+      content: element.scrollHeight,
+      box: element.clientHeight,
+    }))
+    if (rows.content > rows.box) {
+      throw new Error(`the default clip overflows the rows box: ${rows.content} > ${rows.box}`)
+    }
+    await root.verifyStageIsAFixedFrame()
+    await root.verifyClipPlayInWellIsReachable()
+  })
+})

@@ -23,7 +23,16 @@ const kit: Kit = {
   instruments: [
     { instrumentId: 'kick', name: 'Kick', artwork: 'kick.svg', sound: 'kick.wav', role: 'kick' },
     { instrumentId: 'snare', name: 'Snare', artwork: 'snare.svg', sound: 'snare.wav' },
-    { instrumentId: 'boop', name: 'Boop', artwork: 'boop.svg', sound: 'boop.wav' },
+    // The suite's pitched voice. Only the manifest can make an instrument
+    // transposable (ADR 0067), so a lane test needs a kit that says so - and
+    // `kick` beside it is what the one-note cases are asked against.
+    {
+      instrumentId: 'boop',
+      name: 'Boop',
+      artwork: 'boop.svg',
+      sound: 'boop.wav',
+      pitched: { rootNote: 'G4', rootMidi: 67 },
+    },
   ],
 }
 
@@ -288,6 +297,48 @@ describe('SequencerEngine', () => {
         { instrumentId: 'kick', audioTime: 0.1 },
         { instrumentId: 'boop', audioTime: 0.1, semitones: -3 },
       ])
+    })
+
+    // Only the manifest can make an instrument transposable (`pitch.ts`'s
+    // `semitonesForInstrument`), so pitch data on a one-note row is not a note
+    // - it is a newer build's document read by this one. Spec §4 rules what
+    // happens: the rhythm sounds on the base sample, and the data survives the
+    // read (ADR 0067).
+    describe('on an instrument the manifest has not flagged', () => {
+      it('sounds one untransposed hit for the whole column', async () => {
+        engine.setPattern([pitchedRow('kick', { 0: [0, 2, 7] })])
+        await engine.start()
+        driver.played = []
+
+        driver.fireStep()
+
+        expect(driver.played).toEqual([{ instrumentId: 'kick', audioTime: 0.1 }])
+      })
+
+      it('reports one hit naming no pitch', async () => {
+        engine.setPattern([pitchedRow('kick', { 0: [0, 2, 7] })])
+        const [first] = await startAndCollect(engine, 1)
+
+        expect(first?.hits).toEqual([{ instrumentId: 'kick' }])
+      })
+
+      it('auditions the plain sample even when a pitch is named', async () => {
+        await engine.start()
+        engine.stop()
+        driver.played = []
+
+        engine.audition('kick', 7)
+
+        expect(driver.played).toEqual([{ instrumentId: 'kick', audioTime: undefined }])
+      })
+
+      it('keeps the data, so a newer build still finds the melody', () => {
+        engine.setPattern([pitchedRow('kick', { 0: [0, 2, 7] })])
+
+        expect(engine.getPattern()[0]?.pitches?.[0]).toBe(
+          pitchMask(0) | pitchMask(2) | pitchMask(7),
+        )
+      })
     })
 
     it('carries one hit per sounding note, low note first', async () => {

@@ -33,6 +33,8 @@ test('the rail artwork opens the picker: the whole roster in three labelled grou
     'Triangle',
     'Cymbal',
   ])
+  // Trumpet, Piano and Double bass join Notes at activation (ticket 10), at the
+  // end of the group because manifest order is the picker's order.
   await root.verifyInstrumentSectionEntries('notes', [
     'Marimba',
     'Boop',
@@ -40,9 +42,12 @@ test('the rail artwork opens the picker: the whole roster in three labelled grou
     'Bell',
     'Chime',
     'Pluck',
+    'Trumpet',
+    'Piano',
+    'Double bass',
   ])
   await root.verifyInstrumentSectionEntries('silly', ['Boing', 'Pop', 'Zap', 'Drip'])
-  // 20 sounds do not fit a dialog on a laptop, let alone a phone: the list
+  // 23 sounds do not fit a dialog on a laptop, let alone a phone: the list
   // scrolls inside the card, so the last one is still reachable.
   await root.verifyInstrumentPickerScrolls('drip')
 })

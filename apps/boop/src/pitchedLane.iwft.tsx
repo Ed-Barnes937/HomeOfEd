@@ -3,10 +3,12 @@ import { expect } from '@playwright/experimental-ct-react'
 import { routePitchedKit } from './testing/pitchedKit.ts'
 import { test } from './testing/iwftTest.tsx'
 
-// Nothing in the shipped kit is pitched yet (spec §11 - ticket 10 activates the
-// roster), so every lane test here flags one instrument for its own page load.
-// `marimba` because it is one of the conversions the spec names, and it is in
-// the blank clip's default six.
+// Most tests here flag their own instrument rather than leaning on `kit.json`,
+// so each one states the register it measures and a future re-rooting of the
+// kit cannot quietly change what they mean. `marimba` because it is the
+// conversion the spec names, and it is in the blank clip's default six. The two
+// tests at the bottom are the exception: they are about the shipped manifest
+// itself, which ticket 10 activated.
 const LANE = 'marimba'
 
 test('a pitched row is a lane of eight notes, and the drum rows are untouched', async ({
@@ -206,14 +208,38 @@ test.describe('the tablet band', () => {
   })
 })
 
-test('the shipped kit has no pitched instrument, so no row is a lane', async ({ mountApp }) => {
+test('the shipped kit needs no routing: marimba is a lane in C, and boop is not', async ({
+  mountApp,
+}) => {
+  // Activation (ticket 10), asserted on the real manifest rather than a patched
+  // one. Marimba's register is G4, the "so" of C, so its gutter reads C..C;
+  // `boop` glides and stays one-note, so the row beside it is still cells.
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.startBlank()
 
-  await root.verifyCellOff(LANE, 0)
-  await expect(root.laneCell(LANE, 0, 4)).toHaveCount(0)
-  await expect(root.laneToggle(LANE)).toHaveCount(0)
+  await root.verifyIsLane('marimba')
+  await root.verifyLaneNoteNames('marimba', ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'])
+
+  await root.verifyCellOff('boop', 0)
+  await expect(root.laneCell('boop', 0, 4)).toHaveCount(0)
+  await expect(root.laneToggle('boop')).toHaveCount(0)
+})
+
+test('a sound added from the picker brings its lane with it', async ({ mountApp }) => {
+  // The three new instruments are only reachable through the picker, so this is
+  // the path a child takes to a trumpet. Its register is G4 too, an octave
+  // above the piano's and two above the double bass's (ADR 0065).
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.addSound('trumpet')
+
+  await root.verifyIsLane('trumpet')
+  await root.verifyLaneNoteNames('trumpet', ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'])
+  await root.paintNote('trumpet', 2, 6)
+  await root.verifyNoteOn('trumpet', 2, 6)
 })
 
 // ---- Collapse (ticket 07) ----

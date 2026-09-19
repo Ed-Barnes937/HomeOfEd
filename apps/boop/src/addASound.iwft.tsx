@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 import type { Page } from '@playwright/test'
 
+import { PITCHES_PER_LANE } from './engine/sequencerEngine.ts'
 import { SAVE_KEY } from './persistence/storage.ts'
 import { test } from './testing/iwftTest.tsx'
 
@@ -17,13 +18,26 @@ import { test } from './testing/iwftTest.tsx'
 const SIX = ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop']
 
 /**
- * Twelve of the roster's twenty, in manifest order: the row count the ticket
- * names, and twice the six every layout was drawn for.
+ * Twelve of the roster's twenty-three, in manifest order: the row count the
+ * ticket names, and twice the six every layout was drawn for.
  */
 const TWELVE = [...SIX, 'clap', 'shaker', 'cowbell', 'woodblock', 'triangle', 'cymbal']
 
 /** The whole roster (ADR 0042) - a clip's ceiling, where nothing is left to add. */
-const ROSTER = [...TWELVE, 'bass', 'bell', 'chime', 'pluck', 'boing', 'pop', 'zap', 'drip']
+const ROSTER = [
+  ...TWELVE,
+  'bass',
+  'bell',
+  'chime',
+  'pluck',
+  'trumpet',
+  'piano',
+  'doublebass',
+  'boing',
+  'pop',
+  'zap',
+  'drip',
+]
 
 const EMPTY = '0'.repeat(16)
 
@@ -141,7 +155,10 @@ test('arrow keys walk every row of a twelve-row clip', async ({ mountApp, page }
   await root.openClipEditor()
 
   await root.focusCell('kick', 0)
-  for (let i = 0; i < TWELVE.length - 1; i += 1) await root.pressArrowKey('ArrowDown')
+  // Eleven rows to cross, and the marimba row is a lane: down walks its eight
+  // tiles before it leaves (ticket 06), so that row costs eight presses not one.
+  const presses = TWELVE.length - 1 + (PITCHES_PER_LANE - 1)
+  for (let i = 0; i < presses; i += 1) await root.pressArrowKey('ArrowDown')
   await root.verifyCellFocused('cymbal', 0)
 })
 
