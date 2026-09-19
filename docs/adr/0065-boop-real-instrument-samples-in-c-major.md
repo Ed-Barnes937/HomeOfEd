@@ -233,6 +233,12 @@ where the per-instrument provenance comes from; all four happen to be VSCO2.
   is the copy-paste; `kitManifest.test.ts`'s key assertion has already moved
   from F to C, and `pitchedRoots.test.ts` holds the same assertion against the
   audio until the manifest can carry it.
+- **The next cheap conversion flips from `bell` to `chime`.** Spec §10 sanctions
+  converting further one-note instruments once the lane exists, and ADR 0059
+  named `bell` (an exact C6, F major's "so") with `chime` explicitly ruled out.
+  In C major it is the other way round: `chime` measures an exact **G6 +0c** and
+  `bell`'s C6 no longer fits. Neither is in scope here, but whoever picks that
+  follow-up should not read 0059's sentence.
 - **`ROSTER_BUDGET` has no slack left.** It was a tight pin at 3.1 against a
   3.035 measurement; it is 3.31 against 3.301. The next re-tuned drum trips it,
   which is the tripwire working, but whoever trips it should read the phase-

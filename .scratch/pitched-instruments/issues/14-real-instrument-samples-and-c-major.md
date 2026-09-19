@@ -266,3 +266,8 @@ they are to be wrong:
 3. **The trumpet is staccato.** Its whole envelope is imposed. Does it read as a
    trumpet, or as a synth with a brassy attack? This was the instrument Ed
    pointed at, so it is the one the ticket lives or dies on.
+
+One more for whoever picks up spec §10's "convert another one-note voice"
+follow-up: in C major that candidate flips. `chime` measures an exact **G6
++0c** and now fits; `bell` (C6) no longer does. ADR 0059 said the reverse, for
+F major.
