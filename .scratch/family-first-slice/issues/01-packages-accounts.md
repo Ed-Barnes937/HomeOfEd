@@ -1,6 +1,6 @@
 # 01 - `packages/accounts`: the shared contract
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md) §4.4, §5
 Blocked by: none
@@ -32,3 +32,34 @@ like the contract. Verify: `pnpm lint`, `pnpm typecheck`,
 `pnpm --filter @hoe/accounts run test`.
 
 ## Comments
+
+- 2026-09-16: **built** on branch `family-first-slice`. Verify loop green
+  (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @hoe/accounts run test`:
+  30 vitest across 5 files).
+
+  **What landed.** `packages/accounts` with three entry points so node-only
+  code stays out of browser bundles: `.` (claim types, cookie name, save
+  zod schemas + `FamilySaveContract`, `createFamilySaveClient`,
+  `readFamilySession`), `./server` (`mintFamilyToken` / `verifyFamilyToken`
+  Ed25519 per spec §4.4, `familyAuthProvider` returning
+  `FamilyUser = User & { role, parentId?, name }`), `./testing`
+  (`FakeFamilyClient`, committed test-only keypair, `mintTestToken`).
+  Verification is total; claim shape is strict (child requires `parentId`,
+  parent must not carry one). The typed client is hand-rolled fetch over
+  tRPC's stable HTTP conventions (GET query / POST mutation, no transformer),
+  parsing every response against the zod contract - the `AppRouter` type may
+  not cross the app boundary (hard rule 1), so the contract is the type
+  authority; the wire shape is pinned by unit tests and gets its E2E proof
+  against the real router in ticket 05. Timestamps travel as epoch ms.
+  `FakeFamilyClient` covers LWW versioning, per-account scoping,
+  UNAUTHORIZED when signed out, and `failWith` for offline degradation.
+
+  **Two-axis code review** (standards + spec sub-agents): no hard violations,
+  no spec deviations. Applied its cleanups (shared `splitToken` / `isExpired`
+  helpers, TTL constant deduped into `claims.ts`). Two flagged partials are
+  deliberate and now documented in the package README: the fake does not
+  enforce the §4.6 guards (they are family-handler config, proven in
+  ticket 02's handler tests), and its identity surface is session switching
+  only - identity-router flows grow when ticket 06 needs them. One
+  stricter-than-spec rule kept: a parent token carrying `parentId` is
+  rejected at mint and verify.
