@@ -49,6 +49,13 @@ Recorded as they surfaced, so activation does not rediscover them:
   `PITCHED_IDS` in favour of reading `pitched` off the manifest. If a register
   moves on the ear check, re-run `measureChordLevels.mjs` - doublebass at C3 is
   the loudest chord in the kit.
+- **Ticket 13** found a trap with a trigger rather than a bug, and left it
+  alone deliberately: `samplePattern` rebuilds a sample clip's rows as
+  `{ instrumentId, steps }`, dropping `pitches` exactly the way
+  `swapRowInstrument` did. It is correct today because every authored sample
+  clip is step-only. **If activation gives any sample clip or the first-visit
+  seed a melody, that line silently flattens it.** Either keep the clips
+  step-only or fix the line; do not leave it to chance.
 - **Ticket 08** found the phone's vertical budget: on a 390x844 phone **one**
   expanded lane fits the rows box exactly; **two overflow by 96px** and scroll.
   So the default clip's composition is now a real decision - if it ships two
