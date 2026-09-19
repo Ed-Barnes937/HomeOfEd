@@ -29,6 +29,15 @@ test-results/
 !.scratch/*/design-brief.md
 !.scratch/*/issues/
 
+# design-sync (claude.ai/design) — staged converter scripts, regenerated build
+# output, and machine-local state; the durable inputs under .design-sync/
+# (config.json, NOTES.md, conventions.md, previews/, overrides/) ARE committed
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules/
+
 # misc
 *.log
 .DS_Store
