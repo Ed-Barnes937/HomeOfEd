@@ -80,7 +80,7 @@ export type InstrumentGroup = (typeof INSTRUMENT_GROUPS)[number]
  * register by ear writes down; `rootMidi` is the same note parsed, so nothing
  * downstream re-reads a string. The key the roster sits in is not recorded
  * here - it is a property of the registers together, asserted over the shipped
- * kit (F major, ADR 0059) rather than baked into the engine.
+ * kit (C major, ADR 0065) rather than baked into the engine.
  */
 export interface PitchedConfig {
   /** Scientific pitch notation: the measured pitch of the instrument's `sound`. */

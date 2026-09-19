@@ -14,7 +14,7 @@
  *   It counts linear interpolation's high-frequency droop as well as its
  *   aliasing, so it is an upper bound on the damage.
  *
- * Registers are ADR 0059's; they do not enter the arithmetic - the lane
+ * Registers are ADR 0065's; they do not enter the arithmetic - the lane
  * transposes by the same -7..+5 semitones whatever the root note is.
  */
 import { readFileSync } from 'node:fs'

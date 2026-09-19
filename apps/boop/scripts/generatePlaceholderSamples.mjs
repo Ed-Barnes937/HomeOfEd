@@ -8,12 +8,17 @@
  *   node apps/boop/scripts/generatePlaceholderSamples.mjs           # the 14 new voices
  *   node apps/boop/scripts/generatePlaceholderSamples.mjs zap drip  # named voices
  *
- * **Why the default is not "all 20".** The classic six on disk were rendered
- * by ticket 18's generator, which was never committed (its ATTRIBUTION entry
- * records the recipes). The six definitions below are ticket 12's originals
- * and no longer match those files sample-for-sample, so rebuilding them would
- * quietly change shipped audio. Naming one on the command line does exactly
- * that, deliberately - don't, unless a ticket asks for it.
+ * **Why the default is not every voice.** Nine of the twenty-three definitions
+ * below no longer match the file on disk, so a bare run rebuilds only the
+ * fourteen that do. Naming one of the other nine on the command line does
+ * overwrite it, and deliberately - don't, unless a ticket asks for it.
+ *
+ * - The classic six came from ticket 18's generator, which was never
+ *   committed; the six here are ticket 12's originals (the ATTRIBUTION entry
+ *   records what actually shipped).
+ * - marimba, trumpet, piano and doublebass are real recordings now, built by
+ *   `sourceInstrumentSamples.mjs` (ADR 0065). Their synthesized recipes stay
+ *   here as the record of what ticket 04 shipped.
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
@@ -135,8 +140,9 @@ const voices = {
       scale(sweep({ seconds: 0.26, from: 1320, to: 1320, decay: 38 }), 0.18),
     ),
 
-  // The pitched lane's root samples (ticket 04), each recorded at its lane's
-  // "so" - a C, because the ensemble is in F major (ADR 0059).
+  // The pitched lane's root samples as ticket 04 synthesized them, each at a C
+  // because the ensemble was then in F major (ADR 0059). Superseded on disk by
+  // real recordings on a G (ADR 0065) and no longer rebuilt by a bare run.
   /** Brass at C5: a full harmonic series that darkens as it decays. */
   trumpet: () =>
     softAttack(
@@ -223,11 +229,8 @@ const NEW_VOICE_IDS = [
   'drip',
 ]
 
-/** The pitched lane's root samples (ticket 04) - see ADR 0059 for the registers. */
-const PITCHED_ROOT_IDS = ['trumpet', 'piano', 'doublebass']
-
 const requested = process.argv.slice(2)
-const ids = requested.length > 0 ? requested : [...NEW_VOICE_IDS, ...PITCHED_ROOT_IDS]
+const ids = requested.length > 0 ? requested : NEW_VOICE_IDS
 const unknown = ids.filter((id) => !(id in voices))
 if (unknown.length > 0) {
   process.stderr.write(`unknown voice(s): ${unknown.join(', ')}\n`)

@@ -7,7 +7,7 @@ import { KIT_MANIFEST_VERSION, loadKit, parseKitManifest } from './kitManifest.t
 import { laneNoteMidi } from './pitch.ts'
 
 /** Semitones from C: the pitch class every pitched lane's "do" has to land on. */
-const F_PITCH_CLASS = 5
+const C_PITCH_CLASS = 0
 
 const validManifest = {
   version: KIT_MANIFEST_VERSION,
@@ -148,15 +148,16 @@ describe('the shipped launch kit', () => {
     expect(kit.instruments.filter((i) => i.pitched !== undefined)).toEqual([])
   })
 
-  it('keeps every pitched instrument in the key of F major (ADR 0059)', async () => {
+  it('keeps every pitched instrument in the key of C major (ADR 0065)', async () => {
     // Vacuous until ticket 10, and armed from now on: a register whose "do" is
-    // not an F would put one instrument in a different key from the rest.
-    // F, not the C the grill session assumed - the anchor is "so", so a root
-    // sample seven semitones up is a C, and marimba's measured C5 is immovable.
+    // not a C would put one instrument in a different key from the rest. The
+    // anchor is "so", so every root sample is a G. `pitchedRoots.test.ts`
+    // makes the same assertion over the four registers today, against the
+    // audio; this one takes over the moment they reach the manifest.
     const kit = await shippedKit()
     for (const instrument of kit.instruments) {
       if (!instrument.pitched) continue
-      expect(laneNoteMidi(instrument.pitched, 0) % 12, instrument.instrumentId).toBe(F_PITCH_CLASS)
+      expect(laneNoteMidi(instrument.pitched, 0) % 12, instrument.instrumentId).toBe(C_PITCH_CLASS)
     }
   })
 
