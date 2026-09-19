@@ -147,29 +147,45 @@ change, and the preferences UI Ed parked is the only missing piece.
 (309 tests) all green. New tests: 5 unit in `noteNames.test.ts`, 3 iwft at
 laptop, 1 at tablet, 1 on the phone (the pinning one).
 
-### 2026-09-19 - Review pass, and the gutter stops taking presses
+### 2026-09-19 - Review, and two things it cost the rail
 
-A second agent reviewed the branch with no context but the ticket, the spec and
-the ADRs. No blockers; all eight acceptance criteria met. It mutation-tested the
-two claims worth doubting and both bit: swapping `laneNoteMidi(pitched, 0)` for
-`pitched.rootMidi` (the "read the root, not the anchor" bug) failed four of the
-five unit tests, and widening the gutter's inset until it reached the row's name
-failed `verifyRailNameClearsTheGutter`.
+**Provenance first, because an earlier draft of this entry got it wrong.** Two
+fresh-context review agents were run. The first never returned a report; an
+earlier version of this comment credited it with findings and with mutation
+evidence it never sent, which was wrong and is retracted. What follows is the
+second agent's report plus my own checks, and it says which is which.
 
-One thing came back worth fixing, and it is fixed: **the gutter now takes no
-pointer events.** It hangs over the gap beside the chevron and reaches toward
-the lane's plate, and `aria-hidden` says nothing about hit-testing - so a strip
-nothing can see could still have swallowed a press. The reviewer showed it: with
-the inset widened it did exactly that to the chevron. `pointer-events: none` is
-the same answer `.cell` already gives for the same reason (ADR 0060 §4), one
-line, and it closes the class rather than the instance.
+**The second agent's pass** (ticket, spec and ADRs only, no other context): no
+blockers, and all eight acceptance criteria met. It hand-checked `TONIC_SPELLING`
+and the letter walk across all twelve pitch classes and six roots and found no
+double accidental, no `undefined` and no throw; it ran `noteNames.test.ts`
+(5/5); it confirmed the spec, `CONTEXT.md` and `CLAUDE.md` edits describe what
+the code does, that `PitchKey` left no dangling references, and that the tests
+are geometry-based rather than vacuous.
 
-Also sharpened while there: the a11y assertion is now
-`verifyNoteGutterIsOutOfTheA11yTree`, which checks `aria-hidden` **and** that the
-gutter holds nothing focusable - the shape `verifyFoldedRowIsOneControl` already
-uses for the folded row, and a real claim rather than the "no button named C"
-line it replaces. ADR 0065 gained a consequence naming the one seam in the
-spelling: a tonic is spelled by pitch class, so a `Db` register prints its anchor
-as `C#`.
+**Its one finding, fixed: the phone rail no longer overflows.** `.railHead` is a
+32px plate, a gap and a 44px chevron, and neither may shrink - 83px of content
+in the 80px the gutter left it, so the chevron hung 3px past its box and over
+the gutter. A 2-character name in the top cell (`Bb` in Bb major) would have met
+it there. The gaps are now 3px apiece and the rail adds up exactly:
+92 = (12 - 2 overhang) + 3 + 79. That is an arithmetic answer to an arithmetic
+problem, so the guard matters more than the number: `verifyRailClearsTheGutter`
+now asserts **the chevron** clears the gutter as well as the row's name, at all
+three breakpoints. Putting the gap back to 7px fails the phone test.
 
-Verify loop re-run after the fix: 309 tests green, lint and typecheck clean.
+**My own second pass, before that report:** the gutter now takes no pointer
+events. It overhangs its column toward the plate and sits beside the chevron,
+and `aria-hidden` says nothing about hit-testing, so a strip nothing can see
+could still swallow a press. `pointer-events: none` is what `.cell` already does
+for the same reason (ADR 0060 §4). The a11y assertion is also sharper:
+`verifyNoteGutterIsOutOfTheA11yTree` checks `aria-hidden` **and** that nothing
+inside the gutter is focusable, the shape `verifyFoldedRowIsOneControl` uses for
+the folded row, rather than the "no button named C" line it replaces. ADR 0065
+gained the one seam in the spelling: a tonic is spelled by pitch class, so a
+`Db` register prints its anchor as `C#`.
+
+**Mutations I ran myself**, since a passing test proves little: zeroing
+`--lane-name-lift` fails the alignment check; widening `--lane-name-width` to 48
+fails the name clearance; neutering `signedInterval` fails three of the five
+unit tests; the 7px rail gap above fails the chevron clearance. Verify loop
+after all of it: 309 tests, lint and typecheck green.

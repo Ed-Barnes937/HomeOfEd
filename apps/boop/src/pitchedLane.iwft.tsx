@@ -157,7 +157,7 @@ test('a lane names its eight notes down the gutter, beside the tiles they belong
 
   await root.verifyLaneNoteNames(LANE, ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'])
   await root.verifyNoteNamesAlignToTiles(LANE)
-  await root.verifyRailNameClearsTheGutter(LANE)
+  await root.verifyRailClearsTheGutter(LANE)
   await root.verifyGridWellHasNoSidewaysScroll()
 })
 
@@ -170,7 +170,7 @@ test('re-rooting the instrument carries its note names with it', async ({ mountA
   await root.startBlank()
 
   await root.verifyLaneNoteNames(LANE, ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F'])
-  await root.verifyRailNameClearsTheGutter(LANE)
+  await root.verifyRailClearsTheGutter(LANE)
 })
 
 test('the gutter is decoration: a cell is still announced once, in solfège', async ({
@@ -201,7 +201,7 @@ test.describe('the tablet band', () => {
 
     await root.verifyLaneNoteNames(LANE, ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F'])
     await root.verifyNoteNamesAlignToTiles(LANE)
-    await root.verifyRailNameClearsTheGutter(LANE)
+    await root.verifyRailClearsTheGutter(LANE)
     await root.verifyGridWellHasNoSidewaysScroll()
   })
 })

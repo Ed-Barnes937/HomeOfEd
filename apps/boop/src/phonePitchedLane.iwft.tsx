@@ -145,7 +145,7 @@ test('the note names are pinned with the rail while the steps scroll out from un
 
   await root.verifyLaneNoteNames(LANE, ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'])
   await root.verifyNoteNamesAlignToTiles(LANE)
-  await root.verifyRailNameClearsTheGutter(LANE)
+  await root.verifyRailClearsTheGutter(LANE)
   const pinned = await root.readNoteGutterLeft(LANE)
 
   // The gutter belongs to the rail, not the step window: a swipe to bar 3 must

@@ -335,13 +335,19 @@ export class HomePagePom extends BasePage {
     }
   }
 
-  /** The gutter costs the rail's name nothing (ADR 0061 §5 - names are never truncated). */
-  async verifyRailNameClearsTheGutter(instrumentId: string): Promise<void> {
+  /**
+   * The gutter costs the rail nothing it was using: the row's name is not
+   * truncated (ADR 0061 §5) and the chevron is not pushed under the names. The
+   * phone's 92px rail has no slack left, so both are claims, not arithmetic.
+   */
+  async verifyRailClearsTheGutter(instrumentId: string): Promise<void> {
+    const gutter = await this.boxOf(this.laneGutter(instrumentId))
     const text = await this.boxOf(
       this.page.getByTestId(`row-label-${instrumentId}`).locator('span').first(),
     )
-    const gutter = await this.boxOf(this.laneGutter(instrumentId))
     expect(text.x + text.width).toBeLessThanOrEqual(gutter.x)
+    const toggle = await this.boxOf(this.laneToggle(instrumentId))
+    expect(toggle.x + toggle.width).toBeLessThanOrEqual(gutter.x)
   }
 
   /** Where the gutter sits, so a test can show a sideways scroll left it alone. */
