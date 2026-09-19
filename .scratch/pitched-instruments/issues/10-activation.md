@@ -14,14 +14,18 @@ and display their old hits at "so", mid-lane.
 Decisions this implements: R2-1 roster (**as revised by ADR 0059**), R2-2
 conversion rule, grill Q3.
 
-## The roster is FOUR, not five - read ADR 0059 before anything
+## The roster is FOUR, not five - read ADR 0065 before anything
 
 This ticket was written before ticket 04 measured the shipped samples, and its
 original text is wrong in three ways that matter. The authority is
-[ADR 0059](../../../docs/adr/0059-boop-pitched-lane-is-in-f-major.md):
+[ADR 0065](../../../docs/adr/0065-boop-real-instrument-samples-in-c-major.md),
+which supersedes 0059 - **anything below citing 0059 or F major is stale**:
 
-- **The key is F major, not C.** The anchor is "so", so a lane's `do` sits 7
-  semitones *below* the root sample: an F-major lane needs a **C** root.
+- **The key is C major.** The anchor is "so", so a lane's `do` sits 7
+  semitones *below* the root sample: a C-major lane needs a **G** root. ADR
+  0059 chose F major only because marimba's shipped C5 sample was immovable;
+  Ed ruled "assume no real users" on 2026-09-19 and ticket 14 replaced all
+  four samples, so that constraint is gone.
 - **`boop` is dropped.** It has no stable pitch at all - it glides 3.2
   semitones with ~90% of its energy in the first 50ms. No key exists for it. It
   stays a one-note instrument and gains nothing.
@@ -32,9 +36,25 @@ original text is wrong in three ways that matter. The authority is
   **Two basses in the kit is deliberate - do not let anyone tidy them into
   one.** Merging them silently rewrites every saved boop that uses `bass`.
 
-Ticket 04's Comments hold the copy-paste-ready `kit.json` entries and the
-measured registers (marimba C5, trumpet C5, piano C4, doublebass C3). Use them
-rather than re-deriving anything.
+**Registers come from ticket 14, not ticket 04.** Ticket 04's C roots are
+F-major and stale. The shipping layout is marimba **G4**, trumpet **G4**,
+piano **G3**, doublebass **G2** - ADR 0059's approved arrangement moved down a
+perfect fourth, so every relationship Ed accepted by ear survives. Take the
+copy-paste `kit.json` entries from ticket 14's Comments.
+
+**Inherited level finding, and it is yours to close or accept.** With the real
+samples the app's *searched* worst cases all improved by 0.7-0.8 dB, but the
+representative "23 rows solid, one voice each" case rose to 3.386 raw =
+**1.016 after `MASTER_GAIN`** - a case that only becomes reachable when you
+activate the roster, and the first one to cross full scale by activation
+rather than by painting. It is recorded in `kitLevels.test.ts` as a comment,
+not an assertion, because the roster it describes does not exist until this
+ticket. Ticket 14 deliberately did not tune it away: the rise is phase
+coincidence rather than loudness (the new marimba's RMS is *lower* than the
+sample it replaces, and trimming 1 ms off its front swings the figure between
+2.74 and 3.30). Do not close it with a constant. Either accept it - the app
+already reaches 1.111 on drums alone with no pitch involved - or put peak
+control to Ed, which is what ticket 09 concluded too.
 
 ## Carry-forwards from the rest of the epic
 
