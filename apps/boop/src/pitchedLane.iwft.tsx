@@ -224,7 +224,7 @@ test('the playhead sweeps a collapsed row on the same columns as the rest', asyn
   await root.verifySummaryUnderPlayhead(LANE, 2)
 })
 
-test('the summary is read-only: a tap on it paints nothing, and the keys step over it', async ({
+test('the summary is read-only, and the keys step over a folded row', async ({
   mountApp,
   page,
 }) => {
@@ -234,18 +234,56 @@ test('the summary is read-only: a tap on it paints nothing, and the keys step ov
   await root.startBlank()
 
   await root.toggleLane(LANE)
-  await root.laneSummaryCell(LANE, 3).click({ force: true })
   await expect(root.laneSummaryCell(LANE, 3).getByRole('button')).toHaveCount(0)
-
-  await root.toggleLane(LANE)
-  for (const pitchIndex of [0, 4, 7]) await root.verifyNoteOff(LANE, 3, pitchIndex)
 
   // Nothing in the summary takes focus, so an arrow into a folded row carries
   // on to the next one rather than stranding the cursor.
-  await root.toggleLane(LANE)
   await root.focusCell('tom', 3)
   await root.pressArrowKey('ArrowDown')
   await root.verifyCellFocused('boop', 3)
+})
+
+// ---- Tapping a folded row opens it (ticket 12, ADR 0061 as amended) ----
+
+test('a tap anywhere on a folded row opens it, and paints nothing', async ({ mountApp, page }) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.toggleLane(LANE)
+  await root.verifyLaneCollapsed(LANE)
+
+  await root.tapFoldedRow(LANE, 3)
+
+  await root.verifyLaneExpanded(LANE)
+  for (const pitchIndex of [0, 1, 2, 3, 4, 5, 6, 7]) {
+    await root.verifyNoteOff(LANE, 3, pitchIndex)
+  }
+})
+
+test('a tap on a pebble opens the row too', async ({ mountApp, page }) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.paintNote(LANE, 5, 6)
+  await root.toggleLane(LANE)
+  await root.tapPebble(LANE, 5, 6)
+
+  await root.verifyLaneExpanded(LANE)
+  await root.verifyNoteOn(LANE, 5, 6)
+})
+
+test('the folded row is still one control, and it is the chevron', async ({ mountApp, page }) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.toggleLane(LANE)
+  await root.verifyFoldedRowIsOneControl(LANE, 'Expand the Marimba row')
 })
 
 test('collapse is one row at a time', async ({ mountApp, page }) => {

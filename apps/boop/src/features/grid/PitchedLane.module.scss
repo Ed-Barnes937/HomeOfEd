@@ -138,9 +138,11 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
 }
 
 // A folded row (design handoff, "Collapse"): one drum-cell-shaped track per
-// step, each holding a pebble per painted note. No plate and no pointer
-// handlers - the summary is a picture of the row, not a surface to paint on.
+// step, each holding a pebble per painted note. No plate, and nothing to paint
+// on - the one thing a tap on it does is open the row (ticket 12).
 .summary {
+  cursor: pointer;
+
   --lane-gutter: 18px;
   --lane-column-gap: 8px;
   --lane-column-width: 52px;

@@ -257,6 +257,7 @@ export function PhoneGrid({
                               instrumentId={row.instrumentId}
                               masks={masks}
                               playheadStep={playheadStep}
+                              onExpand={() => collapsedRows.expand(row.instrumentId)}
                             />
                           ) : pitched ? (
                             <PitchedLane
