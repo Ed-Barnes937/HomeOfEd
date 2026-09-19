@@ -5,7 +5,10 @@
 - **Related:** [ADR 0062](0062-boop-a-chord-costs-one-voice.md) (the gain law
   this reuses rather than restates), [ADR 0024](0024-boop-sequencer-engine-seam.md)
   (the Tone-free seam both audio paths read), [ADR 0059](0059-boop-pitched-lane-is-in-f-major.md)
-  (the registers the measurements were taken at). Implements
+  (the registers the measurements were taken at; superseded by
+  [ADR 0065](0065-boop-real-instrument-samples-in-c-major.md), which re-runs
+  the aliasing table below on the real samples and leaves this decision
+  standing). Implements
   [pitched-lane ticket 11](../../.scratch/pitched-instruments/issues/11-wav-export-renders-pitch.md);
   spec §3, §5.
 

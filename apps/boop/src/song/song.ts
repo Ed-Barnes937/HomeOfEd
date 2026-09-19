@@ -16,6 +16,7 @@ import {
   blankPattern,
   STEPS_PER_PATTERN,
   type Kit,
+  type KitInstrument,
   type Pattern,
   type PatternRow,
 } from '../engine/sequencerEngine.ts'
@@ -344,9 +345,14 @@ export function moveClip(song: Song, from: number, to: number): Song {
 // A refused mutation is a no-op — it returns the song it was given, so the
 // `afterEdit` pairing (ADR 0031, as amended) marks nothing.
 
+/** The roster's instrument by this id, or `undefined` if it has none. */
+function rosterInstrument(kit: Kit, instrumentId: string): KitInstrument | undefined {
+  return kit.instruments.find((instrument) => instrument.instrumentId === instrumentId)
+}
+
 /** Whether the roster has an instrument by this id. */
 function rosterHas(kit: Kit, instrumentId: string): boolean {
-  return kit.instruments.some((instrument) => instrument.instrumentId === instrumentId)
+  return rosterInstrument(kit, instrumentId) !== undefined
 }
 
 /** Whether these rows already hold an instrument by this id. */
@@ -400,9 +406,23 @@ export function swapRowInstrument(
   instrumentId: string,
 ): Song {
   const rows = activeClip(song).pattern
-  if (!rows[rowIndex] || !rosterHas(kit, instrumentId) || rowsHold(rows, instrumentId)) return song
+  const instrument = rosterInstrument(kit, instrumentId)
+  if (!rows[rowIndex] || !instrument || rowsHold(rows, instrumentId)) return song
   return withActivePattern(
     song,
-    rows.map((row, index) => (index === rowIndex ? { instrumentId, steps: row.steps } : row)),
+    rows.map((row, index) => (index === rowIndex ? swappedRow(row, instrument) : row)),
   )
+}
+
+/**
+ * The row the swap leaves behind. `pitches` travels iff the new instrument
+ * plays a lane: both lanes are the same eight degrees, so a mask means the
+ * same thing on either (ticket 13 - there is no transposition to do). A
+ * one-note instrument has no lane to hold them, and dropping the field there
+ * is what keeps its row byte-identical to one that never had pitches (spec §3).
+ */
+function swappedRow(row: PatternRow, instrument: KitInstrument): PatternRow {
+  const { instrumentId } = instrument
+  if (!instrument.pitched || !row.pitches) return { instrumentId, steps: row.steps }
+  return { instrumentId, steps: row.steps, pitches: row.pitches }
 }

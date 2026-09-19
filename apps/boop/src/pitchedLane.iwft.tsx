@@ -141,6 +141,71 @@ test('every lane cell is announced by its solfège name', async ({ mountApp, pag
   await root.verifyNoteLabel(LANE, 0, 0, 'do, step 1, off')
 })
 
+// ---- Note names in the gutter (ticket 15, ADR 0066) ----
+//
+// `routePitchedKit`'s root sits on the anchor "so" (spec §3), so the G3 the
+// other tests use is a lane in C major.
+
+test('a lane names its eight notes down the gutter, beside the tiles they belong to', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyLaneNoteNames(LANE, ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'])
+  await root.verifyNoteNamesAlignToTiles(LANE)
+  await root.verifyRailClearsTheGutter(LANE)
+  await root.verifyGridWellHasNoSidewaysScroll()
+})
+
+test('re-rooting the instrument carries its note names with it', async ({ mountApp, page }) => {
+  // The guard against ticket 14: nothing about the key is written down in the
+  // UI, so moving the kit's root moves the gutter and nothing else.
+  await routePitchedKit(page, LANE, 'C4')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyLaneNoteNames(LANE, ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F'])
+  await root.verifyRailClearsTheGutter(LANE)
+})
+
+test('the gutter is decoration: a cell is still announced once, in solfège', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.verifyNoteGutterIsOutOfTheA11yTree(LANE)
+  await root.verifyNoteLabel(LANE, 0, 0, 'do, step 1, off')
+
+  // A folded row has no tiles to name, so it has no gutter either.
+  await root.toggleLane(LANE)
+  await expect(root.laneGutter(LANE)).toHaveCount(0)
+})
+
+test.describe('the tablet band', () => {
+  test.use({ viewport: { width: 1100, height: 800 } })
+
+  test('names the lane on its own smaller tiles', async ({ mountApp, page }) => {
+    await routePitchedKit(page, LANE, 'C4')
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.startBlank()
+
+    await root.verifyLaneNoteNames(LANE, ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F'])
+    await root.verifyNoteNamesAlignToTiles(LANE)
+    await root.verifyRailClearsTheGutter(LANE)
+    await root.verifyGridWellHasNoSidewaysScroll()
+  })
+})
+
 test('the shipped kit has no pitched instrument, so no row is a lane', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
@@ -339,4 +404,91 @@ test('a reload opens every row again, and collapsing never reached the save', as
 
   await root.verifyLaneExpanded(LANE)
   await root.verifyNoteOn(LANE, 7, 2)
+})
+
+// ---- Swapping the row's sound keeps its melody (ticket 13) ----
+//
+// The flattening this fixes is only visible as a lane: the masks survived or
+// did not, and a swapped row that lost them draws every on step mid-lane at
+// the anchor. `bell` is the second lane, and `cowbell` the drum on the far
+// side of the same swap.
+
+test('swapping one lane for another carries the melody, chords and all', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, [LANE, 'bell'])
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  // A contour that reads as a tune: a low note, a two-note chord, a high one.
+  await root.paintNote(LANE, 0, 0)
+  await root.paintNote(LANE, 4, 2)
+  await root.paintNote(LANE, 4, 7)
+  await root.paintNote(LANE, 9, 5)
+
+  await root.openRowInstrumentPicker(LANE)
+  await root.chooseInstrument('bell')
+  await root.closeInstrumentPicker()
+
+  await root.verifyIsLane('bell')
+  await root.verifyNoteOn('bell', 0, 0)
+  await root.verifyNoteOn('bell', 4, 2)
+  await root.verifyNoteOn('bell', 4, 7)
+  await root.verifyNoteOn('bell', 9, 5)
+  // The flattening's signature: every on step sitting at the anchor would put
+  // a note here on all three.
+  await root.verifyNoteOff('bell', 0, 4)
+  await root.verifyNoteOff('bell', 4, 4)
+  await root.verifyNoteOff('bell', 9, 4)
+})
+
+test('swapping a lane for a drum keeps the rhythm and writes no notes', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.paintNote(LANE, 2, 1)
+  await root.paintNote(LANE, 6, 7)
+
+  await root.openRowInstrumentPicker(LANE)
+  await root.chooseInstrument('cowbell')
+  await root.closeInstrumentPicker()
+
+  await root.verifyCellOn('cowbell', 2)
+  await root.verifyCellOn('cowbell', 6)
+  await root.verifyCellOff('cowbell', 0)
+
+  // A drum has no lane to hold them, so the row it becomes is the row a drum
+  // has always been on disk (spec §3).
+  await root.waitForAutosavedCell('cowbell', 2)
+  const working = await root.readAutosavedGrid()
+  expect(working?.patterns[0]?.rows.find((r) => r.instrumentId === 'cowbell')).toEqual({
+    instrumentId: 'cowbell',
+    steps: '0010001000000000',
+  })
+})
+
+test('swapping a drum for a lane leaves its steps at the anchor', async ({ mountApp, page }) => {
+  await routePitchedKit(page, 'bell')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.dragPaint('kick', [1, 5])
+
+  await root.openRowInstrumentPicker('kick')
+  await root.chooseInstrument('bell')
+  await root.closeInstrumentPicker()
+
+  await root.verifyIsLane('bell')
+  await root.verifyNoteOn('bell', 1, 4)
+  await root.verifyNoteOn('bell', 5, 4)
+  await root.verifyNoteOff('bell', 1, 0)
+  await root.verifyNoteOff('bell', 0, 4)
 })
