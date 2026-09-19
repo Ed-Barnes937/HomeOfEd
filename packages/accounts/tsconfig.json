@@ -1,0 +1,4 @@
+{
+  "extends": "@hoe/config/tsconfig.base.json",
+  "include": ["src", "*.ts", "eslint.config.js"]
+}
