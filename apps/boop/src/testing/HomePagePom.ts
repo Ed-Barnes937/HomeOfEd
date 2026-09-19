@@ -3,6 +3,8 @@ import type { Locator } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
+import { PITCHES_PER_LANE } from '../engine/sequencerEngine.ts'
+import { PHONE_STRIP_WIDTH } from '../features/grid/phoneWindow.ts'
 import { parseSaveDocument, SONG_POSITIONS, type StoredBoop } from '../persistence/saveFormat.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
@@ -100,6 +102,412 @@ export class HomePagePom extends BasePage {
   /** Backspace removes the focused cell, distinct from Enter's toggle. */
   async pressBackspace(): Promise<void> {
     await this.page.keyboard.press('Backspace')
+  }
+
+  async pressEnter(): Promise<void> {
+    await this.page.keyboard.press('Enter')
+  }
+
+  // ---- The pitched lane (pitched-lane ticket 06) ----
+  //
+  // A lane cell is the visual and the screen reader's node; the hit belongs to
+  // the step column it sits in (spec §6), so a tap has to be aimed at the
+  // tile's own coordinates and dispatched through the column underneath it.
+
+  laneCell(instrumentId: string, step: number, pitchIndex: number) {
+    return this.page.getByTestId(`lane-cell-${instrumentId}-${step}-${pitchIndex}`)
+  }
+
+  async verifyIsLane(instrumentId: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await expect(this.page.getByTestId(`lane-${instrumentId}`)).toBeVisible()
+    await expect(this.cell(instrumentId, 0)).toHaveCount(0)
+  }
+
+  async paintNote(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneCell(instrumentId, step, pitchIndex).click({ force: true })
+  }
+
+  /** Press on one note and drag through the column to another - the vertical cluster of spec §6. */
+  async dragLane(
+    instrumentId: string,
+    step: number,
+    fromPitch: number,
+    toPitch: number,
+  ): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const from = this.laneCell(instrumentId, step, fromPitch)
+    // Both ends of the drag have to be on screen before it starts: the rows
+    // scroll inside the well, and a lane is tall enough to be half below it.
+    await this.laneCell(instrumentId, step, toPitch).scrollIntoViewIfNeeded()
+    await from.scrollIntoViewIfNeeded()
+    const start = await from.boundingBox()
+    if (!start) throw new Error(`lane cell ${instrumentId}-${step}-${fromPitch} is not visible`)
+    await this.page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
+    await this.page.mouse.down()
+    const direction = toPitch > fromPitch ? 1 : -1
+    for (let pitch = fromPitch + direction; ; pitch += direction) {
+      const box = await this.laneCell(instrumentId, step, pitch).boundingBox()
+      if (!box) throw new Error(`lane cell ${instrumentId}-${step}-${pitch} is not visible`)
+      await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      if (pitch === toPitch) break
+    }
+    await this.page.mouse.up()
+  }
+
+  /** `dragLane`, but the finger settles inside the note it landed on first, as a real one does. */
+  async dragLaneFromRest(
+    instrumentId: string,
+    step: number,
+    fromPitch: number,
+    toPitch: number,
+  ): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const from = this.laneCell(instrumentId, step, fromPitch)
+    await this.laneCell(instrumentId, step, toPitch).scrollIntoViewIfNeeded()
+    await from.scrollIntoViewIfNeeded()
+    const start = await this.boxOf(from)
+    const centre = { x: start.x + start.width / 2, y: start.y + start.height / 2 }
+    await this.page.mouse.move(centre.x, centre.y)
+    await this.page.mouse.down()
+    await this.page.mouse.move(centre.x + 2, centre.y + 1)
+    const direction = toPitch > fromPitch ? 1 : -1
+    for (let pitch = fromPitch + direction; ; pitch += direction) {
+      const box = await this.boxOf(this.laneCell(instrumentId, step, pitch))
+      await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      if (pitch === toPitch) break
+    }
+    await this.page.mouse.up()
+  }
+
+  /** Press on a note, wander inside it, and let go off the lane - the start of a bar swipe. */
+  async pressAndWanderOffTheLane(
+    instrumentId: string,
+    step: number,
+    pitchIndex: number,
+  ): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const cell = this.laneCell(instrumentId, step, pitchIndex)
+    await cell.scrollIntoViewIfNeeded()
+    const box = await this.boxOf(cell)
+    const rail = await this.boxOf(this.page.getByTestId(`row-label-${instrumentId}`))
+    await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await this.page.mouse.down()
+    await this.page.mouse.move(box.x + box.width / 2 + 2, box.y + box.height / 2 + 1)
+    await this.page.mouse.move(rail.x + rail.width / 2, rail.y + rail.height / 2)
+    await this.page.mouse.up()
+  }
+
+  /** The lane sits on the grid's own step columns (spec §2). */
+  async verifyLaneColumnOnStepColumn(
+    instrumentId: string,
+    drumInstrumentId: string,
+    step: number,
+  ): Promise<void> {
+    const column = await this.boxOf(this.page.getByTestId(`lane-column-${instrumentId}-${step}`))
+    const cell = await this.boxOf(this.cell(drumInstrumentId, step))
+    expect(Math.round(column.x)).toBe(Math.round(cell.x))
+    expect(Math.round(column.width)).toBe(Math.round(cell.width))
+  }
+
+  /** The pinned rail and the scrolling steps are separate trees; a pitched row has to span both alike. */
+  async verifyPitchedRowAligns(instrumentId: string): Promise<void> {
+    const rowBoxOf = (locator: Locator) =>
+      locator.evaluate((element) => {
+        const { top, height } = element.closest('[data-lane]')!.getBoundingClientRect()
+        return { top, height }
+      })
+    const railRow = await rowBoxOf(this.page.getByTestId(`row-label-${instrumentId}`))
+    const stepsRow = await rowBoxOf(
+      this.page
+        .getByTestId(`lane-column-${instrumentId}-0`)
+        .or(this.page.getByTestId(`lane-summary-cell-${instrumentId}-0`)),
+    )
+    expect(railRow.height).toBeGreaterThan(0)
+    expect(Math.round(stepsRow.top)).toBe(Math.round(railRow.top))
+    expect(Math.round(stepsRow.height)).toBe(Math.round(railRow.height))
+  }
+
+  /** Nothing overhangs the 16 columns, or the window gains scroll the snap offsets do not know about. */
+  async verifyStepStripIsNotOverhung(): Promise<void> {
+    const strip = await this.stepWindow().evaluate((element) => element.scrollWidth)
+    expect(strip).toBe(PHONE_STRIP_WIDTH)
+  }
+
+  /** ADR 0030's nested-scroller inventory inside the well, asserted rather than assumed. */
+  async verifyGridScrollBoxes(expected: readonly string[]): Promise<void> {
+    const found = await this.gridWellScroll.evaluate((box) => {
+      const ids: string[] = []
+      for (const element of Array.from(box.querySelectorAll('*'))) {
+        const { overflowX, overflowY } = getComputedStyle(element)
+        if (!/auto|scroll/.test(`${overflowX} ${overflowY}`)) continue
+        ids.push(element.getAttribute('data-testid') ?? element.tagName.toLowerCase())
+      }
+      return ids
+    })
+    expect(found).toEqual([...expected])
+  }
+
+  /** The window still hands horizontal pans to the browser, and the rail still pans the rows box. */
+  async verifyLaneLeavesTheScrollGesturesAlone(instrumentId: string): Promise<void> {
+    const touchActionOf = (locator: Locator) =>
+      locator.evaluate((element) => getComputedStyle(element).touchAction)
+    expect(await touchActionOf(this.stepWindow())).toBe('pan-x')
+    expect(await touchActionOf(this.page.getByTestId(`lane-${instrumentId}`))).toBe('auto')
+    expect(
+      await touchActionOf(this.page.getByTestId(`row-instrument-button-${instrumentId}`)),
+    ).toBe('auto')
+  }
+
+  async verifyNoteOn(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute(
+      'data-active',
+      'true',
+    )
+  }
+
+  async verifyNoteOff(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute(
+      'data-active',
+      'false',
+    )
+  }
+
+  async verifyNoteUnderPlayhead(
+    instrumentId: string,
+    step: number,
+    pitchIndex: number,
+  ): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute(
+      'data-playhead',
+      'true',
+    )
+  }
+
+  async focusNote(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneCell(instrumentId, step, pitchIndex).focus()
+  }
+
+  async verifyNoteFocused(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toBeFocused()
+  }
+
+  async verifyNoteLabel(
+    instrumentId: string,
+    step: number,
+    pitchIndex: number,
+    label: string,
+  ): Promise<void> {
+    await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute('aria-label', label)
+  }
+
+  // ---- The note-name gutter (pitched-lane ticket 15, ADR 0066) ----
+
+  laneGutter(instrumentId: string) {
+    return this.page.getByTestId(`lane-gutter-${instrumentId}`)
+  }
+
+  laneNoteName(instrumentId: string, pitchIndex: number) {
+    return this.page.getByTestId(`lane-note-name-${instrumentId}-${pitchIndex}`)
+  }
+
+  /** The eight names the gutter prints, low note first. */
+  async verifyLaneNoteNames(instrumentId: string, names: readonly string[]): Promise<void> {
+    for (const [pitchIndex, name] of names.entries()) {
+      await expect(this.laneNoteName(instrumentId, pitchIndex)).toHaveText(name)
+    }
+  }
+
+  /**
+   * Every name is on its own tile, and left of it. The gutter is in the rail's
+   * tree and the tiles are in the lane's - on the phone those are the pinned
+   * column and the scrolling one - so lining up is a claim, not a given.
+   */
+  async verifyNoteNamesAlignToTiles(instrumentId: string, step = 0): Promise<void> {
+    for (let pitchIndex = 0; pitchIndex < PITCHES_PER_LANE; pitchIndex += 1) {
+      const name = await this.boxOf(this.laneNoteName(instrumentId, pitchIndex))
+      const tile = await this.boxOf(this.laneCell(instrumentId, step, pitchIndex))
+      expect(Math.round(name.y + name.height / 2)).toBe(Math.round(tile.y + tile.height / 2))
+      expect(Math.round(name.height)).toBe(Math.round(tile.height))
+      expect(name.x + name.width).toBeLessThanOrEqual(tile.x)
+    }
+  }
+
+  /**
+   * The gutter costs the rail nothing it was using: the row's name is not
+   * truncated (ADR 0061 §5) and the chevron is not pushed under the names. The
+   * phone's 92px rail has no slack left, so both are claims, not arithmetic.
+   */
+  async verifyRailClearsTheGutter(instrumentId: string): Promise<void> {
+    const gutter = await this.boxOf(this.laneGutter(instrumentId))
+    const text = await this.boxOf(
+      this.page.getByTestId(`row-label-${instrumentId}`).locator('span').first(),
+    )
+    expect(text.x + text.width).toBeLessThanOrEqual(gutter.x)
+    const toggle = await this.boxOf(this.laneToggle(instrumentId))
+    expect(toggle.x + toggle.width).toBeLessThanOrEqual(gutter.x)
+  }
+
+  /** Where the gutter sits, so a test can show a sideways scroll left it alone. */
+  async readNoteGutterLeft(instrumentId: string): Promise<number> {
+    return (await this.boxOf(this.laneGutter(instrumentId))).x
+  }
+
+  /** The gutter is decoration - hidden, and with nothing inside it to land on. */
+  async verifyNoteGutterIsOutOfTheA11yTree(instrumentId: string): Promise<void> {
+    const gutter = this.laneGutter(instrumentId)
+    await expect(gutter).toHaveAttribute('aria-hidden', 'true')
+    await expect(gutter.locator('button, a, input, [tabindex], [role]')).toHaveCount(0)
+  }
+
+  // ---- The collapsed lane (pitched-lane ticket 07) ----
+
+  laneToggle(instrumentId: string) {
+    return this.page.getByTestId(`lane-toggle-${instrumentId}`)
+  }
+
+  laneSummaryCell(instrumentId: string, step: number) {
+    return this.page.getByTestId(`lane-summary-cell-${instrumentId}-${step}`)
+  }
+
+  lanePebble(instrumentId: string, step: number, pitchIndex: number) {
+    return this.page.getByTestId(`lane-pebble-${instrumentId}-${step}-${pitchIndex}`)
+  }
+
+  async toggleLane(instrumentId: string): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneToggle(instrumentId).click()
+  }
+
+  async verifyLaneCollapsed(instrumentId: string): Promise<void> {
+    await expect(this.page.getByTestId(`lane-summary-${instrumentId}`)).toBeVisible()
+    await expect(this.page.getByTestId(`lane-${instrumentId}`)).toHaveCount(0)
+    await expect(this.laneToggle(instrumentId)).toHaveAttribute('aria-expanded', 'false')
+  }
+
+  async verifyLaneExpanded(instrumentId: string): Promise<void> {
+    await expect(this.page.getByTestId(`lane-${instrumentId}`)).toBeVisible()
+    await expect(this.page.getByTestId(`lane-summary-${instrumentId}`)).toHaveCount(0)
+    await expect(this.laneToggle(instrumentId)).toHaveAttribute('aria-expanded', 'true')
+  }
+
+  async verifyLaneToggleLabel(instrumentId: string, label: string): Promise<void> {
+    await expect(this.laneToggle(instrumentId)).toHaveAttribute('aria-label', label)
+  }
+
+  /** Every control clears 44px except the lane cells the column's bands cover (spec §7). */
+  async verifyLaneToggleTapTarget(instrumentId: string): Promise<void> {
+    const box = await this.boxOf(this.laneToggle(instrumentId))
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(44)
+  }
+
+  /** How tall the rows box's content is - what folding a lane is meant to shorten. */
+  async readRowsHeight(): Promise<number> {
+    await this.ensureClipEditorOpen()
+    return this.gridWellScroll.evaluate((element) => element.scrollHeight)
+  }
+
+  /** Playback never scrolls for the child, on either axis (ADR 0042). */
+  async verifyGridRowsNotScrolled(): Promise<void> {
+    const scrollTop = await this.gridWellScroll.evaluate((element) => element.scrollTop)
+    expect(scrollTop).toBe(0)
+  }
+
+  async verifyPebbleShown(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.lanePebble(instrumentId, step, pitchIndex)).toBeVisible()
+  }
+
+  async verifyNoPebble(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await expect(this.lanePebble(instrumentId, step, pitchIndex)).toHaveCount(0)
+  }
+
+  /** The summary positions by pitch: the higher note's pebble sits above the lower one's. */
+  async verifyPebbleAbove(
+    instrumentId: string,
+    step: number,
+    higherPitch: number,
+    lowerPitch: number,
+  ): Promise<void> {
+    const higher = await this.boxOf(this.lanePebble(instrumentId, step, higherPitch))
+    const lower = await this.boxOf(this.lanePebble(instrumentId, step, lowerPitch))
+    expect(higher.y + higher.height).toBeLessThanOrEqual(lower.y)
+  }
+
+  /** The summary sits on the grid's own step columns, so the playhead lands over it. */
+  async verifySummaryUnderPlayhead(instrumentId: string, step: number): Promise<void> {
+    await expect(this.laneSummaryCell(instrumentId, step)).toHaveAttribute('data-playhead', 'true')
+    const cell = await this.boxOf(this.laneSummaryCell(instrumentId, step))
+    const playhead = await this.boxOf(this.page.getByTestId('playhead'))
+    expect(playhead.x + playhead.width / 2).toBeGreaterThan(cell.x)
+    expect(playhead.x + playhead.width / 2).toBeLessThan(cell.x + cell.width)
+    expect(playhead.y).toBeLessThan(cell.y)
+    expect(playhead.y + playhead.height).toBeGreaterThan(cell.y + cell.height)
+  }
+
+  /** The contour bar a bar of the pattern draws, or `off` where the bar holds no notes. */
+  async verifyContourBar(instrumentId: string, bar: number, pitch: number | 'off'): Promise<void> {
+    await expect(this.page.getByTestId(`lane-contour-bar-${instrumentId}-${bar}`)).toHaveAttribute(
+      'data-pitch',
+      String(pitch),
+    )
+  }
+
+  // ---- Tap a folded row to open it (pitched-lane ticket 12) ----
+
+  /** A child's tap on the folded row itself, rather than on the chevron. */
+  async tapFoldedRow(instrumentId: string, step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.laneSummaryCell(instrumentId, step).click()
+  }
+
+  /** The same tap, aimed at a pebble - the thing a child is actually looking at. */
+  async tapPebble(instrumentId: string, step: number, pitchIndex: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    await this.lanePebble(instrumentId, step, pitchIndex).click()
+  }
+
+  /**
+   * A sideways pan that begins on a folded row, as the browser delivers one it
+   * has claimed for the step window: moves, then `pointercancel`, and no click
+   * at all. Expanding on `pointerdown` would open the row instead of panning.
+   */
+  async panAcrossFoldedRow(instrumentId: string, step: number): Promise<void> {
+    await this.ensureClipEditorOpen()
+    const cell = this.laneSummaryCell(instrumentId, step)
+    const box = await this.boxOf(cell)
+    const y = box.y + box.height / 2
+    const from = box.x + box.width / 2
+    const pointer = { bubbles: true, cancelable: true, composed: true, pointerId: 1 }
+    await cell.dispatchEvent('pointerdown', { ...pointer, clientX: from, clientY: y })
+    for (const dx of [-12, -48, -110]) {
+      await cell.dispatchEvent('pointermove', { ...pointer, clientX: from + dx, clientY: y })
+    }
+    await cell.dispatchEvent('pointercancel', { ...pointer, clientX: from - 110, clientY: y })
+  }
+
+  /**
+   * The folded row adds no second way in for the keyboard or a screen reader:
+   * the summary stays out of the tree, and the chevron is still the only node
+   * carrying the row's expand action (ADR 0061, as amended).
+   */
+  async verifyFoldedRowIsOneControl(instrumentId: string, label: string): Promise<void> {
+    const summary = this.page.getByTestId(`lane-summary-${instrumentId}`)
+    await expect(summary).toHaveAttribute('aria-hidden', 'true')
+    await expect(summary).not.toHaveAttribute('tabindex')
+    await expect(summary).not.toHaveAttribute('role')
+    await expect(summary.locator('button, a, input, [tabindex], [role]')).toHaveCount(0)
+    await expect(this.page.getByRole('button', { name: label })).toHaveCount(1)
+  }
+
+  private async boxOf(
+    locator: Locator,
+  ): Promise<{ x: number; y: number; width: number; height: number }> {
+    const box = await locator.boundingBox()
+    if (!box) throw new Error('the element is not on screen')
+    return box
   }
 
   async focusClearGridButton(): Promise<void> {
@@ -298,8 +706,8 @@ export class HomePagePom extends BasePage {
 
   /** The dialog scrolls rather than growing: the last sound is reachable inside it. */
   async verifyInstrumentPickerScrolls(lastInstrumentId: string): Promise<void> {
-    const overflow = await this.instrumentPickerList.evaluate((element) =>
-      getComputedStyle(element).overflowY,
+    const overflow = await this.instrumentPickerList.evaluate(
+      (element) => getComputedStyle(element).overflowY,
     )
     expect(overflow).toBe('auto')
     await this.instrumentEntry(lastInstrumentId).scrollIntoViewIfNeeded()
@@ -442,6 +850,13 @@ export class HomePagePom extends BasePage {
    */
   async verifyRailAlignedWithSteps(instrumentIds: readonly string[]): Promise<void> {
     for (const instrumentId of instrumentIds) {
+      // A pitched row's name is deliberately off its lane's centre - the 92px
+      // rail gives the chevron the first line and drops the name below it
+      // (ADR 0063) - so those rows are compared as whole rows instead.
+      if ((await this.page.getByTestId(`lane-${instrumentId}`).count()) > 0) {
+        await this.verifyPitchedRowAligns(instrumentId)
+        continue
+      }
       const label = await this.page.getByTestId(`row-label-${instrumentId}`).boundingBox()
       const cell = await this.cell(instrumentId, 0).boundingBox()
       if (!label || !cell) throw new Error(`row ${instrumentId} is not on the page`)
@@ -598,9 +1013,9 @@ export class HomePagePom extends BasePage {
    * footer carries play alone there — two Clear buttons would be one too many.
    */
   async verifyNoClearGridInTheWell(): Promise<void> {
-    await expect(this.page.getByTestId('clip-control').getByTestId('clear-grid-button')).toHaveCount(
-      0,
-    )
+    await expect(
+      this.page.getByTestId('clip-control').getByTestId('clear-grid-button'),
+    ).toHaveCount(0)
   }
 
   /** The launcher names the clip the card would open on. */
@@ -1472,12 +1887,23 @@ export class HomePagePom extends BasePage {
       .toEqual([...instrumentIds])
   }
 
+  /**
+   * A row's step column whichever shape the row has: a drum cell, or the lane
+   * column a pitched row spends the same width on (ADR 0060).
+   */
+  private stepColumn(instrumentId: string, step: number) {
+    return this.page.getByTestId(new RegExp(`^(cell|lane-column)-${instrumentId}-${step}$`))
+  }
+
   /** 6 rows × 16 steps, at every breakpoint — no ticket may drop one (ADR 0027). */
   async verifyGridIsSixBySixteen(): Promise<void> {
-    await expect(this.page.getByTestId(/^cell-[a-z]+-\d+$/)).toHaveCount(96)
+    // Marimba is a lane since activation (ticket 10), so a sixth of the columns
+    // are lane columns. The rule is about the 6 x 16 frame, not about what a
+    // row paints inside it.
+    await expect(this.page.getByTestId(/^(cell|lane-column)-[a-z]+-\d+$/)).toHaveCount(96)
     for (const instrumentId of ['kick', 'snare', 'hat', 'tom', 'marimba', 'boop']) {
-      await expect(this.cell(instrumentId, 0)).toHaveCount(1)
-      await expect(this.cell(instrumentId, 15)).toHaveCount(1)
+      await expect(this.stepColumn(instrumentId, 0)).toHaveCount(1)
+      await expect(this.stepColumn(instrumentId, 15)).toHaveCount(1)
     }
   }
 
@@ -1723,9 +2149,6 @@ export class HomePagePom extends BasePage {
     })
     expect(covered).toEqual([])
   }
-
-
-
 
   /**
    * Stronger than reading `scrollHeight`, and the assertion that would have

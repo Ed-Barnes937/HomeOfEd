@@ -45,6 +45,43 @@ describe('encodeShare / decodeShare', () => {
     expect(decodeShare(encodeShare(song))).toEqual(song)
   })
 
+  // Ticket 02 / spec §4: `pitches` is additive on the shared codec, so a
+  // pitched boop travels in a link with no SHARE_FORMAT_VERSION bump - and a
+  // link carrying a broken one is no link at all, exactly as a broken
+  // placements string is.
+  it('round-trips a pitched row', () => {
+    const pitched: StoredBoop = {
+      ...boop,
+      patterns: [
+        {
+          rows: [
+            { instrumentId: 'kick', steps: '1000100010001000' },
+            {
+              instrumentId: 'marimba',
+              steps: '1000000000000000',
+              pitches: `15${'0'.repeat(30)}`,
+            },
+          ],
+        },
+      ],
+    }
+    expect(decodeShare(encodeShare(pitched))).toEqual(pitched)
+  })
+
+  it('reads a link whose pitches do not project onto its steps as no link at all', () => {
+    const broken = {
+      ...boop,
+      patterns: [
+        {
+          rows: [
+            { instrumentId: 'marimba', steps: '0'.repeat(16), pitches: `15${'0'.repeat(30)}` },
+          ],
+        },
+      ],
+    }
+    expect(decodeShare(encodeShare(broken as StoredBoop))).toBeNull()
+  })
+
   // Ticket 03 / ADR 0042: a clip owns its rows, so two clips of one song may
   // hold different instruments in different orders. The link carries that with
   // no SHARE_FORMAT_VERSION bump, because it is still just `StoredPattern.rows`.

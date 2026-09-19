@@ -13,6 +13,13 @@ Visual references: [`docs/reference/boop-design/README.md`](../../docs/reference
 (the ≥1280px clip-lanes frame) — high-fidelity handoffs; read them before
 touching anything visual: colours, type, spacing, radii, shadows and grid
 geometry are final and exact.
+[`docs/reference/design_handoff_pitched_lane/README.md`](../../docs/reference/design_handoff_pitched_lane/README.md)
+(the pitched row) is the **one exception, and only on geometry**: it draws a
+40px-step world and narrows every existing row to it, which Ed rejected - the
+lane rescales onto boop's own columns instead
+([ADR 0060](../../docs/adr/0060-boop-pitched-lane-geometry.md), pitched-lane
+spec §2). Everything else in it - hues, plate, ring, legend, type - is exact
+like any other handoff.
 Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
@@ -36,6 +43,8 @@ src/
     createSequencerEngine.ts  the implementation: ticks, hits, songPos, events
     audioDriver.ts    the seam to the audio library
     toneAudioDriver.ts  the only file importing Tone.js
+    pitch.ts          the lane's eight pitches: the mask a row packs its notes
+                      in, and the semitones each one asks the driver for
     kitManifest.ts    manifest parse/load (kits are pure data)
     testing/fakeAudioDriver.ts  hand-cranked clock the contract tests use
   server/           the app's backend (runs in Node for dev/prod, in-browser for .iwft)
@@ -87,6 +96,15 @@ src/
                     instrumentColors.ts  `rowColorVar(rowIndex)` - the one
                                   definition of the positional hue cycle
                     phoneWindow.ts / loopMap.ts  pure geometry + tick derivation
+                    PitchedLane.tsx  a pitched row's 8-cells-per-step lane, on
+                                  the same step columns (ADR 0060), plus the
+                                  pebble summary it folds to - paints nothing,
+                                  and a tap on it opens the row
+                                  (ADR 0061); laneGeometry.ts is its hit bands,
+                                  laneSummary.ts the pebble and contour
+                                  arithmetic, solfege.ts what a screen reader
+                                  hears, noteNames.ts what the gutter shows
+                                  (ADR 0066)
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export;
@@ -216,7 +234,25 @@ share-link snapshot.
   1..roster, six by default - so a row's position never indexes the kit; look
   an instrument up by id. `setPattern` is the only way a row set changes, and
   `audition(instrumentId)` is the picker's play-it-now (ADR 0042). Test engine
-  behaviour against `FakeAudioDriver`, never a real AudioContext. The engine
+  behaviour against `FakeAudioDriver`, never a real AudioContext.
+  **Pitch** (ADR 0024, as amended 2026-09-17; pitched-lane spec §4/§5). A row
+  may carry `pitches` - 16 bitmasks of lane notes, **bit 0 = pitch index 0 =
+  the bottom of the lane = do, counted from the bottom app-wide** - with
+  `steps` as the any-note projection `setPattern` enforces. The field is
+  *absent* until a note is painted, and absent reads as the anchor pitch "so"
+  (`ANCHOR_PITCH_INDEX`), which is zero semitones, which is the untransposed
+  sample: that is the one rule making converted instruments sound identical in
+  every old boop, and it lives in `pitch.ts`'s `rowPitchMasks` alone. Only the
+  manifest can transpose an instrument: `semitonesForInstrument` answers
+  `undefined` for one with no register, and both mixers read that as "sound the
+  column once, on the base sample" rather than as zero
+  ([ADR 0067](../../docs/adr/0067-boop-the-pitched-roster-goes-live.md)) - zero
+  would be a coherent unison of one sample the chord law is not sized for.
+  A chord is one `Hit` and one `play` per note. `AudioDriver.play` takes plain
+  semitones, never a pitch index - the lane is the engine's business, and
+  `ToneAudioDriver` repitches by `playbackRate` on its existing
+  one-source-per-hit pattern (never `Tone.Sampler` or `GrainPlayer`; both were
+  evaluated and rejected). The engine
   **borrows** its driver: `App` owns the one `AudioDriver` for the life of the
   page, and `engine.dispose()` must never dispose it (ADR 0024, as amended) —
   React's dev double-mount builds two engines over that one driver.
@@ -228,7 +264,12 @@ share-link snapshot.
   optional `placements` (the 16 positions, comma-separated — each field the
   clips sounding there, so a position can hold several; a comma-less string is
   read in the pre-layering one-clip-per-position form) and `gridClip` — all additive, still
-  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode. A position names its
+  `SAVE_FORMAT_VERSION` 1, strict all-or-nothing decode.
+  A **pitched** row also stores `pitches` - 32 lowercase hex chars, two per step,
+  bit 0 = the bottom of the lane - with `steps` the any-note projection the
+  *writer derives from it*; absent means the anchor "so", which is what makes
+  converting an instrument cost no saved boop anything
+  ([ADR 0058](../../docs/adr/0058-boop-save-format-pitches.md)). A position names its
   clips by **single character** - digits `1`-`9`, then letters `a`-`z` from
   clip 10 - so old digit-only strings are a strict subset and the writer emits
   a letter only when a clip past the ninth is placed. That alphabet's ceiling
@@ -288,7 +329,18 @@ share-link snapshot.
   not the rows box or the frame's region vertically when the playhead is
   striking a row below the fold. Paint vs scroll inside it: the browser owns horizontal
   pans (`touch-action: pan-x`), a tap toggles, and a drag paints only once it
-  crosses a cell boundary — see `PhoneGrid.tsx`'s header.
+  crosses a cell boundary — see `PhoneGrid.tsx`'s header. On a **pitched** row
+  the step column carries the hit and the eight tiles take no pointer events at
+  all ([ADR 0060](../../docs/adr/0060-boop-pitched-lane-geometry.md)): aim a
+  test at the tile, but expect the column to receive it. The phone's vertical
+  axis inside the step window was always paint's, not scroll's, so the lane
+  needs no gesture of its own there
+  ([ADR 0063](../../docs/adr/0063-boop-pitched-lane-on-the-phone.md)) - but the
+  column reports on `pointermove`, so a report of the cell a press started on is
+  not a crossing, and the column has to take the click a deferred tap ends in.
+  A **folded** row opens on a tap anywhere on its summary, and that handler is
+  an `onClick` for the same reason: on `pointerdown` a pan to the next bar would
+  open the row instead of panning (ADR 0061, as amended).
 - **The song bar is the home surface; the grid opens as a card**
   ([ADR 0035](../../docs/adr/0035-boop-song-bar-is-the-home-surface.md),
   superseding [ADR 0030](../../docs/adr/0030-boop-fixed-frame-one-scroller.md)
@@ -347,7 +399,10 @@ share-link snapshot.
   `public/kits/<kit>/kit.json` and dropping in files — never touching the
   engine. Nothing outside the manifest may enumerate instrument ids: an
   instrument's picker section is a manifest `group` for exactly that reason
-  ([ADR 0042 §6](../../docs/adr/0042-boop-dynamic-clip-rows.md)).
+  ([ADR 0042 §6](../../docs/adr/0042-boop-dynamic-clip-rows.md)). A **pitched**
+  instrument is the same deal: an optional `pitched` register in the entry plus
+  a root sample, never a code path, and `role: "melodic"` does not imply it
+  (ADR 0024, as amended 2026-09-17).
 - **Adding a database?** Follow
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only) —
   this is only expected for the share-link snapshot store, not the toy itself.

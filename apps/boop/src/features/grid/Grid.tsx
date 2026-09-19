@@ -1,11 +1,19 @@
 import { useMemo, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 
-import { STEPS_PER_PATTERN, type Kit, type Pattern } from '../../engine/sequencerEngine.ts'
+import { rowPitchMasks } from '../../engine/pitch.ts'
+import {
+  PITCHES_PER_LANE,
+  STEPS_PER_PATTERN,
+  type Kit,
+  type Pattern,
+} from '../../engine/sequencerEngine.ts'
 import { SCRUB_SEGMENT_ATTR, scrubKeyMove, useScrubDrag } from '../playhead/useScrubDrag.ts'
 import styles from './Grid.module.scss'
 import { rowColorVar } from './instrumentColors.ts'
+import { LaneSummary, PitchedLane, PitchedRail } from './PitchedLane.tsx'
 import { stepToBar, stepToCol } from './playheadMotion.ts'
 import { instrumentsById } from './rowInstruments.ts'
+import { useCollapsedRows } from './useCollapsedRows.ts'
 import { useDragPaint } from './useDragPaint.ts'
 import { useGridKeyboardNav } from './useGridKeyboardNav.ts'
 import { useLoadStagger } from './useLoadStagger.ts'
@@ -22,7 +30,12 @@ const STEPS = Array.from({ length: STEPS_PER_PATTERN }, (_, step) => step)
 export interface GridViewProps {
   kit: Kit
   pattern: Pattern
-  onToggleCell: (instrumentId: string, step: number) => void
+  /**
+   * Toggle a cell. `pitchIndex` addresses one note inside a pitched row's lane
+   * column and leaves the rest of the chord alone (pitched-lane spec §6);
+   * without it the whole column is meant, which is what a drum cell is.
+   */
+  onToggleCell: (instrumentId: string, step: number, pitchIndex?: number) => void
   /**
    * The playhead's column — the last step that sounded, or `null` when nothing
    * has yet. Since boop-playhead ticket 04 a stop is not one of those: the
@@ -115,11 +128,15 @@ export function Grid({
   const instruments = useMemo(() => instrumentsById(kit), [kit])
   const paint = useDragPaint({ onToggleCell, applyOnPointerDown: true })
   const staggerDelayFor = useLoadStagger(loadToken)
+  const isPitched = (rowIndex: number) =>
+    instruments.get(pattern[rowIndex]?.instrumentId ?? '')?.pitched !== undefined
+  const collapsedRows = useCollapsedRows()
   const keyboardNav = useGridKeyboardNav({
     rowCount: pattern.length,
     stepCount: STEPS_PER_PATTERN,
     onToggleCell,
     instrumentIdAt: (rowIndex) => pattern[rowIndex]?.instrumentId,
+    lanePitchesAt: (rowIndex) => (isPitched(rowIndex) ? PITCHES_PER_LANE : undefined),
   })
 
   // The clip rail (boop-playhead handoff, "Clip rail"): a tick per step on
@@ -221,9 +238,28 @@ export function Grid({
               if (!instrument) return null
               const rowStyle = { '--row-color': `var(${rowColorVar(rowIndex)})` } as CSSProperties
               const rowStrikeEpoch = rowStrikes[row.instrumentId] ?? 0
+              const pitched = instrument.pitched !== undefined
+              const collapsed = pitched && collapsedRows.isCollapsed(row.instrumentId)
+              const masks = pitched ? rowPitchMasks(row) : []
+              const name = (
+                <span
+                  key={rowStrikeEpoch}
+                  className={styles.nameBob}
+                  data-struck={rowStrikeEpoch > 0}
+                  data-testid={`row-label-${row.instrumentId}`}
+                >
+                  <span className={styles.name}>{instrument.name}</span>
+                </span>
+              )
 
               return (
-                <div key={row.instrumentId} className={styles.row} style={rowStyle}>
+                <div
+                  key={row.instrumentId}
+                  className={styles.row}
+                  style={rowStyle}
+                  data-pitched={pitched}
+                  data-collapsed={collapsed}
+                >
                   <div className={styles.rail}>
                     {/* The artwork is the row's instrument button (ticket 05,
                         spec §4): the thing that shows the sound is the thing
@@ -243,81 +279,114 @@ export function Grid({
                         }}
                       />
                     </button>
-                    <span
-                      key={rowStrikeEpoch}
-                      className={styles.nameBob}
-                      data-struck={rowStrikeEpoch > 0}
-                      data-testid={`row-label-${row.instrumentId}`}
-                    >
-                      <span className={styles.name}>{instrument.name}</span>
-                    </span>
-                  </div>
-                  <div className={styles.steps}>
-                    {groups.map((group) => (
-                      <div
-                        key={group}
-                        className={styles.group}
-                        data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                    {instrument.pitched ? (
+                      <PitchedRail
+                        instrumentId={row.instrumentId}
+                        instrumentName={instrument.name}
+                        pitched={instrument.pitched}
+                        masks={masks}
+                        collapsed={collapsed}
+                        onToggleCollapsed={() => collapsedRows.toggle(row.instrumentId)}
                       >
-                        {Array.from({ length: GROUP_SIZE }, (_, i) => {
-                          const step = group * GROUP_SIZE + i
-                          const on = row.steps[step] === true
-                          const underPlayhead = step === playheadStep
-                          const cellKey = `${row.instrumentId}:${step}`
-                          const strikeEpoch = cellStrikes[cellKey] ?? 0
-                          const mountDelay = staggerDelayFor(cellKey, step, on)
-                          return (
-                            <button
-                              key={step}
-                              type="button"
-                              className={styles.cell}
-                              data-parity={group % 2 === 0 ? 'even' : 'odd'}
-                              data-active={on}
-                              data-playhead={underPlayhead}
-                              data-testid={`cell-${row.instrumentId}-${step}`}
-                              aria-pressed={on}
-                              aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
-                              onPointerDown={(event) =>
-                                paint.onPointerDown(event, row.instrumentId, step, on)
-                              }
-                              onPointerEnter={(event) =>
-                                paint.onPointerEnter(event, row.instrumentId, step, on)
-                              }
-                              onClick={(event) => paint.onClick(event, row.instrumentId, step)}
-                              onKeyDown={(event) =>
-                                keyboardNav.onCellKeyDown(
-                                  event,
-                                  rowIndex,
-                                  step,
-                                  row.instrumentId,
-                                  on,
-                                )
-                              }
-                            >
-                              <span
-                                key={strikeEpoch}
-                                className={styles.squash}
-                                data-struck={strikeEpoch > 0}
-                                data-testid={`cell-squash-${row.instrumentId}-${step}`}
-                              >
-                                {on && (
-                                  <span
-                                    className={styles.cellArtwork}
-                                    style={{
-                                      maskImage: `url(${instrument.artwork})`,
-                                      WebkitMaskImage: `url(${instrument.artwork})`,
-                                      animationDelay:
-                                        mountDelay > 0 ? `${mountDelay}ms` : undefined,
-                                    }}
-                                  />
-                                )}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ))}
+                        {name}
+                      </PitchedRail>
+                    ) : (
+                      name
+                    )}
                   </div>
+                  {collapsed ? (
+                    <LaneSummary
+                      instrumentId={row.instrumentId}
+                      masks={masks}
+                      playheadStep={playheadStep}
+                      onExpand={() => collapsedRows.expand(row.instrumentId)}
+                    />
+                  ) : pitched ? (
+                    <PitchedLane
+                      instrumentId={row.instrumentId}
+                      instrumentName={instrument.name}
+                      masks={masks}
+                      playheadStep={playheadStep}
+                      paint={paint}
+                      onCellKeyDown={(event, step, pitchIndex, on) =>
+                        keyboardNav.onCellKeyDown(
+                          event,
+                          rowIndex,
+                          step,
+                          row.instrumentId,
+                          on,
+                          pitchIndex,
+                        )
+                      }
+                    />
+                  ) : (
+                    <div className={styles.steps}>
+                      {groups.map((group) => (
+                        <div
+                          key={group}
+                          className={styles.group}
+                          data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                        >
+                          {Array.from({ length: GROUP_SIZE }, (_, i) => {
+                            const step = group * GROUP_SIZE + i
+                            const on = row.steps[step] === true
+                            const underPlayhead = step === playheadStep
+                            const cellKey = `${row.instrumentId}:${step}`
+                            const strikeEpoch = cellStrikes[cellKey] ?? 0
+                            const mountDelay = staggerDelayFor(cellKey, step, on)
+                            return (
+                              <button
+                                key={step}
+                                type="button"
+                                className={styles.cell}
+                                data-parity={group % 2 === 0 ? 'even' : 'odd'}
+                                data-active={on}
+                                data-playhead={underPlayhead}
+                                data-testid={`cell-${row.instrumentId}-${step}`}
+                                aria-pressed={on}
+                                aria-label={`${instrument.name}, step ${step + 1}, ${on ? 'on' : 'off'}`}
+                                onPointerDown={(event) =>
+                                  paint.onPointerDown(event, row.instrumentId, step, on)
+                                }
+                                onPointerEnter={(event) =>
+                                  paint.onPointerEnter(event, row.instrumentId, step, on)
+                                }
+                                onClick={(event) => paint.onClick(event, row.instrumentId, step)}
+                                onKeyDown={(event) =>
+                                  keyboardNav.onCellKeyDown(
+                                    event,
+                                    rowIndex,
+                                    step,
+                                    row.instrumentId,
+                                    on,
+                                  )
+                                }
+                              >
+                                <span
+                                  key={strikeEpoch}
+                                  className={styles.squash}
+                                  data-struck={strikeEpoch > 0}
+                                  data-testid={`cell-squash-${row.instrumentId}-${step}`}
+                                >
+                                  {on && (
+                                    <span
+                                      className={styles.cellArtwork}
+                                      style={{
+                                        maskImage: `url(${instrument.artwork})`,
+                                        WebkitMaskImage: `url(${instrument.artwork})`,
+                                        animationDelay:
+                                          mountDelay > 0 ? `${mountDelay}ms` : undefined,
+                                      }}
+                                    />
+                                  )}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}

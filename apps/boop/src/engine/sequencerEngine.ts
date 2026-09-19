@@ -18,6 +18,26 @@ export const STEPS_PER_PATTERN = 16
  */
 export const DEFAULT_CLIP_ROWS = 6
 
+/**
+ * Cells in one **lane** - a pitched row's step column (pitched-lane spec §1).
+ * Eight of them are one major octave, do to high do, so runs resolve and known
+ * tunes are playable.
+ *
+ * **`pitchIndex` counts from the bottom, app-wide**: 0 is do, 7 is the high do
+ * an octave above it. The design handoff's hue ladder happens to table its
+ * colours from the top; that is converted at the ladder and nowhere else.
+ */
+export const PITCHES_PER_LANE = 8
+
+/**
+ * The **anchor pitch**, "so" - the middle of the lane, and the pitch a pitched
+ * instrument's root sample is recorded at (spec §3). Two rules hang off it:
+ * an on step carrying no note data reads as the anchor, and the anchor is
+ * transposed by zero semitones. Together they are why converting a one-note
+ * instrument leaves every saved boop and share link sounding byte-identical.
+ */
+export const ANCHOR_PITCH_INDEX = 4
+
 /** Tempo bounds the toy allows (design handoff: slider range 60–200). */
 export const MIN_BPM = 60
 export const MAX_BPM = 200
@@ -43,6 +63,32 @@ export type InstrumentRole = (typeof INSTRUMENT_ROLES)[number]
 export const INSTRUMENT_GROUPS = ['drums', 'notes', 'silly'] as const
 export type InstrumentGroup = (typeof INSTRUMENT_GROUPS)[number]
 
+/**
+ * What makes an instrument **pitched**: its row is a lane of
+ * `PITCHES_PER_LANE` cells rather than 16 on/off ones, and its one `sound` is
+ * repitched to play them (spec §3/§5).
+ *
+ * The config holds exactly one thing - the instrument's **register**, meaning
+ * what note its root sample actually is. Everything else about a lane is the
+ * same for every instrument and lives in `pitch.ts`: the sample is the anchor
+ * "so", the anchor is zero semitones, and the eight cells are the major scale
+ * around it. So the manifest never restates the ladder, it only says where the
+ * ladder sits, and `laneNoteMidi` is what puts the two together.
+ *
+ * `rootNote` is scientific pitch notation ("G3", middle C being C4) because
+ * that is what ticket 04 *measures* off the wav and what an author choosing a
+ * register by ear writes down; `rootMidi` is the same note parsed, so nothing
+ * downstream re-reads a string. The key the roster sits in is not recorded
+ * here - it is a property of the registers together, asserted over the shipped
+ * kit (C major, ADR 0065) rather than baked into the engine.
+ */
+export interface PitchedConfig {
+  /** Scientific pitch notation: the measured pitch of the instrument's `sound`. */
+  rootNote: string
+  /** `rootNote` as a MIDI note number - the form the arithmetic uses. */
+  rootMidi: number
+}
+
 /** One instrument as described by the kit manifest. `instrumentId` is opaque. */
 export interface KitInstrument {
   instrumentId: string
@@ -52,6 +98,14 @@ export interface KitInstrument {
   role?: InstrumentRole
   /** Optional like `role`: an entry without one is still pickable, just unsectioned. */
   group?: InstrumentGroup
+  /**
+   * Present iff this instrument plays a **lane**. Absent is one-note, exactly
+   * as every instrument was before the lane existed - and absent is what
+   * `role: 'melodic'` leaves it, because the role is picker taxonomy and says
+   * nothing about pitch (spec §3). Flagging an instrument is a manifest edit
+   * plus a sample file, never an engine change ("Kits are pure data").
+   */
+  pitched?: PitchedConfig
 }
 
 /**
@@ -65,9 +119,17 @@ export interface Kit {
   instruments: readonly KitInstrument[]
 }
 
-/** One instrument sounding on a step. An object so future fields (e.g. `note`) are additive. */
+/**
+ * One **note** sounding on a step: an instrument, and on a pitched row which of
+ * its lane cells was painted. A pitched column holding a chord of n notes is n
+ * hits, in ascending pitch order; `pitchIndex` is absent for a one-note row,
+ * and for a pitched row carrying no note data (the anchor - see
+ * `ANCHOR_PITCH_INDEX`), which is what keeps old boops byte-identical.
+ */
 export interface Hit {
   instrumentId: string
+  /** 0..`PITCHES_PER_LANE - 1`, counted from the bottom of the lane. */
+  pitchIndex?: number
 }
 
 /**
@@ -82,7 +144,11 @@ export interface BeatEvent {
   step: number
   /** AudioContext time at which this step sounds. */
   audioTime: number
-  /** Rows sounding on this step, in the pattern's own row order; possibly empty. */
+  /**
+   * Notes sounding on this step, in the pattern's own row order and, within a
+   * pitched row's column, ascending pitch; possibly empty. One hit per note,
+   * so a chord is several hits naming the same instrument.
+   */
   hits: readonly Hit[]
 }
 
@@ -96,10 +162,27 @@ export type TransportEvent =
  */
 export type AudioState = 'locked' | 'running' | 'interrupted'
 
-/** One instrument's 16 cells. */
+/**
+ * One instrument's 16 cells, and - on a pitched row - which notes each of them
+ * holds.
+ *
+ * `steps` is the **any-note projection**: `steps[s]` is on iff something
+ * sounds there. `pitches`, when present, is 16 bitmasks of pitch indexes, one
+ * per step, bit 0 = pitch index 0 = the bottom of the lane = do (the same
+ * shape the save format stores as hex - spec §4). The two must agree:
+ * `steps[s] === (pitches[s] !== 0)`, which `setPattern` enforces.
+ *
+ * `pitches` is **absent** on a one-note row - a drum has no lane, so there is
+ * nothing to say - and absent on a pitched row that has never had a note
+ * painted on it, where every on step reads as `ANCHOR_PITCH_INDEX` and sounds
+ * the root sample untransposed. A row therefore only grows the field when a
+ * pitch is actually chosen, and one-note rows are byte-identical to before
+ * pitch existed.
+ */
 export interface PatternRow {
   readonly instrumentId: string
   readonly steps: readonly boolean[]
+  readonly pitches?: readonly number[]
 }
 
 /**
@@ -139,14 +222,26 @@ export interface SequencerEngine {
    * Toggle one cell. Turning a cell on while stopped auditions the sample —
    * that is engine-internal, callers do not trigger sound themselves. Throws
    * for an instrument this pattern has no row for: cells belong to rows.
+   *
+   * `pitchIndex` addresses **one note inside a lane column** (0..7 from the
+   * bottom): turning it on *adds* that note, leaving the rest of the column
+   * sounding, because a column is a chord (spec §6); turning it off removes
+   * only that note, and the step clears once the last one goes. The audition
+   * sounds the pitch that was tapped. Out of range, it throws like `step`.
+   *
+   * Omitting it addresses the **whole column**, which is what a drum cell, a
+   * drag-to-erase and Clear grid all mean: off clears every note in it, and on
+   * paints the anchor pitch (`ANCHOR_PITCH_INDEX`) - the untransposed sample,
+   * so a one-note row behaves exactly as it always has.
    */
-  setCell(instrumentId: string, step: number, on: boolean): void
+  setCell(instrumentId: string, step: number, on: boolean, pitchIndex?: number): void
   /**
    * Replace the whole grid - the row set included, which is how rows are
    * added, removed, reordered or swapped (loading a clip, a saved boop, a
    * share link). Rejected, leaving the grid untouched, if the list is empty,
-   * names an instrument twice, names one the kit does not have, or carries a
-   * row that is not `STEPS_PER_PATTERN` long.
+   * names an instrument twice, names one the kit does not have, carries a row
+   * that is not `STEPS_PER_PATTERN` long, or carries `pitches` that are not
+   * `STEPS_PER_PATTERN` masks of lane bits projecting onto its own `steps`.
    */
   setPattern(pattern: Pattern): void
 
@@ -159,8 +254,12 @@ export interface SequencerEngine {
    * synchronously - audition-on-toggle behaves the same way. An instrument the
    * kit does not know is ignored rather than thrown: a tap must never crash
    * the toy.
+   *
+   * `pitchIndex` is the pitched lane's tap-to-hear: the note that cell holds,
+   * rather than the root sample. A pitch outside the lane is ignored the same
+   * way an unknown instrument is.
    */
-  audition(instrumentId: string): void
+  audition(instrumentId: string, pitchIndex?: number): void
 
   /**
    * Unlock audio (must be called from a user gesture) and start the loop —

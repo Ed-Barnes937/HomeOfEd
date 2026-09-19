@@ -1,6 +1,6 @@
 # 01 - Idea: instruments with notes (pitch)
 
-**Status:** ready-for-human
+**Status:** resolved
 **Type:** grilling
 **Reported:** 2026-09-06, Ed - "just a sparky idea", parked deliberately
 
@@ -25,5 +25,23 @@ Grounding for that conversation:
 Questions to shape: who is it for (the kid mashing, or an older kid
 composing)? Does it live inside a clip or as a new clip type? What does the
 grid look like on a phone?
+
+## Answer
+
+The shaping conversation happened: a claude.ai/design exploration produced a
+high-fidelity handoff (`docs/reference/design_handoff_pitched_lane/`), and the
+2026-09-17 grill session settled every open question. Of the three shapes
+this ticket sketched, the one that won is the **per-row note lane** (8
+stacked cells per step, height = pitch, one major octave do-to-do) - not
+scale-locked rows and not a new clip type; it lives inside a clip as an
+ordinary row. Pitch is produced by playback-rate shifting one root sample
+(this ticket's "cheap, kid-simple" instinct, confirmed by research against
+tone 15.1.22). The gain-budget worry was real: 8-note chords break the
+per-voice measurement and get their own re-pin ticket. The phone-grid
+question is in scope, engineering-led with a kick-back-to-design tripwire.
+
+Spec and build tickets: `.scratch/pitched-instruments/` (spec.md + issues
+01-10). Roster: trumpet, bass, piano new; marimba and boop converted with
+old saves sounding byte-identical.
 
 ## Comments
