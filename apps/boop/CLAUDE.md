@@ -102,7 +102,9 @@ src/
                                   and a tap on it opens the row
                                   (ADR 0061); laneGeometry.ts is its hit bands,
                                   laneSummary.ts the pebble and contour
-                                  arithmetic, solfege.ts its note names
+                                  arithmetic, solfege.ts what a screen reader
+                                  hears, noteNames.ts what the gutter shows
+                                  (ADR 0065)
                     useDragPaint.ts  latched drag-paint, shared by both
   features/boops/   BoopsPanel.tsx — the "My boops" dialog: the always-on save
                     form (ticket 32), the list, per-row load/rename/delete/export;

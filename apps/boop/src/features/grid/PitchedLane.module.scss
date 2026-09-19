@@ -1,9 +1,9 @@
 // The pitched lane (design handoff docs/reference/design_handoff_pitched_lane,
 // rescaled onto boop's own step columns per pitched-lane spec §2: the columns
 // stay 52px / 42px / the phone's 32px and only the lane's internals move). Each
-// breakpoint is a set of custom properties on `.lane` / `.summary`, mirrored in
-// `laneGeometry.ts` - though the component measures the rendered lane rather
-// than trusting either. The phone's are `PhoneGrid`'s (ADR 0063).
+// breakpoint is a set of custom properties on `.lane` / `.summary` / `.gutter`,
+// mirrored in `laneGeometry.ts` - though the component measures the rendered
+// lane rather than trusting either. The phone's are `PhoneGrid`'s (ADR 0063).
 
 // The collapsed summary, on the drum cell's own box (ticket 07). The pebble
 // numbers are mirrored in `laneSummary.ts`.
@@ -25,14 +25,32 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
     0 6px 14px rgba(0, 0, 0, 0.45);
 }
 
+// The tile ladder. The lane draws it and the name gutter beside it has to agree
+// with it exactly, and they are in two different trees on the phone - so the
+// numbers are a mixin rather than a set each (ADR 0063 §3's rule, one level up).
+@mixin lane-tiles {
+  --lane-cell-height: 24px;
+  --lane-cell-gap: 4px;
+
+  @media (max-width: 1279px) {
+    --lane-cell-height: 20px;
+  }
+
+  // Derived from the row height `PhoneGrid` gives both of its columns, so the
+  // rail and the lane cannot disagree about how tall a pitched row is.
+  @media (max-width: 1023px) {
+    --lane-cell-height: calc((var(--pitched-row-height, 156px) - 7 * var(--lane-cell-gap)) / 8);
+  }
+}
+
 // The negative margin cancels the padding, so the lane's columns sit flush
 // with the drum columns above instead of inset by the plate.
 .lane {
+  @include lane-tiles;
+
   --lane-gutter: 18px;
   --lane-column-gap: 8px;
   --lane-column-width: 52px;
-  --lane-cell-height: 24px;
-  --lane-cell-gap: 4px;
   --lane-pad-x: 8px;
   --lane-pad-y: 8px;
   --lane-radius: 16px;
@@ -41,18 +59,13 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
     --lane-gutter: 14px;
     --lane-column-gap: 6px;
     --lane-column-width: 42px;
-    --lane-cell-height: 20px;
     --lane-pad-x: 6px;
   }
 
-  // Derived from the row height `PhoneGrid` gives both of its columns, so the
-  // rail and the lane cannot disagree about how tall a pitched row is.
   @media (max-width: 1023px) {
     --lane-gutter: 11px;
     --lane-column-gap: 5px;
     --lane-column-width: 32px;
-    --lane-cell-gap: 4px;
-    --lane-cell-height: calc((var(--pitched-row-height, 156px) - 7 * var(--lane-cell-gap)) / 8);
     // No horizontal bleed: the strip is exactly 605px wide and a plate wider
     // than it would give the step window scroll it must not have.
     --lane-pad-x: 0px;
@@ -207,8 +220,8 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
     inset 0 1px 0 rgba(255, 255, 255, 0.38);
 }
 
-// The mini four-bar contour the rail shows in place of the pitch key. A bar
-// with no notes keeps a stub, so four bars are always countable.
+// The mini four-bar contour the rail shows once the row is folded. A bar with
+// no notes keeps a stub, so four bars are always countable.
 .contour {
   display: flex;
   align-items: flex-end;
@@ -237,8 +250,8 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
   }
 }
 
-// The rail's own column: the name, then the pitch key or the contour with the
-// chevron pushed to the far edge (ADR 0061).
+// The rail's own column: the name, then the chevron at the far edge with the
+// contour beside it once the row is folded (ADR 0061, ADR 0065).
 .railStack {
   flex: 1;
   display: flex;
@@ -256,8 +269,8 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
 .toggle {
   flex: none;
   margin-left: auto;
-  // Beside the name while the lane is open (the pitch key below it is 130px
-  // tall), centred on the contour once the row is a single strip.
+  // Under the name while the lane is open, centred on the contour once the row
+  // is a single strip.
   align-self: center;
   width: 44px;
   height: 44px;
@@ -287,48 +300,54 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
   }
 }
 
-// The rail's pitch legend (design handoff, "Pitched row, expanded"): the only
-// pitch key there is - no note names.
-.pitchKey {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
+// The note-name gutter (ADR 0065), the rail's last column. It hangs into the
+// gap between the rail and the lane's plate (`--lane-name-hang`) and pulls the
+// rail's own gap in (`--lane-name-inset`), so the name above it keeps the width
+// ADR 0061 sized the rail for. `--lane-name-lift` is the rail's top padding
+// (Grid.module.scss), cancelled so the first label starts where the tiles do.
+.gutter {
+  @include lane-tiles;
 
-  // On the phone the key is the rail's last line, so it takes what the chevron
-  // and the row's name leave rather than a height of its own.
-  @media (max-width: 1023px) {
-    flex: 1;
-    min-height: 0;
-  }
-}
-
-.legendEdge {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  line-height: 10px;
-  letter-spacing: 0.06em;
-  color: rgba(242, 239, 230, 0.6);
-}
-
-// The handoff's 110px, kept where the lane is its 188px and scaled with the
-// lane where it is taller: the gradient reads against the tiles beside it.
-.legendBar {
-  flex: none;
-  width: 4px;
-  height: 130px;
-  margin: 2px 0;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #ffeed2, #b87a1e);
+  --lane-name-width: 16px;
+  --lane-name-hang: 8px;
+  --lane-name-inset: 6px;
+  --lane-name-lift: 6px;
+  --lane-name-size: 12px;
 
   @media (max-width: 1279px) {
-    height: 110px;
+    --lane-name-width: 12px;
+    --lane-name-hang: 6px;
+    --lane-name-size: 10px;
   }
 
+  // The phone's rail arranges the gutter itself, so nothing to cancel here.
   @media (max-width: 1023px) {
-    flex: 1;
-    height: auto;
-    min-height: 0;
+    --lane-name-hang: 2px;
+    --lane-name-inset: 0px;
+    --lane-name-lift: 0px;
   }
+
+  flex: none;
+  align-self: stretch;
+  width: var(--lane-name-width);
+  margin-top: calc(-1 * var(--lane-name-lift));
+  margin-left: calc(-1 * var(--lane-name-inset));
+  margin-right: calc(-1 * var(--lane-name-hang));
+  display: flex;
+  flex-direction: column;
+  gap: var(--lane-cell-gap);
+}
+
+// Right-aligned, so a name sits against the tile it belongs to whether it is a
+// letter or a letter and an accidental. The legend's own colour and face - the
+// contrast the handoff measured (spec §7).
+.noteName {
+  flex: none;
+  height: var(--lane-cell-height);
+  line-height: var(--lane-cell-height);
+  text-align: right;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--lane-name-size);
+  color: rgba(242, 239, 230, 0.6);
 }

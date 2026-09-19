@@ -3,6 +3,7 @@ import type { Locator } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
+import { PITCHES_PER_LANE } from '../engine/sequencerEngine.ts'
 import { PHONE_STRIP_WIDTH } from '../features/grid/phoneWindow.ts'
 import { parseSaveDocument, SONG_POSITIONS, type StoredBoop } from '../persistence/saveFormat.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
@@ -300,6 +301,52 @@ export class HomePagePom extends BasePage {
     label: string,
   ): Promise<void> {
     await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute('aria-label', label)
+  }
+
+  // ---- The note-name gutter (pitched-lane ticket 15, ADR 0065) ----
+
+  laneGutter(instrumentId: string) {
+    return this.page.getByTestId(`lane-gutter-${instrumentId}`)
+  }
+
+  laneNoteName(instrumentId: string, pitchIndex: number) {
+    return this.page.getByTestId(`lane-note-name-${instrumentId}-${pitchIndex}`)
+  }
+
+  /** The eight names the gutter prints, low note first. */
+  async verifyLaneNoteNames(instrumentId: string, names: readonly string[]): Promise<void> {
+    for (const [pitchIndex, name] of names.entries()) {
+      await expect(this.laneNoteName(instrumentId, pitchIndex)).toHaveText(name)
+    }
+  }
+
+  /**
+   * Every name is on its own tile, and left of it. The gutter is in the rail's
+   * tree and the tiles are in the lane's - on the phone those are the pinned
+   * column and the scrolling one - so lining up is a claim, not a given.
+   */
+  async verifyNoteNamesAlignToTiles(instrumentId: string, step = 0): Promise<void> {
+    for (let pitchIndex = 0; pitchIndex < PITCHES_PER_LANE; pitchIndex += 1) {
+      const name = await this.boxOf(this.laneNoteName(instrumentId, pitchIndex))
+      const tile = await this.boxOf(this.laneCell(instrumentId, step, pitchIndex))
+      expect(Math.round(name.y + name.height / 2)).toBe(Math.round(tile.y + tile.height / 2))
+      expect(Math.round(name.height)).toBe(Math.round(tile.height))
+      expect(name.x + name.width).toBeLessThanOrEqual(tile.x)
+    }
+  }
+
+  /** The gutter costs the rail's name nothing (ADR 0061 §5 - names are never truncated). */
+  async verifyRailNameClearsTheGutter(instrumentId: string): Promise<void> {
+    const text = await this.boxOf(
+      this.page.getByTestId(`row-label-${instrumentId}`).locator('span').first(),
+    )
+    const gutter = await this.boxOf(this.laneGutter(instrumentId))
+    expect(text.x + text.width).toBeLessThanOrEqual(gutter.x)
+  }
+
+  /** Where the gutter sits, so a test can show a sideways scroll left it alone. */
+  async readNoteGutterLeft(instrumentId: string): Promise<number> {
+    return (await this.boxOf(this.laneGutter(instrumentId))).x
   }
 
   // ---- The collapsed lane (pitched-lane ticket 07) ----
