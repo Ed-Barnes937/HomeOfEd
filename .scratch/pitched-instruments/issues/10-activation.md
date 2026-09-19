@@ -168,22 +168,29 @@ touched to hide it, for the reason ticket 14 gave: the rise is phase
 coincidence, a 1ms front trim swings it between 2.74 and 3.30, and picking the
 trim that lands it low is tuning to the test.
 
-The wider point is that this is not a new class of problem. The loudest thing
-the app can already build is **1.111 on drums alone with no pitch involved**;
-activation adds a fifth case over 1.0 to a list that had two, and every case the
-search actually looks for came *down* with the real samples. ADR 0062 and ticket
-09 both landed on peak control as the fix and both put it out of scope. I have
-done the same rather than escalating it as a blocker on this ticket, but it is
-now the third time it has come up, so **it wants a ticket of its own** and that
-is a call for you and Ed rather than for me.
+The wider point is that this is not a new class of problem, and activation does
+not create the loudest case. I re-ran `measureChordLevels.mjs` on the activated
+manifest: the hill-climbing search over which rows are on, with no pitch
+involved anywhere, reaches **3.849 raw = 1.155**, which is 1.1 dB above the case
+this ticket is accused of introducing. That figure did move - ADR 0065 had it at
+3.703 - for the honest reason that three more voices can now be rows. The shaped
+chord search came *down* to 3.477 (1.043) from 3.787.
+
+ADR 0062 and ticket 09 both landed on peak control as the fix and both put it
+out of scope. I have done the same rather than escalating it as a blocker on
+this ticket, but it is now the third time it has come up, so **it wants a ticket
+of its own** and that is a call for you and Ed rather than for me.
 
 ### What else moved, and why
 
 - **Nothing outside `kit.json` lists which instruments are pitched.**
   `kitLevels.test.ts`'s `PITCHED_IDS` is gone, `pitchedRoots.test.ts`'s
   `REGISTERS` is gone, the same list in `renderSequence.test.ts` is gone, and
-  `renderLaneAudition.mjs` reads the manifest too. Roster count 20 -> 23,
-  picker groups 10 / 6 / 4 -> 10 / 9 / 4.
+  `renderLaneAudition.mjs`, `measureChordLevels.mjs` and
+  `measureExportAliasing.mjs` read the manifest too. Roster count 20 -> 23,
+  picker groups 10 / 6 / 4 -> 10 / 9 / 4. `measureChordLevels.mjs` needed it:
+  it added its three unlisted voices on top of the manifest, so after activation
+  it would have measured 26 voices with three counted twice.
 - **`samplePattern`'s trap is closed structurally**, not by care: it spreads the
   authored row over the blank one instead of naming `instrumentId` and `steps`,
   so a `pitches` added to `SampleRowSteps` later cannot be dropped there. The

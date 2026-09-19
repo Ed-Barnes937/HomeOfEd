@@ -101,11 +101,18 @@ constant chosen here would be tuning to the test.
 
 More to the point, this is not a new class of problem. The app has no peak
 control, only gain staging sized against a representative case, and the loudest
-thing it can already build is **1.111 on drums alone with no pitch involved**.
-Activation adds a fifth case above 1.0 to a list that already had two, and every
-case the search actually looks for came *down* with the real samples. Peak
-control is what would fix all of them, it is what ADR 0062 and ticket 09 both
-concluded, and it is a separate piece of work rather than a constant in this PR.
+thing it can build involves no pitch at all: `measureChordLevels.mjs` re-run on
+the activated manifest hill-climbs to **3.849 raw, 1.155 after `MASTER_GAIN`**,
+on a 19-row subset with every row playing one plain voice. That figure moved
+from ADR 0065's 3.703 for the honest reason that three more voices can now be
+rows, and it is still 1.1 dB above the case this ticket is accused of
+introducing. The shaped-chord search came *down* with the real samples, to 3.477
+(1.043) from 3.787.
+
+So activation adds one more case over 1.0 to a list that already had two, and
+does not create the loudest of them. Peak control is what would fix all of them,
+it is what ADR 0062 and ticket 09 both concluded, and it is a separate piece of
+work rather than a constant in this PR.
 
 ### The default clip keeps exactly one lane, and that is not an accident
 
@@ -129,9 +136,13 @@ instruments are reached the way any other sound is: through the picker.
   replaced by the register table it was always going to become.
 - **Nothing outside `kit.json` lists which instruments are pitched any more.**
   `kitLevels.test.ts`'s `PITCHED_IDS`, `pitchedRoots.test.ts`'s `REGISTERS`, the
-  same list in `renderSequence.test.ts`, and `renderLaneAudition.mjs`'s copy all
-  read the manifest instead. That is "kits are pure data" reaching the last
-  places that had a private copy of the roster.
+  same list in `renderSequence.test.ts`, and the copies in
+  `renderLaneAudition.mjs`, `measureChordLevels.mjs` and
+  `measureExportAliasing.mjs` all read the manifest instead. That is "kits are
+  pure data" reaching the last places that had a private copy of the roster, and
+  `measureChordLevels.mjs` actually needed it: it added its three unlisted
+  voices on top of the manifest, so after activation it would have measured a
+  26-voice roster with three of them counted twice.
 - **`semitonesForInstrument` returns `number | undefined`.** Every caller has to
   say what it means for an instrument with no lane, which is the point; the two
   that mix audio answer it the same way, by sounding the column once.

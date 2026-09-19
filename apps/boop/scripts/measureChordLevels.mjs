@@ -6,8 +6,8 @@
  *
  * Raw sums, the `kitLevels.test.ts` way: every voice normalised to 0.5, hits
  * landing on every 16th at 200 bpm (the top of the tempo range), peak read off
- * the sum before any master gain. Registers come from the table below rather
- * than kit.json, which stays dormant until ticket 10 (ADR 0065).
+ * the sum before any master gain. The roster and which of it is pitched come
+ * from kit.json, which has carried both since ticket 10 (ADR 0065, ADR 0067).
  *
  * The worst case is searched, not assumed: every one of the 255 chords is
  * scanned per instrument, and the strongest few are then combined across the
@@ -28,14 +28,6 @@ const BARS = 4
 /** Strongest chords per instrument carried into the joint search, plus the full lane. */
 const CANDIDATES_PER_INSTRUMENT = 4
 
-/** ADR 0065's registers - the four instruments ticket 10 will flag pitched. */
-const PITCHED = [
-  { id: 'marimba', rootNote: 'G4' },
-  { id: 'trumpet', rootNote: 'G4' },
-  { id: 'piano', rootNote: 'G3' },
-  { id: 'doublebass', rootNote: 'G2' },
-]
-
 /** Candidate per-note gains for a column of n notes. */
 const EXPONENTS = [0, 0.25, 0.5, 0.6, 0.75, 1]
 
@@ -43,14 +35,11 @@ const publicDir = fileURLToPath(new URL('../public/', import.meta.url))
 const manifest = JSON.parse(readFileSync(`${publicDir}kits/launch/kit.json`, 'utf8'))
 const roster = manifest.instruments.map((instrument) => ({
   id: instrument.instrumentId,
+  rootNote: instrument.pitched?.rootNote,
   samples: readWav(readFileSync(publicDir + instrument.sound.slice(1))),
 }))
-const newVoices = ['trumpet', 'piano', 'doublebass'].map((id) => ({
-  id,
-  samples: readWav(readFileSync(`${publicDir}kits/launch/sounds/${id}.wav`)),
-}))
-/** What ticket 10 activates: today's manifest plus the three new instruments. */
-const activated = [...roster, ...newVoices]
+/** The pitched voices, in manifest order - ADR 0065's registers, read not listed. */
+const PITCHED = roster.filter((voice) => voice.rootNote !== undefined)
 const pitchedIds = new Set(PITCHED.map((p) => p.id))
 const lanes = new Map(
   PITCHED.map(({ id }) => [
@@ -61,11 +50,12 @@ const lanes = new Map(
   ]),
 )
 
-process.stdout.write(`roster today ${roster.length} instruments, activated ${activated.length}\n\n`)
+process.stdout.write(
+  `roster ${roster.length} instruments, ${PITCHED.length} of them pitched\n\n`,
+)
 
 process.stdout.write('baselines - one voice per instrument, no chords\n')
-report('  roster today, dense', peakOf(dense(roster.map((v) => v.samples))))
-report('  activated roster, dense', peakOf(dense(activated.map((v) => v.samples))))
+report('  whole roster, dense', peakOf(dense(roster.map((v) => v.samples))))
 
 process.stdout.write('\nstrongest chords per instrument, unscaled, onset-aligned\n')
 const candidates = new Map()
@@ -80,7 +70,7 @@ for (const { id } of PITCHED) {
 }
 
 /** The unpitched rows, solid - the fixed part of every combination below. */
-const fixed = dense(activated.filter((v) => !pitchedIds.has(v.id)).map((v) => v.samples))
+const fixed = dense(roster.filter((v) => !pitchedIds.has(v.id)).map((v) => v.samples))
 
 process.stdout.write('\ncalibration - how much a search beats the all-rows-solid case, drums only\n')
 const drumSearch = searchDrumSubset()
@@ -95,7 +85,7 @@ process.stdout.write('  (a) every lane cell painted   (b) the loudest of 625 cho
 for (const exponent of EXPONENTS) {
   const full = peakOf(
     dense(
-      activated.flatMap((v) => (pitchedIds.has(v.id) ? notesOf(v.id, FULL_LANE_MASK, exponent) : [v.samples])),
+      roster.flatMap((v) => (pitchedIds.has(v.id) ? notesOf(v.id, FULL_LANE_MASK, exponent) : [v.samples])),
     ),
   )
   const worst = searchWorstCase(exponent)
@@ -108,7 +98,7 @@ for (const exponent of EXPONENTS) {
 
 process.stdout.write('\nif every voice on disk were pitched and playing the full lane\n')
 for (const exponent of EXPONENTS) {
-  const lanesEverywhere = activated.flatMap(({ samples }) => {
+  const lanesEverywhere = roster.flatMap(({ samples }) => {
     const gain = PITCHES_PER_LANE ** -exponent
     return [...MAJOR_SCALE_SEMITONES.keys()].map((pitchIndex) =>
       repitch(samples, semitonesFromAnchor(pitchIndex)).map((s) => s * gain),
@@ -161,7 +151,7 @@ function loudestChordOfSize(id, n) {
 }
 
 function sampleFor(id) {
-  const found = activated.find((v) => v.id === id)
+  const found = roster.find((v) => v.id === id)
   if (!found) throw new Error(`no sample for ${id}`)
   return found.samples
 }
@@ -248,9 +238,9 @@ function searchWorstCase(exponent) {
 }
 
 /**
- * The loudest subset of today's 20 drum rows, by hill-climbing on/off flips.
- * The existing 3.1 budget was measured with every row solid and no search at
- * all, so this says how much stricter a searched worst case is.
+ * The loudest subset of the roster's rows, by hill-climbing on/off flips. The
+ * pinned budget was measured with every row solid and no search at all, so this
+ * says how much stricter a searched worst case is.
  */
 function searchDrumSubset() {
   const trains = roster.map((v) => dense([v.samples]))
