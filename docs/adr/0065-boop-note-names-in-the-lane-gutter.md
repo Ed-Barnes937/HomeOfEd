@@ -74,6 +74,11 @@ steps out from under it.
   the plate and the chevron and the laptop had 21px of slack, so both are
   comfortable. A pitched instrument with a name longer than "Marimba" would be
   the first thing to break, and the test says so out loud.
+- All twelve keys come out as clean single-accidental scales, with one seam: the
+  tonic's spelling is chosen by pitch class, not by how the manifest wrote the
+  root. A `Db` register therefore prints its anchor as `C#`. Same note, other
+  spelling, and the only fix would be a rule about which enharmonic a register
+  meant - not worth it for a kit whose roots are ours to choose.
 - The phone's rail is two columns now rather than three stacked lines. The
   gutter is pinned with the rail because a gutter inside the step window would
   scroll away from the cells it names, and because the strip is exactly 605px

@@ -349,6 +349,13 @@ export class HomePagePom extends BasePage {
     return (await this.boxOf(this.laneGutter(instrumentId))).x
   }
 
+  /** The gutter is decoration - hidden, and with nothing inside it to land on. */
+  async verifyNoteGutterIsOutOfTheA11yTree(instrumentId: string): Promise<void> {
+    const gutter = this.laneGutter(instrumentId)
+    await expect(gutter).toHaveAttribute('aria-hidden', 'true')
+    await expect(gutter.locator('button, a, input, [tabindex], [role]')).toHaveCount(0)
+  }
+
   // ---- The collapsed lane (pitched-lane ticket 07) ----
 
   laneToggle(instrumentId: string) {

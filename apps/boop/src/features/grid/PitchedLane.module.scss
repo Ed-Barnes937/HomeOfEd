@@ -327,6 +327,9 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
     --lane-name-lift: 0px;
   }
 
+  // It overhangs its column and answers to nothing, so it must not be able to
+  // take a press meant for the chevron beside it or the plate it reaches over.
+  pointer-events: none;
   flex: none;
   align-self: stretch;
   width: var(--lane-name-width);

@@ -146,3 +146,30 @@ change, and the preferences UI Ed parked is the only missing piece.
 **Verify loop:** `pnpm lint`, `pnpm typecheck`, `pnpm --filter boop run test`
 (309 tests) all green. New tests: 5 unit in `noteNames.test.ts`, 3 iwft at
 laptop, 1 at tablet, 1 on the phone (the pinning one).
+
+### 2026-09-19 - Review pass, and the gutter stops taking presses
+
+A second agent reviewed the branch with no context but the ticket, the spec and
+the ADRs. No blockers; all eight acceptance criteria met. It mutation-tested the
+two claims worth doubting and both bit: swapping `laneNoteMidi(pitched, 0)` for
+`pitched.rootMidi` (the "read the root, not the anchor" bug) failed four of the
+five unit tests, and widening the gutter's inset until it reached the row's name
+failed `verifyRailNameClearsTheGutter`.
+
+One thing came back worth fixing, and it is fixed: **the gutter now takes no
+pointer events.** It hangs over the gap beside the chevron and reaches toward
+the lane's plate, and `aria-hidden` says nothing about hit-testing - so a strip
+nothing can see could still have swallowed a press. The reviewer showed it: with
+the inset widened it did exactly that to the chevron. `pointer-events: none` is
+the same answer `.cell` already gives for the same reason (ADR 0060 §4), one
+line, and it closes the class rather than the instance.
+
+Also sharpened while there: the a11y assertion is now
+`verifyNoteGutterIsOutOfTheA11yTree`, which checks `aria-hidden` **and** that the
+gutter holds nothing focusable - the shape `verifyFoldedRowIsOneControl` already
+uses for the folded row, and a real claim rather than the "no button named C"
+line it replaces. ADR 0065 gained a consequence naming the one seam in the
+spelling: a tonic is spelled by pitch class, so a `Db` register prints its anchor
+as `C#`.
+
+Verify loop re-run after the fix: 309 tests green, lint and typecheck clean.

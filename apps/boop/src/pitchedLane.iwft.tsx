@@ -182,8 +182,7 @@ test('the gutter is decoration: a cell is still announced once, in solfège', as
   await root.verifyIsShown()
   await root.startBlank()
 
-  await expect(root.laneGutter(LANE)).toHaveAttribute('aria-hidden', 'true')
-  await expect(page.getByRole('button', { name: 'C', exact: true })).toHaveCount(0)
+  await root.verifyNoteGutterIsOutOfTheA11yTree(LANE)
   await root.verifyNoteLabel(LANE, 0, 0, 'do, step 1, off')
 
   // A folded row has no tiles to name, so it has no gutter either.
