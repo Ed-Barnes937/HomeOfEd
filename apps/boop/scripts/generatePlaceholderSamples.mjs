@@ -8,10 +8,10 @@
  *   node apps/boop/scripts/generatePlaceholderSamples.mjs           # the 14 new voices
  *   node apps/boop/scripts/generatePlaceholderSamples.mjs zap drip  # named voices
  *
- * **Why the default is not "all 20".** Ten of the definitions below no longer
- * match the file on disk, so a bare run rebuilds only the fourteen that do.
- * Naming one of the other ten on the command line does overwrite it, and
- * deliberately - don't, unless a ticket asks for it.
+ * **Why the default is not every voice.** Nine of the twenty-three definitions
+ * below no longer match the file on disk, so a bare run rebuilds only the
+ * fourteen that do. Naming one of the other nine on the command line does
+ * overwrite it, and deliberately - don't, unless a ticket asks for it.
  *
  * - The classic six came from ticket 18's generator, which was never
  *   committed; the six here are ticket 12's originals (the ATTRIBUTION entry

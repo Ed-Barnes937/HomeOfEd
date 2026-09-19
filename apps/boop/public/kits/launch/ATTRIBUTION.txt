@@ -220,6 +220,6 @@ sounds/*.wav - the other nineteen
   the roster and its file did change, which is the one user-audible thing in
   ticket 14.
 
-  The generator's `voices` map holds all twenty definitions, but a bare run
-  rebuilds only the fourteen it still matches; see its header for which ten it
+  The generator's `voices` map holds twenty-three definitions, but a bare run
+  rebuilds only the fourteen it still matches; see its header for which nine it
   does not and why. The recipes above are the record of what shipped.
