@@ -340,3 +340,90 @@ test('a reload opens every row again, and collapsing never reached the save', as
   await root.verifyLaneExpanded(LANE)
   await root.verifyNoteOn(LANE, 7, 2)
 })
+
+// ---- Swapping the row's sound keeps its melody (ticket 13) ----
+//
+// The flattening this fixes is only visible as a lane: the masks survived or
+// did not, and a swapped row that lost them draws every on step mid-lane at
+// the anchor. `bell` is the second lane, and `cowbell` the drum on the far
+// side of the same swap.
+
+test('swapping one lane for another carries the melody, chords and all', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, [LANE, 'bell'])
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  // A contour that reads as a tune: a low note, a two-note chord, a high one.
+  await root.paintNote(LANE, 0, 0)
+  await root.paintNote(LANE, 4, 2)
+  await root.paintNote(LANE, 4, 7)
+  await root.paintNote(LANE, 9, 5)
+
+  await root.openRowInstrumentPicker(LANE)
+  await root.chooseInstrument('bell')
+  await root.closeInstrumentPicker()
+
+  await root.verifyIsLane('bell')
+  await root.verifyNoteOn('bell', 0, 0)
+  await root.verifyNoteOn('bell', 4, 2)
+  await root.verifyNoteOn('bell', 4, 7)
+  await root.verifyNoteOn('bell', 9, 5)
+  // The flattening's signature: every on step sitting at the anchor would put
+  // a note here on all three.
+  await root.verifyNoteOff('bell', 0, 4)
+  await root.verifyNoteOff('bell', 4, 4)
+  await root.verifyNoteOff('bell', 9, 4)
+})
+
+test('swapping a lane for a drum keeps the rhythm and writes no notes', async ({
+  mountApp,
+  page,
+}) => {
+  await routePitchedKit(page, LANE)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.paintNote(LANE, 2, 1)
+  await root.paintNote(LANE, 6, 7)
+
+  await root.openRowInstrumentPicker(LANE)
+  await root.chooseInstrument('cowbell')
+  await root.closeInstrumentPicker()
+
+  await root.verifyCellOn('cowbell', 2)
+  await root.verifyCellOn('cowbell', 6)
+  await root.verifyCellOff('cowbell', 0)
+
+  // A drum has no lane to hold them, so the row it becomes is the row a drum
+  // has always been on disk (spec §3).
+  await root.waitForAutosavedCell('cowbell', 2)
+  const working = await root.readAutosavedGrid()
+  expect(working?.patterns[0]?.rows.find((r) => r.instrumentId === 'cowbell')).toEqual({
+    instrumentId: 'cowbell',
+    steps: '0010001000000000',
+  })
+})
+
+test('swapping a drum for a lane leaves its steps at the anchor', async ({ mountApp, page }) => {
+  await routePitchedKit(page, 'bell')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.startBlank()
+
+  await root.dragPaint('kick', [1, 5])
+
+  await root.openRowInstrumentPicker('kick')
+  await root.chooseInstrument('bell')
+  await root.closeInstrumentPicker()
+
+  await root.verifyIsLane('bell')
+  await root.verifyNoteOn('bell', 1, 4)
+  await root.verifyNoteOn('bell', 5, 4)
+  await root.verifyNoteOff('bell', 1, 0)
+  await root.verifyNoteOff('bell', 0, 4)
+})

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { createSequencerEngine } from '../engine/createSequencerEngine.ts'
-import { pitchMask } from '../engine/pitch.ts'
+import { pitchMask, rowPitchMasks } from '../engine/pitch.ts'
 import {
   ANCHOR_PITCH_INDEX,
   blankPattern,
@@ -63,6 +63,30 @@ const roster: Kit = {
     artwork: `${id}.svg`,
     sound: `${id}.wav`,
   })),
+}
+
+/**
+ * The same roster with two of its instruments flagged as lanes. Nothing in the
+ * shipped kit is pitched yet (spec §11 - ticket 10 is the activation), so a
+ * swap between two lanes has to make its own pair; `bell` is outside the
+ * default six, which is what makes it a legal target.
+ */
+const pitchedRoster: Kit = {
+  ...roster,
+  instruments: [
+    ...roster.instruments.map((instrument) =>
+      instrument.instrumentId === 'marimba'
+        ? { ...instrument, pitched: { rootNote: 'G3', rootMidi: 55 } }
+        : instrument,
+    ),
+    {
+      instrumentId: 'bell',
+      name: 'bell',
+      artwork: 'bell.svg',
+      sound: 'bell.wav',
+      pitched: { rootNote: 'G4', rootMidi: 67 },
+    },
+  ],
 }
 
 function row(instrumentId: string, ...onSteps: number[]) {
@@ -549,6 +573,42 @@ describe('swapRowInstrument', () => {
   it('refuses an index the clip has no row at', () => {
     expect(swapRowInstrument(roster, rowSong, DEFAULT_CLIP_ROWS, 'clap')).toBe(rowSong)
     expect(swapRowInstrument(roster, rowSong, -1, 'clap')).toBe(rowSong)
+  })
+
+  // Ticket 13: the swap used to rebuild the row as `{ instrumentId, steps }`,
+  // so a painted melody came out the far side as sixteen anchor notes. Both
+  // lanes are the same eight degrees, so the masks carry across untouched.
+  describe('across a lane', () => {
+    it('carries a melody, chords and all, between two pitched instruments', () => {
+      const tune = pitched('marimba', { 0: [0], 4: [2, 7], 9: [5] })
+      const song = singleClipSong([row('kick', 0), tune], 100)
+
+      const rows = activeClip(swapRowInstrument(pitchedRoster, song, 1, 'bell')).pattern
+
+      expect(rows[1]).toEqual(pitched('bell', { 0: [0], 4: [2, 7], 9: [5] }))
+    })
+
+    // Spec §3: a drum has no lane, so the field goes - and the row it leaves
+    // behind has to be the one a row that never had pitches would write.
+    it('drops the notes on the way to a one-note instrument', () => {
+      const song = singleClipSong([pitched('marimba', { 2: [0], 6: [7] })], 100)
+
+      const rows = activeClip(swapRowInstrument(pitchedRoster, song, 0, 'cowbell')).pattern
+
+      expect(rows[0]!.pitches).toBeUndefined()
+      expect(patternToStored(rows)).toEqual(patternToStored([row('cowbell', 2, 6)]))
+    })
+
+    it('leaves the field absent coming the other way, so the steps sound the anchor', () => {
+      const song = singleClipSong([row('kick', 1, 5)], 100)
+
+      const rows = activeClip(swapRowInstrument(pitchedRoster, song, 0, 'marimba')).pattern
+
+      expect(rows[0]!.pitches).toBeUndefined()
+      expect(rowPitchMasks(rows[0]!)).toEqual(
+        rowPitchMasks(pitched('marimba', { 1: [ANCHOR_PITCH_INDEX], 5: [ANCHOR_PITCH_INDEX] })),
+      )
+    })
   })
 })
 

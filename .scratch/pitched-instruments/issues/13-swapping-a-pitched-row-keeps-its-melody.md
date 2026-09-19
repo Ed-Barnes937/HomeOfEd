@@ -1,6 +1,6 @@
 # 13 - Swapping a pitched row keeps its melody
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Blocked by:** nothing - the defect is on main today, dormant
 
 **This is a defect in the epic's own work, not a new feature.** Found by Ed
@@ -46,19 +46,93 @@ ticket 10 does not have to re-check.
 
 Acceptance criteria:
 
-- [ ] Swapping a pitched instrument for another pitched instrument preserves
+- [x] Swapping a pitched instrument for another pitched instrument preserves
       every painted note at its own degree, chords included.
-- [ ] Swapping a pitched instrument for a one-note one drops `pitches`, and
+- [x] Swapping a pitched instrument for a one-note one drops `pitches`, and
       the resulting row is byte-identical in `saveFormat` to a row that never
       had pitches (spec §3's guarantee reaches this path too).
-- [ ] Swapping a one-note instrument for a pitched one yields a row with
+- [x] Swapping a one-note instrument for a pitched one yields a row with
       `pitches` absent, whose on-steps sound the root sample untransposed.
-- [ ] An iwft covering the swap through the UI, since the flattening is only
+- [x] An iwft covering the swap through the UI, since the flattening is only
       visible as a lane: paint a contour, swap, see the contour survive.
-- [ ] The other row-rebuilding paths are audited and the finding recorded.
-- [ ] Full verify loop.
+- [x] The other row-rebuilding paths are audited and the finding recorded.
+- [x] Full verify loop.
 
 **Dormancy holds (spec §11).** Nothing here flags an instrument or touches
 `kit.json`. The defect is unreachable on main until ticket 10 activates the
 roster, which is the only reason it is not urgent - but it must land **before**
 activation, or the first kid to browse instruments by ear loses their tune.
+
+## Comments
+
+**2026-09-19 - built. Status: ready-for-human (Ed's play check below).**
+
+`swapRowInstrument` now looks the target instrument up rather than merely
+asking whether the roster has it, and hands the row to a five-line
+`swappedRow`. The rule is one line: `pitches` travels iff the new instrument
+plays a lane. That is not three cases with a shared branch - it is one
+predicate that happens to give the right answer in all four directions,
+because a row arriving from a one-note instrument has no `pitches` to carry in
+the first place. The masks go across untouched: degree 3 is degree 3 on either
+lane (ADR 0059's ladder is the same shape in any register), so there is no
+transposition, and pitch is still read only through `pitch.ts`.
+
+`rosterHas` was kept, expressed as `rosterInstrument(...) !== undefined`, so
+`addRow`'s guard reads the same as it did.
+
+**Mutation-checked.** With the carrying branch deleted - the exact line that
+was on main - the new iwft fails at the first note, `verifyNoteOn('bell', 0,
+0)` reading `data-active="false"`, and the two direction-guard unit tests stay
+green. So the tests pin the defect and not merely the shape of the code.
+
+**What the tests are.** Three unit cases in `song.test.ts` under a new
+`across a lane` describe, over a `pitchedRoster` that flags `marimba` and adds
+a pitched `bell` (nothing on main is pitched - spec §11 - so a swap between
+two lanes has to make its own pair). The pitched-to-one-note case asserts
+through `patternToStored`, which is the byte-identity criterion said in the
+form the save format actually writes. Three iwfts at the bottom of
+`pitchedLane.iwft.tsx`, because the flattening is only visible as a lane: a
+contour of a low note, a two-note chord and a high one survives
+marimba -> bell, and each of the three on steps is asserted *absent* at the
+anchor, which is the flattening's signature. The lane -> drum test reads the
+autosaved row back out of `localStorage` and expects exactly
+`{ instrumentId, steps }` - no `pitches` key.
+
+**The audit ticket 10 does not have to redo.** Every path that constructs a
+`PatternRow` rather than passing one through:
+
+| Path | `pitches` | Verdict |
+| --- | --- | --- |
+| `song.ts` `mergeRows` | unioned via `rowPitchMasks` | correct - the precedent this fix followed |
+| `song.ts` `swapRowInstrument` | was dropped | **the defect; fixed** |
+| `song.ts` `addRow` | omitted | correct - a fresh row has nothing painted, and the field is absent until a note is |
+| `saveFormat.ts` `rowToStored` | branches on presence, derives `steps` from it | correct |
+| `saveFormat.ts` `storedToPattern` (incl. the all-rows-dropped fallback) | kept absent when the document has none; the fallback is `blankPattern` | correct |
+| `sequencerEngine.ts` `blankPattern` | omitted | correct - same reason as `addRow` |
+| `HomePage.tsx` `clearedPattern` ("Clear grid") | dropped | correct *and deliberate*: no on steps means no notes, and absent is the canonical form for that |
+| `sampleClips.ts` `samplePattern` | dropped | correct today - see the watch-item below |
+| `HomePage.tsx` `copyClip`, `withActivePattern`, `addClip`, `deleteClip`, `renameClip`, `moveClip`, `removeRow`, `singleClipSong` | pattern passed by reference | nothing rebuilt, nothing to lose |
+
+`export/`, `share/` and `songConductor.ts` construct no rows at all; they take
+patterns whole or go through `saveFormat.ts`.
+
+**One watch-item for ticket 10.** `samplePattern` rebuilds a sample clip's
+rows as `{ instrumentId, steps }` off `blankPattern`, matched by position. That
+is right while every authored sample clip is step-only, which they all are. If
+activation ever gives a sample clip a melody - a "Twinkle" starter, say - that
+line drops it the same way this one did, and `SampleRowSteps` would need a
+notes field first. Nothing to do now; it is a trap with a trigger, not a bug.
+
+**Dormancy holds.** No manifest entry is flagged, `kit.json` is untouched, and
+the two test kits that flag anything are a page-level `page.route` patch and a
+literal in a unit test. The shipped roster has no lane, so this changes nothing
+a child can reach until ticket 10.
+
+**Verify loop:** `pnpm lint`, `pnpm typecheck`, `pnpm --filter boop run test`
+all green - 613 unit, 307 iwft.
+
+**For Ed, by hand, and only after ticket 10 activates the roster:** paint a
+tune on marimba, open the picker from the rail, and tap through two or three
+other lane instruments by ear. The tune should stay put at its own degrees each
+time, and tapping a drum should leave the rhythm with the notes gone rather
+than a row of mid-lane notes.
