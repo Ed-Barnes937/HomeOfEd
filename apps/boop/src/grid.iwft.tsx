@@ -73,9 +73,9 @@ test('toggling a cell on while stopped plays its sample immediately (audition)',
   await root.pressPlay()
   await root.verifyPaused()
 
-  await root.toggleCell('marimba', 7)
-  await root.verifyCellOn('marimba', 7)
-  await root.verifyPlayed([{ instrumentId: 'marimba', audioTime: undefined }])
+  await root.toggleCell('tom', 7)
+  await root.verifyCellOn('tom', 7)
+  await root.verifyPlayed([{ instrumentId: 'tom', audioTime: undefined }])
 })
 
 test('dragging across cells paints them on, latched from the first cell', async ({ mountApp }) => {

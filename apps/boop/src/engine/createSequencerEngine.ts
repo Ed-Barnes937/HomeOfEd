@@ -7,7 +7,7 @@ import {
   pitchMask,
   pitchesInMask,
   rowPitchMasks,
-  semitonesFromAnchor,
+  semitonesForInstrument,
 } from './pitch.ts'
 import {
   blankPattern,
@@ -20,6 +20,7 @@ import {
   type BeatEvent,
   type Hit,
   type Kit,
+  type KitInstrument,
   type Pattern,
   type SequencerEngine,
   type TransportEvent,
@@ -36,7 +37,7 @@ export interface SequencerEngineOptions {
  * cell tap is audible. The **whole roster** is preloaded, not just the rows a
  * clip happens to hold (ADR 0042): rows change under a child's finger and the
  * picker auditions instruments no clip has yet, so anything less would be
- * silence at the tap. They are 20 short one-shots.
+ * silence at the tap. They are 23 short one-shots.
  */
 export async function createSequencerEngine({
   kit,
@@ -72,8 +73,12 @@ class BoopSequencerEngine implements SequencerEngine {
    * wholesale by `setPattern`: that is how a row set changes.
    */
   private rows: Map<string, EngineRow>
-  /** The roster, for the id checks. `kit.instruments` stays the enumeration. */
-  private readonly kitIds: ReadonlySet<string>
+  /**
+   * The roster by id, for the id checks and for the one question playback asks
+   * of an instrument: whether the manifest gave it a register.
+   * `kit.instruments` stays the enumeration.
+   */
+  private readonly instruments: ReadonlyMap<string, KitInstrument>
   private readonly beatListeners = new Set<(event: BeatEvent) => void>()
   private readonly drawListeners = new Set<(event: BeatEvent) => void>()
   private readonly transportListeners = new Set<(event: TransportEvent) => void>()
@@ -104,7 +109,7 @@ class BoopSequencerEngine implements SequencerEngine {
     readonly kit: Kit,
     private readonly driver: AudioDriver,
   ) {
-    this.kitIds = new Set(kit.instruments.map((instrument) => instrument.instrumentId))
+    this.instruments = new Map(kit.instruments.map((i) => [i.instrumentId, i]))
     // A fresh grid is the roster's first six, empty - a starting point for the
     // child to change, not the shape of every clip. `blankPattern` is the one
     // place that says so, shared with clip creation (ADR 0042).
@@ -160,7 +165,7 @@ class BoopSequencerEngine implements SequencerEngine {
     const rows = new Map<string, EngineRow>()
     for (const row of pattern) {
       const { instrumentId, steps, pitches } = row
-      if (!this.kitIds.has(instrumentId)) {
+      if (!this.instruments.has(instrumentId)) {
         throw new Error(`unknown instrument "${instrumentId}" for this kit`)
       }
       if (rows.has(instrumentId)) {
@@ -182,10 +187,12 @@ class BoopSequencerEngine implements SequencerEngine {
   audition(instrumentId: string, pitchIndex?: number): void {
     // Called straight from a tap, so an id the kit does not know is ignored
     // rather than thrown (the contract says so). The driver would no-op anyway.
-    if (!this.kitIds.has(instrumentId)) return
+    const instrument = this.instruments.get(instrumentId)
+    if (!instrument) return
     // A pitch outside the lane is ignored the same way, for the same reason.
     if (pitchIndex !== undefined && !isPitchIndex(pitchIndex)) return
-    const semitones = pitchIndex === undefined ? undefined : semitonesFromAnchor(pitchIndex)
+    const semitones =
+      pitchIndex === undefined ? undefined : semitonesForInstrument(instrument, pitchIndex)
     if (this.driver.state() === 'running') {
       this.driver.play(instrumentId, undefined, semitones)
       return
@@ -323,9 +330,11 @@ class BoopSequencerEngine implements SequencerEngine {
     const hits: Hit[] = []
     for (const [instrumentId, row] of this.rows) {
       if (!row.steps[step]) continue
-      if (!row.pitches) {
-        // No notes of its own: the root sample, untransposed. A drum, or a
-        // pitched row still reading at the anchor (spec §3) - the same call.
+      const instrument = this.instruments.get(instrumentId)
+      if (!row.pitches || !instrument?.pitched) {
+        // No notes of its own: the root sample, untransposed. A drum, a pitched
+        // row still reading at the anchor (spec §3), or a one-note row carrying
+        // a newer build's melody (ADR 0067) - the same call for all three.
         hits.push({ instrumentId })
         this.driver.play(instrumentId, audioTime)
         continue
@@ -337,7 +346,7 @@ class BoopSequencerEngine implements SequencerEngine {
       const gain = chordGain(pitches.length)
       for (const pitchIndex of pitches) {
         hits.push({ instrumentId, pitchIndex })
-        this.driver.play(instrumentId, audioTime, semitonesFromAnchor(pitchIndex), gain)
+        this.driver.play(instrumentId, audioTime, semitonesForInstrument(instrument, pitchIndex), gain)
       }
     }
 
@@ -365,7 +374,7 @@ class BoopSequencerEngine implements SequencerEngine {
       // The kit knowing an instrument no longer means this clip has a row for
       // it, so the two failures read differently.
       throw new Error(
-        this.kitIds.has(instrumentId)
+        this.instruments.has(instrumentId)
           ? `instrument "${instrumentId}" is not a row of this pattern`
           : `unknown instrument "${instrumentId}" for this kit`,
       )

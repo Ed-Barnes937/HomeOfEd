@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -10,12 +10,12 @@ import { PITCHES_PER_LANE } from './sequencerEngine.ts'
 
 /**
  * Ticket 18's data-side check on the shipped launch kit's one-shots, extended
- * to the whole 20-instrument roster (instruments ticket 01): short, level-
- * capped, and no build-up when retriggered at the top of the tempo range.
+ * to the whole 23-instrument roster (instruments ticket 01, pitched-lane
+ * ticket 10): short, level-capped, and no build-up when retriggered at the top
+ * of the tempo range.
  *
- * The ids come from the manifest, never a list in here - kits are pure data
- * and nothing outside `kit.json` may enumerate instrument ids. `PITCHED_IDS`
- * below is the one exception, and only until ticket 10 flags them.
+ * Everything here comes from the manifest, never a list in this file - kits are
+ * pure data, and which instruments are pitched is now `kit.json`'s answer too.
  *
  * Kit data plus the one number the data has to fit under: `MASTER_GAIN`, the
  * master bus's headroom, which ticket 08 sized from the worst case measured
@@ -28,36 +28,33 @@ const STEP_SECONDS = 60 / 200 / 4 // one 16th note at 200 BPM
 /** Per-voice ceiling the generator normalises to, plus 16-bit rounding slack. */
 const VOICE_PEAK = 0.5 + 0.001
 /**
- * The manifest roster painted solid at 200 bpm, one voice each: measured 3.301
- * raw once marimba became a real xylophone recording (ADR 0065), up from 3.035
- * when it was synthesized. A struck bar's transient is 19.6 dB above its own
- * RMS and lands 5 ms in, right on the other voices' bodies - so this figure is
- * phase coincidence, not loudness, and trimming 1 ms off the front of the
- * sample swings it between 2.74 and 3.30. Still a tripwire against unnoticed
- * drift in a fixed set of files, but not a property of the kit.
+ * The manifest roster painted solid at 200 bpm, one voice each: measured 3.386
+ * raw now that activation has put 23 instruments in the manifest (ADR 0067),
+ * against 3.301 for the 20 that preceded it and 3.035 when marimba was still a
+ * synthesized tone. That is **1.016 after `MASTER_GAIN`**, so this case crosses
+ * full scale - deliberately, and with its reasoning in ADR 0067: the app has no
+ * peak control, two other cases already crossed before this ticket, and every
+ * case the search actually looks for came *down* with the real samples.
+ *
+ * A struck bar's transient is 19.6 dB above its own RMS and lands 5 ms in,
+ * right on the other voices' bodies - so the figure is phase coincidence, not
+ * loudness, and trimming 1 ms off the front of the marimba swings it between
+ * 2.74 and 3.30 (ADR 0065). Still a tripwire against unnoticed drift in a fixed
+ * set of files, but not a property of the kit.
  */
-const ROSTER_BUDGET = 3.31
+const ROSTER_BUDGET = 3.39
 /** The same roster on one step rather than a solid train - far less sensitive. */
-const SINGLE_HIT_BUDGET = 3.1
+const SINGLE_HIT_BUDGET = 3.12
 
 /**
- * The master bus's stated worst case: every row of the activated roster solid
- * at 200 bpm with every lane cell painted, measured 3.325 raw (ADR 0062) and
- * **3.088** on the real samples (ADR 0065) - a chord of real recordings adds
- * less coherently than a chord of synthesized tones. Held at 3.33 rather than
- * re-pinned down to the new figure, because it is what `MASTER_GAIN` is sized
- * against and 3.33 x 0.3 is already 0.999: tightening it would buy nothing and
- * would make the roster pin above the only thing with any slack.
+ * The master bus's stated worst case: every row of the roster solid at 200 bpm
+ * with every lane cell painted, measured 3.325 raw (ADR 0062) and **3.088** on
+ * the real samples (ADR 0065) - a chord of real recordings adds less coherently
+ * than a chord of synthesized tones. Held at 3.33 rather than re-pinned down to
+ * the new figure, because it is what `MASTER_GAIN` is sized against and
+ * 3.33 x 0.3 is already 0.999: tightening it would buy nothing.
  */
 const WORST_CASE_BUDGET = 3.33
-
-/**
- * The instruments ticket 10 flags `pitched`. They live here rather than coming
- * from the manifest because nothing in `kit.json` is flagged until then (spec
- * §11's dormancy); ADR 0065 holds their registers, which do not affect level -
- * the lane transposes by the same -7..+5 semitones whatever the root note is.
- */
-const PITCHED_IDS = ['marimba', 'trumpet', 'piano', 'doublebass']
 
 function readWav(buffer: Buffer): Float32Array {
   const dataIndex = buffer.indexOf('data')
@@ -142,18 +139,19 @@ const FULL_LANE = (1 << PITCHES_PER_LANE) - 1
 describe('launch kit one-shot levels', () => {
   const publicDir = fileURLToPath(new URL('../../public/', import.meta.url))
 
-  async function roster(): Promise<{ id: string; samples: Float32Array }[]> {
+  async function roster(): Promise<{ id: string; pitched: boolean; samples: Float32Array }[]> {
     const kit = parseKitManifest(JSON.parse(await readFile(`${publicDir}kits/launch/kit.json`, 'utf8')))
     return Promise.all(
       kit.instruments.map(async (instrument) => ({
         id: instrument.instrumentId,
+        pitched: instrument.pitched !== undefined,
         samples: readWav(await readFile(publicDir + instrument.sound.slice(1))),
       })),
     )
   }
 
   it('covers every instrument the manifest lists', async () => {
-    expect((await roster()).length).toBe(20)
+    expect((await roster()).length).toBe(23)
   })
 
   it('each one-shot is short with no long tail (< 400ms)', async () => {
@@ -199,8 +197,9 @@ describe('launch kit one-shot levels', () => {
     const voices = await roster()
     // The stated worst case (ticket 08): the whole-roster union retriggering
     // on every 16th at the top of the tempo range, so tails overlap on top of
-    // the simultaneous sum. Measured: 3.301 raw - 1.0 dB above the
-    // single-step union, almost all of it the xylophone's mallet transient.
+    // the simultaneous sum. Measured: 3.386 raw across the activated 23 - 0.9
+    // dB above the single-step union, almost all of it the xylophone's mallet
+    // transient, and 1.016 once the master gain is applied (see ADR 0067).
     const dense = denseTrain(
       voices.map((v) => v.samples),
       4,
@@ -210,44 +209,38 @@ describe('launch kit one-shot levels', () => {
 
   describe('a chord of a pitched lane', () => {
     /**
-     * The voices ticket 10 activates: every one-shot in the kit's sounds
-     * directory, which is the manifest's 20 plus the three ticket 04 added and
-     * left unlisted. Read from disk rather than listed here, so activation does
-     * not change what this measures.
+     * Every voice solid at 200 bpm, each pitched one holding the lane mask
+     * `shape` gives it. Which voices those are comes from the manifest, so the
+     * measurement follows the roster rather than a list in this file.
      */
-    async function activatedVoices(): Promise<{ id: string; samples: Float32Array }[]> {
-      const soundsDir = `${publicDir}kits/launch/sounds/`
-      const files = (await readdir(soundsDir)).filter((f) => f.endsWith('.wav')).sort()
-      return Promise.all(
-        files.map(async (file) => ({
-          id: file.replace('.wav', ''),
-          samples: readWav(await readFile(soundsDir + file)),
-        })),
-      )
-    }
-
-    /** Every voice solid at 200 bpm, the pitched ones holding `shape`. */
     async function pitchedDense(
       shape: (id: string) => number,
       notes: (samples: Float32Array, mask: number) => Float32Array[] = chordOf,
     ): Promise<Float32Array> {
-      const voices = await activatedVoices()
-      expect(voices.map((v) => v.id)).toEqual(expect.arrayContaining(PITCHED_IDS))
+      const voices = await roster()
       return denseTrain(
-        voices.flatMap((v) => (shape(v.id) === 0 ? [v.samples] : notes(v.samples, shape(v.id)))),
+        voices.flatMap((v) => {
+          const mask = v.pitched ? shape(v.id) : 0
+          return mask === 0 ? [v.samples] : notes(v.samples, mask)
+        }),
         4,
       )
     }
 
-    const everyCell = (id: string): number => (PITCHED_IDS.includes(id) ? FULL_LANE : 0)
+    const everyCell = (): number => FULL_LANE
+
+    it('is offered by exactly the four instruments the manifest flags', async () => {
+      const pitched = (await roster()).filter((v) => v.pitched).map((v) => v.id)
+      expect(pitched).toEqual(['marimba', 'trumpet', 'piano', 'doublebass'])
+    })
 
     it('leaves a single note at full level, so a drum row is untouched', () => {
       expect(chordGain(1)).toBe(1)
     })
 
     it('makes a full lane bigger than one note but not louder, and never quieter', async () => {
-      for (const { id, samples } of await activatedVoices()) {
-        if (!PITCHED_IDS.includes(id)) continue
+      for (const { id, pitched, samples } of await roster()) {
+        if (!pitched) continue
         const chord = sumOf(chordOf(samples, FULL_LANE))
         // Upper bound: eight raw notes would peak at five voices, doublebass
         // loudest of all. Lower bound: adding notes must not duck the column.

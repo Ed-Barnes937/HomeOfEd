@@ -120,10 +120,14 @@ export const SAMPLE_CLIPS: readonly SampleClip[] = [
  * position past its end is dropped.
  */
 export function samplePattern(kit: Kit, rows: readonly SampleRowSteps[]): Pattern {
-  return blankPattern(kit).map((row, rowIndex) => ({
-    instrumentId: row.instrumentId,
-    steps: rows[rowIndex]?.steps ?? row.steps,
-  }))
+  // Spread the authored row over the blank one rather than naming its fields:
+  // rebuilding the row by hand is how `swapRowInstrument` used to lose a
+  // melody (pitched-lane ticket 13), and a `pitches` added to `SampleRowSteps`
+  // would be dropped here in exactly the same silent way.
+  return blankPattern(kit).map((row, rowIndex) => {
+    const authored = rows[rowIndex]
+    return authored === undefined ? row : { ...row, ...authored }
+  })
 }
 
 /** The sample clip a browser that has never been here opens on (spec §7). */

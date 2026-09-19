@@ -35,11 +35,13 @@ test('Enter toggles the focused cell on and off', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.toggleCellWithKeyboard('marimba', 3)
-  await root.verifyCellOn('marimba', 3)
+  // A drum row: marimba is a lane since activation (ticket 10) and its keyboard
+  // model is the lane's own, covered in `pitchedLane.iwft`.
+  await root.toggleCellWithKeyboard('snare', 3)
+  await root.verifyCellOn('snare', 3)
 
-  await root.toggleCellWithKeyboard('marimba', 3)
-  await root.verifyCellOff('marimba', 3)
+  await root.toggleCellWithKeyboard('snare', 3)
+  await root.verifyCellOff('snare', 3)
 })
 
 test('Backspace removes the focused cell, and does nothing to an already-off one', async ({

@@ -41,7 +41,8 @@
       "artwork": "/kits/launch/artwork/xylophone.svg",
       "sound": "/kits/launch/sounds/marimba.wav",
       "role": "melodic",
-      "group": "notes"
+      "group": "notes",
+      "pitched": { "rootNote": "G4" }
     },
     {
       "instrumentId": "boop",
@@ -130,6 +131,33 @@
       "sound": "/kits/launch/sounds/pluck.wav",
       "role": "melodic",
       "group": "notes"
+    },
+    {
+      "instrumentId": "trumpet",
+      "name": "Trumpet",
+      "artwork": "/kits/launch/artwork/trumpet.svg",
+      "sound": "/kits/launch/sounds/trumpet.wav",
+      "role": "melodic",
+      "group": "notes",
+      "pitched": { "rootNote": "G4" }
+    },
+    {
+      "instrumentId": "piano",
+      "name": "Piano",
+      "artwork": "/kits/launch/artwork/piano.svg",
+      "sound": "/kits/launch/sounds/piano.wav",
+      "role": "melodic",
+      "group": "notes",
+      "pitched": { "rootNote": "G3" }
+    },
+    {
+      "instrumentId": "doublebass",
+      "name": "Double bass",
+      "artwork": "/kits/launch/artwork/double-bass.svg",
+      "sound": "/kits/launch/sounds/doublebass.wav",
+      "role": "melodic",
+      "group": "notes",
+      "pitched": { "rootNote": "G2" }
     },
     {
       "instrumentId": "boing",

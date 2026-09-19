@@ -211,7 +211,12 @@ A row whose instrument the kit manifest flags `pitched`: it renders as a lane
 and its notes carry a pitch. Everything else about it is an ordinary row - the
 same 16 steps, bars, playhead, add/remove and layering. Being pitched is the
 instrument's property, so swapping a row's sound can change a row's kind; a
-`role: "melodic"` tag does not imply it.
+`role: "melodic"` tag does not imply it. The launch kit flags four - **marimba,
+trumpet, piano and doublebass** ([ADR 0067](../../docs/adr/0067-boop-the-pitched-roster-goes-live.md)) -
+and only marimba is in a fresh clip's six, which is what keeps the default clip
+inside the phone's vertical budget. The flag is the whole switch, so a row on
+any other instrument **ignores** pitch data it somehow carries and sounds its
+rhythm once per step on the base sample.
 _Avoid_: Melody row, note row, instrument row.
 
 **Pebble summary**:

@@ -1,6 +1,6 @@
 # 10 - Activation: four pitched instruments go live
 
-**Status:** ready-for-agent (merge gated ready-for-human: ear check + art eye)
+**Status:** ready-for-human - built, PR open, merge gated on Ed's ear check + art eye
 **Blocked by:** 02, 04, 05, 06, 07, 08, 09, 11, 12, 13, 14, 15
 
 **What to build:** The switch-flip. `kit.json` gains trumpet, piano and
@@ -86,23 +86,143 @@ Recorded as they surfaced, so activation does not rediscover them:
 
 Acceptance criteria:
 
-- [ ] A pre-epic save-document fixture (built from today's `saveFormat` output
+- [x] A pre-epic save-document fixture (built from today's `saveFormat` output
       with marimba rows) loads with every old hit at the anchor pitch; an
       offline render of that boop is sample-identical to the pre-epic render.
-- [ ] Old share links round-trip the same way.
-- [ ] Fresh-grid defaults, sample clips and the first-visit seed still make
+- [x] Old share links round-trip the same way.
+- [x] Fresh-grid defaults, sample clips and the first-visit seed still make
       sense, checked **on a phone** against the vertical budget above. Any
       change to the default rows is a decision to note here for Ed.
-- [ ] Picker: four pitched instruments appear in Notes with artwork; adding one
+- [x] Picker: four pitched instruments appear in Notes with artwork; adding one
       to a clip renders the lane; audition sounds the anchor.
-- [ ] `kitLevels.test.ts` roster and `PITCHED_IDS` updated; the chord budget
+- [x] `kitLevels.test.ts` roster and `PITCHED_IDS` updated; the chord budget
       still closes with the roster live.
 - [ ] Ear check (ticket 04's gate) and art eye check (ticket 05's gate) both
       passed by Ed - **this PR does not merge before both.**
-- [ ] Full verify loop plus a play-check script for Ed (what to tap, what to
+- [x] Full verify loop plus a play-check script for Ed (what to tap, what to
       listen for), per the house merge ritual.
 
 ## Comments
+
+### 2026-09-19 - built: the roster is live, and the three open calls are answered
+
+[ADR 0067](../../../docs/adr/0067-boop-the-pitched-roster-goes-live.md) holds the
+reasoning; this is the shape of it and the handover. Every acceptance criterion
+is met except the two human gates, which is why the PR is open and not merged.
+
+**The switch.** `kit.json` gains trumpet, piano and doublebass at the end of the
+`notes` group, and those three plus marimba carry ADR 0065's registers verbatim
+(G4, G4, G3, G2). Appended rather than inserted beside marimba, because the
+classic six lead the manifest and their positions are load-bearing -
+`blankPattern`, the authored sample clips and the positional hue cycle all read
+them. `bass` and `boop` are untouched.
+
+**Conversion acceptance is a test, not a claim.** `src/pitchedActivation.test.ts`
+holds a frozen pre-epic save document - two clips, marimba rows, the pre-layering
+`placements` form - and asserts four things about it: it re-serializes to the
+same bytes, its marimba row grows no `pitches` at decode and reads as the anchor
+at every on step, the engine hands the driver a call with no `semitones` and no
+`gain`, and an offline render is **sample-for-sample identical** to the same
+render through a kit with the `pitched` blocks stripped. The share link
+round-trips to the same document. The comparison is deliberately against this
+build one commit earlier rather than against pre-epic audio: marimba's sample
+changed in ticket 14, and folding that in would measure a decision Ed already
+took separately.
+
+### The three calls you asked me to bring back
+
+**1. The default clip on a phone - no change needed, and it is close.** Measured
+at 390x844 with the roster actually live: the default six rows are **484px of
+content in a 484px rows box**. It fits to the pixel and does not scroll, because
+marimba is the only pitched row in the default six. A second one would overflow
+- a seven-row clip with marimba and trumpet measures 646 against a 500px box -
+and pre-folding is impossible while collapse is unpersisted. So the recommendation
+is ship as is, and the measurement is now an iwft
+(`phonePitchedLane.iwft.tsx`, "the shipped default clip on a phone") rather than
+a number in a comment. Worth knowing: activation costs the default clip 112px, so
+at 640 and below the rows box scrolls where it previously scrolled less. It
+already scrolled there on all drums (372 into 320), so this is a degree, not a
+new behaviour, and `playBarPinned.iwft` still has clip play reachable at every
+height down to 380.
+
+**2. The ticket 03 carry-forward - ignored, not zeroed and not refused.**
+`semitonesForInstrument` now returns `number | undefined`, the engine and the
+offline render both call it, and an unflagged row sounds **once** per on step on
+the base sample whatever pitch data its column holds.
+
+Zero is the obvious reading and it is the wrong one: a column holding a chord
+would become several copies of one untransposed sample starting on the same
+frame, a coherent unison worth up to +9 dB that the `1/sqrt(n)` law is not sized
+for, because that law assumes the notes differ. Refusing in `setPattern` is
+worse still - the only way pitch data reaches a one-note row is a newer build's
+document, and `saveFormat`'s all-or-nothing decode would turn that into the loss
+of every boop the child has. Spec §4 had already ruled: a stale build "plays the
+rhythm on the base sample". One bonus over what §4 anticipated - the data
+survives the read, so a round trip through this build hands the melody back
+intact to the build that understands it.
+
+**3. The 1.016 finding - accepted, and peak control is worth chartering.**
+`ROSTER_BUDGET` moves 3.31 -> 3.39 because the case it measures is now the
+activated 23, measured 3.386 raw and 1.016 after `MASTER_GAIN`. No constant was
+touched to hide it, for the reason ticket 14 gave: the rise is phase
+coincidence, a 1ms front trim swings it between 2.74 and 3.30, and picking the
+trim that lands it low is tuning to the test.
+
+The wider point is that this is not a new class of problem. The loudest thing
+the app can already build is **1.111 on drums alone with no pitch involved**;
+activation adds a fifth case over 1.0 to a list that had two, and every case the
+search actually looks for came *down* with the real samples. ADR 0062 and ticket
+09 both landed on peak control as the fix and both put it out of scope. I have
+done the same rather than escalating it as a blocker on this ticket, but it is
+now the third time it has come up, so **it wants a ticket of its own** and that
+is a call for you and Ed rather than for me.
+
+### What else moved, and why
+
+- **Nothing outside `kit.json` lists which instruments are pitched.**
+  `kitLevels.test.ts`'s `PITCHED_IDS` is gone, `pitchedRoots.test.ts`'s
+  `REGISTERS` is gone, the same list in `renderSequence.test.ts` is gone, and
+  `renderLaneAudition.mjs` reads the manifest too. Roster count 20 -> 23,
+  picker groups 10 / 6 / 4 -> 10 / 9 / 4.
+- **`samplePattern`'s trap is closed structurally**, not by care: it spreads the
+  authored row over the blank one instead of naming `instrumentId` and `steps`,
+  so a `pitches` added to `SampleRowSteps` later cannot be dropped there. The
+  clips themselves are still step-only.
+- **Some suites moved off the marimba row**, which is a lane now: `grid.iwft`'s
+  audition, `keyboard.iwft`'s Enter and `firstVisit.iwft`'s tablet reset use a
+  drum instead, and `verifyGridIsSixBySixteen` counts a row's step column in
+  either shape. A twelve-row clip's arrow walk costs seven extra presses,
+  because down walks a lane's eight tiles before it leaves the row.
+
+**Verify loop:** `pnpm lint`, `pnpm typecheck`, `pnpm --filter boop run test` all
+green - 631 unit, 314 iwft.
+
+### The play check, once the ear check and the art check are done
+
+Fresh audition render at `~/Desktop/boop-lane-audition/` - an octave walk per
+instrument plus `ensemble.wav`. It is genuinely new work even though there was a
+preview: the samples are different, the key moved to C, and the double bass went
+from plucked to bowed.
+
+Then, in the app:
+
+1. **Open it cold.** The grid should show marimba as a lane and the other five
+   rows as cells, with `C D E F G A B C` down the lane's gutter. On a phone the
+   grid should not scroll at all at full height.
+2. **Load an old boop from My boops** (or open a share link you sent before this
+   week). Every marimba hit should sit mid-lane, on the "so" row, and the boop
+   should sound exactly as it did. This is the one thing the whole ticket is
+   about.
+3. **Add a sound** from the picker: Trumpet, Piano and Double bass are at the
+   bottom of Notes. Each should arrive as its own lane, and each lane's gutter
+   should read `C D E F G A B C` - the same letters at different octaves, which
+   is the point of the key.
+4. **Play a tune across all four.** Paint the same shape on each lane and listen
+   for whether they agree; then stack a chord in one column and check the level
+   does not jump.
+5. **Tap the double bass low** (the bottom two cells) on the tablet and then on
+   the phone speaker. Does it speak, or is it a rumble? This is the register
+   question ADR 0065 flagged and it is the one only you can answer.
 
 ### 2026-09-19 - Ed's play-through added three blockers, and the key changed
 
