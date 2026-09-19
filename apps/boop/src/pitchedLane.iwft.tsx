@@ -141,7 +141,7 @@ test('every lane cell is announced by its solfège name', async ({ mountApp, pag
   await root.verifyNoteLabel(LANE, 0, 0, 'do, step 1, off')
 })
 
-// ---- Note names in the gutter (ticket 15, ADR 0065) ----
+// ---- Note names in the gutter (ticket 15, ADR 0066) ----
 //
 // `routePitchedKit`'s root sits on the anchor "so" (spec §3), so the G3 the
 // other tests use is a lane in C major.

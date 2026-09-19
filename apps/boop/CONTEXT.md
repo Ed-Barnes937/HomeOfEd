@@ -228,7 +228,7 @@ are the other summaries, and neither is this), preview.
 **Note gutter**:
 The column of note names down the left of an open lane's cells, one per tile:
 letter names, no octave, derived from the instrument's own register so the
-manifest's key is the only key ([ADR 0065](../../docs/adr/0065-boop-note-names-in-the-lane-gutter.md)).
+manifest's key is the only key ([ADR 0066](../../docs/adr/0066-boop-note-names-in-the-lane-gutter.md)).
 It is what a child reads to play a song they know, it lives in the rail rather
 than the lane, and it is `aria-hidden` - a cell is announced in solfège, once.
 It replaced the HIGH/LOW gradient legend, so there is no **pitch key** any more.

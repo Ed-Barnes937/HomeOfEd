@@ -251,7 +251,7 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
 }
 
 // The rail's own column: the name, then the chevron at the far edge with the
-// contour beside it once the row is folded (ADR 0061, ADR 0065).
+// contour beside it once the row is folded (ADR 0061, ADR 0066).
 .railStack {
   flex: 1;
   display: flex;
@@ -300,7 +300,7 @@ $hues: #cc9b51, #d6ac6b, #e1bc85, #ebcd9f, #f5ddb8, #f9e3c3, #ffeed2, #fff5e4;
   }
 }
 
-// The note-name gutter (ADR 0065), the rail's last column. It hangs into the
+// The note-name gutter (ADR 0066), the rail's last column. It hangs into the
 // gap between the rail and the lane's plate (`--lane-name-hang`) and pulls the
 // rail's own gap in (`--lane-name-inset`), so the name above it keeps the width
 // ADR 0061 sized the rail for. `--lane-name-lift` is the rail's top padding

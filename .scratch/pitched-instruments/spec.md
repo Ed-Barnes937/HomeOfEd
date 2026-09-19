@@ -158,7 +158,7 @@ Per the handoff, on the rescaled geometry:
   ti, high do. Screen readers announce cell = "<solfège>, step N" (exact copy:
   ticket 06); the octave duplicate is "high do".
 - **Letter names are what the lane shows**, in a gutter down the left of the
-  cells (ticket 15, ADR 0065): one per tile, no octave number, derived from the
+  cells (ticket 15, ADR 0066): one per tile, no octave number, derived from the
   instrument's `rootNote` through `pitch.ts` so the manifest's key is the only
   key. It is `aria-hidden` - the cells already announce themselves, and a label
   per tile would read every cell twice. The gutter takes the rail's last column
@@ -193,7 +193,7 @@ fixed-frame rules (ADR 0030/0035) are unbreakable.
   turn 7 - explicitly not in the handoff).
 - User-settable octave/register, scales other than major, more than 8 cells.
 - Choosing between naming schemes. Note names in the UI **were** out of scope;
-  Ed reversed that and ticket 15 built the gutter (§7, ADR 0065). What stays out
+  Ed reversed that and ticket 15 built the gutter (§7, ADR 0066). What stays out
   is the preferences switch between letters and solfège - later, additive.
 - Persisting collapse state (additive later if wanted).
 - Converting any further one-note instruments (cheap follow-ups once the

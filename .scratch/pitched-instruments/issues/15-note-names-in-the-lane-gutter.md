@@ -93,7 +93,7 @@ touched, so this is invisible on main until ticket 10 activates the roster.
 
 **What landed.** `noteNames.ts` beside `solfege.ts` (eight letter names keyed by
 pitch index), `LaneGutter` in `PitchedLane.tsx`, and the gutter wired into both
-rails - `PitchedRail` at >=1024 and `PhoneGrid`'s own rail below it. ADR 0065
+rails - `PitchedRail` at >=1024 and `PhoneGrid`'s own rail below it. ADR 0066
 records the decisions; spec §7 and §10 are amended. Nothing is flagged `pitched`
 and `kit.json` is untouched, so it stays dormant on main (§11).
 
@@ -180,7 +180,7 @@ could still swallow a press. `pointer-events: none` is what `.cell` already does
 for the same reason (ADR 0060 §4). The a11y assertion is also sharper:
 `verifyNoteGutterIsOutOfTheA11yTree` checks `aria-hidden` **and** that nothing
 inside the gutter is focusable, the shape `verifyFoldedRowIsOneControl` uses for
-the folded row, rather than the "no button named C" line it replaces. ADR 0065
+the folded row, rather than the "no button named C" line it replaces. ADR 0066
 gained the one seam in the spelling: a tonic is spelled by pitch class, so a
 `Db` register prints its anchor as `C#`.
 
@@ -189,3 +189,13 @@ gained the one seam in the spelling: a tonic is spelled by pitch class, so a
 fails the name clearance; neutering `signedInterval` fails three of the five
 unit tests; the 7px rail gap above fails the chevron clearance. Verify loop
 after all of it: 309 tests, lint and typecheck green.
+
+### 2026-09-19 - The ADR is 0066, not 0065
+
+Ticket 14 landed `0065-boop-real-instrument-samples-in-c-major.md` in parallel.
+Different filenames, so git would have merged both without a word and left two
+ADR 0065s. Theirs keeps the number - it already carries ADR 0059's supersession
+marker and is cited from `pitch.ts`, `sequencerEngine.ts`, `kitLevels.test.ts`
+and ticket 10 - so the gutter's ADR is **0066**, here and in every reference.
+The two commits before this one still say 0065 in their messages; the files they
+touched do not.

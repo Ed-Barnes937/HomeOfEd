@@ -1,4 +1,4 @@
-# 0065 - boop: the note gutter is the pitch key
+# 0066 - boop: the note gutter is the pitch key
 
 - **Status:** Accepted
 - **Date:** 2026-09-19

@@ -303,7 +303,7 @@ export class HomePagePom extends BasePage {
     await expect(this.laneCell(instrumentId, step, pitchIndex)).toHaveAttribute('aria-label', label)
   }
 
-  // ---- The note-name gutter (pitched-lane ticket 15, ADR 0065) ----
+  // ---- The note-name gutter (pitched-lane ticket 15, ADR 0066) ----
 
   laneGutter(instrumentId: string) {
     return this.page.getByTestId(`lane-gutter-${instrumentId}`)

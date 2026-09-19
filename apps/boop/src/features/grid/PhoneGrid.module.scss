@@ -140,7 +140,7 @@ $lane-collapsed-row-height: 60px;
   gap: 7px;
 
   // A pitched row's rail is two columns: its own lines, and the note-name
-  // gutter pinned beside them (ADR 0063, ADR 0065). The gutter belongs here
+  // gutter pinned beside them (ADR 0063, ADR 0066). The gutter belongs here
   // rather than in the step window, which scrolls out from under the rail.
   // 92 = the 12px gutter less its 2px overhang, this gap, and the 79 the head
   // below spends. The rail has no slack left at this width, so the numbers have

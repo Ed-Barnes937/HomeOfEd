@@ -258,7 +258,7 @@ export function LaneToggle({
 }
 
 /**
- * The lane's note names, down the left of its cells (spec §7, ADR 0065): one
+ * The lane's note names, down the left of its cells (spec §7, ADR 0066): one
  * per tile, on the tile's own height, so the column reads as a scale. Letter
  * names derived from the instrument's own root, never a key written down here.
  *

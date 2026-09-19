@@ -149,7 +149,7 @@ test('the note names are pinned with the rail while the steps scroll out from un
   const pinned = await root.readNoteGutterLeft(LANE)
 
   // The gutter belongs to the rail, not the step window: a swipe to bar 3 must
-  // leave it where it was, still naming the tiles beside it (ADR 0065).
+  // leave it where it was, still naming the tiles beside it (ADR 0066).
   await root.swipeSteps(300)
   await root.verifyStepWindowAt(308)
   if ((await root.readNoteGutterLeft(LANE)) !== pinned) {
