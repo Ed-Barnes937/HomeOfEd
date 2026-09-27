@@ -1,8 +1,7 @@
 // Shared parent-gate: every parent screen calls this to redirect to
-// /parent/login when the session probe (parentSessionQueryOptions) rejects,
-// carrying the current screen as `redirect` so login returns here.
-// Returns the query state so pages can render a "Loading..." placeholder while
-// it settles (mirrors the source's `useParentSession` gate).
+// /parent/login (with the current screen as `redirect`) when the session probe
+// (parentSessionQueryOptions) rejects. Returns the query state so pages can
+// render a "Loading..." placeholder while it settles.
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'

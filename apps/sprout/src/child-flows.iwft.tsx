@@ -173,9 +173,7 @@ test('a deep link with a pre-selected child on a known device jumps straight to 
   await root.expectText('Hi, Alex!')
 })
 
-// Forgot password/PIN (ADR 0068): the child can't reset themselves, so the
-// device is handed to a grown-up who signs in, lands on the already-expanded
-// reset, confirms, and hands back.
+// ADR 0068: forgot → grown-up signs in → reset → hand back.
 test('a child who forgot their PIN gets a grown-up to reset it and logs back in', async ({
   mountApp,
 }) => {
@@ -225,6 +223,10 @@ test('a child who forgot their PIN gets a grown-up to reset it and logs back in'
   await root.fillByLabel('Choose a 4-digit PIN', '4242')
   await root.clickButton('Save and continue')
   await root.expectText('Start a new conversation')
+
+  // Handing back signed the grown-up out: parent screens bounce to login.
+  await root.goto('/parent/dashboard')
+  await expect(page.getByRole('heading', { name: 'Parent login' })).toBeVisible({ timeout: 10_000 })
 })
 
 test('forgot from the username screen sends the grown-up to the children list', async ({

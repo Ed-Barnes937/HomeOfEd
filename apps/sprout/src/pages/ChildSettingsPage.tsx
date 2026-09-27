@@ -203,7 +203,7 @@ export function ChildSettingsPage() {
               <>
                 <p className={styles.savedMessageTop}>
                   Password and PIN reset. {child.displayName}&apos;s password is now their
-                  username ({child.username}) — they&apos;ll choose a new password and PIN when
+                  username ({child.username}) - they&apos;ll choose a new password and PIN when
                   they next log in.
                 </p>
                 <Link

@@ -5,7 +5,7 @@
 // localStorage; the signed token is set as the child-session cookie by the
 // server in P5 (so subsequent child-scoped tRPC calls only authenticate once
 // that transport lands — flagged).
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
@@ -18,9 +18,11 @@ import {
   changePassword,
   deviceChildrenQueryOptions,
   establishChildSession,
+  type LoginResult,
   loginWithPassword,
   loginWithPin,
 } from '../features/childAuth/childAuth.ts'
+import { childResetPath } from '../lib/parentRedirect.ts'
 import { generateDeviceToken, getDeviceToken, setDeviceToken } from '../lib/deviceToken.ts'
 import styles from './ChildLoginPage.module.scss'
 
@@ -38,6 +40,7 @@ const errorMessage = (err: unknown): string =>
 
 export function ChildLoginPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { child: preselectChildId } = routeApi.useSearch()
   const [deviceToken, setDeviceTokenState] = useState<string | null>(() => getDeviceToken())
   const [modeOverride, setModeOverride] = useState<'pin' | 'password' | null>(null)
@@ -102,6 +105,14 @@ export function ChildLoginPage() {
     if (match) handleSelectChild(match)
   }, [preselectChildId, profiles, selectedChild, modeOverride])
 
+  // Cached queries belong to the previous identity (e.g. a grown-up who just
+  // reset this child), so they go before the child's home loads.
+  const enterAsChild = async (child: LoginResult['child'], token: string | undefined) => {
+    await establishChildSession(child, token)
+    queryClient.clear()
+    void navigate({ to: '/child/home' })
+  }
+
   const handlePinSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!selectedChild || !deviceToken) return
@@ -115,8 +126,7 @@ export function ChildLoginPage() {
           setLoading(false)
           return
         }
-        await establishChildSession(result.child, result.token)
-        void navigate({ to: '/child/home' })
+        await enterAsChild(result.child, result.token)
       } catch (err) {
         setError(errorMessage(err))
         setLoading(false)
@@ -145,8 +155,7 @@ export function ChildLoginPage() {
         }
         setDeviceToken(token)
         setDeviceTokenState(token)
-        await establishChildSession(result.child, result.token)
-        void navigate({ to: '/child/home' })
+        await enterAsChild(result.child, result.token)
       } catch (err) {
         setError(errorMessage(err))
         setLoading(false)
@@ -185,8 +194,7 @@ export function ChildLoginPage() {
           setDeviceTokenState(pendingChange.token)
         }
         // The initial-login token is still valid after the password change.
-        await establishChildSession(result.child, pendingChange.childToken)
-        void navigate({ to: '/child/home' })
+        await enterAsChild(result.child, pendingChange.childToken)
       } catch (err) {
         setError(errorMessage(err))
         setLoading(false)
@@ -266,9 +274,7 @@ export function ChildLoginPage() {
             <Link
               to="/parent/login"
               search={{
-                redirect: forgot.childId
-                  ? `/parent/children/${forgot.childId}?reset=1`
-                  : '/parent/children',
+                redirect: forgot.childId ? childResetPath(forgot.childId) : '/parent/children',
               }}
               className={buttonVariants({ size: 'lg' })}
             >

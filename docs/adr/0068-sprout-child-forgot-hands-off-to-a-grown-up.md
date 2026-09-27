@@ -47,6 +47,9 @@ reset the parent gets a "Hand back to <child>" link to `/child/login?child=<id>`
 - **Login clears the query cache.** Everything cached was fetched as the
   signed-out identity, including the parent gate's rejected probe, which would
   otherwise bounce the parent straight back to login from the redirect target.
+  Child login clears it too, for the same reason in reverse: the gate caches
+  its probe for five minutes, so without that a child could reopen the
+  grown-up's screens from cache right after the hand-back.
 - **Hand-back reuses the existing deep link.** `establishChildSession` already
   signs the parent out, and ADR 0037's picker sends the now PIN-less child to
   username/password login.

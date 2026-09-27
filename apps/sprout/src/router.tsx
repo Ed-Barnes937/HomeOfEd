@@ -56,9 +56,10 @@ const parentChildrenRoute = createRoute({
 const parentChildSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/parent/children/$childId',
-  // `?reset=1` (the child's "forgot" hand-off) opens the reset confirm expanded.
+  // `?reset=1` (lib/parentRedirect.childResetPath) opens the reset confirm expanded.
+  // TanStack re-validates its own output, so `true` must pass as well as `1`.
   validateSearch: (search: Record<string, unknown>): { reset?: boolean } => ({
-    reset: search.reset === 1 || search.reset === '1' || search.reset === true ? true : undefined,
+    reset: search.reset === 1 || search.reset === true ? true : undefined,
   }),
   component: ChildSettingsPage,
 })

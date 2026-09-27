@@ -7,9 +7,7 @@
 // harness uses a sprout-specific seam that decodes the role from an ENCODED id
 // (asParent/asChild in ./users.ts): 'parent:<id>' → parent, 'child:<id>:<pId>'
 // → child. That keeps mountApp({ user }) type-correct ({ id: string }) while
-// transporting the role the ownership checks need. A parent can also sign in
-// mid-test through `parentAuthRoute.ts`, whose cookie wins like prod's parent
-// session does.
+// transporting the role the ownership checks need.
 import {
   ConsoleLogger,
   createContext,
@@ -52,13 +50,11 @@ function readParentCookie(): string | null {
 }
 
 function sproutTestAuth(req: Request): AuthProvider {
+  // A mid-test parent sign-in (parentAuthRoute.ts) wins, like prod's parent session.
   const parentId = readParentCookie()
+  if (parentId) return { getUser: () => ({ id: parentId, role: 'parent' }) }
   const raw = req.headers.get(TEST_USER_HEADER)
-  const user: SproutUser | null = parentId
-    ? { id: parentId, role: 'parent' }
-    : raw
-      ? decodeSproutUser(raw)
-      : null
+  const user = raw ? decodeSproutUser(raw) : null
   return { getUser: () => user }
 }
 
