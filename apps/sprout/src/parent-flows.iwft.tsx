@@ -81,6 +81,46 @@ test('dashboard links to the child login for the active child, pre-selected', as
   await root.expectText('signs in as clara5678')
 })
 
+test('a child signs in from the parent account with just their PIN, even on a new device', async ({
+  mountApp,
+}) => {
+  const { root, page } = await mountApp({ user: asParent('p1'), seed: seedDashboard })
+  await root.goto('/child/login?child=11111111-1111-4111-8111-111111111111')
+
+  await root.expectText('Hi, Ben!')
+  await root.expectText('Enter your PIN.')
+  await expect(page.getByLabel('Password')).toHaveCount(0)
+
+  await root.fillByPlaceholder('****', '9999')
+  await root.clickButton('Go', { exact: true })
+  await root.expectText('Incorrect PIN.')
+
+  await root.fillByPlaceholder('****', '1234')
+  await root.clickButton('Go', { exact: true })
+  await root.expectText('Start a new conversation')
+})
+
+test('a parent-account sign-in for a child with a reset PIN falls back to password', async ({
+  mountApp,
+}) => {
+  const { root, page } = await mountApp({
+    user: asParent('p1'),
+    seed: async (db) => {
+      await db.execute(
+        `insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now())`,
+      )
+      await db.execute(
+        `insert into children (id, parent_id, display_name, username, password_hash, pin_hash, must_change_password, preset_name)
+         values ('11111111-1111-4111-8111-111111111111', 'p1', 'Ben', 'ben1234', 'test:ben1234', null, true, 'early-learner')`,
+      )
+    },
+  })
+  await root.goto('/child/login?child=11111111-1111-4111-8111-111111111111')
+
+  await expect(page.getByLabel('Password')).toBeVisible({ timeout: 10_000 })
+  await root.expectNotText('Enter your PIN.')
+})
+
 test('children list shows each child sign-in username', async ({ mountApp }) => {
   const { root } = await mountApp({ user: asParent('p1'), seed: seedDashboard })
   await root.goto('/parent/children')

@@ -21,6 +21,8 @@ import {
   type LoginResult,
   loginWithPassword,
   loginWithPin,
+  loginWithPinFromParent,
+  parentChildProfileQueryOptions,
 } from '../features/childAuth/childAuth.ts'
 import { childResetPath } from '../lib/parentRedirect.ts'
 import { generateDeviceToken, getDeviceToken, setDeviceToken } from '../lib/deviceToken.ts'
@@ -45,6 +47,9 @@ export function ChildLoginPage() {
   const [deviceToken, setDeviceTokenState] = useState<string | null>(() => getDeviceToken())
   const [modeOverride, setModeOverride] = useState<'pin' | 'password' | null>(null)
   const [selectedChild, setSelectedChild] = useState<ChildProfile | null>(null)
+  // Picked via the signed-in parent's hand-over rather than this device's
+  // picker: the parent session stands in for the password.
+  const [fromParent, setFromParent] = useState(false)
 
   const [pin, setPin] = useState('')
   const [username, setUsername] = useState('')
@@ -80,14 +85,20 @@ export function ChildLoginPage() {
   })
   const profiles = (deviceResult?.children ?? []) as ChildProfile[]
 
+  const { data: parentChildProfile, isLoading: loadingParentChild } = useQuery({
+    ...parentChildProfileQueryOptions(preselectChildId ?? ''),
+    enabled: Boolean(preselectChildId),
+  })
+
   const mode: 'profiles' | 'pin' | 'password' = modeOverride
     ? modeOverride
     : !deviceToken || (!loadingProfiles && profiles.length === 0)
       ? 'password'
       : 'profiles'
 
-  const handleSelectChild = (child: ChildProfile) => {
+  const handleSelectChild = (child: ChildProfile, viaParent = false) => {
     setSelectedChild(child)
+    setFromParent(viaParent)
     setPin('')
     setError('')
     // A reset child has no PIN — the PIN screen could never pass, so send them
@@ -96,14 +107,18 @@ export function ChildLoginPage() {
   }
 
   // Deep-link pre-selection: the parent dashboard links here with ?child=<id>.
-  // If the device already knows that child (they've logged in here before),
-  // jump straight to the PIN screen; an unknown device has no matching profile,
-  // so this is a no-op and the normal username/password login shows.
+  // A signed-in parent's own child goes straight to the PIN screen, even on a
+  // new device; otherwise a device that already knows the child does the same.
+  // With neither, the normal username/password login shows.
   useEffect(() => {
     if (!preselectChildId || selectedChild || modeOverride) return
+    if (parentChildProfile) {
+      handleSelectChild(parentChildProfile, true)
+      return
+    }
     const match = profiles.find((p) => p.id === preselectChildId)
     if (match) handleSelectChild(match)
-  }, [preselectChildId, profiles, selectedChild, modeOverride])
+  }, [preselectChildId, parentChildProfile, profiles, selectedChild, modeOverride])
 
   // Cached queries belong to the previous identity (e.g. a grown-up who just
   // reset this child), so they go before the child's home loads.
@@ -115,17 +130,22 @@ export function ChildLoginPage() {
 
   const handlePinSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (!selectedChild || !deviceToken) return
+    if (!selectedChild) return
+    if (!fromParent && !deviceToken) return
     setError('')
     setLoading(true)
+    const token = deviceToken ?? generateDeviceToken()
     void (async () => {
       try {
-        const result = await loginWithPin({ childId: selectedChild.id, pin, deviceToken })
+        const login = fromParent ? loginWithPinFromParent : loginWithPin
+        const result = await login({ childId: selectedChild.id, pin, deviceToken: token })
         if (result.child.mustChangePassword) {
-          setPendingChange({ childId: result.child.id, pin, childToken: result.token })
+          setPendingChange({ childId: result.child.id, pin, token, childToken: result.token })
           setLoading(false)
           return
         }
+        setDeviceToken(token)
+        setDeviceTokenState(token)
         await enterAsChild(result.child, result.token)
       } catch (err) {
         setError(errorMessage(err))
@@ -289,7 +309,7 @@ export function ChildLoginPage() {
     )
   }
 
-  if (loadingProfiles) {
+  if (loadingProfiles || (preselectChildId && loadingParentChild)) {
     return (
       <div className={styles.loading}>
         <p className={styles.mutedText}>Loading...</p>

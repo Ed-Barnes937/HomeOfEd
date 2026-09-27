@@ -83,7 +83,8 @@ const childLoginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/child/login',
   // Optional `?child=<id>` deep link from the parent dashboard: pre-selects the
-  // child on a known device (falls through to normal login otherwise).
+  // child for PIN login when the signed-in parent owns them or the device knows
+  // them (falls through to normal login otherwise).
   validateSearch: (search: Record<string, unknown>): { child?: string } => ({
     child: typeof search.child === 'string' ? search.child : undefined,
   }),

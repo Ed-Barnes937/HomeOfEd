@@ -1,17 +1,11 @@
-import {
-  ForbiddenError,
-  Handler,
-  NotFoundError,
-  UnauthorizedError,
-  type AppContext,
-} from '@hoe/backend-kit'
+import { Handler, NotFoundError, type AppContext } from '@hoe/backend-kit'
 import { z } from 'zod'
 
 import type { ChildTokenMinter } from '../../auth/childTokenPort.ts'
-import { evaluatePinAttempt, recordEvent } from '../../behavioural-limits.ts'
 import type { PasswordHasher } from '../../password.ts'
 import type { SproutStore } from '../../store.ts'
 import { toChildAuthProfile, type ChildAuthProfile } from './schemas.ts'
+import { verifyChildPin } from './verifyChildPin.ts'
 
 export const loginPinInputSchema = z.object({
   childId: z.string().uuid(),
@@ -32,10 +26,7 @@ export interface LoginPinDeps {
 
 /**
  * childAuth.loginPin — the PIN re-entry step on an already-registered device.
- * PUBLIC (no session yet). Brute-force lockout: `evaluatePinAttempt` counts
- * recent `pin_fail` events for this child; once the window's limit is hit,
- * further attempts are rejected without even checking the submitted PIN. A
- * wrong PIN records a `pin_fail` event (feeding that lockout) before failing.
+ * PUBLIC (no session yet). Lockout + pin_fail recording live in `verifyChildPin`.
  * Source parity: unlike loginPassword, this step does not register a device.
  */
 export class LoginPinHandler extends Handler<LoginPinInput, LoginPinResult, SproutStore> {
@@ -52,19 +43,7 @@ export class LoginPinHandler extends Handler<LoginPinInput, LoginPinResult, Spro
     const child = await ctx.store.getChild(input.childId)
     if (!child) throw new NotFoundError('Child not found.')
 
-    const verdict = await evaluatePinAttempt(ctx.store, { childId: input.childId }, () => ctx.now())
-    if (verdict.locked) {
-      throw new ForbiddenError('Too many incorrect PIN attempts. Please try again later.')
-    }
-
-    if (!child.pinHash || !this.hasher.verify(input.pin, child.pinHash)) {
-      await recordEvent(ctx.store, {
-        kind: 'pin_fail',
-        childId: input.childId,
-        deviceToken: input.deviceToken,
-      })
-      throw new UnauthorizedError('Incorrect PIN.')
-    }
+    await verifyChildPin(ctx, this.hasher, child, input)
 
     const token = this.mintChildToken({ childId: child.id, parentId: child.parentId })
 
