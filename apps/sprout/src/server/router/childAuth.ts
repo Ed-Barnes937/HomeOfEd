@@ -12,7 +12,7 @@
 // `CHILD_SESSION_COOKIE` (auth/providers.ts) is a P5/transport decision.
 //
 // Exception: `loginPinFromParent` + `parentChildProfile` are PARENT-scoped —
-// the signed-in parent's session stands in for the child's password (ADR 0068),
+// the signed-in parent's session stands in for the child's password (ADR 0069),
 // so their handlers check ownership against `ctx.auth`.
 //
 // The signing secret and node:crypto live behind the `mintChildToken` seam

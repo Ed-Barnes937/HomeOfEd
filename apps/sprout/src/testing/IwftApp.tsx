@@ -26,6 +26,7 @@ import { createAppRouter } from '../server/router.ts'
 import { sproutSchema } from '../server/schema.ts'
 import { DrizzleSproutStore } from '../server/store.ts'
 import { testHasher } from '../server/testing/testHasher.ts'
+import { IWFT_PARENT_COOKIE } from './parentAuthRoute.ts'
 
 // Well-known header the test-kit trampoline sets from mountApp({ user }).
 const TEST_USER_HEADER = 'x-hoe-test-user'
@@ -38,7 +39,20 @@ function decodeSproutUser(raw: string): SproutUser | null {
   return null
 }
 
+// Read from the page, not `req`: the browser drops a `cookie` header when the
+// trampolined request is rebuilt as a `Request`.
+function readParentCookie(): string | null {
+  for (const part of document.cookie.split(';')) {
+    const [name, value] = part.trim().split('=')
+    if (name === IWFT_PARENT_COOKIE && value) return value
+  }
+  return null
+}
+
 function sproutTestAuth(req: Request): AuthProvider {
+  // A mid-test parent sign-in (parentAuthRoute.ts) wins, like prod's parent session.
+  const parentId = readParentCookie()
+  if (parentId) return { getUser: () => ({ id: parentId, role: 'parent' }) }
   const raw = req.headers.get(TEST_USER_HEADER)
   const user = raw ? decodeSproutUser(raw) : null
   return { getUser: () => user }

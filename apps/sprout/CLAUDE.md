@@ -76,7 +76,9 @@ Tailwind, no `cva`).
 **`.iwft` auth seam:** the harness header carries only `user.id`, so role rides
 inside an encoded id — `testing/users.ts` `asParent(id)`/`asChild(id, parentId)`,
 decoded by `IwftApp.tsx`. Seed UUIDs must be valid v4 (zod `.uuid()` rejects
-arbitrary hex); seeds are self-contained (no closures over module scope).
+arbitrary hex); seeds are self-contained (no closures over module scope). To
+sign a parent in mid-test (identity switch), use `testing/parentAuthRoute.ts`
+(ADR 0068) - its cookie wins over the header.
 
 **Product-legal / safeguarding.** This app carries a child-safeguarding posture
 that gates *release* (not merge): the [safeguarding runbook](docs/safeguarding/csam-grooming-escalation.md),

@@ -1,9 +1,11 @@
-# 0068 - sprout: a parent hand-over signs the child in with just their PIN
+# 0069 - sprout: a parent hand-over signs the child in with just their PIN
 
 - **Status:** Accepted
 - **Date:** 2026-09-27
 - **Related:** [ADR 0012](0012-sprout-app-owned-auth.md) (the two identities
-  behind one `ctx.auth` seam).
+  behind one `ctx.auth` seam),
+  [ADR 0068](0068-sprout-child-forgot-hands-off-to-a-grown-up.md) (the other
+  grown-up hand-over: a forgotten login routes to a parent reset).
 
 ## Context
 

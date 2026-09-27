@@ -1,13 +1,13 @@
 // Ported from the source `routes/parent/children.$childId.tsx`.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi, Link } from '@tanstack/react-router'
+import { getRouteApi, Link, Navigate } from '@tanstack/react-router'
 import { PRESET_DEFINITIONS, type PresetName, type PresetSliders } from '@hoe/sprout-shared'
 import { useMemo, useState } from 'react'
 
 import { InspireMeTopics } from '../components/dashboard/InspireMeTopics.tsx'
 import { PresetSelector } from '../components/dashboard/PresetSelector.tsx'
 import { SliderControls } from '../components/dashboard/SliderControls.tsx'
-import { Button } from '../components/ui/button.tsx'
+import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.tsx'
 import {
   childConfigQueryOptions,
@@ -24,6 +24,7 @@ const route = getRouteApi('/parent/children/$childId')
 
 export function ChildSettingsPage() {
   const { childId } = route.useParams()
+  const { reset } = route.useSearch()
   const queryClient = useQueryClient()
   const session = useRequireParent()
 
@@ -40,7 +41,7 @@ export function ChildSettingsPage() {
   const child = kids?.find((c) => c.id === childId)
 
   const [sliderOverrides, setSliderOverrides] = useState<Partial<PresetSliders>>({})
-  const [showPinReset, setShowPinReset] = useState(false)
+  const [showPinReset, setShowPinReset] = useState(Boolean(reset))
   const [pinReset, setPinReset] = useState(false)
   const [presetSaved, setPresetSaved] = useState(false)
   const [slidersSaved, setSlidersSaved] = useState(false)
@@ -95,6 +96,9 @@ export function ChildSettingsPage() {
   if (!session.data) return null
 
   if (!child) {
+    // The forgot hand-off lands here by id; a child that isn't this parent's
+    // goes to their own list instead of a dead end.
+    if (reset && kids) return <Navigate to="/parent/children" />
     return (
       <div className={styles.page}>
         <p className={styles.mutedText}>Child not found.</p>
@@ -192,15 +196,24 @@ export function ChildSettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className={styles.cardTitle}>PIN Management</CardTitle>
+            <CardTitle className={styles.cardTitle}>Password &amp; PIN</CardTitle>
           </CardHeader>
           <CardContent>
             {pinReset && (
-              <p className={styles.savedMessageTop}>
-                PIN reset. {child.displayName}&apos;s password is now their username (
-                {child.username}) — they&apos;ll choose a new password and PIN when they next
-                log in.
-              </p>
+              <>
+                <p className={styles.savedMessageTop}>
+                  Password and PIN reset. {child.displayName}&apos;s password is now their
+                  username ({child.username}) - they&apos;ll choose a new password and PIN when
+                  they next log in.
+                </p>
+                <Link
+                  to="/child/login"
+                  search={{ child: childId }}
+                  className={buttonVariants({ className: styles.handBack })}
+                >
+                  Hand back to {child.displayName}
+                </Link>
+              </>
             )}
             {!showPinReset ? (
               <Button
@@ -210,7 +223,7 @@ export function ChildSettingsPage() {
                   setPinReset(false)
                 }}
               >
-                Reset PIN
+                Reset password &amp; PIN
               </Button>
             ) : (
               <>

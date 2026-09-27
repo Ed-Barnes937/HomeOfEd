@@ -40,6 +40,7 @@ When working inside a package or app, read its `README.md`/`CLAUDE.md` first.
 6. **TDD.** Red → green → refactor. Tests are non-negotiable.
 7. **Surgical changes.** Touch only what the task requires; match surrounding
    style; don't refactor unrelated code.
+   **Code comments** Code should generally self-document with appropriate naming of variables and functions. Where code is obscure for good reason, we can and should add a small 1 or 2 line comment explaining it's purpose. 
 
 ## Workflow
 

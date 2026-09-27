@@ -11,6 +11,7 @@ import { DashboardPage } from './pages/DashboardPage.tsx'
 import { FlagsPage } from './pages/FlagsPage.tsx'
 import { LandingPage } from './pages/LandingPage.tsx'
 import { OnboardingPage } from './pages/OnboardingPage.tsx'
+import { safeParentRedirect } from './lib/parentRedirect.ts'
 import { ParentLoginPage } from './pages/ParentLoginPage.tsx'
 import { ParentRegisterPage } from './pages/ParentRegisterPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
@@ -25,6 +26,11 @@ const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', com
 const parentLoginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/parent/login',
+  // Where to go after signing in; anything but an internal parent screen is
+  // dropped and the page falls back to the dashboard (ADR 0068).
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
+    redirect: safeParentRedirect(search.redirect),
+  }),
   component: ParentLoginPage,
 })
 const parentRegisterRoute = createRoute({
@@ -50,6 +56,11 @@ const parentChildrenRoute = createRoute({
 const parentChildSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/parent/children/$childId',
+  // `?reset=1` (lib/parentRedirect.childResetPath) opens the reset confirm expanded.
+  // TanStack re-validates its own output, so `true` must pass as well as `1`.
+  validateSearch: (search: Record<string, unknown>): { reset?: boolean } => ({
+    reset: search.reset === 1 || search.reset === true ? true : undefined,
+  }),
   component: ChildSettingsPage,
 })
 const parentConversationRoute = createRoute({

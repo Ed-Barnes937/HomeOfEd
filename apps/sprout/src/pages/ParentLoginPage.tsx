@@ -1,7 +1,8 @@
 // Ported from the source `routes/parent/login.tsx`. Parent auth goes through
 // the Better Auth client (`/api/auth/*`) — the prod mount is P5/D9, so this
 // round-trip is not exercisable end-to-end yet (flagged in features/parentAuth).
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
+import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 
@@ -13,8 +14,12 @@ import { parentAuth } from '../features/parentAuth/parentAuth.ts'
 import { clearChildSession } from '../lib/childSession.ts'
 import styles from './ParentLoginPage.module.scss'
 
+const routeApi = getRouteApi('/parent/login')
+
 export function ParentLoginPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { redirect } = routeApi.useSearch()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -34,7 +39,11 @@ export function ParentLoginPage() {
       // One identity per browser: drop any co-resident child session so it
       // can't linger and reactivate when the parent later signs out.
       clearChildSession()
-      void navigate({ to: '/parent/dashboard' })
+      // Anything cached was fetched as the signed-out identity (incl. the
+      // parent gate's rejected probe, which would bounce straight back here).
+      queryClient.clear()
+      if (redirect) void navigate({ href: redirect })
+      else void navigate({ to: '/parent/dashboard' })
     })()
   }
 

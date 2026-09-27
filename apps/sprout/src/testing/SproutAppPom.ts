@@ -26,8 +26,8 @@ export class SproutAppPom extends BasePage {
     await expect(this.page.getByText(text)).toHaveCount(0)
   }
 
-  async clickButton(name: string): Promise<void> {
-    await this.page.getByRole('button', { name }).click()
+  async clickButton(name: string, { exact = false }: { exact?: boolean } = {}): Promise<void> {
+    await this.page.getByRole('button', { name, exact }).click()
   }
 
   async clickLink(name: string): Promise<void> {
