@@ -11,6 +11,10 @@
 // child token via `deps.mintChildToken` and returns it — setting it as the
 // `CHILD_SESSION_COOKIE` (auth/providers.ts) is a P5/transport decision.
 //
+// Exception: `loginPinFromParent` + `parentChildProfile` are PARENT-scoped —
+// the signed-in parent's session stands in for the child's password (ADR 0068),
+// so their handlers check ownership against `ctx.auth`.
+//
 // The signing secret and node:crypto live behind the `mintChildToken` seam
 // (router/deps.ts + auth/childTokenPort.ts): the composition root closes the
 // concrete Node minter over `CHILD_SESSION_SECRET`, so neither this file nor
@@ -29,7 +33,15 @@ import {
   LoginPasswordHandler,
   loginPasswordInputSchema,
 } from '../handlers/childAuth/loginPasswordHandler.ts'
+import {
+  LoginPinFromParentHandler,
+  loginPinFromParentInputSchema,
+} from '../handlers/childAuth/loginPinFromParentHandler.ts'
 import { LoginPinHandler, loginPinInputSchema } from '../handlers/childAuth/loginPinHandler.ts'
+import {
+  ParentChildProfileHandler,
+  parentChildProfileInputSchema,
+} from '../handlers/childAuth/parentChildProfileHandler.ts'
 import type { RouterDeps } from './deps.ts'
 import { publicProcedure, router } from './trpc.ts'
 
@@ -55,6 +67,17 @@ export function createChildAuthRouter(deps: RouterDeps) {
           ctx,
         ),
       ),
+    loginPinFromParent: publicProcedure
+      .input(loginPinFromParentInputSchema)
+      .mutation(({ input, ctx }) =>
+        new LoginPinFromParentHandler({
+          hasher: deps.hasher,
+          mintChildToken: deps.mintChildToken,
+        }).run(input, ctx),
+      ),
+    parentChildProfile: publicProcedure
+      .input(parentChildProfileInputSchema)
+      .query(({ input, ctx }) => new ParentChildProfileHandler().run(input, ctx)),
     changePassword: publicProcedure
       .input(changePasswordInputSchema)
       .mutation(({ input, ctx }) =>

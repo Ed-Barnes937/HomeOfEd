@@ -31,6 +31,20 @@ export const loginWithPassword = (input: LoginPasswordInput) =>
 
 export const loginWithPin = (input: LoginPinInput) => trpcClient.childAuth.loginPin.mutate(input)
 
+/** A signed-in parent's own child, for the dashboard "Log in as" hand-over.
+ * Rejects (UNAUTHORIZED/FORBIDDEN) when no parent owns this child here. */
+export function parentChildProfileQueryOptions(childId: string) {
+  return queryOptions({
+    queryKey: ['parent-child-profile', childId],
+    queryFn: () => trpcClient.childAuth.parentChildProfile.query({ childId }),
+    retry: false,
+  })
+}
+
+/** PIN-only login authorised by the signed-in parent's session. */
+export const loginWithPinFromParent = (input: LoginPinInput) =>
+  trpcClient.childAuth.loginPinFromParent.mutate(input)
+
 export const changePassword = (input: ChangePasswordInput) =>
   trpcClient.childAuth.changePassword.mutate(input)
 
