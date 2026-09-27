@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { test } from './testing/iwftTest.tsx'
+import { installParentAuthRoute } from './testing/parentAuthRoute.ts'
 import { asParent } from './testing/users.ts'
 
 // Self-contained seed (crosses the Node→browser boundary as source text — no
@@ -182,4 +183,19 @@ test('parent creates a child through onboarding and it appears on the dashboard'
   await root.clickButton('Go to dashboard')
   await root.verifyDashboardShown()
   await root.verifyChildTab('Alex')
+})
+
+test('a parent bounced to login returns to the screen they asked for', async ({ mountApp }) => {
+  const { root, page } = await mountApp({ seed: seedDashboard })
+  await installParentAuthRoute(page, { id: 'p1', email: 'alice@test.com', password: 'grownup-pass' })
+  await root.goto('/parent/flags')
+
+  await expect(page.getByRole('heading', { name: 'Parent login' })).toBeVisible({ timeout: 10_000 })
+  await root.fillByLabel('Email', 'alice@test.com')
+  await root.fillByLabel('Password', 'grownup-pass')
+  await root.clickButton('Log in')
+
+  await expect(page.getByRole('heading', { name: 'Flagged Conversations' })).toBeVisible({
+    timeout: 10_000,
+  })
 })
