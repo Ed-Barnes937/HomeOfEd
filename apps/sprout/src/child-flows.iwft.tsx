@@ -1,6 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { test } from './testing/iwftTest.tsx'
+import { installParentAuthRoute } from './testing/parentAuthRoute.ts'
 
 // childAuth procedures are PUBLIC (no session yet), so these flows mount
 // anonymously (no mountApp({ user })). The browser-safe testHasher stores hashes
@@ -71,7 +72,7 @@ test('an established child can log in by password then by PIN on the now-known d
   await root.clickButton('Alex')
   await root.expectText('Enter your PIN.')
   await root.fillByPlaceholder('****', '5678')
-  await root.clickButton('Go')
+  await root.clickButton('Go', { exact: true })
 
   await root.expectText('Hi, Alex!')
   await root.expectText('Start a new conversation')
@@ -114,7 +115,7 @@ test('a PIN-reset child recovers with a new password and self-chosen PIN', async
   await root.clickButton('Alex')
   await root.expectText('Enter your PIN.')
   await root.fillByPlaceholder('****', '4242')
-  await root.clickButton('Go')
+  await root.clickButton('Go', { exact: true })
   await root.expectText('Hi, Alex!')
 })
 
@@ -167,7 +168,79 @@ test('a deep link with a pre-selected child on a known device jumps straight to 
   await root.goto('/child/login?child=11111111-1111-4111-8111-111111111111')
   await root.expectText('Enter your PIN.')
   await root.fillByPlaceholder('****', '5678')
-  await root.clickButton('Go')
+  await root.clickButton('Go', { exact: true })
 
   await root.expectText('Hi, Alex!')
+})
+
+// ADR 0068: forgot → grown-up signs in → reset → hand back.
+test('a child who forgot their PIN gets a grown-up to reset it and logs back in', async ({
+  mountApp,
+}) => {
+  const { root, page } = await mountApp({ seed: seedEstablishedChild })
+  await installParentAuthRoute(page, { id: 'p1', email: 'p@test.com', password: 'grownup-pass' })
+  await root.goto('/child/login')
+
+  // First password login registers the device so Alex is on the picker.
+  await expect(page.getByLabel('Username')).toBeVisible({ timeout: 10_000 })
+  await root.fillByLabel('Username', 'alex1234')
+  await root.fillByLabel('Password', 'realpass')
+  await root.clickButton('Log in')
+  await root.expectText('Start a new conversation')
+
+  await root.goto('/child/login')
+  await root.clickButton('Alex')
+  await root.expectText('Enter your PIN.')
+  await root.clickButton('Forgot your password or PIN?')
+
+  // A child-facing interstitial, not a bare parent login form.
+  await root.expectText('Ask a grown-up to help')
+  await root.clickLink('Grown-up: sign in')
+
+  await expect(page.getByRole('heading', { name: 'Parent login' })).toBeVisible({ timeout: 10_000 })
+  await root.fillByLabel('Email', 'p@test.com')
+  await root.fillByLabel('Password', 'grownup-pass')
+  await root.clickButton('Log in')
+
+  // Lands on Alex's settings with the reset confirm already open; nothing has
+  // been reset until the parent confirms.
+  await root.expectText("Alex's Settings")
+  await root.expectText('resets their password to their username (alex1234)')
+  await root.clickButton('Confirm reset')
+  await root.expectText('Password and PIN reset.')
+
+  await root.clickLink('Hand back to Alex')
+
+  // No PIN any more → username/password login, password is the username.
+  await expect(page.getByLabel('Username')).toBeVisible({ timeout: 10_000 })
+  await root.fillByLabel('Username', 'alex1234')
+  await root.fillByLabel('Password', 'alex1234')
+  await root.clickButton('Log in')
+
+  await root.expectText('Set a new password')
+  await root.fillByLabel('New password', 'rainbow42')
+  await root.fillByLabel('Confirm password', 'rainbow42')
+  await root.fillByLabel('Choose a 4-digit PIN', '4242')
+  await root.clickButton('Save and continue')
+  await root.expectText('Start a new conversation')
+
+  // Handing back signed the grown-up out: parent screens bounce to login.
+  await root.goto('/parent/dashboard')
+  await expect(page.getByRole('heading', { name: 'Parent login' })).toBeVisible({ timeout: 10_000 })
+})
+
+test('forgot from the username screen sends the grown-up to the children list', async ({
+  mountApp,
+}) => {
+  const { root, page } = await mountApp({ seed: seedEstablishedChild })
+  await root.goto('/child/login')
+
+  await expect(page.getByLabel('Username')).toBeVisible({ timeout: 10_000 })
+  await root.clickButton('Forgot your password or PIN?')
+  await root.expectText('Ask a grown-up to help')
+  // No child is known on this device, so no child id rides in the redirect.
+  await expect(page.getByRole('link', { name: 'Grown-up: sign in' })).toHaveAttribute(
+    'href',
+    '/parent/login?redirect=%2Fparent%2Fchildren',
+  )
 })

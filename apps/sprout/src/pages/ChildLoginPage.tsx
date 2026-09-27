@@ -5,12 +5,12 @@
 // localStorage; the signed token is set as the child-session cookie by the
 // server in P5 (so subsequent child-scoped tRPC calls only authenticate once
 // that transport lands — flagged).
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 
-import { Button } from '../components/ui/button.tsx'
+import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card.tsx'
 import { Input } from '../components/ui/input.tsx'
 import { Label } from '../components/ui/label.tsx'
@@ -18,9 +18,11 @@ import {
   changePassword,
   deviceChildrenQueryOptions,
   establishChildSession,
+  type LoginResult,
   loginWithPassword,
   loginWithPin,
 } from '../features/childAuth/childAuth.ts'
+import { childResetPath } from '../lib/parentRedirect.ts'
 import { generateDeviceToken, getDeviceToken, setDeviceToken } from '../lib/deviceToken.ts'
 import styles from './ChildLoginPage.module.scss'
 
@@ -38,6 +40,7 @@ const errorMessage = (err: unknown): string =>
 
 export function ChildLoginPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { child: preselectChildId } = routeApi.useSearch()
   const [deviceToken, setDeviceTokenState] = useState<string | null>(() => getDeviceToken())
   const [modeOverride, setModeOverride] = useState<'pin' | 'password' | null>(null)
@@ -67,6 +70,9 @@ export function ChildLoginPage() {
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // The grown-up interstitial; `childId` is set only from the PIN screen, where
+  // the child was picked from this device's own profile list.
+  const [forgot, setForgot] = useState<{ childId?: string } | null>(null)
 
   const { data: deviceResult, isLoading: loadingProfiles } = useQuery({
     ...deviceChildrenQueryOptions(deviceToken ?? ''),
@@ -99,6 +105,14 @@ export function ChildLoginPage() {
     if (match) handleSelectChild(match)
   }, [preselectChildId, profiles, selectedChild, modeOverride])
 
+  // Cached queries belong to the previous identity (e.g. a grown-up who just
+  // reset this child), so they go before the child's home loads.
+  const enterAsChild = async (child: LoginResult['child'], token: string | undefined) => {
+    await establishChildSession(child, token)
+    queryClient.clear()
+    void navigate({ to: '/child/home' })
+  }
+
   const handlePinSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!selectedChild || !deviceToken) return
@@ -112,8 +126,7 @@ export function ChildLoginPage() {
           setLoading(false)
           return
         }
-        await establishChildSession(result.child, result.token)
-        void navigate({ to: '/child/home' })
+        await enterAsChild(result.child, result.token)
       } catch (err) {
         setError(errorMessage(err))
         setLoading(false)
@@ -142,8 +155,7 @@ export function ChildLoginPage() {
         }
         setDeviceToken(token)
         setDeviceTokenState(token)
-        await establishChildSession(result.child, result.token)
-        void navigate({ to: '/child/home' })
+        await enterAsChild(result.child, result.token)
       } catch (err) {
         setError(errorMessage(err))
         setLoading(false)
@@ -182,8 +194,7 @@ export function ChildLoginPage() {
           setDeviceTokenState(pendingChange.token)
         }
         // The initial-login token is still valid after the password change.
-        await establishChildSession(result.child, pendingChange.childToken)
-        void navigate({ to: '/child/home' })
+        await enterAsChild(result.child, pendingChange.childToken)
       } catch (err) {
         setError(errorMessage(err))
         setLoading(false)
@@ -242,6 +253,36 @@ export function ChildLoginPage() {
                 {loading ? 'Saving...' : 'Save and continue'}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (forgot) {
+    return (
+      <div className={styles.centerPage}>
+        <Card className={styles.cardSm}>
+          <CardHeader className={styles.headerCenter}>
+            <CardTitle className={styles.title}>Ask a grown-up to help</CardTitle>
+            <CardDescription>
+              A grown-up can reset your password and PIN. Give them this device so they can sign
+              in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className={styles.form}>
+            <Link
+              to="/parent/login"
+              search={{
+                redirect: forgot.childId ? childResetPath(forgot.childId) : '/parent/children',
+              }}
+              className={buttonVariants({ size: 'lg' })}
+            >
+              Grown-up: sign in
+            </Link>
+            <button type="button" onClick={() => setForgot(null)} className={styles.linkButton}>
+              Back
+            </button>
           </CardContent>
         </Card>
       </div>
@@ -327,6 +368,13 @@ export function ChildLoginPage() {
               >
                 Not you? Pick a different name
               </button>
+              <button
+                type="button"
+                onClick={() => setForgot({ childId: selectedChild.id })}
+                className={styles.linkButton}
+              >
+                Forgot your password or PIN?
+              </button>
             </form>
           </CardContent>
         </Card>
@@ -367,6 +415,9 @@ export function ChildLoginPage() {
             <Button type="submit" size="lg" disabled={loading}>
               {loading ? 'Logging in...' : 'Log in'}
             </Button>
+            <button type="button" onClick={() => setForgot({})} className={styles.linkButton}>
+              Forgot your password or PIN?
+            </button>
             <p className={styles.footerText}>
               <Link to="/" className={styles.primaryLink}>
                 Back to home

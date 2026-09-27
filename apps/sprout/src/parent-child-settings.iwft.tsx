@@ -1,3 +1,5 @@
+import { expect } from '@playwright/experimental-ct-react'
+
 import { test } from './testing/iwftTest.tsx'
 import { asParent } from './testing/users.ts'
 
@@ -39,11 +41,11 @@ test('parent resets a child PIN behind a confirm step', async ({ mountApp }) => 
   await root.goto(`/parent/children/${CHILD_ID}`)
 
   await root.expectText("Ben's Settings")
-  await root.clickButton('Reset PIN')
+  await root.clickButton('Reset password & PIN')
   // The confirm step spells out the consequence before anything changes.
   await root.expectText('resets their password to their username (ben1234)')
   await root.clickButton('Confirm reset')
-  await root.expectText('PIN reset.')
+  await root.expectText('Password and PIN reset.')
 })
 
 test('a parent cannot open a child they do not own', async ({ mountApp }) => {
@@ -63,4 +65,26 @@ test('a parent cannot open a child they do not own', async ({ mountApp }) => {
   })
   await root.goto(`/parent/children/${CHILD_ID}`)
   await root.expectText('Child not found.')
+})
+
+test('a forgot hand-off for a child the parent does not own falls back to their list', async ({
+  mountApp,
+}) => {
+  const { root, page } = await mountApp({
+    user: asParent('intruder'),
+    seed: async (db) => {
+      await db.execute(
+        `insert into "user" (id, name, email, uk_residence_attested_at, tos_agreed_at) values ('p1', 'Alice', 'alice@test.com', now(), now()), ('intruder', 'Mallory', 'm@test.com', now(), now())`,
+      )
+      await db.execute(
+        `insert into children (id, parent_id, display_name, username, password_hash, must_change_password, preset_name)
+         values ('11111111-1111-4111-8111-111111111111', 'p1', 'Ben', 'ben1234', 'test:ben1234', false, 'confident-reader')`,
+      )
+    },
+  })
+  await root.goto(`/parent/children/${CHILD_ID}?reset=1`)
+  await expect(page.getByRole('heading', { name: 'Children', exact: true })).toBeVisible({
+    timeout: 10_000,
+  })
+  await root.expectNotText('Child not found.')
 })
