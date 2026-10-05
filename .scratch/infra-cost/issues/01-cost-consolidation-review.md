@@ -88,3 +88,16 @@ The account service the sitting approved slots in additively as its own
 scale-to-zero app + logical DB in hoe-pg (~$0.08/mo marginal). Spawned from
 the survey's real finding: the hoe-pg restore rehearsal effort at
 `.scratch/hoe-pg-restore-rehearsal/issues/01-restore-rehearsal.md`.
+
+**2026-10-05 (agent): the numbers this ticket resolved on were incomplete.**
+Ed's actual invoice came in at **>$50/mo**, not the ~$13.30 recorded above. The
+[cost baseline](../../account-infra-discovery/issues/02-fly-cost-baseline.md)
+inventoried Fly *apps* and missed sprout's **Managed Postgres cluster** ($38/mo
+floor), which is not an app - see that ticket's correction comment.
+
+**The resolution itself still stands.** This ticket asked whether
+machine-per-app costs more than consolidation, and the answer is unchanged and
+if anything stronger: the bill is dominated by a *database*, so consolidating
+app machines was never the lever. Status stays resolved; consolidation stays
+closed. What reopens is a line item this ticket never examined, now tracked at
+[.scratch/sprout-cost/](../../sprout-cost/map.md).
