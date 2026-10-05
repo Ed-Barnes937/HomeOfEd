@@ -128,3 +128,45 @@ If the bill is to move meaningfully, the levers are the always-on trio
 (let hub scale to zero, fold sprout-pipeline into sprout, or accept
 cold starts), not app count. At ~$13/mo total, every option in ticket 04
 should be weighed against a bill that is already small.
+
+## Comments
+
+**2026-10-05 (agent): CORRECTION - this Answer understates the bill by roughly
+4x. Do not cite its total.**
+
+Ed's actual invoice for the month was **>$50**, against this ticket's
+~$13.30/mo estimate. The cause is a blind spot in the method, not an arithmetic
+error: the inventory was taken with app-level `fly` commands, and **sprout's
+Managed Postgres (MPG) cluster is not a Fly app**, so it never appeared in the
+fleet table. MPG's floor is $38/mo (Basic) plus $0.28/GB provisioned storage -
+on its own, about three times everything this ticket did count. The word "MPG"
+appears nowhere in this ticket, ticket 04, ticket 06 or ticket 07.
+
+sprout was provisioned onto MPG at go-live on 2026-08-27, nine days before this
+inventory was taken, per `apps/sprout/docs/go-live.md` and plan 0004 D10.
+
+What this does and does not invalidate:
+
+- **Still sound:** the relative findings within the Fly-apps fleet. Scale-to-zero
+  is saving ~$50/mo; stopped machines cost pennies; `hoe-pg` really is ~$2.17/mo;
+  there are no dedicated IPv4s. The consolidation question remains refuted -
+  consolidating ten scale-to-zero apps was never going to move a bill dominated
+  by a database the analysis could not see.
+- **Invalidated:** the total (~$13.30/mo), the claim that the three always-on
+  machines are ~75% of the bill (with MPG counted they are closer to 20%), and
+  by extension the "the remaining ~$13.30/mo is accepted as the baseline"
+  conclusion recorded at the
+  [decision sitting](05-decision-sitting.md) and echoed to
+  [infra-cost/01](../../infra-cost/issues/01-cost-consolidation-review.md).
+- **Method lesson worth keeping:** a Fly cost inventory must cover more than
+  `fly apps list`. Managed Postgres (`fly mpg list`), Tigris/object storage, and
+  anything else bought through Fly as a *service* rather than an *app* are
+  invisible to the app-level commands. The invoice is the only ground truth, and
+  this ticket flagged that it could not read one - that caveat turned out to be
+  the whole story.
+
+Picked up as its own effort: [.scratch/sprout-cost/](../../sprout-cost/map.md).
+The corrected inventory is
+[its ticket 01](../../sprout-cost/issues/01-true-bill-inventory.md); this
+ticket's Answer is left as written above, with this correction, as the record of
+what was believed on 2026-09-06.
