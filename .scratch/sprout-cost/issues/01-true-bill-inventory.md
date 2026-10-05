@@ -44,6 +44,11 @@ ground truth is one dashboard away.
   `child-safe-llm-db`, `malleable-pls-db`, `malleable-pls-server` (ticket 05).
 - `hoe-pg`'s current volume size and free space - ticket 04 adds a database to
   it, and a 1GB volume may need growing first.
+- **Does `fly postgres` still work?** The unmanaged product is deprecated (see
+  ticket 04's deprecation note). Confirm the subcommands ticket 04 depends on
+  are still present in the installed flyctl - at minimum `fly postgres attach`,
+  `fly postgres connect`, and volume/snapshot listing. If any have been removed,
+  say so loudly: it changes ticket 04's method, not its verdict.
 
 **One thing to settle explicitly:** which database is sprout actually pointed
 at right now? `apps/sprout/fly.toml` and `go-live.md` both mandate MPG, but

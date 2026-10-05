@@ -54,6 +54,21 @@ next free number - check for collisions, a travel-map branch holds 0070) that
   whose household-pilot-vs-wider-release boundary is the same line this ADR is
   drawing. If the family service's legal gate opens, this trigger fires too -
   say so explicitly, so the two gates move together.
+- **Carry the deprecation risk as an explicit Consequence.** Moving *onto*
+  unmanaged Fly Postgres means moving onto a product Fly has publicly committed
+  to deprecating. ADR 0005 already notes it receives "minimal new investment"
+  and calls the position "deliberately temporary"; this ADR must go further and
+  state what happens when it ends, because it is now the destination rather than
+  the thing being left. What is actually known (2026-10-05): Fly staff confirm
+  the intent to deprecate, **no timeline has been announced**, `fly postgres`
+  commands still work, existing clusters keep running, and `postgres-flex` is
+  open source so it can be self-deployed if flyctl drops the commands. The
+  honest framing is that the offsite dumps are not only a durability mechanism
+  but **the exit hatch**: a `pg_dump` restores into MPG, Hetzner, Neon or
+  anything else, which is what keeps a deprecated dependency survivable. Say so
+  in the ADR, and note it cuts the other way too - a deprecated, unsupported
+  product is a legitimate reason for a *future* app with real external users to
+  skip `hoe-pg` entirely rather than land there and migrate later.
 
 Then update the downstream copies so they stop asserting the old rule:
 `docs/plans/0004-sprout-migration-plan.md` (D10 and §10) and

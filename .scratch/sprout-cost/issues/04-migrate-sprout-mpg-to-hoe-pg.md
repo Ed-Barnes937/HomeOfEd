@@ -31,6 +31,37 @@ retention in the ADR, implement before cutover, not after.
 right move is dump-and-delete, not migrate - do not do this work to preserve a
 database nobody is using.
 
+## Deprecation: migrating onto a product Fly is sunsetting
+
+Raised 2026-10-05 when a third party, reading ADR 0005, advised against using
+`hoe-pg` on the grounds that "Fly no longer supports that kind of self-run
+Postgres". Accurate enough to record, overstated as phrased. What is actually
+known:
+
+- Fly staff have confirmed the intent - "we are going to deprecate the current
+  unmanaged 'automated postgres' templates for the new Managed Postgres
+  offering" - with **no timeline announced**, no removal date, and no stated
+  migration path for existing clusters
+  ([community thread](https://community.fly.io/t/future-of-legacy-postgres/24609)).
+- `fly postgres` commands still work; existing clusters keep running. Fly's
+  stated plan is to publish equivalent scripts if the commands leave flyctl,
+  and `postgres-flex` is open source, so it can be self-deployed indefinitely.
+- "Unsupported" is not new. Fly's own doc has been titled
+  [*This Is Not Managed Postgres*](https://fly.io/docs/postgres/getting-started/what-you-should-know/)
+  since the Dec 2024 docs correction that ADR 0005 already cites. That is the
+  deal at $2.17/mo, not a change of terms.
+
+**This does not block the migration, but it does harden the preconditions.**
+The offsite dumps above are the exit hatch as much as the backup: a `pg_dump`
+restores into MPG, Hetzner, Neon or anything else, which is exactly what makes
+a deprecated dependency survivable. Treat "we can leave in an afternoon" as a
+property to verify during the restore rehearsal, not an assumption.
+
+Add to step 0: **confirm `fly postgres` still creates and manages clusters** at
+the time of migration (ticket 01 checks this). If the commands have gone,
+the method changes - deploy `postgres-flex` from the open-source repo, or
+reconsider the destination - but the verdict does not.
+
 ## The migration itself
 
 ADR 0005 already documents this path, in the other direction; run it in

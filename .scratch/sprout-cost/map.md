@@ -67,6 +67,22 @@ has backups **nobody has ever restored** - the rehearsal ticket's own words:
 unrehearsed single node is strictly worse than paying the $38. The rehearsal
 passing is a hard gate on ticket 04, not a nice-to-have.
 
+### The destination is a deprecated product
+
+Unmanaged Fly Postgres is on its way out - Fly staff have confirmed the intent
+to deprecate it in favour of MPG, though with **no announced timeline**, the
+`fly postgres` commands still working, existing clusters still running, and
+`postgres-flex` open source as a self-hosted fallback. "Unsupported" is not a
+change of terms; Fly's docs have said *This Is Not Managed Postgres* since the
+Dec 2024 correction ADR 0005 already cites.
+
+This does not block ticket 04, but it does mean the offsite dumps are an **exit
+hatch** as well as a backup - a `pg_dump` restores into MPG, Hetzner or Neon.
+Carried as an explicit Consequence in ticket 03's ADR and a precondition in
+ticket 04. It also cuts the other way: a deprecated, unsupported product is a
+fair reason for a *future* app with real external users to skip `hoe-pg`
+entirely rather than land there and migrate out later.
+
 ### Scope
 
 - Infrastructure is human-gated (CLAUDE.md). Read-only `fly` commands are fine;
