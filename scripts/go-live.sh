@@ -17,9 +17,11 @@
 # Idempotent: every step checks before it creates, so a partial failure can be
 # re-run from the top.
 #
-# Cert flow (avoids the Cloudflare-proxy / Fly-cert chicken-and-egg): the
-# CNAME is created DNS-only (grey cloud) so Let's Encrypt validation sees Fly
-# directly; once the cert is Issued the record is flipped to proxied (orange).
+# Cert flow: the CNAME is created PROXIED from the start, and an ownership TXT
+# record (_fly-ownership.<app>) gives Let's Encrypt a validation path that does
+# not depend on reaching the origin, so the cert can be issued AND RENEWED
+# from behind the Cloudflare proxy. ADR 0071: the earlier grey-cloud/flip-to-
+# orange dance validated once at go-live and left every app unable to renew.
 
 set -euo pipefail
 
@@ -105,13 +107,13 @@ fi
 say "3/6 deploy (from repo root — docker context is the monorepo)"
 run fly deploy --config "apps/$APP/fly.toml" --remote-only
 
-# ── 4. DNS: CNAME, grey-cloud first ──────────────────────────────────────────
-say "4/6 Cloudflare CNAME $APP -> $FLY_APP.fly.dev (DNS-only until cert issues)"
+# ── 4. DNS: CNAME, proxied from the start ────────────────────────────────────
+say "4/6 Cloudflare CNAME $APP -> $FLY_APP.fly.dev (proxied)"
 RECORD_ID=""
 if ! $DRY_RUN; then
   RECORD_ID="$(cf GET "/zones/$ZONE_ID/dns_records?type=CNAME&name=$HOST" | jq -r '.result[0].id // empty')"
 fi
-CNAME_BODY="{\"type\":\"CNAME\",\"name\":\"$APP\",\"content\":\"$FLY_APP.fly.dev\",\"proxied\":false}"
+CNAME_BODY="{\"type\":\"CNAME\",\"name\":\"$APP\",\"content\":\"$FLY_APP.fly.dev\",\"proxied\":true}"
 if [[ -n "$RECORD_ID" ]]; then
   echo "   record exists — ensuring it points at $FLY_APP.fly.dev"
   cf_mutate PATCH "/zones/$ZONE_ID/dns_records/$RECORD_ID" "$CNAME_BODY"
@@ -119,7 +121,7 @@ else
   cf_mutate POST "/zones/$ZONE_ID/dns_records" "$CNAME_BODY"
 fi
 
-# ── 5. fly cert, wait for Issued, then flip to proxied ───────────────────────
+# ── 5. cert: request it, prove ownership by DNS, wait for an ACTIVE cert ─────
 say "5/6 TLS cert for $HOST"
 if ! $DRY_RUN && fly certs list --app "$FLY_APP" | grep -q "$HOST"; then
   echo "   cert already requested — skipping add"
@@ -127,18 +129,43 @@ else
   run fly certs add "$HOST" --app "$FLY_APP"
 fi
 
+# The ownership TXT is what lets validation succeed through the proxy, both now
+# and at every unattended renewal after this. Without it Fly falls back to an
+# HTTP challenge that the orange cloud blocks, and the cert silently lapses.
+OWNERSHIP="app-<id>"
+if ! $DRY_RUN; then
+  OWNERSHIP="$(fly certs setup "$HOST" --app "$FLY_APP" 2>&1 | grep -oE 'app-[a-z0-9]+' | head -1)"
+  [[ -n "$OWNERSHIP" ]] || { echo "could not read the ownership token from 'fly certs setup $HOST --app $FLY_APP'" >&2; exit 1; }
+fi
+TXT_NAME="_fly-ownership.$APP"
+echo "   ownership TXT $TXT_NAME -> $OWNERSHIP"
+TXT_ID=""
+if ! $DRY_RUN; then
+  TXT_ID="$(cf GET "/zones/$ZONE_ID/dns_records?type=TXT&name=$TXT_NAME.$DOMAIN" | jq -r '.result[0].id // empty')"
+fi
+TXT_BODY="{\"type\":\"TXT\",\"name\":\"$TXT_NAME\",\"content\":\"$OWNERSHIP\"}"
+if [[ -n "$TXT_ID" ]]; then
+  cf_mutate PATCH "/zones/$ZONE_ID/dns_records/$TXT_ID" "$TXT_BODY"
+else
+  cf_mutate POST "/zones/$ZONE_ID/dns_records" "$TXT_BODY"
+fi
+
+# Poll for a certificate that is ACTIVE *and* UNEXPIRED. Never key on the status
+# word: a lapsed cert still reports Status=Issued/Ready alongside a past expiry,
+# which is exactly how the old `grep -qiE 'issued|ready'` passed while the site
+# served 525 (it also matched the "Issued = rsa,ecdsa" key-types line).
 if $DRY_RUN; then
-  printf '   $ fly certs check %s --app %s   # poll until Issued (max %ss)\n' "$HOST" "$FLY_APP" "$CERT_TIMEOUT_SECS"
+  printf '   $ fly certs show %s --app %s --json   # poll for an active, unexpired cert (max %ss)\n' "$HOST" "$FLY_APP" "$CERT_TIMEOUT_SECS"
 else
   deadline=$((SECONDS + CERT_TIMEOUT_SECS))
-  until fly certs check "$HOST" --app "$FLY_APP" 2>&1 | grep -qiE 'issued|ready'; do
-    (( SECONDS < deadline )) || { echo "cert not issued after ${CERT_TIMEOUT_SECS}s — check 'fly certs check $HOST --app $FLY_APP', then re-run this script (it will resume here)" >&2; exit 1; }
+  until fly certs show "$HOST" --app "$FLY_APP" --json 2>/dev/null |
+          jq -e --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             '[.certificates[]? | select(.status == "active") | select(.expires_at > $now)] | length > 0' >/dev/null; do
+    (( SECONDS < deadline )) || { echo "no active cert after ${CERT_TIMEOUT_SECS}s - inspect 'fly certs show $HOST --app $FLY_APP', confirm 'dig +short TXT $TXT_NAME.$DOMAIN', then re-run (it resumes here)" >&2; exit 1; }
     echo "   waiting for cert…"; sleep 10
   done
-  echo "   cert Issued"
-  RECORD_ID="${RECORD_ID:-$(cf GET "/zones/$ZONE_ID/dns_records?type=CNAME&name=$HOST" | jq -r '.result[0].id')}"
+  echo "   cert active until $(fly certs show "$HOST" --app "$FLY_APP" --json | jq -r '[.certificates[] | select(.status == "active") | .expires_at] | max')"
 fi
-cf_mutate PATCH "/zones/$ZONE_ID/dns_records/${RECORD_ID:-<record-id>}" '{"proxied":true}'
 
 # ── 6. verify ────────────────────────────────────────────────────────────────
 say "6/6 verify"
