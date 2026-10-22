@@ -108,9 +108,12 @@ fly certs setup homeofed.com --app hoe-hub   # prints the records below
 
 Because the domain is proxied, Fly can't see it pointing at the app (it
 resolves to Cloudflare's IPs) and the ACME HTTP challenge can't reach Fly —
-so **both** "additional" records from the setup output are required, added in
-Cloudflare as **DNS-only (grey cloud)**, names entered *without* the domain
-suffix (Cloudflare appends it):
+so an "additional" record from the setup output is required, added in
+Cloudflare with the name entered *without* the domain suffix (Cloudflare
+appends it). The **TXT is the one that matters** - it is what makes renewal work
+unattended, and `sprout` has run on it alone since August. The
+`_acme-challenge` CNAME is only for issuing a cert *before* pointing traffic at
+the app; add it grey-cloud if you need that, otherwise skip it:
 
 | Type | Name | Content |
 | --- | --- | --- |
@@ -240,11 +243,15 @@ scripts/go-live.sh <app> --db       # DB-backed: also attaches hoe-pg
 scripts/go-live.sh <app> --dry-run  # print every mutating command, run nothing
 ```
 
-It creates the fly app, deploys, adds the CNAME **grey-cloud** (so the Fly
-cert validates), waits for Issued, flips the record to proxied, and runs the
-health/index verification. Safe to re-run after a partial failure — every
-step skips what already exists. G4.1–G4.8 above remain the manual reference
-for what the script does.
+It creates the fly app, deploys, adds the CNAME **proxied**, adds the
+`_fly-ownership` TXT that lets Let's Encrypt validate through the proxy, waits
+for an active unexpired cert, and runs the health/index verification. Safe to
+re-run after a partial failure — every step skips what already exists.
+G4.1–G4.8 above remain the manual reference for what the script does.
+
+> The earlier grey-cloud → Issued → orange sequence was **superseded by
+> [ADR 0071](../adr/0071-fly-certs-validate-by-dns-ownership.md)**: it validated
+> once at go-live and left every app unable to renew. See G4.12.
 
 ## G4.10 — espy (DB-less app, go-live)
 
@@ -347,3 +354,76 @@ open  https://karesansui.homeofed.com              # build a gear train, turn th
 
 The Save/reload check exercises localStorage persistence — there is no
 server-side state to verify.
+
+## G4.12 - Certificate renewal failure (525 behind Cloudflare)
+
+**Symptom.** A subdomain returns **HTTP 525** ("SSL handshake failed"). The
+browser shows a Cloudflare error page, not a certificate warning - Cloudflare's
+*edge* cert is fine; the broken half is Cloudflare → Fly.
+
+**Cause.** The Fly cert expired and its renewal is wedged, because Let's Encrypt
+cannot complete an HTTP challenge against an origin behind the orange cloud.
+Fly says so explicitly:
+
+```
+Status = Issuing...
+Expires = 2 weeks ago
+! Domain ownership verification is required for HTTP validation behind a CDN or proxy
+```
+
+Apps onboarded before [ADR 0071](../adr/0071-fly-certs-validate-by-dns-ownership.md)
+have no `_fly-ownership` TXT and will all hit this at ~60 days. Fixed once per
+app; `hub` and `sprout` were never affected.
+
+### Diagnose
+
+```bash
+# Which apps are stuck, and are they down yet? Read Expires, NOT Status.
+for a in <apps>; do printf "%-12s " "$a"
+  fly certs show "$a.homeofed.com" -a "hoe-$a" | grep -E '^  (Status|Expires)' | awk -F= '{printf "%-18s", $2}'
+  curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 "https://$a.homeofed.com"
+done
+
+dig +short TXT _fly-ownership.<app>.homeofed.com @1.1.1.1   # empty = the cause
+```
+
+> **`Status` lies.** It reports *ownership verification*, not a live
+> certificate: a wedged cert shows `Status = Issued` **and**
+> `Expires = 2 weeks ago`. Always read `Expires`. To see what Fly actually
+> serves, bypassing Cloudflare:
+> `echo | openssl s_client -connect <flyapp>.fly.dev:443 -servername <host> 2>/dev/null | openssl x509 -noout -dates`
+
+### Repair
+
+**1. Add the ownership TXT** (all affected apps, whether down or not):
+
+```bash
+fly certs setup <app>.homeofed.com -a hoe-<app>    # prints TXT app-<id>
+```
+
+Cloudflare → DNS → Add record: type `TXT`, name `_fly-ownership.<app>` (**no**
+`.homeofed.com` - Cloudflare appends it), content `app-<id>`, TTL Auto. TXT
+records have no proxy toggle. Confirm with `dig` before going further.
+
+**2. Reissue - only for certs that have *already* expired:**
+
+```bash
+fly certs remove <app>.homeofed.com -a hoe-<app> --yes
+fly certs add    <app>.homeofed.com -a hoe-<app>
+```
+
+Adding the TXT verifies ownership but does **not** retroactively reissue a
+lapsed cert, so this step is needed to unwedge one. The TXT survives the remove,
+so issuance succeeds in seconds.
+
+> ⚠️ **Never run step 2 against a cert that is still valid.** It takes a working
+> site down. An unexpired app needs only step 1 - its pending renewal then
+> completes by itself (confirmed for `boop` and `silt` on 2026-10-22, which went
+> from 2 weeks to ~3 months of life with no further action).
+
+**3. Verify:**
+
+```bash
+fly certs show <app>.homeofed.com -a hoe-<app> | grep -E '^  Expires'   # ~3 months from now
+curl -sS -o /dev/null -w "%{http_code}\n" https://<app>.homeofed.com    # 200
+```
