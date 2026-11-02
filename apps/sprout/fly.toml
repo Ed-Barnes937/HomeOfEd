@@ -46,8 +46,10 @@ primary_region = 'lhr'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  # The authed app stays warm on the web group.
-  min_machines_running = 1
+  # Demo footprint: nothing stays warm. sprout is an in-house demo (one
+  # operator), so a cold start on first request is fine and saves the
+  # always-on machine. Set back to 1 when a real pilot starts.
+  min_machines_running = 0
   # Only the `web` group sits behind the public HTTP service + health check.
   # The `worker` group has no HTTP surface, so it is NOT listed here and the
   # /health check never targets it.
@@ -77,11 +79,15 @@ primary_region = 'lhr'
 #    deploy, guarantee exactly one always-on worker:
 #        fly scale count worker=1 web=1 --app hoe-sprout
 #
-# 2. MANAGED POSTGRES (D10 / ADR 0005 / plan §10). sprout uses MANAGED Fly
-#    Postgres (backups + PITR for compliance weight) — NOT the shared UNMANAGED
-#    `hoe-pg` cluster that `scripts/go-live.sh --db` and the runbook attach to.
-#    Provision MPG in `lhr` and set DATABASE_URL manually; do NOT run the
-#    standard `fly postgres attach hoe-pg` path for this app.
+# 2. POSTGRES. sprout uses its OWN UNMANAGED cluster `sprout-pg` (shared-cpu-1x
+#    512MB, 1GB volume, `--enable-backups` for Tigris WAL backups) - NOT the
+#    shared `hoe-pg` cluster that `scripts/go-live.sh --db` and the runbook
+#    attach to, and NOT Managed Postgres. MPG was retired on 2026-11-02: it
+#    cost $38.74/mo to hold 33 rows. A separate cluster keeps sprout's failure
+#    domain, restore granularity and upgrade schedule independent of the other
+#    apps, for ~$4.48/mo. Wire it with:
+#        fly postgres attach sprout-pg --app hoe-sprout --database-name sprout
+#    See docs/runbooks/sprout-mpg-retirement.md.
 #
 # 3. ORG-SCOPED DEPLOY TOKEN. The existing FLY_API_TOKEN was minted
 #    `--app hoe-hub` (app-scoped) and CANNOT deploy hoe-sprout /

@@ -1,6 +1,6 @@
 # 04 - Migrate sprout: MPG -> a `sprout` database in `hoe-pg`
 
-**Status:** ready-for-human
+**Status:** resolved (2026-11-02) - premise void, different shape shipped
 **Type:** task
 **Blocked by:** 01, 02, 03, and
 `../../hoe-pg-restore-rehearsal/issues/01-restore-rehearsal.md` **passing**
@@ -107,3 +107,41 @@ $0.08-0.30/mo for one more logical database (plus any volume growth at
 $0.15/GB/mo, and the offsite dump storage).
 
 ## Comments
+
+
+## Resolution (2026-11-02) - not as written
+
+**There was no migration.** Ticket 02 established sprout is a solo in-house
+demo and ticket 01 measured the database at 33 rows / 8.5 MB, all of it
+reproducible from committed Drizzle migrations. With no data worth moving, the
+work collapsed from a gated data migration to a rebuild: destroy, create empty,
+run `migrate.ts`, re-register.
+
+**Both gates are therefore void for this ticket**, and deliberately so:
+
+- *Restore rehearsal.* It existed to stop children's data landing on an
+  unrehearsed node. There was no such data, and sprout did not land on
+  `hoe-pg` anyway. The gate returns before a real household pilot - it is
+  **not** cancelled. See [ADR 0072](../../../docs/adr/0072-sprout-owns-its-postgres-and-triggers-are-scopes.md).
+- *Scheduled offsite dumps.* Same reasoning; still required before a pilot.
+
+**The destination changed too.** Not a logical database in `hoe-pg` but sprout's
+own unmanaged cluster **`sprout-pg`** (shared-cpu-1x **512MB**, 1GB volume,
+`--enable-backups`), ~$4.48/mo. The extra ~$1.91/mo over a `hoe-pg` database
+buys an independent failure domain, restore granularity and upgrade schedule
+for the app slated to hold family data. Ed's call, on the "separate instances"
+requirement.
+
+**Shipped:** `docs/runbooks/sprout-mpg-retirement.md`. MPG cluster destroyed;
+`/health` green on `sprout-pg`; Tigris bucket `sprout-pg-postgres` created.
+**-$39.58/mo.**
+
+Two snags worth carrying forward:
+
+- `--vm-size shared-cpu-1x` defaults to 256MB and Fly **refuses backups below
+  512MB**. `--vm-memory 512` is mandatory, not a nicety.
+- The runbook's first draft said `fly scale count worker=0 web=0`. **`web=0`
+  removes the machine**, and `auto_start_machines` can only wake a machine that
+  exists, so sprout went hard down with no way to revive it by request.
+  `min_machines_running = 0` alone is what a web group needs. Fixed in the
+  runbook with a recovery note.
