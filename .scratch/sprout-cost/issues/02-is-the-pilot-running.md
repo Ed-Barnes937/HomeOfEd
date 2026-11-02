@@ -1,6 +1,6 @@
 # 02 - Decision: is the sprout pilot running, and should sprout be awake?
 
-**Status:** needs-triage
+**Status:** resolved (2026-11-02)
 **Type:** grilling
 **Map:** ../map.md
 **Reported:** 2026-10-05
@@ -52,3 +52,25 @@ would dump and delete, not migrate. **04 should not start until this is
 answered.** If the answer is A or B, 04 proceeds as written.
 
 ## Comments
+
+
+## Decision (2026-11-02, Ed)
+
+**Option C, and narrower than the ticket assumed.** Ed: *"sprout is an in-house
+demo only currently. Literally just me trying it out in prod. We can take it
+down and not risk losing data."*
+
+Not a two-child household pilot - **one operator, zero other users**. The
+database bore this out: 33 rows, 7 messages (ticket 01).
+
+Consequences taken:
+
+- Nothing stays warm. `hoe-sprout` web `min_machines_running = 1 -> 0`;
+  `hoe-sprout-pipeline` `auto_stop_machines 'off' -> 'stop'` and
+  `min_machines_running = 1 -> 0`; `worker` scaled to 0. ~-$8.66/mo.
+- The pipeline's cold start now lands inside the first chat request after idle.
+  Accepted explicitly: that cost was only worth paying for a pilot in use.
+- This also voided ticket 04's premise and the restore-rehearsal gate - see
+  [ADR 0072](../../../docs/adr/0072-sprout-owns-its-postgres-and-triggers-are-scopes.md).
+
+Reverse all three when a real household pilot starts.

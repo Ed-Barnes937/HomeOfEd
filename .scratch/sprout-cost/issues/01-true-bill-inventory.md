@@ -1,6 +1,6 @@
 # 01 - Establish the true bill: the MPG cluster and what else the baseline missed
 
-**Status:** ready-for-human
+**Status:** resolved (2026-11-02)
 **Type:** research
 **Map:** ../map.md
 **Reported:** 2026-10-05, Ed ("my bill last month was over $50")
@@ -67,3 +67,62 @@ money table. Correct the
 Answer if anything beyond MPG proves wrong there too.
 
 ## Comments
+
+
+## Answer (2026-11-02)
+
+October 2026 invoice, read line by line. Charges $63.01, credits -$1.10,
+**total $61.91**; run-rate ~$62.59 once the one-off credits lapse. Amounts
+only here - this directory is committed to a public repo, so no invoice
+identifiers or billing-account details.
+
+| Line | Net $/mo | Share |
+| --- | ---: | ---: |
+| MPG cluster compute | 38.74 | 63% |
+| Machines, shared CPU (`lhr`) | 16.39 | 26% |
+| Machines, additional RAM (`lhr`) | 5.94 | 10% |
+| MPG cluster storage (~5.8 GB metered) | 0.84 | 1% |
+| Volumes ~4 GB / snapshots | 0.68 charged, fully credited | 0% |
+| Bandwidth, all 20 regions | 0.00 | 0% |
+| SSL certs, PAYG plan | 0.00 | 0% |
+
+**MPG all-in: $39.58, 64% of the bill.** The hypothesis held.
+
+**What the estimate got wrong:** the map put "sprout's four pieces at ~$48 of
+~$50" - sprout's four pieces *were* $48.24, so that part was right. The error
+was the total ($62.59, not ~$50) and therefore the **non-sprout** remainder:
+$13.67 actual against ~$2 assumed.
+
+**Machines were the real blind spot.** $22.33/mo, not the ~$9.96 the map
+carried, because the map counted sprout's three warm machines and missed that
+`hoe-pg`, `child-safe-llm-db` and `malleable-pls-db` are three more always-on
+256MB nodes. Derived split (Fly does not itemise per app; the additional-RAM
+line corroborates it - three 512MB machines give 0.75 GB continuous against
+0.845 GB metered):
+
+| Machine | Size | Est. $/mo |
+| --- | --- | ---: |
+| `hoe-sprout` web | 512MB | 4.33 |
+| `hoe-sprout-pipeline` | 512MB | 4.33 |
+| `hoe-hub` | 512MB | 4.33 |
+| `hoe-pg` | 256MB | 2.57 |
+| `child-safe-llm-db` | 256MB | 2.57 |
+| `malleable-pls-db` | 256MB | 2.57 |
+| 8 suspended apps waking | - | 1.63 |
+
+**Cluster facts:** plan Basic (the cheapest MPG tier - Starter is $72, a middle
+tier, so there was no smaller option). 1 replica. 20 GB allocated, 4.3 GB
+metered as used. No HA charge visible.
+
+**The storage was not data.** `Sprout-db` measured **8.5 MB**, all four
+databases ~31 MB, zero replication slots. Real row counts: 1 user, 1 account,
+4 sessions, 4 children, 4 conversations, **7 messages**, 6 behavioural events,
+1 device, 1 flag, 4 presets. So ~4.3 GB was MPG platform overhead (WAL for
+PITR, base backups, logs), and $38.74/mo was buying durability for 33 rows.
+
+Method note: `pg_stat_user_tables.n_live_tup` reported 0 for every table
+because `ANALYZE` has never run on this database. Row *estimates* from the Fly
+dashboard are unreliable here; the counts above are direct `count(*)`.
+
+**Also corrected:** `fly apps list` showed `malleable-pls-server` as
+`suspended`, which reads as abandoned. It is not - see ticket 05.

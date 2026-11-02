@@ -105,6 +105,17 @@ entirely rather than land there and migrate out later.
 **sprout's four pieces are roughly $48 of the ~$50 bill.** If every ticket here
 lands, the estate should sit around **$6-8/mo**.
 
+> **Superseded by measurement (2026-11-02, ticket 01).** The table above is the
+> estimate; the invoice says **$62.59/mo**, not ~$50. sprout's four pieces were
+> right at $48.24 - the miss was the **non-sprout** remainder, $13.67 actual
+> against ~$2 assumed, because machines cost **$22.33** not ~$9.96. The
+> estimate counted sprout's three warm machines and missed that `hoe-pg`,
+> `child-safe-llm-db` and `malleable-pls-db` are three more always-on 256MB
+> nodes. The $6-8 landing figure was also optimistic: the real floor is
+> **~$16.11/mo**, because `malleable-pls-*` is live and stays (ticket 05) and
+> `sprout-pg` costs $4.48 rather than nothing. Use ticket 01's table, not this
+> one.
+
 Not re-ticketed here: **Lever A (hub scale-to-zero, ~$3.24/mo)**, deferred -
 not declined - at the decision sitting pending the account layer's first slice,
 so the apex/login cold start can be felt before it is accepted. Checkpoint lives
@@ -114,4 +125,26 @@ in [ticket 08](../account-infra-discovery/issues/08-first-slice-spec-boop.md).
 
 <!-- one line per closed ticket: gist + link -->
 
-(none yet)
+- **01** - True bill is **$62.59/mo**, MPG 64% of it; `Sprout-db` held **33
+  rows in 8.5 MB** against a cluster metering 4.3 GB.
+  [ticket](issues/01-true-bill-inventory.md)
+- **02** - sprout is a **solo in-house demo**, not a two-child pilot. Nothing
+  stays warm; ~-$8.66/mo. [ticket](issues/02-is-the-pilot-running.md)
+- **03** - [ADR 0072](../../docs/adr/0072-sprout-owns-its-postgres-and-triggers-are-scopes.md)
+  restates ADR 0005's third trigger as a **scope, not an event**, and makes
+  every trigger carry its cost. [ticket](issues/03-restate-the-mpg-trigger-adr.md)
+- **04** - **No migration happened.** No data worth moving, so destroy +
+  rebuild from migrations. Destination changed to sprout's own cluster
+  **`sprout-pg`** (512MB, Tigris backups, $4.48/mo), not a `hoe-pg` database.
+  Both gates void *for this ticket only*; they return before a real pilot.
+  -$39.58/mo. [ticket](issues/04-migrate-sprout-mpg-to-hoe-pg.md)
+- **05** - `child-safe-llm-*` retired (-$2.72/mo). **`malleable-pls-*` is live
+  and stays** - Vercel frontend -> `malleable-pls-server.fly.dev` ->
+  `malleable-pls-db`; it reads as `suspended` only because it auto-stops.
+  [ticket](issues/05-retire-legacy-fly-apps.md)
+
+**Destination reached: $62.59/mo -> ~$16.11/mo** (-74%). Runbook:
+[sprout-mpg-retirement](../../docs/runbooks/sprout-mpg-retirement.md).
+
+Open follow-up: let `malleable-pls-db` auto-stop (~$2.57/mo), in its own repo.
+Lever A (hub scale-to-zero, ~$4.33/mo) still deferred, unchanged.

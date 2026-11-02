@@ -1,6 +1,8 @@
 # 0005 — Unmanaged Fly Postgres now; migrate to Managed Postgres when durability matters
 
-- **Status:** Accepted
+- **Status:** Accepted; third migration trigger and one-way migration plan
+  **revised by [ADR 0072](0072-sprout-owns-its-postgres-and-triggers-are-scopes.md)**
+  (2026-11-02)
 - **Date:** 2026-07-02
 - **Revises:** [0001-foundation.md](0001-foundation.md) §6 ("Fly Managed
   Postgres") and G4.1 of the

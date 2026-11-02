@@ -1,6 +1,6 @@
 # 03 - ADR: restate ADR 0005's MPG trigger in terms of scope, not event
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-02)
 **Type:** task
 **Blocked by:** 01
 **Map:** ../map.md
@@ -80,3 +80,26 @@ pointer - house style keeps superseded ADRs as the historical record.
 Ed's call, and 04 is gated on it.
 
 ## Comments
+
+
+## Resolution (2026-11-02)
+
+[ADR 0072](../../../docs/adr/0072-sprout-owns-its-postgres-and-triggers-are-scopes.md)
+written and Accepted; ADR 0005 carries a back-pointer on its Status line.
+
+All three defects named in this ticket are addressed:
+
+1. **Event -> scope.** Trigger three now reads *"An app serves production data
+   belonging to people other than the operator. Re-test this whenever the user
+   scope changes, in either direction."* An in-house demo does not fire it; a
+   household pilot does; a demo that stops being a demo fires it again without
+   anyone remembering a launch date.
+2. **Cost term added.** Any document firing a trigger must state the
+   then-current MPG floor ($38/mo at Basic) in the decision itself.
+3. **Durability preserved, mechanism named.** `sprout-pg` is created with
+   `--enable-backups` (Tigris WAL backups) - which plain ADR 0005 unmanaged
+   clusters like `hoe-pg` still lack - and the restore rehearsal plus scheduled
+   offsite dumps return as preconditions before a real pilot.
+
+Also recorded there: the migration plan is now **two-way**, and unmanaged Fly
+Postgres being deprecated-in-intent makes the dumps an exit hatch.
