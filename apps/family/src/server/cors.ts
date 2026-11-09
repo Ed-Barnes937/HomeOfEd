@@ -1,22 +1,24 @@
-// Every app's SPA talks to this service browser-direct and cross-origin, so
-// CORS is the only barrier in front of it (spec §4.5). The allowlist is config:
-// never `*`, and never the request's own origin reflected back unchecked.
+// CORS is the only barrier in front of a service every SPA calls
+// browser-direct and cross-origin (spec §4.5), and the identity router is
+// authorised by a cookie that any same-site origin would send. The allowlist is
+// config: never `*`, never an unchecked reflect, and deliberately narrow
+// ([ADR 0078](../../../../docs/adr/0078-family-identity-auth-boundary.md)).
 import type { FastifyInstance } from '@hoe/backend-kit/server'
 
-/** Onboarded apps. Letting a new app reach the save router starts here. */
-export const PROD_ALLOWED_ORIGINS = ['https://homeofed.com', 'https://boop.homeofed.com'] as const
+/**
+ * The hub account UI alone, because the Better Auth cookie session is only ever
+ * used from there (spec §4.2). An app origin here could erase a household from
+ * an XSS, so onboarded apps get the save router's own list in ticket 05.
+ */
+export const IDENTITY_ALLOWED_ORIGINS = ['https://homeofed.com'] as const
 
-/** Dev servers: hub 3000, boop 3008, family's own 3010. */
-export const DEV_ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3008',
-  'http://localhost:3010',
-] as const
+/** Dev servers: hub 3000 and family's own 3010. */
+export const DEV_ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:3010'] as const
 
-export function allowedOrigins(nodeEnv: string | undefined): readonly string[] {
+export function identityAllowedOrigins(nodeEnv: string | undefined): readonly string[] {
   return nodeEnv === 'production'
-    ? PROD_ALLOWED_ORIGINS
-    : [...PROD_ALLOWED_ORIGINS, ...DEV_ALLOWED_ORIGINS]
+    ? IDENTITY_ALLOWED_ORIGINS
+    : [...IDENTITY_ALLOWED_ORIGINS, ...DEV_ALLOWED_ORIGINS]
 }
 
 const ALLOWED_METHODS = 'GET, POST, OPTIONS'
@@ -27,9 +29,8 @@ export function registerCors(app: FastifyInstance, origins: readonly string[]): 
   const allowed = new Set(origins)
 
   app.addHook('onRequest', async (req, reply) => {
-    // Set whatever the outcome, so no cache reuses a response across origins.
-    // tRPC's adapter writes its own Vary straight to the raw response, so this
-    // survives on the preflight and the Better Auth routes, not on tRPC's.
+    // Set whatever the outcome; tRPC's adapter overwrites it on its own
+    // responses, which is why no cache rule may ever cover /api/trpc.
     reply.header('vary', 'Origin')
     const origin = req.headers.origin
     if (typeof origin === 'string' && allowed.has(origin)) {
@@ -39,8 +40,8 @@ export function registerCors(app: FastifyInstance, origins: readonly string[]): 
       reply.header('access-control-allow-methods', ALLOWED_METHODS)
       reply.header('access-control-max-age', PREFLIGHT_MAX_AGE)
     }
-    // Preflight stops here. A disallowed origin still gets the 204, but without
-    // the allow headers, which the browser reads as a refusal.
+    // A disallowed origin still gets the 204, but without the allow headers,
+    // which the browser reads as a refusal.
     if (req.method === 'OPTIONS') return reply.status(204).send()
   })
 }

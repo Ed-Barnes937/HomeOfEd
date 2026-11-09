@@ -1,10 +1,6 @@
-// Browser side of the .iwft harness: pull the real backend (router + handlers +
-// PGlite WASM) into the CT bundle and expose its dispatcher for the page.route
-// trampoline. Module init runs once per test page = fresh DB per test.
-//
-// Two deliberate gaps, both because the harness is a browser: Better Auth never
-// runs here, and token minting throws (node:crypto). Family's own .iwft drives
-// the placeholder page; the identity flows are hub's, over FakeFamilyClient.
+// Browser side of the .iwft harness: the real backend over PGlite WASM, exposed
+// for the page.route trampoline. Module init runs once per test page = fresh DB.
+// No Better Auth and no minting here, both being node-only (ADR 0078).
 import {
   ConsoleLogger,
   createContext,

@@ -65,6 +65,7 @@ COPY --from=builder /app/apps/family/dist ./apps/family/dist
 # so shipping it leaks nothing, and importing it is what stops the guard
 # drifting from the key it guards against.
 RUN rm -rf apps/family/src/testing apps/family/src/greeting.iwft.tsx \
+  apps/family/src/server/*.test.ts apps/family/src/server/*/*.test.ts \
   packages/test-kit packages/config \
   node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node

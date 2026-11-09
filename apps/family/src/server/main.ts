@@ -9,7 +9,7 @@ import { createLogger, requestLogger } from '@hoe/logger'
 
 import { createFamilyAuth } from './auth/betterAuth.ts'
 import { parentSessionSeam, registerParentSessionBridge } from './auth/parentSessionBridge.ts'
-import { allowedOrigins, registerCors } from './cors.ts'
+import { identityAllowedOrigins, registerCors } from './cors.ts'
 import { loadFamilyEnv } from './env.ts'
 import { toFetchRequest } from './fastifyBridge.ts'
 import { createAppRouter } from './router.ts'
@@ -27,7 +27,9 @@ const db = await createDbClient({
 })
 const store = new DrizzleFamilyStore(db)
 
-const origins = allowedOrigins(process.env.NODE_ENV)
+// Identity + /api/auth/* only; the save router brings its own wider list in
+// ticket 05, which is why this is not a single service-wide allowlist.
+const origins = identityAllowedOrigins(process.env.NODE_ENV)
 
 const auth = createFamilyAuth(db, {
   baseURL: env.BETTER_AUTH_URL,

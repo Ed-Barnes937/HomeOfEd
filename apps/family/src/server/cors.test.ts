@@ -6,11 +6,11 @@ import { ConsoleLogger, createContext, InMemoryBlobStore } from '@hoe/backend-ki
 import { buildAppServer, type FastifyInstance } from '@hoe/backend-kit/server'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { allowedOrigins, registerCors } from './cors.ts'
+import { identityAllowedOrigins, registerCors } from './cors.ts'
 import { createAppRouter } from './router.ts'
 
 const ALLOWED = 'https://homeofed.com'
-const ORIGINS = [ALLOWED]
+const ORIGINS = identityAllowedOrigins('production')
 
 let app: FastifyInstance
 
@@ -67,16 +67,19 @@ describe('the CORS allowlist', () => {
     expect(response.headers['access-control-allow-headers']).toBe('content-type')
   })
 
-  it('grants an unlisted origin nothing, and never reflects it back', async () => {
-    const response = await app.inject({
-      method: 'OPTIONS',
-      url: '/api/trpc/identity.me',
-      headers: { origin: 'https://evil.example', 'access-control-request-method': 'POST' },
-    })
+  it.each(['https://evil.example', 'https://boop.homeofed.com'])(
+    'grants %s nothing, and never reflects it back',
+    async (origin) => {
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: '/api/trpc/identity.me',
+        headers: { origin, 'access-control-request-method': 'POST' },
+      })
 
-    expect(response.headers['access-control-allow-origin']).toBeUndefined()
-    expect(response.headers['access-control-allow-credentials']).toBeUndefined()
-  })
+      expect(response.headers['access-control-allow-origin']).toBeUndefined()
+      expect(response.headers['access-control-allow-credentials']).toBeUndefined()
+    },
+  )
 
   it('marks the preflight as varying by origin, so no cache crosses origins', async () => {
     const response = await app.inject({
@@ -89,17 +92,29 @@ describe('the CORS allowlist', () => {
   })
 })
 
-describe('allowedOrigins', () => {
+describe('identityAllowedOrigins', () => {
   it('is never a wildcard', () => {
-    expect(allowedOrigins('production')).not.toContain('*')
-    expect(allowedOrigins(undefined)).not.toContain('*')
+    expect(identityAllowedOrigins('production')).not.toContain('*')
+    expect(identityAllowedOrigins(undefined)).not.toContain('*')
+  })
+
+  it('is the hub account UI alone in production', () => {
+    expect(identityAllowedOrigins('production')).toEqual(['https://homeofed.com'])
   })
 
   it('adds the localhost dev servers only outside production', () => {
-    expect(allowedOrigins('production')).toEqual([
-      'https://homeofed.com',
-      'https://boop.homeofed.com',
-    ])
-    expect(allowedOrigins(undefined)).toContain('http://localhost:3000')
+    expect(identityAllowedOrigins(undefined)).toContain('http://localhost:3000')
   })
+
+  // The identity router is cookie-authorised and every estate subdomain is
+  // same-site, so an app origin here would let an XSS in that app erase a
+  // household. Onboarded apps get the save router's own list (ticket 05).
+  it.each(['production', undefined])(
+    'never admits an onboarded app origin, under NODE_ENV=%s',
+    (nodeEnv) => {
+      const origins = identityAllowedOrigins(nodeEnv)
+      expect(origins).not.toContain('https://boop.homeofed.com')
+      expect(origins.filter((origin) => origin.endsWith('.homeofed.com'))).toEqual([])
+    },
+  )
 })

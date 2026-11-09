@@ -28,7 +28,8 @@ round-trips the Store to real Postgres.
 ### The identity half, and how its auth works
 
 Two things in this app are easy to get wrong, so read this before touching
-`src/server/auth/`.
+`src/server/auth/`. The reasoning is
+[ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md).
 
 **Two credentials, one `ctx.auth` seam.** The identity router is authorised by
 the **Better Auth cookie session** (host-scoped to `family.homeofed.com`, used
@@ -60,16 +61,27 @@ Consequences worth knowing:
 - CORS (`cors.ts`) is a hand-rolled allowlist with
   `Access-Control-Allow-Credentials: true`, registered through the
   `registerRoutes` hook. It is config, never `*`, and never reflects an
-  unchecked origin. Adding an app to the estate's save flow starts there.
+  unchecked origin. **It is split by what the route authorises**:
+  `identityAllowedOrigins` is the hub account UI alone, because every estate
+  subdomain is same-site and an app origin here would let an XSS in that app
+  erase a household. Onboarded app origins belong to the save router's own list
+  (ticket 05) - do not widen this one. `Vary: Origin` does not survive on tRPC
+  responses, so no cache rule may ever cover `/api/trpc`.
 - `loadFamilyEnv` requires all four identity variables unconditionally, so a
-  missing secret crashes the process at boot. Its failure message names the
-  variables and never their values. It also **refuses to boot at all** if
-  `FAMILY_TOKEN_PRIVATE_KEY` is the committed `@hoe/accounts/testing` fixture
-  while `FLY_APP_NAME` is set - `compose.yml` sets that fixture on purpose, and
-  the guard is what keeps it from reaching Fly, where anyone at all could then
-  mint estate tokens. It compares against the imported constant, so the guard
-  cannot drift from the fixture; that is why the image still ships
-  `packages/accounts/src/testing`.
+  missing secret crashes the process at boot, and its failure message names the
+  variables and never their values. **With `FLY_APP_NAME` present it refuses
+  anything this repo publishes**: the committed `@hoe/accounts/testing` signing
+  key, any committed `REGISTRATION_INVITE_CODE` or `BETTER_AUTH_SECRET`, either
+  of those below a minimum length, and any `NODE_ENV` but `production` (CORS's
+  dev origins and tRPC's stack traces both key off it). The key check compares
+  against the imported constant, which is why the image still ships
+  `packages/accounts/src/testing`; `COMMITTED_DEV_SECRETS` is kept honest by a
+  test that re-reads `.env.example` and `compose.yml`.
+- The invite gate is **route-enumerated** (`ctx.path === '/sign-up/email'`), so
+  a social provider or an anonymous / magic-link / email-otp / phone-number /
+  admin plugin would open a `createUser` path it never sees. ADR 0057 rests on
+  this gate, so `auth.options` is asserted whole - adding any option turns
+  `auth/betterAuth.test.ts` red on purpose.
 
 ### Schema invariants worth knowing before you change it
 

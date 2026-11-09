@@ -80,3 +80,33 @@ describe('the registration invite gate (ADR 0057)', () => {
     expect(session?.user.email).toBe(credentials.email)
   })
 })
+
+/**
+ * The gate is route-enumerated - it matches `ctx.path === '/sign-up/email'` - so
+ * any option that adds a second route reaching `createUser` would bypass it in
+ * silence. ADR 0057 rests entirely on this gate, so the option set is pinned
+ * whole: adding one turns this red and forces the question to be asked.
+ */
+describe('the Better Auth options (ADR 0057)', () => {
+  // Asserted over the key list, not by property access: `options` is typed as
+  // the literal we passed, so naming an absent key would not even compile.
+  it('declares no provider or plugin that could open another sign-up path', () => {
+    expect(Object.keys(auth.options)).not.toContain('socialProviders')
+    expect(Object.keys(auth.options)).not.toContain('plugins')
+  })
+
+  it('declares exactly the options the gate was reasoned about', () => {
+    expect(Object.keys(auth.options).sort()).toEqual([
+      'baseURL',
+      'database',
+      'emailAndPassword',
+      'hooks',
+      'secret',
+      'trustedOrigins',
+    ])
+  })
+
+  it('leaves email/password as the only credential route', () => {
+    expect(auth.options.emailAndPassword).toEqual({ enabled: true })
+  })
+})

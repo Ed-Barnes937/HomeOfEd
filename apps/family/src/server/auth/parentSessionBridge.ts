@@ -1,6 +1,5 @@
-// Better Auth resolves a session asynchronously; the AppContext auth seam is
-// synchronous. The bridge is a server-stamped request header, written only from
-// a verified session - the sprout precedent (ADR 0012). Node-only (Fastify).
+// Bridges Better Auth's async session onto the synchronous AppContext auth seam
+// with a server-stamped header (ADR 0078, after sprout's ADR 0012). Node-only.
 import type { AuthProvider } from '@hoe/backend-kit'
 import type { FastifyInstance } from '@hoe/backend-kit/server'
 
@@ -12,10 +11,7 @@ const PARENT_HEADER = 'x-family-parent'
 
 const anonymous: AuthProvider = { getUser: () => null }
 
-/**
- * Strips any inbound `x-family-parent` so a client can never supply one, then
- * re-stamps it from the Better Auth cookie session for tRPC requests only.
- */
+/** The strip is the anti-spoof boundary: no inbound value ever survives it. */
 export function registerParentSessionBridge(app: FastifyInstance, auth: SessionResolver): void {
   app.addHook('onRequest', async (req) => {
     delete req.headers[PARENT_HEADER]
