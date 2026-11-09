@@ -38,6 +38,7 @@ export {
   renameChildInput,
 } from './identityContract.ts'
 export type { ReadFamilySessionOpts } from './readFamilySession.ts'
+export { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from './saveLimits.ts'
 export { readFamilySession } from './readFamilySession.ts'
 export type {
   FamilySaveContract,

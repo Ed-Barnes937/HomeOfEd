@@ -123,6 +123,21 @@ would. The tokens it mints are decodable by `readFamilySession` (same
 `base64url(JSON).signature` shape, placeholder signature) so a cookie written
 in a browser harness reads back.
 
-One deliberate limit of the fake: it does not enforce the spec §4.6 server
-guards (appId allowlist, slot/account quotas) - those are family-handler
-config, proven by the handler tests in `apps/family`.
+**The fake runs the same validators the service runs.** Every input goes through
+the contract's own zod schema - the same object `router.ts` passes to
+`.input()`, so a tightened bound cannot diverge - and a parser failure arrives as
+`BAD_REQUEST` carrying the ZodError's own message, which is what tRPC really
+sends. The save quotas come from `saveLimits.ts`, the one definition
+`apps/family`'s handlers re-export. That is not decoration: before it, a
+33-character name, an untrimmed `' Ada '`, a 300 KB blob and a 65th slot all
+passed here and failed in production, and the untrimmed name stored a different
+string on each side. The habit behind that, and the four findings before it, is
+recorded in
+[`packages/backend-kit`'s README](../backend-kit/README.md#a-stand-in-models-the-happy-path-somebody-has-to-make-it-model-the-rest).
+
+Two things the fake still declines to model, both app configuration rather than
+contract: the **`appId` allowlist** (`onboardedApps.ts`, proven by the handler
+tests in `apps/family`), and anything behind a Better Auth option. It also
+assigns child ids in sequence, so `listChildren` sorts by `(createdAt, id)` -
+the same two keys `listChildProfiles` now orders by, so two profiles created in
+one millisecond come back in the same order on both sides.

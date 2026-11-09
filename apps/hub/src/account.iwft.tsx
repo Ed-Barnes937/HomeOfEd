@@ -61,6 +61,47 @@ test('a taken username is a message on the form, not a crash', async ({ mountApp
   await root.verifyProfileListed('Robin', 'robin')
 })
 
+/**
+ * A 33-character nickname is a plausible first thing to type here, and it used
+ * to reach the server and come back as tRPC's stringified zod issue array. The
+ * field now carries the contract's own bound, so the name is cut rather than
+ * refused and nothing machine-written reaches the screen. The mapper that would
+ * catch it anyway is pinned against the real payload in `accountError.test.ts`,
+ * and the fake refuses the over-long name itself in `@hoe/accounts`.
+ */
+test('a name longer than the bound is cut in the browser, not refused by the server', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+
+  await root.verifyNameFieldsAreBounded()
+  await root.addProfile('x'.repeat(33), 'y'.repeat(33))
+
+  await root.verifyProfileListed('x'.repeat(32), 'y'.repeat(32))
+  await root.verifyNoMachineOutputIsShown()
+})
+
+test('a blank or whitespace-only profile cannot be submitted at all', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+
+  await root.verifyAddProfileIsRefusedUntilBothFieldsHaveContent()
+})
+
+// The schema trims, so the screen must show what the service really stored.
+test('a name typed with stray spaces is listed trimmed', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+
+  await root.addProfile('  Robin  ', '  robin  ')
+
+  await root.verifyProfileListed('Robin', 'robin')
+})
+
 test('picking who is playing sets the estate-wide family cookie', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
@@ -73,6 +114,7 @@ test('picking who is playing sets the estate-wide family cookie', async ({ mount
 
   await root.verifyPlayingNow('Robin')
   await root.verifyFamilySessionNames('Robin', 'child')
+  await root.verifyFamilyCookieAttributes()
 })
 
 test('the parent can be the one playing too', async ({ mountApp }) => {

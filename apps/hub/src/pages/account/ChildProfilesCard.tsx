@@ -9,6 +9,13 @@ import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import styles from './AccountPage.module.scss'
 import { submitting } from './submitting.ts'
 
+/**
+ * The contract's own bound, enforced in the browser too. Past it the service
+ * answers a tRPC parser failure whose message is a stringified zod issue array,
+ * and a 33-character nickname is a plausible first thing to type here.
+ */
+const NAME_MAX_LENGTH = 32
+
 export interface ChildProfilesCardProps {
   profiles: readonly ChildProfileView[]
 }
@@ -74,6 +81,8 @@ function RenameForm({ profile, onDone }: { profile: ChildProfileView; onDone: ()
       <input
         className={styles.input}
         id={`rename-${profile.id}`}
+        maxLength={NAME_MAX_LENGTH}
+        required
         value={displayName}
         onChange={(e) => setDisplayName(e.target.value)}
       />
@@ -81,7 +90,11 @@ function RenameForm({ profile, onDone }: { profile: ChildProfileView; onDone: ()
         <p className={styles.error}>{accountErrorMessage(rename.error, SERVICE_DOWN)}</p>
       )}
       <div className={styles.actions}>
-        <button className={styles.primary} type="submit" disabled={rename.isPending}>
+        <button
+          className={styles.primary}
+          type="submit"
+          disabled={rename.isPending || displayName.trim() === ''}
+        >
           Save name
         </button>
         <button className={styles.secondary} type="button" onClick={onDone}>
@@ -117,6 +130,8 @@ function AddProfileForm() {
         <input
           className={styles.input}
           id="add-display-name"
+          maxLength={NAME_MAX_LENGTH}
+          required
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
         />
@@ -128,6 +143,8 @@ function AddProfileForm() {
         <input
           className={styles.input}
           id="add-username"
+          maxLength={NAME_MAX_LENGTH}
+          required
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
@@ -136,7 +153,11 @@ function AddProfileForm() {
           person to read, so it lands here rather than as a crash. */}
       {add.isError && <p className={styles.error}>{accountErrorMessage(add.error, SERVICE_DOWN)}</p>}
       <div className={styles.actions}>
-        <button className={styles.primary} type="submit" disabled={add.isPending}>
+        <button
+          className={styles.primary}
+          type="submit"
+          disabled={add.isPending || displayName.trim() === '' || username.trim() === ''}
+        >
           Add profile
         </button>
       </div>

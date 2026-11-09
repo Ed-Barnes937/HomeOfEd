@@ -10,6 +10,19 @@ export async function unwrapTrpcResponse(res: Response): Promise<unknown> {
     body = null
   }
 
+  /**
+   * A batched reply is an ARRAY of envelopes, so it carries neither `error` nor
+   * `result` and would otherwise fall through to a mystery 500. Neither client
+   * here batches - no `?batch=1`, one procedure per request - so this refuses
+   * explicitly rather than guessing which envelope was meant.
+   */
+  if (Array.isArray(body)) {
+    throw new FamilyClientError(
+      'the family service answered with a batched reply, which this client does not read',
+      'INTERNAL_SERVER_ERROR',
+    )
+  }
+
   if (typeof body === 'object' && body !== null && 'error' in body) {
     const error = body.error
     const { message, data } =

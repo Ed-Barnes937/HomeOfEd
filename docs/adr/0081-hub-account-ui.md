@@ -168,6 +168,37 @@ about variance, which is the same discipline the round trip exists for. Dropping
 contract, each fail `apps/family`'s typecheck: `TS2741` on the handler and
 `TS2345` plus three red identity tests respectively. Both were reverted.
 
+**10. A server message is not assumed to be prose, and the fake now runs the
+validators that proved it.** Decision 5 said a typed refusal carries words
+written for a person. That is true of the domain refusals and false of tRPC's
+**validation** refusals, whose message is a stringified zod issue array - so a
+parent typing a 33-character nickname, a plausible first action on this screen,
+got a dump of zod internals where the sentence belongs. The CSRF guard's 415
+carries a developer's sentence about content types and would have been shown
+verbatim too.
+
+Fixed on three sides, of which the third is the one that matters:
+
+- The name fields carry the contract's own `maxLength` and refuse a blank or
+  whitespace-only submit, which stops the common case in the browser. Measured
+  rather than assumed: a `fill` of 33 characters is **cut to 32** and succeeds,
+  so the server validator is no longer reachable from this form at all.
+- `accountErrorMessage` treats `BAD_REQUEST`, `UNSUPPORTED_MEDIA_TYPE` and
+  `INTERNAL_SERVER_ERROR` as unactionable, **and** falls back for any message
+  that opens as `[` or `{` whatever code carried it. The code list can only name
+  refusals somebody thought of, so it fails open; the shape check does not.
+- **`FakeFamilyClient` now parses every input through the contract's own zod
+  schemas and enforces the save quotas from one shared definition.** Without
+  that no test could see any of this, which is exactly why every test passed.
+  The sharpest instance: the real schema trims and the fake did not, so `' Ada '`
+  stored as `'Ada'` in production and `' Ada '` in the harness.
+
+This is the fifth time in this epic that a stand-in honoured the interface and
+diverged on the real thing, and the habit behind all five is now written down in
+[`packages/backend-kit`'s README](../../packages/backend-kit/README.md#a-stand-in-models-the-happy-path-somebody-has-to-make-it-model-the-rest)
+rather than left for the next person to rediscover: a fake owes you the input
+parser and the limits, not only the outputs and the errors.
+
 ## Consequences
 
 **`identity.children.delete` is outside the contract**, because no client speaks
@@ -190,6 +221,15 @@ surface is sequenced outside epic branches, so it is not here.
 gates merging anything user-facing on it being accepted, and this is the whole
 of the user-facing surface. The work is committed to the epic branch; the merge
 is the human's.
+
+**Two latent edges were closed rather than left for a future reader.**
+`unwrapTrpcResponse` tested for `error` and `result` keys, but a batched tRPC
+reply is an *array* carrying neither, so every reply would have become an
+opaque 500 the moment somebody added `?batch=1` to save a round trip. It now
+refuses a batched reply by name. And `listChildProfiles` ordered by `createdAt`
+alone, which leaves two profiles created in one millisecond in an order Postgres
+does not promise; `id` is now the tiebreak, and the fake sorts by the same two
+keys so both sides agree.
 
 **The register form can meet a rate limit.** Better Auth rate-limits its own
 endpoints in production, and a 429 was seen during probing. It arrives as a

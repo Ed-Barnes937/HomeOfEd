@@ -74,6 +74,28 @@ export class AccountPagePom extends BasePage {
     await expect(row).toContainText(displayName)
   }
 
+  /** The browser-side half of the bound: the server's refusal is not prose. */
+  async verifyNameFieldsAreBounded(): Promise<void> {
+    await expect(this.page.getByLabel('Display name')).toHaveAttribute('maxlength', '32')
+    await expect(this.page.getByLabel('Username')).toHaveAttribute('maxlength', '32')
+  }
+
+  async verifyAddProfileIsRefusedUntilBothFieldsHaveContent(): Promise<void> {
+    const add = this.page.getByRole('button', { name: 'Add profile' })
+    await expect(add).toBeDisabled()
+    await this.page.getByLabel('Display name').fill('Robin')
+    await expect(add).toBeDisabled()
+    await this.page.getByLabel('Username').fill('   ')
+    await expect(add).toBeDisabled()
+  }
+
+  /** Nothing on a parent's screen may be a stringified zod issue array. */
+  async verifyNoMachineOutputIsShown(): Promise<void> {
+    await expect(this.page.getByText('"code":')).toHaveCount(0)
+    await expect(this.page.getByText('Invalid input')).toHaveCount(0)
+    await expect(this.page.getByText('Too big:')).toHaveCount(0)
+  }
+
   async verifyNoProfiles(): Promise<void> {
     await expect(this.page.getByText('No profiles yet. Add one below.')).toBeVisible()
   }
@@ -108,6 +130,26 @@ export class AccountPagePom extends BasePage {
    */
   async verifyFamilySessionNames(name: string, role: 'parent' | 'child'): Promise<void> {
     await expect.poll(() => this.familySessionClaims()).toMatchObject({ name, role })
+  }
+
+  /**
+   * Read off the real browser jar, not `document.cookie`, so the attributes are
+   * the ones the browser actually stored. `Domain` and `Secure` are the
+   * production pair and cannot be set from localhost - those are pinned exactly
+   * by the unit test over `familySessionCookieString`.
+   */
+  async verifyFamilyCookieAttributes(): Promise<void> {
+    const cookies = await this.page.context().cookies()
+    const cookie = cookies.find((c) => c.name === FAMILY_SESSION_COOKIE)
+    expect(cookie).toMatchObject({
+      path: '/',
+      sameSite: 'Lax',
+      // Deliberately readable by script: boop reads these claims for its chip.
+      httpOnly: false,
+    })
+    const days = (cookie!.expires - Date.now() / 1000) / 86400
+    expect(days).toBeGreaterThan(29)
+    expect(days).toBeLessThanOrEqual(30)
   }
 
   async verifyNoFamilySession(): Promise<void> {

@@ -164,7 +164,10 @@ export class DrizzleFamilyStore implements FamilyStore {
       .select()
       .from(childProfiles)
       .where(eq(childProfiles.parentId, parentId))
-      .orderBy(childProfiles.createdAt)
+      // `id` breaks the tie: `createdAt` alone leaves two profiles created in
+      // one millisecond in an order Postgres does not promise, and the fake
+      // every consuming app tests against sorts by the same two keys.
+      .orderBy(childProfiles.createdAt, childProfiles.id)
   }
 
   async getChildProfile(id: string): Promise<ChildProfileRow | null> {

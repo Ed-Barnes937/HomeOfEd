@@ -5,9 +5,24 @@
 // authorises saves alone, a parent cookie session is `signIn`/`signUp` and
 // authorises identity alone. Neither stands in for the other here either, so a
 // test that confuses them fails in the harness rather than in production.
+//
+// It also runs **the same validators the service runs**: every input goes
+// through the contract's own zod schema, and the save quotas are the same
+// constants the handlers use. A fake that models only the happy path and the
+// typed refusals lets a 33-character name, an untrimmed one, a 300 KB blob and a
+// 65th slot all pass in a harness and fail in production - see this package's
+// README.
 import type { FamilyTokenClaims } from '../claims.ts'
 import { DEFAULT_FAMILY_TOKEN_TTL_MS } from '../claims.ts'
 import { FamilyClientError } from '../familyClientError.ts'
+import { addChildInput, mintSessionTokenInput, renameChildInput } from '../identityContract.ts'
+import {
+  saveDeleteInput,
+  saveGetInput,
+  saveListInput,
+  savePutInput,
+} from '../saveContract.ts'
+import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from '../saveLimits.ts'
 import type {
   AddChildInput,
   ChildProfileView,
@@ -106,29 +121,50 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
     this.failure = error
   }
 
-  get(input: SaveGetInput): Promise<SaveGetOutput> {
+  get(raw: SaveGetInput): Promise<SaveGetOutput> {
     return this.saveAccount().then((accountId) => {
+      const input = parsed(saveGetInput, raw)
       const slot = this.slots.get(slotId(input.appId, accountId, input.slotKey))
       return slot ? { blob: slot.blob, version: slot.version, updatedAt: slot.updatedAt } : null
     })
   }
 
-  put(input: SavePutInput): Promise<SavePutOutput> {
+  put(raw: SavePutInput): Promise<SavePutOutput> {
     return this.saveAccount().then((accountId) => {
+      const input = parsed(savePutInput, raw)
       const key = slotId(input.appId, accountId, input.slotKey)
-      const version = (this.slots.get(key)?.version ?? 0) + 1
-      this.slots.set(key, {
-        blob: input.blob,
-        version,
-        sizeBytes: new TextEncoder().encode(input.blob).length,
-        updatedAt: this.now().getTime(),
-      })
+      const sizeBytes = byteLength(input.blob)
+      const existing = this.slots.get(key)
+
+      // The handlers' own three checks, in their order, with their messages:
+      // a put prices its own overwrite by the difference, and the account
+      // ceiling is summed across every appId (ADR 0079 decision 5).
+      if (sizeBytes > MAX_SLOT_BYTES) {
+        throw validationError(
+          `a save slot holds at most ${MAX_SLOT_BYTES} bytes; this one is ${sizeBytes}`,
+        )
+      }
+      const usage = this.usageFor(accountId)
+      if (usage.bytes - (existing?.sizeBytes ?? 0) + sizeBytes > MAX_ACCOUNT_BYTES) {
+        throw validationError(
+          `this account holds at most ${MAX_ACCOUNT_BYTES} bytes of saves across every app`,
+        )
+      }
+      if (existing === undefined && usage.slots >= MAX_ACCOUNT_SLOTS) {
+        throw validationError(
+          `this account holds at most ${MAX_ACCOUNT_SLOTS} save slots across every app`,
+        )
+      }
+
+      const version = (existing?.version ?? 0) + 1
+      this.slots.set(key, { blob: input.blob, version, sizeBytes, updatedAt: this.now().getTime() })
       return { version }
     })
   }
 
-  list(input: SaveListInput): Promise<SaveListOutput> {
+  list(raw: SaveListInput): Promise<SaveListOutput> {
     return this.saveAccount().then((accountId) => {
+      const input = parsed(saveListInput, raw)
       const prefix = slotId(input.appId, accountId, '')
       return [...this.slots.entries()]
         .filter(([key]) => key.startsWith(prefix))
@@ -142,11 +178,24 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
     })
   }
 
-  delete(input: SaveDeleteInput): Promise<SaveDeleteOutput> {
+  delete(raw: SaveDeleteInput): Promise<SaveDeleteOutput> {
     return this.saveAccount().then((accountId) => {
+      const input = parsed(saveDeleteInput, raw)
       this.slots.delete(slotId(input.appId, accountId, input.slotKey))
       return {}
     })
+  }
+
+  /** Every slot this account owns, across every appId - the account ceiling's scope. */
+  private usageFor(accountId: string): { bytes: number; slots: number } {
+    let bytes = 0
+    let slots = 0
+    for (const [key, slot] of this.slots) {
+      if (key.split('\x1f')[1] !== accountId) continue
+      bytes += slot.sizeBytes
+      slots += 1
+    }
+    return { bytes, slots }
   }
 
   // --- the parent cookie session: the identity half's one credential ---------
@@ -206,13 +255,18 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
     return this.requireParent().then((parent) =>
       [...this.children.values()]
         .filter((child) => child.parentId === parent.id)
-        .sort((a, b) => a.createdAt - b.createdAt)
+        // The same two keys `listChildProfiles` orders by, so two profiles
+        // created in one millisecond are in the same order on both sides.
+        .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
         .map(toView),
     )
   }
 
-  addChild(input: AddChildInput): Promise<ChildProfileView> {
+  addChild(raw: AddChildInput): Promise<ChildProfileView> {
     return this.requireParent().then((parent) => {
+      // Parsed, not read: the schema trims, so `' Ada '` must store as `'Ada'`
+      // here exactly as it does in Postgres.
+      const input = parsed(addChildInput, raw)
       // `child_profiles.username` is globally unique, so the clash is not scoped
       // to the parent (first-slice spec §4.1).
       const taken = [...this.children.values()].some((child) => child.username === input.username)
@@ -222,15 +276,16 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
         parentId: parent.id,
         username: input.username,
         displayName: input.displayName,
-        createdAt: this.now().getTime() + this.children.size,
+        createdAt: this.now().getTime(),
       }
       this.children.set(child.id, child)
       return toView(child)
     })
   }
 
-  renameChild(input: RenameChildInput): Promise<ChildProfileView> {
+  renameChild(raw: RenameChildInput): Promise<ChildProfileView> {
     return this.requireParent().then((parent) => {
+      const input = parsed(renameChildInput, raw)
       const child = this.ownChild(parent.id, input.id)
       const renamed = { ...child, displayName: input.displayName }
       this.children.set(child.id, renamed)
@@ -238,8 +293,9 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
     })
   }
 
-  mintSessionToken(input: MintSessionTokenInput): Promise<MintSessionTokenOutput> {
+  mintSessionToken(raw: MintSessionTokenInput): Promise<MintSessionTokenOutput> {
     return this.requireParent().then((parent) => {
+      const input = parsed(mintSessionTokenInput, raw)
       const claims: FakeSessionInput =
         input.childId === undefined
           ? { sub: parent.id, role: 'parent', name: parent.name }
@@ -347,6 +403,31 @@ function encodeUnsignedToken(claims: FamilyTokenClaims): string {
   for (const byte of bytes) binary += String.fromCharCode(byte)
   const payload = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   return `${payload}.fake-signature`
+}
+
+/**
+ * The service's parser failures arrive as tRPC's BAD_REQUEST carrying the
+ * ZodError's own message - a stringified issue array rather than prose. The fake
+ * says the same thing, so a test can see what a parent would be shown.
+ */
+function parsed<T>(schema: { parse: (value: unknown) => T }, input: unknown): T {
+  try {
+    return schema.parse(input)
+  } catch (error) {
+    throw new FamilyClientError(
+      error instanceof Error ? error.message : 'invalid input',
+      'BAD_REQUEST',
+    )
+  }
+}
+
+/** backend-kit maps ValidationError to BAD_REQUEST; the taxonomy has no 413. */
+function validationError(message: string): FamilyClientError {
+  return new FamilyClientError(message, 'BAD_REQUEST')
+}
+
+function byteLength(blob: string): number {
+  return new TextEncoder().encode(blob).length
 }
 
 // \x1f cannot appear in any part, so composite keys never collide.

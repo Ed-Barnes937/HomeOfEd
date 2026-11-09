@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { readFamilySession } from '../readFamilySession.ts'
+import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from '../saveLimits.ts'
 
 import { FakeFamilyClient } from './fakeFamilyClient.ts'
 
@@ -250,5 +251,104 @@ describe('FakeFamilyClient (identity contract)', () => {
 
     client.failWith(null)
     await expect(client.listChildren()).resolves.toEqual([])
+  })
+})
+
+/**
+ * The habit this package's README records: a fake that models only the happy
+ * path and the typed refusals cannot see a validator, and four tickets running
+ * it never did. These are the assertions that would have.
+ */
+describe('FakeFamilyClient runs the same validators the service runs', () => {
+  const signedInParent = async (): Promise<FakeFamilyClient> => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    return client
+  }
+
+  it('refuses an over-long display name and username, as a 400 and not a crash', async () => {
+    const client = await signedInParent()
+
+    await expect(
+      client.addChild({ username: 'robin', displayName: 'x'.repeat(33) }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(
+      client.addChild({ username: 'y'.repeat(33), displayName: 'Robin' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect(await client.listChildren()).toEqual([])
+  })
+
+  it('refuses a whitespace-only name, because the schema trims before it counts', async () => {
+    const client = await signedInParent()
+    await expect(
+      client.addChild({ username: '   ', displayName: '   ' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  // The divergence that mattered: the real schema trims and the fake did not,
+  // so the same input stored two different strings.
+  it('stores the trimmed name, as Postgres would', async () => {
+    const client = await signedInParent()
+    const child = await client.addChild({ username: ' robin ', displayName: ' Robin ' })
+    expect(child).toMatchObject({ username: 'robin', displayName: 'Robin' })
+  })
+
+  it('refuses a rename to an over-long name, and an id that is not a uuid', async () => {
+    const client = await signedInParent()
+    const child = await client.addChild({ username: 'robin', displayName: 'Robin' })
+
+    await expect(
+      client.renameChild({ id: child.id, displayName: 'x'.repeat(33) }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(
+      client.renameChild({ id: 'not-a-uuid', displayName: 'Bobbin' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect((await client.listChildren())[0]!.displayName).toBe('Robin')
+  })
+
+  it('refuses a slotKey past the contract bound', async () => {
+    const client = signedIn()
+    await expect(
+      client.put({ appId: 'boop', slotKey: 'k'.repeat(129), blob: 'x' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+})
+
+describe('FakeFamilyClient enforces the save quotas (ADR 0079)', () => {
+  it('refuses a blob over the slot cap, leaving the stored slot intact', async () => {
+    const client = signedIn()
+    await client.put({ appId: 'boop', slotKey: 'boop:save', blob: 'keep me' })
+
+    await expect(
+      client.put({ appId: 'boop', slotKey: 'boop:save', blob: 'x'.repeat(MAX_SLOT_BYTES + 1) }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+    expect((await client.get({ appId: 'boop', slotKey: 'boop:save' }))?.blob).toBe('keep me')
+  })
+
+  // Summed across every appId, so one app cannot crowd out another.
+  it('refuses a put that would take the account past its byte ceiling', async () => {
+    const client = signedIn()
+    const big = 'x'.repeat(MAX_SLOT_BYTES)
+    for (let i = 0; i < MAX_ACCOUNT_BYTES / MAX_SLOT_BYTES; i++) {
+      await client.put({ appId: 'boop', slotKey: `slot-${i}`, blob: big })
+    }
+
+    await expect(
+      client.put({ appId: 'silt', slotKey: 'one-more', blob: 'x' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('caps rows as well as bytes, and still lets a full account rewrite what it holds', async () => {
+    const client = signedIn()
+    for (let i = 0; i < MAX_ACCOUNT_SLOTS; i++) {
+      await client.put({ appId: 'boop', slotKey: `slot-${i}`, blob: '' })
+    }
+
+    await expect(client.put({ appId: 'boop', slotKey: 'one-more', blob: '' })).rejects.toMatchObject(
+      { code: 'BAD_REQUEST' },
+    )
+    await expect(client.put({ appId: 'boop', slotKey: 'slot-0', blob: 'rewritten' })).resolves
+      .toBeDefined()
   })
 })
