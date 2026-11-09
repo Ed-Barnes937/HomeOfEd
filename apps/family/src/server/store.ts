@@ -73,7 +73,7 @@ export interface FamilyStore {
   /** The Better Auth user row behind a session; null when it has gone. */
   getParent(id: string): Promise<ParentRow | null>
 
-  /** Throws `ConflictError` when the username is taken; `username` is unique. */
+  /** Throws `ConflictError` when the household already has a child with that username. */
   addChildProfile(input: ChildProfileInput): Promise<ChildProfileRow>
   listChildProfiles(parentId: string): Promise<ChildProfileRow[]>
   getChildProfile(id: string): Promise<ChildProfileRow | null>
@@ -160,11 +160,16 @@ export class DrizzleFamilyStore implements FamilyStore {
   }
 
   listChildProfiles(parentId: string): Promise<ChildProfileRow[]> {
-    return this.db
-      .select()
-      .from(childProfiles)
-      .where(eq(childProfiles.parentId, parentId))
-      .orderBy(childProfiles.createdAt)
+    return (
+      this.db
+        .select()
+        .from(childProfiles)
+        .where(eq(childProfiles.parentId, parentId))
+        // `id` breaks the tie: `createdAt` alone leaves two profiles created in
+        // one millisecond in an order Postgres does not promise, and the fake
+        // every consuming app tests against sorts by the same two keys.
+        .orderBy(childProfiles.createdAt, childProfiles.id)
+    )
   }
 
   async getChildProfile(id: string): Promise<ChildProfileRow | null> {

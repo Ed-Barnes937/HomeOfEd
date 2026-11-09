@@ -121,3 +121,14 @@ user delete, version bump on put, unique username.
   **Final state:** 15 store tests, 17 vitest and 3 iwft green for the app;
   lint and typecheck green repo-wide including a forced uncached run; docker
   stack re-smoked against the real image after the SQL changes.
+
+- 2026-11-09: **username uniqueness narrowed to per household** (owner's answer
+  to `for-ed.md` item 4). `child_profiles` now carries
+  `child_profiles_parent_username_unique` on `(parent_id, username)` instead of
+  a global unique on `username`. Migration 0000 and its snapshot were
+  regenerated in place with `drizzle-kit generate`, since nothing real had
+  applied them; the file name and journal tag are unchanged. The store test
+  became two invariants against PGlite (two households may share a username and
+  both rows persist; one household may not, as a typed `CONFLICT`), and the
+  `CONFLICT` mapping needed no change because it keys off `23505`. The identity
+  handler test and `FakeFamilyClient` follow the same rule.

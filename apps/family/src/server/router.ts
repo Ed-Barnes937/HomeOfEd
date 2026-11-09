@@ -1,8 +1,13 @@
 import {
+  addChildInput,
+  deleteAccountInput,
+  mintSessionTokenInput,
+  renameChildInput,
   saveDeleteInput,
   saveGetInput,
   saveListInput,
   savePutInput,
+  type FamilyIdentityRouterContract,
   type FamilySaveContract,
 } from '@hoe/accounts'
 import { createTRPC } from '@hoe/backend-kit'
@@ -10,25 +15,16 @@ import { createTRPC } from '@hoe/backend-kit'
 import type { FamilyTokenMinter } from './auth/tokenPort.ts'
 import type { FamilyContext } from './handlers/authz.ts'
 import { GreetingHandler } from './handlers/greetingHandler.ts'
-import { AddChildHandler, addChildInputSchema } from './handlers/identity/addChildHandler.ts'
-import {
-  DeleteAccountHandler,
-  deleteAccountInputSchema,
-} from './handlers/identity/deleteAccountHandler.ts'
+import { AddChildHandler } from './handlers/identity/addChildHandler.ts'
+import { DeleteAccountHandler } from './handlers/identity/deleteAccountHandler.ts'
 import {
   DeleteChildHandler,
   deleteChildInputSchema,
 } from './handlers/identity/deleteChildHandler.ts'
 import { ListChildrenHandler } from './handlers/identity/listChildrenHandler.ts'
 import { MeHandler } from './handlers/identity/meHandler.ts'
-import {
-  MintSessionTokenHandler,
-  mintSessionTokenInputSchema,
-} from './handlers/identity/mintSessionTokenHandler.ts'
-import {
-  RenameChildHandler,
-  renameChildInputSchema,
-} from './handlers/identity/renameChildHandler.ts'
+import { MintSessionTokenHandler } from './handlers/identity/mintSessionTokenHandler.ts'
+import { RenameChildHandler } from './handlers/identity/renameChildHandler.ts'
 import { DeleteSaveHandler } from './handlers/saves/deleteSaveHandler.ts'
 import { GetSaveHandler } from './handlers/saves/getSaveHandler.ts'
 import { ListSavesHandler } from './handlers/saves/listSavesHandler.ts'
@@ -41,6 +37,24 @@ export interface FamilyRouterDeps {
 }
 
 const t = createTRPC<FamilyStore>()
+
+/**
+ * The identity half, bound to one request's context. The `satisfies` is the
+ * point: it makes a divergence between these handlers and the contract hub's
+ * client speaks a compile error here rather than a 400 somebody meets in a
+ * browser. `children.delete` is wired straight into the router below because no
+ * client speaks it, so the contract does not describe it.
+ */
+function identityContractFor(ctx: FamilyContext, mintToken: FamilyTokenMinter) {
+  return {
+    me: () => new MeHandler().run(undefined, ctx),
+    listChildren: () => new ListChildrenHandler().run(undefined, ctx),
+    addChild: (input) => new AddChildHandler().run(input, ctx),
+    renameChild: (input) => new RenameChildHandler().run(input, ctx),
+    mintSessionToken: (input) => new MintSessionTokenHandler(mintToken).run(input, ctx),
+    deleteAccount: () => new DeleteAccountHandler().run(undefined, ctx),
+  } satisfies FamilyIdentityRouterContract
+}
 
 /** The save half, bound to one request's context, as `@hoe/accounts` types it. */
 function saveContractFor(ctx: FamilyContext) {
@@ -60,25 +74,33 @@ export function createAppRouter(deps: FamilyRouterDeps) {
   return t.router({
     greeting: t.procedure.query(({ ctx }) => new GreetingHandler().run(undefined, ctx)),
     identity: t.router({
-      me: t.procedure.query(({ ctx }) => new MeHandler().run(undefined, ctx)),
+      me: t.procedure.query(({ ctx }) => identityContractFor(ctx, deps.mintToken).me()),
       children: t.router({
-        list: t.procedure.query(({ ctx }) => new ListChildrenHandler().run(undefined, ctx)),
+        list: t.procedure.query(({ ctx }) =>
+          identityContractFor(ctx, deps.mintToken).listChildren(),
+        ),
         add: t.procedure
-          .input(addChildInputSchema)
-          .mutation(({ input, ctx }) => new AddChildHandler().run(input, ctx)),
+          .input(addChildInput)
+          .mutation(({ input, ctx }) => identityContractFor(ctx, deps.mintToken).addChild(input)),
         rename: t.procedure
-          .input(renameChildInputSchema)
-          .mutation(({ input, ctx }) => new RenameChildHandler().run(input, ctx)),
+          .input(renameChildInput)
+          .mutation(({ input, ctx }) =>
+            identityContractFor(ctx, deps.mintToken).renameChild(input),
+          ),
         delete: t.procedure
           .input(deleteChildInputSchema)
           .mutation(({ input, ctx }) => new DeleteChildHandler().run(input, ctx)),
       }),
       mintSessionToken: t.procedure
-        .input(mintSessionTokenInputSchema)
-        .mutation(({ input, ctx }) => new MintSessionTokenHandler(deps.mintToken).run(input, ctx)),
+        .input(mintSessionTokenInput)
+        .mutation(({ input, ctx }) =>
+          identityContractFor(ctx, deps.mintToken).mintSessionToken(input),
+        ),
+      // The parser is what makes tRPC read the body at all (ADR 0078 decision 5),
+      // so it stays on the procedure even though the handler ignores its value.
       deleteAccount: t.procedure
-        .input(deleteAccountInputSchema)
-        .mutation(({ ctx }) => new DeleteAccountHandler().run(undefined, ctx)),
+        .input(deleteAccountInput)
+        .mutation(({ ctx }) => identityContractFor(ctx, deps.mintToken).deleteAccount()),
     }),
     save: t.router({
       get: t.procedure

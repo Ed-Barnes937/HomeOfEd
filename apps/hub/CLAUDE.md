@@ -1,9 +1,10 @@
 # apps/hub — scoped rules
 
-The launcher/landing app at the apex `homeofed.com`. One page: the wordmark and
-the app rail (nav, links). The `trpc.health()` DB round-trip stays wired
-server-side (router → handler → Store) as the worked example, but the current
-page no longer surfaces it. New apps are **not** copied from here — the copy base
+The launcher/landing app at the apex `homeofed.com`. Two routes: `/`, the
+wordmark and the app rail (nav, links), and `/account`, **the whole estate's
+account UI** (spec §6, [ADR 0081](../../docs/adr/0081-hub-account-ui.md)).
+The `trpc.health()` DB round-trip stays wired server-side (router → handler →
+Store) as the worked example, but neither page surfaces it. New apps are **not** copied from here — the copy base
 is `templates/starter` ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)).
 hub keeps the DB layer as the worked example of a database-backed app; the
 stateless baseline lives in the starter
@@ -26,8 +27,14 @@ src/
     health.test.ts  Vitest unit — handler with a hand-written Store fake
     store.test.ts   Vitest — DrizzleHealthStore over PGlite + the generated migrations
   pages/ features/  UI — SCSS modules, TanStack Router routes, query options
-  testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
-  health.iwft.tsx   whole-frontend tests via the in-browser backend
+    pages/_paperTokens.scss  the warm-paper palette, one definition for every screen
+    pages/account/    the /account screens: AccountPage + the four cards
+    features/account/ the family-service seam: familyClient (context + prod
+                    client), familyService (origin + cookie attributes per
+                    hostname), accountError, accountQueries
+  testing/          IwftApp harness (in-browser backend) + iwft fixtures + page
+                    objects; familyFixture.ts is the household the fake starts with
+  home.iwft.tsx account.iwft.tsx  whole-frontend tests via the in-browser backend
 vite.config.ts      react + simulatorPlugin (dev simulator mode)
 drizzle.config.ts   drizzle-kit: schema → src/server/migrations
 playwright-ct.config.ts  defineIwftConfig({ ctPort: 3100 })
@@ -57,6 +64,28 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3100 })
   `schema.ts` + `pnpm generate`.
 - Ports: dev 3000, CT 3100 — a copied app must pick fresh ones (root CLAUDE.md
   checklist).
+- **`/account` talks to the family service browser-direct.** Hub's backend,
+  schema and `fly.toml` know nothing about it; everything goes through
+  `@hoe/accounts`' identity client over a `FamilyIdentityContract` injected into
+  `<App />`. Read
+  [ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md) before
+  touching any of it, and
+  [ADR 0081](../../docs/adr/0081-hub-account-ui.md) for these screens:
+  - **Identity calls are authorised by the Better Auth cookie session, never by
+    the family token.** The token is not httpOnly, so letting it authorise an
+    identity call would let any script on any estate subdomain erase a
+    household.
+  - **Hub's origin is the only one on the identity CORS tier**, which is why
+    this UI lives here and not in each app (hard rule 2 agrees).
+  - The "who's playing" pick writes `hoe_family_session` client-side from the
+    mint reply. `familySessionCookieOptions(hostname)` decides `Domain` and
+    `Secure`, because a browser refuses `Domain=.homeofed.com` from localhost;
+    the `Max-Age` comes from the token's own `exp`, inside `@hoe/accounts`.
+  - **There is no live dev sign-in.** Better Auth runs only in the family
+    service's `main.ts`, so the simulator and the .iwft harness serve anonymous
+    requests. `account.iwft.tsx` injects `FakeFamilyClient` through `IwftApp`,
+    and a real sign-in needs `docker compose up family`. Do not add a dev-only
+    backdoor that stamps a parent.
 - Card previews honour `prefers-reduced-motion`: a new card's drawer returns
   `drivePreview(frame, drive, settle)` (`pages/HomePage.tsx`) so that under
   reduce it draws `settle` frames once, never schedules rAF, and repaints on a

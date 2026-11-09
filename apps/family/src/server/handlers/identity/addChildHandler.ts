@@ -1,17 +1,10 @@
+import type { AddChildInput, ChildProfileView } from '@hoe/accounts'
 import { Handler } from '@hoe/backend-kit'
-import { z } from 'zod'
 
 import type { FamilyStore } from '../../store.ts'
 import { requireParent, type FamilyContext } from '../authz.ts'
 
-import { toChildProfileView, type ChildProfileView } from './childProfileView.ts'
-
-export const addChildInputSchema = z.object({
-  username: z.string().trim().min(1).max(32),
-  displayName: z.string().trim().min(1).max(32),
-})
-
-export type AddChildInput = z.infer<typeof addChildInputSchema>
+import { toChildProfileView } from './childProfileView.ts'
 
 export class AddChildHandler extends Handler<AddChildInput, ChildProfileView, FamilyStore> {
   async run(input: AddChildInput, ctx: FamilyContext): Promise<ChildProfileView> {

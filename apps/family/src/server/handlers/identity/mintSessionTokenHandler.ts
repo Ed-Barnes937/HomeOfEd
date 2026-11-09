@@ -1,25 +1,14 @@
+import type { MintSessionTokenInput, MintSessionTokenOutput } from '@hoe/accounts'
 import { Handler, UnauthorizedError } from '@hoe/backend-kit'
-import { z } from 'zod'
 
 import type { FamilyTokenMinter } from '../../auth/tokenPort.ts'
 import type { FamilyStore } from '../../store.ts'
 import { requireOwnChild, requireParent, type FamilyContext } from '../authz.ts'
 
-export const mintSessionTokenInputSchema = z.object({
-  /** Absent means the parent themselves. */
-  childId: z.uuid().optional(),
-})
-
-export type MintSessionTokenInput = z.infer<typeof mintSessionTokenInputSchema>
-
-export interface MintSessionTokenResult {
-  token: string
-}
-
 /** "Who's playing": a family token for the parent or one of their own profiles. */
 export class MintSessionTokenHandler extends Handler<
   MintSessionTokenInput,
-  MintSessionTokenResult,
+  MintSessionTokenOutput,
   FamilyStore
 > {
   private readonly mintToken: FamilyTokenMinter
@@ -29,7 +18,7 @@ export class MintSessionTokenHandler extends Handler<
     this.mintToken = mintToken
   }
 
-  async run(input: MintSessionTokenInput, ctx: FamilyContext): Promise<MintSessionTokenResult> {
+  async run(input: MintSessionTokenInput, ctx: FamilyContext): Promise<MintSessionTokenOutput> {
     const parent = requireParent(ctx)
 
     if (input.childId === undefined) {

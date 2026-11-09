@@ -53,12 +53,19 @@ deletes write the same document from `BoopsPanel`.
 `pagehide`/`visibilitychange` hide, and copies the document up when its bytes
 have changed.
 
-The hide-time push only delivers because the client's fetch sets `keepalive`. A
-request started from `pagehide` is otherwise cancelled with the document, which
-would have made that listener - and the registration order it depends on - worth
-nothing. The budget for a keepalive body is 64 KiB against a 256 KiB slot cap,
-so `keepaliveFetch` measures the body in bytes and falls back to a plain fetch
-above it rather than failing at the browser. Nothing in the play path calls into sync, so no edit, save or
+The hide-time push is only dependable because the client's fetch sets
+`keepalive`. Without it the request races the document's teardown: measured in
+Chromium with boop against the real service, a save followed by closing the tab
+reached the account every time as shipped, and was **dropped once in four runs**
+with `keepalive` stripped in the page - so what the flag buys is a guarantee
+where there was a race, not the rescue of a request that was certainly dead.
+Its bound is worth knowing too: it survives the *document*, not the browser
+process. Kill the browser itself and the request goes with it, which is the one
+departure boop cannot cover. The budget for a keepalive body is 64 KiB against a
+256 KiB slot cap, so `keepaliveFetch` measures the body in bytes and falls back
+to a plain fetch above it rather than failing at the browser.
+
+Nothing in the play path calls into sync, so no edit, save or
 render can await it, be slowed by it, or throw through it, and `persistence/`
 does not know it exists. It also makes sync write-source agnostic: the working
 grid's autosave, a save into "My boops", a rename and a delete all reach the
@@ -283,6 +290,13 @@ boop can meet - the 256 KiB slot cap and an unonboarded `appId` - arrived as
 with the stored slot surviving the refusal. The hand-rolled envelope in
 `saveClient.ts` (`?input=` with no `batch=1`, `result.data` unwrapped by hand,
 `error.data.code` read off the error) matches what the service actually sends.
+
+**The hide-time push was watched, not assumed.** boop's dev build, the same
+service, a real browser: save a boop, close the tab within two seconds, then
+read the slot. The bytes on the account matched localStorage exactly, which is
+finding 5's fix observed end to end rather than inferred from a flag's value -
+and the harness that first said otherwise was killing the whole browser process,
+not the tab.
 
 The cross-origin half was checked in a real browser on `http://localhost:3008`:
 the credentialed put and get both succeeded and the blob read back identically,

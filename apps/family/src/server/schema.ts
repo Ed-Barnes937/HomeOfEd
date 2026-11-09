@@ -1,4 +1,13 @@
-import { boolean, integer, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 // --- Better Auth tables (stock shape, declared here; its migrator is unused) --
 
@@ -54,15 +63,21 @@ export const verification = pgTable('verification', {
 
 // --- family's own tables -----------------------------------------------------
 
-export const childProfiles = pgTable('child_profiles', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  parentId: text('parent_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  username: text('username').notNull().unique(),
-  displayName: text('display_name').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
+export const childProfiles = pgTable(
+  'child_profiles',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    parentId: text('parent_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    username: text('username').notNull(),
+    displayName: text('display_name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  // Per household, not global: children never log in, so a username only has to
+  // tell one household's children apart.
+  (t) => [unique('child_profiles_parent_username_unique').on(t.parentId, t.username)],
+)
 
 export const saves = pgTable(
   'saves',
