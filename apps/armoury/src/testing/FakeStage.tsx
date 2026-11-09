@@ -11,7 +11,7 @@ import type {
 
 import { compileWand } from '../wand/compile.ts'
 
-const gemsLit = (params: Params) => {
+const gemCount = (params: Params) => {
   const spec = compileWand(params)
   return spec.gems.length + (spec.crystal ? 1 : 0) + (spec.orb ? 1 : 0)
 }
@@ -37,7 +37,7 @@ export function FakeStage({ params, ref }: StageProps) {
       data-wood={params.wood}
       data-core={params.core}
       data-length={params.lengthCm}
-      data-gems={gemsLit(params)}
+      data-gems={gemCount(params)}
     />
   )
 }
@@ -72,7 +72,7 @@ export function FakeCloseUpStage({
       data-testid="close-up-stage"
       data-wood={params.wood}
       data-casts={casts}
-      data-gems={gemsLit(params)}
+      data-gems={gemCount(params)}
     >
       <button type="button" data-testid="close-up-wand" tabIndex={-1} onClick={onTapWand} />
       <button type="button" data-testid="close-up-away" tabIndex={-1} onClick={onTapAway} />

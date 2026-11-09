@@ -32,9 +32,11 @@ blooms.
   - A row and a spiral run up the lower 62% of the shaft, spread evenly over the
     stretches left once metal bands and bump crests are taken out. A spiral of gems
     follows the shaft's twisting carving, between round grooves or ridges and in the
-    middle of flat faces; with no carving it winds by itself, one turn per 80 mm.
+    middle of flat faces. With no carving it winds by itself, one turn per 240 mm,
+    centred on the side that faces up, so most of its stones show from one side.
   - Seats never touch: a seat shrinks to fit its neighbours and never covers more
-    than 40% of the local radius.
+    than 40% of the local radius. Where even 0.8 mm seats won't fit (a short, crowded
+    shaft), the row or spiral holds fewer gems than asked.
 - **Each gem sits in a seat cut in the radius field**: a shallow dish (30% of the
   seat's radius deep) with a low rim (0.35 mm, 0.6 mm wide). Carving and raised
   spirals stop at the rim and come back over 1.2 mm, as they do at a band (ADR 0082).
@@ -76,7 +78,7 @@ blooms.
 - Five more controls in the trimmings; a wand without set gems shows three of them.
 - The trimmings' summary says "Gems" when the wand has gems and no metal, paint or bone.
 - The tag's name and lore don't mention gems yet.
-- A spiral of gems on a shaft with no carving mostly winds round the back, so only two
-  or three stones show from one side; turning the wand shows the rest.
+- On a short shaft crowded with bumps and bands, a row or spiral can hold fewer gems
+  than "How many gems" asks for.
 - Tuning was judged by eye on a real GPU (Apple M3 Pro, ANGLE Metal) in the box, the
   close look at rest and mid-flare, on a phone viewport and in the share picture.

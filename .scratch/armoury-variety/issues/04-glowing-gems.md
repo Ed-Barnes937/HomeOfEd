@@ -80,3 +80,14 @@ Not done / for later:
 - Name and lore don't mention gems ("The Smoky Star").
 - Ed to judge the orb (reads as a glowing pearl more than clear glass).
 
+**2026-11-09, agent (review round 1 follow-ups):**
+- Seats no longer floor at 0.8 mm: they shrink to share the room, and where even
+  0.8 mm seats won't fit, the row or spiral holds fewer gems. The crowded designs from
+  review (28 cm, 7 knobs or bamboo bumps, three bands, 9 big gems, with and without a
+  crystal) are in the no-touching test.
+- The envelope test now includes three random wands with each gem pattern, a crystal
+  and an orb forced on.
+- A spiral of gems with no carving winds one turn per 240 mm (was 80), centred on the
+  side that faces up; most stones now show from one side. Shot in `shots/04/r4/`.
+- iwft: `verifyGemsLit` is now `verifyGems`.
+

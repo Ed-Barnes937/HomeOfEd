@@ -31,10 +31,12 @@ export interface GemLayout {
   avoid: [number, number][]
   /** A twisting shaft carving for a spiral of gems to follow; `offset` puts them between its grooves. */
   spiral: { twist: number; from: number; offset: number } | null
-  /** Turns per mm a spiral of gems winds by when there's no carving to follow. */
+  /** Turns per mm a spiral of gems winds by when there's no carving to follow, centred on the shown side. */
   twist: number
   radius: (z: number) => number
 }
+
+const SMALLEST_SEAT = 0.8
 
 /** Clears room for a seat and its rim either side of a gem, plus a little wood. */
 const clearance = (radius: number) => radius + RIM_WIDTH + 0.2
@@ -90,14 +92,16 @@ export function placeGems(layout: GemLayout): SetGem[] {
 
   const stretches = allowedStretches(layout.shaft, layout.avoid, clearance(size))
   const room = stretches.reduce((sum, [s, e]) => sum + e - s, 0)
-  const largest = Math.max(0.8, Math.min(size, room / count / 2 - RIM_WIDTH - 0.2))
-  return spread(stretches, count).map((z) => {
+  // Seats shrink to share the room; below the smallest seat, fewer gems fit instead.
+  const fitting = Math.min(count, Math.floor(room / (2 * clearance(SMALLEST_SEAT))))
+  const largest = Math.min(size, room / fitting / 2 - RIM_WIDTH - 0.2)
+  return spread(stretches, fitting).map((z) => {
     const radius = fits(z, largest)
     if (pattern === 'line') return { theta: SHOWN_SIDE, z, radius }
     const s = layout.spiral
     const theta = s
       ? s.offset + TAU * s.twist * (z - s.from)
-      : SHOWN_SIDE + TAU * layout.twist * (z - layout.shaft[0])
+      : SHOWN_SIDE + TAU * layout.twist * (z - (layout.shaft[0] + layout.shaft[1]) / 2)
     return { theta, z, radius }
   })
 }

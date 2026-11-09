@@ -176,8 +176,8 @@ export class CloseUpPom extends BasePage {
     await expect(this.stage).toHaveAttribute('data-casts', String(count))
   }
 
-  /** How many glowing gems the stage was asked to draw. */
-  async verifyGemsLit(count: number): Promise<void> {
+  /** How many gems the stage was asked to draw. */
+  async verifyGems(count: number): Promise<void> {
     await expect(this.stage).toHaveAttribute('data-gems', String(count))
   }
 

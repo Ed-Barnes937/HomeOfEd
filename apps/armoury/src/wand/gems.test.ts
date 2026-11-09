@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { isVisible, normalise, randomise, seededRandom } from '../engine/schema.ts'
 import { compileWand } from './compile.ts'
+import { SHOWN_SIDE } from './gems.ts'
 import { buildWandMesh, gemPoses, radiusAt } from './geometry.ts'
 import { wandPresets } from './presets.ts'
 import { wandSchema } from './wandSchema.ts'
@@ -54,7 +55,15 @@ describe('set gems', () => {
   })
 
   it.each(PATTERNS)('%s gems sit on the surface, facing out, without touching', (gems) => {
-    for (const extra of [{}, busy, { lengthCm: 28, pointy: 1, thickness: 0.85, gemCount: 9 }]) {
+    const crowded = { lengthCm: 28, nodeCount: 7, bands: 'three', gemCount: 9, gemSize: 1 }
+    for (const extra of [
+      {},
+      busy,
+      { lengthCm: 28, pointy: 1, thickness: 0.85, gemCount: 9 },
+      { ...crowded, nodes: 'knobs' },
+      { ...crowded, nodes: 'knobs', tipGem: 'crystal' },
+      { ...crowded, nodes: 'rings', tipGem: 'crystal' },
+    ]) {
       const spec = wand({ gems, ...extra })
       const poses = gemPoses(spec)
       expect(poses).toHaveLength(spec.gems.length)
@@ -120,6 +129,19 @@ describe('set gems', () => {
       const phase = gem.theta - TAU * set.twist * (gem.z - set.from)
       const fromGroove = Math.abs(angleBetween(phase, Math.round(phase / spacing) * spacing))
       expect(fromGroove).toBeCloseTo(spacing / 2, 6)
+    }
+  })
+
+  it('with no carving to follow, a spiral of gems winds gently, so most face one side', () => {
+    for (const lengthCm of [28, 38]) {
+      const spec = wand({ gems: 'spiral', shaftCarving: 'none', gemCount: 9, lengthCm })
+      const turned = spec.gems[spec.gems.length - 1]!.theta - spec.gems[0]!.theta
+      expect(Math.abs(turned)).toBeGreaterThan(Math.PI / 2)
+      expect(Math.abs(turned)).toBeLessThan(1.5 * Math.PI)
+      const facing = spec.gems.filter(
+        (g) => Math.abs(angleBetween(g.theta, SHOWN_SIDE)) < Math.PI / 2,
+      )
+      expect(facing.length).toBeGreaterThanOrEqual(7)
     }
   })
 

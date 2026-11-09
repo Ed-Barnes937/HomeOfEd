@@ -511,7 +511,7 @@ export function compileWand(p: Params): WandSpec {
                 offset: shaftSet.shape === 'round' ? Math.PI / shaftSet.count : 0,
               }
             : null,
-          twist: (p.twistDir === 'left' ? -1 : 1) / 80,
+          twist: (p.twistDir === 'left' ? -1 : 1) / 240,
           radius: profile,
         })
 
