@@ -56,8 +56,11 @@ checking that **every** name in the request matches `save.<identifier>`:
 otherwise an app origin could batch `identity.deleteAccount` behind `save.get`,
 be granted the save tier, and read the reply - precisely the XSS-erases-a-
 household path ADR 0078 narrowed the identity list to prevent. The pattern admits
-no percent-encoding, so an encoded comma fails it and falls back to the identity
-tier; anything unrecognised fails closed the same way.
+no percent-encoding, which is not a theoretical precaution: tRPC's Fastify
+adapter was observed in the production image dispatching
+`/api/trpc/save.get%2Cidentity.me?batch=1` as a real two-procedure batch, so a
+check that split on the literal comma alone would have read that as a save
+request. Anything unrecognised fails closed the same way.
 
 **3. One table drives both gates.** `ONBOARDED_APPS` lists the `appId` the
 handlers accept and the origin CORS lets through, so an app cannot be onboarded
