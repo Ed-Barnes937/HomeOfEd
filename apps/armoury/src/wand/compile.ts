@@ -115,7 +115,7 @@ export interface StencilBand {
   around: number
 }
 
-/** A carved pattern: one tile, cut into bands that keep clear of metal. */
+/** An engraving: one tile, cut into bands that keep clear of metal. */
 export interface StencilSpec {
   tile: StencilName
   /** How deep the tile's floor cuts, as a fraction of the local radius. */

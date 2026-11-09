@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { allowedOptions, isVisible, normalise, randomise, seededRandom } from '../engine/schema.ts'
 import { compileWand, type WandSpec } from './compile.ts'
+import { SHOWN_SIDE } from './gems.ts'
 import { buildWandMesh, radiusAt } from './geometry.ts'
 import { wandPresets } from './presets.ts'
 import { STENCILS, stencilHeight, type StencilName } from './stencils.ts'
@@ -101,6 +102,47 @@ describe('stencils on the wand', () => {
     expect(worst).toBeLessThan(1e-3)
   })
 
+  it.each([
+    ['Gem cut', {}],
+    ['Gem cut', { handleCarving: 'flats' }],
+    ['Long spiral', { handleCarving: 'flutes' }],
+  ])('a pattern on a %s handle %o replaces the handle carving across its band', (base, extra) => {
+    const params = { ...wandPresets.find((p) => p.name === base)!.params, ...extra }
+    const spec = compileWand(
+      normalise(wandSchema, { ...params, stencil: 'scales', stencilWhere: 'handle' }),
+    )
+    expect(spec.grooves.some((g) => g.to <= spec.handleMm)).toBe(true)
+    const band = spec.stencil!.bands[0]!
+    let checked = 0
+    for (let z = band.from + 2; z < band.to - 2; z += 0.37) {
+      for (let a = 0; a < TAU; a += 0.09) {
+        const { r, r0 } = radiusAt(spec, a, z)
+        const h = stencilHeight(
+          'scales',
+          ((a - SHOWN_SIDE) / TAU) * band.around + 0.5,
+          (z - band.from) / band.length,
+        )
+        expect(r).toBeCloseTo(r0 * (1 - spec.stencil!.depth * (1 - h)), 9)
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(1000)
+  })
+
+  it('a raised spiral still stands over a pattern up the shaft', () => {
+    const spec = wand({
+      shaftCarving: 'longSpiral',
+      spiralStyle: 'raised',
+      stencil: 'dots',
+      stencilWhere: 'shaft',
+    })
+    let proud = 0
+    for (let z = spec.handleMm + 20; z < spec.lengthMm * 0.4; z += 0.5)
+      for (let a = 0; a < TAU; a += 0.05)
+        if (radiusAt(spec, a, z).r > radiusAt(spec, a, z).r0) proud++
+    expect(proud).toBeGreaterThan(100)
+  })
+
   it('a stencil keeps clear of metal: the end cap, the ring and the bands', () => {
     const extra = {
       stencil: 'dots',
@@ -188,11 +230,19 @@ describe('stencils on the wand', () => {
     expect(ringsOf('vine') - ringsOf('none')).toBeCloseTo((band.to - band.from) / 0.5, -1)
   })
 
-  it('the same choices carve the same wand', () => {
+  it('the same choices carve the same wand, even with the tiles drawn afresh', async () => {
     const params = { stencil: 'vine', stencilWhere: 'all', stencilSize: 0.3 }
     const a = buildWandMesh(wand(params), { segments: 64, stepMm: 1 })
-    const b = buildWandMesh(wand(params), { segments: 64, stepMm: 1 })
-    expect(a.positions).toEqual(b.positions)
+    vi.resetModules()
+    const fresh = {
+      compile: await import('./compile.ts'),
+      geometry: await import('./geometry.ts'),
+    }
+    const spec = fresh.compile.compileWand(
+      normalise(wandSchema, { ...midnight, handleCarving: 'none', ...params }),
+    )
+    const b = fresh.geometry.buildWandMesh(spec, { segments: 64, stepMm: 1 })
+    expect(b.positions).toEqual(a.positions)
   })
 })
 

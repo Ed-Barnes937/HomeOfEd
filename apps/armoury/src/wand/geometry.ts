@@ -138,8 +138,11 @@ function surfaceAt(
   let cut = r0
   let raised = r0
   if (!banded) {
+    // A pattern takes the place of cut carving across its band; raised ridges stand over it.
+    const patterned = stencil.band ? stencil.strength : 0
     for (const g of spec.grooves) {
-      const f = strengthAt(g, z) * setting.carving
+      const raisedSet = g.shape === 'round' && g.raised
+      const f = strengthAt(g, z) * setting.carving * (raisedSet ? 1 : 1 - patterned)
       if (f <= 0) continue
       const spacing = TAU / g.count
       const phase = theta - TAU * g.twist * (z - g.from)

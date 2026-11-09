@@ -20,9 +20,13 @@ round, a ring every 0.5 mm) could show one, or whether it needed a normal map.
 
 - **A stencil is one more cut in `radiusAt`.** A greyscale tile gives a height from 1
   (the surface) to 0 (the floor), and the floor cuts a fraction of the local radius
-  (6-8% per tile). It combines with grooves as the deepest cut, so it follows bumps and
-  the profile, stays inside the envelope, bends with the spine and pools stain through
-  `depthNorm` like any groove.
+  (6-8% per tile). It follows bumps and the profile, stays inside the envelope, bends
+  with the spine and pools stain through `depthNorm` like any groove.
+- **An engraving replaces cut carving across its band.** Taking the deeper cut let
+  carving swallow it (in review: none of it showed over a gem-cut handle, a quarter at
+  most over flats, half over flutes). Inside a band, every cut groove set (flats, flutes,
+  diamonds, cut spirals, twisted sides) fades out as the engraving fades in, so the
+  engraving alone shapes the wood there. Raised ridges still stand over it.
 - **Five original tiles, drawn in code.** `wand/stencils.ts` draws scales, a vine,
   knotwork (a plait of strands passing over and under in turn), runes (eight invented
   glyphs, no real or fictional alphabet) and dots as periodic functions, and rasterises
@@ -39,9 +43,10 @@ round, a ring every 0.5 mm) could show one, or whether it needed a normal map.
   edges over about 0.3 mm, make every tile read as carved. Geometry keeps stain pooling,
   the bend and the silhouette for free; a normal map would have replaced the wood's
   bump and needed none of that machinery.
-- **Kid controls in "The trimmings"**: "Carved pattern" (Plain, Scales, Vine, Knotwork,
-  Runes, Dots), "Where it goes" (On the handle, Up the shaft, All over) and "Pattern
-  size". The last two show only with a pattern. The handle band is the handle style's
+- **Kid controls in "The trimmings"**: "Engraving" (Plain, Scales, Vine, Knotwork,
+  Runes, Dots), "Where it goes" (On the handle, Up the shaft, All over) and "Engraving
+  size". The last two show only with an engraving. It isn't called a pattern, because
+  the handle group already has a "Pattern" (its carving). The handle band is the handle style's
   carving stretch; the shaft band runs from just past the ring up 45% of the shaft;
   all over is both, up to 90% of the shaft.
 - **Where a pattern may go** follows ticket 05's rule for carving. On a Branch there is
@@ -64,10 +69,11 @@ round, a ring every 0.5 mm) could show one, or whether it needed a normal map.
   without a pattern are unchanged (turned 1.00, branch 1.66 against 1.65, turned-handle
   branch 1.55 against 1.52); scales on the handle 1.33, a vine all over 2.41, runes on a
   branch's turned handle 1.91.
-- An all-over pattern has about twice the vertices of a plain wand. Fine on desktop
-  and the phone viewport; not yet checked on a real phone.
-- A pattern and the handle's or shaft's own carving can be combined; the deeper cut
-  wins. Judged acceptable by eye; Ed may prefer one to hide the other.
+- An all-over engraving is about 314k vertices (26 MB of attributes at 34 cm), about
+  twice a plain wand. Fine on desktop and the phone viewport. Ed's real-phone check gates
+  the merge; if a phone struggles, the segments round the wand come down then.
+- A handle or shaft carving still shows wherever the engraving's band doesn't reach,
+  for example a handle's carving under a shaft-only engraving.
 - The surface still passes through the 03 bloom cap, so no pattern blooms.
 - The tag's name and lore don't mention the pattern.
 - Tuning was judged by eye on a real GPU (Apple M3 Pro, ANGLE Metal) in the box, the

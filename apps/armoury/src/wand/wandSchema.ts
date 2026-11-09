@@ -33,7 +33,7 @@ export const usesMetal = (p: Params) =>
   (shaftRaisedSpiral(p) && p.ridgeFinish === 'metal')
 export const usesPaint = (p: Params) => p.handleFinish === 'paint' || p.shaftFinish === 'paint'
 const hasSetGems = (p: Params) => p.gems !== 'none'
-/** Where a carved pattern may go: never on a metal handle, and only on a branch's turned handle. */
+/** Where an engraving may go: never on a metal handle, and only on a branch's turned handle. */
 export const stencilPlaces = (p: Params): string[] => [
   ...(hasTurnedHandle(p) && p.handleFinish !== 'metal' ? ['handle'] : []),
   ...(isBranch(p) ? [] : ['shaft', 'all']),
@@ -614,7 +614,7 @@ export const wandSchema: ItemSchema = {
     {
       kind: 'choice',
       key: 'stencil',
-      label: 'Carved pattern',
+      label: 'Engraving',
       group: 'decor',
       default: 'none',
       visible: canStencil,
@@ -644,7 +644,7 @@ export const wandSchema: ItemSchema = {
     {
       kind: 'number',
       key: 'stencilSize',
-      label: 'Pattern size',
+      label: 'Engraving size',
       group: 'decor',
       min: 0,
       max: 1,

@@ -69,14 +69,14 @@ test("gems glow in the core's colour, and the close look casts with them", async
   await closeUp.verifyGems(7)
 })
 
-test('a carved pattern shows where and how big only once there is one', async ({ mountApp }) => {
+test('an engraving shows where and how big only once there is one', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyControls({
-    shown: ['Carved pattern'],
-    hidden: ['Where it goes', 'Pattern size'],
+    shown: ['Engraving'],
+    hidden: ['Where it goes', 'Engraving size'],
   })
-  await root.chooseIn('Carved pattern', 'Scales')
-  await root.verifyControls({ shown: ['Where it goes', 'Pattern size'] })
+  await root.chooseIn('Engraving', 'Scales')
+  await root.verifyControls({ shown: ['Where it goes', 'Engraving size'] })
   await root.verifyGroupSummary('The trimmings', 'Scales')
   await root.chooseIn('Where it goes', 'All over')
   await root.verifyStage({ stencil: 'scales' })
@@ -85,14 +85,14 @@ test('a carved pattern shows where and how big only once there is one', async ({
   await root.verifyOptions('Where it goes', ['Up the shaft', 'All over'])
 })
 
-test('a branch carves a pattern only on a turned handle', async ({ mountApp }) => {
+test('a branch takes an engraving only on a turned handle', async ({ mountApp }) => {
   const { root } = await mountApp()
-  await root.chooseIn('Carved pattern', 'Vine')
+  await root.chooseIn('Engraving', 'Vine')
   await root.chooseIn('Kind of wand', 'Branch')
-  await root.verifyControls({ hidden: ['Carved pattern', 'Where it goes', 'Pattern size'] })
+  await root.verifyControls({ hidden: ['Engraving', 'Where it goes', 'Engraving size'] })
   await root.verifyStage({ stencil: 'none' })
   await root.chooseIn('Grown or turned', 'Turned')
-  await root.verifyControls({ shown: ['Carved pattern', 'Where it goes', 'Pattern size'] })
+  await root.verifyControls({ shown: ['Engraving', 'Where it goes', 'Engraving size'] })
   await root.verifyOptions('Where it goes', ['On the handle'])
   await root.verifyStage({ stencil: 'vine' })
 })

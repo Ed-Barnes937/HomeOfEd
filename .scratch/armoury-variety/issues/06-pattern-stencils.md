@@ -95,6 +95,7 @@ Deviations:
   allowed either).
 - Controls are in "The trimmings" (the spec's "Decorations" became that in 03).
 - "Knotwork" is a plait of strands crossing over and under, not a closed knot.
+- Added a preset, "Ivy" (a vine up an oak shaft), which the ticket didn't ask for.
 
 GPU shots (headless Chromium, ANGLE Metal, Apple M3 Pro) in `shots/06/`: `tiles/` the
 five tiles flat; `r0/` and `r1-fine/` the resolution check; `r3/` final: each pattern in
@@ -108,3 +109,19 @@ Not done / for later:
 - A pattern can sit over the handle's or shaft's own carving (the deeper cut wins).
   Ed to judge whether one should hide the other.
 - Name and lore don't mention the pattern.
+
+**2026-11-09, agent (review round 1 follow-ups):**
+- An engraving now replaces cut carving across its band: every cut groove set fades out
+  as the engraving fades in, and raised ridges still stand over it. Before, the deeper
+  cut won and carving hid most of it (none showed over a gem-cut handle). Tested over
+  diamonds, flats and flutes; shots in `shots/06/r4/` (scales over a gem-cut handle,
+  knotwork over flutes and twisted sides).
+- The controls are "Engraving" and "Engraving size", so they can't be mixed up with the
+  handle's "Pattern". "Where it goes" is unchanged.
+- `stencilHeight` keeps the last raster, so a mesh build skips the Map lookup per vertex.
+- The determinism test builds its second wand from freshly loaded modules, so the tiles
+  are drawn again.
+- Name and lore don't mention the engraving, the same as for gems (decided).
+- **Known gate: the real-phone check.** An all-over engraving is about 314k vertices and
+  26 MB of attributes at 34 cm. Ed's check on a real phone gates the merge; if a phone
+  struggles, the segments round the wand come down then.

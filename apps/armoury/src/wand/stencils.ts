@@ -8,7 +8,7 @@ export interface Tile {
   draw: (x: number, y: number) => number
   /** The tile's width over its length on the wand. */
   aspect: number
-  /** The tile's length along the wand at the smallest and biggest "Pattern size", mm. */
+  /** The tile's length along the wand at the smallest and biggest "Engraving size", mm. */
   lengthMm: [number, number]
   /** How deep height 0 cuts, as a fraction of the local radius. */
   depth: number
@@ -248,9 +248,16 @@ interface Raster {
 
 const rasters = new Map<StencilName, Raster>()
 
+/** The raster asked for last; a mesh build asks for the same one at every vertex. */
+let last: { name: StencilName; raster: Raster } | null = null
+
 function rasterFor(name: StencilName): Raster {
+  if (last?.name === name) return last.raster
   const cached = rasters.get(name)
-  if (cached) return cached
+  if (cached) {
+    last = { name, raster: cached }
+    return cached
+  }
   const { draw, aspect } = STENCILS[name]
   const ny = RASTER
   const nx = Math.max(32, Math.round(RASTER * aspect))
@@ -258,6 +265,7 @@ function rasterFor(name: StencilName): Raster {
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) h[j * nx + i] = draw(i / nx, j / ny)
   const raster = { nx, ny, h }
   rasters.set(name, raster)
+  last = { name, raster }
   return raster
 }
 

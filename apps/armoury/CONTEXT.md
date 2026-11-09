@@ -48,14 +48,15 @@ as well as length ([ADR 0082](../../docs/adr/0082-armoury-material-zones.md)).
 
 **Trimmings**:
 The group where a child picks the wand's zones, its one metal and one paint, its gems
-and its **carved pattern**.
+and its **engraving**.
 _Avoid_: Decor (the code's key for it), in UI copy beyond the phone tab.
 
-**Carved pattern**:
+**Engraving**:
 A repeating tile (scales, vine, knotwork, runes or dots) cut into a band of the wood:
-on the handle, up the shaft or all over, clear of metal and gem seats. A **stencil** in
-code ([ADR 0085](../../docs/adr/0085-armoury-carved-pattern-stencils.md)).
-_Avoid_: Engraving, texture.
+on the handle, up the shaft or all over, clear of metal and gem seats, in place of any
+cut carving there. A **stencil** in code
+([ADR 0085](../../docs/adr/0085-armoury-carved-pattern-stencils.md)).
+_Avoid_: Pattern (the handle's carving), texture.
 
 **Gem**:
 A stone in the core's colour that glows faintly and flares with the **spell**:
