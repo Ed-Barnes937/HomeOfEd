@@ -90,13 +90,16 @@ export function placeGems(layout: GemLayout): SetGem[] {
     }))
   }
 
-  const stretches = allowedStretches(layout.shaft, layout.avoid, clearance(size))
+  // Placed as if every seat were the smallest, so the count never depends on the size asked for.
+  const stretches = allowedStretches(layout.shaft, layout.avoid, clearance(SMALLEST_SEAT))
   const room = stretches.reduce((sum, [s, e]) => sum + e - s, 0)
-  // Seats shrink to share the room; below the smallest seat, fewer gems fit instead.
   const fitting = Math.min(count, Math.floor(room / (2 * clearance(SMALLEST_SEAT))))
   const largest = Math.min(size, room / fitting / 2 - RIM_WIDTH - 0.2)
+  const [shaftFrom, shaftTo] = layout.shaft
+  const keepOut: [number, number][] = [[-Infinity, shaftFrom], [shaftTo, Infinity], ...layout.avoid]
   return spread(stretches, fitting).map((z) => {
-    const radius = fits(z, largest)
+    const nearest = Math.min(...keepOut.map(([a, b]) => Math.max(a - z, z - b)))
+    const radius = fits(z, Math.min(largest, nearest - RIM_WIDTH - 0.2))
     if (pattern === 'line') return { theta: SHOWN_SIDE, z, radius }
     const s = layout.spiral
     const theta = s

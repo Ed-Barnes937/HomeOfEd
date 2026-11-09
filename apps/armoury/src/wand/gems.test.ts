@@ -82,6 +82,25 @@ describe('set gems', () => {
     }
   })
 
+  it.each(PATTERNS)('a bigger %s gem size never means fewer or smaller gems', (gems) => {
+    const crowded = { lengthCm: 28, nodeCount: 7, bands: 'three', gemCount: 9 }
+    for (const extra of [
+      { ...crowded, nodes: 'knobs' },
+      { ...crowded, nodes: 'knobs', tipGem: 'crystal' },
+      { ...crowded, nodes: 'rings', tipGem: 'crystal' },
+    ]) {
+      let before = wand({ gems, ...extra, gemSize: 0 }).gems
+      for (let gemSize = 0.1; gemSize <= 1; gemSize += 0.1) {
+        const after = wand({ gems, ...extra, gemSize }).gems
+        expect(after.length).toBeGreaterThanOrEqual(before.length)
+        for (const [i, gem] of before.entries()) {
+          expect(after[i]!.radius).toBeGreaterThanOrEqual(gem.radius - 1e-9)
+        }
+        before = after
+      }
+    }
+  })
+
   it('a ring goes round the handle, evenly and clear of its beads', () => {
     for (const handleStyle of ['plain', 'ringed', 'spiral', 'gemcut']) {
       const spec = wand({ gems: 'ring', handleStyle, gemSize: 1 })

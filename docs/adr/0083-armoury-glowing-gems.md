@@ -35,7 +35,10 @@ blooms.
     middle of flat faces. With no carving it winds by itself, one turn per 240 mm,
     centred on the side that faces up, so most of its stones show from one side.
   - Seats never touch: a seat shrinks to fit its neighbours and never covers more
-    than 40% of the local radius. Where even 0.8 mm seats won't fit (a short, crowded
+    than 40% of the local radius. A row or spiral is laid out as if every seat were
+    the smallest (0.8 mm), then each seat grows towards "Gem size" as far as its
+    neighbours and the nearest band, bump or shaft end allow. So a bigger size never
+    means fewer or smaller gems. Where even 0.8 mm seats won't fit (a short, crowded
     shaft), the row or spiral holds fewer gems than asked.
 - **Each gem sits in a seat cut in the radius field**: a shallow dish (30% of the
   seat's radius deep) with a low rim (0.35 mm, 0.6 mm wide). Carving and raised

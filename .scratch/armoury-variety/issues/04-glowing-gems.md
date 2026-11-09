@@ -91,3 +91,7 @@ Not done / for later:
   side that faces up; most stones now show from one side. Shot in `shots/04/r4/`.
 - iwft: `verifyGemsLit` is now `verifyGems`.
 
+**2026-11-09, agent (review round 2 follow-up):**
+- A row or spiral is laid out for the smallest seat, then each seat grows to fit its
+  neighbours and the nearest band, bump or shaft end, so a bigger "Gem size" never
+  gives fewer or smaller gems. Tested across the crowded designs.
