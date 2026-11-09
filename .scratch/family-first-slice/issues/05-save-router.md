@@ -201,3 +201,29 @@ null on missing.
   **Verify**: family 202 vitest + 3 iwft, `@hoe/accounts` 33, `@hoe/backend-kit`
   33, lint and typecheck green for all three; hub and boop typecheck green as a
   smoke over the additive backend-kit opt.
+
+- 2026-11-09: **conformance fix**, commit `8cd6369`. Closes the ticket.
+
+  The guard lower-cases the content-type header before comparing, since RFC 7231
+  makes a media type case-insensitive. **The end-to-end behaviour is unchanged,
+  and deliberately so:** tRPC's own JSON content-type handler compares
+  case-sensitively as well (`contentType?.startsWith('application/json')`), so
+  `APPLICATION/JSON` still stops one layer down with tRPC's `415
+  UNSUPPORTED_MEDIA_TYPE` rather than the guard's. Normalising the inbound
+  header to make tRPC accept it was considered and rejected: it would mean
+  rewriting a request header inside the one hook that exists to refuse requests,
+  to work around a dependency's non-conformance, for a client that does not
+  exist in this estate. The refusal is fail-closed either way.
+
+  So the test pins **which layer refuses it** - the guard's message must be
+  absent and tRPC's present - rather than asserting a 200 that the stack does
+  not produce. Mutation-checked: reverting the lower-case turns both cases red.
+
+  Also moved the `fastify.inject` lesson into `packages/backend-kit/README.md`,
+  beside `buildAppServer`, with the real-port recipe. It had only been a comment
+  in `csrf.test.ts` and a line in the scoped `CLAUDE.md`; two findings in this
+  repo have now turned on inject not being the wire, so it belongs where the
+  next implementer meets the helper.
+
+  **Verify**: family 204 vitest + 3 iwft, `@hoe/accounts` 33, `@hoe/backend-kit`
+  33, lint and typecheck green.
