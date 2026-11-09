@@ -232,14 +232,14 @@ services:
     ports:
       - '8085:8080'
 
-  # family is the identity + SaveStore service (ADR 0070). Its database lands in
-  # first-slice ticket 03; family-db is here already so the stack shape is
-  # settled, and the command gains the `migrate.ts &&` prefix alongside it.
+  # family is the identity + SaveStore service (ADR 0070). Database-backed as of
+  # first-slice ticket 03: like the other DB apps it runs migrations then the
+  # server, backed by its own db.
   family:
     build:
       context: .
       dockerfile: apps/family/Dockerfile
-    command: node src/server/main.ts
+    command: sh -c "node src/server/migrate.ts && node src/server/main.ts"
     environment:
       DATABASE_URL: postgres://postgres:postgres@family-db:5432/family
     ports:

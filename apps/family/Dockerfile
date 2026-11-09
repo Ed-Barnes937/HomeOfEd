@@ -1,9 +1,9 @@
 # family — production image. Build context is the REPO ROOT (turbo prune needs
 # the whole monorepo):   docker build -f apps/family/Dockerfile .
 #
-# Still stateless here (ADR 0008). First-slice ticket 03 adds the database, and
-# with it @hoe/db in the prod-deps --filter plus its runtime COPY — see
-# apps/hub/Dockerfile for the shape that takes.
+# Per-app values when copying this file: the app name in `turbo prune`/`turbo
+# build --filter`, the prod-deps --filter list (the app + its RUNTIME workspace
+# deps), the runtime COPY lines, and the EXPOSE port.
 #
 # The server runs its TS source natively (Node type stripping — ADR 0004's
 # erasable-syntax rule). Workspace packages live at /app/packages/* and are
@@ -30,12 +30,13 @@ RUN pnpm exec turbo build --filter=family
 # ── stage 3: production node_modules only ───────────────────────────────────
 # Filtered to the app + its runtime workspace deps: dev-only workspace packages
 # (test-kit, config) are skipped, so none of THEIR deps (playwright, vite,
-# eslint, …) land here; --prod drops dev deps everywhere else.
+# eslint, …) land here; --prod drops dev deps everywhere else (pglite is
+# @hoe/db's devDependency).
 FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=family --filter=@hoe/backend-kit --filter=@hoe/logger
+  --filter=family --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -45,16 +46,19 @@ COPY --from=prod-deps /app ./
 # Runtime package source (TS source exports). Only the app's runtime deps —
 # @hoe/config and @hoe/test-kit are dev-only and must NOT appear here.
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
+COPY --from=pruner /app/out/full/packages/db ./packages/db
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/family/src ./apps/family/src
 COPY --from=builder /app/apps/family/dist ./apps/family/dist
-# The app's own test sources aren't runtime code. typescript is a lockfile
-# stowaway (@trpc/server declares it as a types-only peer). The dev-only
+# The app's own test sources aren't runtime code. Neither are two lockfile
+# stowaways: pglite (dragged in as drizzle-orm's resolved optional peer - only
+# the pglite driver imports it, and that path never runs in prod) and
+# typescript (@trpc/server declares it as a types-only peer). The dev-only
 # workspace stubs (test-kit/config package.json) go too.
 RUN rm -rf apps/family/src/testing apps/family/src/greeting.iwft.tsx \
   packages/test-kit packages/config \
-  node_modules/.pnpm/typescript@*
+  node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node
 EXPOSE 8080
 WORKDIR /app/apps/family

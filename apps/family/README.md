@@ -9,11 +9,13 @@ It deliberately owns no account UI. Those screens are hub's, at
 
 ## State of the app
 
-This is the ticket 02 skeleton: the shell and every wiring touchpoint, no domain
-logic. It is still stateless ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)),
-so `/health` is a shallow liveness check and there is no migration step yet. The
-database arrives in ticket 03, the identity router in 04, and the save router
-in 05.
+The ticket 02 skeleton plus ticket 03's database layer: the Drizzle schema (the
+four stock Better Auth tables, `child_profiles`, `saves`), one committed
+migration journal applied by the `release_command`, and the `FamilyStore`
+interface with `DrizzleFamilyStore` behind it. `/health` is a real Postgres
+round-trip through the Store. No tRPC procedure reads the store yet - the
+identity router arrives in ticket 04 (which also injects the store into the
+transports) and the save router in 05.
 
 The starter's `greeting` route is kept as a smoke so the layered path stays
 exercised meanwhile:
@@ -26,8 +28,8 @@ Three ways to run it, one router:
 
 | Mode | Command | Backend |
 | --- | --- | --- |
-| dev simulator | `pnpm dev --filter=family` | real router, no Store (Vite middleware), port 3010 |
-| .iwft | `pnpm --filter family run test` | real router in-browser, no Store |
+| dev simulator | `pnpm dev --filter=family` | real router, no Store yet (Vite middleware), port 3010 |
+| .iwft | `pnpm --filter family run test` | real router in-browser, no Store yet |
 | docker stack | `docker compose up family` | the real image, host port 8090 |
 
 Ports: dev 3010, CT 3110, compose 8090.

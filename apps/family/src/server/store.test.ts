@@ -1,0 +1,204 @@
+import { freshTestDb, type DbClient } from '@hoe/db'
+import { eq } from 'drizzle-orm'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { migrations } from './migrations.ts'
+import { familySchema, type FamilySchema } from './schema.ts'
+import { DrizzleFamilyStore } from './store.ts'
+
+async function freshStore(): Promise<{ db: DbClient<FamilySchema>; store: DrizzleFamilyStore }> {
+  const db = await freshTestDb(familySchema, migrations)
+  return { db, store: new DrizzleFamilyStore(db) }
+}
+
+/** Better Auth owns `user` rows in production; tests insert them directly. */
+async function insertParent(db: DbClient<FamilySchema>, id: string): Promise<string> {
+  await db.insert(familySchema.user).values({ id, name: `parent ${id}`, email: `${id}@example.com` })
+  return id
+}
+
+describe('DrizzleFamilyStore health', () => {
+  it('round-trips the database for the deep health check', async () => {
+    const { store } = await freshStore()
+    await expect(store.ping()).resolves.toEqual({ ok: true })
+  })
+})
+
+describe('DrizzleFamilyStore child profiles', () => {
+  let db: DbClient<FamilySchema>
+  let store: DrizzleFamilyStore
+
+  beforeEach(async () => {
+    ;({ db, store } = await freshStore())
+    await insertParent(db, 'parent-1')
+  })
+
+  it('adds a profile under its parent and lists it back', async () => {
+    const added = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada',
+      displayName: 'Ada',
+    })
+
+    expect(added).toMatchObject({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
+    await expect(store.listChildProfiles('parent-1')).resolves.toEqual([added])
+  })
+
+  it('lists only the profiles of the asking parent', async () => {
+    await insertParent(db, 'parent-2')
+    await store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
+    await store.addChildProfile({ parentId: 'parent-2', username: 'grace', displayName: 'Grace' })
+
+    const profiles = await store.listChildProfiles('parent-2')
+    expect(profiles.map((profile) => profile.username)).toEqual(['grace'])
+  })
+
+  it('rejects a duplicate username', async () => {
+    await insertParent(db, 'parent-2')
+    await store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
+
+    await expect(
+      store.addChildProfile({ parentId: 'parent-2', username: 'ada', displayName: 'Ada B' }),
+    ).rejects.toThrow()
+  })
+
+  it('cascades profiles when the parent user row is deleted', async () => {
+    await store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
+
+    await db.delete(familySchema.user).where(eq(familySchema.user.id, 'parent-1'))
+
+    const remaining = await db.select().from(familySchema.childProfiles)
+    expect(remaining).toEqual([])
+  })
+})
+
+describe('DrizzleFamilyStore saves', () => {
+  let store: DrizzleFamilyStore
+
+  beforeEach(async () => {
+    ;({ store } = await freshStore())
+  })
+
+  it('returns null for a slot that was never written', async () => {
+    await expect(
+      store.getSave({ appId: 'boop', accountId: 'parent-1', slotKey: 'boop:save' }),
+    ).resolves.toBeNull()
+  })
+
+  it('bumps the version on every put', async () => {
+    const key = { appId: 'boop', accountId: 'parent-1', slotKey: 'boop:save' }
+
+    await expect(store.putSave({ ...key, blob: 'one' })).resolves.toEqual({ version: 1 })
+    await expect(store.putSave({ ...key, blob: 'two' })).resolves.toEqual({ version: 2 })
+    await expect(store.getSave(key)).resolves.toMatchObject({ blob: 'two', version: 2 })
+  })
+
+  it('versions each (appId, accountId, slotKey) slot independently', async () => {
+    await store.putSave({ appId: 'boop', accountId: 'a', slotKey: 'boop:save', blob: 'one' })
+    await store.putSave({ appId: 'boop', accountId: 'a', slotKey: 'boop:save', blob: 'two' })
+    await store.putSave({ appId: 'boop', accountId: 'b', slotKey: 'boop:save', blob: 'one' })
+
+    await expect(
+      store.getSave({ appId: 'boop', accountId: 'b', slotKey: 'boop:save' }),
+    ).resolves.toMatchObject({ version: 1 })
+  })
+
+  it('records the blob byte length, not its character count', async () => {
+    await store.putSave({
+      appId: 'boop',
+      accountId: 'parent-1',
+      slotKey: 'boop:save',
+      blob: '🥁',
+    })
+
+    const [slot] = await store.listSaves({ appId: 'boop', accountId: 'parent-1' })
+    expect(slot?.sizeBytes).toBe(4)
+  })
+
+  it('lists slot metadata without blobs', async () => {
+    await store.putSave({
+      appId: 'boop',
+      accountId: 'parent-1',
+      slotKey: 'boop:save',
+      blob: 'one',
+    })
+    await store.putSave({
+      appId: 'silt',
+      accountId: 'parent-1',
+      slotKey: 'silt:scene:1',
+      blob: 'two',
+    })
+
+    const slots = await store.listSaves({ appId: 'boop', accountId: 'parent-1' })
+    expect(slots).toHaveLength(1)
+    expect(slots[0]).toMatchObject({ slotKey: 'boop:save', version: 1, sizeBytes: 3 })
+    expect(Object.keys(slots[0] ?? {})).toEqual(['slotKey', 'version', 'sizeBytes', 'updatedAt'])
+  })
+
+  it('deletes a single slot and leaves the rest alone', async () => {
+    const key = { appId: 'boop', accountId: 'parent-1', slotKey: 'boop:save' }
+    await store.putSave({ ...key, blob: 'one' })
+    await store.putSave({ ...key, slotKey: 'boop:other', blob: 'two' })
+
+    await store.deleteSave(key)
+
+    const slots = await store.listSaves({ appId: 'boop', accountId: 'parent-1' })
+    expect(slots.map((slot) => slot.slotKey)).toEqual(['boop:other'])
+  })
+})
+
+describe('DrizzleFamilyStore account erasure', () => {
+  it('leaves no orphan saves behind the deleted parent and its profiles', async () => {
+    const { db, store } = await freshStore()
+    await insertParent(db, 'parent-1')
+    const ada = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada',
+      displayName: 'Ada',
+    })
+    const bob = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'bob',
+      displayName: 'Bob',
+    })
+    for (const accountId of ['parent-1', ada.id, bob.id]) {
+      await store.putSave({ appId: 'boop', accountId, slotKey: 'boop:save', blob: 'beats' })
+    }
+
+    await store.deleteAccount('parent-1')
+
+    expect(await db.select().from(familySchema.user)).toEqual([])
+    expect(await db.select().from(familySchema.childProfiles)).toEqual([])
+    expect(await db.select().from(familySchema.saves)).toEqual([])
+  })
+
+  it('erases nothing belonging to another household', async () => {
+    const { db, store } = await freshStore()
+    await insertParent(db, 'parent-1')
+    await insertParent(db, 'parent-2')
+    const grace = await store.addChildProfile({
+      parentId: 'parent-2',
+      username: 'grace',
+      displayName: 'Grace',
+    })
+    await store.putSave({
+      appId: 'boop',
+      accountId: 'parent-1',
+      slotKey: 'boop:save',
+      blob: 'beats',
+    })
+    await store.putSave({
+      appId: 'boop',
+      accountId: grace.id,
+      slotKey: 'boop:save',
+      blob: 'beats',
+    })
+
+    await store.deleteAccount('parent-1')
+
+    expect((await db.select().from(familySchema.user)).map((row) => row.id)).toEqual(['parent-2'])
+    expect((await db.select().from(familySchema.saves)).map((row) => row.accountId)).toEqual([
+      grace.id,
+    ])
+  })
+})
