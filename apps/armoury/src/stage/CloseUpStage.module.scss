@@ -1,0 +1,16 @@
+.stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  canvas {
+    display: block;
+  }
+}

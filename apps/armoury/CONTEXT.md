@@ -1,0 +1,64 @@
+# armoury
+
+A wand shop where a child makes their own wand. The generator turns a handful of
+choices into a carved 3D wand; the shop around it makes the choosing feel like
+shopping for one.
+
+## Language
+
+**Wand**:
+The thing a child makes: a set of **params** plus, optionally, a name they gave
+it. Stored and shared as `{ params, name? }`.
+_Avoid_: Design, item (except inside `engine/`, which is item-agnostic).
+
+**Params**:
+The wand's choices, keyed by the schema in `wand/wandSchema.ts`. Always
+normalised: clamped, snapped to step, with choices allowed by the others.
+
+**Group**:
+A section of params a child sees together: the wood, the shape, the handle, the
+shaft, the core. The unit a **lock** works on.
+
+**Core**:
+What's inside the wand. Decides the colour of its **spell**, the glow at its tip
+and the light it throws on the shop.
+
+**Spell**:
+The burst of light cast from the tip as the wand arrives in the **close look**,
+and whenever a child taps it there.
+_Avoid_: Cast effect, animation.
+
+**Close look**:
+The wand lifted out of its box into the middle of the darkened shop, where a
+child turns it, waves it, and puts it back.
+_Avoid_: Modal, inspector, zoom view.
+
+**The counter**:
+The main screen: the wand in its box, its **tag**, and the controls.
+
+**Tag**:
+The paper label tied to the box: shop number, name and tag line.
+
+**Shop number**:
+A four-digit number hashed from the params. The same wand always has the same
+number, on every screen and in every link.
+
+**Tag line**:
+"Thirteen inches, oak, emberstone core. Sturdy." Derived, never stored.
+
+**Lore**:
+A sentence about the wood and one about the core. Original, never franchise
+vocabulary.
+
+**Your shelf**:
+The wands a child has kept, each in its own labelled box, oldest first.
+_Avoid_: Collection, saved wands, my wands.
+
+**Try another**:
+Replace the wand on the counter with a random one, keeping any locked groups.
+**Put the last one back** undoes it until something else changes.
+_Avoid_: Surprise me, randomise (in UI copy).
+
+**Stage**:
+The three.js view of the wand: the box stage (reached through `StageHandle`)
+and the close-look stage (through `CloseUpHandle`).

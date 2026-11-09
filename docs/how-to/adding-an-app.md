@@ -94,7 +94,9 @@ parallel branches will grep the same number and collide on merge (this is how
 | `karesansui` | 3007 | 3107 | 8087 |
 | `boop` | 3008 | 3108 | 8088 |
 | `silt` | 3009 | 3109 | 8089 |
-| **next free** | **3010** | **3110** | **8090** |
+| `orbi` (claimed on its in-flight branch) | 3010 | 3110 | 8090 |
+| `armoury` | 3011 | 3111 | 8091 |
+| **next free** | **3012** | **3112** | **8092** |
 
 > **⚠ Check unmerged branches too.** A port is "taken" the moment another
 > in-flight branch claims it, not just when it reaches `main`. Before taking the

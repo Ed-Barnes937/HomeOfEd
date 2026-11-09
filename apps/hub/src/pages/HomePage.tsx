@@ -4,7 +4,8 @@ import styles from './HomePage.module.scss'
 import { pillFor } from './pillFor.ts'
 import { useColourTheme } from './useColourTheme'
 
-type PreviewKind = 'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'idle'
+type PreviewKind =
+  'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'wand' | 'idle'
 type AppLink = {
   name: string
   status: 'LIVE' | 'SOON'
@@ -43,6 +44,13 @@ const APPS: AppLink[] = [
   },
   { name: 'boop', status: 'LIVE', kind: 'boop', href: 'https://boop.homeofed.com', pkg: 'boop' },
   { name: 'Silt', status: 'LIVE', kind: 'silt', href: 'https://silt.homeofed.com', pkg: 'silt' },
+  {
+    name: 'Armoury',
+    status: 'LIVE',
+    kind: 'wand',
+    href: 'https://armoury.homeofed.com',
+    pkg: 'armoury',
+  },
   { name: 'HEIG', status: 'SOON', kind: 'idle' },
 ]
 
@@ -337,6 +345,7 @@ function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string)
         else if (kind === 'garden') previews.push(drawGarden(cv, darkRef, drive))
         else if (kind === 'boop') previews.push(drawBoop(cv, darkRef, drive))
         else if (kind === 'silt') previews.push(drawSilt(cv, darkRef, drive))
+        else if (kind === 'wand') previews.push(drawWand(cv, darkRef, drive))
         else previews.push(drawIdle(cv, darkRef, drive))
       }
     }, 90)
@@ -810,6 +819,60 @@ function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Previe
   // still card needs enough frames for a settled pile (~60 grains, well short
   // of the reset threshold).
   return drivePreview(step, drive, 190)
+}
+
+// armoury: a wand lying on the diagonal, its tip glowing and shedding sparks.
+// The glow drifts through the five core colours, one every few seconds.
+function drawWand(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
+  const { ctx, w, h } = cvctx(cv)
+  const CORES = ['#ffc95c', '#8fe3ff', '#6dff9c', '#c49bff', '#ff7a45']
+  const base = { x: w * 0.2, y: h * 0.74 }
+  const tip = { x: w * 0.76, y: h * 0.3 }
+  const angle = Math.atan2(tip.y - base.y, tip.x - base.x)
+  const length = Math.hypot(tip.x - base.x, tip.y - base.y)
+  let t = 0
+  const step = (): void => {
+    const dark = darkRef.current
+    ctx.clearRect(0, 0, w, h)
+    t += 0.016
+    const core = CORES[Math.floor(t / 3) % CORES.length]!
+
+    ctx.save()
+    ctx.translate(base.x, base.y)
+    ctx.rotate(angle)
+    ctx.fillStyle = dark ? '#b07a4f' : '#8a5a36'
+    ctx.beginPath()
+    ctx.moveTo(0, -4.5)
+    ctx.lineTo(length, -2)
+    ctx.lineTo(length, 2)
+    ctx.lineTo(0, 4.5)
+    ctx.closePath()
+    ctx.fill()
+    ctx.fillStyle = dark ? '#6b4329' : '#5a3a22'
+    ctx.fillRect(0, -5, length * 0.3, 10)
+    for (const at of [0.08, 0.3, 0.34]) ctx.fillRect(length * at, -6, 2.5, 12)
+    ctx.restore()
+
+    const pulse = 0.8 + 0.2 * Math.sin(t * 3)
+    const glow = ctx.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, 26 * pulse)
+    glow.addColorStop(0, core)
+    glow.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = glow
+    ctx.beginPath()
+    ctx.arc(tip.x, tip.y, 26 * pulse, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = core
+    for (let i = 0; i < 6; i++) {
+      const a = t * 0.9 + (i * Math.PI * 2) / 6
+      const r = 12 + 8 * Math.sin(t * 1.7 + i)
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 2.3 + i * 1.3)
+      ctx.beginPath()
+      ctx.arc(tip.x + Math.cos(a) * r, tip.y + Math.sin(a) * r, 1.6, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
+  }
+  return drivePreview(step, drive)
 }
 
 function drawIdle(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {

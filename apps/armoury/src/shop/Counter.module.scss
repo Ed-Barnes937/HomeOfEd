@@ -1,0 +1,310 @@
+.scene {
+  --counter-top: 56%;
+  --display-width: min(800px, 86%, 108vh);
+  --display-top: calc(var(--counter-top) + 2.5%);
+
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--shop-dark);
+  isolation: isolate;
+}
+
+.wall {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--counter-top);
+  overflow: hidden;
+}
+
+.wallShade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 62% 78% at 46% 92%, rgba(255, 196, 120, 0.1) 0%, rgba(10, 7, 5, 0) 55%),
+    radial-gradient(ellipse 75% 95% at 46% 100%, rgba(10, 7, 5, 0) 30%, rgba(8, 5, 3, 0.82) 100%),
+    linear-gradient(
+      180deg,
+      rgba(8, 5, 3, 0.85) 0%,
+      rgba(8, 5, 3, 0.35) 30%,
+      rgba(8, 5, 3, 0.15) 70%,
+      rgba(8, 5, 3, 0.5) 100%
+    );
+}
+
+.beam {
+  position: absolute;
+  left: 17%;
+  top: -14%;
+  width: 22%;
+  height: 120%;
+  transform: rotate(28deg);
+  transform-origin: top left;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 214, 150, 0) 0%,
+    rgba(255, 214, 150, 0.06) 30%,
+    rgba(255, 220, 165, 0.1) 50%,
+    rgba(255, 214, 150, 0.05) 72%,
+    rgba(255, 214, 150, 0) 100%
+  );
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.counterTop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--counter-top);
+  bottom: 0;
+  background:
+    radial-gradient(
+      ellipse 48% 70% at 50% 30%,
+      rgba(255, 190, 110, 0.13) 0%,
+      rgba(255, 190, 110, 0) 70%
+    ),
+    repeating-linear-gradient(180deg, rgba(255, 230, 200, 0.018) 0 2px, rgba(0, 0, 0, 0) 2px 9px),
+    linear-gradient(
+      180deg,
+      var(--counter-edge) 0%,
+      #2e2015 3%,
+      var(--counter) 45%,
+      var(--counter-deep) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.22),
+    0 -14px 30px rgba(0, 0, 0, 0.6);
+}
+
+// The core's light on the shop: a faint glow from the tip.
+.spill {
+  position: absolute;
+  left: calc(50% + var(--display-width) * var(--tip));
+  top: calc(var(--display-top) + var(--display-width) * 0.085);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
+  width: 120vmax;
+  height: 120vmax;
+  background: radial-gradient(
+    circle,
+    rgba(var(--core-rgb), 0.16) 0%,
+    rgba(var(--core-rgb), 0.05) 22%,
+    rgba(var(--core-rgb), 0) 50%
+  );
+}
+
+.display {
+  position: absolute;
+  left: 50%;
+  top: var(--display-top);
+  width: var(--display-width);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+
+  &[data-arrival='0'] {
+    animation: arriveA 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  &[data-arrival='1'] {
+    animation: arriveB 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes arriveA {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 24px);
+  }
+}
+
+@keyframes arriveB {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 24px);
+  }
+}
+
+.lid {
+  position: relative;
+  align-self: center;
+  width: 98.75%;
+  aspect-ratio: 790 / 50;
+  margin-top: -5%;
+  margin-bottom: -1.5%;
+  transform: rotate(-1.2deg);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #4d3f30 0%, #3a3025 100%);
+  box-shadow:
+    0 10px 18px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 235, 200, 0.12);
+}
+
+.lidLabel {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  padding: 0.2em 1.2em;
+  background: #dccbaa;
+  color: #3a2c1e;
+  font-family: var(--font-caps);
+  font-size: clamp(11px, 1.4vw, 15px);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px rgba(58, 44, 30, 0.35);
+}
+
+.box {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 800 / 136;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--box) 0%, var(--box-shade) 100%);
+  box-shadow:
+    0 22px 34px rgba(0, 0, 0, 0.65),
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 235, 200, 0.14);
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 1;
+}
+
+.velvet {
+  position: absolute;
+  inset: 8.8% 1.5%;
+  border-radius: 2px;
+  background: radial-gradient(
+    ellipse 70% 95% at 50% 38%,
+    var(--velvet) 0%,
+    var(--velvet-shade) 52%,
+    var(--velvet-deep) 100%
+  );
+  box-shadow:
+    inset 0 4px 12px rgba(0, 0, 0, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.wandShadow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 9%;
+  transform: translate(-49%, 10%);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  filter: blur(5px);
+}
+
+// While the wand is lifted out for a closer look, its box lies empty.
+.display[data-empty] .stageSlot,
+.display[data-empty] .wandShadow {
+  visibility: hidden;
+}
+
+// Bigger than the box so the tip's glow and the spell aren't clipped.
+.stageSlot {
+  position: absolute;
+  left: -15%;
+  right: -15%;
+  top: -80%;
+  bottom: -80%;
+  pointer-events: none;
+}
+
+.tagRow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 4.5%;
+  margin-left: -8%;
+}
+
+.string {
+  position: absolute;
+  left: 0;
+  top: -40px;
+  width: 100px;
+  height: 120px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--string);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.stringNarrow {
+  display: none;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-muted);
+
+  svg {
+    flex: none;
+    color: var(--core);
+  }
+}
+
+@media (max-width: 899px) {
+  .scene {
+    --counter-top: 50%;
+    --display-width: calc(100% - 28px);
+    --display-top: calc(var(--counter-top) + 5%);
+  }
+
+  .tagRow {
+    margin-left: 0;
+  }
+
+  .string {
+    left: -14px;
+    top: -28px;
+  }
+
+  .stringWide {
+    display: none;
+  }
+
+  .stringNarrow {
+    display: inline;
+  }
+
+  .tagRow {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .hint {
+    margin: 10px 0 0 6px;
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .display[data-arrival] {
+    animation-duration: 1ms;
+  }
+}
