@@ -21,7 +21,7 @@ bloom that makes the core's glow and the spell shine.
   covers. Later zones cover earlier ones. The mesh carries a per-vertex
   `(metal, paint, bone)` weight, written like the stain amount, and the wood
   shader mixes each finish over the wood by those weights.
-- **What a kid picks**, in a new group titled "The trimmings" (phone tab "Trim",
+- **What a kid picks**, in a new group titled "Extras" (phone tab "Extras",
   `decor` in code, between the shaft and the core): what the handle is made of (wood, metal, painted, bone), what the shaft is
   made of (wood, painted, bone), a metal end cap, a metal ring (the collar), up to
   three metal bands, and, on a raised spiral, a metal spiral. Shaft bumps stay in

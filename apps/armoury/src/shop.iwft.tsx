@@ -34,7 +34,7 @@ test('bumps and raised spirals show their own controls only when they apply', as
   await root.verifyControls({ hidden: ['How many bumps', 'How big'] })
 })
 
-test('trimmings offer a metal and a paint only once something uses them', async ({ mountApp }) => {
+test('extras offer a metal and a paint only once something uses them', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyControls({
     shown: ['Handle made of', 'Shaft made of', 'End cap', 'Ring made of', 'Metal bands'],
@@ -42,7 +42,7 @@ test('trimmings offer a metal and a paint only once something uses them', async 
   })
   await root.chooseIn('Metal bands', 'Two')
   await root.chooseIn('Metal', 'Brass')
-  await root.verifyGroupSummary('The trimmings', 'Brass')
+  await root.verifyGroupSummary('Extras', 'Brass')
   await root.chooseIn('Handle made of', 'Metal')
   await root.verifyControls({ hidden: ['End cap', 'Ring made of'] })
   await root.chooseIn('Shaft made of', 'Painted')
@@ -59,7 +59,7 @@ test("gems glow in the core's colour, and the close look casts with them", async
   })
   await root.chooseIn('Gems', 'Up the shaft')
   await root.verifyControls({ shown: ['How many gems', 'Gem size'] })
-  await root.verifyGroupSummary('The trimmings', 'Gems')
+  await root.verifyGroupSummary('Extras', 'Gems')
   await root.chooseIn('Gem on the tip', 'Crystal')
   await root.chooseIn('Gem on the end', 'Orb')
   await root.verifyControls({ hidden: ['Tip', 'End'] })
@@ -77,7 +77,7 @@ test('an engraving shows where and how big only once there is one', async ({ mou
   })
   await root.chooseIn('Engraving', 'Scales')
   await root.verifyControls({ shown: ['Where it goes', 'Engraving size'] })
-  await root.verifyGroupSummary('The trimmings', 'Scales')
+  await root.verifyGroupSummary('Extras', 'Scales')
   await root.chooseIn('Where it goes', 'All over')
   await root.verifyStage({ stencil: 'scales' })
   await root.verifyOptions('Where it goes', ['On the handle', 'Up the shaft', 'All over'])

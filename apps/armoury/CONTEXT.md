@@ -26,7 +26,7 @@ the spine; both ends stay on the straight wand's axis.
 
 **Group**:
 A section of params a child sees together: the wood, the shape, the branch (on a
-Branch only), the handle, the shaft, the trimmings, the core. The unit a **lock**
+Branch only), the handle, the shaft, the extras, the core. The unit a **lock**
 works on.
 
 **Bumps**:
@@ -46,7 +46,7 @@ A stretch of the wand in metal, paint or bone instead of wood: the handle, the
 shaft, the ring, the end cap or a band. A metal raised spiral is a zone in angle
 as well as length ([ADR 0082](../../docs/adr/0082-armoury-material-zones.md)).
 
-**Trimmings**:
+**Extras**:
 The group where a child picks the wand's zones, its one metal and one paint, its gems
 and its **engraving**.
 _Avoid_: Decor (the code's key for it), in UI copy beyond the phone tab.

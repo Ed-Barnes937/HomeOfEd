@@ -27,7 +27,7 @@ const surfaceAt = (spec: ReturnType<typeof compileWand>, z: number) => {
 }
 
 describe('material zones', () => {
-  it('a wand saved before trimmings opens all wood', () => {
+  it('a wand saved before extras opens all wood', () => {
     const spec = compileWand(preset('Midnight'))
     expect(spec.zones).toEqual([])
     const mesh = buildWandMesh(spec, { segments: 16, stepMm: 1 })
@@ -198,7 +198,7 @@ describe('the presets', () => {
   })
 })
 
-describe('the trimmings controls', () => {
+describe('the extras controls', () => {
   const shown = (extra: Record<string, unknown>, key: string) =>
     isVisible(
       wandSchema.params.find((d) => d.key === key)!,

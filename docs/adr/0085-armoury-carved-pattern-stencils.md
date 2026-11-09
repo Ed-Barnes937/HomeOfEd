@@ -43,7 +43,7 @@ round, a ring every 0.5 mm) could show one, or whether it needed a normal map.
   edges over about 0.3 mm, make every tile read as carved. Geometry keeps stain pooling,
   the bend and the silhouette for free; a normal map would have replaced the wood's
   bump and needed none of that machinery.
-- **Kid controls in "The trimmings"**: "Engraving" (Plain, Scales, Vine, Knotwork,
+- **Kid controls in "Extras"**: "Engraving" (Plain, Scales, Vine, Knotwork,
   Runes, Dots), "Where it goes" (On the handle, Up the shaft, All over) and "Engraving
   size". The last two show only with an engraving. It isn't called a pattern, because
   the handle group already has a "Pattern" (its carving). The handle band is the handle style's

@@ -93,12 +93,12 @@ Not done / for later:
   picked by gap index, not filtered by position); regression test at 28 cm.
 - A metal handle always has a metal ring, and "Ring made of" hides there like
   "End cap".
-- The group is titled "The trimmings" (phone tab "Trim"); the code key stays `decor`.
+- The group is titled "Extras" (phone tab "Extras"); the code key stays `decor`.
 - A wand that is bone end to end is named and told as bone ("The Bone Spiral",
   "Bone is old and quiet and remembers everything."); partly bone wands keep the
   wood wording.
 - ADR 0082 corrected: the share picture is capped too (same shader, no bloom).
   No glint for now.
 - Shots in `shots/03/r4/`: an all-bone wand's tag, a metal handle with its ring,
-  and the trimmings panel.
+  and the extras panel.
 

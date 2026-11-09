@@ -18,7 +18,7 @@ blooms.
 
 ## Decision
 
-- **Three kinds of gem**, all in "The trimmings": set gems ("Gems": No gems, Round
+- **Three kinds of gem**, all in "Extras": set gems ("Gems": No gems, Round
   the handle, Up the shaft, Winding up, with "How many gems" 3-9 and "Gem size"), a
   crystal tip ("Gem on the tip") and an orb ("Gem on the end"). The shape group's
   "Tip" and the handle's "End" hide when a gem replaces them.
@@ -72,14 +72,14 @@ blooms.
 - **Reduced motion**: gems hold their resting glow and never flare.
 - **Try another stays mostly plain.** "No gems" weighs 40 against 1 for each pattern,
   and each end gem 1 in 51, so about one wand in ten has a gem (7% set gems) and about
-  52% of rolls are still plain wood with no trimmings at all.
+  52% of rolls are still plain wood with no extras at all.
 - **Old saves.** Every new param defaults to none, so existing saves and links open as
   the same wand. The shop number changes, as ADR 0074 allows.
 
 ## Consequences
 
-- Five more controls in the trimmings; a wand without set gems shows three of them.
-- The trimmings' summary says "Gems" when the wand has gems and no metal, paint or bone.
+- Five more controls in the extras; a wand without set gems shows three of them.
+- Extras' summary says "Gems" when the wand has gems and no metal, paint or bone.
 - The tag's name and lore don't mention gems yet.
 - On a short shaft crowded with bumps and bands, a row or spiral can hold fewer gems
   than "How many gems" asks for.

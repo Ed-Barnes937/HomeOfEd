@@ -69,9 +69,9 @@ over a cherry and an oak wand and shot the close look, zoomed, on a real GPU
 (chained on 05's branch); decisions in ADR 0085. Needs Ed's eye on a real GPU and a
 real phone, including a few Try another rolls, before merging.
 
-- "The trimmings" gain "Carved pattern" (Plain, Scales, Vine, Knotwork, Runes, Dots),
+- "Extras" gain "Carved pattern" (Plain, Scales, Vine, Knotwork, Runes, Dots),
   "Where it goes" (On the handle, Up the shaft, All over) and "Pattern size"; the last
-  two show only with a pattern. The trimmings' summary names the pattern when there is
+  two show only with a pattern. Extras' summary names the pattern when there is
   nothing else to name.
 - Tiles are drawn in code (`wand/stencils.ts`), not images in `public/`, so `wand/`
   stays pure and testable in Node. All five are original; the runes are eight invented
@@ -93,7 +93,7 @@ real phone, including a few Try another rolls, before merging.
 Deviations:
 - Tiles are generated in code rather than stored as images in `public/` (the brief
   allowed either).
-- Controls are in "The trimmings" (the spec's "Decorations" became that in 03).
+- Controls are in "Extras" (the spec's "Decorations" became that in 03).
 - "Knotwork" is a plait of strands crossing over and under, not a closed knot.
 - Added a preset, "Ivy" (a vine up an oak shaft), which the ticket didn't ask for.
 
