@@ -130,3 +130,44 @@ are ticket 01's tests; here test the wiring.
   username over HTTP against real Postgres returns `409 CONFLICT`.
 
   Verify loop after the fixes: lint and typecheck green, 77 vitest and 3 iwft.
+
+- 2026-11-09: **adversarial-review fixes applied**, commit `036cee0`. ADR 0078
+  (`docs/adr/0078-family-identity-auth-boundary.md`) now carries the reasoning.
+
+  1. **The CORS allowlist was exploitable and is now split.** One list reached
+     every route, so any onboarded app origin had credentialled access to the
+     cookie-authorised identity router; same-site subdomains mean `SameSite=Lax`
+     does not stop the cookie, so an XSS in boop could have erased a household.
+     `identityAllowedOrigins` is the hub account UI alone (plus localhost in
+     dev), `trustedOrigins` follows it, and boop is gone from both. The
+     onboarded-app list is ticket 05's to add - **do not widen this one**. A
+     test asserts no `*.homeofed.com` origin can appear under any `NODE_ENV`.
+  2. **The deployment guard now covers the invite code and
+     `BETTER_AUTH_SECRET`** as well as the signing key: with `FLY_APP_NAME`
+     present it refuses any committed dev literal, anything under 16 / 32
+     characters, and any `NODE_ENV` but `production`. `COMMITTED_DEV_SECRETS` is
+     pinned against `.env.example` and `compose.yml` by a test that re-reads
+     them, so the list cannot drift; mutating compose's value fails it.
+  3. **`auth.options` is asserted whole**, so adding a social provider or a
+     plugin turns a test red. Better Auth types `options` as the literal object
+     passed, which means TypeScript already proves the two dangerous keys are
+     absent today; the test reads the key list so it still fails if one is added.
+  4. **`NODE_ENV` is cross-checked** inside the same guard.
+  5. **ADR 0078 written** (next free number, checked across every ref; 0073-0077
+     are the armoury branch's). Records the `kind` discriminator as the
+     invariant ticket 05 must not relax, the header bridge, the split CORS and
+     the boot guards, plus the `Vary: Origin` limit for the go-live runbook.
+  6. Four comment blocks trimmed; Dockerfile also prunes `src/server/*.test.ts`.
+     **The header-casing test was deleted, not rewritten.** The reviewer is
+     right that it could not fail: Node lower-cases header names before Fastify
+     sees them, so both spellings were the same key. The duplicate-header form
+     needs a raw socket, which `app.inject` cannot express, and the strip is
+     `delete req.headers[k]`, which removes the key whatever its value shape -
+     so no inject-expressible variant can fail either. Commit `0b817f3`'s
+     message therefore overclaims; this comment is the correction.
+
+  Verify loop: lint and typecheck green, **102 vitest + 3 iwft**. In the real
+  image: a boop preflight gets no allow headers on the identity router or
+  `/api/auth/*` while hub gets both; all four guards fire under `FLY_APP_NAME`,
+  naming no values; the docker stack still boots, refuses an uninvited sign-up
+  and resolves `identity.me`.
