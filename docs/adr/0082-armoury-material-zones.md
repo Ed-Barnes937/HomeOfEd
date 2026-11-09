@@ -71,6 +71,6 @@ bloom that makes the core's glow and the spell shine.
   spiral only show when they apply, so a plain wooden wand shows five.
 - A wand that is bone from end to end is named, described and told as bone (tag,
   shelf label, name and lore line); a partly bone wand keeps its wood's wording.
-  Its wood choice then does nothing visible.
+  Its wood choice then barely shows.
 - Tuning was judged by eye on a real GPU (Apple M3 Pro, ANGLE Metal) in the box,
   the close look, the spell flash and the share picture.
