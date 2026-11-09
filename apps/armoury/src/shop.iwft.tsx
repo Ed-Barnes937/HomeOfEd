@@ -79,7 +79,7 @@ test('crystals take a colour of their own, a tip shape and a cut', async ({ moun
   await root.verifyStage({ gemColour: '#8fe3ff' })
   await root.chooseIn('Crystal colour', 'Ruby')
   await root.chooseIn('Core', 'Wildwood')
-  await root.verifyStage({ gemColour: '#ff3d5e' })
+  await root.verifyStage({ gemColour: '#ff2440' })
   await root.chooseIn('Gem cut', 'Marquise')
   await root.verifyStage({ gemCut: 'marquise' })
   await root.chooseIn('Gem on the tip', 'Crystal')

@@ -347,13 +347,13 @@ function linearToSrgb([r, g, b]: [number, number, number]): string {
 const GEM_COLOURS: Record<string, { glow: string; body?: string }> = {
   amethyst: { glow: '#c38bff' },
   emerald: { glow: '#4dff98' },
-  ruby: { glow: '#ff3d5e' },
+  ruby: { glow: '#ff2440' },
   sapphire: { glow: '#5a86ff' },
-  citrine: { glow: '#ffbf3d' },
+  citrine: { glow: '#ffa41f' },
   // Colourless quartz lit from inside: a cool white light in a grey stone.
   clear: { glow: '#eaf2ff', body: '#4a5058' },
   // Light through smoked glass: dim and warm, in a near-black stone.
-  smoky: { glow: '#b48c6c', body: '#1c1612' },
+  smoky: { glow: '#a8703f', body: '#1c1612' },
 }
 
 function gemColourFor(p: Params): GemColour {

@@ -110,25 +110,26 @@ const SHAPES: Record<CrystalShape, (r: number, length: number) => CrystalSolid> 
   // Pointed at both ends: the lower point rises out of the cup to a waist, then the upper one.
   double: (r, length) => ({
     ...solid(
-      [ring(6, 0, 0.5 * r), ring(6, 0.3 * length, 1.08 * r), ring(6, 0.62 * length, 1.08 * r)],
+      [ring(6, 0, 0.22 * r), ring(6, 0.4 * length, 1.1 * r), ring(6, 0.64 * length, 1.1 * r)],
       [0, 0, length],
     ),
     point: [0, 0, length],
   }),
 
-  // A slimmer main point with three smaller ones leaning out round it.
+  // A slimmer main point with four smaller ones leaning out round it.
   cluster: (r, length) => ({
     ...merge([
-      hexPoint(0.72 * r, length, 0.86, 1.4 * r),
+      hexPoint(0.66 * r, length, 0.86, 1.4 * r),
       ...[
-        { towards: 0.5, lean: 0.3, size: 0.42, height: 0.55 },
-        { towards: 2.6, lean: 0.26, size: 0.36, height: 0.42 },
-        { towards: 4.4, lean: 0.34, size: 0.32, height: 0.34 },
+        { towards: 0.4, lean: 0.3, size: 0.5, height: 0.62 },
+        { towards: 2.2, lean: 0.34, size: 0.44, height: 0.5 },
+        { towards: 3.9, lean: 0.28, size: 0.46, height: 0.56 },
+        { towards: 5.3, lean: 0.38, size: 0.38, height: 0.4 },
       ].map(({ towards, lean, size, height }) =>
-        leaning(hexPoint(size * r, height * length, 0.85, 1.8 * size * r), towards, lean, [
-          0.42 * r * Math.cos(towards),
-          0.42 * r * Math.sin(towards),
-          0.8,
+        leaning(hexPoint(size * r, height * length, 0.7, 1.8 * size * r), towards, lean, [
+          0.34 * r * Math.cos(towards),
+          0.34 * r * Math.sin(towards),
+          1.2,
         ]),
       ),
     ]),
@@ -137,8 +138,8 @@ const SHAPES: Record<CrystalShape, (r: number, length: number) => CrystalSolid> 
 
   // Five uneven sides and a broken, slanting top whose point is off the middle.
   shard: (r, length) => {
-    const scales = [1.08, 0.82, 1.12, 0.9, 0.97]
-    const point: Vec3 = [0.22 * r, -0.1 * r, length]
+    const scales = [1.12, 0.74, 1.15, 0.84, 1.0]
+    const point: Vec3 = [0.3 * r, -0.12 * r, length]
     return {
       ...solid(
         [
@@ -149,7 +150,7 @@ const SHAPES: Record<CrystalShape, (r: number, length: number) => CrystalSolid> 
             turn: 0.4,
             scales,
             shift: [0.12 * r, -0.06 * r],
-            heights: [1.6, 2.4, 1.3, 2.0, 2.7].map((h) => length - h * r),
+            heights: [1.1, 2.9, 0.9, 2.3, 3.1].map((h) => length - h * r),
           }),
         ],
         point,

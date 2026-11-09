@@ -24,7 +24,9 @@ src/
     compile.ts        params -> WandSpec (profile + groove sets + stain)
     geometry.ts       WandSpec -> radius field -> closed mesh arrays bent onto
                       the spine, gem and end poses
-    gems.ts           where set gems go, in straight (angle, z) space
+    gems.ts           where set gems go, in straight (angle, z) space, and
+                      the shape of each cut's seat
+    crystals.ts       the crystal tip's shapes, in the crystal's own frame
     stencils.ts       the engraving tiles, drawn as functions and
                       rasterised once
     presets.ts        hand-tuned starting wands; [0] is the first-visit wand

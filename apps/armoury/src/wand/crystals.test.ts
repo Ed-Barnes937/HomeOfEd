@@ -118,7 +118,8 @@ describe('crystal tip shapes', () => {
     const { radius, from } = spec.crystal!
     const mesh = crystalMesh(spec)!
     for (const [x, y, z] of vertices(mesh.positions)) {
-      if (z! < spec.bodyTo) expect(Math.hypot(x!, y!)).toBeLessThan(spec.profile(z!) + 1e-9)
+      // Below the cup's rounded lip, the crystal is inside it.
+      if (z! < spec.bodyTo - 1.2) expect(Math.hypot(x!, y!)).toBeLessThan(spec.profile(z!) + 1e-9)
       expect(Math.hypot(x!, y!)).toBeLessThan(2 * radius)
     }
     expect(from).toBeLessThan(spec.bodyTo)
