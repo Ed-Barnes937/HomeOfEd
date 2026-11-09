@@ -8,8 +8,9 @@ import { loadDbEnv } from '@hoe/db/env'
 import { createLogger, requestLogger } from '@hoe/logger'
 
 import { createFamilyAuth } from './auth/betterAuth.ts'
-import { parentSessionSeam, registerParentSessionBridge } from './auth/parentSessionBridge.ts'
-import { identityAllowedOrigins, registerCors } from './cors.ts'
+import { familySeam, publicKeyFromPrivateKey } from './auth/familySeam.ts'
+import { registerParentSessionBridge } from './auth/parentSessionBridge.ts'
+import { identityAllowedOrigins, registerCors, saveAllowedOrigins } from './cors.ts'
 import { loadFamilyEnv } from './env.ts'
 import { toFetchRequest } from './fastifyBridge.ts'
 import { createAppRouter } from './router.ts'
@@ -27,9 +28,11 @@ const db = await createDbClient({
 })
 const store = new DrizzleFamilyStore(db)
 
-// Identity + /api/auth/* only; the save router brings its own wider list in
-// ticket 05, which is why this is not a single service-wide allowlist.
+// Two tiers, because the two routers answer to different credentials: identity
+// and /api/auth/* are the hub account UI alone, the save router also serves
+// onboarded app origins (ADR 0079).
 const origins = identityAllowedOrigins(process.env.NODE_ENV)
+const corsTiers = { identity: origins, save: saveAllowedOrigins(process.env.NODE_ENV) }
 
 const auth = createFamilyAuth(db, {
   baseURL: env.BETTER_AUTH_URL,
@@ -42,11 +45,11 @@ const makeContext = createContext({
   store,
   blobs: new InMemoryBlobStore(),
   logger,
-  auth: parentSessionSeam,
+  auth: familySeam(publicKeyFromPrivateKey(env.FAMILY_TOKEN_PRIVATE_KEY)),
 })
 
 const registerRoutes = (app: FastifyInstance): void => {
-  registerCors(app, origins)
+  registerCors(app, corsTiers)
   registerParentSessionBridge(app, auth)
 
   // Better Auth's own endpoints: sign-up (invite-gated), sign-in, sign-out,
