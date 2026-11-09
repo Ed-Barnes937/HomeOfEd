@@ -11,7 +11,10 @@ import type { FamilyTokenMinter } from './auth/tokenPort.ts'
 import type { FamilyContext } from './handlers/authz.ts'
 import { GreetingHandler } from './handlers/greetingHandler.ts'
 import { AddChildHandler, addChildInputSchema } from './handlers/identity/addChildHandler.ts'
-import { DeleteAccountHandler } from './handlers/identity/deleteAccountHandler.ts'
+import {
+  DeleteAccountHandler,
+  deleteAccountInputSchema,
+} from './handlers/identity/deleteAccountHandler.ts'
 import {
   DeleteChildHandler,
   deleteChildInputSchema,
@@ -73,9 +76,9 @@ export function createAppRouter(deps: FamilyRouterDeps) {
       mintSessionToken: t.procedure
         .input(mintSessionTokenInputSchema)
         .mutation(({ input, ctx }) => new MintSessionTokenHandler(deps.mintToken).run(input, ctx)),
-      deleteAccount: t.procedure.mutation(({ ctx }) =>
-        new DeleteAccountHandler().run(undefined, ctx),
-      ),
+      deleteAccount: t.procedure
+        .input(deleteAccountInputSchema)
+        .mutation(({ ctx }) => new DeleteAccountHandler().run(undefined, ctx)),
     }),
     save: t.router({
       get: t.procedure

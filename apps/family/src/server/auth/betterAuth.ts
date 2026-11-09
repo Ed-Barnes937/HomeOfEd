@@ -44,6 +44,10 @@ export function createFamilyAuth(db: DbClient<FamilySchema>, opts: CreateFamilyA
       schema: { user, session, account, verification },
     }),
     emailAndPassword: { enabled: true },
+    // Stated rather than inherited: Better Auth turns its origin check OFF by
+    // default under NODE_ENV=test, so the one control in front of these routes
+    // would be invisible to every test that tried to pin it.
+    advanced: { disableOriginCheck: false },
   })
 }
 

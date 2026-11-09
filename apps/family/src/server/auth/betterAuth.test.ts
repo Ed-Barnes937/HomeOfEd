@@ -82,6 +82,59 @@ describe('the registration invite gate (ADR 0057)', () => {
 })
 
 /**
+ * CORS cannot protect these routes: a CORS-simple POST is sent before the
+ * allowlist is consulted, so Better Auth's own origin check is the control. It
+ * is global over non-GET routes rather than per-route, and this pins that -
+ * `disableCSRFCheck` or a `skipOriginCheck` entry would turn it red.
+ */
+describe('the Better Auth origin check', () => {
+  const signedInCookie = async (): Promise<string> => {
+    await signUp({ ...credentials, inviteCode: INVITE_CODE })
+    const signedIn = await auth.handler(
+      new Request(`${BASE_URL}/api/auth/sign-in/email`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: BASE_URL },
+        body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+      }),
+    )
+    return signedIn.headers.getSetCookie().join('; ')
+  }
+
+  const post = (route: string, cookie: string, origin: string | null): Promise<Response> =>
+    auth.handler(
+      new Request(`${BASE_URL}/api/auth/${route}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie,
+          ...(origin === null ? {} : { origin }),
+        },
+        body: '{}',
+      }),
+    )
+
+  const ROUTES = ['sign-out', 'update-user', 'change-password', 'delete-user', 'change-email']
+
+  it.each(ROUTES)('refuses %s from an estate app origin, not only sign-in', async (route) => {
+    const cookie = await signedInCookie()
+
+    const response = await post(route, cookie, 'https://boop.homeofed.com')
+
+    expect(response.status).toBe(403)
+    expect(await response.text()).toContain('INVALID_ORIGIN')
+  })
+
+  it.each(ROUTES)('refuses %s with no origin header at all', async (route) => {
+    const cookie = await signedInCookie()
+
+    const response = await post(route, cookie, null)
+
+    expect(response.status).toBe(403)
+    expect(await response.text()).toContain('ORIGIN')
+  })
+})
+
+/**
  * The gate is route-enumerated - it matches `ctx.path === '/sign-up/email'` - so
  * any option that adds a second route reaching `createUser` would bypass it in
  * silence. ADR 0057 rests entirely on this gate, so the option set is pinned
@@ -96,7 +149,11 @@ describe('the Better Auth options (ADR 0057)', () => {
   })
 
   it('declares exactly the options the gate was reasoned about', () => {
+    // `advanced` holds one key, `disableOriginCheck: false`, which states the
+    // origin check rather than inheriting a default that flips under NODE_ENV.
+    expect(Object.keys(auth.options.advanced ?? {})).toEqual(['disableOriginCheck'])
     expect(Object.keys(auth.options).sort()).toEqual([
+      'advanced',
       'baseURL',
       'database',
       'emailAndPassword',

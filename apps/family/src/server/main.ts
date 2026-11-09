@@ -11,6 +11,7 @@ import { createFamilyAuth } from './auth/betterAuth.ts'
 import { familySeam, publicKeyFromPrivateKey } from './auth/familySeam.ts'
 import { registerParentSessionBridge } from './auth/parentSessionBridge.ts'
 import { identityAllowedOrigins, registerCors, saveAllowedOrigins } from './cors.ts'
+import { MAX_BATCH_SIZE, registerTrpcCsrfGuard } from './csrf.ts'
 import { loadFamilyEnv } from './env.ts'
 import { toFetchRequest } from './fastifyBridge.ts'
 import { createAppRouter } from './router.ts'
@@ -50,6 +51,7 @@ const makeContext = createContext({
 
 const registerRoutes = (app: FastifyInstance): void => {
   registerCors(app, corsTiers)
+  registerTrpcCsrfGuard(app)
   registerParentSessionBridge(app, auth)
 
   // Better Auth's own endpoints: sign-up (invite-gated), sign-in, sign-out,
@@ -74,6 +76,7 @@ const server = createAppServer({
   staticDir: fileURLToPath(new URL('../../dist', import.meta.url)),
   logger,
   registerRoutes,
+  maxBatchSize: MAX_BATCH_SIZE,
   // Deep health: a real Store round-trip to Postgres, not just "process is up".
   healthCheck: async () => {
     await store.ping()

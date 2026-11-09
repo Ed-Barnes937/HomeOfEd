@@ -81,6 +81,7 @@ function createAppServer(opts: {
   logger: Logger
   healthCheck: () => Promise<{ ok: true }>   // deep /health — app closes over its own Store
   registerRoutes?: (app: FastifyInstance) => void | Promise<void>  // additive; non-tRPC transports only (ADR 0015)
+  maxBatchSize?: number                      // cap on one batched call's procedures; tRPC's default is unlimited
 }): { listen(port: number): Promise<void> }
 ```
 
