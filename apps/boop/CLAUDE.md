@@ -62,6 +62,13 @@ src/
     autosave.ts       debounced (2 s lull) writer of the working song
     useWorkingSong.ts hook: restore the whole song on mount, autosave on edit,
                       flush on pagehide, and seed a first visit (tickets 36/17)
+  sync/             the family account (ADR 0080) - a copy of the save document
+                    on the SaveStore, never a move. Nothing in the play path
+                    calls it: boopSync.ts watches the one localStorage key and
+                    copies it up, mergeSaveDocuments.ts is the pure union hook,
+                    syncedAccount.ts the additive `boop:syncedAccount` marker,
+                    useBoopSync.ts the hook HomePage calls, and
+                    ImportOfferCard/SyncedChip the only two pieces of UI
   song/             the working-song domain (ticket 14) — pure, no React
     song.ts           Song/Clip types, StoredBoop↔Song conversions, and the
                       mutation kinds (placement, add/delete/rename clip, lane
@@ -283,6 +290,21 @@ share-link snapshot.
   grid is seeded with a one-clip song built from a sample clip rather than
   opened empty (tickets 36/17) — that lives in `useWorkingSong`, beside the
   restore, and must never need a new field or a version bump.
+- **The family account is a copy, never a dependency**
+  ([ADR 0080](../../docs/adr/0080-boop-is-the-first-savestore-client.md)).
+  `src/sync/` is the whole of it and `persistence/` knows nothing about it:
+  localStorage stays the source of truth, every write lands there first, and it
+  is never cleared on any path. With no family session the module does nothing
+  at all - no timers, no listeners, no requests. Sync **observes**: it watches
+  the `boop:save` key on a timer rather than being called from the code that
+  writes it, so no edit or save can await it or throw through it. A device only
+  ever overwrites the account with a document it has already merged the
+  account's own into, the merge is an idempotent union (so a delete can
+  resurrect - accepted, and do not build tombstones for it), and every failure,
+  including a quota refusal, is a silent non-event that retries on the next
+  change. A child must never meet an error, a blocking spinner or a lost
+  pattern because a sync failed, and the `.iwft` suite pins exactly that with a
+  client that throws on every call.
 - **Saved-state visibility** ([ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md)).
   Because nothing is ever lost, **never add a `beforeunload` guard** — it would
   warn about nothing, in wording a 6-year-old cannot read. The chrome answers

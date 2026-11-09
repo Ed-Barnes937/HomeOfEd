@@ -352,3 +352,20 @@ lives, and the shape the share-link codec is derived from. Decoding it is
 total: anything corrupt or future-versioned reads as an empty document.
 See [ADR 0025](../../docs/adr/0025-boop-save-format.md).
 _Avoid_: Save file, state blob, storage schema.
+
+**The account copy**:
+The save document as it stands on the family SaveStore, under
+`(appId: 'boop', slotKey: 'boop:save')` - a *copy* of what is in
+`localStorage`, never a move, and never the thing boop reads to play. Reaching
+it is `sync/`'s business alone: a **pull** merges it into localStorage at
+start, a **push** copies localStorage up after a change, and the **merge hook**
+(`mergeSaveDocuments`) is the idempotent union of the two.
+See [ADR 0080](../../docs/adr/0080-boop-is-the-first-savestore-client.md).
+_Avoid_: The cloud save, the server state, syncing (as a thing boop does to
+play) - the account is a copy of the truth, not the truth.
+
+**Synced account marker**:
+`boop:syncedAccount` - the list of account ids this device has already been
+offered the import for. Additive and separate from the save document, which is
+frozen; a corrupt marker reads as "not offered yet".
+_Avoid_: Link flag, sync state.
