@@ -40,6 +40,7 @@ export function FakeStage({ params, ref }: StageProps) {
       data-length={params.lengthCm}
       data-gems={gemCount(params)}
       data-stencil={compileWand(params).stencil?.tile ?? 'none'}
+      data-bark={compileWand(params).branch?.bark?.cover ?? 'none'}
     />
   )
 }

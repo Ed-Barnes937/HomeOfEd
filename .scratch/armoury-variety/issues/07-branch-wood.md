@@ -1,6 +1,6 @@
 # 07 - Branch wood: matte grain, stain that soaks in, bark
 
-**Status:** in-progress
+**Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 Blocked by: 06 (sequencing)
@@ -44,3 +44,51 @@ never enough.
 - ADR 0086 records the material retune and the bark model.
 
 ## Comments
+
+**2026-11-09, agent (built):** On branch `armoury-variety-07-branch-wood` (chained
+on 06); decisions in ADR 0086. Needs Ed's eye on a real GPU before merging.
+
+Gloss, the cause: not a merge. 05's change (base roughness 0.72, stain gloss 0.15)
+was still there, but three.js _multiplies_ the material's roughness by the roughness
+map's green channel, and the wood scans' maps average 0.53 (oak) to 0.77 (maple). So a
+"0.72" branch rendered at 0.33-0.55, a satin-to-gloss finish, and 05 only moved it by
+about 0.05. The sheen also washed a dye's colour out towards the light's, which is a
+good part of "the dye doesn't do a huge amount". Reproduced in `shots/07/before/`.
+
+What changed:
+
+- A Branch's roughness is now set directly: 0.7, varied by the map about its own
+  mean so it follows the grain, plus pores and fibres; 0.5-0.92. A stain no longer
+  makes it shinier.
+- Dye on a Branch absorbs harder (raw wood drinks more) and soaks more into the open
+  grain and pores, so stains look different from each other.
+- Pores and fibres in the shader, per wood (oak strongest, maple faintest), faded
+  where finer than a pixel.
+- Turned wands keep their roughness, gloss and dye; they gain pores and fibres at
+  half strength only (a small change, visible in the zoom; `t_*` shots).
+- "Bark" in The branch group: None / Patches / Full, weights 3 : 3 : 2, old saves and
+  Turned wands None. Furrowed, proud by up to 8.5% of the radius, worn bare with a
+  ragged edge on a grown handle's grip, absent on a turned handle, off zones, gems,
+  engravings, knot bosses and the tip. Takes 20% of the stain (up to 60% in its
+  furrows). Seeded from "Which branch" through its own stream.
+
+Deviations:
+
+- Bark started as Voronoi plates (`plates` in an early round); they read as tiles or
+  reptile skin, so it is noise stretched along the grain instead (furrows that meet
+  and part, patches that tear along the wood).
+- Bark adds about 40-50% to a branch's mesh build (full 42 ms against a bare 28 ms
+  on a busy machine).
+
+Shots (headless Chromium, ANGLE Metal; gitignored, in this worktree's `shots/07/`):
+`gloss-before-after-zoom.png`, `stains-before-after.png` (box, left before),
+`stains-close-after.png`, `bark-settings-box.png` (rows oak natural, maple forest,
+walnut midnight, cherry ember; columns none, patches, full), and every wand's box,
+close look and zoom in `before/` and `after/`. `shots.mjs` retakes them.
+
+Questions for Ed:
+
+- Bark defaults to None, so switching to Branch shows bare wood. Should a new Branch
+  (not an old save) start with Patches?
+- Smoky on oak is still a quiet stain, because smoky's swatch is close to oak's own
+  brown. Is that fine, or should the swatch be darker?

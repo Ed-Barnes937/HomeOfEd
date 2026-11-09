@@ -167,6 +167,18 @@ export const wandSchema: ItemSchema = {
       step: 1,
       default: 0,
     },
+    {
+      kind: 'choice',
+      key: 'bark',
+      label: 'Bark',
+      group: 'branch',
+      default: 'none',
+      options: [
+        { value: 'none', label: 'None', weight: 3 },
+        { value: 'patches', label: 'Patches', weight: 3 },
+        { value: 'full', label: 'Full', weight: 2 },
+      ],
+    },
 
     {
       kind: 'choice',
