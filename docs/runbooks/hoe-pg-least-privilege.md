@@ -63,7 +63,9 @@ Every `rolsuper` is `f`, and each database is owned by its own role. Then,
 outside psql:
 
 ```bash
-for a in family fridge hub wotd; do curl -s "https://$a.homeofed.com/health"; echo " $a"; done
+for h in family.homeofed.com fridge.homeofed.com homeofed.com wotd.homeofed.com; do
+  echo "$(curl -s "https://$h/health") $h"
+done   # hub is the apex; each line should read {"ok":true}
 ```
 
 Each `/health` reads that app's database as its role, so four `{"ok":true}`
