@@ -7,7 +7,7 @@ import this package; no app ever imports `apps/family`.
 
 ## Exports
 
-Three entry points keep node-only code out of browser bundles:
+Four entry points keep node-only code out of browser bundles:
 
 - **`@hoe/accounts`** (browser-safe): claim types, `FAMILY_SESSION_COOKIE`,
   the save-router zod schemas + `FamilySaveContract`, `createFamilySaveClient`
@@ -16,8 +16,11 @@ Three entry points keep node-only code out of browser bundles:
 - **`@hoe/accounts/server`** (node): `mintFamilyToken` / `verifyFamilyToken`
   (Ed25519 via `node:crypto`) and `familyAuthProvider` - the AuthProvider any
   app drops into its `createContext({ auth })` seam.
-- **`@hoe/accounts/testing`**: `FakeFamilyClient` (browser-safe - iwft runs in
-  the browser), the committed TEST-ONLY keypair, and `mintTestToken` (node).
+- **`@hoe/accounts/testing`**: `FakeFamilyClient`, the committed TEST-ONLY
+  keypair, and `mintTestToken` (node) - so this index is for Node-side callers.
+- **`@hoe/accounts/testing/fake`**: `FakeFamilyClient` alone. The index above
+  pulls `node:crypto` through the minter, so an in-browser `.iwft` harness
+  imports the fake from here instead (boop's does).
 
 ## The family session token
 
