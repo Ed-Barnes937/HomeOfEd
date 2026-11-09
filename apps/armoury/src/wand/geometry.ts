@@ -1,4 +1,4 @@
-import type { BranchSpec, GrooveSet, Material, StencilBand, WandSpec } from './compile.ts'
+import type { BarkSpec, BranchSpec, GrooveSet, Material, StencilBand, WandSpec } from './compile.ts'
 import { crystalSolid, type CrystalSolid } from './crystals.ts'
 import { RIM_WIDTH, seatDistance, seatReach, SHOWN_SIDE } from './gems.ts'
 import { stencilHeight } from './stencils.ts'
@@ -93,11 +93,86 @@ function naturalRadius(spec: WandSpec, theta: number, z: number, r0: number): nu
   return b ? r0 * (1 + lumpAt(b, theta, z) * growthAt(b, z)) : r0
 }
 
+/** How much bark could grow at z, 0 to 1: never on a turned handle, near the tip, on metal, paint, bone or an engraving. */
+function barkRoomAt(spec: WandSpec, z: number): number {
+  const b = spec.branch
+  if (!b?.bark) return 0
+  let room =
+    smoothstep(b.from, b.from + 1.5, z) * (1 - smoothstep(spec.bodyTo - 14, spec.bodyTo - 8, z))
+  for (const zone of spec.zones) room *= smoothstep(0, 1, Math.max(zone.from - z, z - zone.to))
+  for (const band of spec.stencil?.bands ?? [])
+    room *= smoothstep(0, 1, Math.max(band.from - z, z - band.to))
+  return room
+}
+
+const hash = (i: number, j: number, seed: number) => {
+  let h = Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(seed, 1274126177)
+  h = Math.imul(h ^ (h >>> 13), 1103515245)
+  h ^= h >>> 16
+  return (h >>> 0) / 4294967296
+}
+
+/** Smooth value noise on a lattice that wraps every `period` cells in u, 0 to 1. */
+function wrappedNoise(u: number, v: number, period: number, seed: number): number {
+  const iu = Math.floor(u)
+  const iv = Math.floor(v)
+  const fu = u - iu
+  const fv = v - iv
+  const su = fu * fu * (3 - 2 * fu)
+  const sv = fv * fv * (3 - 2 * fv)
+  const a = ((iu % period) + period) % period
+  const b = (a + 1) % period
+  const h00 = hash(a, iv, seed)
+  const h01 = hash(a, iv + 1, seed)
+  const lo = h00 + (hash(b, iv, seed) - h00) * su
+  const hi = h01 + (hash(b, iv + 1, seed) - h01) * su
+  return lo + (hi - lo) * sv
+}
+
+/** The bark at a point; reused so the mesh build allocates nothing per vertex. */
+const barkHere = { cover: 0, furrow: 0, height: 0 }
+
+/**
+ * Whether bark survives at a point, and how deep in one of its furrows it is.
+ * Both come from noise stretched along the grain, so patches tear and furrows
+ * run along the wand, meeting and parting as they go.
+ */
+function barkAt(bark: BarkSpec, theta: number, z: number): void {
+  const t = theta / TAU
+  const n = bark.around
+  const worn = bark.wornTo > 0 && z < bark.wornTo + 18
+  // Full bark only has an edge where it's worn, so only there does it need roughening.
+  const ragged =
+    bark.cover === 'patches' || worn
+      ? wrappedNoise(t * n, z / bark.raggedMm, n, bark.seed) - 0.5
+      : 0
+  let field =
+    bark.cover === 'full'
+      ? 0.6 + 0.7 * ragged
+      : 2.2 * (wrappedNoise(t * 3, z / bark.patchMm, 3, bark.seed + 6) - 0.5) + 0.7 * ragged
+  if (worn) {
+    const edge = z + 26 * (wrappedNoise(t * 4, z / 10, 4, bark.seed + 5) - 0.5)
+    field -= 3 * (1 - smoothstep(bark.wornTo - 5, bark.wornTo + 5, edge))
+  }
+  barkHere.cover = smoothstep(-0.06, 0.06, field)
+  if (barkHere.cover === 0) return
+  const f = bark.furrows
+  // A slow sideways drift makes the furrows wander and cross rather than run dead straight.
+  const drift = wrappedNoise(t * 3, z / (2.5 * bark.furrowMm), 3, bark.seed + 4) - 0.5
+  const ridge =
+    0.7 * wrappedNoise(t * f + 1.5 * drift, z / bark.furrowMm, f, bark.seed + 1) +
+    0.3 * wrappedNoise(t * 2 * f + 3 * drift, z / (0.6 * bark.furrowMm), 2 * f, bark.seed + 2)
+  barkHere.furrow = 1 - smoothstep(0.025, 0.09, Math.abs(ridge - 0.5))
+  barkHere.height = 0.85 + 0.3 * wrappedNoise(t * n, z / 4, n, bark.seed + 3)
+}
+
 interface Surface {
   r: number
   natural: number
   metal: number
   knot: number
+  bark: number
+  crack: number
 }
 
 /**
@@ -113,12 +188,14 @@ function surfaceAt(
   growth: number,
   lump: number,
   stencil: StencilRing,
+  barkRoom: number,
   out: Surface,
 ): void {
   settingAt(spec, theta, z, r0)
   const b = spec.branch
   let natural = r0 * (1 + lump)
   let knot = 0
+  let nearKnot = 0
   if (b) {
     const room = banded ? 0 : setting.carving * growth
     if (room > 0) {
@@ -131,6 +208,7 @@ function surfaceAt(
         // A raised boss with a dimple where the twig was; stain pools in its heart and round its rim.
         h += k.height * r0 * (Math.exp(-d * d) - 0.55 * Math.exp(-((d / 0.38) ** 2)))
         pool = Math.max(pool, Math.exp(-(((d - 0.9) / 0.35) ** 2)), Math.exp(-((d / 0.3) ** 2)))
+        nearKnot = Math.max(nearKnot, Math.exp(-d * d))
       }
       natural += h * room
       knot = pool * room
@@ -180,31 +258,40 @@ function surfaceAt(
       }
     }
   }
-  out.r = cut + raised - r0 + setting.offset + natural - r0
+  // Bark stays off knot bosses and gem settings, which keeps it inside the envelope.
+  let bark = 0
+  let crack = 0
+  let lift = 0
+  const room = barkRoom * setting.carving * (1 - smoothstep(0.15, 0.6, nearKnot))
+  if (b?.bark && room > 0) {
+    barkAt(b.bark, theta, z)
+    bark = barkHere.cover * room
+    crack = barkHere.furrow
+    lift = b.bark.thickness * r0 * bark * barkHere.height * (1 - 0.85 * crack)
+  }
+  out.r = cut + raised - r0 + setting.offset + natural - r0 + lift
   out.natural = natural
   out.metal = Math.max(ridgeMetal, setting.metal)
   out.knot = knot
+  out.bark = bark
+  out.crack = crack
 }
 
 /**
  * Final radius; the profile radius; the natural surface before carving (the
- * profile plus lumps and knots); how much is a metal ridge or gem setting; and
- * how much stain a knot pools, at (angle, z).
+ * profile plus lumps and knots); how much is a metal ridge or gem setting; how
+ * much stain a knot pools; how much is bark, and how far into a crack in it, at (angle, z).
  */
-export function radiusAt(
-  spec: WandSpec,
-  theta: number,
-  z: number,
-): { r: number; r0: number; natural: number; metal: number; knot: number } {
+export function radiusAt(spec: WandSpec, theta: number, z: number): Surface & { r0: number } {
   const r0 = spec.profile(z)
-  if (r0 <= 0) return { r: 0, r0: 0, natural: 0, metal: 0, knot: 0 }
-  const out: Surface = { r: 0, natural: 0, metal: 0, knot: 0 }
+  if (r0 <= 0) return { r: 0, r0: 0, natural: 0, metal: 0, knot: 0, bark: 0, crack: 0 }
+  const out: Surface = { r: 0, natural: 0, metal: 0, knot: 0, bark: 0, crack: 0 }
   const b = spec.branch
   const growth = b ? growthAt(b, z) : 0
   const lump = b ? lumpAt(b, theta, z) * growth : 0
   const stencil = stencilRingAt(spec, z, { band: null, strength: 0 })
-  surfaceAt(spec, theta, z, r0, isBanded(spec, z), growth, lump, stencil, out)
-  return { r: out.r, r0, natural: out.natural, metal: out.metal, knot: out.knot }
+  surfaceAt(spec, theta, z, r0, isBanded(spec, z), growth, lump, stencil, barkRoomAt(spec, z), out)
+  return { ...out, r0 }
 }
 
 type Vec3 = [number, number, number]
@@ -317,6 +404,8 @@ export interface WandMeshData {
   shade: Float32Array
   /** Per-vertex (metal, paint, bone) weights; wood is whatever is left. */
   zone: Float32Array
+  /** Per-vertex bark over the wood, 0 to 1. */
+  bark: Float32Array
   indices: Uint32Array
   rings: number
   segments: number
@@ -377,6 +466,8 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   const zone = new Float32Array(count * 3)
   const ridge = new Float32Array(count)
   const knots = new Float32Array(count)
+  const bark = new Float32Array(count)
+  const crack = new Float32Array(count)
   const depthNorm = new Float32Array(count)
 
   // Grain runs along the wand. Around it, the texture is mirrored so there's
@@ -389,7 +480,7 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
     cos[i] = Math.cos((TAU * i) / segments)
     sin[i] = Math.sin((TAU * i) / segments)
   }
-  const surface: Surface = { r: 0, natural: 0, metal: 0, knot: 0 }
+  const surface: Surface = { r: 0, natural: 0, metal: 0, knot: 0, bark: 0, crack: 0 }
 
   // Lumps without a sine per vertex: sin(m*theta + c) = sin(m*theta)cos(c) + cos(m*theta)sin(c).
   const lumps = spec.branch && spec.branch.gnarl > 0 ? spec.branch.lumps : []
@@ -409,6 +500,7 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
     const z = zs[j]!
     const r0 = spec.profile(z)
     const banded = isBanded(spec, z)
+    const barkRoom = barkRoomAt(spec, z)
     stencilRingAt(spec, z, stencil)
     const growth = spec.branch ? growthAt(spec.branch, z) : 0
     const lumpScale = spec.branch ? spec.branch.gnarl * growth : 0
@@ -427,11 +519,24 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
       for (let li = 0; li < lumps.length; li++)
         lump += lumpSin[li * cols + i]! * lumpA[li]! + lumpCos[li * cols + i]! * lumpB[li]!
       if (r0 > 0)
-        surfaceAt(spec, (TAU * i) / segments, z, r0, banded, growth, lump, stencil, surface)
+        surfaceAt(
+          spec,
+          (TAU * i) / segments,
+          z,
+          r0,
+          banded,
+          growth,
+          lump,
+          stencil,
+          barkRoom,
+          surface,
+        )
       const r = r0 > 0 ? surface.r : 0
       const natural = r0 > 0 ? surface.natural : 0
       ridge[k] = r0 > 0 ? surface.metal : 0
       knots[k] = r0 > 0 ? surface.knot : 0
+      bark[k] = r0 > 0 ? surface.bark : 0
+      crack[k] = r0 > 0 ? surface.crack : 0
       const x = r * cos[i]!
       const y = r * sin[i]!
       positions[k * 3] = px + x * nx + y * bx
@@ -510,8 +615,10 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
       const soaks = 1 - zone[k * 3]! - zone[k * 3 + 1]!
       // Stain pools in a knot's heart and round its rim, as in a groove.
       const pooled = 0.6 * stain.strength * groove + 0.7 * stain.strength * knot
-      stainAmount[k] = stain.colour ? soaks * Math.min(1, amount + pooled) : 0
-      shade[k] = 1 - 0.35 * groove - 0.3 * knot
+      // Bark takes a little stain, more down its cracks.
+      const barkTakes = 1 - bark[k]! * (0.8 - 0.4 * crack[k]!)
+      stainAmount[k] = stain.colour ? soaks * barkTakes * Math.min(1, amount + pooled) : 0
+      shade[k] = (1 - 0.35 * groove - 0.3 * knot) * (1 - 0.6 * bark[k]! * crack[k]!)
     }
   }
 
@@ -532,7 +639,18 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
     }
   }
 
-  return { positions, normals, uvs, stain: stainAmount, shade, zone, indices, rings, segments }
+  return {
+    positions,
+    normals,
+    uvs,
+    stain: stainAmount,
+    shade,
+    zone,
+    bark,
+    indices,
+    rings,
+    segments,
+  }
 }
 
 export interface GemPose {

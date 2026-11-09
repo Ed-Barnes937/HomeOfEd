@@ -27,7 +27,14 @@ export function startWorkbench(wand: StoredWand): Workbench {
 export function workbench(state: Workbench, action: WorkbenchAction): Workbench {
   switch (action.type) {
     case 'set': {
-      const params = normalise(wandSchema, { ...state.wand.params, [action.key]: action.value })
+      // A wand just made a Branch starts with some bark; a saved one keeps what it had.
+      const newBranch =
+        action.key === 'kind' && action.value === 'branch' && state.wand.params.kind !== 'branch'
+      const params = normalise(wandSchema, {
+        ...state.wand.params,
+        [action.key]: action.value,
+        ...(newBranch ? { bark: 'patches' } : {}),
+      })
       return { ...state, wand: { ...state.wand, params }, previous: null }
     }
     case 'tryAnother': {

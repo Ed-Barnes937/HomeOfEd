@@ -99,6 +99,26 @@ export interface Lump {
   amp: number
 }
 
+export type BarkCover = 'patches' | 'full'
+
+/** Bark over a branch's wood, furrowed along the grain, in patches or all over. */
+export interface BarkSpec {
+  cover: BarkCover
+  /** How long a patch of bark is along the wand, roughly, mm. */
+  patchMm: number
+  /** A grown handle is worn bare up to about here, mm; 0 for a turned handle. */
+  wornTo: number
+  /** How far bark stands proud of the wood, as a fraction of the local radius. */
+  thickness: number
+  /** Cells of ragged noise round the wand, and their length along it, mm. */
+  around: number
+  raggedMm: number
+  /** Furrows round the wand at the shaft's base, and how far one runs before it wanders, mm. */
+  furrows: number
+  furrowMm: number
+  seed: number
+}
+
 /** What makes a wand a branch: its bent spine, lumps and knots. */
 export interface BranchSpec {
   /** Bow amplitude, mm, and the direction it bows in. */
@@ -111,6 +131,7 @@ export interface BranchSpec {
   /** Lumps and knots grow in from here: the butt of a grown handle, past the ring of a turned one. */
   from: number
   knots: Knot[]
+  bark: BarkSpec | null
 }
 
 /** A stretch of the wand a stencil covers, a whole number of tiles long and round. */
@@ -695,7 +716,7 @@ export function compileWand(p: Params): WandSpec {
     crystal,
     orb,
     metalSettings,
-    branch: branch ? compileBranch(p, L, collarEnd, grown, profile) : null,
+    branch: branch ? compileBranch(p, L, collarEnd, grown, profile, shaftBaseR) : null,
     stencil,
   }
 }
@@ -754,6 +775,7 @@ function compileBranch(
   collarEnd: number,
   grown: boolean,
   profile: (z: number) => number,
+  shaftBaseR: number,
 ): BranchSpec {
   const rand = seededRandom(9137 + (p.branchSeed as number) * 7919)
   const bowDir = rand() * TAU
@@ -797,5 +819,35 @@ function compileBranch(
     lumps,
     from,
     knots,
+    bark:
+      p.bark === 'patches' || p.bark === 'full'
+        ? compileBark(p.bark, p.branchSeed as number, L, grown, shaftBaseR)
+        : null,
+  }
+}
+
+const BARK_THICKNESS = 0.085
+/** Roughly how far apart bark's furrows are round the shaft's base, mm. */
+const BARK_FURROW_SPACING = 2.4
+
+/** Its own stream from "Which branch", so changing the knots never moves the bark. */
+function compileBark(
+  cover: BarkCover,
+  branchSeed: number,
+  L: number,
+  grown: boolean,
+  shaftBaseR: number,
+): BarkSpec {
+  const rand = seededRandom(4241 + branchSeed * 6007)
+  return {
+    cover,
+    patchMm: lerp(35, 55, rand()),
+    wornTo: grown ? 0.24 * L : 0,
+    thickness: BARK_THICKNESS,
+    around: 9,
+    raggedMm: 7,
+    furrows: Math.max(6, Math.round((TAU * shaftBaseR) / BARK_FURROW_SPACING)),
+    furrowMm: lerp(26, 40, rand()),
+    seed: Math.floor(rand() * 1e6),
   }
 }

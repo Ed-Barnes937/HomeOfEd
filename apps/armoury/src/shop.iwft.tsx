@@ -200,6 +200,25 @@ test('a branch shows its own controls and hides the ones it has no use for', asy
   await root.verifyControls({ shown: ['Carving'], hidden: ['How bent', 'Grown or turned'] })
 })
 
+test('only a branch can wear bark', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyControls({ hidden: ['Bark'] })
+  await root.chooseIn('Kind of wand', 'Branch')
+  await root.verifyStage({ bark: 'patches' })
+  await root.chooseIn('Bark', 'Full')
+  await root.verifyStage({ bark: 'full' })
+  await root.chooseIn('Kind of wand', 'Turned')
+  await root.verifyControls({ hidden: ['Bark'] })
+  await root.verifyStage({ bark: 'none' })
+})
+
+test('a branch saved before bark opens bare', async ({ mountApp }) => {
+  const first = await mountApp()
+  await first.root.openWithSavedWand({ kind: 'branch', wood: 'walnut' })
+  const { root } = await mountApp()
+  await root.verifyStage({ kind: 'branch', bark: 'none' })
+})
+
 test('trying another keeps the kind of wand', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.chooseIn('Kind of wand', 'Branch')

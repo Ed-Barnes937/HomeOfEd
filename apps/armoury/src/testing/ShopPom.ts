@@ -41,10 +41,12 @@ export class ShopPom extends BasePage {
     gems?: number
     kind?: string
     stencil?: string
+    bark?: string
     gemColour?: string
     gemCut?: string
     crystal?: string
   }): Promise<void> {
+    if (expected.bark) await expect(this.stage).toHaveAttribute('data-bark', expected.bark)
     if (expected.gemColour)
       await expect(this.stage).toHaveAttribute('data-gem-colour', expected.gemColour)
     if (expected.gemCut) await expect(this.stage).toHaveAttribute('data-gem-cut', expected.gemCut)
