@@ -74,17 +74,12 @@ remains the source of truth. The restore rehearsal ADR 0072 handed forward is
 therefore deferred rather than closed, and it returns as a precondition the
 moment a non-household account exists.
 
-**The cluster does not isolate family from its neighbours, and that is accepted
-on the same terms.** `fly postgres attach` grants superuser by default and
-`scripts/go-live.sh` does not pass `--superuser=false`, so on 2026-11-09
-`hoe_fridge`, `hoe_hub` and `hoe_wotd` were each a superuser able to read and
-write the `family` database: parents' emails and password hashes, children's
-usernames, and every save. A database role's boundary is therefore only as
-strong as the least careful app in `hoe-pg`. Revoking it (`ALTER ROLE ...
-NOSUPERUSER`, and attaching future apps without superuser) is untested here,
-because each app's migrations would then need ownership of its own schema
-granted explicitly. It joins the restore rehearsal as a precondition for the
-first non-household account.
+**The cluster did not isolate family from its neighbours, and
+[ADR 0086](0086-hoe-pg-least-privilege.md) ends that.** `fly postgres attach`
+grants superuser by default, so on 2026-11-09 `hoe_fridge`, `hoe_hub` and
+`hoe_wotd` were each a superuser able to read and write the `family` database:
+parents' emails and password hashes, children's usernames, and every save.
+ADR 0086 makes every app role an ordinary user that owns only its own database.
 
 Child profiles are rows a parent owns rather than accounts of their own, so
 there are no child credentials to lose. `saves.accountId` deliberately carries

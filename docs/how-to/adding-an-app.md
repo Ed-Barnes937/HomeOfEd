@@ -374,7 +374,11 @@ Or manually (full commands in the runbook):
 ```bash
 fly apps create <flyapp>
 # database-backed only:
-fly postgres attach hoe-pg --app <flyapp> --database-name <name>
+fly postgres attach hoe-pg --app <flyapp> --database-name <name> \
+  --database-user <flyapp_with_underscores> --superuser=false
+# then, in `fly postgres connect -a hoe-pg`, before the first deploy (ADR 0086):
+#   ALTER DATABASE <name> OWNER TO <flyapp_with_underscores>;
+#   REVOKE CONNECT ON DATABASE <name> FROM PUBLIC;
 ```
 
 - **Cloudflare:** proxied CNAME `<name> → <flyapp>.fly.dev`, SSL/TLS **Full
