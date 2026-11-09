@@ -349,7 +349,7 @@ const GEM_COLOURS: Record<string, { glow: string; body?: string }> = {
   emerald: { glow: '#4dff98' },
   ruby: { glow: '#ff2440' },
   sapphire: { glow: '#5a86ff' },
-  citrine: { glow: '#ffa41f' },
+  citrine: { glow: '#ff901f' },
   // Colourless quartz lit from inside: a cool white light in a grey stone.
   clear: { glow: '#eaf2ff', body: '#4a5058' },
   // Light through smoked glass: dim and warm, in a near-black stone.

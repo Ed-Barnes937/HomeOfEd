@@ -599,7 +599,7 @@ export const wandSchema: ItemSchema = {
       options: [
         { value: 'round', label: 'Round', weight: 4 },
         { value: 'square', label: 'Square' },
-        { value: 'marquise', label: 'Marquise' },
+        { value: 'marquise', label: 'Leaf' },
       ],
     },
     {
@@ -652,7 +652,7 @@ export const wandSchema: ItemSchema = {
         { value: 'emerald', label: 'Emerald', swatch: '#1f9e5a' },
         { value: 'ruby', label: 'Ruby', swatch: '#c0183c' },
         { value: 'sapphire', label: 'Sapphire', swatch: '#2546b8' },
-        { value: 'citrine', label: 'Citrine', swatch: '#e0a21c' },
+        { value: 'citrine', label: 'Citrine', swatch: '#e0821c' },
         { value: 'clear', label: 'Clear', swatch: '#e6edf2' },
         { value: 'smoky', label: 'Smoky', swatch: '#5c4a3e' },
       ],

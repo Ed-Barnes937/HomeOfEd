@@ -93,12 +93,13 @@ export function Gems({
   reducedMotion: boolean
 }) {
   const cap = useMemo(() => ({ value: GEM_REST.cap }), [])
+  const { glow, body } = spec.gemColour
   const materials = useMemo(
     () => ({
-      faceted: gemMaterial(spec.gemColour, cap, true),
-      smooth: gemMaterial(spec.gemColour, cap, false),
+      faceted: gemMaterial({ glow, body }, cap, true),
+      smooth: gemMaterial({ glow, body }, cap, false),
     }),
-    [spec.gemColour, cap],
+    [glow, body, cap],
   )
   useEffect(
     () => () => {

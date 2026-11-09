@@ -19,14 +19,16 @@ three cuts, each curated so every combination looks good.
 - **Three controls in Extras.** "Crystal colour" (Match the core, Amethyst, Emerald,
   Ruby, Sapphire, Citrine, Clear, Smoky) shows whenever the wand has any gem; "Crystal
   shape" (Hex point, Double point, Cluster, Raw shard, Faceted teardrop) shows with a
-  crystal tip; "Gem cut" (Round, Square, Marquise) shows with set gems. Colour is a
+  crystal tip; "Gem cut" (Round, Square, Leaf) shows with set gems. Leaf is a marquise
+  cut under a name a child knows; the code calls it `marquise`. Colour is a
   swatch picker; "Match the core" is drawn as the current core's colour with a light
   centre.
 - **One gem colour for the whole wand.** `compileWand` resolves it to `gemColour`:
   the light the gems glow with and the stone's own colour, both sRGB. "Match the
   core" is the core's swatch with the stone at a quarter of its light, as before. A
   named colour has its own glow, chosen bright like the core swatches so every colour
-  shows at rest, and the same stone rule. The spell, sparkles and tip glow stay the
+  shows at rest, and the same stone rule. Citrine is pushed towards orange (`#ff901f`)
+  so it stands apart from the Starlight core. The spell, sparkles and tip glow stay the
   core's colour; only the gems change.
 - **Clear and Smoky.** Neither has a hue of its own, and glowing in the core's
   colour would make them read as "Match the core" with a different stone. So Clear is
@@ -77,7 +79,6 @@ three cuts, each curated so every combination looks good.
 ## Consequences
 
 - Three more controls in Extras, each shown only when it applies.
-- Citrine sits close to the Starlight core; on other cores it is distinct.
 - At the flare's peak bright colours bloom towards white at the centre, with their
   hue in the halo, as "Match the core" always has.
 - Tuning was judged by eye on a real GPU (ANGLE Metal, headless) at rest, mid-flare,

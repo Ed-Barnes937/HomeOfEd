@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { defaults, normalise, randomise, seededRandom } from '../engine/schema.ts'
 import { compileWand } from './compile.ts'
+import { crystalSolid } from './crystals.ts'
 import { crystalMesh, endPoses, tipPose } from './geometry.ts'
 import { wandSchema } from './wandSchema.ts'
 
@@ -19,6 +20,36 @@ const vertices = (positions: number[]) =>
   Array.from({ length: positions.length / 3 }, (_, k) => positions.slice(3 * k, 3 * k + 3))
 
 const dot = (a: number[], b: number[]) => a.reduce((sum, v, i) => sum + v * b[i]!, 0)
+const sub = (a: number[], b: number[]) => a.map((v, i) => v - b[i]!)
+const cross = ([ax, ay, az]: number[], [bx, by, bz]: number[]) => [
+  ay! * bz! - az! * by!,
+  az! * bx! - ax! * bz!,
+  ax! * by! - ay! * bx!,
+]
+
+/** Triangles whose front faces point into their own piece of the solid, where they'd be culled. */
+function inwardTriangles({ positions, indices }: { positions: number[]; indices: number[] }) {
+  const vs = vertices(positions)
+  // Each separate piece (the cluster has five) is judged from its own middle.
+  const piece = vs.map((_, i) => i)
+  const find = (i: number): number => (piece[i] === i ? i : (piece[i] = find(piece[i]!)))
+  for (let t = 0; t < indices.length; t += 3)
+    for (const k of [1, 2]) piece[find(indices[t + k]!)] = find(indices[t]!)
+  const middles = new Map<number, number[]>()
+  vs.forEach((v, i) => {
+    const m = middles.get(find(i)) ?? [0, 0, 0, 0]
+    middles.set(find(i), [m[0]! + v[0]!, m[1]! + v[1]!, m[2]! + v[2]!, m[3]! + 1])
+  })
+  let inward = 0
+  for (let t = 0; t < indices.length; t += 3) {
+    const [a, b, c] = [0, 1, 2].map((k) => vs[indices[t + k]!]!)
+    const m = middles.get(find(indices[t]!))!
+    const middle = [m[0]! / m[3]!, m[1]! / m[3]!, m[2]! / m[3]!]
+    const centre = [0, 1, 2].map((i) => (a![i]! + b![i]! + c![i]!) / 3)
+    if (dot(cross(sub(b!, a!), sub(c!, a!)), sub(centre, middle)) <= 0) inward++
+  }
+  return inward
+}
 
 describe('crystal colour', () => {
   it("matches the core by default, glowing in the core's colour", () => {
@@ -123,6 +154,21 @@ describe('crystal tip shapes', () => {
       expect(Math.hypot(x!, y!)).toBeLessThan(2 * radius)
     }
     expect(from).toBeLessThan(spec.bodyTo)
+  })
+
+  it.each(SHAPES)('every face of a %s faces out, so none is culled', (crystalShape) => {
+    for (const [radius, length] of [
+      [4, 20],
+      [5.67, 28.4],
+      [6.53, 32.7],
+    ])
+      expect(inwardTriangles(crystalSolid(crystalShape, radius!, length!))).toBe(0)
+  })
+
+  it("a raw shard's broken top sits above the ring below it, so its sides never fold", () => {
+    // The shard is five-sided: the base centre, four rings of five corners, then its point.
+    const corners = vertices(crystalSolid('shard', 5.67, 28.4).positions)
+    for (let i = 0; i < 5; i++) expect(corners[16 + i]![2]).toBeGreaterThan(corners[11 + i]![2]!)
   })
 
   it('each shape is its own, and the same every time', () => {

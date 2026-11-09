@@ -140,18 +140,16 @@ const SHAPES: Record<CrystalShape, (r: number, length: number) => CrystalSolid> 
   shard: (r, length) => {
     const scales = [1.12, 0.74, 1.15, 0.84, 1.0]
     const point: Vec3 = [0.3 * r, -0.12 * r, length]
+    const top = [1.1, 2.9, 0.9, 2.3, 3.1].map((h) => length - h * r)
+    // The waist stays under the lowest corner of the break, or the sides fold back.
+    const waist = Math.min(0.3 * length, Math.min(...top) - 0.2 * r)
     return {
       ...solid(
         [
           ring(5, 0, 0.76 * r, { turn: 0.2, scales }),
-          ring(5, Math.min(1.5, 0.3 * length), 0.88 * r, { turn: 0.2, scales }),
-          ring(5, 0.45 * length, 0.96 * r, { turn: 0.32, scales, shift: [0.05 * r, 0] }),
-          ring(5, 0, 0.92 * r, {
-            turn: 0.4,
-            scales,
-            shift: [0.12 * r, -0.06 * r],
-            heights: [1.1, 2.9, 0.9, 2.3, 3.1].map((h) => length - h * r),
-          }),
+          ring(5, Math.min(1.5, 0.5 * waist), 0.88 * r, { turn: 0.2, scales }),
+          ring(5, waist, 0.96 * r, { turn: 0.32, scales, shift: [0.05 * r, 0] }),
+          ring(5, 0, 0.92 * r, { turn: 0.4, scales, shift: [0.12 * r, -0.06 * r], heights: top }),
         ],
         point,
       ),
