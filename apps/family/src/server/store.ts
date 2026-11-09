@@ -45,8 +45,12 @@ export interface SaveRecord {
 export interface SaveUsage {
   /** Every appId's bytes for this accountId. */
   accountBytes: number
+  /** Rows for this accountId: an empty blob costs no bytes but still costs a row. */
+  accountSlots: number
   /** The addressed slot's share of `accountBytes`, so a put can price its own overwrite. */
   slotBytes: number
+  /** Whether the addressed slot is already one of those rows. */
+  slotExists: boolean
 }
 
 /** Slot metadata for `save.list` - deliberately blob-free. */
@@ -252,7 +256,9 @@ export class DrizzleFamilyStore implements FamilyStore {
     const rows = await this.db
       .select({
         accountBytes: sql<number>`coalesce(sum(${saves.sizeBytes}), 0)::int`,
+        accountSlots: sql<number>`count(*)::int`,
         slotBytes: sql<number>`coalesce(sum(${saves.sizeBytes}) filter (where ${thisSlot}), 0)::int`,
+        slotExists: sql<boolean>`coalesce(bool_or(${thisSlot}), false)`,
       })
       .from(saves)
       .where(eq(saves.accountId, key.accountId))

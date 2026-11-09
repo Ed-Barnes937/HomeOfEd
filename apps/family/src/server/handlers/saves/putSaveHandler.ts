@@ -4,7 +4,7 @@ import { Handler, ValidationError } from '@hoe/backend-kit'
 import { blobByteLength, type FamilyStore, type SaveKey } from '../../store.ts'
 import { requireOnboardedApp, requireSaveAccount, type FamilyContext } from '../authz.ts'
 
-import { MAX_ACCOUNT_BYTES, MAX_SLOT_BYTES } from './limits.ts'
+import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from './limits.ts'
 
 export class PutSaveHandler extends Handler<SavePutInput, SavePutOutput, FamilyStore> {
   async run(input: SavePutInput, ctx: FamilyContext): Promise<SavePutOutput> {
@@ -27,6 +27,11 @@ export class PutSaveHandler extends Handler<SavePutInput, SavePutOutput, FamilyS
     if (usage.accountBytes - usage.slotBytes + sizeBytes > MAX_ACCOUNT_BYTES) {
       throw new ValidationError(
         `this account holds at most ${MAX_ACCOUNT_BYTES} bytes of saves across every app`,
+      )
+    }
+    if (!usage.slotExists && usage.accountSlots >= MAX_ACCOUNT_SLOTS) {
+      throw new ValidationError(
+        `this account holds at most ${MAX_ACCOUNT_SLOTS} save slots across every app`,
       )
     }
 

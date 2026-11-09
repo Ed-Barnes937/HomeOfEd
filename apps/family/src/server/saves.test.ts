@@ -8,7 +8,7 @@ import { familySeam } from './auth/familySeam.ts'
 import type { FamilyContext } from './handlers/authz.ts'
 import { DeleteSaveHandler } from './handlers/saves/deleteSaveHandler.ts'
 import { GetSaveHandler } from './handlers/saves/getSaveHandler.ts'
-import { MAX_ACCOUNT_BYTES, MAX_SLOT_BYTES } from './handlers/saves/limits.ts'
+import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from './handlers/saves/limits.ts'
 import { ListSavesHandler } from './handlers/saves/listSavesHandler.ts'
 import { PutSaveHandler } from './handlers/saves/putSaveHandler.ts'
 import { migrations } from './migrations.ts'
@@ -225,6 +225,45 @@ describe('the save quotas', () => {
     await expect(
       put(auth, { appId: APP, slotKey: 'boop:two', blob: blobOf(1) }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  // Bytes alone do not bound the SaveStore: an empty blob is free, and slotKey
+  // is the app's own string, so a token holder could otherwise write unlimited
+  // rows that `accountBytes` reports as nothing.
+  it('caps how many slots one account may hold, however empty they are', async () => {
+    const auth = childAuth('child-1')
+    for (let i = 0; i < MAX_ACCOUNT_SLOTS; i++) {
+      await put(auth, { appId: APP, slotKey: `boop:${i}`, blob: '' })
+    }
+
+    await expect(
+      store.saveUsage({ appId: APP, accountId: 'child-1', slotKey: 'x' }),
+    ).resolves.toMatchObject({ accountBytes: 0, accountSlots: MAX_ACCOUNT_SLOTS })
+    await expect(
+      put(auth, { appId: APP, slotKey: 'boop:one-more', blob: '' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('still lets a full account overwrite a slot it already holds', async () => {
+    const auth = childAuth('child-1')
+    for (let i = 0; i < MAX_ACCOUNT_SLOTS; i++) {
+      await put(auth, { appId: APP, slotKey: `boop:${i}`, blob: '' })
+    }
+
+    await expect(put(auth, { appId: APP, slotKey: 'boop:0', blob: 'again' })).resolves.toEqual({
+      version: 2,
+    })
+  })
+
+  it('counts slots per account, not per service', async () => {
+    const auth = childAuth('child-1')
+    for (let i = 0; i < MAX_ACCOUNT_SLOTS; i++) {
+      await put(auth, { appId: APP, slotKey: `boop:${i}`, blob: '' })
+    }
+
+    await expect(
+      put(childAuth('child-2'), { appId: APP, slotKey: 'boop:mine', blob: '' }),
+    ).resolves.toEqual({ version: 1 })
   })
 
   it('counts only the asking account towards its quota', async () => {

@@ -276,8 +276,10 @@ describe('DrizzleFamilyStore save usage', () => {
     ;({ store } = await freshStore())
   })
 
+  const nothing = { accountBytes: 0, accountSlots: 0, slotBytes: 0, slotExists: false }
+
   it('reports nothing stored for an account with no saves', async () => {
-    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 0, slotBytes: 0 })
+    await expect(store.saveUsage(key)).resolves.toEqual(nothing)
   })
 
   it('sums every appId for the account, and the addressed slot within it', async () => {
@@ -285,19 +287,53 @@ describe('DrizzleFamilyStore save usage', () => {
     await store.putSave({ ...key, slotKey: 'boop:other', blob: 'four' })
     await store.putSave({ ...key, appId: 'silt', slotKey: 'silt:scene:1', blob: 'twelve bytes' })
 
-    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 19, slotBytes: 3 })
+    await expect(store.saveUsage(key)).resolves.toEqual({
+      accountBytes: 19,
+      accountSlots: 3,
+      slotBytes: 3,
+      slotExists: true,
+    })
+  })
+
+  // The slot is `(appId, slotKey)`: one half matching is not the slot.
+  it('does not count the same slotKey under another appId as this slot', async () => {
+    await store.putSave({ ...key, appId: 'silt', blob: 'four' })
+
+    await expect(store.saveUsage(key)).resolves.toEqual({
+      accountBytes: 4,
+      accountSlots: 1,
+      slotBytes: 0,
+      slotExists: false,
+    })
   })
 
   it('counts bytes, not characters', async () => {
     await store.putSave({ ...key, blob: '🥁' })
 
-    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 4, slotBytes: 4 })
+    await expect(store.saveUsage(key)).resolves.toEqual({
+      accountBytes: 4,
+      accountSlots: 1,
+      slotBytes: 4,
+      slotExists: true,
+    })
+  })
+
+  // An empty blob costs no bytes, so only the slot count notices it.
+  it('counts an empty slot as a slot', async () => {
+    await store.putSave({ ...key, blob: '' })
+
+    await expect(store.saveUsage(key)).resolves.toEqual({
+      accountBytes: 0,
+      accountSlots: 1,
+      slotBytes: 0,
+      slotExists: true,
+    })
   })
 
   it('counts no other account', async () => {
     await store.putSave({ ...key, accountId: 'parent-2', blob: 'theirs' })
 
-    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 0, slotBytes: 0 })
+    await expect(store.saveUsage(key)).resolves.toEqual(nothing)
   })
 })
 
