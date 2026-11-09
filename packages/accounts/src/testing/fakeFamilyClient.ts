@@ -16,12 +16,7 @@ import type { FamilyTokenClaims } from '../claims.ts'
 import { DEFAULT_FAMILY_TOKEN_TTL_MS } from '../claims.ts'
 import { FamilyClientError } from '../familyClientError.ts'
 import { addChildInput, mintSessionTokenInput, renameChildInput } from '../identityContract.ts'
-import {
-  saveDeleteInput,
-  saveGetInput,
-  saveListInput,
-  savePutInput,
-} from '../saveContract.ts'
+import { saveDeleteInput, saveGetInput, saveListInput, savePutInput } from '../saveContract.ts'
 import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from '../saveLimits.ts'
 import type {
   AddChildInput,
@@ -310,7 +305,9 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
               }
             })()
       const iat = this.now().getTime()
-      return { token: encodeUnsignedToken({ ...claims, iat, exp: iat + DEFAULT_FAMILY_TOKEN_TTL_MS }) }
+      return {
+        token: encodeUnsignedToken({ ...claims, iat, exp: iat + DEFAULT_FAMILY_TOKEN_TTL_MS }),
+      }
     })
   }
 

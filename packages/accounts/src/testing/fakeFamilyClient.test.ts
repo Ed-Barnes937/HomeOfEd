@@ -143,9 +143,9 @@ describe('FakeFamilyClient (identity contract)', () => {
   it('registers behind the invite code and signs the parent straight in', async () => {
     const client = new FakeFamilyClient({ now, inviteCode: INVITE })
 
-    await expect(
-      client.signUp({ ...CREDENTIALS, inviteCode: 'guessed' }),
-    ).rejects.toMatchObject({ message: 'A valid invite code is required to register.' })
+    await expect(client.signUp({ ...CREDENTIALS, inviteCode: 'guessed' })).rejects.toMatchObject({
+      message: 'A valid invite code is required to register.',
+    })
     await expect(client.me()).resolves.toEqual({ parent: null })
 
     await client.signUp({ ...CREDENTIALS, inviteCode: INVITE })
@@ -154,9 +154,9 @@ describe('FakeFamilyClient (identity contract)', () => {
 
   it('refuses a second registration of the same email', async () => {
     const client = withParent()
-    await expect(
-      client.signUp({ ...CREDENTIALS, inviteCode: INVITE }),
-    ).rejects.toMatchObject({ code: 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL' })
+    await expect(client.signUp({ ...CREDENTIALS, inviteCode: INVITE })).rejects.toMatchObject({
+      code: 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL',
+    })
   })
 
   it('signs in with the right password only, and signs out again', async () => {
@@ -190,13 +190,18 @@ describe('FakeFamilyClient (identity contract)', () => {
   it('lets two households each have a child with the same username', async () => {
     const client = new FakeFamilyClient({
       now,
-      parents: [CREDENTIALS, { name: 'Grace', email: 'grace@example.com', password: 'correct-horse-battery' }],
+      parents: [
+        CREDENTIALS,
+        { name: 'Grace', email: 'grace@example.com', password: 'correct-horse-battery' },
+      ],
     })
     await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
     await client.addChild({ username: 'robin', displayName: 'Robin' })
     await client.signIn({ email: 'grace@example.com', password: 'correct-horse-battery' })
 
-    await expect(client.addChild({ username: 'robin', displayName: 'Robin' })).resolves.toMatchObject({
+    await expect(
+      client.addChild({ username: 'robin', displayName: 'Robin' }),
+    ).resolves.toMatchObject({
       username: 'robin',
     })
     expect((await client.listChildren()).map((c) => c.username)).toEqual(['robin'])
@@ -229,9 +234,10 @@ describe('FakeFamilyClient (identity contract)', () => {
     const parentToken = (await client.mintSessionToken({})).token
     const childToken = (await client.mintSessionToken({ childId: robin.id })).token
 
-    expect(
-      readFamilySession({ cookie: `hoe_family_session=${parentToken}`, now }),
-    ).toMatchObject({ role: 'parent', name: 'Ada' })
+    expect(readFamilySession({ cookie: `hoe_family_session=${parentToken}`, now })).toMatchObject({
+      role: 'parent',
+      name: 'Ada',
+    })
     expect(readFamilySession({ cookie: `hoe_family_session=${childToken}`, now })).toMatchObject({
       sub: robin.id,
       role: 'child',
@@ -295,9 +301,9 @@ describe('FakeFamilyClient runs the same validators the service runs', () => {
 
   it('refuses a whitespace-only name, because the schema trims before it counts', async () => {
     const client = await signedInParent()
-    await expect(
-      client.addChild({ username: '   ', displayName: '   ' }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(client.addChild({ username: '   ', displayName: '   ' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    })
   })
 
   // The divergence that mattered: the real schema trims and the fake did not,
@@ -360,10 +366,11 @@ describe('FakeFamilyClient enforces the save quotas (ADR 0079)', () => {
       await client.put({ appId: 'boop', slotKey: `slot-${i}`, blob: '' })
     }
 
-    await expect(client.put({ appId: 'boop', slotKey: 'one-more', blob: '' })).rejects.toMatchObject(
-      { code: 'BAD_REQUEST' },
-    )
-    await expect(client.put({ appId: 'boop', slotKey: 'slot-0', blob: 'rewritten' })).resolves
-      .toBeDefined()
+    await expect(
+      client.put({ appId: 'boop', slotKey: 'one-more', blob: '' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(
+      client.put({ appId: 'boop', slotKey: 'slot-0', blob: 'rewritten' }),
+    ).resolves.toBeDefined()
   })
 })
