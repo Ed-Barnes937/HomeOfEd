@@ -171,3 +171,33 @@ are ticket 01's tests; here test the wiring.
   `/api/auth/*` while hub gets both; all four guards fire under `FLY_APP_NAME`,
   naming no values; the docker stack still boots, refuses an uninvited sign-up
   and resolves `identity.me`.
+
+- 2026-11-09: **placeholder-secret fix**, commit `4d35e5f`. Expected to be the
+  last round.
+
+  `apps/sprout/.env.example` publishes `BETTER_AUTH_SECRET=dev-better-auth-
+  secret-change-me`, which defeated all three layers at once: absent from
+  `COMMITTED_DEV_SECRETS` (which held compose's shorter variant), never scanned
+  (the drift test read only family's own two files), and exactly 32 characters
+  against a `< 32` floor. It is also the value ticket 08's operator would most
+  likely copy, sprout being the Better Auth precedent this ticket followed - and
+  a public cookie-signing secret forges a session for any parent id and drives
+  the whole identity router without registering, so the invite gate never
+  enters into it.
+
+  The primary rule is now a **pattern** (`dev-`, `insecure`, `change-me`,
+  `placeholder`, `example`, leading `test`), with the list and length floors as
+  the belt beneath it, because an enumeration keyed to hand-picked files can
+  only hold what somebody remembered. The drift test now asserts per file per
+  name and slices `compose.yml` to the family service, since sprout's copies of
+  the same two names were masking family's; it also asserts the stronger
+  property that whatever those files commit is *refused*, not that it is listed.
+  Both weaknesses were mutation-checked.
+
+  `apps/sprout/.env.example` is deliberately untouched - family's guard should
+  hold whatever another app publishes, and sprout's exposure is Ed's to weigh.
+
+  Verify loop: lint and typecheck green, **120 vitest + 3 iwft**. In the real
+  image: sprout's secret refused under `FLY_APP_NAME`, a realistic random secret
+  boots through, and the docker stack still serves `/health`, refuses an
+  uninvited sign-up and gives boop's origin nothing.
