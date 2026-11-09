@@ -95,9 +95,14 @@ fi
 
 # ── 2. database (only with --db) ─────────────────────────────────────────────
 say "2/6 database"
+# Listed outside the `if`, where `set -e` still applies: a failed listing must
+# stop here rather than read as "not attached yet".
+if $WITH_DB && ! $DRY_RUN; then
+  SECRETS="$(fly secrets list --app "$FLY_APP" --json)"
+fi
 if ! $WITH_DB; then
   echo "   stateless app (ADR 0008) — skipping"
-elif ! $DRY_RUN && fly secrets list --app "$FLY_APP" | grep -q DATABASE_URL; then
+elif ! $DRY_RUN && jq -e '.[] | select(.name == "DATABASE_URL")' >/dev/null <<<"$SECRETS"; then
   echo "   DATABASE_URL already set — skipping attach"
 else
   run fly postgres attach "$PG_CLUSTER" --app "$FLY_APP" --database-name "$APP"
@@ -123,7 +128,10 @@ fi
 
 # ── 5. cert: request it, prove ownership by DNS, wait for an ACTIVE cert ─────
 say "5/6 TLS cert for $HOST"
-if ! $DRY_RUN && fly certs list --app "$FLY_APP" | grep -q "$HOST"; then
+if ! $DRY_RUN; then
+  CERTS="$(fly certs list --app "$FLY_APP" --json)"
+fi
+if ! $DRY_RUN && jq -e --arg h "$HOST" '.[] | select(.hostname == $h)' >/dev/null <<<"$CERTS"; then
   echo "   cert already requested — skipping add"
 else
   run fly certs add "$HOST" --app "$FLY_APP"
