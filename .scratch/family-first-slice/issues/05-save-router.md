@@ -30,3 +30,15 @@ parent token likewise - no cross-account access), get-after-put round-trip,
 null on missing.
 
 ## Comments
+
+- 2026-11-09: **note, from ticket 03's review.** Add `accountId` string
+  identity to the ownership tests.
+
+  `saves.accountId` is a `text` column holding a uuid for child accounts, and
+  ticket 03's `deleteAccount` matches on Postgres's canonical lowercase form. A
+  row written with any other casing or formatting of the same uuid would never
+  match on erasure and would orphan. This is not reachable today, because
+  `accountId` always originates from the verified family token's `sub`, which
+  is minted from a database read (spec §4.4). It is nonetheless the structural
+  price of the no-FK decision, so it belongs in the ownership tests rather than
+  resting on a comment.

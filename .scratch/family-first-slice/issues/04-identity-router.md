@@ -29,3 +29,22 @@ CRUD ownership, mint-for-foreign-child rejection, erasure. Token internals
 are ticket 01's tests; here test the wiring.
 
 ## Comments
+
+- 2026-11-09: **added requirement, from ticket 03's review.** Deleting a child
+  profile must be transactional and must leave no orphan saves, exactly as
+  `deleteAccount` is.
+
+  Why this needs saying explicitly. `saves.accountId` deliberately carries no
+  foreign key, because it holds either a parent `user.id` or a
+  `child_profiles.id`. A plain `delete from child_profiles where id = $1`
+  therefore strands that child's save rows permanently: nothing left in the
+  database can ever reference them, and no join will surface them. The FK
+  cascade that would ordinarily prevent this is precisely what ticket 03 gave
+  up, and `deleteAccount` is transactional for exactly this reason.
+
+  This ticket currently asks only for "children CRUD", and its test list reads
+  "invite-code rejection, children CRUD ownership, mint-for-foreign-child
+  rejection, erasure", none of which catches the orphan. Add a store method
+  that deletes the profile and that `accountId`'s `saves` rows in one
+  transaction, plus a test pinning that no orphan saves survive. Ticket 03's
+  `deleteAccount` and its rollback test are the pattern to follow.
