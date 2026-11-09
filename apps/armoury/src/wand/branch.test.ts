@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { defaults, normalise, randomise, seededRandom } from '../engine/schema.ts'
 import { compileWand } from './compile.ts'
-import { buildWandMesh, endPoses, gemPoses, radiusAt, reachMm, spineFrame } from './geometry.ts'
+import { buildWandMesh, endPoses, gemPoses, reachMm, spineFrame, tipPose } from './geometry.ts'
 import { wandSchema } from './wandSchema.ts'
 
 const branch = (extra: Record<string, unknown> = {}) =>
@@ -31,17 +31,11 @@ const furthestFromAxis = (positions: Float32Array) => {
 }
 
 describe('branch wands', () => {
-  it.each(randomBranches)('$name is sealed, finite, and ends on the axis', ({ params }) => {
+  it.each(randomBranches)('$name ends on the axis at both ends', ({ params }) => {
     const mesh = buildWandMesh(compileWand(params), { segments: 48, stepMm: 1 })
-    expect(mesh.positions.every(Number.isFinite)).toBe(true)
-    expect(mesh.normals.every(Number.isFinite)).toBe(true)
-    const cols = mesh.segments + 1
-    for (const j of [0, mesh.rings]) {
-      for (let i = 0; i < cols; i++) {
-        const k = (j * cols + i) * 3
-        expect(Math.hypot(mesh.positions[k]!, mesh.positions[k + 1]!)).toBeLessThan(1e-6)
-      }
-    }
+    const last = mesh.rings * (mesh.segments + 1) * 3
+    for (const k of [0, last])
+      expect(Math.hypot(mesh.positions[k]!, mesh.positions[k + 1]!)).toBeLessThan(1e-6)
   })
 
   it('bends sideways by up to about 7% of its length', () => {
@@ -54,31 +48,70 @@ describe('branch wands', () => {
     expect(reach(bent) - reach(straight)).toBeLessThan(0.08 * 380)
   })
 
-  it('never bends tighter than about twice its own radius, so the inside of a bend cannot fold', () => {
-    let worst = Infinity
-    for (const lengthCm of [28, 33, 38])
-      for (const thickness of [0.85, 1.15])
-        for (const bend of [0, 0.5, 1])
-          for (const wiggle of [0, 0.5, 1])
-            for (let branchSeed = 0; branchSeed < 100; branchSeed += 9) {
-              const spec = compileWand(
-                branch({ lengthCm, thickness, bend, wiggle, branchSeed, gnarl: 1, knots: 6 }),
-              )
-              const h = 0.5
-              for (let z = h; z < spec.lengthMm - h; z += 1) {
-                const [a, p, b] = [z - h, z, z + h].map((at) => spineFrame(spec, at).point)
-                const curvature = Math.hypot(
-                  ...[0, 1, 2].map((i) => (a![i]! - 2 * p![i]! + b![i]!) / h ** 2),
+  // The chunkiest wand is the hardest case: the same spine, the widest wood round it.
+  it(
+    'never bends tighter than twice its own radius, so the inside of a bend cannot fold',
+    { timeout: 30000 },
+    () => {
+      let worst = Infinity
+      const thickness = 1.15
+      for (const branchHandle of ['grown', 'turned'])
+        for (const lengthCm of [28, 33, 38]) {
+          for (const bend of [0, 0.5, 1])
+            for (const wiggle of [0, 0.5, 1])
+              for (let branchSeed = 0; branchSeed < 100; branchSeed++) {
+                const spec = compileWand(
+                  branch({ branchHandle, lengthCm, thickness, bend, wiggle, branchSeed }),
                 )
-                const bendRadius = 1 / Math.max(curvature, 1e-12)
-                if (bendRadius > 60) continue
-                let widest = 0
-                for (let t = 0; t < Math.PI * 2; t += 0.2)
-                  widest = Math.max(widest, radiusAt(spec, t, z).r)
-                worst = Math.min(worst, bendRadius / widest)
+                const h = 2
+                let before = spineFrame(spec, 0).tangent
+                for (let z = h; z <= spec.lengthMm; z += h) {
+                  const after = spineFrame(spec, z).tangent
+                  const turn = Math.hypot(...after.map((t, i) => t - before[i]!)) / h
+                  before = after
+                  // The surface stays within the envelope, a quarter more than the profile.
+                  const widest = 1.25 * Math.max(spec.profile(z - h), spec.profile(z))
+                  if (widest > 0) worst = Math.min(worst, 1 / Math.max(turn, 1e-12) / widest)
+                }
               }
-            }
-    expect(worst).toBeGreaterThan(2)
+        }
+      expect(worst).toBeGreaterThan(2)
+    },
+  )
+
+  it('the spell leaves from the very tip: the end of the spine, or the point of a crystal', () => {
+    const bare = compileWand(branch({ lengthCm: 38, bend: 1, wiggle: 1 }))
+    expect(tipPose(bare).position).toEqual([0, 0, bare.lengthMm])
+    expect(tipPose(bare).direction).toEqual(spineFrame(bare, bare.lengthMm).tangent)
+
+    const spec = compileWand(branch({ lengthCm: 38, bend: 1, wiggle: 1, tipGem: 'crystal' }))
+    const { crystal } = endPoses(spec)
+    const tip = tipPose(spec)
+    const along = tip.position.map((v, i) => v - crystal!.position[i]!)
+    expect(Math.hypot(...along)).toBeCloseTo(spec.lengthMm - spec.crystal!.from, 6)
+    along.forEach((v, i) => expect(v / Math.hypot(...along)).toBeCloseTo(crystal!.direction[i]!, 6))
+    expect(tip.direction).toEqual(crystal!.direction)
+    expect(Math.hypot(tip.position[0], tip.position[1])).toBeGreaterThan(2)
+  })
+
+  it('a turned handle stays straight: the wiggles start past its ring', () => {
+    for (let branchSeed = 0; branchSeed < 100; branchSeed += 7) {
+      const spec = compileWand(
+        branch({ branchHandle: 'turned', lengthCm: 38, bend: 1, wiggle: 1, branchSeed }),
+      )
+      const ring = spec.branch!.from
+      const [start, end] = [0, ring].map((z) => spineFrame(spec, z).point)
+      let furthest = 0
+      for (let z = 0; z <= ring; z += 1) {
+        const p = spineFrame(spec, z).point
+        const t = z / ring
+        furthest = Math.max(
+          furthest,
+          Math.hypot(...p.map((v, i) => v - (start![i]! + (end![i]! - start![i]!) * t))),
+        )
+      }
+      expect(furthest).toBeLessThan(1)
+    }
   })
 
   it('the same params grow the same branch, and only "Which branch" grows another', () => {

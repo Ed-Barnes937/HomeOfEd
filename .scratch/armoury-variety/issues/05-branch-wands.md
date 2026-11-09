@@ -136,6 +136,24 @@ of eleven branches, close look, spell, zoom and share picture for b1, b7, b9 and
 page in `r2/phone/`). `r1/` is before the wiggle and gloss changes.
 
 Not done / for later:
-- On a phone the kind picker takes a row above the tabs, so the sheet shows less of
-  each group; the tab row now scrolls (Trim and Core off screen at 390 px).
 - The box shadow is still a straight blur.
+
+**2026-11-09, agent (review round 1 follow-ups):**
+- Build time: the mesh loop writes positions from the frame's scalars, works out
+  bands, growth and lump phases once per ring, and allocates nothing per vertex
+  (`settingAt` and the knot sum write into reused scratch). Reading the frame's
+  arrays per vertex had made V8 deoptimise the loop, which also slowed turned wands
+  once any branch was built. In a quiet moment: turned 12.5 ms (04: 17 ms), branch
+  27 ms, turned after a branch 12.6 ms. Under load the ratios hold (turned at or
+  under 04, branch about 1.2-2x turned). ADR 0084 corrected.
+- The tip glow, spell and close-look wave trail sit on `tipPose`: the crystal's
+  point when there is one, aimed along it. Tested.
+- Wiggles grow in from `branch.from`, so a turned handle on a Branch stays straight
+  (within 1 mm, tested; only the bow passes through it).
+- Phone: the kind picker's label sits beside its pills, and the tab row fades at
+  its right edge to show it scrolls (`shots/05/r3/phone/`). "Grown or turned" stays.
+- Nits: the branch end test only checks the ends are on the axis; the fold test runs
+  all 100 branches of the chunkiest wand, both handles, on the spine alone (worst
+  3.07x); the workbench kind test uses one seed per kind.
+- Shots in `shots/05/r3/`: a 38 cm full-bend branch with a crystal (glow on its
+  point) and the turned handle.

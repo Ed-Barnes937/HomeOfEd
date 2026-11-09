@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 import type { WandSpec } from '../wand/compile.ts'
-import { buildWandMesh, spineFrame } from '../wand/geometry.ts'
+import { buildWandMesh, tipPose } from '../wand/geometry.ts'
 import { Gems } from './Gems.tsx'
 import { Sparkles } from './Sparkles.tsx'
 import { SpellBurst } from './SpellBurst.tsx'
@@ -13,6 +13,15 @@ import { BLOOM_THRESHOLD, SPELL_SECONDS } from './stage.ts'
 /** Scene units per mm: a 33cm wand is 3.3 units long. */
 export const MM = 0.01
 const ALONG = new THREE.Vector3(0, 0, 1)
+/** The glow floats this far past the tip, in scene units. */
+const TIP_GAP = 0.03
+
+/** Where the tip glow sits in the wand group's own space, before it is turned to lie along x. */
+export function tipPoint(spec: WandSpec): [number, number, number] {
+  const { position: p, direction: d } = tipPose(spec)
+  const half = (spec.lengthMm / 2) * MM
+  return [p[0] * MM + d[0] * TIP_GAP, p[1] * MM + d[1] * TIP_GAP, p[2] * MM - half + d[2] * TIP_GAP]
+}
 
 // Poly Haven CC0 veneer scans. Some are photographed with the grain across the
 // image, so they're turned to run along the wand. The tint stands in for oil.
@@ -215,11 +224,12 @@ export function WandMesh({
   const half = (spec.lengthMm / 2) * MM
   // The spell leaves along the way the tip points, which on a branch leans off the chord.
   const tipTurn = useMemo(() => {
-    const tangent = new THREE.Vector3(...spineFrame(spec, spec.lengthMm).tangent)
+    const direction = new THREE.Vector3(...tipPose(spec).direction)
     return new THREE.Quaternion()
-      .setFromUnitVectors(ALONG, tangent)
+      .setFromUnitVectors(ALONG, direction)
       .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)))
   }, [spec])
+  const tip = useMemo(() => tipPoint(spec), [spec])
   return (
     <group rotation={[0, Math.PI / 2, 0]}>
       <mesh geometry={geometry} position={[0, 0, -half]} scale={MM}>
@@ -237,7 +247,7 @@ export function WandMesh({
       <group position={[0, 0, -half]} scale={MM}>
         <Gems spec={spec} castAt={castAt} reducedMotion={reducedMotion} />
       </group>
-      <group position={[0, 0, half + 0.03]} quaternion={tipTurn}>
+      <group position={tip} quaternion={tipTurn}>
         <TipGlow colour={spec.spell} castAt={castAt} reducedMotion={reducedMotion} />
       </group>
     </group>

@@ -20,10 +20,12 @@
 .tabs {
   display: flex;
   justify-content: space-between;
-  padding: 4px 8px 0;
+  padding: 4px 36px 0 8px;
   border-bottom: 1px solid var(--panel-line);
   overflow-x: auto;
   scrollbar-width: none;
+  // A fade at the right edge shows there are more tabs to scroll to.
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
 }
 
 .tab {
@@ -70,5 +72,12 @@
 }
 
 .kind {
-  padding: 6px 16px 8px;
+  padding: 4px 16px 6px;
+
+  // The picker's label sits beside its pills, to leave the sheet room for the groups.
+  > * > * {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
 }

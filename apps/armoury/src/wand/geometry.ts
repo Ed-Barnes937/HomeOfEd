@@ -18,26 +18,28 @@ const SETTING_FADE = 1.2
 /** Angle a minus angle b, wrapped into [-pi, pi). */
 const angleBetween = (a: number, b: number) => ((((a - b + Math.PI) % TAU) + TAU) % TAU) - Math.PI
 
+/** What a gem setting does at one point; reused so the mesh build allocates nothing per vertex. */
+const setting = { offset: 0, carving: 1, metal: 0 }
+
 /** How a gem's seat and rim move the surface, how much carving survives there, and how much is metal. */
-function settingsAt(spec: WandSpec, theta: number, z: number, r0: number) {
-  let offset = 0
-  let carving = 1
-  let metal = 0
+function settingAt(spec: WandSpec, theta: number, z: number, r0: number): void {
+  setting.offset = 0
+  setting.carving = 1
+  setting.metal = 0
   for (const gem of spec.gems) {
     const outer = gem.radius + RIM_WIDTH
     const dz = z - gem.z
     if (Math.abs(dz) >= outer + SETTING_FADE) continue
     const d = Math.hypot(r0 * angleBetween(theta, gem.theta), dz)
-    carving = Math.min(carving, smoothstep(outer, outer + SETTING_FADE, d))
+    setting.carving = Math.min(setting.carving, smoothstep(outer, outer + SETTING_FADE, d))
     if (d < gem.radius) {
-      offset = -0.3 * gem.radius * Math.sqrt(1 - (d / gem.radius) ** 2)
-      if (spec.metalSettings) metal = 1
+      setting.offset = -0.3 * gem.radius * Math.sqrt(1 - (d / gem.radius) ** 2)
+      if (spec.metalSettings) setting.metal = 1
     } else if (d < outer) {
-      offset = RIM_HEIGHT * Math.sin((Math.PI * (d - gem.radius)) / RIM_WIDTH)
-      if (spec.metalSettings) metal = 1
+      setting.offset = RIM_HEIGHT * Math.sin((Math.PI * (d - gem.radius)) / RIM_WIDTH)
+      if (spec.metalSettings) setting.metal = 1
     }
   }
-  return { offset, carving, metal }
 }
 
 function strengthAt(g: GrooveSet, z: number): number {
@@ -45,32 +47,99 @@ function strengthAt(g: GrooveSet, z: number): number {
   return smoothstep(g.from, g.from + g.fadeIn, z) * (1 - smoothstep(g.to - g.fadeOut, g.to, z))
 }
 
-/** How much the lumps move the radius at (angle, z), as a fraction of it. */
+/** How far a branch's lumps and knots have grown in at z, 0 to 1. */
+const growthAt = (b: BranchSpec, z: number) => smoothstep(b.from, b.from + 15, z)
+
+/** Carving, lumps and knots stop at a band, as at a ring clamped over the wood. */
+const isBanded = (spec: WandSpec, z: number) =>
+  spec.zones.some((zone) => zone.uncarved && z >= zone.from && z <= zone.to)
+
+/** How much the lumps move the radius at (angle, z), as a fraction of it, fully grown. */
 function lumpAt(b: BranchSpec, theta: number, z: number): number {
-  if (b.gnarl <= 0) return 0
   let n = 0
   for (const l of b.lumps) n += l.amp * Math.sin(l.m * theta + l.k * z + l.phase)
-  return b.gnarl * n * smoothstep(b.from, b.from + 15, z)
-}
-
-/** Knot height (mm) at (angle, z), and how much of a knot's heart or rim, where stain pools, is here. */
-function knotAt(b: BranchSpec, theta: number, z: number, r0: number) {
-  let h = 0
-  let pool = 0
-  for (const k of b.knots) {
-    if (Math.abs(z - k.z) > k.width * 3) continue
-    const d = Math.hypot(r0 * angleBetween(theta, k.theta), z - k.z) / k.width
-    if (d > 3) continue
-    // A raised boss with a dimple where the twig was.
-    h += k.height * r0 * (Math.exp(-d * d) - 0.55 * Math.exp(-((d / 0.38) ** 2)))
-    pool = Math.max(pool, Math.exp(-(((d - 0.9) / 0.35) ** 2)), Math.exp(-((d / 0.3) ** 2)))
-  }
-  return { h, pool }
+  return b.gnarl * n
 }
 
 /** The uncarved surface's radius at (angle, z): the profile, plus a branch's lumps. */
 function naturalRadius(spec: WandSpec, theta: number, z: number, r0: number): number {
-  return spec.branch ? r0 * (1 + lumpAt(spec.branch, theta, z)) : r0
+  const b = spec.branch
+  return b ? r0 * (1 + lumpAt(b, theta, z) * growthAt(b, z)) : r0
+}
+
+interface Surface {
+  r: number
+  natural: number
+  metal: number
+  knot: number
+}
+
+/**
+ * The surface at (angle, z), given what is the same all round the ring at z and
+ * the lumps there (grown in), written into `out`.
+ */
+function surfaceAt(
+  spec: WandSpec,
+  theta: number,
+  z: number,
+  r0: number,
+  banded: boolean,
+  growth: number,
+  lump: number,
+  out: Surface,
+): void {
+  settingAt(spec, theta, z, r0)
+  const b = spec.branch
+  let natural = r0 * (1 + lump)
+  let knot = 0
+  if (b) {
+    const room = banded ? 0 : setting.carving * growth
+    if (room > 0) {
+      let h = 0
+      let pool = 0
+      for (const k of b.knots) {
+        if (Math.abs(z - k.z) > k.width * 3) continue
+        const d = Math.hypot(r0 * angleBetween(theta, k.theta), z - k.z) / k.width
+        if (d > 3) continue
+        // A raised boss with a dimple where the twig was; stain pools in its heart and round its rim.
+        h += k.height * r0 * (Math.exp(-d * d) - 0.55 * Math.exp(-((d / 0.38) ** 2)))
+        pool = Math.max(pool, Math.exp(-(((d - 0.9) / 0.35) ** 2)), Math.exp(-((d / 0.3) ** 2)))
+      }
+      natural += h * room
+      knot = pool * room
+    }
+  }
+  let ridgeMetal = 0
+  // The deepest cut and the tallest ridge, so overlapping sets combine in any order.
+  let cut = r0
+  let raised = r0
+  if (!banded) {
+    for (const g of spec.grooves) {
+      const f = strengthAt(g, z) * setting.carving
+      if (f <= 0) continue
+      const spacing = TAU / g.count
+      const phase = theta - TAU * g.twist * (z - g.from)
+      // Angle from the nearest face or groove centre, in [-spacing/2, spacing/2).
+      const a = ((((phase + spacing / 2) % spacing) + spacing) % spacing) - spacing / 2
+      if (g.shape === 'flat') {
+        // A polygon whose faces sit at depth below the profile. min() of several
+        // sets is what turns crossing flats into diamonds.
+        cut = Math.min(cut, (r0 * (1 - g.depth * f)) / Math.cos(a))
+      } else {
+        const x = Math.abs(a) / g.halfWidth
+        if (x >= 1) continue
+        const offset = r0 * g.depth * f * Math.sqrt(1 - x * x)
+        if (g.raised) raised = Math.max(raised, r0 + offset)
+        else cut = Math.min(cut, r0 - offset)
+        if (g.raised && g.metal)
+          ridgeMetal = Math.max(ridgeMetal, (1 - smoothstep(0.82, 0.97, x)) * smoothstep(0, 0.3, f))
+      }
+    }
+  }
+  out.r = cut + raised - r0 + setting.offset + natural - r0
+  out.natural = natural
+  out.metal = Math.max(ridgeMetal, setting.metal)
+  out.knot = knot
 }
 
 /**
@@ -85,51 +154,12 @@ export function radiusAt(
 ): { r: number; r0: number; natural: number; metal: number; knot: number } {
   const r0 = spec.profile(z)
   if (r0 <= 0) return { r: 0, r0: 0, natural: 0, metal: 0, knot: 0 }
-  const settings = settingsAt(spec, theta, z, r0)
-  let natural = naturalRadius(spec, theta, z, r0)
-  let knot = 0
-  if (spec.branch) {
-    const banded = spec.zones.some((zone) => zone.uncarved && z >= zone.from && z <= zone.to)
-    const k = knotAt(spec.branch, theta, z, r0)
-    const room = banded
-      ? 0
-      : settings.carving * smoothstep(spec.branch.from, spec.branch.from + 15, z)
-    natural += k.h * room
-    knot = k.pool * room
-  }
-  let ridgeMetal = 0
-  // The deepest cut and the tallest ridge, so overlapping sets combine in any order.
-  let cut = r0
-  let raised = r0
-  const uncarved = spec.zones.some((zone) => zone.uncarved && z >= zone.from && z <= zone.to)
-  for (const g of uncarved ? [] : spec.grooves) {
-    const f = strengthAt(g, z) * settings.carving
-    if (f <= 0) continue
-    const spacing = TAU / g.count
-    const phase = theta - TAU * g.twist * (z - g.from)
-    // Angle from the nearest face or groove centre, in [-spacing/2, spacing/2).
-    const a = ((((phase + spacing / 2) % spacing) + spacing) % spacing) - spacing / 2
-    if (g.shape === 'flat') {
-      // A polygon whose faces sit at depth below the profile. min() of several
-      // sets is what turns crossing flats into diamonds.
-      cut = Math.min(cut, (r0 * (1 - g.depth * f)) / Math.cos(a))
-    } else {
-      const x = Math.abs(a) / g.halfWidth
-      if (x >= 1) continue
-      const offset = r0 * g.depth * f * Math.sqrt(1 - x * x)
-      if (g.raised) raised = Math.max(raised, r0 + offset)
-      else cut = Math.min(cut, r0 - offset)
-      if (g.raised && g.metal)
-        ridgeMetal = Math.max(ridgeMetal, (1 - smoothstep(0.82, 0.97, x)) * smoothstep(0, 0.3, f))
-    }
-  }
-  return {
-    r: cut + raised - r0 + settings.offset + natural - r0,
-    r0,
-    natural,
-    metal: Math.max(ridgeMetal, settings.metal),
-    knot,
-  }
+  const out: Surface = { r: 0, natural: 0, metal: 0, knot: 0 }
+  const b = spec.branch
+  const growth = b ? growthAt(b, z) : 0
+  const lump = b ? lumpAt(b, theta, z) * growth : 0
+  surfaceAt(spec, theta, z, r0, isBanded(spec, z), growth, lump, out)
+  return { r: out.r, r0, natural: out.natural, metal: out.metal, knot: out.knot }
 }
 
 type Vec3 = [number, number, number]
@@ -142,7 +172,8 @@ function spineOffset(b: BranchSpec, L: number, z: number): [number, number] {
     const bow = b.bowMm * (Math.sin(Math.PI * u) - 0.2 * Math.sin(TAU * u))
     let x = bow * Math.cos(b.bowDir)
     let y = bow * Math.sin(b.bowDir)
-    const grow = smoothstep(0, 0.4, u)
+    // Wiggles grow in from the butt of a grown handle, or past the ring of a turned one.
+    const grow = smoothstep(b.from / L, b.from / L + 0.4, u)
     for (const w of b.wiggles) {
       const s = w.amp * grow * Math.sin(TAU * w.freq * u + w.phase)
       x += s * Math.cos(w.dir)
@@ -281,17 +312,57 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   // no seam: across goes 0 -> 1 -> 0 over one turn.
   const across = (Math.PI * spec.handleMaxR * 0.8) / textureMm
 
+  const cos = new Float64Array(cols)
+  const sin = new Float64Array(cols)
+  for (let i = 0; i <= segments; i++) {
+    cos[i] = Math.cos((TAU * i) / segments)
+    sin[i] = Math.sin((TAU * i) / segments)
+  }
+  const surface: Surface = { r: 0, natural: 0, metal: 0, knot: 0 }
+
+  // Lumps without a sine per vertex: sin(m*theta + c) = sin(m*theta)cos(c) + cos(m*theta)sin(c).
+  const lumps = spec.branch && spec.branch.gnarl > 0 ? spec.branch.lumps : []
+  const lumpSin = new Float64Array(lumps.length * cols)
+  const lumpCos = new Float64Array(lumps.length * cols)
+  lumps.forEach((l, li) => {
+    for (let i = 0; i <= segments; i++) {
+      lumpSin[li * cols + i] = Math.sin((l.m * TAU * i) / segments)
+      lumpCos[li * cols + i] = Math.cos((l.m * TAU * i) / segments)
+    }
+  })
+  const lumpA = new Float64Array(lumps.length)
+  const lumpB = new Float64Array(lumps.length)
+
   for (let j = 0; j <= rings; j++) {
     const z = bodyFrom + ((bodyTo - bodyFrom) * j) / rings
+    const r0 = spec.profile(z)
+    const banded = isBanded(spec, z)
+    const growth = spec.branch ? growthAt(spec.branch, z) : 0
+    const lumpScale = spec.branch ? spec.branch.gnarl * growth : 0
+    lumps.forEach((l, li) => {
+      lumpA[li] = lumpScale * l.amp * Math.cos(l.k * z + l.phase)
+      lumpB[li] = lumpScale * l.amp * Math.sin(l.k * z + l.phase)
+    })
     // Bent after building: each straight ring is carried onto the spine before the normal pass.
-    const frame = spineFrame(spec, z)
+    const { point, normal, binormal } = spineFrame(spec, z)
+    const [px, py, pz] = point
+    const [nx, ny, nz] = normal
+    const [bx, by, bz] = binormal
     for (let i = 0; i <= segments; i++) {
-      const theta = (TAU * i) / segments
-      const { r, natural, metal, knot } = radiusAt(spec, theta, z)
       const k = j * cols + i
-      ridge[k] = metal
-      knots[k] = knot
-      positions.set(bendPoint(frame, r * Math.cos(theta), r * Math.sin(theta)), k * 3)
+      let lump = 0
+      for (let li = 0; li < lumps.length; li++)
+        lump += lumpSin[li * cols + i]! * lumpA[li]! + lumpCos[li * cols + i]! * lumpB[li]!
+      if (r0 > 0) surfaceAt(spec, (TAU * i) / segments, z, r0, banded, growth, lump, surface)
+      const r = r0 > 0 ? surface.r : 0
+      const natural = r0 > 0 ? surface.natural : 0
+      ridge[k] = r0 > 0 ? surface.metal : 0
+      knots[k] = r0 > 0 ? surface.knot : 0
+      const x = r * cos[i]!
+      const y = r * sin[i]!
+      positions[k * 3] = px + x * nx + y * bx
+      positions[k * 3 + 1] = py + x * ny + y * by
+      positions[k * 3 + 2] = pz + x * nz + y * bz
       const tri = i <= segments / 2 ? (2 * i) / segments : 2 - (2 * i) / segments
       uvs[k * 2] = across * tri
       uvs[k * 2 + 1] = z / textureMm
@@ -430,5 +501,20 @@ export function endPoses(spec: WandSpec): { crystal: EndPose | null; orb: EndPos
   return {
     crystal: spec.crystal ? at(spec.crystal.from) : null,
     orb: spec.orb ? at(spec.orb.centre) : null,
+  }
+}
+
+/** The very tip, where the spell leaves: the end of the spine, or the point of a crystal standing on its tangent. */
+export function tipPose(spec: WandSpec): EndPose {
+  const { crystal } = endPoses(spec)
+  if (!spec.crystal || !crystal) {
+    const f = spineFrame(spec, spec.lengthMm)
+    return { position: f.point, direction: f.tangent }
+  }
+  const length = spec.lengthMm - spec.crystal.from
+  const { position: p, direction: d } = crystal
+  return {
+    position: [p[0] + d[0] * length, p[1] + d[1] * length, p[2] + d[2] * length],
+    direction: d,
   }
 }

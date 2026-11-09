@@ -26,7 +26,7 @@ import {
   type CloseUpHandle,
   type CloseUpProps,
 } from './stage.ts'
-import { MM, WandMesh } from './WandMesh.tsx'
+import { MM, tipPoint, WandMesh } from './WandMesh.tsx'
 import { fitWave, WAVE_SECONDS, wavePose, waveTurn } from './wave.ts'
 import { WaveTrail } from './WaveTrail.tsx'
 
@@ -100,6 +100,7 @@ function Rig({
   const lights = useRef<THREE.Group>(null)
   const rim = useRef<THREE.DirectionalLight>(null)
   const tip = useRef(new THREE.Vector3())
+  const tipAt = useMemo(() => tipPoint(spec), [spec])
   const streaking = useRef(false)
   const q = useMemo(
     () => ({
@@ -206,7 +207,8 @@ function Rig({
         g.position.add(v.grip).sub(v.moved)
       }
       g.updateMatrixWorld()
-      tip.current.set((spec.lengthMm / 2) * MM + 0.03, 0, 0).applyMatrix4(g.matrixWorld)
+      // The wand group lies along x: its own (x, y, z) is turned to (z, y, -x).
+      tip.current.set(tipAt[2], tipAt[1], -tipAt[0]).applyMatrix4(g.matrixWorld)
     }
     if (lights.current) lights.current.rotation.x = BOX_TO_CLOSE * (1 - e)
     // The rim outlines the wand in the box; up close it glances off a wand aimed into the scene and turns it silver.

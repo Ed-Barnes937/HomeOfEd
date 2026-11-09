@@ -47,11 +47,16 @@ meaningless. Ed decided the three questions the spike left open (ticket 05,
   frame is Gram-Schmidt from world x; a rotation-minimising frame is only needed
   for much bigger bends.
 - **Curvature stays bounded.** The bow is `sin(pi u) - 0.2 sin(2 pi u)`, the wiggles
-  fade in with a smoothstep over the first 40% and have amplitude `0.022 L (2/f)^2`,
-  so each frequency curves equally hard. No `u^p` with p < 2 and no min/max
-  envelopes, which the spike found fold the inside of a bend. Across length 28-38,
-  slim to chunky, bend and wiggle 0-1 and twelve seeds, the tightest bend radius is
-  at least 3x the widest surface radius there; the test asserts 2x.
+  fade in with a smoothstep over 40% of the length and have amplitude
+  `0.022 L (2/f)^2`, so each frequency curves equally hard. No `u^p` with p < 2 and
+  no min/max envelopes, which the spike found fold the inside of a bend. Across
+  length 28-38, both handles, bend and wiggle 0-1 and all 100 branches of the
+  chunkiest wand, the tightest bend radius is at least 3x the envelope's radius
+  there; the test asserts 2x.
+- **A turned handle stays straight.** The wiggles grow in from where lumps and knots
+  do: the butt of a grown handle, past the ring of a turned one. Only the gentle
+  bow passes through a turned handle, and its centre line stays within 1 mm of
+  straight.
 - **Lumps and knots change the radius**, so they live in `radiusAt`, inside the
   envelope. Lumps are four low-frequency ripples, periodic in angle, at most 7% of
   the radius. Knots are bosses with a dimple, 16-26% of the local radius high,
@@ -66,7 +71,9 @@ meaningless. Ed decided the three questions the spike left open (ticket 05,
 - **Everything placed on the surface bends with it.** `gemPoses` carries each set
   gem's point and normal through the spine frame at its z; `endPoses` stands the
   crystal on the spine's tangent at its base and puts the orb on the spine. The tip
-  glow and spell aim along the tip's tangent.
+  glow, spell and wave trail sit on `tipPose`: the end of the spine, or the point of
+  a crystal (which leans up to 34 degrees off the chord and lands up to 10 mm from
+  it), and aim along it.
 - **The close look's hit box** is sized from `reachMm`, how far the bent surface
   gets from the axis, so a tap on the peak of a full bow lands.
 - **A stained Branch is matte.** On a turned wand a stain lowers roughness by up
@@ -77,8 +84,15 @@ meaningless. Ed decided the three questions the spike left open (ticket 05,
 
 ## Consequences
 
-- A full-resolution branch build costs about 1.4x a straight one (the spike
-  measured 39 ms against 27 ms).
+- Build time. The mesh build writes positions straight from the frame's scalars,
+  works out bands, growth and lump phases once per ring, and allocates nothing
+  per vertex; reading the frame's arrays inside the vertex loop had made V8
+  deoptimise the loop, which slowed turned wands too once a branch had been built.
+  Measured in Node on a loaded machine, so treat these as ratios: a turned wand
+  builds a little faster than on ticket 04 (in a quiet moment 12.5 ms against
+  04's 17 ms), is no slower after a branch has been built, and a full-resolution
+  branch with everything on takes about 1.2-2x a turned wand (27 ms in the quiet
+  moment).
 - Wiggle amplitude is lower than the spike's (0.022 L, not 0.03 L): at full wiggle
   on a 38 cm wand the spike's read as a snake.
 - The shop number hashes every param, so adding `kind` and the branch params
