@@ -33,6 +33,12 @@ account next session has been misled, and that it takes a session to happen
 makes it worse, because they have no reason to look again. The shorthand was
 shorthand for an intent it does not deliver, and the intent is not ambiguous.
 
+One bound on that offer, as context rather than a decision: it can only appear
+once a parent has signed in on hub and picked who is playing, so a child meeting
+it unprompted means a parent set them up minutes earlier. That bounds the
+tension with [ADR 0031](0031-boop-saved-state-visibility.md)'s "boop never puts
+a card in front of a child unasked" without resolving it; the weighing is Ed's.
+
 The spec (§7.1) says to piggyback the autosave flush. The autosave has no seam
 to piggyback on: `useWorkingSong` builds its `createAutosave(window.localStorage)`
 itself, and `persistence/` is deliberately out of scope for this ticket - it is
@@ -45,7 +51,12 @@ deletes write the same document from `BoopsPanel`.
 **1. Sync observes; it is never called.** `apps/boop/src/sync/` reads the one
 `boop:save` key on a 5s timer (longer than the autosave's 2s lull) plus the
 `pagehide`/`visibilitychange` hide, and copies the document up when its bytes
-have changed. Nothing in the play path calls into sync, so no edit, save or
+have changed. The hide-time push only delivers because the client's fetch sets
+`keepalive`: a request started from `pagehide` is otherwise cancelled with the
+document, which would have made that listener, and the registration order it
+depends on, worth nothing. `keepalive` carries a 64 KiB body budget per page
+against a 256 KiB slot cap, so `keepaliveFetch` measures the body in bytes and
+falls back to a plain fetch above it rather than failing at the browser. Nothing in the play path calls into sync, so no edit, save or
 render can await it, be slowed by it, or throw through it, and `persistence/`
 does not know it exists. It also makes sync write-source agnostic: the working
 grid's autosave, a save into "My boops", a rename and a delete all reach the
@@ -54,12 +65,30 @@ is a few seconds of latency and one `getItem` every five seconds, against a
 dependency-free play path. That is the trade this ticket exists to make.
 
 **2. A device may only overwrite the account with a document it has already
-merged the account's own into.** A put is an unconditional LWW overwrite of the
-whole slot ([ADR 0070](0070-family-service.md)), so a device that has never seen
-the other device's boops must not be allowed to replace them. The push watcher
-is therefore armed only by a **successful** pull: boop starting up offline
-pushes nothing for that session, which costs a delayed copy and protects every
-boop the family already has.
+merged the account's own into, and "I cannot read this" does not count as
+having read it.** A put is an unconditional LWW overwrite of the whole slot
+([ADR 0070](0070-family-service.md)), so a device that has never seen the other
+device's boops must not be allowed to replace them. The push watcher is armed by
+a pull whose **merge** completed - not by the put that follows it, which may
+fail transiently and must not cost the device a whole session of pushing.
+
+The hole this rule had, and the reason it needs stating at all, is that
+`parseSaveDocument` is total but all-or-nothing: an unknown `version`, or one
+creation this build cannot decode, yields the same empty document as an empty
+one. "localStorage holds something I cannot read" and "localStorage holds
+nothing" were therefore indistinguishable, on **both** sides of the wire - a
+remote document that read as empty made the union equal to local, which differs
+from an empty remote, so it pushed and armed. The trigger is ordinary: a toy
+left open on a tablet across a deploy, a tab predating
+[ADR 0032](0032-boop-save-format-songs.md)'s comma form, or any future
+`SAVE_FORMAT_VERSION` bump, after which a v1 device would clobber a v2 account
+every five seconds.
+
+So **a document that is present but reads as empty is never acted on**: not
+pushed, not written over, and it does not arm anything. A slot that is absent
+still means "the account has nothing", which is the ordinary first-device case;
+a slot that is there and reads as empty means "this build cannot read the
+account", and the session ends without syncing.
 
 **3. The merge is a union with one honest hole, and no tombstones.**
 `mergeSaveDocuments(local, remote)` takes the account's creations, then the
@@ -69,7 +98,8 @@ duplicates *within* the local list survive on purpose - two identical rows in
 "My boops" are two rows a child saved. The accepted limits are that `working` is
 genuinely last-writer-wins, and that a boop deleted on one device reappears
 from the other, because a union cannot tell a delete from a never-seen. Fine for
-a household; a tombstone list is the thing not to build until it bites.
+a household; a tombstone list is the thing not to build until it bites. A rename
+is the commoner face of the same limit - see the consequences.
 
 **4. The pull re-reads localStorage after the request answers, not before.** A
 lull can end while `save.get` is in flight, and that autosave is fresher than
@@ -77,13 +107,23 @@ anything read before it. Reading local only once the reply is in hand shrinks
 the window in which a pull could write a stale working grid to nothing a child
 can hit.
 
+A consequence of that ordering, worth stating plainly because §7.2 reads like a
+feature with a limit: **the account's `working` grid essentially never reaches a
+device.** `useWorkingSong` restores or seeds a working song, and its autosave
+writes one, before the pull's post-await read happens, so local is non-null by
+then and wins. `working: local ?? remote` is therefore the shape of a rule whose
+right-hand side is unreachable in practice. What syncs is the "My boops" list;
+the working grid is per device, and the LWW limit on it is theoretical.
+
 **5. boop pushes the save document, not the bytes under the key.** Both sides of
 every comparison, and the blob that goes up, are re-serialized through
 `serializeSaveDocument`, so a corrupt or foreign value under `boop:save` cannot
 travel to the family's other devices. The spec said "the exact localStorage
 value", which this is in every real case, since `storage.ts` writes exactly that
 serialization; the difference only shows for bytes boop itself would read as
-empty.
+empty - and that set is not only corruption. It includes another device's
+*newer* document, which is exactly why decision 2 refuses to act on one rather
+than merely declining to forward it.
 
 **6. Failures are outcomes, and a refusal is not retried until the bytes
 change.** Every call is wrapped; neither `reconcile` nor `pushIfChanged` can
@@ -92,6 +132,13 @@ one, so a permanent refusal - a slot over the save router's 256 KiB cap, which
 arrives as a typed 400 ([ADR 0079](0079-family-save-authorisation.md) decision 5)
 - is absorbed once and then left alone until the child changes something. A
 transient failure retries on the next change, which is the spec's contract.
+
+**One request is in flight at a time**, for the same reason: a backgrounding
+pushes, then the close pushes the bytes the autosave flushed on its way out, and
+two puts racing can land the older document last with nothing left to correct it
+- `lastAttempted` already names the newer one. The calls are queued in call
+order, which also sequences the double `reconcile` a dev double-mount makes.
+
 Nothing about any of this reaches the screen: a child must never be told the
 network is sad, and a parent being told is a product decision nobody has taken
 (see the open question below).
@@ -140,6 +187,24 @@ in boop can turn an account from `declined` to `accepted`; a parent who changes
 their mind has to be given a control that does not exist yet (decision 7). The
 state model holds the transition, so building it later is UI over a write.
 
+**A rename makes a permanent duplicate on every device.** Dedupe is full deep
+equality of `StoredBoop`, so renaming a boop on one device produces a creation
+the other device's list does not hold, and the union keeps both: "Boop 3" and
+"dinosaur stomp", same pattern, forever. It is the same hole as the resurrecting
+delete and a commoner action, and like that one it is accepted rather than
+fixed, because identity for a creation would have to be a new field in a frozen
+format.
+
+**One `boop:save` per device, one marker per account, so a shared tablet pools
+its children's work.** The save document is the device's, not the profile's, so
+a second child accepting the offer on the family tablet copies the first child's
+whole "My boops" list onto their own account, and from there onto their own
+devices. Every account on a shared device converges on the union of every
+sibling's boops. Nothing here distinguishes whose boop is whose, and nothing
+could without a per-profile document, which is a bigger change than this slice.
+Recorded and sent to Ed, because it is privacy-shaped rather than merely
+surprising.
+
 **A session that starts offline stays unsynced until the next start.** The pull
 runs once, at app start (spec §7.1). Retrying it on the watcher's tick would
 turn an unreachable service into a request every five seconds for the life of
@@ -168,9 +233,27 @@ CORS allowlist (`ONBOARDED_APPS`), the client sends
 [ADR 0078](0078-family-identity-auth-boundary.md) decision 5 requires, and
 `appId: 'boop'` is already the allowlisted one.
 
-**No round trip has crossed a socket yet.** Every test here injects
-`FakeFamilyClient`; nothing in this ticket proves boop against a live family
-service, which needs the docker stack and a cookie session only
-`docker compose up family` can produce
-([ADR 0079](0079-family-save-authorisation.md) already records that gap). Go-live
-(ticket 08) is where a real boop meets a real slot.
+**The wire was checked against the real service, not only against the fake.**
+Every automated test here injects `FakeFamilyClient`, and because every failure
+is swallowed by design, a wholly broken wire would look exactly like today's
+boop - so nothing in the suite could tell us. Against `docker compose up family`
+(the real image, real Postgres, real socket), by hand: boop's own
+`createFamilySaveClient` put and got a save document byte-identically, the
+version incremented, `list` reported it, `delete` cleared it, and both refusals
+boop can meet - the 256 KiB slot cap and an unonboarded `appId` - arrived as
+`FamilyClientError` with `code: 'BAD_REQUEST'` and a message naming the limit,
+with the stored slot surviving the refusal. The hand-rolled envelope in
+`saveClient.ts` (`?input=` with no `batch=1`, `result.data` unwrapped by hand,
+`error.data.code` read off the error) matches what the service actually sends.
+
+The cross-origin half was checked in a real browser on `http://localhost:3008`:
+the credentialed put and get both succeeded and the blob read back identically,
+a `text/plain` put was refused 415 by the CSRF hook
+([ADR 0078](0078-family-identity-auth-boundary.md) decision 5), and - the part a
+fake cannot show - a **quota refusal is readable cross-origin**, so boop gets
+the typed error rather than an opaque "Failed to fetch". Two notes for ticket 08:
+the production image correctly refuses `http://localhost:3008` at the preflight
+(dev origins exist only outside `NODE_ENV=production`, so the browser leg was
+run against the same image started in dev mode), and tRPC includes a stack trace
+in that error body outside production, which is another reason the Fly machine
+must run as production.

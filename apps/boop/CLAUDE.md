@@ -298,10 +298,16 @@ share-link snapshot.
   is never cleared on any path. With no family session the module does nothing
   at all - no timers, no listeners, no requests. Sync **observes**: it watches
   the `boop:save` key on a timer rather than being called from the code that
-  writes it, so no edit or save can await it or throw through it. A device only
-  ever overwrites the account with a document it has already merged the
-  account's own into, the merge is an idempotent union (so a delete can
-  resurrect - accepted, and do not build tombstones for it), and every failure,
+  writes it, so no edit or save can await it or throw through it. The hide-time
+  push survives the page only because the client's fetch sets `keepalive`
+  (bounded by its 64 KiB body budget, with a plain-fetch fallback above it).
+  A device only ever overwrites the account with a document it has already
+  merged the account's own into, and **a document that is present but reads as
+  empty is never acted on** - `parseSaveDocument` is all-or-nothing, so a stale
+  bundle cannot tell "I cannot decode this" from "there is nothing here", on
+  either side of the wire. The merge is an idempotent union (so a delete can
+  resurrect, and a rename duplicates - both accepted, and do not build
+  tombstones for them), one request is in flight at a time, and every failure,
   including a quota refusal, is a silent non-event that retries on the next
   change. A child must never meet an error, a blocking spinner or a lost
   pattern because a sync failed, and the `.iwft` suite pins exactly that with a
