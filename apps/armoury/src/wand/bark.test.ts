@@ -66,7 +66,7 @@ describe('bark', () => {
     }
   })
 
-  it('stands proud of the wood, cracked into plates, and stays inside the envelope', () => {
+  it('stands proud of the wood, cut by furrows, and stays inside the envelope', () => {
     const bare = compileWand(branch({ gnarl: 1, knots: 6 }))
     const barked = compileWand(branch({ gnarl: 1, knots: 6, bark: 'full' }))
     const lifts: number[] = []
@@ -79,7 +79,7 @@ describe('bark', () => {
       }
     expect(Math.min(...lifts)).toBeGreaterThanOrEqual(-1e-9)
     expect(Math.max(...lifts)).toBeGreaterThan(0.04)
-    // The cracks between plates go down nearly to the wood.
+    // The furrows go down nearly to the wood.
     expect(lifts.filter((l) => l < 0.015).length / lifts.length).toBeGreaterThan(0.03)
     expect(furthest).toBeLessThanOrEqual(0.25)
   })
@@ -124,7 +124,7 @@ describe('bark', () => {
     expect(onBark).toBeGreaterThan(0)
   })
 
-  it('grows from "Which branch" alone, so changing anything else keeps the same bark', () => {
+  it('grows from "Which branch" alone, so the knots, lumps, bend or colour keep the same bark', () => {
     const cover = (extra: Record<string, unknown>) =>
       buildWandMesh(compileWand(branch({ bark: 'patches', ...extra })), {
         segments: 32,
@@ -135,5 +135,8 @@ describe('bark', () => {
       cover({ branchSeed: 7, knots: 0 }),
     )
     expect(cover({ branchSeed: 8 })).not.toEqual(cover({ branchSeed: 7 }))
+    const bark = (extra: Record<string, unknown>) =>
+      compileWand(branch({ bark: 'patches', branchSeed: 7, ...extra })).branch!.bark
+    expect(bark({ knots: 6, gnarl: 1, bend: 1 })).toEqual(bark({ knots: 0, gnarl: 0, bend: 0 }))
   })
 })

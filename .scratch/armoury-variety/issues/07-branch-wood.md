@@ -92,3 +92,20 @@ Questions for Ed:
   (not an old save) start with Patches?
 - Smoky on oak is still a quiet stain, because smoky's swatch is close to oak's own
   brown. Is that fine, or should the swatch be darker?
+
+**2026-11-09, agent (review follow-ups):**
+
+- Sub-pixel pores and lenticels now fade to their real means (`PORE_MEAN` 0.18,
+  `LENTICEL_MEAN` 0.05), so a branch has the same tone and soak in the box as in
+  the close look.
+- The determinism test now checks that the bark spec is the same with knots 0
+  and 6, gnarl 1 and bend 1. The tests say "furrows", not "plates".
+- Dead Branch values are gone: `roughness` is 0.62 for both kinds, and
+  `uStainGloss` is 0.45 for both (a Branch's raw-wood roughness overrides it).
+- Q1 (Ed): a wand switched to Branch in the Kind picker starts with bark
+  Patches. The workbench sets it. The schema default stays None, so old saves and
+  links open bare. Tested in the workbench and in the iwft. On a Branch, Try another
+  still rolls bark by its weights (3 : 3 : 2), as this ticket asks. It can never
+  turn a Turned wand into a Branch, because it keeps the kind.
+- Q2 (Ed): smoky on oak stays as it is.
+- Check shot: `shots/07/after-r2/`.

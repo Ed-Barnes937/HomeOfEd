@@ -80,6 +80,9 @@ const WOODS: Record<
 }
 /** The mesh's UVs are this many mm per unit (buildWandMesh's default `textureMm`). */
 const UV_MM = 110
+// What pores and lenticels average to, so they fade to the same tone and soak when finer than a pixel.
+const PORE_MEAN = 0.18
+const LENTICEL_MEAN = 0.05
 const WOOD_KEYS = Object.keys(WOODS)
 
 const METALS: Record<string, { colour: string; roughness: number; metalness: number }> = {
@@ -194,7 +197,7 @@ function addFinish(
       // Pores: short dark dashes along the grain, about 0.2 mm across. mm runs (around, along).
       float poreAt(vec2 mm) {
         vec2 p = mm * vec2(5.0, 0.45);
-        return mix(0.06, smoothstep(0.6, 0.85, vnoise(p)), detail(p));
+        return mix(${PORE_MEAN.toFixed(2)}, smoothstep(0.6, 0.85, vnoise(p)), detail(p));
       }
       // Fibres: fine light and dark streaks running with the grain, centred on 0.
       float fibreAt(vec2 mm) {
@@ -208,7 +211,7 @@ function addFinish(
       }
       float lenticelAt(vec2 mm) {
         vec2 p = mm * vec2(0.8, 2.5);
-        return smoothstep(0.8, 0.92, vnoise(p)) * detail(p);
+        return mix(${LENTICEL_MEAN.toFixed(2)}, smoothstep(0.8, 0.92, vnoise(p)), detail(p));
       }
       float barkHeightAt(vec2 mm) {
         return barkStreakAt(mm) - 0.5 + 0.6 * lenticelAt(mm);
@@ -353,8 +356,8 @@ export function WandMesh({
     finishUniforms.uMetalRough.value = metal.roughness
     finishUniforms.uMetalness.value = metal.metalness
     finishUniforms.uPaintColour.value.setRGB(...spec.paint)
-    // A turned wand is oiled and polished; a branch is raw wood, which a stain doesn't make shiny.
-    finishUniforms.uStainGloss.value = branch ? 0 : 0.45
+    // A stain polishes a turned wand's oil; a branch's raw-wood roughness ignores it.
+    finishUniforms.uStainGloss.value = 0.45
     finishUniforms.uMatte.value = branch ? 1 : 0
     finishUniforms.uRoughMean.value = wood.rough
     finishUniforms.uPores.value = wood.pores * (branch ? 1 : 0.5)
@@ -379,7 +382,7 @@ export function WandMesh({
           roughnessMap={roughnessMap}
           bumpMap={roughnessMap}
           bumpScale={0.8}
-          roughness={branch ? 0.72 : 0.62}
+          roughness={0.62}
           envMapIntensity={0.8}
           color={wood.tint}
           onBeforeCompile={(shader) => addFinish(shader, finishUniforms)}

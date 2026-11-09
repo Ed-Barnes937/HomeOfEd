@@ -41,9 +41,10 @@ Branches also wanted bark, which Ed asked for as a None / Patches / Full choice.
 - **Turned wands keep their polished finish.** Their roughness, gloss and dye are
   unchanged; they only gain the pores and fibres at half strength. This is a small
   change of character, visible in the close look's zoom.
-- **Bark** is a choice in "The branch": None (default), Patches or Full. Old saves
-  and links open with None; a Turned wand compiles no bark whatever the param says.
-  Try another rolls it 3 : 3 : 2.
+- **Bark** is a choice in "The branch": None, Patches or Full. A wand switched to
+  Branch in the Kind picker starts with Patches (the workbench sets it); the schema
+  default stays None, so old saves and links open bare. A Turned wand compiles no
+  bark whatever the param says. Try another on a Branch rolls it 3 : 3 : 2.
 - **Where bark grows** is decided in `geometry.ts`, in straight (angle, z) space, so
   it bends with the spine like everything else:
   - Full covers the wood; Patches is low-frequency noise, about half the surface.
@@ -54,7 +55,7 @@ Branches also wanted bark, which Ed asked for as a None / Patches / Full choice.
   - It stays off every zone (metal, paint, bone) with 1 mm to spare, gem seats,
     engravings, knot bosses and the last 8-14 mm of the tip.
   - It is seeded from "Which branch" through its own random stream, so changing
-    the knots, colour or anything else never moves it.
+    the knots, lumps, bend or colour never moves it.
 - **What bark is**: up to 8.5% of the local radius proud, cut by furrows (noise
   isolines stretched along the wand and drifting sideways, so they meet and part)
   down to 15% of that. Furrows are shaded darker. Kept off knot bosses, it stays
