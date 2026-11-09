@@ -210,7 +210,7 @@ test('a family service that throws on every call leaves boop exactly as it is to
   expect(await readLocal(page)).not.toBeNull()
 })
 
-test('a remote blob that is not a boop save degrades to empty rather than erroring', async ({
+test('a remote document boop cannot read is left exactly where it is', async ({
   mountApp,
   page,
 }) => {
@@ -219,14 +219,26 @@ test('a remote blob that is not a boop save degrades to empty rather than errori
   await page.reload()
   await seedLocal(page, saveDocument([boop('on the tablet')]))
   await recordAnswer(page, ADA.sub, 'accepted')
-  await seedFamily(page, { session: ADA, remote: '{"version":99,"wrong":"shape"' })
+  // What a stale bundle sees of a newer document, which is a deploy away.
+  const future = '{"version":99,"working":null,"creations":[]}'
+  await seedFamily(page, { session: ADA, remote: future })
 
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.verifySyncedChip('Ada')
+  await root.startBlank()
+  await root.toggleCell('kick', 0)
+  await root.openBoops()
+  await root.saveBoop()
+  await root.closeBoops()
+  await page.waitForTimeout(6_000)
 
+  // Nothing errored at the child, the local boops are untouched, and the
+  // document boop could not read is still on the account rather than replaced
+  // by this device's.
   await root.openBoops()
   await root.verifyBoopName(0, 'on the tablet')
   await root.closeBoops()
-  expect(savedNames(await readLocal(page))).toEqual(['on the tablet'])
+  expect(savedNames(await readLocal(page))).toContain('on the tablet')
+  expect(await readRemoteSave(page)).toBe(future)
 })

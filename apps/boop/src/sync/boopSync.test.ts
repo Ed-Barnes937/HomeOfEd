@@ -93,13 +93,41 @@ describe('reconcile', () => {
     expect(storage.store.get(SAVE_KEY)).toBe(document_(boop('mine'), []))
   })
 
-  it('degrades a nonsense remote blob to empty instead of erroring at a child', async () => {
-    await client.put({ ...slot, blob: '{"version":99,"not":"boop’s"}' })
+  it('leaves a remote document this build cannot read exactly where it is', async () => {
+    // A stale bundle's view of a newer document: the parse yields the empty
+    // document, which must never be mistaken for an empty account.
+    const future = '{"version":99,"working":null,"creations":[]}'
+    await client.put({ ...slot, blob: future })
     storage.setItem(SAVE_KEY, document_(null, [boop('mine')]))
 
     await expect(createBoopSync({ client, storage }).reconcile()).resolves.toBeUndefined()
 
     expect(storage.store.get(SAVE_KEY)).toBe(document_(null, [boop('mine')]))
+    expect(await remoteBlob()).toBe(future)
+  })
+
+  it('does not arm the push after a remote it could not read', async () => {
+    const future = '{"version":99,"working":null,"creations":[]}'
+    await client.put({ ...slot, blob: future })
+    const sync = createBoopSync({ client, storage })
+    await sync.reconcile()
+
+    storage.setItem(SAVE_KEY, document_(null, [boop('mine')]))
+    await sync.pushIfChanged()
+
+    expect(await remoteBlob()).toBe(future)
+  })
+
+  it('leaves a local document it cannot read alone, and puts nothing over the account', async () => {
+    const future = '{"version":99,"working":null,"creations":[]}'
+    const theirs = document_(null, [boop('theirs')])
+    await client.put({ ...slot, blob: theirs })
+    storage.setItem(SAVE_KEY, future)
+
+    await createBoopSync({ client, storage }).reconcile()
+
+    expect(storage.store.get(SAVE_KEY)).toBe(future)
+    expect(await remoteBlob()).toBe(theirs)
   })
 
   it('never rejects when every call to the service throws', async () => {
@@ -187,6 +215,53 @@ describe('pushIfChanged', () => {
     await sync.pushIfChanged()
 
     expect(await remoteBlob()).toBe(document_(null, [boop('one'), boop('two')]))
+  })
+
+  it('keeps pushing for the rest of the session after the first put is refused', async () => {
+    storage.setItem(SAVE_KEY, document_(null, [boop('mine')]))
+    let refuse = true
+    const flaky: FamilySaveContract = {
+      get: (input) => client.get(input),
+      list: (input) => client.list(input),
+      delete: (input) => client.delete(input),
+      put: (input) =>
+        refuse
+          ? Promise.reject(new FamilyClientError('bad gateway', 'INTERNAL_SERVER_ERROR'))
+          : client.put(input),
+    }
+    const sync = createBoopSync({ client: flaky, storage })
+
+    // The pull merged, so this device is safe to push; only the put failed.
+    await sync.reconcile()
+    refuse = false
+    storage.setItem(SAVE_KEY, document_(null, [boop('mine'), boop('later')]))
+    await sync.pushIfChanged()
+
+    expect(await remoteBlob()).toBe(document_(null, [boop('mine'), boop('later')]))
+  })
+
+  it('sends one put at a time, so the bytes written last land last', async () => {
+    const slow: FamilySaveContract = {
+      get: (input) => client.get(input),
+      list: (input) => client.list(input),
+      delete: (input) => client.delete(input),
+      put: async (input) => {
+        // The earlier document is the slower request: run concurrently, it
+        // would overwrite the later one, which is what hide-time does.
+        await new Promise((resolve) => setTimeout(resolve, input.blob.includes('second') ? 0 : 20))
+        return client.put(input)
+      },
+    }
+    const sync = createBoopSync({ client: slow, storage })
+    await sync.reconcile()
+
+    storage.setItem(SAVE_KEY, document_(null, [boop('first')]))
+    const backgrounded = sync.pushIfChanged()
+    storage.setItem(SAVE_KEY, document_(null, [boop('first'), boop('second')]))
+    const closing = sync.pushIfChanged()
+    await Promise.all([backgrounded, closing])
+
+    expect(await remoteBlob()).toBe(document_(null, [boop('first'), boop('second')]))
   })
 
   it('never rejects when storage itself is unavailable', async () => {
