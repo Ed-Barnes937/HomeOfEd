@@ -230,7 +230,14 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3110 })
 - No app may import from here (hard rule 1). The shared contract other apps
   consume is `@hoe/accounts`: the save router `satisfies` its
   `FamilySaveContract` and takes its input schemas from there, so a change to
-  the wire shape fails here at compile time.
+  the wire shape fails here at compile time. **The identity router does the
+  same**, against `FamilyIdentityRouterContract` - the router half of the
+  contract, split out because `signUp`/`signIn`/`signOut` are Better Auth
+  endpoints no tRPC router could implement. Both bindings live in `router.ts` as
+  `identityContractFor` / `saveContractFor`; keep every new procedure inside one
+  of them. `identity.children.delete` is the one exception and is wired
+  directly, because no client speaks it - **put it in the contract the moment
+  one does**, or it ships unbound.
 - **Deleting a child profile is transactional.** `saves.accountId` carries no
   FK, so `deleteChildProfile` removes the profile and that `accountId`'s save
   rows together, scoped to the owning parent; a bare profile delete would

@@ -71,17 +71,37 @@ export interface SignInInput {
 }
 
 /**
- * Everything hub's account page can ask of the family service. The first six go
- * to the identity router over tRPC; the last three to Better Auth.
+ * The identity **router**, and only it. This is the half `apps/family` binds to
+ * with `satisfies`, which is what keeps the contract, the real client and the
+ * fake from drifting apart - the same guarantee `FamilySaveContract` already
+ * gives the save half.
+ *
+ * `children.delete` is deliberately absent: no client speaks it, and a procedure
+ * no client calls cannot drift against one. **Add it here the moment anything
+ * calls it**, or it ships unbound.
  */
-export interface FamilyIdentityContract {
+export interface FamilyIdentityRouterContract {
   me(): Promise<IdentityMeOutput>
   listChildren(): Promise<ListChildrenOutput>
   addChild(input: AddChildInput): Promise<ChildProfileView>
   renameChild(input: RenameChildInput): Promise<ChildProfileView>
   mintSessionToken(input: MintSessionTokenInput): Promise<MintSessionTokenOutput>
   deleteAccount(): Promise<DeleteAccountOutput>
+}
+
+/**
+ * Better Auth's own endpoints. Separate because they are not tRPC procedures, so
+ * the family router cannot implement them however the contract is written - and
+ * because their shapes are Better Auth's rather than ours, which is also why
+ * they carry interfaces and no zod.
+ */
+export interface FamilyAuthContract {
   signUp(input: SignUpInput): Promise<void>
   signIn(input: SignInInput): Promise<void>
   signOut(): Promise<void>
 }
+
+/** Everything hub's account page can ask of the family service. */
+export interface FamilyIdentityContract
+  extends FamilyIdentityRouterContract,
+    FamilyAuthContract {}

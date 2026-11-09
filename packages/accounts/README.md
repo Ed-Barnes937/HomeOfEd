@@ -92,12 +92,16 @@ Three properties are load-bearing, all from
 A taken child username arrives as a typed `CONFLICT` carrying "that username is
 already taken", which hub shows inline on the form.
 
-Unlike the save router, the family app's identity router does **not** yet
-`satisfies FamilyIdentityContract` - binding it would mean editing `apps/family`,
-which ticket 06 was scoped out of - so for now the schemas here are kept honest
-by a round trip against the real service rather than by the compiler. See the
-open question in
-[ADR 0081](../../docs/adr/0081-hub-account-ui.md).
+The contract is split in two because only half of it is a tRPC router.
+`FamilyIdentityRouterContract` is the six procedures, and the family app's
+identity router `satisfies` it exactly as the save router satisfies
+`FamilySaveContract`, taking its input schemas from here too - so a divergence
+is a compile error in `apps/family` rather than a 400 somebody meets in a
+browser. `FamilyAuthContract` is the other three: they are not procedures, so no
+router could ever implement them.
+
+`identity.children.delete` is deliberately outside the contract, because no
+client speaks it. **Add it here the moment one does**, or it ships unbound.
 
 ## Testing
 

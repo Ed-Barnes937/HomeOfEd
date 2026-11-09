@@ -142,16 +142,39 @@ with `SameSite=Lax`, `Path=/` and a 30-day expiry, and the pick survived a
 reload. The only non-2xx response left in the trace is the 409 the duplicate
 test asks for.
 
+**9. The identity router binds to the contract, and the contract had to split to
+let it.** This was first recorded as a consequence to fix later; it is a decision
+because the bug in decision 4 is its argument. The save router `satisfies
+FamilySaveContract` and takes its input schemas from `@hoe/accounts`, which is
+what stops that contract, its client and its fake drifting; the identity half had
+no such binding, so its schemas were held honest only by a round trip somebody
+had to remember to run - the same class of failure decision 4 cost an afternoon
+to find by hand.
+
+Binding it surfaced a real mismatch rather than a cosmetic one: **three of the
+nine methods are not tRPC procedures at all**, so no router could implement
+`FamilyIdentityContract` however it was written. The contract therefore splits
+into `FamilyIdentityRouterContract` (the six procedures, which `router.ts` now
+satisfies through `identityContractFor`, mirroring `saveContractFor`) and
+`FamilyAuthContract` (Better Auth's three), with `FamilyIdentityContract`
+extending both for the clients that speak both. The identity handlers also take
+their input and output types from `@hoe/accounts` and the router its zod schemas,
+as the save handlers already did - the four schemas moved byte-for-byte, so the
+wire did not change.
+
+The binding was then checked by breaking it on purpose rather than by reasoning
+about variance, which is the same discipline the round trip exists for. Dropping
+`email` from `MeHandler`'s result, and renaming `username` to `handle` in the
+contract, each fail `apps/family`'s typecheck: `TS2741` on the handler and
+`TS2345` plus three red identity tests respectively. Both were reverted.
+
 ## Consequences
 
-**The identity router does not `satisfies FamilyIdentityContract`.** The save
-router does, which is what keeps that contract, its client and its fake from
-drifting; binding the identity router the same way means editing `apps/family`,
-and this ticket was scoped out of that app. Until somebody does it, the schemas
-in `@hoe/accounts` are held honest by the round trip above rather than by the
-compiler, and a change to an identity input shape will fail at runtime in a
-browser instead of at build time. **This is the first thing to fix after the
-slice lands**, and it is a one-line change plus whatever it turns red.
+**`identity.children.delete` is outside the contract**, because no client speaks
+it and a procedure no client calls cannot drift against one. It is wired directly
+in `router.ts` with that reason written beside it, and the contract says to add
+it the moment anything calls it. That is the one procedure the binding in
+decision 9 does not cover.
 
 **`identity.children.delete` has no UI.** The router has it; the ticket listed
 list, add and rename only. So a parent who mistypes a username cannot remove
