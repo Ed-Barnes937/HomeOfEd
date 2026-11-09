@@ -1,6 +1,6 @@
 # 04 - identity router: Better Auth, invite gate, token minting
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md) §4.2, §4.3, §4.4 (mint side), §4.5
 Blocked by: 01, 03
@@ -48,3 +48,59 @@ are ticket 01's tests; here test the wiring.
   that deletes the profile and that `accountId`'s `saves` rows in one
   transaction, plus a test pinning that no orphan saves survive. Ticket 03's
   `deleteAccount` and its rollback test are the pattern to follow.
+
+- 2026-11-09: **built** on branch `family-first-slice` (on top of ticket 03's
+  `724a622`), commit `d3d424b`.
+
+  **What landed.** `createAppRouter(deps)` over `createTRPC<FamilyStore>()`,
+  with the Store injected into all three transports; Better Auth `^1.6.2` over
+  the same `DbClient` with `/api/auth/*` relayed through Fastify; the invite
+  gate as a `hooks.before` on `/sign-up/email`; `identity.me`,
+  `children.list/add/rename/delete`, `mintSessionToken` and `deleteAccount`;
+  `cors.ts`'s allowlist; and `loadFamilyEnv`'s boot guard over the four
+  identity variables. 67 vitest tests and 3 iwft pass; lint and typecheck green.
+
+  **The auth boundary, stated plainly.** Identity is authorised by the Better
+  Auth cookie session, the save router will be authorised by the family token,
+  and both land on one `ctx.auth`. A parent session therefore carries
+  `kind: 'parent-session'` and `requireParent` accepts nothing else, so a
+  family token can never reach children CRUD, a mint or an erasure. Resolving
+  the session is async and the seam is not, so a Fastify `onRequest` hook
+  stamps a server-trusted `x-family-parent` header after deleting any inbound
+  value (sprout's ADR 0012 precedent); that strip has its own module and test.
+
+  **The added requirement is done.** `deleteChildProfile` deletes the profile
+  scoped to `(id, parentId)` and, only for a row it really owned, that
+  `accountId`'s `saves` rows, both in one transaction. The scoping is as
+  load-bearing as the atomicity: an unscoped saves delete would wipe another
+  household's rows. Pinned by three store tests (no orphans, rollback, foreign
+  household no-op) and two handler tests.
+
+  **Verified end to end against the real image**, not only the unit suites:
+  `docker compose up family` refused a sign-up with no code and one with the
+  wrong code while leaving `user` empty, accepted the third, resolved
+  `identity.me` from the cookie, resolved a forged `x-family-parent` to nobody,
+  minted both token shapes (verified against the committed test public key, so
+  the escaped-newline PEM path is proven), answered an allowlisted preflight
+  with the credentialled headers and gave an unlisted origin none, and against
+  real Postgres took exactly one child's save rows on a child delete and left
+  no rows at all after `deleteAccount`.
+
+  **Deviations, all deliberate.**
+  1. `BETTER_AUTH_URL` is a fourth required variable, set in `fly.toml`'s
+     `[env]` rather than as a Fly secret: Better Auth derives its cookie and
+     trusted-origin rules from it, and cross-origin calls from hub would fail
+     its CSRF check without `trustedOrigins`, which is wired to the same
+     allowlist. No new human-gated secret.
+  2. CORS is hand-rolled rather than `@fastify/cors`, because an app has no
+     direct `fastify` dependency by design and auto-installed peers risk two
+     fastify instances. `Vary: Origin` is set but tRPC's adapter overwrites it
+     on its own responses, so the test pins it on the preflight.
+  3. `compose.yml` carries the committed `@hoe/accounts/testing` private key,
+     whose private half is public knowledge by design, because the image runs
+     under `NODE_ENV=production` and the boot guard would otherwise break
+     `docker compose up family`. The Dockerfile now prunes that folder from
+     the image.
+  4. A duplicate child `username` still surfaces as a 500 rather than a typed
+     conflict. Out of scope here and nearly unreachable at household scale;
+     worth a line in ticket 06 if the UI wants a friendly message.
