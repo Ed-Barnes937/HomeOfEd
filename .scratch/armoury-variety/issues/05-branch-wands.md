@@ -1,6 +1,6 @@
 # 05 - Branch wands: bent spine, organic noise, knots
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 Blocked by: 04 (sequencing: gems must bend too)
@@ -99,3 +99,43 @@ Ed, 2026-11-09, on the three questions this ticket raised:
 - Verify loop green. ADR for the spine model and the kind picker.
 
 ## Comments
+
+**2026-11-09, agent (built):** Built on branch `armoury-variety-05-branch-wands`
+(chained on 04's branch); decisions in ADR 0084. Needs Ed's eye on a real GPU,
+including a few Try another rolls on a Branch, before merging.
+
+- "Kind of wand" (Turned, Branch) sits above the groups on desktop and phone. It is
+  a schema param in its own `kind` group; Try another always keeps it by locking that
+  group in the workbench. Old saves open as Turned (iwft).
+- "The branch" group (iii., tab "Branch") shows only on a Branch: How bent, How
+  wiggly, Lumpy, Knots (0-6), Which branch (0-99). Group numerals count the groups
+  shown. Its defaults are the spike's a4-like branch, so switching to Branch shows a
+  branch at once; a Turned wand ignores them.
+- "Grown or turned" in the handle group. Grown hides Handle, Pattern, Ring and "Ring
+  made of"; Turned brings them back, with a natural shaft tapering straight from the
+  ring. Shaft carving and its controls hide on any Branch; bumps stay.
+- The spine, lumps and knots follow the spike's recipe, rebuilt test-first. Knot height
+  is a fraction of the local radius, so knots and lumps sit inside the envelope (the
+  generator tests now include gnarled branches of both handles). Knots stay off gem
+  seats and bands.
+- Gems, the crystal (on the spine's tangent) and the orb ride the bend; the tip glow
+  and spell aim along the tip's tangent; the close look's hit box is sized from
+  `reachMm`.
+- A Branch is named "The ... Branch". New preset "Blackthorn".
+- Bend safety: across 28-38 cm, slim to chunky, bend and wiggle 0-1 and twelve seeds,
+  the tightest bend radius is at least 3.0x the widest surface radius there.
+
+Deviations:
+- Wiggle amplitude is 0.022 L, not 0.03 L: at full wiggle on a 38 cm wand the
+  spike's read as a snake (`shots/05/r1/b6*` vs `r2/b6*`).
+- A stained Branch is matte: stain lowers roughness by 15% (45% on a turned wand)
+  from a base of 0.72 (0.62). Round 1 looked lacquered.
+
+GPU shots (headless Chromium, ANGLE Metal) in `shots/05/`: `r2/` is final (box shots
+of eleven branches, close look, spell, zoom and share picture for b1, b7, b9 and b10 (gems, metal, bumps); a phone
+page in `r2/phone/`). `r1/` is before the wiggle and gloss changes.
+
+Not done / for later:
+- On a phone the kind picker takes a row above the tabs, so the sheet shows less of
+  each group; the tab row now scrolls (Trim and Core off screen at 390 px).
+- The box shadow is still a straight blur.

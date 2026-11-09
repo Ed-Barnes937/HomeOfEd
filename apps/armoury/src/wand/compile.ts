@@ -628,7 +628,7 @@ function compileBranch(
       freq,
       dir: TAU * rand(),
       phase: TAU * rand(),
-      amp: (p.wiggle as number) * 0.03 * L * (2 / freq) ** 2,
+      amp: (p.wiggle as number) * 0.022 * L * (2 / freq) ** 2,
     }
   })
   const lumps = LUMP_MIX.map((amp, m): Lump => ({
