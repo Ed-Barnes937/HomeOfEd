@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { defaults, normalise, randomise, seededRandom } from '../engine/schema.ts'
 import { compileWand, type WandSpec } from './compile.ts'
+import { RIM_WIDTH, seatDistance, seatReach } from './gems.ts'
 import { buildWandMesh, radiusAt } from './geometry.ts'
 import { wandSchema } from './wandSchema.ts'
 
@@ -103,6 +104,26 @@ describe('bark', () => {
     for (const band of spec.stencil!.bands)
       for (let z = band.from; z <= band.to; z += 0.5) expect(radiusAt(spec, 0, z).bark).toBe(0)
   })
+
+  it.each(['round', 'square', 'marquise'])(
+    'keeps off the whole seat and rim of a %s gem',
+    (gemCut) => {
+      for (const gems of ['line', 'spiral']) {
+        const spec = compileWand(branch({ bark: 'full', gems, gemCut, gemCount: 7, gemSize: 1 }))
+        expect(spec.gems.length).toBeGreaterThan(0)
+        for (const gem of spec.gems) {
+          const { along, around } = seatReach(gem)
+          for (let x = -around - RIM_WIDTH; x <= around + RIM_WIDTH; x += 0.1)
+            for (let y = -along - RIM_WIDTH; y <= along + RIM_WIDTH; y += 0.1) {
+              if (seatDistance(gem, x, y) >= RIM_WIDTH) continue
+              // A seat is laid out over the profile's radius where each point is.
+              const r0 = spec.profile(gem.z + y)
+              expect(radiusAt(spec, gem.theta + x / r0, gem.z + y).bark).toBeCloseTo(0, 9)
+            }
+        }
+      }
+    },
+  )
 
   it('takes only a little of the stain that soaks into bare wood', () => {
     const stain = { stainColour: 'smoky', stainStrength: 0.8, stainReach: 1 }
