@@ -267,9 +267,10 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
       // Parsed, not read: the schema trims, so `' Ada '` must store as `'Ada'`
       // here exactly as it does in Postgres.
       const input = parsed(addChildInput, raw)
-      // `child_profiles.username` is globally unique, so the clash is not scoped
-      // to the parent (first-slice spec §4.1).
-      const taken = [...this.children.values()].some((child) => child.username === input.username)
+      // `child_profiles` is unique on (parentId, username): a clash is per household.
+      const taken = [...this.children.values()].some(
+        (child) => child.parentId === parent.id && child.username === input.username,
+      )
       if (taken) throw new FamilyClientError('that username is already taken', 'CONFLICT')
       const child: StoredChild = {
         id: this.mintUuid(),

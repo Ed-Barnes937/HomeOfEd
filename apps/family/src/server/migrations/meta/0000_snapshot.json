@@ -1,5 +1,5 @@
 {
-  "id": "43668067-cbcf-4eb4-ae4d-2676b22250d0",
+  "id": "96396c2d-1dab-48ad-8f5a-04aee41c4b43",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -166,10 +166,11 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "child_profiles_username_unique": {
-          "name": "child_profiles_username_unique",
+        "child_profiles_parent_username_unique": {
+          "name": "child_profiles_parent_username_unique",
           "nullsNotDistinct": false,
           "columns": [
+            "parent_id",
             "username"
           ]
         }

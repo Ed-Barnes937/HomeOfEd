@@ -117,8 +117,8 @@ describe('identity.children', () => {
     })
   })
 
-  it('refuses a username another household already took, as a conflict', async () => {
-    await store.addChildProfile({ parentId: 'parent-2', username: 'ada-jr', displayName: 'Ada Jr' })
+  it('refuses a username the household already has, as a conflict', async () => {
+    await store.addChildProfile({ parentId: 'parent-1', username: 'ada-jr', displayName: 'Ada Jr' })
 
     await expect(
       new AddChildHandler().run(
@@ -126,6 +126,17 @@ describe('identity.children', () => {
         ctxFor(parentSessionProvider('parent-1')),
       ),
     ).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
+  it('accepts a username another household already has', async () => {
+    await store.addChildProfile({ parentId: 'parent-2', username: 'ada-jr', displayName: 'Ada Jr' })
+
+    await expect(
+      new AddChildHandler().run(
+        { username: 'ada-jr', displayName: 'Ada Jr' },
+        ctxFor(parentSessionProvider('parent-1')),
+      ),
+    ).resolves.toMatchObject({ username: 'ada-jr' })
   })
 
   it('refuses to add a profile when signed out', async () => {

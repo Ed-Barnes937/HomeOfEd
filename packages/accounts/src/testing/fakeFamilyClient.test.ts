@@ -187,7 +187,22 @@ describe('FakeFamilyClient (identity contract)', () => {
     expect((await client.listChildren())[0]!.displayName).toBe('Bobbin')
   })
 
-  it('answers a taken username with the typed CONFLICT the service uses', async () => {
+  it('lets two households each have a child with the same username', async () => {
+    const client = new FakeFamilyClient({
+      now,
+      parents: [CREDENTIALS, { name: 'Grace', email: 'grace@example.com', password: 'correct-horse-battery' }],
+    })
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    await client.addChild({ username: 'robin', displayName: 'Robin' })
+    await client.signIn({ email: 'grace@example.com', password: 'correct-horse-battery' })
+
+    await expect(client.addChild({ username: 'robin', displayName: 'Robin' })).resolves.toMatchObject({
+      username: 'robin',
+    })
+    expect((await client.listChildren()).map((c) => c.username)).toEqual(['robin'])
+  })
+
+  it('answers a username taken within the household with the typed CONFLICT the service uses', async () => {
     const client = withParent()
     await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
     await client.addChild({ username: 'robin', displayName: 'Robin' })

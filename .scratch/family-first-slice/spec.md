@@ -100,7 +100,8 @@ migrator is not used - its four stock tables are declared in our schema).
   **no sprout-style legal-attestation columns** (the family gate is the
   invite code + ticket 09's ADR, not per-row attestations).
 - `child_profiles` - `id`, `parentId` FK -> `user.id` `onDelete: cascade`,
-  `username` (unique), `displayName`, `createdAt`. **No child email, no child
+  `username` (unique per household,
+  `unique(parentId, username)`), `displayName`, `createdAt`. **No child email, no child
   credentials** (see 4.3).
 - `saves` - `appId`, `accountId`, `slotKey`, `blob` (text), `version`
   (integer, bumped on every put), `sizeBytes`, `createdAt`, `updatedAt`.

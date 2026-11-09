@@ -73,7 +73,7 @@ export interface FamilyStore {
   /** The Better Auth user row behind a session; null when it has gone. */
   getParent(id: string): Promise<ParentRow | null>
 
-  /** Throws `ConflictError` when the username is taken; `username` is unique. */
+  /** Throws `ConflictError` when the household already has a child with that username. */
   addChildProfile(input: ChildProfileInput): Promise<ChildProfileRow>
   listChildProfiles(parentId: string): Promise<ChildProfileRow[]>
   getChildProfile(id: string): Promise<ChildProfileRow | null>

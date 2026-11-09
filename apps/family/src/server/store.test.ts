@@ -55,14 +55,19 @@ describe('DrizzleFamilyStore child profiles', () => {
     expect(profiles.map((profile) => profile.username)).toEqual(['grace'])
   })
 
-  it('rejects a duplicate username as a conflict, not a driver error', async () => {
+  it('lets two households each have a child with the same username', async () => {
     await insertParent(db, 'parent-2')
+    await store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
+    await store.addChildProfile({ parentId: 'parent-2', username: 'ada', displayName: 'Ada B' })
+
+    await expect(store.listChildProfiles('parent-1')).resolves.toHaveLength(1)
+    await expect(store.listChildProfiles('parent-2')).resolves.toHaveLength(1)
+  })
+
+  it('rejects a username twice in one household as a conflict, not a driver error', async () => {
     await store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
 
     // Typed, because hub's add-a-child form needs something to show.
-    await expect(
-      store.addChildProfile({ parentId: 'parent-2', username: 'ada', displayName: 'Ada B' }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' })
     await expect(
       store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada B' }),
     ).rejects.toMatchObject({ code: 'CONFLICT' })

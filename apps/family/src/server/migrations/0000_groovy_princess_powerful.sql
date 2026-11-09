@@ -20,7 +20,7 @@ CREATE TABLE "child_profiles" (
 	"username" text NOT NULL,
 	"display_name" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "child_profiles_username_unique" UNIQUE("username")
+	CONSTRAINT "child_profiles_parent_username_unique" UNIQUE("parent_id","username")
 );
 --> statement-breakpoint
 CREATE TABLE "saves" (
