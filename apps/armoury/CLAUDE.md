@@ -62,7 +62,7 @@ public/fonts/         IM Fell English (+SC, italic) and Alegreya Sans, OFL
   both stages from one chunk so the shop paints before the 3D arrives
   ([ADR 0077](../../docs/adr/0077-armoury-close-look.md)). `.iwft` swaps in fakes via the `stages` prop, so suites
   assert what the stage was asked to draw, never pixels. Generator facts
-  (closed mesh, carving only removes wood, proportions) are unit tests on
+  (closed mesh, the surface stays within its envelope, proportions) are unit tests on
   `wand/`, not iwft.
 - **Shader uniforms that change go through the material, not R3F props.** R3F
   copies `<shaderMaterial uniforms>` on mount, so later writes never reach the

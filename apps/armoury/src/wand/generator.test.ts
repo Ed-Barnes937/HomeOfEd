@@ -14,6 +14,10 @@ const designs = [
   })),
 ]
 
+// Carving and raised ridges stay within this fraction of the local profile radius.
+const ENVELOPE = 0.25
+const LONGEST_COLLAR = 12
+
 const preset = (name: string) => {
   const found = wandPresets.find((p) => p.name === name)
   if (!found) throw new Error(`no preset ${name}`)
@@ -38,20 +42,92 @@ describe('wand generator', () => {
   })
 
   it.each(designs)(
-    '$name: carving only removes wood, and the handle stays in range',
+    '$name: the surface stays close to the profile, and nothing outgrows the handle',
     ({ params }) => {
       const spec = compileWand(params)
+      let furthestOut = 0
+      let thinnest = Infinity
+      let widest = 0
       for (let z = 0; z <= spec.lengthMm; z += 0.7) {
         for (let a = 0; a < Math.PI * 2; a += 0.13) {
           const { r, r0 } = radiusAt(spec, a, z)
-          expect(r).toBeLessThanOrEqual(r0 + 1e-9)
-          expect(r).toBeGreaterThanOrEqual(0)
-          // Beads and flares may stand proud of the handle body, but not by much.
-          expect(r0).toBeLessThan(spec.handleMaxR * 1.35)
+          if (r0 > 0) furthestOut = Math.max(furthestOut, Math.abs(r - r0) / r0)
+          thinnest = Math.min(thinnest, r)
+          widest = Math.max(widest, r, r0)
         }
       }
+      expect(furthestOut).toBeLessThanOrEqual(ENVELOPE)
+      expect(thinnest).toBeGreaterThanOrEqual(0)
+      // Beads, flares, bumps and ridges may stand proud of the handle body, but not by much.
+      expect(widest).toBeLessThan(spec.handleMaxR * 1.35)
     },
   )
+
+  it('a raised spiral stands proud of the shaft where a cut one sinks into it', () => {
+    const shaft = (spiralStyle: string) => {
+      const spec = compileWand(normalise(wandSchema, { ...preset('Midnight'), spiralStyle }))
+      const offsets: number[] = []
+      for (let z = spec.handleMm + 20; z < spec.lengthMm * 0.5; z += 1) {
+        for (let a = 0; a < Math.PI * 2; a += 0.05) {
+          const { r, r0 } = radiusAt(spec, a, z)
+          offsets.push(r - r0)
+        }
+      }
+      return { highest: Math.max(...offsets), lowest: Math.min(...offsets) }
+    }
+    expect(shaft('cut').highest).toBeLessThanOrEqual(0)
+    expect(shaft('cut').lowest).toBeLessThan(0)
+    expect(shaft('raised').lowest).toBeGreaterThanOrEqual(0)
+    expect(shaft('raised').highest).toBeGreaterThan(0)
+  })
+
+  const noded = (extra: Record<string, unknown>) => {
+    const smooth = compileWand(preset('Simple oak'))
+    const spec = compileWand(normalise(wandSchema, { ...preset('Simple oak'), ...extra }))
+    const swell = (z: number) => spec.profile(z) - smooth.profile(z)
+    const peaks: { z: number; height: number }[] = []
+    for (let z = spec.handleMm + LONGEST_COLLAR; z < spec.lengthMm; z += 0.25) {
+      const r = spec.profile(z)
+      if (r > spec.profile(z - 0.25) && r >= spec.profile(z + 0.25))
+        peaks.push({ z, height: swell(z) })
+    }
+    return { spec, swell, peaks }
+  }
+
+  it.each(['knobs', 'rings'])('%s swell the shaft at evenly spaced points', (nodes) => {
+    for (const nodeCount of [2, 4, 7]) {
+      const { peaks } = noded({ nodes, nodeCount })
+      expect(peaks).toHaveLength(nodeCount)
+      const gaps = peaks.slice(1).map((p, i) => p.z - peaks[i]!.z)
+      for (const gap of gaps) expect(gap).toBeCloseTo(gaps[0]!, -0.5)
+    }
+  })
+
+  it.each(['knobs', 'rings'])(
+    '%s shrink towards the tip, keep clear of the collar and leave the point alone',
+    (nodes) => {
+      const { spec, swell, peaks } = noded({ nodes, nodeCount: 5, nodeSize: 1 })
+      const heights = peaks.map((p) => p.height / spec.profile(p.z))
+      for (let i = 1; i < heights.length; i++) expect(heights[i]).toBeLessThan(heights[i - 1]!)
+      for (let z = 0; z <= spec.handleMm + LONGEST_COLLAR; z += 0.5) expect(swell(z)).toBe(0)
+      for (let z = spec.lengthMm * 0.88; z <= spec.lengthMm; z += 0.5) expect(swell(z)).toBe(0)
+    },
+  )
+
+  it('bigger bumps stand further out', () => {
+    const tallest = (nodeSize: number) =>
+      Math.max(...noded({ nodes: 'knobs', nodeSize }).peaks.map((p) => p.height))
+    expect(tallest(0)).toBeGreaterThan(0)
+    expect(tallest(0)).toBeLessThan(tallest(0.5))
+    expect(tallest(0.5)).toBeLessThan(tallest(1))
+  })
+
+  it('a wand saved before bumps and raised spirals opens with neither', () => {
+    const saved = wandPresets.find((p) => p.name === 'Midnight')!.params
+    expect(normalise(wandSchema, saved)).toMatchObject({ nodes: 'none', spiralStyle: 'cut' })
+    const spec = compileWand(normalise(wandSchema, saved))
+    expect(spec.grooves.every((g) => g.depth > 0)).toBe(true)
+  })
 
   it('the gem-cut preset matches the measured 12" reference wand', () => {
     const spec = compileWand(preset('Gem cut'))
@@ -92,6 +168,18 @@ describe('wand generator', () => {
     expect(handleDepth(0.85)).toBeLessThan(handleDepth(0.3))
     for (let reach = 0.1; reach < 0.85; reach += 0.01) {
       expect(Math.abs(handleDepth(reach + 0.01) - handleDepth(reach))).toBeLessThan(0.003)
+    }
+  })
+
+  it('big bumps on the shaft calm the handle gradually, never with a jump', () => {
+    const handleDepth = (nodeSize: number) => {
+      const params = { ...preset('Midnight'), shaftCarving: 'none', nodes: 'knobs', nodeSize }
+      const spec = compileWand(normalise(wandSchema, params))
+      return spec.grooves.find((g) => g.to <= spec.handleMm)!.depth
+    }
+    expect(handleDepth(1)).toBeLessThan(handleDepth(0))
+    for (let size = 0; size < 1; size += 0.01) {
+      expect(Math.abs(handleDepth(size + 0.01) - handleDepth(size))).toBeLessThan(0.003)
     }
   })
 

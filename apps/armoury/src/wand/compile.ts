@@ -8,7 +8,7 @@ import { swatchFor } from './wandSchema.ts'
 export interface GrooveSet {
   shape: 'flat' | 'round'
   count: number
-  /** Fraction of the local profile radius removed at full strength. */
+  /** Fraction of the local profile radius removed at full strength; negative raises a ridge (round only). */
   depth: number
   /** Turns per mm along z. Sign is the spiral direction. */
   twist: number
@@ -174,6 +174,12 @@ const COLLARS: Record<string, { length: number; beads: { t: number; w: number; h
   },
 }
 
+/** Cosine bump: 1 at the centre c, easing to 0 at half-width w either side. */
+const swell = (z: number, c: number, w: number) => {
+  const x = (z - c) / w
+  return Math.abs(x) < 1 ? (1 + Math.cos(Math.PI * x)) / 2 : 0
+}
+
 function srgbToLinear(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16)
   const c = (v: number) => {
@@ -204,6 +210,23 @@ export function compileWand(p: Params): WandSpec {
   const ballR = handleMaxR * 0.95
   const tipShape = p.tipShape as string
 
+  const nodes = p.nodes as string
+  const nodeCount = p.nodeCount as number
+  const nodeStart = collarEnd + 6
+  const nodeEnd = L * 0.86
+  const nodeSpacing = (nodeEnd - nodeStart) / nodeCount
+  const nodeHeight = lerp(0.12, 0.35, p.nodeSize as number)
+  const knobWidth = clamp(0.3 * nodeSpacing, 3, 9)
+  // Each bump, as a fraction of the local radius; they shrink towards the tip.
+  const nodeSwell = (z: number): number => {
+    if (nodes === 'none' || z <= nodeStart || z >= nodeEnd) return 0
+    const i = clamp(Math.floor((z - nodeStart) / nodeSpacing), 0, nodeCount - 1)
+    const c = nodeStart + (i + 0.5) * nodeSpacing
+    const h = nodeHeight * lerp(1, 0.45, (c - nodeStart) / (nodeEnd - nodeStart))
+    if (nodes === 'knobs') return h * swell(z, c, knobWidth)
+    return h * (0.65 * swell(z, c, 1.6) + 0.35 * swell(z, c, 6))
+  }
+
   const profile = (z: number): number => {
     if (z <= 0 || z >= L) return 0
     let r: number
@@ -228,7 +251,7 @@ export function compileWand(p: Params): WandSpec {
     } else {
       const u = (z - collarEnd) / (L - collarEnd)
       const x = clamp((u - taperHold) / (1 - taperHold), 0, 1)
-      r = lerp(tipR, shaftBaseR, (1 + Math.cos(Math.PI * x)) / 2)
+      r = lerp(tipR, shaftBaseR, (1 + Math.cos(Math.PI * x)) / 2) * (1 + nodeSwell(z))
       const d = L - z
       if (tipShape === 'flat') r *= cap(d, 1.2, 4)
       else if (tipShape === 'domed') r *= cap(d, tipR * 1.5, 2)
@@ -248,8 +271,10 @@ export function compileWand(p: Params): WandSpec {
     const len = to - from
     const fade = Math.min(4, 0.15 * len)
     const n = p.handleCarvingCount as number
-    // Not too busy: a long shaft carving calms the handle down, gradually as it grows.
-    const calm = shaftCarving === 'none' ? 0 : smoothstep(0.5, 0.75, shaftReach)
+    // Not too busy: a long shaft carving or big bumps calm the handle down, gradually as they grow.
+    const carvingCalm = shaftCarving === 'none' ? 0 : smoothstep(0.5, 0.75, shaftReach)
+    const nodeCalm = nodes === 'none' ? 0 : smoothstep(0.3, 0.8, p.nodeSize as number)
+    const calm = Math.max(carvingCalm, nodeCalm)
     const depth = lerp(style.depth, Math.min(style.depth, 0.1), calm)
     const base = {
       from,
@@ -315,7 +340,10 @@ export function compileWand(p: Params): WandSpec {
         // the original 10%.
         shape: 'round',
         count: n,
-        depth: lerp(0.05, 0.18, p.shaftGrooveDepth as number),
+        depth:
+          p.spiralStyle === 'raised'
+            ? -lerp(0.06, 0.2, p.ridgeHeight as number)
+            : lerp(0.05, 0.18, p.shaftGrooveDepth as number),
         twist: dir / pitch,
         from,
         to,

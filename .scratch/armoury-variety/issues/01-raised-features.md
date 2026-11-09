@@ -1,6 +1,6 @@
 # 01 - Raised features: shaft nodes and raised spirals
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 Blocked by: none
@@ -47,3 +47,33 @@ profile is a smooth taper and every groove set removes wood
 - An ADR records the envelope invariant if it changes ADR 0076's tuning rules.
 
 ## Comments
+
+**2026-11-09, agent (built):** Built on branch `armoury-variety-01-raised-features`;
+decisions in ADR 0081. Needs Ed's eye on a real GPU, including a few Try
+another rolls, before merging.
+
+- Shaft gets "Bumps" (No bumps, Knobbly, Bamboo) with "How many bumps" (2-7) and
+  "How big". They are profile, sit between 6 mm past the collar and 86% of the
+  length, and shrink to 45% towards the tip.
+- Spirals get "Spiral" (Cut in, Raised). A raised spiral is a groove set with
+  negative depth and its own "How tall" slider (in place of "How deep"); the
+  fade in and out are unchanged.
+- The "carving only removes wood" test is now the envelope: within 25% of the
+  local profile radius either way, and nothing wider than 1.35x the handle (so a
+  chunky bumpy wand still fits the box). The test now gathers extremes and
+  asserts once; the old per-sample expects took over 5 s per design on a
+  loaded machine.
+- Big bumps calm the handle like a long shaft carving does, eased over "How
+  big" 30-80%.
+- New preset "Hedgerow" (knobbly oak).
+- Thumbnails: unaffected, since bumps start past the collar and thumbnails show
+  only handles.
+
+Deviations:
+- Bumps live in the Shaft group, not a new "Decorations" group (the spec's
+  rule for surface decoration); they change the shaft's shape.
+- Bumps are hard to see under Twisted sides; left as is.
+- The Shaft group's summary still says the carving ("Smooth") on a knobbly
+  wand with no carving.
+
+GPU screenshots (headless Chromium, ANGLE Metal) are in `shots/01/` (gitignored).
