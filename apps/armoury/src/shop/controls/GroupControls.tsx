@@ -1,0 +1,52 @@
+import { isVisible, type ParamDef, type Params } from '../../engine/schema.ts'
+import { wandSchema } from '../../wand/wandSchema.ts'
+import styles from './GroupControls.module.scss'
+import {
+  CorePicker,
+  HandlePicker,
+  Pills,
+  Ruler,
+  Slider,
+  StainPicker,
+  WoodPicker,
+  type OnChange,
+} from './Widgets.tsx'
+
+function Control({ def, params, onChange }: { def: ParamDef; params: Params; onChange: OnChange }) {
+  if (def.kind === 'number') {
+    const value = params[def.key] as number
+    if (def.key === 'lengthCm') return <Ruler def={def} value={value} onChange={onChange} />
+    return <Slider def={def} value={value} onChange={onChange} />
+  }
+  switch (def.key) {
+    case 'wood':
+      return <WoodPicker def={def} params={params} onChange={onChange} />
+    case 'stainColour':
+      return <StainPicker def={def} params={params} onChange={onChange} />
+    case 'handleStyle':
+      return <HandlePicker def={def} params={params} onChange={onChange} />
+    case 'core':
+      return <CorePicker def={def} params={params} onChange={onChange} />
+    default:
+      return <Pills def={def} params={params} onChange={onChange} />
+  }
+}
+
+export function GroupControls({
+  group,
+  params,
+  onChange,
+}: {
+  group: string
+  params: Params
+  onChange: OnChange
+}) {
+  const defs = wandSchema.params.filter((d) => d.group === group && isVisible(d, params))
+  return (
+    <div className={styles.controls}>
+      {defs.map((def) => (
+        <Control key={def.key} def={def} params={params} onChange={onChange} />
+      ))}
+    </div>
+  )
+}

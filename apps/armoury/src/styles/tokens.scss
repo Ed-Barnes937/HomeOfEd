@@ -1,0 +1,124 @@
+// Global side-effect stylesheet: tokens, self-hosted fonts and the reset.
+// Imported once from the page. The look is direction D, "Wand shop" (ADR 0073).
+
+@font-face {
+  font-family: 'IM Fell English';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/im-fell-english.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IM Fell English';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/im-fell-english-italic.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IM Fell English SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/im-fell-english-sc.woff2') format('woff2');
+}
+
+@each $weight in 400, 500, 700 {
+  @font-face {
+    font-family: 'Alegreya Sans';
+    font-style: normal;
+    font-weight: $weight;
+    font-display: swap;
+    src: url('/fonts/alegreya-sans-#{$weight}.woff2') format('woff2');
+  }
+}
+
+:root {
+  --font-display: 'IM Fell English', Georgia, serif;
+  --font-caps: 'IM Fell English SC', Georgia, serif;
+  --font-ui: 'Alegreya Sans', system-ui, sans-serif;
+
+  --shop-dark: #0f0b08;
+  --shop-black: #0a0705;
+  --panel: #130e0a;
+  --panel-line: #2c2016;
+  --panel-line-strong: #4a3726;
+  --ink: #efe4cf;
+  --ink-muted: #a8957a;
+  --ink-faint: #8d7a60;
+  --lore: #cbb994;
+  --brass: #c99a52;
+  --brass-ink: #1a120a;
+
+  --paper: #ece0c6;
+  --paper-shade: #dfcfae;
+  --paper-ink: #2a1f16;
+  --paper-ink-soft: #4a3b2b;
+  --paper-ink-faint: #6b5a44;
+  --string: #c9b48e;
+
+  --box: #45382b;
+  --box-shade: #352a20;
+  --velvet: #243049;
+  --velvet-shade: #171d2e;
+  --velvet-deep: #0b0e17;
+
+  --counter-edge: #4a3322;
+  --counter: #20160e;
+  --counter-deep: #120c08;
+
+  --ruler: #e2cfa4;
+  --ruler-shade: #d3bd8e;
+  --ruler-ink: #3a2c1e;
+
+  --ring-brass: 0 0 0 2px var(--panel), 0 0 0 4px var(--brass);
+  --shadow-paper: 0 10px 14px rgba(0, 0, 0, 0.55);
+
+  --r-control: 4px;
+  --r-sheet: 14px;
+
+  // The core's colour, as "r,g,b" so it can be used with alpha. Set per wand.
+  --core-rgb: 255, 201, 92;
+  --core: rgb(var(--core-rgb));
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--shop-dark);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

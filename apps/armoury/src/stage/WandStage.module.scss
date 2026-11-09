@@ -1,0 +1,9 @@
+.stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  canvas {
+    display: block;
+  }
+}
