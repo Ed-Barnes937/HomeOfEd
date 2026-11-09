@@ -1,0 +1,103 @@
+# 0079 - the family SaveStore: two credentials on one seam, and a second door
+
+- **Status:** Accepted
+- **Date:** 2026-11-09
+- **Related:** [ADR 0078](0078-family-identity-auth-boundary.md) (the identity
+  half, whose boundary this one mirrors), [ADR 0070](0070-family-service.md)
+  (the family service and its opaque-blob discipline),
+  [ADR 0008](0008-apps-without-a-database.md) (tokens apps verify through
+  `ctx.auth`). Implements first-slice ticket 05; the design is
+  [the first-slice spec](../../.scratch/family-first-slice/spec.md) §4.5-§4.6.
+
+## Context
+
+[ADR 0078](0078-family-identity-auth-boundary.md) built the identity half and
+left the save half two unfinished edges: a seam that resolves one credential but
+must serve two, and a CORS allowlist narrowed to hub with the note that onboarded
+app origins "arrive with the save router, not before".
+
+Building the save router showed that the first of those is not a matter of
+precedence. Both credentials arrive on the same request in the ordinary case: the
+Better Auth cookie is host-scoped to `family.homeofed.com` and travels on any
+same-site credentialled fetch, and the family token cookie is scoped to
+`.homeofed.com`. A parent signed in on hub who has picked which child is playing
+therefore sends both on every save from boop - and they name **different
+people**, the parent's `user.id` and a `child_profiles.id`. Preferring either one
+breaks the other router: token-first locks a parent out of managing profiles,
+session-first stops the one flow the SaveStore exists for.
+
+## Decision
+
+**1. The two credentials occupy separate fields of one user, and neither can
+stand in for the other.** `familySeam` resolves both independently. A resolved
+cookie session keeps `id` and `kind: 'parent-session'`, exactly as
+[ADR 0078](0078-family-identity-auth-boundary.md) decided; a verified token
+becomes a nested `saveAccount: { accountId, role, parentId? }`. `requireParent`
+reads `kind` and `id`; `requireSaveAccount` reads `saveAccount` and never `id`.
+Since `id` is the cookie session's whenever there is one, a save handler that
+reached for `user.id` would act for the parent while holding a child's token,
+which is why no save handler may read it and why a test puts a parent session and
+a child token on one request and checks each guard sees only its own.
+
+The guard is **positive**: it requires a `saveAccount` carrying one of the two
+roles, which only a verified token produces. A guard that merely asked whether
+some user existed would admit a parent's cookie session, the mirror of the attack
+ADR 0078 refuses in the other direction. Neither direction is enforced by the
+type system, so both have a test.
+
+**2. CORS is tiered by what the route authorises, and a mixed tRPC batch is not a
+save request.** Identity and `/api/auth/*` keep the hub account UI alone. The
+save tier adds onboarded app origins, because it is authorised by the token
+rather than the cookie and apps call it browser-direct. It is a superset of the
+identity tier, never the reverse.
+
+tRPC puts several procedure names in one path, so the tier is chosen only after
+checking that **every** name in the request matches `save.<identifier>`:
+otherwise an app origin could batch `identity.deleteAccount` behind `save.get`,
+be granted the save tier, and read the reply - precisely the XSS-erases-a-
+household path ADR 0078 narrowed the identity list to prevent. The pattern admits
+no percent-encoding, so an encoded comma fails it and falls back to the identity
+tier; anything unrecognised fails closed the same way.
+
+**3. One table drives both gates.** `ONBOARDED_APPS` lists the `appId` the
+handlers accept and the origin CORS lets through, so an app cannot be onboarded
+at one gate and not the other.
+
+**4. The verifying key is derived from the signing key, not configured.** The
+family service already holds `FAMILY_TOKEN_PRIVATE_KEY`; `createPublicKey` gives
+its public half at boot. Consuming apps still get the public key as plain config
+(spec §4.4), but the minting service deriving its own cannot drift from what it
+signs with, and go-live gains no fifth variable.
+
+**5. Quota refusals are `ValidationError`.** The domain taxonomy has no 413, and
+a 400 naming the limit is the honest mapping for both the per-slot and the
+per-account cap. A put prices its own overwrite from one `saveUsage` query -
+`accountBytes - slotBytes + newBytes` - so a full account can still rewrite the
+slot it already owns.
+
+## Consequences
+
+The quota check is read-then-write, not transactional: two concurrent puts can
+each pass it and leave the account over the cap. The overshoot is bounded by the
+per-slot limit times the number of simultaneous puts, the store method would have
+to move the whole guard into the store to close it, and the cap is a courtesy to
+the hoe-pg volume rather than a security control. Accepted and recorded.
+
+`saves.accountId` is `text` with no FK ([ADR 0070](0070-family-service.md)), so
+two spellings of one uuid are two accounts, and erasure - which matches
+Postgres's canonical lowercase form - would leave the other spelling orphaned.
+This is not reachable today, because the token's subject is minted from a
+database read, but it is the structural price of the no-FK decision, so the
+ownership tests pin both halves of it: a differently cased subject sees none of
+the canonical account's saves, and a row written under one outlives the profile
+delete.
+
+There is still **no live dev path** for a real save. The simulator and the
+`.iwft` harness serve `/api/trpc` alone and every request there is anonymous
+(ADR 0078), and minting a token needs a cookie session that only
+`docker compose up family` can produce. No dev-only shortcut was added, for the
+same reason ADR 0078 added none.
+
+The opaque-blob discipline is unchanged and absolute: the server measures
+`blob` in bytes and never parses it. "Can the server query inside a save?" stays
+the question to refuse in review.
