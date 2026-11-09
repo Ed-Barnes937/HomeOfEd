@@ -104,3 +104,29 @@ are ticket 01's tests; here test the wiring.
   4. A duplicate child `username` still surfaces as a 500 rather than a typed
      conflict. Out of scope here and nearly unreachable at household scale;
      worth a line in ticket 06 if the UI wants a friendly message.
+
+- 2026-11-09: **two review fixes applied**, commit `63026b8` (after `0b817f3`,
+  which added one test pinning the parent-header strip against any casing).
+
+  1. The committed test key in `compose.yml` is accepted, but now carries a boot
+     guard on sprout's `GEO_ENFORCEMENT` model: `loadFamilyEnv` throws if
+     `FAMILY_TOKEN_PRIVATE_KEY` matches the `@hoe/accounts/testing` fixture
+     while `FLY_APP_NAME` is present. It compares against the imported constant
+     (so it cannot drift from the fixture) and ignores whitespace (so a
+     rewrapped or `\n`-escaped form of the same key is caught). **This
+     supersedes deviation 3 above**: the image no longer prunes
+     `packages/accounts/src/testing`, because the guard imports it at runtime,
+     and the Dockerfile comment explains why that is safe.
+  2. A duplicate child `username` is now a `ConflictError`, mapped from
+     SQLSTATE `23505` in the store. Drizzle wraps driver errors, so the code
+     sits on `cause` for both `pg` and PGlite; everything else re-raises, pinned
+     by a foreign-key-violation test. **This supersedes deviation 4 above.** The
+     uniqueness *scope* is deliberately untouched, pending Ed.
+
+  Verified in the real image, not only in unit tests: the stack still boots and
+  serves `/health` (so the fixture resolves inside the pruned `node_modules`);
+  the same image run with `FLY_APP_NAME` set dies at `main.ts:21` with the
+  guard's message, before opening a database connection; and a duplicate
+  username over HTTP against real Postgres returns `409 CONFLICT`.
+
+  Verify loop after the fixes: lint and typecheck green, 77 vitest and 3 iwft.
