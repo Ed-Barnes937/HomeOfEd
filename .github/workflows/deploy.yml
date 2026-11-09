@@ -917,8 +917,8 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
         if: steps.affected.outputs.deploy == 'true'
 
-      # No release_command until ticket 03 adds migrate.ts; this deploys the
-      # shell only.
+      # fly.toml's release_command runs family's journal-tracked migrations
+      # before the new machines take traffic.
       - name: Deploy family
         if: steps.affected.outputs.deploy == 'true'
         # From the repo root: the Dockerfile needs the whole monorepo as its
@@ -929,7 +929,7 @@ jobs:
         if: steps.affected.outputs.deploy == 'true'
         run: |
           set -euo pipefail
-          echo "/health (shallow liveness — family has no database until ticket 03)"
+          echo "/health (a real Store round-trip: main.ts closes healthCheck over store.ping())"
           curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
           echo "SPA index"
           index=$(curl -fsS "$APP_URL/")
