@@ -79,6 +79,21 @@ when cast), `panel-extras.png`. The wand is small in the frame; crop the tip or 
 
 Not done / for later:
 - Not checked on a real phone.
-- Citrine is close to the Starlight core.
 - Flare shots are timed by wall clock, so a few caught the flare a little late.
+
+**2026-11-09, agent (review round 1 follow-ups):**
+- The raw shard's waist now sits under the lowest corner of its broken top (it sat
+  above two of them, folding 4 of 40 faces inward to be culled). Tests check that every
+  face of every shape faces out, and that the shard's top corners are above its waist.
+- Gem materials rebuild only when the glow or stone colour changes, not on every
+  slider tick.
+- The gem colour's "Match the core" swatch is passed in from the controls; the swatch
+  picker no longer special-cases it.
+- Ed's answers: Citrine moved to orange (`#ff901f`), clear of Starlight; the Marquise cut
+  is labelled "Leaf" (the code keeps `marquise`).
+- Merged 07 (`armoury-variety-07-branch-wood`) in; conflicts were only the fake stage,
+  the page object and one import line, all additive. PR #182 now targets 07.
+- Shots in `shots/08/r4/`: a barked Branch (full and patches) with a Leaf-cut row and a
+  Raw shard tip, at rest and mid-flare; the fixed shard, straight and bent; orange
+  citrine; Leaf cuts.
 
