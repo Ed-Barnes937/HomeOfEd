@@ -1,6 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
+
+import { glowMaterial } from './glow.ts'
 
 // Our own sparkles rather than drei's: its shader divides by the distance to
 // the sprite centre, which is infinite when a pixel lands exactly on it, and
@@ -61,17 +63,18 @@ export function Sparkles({
     return g
   }, [count, radius])
 
-  // One uniforms object for the material's lifetime; values are updated in
-  // place, because swapping the object doesn't reach a compiled material.
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uSize: { value: 70 },
+      uSize: { value: 35 },
       uPixelRatio: { value: 1 },
       uColor: { value: new THREE.Color() },
     }),
     [],
   )
+
+  const material = useMemo(() => glowMaterial(uniforms, vertexShader, fragmentShader), [uniforms])
+  useEffect(() => () => material.dispose(), [material])
 
   useFrame(({ clock }) => {
     uniforms.uTime.value = clock.elapsedTime
@@ -79,16 +82,5 @@ export function Sparkles({
     uniforms.uColor.value.set(colour)
   })
 
-  return (
-    <points geometry={geometry}>
-      <shaderMaterial
-        uniforms={uniforms}
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  )
+  return <points geometry={geometry} material={material} />
 }

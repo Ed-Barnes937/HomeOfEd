@@ -5,6 +5,8 @@ import type { Params } from '../engine/schema.ts'
 export const LONGEST_WAND_MM = 380
 /** The longest wand spans this much of the stage's width; the rest is room for the spell. */
 export const STAGE_FILL = 0.72
+/** A wave starts as soon as it's asked for; the spell leaves the tip this long after. */
+export const WAVE_TO_SPELL_SECONDS = 2.5
 
 /** What the shop can ask of the wand on the counter. */
 export interface StageHandle {
@@ -30,7 +32,7 @@ export interface BoxPose {
 
 /** What the shop can ask of the wand once it's lifted out for a closer look. */
 export interface CloseUpHandle {
-  /** Casts a spell from the tip, in the core's colour. */
+  /** Waves the wand in a figure of 8, then casts a spell from the tip in the core's colour. */
   cast(): void
   /** Flies the wand back down into its box; resolves once it's lying there. */
   putBack(): Promise<void>

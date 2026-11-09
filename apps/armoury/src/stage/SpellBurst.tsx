@@ -1,6 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
+
+import { glowMaterial } from './glow.ts'
 
 const DURATION = 1.6
 
@@ -80,24 +82,16 @@ export function SpellBurst({
     [],
   )
 
+  const material = useMemo(() => glowMaterial(uniforms, vertexShader, fragmentShader), [uniforms])
+  useEffect(() => () => material.dispose(), [material])
+
   useFrame(({ clock }) => {
     uniforms.uAge.value = castAt === null ? DURATION * 2 : clock.elapsedTime - castAt
     uniforms.uPixelRatio.value = dpr
     uniforms.uColor.value.set(colour)
   })
 
-  return (
-    <points geometry={geometry} frustumCulled={false}>
-      <shaderMaterial
-        uniforms={uniforms}
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  )
+  return <points geometry={geometry} material={material} frustumCulled={false} />
 }
 
 export const SPELL_SECONDS = DURATION

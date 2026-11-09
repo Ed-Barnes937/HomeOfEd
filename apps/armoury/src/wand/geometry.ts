@@ -136,8 +136,8 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   }
 
   // Stain amount: strongest at the pommel, fading up the wand, and pooling in
-  // carved grooves. The material blends towards the stain colour by this
-  // amount. Grooves are also shaded darker, stained or not.
+  // carved grooves. The material soaks in this much of a full coat. Grooves
+  // are also shaded darker, stained or not.
   const { stain } = spec
   for (let j = 0; j <= rings; j++) {
     const s = j / rings

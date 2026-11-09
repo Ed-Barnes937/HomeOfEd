@@ -24,9 +24,13 @@ What's inside the wand. Decides the colour of its **spell**, the glow at its tip
 and the light it throws on the shop.
 
 **Spell**:
-The burst of light cast from the tip as the wand arrives in the **close look**,
-and whenever a child taps it there.
+The burst of light cast from the tip at the end of a **wave**.
 _Avoid_: Cast effect, animation.
+
+**Wave**:
+The wand's flourish in the **close look** when it arrives or a child taps it:
+the tip draws a figure of 8 in light, and the **spell** leaves it as the 8 closes.
+_Avoid_: Swish, gesture.
 
 **Close look**:
 The wand lifted out of its box into the middle of the darkened shop, where a

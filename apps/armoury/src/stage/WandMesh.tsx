@@ -14,11 +14,12 @@ export const MM = 0.01
 // Poly Haven CC0 veneer scans. Some are photographed with the grain across the
 // image, so they're turned to run along the wand. The tint stands in for oil.
 // `grain` deepens the scan's light and dark so it survives at a distance.
-const WOODS: Record<string, { grainAcross: boolean; tint: string; grain: number }> = {
-  walnut: { grainAcross: true, tint: '#8a6656', grain: 2.1 },
-  cherry: { grainAcross: true, tint: '#a08a88', grain: 3.2 },
-  oak: { grainAcross: false, tint: '#f6ead8', grain: 2.1 },
-  maple: { grainAcross: true, tint: '#ffffff', grain: 2.1 },
+// `lum` is the scan's mean linear luminance under its tint; re-measure it if either changes.
+const WOODS: Record<string, { grainAcross: boolean; tint: string; grain: number; lum: number }> = {
+  walnut: { grainAcross: true, tint: '#8a6656', grain: 2.1, lum: 0.0518 },
+  cherry: { grainAcross: true, tint: '#a08a88', grain: 3.2, lum: 0.1388 },
+  oak: { grainAcross: false, tint: '#f6ead8', grain: 2.1, lum: 0.2007 },
+  maple: { grainAcross: true, tint: '#ffffff', grain: 2.1, lum: 0.6707 },
 }
 const WOOD_KEYS = Object.keys(WOODS)
 const texturePaths = WOOD_KEYS.flatMap((w) => [
@@ -26,28 +27,20 @@ const texturePaths = WOOD_KEYS.flatMap((w) => [
   `/textures/${w}-rough.webp`,
 ])
 
-const LUMA = new THREE.Vector3(0.2126, 0.7152, 0.0722)
-
-function meanLuminance(texture: THREE.Texture, tint: string): number {
-  const size = 32
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = size
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return 0.25
-  ctx.drawImage(texture.image as CanvasImageSource, 0, 0, size, size)
-  const px = ctx.getImageData(0, 0, size, size).data
-  const t = new THREE.Color(tint)
-  const c = new THREE.Color()
-  let sum = 0
-  for (let i = 0; i < px.length; i += 4) {
-    c.setRGB(px[i]! / 255, px[i + 1]! / 255, px[i + 2]! / 255, THREE.SRGBColorSpace).multiply(t)
-    sum += c.r * LUMA.x + c.g * LUMA.y + c.b * LUMA.z
-  }
-  return sum / (size * size)
+// A full coat's absorbance, split into its hue (the swatch over its brightest
+// channel) and its darkness, so a dye's colour survives on pale wood.
+function absorbance(colour: [number, number, number]): [number, number, number] {
+  const top = Math.max(...colour, 0.004)
+  const darkness = -Math.log(top)
+  return colour.map((c) => 1.2 * -Math.log(Math.max(c, 0.004) / top) + 0.45 * darkness) as [
+    number,
+    number,
+    number,
+  ]
 }
 
-// Stain blends each pixel towards one target colour, scaled by its grain's
-// lightness relative to the wood's mean, so a finish reads the same on every wood.
+// Stain is a translucent dye: it absorbs light (Beer-Lambert) rather than
+// painting over the wood, soaks deeper into the darker open grain, and is oiled.
 function addStain(
   shader: THREE.WebGLProgramParametersWithUniforms,
   uniforms: Record<string, THREE.IUniform>,
@@ -72,7 +65,7 @@ function addStain(
     .replace(
       '#include <common>',
       `#include <common>
-      uniform vec3 uStainColour;
+      uniform vec3 uStainAbsorb;
       uniform float uWoodLum;
       uniform float uGrain;
       varying float vStain;
@@ -81,11 +74,19 @@ function addStain(
     .replace(
       '#include <map_fragment>',
       `#include <map_fragment>
+      // Antialiasing can sample a varying outside its triangle, and the dye is exponential.
+      float stain = clamp(vStain, 0.0, 1.0);
       float grain = clamp(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)) / uWoodLum, 0.05, 3.0);
       float boosted = pow(grain, uGrain);
       vec3 wood = diffuseColor.rgb * (boosted / grain);
-      vec3 stained = uStainColour * clamp(boosted, 0.0, 3.0);
-      diffuseColor.rgb = mix(wood, stained, vStain) * vShade;`,
+      float soak = stain * clamp(2.2 - 1.2 * boosted, 0.3, 2.0);
+      wood = mix(wood, vec3(dot(wood, vec3(0.2126, 0.7152, 0.0722))), 0.35 * stain);
+      diffuseColor.rgb = wood * exp(-uStainAbsorb * soak) * clamp(vShade, 0.0, 1.0);`,
+    )
+    .replace(
+      '#include <roughnessmap_fragment>',
+      `#include <roughnessmap_fragment>
+      roughnessFactor *= 1.0 - 0.45 * clamp(vStain, 0.0, 1.0);`,
     )
 }
 
@@ -115,7 +116,7 @@ export function WandMesh({
 
   const stainUniforms = useMemo(
     () => ({
-      uStainColour: { value: new THREE.Color() },
+      uStainAbsorb: { value: new THREE.Vector3() },
       uWoodLum: { value: 0.25 },
       uGrain: { value: 2 },
     }),
@@ -136,12 +137,11 @@ export function WandMesh({
     return pair
   }, [textures, spec.wood, wood.grainAcross])
 
-  const woodLum = useMemo(() => meanLuminance(map, wood.tint), [map, wood.tint])
   useLayoutEffect(() => {
-    stainUniforms.uWoodLum.value = woodLum
+    stainUniforms.uWoodLum.value = wood.lum
     stainUniforms.uGrain.value = wood.grain
-    if (spec.stain.colour) stainUniforms.uStainColour.value.setRGB(...spec.stain.colour)
-  }, [stainUniforms, woodLum, wood.grain, spec.stain.colour])
+    if (spec.stain.colour) stainUniforms.uStainAbsorb.value.set(...absorbance(spec.stain.colour))
+  }, [stainUniforms, wood.lum, wood.grain, spec.stain.colour])
 
   const half = (spec.lengthMm / 2) * MM
   return (
@@ -179,7 +179,7 @@ function TipGlow({
   const light = useRef<THREE.PointLight>(null)
   useFrame(({ clock }) => {
     const sinceCast = castAt === null ? Infinity : clock.elapsedTime - castAt
-    const flare = sinceCast < SPELL_SECONDS ? Math.exp(-3 * sinceCast) : 0
+    const flare = sinceCast >= 0 && sinceCast < SPELL_SECONDS ? Math.exp(-3 * sinceCast) : 0
     const pulse = reducedMotion ? 0 : 0.15 * Math.sin(clock.elapsedTime * 3)
     orb.current?.scale.setScalar(1 + pulse + 2.2 * flare)
     if (light.current) light.current.intensity = 0.6 + 5 * flare

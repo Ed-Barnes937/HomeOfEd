@@ -15,15 +15,18 @@ import * as THREE from 'three'
 
 import { compileWand, type WandSpec } from '../wand/compile.ts'
 import styles from './CloseUpStage.module.scss'
-import { BOX_CAMERA_LEAN, FOV, ShopLights } from './scene.tsx'
+import { BOX_CAMERA_LEAN, FOV, RIM_INTENSITY, ShopLights } from './scene.tsx'
 import {
   LONGEST_WAND_MM,
   STAGE_FILL,
+  WAVE_TO_SPELL_SECONDS,
   type BoxPose,
   type CloseUpHandle,
   type CloseUpProps,
 } from './stage.ts'
 import { MM, WandMesh } from './WandMesh.tsx'
+import { fitWave, WAVE_SECONDS, wavePose, waveTurn } from './wave.ts'
+import { WaveTrail } from './WaveTrail.tsx'
 
 const CAMERA_DISTANCE = 8
 const RISE_SECONDS = 0.8
@@ -32,6 +35,8 @@ const TURN_PER_PX = 0.007
 const IDLE_ROLL_PER_SECOND = 0.35
 const MIN_ZOOM = 0.6
 const MAX_ZOOM = 2.2
+/** Where a hand holds the wand, as a fraction of its length from the pommel. */
+const GRIP = 0.2
 
 // The box looks down on the wand; up close the camera looks straight at it.
 // Turning the box's world about the wand's length by this much lines them up.
@@ -68,6 +73,8 @@ interface Handling {
   touched: boolean
   /** How far the held wand leans from level on screen, so drags can be read along and across it. */
   tilt: number
+  /** Clock time the latest wave began, or null when the wand isn't waving. */
+  waveAt: number | null
 }
 
 function Rig({
@@ -89,16 +96,30 @@ function Rig({
 }) {
   const wand = useRef<THREE.Group>(null)
   const lights = useRef<THREE.Group>(null)
+  const rim = useRef<THREE.DirectionalLight>(null)
+  const tip = useRef(new THREE.Vector3())
+  const streaking = useRef(false)
   const q = useMemo(
     () => ({
       from: new THREE.Quaternion(),
       held: new THREE.Quaternion(),
       step: new THREE.Quaternion(),
+      wave: new THREE.Quaternion(),
+    }),
+    [],
+  )
+  const v = useMemo(
+    () => ({
+      grip: new THREE.Vector3(),
+      moved: new THREE.Vector3(),
+      across: new THREE.Vector3(),
+      reach: new THREE.Vector3(),
+      held: new THREE.Vector3(),
     }),
     [],
   )
 
-  useFrame(({ size }, delta) => {
+  useFrame(({ size, clock, camera }, delta) => {
     const f = flight.current
     const h = handling.current
     const dt = Math.min(delta, 0.05)
@@ -146,6 +167,12 @@ function Rig({
       .premultiply(q.step.setFromAxisAngle(Y, h.swing))
       .premultiply(q.step.setFromAxisAngle(Z, tilt))
 
+    const sinceWave = h.waveAt === null ? Infinity : clock.elapsedTime - h.waveAt
+    const waving = held && !reducedMotion && sinceWave < WAVE_SECONDS
+    const wave = waving ? wavePose(sinceWave) : null
+    streaking.current = wave?.trail ?? false
+    if (!waving) h.waveAt = null
+
     const e = easeInOut(f.t)
     const g = wand.current
     if (g) {
@@ -160,15 +187,35 @@ function Rig({
       )
       g.scale.setScalar(lerp(boxPx / px, heldScale * h.zoom, e))
       g.quaternion.copy(q.from).slerp(q.held, e)
+      if (wave) {
+        // Turn about the hand on the grip.
+        const length = spec.lengthMm * MM * g.scale.x
+        v.grip
+          .set(1, 0, 0)
+          .applyQuaternion(g.quaternion)
+          .multiplyScalar((GRIP - 0.5) * length)
+        v.reach.set(1, 0, 0).applyQuaternion(g.quaternion)
+        v.reach.multiplyScalar((1 - GRIP) * length + 0.03 * g.scale.x)
+        v.across.set(-Math.sin(tilt), Math.cos(tilt), 0)
+        const fit = fitWave(camera, v.held.copy(g.position).add(v.grip), v.reach, v.across)
+        waveTurn(wave, v.across, fit, q.wave)
+        g.quaternion.premultiply(q.wave)
+        v.moved.copy(v.grip).applyQuaternion(q.wave)
+        g.position.add(v.grip).sub(v.moved)
+      }
+      g.updateMatrixWorld()
+      tip.current.set((spec.lengthMm / 2) * MM + 0.03, 0, 0).applyMatrix4(g.matrixWorld)
     }
     if (lights.current) lights.current.rotation.x = BOX_TO_CLOSE * (1 - e)
+    // The rim outlines the wand in the box; up close it glances off a wand aimed into the scene and turns it silver.
+    if (rim.current) rim.current.intensity = RIM_INTENSITY * (1 - e)
   })
 
   const girth = spec.handleMaxR * 2 * MM * 3.5
   return (
     <>
       <group ref={lights}>
-        <ShopLights />
+        <ShopLights rim={rim} />
       </group>
       <group ref={wand}>
         {children}
@@ -176,6 +223,7 @@ function Rig({
           <boxGeometry args={[spec.lengthMm * MM * 1.1, girth, girth]} />
         </mesh>
       </group>
+      <WaveTrail colour={spec.spell} tip={tip} emitting={streaking} />
     </>
   )
 }
@@ -213,6 +261,7 @@ export function CloseUpStage({
       grabbed: false,
       touched: false,
       tilt: 0,
+      waveAt: null,
     },
   }))
   const pointers = useRef(new Map<number, { x: number; y: number }>())
@@ -221,7 +270,11 @@ export function CloseUpStage({
   useImperativeHandle(
     ref,
     (): CloseUpHandle => ({
-      cast: () => setCastAt(three.current?.clock.elapsedTime ?? 0),
+      cast: () => {
+        const now = three.current?.clock.elapsedTime ?? 0
+        handling.current.waveAt = now
+        setCastAt(now + (reducedMotion ? 0 : WAVE_TO_SPELL_SECONDS))
+      },
       putBack: () =>
         new Promise((resolve) => {
           flight.current.box = boxPose()
@@ -229,7 +282,7 @@ export function CloseUpStage({
           flight.current.landed = resolve
         }),
     }),
-    [boxPose],
+    [boxPose, reducedMotion],
   )
 
   const landsOnWand = (clientX: number, clientY: number) => {

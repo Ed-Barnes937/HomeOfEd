@@ -47,6 +47,29 @@ trackball was tried first, but combined drags stood the wand on end and off the
 screen. Roll and swing keep it in frame and still show every side and both
 ends. Until first touched, the wand rolls slowly by itself.
 
+**A wave is a figure of 8, drawn out in front.** Casting (the arrival, a tap or
+"Wave it") waves the wand before the spell leaves it, turning it only about the
+grip (a fifth of the way up from the pommel, where a hand would hold it): the
+tip turns away from the viewer, diagonally into the scene, draws one slow figure
+of 8 there over 2s, and the spell bursts out as the 8 closes, 2.5s after the
+wave starts (`WAVE_TO_SPELL_SECONDS`, which the shop's flash waits for too). The
+wand then settles back to where the child left it. A streak of light follows
+the tip through the 8, so the shape shows even in a still frame. The 8 turns
+about the screen's own vertical and horizontal axes, so it reads as side to side
+whether the wand is held level (landscape) or upright (portrait). It is wide,
+sweeping the tip across about two fifths of a laptop screen, and shrinks to keep
+the tip clear of the header and the caption on a narrow phone or a zoomed-in
+wand (`fitWave`, which projects the 8 through the camera each frame).
+
+Earlier versions were rejected by eye. The first drew the 8 across the screen
+with the wand sliding along its length, which was too fast and read as the wand
+flying off to the side. The second turned only about the grip but drew a small
+8 in 1.2s and ended in a flick forward and down; the flick muddied the 8 and the
+8 was too small to read. The wave is a pure function of time (`wave.ts`),
+unit-tested to start and end at rest, never jump, stay aimed away while drawing
+a real 8 over at least 2s, cast as it closes and only settle afterwards, and to
+fit the tip on laptop, tablet and phone screens in both orientations.
+
 **Held framing.** Landscape holds the wand nearly level with a slight lift to
 the tip; portrait holds it nearly upright, so it is as large as the screen
 allows, leaving the lower part for its name, tag line and buttons.
@@ -59,4 +82,12 @@ allows, leaving the lower part for its name, tag line and buttons.
 - The box no longer casts on a tap; spells and the shop's flash live in the
   close look. `StageHandle` loses `cast`.
 - With reduced motion the wand appears and returns without flying, the shop
-  fades in briefly, and the wand doesn't idle-roll or sparkle.
+  fades in briefly, and the wand doesn't idle-roll, wave or sparkle; the tip
+  flares at once.
+- Building the wave's streak exposed that R3F 9.8 copies each uniform given to
+  `<shaderMaterial uniforms>`, so numbers written to them later never reach the
+  GPU. The tip's sparkles had been frozen and the spell burst had never drawn.
+  The glowing point effects now build their material once (`stage/glow.ts`).
+- The box's cool rim light, from behind the wand, fades out as the wand rises.
+  Up close, a wand aimed into the scene (by the wave or a swing) caught it at a
+  grazing angle along its whole length and turned silver.

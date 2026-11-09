@@ -35,6 +35,8 @@ src/
                       CloseUpHandle, BoxPose, framing constants
     WandStage.tsx     the box stage and the chunk's entry; re-exports
     CloseUpStage.tsx  the close look: the lifted wand, turned and waved
+    wave.ts           the figure-of-8 wave: a pure function of time, fitted
+                      to the screen
     scene.tsx         camera and lights both stages share
   shop/               the counter scene, header, tag, controls (panel/sheet)
   shelf/              "Your shelf"
@@ -62,6 +64,9 @@ public/fonts/         IM Fell English (+SC, italic) and Alegreya Sans, OFL
   assert what the stage was asked to draw, never pixels. Generator facts
   (closed mesh, carving only removes wood, proportions) are unit tests on
   `wand/`, not iwft.
+- **Shader uniforms that change go through the material, not R3F props.** R3F
+  copies `<shaderMaterial uniforms>` on mount, so later writes never reach the
+  GPU. Build the material once (`stage/glow.ts`) and write its uniforms.
 - **Every combination must look good.** New params get curated ranges in
   `wandSchema.ts`; handle styles and collars are data tables in `compile.ts`.
   Check a generator change by eye on a real GPU before calling it done - the
@@ -75,7 +80,7 @@ public/fonts/         IM Fell English (+SC, italic) and Alegreya Sans, OFL
 - **No franchise vocabulary.** The cores, woods and lore are original; keep
   them that way (see the idea README's open questions).
 - **Motion.** Everything that moves honours `prefers-reduced-motion`: no
-  sparkles or burst, a shorter cast flash, no box arrival, and the close look
-  appears and goes back without flying or idling.
+  sparkles, burst or wave, a shorter cast flash, no box arrival, and the close
+  look appears and goes back without flying or idling.
 - **Styles.** `styles/tokens.scss` is the one global sheet (tokens, fonts,
   reset); everything else is SCSS modules. Fonts are self-hosted.

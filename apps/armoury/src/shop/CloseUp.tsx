@@ -1,7 +1,12 @@
 import { Suspense, use, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 
 import type { StoredWand } from '../persistence/saveFormat.ts'
-import { StageContext, type BoxPose, type CloseUpHandle } from '../stage/stage.ts'
+import {
+  StageContext,
+  WAVE_TO_SPELL_SECONDS,
+  type BoxPose,
+  type CloseUpHandle,
+} from '../stage/stage.ts'
 import { wandDescription, wandName } from '../wand/describe.ts'
 import { swatchFor } from '../wand/wandSchema.ts'
 import styles from './CloseUp.module.scss'
@@ -62,6 +67,7 @@ export function CloseUp({
       style={
         {
           '--core-rgb': hexToRgb(swatchFor('core', params.core as string) ?? '#ffc95c'),
+          '--spell-delay': `${reducedMotion ? 0 : WAVE_TO_SPELL_SECONDS}s`,
         } as CSSProperties
       }
       onCancel={(e) => {

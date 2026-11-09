@@ -21,7 +21,7 @@ export interface GrooveSet {
 }
 
 export interface StainSpec {
-  /** Linear RGB multiplier at full strength; null for natural wood. */
+  /** The stain's swatch in linear RGB, whose hue and darkness a full coat absorbs; null for natural wood. */
   colour: [number, number, number] | null
   strength: number
   /** Fraction of the length, from the pommel, where the stain is half faded. */

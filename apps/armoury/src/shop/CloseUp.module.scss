@@ -55,7 +55,7 @@ $rise: 0.8s;
   mix-blend-mode: screen;
   pointer-events: none;
   opacity: 0;
-  animation: flash 1.6s ease-out;
+  animation: flash 1.6s ease-out var(--spell-delay);
 }
 
 .stage {
