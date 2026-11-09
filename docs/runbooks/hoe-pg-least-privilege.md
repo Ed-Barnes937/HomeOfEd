@@ -6,37 +6,30 @@ One-off, human-run, about five minutes. The why is
 owns its own database and can connect to nothing else. Nothing restarts and no
 secret changes.
 
-Open a session as the cluster's superuser and keep it open for every step:
-
-```bash
-fly postgres connect -a hoe-pg
-```
-
 ## 1. Pre-check (read-only)
 
 A role that loses superuser can no longer alter an object it does not own, so
-the first migration to touch such an object would fail at deploy. Paste this;
-it lists every object in each app database that is **not** owned by that
-database's app role.
+the first migration to touch such an object would fail at deploy. This query
+lists every object in the current database that is **not** owned by that
+database's app role. `\c` cannot switch databases inside a
+`fly postgres connect` session (it asks for a password the session never had),
+so open one session per database and paste the same query into each:
 
-```sql
-\set foreign_owned 'SELECT current_database() AS db, kind, name, owner FROM (SELECT ''relation'' AS kind, n.nspname || ''.'' || c.relname AS name, pg_get_userbyid(c.relowner) AS owner FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname IN (''public'', ''drizzle'') UNION ALL SELECT ''schema'', nspname, pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = ''drizzle'' UNION ALL SELECT ''type'', n.nspname || ''.'' || t.typname, pg_get_userbyid(t.typowner) FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = ''public'' AND t.typtype IN (''e'', ''d'')) o WHERE owner <> ''hoe_'' || current_database();'
-\c family
-:foreign_owned
-\c fridge
-:foreign_owned
-\c hub
-:foreign_owned
-\c wotd
-:foreign_owned
-\c postgres
+```bash
+fly postgres connect -a hoe-pg -d family   # then fridge, hub, wotd
 ```
 
-**Every result must be `(0 rows)`.** If any row appears, stop: that object
+```sql
+SELECT current_database() AS db, kind, name, owner FROM (SELECT 'relation' AS kind, n.nspname || '.' || c.relname AS name, pg_get_userbyid(c.relowner) AS owner FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname IN ('public', 'drizzle') UNION ALL SELECT 'schema', nspname, pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'drizzle' UNION ALL SELECT 'type', n.nspname || '.' || t.typname, pg_get_userbyid(t.typowner) FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typtype IN ('e', 'd')) o WHERE owner <> 'hoe_' || current_database();
+```
+
+**All four must print `(0 rows)`.** If any row appears, stop: that object
 needs `ALTER ... OWNER TO hoe_<db>` first, and that is worth a conversation
 rather than a guess.
 
 ## 2. Apply (one transaction)
+
+In a plain `fly postgres connect -a hoe-pg` session:
 
 ```sql
 BEGIN;
