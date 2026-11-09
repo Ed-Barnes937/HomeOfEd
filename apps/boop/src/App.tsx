@@ -8,6 +8,7 @@ import { EngineProvider } from './engine/EngineContext.tsx'
 import { ToneAudioDriver } from './engine/toneAudioDriver.ts'
 import { router } from './router.tsx'
 import { familyUrl } from './sync/familyUrl.ts'
+import { keepaliveFetch } from './sync/keepaliveFetch.ts'
 import { SaveClientProvider } from './sync/SaveClientContext.tsx'
 
 interface AppProps {
@@ -29,7 +30,12 @@ export function App({ driver, saveClient }: AppProps = {}) {
   const [queryClient] = useState(() => new QueryClient())
   const [audioDriver] = useState<AudioDriver>(() => driver ?? new ToneAudioDriver())
   const [familyClient] = useState<FamilySaveContract>(
-    () => saveClient ?? createFamilySaveClient({ baseUrl: familyUrl(window.location.hostname) }),
+    () =>
+      saveClient ??
+      createFamilySaveClient({
+        baseUrl: familyUrl(window.location.hostname),
+        fetch: keepaliveFetch,
+      }),
   )
   return (
     <QueryClientProvider client={queryClient}>
