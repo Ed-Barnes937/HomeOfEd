@@ -51,12 +51,14 @@ deletes write the same document from `BoopsPanel`.
 **1. Sync observes; it is never called.** `apps/boop/src/sync/` reads the one
 `boop:save` key on a 5s timer (longer than the autosave's 2s lull) plus the
 `pagehide`/`visibilitychange` hide, and copies the document up when its bytes
-have changed. The hide-time push only delivers because the client's fetch sets
-`keepalive`: a request started from `pagehide` is otherwise cancelled with the
-document, which would have made that listener, and the registration order it
-depends on, worth nothing. `keepalive` carries a 64 KiB body budget per page
-against a 256 KiB slot cap, so `keepaliveFetch` measures the body in bytes and
-falls back to a plain fetch above it rather than failing at the browser. Nothing in the play path calls into sync, so no edit, save or
+have changed.
+
+The hide-time push only delivers because the client's fetch sets `keepalive`. A
+request started from `pagehide` is otherwise cancelled with the document, which
+would have made that listener - and the registration order it depends on - worth
+nothing. The budget for a keepalive body is 64 KiB against a 256 KiB slot cap,
+so `keepaliveFetch` measures the body in bytes and falls back to a plain fetch
+above it rather than failing at the browser. Nothing in the play path calls into sync, so no edit, save or
 render can await it, be slowed by it, or throw through it, and `persistence/`
 does not know it exists. It also makes sync write-source agnostic: the working
 grid's autosave, a save into "My boops", a rename and a delete all reach the
@@ -94,8 +96,13 @@ account", and the session ends without syncing.
 `mergeSaveDocuments(local, remote)` takes the account's creations, then the
 creations only this device holds, deduped by deep equality of `StoredBoop`;
 `working` is local when there is one, else the account's. It is idempotent, and
-duplicates *within* the local list survive on purpose - two identical rows in
-"My boops" are two rows a child saved. The accepted limits are that `working` is
+duplicates *within* the local list survive **against an account that does not
+hold that boop** - two identical rows in "My boops" are two rows a child saved.
+Against an account that holds one of them they collapse to one, because the
+filter is set membership rather than a count, and that is reachable at a first
+link. It is left alone deliberately: making the merge multiset-correct would
+resurrect deletes more aggressively, the rows are byte-identical so no distinct
+work is lost, and a child cannot tell which row went. The accepted limits are that `working` is
 genuinely last-writer-wins, and that a boop deleted on one device reappears
 from the other, because a union cannot tell a delete from a never-seen. Fine for
 a household; a tombstone list is the thing not to build until it bites. A rename
@@ -140,10 +147,11 @@ two puts racing can land the older document last with nothing left to correct it
 order, which also sequences the double `reconcile` a dev double-mount makes. The
 queue carries its own `catch`: a rejection reaching it would leave every later
 call short-circuiting on a rejected promise, which is this module dying silently
-for the life of the page. Neither queued body can reject today, and that is
-exactly why the guard is there rather than left to the convention - the same
-move as the undecodable-document rule, holding structurally instead of because
-everyone remembered.
+for the life of the page. Nothing queued today can reject, so the guard buys
+nothing now and everything later - it makes the queue safe whatever is queued,
+rather than safe because both of its callers happen to swallow their own
+failures. Same move as the undecodable-document rule: hold it structurally
+rather than by convention.
 
 Nothing about any of this reaches the screen: a child must never be told the
 network is sad, and a parent being told is a product decision nobody has taken
@@ -193,6 +201,14 @@ in boop can turn an account from `declined` to `accepted`; a parent who changes
 their mind has to be given a control that does not exist yet (decision 7). The
 state model holds the transition, so building it later is UI over a write.
 
+**A device that cannot read the account stands off for good, not for a
+session.** Decision 2's guard is evaluated on every start, so a tablet wedged on
+an old bundle - a cached service worker, an app the child never reloads - stops
+syncing on every future start as well, silently, with no signal to the child or
+the parent, until a newer bundle arrives. That is the right trade against
+clobbering a newer document, and the code should not change; but the honest
+shape of it is weeks of a family thinking sync works, not one session.
+
 **A rename makes a permanent duplicate on every device.** Dedupe is full deep
 equality of `StoredBoop`, so renaming a boop on one device produces a creation
 the other device's list does not hold, and the union keeps both: "Boop 3" and
@@ -210,6 +226,22 @@ sibling's boops. Nothing here distinguishes whose boop is whose, and nothing
 could without a per-profile document, which is a bigger change than this slice.
 Recorded and sent to Ed, because it is privacy-shaped rather than merely
 surprising.
+
+**The keepalive budget is per page, not per request.** 64 KiB is the total body
+in flight for all keepalive requests from one page, so two large pushes at once
+would exceed it where either alone would not. The queue makes that academic
+today - one request is in flight at a time - which is the note for whoever next
+touches the queue rather than a defect to fix now.
+
+**A developer running boop locally against the production family image sees
+sync silently never work**, indistinguishable from having no account at all: the
+dev origins exist only outside `NODE_ENV=production`, so the image refuses
+`http://localhost:3008` at the preflight and every call fails the way boop is
+built to absorb. The fix is to run the service as a dev deployment
+(`docker compose run -e NODE_ENV=development ... family`) or to point at
+`pnpm dev --filter=family`. Recorded here rather than in the go-live runbook
+because ticket 08 owns that runbook and will find this; it belongs there, so
+that nobody debugs the app for a CORS rule working as designed.
 
 **A session that starts offline stays unsynced until the next start.** The pull
 runs once, at app start (spec §7.1). Retrying it on the watcher's tick would
