@@ -52,7 +52,7 @@ describe('the shaft summary', () => {
 
 const decorSummary = (params: Record<string, unknown>) => summaryOf('decor', params)
 
-describe('the trimmings summary', () => {
+describe('the extras summary', () => {
   it('names the metal, else the paint or bone, else the gems, else says there are none', () => {
     expect(decorSummary({})).toBe('None')
     expect(decorSummary({ tipGem: 'crystal' })).toBe('Gems')

@@ -74,8 +74,8 @@ const GROUP_DEFS: readonly GroupDef[] = [
   },
   {
     key: 'decor',
-    title: 'The trimmings',
-    tab: 'Trim',
+    title: 'Extras',
+    tab: 'Extras',
     summary: (p) =>
       usesMetal(p)
         ? labelOf('metal', p)
