@@ -336,7 +336,7 @@ deleted boop can reappear). Fine for a household; revisit only if it bites.
   = today's behaviour), per the pragmatic test split (state-through-UI in
   iwft, the merge function below it).
 - **Live dev:** `pnpm dev --filter=family` runs the service on PGlite at
-  port 3010; hub/boop dev servers reach it via localhost CORS entries.
+  port 3012; hub/boop dev servers reach it via localhost CORS entries.
   (Verify loops: `pnpm --filter <app> run <script>` - turbo `--filter` has
   the known cyclic-dep issue.)
 
@@ -345,7 +345,7 @@ deleted boop can reappear). Fine for a household; revisit only if it bites.
 Per `docs/how-to/adding-an-app.md`, taking the next-free port row:
 
 1. **App:** `apps/family`, package `@hoe/family`.
-2. **Ports:** dev **3010**, CT **3110**, compose host **8090**; bump the
+2. **Ports:** dev **3012**, CT **3112**, compose host **8092**; bump the
    registry's next-free row to 3011/3111/8091 in the same PR (check unmerged
    branches first - the karesansui/hirameki collision precedent).
 3. **Fly:** `fly.toml` app `hoe-family`, lhr, shared-cpu-1x/512MB,
@@ -356,9 +356,9 @@ Per `docs/how-to/adding-an-app.md`, taking the next-free port row:
 5. **CI:** copy the `deploy-hub` job as `deploy-family`; add a
    `FAMILY_GO_LIVE` repo-variable gate (the `SPROUT_GO_LIVE` precedent) so
    the code can merge before the Fly app exists.
-6. **compose.yml:** the hub two-service pattern - `family` (host 8090) +
+6. **compose.yml:** the hub two-service pattern - `family` (host 8092) +
    `family-db` (postgres:17, `family-db-data` volume). Note the port-squatter
-   quirk on Ed's machine affects 8082/8083 only; 8090 is expected clean.
+   quirk on Ed's machine affects 8082/8083 only; 8092 is expected clean.
 7. **Secrets (prod):** `BETTER_AUTH_SECRET`, `FAMILY_TOKEN_PRIVATE_KEY`,
    `REGISTRATION_INVITE_CODE`, `DATABASE_URL` via attach. Dev-insecure
    defaults in `.env.example`/simulator, sprout-style.

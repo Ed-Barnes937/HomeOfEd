@@ -1,0 +1,40 @@
+# 0075 - armoury shares a wand as a fragment link or a picture
+
+- **Status:** Accepted
+- **Date:** 2026-11-08
+- **Related:** [ADR 0026](0026-boop-share-links.md) (the boop precedent),
+  [ADR 0074](0074-armoury-save-format.md).
+
+## Context
+
+Wands should be sharable without a backend. A link lets someone else open and
+play with the wand; a picture is what a child actually wants to send a
+grandparent.
+
+## Decision
+
+**Link.** `#w=<base64url(JSON({ version, wand }))>`, where `wand` is the save
+format's `StoredWand` decoded by the same `decodeStoredWand`. The share format
+has its own `SHARE_FORMAT_VERSION`, separate from the save format's, because
+links live forever. Decode is total: anything else opens the shop as a normal
+visit. The fragment is read once on load, becomes the wand on the counter, and
+is removed with `replaceState`, so a reload keeps the visitor's own edits.
+
+The Share button follows boop: the OS share sheet on touch devices, the
+clipboard and a "Copied!" flip elsewhere, never a modal or a link field.
+
+**Picture.** "Picture" asks the stage for a 2000px capture of the bare wand on a
+transparent background, then draws a 1080x1350 card on a 2D canvas: the shop
+wall, the wand in its box with its tip glowing, the tag with name, tag line and
+lore, and the address. On a touch device that can share files it opens the
+share sheet; otherwise it downloads `<slugged-name>.png`. This is boop's export
+action, reused.
+
+## Consequences
+
+- Link previews in chat apps can't show the wand: the fragment never reaches a
+  server, so there's nothing to render an image from. They show the page's
+  generic title and description. The picture is the way to send a wand that
+  looks like one. A server-rendered preview would need a short-link store and
+  is deliberately out of scope.
+- A wand link is ~600 characters; fine for messaging apps.

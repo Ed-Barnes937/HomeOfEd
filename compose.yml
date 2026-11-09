@@ -74,6 +74,16 @@ services:
     ports:
       - '8088:8080'
 
+  # armoury has no database (ADR 0008) — one service, no depends_on, no migrate
+  # step. Design-your-own wand toy; saved wands live in localStorage.
+  armoury:
+    build:
+      context: .
+      dockerfile: apps/armoury/Dockerfile
+    command: node src/server/main.ts
+    ports:
+      - '8091:8080'
+
   # silt has no database (ADR 0008) — one service, no depends_on, no migrate
   # step. Falling-sand playground; the sim runs client-side.
   silt:
@@ -246,7 +256,7 @@ services:
       # apply: all four must be present. These are throwaway LOCAL values; the
       # real ones come from Fly secrets.
       BETTER_AUTH_SECRET: dev-better-auth-secret
-      BETTER_AUTH_URL: http://localhost:8090
+      BETTER_AUTH_URL: http://localhost:8092
       REGISTRATION_INVITE_CODE: dev-invite-code
       # The committed @hoe/accounts/testing keypair, whose private half is
       # public knowledge by design. ONLY this file may set it: main.ts fails
@@ -254,7 +264,7 @@ services:
       # (FLY_APP_NAME present), so it cannot silently sign estate tokens.
       FAMILY_TOKEN_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIOGaBsSiWxghRFJOEZcM58j8j1nx0Fnnsnsbgnec6FZr\n-----END PRIVATE KEY-----\n'
     ports:
-      - '8090:8080'
+      - '8092:8080'
     depends_on:
       family-db:
         condition: service_healthy

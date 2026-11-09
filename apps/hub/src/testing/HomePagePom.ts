@@ -58,6 +58,13 @@ export class HomePagePom extends BasePage {
     await expect(this.page.getByText('Coming soon')).toHaveCount(0)
   }
 
+  async verifyArmouryLink(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Armoury' })).toHaveAttribute(
+      'href',
+      'https://armoury.homeofed.com',
+    )
+  }
+
   async verifySiltLink(): Promise<void> {
     await expect(this.page.getByRole('link', { name: 'Silt' })).toHaveAttribute(
       'href',
@@ -88,7 +95,7 @@ export class HomePagePom extends BasePage {
 
   // Each app is a gallery card with a live <canvas> preview — one per app.
   async verifyPreviewsRender(): Promise<void> {
-    await expect(this.page.locator('canvas')).toHaveCount(8)
+    await expect(this.page.locator('canvas')).toHaveCount(9)
   }
 
   /**
@@ -134,13 +141,13 @@ export class HomePagePom extends BasePage {
   }
 
   private async waitForPaintedPreviews(): Promise<void> {
-    await expect(this.page.locator('canvas[data-kind]')).toHaveCount(8)
+    await expect(this.page.locator('canvas[data-kind]')).toHaveCount(9)
     // A still card repaints once when Space Grotesk arrives, so let the font
     // settle before sampling: that repaint is not the animation under test.
     await this.page.evaluate(() => document.fonts.ready.then(() => undefined))
     await expect
       .poll(async () => (await this.previewSignatures()).filter((s) => s.painted > 0).length)
-      .toBe(8)
+      .toBe(9)
   }
 
   /**

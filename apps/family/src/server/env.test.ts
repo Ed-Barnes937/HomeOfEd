@@ -10,7 +10,7 @@ const complete = {
   FAMILY_TOKEN_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----\\n',
   REGISTRATION_INVITE_CODE: 'dev-insecure-invite',
   BETTER_AUTH_SECRET: 'dev-insecure-secret',
-  BETTER_AUTH_URL: 'http://localhost:3010',
+  BETTER_AUTH_URL: 'http://localhost:3012',
 }
 
 describe('loadFamilyEnv', () => {
@@ -18,7 +18,7 @@ describe('loadFamilyEnv', () => {
     expect(loadFamilyEnv(complete)).toMatchObject({
       REGISTRATION_INVITE_CODE: 'dev-insecure-invite',
       BETTER_AUTH_SECRET: 'dev-insecure-secret',
-      BETTER_AUTH_URL: 'http://localhost:3010',
+      BETTER_AUTH_URL: 'http://localhost:3012',
     })
   })
 

@@ -1,0 +1,14 @@
+.wall {
+  position: absolute;
+  inset: 0;
+  background-color: #0a0705;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: 2400px 900px;
+}
+
+@media (max-width: 899px) {
+  .wall {
+    background-size: 1728px 648px;
+  }
+}

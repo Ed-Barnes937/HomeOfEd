@@ -5,7 +5,7 @@
   "type": "module",
   "prettier": "@hoe/config/prettier",
   "scripts": {
-    "dev": "vite --port 3010",
+    "dev": "vite --port 3012",
     "build": "vite build",
     "generate": "drizzle-kit generate",
     "start": "node src/server/main.ts",

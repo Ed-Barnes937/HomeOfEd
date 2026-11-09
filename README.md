@@ -18,6 +18,7 @@ Live since 2 July 2026, hosted on Fly.io in London behind Cloudflare.
 | App | What it is | Status |
 |---|---|---|
 | [homeofed.com](https://homeofed.com) | The launcher. A card for every app. | ✅ Live |
+| `armoury` | Design your own wand in 3D, keep it on your shelf, share it. | 🚧 Built, awaiting DNS |
 | [boids](https://boids.homeofed.com) | Reynolds flocking on a full-screen canvas, with knobs to fiddle with. | ✅ Live |
 | [boop](https://boop.homeofed.com) | A 6-instrument, 16-step sequencer for children. Tap to paint a beat. | ✅ Live |
 | [espy](https://espy.homeofed.com) | Ink blots on warm paper that you doodle into little creatures. | ✅ Live |

@@ -39,9 +39,9 @@ Three ways to run it, one router:
 
 | Mode | Command | Backend |
 | --- | --- | --- |
-| dev simulator | `pnpm dev --filter=family` | real router + PGlite Store (Vite middleware), port 3010; no Better Auth and no token seam, so both routers refuse |
+| dev simulator | `pnpm dev --filter=family` | real router + PGlite Store (Vite middleware), port 3012; no Better Auth and no token seam, so both routers refuse |
 | .iwft | `pnpm --filter family run test` | real router in-browser over PGlite; no Better Auth, no minting |
-| docker stack | `docker compose up family` | the real image, host port 8090 - the only mode with Better Auth and a live save |
+| docker stack | `docker compose up family` | the real image, host port 8092 - the only mode with Better Auth and a live save |
 
 ### Environment
 
@@ -53,7 +53,7 @@ config set in `fly.toml`. See [`.env.example`](.env.example). There is no fifth
 variable for verifying tokens: the public half is derived from the private key
 at boot, so the two cannot drift.
 
-Ports: dev 3010, CT 3110, compose 8090.
+Ports: dev 3012, CT 3112, compose 8092.
 
 Creating `hoe-family` on Fly, attaching its database and setting secrets are
 human-gated and happen in ticket 08. See [`CLAUDE.md`](CLAUDE.md) for layout and

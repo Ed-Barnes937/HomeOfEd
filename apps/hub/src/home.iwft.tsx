@@ -22,6 +22,7 @@ test('home page renders the wordmark, lede, and the live app links', async ({ mo
   await root.verifyBoopLink()
   await root.verifyHeigIsComingSoon()
   await root.verifySiltLink()
+  await root.verifyArmouryLink()
 })
 
 test('home page renders a live preview canvas for every app card', async ({ mountApp }) => {
