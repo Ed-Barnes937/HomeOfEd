@@ -51,8 +51,8 @@ export const GROUPS: readonly GroupMeta[] = [
   {
     key: 'decor',
     numeral: 'v.',
-    title: 'Decorations',
-    tab: 'Decor',
+    title: 'The trimmings',
+    tab: 'Trim',
     summary: (p) =>
       usesMetal(p)
         ? labelOf('metal', p)

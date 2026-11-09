@@ -260,11 +260,15 @@ export function compileWand(p: Params): WandSpec {
     return h * (0.65 * swell(z, c, 1.6) + 0.35 * swell(z, c, 6))
   }
 
-  // Bands go in the gaps between bumps, or else spread up the lower shaft.
+  // Bands go in the gaps between bumps (there are nodeCount + 1), or else spread up the lower shaft.
   const bandCount = BAND_COUNTS[p.bands as string] ?? 0
-  const bandCentres = Array.from({ length: bandCount }, (_, k) =>
-    nodes === 'none' ? collarEnd + (L - collarEnd) * (0.1 + 0.2 * k) : nodeStart + k * nodeSpacing,
-  ).filter((c) => c <= nodeEnd)
+  const bandCentres = Array.from(
+    { length: nodes === 'none' ? bandCount : Math.min(bandCount, nodeCount + 1) },
+    (_, k) =>
+      nodes === 'none'
+        ? collarEnd + (L - collarEnd) * (0.1 + 0.2 * k)
+        : nodeStart + k * nodeSpacing,
+  )
 
   const profile = (z: number): number => {
     if (z <= 0 || z >= L) return 0
@@ -406,7 +410,11 @@ export function compileWand(p: Params): WandSpec {
   asZone(handleFinish, 0, H)
   asZone(shaftFinish, collarEnd, L)
   asZone(
-    p.collarFinish === 'metal' ? 'metal' : handleFinish === shaftFinish ? handleFinish : 'wood',
+    p.collarFinish === 'metal' || handleFinish === 'metal'
+      ? 'metal'
+      : handleFinish === shaftFinish
+        ? handleFinish
+        : 'wood',
     H,
     collarEnd,
   )

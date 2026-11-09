@@ -45,12 +45,12 @@ describe('material zones', () => {
     const spec = wand({ handleFinish: 'metal', shaftFinish: 'paint' })
     const collarMid = spec.handleMm + 4
     expect(surfaceAt(spec, spec.handleMm * 0.5).material).toBe('metal')
-    expect(surfaceAt(spec, collarMid).material).toBe('wood')
+    expect(surfaceAt(spec, collarMid).material).toBe('metal')
     expect(surfaceAt(spec, spec.lengthMm * 0.6).material).toBe('paint')
     expect(surfaceAt(wand({ handleFinish: 'bone' }), spec.handleMm * 0.5).material).toBe('bone')
   })
 
-  it('the ring takes the finish the handle and shaft share, unless it is metal', () => {
+  it('the ring takes the finish the handle and shaft share, unless it or the handle is metal', () => {
     const ringOf = (extra: Record<string, unknown>) => {
       const spec = wand(extra)
       return surfaceAt(spec, spec.handleMm + 4).material
@@ -58,6 +58,9 @@ describe('material zones', () => {
     expect(ringOf({ handleFinish: 'bone', shaftFinish: 'bone' })).toBe('bone')
     expect(ringOf({ handleFinish: 'paint', shaftFinish: 'paint' })).toBe('paint')
     expect(ringOf({ handleFinish: 'paint', shaftFinish: 'wood' })).toBe('wood')
+    expect(ringOf({ handleFinish: 'metal', shaftFinish: 'wood', collarFinish: 'wood' })).toBe(
+      'metal',
+    )
     expect(ringOf({ handleFinish: 'bone', shaftFinish: 'bone', collarFinish: 'metal' })).toBe(
       'metal',
     )
@@ -74,7 +77,7 @@ describe('material zones', () => {
     expect(handle('metal')).toBe(0)
     expect(handle('paint')).toBe(0)
     const spec = wand({ ...base, handleFinish: 'metal' })
-    expect(surfaceAt(spec, spec.handleMm + 4).stain).toBeGreaterThan(0.5)
+    expect(surfaceAt(spec, spec.handleMm + 14).stain).toBeGreaterThan(0.5)
     expect(surfaceAt(spec, spec.lengthMm * 0.9).stain).toBe(0)
   })
 
@@ -96,6 +99,12 @@ describe('material zones', () => {
         wand({}).profile((band.from + band.to) / 2),
       )
     }
+  })
+
+  it('three bands fit between two bumps on the shortest wand', () => {
+    const bumpy = { lengthCm: 28, nodes: 'knobs', nodeCount: 2, bands: 'three' }
+    const spec = wand({ ...bumpy, handleStyle: 'plain', collarStyle: 'vcut' })
+    expect(bandsOf(spec)).toHaveLength(3)
   })
 
   it.each(['knobs', 'rings'])('bands sit in the gaps between %s, not on them', (nodes) => {
@@ -206,6 +215,11 @@ describe('the decorations controls', () => {
   it('drop the end cap on a metal handle, which is metal to the end anyway', () => {
     expect(shown({}, 'endCap')).toBe(true)
     expect(shown({ handleFinish: 'metal' }, 'endCap')).toBe(false)
+  })
+
+  it('drop the ring choice on a metal handle, whose ring is always its metal', () => {
+    expect(shown({}, 'collarFinish')).toBe(true)
+    expect(shown({ handleFinish: 'metal' }, 'collarFinish')).toBe(false)
   })
 
   it('offer a metal spiral only on a raised spiral', () => {

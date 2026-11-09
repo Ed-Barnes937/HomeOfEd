@@ -21,8 +21,8 @@ bloom that makes the core's glow and the spell shine.
   covers. Later zones cover earlier ones. The mesh carries a per-vertex
   `(metal, paint, bone)` weight, written like the stain amount, and the wood
   shader mixes each finish over the wood by those weights.
-- **What a kid picks**, in a new "Decorations" group (between the shaft and the
-  core): what the handle is made of (wood, metal, painted, bone), what the shaft is
+- **What a kid picks**, in a new group titled "The trimmings" (phone tab "Trim",
+  `decor` in code, between the shaft and the core): what the handle is made of (wood, metal, painted, bone), what the shaft is
   made of (wood, painted, bone), a metal end cap, a metal ring (the collar), up to
   three metal bands, and, on a raised spiral, a metal spiral. Shaft bumps stay in
   the shaft group (ADR 0081).
@@ -30,14 +30,15 @@ bloom that makes the core's glow and the spell shine.
   - One metal (silver, brass, gold, dark iron) for every metal part, so a metal
     handle always matches its ring and bands.
   - One paint from a curated palette of six for every painted part.
-  - The ring takes the finish the handle and shaft share (a bone wand has a bone
-    ring), unless it is metal; otherwise it is wood.
-  - The end cap is hidden on a metal handle, the metal picker until something is
+  - A metal handle always has a metal ring. Otherwise the ring is metal if chosen,
+    else takes the finish the handle and shaft share (a bone wand has a bone ring),
+    else wood.
+  - The end cap and the ring choice are hidden on a metal handle, the metal picker until something is
     metal, and the paint picker until something is painted.
   - The cap ends at a point chosen per handle style (`HandleStyle.cap`, just past
     the first bead or at the first neck), or past the ball on a ball end.
-  - Bands sit in the gaps between bumps when there are bumps, else at 10%, 30%
-    and 50% of the shaft. They stand 0.45 mm proud, and carving and raised spirals
+  - Bands sit in the gaps between bumps when there are bumps (two bumps leave
+    three gaps, counting both ends), else at 10%, 30% and 50% of the shaft. They stand 0.45 mm proud, and carving and raised spirals
     stop at them, as at a ring clamped over the wood.
 - **A metal spiral is a zone in angle as well as z.** A raised groove set may be
   `metal`; `radiusAt` reports how much of each point is metal ridge (full on the
@@ -55,7 +56,9 @@ bloom that makes the core's glow and the spell shine.
   whole highlight streaks over the bloom threshold. The surface's brightest channel
   is capped at 92% of the threshold (`BLOOM_THRESHOLD`, now shared by both stages),
   so only the core's glow, its sparkles and the spell bloom. The share picture
-  renders without bloom and is unaffected.
+  renders through the same shader without bloom, so its metal highlights are
+  capped too. No glint is added back for now; Ed judges metal highlights,
+  including the share picture's, on a real GPU.
 - **Try another stays mostly wood.** Option weights keep about 58% of rolls plain
   wood. About a quarter have some metal, usually a single part; about one in
   nine has paint and one in ten bone.
@@ -66,7 +69,8 @@ bloom that makes the core's glow and the spell shine.
 
 - Eight more controls, in their own group; the paint, the metal and the metal
   spiral only show when they apply, so a plain wooden wand shows five.
-- A wand that is bone from end to end is described as bone on its tag and shelf
-  label; its wood choice then only shows through the lore line.
+- A wand that is bone from end to end is named, described and told as bone (tag,
+  shelf label, name and lore line); a partly bone wand keeps its wood's wording.
+  Its wood choice then does nothing visible.
 - Tuning was judged by eye on a real GPU (Apple M3 Pro, ANGLE Metal) in the box,
   the close look, the spell flash and the share picture.

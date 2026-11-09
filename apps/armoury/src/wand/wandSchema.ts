@@ -35,7 +35,7 @@ export const wandSchema: ItemSchema = {
     { key: 'shape', label: 'Shape' },
     { key: 'handle', label: 'Handle' },
     { key: 'shaft', label: 'Shaft' },
-    { key: 'decor', label: 'Decorations' },
+    { key: 'decor', label: 'Trimmings' },
     { key: 'core', label: 'Core' },
   ],
   params: [
@@ -422,6 +422,7 @@ export const wandSchema: ItemSchema = {
       label: 'Ring made of',
       group: 'decor',
       default: 'wood',
+      visible: (p) => p.handleFinish !== 'metal',
       options: [
         { value: 'wood', label: 'Wood', weight: 15 },
         { value: 'metal', label: 'Metal' },
