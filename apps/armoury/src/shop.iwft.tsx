@@ -34,7 +34,7 @@ test('bumps and raised spirals show their own controls only when they apply', as
   await root.verifyControls({ hidden: ['How many bumps', 'How big'] })
 })
 
-test('trimmings offer a metal and a paint only once something uses them', async ({ mountApp }) => {
+test('extras offer a metal and a paint only once something uses them', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyControls({
     shown: ['Handle made of', 'Shaft made of', 'End cap', 'Ring made of', 'Metal bands'],
@@ -42,7 +42,7 @@ test('trimmings offer a metal and a paint only once something uses them', async 
   })
   await root.chooseIn('Metal bands', 'Two')
   await root.chooseIn('Metal', 'Brass')
-  await root.verifyGroupSummary('The trimmings', 'Brass')
+  await root.verifyGroupSummary('Extras', 'Brass')
   await root.chooseIn('Handle made of', 'Metal')
   await root.verifyControls({ hidden: ['End cap', 'Ring made of'] })
   await root.chooseIn('Shaft made of', 'Painted')

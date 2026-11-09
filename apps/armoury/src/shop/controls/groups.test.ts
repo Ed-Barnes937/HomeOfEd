@@ -18,7 +18,7 @@ describe('the shaft summary', () => {
 const decorSummary = (params: Record<string, unknown>) =>
   GROUPS.find((g) => g.key === 'decor')!.summary(normalise(wandSchema, params))
 
-describe('the trimmings summary', () => {
+describe('the extras summary', () => {
   it('names the metal, else the paint or bone, else says there are none', () => {
     expect(decorSummary({})).toBe('None')
     expect(decorSummary({ bands: 'two', metal: 'brass', shaftFinish: 'paint' })).toBe('Brass')
