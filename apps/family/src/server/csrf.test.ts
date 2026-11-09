@@ -223,6 +223,20 @@ describe('the guard leaves every legitimate caller alone', () => {
     expect((await addChild('application/json; charset=utf-8')).status).toBe(200)
   })
 
+  // RFC 7231 makes a media type case-insensitive, so the guard must not be the
+  // thing that refuses these. tRPC's own JSON content-type handler compares
+  // case-sensitively as well, so the request still stops one layer down with
+  // tRPC's 415 rather than the guard's - fail-closed, and not ours to fix.
+  it.each(['APPLICATION/JSON', 'Application/Json; CHARSET=UTF-8'])(
+    'is not itself what refuses %s',
+    async (contentType) => {
+      const body = await (await addChild(contentType)).text()
+
+      expect(body).not.toContain('must be sent with content-type')
+      expect(body).toContain('Unsupported content-type')
+    },
+  )
+
   it('leaves queries alone, which mutate nothing', async () => {
     const response = await fetch(`${base}/api/trpc/identity.me`, {
       headers: { cookie: SESSION_COOKIE },

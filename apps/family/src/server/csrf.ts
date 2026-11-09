@@ -24,8 +24,9 @@ export function registerTrpcCsrfGuard(app: FastifyInstance): void {
     if (!req.url.startsWith(TRPC_PREFIX)) return
     if (READ_METHODS.has(req.method)) return
 
-    const contentType = req.headers['content-type']
-    if (typeof contentType === 'string' && contentType.startsWith(REQUIRED_CONTENT_TYPE)) return
+    // Lower-cased because RFC 7231 makes a media type case-insensitive.
+    const contentType = req.headers['content-type']?.toLowerCase()
+    if (contentType !== undefined && contentType.startsWith(REQUIRED_CONTENT_TYPE)) return
 
     return reply.status(415).send({
       error: {
