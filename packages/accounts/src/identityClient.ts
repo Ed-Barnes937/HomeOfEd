@@ -98,6 +98,15 @@ export function createFamilyIdentityClient(
   }
 }
 
+/**
+ * Better Auth's own refusals carry `{ message, code }`, but an `APIError` thrown
+ * from its `hooks.before` middleware - which is how ADR 0057's invite gate
+ * refuses - carries the message alone. Verified against the real image: a wrong
+ * invite code answers `403 {"message":"A valid invite code is required to
+ * register."}` with no code at all. So the status is the fallback rather than
+ * INTERNAL_SERVER_ERROR, which callers read as "nothing a person can act on"
+ * and would have hidden the one sentence a registering parent needs.
+ */
 async function authFailure(res: Response): Promise<FamilyClientError> {
   let body: unknown = null
   try {
@@ -111,6 +120,21 @@ async function authFailure(res: Response): Promise<FamilyClientError> {
       : {}
   return new FamilyClientError(
     typeof message === 'string' ? message : `family service request failed (${res.status})`,
-    typeof code === 'string' ? code : 'INTERNAL_SERVER_ERROR',
+    typeof code === 'string' ? code : codeForStatus(res.status),
   )
+}
+
+const STATUS_CODES: Readonly<Record<number, string>> = {
+  400: 'BAD_REQUEST',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'NOT_FOUND',
+  409: 'CONFLICT',
+  415: 'UNSUPPORTED_MEDIA_TYPE',
+  422: 'UNPROCESSABLE_CONTENT',
+  429: 'TOO_MANY_REQUESTS',
+}
+
+function codeForStatus(status: number): string {
+  return STATUS_CODES[status] ?? 'INTERNAL_SERVER_ERROR'
 }

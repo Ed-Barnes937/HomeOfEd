@@ -1,0 +1,174 @@
+# 0081 - hub's /account: one seam, two protocols, and the refusal a fake could not show
+
+- **Status:** Accepted
+- **Date:** 2026-11-09
+- **Related:** [ADR 0078](0078-family-identity-auth-boundary.md) (the identity
+  boundary these screens must not violate - read it first),
+  [ADR 0079](0079-family-save-authorisation.md) (the save half),
+  [ADR 0080](0080-boop-is-the-first-savestore-client.md) (the first app to read
+  the cookie these screens write), [ADR 0070](0070-family-service.md) (the
+  service), [ADR 0057](0057-family-service-legal-gate.md) (the gate on merging
+  anything user-facing), [ADR 0012](0012-sprout-app-owned-auth.md) (sprout's
+  client-set child cookie, the precedent for setting this one client-side).
+  Implements first-slice ticket 06; the design is
+  [the first-slice spec](../../.scratch/family-first-slice/spec.md) §6.
+
+## Context
+
+Hub owns the account UI for the whole estate, because hub's origin is the only
+one on the family service's identity CORS tier and because no app may ship
+another app's UI. These screens are the first and only user-facing surface in
+the first slice, and the last buildable ticket of it.
+
+Two things made the work more than a form. The service answers to two
+credentials that must not substitute for each other, and the client that talks
+to it is hand-rolled over tRPC's HTTP conventions, because `AppRouter` lives in
+`apps/family` and no app may import it. The save half had already shown what
+that costs: nothing checked `saveClient.ts` against the real router until ticket
+07 ran a round trip, and only then did anyone know the envelope was right. A
+fake honours the *interface* while diverging on the *protocol*.
+
+## Decision
+
+**1. The identity client lives in `@hoe/accounts` and speaks two protocols, with
+zod only over the half whose shapes are ours.** `createFamilyIdentityClient`
+covers `identity.me`, `children.list/add/rename`, `mintSessionToken` and
+`deleteAccount` over tRPC, and Better Auth's `/sign-up/email`, `/sign-in/email`
+and `/sign-out` beside them. The tRPC half has zod schemas here, mirroring the
+router's own, and every reply is parsed through them; the Better Auth half is
+typed as plain interfaces, because inventing a schema for somebody else's wire
+shape asserts a contract we do not own.
+
+One client rather than two, because from a screen's point of view "who is signed
+in" and "sign in" are one subject, and because `FakeFamilyClient` then has one
+surface to fake. What the split does buy is the reminder in the file itself:
+nothing in the client reads or sends a family token, every mutation carries
+`content-type: application/json`, and `deleteAccount` sends `{ confirm: true }`
+([ADR 0078](0078-family-identity-auth-boundary.md) decisions 1 and 5).
+
+**2. The client is a prop on `<App />`, because there is no live dev sign-in.**
+Better Auth runs only in the family service's `main.ts`, so hub's simulator and
+the `.iwft` harness have nothing to sign into. `App({ familyClient })` defaults
+to the real browser-direct client and the harness passes `FakeFamilyClient`,
+which is boop's `saveClient` prop idiom reused rather than reinvented. **No
+dev-only "stamp a parent" shortcut was added**; ticket 04 declined to build one
+and this ticket had no better reason. A real sign-in needs
+`docker compose up family`, and the screens were exercised against exactly that
+(below).
+
+**3. The cookie's attributes belong to the caller, and its lifetime belongs to
+the token.** `writeFamilySession` / `clearFamilySession` join `readFamilySession`
+in `@hoe/accounts`, and hub derives `Domain` and `Secure` from
+`window.location.hostname`: a browser refuses `Domain=.homeofed.com` from
+localhost outright, so dev and the harness get a host-scoped plain cookie and
+production gets the estate-wide secure one the spec fixes. `Max-Age` is computed
+from the token's own `exp` rather than a second thirty-day constant, so the
+cookie and the claims inside it cannot disagree. A token that cannot be decoded,
+or that has already expired, writes **nothing**: a cookie the reader discards is
+worse than no cookie, because the UI would then report a session that is not
+there.
+
+**4. A Better Auth refusal carrying no `code` takes one from the HTTP status.**
+This is the bug the round trip found, and it is the reason the round trip was
+required. Better Auth's own refusals answer `{ message, code }` - `401
+INVALID_EMAIL_OR_PASSWORD`, `PASSWORD_TOO_SHORT`,
+`USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`. But an `APIError` thrown from its
+`hooks.before` middleware - which is exactly how [ADR 0057](0057-family-service-legal-gate.md)'s
+invite gate refuses - answers `403 {"message":"A valid invite code is required to
+register."}` with **no code at all**. The client mapped that to
+`INTERNAL_SERVER_ERROR`, which the screens read as "nothing a person can act
+on", so the one sentence a registering parent needs would have been replaced by
+"The family service is not answering."
+
+Every automated test passed throughout: the fake invented a code the real
+service does not send, so the fake and the client agreed with each other and
+both were wrong. The status is now the fallback, and the fake was corrected to
+the real shapes.
+
+**5. A typed refusal's message goes on the form; a transport failure's does
+not.** `accountErrorMessage` shows a `FamilyClientError`'s own words - "that
+username is already taken" is the whole reason that `CONFLICT` is typed - and
+falls back to one house sentence for `INTERNAL_SERVER_ERROR`, whose message is a
+status code. Nothing on these screens branches on an error code to choose copy,
+so a new typed refusal from the service arrives readable without a code change
+here.
+
+**6. Signing out and erasing write both query caches rather than invalidating
+them.** Invalidating refetches `children` for the tick before the signed-in
+panel unmounts, and the service correctly answers 401 - visible in the browser
+console, and caught only by watching real network traffic. Removing the query
+has the same effect while it is still observed. Writing `{ parent: null }` and
+`[]` unmounts the panel with no request, and also stops one household's names
+being on screen for the next parent who signs in on a shared device.
+
+**7. The register form asks for a name.** The spec and the ticket say email,
+password and invite code, but `/sign-up/email` requires `name` and
+`user.name` is `NOT NULL`, and `identity.me` surfaces it - so the parent's name
+is already the string the picker and the minted parent token display. Deriving
+it from the email's local part would have put "ada" on the screen rather than a
+name somebody chose.
+
+**8. The warm-paper palette is a mixin.** `pages/_paperTokens.scss` holds the
+light and dark custom properties, and `HomePage.module.scss` now includes it.
+The palette stopped being one page's business when `/account` became the second
+screen that has to match it. The paper **texture** stayed on the home page: the
+account screen is a utility surface and does not need the photographic
+treatment, which would otherwise have been twenty-five duplicated lines.
+
+## What the round trip showed
+
+Against `docker compose up family` - the real image, real Postgres, a real
+socket - hub's own `createFamilyIdentityClient` ran the whole flow and every
+reply shape and typed error matched what the client expects: `me` anonymous
+(`{ parent: null }`, a null rather than a refusal), `children.list` anonymous
+(`UNAUTHORIZED`, "parent authentication required"), sign-up refused on a wrong
+invite code, sign-up accepted and auto-signed-in, sign-out, sign-in refused on a
+wrong password (`INVALID_EMAIL_OR_PASSWORD`), sign-in, `children.add`, the
+duplicate username (`CONFLICT`, "that username is already taken", with the first
+profile surviving), `children.list`, `children.rename`, a minted child token and
+a minted parent token - **both decoded by `readFamilySession` with the claims and
+the 30-day expiry the spec specifies** - a rename of an id this parent does not
+own (`NOT_FOUND`), `deleteAccount` with no `confirm` (400, the parser), the same
+as `text/plain` (415, the content-type hook), erasure, and a sign-in after
+erasure that fails. Decision 4 is the one thing it contradicted.
+
+The cross-origin half was then run in a real browser on `http://localhost:3000`
+against the same image started as development, because the production image
+correctly refuses dev origins at the preflight: register, add, the duplicate
+conflict, pick a profile, reload, rename, sign out and erase all worked
+credentialed and cross-origin, Better Auth's `better-auth.session_token` arrived
+httpOnly and host-scoped while `hoe_family_session` arrived readable by script
+with `SameSite=Lax`, `Path=/` and a 30-day expiry, and the pick survived a
+reload. The only non-2xx response left in the trace is the 409 the duplicate
+test asks for.
+
+## Consequences
+
+**The identity router does not `satisfies FamilyIdentityContract`.** The save
+router does, which is what keeps that contract, its client and its fake from
+drifting; binding the identity router the same way means editing `apps/family`,
+and this ticket was scoped out of that app. Until somebody does it, the schemas
+in `@hoe/accounts` are held honest by the round trip above rather than by the
+compiler, and a change to an identity input shape will fail at runtime in a
+browser instead of at build time. **This is the first thing to fix after the
+slice lands**, and it is a one-line change plus whatever it turns red.
+
+**`identity.children.delete` has no UI.** The router has it; the ticket listed
+list, add and rename only. So a parent who mistypes a username cannot remove
+that profile - only rename its display name, since `username` is not editable
+either. Recorded rather than built, because deleting a profile also deletes its
+saves and the confirm copy for that is a product decision.
+
+**Nothing links to `/account` yet.** Entry is boop's "synced as X" chip and the
+URL. A card or a link on hub's home page is a one-line change, but hub's home
+surface is sequenced outside epic branches, so it is not here.
+
+**[ADR 0057](0057-family-service-legal-gate.md) is still Proposed.** Spec §10
+gates merging anything user-facing on it being accepted, and this is the whole
+of the user-facing surface. The work is committed to the epic branch; the merge
+is the human's.
+
+**The register form can meet a rate limit.** Better Auth rate-limits its own
+endpoints in production, and a 429 was seen during probing. It arrives as a
+typed `TOO_MANY_REQUESTS` and its message reaches the form, so it degrades to a
+sentence rather than a crash; no retry or countdown was built.

@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
-import { SERVICE_DOWN } from '../../features/account/accountQueries.ts'
+import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { familySessionCookieOptions } from '../../features/account/familyService.ts'
 
@@ -21,25 +21,21 @@ export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps)
 
   // Signing out drops both credentials: Better Auth's cookie session, and the
   // family token this device was playing with.
-  const signOut = useMutation({
-    mutationFn: () => client.signOut(),
-    onSuccess: async () => {
-      clearSession()
-      await queryClient.invalidateQueries()
-    },
-  })
+  const signOut = useMutation({ mutationFn: () => client.signOut(), onSuccess: nowSignedOut })
 
-  const erase = useMutation({
-    mutationFn: () => client.deleteAccount(),
-    onSuccess: async () => {
-      clearSession()
-      await queryClient.invalidateQueries()
-    },
-  })
+  const erase = useMutation({ mutationFn: () => client.deleteAccount(), onSuccess: nowSignedOut })
 
-  function clearSession(): void {
+  /**
+   * Both caches are written rather than invalidated or removed. Either of those
+   * refetches a query the signed-in panel is still observing for the tick before
+   * it unmounts, which answers 401; and leaving the old list in place would show
+   * one household's names to the next parent who signs in on the device.
+   */
+  function nowSignedOut(): void {
     clearFamilySession(familySessionCookieOptions(window.location.hostname))
     onSessionChange(null)
+    queryClient.setQueryData(familyQueryKeys.children, [])
+    queryClient.setQueryData(familyQueryKeys.me, { parent: null })
   }
 
   return (

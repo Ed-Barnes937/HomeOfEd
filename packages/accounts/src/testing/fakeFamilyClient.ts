@@ -154,13 +154,15 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   signUp(input: SignUpInput): Promise<void> {
     return this.reachable().then(() => {
       if (input.inviteCode !== this.inviteCode) {
-        throw new FamilyClientError(
-          'A valid invite code is required to register.',
-          'A_VALID_INVITE_CODE_IS_REQUIRED_TO_REGISTER',
-        )
+        // The real image answers 403 with a message and no code, which the
+        // client turns into FORBIDDEN (verified over a real socket).
+        throw new FamilyClientError('A valid invite code is required to register.', 'FORBIDDEN')
       }
       if (this.findByEmail(input.email) !== null) {
-        throw new FamilyClientError('User already exists', 'USER_ALREADY_EXISTS')
+        throw new FamilyClientError(
+          'User already exists. Use another email.',
+          'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL',
+        )
       }
       const id = this.mintId()
       this.parents.set(id, {

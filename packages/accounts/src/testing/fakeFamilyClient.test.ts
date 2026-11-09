@@ -155,7 +155,7 @@ describe('FakeFamilyClient (identity contract)', () => {
     const client = withParent()
     await expect(
       client.signUp({ ...CREDENTIALS, inviteCode: INVITE }),
-    ).rejects.toMatchObject({ code: 'USER_ALREADY_EXISTS' })
+    ).rejects.toMatchObject({ code: 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL' })
   })
 
   it('signs in with the right password only, and signs out again', async () => {

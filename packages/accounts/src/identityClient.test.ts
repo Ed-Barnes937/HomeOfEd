@@ -185,24 +185,47 @@ describe('the Better Auth half', () => {
   })
 
   // Better Auth answers with its own envelope, not tRPC's.
-  it('carries a Better Auth refusal through as a FamilyClientError', async () => {
+  it('carries a coded Better Auth refusal through as a FamilyClientError', async () => {
     const { fetchImpl } = fakeFetch(
       () =>
         new Response(
           JSON.stringify({
-            message: 'A valid invite code is required to register.',
-            code: 'A_VALID_INVITE_CODE_IS_REQUIRED_TO_REGISTER',
+            message: 'Invalid email or password',
+            code: 'INVALID_EMAIL_OR_PASSWORD',
           }),
-          { status: 403, headers: { 'content-type': 'application/json' } },
+          { status: 401, headers: { 'content-type': 'application/json' } },
         ),
+    )
+
+    const err = await client(fetchImpl)
+      .signIn({ email: 'a@b.c', password: 'x' })
+      .catch((e: unknown) => e)
+
+    expect(err).toBeInstanceOf(FamilyClientError)
+    expect((err as FamilyClientError).code).toBe('INVALID_EMAIL_OR_PASSWORD')
+    expect((err as FamilyClientError).message).toBe('Invalid email or password')
+  })
+
+  /**
+   * The exact body the real image sends for a wrong invite code: an APIError
+   * raised in Better Auth's before-hook carries no `code`. Falling back to
+   * INTERNAL_SERVER_ERROR here would hide the one sentence that tells a parent
+   * what went wrong, because callers read that code as unactionable.
+   */
+  it('derives a code from the status when a refusal carries only a message', async () => {
+    const { fetchImpl } = fakeFetch(
+      () =>
+        new Response(JSON.stringify({ message: 'A valid invite code is required to register.' }), {
+          status: 403,
+          headers: { 'content-type': 'application/json' },
+        }),
     )
 
     const err = await client(fetchImpl)
       .signUp({ name: 'Ada', email: 'a@b.c', password: 'x', inviteCode: 'wrong' })
       .catch((e: unknown) => e)
 
-    expect(err).toBeInstanceOf(FamilyClientError)
-    expect((err as FamilyClientError).code).toBe('A_VALID_INVITE_CODE_IS_REQUIRED_TO_REGISTER')
+    expect((err as FamilyClientError).code).toBe('FORBIDDEN')
     expect((err as FamilyClientError).message).toBe('A valid invite code is required to register.')
   })
 
