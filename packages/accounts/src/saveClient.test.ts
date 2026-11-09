@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { FamilyClientError, createFamilySaveClient } from './saveClient.ts'
+import { FamilyClientError } from './familyClientError.ts'
+import { createFamilySaveClient } from './saveClient.ts'
 
 type Call = { url: string; init: RequestInit }
 

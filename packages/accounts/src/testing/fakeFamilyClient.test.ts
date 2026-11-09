@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { readFamilySession } from '../readFamilySession.ts'
+
 import { FakeFamilyClient } from './fakeFamilyClient.ts'
 
 const now = () => new Date('2026-01-01T00:00:00Z')
@@ -70,7 +72,7 @@ describe('FakeFamilyClient (save contract)', () => {
       code: 'UNAUTHORIZED',
     })
     client.signInAs({ sub: 'parent-1', role: 'parent', name: 'Ed' })
-    client.signOut()
+    client.clearTokenSession()
     await expect(client.put({ appId: 'boop', slotKey: 'k', blob: 'x' })).rejects.toMatchObject({
       code: 'UNAUTHORIZED',
     })
@@ -95,5 +97,158 @@ describe('FakeFamilyClient (save contract)', () => {
     expect(client.activeSession()).toBeNull()
     client.signInAs({ sub: 'parent-1', role: 'parent', name: 'Ed' })
     expect(client.activeSession()?.sub).toBe('parent-1')
+  })
+})
+
+const INVITE = 'let-me-in'
+
+const CREDENTIALS = { name: 'Ada', email: 'ada@example.com', password: 'correct-horse-battery' }
+
+function withParent(): FakeFamilyClient {
+  return new FakeFamilyClient({ now, inviteCode: INVITE, parents: [CREDENTIALS] })
+}
+
+/**
+ * The fake keeps the two credentials apart exactly as the service does (ADR
+ * 0078/0079): a parent cookie session authorises identity and nothing else, and
+ * a family token authorises saves and nothing else.
+ */
+describe('FakeFamilyClient (identity contract)', () => {
+  it('refuses every identity call with no parent session', async () => {
+    const client = withParent()
+    await expect(client.me()).resolves.toEqual({ parent: null })
+    await expect(client.listChildren()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    await expect(
+      client.addChild({ username: 'robin', displayName: 'Robin' }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    await expect(client.mintSessionToken({})).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    await expect(client.deleteAccount()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  })
+
+  it('a family token is not a parent session', async () => {
+    const client = withParent()
+    client.signInAs({ sub: 'parent-1', role: 'parent', name: 'Ed' })
+    await expect(client.listChildren()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  })
+
+  it('a parent session is not a family token', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    await expect(client.get({ appId: 'boop', slotKey: 'boop:save' })).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    })
+  })
+
+  it('registers behind the invite code and signs the parent straight in', async () => {
+    const client = new FakeFamilyClient({ now, inviteCode: INVITE })
+
+    await expect(
+      client.signUp({ ...CREDENTIALS, inviteCode: 'guessed' }),
+    ).rejects.toMatchObject({ message: 'A valid invite code is required to register.' })
+    await expect(client.me()).resolves.toEqual({ parent: null })
+
+    await client.signUp({ ...CREDENTIALS, inviteCode: INVITE })
+    expect((await client.me()).parent).toMatchObject({ name: 'Ada', email: 'ada@example.com' })
+  })
+
+  it('refuses a second registration of the same email', async () => {
+    const client = withParent()
+    await expect(
+      client.signUp({ ...CREDENTIALS, inviteCode: INVITE }),
+    ).rejects.toMatchObject({ code: 'USER_ALREADY_EXISTS' })
+  })
+
+  it('signs in with the right password only, and signs out again', async () => {
+    const client = withParent()
+
+    await expect(
+      client.signIn({ email: CREDENTIALS.email, password: 'wrong' }),
+    ).rejects.toMatchObject({ code: 'INVALID_EMAIL_OR_PASSWORD' })
+
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    expect((await client.me()).parent?.email).toBe(CREDENTIALS.email)
+
+    await client.signOut()
+    expect((await client.me()).parent).toBeNull()
+  })
+
+  it('adds, lists and renames child profiles', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+
+    const robin = await client.addChild({ username: 'robin', displayName: 'Robin' })
+    await client.addChild({ username: 'wren', displayName: 'Wren' })
+
+    expect((await client.listChildren()).map((c) => c.username)).toEqual(['robin', 'wren'])
+
+    const renamed = await client.renameChild({ id: robin.id, displayName: 'Bobbin' })
+    expect(renamed.displayName).toBe('Bobbin')
+    expect((await client.listChildren())[0]!.displayName).toBe('Bobbin')
+  })
+
+  it('answers a taken username with the typed CONFLICT the service uses', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    await client.addChild({ username: 'robin', displayName: 'Robin' })
+
+    await expect(
+      client.addChild({ username: 'robin', displayName: 'Robin II' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'that username is already taken' })
+  })
+
+  it('refuses to rename a profile this parent does not own', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+
+    await expect(
+      client.renameChild({ id: '11111111-2222-4333-8444-555555555555', displayName: 'Nope' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('mints a decodable token for the parent and for a child', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    const robin = await client.addChild({ username: 'robin', displayName: 'Robin' })
+
+    const parentToken = (await client.mintSessionToken({})).token
+    const childToken = (await client.mintSessionToken({ childId: robin.id })).token
+
+    expect(
+      readFamilySession({ cookie: `hoe_family_session=${parentToken}`, now }),
+    ).toMatchObject({ role: 'parent', name: 'Ada' })
+    expect(readFamilySession({ cookie: `hoe_family_session=${childToken}`, now })).toMatchObject({
+      sub: robin.id,
+      role: 'child',
+      name: 'Robin',
+    })
+  })
+
+  it('erasing takes the profiles and every save row with it', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    const robin = await client.addChild({ username: 'robin', displayName: 'Robin' })
+
+    client.signInAs({ sub: robin.id, role: 'child', parentId: 'p', name: 'Robin' })
+    await client.put({ appId: 'boop', slotKey: 'boop:save', blob: 'x' })
+
+    await client.deleteAccount()
+
+    expect((await client.me()).parent).toBeNull()
+    expect(await client.get({ appId: 'boop', slotKey: 'boop:save' })).toBeNull()
+    await expect(
+      client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password }),
+    ).rejects.toMatchObject({ code: 'INVALID_EMAIL_OR_PASSWORD' })
+  })
+
+  it('failWith reaches the identity half too', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+
+    client.failWith(new Error('the family service is unreachable'))
+    await expect(client.listChildren()).rejects.toThrow('the family service is unreachable')
+    await expect(client.me()).rejects.toThrow('the family service is unreachable')
+
+    client.failWith(null)
+    await expect(client.listChildren()).resolves.toEqual([])
   })
 })

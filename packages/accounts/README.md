@@ -11,8 +11,10 @@ Four entry points keep node-only code out of browser bundles:
 
 - **`@hoe/accounts`** (browser-safe): claim types, `FAMILY_SESSION_COOKIE`,
   the save-router zod schemas + `FamilySaveContract`, `createFamilySaveClient`
-  (the typed browser client), `FamilyClientError`, and `readFamilySession`
-  (decode-only claims read for display).
+  (the typed browser client), the identity-router schemas +
+  `FamilyIdentityContract` + `createFamilyIdentityClient`,
+  `FamilyClientError`, `readFamilySession` (decode-only claims read for
+  display) and its write half, `writeFamilySession` / `clearFamilySession`.
 - **`@hoe/accounts/server`** (node): `mintFamilyToken` / `verifyFamilyToken`
   (Ed25519 via `node:crypto`) and `familyAuthProvider` - the AuthProvider any
   app drops into its `createContext({ auth })` seam.
@@ -40,6 +42,14 @@ not httpOnly - set client-side by hub after the mint call). `readFamilySession`
 reads it decode-only for display; tampering can only forge pixels, because
 every server use re-verifies through `verifyFamilyToken`.
 
+`writeFamilySession(token, { domain, secure })` is the write half hub uses, and
+`clearFamilySession` the sign-out half. The cookie's `Max-Age` comes from the
+token's own `exp` rather than a second constant, and a token that cannot be
+decoded, or has already expired, writes **nothing**: a cookie the reader would
+discard is worse than none, because the UI would report a session that is not
+there. `domain` and `secure` are the caller's, because neither can be set on a
+local hostname - hub derives them from `window.location.hostname`.
+
 ## The save contract
 
 Opaque, versioned blobs keyed `(appId, accountId, slotKey)`; `accountId` is
@@ -58,6 +68,37 @@ The family app's save handler is expected to `satisfies FamilySaveContract`
 (checked in `apps/family`, ticket 02), so the contract, the real client, and
 the fake can never drift apart silently.
 
+## The identity contract
+
+The identity router's half of the same deal, for hub's `/account` screens
+alone. `createFamilyIdentityClient({ baseUrl })` covers `identity.me`,
+`children.list/add/rename`, `mintSessionToken` and `deleteAccount` over tRPC,
+plus Better Auth's own `/api/auth/sign-up/email`, `/sign-in/email` and
+`/sign-out`. The split matters: the tRPC half has zod schemas here because
+their shapes are ours, while the Better Auth half is typed as plain interfaces
+because those shapes are Better Auth's.
+
+Three properties are load-bearing, all from
+[ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md):
+
+- **Every call is authorised by the Better Auth cookie session, never by the
+  family token.** Nothing in `identityClient.ts` reads or sends a token, and
+  widening that would let any script on any estate subdomain erase a household.
+- **`deleteAccount` sends `{ confirm: true }`.** The procedure has an input
+  parser precisely so that tRPC reads the body; erasure fails without it.
+- **Every mutation carries `content-type: application/json`**, which is what
+  forces the preflight the CORS allowlist then governs (decision 5).
+
+A taken child username arrives as a typed `CONFLICT` carrying "that username is
+already taken", which hub shows inline on the form.
+
+Unlike the save router, the family app's identity router does **not** yet
+`satisfies FamilyIdentityContract` - binding it would mean editing `apps/family`,
+which ticket 06 was scoped out of - so for now the schemas here are kept honest
+by a round trip against the real service rather than by the compiler. See the
+open question in
+[ADR 0081](../../docs/adr/0081-hub-account-ui.md).
+
 ## Testing
 
 `pnpm --filter @hoe/accounts run test` - vitest unit tests: token round-trip /
@@ -67,12 +108,17 @@ contract behaviour (LWW versioning, per-account scoping, UNAUTHORIZED when
 signed out, `failWith` offline degradation).
 
 Consumers inject `FakeFamilyClient` wherever prod wires
-`createFamilySaveClient` (fakes over mocks, hard rule 5); `signInAs` /
-`signOut` / `failWith` drive the identity and failure modes.
+`createFamilySaveClient` or `createFamilyIdentityClient` (fakes over mocks,
+hard rule 5). It implements **both** contracts, and keeps their credentials as
+separate as the service does: `signInAs` / `clearTokenSession` drive the family
+token, which authorises saves alone, and `signUp` / `signIn` / `signOut` drive
+the parent cookie session, which authorises identity alone. Tests pin that
+neither stands in for the other, so a harness that confuses them fails here
+rather than in production. `failWith` makes both halves reject, as an outage
+would. The tokens it mints are decodable by `readFamilySession` (same
+`base64url(JSON).signature` shape, placeholder signature) so a cookie written
+in a browser harness reads back.
 
-Two deliberate limits of the fake: it does not enforce the spec §4.6 server
+One deliberate limit of the fake: it does not enforce the spec §4.6 server
 guards (appId allowlist, slot/account quotas) - those are family-handler
-config, proven by the handler tests in `apps/family` - and its identity
-surface is session switching only; the identity-router flows (register,
-children CRUD, mint) grow here when the hub account UI needs them
-(ticket 06).
+config, proven by the handler tests in `apps/family`.

@@ -17,16 +17,7 @@ import {
   saveListOutput,
   savePutOutput,
 } from './saveContract.ts'
-
-export class FamilyClientError extends Error {
-  readonly code: string
-
-  constructor(message: string, code: string) {
-    super(message)
-    this.name = 'FamilyClientError'
-    this.code = code
-  }
-}
+import { unwrapTrpcResponse } from './trpcEnvelope.ts'
 
 export interface CreateFamilySaveClientOpts {
   /** The family service origin, e.g. `https://family.homeofed.com`. */
@@ -42,11 +33,11 @@ export function createFamilySaveClient(opts: CreateFamilySaveClientOpts): Family
     const url = `${base}/api/trpc/save.${procedure}?input=${encodeURIComponent(
       JSON.stringify(input),
     )}`
-    return unwrap(await fetchImpl(url, { credentials: 'include' }))
+    return unwrapTrpcResponse(await fetchImpl(url, { credentials: 'include' }))
   }
 
   async function mutate(procedure: string, input: unknown): Promise<unknown> {
-    return unwrap(
+    return unwrapTrpcResponse(
       await fetchImpl(`${base}/api/trpc/save.${procedure}`, {
         method: 'POST',
         credentials: 'include',
@@ -70,34 +61,4 @@ export function createFamilySaveClient(opts: CreateFamilySaveClientOpts): Family
       return saveDeleteOutput.parse(await mutate('delete', input))
     },
   }
-}
-
-async function unwrap(res: Response): Promise<unknown> {
-  let body: unknown = null
-  try {
-    body = await res.json()
-  } catch {
-    body = null
-  }
-
-  if (typeof body === 'object' && body !== null && 'error' in body) {
-    const error = body.error
-    const { message, data } =
-      typeof error === 'object' && error !== null
-        ? (error as { message?: unknown; data?: { code?: unknown } })
-        : {}
-    throw new FamilyClientError(
-      typeof message === 'string' ? message : `family service request failed (${res.status})`,
-      typeof data?.code === 'string' ? data.code : 'INTERNAL_SERVER_ERROR',
-    )
-  }
-
-  if (!res.ok || typeof body !== 'object' || body === null || !('result' in body)) {
-    throw new FamilyClientError(
-      `family service request failed (${res.status})`,
-      'INTERNAL_SERVER_ERROR',
-    )
-  }
-
-  return (body as { result: { data?: unknown } }).result.data
 }
