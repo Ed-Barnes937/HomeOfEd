@@ -121,3 +121,83 @@ null on missing.
   **Open question for Ed** is in the hand-back: whether the save tier should
   also list hub's dev origin pair for a future hub "what's synced" panel, or
   stay as it is.
+
+- 2026-11-09: **review fixes applied**, commits `b8b552c`, `e60917d`, `81feec5`.
+  The high-severity finding is ticket 04's, not this ticket's, but it is closed
+  here because it is one boundary across both routers.
+
+  **The hole, reproduced before it was fixed.** CORS response headers govern
+  what a browser may **read**, never what it may **send**. A CORS-simple request
+  - `multipart/form-data`, `application/x-www-form-urlencoded` or `text/plain` -
+  carries no preflight at all, so the allowlist is never consulted; the mutation
+  commits and the attacker discards the reply it may not read. Against the real
+  image, a `multipart/form-data` POST to `identity.deleteAccount` from
+  `https://boop.homeofed.com`, carrying nothing but the victim's cookie,
+  returned **`200 OK` and took the household from 1 user to 0**, indifferent to
+  the Origin header. It was reachable because that was the service's only
+  mutation with no `.input()`, and a procedure without an input parser never
+  reads the request body, so tRPC's lazily-read multipart body was never
+  touched. `text/plain`, urlencoded and a missing content-type were already
+  refused 415 by Fastify's own parser, so multipart was the single live vector.
+
+  **`app.inject` hid it.** Inject builds a synthetic `Request` whose body the
+  multipart path cannot read, and reports `500 Converting circular structure to
+  JSON` with the household intact - a green-looking refusal where the live
+  server erases the data. `csrf.test.ts` therefore binds a real port and uses
+  real `fetch`. That is the second time in this epic inject has misrepresented
+  the pipeline (ticket 04's reviewer hit it on duplicate headers).
+
+  **The fix is the boundary, not the instance.** A Fastify hook refuses any
+  non-GET `/api/trpc` request whose content type does not begin
+  `application/json` - a type no safelisted value satisfies, so a browser is
+  forced into the preflight the allowlist then governs. `deleteAccount` also
+  took an input schema (`{ confirm: true }`), which makes tRPC read the body,
+  but that is defence in depth: the next input-less mutation would reopen the
+  same door and only the hook closes it for all of them. **Note for ticket 06:
+  hub's account UI must send `{ confirm: true }` to erase a household.**
+
+  **`/api/auth/*` was already covered, and is now stated.** Better Auth's origin
+  check is global over every non-GET route, not per-route, and refuses a missing
+  origin as well as an untrusted one whenever the request carries a cookie -
+  verified in the image across `sign-out`, `update-user`, `change-password`,
+  `delete-user` and `change-email`. But it is **off by default under
+  `NODE_ENV=test`** (`skipOriginCheck: ... : isTest() ? true : false`), so no
+  vitest test could see it. `betterAuth.ts` now sets
+  `advanced.disableOriginCheck: false` explicitly, which deliberately turned
+  ADR 0057's whole-option-set assertion red; that list now carries `advanced`
+  and says why.
+
+  **The four smaller fixes.**
+  1. `slotKey` is bounded at 128 characters in the contract, and
+     `MAX_ACCOUNT_SLOTS = 64` caps rows per account - refusing only a **new**
+     slot, so a full account can still rewrite what it holds. `saveUsage` now
+     returns `accountSlots` and `slotExists` for it. Demonstrated in the image:
+     64 rows holding **1 byte** between them, the 65th refused by name. The
+     btree caveat is moot behind the 128 bound - a 129-character key is a clean
+     400 from zod, not a 500 from the primary key.
+  2. `maxBatchSize` is now an optional `createAppServer` opt (defaulting to
+     tRPC's own unlimited, so no other app changes) and family sets 10. Verified
+     in the image: 10 procedures pass, 11 are refused, and so is the
+     percent-encoded form. **Correction to the finding's magnitude**: the fan-out
+     was never ~1000, because Fastify's 100-character `maxParamLength` default
+     caps a batch near eleven today. That is a framework accident, not a stated
+     limit, which is why the cap is still worth having.
+  3. The `saveUsage` test gap is closed: a row with the **same** `slotKey` under
+     a different `appId` now pins the `appId` half of the slot filter, plus an
+     empty slot that only the row count notices.
+  4. ADR 0079 no longer implies the tier split protects the token surface. It
+     cannot: the token is deliberately JS-readable on every estate origin, so an
+     XSS anywhere exfiltrates it and a non-browser client then uses it from
+     anywhere; the real controls are the signature and the TTL (ADR 0057 item
+     5). The tier exists so the wider list cannot become a door to the
+     cookie-authorised router.
+
+  **Recorded in the ADRs.** The read-versus-send misconception is ADR 0078
+  **decision 5**, because it spans both routers, with ADR 0079 cross-referencing
+  it; the new caps and the batch cap are in ADR 0079. The scoped `CLAUDE.md`
+  carries both invariants: do not remove the hook, and do not add an input-less
+  mutation.
+
+  **Verify**: family 202 vitest + 3 iwft, `@hoe/accounts` 33, `@hoe/backend-kit`
+  33, lint and typecheck green for all three; hub and boop typecheck green as a
+  smoke over the additive backend-kit opt.
