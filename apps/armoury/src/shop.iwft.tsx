@@ -51,6 +51,26 @@ test('trimmings offer a metal and a paint only once something uses them', async 
   await root.verifyControls({ shown: ['Spiral made of'] })
 })
 
+test("gems glow in the core's colour, and the close look casts with them lit", async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyControls({
+    shown: ['Gems', 'Gem on the tip', 'Gem on the end', 'Tip', 'End'],
+    hidden: ['How many gems', 'Gem size'],
+  })
+  await root.chooseIn('Gems', 'Up the shaft')
+  await root.verifyControls({ shown: ['How many gems', 'Gem size'] })
+  await root.verifyGroupSummary('The trimmings', 'Gems')
+  await root.chooseIn('Gem on the tip', 'Crystal')
+  await root.chooseIn('Gem on the end', 'Orb')
+  await root.verifyControls({ hidden: ['Tip', 'End'] })
+  await root.verifyStage({ gems: 7 })
+  const closeUp = await root.pickUpWand()
+  await closeUp.verifySpellsCast(1)
+  await closeUp.verifyGemsLit(7)
+})
+
 test('tapping the wand lifts it out to turn and wave, then it goes back', async ({ mountApp }) => {
   const { root } = await mountApp()
   const closeUp = await root.pickUpWand()

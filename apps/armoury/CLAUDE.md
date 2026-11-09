@@ -22,7 +22,8 @@ src/
   wand/               the generator, pure and three.js-free
     wandSchema.ts     the wand's params, ranges, kid-facing labels, coupling
     compile.ts        params -> WandSpec (profile + groove sets + stain)
-    geometry.ts       WandSpec -> radius field -> closed mesh arrays
+    geometry.ts       WandSpec -> radius field -> closed mesh arrays, gem poses
+    gems.ts           where set gems go, in straight (angle, z) space
     presets.ts        hand-tuned starting wands; [0] is the first-visit wand
     describe.ts       name, shop number, tag line and lore - all derived
   workbench/          the wand on the counter: a pure reducer (set, try

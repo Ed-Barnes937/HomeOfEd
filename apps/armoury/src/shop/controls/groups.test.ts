@@ -19,8 +19,10 @@ const decorSummary = (params: Record<string, unknown>) =>
   GROUPS.find((g) => g.key === 'decor')!.summary(normalise(wandSchema, params))
 
 describe('the trimmings summary', () => {
-  it('names the metal, else the paint or bone, else says there are none', () => {
+  it('names the metal, else the paint or bone, else the gems, else says there are none', () => {
     expect(decorSummary({})).toBe('None')
+    expect(decorSummary({ tipGem: 'crystal' })).toBe('Gems')
+    expect(decorSummary({ gems: 'ring', bands: 'one', metal: 'gold' })).toBe('Gold')
     expect(decorSummary({ bands: 'two', metal: 'brass', shaftFinish: 'paint' })).toBe('Brass')
     expect(decorSummary({ shaftFinish: 'paint', paintColour: 'poppy' })).toBe('Poppy')
     expect(decorSummary({ handleFinish: 'bone' })).toBe('Bone')

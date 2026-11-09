@@ -3,8 +3,9 @@ import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 
 import { glowMaterial } from './glow.ts'
+import { SPELL_SECONDS } from './stage.ts'
 
-const DURATION = 1.6
+const DURATION = SPELL_SECONDS
 
 // Each spark flies out of the tip on its own velocity, slows, drifts down a
 // little and fades. `uAge` is seconds since the cast; past DURATION nothing draws.
@@ -93,5 +94,3 @@ export function SpellBurst({
 
   return <points geometry={geometry} material={material} frustumCulled={false} />
 }
-
-export const SPELL_SECONDS = DURATION

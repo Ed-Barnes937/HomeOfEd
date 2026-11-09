@@ -27,6 +27,8 @@ export const usesMetal = (p: Params) =>
   p.bands !== 'none' ||
   (shaftRaisedSpiral(p) && p.ridgeFinish === 'metal')
 export const usesPaint = (p: Params) => p.handleFinish === 'paint' || p.shaftFinish === 'paint'
+const hasSetGems = (p: Params) => p.gems !== 'none'
+export const hasGems = (p: Params) => hasSetGems(p) || p.tipGem !== 'none' || p.endGem !== 'none'
 
 export const wandSchema: ItemSchema = {
   itemType: 'wand',
@@ -78,6 +80,7 @@ export const wandSchema: ItemSchema = {
       label: 'Tip',
       group: 'shape',
       default: 'rounded',
+      visible: (p) => p.tipGem !== 'crystal',
       options: [
         { value: 'rounded', label: 'Round' },
         { value: 'flat', label: 'Flat' },
@@ -142,6 +145,7 @@ export const wandSchema: ItemSchema = {
       label: 'End',
       group: 'handle',
       default: 'knob',
+      visible: (p) => p.endGem !== 'orb',
       options: [
         { value: 'knob', label: 'Knob' },
         { value: 'flare', label: 'Flared' },
@@ -451,6 +455,64 @@ export const wandSchema: ItemSchema = {
       options: [
         { value: 'wood', label: 'Wood', weight: 5 },
         { value: 'metal', label: 'Metal' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'gems',
+      label: 'Gems',
+      group: 'decor',
+      default: 'none',
+      options: [
+        { value: 'none', label: 'No gems', weight: 40 },
+        { value: 'ring', label: 'Round the handle' },
+        { value: 'line', label: 'Up the shaft' },
+        { value: 'spiral', label: 'Winding up' },
+      ],
+    },
+    {
+      kind: 'number',
+      key: 'gemCount',
+      label: 'How many gems',
+      group: 'decor',
+      min: 3,
+      max: 9,
+      step: 1,
+      default: 5,
+      visible: hasSetGems,
+    },
+    {
+      kind: 'number',
+      key: 'gemSize',
+      label: 'Gem size',
+      group: 'decor',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.5,
+      ends: ['Small', 'Big'],
+      visible: hasSetGems,
+    },
+    {
+      kind: 'choice',
+      key: 'tipGem',
+      label: 'Gem on the tip',
+      group: 'decor',
+      default: 'none',
+      options: [
+        { value: 'none', label: 'None', weight: 50 },
+        { value: 'crystal', label: 'Crystal' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'endGem',
+      label: 'Gem on the end',
+      group: 'decor',
+      default: 'none',
+      options: [
+        { value: 'none', label: 'None', weight: 50 },
+        { value: 'orb', label: 'Orb' },
       ],
     },
     {

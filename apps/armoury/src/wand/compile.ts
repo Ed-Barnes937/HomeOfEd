@@ -1,5 +1,6 @@
 import type { Params } from '../engine/schema.ts'
-import { swatchFor } from './wandSchema.ts'
+import { placeGems, type GemPattern, type SetGem } from './gems.ts'
+import { swatchFor, usesMetal } from './wandSchema.ts'
 
 // Compiles kid-level choices into a geometric spec: a radial profile along the
 // wand, plus a list of groove sets carved out of it. All lengths are mm, and z
@@ -44,8 +45,23 @@ export interface Zone {
   uncarved?: boolean
 }
 
+/** A pointed hexagonal crystal that is the last stretch of the wand, from `from` to the tip. */
+export interface Crystal {
+  from: number
+  radius: number
+}
+
+/** A round stone that is the pommel, touching z = 0. */
+export interface Orb {
+  centre: number
+  radius: number
+}
+
 export interface WandSpec {
   lengthMm: number
+  /** Where the turned body starts and ends; end gems fill the rest of the length. */
+  bodyFrom: number
+  bodyTo: number
   handleMm: number
   handleMaxR: number
   shaftBaseR: number
@@ -61,6 +77,11 @@ export interface WandSpec {
   paint: [number, number, number]
   /** Colour of the spell cast from the tip, decided by the core. */
   spell: string
+  gems: SetGem[]
+  crystal: Crystal | null
+  orb: Orb | null
+  /** Gem settings (rims, the crystal's cup) are the wand's metal when it has any. */
+  metalSettings: boolean
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
@@ -109,6 +130,8 @@ interface HandleStyle {
   depth: number
   /** Where a metal end cap stops, as a fraction of the handle. */
   cap: number
+  /** Where a ring of gems goes round the handle, as a fraction of it. */
+  belt: number
 }
 
 // Handle styles are data: new styles cost a table entry, not code.
@@ -126,6 +149,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     carve: [0.12, 0.86],
     depth: 0.1,
     cap: 0.1,
+    belt: 0.5,
   },
   ringed: {
     ratio: 0.28,
@@ -144,6 +168,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     carve: [0.18, 0.82],
     depth: 0.12,
     cap: 0.16,
+    belt: 0.5,
   },
   spiral: {
     ratio: 0.32,
@@ -160,6 +185,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     carve: [0.24, 0.96],
     depth: 0.14,
     cap: 0.15,
+    belt: 0.6,
   },
   gemcut: {
     ratio: 0.33,
@@ -176,6 +202,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     carve: [0.22, 0.96],
     depth: 0.12,
     cap: 0.07,
+    belt: 0.6,
   },
 }
 
@@ -206,6 +233,9 @@ export const COLLARS: Record<
 const BAND_COUNTS: Record<string, number> = { none: 0, one: 1, two: 2, three: 3 }
 const BAND_HALF_WIDTH = 1.5
 const BAND_HEIGHT = 0.45
+/** How far the crystal's base sinks into its cup, mm. */
+const CRYSTAL_SEAT = 2
+const CUP_LENGTH = 7
 
 /** Cosine bump: 1 at the centre c, easing to 0 at half-width w either side. */
 const swell = (z: number, c: number, w: number) => {
@@ -243,10 +273,18 @@ export function compileWand(p: Params): WandSpec {
   const ballR = handleMaxR * 0.95
   const tipShape = p.tipShape as string
 
+  // End gems replace the ends of the turned body rather than adding to the length.
+  const crystalR = Math.max(tipR, 0.75 * shaftBaseR)
+  const crystal: Crystal | null =
+    p.tipGem === 'crystal' ? { from: L - 5 * crystalR, radius: crystalR } : null
+  const orb: Orb | null = p.endGem === 'orb' ? { centre: ballR, radius: ballR } : null
+  const bodyFrom = orb ? 1.65 * orb.radius : 0
+  const bodyTo = crystal ? crystal.from + CRYSTAL_SEAT : L
+
   const nodes = p.nodes as string
   const nodeCount = p.nodeCount as number
   const nodeStart = collarEnd + 6
-  const nodeEnd = L * 0.86
+  const nodeEnd = bodyTo * 0.86
   const nodeSpacing = (nodeEnd - nodeStart) / nodeCount
   const nodeHeight = lerp(0.12, 0.35, p.nodeSize as number)
   const knobWidth = clamp(0.3 * nodeSpacing, 3, 9)
@@ -260,30 +298,39 @@ export function compileWand(p: Params): WandSpec {
     return h * (0.65 * swell(z, c, 1.6) + 0.35 * swell(z, c, 6))
   }
 
+  const nodeCentres =
+    nodes === 'none'
+      ? []
+      : Array.from({ length: nodeCount }, (_, i) => nodeStart + (i + 0.5) * nodeSpacing)
+
   // Bands go in the gaps between bumps (there are nodeCount + 1), or else spread up the lower shaft.
   const bandCount = BAND_COUNTS[p.bands as string] ?? 0
   const bandCentres = Array.from(
     { length: nodes === 'none' ? bandCount : Math.min(bandCount, nodeCount + 1) },
     (_, k) =>
       nodes === 'none'
-        ? collarEnd + (L - collarEnd) * (0.1 + 0.2 * k)
+        ? collarEnd + (bodyTo - collarEnd) * (0.1 + 0.2 * k)
         : nodeStart + k * nodeSpacing,
   )
 
   const profile = (z: number): number => {
-    if (z <= 0 || z >= L) return 0
+    if (z <= bodyFrom || z >= bodyTo) return 0
     let r: number
     if (z < H) {
       const t = z / H
       r = curve(style.body, t) * handleMaxR
       for (const b of style.beads) r += bead(z, b.t * H, b.w, b.h * handleMaxR)
-      if (endShape === 'flare') r *= 1 + 0.18 * (1 - smoothstep(0, 0.12 * H, z))
-      if (endShape === 'ball') {
+      if (orb) {
+        // A socket the orb sits in, with a lip round it.
+        r += bead(z, bodyFrom + 1.6, 1.6, 0.08 * handleMaxR)
+        r *= cap(z - bodyFrom, 1.4, 4)
+      } else if (endShape === 'ball') {
         // A ball, then a narrow neck before the body resumes.
         const neck = 1 - 0.3 * (1 - smoothstep(2 * ballR, 2 * ballR + 6, z))
         const sphere = z < 2 * ballR ? Math.sqrt(Math.max(0, ballR * ballR - (z - ballR) ** 2)) : 0
         r = z < ballR ? sphere : Math.max(sphere, r * neck)
       } else {
+        if (endShape === 'flare') r *= 1 + 0.18 * (1 - smoothstep(0, 0.12 * H, z))
         const capLen = endShape === 'knob' ? r * 0.9 : endShape === 'flare' ? 2.2 : 1.4
         r *= cap(z, capLen, endShape === 'knob' ? 2 : 4)
       }
@@ -292,12 +339,16 @@ export function compileWand(p: Params): WandSpec {
       r = lerp(handleEndR, shaftBaseR, (1 - Math.cos(Math.PI * t)) / 2)
       for (const b of collar.beads) r += bead(z, H + b.t * collar.length, b.w, b.h)
     } else {
-      const u = (z - collarEnd) / (L - collarEnd)
+      const u = (z - collarEnd) / (bodyTo - collarEnd)
       const x = clamp((u - taperHold) / (1 - taperHold), 0, 1)
       r = lerp(tipR, shaftBaseR, (1 + Math.cos(Math.PI * x)) / 2) * (1 + nodeSwell(z))
       for (const c of bandCentres) r += bead(z, c, BAND_HALF_WIDTH, BAND_HEIGHT)
-      const d = L - z
-      if (tipShape === 'flat') r *= cap(d, 1.2, 4)
+      const d = bodyTo - z
+      if (crystal) {
+        // A cup a little wider than the crystal, which stands in it.
+        const cup = crystal.radius * 1.12 * smoothstep(CUP_LENGTH, CUP_LENGTH - 3, d)
+        r = Math.max(r, cup) * cap(d, 1.2, 4)
+      } else if (tipShape === 'flat') r *= cap(d, 1.2, 4)
       else if (tipShape === 'domed') r *= cap(d, tipR * 1.5, 2)
       else r *= cap(d, tipR * 0.7, 2)
     }
@@ -310,7 +361,7 @@ export function compileWand(p: Params): WandSpec {
   const handleCarving = p.handleCarving as string
 
   if (handleCarving !== 'none') {
-    const from = style.carve[0] * H
+    const from = Math.max(style.carve[0] * H, bodyFrom + 3)
     const to = style.carve[1] * H
     const len = to - from
     const fade = Math.min(4, 0.15 * len)
@@ -344,10 +395,10 @@ export function compileWand(p: Params): WandSpec {
   }
 
   if (shaftCarving !== 'none') {
-    const shaftLen = L - collarEnd
+    const shaftLen = bodyTo - collarEnd
     const from = collarEnd
     // Carving fades out fully before the last 8% of the wand.
-    const to = Math.min(collarEnd + shaftReach * shaftLen, L * 0.92)
+    const to = Math.min(collarEnd + shaftReach * shaftLen, bodyTo * 0.92)
     const len = to - from
     const tw = p.twistiness as number
     const pitch =
@@ -427,13 +478,48 @@ export function compileWand(p: Params): WandSpec {
     })
   }
   if (p.endCap === 'metal') {
-    const capEnd = endShape === 'ball' ? 2 * ballR + 1 : style.cap * H
+    const capEnd = orb ? bodyFrom + 3.2 : endShape === 'ball' ? 2 * ballR + 1 : style.cap * H
     zones.push({ material: 'metal', from: 0, to: capEnd })
   }
+  const metalSettings = usesMetal(p)
+  if (crystal && metalSettings)
+    zones.push({ material: 'metal', from: bodyTo - CUP_LENGTH, to: bodyTo })
+
+  const shaftSet = grooves.find((g) => g.from >= collarEnd && g.twist !== 0)
+  const gemSize = lerp(1.2, 2.4, p.gemSize as number)
+  const gems =
+    p.gems === 'none'
+      ? []
+      : placeGems({
+          pattern: p.gems as GemPattern,
+          count: p.gemCount as number,
+          size: gemSize,
+          belt: style.belt * H,
+          shaft: [collarEnd + 4, collarEnd + 0.62 * (bodyTo - collarEnd)],
+          avoid: [
+            ...bandCentres.map((c): [number, number] => [c - BAND_HALF_WIDTH, c + BAND_HALF_WIDTH]),
+            ...nodeCentres.map((c): [number, number] => {
+              const w = nodes === 'knobs' ? 0.5 * knobWidth : 2
+              return [c - w, c + w]
+            }),
+          ],
+          spiral: shaftSet
+            ? {
+                twist: shaftSet.twist,
+                from: shaftSet.from,
+                // Between round grooves, or in the middle of a flat face.
+                offset: shaftSet.shape === 'round' ? Math.PI / shaftSet.count : 0,
+              }
+            : null,
+          twist: (p.twistDir === 'left' ? -1 : 1) / 80,
+          radius: profile,
+        })
 
   const stainHex = swatchFor('stainColour', p.stainColour as string)
   return {
     lengthMm: L,
+    bodyFrom,
+    bodyTo,
     handleMm: H,
     handleMaxR,
     shaftBaseR,
@@ -451,5 +537,9 @@ export function compileWand(p: Params): WandSpec {
     metal: p.metal as string,
     paint: srgbToLinear(swatchFor('paintColour', p.paintColour as string) ?? '#888888'),
     spell: swatchFor('core', p.core as string) ?? '#ffffff',
+    gems,
+    crystal,
+    orb,
+    metalSettings,
   }
 }

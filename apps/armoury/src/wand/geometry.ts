@@ -1,4 +1,5 @@
 import type { GrooveSet, Material, WandSpec } from './compile.ts'
+import { RIM_WIDTH } from './gems.ts'
 
 // The wand surface is a radius field r(angle, z) sampled on a cylinder grid.
 // Pure functions, no three.js, so they're easy to test.
@@ -10,26 +11,56 @@ const smoothstep = (a: number, b: number, x: number) => {
   return t * t * (3 - 2 * t)
 }
 
+const RIM_HEIGHT = 0.35
+/** Carving comes back over this much wood past a gem's rim, mm. */
+const SETTING_FADE = 1.2
+
+/** Angle a minus angle b, wrapped into [-pi, pi). */
+const angleBetween = (a: number, b: number) => ((((a - b + Math.PI) % TAU) + TAU) % TAU) - Math.PI
+
+/** How a gem's seat and rim move the surface, how much carving survives there, and how much is metal. */
+function settingsAt(spec: WandSpec, theta: number, z: number, r0: number) {
+  let offset = 0
+  let carving = 1
+  let metal = 0
+  for (const gem of spec.gems) {
+    const outer = gem.radius + RIM_WIDTH
+    const dz = z - gem.z
+    if (Math.abs(dz) >= outer + SETTING_FADE) continue
+    const d = Math.hypot(r0 * angleBetween(theta, gem.theta), dz)
+    carving = Math.min(carving, smoothstep(outer, outer + SETTING_FADE, d))
+    if (d < gem.radius) {
+      offset = -0.3 * gem.radius * Math.sqrt(1 - (d / gem.radius) ** 2)
+      if (spec.metalSettings) metal = 1
+    } else if (d < outer) {
+      offset = RIM_HEIGHT * Math.sin((Math.PI * (d - gem.radius)) / RIM_WIDTH)
+      if (spec.metalSettings) metal = 1
+    }
+  }
+  return { offset, carving, metal }
+}
+
 function strengthAt(g: GrooveSet, z: number): number {
   if (z <= g.from || z >= g.to) return 0
   return smoothstep(g.from, g.from + g.fadeIn, z) * (1 - smoothstep(g.to - g.fadeOut, g.to, z))
 }
 
-/** Final radius, the uncarved profile radius, and how much of the surface is a metal ridge, at (angle, z). */
+/** Final radius, the uncarved profile radius, and how much of the surface is a metal ridge or gem setting, at (angle, z). */
 export function radiusAt(
   spec: WandSpec,
   theta: number,
   z: number,
-): { r: number; r0: number; ridgeMetal: number } {
+): { r: number; r0: number; metal: number } {
   const r0 = spec.profile(z)
-  if (r0 <= 0) return { r: 0, r0: 0, ridgeMetal: 0 }
+  if (r0 <= 0) return { r: 0, r0: 0, metal: 0 }
+  const settings = settingsAt(spec, theta, z, r0)
   let ridgeMetal = 0
   // The deepest cut and the tallest ridge, so overlapping sets combine in any order.
   let cut = r0
   let raised = r0
   const uncarved = spec.zones.some((zone) => zone.uncarved && z >= zone.from && z <= zone.to)
   for (const g of uncarved ? [] : spec.grooves) {
-    const f = strengthAt(g, z)
+    const f = strengthAt(g, z) * settings.carving
     if (f <= 0) continue
     const spacing = TAU / g.count
     const phase = theta - TAU * g.twist * (z - g.from)
@@ -49,7 +80,11 @@ export function radiusAt(
         ridgeMetal = Math.max(ridgeMetal, (1 - smoothstep(0.82, 0.97, x)) * smoothstep(0, 0.3, f))
     }
   }
-  return { r: cut + raised - r0, r0, ridgeMetal }
+  return {
+    r: cut + raised - r0 + settings.offset,
+    r0,
+    metal: Math.max(ridgeMetal, settings.metal),
+  }
 }
 
 const MATERIAL_CHANNEL: Record<Material, number> = { metal: 0, paint: 1, bone: 2 }
@@ -91,7 +126,8 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   const step = opts.stepMm ?? 0.5
   const textureMm = opts.textureMm ?? 110
   const L = spec.lengthMm
-  const rings = Math.ceil(L / step)
+  const { bodyFrom, bodyTo } = spec
+  const rings = Math.ceil((bodyTo - bodyFrom) / step)
   const cols = segments + 1 // duplicate seam column for UVs
   const count = (rings + 1) * cols
 
@@ -109,12 +145,12 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   const across = (Math.PI * spec.handleMaxR * 0.8) / textureMm
 
   for (let j = 0; j <= rings; j++) {
-    const z = (L * j) / rings
+    const z = bodyFrom + ((bodyTo - bodyFrom) * j) / rings
     for (let i = 0; i <= segments; i++) {
       const theta = (TAU * i) / segments
-      const { r, r0, ridgeMetal } = radiusAt(spec, theta, z)
+      const { r, r0, metal } = radiusAt(spec, theta, z)
       const k = j * cols + i
-      ridge[k] = ridgeMetal
+      ridge[k] = metal
       positions[k * 3] = r * Math.cos(theta)
       positions[k * 3 + 1] = r * Math.sin(theta)
       positions[k * 3 + 2] = z
@@ -177,7 +213,7 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   // are also shaded darker, stained or not.
   const { stain } = spec
   for (let j = 0; j <= rings; j++) {
-    const s = j / rings
+    const s = (bodyFrom + ((bodyTo - bodyFrom) * j) / rings) / L
     const amount = stain.colour
       ? stain.strength *
         (1 - smoothstep(stain.reach - stain.softness / 2, stain.reach + stain.softness / 2, s))
@@ -211,4 +247,28 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   }
 
   return { positions, normals, uvs, stain: stainAmount, shade, zone, indices, rings, segments }
+}
+
+export interface GemPose {
+  /** Where the middle of the stone's girdle sits, mm. */
+  position: [number, number, number]
+  /** The way the stone faces: out of the wand's surface. */
+  normal: [number, number, number]
+  /** The stone's radius, mm, a little inside its seat. */
+  radius: number
+}
+
+/** Each set gem's place on the uncarved surface, from the profile and its slope. */
+export function gemPoses(spec: WandSpec): GemPose[] {
+  return spec.gems.map((gem) => {
+    const r = spec.profile(gem.z)
+    const slope = (spec.profile(gem.z + 0.25) - spec.profile(gem.z - 0.25)) / 0.5
+    const [c, s] = [Math.cos(gem.theta), Math.sin(gem.theta)]
+    const len = Math.hypot(1, slope)
+    return {
+      position: [r * c, r * s, gem.z],
+      normal: [c / len, s / len, -slope / len],
+      radius: gem.radius * 0.92,
+    }
+  })
 }

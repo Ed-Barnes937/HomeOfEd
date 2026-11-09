@@ -5,9 +5,10 @@ import * as THREE from 'three'
 
 import type { WandSpec } from '../wand/compile.ts'
 import { buildWandMesh } from '../wand/geometry.ts'
+import { Gems } from './Gems.tsx'
 import { Sparkles } from './Sparkles.tsx'
-import { BLOOM_THRESHOLD } from './stage.ts'
-import { SPELL_SECONDS, SpellBurst } from './SpellBurst.tsx'
+import { SpellBurst } from './SpellBurst.tsx'
+import { BLOOM_THRESHOLD, SPELL_SECONDS } from './stage.ts'
 
 /** Scene units per mm: a 33cm wand is 3.3 units long. */
 export const MM = 0.01
@@ -220,6 +221,9 @@ export function WandMesh({
           onBeforeCompile={(shader) => addFinish(shader, finishUniforms)}
         />
       </mesh>
+      <group position={[0, 0, -half]} scale={MM}>
+        <Gems spec={spec} castAt={castAt} reducedMotion={reducedMotion} />
+      </group>
       <group position={[0, 0, half + 0.03]} rotation={[0, -Math.PI / 2, 0]}>
         <TipGlow colour={spec.spell} castAt={castAt} reducedMotion={reducedMotion} />
       </group>
