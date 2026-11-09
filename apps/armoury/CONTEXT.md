@@ -17,7 +17,7 @@ normalised: clamped, snapped to step, with choices allowed by the others.
 
 **Group**:
 A section of params a child sees together: the wood, the shape, the handle, the
-shaft, the core. The unit a **lock** works on.
+shaft, the decorations, the core. The unit a **lock** works on.
 
 **Bumps**:
 Evenly spaced swellings along the shaft, knobbly or bamboo. Part of the shaft's
@@ -30,6 +30,14 @@ A shaft spiral that stands proud as a ridge instead of being cut in as a groove.
 **Envelope**:
 How far carving and ridges may move the surface from the wand's outline, either
 way: a quarter of the local radius ([ADR 0081](../../docs/adr/0081-armoury-raised-features.md)).
+
+**Zone**:
+A stretch of the wand in metal, paint or bone instead of wood: the handle, the
+shaft, the ring, the end cap or a band. A metal raised spiral is a zone in angle
+as well as length ([ADR 0082](../../docs/adr/0082-armoury-material-zones.md)).
+
+**Decorations**:
+The group where a child picks the wand's zones and its one metal and one paint.
 
 **Core**:
 What's inside the wand. Decides the colour of its **spell**, the glow at its tip

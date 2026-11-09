@@ -20,6 +20,13 @@ const shaftSpiral = (p: Params) =>
 const shaftNoded = (p: Params) => p.nodes !== 'none'
 const shaftCutSpiral = (p: Params) => shaftSpiral(p) && p.spiralStyle !== 'raised'
 const shaftRaisedSpiral = (p: Params) => shaftSpiral(p) && p.spiralStyle === 'raised'
+export const usesMetal = (p: Params) =>
+  p.handleFinish === 'metal' ||
+  p.endCap === 'metal' ||
+  p.collarFinish === 'metal' ||
+  p.bands !== 'none' ||
+  (shaftRaisedSpiral(p) && p.ridgeFinish === 'metal')
+export const usesPaint = (p: Params) => p.handleFinish === 'paint' || p.shaftFinish === 'paint'
 
 export const wandSchema: ItemSchema = {
   itemType: 'wand',
@@ -28,6 +35,7 @@ export const wandSchema: ItemSchema = {
     { key: 'shape', label: 'Shape' },
     { key: 'handle', label: 'Handle' },
     { key: 'shaft', label: 'Shaft' },
+    { key: 'decor', label: 'Decorations' },
     { key: 'core', label: 'Core' },
   ],
   params: [
@@ -353,6 +361,110 @@ export const wandSchema: ItemSchema = {
       default: 0.5,
       ends: ['Handle only', 'All the way'],
       visible: (p) => p.stainColour !== 'none',
+    },
+
+    {
+      kind: 'choice',
+      key: 'handleFinish',
+      label: 'Handle made of',
+      group: 'decor',
+      default: 'wood',
+      options: [
+        { value: 'wood', label: 'Wood', weight: 16 },
+        { value: 'metal', label: 'Metal' },
+        { value: 'paint', label: 'Painted' },
+        { value: 'bone', label: 'Bone' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'shaftFinish',
+      label: 'Shaft made of',
+      group: 'decor',
+      default: 'wood',
+      options: [
+        { value: 'wood', label: 'Wood', weight: 16 },
+        { value: 'paint', label: 'Painted', weight: 1.2 },
+        { value: 'bone', label: 'Bone' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'paintColour',
+      label: 'Paint',
+      group: 'decor',
+      default: 'marigold',
+      visible: usesPaint,
+      options: [
+        { value: 'poppy', label: 'Poppy', swatch: '#b3302a' },
+        { value: 'marigold', label: 'Marigold', swatch: '#d9782a' },
+        { value: 'ink', label: 'Ink', swatch: '#24315a' },
+        { value: 'moss', label: 'Moss', swatch: '#4b6a36' },
+        { value: 'chalk', label: 'Chalk', swatch: '#e8e2d4' },
+        { value: 'coal', label: 'Coal', swatch: '#24211f' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'endCap',
+      label: 'End cap',
+      group: 'decor',
+      default: 'wood',
+      visible: (p) => p.handleFinish !== 'metal',
+      options: [
+        { value: 'wood', label: 'Wood', weight: 15 },
+        { value: 'metal', label: 'Metal' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'collarFinish',
+      label: 'Ring made of',
+      group: 'decor',
+      default: 'wood',
+      options: [
+        { value: 'wood', label: 'Wood', weight: 15 },
+        { value: 'metal', label: 'Metal' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'bands',
+      label: 'Metal bands',
+      group: 'decor',
+      default: 'none',
+      options: [
+        { value: 'none', label: 'None', weight: 13 },
+        { value: 'one', label: 'One', weight: 1 / 3 },
+        { value: 'two', label: 'Two', weight: 1 / 3 },
+        { value: 'three', label: 'Three', weight: 1 / 3 },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'ridgeFinish',
+      label: 'Spiral made of',
+      group: 'decor',
+      default: 'wood',
+      visible: shaftRaisedSpiral,
+      options: [
+        { value: 'wood', label: 'Wood', weight: 5 },
+        { value: 'metal', label: 'Metal' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'metal',
+      label: 'Metal',
+      group: 'decor',
+      default: 'silver',
+      visible: usesMetal,
+      options: [
+        { value: 'silver', label: 'Silver', swatch: '#c9ccd1' },
+        { value: 'brass', label: 'Brass', swatch: '#b39349' },
+        { value: 'gold', label: 'Gold', swatch: '#d9a930' },
+        { value: 'darkIron', label: 'Dark iron', swatch: '#3b3b40' },
+      ],
     },
 
     // What's inside the wand decides the spell it casts. For now that's just

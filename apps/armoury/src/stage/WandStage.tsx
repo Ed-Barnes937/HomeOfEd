@@ -5,7 +5,13 @@ import { Suspense, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 
 import type * as THREE from 'three'
 
 import { compileWand } from '../wand/compile.ts'
-import { LONGEST_WAND_MM, STAGE_FILL, type StageHandle, type StageProps } from './stage.ts'
+import {
+  BLOOM_THRESHOLD,
+  LONGEST_WAND_MM,
+  STAGE_FILL,
+  type StageHandle,
+  type StageProps,
+} from './stage.ts'
 import { BOX_CAMERA_LEAN, FOV, ShopLights } from './scene.tsx'
 import styles from './WandStage.module.scss'
 import { MM, WandMesh } from './WandMesh.tsx'
@@ -78,7 +84,7 @@ export default function WandStage({ params, reducedMotion, ref }: StageProps) {
         </Suspense>
         <ShopLights />
         <EffectComposer>
-          <Bloom mipmapBlur luminanceThreshold={1.4} intensity={1.1} radius={0.7} />
+          <Bloom mipmapBlur luminanceThreshold={BLOOM_THRESHOLD} intensity={1.1} radius={0.7} />
         </EffectComposer>
       </Canvas>
     </div>

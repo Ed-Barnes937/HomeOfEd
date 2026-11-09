@@ -49,6 +49,20 @@ export class ShopPom extends BasePage {
     await this.page.getByRole('radio', { name: option, exact: true }).click()
   }
 
+  async chooseIn(control: string, option: string): Promise<void> {
+    await this.page
+      .getByRole('radiogroup', { name: control, exact: true })
+      .getByRole('radio', { name: option, exact: true })
+      .click()
+  }
+
+  async verifyGroupSummary(group: string, summary: string): Promise<void> {
+    const toggle = this.page
+      .getByRole('button', { expanded: true })
+      .filter({ has: this.page.getByRole('heading', { name: group, exact: true }) })
+    await expect(toggle).toContainText(summary)
+  }
+
   async verifyControls({ shown = [], hidden = [] }: { shown?: string[]; hidden?: string[] }) {
     const control = (name: string) =>
       this.page

@@ -124,7 +124,7 @@ export function WoodPicker({
   )
 }
 
-export function StainPicker({
+export function SwatchPicker({
   def,
   params,
   onChange,
@@ -136,10 +136,10 @@ export function StainPicker({
   const natural = GRAIN[params.wood as string]?.[0] ?? '#c1935c'
   return (
     <div className={styles.inline}>
-      <span className={styles.label} id="label-stain">
+      <span className={styles.label} id={`label-${def.key}`}>
         {def.label}
       </span>
-      <div className={styles.swatches} role="radiogroup" aria-labelledby="label-stain">
+      <div className={styles.swatches} role="radiogroup" aria-labelledby={`label-${def.key}`}>
         {allowedOptions(def, params).map((o) => (
           <button
             key={o.value}

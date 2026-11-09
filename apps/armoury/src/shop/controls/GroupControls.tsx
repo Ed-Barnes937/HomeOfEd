@@ -7,7 +7,7 @@ import {
   Pills,
   Ruler,
   Slider,
-  StainPicker,
+  SwatchPicker,
   WoodPicker,
   type OnChange,
 } from './Widgets.tsx'
@@ -22,7 +22,9 @@ function Control({ def, params, onChange }: { def: ParamDef; params: Params; onC
     case 'wood':
       return <WoodPicker def={def} params={params} onChange={onChange} />
     case 'stainColour':
-      return <StainPicker def={def} params={params} onChange={onChange} />
+    case 'paintColour':
+    case 'metal':
+      return <SwatchPicker def={def} params={params} onChange={onChange} />
     case 'handleStyle':
       return <HandlePicker def={def} params={params} onChange={onChange} />
     case 'core':

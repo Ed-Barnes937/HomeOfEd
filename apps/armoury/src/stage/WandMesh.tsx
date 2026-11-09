@@ -6,6 +6,7 @@ import * as THREE from 'three'
 import type { WandSpec } from '../wand/compile.ts'
 import { buildWandMesh } from '../wand/geometry.ts'
 import { Sparkles } from './Sparkles.tsx'
+import { BLOOM_THRESHOLD } from './stage.ts'
 import { SPELL_SECONDS, SpellBurst } from './SpellBurst.tsx'
 
 /** Scene units per mm: a 33cm wand is 3.3 units long. */
@@ -22,6 +23,14 @@ const WOODS: Record<string, { grainAcross: boolean; tint: string; grain: number;
   maple: { grainAcross: true, tint: '#ffffff', grain: 2.1, lum: 0.6707 },
 }
 const WOOD_KEYS = Object.keys(WOODS)
+
+const METALS: Record<string, { colour: string; roughness: number; metalness: number }> = {
+  silver: { colour: '#efede8', roughness: 0.22, metalness: 1 },
+  brass: { colour: '#d2b06a', roughness: 0.32, metalness: 1 },
+  gold: { colour: '#f4bf52', roughness: 0.2, metalness: 1 },
+  darkIron: { colour: '#5c5c60', roughness: 0.42, metalness: 0.85 },
+}
+const BONE = '#e6dbc2'
 const texturePaths = WOOD_KEYS.flatMap((w) => [
   `/textures/${w}-colour.webp`,
   `/textures/${w}-rough.webp`,
@@ -41,7 +50,8 @@ function absorbance(colour: [number, number, number]): [number, number, number] 
 
 // Stain is a translucent dye: it absorbs light (Beer-Lambert) rather than
 // painting over the wood, soaks deeper into the darker open grain, and is oiled.
-function addStain(
+// Metal, paint and bone zones are mixed over the wood by their per-vertex weights.
+function addFinish(
   shader: THREE.WebGLProgramParametersWithUniforms,
   uniforms: Record<string, THREE.IUniform>,
 ) {
@@ -52,14 +62,17 @@ function addStain(
       `#include <common>
       attribute float aStain;
       attribute float aShade;
+      attribute vec3 aZone;
       varying float vStain;
-      varying float vShade;`,
+      varying float vShade;
+      varying vec3 vZone;`,
     )
     .replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
       vStain = aStain;
-      vShade = aShade;`,
+      vShade = aShade;
+      vZone = aZone;`,
     )
   shader.fragmentShader = shader.fragmentShader
     .replace(
@@ -68,8 +81,26 @@ function addStain(
       uniform vec3 uStainAbsorb;
       uniform float uWoodLum;
       uniform float uGrain;
+      uniform vec3 uMetalColour;
+      uniform float uMetalRough;
+      uniform float uMetalness;
+      uniform vec3 uPaintColour;
+      uniform vec3 uBoneColour;
       varying float vStain;
-      varying float vShade;`,
+      varying float vShade;
+      varying vec3 vZone;
+      vec4 zoneWeights() {
+        vec3 z = clamp(vZone, 0.0, 1.0);
+        return vec4(z, max(0.0, 1.0 - z.x - z.y - z.z));
+      }
+      float zoneBump() {
+        vec4 z = zoneWeights();
+        return z.w + 0.3 * z.y + 0.2 * z.z;
+      }`,
+    )
+    .replace(
+      '#include <bumpmap_pars_fragment>',
+      THREE.ShaderChunk.bumpmap_pars_fragment.replaceAll('bumpScale *', 'bumpScale * zoneBump() *'),
     )
     .replace(
       '#include <map_fragment>',
@@ -81,12 +112,32 @@ function addStain(
       vec3 wood = diffuseColor.rgb * (boosted / grain);
       float soak = stain * clamp(2.2 - 1.2 * boosted, 0.3, 2.0);
       wood = mix(wood, vec3(dot(wood, vec3(0.2126, 0.7152, 0.0722))), 0.35 * stain);
-      diffuseColor.rgb = wood * exp(-uStainAbsorb * soak) * clamp(vShade, 0.0, 1.0);`,
+      vec4 zone = zoneWeights();
+      float shade = clamp(vShade, 0.0, 1.0);
+      vec3 bone = uBoneColour * mix(1.0, clamp(grain, 0.6, 1.4), 0.25) * exp(-0.8 * stain * vec3(dot(uStainAbsorb, vec3(1.0 / 3.0))));
+      diffuseColor.rgb = shade * (zone.w * wood * exp(-uStainAbsorb * soak)
+        + zone.x * uMetalColour + zone.y * uPaintColour + zone.z * bone);`,
     )
     .replace(
       '#include <roughnessmap_fragment>',
       `#include <roughnessmap_fragment>
-      roughnessFactor *= 1.0 - 0.45 * clamp(vStain, 0.0, 1.0);`,
+      roughnessFactor *= 1.0 - 0.45 * clamp(vStain, 0.0, 1.0);
+      roughnessFactor = zone.w * roughnessFactor + zone.x * uMetalRough + zone.y * 0.22 + zone.z * 0.5;`,
+    )
+    .replace(
+      '#include <metalnessmap_fragment>',
+      `#include <metalnessmap_fragment>
+      metalnessFactor = mix(metalnessFactor, uMetalness, zone.x);`,
+    )
+    .replace(
+      '#include <emissivemap_fragment>',
+      `#include <emissivemap_fragment>
+      totalEmissiveRadiance += 0.05 * zone.z * uBoneColour;`,
+    )
+    .replace(
+      '#include <opaque_fragment>',
+      `outgoingLight *= min(1.0, ${(0.92 * BLOOM_THRESHOLD).toFixed(3)} / max(max(outgoingLight.r, outgoingLight.g), max(outgoingLight.b, 1e-4)));
+      #include <opaque_fragment>`,
     )
 }
 
@@ -109,16 +160,22 @@ export function WandMesh({
     g.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2))
     g.setAttribute('aStain', new THREE.BufferAttribute(data.stain, 1))
     g.setAttribute('aShade', new THREE.BufferAttribute(data.shade, 1))
+    g.setAttribute('aZone', new THREE.BufferAttribute(data.zone, 3))
     g.setIndex(new THREE.BufferAttribute(data.indices, 1))
     return g
   }, [spec])
   useEffect(() => () => geometry.dispose(), [geometry])
 
-  const stainUniforms = useMemo(
+  const finishUniforms = useMemo(
     () => ({
       uStainAbsorb: { value: new THREE.Vector3() },
       uWoodLum: { value: 0.25 },
       uGrain: { value: 2 },
+      uMetalColour: { value: new THREE.Color() },
+      uMetalRough: { value: 0.3 },
+      uMetalness: { value: 1 },
+      uPaintColour: { value: new THREE.Color() },
+      uBoneColour: { value: new THREE.Color(BONE) },
     }),
     [],
   )
@@ -137,11 +194,16 @@ export function WandMesh({
     return pair
   }, [textures, spec.wood, wood.grainAcross])
 
+  const metal = METALS[spec.metal] ?? METALS.silver!
   useLayoutEffect(() => {
-    stainUniforms.uWoodLum.value = wood.lum
-    stainUniforms.uGrain.value = wood.grain
-    if (spec.stain.colour) stainUniforms.uStainAbsorb.value.set(...absorbance(spec.stain.colour))
-  }, [stainUniforms, wood.lum, wood.grain, spec.stain.colour])
+    finishUniforms.uWoodLum.value = wood.lum
+    finishUniforms.uGrain.value = wood.grain
+    if (spec.stain.colour) finishUniforms.uStainAbsorb.value.set(...absorbance(spec.stain.colour))
+    finishUniforms.uMetalColour.value.set(metal.colour)
+    finishUniforms.uMetalRough.value = metal.roughness
+    finishUniforms.uMetalness.value = metal.metalness
+    finishUniforms.uPaintColour.value.setRGB(...spec.paint)
+  }, [finishUniforms, wood.lum, wood.grain, spec.stain.colour, metal, spec.paint])
 
   const half = (spec.lengthMm / 2) * MM
   return (
@@ -155,7 +217,7 @@ export function WandMesh({
           roughness={0.62}
           envMapIntensity={0.8}
           color={wood.tint}
-          onBeforeCompile={(shader) => addStain(shader, stainUniforms)}
+          onBeforeCompile={(shader) => addFinish(shader, finishUniforms)}
         />
       </mesh>
       <group position={[0, 0, half + 0.03]} rotation={[0, -Math.PI / 2, 0]}>

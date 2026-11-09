@@ -19,9 +19,10 @@ interface GrooveCommon {
   halfWidth: number
 }
 
-/** Only a round set can be raised: a raised flat set would be a no-op. */
+/** Only a round set can be raised: a raised flat set would be a no-op. A raised set's ridge may be metal. */
 export type GrooveSet =
-  (GrooveCommon & { shape: 'flat' }) | (GrooveCommon & { shape: 'round'; raised?: boolean })
+  | (GrooveCommon & { shape: 'flat' })
+  | (GrooveCommon & { shape: 'round'; raised?: boolean; metal?: boolean })
 
 export interface StainSpec {
   /** The stain's swatch in linear RGB, whose hue and darkness a full coat absorbs; null for natural wood. */
@@ -30,6 +31,17 @@ export interface StainSpec {
   /** Fraction of the length, from the pommel, where the stain is half faded. */
   reach: number
   softness: number
+}
+
+export type Material = 'metal' | 'paint' | 'bone'
+
+/** A stretch of the wand, pommel side first, in something other than wood. Later zones cover earlier ones. */
+export interface Zone {
+  material: Material
+  from: number
+  to: number
+  /** Carving stops at it, as at a ring clamped over the wood. */
+  uncarved?: boolean
 }
 
 export interface WandSpec {
@@ -42,6 +54,11 @@ export interface WandSpec {
   grooves: GrooveSet[]
   stain: StainSpec
   wood: string
+  zones: Zone[]
+  /** The one metal every metal part is made of. */
+  metal: string
+  /** The paint's swatch in linear RGB. */
+  paint: [number, number, number]
   /** Colour of the spell cast from the tip, decided by the core. */
   spell: string
 }
@@ -90,6 +107,8 @@ interface HandleStyle {
   /** The stretch of handle that carving applies to. */
   carve: [number, number]
   depth: number
+  /** Where a metal end cap stops, as a fraction of the handle. */
+  cap: number
 }
 
 // Handle styles are data: new styles cost a table entry, not code.
@@ -106,6 +125,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     beads: [{ t: 0.93, w: 1.4, h: 0.1 }],
     carve: [0.12, 0.86],
     depth: 0.1,
+    cap: 0.1,
   },
   ringed: {
     ratio: 0.28,
@@ -123,6 +143,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     ],
     carve: [0.18, 0.82],
     depth: 0.12,
+    cap: 0.16,
   },
   spiral: {
     ratio: 0.32,
@@ -138,6 +159,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     beads: [{ t: 0.2, w: 1.2, h: 0.08 }],
     carve: [0.24, 0.96],
     depth: 0.14,
+    cap: 0.15,
   },
   gemcut: {
     ratio: 0.33,
@@ -153,6 +175,7 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
     beads: [{ t: 0.15, w: 1.4, h: 0.14 }],
     carve: [0.22, 0.96],
     depth: 0.12,
+    cap: 0.07,
   },
 }
 
@@ -179,6 +202,10 @@ export const COLLARS: Record<
     ],
   },
 }
+
+const BAND_COUNTS: Record<string, number> = { none: 0, one: 1, two: 2, three: 3 }
+const BAND_HALF_WIDTH = 1.5
+const BAND_HEIGHT = 0.45
 
 /** Cosine bump: 1 at the centre c, easing to 0 at half-width w either side. */
 const swell = (z: number, c: number, w: number) => {
@@ -233,6 +260,12 @@ export function compileWand(p: Params): WandSpec {
     return h * (0.65 * swell(z, c, 1.6) + 0.35 * swell(z, c, 6))
   }
 
+  // Bands go in the gaps between bumps, or else spread up the lower shaft.
+  const bandCount = BAND_COUNTS[p.bands as string] ?? 0
+  const bandCentres = Array.from({ length: bandCount }, (_, k) =>
+    nodes === 'none' ? collarEnd + (L - collarEnd) * (0.1 + 0.2 * k) : nodeStart + k * nodeSpacing,
+  ).filter((c) => c <= nodeEnd)
+
   const profile = (z: number): number => {
     if (z <= 0 || z >= L) return 0
     let r: number
@@ -258,6 +291,7 @@ export function compileWand(p: Params): WandSpec {
       const u = (z - collarEnd) / (L - collarEnd)
       const x = clamp((u - taperHold) / (1 - taperHold), 0, 1)
       r = lerp(tipR, shaftBaseR, (1 + Math.cos(Math.PI * x)) / 2) * (1 + nodeSwell(z))
+      for (const c of bandCentres) r += bead(z, c, BAND_HALF_WIDTH, BAND_HEIGHT)
       const d = L - z
       if (tipShape === 'flat') r *= cap(d, 1.2, 4)
       else if (tipShape === 'domed') r *= cap(d, tipR * 1.5, 2)
@@ -347,7 +381,11 @@ export function compileWand(p: Params): WandSpec {
         shape: 'round',
         count: n,
         ...(p.spiralStyle === 'raised'
-          ? { raised: true, depth: lerp(0.06, 0.2, p.ridgeHeight as number) }
+          ? {
+              raised: true,
+              metal: p.ridgeFinish === 'metal',
+              depth: lerp(0.06, 0.2, p.ridgeHeight as number),
+            }
           : { depth: lerp(0.05, 0.18, p.shaftGrooveDepth as number) }),
         twist: dir / pitch,
         from,
@@ -357,6 +395,32 @@ export function compileWand(p: Params): WandSpec {
         halfWidth: lerp(0.18, widest, p.shaftGrooveWidth as number),
       })
     }
+  }
+
+  const zones: Zone[] = []
+  const handleFinish = p.handleFinish as string
+  const shaftFinish = p.shaftFinish as string
+  const asZone = (finish: string, from: number, to: number) => {
+    if (finish !== 'wood') zones.push({ material: finish as Material, from, to })
+  }
+  asZone(handleFinish, 0, H)
+  asZone(shaftFinish, collarEnd, L)
+  asZone(
+    p.collarFinish === 'metal' ? 'metal' : handleFinish === shaftFinish ? handleFinish : 'wood',
+    H,
+    collarEnd,
+  )
+  for (const c of bandCentres) {
+    zones.push({
+      material: 'metal',
+      from: c - BAND_HALF_WIDTH,
+      to: c + BAND_HALF_WIDTH,
+      uncarved: true,
+    })
+  }
+  if (p.endCap === 'metal') {
+    const capEnd = endShape === 'ball' ? 2 * ballR + 1 : style.cap * H
+    zones.push({ material: 'metal', from: 0, to: capEnd })
   }
 
   const stainHex = swatchFor('stainColour', p.stainColour as string)
@@ -375,6 +439,9 @@ export function compileWand(p: Params): WandSpec {
       softness: 0.35,
     },
     wood: p.wood as string,
+    zones,
+    metal: p.metal as string,
+    paint: srgbToLinear(swatchFor('paintColour', p.paintColour as string) ?? '#888888'),
     spell: swatchFor('core', p.core as string) ?? '#ffffff',
   }
 }

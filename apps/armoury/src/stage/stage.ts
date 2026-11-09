@@ -5,6 +5,8 @@ import type { Params } from '../engine/schema.ts'
 export const LONGEST_WAND_MM = 380
 /** The longest wand spans this much of the stage's width; the rest is room for the spell. */
 export const STAGE_FILL = 0.72
+/** Only light brighter than this blooms: the core's glow, its sparkles and the spell. */
+export const BLOOM_THRESHOLD = 1.4
 /** A wave starts as soon as it's asked for; the spell leaves the tip this long after. */
 export const WAVE_TO_SPELL_SECONDS = 2.5
 

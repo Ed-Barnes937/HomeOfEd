@@ -84,9 +84,13 @@ function feel(p: Params): string {
   return 'Steady'
 }
 
+/** What the wand is made of: its wood, unless it is bone from end to end. */
+export const madeOf = (p: Params) =>
+  p.handleFinish === 'bone' && p.shaftFinish === 'bone' ? 'bone' : (p.wood as string)
+
 export function wandDescription(p: Params): string {
   const length = inchesInWords(p.lengthCm as number)
-  return `${length}, ${p.wood as string}, ${coreName(p.core as string).toLowerCase()} core. ${feel(p)}.`
+  return `${length}, ${madeOf(p)}, ${coreName(p.core as string).toLowerCase()} core. ${feel(p)}.`
 }
 
 const WOOD_LORE: Record<string, string> = {

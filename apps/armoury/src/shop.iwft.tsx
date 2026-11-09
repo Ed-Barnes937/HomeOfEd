@@ -34,6 +34,25 @@ test('bumps and raised spirals show their own controls only when they apply', as
   await root.verifyControls({ hidden: ['How many bumps', 'How big'] })
 })
 
+test('decorations offer a metal and a paint only once something uses them', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyControls({
+    shown: ['Handle made of', 'Shaft made of', 'End cap', 'Ring made of', 'Metal bands'],
+    hidden: ['Metal', 'Paint', 'Spiral made of'],
+  })
+  await root.chooseIn('Metal bands', 'Two')
+  await root.chooseIn('Metal', 'Brass')
+  await root.verifyGroupSummary('Decorations', 'Brass')
+  await root.chooseIn('Handle made of', 'Metal')
+  await root.verifyControls({ hidden: ['End cap'] })
+  await root.chooseIn('Shaft made of', 'Painted')
+  await root.verifyControls({ shown: ['Paint'] })
+  await root.choose('Raised')
+  await root.verifyControls({ shown: ['Spiral made of'] })
+})
+
 test('tapping the wand lifts it out to turn and wave, then it goes back', async ({ mountApp }) => {
   const { root } = await mountApp()
   const closeUp = await root.pickUpWand()

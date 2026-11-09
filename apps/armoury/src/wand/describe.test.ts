@@ -77,6 +77,16 @@ describe('wandDescription', () => {
       ),
     ).toBe('Twelve inches, cherry, storm glass core. Slender.')
   })
+
+  it('says bone for a wand that is bone from end to end', () => {
+    const bone = { lengthCm: 33, wood: 'oak', core: 'wildwood', thickness: 1 }
+    expect(wandDescription(wand({ ...bone, handleFinish: 'bone', shaftFinish: 'bone' }))).toBe(
+      'Thirteen inches, bone, wildwood core. Steady.',
+    )
+    expect(wandDescription(wand({ ...bone, handleFinish: 'bone' }))).toBe(
+      'Thirteen inches, oak, wildwood core. Steady.',
+    )
+  })
 })
 
 describe('wandLore', () => {
