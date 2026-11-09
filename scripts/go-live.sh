@@ -56,6 +56,7 @@ say "preflight"
 [[ -f "$FLY_TOML" ]] || { echo "no fly.toml at apps/$APP/fly.toml" >&2; exit 1; }
 FLY_APP="$(sed -n "s/^app = ['\"]\(.*\)['\"]$/\1/p" "$FLY_TOML")"
 [[ -n "$FLY_APP" ]] || { echo "could not parse app name from $FLY_TOML" >&2; exit 1; }
+DB_ROLE="${FLY_APP//-/_}"   # hoe-family -> hoe_family, the role name attach has always used
 echo "   app=$APP  fly-app=$FLY_APP  host=$HOST  db=$WITH_DB  dry-run=$DRY_RUN"
 
 for bin in fly jq curl dig; do
@@ -105,7 +106,16 @@ if ! $WITH_DB; then
 elif ! $DRY_RUN && jq -e '.[] | select(.name == "DATABASE_URL")' >/dev/null <<<"$SECRETS"; then
   echo "   DATABASE_URL already set — skipping attach"
 else
-  run fly postgres attach "$PG_CLUSTER" --app "$FLY_APP" --database-name "$APP"
+  run fly postgres attach "$PG_CLUSTER" --app "$FLY_APP" --database-name "$APP" \
+    --database-user "$DB_ROLE" --superuser=false
+fi
+if $WITH_DB; then
+  # ADR 0086: without superuser, the app's migrations need it to own its
+  # database. Idempotent, so a re-run shows it again rather than guessing.
+  echo "   paste into \`fly postgres connect -a $PG_CLUSTER\` (ADR 0086):"
+  echo "     ALTER DATABASE $APP OWNER TO $DB_ROLE;"
+  echo "     REVOKE CONNECT ON DATABASE $APP FROM PUBLIC;"
+  $DRY_RUN || read -r -p "   press Enter once both statements have run, before the first deploy "
 fi
 
 # ── 3. first deploy ──────────────────────────────────────────────────────────
