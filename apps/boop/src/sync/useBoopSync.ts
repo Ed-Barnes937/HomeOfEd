@@ -23,14 +23,8 @@ export interface BoopSyncState {
 /**
  * boop's half of the family SaveStore (ADR 0080): the pull at start, the
  * first-link offer, and the watcher that copies the document up after a change.
- *
- * With no family session this hook does nothing at all - no timers, no
- * listeners, no requests - which is the point: a child without an account, or
- * with the service down, gets exactly today's boop.
- *
- * The watcher reads the one localStorage key rather than being called from the
- * code that writes it, so no part of the play path can ever await, throw
- * through, or wait on sync. `persistence/` does not know this module exists.
+ * With no family session it does nothing at all - no timers, no listeners, no
+ * requests.
  */
 export function useBoopSync(): BoopSyncState {
   const client = useSaveClient()
@@ -55,6 +49,11 @@ export function useBoopSync(): BoopSyncState {
     }
     setLinked(true)
     void boopSync.reconcile()
+    // A dev double-mount builds a second sync over the same storage; the first
+    // must not stay reachable from the ref.
+    return () => {
+      if (sync.current === boopSync) sync.current = null
+    }
   }, [client, session])
 
   useEffect(() => {

@@ -1,17 +1,8 @@
 /**
  * The `boop:syncedAccount` marker: what this device answered when it was
- * offered the import, per account (ADR 0080). A new, additive key - the frozen
- * `boop:save` document (ADR 0025) is not touched by any of this.
- *
- * The answer is recorded, not merely that one was given, because `declined`
- * means no sync at all for that account - a parent who said no and then found
- * the boops on the account anyway has been misled. It is per account because a
- * family tablet is shared: a second child signing in on it is a first link of
- * their own, and the first child's answer is not theirs.
- *
- * Same never-throws seam as `persistence/storage.ts`, and the same total
- * decode: anything unreadable counts as "not asked yet", which only ever costs
- * a second offer and can never cost a boop.
+ * offered the import, per account (ADR 0080 decision 7). A new, additive key -
+ * the frozen `boop:save` document (ADR 0025) is untouched. Never throws, and
+ * anything unreadable counts as "not asked yet".
  */
 
 import type { SaveStorage } from '../persistence/storage.ts'
@@ -25,7 +16,11 @@ export type SyncAnswers = Readonly<Record<string, SyncAnswer>>
 
 /** `null` when this device has not been offered the import for `accountId` yet. */
 export function readSyncAnswer(storage: SaveStorage, accountId: string): SyncAnswer | null {
-  return readSyncAnswers(storage)[accountId] ?? null
+  // Validated at the lookup, not just at the parse: `constructor` and friends
+  // resolve to a function on any ordinary object, and this must degrade to
+  // "not asked yet" rather than to syncing.
+  const answer: unknown = readSyncAnswers(storage)[accountId]
+  return answer === 'accepted' || answer === 'declined' ? answer : null
 }
 
 export function recordSyncAnswer(

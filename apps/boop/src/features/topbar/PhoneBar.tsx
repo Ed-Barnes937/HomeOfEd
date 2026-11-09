@@ -1,8 +1,9 @@
 import { useState } from 'react'
 
-import { accountUrl, hubUrl } from '../../hubUrl.ts'
+import { hubUrl } from '../../hubUrl.ts'
 import { isUnsaved, type LoadedBoop } from '../../savedState.ts'
 import { useShareBoop } from '../../share/useShareBoop.ts'
+import { SyncedChip } from '../../sync/SyncedChip.tsx'
 import { CLEAR_GRID_CONFIRM } from '../confirm/clearGridConfirm.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import styles from './PhoneBar.module.scss'
@@ -184,15 +185,7 @@ export function PhoneBar({
           >
             How boop works
           </button>
-          {syncedAs !== null && (
-            <a
-              className={styles.item}
-              href={accountUrl(window.location.hostname)}
-              data-testid="synced-chip"
-            >
-              synced as {syncedAs}
-            </a>
-          )}
+          {syncedAs !== null && <SyncedChip name={syncedAs} className={styles.item} />}
           <button
             type="button"
             className={`${styles.item} ${styles.danger}`}

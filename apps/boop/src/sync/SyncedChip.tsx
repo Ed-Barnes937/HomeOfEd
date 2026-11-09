@@ -4,6 +4,8 @@ import styles from './SyncedChip.module.scss'
 interface SyncedChipProps {
   /** The profile the boops are being kept for. */
   name: string
+  /** The phone renders it as a menu entry; its 52px strip has no room for a chip. */
+  className?: string
 }
 
 /**
@@ -12,10 +14,10 @@ interface SyncedChipProps {
  * Quiet, like the saved-state words beside it - never a status light, and
  * never anything a child has to answer.
  */
-export function SyncedChip({ name }: SyncedChipProps) {
+export function SyncedChip({ name, className }: SyncedChipProps) {
   return (
     <a
-      className={styles.chip}
+      className={className ?? styles.chip}
       href={accountUrl(window.location.hostname)}
       data-testid="synced-chip"
     >

@@ -78,6 +78,15 @@ describe('the synced-account marker', () => {
     expect(readSyncAnswer(storage, 'child-1')).toBeNull()
   })
 
+  it('reads a prototype key as "not asked yet", never as something to sync', () => {
+    const storage = new FakeStorage()
+    storage.setItem(SYNCED_ACCOUNT_KEY, '{"child-1":"accepted"}')
+
+    expect(readSyncAnswer(storage, 'constructor')).toBeNull()
+    expect(readSyncAnswer(storage, 'toString')).toBeNull()
+    expect(readSyncAnswer(storage, '__proto__')).toBeNull()
+  })
+
   it('survives a browser with storage switched off', () => {
     const storage = new FakeStorage()
     storage.unavailable = true
