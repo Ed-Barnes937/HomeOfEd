@@ -34,6 +34,7 @@ function Control({
     case 'stainColour':
     case 'paintColour':
     case 'metal':
+    case 'gemColour':
       return <SwatchPicker def={def} params={params} onChange={onChange} />
     case 'handleStyle':
       return <HandlePicker def={def} params={params} onChange={onChange} />

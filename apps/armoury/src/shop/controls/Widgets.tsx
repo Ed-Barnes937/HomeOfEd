@@ -8,6 +8,7 @@ import {
   type ParamValue,
 } from '../../engine/schema.ts'
 import { cmToInches, coreLore, woodLore } from '../../wand/describe.ts'
+import { swatchFor } from '../../wand/wandSchema.ts'
 import styles from './Widgets.module.scss'
 
 export type OnChange = (key: string, value: ParamValue) => void
@@ -137,6 +138,11 @@ export function SwatchPicker({
   onChange: OnChange
 }) {
   const natural = GRAIN[params.wood as string]?.[0] ?? '#c1935c'
+  // An option with no colour of its own is the wood's natural colour, or for gems the core's.
+  const unswatched =
+    def.key === 'gemColour'
+      ? `radial-gradient(circle, #fff 0, ${swatchFor('core', params.core as string)} 45%)`
+      : natural
   return (
     <div className={styles.inline}>
       <span className={styles.label} id={`label-${def.key}`}>
@@ -152,7 +158,7 @@ export function SwatchPicker({
             aria-label={o.label}
             title={o.label}
             className={styles.swatch}
-            style={{ background: o.swatch ?? natural }}
+            style={{ background: o.swatch ?? unswatched }}
             onClick={() => onChange(def.key, o.value)}
           />
         ))}

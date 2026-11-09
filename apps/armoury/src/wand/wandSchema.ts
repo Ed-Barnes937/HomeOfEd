@@ -591,6 +591,19 @@ export const wandSchema: ItemSchema = {
     },
     {
       kind: 'choice',
+      key: 'gemCut',
+      label: 'Gem cut',
+      group: 'decor',
+      default: 'round',
+      visible: hasSetGems,
+      options: [
+        { value: 'round', label: 'Round', weight: 4 },
+        { value: 'square', label: 'Square' },
+        { value: 'marquise', label: 'Marquise' },
+      ],
+    },
+    {
+      kind: 'choice',
       key: 'tipGem',
       label: 'Gem on the tip',
       group: 'decor',
@@ -602,6 +615,21 @@ export const wandSchema: ItemSchema = {
     },
     {
       kind: 'choice',
+      key: 'crystalShape',
+      label: 'Crystal shape',
+      group: 'decor',
+      default: 'hex',
+      visible: (p) => p.tipGem === 'crystal',
+      options: [
+        { value: 'hex', label: 'Hex point', weight: 6 },
+        { value: 'double', label: 'Double point' },
+        { value: 'cluster', label: 'Cluster' },
+        { value: 'shard', label: 'Raw shard' },
+        { value: 'teardrop', label: 'Faceted teardrop' },
+      ],
+    },
+    {
+      kind: 'choice',
       key: 'endGem',
       label: 'Gem on the end',
       group: 'decor',
@@ -609,6 +637,24 @@ export const wandSchema: ItemSchema = {
       options: [
         { value: 'none', label: 'None', weight: 50 },
         { value: 'orb', label: 'Orb' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'gemColour',
+      label: 'Crystal colour',
+      group: 'decor',
+      default: 'core',
+      visible: hasGems,
+      options: [
+        { value: 'core', label: 'Match the core', weight: 8 },
+        { value: 'amethyst', label: 'Amethyst', swatch: '#8e4fd1' },
+        { value: 'emerald', label: 'Emerald', swatch: '#1f9e5a' },
+        { value: 'ruby', label: 'Ruby', swatch: '#c0183c' },
+        { value: 'sapphire', label: 'Sapphire', swatch: '#2546b8' },
+        { value: 'citrine', label: 'Citrine', swatch: '#e0a21c' },
+        { value: 'clear', label: 'Clear', swatch: '#e6edf2' },
+        { value: 'smoky', label: 'Smoky', swatch: '#5c4a3e' },
       ],
     },
     {

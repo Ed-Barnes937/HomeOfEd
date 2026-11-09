@@ -18,6 +18,7 @@ const gemCount = (params: Params) => {
 
 /** Stands in for the three.js stage in .iwft: shows what it was asked to draw (ADR 0073). */
 export function FakeStage({ params, ref }: StageProps) {
+  const spec = compileWand(params)
   useImperativeHandle(
     ref,
     (): StageHandle => ({
@@ -39,7 +40,10 @@ export function FakeStage({ params, ref }: StageProps) {
       data-core={params.core}
       data-length={params.lengthCm}
       data-gems={gemCount(params)}
-      data-stencil={compileWand(params).stencil?.tile ?? 'none'}
+      data-stencil={spec.stencil?.tile ?? 'none'}
+      data-gem-colour={spec.gemColour.glow}
+      data-gem-cut={spec.gems[0]?.cut ?? 'none'}
+      data-crystal={spec.crystal?.shape ?? 'none'}
     />
   )
 }
