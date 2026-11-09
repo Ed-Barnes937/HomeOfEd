@@ -3,3 +3,6 @@
 // its hand-cranked clock via `page.evaluate` — same key, no side effects, safe
 // to import from either side (mirrors protocol.ts's SEED_SOURCE_KEY pattern).
 export const BOOP_AUDIO_DRIVER_KEY = '__boopAudioDriver'
+
+/** The same trampoline for the fake family save client (ADR 0080). */
+export const BOOP_SAVE_CLIENT_KEY = '__boopSaveClient'
