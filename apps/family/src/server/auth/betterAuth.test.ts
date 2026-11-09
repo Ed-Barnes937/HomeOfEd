@@ -6,7 +6,7 @@ import { familySchema, type FamilySchema } from '../schema.ts'
 
 import { createFamilyAuth } from './betterAuth.ts'
 
-const BASE_URL = 'http://localhost:3010'
+const BASE_URL = 'http://localhost:3012'
 const INVITE_CODE = 'dev-insecure-invite'
 
 let db: DbClient<FamilySchema>

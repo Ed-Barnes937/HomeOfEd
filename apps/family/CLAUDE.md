@@ -208,16 +208,16 @@ src/
   greeting.iwft.tsx whole-frontend tests via the in-browser backend
 vite.config.ts      react + simulatorPlugin (dev simulator mode)
 drizzle.config.ts   drizzle-kit: schema → src/server/migrations
-playwright-ct.config.ts  defineIwftConfig({ ctPort: 3110 })
+playwright-ct.config.ts  defineIwftConfig({ ctPort: 3112 })
 ```
 
 ## Commands
 
-- `pnpm dev --filter=family` — simulator mode on port **3010**.
+- `pnpm dev --filter=family` — simulator mode on port **3012**.
 - `pnpm --filter family run test` — Vitest then Playwright CT.
 - `pnpm --filter family run generate` - drizzle-kit migration from schema
   changes (`--custom` for hand-written SQL); commit the whole output folder.
-- `docker compose up family` — the real image on host port **8090**.
+- `docker compose up family` — the real image on host port **8092**.
 
 ## Rules
 
@@ -226,7 +226,7 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3110 })
 - Relative imports carry explicit `.ts`/`.tsx` extensions; server code sticks to
   erasable TS syntax (ADR 0004) - `simulator.ts`/`main.ts`/`migrate.ts` run under
   native Node.
-- Ports: dev 3010, CT 3110, compose 8090.
+- Ports: dev 3012, CT 3112, compose 8092.
 - No app may import from here (hard rule 1). The shared contract other apps
   consume is `@hoe/accounts`: the save router `satisfies` its
   `FamilySaveContract` and takes its input schemas from there, so a change to

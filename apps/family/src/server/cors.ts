@@ -14,8 +14,8 @@ import { onboardedAppDevOrigins, onboardedAppOrigins } from './onboardedApps.ts'
  */
 export const IDENTITY_ALLOWED_ORIGINS = ['https://homeofed.com'] as const
 
-/** Dev servers: hub 3000 and family's own 3010. */
-export const DEV_ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:3010'] as const
+/** Dev servers: hub 3000 and family's own 3012. */
+export const DEV_ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:3012'] as const
 
 export function identityAllowedOrigins(nodeEnv: string | undefined): readonly string[] {
   return nodeEnv === 'production'
