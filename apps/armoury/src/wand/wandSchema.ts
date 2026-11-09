@@ -37,7 +37,7 @@ export const wandSchema: ItemSchema = {
     { key: 'shape', label: 'Shape' },
     { key: 'handle', label: 'Handle' },
     { key: 'shaft', label: 'Shaft' },
-    { key: 'decor', label: 'Trimmings' },
+    { key: 'decor', label: 'Extras' },
     { key: 'core', label: 'Core' },
   ],
   params: [

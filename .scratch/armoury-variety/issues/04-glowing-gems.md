@@ -55,7 +55,7 @@ visible: they take the core's colour and light up when the wand casts.
 (chained on 03's branch); decisions in ADR 0083. Needs Ed's eye on a real GPU and a
 real phone, including a few Try another rolls, before merging.
 
-- Trimmings gain "Gems" (No gems, Round the handle, Up the shaft, Winding up) with
+- Extras gain "Gems" (No gems, Round the handle, Up the shaft, Winding up) with
   "How many gems" (3-9) and "Gem size", plus "Gem on the tip" (Crystal) and "Gem on
   the end" (Orb). "Tip" and "End" hide when a gem replaces them.
 - Placement is `placeGems` in `wand/gems.ts` (angle, z, seat radius); `gemPoses` in
