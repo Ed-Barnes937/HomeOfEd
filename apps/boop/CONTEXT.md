@@ -365,7 +365,10 @@ _Avoid_: The cloud save, the server state, syncing (as a thing boop does to
 play) - the account is a copy of the truth, not the truth.
 
 **Synced account marker**:
-`boop:syncedAccount` - the list of account ids this device has already been
-offered the import for. Additive and separate from the save document, which is
-frozen; a corrupt marker reads as "not offered yet".
-_Avoid_: Link flag, sync state.
+`boop:syncedAccount` - what this device **answered** when it was offered the
+import, per account (`accepted` / `declined`). The answer, not merely that one
+was given: `declined` means no sync at all for that account, now or later.
+Additive and separate from the save document, which is frozen; a corrupt
+marker, or an unknown answer, reads as "not asked yet", and the marker's first
+list shape reads as accepted.
+_Avoid_: Link flag, sync state, "asked" (what matters is the answer).

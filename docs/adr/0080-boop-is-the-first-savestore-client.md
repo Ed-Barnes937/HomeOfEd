@@ -23,6 +23,16 @@ service unavailable in any way, boop must behave **exactly** as it does today. N
 error, no blocking spinner, no lost pattern. That rules out any design where a
 local write waits on, or routes through, a remote one.
 
+The spec also asks for a first-link offer - "keep these boops on your account?"
+- and describes declining as "stamps the marker without pushing". Taken
+literally that is a marker recording only *that* an answer was given, which
+cannot tell an acceptance from a refusal: the next start reads it as "this
+device is linked", pulls, merges and - because the merge is a union - pushes the
+very boops the parent declined. A parent who says no and finds the boops on the
+account next session has been misled, and that it takes a session to happen
+makes it worse, because they have no reason to look again. The shorthand was
+shorthand for an intent it does not deliver, and the intent is not ambiguous.
+
 The spec (§7.1) says to piggyback the autosave flush. The autosave has no seam
 to piggyback on: `useWorkingSong` builds its `createAutosave(window.localStorage)`
 itself, and `persistence/` is deliberately out of scope for this ticket - it is
@@ -86,19 +96,37 @@ Nothing about any of this reaches the screen: a child must never be told the
 network is sad, and a parent being told is a product decision nobody has taken
 (see the open question below).
 
-**7. The marker is a list of accounts, and the offer is not a confirm.**
-`boop:syncedAccount` holds the account ids this device has already been offered
-the import for - a list, because a family tablet is shared and a second child
-signing in on it is a first link of their own. It is a new additive key; the
-frozen `boop:save` v1 ([ADR 0025](0025-boop-save-format.md)) is untouched, and a
-corrupt marker reads as "not offered yet", which only ever costs a second offer.
-The offer itself is `ImportOfferCard`, which borrows `ConfirmCard`'s geometry
-but not its buttons: the shared confirm shape colours its second choice as the
-destructive one, and nothing here is destructive - the boops stay on the device
-whichever answer a parent gives. Declining stamps the marker and runs no pull,
-so nothing leaves the device that session.
+**7. The marker records the answer, and `declined` means no sync at all.**
+`boop:syncedAccount` maps an account id to `'accepted' | 'declined'` - per
+account, because a family tablet is shared and a second child signing in on it
+is a first link of their own. A declined account gets nothing on this start or
+any later one: no pull, no push, no watcher, no chip, and no second offer. The
+gate is in `useBoopSync`, which is the one place that reads an answer, and the
+guarantee is pinned at the app level rather than at the seam: the test that
+matters decides the question on the *second* start, after a reload, and asserts
+both that the account is still empty and that boop made no call at all.
 
-**8. The chip is chrome, and the phone's chip is a menu entry.** "synced as
+An answer is recorded rather than a boolean so that changing one's mind is a
+write, not a migration: `recordSyncAnswer(storage, id, 'accepted')` already
+expresses the transition. **How** a parent reaches it is a product decision that
+has gone to Ed and is deliberately not built. If it wants a home, the phone's
+"⋯" menu and the laptop bar's chip slot are where a declined account's "keep
+these on your account" would sit, since that is exactly the space the chip
+occupies once an account is accepted - a suggestion, not a decision.
+
+It is a new additive key; the frozen `boop:save` v1
+([ADR 0025](0025-boop-save-format.md)) is untouched. Decode stays total and
+forgiving: a corrupt marker, or an answer this build does not know, reads as
+"not asked yet", which costs a second offer and can never cost a boop, and the
+marker's first shape - a plain list of account ids - reads as `accepted`,
+because only accepting could have written it.
+
+**8. The offer is not a confirm.** `ImportOfferCard` borrows `ConfirmCard`'s
+geometry but not its buttons: the shared confirm shape colours its second choice
+as the destructive one, and nothing here is destructive - the boops stay on the
+device whichever answer a parent gives.
+
+**9. The chip is chrome, and the phone's chip is a menu entry.** "synced as
 {name}", linking to the hub's `/account`, sits after the saved-state words on
 the laptop bar at the same quiet end of the ink scale. The phone's 52px strip is
 full (back, wordmark, save, "⋯"), so the phone gets a menu entry instead - the
@@ -107,13 +135,10 @@ else in boop's UI changes.
 
 ## Consequences
 
-**Declining is weaker than it sounds, and this is the open question.** The
-marker records that the offer was answered, not how. A declining device is still
-linked, so its *next* start pulls, merges and - because the merge is a union -
-pushes the very boops the parent declined to upload. Implemented as the spec
-states it; whether decline should instead mean "sync is off for this account on
-this device" is Ed's call, and the honest answer today is that decline delays
-the upload by one session rather than preventing it.
+**A declined device is a device with no way back, by design for now.** Nothing
+in boop can turn an account from `declined` to `accepted`; a parent who changes
+their mind has to be given a control that does not exist yet (decision 7). The
+state model holds the transition, so building it later is UI over a write.
 
 **A session that starts offline stays unsynced until the next start.** The pull
 runs once, at app start (spec §7.1). Retrying it on the watcher's tick would

@@ -66,7 +66,8 @@ src/
                     on the SaveStore, never a move. Nothing in the play path
                     calls it: boopSync.ts watches the one localStorage key and
                     copies it up, mergeSaveDocuments.ts is the pure union hook,
-                    syncedAccount.ts the additive `boop:syncedAccount` marker,
+                    syncedAccount.ts the additive `boop:syncedAccount` marker -
+                    the answer per account, not just that one was given,
                     useBoopSync.ts the hook HomePage calls, and
                     ImportOfferCard/SyncedChip the only two pieces of UI
   song/             the working-song domain (ticket 14) — pure, no React
@@ -305,6 +306,14 @@ share-link snapshot.
   change. A child must never meet an error, a blocking spinner or a lost
   pattern because a sync failed, and the `.iwft` suite pins exactly that with a
   client that throws on every call.
+  **"Not now" means no sync.** `boop:syncedAccount` records the *answer* per
+  account (`accepted` / `declined`), because a marker holding only "was asked"
+  reads as linked on the next start and pushes the very boops the parent
+  declined. A declined account gets no pull, no push, no watcher, no chip and
+  no second offer, on that start or any later one - the test that guards it
+  decides on the **second** start and asserts boop made no call at all. There
+  is deliberately no way back in the UI yet (it is Ed's call); the answer is a
+  recorded value, so adding one is a write, not a migration.
 - **Saved-state visibility** ([ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md)).
   Because nothing is ever lost, **never add a `beforeunload` guard** — it would
   warn about nothing, in wording a 6-year-old cannot read. The chrome answers
