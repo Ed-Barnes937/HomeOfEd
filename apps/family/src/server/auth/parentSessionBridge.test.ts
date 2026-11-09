@@ -81,4 +81,9 @@ describe('the Better Auth session bridge', () => {
       parent: null,
     })
   })
+
+  it('ignores it however the client cases it', async () => {
+    await expect(me({ 'X-Family-Parent': 'parent-1' })).resolves.toEqual({ parent: null })
+    await expect(me({ 'X-FAMILY-PARENT': 'parent-1' })).resolves.toEqual({ parent: null })
+  })
 })
