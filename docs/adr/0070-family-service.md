@@ -57,6 +57,23 @@ app's machine. Saves are opaque versioned blobs keyed `(appId, accountId,
 slotKey)`, where `slotKey` is the app's own `localStorage` key used verbatim.
 The server never parses a blob and never grows an app-specific column.
 
+**The database stays in shared `hoe-pg`, with no backups, for the household
+pilot.** [ADR 0072](0072-sprout-owns-its-postgres-and-triggers-are-scopes.md)
+moved sprout to its own unmanaged cluster and set a trigger that a household
+pilot fires, so this choice is a deliberate divergence rather than an oversight.
+Its decision 4 requires the price: Managed Postgres has no small tier, so the
+alternative starts at $38/mo at Basic (as of 2026-11-02) against roughly $16/mo
+for the whole estate today, and sprout's own-cluster-with-backups shape costs
+about $4.48/mo of which the separate cluster is $1.91 and the 512MB that
+`--enable-backups` demands is $1.76. The owner accepted no backups on 2026-11-09
+on the grounds that the pilot cohort is the owner's household, which is also
+what [ADR 0057](0057-family-service-legal-gate.md) scopes. What a lost database
+costs here is narrower than it looks: the account list and the service's copies
+of each save, never a child's actual work, because every app's `localStorage`
+remains the source of truth. The restore rehearsal ADR 0072 handed forward is
+therefore deferred rather than closed, and it returns as a precondition the
+moment a non-household account exists.
+
 Child profiles are rows a parent owns rather than accounts of their own, so
 there are no child credentials to lose. `saves.accountId` deliberately carries
 no foreign key, because it holds either a parent's `user.id` or a
