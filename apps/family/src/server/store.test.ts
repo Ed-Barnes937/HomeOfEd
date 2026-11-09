@@ -267,6 +267,40 @@ describe('DrizzleFamilyStore saves', () => {
   })
 })
 
+describe('DrizzleFamilyStore save usage', () => {
+  let store: DrizzleFamilyStore
+
+  const key = { appId: 'boop', accountId: 'parent-1', slotKey: 'boop:save' }
+
+  beforeEach(async () => {
+    ;({ store } = await freshStore())
+  })
+
+  it('reports nothing stored for an account with no saves', async () => {
+    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 0, slotBytes: 0 })
+  })
+
+  it('sums every appId for the account, and the addressed slot within it', async () => {
+    await store.putSave({ ...key, blob: 'one' })
+    await store.putSave({ ...key, slotKey: 'boop:other', blob: 'four' })
+    await store.putSave({ ...key, appId: 'silt', slotKey: 'silt:scene:1', blob: 'twelve bytes' })
+
+    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 19, slotBytes: 3 })
+  })
+
+  it('counts bytes, not characters', async () => {
+    await store.putSave({ ...key, blob: '🥁' })
+
+    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 4, slotBytes: 4 })
+  })
+
+  it('counts no other account', async () => {
+    await store.putSave({ ...key, accountId: 'parent-2', blob: 'theirs' })
+
+    await expect(store.saveUsage(key)).resolves.toEqual({ accountBytes: 0, slotBytes: 0 })
+  })
+})
+
 describe('DrizzleFamilyStore account erasure', () => {
   it('leaves no orphan saves behind the deleted parent and its profiles', async () => {
     const { db, store } = await freshStore()

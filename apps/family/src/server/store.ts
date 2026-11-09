@@ -38,6 +38,17 @@ export interface SaveRecord {
   updatedAt: Date
 }
 
+/**
+ * What one account has stored, for the account quota. `listSaves` cannot serve
+ * it: the quota spans every appId and that query is filtered by one.
+ */
+export interface SaveUsage {
+  /** Every appId's bytes for this accountId. */
+  accountBytes: number
+  /** The addressed slot's share of `accountBytes`, so a put can price its own overwrite. */
+  slotBytes: number
+}
+
 /** Slot metadata for `save.list` - deliberately blob-free. */
 export interface SaveSlot {
   slotKey: string
@@ -77,6 +88,12 @@ export interface FamilyStore {
   putSave(input: SaveKey & { blob: string }): Promise<{ version: number }>
   listSaves(input: { appId: string; accountId: string }): Promise<SaveSlot[]>
   deleteSave(key: SaveKey): Promise<void>
+  saveUsage(key: SaveKey): Promise<SaveUsage>
+}
+
+/** The unit `saves.sizeBytes` is measured in, and so every quota with it. */
+export function blobByteLength(blob: string): number {
+  return new TextEncoder().encode(blob).length
 }
 
 // `.returning()` always yields a row after an insert, but the compiler can't
@@ -195,7 +212,7 @@ export class DrizzleFamilyStore implements FamilyStore {
   }
 
   async putSave(input: SaveKey & { blob: string }): Promise<{ version: number }> {
-    const sizeBytes = new TextEncoder().encode(input.blob).length
+    const sizeBytes = blobByteLength(input.blob)
     const rows = await this.db
       .insert(saves)
       .values({ ...input, sizeBytes })
@@ -228,5 +245,17 @@ export class DrizzleFamilyStore implements FamilyStore {
 
   async deleteSave(key: SaveKey): Promise<void> {
     await this.db.delete(saves).where(slotFilter(key))
+  }
+
+  async saveUsage(key: SaveKey): Promise<SaveUsage> {
+    const thisSlot = sql`${saves.appId} = ${key.appId} and ${saves.slotKey} = ${key.slotKey}`
+    const rows = await this.db
+      .select({
+        accountBytes: sql<number>`coalesce(sum(${saves.sizeBytes}), 0)::int`,
+        slotBytes: sql<number>`coalesce(sum(${saves.sizeBytes}) filter (where ${thisSlot}), 0)::int`,
+      })
+      .from(saves)
+      .where(eq(saves.accountId, key.accountId))
+    return first(rows)
   }
 }

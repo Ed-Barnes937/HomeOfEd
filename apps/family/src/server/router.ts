@@ -1,6 +1,14 @@
+import {
+  saveDeleteInput,
+  saveGetInput,
+  saveListInput,
+  savePutInput,
+  type FamilySaveContract,
+} from '@hoe/accounts'
 import { createTRPC } from '@hoe/backend-kit'
 
 import type { FamilyTokenMinter } from './auth/tokenPort.ts'
+import type { FamilyContext } from './handlers/authz.ts'
 import { GreetingHandler } from './handlers/greetingHandler.ts'
 import { AddChildHandler, addChildInputSchema } from './handlers/identity/addChildHandler.ts'
 import { DeleteAccountHandler } from './handlers/identity/deleteAccountHandler.ts'
@@ -18,6 +26,10 @@ import {
   RenameChildHandler,
   renameChildInputSchema,
 } from './handlers/identity/renameChildHandler.ts'
+import { DeleteSaveHandler } from './handlers/saves/deleteSaveHandler.ts'
+import { GetSaveHandler } from './handlers/saves/getSaveHandler.ts'
+import { ListSavesHandler } from './handlers/saves/listSavesHandler.ts'
+import { PutSaveHandler } from './handlers/saves/putSaveHandler.ts'
 import type { FamilyStore } from './store.ts'
 
 export interface FamilyRouterDeps {
@@ -26,6 +38,16 @@ export interface FamilyRouterDeps {
 }
 
 const t = createTRPC<FamilyStore>()
+
+/** The save half, bound to one request's context, as `@hoe/accounts` types it. */
+function saveContractFor(ctx: FamilyContext) {
+  return {
+    get: (input) => new GetSaveHandler().run(input, ctx),
+    put: (input) => new PutSaveHandler().run(input, ctx),
+    list: (input) => new ListSavesHandler().run(input, ctx),
+    delete: (input) => new DeleteSaveHandler().run(input, ctx),
+  } satisfies FamilySaveContract
+}
 
 /**
  * A factory, not a const: the composition roots (main.ts / simulator.ts /
@@ -54,6 +76,20 @@ export function createAppRouter(deps: FamilyRouterDeps) {
       deleteAccount: t.procedure.mutation(({ ctx }) =>
         new DeleteAccountHandler().run(undefined, ctx),
       ),
+    }),
+    save: t.router({
+      get: t.procedure
+        .input(saveGetInput)
+        .query(({ input, ctx }) => saveContractFor(ctx).get(input)),
+      put: t.procedure
+        .input(savePutInput)
+        .mutation(({ input, ctx }) => saveContractFor(ctx).put(input)),
+      list: t.procedure
+        .input(saveListInput)
+        .query(({ input, ctx }) => saveContractFor(ctx).list(input)),
+      delete: t.procedure
+        .input(saveDeleteInput)
+        .mutation(({ input, ctx }) => saveContractFor(ctx).delete(input)),
     }),
   })
 }
