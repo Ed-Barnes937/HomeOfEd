@@ -2,6 +2,7 @@ import type { ChoiceParam, Params } from '../../engine/schema.ts'
 import { coreName } from '../../wand/describe.ts'
 import {
   hasGems,
+  hasStencil,
   hasTurnedHandle,
   isBranch,
   usesMetal,
@@ -85,7 +86,9 @@ const GROUP_DEFS: readonly GroupDef[] = [
             ? 'Bone'
             : hasGems(p)
               ? 'Gems'
-              : 'None',
+              : hasStencil(p)
+                ? labelOf('stencil', p)
+                : 'None',
   },
   {
     key: 'core',

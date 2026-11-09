@@ -39,6 +39,7 @@ export function FakeStage({ params, ref }: StageProps) {
       data-core={params.core}
       data-length={params.lengthCm}
       data-gems={gemCount(params)}
+      data-stencil={compileWand(params).stencil?.tile ?? 'none'}
     />
   )
 }

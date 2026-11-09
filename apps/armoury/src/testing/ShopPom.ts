@@ -40,8 +40,10 @@ export class ShopPom extends BasePage {
     length?: number
     gems?: number
     kind?: string
+    stencil?: string
   }): Promise<void> {
     if (expected.kind) await expect(this.stage).toHaveAttribute('data-kind', expected.kind)
+    if (expected.stencil) await expect(this.stage).toHaveAttribute('data-stencil', expected.stencil)
     if (expected.gems !== undefined)
       await expect(this.stage).toHaveAttribute('data-gems', String(expected.gems))
     if (expected.wood) await expect(this.stage).toHaveAttribute('data-wood', expected.wood)
@@ -63,6 +65,12 @@ export class ShopPom extends BasePage {
       .getByRole('radiogroup', { name: control, exact: true })
       .getByRole('radio', { name: option, exact: true })
       .click()
+  }
+
+  async verifyOptions(control: string, options: string[]): Promise<void> {
+    await expect(
+      this.page.getByRole('radiogroup', { name: control, exact: true }).getByRole('radio'),
+    ).toHaveText(options)
   }
 
   async verifyGroupSummary(group: string, summary: string): Promise<void> {

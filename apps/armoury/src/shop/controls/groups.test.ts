@@ -56,6 +56,9 @@ describe('the trimmings summary', () => {
   it('names the metal, else the paint or bone, else the gems, else says there are none', () => {
     expect(decorSummary({})).toBe('None')
     expect(decorSummary({ tipGem: 'crystal' })).toBe('Gems')
+    expect(decorSummary({ stencil: 'runes' })).toBe('Runes')
+    expect(decorSummary({ stencil: 'runes', tipGem: 'crystal' })).toBe('Gems')
+    expect(decorSummary({ stencil: 'runes', kind: 'branch' })).toBe('None')
     expect(decorSummary({ gems: 'ring', bands: 'one', metal: 'gold' })).toBe('Gold')
     expect(decorSummary({ bands: 'two', metal: 'brass', shaftFinish: 'paint' })).toBe('Brass')
     expect(decorSummary({ shaftFinish: 'paint', paintColour: 'poppy' })).toBe('Poppy')

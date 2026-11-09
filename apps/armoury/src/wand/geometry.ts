@@ -1,5 +1,6 @@
-import type { BranchSpec, GrooveSet, Material, WandSpec } from './compile.ts'
-import { RIM_WIDTH } from './gems.ts'
+import type { BranchSpec, GrooveSet, Material, StencilBand, WandSpec } from './compile.ts'
+import { RIM_WIDTH, SHOWN_SIDE } from './gems.ts'
+import { stencilHeight } from './stencils.ts'
 
 // The wand surface is a radius field r(angle, z) sampled on a cylinder grid.
 // Pure functions, no three.js, so they're easy to test.
@@ -47,6 +48,28 @@ function strengthAt(g: GrooveSet, z: number): number {
   return smoothstep(g.from, g.from + g.fadeIn, z) * (1 - smoothstep(g.to - g.fadeOut, g.to, z))
 }
 
+/** A stencil eases in and out over this much at each end of its band, mm. */
+const STENCIL_FADE = 1.2
+
+/** The stencil band at z and how strongly it cuts there; reused so the mesh build allocates nothing per ring. */
+interface StencilRing {
+  band: StencilBand | null
+  strength: number
+}
+
+function stencilRingAt(spec: WandSpec, z: number, out: StencilRing): StencilRing {
+  out.band = null
+  out.strength = 0
+  for (const band of spec.stencil?.bands ?? []) {
+    if (z <= band.from || z >= band.to) continue
+    out.band = band
+    out.strength =
+      smoothstep(band.from, band.from + STENCIL_FADE, z) *
+      (1 - smoothstep(band.to - STENCIL_FADE, band.to, z))
+  }
+  return out
+}
+
 /** How far a branch's lumps and knots have grown in at z, 0 to 1. */
 const growthAt = (b: BranchSpec, z: number) => smoothstep(b.from, b.from + 15, z)
 
@@ -86,6 +109,7 @@ function surfaceAt(
   banded: boolean,
   growth: number,
   lump: number,
+  stencil: StencilRing,
   out: Surface,
 ): void {
   settingAt(spec, theta, z, r0)
@@ -135,6 +159,20 @@ function surfaceAt(
           ridgeMetal = Math.max(ridgeMetal, (1 - smoothstep(0.82, 0.97, x)) * smoothstep(0, 0.3, f))
       }
     }
+    const { band } = stencil
+    if (band && spec.stencil) {
+      // Stencils stay off metal ridges and gem settings, as carving does.
+      const f = stencil.strength * setting.carving * (1 - ridgeMetal)
+      if (f > 0) {
+        // The middle of a tile faces up in the box, so a vine or a column of runes shows whole.
+        const h = stencilHeight(
+          spec.stencil.tile,
+          ((theta - SHOWN_SIDE) / TAU) * band.around + 0.5,
+          (z - band.from) / band.length,
+        )
+        cut = Math.min(cut, r0 * (1 - spec.stencil.depth * f * (1 - h)))
+      }
+    }
   }
   out.r = cut + raised - r0 + setting.offset + natural - r0
   out.natural = natural
@@ -158,7 +196,8 @@ export function radiusAt(
   const b = spec.branch
   const growth = b ? growthAt(b, z) : 0
   const lump = b ? lumpAt(b, theta, z) * growth : 0
-  surfaceAt(spec, theta, z, r0, isBanded(spec, z), growth, lump, out)
+  const stencil = stencilRingAt(spec, z, { band: null, strength: 0 })
+  surfaceAt(spec, theta, z, r0, isBanded(spec, z), growth, lump, stencil, out)
   return { r: out.r, r0, natural: out.natural, metal: out.metal, knot: out.knot }
 }
 
@@ -284,6 +323,31 @@ export interface MeshOptions {
   textureMm?: number
 }
 
+/** Stencil bands get rings this much closer together, so the pattern's edges don't step. */
+const STENCIL_RING_SCALE = 0.5
+
+/** Where the rings go along z: evenly by `step`, and finer over stencil bands. */
+function ringPositions(spec: WandSpec, step: number): number[] {
+  const { bodyFrom, bodyTo } = spec
+  const fine = (spec.stencil?.bands ?? [])
+    .map((b): [number, number] => [Math.max(bodyFrom, b.from), Math.min(bodyTo, b.to)])
+    .filter(([from, to]) => to > from)
+  const pieces: [number, number, number][] = []
+  let z = bodyFrom
+  for (const [from, to] of fine) {
+    if (from > z) pieces.push([z, from, step])
+    pieces.push([Math.max(z, from), to, step * STENCIL_RING_SCALE])
+    z = Math.max(z, to)
+  }
+  if (bodyTo > z) pieces.push([z, bodyTo, step])
+  const zs = [bodyFrom]
+  for (const [from, to, s] of pieces) {
+    const n = Math.max(1, Math.ceil((to - from) / s))
+    for (let k = 1; k <= n; k++) zs.push(from + ((to - from) * k) / n)
+  }
+  return zs
+}
+
 /**
  * Builds a closed, solid mesh. The profile is zero at both ends, so the first
  * and last rings collapse onto the axis and seal the shape.
@@ -294,7 +358,8 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   const textureMm = opts.textureMm ?? 110
   const L = spec.lengthMm
   const { bodyFrom, bodyTo } = spec
-  const rings = Math.ceil((bodyTo - bodyFrom) / step)
+  const zs = ringPositions(spec, step)
+  const rings = zs.length - 1
   const cols = segments + 1 // duplicate seam column for UVs
   const count = (rings + 1) * cols
 
@@ -332,11 +397,13 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   })
   const lumpA = new Float64Array(lumps.length)
   const lumpB = new Float64Array(lumps.length)
+  const stencil: StencilRing = { band: null, strength: 0 }
 
   for (let j = 0; j <= rings; j++) {
-    const z = bodyFrom + ((bodyTo - bodyFrom) * j) / rings
+    const z = zs[j]!
     const r0 = spec.profile(z)
     const banded = isBanded(spec, z)
+    stencilRingAt(spec, z, stencil)
     const growth = spec.branch ? growthAt(spec.branch, z) : 0
     const lumpScale = spec.branch ? spec.branch.gnarl * growth : 0
     lumps.forEach((l, li) => {
@@ -353,7 +420,8 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
       let lump = 0
       for (let li = 0; li < lumps.length; li++)
         lump += lumpSin[li * cols + i]! * lumpA[li]! + lumpCos[li * cols + i]! * lumpB[li]!
-      if (r0 > 0) surfaceAt(spec, (TAU * i) / segments, z, r0, banded, growth, lump, surface)
+      if (r0 > 0)
+        surfaceAt(spec, (TAU * i) / segments, z, r0, banded, growth, lump, stencil, surface)
       const r = r0 > 0 ? surface.r : 0
       const natural = r0 > 0 ? surface.natural : 0
       ridge[k] = r0 > 0 ? surface.metal : 0
@@ -424,7 +492,7 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   // are also shaded darker, stained or not.
   const { stain } = spec
   for (let j = 0; j <= rings; j++) {
-    const s = (bodyFrom + ((bodyTo - bodyFrom) * j) / rings) / L
+    const s = zs[j]! / L
     const amount = stain.colour
       ? stain.strength *
         (1 - smoothstep(stain.reach - stain.softness / 2, stain.reach + stain.softness / 2, s))
