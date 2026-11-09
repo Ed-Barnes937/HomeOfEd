@@ -3,6 +3,7 @@
 // the in-page fake between the two - it leaves the state it wants under this
 // key instead, and the harness applies it at module init, before the app's
 // first pull. Same shape as test-kit's SEED_SOURCE_KEY trampoline.
+import type { FamilySaveContract } from '@hoe/accounts'
 import type { FakeSessionInput } from '@hoe/accounts/testing'
 import type { FakeFamilyClient } from '@hoe/accounts/testing/fake'
 
@@ -40,4 +41,26 @@ export function applyFamilySeed(client: FakeFamilyClient): void {
   // After the put, whose guard is read when it is called, so the seeded slot
   // still lands on a service the test wants broken from the app's first call.
   if (seed.broken) client.failWith(new Error('the family service is unreachable'))
+}
+
+/** The client as the app sees it: every call it makes is named in `calls` first. */
+export function recordingClient(inner: FamilySaveContract, calls: string[]): FamilySaveContract {
+  return {
+    get: (input) => {
+      calls.push('get')
+      return inner.get(input)
+    },
+    put: (input) => {
+      calls.push('put')
+      return inner.put(input)
+    },
+    list: (input) => {
+      calls.push('list')
+      return inner.list(input)
+    },
+    delete: (input) => {
+      calls.push('delete')
+      return inner.delete(input)
+    },
+  }
 }

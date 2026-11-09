@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 
 import { parseSaveDocument, type StoredBoop } from './persistence/saveFormat.ts'
 import { SAVE_KEY } from './persistence/storage.ts'
-import { readRemoteSave, seedFamily } from './testing/familySession.ts'
+import { readFamilyCalls, readRemoteSave, seedFamily } from './testing/familySession.ts'
 import { test } from './testing/iwftTest.tsx'
 import { SYNCED_ACCOUNT_KEY } from './sync/syncedAccount.ts'
 
@@ -44,11 +44,11 @@ function savedNames(blob: string | null): readonly string[] {
   return parseSaveDocument(blob).creations.map((creation) => creation.name)
 }
 
-/** Stamp the marker, which is what a device that has answered the offer carries. */
-async function stampMarker(page: Page, accountId: string): Promise<void> {
+/** The marker a device that has already answered the offer carries. */
+async function recordAnswer(page: Page, accountId: string, answer: string): Promise<void> {
   await page.evaluate(
-    ({ key, value }) => window.localStorage.setItem(key, JSON.stringify([value])),
-    { key: SYNCED_ACCOUNT_KEY, value: accountId },
+    ({ key, id, value }) => window.localStorage.setItem(key, JSON.stringify({ [id]: value })),
+    { key: SYNCED_ACCOUNT_KEY, id: accountId, value: answer },
   )
 }
 
@@ -72,6 +72,7 @@ test('with no family session, boop never touches the save service', async ({ mou
   await page.waitForTimeout(6_000)
 
   expect(await readRemoteSave(page)).toBeNull()
+  expect(await readFamilyCalls(page)).toEqual([])
   await root.verifyNoSyncedChip()
   await root.verifyNoImportOffer()
 })
@@ -97,10 +98,13 @@ test('the first link offers to keep this device’s boops, and accepting copies 
     .poll(async () => savedNames(await readRemoteSave(page)))
     .toEqual(['on the phone', 'on the tablet'])
   expect(savedNames(await readLocal(page))).toEqual(['on the phone', 'on the tablet'])
-  expect(await root.readSyncedAccounts()).toEqual([ADA.sub])
+  expect(await root.readSyncAnswers()).toEqual({ [ADA.sub]: 'accepted' })
 })
 
-test('declining keeps everything local and is never asked again', async ({ mountApp, page }) => {
+test('declining keeps everything local, and the start after it syncs nothing', async ({
+  mountApp,
+  page,
+}) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
   await page.reload()
@@ -111,14 +115,29 @@ test('declining keeps everything local and is never asked again', async ({ mount
   await root.verifyIsShown()
   await root.declineImport()
 
+  await root.verifyNoImportOffer()
+  await root.verifyNoSyncedChip()
   await page.waitForTimeout(6_000)
   expect(await readRemoteSave(page)).toBeNull()
   expect(savedNames(await readLocal(page))).toEqual(['on the tablet'])
+  expect(await root.readSyncAnswers()).toEqual({ [ADA.sub]: 'declined' })
 
+  // The second start is the whole point: a device that said no must not quietly
+  // sync on the next visit, which is what a marker holding no answer would do.
   await page.reload()
   const second = await mountApp()
   await second.root.verifyIsShown()
   await second.root.verifyNoImportOffer()
+  await second.root.verifyNoSyncedChip()
+  await second.root.startBlank()
+  await second.root.toggleCell('kick', 0)
+  await second.root.openBoops()
+  await second.root.saveBoop()
+  await second.root.closeBoops()
+  await page.waitForTimeout(6_000)
+
+  expect(await readRemoteSave(page)).toBeNull()
+  expect(await readFamilyCalls(page)).toEqual([])
 })
 
 test('a boop made on another device arrives in "My boops" at start', async ({
@@ -129,7 +148,7 @@ test('a boop made on another device arrives in "My boops" at start', async ({
   await first.root.verifyIsShown()
   await page.reload()
   await seedLocal(page, saveDocument([boop('on the tablet')]))
-  await stampMarker(page, ADA.sub)
+  await recordAnswer(page, ADA.sub, 'accepted')
   await seedFamily(page, { session: ADA, remote: saveDocument([boop('on the phone')]) })
 
   const { root } = await mountApp()
@@ -149,7 +168,7 @@ test('saving a boop copies the whole document up', async ({ mountApp, page }) =>
   const first = await mountApp()
   await first.root.verifyIsShown()
   await page.reload()
-  await stampMarker(page, ADA.sub)
+  await recordAnswer(page, ADA.sub, 'accepted')
   await seedFamily(page, { session: ADA })
 
   const { root } = await mountApp()
@@ -171,7 +190,7 @@ test('a family service that throws on every call leaves boop exactly as it is to
   await first.root.verifyIsShown()
   await page.reload()
   await seedLocal(page, saveDocument([boop('on the tablet')]))
-  await stampMarker(page, ADA.sub)
+  await recordAnswer(page, ADA.sub, 'accepted')
   await seedFamily(page, { session: ADA, broken: true })
 
   const { root } = await mountApp()
@@ -199,7 +218,7 @@ test('a remote blob that is not a boop save degrades to empty rather than errori
   await first.root.verifyIsShown()
   await page.reload()
   await seedLocal(page, saveDocument([boop('on the tablet')]))
-  await stampMarker(page, ADA.sub)
+  await recordAnswer(page, ADA.sub, 'accepted')
   await seedFamily(page, { session: ADA, remote: '{"version":99,"wrong":"shape"' })
 
   const { root } = await mountApp()

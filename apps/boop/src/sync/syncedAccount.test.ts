@@ -2,58 +2,87 @@ import { describe, expect, it } from 'vitest'
 
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { FakeStorage } from '../persistence/testing/fakeStorage.ts'
-import { hasSyncedAccount, stampSyncedAccount, SYNCED_ACCOUNT_KEY } from './syncedAccount.ts'
+import { readSyncAnswer, recordSyncAnswer, SYNCED_ACCOUNT_KEY } from './syncedAccount.ts'
 
 describe('the synced-account marker', () => {
-  it('is absent until the account is stamped', () => {
+  it('is null until the account has been answered for', () => {
     const storage = new FakeStorage()
 
-    expect(hasSyncedAccount(storage, 'child-1')).toBe(false)
-    stampSyncedAccount(storage, 'child-1')
-    expect(hasSyncedAccount(storage, 'child-1')).toBe(true)
+    expect(readSyncAnswer(storage, 'child-1')).toBeNull()
+    recordSyncAnswer(storage, 'child-1', 'accepted')
+    expect(readSyncAnswer(storage, 'child-1')).toBe('accepted')
   })
 
-  it('is per account, so a second child on the same tablet is a first link of their own', () => {
+  it('remembers which answer was given, not merely that one was', () => {
     const storage = new FakeStorage()
-    stampSyncedAccount(storage, 'child-1')
+    recordSyncAnswer(storage, 'child-1', 'declined')
 
-    expect(hasSyncedAccount(storage, 'child-2')).toBe(false)
-
-    stampSyncedAccount(storage, 'child-2')
-
-    expect(hasSyncedAccount(storage, 'child-1')).toBe(true)
-    expect(hasSyncedAccount(storage, 'child-2')).toBe(true)
+    expect(readSyncAnswer(storage, 'child-1')).toBe('declined')
   })
 
-  it('stamping twice does not grow the marker', () => {
+  it('is per account, so a second child on the same tablet answers for themselves', () => {
     const storage = new FakeStorage()
-    stampSyncedAccount(storage, 'child-1')
-    stampSyncedAccount(storage, 'child-1')
+    recordSyncAnswer(storage, 'child-1', 'declined')
 
-    expect(storage.store.get(SYNCED_ACCOUNT_KEY)).toBe('["child-1"]')
+    expect(readSyncAnswer(storage, 'child-2')).toBeNull()
+
+    recordSyncAnswer(storage, 'child-2', 'accepted')
+
+    expect(readSyncAnswer(storage, 'child-1')).toBe('declined')
+    expect(readSyncAnswer(storage, 'child-2')).toBe('accepted')
+  })
+
+  it('can change an answer, so a way back needs a write rather than a migration', () => {
+    const storage = new FakeStorage()
+    recordSyncAnswer(storage, 'child-1', 'declined')
+    recordSyncAnswer(storage, 'child-1', 'accepted')
+
+    expect(readSyncAnswer(storage, 'child-1')).toBe('accepted')
+    expect(storage.store.get(SYNCED_ACCOUNT_KEY)).toBe('{"child-1":"accepted"}')
+  })
+
+  it('reads the marker’s first, list shape as accepted - only accepting could have written it', () => {
+    const storage = new FakeStorage()
+    storage.setItem(SYNCED_ACCOUNT_KEY, '["child-1","child-2"]')
+
+    expect(readSyncAnswer(storage, 'child-1')).toBe('accepted')
+    expect(readSyncAnswer(storage, 'child-2')).toBe('accepted')
+    expect(readSyncAnswer(storage, 'child-3')).toBeNull()
+  })
+
+  it('keeps the other accounts when it rewrites a legacy marker', () => {
+    const storage = new FakeStorage()
+    storage.setItem(SYNCED_ACCOUNT_KEY, '["child-1"]')
+
+    recordSyncAnswer(storage, 'child-2', 'declined')
+
+    expect(readSyncAnswer(storage, 'child-1')).toBe('accepted')
+    expect(readSyncAnswer(storage, 'child-2')).toBe('declined')
   })
 
   it('never touches the save document', () => {
     const storage = new FakeStorage()
     storage.setItem(SAVE_KEY, 'the boops')
 
-    stampSyncedAccount(storage, 'child-1')
+    recordSyncAnswer(storage, 'child-1', 'accepted')
 
     expect(storage.store.get(SAVE_KEY)).toBe('the boops')
   })
 
-  it('reads a corrupt marker as "not offered yet" rather than throwing', () => {
+  it('reads a corrupt marker, or an answer it does not know, as "not asked yet"', () => {
     const storage = new FakeStorage()
     storage.setItem(SYNCED_ACCOUNT_KEY, '{not json')
+    expect(readSyncAnswer(storage, 'child-1')).toBeNull()
 
-    expect(hasSyncedAccount(storage, 'child-1')).toBe(false)
+    storage.setItem(SYNCED_ACCOUNT_KEY, '{"child-1":"maybe"}')
+    expect(readSyncAnswer(storage, 'child-1')).toBeNull()
   })
 
   it('survives a browser with storage switched off', () => {
     const storage = new FakeStorage()
     storage.unavailable = true
 
-    expect(hasSyncedAccount(storage, 'child-1')).toBe(false)
-    expect(() => stampSyncedAccount(storage, 'child-1')).not.toThrow()
+    expect(readSyncAnswer(storage, 'child-1')).toBeNull()
+    expect(() => recordSyncAnswer(storage, 'child-1', 'accepted')).not.toThrow()
   })
 })

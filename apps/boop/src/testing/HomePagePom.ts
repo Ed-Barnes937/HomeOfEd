@@ -3296,8 +3296,8 @@ export class HomePagePom extends BasePage {
     await expect(this.syncedChip).toHaveCount(0)
   }
 
-  /** The accounts this device has already been offered the import for. */
-  async readSyncedAccounts(): Promise<unknown> {
+  /** What this device answered when it was offered the import, per account. */
+  async readSyncAnswers(): Promise<unknown> {
     const raw = await this.page.evaluate(
       (key) => window.localStorage.getItem(key),
       SYNCED_ACCOUNT_KEY,

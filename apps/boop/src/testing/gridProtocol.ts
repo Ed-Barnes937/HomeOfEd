@@ -6,3 +6,11 @@ export const BOOP_AUDIO_DRIVER_KEY = '__boopAudioDriver'
 
 /** The same trampoline for the fake family save client (ADR 0080). */
 export const BOOP_SAVE_CLIENT_KEY = '__boopSaveClient'
+
+/**
+ * …and for the names of the calls the app made on it, so a test can assert
+ * that boop never called the service at all. The app is handed a recorder over
+ * the client; a test reading the account goes to the client directly, so its
+ * own reads are not counted.
+ */
+export const BOOP_SAVE_CALLS_KEY = '__boopSaveCalls'

@@ -21,8 +21,12 @@ import { testUserAuth } from '@hoe/test-kit/browser'
 import { App } from '../App.tsx'
 import { FakeAudioDriver } from '../engine/testing/fakeAudioDriver.ts'
 import { appRouter } from '../server/router.ts'
-import { applyFamilySeed } from './familySeed.ts'
-import { BOOP_AUDIO_DRIVER_KEY, BOOP_SAVE_CLIENT_KEY } from './gridProtocol.ts'
+import { applyFamilySeed, recordingClient } from './familySeed.ts'
+import {
+  BOOP_AUDIO_DRIVER_KEY,
+  BOOP_SAVE_CALLS_KEY,
+  BOOP_SAVE_CLIENT_KEY,
+} from './gridProtocol.ts'
 
 exposeDispatcher(
   createDispatcher({
@@ -49,8 +53,11 @@ const audioDriver = new FakeAudioDriver()
 // sets both.
 const saveClient = new FakeFamilyClient()
 applyFamilySeed(saveClient)
+const saveCalls: string[] = []
+const recordedSaveClient = recordingClient(saveClient, saveCalls)
 ;(globalThis as unknown as Record<string, unknown>)[BOOP_SAVE_CLIENT_KEY] = saveClient
+;(globalThis as unknown as Record<string, unknown>)[BOOP_SAVE_CALLS_KEY] = saveCalls
 
 export function IwftApp() {
-  return <App driver={audioDriver} saveClient={saveClient} />
+  return <App driver={audioDriver} saveClient={recordedSaveClient} />
 }

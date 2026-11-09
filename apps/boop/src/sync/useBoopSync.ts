@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { createBoopSync, type BoopSync } from './boopSync.ts'
 import { useSaveClient } from './SaveClientContext.tsx'
-import { hasSyncedAccount, stampSyncedAccount } from './syncedAccount.ts'
+import { readSyncAnswer, recordSyncAnswer } from './syncedAccount.ts'
 
 /**
  * Longer than the autosave's 2s lull, so what gets copied up is a document the
@@ -43,9 +43,13 @@ export function useBoopSync(): BoopSyncState {
 
   useEffect(() => {
     if (!client || !session) return
+    const answer = readSyncAnswer(window.localStorage, session.sub)
+    // A declined account gets nothing: no pull, no push, no watcher, and no
+    // second offer. Nothing is built here that could make a call.
+    if (answer === 'declined') return
     const boopSync = createBoopSync({ client, storage: window.localStorage })
     sync.current = boopSync
-    if (!hasSyncedAccount(window.localStorage, session.sub)) {
+    if (answer === null) {
       setOffering(true)
       return
     }
@@ -74,18 +78,18 @@ export function useBoopSync(): BoopSyncState {
   const acceptImport = useCallback(() => {
     if (!session) return
     setOffering(false)
-    stampSyncedAccount(window.localStorage, session.sub)
+    recordSyncAnswer(window.localStorage, session.sub, 'accepted')
     setLinked(true)
     void sync.current?.reconcile()
   }, [session])
 
-  // Stamped but never reconciled, so nothing goes up this session: the push
-  // watcher stays unarmed until a pull has merged the account in.
+  // No pull, no push, and nothing linked - now or on any later start, until
+  // the answer itself is changed. "Not now" has to mean what it says.
   const declineImport = useCallback(() => {
     if (!session) return
     setOffering(false)
-    stampSyncedAccount(window.localStorage, session.sub)
-    setLinked(true)
+    recordSyncAnswer(window.localStorage, session.sub, 'declined')
+    sync.current = null
   }, [session])
 
   return {

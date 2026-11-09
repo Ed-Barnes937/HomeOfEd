@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test'
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { BOOP_APP_ID } from '../sync/boopSync.ts'
 import { FAMILY_SEED_KEY, type FamilySeed } from './familySeed.ts'
-import { BOOP_SAVE_CLIENT_KEY } from './gridProtocol.ts'
+import { BOOP_SAVE_CALLS_KEY, BOOP_SAVE_CLIENT_KEY } from './gridProtocol.ts'
 
 export interface FamilySeedOpts extends FamilySeed {
   /**
@@ -54,5 +54,13 @@ export async function readRemoteSave(page: Page): Promise<string | null> {
       return (await client.get({ appId, slotKey }))?.blob ?? null
     },
     { key: BOOP_SAVE_CLIENT_KEY, appId: BOOP_APP_ID, slotKey: SAVE_KEY },
+  )
+}
+
+/** The calls the app made on the family service, in order. */
+export async function readFamilyCalls(page: Page): Promise<readonly string[]> {
+  return page.evaluate(
+    (key) => (globalThis as Record<string, unknown>)[key] as string[],
+    BOOP_SAVE_CALLS_KEY,
   )
 }
