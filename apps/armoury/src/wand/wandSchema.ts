@@ -1,0 +1,318 @@
+import type { ItemSchema, Params } from '../engine/schema.ts'
+
+// Kid-facing labels only. No woodturning jargon ("taper", "cove") in the UI.
+
+const HANDLE_CARVING_BY_STYLE: Record<string, string[]> = {
+  plain: ['none', 'flats'],
+  ringed: ['none', 'flutes'],
+  spiral: ['spiralFlutes', 'flutes'],
+  gemcut: ['diamonds', 'flats'],
+}
+
+// Dye colours only show on pale woods; on dark woods they'd just look muddy.
+const PALE_WOODS = ['oak', 'maple']
+const DYES = ['forest', 'ocean', 'plum']
+const STAINS = ['none', 'smoky', 'midnight', 'ember', ...DYES]
+
+const shaftCarved = (p: Params) => p.shaftCarving !== 'none'
+const shaftSpiral = (p: Params) =>
+  p.shaftCarving === 'shortSpiral' || p.shaftCarving === 'longSpiral'
+
+export const wandSchema: ItemSchema = {
+  itemType: 'wand',
+  groups: [
+    { key: 'finish', label: 'Wood and colour' },
+    { key: 'shape', label: 'Shape' },
+    { key: 'handle', label: 'Handle' },
+    { key: 'shaft', label: 'Shaft' },
+    { key: 'core', label: 'Core' },
+  ],
+  params: [
+    {
+      kind: 'number',
+      key: 'lengthCm',
+      label: 'Length',
+      group: 'shape',
+      min: 28,
+      max: 38,
+      step: 0.5,
+      default: 33,
+      ends: ['28cm', '38cm'],
+    },
+    {
+      kind: 'number',
+      key: 'thickness',
+      label: 'Chunky',
+      group: 'shape',
+      min: 0.85,
+      max: 1.15,
+      step: 0.01,
+      default: 1,
+      ends: ['Slim', 'Chunky'],
+    },
+    {
+      kind: 'number',
+      key: 'pointy',
+      label: 'Pointy',
+      group: 'shape',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.15,
+      ends: ['Straight', 'Pointy'],
+    },
+    {
+      kind: 'choice',
+      key: 'tipShape',
+      label: 'Tip',
+      group: 'shape',
+      default: 'rounded',
+      options: [
+        { value: 'rounded', label: 'Round' },
+        { value: 'flat', label: 'Flat' },
+        { value: 'domed', label: 'Dome' },
+      ],
+    },
+
+    {
+      kind: 'choice',
+      key: 'handleStyle',
+      label: 'Handle',
+      group: 'handle',
+      default: 'ringed',
+      options: [
+        { value: 'plain', label: 'Simple' },
+        { value: 'ringed', label: 'Ringed' },
+        { value: 'spiral', label: 'Spiral' },
+        { value: 'gemcut', label: 'Gem cut' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'handleCarving',
+      label: 'Pattern',
+      group: 'handle',
+      default: 'none',
+      options: [
+        { value: 'none', label: 'Smooth' },
+        { value: 'flats', label: 'Flat sides' },
+        { value: 'flutes', label: 'Grooves' },
+        { value: 'spiralFlutes', label: 'Spiral grooves' },
+        { value: 'diamonds', label: 'Diamonds' },
+      ],
+      allowed: (p) => HANDLE_CARVING_BY_STYLE[p.handleStyle as string] ?? ['none'],
+    },
+    {
+      kind: 'number',
+      key: 'handleCarvingCount',
+      label: 'How many',
+      group: 'handle',
+      min: 5,
+      max: 12,
+      step: 1,
+      default: 8,
+      visible: (p) => p.handleCarving !== 'none',
+    },
+    {
+      kind: 'number',
+      key: 'handleCarvingTwist',
+      label: 'Twist',
+      group: 'handle',
+      min: 0.3,
+      max: 1.5,
+      step: 0.05,
+      default: 1,
+      ends: ['Gentle', 'Twisty'],
+      visible: (p) => p.handleCarving === 'spiralFlutes',
+    },
+    {
+      kind: 'choice',
+      key: 'endShape',
+      label: 'End',
+      group: 'handle',
+      default: 'knob',
+      options: [
+        { value: 'knob', label: 'Knob' },
+        { value: 'flare', label: 'Flared' },
+        { value: 'ball', label: 'Ball' },
+        { value: 'flat', label: 'Flat' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'collarStyle',
+      label: 'Ring',
+      group: 'handle',
+      default: 'beadPair',
+      options: [
+        { value: 'vcut', label: 'Thin line' },
+        { value: 'bead', label: 'One bead' },
+        { value: 'beadPair', label: 'Two beads' },
+        { value: 'ringStack', label: 'Ring stack' },
+      ],
+    },
+
+    {
+      kind: 'choice',
+      key: 'shaftCarving',
+      label: 'Carving',
+      group: 'shaft',
+      default: 'shortSpiral',
+      options: [
+        { value: 'none', label: 'Smooth' },
+        { value: 'shortSpiral', label: 'Short spiral' },
+        { value: 'longSpiral', label: 'Long spiral' },
+        { value: 'twistedFacets', label: 'Twisted sides' },
+      ],
+    },
+    {
+      kind: 'number',
+      key: 'shaftGrooves',
+      label: 'How many',
+      group: 'shaft',
+      min: 1,
+      max: 3,
+      step: 1,
+      default: 2,
+      visible: shaftSpiral,
+    },
+    {
+      kind: 'number',
+      key: 'shaftGrooveWidth',
+      label: 'How wide',
+      group: 'shaft',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.38,
+      ends: ['Thin', 'Wide'],
+      visible: shaftSpiral,
+    },
+    {
+      kind: 'number',
+      key: 'shaftGrooveDepth',
+      label: 'How deep',
+      group: 'shaft',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.38,
+      ends: ['Shallow', 'Deep'],
+      visible: shaftSpiral,
+    },
+    {
+      kind: 'number',
+      key: 'shaftReach',
+      label: 'How far up',
+      group: 'shaft',
+      min: 0.1,
+      max: 0.85,
+      step: 0.01,
+      default: 0.3,
+      ends: ['A little', 'A lot'],
+      visible: shaftCarved,
+    },
+    {
+      kind: 'number',
+      key: 'twistiness',
+      label: 'Twistiness',
+      group: 'shaft',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.5,
+      ends: ['Lazy', 'Tight'],
+      visible: shaftCarved,
+    },
+    {
+      kind: 'choice',
+      key: 'twistDir',
+      label: 'Twist direction',
+      group: 'shaft',
+      default: 'right',
+      visible: shaftCarved,
+      options: [
+        { value: 'left', label: 'Left' },
+        { value: 'right', label: 'Right' },
+      ],
+    },
+
+    {
+      kind: 'choice',
+      key: 'wood',
+      label: 'Wood',
+      group: 'finish',
+      default: 'oak',
+      options: [
+        { value: 'walnut', label: 'Walnut', swatch: '#5a3f30' },
+        { value: 'cherry', label: 'Cherry', swatch: '#b36f4f' },
+        { value: 'oak', label: 'Oak', swatch: '#c49a64' },
+        { value: 'maple', label: 'Maple', swatch: '#e6d6b8' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'stainColour',
+      label: 'Colour',
+      group: 'finish',
+      default: 'smoky',
+      options: [
+        { value: 'none', label: 'Natural' },
+        { value: 'smoky', label: 'Smoky', swatch: '#4a2e1f' },
+        { value: 'midnight', label: 'Midnight', swatch: '#1c1512' },
+        { value: 'ember', label: 'Ember', swatch: '#7a2a14' },
+        { value: 'forest', label: 'Forest', swatch: '#2f4a2a' },
+        { value: 'ocean', label: 'Ocean', swatch: '#1f3a5a' },
+        { value: 'plum', label: 'Plum', swatch: '#4a2040' },
+      ],
+      allowed: (p) =>
+        PALE_WOODS.includes(p.wood as string) ? STAINS : STAINS.filter((s) => !DYES.includes(s)),
+    },
+    {
+      kind: 'number',
+      key: 'stainStrength',
+      label: 'How dark',
+      group: 'finish',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.7,
+      ends: ['Light', 'Dark'],
+      visible: (p) => p.stainColour !== 'none',
+    },
+    {
+      kind: 'number',
+      key: 'stainReach',
+      label: 'Colour reaches',
+      group: 'finish',
+      min: 0.15,
+      max: 1,
+      step: 0.01,
+      default: 0.5,
+      ends: ['Handle only', 'All the way'],
+      visible: (p) => p.stainColour !== 'none',
+    },
+
+    // What's inside the wand decides the spell it casts. For now that's just
+    // the spell's colour (the swatch). Names avoid Harry Potter's cores.
+    {
+      kind: 'choice',
+      key: 'core',
+      label: 'Core',
+      group: 'core',
+      default: 'starlight',
+      options: [
+        { value: 'starlight', label: 'Starlight', swatch: '#ffc95c' },
+        { value: 'moonstone', label: 'Moonstone', swatch: '#8fe3ff' },
+        { value: 'wildwood', label: 'Wildwood', swatch: '#6dff9c' },
+        { value: 'stormglass', label: 'Storm glass', swatch: '#c49bff' },
+        { value: 'emberstone', label: 'Emberstone', swatch: '#ff7a45' },
+      ],
+    },
+  ],
+}
+
+export const swatchFor = (key: string, value: string): string | undefined => {
+  const def = wandSchema.params.find((d) => d.key === key)
+  return def?.kind === 'choice' ? def.options.find((o) => o.value === value)?.swatch : undefined
+}

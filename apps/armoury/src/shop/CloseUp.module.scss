@@ -1,0 +1,203 @@
+$rise: 0.8s;
+
+.closeUp {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--ink);
+
+  &::backdrop {
+    background: transparent;
+  }
+}
+
+// The shop dims around the wand, with the core's light where it will hang.
+.shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 55% 45% at 50% 40%,
+      rgba(var(--core-rgb), 0.1) 0%,
+      rgba(var(--core-rgb), 0) 70%
+    ),
+    radial-gradient(ellipse 80% 70% at 50% 42%, rgba(10, 7, 5, 0.92) 0%, rgba(4, 3, 2, 0.98) 100%);
+  animation: fadeIn $rise ease-out;
+  transition: opacity $rise ease-in-out;
+
+  .closeUp[data-leaving] & {
+    opacity: 0;
+  }
+}
+
+.flash {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 110vmax;
+  height: 110vmax;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(var(--core-rgb), 0.35) 0%,
+    rgba(var(--core-rgb), 0.1) 20%,
+    rgba(var(--core-rgb), 0) 50%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: 0;
+  animation: flash 1.6s ease-out var(--spell-delay);
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+}
+
+.caption {
+  position: absolute;
+  left: 50%;
+  bottom: max(28px, 5vh);
+  width: min(560px, calc(100% - 32px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: none;
+  animation: rise $rise cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.3s ease-in;
+
+  .closeUp[data-leaving] & {
+    opacity: 0;
+  }
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.1;
+  color: var(--ink);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+.description {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--lore);
+}
+
+.hint {
+  margin: 14px 0 0;
+  font-size: 15px;
+  color: var(--ink-muted);
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  pointer-events: auto;
+}
+
+.wave,
+.putBack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 48px;
+  padding: 0 22px;
+  border-radius: var(--r-control);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.wave {
+  border: 1px solid #5a4430;
+  background: rgba(15, 11, 8, 0.6);
+  font-weight: 500;
+
+  svg {
+    color: rgb(var(--core-rgb));
+  }
+
+  &:hover {
+    border-color: #7a5d40;
+  }
+}
+
+.putBack {
+  border: 0;
+  background: var(--brass);
+  color: var(--brass-ink);
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, 0.35);
+
+  &:hover {
+    background: #d4a75f;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  0%,
+  40% {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+
+@keyframes flash {
+  6% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 899px) {
+  .caption {
+    bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .description {
+    font-size: 16px;
+  }
+
+  .hint {
+    margin-top: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shade,
+  .caption {
+    animation-duration: 0.2s;
+    transition-duration: 0.2s;
+  }
+
+  .flash {
+    animation-duration: 0.8s;
+  }
+}

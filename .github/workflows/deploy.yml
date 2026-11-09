@@ -397,6 +397,78 @@ jobs:
           curl -fsS "$APP_URL/$asset" > /dev/null
           echo "smoke OK"
 
+  deploy-armoury:
+    runs-on: ubuntu-latest
+    # Read by record-deploys, to turn a green deploy into the homepage pill.
+    outputs:
+      deployed: ${{ steps.affected.outputs.deploy }}
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP_URL: https://hoe-armoury.fly.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gate on deploy token (inert until Phase 4)
+        id: gate
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.gate.outputs.ready == 'true'
+
+      - name: Is armoury affected by this push?
+        id: affected
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TURBO_SCM_BASE: ${{ github.event.before }}
+        run: |
+          if pnpm exec turbo ls --affected --output=json | jq -e '.packages.items[] | select(.name == "armoury")' > /dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::armoury not affected by this push — skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.affected.outputs.deploy == 'true'
+
+      - name: Deploy armoury
+        if: steps.affected.outputs.deploy == 'true'
+        # From the repo root: the Dockerfile needs the whole monorepo as its
+        # build context (turbo prune).
+        run: flyctl deploy --config apps/armoury/fly.toml --remote-only
+
+      - name: Post-deploy smoke
+        if: steps.affected.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          echo "/health (process liveness only — armoury has no database, ADR 0008)"
+          curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
+          echo "one hashed static asset"
+          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          curl -fsS "$APP_URL/$asset" > /dev/null
+          echo "smoke OK"
+
   deploy-silt:
     runs-on: ubuntu-latest
     # Read by record-deploys, to turn a green deploy into the homepage pill.
@@ -802,6 +874,7 @@ jobs:
         deploy-espy,
         deploy-karesansui,
         deploy-boop,
+        deploy-armoury,
         deploy-silt,
         deploy-fridge,
         deploy-wotd,
@@ -854,6 +927,7 @@ jobs:
           ESPY: ${{ needs.deploy-espy.result == 'success' && needs.deploy-espy.outputs.deployed == 'true' }}
           KARESANSUI: ${{ needs.deploy-karesansui.result == 'success' && needs.deploy-karesansui.outputs.deployed == 'true' }}
           BOOP: ${{ needs.deploy-boop.result == 'success' && needs.deploy-boop.outputs.deployed == 'true' }}
+          ARMOURY: ${{ needs.deploy-armoury.result == 'success' && needs.deploy-armoury.outputs.deployed == 'true' }}
           SILT: ${{ needs.deploy-silt.result == 'success' && needs.deploy-silt.outputs.deployed == 'true' }}
           FRIDGE: ${{ needs.deploy-fridge.result == 'success' && needs.deploy-fridge.outputs.deployed == 'true' }}
           WOTD: ${{ needs.deploy-wotd.result == 'success' && needs.deploy-wotd.outputs.deployed == 'true' }}
@@ -867,6 +941,7 @@ jobs:
           fi
           apps=""
           add() { if [ "$2" = "true" ]; then apps="$apps $1"; fi; }
+          add armoury "$ARMOURY"
           add boids "$BOIDS"
           add boop "$BOOP"
           add espy "$ESPY"
