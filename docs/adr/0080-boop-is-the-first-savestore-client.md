@@ -137,7 +137,13 @@ transient failure retries on the next change, which is the spec's contract.
 pushes, then the close pushes the bytes the autosave flushed on its way out, and
 two puts racing can land the older document last with nothing left to correct it
 - `lastAttempted` already names the newer one. The calls are queued in call
-order, which also sequences the double `reconcile` a dev double-mount makes.
+order, which also sequences the double `reconcile` a dev double-mount makes. The
+queue carries its own `catch`: a rejection reaching it would leave every later
+call short-circuiting on a rejected promise, which is this module dying silently
+for the life of the page. Neither queued body can reject today, and that is
+exactly why the guard is there rather than left to the convention - the same
+move as the undecodable-document rule, holding structurally instead of because
+everyone remembered.
 
 Nothing about any of this reaches the screen: a child must never be told the
 network is sad, and a parent being told is a product decision nobody has taken

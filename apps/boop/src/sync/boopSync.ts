@@ -43,7 +43,10 @@ export function createBoopSync({ client, storage }: BoopSyncOpts): BoopSync {
   let queue: Promise<void> = Promise.resolve()
 
   function sequence(work: () => Promise<void>): Promise<void> {
-    queue = queue.then(work)
+    // The catch is the chain's own, not the work's: a rejection reaching the
+    // queue would make every later call short-circuit, and sync would die
+    // silently for the life of the page.
+    queue = queue.then(work).catch(() => undefined)
     return queue
   }
 
