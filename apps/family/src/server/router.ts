@@ -2,7 +2,7 @@ import { createTRPC } from '@hoe/backend-kit'
 
 import { GreetingHandler } from './handlers/greetingHandler.ts'
 
-// `void` until ticket 03 introduces FamilyStore.
+// `void` until ticket 04 injects the FamilyStore into the transports.
 const t = createTRPC<void>()
 
 export const appRouter = t.router({

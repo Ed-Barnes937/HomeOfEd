@@ -1,5 +1,5 @@
 import { freshTestDb, type DbClient } from '@hoe/db'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { migrations } from './migrations.ts'
@@ -93,6 +93,16 @@ describe('DrizzleFamilyStore saves', () => {
     await expect(store.getSave(key)).resolves.toMatchObject({ blob: 'two', version: 2 })
   })
 
+  it('never moves updatedAt backwards when it bumps the version', async () => {
+    const key = { appId: 'boop', accountId: 'parent-1', slotKey: 'boop:save' }
+    await store.putSave({ ...key, blob: 'one' })
+    const inserted = await store.getSave(key)
+    await store.putSave({ ...key, blob: 'two' })
+    const updated = await store.getSave(key)
+
+    expect(updated?.updatedAt.getTime()).toBeGreaterThanOrEqual(inserted?.updatedAt.getTime() ?? 0)
+  })
+
   it('versions each (appId, accountId, slotKey) slot independently', async () => {
     await store.putSave({ appId: 'boop', accountId: 'a', slotKey: 'boop:save', blob: 'one' })
     await store.putSave({ appId: 'boop', accountId: 'a', slotKey: 'boop:save', blob: 'two' })
@@ -170,6 +180,35 @@ describe('DrizzleFamilyStore account erasure', () => {
     expect(await db.select().from(familySchema.user)).toEqual([])
     expect(await db.select().from(familySchema.childProfiles)).toEqual([])
     expect(await db.select().from(familySchema.saves)).toEqual([])
+  })
+
+  it('rolls the saves delete back when the user delete fails', async () => {
+    const { db, store } = await freshStore()
+    await insertParent(db, 'parent-1')
+    const ada = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada',
+      displayName: 'Ada',
+    })
+    for (const accountId of ['parent-1', ada.id]) {
+      await store.putSave({ appId: 'boop', accountId, slotKey: 'boop:save', blob: 'beats' })
+    }
+    // Stands in for a future table referencing `user` with NO ACTION: the user
+    // delete fails after the saves delete, so both must roll back together.
+    await db.execute(sql`
+      create function block_user_delete() returns trigger
+      as $$ begin raise exception 'blocked'; end; $$ language plpgsql
+    `)
+    await db.execute(sql`
+      create trigger block_user_delete before delete on "user"
+      for each row execute function block_user_delete()
+    `)
+
+    await expect(store.deleteAccount('parent-1')).rejects.toThrow()
+
+    expect(await db.select().from(familySchema.saves)).toHaveLength(2)
+    expect(await db.select().from(familySchema.user)).toHaveLength(1)
+    expect(await db.select().from(familySchema.childProfiles)).toHaveLength(1)
   })
 
   it('erases nothing belonging to another household', async () => {

@@ -8,7 +8,7 @@ import {
 
 import { appRouter } from './router.ts'
 
-/** The real router with no Store injected; ticket 03 adds PGlite and migrations here. */
+/** The real router with no Store injected; ticket 04 adds PGlite and migrations here. */
 export function createSimulatorDispatch(): Promise<Dispatch> {
   return Promise.resolve(
     createDispatcher({

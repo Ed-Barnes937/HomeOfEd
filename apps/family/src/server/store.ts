@@ -79,7 +79,7 @@ export class DrizzleFamilyStore implements FamilyStore {
   }
 
   async ping(): Promise<{ ok: true }> {
-    await this.db.select().from(user).limit(1)
+    await this.db.select({ ok: sql<number>`1` }).from(user).limit(1)
     return { ok: true }
   }
 
@@ -127,7 +127,8 @@ export class DrizzleFamilyStore implements FamilyStore {
           blob: input.blob,
           sizeBytes,
           version: sql`${saves.version} + 1`,
-          updatedAt: new Date(),
+          // The database clock, matching the insert path's defaultNow().
+          updatedAt: sql`now()`,
         },
       })
       .returning({ version: saves.version })
