@@ -12,6 +12,9 @@
 # deploy. A human flips SPROUT_GO_LIVE=true at go-live (sprout go-live
 # runbook, step 4).
 #
+# deploy-family carries the same kind of gate on FAMILY_GO_LIVE: hoe-family
+# does not exist until first-slice ticket 08.
+#
 # Flow per app: is the app turbo-affected by this push? → flyctl deploy
 # (a DB-backed app's fly.toml release_command runs its journal-tracked
 # migrations first; Fly's health checks gate the rollout, so a failing
@@ -780,6 +783,86 @@ jobs:
           echo "sprout-pipeline is private (no public hostname) — the deploy above"
           echo "gates the rollout on the machine booting healthy. Machine status:"
           flyctl status --config apps/sprout-pipeline/fly.toml
+
+  # family — the identity + SaveStore service (ADR 0070).
+  #
+  # Gated on FAMILY_GO_LIVE for the same reason the sprout jobs are gated: the
+  # hoe-family Fly app does not exist until first-slice ticket 08, so without
+  # this gate the first merge touching apps/family would attempt and fail a
+  # deploy. A human flips FAMILY_GO_LIVE=true at go-live.
+  deploy-family:
+    runs-on: ubuntu-latest
+    # Not in record-deploys: family is infrastructure with no hub card, so it
+    # has no New / Updated pill to record (the sprout jobs are excluded too).
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP_URL: https://hoe-family.fly.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gate on go-live (ticket 08) + deploy token
+        id: gate
+        env:
+          GO_LIVE: ${{ vars.FAMILY_GO_LIVE }}
+        run: |
+          if [ "$GO_LIVE" != "true" ]; then
+            echo "::notice::family not live yet — set repo variable FAMILY_GO_LIVE=true at go-live (first-slice ticket 08)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$FLY_API_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FLY_API_TOKEN not set — deploy workflow is inert until Phase 4 (runbook G4.2)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.gate.outputs.ready == 'true'
+
+      - name: Is family affected by this push?
+        id: affected
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TURBO_SCM_BASE: ${{ github.event.before }}
+        run: |
+          if pnpm exec turbo ls --affected --output=json | jq -e '.packages.items[] | select(.name == "family")' > /dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::family not affected by this push — skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.affected.outputs.deploy == 'true'
+
+      # No release_command until ticket 03 adds migrate.ts; this deploys the
+      # shell only.
+      - name: Deploy family
+        if: steps.affected.outputs.deploy == 'true'
+        # From the repo root: the Dockerfile needs the whole monorepo as its
+        # build context (turbo prune).
+        run: flyctl deploy --config apps/family/fly.toml --remote-only
+
+      - name: Post-deploy smoke
+        if: steps.affected.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          echo "/health (shallow liveness — family has no database until ticket 03)"
+          curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
+          echo "smoke OK"
 
   # Records what actually shipped, so the homepage's New / Updated pills follow
   # real deploys instead of somebody remembering to edit a date by hand.

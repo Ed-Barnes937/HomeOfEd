@@ -1,0 +1,39 @@
+# family — the estate's identity + SaveStore service (ADR 0070). One Fly app,
+# scale-to-zero: it wakes for a login or a save and sleeps again.
+#
+# No release_command yet. The family database and its `src/server/migrate.ts`
+# land in first-slice ticket 03, which adds the release_command and deepens
+# /health into a real Store round-trip. Until then this is a stateless shell
+# (ADR 0008) with a shallow liveness check.
+#
+# `fly apps create hoe-family` and the Cloudflare CNAME are human-gated and
+# happen in ticket 08 — see docs/runbooks/phase-4-go-live.md.
+app = 'hoe-family'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  PORT = '8080'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  # Scale to zero when idle. The whole point of a separate family app is that
+  # it costs nothing between logins (map ticket 06 cost model).
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    # Shallow health: liveness only, until ticket 03 injects the FamilyStore.
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
