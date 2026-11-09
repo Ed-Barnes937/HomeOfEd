@@ -18,6 +18,9 @@ primary_region = 'lhr'
 
 [env]
   PORT = '8080'
+  # Better Auth derives its cookie and origin rules from this. Public config,
+  # not a secret; the three identity secrets are `fly secrets set` (ticket 08).
+  BETTER_AUTH_URL = 'https://family.homeofed.com'
 
 [http_service]
   internal_port = 8080

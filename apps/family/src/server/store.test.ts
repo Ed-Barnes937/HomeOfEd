@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { migrations } from './migrations.ts'
 import { familySchema, type FamilySchema } from './schema.ts'
-import { DrizzleFamilyStore } from './store.ts'
+import { DrizzleFamilyStore, type ChildProfileRow } from './store.ts'
 
 async function freshStore(): Promise<{ db: DbClient<FamilySchema>; store: DrizzleFamilyStore }> {
   const db = await freshTestDb(familySchema, migrations)
@@ -13,7 +13,9 @@ async function freshStore(): Promise<{ db: DbClient<FamilySchema>; store: Drizzl
 
 /** Better Auth owns `user` rows in production; tests insert them directly. */
 async function insertParent(db: DbClient<FamilySchema>, id: string): Promise<string> {
-  await db.insert(familySchema.user).values({ id, name: `parent ${id}`, email: `${id}@example.com` })
+  await db
+    .insert(familySchema.user)
+    .values({ id, name: `parent ${id}`, email: `${id}@example.com` })
   return id
 }
 
@@ -69,6 +71,103 @@ describe('DrizzleFamilyStore child profiles', () => {
 
     const remaining = await db.select().from(familySchema.childProfiles)
     expect(remaining).toEqual([])
+  })
+
+  it('reads one profile back by id', async () => {
+    const added = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada',
+      displayName: 'Ada',
+    })
+
+    await expect(store.getChildProfile(added.id)).resolves.toEqual(added)
+  })
+
+  it('returns null for a profile id that does not exist', async () => {
+    await expect(store.getChildProfile('00000000-0000-0000-0000-000000000000')).resolves.toBeNull()
+  })
+
+  it('renames a profile of the asking parent', async () => {
+    const added = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada',
+      displayName: 'Ada',
+    })
+
+    const renamed = await store.renameChildProfile({
+      id: added.id,
+      parentId: 'parent-1',
+      displayName: 'Ada L',
+    })
+
+    expect(renamed).toMatchObject({ id: added.id, displayName: 'Ada L', username: 'ada' })
+    await expect(store.getChildProfile(added.id)).resolves.toMatchObject({ displayName: 'Ada L' })
+  })
+
+  it('renames nothing when the profile belongs to another household', async () => {
+    await insertParent(db, 'parent-2')
+    const added = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada',
+      displayName: 'Ada',
+    })
+
+    await expect(
+      store.renameChildProfile({ id: added.id, parentId: 'parent-2', displayName: 'stolen' }),
+    ).resolves.toBeNull()
+    await expect(store.getChildProfile(added.id)).resolves.toMatchObject({ displayName: 'Ada' })
+  })
+})
+
+describe('DrizzleFamilyStore child-profile erasure', () => {
+  let db: DbClient<FamilySchema>
+  let store: DrizzleFamilyStore
+  let ada: ChildProfileRow
+  let bob: ChildProfileRow
+
+  beforeEach(async () => {
+    ;({ db, store } = await freshStore())
+    await insertParent(db, 'parent-1')
+    ada = await store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
+    bob = await store.addChildProfile({ parentId: 'parent-1', username: 'bob', displayName: 'Bob' })
+    for (const accountId of ['parent-1', ada.id, bob.id]) {
+      await store.putSave({ appId: 'boop', accountId, slotKey: 'boop:save', blob: 'beats' })
+    }
+  })
+
+  it('leaves no orphan saves behind the deleted profile', async () => {
+    await store.deleteChildProfile({ id: ada.id, parentId: 'parent-1' })
+
+    const remaining = await db.select().from(familySchema.saves)
+    expect(remaining.map((row) => row.accountId).sort()).toEqual(['parent-1', bob.id].sort())
+    expect((await store.listChildProfiles('parent-1')).map((row) => row.id)).toEqual([bob.id])
+  })
+
+  it('rolls the profile delete back when the saves delete fails', async () => {
+    // Stands in for any failure after the profile row is gone: both halves must
+    // roll back together, or the saves are orphaned beyond reach.
+    await db.execute(sql`
+      create function block_saves_delete() returns trigger
+      as $$ begin raise exception 'blocked'; end; $$ language plpgsql
+    `)
+    await db.execute(sql`
+      create trigger block_saves_delete before delete on saves
+      for each row execute function block_saves_delete()
+    `)
+
+    await expect(store.deleteChildProfile({ id: ada.id, parentId: 'parent-1' })).rejects.toThrow()
+
+    await expect(store.getChildProfile(ada.id)).resolves.not.toBeNull()
+    expect(await db.select().from(familySchema.saves)).toHaveLength(3)
+  })
+
+  it('deletes nothing when the profile belongs to another household', async () => {
+    await insertParent(db, 'parent-2')
+
+    await store.deleteChildProfile({ id: ada.id, parentId: 'parent-2' })
+
+    await expect(store.getChildProfile(ada.id)).resolves.not.toBeNull()
+    expect(await db.select().from(familySchema.saves)).toHaveLength(3)
   })
 })
 

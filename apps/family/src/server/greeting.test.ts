@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import { GreetingHandler } from './handlers/greetingHandler.ts'
 
-function makeCtx(auth: AuthProvider): AppContext<void> {
+function makeCtx(auth: AuthProvider): AppContext<unknown> {
   return {
     store: undefined,
     blobs: new InMemoryBlobStore(),

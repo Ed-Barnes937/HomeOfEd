@@ -4,11 +4,24 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import { childProfiles, type FamilySchema, saves, user } from './schema.ts'
 
 export type ChildProfileRow = typeof childProfiles.$inferSelect
+export type ParentRow = typeof user.$inferSelect
 
 export interface ChildProfileInput {
   parentId: string
   username: string
   displayName: string
+}
+
+export interface RenameChildProfileInput {
+  id: string
+  parentId: string
+  displayName: string
+}
+
+/** A profile addressed by its id and the parent who must own it. */
+export interface OwnedChildProfile {
+  id: string
+  parentId: string
 }
 
 /** One save slot, addressed exactly as the schema's primary key does. */
@@ -41,8 +54,19 @@ export interface FamilyStore {
   /** Deep liveness: a real round-trip used by the health check. */
   ping(): Promise<{ ok: true }>
 
+  /** The Better Auth user row behind a session; null when it has gone. */
+  getParent(id: string): Promise<ParentRow | null>
+
   addChildProfile(input: ChildProfileInput): Promise<ChildProfileRow>
   listChildProfiles(parentId: string): Promise<ChildProfileRow[]>
+  getChildProfile(id: string): Promise<ChildProfileRow | null>
+  /** Owner-scoped: null when the profile is not this parent's. */
+  renameChildProfile(input: RenameChildProfileInput): Promise<ChildProfileRow | null>
+  /**
+   * Erase one profile and every save row it owns, in one transaction.
+   * `saves.accountId` has no FK, so a bare profile delete would strand them.
+   */
+  deleteChildProfile(profile: OwnedChildProfile): Promise<void>
   /** Erase a household: the parent, its profiles, and every save row they own. */
   deleteAccount(parentId: string): Promise<void>
 
@@ -79,8 +103,16 @@ export class DrizzleFamilyStore implements FamilyStore {
   }
 
   async ping(): Promise<{ ok: true }> {
-    await this.db.select({ ok: sql<number>`1` }).from(user).limit(1)
+    await this.db
+      .select({ ok: sql<number>`1` })
+      .from(user)
+      .limit(1)
     return { ok: true }
+  }
+
+  async getParent(id: string): Promise<ParentRow | null> {
+    const rows = await this.db.select().from(user).where(eq(user.id, id))
+    return rows[0] ?? null
   }
 
   async addChildProfile(input: ChildProfileInput): Promise<ChildProfileRow> {
@@ -93,6 +125,33 @@ export class DrizzleFamilyStore implements FamilyStore {
       .from(childProfiles)
       .where(eq(childProfiles.parentId, parentId))
       .orderBy(childProfiles.createdAt)
+  }
+
+  async getChildProfile(id: string): Promise<ChildProfileRow | null> {
+    const rows = await this.db.select().from(childProfiles).where(eq(childProfiles.id, id))
+    return rows[0] ?? null
+  }
+
+  async renameChildProfile(input: RenameChildProfileInput): Promise<ChildProfileRow | null> {
+    const rows = await this.db
+      .update(childProfiles)
+      .set({ displayName: input.displayName })
+      .where(and(eq(childProfiles.id, input.id), eq(childProfiles.parentId, input.parentId)))
+      .returning()
+    return rows[0] ?? null
+  }
+
+  async deleteChildProfile(profile: OwnedChildProfile): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      // Owner-scoped, and the saves delete only follows a profile this parent
+      // really owned - otherwise a foreign id would wipe that account's saves.
+      const deleted = await tx
+        .delete(childProfiles)
+        .where(and(eq(childProfiles.id, profile.id), eq(childProfiles.parentId, profile.parentId)))
+        .returning({ id: childProfiles.id })
+      if (deleted.length === 0) return
+      await tx.delete(saves).where(eq(saves.accountId, profile.id))
+    })
   }
 
   async deleteAccount(parentId: string): Promise<void> {

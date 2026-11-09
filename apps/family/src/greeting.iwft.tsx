@@ -6,7 +6,7 @@ test('renders the default greeting served by the in-browser backend', async ({ m
   await root.verifyGreeting('hello from the family service')
 })
 
-test('greets the authed user — auth seam, no database', async ({ mountApp }) => {
+test('greets the authed user through the auth seam', async ({ mountApp }) => {
   const { root } = await mountApp({ user: { id: 'ada' } })
   await root.verifyIsShown()
   await root.verifyGreeting('hello, ada')

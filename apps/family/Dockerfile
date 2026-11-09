@@ -36,7 +36,8 @@ FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=family --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger
+  --filter=family --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger \
+  --filter=@hoe/accounts
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -48,15 +49,18 @@ COPY --from=prod-deps /app ./
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/db ./packages/db
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
+COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/family/src ./apps/family/src
 COPY --from=builder /app/apps/family/dist ./apps/family/dist
-# The app's own test sources aren't runtime code. Neither are two lockfile
-# stowaways: pglite (dragged in as drizzle-orm's resolved optional peer - only
-# the pglite driver imports it, and that path never runs in prod) and
-# typescript (@trpc/server declares it as a types-only peer). The dev-only
-# workspace stubs (test-kit/config package.json) go too.
+# The app's own test sources aren't runtime code, and neither is @hoe/accounts'
+# committed test keypair. Nor are two lockfile stowaways: pglite (dragged in as
+# drizzle-orm's resolved optional peer - only the pglite driver imports it, and
+# that path never runs in prod) and typescript (@trpc/server declares it as a
+# types-only peer). The dev-only workspace stubs (test-kit/config package.json)
+# go too.
 RUN rm -rf apps/family/src/testing apps/family/src/greeting.iwft.tsx \
+  packages/accounts/src/testing \
   packages/test-kit packages/config \
   node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node

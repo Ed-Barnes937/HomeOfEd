@@ -6,8 +6,8 @@ export interface GreetingResult {
 }
 
 /** A smoke for the layered path, until the real routers land in tickets 04 and 05. */
-export class GreetingHandler extends Handler<void, GreetingResult, void> {
-  run(_input: void, ctx: AppContext<void>): Promise<GreetingResult> {
+export class GreetingHandler extends Handler<void, GreetingResult, unknown> {
+  run(_input: void, ctx: AppContext<unknown>): Promise<GreetingResult> {
     ctx.logger.debug('greeting.run')
     const user = ctx.auth.getUser()
     return Promise.resolve({

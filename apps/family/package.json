@@ -15,15 +15,18 @@
     "test": "vitest run && playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
+    "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/db": "workspace:*",
     "@hoe/logger": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",
     "@trpc/client": "11.18.0",
+    "better-auth": "^1.6.2",
     "drizzle-orm": "0.45.2",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@hoe/config": "workspace:*",

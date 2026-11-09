@@ -1,11 +1,10 @@
-// Browser side of the .iwft harness: pull the real backend (router + handlers)
-// into the CT bundle and expose its dispatcher for the page.route trampoline.
-// Module init runs once per test page.
+// Browser side of the .iwft harness: pull the real backend (router + handlers +
+// PGlite WASM) into the CT bundle and expose its dispatcher for the page.route
+// trampoline. Module init runs once per test page = fresh DB per test.
 //
-// No database (ADR 0008): the harness wires the real router with NO Store — no
-// PGlite, no seeding. It still wires the test-auth seam so mountApp({ user })
-// exercises auth without a DB, which is exactly ADR 0008's point: auth is
-// decentralised, not backed by each app's own database.
+// Two deliberate gaps, both because the harness is a browser: Better Auth never
+// runs here, and token minting throws (node:crypto). Family's own .iwft drives
+// the placeholder page; the identity flows are hub's, over FakeFamilyClient.
 import {
   ConsoleLogger,
   createContext,
@@ -13,21 +12,32 @@ import {
   exposeDispatcher,
   InMemoryBlobStore,
 } from '@hoe/backend-kit'
-import { testUserAuth } from '@hoe/test-kit/browser'
+import { freshTestDb } from '@hoe/db'
+import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
-import { appRouter } from '../server/router.ts'
+import { migrations } from '../server/migrations.ts'
+import { createAppRouter } from '../server/router.ts'
+import { familySchema } from '../server/schema.ts'
+import { DrizzleFamilyStore } from '../server/store.ts'
 
 exposeDispatcher(
-  createDispatcher({
-    router: appRouter,
-    createContext: createContext<void>({
-      store: undefined,
-      blobs: new InMemoryBlobStore(),
-      logger: new ConsoleLogger({ app: 'starter', mode: 'iwft' }),
-      auth: testUserAuth,
-    }),
-  }),
+  (async () => {
+    const db = await applyPendingSeed(await freshTestDb(familySchema, migrations))
+    return createDispatcher({
+      router: createAppRouter({
+        mintToken: () => {
+          throw new Error('family: token minting needs node:crypto, so not in the .iwft harness')
+        },
+      }),
+      createContext: createContext({
+        store: new DrizzleFamilyStore(db),
+        blobs: new InMemoryBlobStore(),
+        logger: new ConsoleLogger({ app: 'family', mode: 'iwft' }),
+        auth: testUserAuth,
+      }),
+    })
+  })(),
 )
 
 export function IwftApp() {

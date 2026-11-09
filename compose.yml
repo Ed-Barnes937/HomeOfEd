@@ -242,6 +242,15 @@ services:
     command: sh -c "node src/server/migrate.ts && node src/server/main.ts"
     environment:
       DATABASE_URL: postgres://postgres:postgres@family-db:5432/family
+      # The image runs under NODE_ENV=production, so the identity boot guards
+      # apply: all four must be present. These are throwaway LOCAL values; the
+      # real ones come from Fly secrets.
+      BETTER_AUTH_SECRET: dev-better-auth-secret
+      BETTER_AUTH_URL: http://localhost:8090
+      REGISTRATION_INVITE_CODE: dev-invite-code
+      # The committed @hoe/accounts/testing keypair, whose private half is
+      # public knowledge by design. Local stack only - never a deployed value.
+      FAMILY_TOKEN_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIOGaBsSiWxghRFJOEZcM58j8j1nx0Fnnsnsbgnec6FZr\n-----END PRIVATE KEY-----\n'
     ports:
       - '8090:8080'
     depends_on:

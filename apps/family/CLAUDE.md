@@ -9,11 +9,11 @@ the build sequence is `.scratch/family-first-slice/`.
 (decision 5, hard rule 2). The SPA here is a placeholder page that points at hub
 and doubles as the smoke for the layered path.
 
-## What is here today (tickets 02 and 03)
+## What is here today (tickets 02, 03 and 04)
 
-The shell and every wiring touchpoint, plus the database layer, with no domain
-logic yet. The starter's `greeting` demo is kept deliberately as a smoke, so the
-full path stays exercised while the real routers are built:
+The shell and every wiring touchpoint, the database layer, and the identity
+half. The starter's `greeting` demo is kept deliberately as a smoke, so the full
+path stays exercised while the save router is built:
 
 ```
 HomePage → TanStack Query → tRPC client → router → GreetingHandler → ctx.auth
@@ -23,8 +23,47 @@ The DB layer follows hub's verbatim: `schema.ts`, a committed `migrations/`
 journal loaded two ways (`migrations.ts` for vitest/.iwft, `@hoe/db/node` for
 native Node), `migrate.ts` as the `release_command`, and `FamilyStore` +
 `DrizzleFamilyStore` with store tests over PGlite. `/health` is deep: `main.ts`
-round-trips the Store to real Postgres. No tRPC procedure reads the Store yet,
-so the transports still inject none and the router stays `createTRPC<void>()`.
+round-trips the Store to real Postgres.
+
+### The identity half, and how its auth works
+
+Two things in this app are easy to get wrong, so read this before touching
+`src/server/auth/`.
+
+**Two credentials, one `ctx.auth` seam.** The identity router is authorised by
+the **Better Auth cookie session** (host-scoped to `family.homeofed.com`, used
+only by hub's account UI). The save router will be authorised by the **family
+token** instead (ticket 05, `@hoe/accounts`' provider). Both land on the same
+`ctx.auth`, so a parent session carries `kind: 'parent-session'` and
+`requireParent` accepts nothing else: a family token is readable by client JS on
+every estate subdomain and must never authorise an identity procedure.
+
+**Resolving the session is async; the seam is not.** `auth.api.getSession` is a
+database call and `AuthProvider.getUser()` is synchronous, so a Fastify
+`onRequest` hook stamps a server-trusted `x-family-parent` header, having first
+**deleted any inbound value** - that strip is the whole anti-spoof story and is
+pinned by `auth/parentSessionBridge.test.ts`. The sprout precedent is
+[ADR 0012](../../docs/adr/0012-sprout-app-owned-auth.md).
+
+Consequences worth knowing:
+
+- Better Auth runs in `main.ts` **only**. The dev simulator and the .iwft
+  harness serve `/api/trpc` alone, so every request there is anonymous and the
+  identity procedures refuse. Hub's account flows are tested against
+  `FakeFamilyClient`, and the real `/api/auth/*` path is proven by
+  `auth/betterAuth.test.ts` (the real instance over PGlite) and `docker compose
+  up family`.
+- The token minter is injected: `createAppRouter({ mintToken })` is a factory
+  because `FAMILY_TOKEN_PRIVATE_KEY` + `node:crypto` cannot come through
+  `AppContext`. Prod closes over the Fly secret, the dev simulator over the
+  committed `@hoe/accounts/testing` key, and the .iwft harness over a thrower.
+- CORS (`cors.ts`) is a hand-rolled allowlist with
+  `Access-Control-Allow-Credentials: true`, registered through the
+  `registerRoutes` hook. It is config, never `*`, and never reflects an
+  unchecked origin. Adding an app to the estate's save flow starts there.
+- `loadFamilyEnv` requires all four identity variables unconditionally, so a
+  missing secret crashes the process at boot. Its failure message names the
+  variables and never their values.
 
 ### Schema invariants worth knowing before you change it
 
@@ -45,7 +84,6 @@ so the transports still inject none and the router stays `createTRPC<void>()`.
 
 | Ticket | Adds |
 | --- | --- |
-| 04 | the identity router: Better Auth behind the invite gate, token minting, and the Store injected into the transports |
 | 05 | the save router: the `SaveStore` and its four guards |
 
 The private key that signs tokens (`FAMILY_TOKEN_PRIVATE_KEY`) will live only
@@ -62,12 +100,21 @@ src/
     migrations.ts   Vite ?raw glob loader → statement list (browser/vitest)
     store.ts        FamilyStore interface + DrizzleFamilyStore over DbClient
     migrate.ts      release_command: run-once migrations (migratePostgres)
-    handlers/       Handler classes — business logic, AppContext only
-    router.ts       tRPC router; createTRPC<void>() until ticket 04
-    simulator.ts    backendSimulator wiring: real router, no Store yet
-    main.ts         prod entrypoint: createAppServer + real Postgres Store
+    env.ts          the four identity variables, required at boot
+    cors.ts         the origin allowlist + its Fastify hook
+    fastifyBridge.ts  Fastify request -> fetch Request (Better Auth needs the body)
+    auth/           betterAuth.ts (instance + invite gate), parentSession.ts
+                    (ParentUser, SessionResolver), parentSessionBridge.ts (the
+                    header bridge + the createContext auth seam), tokenPort.ts
+    handlers/       Handler classes — business logic, AppContext only;
+                    authz.ts holds requireParent / requireOwnChild
+    router.ts       createAppRouter(deps) factory; exports AppRouter
+    simulator.ts    backendSimulator wiring: real router + PGlite Store
+    main.ts         prod entrypoint: createAppServer, Better Auth, CORS
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
     store.test.ts   Vitest - DrizzleFamilyStore over PGlite + the migrations
+    identity.test.ts  Vitest - the identity handlers over freshTestDb
+    env.test.ts cors.test.ts  the boot guard and the allowlist
   pages/ features/  UI — the placeholder page and its query
   testing/          IwftApp harness + iwft fixture + page objects
   greeting.iwft.tsx whole-frontend tests via the in-browser backend
@@ -95,5 +142,10 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3110 })
 - No app may import from here (hard rule 1). The shared contract other apps
   consume is `@hoe/accounts`, and the save router will `satisfies` its
   `FamilySaveContract`.
+- **Deleting a child profile is transactional.** `saves.accountId` carries no
+  FK, so `deleteChildProfile` removes the profile and that `accountId`'s save
+  rows together, scoped to the owning parent; a bare profile delete would
+  strand the saves with nothing able to reference them. Same reasoning as
+  `deleteAccount`; both are pinned by store tests.
 - Creating the Fly app, attaching Postgres and setting secrets are human-gated
   (ticket 08, [the go-live runbook](../../docs/runbooks/phase-4-go-live.md)).

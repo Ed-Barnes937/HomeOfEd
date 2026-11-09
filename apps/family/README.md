@@ -9,13 +9,17 @@ It deliberately owns no account UI. Those screens are hub's, at
 
 ## State of the app
 
-The ticket 02 skeleton plus ticket 03's database layer: the Drizzle schema (the
-four stock Better Auth tables, `child_profiles`, `saves`), one committed
-migration journal applied by the `release_command`, and the `FamilyStore`
-interface with `DrizzleFamilyStore` behind it. `/health` is a real Postgres
-round-trip through the Store. No tRPC procedure reads the store yet - the
-identity router arrives in ticket 04 (which also injects the store into the
-transports) and the save router in 05.
+Tickets 02, 03 and 04: the skeleton, the database layer, and the identity half.
+The Drizzle schema holds the four stock Better Auth tables plus `child_profiles`
+and `saves`, one committed migration journal is applied by the `release_command`,
+and `FamilyStore` / `DrizzleFamilyStore` is the whole query surface. `/health` is
+a real Postgres round-trip through the Store. The save router is ticket 05.
+
+The identity router is authorised by the Better Auth cookie session and offers
+`me`, `children.list/add/rename/delete`, `mintSessionToken` and `deleteAccount`.
+Registration is closed behind `REGISTRATION_INVITE_CODE`
+([ADR 0057](../../docs/adr/0057-family-service-legal-gate.md)), and
+`/api/auth/*` is forwarded through Fastify to Better Auth's own handler.
 
 The starter's `greeting` route is kept as a smoke so the layered path stays
 exercised meanwhile:
@@ -28,9 +32,17 @@ Three ways to run it, one router:
 
 | Mode | Command | Backend |
 | --- | --- | --- |
-| dev simulator | `pnpm dev --filter=family` | real router, no Store yet (Vite middleware), port 3010 |
-| .iwft | `pnpm --filter family run test` | real router in-browser, no Store yet |
-| docker stack | `docker compose up family` | the real image, host port 8090 |
+| dev simulator | `pnpm dev --filter=family` | real router + PGlite Store (Vite middleware), port 3010; no Better Auth, so identity refuses |
+| .iwft | `pnpm --filter family run test` | real router in-browser over PGlite; no Better Auth, no minting |
+| docker stack | `docker compose up family` | the real image, host port 8090 - the only mode with Better Auth |
+
+### Environment
+
+`DATABASE_URL` plus four identity variables, all required: the server crashes at
+boot without them. `FAMILY_TOKEN_PRIVATE_KEY` (the one key in the estate that can
+mint) and `REGISTRATION_INVITE_CODE` are Fly secrets and are never committed or
+logged; `BETTER_AUTH_SECRET` is a secret too, and `BETTER_AUTH_URL` is public
+config set in `fly.toml`. See [`.env.example`](.env.example).
 
 Ports: dev 3010, CT 3110, compose 8090.
 
