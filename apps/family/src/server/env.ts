@@ -24,7 +24,16 @@ export const familyEnvSchema = z.object({
 
 export type FamilyEnv = z.output<typeof familyEnvSchema>
 
-/** Published by being committed; `env.test.ts` re-reads the files to catch drift. */
+/**
+ * What a placeholder looks like. This is the primary rule, because a list can
+ * only enumerate what somebody remembered: `apps/sprout/.env.example` publishes
+ * a 32-character `dev-better-auth-secret-change-me` that cleared both the list
+ * and the length floor below. A false positive fails closed, and is fixed by
+ * generating a different secret.
+ */
+const PLACEHOLDER_SECRET = /dev-|insecure|change-?me|placeholder|example|^test/i
+
+/** The belt to that pattern's braces; `env.test.ts` re-reads the files for drift. */
 export const COMMITTED_DEV_SECRETS: readonly string[] = [
   'dev-insecure-invite',
   'dev-insecure-secret',
@@ -54,10 +63,11 @@ function assertFitForDeployment(env: FamilyEnv, nodeEnv: string | undefined): vo
   }
 
   for (const name of ['REGISTRATION_INVITE_CODE', 'BETTER_AUTH_SECRET'] as const) {
-    if (COMMITTED_DEV_SECRETS.includes(env[name])) {
+    if (PLACEHOLDER_SECRET.test(env[name]) || COMMITTED_DEV_SECRETS.includes(env[name])) {
       throw new Error(
-        `${name} is a value committed to this repo, so anyone who can read it holds it. ` +
-          'FLY_APP_NAME says this is deployed infrastructure; set the real Fly secret.',
+        `${name} reads as a placeholder, and this repo publishes several, so anyone who can ` +
+          'read it may hold it. FLY_APP_NAME says this is deployed infrastructure; generate a ' +
+          'real secret with: openssl rand -base64 32',
       )
     }
     if (env[name].length < MIN_DEPLOYED_LENGTH[name]) {

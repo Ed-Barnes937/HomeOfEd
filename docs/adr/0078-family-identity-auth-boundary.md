@@ -74,9 +74,20 @@ variables are required unconditionally, so a missing secret crashes the process
 at boot rather than failing the first sign-in. Beyond that, when `FLY_APP_NAME`
 is present the loader also refuses: the committed `@hoe/accounts/testing` signing
 key (compared against the imported constant, so the guard cannot drift from the
-fixture), any value this repo commits for `REGISTRATION_INVITE_CODE` or
-`BETTER_AUTH_SECRET`, either of those below a minimum length, and any `NODE_ENV`
-but `production`.
+fixture), any `REGISTRATION_INVITE_CODE` or `BETTER_AUTH_SECRET` that reads as a
+placeholder, either of those below a minimum length, and any `NODE_ENV` but
+`production`.
+
+The placeholder rule is a **pattern**, not a list of known values, and that
+choice is the decision. A list keyed to hand-picked files can only enumerate
+what somebody remembered: `apps/sprout/.env.example` publishes a 32-character
+`dev-better-auth-secret-change-me` that cleared an enumerated list, a per-file
+drift scan and a 32-character floor all at once. Since sprout is the Better Auth
+precedent this service followed, it is exactly what an operator would copy, and
+a public cookie-signing secret is worse than a public invite code: it forges a
+session for any parent id and drives the whole identity router without
+registering at all. A false positive fails closed and is fixed by generating a
+different secret, which is the safe direction to be wrong in.
 
 `BETTER_AUTH_URL` is the fourth variable and lives in `fly.toml`'s `[env]`, not
 in a Fly secret: Better Auth derives its cookie rules and origin checks from it,

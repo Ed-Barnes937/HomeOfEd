@@ -71,12 +71,17 @@ Consequences worth knowing:
   missing secret crashes the process at boot, and its failure message names the
   variables and never their values. **With `FLY_APP_NAME` present it refuses
   anything this repo publishes**: the committed `@hoe/accounts/testing` signing
-  key, any committed `REGISTRATION_INVITE_CODE` or `BETTER_AUTH_SECRET`, either
-  of those below a minimum length, and any `NODE_ENV` but `production` (CORS's
-  dev origins and tRPC's stack traces both key off it). The key check compares
-  against the imported constant, which is why the image still ships
-  `packages/accounts/src/testing`; `COMMITTED_DEV_SECRETS` is kept honest by a
-  test that re-reads `.env.example` and `compose.yml`.
+  key, any `REGISTRATION_INVITE_CODE` or `BETTER_AUTH_SECRET` that **reads as a
+  placeholder** (`dev-`, `insecure`, `change-me`, `placeholder`, `example`,
+  leading `test`), either of those below a minimum length, and any `NODE_ENV`
+  but `production` (CORS's dev origins and tRPC's stack traces both key off it).
+  The pattern is the primary rule, not `COMMITTED_DEV_SECRETS`: a list only ever
+  enumerates what somebody remembered, and `apps/sprout/.env.example` publishes
+  a 32-character `...-change-me` secret that cleared both the list and the
+  length floor. The key check compares against the imported constant, which is
+  why the image still ships `packages/accounts/src/testing`, and a test re-reads
+  `.env.example` and compose's family service - per name, per file - to prove
+  whatever they commit is refused.
 - The invite gate is **route-enumerated** (`ctx.path === '/sign-up/email'`), so
   a social provider or an anonymous / magic-link / email-otp / phone-number /
   admin plugin would open a `createUser` path it never sees. ADR 0057 rests on

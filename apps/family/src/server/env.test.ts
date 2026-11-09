@@ -111,9 +111,23 @@ describe('the deployment guard', () => {
   // the repo, with a green health check and no other signal.
   describe.each(['REGISTRATION_INVITE_CODE', 'BETTER_AUTH_SECRET'] as const)('%s', (name) => {
     it.each(COMMITTED_DEV_SECRETS)('refuses the committed value %s', (value) => {
-      expect(() => loadFamilyEnv({ ...deployable, [name]: value })).toThrow(
-        /committed to this repo/,
-      )
+      expect(() => loadFamilyEnv({ ...deployable, [name]: value })).toThrow(/placeholder/)
+    })
+
+    // The list could only ever enumerate what somebody remembered. Each of
+    // these is long enough and absent from it; the first is real, published by
+    // apps/sprout/.env.example, and is exactly 32 characters.
+    it.each([
+      'dev-better-auth-secret-change-me',
+      'dev-whatever-someone-writes-next1',
+      'insecure-but-long-enough-for-this',
+      'change-me-before-you-ever-deploy1',
+      'changeme-before-you-ever-deploy12',
+      'placeholder-value-of-ample-length',
+      'example-secret-of-ample-length123',
+      'testing-secret-of-ample-length123',
+    ])('refuses the unlisted placeholder %s', (value) => {
+      expect(() => loadFamilyEnv({ ...deployable, [name]: value })).toThrow(/placeholder/)
     })
 
     it('refuses anything too short to be unguessable', () => {
@@ -136,32 +150,54 @@ describe('the deployment guard', () => {
 })
 
 /**
- * The guard's literal list is only as good as its agreement with the files that
- * actually set these values, and nothing else can catch that drift.
+ * Whatever the files commit must be refused on Fly. Asserted per file per name,
+ * because a per-file count lets one of them stop being scanned unnoticed.
  */
-describe('COMMITTED_DEV_SECRETS', () => {
+describe('the values this repo commits', () => {
+  const deployable = {
+    FAMILY_TOKEN_PRIVATE_KEY: complete.FAMILY_TOKEN_PRIVATE_KEY,
+    REGISTRATION_INVITE_CODE: 'xW7qPz2LmR4tB9kD',
+    BETTER_AUTH_SECRET: 'Ck0u2b8VxQ6s1ZpN4mYtJ3rHgD7fL5eA',
+    NODE_ENV: 'production',
+    FLY_APP_NAME: 'hoe-family',
+  }
+
   function readRepoFile(relative: string): string {
     return readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')
   }
 
-  it.each([
-    [
-      '.env.example',
-      '../../.env.example',
-      /^\s*(?:REGISTRATION_INVITE_CODE|BETTER_AUTH_SECRET)=(.+)$/gm,
-    ],
-    [
-      'compose.yml',
-      '../../../../compose.yml',
-      /^\s*(?:REGISTRATION_INVITE_CODE|BETTER_AUTH_SECRET):\s*(.+)$/gm,
-    ],
-  ])('covers every value %s commits', (_label, relative, pattern) => {
-    const values = [...readRepoFile(relative).matchAll(pattern)].map(([, value]) =>
+  /** compose.yml holds every app, and sprout sets these same two names. */
+  function familyService(compose: string): string {
+    const block = compose.slice(compose.indexOf('\n  family:') + 1)
+    const end = block.search(/\n {2}[a-z]/)
+    return end === -1 ? block : block.slice(0, end)
+  }
+
+  function committedValues(source: string, name: string, assign: string): string[] {
+    const pattern = new RegExp(`^\\s*${name}${assign}\\s*(.+)$`, 'gm')
+    return [...source.matchAll(pattern)].map(([, value]) =>
       (value ?? '').trim().replace(/^['"]|['"]$/g, ''),
     )
+  }
 
-    // Both names, and in compose.yml sprout's copies too - equally dangerous.
-    expect(values.length).toBeGreaterThanOrEqual(2)
-    for (const value of values) expect(COMMITTED_DEV_SECRETS).toContain(value)
+  const sources = [
+    ['apps/family/.env.example', readRepoFile('../../.env.example'), '='],
+    [
+      'compose.yml (the family service)',
+      familyService(readRepoFile('../../../../compose.yml')),
+      ':',
+    ],
+  ] as const
+  const names = ['REGISTRATION_INVITE_CODE', 'BETTER_AUTH_SECRET'] as const
+
+  describe.each(sources)('%s', (_label, source, assign) => {
+    it.each(names)('refuses the %s it commits', (name) => {
+      const values = committedValues(source, name, assign)
+
+      expect(values.length).toBeGreaterThanOrEqual(1)
+      for (const value of values) {
+        expect(() => loadFamilyEnv({ ...deployable, [name]: value })).toThrow()
+      }
+    })
   })
 })
