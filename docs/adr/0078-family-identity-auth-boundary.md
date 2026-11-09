@@ -1,12 +1,14 @@
 # 0078 - the family service's identity boundary: two credentials, one seam, and a narrow door
 
 - **Status:** Accepted
-- **Date:** 2026-11-09
+- **Date:** 2026-11-09 (decision 5 added 2026-11-09 during ticket 05)
 - **Related:** [ADR 0070](0070-family-service.md) (the family service this
   implements), [ADR 0057](0057-family-service-legal-gate.md) (the invite gate,
   whose mechanism depends on decision 4 below), [ADR 0012](0012-sprout-app-owned-auth.md)
   (sprout's two-identities-one-seam precedent, generalised here),
-  [ADR 0008](0008-apps-without-a-database.md) (auth does not imply a database).
+  [ADR 0008](0008-apps-without-a-database.md) (auth does not imply a database),
+  [ADR 0079](0079-family-save-authorisation.md) (the save half, which found the
+  hole decision 5 closes).
   Implements first-slice ticket 04; the design is
   [the first-slice spec](../../.scratch/family-first-slice/spec.md) §4.2-§4.5.
 
@@ -68,6 +70,45 @@ list so Better Auth's own CSRF check cannot disagree with it.
 It is hand-rolled rather than `@fastify/cors` because an app has no direct
 `fastify` dependency by backend-kit's design, and an auto-installed peer risks a
 second Fastify instance decorating a different app object.
+
+**5. The allowlist governs READING a reply, never SENDING a request, so
+`/api/trpc` also requires `content-type: application/json`.** This decision was
+added during ticket 05, correcting a misconception in decisions 3 and 4: a
+CORS-simple request - one whose content type is `multipart/form-data`,
+`application/x-www-form-urlencoded` or `text/plain` - carries **no preflight at
+all**, so the allowlist is never consulted. The mutation commits, and the
+attacker discards the response it is not allowed to read.
+
+That was not hypothetical. `identity.deleteAccount` was tRPC's only mutation
+with no `.input()`, and a procedure without an input parser never reads the
+request body, so the unparseable multipart body was never touched and the
+handler ran. Against the production image, a `multipart/form-data` POST from
+`https://boop.homeofed.com` carrying nothing but the victim's cookie returned
+`200 OK` and erased the household irreversibly, indifferent to the Origin
+header. Every estate subdomain is same-**site**, and `SameSite=Lax` restricts
+cross-site rather than cross-origin, so the cookie travelled.
+
+The fix is a boundary, not a patch of that one procedure: a Fastify hook refuses
+any non-GET `/api/trpc` request whose content type does not begin
+`application/json`. No safelisted content type matches it, so a browser is
+forced into a preflight, which the allowlist then governs - restoring the
+property decisions 3 and 4 were written believing they already had. The tRPC
+client and `@hoe/accounts`' save client both already send that header, and tRPC
+maps every mutation to POST (`allowMethodOverride` defaults false, and applies
+only to POST in any case), so GET stays unguarded and mutates nothing.
+`deleteAccount` also gained an input schema, which makes tRPC read the body, but
+that is defence in depth: the next input-less mutation would reopen the same
+door, and only the hook closes it for all of them.
+
+`/api/auth/*` is not covered by that hook and does not need to be: Better Auth
+runs its own origin check, server-side and independent of CORS. It is global
+over every non-GET route rather than per-route, refusing both an untrusted
+origin and a missing one whenever the request carries a cookie - verified across
+`sign-out`, `update-user`, `change-password`, `delete-user` and `change-email`.
+It is, however, **off by default under `NODE_ENV=test`**, so this service sets
+`advanced.disableOriginCheck: false` explicitly rather than inheriting a default
+that flips with the environment; without that the control is invisible to any
+test that tries to pin it.
 
 **4. Anything this repo publishes refuses to boot on Fly.** All four identity
 variables are required unconditionally, so a missing secret crashes the process

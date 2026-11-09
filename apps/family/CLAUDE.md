@@ -65,6 +65,22 @@ Consequences worth knowing:
   because `FAMILY_TOKEN_PRIVATE_KEY` + `node:crypto` cannot come through
   `AppContext`. Prod closes over the Fly secret, the dev simulator over the
   committed `@hoe/accounts/testing` key, and the .iwft harness over a thrower.
+- **CORS governs what a browser may READ, never what it may SEND.** A
+  CORS-simple request (`multipart/form-data`, `application/x-www-form-urlencoded`
+  or `text/plain`) carries no preflight at all, so the allowlist never sees it
+  and the mutation has already committed. That is not theoretical: it erased a
+  household through `identity.deleteAccount` in the production image, because a
+  procedure with no `.input()` never reads the request body. So `csrf.ts`
+  refuses any non-GET `/api/trpc` request whose content type is not
+  `application/json`, which forces the preflight the allowlist then governs
+  ([ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md) decision 5).
+  **Do not remove that hook, and do not add an input-less mutation**: the hook is
+  the boundary, the input schemas are only defence in depth.
+- `/api/auth/*` is outside that hook and relies on Better Auth's own origin
+  check, which is global over every non-GET route and refuses both an untrusted
+  and a missing origin when a cookie is present. It is **off by default under
+  `NODE_ENV=test`**, so `betterAuth.ts` states `advanced.disableOriginCheck:
+  false` rather than inheriting it - otherwise no test can see the control at all.
 - CORS (`cors.ts`) is a hand-rolled allowlist with
   `Access-Control-Allow-Credentials: true`, registered through the
   `registerRoutes` hook. It is config, never `*`, and never reflects an
@@ -132,6 +148,11 @@ of this.
   **summed across every appId**, which is why the store has `saveUsage` as well
   as `listSaves`. A put prices its own overwrite by the difference, and the
   check is read-then-write, so a tiny concurrent overshoot is accepted.
+- **Bytes are not the only resource.** An empty blob is free and `slotKey` is the
+  app's own string, so `MAX_ACCOUNT_SLOTS` caps rows per account (new slots
+  only, so a full account can still rewrite what it holds) and the contract
+  bounds `slotKey` at 128 characters. One batched request is capped too, by
+  `MAX_BATCH_SIZE` in `csrf.ts`.
 - Both quota refusals and a refused `appId` are `ValidationError` (400); the
   taxonomy has no 413.
 - **The server never parses `blob`.** It measures its bytes and stores it. "Can
@@ -160,6 +181,7 @@ src/
     migrate.ts      release_command: run-once migrations (migratePostgres)
     env.ts          the four identity variables, required at boot
     cors.ts         the two origin allowlists + their Fastify hook
+    csrf.ts         the content-type hook that forces a preflight + MAX_BATCH_SIZE
     onboardedApps.ts  the apps the SaveStore serves: appIds and their origins
     fastifyBridge.ts  Fastify request -> fetch Request (Better Auth needs the body)
     auth/           betterAuth.ts (instance + invite gate), parentSession.ts
@@ -178,6 +200,8 @@ src/
     identity.test.ts  Vitest - the identity handlers over freshTestDb
     saves.test.ts   Vitest - the save handlers over freshTestDb, real tokens
                     through the real seam
+    csrf.test.ts    Vitest - the preflight-free attack, over a real socket:
+                    app.inject cannot express it
     env.test.ts cors.test.ts  the boot guard and the two allowlists
   pages/ features/  UI — the placeholder page and its query
   testing/          IwftApp harness + iwft fixture + page objects
