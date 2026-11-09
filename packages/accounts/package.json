@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
-    "./testing": "./src/testing/index.ts"
+    "./testing": "./src/testing/index.ts",
+    "./testing/fake": "./src/testing/fakeFamilyClient.ts"
   },
   "scripts": {
     "lint": "eslint .",

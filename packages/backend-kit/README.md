@@ -81,6 +81,7 @@ function createAppServer(opts: {
   logger: Logger
   healthCheck: () => Promise<{ ok: true }>   // deep /health — app closes over its own Store
   registerRoutes?: (app: FastifyInstance) => void | Promise<void>  // additive; non-tRPC transports only (ADR 0015)
+  maxBatchSize?: number                      // cap on one batched call's procedures; tRPC's default is unlimited
 }): { listen(port: number): Promise<void> }
 ```
 
@@ -97,12 +98,39 @@ class ValidationError / UnauthorizedError / ForbiddenError / NotFoundError / Con
 contentTypeOf(key: string): string | null
 
 // '@hoe/backend-kit/server' (Node-only subpath — never in browser bundles)
-function buildAppServer(opts): Promise<FastifyInstance>  // createAppServer's core; tests drive it with fastify.inject()
+function buildAppServer(opts): Promise<FastifyInstance>  // createAppServer's core; tests drive it with fastify.inject() or a real port
 // createAppServer's returned object also carries close(): Promise<void> (tests / graceful shutdown)
 
 // '@hoe/backend-kit/testing' (test-only subpath — never in prod bundles)
 function failureLink(rules: readonly FailureRule[]): TRPCLink<AnyTRPCRouter>
 ```
+
+### `fastify.inject()` is not the wire, and has twice said so
+
+`inject` is the quick way to drive `buildAppServer`, and it is right for most
+route tests. It is **not** a faithful stand-in for a socket, and two findings in
+this repo turned on the difference:
+
+- It builds a synthetic `Request` whose body tRPC's `multipart/form-data`
+  handler cannot read, so a cross-origin POST that the live server answers
+  `200 OK` - having already committed the mutation - comes back `500 Converting
+  circular structure to JSON` with the data intact. A test written on `inject`
+  reports a refusal that does not exist
+  ([ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md) decision 5).
+- It cannot express duplicate headers, which is how a header-stripping guard
+  gets probed.
+
+So when a test's subject **is** the request envelope - content types, duplicate
+or absent headers, CORS, anything a browser or a hostile client controls - bind
+a real port and use `fetch`:
+
+```ts
+await app.listen({ port: 0, host: '127.0.0.1' })
+const address = app.server.address()         // { port } once listening
+const base = `http://127.0.0.1:${address.port}`
+```
+
+`apps/family/src/server/csrf.test.ts` is the worked example.
 
 ## Handler authoring
 
