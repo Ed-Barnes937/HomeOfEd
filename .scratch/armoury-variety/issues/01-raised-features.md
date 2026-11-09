@@ -77,3 +77,12 @@ Deviations:
   wand with no carving.
 
 GPU screenshots (headless Chromium, ANGLE Metal) are in `shots/01/` (gitignored).
+
+**2026-11-09, agent (review round 1 follow-ups):**
+- Shaft summary names the bumps when there are bumps and no carving.
+- Choice options take an optional `weight` in `engine/`; "No bumps" weighs 2,
+  so Try another leaves about half its wands without bumps (ADR 0081).
+- `GrooveSet` is now a union: only round sets can be `raised`, so a flat ridge
+  can't be written. Depth is always a positive fraction.
+- Dropped the redundant `thinnest >= 0` check; `LONGEST_COLLAR` comes from
+  `COLLARS` (now exported).

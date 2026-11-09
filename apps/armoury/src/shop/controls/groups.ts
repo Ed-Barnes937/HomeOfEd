@@ -43,7 +43,10 @@ export const GROUPS: readonly GroupMeta[] = [
     numeral: 'iv.',
     title: 'The shaft',
     tab: 'Shaft',
-    summary: (p) => labelOf('shaftCarving', p),
+    summary: (p) =>
+      p.shaftCarving === 'none' && p.nodes !== 'none'
+        ? labelOf('nodes', p)
+        : labelOf('shaftCarving', p),
   },
   {
     key: 'core',

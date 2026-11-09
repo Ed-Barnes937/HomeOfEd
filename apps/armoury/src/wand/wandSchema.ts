@@ -270,7 +270,7 @@ export const wandSchema: ItemSchema = {
       group: 'shaft',
       default: 'none',
       options: [
-        { value: 'none', label: 'No bumps' },
+        { value: 'none', label: 'No bumps', weight: 2 },
         { value: 'knobs', label: 'Knobbly' },
         { value: 'rings', label: 'Bamboo' },
       ],

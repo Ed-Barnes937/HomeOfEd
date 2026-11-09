@@ -5,10 +5,9 @@ import { swatchFor } from './wandSchema.ts'
 // wand, plus a list of groove sets carved out of it. All lengths are mm, and z
 // runs from 0 at the pommel to lengthMm at the tip.
 
-export interface GrooveSet {
-  shape: 'flat' | 'round'
+interface GrooveCommon {
   count: number
-  /** Fraction of the local profile radius removed at full strength; negative raises a ridge (round only). */
+  /** Fraction of the local profile radius cut away (or, raised, added) at full strength. */
   depth: number
   /** Turns per mm along z. Sign is the spiral direction. */
   twist: number
@@ -19,6 +18,10 @@ export interface GrooveSet {
   /** Angular half-width of a round groove, radians. */
   halfWidth: number
 }
+
+/** Only a round set can be raised: a raised flat set would be a no-op. */
+export type GrooveSet =
+  (GrooveCommon & { shape: 'flat' }) | (GrooveCommon & { shape: 'round'; raised?: boolean })
 
 export interface StainSpec {
   /** The stain's swatch in linear RGB, whose hue and darkness a full coat absorbs; null for natural wood. */
@@ -154,7 +157,10 @@ const HANDLE_STYLES: Record<string, HandleStyle> = {
 }
 
 // Collar between handle and shaft: length mm, and beads at fractions of it.
-const COLLARS: Record<string, { length: number; beads: { t: number; w: number; h: number }[] }> = {
+export const COLLARS: Record<
+  string,
+  { length: number; beads: { t: number; w: number; h: number }[] }
+> = {
   vcut: { length: 4, beads: [{ t: 0.5, w: 0.8, h: -0.7 }] },
   bead: { length: 6, beads: [{ t: 0.5, w: 2.2, h: 1.4 }] },
   beadPair: {
@@ -340,10 +346,9 @@ export function compileWand(p: Params): WandSpec {
         // the original 10%.
         shape: 'round',
         count: n,
-        depth:
-          p.spiralStyle === 'raised'
-            ? -lerp(0.06, 0.2, p.ridgeHeight as number)
-            : lerp(0.05, 0.18, p.shaftGrooveDepth as number),
+        ...(p.spiralStyle === 'raised'
+          ? { raised: true, depth: lerp(0.06, 0.2, p.ridgeHeight as number) }
+          : { depth: lerp(0.05, 0.18, p.shaftGrooveDepth as number) }),
         twist: dir / pitch,
         from,
         to,

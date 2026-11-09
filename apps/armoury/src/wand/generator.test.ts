@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { normalise, randomise, seededRandom } from '../engine/schema.ts'
-import { compileWand } from './compile.ts'
+import { COLLARS, compileWand } from './compile.ts'
 import { buildWandMesh, radiusAt } from './geometry.ts'
 import { wandPresets } from './presets.ts'
 import { wandSchema } from './wandSchema.ts'
@@ -16,7 +16,7 @@ const designs = [
 
 // Carving and raised ridges stay within this fraction of the local profile radius.
 const ENVELOPE = 0.25
-const LONGEST_COLLAR = 12
+const LONGEST_COLLAR = Math.max(...Object.values(COLLARS).map((c) => c.length))
 
 const preset = (name: string) => {
   const found = wandPresets.find((p) => p.name === name)
@@ -46,18 +46,15 @@ describe('wand generator', () => {
     ({ params }) => {
       const spec = compileWand(params)
       let furthestOut = 0
-      let thinnest = Infinity
       let widest = 0
       for (let z = 0; z <= spec.lengthMm; z += 0.7) {
         for (let a = 0; a < Math.PI * 2; a += 0.13) {
           const { r, r0 } = radiusAt(spec, a, z)
           if (r0 > 0) furthestOut = Math.max(furthestOut, Math.abs(r - r0) / r0)
-          thinnest = Math.min(thinnest, r)
           widest = Math.max(widest, r, r0)
         }
       }
       expect(furthestOut).toBeLessThanOrEqual(ENVELOPE)
-      expect(thinnest).toBeGreaterThanOrEqual(0)
       // Beads, flares, bumps and ridges may stand proud of the handle body, but not by much.
       expect(widest).toBeLessThan(spec.handleMaxR * 1.35)
     },
@@ -126,7 +123,16 @@ describe('wand generator', () => {
     const saved = wandPresets.find((p) => p.name === 'Midnight')!.params
     expect(normalise(wandSchema, saved)).toMatchObject({ nodes: 'none', spiralStyle: 'cut' })
     const spec = compileWand(normalise(wandSchema, saved))
-    expect(spec.grooves.every((g) => g.depth > 0)).toBe(true)
+    expect(spec.grooves.some((g) => g.shape === 'round' && g.raised)).toBe(false)
+  })
+
+  it('try another leaves about half the wands without bumps', () => {
+    const rng = seededRandom(11)
+    const rolls = Array.from({ length: 2000 }, () => randomise(wandSchema, rng).nodes)
+    const share = (style: string) => rolls.filter((n) => n === style).length / rolls.length
+    expect(share('none')).toBeCloseTo(0.5, 1)
+    expect(share('knobs')).toBeCloseTo(0.25, 1)
+    expect(share('rings')).toBeCloseTo(0.25, 1)
   })
 
   it('the gem-cut preset matches the measured 12" reference wand', () => {

@@ -36,9 +36,9 @@ export function radiusAt(spec: WandSpec, theta: number, z: number): { r: number;
     } else {
       const x = Math.abs(a) / g.halfWidth
       if (x >= 1) continue
-      const r = r0 * (1 - g.depth * f * Math.sqrt(1 - x * x))
-      if (g.depth >= 0) cut = Math.min(cut, r)
-      else raised = Math.max(raised, r)
+      const offset = r0 * g.depth * f * Math.sqrt(1 - x * x)
+      if (g.raised) raised = Math.max(raised, r0 + offset)
+      else cut = Math.min(cut, r0 - offset)
     }
   }
   return { r: cut + raised - r0, r0 }

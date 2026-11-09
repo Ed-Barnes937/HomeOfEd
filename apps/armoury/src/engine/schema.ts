@@ -26,6 +26,8 @@ export interface ChoiceOption {
   value: string
   label: string
   swatch?: string
+  /** How often randomise picks this option relative to the others; 1 if unset. */
+  weight?: number
 }
 
 export interface ChoiceParam extends BaseParam {
@@ -88,17 +90,25 @@ export function randomise(
   rng: () => number,
   options?: RandomiseOptions,
 ): Params {
-  const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rng() * xs.length)]!
+  const pick = (options: readonly ChoiceOption[]): string => {
+    const weight = (o: ChoiceOption) => o.weight ?? 1
+    let x = rng() * options.reduce((sum, o) => sum + weight(o), 0)
+    for (const o of options) {
+      x -= weight(o)
+      if (x < 0) return o.value
+    }
+    return options[options.length - 1]!.value
+  }
   const isLocked = (def: ParamDef) => options?.locked.includes(def.group) ?? false
   const raw: Params = {}
   for (const def of schema.params) {
     if (isLocked(def)) raw[def.key] = options!.keep[def.key] ?? def.default
     else if (def.kind === 'number') raw[def.key] = def.min + rng() * (def.max - def.min)
-    else raw[def.key] = pick(def.options).value
+    else raw[def.key] = pick(def.options)
   }
   for (const def of schema.params) {
     if (def.kind === 'choice' && def.allowed && !isLocked(def))
-      raw[def.key] = pick(def.allowed(raw))
+      raw[def.key] = pick(allowedOptions(def, raw))
   }
   return normalise(schema, raw)
 }
