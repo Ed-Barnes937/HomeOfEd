@@ -39,10 +39,21 @@ describe('mergeSaveDocuments', () => {
     expect(merged.creations).toHaveLength(2)
   })
 
-  it('keeps a boop a child saved twice locally - two rows on disk is two rows', () => {
+  it('keeps a boop saved twice locally when the account holds neither', () => {
     const merged = mergeSaveDocuments(doc(null, [boop('twice'), boop('twice')]), doc(null, []))
 
     expect(merged.creations.map((c) => c.name)).toEqual(['twice', 'twice'])
+  })
+
+  it('collapses them to one when the account holds one - the filter counts nothing', () => {
+    // Reachable at a first link, and left alone deliberately (ADR 0080
+    // decision 3): the rows are byte-identical, so no distinct work is lost.
+    const merged = mergeSaveDocuments(
+      doc(null, [boop('twice'), boop('twice')]),
+      doc(null, [boop('twice')]),
+    )
+
+    expect(merged.creations.map((c) => c.name)).toEqual(['twice'])
   })
 
   it('keeps the local working grid when there is one', () => {
