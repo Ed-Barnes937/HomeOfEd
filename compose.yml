@@ -249,7 +249,9 @@ services:
       BETTER_AUTH_URL: http://localhost:8090
       REGISTRATION_INVITE_CODE: dev-invite-code
       # The committed @hoe/accounts/testing keypair, whose private half is
-      # public knowledge by design. Local stack only - never a deployed value.
+      # public knowledge by design. ONLY this file may set it: main.ts fails
+      # fast at boot if this exact key reaches real infrastructure
+      # (FLY_APP_NAME present), so it cannot silently sign estate tokens.
       FAMILY_TOKEN_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIOGaBsSiWxghRFJOEZcM58j8j1nx0Fnnsnsbgnec6FZr\n-----END PRIVATE KEY-----\n'
     ports:
       - '8090:8080'

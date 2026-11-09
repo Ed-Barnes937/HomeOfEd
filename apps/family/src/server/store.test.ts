@@ -55,13 +55,24 @@ describe('DrizzleFamilyStore child profiles', () => {
     expect(profiles.map((profile) => profile.username)).toEqual(['grace'])
   })
 
-  it('rejects a duplicate username', async () => {
+  it('rejects a duplicate username as a conflict, not a driver error', async () => {
     await insertParent(db, 'parent-2')
     await store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada' })
 
+    // Typed, because hub's add-a-child form needs something to show.
     await expect(
       store.addChildProfile({ parentId: 'parent-2', username: 'ada', displayName: 'Ada B' }),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    await expect(
+      store.addChildProfile({ parentId: 'parent-1', username: 'ada', displayName: 'Ada B' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
+  it('still raises anything that is not a unique violation', async () => {
+    // A foreign-key violation must not be read as a username already taken.
+    await expect(
+      store.addChildProfile({ parentId: 'nobody', username: 'ada', displayName: 'Ada' }),
+    ).rejects.not.toMatchObject({ code: 'CONFLICT' })
   })
 
   it('cascades profiles when the parent user row is deleted', async () => {

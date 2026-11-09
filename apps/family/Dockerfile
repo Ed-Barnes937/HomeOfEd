@@ -53,14 +53,18 @@ COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/family/src ./apps/family/src
 COPY --from=builder /app/apps/family/dist ./apps/family/dist
-# The app's own test sources aren't runtime code, and neither is @hoe/accounts'
-# committed test keypair. Nor are two lockfile stowaways: pglite (dragged in as
-# drizzle-orm's resolved optional peer - only the pglite driver imports it, and
-# that path never runs in prod) and typescript (@trpc/server declares it as a
-# types-only peer). The dev-only workspace stubs (test-kit/config package.json)
-# go too.
+# The app's own test sources aren't runtime code. Nor are two lockfile
+# stowaways: pglite (dragged in as drizzle-orm's resolved optional peer - only
+# the pglite driver imports it, and that path never runs in prod) and
+# typescript (@trpc/server declares it as a types-only peer). The dev-only
+# workspace stubs (test-kit/config package.json) go too.
+#
+# @hoe/accounts/src/testing DOES ship: env.ts's boot guard compares the
+# configured signing key against that committed fixture and refuses to run on
+# Fly if they match. The fixture's private half is public knowledge by design,
+# so shipping it leaks nothing, and importing it is what stops the guard
+# drifting from the key it guards against.
 RUN rm -rf apps/family/src/testing apps/family/src/greeting.iwft.tsx \
-  packages/accounts/src/testing \
   packages/test-kit packages/config \
   node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node

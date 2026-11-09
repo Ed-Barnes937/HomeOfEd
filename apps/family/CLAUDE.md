@@ -63,7 +63,13 @@ Consequences worth knowing:
   unchecked origin. Adding an app to the estate's save flow starts there.
 - `loadFamilyEnv` requires all four identity variables unconditionally, so a
   missing secret crashes the process at boot. Its failure message names the
-  variables and never their values.
+  variables and never their values. It also **refuses to boot at all** if
+  `FAMILY_TOKEN_PRIVATE_KEY` is the committed `@hoe/accounts/testing` fixture
+  while `FLY_APP_NAME` is set - `compose.yml` sets that fixture on purpose, and
+  the guard is what keeps it from reaching Fly, where anyone at all could then
+  mint estate tokens. It compares against the imported constant, so the guard
+  cannot drift from the fixture; that is why the image still ships
+  `packages/accounts/src/testing`.
 
 ### Schema invariants worth knowing before you change it
 

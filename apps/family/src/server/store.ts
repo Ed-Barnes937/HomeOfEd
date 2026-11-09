@@ -1,3 +1,4 @@
+import { ConflictError } from '@hoe/backend-kit'
 import type { DbClient } from '@hoe/db'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
@@ -57,6 +58,7 @@ export interface FamilyStore {
   /** The Better Auth user row behind a session; null when it has gone. */
   getParent(id: string): Promise<ParentRow | null>
 
+  /** Throws `ConflictError` when the username is taken; `username` is unique. */
   addChildProfile(input: ChildProfileInput): Promise<ChildProfileRow>
   listChildProfiles(parentId: string): Promise<ChildProfileRow[]>
   getChildProfile(id: string): Promise<ChildProfileRow | null>
@@ -85,6 +87,18 @@ function first<T>(rows: readonly T[]): T {
     throw new Error('expected at least one returned row')
   }
   return row
+}
+
+const UNIQUE_VIOLATION = '23505'
+
+// Drizzle wraps driver errors, so the SQLSTATE sits on `cause`; `pg` and PGlite
+// both put it there, and the bare form is checked in case a driver stops.
+function isUniqueViolation(err: unknown): boolean {
+  const codeOf = (value: unknown): unknown =>
+    typeof value === 'object' && value !== null ? (value as { code?: unknown }).code : undefined
+  const cause =
+    typeof err === 'object' && err !== null ? (err as { cause?: unknown }).cause : undefined
+  return codeOf(err) === UNIQUE_VIOLATION || codeOf(cause) === UNIQUE_VIOLATION
 }
 
 function slotFilter(key: SaveKey) {
@@ -116,7 +130,12 @@ export class DrizzleFamilyStore implements FamilyStore {
   }
 
   async addChildProfile(input: ChildProfileInput): Promise<ChildProfileRow> {
-    return first(await this.db.insert(childProfiles).values(input).returning())
+    try {
+      return first(await this.db.insert(childProfiles).values(input).returning())
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new ConflictError('that username is already taken')
+      throw err
+    }
   }
 
   listChildProfiles(parentId: string): Promise<ChildProfileRow[]> {
