@@ -50,13 +50,16 @@ export function Pills({
   def,
   params,
   onChange,
+  inline = false,
 }: {
   def: ChoiceParam
   params: Params
   onChange: OnChange
+  /** The label beside the pills rather than above them. */
+  inline?: boolean
 }) {
   return (
-    <div className={styles.field}>
+    <div className={inline ? styles.inline : styles.field}>
       <span className={styles.label} id={`label-${def.key}`}>
         {def.label}
       </span>

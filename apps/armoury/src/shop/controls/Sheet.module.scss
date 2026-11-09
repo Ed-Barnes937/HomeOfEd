@@ -73,11 +73,4 @@
 
 .kind {
   padding: 4px 16px 6px;
-
-  // The picker's label sits beside its pills, to leave the sheet room for the groups.
-  > * > * {
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-  }
 }

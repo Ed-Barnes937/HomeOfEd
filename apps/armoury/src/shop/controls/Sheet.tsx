@@ -28,7 +28,7 @@ export function Sheet({
     <section className={styles.sheet} aria-label="Make your wand">
       <div className={styles.grip} aria-hidden="true" />
       <div className={styles.kind}>
-        <GroupControls group="kind" params={params} onChange={onChange} />
+        <GroupControls group="kind" params={params} onChange={onChange} inline />
       </div>
       <div className={styles.tabs} role="tablist" aria-label="Parts of the wand">
         {groups.map((g) => (
