@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 
 import type { WandSpec } from '../wand/compile.ts'
-import { gemPoses } from '../wand/geometry.ts'
+import { endPoses, gemPoses } from '../wand/geometry.ts'
 import { gemGlow, GEM_REST } from './gemGlow.ts'
 
 const UP = new THREE.Vector3(0, 1, 0)
@@ -109,6 +109,19 @@ export function Gems({
       })),
     [spec],
   )
+  const ends = useMemo(() => {
+    const { crystal, orb } = endPoses(spec)
+    return {
+      crystal: crystal && {
+        position: crystal.position,
+        quaternion: new THREE.Quaternion().setFromUnitVectors(
+          UP,
+          new THREE.Vector3(...crystal.direction),
+        ),
+      },
+      orb: orb?.position,
+    }
+  }, [spec])
 
   useFrame(({ clock }) => {
     const glow = gemGlow(castAt === null ? Infinity : clock.elapsedTime - castAt, reducedMotion)
@@ -129,16 +142,16 @@ export function Gems({
           scale={pose.radius}
         />
       ))}
-      {spec.crystal && crystal && (
+      {spec.crystal && crystal && ends.crystal && (
         <mesh
           geometry={crystal}
           material={materials.faceted}
-          position={[0, 0, spec.crystal.from]}
-          rotation={[Math.PI / 2, 0, 0]}
+          position={ends.crystal.position}
+          quaternion={ends.crystal.quaternion}
         />
       )}
-      {spec.orb && (
-        <mesh material={materials.smooth} position={[0, 0, spec.orb.centre]}>
+      {spec.orb && ends.orb && (
+        <mesh material={materials.smooth} position={ends.orb}>
           <sphereGeometry args={[spec.orb.radius, 48, 32]} />
         </mesh>
       )}

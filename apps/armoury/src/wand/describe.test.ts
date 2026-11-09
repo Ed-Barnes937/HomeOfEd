@@ -66,6 +66,14 @@ describe('wandName', () => {
     })
     expect(wandName(plain)).toBe('The Walnut Moon')
   })
+
+  it('calls a branch a branch, since it has no shaft carving to be named for', () => {
+    const branch = { kind: 'branch', stainColour: 'midnight', shaftCarving: 'longSpiral' }
+    expect(wandName(wand(branch))).toBe('The Midnight Branch')
+    expect(wandName(wand({ ...branch, branchHandle: 'turned', handleStyle: 'gemcut' }))).toBe(
+      'The Midnight Branch',
+    )
+  })
 })
 
 describe('wandNumber', () => {

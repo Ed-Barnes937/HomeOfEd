@@ -14,6 +14,7 @@ import {
 import * as THREE from 'three'
 
 import { compileWand, type WandSpec } from '../wand/compile.ts'
+import { reachMm } from '../wand/geometry.ts'
 import styles from './CloseUpStage.module.scss'
 import { BOX_CAMERA_LEAN, FOV, RIM_INTENSITY, ShopLights } from './scene.tsx'
 import {
@@ -212,7 +213,8 @@ function Rig({
     if (rim.current) rim.current.intensity = RIM_INTENSITY * (1 - e)
   })
 
-  const girth = spec.handleMaxR * 2 * MM * 3.5
+  // Generous round a slim straight wand, and wide enough to take in the whole bow of a bent one.
+  const girth = Math.max(spec.handleMaxR * 3.5, reachMm(spec) + spec.handleMaxR) * 2 * MM
   return (
     <>
       <group ref={lights}>

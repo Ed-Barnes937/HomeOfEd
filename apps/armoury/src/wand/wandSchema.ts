@@ -14,16 +14,21 @@ const PALE_WOODS = ['oak', 'maple']
 const DYES = ['forest', 'ocean', 'plum']
 const STAINS = ['none', 'smoky', 'midnight', 'ember', ...DYES]
 
-const shaftCarved = (p: Params) => p.shaftCarving !== 'none'
+export const isBranch = (p: Params) => p.kind === 'branch'
+/** A turned handle and ring: every Turned wand, and a Branch whose handle was turned. */
+export const hasTurnedHandle = (p: Params) => !isBranch(p) || p.branchHandle === 'turned'
+const turnedHandle = (visible: (p: Params) => boolean) => (p: Params) =>
+  hasTurnedHandle(p) && visible(p)
+const shaftCarved = (p: Params) => !isBranch(p) && p.shaftCarving !== 'none'
 const shaftSpiral = (p: Params) =>
-  p.shaftCarving === 'shortSpiral' || p.shaftCarving === 'longSpiral'
+  !isBranch(p) && (p.shaftCarving === 'shortSpiral' || p.shaftCarving === 'longSpiral')
 const shaftNoded = (p: Params) => p.nodes !== 'none'
 const shaftCutSpiral = (p: Params) => shaftSpiral(p) && p.spiralStyle !== 'raised'
 const shaftRaisedSpiral = (p: Params) => shaftSpiral(p) && p.spiralStyle === 'raised'
 export const usesMetal = (p: Params) =>
   p.handleFinish === 'metal' ||
   p.endCap === 'metal' ||
-  p.collarFinish === 'metal' ||
+  (hasTurnedHandle(p) && p.collarFinish === 'metal') ||
   p.bands !== 'none' ||
   (shaftRaisedSpiral(p) && p.ridgeFinish === 'metal')
 export const usesPaint = (p: Params) => p.handleFinish === 'paint' || p.shaftFinish === 'paint'
@@ -33,14 +38,27 @@ export const hasGems = (p: Params) => hasSetGems(p) || p.tipGem !== 'none' || p.
 export const wandSchema: ItemSchema = {
   itemType: 'wand',
   groups: [
+    { key: 'kind', label: 'Kind of wand' },
     { key: 'finish', label: 'Wood and colour' },
     { key: 'shape', label: 'Shape' },
+    { key: 'branch', label: 'Branch' },
     { key: 'handle', label: 'Handle' },
     { key: 'shaft', label: 'Shaft' },
     { key: 'decor', label: 'Trimmings' },
     { key: 'core', label: 'Core' },
   ],
   params: [
+    {
+      kind: 'choice',
+      key: 'kind',
+      label: 'Kind of wand',
+      group: 'kind',
+      default: 'turned',
+      options: [
+        { value: 'turned', label: 'Turned' },
+        { value: 'branch', label: 'Branch' },
+      ],
+    },
     {
       kind: 'number',
       key: 'lengthCm',
@@ -89,11 +107,79 @@ export const wandSchema: ItemSchema = {
     },
 
     {
+      kind: 'number',
+      key: 'bend',
+      label: 'How bent',
+      group: 'branch',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.35,
+      ends: ['Straight', 'Bent'],
+    },
+    {
+      kind: 'number',
+      key: 'wiggle',
+      label: 'How wiggly',
+      group: 'branch',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.5,
+      ends: ['Smooth', 'Wiggly'],
+    },
+    {
+      kind: 'number',
+      key: 'gnarl',
+      label: 'Lumpy',
+      group: 'branch',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.6,
+      ends: ['Even', 'Lumpy'],
+    },
+    {
+      kind: 'number',
+      key: 'knots',
+      label: 'Knots',
+      group: 'branch',
+      min: 0,
+      max: 6,
+      step: 1,
+      default: 4,
+      ends: ['None', 'Lots'],
+    },
+    {
+      kind: 'number',
+      key: 'branchSeed',
+      label: 'Which branch',
+      group: 'branch',
+      min: 0,
+      max: 99,
+      step: 1,
+      default: 0,
+    },
+
+    {
+      kind: 'choice',
+      key: 'branchHandle',
+      label: 'Grown or turned',
+      group: 'handle',
+      default: 'grown',
+      visible: isBranch,
+      options: [
+        { value: 'grown', label: 'Grown', weight: 3 },
+        { value: 'turned', label: 'Turned' },
+      ],
+    },
+    {
       kind: 'choice',
       key: 'handleStyle',
       label: 'Handle',
       group: 'handle',
       default: 'ringed',
+      visible: hasTurnedHandle,
       options: [
         { value: 'plain', label: 'Simple' },
         { value: 'ringed', label: 'Ringed' },
@@ -107,6 +193,7 @@ export const wandSchema: ItemSchema = {
       label: 'Pattern',
       group: 'handle',
       default: 'none',
+      visible: hasTurnedHandle,
       options: [
         { value: 'none', label: 'Smooth' },
         { value: 'flats', label: 'Flat sides' },
@@ -125,7 +212,7 @@ export const wandSchema: ItemSchema = {
       max: 12,
       step: 1,
       default: 8,
-      visible: (p) => p.handleCarving !== 'none',
+      visible: turnedHandle((p) => p.handleCarving !== 'none'),
     },
     {
       kind: 'number',
@@ -137,7 +224,7 @@ export const wandSchema: ItemSchema = {
       step: 0.05,
       default: 1,
       ends: ['Gentle', 'Twisty'],
-      visible: (p) => p.handleCarving === 'spiralFlutes',
+      visible: turnedHandle((p) => p.handleCarving === 'spiralFlutes'),
     },
     {
       kind: 'choice',
@@ -159,6 +246,7 @@ export const wandSchema: ItemSchema = {
       label: 'Ring',
       group: 'handle',
       default: 'beadPair',
+      visible: hasTurnedHandle,
       options: [
         { value: 'vcut', label: 'Thin line' },
         { value: 'bead', label: 'One bead' },
@@ -173,6 +261,7 @@ export const wandSchema: ItemSchema = {
       label: 'Carving',
       group: 'shaft',
       default: 'shortSpiral',
+      visible: (p) => !isBranch(p),
       options: [
         { value: 'none', label: 'Smooth' },
         { value: 'shortSpiral', label: 'Short spiral' },
@@ -426,7 +515,7 @@ export const wandSchema: ItemSchema = {
       label: 'Ring made of',
       group: 'decor',
       default: 'wood',
-      visible: (p) => p.handleFinish !== 'metal',
+      visible: (p) => hasTurnedHandle(p) && p.handleFinish !== 'metal',
       options: [
         { value: 'wood', label: 'Wood', weight: 15 },
         { value: 'metal', label: 'Metal' },

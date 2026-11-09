@@ -1,6 +1,6 @@
-import type { Params } from '../engine/schema.ts'
+import { seededRandom, type Params } from '../engine/schema.ts'
 import { placeGems, type GemPattern, type SetGem } from './gems.ts'
-import { swatchFor, usesMetal } from './wandSchema.ts'
+import { hasTurnedHandle, isBranch, swatchFor, usesMetal } from './wandSchema.ts'
 
 // Compiles kid-level choices into a geometric spec: a radial profile along the
 // wand, plus a list of groove sets carved out of it. All lengths are mm, and z
@@ -57,6 +57,46 @@ export interface Orb {
   radius: number
 }
 
+/** A knot in straight (angle, z) space. */
+export interface Knot {
+  theta: number
+  z: number
+  /** Height of the boss as a fraction of the local radius. */
+  height: number
+  /** Radius of the boss on the surface, mm. */
+  width: number
+}
+
+/** One sideways wave of the spine; `amp` is mm. */
+export interface Wiggle {
+  freq: number
+  dir: number
+  phase: number
+  amp: number
+}
+
+/** A low-frequency ripple in the radius, `m` times round the wand and `k` radians per mm along it. */
+export interface Lump {
+  m: number
+  k: number
+  phase: number
+  amp: number
+}
+
+/** What makes a wand a branch: its bent spine, lumps and knots. */
+export interface BranchSpec {
+  /** Bow amplitude, mm, and the direction it bows in. */
+  bowMm: number
+  bowDir: number
+  wiggles: Wiggle[]
+  /** The most the lumps add to or take from the radius, as a fraction of it. */
+  gnarl: number
+  lumps: Lump[]
+  /** Lumps and knots grow in from here: the butt of a grown handle, past the ring of a turned one. */
+  from: number
+  knots: Knot[]
+}
+
 export interface WandSpec {
   lengthMm: number
   /** Where the turned body starts and ends; end gems fill the rest of the length. */
@@ -82,6 +122,8 @@ export interface WandSpec {
   orb: Orb | null
   /** Gem settings (rims, the crystal's cup) are the wand's metal when it has any. */
   metalSettings: boolean
+  /** Null for a turned wand, which is always straight. */
+  branch: BranchSpec | null
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
@@ -230,6 +272,11 @@ export const COLLARS: Record<
   },
 }
 
+/** A grown handle's length as a fraction of the wand. */
+const GROWN_HANDLE = 0.27
+const GROWN_STYLE = { ratio: GROWN_HANDLE, cap: 0.1, belt: 0.5 }
+const TAU = Math.PI * 2
+
 const BAND_COUNTS: Record<string, number> = { none: 0, one: 1, two: 2, three: 3 }
 const BAND_HALF_WIDTH = 1.5
 const BAND_HEIGHT = 0.45
@@ -255,7 +302,10 @@ function srgbToLinear(hex: string): [number, number, number] {
 export function compileWand(p: Params): WandSpec {
   const lengthCm = p.lengthCm as number
   const L = lengthCm * 10
-  const style = HANDLE_STYLES[p.handleStyle as string] ?? HANDLE_STYLES.plain!
+  const branch = isBranch(p)
+  const grown = !hasTurnedHandle(p)
+  const turnedStyle = HANDLE_STYLES[p.handleStyle as string] ?? HANDLE_STYLES.plain!
+  const style = grown ? GROWN_STYLE : turnedStyle
   const collar = COLLARS[p.collarStyle as string] ?? COLLARS.bead!
 
   // Coupling, calibrated on the measured 12" reference wand: handle 15mm,
@@ -266,8 +316,8 @@ export function compileWand(p: Params): WandSpec {
   const taperHold = clamp(0.25 + (lengthCm - 28) * 0.015, 0, 0.6)
 
   const H = style.ratio * L
-  const collarEnd = H + collar.length
-  const handleEndR = curve(style.body, 1) * handleMaxR
+  const collarEnd = H + (grown ? 0 : collar.length)
+  const handleEndR = curve(turnedStyle.body, 1) * handleMaxR
 
   const endShape = p.endShape as string
   const ballR = handleMaxR * 0.95
@@ -313,13 +363,21 @@ export function compileWand(p: Params): WandSpec {
         : nodeStart + k * nodeSpacing,
   )
 
+  // A stick: thickest at the butt, a soft swell where the hand goes, then a long natural taper.
+  const grownR = (z: number) =>
+    lerp(handleMaxR * 1.02, tipR, Math.pow(z / L, 0.75)) * (1 + 0.06 * swell(z / L, 0.12, 0.14))
+  const naturalShaftR = (z: number) =>
+    grown ? grownR(z) : lerp(shaftBaseR, tipR, (z - collarEnd) / (bodyTo - collarEnd))
+
   const profile = (z: number): number => {
     if (z <= bodyFrom || z >= bodyTo) return 0
     let r: number
     if (z < H) {
-      const t = z / H
-      r = curve(style.body, t) * handleMaxR
-      for (const b of style.beads) r += bead(z, b.t * H, b.w, b.h * handleMaxR)
+      if (grown) r = grownR(z)
+      else {
+        r = curve(turnedStyle.body, z / H) * handleMaxR
+        for (const b of turnedStyle.beads) r += bead(z, b.t * H, b.w, b.h * handleMaxR)
+      }
       if (orb) {
         // A socket the orb sits in, with a lip round it.
         r += bead(z, bodyFrom + 1.6, 1.6, 0.08 * handleMaxR)
@@ -341,7 +399,10 @@ export function compileWand(p: Params): WandSpec {
     } else {
       const u = (z - collarEnd) / (bodyTo - collarEnd)
       const x = clamp((u - taperHold) / (1 - taperHold), 0, 1)
-      r = lerp(tipR, shaftBaseR, (1 + Math.cos(Math.PI * x)) / 2) * (1 + nodeSwell(z))
+      const taper = branch
+        ? naturalShaftR(z)
+        : lerp(tipR, shaftBaseR, (1 + Math.cos(Math.PI * x)) / 2)
+      r = taper * (1 + nodeSwell(z))
       for (const c of bandCentres) r += bead(z, c, BAND_HALF_WIDTH, BAND_HEIGHT)
       const d = bodyTo - z
       if (crystal) {
@@ -356,13 +417,13 @@ export function compileWand(p: Params): WandSpec {
   }
 
   const grooves: GrooveSet[] = []
-  const shaftCarving = p.shaftCarving as string
+  const shaftCarving = branch ? 'none' : (p.shaftCarving as string)
   const shaftReach = p.shaftReach as number
-  const handleCarving = p.handleCarving as string
+  const handleCarving = grown ? 'none' : (p.handleCarving as string)
 
   if (handleCarving !== 'none') {
-    const from = Math.max(style.carve[0] * H, bodyFrom + 3)
-    const to = style.carve[1] * H
+    const from = Math.max(turnedStyle.carve[0] * H, bodyFrom + 3)
+    const to = turnedStyle.carve[1] * H
     const len = to - from
     const fade = Math.min(4, 0.15 * len)
     const n = p.handleCarvingCount as number
@@ -370,7 +431,7 @@ export function compileWand(p: Params): WandSpec {
     const carvingCalm = shaftCarving === 'none' ? 0 : smoothstep(0.5, 0.75, shaftReach)
     const nodeCalm = nodes === 'none' ? 0 : smoothstep(0.3, 0.8, p.nodeSize as number)
     const calm = Math.max(carvingCalm, nodeCalm)
-    const depth = lerp(style.depth, Math.min(style.depth, 0.1), calm)
+    const depth = lerp(turnedStyle.depth, Math.min(turnedStyle.depth, 0.1), calm)
     const base = {
       from,
       to,
@@ -460,15 +521,16 @@ export function compileWand(p: Params): WandSpec {
   }
   asZone(handleFinish, 0, H)
   asZone(shaftFinish, collarEnd, L)
-  asZone(
-    p.collarFinish === 'metal' || handleFinish === 'metal'
-      ? 'metal'
-      : handleFinish === shaftFinish
-        ? handleFinish
-        : 'wood',
-    H,
-    collarEnd,
-  )
+  if (!grown)
+    asZone(
+      p.collarFinish === 'metal' || handleFinish === 'metal'
+        ? 'metal'
+        : handleFinish === shaftFinish
+          ? handleFinish
+          : 'wood',
+      H,
+      collarEnd,
+    )
   for (const c of bandCentres) {
     zones.push({
       material: 'metal',
@@ -541,5 +603,63 @@ export function compileWand(p: Params): WandSpec {
     crystal,
     orb,
     metalSettings,
+    branch: branch ? compileBranch(p, L, collarEnd, grown, profile) : null,
+  }
+}
+
+/** Relative strengths of the lumps; they sum to 1 so `gnarl` is the most they can move the radius. */
+const LUMP_MIX = [0.38, 0.3, 0.21, 0.11]
+const LUMPY_MAX = 0.07
+
+/** Seeded from "Which branch" alone, so changing the colour never grows a different branch. */
+function compileBranch(
+  p: Params,
+  L: number,
+  collarEnd: number,
+  grown: boolean,
+  profile: (z: number) => number,
+): BranchSpec {
+  const rand = seededRandom(9137 + (p.branchSeed as number) * 7919)
+  const bowDir = rand() * TAU
+  const wiggles = [0, 1, 2].map((i): Wiggle => {
+    const freq = 2 + i + rand()
+    // Scaled by (2/f)^2 so every wiggle curves equally hard.
+    return {
+      freq,
+      dir: TAU * rand(),
+      phase: TAU * rand(),
+      amp: (p.wiggle as number) * 0.03 * L * (2 / freq) ** 2,
+    }
+  })
+  const lumps = LUMP_MIX.map((amp, m): Lump => ({
+    m,
+    k: TAU / lerp([55, 70, 40, 25][m]!, [95, 120, 70, 45][m]!, rand()),
+    phase: TAU * rand(),
+    amp,
+  }))
+  const from = grown ? 0 : collarEnd
+  const count = p.knots as number
+  const knotFrom = grown ? 0.1 * L : collarEnd + 15
+  const knotTo = 0.82 * L
+  const knots: Knot[] = []
+  for (let i = 0; i < count; i++) {
+    const z = lerp(knotFrom, knotTo, (i + 0.2 + 0.6 * rand()) / count)
+    // Full-size knots below the grip read as blobs.
+    const size = lerp(0.45, 1, smoothstep(0.1 * L, 0.3 * L, z))
+    knots.push({
+      theta: rand() * TAU,
+      z,
+      height: lerp(0.16, 0.26, rand()) * size,
+      width: profile(z) * lerp(0.55, 0.9, rand()) * lerp(0.7, 1, size),
+    })
+  }
+  return {
+    bowMm: (p.bend as number) * 0.07 * L,
+    bowDir,
+    wiggles,
+    gnarl: (p.gnarl as number) * LUMPY_MAX,
+    lumps,
+    from,
+    knots,
   }
 }

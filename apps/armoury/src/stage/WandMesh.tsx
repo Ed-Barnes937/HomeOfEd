@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 import type { WandSpec } from '../wand/compile.ts'
-import { buildWandMesh } from '../wand/geometry.ts'
+import { buildWandMesh, spineFrame } from '../wand/geometry.ts'
 import { Gems } from './Gems.tsx'
 import { Sparkles } from './Sparkles.tsx'
 import { SpellBurst } from './SpellBurst.tsx'
@@ -12,6 +12,7 @@ import { BLOOM_THRESHOLD, SPELL_SECONDS } from './stage.ts'
 
 /** Scene units per mm: a 33cm wand is 3.3 units long. */
 export const MM = 0.01
+const ALONG = new THREE.Vector3(0, 0, 1)
 
 // Poly Haven CC0 veneer scans. Some are photographed with the grain across the
 // image, so they're turned to run along the wand. The tint stands in for oil.
@@ -207,6 +208,13 @@ export function WandMesh({
   }, [finishUniforms, wood.lum, wood.grain, spec.stain.colour, metal, spec.paint])
 
   const half = (spec.lengthMm / 2) * MM
+  // The spell leaves along the way the tip points, which on a branch leans off the chord.
+  const tipTurn = useMemo(() => {
+    const tangent = new THREE.Vector3(...spineFrame(spec, spec.lengthMm).tangent)
+    return new THREE.Quaternion()
+      .setFromUnitVectors(ALONG, tangent)
+      .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)))
+  }, [spec])
   return (
     <group rotation={[0, Math.PI / 2, 0]}>
       <mesh geometry={geometry} position={[0, 0, -half]} scale={MM}>
@@ -224,7 +232,7 @@ export function WandMesh({
       <group position={[0, 0, -half]} scale={MM}>
         <Gems spec={spec} castAt={castAt} reducedMotion={reducedMotion} />
       </group>
-      <group position={[0, 0, half + 0.03]} rotation={[0, -Math.PI / 2, 0]}>
+      <group position={[0, 0, half + 0.03]} quaternion={tipTurn}>
         <TipGlow colour={spec.spell} castAt={castAt} reducedMotion={reducedMotion} />
       </group>
     </group>

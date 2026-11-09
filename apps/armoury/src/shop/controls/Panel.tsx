@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import type { Params } from '../../engine/schema.ts'
-import { GROUPS, type GroupMeta } from './groups.ts'
+import { visibleGroups, type GroupMeta } from './groups.ts'
 import { GroupControls } from './GroupControls.tsx'
 import styles from './Panel.module.scss'
 import type { OnChange } from './Widgets.tsx'
@@ -55,15 +55,19 @@ export function Panel({
   onToggleLock: (group: string) => void
   actions: React.ReactNode
 }) {
-  const [open, setOpen] = useState<readonly string[]>(() => GROUPS.map((g) => g.key))
+  const groups = visibleGroups(params)
+  const [closed, setClosed] = useState<readonly string[]>([])
   const toggle = (key: string) =>
-    setOpen((o) => (o.includes(key) ? o.filter((k) => k !== key) : [...o, key]))
+    setClosed((c) => (c.includes(key) ? c.filter((k) => k !== key) : [...c, key]))
 
   return (
     <aside className={styles.panel} aria-label="Make your wand">
       <div className={styles.sections}>
-        {GROUPS.map((group) => {
-          const isOpen = open.includes(group.key)
+        <div className={styles.kind}>
+          <GroupControls group="kind" params={params} onChange={onChange} />
+        </div>
+        {groups.map((group) => {
+          const isOpen = !closed.includes(group.key)
           return (
             <section key={group.key} className={styles.section}>
               <div className={styles.header}>

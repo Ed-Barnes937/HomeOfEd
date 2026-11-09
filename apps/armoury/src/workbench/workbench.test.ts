@@ -43,6 +43,14 @@ describe('workbench', () => {
     expect(state.locked).toEqual(['finish'])
   })
 
+  it('keeps the kind of wand when trying another, unlocked', () => {
+    for (const kind of ['turned', 'branch']) {
+      const state = startWorkbench({ params: normalise(wandSchema, { kind }) })
+      for (let seed = 1; seed < 20; seed++)
+        expect(workbench(state, { type: 'tryAnother', seed }).wand.params.kind).toBe(kind)
+    }
+  })
+
   it('a new wand loses the old one’s name, a renamed one keeps it', () => {
     let state = startWorkbench({ ...oak, name: 'Acorn' })
     state = workbench(state, { type: 'set', key: 'lengthCm', value: 30 })

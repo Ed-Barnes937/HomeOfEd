@@ -68,3 +68,7 @@
   padding: 10px 16px calc(14px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--panel-line);
 }
+
+.kind {
+  padding: 6px 16px 8px;
+}

@@ -23,6 +23,20 @@ const designs = [
       endGem: 'orb',
     }),
   })),
+  ...(['grown', 'turned'] as const).flatMap((branchHandle, i) =>
+    Array.from({ length: 4 }, (_, j) => ({
+      name: `gnarled branch, ${branchHandle} handle, ${j}`,
+      params: normalise(wandSchema, {
+        ...randomise(wandSchema, seededRandom(200 + 10 * i + j)),
+        kind: 'branch',
+        branchHandle,
+        thickness: 1.15,
+        gnarl: 1,
+        knots: 6,
+        branchSeed: 25 * j,
+      }),
+    })),
+  ),
 ]
 
 // Carving and raised ridges stay within this fraction of the local profile radius.
@@ -43,11 +57,17 @@ describe('wand generator', () => {
     const mesh = buildWandMesh(spec, { segments: 48, stepMm: 1 })
     expect(mesh.positions.every(Number.isFinite)).toBe(true)
     expect(mesh.normals.every(Number.isFinite)).toBe(true)
+    // Each end ring collapses to one point, which seals the shape.
     const cols = mesh.segments + 1
     for (const j of [0, mesh.rings]) {
+      const first = j * cols * 3
       for (let i = 0; i < cols; i++) {
         const k = (j * cols + i) * 3
-        expect(Math.hypot(mesh.positions[k]!, mesh.positions[k + 1]!)).toBeLessThan(1e-6)
+        const gap = Math.hypot(
+          mesh.positions[k]! - mesh.positions[first]!,
+          mesh.positions[k + 1]! - mesh.positions[first + 1]!,
+        )
+        expect(gap).toBeLessThan(1e-6)
       }
     }
   })

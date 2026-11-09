@@ -1,4 +1,4 @@
-import type { GrooveSet, Material, WandSpec } from './compile.ts'
+import type { BranchSpec, GrooveSet, Material, WandSpec } from './compile.ts'
 import { RIM_WIDTH } from './gems.ts'
 
 // The wand surface is a radius field r(angle, z) sampled on a cylinder grid.
@@ -45,15 +45,58 @@ function strengthAt(g: GrooveSet, z: number): number {
   return smoothstep(g.from, g.from + g.fadeIn, z) * (1 - smoothstep(g.to - g.fadeOut, g.to, z))
 }
 
-/** Final radius, the uncarved profile radius, and how much of the surface is a metal ridge or gem setting, at (angle, z). */
+/** How much the lumps move the radius at (angle, z), as a fraction of it. */
+function lumpAt(b: BranchSpec, theta: number, z: number): number {
+  if (b.gnarl <= 0) return 0
+  let n = 0
+  for (const l of b.lumps) n += l.amp * Math.sin(l.m * theta + l.k * z + l.phase)
+  return b.gnarl * n * smoothstep(b.from, b.from + 15, z)
+}
+
+/** Knot height (mm) at (angle, z), and how much of a knot's heart or rim, where stain pools, is here. */
+function knotAt(b: BranchSpec, theta: number, z: number, r0: number) {
+  let h = 0
+  let pool = 0
+  for (const k of b.knots) {
+    if (Math.abs(z - k.z) > k.width * 3) continue
+    const d = Math.hypot(r0 * angleBetween(theta, k.theta), z - k.z) / k.width
+    if (d > 3) continue
+    // A raised boss with a dimple where the twig was.
+    h += k.height * r0 * (Math.exp(-d * d) - 0.55 * Math.exp(-((d / 0.38) ** 2)))
+    pool = Math.max(pool, Math.exp(-(((d - 0.9) / 0.35) ** 2)), Math.exp(-((d / 0.3) ** 2)))
+  }
+  return { h, pool }
+}
+
+/** The uncarved surface's radius at (angle, z): the profile, plus a branch's lumps. */
+function naturalRadius(spec: WandSpec, theta: number, z: number, r0: number): number {
+  return spec.branch ? r0 * (1 + lumpAt(spec.branch, theta, z)) : r0
+}
+
+/**
+ * Final radius; the profile radius; the natural surface before carving (the
+ * profile plus lumps and knots); how much is a metal ridge or gem setting; and
+ * how much stain a knot pools, at (angle, z).
+ */
 export function radiusAt(
   spec: WandSpec,
   theta: number,
   z: number,
-): { r: number; r0: number; metal: number } {
+): { r: number; r0: number; natural: number; metal: number; knot: number } {
   const r0 = spec.profile(z)
-  if (r0 <= 0) return { r: 0, r0: 0, metal: 0 }
+  if (r0 <= 0) return { r: 0, r0: 0, natural: 0, metal: 0, knot: 0 }
   const settings = settingsAt(spec, theta, z, r0)
+  let natural = naturalRadius(spec, theta, z, r0)
+  let knot = 0
+  if (spec.branch) {
+    const banded = spec.zones.some((zone) => zone.uncarved && z >= zone.from && z <= zone.to)
+    const k = knotAt(spec.branch, theta, z, r0)
+    const room = banded
+      ? 0
+      : settings.carving * smoothstep(spec.branch.from, spec.branch.from + 15, z)
+    natural += k.h * room
+    knot = k.pool * room
+  }
   let ridgeMetal = 0
   // The deepest cut and the tallest ridge, so overlapping sets combine in any order.
   let cut = r0
@@ -81,10 +124,103 @@ export function radiusAt(
     }
   }
   return {
-    r: cut + raised - r0 + settings.offset,
+    r: cut + raised - r0 + settings.offset + natural - r0,
     r0,
+    natural,
     metal: Math.max(ridgeMetal, settings.metal),
+    knot,
   }
+}
+
+type Vec3 = [number, number, number]
+
+/** The spine's sideways offset at z, mm: a bow and a few wiggles, less the chord so both ends stay on the axis. */
+function spineOffset(b: BranchSpec, L: number, z: number): [number, number] {
+  const raw = (zz: number): [number, number] => {
+    const u = zz / L
+    // Smooth everywhere, so the curvature stays bounded and the inside of the bend never folds.
+    const bow = b.bowMm * (Math.sin(Math.PI * u) - 0.2 * Math.sin(TAU * u))
+    let x = bow * Math.cos(b.bowDir)
+    let y = bow * Math.sin(b.bowDir)
+    const grow = smoothstep(0, 0.4, u)
+    for (const w of b.wiggles) {
+      const s = w.amp * grow * Math.sin(TAU * w.freq * u + w.phase)
+      x += s * Math.cos(w.dir)
+      y += s * Math.sin(w.dir)
+    }
+    return [x, y]
+  }
+  const [x0, y0] = raw(0)
+  const [x1, y1] = raw(L)
+  const [x, y] = raw(z)
+  const t = z / L
+  return [x - (x0 + (x1 - x0) * t), y - (y0 + (y1 - y0) * t)]
+}
+
+export interface SpineFrame {
+  point: Vec3
+  tangent: Vec3
+  /** The straight wand's x and y axes, carried onto the spine at this z. */
+  normal: Vec3
+  binormal: Vec3
+}
+
+const STRAIGHT: Omit<SpineFrame, 'point'> = {
+  tangent: [0, 0, 1],
+  normal: [1, 0, 0],
+  binormal: [0, 1, 0],
+}
+
+const unit = ([x, y, z]: Vec3): Vec3 => {
+  const len = Math.hypot(x, y, z)
+  return [x / len, y / len, z / len]
+}
+
+/** Where the straight wand's axis point at z ends up, and which way the bent wand runs there. */
+export function spineFrame(spec: WandSpec, z: number): SpineFrame {
+  const b = spec.branch
+  if (!b) return { point: [0, 0, z], ...STRAIGHT }
+  const L = spec.lengthMm
+  const h = 0.25
+  const [x, y] = spineOffset(b, L, z)
+  const [xa, ya] = spineOffset(b, L, z - h)
+  const [xb, yb] = spineOffset(b, L, z + h)
+  const tangent = unit([(xb - xa) / (2 * h), (yb - ya) / (2 * h), 1])
+  // Gram-Schmidt from world x: fine while the spine never turns near x, which these gentle bends don't.
+  const [tx, ty, tz] = tangent
+  const normal = unit([1 - tx * tx, -tx * ty, -tx * tz])
+  const [nx, ny, nz] = normal
+  const binormal: Vec3 = [ty * nz - tz * ny, tz * nx - tx * nz, tx * ny - ty * nx]
+  return { point: [x, y, z], tangent, normal, binormal }
+}
+
+/** Carries a point in a straight ring's plane onto the bent wand. */
+function bendPoint(f: SpineFrame, x: number, y: number): Vec3 {
+  const { point: p, normal: n, binormal: b } = f
+  return [p[0] + x * n[0] + y * b[0], p[1] + x * n[1] + y * b[1], p[2] + x * n[2] + y * b[2]]
+}
+
+/** Carries a direction on the straight wand onto the bent one. */
+function bendDirection(f: SpineFrame, [x, y, z]: Vec3): Vec3 {
+  const { normal: n, binormal: b, tangent: t } = f
+  return [
+    x * n[0] + y * b[0] + z * t[0],
+    x * n[1] + y * b[1] + z * t[1],
+    x * n[2] + y * b[2] + z * t[2],
+  ]
+}
+
+/** The surface stays within this much of the profile radius (the generator tests' envelope). */
+const ENVELOPE = 1.25
+
+/** How far the bent wand's surface gets from the straight line between its ends, mm. */
+export function reachMm(spec: WandSpec): number {
+  let reach = 0
+  for (let z = 0; z <= spec.lengthMm; z += 1) {
+    const [x, y] = spec.branch ? spineOffset(spec.branch, spec.lengthMm, z) : [0, 0]
+    reach = Math.max(reach, Math.hypot(x, y) + ENVELOPE * spec.profile(z))
+  }
+  return reach
 }
 
 const MATERIAL_CHANNEL: Record<Material, number> = { metal: 0, paint: 1, bone: 2 }
@@ -138,6 +274,7 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   const shade = new Float32Array(count)
   const zone = new Float32Array(count * 3)
   const ridge = new Float32Array(count)
+  const knots = new Float32Array(count)
   const depthNorm = new Float32Array(count)
 
   // Grain runs along the wand. Around it, the texture is mirrored so there's
@@ -146,18 +283,19 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
 
   for (let j = 0; j <= rings; j++) {
     const z = bodyFrom + ((bodyTo - bodyFrom) * j) / rings
+    // Bent after building: each straight ring is carried onto the spine before the normal pass.
+    const frame = spineFrame(spec, z)
     for (let i = 0; i <= segments; i++) {
       const theta = (TAU * i) / segments
-      const { r, r0, metal } = radiusAt(spec, theta, z)
+      const { r, natural, metal, knot } = radiusAt(spec, theta, z)
       const k = j * cols + i
       ridge[k] = metal
-      positions[k * 3] = r * Math.cos(theta)
-      positions[k * 3 + 1] = r * Math.sin(theta)
-      positions[k * 3 + 2] = z
+      knots[k] = knot
+      positions.set(bendPoint(frame, r * Math.cos(theta), r * Math.sin(theta)), k * 3)
       const tri = i <= segments / 2 ? (2 * i) / segments : 2 - (2 * i) / segments
       uvs[k * 2] = across * tri
       uvs[k * 2 + 1] = z / textureMm
-      depthNorm[k] = r0 > 0 ? (r0 - r) / r0 : 0
+      depthNorm[k] = natural > 0 ? Math.max(0, (natural - r) / natural) : 0
     }
     const material = materialAt(spec, z)
     for (let i = 0; i <= segments; i++) {
@@ -196,9 +334,11 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
       let len = Math.hypot(nx, ny, nz)
       if (len < 1e-9) {
         // On the axis at either end: point straight out of the end.
-        nx = 0
-        ny = 0
-        nz = j === 0 ? -1 : 1
+        const out = j === 0 ? -1 : 1
+        const [ex, ey, ez] = spineFrame(spec, j === 0 ? bodyFrom : bodyTo).tangent
+        nx = ex * out
+        ny = ey * out
+        nz = ez * out
         len = 1
       }
       const k = (j * cols + i) * 3
@@ -220,12 +360,13 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
       : 0
     for (let i = 0; i <= segments; i++) {
       const k = j * cols + i
-      const groove = Math.min(1, Math.max(0, depthNorm[k]!) / 0.12)
+      const groove = Math.min(1, depthNorm[k]! / 0.12)
+      const knot = knots[k]!
       const soaks = 1 - zone[k * 3]! - zone[k * 3 + 1]!
-      stainAmount[k] = stain.colour
-        ? soaks * Math.min(1, amount + 0.6 * stain.strength * groove)
-        : 0
-      shade[k] = 1 - 0.35 * groove
+      // Stain pools in a knot's heart and round its rim, as in a groove.
+      const pooled = 0.6 * stain.strength * groove + 0.7 * stain.strength * knot
+      stainAmount[k] = stain.colour ? soaks * Math.min(1, amount + pooled) : 0
+      shade[k] = 1 - 0.35 * groove - 0.3 * knot
     }
   }
 
@@ -258,17 +399,36 @@ export interface GemPose {
   radius: number
 }
 
-/** Each set gem's place on the uncarved surface, from the profile and its slope. */
+/** Each set gem's place on the uncarved surface, from the profile and its slope, carried onto the spine. */
 export function gemPoses(spec: WandSpec): GemPose[] {
   return spec.gems.map((gem) => {
-    const r = spec.profile(gem.z)
+    const r = naturalRadius(spec, gem.theta, gem.z, spec.profile(gem.z))
     const slope = (spec.profile(gem.z + 0.25) - spec.profile(gem.z - 0.25)) / 0.5
     const [c, s] = [Math.cos(gem.theta), Math.sin(gem.theta)]
     const len = Math.hypot(1, slope)
+    const frame = spineFrame(spec, gem.z)
     return {
-      position: [r * c, r * s, gem.z],
-      normal: [c / len, s / len, -slope / len],
+      position: bendPoint(frame, r * c, r * s),
+      normal: bendDirection(frame, [c / len, s / len, -slope / len]),
       radius: gem.radius * 0.92,
     }
   })
+}
+
+export interface EndPose {
+  position: Vec3
+  /** The way the wand runs there, pommel to tip. */
+  direction: Vec3
+}
+
+/** Where the crystal's base and the orb's centre sit on the spine. */
+export function endPoses(spec: WandSpec): { crystal: EndPose | null; orb: EndPose | null } {
+  const at = (z: number): EndPose => {
+    const f = spineFrame(spec, z)
+    return { position: f.point, direction: f.tangent }
+  }
+  return {
+    crystal: spec.crystal ? at(spec.crystal.from) : null,
+    orb: spec.orb ? at(spec.orb.centre) : null,
+  }
 }

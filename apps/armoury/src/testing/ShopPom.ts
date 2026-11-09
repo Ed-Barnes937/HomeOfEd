@@ -39,7 +39,9 @@ export class ShopPom extends BasePage {
     core?: string
     length?: number
     gems?: number
+    kind?: string
   }): Promise<void> {
+    if (expected.kind) await expect(this.stage).toHaveAttribute('data-kind', expected.kind)
     if (expected.gems !== undefined)
       await expect(this.stage).toHaveAttribute('data-gems', String(expected.gems))
     if (expected.wood) await expect(this.stage).toHaveAttribute('data-wood', expected.wood)
@@ -153,6 +155,23 @@ export class ShopPom extends BasePage {
 
   async reload(): Promise<void> {
     await this.page.reload()
+  }
+
+  /** Reloads with these params saved as the wand on the counter, as an older version saved them. */
+  async openWithSavedWand(params: Record<string, unknown>): Promise<void> {
+    await this.page.reload()
+    await this.page.evaluate(([key, saved]) => window.localStorage.setItem(key, saved), [
+      SAVE_KEY,
+      JSON.stringify({ version: 1, working: { params }, shelf: [] }),
+    ] as const)
+  }
+
+  async verifyKind(kind: string): Promise<void> {
+    await expect(
+      this.page
+        .getByRole('radiogroup', { name: 'Kind of wand', exact: true })
+        .getByRole('radio', { name: kind, exact: true }),
+    ).toHaveAttribute('aria-checked', 'true')
   }
 }
 
