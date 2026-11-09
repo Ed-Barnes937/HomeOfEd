@@ -4,8 +4,8 @@ import { familySessionCookieOptions, familyUrl } from './familyService.ts'
 
 describe('familyUrl', () => {
   it('talks to the local service from a local hostname', () => {
-    expect(familyUrl('localhost')).toBe('http://localhost:3010')
-    expect(familyUrl('127.0.0.1')).toBe('http://localhost:3010')
+    expect(familyUrl('localhost')).toBe('http://localhost:3012')
+    expect(familyUrl('127.0.0.1')).toBe('http://localhost:3012')
   })
 
   it('talks to production from anywhere else', () => {

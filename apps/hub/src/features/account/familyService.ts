@@ -1,12 +1,12 @@
 /**
  * Where the family service lives, and how the cookie it mints may be stored.
  * Local hostnames talk to the local service (`pnpm dev --filter=family`, port
- * 3010); everything else talks to production. Same shape and the same reason as
+ * 3012); everything else talks to production. Same shape and the same reason as
  * boop's `familyUrl.ts`: hub is served from several hostnames and must never
  * point a browser at a dev box.
  */
 export function familyUrl(hostname: string): string {
-  return isLocal(hostname) ? 'http://localhost:3010' : 'https://family.homeofed.com'
+  return isLocal(hostname) ? 'http://localhost:3012' : 'https://family.homeofed.com'
 }
 
 /**
