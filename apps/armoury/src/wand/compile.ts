@@ -1,3 +1,4 @@
+import { seededRandom } from '../engine/schema.ts'
 import type { Params } from '../engine/schema.ts'
 import { swatchFor } from './wandSchema.ts'
 
@@ -29,6 +30,29 @@ export interface StainSpec {
   softness: number
 }
 
+// SPIKE (ticket 02): what makes a wand a branch. Knots sit in straight (angle, z) space.
+export interface Knot {
+  theta: number
+  z: number
+  /** Height of the bump, mm. */
+  height: number
+  /** Radius of the bump on the surface, mm. */
+  width: number
+}
+
+export interface BranchSpec {
+  /** Bow amplitude, mm, and the direction it bows in. */
+  bendMm: number
+  bendDir: number
+  /** Wiggle amplitude, mm. */
+  wiggleMm: number
+  /** Fraction of the radius the low-frequency lumps add or take away. */
+  gnarl: number
+  knots: Knot[]
+  knotStain: boolean
+  seed: number
+}
+
 export interface WandSpec {
   lengthMm: number
   handleMm: number
@@ -41,6 +65,7 @@ export interface WandSpec {
   wood: string
   /** Colour of the spell cast from the tip, decided by the core. */
   spell: string
+  branch: BranchSpec
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
@@ -204,8 +229,21 @@ export function compileWand(p: Params): WandSpec {
   const ballR = handleMaxR * 0.95
   const tipShape = p.tipShape as string
 
+  const isBranch = p.kind === 'branch'
+  const branchProfile = (z: number): number => {
+    // A stick: thickest at the butt, a soft swell where the hand goes, then a long natural taper.
+    const u = z / L
+    let r = lerp(handleMaxR * 1.02, tipR, Math.pow(u, 0.75))
+    r *= 1 + 0.06 * Math.exp(-(((u - 0.12) / 0.08) ** 2))
+    const capLen = endShape === 'knob' ? r * 0.9 : endShape === 'flat' ? 1.4 : r * 0.6
+    r *= cap(z, capLen, endShape === 'knob' ? 2 : 3)
+    r *= cap(L - z, tipShape === 'flat' ? 1.2 : tipR * 0.9, 2)
+    return Math.max(0, r)
+  }
+
   const profile = (z: number): number => {
     if (z <= 0 || z >= L) return 0
+    if (isBranch) return branchProfile(z)
     let r: number
     if (z < H) {
       const t = z / H
@@ -343,5 +381,32 @@ export function compileWand(p: Params): WandSpec {
     },
     wood: p.wood as string,
     spell: swatchFor('core', p.core as string) ?? '#ffffff',
+    branch: compileBranch(p, L, handleMaxR),
+  }
+}
+
+function compileBranch(p: Params, L: number, handleMaxR: number): BranchSpec {
+  const seed = (p.branchSeed as number) ?? 0
+  const rand = seededRandom(9137 + seed * 7919)
+  const knots: Knot[] = []
+  const count = (p.knots as number) ?? 0
+  for (let i = 0; i < count; i++) {
+    // Spread along the wand, jittered, clear of both ends.
+    const t = (i + 0.2 + 0.6 * rand()) / Math.max(count, 1)
+    knots.push({
+      theta: rand() * Math.PI * 2,
+      z: lerp(0.1, 0.82, t) * L,
+      height: handleMaxR * lerp(0.12, 0.28, rand()),
+      width: handleMaxR * lerp(0.45, 0.8, rand()),
+    })
+  }
+  return {
+    bendMm: ((p.bend as number) ?? 0) * 0.07 * L,
+    bendDir: rand() * Math.PI * 2,
+    wiggleMm: ((p.wiggle as number) ?? 0) * 0.03 * L,
+    gnarl: ((p.gnarl as number) ?? 0) * 0.14,
+    knots,
+    knotStain: p.knotStain !== 'no',
+    seed,
   }
 }
