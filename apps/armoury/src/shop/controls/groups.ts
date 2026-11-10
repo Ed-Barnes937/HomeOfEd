@@ -52,4 +52,12 @@ export const GROUPS: readonly GroupMeta[] = [
     tab: 'Core',
     summary: (p) => coreName(p.core as string),
   },
+  // SPIKE (ticket 02)
+  {
+    key: 'branch',
+    numeral: 'vi.',
+    title: 'The branch (spike)',
+    tab: 'Branch',
+    summary: (p) => labelOf('kind', p),
+  },
 ]

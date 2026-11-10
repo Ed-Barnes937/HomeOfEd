@@ -1,4 +1,5 @@
-import type { GrooveSet, WandSpec } from './compile.ts'
+import { seededRandom } from '../engine/schema.ts'
+import type { BranchSpec, GrooveSet, WandSpec } from './compile.ts'
 
 // The wand surface is a radius field r(angle, z) sampled on a cylinder grid.
 // Pure functions, no three.js, so they're easy to test.
@@ -15,11 +16,63 @@ function strengthAt(g: GrooveSet, z: number): number {
   return smoothstep(g.from, g.from + g.fadeIn, z) * (1 - smoothstep(g.to - g.fadeOut, g.to, z))
 }
 
+// SPIKE (ticket 02): low-frequency lumps, periodic in angle, seeded per branch.
+interface Lump {
+  m: number
+  k: number
+  phase: number
+  amp: number
+}
+const lumpCache = new Map<number, Lump[]>()
+function lumpsFor(seed: number): Lump[] {
+  let lumps = lumpCache.get(seed)
+  if (!lumps) {
+    const rand = seededRandom(seed * 104729 + 17)
+    lumps = [
+      { m: 0, k: TAU / (55 + 40 * rand()), phase: TAU * rand(), amp: 0.45 },
+      { m: 1, k: TAU / (70 + 50 * rand()), phase: TAU * rand(), amp: 0.35 },
+      { m: 2, k: TAU / (40 + 30 * rand()), phase: TAU * rand(), amp: 0.25 },
+      { m: 3, k: TAU / (25 + 20 * rand()), phase: TAU * rand(), amp: 0.12 },
+    ]
+    lumpCache.set(seed, lumps)
+  }
+  return lumps
+}
+
+function lumpAt(b: BranchSpec, theta: number, z: number): number {
+  if (b.gnarl <= 0) return 0
+  let n = 0
+  for (const l of lumpsFor(b.seed)) n += l.amp * Math.sin(l.m * theta + l.k * z + l.phase)
+  return b.gnarl * n
+}
+
+/** Knot bump height (mm) and how much of a knot's rim this point is on, 0 to 1. */
+function knotAt(b: BranchSpec, theta: number, z: number, r0: number): { h: number; rim: number } {
+  let h = 0
+  let rim = 0
+  for (const k of b.knots) {
+    const dz = z - k.z
+    if (Math.abs(dz) > k.width * 3) continue
+    const dTheta = ((((theta - k.theta + Math.PI) % TAU) + TAU) % TAU) - Math.PI
+    const d = Math.hypot(r0 * dTheta, dz) / k.width
+    if (d > 3) continue
+    // A raised boss with a dimple where the twig was, and a rim the stain soaks into.
+    h += k.height * (Math.exp(-d * d) - 0.55 * Math.exp(-((d / 0.38) ** 2)))
+    rim = Math.max(rim, Math.exp(-(((d - 0.9) / 0.35) ** 2)), Math.exp(-((d / 0.3) ** 2)))
+  }
+  return { h, rim }
+}
+
 /** Final radius and the uncarved profile radius at (angle, z). */
-export function radiusAt(spec: WandSpec, theta: number, z: number): { r: number; r0: number } {
-  const r0 = spec.profile(z)
+export function radiusAt(
+  spec: WandSpec,
+  theta: number,
+  z: number,
+): { r: number; r0: number; knot: number } {
+  const base = spec.profile(z)
+  if (base <= 0) return { r: 0, r0: 0, knot: 0 }
+  const r0 = base * (1 + lumpAt(spec.branch, theta, z))
   let r = r0
-  if (r0 <= 0) return { r: 0, r0: 0 }
   for (const g of spec.grooves) {
     const f = strengthAt(g, z)
     if (f <= 0) continue
@@ -36,7 +89,70 @@ export function radiusAt(spec: WandSpec, theta: number, z: number): { r: number;
       if (x < 1) r = Math.min(r, r0 * (1 - g.depth * f * Math.sqrt(1 - x * x)))
     }
   }
-  return { r, r0 }
+  const knot = knotAt(spec.branch, theta, z, r0)
+  return { r: r + knot.h, r0, knot: knot.rim }
+}
+
+/**
+ * SPIKE (ticket 02): the spine's sideways offset at z, mm. A bow plus a few
+ * wiggles, less the straight line between its ends so pommel and tip stay on
+ * the wand's axis.
+ */
+export function spineOffset(b: BranchSpec, L: number, z: number): [number, number] {
+  const raw = (zz: number): [number, number] => {
+    const u = zz / L
+    // Bow peaks a little nearer the tip than the middle; smooth so curvature stays bounded at the ends.
+    const bow = b.bendMm * (Math.sin(Math.PI * u) - 0.2 * Math.sin(TAU * u))
+    let x = bow * Math.cos(b.bendDir)
+    let y = bow * Math.sin(b.bendDir)
+    if (b.wiggleMm > 0) {
+      const rand = seededRandom(b.seed * 31 + 5)
+      // Wiggles grow from nothing at the butt; the handle stays mostly true.
+      const env = smoothstep(0, 0.4, u)
+      for (let i = 0; i < 3; i++) {
+        const f = 2 + i + rand()
+        const dir = TAU * rand()
+        const w = b.wiggleMm * (2 / f) ** 2 * env * Math.sin(TAU * f * u + TAU * rand())
+        x += w * Math.cos(dir)
+        y += w * Math.sin(dir)
+      }
+    }
+    return [x, y]
+  }
+  const [x0, y0] = raw(0)
+  const [x1, y1] = raw(L)
+  const [x, y] = raw(z)
+  const t = z / L
+  return [x - (x0 + (x1 - x0) * t), y - (y0 + (y1 - y0) * t)]
+}
+
+/** Spine point and frame at z: the straight wand's (x, y, z) maps to p + x*n + y*b. */
+export function spineFrame(spec: WandSpec, z: number) {
+  const L = spec.lengthMm
+  const h = 0.25
+  const [x, y] = spineOffset(spec.branch, L, z)
+  const [xa, ya] = spineOffset(spec.branch, L, Math.max(0, z - h))
+  const [xb, yb] = spineOffset(spec.branch, L, Math.min(L, z + h))
+  const dz = Math.min(L, z + h) - Math.max(0, z - h)
+  let tx = (xb - xa) / dz,
+    ty = (yb - ya) / dz,
+    tz = 1
+  const tl = Math.hypot(tx, ty, tz)
+  tx /= tl
+  ty /= tl
+  tz /= tl
+  // Gram-Schmidt from world x; fine while the spine never turns near x, which gentle bends don't.
+  let nx = 1 - tx * tx,
+    ny = -tx * ty,
+    nz = -tx * tz
+  const nl = Math.hypot(nx, ny, nz)
+  nx /= nl
+  ny /= nl
+  nz /= nl
+  const bx = ty * nz - tz * ny,
+    by = tz * nx - tx * nz,
+    bz = tx * ny - ty * nx
+  return { p: [x, y, z], t: [tx, ty, tz], n: [nx, ny, nz], b: [bx, by, bz] }
 }
 
 export interface WandMeshData {
@@ -78,6 +194,8 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   const stainAmount = new Float32Array(count)
   const shade = new Float32Array(count)
   const depthNorm = new Float32Array(count)
+  const knotRim = new Float32Array(count)
+  const bent = spec.branch.bendMm > 0 || spec.branch.wiggleMm > 0
 
   // Grain runs along the wand. Around it, the texture is mirrored so there's
   // no seam: across goes 0 -> 1 -> 0 over one turn.
@@ -85,17 +203,28 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
 
   for (let j = 0; j <= rings; j++) {
     const z = (L * j) / rings
+    const f = bent ? spineFrame(spec, z) : null
     for (let i = 0; i <= segments; i++) {
       const theta = (TAU * i) / segments
-      const { r, r0 } = radiusAt(spec, theta, z)
+      const { r, r0, knot } = radiusAt(spec, theta, z)
       const k = j * cols + i
-      positions[k * 3] = r * Math.cos(theta)
-      positions[k * 3 + 1] = r * Math.sin(theta)
-      positions[k * 3 + 2] = z
+      const lx = r * Math.cos(theta)
+      const ly = r * Math.sin(theta)
+      if (f) {
+        // Bend after building: the straight ring is carried onto the spine's frame at z.
+        positions[k * 3] = f.p[0]! + lx * f.n[0]! + ly * f.b[0]!
+        positions[k * 3 + 1] = f.p[1]! + lx * f.n[1]! + ly * f.b[1]!
+        positions[k * 3 + 2] = f.p[2]! + lx * f.n[2]! + ly * f.b[2]!
+      } else {
+        positions[k * 3] = lx
+        positions[k * 3 + 1] = ly
+        positions[k * 3 + 2] = z
+      }
+      knotRim[k] = knot
       const tri = i <= segments / 2 ? (2 * i) / segments : 2 - (2 * i) / segments
       uvs[k * 2] = across * tri
       uvs[k * 2 + 1] = z / textureMm
-      depthNorm[k] = r0 > 0 ? (r0 - r) / r0 : 0
+      depthNorm[k] = r0 > 0 ? Math.max(0, (r0 - r) / r0) : 0
     }
   }
 
@@ -148,8 +277,11 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
     for (let i = 0; i <= segments; i++) {
       const k = j * cols + i
       const groove = Math.min(1, depthNorm[k]! / 0.12)
-      stainAmount[k] = stain.colour ? Math.min(1, amount + 0.6 * stain.strength * groove) : 0
-      shade[k] = 1 - 0.35 * groove
+      const knot = spec.branch.knotStain ? knotRim[k]! : 0
+      stainAmount[k] = stain.colour
+        ? Math.min(1, amount + 0.6 * stain.strength * groove + 0.7 * stain.strength * knot)
+        : 0
+      shade[k] = 1 - 0.35 * groove - 0.3 * knot
     }
   }
 
