@@ -34,6 +34,7 @@ export function FakeStage({ params, ref }: StageProps) {
   return (
     <div
       data-testid="stage"
+      data-kind={params.kind}
       data-wood={params.wood}
       data-core={params.core}
       data-length={params.lengthCm}

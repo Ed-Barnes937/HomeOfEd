@@ -130,6 +130,44 @@ test('the wand on the counter is still there after a reload', async ({ mountApp 
   await root.verifyStage({ wood: 'walnut' })
 })
 
+test('a branch shows its own controls and hides the ones it has no use for', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyKind('Turned')
+  await root.verifyControls({ hidden: ['How bent', 'Grown or turned'] })
+  await root.chooseIn('Kind of wand', 'Branch')
+  await root.verifyStage({ kind: 'branch' })
+  await root.verifyWandName('The Smoky Branch')
+  await root.verifyControls({
+    shown: ['How bent', 'How wiggly', 'Lumpy', 'Knots', 'Which branch', 'Grown or turned', 'Bumps'],
+    hidden: ['Handle', 'Pattern', 'Ring', 'Carving', 'How deep', 'Ring made of'],
+  })
+  await root.chooseIn('Grown or turned', 'Turned')
+  await root.verifyControls({ shown: ['Handle', 'Ring', 'Ring made of'], hidden: ['Carving'] })
+  await root.chooseIn('Kind of wand', 'Turned')
+  await root.verifyStage({ kind: 'turned' })
+  await root.verifyControls({ shown: ['Carving'], hidden: ['How bent', 'Grown or turned'] })
+})
+
+test('trying another keeps the kind of wand', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.chooseIn('Kind of wand', 'Branch')
+  for (let i = 0; i < 4; i++) {
+    await root.tryAnother()
+    await root.verifyStage({ kind: 'branch' })
+  }
+})
+
+test('a wand saved before branches opens as a turned wand', async ({ mountApp }) => {
+  const first = await mountApp()
+  await first.root.openWithSavedWand({ wood: 'walnut', handleStyle: 'spiral', lengthCm: 35 })
+  const { root } = await mountApp()
+  await root.verifyStage({ wood: 'walnut', length: 35, kind: 'turned' })
+  await root.verifyKind('Turned')
+  await root.verifyControls({ shown: ['Carving'], hidden: ['How bent'] })
+})
+
 test('the picture of a wand downloads as a png named after it', async ({ mountApp }) => {
   const { root } = await mountApp()
   expect(await root.savePicture()).toBe('the-smoky-spiral.png')

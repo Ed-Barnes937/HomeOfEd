@@ -15,9 +15,19 @@ _Avoid_: Design, item (except inside `engine/`, which is item-agnostic).
 The wand's choices, keyed by the schema in `wand/wandSchema.ts`. Always
 normalised: clamped, snapped to step, with choices allowed by the others.
 
+**Kind of wand**:
+Turned (straight, as if from a lathe) or Branch (grown: bent, lumpy and knotted).
+Picked above the groups; **Try another** keeps it
+([ADR 0084](../../docs/adr/0084-armoury-branch-wands.md)).
+
+**Spine**:
+The bent line a Branch follows. Everything is built straight, then carried onto
+the spine; both ends stay on the straight wand's axis.
+
 **Group**:
-A section of params a child sees together: the wood, the shape, the handle, the
-shaft, the extras, the core. The unit a **lock** works on.
+A section of params a child sees together: the wood, the shape, the branch (on a
+Branch only), the handle, the shaft, the extras, the core. The unit a **lock**
+works on.
 
 **Bumps**:
 Evenly spaced swellings along the shaft, knobbly or bamboo. Part of the shaft's
@@ -28,8 +38,8 @@ _Avoid_: Nodes (the code's name for them), in UI copy.
 A shaft spiral that stands proud as a ridge instead of being cut in as a groove.
 
 **Envelope**:
-How far carving and ridges may move the surface from the wand's outline, either
-way: a quarter of the local radius ([ADR 0090](../../docs/adr/0090-armoury-raised-features.md)).
+How far carving, ridges, lumps and knots may move the surface from the wand's
+outline, either way: a quarter of the local radius ([ADR 0090](../../docs/adr/0090-armoury-raised-features.md)).
 
 **Zone**:
 A stretch of the wand in metal, paint or bone instead of wood: the handle, the

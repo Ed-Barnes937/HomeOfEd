@@ -12,7 +12,17 @@ import {
   type OnChange,
 } from './Widgets.tsx'
 
-function Control({ def, params, onChange }: { def: ParamDef; params: Params; onChange: OnChange }) {
+function Control({
+  def,
+  params,
+  onChange,
+  inline,
+}: {
+  def: ParamDef
+  params: Params
+  onChange: OnChange
+  inline: boolean
+}) {
   if (def.kind === 'number') {
     const value = params[def.key] as number
     if (def.key === 'lengthCm') return <Ruler def={def} value={value} onChange={onChange} />
@@ -30,7 +40,7 @@ function Control({ def, params, onChange }: { def: ParamDef; params: Params; onC
     case 'core':
       return <CorePicker def={def} params={params} onChange={onChange} />
     default:
-      return <Pills def={def} params={params} onChange={onChange} />
+      return <Pills def={def} params={params} onChange={onChange} inline={inline} />
   }
 }
 
@@ -38,16 +48,19 @@ export function GroupControls({
   group,
   params,
   onChange,
+  inline = false,
 }: {
   group: string
   params: Params
   onChange: OnChange
+  /** Labels beside their pills, for a compact row. */
+  inline?: boolean
 }) {
   const defs = wandSchema.params.filter((d) => d.group === group && isVisible(d, params))
   return (
     <div className={styles.controls}>
       {defs.map((def) => (
-        <Control key={def.key} def={def} params={params} onChange={onChange} />
+        <Control key={def.key} def={def} params={params} onChange={onChange} inline={inline} />
       ))}
     </div>
   )

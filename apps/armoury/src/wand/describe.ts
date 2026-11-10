@@ -51,6 +51,7 @@ export function wandName(p: Params): string {
   const colour = isBone(p)
     ? 'Bone'
     : (STAIN_WORDS[p.stainColour as string] ?? capitalise(p.wood as string))
+  if (p.kind === 'branch') return `The ${colour} Branch`
   const noun =
     SHAFT_NOUNS[p.shaftCarving as string] ??
     HANDLE_NOUNS[p.handleCarving as string] ??

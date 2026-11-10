@@ -33,7 +33,8 @@ export function workbench(state: Workbench, action: WorkbenchAction): Workbench 
     case 'tryAnother': {
       const params = randomise(wandSchema, seededRandom(action.seed), {
         keep: state.wand.params,
-        locked: state.locked,
+        // Try another rolls a new wand of the same kind.
+        locked: [...state.locked, 'kind'],
       })
       return { ...state, wand: { params }, previous: state.wand, arrivals: state.arrivals + 1 }
     }

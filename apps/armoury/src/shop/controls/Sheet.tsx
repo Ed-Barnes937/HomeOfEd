@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import type { Params } from '../../engine/schema.ts'
-import { GROUPS } from './groups.ts'
+import { visibleGroups } from './groups.ts'
 import { GroupControls } from './GroupControls.tsx'
 import { LockButton } from './Panel.tsx'
 import styles from './Sheet.module.scss'
@@ -21,13 +21,17 @@ export function Sheet({
   actions: React.ReactNode
 }) {
   const [tab, setTab] = useState('finish')
-  const group = GROUPS.find((g) => g.key === tab) ?? GROUPS[0]!
+  const groups = visibleGroups(params)
+  const group = groups.find((g) => g.key === tab) ?? groups[0]!
 
   return (
     <section className={styles.sheet} aria-label="Make your wand">
       <div className={styles.grip} aria-hidden="true" />
+      <div className={styles.kind}>
+        <GroupControls group="kind" params={params} onChange={onChange} inline />
+      </div>
       <div className={styles.tabs} role="tablist" aria-label="Parts of the wand">
-        {GROUPS.map((g) => (
+        {groups.map((g) => (
           <button
             key={g.key}
             type="button"

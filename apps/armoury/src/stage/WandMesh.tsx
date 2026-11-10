@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 import type { WandSpec } from '../wand/compile.ts'
-import { buildWandMesh } from '../wand/geometry.ts'
+import { buildWandMesh, tipPose } from '../wand/geometry.ts'
 import { Gems } from './Gems.tsx'
 import { Sparkles } from './Sparkles.tsx'
 import { SpellBurst } from './SpellBurst.tsx'
@@ -12,6 +12,16 @@ import { BLOOM_THRESHOLD, SPELL_SECONDS } from './stage.ts'
 
 /** Scene units per mm: a 33cm wand is 3.3 units long. */
 export const MM = 0.01
+const ALONG = new THREE.Vector3(0, 0, 1)
+/** The glow floats this far past the tip, in scene units. */
+const TIP_GAP = 0.03
+
+/** Where the tip glow sits in the wand group's own space, before it is turned to lie along x. */
+export function tipPoint(spec: WandSpec): [number, number, number] {
+  const { position: p, direction: d } = tipPose(spec)
+  const half = (spec.lengthMm / 2) * MM
+  return [p[0] * MM + d[0] * TIP_GAP, p[1] * MM + d[1] * TIP_GAP, p[2] * MM - half + d[2] * TIP_GAP]
+}
 
 // Poly Haven CC0 veneer scans. Some are photographed with the grain across the
 // image, so they're turned to run along the wand. The tint stands in for oil.
@@ -98,6 +108,7 @@ function addFinish(
       uniform vec3 uMetalColour;
       uniform float uMetalRough;
       uniform float uMetalness;
+      uniform float uStainGloss;
       uniform vec3 uPaintColour;
       uniform vec3 uBoneColour;
       varying float vStain;
@@ -135,7 +146,7 @@ function addFinish(
     .replace(
       '#include <roughnessmap_fragment>',
       `#include <roughnessmap_fragment>
-      roughnessFactor *= 1.0 - 0.45 * clamp(vStain, 0.0, 1.0);
+      roughnessFactor *= 1.0 - uStainGloss * clamp(vStain, 0.0, 1.0);
       roughnessFactor = zone.w * roughnessFactor + zone.x * uMetalRough + zone.y * 0.22 + zone.z * 0.5;`,
     )
     .replace(
@@ -188,6 +199,7 @@ export function WandMesh({
       uMetalColour: { value: new THREE.Color() },
       uMetalRough: { value: 0.3 },
       uMetalness: { value: 1 },
+      uStainGloss: { value: 0.45 },
       uPaintColour: { value: new THREE.Color() },
       uBoneColour: { value: new THREE.Color(BONE) },
     }),
@@ -201,6 +213,7 @@ export function WandMesh({
   const roughnessMap = textures[woodIndex + 1]!
 
   const metal = METALS[spec.metal] ?? METALS.silver!
+  const branch = spec.branch !== null
   useLayoutEffect(() => {
     finishUniforms.uWoodLum.value = wood.lum
     finishUniforms.uGrain.value = wood.grain
@@ -209,9 +222,19 @@ export function WandMesh({
     finishUniforms.uMetalRough.value = metal.roughness
     finishUniforms.uMetalness.value = metal.metalness
     finishUniforms.uPaintColour.value.setRGB(...spec.paint)
-  }, [finishUniforms, wood.lum, wood.grain, spec.stain.colour, metal, spec.paint])
+    // A stained branch keeps its bark-like sheen low; a turned wand is polished.
+    finishUniforms.uStainGloss.value = branch ? 0.15 : 0.45
+  }, [finishUniforms, wood.lum, wood.grain, spec.stain.colour, metal, spec.paint, branch])
 
   const half = (spec.lengthMm / 2) * MM
+  // The spell leaves along the way the tip points, which on a branch leans off the chord.
+  const tipTurn = useMemo(() => {
+    const direction = new THREE.Vector3(...tipPose(spec).direction)
+    return new THREE.Quaternion()
+      .setFromUnitVectors(ALONG, direction)
+      .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)))
+  }, [spec])
+  const tip = useMemo(() => tipPoint(spec), [spec])
   return (
     <group rotation={[0, Math.PI / 2, 0]}>
       <mesh geometry={geometry} position={[0, 0, -half]} scale={MM}>
@@ -220,7 +243,7 @@ export function WandMesh({
           roughnessMap={roughnessMap}
           bumpMap={roughnessMap}
           bumpScale={0.8}
-          roughness={0.62}
+          roughness={branch ? 0.72 : 0.62}
           envMapIntensity={0.8}
           color={wood.tint}
           onBeforeCompile={(shader) => addFinish(shader, finishUniforms)}
@@ -229,7 +252,7 @@ export function WandMesh({
       <group position={[0, 0, -half]} scale={MM}>
         <Gems spec={spec} castAt={castAt} reducedMotion={reducedMotion} />
       </group>
-      <group position={[0, 0, half + 0.03]} rotation={[0, -Math.PI / 2, 0]}>
+      <group position={tip} quaternion={tipTurn}>
         <TipGlow colour={spec.spell} castAt={castAt} reducedMotion={reducedMotion} />
       </group>
     </group>
