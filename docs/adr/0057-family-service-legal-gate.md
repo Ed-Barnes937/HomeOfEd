@@ -1,6 +1,6 @@
 # 0057 - the family service's legal gate: household pilot now, counsel before anyone else
 
-- Status: proposed
+- Status: accepted 2026-11-09
 - Date: 2026-09-15
 
 ## Context

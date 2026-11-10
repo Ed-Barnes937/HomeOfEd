@@ -1,0 +1,44 @@
+# family — the estate's identity + SaveStore service (ADR 0070). One Fly app,
+# scale-to-zero: it wakes for a login or a save and sleeps again.
+#
+# `fly apps create hoe-family`, attaching the family database and the
+# Cloudflare CNAME are human-gated and happen in ticket 08 - see
+# docs/runbooks/phase-4-go-live.md.
+app = 'hoe-family'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  # Journal-tracked run-once migrations (@hoe/db migratePostgres) - safe on
+  # every deploy. Destructive migrations are human-gated and never shipped
+  # through this path (see packages/db/README.md migration policy).
+  release_command = 'node src/server/migrate.ts'
+
+[env]
+  PORT = '8080'
+  # Better Auth derives its cookie and origin rules from this. Public config,
+  # not a secret; the three identity secrets are `fly secrets set` (ticket 08).
+  BETTER_AUTH_URL = 'https://family.homeofed.com'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  # Scale to zero when idle. The whole point of a separate family app is that
+  # it costs nothing between logins (map ticket 06 cost model).
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    # Deep health: main.ts round-trips the FamilyStore to Postgres.
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

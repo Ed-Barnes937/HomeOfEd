@@ -1,6 +1,6 @@
 # 04 - identity router: Better Auth, invite gate, token minting
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md) §4.2, §4.3, §4.4 (mint side), §4.5
 Blocked by: 01, 03
@@ -29,3 +29,175 @@ CRUD ownership, mint-for-foreign-child rejection, erasure. Token internals
 are ticket 01's tests; here test the wiring.
 
 ## Comments
+
+- 2026-11-09: **added requirement, from ticket 03's review.** Deleting a child
+  profile must be transactional and must leave no orphan saves, exactly as
+  `deleteAccount` is.
+
+  Why this needs saying explicitly. `saves.accountId` deliberately carries no
+  foreign key, because it holds either a parent `user.id` or a
+  `child_profiles.id`. A plain `delete from child_profiles where id = $1`
+  therefore strands that child's save rows permanently: nothing left in the
+  database can ever reference them, and no join will surface them. The FK
+  cascade that would ordinarily prevent this is precisely what ticket 03 gave
+  up, and `deleteAccount` is transactional for exactly this reason.
+
+  This ticket currently asks only for "children CRUD", and its test list reads
+  "invite-code rejection, children CRUD ownership, mint-for-foreign-child
+  rejection, erasure", none of which catches the orphan. Add a store method
+  that deletes the profile and that `accountId`'s `saves` rows in one
+  transaction, plus a test pinning that no orphan saves survive. Ticket 03's
+  `deleteAccount` and its rollback test are the pattern to follow.
+
+- 2026-11-09: **built** on branch `family-first-slice` (on top of ticket 03's
+  `724a622`), commit `d3d424b`.
+
+  **What landed.** `createAppRouter(deps)` over `createTRPC<FamilyStore>()`,
+  with the Store injected into all three transports; Better Auth `^1.6.2` over
+  the same `DbClient` with `/api/auth/*` relayed through Fastify; the invite
+  gate as a `hooks.before` on `/sign-up/email`; `identity.me`,
+  `children.list/add/rename/delete`, `mintSessionToken` and `deleteAccount`;
+  `cors.ts`'s allowlist; and `loadFamilyEnv`'s boot guard over the four
+  identity variables. 67 vitest tests and 3 iwft pass; lint and typecheck green.
+
+  **The auth boundary, stated plainly.** Identity is authorised by the Better
+  Auth cookie session, the save router will be authorised by the family token,
+  and both land on one `ctx.auth`. A parent session therefore carries
+  `kind: 'parent-session'` and `requireParent` accepts nothing else, so a
+  family token can never reach children CRUD, a mint or an erasure. Resolving
+  the session is async and the seam is not, so a Fastify `onRequest` hook
+  stamps a server-trusted `x-family-parent` header after deleting any inbound
+  value (sprout's ADR 0012 precedent); that strip has its own module and test.
+
+  **The added requirement is done.** `deleteChildProfile` deletes the profile
+  scoped to `(id, parentId)` and, only for a row it really owned, that
+  `accountId`'s `saves` rows, both in one transaction. The scoping is as
+  load-bearing as the atomicity: an unscoped saves delete would wipe another
+  household's rows. Pinned by three store tests (no orphans, rollback, foreign
+  household no-op) and two handler tests.
+
+  **Verified end to end against the real image**, not only the unit suites:
+  `docker compose up family` refused a sign-up with no code and one with the
+  wrong code while leaving `user` empty, accepted the third, resolved
+  `identity.me` from the cookie, resolved a forged `x-family-parent` to nobody,
+  minted both token shapes (verified against the committed test public key, so
+  the escaped-newline PEM path is proven), answered an allowlisted preflight
+  with the credentialled headers and gave an unlisted origin none, and against
+  real Postgres took exactly one child's save rows on a child delete and left
+  no rows at all after `deleteAccount`.
+
+  **Deviations, all deliberate.**
+  1. `BETTER_AUTH_URL` is a fourth required variable, set in `fly.toml`'s
+     `[env]` rather than as a Fly secret: Better Auth derives its cookie and
+     trusted-origin rules from it, and cross-origin calls from hub would fail
+     its CSRF check without `trustedOrigins`, which is wired to the same
+     allowlist. No new human-gated secret.
+  2. CORS is hand-rolled rather than `@fastify/cors`, because an app has no
+     direct `fastify` dependency by design and auto-installed peers risk two
+     fastify instances. `Vary: Origin` is set but tRPC's adapter overwrites it
+     on its own responses, so the test pins it on the preflight.
+  3. `compose.yml` carries the committed `@hoe/accounts/testing` private key,
+     whose private half is public knowledge by design, because the image runs
+     under `NODE_ENV=production` and the boot guard would otherwise break
+     `docker compose up family`. The Dockerfile now prunes that folder from
+     the image.
+  4. A duplicate child `username` still surfaces as a 500 rather than a typed
+     conflict. Out of scope here and nearly unreachable at household scale;
+     worth a line in ticket 06 if the UI wants a friendly message.
+
+- 2026-11-09: **two review fixes applied**, commit `63026b8` (after `0b817f3`,
+  which added one test pinning the parent-header strip against any casing).
+
+  1. The committed test key in `compose.yml` is accepted, but now carries a boot
+     guard on sprout's `GEO_ENFORCEMENT` model: `loadFamilyEnv` throws if
+     `FAMILY_TOKEN_PRIVATE_KEY` matches the `@hoe/accounts/testing` fixture
+     while `FLY_APP_NAME` is present. It compares against the imported constant
+     (so it cannot drift from the fixture) and ignores whitespace (so a
+     rewrapped or `\n`-escaped form of the same key is caught). **This
+     supersedes deviation 3 above**: the image no longer prunes
+     `packages/accounts/src/testing`, because the guard imports it at runtime,
+     and the Dockerfile comment explains why that is safe.
+  2. A duplicate child `username` is now a `ConflictError`, mapped from
+     SQLSTATE `23505` in the store. Drizzle wraps driver errors, so the code
+     sits on `cause` for both `pg` and PGlite; everything else re-raises, pinned
+     by a foreign-key-violation test. **This supersedes deviation 4 above.** The
+     uniqueness *scope* is deliberately untouched, pending Ed.
+
+  Verified in the real image, not only in unit tests: the stack still boots and
+  serves `/health` (so the fixture resolves inside the pruned `node_modules`);
+  the same image run with `FLY_APP_NAME` set dies at `main.ts:21` with the
+  guard's message, before opening a database connection; and a duplicate
+  username over HTTP against real Postgres returns `409 CONFLICT`.
+
+  Verify loop after the fixes: lint and typecheck green, 77 vitest and 3 iwft.
+
+- 2026-11-09: **adversarial-review fixes applied**, commit `036cee0`. ADR 0078
+  (`docs/adr/0078-family-identity-auth-boundary.md`) now carries the reasoning.
+
+  1. **The CORS allowlist was exploitable and is now split.** One list reached
+     every route, so any onboarded app origin had credentialled access to the
+     cookie-authorised identity router; same-site subdomains mean `SameSite=Lax`
+     does not stop the cookie, so an XSS in boop could have erased a household.
+     `identityAllowedOrigins` is the hub account UI alone (plus localhost in
+     dev), `trustedOrigins` follows it, and boop is gone from both. The
+     onboarded-app list is ticket 05's to add - **do not widen this one**. A
+     test asserts no `*.homeofed.com` origin can appear under any `NODE_ENV`.
+  2. **The deployment guard now covers the invite code and
+     `BETTER_AUTH_SECRET`** as well as the signing key: with `FLY_APP_NAME`
+     present it refuses any committed dev literal, anything under 16 / 32
+     characters, and any `NODE_ENV` but `production`. `COMMITTED_DEV_SECRETS` is
+     pinned against `.env.example` and `compose.yml` by a test that re-reads
+     them, so the list cannot drift; mutating compose's value fails it.
+  3. **`auth.options` is asserted whole**, so adding a social provider or a
+     plugin turns a test red. Better Auth types `options` as the literal object
+     passed, which means TypeScript already proves the two dangerous keys are
+     absent today; the test reads the key list so it still fails if one is added.
+  4. **`NODE_ENV` is cross-checked** inside the same guard.
+  5. **ADR 0078 written** (next free number, checked across every ref; 0073-0077
+     are the armoury branch's). Records the `kind` discriminator as the
+     invariant ticket 05 must not relax, the header bridge, the split CORS and
+     the boot guards, plus the `Vary: Origin` limit for the go-live runbook.
+  6. Four comment blocks trimmed; Dockerfile also prunes `src/server/*.test.ts`.
+     **The header-casing test was deleted, not rewritten.** The reviewer is
+     right that it could not fail: Node lower-cases header names before Fastify
+     sees them, so both spellings were the same key. The duplicate-header form
+     needs a raw socket, which `app.inject` cannot express, and the strip is
+     `delete req.headers[k]`, which removes the key whatever its value shape -
+     so no inject-expressible variant can fail either. Commit `0b817f3`'s
+     message therefore overclaims; this comment is the correction.
+
+  Verify loop: lint and typecheck green, **102 vitest + 3 iwft**. In the real
+  image: a boop preflight gets no allow headers on the identity router or
+  `/api/auth/*` while hub gets both; all four guards fire under `FLY_APP_NAME`,
+  naming no values; the docker stack still boots, refuses an uninvited sign-up
+  and resolves `identity.me`.
+
+- 2026-11-09: **placeholder-secret fix**, commit `4d35e5f`. Expected to be the
+  last round.
+
+  `apps/sprout/.env.example` publishes `BETTER_AUTH_SECRET=dev-better-auth-
+  secret-change-me`, which defeated all three layers at once: absent from
+  `COMMITTED_DEV_SECRETS` (which held compose's shorter variant), never scanned
+  (the drift test read only family's own two files), and exactly 32 characters
+  against a `< 32` floor. It is also the value ticket 08's operator would most
+  likely copy, sprout being the Better Auth precedent this ticket followed - and
+  a public cookie-signing secret forges a session for any parent id and drives
+  the whole identity router without registering, so the invite gate never
+  enters into it.
+
+  The primary rule is now a **pattern** (`dev-`, `insecure`, `change-me`,
+  `placeholder`, `example`, leading `test`), with the list and length floors as
+  the belt beneath it, because an enumeration keyed to hand-picked files can
+  only hold what somebody remembered. The drift test now asserts per file per
+  name and slices `compose.yml` to the family service, since sprout's copies of
+  the same two names were masking family's; it also asserts the stronger
+  property that whatever those files commit is *refused*, not that it is listed.
+  Both weaknesses were mutation-checked.
+
+  `apps/sprout/.env.example` is deliberately untouched - family's guard should
+  hold whatever another app publishes, and sprout's exposure is Ed's to weigh.
+
+  Verify loop: lint and typecheck green, **120 vitest + 3 iwft**. In the real
+  image: sprout's secret refused under `FLY_APP_NAME`, a realistic random secret
+  boots through, and the docker stack still serves `/health`, refuses an
+  uninvited sign-up and gives boop's origin nothing.
