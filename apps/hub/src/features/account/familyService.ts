@@ -1,4 +1,5 @@
 import { HUB_LOCAL_PORTS } from '@hoe/accounts'
+import type { SafeReturnToOpts } from '@hoe/accounts'
 
 /** compose.yml's host port for the family service; hub's own is in the estate registry. */
 const DOCKER_STACK_FAMILY_PORT = 8092
@@ -28,6 +29,14 @@ export function familySessionCookieOptions(hostname: string): {
   secure?: boolean
 } {
   return isLocal(hostname) ? {} : { domain: '.homeofed.com', secure: true }
+}
+
+/**
+ * Localhost app origins are only a safe `returnTo` while hub itself is on
+ * localhost, decided from the hostname exactly as the cookie's `Domain` is.
+ */
+export function returnToOptions(hostname: string): SafeReturnToOpts {
+  return { allowLocal: isLocal(hostname) }
 }
 
 function isLocal(hostname: string): boolean {

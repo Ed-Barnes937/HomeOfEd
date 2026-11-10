@@ -1,4 +1,5 @@
 import { test } from './testing/accountIwftTest.tsx'
+import { AccountPagePom } from './testing/AccountPagePom.ts'
 import { FIXTURE_PARENT } from './testing/familyFixture.ts'
 
 test('signed out, /account offers sign in', async ({ mountApp }) => {
@@ -203,6 +204,177 @@ test('signing out clears the family cookie as well as the session', async ({ mou
 
   await root.verifySignedOut()
   await root.verifyNoFamilySession()
+})
+
+test.describe('arriving from an estate app', () => {
+  const BOOP = 'https://boop.homeofed.com/play?bank=2'
+
+  test('signing in and picking who is playing returns to the app, fragment and all', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+
+    await root.signIn()
+    await root.addProfile('Robin', 'robin')
+    await root.pickWhoIsPlaying('Robin')
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('a percent-escaped fragment reaches the app byte for byte', async ({ mountApp, page }) => {
+    const fragment = '#w=%7B%22a%22%3A1%7D&n=%E2%9C%93'
+    await AccountPagePom.openFromGate(page, BOOP, fragment)
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+
+    await root.signIn()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyReturnedTo(`${BOOP}${fragment}`)
+  })
+
+  test('a parent who registers on the way is returned after the pick too', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+
+    await root.register()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('going back from the app does not land on the account page', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+    await root.signIn()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+
+    await root.goBack()
+
+    await root.verifyNotOnAccount()
+  })
+
+  test('a returnTo off the estate is ignored, and the pick stays here', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, 'https://boop.homeofed.com.evil.example/', '#g=abc')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyOffersNoSharedItem()
+
+    await root.signIn()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyPlayingNow(FIXTURE_PARENT.name)
+    await root.verifyStillOnAccount()
+  })
+
+  test('a cookie the browser drops means no return, so the gate is not met again', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+    await root.signIn()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+
+    await root.dropCookieWrites()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyStillOnAccount()
+    await root.verifyNoFamilySession()
+  })
+
+  test('a token the device already counts as expired means no return', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+    await root.signIn()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+
+    await root.moveDeviceClockPastTokenExpiry()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyNobodyIsPlaying()
+    await root.verifyStillOnAccount()
+  })
+
+  test('signed out with a shared fragment, the shared item opens without an account', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyOffersSignIn()
+    await root.verifyOffersSharedItem('https://boop.homeofed.com/shared#g=abc-123')
+
+    await root.openSharedItem()
+
+    await root.verifyReturnedTo('https://boop.homeofed.com/shared#g=abc-123')
+  })
+
+  test('with the family service down, the shared item is still offered', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamilyIsDown(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifyFamilyIsDown()
+    await root.verifyOffersSharedItem('https://boop.homeofed.com/shared#g=abc-123')
+  })
+
+  test('with no fragment there is nothing shared to offer', async ({ mountApp, page }) => {
+    await AccountPagePom.openFromGate(page, BOOP)
+    const { root } = await mountApp()
+
+    await root.verifyOffersNoSharedItem()
+  })
+
+  // An app's switch-player link arrives in the same shape as the gate, with a session live.
+  test('someone already playing is shown the picker, and the new pick returns', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenPlaying(page, 'Robin')
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+
+    await root.signIn()
+    await root.verifyPlayingNote('Robin')
+    await root.verifyStillOnAccount()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
 })
 
 test('deleting the account takes a confirm step, and can be backed out of', async ({

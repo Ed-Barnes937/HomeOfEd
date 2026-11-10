@@ -32,7 +32,8 @@ src/
     pages/account/    the /account screens: AccountPage + the four cards
     features/account/ the family-service seam: familyClient (context + prod
                     client), familyService (origin + cookie attributes per
-                    hostname), accountError, accountQueries
+                    hostname), accountError, accountQueries, returnTo (the
+                    one way back to the app that sent a visitor, ADR 0095)
   testing/          IwftApp harness (in-browser backend) + iwft fixtures + page
                     objects; familyFixture.ts is the household the fake starts with
   home.iwft.tsx account.iwft.tsx  whole-frontend tests via the in-browser backend
