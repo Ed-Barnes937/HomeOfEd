@@ -41,3 +41,18 @@ test('the native shell keeps the doodle on the device key, names no player and n
   expect(loads).toBe(0)
   expect(await readDoodle(page, BO.sub)).toBeNull()
 })
+
+test('the native shell’s back arrow resolves as it did before profiles', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await runAsNativeShell(page)
+
+  await mountApp()
+  // The shell's own hostname is `localhost`, which the pre-estate rule sends to the local hub.
+  const back = page.getByRole('link', { name: /back to home of ed/i })
+  await expect(back).toHaveAttribute('href', 'http://localhost:3000')
+})

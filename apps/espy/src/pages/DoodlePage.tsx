@@ -6,6 +6,7 @@ import { FluidTuner } from '../features/doodle/FluidTuner.tsx'
 import { PROFILE_KEYS } from '../features/doodle/profileKeys.ts'
 import { useDoodle } from '../features/doodle/useDoodle.ts'
 import { IntroSplash } from '../features/intro/IntroSplash.tsx'
+import { hubUrl } from '../hubUrl.ts'
 import { usePlayer } from '../player/PlayerContext.tsx'
 import styles from './DoodlePage.module.scss'
 
@@ -26,8 +27,7 @@ export function DoodlePage() {
   const [storage] = useState(() => profileStorage(window.localStorage, accountId, PROFILE_KEYS))
   // The native shell has no family cookie to watch.
   useEffect(() => (native ? undefined : reloadOnPlayerChange(accountId)), [native, accountId])
-  const { canvasRef, tool, setTool, nib, setNib, newPage, undo, canUndo, save } =
-    useDoodle(storage)
+  const { canvasRef, tool, setTool, nib, setNib, newPage, undo, canUndo, save } = useDoodle(storage)
 
   return (
     <main className={styles.page}>
@@ -36,7 +36,10 @@ export function DoodlePage() {
       <header className={styles.header}>
         <a
           className={styles.back}
-          href={hubUrlFor(window.location.href)}
+          href={
+            // The native shell keeps its pre-estate target (ADR 0094); see ticket 13.
+            native ? hubUrl(window.location.hostname) : hubUrlFor(window.location.href)
+          }
           aria-label="Back to home of ed"
         >
           <svg

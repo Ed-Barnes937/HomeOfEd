@@ -35,12 +35,10 @@ the text above, and why:
   no `reloadOnPlayerChange` there. `nativeShell.iwft.tsx` pins it with a family
   cookie present: unscoped key, no player shown, no reload on a player change.
   ADR 0094 amended.
-- **The back arrow is now `hubUrlFor`** (pattern step 5), and espy's own
-  `hubUrl.ts` is gone. In the compose stack it now points at `localhost:8080`
-  rather than `localhost:3000`. In the native shell it now points at
-  `https://homeofed.com`; before, the shell's `localhost` hostname sent it to
-  `http://localhost:3000`, a dead page on a phone. That is the one change
-  the native shell sees.
+- **The back arrow uses `hubUrlFor` on the web** (pattern step 5), so in the
+  compose stack it points at `localhost:8080` rather than `localhost:3000`.
+  Inside the native shell it keeps espy's own `hubUrl(hostname)`, exactly as
+  before this ticket, and `nativeShell.iwft.tsx` pins that.
 - **The switch-player link** is the player's name in a pill at the header's
   right, linking to `switchPlayerUrlFor(location.href)`. Outside the estate
   (the `.iwft` port) it is the name alone, as boop's chip is.
@@ -50,7 +48,22 @@ the text above, and why:
   skips the `/shared` step and checks that `/shared` is gated and an asset path
   is not.
 
-**Measured (open question for Ed).** One slot, `espy:doodle:v2`, holding the
+**Pre-existing, for a later ticket (not changed here).**
+
+- **The native back arrow is a dead link.** The Capacitor shell's hostname is
+  `localhost`, so `hubUrl` sends the arrow to `http://localhost:3000`, which is
+  nothing on a phone. It was so before this ticket and is kept so, because the
+  shell must behave exactly as today. `hubUrlFor` would give
+  `https://homeofed.com`.
+- **Deep links and `base: ''`.** espy builds with relative asset URLs for the
+  shell, so a document at a deep path (the gate round trip's
+  `/some/deep/path`) gets `index.html` with `./assets/...` resolving under that
+  path. The gate returns a visitor to the exact URL they asked for, so a
+  deep-linked espy URL probably loads a broken page after sign-in. Visitors
+  normally land on `/`, and a deep link was already broken before the gate.
+
+**Measured (kept as built: every profile adopts; the orchestrator is raising
+the drawing size with Ed).** One slot, `espy:doodle:v2`, holding the
 whole undo history, which survives reloads. Chromium quota: 5,242,880
 characters per origin. A fresh drawing is 22-31 KB (390x844 to 1920x1080), a
 stroke about 120 characters, and every New page adds 21-37 KB (each page keeps

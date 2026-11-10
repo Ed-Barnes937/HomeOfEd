@@ -101,4 +101,5 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
   gets the unscoped key from `profileScopedKey` and behaves exactly as before. espy
   does not rely on the shell lacking a cookie: `App.tsx` treats the session as
   `null` whenever `Capacitor.isNativePlatform()`, and the shell runs no
-  `reloadOnPlayerChange` and shows no player (amended 2026-11-10, ticket 13).
+  `reloadOnPlayerChange`, shows no player and keeps its old back-arrow target
+  (amended 2026-11-10, ticket 13).

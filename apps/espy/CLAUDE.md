@@ -96,7 +96,8 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
   once and hands it to `useDoodle`; nothing else touches `localStorage` for the
   drawing. The session is read once, in `App.tsx`. The native shell is outside
   the estate: its session is always `null` (the unscoped legacy slot), it shows
-  no player and runs no `reloadOnPlayerChange`. `nativeShell.iwft.tsx` pins this.
+  no player, runs no `reloadOnPlayerChange`, and its back arrow keeps
+  `hubUrl(hostname)`; the web's uses `hubUrlFor`. `nativeShell.iwft.tsx` pins this.
 - Undo is command-replay (an `Op[]` History), not raster snapshots — see
   `engine/history.ts` and [ADR 0016](../../docs/adr/0016-espy-doodle.md).
 - Single fixed sketchbook look (`theme.ts` + `styles/tokens.scss`) — no
