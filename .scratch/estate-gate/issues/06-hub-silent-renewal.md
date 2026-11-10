@@ -47,3 +47,10 @@ meet a parent-password wall every month.
   which the CT harness cannot load. Ticket 05's review leftovers (`iat` read-back,
   same `returnTo`, trailing slash, shared link hidden when signed in) are fixed
   here with tests.
+- 2026-11-10 (review fixes): renewal now makes one call of each with no retries
+  inside a 2 s time box and keeps "Open what was shared" on screen meanwhile; the
+  page reuses renewal's `me` and `children` answers; the loop-guard record is
+  written before the mint and a failed write means no renewal. A real renewal's
+  record and "no mint" on the fall-throughs are now asserted. Removing the
+  `parent === null` check still leaves tests green, because `parent.id` then
+  throws before any mint and the attempt falls through anyway.

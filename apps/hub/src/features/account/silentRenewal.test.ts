@@ -113,7 +113,15 @@ describe('the silent renewal loop guard', () => {
 
   it('refuses when storage is unavailable, since a loop could not be seen', () => {
     expect(silentRenewalAllowed(BOOP, t0, unavailable)).toBe(false)
-    expect(() => recordSilentRenewal(BOOP, t0, unavailable)).not.toThrow()
+    expect(recordSilentRenewal(BOOP, t0, unavailable)).toBe(false)
+  })
+
+  it('says whether the record was written, so an unrecorded renewal is not attempted', () => {
+    expect(recordSilentRenewal(BOOP, t0, memoryStorage())).toBe(true)
+
+    const full = { ...memoryStorage(), setItem: unavailable.setItem }
+    expect(silentRenewalAllowed(BOOP, t0, full)).toBe(true)
+    expect(recordSilentRenewal(BOOP, t0, full)).toBe(false)
   })
 
   it('treats an unreadable record as no record', () => {

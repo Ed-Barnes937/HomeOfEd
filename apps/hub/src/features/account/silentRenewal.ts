@@ -11,6 +11,8 @@ export type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'
 export const REMEMBERED_PROFILE_KEY = 'hub.rememberedProfile'
 export const SILENT_RENEWAL_KEY = 'hub.silentRenewal'
 export const SILENT_RENEWAL_WINDOW_MS = 60_000
+export const SILENT_RENEWAL_TIME_BOX_MS = 2_000
+const HAND_OFF_STALE_MS = 10_000
 
 /** The account id last picked on this device: the parent's or a child profile's. */
 export function rememberedProfile(storage: KeyValueStorage = localStorage): string | null {
@@ -39,12 +41,13 @@ export function silentRenewalAllowed(
   return at === undefined || now - at >= SILENT_RENEWAL_WINDOW_MS
 }
 
+/** False when the record could not be written, and so a loop could not be seen. */
 export function recordSilentRenewal(
   returnTo: string,
   now: number,
   storage: KeyValueStorage = sessionStorage,
-): void {
-  attempt(() => {
+): boolean {
+  return attempt(() => {
     const kept = Object.entries(readRenewals(storage)).filter(
       ([, at]) => now - at < SILENT_RENEWAL_WINDOW_MS,
     )
@@ -52,7 +55,8 @@ export function recordSilentRenewal(
       SILENT_RENEWAL_KEY,
       JSON.stringify(Object.fromEntries([...kept, [returnTo, now]])),
     )
-  }, undefined)
+    return true
+  }, false)
 }
 
 /**
@@ -67,44 +71,67 @@ export function silentRenewalWorthTrying(): boolean {
 let attempted: Promise<boolean> | null = null
 
 /**
- * Tried once per document. True once the visitor is on their way back; false
- * means show the page, whatever went wrong.
+ * Tried once per document, with one call each and no retries, inside a time box.
+ * True once the visitor is on their way back; false means show the page.
  */
 export function renewSilently(
   client: FamilyIdentityContract,
   queryClient: QueryClient,
 ): Promise<boolean> {
-  attempted ??= tryRenewal(client, queryClient).catch(() => false)
+  if (attempted !== null) return attempted
+  const box = { over: false }
+  const timedOut = new Promise<boolean>((resolve) =>
+    setTimeout(() => {
+      box.over = true
+      resolve(false)
+    }, SILENT_RENEWAL_TIME_BOX_MS),
+  )
+  attempted = Promise.race([tryRenewal(client, queryClient, box).catch(() => false), timedOut])
   return attempted
+}
+
+// Answers renewal fetched and handed to the page it falls through to.
+const handedOff = new WeakSet<object>()
+
+/** The `staleTime` for the page's own family queries: fresh briefly if handed off. */
+export function handOffStaleTime(query: { state: { data?: unknown } }): number {
+  const data = query.state.data
+  return typeof data === 'object' && data !== null && handedOff.has(data) ? HAND_OFF_STALE_MS : 0
+}
+
+function handOff<T extends object>(
+  queryClient: QueryClient,
+  queryKey: readonly string[],
+  data: T,
+): T {
+  handedOff.add(data)
+  queryClient.setQueryData(queryKey, data)
+  return data
 }
 
 async function tryRenewal(
   client: FamilyIdentityContract,
   queryClient: QueryClient,
+  box: { over: boolean },
 ): Promise<boolean> {
   const returnTo = arrivalReturnTo()
   const remembered = rememberedProfile()
   if (returnTo === null || remembered === null || readFamilySession() !== null) return false
   if (!silentRenewalAllowed(returnTo, Date.now())) return false
 
-  const { parent } = await queryClient.fetchQuery({
-    queryKey: familyQueryKeys.me,
-    queryFn: () => client.me(),
-  })
-  if (parent === null) return false
+  const { parent } = handOff(queryClient, familyQueryKeys.me, await client.me())
+  if (box.over || parent === null) return false
   if (remembered !== parent.id) {
-    const profiles = await queryClient.fetchQuery({
-      queryKey: familyQueryKeys.children,
-      queryFn: () => client.listChildren(),
-    })
-    if (!profiles.some((profile) => profile.id === remembered)) return false
+    const profiles = handOff(queryClient, familyQueryKeys.children, await client.listChildren())
+    if (box.over || !profiles.some((profile) => profile.id === remembered)) return false
   }
 
+  if (!recordSilentRenewal(returnTo, Date.now())) return false
   const { token } = await client.mintSessionToken(
     remembered === parent.id ? {} : { childId: remembered },
   )
+  if (box.over) return false
   const written = writeFamilySession(token, familySessionCookieOptions(window.location.hostname))
-  recordSilentRenewal(returnTo, Date.now())
   return returnToApp(written)
 }
 

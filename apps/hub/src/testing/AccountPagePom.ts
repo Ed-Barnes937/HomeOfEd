@@ -8,14 +8,19 @@ import {
   type KeyValueStorage,
   recordSilentRenewal,
   REMEMBERED_PROFILE_KEY,
+  SILENT_RENEWAL_KEY,
+  silentRenewalAllowed,
 } from '../features/account/silentRenewal.ts'
 
 import {
   FAMILY_DOWN_KEY,
+  FAMILY_HANGS_KEY,
   FAMILY_INVITE_CODE,
   FAMILY_SEED_KEY,
   type FamilySeed,
   FIXTURE_PARENT,
+  type CountedFamilyCall,
+  FAMILY_CALLS_KEY,
 } from './familyFixture.ts'
 
 /**
@@ -55,6 +60,37 @@ export class AccountPagePom extends BasePage {
     await page.evaluate((key) => {
       ;(globalThis as unknown as Record<string, unknown>)[key] = true
     }, FAMILY_DOWN_KEY)
+  }
+
+  /** Before mounting: the family service never answers `identity.me`. */
+  static async givenFamilyHangs(page: Page): Promise<void> {
+    await page.evaluate((key) => {
+      ;(globalThis as unknown as Record<string, unknown>)[key] = true
+    }, FAMILY_HANGS_KEY)
+  }
+
+  /** Before mounting: the browser silently drops every cookie write. */
+  static async givenCookieWritesDropped(page: Page): Promise<void> {
+    await page.evaluate(() => {
+      const real = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')!
+      Object.defineProperty(document, 'cookie', {
+        configurable: true,
+        get: () => real.get!.call(document) as string,
+        set: () => undefined,
+      })
+    })
+  }
+
+  /** Before mounting: `sessionStorage` reads but refuses writes, as when full. */
+  static async givenSessionStorageRefusesWrites(page: Page): Promise<void> {
+    await page.evaluate(() => {
+      type SetItem = (this: Storage, key: string, value: string) => void
+      const realSetItem: SetItem = Reflect.get(Storage.prototype, 'setItem')
+      Storage.prototype.setItem = function (this: Storage, key: string, value: string) {
+        if (this === window.sessionStorage) throw new DOMException('full', 'QuotaExceededError')
+        realSetItem.call(this, key, value)
+      }
+    })
   }
 
   /** Before mounting: what a parent arranged on an earlier visit (FamilySeed). */
@@ -100,14 +136,35 @@ export class AccountPagePom extends BasePage {
 
   /** The browser keeps refusing the family cookie: writes are silently dropped. */
   async dropCookieWrites(): Promise<void> {
-    await this.page.evaluate(() => {
-      const real = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')!
-      Object.defineProperty(document, 'cookie', {
-        configurable: true,
-        get: () => real.get!.call(document) as string,
-        set: () => undefined,
-      })
-    })
+    await AccountPagePom.givenCookieWritesDropped(this.page)
+  }
+
+  /** The loop guard holds a record for `returnTo` that refuses another renewal now. */
+  async verifySilentRenewalRecorded(returnTo: string): Promise<void> {
+    const raw = await this.page.evaluate((key) => sessionStorage.getItem(key), SILENT_RENEWAL_KEY)
+    const recorded = new Map(raw === null ? [] : [[SILENT_RENEWAL_KEY, raw]])
+    const storage: KeyValueStorage = {
+      getItem: (key) => recorded.get(key) ?? null,
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    }
+    expect(silentRenewalAllowed(returnTo, Date.now(), storage)).toBe(false)
+  }
+
+  async verifyNoTokenMinted(): Promise<void> {
+    await this.verifyFamilyCalls('mintSessionToken', 0)
+  }
+
+  async verifyFamilyCalls(method: CountedFamilyCall, count: number): Promise<void> {
+    const calls = await this.page.evaluate(
+      (key) => (globalThis as unknown as Record<string, Record<CountedFamilyCall, number>>)[key],
+      FAMILY_CALLS_KEY,
+    )
+    expect(calls?.[method]).toBe(count)
+  }
+
+  async verifyLoadingFamily(): Promise<void> {
+    await expect(this.page.getByText('Loading your family…')).toBeVisible()
   }
 
   /** The device's clock runs past the token's 30 days; the service's does not. */
@@ -152,10 +209,11 @@ export class AccountPagePom extends BasePage {
     await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
   }
 
-  async verifyOffersSharedItem(href: string): Promise<void> {
+  async verifyOffersSharedItem(href: string, opts: { timeout?: number } = {}): Promise<void> {
     await expect(this.page.getByRole('link', { name: 'Open what was shared' })).toHaveAttribute(
       'href',
       href,
+      opts,
     )
   }
 

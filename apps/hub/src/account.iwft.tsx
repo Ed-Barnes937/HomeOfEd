@@ -455,6 +455,10 @@ test.describe('silent renewal: a parent signed in here, a family token gone', ()
     await root.verifyNobodyIsPlaying()
     await root.verifyStillOnAccount()
     await root.verifyNoFamilySession()
+    await root.verifyNoTokenMinted()
+    // The page reuses the answers renewal fetched rather than asking again.
+    await root.verifyFamilyCalls('me', 1)
+    await root.verifyFamilyCalls('listChildren', 1)
   })
 
   test('signed out, it falls through to sign in', async ({ mountApp, page }) => {
@@ -467,6 +471,69 @@ test.describe('silent renewal: a parent signed in here, a family token gone', ()
     await root.verifyOffersSharedItem('https://boop.homeofed.com/shared#g=abc-123')
     await root.verifyStillOnAccount()
     await root.verifyNoFamilySession()
+    await root.verifyNoTokenMinted()
+  })
+
+  test('a real renewal records itself in the loop guard', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenCookieWritesDropped(page)
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.verifyStillOnAccount()
+    await root.verifyFamilyCalls('mintSessionToken', 1)
+    await root.verifySilentRenewalRecorded(BOOP)
+  })
+
+  test('a loop guard that cannot be written means no silent renewal', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenSessionStorageRefusesWrites(page)
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.verifyNobodyIsPlaying()
+    await root.verifyStillOnAccount()
+    await root.verifyNoTokenMinted()
+  })
+
+  test('with the family service down, the shared item is offered at once', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenFamilyIsDown(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifyOffersSharedItem('https://boop.homeofed.com/shared#g=abc-123', {
+      timeout: 1_000,
+    })
+    await root.verifyStillOnAccount()
+    await root.verifyNoTokenMinted()
+  })
+
+  test('a family service that never answers holds the page for the time box only', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenFamilyHangs(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifyOffersSharedItem('https://boop.homeofed.com/shared#g=abc-123', {
+      timeout: 1_000,
+    })
+    await root.verifyLoadingFamily()
+    await root.verifyStillOnAccount()
+    await root.verifyNoTokenMinted()
   })
 
   // The app's gate refused what hub just minted and sent the visitor straight back.

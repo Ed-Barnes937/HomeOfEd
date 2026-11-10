@@ -15,6 +15,12 @@ import {
 } from '@hoe/backend-kit'
 import { freshTestDb } from '@hoe/db'
 import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
+import type {
+  IdentityMeOutput,
+  ListChildrenOutput,
+  MintSessionTokenInput,
+  MintSessionTokenOutput,
+} from '@hoe/accounts'
 import { FakeFamilyClient } from '@hoe/accounts/testing/fake'
 import { useEffect, useState } from 'react'
 
@@ -27,10 +33,13 @@ import { DrizzleHealthStore } from '../server/store.ts'
 
 import {
   FAMILY_DOWN_KEY,
+  FAMILY_HANGS_KEY,
   FAMILY_INVITE_CODE,
   FAMILY_SEED_KEY,
   type FamilySeed,
   FIXTURE_PARENT,
+  type CountedFamilyCall,
+  FAMILY_CALLS_KEY,
 } from './familyFixture.ts'
 
 exposeDispatcher(
@@ -55,17 +64,46 @@ exposeDispatcher(
 // household a test can sign into.
 // The service keeps its own clock, so a test can move the device's (page.clock).
 const ServiceDate = Date
-const familyClient = new FakeFamilyClient({
+const pageGlobals = globalThis as unknown as Record<string, unknown>
+const calls: Record<CountedFamilyCall, number> = { me: 0, listChildren: 0, mintSessionToken: 0 }
+pageGlobals[FAMILY_CALLS_KEY] = calls
+
+// Counts calls, so a test can tell "nothing was minted" from "a mint was refused".
+class HarnessFamilyClient extends FakeFamilyClient {
+  hangs = false
+
+  override me(): Promise<IdentityMeOutput> {
+    calls.me += 1
+    return this.hangs ? new Promise(() => undefined) : super.me()
+  }
+
+  override listChildren(): Promise<ListChildrenOutput> {
+    calls.listChildren += 1
+    return super.listChildren()
+  }
+
+  override mintSessionToken(input: MintSessionTokenInput): Promise<MintSessionTokenOutput> {
+    calls.mintSessionToken += 1
+    return super.mintSessionToken(input)
+  }
+}
+
+const familyClient = new HarnessFamilyClient({
   inviteCode: FAMILY_INVITE_CODE,
   parents: [FIXTURE_PARENT],
   now: () => new ServiceDate(),
 })
-const pageGlobals = globalThis as unknown as Record<string, unknown>
-if (pageGlobals[FAMILY_DOWN_KEY] === true) {
-  familyClient.failWith(new Error('the family service is unreachable'))
-}
 const seed = pageGlobals[FAMILY_SEED_KEY] as FamilySeed | undefined
-const seeded = seed === undefined ? null : seedHousehold(seed)
+const seeded = seed === undefined ? null : seedHousehold(seed).then(applyOutage)
+if (seeded === null) applyOutage()
+
+// After any seeding, which goes through the fake's own API.
+function applyOutage(): void {
+  if (pageGlobals[FAMILY_DOWN_KEY] === true) {
+    familyClient.failWith(new Error('the family service is unreachable'))
+  }
+  familyClient.hangs = pageGlobals[FAMILY_HANGS_KEY] === true
+}
 
 // What a parent did on an earlier visit, through the fake's own API.
 async function seedHousehold(seed: FamilySeed): Promise<void> {

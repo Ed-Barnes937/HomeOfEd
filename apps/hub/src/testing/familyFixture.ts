@@ -6,6 +6,14 @@ export const FAMILY_INVITE_CODE = 'dev-insecure-invite'
 /** Set on the page before mounting; the harness then fails every family call. */
 export const FAMILY_DOWN_KEY = '__hubFamilyDown'
 
+/** Set on the page before mounting; `identity.me` then never answers. */
+export const FAMILY_HANGS_KEY = '__hubFamilyHangs'
+
+/** Where the harness counts calls to the family service, by method, on the page. */
+export const FAMILY_CALLS_KEY = '__hubFamilyCalls'
+
+export type CountedFamilyCall = 'me' | 'listChildren' | 'mintSessionToken'
+
 export const FIXTURE_PARENT = {
   id: 'parent-ada',
   name: 'Ada Lovelace',
