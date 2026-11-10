@@ -29,7 +29,7 @@ A shaft spiral that stands proud as a ridge instead of being cut in as a groove.
 
 **Envelope**:
 How far carving and ridges may move the surface from the wand's outline, either
-way: a quarter of the local radius ([ADR 0081](../../docs/adr/0081-armoury-raised-features.md)).
+way: a quarter of the local radius ([ADR 0090](../../docs/adr/0090-armoury-raised-features.md)).
 
 **Core**:
 What's inside the wand. Decides the colour of its **spell**, the glow at its tip

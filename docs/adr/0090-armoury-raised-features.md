@@ -1,4 +1,4 @@
-# 0081 - armoury adds wood: shaft bumps, raised spirals and the envelope
+# 0090 - armoury adds wood: shaft bumps, raised spirals and the envelope
 
 - **Status:** Proposed
 - **Date:** 2026-11-09
