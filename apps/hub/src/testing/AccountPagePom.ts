@@ -31,6 +31,8 @@ import {
  * precedent) so the mounted app and the installed trampoline stay live.
  */
 export class AccountPagePom extends BasePage {
+  private rateLimitedTryAt = 0
+
   async verifyIsShown(): Promise<void> {
     await this.goto()
     await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
@@ -291,6 +293,7 @@ export class AccountPagePom extends BasePage {
       await this.signInWithWrongPassword()
       await this.verifyInlineError('Invalid email or password')
     }
+    this.rateLimitedTryAt = await this.pageClockNow()
     await this.page.getByRole('button', { name: 'Sign in', exact: true }).click()
   }
 
@@ -310,14 +313,23 @@ export class AccountPagePom extends BasePage {
     await expect(this.page.getByRole('button', { name: 'Create account' })).toBeDisabled()
   }
 
-  /** Stops the page's clock first, so only fastForward moves time and the pause's length is exact. */
+  // The pause starts between two readings of the page's clock, so checking a minute after
+  // each, in the page's own time, holds however slowly the runner goes.
   async waitOutTheRateLimitPause(): Promise<void> {
-    await this.page.clock.pauseAt((await this.page.evaluate(() => Date.now())) + 100)
-    await this.page.clock.fastForward(59_000)
+    // Retyping commits a render, and React runs the pause's pending effect before any render.
+    await this.page.getByLabel('Password').fill(FIXTURE_PARENT.password)
+    const pauseEndsBy = (await this.pageClockNow()) + 60_000
+    const stillPausedAt = this.rateLimitedTryAt + 59_999
+
+    await this.page.clock.pauseAt(stillPausedAt)
     await this.verifySignInPaused()
-    await this.page.clock.fastForward(1_000)
+    await this.page.clock.fastForward(pauseEndsBy - stillPausedAt)
     await expect(this.page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled()
     await this.page.clock.resume()
+  }
+
+  private pageClockNow(): Promise<number> {
+    return this.page.evaluate(() => Date.now())
   }
 
   async verifySignedInAs(name: string): Promise<void> {
