@@ -109,3 +109,39 @@ household and would not be for strangers, which is exactly the boundary
 The opaque-blob discipline has to be defended in review rather than by the type
 system. "Can the server query inside a save?" is the question that would quietly
 turn this into an app-shaped data server, and the answer is no.
+
+## Amendment (2026-11-10): where an app gets the public key
+
+"The public half ships as ordinary config inside `@hoe/accounts`" becomes
+concrete for the estate gate ([spec](../../.scratch/estate-gate/spec.md)
+decision 1). Apps call one function, `familyDocumentGateFromEnv(env,
+{ publicPaths })` from `@hoe/accounts/server`, which resolves the key below.
+
+- **In production the key is a committed constant and nothing else**:
+  `PRODUCTION_FAMILY_PUBLIC_KEY` in `packages/accounts/src/familyVerifyingKey.ts`.
+  A public key is safe to commit, and a constant keeps the promise above: no
+  Fly secret or variable per app. Rotating it is a code change and a redeploy
+  of every gated app. It is `null` until Ed commits it, and a test checks that
+  whenever it is set it is an Ed25519 public key the gate accepts and not the
+  test key.
+- **On Fly, `FAMILY_TOKEN_PUBLIC_KEY` is local-only**, like family's
+  `DOCKER_STACK_ORIGINS`: its presence refuses the boot, through
+  `@hoe/deploy-guard`'s `localOnly` ([ADR 0078](0078-family-identity-auth-boundary.md)
+  decision 4, [ADR 0088](0088-deploy-guard-package.md)). A per-app override
+  would let one stray Fly variable, such as the committed test key whose
+  private half is public, make that app accept tokens anyone can mint. With no
+  variable to set, no app image needs the test key either. A `null` constant
+  on Fly also refuses the boot, naming the constant.
+- **Off Fly, `FAMILY_TOKEN_PUBLIC_KEY` wins.** The docker stack's family signs
+  with the committed `@hoe/accounts/testing` key, so the production key alone
+  would bounce every compose app between itself and hub. `compose.yml` sets
+  the test public half on the eight gated services, and a drift test checks it
+  is a public key matching the private key compose's family signs with.
+  Escaped `\n` are unescaped, as for `FAMILY_TOKEN_PRIVATE_KEY`.
+- **The gate accepts exactly one PEM public key block.** OpenSSL skips text
+  before and after a block, so junk around it, or a second block, is refused
+  rather than parsed.
+- **Resolved only when the gate is on.** `familyDocumentGateFromEnv` returns no
+  gate and resolves no key without `FAMILY_ACCOUNT_URL`, so an app with the
+  gate off boots exactly as before, key or no key. Turning the gate on in
+  production therefore needs the constant committed first.
