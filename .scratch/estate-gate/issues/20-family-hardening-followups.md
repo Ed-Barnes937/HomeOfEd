@@ -16,6 +16,17 @@ None is caused by this epic and none blocks it. Each is small.
   cover `/api/trpc`; this makes the replies say so themselves.
 - **No cap on child profiles per parent.** Bounds `saveSummary`'s output and
   the picker.
+- **Sign-in rate limit may be one bucket for everyone in production (not
+  verified).** Better Auth allows 3 tries per route per 10 seconds per client
+  IP. `apps/family` configures no IP header, and in the docker stack it logs
+  "could not determine a client IP" and falls back to one shared bucket per
+  route. If the same happens on Fly behind Cloudflare, three tries by anyone
+  lock every household out for 10 seconds. Check production's logs for that
+  warning; if present, configure the header Fly/Cloudflare supplies
+  (`Fly-Client-IP` or `CF-Connecting-IP`). Found by ticket 09.
+- **Hub cannot read the real retry period.** The 429 carries
+  `x-retry-after: 10` but family exposes no headers across origins, so hub
+  pauses the form for a fixed 60 seconds (ticket 09).
 - Related and already tracked: a deleted profile's token can still write
   saves (`.scratch/family-first-slice/issues/10-deleted-profile-tokens.md`).
 

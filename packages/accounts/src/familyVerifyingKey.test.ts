@@ -1,5 +1,5 @@
 import { createPublicKey, generateKeyPairSync } from 'node:crypto'
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -85,4 +85,21 @@ describe('PRODUCTION_FAMILY_PUBLIC_KEY', () => {
       }),
     ).not.toThrow()
   })
+})
+
+// On Fly a gated app with no committed key refuses to boot, so no deploy may switch one on yet.
+describe('apps/*/fly.toml', () => {
+  const repo = fileURLToPath(new URL('../../..', import.meta.url))
+  const flyTomls = readdirSync(join(repo, 'apps'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `apps/${entry.name}/fly.toml`)
+    .filter((path) => existsSync(join(repo, path)))
+
+  it.each(flyTomls)(
+    '%s sets FAMILY_ACCOUNT_URL only once PRODUCTION_FAMILY_PUBLIC_KEY is committed',
+    (path) => {
+      const setsGate = /^\s*FAMILY_ACCOUNT_URL\s*=/m.test(readFileSync(join(repo, path), 'utf8'))
+      expect(setsGate && PRODUCTION_FAMILY_PUBLIC_KEY === null).toBe(false)
+    },
+  )
 })

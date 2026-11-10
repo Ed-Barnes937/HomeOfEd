@@ -46,7 +46,10 @@ export function sharedLink(): string | null {
  * back from the browser, since an app without it would send them straight here.
  */
 export function returnToApp(written: FamilyTokenClaims | null): boolean {
-  if (written === null || readFamilySession()?.sub !== written.sub) return false
+  if (written === null) return false
+  // `iat` too: an older cookie for the same profile must not pass for a dropped write.
+  const readBack = readFamilySession()
+  if (readBack?.sub !== written.sub || readBack.iat !== written.iat) return false
   const visit = currentArrival()
   if (visit === null) return false
   const destination = returnDestination(visit.search, visit.fragment, visit.opts)
@@ -55,14 +58,38 @@ export function returnToApp(written: FamilyTokenClaims | null): boolean {
   return true
 }
 
+/** The vetted `returnTo` the visitor arrived with, while the address bar is still on that arrival. */
+export function arrivalReturnTo(): string | null {
+  const visit = currentArrival()
+  return visit === null ? null : safeReturnTo(singleReturnTo(visit.search), visit.opts)
+}
+
+export interface AddressBar {
+  pathname: string
+  search: string
+}
+
+/**
+ * The same page (ignoring the trailing slash the router strips) carrying the
+ * same single `returnTo` the visitor arrived with.
+ */
+export function stillOnArrival(arrived: AddressBar, current: AddressBar): boolean {
+  const samePage = withoutTrailingSlash(arrived.pathname) === withoutTrailingSlash(current.pathname)
+  if (!samePage) return false
+  const returnTo = singleReturnTo(arrived.search)
+  return returnTo !== null && singleReturnTo(current.search) === returnTo
+}
+
+function withoutTrailingSlash(pathname: string): string {
+  return pathname.replace(/\/+$/, '') || '/'
+}
+
 function singleReturnTo(search: string): string | null {
   const values = new URLSearchParams(search).getAll('returnTo')
   return values.length === 1 ? values[0]! : null
 }
 
-// Honoured only while the address bar is still on the page the visitor arrived at.
 function currentArrival(): (NonNullable<typeof arrival> & { opts: SafeReturnToOpts }) | null {
-  if (arrival === null || window.location.pathname !== arrival.pathname) return null
-  if (!new URLSearchParams(window.location.search).has('returnTo')) return null
+  if (arrival === null || !stillOnArrival(arrival, window.location)) return null
   return { ...arrival, opts: returnToOptions(window.location.hostname) }
 }

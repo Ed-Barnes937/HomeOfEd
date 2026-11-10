@@ -1,6 +1,6 @@
 # 16 - starter template and the adding-an-app procedure are gated by default
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decisions 2, 3, 5
 Blocked by: 01, 02
@@ -28,3 +28,40 @@ A new app copied from `templates/starter` should arrive gated.
   infrastructure.
 
 ## Comments
+
+- 2026-11-10 (implementer): built on `estate-gate/16-starter-and-docs`, stacked
+  on 19 (`familyDocumentGateFromEnv`). Differences from the text above:
+  - `main.ts` makes the single `familyDocumentGateFromEnv` call (orchestrator
+    override) with `publicPaths: []`: the starter has no share links, and
+    ungating `/shared` would serve its SPA shell to anyone. A comment says to
+    add `'/shared'` with share links.
+  - New `templates/starter/src/server/main.test.ts` spawns the real entrypoint
+    on a real port: ungated without `FAMILY_ACCOUNT_URL`, `302` with it, and a
+    valid family cookie passes. Copied apps inherit it. The built image was
+    also run by hand: `200` ungated, `302` gated, and on Fly (`FLY_APP_NAME`)
+    it refuses to boot with `FAMILY_TOKEN_PUBLIC_KEY` set or with no committed
+    key.
+  - Re-merged 19 at 3dc03b7: the starter image now deletes
+    `packages/accounts/src/testing`, and the how-to says
+    `FAMILY_TOKEN_PUBLIC_KEY` is docker-stack only and that the committed
+    constant is the only key on Fly (rotation is a code change and redeploy).
+  - The how-to's compose row named a `starter` compose service that does not
+    exist; it now says to copy boop's. It also tells the reader to drop the
+    `FAMILY_ACCOUNT_URL` line while `PRODUCTION_FAMILY_PUBLIC_KEY` is `null`.
+  - `deploy.yml`'s header comment also said to copy `deploy-hub`; it now says
+    `deploy-boop`, like the root `CLAUDE.md` and the how-to.
+  - `go-live.sh`: the index check is now an `index_smoke` function, accepting
+    what the CI estate smoke accepts, so it could be tested alone against a
+    throwaway local server (index, gate `302`, wrong host, wrong path, no
+    `returnTo`, `500`, `404`, `200` without the root div, refused connection).
+  - Root `CLAUDE.md`: the DB-only items renumber to 9 and 10, and the em dashes
+    on the lines touched became plain dashes.
+- 2026-11-10 (implementer, review fixes): `go-live.sh`'s `index_smoke` now also
+  fetches one hashed asset on a `200`, and pins the gate's `returnTo` to
+  `https://$HOST/`. CI's estate smokes in `deploy.yml` (ticket 03) still accept
+  a `302` whose `returnTo` names any `https://` host; left as they are.
+  `@hoe/accounts` gained two guards: no `apps/*/fly.toml` sets
+  `FAMILY_ACCOUNT_URL` while `PRODUCTION_FAMILY_PUBLIC_KEY` is `null`, and
+  every compose service that sets it is in `ESTATE_APPS`. `main.test.ts`
+  surfaces the child's stderr, and the how-to says how a database-backed copy
+  adapts it.

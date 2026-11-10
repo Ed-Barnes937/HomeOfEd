@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { returnDestination } from './returnTo.ts'
+import { returnDestination, stillOnArrival } from './returnTo.ts'
 
 const PROD = { allowLocal: false }
 
@@ -57,5 +57,39 @@ describe('returnDestination', () => {
     expect(
       returnDestination(query('https://silt.homeofed.com/'), '#w=%7B%7D&x=a%20b/c?d', PROD),
     ).toBe('https://silt.homeofed.com/#w=%7B%7D&x=a%20b/c?d')
+  })
+})
+
+describe('stillOnArrival', () => {
+  const arrived = { pathname: '/account', search: query('https://boop.homeofed.com/') }
+
+  it('holds while the address bar carries the same page and the same single returnTo', () => {
+    expect(stillOnArrival(arrived, arrived)).toBe(true)
+  })
+
+  it('compares the path without trailing slashes, which the router strips on mount', () => {
+    const slashed = { ...arrived, pathname: '/account/' }
+    expect(stillOnArrival(slashed, arrived)).toBe(true)
+    expect(stillOnArrival(arrived, slashed)).toBe(true)
+  })
+
+  it('ends once the visitor has moved to another page', () => {
+    expect(stillOnArrival(arrived, { ...arrived, pathname: '/' })).toBe(false)
+  })
+
+  it('ends once the address bar carries no returnTo, or a different one', () => {
+    expect(stillOnArrival(arrived, { ...arrived, search: '' })).toBe(false)
+    expect(
+      stillOnArrival(arrived, { ...arrived, search: query('https://silt.homeofed.com/') }),
+    ).toBe(false)
+  })
+
+  it('never holds for an arrival without exactly one returnTo', () => {
+    expect(
+      stillOnArrival({ pathname: '/account', search: '' }, { pathname: '/account', search: '' }),
+    ).toBe(false)
+    const twice = `${query('https://boop.homeofed.com/')}&${query('https://boop.homeofed.com/').slice(1)}`
+    const doubled = { pathname: '/account', search: twice }
+    expect(stillOnArrival(doubled, doubled)).toBe(false)
   })
 })

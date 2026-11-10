@@ -71,3 +71,19 @@ describe("the registry's compose verifying keys", () => {
     },
   )
 })
+
+// A gated service hub will not return visitors to signs them in and leaves them on hub.
+describe("compose's gated services", () => {
+  const registered = ESTATE_APPS.map((app) => app.appId)
+  const gated = [...compose.matchAll(/^ {2}([a-z0-9-]+):$/gm)]
+    .map(([, service]) => service!)
+    .filter((service) => /^ +FAMILY_ACCOUNT_URL:/m.test(serviceBlock(service)))
+
+  it('are found for every registry entry', () => {
+    expect(gated).toEqual(expect.arrayContaining(registered))
+  })
+
+  it.each(gated)('include %s in ESTATE_APPS', (service) => {
+    expect(registered).toContain(service)
+  })
+})

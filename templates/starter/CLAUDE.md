@@ -25,7 +25,8 @@ src/
     handlers/       Handler classes — business logic, AppContext only, no Store
     router.ts       tRPC router; createTRPC<void>() (no Store); exports AppRouter
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
-    main.ts         prod entrypoint: createAppServer + shallow /health
+    main.ts         prod entrypoint: createAppServer + shallow /health + the estate gate
+    main.test.ts    Vitest - main.ts on a real port, gate on and off
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
   pages/ features/  UI — SCSS modules, TanStack Router routes, query options
   testing/          IwftApp harness (in-browser backend) + iwft fixture + page objects
@@ -53,6 +54,13 @@ from `apps/hub`) only if the app gains a database.
   erasable TS syntax (ADR 0004) — `simulator.ts`/`main.ts` run under native Node.
 - Ports: dev 3001, CT 3101 — a copied app must pick fresh ones (root CLAUDE.md
   checklist).
+- **Gated by default** ([ADR 0093](../../docs/adr/0093-estate-gate.md)): `main.ts`
+  gates document requests via `familyDocumentGateFromEnv` exactly when
+  `FAMILY_ACCOUNT_URL` is set. The template's `fly.toml` sets it; a copied app
+  keeps that line only once the production verifying key is committed (a test
+  in `@hoe/accounts` enforces this). It also joins `ESTATE_APPS` and needs its
+  compose lines; see
+  [docs/how-to/adding-an-app.md §1a](../../docs/how-to/adding-an-app.md#1a-the-estate-gate-every-app).
 - **Adding a database?** Follow the step-by-step in
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only)
   — copy the DB layer from `apps/hub`, swap the `void` Store type params for your

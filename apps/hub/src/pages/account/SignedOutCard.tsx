@@ -29,7 +29,7 @@ function SignInForm({ onRegister }: { onRegister: () => void }) {
 
   const signIn = useMutation({
     mutationFn: () => client.signIn({ email, password }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: familyQueryKeys.me }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: familyQueryKeys.all }),
   })
 
   return (
@@ -86,7 +86,7 @@ function RegisterForm({ onBack }: { onBack: () => void }) {
 
   const register = useMutation({
     mutationFn: () => client.signUp({ name, email, password, inviteCode }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: familyQueryKeys.me }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: familyQueryKeys.all }),
   })
 
   return (

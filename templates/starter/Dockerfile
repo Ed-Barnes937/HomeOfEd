@@ -38,7 +38,8 @@ FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=starter --filter=@hoe/backend-kit --filter=@hoe/logger
+  --filter=starter --filter=@hoe/backend-kit --filter=@hoe/logger \
+  --filter=@hoe/accounts --filter=@hoe/deploy-guard
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -49,14 +50,17 @@ COPY --from=prod-deps /app ./
 # @hoe/config and @hoe/test-kit are dev-only and must NOT appear here.
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
+COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/templates/starter/src ./templates/starter/src
 COPY --from=builder /app/templates/starter/dist ./templates/starter/dist
 # The app's own test sources aren't runtime code. typescript is a lockfile
 # stowaway (@trpc/server declares it as a types-only peer). The dev-only
-# workspace stubs (test-kit/config package.json) go too.
+# workspace stubs (test-kit/config package.json) go too, and so does
+# @hoe/accounts' committed test keypair, which nothing at runtime imports.
 RUN rm -rf templates/starter/src/testing templates/starter/src/greeting.iwft.tsx \
-  packages/test-kit packages/config \
+  packages/test-kit packages/config packages/accounts/src/testing \
   node_modules/.pnpm/typescript@*
 USER node
 EXPOSE 8080
