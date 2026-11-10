@@ -215,7 +215,9 @@ either. Recorded rather than built, because deleting a profile also deletes its
 saves and the confirm copy for that is a product decision. (**Amended
 2026-11-10, below:** both are now built.)
 
-**Nothing links to `/account` yet.** Entry is boop's "synced as X" chip and the
+**Nothing links to `/account` yet.** (**Amended 2026-11-10, below:** the estate
+gate and every gated app's switch-player link now send visitors here with a
+`returnTo`.) Entry is boop's "synced as X" chip and the
 URL. A card or a link on hub's home page is a one-line change, but hub's home
 surface is sequenced outside epic branches, so it is not here. (**Amended
 2026-11-10:** hub's home page now carries a chip beside the theme toggle,
@@ -289,3 +291,25 @@ afterwards; `deleteAccount` erases only the ids of profiles that still exist.
 The same was already true of a household erase. The fix belongs to the save half
 ([ADR 0079](0079-family-save-authorisation.md)) and is ticket
 [`10-deleted-profile-tokens`](../../.scratch/family-first-slice/issues/10-deleted-profile-tokens.md).
+
+## Amendment (2026-11-10): `/account` sends a visitor back where they were going
+
+The estate gate (ADR 0093) makes `/account` the front door of every gated app: a
+signed-out visitor arrives as `/account?returnTo=<url>`, often with the app's
+share fragment on hub's URL. The screens above are unchanged in what they do; two
+things are added, both in
+[ADR 0095](0095-hub-return-and-renewal.md):
+
+1. **A pick returns.** When `returnTo` passes `safeReturnTo`, picking who is
+   playing writes the cookie as before, checks the browser kept it, and then
+   replaces the page with `returnTo` plus the fragment it arrived with, byte for
+   byte. Sign-in and registration never leave the page, so the arrival URL hub
+   captured at load is still the one in use. Without a valid `returnTo` the pick
+   stays here, exactly as before.
+2. **"Open what was shared"** shows whenever nobody is signed in and a fragment
+   came along, including while the family service is loading or down, linking to
+   the app's ungated `/shared` view.
+
+The return lives in one function, `returnToApp(written)` in
+`features/account/returnTo.ts`; the cards call it and nothing else in them knows
+about returning.

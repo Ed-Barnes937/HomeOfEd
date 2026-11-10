@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { accountErrorMessage } from '../../features/account/accountError.ts'
 import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
+import { sharedLink } from '../../features/account/returnTo.ts'
 import { useColourTheme } from '../useColourTheme.ts'
 
 import styles from './AccountPage.module.scss'
@@ -17,6 +18,7 @@ export function AccountPage() {
   const [theme, setTheme] = useColourTheme()
   const client = useFamilyClient()
   const me = useQuery({ queryKey: familyQueryKeys.me, queryFn: () => client.me() })
+  const shared = sharedLink()
 
   return (
     <main className={styles.account} data-theme={theme} data-account>
@@ -50,6 +52,12 @@ export function AccountPage() {
           ) : (
             <SignedInPanel parent={me.data.parent} />
           ))}
+        {/* /shared needs no account, so it stays reachable while family loads or is down. */}
+        {shared !== null && !me.data?.parent && (
+          <a className={styles.quiet} href={shared}>
+            Open what was shared
+          </a>
+        )}
       </div>
     </main>
   )

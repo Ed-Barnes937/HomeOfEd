@@ -1,8 +1,11 @@
 import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
+import type { Page } from '@playwright/test'
 
-import { FAMILY_INVITE_CODE, FIXTURE_PARENT } from './familyFixture.ts'
+import { SERVICE_DOWN } from '../features/account/accountQueries.ts'
+
+import { FAMILY_DOWN_KEY, FAMILY_INVITE_CODE, FIXTURE_PARENT } from './familyFixture.ts'
 
 /**
  * The /account screens. Navigation is client-side (history + popstate, sprout's
@@ -19,6 +22,102 @@ export class AccountPagePom extends BasePage {
       window.history.pushState({}, '', '/account')
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
+  }
+
+  /**
+   * Before mounting: put the URL the estate gate's 302 leaves in the address bar,
+   * so the app first loads on it as a visitor's does (and the router's mount-time
+   * rewrite of the URL happens too). The browser carries the fragment over.
+   */
+  static async openFromGate(page: Page, returnTo: string, fragment = ''): Promise<void> {
+    const url = `/account?returnTo=${encodeURIComponent(returnTo)}${fragment}`
+    await page.evaluate((target) => window.history.pushState({}, '', target), url)
+  }
+
+  /** Before mounting: every family call fails, as when the service is down. */
+  static async givenFamilyIsDown(page: Page): Promise<void> {
+    await page.evaluate((key) => {
+      ;(globalThis as unknown as Record<string, unknown>)[key] = true
+    }, FAMILY_DOWN_KEY)
+  }
+
+  /** Before mounting: this device already holds a family cookie for `name`. */
+  static async givenPlaying(page: Page, name: string): Promise<void> {
+    const now = Date.now()
+    const claims = { sub: 'parent-elsewhere', role: 'parent', name, iat: now, exp: now + 86_400_000 }
+    const payload = Buffer.from(JSON.stringify(claims)).toString('base64url')
+    await page.context().addCookies([
+      { name: FAMILY_SESSION_COOKIE, value: `${payload}.unsigned`, url: page.url() },
+    ])
+  }
+
+  async verifyArrived(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+  }
+
+  /** The browser keeps refusing the family cookie: writes are silently dropped. */
+  async dropCookieWrites(): Promise<void> {
+    await this.page.evaluate(() => {
+      const real = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')!
+      Object.defineProperty(document, 'cookie', {
+        configurable: true,
+        get: () => real.get!.call(document) as string,
+        set: () => undefined,
+      })
+    })
+  }
+
+  /** The device's clock runs past the token's 30 days; the service's does not. */
+  async moveDeviceClockPastTokenExpiry(): Promise<void> {
+    await this.page.clock.install({ time: Date.now() + 31 * 86_400_000 })
+  }
+
+  async goBack(): Promise<void> {
+    await this.page.goBack()
+  }
+
+  async verifyNotOnAccount(): Promise<void> {
+    await expect(this.page).not.toHaveURL(/\/account/)
+  }
+
+  async verifyFamilyIsDown(): Promise<void> {
+    await expect(this.page.getByText(SERVICE_DOWN)).toBeVisible()
+  }
+
+  async verifyPlayingNote(name: string): Promise<void> {
+    await expect(this.page.getByText(`Playing now: ${name}`)).toBeVisible()
+  }
+
+  /** Stand in for the estate apps' origins, so a return lands on a real page. */
+  async serveEstateApps(): Promise<void> {
+    await this.page.route(/^https:\/\/[a-z]+\.homeofed\.com\//, (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<h1>an estate app</h1>' }),
+    )
+  }
+
+  async verifyReturnedTo(url: string): Promise<void> {
+    await expect(this.page).toHaveURL(url)
+  }
+
+  async verifyStillOnAccount(): Promise<void> {
+    await expect(this.page).toHaveURL(/\/account(\?|#|$)/)
+    await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+  }
+
+  async verifyOffersSharedItem(href: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Open what was shared' })).toHaveAttribute(
+      'href',
+      href,
+    )
+  }
+
+  async verifyOffersNoSharedItem(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(this.page.getByRole('link', { name: 'Open what was shared' })).toHaveCount(0)
+  }
+
+  async openSharedItem(): Promise<void> {
+    await this.page.getByRole('link', { name: 'Open what was shared' }).click()
   }
 
   async verifyOffersSignIn(): Promise<void> {
