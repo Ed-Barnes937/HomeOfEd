@@ -133,6 +133,24 @@ describe('the identity router half', () => {
     expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ confirm: true })
   })
 
+  it('reads the save summary as a credentialled GET query that sends no token', async () => {
+    const summary = [{ accountId: CHILD.id, appId: 'boop', updatedAt: 1750000000000 }]
+    const { calls, fetchImpl } = fakeFetch(() => ok(summary))
+
+    expect(await client(fetchImpl).saveSummary()).toEqual(summary)
+
+    const call = calls[0]!
+    expect(new URL(call.url).pathname).toBe('/api/trpc/identity.saveSummary')
+    expect(call.init.method ?? 'GET').toBe('GET')
+    expect(call.init.credentials).toBe('include')
+    expect(call.init.headers).toBeUndefined()
+  })
+
+  it('rejects a save summary that is not the contract shape', async () => {
+    const { fetchImpl } = fakeFetch(() => ok([{ accountId: CHILD.id, appId: 'boop' }]))
+    await expect(client(fetchImpl).saveSummary()).rejects.toThrow()
+  })
+
   it('surfaces a taken username as a typed CONFLICT', async () => {
     const { fetchImpl } = fakeFetch(() =>
       trpcError(409, 'that username is already taken', 'CONFLICT'),
