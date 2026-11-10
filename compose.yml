@@ -29,7 +29,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: hub
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d hub']
+      # Over TCP: on a fresh volume the image's init-time server answers on the
+      # unix socket only, then restarts, so a socket probe passes too early.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U postgres -d hub']
       interval: 2s
       timeout: 3s
       retries: 15
@@ -138,7 +140,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: wotd
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d wotd']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U postgres -d wotd']
       interval: 2s
       timeout: 3s
       retries: 15
@@ -168,7 +170,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: fridge
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d fridge']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U postgres -d fridge']
       interval: 2s
       timeout: 3s
       retries: 15
@@ -239,7 +241,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sprout
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d sprout']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U postgres -d sprout']
       interval: 2s
       timeout: 3s
       retries: 15
@@ -301,7 +303,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: family
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d family']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U postgres -d family']
       interval: 2s
       timeout: 3s
       retries: 15

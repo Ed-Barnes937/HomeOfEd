@@ -64,7 +64,8 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
   app (and `HUB_LOCAL_PORTS`, hub's own two localhost ports). It is the only
   list of origins hub will return a visitor to, so a new gated app is added
   here. Not the family service's `onboardedApps.ts`, which is
-  the SaveStore list and differs on purpose.
+  the SaveStore list and differs on purpose. `estateApps.test.ts` fails if a
+  `composePort` drifts from the port `compose.yml` publishes.
 - **`safeReturnTo(raw, { allowLocal })`** - the open-redirect guard. Returns the
   normalised URL without its fragment, or `null`. The origin must exactly match
   `https://<host>`, or with `allowLocal` (hub on localhost only)
