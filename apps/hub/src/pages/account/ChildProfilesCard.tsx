@@ -45,42 +45,45 @@ export function ChildProfilesCard({ profiles, session, onSessionChange }: ChildP
         <p className={styles.note}>No profiles yet. Add one below.</p>
       ) : (
         <ul className={styles.list}>
-          {profiles.map((profile) => (
-            <li className={styles.row} key={profile.id}>
-              {mode?.id === profile.id && mode.kind === 'edit' ? (
-                <EditForm profile={profile} onDone={() => setMode(null)} />
-              ) : mode?.id === profile.id && mode.kind === 'delete' ? (
-                <DeleteConfirm
-                  profile={profile}
-                  onDeleted={() => forgetIfPlaying(profile)}
-                  onDone={() => setMode(null)}
-                />
-              ) : (
-                <>
-                  <span>
-                    <span className={styles.rowName}>{profile.displayName}</span>{' '}
-                    <span className={styles.rowHandle}>@{profile.username}</span>
-                  </span>
-                  <span className={styles.actions}>
-                    <button
-                      className={styles.secondary}
-                      type="button"
-                      onClick={() => setMode({ id: profile.id, kind: 'edit' })}
-                    >
-                      {`Edit ${profile.displayName}`}
-                    </button>
-                    <button
-                      className={styles.danger}
-                      type="button"
-                      onClick={() => setMode({ id: profile.id, kind: 'delete' })}
-                    >
-                      {`Delete ${profile.displayName}`}
-                    </button>
-                  </span>
-                </>
-              )}
-            </li>
-          ))}
+          {profiles.map((profile) => {
+            const rowMode = mode?.id === profile.id ? mode.kind : null
+            return (
+              <li className={styles.row} key={profile.id}>
+                {rowMode === 'edit' ? (
+                  <EditForm profile={profile} onDone={() => setMode(null)} />
+                ) : rowMode === 'delete' ? (
+                  <DeleteConfirm
+                    profile={profile}
+                    onDeleted={() => forgetIfPlaying(profile)}
+                    onDone={() => setMode(null)}
+                  />
+                ) : (
+                  <>
+                    <span>
+                      <span className={styles.rowName}>{profile.displayName}</span>{' '}
+                      <span className={styles.rowHandle}>@{profile.username}</span>
+                    </span>
+                    <span className={styles.actions}>
+                      <button
+                        className={styles.secondary}
+                        type="button"
+                        onClick={() => setMode({ id: profile.id, kind: 'edit' })}
+                      >
+                        {`Edit ${profile.displayName}`}
+                      </button>
+                      <button
+                        className={styles.danger}
+                        type="button"
+                        onClick={() => setMode({ id: profile.id, kind: 'delete' })}
+                      >
+                        {`Delete ${profile.displayName}`}
+                      </button>
+                    </span>
+                  </>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
       <AddProfileForm />
@@ -105,12 +108,12 @@ function EditForm({ profile, onDone }: { profile: ChildProfileView; onDone: () =
   return (
     <form className={styles.field} onSubmit={submitting(() => edit.mutate())}>
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={`rename-${profile.id}`}>
+        <label className={styles.label} htmlFor={`display-name-${profile.id}`}>
           New display name
         </label>
         <input
           className={styles.input}
-          id={`rename-${profile.id}`}
+          id={`display-name-${profile.id}`}
           maxLength={NAME_MAX_LENGTH}
           required
           value={displayName}
@@ -130,7 +133,6 @@ function EditForm({ profile, onDone }: { profile: ChildProfileView; onDone: () =
           onChange={(e) => setUsername(e.target.value)}
         />
       </div>
-      {/* A username another profile has is a typed CONFLICT, shown here as written. */}
       {edit.isError && (
         <p className={styles.error}>{accountErrorMessage(edit.error, SERVICE_DOWN)}</p>
       )}
@@ -242,7 +244,9 @@ function AddProfileForm() {
       </div>
       {/* A taken username is a typed CONFLICT whose message is written for a
           person to read, so it lands here rather than as a crash. */}
-      {add.isError && <p className={styles.error}>{accountErrorMessage(add.error, SERVICE_DOWN)}</p>}
+      {add.isError && (
+        <p className={styles.error}>{accountErrorMessage(add.error, SERVICE_DOWN)}</p>
+      )}
       <div className={styles.actions}>
         <button
           className={styles.primary}

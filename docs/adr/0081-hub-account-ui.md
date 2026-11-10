@@ -261,9 +261,10 @@ mistake should have a cosmetic fix, so the username is editable.
    One form edits both names, so one atomic update serves it, and a clash is the
    same typed `CONFLICT` ("that username is already taken") from the same
    constraint, now mapped on the store's update path as it already was on the
-   insert path. Optional, so an absent username is left alone, which also keeps
-   hub and family working whichever deploys first: an older hub sends no
-   username, and an older service strips the unknown key.
+   insert path. Optional, so an absent username is left alone. That also means
+   no deploy order breaks a rename: an older hub sends no username, and an older
+   service strips the unknown key, so until family catches up a username edit
+   saves the display name and quietly leaves the username as it was.
 2. **`identity.children.delete` joins the contract.** Its input schema moved
    unchanged from the handler into `@hoe/accounts`, the router binds it through
    `identityContractFor` like every other procedure, and the fake enforces the

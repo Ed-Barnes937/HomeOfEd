@@ -22,18 +22,18 @@ export const childProfileView = z.object({
 
 export const listChildrenOutput = z.array(childProfileView)
 
-const childUsername = z.string().trim().min(1).max(32)
+const childName = z.string().trim().min(1).max(32)
 
 export const addChildInput = z.object({
-  username: childUsername,
-  displayName: z.string().trim().min(1).max(32),
+  username: childName,
+  displayName: childName,
 })
 
 export const renameChildInput = z.object({
   id: z.uuid(),
-  displayName: z.string().trim().min(1).max(32),
+  displayName: childName,
   /** Absent leaves the username as it is. */
-  username: childUsername.optional(),
+  username: childName.optional(),
 })
 
 export const deleteChildInput = z.object({ id: z.uuid() })

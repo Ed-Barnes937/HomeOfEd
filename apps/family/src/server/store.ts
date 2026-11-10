@@ -127,6 +127,11 @@ function isUniqueViolation(err: unknown): boolean {
   return codeOf(err) === UNIQUE_VIOLATION || codeOf(cause) === UNIQUE_VIOLATION
 }
 
+function usernameClashOr(err: unknown): never {
+  if (isUniqueViolation(err)) throw new ConflictError('that username is already taken')
+  throw err
+}
+
 function slotFilter(key: SaveKey) {
   return and(
     eq(saves.appId, key.appId),
@@ -159,8 +164,7 @@ export class DrizzleFamilyStore implements FamilyStore {
     try {
       return first(await this.db.insert(childProfiles).values(input).returning())
     } catch (err) {
-      if (isUniqueViolation(err)) throw new ConflictError('that username is already taken')
-      throw err
+      usernameClashOr(err)
     }
   }
 
@@ -195,8 +199,7 @@ export class DrizzleFamilyStore implements FamilyStore {
         .returning()
       return rows[0] ?? null
     } catch (err) {
-      if (isUniqueViolation(err)) throw new ConflictError('that username is already taken')
-      throw err
+      usernameClashOr(err)
     }
   }
 
