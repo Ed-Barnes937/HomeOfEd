@@ -277,6 +277,26 @@ export class AccountPagePom extends BasePage {
     await this.page.getByRole('button', { name: 'Sign in', exact: true }).click()
   }
 
+  /** Better Auth lets three tries a route through in ten seconds; the fourth is refused. */
+  async signInWithWrongPasswordUntilRateLimited(): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      await this.signInWithWrongPassword()
+      await this.verifyInlineError('Invalid email or password')
+    }
+    await this.page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  }
+
+  async verifySignInPaused(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled()
+  }
+
+  async waitOutTheRateLimitPause(): Promise<void> {
+    await this.page.clock.fastForward(59_000)
+    await this.verifySignInPaused()
+    await this.page.clock.fastForward(1_000)
+    await expect(this.page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled()
+  }
+
   async verifySignedInAs(name: string): Promise<void> {
     await expect(this.page.getByText(`Signed in as ${name}`)).toBeVisible()
   }

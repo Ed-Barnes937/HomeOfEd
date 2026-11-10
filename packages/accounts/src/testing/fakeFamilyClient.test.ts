@@ -173,6 +173,46 @@ describe('FakeFamilyClient (identity contract)', () => {
     expect((await client.me()).parent).toBeNull()
   })
 
+  /**
+   * Better Auth's default rule for /sign-in and /sign-up, checked against the
+   * real image: three tries per route in ten seconds, right or wrong, then 429
+   * until ten seconds after the last try it let through.
+   */
+  it('rate-limits sign-in and sign-up per route, as Better Auth does', async () => {
+    let ms = Date.parse('2026-01-01T00:00:00Z')
+    const client = new FakeFamilyClient({
+      now: () => new Date(ms),
+      inviteCode: INVITE,
+      parents: [CREDENTIALS],
+    })
+    const right = { email: CREDENTIALS.email, password: CREDENTIALS.password }
+    const wrong = { email: CREDENTIALS.email, password: 'wrong' }
+    const tooMany = {
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Too many requests. Please try again later.',
+    }
+
+    for (let i = 0; i < 3; i += 1) {
+      ms += 1_000
+      await expect(client.signIn(wrong)).rejects.toMatchObject({
+        code: 'INVALID_EMAIL_OR_PASSWORD',
+      })
+    }
+    const lastLetThrough = ms
+    ms += 1_000
+    await expect(client.signIn(right)).rejects.toMatchObject(tooMany)
+    await expect(client.me()).resolves.toEqual({ parent: null })
+
+    await client.signUp({ ...CREDENTIALS, email: 'new@example.com', inviteCode: INVITE })
+    await client.signOut()
+
+    ms = lastLetThrough + 10_000
+    await expect(client.signIn(right)).rejects.toMatchObject(tooMany)
+    ms += 1
+    await client.signIn(right)
+    expect((await client.me()).parent?.email).toBe(CREDENTIALS.email)
+  })
+
   it('adds, lists and renames child profiles', async () => {
     const client = withParent()
     await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })

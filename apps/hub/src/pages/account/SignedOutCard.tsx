@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-import { accountErrorMessage } from '../../features/account/accountError.ts'
+import {
+  accountErrorMessage,
+  isRateLimited,
+  RATE_LIMIT_PAUSE_MS,
+} from '../../features/account/accountError.ts'
 import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 
@@ -31,6 +35,7 @@ function SignInForm({ onRegister }: { onRegister: () => void }) {
     mutationFn: () => client.signIn({ email, password }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: familyQueryKeys.all }),
   })
+  const paused = usePauseAfterRateLimit(signIn.error)
 
   return (
     <form className={styles.card} onSubmit={submitting(() => signIn.mutate())}>
@@ -65,7 +70,7 @@ function SignInForm({ onRegister }: { onRegister: () => void }) {
         <p className={styles.error}>{accountErrorMessage(signIn.error, SERVICE_DOWN)}</p>
       )}
       <div className={styles.actions}>
-        <button className={styles.primary} type="submit" disabled={signIn.isPending}>
+        <button className={styles.primary} type="submit" disabled={signIn.isPending || paused}>
           Sign in
         </button>
       </div>
@@ -88,6 +93,7 @@ function RegisterForm({ onBack }: { onBack: () => void }) {
     mutationFn: () => client.signUp({ name, email, password, inviteCode }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: familyQueryKeys.all }),
   })
+  const paused = usePauseAfterRateLimit(register.error)
 
   return (
     <form className={styles.card} onSubmit={submitting(() => register.mutate())}>
@@ -148,7 +154,7 @@ function RegisterForm({ onBack }: { onBack: () => void }) {
         <p className={styles.error}>{accountErrorMessage(register.error, SERVICE_DOWN)}</p>
       )}
       <div className={styles.actions}>
-        <button className={styles.primary} type="submit" disabled={register.isPending}>
+        <button className={styles.primary} type="submit" disabled={register.isPending || paused}>
           Create account
         </button>
       </div>
@@ -157,4 +163,16 @@ function RegisterForm({ onBack }: { onBack: () => void }) {
       </button>
     </form>
   )
+}
+
+/** True for a minute after a rate-limited try, so the form cannot be sent again meanwhile. */
+function usePauseAfterRateLimit(error: unknown): boolean {
+  const [paused, setPaused] = useState(false)
+  useEffect(() => {
+    if (!isRateLimited(error)) return
+    setPaused(true)
+    const timer = setTimeout(() => setPaused(false), RATE_LIMIT_PAUSE_MS)
+    return () => clearTimeout(timer)
+  }, [error])
+  return paused
 }

@@ -13,6 +13,15 @@ const UNREADABLE_CODES: ReadonlySet<string> = new Set([
   'UNSUPPORTED_MEDIA_TYPE',
 ])
 
+export const RATE_LIMITED = 'Too many tries. Wait a minute and try again.'
+
+// The reply's x-retry-after is not exposed cross-origin, so hub never sees a retry period.
+export const RATE_LIMIT_PAUSE_MS = 60_000
+
+export function isRateLimited(error: unknown): boolean {
+  return error instanceof FamilyClientError && error.code === 'TOO_MANY_REQUESTS'
+}
+
 /**
  * What to put on the form. A typed refusal can carry a message written for a
  * person - "that username is already taken" is the whole reason that mapping
@@ -20,6 +29,7 @@ const UNREADABLE_CODES: ReadonlySet<string> = new Set([
  * the message is trusted on its own.
  */
 export function accountErrorMessage(error: unknown, fallback: string): string {
+  if (isRateLimited(error)) return RATE_LIMITED
   if (!(error instanceof FamilyClientError)) return fallback
   if (UNREADABLE_CODES.has(error.code)) return fallback
   return readsAsProse(error.message) ? error.message : fallback
