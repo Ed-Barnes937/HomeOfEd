@@ -44,8 +44,10 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   it put default guards at the fantasy end (a 241 mm Knight's cross). Now `guardWidth`, nudged
   up to 0.1 either way by where the base width sits in its band, picks a point in the band.
   A bar guard keeps rule 3's floor of base width + 60 mm, and its range starts there, so the
-  whole slider always moves it by at least 20 mm. Default spans: Dagger 107, Short sword 137
-  (dome 80), Knight's 210, Longsword 270, Greatsword 450, Sabre 150, Katana disc 80, Rapier 230
+  whole slider always moves it by at least 20 mm. A disc, dome or cup is never under 1.4x
+  the base width (narrower reads as a collar), with at least 15 mm of range; the Short
+  sword's dome band runs to 100 mm (research: 90). Default spans: Dagger 107, Short sword 137
+  (dome 87), Knight's 210, Longsword 270, Greatsword 450, Sabre 150, Katana disc 80, Rapier 230
   (cup 100).
 - The Dagger's guard band is 70-120 mm (research "4.3" says 70-140): research "2.2" wants a
   dagger's guard under 3x its blade width, about 102 mm at the default width.
@@ -59,7 +61,7 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   guard + blade along one straight axis. This differs from architecture "3.1", which makes
   `lengthMm` the straight pommel-to-tip distance after the bend; the code does not know the
   bend's shape, which the mesh owns. The mesh bends the blade in its plane with zero offset
-  and slope at the shoulder; `curve.depthMm` is the sagitta, the largest distance from the
+  and slope at the shoulder, keeping its length along the curve (arc length); `curve.depthMm` is the sagitta, the largest distance from the
   bent centre line to the straight line from the shoulder to the bent tip, and `curve.peak`
   is the u where it falls. After the rotation that puts pommel and tip on the axis, the drawn
   pommel-to-tip distance is under 0.5% shorter than `lengthMm` on a Katana and up to about 5%

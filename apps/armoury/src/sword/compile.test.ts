@@ -137,7 +137,8 @@ describe('compileSword', () => {
       } else {
         const band = s.guard.style === 'disc' ? f.discSpan! : f.domeSpan!
         expect(span).toBeGreaterThanOrEqual(band[0] - EPS)
-        expect(span).toBeLessThanOrEqual(band[1] + EPS)
+        expect(span).toBeGreaterThanOrEqual(1.4 * base - EPS)
+        expect(span).toBeLessThanOrEqual(Math.max(band[1], 1.4 * base + 17) + EPS)
       }
       const diameter = s.pommel.radius * 2
       const gripEnd = 2 * sample(s.grip.radius, 0)
@@ -160,6 +161,15 @@ describe('compileSword', () => {
     expect(compileSword(sword({})).guard.span).toBeLessThanOrEqual(215)
     expect(compileSword(sword({ family: 'dagger' })).guard.span).toBeGreaterThanOrEqual(100)
     expect(compileSword(sword({ family: 'dagger' })).guard.span).toBeLessThanOrEqual(110)
+    for (const [family, guard] of [
+      ['shortSword', 'dome'],
+      ['dagger', 'disc'],
+      ['katana', 'disc'],
+      ['rapier', 'cup'],
+    ]) {
+      const broad = compileSword(sword({ family, guard, bladeWidth: 1, bladeLength: 1 }))
+      expect(broad.guard.span, family).toBeGreaterThanOrEqual(1.4 * widthAt(broad, 0) - EPS)
+    }
     for (const p of SWORDS) {
       const span = (guardWidth: number) => compileSword(sword({ ...p, guardWidth })).guard.span
       expect(span(1) - span(0), `${p.family} ${p.guard}`).toBeGreaterThanOrEqual(15)

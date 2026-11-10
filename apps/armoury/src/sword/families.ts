@@ -85,7 +85,7 @@ export const FAMILIES: Record<Family, FamilyDef> = {
     tipRatio: [0.9, 0.55],
     grip: [90, 100],
     guardSpan: [90, 160],
-    domeSpan: [70, 90],
+    domeSpan: [70, 100],
     sagitta: [0, 0],
     thickness: [6, 7],
     curvePeak: null,
@@ -358,8 +358,9 @@ export const guardDepthMm = (p: Params): number => GUARD_DEPTH[p.guard as string
 export const collarMm = (p: Params): number => (p.family === 'katana' ? COLLAR_MM : 0)
 
 /**
- * Overall length, mm, without building a spec: pommel + grip + guard + blade, all straight
- * lengths along the hilt's axis (a curved blade by its chord).
+ * Overall length, mm, without building a spec: pommel + grip + guard + blade along one
+ * straight axis, before any curve. The bend keeps the blade's length along its curve, so a
+ * curved sword's drawn pommel-to-tip distance is shorter (see `SwordSpec.lengthMm`).
  */
 export const overallLengthMm = (p: Params): number =>
   pommelLengthMm(p) + gripLengthMm(p) + guardDepthMm(p) + bladeLengthMm(p)

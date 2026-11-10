@@ -48,7 +48,7 @@ export interface Fuller {
 export interface SwordSpec {
   /**
    * Pommel + grip + guard + blade along one straight axis. Every z here is the sword before
-   * its curve; after the bend and the rotation that puts pommel and tip on the axis, a curved
+   * its curve, and the bend keeps the blade's length along its curve (arc length); after it and the rotation that puts pommel and tip on the axis, a curved
    * sword's drawn pommel-to-tip distance is shorter (under 0.5% on a Katana, up to about 5% on
    * the deepest Sabre).
    */
@@ -168,6 +168,9 @@ const TIP_SAMPLES = 10
 const GUARD_BASE_NUDGE = 0.2
 /** The least a bar guard's span moves across the Guard size slider, mm. */
 const MIN_GUARD_RANGE = 20
+/** A disc, dome or cup at least this many base widths across, so it never reads as a collar. */
+const PLATE_OVER_BASE = 1.4
+const MIN_PLATE_RANGE = 17
 const BODY_STEP = 0.05
 const MAX_TIP_RUN = 0.3
 
@@ -401,7 +404,9 @@ export function compileSword(p: Params): SwordSpec {
   const gw = clamp((p.guardWidth as number) + GUARD_BASE_NUDGE * (baseInBand - 0.5), 0, 1)
   let span: number
   if (style === 'disc' || style === 'dome' || style === 'cup') {
-    span = inBand((style === 'disc' ? f.discSpan : f.domeSpan) ?? f.guardSpan, gw)
+    const band = (style === 'disc' ? f.discSpan : f.domeSpan) ?? f.guardSpan
+    const lo = Math.max(band[0], PLATE_OVER_BASE * base)
+    span = lerp(lo, Math.max(band[1], lo + MIN_PLATE_RANGE), gw)
   } else {
     const lo = Math.max(f.guardSpan[0], base + 60)
     span = lerp(lo, Math.max(f.guardSpan[1], lo + MIN_GUARD_RANGE), gw)
