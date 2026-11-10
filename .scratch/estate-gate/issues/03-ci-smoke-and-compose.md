@@ -1,6 +1,6 @@
 # 03 - CI smoke understands a gated app; compose carries the account URL
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decision 2, risks
 
@@ -20,3 +20,18 @@ App tickets must not touch either file.
   sign-in needs `docker compose up family hub <app>`.
 
 ## Comments
+
+- The gate-aware smoke is in every job that smokes `/`: the 8 estate apps,
+  hub, family, and record-deploys' hub redeploy. Hub and family can never be
+  gated, but hub is the copy base for new apps, so one shape everywhere. The
+  sprout smoke (asserts the 451 geo boundary) and sprout-pipeline (no public
+  smoke) are unchanged. Family's `200` branch keeps its root-div-only check,
+  as before.
+- The `302` must be exactly `302`, and the `Location` must start with
+  `https://homeofed.com/account?returnTo=`; anything else fails the smoke.
+- Open: in the docker stack hub's `/account` talks to family at
+  `localhost:3012` (`familyService.ts`), but compose publishes family on 8092,
+  and the family image's CORS allows only `https://homeofed.com` under
+  `NODE_ENV=production`. By reading the code, a sign-in through the stack will
+  not reach family until that is resolved; tickets 05 and 10 rely on a
+  `family hub boop` round trip.
