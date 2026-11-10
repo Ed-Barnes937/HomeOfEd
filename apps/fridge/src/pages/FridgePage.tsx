@@ -1,5 +1,6 @@
 import '../styles/tokens.scss'
 
+import { useBoardStorage } from '../features/board/BoardStorageContext.tsx'
 import { FridgeDoor } from '../features/board/FridgeDoor.tsx'
 import { LandscapeNudge } from '../features/board/LandscapeNudge.tsx'
 import { MagnetView } from '../features/board/MagnetView.tsx'
@@ -9,17 +10,26 @@ import { useBoardView } from '../features/board/useBoardView.ts'
 import { useFridgeBoard } from '../features/board/useFridgeBoard.ts'
 import { ShareButton } from '../features/share/ShareButton.tsx'
 import { MobileBar } from '../features/toolbar/MobileBar.tsx'
+import { PlayerChip } from '../features/toolbar/PlayerChip.tsx'
 import { SavedChips } from '../features/toolbar/SavedChips.tsx'
 import { TopBar } from '../features/toolbar/TopBar.tsx'
 import { AddPanel } from '../features/tray/AddPanel.tsx'
+import { useFamilySession } from '../session/FamilySessionContext.tsx'
 import { Tray } from '../features/tray/Tray.tsx'
 import { useIsMobile } from '../useIsMobile.ts'
 import styles from './FridgePage.module.scss'
 
-export function FridgePage() {
-  // No options: the hook loads the persisted board (or the seed on first-ever
-  // load / corrupt storage) from localStorage itself — see serialize.ts.
-  const board = useFridgeBoard()
+interface FridgePageProps {
+  /** A shared fridge (`/b/<id>`): offers Keep at this address, and nothing that saves. */
+  keepHref?: string
+}
+
+export function FridgePage({ keepHref }: FridgePageProps = {}) {
+  // The hook loads the persisted board (or the seed on first-ever load /
+  // corrupt storage) from the storage the route provides (see serialize.ts).
+  const board = useFridgeBoard(useBoardStorage())
+  const session = useFamilySession()
+  const playerName = keepHref === undefined ? session?.name : undefined
   const view = useBoardView()
   const mobile = useIsMobile()
   const { state } = board
@@ -54,6 +64,8 @@ export function FridgePage() {
           saved={board.saved}
           onLoad={board.loadSaved}
           onDelete={board.deleteSaved}
+          playerName={playerName}
+          keepHref={keepHref}
         />
       ) : (
         <>
@@ -66,14 +78,18 @@ export function FridgePage() {
             clearDisabled={state.magnets.length === 0}
             saveDisabled={state.sweeping}
             shareSlot={shareButton}
+            playerSlot={playerName !== undefined && <PlayerChip name={playerName} />}
+            keepHref={keepHref}
           />
-          <SavedChips
-            saved={board.saved}
-            activeName={state.name}
-            onLoad={board.loadSaved}
-            onDelete={board.deleteSaved}
-            disabled={state.sweeping}
-          />
+          {keepHref === undefined && (
+            <SavedChips
+              saved={board.saved}
+              activeName={state.name}
+              onLoad={board.loadSaved}
+              onDelete={board.deleteSaved}
+              disabled={state.sweeping}
+            />
+          )}
         </>
       )}
       <div

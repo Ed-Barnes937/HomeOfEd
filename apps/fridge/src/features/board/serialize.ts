@@ -5,10 +5,10 @@ import { type Finish, type Magnet, sizeFor, type Wall } from './model.ts'
 
 export type { StoredBoard, StoredMagnet } from '../../server/boardSchema.ts'
 
-const STORAGE_KEY = 'fridge:v1'
+export const STORAGE_KEY = 'fridge:v1'
 
-/** Minimal read/write surface — the caller passes `window.localStorage`. */
-type BoardStorage = Pick<Storage, 'getItem' | 'setItem'>
+/** Minimal read/write surface: the player's `profileStorage`, or a shared view's `memoryStorage`. */
+export type BoardStorage = Pick<Storage, 'getItem' | 'setItem'>
 
 interface StoredState {
   v: 1

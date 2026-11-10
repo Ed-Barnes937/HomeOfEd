@@ -1,6 +1,6 @@
+import { hubUrlFor } from '@hoe/accounts'
 import type { ReactNode } from 'react'
 
-import { hubUrl } from '../../hubUrl.ts'
 import styles from './TopBar.module.scss'
 
 interface TopBarProps {
@@ -15,6 +15,10 @@ interface TopBarProps {
   saveDisabled?: boolean
   /** The share affordance (features/share) — a slot so the toolbar stays presentational. */
   shareSlot?: ReactNode
+  /** Who is playing (PlayerChip), when someone is. */
+  playerSlot?: ReactNode
+  /** A shared fridge: Keep (a full navigation, so it meets the gate) replaces Save and New. */
+  keepHref?: string
 }
 
 /**
@@ -32,13 +36,15 @@ export function TopBar({
   clearDisabled = false,
   saveDisabled = false,
   shareSlot,
+  playerSlot,
+  keepHref,
 }: TopBarProps) {
   return (
     <div className={styles.bar}>
       <div className={styles.left}>
         <a
           className={styles.back}
-          href={hubUrl(window.location.hostname)}
+          href={hubUrlFor(window.location.href)}
           aria-label="Back to home of ed"
         >
           <svg
@@ -60,19 +66,28 @@ export function TopBar({
         <span className={styles.helper}>drag to bump · click to rotate · double-click to remove</span>
       </div>
       <div className={styles.right}>
+        {playerSlot}
         <input
           className={styles.name}
           placeholder="name this fridge…"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
         />
-        <button type="button" className={styles.save} onClick={onSave} disabled={saveDisabled}>
-          Save
-        </button>
+        {keepHref === undefined ? (
+          <button type="button" className={styles.save} onClick={onSave} disabled={saveDisabled}>
+            Save
+          </button>
+        ) : (
+          <a className={`${styles.save} ${styles.keep}`} href={keepHref}>
+            Keep this fridge
+          </a>
+        )}
         {shareSlot}
-        <button type="button" className={styles.ghost} onClick={onNew}>
-          New
-        </button>
+        {keepHref === undefined && (
+          <button type="button" className={styles.ghost} onClick={onNew}>
+            New
+          </button>
+        )}
         <button
           type="button"
           className={`${styles.ghost} ${styles.clear}`}

@@ -1,26 +1,104 @@
+import { expect } from '@playwright/experimental-ct-react'
+
+import {
+  readAllLocalStorage,
+  readLocalItem,
+  savedNames,
+  setFamilyCookie,
+} from './testing/familySession.ts'
+import { FridgePagePom } from './testing/FridgePagePom.ts'
 import { test } from './testing/iwftTest.tsx'
+import { seedSharedHello, SHARED_ID } from './testing/sharedBoardSeed.ts'
 
-const SEED_ID = 'SeedBoard1'
+/**
+ * `/b/<id>` is open to anyone and keeps nothing (ADR 0093 decision 6); keeping a
+ * shared fridge is `/keep/<id>`, behind the gate.
+ */
 
-test('opening a shared link imports it as a new local fridge', async ({ mountApp }) => {
-  const { root } = await mountApp({
-    // Self-contained (serialised across the Node→browser boundary via
-    // fn.toString()): no imports, just raw SQL through `db`. Payload is a valid
-    // StoredBoard ("HI"); w/h/z/id are recomputed on import so it omits them.
-    seed: async (db) => {
-      await db.execute(
-        `insert into shared_boards (id, name, payload) values ('SeedBoard1', 'Shared Hello', '{"name":"Shared Hello","finish":"mint","wall":"warm","magnets":[{"type":"letter","label":"H","deg":0,"color":"red","x":300,"y":60,"rot":0},{"type":"letter","label":"I","deg":0,"color":"blue","x":360,"y":60,"rot":0}]}'::jsonb)`,
-      )
-    },
-  })
-  await root.gotoSharedBoard(SEED_ID)
-  // The route imports the board and redirects to '/', where it shows as the
-  // current board with an active saved chip.
+const ADA = { sub: 'child-ada', role: 'child', parentId: 'parent-1', name: 'Ada' } as const
+
+test('a shared link opens the fridge to play with, and writes nothing to localStorage', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  const before = await readAllLocalStorage(page)
+
+  await FridgePagePom.openAt(page, `/b/${SHARED_ID}`)
+  const { root } = await mountApp({ seed: seedSharedHello })
+  await root.verifyMagnetCount(2)
+  await root.verifyNameInputValue('Shared Hello')
+  await root.verifySharedChrome(`/keep/${SHARED_ID}`)
+  await root.tapTile('A')
+  await root.verifyMagnetCount(3)
+  await root.selectFinish('White')
+  await page.waitForTimeout(500)
+
+  expect(await readAllLocalStorage(page)).toEqual(before)
+})
+
+test('a signed-in player’s own fridge is untouched by a shared link', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await setFamilyCookie(page, ADA)
+  const mine = await mountApp()
+  await mine.root.setNameInput('Mine')
+  await mine.root.clickSave()
+  await mine.root.verifyChip('Mine')
+  await page.reload()
+  const before = await readAllLocalStorage(page)
+
+  await FridgePagePom.openAt(page, `/b/${SHARED_ID}`)
+  const { root } = await mountApp({ seed: seedSharedHello })
+  await root.verifyMagnetCount(2)
+  await root.verifyNoChip('Mine')
+  await root.tapTile('A')
+  await page.waitForTimeout(500)
+
+  expect(await readAllLocalStorage(page)).toEqual(before)
+})
+
+test('the phone’s shared fridge offers keep in place of save, and no saved fridges', async ({
+  mountApp,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+
+  await FridgePagePom.openAt(page, `/b/${SHARED_ID}`)
+  const { root } = await mountApp({ seed: seedSharedHello })
+  await root.verifyMagnetCount(2)
+  await root.verifyMobileSharedChrome(`/keep/${SHARED_ID}`)
+})
+
+test('keeping a shared fridge imports it for the player and opens it', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await setFamilyCookie(page, ADA)
+
+  // Keep is a full navigation, so the server's gate sees it; here the page opens there.
+  await FridgePagePom.openAt(page, `/keep/${SHARED_ID}`)
+  const { root } = await mountApp({ seed: seedSharedHello })
   await root.verifyPathIsRoot()
-  await root.verifyIsShown()
   await root.verifyMagnetCount(2)
   await root.verifyNameInputValue('Shared Hello (shared)')
   await root.verifyActiveChip('Shared Hello (shared)')
+  await root.verifyPlayerChip('Ada')
+  expect(savedNames(await readLocalItem(page, 'fridge:v1@child-ada'))).toEqual([
+    'Shared Hello (shared)',
+  ])
 })
 
 test('sharing the current board surfaces a /b/ link', async ({ mountApp }) => {
@@ -30,23 +108,34 @@ test('sharing the current board surfaces a /b/ link', async ({ mountApp }) => {
   await root.verifyShareUrlShown()
 })
 
-test('a shared link round-trips through the server back to the same board', async ({ mountApp }) => {
+test('a shared link round-trips through the server back to the same board', async ({
+  mountApp,
+}) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.setNameInput('Poem')
   await root.clickShare()
   // Follow the very link we just minted: board.share → board.get through the
-  // simulator's real router + PGlite, then import.
+  // simulator's real router + PGlite.
   const id = await root.readShareId()
   await root.gotoSharedBoard(id)
-  await root.verifyPathIsRoot()
-  await root.verifyMagnetCount(8) // the seed board's magnets, recomputed on import
-  await root.verifyNameInputValue('Poem (shared)')
-  await root.verifyActiveChip('Poem (shared)')
+  await root.verifySharedChrome(`/keep/${id}`)
+  await root.verifyMagnetCount(8)
+  await root.verifyNameInputValue('Poem')
 })
 
 test('an unknown shared id shows the not-found state', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.gotoSharedBoard('Missing00x') // valid 10-char shape, absent from the DB
+  await root.verifySharedNotFound()
+})
+
+test('keeping an unknown shared id shows the not-found state', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+
+  await FridgePagePom.openAt(page, '/keep/Missing00x')
+  const { root } = await mountApp()
   await root.verifySharedNotFound()
 })

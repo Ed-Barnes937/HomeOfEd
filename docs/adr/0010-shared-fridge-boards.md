@@ -96,3 +96,25 @@ retry), and `getSharedBoard(id) → { name, payload } | null`.
 - **name is stored twice** (as its own column *and* inside the payload). The
   column exists so a future listing/OG-preview needn't parse jsonb; v1 reads
   the payload. Minor redundancy, deliberately kept for that forward door.
+
+## Amendment (2026-11-10): `/b/<id>` opens the board, `/keep/<id>` imports it
+
+The estate gate ([ADR 0093](0093-estate-gate.md)) leaves `/b` public and says a
+shared view keeps nothing (decision 6). Import-on-open would write to whatever
+device opened the link, so it moves:
+
+- **`/b/<id>` opens the snapshot as a fridge to play with,** for anyone, over
+  memory storage. Nothing reaches `localStorage`, signed in or not, and the page
+  never reloads on a player change, so a visitor keeps their edits while there.
+  Save, New and the saved fridges give way to **Keep this fridge**.
+- **Keep is a plain link to `/keep/<id>`,** a full page load, so the gate sees
+  it: a visitor with no session goes through hub, picks who is playing, and
+  comes back. `/keep/<id>` then does what `/b/<id>` used to, into that player's
+  storage ([ADR 0094](0094-per-profile-local-saves.md)): import as
+  `"<name> (shared)"`, current and a saved chip, then home.
+- **Keep keeps the snapshot as it was shared,** not the visitor's edits. Carrying
+  edits would mean publishing a new snapshot the visitor never asked to share,
+  so it is left as an open question in the estate-gate epic.
+
+Nothing server-side changes: snapshots are still immutable and anonymous, and
+`board.get`/`board.share` sit under `/api`, which the gate never covers.

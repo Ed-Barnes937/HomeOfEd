@@ -15,6 +15,7 @@
     "migrate": "node src/server/migrate.ts"
   },
   "dependencies": {
+    "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/db": "workspace:*",
     "@hoe/logger": "workspace:*",

@@ -9,6 +9,7 @@ import { createDbClient } from '@hoe/db'
 import { loadDbEnv } from '@hoe/db/env'
 import { createLogger, requestLogger } from '@hoe/logger'
 
+import { fridgeDocumentGate } from './documentGate.ts'
 import { appRouter } from './router.ts'
 import { fridgeSchema } from './schema.ts'
 import { DrizzleFridgeStore } from './store.ts'
@@ -35,6 +36,7 @@ const server = createAppServer({
     await store.ping()
     return { ok: true }
   },
+  documentGate: fridgeDocumentGate(process.env),
 })
 
 const port = Number(process.env.PORT ?? 8080)

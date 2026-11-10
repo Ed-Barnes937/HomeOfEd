@@ -1,6 +1,6 @@
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 export class FridgePagePom extends BasePage {
   private magnets(): Locator {
@@ -204,13 +204,13 @@ export class FridgePagePom extends BasePage {
     await this.chip(name).getByRole('button', { name: `delete ${name}` }).click()
   }
 
-  private async readPersistedCurrent(): Promise<{
+  private async readPersistedCurrent(key = 'fridge:v1'): Promise<{
     name: string
     finish: string
     wall: string
     magnets: unknown[]
   } | null> {
-    const raw = await this.page.evaluate(() => window.localStorage.getItem('fridge:v1'))
+    const raw = await this.page.evaluate((k) => window.localStorage.getItem(k), key)
     if (!raw) return null
     const parsed = JSON.parse(raw) as {
       current: { name: string; finish: string; wall: string; magnets: unknown[] }
@@ -230,11 +230,52 @@ export class FridgePagePom extends BasePage {
     await expect.poll(async () => (await this.readPersistedCurrent())?.wall).toBe(wall)
   }
 
-  async verifyPersistedMagnetCount(n: number): Promise<void> {
-    await expect.poll(async () => (await this.readPersistedCurrent())?.magnets.length).toBe(n)
+  /** `key` is the stored document's key: a player's is `fridge:v1@<accountId>`. */
+  async verifyPersistedMagnetCount(n: number, key?: string): Promise<void> {
+    await expect.poll(async () => (await this.readPersistedCurrent(key))?.magnets.length).toBe(n)
   }
 
-  // ---- share / import (F12) ----
+  // ---- players (ADR 0094) ----
+
+  async verifyPlayerChip(name: string): Promise<void> {
+    await expect(this.page.getByTestId('player-chip')).toHaveText(`playing as ${name}`)
+  }
+
+  async verifyNoPlayerChip(): Promise<void> {
+    await expect(this.page.getByTestId('fridge-page')).toBeVisible()
+    await expect(this.page.getByTestId('player-chip')).toHaveCount(0)
+  }
+
+  // ---- share / import (F12, ADR 0093) ----
+
+  /** Before mounting: the address the app first loads on. */
+  static async openAt(page: Page, path: string): Promise<void> {
+    await page.evaluate((target) => window.history.pushState({}, '', target), path)
+  }
+
+  /** A shared fridge offers Keep (a full navigation to `keepHref`) in place of Save, New and the saved fridges. */
+  async verifySharedChrome(keepHref: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Keep this fridge' })).toHaveAttribute(
+      'href',
+      keepHref,
+    )
+    await expect(this.page.getByRole('button', { name: 'Save' })).toHaveCount(0)
+    await expect(this.page.getByRole('button', { name: 'New' })).toHaveCount(0)
+    await expect(this.page.getByTestId('saved-chip')).toHaveCount(0)
+    await expect(this.page.getByText(/no saved fridges yet/i)).toHaveCount(0)
+    await expect(this.page.getByTestId('player-chip')).toHaveCount(0)
+  }
+
+  async verifyMobileSharedChrome(keepHref: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Keep this fridge' })).toHaveAttribute(
+      'href',
+      keepHref,
+    )
+    await expect(this.page.getByRole('button', { name: 'Save' })).toHaveCount(0)
+    await this.openMobileMenu()
+    await expect(this.page.getByRole('button', { name: 'New' })).toHaveCount(0)
+    await expect(this.page.getByText('Saved fridges', { exact: true })).toHaveCount(0)
+  }
 
   /** Client-side navigate to a route (no reload); popstate drives the router. */
   async gotoSharedBoard(id: string): Promise<void> {

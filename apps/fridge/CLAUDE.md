@@ -40,27 +40,39 @@ src/
     handlers/shareBoardHandler.ts  id-gen + insert-conflict retry (ADR 0010)
     handlers/getBoardHandler.ts    fetch + re-validate on the way out
     router.ts  simulator.ts  main.ts   # board.share mutation, board.get query
+    documentGate.ts           the estate gate main.ts passes (ADR 0093), /b public
   features/board/             model.ts, serialize.ts, useFridgeBoard.ts (engine
                                wiring + persistence), FridgeDoor, MagnetView,
-                               SelectionOverlay
+                               SelectionOverlay, BoardStorageContext, profileKeys
   features/tray/               Tray, Tabs, PaletteGrid, ColorPicker, AppearanceColumn
-  features/toolbar/           TopBar (name/Save/New/Clear + share slot), SavedChips
-  features/share/             ShareButton, SharedBoardRoute (/b/$id), boardApi,
-                               importSharedBoard (import-on-open glue)
+  features/toolbar/           TopBar (name/Save/New/Clear + share slot), SavedChips,
+                               PlayerChip (switch player at hub)
+  features/share/             ShareButton, SharedBoardRoute (/b/$id view and
+                               /keep/$id import), boardApi, importSharedBoard
   pages/FridgePage.tsx        composes the door/tray/toolbar
+  pages/PlayerLayout.tsx      the player's profileStorage + reloadOnPlayerChange
+  session/                    FamilySessionContext (the session, read once in App)
   styles/tokens.scss          ported from the handoff's tokens.css
   trpcClient.ts               the app's only tRPC caller (share/import)
-  testing/                    IwftApp, FridgePagePom, iwftTest
-  fridge.iwft.tsx  share.iwft.tsx
-  router.tsx                  '/' + '/b/$id' (share import → redirects to '/')
+  testing/                    IwftApp, FridgePagePom, iwftTest, familySession,
+                               sharedBoardSeed
+  fridge.iwft.tsx  share.iwft.tsx  profiles.iwft.tsx  playerChange.iwft.tsx
+  router.tsx                  '/' + '/keep/$id' under the player layout; '/b/$id'
 ```
 
 Persistence (F6): `features/board/serialize.ts` holds the seed board, the
 `StoredBoard`↔`Magnet` mapping, and `loadState`/`saveState` (both take a
-`Pick<Storage, 'getItem'|'setItem'>` — the caller passes `window.localStorage`,
-tests pass a fake, same DI pattern as boids' `settings.ts`).
-`useFridgeBoard` loads once on mount and writes `fridge:v1` on every mutation
-(magnets, finish, wall, or name) via a `useEffect`.
+`Pick<Storage, 'getItem'|'setItem'>`, same DI pattern as boids' `settings.ts`).
+`useFridgeBoard(storage)` loads once on mount and writes `fridge:v1` on every
+mutation (magnets, finish, wall, or name) via a `useEffect`. The storage comes
+from `useBoardStorage()`, never `window.localStorage` directly.
+
+Players (ADR 0094): `fridge:v1` holds the board's content (current + saved
+fridges), not a pointer, so it is scoped per profile. `PlayerLayout` builds
+`profileStorage(window.localStorage, player, PROFILE_KEYS)`, which stores it as
+`fridge:v1@<accountId>` and copies a legacy `fridge:v1` into each profile once;
+the legacy key is never written again. Signed out, it is `fridge:v1` as before.
+The `fridge:landscape-nudge` dismissal is sessionStorage and the device's.
 
 ## Commands
 
@@ -89,17 +101,25 @@ tests pass a fake, same DI pattern as boids' `settings.ts`).
   `DbClient`'s driver (Postgres in prod, PGlite in dev/.iwft/vitest).
   `/health` is a deep Store round-trip. The frontend's only tRPC calls are
   `board.share`/`board.get` via `src/trpcClient.ts` (share/import); the fridge
-  board itself stays in localStorage.
-- **Share/import (ADR 0010).** `features/share/`: **Share** (toolbar slot next
-  to Save, ghost style, enabled when the board has ≥1 magnet) publishes the
-  current board and shows a `${origin}/b/<id>` link (copied to the clipboard
-  when allowed); the **`/b/$id`** route fetches the snapshot and imports it as a
-  new local fridge named `"<name> (shared)"` — `importSharedBoard.ts` writes it
-  to localStorage as both the `current` board and a saved chip (upserted by
-  name, matching Save; preserving the visitor's other saves), then redirects to
-  `/`, where it shows current with its chip active. An unknown/typo'd id shows
-  the not-found state. Deep-linking `/b/<id>` works because `createAppServer`
-  serves `index.html` for non-API GET/HEAD (SPA fallback — no backend change).
+  board itself stays in localStorage. Neither needs a session: `/api` is never
+  gated.
+- **Share/import (ADR 0010, amended).** `features/share/`: **Share** (toolbar
+  slot next to Save, ghost style, enabled when the board has ≥1 magnet)
+  publishes the current board and shows a `${origin}/b/<id>` link (copied to
+  the clipboard when allowed). The **`/b/$id`** route is public and keeps
+  nothing (ADR 0093 decision 6): it opens the snapshot as a playable fridge over
+  `memoryStorage`, with **Keep this fridge** in place of Save/New/saved chips.
+  Keep is a plain `<a href>` to **`/keep/$id`** (a page load, so the gate sees
+  it), which imports it into the player's storage as `"<name> (shared)"`,
+  current and a saved chip (upserted by name), then redirects to `/`. Any link
+  from `/b` into the player's fridge must be a page load, never a router
+  `Link`, or it skips the gate. An unknown id shows the not-found state.
+- **The estate gate (ADR 0093).** `main.ts` passes `fridgeDocumentGate`
+  (`server/documentGate.ts`): on only when `FAMILY_ACCOUNT_URL` is set (compose
+  sets it; `fly.toml` does not yet), with `/b` public. `documentGate.test.ts`
+  checks it on a real port. Switching player is `PlayerChip`'s link to hub
+  (`switchPlayerUrlFor`); the back arrow is `hubUrlFor`. Never on `/b`: the
+  player watcher (`reloadOnPlayerChange`) and `profileStorage`.
 - Migrations are loaded two ways on purpose: `migrations.ts` (Vite `?raw`
   glob) for the .iwft browser bundle and vitest; `@hoe/db/node`'s fs loader
   for native-Node contexts (dev simulator, prod migrate). Schema changes touch

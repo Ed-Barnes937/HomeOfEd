@@ -1,7 +1,8 @@
+import { hubUrlFor } from '@hoe/accounts'
 import { type ReactNode, useState } from 'react'
 
 import type { StoredBoard } from '../board/serialize.ts'
-import { hubUrl } from '../../hubUrl.ts'
+import { PlayerChip } from './PlayerChip.tsx'
 import { SavedChips } from './SavedChips.tsx'
 import styles from './MobileBar.module.scss'
 
@@ -19,6 +20,10 @@ interface MobileBarProps {
   saved: StoredBoard[]
   onLoad: (name: string) => void
   onDelete: (name: string) => void
+  /** Who is playing, rendered as a menu entry, when someone is. */
+  playerName?: string
+  /** A shared fridge: Keep replaces Save, and the menu drops New and the saved fridges. */
+  keepHref?: string
 }
 
 /**
@@ -40,6 +45,8 @@ export function MobileBar({
   saved,
   onLoad,
   onDelete,
+  playerName,
+  keepHref,
 }: MobileBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -50,7 +57,7 @@ export function MobileBar({
 
   return (
     <div className={styles.bar} data-testid="mobile-bar">
-      <a className={styles.icon} href={hubUrl(window.location.hostname)} aria-label="Back to home of ed">
+      <a className={styles.icon} href={hubUrlFor(window.location.href)} aria-label="Back to home of ed">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M19 12H5" />
           <path d="m12 19-7-7 7-7" />
@@ -60,18 +67,27 @@ export function MobileBar({
       <span className={styles.wordmark}>the fridge</span>
 
       <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.icon}
-          aria-label="Save"
-          onClick={onSave}
-          disabled={saveDisabled}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <path d="M17 21v-8H7v8M7 3v5h8" />
-          </svg>
-        </button>
+        {keepHref === undefined ? (
+          <button
+            type="button"
+            className={styles.icon}
+            aria-label="Save"
+            onClick={onSave}
+            disabled={saveDisabled}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <path d="M17 21v-8H7v8M7 3v5h8" />
+            </svg>
+          </button>
+        ) : (
+          <a className={styles.icon} href={keepHref} aria-label="Keep this fridge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <path d="M17 21v-8H7v8M7 3v5h8" />
+            </svg>
+          </a>
+        )}
         <button
           type="button"
           className={styles.icon}
@@ -90,6 +106,7 @@ export function MobileBar({
 
       {menuOpen && (
         <div className={styles.menu} data-testid="mobile-menu">
+          {playerName !== undefined && <PlayerChip name={playerName} className={styles.item} />}
           <input
             className={styles.name}
             placeholder="name this fridge…"
@@ -97,9 +114,11 @@ export function MobileBar({
             onChange={(e) => onNameChange(e.target.value)}
           />
           <div className={styles.shareRow}>{shareSlot}</div>
-          <button type="button" className={styles.item} onClick={withClose(onNew)}>
-            New
-          </button>
+          {keepHref === undefined && (
+            <button type="button" className={styles.item} onClick={withClose(onNew)}>
+              New
+            </button>
+          )}
           <button
             type="button"
             className={`${styles.item} ${styles.danger}`}
@@ -108,8 +127,12 @@ export function MobileBar({
           >
             Empty the fridge
           </button>
-          <div className={styles.savedCap}>Saved fridges</div>
-          <SavedChips saved={saved} activeName={name} onLoad={onLoad} onDelete={onDelete} inline />
+          {keepHref === undefined && (
+            <>
+              <div className={styles.savedCap}>Saved fridges</div>
+              <SavedChips saved={saved} activeName={name} onLoad={onLoad} onDelete={onDelete} inline />
+            </>
+          )}
         </div>
       )}
     </div>
