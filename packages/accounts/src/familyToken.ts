@@ -1,3 +1,4 @@
+import type { KeyObject } from 'node:crypto'
 import { sign, verify } from 'node:crypto'
 
 import type { FamilyRole, FamilyTokenClaims } from './claims.ts'
@@ -48,13 +49,16 @@ export function mintFamilyToken(
   return `${payload}.${signature}`
 }
 
-/** Total over token input: any bad token is null. Only a missing key throws. */
+/**
+ * Total over token input: any bad token is null. Only a missing key throws.
+ * Pass a `KeyObject` to parse the key once rather than on every call.
+ */
 export function verifyFamilyToken(
   token: string,
-  publicKeyPem: string,
+  publicKey: string | KeyObject,
   now: () => Date = () => new Date(),
 ): FamilyTokenClaims | null {
-  if (!publicKeyPem) throw new Error('verifyFamilyToken: publicKeyPem is required')
+  if (!publicKey) throw new Error('verifyFamilyToken: publicKey is required')
 
   const parts = splitToken(token)
   if (parts === null) return null
@@ -64,7 +68,7 @@ export function verifyFamilyToken(
     valid = verify(
       null,
       Buffer.from(parts.payload, 'utf8'),
-      publicKeyPem,
+      publicKey,
       Buffer.from(parts.signature, 'base64url'),
     )
   } catch {

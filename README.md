@@ -104,6 +104,23 @@ deploy and when you suspect a PGlite-versus-Postgres difference. The database
 credentials in `compose.yml` are local throwaways; real secrets go in a
 gitignored `.env`.
 
+The stack is gated like production: every estate app's service sets
+`FAMILY_ACCOUNT_URL` to hub's `/account` on port 8080, so a signed-out visit to
+an app whose gate is wired redirects there. Signing in needs family and hub up
+alongside the app: `docker compose up family hub <app>`.
+
+Sign-in works from a clean checkout. Hub on 8080 calls the stack's family on
+8092, which admits the stack's own origins because compose sets
+`DOCKER_STACK_ORIGINS=on` (refused on Fly; ADR 0078 decision 6). Register with
+the local-only invite code `dev-invite-code`. To check the whole round trip
+(register, add a child, pick who is playing, the `hoe_family_session` cookie on
+`localhost`, and boop saving through family) in a real browser:
+
+```bash
+docker compose up -d --build family hub boop
+node scripts/docker-stack-sign-in.mjs     # HEADED=1 to watch it
+```
+
 ## Checks
 
 ```bash

@@ -106,12 +106,14 @@ saves belong to that profile.
 | Wave | Tickets | Notes |
 |---|---|---|
 | 1 | 01, 02, 03, 04, 07 | no dependencies, all parallel |
-| 2 | 05, 10, 16 | parallel: hub return flow, boop (the reference app), starter and docs |
+| 2 | 05, 10, 16, 18, then 19 | parallel: hub return flow, boop (the reference app), starter and docs, docker-stack sign-in; 19 (verifying key) follows 18 and gates boop's wiring |
 | 3 | 06, 11, 12, 13, 14, 15 | parallel: hub renewal, and the other apps copying boop's merged pattern |
 | 4 | 08, 09 | parallel: hub `/account`, different components |
 | 5 | 17 | Ed's pilot on boop, then the other apps' gates merge |
 
-Ticket 10 (boop) merges only after 05 is live. Tickets 11-15 start once 10 is
+Ticket 10 (boop) merges only after 05 is live. The docker-stack round trips
+in 05 and 10 need ticket 18; build the rest first and run that check once 18
+is in. Tickets 11-15 start once 10 is
 merged, so they copy real code, and they merge after 17; waiting for 10 costs
 nothing because they could not merge before the pilot anyway.
 
@@ -124,10 +126,17 @@ app or package you touch, and the ADRs your ticket names.
 - **Scope.** Your ticket only. If it names files you must not touch, another
   ticket owns them. Do not take an ADR number other than the ones assigned
   above.
-- **Branch and PR.** `estate-gate/NN-<slug>` off `main`, one PR per ticket
-  against `main`. If a blocker is built but unmerged, branch from it and say
-  so in the PR. Open the PR and leave merging to Ed: a merge to `main` deploys.
-  Never `--admin`.
+- **Branch and PR.** The epic lands on `main` as one PR (#188) from the
+  feature branch `estate-gate/tracker` (changed 2026-11-10 at Ed's request).
+  Branch `estate-gate/NN-<slug>` off `origin/estate-gate/tracker` and open one
+  PR per ticket against `estate-gate/tracker`. If a blocker is built but not
+  yet in the feature branch, branch from it and say so in the PR. The
+  orchestrator merges reviewed ticket PRs into the feature branch; nobody but
+  Ed merges to `main`. Never `--admin`.
+- **The gate stays off in production in this PR.** No ticket adds
+  `FAMILY_ACCOUNT_URL` to a `fly.toml`. Turning each app on is a later
+  one-line PR, after the production verifying key is committed (ticket 19) and
+  Ed's boop pilot (ticket 17). Compose keeps the gate on.
 - **Verify loop.** `pnpm lint`, `pnpm typecheck`, and
   `pnpm --filter <package> run test` for everything you touched. Do not use
   `turbo run --filter=<app>`; it fails on a cyclic dependency.

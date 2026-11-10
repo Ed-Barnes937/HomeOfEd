@@ -23,6 +23,7 @@ import { ListChildrenHandler } from './handlers/identity/listChildrenHandler.ts'
 import { MeHandler } from './handlers/identity/meHandler.ts'
 import { MintSessionTokenHandler } from './handlers/identity/mintSessionTokenHandler.ts'
 import { RenameChildHandler } from './handlers/identity/renameChildHandler.ts'
+import { SaveSummaryHandler } from './handlers/identity/saveSummaryHandler.ts'
 import { DeleteSaveHandler } from './handlers/saves/deleteSaveHandler.ts'
 import { GetSaveHandler } from './handlers/saves/getSaveHandler.ts'
 import { ListSavesHandler } from './handlers/saves/listSavesHandler.ts'
@@ -51,6 +52,7 @@ function identityContractFor(ctx: FamilyContext, mintToken: FamilyTokenMinter) {
     deleteChild: (input) => new DeleteChildHandler().run(input, ctx),
     mintSessionToken: (input) => new MintSessionTokenHandler(mintToken).run(input, ctx),
     deleteAccount: () => new DeleteAccountHandler().run(undefined, ctx),
+    saveSummary: () => new SaveSummaryHandler().run(undefined, ctx),
   } satisfies FamilyIdentityRouterContract
 }
 
@@ -101,6 +103,9 @@ export function createAppRouter(deps: FamilyRouterDeps) {
       deleteAccount: t.procedure
         .input(deleteAccountInput)
         .mutation(({ ctx }) => identityContractFor(ctx, deps.mintToken).deleteAccount()),
+      saveSummary: t.procedure.query(({ ctx }) =>
+        identityContractFor(ctx, deps.mintToken).saveSummary(),
+      ),
     }),
     save: t.router({
       get: t.procedure

@@ -101,6 +101,26 @@ describe('assertFitForDeployment', () => {
     )
   })
 
+  describe('a local-only setting', () => {
+    const localOnly = ['STACK_SWITCH'] as const
+
+    it.each(['on', 'off', ''])('refuses it on Fly whatever its value (%j), naming it', (value) => {
+      expect(() =>
+        assertFitForDeployment({ ...deployed, STACK_SWITCH: value }, floors, localOnly),
+      ).toThrow(/STACK_SWITCH is a local-only setting/)
+    })
+
+    it('passes a deployment that does not set it', () => {
+      expect(() => assertFitForDeployment(deployed, floors, localOnly)).not.toThrow()
+    })
+
+    it('allows it wherever there is no Fly app', () => {
+      expect(() =>
+        assertFitForDeployment({ STACK_SWITCH: 'on', NODE_ENV: 'production' }, floors, localOnly),
+      ).not.toThrow()
+    })
+  })
+
   it('never puts a supplied value in the failure message', () => {
     const leaky = 'dev-super-secret-key-material-0000'
 

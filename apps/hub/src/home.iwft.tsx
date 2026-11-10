@@ -1,4 +1,5 @@
 import { appDates } from './pages/appDates.ts'
+import { playAs } from './testing/familySession.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // The pill dates come from what CI recorded, and CI rewrites that file on every
@@ -24,6 +25,85 @@ test('home page renders the wordmark, lede, and the live app links', async ({ mo
   await root.verifySiltLink()
   await root.verifyArmouryLink()
 })
+
+test('with nobody playing, the home page offers Sign in, which opens /account', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyWhosPlayingChip('Sign in')
+
+  await root.openWhosPlayingChip('Sign in')
+
+  await root.verifyOnAccountPage()
+})
+
+test('with a profile playing, the home page names it and links to /account', async ({
+  page,
+  mountApp,
+}) => {
+  await playAs(page, 'Robin')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyWhosPlayingChip('Playing as Robin')
+})
+
+test('a name with nothing visible in it is treated as nobody playing', async ({
+  page,
+  mountApp,
+}) => {
+  await playAs(page, ' \u200b ')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyWhosPlayingChip('Sign in')
+})
+
+test('coming back to the page after the player changed shows the new name', async ({
+  page,
+  mountApp,
+}) => {
+  await playAs(page, 'Robin')
+  const { root } = await mountApp()
+  await root.verifyWhosPlayingChip('Playing as Robin')
+
+  await playAs(page, 'Wren')
+  await root.returnFromBackForwardCache()
+
+  await root.verifyWhosPlayingChip('Playing as Wren')
+})
+
+test('an ordinary name is shown in full on a portrait iPad mini', async ({ page, mountApp }) => {
+  await page.setViewportSize({ width: 744, height: 1133 })
+  await playAs(page, 'Robin')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyWhosPlayingChipShowsItsWholeLabel('Playing as Robin')
+})
+
+// The contract's longest display name, in wide characters, on the widths where
+// the left column is narrowest beside the rail.
+for (const [width, height] of [
+  [1024, 768],
+  [820, 1180],
+  [800, 600],
+  [768, 1024],
+  [744, 1133],
+] as const) {
+  test(`a long name stays clear of the app rail at ${width}x${height}`, async ({
+    page,
+    mountApp,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await playAs(page, 'W'.repeat(32))
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    await root.verifyWhosPlayingChipClearOfTheRail()
+  })
+}
 
 test('home page renders a live preview canvas for every app card', async ({ mountApp }) => {
   const { root } = await mountApp()
