@@ -1,6 +1,7 @@
 import { hubUrl } from '../../hubUrl.ts'
 import { savedStateLabel, type LoadedBoop } from '../../savedState.ts'
 import { useShareBoop } from '../../share/useShareBoop.ts'
+import { SyncedChip } from '../../sync/SyncedChip.tsx'
 import styles from './TopBar.module.scss'
 
 export interface TopBarProps {
@@ -22,6 +23,8 @@ export interface TopBarProps {
    * which is the page's business rather than the bar's.
    */
   onNewBoop?: () => void
+  /** The profile the boops are kept for, or `null` when nothing is linked (ADR 0080). */
+  syncedAs?: string | null
 }
 
 /**
@@ -35,7 +38,14 @@ export interface TopBarProps {
  * The saved/edited indicator (ticket 31) sits after the wordmark, before the
  * spacer — quiet chrome at half ink, never a status bar.
  */
-export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, loaded, onNewBoop }: TopBarProps) {
+export function TopBar({
+  getShareUrl,
+  onOpenBoops,
+  onOpenHints,
+  loaded,
+  onNewBoop,
+  syncedAs = null,
+}: TopBarProps) {
   const { shareState, share } = useShareBoop(getShareUrl)
   const copied = shareState === 'copied'
 
@@ -61,6 +71,7 @@ export function TopBar({ getShareUrl, onOpenBoops, onOpenHints, loaded, onNewBoo
       <span className={styles.savedState} data-testid="saved-state">
         {savedStateLabel(loaded)}
       </span>
+      {syncedAs !== null && <SyncedChip name={syncedAs} />}
       <div className={styles.spacer} />
       {onNewBoop && (
         <button

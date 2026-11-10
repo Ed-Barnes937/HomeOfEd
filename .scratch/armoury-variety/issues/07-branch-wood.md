@@ -25,7 +25,7 @@ never enough.
      it to both, but don't change turned wands' character without saying so.
 3. **A "Bark" choice for Branch wands only: None / Patches / Full.**
    - Bark is rough, cracked and darker. It sits slightly proud in the radius
-     field, within the ADR 0081 envelope, and bends with the spine.
+     field, within the ADR 0090 envelope, and bends with the spine.
    - Bare wood is worn through on the handle where a hand grips.
    - Stain mostly affects bare wood. Bark takes only a little.
    - Bark avoids metal zones, gems and engravings.
@@ -41,12 +41,12 @@ never enough.
   setting with 2-3 stains.
 - Ed has looked on a real GPU.
 - The verify loop is green.
-- ADR 0086 records the material retune and the bark model.
+- ADR 0091 records the material retune and the bark model.
 
 ## Comments
 
 **2026-11-09, agent (built):** On branch `armoury-variety-07-branch-wood` (chained
-on 06); decisions in ADR 0086. Needs Ed's eye on a real GPU before merging.
+on 06); decisions in ADR 0091. Needs Ed's eye on a real GPU before merging.
 
 Gloss, the cause: not a merge. 05's change (base roughness 0.72, stain gloss 0.15)
 was still there, but three.js _multiplies_ the material's roughness by the roughness

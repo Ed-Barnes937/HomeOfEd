@@ -4,7 +4,9 @@ import { z } from 'zod'
 
 export const saveGetInput = z.object({
   appId: z.string().min(1),
-  slotKey: z.string().min(1),
+  // Bounded because it is stored, counted and part of a btree primary key: an
+  // unbounded key is storage the byte quota never sees.
+  slotKey: z.string().min(1).max(128),
 })
 
 export const savePutInput = saveGetInput.extend({

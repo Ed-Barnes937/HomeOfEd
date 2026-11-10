@@ -352,3 +352,23 @@ lives, and the shape the share-link codec is derived from. Decoding it is
 total: anything corrupt or future-versioned reads as an empty document.
 See [ADR 0025](../../docs/adr/0025-boop-save-format.md).
 _Avoid_: Save file, state blob, storage schema.
+
+**The account copy**:
+The save document as it stands on the family SaveStore, under
+`(appId: 'boop', slotKey: 'boop:save')` - a *copy* of what is in
+`localStorage`, never a move, and never the thing boop reads to play. Reaching
+it is `sync/`'s business alone: a **pull** merges it into localStorage at
+start, a **push** copies localStorage up after a change, and the **merge hook**
+(`mergeSaveDocuments`) is the idempotent union of the two.
+See [ADR 0080](../../docs/adr/0080-boop-is-the-first-savestore-client.md).
+_Avoid_: The cloud save, the server state, syncing (as a thing boop does to
+play) - the account is a copy of the truth, not the truth.
+
+**Synced account marker**:
+`boop:syncedAccount` - what this device **answered** when it was offered the
+import, per account (`accepted` / `declined`). The answer, not merely that one
+was given: `declined` means no sync at all for that account, now or later.
+Additive and separate from the save document, which is frozen; a corrupt
+marker, or an unknown answer, reads as "not asked yet", and the marker's first
+list shape reads as accepted.
+_Avoid_: Link flag, sync state, "asked" (what matters is the answer).

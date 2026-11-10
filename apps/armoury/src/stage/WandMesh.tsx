@@ -92,10 +92,23 @@ const METALS: Record<string, { colour: string; roughness: number; metalness: num
   darkIron: { colour: '#5c5c60', roughness: 0.42, metalness: 0.85 },
 }
 const BONE = '#e6dbc2'
-const texturePaths = WOOD_KEYS.flatMap((w) => [
+export const texturePaths = WOOD_KEYS.flatMap((w) => [
   `/textures/${w}-colour.webp`,
   `/textures/${w}-rough.webp`,
 ])
+
+// drei uploads every texture as it loads, and three never re-reads these settings
+// after an upload, so each wood is set up here rather than when it's first chosen.
+export function prepareWoodTextures(textures: THREE.Texture[]) {
+  textures.forEach((t, i) => {
+    const wood = WOODS[WOOD_KEYS[i >> 1]!]!
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    t.center.set(0.5, 0.5)
+    t.rotation = wood.grainAcross ? Math.PI / 2 : 0
+    t.anisotropy = 8
+    if (i % 2 === 0) t.colorSpace = THREE.SRGBColorSpace
+  })
+}
 
 // A full coat's absorbance, split into its hue (the swatch over its brightest
 // channel) and its darkness, so a dye's colour survives on pale wood.
@@ -332,18 +345,10 @@ export function WandMesh({
   )
 
   const wood = WOODS[spec.wood] ?? WOODS.oak!
-  const [map, roughnessMap] = useMemo(() => {
-    const i = Math.max(0, WOOD_KEYS.indexOf(spec.wood)) * 2
-    const pair = [textures[i]!, textures[i + 1]!] as const
-    for (const t of pair) {
-      t.wrapS = t.wrapT = THREE.RepeatWrapping
-      t.center.set(0.5, 0.5)
-      t.rotation = wood.grainAcross ? Math.PI / 2 : 0
-      t.anisotropy = 8
-    }
-    pair[0].colorSpace = THREE.SRGBColorSpace
-    return pair
-  }, [textures, spec.wood, wood.grainAcross])
+  useMemo(() => prepareWoodTextures(textures), [textures])
+  const woodIndex = Math.max(0, WOOD_KEYS.indexOf(spec.wood)) * 2
+  const map = textures[woodIndex]!
+  const roughnessMap = textures[woodIndex + 1]!
 
   const metal = METALS[spec.metal] ?? METALS.silver!
   const branch = spec.branch !== null

@@ -28,7 +28,7 @@ the spine; both ends stay on the straight wand's axis.
 None, patches or full, on a Branch only: rough, furrowed and darker than the wood,
 standing a little proud of it. Worn bare where a hand grips a grown handle; never
 on metal, paint, bone, gem seats or an engraving. Takes little stain
-([ADR 0086](../../docs/adr/0086-armoury-branch-wood-and-bark.md)).
+([ADR 0091](../../docs/adr/0091-armoury-branch-wood-and-bark.md)).
 
 **Group**:
 A section of params a child sees together: the wood, the shape, the branch (on a
@@ -45,7 +45,7 @@ A shaft spiral that stands proud as a ridge instead of being cut in as a groove.
 
 **Envelope**:
 How far carving, ridges, lumps, knots and bark may move the surface from the wand's
-outline, either way: a quarter of the local radius ([ADR 0081](../../docs/adr/0081-armoury-raised-features.md)).
+outline, either way: a quarter of the local radius ([ADR 0090](../../docs/adr/0090-armoury-raised-features.md)).
 
 **Zone**:
 A stretch of the wand in metal, paint or bone instead of wood: the handle, the
