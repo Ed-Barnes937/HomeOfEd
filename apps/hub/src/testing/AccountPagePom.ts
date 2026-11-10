@@ -294,15 +294,30 @@ export class AccountPagePom extends BasePage {
     await this.page.getByRole('button', { name: 'Sign in', exact: true }).click()
   }
 
+  async registerWithWrongInviteCodeUntilRateLimited(): Promise<void> {
+    await this.register({ inviteCode: 'guessed' })
+    await this.verifyInlineError('A valid invite code is required to register.')
+    for (let attempt = 2; attempt <= 4; attempt += 1) {
+      await this.page.getByRole('button', { name: 'Create account' }).click()
+    }
+  }
+
   async verifySignInPaused(): Promise<void> {
     await expect(this.page.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled()
   }
 
+  async verifyRegisterPaused(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Create account' })).toBeDisabled()
+  }
+
+  /** Stops the page's clock first, so only fastForward moves time and the pause's length is exact. */
   async waitOutTheRateLimitPause(): Promise<void> {
+    await this.page.clock.pauseAt((await this.page.evaluate(() => Date.now())) + 100)
     await this.page.clock.fastForward(59_000)
     await this.verifySignInPaused()
     await this.page.clock.fastForward(1_000)
     await expect(this.page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled()
+    await this.page.clock.resume()
   }
 
   async verifySignedInAs(name: string): Promise<void> {

@@ -381,13 +381,13 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
     return this.failure ? Promise.reject(this.failure) : Promise.resolve()
   }
 
-  // Checked against the real image: a try counts whether the password was right
-  // or wrong, and a refused try does not move the window.
+  // As Better Auth's memory store: a try counts right or wrong, a refused try does
+  // not move the window, and one exactly ten seconds after the last is let through.
   private authAttempt(route: 'sign-in' | 'sign-up'): Promise<void> {
     return this.reachable().then(() => {
       const nowMs = this.now().getTime()
       const seen = this.authAttempts.get(route)
-      if (seen === undefined || nowMs - seen.lastLetThrough > AUTH_RATE_LIMIT.windowMs) {
+      if (seen === undefined || nowMs - seen.lastLetThrough >= AUTH_RATE_LIMIT.windowMs) {
         this.authAttempts.set(route, { count: 1, lastLetThrough: nowMs })
         return
       }

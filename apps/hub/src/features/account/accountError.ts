@@ -13,7 +13,7 @@ const UNREADABLE_CODES: ReadonlySet<string> = new Set([
   'UNSUPPORTED_MEDIA_TYPE',
 ])
 
-export const RATE_LIMITED = 'Too many tries. Wait a minute and try again.'
+const RATE_LIMITED ='Too many tries. Wait a minute and try again.'
 
 // The reply's x-retry-after is not exposed cross-origin, so hub never sees a retry period.
 export const RATE_LIMIT_PAUSE_MS = 60_000

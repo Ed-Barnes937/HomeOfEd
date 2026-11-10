@@ -53,6 +53,18 @@ test('too many sign-in tries say so plainly, and pause the button for a minute',
   await root.verifySignedInAs(FIXTURE_PARENT.name)
 })
 
+test('too many registration tries say so plainly, and pause that button too', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.registerWithWrongInviteCodeUntilRateLimited()
+
+  await root.verifyInlineError('Too many tries. Wait a minute and try again.')
+  await root.verifyRegisterPaused()
+})
+
 test('a signed-in parent adds, lists and renames a child profile', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

@@ -167,12 +167,11 @@ function RegisterForm({ onBack }: { onBack: () => void }) {
 
 /** True for a minute after a rate-limited try, so the form cannot be sent again meanwhile. */
 function usePauseAfterRateLimit(error: unknown): boolean {
-  const [paused, setPaused] = useState(false)
+  const [expired, setExpired] = useState<unknown>(null)
   useEffect(() => {
     if (!isRateLimited(error)) return
-    setPaused(true)
-    const timer = setTimeout(() => setPaused(false), RATE_LIMIT_PAUSE_MS)
+    const timer = setTimeout(() => setExpired(error), RATE_LIMIT_PAUSE_MS)
     return () => clearTimeout(timer)
   }, [error])
-  return paused
+  return isRateLimited(error) && expired !== error
 }
