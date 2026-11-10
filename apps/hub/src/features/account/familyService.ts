@@ -1,3 +1,5 @@
+import type { SafeReturnToOpts } from '@hoe/accounts'
+
 /**
  * Where the family service lives, and how the cookie it mints may be stored.
  * Local hostnames talk to the local service (`pnpm dev --filter=family`, port
@@ -20,6 +22,14 @@ export function familySessionCookieOptions(hostname: string): {
   secure?: boolean
 } {
   return isLocal(hostname) ? {} : { domain: '.homeofed.com', secure: true }
+}
+
+/**
+ * Localhost app origins are only a safe `returnTo` while hub itself is on
+ * localhost, decided from the hostname exactly as the cookie's `Domain` is.
+ */
+export function returnToOptions(hostname: string): SafeReturnToOpts {
+  return { allowLocal: isLocal(hostname) }
 }
 
 function isLocal(hostname: string): boolean {

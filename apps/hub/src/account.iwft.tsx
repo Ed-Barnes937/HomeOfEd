@@ -205,6 +205,88 @@ test('signing out clears the family cookie as well as the session', async ({ mou
   await root.verifyNoFamilySession()
 })
 
+test.describe('arriving from an estate app', () => {
+  const BOOP = 'https://boop.homeofed.com/play?bank=2'
+
+  test('signing in and picking who is playing returns to the app, fragment and all', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.openFromGate(BOOP, '#g=abc-123')
+
+    await root.signIn()
+    await root.addProfile('Robin', 'robin')
+    await root.pickWhoIsPlaying('Robin')
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('a parent who registers on the way is returned after the pick too', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.openFromGate(BOOP, '#g=abc-123')
+
+    await root.register()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('a returnTo off the estate is ignored, and the pick stays here', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.openFromGate('https://boop.homeofed.com.evil.example/', '#g=abc-123')
+    await root.verifyOffersNoSharedItem()
+
+    await root.signIn()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyPlayingNow(FIXTURE_PARENT.name)
+    await root.verifyStillOnAccount()
+  })
+
+  test('signed out with a shared fragment, the shared item opens without an account', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.openFromGate(BOOP, '#g=abc-123')
+
+    await root.verifyOffersSignIn()
+    await root.verifyOffersSharedItem('https://boop.homeofed.com/shared#g=abc-123')
+  })
+
+  // An app's switch-player link arrives in the same shape as the gate, with a session live.
+  test('someone already playing is shown the picker, and the new pick returns', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyIsShown()
+    await root.signIn()
+    await root.addProfile('Robin', 'robin')
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+    await root.verifyPlayingNow(FIXTURE_PARENT.name)
+
+    await root.openFromGate(BOOP, '#g=abc-123')
+    await root.verifyPlayingNow(FIXTURE_PARENT.name)
+    await root.verifyStillOnAccount()
+    await root.pickWhoIsPlaying('Robin')
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('with no fragment there is nothing shared to offer', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.openFromGate(BOOP)
+
+    await root.verifyOffersNoSharedItem()
+  })
+})
+
 test('deleting the account takes a confirm step, and can be backed out of', async ({
   mountApp,
 }) => {

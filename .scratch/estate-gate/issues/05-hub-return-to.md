@@ -1,6 +1,6 @@
 # 05 - hub: `/account` returns the visitor to where they were going
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decisions 4, 6
 Blocked by: 01
@@ -26,3 +26,21 @@ Blocked by: 01
 - ADR 0095 (hub return and renewal); amend ADR 0081.
 
 ## Comments
+
+**2026-11-10 (implementer).** Built, with these differences (ADR 0095):
+
+- **Not built: "an already-live family session returns immediately".** The gate
+  only redirects when it cannot verify a token, so a visitor reaching hub with a
+  token hub can decode came from an app's switch-player link (decision 10) or
+  from a gate/hub disagreement (ticket 19's wrong-key loop, clock skew). An
+  immediate return makes switching player impossible and, in a disagreement,
+  spins between app and hub with no screen. Instead the page shows and any pick
+  returns. The no-screen case for a signed-in parent is ticket 06's renewal.
+  Open call for Ed.
+- `returnTo` and the fragment live only in the address bar (read from
+  `window.location` at each use, re-vetted by `safeReturnTo`); no storage.
+- The return uses `location.replace` and happens only when the cookie was
+  actually written.
+- **Not verified:** the docker-stack check that a fragment survives the gate's
+  real `302`. Sign-in through the stack needs ticket 18; run it then and record
+  the result in ADR 0095 and the PR.

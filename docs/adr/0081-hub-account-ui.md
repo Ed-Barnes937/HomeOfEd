@@ -215,7 +215,9 @@ either. Recorded rather than built, because deleting a profile also deletes its
 saves and the confirm copy for that is a product decision. (**Amended
 2026-11-10, below:** both are now built.)
 
-**Nothing links to `/account` yet.** Entry is boop's "synced as X" chip and the
+**Nothing links to `/account` yet.** (**Amended 2026-11-10, below:** the estate
+gate and every gated app's switch-player link now send visitors here with a
+`returnTo`.) Entry is boop's "synced as X" chip and the
 URL. A card or a link on hub's home page is a one-line change, but hub's home
 surface is sequenced outside epic branches, so it is not here.
 
@@ -286,3 +288,22 @@ afterwards; `deleteAccount` erases only the ids of profiles that still exist.
 The same was already true of a household erase. The fix belongs to the save half
 ([ADR 0079](0079-family-save-authorisation.md)) and is ticket
 [`10-deleted-profile-tokens`](../../.scratch/family-first-slice/issues/10-deleted-profile-tokens.md).
+
+## Amendment (2026-11-10): `/account` sends a visitor back where they were going
+
+The estate gate (ADR 0093) makes `/account` the front door of every gated app: a
+signed-out visitor arrives as `/account?returnTo=<url>`, often with the app's
+share fragment on hub's URL. The screens above are unchanged in what they do; two
+things are added, both in
+[ADR 0095](0095-hub-return-and-renewal.md):
+
+1. **A pick returns.** When `returnTo` passes `safeReturnTo`, picking who is
+   playing writes the cookie as before and then replaces the page with
+   `returnTo` plus the carried fragment. Sign-in and registration keep it,
+   because it lives only in the address bar. Without a valid `returnTo` the pick
+   stays here, exactly as before.
+2. **The signed-out card offers "Open what was shared"** when a fragment came
+   along, linking to the app's ungated `/shared` view.
+
+The return lives in one hook, `useReturnTo()` in `features/account/returnTo.ts`;
+the cards call it and nothing else in them knows about returning.

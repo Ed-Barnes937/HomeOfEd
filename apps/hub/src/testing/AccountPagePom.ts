@@ -21,6 +21,48 @@ export class AccountPagePom extends BasePage {
     })
   }
 
+  /**
+   * Arrive the way the estate gate's 302 leaves a visitor: `returnTo` in the
+   * query, and the original fragment on hub's own URL because the browser
+   * carries it across the redirect.
+   */
+  async openFromGate(returnTo: string, fragment = ''): Promise<void> {
+    const url = `/account?returnTo=${encodeURIComponent(returnTo)}${fragment}`
+    await this.page.evaluate((target) => {
+      window.history.pushState({}, '', target)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }, url)
+    await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+  }
+
+  /** Stand in for the estate apps' origins, so a return lands on a real page. */
+  async serveEstateApps(): Promise<void> {
+    await this.page.route(/^https:\/\/[a-z]+\.homeofed\.com\//, (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<h1>an estate app</h1>' }),
+    )
+  }
+
+  async verifyReturnedTo(url: string): Promise<void> {
+    await expect(this.page).toHaveURL(url)
+  }
+
+  async verifyStillOnAccount(): Promise<void> {
+    await expect(this.page).toHaveURL(/\/account(\?|#|$)/)
+    await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+  }
+
+  async verifyOffersSharedItem(href: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Open what was shared' })).toHaveAttribute(
+      'href',
+      href,
+    )
+  }
+
+  async verifyOffersNoSharedItem(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(this.page.getByRole('link', { name: 'Open what was shared' })).toHaveCount(0)
+  }
+
   async verifyOffersSignIn(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
     await expect(this.page.getByLabel('Email')).toBeVisible()
