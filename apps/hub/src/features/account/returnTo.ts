@@ -1,59 +1,68 @@
-/**
- * The way back to the estate app that sent a visitor here (ADR 0095). The gate
- * sends `/account?returnTo=<url>`, and the browser carries the original fragment
- * onto hub's own URL. Both are read from the address bar each time they are
- * needed, so nothing outlives this visit and nothing stored is ever trusted.
- */
-import { type SafeReturnToOpts, safeReturnTo, sharedUrl } from '@hoe/accounts'
-import { useLocation } from '@tanstack/react-router'
+// The way back to the estate app that sent a visitor here (ADR 0095).
+import {
+  type FamilyTokenClaims,
+  readFamilySession,
+  type SafeReturnToOpts,
+  safeReturnTo,
+  sharedUrl,
+} from '@hoe/accounts'
 
 import { returnToOptions } from './familyService.ts'
 
-export interface ReturnTo {
-  /** The app's ungated `/shared` view, offered only when a fragment came along. */
-  sharedLink: string | null
-  /** Navigates back if `returnTo` still passes `safeReturnTo`; false when it did not. */
-  returnToApp: () => boolean
-}
+// Captured at module load, before the router rewrites the address bar on mount.
+const arrival =
+  typeof window === 'undefined'
+    ? null
+    : {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        fragment: window.location.hash,
+      }
 
 /**
- * `returnTo` as `safeReturnTo` vets it, with the carried fragment appended
- * after a `#`, so whatever the fragment holds it parses as fragment.
+ * The single `returnTo` in `search`, as `safeReturnTo` vets it, with the
+ * fragment appended after a `#` so that whatever it holds it parses as fragment.
  */
 export function returnDestination(
-  returnTo: string | null,
+  search: string,
   fragment: string,
   opts: SafeReturnToOpts,
 ): string | null {
-  const vetted = safeReturnTo(returnTo, opts)
+  const vetted = safeReturnTo(singleReturnTo(search), opts)
   if (vetted === null) return null
   const text = fragment.startsWith('#') ? fragment.slice(1) : fragment
   return text === '' ? vetted : `${vetted}#${text}`
 }
 
-export function useReturnTo(): ReturnTo {
-  // Subscribes to the router so a client-side move re-renders; the values come
-  // from window.location, unparsed, because the router JSON-parses search values.
-  useLocation()
-  const { returnTo, fragment, opts } = fromAddressBar()
-  return {
-    sharedLink: fragment === '' ? null : sharedUrl(returnTo ?? '', fragment, opts),
-    returnToApp,
-  }
+/** "Open what was shared": the app's ungated `/shared` view, when a fragment came along. */
+export function sharedLink(): string | null {
+  const visit = currentArrival()
+  if (visit === null || visit.fragment === '') return null
+  return sharedUrl(singleReturnTo(visit.search) ?? '', visit.fragment, visit.opts)
 }
 
-function returnToApp(): boolean {
-  const { returnTo, fragment, opts } = fromAddressBar()
-  const destination = returnDestination(returnTo, fragment, opts)
+/**
+ * Sends the visitor back, but only once the cookie `written` describes reads
+ * back from the browser, since an app without it would send them straight here.
+ */
+export function returnToApp(written: FamilyTokenClaims | null): boolean {
+  if (written === null || readFamilySession()?.sub !== written.sub) return false
+  const visit = currentArrival()
+  if (visit === null) return false
+  const destination = returnDestination(visit.search, visit.fragment, visit.opts)
   if (destination === null) return false
   window.location.replace(destination)
   return true
 }
 
-function fromAddressBar(): { returnTo: string | null; fragment: string; opts: SafeReturnToOpts } {
-  return {
-    returnTo: new URLSearchParams(window.location.search).get('returnTo'),
-    fragment: window.location.hash,
-    opts: returnToOptions(window.location.hostname),
-  }
+function singleReturnTo(search: string): string | null {
+  const values = new URLSearchParams(search).getAll('returnTo')
+  return values.length === 1 ? values[0]! : null
+}
+
+// Honoured only while the address bar is still on the page the visitor arrived at.
+function currentArrival(): (NonNullable<typeof arrival> & { opts: SafeReturnToOpts }) | null {
+  if (arrival === null || window.location.pathname !== arrival.pathname) return null
+  if (!new URLSearchParams(window.location.search).has('returnTo')) return null
+  return { ...arrival, opts: returnToOptions(window.location.hostname) }
 }

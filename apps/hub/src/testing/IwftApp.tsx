@@ -23,7 +23,7 @@ import { appRouter } from '../server/router.ts'
 import { hubSchema } from '../server/schema.ts'
 import { DrizzleHealthStore } from '../server/store.ts'
 
-import { FAMILY_INVITE_CODE, FIXTURE_PARENT } from './familyFixture.ts'
+import { FAMILY_DOWN_KEY, FAMILY_INVITE_CODE, FIXTURE_PARENT } from './familyFixture.ts'
 
 exposeDispatcher(
   (async () => {
@@ -45,10 +45,16 @@ exposeDispatcher(
 // The family service is a separate origin with its own backend, so the tRPC
 // trampoline cannot serve it. One fake per page, signed out, holding the one
 // household a test can sign into.
+// The service keeps its own clock, so a test can move the device's (page.clock).
+const ServiceDate = Date
 const familyClient = new FakeFamilyClient({
   inviteCode: FAMILY_INVITE_CODE,
   parents: [FIXTURE_PARENT],
+  now: () => new ServiceDate(),
 })
+if ((globalThis as unknown as Record<string, unknown>)[FAMILY_DOWN_KEY] === true) {
+  familyClient.failWith(new Error('the family service is unreachable'))
+}
 
 export function IwftApp() {
   return <App familyClient={familyClient} />

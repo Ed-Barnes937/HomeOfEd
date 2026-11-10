@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { accountErrorMessage } from '../../features/account/accountError.ts'
 import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
-import { useReturnTo } from '../../features/account/returnTo.ts'
 
 import styles from './AccountPage.module.scss'
 import { submitting } from './submitting.ts'
@@ -15,20 +14,10 @@ import { submitting } from './submitting.ts'
  */
 export function SignedOutCard() {
   const [registering, setRegistering] = useState(false)
-  const { sharedLink } = useReturnTo()
-  return (
-    <>
-      {registering ? (
-        <RegisterForm onBack={() => setRegistering(false)} />
-      ) : (
-        <SignInForm onRegister={() => setRegistering(true)} />
-      )}
-      {sharedLink !== null && (
-        <a className={styles.quiet} href={sharedLink}>
-          Open what was shared
-        </a>
-      )}
-    </>
+  return registering ? (
+    <RegisterForm onBack={() => setRegistering(false)} />
+  ) : (
+    <SignInForm onRegister={() => setRegistering(true)} />
   )
 }
 

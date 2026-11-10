@@ -301,12 +301,15 @@ things are added, both in
 [ADR 0095](0095-hub-return-and-renewal.md):
 
 1. **A pick returns.** When `returnTo` passes `safeReturnTo`, picking who is
-   playing writes the cookie as before and then replaces the page with
-   `returnTo` plus the carried fragment. Sign-in and registration keep it,
-   because it lives only in the address bar. Without a valid `returnTo` the pick
+   playing writes the cookie as before, checks the browser kept it, and then
+   replaces the page with `returnTo` plus the fragment it arrived with, byte for
+   byte. Sign-in and registration never leave the page, so the arrival URL hub
+   captured at load is still the one in use. Without a valid `returnTo` the pick
    stays here, exactly as before.
-2. **The signed-out card offers "Open what was shared"** when a fragment came
-   along, linking to the app's ungated `/shared` view.
+2. **"Open what was shared"** shows whenever nobody is signed in and a fragment
+   came along, including while the family service is loading or down, linking to
+   the app's ungated `/shared` view.
 
-The return lives in one hook, `useReturnTo()` in `features/account/returnTo.ts`;
-the cards call it and nothing else in them knows about returning.
+The return lives in one function, `returnToApp(written)` in
+`features/account/returnTo.ts`; the cards call it and nothing else in them knows
+about returning.

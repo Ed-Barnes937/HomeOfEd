@@ -6,7 +6,7 @@ import { accountErrorMessage } from '../../features/account/accountError.ts'
 import { SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { familySessionCookieOptions } from '../../features/account/familyService.ts'
-import { useReturnTo } from '../../features/account/returnTo.ts'
+import { returnToApp } from '../../features/account/returnTo.ts'
 
 import styles from './AccountPage.module.scss'
 
@@ -32,7 +32,6 @@ export function WhosPlayingCard({
   onSessionChange,
 }: WhosPlayingCardProps) {
   const client = useFamilyClient()
-  const { returnToApp } = useReturnTo()
 
   const pick = useMutation({
     mutationFn: async (childId: string | undefined) => {
@@ -41,7 +40,7 @@ export function WhosPlayingCard({
     },
     onSuccess: (claims) => {
       onSessionChange(claims)
-      if (claims !== null) returnToApp()
+      returnToApp(claims)
     },
   })
 
