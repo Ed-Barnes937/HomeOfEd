@@ -161,6 +161,25 @@ describe('identity.children', () => {
     ).resolves.toMatchObject({ id: added.id, displayName: 'Ada L' })
   })
 
+  it('corrects a mistyped username and keeps the profile id, so its saves stay', async () => {
+    const added = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada-rj',
+      displayName: 'Ada Jr',
+    })
+    await store.putSave({ appId: 'boop', accountId: added.id, slotKey: 'boop:save', blob: 'b' })
+
+    await expect(
+      new RenameChildHandler().run(
+        { id: added.id, displayName: 'Ada Jr', username: 'ada-jr' },
+        ctxFor(parentSessionProvider('parent-1')),
+      ),
+    ).resolves.toMatchObject({ id: added.id, username: 'ada-jr' })
+    await expect(
+      store.getSave({ appId: 'boop', accountId: added.id, slotKey: 'boop:save' }),
+    ).resolves.toMatchObject({ blob: 'b' })
+  })
+
   it('refuses to rename a profile of another household, and changes nothing', async () => {
     const added = await store.addChildProfile({
       parentId: 'parent-1',

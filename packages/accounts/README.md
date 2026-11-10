@@ -72,7 +72,7 @@ the fake can never drift apart silently.
 
 The identity router's half of the same deal, for hub's `/account` screens
 alone. `createFamilyIdentityClient({ baseUrl })` covers `identity.me`,
-`children.list/add/rename`, `mintSessionToken` and `deleteAccount` over tRPC,
+`children.list/add/rename/delete`, `mintSessionToken` and `deleteAccount` over tRPC,
 plus Better Auth's own `/api/auth/sign-up/email`, `/sign-in/email` and
 `/sign-out`. The split matters: the tRPC half has zod schemas here because
 their shapes are ours, while the Better Auth half is typed as plain interfaces
@@ -90,18 +90,16 @@ Three properties are load-bearing, all from
   forces the preflight the CORS allowlist then governs (decision 5).
 
 A taken child username arrives as a typed `CONFLICT` carrying "that username is
-already taken", which hub shows inline on the form.
+already taken", from `addChild` and from a `renameChild` that changes the
+username, and hub shows it inline on whichever form sent it.
 
 The contract is split in two because only half of it is a tRPC router.
-`FamilyIdentityRouterContract` is the six procedures, and the family app's
+`FamilyIdentityRouterContract` is the seven procedures, and the family app's
 identity router `satisfies` it exactly as the save router satisfies
 `FamilySaveContract`, taking its input schemas from here too - so a divergence
 is a compile error in `apps/family` rather than a 400 somebody meets in a
 browser. `FamilyAuthContract` is the other three: they are not procedures, so no
 router could ever implement them.
-
-`identity.children.delete` is deliberately outside the contract, because no
-client speaks it. **Add it here the moment one does**, or it ships unbound.
 
 ## Testing
 

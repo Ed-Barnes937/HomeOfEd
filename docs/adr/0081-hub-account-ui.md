@@ -205,13 +205,15 @@ parser and the limits, not only the outputs and the errors.
 it and a procedure no client calls cannot drift against one. It is wired directly
 in `router.ts` with that reason written beside it, and the contract says to add
 it the moment anything calls it. That is the one procedure the binding in
-decision 9 does not cover.
+decision 9 does not cover. (**Amended 2026-11-10, below:** hub now calls it, so
+it is in the contract and bound like the rest.)
 
 **`identity.children.delete` has no UI.** The router has it; the ticket listed
 list, add and rename only. So a parent who mistypes a username cannot remove
 that profile - only rename its display name, since `username` is not editable
 either. Recorded rather than built, because deleting a profile also deletes its
-saves and the confirm copy for that is a product decision.
+saves and the confirm copy for that is a product decision. (**Amended
+2026-11-10, below:** both are now built.)
 
 **Nothing links to `/account` yet.** Entry is boop's "synced as X" chip and the
 URL. A card or a link on hub's home page is a one-line change, but hub's home
@@ -235,3 +237,52 @@ keys so both sides agree.
 endpoints in production, and a 429 was seen during probing. It arrives as a
 typed `TOO_MANY_REQUESTS` and its message reaches the form, so it degrades to a
 sentence rather than a crash; no retry or countdown was built.
+
+## Amendment (2026-11-10): a parent can delete a profile and correct its username
+
+The consequence above left a parent who mistypes a child's username with one way
+out: erasing the whole household. Both halves of the fix are now built.
+
+**What `username` is for decided the second half.** Nothing but the parent reads
+it. It is the `@handle` on hub's profile list and the per-household
+`child_profiles_parent_username_unique` constraint, and that is all: children
+never sign in, the family token carries `sub` (the profile id) and `name` (the
+display name) and no username, boop reads only those claims, and every save row
+is keyed by `accountId`, which for a child is the profile **id**. So a username
+can change without anything downstream noticing.
+
+**Deleting and re-adding does not cover a typo.** `deleteChildProfile` takes
+every save the profile owns with it, in one transaction, on purpose. A typo is
+as likely to be noticed after the child has played as before, and then
+delete-and-re-add trades a cosmetic fix for the child's saves. A cosmetic
+mistake should have a cosmetic fix, so the username is editable.
+
+1. **`renameChild` takes an optional `username`**, rather than a new procedure.
+   One form edits both names, so one atomic update serves it, and a clash is the
+   same typed `CONFLICT` ("that username is already taken") from the same
+   constraint, now mapped on the store's update path as it already was on the
+   insert path. Optional, so an absent username is left alone. That also means
+   no deploy order breaks a rename: an older hub sends no username, and an older
+   service strips the unknown key, so until family catches up a username edit
+   saves the display name and quietly leaves the username as it was.
+2. **`identity.children.delete` joins the contract.** Its input schema moved
+   unchanged from the handler into `@hoe/accounts`, the router binds it through
+   `identityContractFor` like every other procedure, and the fake enforces the
+   same parent scoping (`NOT_FOUND`, `FORBIDDEN`, `UNAUTHORIZED`), the uuid
+   parser and the saves erasure.
+3. **Deleting a profile takes a confirm step**, in the row, matching the
+   household erase: "This removes Robin's profile and everything the apps have
+   saved for it. It cannot be undone." with "Yes, delete Robin" and "Keep
+   Robin". The edit form replaces the old rename form and carries both names.
+4. **Deleting the profile playing on this device clears the family cookie
+   here.** Otherwise the device keeps a valid token for a profile that is gone,
+   and keeps saving to it.
+
+**Left open:** decision 4 covers this device only. A child token is verified
+offline and lives 30 days, and the save router does not check that the profile
+behind it still exists, so another device still playing as a deleted profile can
+write new save rows under its id. Nothing can reach or erase those rows
+afterwards; `deleteAccount` erases only the ids of profiles that still exist.
+The same was already true of a household erase. The fix belongs to the save half
+([ADR 0079](0079-family-save-authorisation.md)) and is ticket
+[`10-deleted-profile-tokens`](../../.scratch/family-first-slice/issues/10-deleted-profile-tokens.md).

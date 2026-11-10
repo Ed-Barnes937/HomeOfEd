@@ -226,6 +226,70 @@ describe('FakeFamilyClient (identity contract)', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
+  it('changes a username, and refuses one another child in the household has', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    const robin = await client.addChild({ username: 'robni', displayName: 'Robin' })
+    await client.addChild({ username: 'wren', displayName: 'Wren' })
+
+    await expect(
+      client.renameChild({ id: robin.id, displayName: 'Robin', username: 'robin' }),
+    ).resolves.toMatchObject({ id: robin.id, username: 'robin', displayName: 'Robin' })
+    await expect(
+      client.renameChild({ id: robin.id, displayName: 'Robin', username: 'robin' }),
+    ).resolves.toMatchObject({ username: 'robin' })
+    await expect(
+      client.renameChild({ id: robin.id, displayName: 'Robin', username: 'wren' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'that username is already taken' })
+    expect((await client.listChildren()).map((c) => c.username)).toEqual(['robin', 'wren'])
+  })
+
+  it('deletes one profile and its saves, and nothing else', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    const robin = await client.addChild({ username: 'robin', displayName: 'Robin' })
+    const wren = await client.addChild({ username: 'wren', displayName: 'Wren' })
+    for (const sub of [robin.id, wren.id]) {
+      client.signInAs({ sub, role: 'child', parentId: 'p', name: 'x' })
+      await client.put({ appId: 'boop', slotKey: 'boop:save', blob: sub })
+    }
+
+    await expect(client.deleteChild({ id: robin.id })).resolves.toEqual({ ok: true })
+
+    expect((await client.listChildren()).map((c) => c.id)).toEqual([wren.id])
+    client.signInAs({ sub: robin.id, role: 'child', parentId: 'p', name: 'x' })
+    expect(await client.get({ appId: 'boop', slotKey: 'boop:save' })).toBeNull()
+    client.signInAs({ sub: wren.id, role: 'child', parentId: 'p', name: 'x' })
+    expect((await client.get({ appId: 'boop', slotKey: 'boop:save' }))?.blob).toBe(wren.id)
+  })
+
+  it('refuses to delete a profile of another household, or one that does not exist', async () => {
+    const client = new FakeFamilyClient({
+      now,
+      parents: [
+        CREDENTIALS,
+        { name: 'Grace', email: 'grace@example.com', password: 'correct-horse-battery' },
+      ],
+    })
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    const robin = await client.addChild({ username: 'robin', displayName: 'Robin' })
+    await client.signIn({ email: 'grace@example.com', password: 'correct-horse-battery' })
+
+    await expect(client.deleteChild({ id: robin.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+    await expect(
+      client.deleteChild({ id: '11111111-2222-4333-8444-555555555555' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await client.signOut()
+    await expect(client.deleteChild({ id: robin.id })).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    })
+
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    expect(await client.listChildren()).toHaveLength(1)
+  })
+
   it('mints a decodable token for the parent and for a child', async () => {
     const client = withParent()
     await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
@@ -325,6 +389,28 @@ describe('FakeFamilyClient runs the same validators the service runs', () => {
       client.renameChild({ id: 'not-a-uuid', displayName: 'Bobbin' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect((await client.listChildren())[0]!.displayName).toBe('Robin')
+  })
+
+  it('refuses a new username that is over-long or blank, and stores it trimmed', async () => {
+    const client = await signedInParent()
+    const child = await client.addChild({ username: 'robin', displayName: 'Robin' })
+
+    await expect(
+      client.renameChild({ id: child.id, displayName: 'Robin', username: 'y'.repeat(33) }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(
+      client.renameChild({ id: child.id, displayName: 'Robin', username: '   ' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(
+      client.renameChild({ id: child.id, displayName: 'Robin', username: ' bobbin ' }),
+    ).resolves.toMatchObject({ username: 'bobbin' })
+  })
+
+  it('refuses to delete an id that is not a uuid', async () => {
+    const client = await signedInParent()
+    await expect(client.deleteChild({ id: 'not-a-uuid' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    })
   })
 
   it('refuses a slotKey past the contract bound', async () => {

@@ -74,6 +74,12 @@ export class AccountPagePom extends BasePage {
     await expect(row).toContainText(displayName)
   }
 
+  async verifyProfileNotListed(username: string): Promise<void> {
+    await expect(this.page.getByRole('listitem').filter({ hasText: `@${username}` })).toHaveCount(
+      0,
+    )
+  }
+
   /** The browser-side half of the bound: the server's refusal is not prose. */
   async verifyNameFieldsAreBounded(): Promise<void> {
     await expect(this.page.getByLabel('Display name')).toHaveAttribute('maxlength', '32')
@@ -100,10 +106,35 @@ export class AccountPagePom extends BasePage {
     await expect(this.page.getByText('No profiles yet. Add one below.')).toBeVisible()
   }
 
-  async renameProfile(from: string, to: string): Promise<void> {
-    await this.page.getByRole('button', { name: `Rename ${from}` }).click()
-    await this.page.getByLabel('New display name').fill(to)
-    await this.page.getByRole('button', { name: 'Save name' }).click()
+  async editProfile(
+    displayName: string,
+    changes: { displayName?: string; username?: string },
+  ): Promise<void> {
+    await this.page.getByRole('button', { name: `Edit ${displayName}`, exact: true }).click()
+    if (changes.displayName !== undefined) {
+      await this.page.getByLabel('New display name').fill(changes.displayName)
+    }
+    if (changes.username !== undefined) {
+      await this.page.getByLabel('New username').fill(changes.username)
+    }
+    await this.page.getByRole('button', { name: 'Save changes' }).click()
+  }
+
+  async cancelEditingProfile(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Cancel changes' }).click()
+  }
+
+  async deleteProfile(displayName: string): Promise<void> {
+    await this.page.getByRole('button', { name: `Delete ${displayName}`, exact: true }).click()
+    await this.page.getByRole('button', { name: `Yes, delete ${displayName}` }).click()
+  }
+
+  async startThenAbandonDeletingProfile(displayName: string): Promise<void> {
+    const confirm = this.page.getByRole('button', { name: `Yes, delete ${displayName}` })
+    await this.page.getByRole('button', { name: `Delete ${displayName}`, exact: true }).click()
+    await expect(confirm).toBeVisible()
+    await this.page.getByRole('button', { name: `Keep ${displayName}` }).click()
+    await expect(confirm).toHaveCount(0)
   }
 
   async pickWhoIsPlaying(name: string): Promise<void> {

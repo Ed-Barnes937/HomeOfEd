@@ -43,7 +43,11 @@ export function SignedInPanel({ parent }: SignedInPanelProps) {
             session={session}
             onSessionChange={setSession}
           />
-          <ChildProfilesCard profiles={children.data} />
+          <ChildProfilesCard
+            profiles={children.data}
+            session={session}
+            onSessionChange={setSession}
+          />
         </>
       )}
       <AccountActionsCard onSessionChange={setSession} />

@@ -83,6 +83,30 @@ describe('the identity router half', () => {
     expect(calls[0]!.init.method).toBe('POST')
   })
 
+  it('sends a new username with a rename when one is given', async () => {
+    const { calls, fetchImpl } = fakeFetch(() => ok({ ...CHILD, username: 'bobbin' }))
+
+    await client(fetchImpl).renameChild({ id: CHILD.id, displayName: 'Robin', username: 'bobbin' })
+
+    expect(JSON.parse(calls[0]!.init.body as string)).toEqual({
+      id: CHILD.id,
+      displayName: 'Robin',
+      username: 'bobbin',
+    })
+  })
+
+  it('deletes a child as a POST to identity.children.delete', async () => {
+    const { calls, fetchImpl } = fakeFetch(() => ok({ ok: true }))
+
+    expect(await client(fetchImpl).deleteChild({ id: CHILD.id })).toEqual({ ok: true })
+
+    const call = calls[0]!
+    expect(new URL(call.url).pathname).toBe('/api/trpc/identity.children.delete')
+    expect(call.init.method).toBe('POST')
+    expect((call.init.headers as Record<string, string>)['content-type']).toBe('application/json')
+    expect(JSON.parse(call.init.body as string)).toEqual({ id: CHILD.id })
+  })
+
   it('mints a token for a child, and for the parent when no childId is given', async () => {
     const { calls, fetchImpl } = fakeFetch(() => ok({ token: 'payload.signature' }))
     const subject = client(fetchImpl)

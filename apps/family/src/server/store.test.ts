@@ -120,6 +120,42 @@ describe('DrizzleFamilyStore child profiles', () => {
     await expect(store.getChildProfile(added.id)).resolves.toMatchObject({ displayName: 'Ada L' })
   })
 
+  it('changes the username along with the display name when one is given', async () => {
+    const added = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'adda',
+      displayName: 'Ada',
+    })
+
+    await expect(
+      store.renameChildProfile({
+        id: added.id,
+        parentId: 'parent-1',
+        displayName: 'Ada',
+        username: 'ada',
+      }),
+    ).resolves.toMatchObject({ id: added.id, username: 'ada', displayName: 'Ada' })
+  })
+
+  it('refuses a username another child in the household has, as a conflict', async () => {
+    const ada = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'ada',
+      displayName: 'Ada',
+    })
+    await store.addChildProfile({ parentId: 'parent-1', username: 'bob', displayName: 'Bob' })
+
+    await expect(
+      store.renameChildProfile({
+        id: ada.id,
+        parentId: 'parent-1',
+        displayName: 'Ada',
+        username: 'bob',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    await expect(store.getChildProfile(ada.id)).resolves.toMatchObject({ username: 'ada' })
+  })
+
   it('renames nothing when the profile belongs to another household', async () => {
     await insertParent(db, 'parent-2')
     const added = await store.addChildProfile({

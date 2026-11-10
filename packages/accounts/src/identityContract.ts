@@ -22,15 +22,23 @@ export const childProfileView = z.object({
 
 export const listChildrenOutput = z.array(childProfileView)
 
+const childName = z.string().trim().min(1).max(32)
+
 export const addChildInput = z.object({
-  username: z.string().trim().min(1).max(32),
-  displayName: z.string().trim().min(1).max(32),
+  username: childName,
+  displayName: childName,
 })
 
 export const renameChildInput = z.object({
   id: z.uuid(),
-  displayName: z.string().trim().min(1).max(32),
+  displayName: childName,
+  /** Absent leaves the username as it is. */
+  username: childName.optional(),
 })
+
+export const deleteChildInput = z.object({ id: z.uuid() })
+
+export const deleteChildOutput = z.object({ ok: z.literal(true) })
 
 export const mintSessionTokenInput = z.object({
   /** Absent means the parent themselves. */
@@ -53,6 +61,8 @@ export type ChildProfileView = z.infer<typeof childProfileView>
 export type ListChildrenOutput = z.infer<typeof listChildrenOutput>
 export type AddChildInput = z.infer<typeof addChildInput>
 export type RenameChildInput = z.infer<typeof renameChildInput>
+export type DeleteChildInput = z.infer<typeof deleteChildInput>
+export type DeleteChildOutput = z.infer<typeof deleteChildOutput>
 export type MintSessionTokenInput = z.infer<typeof mintSessionTokenInput>
 export type MintSessionTokenOutput = z.infer<typeof mintSessionTokenOutput>
 export type DeleteAccountOutput = z.infer<typeof deleteAccountOutput>
@@ -75,16 +85,13 @@ export interface SignInInput {
  * with `satisfies`, which is what keeps the contract, the real client and the
  * fake from drifting apart - the same guarantee `FamilySaveContract` already
  * gives the save half.
- *
- * `children.delete` is deliberately absent: no client speaks it, and a procedure
- * no client calls cannot drift against one. **Add it here the moment anything
- * calls it**, or it ships unbound.
  */
 export interface FamilyIdentityRouterContract {
   me(): Promise<IdentityMeOutput>
   listChildren(): Promise<ListChildrenOutput>
   addChild(input: AddChildInput): Promise<ChildProfileView>
   renameChild(input: RenameChildInput): Promise<ChildProfileView>
+  deleteChild(input: DeleteChildInput): Promise<DeleteChildOutput>
   mintSessionToken(input: MintSessionTokenInput): Promise<MintSessionTokenOutput>
   deleteAccount(): Promise<DeleteAccountOutput>
 }
