@@ -19,7 +19,10 @@ export interface FamilyCallTally {
   answered: Record<CountedFamilyCall, number>
 }
 
-export type CountedFamilyCall = 'me' | 'listChildren' | 'mintSessionToken'
+export type CountedFamilyCall = 'me' | 'listChildren' | 'mintSessionToken' | 'saveSummary'
+
+/** Set on the page before mounting; the harness then fails `saveSummary` alone. */
+export const FAMILY_SAVE_SUMMARY_FAILS_KEY = '__hubFamilySaveSummaryFails'
 
 export const FIXTURE_PARENT = {
   id: 'parent-ada',
@@ -40,4 +43,12 @@ export interface FamilySeed {
   remembered: string
   /** The remembered profile has since been deleted, on another device. */
   rememberedDeleted?: boolean
+  /** Saves made by FIXTURE_PARENT's name or one of `profiles`, `agoMs` before the page loads. */
+  saves?: readonly FamilySeedSave[]
+}
+
+export interface FamilySeedSave {
+  by: string
+  appId: string
+  agoMs: number
 }

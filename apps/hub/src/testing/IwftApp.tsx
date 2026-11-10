@@ -20,6 +20,7 @@ import type {
   ListChildrenOutput,
   MintSessionTokenInput,
   MintSessionTokenOutput,
+  SaveSummaryOutput,
 } from '@hoe/accounts'
 import { FakeFamilyClient } from '@hoe/accounts/testing/fake'
 import { useEffect, useState } from 'react'
@@ -34,6 +35,7 @@ import { DrizzleHealthStore } from '../server/store.ts'
 import {
   FAMILY_DOWN_KEY,
   FAMILY_DELAYS_KEY,
+  FAMILY_SAVE_SUMMARY_FAILS_KEY,
   FAMILY_INVITE_CODE,
   FAMILY_SEED_KEY,
   type FamilySeed,
@@ -68,8 +70,8 @@ exposeDispatcher(
 const ServiceDate = Date
 const pageGlobals = globalThis as unknown as Record<string, unknown>
 const tally: FamilyCallTally = {
-  calls: { me: 0, listChildren: 0, mintSessionToken: 0 },
-  answered: { me: 0, listChildren: 0, mintSessionToken: 0 },
+  calls: { me: 0, listChildren: 0, mintSessionToken: 0, saveSummary: 0 },
+  answered: { me: 0, listChildren: 0, mintSessionToken: 0, saveSummary: 0 },
 }
 pageGlobals[FAMILY_CALLS_KEY] = tally
 
@@ -90,6 +92,14 @@ class HarnessFamilyClient extends FakeFamilyClient {
     return this.counted('mintSessionToken', () => super.mintSessionToken(input))
   }
 
+  override saveSummary(): Promise<SaveSummaryOutput> {
+    return this.counted('saveSummary', () =>
+      pageGlobals[FAMILY_SAVE_SUMMARY_FAILS_KEY] === true
+        ? Promise.reject(new Error('the save summary is unreachable'))
+        : super.saveSummary(),
+    )
+  }
+
   private async counted<T>(method: CountedFamilyCall, call: () => Promise<T>): Promise<T> {
     tally.calls[method] += 1
     const delay = this.delays[method]
@@ -103,10 +113,12 @@ class HarnessFamilyClient extends FakeFamilyClient {
   }
 }
 
+// Seeded saves move the service's clock back while they are written.
+let serviceClockOffsetMs = 0
 const familyClient = new HarnessFamilyClient({
   inviteCode: FAMILY_INVITE_CODE,
   parents: [FIXTURE_PARENT],
-  now: () => new ServiceDate(),
+  now: () => new ServiceDate(ServiceDate.now() - serviceClockOffsetMs),
 })
 const seed = pageGlobals[FAMILY_SEED_KEY] as FamilySeed | undefined
 const seeded = seed === undefined ? null : seedHousehold(seed).then(applyOutage)
@@ -128,6 +140,18 @@ async function seedHousehold(seed: FamilySeed): Promise<void> {
     const profile = await familyClient.addChild({ displayName: name, username: name.toLowerCase() })
     ids.set(name, profile.id)
   }
+  for (const save of seed.saves ?? []) {
+    const sub = ids.get(save.by)!
+    familyClient.signInAs(
+      sub === FIXTURE_PARENT.id
+        ? { sub, role: 'parent', name: save.by }
+        : { sub, role: 'child', parentId: FIXTURE_PARENT.id, name: save.by },
+    )
+    serviceClockOffsetMs = save.agoMs
+    await familyClient.put({ appId: save.appId, slotKey: `${save.appId}:save`, blob: '{}' })
+    serviceClockOffsetMs = 0
+  }
+  familyClient.clearTokenSession()
   const remembered = ids.get(seed.remembered)!
   rememberProfile(remembered)
   if (seed.rememberedDeleted === true) await familyClient.deleteChild({ id: remembered })

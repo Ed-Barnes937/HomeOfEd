@@ -27,7 +27,7 @@ export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps)
   const erase = useMutation({ mutationFn: () => client.deleteAccount(), onSuccess: nowSignedOut })
 
   /**
-   * Both caches are written rather than invalidated or removed. Either of those
+   * The caches are written rather than invalidated or removed. Either of those
    * refetches a query the signed-in panel is still observing for the tick before
    * it unmounts, which answers 401; and leaving the old list in place would show
    * one household's names to the next parent who signs in on the device.
@@ -37,6 +37,7 @@ export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps)
     forgetProfile()
     onSessionChange(null)
     queryClient.setQueryData(familyQueryKeys.children, [])
+    queryClient.setQueryData(familyQueryKeys.saveSummary, [])
     queryClient.setQueryData(familyQueryKeys.me, { parent: null })
   }
 

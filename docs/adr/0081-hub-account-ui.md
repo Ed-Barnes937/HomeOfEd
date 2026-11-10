@@ -315,6 +315,34 @@ The return lives in one function, `returnToApp(written)` in
 `features/account/returnTo.ts`; the cards call it and nothing else in them knows
 about returning.
 
+## Amendment (2026-11-10): when each profile last saved
+
+Estate-gate spec decision 12 makes `/account` the only place a parent learns
+whether syncing works, so the screens now show, per account and app, one line
+such as "boop: saved 2 days ago", from `identity.saveSummary` (ADR 0079,
+amended). Estate-gate ticket 08.
+
+1. **Each line sits under whoever saved.** A child's lines go in its row in the
+   child profiles card; the parent's own go under "Signed in as", because the
+   parent has no row in that card. One query (`saveSummaryQuery`, the shared
+   stale time) serves every row, and the signed-in panel prefetches it beside
+   `children`, so the lines rarely arrive after the cards have shown.
+   The wording re-reads the clock once a minute, so a stalled sync on a page
+   left open still reads as stale.
+2. **Quiet by construction.** No line for an account with no saves, nothing
+   while loading, and nothing on a failed read, after the default retries: a
+   parent cannot act on an error here, and the screens around it must not look
+   broken because a status line could not load. No warning styling either;
+   staleness is the signal. The lines use `--muted`, not `--faint`, since this
+   is the one place the information appears.
+3. **The wording is coarse on purpose:** just now, then whole minutes, hours,
+   days up to 59, months, years (`features/account/lastSaved.ts`). A save
+   stamped ahead of the device's clock reads "just now".
+4. **Signing out writes `[]` into the summary's cache**, alongside `children`
+   and `me` (decision 6), for consistency: every family query is reset the same
+   way. It is not what protects a shared device; lines are drawn only for the
+   ids the current parent's `me` and `children` return.
+
 ## Amendment (2026-11-10): a rate-limited sign-in says so plainly
 
 Estate-gate ticket 09, spec decision 13. Checked against the docker stack first,
@@ -336,7 +364,8 @@ client IP, so there both routes fall back to one shared bucket per route.
    page reads `x-retry-after` as null (measured in the browser). The pause is
    longer than Better Auth's ten-second window on purpose, matching the copy, and
    there is no countdown. Each form owns its own pause, as each route owns its
-   own bucket.
+   own bucket. The pause lives in the mounted form, so switching forms or
+   reloading clears it; the server's own limit still applies.
 3. **`FakeFamilyClient` enforces the same limit**, three tries per route in ten
    seconds with a refused try not moving the window, rather than offering a
    switch to throw a 429. A fake that never refuses a fourth try is the sixth
