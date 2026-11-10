@@ -277,6 +277,10 @@ services:
       # fast at boot if this exact key reaches real infrastructure
       # (FLY_APP_NAME present), so it cannot silently sign estate tokens.
       FAMILY_TOKEN_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIOGaBsSiWxghRFJOEZcM58j8j1nx0Fnnsnsbgnec6FZr\n-----END PRIVATE KEY-----\n'
+      # Admits this stack's own origins: hub on 8080 to identity and sign-in,
+      # onboarded apps on their compose ports to saves. ONLY this file may set
+      # it: main.ts refuses to boot with it on Fly (FLY_APP_NAME present).
+      DOCKER_STACK_ORIGINS: 'on'
     ports:
       - '8092:8080'
     depends_on:

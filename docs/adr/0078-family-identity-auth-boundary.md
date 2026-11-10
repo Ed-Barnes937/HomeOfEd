@@ -1,7 +1,8 @@
 # 0078 - the family service's identity boundary: two credentials, one seam, and a narrow door
 
 - **Status:** Accepted
-- **Date:** 2026-11-09 (decision 5 added 2026-11-09 during ticket 05)
+- **Date:** 2026-11-09 (decision 5 added 2026-11-09 during ticket 05; decision
+  6 added 2026-11-10 by estate-gate ticket 18)
 - **Related:** [ADR 0070](0070-family-service.md) (the family service this
   implements), [ADR 0057](0057-family-service-legal-gate.md) (the invite gate,
   whose mechanism depends on decision 4 below), [ADR 0012](0012-sprout-app-owned-auth.md)
@@ -136,6 +137,31 @@ different secret, which is the safe direction to be wrong in.
 in a Fly secret: Better Auth derives its cookie rules and origin checks from it,
 it is not sensitive, and keeping it out of `fly secrets set` means go-live gains
 no new human step.
+
+**6. The docker stack's origins are a compose-only switch that Fly refuses.**
+Added by estate-gate ticket 18. The docker stack runs the production image, so
+`NODE_ENV` is `production` there and decision 3's dev origins are off: hub on
+`http://localhost:8080` was refused at the preflight, and Better Auth refused
+its sign-up as `INVALID_ORIGIN`, because `trustedOrigins` is the same list.
+Turning `NODE_ENV` down would not have helped either (the dev list is the Vite
+ports, not compose's), and it would have switched on everything else that keys
+off it.
+
+`DOCKER_STACK_ORIGINS=on`, set in `compose.yml` alone, adds the stack's own
+origins with the two tiers kept exactly as in production: the identity tier
+(and so `trustedOrigins`) gains hub's compose origin `http://localhost:8080`
+and nothing else, and the save tier additionally gains each onboarded app's
+compose port from `onboardedApps.ts` (`composePort`, a literal like `devPort`).
+No other localhost port is admitted. The value is parsed as the literal `on`,
+so a typo crashes the boot rather than being read as off, and
+`@hoe/deploy-guard`'s new `localOnly` list refuses the variable at any value
+when `FLY_APP_NAME` is set, so it cannot reach Fly unnoticed: the deploy fails
+at boot. A test pins that `fly.toml` never sets it, and a real-socket test
+pins that the production configuration still grants no localhost origin
+anything. Hub and boop find the stack's family (host port 8092) from their own
+compose ports at runtime; their production URL is unchanged, since that branch
+is taken only on a localhost hostname. `scripts/docker-stack-sign-in.mjs` is
+the repeatable proof.
 
 ## Consequences
 

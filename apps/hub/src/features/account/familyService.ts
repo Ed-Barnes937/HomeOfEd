@@ -1,12 +1,18 @@
+/** compose.yml's host ports: hub's own, and the family service it signs in against. */
+const DOCKER_STACK_PORTS = { hub: '8080', family: 8092 } as const
+
 /**
  * Where the family service lives, and how the cookie it mints may be stored.
- * Local hostnames talk to the local service (`pnpm dev --filter=family`, port
- * 3012); everything else talks to production. Same shape and the same reason as
- * boop's `familyUrl.ts`: hub is served from several hostnames and must never
- * point a browser at a dev box.
+ * Local hostnames talk to the local service: the docker stack's from hub's
+ * compose port, otherwise `pnpm dev --filter=family` on 3012. Everything else
+ * talks to production. Same shape and the same reason as boop's `familyUrl.ts`:
+ * hub is served from several hostnames and must never point a browser at a dev box.
  */
-export function familyUrl(hostname: string): string {
-  return isLocal(hostname) ? 'http://localhost:3012' : 'https://family.homeofed.com'
+export function familyUrl(hostname: string, port: string): string {
+  if (!isLocal(hostname)) return 'https://family.homeofed.com'
+  return port === DOCKER_STACK_PORTS.hub
+    ? `http://localhost:${DOCKER_STACK_PORTS.family}`
+    : 'http://localhost:3012'
 }
 
 /**

@@ -32,8 +32,9 @@ const store = new DrizzleFamilyStore(db)
 // Two tiers, because the two routers answer to different credentials: identity
 // and /api/auth/* are the hub account UI alone, the save router also serves
 // onboarded app origins (ADR 0079).
-const origins = identityAllowedOrigins(process.env.NODE_ENV)
-const corsTiers = { identity: origins, save: saveAllowedOrigins(process.env.NODE_ENV) }
+const local = { dockerStack: env.DOCKER_STACK_ORIGINS === 'on' }
+const origins = identityAllowedOrigins(process.env.NODE_ENV, local)
+const corsTiers = { identity: origins, save: saveAllowedOrigins(process.env.NODE_ENV, local) }
 
 const auth = createFamilyAuth(db, {
   baseURL: env.BETTER_AUTH_URL,
