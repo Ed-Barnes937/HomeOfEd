@@ -41,8 +41,8 @@ Tailwind, no `cva`).
   (ADR-0014/0015). The two registration checkboxes are UX only; their copy is
   counsel-flagged — do not reword.
 - **Boot-time secrets** (`server/env.ts`): `main.ts` and `worker.ts` read every
-  secret through `loadSproutWebEnv` / `loadSproutWorkerEnv`, never
-  `process.env` directly. On Fly (`FLY_APP_NAME` present) `@hoe/deploy-guard`
+  secret through `loadSproutWebEnv` / `loadSproutWorkerEnv` and pass it on
+  explicitly (Better Auth included). On Fly (`FLY_APP_NAME` present) `@hoe/deploy-guard`
   refuses any placeholder, committed or too-short secret
   ([ADR 0088](../../docs/adr/0088-deploy-guard-package.md)); `env.test.ts`
   re-reads `.env.example` and compose's sprout services to prove their values

@@ -3,13 +3,7 @@
 
 export type Environment = Readonly<Record<string, string | undefined>>
 
-/**
- * What a placeholder looks like. This is the primary rule, because a list can
- * only enumerate what somebody remembered: `apps/sprout/.env.example` publishes
- * a 32-character `dev-better-auth-secret-change-me` that cleared both a list
- * and a 32-character floor. A false positive fails closed, and is fixed by
- * generating a different secret.
- */
+/** What a placeholder looks like: the primary rule, since a list misses what nobody remembered. */
 const PLACEHOLDER_SECRET = /dev-|insecure|change-?me|placeholder|example|^test/i
 
 /** The belt to that pattern's braces; each app's env test re-reads its own files for drift. */
@@ -32,12 +26,7 @@ export function isDeployed(env: Environment): boolean {
   return Boolean(env.FLY_APP_NAME)
 }
 
-/**
- * On deployed infrastructure, refuses any named secret that is missing, reads
- * as a placeholder or falls short of its minimum length, and any NODE_ENV but
- * `production`. Anywhere else it does nothing, so local stacks keep their
- * committed dev values. Errors name the variable, never its value.
- */
+/** On Fly only: refuses a missing, placeholder or short secret, and any NODE_ENV but production. */
 export function assertFitForDeployment(
   env: Environment,
   minLengths: Readonly<Record<string, number>>,
@@ -54,8 +43,7 @@ export function assertFitForDeployment(
     if (PLACEHOLDER_SECRET.test(value) || COMMITTED_DEV_SECRETS.includes(value)) {
       throw new Error(
         `${name} reads as a placeholder, and this repo publishes several, so anyone who can ` +
-          'read it may hold it. FLY_APP_NAME says this is deployed infrastructure; generate a ' +
-          'real secret with: openssl rand -base64 32',
+          `read it may hold it. FLY_APP_NAME says this is deployed infrastructure. ${GENERATE}`,
       )
     }
     if (value.length < minLength) {

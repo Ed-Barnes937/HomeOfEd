@@ -29,7 +29,6 @@ const env = loadDbEnv()
 // Every secret, checked once at boot: CHILD_SESSION_SECRET always, the pipeline
 // key + invite code in prod, and on Fly nothing this repo publishes (ADR 0088).
 const secrets = loadSproutWebEnv()
-const childSessionSecret = secrets.CHILD_SESSION_SECRET
 
 const db = await createDbClient({ driver: 'postgres', schema: sproutSchema, url: env.DATABASE_URL })
 const store = new DrizzleSproutStore(db)
@@ -58,7 +57,7 @@ const auth = createSproutAuth(db, {
 
 // The child AuthProvider reads the signed child-session cookie + verifies its
 // HMAC (plan §5.2, #34). Reused by both the tRPC auth seam and the SSE route.
-const childProvider = childAuthProvider(childSessionSecret)
+const childProvider = childAuthProvider(secrets.CHILD_SESSION_SECRET)
 
 // A TRUSTED, server-stamped header carrying the resolved parent id. The
 // onRequest hook (below) strips any client-supplied value and re-sets it only
@@ -87,7 +86,7 @@ const appRouter = createAppRouter({
   // Real pipeline summariser (HTTP /summarise over the private network).
   summarise: createHttpSummariser(pipelineOpts),
   // Concrete Node minter, closed over the dedicated signing secret (plan §5.2).
-  mintChildToken: (claims) => mintChildToken(claims, childSessionSecret),
+  mintChildToken: (claims) => mintChildToken(claims, secrets.CHILD_SESSION_SECRET),
 })
 
 // App-owned Fastify routes (D9), mounted ahead of the SPA fallback: parent
