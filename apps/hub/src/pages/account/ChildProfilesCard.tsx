@@ -10,6 +10,7 @@ import { familySessionCookieOptions } from '../../features/account/familyService
 import { forgetProfile } from '../../features/account/silentRenewal.ts'
 
 import styles from './AccountPage.module.scss'
+import { LastSaved } from './LastSaved.tsx'
 import { submitting } from './submitting.ts'
 
 /**
@@ -61,10 +62,11 @@ export function ChildProfilesCard({ profiles, session, onSessionChange }: ChildP
                   />
                 ) : (
                   <>
-                    <span>
+                    <div>
                       <span className={styles.rowName}>{profile.displayName}</span>{' '}
                       <span className={styles.rowHandle}>@{profile.username}</span>
-                    </span>
+                      <LastSaved accountId={profile.id} name={profile.displayName} />
+                    </div>
                     <span className={styles.actions}>
                       <button
                         className={styles.secondary}
