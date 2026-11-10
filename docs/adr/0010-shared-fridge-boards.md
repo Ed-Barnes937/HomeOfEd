@@ -104,17 +104,25 @@ shared view keeps nothing (decision 6). Import-on-open would write to whatever
 device opened the link, so it moves:
 
 - **`/b/<id>` opens the snapshot as a fridge to play with,** for anyone, over
-  memory storage. Nothing reaches `localStorage`, signed in or not, and the page
-  never reloads on a player change, so a visitor keeps their edits while there.
+  memory storage. While the visitor plays, nothing is written anywhere, signed
+  in or not: not `localStorage`, not `sessionStorage`. The page never reloads on
+  a player change, so a visitor keeps their edits while there.
   Save, New and the saved fridges give way to **Keep this fridge**.
 - **Keep is a plain link to `/keep/<id>`,** a full page load, so the gate sees
   it: a visitor with no session goes through hub, picks who is playing, and
   comes back. `/keep/<id>` then does what `/b/<id>` used to, into that player's
   storage ([ADR 0094](0094-per-profile-local-saves.md)): import as
   `"<name> (shared)"`, current and a saved chip, then home.
-- **Keep keeps the snapshot as it was shared,** not the visitor's edits. Carrying
-  edits would mean publishing a new snapshot the visitor never asked to share,
-  so it is left as an open question in the estate-gate epic.
+- **Keep carries the visitor's edits,** as boop's and armoury's do, without a
+  new snapshot or URL format. Pressing Keep is the first write: if the board
+  differs from the snapshot, it is stashed in `sessionStorage` under
+  `fridge:keep` as `{ id, board }`; if not, any earlier stash is removed. The
+  stash is per tab and per origin, so it survives the trip through the gate and
+  hub in the same tab. `/keep/<id>` takes it once, removing it before it
+  imports, and only when its `id` matches; a stash for another id is left alone,
+  one that does not parse as a board is dropped, and either way the snapshot is
+  kept as shared. Publishing the edited board as a new snapshot was rejected: a
+  server copy the visitor never asked to share.
 
 Nothing server-side changes: snapshots are still immutable and anonymous, and
 `board.get`/`board.share` sit under `/api`, which the gate never covers.

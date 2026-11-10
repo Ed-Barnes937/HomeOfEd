@@ -24,6 +24,7 @@ interface MobileBarProps {
   playerName?: string
   /** A shared fridge: Keep replaces Save, and the menu drops New and the saved fridges. */
   keepHref?: string
+  onKeep?: () => void
 }
 
 /**
@@ -47,6 +48,7 @@ export function MobileBar({
   onDelete,
   playerName,
   keepHref,
+  onKeep,
 }: MobileBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -81,7 +83,7 @@ export function MobileBar({
             </svg>
           </button>
         ) : (
-          <a className={styles.icon} href={keepHref} aria-label="Keep this fridge">
+          <a className={styles.icon} href={keepHref} onClick={onKeep} aria-label="Keep this fridge">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
               <path d="M17 21v-8H7v8M7 3v5h8" />

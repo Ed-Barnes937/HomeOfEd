@@ -39,3 +39,11 @@ export function savedNames(raw: string | null): string[] {
   if (raw === null) return []
   return (JSON.parse(raw) as { saved: { name: string }[] }).saved.map((b) => b.name)
 }
+
+export async function readSessionItem(page: Page, key: string): Promise<string | null> {
+  return page.evaluate((k) => window.sessionStorage.getItem(k), key)
+}
+
+export async function writeSessionItem(page: Page, key: string, value: string): Promise<void> {
+  await page.evaluate(({ k, v }) => window.sessionStorage.setItem(k, v), { k: key, v: value })
+}

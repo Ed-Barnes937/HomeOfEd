@@ -56,7 +56,7 @@ src/
   trpcClient.ts               the app's only tRPC caller (share/import)
   testing/                    IwftApp, FridgePagePom, iwftTest, familySession,
                                sharedBoardSeed
-  fridge.iwft.tsx  share.iwft.tsx  profiles.iwft.tsx  playerChange.iwft.tsx
+  fridge.iwft.tsx  share.iwft.tsx  keep.iwft.tsx  profiles.iwft.tsx  playerChange.iwft.tsx
   router.tsx                  '/' + '/keep/$id' under the player layout; '/b/$id'
 ```
 
@@ -110,7 +110,10 @@ The `fridge:landscape-nudge` dismissal is sessionStorage and the device's.
   nothing (ADR 0093 decision 6): it opens the snapshot as a playable fridge over
   `memoryStorage`, with **Keep this fridge** in place of Save/New/saved chips.
   Keep is a plain `<a href>` to **`/keep/$id`** (a page load, so the gate sees
-  it), which imports it into the player's storage as `"<name> (shared)"`,
+  it). Pressing it stashes an edited board in `sessionStorage`
+  (`features/share/keepStash.ts`, one-shot, tied to the id), and `/keep/$id`
+  imports that stash, else the snapshot, into the player's storage as
+  `"<name> (shared)"`,
   current and a saved chip (upserted by name), then redirects to `/`. Any link
   from `/b` into the player's fridge must be a page load, never a router
   `Link`, or it skips the gate. An unknown id shows the not-found state.

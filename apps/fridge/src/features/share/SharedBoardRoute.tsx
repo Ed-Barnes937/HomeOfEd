@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from 'react'
 
 import { FridgePage } from '../../pages/FridgePage.tsx'
 import { BoardStorageProvider, useBoardStorage } from '../board/BoardStorageContext.tsx'
-import { saveState, type StoredBoard } from '../board/serialize.ts'
+import { fromStoredBoard, saveState, type StoredBoard, toStoredBoard } from '../board/serialize.ts'
 import { sharedBoardQueryOptions } from './boardApi.ts'
 import { importSharedBoard } from './importSharedBoard.ts'
+import { stashKeep, takeKeep } from './keepStash.ts'
 import styles from './SharedBoardRoute.module.scss'
 
 const sharedRoute = getRouteApi('/b/$id')
@@ -27,10 +28,16 @@ export function SharedBoardRoute() {
 
   if (query.isError) return <SharedNotFound />
   if (!query.isSuccess) return <SharedLoading label="Opening shared fridge…" />
-  return <SharedFridge key={id} board={query.data} keepHref={keepHrefFor(id)} />
+  return <SharedFridge key={id} id={id} board={query.data} />
 }
 
-function SharedFridge({ board, keepHref }: { board: StoredBoard; keepHref: string }) {
+/** A board as `useFridgeBoard` stores it, so an untouched board compares equal. */
+function asStored(board: StoredBoard): StoredBoard {
+  const { magnets, finish, wall } = fromStoredBoard(board)
+  return toStoredBoard(board.name, magnets, finish, wall)
+}
+
+function SharedFridge({ id, board }: { id: string; board: StoredBoard }) {
   const [storage] = useState(() => {
     const memory = memoryStorage()
     saveState(memory, board, [])
@@ -38,15 +45,21 @@ function SharedFridge({ board, keepHref }: { board: StoredBoard; keepHref: strin
   })
   return (
     <BoardStorageProvider storage={storage}>
-      <FridgePage keepHref={keepHref} />
+      <FridgePage
+        keepHref={keepHrefFor(id)}
+        onKeep={(current) => {
+          const edited = JSON.stringify(current) !== JSON.stringify(asStored(board))
+          stashKeep(window.sessionStorage, id, edited ? current : null)
+        }}
+      />
     </BoardStorageProvider>
   )
 }
 
 /**
- * `/keep/$id`: imports the snapshot as a new fridge for the player and
- * redirects to '/' (ADR 0010's import-on-open, now behind the gate). The import
- * runs once: the ref guards StrictMode's double-invoke and the redirect.
+ * `/keep/$id`: imports the visitor's edited board stashed by Keep, else the
+ * snapshot, as a new fridge for the player, and redirects to '/' (ADR 0010,
+ * amended). The import runs once: the ref guards StrictMode's double-invoke.
  */
 export function KeepSharedBoardRoute() {
   const { id } = keepRoute.useParams()
@@ -56,11 +69,13 @@ export function KeepSharedBoardRoute() {
   const imported = useRef(false)
 
   useEffect(() => {
-    if (!query.isSuccess || imported.current) return
+    if (imported.current) return
+    const board = takeKeep(window.sessionStorage, id) ?? (query.isSuccess ? query.data : null)
+    if (board === null) return
     imported.current = true
-    importSharedBoard(storage, query.data)
+    importSharedBoard(storage, board)
     void navigate({ to: '/', replace: true })
-  }, [query.isSuccess, query.data, storage, navigate])
+  }, [id, query.isSuccess, query.data, storage, navigate])
 
   if (query.isError) return <SharedNotFound />
   return <SharedLoading label="Keeping shared fridge…" />

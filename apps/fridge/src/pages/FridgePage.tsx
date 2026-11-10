@@ -5,7 +5,7 @@ import { FridgeDoor } from '../features/board/FridgeDoor.tsx'
 import { LandscapeNudge } from '../features/board/LandscapeNudge.tsx'
 import { MagnetView } from '../features/board/MagnetView.tsx'
 import { SelectionOverlay } from '../features/board/SelectionOverlay.tsx'
-import { toStoredBoard } from '../features/board/serialize.ts'
+import { type StoredBoard, toStoredBoard } from '../features/board/serialize.ts'
 import { useBoardView } from '../features/board/useBoardView.ts'
 import { useFridgeBoard } from '../features/board/useFridgeBoard.ts'
 import { ShareButton } from '../features/share/ShareButton.tsx'
@@ -22,9 +22,11 @@ import styles from './FridgePage.module.scss'
 interface FridgePageProps {
   /** A shared fridge (`/b/<id>`): offers Keep at this address, and nothing that saves. */
   keepHref?: string
+  /** Called with the board as it is now when Keep is pressed, before the page leaves. */
+  onKeep?: (current: StoredBoard) => void
 }
 
-export function FridgePage({ keepHref }: FridgePageProps = {}) {
+export function FridgePage({ keepHref, onKeep }: FridgePageProps = {}) {
   // The hook loads the persisted board (or the seed on first-ever load /
   // corrupt storage) from the storage the route provides (see serialize.ts).
   const board = useFridgeBoard(useBoardStorage())
@@ -66,6 +68,7 @@ export function FridgePage({ keepHref }: FridgePageProps = {}) {
           onDelete={board.deleteSaved}
           playerName={playerName}
           keepHref={keepHref}
+          onKeep={() => onKeep?.(storedBoard)}
         />
       ) : (
         <>
@@ -80,6 +83,7 @@ export function FridgePage({ keepHref }: FridgePageProps = {}) {
             shareSlot={shareButton}
             playerSlot={playerName !== undefined && <PlayerChip name={playerName} />}
             keepHref={keepHref}
+            onKeep={() => onKeep?.(storedBoard)}
           />
           {keepHref === undefined && (
             <SavedChips

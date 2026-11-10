@@ -42,8 +42,10 @@ fridge is database-backed and already shares boards at `/b/$id`
   "Keep this fridge" in place of Save, New and the saved fridges. Keep is a
   plain link to `/keep/<id>`, a page load the gate sees, which does the old
   import into the player's storage and goes home. ADR 0010 amended; ADR 0093
-  decision 5 notes it. Keep keeps the snapshot as shared, not the visitor's
-  edits (open question in the PR).
+  decision 5 notes it. Keep carries the visitor's edits (orchestrator's call,
+  round 2): pressing it stashes an edited board in `sessionStorage` under a
+  one-shot key tied to the board id, which `/keep/<id>` takes once. No new
+  snapshot, no new URL format, and nothing is written until Keep is pressed.
 - **Switch player** is a "playing as <name>" chip in the top bar (a menu entry
   on the phone), linking to `switchPlayerUrlFor`. Shown only with a session,
   and not on `/b`. The back arrow moved to `hubUrlFor`; `hubUrl.ts` is gone.

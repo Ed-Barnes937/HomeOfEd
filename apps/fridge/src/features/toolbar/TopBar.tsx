@@ -19,6 +19,7 @@ interface TopBarProps {
   playerSlot?: ReactNode
   /** A shared fridge: Keep (a full navigation, so it meets the gate) replaces Save and New. */
   keepHref?: string
+  onKeep?: () => void
 }
 
 /**
@@ -38,6 +39,7 @@ export function TopBar({
   shareSlot,
   playerSlot,
   keepHref,
+  onKeep,
 }: TopBarProps) {
   return (
     <div className={styles.bar}>
@@ -78,7 +80,7 @@ export function TopBar({
             Save
           </button>
         ) : (
-          <a className={`${styles.save} ${styles.keep}`} href={keepHref}>
+          <a className={`${styles.save} ${styles.keep}`} href={keepHref} onClick={onKeep}>
             Keep this fridge
           </a>
         )}

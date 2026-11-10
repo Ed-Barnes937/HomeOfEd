@@ -266,6 +266,15 @@ export class FridgePagePom extends BasePage {
     await expect(this.page.getByTestId('player-chip')).toHaveCount(0)
   }
 
+  /** Presses Keep but stays on the page: the harness cannot follow a full navigation. */
+  async pressKeep(): Promise<void> {
+    await this.page.evaluate(() =>
+      window.addEventListener('click', (e) => e.preventDefault(), { once: true }),
+    )
+    await this.page.getByRole('link', { name: 'Keep this fridge' }).click()
+    await expect.poll(() => this.page.evaluate(() => window.location.pathname)).toMatch(/^\/b\//)
+  }
+
   async verifyMobileSharedChrome(keepHref: string): Promise<void> {
     await expect(this.page.getByRole('link', { name: 'Keep this fridge' })).toHaveAttribute(
       'href',
