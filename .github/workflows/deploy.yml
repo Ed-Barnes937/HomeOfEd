@@ -189,7 +189,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
@@ -273,7 +273,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
@@ -357,7 +357,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
@@ -441,7 +441,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
@@ -525,7 +525,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
@@ -609,7 +609,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
@@ -693,7 +693,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
@@ -777,7 +777,7 @@ jobs:
               test -n "$asset"
               curl -fsS "$APP_URL/$asset" > /dev/null
               ;;
-            "302 https://homeofed.com/account?returnTo="*)
+            "302 https://homeofed.com/account?returnTo=https%3A%2F%2F"*)
               echo "gated: ${answer#302 }"
               ;;
             *)
