@@ -100,6 +100,49 @@
   background: var(--toggle-fill);
 }
 
+// Beside the theme toggle rather than over the right rail, so it never sits on a card.
+// Ends at x=404; the rail shrinks before the wordmark does, so its divider never comes left of ~434.
+.whosPlaying {
+  position: absolute;
+  top: 32px;
+  left: 84px;
+  z-index: 3;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  max-width: 320px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--toggle-border);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  transition: border-color 0.3s ease;
+
+  // Same 44px touch height as the toggle, without reaching sideways into it.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -5px 0;
+  }
+
+  &:hover {
+    border-color: var(--fg);
+  }
+}
+
+.chipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player {
+  font-weight: 600;
+}
+
 // Main area: wordmark + lede anchored toward the bottom-left.
 .intro {
   position: relative;
@@ -336,6 +379,10 @@
 
   .wordmark {
     font-size: 56px;
+  }
+
+  .whosPlaying {
+    max-width: calc(100% - 120px);
   }
 
   .status {
