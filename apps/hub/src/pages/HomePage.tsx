@@ -60,8 +60,7 @@ export function HomePage() {
   const [theme, setTheme] = useColourTheme()
   const wordmarkRef = useRef<HTMLHeadingElement>(null)
   const galleryRef = useRef<HTMLDivElement>(null)
-  // Decode-only, for display: never an authorisation decision.
-  const [playing] = useState(() => readFamilySession())
+  const playing = useWhoIsPlaying()
 
   useHopAnimation(wordmarkRef)
   usePreviews(galleryRef, theme)
@@ -80,13 +79,15 @@ export function HomePage() {
       </button>
 
       <Link to="/account" className={styles.whosPlaying}>
-        {playing ? (
-          <>
-            Playing as <span className={styles.player}>{playing.name}</span>
-          </>
-        ) : (
-          'Sign in'
-        )}
+        <span className={styles.chipLabel}>
+          {playing ? (
+            <>
+              Playing as <span className={styles.player}>{playing}</span>
+            </>
+          ) : (
+            'Sign in'
+          )}
+        </span>
       </Link>
 
       <section className={styles.intro}>
@@ -150,6 +151,26 @@ export function HomePage() {
       </nav>
     </main>
   )
+}
+
+/**
+ * The name of whoever is playing on this device, or null. Decode-only, for
+ * display: never an authorisation decision. Re-read when back restores the page
+ * from the back-forward cache, since the player may have changed meanwhile.
+ */
+function useWhoIsPlaying(): string | null {
+  const [name, setName] = useState(readPlayerName)
+  useEffect(() => {
+    const reread = () => setName(readPlayerName())
+    window.addEventListener('pageshow', reread)
+    return () => window.removeEventListener('pageshow', reread)
+  }, [])
+  return name
+}
+
+function readPlayerName(): string | null {
+  const name = readFamilySession()?.name.trim() ?? ''
+  return name.replace(/[\s\p{Cf}]/gu, '') === '' ? null : name
 }
 
 /**

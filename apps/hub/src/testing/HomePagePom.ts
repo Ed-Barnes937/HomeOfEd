@@ -24,6 +24,20 @@ export class HomePagePom extends BasePage {
     await this.page.getByRole('link', { name, exact: true }).click()
   }
 
+  // Ends left of the rail's divider, so it can neither cover a card nor take its clicks.
+  async verifyWhosPlayingChipClearOfTheRail(): Promise<void> {
+    const chip = await this.page.getByRole('link', { name: /^Playing as / }).boundingBox()
+    const rail = await this.page.getByRole('navigation', { name: 'apps' }).boundingBox()
+    expect(chip!.x + chip!.width).toBeLessThan(rail!.x)
+  }
+
+  /** What the browser fires when back restores this page from the back-forward cache. */
+  async returnFromBackForwardCache(): Promise<void> {
+    await this.page.evaluate(() =>
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })),
+    )
+  }
+
   async verifyOnAccountPage(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
   }

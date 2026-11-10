@@ -101,6 +101,7 @@
 }
 
 // Beside the theme toggle rather than over the right rail, so it never sits on a card.
+// The cap keeps it left of the rail's divider (540px wide) at every width the rail exists.
 .whosPlaying {
   position: absolute;
   top: 32px;
@@ -109,32 +110,37 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  max-width: calc(100% - 120px);
+  max-width: min(320px, calc(100% - 540px - 84px - 12px));
   height: 34px;
   padding: 0 14px;
   border: 1px solid var(--toggle-border);
   border-radius: 999px;
-  color: var(--muted);
+  color: inherit;
   font-size: 13px;
   text-decoration: none;
-  white-space: nowrap;
-  transition:
-    color 0.3s ease,
-    border-color 0.3s ease;
+  transition: border-color 0.3s ease;
+
+  // Same 44px touch height as the toggle, without reaching sideways into it.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -5px 0;
+  }
 
   &:hover {
-    color: var(--fg);
+    border-color: var(--fg);
   }
 }
 
-// A 32-character display name ellipsises on a phone rather than running off-screen.
-.player {
+.chipLabel {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-left: 0.3em;
+  white-space: nowrap;
+}
+
+.player {
   font-weight: 600;
-  color: var(--fg);
 }
 
 // Main area: wordmark + lede anchored toward the bottom-left.
@@ -373,6 +379,10 @@
 
   .wordmark {
     font-size: 56px;
+  }
+
+  .whosPlaying {
+    max-width: calc(100% - 120px);
   }
 
   .status {

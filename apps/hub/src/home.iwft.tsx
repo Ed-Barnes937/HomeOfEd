@@ -1,8 +1,5 @@
-import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
-import { mintTestToken } from '@hoe/accounts/testing'
-import type { Page } from '@playwright/test'
-
 import { appDates } from './pages/appDates.ts'
+import { playAs } from './testing/familySession.ts'
 import { test } from './testing/iwftTest.tsx'
 
 // The pill dates come from what CI recorded, and CI rewrites that file on every
@@ -13,17 +10,6 @@ const silt = appDates('silt')
 function daysAfter(iso: string | undefined, days: number): Date {
   if (!iso) throw new Error('silt has no recorded deploy — the seeded file lost an app')
   return new Date(Date.parse(iso) + days * 24 * 60 * 60 * 1000)
-}
-
-// The cookie /account's picker writes; host-scoped here, as on localhost.
-async function playAs(page: Page, name: string): Promise<void> {
-  const token = mintTestToken({ sub: 'child-robin', role: 'child', parentId: 'parent-1', name })
-  await page.evaluate(
-    ({ cookie, value }) => {
-      document.cookie = `${cookie}=${value}; path=/`
-    },
-    { cookie: FAMILY_SESSION_COOKIE, value: token },
-  )
 }
 
 test('home page renders the wordmark, lede, and the live app links', async ({ mountApp }) => {
@@ -52,7 +38,7 @@ test('with nobody playing, the home page offers Sign in, which opens /account', 
   await root.verifyOnAccountPage()
 })
 
-test('with a profile playing, the home page names it and still opens /account', async ({
+test('with a profile playing, the home page names it and links to /account', async ({
   page,
   mountApp,
 }) => {
@@ -62,6 +48,51 @@ test('with a profile playing, the home page names it and still opens /account', 
 
   await root.verifyWhosPlayingChip('Playing as Robin')
 })
+
+test('a name with nothing visible in it is treated as nobody playing', async ({
+  page,
+  mountApp,
+}) => {
+  await playAs(page, ' \u200b ')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyWhosPlayingChip('Sign in')
+})
+
+test('coming back to the page after the player changed shows the new name', async ({
+  page,
+  mountApp,
+}) => {
+  await playAs(page, 'Robin')
+  const { root } = await mountApp()
+  await root.verifyWhosPlayingChip('Playing as Robin')
+
+  await playAs(page, 'Wren')
+  await root.returnFromBackForwardCache()
+
+  await root.verifyWhosPlayingChip('Playing as Wren')
+})
+
+// The contract's longest display name, in wide characters, on the widths where
+// the left column is narrowest beside the rail.
+for (const [width, height] of [
+  [1024, 768],
+  [800, 600],
+  [768, 1024],
+] as const) {
+  test(`a long name stays clear of the app rail at ${width}x${height}`, async ({
+    page,
+    mountApp,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await playAs(page, 'W'.repeat(32))
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    await root.verifyWhosPlayingChipClearOfTheRail()
+  })
+}
 
 test('home page renders a live preview canvas for every app card', async ({ mountApp }) => {
   const { root } = await mountApp()
