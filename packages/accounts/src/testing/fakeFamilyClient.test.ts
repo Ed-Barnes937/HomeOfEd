@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { readFamilySession } from '../readFamilySession.ts'
 import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from '../saveLimits.ts'
 
-import { FakeFamilyClient } from './fakeFamilyClient.ts'
+import { FakeFamilyClient, type FakeSessionInput } from './fakeFamilyClient.ts'
 
 const now = () => new Date('2026-01-01T00:00:00Z')
 
@@ -340,17 +340,31 @@ describe('FakeFamilyClient (identity contract)', () => {
     await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
     const robin = await client.addChild({ username: 'robin', displayName: 'Robin' })
 
-    const saveAs = async (sub: string, appId: string, slotKey: string, iso: string) => {
+    const ada: FakeSessionInput = { sub: 'parent-1', role: 'parent', name: 'Ada' }
+    const robinPlays: FakeSessionInput = {
+      sub: robin.id,
+      role: 'child',
+      parentId: 'parent-1',
+      name: 'Robin',
+    }
+    const gracesParent: FakeSessionInput = { sub: 'parent-2', role: 'parent', name: 'Grace' }
+    const gracePlays: FakeSessionInput = {
+      sub: grace.id,
+      role: 'child',
+      parentId: 'parent-2',
+      name: 'Grace',
+    }
+    const saveAs = async (who: FakeSessionInput, appId: string, slotKey: string, iso: string) => {
       clock = new Date(iso)
-      client.signInAs({ sub, role: 'child', parentId: 'p', name: 'x' })
+      client.signInAs(who)
       await client.put({ appId, slotKey, blob: 'opaque' })
     }
-    await saveAs('parent-1', 'boop', 'boop:save', '2026-03-01T00:00:00Z')
-    await saveAs(robin.id, 'silt', 'silt:scene:1', '2026-03-02T00:00:00Z')
-    await saveAs(robin.id, 'silt', 'silt:scene:2', '2026-03-05T00:00:00Z')
-    await saveAs(robin.id, 'boop', 'boop:save', '2026-03-03T00:00:00Z')
-    await saveAs('parent-2', 'boop', 'boop:save', '2026-03-04T00:00:00Z')
-    await saveAs(grace.id, 'boop', 'boop:save', '2026-03-04T00:00:00Z')
+    await saveAs(ada, 'boop', 'boop:save', '2026-03-01T00:00:00Z')
+    await saveAs(robinPlays, 'silt', 'silt:scene:1', '2026-03-02T00:00:00Z')
+    await saveAs(robinPlays, 'silt', 'silt:scene:2', '2026-03-05T00:00:00Z')
+    await saveAs(robinPlays, 'boop', 'boop:save', '2026-03-03T00:00:00Z')
+    await saveAs(gracesParent, 'boop', 'boop:save', '2026-03-04T00:00:00Z')
+    await saveAs(gracePlays, 'boop', 'boop:save', '2026-03-04T00:00:00Z')
 
     await expect(client.saveSummary()).resolves.toEqual([
       { accountId: robin.id, appId: 'boop', updatedAt: Date.parse('2026-03-03T00:00:00Z') },

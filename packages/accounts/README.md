@@ -76,13 +76,15 @@ alone. `createFamilyIdentityClient({ baseUrl })` covers `identity.me`,
 `saveSummary` over tRPC, plus Better Auth's own `/api/auth/sign-up/email`,
 `/sign-in/email` and `/sign-out`.
 
+The split matters: the tRPC half has zod schemas here because their shapes are
+ours, while the Better Auth half is typed as plain interfaces because those
+shapes are Better Auth's.
+
 `saveSummary` is how hub shows when each profile last saved: one entry per
 (account, app) with a save, `{ accountId, appId, updatedAt }`, for the signed-in
 parent and their own profiles only, in `compareSaveSummaryEntries` order (code
 unit, so the service and the fake agree). It never carries a blob
-([ADR 0079](../../docs/adr/0079-family-save-authorisation.md), amended). The split matters: the tRPC half has zod schemas here because
-their shapes are ours, while the Better Auth half is typed as plain interfaces
-because those shapes are Better Auth's.
+([ADR 0079](../../docs/adr/0079-family-save-authorisation.md), amended).
 
 Three properties are load-bearing, all from
 [ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md):

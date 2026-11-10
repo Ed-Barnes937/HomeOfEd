@@ -548,4 +548,34 @@ describe('DrizzleFamilyStore save summary', () => {
     const [row] = await store.saveSummary('parent-1')
     expect(Object.keys(row ?? {}).sort()).toEqual(['accountId', 'appId', 'updatedAt'])
   })
+
+  // A deleted profile's token stays valid until it expires, so a late put can
+  // land under an id no household owns any more.
+  it("shows nobody a save left under a deleted child's id", async () => {
+    const robin = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'robin',
+      displayName: 'Robin',
+    })
+    await store.deleteChildProfile({ id: robin.id, parentId: 'parent-1' })
+    await savedOn(2, robin.id, 'boop', 'boop:save')
+    await savedOn(1, 'parent-1', 'boop', 'boop:save')
+
+    await expect(store.saveSummary('parent-1')).resolves.toEqual([
+      { accountId: 'parent-1', appId: 'boop', updatedAt: march(1) },
+    ])
+    await expect(store.saveSummary('parent-2')).resolves.toEqual([])
+  })
+
+  it("shows nobody a save under a differently cased copy of a child's uuid", async () => {
+    const robin = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'robin',
+      displayName: 'Robin',
+    })
+    await savedOn(2, robin.id.toUpperCase(), 'boop', 'boop:save')
+
+    await expect(store.saveSummary('parent-1')).resolves.toEqual([])
+    await expect(store.saveSummary('parent-2')).resolves.toEqual([])
+  })
 })
