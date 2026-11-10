@@ -1,6 +1,6 @@
 # 18 - The docker stack can sign in end to end
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decision 2
 Blocked by: 03
@@ -42,3 +42,31 @@ Do:
 You may edit `compose.yml` (branch from ticket 03's branch if it is unmerged).
 
 ## Comments
+
+Reproduced in Chromium against `docker compose up family hub boop` before any
+change. Three stacked failures, in order:
+
+1. Hub's bundle called `http://localhost:3012` (connection refused); compose
+   publishes family on 8092. Confirmed as reported.
+2. With family also published on 3012 (a throwaway override), the preflight
+   from `http://localhost:8080` got no allow headers. Confirmed, with one
+   correction: `NODE_ENV=development` would not have fixed it either, because
+   the dev list is the Vite ports (3000, 3012), not compose's.
+3. Better Auth refused sign-up from `http://localhost:8080` as
+   `INVALID_ORIGIN` (`trustedOrigins` is the identity list).
+
+Not failures: the `Secure` flag (Better Auth derives it from the `http://`
+`BETTER_AUTH_URL`, so its session cookie arrives plain), the invite code
+(`dev-invite-code` works), and the CSRF hook (hub sends `application/json`).
+
+Fixed by `DOCKER_STACK_ORIGINS=on` in compose only (ADR 0078 decision 6),
+refused on Fly by `@hoe/deploy-guard`'s new `localOnly` argument, and by hub's
+and boop's `familyUrl` mapping their compose ports to 8092. Proof:
+`node scripts/docker-stack-sign-in.mjs`.
+
+Beyond the ticket: boop's `familyUrl` also maps 8088 to 8092, so the save
+tier's compose origin is exercised by a real browser rather than only admitted;
+the script's last step checks boop's `save.get` answers 200. `@hoe/deploy-guard`
+gained the `localOnly` argument rather than family checking the variable
+itself, so sprout's `GEO_ENFORCEMENT` can move onto the same rule later.
+

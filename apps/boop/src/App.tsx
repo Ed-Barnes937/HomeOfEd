@@ -33,7 +33,7 @@ export function App({ driver, saveClient }: AppProps = {}) {
     () =>
       saveClient ??
       createFamilySaveClient({
-        baseUrl: familyUrl(window.location.hostname),
+        baseUrl: familyUrl(window.location.hostname, window.location.port),
         fetch: keepaliveFetch,
       }),
   )

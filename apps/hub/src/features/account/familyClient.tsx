@@ -17,5 +17,7 @@ export function useFamilyClient(): FamilyIdentityContract {
 }
 
 export function createDefaultFamilyClient(): FamilyIdentityContract {
-  return createFamilyIdentityClient({ baseUrl: familyUrl(window.location.hostname) })
+  return createFamilyIdentityClient({
+    baseUrl: familyUrl(window.location.hostname, window.location.port),
+  })
 }

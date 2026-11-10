@@ -94,6 +94,12 @@ Consequences worth knowing:
   procedure in it is a save procedure**, or an app origin could hide
   `identity.deleteAccount` behind `save.get`. `Vary: Origin` does not survive on
   tRPC responses, so no cache rule may ever cover `/api/trpc`.
+- The docker stack runs the production image, so its localhost origins come from
+  `DOCKER_STACK_ORIGINS=on`, which only `compose.yml` sets: hub's compose
+  origin joins the identity tier, onboarded apps' `composePort`s join the save
+  tier, and nothing else. `loadFamilyEnv` refuses the variable on Fly at any
+  value ([ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md)
+  decision 6). Never key a localhost origin off `NODE_ENV` alone.
 - `loadFamilyEnv` requires all four identity variables unconditionally, so a
   missing secret crashes the process at boot, and its failure message names the
   variables and never their values. **With `FLY_APP_NAME` present it refuses
@@ -101,7 +107,8 @@ Consequences worth knowing:
   key, any `REGISTRATION_INVITE_CODE` or `BETTER_AUTH_SECRET` that **reads as a
   placeholder** (`dev-`, `insecure`, `change-me`, `placeholder`, `example`,
   leading `test`), either of those below a minimum length, and any `NODE_ENV`
-  but `production` (CORS's dev origins and tRPC's stack traces both key off it).
+  but `production` (CORS's dev origins and tRPC's stack traces both key off it),
+  and the local-only `DOCKER_STACK_ORIGINS`.
   The placeholder, length and `NODE_ENV` rules live in `@hoe/deploy-guard`
   ([ADR 0088](../../docs/adr/0088-deploy-guard-package.md)), shared with sprout.
   The pattern is the primary rule, not `COMMITTED_DEV_SECRETS`: a list only ever
@@ -220,6 +227,8 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3112 })
 - `pnpm --filter family run generate` - drizzle-kit migration from schema
   changes (`--custom` for hand-written SQL); commit the whole output folder.
 - `docker compose up family` — the real image on host port **8092**.
+- `node scripts/docker-stack-sign-in.mjs` (after `docker compose up -d --build
+  family hub boop`) - a real browser sign-in through the stack.
 
 ## Rules
 

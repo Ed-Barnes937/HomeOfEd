@@ -3,14 +3,19 @@ import { describe, expect, it } from 'vitest'
 import { familySessionCookieOptions, familyUrl } from './familyService.ts'
 
 describe('familyUrl', () => {
-  it('talks to the local service from a local hostname', () => {
-    expect(familyUrl('localhost')).toBe('http://localhost:3012')
-    expect(familyUrl('127.0.0.1')).toBe('http://localhost:3012')
+  it('talks to the local dev service from a local hostname', () => {
+    expect(familyUrl('localhost', '3000')).toBe('http://localhost:3012')
+    expect(familyUrl('127.0.0.1', '3000')).toBe('http://localhost:3012')
   })
 
-  it('talks to production from anywhere else', () => {
-    expect(familyUrl('homeofed.com')).toBe('https://family.homeofed.com')
-    expect(familyUrl('hoe-hub.fly.dev')).toBe('https://family.homeofed.com')
+  it("talks to the docker stack's family from hub's compose port", () => {
+    expect(familyUrl('localhost', '8080')).toBe('http://localhost:8092')
+    expect(familyUrl('127.0.0.1', '8080')).toBe('http://localhost:8092')
+  })
+
+  it('talks to production from anywhere else, whatever the port', () => {
+    expect(familyUrl('homeofed.com', '')).toBe('https://family.homeofed.com')
+    expect(familyUrl('hoe-hub.fly.dev', '8080')).toBe('https://family.homeofed.com')
   })
 })
 

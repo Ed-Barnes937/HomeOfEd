@@ -44,6 +44,22 @@ describe('loadFamilyEnv', () => {
     )
   })
 
+  it('leaves the docker-stack origins off unless they are asked for', () => {
+    expect(loadFamilyEnv(complete).DOCKER_STACK_ORIGINS).toBeUndefined()
+    expect(loadFamilyEnv({ ...complete, DOCKER_STACK_ORIGINS: 'on' }).DOCKER_STACK_ORIGINS).toBe(
+      'on',
+    )
+  })
+
+  it.each(['true', '1', 'off', ''])(
+    'crashes on DOCKER_STACK_ORIGINS=%j rather than guess what it meant',
+    (value) => {
+      expect(() => loadFamilyEnv({ ...complete, DOCKER_STACK_ORIGINS: value })).toThrow(
+        'DOCKER_STACK_ORIGINS',
+      )
+    },
+  )
+
   it('never puts a supplied value in the failure message', () => {
     const leaky = {
       ...complete,
@@ -140,6 +156,14 @@ describe('the deployment guard', () => {
     })
   })
 
+  // The localhost origins it admits are the compose stack's; on Fly they would
+  // put a plain-http origin on the cookie-authorised identity tier (ADR 0078).
+  it('refuses to run on Fly with the docker-stack origins switched on', () => {
+    expect(() => loadFamilyEnv({ ...deployable, DOCKER_STACK_ORIGINS: 'on' })).toThrow(
+      /DOCKER_STACK_ORIGINS is a local-only setting/,
+    )
+  })
+
   describe('NODE_ENV', () => {
     it.each([undefined, 'development', 'test', 'Production'])(
       'refuses to run on Fly with NODE_ENV=%s',
@@ -190,6 +214,13 @@ describe('the values this repo commits', () => {
     ],
   ] as const
   const names = ['REGISTRATION_INVITE_CODE', 'BETTER_AUTH_SECRET'] as const
+
+  it('switches the docker-stack origins on in compose.yml alone, never in fly.toml', () => {
+    const [, compose] = sources[1]
+
+    expect(committedValues(compose, 'DOCKER_STACK_ORIGINS', ':')).toEqual(['on'])
+    expect(readRepoFile('../../fly.toml')).not.toContain('DOCKER_STACK_ORIGINS')
+  })
 
   describe.each(sources)('%s', (_label, source, assign) => {
     it.each(names)('refuses the %s it commits', (name) => {
