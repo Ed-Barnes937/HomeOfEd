@@ -1,10 +1,11 @@
+import { compareSaveSummaryEntries } from '@hoe/accounts'
 import { freshTestDb, type DbClient } from '@hoe/db'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { migrations } from './migrations.ts'
 import { familySchema, type FamilySchema } from './schema.ts'
-import { DrizzleFamilyStore, type ChildProfileRow } from './store.ts'
+import { DrizzleFamilyStore, type ChildProfileRow, type SaveSummaryRow } from './store.ts'
 
 async function freshStore(): Promise<{ db: DbClient<FamilySchema>; store: DrizzleFamilyStore }> {
   const db = await freshTestDb(familySchema, migrations)
@@ -460,5 +461,91 @@ describe('DrizzleFamilyStore account erasure', () => {
     expect((await db.select().from(familySchema.saves)).map((row) => row.accountId)).toEqual([
       grace.id,
     ])
+  })
+})
+
+describe('DrizzleFamilyStore save summary', () => {
+  let db: DbClient<FamilySchema>
+  let store: DrizzleFamilyStore
+
+  const march = (day: number): Date => new Date(Date.UTC(2026, 2, day))
+
+  // Postgres stamps updatedAt itself, so a test pins it afterwards.
+  async function savedOn(day: number, accountId: string, appId: string, slotKey: string) {
+    const { saves } = familySchema
+    await store.putSave({ appId, accountId, slotKey, blob: '{"opaque":true}' })
+    await db
+      .update(saves)
+      .set({ updatedAt: march(day) })
+      .where(
+        and(eq(saves.appId, appId), eq(saves.accountId, accountId), eq(saves.slotKey, slotKey)),
+      )
+  }
+
+  // The store promises no order; the handler sorts.
+  const byAccountThenApp = (rows: SaveSummaryRow[]): SaveSummaryRow[] =>
+    [...rows].sort(compareSaveSummaryEntries)
+
+  beforeEach(async () => {
+    ;({ db, store } = await freshStore())
+    await insertParent(db, 'parent-1')
+    await insertParent(db, 'parent-2')
+  })
+
+  it('reports the newest save per app for the parent and each of their profiles', async () => {
+    const robin = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'robin',
+      displayName: 'Robin',
+    })
+    await savedOn(1, 'parent-1', 'boop', 'boop:save')
+    await savedOn(2, robin.id, 'silt', 'silt:scene:1')
+    await savedOn(5, robin.id, 'silt', 'silt:scene:2')
+    await savedOn(3, robin.id, 'boop', 'boop:save')
+
+    expect(byAccountThenApp(await store.saveSummary('parent-1'))).toEqual(
+      byAccountThenApp([
+        { accountId: 'parent-1', appId: 'boop', updatedAt: march(1) },
+        { accountId: robin.id, appId: 'boop', updatedAt: march(3) },
+        { accountId: robin.id, appId: 'silt', updatedAt: march(5) },
+      ]),
+    )
+  })
+
+  it('never shows one household the rows of another', async () => {
+    const robin = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'robin',
+      displayName: 'Robin',
+    })
+    const grace = await store.addChildProfile({
+      parentId: 'parent-2',
+      username: 'grace',
+      displayName: 'Grace',
+    })
+    await savedOn(1, 'parent-1', 'boop', 'boop:save')
+    await savedOn(2, robin.id, 'boop', 'boop:save')
+    await savedOn(3, 'parent-2', 'boop', 'boop:save')
+    await savedOn(4, grace.id, 'silt', 'silt:scene:1')
+
+    const accountsSeenBy = async (parentId: string): Promise<string[]> =>
+      (await store.saveSummary(parentId)).map((row) => row.accountId).sort()
+
+    await expect(accountsSeenBy('parent-1')).resolves.toEqual(['parent-1', robin.id].sort())
+    await expect(accountsSeenBy('parent-2')).resolves.toEqual(['parent-2', grace.id].sort())
+  })
+
+  it('reports nothing for a household with no saves, or a parent that does not exist', async () => {
+    await savedOn(3, 'parent-2', 'boop', 'boop:save')
+
+    await expect(store.saveSummary('parent-1')).resolves.toEqual([])
+    await expect(store.saveSummary('nobody')).resolves.toEqual([])
+  })
+
+  it('carries the metadata alone, never a blob', async () => {
+    await savedOn(1, 'parent-1', 'boop', 'boop:save')
+
+    const [row] = await store.saveSummary('parent-1')
+    expect(Object.keys(row ?? {}).sort()).toEqual(['accountId', 'appId', 'updatedAt'])
   })
 })

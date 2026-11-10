@@ -1,6 +1,6 @@
 # 04 - family: a parent can list when each profile last saved
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decision 12
 
@@ -19,3 +19,16 @@ A read for hub's `/account`. No blob is returned and none is parsed.
   the opaque-blob rule is intact.
 
 ## Comments
+
+- 2026-11-10 (implementer): shipped as the query `identity.saveSummary`,
+  client method `saveSummary()`, reply a flat array of
+  `{ accountId, appId, updatedAt }` (epoch ms), one per (account, app) with a
+  save. Hub groups by `accountId` (the parent's `id` from `me`, a profile `id`
+  from `listChildren`). Beyond the ticket: order is fixed by
+  `compareSaveSummaryEntries` (code unit, `accountId` then `appId`), exported
+  from `@hoe/accounts` and used by both the handler and the fake, so Postgres
+  collation cannot make them disagree; `index.ts` exports the new schema, types
+  and comparator; a real-socket test in `csrf.test.ts` pins that a family token
+  alone gets 401 and an app origin gets no CORS grant; the accounts README
+  lists the procedure. Rows under an appId that is no longer onboarded are still
+  reported (not filtered by `ONBOARDED_APPS`).

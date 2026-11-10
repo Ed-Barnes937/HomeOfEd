@@ -17,6 +17,7 @@ import { DEFAULT_FAMILY_TOKEN_TTL_MS } from '../claims.ts'
 import { FamilyClientError } from '../familyClientError.ts'
 import {
   addChildInput,
+  compareSaveSummaryEntries,
   deleteChildInput,
   mintSessionTokenInput,
   renameChildInput,
@@ -35,6 +36,8 @@ import type {
   MintSessionTokenInput,
   MintSessionTokenOutput,
   RenameChildInput,
+  SaveSummaryEntry,
+  SaveSummaryOutput,
   SignInInput,
   SignUpInput,
 } from '../identityContract.ts'
@@ -337,6 +340,29 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
       this.parents.delete(parent.id)
       this.parentId = null
       return { ok: true as const }
+    })
+  }
+
+  /** Scoped like the store: the signed-in parent and their own profiles, never a blob. */
+  saveSummary(): Promise<SaveSummaryOutput> {
+    return this.requireParent().then((parent) => {
+      const household = new Set([
+        parent.id,
+        ...[...this.children.values()]
+          .filter((child) => child.parentId === parent.id)
+          .map((child) => child.id),
+      ])
+      const newest = new Map<string, SaveSummaryEntry>()
+      for (const [key, slot] of this.slots) {
+        const [appId = '', accountId = ''] = key.split('\x1f')
+        if (!household.has(accountId)) continue
+        const id = slotId(appId, accountId, '')
+        const seen = newest.get(id)
+        if (seen === undefined || slot.updatedAt > seen.updatedAt) {
+          newest.set(id, { accountId, appId, updatedAt: slot.updatedAt })
+        }
+      }
+      return [...newest.values()].sort(compareSaveSummaryEntries)
     })
   }
 

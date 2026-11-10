@@ -25,12 +25,15 @@ export type {
   MintSessionTokenInput,
   MintSessionTokenOutput,
   RenameChildInput,
+  SaveSummaryEntry,
+  SaveSummaryOutput,
   SignInInput,
   SignUpInput,
 } from './identityContract.ts'
 export {
   addChildInput,
   childProfileView,
+  compareSaveSummaryEntries,
   deleteAccountInput,
   deleteAccountOutput,
   deleteChildInput,
@@ -40,6 +43,8 @@ export {
   mintSessionTokenInput,
   mintSessionTokenOutput,
   renameChildInput,
+  saveSummaryEntry,
+  saveSummaryOutput,
 } from './identityContract.ts'
 export type { ReadFamilySessionOpts } from './readFamilySession.ts'
 export { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from './saveLimits.ts'

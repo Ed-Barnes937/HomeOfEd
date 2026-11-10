@@ -141,6 +141,7 @@ describe('the save router CORS tier', () => {
     '/api/trpc/save.get,identity.me?batch=1',
     '/api/trpc/identity.me,save.get?batch=1',
     '/api/trpc/save.get%2Cidentity.deleteAccount?batch=1',
+    '/api/trpc/save.list,identity.saveSummary?batch=1',
     '/api/trpc/saveX.get',
     '/api/trpc/',
   ])('grants an app origin nothing on %s', async (url) => {

@@ -1,7 +1,7 @@
 # 0079 - the family SaveStore: two credentials on one seam, and a second door
 
 - **Status:** Accepted
-- **Date:** 2026-11-09
+- **Date:** 2026-11-09 (amended 2026-11-10: `identity.saveSummary`, see the end)
 - **Related:** [ADR 0078](0078-family-identity-auth-boundary.md) (the identity
   half, whose boundary this one mirrors, and whose **decision 5** - the
   content-type requirement on `/api/trpc` - was added from this ticket's review), [ADR 0070](0070-family-service.md)
@@ -133,3 +133,18 @@ same reason ADR 0078 added none.
 The opaque-blob discipline is unchanged and absolute: the server measures
 `blob` in bytes and never parses it. "Can the server query inside a save?" stays
 the question to refuse in review.
+
+**Amended 2026-11-10 (estate-gate ticket 04): `identity.saveSummary`.** Hub's
+`/account` page shows a parent when each profile last saved, so the identity
+router gained one read: for the asking parent and each of their child profiles,
+every `appId` they have saved in and the newest `updatedAt` there. It is
+metadata for the owning parent and the opaque-blob rule is intact: the store
+selects `appId`, `accountId` and `max(updatedAt)` and nothing else, so no blob
+is read, returned or parsed. It sits on the identity side rather than in the
+save router because it spans a household and a family token names one account:
+`requireParent` authorises it, the household is the one `deleteAccount` erases
+(the parent's `user.id` plus `child_profiles` rows owned by it, matched as text
+because `saves.accountId` has no FK), and the CORS tier is the identity one, so
+an onboarded app origin can neither read the reply nor batch the procedure
+behind a save call. A request carrying both credentials is answered for the
+cookie session's parent, never the token's account.

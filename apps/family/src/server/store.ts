@@ -1,6 +1,6 @@
 import { ConflictError } from '@hoe/backend-kit'
 import type { DbClient } from '@hoe/db'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, max, or, sql } from 'drizzle-orm'
 
 import { childProfiles, type FamilySchema, saves, user } from './schema.ts'
 
@@ -63,6 +63,13 @@ export interface SaveSlot {
   updatedAt: Date
 }
 
+/** When one account last saved in one app - metadata for the owning parent, never a blob. */
+export interface SaveSummaryRow {
+  accountId: string
+  appId: string
+  updatedAt: Date
+}
+
 /**
  * family's Store interface - its whole server-side query surface. Handlers
  * depend on this; "real vs simulator" is just the injected DbClient's driver.
@@ -98,6 +105,11 @@ export interface FamilyStore {
   listSaves(input: { appId: string; accountId: string }): Promise<SaveSlot[]>
   deleteSave(key: SaveKey): Promise<void>
   saveUsage(key: SaveKey): Promise<SaveUsage>
+  /**
+   * The newest save per (account, app) for a parent and their child profiles:
+   * the household `deleteAccount` erases, and nobody else's.
+   */
+  saveSummary(parentId: string): Promise<SaveSummaryRow[]>
 }
 
 /** The unit `saves.sizeBytes` is measured in, and so every quota with it. */
@@ -285,5 +297,21 @@ export class DrizzleFamilyStore implements FamilyStore {
       .from(saves)
       .where(eq(saves.accountId, key.accountId))
     return first(rows)
+  }
+
+  async saveSummary(parentId: string): Promise<SaveSummaryRow[]> {
+    // `saves.accountId` is text and `child_profiles.id` a uuid, hence the cast.
+    const profileIds = this.db
+      .select({ id: sql<string>`${childProfiles.id}::text` })
+      .from(childProfiles)
+      .where(eq(childProfiles.parentId, parentId))
+    const rows = await this.db
+      .select({ accountId: saves.accountId, appId: saves.appId, updatedAt: max(saves.updatedAt) })
+      .from(saves)
+      .where(or(eq(saves.accountId, parentId), inArray(saves.accountId, profileIds)))
+      .groupBy(saves.accountId, saves.appId)
+    return rows.flatMap(({ accountId, appId, updatedAt }) =>
+      updatedAt === null ? [] : [{ accountId, appId, updatedAt }],
+    )
   }
 }

@@ -72,9 +72,15 @@ the fake can never drift apart silently.
 
 The identity router's half of the same deal, for hub's `/account` screens
 alone. `createFamilyIdentityClient({ baseUrl })` covers `identity.me`,
-`children.list/add/rename/delete`, `mintSessionToken` and `deleteAccount` over tRPC,
-plus Better Auth's own `/api/auth/sign-up/email`, `/sign-in/email` and
-`/sign-out`. The split matters: the tRPC half has zod schemas here because
+`children.list/add/rename/delete`, `mintSessionToken`, `deleteAccount` and
+`saveSummary` over tRPC, plus Better Auth's own `/api/auth/sign-up/email`,
+`/sign-in/email` and `/sign-out`.
+
+`saveSummary` is how hub shows when each profile last saved: one entry per
+(account, app) with a save, `{ accountId, appId, updatedAt }`, for the signed-in
+parent and their own profiles only, in `compareSaveSummaryEntries` order (code
+unit, so the service and the fake agree). It never carries a blob
+([ADR 0079](../../docs/adr/0079-family-save-authorisation.md), amended). The split matters: the tRPC half has zod schemas here because
 their shapes are ours, while the Better Auth half is typed as plain interfaces
 because those shapes are Better Auth's.
 
@@ -94,7 +100,7 @@ already taken", from `addChild` and from a `renameChild` that changes the
 username, and hub shows it inline on whichever form sent it.
 
 The contract is split in two because only half of it is a tRPC router.
-`FamilyIdentityRouterContract` is the seven procedures, and the family app's
+`FamilyIdentityRouterContract` is the eight procedures, and the family app's
 identity router `satisfies` it exactly as the save router satisfies
 `FamilySaveContract`, taking its input schemas from here too - so a divergence
 is a compile error in `apps/family` rather than a 400 somebody meets in a

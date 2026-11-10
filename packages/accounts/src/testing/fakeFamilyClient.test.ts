@@ -326,6 +326,54 @@ describe('FakeFamilyClient (identity contract)', () => {
     ).rejects.toMatchObject({ code: 'INVALID_EMAIL_OR_PASSWORD' })
   })
 
+  it('summarises when each of the household last saved, per app, and nobody else', async () => {
+    let clock = new Date('2026-03-01T00:00:00Z')
+    const client = new FakeFamilyClient({
+      now: () => clock,
+      parents: [
+        { ...CREDENTIALS, id: 'parent-1' },
+        { id: 'parent-2', name: 'Grace', email: 'grace@example.com', password: 'pw' },
+      ],
+    })
+    await client.signIn({ email: 'grace@example.com', password: 'pw' })
+    const grace = await client.addChild({ username: 'grace', displayName: 'Grace' })
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+    const robin = await client.addChild({ username: 'robin', displayName: 'Robin' })
+
+    const saveAs = async (sub: string, appId: string, slotKey: string, iso: string) => {
+      clock = new Date(iso)
+      client.signInAs({ sub, role: 'child', parentId: 'p', name: 'x' })
+      await client.put({ appId, slotKey, blob: 'opaque' })
+    }
+    await saveAs('parent-1', 'boop', 'boop:save', '2026-03-01T00:00:00Z')
+    await saveAs(robin.id, 'silt', 'silt:scene:1', '2026-03-02T00:00:00Z')
+    await saveAs(robin.id, 'silt', 'silt:scene:2', '2026-03-05T00:00:00Z')
+    await saveAs(robin.id, 'boop', 'boop:save', '2026-03-03T00:00:00Z')
+    await saveAs('parent-2', 'boop', 'boop:save', '2026-03-04T00:00:00Z')
+    await saveAs(grace.id, 'boop', 'boop:save', '2026-03-04T00:00:00Z')
+
+    await expect(client.saveSummary()).resolves.toEqual([
+      { accountId: robin.id, appId: 'boop', updatedAt: Date.parse('2026-03-03T00:00:00Z') },
+      { accountId: robin.id, appId: 'silt', updatedAt: Date.parse('2026-03-05T00:00:00Z') },
+      { accountId: 'parent-1', appId: 'boop', updatedAt: Date.parse('2026-03-01T00:00:00Z') },
+    ])
+  })
+
+  it('summarises nothing for a household with no saves', async () => {
+    const client = withParent()
+    await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
+
+    await expect(client.saveSummary()).resolves.toEqual([])
+  })
+
+  it('refuses the save summary to a family token alone', async () => {
+    const client = withParent()
+    client.signInAs({ sub: 'parent-1', role: 'parent', name: 'Ada' })
+    await client.put({ appId: 'boop', slotKey: 'boop:save', blob: 'x' })
+
+    await expect(client.saveSummary()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  })
+
   it('failWith reaches the identity half too', async () => {
     const client = withParent()
     await client.signIn({ email: CREDENTIALS.email, password: CREDENTIALS.password })
