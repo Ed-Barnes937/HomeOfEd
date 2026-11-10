@@ -200,6 +200,21 @@ test('a branch shows its own controls and hides the ones it has no use for', asy
   await root.verifyControls({ shown: ['Carving'], hidden: ['How bent', 'Grown or turned'] })
 })
 
+test('the arrows step through the branches, round from the last to the first', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.chooseIn('Kind of wand', 'Branch')
+  await root.verifyBranch(1)
+  await root.nextBranch()
+  await root.verifyBranch(2)
+  await root.previousBranch()
+  await root.previousBranch()
+  await root.verifyBranch(100)
+  await root.nextBranch()
+  await root.verifyBranch(1)
+})
+
 test('only a branch can wear bark', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyControls({ hidden: ['Bark'] })

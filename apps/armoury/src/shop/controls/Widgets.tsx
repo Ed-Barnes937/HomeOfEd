@@ -46,6 +46,51 @@ export function Slider({
   )
 }
 
+/** Steps a whole-number param one at a time, round from the last value to the first. */
+export function Stepper({
+  def,
+  value,
+  onChange,
+  noun,
+}: {
+  def: NumberParam
+  value: number
+  onChange: OnChange
+  /** What one step is, for the buttons' names: "branch" gives "Next branch". */
+  noun: string
+}) {
+  const count = def.max - def.min + 1
+  const step = (by: number) => onChange(def.key, def.min + ((value - def.min + by + count) % count))
+  return (
+    <div className={styles.inline} role="group" aria-labelledby={`label-${def.key}`}>
+      <span className={styles.label} id={`label-${def.key}`}>
+        {def.label}
+      </span>
+      <div className={styles.stepper}>
+        <button
+          type="button"
+          className={styles.step}
+          aria-label={`Previous ${noun}`}
+          onClick={() => step(-1)}
+        >
+          ‹
+        </button>
+        <span className={styles.stepValue} aria-live="polite">
+          {value - def.min + 1}
+        </span>
+        <button
+          type="button"
+          className={styles.step}
+          aria-label={`Next ${noun}`}
+          onClick={() => step(1)}
+        >
+          ›
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function Pills({
   def,
   params,
