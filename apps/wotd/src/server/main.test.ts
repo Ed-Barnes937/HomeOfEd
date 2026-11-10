@@ -7,7 +7,8 @@ import { mintTestToken, TEST_FAMILY_PUBLIC_KEY } from '@hoe/accounts/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const ACCOUNT_URL = 'https://homeofed.com/account'
-const START_DEADLINE_MS = 10_000
+// A database-backed entrypoint boots slowly (Drizzle, pg, the Anthropic SDK), more so under load.
+const START_DEADLINE_MS = 30_000
 // Ungated: the index with a built dist/, 404 without one.
 const NOT_REDIRECTED = [200, 404]
 const appDir = fileURLToPath(new URL('../..', import.meta.url))

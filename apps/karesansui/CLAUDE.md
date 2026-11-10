@@ -33,13 +33,15 @@ src/
       sand.ts             pure draw helpers: clipCircle, gardenBed, drawGroove, drawMarble, clearingSweep
       SandRenderer.ts     resize / renderStatic / beginCarve+carveTo / clearTo / finishCarve / toDataURL
       MechRenderer.ts     resize / setPattern(config) / draw(progress) — planetary: N cogs + marbles; getMarbles()
-    settings.ts            Preset type; load/save/rename/delete presets in localStorage (`karesansui:presets:v2`, v1→v2 migration)
+    settings.ts            Preset type; load/save/rename/delete presets in localStorage (`karesansui:presets:v2`, v1→v2 migration); PRESET_PROFILE_KEYS
     carveDuration.ts       pure: speed curve + the rotation-rate floor (MIN_MS_PER_TURN), ADR 0045
     useRakeLoop.ts         owns the rAF loop + both canvases: draw / pause / resume / clear / perpetual loop / export, resize rebuild
   features/controls/       StripCycle (Ring/Rake/Preview), StripRange (Offset/Speed), CogDots, ActionButtons, PresetsMenu — shared Strip.module.scss (minimal console, ADR 0021)
+  features/player/         FamilySessionContext (the session App.tsx reads once) + PlayerLink (switch player, only with a session)
   pages/KaresansuiPage.tsx  holds GardenConfig state, wires useRakeLoop; room → wordmark → stage → dim console strip; sand-hero-first reflow at ~760px
   testing/                  IwftApp harness + KaresansuiPagePom
   karesansui.iwft.tsx
+  profiles.iwft.tsx         presets per player, legacy v1/v2 adoption, reload on a player change
 vite.config.ts             react + simulatorPlugin (dev simulator mode)
 playwright-ct.config.ts    defineIwftConfig({ ctPort: 3107 })
 ```
@@ -84,6 +86,7 @@ playwright-ct.config.ts    defineIwftConfig({ ctPort: 3107 })
   first, `.iwft` only for whole-page behaviour (keep it thin). Relative imports
   carry explicit `.ts`/`.tsx` extensions; server code sticks to erasable TS
   syntax (ADR 0004) — `simulator.ts`/`main.ts` run under native Node.
+- **The estate gate** ([ADR 0093](../../docs/adr/0093-estate-gate.md), [ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)): `main.ts` gates documents when `FAMILY_ACCOUNT_URL` is set (no public paths); presets go through `profileStorage(..., PRESET_PROFILE_KEYS)` built once in `KaresansuiPage`, never `window.localStorage` directly.
 - Ports: dev 3007, CT 3107, compose host 8087 — a copied app must pick fresh
   ones (root `CLAUDE.md` checklist).
 - No database, no migrations, no `@hoe/db` — see

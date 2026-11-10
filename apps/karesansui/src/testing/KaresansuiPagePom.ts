@@ -21,6 +21,7 @@ export class KaresansuiPagePom extends BasePage {
   private readonly previewCycle = this.page.getByTestId('preview-cycle')
   private readonly rakeCycle = this.page.getByTestId('rake-cycle')
   private readonly presetsMenu = this.page.getByTestId('presets-menu')
+  private readonly player = this.page.getByTestId('player')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.root).toBeVisible()
@@ -246,6 +247,16 @@ export class KaresansuiPagePom extends BasePage {
   private async readPersistedPresets(): Promise<unknown[]> {
     const raw = await this.page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY)
     return raw ? (JSON.parse(raw) as unknown[]) : []
+  }
+
+  // ---------- player ----------
+
+  async verifyPlayer(name: string): Promise<void> {
+    await expect(this.player).toHaveText(name)
+  }
+
+  async verifyNoPlayer(): Promise<void> {
+    await expect(this.player).toHaveCount(0)
   }
 
   // ---------- download ----------

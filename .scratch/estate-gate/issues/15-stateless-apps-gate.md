@@ -38,3 +38,16 @@ garden settings), which stay unscoped. Gate wiring only.
     production hub on the CT port.
   - Not run: the full-stack `scripts/docker-stack-gate-round-trip.mjs`, which
     has no option for an app without `/shared` on this branch.
+- 2026-11-10 (implementer, second round): the orchestrator ruled presets saved
+  work, so karesansui joins this PR with per-profile presets (boop's pattern):
+  the session is read once in `App.tsx`, `profileStorage` lists only
+  `karesansui:presets:v2`, `reloadOnPlayerChange` sits beside it, a
+  switch-player chip mirrors the back button, and the back link is `hubUrlFor`.
+  - Migration rule (ADR 0094, amended): `v1` is only ever read, so it stays the
+    device's. A profile adopts the device's `v2` when there is one; with only
+    `v1`, its first load reads the device's `v1` and writes its own `v2`. No
+    signed-in profile writes or removes either device key; signed out is as
+    before. Pinned in `profilePresets.test.ts` (v1 only, v2 only, both, saving,
+    signed out) and `profiles.iwft.tsx`.
+  - wotd's `main.test.ts` start-up deadline is 30s: a database-backed
+    entrypoint boots slowly under load.
