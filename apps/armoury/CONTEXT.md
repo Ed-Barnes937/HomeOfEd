@@ -45,7 +45,7 @@ A shaft spiral that stands proud as a ridge instead of being cut in as a groove.
 
 **Envelope**:
 How far carving, ridges, lumps, knots and bark may move the surface from the wand's
-outline, either way: a quarter of the local radius ([ADR 0081](../../docs/adr/0081-armoury-raised-features.md)).
+outline, either way: a quarter of the local radius ([ADR 0090](../../docs/adr/0090-armoury-raised-features.md)).
 
 **Zone**:
 A stretch of the wand in metal, paint or bone instead of wood: the handle, the

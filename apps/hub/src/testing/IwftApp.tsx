@@ -15,12 +15,15 @@ import {
 } from '@hoe/backend-kit'
 import { freshTestDb } from '@hoe/db'
 import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
+import { FakeFamilyClient } from '@hoe/accounts/testing/fake'
 
 import { App } from '../App.tsx'
 import { migrations } from '../server/migrations.ts'
 import { appRouter } from '../server/router.ts'
 import { hubSchema } from '../server/schema.ts'
 import { DrizzleHealthStore } from '../server/store.ts'
+
+import { FAMILY_INVITE_CODE, FIXTURE_PARENT } from './familyFixture.ts'
 
 exposeDispatcher(
   (async () => {
@@ -39,6 +42,14 @@ exposeDispatcher(
   })(),
 )
 
+// The family service is a separate origin with its own backend, so the tRPC
+// trampoline cannot serve it. One fake per page, signed out, holding the one
+// household a test can sign into.
+const familyClient = new FakeFamilyClient({
+  inviteCode: FAMILY_INVITE_CODE,
+  parents: [FIXTURE_PARENT],
+})
+
 export function IwftApp() {
-  return <App />
+  return <App familyClient={familyClient} />
 }

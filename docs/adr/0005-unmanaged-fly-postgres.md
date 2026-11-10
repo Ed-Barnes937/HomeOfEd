@@ -37,6 +37,9 @@ so this is also the setup they know how to run.
 - Apps are wired with `fly postgres attach <cluster> --app <flyapp>
   --database-name <name>` — this creates the database + a scoped user and sets
   the app's `DATABASE_URL` secret in one human-run step.
+  (**Amended by [ADR 0086](0086-hoe-pg-least-privilege.md):** attach's user
+  is a superuser unless `--superuser=false` is passed, so it was never scoped;
+  0086 makes each app role own only its own database.)
 - **Nothing in code changes.** Apps only ever see `DATABASE_URL`; the driver,
   migrations, CI, and Docker stack are identical against either product. The
   connection host is `hoe-pg.flycast` (Fly private networking) instead of
