@@ -14,6 +14,9 @@ importers:
 
   apps/armoury:
     dependencies:
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit
@@ -257,6 +260,9 @@ importers:
       '@fontsource/nunito':
         specifier: ^5.2.7
         version: 5.2.7
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit

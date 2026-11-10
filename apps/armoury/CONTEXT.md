@@ -111,6 +111,23 @@ vocabulary.
 The wands a child has kept, each in its own labelled box, oldest first.
 _Avoid_: Collection, saved wands, my wands.
 
+**Player**:
+The family profile a page opened for. The counter and the shelf are kept per
+player, under `armoury:save@<accountId>`, and the bare `armoury:save` signed
+out; the code always names the bare key and `@hoe/accounts`' `profileStorage`
+adds the suffix. A device's shelf from before profiles is copied into each
+player on first open, and never written again
+([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)). Switching player
+happens at hub, through the chip in the header.
+_Avoid_: User, account (in UI copy), owner.
+
+**Shared view**:
+`/shared#w=...`, where a share link lands, open to anyone. The wand can be
+shaped like any other, but it is kept in memory only: no shelf, no autosave.
+"Keep this wand" goes to the root, behind the gate, carrying the wand as it is
+now ([ADR 0093](../../docs/adr/0093-estate-gate.md) decision 6).
+_Avoid_: Preview, guest mode, read-only view (it is editable).
+
 **Try another**:
 Replace the wand on the counter with a random one, keeping any locked groups.
 **Put the last one back** undoes it until something else changes.

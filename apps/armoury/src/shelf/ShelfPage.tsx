@@ -39,7 +39,7 @@ function ShelfBox({ wand, index }: { wand: StoredWand; index: number }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'actions' | 'rename' | 'remove'>('actions')
-  const { shareState, share } = useShareWand(() => buildShareUrl(window.location, wand))
+  const { shareState, share } = useShareWand(() => buildShareUrl(window.location.origin, wand))
   const name = wand.name ?? wandName(wand.params)
   const meta = `${inchesInWords(wand.params.lengthCm as number)}, ${madeOf(wand.params)}, ${coreName(wand.params.core as string).toLowerCase()}`
 

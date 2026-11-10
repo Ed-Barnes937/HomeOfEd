@@ -1,8 +1,13 @@
+import { hubUrlFor, profileStorage, reloadOnPlayerChange, switchPlayerUrlFor } from '@hoe/accounts'
+import { useEffect, useState } from 'react'
+
 import { Toolbar } from '../features/controls/Toolbar.tsx'
 import { FluidTuner } from '../features/doodle/FluidTuner.tsx'
+import { PROFILE_KEYS } from '../features/doodle/profileKeys.ts'
 import { useDoodle } from '../features/doodle/useDoodle.ts'
 import { IntroSplash } from '../features/intro/IntroSplash.tsx'
 import { hubUrl } from '../hubUrl.ts'
+import { usePlayer } from '../player/PlayerContext.tsx'
 import styles from './DoodlePage.module.scss'
 
 /** TEMPORARY: show the fluid tuner only when the URL has `?tune`. */
@@ -17,7 +22,12 @@ export const HINT_TEXT =
 
 /** Sketchbook shell (spec §11.1): header → canvas card → toolbar footer. */
 export function DoodlePage() {
-  const { canvasRef, tool, setTool, nib, setNib, newPage, undo, canUndo, save } = useDoodle()
+  const { session, native } = usePlayer()
+  const accountId = session?.sub ?? null
+  const [storage] = useState(() => profileStorage(window.localStorage, accountId, PROFILE_KEYS))
+  // The native shell has no family cookie to watch.
+  useEffect(() => (native ? undefined : reloadOnPlayerChange(accountId)), [native, accountId])
+  const { canvasRef, tool, setTool, nib, setNib, newPage, undo, canUndo, save } = useDoodle(storage)
 
   return (
     <main className={styles.page}>
@@ -26,7 +36,10 @@ export function DoodlePage() {
       <header className={styles.header}>
         <a
           className={styles.back}
-          href={hubUrl(window.location.hostname)}
+          href={
+            // The native shell keeps its pre-estate target (ADR 0094); see ticket 13.
+            native ? hubUrl(window.location.hostname) : hubUrlFor(window.location.href)
+          }
           aria-label="Back to home of ed"
         >
           <svg
@@ -50,6 +63,7 @@ export function DoodlePage() {
             {HINT_TEXT}
           </p>
         </div>
+        {session !== null && <PlayerLink name={session.name} />}
       </header>
 
       <div className={styles.canvasArea}>
@@ -77,5 +91,30 @@ export function DoodlePage() {
         />
       </footer>
     </main>
+  )
+}
+
+/** Who is drawing, linking to hub to switch player and come back (spec decision 10). Outside the
+ *  estate there is no hub to switch at, so it is the name alone. */
+function PlayerLink({ name }: { name: string }) {
+  const href = switchPlayerUrlFor(window.location.href)
+  const label = (
+    <span className={styles.playerName} data-testid="player-name">
+      {name}
+    </span>
+  )
+  return href === null ? (
+    <span className={styles.player} data-testid="player">
+      {label}
+    </span>
+  ) : (
+    <a
+      className={styles.player}
+      href={href}
+      aria-label={`${name}, switch player`}
+      data-testid="player"
+    >
+      {label}
+    </a>
   )
 }

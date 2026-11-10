@@ -13,7 +13,7 @@ import type { Blot, Eye, Op, Point, Satellite, Stroke, ViewBox } from './engine/
  * paint its own dead flat paper over the sheet as a rectangle. The old key is
  * never read, so those sessions start fresh — which is the documented fallback.
  */
-const KEY = 'espy:doodle:v2'
+export const SESSION_KEY = 'espy:doodle:v2'
 
 function isNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -112,14 +112,14 @@ function stripOldBaked(ops: readonly Op[]): Op[] {
 
 export function saveSession(ops: readonly Op[], storage: Pick<Storage, 'setItem'>): void {
   try {
-    storage.setItem(KEY, JSON.stringify(ops))
+    storage.setItem(SESSION_KEY, JSON.stringify(ops))
     return
   } catch {
     // Over quota (many baked fields pile up in the undo history) — retry with
     // only the current field's raster.
   }
   try {
-    storage.setItem(KEY, JSON.stringify(stripOldBaked(ops)))
+    storage.setItem(SESSION_KEY, JSON.stringify(stripOldBaked(ops)))
   } catch {
     // Still failing (quota or storage unavailable) — drop the save rather than
     // throw; an accidental reload just regenerates the field.
@@ -129,7 +129,7 @@ export function saveSession(ops: readonly Op[], storage: Pick<Storage, 'setItem'
 export function loadSession(storage: Pick<Storage, 'getItem'>): Op[] | null {
   let raw: string | null
   try {
-    raw = storage.getItem(KEY)
+    raw = storage.getItem(SESSION_KEY)
   } catch {
     return null // storage unavailable (e.g. disabled) — start fresh
   }

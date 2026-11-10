@@ -150,7 +150,8 @@ function toPersistDataURL(baked: HTMLCanvasElement): string {
   return c.toDataURL('image/webp', 0.85)
 }
 
-export function useDoodle(): UseDoodle {
+/** `storage` holds the current drawing: the playing profile's `profileStorage` (ADR 0094). */
+export function useDoodle(storage: Pick<Storage, 'getItem' | 'setItem'>): UseDoodle {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [tool, setToolState] = useState<Tool>('pen')
   const [nib, setNibState] = useState<number>(NIB_SIZES[1])
@@ -274,7 +275,7 @@ export function useDoodle(): UseDoodle {
     const scheduleSave = (h: History): void => {
       if (saveTimer) clearTimeout(saveTimer)
       saveTimer = window.setTimeout(() => {
-        saveSession(h.ops, localStorage)
+        saveSession(h.ops, storage)
         saveTimer = 0
       }, SAVE_DEBOUNCE_MS)
     }
@@ -283,7 +284,7 @@ export function useDoodle(): UseDoodle {
         clearTimeout(saveTimer)
         saveTimer = 0
       }
-      saveSession(h.ops, localStorage)
+      saveSession(h.ops, storage)
     }
 
     const clientToLogical = (event: PointerEvent, f: Fit): Point => {
@@ -420,7 +421,7 @@ export function useDoodle(): UseDoodle {
       cssSize.h = h
       surface.resize(w, h, window.devicePixelRatio || 1)
 
-      const decision = initialOps(loadSession(localStorage), cssSize, Math.random)
+      const decision = initialOps(loadSession(storage), cssSize, Math.random)
       history = new History(decision.ops)
       attachSeam(history)
       setCanUndo(history.canUndo)
@@ -447,7 +448,7 @@ export function useDoodle(): UseDoodle {
       window.removeEventListener('keydown', onKeyDown)
       opsRef.current = NOOP_OPS
     }
-  }, [])
+  }, [storage])
 
   const setTool = useCallback((t: Tool) => setToolState(t), [])
   const setNib = useCallback((w: number) => setNibState(w), [])
