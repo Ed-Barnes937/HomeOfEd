@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
+    "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/db": "workspace:*",
     "@hoe/logger": "workspace:*",
