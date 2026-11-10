@@ -94,8 +94,25 @@ export class ShopPom extends BasePage {
       this.page
         .getByRole('slider', { name, exact: true })
         .or(this.page.getByRole('radiogroup', { name, exact: true }))
+        .or(this.page.getByRole('group', { name, exact: true }))
     for (const name of shown) await expect(control(name)).toBeVisible()
     for (const name of hidden) await expect(control(name)).toHaveCount(0)
+  }
+
+  async nextBranch(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Next branch' }).click()
+  }
+
+  async previousBranch(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Previous branch' }).click()
+  }
+
+  /** The branch the stepper shows, counted from 1, and that the stage drew the same one. */
+  async verifyBranch(number: number): Promise<void> {
+    await expect(this.page.getByRole('group', { name: 'Which branch', exact: true })).toContainText(
+      String(number),
+    )
+    await expect(this.stage).toHaveAttribute('data-branch', String(number - 1))
   }
 
   async openTab(tab: string): Promise<void> {

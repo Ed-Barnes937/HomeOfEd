@@ -41,6 +41,7 @@ export function FakeStage({ params, ref }: StageProps) {
       data-length={params.lengthCm}
       data-gems={gemCount(params)}
       data-stencil={spec.stencil?.tile ?? 'none'}
+      data-branch={params.branchSeed}
       data-bark={spec.branch?.bark?.cover ?? 'none'}
       data-gem-colour={spec.gemColour.glow}
       data-gem-cut={spec.gems[0]?.cut ?? 'none'}

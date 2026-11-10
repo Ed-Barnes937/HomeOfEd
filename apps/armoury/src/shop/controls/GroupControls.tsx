@@ -7,6 +7,7 @@ import {
   Pills,
   Ruler,
   Slider,
+  Stepper,
   SwatchPicker,
   WoodPicker,
   type OnChange,
@@ -26,6 +27,8 @@ function Control({
   if (def.kind === 'number') {
     const value = params[def.key] as number
     if (def.key === 'lengthCm') return <Ruler def={def} value={value} onChange={onChange} />
+    if (def.key === 'branchSeed')
+      return <Stepper def={def} value={value} onChange={onChange} noun="branch" />
     return <Slider def={def} value={value} onChange={onChange} />
   }
   switch (def.key) {
