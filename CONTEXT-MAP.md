@@ -22,6 +22,7 @@ file just means that context's domain model hasn't been written down yet.
 - `packages/backend-kit/CONTEXT.md` — not yet written
 - `packages/config/CONTEXT.md` — not yet written
 - `packages/db/CONTEXT.md` — not yet written
+- `packages/deploy-guard/CONTEXT.md` - not yet written
 - `packages/logger/CONTEXT.md` — not yet written
 - `packages/magnet-kit/CONTEXT.md` — not yet written
 - `packages/sprout-shared/CONTEXT.md` — not yet written

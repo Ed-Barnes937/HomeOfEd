@@ -37,7 +37,7 @@ WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
   --filter=family --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger \
-  --filter=@hoe/accounts
+  --filter=@hoe/accounts --filter=@hoe/deploy-guard
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -50,6 +50,7 @@ COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/db ./packages/db
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
 COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/family/src ./apps/family/src
 COPY --from=builder /app/apps/family/dist ./apps/family/dist

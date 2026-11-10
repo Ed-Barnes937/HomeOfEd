@@ -102,6 +102,8 @@ Consequences worth knowing:
   placeholder** (`dev-`, `insecure`, `change-me`, `placeholder`, `example`,
   leading `test`), either of those below a minimum length, and any `NODE_ENV`
   but `production` (CORS's dev origins and tRPC's stack traces both key off it).
+  The placeholder, length and `NODE_ENV` rules live in `@hoe/deploy-guard`
+  ([ADR 0088](../../docs/adr/0088-deploy-guard-package.md)), shared with sprout.
   The pattern is the primary rule, not `COMMITTED_DEV_SECRETS`: a list only ever
   enumerates what somebody remembered, and `apps/sprout/.env.example` publishes
   a 32-character `...-change-me` secret that cleared both the list and the

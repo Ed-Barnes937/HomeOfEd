@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { TEST_FAMILY_PRIVATE_KEY } from '@hoe/accounts/testing'
+import { COMMITTED_DEV_SECRETS } from '@hoe/deploy-guard'
 import { describe, expect, it } from 'vitest'
 
-import { COMMITTED_DEV_SECRETS, loadFamilyEnv } from './env.ts'
+import { loadFamilyEnv } from './env.ts'
 
 const complete = {
   FAMILY_TOKEN_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----\\n',

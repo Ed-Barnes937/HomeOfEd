@@ -36,8 +36,9 @@ Headless service, not a standard hub app:
 - **No database, no Store, no PGlite** — owns no persistent state (ADR 0008); the
   web app persists flag events, the pipeline stays DB-less. `/health` is shallow
   liveness, no Store round-trip.
-- **No `@hoe/backend-kit`** — headless. It consumes `@hoe/logger` and
-  `@hoe/config` only.
+- **No `@hoe/backend-kit`** - headless. It consumes `@hoe/logger`,
+  `@hoe/sprout-shared`, `@hoe/deploy-guard` (`src/env.ts`: on Fly a placeholder
+  or short `PIPELINE_API_KEY` refuses to boot, ADR 0088) and `@hoe/config` only.
 - **Not publicly routed** in prod — reached by the web app over Fly's private
   network (`.flycast`), guarded by `x-pipeline-key` (P6/P8).
 

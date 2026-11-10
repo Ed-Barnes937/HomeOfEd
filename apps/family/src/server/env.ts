@@ -2,6 +2,7 @@
 // Node-only: main.ts parses it ONCE at boot, so a missing secret crashes the
 // process instead of failing the first sign-in. Nothing here is ever logged.
 import { TEST_FAMILY_PRIVATE_KEY } from '@hoe/accounts/testing'
+import { assertFitForDeployment, isDeployed, type Environment } from '@hoe/deploy-guard'
 import { z } from 'zod'
 
 export const familyEnvSchema = z.object({
@@ -24,23 +25,6 @@ export const familyEnvSchema = z.object({
 
 export type FamilyEnv = z.output<typeof familyEnvSchema>
 
-/**
- * What a placeholder looks like. This is the primary rule, because a list can
- * only enumerate what somebody remembered: `apps/sprout/.env.example` publishes
- * a 32-character `dev-better-auth-secret-change-me` that cleared both the list
- * and the length floor below. A false positive fails closed, and is fixed by
- * generating a different secret.
- */
-const PLACEHOLDER_SECRET = /dev-|insecure|change-?me|placeholder|example|^test/i
-
-/** The belt to that pattern's braces; `env.test.ts` re-reads the files for drift. */
-export const COMMITTED_DEV_SECRETS: readonly string[] = [
-  'dev-insecure-invite',
-  'dev-insecure-secret',
-  'dev-invite-code',
-  'dev-better-auth-secret',
-]
-
 /** The invite code is typed by hand; Better Auth itself wants 32 for its secret. */
 const MIN_DEPLOYED_LENGTH = {
   REGISTRATION_INVITE_CODE: 16,
@@ -53,36 +37,12 @@ function isCommittedTestKey(pem: string): boolean {
   return bare(pem) === bare(TEST_FAMILY_PRIVATE_KEY)
 }
 
-/** Nothing this repo publishes may run on Fly (ADR 0078). */
-function assertFitForDeployment(env: FamilyEnv, nodeEnv: string | undefined): void {
-  if (isCommittedTestKey(env.FAMILY_TOKEN_PRIVATE_KEY)) {
+/** The committed fixture key is public, so it may sign nothing on Fly (ADR 0078). */
+function assertKeyFitForDeployment(pem: string, source: Environment): void {
+  if (isDeployed(source) && isCommittedTestKey(pem)) {
     throw new Error(
       'FAMILY_TOKEN_PRIVATE_KEY is the committed @hoe/accounts/testing key, which is public ' +
         'knowledge, and FLY_APP_NAME says this is deployed infrastructure. Set the real Fly secret.',
-    )
-  }
-
-  for (const name of ['REGISTRATION_INVITE_CODE', 'BETTER_AUTH_SECRET'] as const) {
-    if (PLACEHOLDER_SECRET.test(env[name]) || COMMITTED_DEV_SECRETS.includes(env[name])) {
-      throw new Error(
-        `${name} reads as a placeholder, and this repo publishes several, so anyone who can ` +
-          'read it may hold it. FLY_APP_NAME says this is deployed infrastructure; generate a ' +
-          'real secret with: openssl rand -base64 32',
-      )
-    }
-    if (env[name].length < MIN_DEPLOYED_LENGTH[name]) {
-      throw new Error(
-        `${name} must be at least ${MIN_DEPLOYED_LENGTH[name]} characters on deployed ` +
-          'infrastructure. Generate one with: openssl rand -base64 32',
-      )
-    }
-  }
-
-  // CORS's dev origins and tRPC's stack traces both key off NODE_ENV.
-  if (nodeEnv !== 'production') {
-    throw new Error(
-      'NODE_ENV must be "production" on deployed infrastructure (FLY_APP_NAME is set): ' +
-        'anything else widens the CORS allowlist and puts stack traces in error responses.',
     )
   }
 }
@@ -95,7 +55,8 @@ export function loadFamilyEnv(source: Record<string, string | undefined> = proce
     throw new Error(`Invalid family identity environment: ${names.join(', ')} missing or invalid`)
   }
 
-  if (source.FLY_APP_NAME) assertFitForDeployment(parsed.data, source.NODE_ENV)
+  assertKeyFitForDeployment(parsed.data.FAMILY_TOKEN_PRIVATE_KEY, source)
+  assertFitForDeployment(source, MIN_DEPLOYED_LENGTH)
 
   return parsed.data
 }
