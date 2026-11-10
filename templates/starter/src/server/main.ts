@@ -4,6 +4,7 @@
 // shallow liveness check.
 import { fileURLToPath } from 'node:url'
 
+import { familyDocumentGateFromEnv } from '@hoe/accounts/server'
 import { createContext, InMemoryBlobStore } from '@hoe/backend-kit'
 import { createAppServer } from '@hoe/backend-kit/server'
 import { createLogger, requestLogger } from '@hoe/logger'
@@ -26,6 +27,9 @@ const server = createAppServer({
   // Shallow health: no Store, so just liveness (ADR 0008). A DB-backed app would
   // round-trip its Store here instead.
   healthCheck: () => Promise.resolve({ ok: true as const }),
+  // On exactly when FAMILY_ACCOUNT_URL is set (ADR 0093). Add '/shared' here
+  // once the app has share links.
+  documentGate: familyDocumentGateFromEnv(process.env, { publicPaths: [] }),
 })
 
 const port = Number(process.env.PORT ?? 8080)

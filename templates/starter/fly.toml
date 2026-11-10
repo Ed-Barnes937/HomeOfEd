@@ -13,6 +13,9 @@ primary_region = 'lhr'
 
 [env]
   PORT = '8080'
+  # The estate gate (ADR 0093). On Fly it refuses to boot until the production
+  # verifying key is committed; until then a copy removes it (adding-an-app §1a).
+  FAMILY_ACCOUNT_URL = 'https://homeofed.com/account'
 
 [http_service]
   internal_port = 8080
