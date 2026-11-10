@@ -109,8 +109,9 @@ Every app:
 4. **Fly app** — `fly.toml` app name (human runs `fly apps create`).
 5. **Cloudflare** — proxied CNAME `<name> → <flyapp>.fly.dev`, Full (strict) TLS,
    Fly cert (human-run).
-6. **CI** - copy the `deploy-boop` job (not hub's: its smoke refuses a gated app) in `.github/workflows/deploy.yml`
-   (app name in the affected check, fly.toml path, smoke URL).
+6. **CI** - copy the `deploy-boop` job (not hub's: its smoke refuses a gated
+   app) in `.github/workflows/deploy.yml` (app name in the affected check,
+   fly.toml path, smoke URL).
 7. **Docker stack** — copy the app service in `compose.yml` (fresh host port).
 8. **Estate gate** - on from the starter; add to `ESTATE_APPS` + compose env ([how-to §1a](docs/how-to/adding-an-app.md#1a-the-estate-gate-every-app)).
 

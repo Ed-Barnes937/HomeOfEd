@@ -56,8 +56,10 @@ from `apps/hub`) only if the app gains a database.
   checklist).
 - **Gated by default** ([ADR 0093](../../docs/adr/0093-estate-gate.md)): `main.ts`
   gates document requests via `familyDocumentGateFromEnv` exactly when
-  `FAMILY_ACCOUNT_URL` is set, and `fly.toml` sets it. A copied app also joins
-  `ESTATE_APPS` and needs its compose lines; see
+  `FAMILY_ACCOUNT_URL` is set. The template's `fly.toml` sets it; a copied app
+  keeps that line only once the production verifying key is committed (a test
+  in `@hoe/accounts` enforces this). It also joins `ESTATE_APPS` and needs its
+  compose lines; see
   [docs/how-to/adding-an-app.md §1a](../../docs/how-to/adding-an-app.md#1a-the-estate-gate-every-app).
 - **Adding a database?** Follow the step-by-step in
   [docs/how-to/adding-an-app.md §2](../../docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only)

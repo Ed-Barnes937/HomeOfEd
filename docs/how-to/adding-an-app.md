@@ -60,8 +60,15 @@ Copy the stateless baseline. It compiles and its tests pass before you change a
 line, so you always start from green.
 
 ```bash
-cp -r templates/starter apps/<name>
+mkdir apps/<name>
+git archive HEAD:templates/starter | tar -x -C apps/<name>
+corepack pnpm install
 ```
+
+`git archive` copies only the starter's committed files. A plain `cp -r` also
+copies its `node_modules` symlinks (and `dist/`), which then point at the
+starter's dependencies rather than the new app's. `pnpm install` links the new
+workspace package.
 
 Then change each touchpoint:
 
@@ -70,10 +77,11 @@ Then change each touchpoint:
 | 1 | `apps/<name>/package.json` | `"name": "<name>"`; set the dev port in the `dev` script (`vite --port <devPort>`). |
 | 2 | `apps/<name>/index.html` | `<title>`. |
 | 3 | `apps/<name>/playwright-ct.config.ts` | `ctPort: <ctPort>`. |
-| 4 | `apps/<name>/fly.toml` | `app = '<flyapp>'`. Leave `primary_region = 'lhr'` and the `FAMILY_ACCOUNT_URL` line ([§1a](#1a-the-estate-gate-every-app)). |
+| 4 | `apps/<name>/fly.toml` | `app = '<flyapp>'`. Leave `primary_region = 'lhr'`. Keep or remove the `FAMILY_ACCOUNT_URL` line as [§1a](#1a-the-estate-gate-every-app) says. |
 | 5 | `apps/<name>/Dockerfile` | Replace `starter` in the `turbo prune` and `--filter` lines; replace every `templates/starter` path with `apps/<name>`. |
 | 6 | `compose.yml` (repo root) | Copy the `boop` service as a new `<name>` service (build context `.`, dockerfile `apps/<name>/Dockerfile`, fresh host port, and its two `FAMILY_*` lines - [§1a](#1a-the-estate-gate-every-app)). A stateless app has **one** service, `command: node src/server/main.ts`, no `DATABASE_URL`, no `depends_on`. |
-| 7 | `.github/workflows/deploy.yml` | Copy the `deploy-boop` job to `deploy-<name>`: the `APP_URL`, the affected check (`select(.name == "<name>")`), the `flyctl deploy --config apps/<name>/fly.toml` path, and the smoke `APP_URL`. Not `deploy-hub`: hub is never gated, so its smoke demands a `200` index and fails a gated app's first deploy after Fly has already rolled it out. |
+| 7 | `.github/workflows/deploy.yml` | Copy the `deploy-boop` job to `deploy-<name>`: the `APP_URL`, the affected check (`select(.name == "<name>")`), the `flyctl deploy --config apps/<name>/fly.toml` path, and the smoke `APP_URL`. Not `deploy-hub`: hub is never gated, so its smoke demands a `200` index and fails a gated app's first deploy after Fly has already rolled it out. Then add `deploy-<name>` to the `record-deploys` job: its `needs:` list, a `<NAME>:` line in the record step's `env`, and an `add <name> "$<NAME>"` line, so a green deploy reaches the homepage. |
+| 8 | `apps/<name>/src/server/main.ts`, `src/server/simulator.ts`, `src/testing/IwftApp.tsx` | The logger label `app: 'starter'` becomes `app: '<name>'`. |
 
 **Ports must be unique across all apps.** This registry is the single source of
 truth — read it, take the **next free** row, and add your app to it in the same
@@ -127,8 +135,9 @@ already has the server half; keep it:
   `.iwft` never run this server, so they are ungated.
 - `src/server/main.test.ts` boots that entrypoint on a real port and proves
   both modes.
-- `fly.toml` sets `FAMILY_ACCOUNT_URL = 'https://homeofed.com/account'` under
-  `[env]`.
+- The template's `fly.toml` sets `FAMILY_ACCOUNT_URL =
+  'https://homeofed.com/account'` under `[env]`. A copied app keeps that line
+  only once the production key is committed (below).
 - `Dockerfile` ships `@hoe/accounts` and `@hoe/deploy-guard` and deletes
   `packages/accounts/src/testing`, as
   [`packages/accounts/README.md`](../../packages/accounts/README.md#wiring-the-gate-in-an-app)
@@ -171,7 +180,8 @@ key" in the accounts README); the deploy then fails its health checks and
 (see "The verifying key" in the accounts README), so rotating it is a code
 change and a redeploy, never a Fly variable. While it is still `null`, remove
 the `FAMILY_ACCOUNT_URL` line from the app's `fly.toml`; putting it back later
-is the one-line switch-on.
+is the one-line switch-on. `familyVerifyingKey.test.ts` in `@hoe/accounts`
+fails while any `apps/*/fly.toml` sets the line and the constant is `null`.
 
 To see the gate locally: `docker compose up --build family hub <name>`, then
 open `http://localhost:<composePort>/` and you land on hub's sign-in.
@@ -319,6 +329,17 @@ hub's equivalents.
 
   This is what makes `mountApp({ seed })` work in `.iwft` tests.
 
+- **`src/server/main.test.ts`** (the entrypoint test) starts `main.ts` with
+  only the env it names, so `loadDbEnv()` now throws at boot. Add a
+  `DATABASE_URL` nothing listens on to the env `startMain` passes:
+
+  ```ts
+  env: { PATH: process.env.PATH ?? '', PORT: String(port), DATABASE_URL: 'postgres://gate-test@127.0.0.1:9/none', ...env },
+  ```
+
+  The Postgres pool connects lazily, so the server boots and the gate tests
+  need no database; `/health` answers `503`, which the readiness poll accepts.
+
 ### 2i. Store test — `src/server/store.test.ts`
 
 Copy `apps/hub/src/server/store.test.ts`: `freshTestDb(<name>Schema, migrations)`
@@ -426,6 +447,7 @@ curl -fsS localhost:<port>/health            # → {"ok":true} (deep round-trip)
 | migrations don't apply / table empty | §2d not generated, or §2e `migrate.ts` |
 | prod image build fails on pglite / image huge | §2l — `COPY packages/db` missing or pglite not removed |
 | deployed `/health` returns 503 | §2h `main.ts` healthCheck, or DB not attached (§4) |
+| `main.test.ts`: `main.ts exited with 1` and `Invalid database environment` | §2h - `DATABASE_URL` not added to `startMain`'s env |
 
 ---
 

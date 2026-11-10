@@ -56,3 +56,12 @@ A new app copied from `templates/starter` should arrive gated.
     `returnTo`, `500`, `404`, `200` without the root div, refused connection).
   - Root `CLAUDE.md`: the DB-only items renumber to 9 and 10, and the em dashes
     on the lines touched became plain dashes.
+- 2026-11-10 (implementer, review fixes): `go-live.sh`'s `index_smoke` now also
+  fetches one hashed asset on a `200`, and pins the gate's `returnTo` to
+  `https://$HOST/`. CI's estate smokes in `deploy.yml` (ticket 03) still accept
+  a `302` whose `returnTo` names any `https://` host; left as they are.
+  `@hoe/accounts` gained two guards: no `apps/*/fly.toml` sets
+  `FAMILY_ACCOUNT_URL` while `PRODUCTION_FAMILY_PUBLIC_KEY` is `null`, and
+  every compose service that sets it is in `ESTATE_APPS`. `main.test.ts`
+  surfaces the child's stderr, and the how-to says how a database-backed copy
+  adapts it.

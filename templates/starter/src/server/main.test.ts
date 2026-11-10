@@ -7,6 +7,9 @@ import { mintTestToken, TEST_FAMILY_PUBLIC_KEY } from '@hoe/accounts/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const ACCOUNT_URL = 'https://homeofed.com/account'
+const START_DEADLINE_MS = 10_000
+// Ungated: the index with a built dist/, 404 without one.
+const NOT_REDIRECTED = [200, 404]
 const appDir = fileURLToPath(new URL('../..', import.meta.url))
 const running: ChildProcess[] = []
 
@@ -30,33 +33,37 @@ async function startMain(env: Record<string, string>): Promise<string> {
   const child = spawn(process.execPath, ['src/server/main.ts'], {
     cwd: appDir,
     env: { PATH: process.env.PATH ?? '', PORT: String(port), ...env },
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'pipe'],
   })
   running.push(child)
+  let stderr = ''
+  child.stderr?.on('data', (chunk: Buffer) => (stderr += chunk.toString()))
   const base = `http://localhost:${port}`
-  for (const deadline = Date.now() + 10_000; Date.now() < deadline;) {
-    if (child.exitCode !== null) throw new Error(`main.ts exited with ${child.exitCode}`)
+  for (const deadline = Date.now() + START_DEADLINE_MS; Date.now() < deadline;) {
+    if (child.exitCode !== null) {
+      throw new Error(`main.ts exited with ${child.exitCode}:\n${stderr}`)
+    }
+    // Any answer means it is listening; a database-backed /health may be 503 here.
     const up = await fetch(`${base}/health`).then(
-      (res) => res.ok,
+      () => true,
       () => false,
     )
     if (up) return base
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
-  throw new Error('main.ts did not answer /health within 10s')
+  throw new Error(`main.ts did not answer within ${START_DEADLINE_MS}ms:\n${stderr}`)
 }
 
 const getDocument = (base: string, cookie?: string) =>
   fetch(`${base}/`, { redirect: 'manual', headers: cookie ? { cookie } : {} })
 
-describe('the production entrypoint', () => {
+describe('the production entrypoint', { timeout: START_DEADLINE_MS + 5_000 }, () => {
   it('does not gate documents when FAMILY_ACCOUNT_URL is unset', async () => {
     const base = await startMain({})
 
     const res = await getDocument(base)
 
-    expect(res.status).not.toBe(302)
-    expect(res.headers.get('location')).toBeNull()
+    expect(NOT_REDIRECTED).toContain(res.status)
   })
 
   it('sends a document request with no family session to the account URL', async () => {
@@ -82,7 +89,6 @@ describe('the production entrypoint', () => {
 
     const res = await getDocument(base, `${FAMILY_SESSION_COOKIE}=${token}`)
 
-    expect(res.status).not.toBe(302)
-    expect(res.headers.get('location')).toBeNull()
+    expect(NOT_REDIRECTED).toContain(res.status)
   })
 })
