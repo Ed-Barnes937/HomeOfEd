@@ -379,17 +379,6 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
         zone[k * 3 + 2] = zone[k * 3 + 2]! * (1 - m)
       }
     }
-    const material = materialAt(spec, z)
-    for (let i = 0; i <= segments; i++) {
-      const k = j * cols + i
-      if (material) zone[k * 3 + MATERIAL_CHANNEL[material]] = 1
-      const m = ridge[k]!
-      if (m > 0) {
-        zone[k * 3] = Math.max(zone[k * 3]!, m)
-        zone[k * 3 + 1] = zone[k * 3 + 1]! * (1 - m)
-        zone[k * 3 + 2] = zone[k * 3 + 2]! * (1 - m)
-      }
-    }
   }
 
   // Normals by central differences on the grid, wrapping around the seam so
