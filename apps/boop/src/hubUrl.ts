@@ -8,3 +8,8 @@ export function hubUrl(hostname: string): string {
   if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:3000'
   return 'https://homeofed.com'
 }
+
+/** The hub's account page, which owns sign-in and the family profiles (ADR 0070). */
+export function accountUrl(hostname: string): string {
+  return `${hubUrl(hostname)}/account`
+}

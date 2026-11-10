@@ -1,0 +1,278 @@
+@use '../paperTokens' as paper;
+
+.account {
+  @include paper.paperTokens;
+
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding: 32px 24px 96px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  transition:
+    background 0.5s ease,
+    color 0.5s ease;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.back {
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--fg);
+  }
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--toggle-border);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: rotate(-18deg);
+  }
+}
+
+.moon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset -6px -3px 0 0 var(--toggle-fill);
+}
+
+.sun {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--toggle-fill);
+}
+
+.title {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.lede {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--card-border);
+  border-radius: 11px;
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  transition:
+    background 0.45s ease,
+    border-color 0.45s ease;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--toggle-border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary,
+.secondary,
+.quiet,
+.danger {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+.primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff8ef;
+}
+
+.secondary {
+  border: 1px solid var(--toggle-border);
+  background: transparent;
+  color: var(--fg);
+
+  &:hover:not(:disabled) {
+    border-color: var(--fg);
+  }
+}
+
+.quiet {
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.danger {
+  border: 1px solid #b0462f;
+  background: transparent;
+  color: #b0462f;
+
+  &:hover:not(:disabled) {
+    background: #b0462f;
+    color: #fff8ef;
+  }
+}
+
+.error {
+  margin: 0;
+  color: #b0462f;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--divider);
+
+  &:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+.rowName {
+  font-size: 16px;
+}
+
+.rowHandle {
+  color: var(--faint);
+  font-size: 13px;
+}
+
+.pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.picker {
+  padding: 10px 16px;
+  border: 1px solid var(--toggle-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: var(--live);
+    background: var(--live);
+    color: #fff8ef;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}

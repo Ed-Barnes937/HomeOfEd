@@ -1,0 +1,50 @@
+// The warm-paper palette, from the homepage-v2 design reference. One definition
+// for every hub screen: the tokens stopped being the home page's own business
+// when /account became the second surface that has to match them.
+@mixin paperTokens {
+  --bg: #e9e1d6;
+  --fg: #2c322e;
+  --muted: #6f7570;
+  --faint: #9a9a8f;
+  --accent: #c07a35;
+  --line: rgba(44, 50, 46, 0.12);
+
+  --card-bg: #f3ede2;
+  --card-border: rgba(44, 50, 46, 0.12);
+  --card-shadow: 0 6px 16px -8px rgba(44, 50, 46, 0.35);
+  --card-shadow-hover: 0 14px 26px -10px rgba(0, 0, 0, 0.4);
+  --canvas-bg: rgba(44, 50, 46, 0.03);
+  --live: #4f7d6f;
+  --soon: #a6a69b;
+  --divider: rgba(44, 50, 46, 0.14);
+  --toggle-border: rgba(44, 50, 46, 0.3);
+  --toggle-fill: #2c322e;
+
+  // Handmade-paper texture strength (carried over from the previous homepage).
+  // Dial these down to soften; set to 0 to remove the texture entirely.
+  --paper-grain: 0.68;
+  --paper-fleck: 0.16;
+
+  &[data-theme='dark'] {
+    --bg: #23241f;
+    --fg: #ece5da;
+    --muted: #9a978d;
+    --faint: #67655c;
+    --accent: #e0955f;
+    --line: rgba(236, 229, 218, 0.11);
+
+    --card-bg: #2b2d27;
+    --card-border: rgba(236, 229, 218, 0.11);
+    --card-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.55);
+    --card-shadow-hover: 0 14px 26px -10px rgba(0, 0, 0, 0.6);
+    --canvas-bg: rgba(236, 229, 218, 0.03);
+    --live: #7dc0a0;
+    --soon: #6f6d63;
+    --divider: rgba(236, 229, 218, 0.12);
+    --toggle-border: rgba(236, 229, 218, 0.35);
+    --toggle-fill: #ece5da;
+
+    --paper-grain: 0.26;
+    --paper-fleck: 0.05;
+  }
+}
