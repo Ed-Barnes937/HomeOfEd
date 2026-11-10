@@ -44,8 +44,73 @@ test('a signed-in parent adds, lists and renames a child profile', async ({ moun
   await root.addProfile('Robin', 'robin')
   await root.verifyProfileListed('Robin', 'robin')
 
-  await root.renameProfile('Robin', 'Bobbin')
+  await root.editProfile('Robin', { displayName: 'Bobbin' })
   await root.verifyProfileListed('Bobbin', 'robin')
+})
+
+test('a mistyped username is corrected in place', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+  await root.addProfile('Robin', 'robni')
+  await root.verifyProfileListed('Robin', 'robni')
+
+  await root.editProfile('Robin', { username: 'robin' })
+
+  await root.verifyProfileListed('Robin', 'robin')
+  await root.verifyProfileNotListed('robni')
+})
+
+test('changing to a username another profile has says so, on the edit form', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+  await root.addProfile('Robin', 'robin')
+  await root.addProfile('Wren', 'wren')
+  await root.verifyProfileListed('Wren', 'wren')
+
+  await root.editProfile('Wren', { username: 'robin' })
+
+  await root.verifyInlineError('that username is already taken')
+  await root.cancelEditingProfile()
+  await root.verifyProfileListed('Wren', 'wren')
+})
+
+test('deleting a profile takes a confirm step, and removes only that profile', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+  await root.addProfile('Robin', 'robin')
+  await root.addProfile('Wren', 'wren')
+  await root.verifyProfileListed('Wren', 'wren')
+
+  await root.startThenAbandonDeletingProfile('Robin')
+  await root.verifyProfileListed('Robin', 'robin')
+
+  await root.deleteProfile('Robin')
+
+  await root.verifyProfileNotListed('robin')
+  await root.verifyProfileListed('Wren', 'wren')
+})
+
+test('deleting the profile playing on this device stops it playing here', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+  await root.addProfile('Robin', 'robin')
+  await root.pickWhoIsPlaying('Robin')
+  await root.verifyPlayingNow('Robin')
+
+  await root.deleteProfile('Robin')
+
+  await root.verifyNobodyIsPlaying()
+  await root.verifyNoFamilySession()
 })
 
 test('a taken username is a message on the form, not a crash', async ({ mountApp }) => {

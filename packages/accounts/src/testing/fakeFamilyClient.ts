@@ -15,13 +15,20 @@
 import type { FamilyTokenClaims } from '../claims.ts'
 import { DEFAULT_FAMILY_TOKEN_TTL_MS } from '../claims.ts'
 import { FamilyClientError } from '../familyClientError.ts'
-import { addChildInput, mintSessionTokenInput, renameChildInput } from '../identityContract.ts'
+import {
+  addChildInput,
+  deleteChildInput,
+  mintSessionTokenInput,
+  renameChildInput,
+} from '../identityContract.ts'
 import { saveDeleteInput, saveGetInput, saveListInput, savePutInput } from '../saveContract.ts'
 import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from '../saveLimits.ts'
 import type {
   AddChildInput,
   ChildProfileView,
   DeleteAccountOutput,
+  DeleteChildInput,
+  DeleteChildOutput,
   FamilyIdentityContract,
   IdentityMeOutput,
   ListChildrenOutput,
@@ -262,11 +269,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
       // Parsed, not read: the schema trims, so `' Ada '` must store as `'Ada'`
       // here exactly as it does in Postgres.
       const input = parsed(addChildInput, raw)
-      // `child_profiles` is unique on (parentId, username): a clash is per household.
-      const taken = [...this.children.values()].some(
-        (child) => child.parentId === parent.id && child.username === input.username,
-      )
-      if (taken) throw new FamilyClientError('that username is already taken', 'CONFLICT')
+      this.requireUsernameFree(parent.id, input.username)
       const child: StoredChild = {
         id: this.mintUuid(),
         parentId: parent.id,
@@ -283,9 +286,21 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
     return this.requireParent().then((parent) => {
       const input = parsed(renameChildInput, raw)
       const child = this.ownChild(parent.id, input.id)
-      const renamed = { ...child, displayName: input.displayName }
+      const username = input.username ?? child.username
+      this.requireUsernameFree(parent.id, username, child.id)
+      const renamed = { ...child, displayName: input.displayName, username }
       this.children.set(child.id, renamed)
       return toView(renamed)
+    })
+  }
+
+  deleteChild(raw: DeleteChildInput): Promise<DeleteChildOutput> {
+    return this.requireParent().then((parent) => {
+      const input = parsed(deleteChildInput, raw)
+      const child = this.ownChild(parent.id, input.id)
+      this.eraseSaves(child.id)
+      this.children.delete(child.id)
+      return { ok: true as const }
     })
   }
 
@@ -316,9 +331,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
       const owned = [...this.children.values()].filter((child) => child.parentId === parent.id)
       // saves.accountId carries no FK, so erasure is explicit on both sides.
       for (const accountId of [parent.id, ...owned.map((child) => child.id)]) {
-        for (const key of [...this.slots.keys()]) {
-          if (key.split('\x1f')[1] === accountId) this.slots.delete(key)
-        }
+        this.eraseSaves(accountId)
       }
       for (const child of owned) this.children.delete(child.id)
       this.parents.delete(parent.id)
@@ -364,6 +377,21 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
       throw new FamilyClientError('that child profile is not yours', 'FORBIDDEN')
     }
     return child
+  }
+
+  // `child_profiles` is unique on (parentId, username): a clash is per household.
+  private requireUsernameFree(parentId: string, username: string, exceptId?: string): void {
+    const taken = [...this.children.values()].some(
+      (child) =>
+        child.parentId === parentId && child.username === username && child.id !== exceptId,
+    )
+    if (taken) throw new FamilyClientError('that username is already taken', 'CONFLICT')
+  }
+
+  private eraseSaves(accountId: string): void {
+    for (const key of [...this.slots.keys()]) {
+      if (key.split('\x1f')[1] === accountId) this.slots.delete(key)
+    }
   }
 
   private findByEmail(email: string): StoredParent | null {

@@ -13,6 +13,8 @@ import type {
   AddChildInput,
   ChildProfileView,
   DeleteAccountOutput,
+  DeleteChildInput,
+  DeleteChildOutput,
   FamilyIdentityContract,
   IdentityMeOutput,
   ListChildrenOutput,
@@ -25,6 +27,7 @@ import type {
 import {
   childProfileView,
   deleteAccountOutput,
+  deleteChildOutput,
   identityMeOutput,
   listChildrenOutput,
   mintSessionTokenOutput,
@@ -79,6 +82,9 @@ export function createFamilyIdentityClient(
     },
     async renameChild(input: RenameChildInput): Promise<ChildProfileView> {
       return childProfileView.parse(await mutate('children.rename', input))
+    },
+    async deleteChild(input: DeleteChildInput): Promise<DeleteChildOutput> {
+      return deleteChildOutput.parse(await mutate('children.delete', input))
     },
     async mintSessionToken(input: MintSessionTokenInput): Promise<MintSessionTokenOutput> {
       return mintSessionTokenOutput.parse(await mutate('mintSessionToken', input))

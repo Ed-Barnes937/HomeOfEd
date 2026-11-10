@@ -235,9 +235,7 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3112 })
   contract, split out because `signUp`/`signIn`/`signOut` are Better Auth
   endpoints no tRPC router could implement. Both bindings live in `router.ts` as
   `identityContractFor` / `saveContractFor`; keep every new procedure inside one
-  of them. `identity.children.delete` is the one exception and is wired
-  directly, because no client speaks it - **put it in the contract the moment
-  one does**, or it ships unbound.
+  of them.
 - **Deleting a child profile is transactional.** `saves.accountId` carries no
   FK, so `deleteChildProfile` removes the profile and that `accountId`'s save
   rows together, scoped to the owning parent; a bare profile delete would

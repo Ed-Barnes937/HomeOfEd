@@ -14,6 +14,7 @@ export class RenameChildHandler extends Handler<RenameChildInput, ChildProfileVi
       id: input.id,
       parentId: parent.id,
       displayName: input.displayName,
+      username: input.username,
     })
     if (renamed === null) throw new NotFoundError('no such child profile')
     return toChildProfileView(renamed)

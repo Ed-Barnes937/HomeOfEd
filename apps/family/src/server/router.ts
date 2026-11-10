@@ -1,6 +1,7 @@
 import {
   addChildInput,
   deleteAccountInput,
+  deleteChildInput,
   mintSessionTokenInput,
   renameChildInput,
   saveDeleteInput,
@@ -17,10 +18,7 @@ import type { FamilyContext } from './handlers/authz.ts'
 import { GreetingHandler } from './handlers/greetingHandler.ts'
 import { AddChildHandler } from './handlers/identity/addChildHandler.ts'
 import { DeleteAccountHandler } from './handlers/identity/deleteAccountHandler.ts'
-import {
-  DeleteChildHandler,
-  deleteChildInputSchema,
-} from './handlers/identity/deleteChildHandler.ts'
+import { DeleteChildHandler } from './handlers/identity/deleteChildHandler.ts'
 import { ListChildrenHandler } from './handlers/identity/listChildrenHandler.ts'
 import { MeHandler } from './handlers/identity/meHandler.ts'
 import { MintSessionTokenHandler } from './handlers/identity/mintSessionTokenHandler.ts'
@@ -42,8 +40,7 @@ const t = createTRPC<FamilyStore>()
  * The identity half, bound to one request's context. The `satisfies` is the
  * point: it makes a divergence between these handlers and the contract hub's
  * client speaks a compile error here rather than a 400 somebody meets in a
- * browser. `children.delete` is wired straight into the router below because no
- * client speaks it, so the contract does not describe it.
+ * browser.
  */
 function identityContractFor(ctx: FamilyContext, mintToken: FamilyTokenMinter) {
   return {
@@ -51,6 +48,7 @@ function identityContractFor(ctx: FamilyContext, mintToken: FamilyTokenMinter) {
     listChildren: () => new ListChildrenHandler().run(undefined, ctx),
     addChild: (input) => new AddChildHandler().run(input, ctx),
     renameChild: (input) => new RenameChildHandler().run(input, ctx),
+    deleteChild: (input) => new DeleteChildHandler().run(input, ctx),
     mintSessionToken: (input) => new MintSessionTokenHandler(mintToken).run(input, ctx),
     deleteAccount: () => new DeleteAccountHandler().run(undefined, ctx),
   } satisfies FamilyIdentityRouterContract
@@ -88,8 +86,10 @@ export function createAppRouter(deps: FamilyRouterDeps) {
             identityContractFor(ctx, deps.mintToken).renameChild(input),
           ),
         delete: t.procedure
-          .input(deleteChildInputSchema)
-          .mutation(({ input, ctx }) => new DeleteChildHandler().run(input, ctx)),
+          .input(deleteChildInput)
+          .mutation(({ input, ctx }) =>
+            identityContractFor(ctx, deps.mintToken).deleteChild(input),
+          ),
       }),
       mintSessionToken: t.procedure
         .input(mintSessionTokenInput)

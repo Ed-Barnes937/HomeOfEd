@@ -17,6 +17,8 @@ export interface RenameChildProfileInput {
   id: string
   parentId: string
   displayName: string
+  /** Absent leaves the username as it is. */
+  username?: string
 }
 
 /** A profile addressed by its id and the parent who must own it. */
@@ -77,7 +79,10 @@ export interface FamilyStore {
   addChildProfile(input: ChildProfileInput): Promise<ChildProfileRow>
   listChildProfiles(parentId: string): Promise<ChildProfileRow[]>
   getChildProfile(id: string): Promise<ChildProfileRow | null>
-  /** Owner-scoped: null when the profile is not this parent's. */
+  /**
+   * Owner-scoped: null when the profile is not this parent's. Throws
+   * `ConflictError` when the new username is another child's in the household.
+   */
   renameChildProfile(input: RenameChildProfileInput): Promise<ChildProfileRow | null>
   /**
    * Erase one profile and every save row it owns, in one transaction.
@@ -178,12 +183,21 @@ export class DrizzleFamilyStore implements FamilyStore {
   }
 
   async renameChildProfile(input: RenameChildProfileInput): Promise<ChildProfileRow | null> {
-    const rows = await this.db
-      .update(childProfiles)
-      .set({ displayName: input.displayName })
-      .where(and(eq(childProfiles.id, input.id), eq(childProfiles.parentId, input.parentId)))
-      .returning()
-    return rows[0] ?? null
+    const changes =
+      input.username === undefined
+        ? { displayName: input.displayName }
+        : { displayName: input.displayName, username: input.username }
+    try {
+      const rows = await this.db
+        .update(childProfiles)
+        .set(changes)
+        .where(and(eq(childProfiles.id, input.id), eq(childProfiles.parentId, input.parentId)))
+        .returning()
+      return rows[0] ?? null
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new ConflictError('that username is already taken')
+      throw err
+    }
   }
 
   async deleteChildProfile(profile: OwnedChildProfile): Promise<void> {
