@@ -12,6 +12,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 
 import type { AppContext } from '../context.ts'
 import type { Logger } from '../logger.ts'
+import { type DocumentGate, installDocumentGate } from './documentGate.ts'
 
 const TRPC_ENDPOINT = '/api/trpc'
 const API_PREFIX = '/api'
@@ -39,7 +40,15 @@ export interface CreateAppServerOpts {
    * this to bound the work a single request can ask for.
    */
   maxBatchSize?: number
+  /**
+   * Gates document requests (GET/HEAD, not `/api`, not `/health`, no file
+   * extension but `.html`) behind a 302, ahead of static files and the SPA
+   * fallback (ADR 0093). Omitted, the pipeline is unchanged.
+   */
+  documentGate?: DocumentGate
 }
+
+export type { DocumentGate } from './documentGate.ts'
 
 // Re-exported so consumers can type their `registerRoutes` hook (and the routes
 // it registers) without adding a direct `fastify` dependency.
@@ -65,6 +74,9 @@ function toFetchRequest(req: FastifyRequest): Request {
  */
 export async function buildAppServer(opts: CreateAppServerOpts): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
+
+  const fallsBackWithGate =
+    opts.documentGate && installDocumentGate(app, opts.documentGate, opts.logger)
 
   await app.register(fastifyTRPCPlugin, {
     prefix: TRPC_ENDPOINT,
@@ -98,9 +110,14 @@ export async function buildAppServer(opts: CreateAppServerOpts): Promise<Fastify
   await app.register(fastifyStatic, { root: opts.staticDir })
 
   // SPA fallback: unknown non-API GET/HEAD → index.html (client-side routing).
+  // With a gate, only requests it classified as documents fall back, so
+  // `/missing.js` is a 404 rather than an ungated app shell.
   app.setNotFoundHandler((req, reply) => {
     const isRead = req.method === 'GET' || req.method === 'HEAD'
-    if (isRead && !req.url.startsWith(API_PREFIX)) {
+    const fallsBack = fallsBackWithGate
+      ? fallsBackWithGate(req)
+      : isRead && !req.url.startsWith(API_PREFIX)
+    if (fallsBack) {
       return reply.sendFile('index.html')
     }
     return reply.status(404).send({ error: 'Not Found' })

@@ -82,6 +82,7 @@ function createAppServer(opts: {
   healthCheck: () => Promise<{ ok: true }>   // deep /health — app closes over its own Store
   registerRoutes?: (app: FastifyInstance) => void | Promise<void>  // additive; non-tRPC transports only (ADR 0015)
   maxBatchSize?: number                      // cap on one batched call's procedures; tRPC's default is unlimited
+  documentGate?: DocumentGate                // estate gate (ADR 0093); see below
 }): { listen(port: number): Promise<void> }
 ```
 
@@ -291,6 +292,44 @@ tRPC + the injected `Store`. Route bodies still resolve identity via `ctx.auth`
 and read/write through `Store`; the hook is for transports, not for bypassing
 the DI seam. (First consumer: `apps/sprout` — the SSE chat route + Better Auth.)
 
+### `documentGate` - the estate gate (ADR 0093)
+
+Optional. When set, every **document request** must pass `redirectFor` before
+`@fastify/static` or the SPA fallback sees it. Omitted, the pipeline is
+unchanged (pinned by `src/server/documentGate.test.ts`). The hooks live in
+`src/server/documentGate.ts`.
+
+```ts
+documentGate?: {
+  publicPaths: readonly string[]   // skip the gate; matched on whole segments
+  /** null = let it through; a string = the absolute URL to 302 to. */
+  redirectFor: (req: { host: string; url: string; cookie: string | null }) => string | null
+}
+```
+
+- A document request is GET/HEAD, not `/api` or under it, not `/health`, and
+  its path has no extension other than `.html`. The path is decoded as
+  `@fastify/static` decodes it (`decodeURI`), never normalised.
+- Ambiguous paths are refused `400`: a dot segment in any encoding,
+  `%2F`/`%5C` in either case, a literal backslash, bad encoding, or a path not
+  starting with `/`. (Fastify's own URL check answers most bad encoding `400`
+  first, as it does with no gate.) Browsers never send these.
+- A refusal is `302` with `Location` and `Cache-Control: no-store`. An allowed
+  gated document is also served `no-store`, `304`s included.
+- HTML is default-deny: a response the gate did not let through as a document
+  or public path is gated in `onSend` if its content type starts `text/html`
+  or `application/xhtml+xml` (any case), or it is a `304` for a `.htm`,
+  `.shtml`, `.xhtml` or `.xht` path. Routes under `/api` are exempt.
+- If `redirectFor` throws, or returns anything but an absolute `http(s)` URL of
+  printable ASCII, the request is logged and answered a generic `500`.
+- With a gate, the SPA fallback serves `index.html` only to document requests:
+  a missing asset such as `/missing.js` is `404`, not an ungated app shell.
+- `publicPaths`: `/shared` matches `/shared` and `/shared/...`, not
+  `/sharedx`; a prefix ending in `/` (fridge's `/b/`) matches as written.
+- backend-kit knows nothing about tokens. `@hoe/accounts/server`'s
+  `familyDocumentGate` builds the gate; an app passes it only when
+  `FAMILY_ACCOUNT_URL` is set.
+
 ## The three transports, one router
 
 1. **Dev simulator** — `simulatorPlugin` mounts the dispatcher on the Vite dev
@@ -339,6 +378,7 @@ Test code only (the `./testing` subpath keeps it out of prod bundles);
 semantics (`src/blobs.test.ts`), error taxonomy (`src/errors.test.ts`),
 real-vs-fake handler parity (`src/handlerParity.test.ts`), all three
 transports (`src/transports.test.ts`, `src/server/createAppServer.test.ts`),
-and the failure link (`src/testing/failureLink.test.ts`). Fixture app in
+the document gate over a real port (`src/server/documentGate.test.ts`), and the
+failure link (`src/testing/failureLink.test.ts`). Fixture app in
 `src/testSupport/fixtureApp.ts`. Handler/context behaviour is additionally
 pinned by app-level suites (see `apps/hub/src/server/health.test.ts`).
