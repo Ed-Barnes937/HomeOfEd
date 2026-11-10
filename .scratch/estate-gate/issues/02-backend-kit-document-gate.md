@@ -1,6 +1,6 @@
 # 02 - `backend-kit`: `documentGate` option on `createAppServer`
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decisions 1, 2, 5
 
@@ -29,3 +29,20 @@ documentGate?: {
 - ADR 0093 (estate gate: spec decisions 1-6 and 10). Update the package README.
 
 ## Comments
+
+**2026-11-10, implementer.** Built as specified; the option shape is unchanged
+and exported as `DocumentGate` from `@hoe/backend-kit/server`. Three additions,
+all recorded in ADR 0093 decision 1:
+
+- The path is percent-decoded and dot segments collapsed before
+  classification. A raw socket sending `/shared/..%2Findex.html` or
+  `/api/../index.html` otherwise got `index.html` ungated, because static
+  normalises the path itself.
+- With a gate, the SPA fallback serves `index.html` to document requests only,
+  so `/missing.js` is `404` instead of an ungated app shell. Gate off: the
+  fallback is unchanged.
+- `publicPaths` match whole segments (`/shared` does not match `/sharedx`); a
+  prefix ending in `/` matches as written.
+
+`redirectFor` gets the raw `Host` header (port kept), the raw `req.url` and the
+raw `Cookie` header or `null`; a test pins all three.

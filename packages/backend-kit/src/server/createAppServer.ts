@@ -5,6 +5,8 @@
 //
 // WS escalation (ADR 0001 §3): when an app outgrows this, @fastify/websocket
 // is the documented path — wired per app then, not here.
+import path from 'node:path'
+
 import fastifyStatic from '@fastify/static'
 import type { AnyTRPCRouter } from '@trpc/server'
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from '@trpc/server/adapters/fastify'
@@ -15,6 +17,7 @@ import type { Logger } from '../logger.ts'
 
 const TRPC_ENDPOINT = '/api/trpc'
 const API_PREFIX = '/api'
+const HEALTH_PATH = '/health'
 
 export interface CreateAppServerOpts {
   router: AnyTRPCRouter
@@ -39,6 +42,19 @@ export interface CreateAppServerOpts {
    * this to bound the work a single request can ask for.
    */
   maxBatchSize?: number
+  /**
+   * Gates document requests (GET/HEAD, not `/api`, not `/health`, no file
+   * extension but `.html`) behind a 302, ahead of static files and the SPA
+   * fallback (ADR 0093). Omitted, the pipeline is unchanged.
+   */
+  documentGate?: DocumentGate
+}
+
+export interface DocumentGate {
+  /** Path prefixes, matched on whole segments, that skip the gate. */
+  publicPaths: readonly string[]
+  /** null = let it through; a string = the absolute URL to 302 to. */
+  redirectFor: (req: { host: string; url: string; cookie: string | null }) => string | null
 }
 
 // Re-exported so consumers can type their `registerRoutes` hook (and the routes
@@ -59,12 +75,64 @@ function toFetchRequest(req: FastifyRequest): Request {
   return new Request(`${req.protocol}://${host}${req.url}`, { method: req.method, headers })
 }
 
+// The path @fastify/static would resolve: decoded, dot segments collapsed, so
+// `/shared/..%2Findex.html` is classified as `/index.html`.
+function pathnameOf(req: FastifyRequest): string {
+  const query = req.url.indexOf('?')
+  const raw = query === -1 ? req.url : req.url.slice(0, query)
+  try {
+    return path.posix.normalize(decodeURIComponent(raw))
+  } catch {
+    return path.posix.normalize(raw)
+  }
+}
+
+function isDocumentRequest(req: FastifyRequest): boolean {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false
+  const pathname = pathnameOf(req)
+  if (pathname === API_PREFIX || pathname.startsWith(`${API_PREFIX}/`)) return false
+  if (pathname === HEALTH_PATH) return false
+  const ext = path.posix.extname(pathname).toLowerCase()
+  return ext === '' || ext === '.html'
+}
+
+function isPublicPath(pathname: string, publicPaths: readonly string[]): boolean {
+  return publicPaths.some((prefix) =>
+    prefix.endsWith('/')
+      ? pathname.startsWith(prefix)
+      : pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
+function isGatedDocument(req: FastifyRequest, gate: DocumentGate): boolean {
+  return isDocumentRequest(req) && !isPublicPath(pathnameOf(req), gate.publicPaths)
+}
+
 /**
  * Build the configured Fastify instance without listening. Exported so tests
  * can drive it with `fastify.inject()`; apps use `createAppServer` below.
  */
 export async function buildAppServer(opts: CreateAppServerOpts): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
+
+  const gate = opts.documentGate
+  if (gate) {
+    app.addHook('onRequest', (req, reply, done) => {
+      if (!isGatedDocument(req, gate)) return done()
+      const target = gate.redirectFor({
+        host: req.headers.host ?? '',
+        url: req.url,
+        cookie: req.headers.cookie ?? null,
+      })
+      if (target === null) return done()
+      void reply.header('cache-control', 'no-store').redirect(target, 302)
+    })
+    // onSend, because @fastify/static sets its own Cache-Control after onRequest.
+    app.addHook('onSend', (req, reply, _payload, done) => {
+      if (isGatedDocument(req, gate)) void reply.header('cache-control', 'no-store')
+      done()
+    })
+  }
 
   await app.register(fastifyTRPCPlugin, {
     prefix: TRPC_ENDPOINT,
@@ -98,9 +166,12 @@ export async function buildAppServer(opts: CreateAppServerOpts): Promise<Fastify
   await app.register(fastifyStatic, { root: opts.staticDir })
 
   // SPA fallback: unknown non-API GET/HEAD → index.html (client-side routing).
+  // With a gate, only document requests (which have passed it) fall back to
+  // index.html; otherwise `/missing.js` would serve the app ungated.
   app.setNotFoundHandler((req, reply) => {
     const isRead = req.method === 'GET' || req.method === 'HEAD'
-    if (isRead && !req.url.startsWith(API_PREFIX)) {
+    const fallsBack = gate ? isDocumentRequest(req) : isRead && !req.url.startsWith(API_PREFIX)
+    if (fallsBack) {
       return reply.sendFile('index.html')
     }
     return reply.status(404).send({ error: 'Not Found' })
