@@ -19,3 +19,10 @@ the hub homescreen so it no longer reads as a wand-only app.
 
 **Context:** raised by Ed on 2026-11-09, when the
 armoury went live with wands only.
+
+## Comments
+
+- 2026-11-10: built by `.scratch/armoury-swords/issues/13-hub-card.md`. The card's preview kind
+  is now `'armoury'` (`drawArmoury`): the wand and a sword crossed, a glint running up the
+  sword's edge every few seconds, still under reduced motion. The card's name stays `Armoury`,
+  so `verifyArmouryLink` is unchanged.
