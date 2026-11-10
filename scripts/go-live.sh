@@ -56,6 +56,7 @@ say "preflight"
 [[ -f "$FLY_TOML" ]] || { echo "no fly.toml at apps/$APP/fly.toml" >&2; exit 1; }
 FLY_APP="$(sed -n "s/^app = ['\"]\(.*\)['\"]$/\1/p" "$FLY_TOML")"
 [[ -n "$FLY_APP" ]] || { echo "could not parse app name from $FLY_TOML" >&2; exit 1; }
+DB_ROLE="${FLY_APP//-/_}"   # hoe-family -> hoe_family, the role name attach has always used
 echo "   app=$APP  fly-app=$FLY_APP  host=$HOST  db=$WITH_DB  dry-run=$DRY_RUN"
 
 for bin in fly jq curl dig; do
@@ -95,12 +96,26 @@ fi
 
 # ── 2. database (only with --db) ─────────────────────────────────────────────
 say "2/6 database"
+# Listed outside the `if`, where `set -e` still applies: a failed listing must
+# stop here rather than read as "not attached yet".
+if $WITH_DB && ! $DRY_RUN; then
+  SECRETS="$(fly secrets list --app "$FLY_APP" --json)"
+fi
 if ! $WITH_DB; then
   echo "   stateless app (ADR 0008) — skipping"
-elif ! $DRY_RUN && fly secrets list --app "$FLY_APP" | grep -q DATABASE_URL; then
+elif ! $DRY_RUN && jq -e '.[] | select(.name == "DATABASE_URL")' >/dev/null <<<"$SECRETS"; then
   echo "   DATABASE_URL already set — skipping attach"
 else
-  run fly postgres attach "$PG_CLUSTER" --app "$FLY_APP" --database-name "$APP"
+  run fly postgres attach "$PG_CLUSTER" --app "$FLY_APP" --database-name "$APP" \
+    --database-user "$DB_ROLE" --superuser=false
+fi
+if $WITH_DB; then
+  # ADR 0086: without superuser, the app's migrations need it to own its
+  # database. Idempotent, so a re-run shows it again rather than guessing.
+  echo "   paste into \`fly postgres connect -a $PG_CLUSTER\` (ADR 0086):"
+  echo "     ALTER DATABASE $APP OWNER TO $DB_ROLE;"
+  echo "     REVOKE CONNECT ON DATABASE $APP FROM PUBLIC;"
+  $DRY_RUN || read -r -p "   press Enter once both statements have run, before the first deploy "
 fi
 
 # ── 3. first deploy ──────────────────────────────────────────────────────────
@@ -123,7 +138,10 @@ fi
 
 # ── 5. cert: request it, prove ownership by DNS, wait for an ACTIVE cert ─────
 say "5/6 TLS cert for $HOST"
-if ! $DRY_RUN && fly certs list --app "$FLY_APP" | grep -q "$HOST"; then
+if ! $DRY_RUN; then
+  CERTS="$(fly certs list --app "$FLY_APP" --json)"
+fi
+if ! $DRY_RUN && jq -e --arg h "$HOST" '.[] | select(.hostname == $h)' >/dev/null <<<"$CERTS"; then
   echo "   cert already requested — skipping add"
 else
   run fly certs add "$HOST" --app "$FLY_APP"

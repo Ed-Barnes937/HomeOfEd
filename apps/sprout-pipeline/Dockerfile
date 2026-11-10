@@ -18,14 +18,16 @@ COPY . .
 RUN pnpm dlx turbo@2.10.2 prune sprout-pipeline --docker
 
 # ── stage 2: production node_modules only ───────────────────────────────────
-# Headless service: its runtime workspace deps are @hoe/logger + @hoe/sprout-
-# shared only (no @hoe/backend-kit, no @hoe/db). --prod drops dev deps
-# (vitest, eslint, …); the dev-only @hoe/config stub is never in this filter.
+# Headless service: its runtime workspace deps are @hoe/logger, @hoe/sprout-
+# shared and @hoe/deploy-guard only (no @hoe/backend-kit, no @hoe/db). --prod
+# drops dev deps (vitest, eslint, …); the dev-only @hoe/config stub is never in
+# this filter.
 FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=sprout-pipeline --filter=@hoe/logger --filter=@hoe/sprout-shared
+  --filter=sprout-pipeline --filter=@hoe/logger --filter=@hoe/sprout-shared \
+  --filter=@hoe/deploy-guard
 
 # ── stage 3: runtime — prod deps + package source + the service source ───────
 FROM node:22-slim AS runner
@@ -35,6 +37,7 @@ COPY --from=prod-deps /app ./
 # Runtime package source (TS source exports). Only the service's runtime deps.
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
 COPY --from=pruner /app/out/full/packages/sprout-shared ./packages/sprout-shared
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The service source (runs natively). No dist/ — this app has no SPA.
 COPY --from=pruner /app/out/full/apps/sprout-pipeline/src ./apps/sprout-pipeline/src
 # Test sources aren't runtime code; typescript is a lockfile stowaway (types-

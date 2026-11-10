@@ -13,12 +13,20 @@ import {
   exposeDispatcher,
   InMemoryBlobStore,
 } from '@hoe/backend-kit'
+// The deep path, not '@hoe/accounts/testing': that index also exports
+// mintTestToken, which pulls node:crypto and cannot load in the browser.
+import { FakeFamilyClient } from '@hoe/accounts/testing/fake'
 import { testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
 import { FakeAudioDriver } from '../engine/testing/fakeAudioDriver.ts'
 import { appRouter } from '../server/router.ts'
-import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
+import { applyFamilySeed, recordingClient } from './familySeed.ts'
+import {
+  BOOP_AUDIO_DRIVER_KEY,
+  BOOP_SAVE_CALLS_KEY,
+  BOOP_SAVE_CLIENT_KEY,
+} from './gridProtocol.ts'
 
 exposeDispatcher(
   createDispatcher({
@@ -38,6 +46,18 @@ exposeDispatcher(
 const audioDriver = new FakeAudioDriver()
 ;(globalThis as unknown as Record<string, unknown>)[BOOP_AUDIO_DRIVER_KEY] = audioDriver
 
+// The family SaveStore stands in for the real service (sign in, a slot another
+// device left behind, every call throwing), seeded from localStorage because a
+// reload leaves the Node side nothing in the page to call - see familySeed.ts.
+// boop reads its own session from the cookie, so a test wanting a live session
+// sets both.
+const saveClient = new FakeFamilyClient()
+applyFamilySeed(saveClient)
+const saveCalls: string[] = []
+const recordedSaveClient = recordingClient(saveClient, saveCalls)
+;(globalThis as unknown as Record<string, unknown>)[BOOP_SAVE_CLIENT_KEY] = saveClient
+;(globalThis as unknown as Record<string, unknown>)[BOOP_SAVE_CALLS_KEY] = saveCalls
+
 export function IwftApp() {
-  return <App driver={audioDriver} />
+  return <App driver={audioDriver} saveClient={recordedSaveClient} />
 }

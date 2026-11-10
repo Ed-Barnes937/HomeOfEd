@@ -90,6 +90,13 @@ ADR-0019 family-pilot gate); the pipeline refuses to boot without
 `OPENROUTER_API_KEY` and `PIPELINE_API_KEY`. `PIPELINE_API_KEY` must be the **same value** on both apps
 (the caller sends it as `x-pipeline-key`).
 
+On Fly, both apps also refuse to boot on any secret that reads as a placeholder
+(`dev-`, `insecure`, `change-me`, `placeholder`, `example`, a leading `test`) or
+is too short: `BETTER_AUTH_SECRET`, `CHILD_SESSION_SECRET` and `PIPELINE_API_KEY`
+need at least 32 characters, `REGISTRATION_INVITE_CODE` at least 16
+([ADR 0088](../../../docs/adr/0088-deploy-guard-package.md)). Generate each with
+`openssl rand -base64 32`.
+
 ```bash
 fly secrets set --app hoe-sprout \
   BETTER_AUTH_SECRET='…' \

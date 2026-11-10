@@ -93,7 +93,7 @@ and Ed's decisions. No builds, no infra mutation.
 
 - [08 - First-slice spec: boop saves behind a family account](issues/08-first-slice-spec-boop.md) -
   spec written at [`.scratch/family-first-slice/spec.md`](../family-first-slice/spec.md)
-  (Draft for Ed's review): `apps/family` on ports 3010/3110/8090, two routers
+  (Draft for Ed's review): `apps/family` on ports 3012/3112/8092, two routers
   (Better Auth identity + opaque SaveStore), `.homeofed.com` session cookie,
   `packages/accounts` with fakes, hub `/account` route, boop sync with union
   merge hook, `FAMILY_GO_LIVE` CI gate, Lever A checkpoint after ship. Five

@@ -15,6 +15,7 @@
     "test": "vitest run && playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
+    "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/db": "workspace:*",
     "@hoe/logger": "workspace:*",
