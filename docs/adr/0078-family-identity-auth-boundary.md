@@ -6,6 +6,8 @@
   implements), [ADR 0057](0057-family-service-legal-gate.md) (the invite gate,
   whose mechanism depends on decision 4 below), [ADR 0012](0012-sprout-app-owned-auth.md)
   (sprout's two-identities-one-seam precedent, generalised here),
+  [ADR 0088](0088-deploy-guard-package.md) (decision 4's placeholder rule, now
+  `@hoe/deploy-guard`, extended to sprout and sprout-pipeline),
   [ADR 0008](0008-apps-without-a-database.md) (auth does not imply a database),
   [ADR 0079](0079-family-save-authorisation.md) (the save half, which found the
   hole decision 5 closes).

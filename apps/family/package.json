@@ -18,6 +18,7 @@
     "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/db": "workspace:*",
+    "@hoe/deploy-guard": "workspace:*",
     "@hoe/logger": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",

@@ -22,6 +22,7 @@ import { createDbClient } from '@hoe/db'
 import { loadDbEnv } from '@hoe/db/env'
 import { createLogger } from '@hoe/logger'
 
+import { loadSproutWorkerEnv } from './env.ts'
 import { createHttpSummariser } from './pipeline/pipelineClient.ts'
 import type { Summariser } from './router/deps.ts'
 import { sproutSchema } from './schema.ts'
@@ -157,6 +158,7 @@ export const startRetentionWorker = (deps: RetentionDeps, intervalMs: number): N
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const logger = createLogger().child({ app: 'sprout', process: 'worker' })
   const env = loadDbEnv()
+  const secrets = loadSproutWorkerEnv()
   const db = await createDbClient({
     driver: 'postgres',
     schema: sproutSchema,
@@ -165,13 +167,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const store = new DrizzleSproutStore(db)
 
   // Same pipeline wiring as main.ts: private-network base + x-pipeline-key.
-  const pipelineApiKey = process.env.PIPELINE_API_KEY
-  if (!pipelineApiKey && process.env.NODE_ENV === 'production') {
-    throw new Error('PIPELINE_API_KEY is required in production')
-  }
   const summarise = createHttpSummariser({
     baseUrl: process.env.PIPELINE_URL ?? 'http://hoe-sprout-pipeline.flycast:8080',
-    apiKey: pipelineApiKey ?? 'dev-pipeline-key',
+    apiKey: secrets.PIPELINE_API_KEY,
   })
 
   const config = resolveWorkerConfig()
