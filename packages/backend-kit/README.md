@@ -310,16 +310,18 @@ documentGate?: {
 - A document request is GET/HEAD, not `/api` or under it, not `/health`, and
   its path has no extension other than `.html`. The path is decoded as
   `@fastify/static` decodes it (`decodeURI`), never normalised.
-- Ambiguous paths are refused `400` before anything else: a dot segment in any
-  encoding, `%2F`/`%5C` in either case, a literal backslash, bad encoding, or
-  a path not starting with `/`. Browsers never send these.
+- Ambiguous paths are refused `400`: a dot segment in any encoding,
+  `%2F`/`%5C` in either case, a literal backslash, bad encoding, or a path not
+  starting with `/`. (Fastify's own URL check answers most bad encoding `400`
+  first, as it does with no gate.) Browsers never send these.
 - A refusal is `302` with `Location` and `Cache-Control: no-store`. An allowed
   gated document is also served `no-store`, `304`s included.
-- HTML is default-deny: a `text/html` response the gate did not let through
-  as a document or public path (a `.htm` file, say) is gated in `onSend`.
-  Routes under `/api` are untouched.
-- If `redirectFor` throws or returns a non-absolute URL, the request is logged
-  and answered a generic `500`.
+- HTML is default-deny: a response the gate did not let through as a document
+  or public path is gated in `onSend` if its content type starts `text/html`
+  or `application/xhtml+xml` (any case), or it is a `304` for a `.htm`,
+  `.shtml`, `.xhtml` or `.xht` path. Routes under `/api` are exempt.
+- If `redirectFor` throws, or returns anything but an absolute `http(s)` URL of
+  printable ASCII, the request is logged and answered a generic `500`.
 - With a gate, the SPA fallback serves `index.html` only to document requests:
   a missing asset such as `/missing.js` is `404`, not an ungated app shell.
 - `publicPaths`: `/shared` matches `/shared` and `/shared/...`, not

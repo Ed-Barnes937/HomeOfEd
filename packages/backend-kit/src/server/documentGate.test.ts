@@ -24,6 +24,7 @@ async function makeStaticDir(): Promise<string> {
   await writeFile(path.join(dir, 'index.html'), INDEX_HTML)
   await writeFile(path.join(dir, 'other.html'), OTHER_HTML)
   await writeFile(path.join(dir, 'page.htm'), HTM_PAGE)
+  await writeFile(path.join(dir, 'page.xhtml'), HTM_PAGE)
   await mkdir(path.join(dir, 'assets'))
   await writeFile(path.join(dir, 'assets', 'app.js'), ASSET_JS)
   return dir
@@ -531,7 +532,52 @@ describe('createAppServer with a documentGate', () => {
     expect(asked.map((a) => a.url)).toEqual(['/page.htm', '/page.htm'])
   })
 
+  it('counts XHTML and any casing of text/html as HTML', async () => {
+    const { gate } = fakeGate()
+    const base = await serve({
+      documentGate: gate,
+      registerRoutes: (app) => {
+        app.get('/shouty.txt', (_req, reply) => reply.type('Text/HTML').send('<p>shouty</p>'))
+      },
+    })
+
+    for (const target of ['/page.xhtml', '/shouty.txt']) {
+      const seen = await raw(base, target)
+      expect({ target, status: seen.status, cacheControl: seen.cacheControl }).toEqual({
+        target,
+        status: 302,
+        cacheControl: 'no-store',
+      })
+    }
+  })
+
+  it('puts a 304 for HTML it did not classify through the gate', async () => {
+    const { gate } = fakeGate()
+    const base = await serve({ documentGate: gate })
+    const first = await fetch(`${base}/page.htm`, { headers: SIGNED_IN })
+    const conditionals: Record<string, string>[] = [
+      { 'if-none-match': first.headers.get('etag')! },
+      { 'if-modified-since': first.headers.get('last-modified')! },
+    ]
+
+    for (const conditional of conditionals) {
+      const signedOut = await raw(base, '/page.htm', conditional)
+      expect(signedOut).toMatchObject({ status: 302, cacheControl: 'no-store' })
+      const signedIn = await raw(base, '/page.htm', { ...SIGNED_IN, ...conditional })
+      expect(signedIn).toMatchObject({ status: 304, cacheControl: 'no-store' })
+    }
+
+    // A signed-out /shared page revalidates its assets; those 304s stay ungated.
+    const asset = await fetch(`${base}/assets/app.js`)
+    const revalidated = await raw(base, '/assets/app.js', {
+      'if-none-match': asset.headers.get('etag')!,
+    })
+    expect(revalidated).toMatchObject({ status: 304, cacheControl: 'public, max-age=0' })
+  })
+
   it.each([
+    ['returns a URL with a CR LF in it', () => 'https://a.example/x\r\nSet-Cookie: pwn=1'],
+    ['returns a URL with a non-ASCII character', () => 'https://a.example/€'],
     [
       'throws',
       () => {

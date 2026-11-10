@@ -20,8 +20,11 @@ const HEALTH_PATH = '/health'
 // backslash: the gate and @fastify/static could resolve these differently.
 const AMBIGUOUS_PATH = /(?:^|\/)(?:\.|%2e){1,2}(?:\/|$)|%2f|%5c|\\/i
 
+// Extensions static serves as HTML that are not documents by the spec's rule.
+const OTHER_HTML_EXTENSIONS = new Set(['.htm', '.shtml', '.xhtml', '.xht'])
+
 /** `document` is a gated document the gate let through. */
-type Verdict = 'document' | 'public' | 'api' | 'other'
+type Verdict = 'document' | 'public' | 'api' | 'htmlFile' | 'other'
 
 type Decision = { kind: 'allow' } | { kind: 'redirect'; target: string } | { kind: 'error' }
 
@@ -50,11 +53,14 @@ function classify(method: string, pathname: string, gate: DocumentGate): Verdict
   if (method !== 'GET' && method !== 'HEAD') return 'other'
   if (pathname === HEALTH_PATH) return 'other'
   const ext = path.posix.extname(pathname).toLowerCase()
+  if (OTHER_HTML_EXTENSIONS.has(ext)) return 'htmlFile'
   if (ext !== '' && ext !== '.html') return 'other'
   return isPublicPath(pathname, gate.publicPaths) ? 'public' : 'document'
 }
 
+// `new URL` silently drops CR, LF and tab, but the raw string becomes the header.
 function isAbsoluteHttpUrl(target: string): boolean {
+  if (/[^\x20-\x7e]/.test(target)) return false
   try {
     const { protocol } = new URL(target)
     return protocol === 'https:' || protocol === 'http:'
@@ -62,6 +68,8 @@ function isAbsoluteHttpUrl(target: string): boolean {
     return false
   }
 }
+
+const HTML_TYPES = ['text/html', 'application/xhtml+xml']
 
 const REPLACED_HEADERS = [
   'content-type',
@@ -130,8 +138,11 @@ export function installDocumentGate(
   app.addHook('onSend', (req, reply, payload, done) => {
     const verdict = verdicts.get(req.raw)
     if (verdict === 'public' || verdict === 'api') return done(null, payload)
-    const isHtml = String(reply.getHeader('content-type') ?? '').startsWith('text/html')
-    if (verdict !== 'document' && !isHtml) return done(null, payload)
+    const contentType = String(reply.getHeader('content-type') ?? '').toLowerCase()
+    const isHtml = HTML_TYPES.some((type) => contentType.startsWith(type))
+    // A 304 carries no content type, so the path decides whether it revalidates HTML.
+    const mayBeHtml = isHtml || (reply.statusCode === 304 && verdict === 'htmlFile')
+    if (verdict !== 'document' && !mayBeHtml) return done(null, payload)
 
     const decision: Decision = verdict === 'document' ? { kind: 'allow' } : decide(req)
     // Set here, not in onRequest, because @fastify/static writes its own later.

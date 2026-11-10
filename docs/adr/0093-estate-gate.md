@@ -62,15 +62,22 @@ Details the spec left implicit, settled while building it:
   disagreement. So with a gate on, any request whose path (before `?`) holds
   a dot segment in any encoding, an encoded slash or backslash, a literal
   backslash, anything `decodeURI` rejects, or does not start with `/` is
-  answered `400` before anything else runs. Browsers never send these. What is
-  left is decoded exactly as static decodes it (`decodeURI`) and needs no
-  normalising.
+  answered `400`. Malformed percent-encoding mostly never reaches the gate:
+  Fastify's own URL check answers `400` first, as it does with the gate off.
+  Browsers never send any of these. What is left is decoded exactly as static
+  decodes it (`decodeURI`) and needs no normalising.
 - **HTML is default-deny.** The gate records its verdict on each request, and
-  an `onSend` hook lets a `text/html` response out only for a request it let
-  through as a document or public path. Any other HTML, such as a `.htm` file
-  static serves as `text/html`, is put through the gate at that point and
-  refused the same way. This is what catches the next parser mismatch nobody
-  has found yet. App-owned routes under `/api` are untouched.
+  an `onSend` hook lets HTML out only for a request it let through as a
+  document or public path. HTML means a content type starting `text/html` or
+  `application/xhtml+xml`, compared case-insensitively, plus a `304` for a
+  path ending `.htm`, `.shtml`, `.xhtml` or `.xht`, since a `304` carries no
+  content type. Anything else that is HTML, such as a `.htm` file static
+  serves, is put through the gate at that point and refused the same way. This
+  is what catches the next parser mismatch nobody has found yet. Other `304`s
+  are left alone, because a signed-out `/shared` page revalidates its assets.
+  SVG is not HTML here; assets are ungated by design.
+- **`/api` is exempt from all of it.** App-owned routes there (Better Auth, SSE,
+  tRPC) answer for themselves, HTML or not.
 - **With a gate on, the SPA fallback serves `index.html` to document requests
   only.** Otherwise any missing file, `/missing.js`, came back as the app shell
   without passing the gate. A missing asset is now `404`, which is also the
@@ -79,8 +86,11 @@ Details the spec left implicit, settled while building it:
   `/shared/...` but not `/sharedx`; a prefix written with a trailing slash,
   like fridge's `/b/`, matches as written.
 - **A broken gate fails closed and quietly.** If `redirectFor` throws, or
-  returns an empty or non-absolute URL, the request is logged and answered a
-  generic `500` with `no-store`; the thrown message never reaches the client.
+  returns anything but an absolute `http(s)` URL made only of printable ASCII,
+  the request is logged and answered a generic `500` with `no-store`; the
+  thrown message never reaches the client. The ASCII rule matters because
+  `new URL` silently drops CR, LF and tab while the raw string is what becomes
+  the `Location` header, which Node would refuse mid-response.
 
 A refusal is `302` with `Location` and `Cache-Control: no-store`. A gated
 document that is let through is also `no-store`, including a `304`

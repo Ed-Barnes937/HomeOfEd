@@ -40,9 +40,14 @@ ADR 0093 decision 1:
   starting with `/`); the rest is decoded with `decodeURI`, as static does.
   This replaced a first-cut normaliser that review showed disagreed with
   static (`/api/a%2Fb/../../other.html` served HTML ungated).
-- HTML is default-deny in `onSend`: a `text/html` response whose request was
-  not let through as a document or public path is gated there (`/api` exempt).
-- A throwing or invalid `redirectFor` is logged and answered a generic `500`.
+- HTML is default-deny in `onSend`: a `text/html` or `application/xhtml+xml`
+  response (any case), or a `304` for a `.htm`/`.shtml`/`.xhtml`/`.xht` path,
+  whose request was not let through as a document or public path is gated
+  there (`/api` exempt). Only those 304s, not all: a signed-out `/shared` page
+  revalidates its assets, and gating every 304 would break it.
+- A throwing `redirectFor`, or one returning anything but an absolute
+  `http(s)` URL of printable ASCII (CR/LF, `€`), is logged and answered a
+  generic `500` with `no-store`.
 - With a gate, the SPA fallback serves `index.html` to document requests only,
   so `/missing.js` is `404` instead of an ungated app shell. Gate off: the
   fallback is unchanged.
