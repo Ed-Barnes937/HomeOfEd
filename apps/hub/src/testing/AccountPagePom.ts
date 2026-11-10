@@ -1,7 +1,7 @@
 import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 import { SERVICE_DOWN } from '../features/account/accountQueries.ts'
 import {
@@ -15,6 +15,7 @@ import {
 import {
   FAMILY_DOWN_KEY,
   FAMILY_DELAYS_KEY,
+  FAMILY_SAVE_SUMMARY_FAILS_KEY,
   FAMILY_INVITE_CODE,
   FAMILY_SEED_KEY,
   type FamilySeed,
@@ -62,6 +63,13 @@ export class AccountPagePom extends BasePage {
     await page.evaluate((key) => {
       ;(globalThis as unknown as Record<string, unknown>)[key] = true
     }, FAMILY_DOWN_KEY)
+  }
+
+  /** Before mounting: only the save summary fails; the rest of the service answers. */
+  static async givenSaveSummaryFails(page: Page): Promise<void> {
+    await page.evaluate((key) => {
+      ;(globalThis as unknown as Record<string, unknown>)[key] = true
+    }, FAMILY_SAVE_SUMMARY_FAILS_KEY)
   }
 
   /** Before mounting: these family calls answer late, or never. */
@@ -277,6 +285,41 @@ export class AccountPagePom extends BasePage {
     await this.page.getByRole('button', { name: 'Sign in', exact: true }).click()
   }
 
+  /** Better Auth lets three tries a route through in ten seconds; the fourth is refused. */
+  async signInWithWrongPasswordUntilRateLimited(): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      await this.signInWithWrongPassword()
+      await this.verifyInlineError('Invalid email or password')
+    }
+    await this.page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  }
+
+  async registerWithWrongInviteCodeUntilRateLimited(): Promise<void> {
+    await this.register({ inviteCode: 'guessed' })
+    await this.verifyInlineError('A valid invite code is required to register.')
+    for (let attempt = 2; attempt <= 4; attempt += 1) {
+      await this.page.getByRole('button', { name: 'Create account' }).click()
+    }
+  }
+
+  async verifySignInPaused(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled()
+  }
+
+  async verifyRegisterPaused(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Create account' })).toBeDisabled()
+  }
+
+  /** Stops the page's clock first, so only fastForward moves time and the pause's length is exact. */
+  async waitOutTheRateLimitPause(): Promise<void> {
+    await this.page.clock.pauseAt((await this.page.evaluate(() => Date.now())) + 100)
+    await this.page.clock.fastForward(59_000)
+    await this.verifySignInPaused()
+    await this.page.clock.fastForward(1_000)
+    await expect(this.page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled()
+    await this.page.clock.resume()
+  }
+
   async verifySignedInAs(name: string): Promise<void> {
     await expect(this.page.getByText(`Signed in as ${name}`)).toBeVisible()
   }
@@ -299,6 +342,43 @@ export class AccountPagePom extends BasePage {
   async verifyProfileListed(displayName: string, username: string): Promise<void> {
     const row = this.page.getByRole('listitem').filter({ hasText: `@${username}` })
     await expect(row).toContainText(displayName)
+  }
+
+  async verifyLastSaved(name: string, lines: readonly string[]): Promise<void> {
+    await expect(this.lastSaves(name).getByRole('listitem')).toHaveText([...lines])
+  }
+
+  async verifyNoLastSaved(name: string): Promise<void> {
+    await expect(this.lastSaves(name)).toHaveCount(0)
+  }
+
+  /** Nothing under the names: no line, no error, no loading text. */
+  async verifyProfileRowShowsOnlyItsNames(displayName: string, username: string): Promise<void> {
+    const row = this.page.getByRole('listitem').filter({ hasText: `@${username}` })
+    await expect(row.locator(':scope > div')).toHaveText(`${displayName} @${username}`)
+  }
+
+  async verifySignedInShowsOnlyWhoIsSignedIn(): Promise<void> {
+    await expect(this.page.getByText('Signed in as').locator('..')).toHaveText(
+      `Signed in as ${FIXTURE_PARENT.name} (${FIXTURE_PARENT.email})`,
+    )
+  }
+
+  /** Needs `page.clock` installed before mounting: runs the query's retry backoff out. */
+  async outlastSaveSummaryRetries(): Promise<void> {
+    await this.waitForFamilyAnswers('saveSummary')
+    await this.page.clock.runFor(60_000)
+    await this.waitForFamilyAnswers('saveSummary')
+    expect((await this.familyCallTally()).calls.saveSummary).toBeGreaterThan(1)
+  }
+
+  async verifyNoErrorShown(): Promise<void> {
+    await expect(this.page.getByText(SERVICE_DOWN)).toHaveCount(0)
+    await expect(this.page.getByText(/unreachable/)).toHaveCount(0)
+  }
+
+  private lastSaves(name: string): Locator {
+    return this.page.getByRole('list', { name: `${name}'s last saves` })
   }
 
   async verifyProfileNotListed(username: string): Promise<void> {
