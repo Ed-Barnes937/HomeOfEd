@@ -33,6 +33,13 @@ export const usesMetal = (p: Params) =>
   (shaftRaisedSpiral(p) && p.ridgeFinish === 'metal')
 export const usesPaint = (p: Params) => p.handleFinish === 'paint' || p.shaftFinish === 'paint'
 const hasSetGems = (p: Params) => p.gems !== 'none'
+/** Where an engraving may go: never on a metal handle, and only on a branch's turned handle. */
+export const stencilPlaces = (p: Params): string[] => [
+  ...(hasTurnedHandle(p) && p.handleFinish !== 'metal' ? ['handle'] : []),
+  ...(isBranch(p) ? [] : ['shaft', 'all']),
+]
+const canStencil = (p: Params) => stencilPlaces(p).length > 0
+export const hasStencil = (p: Params) => p.stencil !== 'none' && canStencil(p)
 export const hasGems = (p: Params) => hasSetGems(p) || p.tipGem !== 'none' || p.endGem !== 'none'
 
 export const wandSchema: ItemSchema = {
@@ -603,6 +610,48 @@ export const wandSchema: ItemSchema = {
         { value: 'none', label: 'None', weight: 50 },
         { value: 'orb', label: 'Orb' },
       ],
+    },
+    {
+      kind: 'choice',
+      key: 'stencil',
+      label: 'Engraving',
+      group: 'decor',
+      default: 'none',
+      visible: canStencil,
+      options: [
+        { value: 'none', label: 'Plain', weight: 50 },
+        { value: 'scales', label: 'Scales' },
+        { value: 'vine', label: 'Vine' },
+        { value: 'knotwork', label: 'Knotwork' },
+        { value: 'runes', label: 'Runes' },
+        { value: 'dots', label: 'Dots' },
+      ],
+    },
+    {
+      kind: 'choice',
+      key: 'stencilWhere',
+      label: 'Where it goes',
+      group: 'decor',
+      default: 'handle',
+      visible: hasStencil,
+      options: [
+        { value: 'handle', label: 'On the handle', weight: 2 },
+        { value: 'shaft', label: 'Up the shaft' },
+        { value: 'all', label: 'All over' },
+      ],
+      allowed: (p) => (canStencil(p) ? stencilPlaces(p) : ['handle']),
+    },
+    {
+      kind: 'number',
+      key: 'stencilSize',
+      label: 'Engraving size',
+      group: 'decor',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.5,
+      ends: ['Small', 'Big'],
+      visible: hasStencil,
     },
     {
       kind: 'choice',

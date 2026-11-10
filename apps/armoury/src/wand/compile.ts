@@ -1,6 +1,14 @@
 import { seededRandom, type Params } from '../engine/schema.ts'
 import { placeGems, type GemPattern, type SetGem } from './gems.ts'
-import { hasTurnedHandle, isBranch, swatchFor, usesMetal } from './wandSchema.ts'
+import { STENCILS, type StencilName } from './stencils.ts'
+import {
+  hasStencil,
+  hasTurnedHandle,
+  isBranch,
+  stencilPlaces,
+  swatchFor,
+  usesMetal,
+} from './wandSchema.ts'
 
 // Compiles kid-level choices into a geometric spec: a radial profile along the
 // wand, plus a list of groove sets carved out of it. All lengths are mm, and z
@@ -97,6 +105,24 @@ export interface BranchSpec {
   knots: Knot[]
 }
 
+/** A stretch of the wand a stencil covers, a whole number of tiles long and round. */
+export interface StencilBand {
+  from: number
+  to: number
+  /** One tile's length along the wand, mm. */
+  length: number
+  /** Tiles round the wand. */
+  around: number
+}
+
+/** An engraving: one tile, cut into bands that keep clear of metal. */
+export interface StencilSpec {
+  tile: StencilName
+  /** How deep the tile's floor cuts, as a fraction of the local radius. */
+  depth: number
+  bands: StencilBand[]
+}
+
 export interface WandSpec {
   lengthMm: number
   /** Where the turned body starts and ends; end gems fill the rest of the length. */
@@ -124,6 +150,7 @@ export interface WandSpec {
   metalSettings: boolean
   /** Null for a turned wand, which is always straight. */
   branch: BranchSpec | null
+  stencil: StencilSpec | null
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
@@ -577,6 +604,29 @@ export function compileWand(p: Params): WandSpec {
           radius: profile,
         })
 
+  const where = p.stencilWhere as string
+  const stencilStretches: [number, number][] = []
+  if (where !== 'shaft' && stencilPlaces(p).includes('handle'))
+    stencilStretches.push([
+      Math.max(turnedStyle.carve[0] * H, bodyFrom + 3),
+      turnedStyle.carve[1] * H,
+    ])
+  if (where !== 'handle') {
+    const shaftLen = bodyTo - collarEnd
+    const reach = where === 'all' ? Math.min(0.9 * shaftLen, shaftLen - 12) : 0.45 * shaftLen
+    stencilStretches.push([collarEnd + 3, collarEnd + reach])
+  }
+  const stencil =
+    hasStencil(p) && stencilPlaces(p).includes(where)
+      ? compileStencil(
+          p.stencil as StencilName,
+          p.stencilSize as number,
+          stencilStretches,
+          zones,
+          profile,
+        )
+      : null
+
   const stainHex = swatchFor('stainColour', p.stainColour as string)
   return {
     lengthMm: L,
@@ -604,7 +654,51 @@ export function compileWand(p: Params): WandSpec {
     orb,
     metalSettings,
     branch: branch ? compileBranch(p, L, collarEnd, grown, profile) : null,
+    stencil,
   }
+}
+
+/** Stencils keep this far clear of metal, mm. */
+const STENCIL_METAL_GAP = 0.8
+const SHORTEST_BAND = 4
+
+/** Cuts the stretches round any metal, then fits whole tiles into each piece that's left. */
+function compileStencil(
+  tile: StencilName,
+  size: number,
+  stretches: [number, number][],
+  zones: Zone[],
+  profile: (z: number) => number,
+): StencilSpec {
+  const { aspect, lengthMm, depth } = STENCILS[tile]
+  let pieces = stretches
+  for (const zone of zones) {
+    if (zone.material !== 'metal') continue
+    const lo = zone.from - STENCIL_METAL_GAP
+    const hi = zone.to + STENCIL_METAL_GAP
+    pieces = pieces.flatMap(([from, to]): [number, number][] =>
+      hi <= from || lo >= to
+        ? [[from, to]]
+        : [
+            ...(lo > from ? [[from, lo] as [number, number]] : []),
+            ...(hi < to ? [[hi, to] as [number, number]] : []),
+          ],
+    )
+  }
+  const tileLength = lerp(lengthMm[0], lengthMm[1], size)
+  const bands = pieces
+    .filter(([from, to]) => to - from >= SHORTEST_BAND)
+    .map(([from, to]): StencilBand => {
+      let r = 0
+      for (let k = 0; k <= 8; k++) r += profile(lerp(from, to, k / 8)) / 9
+      return {
+        from,
+        to,
+        length: (to - from) / Math.max(1, Math.round((to - from) / tileLength)),
+        around: Math.max(1, Math.round((TAU * r) / (aspect * tileLength))),
+      }
+    })
+  return { tile, depth, bands }
 }
 
 /** Relative strengths of the lumps; they sum to 1 so `gnarl` is the most they can move the radius. */

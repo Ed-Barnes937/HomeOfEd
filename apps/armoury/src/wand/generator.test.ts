@@ -23,6 +23,16 @@ const designs = [
       endGem: 'orb',
     }),
   })),
+  ...(['scales', 'vine', 'knotwork', 'runes', 'dots'] as const).map((stencil, i) => ({
+    name: `random with ${stencil} carved all over`,
+    params: normalise(wandSchema, {
+      ...randomise(wandSchema, seededRandom(300 + i)),
+      kind: 'turned',
+      stencil,
+      stencilWhere: 'all',
+      stencilSize: i % 2,
+    }),
+  })),
   ...(['grown', 'turned'] as const).flatMap((branchHandle, i) =>
     Array.from({ length: 4 }, (_, j) => ({
       name: `gnarled branch, ${branchHandle} handle, ${j}`,
@@ -34,6 +44,8 @@ const designs = [
         gnarl: 1,
         knots: 6,
         branchSeed: 25 * j,
+        stencil: 'knotwork',
+        stencilWhere: 'handle',
       }),
     })),
   ),

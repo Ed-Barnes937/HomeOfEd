@@ -25,6 +25,8 @@ src/
     geometry.ts       WandSpec -> radius field -> closed mesh arrays bent onto
                       the spine, gem and end poses
     gems.ts           where set gems go, in straight (angle, z) space
+    stencils.ts       the engraving tiles, drawn as functions and
+                      rasterised once
     presets.ts        hand-tuned starting wands; [0] is the first-visit wand
     describe.ts       name, shop number, tag line and lore - all derived
   workbench/          the wand on the counter: a pure reducer (set, try
