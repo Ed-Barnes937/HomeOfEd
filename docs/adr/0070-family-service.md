@@ -72,7 +72,8 @@ costs here is narrower than it looks: the account list and the service's copies
 of each save, never a child's actual work, because every app's `localStorage`
 remains the source of truth. The restore rehearsal ADR 0072 handed forward is
 therefore deferred rather than closed, and it returns as a precondition the
-moment a non-household account exists.
+moment a non-household account exists. It ran and passed on 2026-11-10, and
+[ADR 0089](0089-hoe-pg-offsite-backups-on-r2.md) adds a nightly off-Fly dump.
 
 **The cluster did not isolate family from its neighbours, and
 [ADR 0086](0086-hoe-pg-least-privilege.md) ends that.** `fly postgres attach`
