@@ -23,7 +23,7 @@ export interface ShareWords {
 export async function shareWandUrl(
   url: string,
   target: ShareTarget,
-  words?: ShareWords,
+  words: ShareWords,
 ): Promise<ShareOutcome> {
   if (target.share) {
     try {

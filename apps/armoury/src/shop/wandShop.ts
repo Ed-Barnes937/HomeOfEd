@@ -14,6 +14,7 @@ export const wandCopy: ShopCopy = {
   closeLookAction: 'Wave it',
   closeLookHint: 'Drag to turn it. Tap it to wave.',
   keep: 'Keep this wand',
+  kept: (name) => `${name} is boxed and on your shelf.`,
   nameField: 'Wand name',
   share: 'Share a link to this wand',
   shareTitle: 'Armoury',

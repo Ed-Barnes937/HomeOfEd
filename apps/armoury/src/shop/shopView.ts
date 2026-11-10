@@ -15,6 +15,8 @@ export interface ShopCopy {
   closeLookAction: string
   closeLookHint: string
   keep: string
+  /** Read out once the item is on the shelf. */
+  kept: (name: string) => string
   nameField: string
   share: string
   shareTitle: string

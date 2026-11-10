@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { ShopCopy } from '../shop/shopView.ts'
-import { wandCopy } from '../shop/wandShop.ts'
 import { navigatorShareTarget, prefersShareSheet, shareWandUrl } from './shareAction.ts'
 
 export const COPIED_HOLD_MS = 1_600
@@ -10,7 +9,7 @@ export type ShareState = 'idle' | 'pending' | 'copied'
 
 export function useShareWand(
   getShareUrl: () => string,
-  copy: Pick<ShopCopy, 'shareTitle' | 'shareText'> = wandCopy,
+  copy: Pick<ShopCopy, 'shareTitle' | 'shareText'>,
 ): {
   shareState: ShareState
   share: () => void

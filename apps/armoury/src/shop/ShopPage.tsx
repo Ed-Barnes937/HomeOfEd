@@ -117,7 +117,7 @@ export function ShopPage({ view }: { view: ShopView }) {
         </button>
       </div>
       <p className="visually-hidden" aria-live="polite">
-        {kept ? `${name} is boxed and on your shelf.` : ''}
+        {kept ? copy.kept(name) : ''}
       </p>
     </div>
   )

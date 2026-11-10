@@ -15,7 +15,7 @@ export async function savePicture(
   blob: Blob,
   filename: string,
   target: PictureTarget,
-  title?: string,
+  title: string,
 ): Promise<PictureOutcome> {
   if (target.share) {
     const file = new File([blob], filename, { type: blob.type || 'image/png' })
@@ -69,5 +69,3 @@ export function pictureFilename(name: string, fallback: string): string {
     .replace(/^-+|-+$/g, '')
   return `${slug === '' ? fallback : slug}.png`
 }
-
-export const wandFilename = (name: string) => pictureFilename(name, 'wand')
