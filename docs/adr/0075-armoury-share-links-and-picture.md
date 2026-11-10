@@ -3,7 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-11-08
 - **Related:** [ADR 0026](0026-boop-share-links.md) (the boop precedent),
-  [ADR 0074](0074-armoury-save-format.md).
+  [ADR 0074](0074-armoury-save-format.md), [ADR 0093](0093-estate-gate.md)
+  (the gate and `/shared`), [ADR 0094](0094-per-profile-local-saves.md).
 
 ## Context
 
@@ -29,6 +30,22 @@ wall, the wand in its box with its tip glowing, the tag with name, tag line and
 lore, and the address. On a touch device that can share files it opens the
 share sheet; otherwise it downloads `<slugged-name>.png`. This is boop's export
 action, reused.
+
+**Amended 2026-11-10 (estate-gate ticket 11): links open at `/shared`.**
+Share, from the counter or the shelf, now builds
+`<origin>/shared#w=<token>`; the token and its decoder are unchanged, and so is
+the picture. `/shared` is the one path the estate gate leaves open
+([ADR 0093](0093-estate-gate.md) decision 6), so anyone can open a wand. It
+keeps nothing: the workbench there runs over `memoryStorage`, the header drops
+the shelf and the player chip, and the fragment stays in the address bar, so a
+reload reopens the share as it was sent. Its "Keep this wand" button goes to
+`<origin>/` with the wand as it is now, edits and rename included, re-encoded
+with the same `encodeShare`; with no edits it carries the arrival fragment byte
+for byte (`keepFragment`). At the root the gate asks who is playing, and the
+fragment becomes that player's wand on the counter as before. A root `/#w=`
+link, as every link sent before this change, still opens there for a signed-in
+visitor. The fragment is read through `arrivalFragment()` from
+`@hoe/accounts`, because the router decodes the address bar on mount.
 
 ## Consequences
 

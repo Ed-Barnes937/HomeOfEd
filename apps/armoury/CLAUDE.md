@@ -9,9 +9,12 @@ Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)).
 The wand on the counter and the shelf persist to `localStorage`
-([ADR 0074](../../docs/adr/0074-armoury-save-format.md)); sharing is a URL
-fragment plus a downloadable picture
-([ADR 0075](../../docs/adr/0075-armoury-share-links-and-picture.md)).
+([ADR 0074](../../docs/adr/0074-armoury-save-format.md)), per player
+([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)); sharing is a URL
+fragment at `/shared` plus a downloadable picture
+([ADR 0075](../../docs/adr/0075-armoury-share-links-and-picture.md)). The
+server gates documents behind a family session when `FAMILY_ACCOUNT_URL` is
+set, `/shared` excepted ([ADR 0093](../../docs/adr/0093-estate-gate.md)).
 
 ## Layout
 
@@ -31,11 +34,19 @@ src/
                       rasterised once
     presets.ts        hand-tuned starting wands; [0] is the first-visit wand
     describe.ts       name, shop number, tag line and lore - all derived
+  App.tsx             reads the family session once (familySession.tsx)
+  router.tsx, views.tsx
+                      `/` and `/shelf` under PlayerView (the player's
+                      profileStorage, reload on a player change); `/shared`
+                      is SharedView (memoryStorage, nothing kept)
   workbench/          the wand on the counter: a pure reducer (set, try
                       another, put back, locks, rename, load) + the provider
-                      that autosaves it and owns the shelf
-  persistence/        save format (total decode) + the localStorage seam
-  share/              fragment links, the share action, the picture card
+                      that autosaves it to the storage it is given and owns
+                      the shelf
+  persistence/        save format (total decode), the storage seam, and
+                      profileKeys (the keys that are a player's)
+  share/              fragment links, keep-from-/shared, the share action,
+                      the picture card
   stage/              the three.js stages behind the seam (one lazy chunk)
     stage.ts          the seam: StageContext (Stages), StageHandle,
                       CloseUpHandle, BoxPose, framing constants
@@ -80,6 +91,15 @@ public/fonts/         IM Fell English (+SC, italic) and Alegreya Sans, OFL
 - **Nothing persists or shares except through `persistence/saveFormat.ts`.** A
   stored wand is `{ params, name? }`; params always pass through `normalise`,
   so old and future saves still open. Share links reuse `decodeStoredWand`.
+- **Saves go through the storage the route hands the workbench**, never
+  `window.localStorage` directly: `profileStorage` on the player's routes,
+  `memoryStorage` on `/shared`, which must write nothing. Never build
+  `profileStorage` on `/shared` (building it adopts the legacy shelf, a write),
+  and never call `reloadOnPlayerChange` there (a reload loses the visitor's
+  edits). Read a share fragment through `arrivalFragment()`, never
+  `location.hash`: the router decodes the address bar on mount. Hub links are
+  `hubUrlFor` and `switchPlayerUrlFor` from `@hoe/accounts`, never a port
+  literal.
 - **Names, numbers and tag lines are derived**, never stored, apart from a
   child's own rename. Change `describe.ts` freely; the shop number is a hash
   of the params, so it changes whenever the wand does.
