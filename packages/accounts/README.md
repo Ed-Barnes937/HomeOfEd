@@ -60,8 +60,9 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
 (per-profile saves).
 
 - **`ESTATE_APPS`** - `{ appId, host, devPort, composePort }` for every gated
-  app (and `HUB_LOCAL_PORTS`, hub's own two localhost ports). It is the only list of origins hub will return a visitor to, so a new
-  gated app is added here. Not the family service's `onboardedApps.ts`, which is
+  app (and `HUB_LOCAL_PORTS`, hub's own two localhost ports). It is the only
+  list of origins hub will return a visitor to, so a new gated app is added
+  here. Not the family service's `onboardedApps.ts`, which is
   the SaveStore list and differs on purpose.
 - **`safeReturnTo(raw, { allowLocal })`** - the open-redirect guard. Returns the
   normalised URL without its fragment, or `null`. The origin must exactly match
@@ -80,8 +81,12 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
   for an `ESTATE_APPS` host, `localhost:<HUB_LOCAL_PORTS.devPort>` for an app on
   its `devPort`, `localhost:<HUB_LOCAL_PORTS.composePort>` for its
   `composePort`. `null` anywhere else (espy's Capacitor shell): show no link.
-- **`sharedUrl(returnTo, fragment)`** - `<origin>/shared<fragment>`, for hub's
-  "Open what was shared". Pass it a `safeReturnTo` result, never a raw value.
+  Its `returnTo` is always one `safeReturnTo` accepts; an href that would not
+  be (upper case, an explicit port, `blob:`) gives `null` too.
+- **`sharedUrl(returnTo, fragment, { allowLocal })`** -
+  `<origin>/shared<fragment>`, for hub's "Open what was shared", or `null`. It
+  vets `returnTo` through `safeReturnTo` itself, so a caller that forgets
+  cannot produce an off-estate link.
 - **`profileScopedKey(key, accountId)`** - `key` for no account, else
   `key@<accountId>`. The SaveStore `slotKey` stays the unscoped key.
 - **`adoptLegacyDocument(storage, key, accountId)`** - copies the unscoped
@@ -94,7 +99,11 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
   `returnTo` built from the request's `Host` and URL (`http` for localhost,
   `https` otherwise). A host or target that would build a URL on another host
   gets the bare account URL. `publicPaths` is passed through for
-  `createAppServer` to skip.
+  `createAppServer` to skip. Bad config throws at construction, so it fails
+  the boot rather than every request: `accountUrl` must be an absolute http(s)
+  URL, and `publicKeyPem` must parse as an Ed25519 public key (PEM text holding
+  a private key is refused by name). The key is parsed once and handed to
+  `verifyFamilyToken`, which takes PEM text or a `KeyObject`.
 
 ## The save contract
 

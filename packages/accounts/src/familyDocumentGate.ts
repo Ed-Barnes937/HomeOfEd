@@ -1,3 +1,6 @@
+import type { KeyObject } from 'node:crypto'
+import { createPublicKey } from 'node:crypto'
+
 import { readFamilyTokenFromCookieHeader } from './claims.ts'
 import { verifyFamilyToken } from './familyToken.ts'
 import { accountUrl } from './returnTo.ts'
@@ -23,19 +26,50 @@ export interface FamilyDocumentGateOpts {
   now?: () => Date
 }
 
-/** Lets through any verified family token; anything else goes to the account page. */
+/**
+ * Lets through any verified family token; anything else goes to the account page.
+ * Bad config throws here, at boot, rather than failing every request.
+ */
 export function familyDocumentGate(opts: FamilyDocumentGateOpts): DocumentGate {
-  if (!opts.publicKeyPem) throw new Error('familyDocumentGate: publicKeyPem is required')
+  const accountBase = parseAccountUrl(opts.accountUrl)
+  const publicKey = parsePublicKey(opts.publicKeyPem)
   const now = opts.now ?? (() => new Date())
   return {
     publicPaths: opts.publicPaths,
     redirectFor: (req) => {
       const token = readFamilyTokenFromCookieHeader(req.cookie)
-      if (token !== null && verifyFamilyToken(token, opts.publicKeyPem, now) !== null) return null
+      if (token !== null && verifyFamilyToken(token, publicKey, now) !== null) return null
       const returnTo = requestUrl(req.host, req.url)
-      return returnTo === null ? opts.accountUrl : accountUrl(opts.accountUrl, returnTo)
+      return returnTo === null ? accountBase : accountUrl(accountBase, returnTo)
     },
   }
+}
+
+function parseAccountUrl(raw: string): string {
+  let url: URL | null = null
+  try {
+    url = new URL(raw)
+  } catch {
+    // reported below
+  }
+  if (url === null || (url.protocol !== 'https:' && url.protocol !== 'http:'))
+    throw new Error(`familyDocumentGate: accountUrl must be an absolute http(s) URL, got '${raw}'`)
+  return url.href
+}
+
+function parsePublicKey(pem: string): KeyObject {
+  if (!pem) throw new Error('familyDocumentGate: publicKeyPem is required')
+  if (pem.includes('PRIVATE KEY'))
+    throw new Error('familyDocumentGate: publicKeyPem holds a private key; pass the public half')
+  let key: KeyObject
+  try {
+    key = createPublicKey(pem)
+  } catch {
+    throw new Error('familyDocumentGate: publicKeyPem is not a PEM public key')
+  }
+  if (key.asymmetricKeyType !== 'ed25519')
+    throw new Error('familyDocumentGate: publicKeyPem must be an Ed25519 key')
+  return key
 }
 
 // Null when the Host header or request target would build a URL on another host.

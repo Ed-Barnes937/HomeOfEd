@@ -50,3 +50,9 @@ SaveStore list, a different list on purpose.
   origin tier (production, dev port, compose port), and it is null outside the
   estate, meaning "show no switch-player link". The two-argument `accountUrl`
   is unchanged.
+- After review: `familyDocumentGate` validates its config at construction
+  (absolute http(s) `accountUrl`; an Ed25519 public key, parsed once, private
+  key PEM refused by name), and `verifyFamilyToken` now also takes a
+  `KeyObject`. `accountUrlFor` returns null unless its `returnTo` is one
+  `safeReturnTo` accepts. `sharedUrl(returnTo, fragment, { allowLocal })` now
+  vets its input itself and returns `string | null`.

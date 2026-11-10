@@ -1,9 +1,12 @@
+import { generateKeyPairSync } from 'node:crypto'
+
 import { describe, expect, it } from 'vitest'
 
 import { FAMILY_SESSION_COOKIE } from './claims.ts'
 import { familyDocumentGate } from './familyDocumentGate.ts'
+import { mintFamilyToken } from './familyToken.ts'
 import { mintTestToken } from './testing/mintTestToken.ts'
-import { TEST_FAMILY_PUBLIC_KEY } from './testing/testKeys.ts'
+import { TEST_FAMILY_PRIVATE_KEY, TEST_FAMILY_PUBLIC_KEY } from './testing/testKeys.ts'
 
 const now = () => new Date('2026-01-01T00:00:00Z')
 const ACCOUNT = 'https://homeofed.com/account'
@@ -52,9 +55,20 @@ describe('familyDocumentGate', () => {
       { sub: 'child-1', role: 'child', parentId: 'parent-1', name: 'Robin' },
       { now: () => new Date('2025-01-01T00:00:00Z'), ttlMs: 1000 },
     )
+    const otherKey = generateKeyPairSync('ed25519')
+      .privateKey.export({ type: 'pkcs8', format: 'pem' })
+      .toString()
+    const otherKeyToken = mintFamilyToken(
+      { sub: 'parent-1', role: 'parent', name: 'Ed' },
+      otherKey,
+      {
+        now,
+      },
+    )
     for (const cookie of [
       cookieFor(`${payload ?? ''}.AAAA`),
       cookieFor(expired),
+      cookieFor(otherKeyToken),
       cookieFor('garbage'),
       'theme=dark',
       '',
@@ -85,10 +99,39 @@ describe('familyDocumentGate', () => {
     ])
       expect(gate.redirectFor({ ...req, cookie: null })).toBe(ACCOUNT)
   })
+})
 
-  it('refuses to build without a public key', () => {
-    expect(() =>
-      familyDocumentGate({ accountUrl: ACCOUNT, publicPaths: [], publicKeyPem: '' }),
-    ).toThrow(/publicKeyPem/)
+describe('familyDocumentGate refuses bad config at construction, not per request', () => {
+  const build = (accountUrl: string, publicKeyPem: string) => () =>
+    familyDocumentGate({ accountUrl, publicPaths: [], publicKeyPem })
+
+  it('refuses an empty public key', () => {
+    expect(build(ACCOUNT, '')).toThrow(/publicKeyPem/)
+  })
+
+  it('refuses text that is not a key', () => {
+    expect(build(ACCOUNT, 'not a pem')).toThrow(/publicKeyPem/)
+  })
+
+  it('refuses a private key passed as the public key', () => {
+    expect(build(ACCOUNT, TEST_FAMILY_PRIVATE_KEY)).toThrow(/private key/)
+  })
+
+  it('refuses a public key that is not Ed25519', () => {
+    const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+    const pem = publicKey.export({ type: 'spki', format: 'pem' }).toString()
+    expect(build(ACCOUNT, pem)).toThrow(/Ed25519/)
+  })
+
+  it('refuses a relative account URL', () => {
+    expect(build('/account', TEST_FAMILY_PUBLIC_KEY)).toThrow(/accountUrl/)
+  })
+
+  it('refuses an account URL with no scheme', () => {
+    expect(build('homeofed.com/account', TEST_FAMILY_PUBLIC_KEY)).toThrow(/accountUrl/)
+  })
+
+  it('refuses an account URL that is not http(s)', () => {
+    expect(build('javascript:alert(1)', TEST_FAMILY_PUBLIC_KEY)).toThrow(/accountUrl/)
   })
 })

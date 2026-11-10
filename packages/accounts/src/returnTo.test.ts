@@ -91,20 +91,37 @@ describe('safeReturnTo refuses hostile input', () => {
 })
 
 describe('sharedUrl', () => {
+  const prod = { allowLocal: false }
+  const local = { allowLocal: true }
+
   it("is the return URL's origin, /shared, and the fragment verbatim", () => {
-    expect(sharedUrl('https://boop.homeofed.com/some/path?x=1', '#g=AbC-_%20')).toBe(
+    expect(sharedUrl('https://boop.homeofed.com/some/path?x=1', '#g=AbC-_%20', prod)).toBe(
       'https://boop.homeofed.com/shared#g=AbC-_%20',
     )
-    expect(sharedUrl('http://localhost:3008/', '#w=1')).toBe('http://localhost:3008/shared#w=1')
+    expect(sharedUrl('http://localhost:3008/', '#w=1', local)).toBe(
+      'http://localhost:3008/shared#w=1',
+    )
   })
 
   it('accepts a fragment with or without its #', () => {
-    expect(sharedUrl('https://armoury.homeofed.com/', 'w=1')).toBe(
+    expect(sharedUrl('https://armoury.homeofed.com/', 'w=1', prod)).toBe(
       'https://armoury.homeofed.com/shared#w=1',
     )
-    expect(sharedUrl('https://armoury.homeofed.com/', '')).toBe(
+    expect(sharedUrl('https://armoury.homeofed.com/', '', prod)).toBe(
       'https://armoury.homeofed.com/shared',
     )
+  })
+
+  it('is null for a return URL safeReturnTo refuses, so an unvetted caller cannot leave the estate', () => {
+    for (const returnTo of [
+      'blob:https://evil.example/x',
+      'blob:https://boop.homeofed.com/x',
+      'https://evil.example/',
+      'https://boop.homeofed.com@evil.example/',
+      '//evil.example/',
+    ])
+      expect(sharedUrl(returnTo, '#g=1', local)).toBeNull()
+    expect(sharedUrl('http://localhost:3008/', '#g=1', prod)).toBeNull()
   })
 })
 
@@ -142,6 +159,27 @@ describe('accountUrlFor', () => {
     ])
       expect(accountUrlFor(href)).toBeNull()
   })
+
+  it('is null for any href whose returnTo safeReturnTo would refuse', () => {
+    for (const href of [
+      'https://BOOP.homeofed.com/',
+      'https://boop.homeofed.com:443/x',
+      'blob:https://boop.homeofed.com/x',
+      'blob:http://localhost:3008/x',
+    ])
+      expect(accountUrlFor(href)).toBeNull()
+  })
+
+  it('always produces a returnTo that safeReturnTo accepts', () => {
+    for (const [href, allowLocal] of [
+      ['https://boop.homeofed.com', false],
+      ['https://silt.homeofed.com/a/../b?x=1#s=2', false],
+      ['http://localhost:3009/#g=1', true],
+    ] as const) {
+      const returnTo = new URL(accountUrlFor(href) ?? '').searchParams.get('returnTo')
+      expect(safeReturnTo(returnTo, { allowLocal })).toBe(returnTo)
+    }
+  })
 })
 
 describe('accountUrl', () => {
@@ -156,6 +194,15 @@ describe('accountUrl', () => {
   it('moves a fragment onto the account URL, the same place a gate redirect leaves it', () => {
     expect(accountUrl('https://homeofed.com/account', 'https://boop.homeofed.com/#g=xyz')).toBe(
       'https://homeofed.com/account?returnTo=https%3A%2F%2Fboop.homeofed.com%2F#g=xyz',
+    )
+  })
+
+  it('leaves no fragment inside returnTo, and drops any fragment the account base had', () => {
+    const href = accountUrl('https://homeofed.com/account#old', 'https://boop.homeofed.com/x#g=1')
+    expect(new URL(href).searchParams.get('returnTo')).toBe('https://boop.homeofed.com/x')
+    expect(new URL(href).hash).toBe('#g=1')
+    expect(accountUrl('https://homeofed.com/account#old', 'https://boop.homeofed.com/')).toBe(
+      'https://homeofed.com/account?returnTo=https%3A%2F%2Fboop.homeofed.com%2F',
     )
   })
 

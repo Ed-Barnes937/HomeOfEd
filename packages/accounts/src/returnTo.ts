@@ -20,7 +20,8 @@ export function accountUrl(accountBase: string, returnTo: string): string {
 /**
  * `accountUrl` with the base taken from where the app is running: production hub
  * for a production app, hub's dev or compose port for an app on the matching
- * localhost tier. Null outside the estate (such as espy's Capacitor shell).
+ * localhost tier. Null outside the estate (such as espy's Capacitor shell), and
+ * null whenever `safeReturnTo` would refuse the resulting `returnTo`.
  */
 export function accountUrlFor(currentHref: string): string | null {
   let origin: string
@@ -29,25 +30,36 @@ export function accountUrlFor(currentHref: string): string | null {
   } catch {
     return null
   }
-  const base = accountBaseFor(origin)
-  return base === null ? null : accountUrl(base, currentHref)
+  const tier = accountTierFor(origin)
+  if (tier === null) return null
+  const returnTo = safeReturnTo(currentHref, { allowLocal: tier.local })
+  if (returnTo === null) return null
+  const hashAt = currentHref.indexOf('#')
+  return accountUrl(tier.base, hashAt === -1 ? returnTo : returnTo + currentHref.slice(hashAt))
 }
 
-function accountBaseFor(origin: string): string | null {
+function accountTierFor(origin: string): { base: string; local: boolean } | null {
   for (const app of ESTATE_APPS) {
-    if (origin === `https://${app.host}`) return 'https://homeofed.com/account'
+    if (origin === `https://${app.host}`)
+      return { base: 'https://homeofed.com/account', local: false }
     if (origin === `http://localhost:${app.devPort}`)
-      return `http://localhost:${HUB_LOCAL_PORTS.devPort}/account`
+      return { base: `http://localhost:${HUB_LOCAL_PORTS.devPort}/account`, local: true }
     if (origin === `http://localhost:${app.composePort}`)
-      return `http://localhost:${HUB_LOCAL_PORTS.composePort}/account`
+      return { base: `http://localhost:${HUB_LOCAL_PORTS.composePort}/account`, local: true }
   }
   return null
 }
 
-/** An app's ungated share view. `returnTo` must already be a `safeReturnTo` result. */
-export function sharedUrl(returnTo: string, fragment: string): string {
+/** An app's ungated share view, or null when `safeReturnTo` refuses `returnTo`. */
+export function sharedUrl(
+  returnTo: string,
+  fragment: string,
+  opts: SafeReturnToOpts,
+): string | null {
+  const safe = safeReturnTo(returnTo, opts)
+  if (safe === null) return null
   const hash = fragment === '' || fragment.startsWith('#') ? fragment : `#${fragment}`
-  return `${new URL(returnTo).origin}/shared${hash}`
+  return `${new URL(safe).origin}/shared${hash}`
 }
 
 /**
