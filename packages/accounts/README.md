@@ -19,8 +19,9 @@ Four entry points keep node-only code out of browser bundles:
   `sharedUrl`, `profileScopedKey` and `adoptLegacyDocument` (below).
 - **`@hoe/accounts/server`** (node): `mintFamilyToken` / `verifyFamilyToken`
   (Ed25519 via `node:crypto`), `familyAuthProvider` - the AuthProvider any
-  app drops into its `createContext({ auth })` seam - and `familyDocumentGate`,
-  the value for `createAppServer`'s `documentGate`.
+  app drops into its `createContext({ auth })` seam - `familyDocumentGate`,
+  the value for `createAppServer`'s `documentGate`, and `familyVerifyingKey`,
+  the public key it verifies with.
 - **`@hoe/accounts/testing`**: `FakeFamilyClient`, the committed TEST-ONLY
   keypair, and `mintTestToken` (node) - so this index is for Node-side callers.
 - **`@hoe/accounts/testing/fake`**: `FakeFamilyClient` alone. The index above
@@ -104,6 +105,58 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
   URL, and `publicKeyPem` must parse as an Ed25519 public key (PEM text holding
   a private key is refused by name). The key is parsed once and handed to
   `verifyFamilyToken`, which takes PEM text or a `KeyObject`.
+- **`familyVerifyingKey(env)`** (server) - the `publicKeyPem` for the gate:
+  `FAMILY_TOKEN_PUBLIC_KEY` when set (escaped `\n` unescaped, the one-line form
+  `compose.yml` uses), else the committed `PRODUCTION_FAMILY_PUBLIC_KEY`. On Fly
+  (`FLY_APP_NAME`) it throws for the committed test key, whose private half is
+  public; with no key at all it throws everywhere. `compose.yml` sets the test
+  key on every `ESTATE_APPS` service, matching the key its family signs with,
+  and `familyVerifyingKey.test.ts` checks that. ADR 0070 (amended).
+
+### Wiring the gate in an app
+
+Resolve the key **inside** the `FAMILY_ACCOUNT_URL` branch, never above it, so
+an app with the gate off boots as it always has, with or without a key:
+
+```ts
+const familyAccountUrl = process.env.FAMILY_ACCOUNT_URL
+const server = createAppServer({
+  // ...
+  documentGate: familyAccountUrl
+    ? familyDocumentGate({
+        accountUrl: familyAccountUrl,
+        publicPaths: ['/shared'],
+        publicKeyPem: familyVerifyingKey(process.env),
+      })
+    : undefined,
+})
+```
+
+`familyVerifyingKey` reads the test key from `src/testing` and imports
+`@hoe/deploy-guard`, so a gated app's Dockerfile installs and `COPY`s both
+`packages/accounts` (with its `src/testing`) and `packages/deploy-guard` in
+its runtime stage, as `apps/family/Dockerfile` does.
+
+### Committing the production key
+
+`PRODUCTION_FAMILY_PUBLIC_KEY` is `null` until Ed supplies the value, and the
+gate must not be switched on in any `fly.toml` before then: the app would
+refuse to boot. To commit it, print the public half of family's signing key
+
+```sh
+openssl pkey -in <private-key.pem> -pubout
+```
+
+and replace `null` in `src/familyVerifyingKey.ts` with the three output lines
+joined by `\n`, as one string:
+
+```ts
+export const PRODUCTION_FAMILY_PUBLIC_KEY: string | null =
+  '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA...\n-----END PUBLIC KEY-----\n'
+```
+
+The tests then check it is an Ed25519 public key the gate accepts and not the
+test key.
 
 ## The save contract
 
@@ -170,7 +223,8 @@ router could ever implement them.
 tamper / expiry / malformed / wrong-shape, provider mapping, decode-only
 session read, wire-format + error mapping of the client, the return-URL
 allowlist against named hostile inputs, legacy adoption, the gate's redirects,
-and the fake's
+the verifying key's sources and its refusal of the test key on Fly (plus the
+`compose.yml` drift check), and the fake's
 contract behaviour (LWW versioning, per-account scoping, UNAUTHORIZED when
 signed out, `failWith` offline degradation).
 

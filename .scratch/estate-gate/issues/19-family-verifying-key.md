@@ -1,6 +1,6 @@
 # 19 - Apps know the family public key, in production and in the docker stack
 
-**Status:** needs-info
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decision 1; ADR 0070 ("the public half ships
 as ordinary config inside `@hoe/accounts`")
@@ -29,3 +29,33 @@ looping between an app and hub.
 Until Ed supplies the key, everything except the constant's value can be built.
 
 ## Comments
+
+2026-11-10 (implementer): built everything except the key value, which is
+still outstanding. `PRODUCTION_FAMILY_PUBLIC_KEY` in
+`packages/accounts/src/familyVerifyingKey.ts` is `null`. To commit it, Ed runs
+
+    openssl pkey -in <private-key.pem> -pubout
+
+and replaces that line with the three output lines joined by `\n` as one string:
+
+    export const PRODUCTION_FAMILY_PUBLIC_KEY: string | null =
+      '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA<rest of line 2>\n-----END PUBLIC KEY-----\n'
+
+The existing test then checks it is an Ed25519 public key the gate accepts and
+not the test key. No `fly.toml` may set `FAMILY_ACCOUNT_URL` before this lands.
+
+Differences from the ticket:
+
+- With no override and no committed constant, `familyVerifyingKey` throws
+  everywhere (not only on Fly), naming both remedies. Apps call it only inside
+  their `FAMILY_ACCOUNT_URL` branch (README, "Wiring the gate in an app"), so an
+  app with the gate off boots as before; a gated app on Fly with no key, or the
+  test key, refuses to boot.
+- The test key and the compose-local key are one key (compose's family signs
+  with the `@hoe/accounts/testing` private key), so one SPKI comparison refuses
+  both. The compose drift test pins that they stay the same key.
+- `@hoe/accounts` now depends on `@hoe/deploy-guard` for `isDeployed`. A gated
+  app's Dockerfile must ship `packages/accounts` with `src/testing` and
+  `packages/deploy-guard`; noted in the README for tickets 10-15.
+- `familyVerifyingKey(env, productionKey?)`: the second parameter defaults to
+  the constant and exists so both states are tested now.

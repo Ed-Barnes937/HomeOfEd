@@ -109,3 +109,32 @@ household and would not be for strangers, which is exactly the boundary
 The opaque-blob discipline has to be defended in review rather than by the type
 system. "Can the server query inside a save?" is the question that would quietly
 turn this into an app-shaped data server, and the answer is no.
+
+## Amendment (2026-11-10): where an app gets the public key
+
+"The public half ships as ordinary config inside `@hoe/accounts`" becomes
+concrete for the estate gate ([spec](../../.scratch/estate-gate/spec.md)
+decision 1). `@hoe/accounts/server` exports `familyVerifyingKey(env)`, the
+`publicKeyPem` every gated app hands to `familyDocumentGate`.
+
+- **Production key: a committed constant**, `PRODUCTION_FAMILY_PUBLIC_KEY` in
+  `packages/accounts/src/familyVerifyingKey.ts`. A public key is safe to commit,
+  and a constant keeps the promise above: no new Fly secret or variable per app.
+  It is `null` until Ed commits it, and a test checks that whenever it is set it
+  is an Ed25519 public key the gate accepts and not the test key.
+- **`FAMILY_TOKEN_PUBLIC_KEY` overrides it.** The docker stack's family signs
+  with the committed `@hoe/accounts/testing` key, so a built-in production key
+  alone would bounce every compose app between itself and hub. `compose.yml`
+  sets the test public half on the eight gated services, and a drift test
+  checks it matches the private key compose's family signs with. Escaped `\n`
+  are unescaped, as for `FAMILY_TOKEN_PRIVATE_KEY`.
+- **On Fly, the test key is refused at boot** (`isDeployed` from
+  `@hoe/deploy-guard`, the rule of [ADR 0078](0078-family-identity-auth-boundary.md)
+  decision 4 and [ADR 0088](0088-deploy-guard-package.md)): its private half is
+  public, so anyone could mint a token that passes the gate. Keys compare as
+  SPKI, so line wrapping cannot slip one past. With no override and no
+  committed constant it also refuses, on or off Fly, naming both remedies.
+- **Resolved only when the gate is on.** An app calls `familyVerifyingKey` only
+  inside its `FAMILY_ACCOUNT_URL` branch, so an app with the gate off boots
+  exactly as before, key or no key. Turning the gate on in production
+  therefore needs the constant committed first.
