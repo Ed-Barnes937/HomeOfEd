@@ -134,7 +134,8 @@ decision 1). `@hoe/accounts/server` exports `familyVerifyingKey(env)`, the
   public, so anyone could mint a token that passes the gate. Keys compare as
   SPKI, so line wrapping cannot slip one past. With no override and no
   committed constant it also refuses, on or off Fly, naming both remedies.
-- **Resolved only when the gate is on.** An app calls `familyVerifyingKey` only
-  inside its `FAMILY_ACCOUNT_URL` branch, so an app with the gate off boots
-  exactly as before, key or no key. Turning the gate on in production
+- **Resolved only when the gate is on.** Apps call only
+  `familyDocumentGateFromEnv(env, { publicPaths })`, which returns no gate and
+  resolves no key without `FAMILY_ACCOUNT_URL`, so an app with the gate off
+  boots exactly as before, key or no key. Turning the gate on in production
   therefore needs the constant committed first.

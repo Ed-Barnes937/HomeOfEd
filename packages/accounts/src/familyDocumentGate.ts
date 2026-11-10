@@ -1,8 +1,11 @@
 import type { KeyObject } from 'node:crypto'
 import { createPublicKey } from 'node:crypto'
 
+import type { Environment } from '@hoe/deploy-guard'
+
 import { readFamilyTokenFromCookieHeader } from './claims.ts'
 import { verifyFamilyToken } from './familyToken.ts'
+import { familyVerifyingKey } from './familyVerifyingKey.ts'
 import { accountUrl } from './returnTo.ts'
 
 // Structurally the `documentGate` option of backend-kit's `createAppServer`.
@@ -43,6 +46,23 @@ export function familyDocumentGate(opts: FamilyDocumentGateOpts): DocumentGate {
       return returnTo === null ? accountBase : accountUrl(accountBase, returnTo)
     },
   }
+}
+
+/**
+ * What an app's `main.ts` passes as `documentGate`: off (`undefined`) unless
+ * `FAMILY_ACCOUNT_URL` is set, so the verifying key is only resolved when on.
+ */
+export function familyDocumentGateFromEnv(
+  env: Environment,
+  opts: Pick<FamilyDocumentGateOpts, 'publicPaths' | 'now'>,
+): DocumentGate | undefined {
+  const familyAccountUrl = env.FAMILY_ACCOUNT_URL
+  if (!familyAccountUrl) return undefined
+  return familyDocumentGate({
+    ...opts,
+    accountUrl: familyAccountUrl,
+    publicKeyPem: familyVerifyingKey(env),
+  })
 }
 
 function parseAccountUrl(raw: string): string {

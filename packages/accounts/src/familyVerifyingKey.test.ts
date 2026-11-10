@@ -1,10 +1,7 @@
 import { createPublicKey, generateKeyPairSync } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { ESTATE_APPS } from './estateApps.ts'
 import { familyDocumentGate } from './familyDocumentGate.ts'
 import { familyVerifyingKey, PRODUCTION_FAMILY_PUBLIC_KEY } from './familyVerifyingKey.ts'
 import { TEST_FAMILY_PUBLIC_KEY } from './testing/testKeys.ts'
@@ -84,38 +81,4 @@ describe('PRODUCTION_FAMILY_PUBLIC_KEY', () => {
       }),
     ).not.toThrow()
   })
-})
-
-describe('compose.yml', () => {
-  const compose = readFileSync(
-    fileURLToPath(new URL('../../../compose.yml', import.meta.url)),
-    'utf8',
-  )
-  const services = new Map(
-    compose
-      .split(/\n(?= {2}[a-z][\w-]*:\n)/)
-      .map((block) => [block.match(/^ {2}([\w-]+):/)?.[1] ?? '', block] as const),
-  )
-  const valueOf = (service: string, name: string) => {
-    const match = services.get(service)?.match(new RegExp(`^ +${name}: '(.*)'$`, 'm'))
-    return match?.[1]?.replace(/\\n/g, '\n')
-  }
-  // A private PEM yields its public half here, so both sides compare as SPKI.
-  const spki = (pem: string) => createPublicKey(pem).export({ type: 'spki', format: 'der' })
-  const familySigningKey = valueOf('family', 'FAMILY_TOKEN_PRIVATE_KEY')
-
-  it.each(ESTATE_APPS.map((app) => app.appId))(
-    'gives %s the public half of the key family signs with, which Fly refuses',
-    (appId) => {
-      const pem = valueOf(appId, 'FAMILY_TOKEN_PUBLIC_KEY')
-
-      expect(pem).toBeDefined()
-      expect(familySigningKey).toBeDefined()
-      expect(spki(pem!)).toEqual(spki(familySigningKey!))
-      expect(familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: pem }, null)).toBe(pem)
-      expect(() =>
-        familyVerifyingKey({ ...ON_FLY, FAMILY_TOKEN_PUBLIC_KEY: pem }, productionKey),
-      ).toThrow(/committed @hoe\/accounts\/testing key/)
-    },
-  )
 })

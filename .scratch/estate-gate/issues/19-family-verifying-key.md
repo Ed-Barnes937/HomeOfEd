@@ -47,10 +47,16 @@ not the test key. No `fly.toml` may set `FAMILY_ACCOUNT_URL` before this lands.
 Differences from the ticket:
 
 - With no override and no committed constant, `familyVerifyingKey` throws
-  everywhere (not only on Fly), naming both remedies. Apps call it only inside
-  their `FAMILY_ACCOUNT_URL` branch (README, "Wiring the gate in an app"), so an
-  app with the gate off boots as before; a gated app on Fly with no key, or the
-  test key, refuses to boot.
+  everywhere (not only on Fly), naming both remedies.
+- Added `familyDocumentGateFromEnv(env, { publicPaths })` (orchestrator
+  decision): the only gate call an app's `main.ts` makes. It returns
+  `undefined` without `FAMILY_ACCOUNT_URL` and resolves no key, so an app with
+  the gate off boots as before; a gated app on Fly with no key, or the test
+  key, refuses to boot. Tickets 10-16 wire `documentGate:
+  familyDocumentGateFromEnv(process.env, { publicPaths: [...] })` and follow the
+  README's Dockerfile list. ADR 0093 decision 2 points at it.
+- The compose drift test lives in `estateApps.test.ts`, beside the compose port
+  check, sharing its service-block helper.
 - The test key and the compose-local key are one key (compose's family signs
   with the `@hoe/accounts/testing` private key), so one SPKI comparison refuses
   both. The compose drift test pins that they stay the same key.

@@ -3,8 +3,9 @@ import { generateKeyPairSync } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 
 import { FAMILY_SESSION_COOKIE } from './claims.ts'
-import { familyDocumentGate } from './familyDocumentGate.ts'
+import { familyDocumentGate, familyDocumentGateFromEnv } from './familyDocumentGate.ts'
 import { mintFamilyToken } from './familyToken.ts'
+import { PRODUCTION_FAMILY_PUBLIC_KEY } from './familyVerifyingKey.ts'
 import { mintTestToken } from './testing/mintTestToken.ts'
 import { TEST_FAMILY_PRIVATE_KEY, TEST_FAMILY_PUBLIC_KEY } from './testing/testKeys.ts'
 
@@ -133,5 +134,75 @@ describe('familyDocumentGate refuses bad config at construction, not per request
 
   it('refuses an account URL that is not http(s)', () => {
     expect(build('javascript:alert(1)', TEST_FAMILY_PUBLIC_KEY)).toThrow(/accountUrl/)
+  })
+})
+
+describe('familyDocumentGateFromEnv', () => {
+  const ON_FLY = { FLY_APP_NAME: 'hoe-boop' }
+  const otherPair = generateKeyPairSync('ed25519')
+  const otherKey = otherPair.publicKey.export({ type: 'spki', format: 'pem' }).toString()
+  const fromEnv = (env: Record<string, string>) =>
+    familyDocumentGateFromEnv(env, { publicPaths: ['/shared'], now })
+
+  it('is off, and resolves no key, without FAMILY_ACCOUNT_URL', () => {
+    expect(fromEnv({})).toBeUndefined()
+    expect(fromEnv({ ...ON_FLY })).toBeUndefined()
+    expect(fromEnv({ ...ON_FLY, FAMILY_TOKEN_PUBLIC_KEY: TEST_FAMILY_PUBLIC_KEY })).toBeUndefined()
+  })
+
+  it('builds the gate from the account URL, public paths and the override key', () => {
+    const gate = fromEnv({
+      FAMILY_ACCOUNT_URL: 'http://localhost:8080/account',
+      FAMILY_TOKEN_PUBLIC_KEY: TEST_FAMILY_PUBLIC_KEY.replace(/\n/g, '\\n'),
+    })
+    const req = { host: 'localhost:8088', url: '/' }
+
+    expect(gate?.publicPaths).toEqual(['/shared'])
+    expect(gate?.redirectFor({ ...req, cookie: cookieFor(child) })).toBeNull()
+    expect(gate?.redirectFor({ ...req, cookie: null })).toBe(
+      'http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8088%2F',
+    )
+  })
+
+  it('verifies on Fly with a key that is not the test key', () => {
+    const gate = fromEnv({
+      ...ON_FLY,
+      FAMILY_ACCOUNT_URL: ACCOUNT,
+      FAMILY_TOKEN_PUBLIC_KEY: otherKey,
+    })
+    const token = mintFamilyToken(
+      { sub: 'parent-1', role: 'parent', name: 'Ed' },
+      otherPair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(),
+      { now },
+    )
+    const req = { host: 'boop.homeofed.com', url: '/' }
+
+    expect(gate?.redirectFor({ ...req, cookie: cookieFor(token) })).toBeNull()
+    expect(gate?.redirectFor({ ...req, cookie: cookieFor(child) })).not.toBeNull()
+  })
+
+  it('refuses to boot on Fly with the test key', () => {
+    const build = () =>
+      fromEnv({
+        ...ON_FLY,
+        FAMILY_ACCOUNT_URL: ACCOUNT,
+        FAMILY_TOKEN_PUBLIC_KEY: TEST_FAMILY_PUBLIC_KEY,
+      })
+
+    expect(build).toThrow(/committed @hoe\/accounts\/testing key/)
+  })
+
+  it('refuses to boot on Fly with no key until the production key is committed', () => {
+    const build = () => fromEnv({ ...ON_FLY, FAMILY_ACCOUNT_URL: ACCOUNT })
+
+    if (PRODUCTION_FAMILY_PUBLIC_KEY === null) expect(build).toThrow(/no family verifying key/)
+    else expect(build()?.publicPaths).toEqual(['/shared'])
+  })
+
+  it('refuses a bad account URL, as the gate itself does', () => {
+    const build = () =>
+      fromEnv({ FAMILY_ACCOUNT_URL: '/account', FAMILY_TOKEN_PUBLIC_KEY: TEST_FAMILY_PUBLIC_KEY })
+
+    expect(build).toThrow(/accountUrl/)
   })
 })

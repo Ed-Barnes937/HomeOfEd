@@ -58,8 +58,8 @@ committed secret belongs in that app's test, and in `COMMITTED_DEV_SECRETS` too.
 - `apps/sprout/src/server/env.ts` (+ `env.test.ts`), for both `main.ts` and `worker.ts`
 - `apps/sprout-pipeline/src/env.ts` (+ `env.test.ts`)
 - `packages/accounts/src/familyVerifyingKey.ts` (+ its test), which uses only
-  `isDeployed` to refuse the committed test public key; its drift test reads the
-  estate services in `compose.yml`.
+  `isDeployed` to refuse the committed test public key; its drift test,
+  `estateApps.test.ts`, reads the estate services in `compose.yml`.
 
 An app that adds this dependency must also add `--filter=@hoe/deploy-guard` and a
 `COPY` of `packages/deploy-guard` to its Dockerfile's runtime stages.
