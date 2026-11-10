@@ -908,6 +908,9 @@ importers:
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../backend-kit
+      '@hoe/deploy-guard':
+        specifier: workspace:*
+        version: link:../deploy-guard
       zod:
         specifier: ^4.4.3
         version: 4.4.3
