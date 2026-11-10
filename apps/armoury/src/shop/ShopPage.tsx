@@ -28,7 +28,7 @@ const hexToRgb = (hex: string) => {
 /** `shared`: the `/shared` view, which keeps nothing, so "Keep this wand" takes the wand to the root. */
 export function ShopPage({ shared = false }: { shared?: boolean }) {
   const { state, dispatch, shelf, keep } = useWorkbench()
-  const player = useFamilySession()
+  const session = useFamilySession()
   const phone = useMediaQuery(PHONE_QUERY)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const stageRef = useRef<StageHandle | null>(null)
@@ -138,7 +138,7 @@ export function ShopPage({ shared = false }: { shared?: boolean }) {
       <main className={styles.main}>
         <Header
           shelfCount={shared ? null : shelf.length}
-          player={shared ? null : (player?.name ?? null)}
+          player={shared ? null : (session?.name ?? null)}
           shareState={shareState}
           onShare={share}
           pictureBusy={pictureBusy}
