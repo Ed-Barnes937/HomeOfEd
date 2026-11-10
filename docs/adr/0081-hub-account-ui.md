@@ -323,8 +323,11 @@ amended). Estate-gate ticket 08.
 
 1. **Each line sits under whoever saved.** A child's lines go in its row in the
    child profiles card; the parent's own go under "Signed in as", because the
-   parent has no row in that card. One query (`familyQueryKeys.saveSummary`,
-   the shared stale time) serves every row.
+   parent has no row in that card. One query (`saveSummaryQuery`, the shared
+   stale time) serves every row, and the signed-in panel prefetches it beside
+   `children`, so the lines rarely arrive after the cards have shown.
+   The wording re-reads the clock once a minute, so a stalled sync on a page
+   left open still reads as stale.
 2. **Quiet by construction.** No line for an account with no saves, nothing
    while loading, and nothing on a failed read, after the default retries: a
    parent cannot act on an error here, and the screens around it must not look
@@ -335,5 +338,6 @@ amended). Estate-gate ticket 08.
    days up to 59, months, years (`features/account/lastSaved.ts`). A save
    stamped ahead of the device's clock reads "just now".
 4. **Signing out writes `[]` into the summary's cache**, alongside `children`
-   and `me` (decision 6), so the next parent on a shared device never sees the
-   previous household's times.
+   and `me` (decision 6), for consistency: every family query is reset the same
+   way. It is not what protects a shared device; lines are drawn only for the
+   ids the current parent's `me` and `children` return.

@@ -317,6 +317,18 @@ export class AccountPagePom extends BasePage {
     await expect(this.lastSaves(name)).toHaveCount(0)
   }
 
+  /** Nothing under the names: no line, no error, no loading text. */
+  async verifyProfileRowShowsOnlyItsNames(displayName: string, username: string): Promise<void> {
+    const row = this.page.getByRole('listitem').filter({ hasText: `@${username}` })
+    await expect(row.locator(':scope > div')).toHaveText(`${displayName} @${username}`)
+  }
+
+  async verifySignedInShowsOnlyWhoIsSignedIn(): Promise<void> {
+    await expect(this.page.getByText('Signed in as').locator('..')).toHaveText(
+      `Signed in as ${FIXTURE_PARENT.name} (${FIXTURE_PARENT.email})`,
+    )
+  }
+
   /** Needs `page.clock` installed before mounting: runs the query's retry backoff out. */
   async outlastSaveSummaryRetries(): Promise<void> {
     await this.waitForFamilyAnswers('saveSummary')

@@ -24,8 +24,11 @@ export function lastSavedLines(
   summary: SaveSummaryOutput,
   accountId: string,
   now: number,
-): string[] {
+): { appId: string; text: string }[] {
   return summary
     .filter((entry) => entry.accountId === accountId)
-    .map((entry) => `${entry.appId}: ${savedAgo(entry.updatedAt, now)}`)
+    .map((entry) => ({
+      appId: entry.appId,
+      text: `${entry.appId}: ${savedAgo(entry.updatedAt, now)}`,
+    }))
 }

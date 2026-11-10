@@ -24,6 +24,14 @@ describe('savedAgo', () => {
     expect(savedAgo(now - 59 * DAY, now)).toBe('saved 59 days ago')
   })
 
+  it('rounds down inside a unit, never up', () => {
+    expect(savedAgo(now - MINUTE - 59_000, now)).toBe('saved 1 minute ago')
+    expect(savedAgo(now - HOUR - 59 * MINUTE, now)).toBe('saved 1 hour ago')
+    expect(savedAgo(now - DAY - 23 * HOUR, now)).toBe('saved 1 day ago')
+    expect(savedAgo(now - 89 * DAY, now)).toBe('saved 2 months ago')
+    expect(savedAgo(now - 729 * DAY, now)).toBe('saved 1 year ago')
+  })
+
   it('counts months past two months, and years past a year', () => {
     expect(savedAgo(now - 60 * DAY, now)).toBe('saved 2 months ago')
     expect(savedAgo(now - 364 * DAY, now)).toBe('saved 12 months ago')
@@ -41,10 +49,12 @@ describe('lastSavedLines', () => {
 
   it("gives one line per app with a save, for that account only, in the summary's order", () => {
     expect(lastSavedLines(summary, 'child-robin', now)).toEqual([
-      'boop: saved 2 days ago',
-      'silt: saved 3 hours ago',
+      { appId: 'boop', text: 'boop: saved 2 days ago' },
+      { appId: 'silt', text: 'silt: saved 3 hours ago' },
     ])
-    expect(lastSavedLines(summary, 'parent-ada', now)).toEqual(['boop: saved 10 minutes ago'])
+    expect(lastSavedLines(summary, 'parent-ada', now)).toEqual([
+      { appId: 'boop', text: 'boop: saved 10 minutes ago' },
+    ])
   })
 
   it('gives nothing for an account with no saves', () => {

@@ -1,12 +1,13 @@
 import type { FamilyTokenClaims, IdentityMeOutput } from '@hoe/accounts'
 import { readFamilySession } from '@hoe/accounts'
-import { useQuery } from '@tanstack/react-query'
+import { usePrefetchQuery, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
 import {
   FAMILY_STALE_MS,
   familyQueryKeys,
+  saveSummaryQuery,
   SERVICE_DOWN,
 } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
@@ -32,6 +33,7 @@ export function SignedInPanel({ parent }: SignedInPanelProps) {
     queryFn: () => client.listChildren(),
     staleTime: FAMILY_STALE_MS,
   })
+  usePrefetchQuery(saveSummaryQuery(client))
 
   return (
     <>

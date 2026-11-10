@@ -680,12 +680,17 @@ test.describe('when each profile last saved', () => {
     await root.verifyNoLastSaved('Robin')
     await root.verifyNoLastSaved('Wren')
     await root.verifyNoLastSaved(FIXTURE_PARENT.name)
+    await root.verifyProfileRowShowsOnlyItsNames('Robin', 'robin')
+    await root.verifySignedInShowsOnlyWhoIsSignedIn()
   })
 
   test('a failed read shows nothing, not an error', async ({ mountApp, page }) => {
     await AccountPagePom.givenFamily(page, {
       ...household,
-      saves: [{ by: 'Robin', appId: 'boop', agoMs: DAY }],
+      saves: [
+        { by: 'Robin', appId: 'boop', agoMs: DAY },
+        { by: FIXTURE_PARENT.name, appId: 'boop', agoMs: DAY },
+      ],
     })
     await AccountPagePom.givenSaveSummaryFails(page)
     await page.clock.install()
@@ -695,7 +700,54 @@ test.describe('when each profile last saved', () => {
 
     await root.outlastSaveSummaryRetries()
 
-    await root.verifyNoLastSaved('Robin')
     await root.verifyNoErrorShown()
+    await root.verifyProfileRowShowsOnlyItsNames('Robin', 'robin')
+    await root.verifySignedInShowsOnlyWhoIsSignedIn()
+  })
+
+  test('nothing shows while the read is still out', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, {
+      ...household,
+      saves: [
+        { by: 'Robin', appId: 'boop', agoMs: DAY },
+        { by: FIXTURE_PARENT.name, appId: 'boop', agoMs: DAY },
+      ],
+    })
+    await AccountPagePom.givenFamilyAnswersLate(page, { saveSummary: 'never' })
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyProfileListed('Robin', 'robin')
+    await root.verifyFamilyCalls('saveSummary', 1)
+
+    await root.verifyProfileRowShowsOnlyItsNames('Robin', 'robin')
+    await root.verifySignedInShowsOnlyWhoIsSignedIn()
+  })
+
+  test('the summary is asked for alongside the profiles, not after them', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, household)
+    await AccountPagePom.givenFamilyAnswersLate(page, { listChildren: 'never' })
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+
+    await root.waitForFamilyAnswers('saveSummary')
+  })
+
+  test('the wording moves on while the page stays open', async ({ mountApp, page }) => {
+    await page.clock.install()
+    await AccountPagePom.givenFamily(page, {
+      ...household,
+      saves: [{ by: 'Robin', appId: 'boop', agoMs: 5 * MINUTE + 5_000 }],
+    })
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyLastSaved('Robin', ['boop: saved 5 minutes ago'])
+
+    await page.clock.runFor(2 * MINUTE)
+
+    await root.verifyLastSaved('Robin', ['boop: saved 7 minutes ago'])
   })
 })
