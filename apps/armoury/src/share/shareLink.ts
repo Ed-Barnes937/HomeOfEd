@@ -25,11 +25,23 @@ export function decodeShare(token: string): StoredWand | null {
   return decodeStoredWand(wand)
 }
 
-export function buildShareUrl(
-  location: Pick<Location, 'origin' | 'pathname'>,
-  wand: StoredWand,
-): string {
-  return `${location.origin}${location.pathname}${SHARE_HASH_PREFIX}${encodeShare(wand)}`
+/** The view a share link opens: ungated, and it writes nothing (ADR 0093 decision 6). */
+export const SHARED_PATH = '/shared'
+
+export function buildShareUrl(origin: string, wand: StoredWand): string {
+  return `${origin}${SHARED_PATH}${SHARE_HASH_PREFIX}${encodeShare(wand)}`
+}
+
+/** "Keep this wand" on `/shared`: the root with `fragment`, where the gate asks who is playing. */
+export function keepSharedUrl(origin: string, fragment: string): string {
+  return `${origin}/${fragment}`
+}
+
+/** The wand as it is now; unchanged since `/shared` opened, the arrival fragment byte for byte, or none
+ *  when the link held no wand (the root then opens the player's own counter). */
+export function keepFragment(arrival: string, opened: string, current: string): string {
+  if (current !== opened) return `${SHARE_HASH_PREFIX}${current}`
+  return decodeShareHash(arrival) === null ? '' : arrival
 }
 
 export function decodeShareHash(hash: string): StoredWand | null {

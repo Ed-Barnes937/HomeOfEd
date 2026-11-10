@@ -14,7 +14,9 @@ The layered backend skeleton (tRPC → handler, no Store) exists only for
 platform convention and `/health`; the frontend makes no tRPC calls and all
 drawing state lives client-side. The one exception: the *current* drawing is
 mirrored to `localStorage` (`src/features/doodle/session.ts`) so an accidental
-reload doesn't lose it — never a gallery of past work.
+reload doesn't lose it, never a gallery of past work. Each family profile has
+its own slot ([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)); the
+native shell keeps the one device slot.
 
 ## Run it
 

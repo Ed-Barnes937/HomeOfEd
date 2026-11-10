@@ -1,4 +1,5 @@
 import { BasePage } from '@hoe/test-kit'
+import type { Page } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
 
 import { SAVE_KEY } from '../persistence/storage.ts'
@@ -177,14 +178,61 @@ export class ShopPom extends BasePage {
     return (await download).suggestedFilename()
   }
 
-  /** A different visitor opening a link: nothing of their own saved, just the fragment. */
+  /** A different visitor opening a link: nothing of their own saved, just the link's address. */
   async openAsNewVisitor(url: string): Promise<void> {
-    const { hash } = new URL(url)
-    await this.page.evaluate((fragment) => {
-      window.location.hash = fragment
-    }, hash)
+    const { pathname, hash } = new URL(url)
     await this.page.reload()
     await this.page.evaluate((key) => window.localStorage.removeItem(key), SAVE_KEY)
+    await ShopPom.openAt(this.page, `${pathname}${hash}`)
+  }
+
+  /** Before mounting: the address the app first loads on, fragment untouched. */
+  static async openAt(page: Page, pathWithFragment: string): Promise<void> {
+    await page.evaluate((target) => window.history.pushState({}, '', target), pathWithFragment)
+  }
+
+  // Who is playing, and the shared view (ADR 0093 decision 6).
+
+  async verifyPlayer(name: string): Promise<void> {
+    await expect(this.page.getByTestId('player')).toHaveText(name)
+  }
+
+  async verifyNoPlayer(): Promise<void> {
+    await expect(this.page.getByTestId('player')).toHaveCount(0)
+  }
+
+  /** Where the header's title ends and its nav begins, and where Picture and the header end. */
+  async headerLayout(): Promise<{
+    titleRight: number
+    navLeft: number
+    pictureRight: number
+    right: number
+  }> {
+    const header = this.page.locator('header')
+    const title = (await header.getByText('Armoury', { exact: true }).boundingBox())!
+    const nav = (await header.getByRole('navigation').boundingBox())!
+    const picture = (await this.page
+      .getByRole('button', { name: 'Save a picture of this wand' })
+      .boundingBox())!
+    const box = (await header.boundingBox())!
+    return {
+      titleRight: title.x + title.width,
+      navLeft: nav.x,
+      pictureRight: picture.x + picture.width,
+      right: box.x + box.width,
+    }
+  }
+
+  /** Nothing on screen offers to save: no shelf to put the wand on. */
+  async verifyNothingOffersToSave(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: /^Your shelf/ })).toHaveCount(0)
+  }
+
+  /** "Keep this wand" on `/shared`: returns the address it went to, the root with the wand in the fragment. */
+  async keepShared(): Promise<string> {
+    await this.page.getByRole('button', { name: 'Keep this wand' }).click()
+    await this.page.waitForURL((url) => url.pathname === '/', { waitUntil: 'commit' })
+    return this.page.url()
   }
 
   async reload(): Promise<void> {

@@ -4,8 +4,9 @@ A calm, single-screen, fully client-side canvas doodling toy at
 `espy.homeofed.com`: procedurally-generated ink blots on warm paper that
 the user turns into little creatures with freehand lines and stamped eyes.
 **No database** (ADR 0008) — the layered backend skeleton survives, persistence
-doesn't, except the current drawing (mirrored to `localStorage` — see
-`session.ts` below). Full spec: `.claude/tasks/espy-doodle/spec.md`;
+doesn't, except the current drawing (mirrored to `localStorage` per family
+profile; see `session.ts` below). Behind the estate gate (ADR 0093) with no
+public paths: espy has no share link. Full spec: `.claude/tasks/espy-doodle/spec.md`;
 ratified decisions: `.claude/tasks/espy-doodle/decisions.md`; divergences
 from the design guide: [ADR 0016](../../docs/adr/0016-espy-doodle.md).
 Before changing the ink field's look, read the watercolour technique study:
@@ -19,7 +20,8 @@ src/
     handlers/healthHandler.ts   Handler<void, {ok:true}, void>
     router.ts                   createTRPC<void>(), one `health` query
     simulator.ts                backendSimulator wiring: real router, no Store
-    main.ts                     prod entrypoint: createAppServer + shallow /health
+    main.ts                     prod entrypoint: createAppServer + shallow /health + the estate gate
+    main.test.ts                the real entrypoint on a real port, gate off and on
     health.test.ts              Vitest unit — handler exercised over the auth seam
   features/doodle/
     engine/                     PURE TS — no React, no DOM, no Canvas
@@ -39,7 +41,8 @@ src/
     render/fluid.tuning.ts      TEMP (tech debt) — tunable look knobs (DEFAULT_TUNING = shipped look) + ?tune live state
     FluidTuner.tsx/.module.scss TEMP (tech debt) — ?tune-only debug panel (live knobs + one-of-each grid)
     theme.ts                    SKETCHBOOK canvas colour literals — ink/eye only (paper is generated, not a colour)
-    session.ts                  load/save current Op[] ↔ localStorage (single slot; quota-safe, never throws)
+    session.ts                  load/save current Op[] ↔ injected storage (single slot; quota-safe, never throws)
+    profileKeys.ts              PROFILE_KEYS: the slot that belongs to a player (ADR 0094)
     save.ts                     PURE TS — save-target selection over injected SaveCaps (native/share/download)
     save.native.ts              the ONLY module importing Capacitor plugins (Filesystem+Share); lazy-loaded
     useDoodle.ts                hook: sizing, pointer, history, fluid bloom+bake, save, seam
@@ -47,14 +50,17 @@ src/
   features/intro/
     IntroSplash.tsx / .module.scss   one-shot "espy" definition splash on load
                                      (~1.5s, pointer-events:none, reduced-motion aware)
-  pages/DoodlePage.tsx / .module.scss   intro splash → header → canvas card → toolbar footer
+  pages/DoodlePage.tsx / .module.scss   intro splash → header → canvas card → toolbar footer;
+                                     builds the profile's storage, the player watcher and the switch-player link
+  player/PlayerContext.tsx      the session read once in App.tsx (null in the native shell) + the native flag
   features/controls/
     Toolbar.tsx / .module.scss
     ToolToggle.tsx               Pen | Eyes
     NibPicker.tsx                3 nib dots
   styles/tokens.scss            sketchbook CSS custom properties (chrome, not canvas)
-  testing/                      IwftApp harness + iwft fixture + DoodlePagePom
+  testing/                      IwftApp harness + iwft fixture + DoodlePagePom + familySession (cookie, native flag)
   doodle.iwft.tsx               whole-frontend tests via the in-browser backend + seam
+  profiles / playerChange / nativeShell .iwft.tsx   per-profile doodles, player-change reload, native shell unchanged
   App.tsx / main.tsx / router.tsx
 vite.config.ts                  react + simulatorPlugin (dev simulator mode); base:'' for Capacitor
 capacitor.config.ts             native shell (ADR 0017) — com.homeofed.espy, webDir:'dist', offline
@@ -85,6 +91,13 @@ No `schema.ts`, `store.ts`, `migrations/`, `migrate.ts`, `drizzle.config.ts`, or
   *current* drawing's `Op[]` to a single `localStorage` slot so an accidental
   reload doesn't lose it. There is no gallery, no history of past drawings, no
   server-owned data — see [ADR 0016](../../docs/adr/0016-espy-doodle.md).
+- **The slot is per profile** ([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)):
+  `DoodlePage` builds `profileStorage(window.localStorage, player, PROFILE_KEYS)`
+  once and hands it to `useDoodle`; nothing else touches `localStorage` for the
+  drawing. The session is read once, in `App.tsx`. The native shell is outside
+  the estate: its session is always `null` (the unscoped legacy slot), it shows
+  no player, runs no `reloadOnPlayerChange`, and its back arrow keeps
+  `hubUrl(hostname)`; the web's uses `hubUrlFor`. `nativeShell.iwft.tsx` pins this.
 - Undo is command-replay (an `Op[]` History), not raster snapshots — see
   `engine/history.ts` and [ADR 0016](../../docs/adr/0016-espy-doodle.md).
 - Single fixed sketchbook look (`theme.ts` + `styles/tokens.scss`) — no

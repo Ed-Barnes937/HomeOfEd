@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { useFamilySession } from '../familySession.tsx'
 import { buildShareUrl } from '../share/shareLink.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
 import { renderShareCard } from '../share/shareCard.ts'
 import { navigatorPictureTarget, savePicture, wandFilename } from '../share/savePicture.ts'
+import { useKeepShared } from '../share/useKeepShared.ts'
 import { useShareWand } from '../share/useShareWand.ts'
 import { LONGEST_WAND_MM, STAGE_FILL, type StageHandle } from '../stage/stage.ts'
 import { PHONE_QUERY, REDUCED_MOTION_QUERY, useMediaQuery } from '../useMediaQuery.ts'
@@ -23,8 +25,10 @@ const hexToRgb = (hex: string) => {
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
 }
 
-export function ShopPage() {
+/** `shared`: the `/shared` view, which keeps nothing, so "Keep this wand" takes the wand to the root. */
+export function ShopPage({ shared = false }: { shared?: boolean }) {
   const { state, dispatch, shelf, keep } = useWorkbench()
+  const session = useFamilySession()
   const phone = useMediaQuery(PHONE_QUERY)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const stageRef = useRef<StageHandle | null>(null)
@@ -38,8 +42,9 @@ export function ShopPage() {
     return () => clearTimeout(timer)
   }, [kept])
 
-  const getShareUrl = useCallback(() => buildShareUrl(window.location, wand), [wand])
+  const getShareUrl = useCallback(() => buildShareUrl(window.location.origin, wand), [wand])
   const { shareState, share } = useShareWand(getShareUrl)
+  const keepShared = useKeepShared(wand)
 
   const name = wand.name ?? wandName(wand.params)
 
@@ -106,6 +111,7 @@ export function ShopPage() {
           type="button"
           className={styles.primary}
           onClick={() => {
+            if (shared) return keepShared()
             keep(wand)
             setKept(true)
           }}
@@ -131,7 +137,8 @@ export function ShopPage() {
     <div className={styles.shop}>
       <main className={styles.main}>
         <Header
-          shelfCount={shelf.length}
+          shelfCount={shared ? null : shelf.length}
+          player={shared ? null : (session?.name ?? null)}
           shareState={shareState}
           onShare={share}
           pictureBusy={pictureBusy}

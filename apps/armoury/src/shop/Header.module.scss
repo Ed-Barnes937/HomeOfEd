@@ -63,6 +63,7 @@
   background: rgba(15, 11, 8, 0.72);
   color: var(--ink);
   font-size: 16px;
+  white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
 
@@ -73,6 +74,14 @@
   &:disabled {
     opacity: 0.6;
     cursor: progress;
+  }
+}
+
+.static {
+  cursor: default;
+
+  &:hover {
+    border-color: var(--panel-line-strong);
   }
 }
 
@@ -87,9 +96,49 @@
   font-size: 13px;
 }
 
+.playerName {
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 1180px) {
   .motto {
     display: none;
+  }
+}
+
+// The player chip widens the nav, so the motto gives way first, then the name, then every label.
+@media (max-width: 1340px) {
+  .withPlayer .motto {
+    display: none;
+  }
+}
+
+@media (max-width: 1249px) {
+  .player {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .playerName {
+    display: none;
+  }
+}
+
+@media (max-width: 1059px) {
+  .withPlayer {
+    .button {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .label,
+    .count {
+      display: none;
+    }
   }
 }
 

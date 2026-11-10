@@ -37,7 +37,8 @@ FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=espy --filter=@hoe/backend-kit --filter=@hoe/logger
+  --filter=espy --filter=@hoe/backend-kit --filter=@hoe/logger \
+  --filter=@hoe/accounts --filter=@hoe/deploy-guard
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -48,13 +49,16 @@ COPY --from=prod-deps /app ./
 # @hoe/config and @hoe/test-kit are dev-only and must NOT appear here.
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
+COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/espy/src ./apps/espy/src
 COPY --from=builder /app/apps/espy/dist ./apps/espy/dist
 # The app's own test sources aren't runtime code. Neither is the typescript
 # lockfile stowaway (@trpc/server declares it as a types-only peer). The
 # dev-only workspace stubs (test-kit/config package.json) go too.
-RUN rm -rf apps/espy/src/testing apps/espy/src/doodle.iwft.tsx \
+RUN rm -rf apps/espy/src/testing apps/espy/src/*.iwft.tsx \
+  packages/accounts/src/testing \
   packages/test-kit packages/config \
   node_modules/.pnpm/typescript@*
 USER node
