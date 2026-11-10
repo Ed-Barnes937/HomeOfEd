@@ -1,0 +1,94 @@
+import { describe, expect, it } from 'vitest'
+
+import { FAMILY_SESSION_COOKIE } from './claims.ts'
+import { familyDocumentGate } from './familyDocumentGate.ts'
+import { mintTestToken } from './testing/mintTestToken.ts'
+import { TEST_FAMILY_PUBLIC_KEY } from './testing/testKeys.ts'
+
+const now = () => new Date('2026-01-01T00:00:00Z')
+const ACCOUNT = 'https://homeofed.com/account'
+const gate = familyDocumentGate({
+  accountUrl: ACCOUNT,
+  publicPaths: ['/shared'],
+  publicKeyPem: TEST_FAMILY_PUBLIC_KEY,
+  now,
+})
+
+const child = mintTestToken(
+  { sub: 'child-1', role: 'child', parentId: 'parent-1', name: 'Robin' },
+  { now },
+)
+const parent = mintTestToken({ sub: 'parent-1', role: 'parent', name: 'Ed' }, { now })
+const cookieFor = (token: string) => `theme=dark; ${FAMILY_SESSION_COOKIE}=${token}`
+const returnToOf = (location: string | null) =>
+  location === null ? null : new URL(location).searchParams.get('returnTo')
+
+describe('familyDocumentGate', () => {
+  it('passes the public paths through for the server to skip', () => {
+    expect(gate.publicPaths).toEqual(['/shared'])
+  })
+
+  it('lets a verified token of either role through', () => {
+    for (const token of [child, parent])
+      expect(
+        gate.redirectFor({ host: 'boop.homeofed.com', url: '/', cookie: cookieFor(token) }),
+      ).toBeNull()
+  })
+
+  it('sends a visitor with no cookie to the account page, returning to the same URL', () => {
+    const location = gate.redirectFor({
+      host: 'boop.homeofed.com',
+      url: '/play/1?x=1',
+      cookie: null,
+    })
+    expect(location).toBe(
+      `${ACCOUNT}?returnTo=${encodeURIComponent('https://boop.homeofed.com/play/1?x=1')}`,
+    )
+  })
+
+  it('refuses a token it cannot verify: tampered, expired, other key, garbage', () => {
+    const [payload] = child.split('.')
+    const expired = mintTestToken(
+      { sub: 'child-1', role: 'child', parentId: 'parent-1', name: 'Robin' },
+      { now: () => new Date('2025-01-01T00:00:00Z'), ttlMs: 1000 },
+    )
+    for (const cookie of [
+      cookieFor(`${payload ?? ''}.AAAA`),
+      cookieFor(expired),
+      cookieFor('garbage'),
+      'theme=dark',
+      '',
+    ])
+      expect(gate.redirectFor({ host: 'boop.homeofed.com', url: '/', cookie })).not.toBeNull()
+  })
+
+  it('returns to http on localhost, where the docker stack and dev servers run', () => {
+    const location = gate.redirectFor({ host: 'localhost:8088', url: '/', cookie: null })
+    expect(returnToOf(location)).toBe('http://localhost:8088/')
+  })
+
+  it('keeps a protocol-relative-looking path on the request host', () => {
+    const location = gate.redirectFor({
+      host: 'boop.homeofed.com',
+      url: '//evil.example/x',
+      cookie: null,
+    })
+    expect(returnToOf(location)).toBe('https://boop.homeofed.com//evil.example/x')
+  })
+
+  it('drops returnTo when the request host or target cannot make an honest URL', () => {
+    for (const req of [
+      { host: 'boop.homeofed.com', url: 'http://evil.example/' },
+      { host: 'boop.homeofed.com@evil.example', url: '/' },
+      { host: 'evil.example/x', url: '/' },
+      { host: '', url: '/' },
+    ])
+      expect(gate.redirectFor({ ...req, cookie: null })).toBe(ACCOUNT)
+  })
+
+  it('refuses to build without a public key', () => {
+    expect(() =>
+      familyDocumentGate({ accountUrl: ACCOUNT, publicPaths: [], publicKeyPem: '' }),
+    ).toThrow(/publicKeyPem/)
+  })
+})

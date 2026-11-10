@@ -1,6 +1,6 @@
 # 01 - `@hoe/accounts`: estate registry, return URLs, profile-scoped keys, gate builder
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decisions 1, 4, 7, 8
 
@@ -30,3 +30,20 @@ Leave `apps/family/src/server/onboardedApps.ts` alone (decision 14); it is the
 SaveStore list, a different list on purpose.
 
 ## Comments
+
+**2026-11-10 (implementer).** Built as written, with these differences:
+
+- `familyDocumentGate` also takes `publicKeyPem` (and an optional `now` for
+  tests). Verifying needs the public key, and the production public key is not
+  in the repo yet: ADR 0070 and first-slice ticket 08 say it ships as config in
+  this package, but only the committed test key exists. Each app's `main.ts`
+  has to pass it until that is settled (open question for Ed).
+- `accountUrl` moves a fragment on `returnTo` onto the account URL itself, so
+  a "switch player" link reaches hub in the same shape a gate `302` leaves (the
+  browser carries the fragment), and `safeReturnTo` drops any fragment.
+- `adoptLegacyDocument` returns whether it copied. "Once" is "while the
+  profile's key is absent", as the ticket says; a profile whose key is later
+  removed adopts again. A quota error from `setItem` propagates.
+- Ticket 10 and others write `accountUrl(<current URL>)` with one argument; the
+  contract here is `accountUrl(accountBase, returnTo)` as this ticket says, so
+  apps need the account base (`https://homeofed.com/account`) client-side.
