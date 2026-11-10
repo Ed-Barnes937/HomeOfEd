@@ -11,41 +11,91 @@ import {
   type ReactNode,
 } from 'react'
 
-import { normalise } from '../engine/schema.ts'
-import type { StoredWand } from '../persistence/saveFormat.ts'
+import type { ItemDef, ItemKind, StoredItem } from '../items/item.ts'
+import { ITEMS } from '../items/registry.ts'
 import {
-  keepWand,
+  keepItem,
   loadSaveDocument,
-  removeWand,
-  renameWand,
-  writeWorkingWand,
+  removeItem,
+  renameItem,
+  writeWorking,
   type SaveStorage,
 } from '../persistence/storage.ts'
-import { clearShareHash, decodeShareHash } from '../share/shareLink.ts'
-import { wandPresets } from '../wand/presets.ts'
-import { wandSchema } from '../wand/wandSchema.ts'
-import { startWorkbench, workbench, type Workbench, type WorkbenchAction } from './workbench.ts'
+import { clearShareHash, decodeShareHash, type SharedItem } from '../share/shareLink.ts'
+import {
+  createWorkbench,
+  startWorkbench,
+  type Workbench,
+  type WorkbenchAction,
+} from './workbench.ts'
 
 const AUTOSAVE_MS = 400
 
-export interface WorkbenchContextValue {
+/** One kind's counter and shelf. */
+export interface Bench {
   state: Workbench
   dispatch: Dispatch<WorkbenchAction>
-  shelf: readonly StoredWand[]
-  keep: (wand: StoredWand) => void
+  shelf: readonly StoredItem[]
+  keep: (item: StoredItem) => void
   renameOnShelf: (index: number, name: string) => void
   removeFromShelf: (index: number) => void
 }
 
-const WorkbenchContext = createContext<WorkbenchContextValue | null>(null)
+const WorkbenchContext = createContext<Partial<Record<ItemKind, Bench>> | null>(null)
 
-export function firstVisitWand(): StoredWand {
-  return { params: normalise(wandSchema, wandPresets[0]!.params) }
+function initialItem(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null): StoredItem {
+  const arrived = arrival?.kind === def.kind ? arrival.item : null
+  return arrived ?? loadSaveDocument(storage, def).working ?? { params: def.firstVisit() }
 }
 
-function initialWand(storage: SaveStorage): StoredWand {
-  return (
-    decodeShareHash(window.location.hash) ?? loadSaveDocument(storage).working ?? firstVisitWand()
+function useBench(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null): Bench {
+  const reducer = useMemo(() => createWorkbench(def), [def])
+  const [state, dispatch] = useReducer(reducer, null, () =>
+    startWorkbench(initialItem(def, storage, arrival)),
+  )
+  const [shelf, setShelf] = useState(() => loadSaveDocument(storage, def).shelf)
+
+  const latest = useRef(state.item)
+  latest.current = state.item
+  useEffect(() => {
+    const timer = setTimeout(() => writeWorking(storage, def, state.item), AUTOSAVE_MS)
+    return () => clearTimeout(timer)
+  }, [storage, def, state.item])
+  useEffect(() => {
+    const flush = () => writeWorking(storage, def, latest.current)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [storage, def])
+
+  const refresh = useCallback(() => setShelf(loadSaveDocument(storage, def).shelf), [storage, def])
+  const keep = useCallback(
+    (item: StoredItem) => {
+      keepItem(storage, def, item)
+      refresh()
+    },
+    [storage, def, refresh],
+  )
+  const renameOnShelf = useCallback(
+    (index: number, name: string) => {
+      renameItem(storage, def, index, name)
+      refresh()
+    },
+    [storage, def, refresh],
+  )
+  const removeFromShelf = useCallback(
+    (index: number) => {
+      removeItem(storage, def, index)
+      refresh()
+    },
+    [storage, def, refresh],
+  )
+
+  return useMemo(
+    () => ({ state, dispatch, shelf, keep, renameOnShelf, removeFromShelf }),
+    [state, shelf, keep, renameOnShelf, removeFromShelf],
   )
 }
 
@@ -56,60 +106,19 @@ export function WorkbenchProvider({
   storage?: SaveStorage
   children: ReactNode
 }) {
-  const [state, dispatch] = useReducer(workbench, storage, (s) => startWorkbench(initialWand(s)))
-  const [shelf, setShelf] = useState(() => loadSaveDocument(storage).shelf)
+  const [arrival] = useState(() => decodeShareHash(window.location.hash))
+  const wand = useBench(ITEMS.wand, storage, arrival)
 
   useEffect(() => {
-    if (decodeShareHash(window.location.hash)) clearShareHash(window.location, window.history)
-  }, [])
+    if (arrival) clearShareHash(window.location, window.history)
+  }, [arrival])
 
-  const latest = useRef(state.wand)
-  latest.current = state.wand
-  useEffect(() => {
-    const timer = setTimeout(() => writeWorkingWand(storage, state.wand), AUTOSAVE_MS)
-    return () => clearTimeout(timer)
-  }, [storage, state.wand])
-  useEffect(() => {
-    const flush = () => writeWorkingWand(storage, latest.current)
-    window.addEventListener('pagehide', flush)
-    return () => {
-      window.removeEventListener('pagehide', flush)
-      flush()
-    }
-  }, [storage])
-
-  const refresh = useCallback(() => setShelf(loadSaveDocument(storage).shelf), [storage])
-  const keep = useCallback(
-    (wand: StoredWand) => {
-      keepWand(storage, wand)
-      refresh()
-    },
-    [storage, refresh],
-  )
-  const renameOnShelf = useCallback(
-    (index: number, name: string) => {
-      renameWand(storage, index, name)
-      refresh()
-    },
-    [storage, refresh],
-  )
-  const removeFromShelf = useCallback(
-    (index: number) => {
-      removeWand(storage, index)
-      refresh()
-    },
-    [storage, refresh],
-  )
-
-  const value = useMemo(
-    () => ({ state, dispatch, shelf, keep, renameOnShelf, removeFromShelf }),
-    [state, shelf, keep, renameOnShelf, removeFromShelf],
-  )
-  return <WorkbenchContext value={value}>{children}</WorkbenchContext>
+  const benches = useMemo(() => ({ wand }), [wand])
+  return <WorkbenchContext value={benches}>{children}</WorkbenchContext>
 }
 
-export function useWorkbench(): WorkbenchContextValue {
-  const value = useContext(WorkbenchContext)
-  if (!value) throw new Error('useWorkbench needs a WorkbenchProvider')
-  return value
+export function useWorkbench(kind: ItemKind): Bench {
+  const bench = useContext(WorkbenchContext)?.[kind]
+  if (!bench) throw new Error(`useWorkbench needs a WorkbenchProvider with a ${kind} bench`)
+  return bench
 }

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useState, type CSSProperties } from 'react'
 
-import type { StoredWand } from '../persistence/saveFormat.ts'
+import type { StoredItem } from '../items/item.ts'
 import { buildShareUrl } from '../share/shareLink.ts'
 import { useShareWand } from '../share/useShareWand.ts'
 import { inchesInWords, coreName, madeOf, wandName, wandNumber } from '../wand/describe.ts'
@@ -23,7 +23,7 @@ const hexToRgb = (hex: string) => {
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
 }
 
-function boxStyle(wand: StoredWand): CSSProperties {
+function boxStyle(wand: StoredItem): CSSProperties {
   const [top, bottom] = BOX_TONES[Number(wandNumber(wand.params)) % BOX_TONES.length]!
   const core = swatchFor('core', wand.params.core as string) ?? '#ffc95c'
   return {
@@ -34,12 +34,14 @@ function boxStyle(wand: StoredWand): CSSProperties {
   } as CSSProperties
 }
 
-function ShelfBox({ wand, index }: { wand: StoredWand; index: number }) {
-  const { dispatch, renameOnShelf, removeFromShelf } = useWorkbench()
+function ShelfBox({ wand, index }: { wand: StoredItem; index: number }) {
+  const { dispatch, renameOnShelf, removeFromShelf } = useWorkbench('wand')
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'actions' | 'rename' | 'remove'>('actions')
-  const { shareState, share } = useShareWand(() => buildShareUrl(window.location, wand))
+  const { shareState, share } = useShareWand(() =>
+    buildShareUrl(window.location.origin, 'wand', wand),
+  )
   const name = wand.name ?? wandName(wand.params)
   const meta = `${inchesInWords(wand.params.lengthCm as number)}, ${madeOf(wand.params)}, ${coreName(wand.params.core as string).toLowerCase()}`
 
@@ -69,7 +71,7 @@ function ShelfBox({ wand, index }: { wand: StoredWand; index: number }) {
             type="button"
             className={styles.primary}
             onClick={() => {
-              dispatch({ type: 'load', wand })
+              dispatch({ type: 'load', item: wand })
               void navigate({ to: '/' })
             }}
           >
@@ -133,8 +135,8 @@ function ShelfBox({ wand, index }: { wand: StoredWand; index: number }) {
 }
 
 export function ShelfPage() {
-  const { shelf } = useWorkbench()
-  const rows: { wand: StoredWand; index: number }[][] = []
+  const { shelf } = useWorkbench('wand')
+  const rows: { wand: StoredItem; index: number }[][] = []
   shelf.forEach((wand, index) => {
     if (index % PER_SHELF === 0) rows.push([])
     rows[rows.length - 1]!.push({ wand, index })

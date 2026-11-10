@@ -1,6 +1,6 @@
 import { Suspense, use, useRef, useState, type CSSProperties, type RefObject } from 'react'
 
-import type { StoredWand } from '../persistence/saveFormat.ts'
+import type { StoredItem } from '../items/item.ts'
 import { LONGEST_WAND_MM, STAGE_FILL, StageContext, type StageHandle } from '../stage/stage.ts'
 import { wandDescription, wandName, wandNumber } from '../wand/describe.ts'
 import { swatchFor } from '../wand/wandSchema.ts'
@@ -25,7 +25,7 @@ export function Counter({
   stageRef,
   onRename,
 }: {
-  wand: StoredWand
+  wand: StoredItem
   arrivals: number
   reducedMotion: boolean
   stageRef: RefObject<StageHandle | null>

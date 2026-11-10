@@ -1,6 +1,6 @@
 import { Suspense, use, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 
-import type { StoredWand } from '../persistence/saveFormat.ts'
+import type { StoredItem } from '../items/item.ts'
 import {
   StageContext,
   WAVE_TO_SPELL_SECONDS,
@@ -24,7 +24,7 @@ export function CloseUp({
   onLift,
   onClosed,
 }: {
-  wand: StoredWand
+  wand: StoredItem
   reducedMotion: boolean
   boxPose: () => BoxPose
   onLift: () => void

@@ -24,13 +24,13 @@ const hexToRgb = (hex: string) => {
 }
 
 export function ShopPage() {
-  const { state, dispatch, shelf, keep } = useWorkbench()
+  const { state, dispatch, shelf, keep } = useWorkbench('wand')
   const phone = useMediaQuery(PHONE_QUERY)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const stageRef = useRef<StageHandle | null>(null)
   const [kept, setKept] = useState(false)
   const [pictureBusy, setPictureBusy] = useState(false)
-  const { wand } = state
+  const { item: wand } = state
 
   useEffect(() => {
     if (!kept) return
@@ -38,7 +38,7 @@ export function ShopPage() {
     return () => clearTimeout(timer)
   }, [kept])
 
-  const getShareUrl = useCallback(() => buildShareUrl(window.location, wand), [wand])
+  const getShareUrl = useCallback(() => buildShareUrl(window.location.origin, 'wand', wand), [wand])
   const { shareState, share } = useShareWand(getShareUrl)
 
   const name = wand.name ?? wandName(wand.params)
