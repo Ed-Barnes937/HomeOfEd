@@ -58,8 +58,12 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
   1920x1080), a stroke about 120 characters, and every New page adds 21-37 KB,
   because each page's baked ink raster stays in the history across reloads.
   Four copies (the legacy slot and three profiles) fit while the slot is under
-  about 1.3 MB, roughly 40 New pages at laptop size. Past that, adoption by a
-  later profile fails and is retried, and saves fall back to `session.ts`'s
+  about 1.3 MB, roughly 40 New pages at laptop size. Past that, a later
+  profile's adoption fails. For espy the retry almost never happens: the
+  profile's own slot is written on open (the bloom's bake) or on its first
+  stroke, and from then on that profile never adopts. The legacy drawing stays
+  on the device but never shows for that profile. Nothing is lost, and the
+  decision stands. Saves that meet the quota fall back to `session.ts`'s
   stripped copy (one raster, about 45 KB after six pages). Whether to bound the
   slot is an open question for Ed in ticket 13.
 - **A full quota during adoption is swallowed, and adoption is retried on the

@@ -1,6 +1,5 @@
-// Node side of the family-profile harness (ADR 0094): the cookie espy reads its
-// player from, the doodle a device held before profiles, and a read of each
-// profile's doodle on disk.
+// Node side of the family-profile harness (ADR 0094): the player's cookie, the
+// legacy doodle, and each profile's doodle on disk.
 import { FAMILY_SESSION_COOKIE, profileScopedKey } from '@hoe/accounts'
 import { mintTestToken, type FakeSessionInput } from '@hoe/accounts/testing'
 import type { Page } from '@playwright/test'

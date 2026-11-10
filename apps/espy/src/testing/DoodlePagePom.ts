@@ -146,6 +146,21 @@ export class DoodlePagePom extends BasePage {
     await expect(this.player).toHaveText(name)
   }
 
+  /** The pill fits `maxWidth`, and its name overflows on an element that draws an ellipsis. */
+  async verifyPlayerNameTruncated(maxWidth: number): Promise<void> {
+    const pill = await this.player.boundingBox()
+    expect(pill?.width).toBeLessThanOrEqual(maxWidth)
+    const name = await this.player.getByTestId('player-name').evaluate((el) => {
+      const style = getComputedStyle(el)
+      return {
+        overflows: el.scrollWidth > el.clientWidth,
+        ellipsis: style.textOverflow === 'ellipsis' && style.overflow === 'hidden',
+        blockish: style.display !== 'inline',
+      }
+    })
+    expect(name).toEqual({ overflows: true, ellipsis: true, blockish: true })
+  }
+
   async verifyNoPlayerShown(): Promise<void> {
     await expect(this.player).toHaveCount(0)
   }

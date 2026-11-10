@@ -71,9 +71,12 @@ its baked ink raster). Four copies (legacy plus three profiles) fit while the
 slot is under about 1.3 MB, roughly 40 New pages at laptop size. The slot has
 no bound except the quota: when a save meets it, `session.ts` falls back to a
 stripped copy (one raster, about 45 KB after six pages). Past about 1.3 MB a
-later profile's adoption fails and is retried; and a legacy slot near the
-quota, which is never rewritten, could leave too little room for a profile's
-stripped save. Built with the default adoption; options for Ed: keep it, only
+later profile's adoption fails, and in practice is not retried: the profile's
+own slot is written on open (the bloom's bake) or on its first stroke, after
+which it never adopts. The legacy drawing stays on the device but never shows
+for that profile (review proved it with a 1.06 MB legacy drawing and about
+300 KB free). Nothing is lost. A legacy slot near the quota, which is never
+rewritten, could also leave too little room for a profile's stripped save. Built with the default adoption; options for Ed: keep it, only
 the first profile adopts (ticket 12's fallback), or have `session.ts` always
 persist only the current page's raster, which bounds a slot near 30 KB plus
 about 3 KB per page (undo past a New page after a reload then shows plain blots

@@ -32,5 +32,7 @@ exposeDispatcher(
 )
 
 export function IwftApp() {
-  return <App native={(globalThis as unknown as Record<string, unknown>)[NATIVE_SHELL_KEY] === true} />
+  return (
+    <App native={(globalThis as unknown as Record<string, unknown>)[NATIVE_SHELL_KEY] === true} />
+  )
 }

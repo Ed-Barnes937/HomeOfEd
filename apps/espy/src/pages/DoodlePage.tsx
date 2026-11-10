@@ -98,9 +98,14 @@ export function DoodlePage() {
  *  estate there is no hub to switch at, so it is the name alone. */
 function PlayerLink({ name }: { name: string }) {
   const href = switchPlayerUrlFor(window.location.href)
+  const label = (
+    <span className={styles.playerName} data-testid="player-name">
+      {name}
+    </span>
+  )
   return href === null ? (
     <span className={styles.player} data-testid="player">
-      {name}
+      {label}
     </span>
   ) : (
     <a
@@ -109,7 +114,7 @@ function PlayerLink({ name }: { name: string }) {
       aria-label={`${name}, switch player`}
       data-testid="player"
     >
-      {name}
+      {label}
     </a>
   )
 }

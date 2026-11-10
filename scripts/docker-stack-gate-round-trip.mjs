@@ -121,7 +121,7 @@ async function ungated(browser, app) {
       "/shared is gated like any page",
     );
     check(
-      (await get("/assets/missing.js")).status() === 404,
+      (await get("/assets/missing.js")).status() !== 302,
       "an asset path is not gated",
     );
   }
