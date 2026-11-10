@@ -5,7 +5,8 @@ import { test } from './testing/iwftTest.tsx'
 test('shows a back-to-hub link pointing at home of ed', async ({ mountApp, page }) => {
   await mountApp()
   const back = page.getByRole('link', { name: /back to home of ed/i })
-  await expect(back).toHaveAttribute('href', 'http://localhost:3000')
+  // The CT port is on no estate tier, so the link falls back to production hub.
+  await expect(back).toHaveAttribute('href', 'https://homeofed.com')
 })
 
 test('renders a sized canvas with the initial field already drawn', async ({ mountApp }) => {

@@ -13,6 +13,7 @@ export class DoodlePagePom extends BasePage {
   private readonly subtitle = this.page.getByTestId('hint-subtitle')
   private readonly helpButton = this.page.getByRole('button', { name: 'How to play' })
   private readonly tooltip = this.page.getByRole('tooltip')
+  private readonly player = this.page.getByTestId('player')
 
   async verifyIsShown(): Promise<void> {
     await expect(this.canvas).toBeVisible()
@@ -138,6 +139,15 @@ export class DoodlePagePom extends BasePage {
     await this.helpButton.click()
     await expect(this.tooltip).toBeVisible()
     await expect(this.tooltip).toContainText(snippet)
+  }
+
+  /** The player drawing, named in the header (a switch-player link inside the estate). */
+  async verifyPlayerShown(name: string): Promise<void> {
+    await expect(this.player).toHaveText(name)
+  }
+
+  async verifyNoPlayerShown(): Promise<void> {
+    await expect(this.player).toHaveCount(0)
   }
 
   /** Reads the localStorage session key a reload would restore from. */
