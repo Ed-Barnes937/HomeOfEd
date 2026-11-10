@@ -1,6 +1,7 @@
 // docker-stack-sign-in.mjs - a real sign-in through the docker stack, in a real
 // browser: register on hub's /account, add a child, pick who is playing, check
-// the hoe_family_session cookie, then check boop saves through the same family.
+// the hoe_family_session cookie, then change a step in boop and see it saved
+// through the same family (save.get on open, save.put after the change).
 //
 //   docker compose up -d --build family hub boop
 //   node scripts/docker-stack-sign-in.mjs            # headless
@@ -54,6 +55,18 @@ export async function signInThroughStack(page, { child = 'Robin' } = {}) {
   return { email }
 }
 
+function waitForSave(page, procedure, timeout = TIMEOUT) {
+  return page.waitForResponse((r) => r.url().startsWith(`${STACK.family}/api/trpc/${procedure}`), {
+    timeout,
+  })
+}
+
+function expectOk(response) {
+  const procedure = new URL(response.url()).pathname.split('/').pop()
+  if (response.status() !== 200)
+    throw new Error(`boop's ${procedure} answered ${response.status()}`)
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: !process.env.HEADED })
   const page = await browser.newPage()
@@ -79,19 +92,22 @@ async function main() {
 
     // boop reads the cookie hub wrote (cookies are not port-scoped) and calls
     // the family save tier from its own compose origin.
-    const firstSave = page.waitForResponse(
-      (r) => r.url().startsWith(`${STACK.family}/api/trpc/save.`),
-      { timeout: TIMEOUT },
-    )
+    const pull = waitForSave(page, 'save.get')
     await page.goto(STACK.boop)
     // boop asks once before linking a device's existing boops (ADR 0080).
     await page
       .getByRole('button', { name: 'Yes, keep them' })
       .click({ timeout: 5_000 })
       .catch(() => {})
-    const save = await firstSave
-    if (save.status() !== 200) throw new Error(`boop's save call answered ${save.status()}`)
-    console.log(`boop saved through family: ${save.status()} ${new URL(save.url()).pathname}`)
+    expectOk(await pull)
+    console.log('boop pulled from family: save.get 200')
+
+    // One step changed; boop's watcher copies it up after the autosave lull.
+    const push = waitForSave(page, 'save.put', 30_000)
+    await page.getByTestId('clip-launcher-open').click()
+    await page.getByTestId('cell-kick-0').click()
+    expectOk(await push)
+    console.log('boop saved through family: save.put 200')
 
     if (failures.length > 0) throw new Error(`failed requests:\n  ${failures.join('\n  ')}`)
     console.log('docker-stack sign-in: OK')

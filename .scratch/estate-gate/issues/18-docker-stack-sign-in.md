@@ -70,3 +70,18 @@ the script's last step checks boop's `save.get` answers 200. `@hoe/deploy-guard`
 gained the `localOnly` argument rather than family checking the variable
 itself, so sprout's `GEO_ENFORCEMENT` can move onto the same rule later.
 
+Review follow-ups (branch `estate-gate/18b-stack-followups`):
+
+- Every `*-db` healthcheck probes TCP (`pg_isready -h 127.0.0.1`). On a fresh
+  volume the image's init-time server answers on the unix socket only and then
+  restarts; probing a fresh `postgres:17` showed the socket answering while TCP
+  was down. Six fresh-volume cycles with the old check did not reproduce the
+  reviewer's `family` exit; ten with the new check all came up healthy.
+- The script now changes one step in boop and waits for a real `save.put`, not
+  only the opening `save.get`.
+- ADR 0088 names the `localOnly` argument.
+- Hub's and boop's `familyUrl` read their compose ports from `@hoe/accounts`'
+  registry; family's 8092 stays a literal (it is not an estate app).
+  `packages/accounts/src/estateApps.test.ts` fails if `compose.yml` drifts from
+  the registry.
+
