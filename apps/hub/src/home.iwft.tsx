@@ -1,3 +1,7 @@
+import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
+import { mintTestToken } from '@hoe/accounts/testing'
+import type { Page } from '@playwright/test'
+
 import { appDates } from './pages/appDates.ts'
 import { test } from './testing/iwftTest.tsx'
 
@@ -9,6 +13,17 @@ const silt = appDates('silt')
 function daysAfter(iso: string | undefined, days: number): Date {
   if (!iso) throw new Error('silt has no recorded deploy — the seeded file lost an app')
   return new Date(Date.parse(iso) + days * 24 * 60 * 60 * 1000)
+}
+
+// The cookie /account's picker writes; host-scoped here, as on localhost.
+async function playAs(page: Page, name: string): Promise<void> {
+  const token = mintTestToken({ sub: 'child-robin', role: 'child', parentId: 'parent-1', name })
+  await page.evaluate(
+    ({ cookie, value }) => {
+      document.cookie = `${cookie}=${value}; path=/`
+    },
+    { cookie: FAMILY_SESSION_COOKIE, value: token },
+  )
 }
 
 test('home page renders the wordmark, lede, and the live app links', async ({ mountApp }) => {
@@ -23,6 +38,29 @@ test('home page renders the wordmark, lede, and the live app links', async ({ mo
   await root.verifyHeigIsComingSoon()
   await root.verifySiltLink()
   await root.verifyArmouryLink()
+})
+
+test('with nobody playing, the home page offers Sign in, which opens /account', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyWhosPlayingChip('Sign in')
+
+  await root.openWhosPlayingChip('Sign in')
+
+  await root.verifyOnAccountPage()
+})
+
+test('with a profile playing, the home page names it and still opens /account', async ({
+  page,
+  mountApp,
+}) => {
+  await playAs(page, 'Robin')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyWhosPlayingChip('Playing as Robin')
 })
 
 test('home page renders a live preview canvas for every app card', async ({ mountApp }) => {

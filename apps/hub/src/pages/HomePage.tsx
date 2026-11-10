@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { readFamilySession } from '@hoe/accounts'
+import { Link } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
 import { appDates } from './appDates.ts'
 import styles from './HomePage.module.scss'
 import { pillFor } from './pillFor.ts'
@@ -58,6 +60,8 @@ export function HomePage() {
   const [theme, setTheme] = useColourTheme()
   const wordmarkRef = useRef<HTMLHeadingElement>(null)
   const galleryRef = useRef<HTMLDivElement>(null)
+  // Decode-only, for display: never an authorisation decision.
+  const [playing] = useState(() => readFamilySession())
 
   useHopAnimation(wordmarkRef)
   usePreviews(galleryRef, theme)
@@ -74,6 +78,16 @@ export function HomePage() {
       >
         <span className={theme === 'dark' ? styles.sun : styles.moon} aria-hidden="true" />
       </button>
+
+      <Link to="/account" className={styles.whosPlaying}>
+        {playing ? (
+          <>
+            Playing as <span className={styles.player}>{playing.name}</span>
+          </>
+        ) : (
+          'Sign in'
+        )}
+      </Link>
 
       <section className={styles.intro}>
         <h1 className={styles.wordmark} ref={wordmarkRef} aria-label="home of ed">

@@ -100,6 +100,43 @@
   background: var(--toggle-fill);
 }
 
+// Beside the theme toggle rather than over the right rail, so it never sits on a card.
+.whosPlaying {
+  position: absolute;
+  top: 32px;
+  left: 84px;
+  z-index: 3;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  max-width: calc(100% - 120px);
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--toggle-border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 0.3s ease,
+    border-color 0.3s ease;
+
+  &:hover {
+    color: var(--fg);
+  }
+}
+
+// A 32-character display name ellipsises on a phone rather than running off-screen.
+.player {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 0.3em;
+  font-weight: 600;
+  color: var(--fg);
+}
+
 // Main area: wordmark + lede anchored toward the bottom-left.
 .intro {
   position: relative;

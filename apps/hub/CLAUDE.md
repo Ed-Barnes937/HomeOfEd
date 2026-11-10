@@ -1,7 +1,8 @@
 # apps/hub — scoped rules
 
 The launcher/landing app at the apex `homeofed.com`. Two routes: `/`, the
-wordmark and the app rail (nav, links), and `/account`, **the whole estate's
+wordmark, the app rail (nav, links) and a "who's playing" chip linking to
+`/account`, and `/account`, **the whole estate's
 account UI** (spec §6, [ADR 0081](../../docs/adr/0081-hub-account-ui.md)).
 The `trpc.health()` DB round-trip stays wired server-side (router → handler →
 Store) as the worked example, but neither page surfaces it. New apps are **not** copied from here — the copy base
