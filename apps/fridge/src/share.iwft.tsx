@@ -2,6 +2,7 @@ import { expect } from '@playwright/experimental-ct-react'
 
 import {
   readAllLocalStorage,
+  readAllSessionStorage,
   readLocalItem,
   savedNames,
   setFamilyCookie,
@@ -17,7 +18,7 @@ import { seedSharedHello, SHARED_ID } from './testing/sharedBoardSeed.ts'
 
 const ADA = { sub: 'child-ada', role: 'child', parentId: 'parent-1', name: 'Ada' } as const
 
-test('a shared link opens the fridge to play with, and writes nothing to localStorage', async ({
+test('a shared link opens the fridge to play with, and writes nothing to local or session storage', async ({
   mountApp,
   page,
 }) => {
@@ -25,6 +26,7 @@ test('a shared link opens the fridge to play with, and writes nothing to localSt
   await first.root.verifyIsShown()
   await page.reload()
   const before = await readAllLocalStorage(page)
+  const sessionBefore = await readAllSessionStorage(page)
 
   await FridgePagePom.openAt(page, `/b/${SHARED_ID}`)
   const { root } = await mountApp({ seed: seedSharedHello })
@@ -37,6 +39,7 @@ test('a shared link opens the fridge to play with, and writes nothing to localSt
   await page.waitForTimeout(500)
 
   expect(await readAllLocalStorage(page)).toEqual(before)
+  expect(await readAllSessionStorage(page)).toEqual(sessionBefore)
 })
 
 test('a signed-in player’s own fridge is untouched by a shared link', async ({
@@ -53,6 +56,7 @@ test('a signed-in player’s own fridge is untouched by a shared link', async ({
   await mine.root.verifyChip('Mine')
   await page.reload()
   const before = await readAllLocalStorage(page)
+  const sessionBefore = await readAllSessionStorage(page)
 
   await FridgePagePom.openAt(page, `/b/${SHARED_ID}`)
   const { root } = await mountApp({ seed: seedSharedHello })
@@ -62,6 +66,29 @@ test('a signed-in player’s own fridge is untouched by a shared link', async ({
   await page.waitForTimeout(500)
 
   expect(await readAllLocalStorage(page)).toEqual(before)
+  expect(await readAllSessionStorage(page)).toEqual(sessionBefore)
+})
+
+test('a signed-in visitor’s legacy fridge is not adopted by opening a shared link', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  // The signed-out first mount left the device's legacy fridge behind.
+  const legacy = await readLocalItem(page, 'fridge:v1')
+  expect(legacy).not.toBeNull()
+  await setFamilyCookie(page, ADA)
+
+  await FridgePagePom.openAt(page, `/b/${SHARED_ID}`)
+  const { root } = await mountApp({ seed: seedSharedHello })
+  await root.verifyMagnetCount(2)
+  await root.tapTile('A')
+  await page.waitForTimeout(500)
+
+  expect(await readLocalItem(page, 'fridge:v1')).toBe(legacy)
+  expect(await readLocalItem(page, 'fridge:v1@child-ada')).toBeNull()
 })
 
 test('the phone’s shared fridge offers keep in place of save, and no saved fridges', async ({

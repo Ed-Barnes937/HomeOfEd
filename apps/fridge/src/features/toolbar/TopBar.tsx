@@ -1,6 +1,7 @@
 import { hubUrlFor } from '@hoe/accounts'
 import type { ReactNode } from 'react'
 
+import { BOARD_NAME_MAX } from '../../server/boardSchema.ts'
 import styles from './TopBar.module.scss'
 
 interface TopBarProps {
@@ -42,7 +43,7 @@ export function TopBar({
   onKeep,
 }: TopBarProps) {
   return (
-    <div className={styles.bar}>
+    <div className={styles.bar} data-testid="top-bar">
       <div className={styles.left}>
         <a
           className={styles.back}
@@ -64,7 +65,9 @@ export function TopBar({
             <path d="m12 19-7-7 7-7" />
           </svg>
         </a>
-        <span className={styles.wordmark}>the fridge</span>
+        <span className={styles.wordmark} data-testid="wordmark">
+          the fridge
+        </span>
         <span className={styles.helper}>drag to bump · click to rotate · double-click to remove</span>
       </div>
       <div className={styles.right}>
@@ -72,6 +75,7 @@ export function TopBar({
         <input
           className={styles.name}
           placeholder="name this fridge…"
+          maxLength={BOARD_NAME_MAX}
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
         />

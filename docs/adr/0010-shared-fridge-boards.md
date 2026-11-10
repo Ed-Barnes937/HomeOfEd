@@ -104,8 +104,9 @@ shared view keeps nothing (decision 6). Import-on-open would write to whatever
 device opened the link, so it moves:
 
 - **`/b/<id>` opens the snapshot as a fridge to play with,** for anyone, over
-  memory storage. While the visitor plays, nothing is written anywhere, signed
-  in or not: not `localStorage`, not `sessionStorage`. The page never reloads on
+  memory storage. While the visitor plays, no board data is written, signed in
+  or not: nothing in `localStorage` or `sessionStorage` (the landscape nudge's
+  dismissal is a device preference and exempt). The page never reloads on
   a player change, so a visitor keeps their edits while there.
   Save, New and the saved fridges give way to **Keep this fridge**.
 - **Keep is a plain link to `/keep/<id>`,** a full page load, so the gate sees

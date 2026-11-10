@@ -75,6 +75,23 @@ test('keeping an edited shared fridge keeps the edits, and takes the stash once'
   expect(await readSessionItem(page, KEEP_KEY)).toBeNull()
 })
 
+test('a name typed past the limit stops at it, so Keep still carries the edits', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await pressKeepOnShared(page, mountApp, async (root) => {
+    await root.tapTile('A')
+    await root.typeName('x'.repeat(61))
+    await root.verifyNameInputValue('x'.repeat(60))
+  })
+
+  const root = await openKeep(page, mountApp)
+  await root.verifyMagnetCount(3)
+})
+
 test('keeping an unedited shared fridge stashes nothing, and clears an earlier stash', async ({
   mountApp,
   page,

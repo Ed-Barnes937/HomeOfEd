@@ -1,9 +1,10 @@
 // A quiet pill beside the name input: it names the player and must not outrank Save.
 .chip {
   flex: none;
+  display: inline-flex;
+  align-items: center;
   max-width: 180px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   padding: 7px 11px;
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -22,4 +23,27 @@
     outline: 2px solid var(--text-strong);
     outline-offset: 2px;
   }
+
+  .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Below the width where the whole bar fits with a full chip, the chip gives way first.
+  @media (max-width: 1215px) {
+    padding: 7px;
+
+    .label {
+      display: none;
+    }
+  }
+}
+
+.icon {
+  flex: none;
+  vertical-align: -3px;
+}
+
+.label {
+  margin-left: 6px;
 }

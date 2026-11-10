@@ -9,26 +9,42 @@ interface PlayerChipProps {
   className?: string
 }
 
-/**
- * Who the fridge is being kept for, and the way to hub to switch player and
- * come back here (spec decision 10). Outside the estate there is no hub to
- * switch at, so it is words alone.
- */
+/** Who is playing, linking to hub to switch player (spec decision 10); words alone outside the estate. */
 export function PlayerChip({ name, className }: PlayerChipProps) {
   const href = switchPlayerUrlFor(window.location.href)
   const label = `playing as ${name}`
+  const content = (
+    <>
+      <svg
+        className={styles.icon}
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </svg>
+      <span className={styles.label}>{label}</span>
+    </>
+  )
+  const shared = {
+    className: className ?? styles.chip,
+    'data-testid': 'player-chip',
+    'aria-label': label,
+  }
   return href === null ? (
-    <span className={className ?? styles.chip} data-testid="player-chip">
-      {label}
+    <span {...shared} title={label}>
+      {content}
     </span>
   ) : (
-    <a
-      className={className ?? styles.chip}
-      href={href}
-      data-testid="player-chip"
-      title="Switch player"
-    >
-      {label}
+    <a {...shared} href={href} title={`${name} - switch player`}>
+      {content}
     </a>
   )
 }

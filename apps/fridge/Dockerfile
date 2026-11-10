@@ -68,7 +68,7 @@ COPY --from=builder /app/apps/fridge/dist ./apps/fridge/dist
 # it, and that never runs in prod) and typescript (@trpc/server declares it as
 # a types-only peer). The dev-only workspace stubs (test-kit/config) go too,
 # and so does the committed test keypair in @hoe/accounts.
-RUN rm -rf apps/fridge/src/testing apps/fridge/src/fridge.iwft.tsx \
+RUN rm -rf apps/fridge/src/testing apps/fridge/src/*.iwft.tsx \
   packages/test-kit packages/config packages/accounts/src/testing \
   node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node

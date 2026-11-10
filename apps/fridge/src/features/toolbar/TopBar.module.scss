@@ -44,6 +44,7 @@
 }
 
 .wordmark {
+  white-space: nowrap;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 23px;
@@ -57,7 +58,9 @@
   color: var(--text-muted);
 }
 
+// The actions never wrap; the helper text on the left takes any squeeze.
 .right {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 8px;

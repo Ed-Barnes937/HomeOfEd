@@ -138,6 +138,13 @@ export class FridgePagePom extends BasePage {
     await expect.poll(() => this.leftOf(to)).not.toBe(beforeLeft)
   }
 
+  /** Types key by key, as a child would, so the input's own limits apply. */
+  async typeName(value: string): Promise<void> {
+    const input = this.page.getByPlaceholder('name this fridge…')
+    await input.clear()
+    await input.pressSequentially(value)
+  }
+
   async setNameInput(value: string): Promise<void> {
     await this.page.getByPlaceholder('name this fridge…').fill(value)
   }
@@ -244,6 +251,27 @@ export class FridgePagePom extends BasePage {
   async verifyNoPlayerChip(): Promise<void> {
     await expect(this.page.getByTestId('fridge-page')).toBeVisible()
     await expect(this.page.getByTestId('player-chip')).toHaveCount(0)
+  }
+
+  /** The wordmark and every action stay on one line, and nothing reaches the saved-fridges row. */
+  async verifyTopBarFitsOneRow(): Promise<void> {
+    const m = await this.page.evaluate(() => {
+      const bar = document.querySelector('[data-testid="top-bar"]')!
+      const word = document.querySelector('[data-testid="wordmark"]')!
+      const lineHeight = (el: Element) => parseFloat(getComputedStyle(el).fontSize) * 1.5
+      const controls = [...bar.querySelectorAll('a, button, input, span')]
+      return {
+        wordmarkOneLine: word.getBoundingClientRect().height < lineHeight(word),
+        actionsOneLine: [...bar.querySelectorAll('button')].every(
+          (b) => b.getBoundingClientRect().height < lineHeight(b) + 20,
+        ),
+        barBottom: Math.max(...controls.map((c) => c.getBoundingClientRect().bottom)),
+        rowTop: document.querySelector('[data-testid="saved-row"]')!.getBoundingClientRect().top,
+      }
+    })
+    expect(m.wordmarkOneLine).toBe(true)
+    expect(m.actionsOneLine).toBe(true)
+    expect(m.barBottom).toBeLessThanOrEqual(m.rowTop)
   }
 
   // ---- share / import (F12, ADR 0093) ----

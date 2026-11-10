@@ -17,11 +17,7 @@ const keepRoute = getRouteApi('/_player/keep/$id')
 /** Where Keep goes: a full navigation, so the server's gate sees it (ADR 0093). */
 export const keepHrefFor = (id: string) => `/keep/${encodeURIComponent(id)}`
 
-/**
- * `/b/$id`: open to anyone, and it keeps nothing (ADR 0093 decision 6). The
- * snapshot opens as a fridge to play with over memory storage; keeping it is
- * `/keep/$id`, behind the gate.
- */
+/** `/b/$id`: the snapshot to play with over memory storage, open to anyone and keeping nothing (ADR 0093). */
 export function SharedBoardRoute() {
   const { id } = sharedRoute.useParams()
   const query = useQuery(sharedBoardQueryOptions(id))
@@ -56,16 +52,13 @@ function SharedFridge({ id, board }: { id: string; board: StoredBoard }) {
   )
 }
 
-/**
- * `/keep/$id`: imports the visitor's edited board stashed by Keep, else the
- * snapshot, as a new fridge for the player, and redirects to '/' (ADR 0010,
- * amended). The import runs once: the ref guards StrictMode's double-invoke.
- */
+/** `/keep/$id`: imports Keep's stashed edits, else the snapshot, for the player, then goes home (ADR 0010). */
 export function KeepSharedBoardRoute() {
   const { id } = keepRoute.useParams()
   const storage = useBoardStorage()
   const navigate = useNavigate()
   const query = useQuery(sharedBoardQueryOptions(id))
+  // Imports once: StrictMode runs the effect twice.
   const imported = useRef(false)
 
   useEffect(() => {

@@ -108,7 +108,9 @@ The `fridge:landscape-nudge` dismissal is sessionStorage and the device's.
   publishes the current board and shows a `${origin}/b/<id>` link (copied to
   the clipboard when allowed). The **`/b/$id`** route is public and keeps
   nothing (ADR 0093 decision 6): it opens the snapshot as a playable fridge over
-  `memoryStorage`, with **Keep this fridge** in place of Save/New/saved chips.
+  `memoryStorage`, writing no board data anywhere (device preferences such as
+  the landscape nudge are exempt), with **Keep this fridge** in place of
+  Save/New/saved chips.
   Keep is a plain `<a href>` to **`/keep/$id`** (a page load, so the gate sees
   it). Pressing it stashes an edited board in `sessionStorage`
   (`features/share/keepStash.ts`, one-shot, tied to the id), and `/keep/$id`

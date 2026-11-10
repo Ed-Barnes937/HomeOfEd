@@ -11,10 +11,7 @@ export function stashKeep(storage: StashStorage, id: string, edited: StoredBoard
   else storage.setItem(KEEP_STASH_KEY, JSON.stringify({ id, board: edited }))
 }
 
-/**
- * The stashed board for `id`, removed as it is taken. A stash for another id is
- * left alone; one that cannot be read as a board is dropped.
- */
+/** The stashed board for `id`, removed as it is taken; another id's stash stays, an unreadable one goes. */
 export function takeKeep(storage: StashStorage, id: string): StoredBoard | null {
   const raw = storage.getItem(KEEP_STASH_KEY)
   if (raw === null) return null

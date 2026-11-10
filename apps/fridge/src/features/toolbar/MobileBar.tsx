@@ -4,6 +4,7 @@ import { type ReactNode, useState } from 'react'
 import type { StoredBoard } from '../board/serialize.ts'
 import { PlayerChip } from './PlayerChip.tsx'
 import { SavedChips } from './SavedChips.tsx'
+import { BOARD_NAME_MAX } from '../../server/boardSchema.ts'
 import styles from './MobileBar.module.scss'
 
 interface MobileBarProps {
@@ -112,6 +113,7 @@ export function MobileBar({
           <input
             className={styles.name}
             placeholder="name this fridge…"
+          maxLength={BOARD_NAME_MAX}
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
           />

@@ -51,4 +51,11 @@ fridge is database-backed and already shares boards at `/b/$id`
   and not on `/b`. The back arrow moved to `hubUrlFor`; `hubUrl.ts` is gone.
 - `scripts/docker-stack-gate-round-trip.mjs` gained `SHARED_PATH` (default
   `/shared`), for fridge's `/b/<id>`.
-
+- **Known and accepted (review round).** A stale stash: Keep with edits, abandon
+  at hub, then reach `/keep/<id>` later in the same tab, and the old edits are
+  imported. Accepted for now.
+- **Review round fixes.** Signed in, the top bar no longer breaks between 1024
+  and 1215px: the wordmark and actions never wrap, and the player chip shows its
+  icon alone below 1216px (accessible name and title kept). Name inputs stop at
+  the schema's 60 characters, so Keep no longer drops edits on a long name. The
+  Dockerfile drops every `src/*.iwft.tsx`.

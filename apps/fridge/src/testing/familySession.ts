@@ -26,6 +26,18 @@ export async function readAllLocalStorage(page: Page): Promise<Record<string, st
   })
 }
 
+/** Every sessionStorage entry: `/b` must leave it as it found it while the visitor plays. */
+export async function readAllSessionStorage(page: Page): Promise<Record<string, string>> {
+  return page.evaluate(() => {
+    const entries: Record<string, string> = {}
+    for (let i = 0; i < window.sessionStorage.length; i++) {
+      const key = window.sessionStorage.key(i)!
+      entries[key] = window.sessionStorage.getItem(key)!
+    }
+    return entries
+  })
+}
+
 export async function readLocalItem(page: Page, key: string): Promise<string | null> {
   return page.evaluate((k) => window.localStorage.getItem(k), key)
 }
