@@ -4,7 +4,7 @@ import { useState, type CSSProperties } from 'react'
 import type { StoredWand } from '../persistence/saveFormat.ts'
 import { buildShareUrl } from '../share/shareLink.ts'
 import { useShareWand } from '../share/useShareWand.ts'
-import { inchesInWords, coreName, wandName, wandNumber } from '../wand/describe.ts'
+import { inchesInWords, coreName, madeOf, wandName, wandNumber } from '../wand/describe.ts'
 import { swatchFor } from '../wand/wandSchema.ts'
 import { useWorkbench } from '../workbench/WorkbenchProvider.tsx'
 import styles from './ShelfPage.module.scss'
@@ -41,7 +41,7 @@ function ShelfBox({ wand, index }: { wand: StoredWand; index: number }) {
   const [mode, setMode] = useState<'actions' | 'rename' | 'remove'>('actions')
   const { shareState, share } = useShareWand(() => buildShareUrl(window.location, wand))
   const name = wand.name ?? wandName(wand.params)
-  const meta = `${inchesInWords(wand.params.lengthCm as number)}, ${wand.params.wood as string}, ${coreName(wand.params.core as string).toLowerCase()}`
+  const meta = `${inchesInWords(wand.params.lengthCm as number)}, ${madeOf(wand.params)}, ${coreName(wand.params.core as string).toLowerCase()}`
 
   return (
     <li className={styles.slot} data-open={open} style={boxStyle(wand)}>

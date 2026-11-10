@@ -1,4 +1,4 @@
-import type { GrooveSet, WandSpec } from './compile.ts'
+import type { GrooveSet, Material, WandSpec } from './compile.ts'
 
 // The wand surface is a radius field r(angle, z) sampled on a cylinder grid.
 // Pure functions, no three.js, so they're easy to test.
@@ -15,14 +15,20 @@ function strengthAt(g: GrooveSet, z: number): number {
   return smoothstep(g.from, g.from + g.fadeIn, z) * (1 - smoothstep(g.to - g.fadeOut, g.to, z))
 }
 
-/** Final radius and the uncarved profile radius at (angle, z). */
-export function radiusAt(spec: WandSpec, theta: number, z: number): { r: number; r0: number } {
+/** Final radius, the uncarved profile radius, and how much of the surface is a metal ridge, at (angle, z). */
+export function radiusAt(
+  spec: WandSpec,
+  theta: number,
+  z: number,
+): { r: number; r0: number; ridgeMetal: number } {
   const r0 = spec.profile(z)
-  if (r0 <= 0) return { r: 0, r0: 0 }
+  if (r0 <= 0) return { r: 0, r0: 0, ridgeMetal: 0 }
+  let ridgeMetal = 0
   // The deepest cut and the tallest ridge, so overlapping sets combine in any order.
   let cut = r0
   let raised = r0
-  for (const g of spec.grooves) {
+  const uncarved = spec.zones.some((zone) => zone.uncarved && z >= zone.from && z <= zone.to)
+  for (const g of uncarved ? [] : spec.grooves) {
     const f = strengthAt(g, z)
     if (f <= 0) continue
     const spacing = TAU / g.count
@@ -39,9 +45,19 @@ export function radiusAt(spec: WandSpec, theta: number, z: number): { r: number;
       const offset = r0 * g.depth * f * Math.sqrt(1 - x * x)
       if (g.raised) raised = Math.max(raised, r0 + offset)
       else cut = Math.min(cut, r0 - offset)
+      if (g.raised && g.metal)
+        ridgeMetal = Math.max(ridgeMetal, (1 - smoothstep(0.82, 0.97, x)) * smoothstep(0, 0.3, f))
     }
   }
-  return { r: cut + raised - r0, r0 }
+  return { r: cut + raised - r0, r0, ridgeMetal }
+}
+
+const MATERIAL_CHANNEL: Record<Material, number> = { metal: 0, paint: 1, bone: 2 }
+
+function materialAt(spec: WandSpec, z: number): Material | null {
+  let found: Material | null = null
+  for (const zone of spec.zones) if (z >= zone.from && z <= zone.to) found = zone.material
+  return found
 }
 
 export interface WandMeshData {
@@ -52,6 +68,8 @@ export interface WandMeshData {
   stain: Float32Array
   /** Per-vertex brightness multiplier that darkens carved grooves. */
   shade: Float32Array
+  /** Per-vertex (metal, paint, bone) weights; wood is whatever is left. */
+  zone: Float32Array
   indices: Uint32Array
   rings: number
   segments: number
@@ -82,6 +100,8 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
   const uvs = new Float32Array(count * 2)
   const stainAmount = new Float32Array(count)
   const shade = new Float32Array(count)
+  const zone = new Float32Array(count * 3)
+  const ridge = new Float32Array(count)
   const depthNorm = new Float32Array(count)
 
   // Grain runs along the wand. Around it, the texture is mirrored so there's
@@ -92,8 +112,9 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
     const z = (L * j) / rings
     for (let i = 0; i <= segments; i++) {
       const theta = (TAU * i) / segments
-      const { r, r0 } = radiusAt(spec, theta, z)
+      const { r, r0, ridgeMetal } = radiusAt(spec, theta, z)
       const k = j * cols + i
+      ridge[k] = ridgeMetal
       positions[k * 3] = r * Math.cos(theta)
       positions[k * 3 + 1] = r * Math.sin(theta)
       positions[k * 3 + 2] = z
@@ -101,6 +122,17 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
       uvs[k * 2] = across * tri
       uvs[k * 2 + 1] = z / textureMm
       depthNorm[k] = r0 > 0 ? (r0 - r) / r0 : 0
+    }
+    const material = materialAt(spec, z)
+    for (let i = 0; i <= segments; i++) {
+      const k = j * cols + i
+      if (material) zone[k * 3 + MATERIAL_CHANNEL[material]] = 1
+      const m = ridge[k]!
+      if (m > 0) {
+        zone[k * 3] = Math.max(zone[k * 3]!, m)
+        zone[k * 3 + 1] = zone[k * 3 + 1]! * (1 - m)
+        zone[k * 3 + 2] = zone[k * 3 + 2]! * (1 - m)
+      }
     }
   }
 
@@ -153,7 +185,10 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
     for (let i = 0; i <= segments; i++) {
       const k = j * cols + i
       const groove = Math.min(1, Math.max(0, depthNorm[k]!) / 0.12)
-      stainAmount[k] = stain.colour ? Math.min(1, amount + 0.6 * stain.strength * groove) : 0
+      const soaks = 1 - zone[k * 3]! - zone[k * 3 + 1]!
+      stainAmount[k] = stain.colour
+        ? soaks * Math.min(1, amount + 0.6 * stain.strength * groove)
+        : 0
       shade[k] = 1 - 0.35 * groove
     }
   }
@@ -175,5 +210,5 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
     }
   }
 
-  return { positions, normals, uvs, stain: stainAmount, shade, indices, rings, segments }
+  return { positions, normals, uvs, stain: stainAmount, shade, zone, indices, rings, segments }
 }

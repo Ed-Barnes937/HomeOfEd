@@ -42,8 +42,15 @@ const CORE_NOUNS: Record<string, string> = {
 
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
+const isBone = (p: Params) => p.handleFinish === 'bone' && p.shaftFinish === 'bone'
+
+/** What the wand is made of: its wood, unless it is bone from end to end. */
+export const madeOf = (p: Params) => (isBone(p) ? 'bone' : (p.wood as string))
+
 export function wandName(p: Params): string {
-  const colour = STAIN_WORDS[p.stainColour as string] ?? capitalise(p.wood as string)
+  const colour = isBone(p)
+    ? 'Bone'
+    : (STAIN_WORDS[p.stainColour as string] ?? capitalise(p.wood as string))
   const noun =
     SHAFT_NOUNS[p.shaftCarving as string] ??
     HANDLE_NOUNS[p.handleCarving as string] ??
@@ -86,7 +93,7 @@ function feel(p: Params): string {
 
 export function wandDescription(p: Params): string {
   const length = inchesInWords(p.lengthCm as number)
-  return `${length}, ${p.wood as string}, ${coreName(p.core as string).toLowerCase()} core. ${feel(p)}.`
+  return `${length}, ${madeOf(p)}, ${coreName(p.core as string).toLowerCase()} core. ${feel(p)}.`
 }
 
 const WOOD_LORE: Record<string, string> = {
@@ -94,6 +101,7 @@ const WOOD_LORE: Record<string, string> = {
   walnut: 'Walnut is clever and keeps secrets.',
   oak: 'Oak is brave and patient.',
   maple: 'Maple is curious and loves a puzzle.',
+  bone: 'Bone is old and quiet and remembers everything.',
 }
 
 const CORE_LORE: Record<string, string> = {
@@ -110,5 +118,5 @@ export const coreLore = (core: string) => CORE_LORE[core] ?? ''
 export function wandLore(p: Params): string {
   const core = coreLore(p.core as string)
   const coreLine = `${coreName(p.core as string)} ${core.charAt(0).toLowerCase()}${core.slice(1)}`
-  return `${woodLore(p.wood as string)} ${coreLine}`
+  return `${woodLore(madeOf(p))} ${coreLine}`
 }

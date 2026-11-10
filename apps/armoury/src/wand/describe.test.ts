@@ -28,6 +28,23 @@ describe('inchesInWords', () => {
   })
 })
 
+describe('a wand that is bone from end to end', () => {
+  const bone = { wood: 'oak', stainColour: 'smoky', shaftCarving: 'shortSpiral', core: 'moonstone' }
+
+  it('is named and told as bone', () => {
+    const whole = wand({ ...bone, handleFinish: 'bone', shaftFinish: 'bone' })
+    expect(wandName(whole)).toBe('The Bone Spiral')
+    expect(wandLore(whole)).toMatch(/^Bone /)
+    expect(wandLore(whole)).not.toMatch(/Oak/)
+  })
+
+  it('keeps the wood wording when only part of it is bone', () => {
+    const part = wand({ ...bone, handleFinish: 'bone' })
+    expect(wandName(part)).toBe('The Smoky Spiral')
+    expect(wandLore(part)).toMatch(/^Oak /)
+  })
+})
+
 describe('wandName', () => {
   it('names a wand after its colour and its most striking carving', () => {
     expect(wandName(wand({ wood: 'oak', stainColour: 'ember', shaftCarving: 'shortSpiral' }))).toBe(
@@ -76,6 +93,16 @@ describe('wandDescription', () => {
         wand({ lengthCm: 30.5, wood: 'cherry', core: 'stormglass', thickness: 0.88 }),
       ),
     ).toBe('Twelve inches, cherry, storm glass core. Slender.')
+  })
+
+  it('says bone for a wand that is bone from end to end', () => {
+    const bone = { lengthCm: 33, wood: 'oak', core: 'wildwood', thickness: 1 }
+    expect(wandDescription(wand({ ...bone, handleFinish: 'bone', shaftFinish: 'bone' }))).toBe(
+      'Thirteen inches, bone, wildwood core. Steady.',
+    )
+    expect(wandDescription(wand({ ...bone, handleFinish: 'bone' }))).toBe(
+      'Thirteen inches, oak, wildwood core. Steady.',
+    )
   })
 })
 

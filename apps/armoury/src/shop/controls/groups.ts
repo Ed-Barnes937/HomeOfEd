@@ -1,6 +1,6 @@
 import type { ChoiceParam, Params } from '../../engine/schema.ts'
 import { coreName } from '../../wand/describe.ts'
-import { wandSchema } from '../../wand/wandSchema.ts'
+import { usesMetal, usesPaint, wandSchema } from '../../wand/wandSchema.ts'
 
 export interface GroupMeta {
   key: string
@@ -49,8 +49,22 @@ export const GROUPS: readonly GroupMeta[] = [
         : labelOf('shaftCarving', p),
   },
   {
-    key: 'core',
+    key: 'decor',
     numeral: 'v.',
+    title: 'Extras',
+    tab: 'Extras',
+    summary: (p) =>
+      usesMetal(p)
+        ? labelOf('metal', p)
+        : usesPaint(p)
+          ? labelOf('paintColour', p)
+          : p.handleFinish === 'bone' || p.shaftFinish === 'bone'
+            ? 'Bone'
+            : 'None',
+  },
+  {
+    key: 'core',
+    numeral: 'vi.',
     title: 'The core',
     tab: 'Core',
     summary: (p) => coreName(p.core as string),

@@ -17,6 +17,7 @@ import { compileWand, type WandSpec } from '../wand/compile.ts'
 import styles from './CloseUpStage.module.scss'
 import { BOX_CAMERA_LEAN, FOV, RIM_INTENSITY, ShopLights } from './scene.tsx'
 import {
+  BLOOM_THRESHOLD,
   LONGEST_WAND_MM,
   STAGE_FILL,
   WAVE_TO_SPELL_SECONDS,
@@ -385,7 +386,7 @@ export function CloseUpStage({
           </Rig>
         </Suspense>
         <EffectComposer>
-          <Bloom mipmapBlur luminanceThreshold={1.4} intensity={1.1} radius={0.7} />
+          <Bloom mipmapBlur luminanceThreshold={BLOOM_THRESHOLD} intensity={1.1} radius={0.7} />
         </EffectComposer>
       </Canvas>
     </div>

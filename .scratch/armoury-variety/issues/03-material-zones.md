@@ -1,6 +1,6 @@
 # 03 - Material zones: metal, paint and bone
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 Blocked by: 01 (sequencing only: both edit the same files)
@@ -51,3 +51,54 @@ other materials.
   what stain does to them).
 
 ## Comments
+
+**2026-11-09, agent (built):** Built on branch `armoury-variety-03-material-zones`
+(chained on 01's branch); decisions in ADR 0082. Needs Ed's eye on a real GPU,
+including a few Try another rolls, before merging.
+
+- New "Decorations" group (between Shaft and Core, phone tab "Decor"): Handle
+  made of (Wood, Metal, Painted, Bone), Shaft made of (Wood, Painted, Bone),
+  Paint (six curated swatches), End cap, Ring made of, Metal bands (None to
+  Three), Spiral made of (only on a raised spiral) and Metal (Silver, Brass,
+  Gold, Dark iron). Paint and Metal only show once something uses them; End cap
+  hides on a metal handle.
+- Zones are z ranges in the spec; the mesh carries (metal, paint, bone) weights
+  per vertex and the wood shader mixes the finishes over the wood.
+- Bone is a zone material (handle and/or shaft), not a whole-wand switch; a wand
+  that is bone end to end is called bone on its tag and shelf label. Bone takes a
+  stain's darkness but not its hue (a dye on bone looked wrong).
+- Bands sit in the gaps between bumps when there are bumps; carving and raised
+  spirals stop at bands.
+- The metal raised spiral fell out cleanly: a raised groove set can be `metal`
+  and `radiusAt` reports the ridge's metal weight per vertex.
+- Bloom: metal highlight streaks bloomed in the box. The wand's surface is now
+  capped just under the bloom threshold, so only the core's glow, sparkles and
+  spell bloom. Share picture (no bloom) and shelf (no 3D) checked.
+- Try another: about 58% plain wood, about 26% with some metal (usually one
+  part), about 11% paint, 10% bone.
+- New preset "Silversmith" (silver handle, ring and raised spiral on walnut).
+
+GPU shots (headless Chromium, ANGLE Metal, Apple M3 Pro) in `shots/03/`: `r2/`
+is the final round (box, close look, spell flash at 2.6 s, share picture, shelf,
+panel, eight rolls); `r3/` is a plum-stained bone wand after the bone fix; `r1/`
+is before the bloom fix.
+
+Not done / for later:
+- The derived name still uses the stain or wood word ("The Plum Spiral" for a
+  bone wand), and the wood lore line shows on a bone wand.
+- Ed to judge bone's look (it reads as pale aged bone, not very translucent).
+
+**2026-11-09, agent (review round 1 follow-ups):**
+- Three bands between two bumps no longer lose one to float rounding (bands are
+  picked by gap index, not filtered by position); regression test at 28 cm.
+- A metal handle always has a metal ring, and "Ring made of" hides there like
+  "End cap".
+- The group is titled "Extras" (phone tab "Extras"); the code key stays `decor`.
+- A wand that is bone end to end is named and told as bone ("The Bone Spiral",
+  "Bone is old and quiet and remembers everything."); partly bone wands keep the
+  wood wording.
+- ADR 0082 corrected: the share picture is capped too (same shader, no bloom).
+  No glint for now.
+- Shots in `shots/03/r4/`: an all-bone wand's tag, a metal handle with its ring,
+  and the extras panel.
+
