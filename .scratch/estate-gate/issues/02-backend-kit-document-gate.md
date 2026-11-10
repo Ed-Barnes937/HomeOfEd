@@ -31,13 +31,18 @@ documentGate?: {
 ## Comments
 
 **2026-11-10, implementer.** Built as specified; the option shape is unchanged
-and exported as `DocumentGate` from `@hoe/backend-kit/server`. Three additions,
-all recorded in ADR 0093 decision 1:
+and exported as `DocumentGate` from `@hoe/backend-kit/server`; the hooks live in
+`packages/backend-kit/src/server/documentGate.ts`. Additions, all recorded in
+ADR 0093 decision 1:
 
-- The path is percent-decoded and dot segments collapsed before
-  classification. A raw socket sending `/shared/..%2Findex.html` or
-  `/api/../index.html` otherwise got `index.html` ungated, because static
-  normalises the path itself.
+- Ambiguous paths get `400` before anything else (dot segments in any
+  encoding, `%2F`/`%5C`, literal backslash, bad encoding, or a path not
+  starting with `/`); the rest is decoded with `decodeURI`, as static does.
+  This replaced a first-cut normaliser that review showed disagreed with
+  static (`/api/a%2Fb/../../other.html` served HTML ungated).
+- HTML is default-deny in `onSend`: a `text/html` response whose request was
+  not let through as a document or public path is gated there (`/api` exempt).
+- A throwing or invalid `redirectFor` is logged and answered a generic `500`.
 - With a gate, the SPA fallback serves `index.html` to document requests only,
   so `/missing.js` is `404` instead of an ungated app shell. Gate off: the
   fallback is unchanged.

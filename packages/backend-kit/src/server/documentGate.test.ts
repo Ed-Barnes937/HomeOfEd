@@ -1,5 +1,6 @@
 // The document gate (ADR 0093) asserts transport behaviour, so every test here
-// binds a real port and uses fetch: fastify.inject() is not the wire (README).
+// binds a real port: fastify.inject() is not the wire (README). Paths fetch
+// would rewrite before sending (dot segments, backslashes) go over a raw socket.
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import type { AddressInfo } from 'node:net'
 import net from 'node:net'
@@ -9,15 +10,20 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { fixtureContext, fixtureRouter, freshDrizzleNotesStore } from '../testSupport/fixtureApp.ts'
+import type { Logger } from '../logger.ts'
 import { NoopLogger } from '../testSupport/noopLogger.ts'
 import { buildAppServer, type CreateAppServerOpts } from './createAppServer.ts'
 
 const INDEX_HTML = '<!doctype html><title>fixture spa</title>'
 const ASSET_JS = 'console.log("fixture asset")'
+const OTHER_HTML = '<!doctype html><title>other page</title>'
+const HTM_PAGE = '<!doctype html><title>htm page</title>'
 
 async function makeStaticDir(): Promise<string> {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'hoe-backend-kit-gate-'))
   await writeFile(path.join(dir, 'index.html'), INDEX_HTML)
+  await writeFile(path.join(dir, 'other.html'), OTHER_HTML)
+  await writeFile(path.join(dir, 'page.htm'), HTM_PAGE)
   await mkdir(path.join(dir, 'assets'))
   await writeFile(path.join(dir, 'assets', 'app.js'), ASSET_JS)
   return dir
@@ -61,17 +67,70 @@ async function see(base: string, url: string, init: RequestInit = {}): Promise<S
   }
 }
 
-function rawStatus(port: number, target: string, host = 'boop.example'): Promise<number> {
+function raw(base: string, target: string, headers: Record<string, string> = {}): Promise<Seen> {
+  const lines = [`GET ${target} HTTP/1.1`, 'Connection: close']
+  if (!('host' in headers)) lines.push('Host: boop.example')
+  for (const [name, value] of Object.entries(headers)) lines.push(`${name}: ${value}`)
   return new Promise((resolve, reject) => {
-    const socket = net.connect(port, '127.0.0.1', () => {
-      socket.write(`GET ${target} HTTP/1.1\r\nHost: ${host}\r\nConnection: close\r\n\r\n`)
+    const socket = net.connect(Number(new URL(base).port), '127.0.0.1', () => {
+      socket.write(`${lines.join('\r\n')}\r\n\r\n`)
     })
-    let head = ''
-    socket.on('data', (chunk) => (head += chunk.toString()))
-    socket.on('end', () => resolve(Number(head.split(' ')[1])))
+    let response = ''
+    socket.on('data', (chunk) => (response += chunk.toString()))
     socket.on('error', reject)
+    socket.on('end', () => {
+      const [head = '', body = ''] = response.split('\r\n\r\n')
+      const [statusLine = '', ...headerLines] = head.split('\r\n')
+      const header = (name: string) =>
+        headerLines
+          .find((l) => l.toLowerCase().startsWith(`${name}:`))
+          ?.slice(name.length + 1)
+          .trim() ?? null
+      resolve({
+        status: Number(statusLine.split(' ')[1]),
+        contentType: header('content-type'),
+        cacheControl: header('cache-control'),
+        location: header('location'),
+        body,
+      })
+    })
   })
 }
+
+class RecordingLogger implements Logger {
+  readonly errors: { message: string; fields?: Record<string, unknown> }[] = []
+  debug(): void {}
+  info(): void {}
+  warn(): void {}
+  error(message: string, fields?: Record<string, unknown>): void {
+    this.errors.push({ message, fields })
+  }
+  child(): Logger {
+    return this
+  }
+}
+
+// Each would reach a file or the SPA by a path two parsers can read differently.
+const AMBIGUOUS_PATHS = [
+  '/x.js%2Fy/..',
+  '/index.html/x.js%2Fy/..',
+  '/api/a%2Fb/../..',
+  '/api/x.js%2Fy/../../index.html',
+  '/health/a%2Fb/../..',
+  '/api/a%2Fb/../../other.html',
+  '/shared/a%2Fb/../../other.html',
+  '/shared/..%2Findex.html',
+  '/shared/../index.html',
+  '/./index.html',
+  '/a/%2E%2e/index.html',
+  '/a/.%2E/other.html',
+  '/a/%2e/other.html',
+  '/a%2fb',
+  '/a%5Cb',
+  '/a%5cb',
+  '/a\\b',
+  '/%E0%A4%A',
+]
 
 describe('createAppServer without a documentGate', () => {
   it('serves every path exactly as before the gate existed', async () => {
@@ -116,6 +175,158 @@ describe('createAppServer without a documentGate', () => {
       body: '{"error":"Not Found"}',
     })
   })
+
+  it('answers ambiguous paths and other HTML files exactly as before the gate existed', async () => {
+    const base = await serve()
+    const seen: Record<string, Seen> = {}
+    for (const target of [...AMBIGUOUS_PATHS, '/other.html', '/page.htm']) {
+      seen[target] = await raw(base, target)
+    }
+    expect(seen).toMatchInlineSnapshot(`
+      {
+        "/%E0%A4%A": {
+          "body": "{"error":"Bad Request","code":"FST_ERR_BAD_URL","message":"'/%E0%A4%A' is not a valid url component","statusCode":400}",
+          "cacheControl": null,
+          "contentType": "application/json",
+          "location": null,
+          "status": 400,
+        },
+        "/./index.html": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/a%2fb": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/a%5Cb": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/a%5cb": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/a/%2E%2e/index.html": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/a/%2e/other.html": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/a/.%2E/other.html": {
+          "body": "<!doctype html><title>other page</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/a\\b": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/api/a%2Fb/../..": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/api/a%2Fb/../../other.html": {
+          "body": "<!doctype html><title>other page</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/api/x.js%2Fy/../../index.html": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/health/a%2Fb/../..": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/index.html/x.js%2Fy/..": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/other.html": {
+          "body": "<!doctype html><title>other page</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/page.htm": {
+          "body": "<!doctype html><title>htm page</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/shared/..%2Findex.html": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/shared/../index.html": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/shared/a%2Fb/../../other.html": {
+          "body": "<!doctype html><title>other page</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+        "/x.js%2Fy/..": {
+          "body": "<!doctype html><title>fixture spa</title>",
+          "cacheControl": "public, max-age=0",
+          "contentType": "text/html; charset=utf-8",
+          "location": null,
+          "status": 200,
+        },
+      }
+    `)
+  })
 })
 
 const ACCOUNT = 'https://homeofed.com/account'
@@ -155,7 +366,7 @@ describe('createAppServer with a documentGate', () => {
     const { gate, asked } = fakeGate()
     const base = await serve({ documentGate: gate })
 
-    await rawStatus(Number(new URL(base).port), '/deep?a=1', 'localhost:5181')
+    await raw(base, '/deep?a=1', { host: 'localhost:5181' })
     await see(base, '/', { headers: { cookie: 'a=1; hoe_family=good' } })
 
     expect(asked).toEqual([
@@ -248,24 +459,101 @@ describe('createAppServer with a documentGate', () => {
     }
   })
 
-  it('classifies the path static will resolve, so dot segments cannot slip past', async () => {
+  it('refuses 400 any path with a dot segment, an encoded or literal slash-like character, or bad encoding, signed in or not', async () => {
+    const { gate, asked } = fakeGate(['/shared'])
+    const base = await serve({ documentGate: gate })
+
+    for (const target of AMBIGUOUS_PATHS) {
+      for (const headers of [{}, SIGNED_IN]) {
+        const seen = await raw(base, target, headers)
+        expect({
+          target,
+          status: seen.status,
+          json: seen.contentType?.startsWith('application/json'),
+        }).toEqual({
+          target,
+          status: 400,
+          json: true,
+        })
+      }
+    }
+    expect(asked).toEqual([])
+  })
+
+  it('refuses /shared/..%2Findex.html too: an encoded slash is ambiguous even under a public path', async () => {
     const { gate } = fakeGate(['/shared'])
     const base = await serve({ documentGate: gate })
-    const { port } = new URL(base)
 
-    // fetch normalises dot segments before sending, so these go over a raw socket.
-    for (const target of [
-      '/shared/../index.html',
-      '/shared/..%2Findex.html',
-      '/shared/%2e%2e/index.html',
-      '/api/../index.html',
-      '/assets/../index.html',
-    ]) {
-      expect({ target, status: await rawStatus(Number(port), target) }).toEqual({
-        target,
-        status: 302,
+    expect((await raw(base, '/shared/..%2Findex.html')).status).toBe(400)
+    expect((await raw(base, '/shared/deep')).status).toBe(200)
+  })
+
+  it('keeps an allowed document uncacheable on a 304 revalidation', async () => {
+    const { gate } = fakeGate()
+    const base = await serve({ documentGate: gate })
+    const first = await fetch(`${base}/`, { headers: SIGNED_IN })
+    const etag = first.headers.get('etag')
+    const lastModified = first.headers.get('last-modified')
+    expect(etag).not.toBeNull()
+    expect(lastModified).not.toBeNull()
+
+    const conditionals: Record<string, string>[] = [
+      { 'if-none-match': etag! },
+      { 'if-modified-since': lastModified! },
+    ]
+    for (const conditional of conditionals) {
+      const seen = await raw(base, '/', { ...SIGNED_IN, ...conditional })
+      expect({ status: seen.status, cacheControl: seen.cacheControl }).toEqual({
+        status: 304,
+        cacheControl: 'no-store',
       })
     }
+  })
+
+  it('lets no HTML out unless its request was classified a document or public path', async () => {
+    const { gate, asked } = fakeGate()
+    const base = await serve({
+      documentGate: gate,
+      registerRoutes: (app) => {
+        app.get('/api/page', (_req, reply) => reply.type('text/html').send('<p>app-owned</p>'))
+      },
+    })
+
+    // `.htm` is not a document by extension, but static serves it as text/html.
+    const signedOut = await raw(base, '/page.htm')
+    expect(signedOut).toMatchObject({ status: 302, cacheControl: 'no-store', body: '' })
+    expect(signedOut.location).toContain(encodeURIComponent('/page.htm'))
+
+    const signedIn = await raw(base, '/page.htm', SIGNED_IN)
+    expect(signedIn).toMatchObject({ status: 200, cacheControl: 'no-store', body: HTM_PAGE })
+
+    expect(await raw(base, '/api/page')).toMatchObject({ status: 200, body: '<p>app-owned</p>' })
+    expect(asked.map((a) => a.url)).toEqual(['/page.htm', '/page.htm'])
+  })
+
+  it.each([
+    [
+      'throws',
+      () => {
+        throw new Error('secret detail')
+      },
+    ],
+    ['returns an empty string', () => ''],
+    ['returns a relative URL', () => '/account'],
+  ])('answers a generic 500 and logs when redirectFor %s', async (_name, redirectFor) => {
+    const logger = new RecordingLogger()
+    const base = await serve({ logger, documentGate: { publicPaths: [], redirectFor } })
+
+    const seen = await raw(base, '/')
+
+    expect(seen).toMatchObject({
+      status: 500,
+      cacheControl: 'no-store',
+      location: null,
+      body: '{"error":"Internal Server Error"}',
+    })
+    expect(logger.errors).toHaveLength(1)
+    expect(logger.errors[0]?.message).toBe('document gate failed')
   })
 
   it('answers a missing asset 404 instead of an ungated index.html', async () => {

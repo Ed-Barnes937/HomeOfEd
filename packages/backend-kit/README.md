@@ -296,7 +296,8 @@ the DI seam. (First consumer: `apps/sprout` — the SSE chat route + Better Auth
 
 Optional. When set, every **document request** must pass `redirectFor` before
 `@fastify/static` or the SPA fallback sees it. Omitted, the pipeline is
-unchanged (pinned by `src/server/documentGate.test.ts`).
+unchanged (pinned by `src/server/documentGate.test.ts`). The hooks live in
+`src/server/documentGate.ts`.
 
 ```ts
 documentGate?: {
@@ -307,10 +308,18 @@ documentGate?: {
 ```
 
 - A document request is GET/HEAD, not `/api` or under it, not `/health`, and
-  its path has no extension other than `.html`. The path is decoded and its dot
-  segments collapsed first, so `/shared/..%2Findex.html` is `/index.html`.
+  its path has no extension other than `.html`. The path is decoded as
+  `@fastify/static` decodes it (`decodeURI`), never normalised.
+- Ambiguous paths are refused `400` before anything else: a dot segment in any
+  encoding, `%2F`/`%5C` in either case, a literal backslash, bad encoding, or
+  a path not starting with `/`. Browsers never send these.
 - A refusal is `302` with `Location` and `Cache-Control: no-store`. An allowed
-  gated document is also served `no-store`.
+  gated document is also served `no-store`, `304`s included.
+- HTML is default-deny: a `text/html` response the gate did not let through
+  as a document or public path (a `.htm` file, say) is gated in `onSend`.
+  Routes under `/api` are untouched.
+- If `redirectFor` throws or returns a non-absolute URL, the request is logged
+  and answered a generic `500`.
 - With a gate, the SPA fallback serves `index.html` only to document requests:
   a missing asset such as `/missing.js` is `404`, not an ungated app shell.
 - `publicPaths`: `/shared` matches `/shared` and `/shared/...`, not

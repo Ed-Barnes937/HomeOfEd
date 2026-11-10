@@ -51,13 +51,26 @@ and a signed-out page's own assets keep working. The gate runs in an
 `onRequest` hook, ahead of `@fastify/static`, because static serves `/` and
 `/index.html` itself and the SPA fallback never sees them.
 
-Three details the spec left implicit, settled while building it:
+Details the spec left implicit, settled while building it:
 
-- **The path is classified as static will resolve it.** It is percent-decoded
-  and its dot segments collapsed first. Without that, `/shared/..%2Findex.html`
-  matched the public `/shared` prefix and static served `index.html` ungated.
-  A browser never sends such a path, but a raw socket does, and the test that
-  pins it uses one.
+- **Ambiguous paths are refused, not interpreted.** The gate classifies a path
+  and `@fastify/static` resolves it, and two parsers reading one path will
+  eventually disagree. The first cut collapsed dot segments with a
+  `decodeURIComponent`, while static uses `decodeURI` and treats `a%2Fb` as one
+  segment, so `/api/a%2Fb/../../other.html` looked like `/api` to the gate and
+  served `other.html` to anyone. Patching that normaliser would only move the
+  disagreement. So with a gate on, any request whose path (before `?`) holds
+  a dot segment in any encoding, an encoded slash or backslash, a literal
+  backslash, anything `decodeURI` rejects, or does not start with `/` is
+  answered `400` before anything else runs. Browsers never send these. What is
+  left is decoded exactly as static decodes it (`decodeURI`) and needs no
+  normalising.
+- **HTML is default-deny.** The gate records its verdict on each request, and
+  an `onSend` hook lets a `text/html` response out only for a request it let
+  through as a document or public path. Any other HTML, such as a `.htm` file
+  static serves as `text/html`, is put through the gate at that point and
+  refused the same way. This is what catches the next parser mismatch nobody
+  has found yet. App-owned routes under `/api` are untouched.
 - **With a gate on, the SPA fallback serves `index.html` to document requests
   only.** Otherwise any missing file, `/missing.js`, came back as the app shell
   without passing the gate. A missing asset is now `404`, which is also the
@@ -65,12 +78,15 @@ Three details the spec left implicit, settled while building it:
 - **Public paths match whole segments.** `/shared` matches `/shared` and
   `/shared/...` but not `/sharedx`; a prefix written with a trailing slash,
   like fridge's `/b/`, matches as written.
+- **A broken gate fails closed and quietly.** If `redirectFor` throws, or
+  returns an empty or non-absolute URL, the request is logged and answered a
+  generic `500` with `no-store`; the thrown message never reaches the client.
 
 A refusal is `302` with `Location` and `Cache-Control: no-store`. A gated
-document that is let through is also `no-store` (set in `onSend`, because
-static writes its own `Cache-Control` later), so no cache between the visitor
-and the app can hand a signed-in response to the next visitor, or a redirect
-to a signed-in one.
+document that is let through is also `no-store`, including a `304`
+revalidation (set in `onSend`, because static writes its own `Cache-Control`
+later), so no cache between the visitor and the app can hand a signed-in
+response to the next visitor, or a redirect to a signed-in one.
 
 **2. The gate is on exactly when `FAMILY_ACCOUNT_URL` is set.** Each app's
 server entrypoint passes `documentGate` only when the variable exists.
@@ -127,7 +143,12 @@ Post-deploy smoke fetches `/` and greps for an asset, which a gated app answers
 with a `302`; the smoke has to change before any app sets
 `FAMILY_ACCOUNT_URL` (estate-gate ticket 03).
 
+Two things to watch. An extensionless file such as `/.well-known/<name>` is a
+document by this rule and would be gated. And sprout's server-rendered
+`/terms` and `/privacy` would be gated if sprout, exempt today, ever set
+`FAMILY_ACCOUNT_URL`.
+
 The tests bind a real port. The request envelope is the subject here, and
 `fastify.inject()` has twice disagreed with the wire in this repo; the
-dot-segment finding above was found by sending raw request lines, which
+ambiguous-path findings above came from sending raw request lines, which
 neither `inject` nor `fetch` can express.
