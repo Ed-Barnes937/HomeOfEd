@@ -96,7 +96,8 @@ parallel branches will grep the same number and collide on merge (this is how
 | `silt` | 3009 | 3109 | 8089 |
 | `orbi` (claimed on its in-flight branch) | 3010 | 3110 | 8090 |
 | `armoury` | 3011 | 3111 | 8091 |
-| **next free** | **3012** | **3112** | **8092** |
+| `family` | 3012 | 3112 | 8092 |
+| **next free** | **3013** | **3113** | **8093** |
 
 > **⚠ Check unmerged branches too.** A port is "taken" the moment another
 > in-flight branch claims it, not just when it reaches `main`. Before taking the
@@ -373,7 +374,11 @@ Or manually (full commands in the runbook):
 ```bash
 fly apps create <flyapp>
 # database-backed only:
-fly postgres attach hoe-pg --app <flyapp> --database-name <name>
+fly postgres attach hoe-pg --app <flyapp> --database-name <name> \
+  --database-user <flyapp_with_underscores> --superuser=false
+# then, in `fly postgres connect -a hoe-pg`, before the first deploy (ADR 0086):
+#   ALTER DATABASE <name> OWNER TO <flyapp_with_underscores>;
+#   REVOKE CONNECT ON DATABASE <name> FROM PUBLIC;
 ```
 
 - **Cloudflare:** proxied CNAME `<name> → <flyapp>.fly.dev`, SSL/TLS **Full

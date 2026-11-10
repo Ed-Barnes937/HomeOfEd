@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { hubUrl } from '../../hubUrl.ts'
 import { isUnsaved, type LoadedBoop } from '../../savedState.ts'
 import { useShareBoop } from '../../share/useShareBoop.ts'
+import { SyncedChip } from '../../sync/SyncedChip.tsx'
 import { CLEAR_GRID_CONFIRM } from '../confirm/clearGridConfirm.ts'
 import { ConfirmCard } from '../confirm/ConfirmCard.tsx'
 import styles from './PhoneBar.module.scss'
@@ -34,6 +35,12 @@ export interface PhoneBarProps {
   onOpenHints: () => void
   /** The saved boop this grid came from, or `null` (ticket 31) — drives the save icon's dot. */
   loaded: LoadedBoop | null
+  /**
+   * The profile the boops are kept for, or `null` when nothing is linked
+   * (ADR 0080). The 52px strip is full, so the phone's chip is a menu entry -
+   * the menu being where every action the phone chrome drops already lives.
+   */
+  syncedAs?: string | null
 }
 
 const BackArrowIcon = () => (
@@ -84,6 +91,7 @@ export function PhoneBar({
   onOpenMyBoops,
   onOpenHints,
   loaded,
+  syncedAs = null,
 }: PhoneBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmingClear, setConfirmingClear] = useState(false)
@@ -177,6 +185,7 @@ export function PhoneBar({
           >
             How boop works
           </button>
+          {syncedAs !== null && <SyncedChip name={syncedAs} className={styles.item} />}
           <button
             type="button"
             className={`${styles.item} ${styles.danger}`}

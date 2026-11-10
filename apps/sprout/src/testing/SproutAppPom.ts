@@ -18,8 +18,8 @@ export class SproutAppPom extends BasePage {
     }, path)
   }
 
-  async expectText(text: string, timeout = 10_000): Promise<void> {
-    await expect(this.page.getByText(text).first()).toBeVisible({ timeout })
+  async expectText(text: string): Promise<void> {
+    await expect(this.page.getByText(text).first()).toBeVisible()
   }
 
   async expectNotText(text: string): Promise<void> {
@@ -49,22 +49,20 @@ export class SproutAppPom extends BasePage {
   async verifyButtonEnabled(name: string, enabled: boolean): Promise<void> {
     const button = this.page.getByRole('button', { name })
     if (enabled) {
-      await expect(button).toBeEnabled({ timeout: 10_000 })
+      await expect(button).toBeEnabled()
     } else {
-      await expect(button).toBeDisabled({ timeout: 10_000 })
+      await expect(button).toBeDisabled()
     }
   }
 
   // --- parent dashboard ---
 
   async verifyDashboardShown(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Parent Dashboard' })).toBeVisible({
-      timeout: 10_000,
-    })
+    await expect(this.page.getByRole('heading', { name: 'Parent Dashboard' })).toBeVisible()
   }
 
   async verifyChildTab(name: string): Promise<void> {
-    await expect(this.page.getByRole('tab', { name })).toBeVisible({ timeout: 10_000 })
+    await expect(this.page.getByRole('tab', { name })).toBeVisible()
   }
 
   async selectChildTab(name: string): Promise<void> {
@@ -72,15 +70,13 @@ export class SproutAppPom extends BasePage {
   }
 
   async verifyTabSelected(name: string): Promise<void> {
-    await expect(this.page.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true', {
-      timeout: 10_000,
-    })
+    await expect(this.page.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true')
   }
 
   // --- flags ---
 
   async verifyFlagCount(n: number): Promise<void> {
-    await expect(this.page.getByTestId('flag-item')).toHaveCount(n, { timeout: 10_000 })
+    await expect(this.page.getByTestId('flag-item')).toHaveCount(n)
   }
 
   async markFirstFlagReviewed(): Promise<void> {
@@ -88,9 +84,7 @@ export class SproutAppPom extends BasePage {
   }
 
   async verifyReviewedCount(n: number): Promise<void> {
-    await expect(this.page.getByRole('button', { name: 'Reviewed', exact: true })).toHaveCount(n, {
-      timeout: 10_000,
-    })
+    await expect(this.page.getByRole('button', { name: 'Reviewed', exact: true })).toHaveCount(n)
   }
 
   async filterFlagsByChild(displayName: string): Promise<void> {
@@ -100,7 +94,7 @@ export class SproutAppPom extends BasePage {
   /** Every seeded topic renders as its own badge — never raw JSON. */
   async verifyFlagTopics(topics: string[]): Promise<void> {
     const badges = this.page.getByTestId('flag-topic')
-    await expect(badges).toHaveCount(topics.length, { timeout: 10_000 })
+    await expect(badges).toHaveCount(topics.length)
     for (const topic of topics) {
       // Exact match: a badge leaking raw JSON ('["space"]') must not pass as 'space'.
       await expect(badges.filter({ hasText: new RegExp(`^${topic}$`) })).toHaveCount(1)

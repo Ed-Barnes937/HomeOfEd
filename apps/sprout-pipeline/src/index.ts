@@ -25,6 +25,7 @@ import { canonicaliseForScan } from './canonicalise.ts'
 import { anchorSafetyContext } from './context-anchoring.ts'
 import { checkCrescendo } from './crescendo.ts'
 import { checkConversationDepth } from './depth-tracking.ts'
+import { resolvePipelineApiKey } from './env.ts'
 import { createFlagEvent, getFallbackResponse, type FlagEvent } from './flag-and-forward.ts'
 import { classifyLexical } from './lexical-classifier.ts'
 import { voteOutputOpinions } from './opinion-vote.ts'
@@ -45,17 +46,6 @@ export interface OrchestratorDeps {
 // Upper bound on a single child message. Generous for genuine chat, but caps
 // the cost of the synchronous blocklist scan on attacker-controlled input.
 const MAX_MESSAGE_LENGTH = 4000
-
-const resolvePipelineApiKey = (): string => {
-  const key = process.env.PIPELINE_API_KEY
-  if (key) return key
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'PIPELINE_API_KEY must be set in production. Refusing to start with an insecure default.',
-    )
-  }
-  return 'dev-pipeline-key'
-}
 
 // --- SSE frame sink ------------------------------------------------------
 // Frames are `data: <payload>\n\n`, exactly what the sprout side parses in

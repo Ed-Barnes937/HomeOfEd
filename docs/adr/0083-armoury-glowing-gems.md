@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-11-09
 - **Related:** [ADR 0082](0082-armoury-material-zones.md) (metal, the bloom cap),
-  [ADR 0081](0081-armoury-raised-features.md) (raised spirals, weighted choices, the
+  [ADR 0090](0090-armoury-raised-features.md) (raised spirals, weighted choices, the
   envelope), [ADR 0074](0074-armoury-save-format.md) (new params default so old saves
   open), `.scratch/armoury-variety/` ticket 04.
 
