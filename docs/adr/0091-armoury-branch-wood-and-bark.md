@@ -1,10 +1,10 @@
-# 0086 - armoury branch wood: a matte raw-wood finish, and bark
+# 0091 - armoury branch wood: a matte raw-wood finish, and bark
 
 - **Status:** Proposed
 - **Date:** 2026-11-09
 - **Related:** [ADR 0084](0084-armoury-branch-wands.md) (branch wands; this replaces
   its "a stained Branch is matte" bullet), [ADR 0082](0082-armoury-material-zones.md)
-  (zones, the wood shader), [ADR 0081](0081-armoury-raised-features.md) (the envelope,
+  (zones, the wood shader), [ADR 0090](0090-armoury-raised-features.md) (the envelope,
   weighted choices), [ADR 0074](0074-armoury-save-format.md) (new params default so old
   saves open), `.scratch/armoury-variety/` ticket 07.
 
@@ -59,7 +59,7 @@ Branches also wanted bark, which Ed asked for as a None / Patches / Full choice.
 - **What bark is**: up to 8.5% of the local radius proud, cut by furrows (noise
   isolines stretched along the wand and drifting sideways, so they meet and part)
   down to 15% of that. Furrows are shaded darker. Kept off knot bosses, it stays
-  inside the ADR 0081 envelope: lumps 7%, a knot's skirt about 4%, bark 8.5%.
+  inside the ADR 0090 envelope: lumps 7%, a knot's skirt about 4%, bark 8.5%.
 - **What bark looks like**: a darker colour per wood (`bark` in `WOODS`), mottled,
   with stringy streaks along the grain and lenticels, short pale dashes across it;
   roughness 0.93; its own bump.
