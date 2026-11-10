@@ -129,7 +129,8 @@ already has the server half; keep it:
   both modes.
 - `fly.toml` sets `FAMILY_ACCOUNT_URL = 'https://homeofed.com/account'` under
   `[env]`.
-- `Dockerfile` ships `@hoe/accounts` and `@hoe/deploy-guard`, as
+- `Dockerfile` ships `@hoe/accounts` and `@hoe/deploy-guard` and deletes
+  `packages/accounts/src/testing`, as
   [`packages/accounts/README.md`](../../packages/accounts/README.md#wiring-the-gate-in-an-app)
   describes.
 
@@ -155,7 +156,8 @@ What you add:
    against `compose.yml`: that service publishes exactly one port,
    `'<composePort>:8080'`, and its `FAMILY_TOKEN_PUBLIC_KEY` is a single-quoted
    one-line PEM matching the key compose's `family` signs with. Run
-   `corepack pnpm --filter @hoe/accounts run test`.
+   `corepack pnpm --filter @hoe/accounts run test`. That variable is for the
+   docker stack only: never set it on Fly, where its presence refuses the boot.
 3. **Share links**, only if the app has them: fragment share links live at
    `/shared`, and `main.ts` declares `publicPaths: ['/shared']`. The shared
    view writes nothing to `localStorage` or the SaveStore (ADR 0093 decision
@@ -165,9 +167,11 @@ What you add:
 production verifying key is committed as `PRODUCTION_FAMILY_PUBLIC_KEY` in
 `packages/accounts/src/familyVerifyingKey.ts` (see "Committing the production
 key" in the accounts README); the deploy then fails its health checks and
-`go-live.sh` fails its verify step. While that constant is still `null`,
-remove the `FAMILY_ACCOUNT_URL` line from the app's `fly.toml`; putting it
-back later is the one-line switch-on.
+`go-live.sh` fails its verify step. On Fly that constant is the only key
+(see "The verifying key" in the accounts README), so rotating it is a code
+change and a redeploy, never a Fly variable. While it is still `null`, remove
+the `FAMILY_ACCOUNT_URL` line from the app's `fly.toml`; putting it back later
+is the one-line switch-on.
 
 To see the gate locally: `docker compose up --build family hub <name>`, then
 open `http://localhost:<composePort>/` and you land on hub's sign-in.

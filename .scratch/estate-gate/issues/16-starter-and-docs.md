@@ -39,7 +39,12 @@ A new app copied from `templates/starter` should arrive gated.
     on a real port: ungated without `FAMILY_ACCOUNT_URL`, `302` with it, and a
     valid family cookie passes. Copied apps inherit it. The built image was
     also run by hand: `200` ungated, `302` gated, and on Fly (`FLY_APP_NAME`)
-    it refuses to boot with the test key or with no key.
+    it refuses to boot with `FAMILY_TOKEN_PUBLIC_KEY` set or with no committed
+    key.
+  - Re-merged 19 at 3dc03b7: the starter image now deletes
+    `packages/accounts/src/testing`, and the how-to says
+    `FAMILY_TOKEN_PUBLIC_KEY` is docker-stack only and that the committed
+    constant is the only key on Fly (rotation is a code change and redeploy).
   - The how-to's compose row named a `starter` compose service that does not
     exist; it now says to copy boop's. It also tells the reader to drop the
     `FAMILY_ACCOUNT_URL` line while `PRODUCTION_FAMILY_PUBLIC_KEY` is `null`.

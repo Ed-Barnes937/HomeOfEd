@@ -57,10 +57,10 @@ COPY --from=pruner /app/out/full/templates/starter/src ./templates/starter/src
 COPY --from=builder /app/templates/starter/dist ./templates/starter/dist
 # The app's own test sources aren't runtime code. typescript is a lockfile
 # stowaway (@trpc/server declares it as a types-only peer). The dev-only
-# workspace stubs (test-kit/config package.json) go too. @hoe/accounts/src/testing
-# stays: the gate's Fly guard compares the verifying key against it.
+# workspace stubs (test-kit/config package.json) go too, and so does
+# @hoe/accounts' committed test keypair, which nothing at runtime imports.
 RUN rm -rf templates/starter/src/testing templates/starter/src/greeting.iwft.tsx \
-  packages/test-kit packages/config \
+  packages/test-kit packages/config packages/accounts/src/testing \
   node_modules/.pnpm/typescript@*
 USER node
 EXPOSE 8080
