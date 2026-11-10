@@ -31,7 +31,7 @@ export class SceneStorageError extends Error {
 
 export const INDEX_KEY = 'silt:scenes'
 const BLOB_PREFIX = 'silt:scene:'
-const THUMB_PREFIX = 'silt:thumb:'
+export const THUMB_PREFIX = 'silt:thumb:'
 
 export function blobKey(id: string): string {
   return `${BLOB_PREFIX}${id}`

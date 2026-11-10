@@ -8,6 +8,7 @@
 //   node scripts/docker-stack-gate-round-trip.mjs                       # boop
 //   node scripts/docker-stack-gate-round-trip.mjs http://localhost:8091 # another app
 //   FRAGMENT='#w=%7B%7D' node scripts/docker-stack-gate-round-trip.mjs ...
+//   node scripts/docker-stack-gate-round-trip.mjs http://localhost:8089 --no-shared # no /shared (silt)
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
@@ -27,7 +28,7 @@ function check(condition, message) {
   console.log(`  ok - ${message}`);
 }
 
-async function roundTrip(browser, app, fragment) {
+async function roundTrip(browser, app, fragment, state) {
   const context = await browser.newContext();
   const arrivals = [];
   await context.exposeBinding("__recordArrival", (_source, href) =>
@@ -64,6 +65,10 @@ async function roundTrip(browser, app, fragment) {
     arrivals.at(-1) === `${deep}${fragment}`,
     `after the pick the app first loads on ${deep}${fragment}, byte for byte`,
   );
+  state.bundle = await page
+    .locator('script[type="module"][src^="/assets/"]')
+    .first()
+    .getAttribute("src");
   await context.close();
 }
 
@@ -98,13 +103,18 @@ async function sharedView(browser, app, fragment) {
   await context.close();
 }
 
-async function ungated(browser, app) {
+async function ungated(browser, app, _fragment, state) {
   const context = await browser.newContext();
   const get = (path) =>
     context.request.get(`${app}${path}`, { maxRedirects: 0 });
   check((await get("/")).status() === 302, "/ is gated");
-  const shell = await (await get("/shared")).text();
-  const asset = shell.match(/src="(\/assets\/[^"]+)"/)?.[1];
+  let asset = state.bundle;
+  if (state.shared) {
+    const shell = await (await get("/shared")).text();
+    asset = shell.match(/src="(\/assets\/[^"]+)"/)?.[1];
+  } else {
+    check((await get("/shared")).status() === 302, "/shared is gated too");
+  }
   const assetResponse = asset ? await get(asset) : null;
   check(
     assetResponse?.status() === 200 &&
@@ -117,7 +127,9 @@ async function ungated(browser, app) {
 }
 
 async function main() {
-  const app = process.argv[2] ?? STACK.boop;
+  const args = process.argv.slice(2);
+  const shared = !args.includes("--no-shared");
+  const app = args.find((arg) => !arg.startsWith("--")) ?? STACK.boop;
   const fragment = process.env.FRAGMENT ?? DEFAULT_FRAGMENT;
   let failures = 0;
   for (const engine of [chromium, webkit]) {
@@ -125,9 +137,13 @@ async function main() {
     console.log(
       `${engine.name()} ${browser.version()} against ${app}, fragment ${fragment}`,
     );
-    for (const step of [roundTrip, sharedView, ungated]) {
+    const state = { shared, bundle: null };
+    const steps = shared
+      ? [roundTrip, sharedView, ungated]
+      : [roundTrip, ungated];
+    for (const step of steps) {
       try {
-        await step(browser, app, fragment);
+        await step(browser, app, fragment, state);
       } catch (error) {
         failures++;
         console.error(`  FAILED (${step.name}): ${error.message}`);

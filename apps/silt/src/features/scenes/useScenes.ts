@@ -10,6 +10,8 @@ export interface UseScenesOptions {
   loadScene: (json: string) => string[]
   /** Called after a successful load. Loads enter paused (spec §8). */
   onLoaded: () => void
+  /** The player's storage, read once; `null` where the browser refuses local storage. */
+  storage: SceneStorage | null
 }
 
 export interface ScenesController {
@@ -24,15 +26,6 @@ export interface ScenesController {
   delete: (id: string) => void
   /** The world on screen is nobody's scene any more — the next save creates one. */
   clearCurrentScene: () => void
-}
-
-/** Private browsing modes can make even *touching* localStorage throw. */
-function openStorage(): SceneStorage | null {
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
 }
 
 const NO_STORAGE = 'this browser is not allowing local storage'
@@ -74,9 +67,8 @@ export function useScenes(options: UseScenesOptions): ScenesController {
   })
 
   const storeRef = useRef<SceneStore | null>(null)
-  if (storeRef.current === null) {
-    const storage = openStorage()
-    if (storage) storeRef.current = new SceneStore(storage)
+  if (storeRef.current === null && options.storage) {
+    storeRef.current = new SceneStore(options.storage)
   }
 
   const [scenes, setScenes] = useState<readonly SceneRow[]>([])

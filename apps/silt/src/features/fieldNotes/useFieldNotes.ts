@@ -49,27 +49,17 @@ export interface FieldNotesController extends FieldNotesView {
 }
 
 export interface UseFieldNotesOptions {
-  /** Defaults to `localStorage`, falling back to memory where it is refused. */
-  storage?: FieldNotesStorage
-}
-
-/** Private browsing modes can make even *touching* localStorage throw. */
-function openStorage(): FieldNotesStorage {
-  try {
-    return window.localStorage
-  } catch {
-    // A session's discoveries still work; they just do not outlive it. Nothing
-    // here is worth taking the page down for.
-    return createMemoryStorage()
-  }
+  /** The player's storage, read once; `null` where the browser refuses local storage. */
+  storage: FieldNotesStorage | null
 }
 
 /** The page's field notes. */
-export function useFieldNotes(options: UseFieldNotesOptions = {}): FieldNotesController {
+export function useFieldNotes(options: UseFieldNotesOptions): FieldNotesController {
   // Created before the first render and never replaced, so the storage option
   // is read once - as `useScenes` does with its own store.
   const storeRef = useRef<FieldNotesStore | null>(null)
-  storeRef.current ??= new FieldNotesStore(options.storage ?? openStorage())
+  // Without storage a session's discoveries still work; they just do not outlive it.
+  storeRef.current ??= new FieldNotesStore(options.storage ?? createMemoryStorage())
   const store = storeRef.current
 
   const [progress, setProgress] = useState(() => store.progress)

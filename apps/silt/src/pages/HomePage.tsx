@@ -1,5 +1,7 @@
+import type { StorageLike } from '@hoe/accounts'
 import { useMemo, useRef, useState } from 'react'
 
+import { SwitchPlayerLink } from '../features/family/SwitchPlayerLink.tsx'
 import { FieldNotesButton } from '../features/fieldNotes/FieldNotesButton.tsx'
 import { FieldNotesPanel } from '../features/fieldNotes/FieldNotesPanel.tsx'
 import { MomentCard } from '../features/fieldNotes/MomentCard.tsx'
@@ -47,7 +49,12 @@ function markHintSeen(): void {
   }
 }
 
-export function HomePage() {
+interface HomePageProps {
+  /** The player's scenes and field notes; `null` where the browser refuses local storage. */
+  storage: StorageLike | null
+}
+
+export function HomePage({ storage }: HomePageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [running, setRunning] = useState(false)
   const [selectedElement, setSelectedElement] = useState<number>(SAND)
@@ -70,7 +77,7 @@ export function HomePage() {
   // Field notes' progression: the rail reads it for the elements the player has
   // mastered and so earned back into it, and the header chip and panel read it
   // for everything else (spec §6).
-  const fieldNotes = useFieldNotes()
+  const fieldNotes = useFieldNotes({ storage })
 
   // The cards over the world, derived from field notes rather than from the
   // sim's report: the chip, the panel and the card are three readings of one
@@ -125,6 +132,7 @@ export function HomePage() {
   )
 
   const scenes = useScenes({
+    storage,
     // Progression belongs to the scene (ticket 28): a save snapshots the
     // working field notes into the envelope, and a load replaces them with the
     // scene's own - empty for a scene saved before snapshots existed. The
@@ -234,6 +242,7 @@ export function HomePage() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <span className={styles.title}>SILT</span>
+          <SwitchPlayerLink className={styles.player} />
           <span className={styles.sceneName} data-testid="scene-name">
             {scenes.currentName ?? 'untitled'}
           </span>

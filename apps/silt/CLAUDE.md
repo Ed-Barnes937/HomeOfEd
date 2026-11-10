@@ -32,17 +32,21 @@ src/
     handlers/       Handler classes — business logic, AppContext only, no Store
     router.ts       tRPC router; createTRPC<void>() (no Store); exports AppRouter
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
-    main.ts         prod entrypoint: createAppServer + shallow /health
+    main.ts         prod entrypoint: createAppServer + shallow /health + the
+                    estate gate (ADR 0093, no public paths; main.test.ts)
     headers.ts      COOP/COEP on every response — cross-origin isolation for
                     the sim worker (ADR 0036); dev and CT serve the same pair
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
-  pages/            HomePage — the rail, header, status bar, selection state
+  pages/            PlayerView — the player's storage and the player-change
+                    reload; HomePage — the rail, header, status bar, selection state
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches),
                     useMobileLayout (the $mobile breakpoint in JS - for the
                     handful of *numbers* a media query cannot hand a component;
                     CSS is still the default answer)
-  features/         palette/ (the base paintable roster + brush widths, and
+  features/         family/  (the session read once in App, PROFILE_KEYS, the
+                              header's switch-player link - see "Per-profile saves")
+                    palette/ (the base paintable roster + brush widths, and
                               EarnedElements - the rail's one EARNED control,
                               where mastered unlockables live so the 1-9 hotkeys
                               and the rail's length never move; earnedAnchor -
@@ -111,7 +115,7 @@ src/
   testing/          IwftApp harness (in-browser backend) + iwft fixture + SiltPagePom
   *.iwft.tsx        whole-frontend tests: render (paint/canvas), blit (WebGL↔2D
                     pixel parity + the env-gated blit bench), chrome, scenes,
-                    spawners, mobile
+                    spawners, mobile, profiles + playerChange (per-profile saves)
 vite.config.ts      react + simulatorPlugin (dev simulator mode) + COOP/COEP
 playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109, crossOriginIsolated: true })
 ```
@@ -434,6 +438,32 @@ Spec §8; the calls the spec leaves open are in
     means only the stalk tip and the buried seed can take it; give each tip a
     different travelling budget and the plants climb, bloom and wither apart.
     Everything else spreads by `lifetime.jitter`, drawn on its first tick.
+
+## Per-profile saves (`src/features/family/`)
+
+[ADR 0094](../../docs/adr/0094-per-profile-local-saves.md); boop is the
+reference, `packages/accounts/README.md` ("In a gated app's browser code") has
+the helpers.
+
+- `App` reads the family session once; `PlayerView` builds
+  `profileStorage(window.localStorage, player, PROFILE_KEYS)` once and hands it
+  to `HomePage`, which passes it to `useScenes` and `useFieldNotes`. Neither
+  hook touches `window.localStorage` any more; `null` storage (a browser that
+  refuses it) means no scenes and session-only field notes, as before.
+- **Scenes, thumbnails and field notes are the player's; `silt:seen` (the
+  first-visit hint) is the device's.** `PROFILE_KEYS` uses the prefix
+  `silt:scene` (no colon) on purpose: it covers the index `silt:scenes` and
+  every blob, so legacy adoption copies them together or not at all, and a
+  profile that deletes every scene keeps its empty index and never re-adopts.
+  A new key starting `silt:scene` becomes a profile key; name device settings
+  otherwise.
+- Legacy scenes are copied into each profile on its first open. A full set
+  does not fit three times over (ticket 12's measurements); a failed adoption
+  is swallowed and retried on the next open.
+- `reloadOnPlayerChange` runs in `PlayerView`. silt has no `/shared`.
+- The header's player name links to `switchPlayerUrlFor(location.href)`; it
+  renders nothing outside the estate, so CT (port 3109) never shows it. The
+  docker stack does.
 
 ## Field notes progression (`src/features/fieldNotes/`)
 

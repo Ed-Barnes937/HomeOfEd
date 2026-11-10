@@ -17,6 +17,7 @@
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/silkscreen": "^5.3.0",
+    "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/logger": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
