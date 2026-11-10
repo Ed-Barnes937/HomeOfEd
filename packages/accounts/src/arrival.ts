@@ -17,11 +17,17 @@ export function arrivalFragment(): string {
   return current === null ? '' : liveArrivalFragment(arrival, current)
 }
 
-/**
- * The captured fragment while the address bar still carries one on the same
- * path, so a later mount after the fragment was cleared does not replay it.
- */
+/** The captured fragment while the address bar holds the same one (perhaps router-decoded) on the same
+ *  path; the live fragment after a hash-only navigation; `''` once cleared or on another path. */
 export function liveArrivalFragment(captured: PageAddress | null, current: PageAddress): string {
   if (captured === null || current.hash === '' || current.pathname !== captured.pathname) return ''
-  return captured.hash
+  return decoded(captured.hash) === decoded(current.hash) ? captured.hash : current.hash
+}
+
+function decoded(fragment: string): string {
+  try {
+    return decodeURIComponent(fragment)
+  } catch {
+    return fragment
+  }
 }

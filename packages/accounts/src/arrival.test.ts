@@ -11,6 +11,10 @@ describe('liveArrivalFragment', () => {
     )
   })
 
+  it('is the new fragment after a hash-only navigation to another one', () => {
+    expect(liveArrivalFragment(arrival, { pathname: '/shared', hash: '#g=other' })).toBe('#g=other')
+  })
+
   it('is empty once the fragment has been cleared', () => {
     expect(liveArrivalFragment(arrival, { pathname: '/shared', hash: '' })).toBe('')
   })

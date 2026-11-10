@@ -47,11 +47,70 @@ test('a /shared link opens the boop to play and change, and writes nothing to lo
   await root.verifyCellOn('snare', 4)
   await root.toggleCell('kick', 8)
   await root.verifyCellOn('kick', 8)
+  await root.openRowInstrumentPicker('kick')
+  await root.toggleFavourite('drums', 'cowbell')
+  await root.closeInstrumentPicker()
   // Past the autosave's lull, then the pagehide flush a reload brings.
   await page.waitForTimeout(3_000)
   expect(await readAllLocalStorage(page)).toEqual(before)
   await page.reload()
   expect(await readAllLocalStorage(page)).toEqual(before)
+})
+
+test('a signed-in visitor’s own boops and favourites are untouched by /shared', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await seedFamily(page, { session: ADA })
+  const mine = await mountApp()
+  await mine.root.verifyIsShown()
+  await mine.root.startBlank()
+  await mine.root.openRowInstrumentPicker('kick')
+  await mine.root.toggleFavourite('drums', 'shaker')
+  await mine.root.closeInstrumentPicker()
+  await page.reload()
+  const before = await readAllLocalStorage(page)
+
+  await HomePagePom.openAt(page, `/shared${FRAGMENT}`)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openClipEditor()
+  await root.toggleCell('kick', 8)
+  await root.openRowInstrumentPicker('kick')
+  await root.toggleFavourite('drums', 'cowbell')
+  await root.closeInstrumentPicker()
+  await page.waitForTimeout(3_000)
+  await page.reload()
+
+  expect(await readAllLocalStorage(page)).toEqual(before)
+})
+
+test('/shared keeps its fragment, so a reload reopens the share as it was sent', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+
+  await HomePagePom.openAt(page, `/shared${FRAGMENT}`)
+  const opened = await mountApp()
+  await opened.root.verifyIsShown()
+  await opened.root.setTempoPercent(10)
+  const address = new URL(page.url())
+  expect(address.pathname).toBe('/shared')
+  expect(decodeShareHash(address.hash)).not.toBeNull()
+
+  // A reload, on this harness: a fresh document first loaded on the same address.
+  await page.evaluate(() => window.history.replaceState(null, '', '/'))
+  await page.reload()
+  await HomePagePom.openAt(page, `${address.pathname}${address.hash}`)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyTempo(110)
 })
 
 test('with a session, /shared syncs nothing and offers only "Keep this boop"', async ({

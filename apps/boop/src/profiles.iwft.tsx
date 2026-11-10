@@ -40,6 +40,34 @@ test('one player’s boops are not another’s on the same device', async ({ mou
   expect(savedNames(await readLocalSave(page, BO.sub))).toEqual([])
 })
 
+test('favourite sounds are each player’s own', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await seedFamily(page, { session: ADA })
+
+  const ada = await mountApp()
+  await ada.root.verifyIsShown()
+  await ada.root.startBlank()
+  await ada.root.openRowInstrumentPicker('kick')
+  await ada.root.toggleFavourite('drums', 'cowbell')
+  await ada.root.verifyInstrumentSections(['Favourites', 'Drums', 'Notes', 'Silly'])
+
+  await page.reload()
+  await seedFamily(page, { session: BO })
+  const bo = await mountApp()
+  await bo.root.verifyIsShown()
+  await bo.root.startBlank()
+  await bo.root.openRowInstrumentPicker('kick')
+  await bo.root.verifyInstrumentSections(['Drums', 'Notes', 'Silly'])
+
+  const stored = await page.evaluate(() => ({
+    ada: window.localStorage.getItem('boop:favourites@child-ada'),
+    device: window.localStorage.getItem('boop:favourites'),
+  }))
+  expect(stored).toEqual({ ada: '["cowbell"]', device: null })
+})
+
 test('boops saved before profiles appear for every player, and stay on the device', async ({
   mountApp,
   page,
