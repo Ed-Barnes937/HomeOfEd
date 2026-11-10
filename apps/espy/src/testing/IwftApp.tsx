@@ -17,6 +17,7 @@ import { testUserAuth } from '@hoe/test-kit/browser'
 
 import { App } from '../App.tsx'
 import { appRouter } from '../server/router.ts'
+import { NATIVE_SHELL_KEY } from './nativeShell.ts'
 
 exposeDispatcher(
   createDispatcher({
@@ -31,5 +32,7 @@ exposeDispatcher(
 )
 
 export function IwftApp() {
-  return <App />
+  return (
+    <App native={(globalThis as unknown as Record<string, unknown>)[NATIVE_SHELL_KEY] === true} />
+  )
 }
