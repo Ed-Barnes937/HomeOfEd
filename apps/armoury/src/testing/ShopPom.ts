@@ -49,6 +49,15 @@ export class ShopPom extends BasePage {
     await this.page.getByRole('radio', { name: option, exact: true }).click()
   }
 
+  async verifyControls({ shown = [], hidden = [] }: { shown?: string[]; hidden?: string[] }) {
+    const control = (name: string) =>
+      this.page
+        .getByRole('slider', { name, exact: true })
+        .or(this.page.getByRole('radiogroup', { name, exact: true }))
+    for (const name of shown) await expect(control(name)).toBeVisible()
+    for (const name of hidden) await expect(control(name)).toHaveCount(0)
+  }
+
   async openTab(tab: string): Promise<void> {
     await this.page.getByRole('tab', { name: tab }).click()
   }

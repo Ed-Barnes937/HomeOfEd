@@ -17,6 +17,9 @@ const STAINS = ['none', 'smoky', 'midnight', 'ember', ...DYES]
 const shaftCarved = (p: Params) => p.shaftCarving !== 'none'
 const shaftSpiral = (p: Params) =>
   p.shaftCarving === 'shortSpiral' || p.shaftCarving === 'longSpiral'
+const shaftNoded = (p: Params) => p.nodes !== 'none'
+const shaftCutSpiral = (p: Params) => shaftSpiral(p) && p.spiralStyle !== 'raised'
+const shaftRaisedSpiral = (p: Params) => shaftSpiral(p) && p.spiralStyle === 'raised'
 
 export const wandSchema: ItemSchema = {
   itemType: 'wand',
@@ -166,6 +169,18 @@ export const wandSchema: ItemSchema = {
       ],
     },
     {
+      kind: 'choice',
+      key: 'spiralStyle',
+      label: 'Spiral',
+      group: 'shaft',
+      default: 'cut',
+      visible: shaftSpiral,
+      options: [
+        { value: 'cut', label: 'Cut in' },
+        { value: 'raised', label: 'Raised' },
+      ],
+    },
+    {
       kind: 'number',
       key: 'shaftGrooves',
       label: 'How many',
@@ -198,7 +213,19 @@ export const wandSchema: ItemSchema = {
       step: 0.01,
       default: 0.38,
       ends: ['Shallow', 'Deep'],
-      visible: shaftSpiral,
+      visible: shaftCutSpiral,
+    },
+    {
+      kind: 'number',
+      key: 'ridgeHeight',
+      label: 'How tall',
+      group: 'shaft',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.5,
+      ends: ['Low', 'High'],
+      visible: shaftRaisedSpiral,
     },
     {
       kind: 'number',
@@ -235,6 +262,41 @@ export const wandSchema: ItemSchema = {
         { value: 'left', label: 'Left' },
         { value: 'right', label: 'Right' },
       ],
+    },
+    {
+      kind: 'choice',
+      key: 'nodes',
+      label: 'Bumps',
+      group: 'shaft',
+      default: 'none',
+      options: [
+        { value: 'none', label: 'No bumps', weight: 2 },
+        { value: 'knobs', label: 'Knobbly' },
+        { value: 'rings', label: 'Bamboo' },
+      ],
+    },
+    {
+      kind: 'number',
+      key: 'nodeCount',
+      label: 'How many bumps',
+      group: 'shaft',
+      min: 2,
+      max: 7,
+      step: 1,
+      default: 4,
+      visible: shaftNoded,
+    },
+    {
+      kind: 'number',
+      key: 'nodeSize',
+      label: 'How big',
+      group: 'shaft',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.5,
+      ends: ['Small', 'Big'],
+      visible: shaftNoded,
     },
 
     {

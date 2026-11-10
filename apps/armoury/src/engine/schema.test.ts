@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { wandSchema } from '../wand/wandSchema.ts'
-import { allowedOptions, defaults, normalise, randomise, seededRandom } from './schema.ts'
+import {
+  allowedOptions,
+  defaults,
+  type ItemSchema,
+  normalise,
+  randomise,
+  seededRandom,
+} from './schema.ts'
 
 describe('normalise', () => {
   it('clamps numbers, snaps them to the step, and enforces allowed choices', () => {
@@ -48,6 +55,59 @@ describe('randomise', () => {
     expect(rolled.wood).toBe(start.wood)
     expect(rolled.stainColour).toBe(start.stainColour)
     expect(rolled.lengthCm).not.toBe(start.lengthCm)
+  })
+})
+
+describe('weighted choices', () => {
+  const share = (schema: ItemSchema, key: string, value: string) => {
+    const rng = seededRandom(3)
+    let hits = 0
+    for (let i = 0; i < 4000; i++) if (randomise(schema, rng)[key] === value) hits++
+    return hits / 4000
+  }
+
+  it('rolls an option in proportion to its weight', () => {
+    const schema: ItemSchema = {
+      itemType: 'test',
+      groups: [{ key: 'g', label: 'G' }],
+      params: [
+        {
+          kind: 'choice',
+          key: 'pick',
+          label: 'Pick',
+          group: 'g',
+          default: 'a',
+          options: [
+            { value: 'a', label: 'A', weight: 3 },
+            { value: 'b', label: 'B' },
+          ],
+        },
+      ],
+    }
+    expect(share(schema, 'pick', 'a')).toBeCloseTo(0.75, 1)
+  })
+
+  it('keeps the weights among the options another param allows', () => {
+    const schema: ItemSchema = {
+      itemType: 'test',
+      groups: [{ key: 'g', label: 'G' }],
+      params: [
+        {
+          kind: 'choice',
+          key: 'pick',
+          label: 'Pick',
+          group: 'g',
+          default: 'a',
+          options: [
+            { value: 'a', label: 'A', weight: 3 },
+            { value: 'b', label: 'B' },
+            { value: 'c', label: 'C', weight: 50 },
+          ],
+          allowed: () => ['a', 'b'],
+        },
+      ],
+    }
+    expect(share(schema, 'pick', 'a')).toBeCloseTo(0.75, 1)
   })
 })
 

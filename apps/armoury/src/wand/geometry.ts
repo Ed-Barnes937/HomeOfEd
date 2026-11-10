@@ -18,8 +18,10 @@ function strengthAt(g: GrooveSet, z: number): number {
 /** Final radius and the uncarved profile radius at (angle, z). */
 export function radiusAt(spec: WandSpec, theta: number, z: number): { r: number; r0: number } {
   const r0 = spec.profile(z)
-  let r = r0
   if (r0 <= 0) return { r: 0, r0: 0 }
+  // The deepest cut and the tallest ridge, so overlapping sets combine in any order.
+  let cut = r0
+  let raised = r0
   for (const g of spec.grooves) {
     const f = strengthAt(g, z)
     if (f <= 0) continue
@@ -30,13 +32,16 @@ export function radiusAt(spec: WandSpec, theta: number, z: number): { r: number;
     if (g.shape === 'flat') {
       // A polygon whose faces sit at depth below the profile. min() of several
       // sets is what turns crossing flats into diamonds.
-      r = Math.min(r, (r0 * (1 - g.depth * f)) / Math.cos(a))
+      cut = Math.min(cut, (r0 * (1 - g.depth * f)) / Math.cos(a))
     } else {
       const x = Math.abs(a) / g.halfWidth
-      if (x < 1) r = Math.min(r, r0 * (1 - g.depth * f * Math.sqrt(1 - x * x)))
+      if (x >= 1) continue
+      const offset = r0 * g.depth * f * Math.sqrt(1 - x * x)
+      if (g.raised) raised = Math.max(raised, r0 + offset)
+      else cut = Math.min(cut, r0 - offset)
     }
   }
-  return { r, r0 }
+  return { r: cut + raised - r0, r0 }
 }
 
 export interface WandMeshData {
@@ -147,7 +152,7 @@ export function buildWandMesh(spec: WandSpec, opts: MeshOptions = {}): WandMeshD
       : 0
     for (let i = 0; i <= segments; i++) {
       const k = j * cols + i
-      const groove = Math.min(1, depthNorm[k]! / 0.12)
+      const groove = Math.min(1, Math.max(0, depthNorm[k]!) / 0.12)
       stainAmount[k] = stain.colour ? Math.min(1, amount + 0.6 * stain.strength * groove) : 0
       shade[k] = 1 - 0.35 * groove
     }

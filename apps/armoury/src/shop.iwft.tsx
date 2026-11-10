@@ -18,6 +18,22 @@ test('choosing parts changes the wand on the counter and its tag', async ({ moun
   await root.verifyDescription('Twelve inches, oak, moonstone core. Steady.')
 })
 
+test('bumps and raised spirals show their own controls only when they apply', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyControls({
+    shown: ['Bumps', 'Spiral', 'How deep'],
+    hidden: ['How many bumps', 'How big', 'How tall'],
+  })
+  await root.choose('Knobbly')
+  await root.verifyControls({ shown: ['How many bumps', 'How big'] })
+  await root.choose('Raised')
+  await root.verifyControls({ shown: ['How tall'], hidden: ['How deep'] })
+  await root.choose('No bumps')
+  await root.verifyControls({ hidden: ['How many bumps', 'How big'] })
+})
+
 test('tapping the wand lifts it out to turn and wave, then it goes back', async ({ mountApp }) => {
   const { root } = await mountApp()
   const closeUp = await root.pickUpWand()
