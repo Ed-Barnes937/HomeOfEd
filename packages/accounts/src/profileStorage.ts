@@ -26,7 +26,13 @@ export function profileStorage(
   const isProfileKey = (key: string) =>
     exact.includes(key) ||
     prefixes.some((prefix) => key.startsWith(prefix) && !key.slice(prefix.length).includes('@'))
-  const scoped = (key: string) => (isProfileKey(key) ? profileScopedKey(key, accountId) : key)
+  const scoped = (key: string) => {
+    const name = key.split('@')[0]!
+    if (name !== key && (exact.includes(name) || prefixes.some((p) => name.startsWith(p)))) {
+      throw new Error(`profileStorage: "${key}" is already scoped to a profile; ask for "${name}"`)
+    }
+    return isProfileKey(key) ? profileScopedKey(key, accountId) : key
+  }
   const suffix = accountId === null ? '' : `@${accountId}`
 
   /** This profile's keys on the device, by unscoped name. */

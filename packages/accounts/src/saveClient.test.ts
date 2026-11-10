@@ -92,6 +92,11 @@ describe('createFamilySaveClient', () => {
     expect(calls[0]!.init.method ?? 'GET').toBe('GET')
     expect(new URL(calls[1]!.url).pathname).toBe('/api/trpc/save.delete')
     expect(calls[1]!.init.method).toBe('POST')
+    expect(JSON.parse(calls[1]!.init.body as string)).toEqual({
+      appId: 'boop',
+      slotKey: 'boop:save',
+      expectedAccountId: 'child-1',
+    })
   })
 
   it('throws a FamilyClientError carrying the tRPC error code', async () => {
@@ -154,9 +159,13 @@ describe('a client bound to the profile its page was opened for', () => {
     const put = client.put({ appId: 'boop', slotKey: 'boop:save', blob: 'x' })
     signedIn = null
     const get = client.get({ appId: 'boop', slotKey: 'boop:save' })
+    const list = client.list({ appId: 'boop' })
+    const remove = client.delete({ appId: 'boop', slotKey: 'boop:save' })
 
     await expect(put).rejects.toBeInstanceOf(SaveAccountMismatchError)
     await expect(get).rejects.toBeInstanceOf(SaveAccountMismatchError)
+    await expect(list).rejects.toBeInstanceOf(SaveAccountMismatchError)
+    await expect(remove).rejects.toBeInstanceOf(SaveAccountMismatchError)
     expect(calls).toEqual([])
   })
 
@@ -169,6 +178,26 @@ describe('a client bound to the profile its page was opened for', () => {
       .catch((e: unknown) => e)
     expect(err).toBeInstanceOf(SaveAccountMismatchError)
     expect((err as FamilyClientError).code).toBe('CONFLICT')
+  })
+
+  it('leaves any other CONFLICT as it is, so it does not stop sync for good', async () => {
+    const { fetchImpl } = fakeFetch(
+      () =>
+        new Response(
+          JSON.stringify({
+            error: { message: 'version moved on', code: -32009, data: { code: 'CONFLICT' } },
+          }),
+          { status: 409, headers: { 'content-type': 'application/json' } },
+        ),
+    )
+    const client = createFamilySaveClient({ baseUrl: 'https://x', fetch: fetchImpl, ...BOUND })
+
+    const err = await client
+      .put({ appId: 'boop', slotKey: 'boop:save', blob: 'x' })
+      .catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(FamilyClientError)
+    expect(err).not.toBeInstanceOf(SaveAccountMismatchError)
+    expect((err as FamilyClientError).message).toBe('version moved on')
   })
 
   it('binds any client, so a fake stands in for the wire', async () => {

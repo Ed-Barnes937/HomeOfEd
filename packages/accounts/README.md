@@ -141,7 +141,11 @@ reference (`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`,
     `prefixes` (silt's `silt:scene:`) are stored under
     `profileScopedKey(key, accountId)`. Every other key passes straight through.
   - **What it lists.** `key(i)`, `length` and `clear()` cover this profile's
-    keys only, by their unscoped names.
+    keys only, by their unscoped names. Signed out (`accountId` null), this
+    profile's keys are the legacy documents, so `clear()` removes them.
+  - **Keys it refuses.** A profile key that already carries an `@` (a
+    prefixed key whose remainder has one, or `boop:save@<someone>`) throws, so
+    one profile can never name another's document.
   - **Adopting legacy documents.** On open it copies the device's legacy
     documents in, never moving them. For an exact key, that means
     `adoptLegacyDocument`. For a prefix, it means every unscoped key under the
@@ -155,7 +159,7 @@ reference (`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`,
       wherever the app used `window.localStorage` for a save. The app's code
       keeps naming its unscoped keys.
     - List saves only, never device preferences.
-    - A prefixed key's remainder must not contain `@`.
+    - A prefixed key's remainder must not contain `@` (see above).
     - Never build it on `/shared`: building it copies the legacy documents in,
       and that is a write.
   - **What it does not cover.** IndexedDB, and any other store keyed by
@@ -179,11 +183,15 @@ reference (`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`,
   - A call made while `readFamilySession()` names anyone else is refused before
     it is sent.
   - Either refusal arrives as a `SaveAccountMismatchError`; sync should stop
-    for good on it. `bindSaveClient(client, accountId)` adds the same binding
+    for good on it. Only the service's `CONFLICT` carrying the
+    `SAVE_ACCOUNT_MISMATCH` message counts; any other `CONFLICT` stays a plain
+    `FamilyClientError`. `bindSaveClient(client, accountId)` adds the same binding
     to any client, such as `FakeFamilyClient`.
   - Build it only when there is a session.
-- **`reloadOnPlayerChange(openedFor)`** - call once at the app's entry with the
-  account the page opened for (`null` when signed out). When the page comes
+- **`reloadOnPlayerChange(openedFor)`** - call it where the profile's storage
+  is built, not on `/shared`, with the account the page opened for (`null`
+  when signed out). A reload on `/shared` would throw away a visitor's unsaved
+  edits, and nothing there belongs to a profile. When the page comes
   back into view (`pageshow`, including a bfcache restore, a visible
   `visibilitychange`, or `focus`) with a different profile signed in, or none,
   it reloads the page. A tab therefore never shows or saves one profile's work

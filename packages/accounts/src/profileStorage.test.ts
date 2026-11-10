@@ -116,6 +116,30 @@ describe('profileStorage', () => {
     expect(profileStorage(device, 'child-bo', SAVES).getItem(SAVE)).toBeNull()
   })
 
+  it('refuses a prefixed key that carries an @, rather than storing it unscoped and shared', () => {
+    const device = new DeviceStorage()
+    const ada = profileStorage(device, 'child-ada', SAVES)
+
+    expect(() => ada.setItem(`${SCENE}a@b`, 'scene')).toThrow(/already scoped/)
+    expect(() => ada.getItem(`${SCENE}a@b`)).toThrow(/already scoped/)
+    expect(device.items.size).toBe(0)
+  })
+
+  it('refuses a key already scoped to a profile, so it cannot reach another profile’s document', () => {
+    const device = new DeviceStorage()
+    const bo = profileStorage(device, 'child-bo', SAVES)
+    bo.setItem(SAVE, 'bo doc')
+    bo.setItem(`${SCENE}1`, 'bo scene')
+
+    for (const storage of [profileStorage(device, 'child-ada', SAVES), profileStorage(device, null, SAVES)]) {
+      expect(() => storage.getItem(`${SAVE}@child-bo`)).toThrow(/already scoped/)
+      expect(() => storage.setItem(`${SAVE}@child-bo`, 'overwritten')).toThrow(/already scoped/)
+      expect(() => storage.removeItem(`${SCENE}1@child-bo`)).toThrow(/already scoped/)
+    }
+    expect(bo.getItem(SAVE)).toBe('bo doc')
+    expect(bo.getItem(`${SCENE}1`)).toBe('bo scene')
+  })
+
   it('copies the legacy documents into each profile on first open, and never touches them', () => {
     const device = new DeviceStorage()
     device.setItem(SAVE, 'legacy doc')

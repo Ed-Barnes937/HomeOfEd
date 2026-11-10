@@ -12,6 +12,7 @@ import type {
   SavePutOutput,
 } from './saveContract.ts'
 import {
+  SAVE_ACCOUNT_MISMATCH,
   saveDeleteOutput,
   saveGetOutput,
   saveListOutput,
@@ -52,7 +53,11 @@ export function bindSaveClient(
     try {
       return await call()
     } catch (error) {
-      if (error instanceof FamilyClientError && error.code === 'CONFLICT') {
+      if (
+        error instanceof FamilyClientError &&
+        error.code === 'CONFLICT' &&
+        error.message === SAVE_ACCOUNT_MISMATCH
+      ) {
         throw new SaveAccountMismatchError()
       }
       throw error
