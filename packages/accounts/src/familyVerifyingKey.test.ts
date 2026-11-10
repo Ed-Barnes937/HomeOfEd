@@ -1,4 +1,7 @@
 import { createPublicKey, generateKeyPairSync } from 'node:crypto'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
@@ -6,62 +9,62 @@ import { familyDocumentGate } from './familyDocumentGate.ts'
 import { familyVerifyingKey, PRODUCTION_FAMILY_PUBLIC_KEY } from './familyVerifyingKey.ts'
 import { TEST_FAMILY_PUBLIC_KEY } from './testing/testKeys.ts'
 
-const otherKey = generateKeyPairSync('ed25519').publicKey.export({
-  type: 'spki',
-  format: 'pem',
-}) as string
-const productionKey = generateKeyPairSync('ed25519').publicKey.export({
-  type: 'spki',
-  format: 'pem',
-}) as string
+const newPublicKey = () =>
+  generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' }).toString()
+const envKey = newPublicKey()
+const productionKey = newPublicKey()
 const oneLine = (pem: string) => pem.replace(/\n/g, '\\n')
-const ON_FLY = { FLY_APP_NAME: 'hoe-boop' }
+const ON_FLY = { FLY_APP_NAME: 'hoe-boop', NODE_ENV: 'production' }
 
-describe('familyVerifyingKey', () => {
+describe('familyVerifyingKey off Fly', () => {
   it('prefers FAMILY_TOKEN_PUBLIC_KEY over the production key', () => {
-    expect(familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: otherKey }, productionKey)).toBe(otherKey)
+    expect(familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: envKey }, productionKey)).toBe(envKey)
   })
 
-  it('unescapes a one-line PEM, the form compose.yml and Fly carry', () => {
-    expect(familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: oneLine(otherKey) }, null)).toBe(otherKey)
+  it('unescapes a one-line PEM, the form compose.yml carries', () => {
+    expect(familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: oneLine(envKey) }, null)).toBe(envKey)
   })
 
-  it('falls back to the production key when no override is set', () => {
+  it('falls back to the production key when FAMILY_TOKEN_PUBLIC_KEY is unset or empty', () => {
     expect(familyVerifyingKey({}, productionKey)).toBe(productionKey)
-    expect(familyVerifyingKey({ ...ON_FLY, FAMILY_TOKEN_PUBLIC_KEY: '' }, productionKey)).toBe(
-      productionKey,
+    expect(familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: '' }, productionKey)).toBe(productionKey)
+  })
+
+  it('refuses to run with neither, naming both remedies', () => {
+    expect(() => familyVerifyingKey({}, null)).toThrow(
+      /no family verifying key.*FAMILY_TOKEN_PUBLIC_KEY.*PRODUCTION_FAMILY_PUBLIC_KEY/s,
     )
   })
+})
 
-  it('accepts an override on Fly that is not the test key', () => {
-    expect(familyVerifyingKey({ ...ON_FLY, FAMILY_TOKEN_PUBLIC_KEY: otherKey }, null)).toBe(
-      otherKey,
-    )
+describe('familyVerifyingKey on Fly', () => {
+  it('uses the committed production key', () => {
+    expect(familyVerifyingKey(ON_FLY, productionKey)).toBe(productionKey)
   })
 
-  it('returns the test key off Fly, as the docker stack needs', () => {
-    expect(
-      familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: oneLine(TEST_FAMILY_PUBLIC_KEY) }, null),
-    ).toBe(TEST_FAMILY_PUBLIC_KEY)
-  })
-
-  it('refuses the test key on Fly in any formatting', () => {
-    const forms = [
-      TEST_FAMILY_PUBLIC_KEY,
-      oneLine(TEST_FAMILY_PUBLIC_KEY),
-      TEST_FAMILY_PUBLIC_KEY.trimEnd(),
-    ]
-    for (const form of forms)
+  it('refuses FAMILY_TOKEN_PUBLIC_KEY whatever it holds, as a local-only setting', () => {
+    for (const value of [envKey, TEST_FAMILY_PUBLIC_KEY, ''])
       expect(() =>
-        familyVerifyingKey({ ...ON_FLY, FAMILY_TOKEN_PUBLIC_KEY: form }, productionKey),
-      ).toThrow(/FAMILY_TOKEN_PUBLIC_KEY is the committed @hoe\/accounts\/testing key/)
+        familyVerifyingKey({ ...ON_FLY, FAMILY_TOKEN_PUBLIC_KEY: value }, productionKey),
+      ).toThrow(/FAMILY_TOKEN_PUBLIC_KEY is a local-only setting/)
   })
 
-  it('refuses to run without a key, naming both ways to supply one', () => {
-    for (const env of [{}, ON_FLY])
-      expect(() => familyVerifyingKey(env, null)).toThrow(
-        /no family verifying key.*FAMILY_TOKEN_PUBLIC_KEY.*PRODUCTION_FAMILY_PUBLIC_KEY/s,
-      )
+  it('refuses to boot until the production key is committed, naming the constant', () => {
+    expect(() => familyVerifyingKey(ON_FLY, null)).toThrow(
+      /PRODUCTION_FAMILY_PUBLIC_KEY is not committed/,
+    )
+  })
+})
+
+// Gated app images delete src/testing, so a runtime import of it would crash the boot.
+describe('runtime sources', () => {
+  const src = fileURLToPath(new URL('.', import.meta.url))
+  const runtime = readdirSync(src).filter(
+    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
+  )
+
+  it.each(runtime)('%s imports nothing from src/testing', (name) => {
+    expect(readFileSync(join(src, name), 'utf8')).not.toMatch(/from '\.\/testing\//)
   })
 })
 
@@ -69,10 +72,11 @@ describe('PRODUCTION_FAMILY_PUBLIC_KEY', () => {
   it('is unset, or an Ed25519 public key the gate accepts that is not the test key', () => {
     const pem = PRODUCTION_FAMILY_PUBLIC_KEY
     if (pem === null) return
+    const spki = (value: string) => createPublicKey(value).export({ type: 'spki', format: 'der' })
 
     expect(pem).not.toContain('PRIVATE KEY')
     expect(createPublicKey(pem).asymmetricKeyType).toBe('ed25519')
-    expect(familyVerifyingKey(ON_FLY)).toBe(pem)
+    expect(spki(pem).equals(spki(TEST_FAMILY_PUBLIC_KEY))).toBe(false)
     expect(() =>
       familyDocumentGate({
         accountUrl: 'https://homeofed.com/account',

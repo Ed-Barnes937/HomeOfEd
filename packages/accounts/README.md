@@ -20,9 +20,8 @@ Four entry points keep node-only code out of browser bundles:
 - **`@hoe/accounts/server`** (node): `mintFamilyToken` / `verifyFamilyToken`
   (Ed25519 via `node:crypto`), `familyAuthProvider` - the AuthProvider any
   app drops into its `createContext({ auth })` seam - `familyDocumentGate`,
-  the value for `createAppServer`'s `documentGate`, `familyVerifyingKey`,
-  the public key it verifies with, and `familyDocumentGateFromEnv`, the one
-  call an app's `main.ts` makes to get both.
+  the value for `createAppServer`'s `documentGate`, and
+  `familyDocumentGateFromEnv`, the one gate call an app's `main.ts` makes.
 - **`@hoe/accounts/testing`**: `FakeFamilyClient`, the committed TEST-ONLY
   keypair, and `mintTestToken` (node) - so this index is for Node-side callers.
 - **`@hoe/accounts/testing/fake`**: `FakeFamilyClient` alone. The index above
@@ -104,26 +103,35 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
   gets the bare account URL. `publicPaths` is passed through for
   `createAppServer` to skip. Bad config throws at construction, so it fails
   the boot rather than every request: `accountUrl` must be an absolute http(s)
-  URL, and `publicKeyPem` must parse as an Ed25519 public key (PEM text holding
-  a private key is refused by name). The key is parsed once and handed to
-  `verifyFamilyToken`, which takes PEM text or a `KeyObject`.
-- **`familyVerifyingKey(env)`** (server) - the `publicKeyPem` for the gate:
-  `FAMILY_TOKEN_PUBLIC_KEY` when set (escaped `\n` unescaped, the one-line form
-  `compose.yml` uses), else the committed `PRODUCTION_FAMILY_PUBLIC_KEY`. On Fly
-  (`FLY_APP_NAME`) it throws for the committed test key, whose private half is
-  public; with no key at all it throws everywhere. `compose.yml` sets the test
-  key on every `ESTATE_APPS` service, matching the key its family signs with,
-  and `estateApps.test.ts` checks that. ADR 0070 (amended).
+  URL, and `publicKeyPem` must be exactly one PEM public key block, nothing
+  around it, holding an Ed25519 key (PEM text holding a private key is refused
+  by name). The key is parsed once and handed to `verifyFamilyToken`, which
+  takes PEM text or a `KeyObject`.
+
+### The verifying key
+
+ADR 0070 (amended). Which key the gate verifies with depends on where it runs:
+
+- **On Fly** (`FLY_APP_NAME` set): the committed constant
+  `PRODUCTION_FAMILY_PUBLIC_KEY` in `src/familyVerifyingKey.ts`, and nothing
+  else. `FAMILY_TOKEN_PUBLIC_KEY` is a local-only setting there: its presence
+  refuses the boot, through `@hoe/deploy-guard`'s `localOnly` (which also
+  requires `NODE_ENV=production`). A constant still `null` refuses the boot too.
+  Rotating the key is a code change and a redeploy, never a Fly variable.
+- **Off Fly**: `FAMILY_TOKEN_PUBLIC_KEY` when set (escaped `\n` unescaped, the
+  one-line form `compose.yml` uses), else the constant. With neither, it
+  refuses to boot. `compose.yml` sets the test public key on every
+  `ESTATE_APPS` service, matching the key its family signs with, and
+  `estateApps.test.ts` checks that.
 
 ### Wiring the gate in an app
 
 **`familyDocumentGateFromEnv(env, { publicPaths, now? })`** is the only gate
-call an app's `main.ts` makes; do not call `familyDocumentGate` or
-`familyVerifyingKey` there yourself. It returns `undefined` (gate off) when
+call an app's `main.ts` makes. It returns `undefined` (gate off) when
 `FAMILY_ACCOUNT_URL` is unset or empty, without resolving any key, so an app
 with the gate off boots as it always has. With it set, it returns
-`familyDocumentGate` built from that URL and `familyVerifyingKey(env)`, and so
-throws at boot on Fly for the test key or a missing key.
+`familyDocumentGate` built from that URL and the key above, and so throws at
+boot for any of the refusals above.
 
 ```ts
 import { familyDocumentGateFromEnv } from '@hoe/accounts/server'
@@ -134,9 +142,8 @@ const server = createAppServer({
 })
 ```
 
-**The app's Dockerfile.** `@hoe/accounts/server` runs from TS source, imports
-the test key from `src/testing`, and imports `@hoe/deploy-guard`. A gated app
-therefore needs all of the following, as `apps/family/Dockerfile` has:
+**The app's Dockerfile.** `@hoe/accounts/server` runs from TS source and
+imports `@hoe/deploy-guard`. A gated app therefore needs all of the following:
 
 1. `"@hoe/accounts": "workspace:*"` under `dependencies` (not
    `devDependencies`) in the app's `package.json`, so `turbo prune` keeps it.
@@ -149,9 +156,10 @@ therefore needs all of the following, as `apps/family/Dockerfile` has:
    COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
    ```
 
-4. Do not delete `packages/accounts/src/testing` in the final `rm -rf`: the Fly
-   guard compares against the key committed there. Its private half is public
-   by design, so shipping it leaks nothing.
+4. Add `packages/accounts/src/testing` to the final `rm -rf`. Nothing outside
+   it imports it (a test in `familyVerifyingKey.test.ts` pins that), so the
+   image need not carry the committed test private key. Family is the
+   exception: its own env guard imports that key, so its image keeps it.
 
 ### Committing the production key
 
@@ -172,7 +180,7 @@ export const PRODUCTION_FAMILY_PUBLIC_KEY: string | null =
 ```
 
 The tests then check it is an Ed25519 public key the gate accepts and not the
-test key.
+test key. Rotating it later is the same edit and a redeploy of every gated app.
 
 ## The save contract
 
@@ -239,9 +247,9 @@ router could ever implement them.
 tamper / expiry / malformed / wrong-shape, provider mapping, decode-only
 session read, wire-format + error mapping of the client, the return-URL
 allowlist against named hostile inputs, legacy adoption, the gate's redirects,
-the verifying key's sources and its refusal of the test key on Fly (directly
-and through `familyDocumentGateFromEnv`), the `compose.yml` ports and keys
-against `ESTATE_APPS`, and the fake's
+the verifying key on and off Fly (directly and through
+`familyDocumentGateFromEnv`), the `compose.yml` ports and keys against
+`ESTATE_APPS`, and the fake's
 contract behaviour (LWW versioning, per-account scoping, UNAUTHORIZED when
 signed out, `failWith` offline degradation).
 
