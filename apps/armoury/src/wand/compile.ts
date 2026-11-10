@@ -1,5 +1,6 @@
 import { seededRandom, type Params } from '../engine/schema.ts'
-import { placeGems, type GemPattern, type SetGem } from './gems.ts'
+import type { CrystalShape } from './crystals.ts'
+import { placeGems, type GemCut, type GemPattern, type SetGem } from './gems.ts'
 import { STENCILS, type StencilName } from './stencils.ts'
 import {
   hasStencil,
@@ -53,10 +54,17 @@ export interface Zone {
   uncarved?: boolean
 }
 
-/** A pointed hexagonal crystal that is the last stretch of the wand, from `from` to the tip. */
+/** A crystal that is the last stretch of the wand, from `from` to the tip. */
 export interface Crystal {
   from: number
   radius: number
+  shape: CrystalShape
+}
+
+/** Gems' colours as sRGB hex: the light they glow with, and the stone itself. */
+export interface GemColour {
+  glow: string
+  body: string
 }
 
 /** A round stone that is the pommel, touching z = 0. */
@@ -164,6 +172,7 @@ export interface WandSpec {
   paint: [number, number, number]
   /** Colour of the spell cast from the tip, decided by the core. */
   spell: string
+  gemColour: GemColour
   gems: SetGem[]
   crystal: Crystal | null
   orb: Orb | null
@@ -347,6 +356,35 @@ function srgbToLinear(hex: string): [number, number, number] {
   return [c((n >> 16) & 255), c((n >> 8) & 255), c(n & 255)]
 }
 
+function linearToSrgb([r, g, b]: [number, number, number]): string {
+  const c = (v: number) => {
+    const s = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055
+    return Math.round(clamp(s, 0, 1) * 255)
+  }
+  return `#${((c(r) << 16) | (c(g) << 8) | c(b)).toString(16).padStart(6, '0')}`
+}
+
+/** The stone is its glow's colour at a quarter of the light, unless it says otherwise. */
+const GEM_COLOURS: Record<string, { glow: string; body?: string }> = {
+  amethyst: { glow: '#c38bff' },
+  emerald: { glow: '#4dff98' },
+  ruby: { glow: '#ff2440' },
+  sapphire: { glow: '#5a86ff' },
+  citrine: { glow: '#ff901f' },
+  // Colourless quartz lit from inside: a cool white light in a grey stone.
+  clear: { glow: '#eaf2ff', body: '#4a5058' },
+  // Light through smoked glass: dim and warm, in a near-black stone.
+  smoky: { glow: '#a8703f', body: '#1c1612' },
+}
+
+function gemColourFor(p: Params): GemColour {
+  const named = GEM_COLOURS[p.gemColour as string]
+  const glow = named?.glow ?? swatchFor('core', p.core as string) ?? '#ffffff'
+  const body =
+    named?.body ?? linearToSrgb(srgbToLinear(glow).map((v) => v * 0.25) as [number, number, number])
+  return { glow, body }
+}
+
 export function compileWand(p: Params): WandSpec {
   const lengthCm = p.lengthCm as number
   const L = lengthCm * 10
@@ -374,7 +412,9 @@ export function compileWand(p: Params): WandSpec {
   // End gems replace the ends of the turned body rather than adding to the length.
   const crystalR = Math.max(tipR, 0.75 * shaftBaseR)
   const crystal: Crystal | null =
-    p.tipGem === 'crystal' ? { from: L - 5 * crystalR, radius: crystalR } : null
+    p.tipGem === 'crystal'
+      ? { from: L - 5 * crystalR, radius: crystalR, shape: p.crystalShape as CrystalShape }
+      : null
   const orb: Orb | null = p.endGem === 'orb' ? { centre: ballR, radius: ballR } : null
   const bodyFrom = orb ? 1.65 * orb.radius : 0
   const bodyTo = crystal ? crystal.from + CRYSTAL_SEAT : L
@@ -602,6 +642,7 @@ export function compileWand(p: Params): WandSpec {
       ? []
       : placeGems({
           pattern: p.gems as GemPattern,
+          cut: p.gemCut as GemCut,
           count: p.gemCount as number,
           size: gemSize,
           belt: style.belt * H,
@@ -670,6 +711,7 @@ export function compileWand(p: Params): WandSpec {
     metal: p.metal as string,
     paint: srgbToLinear(swatchFor('paintColour', p.paintColour as string) ?? '#888888'),
     spell: swatchFor('core', p.core as string) ?? '#ffffff',
+    gemColour: gemColourFor(p),
     gems,
     crystal,
     orb,

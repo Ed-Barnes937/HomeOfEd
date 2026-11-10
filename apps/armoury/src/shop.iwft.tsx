@@ -69,6 +69,28 @@ test("gems glow in the core's colour, and the close look casts with them", async
   await closeUp.verifyGems(7)
 })
 
+test('crystals take a colour of their own, a tip shape and a cut', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyControls({ hidden: ['Crystal colour', 'Crystal shape', 'Gem cut'] })
+  await root.chooseIn('Gems', 'Round the handle')
+  await root.verifyControls({ shown: ['Crystal colour', 'Gem cut'], hidden: ['Crystal shape'] })
+  await root.verifyStage({ gemColour: '#ffc95c', gemCut: 'round' })
+  await root.chooseIn('Core', 'Moonstone')
+  await root.verifyStage({ gemColour: '#8fe3ff' })
+  await root.chooseIn('Crystal colour', 'Ruby')
+  await root.chooseIn('Core', 'Wildwood')
+  await root.verifyStage({ gemColour: '#ff2440' })
+  await root.chooseIn('Gem cut', 'Leaf')
+  await root.verifyStage({ gemCut: 'marquise' })
+  await root.chooseIn('Gem on the tip', 'Crystal')
+  await root.verifyControls({ shown: ['Crystal shape'] })
+  await root.verifyStage({ crystal: 'hex' })
+  await root.chooseIn('Crystal shape', 'Faceted teardrop')
+  await root.verifyStage({ crystal: 'teardrop' })
+  await root.chooseIn('Crystal colour', 'Match the core')
+  await root.verifyStage({ gemColour: '#6dff9c' })
+})
+
 test('an engraving shows where and how big only once there is one', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyControls({

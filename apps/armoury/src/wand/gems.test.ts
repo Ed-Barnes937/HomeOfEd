@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { isVisible, normalise, randomise, seededRandom } from '../engine/schema.ts'
 import { compileWand } from './compile.ts'
-import { SHOWN_SIDE } from './gems.ts'
+import { seatDistance, seatReach, SHOWN_SIDE } from './gems.ts'
 import { buildWandMesh, gemPoses, radiusAt } from './geometry.ts'
 import { wandPresets } from './presets.ts'
 import { wandSchema } from './wandSchema.ts'
+
+/** Params as saved before `key` existed. */
+const without = (params: Record<string, unknown>, key: string) =>
+  Object.fromEntries(Object.entries(params).filter(([k]) => k !== key))
 
 const preset = (name: string) => {
   const found = wandPresets.find((p) => p.name === name)
@@ -20,6 +24,7 @@ type Spec = ReturnType<typeof compileWand>
 type Gem = Spec['gems'][number]
 
 const PATTERNS = ['ring', 'line', 'spiral'] as const
+const CUTS = ['round', 'square', 'marquise'] as const
 const TAU = Math.PI * 2
 const RIM = 0.6
 
@@ -101,23 +106,26 @@ describe('set gems', () => {
     }
   })
 
-  it('a ring goes round the handle, evenly and clear of its beads', () => {
-    for (const handleStyle of ['plain', 'ringed', 'spiral', 'gemcut']) {
-      const spec = wand({ gems: 'ring', handleStyle, gemSize: 1 })
-      const bare = wand({ handleStyle })
-      for (const gem of spec.gems) {
-        expect(gem.z).toBeLessThan(spec.handleMm)
-        // The handle's outline is smooth under the seat and rim: no bead there.
-        const reach = gem.radius + RIM
-        const bend =
-          bare.profile(gem.z - reach) + bare.profile(gem.z + reach) - 2 * bare.profile(gem.z)
-        expect(Math.abs(bend)).toBeLessThan(0.3)
+  it.each(CUTS)(
+    'a ring of %s gems goes round the handle, evenly and clear of its beads',
+    (gemCut) => {
+      for (const handleStyle of ['plain', 'ringed', 'spiral', 'gemcut']) {
+        const spec = wand({ gems: 'ring', gemCut, handleStyle, gemSize: 1 })
+        const bare = wand({ handleStyle })
+        for (const gem of spec.gems) {
+          expect(gem.z).toBeLessThan(spec.handleMm)
+          // The handle's outline is smooth under the seat and rim: no bead there.
+          const reach = seatReach(gem).along + RIM
+          const bend =
+            bare.profile(gem.z - reach) + bare.profile(gem.z + reach) - 2 * bare.profile(gem.z)
+          expect(Math.abs(bend)).toBeLessThan(0.3)
+        }
+        const turns = spec.gems.map((g) => g.theta).sort((a, b) => a - b)
+        const gaps = turns.slice(1).map((t, i) => t - turns[i]!)
+        for (const gap of gaps) expect(gap).toBeCloseTo(TAU / spec.gems.length, 6)
       }
-      const turns = spec.gems.map((g) => g.theta).sort((a, b) => a - b)
-      const gaps = turns.slice(1).map((t, i) => t - turns[i]!)
-      for (const gap of gaps) expect(gap).toBeCloseTo(TAU / spec.gems.length, 6)
-    }
-  })
+    },
+  )
 
   it.each(['line', 'spiral'])('%s gems go up the lower shaft, between bands and bumps', (gems) => {
     const spec = wand({ gems, ...busy })
@@ -207,6 +215,114 @@ describe('set gems', () => {
     expect(at(0)).toBeLessThan(0)
     expect(at(0)).toBeGreaterThan(-0.25)
     expect(at(gem.radius + RIM / 2)).toBeGreaterThan(0)
+  })
+})
+
+/** Whether two seats' rims overlap anywhere, by walking round each rim's outer edge. */
+const rimsTouch = (spec: Spec, a: Gem, b: Gem) => {
+  const r0 = spec.profile((a.z + b.z) / 2)
+  const offset = (from: Gem, to: Gem) => [r0 * angleBetween(to.theta, from.theta), to.z - from.z]
+  const edgeOf = (gem: Gem, other: Gem) => {
+    const [ox, oz] = offset(gem, other)
+    for (let k = 0; k < 360; k++) {
+      const [c, s] = [Math.cos((k * TAU) / 360), Math.sin((k * TAU) / 360)]
+      let [lo, hi] = [0, 4 * gem.radius + RIM]
+      for (let i = 0; i < 40; i++) {
+        const mid = (lo + hi) / 2
+        if (seatDistance(gem, mid * c, mid * s) < RIM) lo = mid
+        else hi = mid
+      }
+      if (seatDistance(other, lo * c - ox!, lo * s - oz!) < RIM) return true
+    }
+    return false
+  }
+  return edgeOf(a, b) || edgeOf(b, a)
+}
+
+describe('gem cuts', () => {
+  it('a wand saved before cuts opens with round gems', () => {
+    const old = without(preset('Midnight'), 'gemCut')
+    const spec = compileWand(normalise(wandSchema, { ...old, gems: 'line' }))
+    expect(spec.gems.every((g) => g.cut === 'round')).toBe(true)
+  })
+
+  it.each(CUTS.flatMap((gemCut) => PATTERNS.map((gems) => ({ gemCut, gems }))))(
+    '$gemCut gems in a $gems never touch, and land the same way every time',
+    ({ gemCut, gems }) => {
+      const crowded = { lengthCm: 28, nodeCount: 7, bands: 'three', gemCount: 9, gemSize: 1 }
+      for (const extra of [
+        {},
+        busy,
+        { lengthCm: 28, pointy: 1, thickness: 0.85, gemCount: 9, gemSize: 1 },
+        { ...crowded, nodes: 'knobs' },
+        { ...crowded, nodes: 'rings', tipGem: 'crystal' },
+      ]) {
+        const spec = wand({ gems, gemCut, ...extra })
+        expect(spec.gems.length).toBeGreaterThan(0)
+        expect(wand({ gems, gemCut, ...extra }).gems).toEqual(spec.gems)
+        for (const [i, a] of spec.gems.entries()) {
+          expect(a.cut).toBe(gemCut)
+          for (const b of spec.gems.slice(i + 1)) expect(rimsTouch(spec, a, b)).toBe(false)
+        }
+      }
+    },
+  )
+
+  it.each(CUTS)('%s gems keep clear of bands and bumps', (gemCut) => {
+    const spec = wand({ gems: 'line', gemCut, ...busy })
+    const bands = spec.zones.filter((z) => z.uncarved)
+    for (const gem of spec.gems) {
+      for (const band of bands) {
+        for (const z of [band.from, band.to])
+          expect(seatDistance(gem, 0, z - gem.z)).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('a marquise lies along the wand, longer than it is wide', () => {
+    const spec = wand({ gems: 'ring', gemCut: 'marquise', gemSize: 1 })
+    const gem = spec.gems[0]!
+    const r0 = spec.profile(gem.z)
+    const dish = (dTheta: number, dz: number) => {
+      const [theta, z] = [gem.theta + dTheta / r0, gem.z + dz]
+      return radiusAt(spec, theta, z).r - radiusAt({ ...spec, gems: [] }, theta, z).r
+    }
+    // Cut in 1.2 sizes along the wand, but on its raised rim 0.8 round it.
+    expect(dish(0, 1.2 * gem.radius)).toBeLessThan(0)
+    expect(dish(0.8 * gem.radius, 0)).toBeGreaterThan(0)
+    for (const pose of gemPoses(
+      wand({ kind: 'branch', bend: 1, gems: 'line', gemCut: 'marquise' }),
+    )) {
+      expect(Math.abs(pose.along.reduce((sum, v, i) => sum + v * pose.normal[i]!, 0))).toBeLessThan(
+        1e-9,
+      )
+      expect(Math.hypot(...pose.along)).toBeCloseTo(1, 9)
+      expect(pose.along[2]).toBeGreaterThan(0.9)
+    }
+  })
+
+  it('a square or marquise seat is a shallow cut with a low rim, like a round one', () => {
+    for (const gemCut of ['square', 'marquise']) {
+      const spec = wand({ gems: 'line', gemCut, gemSize: 1 })
+      const gem = spec.gems[0]!
+      const at = (dz: number) => {
+        const { r, r0 } = radiusAt(spec, gem.theta, gem.z + dz)
+        return (r - r0) / r0
+      }
+      let edge = 0
+      while (seatDistance(gem, 0, edge) < 0) edge += 0.01
+      expect(at(0)).toBeLessThan(0)
+      expect(at(0)).toBeGreaterThan(-0.25)
+      expect(at(edge + RIM / 2)).toBeGreaterThan(0)
+    }
+  })
+
+  it('Try another mostly gives round gems', () => {
+    const rng = seededRandom(11)
+    const rolls = Array.from({ length: 2000 }, () => randomise(wandSchema, rng))
+    const share = rolls.filter((p) => p.gemCut === 'round').length / rolls.length
+    expect(share).toBeGreaterThan(0.55)
+    expect(share).toBeLessThan(0.8)
   })
 })
 

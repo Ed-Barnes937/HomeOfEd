@@ -65,9 +65,11 @@ cut carving there. A **stencil** in code
 _Avoid_: Pattern (the handle's carving), texture.
 
 **Gem**:
-A stone in the core's colour that glows faintly and flares with the **spell**:
-set gems in seats on the surface, a crystal tip, or an orb at the end
-([ADR 0083](../../docs/adr/0083-armoury-glowing-gems.md)).
+A stone that glows faintly and flares with the **spell**, in the core's colour or
+one chosen colour for all of them: set gems in seats on the surface (round, square or
+marquise cut), a crystal tip (one of five shapes), or an orb at the end
+([ADR 0083](../../docs/adr/0083-armoury-glowing-gems.md),
+[ADR 0087](../../docs/adr/0087-armoury-crystal-colours-and-shapes.md)).
 _Avoid_: Jewel, light.
 
 **Core**:

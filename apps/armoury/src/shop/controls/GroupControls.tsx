@@ -1,5 +1,5 @@
 import { isVisible, type ParamDef, type Params } from '../../engine/schema.ts'
-import { wandSchema } from '../../wand/wandSchema.ts'
+import { swatchFor, wandSchema } from '../../wand/wandSchema.ts'
 import styles from './GroupControls.module.scss'
 import {
   CorePicker,
@@ -35,6 +35,15 @@ function Control({
     case 'paintColour':
     case 'metal':
       return <SwatchPicker def={def} params={params} onChange={onChange} />
+    case 'gemColour':
+      return (
+        <SwatchPicker
+          def={def}
+          params={params}
+          onChange={onChange}
+          unswatched={`radial-gradient(circle, #fff 0, ${swatchFor('core', params.core as string)} 45%)`}
+        />
+      )
     case 'handleStyle':
       return <HandlePicker def={def} params={params} onChange={onChange} />
     case 'core':

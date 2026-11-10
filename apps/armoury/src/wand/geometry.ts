@@ -1,5 +1,6 @@
 import type { BarkSpec, BranchSpec, GrooveSet, Material, StencilBand, WandSpec } from './compile.ts'
-import { RIM_WIDTH, SHOWN_SIDE } from './gems.ts'
+import { crystalSolid, type CrystalSolid } from './crystals.ts'
+import { RIM_WIDTH, seatDistance, seatReach, SHOWN_SIDE } from './gems.ts'
 import { stencilHeight } from './stencils.ts'
 
 // The wand surface is a radius field r(angle, z) sampled on a cylinder grid.
@@ -28,16 +29,18 @@ function settingAt(spec: WandSpec, theta: number, z: number, r0: number): void {
   setting.carving = 1
   setting.metal = 0
   for (const gem of spec.gems) {
-    const outer = gem.radius + RIM_WIDTH
+    const reach = seatReach(gem)
     const dz = z - gem.z
-    if (Math.abs(dz) >= outer + SETTING_FADE) continue
-    const d = Math.hypot(r0 * angleBetween(theta, gem.theta), dz)
-    setting.carving = Math.min(setting.carving, smoothstep(outer, outer + SETTING_FADE, d))
-    if (d < gem.radius) {
-      setting.offset = -0.3 * gem.radius * Math.sqrt(1 - (d / gem.radius) ** 2)
+    if (Math.abs(dz) >= reach.along + RIM_WIDTH + SETTING_FADE) continue
+    const d = seatDistance(gem, r0 * angleBetween(theta, gem.theta), dz)
+    setting.carving = Math.min(setting.carving, smoothstep(RIM_WIDTH, RIM_WIDTH + SETTING_FADE, d))
+    if (d < 0) {
+      // The dish is deepest in the middle, easing up to the edge across the seat's narrower way.
+      const k = Math.max(0, 1 + d / reach.around)
+      setting.offset = -0.3 * gem.radius * Math.sqrt(1 - k * k)
       if (spec.metalSettings) setting.metal = 1
-    } else if (d < outer) {
-      setting.offset = RIM_HEIGHT * Math.sin((Math.PI * (d - gem.radius)) / RIM_WIDTH)
+    } else if (d < RIM_WIDTH) {
+      setting.offset = RIM_HEIGHT * Math.sin((Math.PI * d) / RIM_WIDTH)
       if (spec.metalSettings) setting.metal = 1
     }
   }
@@ -655,7 +658,9 @@ export interface GemPose {
   position: [number, number, number]
   /** The way the stone faces: out of the wand's surface. */
   normal: [number, number, number]
-  /** The stone's radius, mm, a little inside its seat. */
+  /** The way along the wand over the surface, which a long stone lies along. */
+  along: [number, number, number]
+  /** The stone's size, mm, a little inside its seat. */
   radius: number
 }
 
@@ -670,6 +675,7 @@ export function gemPoses(spec: WandSpec): GemPose[] {
     return {
       position: bendPoint(frame, r * c, r * s),
       normal: bendDirection(frame, [c / len, s / len, -slope / len]),
+      along: bendDirection(frame, [(slope * c) / len, (slope * s) / len, 1 / len]),
       radius: gem.radius * 0.92,
     }
   })
@@ -693,17 +699,29 @@ export function endPoses(spec: WandSpec): { crystal: EndPose | null; orb: EndPos
   }
 }
 
+/** The crystal tip's solid, standing on the spine's tangent at its base, in the wand's space. */
+export function crystalMesh(spec: WandSpec): CrystalSolid | null {
+  if (!spec.crystal) return null
+  const { from, radius, shape } = spec.crystal
+  const frame = spineFrame(spec, from)
+  const place = ([x, y, z]: Vec3): Vec3 => {
+    const across = bendPoint(frame, x, y)
+    const { tangent: t } = frame
+    return [across[0] + z * t[0], across[1] + z * t[1], across[2] + z * t[2]]
+  }
+  const solid = crystalSolid(shape, radius, spec.lengthMm - from)
+  const positions: number[] = []
+  for (let k = 0; k < solid.positions.length; k += 3)
+    positions.push(...place(solid.positions.slice(k, k + 3) as Vec3))
+  return { positions, indices: solid.indices, point: place(solid.point) }
+}
+
 /** The very tip, where the spell leaves: the end of the spine, or the point of a crystal standing on its tangent. */
 export function tipPose(spec: WandSpec): EndPose {
-  const { crystal } = endPoses(spec)
-  if (!spec.crystal || !crystal) {
+  const crystal = crystalMesh(spec)
+  if (!crystal) {
     const f = spineFrame(spec, spec.lengthMm)
     return { position: f.point, direction: f.tangent }
   }
-  const length = spec.lengthMm - spec.crystal.from
-  const { position: p, direction: d } = crystal
-  return {
-    position: [p[0] + d[0] * length, p[1] + d[1] * length, p[2] + d[2] * length],
-    direction: d,
-  }
+  return { position: crystal.point, direction: spineFrame(spec, spec.crystal!.from).tangent }
 }

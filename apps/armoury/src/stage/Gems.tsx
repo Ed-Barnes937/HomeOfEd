@@ -2,43 +2,60 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 
-import type { WandSpec } from '../wand/compile.ts'
-import { endPoses, gemPoses } from '../wand/geometry.ts'
+import type { GemColour, WandSpec } from '../wand/compile.ts'
+import { cutOutline, type GemCut } from '../wand/gems.ts'
+import { crystalMesh, endPoses, gemPoses } from '../wand/geometry.ts'
 import { gemGlow, GEM_REST } from './gemGlow.ts'
 
-const UP = new THREE.Vector3(0, 1, 0)
-
-/** A cut stone round the y axis, girdle at y = 0: a pointed pavilion below, a flat-topped crown above. */
-function stoneGeometry() {
-  const outline = [
-    [0, -0.55],
+/** A cut stone with its girdle on y = 0: a pointed pavilion below, a flat-topped crown above; outline x across, z along. */
+function stoneGeometry(cut: GemCut) {
+  const outline = cutOutline(cut)
+  const rows: [number, number][] = [
     [1, 0],
     [0.96, 0.14],
     [0.62, 0.42],
-    [0, 0.42],
-  ].map(([x, y]) => new THREE.Vector2(x, y))
-  return new THREE.LatheGeometry(outline, 8)
+  ]
+  const positions = [0, -0.55, 0, 0, 0.42, 0]
+  for (const [scale, y] of rows)
+    for (const [x, z] of outline) positions.push(scale * x, y, scale * z)
+  const n = outline.length
+  const at = (row: number, i: number) => 2 + row * n + (i % n)
+  const indices: number[] = []
+  for (let i = 0; i < n; i++) {
+    indices.push(0, at(0, i), at(0, i + 1))
+    for (let row = 0; row + 1 < rows.length; row++)
+      indices.push(
+        at(row, i),
+        at(row + 1, i),
+        at(row, i + 1),
+        at(row, i + 1),
+        at(row + 1, i),
+        at(row + 1, i + 1),
+      )
+    indices.push(1, at(rows.length - 1, i + 1), at(rows.length - 1, i))
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setIndex(indices)
+  geometry.computeVertexNormals()
+  return geometry
 }
 
-/** A hexagonal crystal standing on y = 0, its base sunk in the cup, with a pointed top. */
-function crystalGeometry(radius: number, length: number) {
-  const point = 1.8 * radius
-  const outline = [
-    [0, 0],
-    [0.85 * radius, 0],
-    [radius, 1.5],
-    [radius, length - point],
-    [0, length],
-  ].map(([x, y]) => new THREE.Vector2(x, y))
-  return new THREE.LatheGeometry(outline, 6)
+function crystalGeometry(spec: WandSpec) {
+  const solid = crystalMesh(spec)
+  if (!solid) return null
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(solid.positions, 3))
+  geometry.setIndex(solid.indices)
+  geometry.computeVertexNormals()
+  return geometry
 }
 
-/** Glass in the core's colour that lights from within; `uGemCap` limits how bright any of it gets. */
-function gemMaterial(colour: string, cap: THREE.IUniform<number>, faceted: boolean) {
-  const core = new THREE.Color(colour)
+/** Coloured glass that lights from within; `uGemCap` limits how bright any of it gets. */
+function gemMaterial(colour: GemColour, cap: THREE.IUniform<number>, faceted: boolean) {
   const material = new THREE.MeshPhysicalMaterial({
-    color: core.clone().multiplyScalar(0.25),
-    emissive: core,
+    color: new THREE.Color(colour.body),
+    emissive: new THREE.Color(colour.glow),
     emissiveIntensity: GEM_REST.emissive,
     roughness: 0.12,
     metalness: 0,
@@ -76,12 +93,13 @@ export function Gems({
   reducedMotion: boolean
 }) {
   const cap = useMemo(() => ({ value: GEM_REST.cap }), [])
+  const { glow, body } = spec.gemColour
   const materials = useMemo(
     () => ({
-      faceted: gemMaterial(spec.spell, cap, true),
-      smooth: gemMaterial(spec.spell, cap, false),
+      faceted: gemMaterial({ glow, body }, cap, true),
+      smooth: gemMaterial({ glow, body }, cap, false),
     }),
-    [spec.spell, cap],
+    [glow, body, cap],
   )
   useEffect(
     () => () => {
@@ -91,37 +109,29 @@ export function Gems({
     [materials],
   )
 
-  const stone = useMemo(stoneGeometry, [])
-  const crystal = useMemo(
-    () =>
-      spec.crystal ? crystalGeometry(spec.crystal.radius, spec.lengthMm - spec.crystal.from) : null,
-    [spec.crystal, spec.lengthMm],
-  )
+  const cut = spec.gems[0]?.cut ?? 'round'
+  const stone = useMemo(() => stoneGeometry(cut), [cut])
+  const crystal = useMemo(() => crystalGeometry(spec), [spec])
   useEffect(() => () => stone.dispose(), [stone])
   useEffect(() => () => crystal?.dispose(), [crystal])
 
   const poses = useMemo(
     () =>
-      gemPoses(spec).map(({ position, normal, radius }) => ({
-        position,
-        radius,
-        quaternion: new THREE.Quaternion().setFromUnitVectors(UP, new THREE.Vector3(...normal)),
-      })),
+      gemPoses(spec).map(({ position, normal, along, radius }) => {
+        const y = new THREE.Vector3(...normal)
+        const z = new THREE.Vector3(...along)
+        const x = new THREE.Vector3().crossVectors(y, z)
+        return {
+          position,
+          radius,
+          quaternion: new THREE.Quaternion().setFromRotationMatrix(
+            new THREE.Matrix4().makeBasis(x, y, z),
+          ),
+        }
+      }),
     [spec],
   )
-  const ends = useMemo(() => {
-    const { crystal, orb } = endPoses(spec)
-    return {
-      crystal: crystal && {
-        position: crystal.position,
-        quaternion: new THREE.Quaternion().setFromUnitVectors(
-          UP,
-          new THREE.Vector3(...crystal.direction),
-        ),
-      },
-      orb: orb?.position,
-    }
-  }, [spec])
+  const orb = useMemo(() => endPoses(spec).orb?.position, [spec])
 
   useFrame(({ clock }) => {
     const glow = gemGlow(castAt === null ? Infinity : clock.elapsedTime - castAt, reducedMotion)
@@ -142,16 +152,9 @@ export function Gems({
           scale={pose.radius}
         />
       ))}
-      {spec.crystal && crystal && ends.crystal && (
-        <mesh
-          geometry={crystal}
-          material={materials.faceted}
-          position={ends.crystal.position}
-          quaternion={ends.crystal.quaternion}
-        />
-      )}
-      {spec.orb && ends.orb && (
-        <mesh material={materials.smooth} position={ends.orb}>
+      {crystal && <mesh geometry={crystal} material={materials.faceted} />}
+      {spec.orb && orb && (
+        <mesh material={materials.smooth} position={orb}>
           <sphereGeometry args={[spec.orb.radius, 48, 32]} />
         </mesh>
       )}

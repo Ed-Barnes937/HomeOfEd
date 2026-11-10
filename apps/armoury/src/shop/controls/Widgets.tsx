@@ -131,12 +131,14 @@ export function SwatchPicker({
   def,
   params,
   onChange,
+  unswatched = GRAIN[params.wood as string]?.[0] ?? '#c1935c',
 }: {
   def: ChoiceParam
   params: Params
   onChange: OnChange
+  /** How an option with no colour of its own looks: by default the wood's natural colour. */
+  unswatched?: string
 }) {
-  const natural = GRAIN[params.wood as string]?.[0] ?? '#c1935c'
   return (
     <div className={styles.inline}>
       <span className={styles.label} id={`label-${def.key}`}>
@@ -152,7 +154,7 @@ export function SwatchPicker({
             aria-label={o.label}
             title={o.label}
             className={styles.swatch}
-            style={{ background: o.swatch ?? natural }}
+            style={{ background: o.swatch ?? unswatched }}
             onClick={() => onChange(def.key, o.value)}
           />
         ))}
