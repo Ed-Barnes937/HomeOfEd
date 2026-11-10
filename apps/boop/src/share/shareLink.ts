@@ -65,15 +65,20 @@ export function decodeShare(token: string | null | undefined): StoredBoop | null
   return decodeStoredBoop(creation) ?? null
 }
 
+/** The view a share link opens: ungated, and it writes nothing (ADR 0093 decision 6). */
+export const SHARED_PATH = '/shared'
+
 /**
  * The link to hand to the share sheet or the clipboard. Any query string on the
  * sender's page is deliberately left off: the boop is the whole payload.
  */
-export function buildShareUrl(
-  location: Pick<Location, 'origin' | 'pathname'>,
-  boop: StoredBoop,
-): string {
-  return `${location.origin}${location.pathname}${SHARE_HASH_PREFIX}${encodeShare(boop)}`
+export function buildShareUrl(origin: string, boop: StoredBoop): string {
+  return `${origin}${SHARED_PATH}${SHARE_HASH_PREFIX}${encodeShare(boop)}`
+}
+
+/** "Keep this boop": the root with the shared view's own fragment, where the gate asks who is playing. */
+export function keepSharedUrl(origin: string, fragment: string): string {
+  return `${origin}/${fragment}`
 }
 
 /** Read a shared boop out of `location.hash`; `null` if there isn't a valid one. */

@@ -9,7 +9,8 @@
 //
 // Every run registers a fresh parent, so it can be repeated against the same
 // database. The invite code is compose.yml's local-only value. Later tickets
-// can import `signInThroughStack(page)` to reach a signed-in, picked profile.
+// can import `signInThroughStack(page)` to reach a signed-in, picked profile,
+// or `registerWithChild(page)` once a gate has sent them to hub themselves.
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
@@ -28,8 +29,19 @@ const TIMEOUT = 15_000
 
 /** Leaves `page` on hub's /account with a fresh parent signed in and `child` playing. */
 export async function signInThroughStack(page, { child = 'Robin' } = {}) {
-  const email = `parent-${Date.now()}@example.com`
   await page.goto(`${STACK.hub}/account`)
+  const { email } = await registerWithChild(page, { child })
+  await page.getByRole('button', { name: child, exact: true }).click()
+  await page.getByText(`Playing now: ${child}`).waitFor({ timeout: TIMEOUT })
+  return { email }
+}
+
+/**
+ * From hub's signed-out /account, wherever it was reached from (a gate's 302
+ * included): register a fresh parent and add `child`, without picking them.
+ */
+export async function registerWithChild(page, { child = 'Robin' } = {}) {
+  const email = `parent-${Date.now()}@example.com`
   await page.getByRole('heading', { name: 'Sign in' }).waitFor({ timeout: TIMEOUT })
 
   await page.getByRole('button', { name: 'Register with an invite code' }).click()
@@ -49,9 +61,6 @@ export async function signInThroughStack(page, { child = 'Robin' } = {}) {
     .waitFor({
       timeout: TIMEOUT,
     })
-
-  await page.getByRole('button', { name: child, exact: true }).click()
-  await page.getByText(`Playing now: ${child}`).waitFor({ timeout: TIMEOUT })
   return { email }
 }
 
@@ -94,11 +103,6 @@ async function main() {
     // the family save tier from its own compose origin.
     const pull = waitForSave(page, 'save.get')
     await page.goto(STACK.boop)
-    // boop asks once before linking a device's existing boops (ADR 0080).
-    await page
-      .getByRole('button', { name: 'Yes, keep them' })
-      .click({ timeout: 5_000 })
-      .catch(() => {})
     expectOk(await pull)
     console.log('boop pulled from family: save.get 200')
 

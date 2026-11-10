@@ -25,6 +25,7 @@ interface AppProps {
  *
  * It owns the family save client the same way. Building it opens no connection
  * and reads no cookie - whether anything is ever sent is `useBoopSync`'s call.
+ * Where boops are kept is the route's call (`pages/views.tsx`).
  */
 export function App({ driver, saveClient }: AppProps = {}) {
   const [queryClient] = useState(() => new QueryClient())

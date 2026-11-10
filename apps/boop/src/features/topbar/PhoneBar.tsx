@@ -41,6 +41,11 @@ export interface PhoneBarProps {
    * the menu being where every action the phone chrome drops already lives.
    */
   syncedAs?: string | null
+  /**
+   * The shared view's way to keep the boop (ADR 0093 decision 6): the save icon
+   * becomes this link, and the menu drops New boop and My boops.
+   */
+  keepUrl?: string | null
 }
 
 const BackArrowIcon = () => (
@@ -92,6 +97,7 @@ export function PhoneBar({
   onOpenHints,
   loaded,
   syncedAs = null,
+  keepUrl = null,
 }: PhoneBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmingClear, setConfirmingClear] = useState(false)
@@ -105,30 +111,41 @@ export function PhoneBar({
 
   return (
     <div className={styles.bar} data-testid="phone-bar">
-      <a className={styles.icon} href={hubUrl(window.location.hostname)} aria-label="Back to home of ed">
+      <a className={styles.icon} href={hubUrl(window.location.href)} aria-label="Back to home of ed">
         <BackArrowIcon />
       </a>
 
       <span className={styles.wordmark}>boop</span>
 
-      <button
-        type="button"
-        className={styles.icon}
-        // The dot is the sighted half of this; the label carries the same
-        // state for anyone who cannot see it, since the phone has no room for
-        // the desktop bar's words.
-        aria-label={isUnsaved(loaded) ? 'Save this boop' : 'Save this boop (saved)'}
-        data-testid="phone-save-button"
-        onClick={onSave}
-      >
-        <SaveIcon />
-        <span
-          className={styles.savedDot}
-          data-unsaved={isUnsaved(loaded)}
-          data-testid="phone-saved-dot"
-          aria-hidden="true"
-        />
-      </button>
+      {keepUrl !== null ? (
+        <a
+          className={styles.icon}
+          href={keepUrl}
+          aria-label="Keep this boop"
+          data-testid="keep-shared-link"
+        >
+          <SaveIcon />
+        </a>
+      ) : (
+        <button
+          type="button"
+          className={styles.icon}
+          // The dot is the sighted half of this; the label carries the same
+          // state for anyone who cannot see it, since the phone has no room for
+          // the desktop bar's words.
+          aria-label={isUnsaved(loaded) ? 'Save this boop' : 'Save this boop (saved)'}
+          data-testid="phone-save-button"
+          onClick={onSave}
+        >
+          <SaveIcon />
+          <span
+            className={styles.savedDot}
+            data-unsaved={isUnsaved(loaded)}
+            data-testid="phone-saved-dot"
+            aria-hidden="true"
+          />
+        </button>
+      )}
       <button
         type="button"
         className={styles.icon}
@@ -142,22 +159,26 @@ export function PhoneBar({
 
       {menuOpen && (
         <div className={styles.menu} data-testid="phone-menu">
-          <button
-            type="button"
-            className={styles.item}
-            data-testid="new-boop-button"
-            onClick={withClose(onNewBoop)}
-          >
-            New boop
-          </button>
-          <button
-            type="button"
-            className={styles.item}
-            data-testid="phone-menu-my-boops"
-            onClick={withClose(onOpenMyBoops)}
-          >
-            My boops
-          </button>
+          {keepUrl === null && (
+            <>
+              <button
+                type="button"
+                className={styles.item}
+                data-testid="new-boop-button"
+                onClick={withClose(onNewBoop)}
+              >
+                New boop
+              </button>
+              <button
+                type="button"
+                className={styles.item}
+                data-testid="phone-menu-my-boops"
+                onClick={withClose(onOpenMyBoops)}
+              >
+                My boops
+              </button>
+            </>
+          )}
           {/* Share keeps the menu open so the "Copied!" flip is seen — the
               clipboard path has no other feedback, and the design forbids a
               toast or a link field. */}

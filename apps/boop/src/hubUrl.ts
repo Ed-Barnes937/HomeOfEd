@@ -1,15 +1,24 @@
+import { accountUrlFor } from '@hoe/accounts'
+
+const PRODUCTION_HUB = 'https://homeofed.com'
+
 /**
- * Where the back arrow points. The hub (home of ed) is the apex `homeofed.com`
- * in production; in local dev it runs on port 3000. Local hostnames go to the
- * local hub; everything else (prod, previews) goes to the apex so the arrow
- * always lands on a real hub.
+ * Where the back arrow points: the hub on boop's own tier (production, `pnpm
+ * dev` or the docker stack), from the estate registry. Anywhere else, such as a
+ * Fly preview host, gets the production hub so the arrow always lands somewhere real.
  */
-export function hubUrl(hostname: string): string {
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:3000'
-  return 'https://homeofed.com'
+export function hubUrl(href: string): string {
+  const account = accountUrlFor(href)
+  return account === null ? PRODUCTION_HUB : new URL(account).origin
 }
 
-/** The hub's account page, which owns sign-in and the family profiles (ADR 0070). */
-export function accountUrl(hostname: string): string {
-  return `${hubUrl(hostname)}/account`
+/**
+ * Hub's account page, returning here once a player is picked (spec decision
+ * 10), or `null` outside the estate. The fragment stays behind: boop has
+ * already loaded what it carried, and replaying it would reopen a shared boop
+ * over the new player's work.
+ */
+export function switchPlayerUrl(href: string): string | null {
+  const hashAt = href.indexOf('#')
+  return accountUrlFor(hashAt === -1 ? href : href.slice(0, hashAt))
 }

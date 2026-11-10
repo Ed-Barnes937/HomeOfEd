@@ -35,11 +35,13 @@ import { PhoneBar } from '../features/topbar/PhoneBar.tsx'
 import { TopBar } from '../features/topbar/TopBar.tsx'
 import { isEditableTarget } from '../isEditableTarget.ts'
 import { MAX_CLIPS, WORKING_NAME, type StoredBoop } from '../persistence/saveFormat.ts'
+import { useSaveStorage } from '../persistence/SaveStorageContext.tsx'
 import { useFavourites } from '../persistence/useFavourites.ts'
 import { useWorkingSong } from '../persistence/useWorkingSong.ts'
 import { afterEdit, isUnsaved, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
-import { buildShareUrl, clearShareHash, decodeShareHash } from '../share/shareLink.ts'
+import { arrivalFragment } from '../share/arrival.ts'
+import { buildShareUrl, clearShareHash, decodeShareHash, keepSharedUrl } from '../share/shareLink.ts'
 import {
   activeClip,
   addClip,
@@ -70,7 +72,6 @@ import {
   globalBarOfTick,
   songTimeline,
 } from '../song/songTimeline.ts'
-import { ImportOfferCard } from '../sync/ImportOfferCard.tsx'
 import { useBoopSync } from '../sync/useBoopSync.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
@@ -90,6 +91,11 @@ function clearedPattern(pattern: Pattern): Pattern {
   }))
 }
 
+interface HomePageProps {
+  /** The `/shared` view: it keeps nothing, so it offers "Keep this boop" in place of saving. */
+  shared?: boolean
+}
+
 /**
  * The whole app: top bar, the 6x16 grid, and play/pause. The working state is
  * a *song* (ticket 14) — clips, placements, one bpm, and the active clip the
@@ -97,8 +103,9 @@ function clearedPattern(pattern: Pattern): Pattern {
  * they are the source of truth for what sounds, mirrored into the song after
  * every edit so a toggle re-renders and the autosave sees the whole song.
  */
-export function HomePage() {
+export function HomePage({ shared = false }: HomePageProps) {
   const engine = useEngine()
+  const storage = useSaveStorage()
   const [song, setSong] = useState<Song | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   // The saved boop the grid came from, and whether it has since diverged
@@ -159,7 +166,10 @@ export function HomePage() {
   // and wins over the autosaved grid. Held in a ref so the value survives the
   // fragment being cleared below — decoding again would then find nothing.
   const sharedBoop = useRef<StoredBoop | null | undefined>(undefined)
-  sharedBoop.current ??= decodeShareHash(window.location.hash)
+  sharedBoop.current ??= decodeShareHash(arrivalFragment())
+  const [keepUrl] = useState(() =>
+    shared ? keepSharedUrl(window.location.origin, arrivalFragment()) : null,
+  )
 
   // The restore hands back the whole autosaved song, its active clip and tempo
   // already in the engine; adopting it here is what un-gates the render below.
@@ -183,9 +193,10 @@ export function HomePage() {
   const songRef = useRef<Song | null>(null)
   songRef.current = song
 
+  // The shared view keeps its fragment: it saves nothing, so a reload reopens the share.
   useEffect(() => {
-    if (sharedBoop.current) clearShareHash(window.location, window.history)
-  }, [])
+    if (sharedBoop.current && !shared) clearShareHash(window.location, window.history)
+  }, [shared])
 
   // --- Song playback (ticket 16, spec §9) ---
 
@@ -535,7 +546,7 @@ export function HomePage() {
   const getShareUrl = useCallback(() => {
     if (!engine || !songRef.current) return window.location.href
     return buildShareUrl(
-      window.location,
+      window.location.origin,
       storedBoopFromSong(engine.kit, songRef.current, WORKING_NAME),
     )
   }, [engine])
@@ -627,9 +638,9 @@ export function HomePage() {
    */
   const keepThisBoop = useCallback(() => {
     setKeepCardOpen(false)
-    quickSaveBoop(window.localStorage, getWorkingBoop)
+    quickSaveBoop(storage, getWorkingBoop)
     newBoop()
-  }, [getWorkingBoop, newBoop])
+  }, [getWorkingBoop, newBoop, storage])
 
   /**
    * Tapping a chip puts that clip on the grid — a view change, not an edit.
@@ -914,6 +925,7 @@ export function HomePage() {
               onOpenHints={() => setHintsOpen(true)}
               loaded={loaded}
               syncedAs={sync.syncedAs}
+              keepUrl={keepUrl}
             />
           ) : (
             <TopBar
@@ -923,6 +935,7 @@ export function HomePage() {
               loaded={loaded}
               onNewBoop={requestNewBoop}
               syncedAs={sync.syncedAs}
+              keepUrl={keepUrl}
             />
           )}
         </div>
@@ -1079,16 +1092,6 @@ export function HomePage() {
           something, so a child who has nothing to lose never meets it. */}
       {keepCardOpen && (
         <ConfirmCard {...NEW_BOOP_CONFIRM} onSafe={keepThisBoop} onDestructive={startFresh} />
-      )}
-      {/* The first-link offer (ADR 0080): asked once per profile on this
-          device, and never again - whichever way it is answered, the boops
-          stay exactly where they are. */}
-      {sync.offering !== null && (
-        <ImportOfferCard
-          name={sync.offering}
-          onAccept={sync.acceptImport}
-          onDecline={sync.declineImport}
-        />
       )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>

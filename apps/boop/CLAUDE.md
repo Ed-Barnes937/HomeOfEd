@@ -51,11 +51,18 @@ src/
     handlers/       Handler classes — business logic, AppContext only, no Store
     router.ts       tRPC router; createTRPC<void>() (no Store); exports AppRouter
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
-    main.ts         prod entrypoint: createAppServer + shallow /health
+    main.ts         prod entrypoint: createAppServer + shallow /health + the
+                    estate gate (on when FAMILY_ACCOUNT_URL is set, /shared open)
     greeting.test.ts  Vitest unit — placeholder handler exercised over the auth seam
   persistence/      the save format + autosave (ADR 0025) — no React except the hook
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
+    profileStorage.ts whose boops these are (ADR 0094): `profileStorage` keeps
+                      boop:save and boop:favourites under the playing profile
+                      and copies the legacy ones in; `memoryStorage` is the
+                      shared view's, which keeps nothing
+    SaveStorageContext.tsx  the one storage every hook persists through -
+                      never `window.localStorage` directly
     favourites.ts     favourite sounds under their own key (boop:favourites) —
                       a preference, not part of the save document; same
                       never-throws seam idiom (+ useFavourites.ts, the hook)
@@ -64,12 +71,10 @@ src/
                       flush on pagehide, and seed a first visit (tickets 36/17)
   sync/             the family account (ADR 0080) - a copy of the save document
                     on the SaveStore, never a move. Nothing in the play path
-                    calls it: boopSync.ts watches the one localStorage key and
+                    calls it: boopSync.ts watches the profile's save key and
                     copies it up, mergeSaveDocuments.ts is the pure union hook,
-                    syncedAccount.ts the additive `boop:syncedAccount` marker -
-                    the answer per account, not just that one was given,
-                    useBoopSync.ts the hook HomePage calls, and
-                    ImportOfferCard/SyncedChip the only two pieces of UI
+                    useBoopSync.ts the hook HomePage calls, and SyncedChip
+                    (the switch-player link) the only piece of UI
   song/             the working-song domain (ticket 14) — pure, no React
     song.ts           Song/Clip types, StoredBoop↔Song conversions, and the
                       mutation kinds (placement, add/delete/rename clip, lane
@@ -87,8 +92,11 @@ src/
                     share-sheet/download action and the slugged filename. Pure
                     but for `sampleDecoder.ts`, the AudioContext seam.
   share/            URL-hash share links (ADR 0026) — pure, no server
-    shareLink.ts      encode/decode a creation to `#g=<base64url>`; total decode
+    shareLink.ts      encode/decode a creation to `/shared#g=<base64url>`; total
+                      decode; `keepSharedUrl`, the shared view's way back to /
     shareAction.ts    share sheet vs clipboard, behind an injected ShareTarget
+    arrival.ts        the fragment as it arrived, captured at module load
+                      before the router decodes the address bar (ADR 0095)
   features/grid/    the grid well. Two renderers, one behaviour:
                     Grid.tsx      laptop/tablet - the clip's rows x 16 flat
                     PhoneGrid.tsx <1024px — pinned rail + snap-scrolling step
@@ -179,7 +187,13 @@ src/
                     (at src/) picks the layout: ≥1024 is clip-lanes (the
                     tablet band 1024–1279 shrinks the lane grid via CSS,
                     ticket 20), <1024 is the phone
-  pages/            HomePage — the whole app as a fixed frame at every height
+  hubUrl.ts         the back arrow's hub and the chip's switch-player link,
+                    on boop's own tier (production, dev, stack) via the
+                    estate registry
+  pages/            views.tsx - the two routes: `/` (PlayerView, the
+                    profile's storage) and `/shared` (SharedView, memory
+                    storage, no save client), both rendering HomePage.
+                    HomePage — the whole app as a fixed frame at every height
                     (ADR 0030, narrowed by ADR 0035): pinned chrome, the
                     scrolling region (the song bar, the home surface), the
                     pinned dock (the clip launcher); the grid opens as a card

@@ -7,6 +7,7 @@ import {
   decodeShare,
   decodeShareHash,
   encodeShare,
+  keepSharedUrl,
   SHARE_FORMAT_VERSION,
   SHARE_HASH_PREFIX,
 } from './shareLink.ts'
@@ -219,15 +220,22 @@ describe('decodeShare is total', () => {
 })
 
 describe('buildShareUrl', () => {
-  it('puts the whole creation in the fragment of the current page URL', () => {
-    const url = buildShareUrl({ origin: 'https://boop.homeofed.com', pathname: '/' }, boop)
-    expect(url.startsWith(`https://boop.homeofed.com/${SHARE_HASH_PREFIX}`)).toBe(true)
+  it('puts the whole creation in the fragment of the ungated /shared view', () => {
+    const url = buildShareUrl('https://boop.homeofed.com', boop)
+    expect(url.startsWith(`https://boop.homeofed.com/shared${SHARE_HASH_PREFIX}`)).toBe(true)
     expect(decodeShareHash(new URL(url).hash)).toEqual(boop)
   })
+})
 
-  it('keeps the path so a shared link opens the same route', () => {
-    const url = buildShareUrl({ origin: 'https://boop.homeofed.com', pathname: '/room' }, boop)
-    expect(new URL(url).pathname).toBe('/room')
+describe('keepSharedUrl', () => {
+  it('carries the fragment the shared view opened on, byte for byte, to the root', () => {
+    expect(keepSharedUrl('http://localhost:8088', '#g=%7B%22a%22%3A1%7D')).toBe(
+      'http://localhost:8088/#g=%7B%22a%22%3A1%7D',
+    )
+  })
+
+  it('is the bare root when the shared view had no fragment', () => {
+    expect(keepSharedUrl('https://boop.homeofed.com', '')).toBe('https://boop.homeofed.com/')
   })
 })
 

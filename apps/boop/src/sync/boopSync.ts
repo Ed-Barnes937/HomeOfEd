@@ -14,11 +14,15 @@ import {
 import { SAVE_KEY, type SaveStorage } from '../persistence/storage.ts'
 import { mergeSaveDocuments } from './mergeSaveDocuments.ts'
 
-/** The SaveStore's app id for boop; `slotKey` is the localStorage key verbatim (spec §4.6). */
+/**
+ * The SaveStore's app id for boop. `slotKey` is the unscoped `SAVE_KEY`: the
+ * account is already part of the server key, and `storage` is the profile's (ADR 0094).
+ */
 export const BOOP_APP_ID = 'boop'
 
 export interface BoopSyncOpts {
   client: FamilySaveContract
+  /** The signed-in profile's `profileStorage`. */
   storage: SaveStorage
 }
 
