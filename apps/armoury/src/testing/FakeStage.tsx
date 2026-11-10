@@ -6,7 +6,7 @@ import type {
   CloseUpProps,
   StageHandle,
   StageProps,
-  Stages,
+  StagesByKind,
 } from '../stage/stage.ts'
 
 import { compileWand } from '../wand/compile.ts'
@@ -55,7 +55,7 @@ export function FakeCloseUpStage({
   params,
   onLift,
   onArrive,
-  onTapWand,
+  onTapItem,
   onTapAway,
   ref,
 }: CloseUpProps) {
@@ -64,7 +64,7 @@ export function FakeCloseUpStage({
   useImperativeHandle(
     ref,
     (): CloseUpHandle => ({
-      cast: () => setCasts((c) => c + 1),
+      flourish: () => setCasts((c) => c + 1),
       putBack: () => Promise.resolve(),
     }),
     [],
@@ -82,10 +82,12 @@ export function FakeCloseUpStage({
       data-casts={casts}
       data-gems={gemCount(params)}
     >
-      <button type="button" data-testid="close-up-wand" tabIndex={-1} onClick={onTapWand} />
+      <button type="button" data-testid="close-up-wand" tabIndex={-1} onClick={onTapItem} />
       <button type="button" data-testid="close-up-away" tabIndex={-1} onClick={onTapAway} />
     </div>
   )
 }
 
-export const fakeStages: Stages = { Box: FakeStage, CloseUp: FakeCloseUpStage }
+export const fakeStages: StagesByKind = {
+  wand: { Box: FakeStage, CloseUp: FakeCloseUpStage },
+}

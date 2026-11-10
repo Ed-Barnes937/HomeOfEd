@@ -1,48 +1,44 @@
-import { Suspense, use, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { Suspense, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 
 import type { StoredItem } from '../items/item.ts'
-import {
-  StageContext,
-  WAVE_TO_SPELL_SECONDS,
-  type BoxPose,
-  type CloseUpHandle,
-} from '../stage/stage.ts'
-import { wandDescription, wandName } from '../wand/describe.ts'
-import { swatchFor } from '../wand/wandSchema.ts'
+import { useStages, type BoxPose, type CloseUpHandle } from '../stage/stage.ts'
 import styles from './CloseUp.module.scss'
+import type { ShopView } from './shopView.ts'
 
 const hexToRgb = (hex: string) => {
   const n = parseInt(hex.slice(1), 16)
   return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`
 }
 
-/** The wand lifted out of its box into the middle of the darkened shop, to turn and wave. */
+/** The item lifted out into the middle of the darkened shop, to turn and show off. */
 export function CloseUp({
-  wand,
+  view,
+  item,
   reducedMotion,
   boxPose,
   onLift,
   onClosed,
 }: {
-  wand: StoredItem
+  view: ShopView
+  item: StoredItem
   reducedMotion: boolean
   boxPose: () => BoxPose
   onLift: () => void
   onClosed: () => void
 }) {
-  const Stage = use(StageContext)?.CloseUp
+  const Stage = useStages(view.item.kind)?.CloseUp
   const dialog = useRef<HTMLDialogElement>(null)
   const stageRef = useRef<CloseUpHandle | null>(null)
-  const [casts, setCasts] = useState(0)
+  const [flourishes, setFlourishes] = useState(0)
   const [leaving, setLeaving] = useState(false)
 
   useLayoutEffect(() => {
     dialog.current?.showModal()
   }, [])
 
-  const wave = () => {
-    stageRef.current?.cast()
-    setCasts((c) => c + 1)
+  const flourish = () => {
+    stageRef.current?.flourish()
+    setFlourishes((c) => c + 1)
   }
 
   const finish = () => {
@@ -57,17 +53,18 @@ export function CloseUp({
     finish()
   }
 
-  const { params } = wand
+  const { params } = item
+  const { copy, closeUp } = view
   return (
     <dialog
       ref={dialog}
       className={styles.closeUp}
-      aria-label="Your wand, up close"
+      aria-label={copy.closeLookTitle}
       data-leaving={leaving || undefined}
       style={
         {
-          '--core-rgb': hexToRgb(swatchFor('core', params.core as string) ?? '#ffc95c'),
-          '--spell-delay': `${reducedMotion ? 0 : WAVE_TO_SPELL_SECONDS}s`,
+          '--core-rgb': hexToRgb(view.item.glow(params)),
+          '--spell-delay': `${reducedMotion ? 0 : (closeUp.flashDelaySeconds ?? 0)}s`,
         } as CSSProperties
       }
       onCancel={(e) => {
@@ -79,7 +76,9 @@ export function CloseUp({
       }}
     >
       <div className={styles.shade} aria-hidden="true" />
-      {casts > 0 && <div key={casts} className={styles.flash} aria-hidden="true" />}
+      {flourishes > 0 && closeUp.flashDelaySeconds !== null && (
+        <div key={flourishes} className={styles.flash} aria-hidden="true" />
+      )}
       <div className={styles.stage}>
         {Stage && (
           <Suspense fallback={null}>
@@ -89,19 +88,19 @@ export function CloseUp({
               reducedMotion={reducedMotion}
               boxPose={boxPose}
               onLift={onLift}
-              onArrive={wave}
-              onTapWand={wave}
+              onArrive={flourish}
+              onTapItem={flourish}
               onTapAway={() => void putBack()}
             />
           </Suspense>
         )}
       </div>
       <div className={styles.caption}>
-        <h2 className={styles.name}>{wand.name ?? wandName(params)}</h2>
-        <p className={styles.description}>{wandDescription(params)}</p>
-        <p className={styles.hint}>Drag to turn it. Tap it to wave.</p>
+        <h2 className={styles.name}>{item.name ?? view.item.name(params)}</h2>
+        <p className={styles.description}>{view.item.tagLine(params)}</p>
+        <p className={styles.hint}>{copy.closeLookHint}</p>
         <div className={styles.buttons}>
-          <button type="button" className={styles.wave} onClick={wave}>
+          <button type="button" className={styles.wave} onClick={flourish}>
             <svg
               width="18"
               height="18"
@@ -114,7 +113,7 @@ export function CloseUp({
             >
               <path d="M10 2 v4 M10 14 v4 M2 10 h4 M14 10 h4 M4.5 4.5 l2.5 2.5 M13 13 l2.5 2.5 M15.5 4.5 l-2.5 2.5 M7 13 l-2.5 2.5" />
             </svg>
-            Wave it
+            {copy.closeLookAction}
           </button>
           <button type="button" className={styles.putBack} autoFocus onClick={() => void putBack()}>
             Put it back

@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { ShopCopy } from '../shop/shopView.ts'
+import { wandCopy } from '../shop/wandShop.ts'
 import { navigatorShareTarget, prefersShareSheet, shareWandUrl } from './shareAction.ts'
 
 export const COPIED_HOLD_MS = 1_600
 
 export type ShareState = 'idle' | 'pending' | 'copied'
 
-export function useShareWand(getShareUrl: () => string): {
+export function useShareWand(
+  getShareUrl: () => string,
+  copy: Pick<ShopCopy, 'shareTitle' | 'shareText'> = wandCopy,
+): {
   shareState: ShareState
   share: () => void
 } {
@@ -24,7 +29,8 @@ export function useShareWand(getShareUrl: () => string): {
     if (shareState === 'pending') return
     setShareState('pending')
     const target = navigatorShareTarget(navigator, prefersShareSheet())
-    void shareWandUrl(getShareUrl(), target).then((outcome) => {
+    const words = { title: copy.shareTitle, text: copy.shareText }
+    void shareWandUrl(getShareUrl(), target, words).then((outcome) => {
       if (outcome !== 'copied') {
         // Shared, dismissed or refused: the OS (or nothing) is the feedback.
         setShareState('idle')
@@ -36,7 +42,7 @@ export function useShareWand(getShareUrl: () => string): {
       if (revertTimer.current !== null) clearTimeout(revertTimer.current)
       revertTimer.current = setTimeout(() => setShareState('idle'), COPIED_HOLD_MS)
     })
-  }, [getShareUrl, shareState])
+  }, [getShareUrl, shareState, copy])
 
   return { shareState, share }
 }

@@ -265,7 +265,7 @@ export function HeldRig({
   boxPose,
   onLift,
   onArrive,
-  onTapWand,
+  onTapItem,
   onTapAway,
   ref,
   children,
@@ -296,7 +296,7 @@ export function HeldRig({
   useImperativeHandle(
     ref,
     (): CloseUpHandle => ({
-      cast: () => {
+      flourish: () => {
         const now = three.current?.clock.elapsedTime ?? 0
         handling.current.waveAt = now
         setFlourishAt(now)
@@ -371,7 +371,7 @@ export function HeldRig({
     // A pause before letting go means no flick.
     if (e.timeStamp - g.lastMove > 80) handling.current.spin.set(0, 0)
     if (pointers.current.size > 0 || g.pinched || g.travelled > TAP_SLOP_PX) return
-    if (landsOnItem(e.clientX, e.clientY)) onTapWand()
+    if (landsOnItem(e.clientX, e.clientY)) onTapItem()
     else onTapAway()
   }
 

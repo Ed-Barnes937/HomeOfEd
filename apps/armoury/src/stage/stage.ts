@@ -1,6 +1,7 @@
-import { createContext, type ComponentType, type Ref } from 'react'
+import { createContext, use, type ComponentType, type Ref } from 'react'
 
 import type { Params } from '../engine/schema.ts'
+import type { ItemKind } from '../items/item.ts'
 
 export const LONGEST_WAND_MM = 380
 /** The longest wand spans this much of the stage's width; the rest is room for the spell. */
@@ -34,10 +35,10 @@ export interface BoxPose {
   turns: number
 }
 
-/** What the shop can ask of the wand once it's lifted out for a closer look. */
+/** What the shop can ask of the item once it's lifted out for a closer look. */
 export interface CloseUpHandle {
-  /** Waves the wand in a figure of 8, then casts a spell from the tip in the core's colour. */
-  cast(): void
+  /** The item's show-off move: a wand waves a figure of 8 and casts a spell from its tip. */
+  flourish(): void
   /** Flies the wand back down into its box; resolves once it's lying there. */
   putBack(): Promise<void>
 }
@@ -51,7 +52,7 @@ export interface CloseUpProps {
   onLift: () => void
   /** The wand has risen into the middle of the screen. */
   onArrive: () => void
-  onTapWand: () => void
+  onTapItem: () => void
   onTapAway: () => void
   ref?: Ref<CloseUpHandle>
 }
@@ -61,5 +62,12 @@ export interface Stages {
   CloseUp: ComponentType<CloseUpProps>
 }
 
+export type StagesByKind = Partial<Record<ItemKind, Stages>>
+
 /** The real stages are three.js; the .iwft harness swaps in fakes (ADR 0073). */
-export const StageContext = createContext<Stages | null>(null)
+export const StageContext = createContext<StagesByKind>({})
+
+/** A kind with no stages shows its shop without one, as a browser without WebGL does. */
+export function useStages(kind: ItemKind): Stages | undefined {
+  return use(StageContext)[kind]
+}

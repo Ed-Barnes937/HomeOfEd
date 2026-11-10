@@ -1,36 +1,38 @@
 import { useState } from 'react'
 
-import type { Params } from '../../engine/schema.ts'
-import { visibleGroups } from './groups.ts'
 import { GroupControls } from './GroupControls.tsx'
-import { LockButton } from './Panel.tsx'
+import { LockButton, type ControlsProps } from './Panel.tsx'
 import styles from './Sheet.module.scss'
-import type { OnChange } from './Widgets.tsx'
 
 export function Sheet({
+  schema,
+  groups: groupsOf,
+  widget,
+  copy,
   params,
   locked,
   onChange,
   onToggleLock,
   actions,
-}: {
-  params: Params
-  locked: readonly string[]
-  onChange: OnChange
-  onToggleLock: (group: string) => void
-  actions: React.ReactNode
-}) {
-  const [tab, setTab] = useState('finish')
-  const groups = visibleGroups(params)
+}: ControlsProps) {
+  const groups = groupsOf(params)
+  const [tab, setTab] = useState(() => groups[0]!.key)
   const group = groups.find((g) => g.key === tab) ?? groups[0]!
 
   return (
-    <section className={styles.sheet} aria-label="Make your wand">
+    <section className={styles.sheet} aria-label={copy.panelTitle}>
       <div className={styles.grip} aria-hidden="true" />
       <div className={styles.kind}>
-        <GroupControls group="kind" params={params} onChange={onChange} inline />
+        <GroupControls
+          group="kind"
+          schema={schema}
+          params={params}
+          onChange={onChange}
+          widget={widget}
+          inline
+        />
       </div>
-      <div className={styles.tabs} role="tablist" aria-label="Parts of the wand">
+      <div className={styles.tabs} role="tablist" aria-label={copy.sheetTitle}>
         {groups.map((g) => (
           <button
             key={g.key}
@@ -60,7 +62,13 @@ export function Sheet({
             onToggle={() => onToggleLock(group.key)}
           />
         </div>
-        <GroupControls group={group.key} params={params} onChange={onChange} />
+        <GroupControls
+          group={group.key}
+          schema={schema}
+          params={params}
+          onChange={onChange}
+          widget={widget}
+        />
       </div>
       <footer className={styles.footer}>{actions}</footer>
     </section>

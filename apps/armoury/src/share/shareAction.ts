@@ -14,10 +14,20 @@ export interface ShareTarget {
  */
 export type ShareOutcome = 'shared' | 'copied' | 'dismissed' | 'unavailable'
 
-export async function shareWandUrl(url: string, target: ShareTarget): Promise<ShareOutcome> {
+/** What the share sheet says alongside the link. */
+export interface ShareWords {
+  title: string
+  text: string
+}
+
+export async function shareWandUrl(
+  url: string,
+  target: ShareTarget,
+  words?: ShareWords,
+): Promise<ShareOutcome> {
   if (target.share) {
     try {
-      await target.share({ title: 'Armoury', text: 'Look at the wand I made', url })
+      await target.share({ ...words, url })
       return 'shared'
     } catch (error) {
       // A cancelled sheet is a choice, not a failure - don't quietly copy.

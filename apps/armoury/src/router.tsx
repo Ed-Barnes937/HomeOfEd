@@ -2,10 +2,15 @@ import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/re
 
 import { ShelfPage } from './shelf/ShelfPage.tsx'
 import { ShopPage } from './shop/ShopPage.tsx'
+import { wandShop } from './shop/wandShop.ts'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
-const shopRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: ShopPage })
+const shopRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: () => <ShopPage view={wandShop} />,
+})
 const shelfRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/shelf',
