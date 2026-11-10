@@ -9,6 +9,8 @@ export const STAGE_FILL = 0.72
 export const BLOOM_THRESHOLD = 1.4
 /** A wave starts as soon as it's asked for; the spell leaves the tip this long after. */
 export const WAVE_TO_SPELL_SECONDS = 2.5
+/** How long a spell's burst lasts once it leaves the tip. */
+export const SPELL_SECONDS = 1.6
 
 /** What the shop can ask of the wand on the counter. */
 export interface StageHandle {

@@ -1,6 +1,6 @@
 import type { ChoiceParam, Params } from '../../engine/schema.ts'
 import { coreName } from '../../wand/describe.ts'
-import { usesMetal, usesPaint, wandSchema } from '../../wand/wandSchema.ts'
+import { hasGems, usesMetal, usesPaint, wandSchema } from '../../wand/wandSchema.ts'
 
 export interface GroupMeta {
   key: string
@@ -60,7 +60,9 @@ export const GROUPS: readonly GroupMeta[] = [
           ? labelOf('paintColour', p)
           : p.handleFinish === 'bone' || p.shaftFinish === 'bone'
             ? 'Bone'
-            : 'None',
+            : hasGems(p)
+              ? 'Gems'
+              : 'None',
   },
   {
     key: 'core',

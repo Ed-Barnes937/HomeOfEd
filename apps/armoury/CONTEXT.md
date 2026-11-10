@@ -37,20 +37,14 @@ shaft, the ring, the end cap or a band. A metal raised spiral is a zone in angle
 as well as length ([ADR 0082](../../docs/adr/0082-armoury-material-zones.md)).
 
 **Extras**:
-The group where a child picks the wand's zones and its one metal and one paint.
+The group where a child picks the wand's zones, its one metal and one paint, and its gems.
 _Avoid_: Decor (the code's key for it), in UI copy beyond the phone tab.
 
-**Bumps**:
-Evenly spaced swellings along the shaft, knobbly or bamboo. Part of the shaft's
-outline, not carving.
-_Avoid_: Nodes (the code's name for them), in UI copy.
-
-**Raised spiral**:
-A shaft spiral that stands proud as a ridge instead of being cut in as a groove.
-
-**Envelope**:
-How far carving and ridges may move the surface from the wand's outline, either
-way: a quarter of the local radius ([ADR 0090](../../docs/adr/0090-armoury-raised-features.md)).
+**Gem**:
+A stone in the core's colour that glows faintly and flares with the **spell**:
+set gems in seats on the surface, a crystal tip, or an orb at the end
+([ADR 0083](../../docs/adr/0083-armoury-glowing-gems.md)).
+_Avoid_: Jewel, light.
 
 **Core**:
 What's inside the wand. Decides the colour of its **spell**, the glow at its tip

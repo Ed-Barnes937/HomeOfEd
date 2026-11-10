@@ -12,6 +12,17 @@ const designs = [
     name: `random ${i}`,
     params: randomise(wandSchema, seededRandom(i + 1)),
   })),
+  ...(['ring', 'line', 'spiral'] as const).map((gems, i) => ({
+    name: `random with ${gems} gems`,
+    params: normalise(wandSchema, {
+      ...randomise(wandSchema, seededRandom(100 + i)),
+      gems,
+      gemCount: 9,
+      gemSize: 1,
+      tipGem: 'crystal',
+      endGem: 'orb',
+    }),
+  })),
 ]
 
 // Carving and raised ridges stay within this fraction of the local profile radius.

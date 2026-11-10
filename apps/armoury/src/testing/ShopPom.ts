@@ -34,7 +34,14 @@ export class ShopPom extends BasePage {
     await expect(this.counter.getByText(text)).toBeVisible()
   }
 
-  async verifyStage(expected: { wood?: string; core?: string; length?: number }): Promise<void> {
+  async verifyStage(expected: {
+    wood?: string
+    core?: string
+    length?: number
+    gems?: number
+  }): Promise<void> {
+    if (expected.gems !== undefined)
+      await expect(this.stage).toHaveAttribute('data-gems', String(expected.gems))
     if (expected.wood) await expect(this.stage).toHaveAttribute('data-wood', expected.wood)
     if (expected.core) await expect(this.stage).toHaveAttribute('data-core', expected.core)
     if (expected.length)
@@ -167,6 +174,11 @@ export class CloseUpPom extends BasePage {
 
   async verifySpellsCast(count: number): Promise<void> {
     await expect(this.stage).toHaveAttribute('data-casts', String(count))
+  }
+
+  /** How many gems the stage was asked to draw. */
+  async verifyGems(count: number): Promise<void> {
+    await expect(this.stage).toHaveAttribute('data-gems', String(count))
   }
 
   /** FakeStage's stand-in for a tap that lands on the wand. */
