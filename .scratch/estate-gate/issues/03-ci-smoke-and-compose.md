@@ -21,15 +21,15 @@ App tickets must not touch either file.
 
 ## Comments
 
-- The gate-aware smoke is in every job that smokes `/`: the 8 estate apps,
-  hub, family, and record-deploys' hub redeploy. Hub and family can never be
-  gated, but hub is the copy base for new apps, so one shape everywhere. The
-  sprout smoke (asserts the 451 geo boundary) and sprout-pipeline (no public
-  smoke) are unchanged. Family's `200` branch keeps its root-div-only check,
-  as before.
+- The gate-aware smoke is on the 8 estate app jobs only. Hub, family and
+  record-deploys' hub redeploy keep main's strict `200` smoke (orchestrator
+  ruling): they are never gated, and a gated hub would be an estate-wide
+  redirect loop the smoke must catch. The sprout smoke (asserts the 451 geo
+  boundary) and sprout-pipeline (no public smoke) are unchanged. A new estate
+  app should copy an estate app's smoke, not hub's.
 - The `302` must be exactly `302`, and the `Location` must start with
   `https://homeofed.com/account?returnTo=`; anything else fails the smoke.
-- Open: in the docker stack hub's `/account` talks to family at
+- Raised (now ticket 18): in the docker stack hub's `/account` talks to family at
   `localhost:3012` (`familyService.ts`), but compose publishes family on 8092,
   and the family image's CORS allows only `https://homeofed.com` under
   `NODE_ENV=production`. By reading the code, a sign-in through the stack will

@@ -23,9 +23,10 @@
 # per ADR 0006, e.g. boids, has no release_command) → post-deploy smoke:
 # /health (a real Store round-trip for a DB-backed app, an in-memory
 # liveness ping for a DB-less one) + the SPA index + one hashed static
-# asset, proving the artifact actually serves. An app gated by
-# FAMILY_ACCOUNT_URL answers / with a 302 to hub's /account instead, which
-# the smoke accepts in place of the index, so a gate needs no workflow change.
+# asset, proving the artifact actually serves. An estate app gated by
+# FAMILY_ACCOUNT_URL answers / with a 302 to hub's /account instead, which its
+# smoke accepts in place of the index, so a gate needs no workflow change. Hub
+# and family are never gated, so their smokes still demand the 200 index.
 #
 # Required secrets (G4.2): FLY_API_TOKEN
 name: Deploy
@@ -105,25 +106,13 @@ jobs:
           set -euo pipefail
           echo "deep /health (real Store → Postgres round-trip)"
           curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
-          echo "SPA index, or a gated app's redirect to hub's /account"
-          index=$(mktemp)
-          answer=$(curl -sS -o "$index" -w '%{http_code} %{redirect_url}' "$APP_URL/")
-          case "$answer" in
-            "200 "*)
-              grep -q '<div id="root">' "$index"
-              echo "one hashed static asset"
-              asset=$(grep -oE 'assets/[^"]+\.js' "$index" | head -1)
-              test -n "$asset"
-              curl -fsS "$APP_URL/$asset" > /dev/null
-              ;;
-            "302 https://homeofed.com/account?returnTo="*)
-              echo "gated: ${answer#302 }"
-              ;;
-            *)
-              echo "::error::unexpected answer from $APP_URL/: $answer"
-              exit 1
-              ;;
-          esac
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
+          echo "one hashed static asset"
+          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          curl -fsS "$APP_URL/$asset" > /dev/null
           echo "smoke OK"
 
   deploy-boids:
@@ -1041,21 +1030,9 @@ jobs:
           set -euo pipefail
           echo "/health (a real Store round-trip: main.ts closes healthCheck over store.ping())"
           curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
-          echo "SPA index, or a gated app's redirect to hub's /account"
-          index=$(mktemp)
-          answer=$(curl -sS -o "$index" -w '%{http_code} %{redirect_url}' "$APP_URL/")
-          case "$answer" in
-            "200 "*)
-              grep -q '<div id="root">' "$index"
-              ;;
-            "302 https://homeofed.com/account?returnTo="*)
-              echo "gated: ${answer#302 }"
-              ;;
-            *)
-              echo "::error::unexpected answer from $APP_URL/: $answer"
-              exit 1
-              ;;
-          esac
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
           echo "smoke OK"
 
   # Records what actually shipped, so the homepage's New / Updated pills follow
@@ -1236,23 +1213,11 @@ jobs:
           set -euo pipefail
           echo "deep /health (real Store → Postgres round-trip)"
           curl -fsS --retry 5 --retry-delay 3 "$APP_URL/health"
-          echo "SPA index, or a gated app's redirect to hub's /account"
-          index=$(mktemp)
-          answer=$(curl -sS -o "$index" -w '%{http_code} %{redirect_url}' "$APP_URL/")
-          case "$answer" in
-            "200 "*)
-              grep -q '<div id="root">' "$index"
-              echo "one hashed static asset"
-              asset=$(grep -oE 'assets/[^"]+\.js' "$index" | head -1)
-              test -n "$asset"
-              curl -fsS "$APP_URL/$asset" > /dev/null
-              ;;
-            "302 https://homeofed.com/account?returnTo="*)
-              echo "gated: ${answer#302 }"
-              ;;
-            *)
-              echo "::error::unexpected answer from $APP_URL/: $answer"
-              exit 1
-              ;;
-          esac
+          echo "SPA index"
+          index=$(curl -fsS "$APP_URL/")
+          echo "$index" | grep -q '<div id="root">'
+          echo "one hashed static asset"
+          asset=$(echo "$index" | grep -oE 'assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          curl -fsS "$APP_URL/$asset" > /dev/null
           echo "smoke OK"
