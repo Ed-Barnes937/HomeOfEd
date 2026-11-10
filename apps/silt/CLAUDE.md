@@ -37,8 +37,8 @@ src/
     headers.ts      COOP/COEP on every response — cross-origin isolation for
                     the sim worker (ADR 0036); dev and CT serve the same pair
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
-  pages/            PlayerView — the player's storage and the player-change
-                    reload; HomePage — the rail, header, status bar, selection state
+  pages/            PlayerView - the player's storage and the player-change
+                    reload; HomePage - the rail, header, status bar, selection state
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches),
                     useMobileLayout (the $mobile breakpoint in JS - for the
