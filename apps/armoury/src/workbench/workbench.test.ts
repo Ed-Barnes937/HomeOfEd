@@ -50,6 +50,17 @@ describe('workbench', () => {
     }
   })
 
+  it('a wand made a Branch starts with patches of bark; a saved Branch keeps its bark', () => {
+    let state = startWorkbench({ params: normalise(wandSchema, {}) })
+    state = workbench(state, { type: 'set', key: 'kind', value: 'branch' })
+    expect(state.wand.params.bark).toBe('patches')
+    state = workbench(state, { type: 'set', key: 'bark', value: 'full' })
+    state = workbench(state, { type: 'set', key: 'wood', value: 'maple' })
+    expect(state.wand.params.bark).toBe('full')
+    const saved = startWorkbench({ params: normalise(wandSchema, { kind: 'branch' }) })
+    expect(saved.wand.params.bark).toBe('none')
+  })
+
   it('a new wand loses the old one’s name, a renamed one keeps it', () => {
     let state = startWorkbench({ ...oak, name: 'Acorn' })
     state = workbench(state, { type: 'set', key: 'lengthCm', value: 30 })

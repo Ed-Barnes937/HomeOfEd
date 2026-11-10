@@ -41,7 +41,9 @@ export class ShopPom extends BasePage {
     gems?: number
     kind?: string
     stencil?: string
+    bark?: string
   }): Promise<void> {
+    if (expected.bark) await expect(this.stage).toHaveAttribute('data-bark', expected.bark)
     if (expected.kind) await expect(this.stage).toHaveAttribute('data-kind', expected.kind)
     if (expected.stencil) await expect(this.stage).toHaveAttribute('data-stencil', expected.stencil)
     if (expected.gems !== undefined)

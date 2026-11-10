@@ -44,6 +44,7 @@ const designs = [
         gnarl: 1,
         knots: 6,
         branchSeed: 25 * j,
+        bark: ['none', 'patches', 'full'][j % 3],
         stencil: 'knotwork',
         stencilWhere: 'handle',
       }),
