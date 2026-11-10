@@ -60,7 +60,7 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
 (per-profile saves).
 
 - **`ESTATE_APPS`** - `{ appId, host, devPort, composePort }` for every gated
-  app. It is the only list of origins hub will return a visitor to, so a new
+  app (and `HUB_LOCAL_PORTS`, hub's own two localhost ports). It is the only list of origins hub will return a visitor to, so a new
   gated app is added here. Not the family service's `onboardedApps.ts`, which is
   the SaveStore list and differs on purpose.
 - **`safeReturnTo(raw, { allowLocal })`** - the open-redirect guard. Returns the
@@ -74,6 +74,12 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
 - **`accountUrl(accountBase, returnTo)`** - `<accountBase>?returnTo=<url>`. A
   fragment on `returnTo` moves onto the account URL, which is where the browser
   leaves it after the gate's `302`, so hub reads both entries the same way.
+- **`accountUrlFor(currentHref)`** - the one-argument form apps use for a
+  "switch player" link. The base comes from where the app runs, as hub derives
+  its cookie `Domain` from the hostname (ADR 0081 decision 3): production hub
+  for an `ESTATE_APPS` host, `localhost:<HUB_LOCAL_PORTS.devPort>` for an app on
+  its `devPort`, `localhost:<HUB_LOCAL_PORTS.composePort>` for its
+  `composePort`. `null` anywhere else (espy's Capacitor shell): show no link.
 - **`sharedUrl(returnTo, fragment)`** - `<origin>/shared<fragment>`, for hub's
   "Open what was shared". Pass it a `safeReturnTo` result, never a raw value.
 - **`profileScopedKey(key, accountId)`** - `key` for no account, else

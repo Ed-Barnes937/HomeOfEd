@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { accountUrl, safeReturnTo, sharedUrl } from './returnTo.ts'
+import { accountUrl, accountUrlFor, safeReturnTo, sharedUrl } from './returnTo.ts'
 
 describe('safeReturnTo accepts an estate app origin', () => {
   it('accepts a production app URL and normalises it', () => {
@@ -105,6 +105,42 @@ describe('sharedUrl', () => {
     expect(sharedUrl('https://armoury.homeofed.com/', '')).toBe(
       'https://armoury.homeofed.com/shared',
     )
+  })
+})
+
+describe('accountUrlFor', () => {
+  it('sends a production app to production hub', () => {
+    expect(accountUrlFor('https://boop.homeofed.com/play#g=1')).toBe(
+      'https://homeofed.com/account?returnTo=https%3A%2F%2Fboop.homeofed.com%2Fplay#g=1',
+    )
+  })
+
+  it("sends an app's dev server to hub's dev server", () => {
+    expect(accountUrlFor('http://localhost:3008/')).toBe(
+      'http://localhost:3000/account?returnTo=http%3A%2F%2Flocalhost%3A3008%2F',
+    )
+  })
+
+  it("sends an app's compose port to hub's compose port", () => {
+    expect(accountUrlFor('http://localhost:8091/x')).toBe(
+      'http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8091%2Fx',
+    )
+  })
+
+  it('is null anywhere that is not an estate app', () => {
+    for (const href of [
+      'capacitor://localhost/',
+      'https://localhost/',
+      'http://localhost/',
+      'http://localhost:9999/',
+      'http://127.0.0.1:3008/',
+      'https://localhost:3008/',
+      'http://boop.homeofed.com/',
+      'https://homeofed.com/',
+      'https://evil.example/',
+      'not a url',
+    ])
+      expect(accountUrlFor(href)).toBeNull()
   })
 })
 

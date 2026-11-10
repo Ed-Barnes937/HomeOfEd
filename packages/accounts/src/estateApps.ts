@@ -8,6 +8,9 @@ export interface EstateApp {
   composePort: number
 }
 
+/** Hub hosts `/account`; these are its localhost ports from the same registry. */
+export const HUB_LOCAL_PORTS = { devPort: 3000, composePort: 8080 } as const
+
 /**
  * Every app behind the family gate, and so every origin hub may return a visitor
  * to. Ports mirror the registry in `docs/how-to/adding-an-app.md` and `compose.yml`.

@@ -1,4 +1,4 @@
-import { ESTATE_APPS } from './estateApps.ts'
+import { ESTATE_APPS, HUB_LOCAL_PORTS } from './estateApps.ts'
 
 export interface SafeReturnToOpts {
   /** True only when hub itself is served from localhost. */
@@ -15,6 +15,33 @@ export function accountUrl(accountBase: string, returnTo: string): string {
   url.hash = ''
   url.searchParams.set('returnTo', hashAt === -1 ? returnTo : returnTo.slice(0, hashAt))
   return hashAt === -1 ? url.href : url.href + returnTo.slice(hashAt)
+}
+
+/**
+ * `accountUrl` with the base taken from where the app is running: production hub
+ * for a production app, hub's dev or compose port for an app on the matching
+ * localhost tier. Null outside the estate (such as espy's Capacitor shell).
+ */
+export function accountUrlFor(currentHref: string): string | null {
+  let origin: string
+  try {
+    origin = new URL(currentHref).origin
+  } catch {
+    return null
+  }
+  const base = accountBaseFor(origin)
+  return base === null ? null : accountUrl(base, currentHref)
+}
+
+function accountBaseFor(origin: string): string | null {
+  for (const app of ESTATE_APPS) {
+    if (origin === `https://${app.host}`) return 'https://homeofed.com/account'
+    if (origin === `http://localhost:${app.devPort}`)
+      return `http://localhost:${HUB_LOCAL_PORTS.devPort}/account`
+    if (origin === `http://localhost:${app.composePort}`)
+      return `http://localhost:${HUB_LOCAL_PORTS.composePort}/account`
+  }
+  return null
 }
 
 /** An app's ungated share view. `returnTo` must already be a `safeReturnTo` result. */

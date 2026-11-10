@@ -36,14 +36,17 @@ SaveStore list, a different list on purpose.
 - `familyDocumentGate` also takes `publicKeyPem` (and an optional `now` for
   tests). Verifying needs the public key, and the production public key is not
   in the repo yet: ADR 0070 and first-slice ticket 08 say it ships as config in
-  this package, but only the committed test key exists. Each app's `main.ts`
-  has to pass it until that is settled (open question for Ed).
+  this package, but only the committed test key exists. Where it comes from is
+  its own small ticket.
 - `accountUrl` moves a fragment on `returnTo` onto the account URL itself, so
   a "switch player" link reaches hub in the same shape a gate `302` leaves (the
   browser carries the fragment), and `safeReturnTo` drops any fragment.
 - `adoptLegacyDocument` returns whether it copied. "Once" is "while the
   profile's key is absent", as the ticket says; a profile whose key is later
-  removed adopts again. A quota error from `setItem` propagates.
-- Ticket 10 and others write `accountUrl(<current URL>)` with one argument; the
-  contract here is `accountUrl(accountBase, returnTo)` as this ticket says, so
-  apps need the account base (`https://homeofed.com/account`) client-side.
+  removed adopts again (accepted, no marker key). A quota error from `setItem`
+  propagates.
+- Added `accountUrlFor(currentHref)` and `HUB_LOCAL_PORTS`, for tickets 10-15's
+  one-argument `accountUrl(<current URL>)`: the hub base follows the app's own
+  origin tier (production, dev port, compose port), and it is null outside the
+  estate, meaning "show no switch-player link". The two-argument `accountUrl`
+  is unchanged.

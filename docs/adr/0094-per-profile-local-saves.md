@@ -55,7 +55,11 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
   from `setItem` propagates to the caller rather than being swallowed, so the
   app decides.
 - "Once" is "while the profile has no document of its own". A profile whose
-  document is removed adopts the legacy one again on its next open. No app
-  removes its save key today.
+  document is removed adopts the legacy one again on its next open; that is
+  accepted, so there is no marker key. No app removes its save key today.
+- Switching player is a link to hub, never a picker in the app (spec decision
+  10). `accountUrlFor(location.href)` builds it, taking hub's address from the
+  app's own origin tier (production, dev port, compose port), and is null
+  outside the estate, where the app shows no link.
 - A session with no profile, which behind the gate means espy's native shell,
   gets the unscoped key from `profileScopedKey` and behaves exactly as before.
