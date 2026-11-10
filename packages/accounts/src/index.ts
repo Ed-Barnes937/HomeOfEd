@@ -27,12 +27,15 @@ export type {
   MintSessionTokenInput,
   MintSessionTokenOutput,
   RenameChildInput,
+  SaveSummaryEntry,
+  SaveSummaryOutput,
   SignInInput,
   SignUpInput,
 } from './identityContract.ts'
 export {
   addChildInput,
   childProfileView,
+  compareSaveSummaryEntries,
   deleteAccountInput,
   deleteAccountOutput,
   deleteChildInput,
@@ -42,6 +45,8 @@ export {
   mintSessionTokenInput,
   mintSessionTokenOutput,
   renameChildInput,
+  saveSummaryEntry,
+  saveSummaryOutput,
 } from './identityContract.ts'
 export type { KeyValueStorage } from './profileScopedKey.ts'
 export { adoptLegacyDocument, profileScopedKey } from './profileScopedKey.ts'

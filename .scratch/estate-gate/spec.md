@@ -126,10 +126,17 @@ app or package you touch, and the ADRs your ticket names.
 - **Scope.** Your ticket only. If it names files you must not touch, another
   ticket owns them. Do not take an ADR number other than the ones assigned
   above.
-- **Branch and PR.** `estate-gate/NN-<slug>` off `main`, one PR per ticket
-  against `main`. If a blocker is built but unmerged, branch from it and say
-  so in the PR. Open the PR and leave merging to Ed: a merge to `main` deploys.
-  Never `--admin`.
+- **Branch and PR.** The epic lands on `main` as one PR (#188) from the
+  feature branch `estate-gate/tracker` (changed 2026-11-10 at Ed's request).
+  Branch `estate-gate/NN-<slug>` off `origin/estate-gate/tracker` and open one
+  PR per ticket against `estate-gate/tracker`. If a blocker is built but not
+  yet in the feature branch, branch from it and say so in the PR. The
+  orchestrator merges reviewed ticket PRs into the feature branch; nobody but
+  Ed merges to `main`. Never `--admin`.
+- **The gate stays off in production in this PR.** No ticket adds
+  `FAMILY_ACCOUNT_URL` to a `fly.toml`. Turning each app on is a later
+  one-line PR, after the production verifying key is committed (ticket 19) and
+  Ed's boop pilot (ticket 17). Compose keeps the gate on.
 - **Verify loop.** `pnpm lint`, `pnpm typecheck`, and
   `pnpm --filter <package> run test` for everything you touched. Do not use
   `turbo run --filter=<app>`; it fails on a cyclic dependency.

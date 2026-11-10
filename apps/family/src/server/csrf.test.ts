@@ -207,6 +207,51 @@ describe('one request may not fan out without limit', () => {
   })
 })
 
+describe('identity.saveSummary sits behind the cookie session and the identity tier', () => {
+  const summary = (headers: Record<string, string>): Promise<Response> =>
+    fetch(`${base}/api/trpc/identity.saveSummary`, { headers })
+
+  beforeEach(async () => {
+    await new DrizzleFamilyStore(db).putSave({
+      appId: 'boop',
+      accountId: 'parent-1',
+      slotKey: 'boop:save',
+      blob: '{"secret":"never on the wire"}',
+    })
+  })
+
+  it('answers the parent cookie session with metadata and no blob', async () => {
+    const response = await summary({ cookie: SESSION_COOKIE })
+    const body = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(body).toContain('"appId":"boop"')
+    expect(body).not.toContain('never on the wire')
+  })
+
+  it.each([
+    ['parent', mintTestToken({ sub: 'parent-1', role: 'parent', name: 'Ada' })],
+    ['child', childToken],
+  ])('refuses a %s family token alone', async (_label, token) => {
+    const response = await summary({ cookie: `${FAMILY_SESSION_COOKIE}=${token}` })
+
+    expect(response.status).toBe(401)
+    expect(await response.text()).not.toContain('boop')
+  })
+
+  it('lets no onboarded app origin read the reply', async () => {
+    const response = await summary({ cookie: SESSION_COOKIE, origin: 'https://boop.homeofed.com' })
+
+    expect(response.headers.get('access-control-allow-origin')).toBeNull()
+  })
+
+  it('grants the hub account UI the read', async () => {
+    const response = await summary({ cookie: SESSION_COOKIE, origin: 'https://homeofed.com' })
+
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://homeofed.com')
+  })
+})
+
 describe('the guard leaves every legitimate caller alone', () => {
   const addChild = (contentType: string): Promise<Response> =>
     fetch(`${base}/api/trpc/identity.children.add`, {

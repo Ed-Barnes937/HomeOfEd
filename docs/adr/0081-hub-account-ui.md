@@ -219,7 +219,10 @@ saves and the confirm copy for that is a product decision. (**Amended
 gate and every gated app's switch-player link now send visitors here with a
 `returnTo`.) Entry is boop's "synced as X" chip and the
 URL. A card or a link on hub's home page is a one-line change, but hub's home
-surface is sequenced outside epic branches, so it is not here.
+surface is sequenced outside epic branches, so it is not here. (**Amended
+2026-11-10:** hub's home page now carries a chip beside the theme toggle,
+"Playing as {name}" from `readFamilySession()` or "Sign in", linking to
+`/account`; estate-gate ticket 07.)
 
 **[ADR 0057](0057-family-service-legal-gate.md) is still Proposed.** Spec §10
 gates merging anything user-facing on it being accepted, and this is the whole

@@ -14,8 +14,9 @@ Blocked by: 01
 - After a profile is picked and the family cookie is written, navigate to
   `returnTo` with the fragment reattached. Sign-in and registration keep the
   `returnTo` alive until the pick.
-- Arriving with a valid `returnTo` and an already-live family session returns
-  immediately.
+- ~~Arriving with a valid `returnTo` and an already-live family session
+  returns immediately.~~ Withdrawn 2026-11-10: that state is an app's
+  switch-player link, so the picker shows and any pick returns (ADR 0095).
 - Signed out, with a valid `returnTo` and a fragment: the signed-out card also
   offers "Open what was shared", linking to `sharedUrl(returnTo, fragment)`.
 - iwft (state through UI, `FakeFamilyClient`): pick-then-return, fragment

@@ -5,7 +5,11 @@
 // ([ADR 0078](../../../../docs/adr/0078-family-identity-auth-boundary.md)).
 import type { FastifyInstance } from '@hoe/backend-kit/server'
 
-import { onboardedAppDevOrigins, onboardedAppOrigins } from './onboardedApps.ts'
+import {
+  onboardedAppComposeOrigins,
+  onboardedAppDevOrigins,
+  onboardedAppOrigins,
+} from './onboardedApps.ts'
 
 /**
  * The hub account UI alone, because the Better Auth cookie session is only ever
@@ -17,10 +21,23 @@ export const IDENTITY_ALLOWED_ORIGINS = ['https://homeofed.com'] as const
 /** Dev servers: hub 3000 and family's own 3012. */
 export const DEV_ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:3012'] as const
 
-export function identityAllowedOrigins(nodeEnv: string | undefined): readonly string[] {
-  return nodeEnv === 'production'
-    ? IDENTITY_ALLOWED_ORIGINS
-    : [...IDENTITY_ALLOWED_ORIGINS, ...DEV_ALLOWED_ORIGINS]
+/** Hub's compose port. The stack runs the production image, so NODE_ENV cannot gate it. */
+export const DOCKER_STACK_HUB_ORIGIN = 'http://localhost:8080'
+
+export interface LocalOrigins {
+  /** compose.yml's `DOCKER_STACK_ORIGINS=on`, which env.ts refuses on Fly. */
+  dockerStack?: boolean
+}
+
+export function identityAllowedOrigins(
+  nodeEnv: string | undefined,
+  { dockerStack = false }: LocalOrigins = {},
+): readonly string[] {
+  return [
+    ...IDENTITY_ALLOWED_ORIGINS,
+    ...(nodeEnv === 'production' ? [] : DEV_ALLOWED_ORIGINS),
+    ...(dockerStack ? [DOCKER_STACK_HUB_ORIGIN] : []),
+  ]
 }
 
 /**
@@ -28,11 +45,15 @@ export function identityAllowedOrigins(nodeEnv: string | undefined): readonly st
  * cookie, and apps call it browser-direct, so onboarded app origins belong here
  * - a superset of the identity tier, never the other way round.
  */
-export function saveAllowedOrigins(nodeEnv: string | undefined): readonly string[] {
+export function saveAllowedOrigins(
+  nodeEnv: string | undefined,
+  local: LocalOrigins = {},
+): readonly string[] {
   return [
-    ...identityAllowedOrigins(nodeEnv),
+    ...identityAllowedOrigins(nodeEnv, local),
     ...onboardedAppOrigins(),
     ...(nodeEnv === 'production' ? [] : onboardedAppDevOrigins()),
+    ...(local.dockerStack === true ? onboardedAppComposeOrigins() : []),
   ]
 }
 

@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { readFamilySession } from '@hoe/accounts'
+import { Link } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
 import { appDates } from './appDates.ts'
 import styles from './HomePage.module.scss'
 import { pillFor } from './pillFor.ts'
@@ -58,6 +60,7 @@ export function HomePage() {
   const [theme, setTheme] = useColourTheme()
   const wordmarkRef = useRef<HTMLHeadingElement>(null)
   const galleryRef = useRef<HTMLDivElement>(null)
+  const playing = useWhoIsPlaying()
 
   useHopAnimation(wordmarkRef)
   usePreviews(galleryRef, theme)
@@ -74,6 +77,18 @@ export function HomePage() {
       >
         <span className={theme === 'dark' ? styles.sun : styles.moon} aria-hidden="true" />
       </button>
+
+      <Link to="/account" className={styles.whosPlaying}>
+        <span className={styles.chipLabel}>
+          {playing ? (
+            <>
+              Playing as <span className={styles.player}>{playing}</span>
+            </>
+          ) : (
+            'Sign in'
+          )}
+        </span>
+      </Link>
 
       <section className={styles.intro}>
         <h1 className={styles.wordmark} ref={wordmarkRef} aria-label="home of ed">
@@ -136,6 +151,26 @@ export function HomePage() {
       </nav>
     </main>
   )
+}
+
+/**
+ * The name of whoever is playing on this device, or null. Decode-only, for
+ * display: never an authorisation decision. Re-read when back restores the page
+ * from the back-forward cache, since the player may have changed meanwhile.
+ */
+function useWhoIsPlaying(): string | null {
+  const [name, setName] = useState(readPlayerName)
+  useEffect(() => {
+    const reread = () => setName(readPlayerName())
+    window.addEventListener('pageshow', reread)
+    return () => window.removeEventListener('pageshow', reread)
+  }, [])
+  return name
+}
+
+function readPlayerName(): string | null {
+  const name = readFamilySession()?.name.trim() ?? ''
+  return name.replace(/[\s\p{Cf}]/gu, '') === '' ? null : name
 }
 
 /**

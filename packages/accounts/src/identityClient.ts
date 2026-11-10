@@ -21,6 +21,7 @@ import type {
   MintSessionTokenInput,
   MintSessionTokenOutput,
   RenameChildInput,
+  SaveSummaryOutput,
   SignInInput,
   SignUpInput,
 } from './identityContract.ts'
@@ -31,6 +32,7 @@ import {
   identityMeOutput,
   listChildrenOutput,
   mintSessionTokenOutput,
+  saveSummaryOutput,
 } from './identityContract.ts'
 import { unwrapTrpcResponse } from './trpcEnvelope.ts'
 
@@ -91,6 +93,9 @@ export function createFamilyIdentityClient(
     },
     async deleteAccount(): Promise<DeleteAccountOutput> {
       return deleteAccountOutput.parse(await mutate('deleteAccount', { confirm: true }))
+    },
+    async saveSummary(): Promise<SaveSummaryOutput> {
+      return saveSummaryOutput.parse(await query('saveSummary'))
     },
     signUp(input: SignUpInput): Promise<void> {
       return auth('sign-up/email', input)
