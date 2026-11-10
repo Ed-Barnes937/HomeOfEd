@@ -40,6 +40,13 @@ Tailwind, no `cva`).
   unattested/unagreed signup and stamps both columns with **server** time
   (ADR-0014/0015). The two registration checkboxes are UX only; their copy is
   counsel-flagged — do not reword.
+- **Boot-time secrets** (`server/env.ts`): `main.ts` and `worker.ts` read every
+  secret through `loadSproutWebEnv` / `loadSproutWorkerEnv` and pass it on
+  explicitly (Better Auth included). On Fly (`FLY_APP_NAME` present) `@hoe/deploy-guard`
+  refuses any placeholder, committed or too-short secret
+  ([ADR 0088](../../docs/adr/0088-deploy-guard-package.md)); `env.test.ts`
+  re-reads `.env.example` and compose's sprout services to prove their values
+  are refused. A new secret goes through `env.ts` with a floor.
 - **Two identities behind one `ctx.auth` seam**
   ([ADR 0012](../../docs/adr/0012-sprout-app-owned-auth.md)): parent (Better Auth
   cookie session; `/api/auth/*` forwarded through Fastify, an `onRequest` hook

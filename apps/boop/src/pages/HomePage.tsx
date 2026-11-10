@@ -70,6 +70,8 @@ import {
   globalBarOfTick,
   songTimeline,
 } from '../song/songTimeline.ts'
+import { ImportOfferCard } from '../sync/ImportOfferCard.tsx'
+import { useBoopSync } from '../sync/useBoopSync.ts'
 import { useIsPhone } from '../useIsPhone.ts'
 import styles from './HomePage.module.scss'
 
@@ -166,6 +168,11 @@ export function HomePage() {
   // Favourite sounds (ticket 01) — a preference under its own key, not part of
   // the save document.
   const { favourites, toggle: toggleFavourite } = useFavourites()
+
+  // The family account, if there is one (ADR 0080). Called after
+  // `useWorkingSong` so its pagehide listener registers after the autosave's,
+  // which is what makes the document it copies up the flushed one.
+  const sync = useBoopSync()
 
   useEffect(() => {
     if (restoredSong) setSong(restoredSong)
@@ -906,6 +913,7 @@ export function HomePage() {
               onOpenMyBoops={() => setBoopsOpen(true)}
               onOpenHints={() => setHintsOpen(true)}
               loaded={loaded}
+              syncedAs={sync.syncedAs}
             />
           ) : (
             <TopBar
@@ -914,6 +922,7 @@ export function HomePage() {
               onOpenHints={() => setHintsOpen(true)}
               loaded={loaded}
               onNewBoop={requestNewBoop}
+              syncedAs={sync.syncedAs}
             />
           )}
         </div>
@@ -1070,6 +1079,16 @@ export function HomePage() {
           something, so a child who has nothing to lose never meets it. */}
       {keepCardOpen && (
         <ConfirmCard {...NEW_BOOP_CONFIRM} onSafe={keepThisBoop} onDestructive={startFresh} />
+      )}
+      {/* The first-link offer (ADR 0080): asked once per profile on this
+          device, and never again - whichever way it is answered, the boops
+          stay exactly where they are. */}
+      {sync.offering !== null && (
+        <ImportOfferCard
+          name={sync.offering}
+          onAccept={sync.acceptImport}
+          onDecline={sync.declineImport}
+        />
       )}
       <HintSheet open={hintsOpen} onClose={() => setHintsOpen(false)} />
     </main>

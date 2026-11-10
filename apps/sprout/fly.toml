@@ -103,7 +103,8 @@ primary_region = 'lhr'
 #    override only if the pipeline app name changes. PIPELINE_API_KEY must
 #    match the value set on hoe-sprout-pipeline (shared service-to-service key).
 #    main.ts + worker.ts REFUSE to boot in prod without CHILD_SESSION_SECRET /
-#    PIPELINE_API_KEY.
+#    PIPELINE_API_KEY, and on Fly refuse any secret that reads as a
+#    placeholder or is too short (ADR 0088; floors in src/server/env.ts).
 #
 # 5. CLOUDFLARE. Proxied CNAME sprout → hoe-sprout.fly.dev, Full (strict) TLS,
 #    Fly cert for sprout.homeofed.com. (The pipeline app gets NO public

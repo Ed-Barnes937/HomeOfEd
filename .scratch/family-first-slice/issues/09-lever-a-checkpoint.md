@@ -1,6 +1,6 @@
 # 09 - Lever A checkpoint: hub scale-to-zero, revisited
 
-**Status:** ready-for-human
+**Status:** done 2026-11-10 - Lever A closed, hub stays always-on
 **Type:** grilling (HITL - this is Ed's deferred decision)
 **Spec:** [../spec.md](../spec.md) §11; map decision 8
 Blocked by: 08
@@ -17,3 +17,7 @@ real. Once the pilot has run for a bit:
 Nothing in the slice depends on this either way.
 
 ## Comments
+
+**Verdict (Ed, 2026-11-10): keep hub always-on; Lever A is closed.** Hub is the
+entry point for every HomeOfEd app now that it hosts `/account`, so the first
+impression is worth the ~$3.24/mo. `min_machines_running` stays 1; no PR.

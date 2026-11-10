@@ -14,6 +14,7 @@ import { createSproutAuth } from './auth/betterAuth.ts'
 import { fixedAuthProvider, resolveParentUser, type ChildUser } from './auth/providers.ts'
 import { mintChildToken } from './auth/childToken.ts'
 import { registerChatSseRoute } from './chat-sse.ts'
+import { loadSproutWebEnv } from './env.ts'
 import { toFetchHeaders, toFetchRequest } from './fastifyBridge.ts'
 import { assertGeoEnvSafe, geoEnforcementEnabled, registerGeoBoundary } from './geo-boundary.ts'
 import { registerLegalDocRoutes } from './legal-docs.ts'
@@ -25,16 +26,12 @@ import { DrizzleSproutStore } from './store.ts'
 
 const logger = createLogger().child({ app: 'sprout' })
 const env = loadDbEnv()
+// Every secret, checked once at boot: CHILD_SESSION_SECRET always, the pipeline
+// key + invite code in prod, and on Fly nothing this repo publishes (ADR 0088).
+const secrets = loadSproutWebEnv()
 
 const db = await createDbClient({ driver: 'postgres', schema: sproutSchema, url: env.DATABASE_URL })
 const store = new DrizzleSproutStore(db)
-
-// Dedicated child-session signing secret (NOT BETTER_AUTH_SECRET — plan §5.2,
-// blast-radius isolation). Required in prod; fail fast if missing.
-const childSessionSecret = process.env.CHILD_SESSION_SECRET
-if (!childSessionSecret) {
-  throw new Error('CHILD_SESSION_SECRET is required')
-}
 
 // The UK geo boundary's escape hatch must never reach real infrastructure
 // (ADR-0012 item 4): Fly injects FLY_APP_NAME into every machine, so a set
@@ -44,32 +41,23 @@ assertGeoEnvSafe(process.env)
 
 // Pipeline over Fly's PRIVATE network (plan §3/§10): never a public URL. The
 // real pipeline app is P6; this client is exercised end-to-end at P6 + deploy.
-// PIPELINE_API_KEY must be set in prod — refuse an insecure default there.
-const pipelineApiKey = process.env.PIPELINE_API_KEY
-if (!pipelineApiKey && process.env.NODE_ENV === 'production') {
-  throw new Error('PIPELINE_API_KEY is required in production')
-}
 const pipelineOpts = {
   baseUrl: process.env.PIPELINE_URL ?? 'http://hoe-sprout-pipeline.flycast:8080',
-  apiKey: pipelineApiKey ?? 'dev-pipeline-key',
+  apiKey: secrets.PIPELINE_API_KEY,
 }
 const pipeline = createHttpPipelineClient(pipelineOpts)
 
-// Family-pilot invite gate (ADR-0019): registration is closed to holders of
-// the invite code while counsel sign-off is deferred. Required in prod so the
-// pilot cannot silently open; remove this guard at public launch.
-const registrationInviteCode = process.env.REGISTRATION_INVITE_CODE
-if (!registrationInviteCode && process.env.NODE_ENV === 'production') {
-  throw new Error('REGISTRATION_INVITE_CODE is required in production (ADR-0019 family pilot)')
-}
-
 // Better Auth instance over the shared client — its handler is mounted at
-// /api/auth/* below, and its session lookup backs parent resolution.
-const auth = createSproutAuth(db, { inviteCode: registrationInviteCode })
+// /api/auth/* below, and its session lookup backs parent resolution. The
+// ADR-0019 invite gate closes registration to holders of the invite code.
+const auth = createSproutAuth(db, {
+  inviteCode: secrets.REGISTRATION_INVITE_CODE,
+  secret: secrets.BETTER_AUTH_SECRET,
+})
 
 // The child AuthProvider reads the signed child-session cookie + verifies its
 // HMAC (plan §5.2, #34). Reused by both the tRPC auth seam and the SSE route.
-const childProvider = childAuthProvider(childSessionSecret)
+const childProvider = childAuthProvider(secrets.CHILD_SESSION_SECRET)
 
 // A TRUSTED, server-stamped header carrying the resolved parent id. The
 // onRequest hook (below) strips any client-supplied value and re-sets it only
@@ -98,7 +86,7 @@ const appRouter = createAppRouter({
   // Real pipeline summariser (HTTP /summarise over the private network).
   summarise: createHttpSummariser(pipelineOpts),
   // Concrete Node minter, closed over the dedicated signing secret (plan §5.2).
-  mintChildToken: (claims) => mintChildToken(claims, childSessionSecret),
+  mintChildToken: (claims) => mintChildToken(claims, secrets.CHILD_SESSION_SECRET),
 })
 
 // App-owned Fastify routes (D9), mounted ahead of the SPA fallback: parent

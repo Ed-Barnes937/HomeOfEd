@@ -33,6 +33,12 @@ export interface CreateAppServerOpts {
    * `FastifyInstance` re-exported below (so they need no direct `fastify` dep).
    */
   registerRoutes?: (app: FastifyInstance) => void | Promise<void>
+  /**
+   * Cap on how many procedures one batched tRPC call may fan out to. tRPC's own
+   * default is unlimited, so an app serving database-backed procedures sets
+   * this to bound the work a single request can ask for.
+   */
+  maxBatchSize?: number
 }
 
 // Re-exported so consumers can type their `registerRoutes` hook (and the routes
@@ -65,6 +71,7 @@ export async function buildAppServer(opts: CreateAppServerOpts): Promise<Fastify
     trpcOptions: {
       router: opts.router,
       createContext: ({ req }) => opts.createContext(toFetchRequest(req)),
+      maxBatchSize: opts.maxBatchSize,
       onError: ({ error, path }) => {
         opts.logger.error('trpc request failed', {
           path,

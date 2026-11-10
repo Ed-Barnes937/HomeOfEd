@@ -4,7 +4,7 @@
 - **Date:** 2026-11-09
 - **Related:** [ADR 0083](0083-armoury-glowing-gems.md) (gem poses ready for a bend),
   [ADR 0082](0082-armoury-material-zones.md) (zones, the bloom cap),
-  [ADR 0081](0081-armoury-raised-features.md) (the envelope, weighted choices),
+  [ADR 0090](0090-armoury-raised-features.md) (the envelope, weighted choices),
   [ADR 0074](0074-armoury-save-format.md) (new params default so old saves open),
   `.scratch/armoury-variety/` spike 02 and ticket 05.
 

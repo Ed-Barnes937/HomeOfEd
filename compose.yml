@@ -242,8 +242,49 @@ services:
     ports:
       - '8085:8080'
 
+  # family is the identity + SaveStore service (ADR 0070). Database-backed as of
+  # first-slice ticket 03: like the other DB apps it runs migrations then the
+  # server, backed by its own db.
+  family:
+    build:
+      context: .
+      dockerfile: apps/family/Dockerfile
+    command: sh -c "node src/server/migrate.ts && node src/server/main.ts"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@family-db:5432/family
+      # The image runs under NODE_ENV=production, so the identity boot guards
+      # apply: all four must be present. These are throwaway LOCAL values; the
+      # real ones come from Fly secrets.
+      BETTER_AUTH_SECRET: dev-better-auth-secret
+      BETTER_AUTH_URL: http://localhost:8092
+      REGISTRATION_INVITE_CODE: dev-invite-code
+      # The committed @hoe/accounts/testing keypair, whose private half is
+      # public knowledge by design. ONLY this file may set it: main.ts fails
+      # fast at boot if this exact key reaches real infrastructure
+      # (FLY_APP_NAME present), so it cannot silently sign estate tokens.
+      FAMILY_TOKEN_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIOGaBsSiWxghRFJOEZcM58j8j1nx0Fnnsnsbgnec6FZr\n-----END PRIVATE KEY-----\n'
+    ports:
+      - '8092:8080'
+    depends_on:
+      family-db:
+        condition: service_healthy
+
+  family-db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: family
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d family']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - family-db-data:/var/lib/postgresql/data
+
 volumes:
   hub-db-data:
   fridge-db-data:
   wotd-db-data:
   sprout-db-data:
+  family-db-data:

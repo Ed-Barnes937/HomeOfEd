@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { FamilyClientError, createFamilySaveClient } from './saveClient.ts'
+import { FamilyClientError } from './familyClientError.ts'
+import { createFamilySaveClient } from './saveClient.ts'
 
 type Call = { url: string; init: RequestInit }
 
@@ -119,5 +120,22 @@ describe('createFamilySaveClient', () => {
     const client = createFamilySaveClient({ baseUrl: 'https://x/', fetch: fetchImpl })
     await client.get({ appId: 'boop', slotKey: 'boop:save' })
     expect(new URL(calls[0]!.url).pathname).toBe('/api/trpc/save.get')
+  })
+})
+
+describe('the tRPC envelope', () => {
+  it('refuses a batched reply explicitly rather than as a mystery 500', async () => {
+    const { fetchImpl } = fakeFetch(
+      () =>
+        new Response(JSON.stringify([{ result: { data: null } }]), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    )
+    const client = createFamilySaveClient({ baseUrl: 'https://x', fetch: fetchImpl })
+
+    const err = await client.get({ appId: 'boop', slotKey: 'boop:save' }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(FamilyClientError)
+    expect((err as FamilyClientError).message).toContain('batched reply')
   })
 })

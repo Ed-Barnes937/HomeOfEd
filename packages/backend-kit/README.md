@@ -81,6 +81,7 @@ function createAppServer(opts: {
   logger: Logger
   healthCheck: () => Promise<{ ok: true }>   // deep /health — app closes over its own Store
   registerRoutes?: (app: FastifyInstance) => void | Promise<void>  // additive; non-tRPC transports only (ADR 0015)
+  maxBatchSize?: number                      // cap on one batched call's procedures; tRPC's default is unlimited
 }): { listen(port: number): Promise<void> }
 ```
 
@@ -97,12 +98,78 @@ class ValidationError / UnauthorizedError / ForbiddenError / NotFoundError / Con
 contentTypeOf(key: string): string | null
 
 // '@hoe/backend-kit/server' (Node-only subpath — never in browser bundles)
-function buildAppServer(opts): Promise<FastifyInstance>  // createAppServer's core; tests drive it with fastify.inject()
+function buildAppServer(opts): Promise<FastifyInstance>  // createAppServer's core; tests drive it with fastify.inject() or a real port
 // createAppServer's returned object also carries close(): Promise<void> (tests / graceful shutdown)
 
 // '@hoe/backend-kit/testing' (test-only subpath — never in prod bundles)
 function failureLink(rules: readonly FailureRule[]): TRPCLink<AnyTRPCRouter>
 ```
+
+### `fastify.inject()` is not the wire, and has twice said so
+
+`inject` is the quick way to drive `buildAppServer`, and it is right for most
+route tests. It is **not** a faithful stand-in for a socket, and two findings in
+this repo turned on the difference:
+
+- It builds a synthetic `Request` whose body tRPC's `multipart/form-data`
+  handler cannot read, so a cross-origin POST that the live server answers
+  `200 OK` - having already committed the mutation - comes back `500 Converting
+  circular structure to JSON` with the data intact. A test written on `inject`
+  reports a refusal that does not exist
+  ([ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md) decision 5).
+- It cannot express duplicate headers, which is how a header-stripping guard
+  gets probed.
+
+So when a test's subject **is** the request envelope - content types, duplicate
+or absent headers, CORS, anything a browser or a hostile client controls - bind
+a real port and use `fetch`:
+
+```ts
+await app.listen({ port: 0, host: '127.0.0.1' })
+const address = app.server.address()         // { port } once listening
+const base = `http://127.0.0.1:${address.port}`
+```
+
+`apps/family/src/server/csrf.test.ts` is the worked example.
+
+### A stand-in models the happy path; somebody has to make it model the rest
+
+`inject` is one case of a habit that has now cost the estate five findings, and
+the family-service epic found all five the same way - by running the real thing
+and looking, never by reasoning about the stand-in:
+
+1. **`fastify.inject()` and the request envelope** (above): a cross-origin POST
+   the live server answered `200 OK`, having already erased a household, came
+   back `500` under `inject`. The test reported a refusal that did not exist.
+2. **The save client's tRPC envelope**: hand-rolled `?input=` and `result.data`
+   unwrapping that nothing checked against the real router until a round trip
+   did ([ADR 0080](../../docs/adr/0080-boop-is-the-first-savestore-client.md)).
+3. **Better Auth's origin check**: off by default under `NODE_ENV=test`, so the
+   one control in front of `/api/auth/*` was invisible to every test that tried
+   to pin it ([ADR 0078](../../docs/adr/0078-family-identity-auth-boundary.md)).
+4. **The invite gate's missing error code**: the fake invented a `code` the
+   service does not send, so the fake and the client agreed with each other and
+   both were wrong, and a wrong invite code would have shown "the service is not
+   answering" instead of the sentence naming the problem
+   ([ADR 0081](../../docs/adr/0081-hub-account-ui.md) decision 4).
+5. **The validators.** The fakes modelled the happy path and the typed
+   refusals, and nobody had yet made one model the **validators**. So a
+   33-character name, an untrimmed `' Ada '`, a 300 KB blob and a 65th save slot
+   all passed in a harness and failed in production - and the untrimmed name
+   stored two different strings on the two sides.
+
+The habit, then: **a fake owes you the input parser and the limits, not just the
+outputs and the errors.** Where the real path validates, the fake runs the same
+schema object and the same constants - shared, not mirrored, so a tightened
+bound cannot diverge. Where the real path refuses, the fake refuses with the
+service's own code **and its own message**, verified against the real service
+rather than invented. `packages/accounts`' `FakeFamilyClient` is the worked
+example: it parses every input through the contract's zod schemas and enforces
+the save quotas from the one definition the handlers use.
+
+What a fake may still decline to model is service *configuration* - an allowlist
+or a feature flag whose values are the app's, not the contract's. Say so in its
+README when it does, so the gap is recorded rather than discovered.
 
 ## Handler authoring
 
