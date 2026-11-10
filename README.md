@@ -104,6 +104,12 @@ deploy and when you suspect a PGlite-versus-Postgres difference. The database
 credentials in `compose.yml` are local throwaways; real secrets go in a
 gitignored `.env`.
 
+The stack is gated like production: every estate app's service sets
+`FAMILY_ACCOUNT_URL` to hub's `/account` on port 8080, so a signed-out visit to
+an app whose gate is wired redirects there. Signing in through the stack does
+not work yet (hub's account page cannot reach the stack's family service); that
+is being fixed separately.
+
 ## Checks
 
 ```bash
