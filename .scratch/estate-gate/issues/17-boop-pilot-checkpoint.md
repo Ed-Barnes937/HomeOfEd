@@ -3,7 +3,7 @@
 **Status:** ready-for-human
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
-Blocked by: 03, 05, 06, 10
+Blocked by: 25 (the key, and boop's one-line PR)
 
 Ed's check on production once boop's gate has deployed:
 
@@ -16,8 +16,9 @@ Ed's check on production once boop's gate has deployed:
 - A boop saved as one profile on one device appears on another device.
 - `/account` shows the last-saved line once ticket 08 is in.
 
-If it holds, merge tickets 11-15 (one deploy each; the smoke now accepts the
-`302`). Rollback for any app is removing `FAMILY_ACCOUNT_URL` from its
-`fly.toml`.
+If it holds, turn the gate on for the other apps (ticket 25: one line in each
+`fly.toml`; the smoke accepts the `302`). Tickets 11, 13, 14 and 15 are
+already in the epic PR with the gate off. Rollback for any app is removing
+`FAMILY_ACCOUNT_URL` from its `fly.toml`.
 
 ## Comments
