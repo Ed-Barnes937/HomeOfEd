@@ -91,6 +91,20 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   tuned by eye at gate G1: guard bar sections and depths, grip radius and oval, pommel length
   per style, wrap pitch, riser count, tip runs, fuller depth, rune and engraving sizes.
 
+### Names, tag lines and lore
+
+- All derived in `sword/describe.ts`, nothing stored: research "8.1"-"8.3", with these
+  changes. Satin steel with iron fittings is "Steel" (not "Grey": "Grey Warden" and "Grey
+  Pilgrim" are borrowed), dark iron is "Dusk" (not "Iron": "Iron Giant"), and the Dagger's
+  noun is "Wren" (not "Thorn": "Silverthorn"), matching the Little Wren preset.
+- `DO_NOT_USE` is research "8.4" and "3.3" plus the near misses above and "Golden Rune",
+  "Silver Flame", "Golden Crescent", "Silver Star" and "Bronze Star". A name it would make
+  falls back to the Kind's noun; a unit test covers every colour and noun pair.
+- Feel words add "Well balanced" for a slim two-hander, where "Quick in the hand" read oddly
+  on a five-foot sword; a Dagger is never "Mighty".
+- `swordItem.follows` resets the per-Kind choices to the new Kind's signature only when the
+  Kind actually changes.
+
 ## Consequences
 
 - A sword's numbers come from one place per Kind; tuning a Kind is editing a row.

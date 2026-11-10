@@ -71,7 +71,6 @@ describe('share links, now that the payload names the kind', () => {
   })
 
   it('read a link for a kind this build does not have as an ordinary visit', () => {
-    expect(decodeShare(encodeShare('sword', sword))).toBeNull()
     expect(decodeShare(encodeShare('sword', sword), { wand: wandItem })).toBeNull()
     expect(decodeShare(token({ version: 1, axe: sword }), bothKinds)).toBeNull()
     expect(decodeShare(token({ version: 1 }), bothKinds)).toBeNull()

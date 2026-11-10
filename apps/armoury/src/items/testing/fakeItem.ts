@@ -1,4 +1,5 @@
 import { normalise, type ItemSchema } from '../../engine/schema.ts'
+import { SWORD_SAVE_KEY } from '../../persistence/storage.ts'
 import type { ItemDef } from '../item.ts'
 import { shopNumber } from '../shopNumber.ts'
 
@@ -61,7 +62,7 @@ const schema: ItemSchema = {
 export const fakeSword: ItemDef = {
   kind: 'sword',
   schema,
-  storageKey: 'armoury:save:sword',
+  storageKey: SWORD_SAVE_KEY,
   firstVisit: () => normalise(schema, {}),
   keeps: ['kind'],
   follows: (before, key, value) =>

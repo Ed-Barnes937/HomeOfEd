@@ -41,7 +41,7 @@ export interface Bench {
   removeFromShelf: (index: number) => void
 }
 
-const WorkbenchContext = createContext<Partial<Record<ItemKind, Bench>> | null>(null)
+const WorkbenchContext = createContext<Record<ItemKind, Bench> | null>(null)
 
 function initialItem(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null): StoredItem {
   const arrived = arrival?.kind === def.kind ? arrival.item : null
@@ -108,12 +108,13 @@ export function WorkbenchProvider({
 }) {
   const [arrival] = useState(() => decodeShareHash(window.location.hash))
   const wand = useBench(ITEMS.wand, storage, arrival)
+  const sword = useBench(ITEMS.sword, storage, arrival)
 
   useEffect(() => {
     if (arrival) clearShareHash(window.location, window.history)
   }, [arrival])
 
-  const benches = useMemo(() => ({ wand }), [wand])
+  const benches = useMemo(() => ({ wand, sword }), [wand, sword])
   return <WorkbenchContext value={benches}>{children}</WorkbenchContext>
 }
 
