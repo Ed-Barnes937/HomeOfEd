@@ -31,6 +31,16 @@ export class HomePagePom extends BasePage {
     expect(chip!.x + chip!.width).toBeLessThan(rail!.x)
   }
 
+  async verifyWhosPlayingChipShowsItsWholeLabel(name: string): Promise<void> {
+    const label = this.page.getByRole('link', { name, exact: true }).locator('span').first()
+    await expect(label).toHaveText(name)
+    const { scrollWidth, clientWidth } = await label.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }))
+    expect(scrollWidth).toBe(clientWidth)
+  }
+
   /** What the browser fires when back restores this page from the back-forward cache. */
   async returnFromBackForwardCache(): Promise<void> {
     await this.page.evaluate(() =>

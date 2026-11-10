@@ -20,10 +20,12 @@ Touches the home page only; do not edit `pages/account/`.
 - Built. The chip sits top-left beside the theme toggle rather than in a
   header row (hub's home has none): over the right rail it would overlap the
   first card row on any viewport shorter than the gallery (about 760px).
-  Absolutely positioned, so the cards do not move. Its width is capped at
-  `min(320px, 100% - 540px - 96px)` so it always ends left of the rail's
-  divider; the label ellipsises. Between about 721px and 770px wide even a
-  short name truncates, which is accepted as an edge band.
+  Absolutely positioned, so the cards do not move. Its width is capped at a
+  plain 320px (100% - 120px on phones), so it ends at x=404. Measured: the
+  rail is a shrinking flex item and the left column never goes narrower than
+  the wordmark, so the divider sits at x=444 from 721 to 984 wide (434 with
+  fallback fonts, which is what the iwft harness renders) and 484 at 1024.
+  The label ellipsises past the cap.
 - Text is `--fg` (inherited), not `--muted`, for 4.5:1 contrast at 13px; a
   vertical-only `::before` gives a 44px touch height like the toggle's.
 - A name with nothing visible (blank, whitespace, zero-width) reads "Sign in".

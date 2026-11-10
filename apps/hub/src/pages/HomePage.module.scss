@@ -101,7 +101,7 @@
 }
 
 // Beside the theme toggle rather than over the right rail, so it never sits on a card.
-// The cap keeps it left of the rail's divider (540px wide) at every width the rail exists.
+// Ends at x=404; the rail shrinks before the wordmark does, so its divider never comes left of ~434.
 .whosPlaying {
   position: absolute;
   top: 32px;
@@ -110,7 +110,7 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  max-width: min(320px, calc(100% - 540px - 84px - 12px));
+  max-width: 320px;
   height: 34px;
   padding: 0 14px;
   border: 1px solid var(--toggle-border);

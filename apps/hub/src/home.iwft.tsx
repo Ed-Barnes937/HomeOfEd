@@ -74,12 +74,23 @@ test('coming back to the page after the player changed shows the new name', asyn
   await root.verifyWhosPlayingChip('Playing as Wren')
 })
 
+test('an ordinary name is shown in full on a portrait iPad mini', async ({ page, mountApp }) => {
+  await page.setViewportSize({ width: 744, height: 1133 })
+  await playAs(page, 'Robin')
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.verifyWhosPlayingChipShowsItsWholeLabel('Playing as Robin')
+})
+
 // The contract's longest display name, in wide characters, on the widths where
 // the left column is narrowest beside the rail.
 for (const [width, height] of [
   [1024, 768],
+  [820, 1180],
   [800, 600],
   [768, 1024],
+  [744, 1133],
 ] as const) {
   test(`a long name stays clear of the app rail at ${width}x${height}`, async ({
     page,
