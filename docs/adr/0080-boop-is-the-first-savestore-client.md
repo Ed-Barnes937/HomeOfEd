@@ -350,15 +350,18 @@ cookie is shared by every estate tab. Before this amendment, a tab opened as Cy
 kept pushing after another tab picked Bo, and every push carried Bo's cookie,
 so Cy's boops overwrote Bo's slot. Three layers close that:
 
-- **The client is bound.** `App` reads the page's player once and builds the
-  save client with `createFamilySaveClient({ accountId })`, or `bindSaveClient`
-  in `.iwft`.
+- **The client is bound.** `App` reads the page's session once and hands it
+  down, so storage, the client and the reload all follow the same player. It
+  builds the save client with `createFamilySaveClient({ accountId })`, or
+  `bindSaveClient` over the fake in `.iwft`.
   - A call made while `readFamilySession()` names someone else is refused
     before it is sent.
   - Every call carries `expectedAccountId`, which the service refuses for
     another profile's token ([ADR 0079](0079-family-save-authorisation.md),
     amended).
-  - Either refusal is a `SaveAccountMismatchError`.
+  - Either refusal is a `SaveAccountMismatchError`. Only a `CONFLICT` carrying
+    the `SAVE_ACCOUNT_MISMATCH` message counts, so an unrelated `CONFLICT`
+    cannot stop sync for good.
 - **Sync stops for good on that error.** `createBoopSync` never makes another
   call, and its `onStop` tears down the watcher. Every other failure is still
   absorbed and retried as decision 6 says.
@@ -367,7 +370,8 @@ so Cy's boops overwrote Bo's slot. Three layers close that:
   as the new player, with that player's storage and sync. It also covers
   `localStorage`, which the binding cannot: `profileStorage` is bound to the
   page's player, so a tab that kept running would show the old player's boops
-  to the new one.
+  to the new one. It runs on the player view only: `/shared` belongs to no
+  profile, and a reload there would throw away a visitor's unsaved edits.
 
 The binding is pinned in `boopSync.test.ts` (the cookie changes between
 reconcile and push) and in `playerChange.iwft.tsx`.

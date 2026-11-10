@@ -6,6 +6,7 @@
 // PGlite, no seeding. It still wires the test-auth seam so mountApp({ user })
 // exercises auth without a DB, which is exactly ADR 0008's point: auth is
 // decentralised, not backed by each app's own database.
+import { bindSaveClient } from '@hoe/accounts'
 import {
   ConsoleLogger,
   createContext,
@@ -50,7 +51,7 @@ const audioDriver = new FakeAudioDriver()
 // device left behind, every call throwing), seeded from localStorage because a
 // reload leaves the Node side nothing in the page to call - see familySeed.ts.
 // boop reads its own session from the cookie, so a test wanting a live session
-// sets both.
+// sets both, and binds the fake to that session as production binds the wire.
 const saveClient = new FakeFamilyClient()
 applyFamilySeed(saveClient)
 const saveCalls: string[] = []
@@ -59,5 +60,10 @@ const recordedSaveClient = recordingClient(saveClient, saveCalls)
 ;(globalThis as unknown as Record<string, unknown>)[BOOP_SAVE_CALLS_KEY] = saveCalls
 
 export function IwftApp() {
-  return <App driver={audioDriver} saveClient={recordedSaveClient} />
+  return (
+    <App
+      driver={audioDriver}
+      saveClientFor={(accountId) => bindSaveClient(recordedSaveClient, accountId)}
+    />
+  )
 }

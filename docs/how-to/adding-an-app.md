@@ -195,9 +195,12 @@ saves the work of one profile: the one it was opened for. boop is the reference
 below is from `@hoe/accounts`; its README ("In a gated app's browser code")
 has the detail.
 
-1. **The page's player.** Read `readFamilySession()?.sub ?? null` once at the
-   app's entry. Call `reloadOnPlayerChange(player)` there too, so a tab whose
-   player was switched elsewhere reloads when it is looked at again.
+1. **The page's player.** Read `readFamilySession()` once at the app's entry
+   and hand it down (boop's `sync/FamilySessionContext.tsx`), so storage, the
+   save client and the watcher can never disagree. Call
+   `reloadOnPlayerChange(player)` where the profile's storage is built, not on
+   `/shared`, so a tab whose player was switched elsewhere reloads when it is
+   looked at again. On `/shared` a reload would throw away a visitor's edits.
 2. **Storage.** On the app's own routes, build
    `profileStorage(window.localStorage, player, { keys, prefixes })` once per
    page. List the app's save keys exactly, and dynamic ones such as
@@ -226,7 +229,8 @@ Tests to copy from boop:
   appear for both.
 - `sharedView.iwft.tsx`: `/shared` writes nothing; "Keep this" carries the
   fragment or the edits.
-- `playerChange.iwft.tsx`: a switched player reloads the page.
+- `playerChange.iwft.tsx`: a switched player reloads the page, but not
+  `/shared`, where the visitor's edit survives.
 
 ---
 

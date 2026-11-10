@@ -1,6 +1,8 @@
 import { expect } from '@playwright/experimental-ct-react'
 
+import { encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
 import { seedFamily, setFamilyCookie } from './testing/familySession.ts'
+import { HomePagePom } from './testing/HomePagePom.ts'
 import { test } from './testing/iwftTest.tsx'
 import { readLocalSave, savedNames } from './testing/localSaves.ts'
 
@@ -51,4 +53,35 @@ test('the same player looking again leaves the page as it is', async ({ mountApp
 
   await root.verifySyncedChip('Cy')
   expect(loads).toBe(0)
+})
+
+test('/shared stays put when another player is picked, so a visitor keeps their edits', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await seedFamily(page, { session: CY })
+  const shared = encodeShare({
+    name: 'From a friend',
+    kitId: 'launch',
+    tempo: 110,
+    patterns: [{ rows: [{ instrumentId: 'kick', steps: '1000000000000000' }] }],
+  })
+  await HomePagePom.openAt(page, `/shared${SHARE_HASH_PREFIX}${shared}`)
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openClipEditor()
+  await root.toggleCell('kick', 8)
+  let loads = 0
+  page.on('load', () => loads++)
+  await setFamilyCookie(page, BO)
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await page.evaluate(() => window.dispatchEvent(new Event('pageshow')))
+  await page.waitForTimeout(500)
+
+  expect(loads).toBe(0)
+  await root.verifyCellOn('kick', 8)
 })

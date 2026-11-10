@@ -1,8 +1,8 @@
-import { readFamilySession } from '@hoe/accounts'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 import { useSaveStorage } from '../persistence/SaveStorageContext.tsx'
 import { createBoopSync } from './boopSync.ts'
+import { useFamilySession } from './FamilySessionContext.tsx'
 import { useSaveClient } from './SaveClientContext.tsx'
 
 /**
@@ -25,9 +25,7 @@ export interface BoopSyncState {
 export function useBoopSync(): BoopSyncState {
   const client = useSaveClient()
   const storage = useSaveStorage()
-  // Read once: a cookie appearing mid-session is a page the child will reload
-  // anyway, and re-reading per render would restart the pull.
-  const [session] = useState(() => readFamilySession())
+  const session = useFamilySession()
   const syncing = client !== null && session !== null
 
   useEffect(() => {

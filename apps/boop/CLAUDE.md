@@ -326,11 +326,13 @@ share-link snapshot.
   **A signed-in profile always syncs** (ADR 0080 as amended 2026-11-10): no
   offer, no decline, and the old `boop:syncedAccount` marker is not read.
   **A page syncs only for the profile it opened for.**
-  - `App.tsx` reads the player once and binds the save client to it; there is
-    no client at all without a session.
+  - `App.tsx` reads the session once, binds the save client to it and hands
+    the session down (`sync/FamilySessionContext.tsx`); there is no client at
+    all without a session.
   - A `SaveAccountMismatchError` stops sync for good.
-  - `reloadOnPlayerChange` reloads the tab when it comes back into view with
-    another player signed in.
+  - `PlayerView` (`pages/views.tsx`) calls `reloadOnPlayerChange`, which
+    reloads the tab when it comes back into view with another player signed
+    in. `/shared` never reloads, so a visitor keeps their edits.
 
   Never build a second, unbound client, and never re-read the session to
   re-point sync mid-page.

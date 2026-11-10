@@ -85,6 +85,17 @@ text above, and why:
   - `profileStorage` takes prefixes and offers the full Storage surface.
   - A full quota during adoption is swallowed and retried on the next open
     (ADR 0094 amended).
+- **Review follow-ups (2026-11-10, second round).**
+  - `reloadOnPlayerChange` moved from `App.tsx` into `PlayerView`, so `/shared`
+    never reloads and a visitor keeps their edits.
+  - The session is read once, in `App.tsx`, and handed down
+    (`sync/FamilySessionContext.tsx`); `views.tsx` and `useBoopSync` no longer
+    read the cookie. `App` takes `saveClientFor(accountId)`, and the `.iwft`
+    harness passes `bindSaveClient` over the fake.
+  - `profileStorage` throws on a profile key that already carries `@`.
+  - `bindSaveClient` turns a `CONFLICT` into `SaveAccountMismatchError` only
+    when it carries the `SAVE_ACCOUNT_MISMATCH` message. Tests now pin
+    `delete`'s `expectedAccountId` and `list`'s pre-send refusal.
 - **Open window while the gate is off in production.** A child whose token
   expires plays signed out into the unscoped legacy key. Their profile, which
   already has a document, never adopts that work. It stays on the device and
@@ -114,20 +125,27 @@ helpers; copy only the app-shaped wiring, adjusting keys and payload prefix:
    steps in `packages/accounts/README.md` ("Wiring the gate in an app"). Leave
    `fly.toml` alone.
 2. **The page's player.** In the app's entry (boop's `App.tsx`), read
-   `readFamilySession()?.sub ?? null` once and call
-   `reloadOnPlayerChange(player)`. If the app syncs, build
-   `createFamilySaveClient({ baseUrl, accountId: player })` only when `player`
-   is not null, and stop syncing for good on a `SaveAccountMismatchError`
-   (boop's `createBoopSync` `onStop`).
+   `readFamilySession()` once and hand it down through a context (boop's
+   `sync/FamilySessionContext.tsx`); nothing else reads the cookie, so
+   storage, the save client and the watcher can never disagree. If the app
+   syncs, build `createFamilySaveClient({ baseUrl, accountId: player })` only
+   when there is a session, and stop syncing for good on a
+   `SaveAccountMismatchError` (boop's `createBoopSync` `onStop`). Take the
+   client as a `saveClientFor(accountId)` prop so `.iwft` passes
+   `bindSaveClient(fake, accountId)`, bound exactly as production is.
 3. **Per-profile storage.** List the app's save keys as boop does in
    `persistence/profileKeys.ts`: `{ keys, prefixes }`, saves only, never device
    preferences. silt's `silt:scene:` and `silt:thumb:` are prefixes. Build the
    storage in the route components, as `apps/boop/src/pages/views.tsx` does:
-   - `/` gets `profileStorage(window.localStorage, player, PROFILE_KEYS)`.
+   - `/` gets `profileStorage(window.localStorage, player, PROFILE_KEYS)`
+     and calls `reloadOnPlayerChange(player)` in an effect. Only there: on
+     `/shared` a reload would throw away a visitor's unsaved edits.
    - `/shared` gets `memoryStorage()`, and no save client if the app syncs.
 
    Both offer the whole Storage surface (`removeItem`, `key`, `length`,
-   `clear`), and enumeration shows this profile's keys only. Hand the storage
+   `clear`), and enumeration shows this profile's keys only. A key that
+   already carries `@` (`boop:save@<someone>`, or a prefixed key with `@` in
+   its remainder) throws. Hand the storage
    down the way boop's `persistence/SaveStorageContext.tsx` does, and replace
    every `window.localStorage` that touches a save with it. Building
    `profileStorage` copies the legacy documents in, so never build it on
@@ -160,7 +178,7 @@ helpers; copy only the app-shaped wiring, adjusting keys and payload prefix:
      - a root link still opens for a signed-in player.
    - **`playerChange.iwft.tsx`**: setting another profile's cookie and firing
      `focus` reloads the page, and nothing is written to the other profile's
-     key.
+     key. On `/shared` the same does not reload, and an edit survives.
 
    The POM helpers are `HomePagePom.openAt` and `keepBoop`. Seed a profile with
    the cookie (`seedFamily`, `setFamilyCookie` in `testing/familySession.ts`).
