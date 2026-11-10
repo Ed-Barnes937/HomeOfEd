@@ -25,10 +25,10 @@ export function savedNames(blob: string | null): readonly string[] {
 
 /** The save document a device held before profiles existed, under the unscoped key. */
 export async function seedLegacySave(page: Page, blob: string): Promise<void> {
-  await page.evaluate(
-    ({ key, value }) => window.localStorage.setItem(key, value),
-    { key: SAVE_KEY, value: blob },
-  )
+  await page.evaluate(({ key, value }) => window.localStorage.setItem(key, value), {
+    key: SAVE_KEY,
+    value: blob,
+  })
 }
 
 /** The save document on disk for `accountId`, or the unscoped one for `null`. */

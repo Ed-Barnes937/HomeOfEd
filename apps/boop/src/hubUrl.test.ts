@@ -11,7 +11,11 @@ describe('hubUrl', () => {
   it.each([
     ['production', `https://${boop.host}/`, 'https://homeofed.com'],
     ['pnpm dev', `${devBoop}/`, `http://localhost:${HUB_LOCAL_PORTS.devPort}`],
-    ['the docker stack', `${stackBoop}/shared#g=abc`, `http://localhost:${HUB_LOCAL_PORTS.composePort}`],
+    [
+      'the docker stack',
+      `${stackBoop}/shared#g=abc`,
+      `http://localhost:${HUB_LOCAL_PORTS.composePort}`,
+    ],
     ['anywhere outside the estate', 'https://hoe-boop.fly.dev/', 'https://homeofed.com'],
   ])('points the back arrow at the hub beside boop in %s', (_tier, href, hub) => {
     expect(hubUrl(href)).toBe(hub)

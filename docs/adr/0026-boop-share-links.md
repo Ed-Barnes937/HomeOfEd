@@ -75,3 +75,12 @@ field.
   "My boops" is the deliberate save; revisit if that changes.
 - WAV export (the demoted secondary link under Share) is a separate ticket and
   reuses none of this beyond the button's placement.
+
+## Amendment (2026-11-10): links open at `/shared`
+
+The encoding is unchanged. Share now builds `<origin>/shared#g=...`, the view
+the estate gate leaves open ([ADR 0093](0093-estate-gate.md) decision 6): it
+opens the boop to play and edit, keeps nothing, and leaves the fragment in the
+address bar so a reload reopens it. "Keep this boop" goes to `/` with the same
+fragment, where the hash semantics above still apply. Old root links keep
+working for a signed-in player.

@@ -70,10 +70,7 @@ test('the first open with a session copies this device’s boops up without aski
   expect(savedNames(await readLocalSave(page, null))).toEqual(['on the tablet'])
 })
 
-test('a boop made on another device arrives in "My boops" at start', async ({
-  mountApp,
-  page,
-}) => {
+test('a boop made on another device arrives in "My boops" at start', async ({ mountApp, page }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
   await page.reload()

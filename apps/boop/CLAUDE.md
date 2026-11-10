@@ -193,7 +193,7 @@ src/
   pages/            views.tsx - the two routes: `/` (PlayerView, the
                     profile's storage) and `/shared` (SharedView, memory
                     storage, no save client), both rendering HomePage.
-                    HomePage — the whole app as a fixed frame at every height
+                    HomePage - the whole app as a fixed frame at every height
                     (ADR 0030, narrowed by ADR 0035): pinned chrome, the
                     scrolling region (the song bar, the home surface), the
                     pinned dock (the clip launcher); the grid opens as a card
@@ -326,14 +326,25 @@ share-link snapshot.
   change. A child must never meet an error, a blocking spinner or a lost
   pattern because a sync failed, and the `.iwft` suite pins exactly that with a
   client that throws on every call.
-  **"Not now" means no sync.** `boop:syncedAccount` records the *answer* per
-  account (`accepted` / `declined`), because a marker holding only "was asked"
-  reads as linked on the next start and pushes the very boops the parent
-  declined. A declined account gets no pull, no push, no watcher, no chip and
-  no second offer, on that start or any later one - the test that guards it
-  decides on the **second** start and asserts boop made no call at all. There
-  is deliberately no way back in the UI yet (it is Ed's call); the answer is a
-  recorded value, so adding one is a write, not a migration.
+  **A signed-in profile always syncs** (ADR 0080 as amended 2026-11-10): no
+  offer, no decline, and the old `boop:syncedAccount` marker is not read.
+- **Saves belong to the profile**
+  ([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)). Anything that
+  persists takes its storage from `useSaveStorage()`, never
+  `window.localStorage`: the route builds it (`pages/views.tsx`), as
+  `profileStorage` on `/` (boop:save and boop:favourites under
+  `key@<accountId>`, legacy copied in on first open) and `memoryStorage` on
+  `/shared`. Code keeps naming the unscoped keys; a new per-player key goes in
+  `PROFILE_KEYS`, a device preference does not.
+- **The estate gate** ([ADR 0093](../../docs/adr/0093-estate-gate.md)).
+  `main.ts` passes `familyDocumentGateFromEnv(process.env, { publicPaths:
+  ['/shared'] })`; it is on only when `FAMILY_ACCOUNT_URL` is set (compose sets
+  it, `fly.toml` does not yet). `pnpm dev` and `.iwft` never run it.
+  `/shared` is the one ungated document, and it must never write: it has no
+  save client and a memory storage, and "Keep this boop" (in place of New boop
+  and My boops) links to `/` with the arrival fragment byte for byte, which
+  meets the gate. Read a fragment through `share/arrival.ts`, never
+  `location.hash` after mount: the router decodes the address bar.
 - **Saved-state visibility** ([ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md)).
   Because nothing is ever lost, **never add a `beforeunload` guard** — it would
   warn about nothing, in wording a 6-year-old cannot read. The chrome answers
@@ -355,7 +366,10 @@ share-link snapshot.
   their own narrow act, not about unsaved work.
 - **Share links** ([ADR 0026](../../docs/adr/0026-boop-share-links.md)). The
   whole creation lives in the fragment (`#g=<base64url>`), decoded through the
-  save format's own validator, cleared with `replaceState` once loaded. One
+  save format's own validator, cleared with `replaceState` once loaded on `/`
+  (the shared view keeps it, since a reload there must reopen the share). New
+  links point at `/shared`; old root `/#g=` links still open for a signed-in
+  player. One
   Share button: system sheet on touch devices (`prefersShareSheet`), clipboard
   + "Copied!" otherwise — capability alone can't decide, desktop browsers ship
   `navigator.share` too. Never a modal or a "copy this link" field.
