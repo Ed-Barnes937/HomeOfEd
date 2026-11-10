@@ -1,6 +1,9 @@
 import type { Ref } from 'react'
 import type { DirectionalLight } from 'three'
 
+/** Scene units per mm: a 33cm wand is 3.3 units long. */
+export const MM = 0.01
+
 export const FOV = 26
 /** The box's camera sits this far towards the viewer, as a fraction of its height, to see a little of the wand's side. */
 export const BOX_CAMERA_LEAN = 0.12
