@@ -350,8 +350,26 @@ The single versioned JSON object boop keeps in `localStorage` (key `boop:save`)
 — `{ version, working, creations }`. The one place the save format's version
 lives, and the shape the share-link codec is derived from. Decoding it is
 total: anything corrupt or future-versioned reads as an empty document.
+One per **profile**: stored under `boop:save@<accountId>` when someone is
+playing, and under the bare key otherwise. The code always names `boop:save`;
+`@hoe/accounts`' `profileStorage` adds the suffix
+([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)).
 See [ADR 0025](../../docs/adr/0025-boop-save-format.md).
 _Avoid_: Save file, state blob, storage schema.
+
+**Legacy document**:
+The save document (or favourites) a device held under the bare key before
+profiles existed. Each profile's first open copies it in; it is never written
+again or removed.
+_Avoid_: Old save, migration (nothing moves).
+
+**Shared view**:
+`/shared#g=...` - the share link's ungated landing. The boop plays and edits
+like any other, but it is kept in memory only and never synced; "Keep this
+boop" goes to the root, behind the gate, carrying the boop as it is now (the
+same fragment, byte for byte, when nothing was changed)
+([ADR 0093](../../docs/adr/0093-estate-gate.md) decision 6).
+_Avoid_: Preview, guest mode, read-only view (it is editable).
 
 **The account copy**:
 The save document as it stands on the family SaveStore, under
@@ -363,12 +381,3 @@ start, a **push** copies localStorage up after a change, and the **merge hook**
 See [ADR 0080](../../docs/adr/0080-boop-is-the-first-savestore-client.md).
 _Avoid_: The cloud save, the server state, syncing (as a thing boop does to
 play) - the account is a copy of the truth, not the truth.
-
-**Synced account marker**:
-`boop:syncedAccount` - what this device **answered** when it was offered the
-import, per account (`accepted` / `declined`). The answer, not merely that one
-was given: `declined` means no sync at all for that account, now or later.
-Additive and separate from the save document, which is frozen; a corrupt
-marker, or an unknown answer, reads as "not asked yet", and the marker's first
-list shape reads as accepted.
-_Avoid_: Link flag, sync state, "asked" (what matters is the answer).

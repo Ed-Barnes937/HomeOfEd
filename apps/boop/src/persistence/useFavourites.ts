@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 
 import { loadFavourites, toggleFavourite } from './favourites.ts'
-import type { SaveStorage } from './storage.ts'
+import { useSaveStorage } from './SaveStorageContext.tsx'
 
 export interface UseFavouritesResult {
   /** The starred instrument ids, as stored — freshest after every `toggle`. */
@@ -14,7 +14,8 @@ export interface UseFavouritesResult {
  * the `boop:favourites` key: re-read from `storage` after every write rather
  * than mutating local state by hand, so it can never drift from what's on disk.
  */
-export function useFavourites(storage: SaveStorage = window.localStorage): UseFavouritesResult {
+export function useFavourites(): UseFavouritesResult {
+  const storage = useSaveStorage()
   const [favourites, setFavourites] = useState<readonly string[]>(() => loadFavourites(storage))
 
   const toggle = useCallback(

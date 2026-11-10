@@ -51,12 +51,38 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
 
 - Legacy documents are duplicated once per profile on a device. For small
   documents this is nothing; silt's scenes and thumbnails may meet the
-  `localStorage` quota, and ticket 12 measures before adopting. A quota error
-  from `setItem` propagates to the caller rather than being swallowed, so the
-  app decides.
-- "Once" is "while the profile has no document of its own". A profile whose
-  document is removed adopts the legacy one again on its next open; that is
-  accepted, so there is no marker key. No app removes its save key today.
+  `localStorage` quota, and ticket 12 measures before adopting.
+- **A full quota during adoption is swallowed, and adoption is retried on the
+  next open** (amended 2026-11-10, estate-gate ticket 10, replacing "the error
+  propagates so the app decides"). `adoptLegacyDocument` itself still throws.
+  `profileStorage` in `@hoe/accounts`, which every app uses, catches the error,
+  so a child opening the app never meets a crash.
+  - It leaves nothing half-written: a prefix such as silt's scenes is adopted
+    all or nothing.
+  - The next open simply tries again, because the profile still has no
+    document.
+  - The cost: if the profile saves its own document before an adoption
+    succeeds, it never adopts that key. The legacy document is still on the
+    device, unscoped, and nothing is lost.
+
+  Propagating was rejected: the app's only sensible response would be to
+  swallow it too.
+- "Once" is "while the profile has no document of its own" (for a prefix, no
+  key under it). A profile whose documents are removed adopts the legacy ones
+  again on its next open; that is accepted, so there is no marker key.
+- **The gate is off in production for now, and that opens a window.** Until
+  each app's `fly.toml` sets `FAMILY_ACCOUNT_URL`, nothing sends a visitor
+  without a family token to hub. A child whose 30-day token has expired
+  therefore plays signed out. Their work goes to the unscoped legacy key, and
+  they cannot see it under their profile:
+  - Adoption only runs while a profile has no document, and theirs already has
+    one.
+  - It is not lost: it stays on the device, and every new profile on that device
+    adopts it.
+
+  This is not changed here. The window is the time between an app shipping
+  per-profile saves and its gate turning on, so each app's gate-on PR should
+  follow its per-profile PR closely.
 - Switching player is a link to hub, never a picker in the app (spec decision
   10). `accountUrlFor(location.href)` builds it, taking hub's address from the
   app's own origin tier (production, dev port, compose port), and is null

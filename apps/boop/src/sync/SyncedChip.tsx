@@ -1,4 +1,5 @@
-import { accountUrl } from '../hubUrl.ts'
+import { switchPlayerUrlFor } from '@hoe/accounts'
+
 import styles from './SyncedChip.module.scss'
 
 interface SyncedChipProps {
@@ -10,18 +11,21 @@ interface SyncedChipProps {
 
 /**
  * The one piece of chrome the family account adds to boop (ADR 0080): who the
- * boops are being kept for, and a way to the hub's account page to change it.
- * Quiet, like the saved-state words beside it - never a status light, and
- * never anything a child has to answer.
+ * boops are being kept for, and a way to hub to switch player and come back
+ * here. Quiet, like the saved-state words beside it - never a status light,
+ * and never anything a child has to answer. Outside the estate there is no hub
+ * to switch at, so it is words alone.
  */
 export function SyncedChip({ name, className }: SyncedChipProps) {
-  return (
-    <a
-      className={className ?? styles.chip}
-      href={accountUrl(window.location.hostname)}
-      data-testid="synced-chip"
-    >
-      synced as {name}
+  const href = switchPlayerUrlFor(window.location.href)
+  const label = `synced as ${name}`
+  return href === null ? (
+    <span className={className ?? styles.chip} data-testid="synced-chip">
+      {label}
+    </span>
+  ) : (
+    <a className={className ?? styles.chip} href={href} data-testid="synced-chip">
+      {label}
     </a>
   )
 }

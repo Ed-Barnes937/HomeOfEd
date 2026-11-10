@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { accountUrl, accountUrlFor, safeReturnTo, sharedUrl } from './returnTo.ts'
+import {
+  accountUrl,
+  accountUrlFor,
+  hubUrlFor,
+  safeReturnTo,
+  sharedUrl,
+  switchPlayerUrlFor,
+} from './returnTo.ts'
 
 describe('safeReturnTo accepts an estate app origin', () => {
   it('accepts a production app URL and normalises it', () => {
@@ -210,5 +217,29 @@ describe('accountUrl', () => {
     expect(accountUrl('http://localhost:3000/account?x=1', 'http://localhost:3008/')).toBe(
       'http://localhost:3000/account?x=1&returnTo=http%3A%2F%2Flocalhost%3A3008%2F',
     )
+  })
+})
+
+describe('hubUrlFor', () => {
+  it.each([
+    ['production', 'https://boop.homeofed.com/play', 'https://homeofed.com'],
+    ['a dev server', 'http://localhost:3008/', 'http://localhost:3000'],
+    ['the docker stack', 'http://localhost:8088/shared#g=1', 'http://localhost:8080'],
+    ['a host outside the estate', 'https://hoe-boop.fly.dev/', 'https://homeofed.com'],
+    ['an unparseable href', 'not a url', 'https://homeofed.com'],
+  ])('is the hub beside an app on %s', (_tier, href, hub) => {
+    expect(hubUrlFor(href)).toBe(hub)
+  })
+})
+
+describe('switchPlayerUrlFor', () => {
+  it('returns to where the player is, without the fragment', () => {
+    expect(switchPlayerUrlFor('http://localhost:8088/?x=1#g=1')).toBe(
+      'http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8088%2F%3Fx%3D1',
+    )
+  })
+
+  it('is null outside the estate', () => {
+    expect(switchPlayerUrlFor('https://hoe-boop.fly.dev/')).toBeNull()
   })
 })

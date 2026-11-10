@@ -22,7 +22,13 @@ import {
   mintSessionTokenInput,
   renameChildInput,
 } from '../identityContract.ts'
-import { saveDeleteInput, saveGetInput, saveListInput, savePutInput } from '../saveContract.ts'
+import {
+  SAVE_ACCOUNT_MISMATCH,
+  saveDeleteInput,
+  saveGetInput,
+  saveListInput,
+  savePutInput,
+} from '../saveContract.ts'
 import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from '../saveLimits.ts'
 import type {
   AddChildInput,
@@ -133,6 +139,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   get(raw: SaveGetInput): Promise<SaveGetOutput> {
     return this.saveAccount().then((accountId) => {
       const input = parsed(saveGetInput, raw)
+      requireExpectedAccount(accountId, input.expectedAccountId)
       const slot = this.slots.get(slotId(input.appId, accountId, input.slotKey))
       return slot ? { blob: slot.blob, version: slot.version, updatedAt: slot.updatedAt } : null
     })
@@ -141,6 +148,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   put(raw: SavePutInput): Promise<SavePutOutput> {
     return this.saveAccount().then((accountId) => {
       const input = parsed(savePutInput, raw)
+      requireExpectedAccount(accountId, input.expectedAccountId)
       const key = slotId(input.appId, accountId, input.slotKey)
       const sizeBytes = byteLength(input.blob)
       const existing = this.slots.get(key)
@@ -190,6 +198,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   delete(raw: SaveDeleteInput): Promise<SaveDeleteOutput> {
     return this.saveAccount().then((accountId) => {
       const input = parsed(saveDeleteInput, raw)
+      requireExpectedAccount(accountId, input.expectedAccountId)
       this.slots.delete(slotId(input.appId, accountId, input.slotKey))
       return {}
     })
@@ -487,6 +496,13 @@ function encodeUnsignedToken(claims: FamilyTokenClaims): string {
  * ZodError's own message - a stringified issue array rather than prose. The fake
  * says the same thing, so a test can see what a parent would be shown.
  */
+/** The service's CONFLICT for a page bound to another profile (`requireExpectedAccount` in apps/family). */
+function requireExpectedAccount(accountId: string, expectedAccountId: string | undefined): void {
+  if (expectedAccountId !== undefined && expectedAccountId !== accountId) {
+    throw new FamilyClientError(SAVE_ACCOUNT_MISMATCH, 'CONFLICT')
+  }
+}
+
 function parsed<T>(schema: { parse: (value: unknown) => T }, input: unknown): T {
   try {
     return schema.parse(input)

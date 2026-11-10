@@ -13,10 +13,14 @@ Four entry points keep node-only code out of browser bundles:
   the save-router zod schemas + `FamilySaveContract`, `createFamilySaveClient`
   (the typed browser client), the identity-router schemas +
   `FamilyIdentityContract` + `createFamilyIdentityClient`,
-  `FamilyClientError`, `readFamilySession` (decode-only claims read for
-  display) and its write half, `writeFamilySession` / `clearFamilySession`.
+  `FamilyClientError` and `SaveAccountMismatchError`, `readFamilySession`
+  (decode-only claims read for display) and its write half,
+  `writeFamilySession` / `clearFamilySession`.
   The estate gate's browser half: `ESTATE_APPS`, `safeReturnTo`, `accountUrl`,
-  `sharedUrl`, `profileScopedKey` and `adoptLegacyDocument` (below).
+  `sharedUrl`, `profileScopedKey` and `adoptLegacyDocument` (below), and what an
+  app calls to sit behind it: `profileStorage`, `memoryStorage`,
+  `arrivalFragment`, `bindSaveClient`, `reloadOnPlayerChange`, `hubUrlFor` and
+  `switchPlayerUrlFor` (see "In a gated app's browser code").
 - **`@hoe/accounts/server`** (node): `mintFamilyToken` / `verifyFamilyToken`
   (Ed25519 via `node:crypto`), `familyAuthProvider` - the AuthProvider any
   app drops into its `createContext({ auth })` seam - `familyDocumentGate`,
@@ -123,6 +127,80 @@ ADR 0070 (amended). Which key the gate verifies with depends on where it runs:
   refuses to boot. `compose.yml` sets the test public key on every
   `ESTATE_APPS` service, matching the key its family signs with, and
   `estateApps.test.ts` checks that.
+
+### In a gated app's browser code
+
+These calls cover what every gated app does in the browser. boop is the
+reference (`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`,
+`features/topbar/`).
+
+- **`profileStorage(device, accountId, { keys, prefixes })`** - a
+  `StorageLike` (`getItem`, `setItem`, `removeItem`, `key`, `length`, `clear`)
+  over `device` (`window.localStorage`).
+  - **Which keys are scoped.** Exact `keys` and any key starting with one of
+    `prefixes` (silt's `silt:scene:`) are stored under
+    `profileScopedKey(key, accountId)`. Every other key passes straight through.
+  - **What it lists.** `key(i)`, `length` and `clear()` cover this profile's
+    keys only, by their unscoped names. Signed out (`accountId` null), this
+    profile's keys are the legacy documents, so `clear()` removes them.
+  - **Keys it refuses.** A profile key that already carries an `@` (a
+    prefixed key whose remainder has one, or `boop:save@<someone>`) throws, so
+    one profile can never name another's document.
+  - **Adopting legacy documents.** On open it copies the device's legacy
+    documents in, never moving them. For an exact key, that means
+    `adoptLegacyDocument`. For a prefix, it means every unscoped key under the
+    prefix, all or nothing, and only while the profile has no key under it yet.
+  - **A full quota.** If the quota fills during adoption, the error is
+    swallowed and nothing is left half-written, so the next open simply tries
+    again. If the profile saves its own document before an adoption succeeds,
+    it never adopts that key; the legacy copy stays on the device.
+  - **Usage.**
+    - Build it once per page from the account the page opened for, and pass it
+      wherever the app used `window.localStorage` for a save. The app's code
+      keeps naming its unscoped keys.
+    - List saves only, never device preferences.
+    - A prefixed key's remainder must not contain `@` (see above).
+    - Never build it on `/shared`: building it copies the legacy documents in,
+      and that is a write.
+  - **What it does not cover.** IndexedDB, and any other store keyed by
+    something other than these names. Scope those with `profileScopedKey`
+    directly.
+- **`memoryStorage()`** - the same interface held in memory, for `/shared`,
+  which must write nothing (ADR 0093 decision 6).
+- **`arrivalFragment()`** - the fragment the page was opened with, byte for
+  byte. It is captured when this package first loads, before a TanStack Router
+  mounts and decodes the address bar (`#w=%7B%7D` becoming `#w={}`).
+  - After a hash-only navigation to a different fragment, it returns the new
+    one.
+  - It returns `''` once the address bar has no fragment or is on another path,
+    so a remount after the app clears its fragment does not replay it.
+  - Import the package from the app's entry chunk; a lazily loaded chunk would
+    capture after the router.
+- **`createFamilySaveClient({ baseUrl, accountId })`** - the save client,
+  bound to the profile the page opened for (ADR 0080, amended).
+  - Every call sends `expectedAccountId`, and the service refuses a call made
+    with another profile's token.
+  - A call made while `readFamilySession()` names anyone else is refused before
+    it is sent.
+  - Either refusal arrives as a `SaveAccountMismatchError`; sync should stop
+    for good on it. Only the service's `CONFLICT` carrying the
+    `SAVE_ACCOUNT_MISMATCH` message counts; any other `CONFLICT` stays a plain
+    `FamilyClientError`. `bindSaveClient(client, accountId)` adds the same binding
+    to any client, such as `FakeFamilyClient`.
+  - Build it only when there is a session.
+- **`reloadOnPlayerChange(openedFor)`** - call it where the profile's storage
+  is built, not on `/shared`, with the account the page opened for (`null`
+  when signed out). A reload on `/shared` would throw away a visitor's unsaved
+  edits, and nothing there belongs to a profile. When the page comes
+  back into view (`pageshow`, including a bfcache restore, a visible
+  `visibilitychange`, or `focus`) with a different profile signed in, or none,
+  it reloads the page. A tab therefore never shows or saves one profile's work
+  under another. It returns a function that stops watching.
+- **`hubUrlFor(href)`** - hub's origin on the same tier as the app (production,
+  dev port or compose port), for a back-to-hub link; production hub anywhere
+  else. **`switchPlayerUrlFor(href)`** - `accountUrlFor` on `href` without its
+  fragment, so a "switch player" link returns here once a player is picked;
+  `null` outside the estate.
 
 ### Wiring the gate in an app
 
@@ -246,7 +324,8 @@ router could ever implement them.
 `pnpm --filter @hoe/accounts run test` - vitest unit tests: token round-trip /
 tamper / expiry / malformed / wrong-shape, provider mapping, decode-only
 session read, wire-format + error mapping of the client, the return-URL
-allowlist against named hostile inputs, legacy adoption, the gate's redirects,
+allowlist against named hostile inputs, legacy adoption, profile-scoped and
+memory storage, the arrival fragment, hub and switch-player links, the gate's redirects,
 the verifying key on and off Fly (directly and through
 `familyDocumentGateFromEnv`), the `compose.yml` ports and keys against
 `ESTATE_APPS`, and the fake's

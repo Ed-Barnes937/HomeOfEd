@@ -8,7 +8,7 @@ const BOOP_COMPOSE_PORT = String(ESTATE_APPS.find((app) => app.appId === 'boop')
  * Where the family service lives. Local hostnames talk to the local service:
  * the docker stack's from boop's compose port, otherwise `pnpm dev
  * --filter=family` on 3012. Everything else talks to the one in production.
- * Same shape as `hubUrl.ts`, and the same reason: boop is served from several
+ * Same idea as `hubUrlFor`, and the same reason: boop is served from several
  * hostnames and must never point a child's browser at a dev box.
  */
 export function familyUrl(hostname: string, port: string): string {

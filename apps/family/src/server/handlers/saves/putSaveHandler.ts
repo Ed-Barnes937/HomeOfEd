@@ -2,13 +2,19 @@ import type { SavePutInput, SavePutOutput } from '@hoe/accounts'
 import { Handler, ValidationError } from '@hoe/backend-kit'
 
 import { blobByteLength, type FamilyStore, type SaveKey } from '../../store.ts'
-import { requireOnboardedApp, requireSaveAccount, type FamilyContext } from '../authz.ts'
+import {
+  requireExpectedAccount,
+  requireOnboardedApp,
+  requireSaveAccount,
+  type FamilyContext,
+} from '../authz.ts'
 
 import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from './limits.ts'
 
 export class PutSaveHandler extends Handler<SavePutInput, SavePutOutput, FamilyStore> {
   async run(input: SavePutInput, ctx: FamilyContext): Promise<SavePutOutput> {
     const account = requireSaveAccount(ctx)
+    requireExpectedAccount(account, input.expectedAccountId)
     requireOnboardedApp(input.appId)
 
     const key: SaveKey = {

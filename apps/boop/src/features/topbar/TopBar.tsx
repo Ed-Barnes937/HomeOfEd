@@ -1,4 +1,5 @@
-import { hubUrl } from '../../hubUrl.ts'
+import { hubUrlFor } from '@hoe/accounts'
+
 import { savedStateLabel, type LoadedBoop } from '../../savedState.ts'
 import { useShareBoop } from '../../share/useShareBoop.ts'
 import { SyncedChip } from '../../sync/SyncedChip.tsx'
@@ -25,6 +26,11 @@ export interface TopBarProps {
   onNewBoop?: () => void
   /** The profile the boops are kept for, or `null` when nothing is linked (ADR 0080). */
   syncedAs?: string | null
+  /**
+   * The shared view's way to keep the boop (ADR 0093 decision 6). When set,
+   * it stands in for New boop and My boops, since nothing here is saved.
+   */
+  onKeep?: (() => void) | null
 }
 
 /**
@@ -45,13 +51,14 @@ export function TopBar({
   loaded,
   onNewBoop,
   syncedAs = null,
+  onKeep = null,
 }: TopBarProps) {
   const { shareState, share } = useShareBoop(getShareUrl)
   const copied = shareState === 'copied'
 
   return (
     <header className={styles.bar}>
-      <a className={styles.back} href={hubUrl(window.location.hostname)} aria-label="Back to home of ed">
+      <a className={styles.back} href={hubUrlFor(window.location.href)} aria-label="Back to home of ed">
         <svg
           width="22"
           height="22"
@@ -73,24 +80,37 @@ export function TopBar({
       </span>
       {syncedAs !== null && <SyncedChip name={syncedAs} />}
       <div className={styles.spacer} />
-      {onNewBoop && (
+      {onKeep !== null ? (
         <button
           type="button"
           className={styles.ghost}
-          onClick={onNewBoop}
-          data-testid="new-boop-button"
+          onClick={onKeep}
+          data-testid="keep-boop-button"
         >
-          New boop
+          Keep this boop
         </button>
+      ) : (
+        <>
+          {onNewBoop && (
+            <button
+              type="button"
+              className={styles.ghost}
+              onClick={onNewBoop}
+              data-testid="new-boop-button"
+            >
+              New boop
+            </button>
+          )}
+          <button
+            type="button"
+            className={styles.ghost}
+            onClick={onOpenBoops}
+            data-testid="boops-button"
+          >
+            My boops
+          </button>
+        </>
       )}
-      <button
-        type="button"
-        className={styles.ghost}
-        onClick={onOpenBoops}
-        data-testid="boops-button"
-      >
-        My boops
-      </button>
       <button
         type="button"
         className={`${styles.primary}${copied ? ` ${styles.copied}` : ''}`}
