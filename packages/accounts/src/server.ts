@@ -8,5 +8,4 @@ export {
 export { familyAuthProvider } from './familyAuthProvider.ts'
 export type { FamilyDocumentGateOpts } from './familyDocumentGate.ts'
 export { familyDocumentGate, familyDocumentGateFromEnv } from './familyDocumentGate.ts'
-export { familyVerifyingKey, PRODUCTION_FAMILY_PUBLIC_KEY } from './familyVerifyingKey.ts'
 export type { FamilyUser } from './familyAuthProvider.ts'

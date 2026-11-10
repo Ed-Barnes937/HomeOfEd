@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { ESTATE_APPS, HUB_LOCAL_PORTS } from './estateApps.ts'
-import { familyVerifyingKey } from './familyVerifyingKey.ts'
+import { familyDocumentGate } from './familyDocumentGate.ts'
 
 const compose = readFileSync(
   fileURLToPath(new URL('../../../compose.yml', import.meta.url)),
@@ -54,17 +54,20 @@ describe("the registry's compose verifying keys", () => {
   const familySigningKey = pemValue('family', 'FAMILY_TOKEN_PRIVATE_KEY')
 
   it.each(ESTATE_APPS.map((app) => app.appId))(
-    'give %s the public half of the key family signs with, which Fly refuses',
+    'give %s a public key, the public half of the key family signs with',
     (appId) => {
       const pem = pemValue(appId, 'FAMILY_TOKEN_PUBLIC_KEY')
 
       expect(pem).toBeDefined()
       expect(familySigningKey).toBeDefined()
-      expect(spki(pem!)).toEqual(spki(familySigningKey!))
-      expect(familyVerifyingKey({ FAMILY_TOKEN_PUBLIC_KEY: pem }, null)).toBe(pem)
       expect(() =>
-        familyVerifyingKey({ FLY_APP_NAME: 'hoe-boop', FAMILY_TOKEN_PUBLIC_KEY: pem }, null),
-      ).toThrow(/committed @hoe\/accounts\/testing key/)
+        familyDocumentGate({
+          accountUrl: 'http://localhost:8080/account',
+          publicPaths: [],
+          publicKeyPem: pem!,
+        }),
+      ).not.toThrow()
+      expect(spki(pem!)).toEqual(spki(familySigningKey!))
     },
   )
 })
