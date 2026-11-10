@@ -76,6 +76,14 @@
   }
 }
 
+.static {
+  cursor: default;
+
+  &:hover {
+    border-color: var(--panel-line-strong);
+  }
+}
+
 .count {
   display: inline-grid;
   place-items: center;

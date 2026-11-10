@@ -1,0 +1,82 @@
+import { expect } from '@playwright/experimental-ct-react'
+
+import { parseSaveDocument } from './persistence/saveFormat.ts'
+import { setFamilyCookie } from './testing/familySession.ts'
+import { test } from './testing/iwftTest.tsx'
+import { readLocalSave, seedLegacySave, shelfDocument, shelfNames } from './testing/localSaves.ts'
+
+/** Local saves belong to whoever is playing (ADR 0094, estate-gate spec decisions 7 and 8). */
+
+const ADA = { sub: 'child-ada', role: 'child', parentId: 'parent-1', name: 'Ada' } as const
+const BO = { sub: 'child-bo', role: 'child', parentId: 'parent-1', name: 'Bo' } as const
+
+test('one player’s shelf and counter are not another’s on the same device', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await setFamilyCookie(page, ADA)
+
+  const ada = await mountApp()
+  await ada.root.verifyPlayer('Ada')
+  await ada.root.rename('Acorn')
+  await ada.root.keep()
+  await ada.root.verifyShelfCount(1)
+
+  await page.reload()
+  await setFamilyCookie(page, BO)
+  const bo = await mountApp()
+  await bo.root.verifyPlayer('Bo')
+  await bo.root.verifyShelfCount(0)
+  await bo.root.verifyWandName('The Smoky Spiral')
+
+  expect(shelfNames(await readLocalSave(page, ADA.sub))).toEqual(['Acorn'])
+  expect(parseSaveDocument(await readLocalSave(page, ADA.sub)).working?.name).toBe('Acorn')
+  expect(shelfNames(await readLocalSave(page, BO.sub))).toEqual([])
+})
+
+test('wands kept before profiles appear for every player, and the device copy is never written', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  const legacy = shelfDocument(['From before profiles'])
+  await seedLegacySave(page, legacy)
+  await setFamilyCookie(page, ADA)
+
+  const ada = await mountApp()
+  await ada.root.verifyShelfCount(1)
+  await ada.root.keep()
+  await ada.root.verifyShelfCount(2)
+
+  await page.reload()
+  await setFamilyCookie(page, BO)
+  const bo = await mountApp()
+  await bo.root.verifyShelfCount(1)
+  const shelf = await bo.root.openShelf()
+  await shelf.verifyWands(['From before profiles'])
+
+  expect(await readLocalSave(page, null)).toBe(legacy)
+})
+
+test('signed out, the device’s own shelf is the one in use and no player is shown', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await seedLegacySave(page, shelfDocument(['On the device']))
+
+  const { root } = await mountApp()
+  await root.verifyNoPlayer()
+  await root.verifyShelfCount(1)
+  await root.rename('Spare')
+  await root.keep()
+
+  expect(shelfNames(await readLocalSave(page, null))).toEqual(['On the device', 'Spare'])
+})

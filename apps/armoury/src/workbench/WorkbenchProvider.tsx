@@ -1,3 +1,4 @@
+import { arrivalFragment } from '@hoe/accounts'
 import {
   createContext,
   useCallback,
@@ -43,25 +44,30 @@ export function firstVisitWand(): StoredWand {
   return { params: normalise(wandSchema, wandPresets[0]!.params) }
 }
 
-function initialWand(storage: SaveStorage): StoredWand {
-  return (
-    decodeShareHash(window.location.hash) ?? loadSaveDocument(storage).working ?? firstVisitWand()
-  )
+function initialWand(storage: SaveStorage, arrival: string): StoredWand {
+  return decodeShareHash(arrival) ?? loadSaveDocument(storage).working ?? firstVisitWand()
 }
 
 export function WorkbenchProvider({
-  storage = window.localStorage,
+  storage,
+  shared = false,
   children,
 }: {
-  storage?: SaveStorage
+  /** The player's `profileStorage`, or the shared view's `memoryStorage`. */
+  storage: SaveStorage
+  /** `/shared` keeps its fragment: it saves nothing, so a reload reopens the share. */
+  shared?: boolean
   children: ReactNode
 }) {
-  const [state, dispatch] = useReducer(workbench, storage, (s) => startWorkbench(initialWand(s)))
+  const [arrival] = useState(arrivalFragment)
+  const [state, dispatch] = useReducer(workbench, storage, (s) =>
+    startWorkbench(initialWand(s, arrival)),
+  )
   const [shelf, setShelf] = useState(() => loadSaveDocument(storage).shelf)
 
   useEffect(() => {
-    if (decodeShareHash(window.location.hash)) clearShareHash(window.location, window.history)
-  }, [])
+    if (!shared && decodeShareHash(arrival)) clearShareHash(window.location, window.history)
+  }, [arrival, shared])
 
   const latest = useRef(state.wand)
   latest.current = state.wand
