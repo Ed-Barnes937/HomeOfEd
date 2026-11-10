@@ -6,6 +6,7 @@ import { accountErrorMessage } from '../../features/account/accountError.ts'
 import { SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { familySessionCookieOptions } from '../../features/account/familyService.ts'
+import { returnToApp } from '../../features/account/returnTo.ts'
 
 import styles from './AccountPage.module.scss'
 
@@ -37,7 +38,10 @@ export function WhosPlayingCard({
       const { token } = await client.mintSessionToken(childId === undefined ? {} : { childId })
       return writeFamilySession(token, familySessionCookieOptions(window.location.hostname))
     },
-    onSuccess: (claims) => onSessionChange(claims),
+    onSuccess: (claims) => {
+      onSessionChange(claims)
+      returnToApp(claims)
+    },
   })
 
   return (

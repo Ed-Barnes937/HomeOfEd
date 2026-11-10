@@ -1,6 +1,6 @@
 # 05 - hub: `/account` returns the visitor to where they were going
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decisions 4, 6
 Blocked by: 01
@@ -27,3 +27,28 @@ Blocked by: 01
 - ADR 0095 (hub return and renewal); amend ADR 0081.
 
 ## Comments
+
+**2026-11-10 (implementer).** Built, with these differences (ADR 0095):
+
+- **Not built: "an already-live family session returns immediately".** The gate
+  only redirects when it cannot verify a token, so a visitor reaching hub with a
+  token hub can decode came from an app's switch-player link (decision 10) or
+  from a gate/hub disagreement (ticket 19's wrong-key loop, clock skew). An
+  immediate return makes switching player impossible and, in a disagreement,
+  spins between app and hub with no screen. Instead the page shows and any pick
+  returns. The no-screen case for a signed-in parent is ticket 06's renewal.
+  Open call for Ed.
+- `returnTo` and the fragment come from the arrival URL, captured in memory at
+  module load because TanStack Router rewrites the address bar on mount (and
+  decodes the fragment). Re-vetted by `safeReturnTo` at use; no storage.
+- The return uses `location.replace` and happens only when the cookie reads back
+  with the picked `sub`.
+- "Open what was shared" shows whenever nobody is signed in, including while
+  family is loading or down, not only on the signed-out card.
+- **Checked 2026-11-10** (ADR 0095, "What was checked"): a fragment survives a
+  real `302` in Playwright WebKit and Chromium; hub's production build in the
+  docker stack returns to boop byte for byte. Boop's own gate (tickets 02, 10)
+  did not exist yet, so that `302` was a test server's.
+- Found for tickets 10-15: each app's own router decodes its fragment on mount
+  (`%7B` becomes `{`), so an app reading its share payload after mount sees the
+  decoded form.
