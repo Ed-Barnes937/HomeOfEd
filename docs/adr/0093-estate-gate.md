@@ -105,8 +105,9 @@ Production sets it in each app's `fly.toml` `[env]`, the docker stack in
 `.iwft` are ungated without a flag. Turning an app on or off is one config
 line, and rollback is removing it. The entrypoint's one call is
 `familyDocumentGateFromEnv`, which resolves the verifying key only when the
-gate is on and refuses the committed test key on Fly; where the key comes from
-is [ADR 0070](0070-family-service.md)'s 2026-11-10 amendment.
+gate is on. On Fly that key is the constant committed in `@hoe/accounts`, with
+no per-app Fly variable, so rotating it is a code change and a redeploy; see
+[ADR 0070](0070-family-service.md)'s 2026-11-10 amendment.
 
 **3. Exempt apps:** hub (it hosts `/account`, so gating it would loop), family
 (the service the gate depends on), and sprout and sprout-pipeline (their own

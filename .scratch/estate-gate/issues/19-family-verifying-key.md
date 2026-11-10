@@ -44,24 +44,24 @@ and replaces that line with the three output lines joined by `\n` as one string:
 The existing test then checks it is an Ed25519 public key the gate accepts and
 not the test key. No `fly.toml` may set `FAMILY_ACCOUNT_URL` before this lands.
 
-Differences from the ticket:
+Differences from the ticket (after review, orchestrator decisions):
 
-- With no override and no committed constant, `familyVerifyingKey` throws
-  everywhere (not only on Fly), naming both remedies.
-- Added `familyDocumentGateFromEnv(env, { publicPaths })` (orchestrator
-  decision): the only gate call an app's `main.ts` makes. It returns
-  `undefined` without `FAMILY_ACCOUNT_URL` and resolves no key, so an app with
-  the gate off boots as before; a gated app on Fly with no key, or the test
-  key, refuses to boot. Tickets 10-16 wire `documentGate:
+- On Fly the committed constant is the only key: `FAMILY_TOKEN_PUBLIC_KEY` is
+  local-only there (deploy-guard `localOnly`, like `DOCKER_STACK_ORIGINS`) and
+  its presence refuses the boot, so there is no runtime comparison against the
+  test key. A `null` constant on Fly refuses the boot, naming the constant. Off
+  Fly the variable wins, else the constant, else the boot is refused. Rotation
+  is a code change and redeploy.
+- Apps call only `familyDocumentGateFromEnv(env, { publicPaths })` (the one
+  export; `familyVerifyingKey` is internal). It returns `undefined` without
+  `FAMILY_ACCOUNT_URL` (or with it empty) and resolves no key, so an app with
+  the gate off boots as before. Tickets 10-16 wire `documentGate:
   familyDocumentGateFromEnv(process.env, { publicPaths: [...] })` and follow the
   README's Dockerfile list. ADR 0093 decision 2 points at it.
+- `familyDocumentGate` now accepts exactly one PEM public key block; OpenSSL
+  would otherwise skip junk around it or a second block.
 - The compose drift test lives in `estateApps.test.ts`, beside the compose port
-  check, sharing its service-block helper.
-- The test key and the compose-local key are one key (compose's family signs
-  with the `@hoe/accounts/testing` private key), so one SPKI comparison refuses
-  both. The compose drift test pins that they stay the same key.
-- `@hoe/accounts` now depends on `@hoe/deploy-guard` for `isDeployed`. A gated
-  app's Dockerfile must ship `packages/accounts` with `src/testing` and
-  `packages/deploy-guard`; noted in the README for tickets 10-15.
-- `familyVerifyingKey(env, productionKey?)`: the second parameter defaults to
-  the constant and exists so both states are tested now.
+  check. It requires a public key equal to the public half of family's
+  compose signing key.
+- `@hoe/accounts` depends on `@hoe/deploy-guard`. No runtime source imports
+  `src/testing` (pinned by a test), so gated images drop it.

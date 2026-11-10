@@ -5,7 +5,7 @@ import type { Environment } from '@hoe/deploy-guard'
 
 import { readFamilyTokenFromCookieHeader } from './claims.ts'
 import { verifyFamilyToken } from './familyToken.ts'
-import { familyVerifyingKey } from './familyVerifyingKey.ts'
+import { familyVerifyingKey, PRODUCTION_FAMILY_PUBLIC_KEY } from './familyVerifyingKey.ts'
 import { accountUrl } from './returnTo.ts'
 
 // Structurally the `documentGate` option of backend-kit's `createAppServer`.
@@ -61,7 +61,7 @@ export function familyDocumentGateFromEnv(
   return familyDocumentGate({
     ...opts,
     accountUrl: familyAccountUrl,
-    publicKeyPem: familyVerifyingKey(env),
+    publicKeyPem: familyVerifyingKey(env, PRODUCTION_FAMILY_PUBLIC_KEY),
   })
 }
 
@@ -77,16 +77,21 @@ function parseAccountUrl(raw: string): string {
   return url.href
 }
 
+// Exactly one block: OpenSSL itself skips text before and after it.
+const ONE_PUBLIC_PEM =
+  /^\s*-----BEGIN PUBLIC KEY-----\r?\n[A-Za-z0-9+/=\r\n]+-----END PUBLIC KEY-----\s*$/
+
 function parsePublicKey(pem: string): KeyObject {
   if (!pem) throw new Error('familyDocumentGate: publicKeyPem is required')
   if (pem.includes('PRIVATE KEY'))
     throw new Error('familyDocumentGate: publicKeyPem holds a private key; pass the public half')
-  let key: KeyObject
+  let key: KeyObject | null = null
   try {
-    key = createPublicKey(pem)
+    if (ONE_PUBLIC_PEM.test(pem)) key = createPublicKey(pem)
   } catch {
-    throw new Error('familyDocumentGate: publicKeyPem is not a PEM public key')
+    // reported below
   }
+  if (key === null) throw new Error('familyDocumentGate: publicKeyPem is not a PEM public key')
   if (key.asymmetricKeyType !== 'ed25519')
     throw new Error('familyDocumentGate: publicKeyPem must be an Ed25519 key')
   return key
