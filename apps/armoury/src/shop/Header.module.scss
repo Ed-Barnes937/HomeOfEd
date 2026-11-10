@@ -63,6 +63,7 @@
   background: rgba(15, 11, 8, 0.72);
   color: var(--ink);
   font-size: 16px;
+  white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
 
@@ -95,8 +96,21 @@
   font-size: 13px;
 }
 
+.playerName {
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 1180px) {
   .motto {
+    display: none;
+  }
+}
+
+// The player chip widens the nav, so the motto gives way sooner.
+@media (max-width: 1340px) {
+  .withPlayer .motto {
     display: none;
   }
 }

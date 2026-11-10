@@ -84,7 +84,7 @@ function Player({ name }: { name: string }) {
   const content = (
     <>
       <PlayerIcon />
-      <span className={styles.label}>{name}</span>
+      <span className={`${styles.label} ${styles.playerName}`}>{name}</span>
     </>
   )
   // Outside the estate there is no hub to switch at, so it is the name alone.
@@ -122,7 +122,7 @@ export function Header({
   onPicture: () => void
 }) {
   return (
-    <header className={styles.header}>
+    <header className={player === null ? styles.header : `${styles.header} ${styles.withPlayer}`}>
       <div className={styles.brand}>
         <a
           className={styles.back}
