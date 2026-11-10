@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-11-09
-- **Related:** [ADR 0081](0081-armoury-raised-features.md) (raised spirals, weighted
+- **Related:** [ADR 0090](0090-armoury-raised-features.md) (raised spirals, weighted
   choices), [ADR 0076](0076-armoury-generator-tuning.md), [ADR 0074](0074-armoury-save-format.md)
   (new params default so old saves open), `.scratch/armoury-variety/` ticket 03.
 
@@ -25,7 +25,7 @@ bloom that makes the core's glow and the spell shine.
   `decor` in code, between the shaft and the core): what the handle is made of (wood, metal, painted, bone), what the shaft is
   made of (wood, painted, bone), a metal end cap, a metal ring (the collar), up to
   three metal bands, and, on a raised spiral, a metal spiral. Shaft bumps stay in
-  the shaft group (ADR 0081).
+  the shaft group (ADR 0090).
 - **Coupling.**
   - One metal (silver, brass, gold, dark iron) for every metal part, so a metal
     handle always matches its ring and bands.
