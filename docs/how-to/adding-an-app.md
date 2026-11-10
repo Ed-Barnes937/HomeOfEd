@@ -70,10 +70,10 @@ Then change each touchpoint:
 | 1 | `apps/<name>/package.json` | `"name": "<name>"`; set the dev port in the `dev` script (`vite --port <devPort>`). |
 | 2 | `apps/<name>/index.html` | `<title>`. |
 | 3 | `apps/<name>/playwright-ct.config.ts` | `ctPort: <ctPort>`. |
-| 4 | `apps/<name>/fly.toml` | `app = '<flyapp>'`. Leave `primary_region = 'lhr'`. |
+| 4 | `apps/<name>/fly.toml` | `app = '<flyapp>'`. Leave `primary_region = 'lhr'` and the `FAMILY_ACCOUNT_URL` line ([§1a](#1a-the-estate-gate-every-app)). |
 | 5 | `apps/<name>/Dockerfile` | Replace `starter` in the `turbo prune` and `--filter` lines; replace every `templates/starter` path with `apps/<name>`. |
-| 6 | `compose.yml` (repo root) | Copy the `starter` service pattern as a new `<name>` service (build context `.`, dockerfile `apps/<name>/Dockerfile`, fresh host port). A stateless app has **one** service, `command: node src/server/main.ts`, no `DATABASE_URL`, no `depends_on`. |
-| 7 | `.github/workflows/deploy.yml` | Copy the `deploy-hub` job → `deploy-<name>`: the `APP_URL`, the affected check (`select(.name == "<name>")`), the `flyctl deploy --config apps/<name>/fly.toml` path, and the smoke `APP_URL`. |
+| 6 | `compose.yml` (repo root) | Copy the `boop` service as a new `<name>` service (build context `.`, dockerfile `apps/<name>/Dockerfile`, fresh host port, and its two `FAMILY_*` lines - [§1a](#1a-the-estate-gate-every-app)). A stateless app has **one** service, `command: node src/server/main.ts`, no `DATABASE_URL`, no `depends_on`. |
+| 7 | `.github/workflows/deploy.yml` | Copy the `deploy-boop` job to `deploy-<name>`: the `APP_URL`, the affected check (`select(.name == "<name>")`), the `flyctl deploy --config apps/<name>/fly.toml` path, and the smoke `APP_URL`. Not `deploy-hub`: hub is never gated, so its smoke demands a `200` index and fails a gated app's first deploy after Fly has already rolled it out. |
 
 **Ports must be unique across all apps.** This registry is the single source of
 truth — read it, take the **next free** row, and add your app to it in the same
@@ -113,6 +113,77 @@ routes, or keep it as a smoke while you build.
 app it should pass immediately after the renames — that is your green baseline.
 
 Subdomain, Cloudflare, and Fly app creation are **human-gated** — see §4.
+
+### 1a. The estate gate (every app)
+
+Every app on `*.homeofed.com` sends a visitor with no family session to hub's
+`/account` and back ([ADR 0093](../adr/0093-estate-gate.md)). Only hub, family,
+sprout and sprout-pipeline are exempt. The starter arrives gated, so the copy
+already has the server half; keep it:
+
+- `src/server/main.ts` passes
+  `documentGate: familyDocumentGateFromEnv(process.env, { publicPaths: [] })`.
+  The gate is on exactly when `FAMILY_ACCOUNT_URL` is set. `pnpm dev` and
+  `.iwft` never run this server, so they are ungated.
+- `src/server/main.test.ts` boots that entrypoint on a real port and proves
+  both modes.
+- `fly.toml` sets `FAMILY_ACCOUNT_URL = 'https://homeofed.com/account'` under
+  `[env]`.
+- `Dockerfile` ships `@hoe/accounts` and `@hoe/deploy-guard`, as
+  [`packages/accounts/README.md`](../../packages/accounts/README.md#wiring-the-gate-in-an-app)
+  describes.
+
+What you add:
+
+1. **`ESTATE_APPS`** in `packages/accounts/src/estateApps.ts`:
+   `{ appId: '<name>', host: '<name>.homeofed.com', devPort, composePort }`,
+   the ports from your registry row. Hub returns a visitor only to an origin
+   listed there, so an app missing from it signs its visitors in and leaves
+   them on hub.
+2. **`compose.yml`**: the service must be named exactly the `appId`, and gets
+   boop's two `environment` lines, copied verbatim:
+
+   ```yaml
+   environment:
+     FAMILY_ACCOUNT_URL: http://localhost:8080/account
+     FAMILY_TOKEN_PUBLIC_KEY: '<boop's value>'
+   ports:
+     - '<composePort>:8080'
+   ```
+
+   `packages/accounts/src/estateApps.test.ts` checks every `ESTATE_APPS` entry
+   against `compose.yml`: that service publishes exactly one port,
+   `'<composePort>:8080'`, and its `FAMILY_TOKEN_PUBLIC_KEY` is a single-quoted
+   one-line PEM matching the key compose's `family` signs with. Run
+   `corepack pnpm --filter @hoe/accounts run test`.
+3. **Share links**, only if the app has them: fragment share links live at
+   `/shared`, and `main.ts` declares `publicPaths: ['/shared']`. The shared
+   view writes nothing to `localStorage` or the SaveStore (ADR 0093 decision
+   6). A server-backed share route declares its own prefix, as fridge's `/b/`.
+
+**Before the first deploy.** A gated app refuses to boot on Fly until the
+production verifying key is committed as `PRODUCTION_FAMILY_PUBLIC_KEY` in
+`packages/accounts/src/familyVerifyingKey.ts` (see "Committing the production
+key" in the accounts README); the deploy then fails its health checks and
+`go-live.sh` fails its verify step. While that constant is still `null`,
+remove the `FAMILY_ACCOUNT_URL` line from the app's `fly.toml`; putting it
+back later is the one-line switch-on.
+
+To see the gate locally: `docker compose up --build family hub <name>`, then
+open `http://localhost:<composePort>/` and you land on hub's sign-in.
+
+### 1b. Saving work per profile (apps that save work)
+
+Local saves belong to whoever is playing
+([ADR 0094](../adr/0094-per-profile-local-saves.md)). Store saved work under
+`profileScopedKey(key, accountId)` from `@hoe/accounts`, where `accountId` is
+`readFamilySession()?.sub ?? null`; with nobody signed in the key is unchanged.
+Device preferences (themes, settings, hints) stay unscoped. An app that syncs
+through the family SaveStore keeps the unscoped key as its `slotKey`, because
+the server key already carries the account. Only an app that already shipped
+saves under an unscoped key needs `adoptLegacyDocument(localStorage, key,
+accountId)` on open, which copies the device's old document into each profile
+once.
 
 ---
 

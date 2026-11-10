@@ -1,5 +1,5 @@
-# Deploy on merge to main — one job per app (copy the deploy-hub job and swap
-# the app name/paths/URL when adding an app).
+# Deploy on merge to main - one job per app (copy the deploy-boop job and swap
+# the app name/paths/URL when adding an app; hub's smoke refuses a gated app).
 #
 # INERT UNTIL PHASE 4: every action step is gated on FLY_API_TOKEN being set
 # as a repo secret (runbook G4.2). Until then the workflow runs, prints a

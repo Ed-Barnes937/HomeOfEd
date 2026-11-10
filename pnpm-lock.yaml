@@ -1195,6 +1195,9 @@ importers:
 
   templates/starter:
     dependencies:
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit
