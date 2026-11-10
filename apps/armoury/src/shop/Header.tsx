@@ -89,12 +89,17 @@ function Player({ name }: { name: string }) {
   )
   // Outside the estate there is no hub to switch at, so it is the name alone.
   return href === null ? (
-    <span className={`${styles.button} ${styles.static}`} data-testid="player">
+    <span
+      className={`${styles.button} ${styles.player} ${styles.static}`}
+      role="img"
+      aria-label={`Playing as ${name}`}
+      data-testid="player"
+    >
       {content}
     </span>
   ) : (
     <a
-      className={styles.button}
+      className={`${styles.button} ${styles.player}`}
       href={href}
       aria-label={`Playing as ${name}. Switch player`}
       data-testid="player"

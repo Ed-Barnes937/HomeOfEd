@@ -46,9 +46,14 @@ Copy the merged pattern from ticket 10 (boop), without sync; armoury is not a Sa
 - The switch-player link is a chip in the header's nav, in the shelf button's
   style: a person icon and the player's name, linking to
   `switchPlayerUrlFor(location.href)`. It shows only with a session, and
-  outside the estate (the `.iwft` port) it is the name alone. On the phone it
-  is icon only, like the other header buttons. With the chip, the motto hides
-  below 1340px so the nav keeps one line.
+  outside the estate (the `.iwft` port) it is the name alone, as an image
+  named "Playing as <name>". On the phone it is icon only, like the other
+  header buttons. With the chip the header gives way in steps so the nav never
+  covers the title or pushes Picture under the controls: the motto hides below
+  1340px, the chip goes icon only below 1250px, and every nav label below
+  1060px (measured; review round, 2026-11-10).
+- Keep from a link with no wand in it (empty or undecodable) goes to `/` with
+  no fragment, so the root opens the player's own counter (review round).
 - The back arrow now uses `hubUrlFor`, replacing armoury's own `hubUrl`
   (which pointed every localhost port at `localhost:3000`).
 - Only ADR 0075 is amended. `apps/armoury/CONTEXT.md` gained Player and Shared

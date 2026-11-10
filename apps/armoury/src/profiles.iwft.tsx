@@ -80,3 +80,24 @@ test('signed out, the device’s own shelf is the one in use and no player is sh
 
   expect(shelfNames(await readLocalSave(page, null))).toEqual(['On the device', 'Spare'])
 })
+
+test.describe('on a narrow laptop', () => {
+  test.use({ viewport: { width: 900, height: 600 } })
+
+  test('a long player name leaves the title clear and Picture in view', async ({
+    mountApp,
+    page,
+  }) => {
+    const first = await mountApp()
+    await first.root.verifyIsShown()
+    await page.reload()
+    await setFamilyCookie(page, { ...ADA, name: 'Bartholomew-Maximilian' })
+
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    const header = await root.headerLayout()
+
+    expect(header.navLeft).toBeGreaterThanOrEqual(header.titleRight)
+    expect(header.pictureRight).toBeLessThanOrEqual(header.right)
+  })
+})

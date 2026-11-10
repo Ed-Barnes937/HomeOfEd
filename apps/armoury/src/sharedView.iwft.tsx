@@ -5,7 +5,12 @@ import { parseSaveDocument, type StoredWand } from './persistence/saveFormat.ts'
 import { decodeShareHash, encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
 import { setFamilyCookie } from './testing/familySession.ts'
 import { test } from './testing/iwftTest.tsx'
-import { readAllLocalStorage, readLocalSave } from './testing/localSaves.ts'
+import {
+  readAllLocalStorage,
+  readLocalSave,
+  seedLegacySave,
+  shelfDocument,
+} from './testing/localSaves.ts'
 import { ShopPom } from './testing/ShopPom.ts'
 import { wandSchema } from './wand/wandSchema.ts'
 
@@ -69,6 +74,26 @@ test('a signed-in visitor’s own shelf and counter are untouched by /shared', a
   expect(await readAllLocalStorage(page)).toEqual(before)
 })
 
+test('a signed-in visitor with only a pre-profile shelf adopts nothing on /shared', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await seedLegacySave(page, shelfDocument(['From before profiles']))
+  await setFamilyCookie(page, ADA)
+  const before = await readAllLocalStorage(page)
+
+  await ShopPom.openAt(page, `/shared${FRAGMENT}`)
+  const { root } = await mountApp()
+  await root.verifyWandName('From a friend')
+  await page.waitForTimeout(1_000)
+  await page.reload()
+
+  expect(await readAllLocalStorage(page)).toEqual(before)
+})
+
 test('/shared offers only "Keep this wand": no shelf and no player', async ({ mountApp, page }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
@@ -106,22 +131,36 @@ test('/shared keeps its fragment, so a reload reopens the share as it was sent',
   await root.verifyStage({ wood: 'walnut' })
 })
 
-test('"Keep this wand" carries an untouched fragment byte for byte, past the router', async ({
+test('"Keep this wand" with no edits carries the link’s fragment byte for byte', async ({
   mountApp,
   page,
 }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
   await page.reload()
-  // The router decodes `%7B` in the address bar on mount; the kept address must not.
-  const escaped = '#w=%7B%22not%22%3A%22a%20wand%22%7D'
 
-  await ShopPom.openAt(page, `/shared${escaped}`)
+  await ShopPom.openAt(page, `/shared${FRAGMENT}`)
+  const { root } = await mountApp()
+  await root.verifyWandName('From a friend')
+  const kept = await root.keepShared()
+
+  expect(kept).toBe(`${new URL(kept).origin}/${FRAGMENT}`)
+})
+
+test('"Keep this wand" from a link with no wand in it goes to the root with no fragment', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+
+  await ShopPom.openAt(page, '/shared#w=%7B%22not%22%3A%22a%20wand%22%7D')
   const { root } = await mountApp()
   await root.verifyIsShown()
   const kept = await root.keepShared()
 
-  expect(kept).toBe(`${new URL(kept).origin}/${escaped}`)
+  expect(kept).toBe(`${new URL(kept).origin}/`)
 })
 
 test('"Keep this wand" keeps the visitor’s changes', async ({ mountApp, page }) => {

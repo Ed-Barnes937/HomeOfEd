@@ -108,10 +108,37 @@
   }
 }
 
-// The player chip widens the nav, so the motto gives way sooner.
+// The player chip widens the nav, so the motto gives way first, then the name, then every label.
 @media (max-width: 1340px) {
   .withPlayer .motto {
     display: none;
+  }
+}
+
+@media (max-width: 1249px) {
+  .player {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .playerName {
+    display: none;
+  }
+}
+
+@media (max-width: 1059px) {
+  .withPlayer {
+    .button {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .label,
+    .count {
+      display: none;
+    }
   }
 }
 

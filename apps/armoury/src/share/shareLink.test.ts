@@ -46,7 +46,15 @@ describe('keeping a shared wand', () => {
 
   it('carries the arrival fragment byte for byte when nothing changed', () => {
     const opened = encodeShare(wand)
-    expect(keepFragment('#w=%7Bescaped%7D', opened, opened)).toBe('#w=%7Bescaped%7D')
+    expect(keepFragment(`${SHARE_HASH_PREFIX}${opened}`, opened, opened)).toBe(
+      `${SHARE_HASH_PREFIX}${opened}`,
+    )
+  })
+
+  it('carries no fragment when nothing changed and there was no wand to open', () => {
+    const shown = encodeShare(wand)
+    expect(keepFragment('#w=%7Bescaped%7D', shown, shown)).toBe('')
+    expect(keepFragment('', shown, shown)).toBe('')
   })
 
   it('carries the wand as it is now after an edit', () => {

@@ -37,9 +37,11 @@ export function keepSharedUrl(origin: string, fragment: string): string {
   return `${origin}/${fragment}`
 }
 
-/** The wand as it is now; unchanged since `/shared` opened, that is the arrival fragment byte for byte. */
+/** The wand as it is now; unchanged since `/shared` opened, the arrival fragment byte for byte, or none
+ *  when the link held no wand (the root then opens the player's own counter). */
 export function keepFragment(arrival: string, opened: string, current: string): string {
-  return current === opened ? arrival : `${SHARE_HASH_PREFIX}${current}`
+  if (current !== opened) return `${SHARE_HASH_PREFIX}${current}`
+  return decodeShareHash(arrival) === null ? '' : arrival
 }
 
 export function decodeShareHash(hash: string): StoredWand | null {

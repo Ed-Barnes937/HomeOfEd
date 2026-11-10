@@ -201,6 +201,28 @@ export class ShopPom extends BasePage {
     await expect(this.page.getByTestId('player')).toHaveCount(0)
   }
 
+  /** Where the header's title ends and its nav begins, and where Picture and the header end. */
+  async headerLayout(): Promise<{
+    titleRight: number
+    navLeft: number
+    pictureRight: number
+    right: number
+  }> {
+    const header = this.page.locator('header')
+    const title = (await header.getByText('Armoury', { exact: true }).boundingBox())!
+    const nav = (await header.getByRole('navigation').boundingBox())!
+    const picture = (await this.page
+      .getByRole('button', { name: 'Save a picture of this wand' })
+      .boundingBox())!
+    const box = (await header.boundingBox())!
+    return {
+      titleRight: title.x + title.width,
+      navLeft: nav.x,
+      pictureRight: picture.x + picture.width,
+      right: box.x + box.width,
+    }
+  }
+
   /** Nothing on screen offers to save: no shelf to put the wand on. */
   async verifyNothingOffersToSave(): Promise<void> {
     await expect(this.page.getByRole('link', { name: /^Your shelf/ })).toHaveCount(0)

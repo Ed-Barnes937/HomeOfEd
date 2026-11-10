@@ -41,7 +41,8 @@ the shelf and the player chip, and the fragment stays in the address bar, so a
 reload reopens the share as it was sent. Its "Keep this wand" button goes to
 `<origin>/` with the wand as it is now, edits and rename included, re-encoded
 with the same `encodeShare`; with no edits it carries the arrival fragment byte
-for byte (`keepFragment`). At the root the gate asks who is playing, and the
+for byte (`keepFragment`), or no fragment when the link held no wand, so the
+root opens the player's own counter. At the root the gate asks who is playing, and the
 fragment becomes that player's wand on the counter as before. A root `/#w=`
 link, as every link sent before this change, still opens there for a signed-in
 visitor. The fragment is read through `arrivalFragment()` from
