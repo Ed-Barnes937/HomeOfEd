@@ -1,3 +1,5 @@
+import type { ProfileKeys } from '@hoe/accounts'
+
 import type { GardenConfig } from './engine/state.ts'
 
 export interface Preset {
@@ -11,6 +13,9 @@ export interface Preset {
 const STORAGE_KEY = 'karesansui:presets:v2'
 const LEGACY_KEY = 'karesansui:presets:v1'
 const MAX_PRESETS = 8
+
+/** Presets are the player's (ADR 0094). v1 is only ever read, so it stays the device's and migrates into the profile's v2. */
+export const PRESET_PROFILE_KEYS: ProfileKeys = { keys: [STORAGE_KEY] }
 
 /** Minimal read/write surface — the caller passes `window.localStorage`. */
 type PresetStorage = Pick<Storage, 'getItem' | 'setItem'>

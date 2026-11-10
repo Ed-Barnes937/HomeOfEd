@@ -37,7 +37,8 @@ FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=boids --filter=@hoe/backend-kit --filter=@hoe/logger
+  --filter=boids --filter=@hoe/backend-kit --filter=@hoe/logger \
+  --filter=@hoe/accounts --filter=@hoe/deploy-guard
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -48,6 +49,8 @@ COPY --from=prod-deps /app ./
 # @hoe/config and @hoe/test-kit are dev-only and must NOT appear here.
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
+COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/boids/src ./apps/boids/src
 COPY --from=builder /app/apps/boids/dist ./apps/boids/dist
@@ -56,8 +59,9 @@ COPY --from=builder /app/apps/boids/dist ./apps/boids/dist
 # dev-only workspace stubs (test-kit/config package.json) go too. The pglite
 # cleanup from hub's Dockerfile is unnecessary here (nothing pulls it in
 # without @hoe/db) but harmless, so it's dropped rather than left as a no-op.
+# @hoe/accounts' committed test keypair goes too: nothing at runtime imports it.
 RUN rm -rf apps/boids/src/testing apps/boids/src/boids.iwft.tsx \
-  packages/test-kit packages/config \
+  packages/test-kit packages/config packages/accounts/src/testing \
   node_modules/.pnpm/typescript@*
 USER node
 EXPOSE 8080

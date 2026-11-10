@@ -38,7 +38,8 @@ FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=wotd --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger
+  --filter=wotd --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger \
+  --filter=@hoe/accounts --filter=@hoe/deploy-guard
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -50,15 +51,18 @@ COPY --from=prod-deps /app ./
 COPY --from=pruner /app/out/full/packages/db ./packages/db
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
+COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/wotd/src ./apps/wotd/src
 COPY --from=builder /app/apps/wotd/dist ./apps/wotd/dist
 # The app's own test sources aren't runtime code. Neither are two lockfile
 # stowaways: pglite (@hoe/db's dev/test driver — only the pglite path imports it,
 # never runs in prod) and typescript (@trpc/server's types-only peer). The
-# dev-only workspace stubs (test-kit/config package.json) go too.
+# dev-only workspace stubs (test-kit/config package.json) go too, and so does
+# @hoe/accounts' committed test keypair, which nothing at runtime imports.
 RUN rm -rf apps/wotd/src/testing apps/wotd/src/wotd.iwft.tsx \
-  packages/test-kit packages/config \
+  packages/test-kit packages/config packages/accounts/src/testing \
   node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node
 EXPOSE 8080

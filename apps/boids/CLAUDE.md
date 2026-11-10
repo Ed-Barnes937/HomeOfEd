@@ -64,6 +64,7 @@ playwright-ct.config.ts   defineIwftConfig({ ctPort: 3102 })
 - Relative imports carry explicit `.ts`/`.tsx` extensions; server code sticks
   to erasable TS syntax (ADR 0004) — `simulator.ts`/`main.ts` run under native Node.
 - Ports: dev 3001, CT 3102 — a copied app must pick fresh ones (root `CLAUDE.md` checklist).
+- **The estate gate** ([ADR 0093](../../docs/adr/0093-estate-gate.md)): `main.ts` gates documents when `FAMILY_ACCOUNT_URL` is set (no public paths; `main.test.ts` pins both modes); `boids:settings:v1` is a device preference and stays unscoped.
 - No database, no migrations, no `@hoe/db` — see [ADR 0006](../../docs/adr/0006-db-less-apps.md).
   If boids ever needs server state, re-copy hub's DB touchpoints; don't bolt
   persistence onto `InMemoryStatusStore`.

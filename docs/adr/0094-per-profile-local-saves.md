@@ -81,6 +81,12 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
 
   Propagating was rejected: the app's only sensible response would be to
   swallow it too.
+- **An older format the app only reads stays the device's** (amended
+  2026-11-10, estate-gate ticket 15). karesansui lists only its current key,
+  `karesansui:presets:v2`. On a device holding only `v1`, a profile's first
+  load reads the device's `v1` and writes the migrated presets to its own
+  `v2`. `v1` is never written by anyone, so nothing is copied that would sit
+  unused. Signed out, the migration runs in place as before.
 - "Once" is "while the profile has no document of its own" (for a prefix, no
   key under it). A profile whose documents are removed adopts the legacy ones
   again on its next open; that is accepted, so there is no marker key.
