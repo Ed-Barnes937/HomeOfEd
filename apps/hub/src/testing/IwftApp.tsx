@@ -33,13 +33,15 @@ import { DrizzleHealthStore } from '../server/store.ts'
 
 import {
   FAMILY_DOWN_KEY,
-  FAMILY_HANGS_KEY,
+  FAMILY_DELAYS_KEY,
   FAMILY_INVITE_CODE,
   FAMILY_SEED_KEY,
   type FamilySeed,
   FIXTURE_PARENT,
   type CountedFamilyCall,
   FAMILY_CALLS_KEY,
+  type FamilyCallTally,
+  type FamilyDelays,
 } from './familyFixture.ts'
 
 exposeDispatcher(
@@ -65,26 +67,39 @@ exposeDispatcher(
 // The service keeps its own clock, so a test can move the device's (page.clock).
 const ServiceDate = Date
 const pageGlobals = globalThis as unknown as Record<string, unknown>
-const calls: Record<CountedFamilyCall, number> = { me: 0, listChildren: 0, mintSessionToken: 0 }
-pageGlobals[FAMILY_CALLS_KEY] = calls
+const tally: FamilyCallTally = {
+  calls: { me: 0, listChildren: 0, mintSessionToken: 0 },
+  answered: { me: 0, listChildren: 0, mintSessionToken: 0 },
+}
+pageGlobals[FAMILY_CALLS_KEY] = tally
 
-// Counts calls, so a test can tell "nothing was minted" from "a mint was refused".
+// Counts calls, so a test can tell "nothing was minted" from "a mint was refused",
+// and can make a call answer late (FamilyDelays).
 class HarnessFamilyClient extends FakeFamilyClient {
-  hangs = false
+  delays: FamilyDelays = {}
 
   override me(): Promise<IdentityMeOutput> {
-    calls.me += 1
-    return this.hangs ? new Promise(() => undefined) : super.me()
+    return this.counted('me', () => super.me())
   }
 
   override listChildren(): Promise<ListChildrenOutput> {
-    calls.listChildren += 1
-    return super.listChildren()
+    return this.counted('listChildren', () => super.listChildren())
   }
 
   override mintSessionToken(input: MintSessionTokenInput): Promise<MintSessionTokenOutput> {
-    calls.mintSessionToken += 1
-    return super.mintSessionToken(input)
+    return this.counted('mintSessionToken', () => super.mintSessionToken(input))
+  }
+
+  private async counted<T>(method: CountedFamilyCall, call: () => Promise<T>): Promise<T> {
+    tally.calls[method] += 1
+    const delay = this.delays[method]
+    if (delay === 'never') return new Promise<T>(() => undefined)
+    if (delay !== undefined) await new Promise((resolve) => setTimeout(resolve, delay))
+    try {
+      return await call()
+    } finally {
+      tally.answered[method] += 1
+    }
   }
 }
 
@@ -102,7 +117,7 @@ function applyOutage(): void {
   if (pageGlobals[FAMILY_DOWN_KEY] === true) {
     familyClient.failWith(new Error('the family service is unreachable'))
   }
-  familyClient.hangs = pageGlobals[FAMILY_HANGS_KEY] === true
+  familyClient.delays = (pageGlobals[FAMILY_DELAYS_KEY] as FamilyDelays | undefined) ?? {}
 }
 
 // What a parent did on an earlier visit, through the fake's own API.

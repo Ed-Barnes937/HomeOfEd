@@ -2,14 +2,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
-import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
+import {
+  FAMILY_STALE_MS,
+  familyQueryKeys,
+  SERVICE_DOWN,
+} from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { sharedLink } from '../../features/account/returnTo.ts'
-import {
-  handOffStaleTime,
-  renewSilently,
-  silentRenewalWorthTrying,
-} from '../../features/account/silentRenewal.ts'
+import { renewSilently, silentRenewalWorthTrying } from '../../features/account/silentRenewal.ts'
 import { useColourTheme } from '../useColourTheme.ts'
 
 import styles from './AccountPage.module.scss'
@@ -30,7 +30,7 @@ export function AccountPage() {
     queryKey: familyQueryKeys.me,
     queryFn: () => client.me(),
     enabled: !renewing,
-    staleTime: handOffStaleTime,
+    staleTime: FAMILY_STALE_MS,
   })
 
   useEffect(() => {

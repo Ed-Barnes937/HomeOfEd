@@ -138,7 +138,9 @@ shows no screen.** All of: a `returnTo` that `safeReturnTo` accepts on the arriv
 the arrival is an app's switch-player link, and decision 6 applies: the picker
 shows. While renewal runs, `AccountPage` renders the paper (`aria-busy`) and
 nothing else but "Open what was shared" when decision 7 offers it, because a share
-must not wait on the family service. It then needs `identity.me` to name a parent
+must not wait on the family service. So on the success path that link can show
+briefly before the visitor leaves; hiding it would bring back a blank page for as
+long as the time box when the service does not answer. It then needs `identity.me` to name a parent
 and, for a child, `children.list` to still return the remembered id; then
 `mintSessionToken`, `writeFamilySession`, and `returnToApp(written)` from decision
 2, so the return keeps decision 5's read-back.
@@ -148,9 +150,12 @@ it, nothing more is minted, written or navigated, and the normal page shows. The
 page's own `me` query waits for renewal rather than racing it, since its retries
 would otherwise hold a down service's visitor on a blank page for seconds. Anything
 else, including any failure, falls through to the normal page, which is handed the
-`me` and `children` answers renewal fetched: they go into the query cache and stay
-fresh for 10 seconds (`handOffStaleTime`), so the page does not ask again; any
-other write to those queries is stale at once, as before. The attempt is held once
+`me` and `children` answers renewal fetched within the box: they go into the query
+cache, and both queries keep a plain 5-second `staleTime` (`FAMILY_STALE_MS`), so
+the page does not ask again. Every change still reaches the screen because every
+change invalidates: profile add, edit and delete invalidate `children`, and a
+sign-in or registration now invalidates every family query, so a parent signing
+back in is not shown the empty list sign-out wrote. The attempt is held once
 per document (`renewSilently`), so React's StrictMode double effect cannot mint
 twice.
 
@@ -165,8 +170,8 @@ earlier than the record counts as inside the window, and storage that cannot be
 read, or a record that cannot be written, means no silent renewal, since a loop
 could not be seen.
 
-The guard is a backstop rather than a rare path, because the gate never clears a
-cookie it refuses. One known route: a device clock ahead of a token's `exp` makes
+The guard is the backstop for any disagreement between hub and a gate, and the
+gate cannot settle one on its own, because it never clears a cookie it refuses. One known route: a device clock ahead of a token's `exp` makes
 `readFamilySession` discard a cookie the gate still accepts, so an app's
 switch-player link arrives looking token-less and re-mints silently, once, instead
 of showing the picker; the guard turns the second arrival into the page.

@@ -6,11 +6,18 @@ export const FAMILY_INVITE_CODE = 'dev-insecure-invite'
 /** Set on the page before mounting; the harness then fails every family call. */
 export const FAMILY_DOWN_KEY = '__hubFamilyDown'
 
-/** Set on the page before mounting; `identity.me` then never answers. */
-export const FAMILY_HANGS_KEY = '__hubFamilyHangs'
+/** Set on the page before mounting: how long each counted call takes to answer. */
+export const FAMILY_DELAYS_KEY = '__hubFamilyDelays'
 
-/** Where the harness counts calls to the family service, by method, on the page. */
+export type FamilyDelays = Partial<Record<CountedFamilyCall, number | 'never'>>
+
+/** Where the harness counts calls to the family service, and their answers, on the page. */
 export const FAMILY_CALLS_KEY = '__hubFamilyCalls'
+
+export interface FamilyCallTally {
+  calls: Record<CountedFamilyCall, number>
+  answered: Record<CountedFamilyCall, number>
+}
 
 export type CountedFamilyCall = 'me' | 'listChildren' | 'mintSessionToken'
 

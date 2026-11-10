@@ -14,13 +14,15 @@ import {
 
 import {
   FAMILY_DOWN_KEY,
-  FAMILY_HANGS_KEY,
+  FAMILY_DELAYS_KEY,
   FAMILY_INVITE_CODE,
   FAMILY_SEED_KEY,
   type FamilySeed,
   FIXTURE_PARENT,
   type CountedFamilyCall,
   FAMILY_CALLS_KEY,
+  type FamilyCallTally,
+  type FamilyDelays,
 } from './familyFixture.ts'
 
 /**
@@ -62,11 +64,14 @@ export class AccountPagePom extends BasePage {
     }, FAMILY_DOWN_KEY)
   }
 
-  /** Before mounting: the family service never answers `identity.me`. */
-  static async givenFamilyHangs(page: Page): Promise<void> {
-    await page.evaluate((key) => {
-      ;(globalThis as unknown as Record<string, unknown>)[key] = true
-    }, FAMILY_HANGS_KEY)
+  /** Before mounting: these family calls answer late, or never. */
+  static async givenFamilyAnswersLate(page: Page, delays: FamilyDelays): Promise<void> {
+    await page.evaluate(
+      ({ key, value }) => {
+        ;(globalThis as unknown as Record<string, unknown>)[key] = value
+      },
+      { key: FAMILY_DELAYS_KEY, value: delays },
+    )
   }
 
   /** Before mounting: the browser silently drops every cookie write. */
@@ -156,11 +161,24 @@ export class AccountPagePom extends BasePage {
   }
 
   async verifyFamilyCalls(method: CountedFamilyCall, count: number): Promise<void> {
-    const calls = await this.page.evaluate(
-      (key) => (globalThis as unknown as Record<string, Record<CountedFamilyCall, number>>)[key],
+    expect((await this.familyCallTally()).calls[method]).toBe(count)
+  }
+
+  /** Until every `method` call so far has answered, late or not. */
+  async waitForFamilyAnswers(method: CountedFamilyCall): Promise<void> {
+    await expect
+      .poll(async () => {
+        const { calls, answered } = await this.familyCallTally()
+        return calls[method] > 0 && answered[method] === calls[method]
+      })
+      .toBe(true)
+  }
+
+  private familyCallTally(): Promise<FamilyCallTally> {
+    return this.page.evaluate(
+      (key) => (globalThis as unknown as Record<string, FamilyCallTally>)[key]!,
       FAMILY_CALLS_KEY,
     )
-    expect(calls?.[method]).toBe(count)
   }
 
   async verifyLoadingFamily(): Promise<void> {

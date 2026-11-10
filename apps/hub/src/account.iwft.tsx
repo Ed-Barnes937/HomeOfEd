@@ -519,12 +519,57 @@ test.describe('silent renewal: a parent signed in here, a family token gone', ()
     await root.verifyNoTokenMinted()
   })
 
+  // Each call answers just after the 2 s time box closes: nothing may follow it.
+  test('a mint answering after the time box writes nothing and leaves the visitor here', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenFamilyAnswersLate(page, { mintSessionToken: 2_300 })
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.waitForFamilyAnswers('mintSessionToken')
+    await root.verifyStillOnAccount()
+    await root.verifyNobodyIsPlaying()
+    await root.verifyNoFamilySession()
+  })
+
+  // The parent is remembered, so no children.list check stands between me and the mint.
+  test('identity.me answering after the time box mints nothing', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, { ...remembersRobin, remembered: FIXTURE_PARENT.name })
+    await AccountPagePom.givenFamilyAnswersLate(page, { me: 2_300 })
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.waitForFamilyAnswers('me')
+    await root.verifyStillOnAccount()
+    await root.verifyNoTokenMinted()
+  })
+
+  test('children.list answering after the time box mints nothing', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenFamilyAnswersLate(page, { listChildren: 2_300 })
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifyProfileListed('Robin', 'robin')
+    await root.waitForFamilyAnswers('listChildren')
+    await root.verifyStillOnAccount()
+    await root.verifyNoTokenMinted()
+  })
+
   test('a family service that never answers holds the page for the time box only', async ({
     mountApp,
     page,
   }) => {
     await AccountPagePom.givenFamily(page, remembersRobin)
-    await AccountPagePom.givenFamilyHangs(page)
+    await AccountPagePom.givenFamilyAnswersLate(page, { me: 'never' })
     await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
     const { root } = await mountApp()
 
@@ -569,6 +614,20 @@ test.describe('silent renewal: a parent signed in here, a family token gone', ()
     await root.verifyPlayingNote('Wren')
     await root.verifyStillOnAccount()
   })
+})
+
+test('signing out and back in lists the household again', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+  await root.addProfile('Robin', 'robin')
+  await root.verifyProfileListed('Robin', 'robin')
+  await root.signOut()
+  await root.verifySignedOut()
+
+  await root.signIn()
+
+  await root.verifyProfileListed('Robin', 'robin')
 })
 
 test('deleting the account takes a confirm step, and can be backed out of', async ({

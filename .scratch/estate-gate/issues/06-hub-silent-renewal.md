@@ -54,3 +54,8 @@ meet a parent-password wall every month.
   record and "no mint" on the fall-throughs are now asserted. Removing the
   `parent === null` check still leaves tests green, because `parent.id` then
   throws before any mint and the attempt falls through anyway.
+- 2026-11-10 (re-review): each time-box check is pinned by a late-answer iwft
+  (shown red with that check removed); nothing is written to the query cache after
+  the box closes; the hand-off is a plain 5 s `staleTime`, and sign-in and
+  registration now invalidate every family query so a returning parent is not
+  shown the list sign-out emptied (pinned by an iwft, shown red first).

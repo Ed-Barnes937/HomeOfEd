@@ -12,7 +12,6 @@ export const REMEMBERED_PROFILE_KEY = 'hub.rememberedProfile'
 export const SILENT_RENEWAL_KEY = 'hub.silentRenewal'
 export const SILENT_RENEWAL_WINDOW_MS = 60_000
 export const SILENT_RENEWAL_TIME_BOX_MS = 2_000
-const HAND_OFF_STALE_MS = 10_000
 
 /** The account id last picked on this device: the parent's or a child profile's. */
 export function rememberedProfile(storage: KeyValueStorage = localStorage): string | null {
@@ -90,25 +89,6 @@ export function renewSilently(
   return attempted
 }
 
-// Answers renewal fetched and handed to the page it falls through to.
-const handedOff = new WeakSet<object>()
-
-/** The `staleTime` for the page's own family queries: fresh briefly if handed off. */
-export function handOffStaleTime(query: { state: { data?: unknown } }): number {
-  const data = query.state.data
-  return typeof data === 'object' && data !== null && handedOff.has(data) ? HAND_OFF_STALE_MS : 0
-}
-
-function handOff<T extends object>(
-  queryClient: QueryClient,
-  queryKey: readonly string[],
-  data: T,
-): T {
-  handedOff.add(data)
-  queryClient.setQueryData(queryKey, data)
-  return data
-}
-
 async function tryRenewal(
   client: FamilyIdentityContract,
   queryClient: QueryClient,
@@ -119,11 +99,17 @@ async function tryRenewal(
   if (returnTo === null || remembered === null || readFamilySession() !== null) return false
   if (!silentRenewalAllowed(returnTo, Date.now())) return false
 
-  const { parent } = handOff(queryClient, familyQueryKeys.me, await client.me())
-  if (box.over || parent === null) return false
+  const me = await client.me()
+  if (box.over) return false
+  // Handed to the page renewal falls through to, which then does not ask again.
+  queryClient.setQueryData(familyQueryKeys.me, me)
+  const { parent } = me
+  if (parent === null) return false
   if (remembered !== parent.id) {
-    const profiles = handOff(queryClient, familyQueryKeys.children, await client.listChildren())
-    if (box.over || !profiles.some((profile) => profile.id === remembered)) return false
+    const profiles = await client.listChildren()
+    if (box.over) return false
+    queryClient.setQueryData(familyQueryKeys.children, profiles)
+    if (!profiles.some((profile) => profile.id === remembered)) return false
   }
 
   if (!recordSilentRenewal(returnTo, Date.now())) return false
