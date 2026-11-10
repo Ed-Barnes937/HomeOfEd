@@ -1,7 +1,5 @@
+import { BOARD_NAME_MAX as MAX_NAME } from '../../server/boardSchema.ts'
 import { loadState, saveState, type StoredBoard } from '../board/serialize.ts'
-
-/** storedBoardSchema caps a board name at 60 chars — the tagged name must fit. */
-const MAX_NAME = 60
 
 type BoardStorage = Pick<Storage, 'getItem' | 'setItem'>
 

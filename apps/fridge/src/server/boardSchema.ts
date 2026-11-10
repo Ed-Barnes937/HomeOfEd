@@ -12,6 +12,9 @@ export const finishSchema = z.enum(['steel', 'white', 'red', 'mint'])
 /** Kitchen-light tint over the whole page. */
 export const wallSchema = z.enum(['warm', 'cool', 'dark'])
 
+/** The longest board name a board can carry: the name inputs stop here too. */
+export const BOARD_NAME_MAX = 60
+
 const DEG_VALUES = [0, 90, 120, 180, 270, 360] as const
 
 /**
@@ -39,7 +42,7 @@ export const storedMagnetSchema = z.object({
  * count) are the abuse guard for the latter.
  */
 export const storedBoardSchema = z.object({
-  name: z.string().max(60),
+  name: z.string().max(BOARD_NAME_MAX),
   magnets: z.array(storedMagnetSchema).max(200),
   finish: finishSchema,
   wall: wallSchema,

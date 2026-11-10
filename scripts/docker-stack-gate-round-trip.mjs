@@ -9,6 +9,7 @@
 //   node scripts/docker-stack-gate-round-trip.mjs http://localhost:8091 # another app
 //   FRAGMENT='#w=%7B%7D' node scripts/docker-stack-gate-round-trip.mjs ...
 //   NO_SHARED=1 node scripts/docker-stack-gate-round-trip.mjs ...       # an app with no /shared
+//   SHARED_PATH=/b/<id> node scripts/docker-stack-gate-round-trip.mjs ...  # fridge
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
@@ -23,6 +24,8 @@ const TIMEOUT = 15_000;
 // Percent escapes by default, since a router that decodes the address bar is what this guards against.
 const DEFAULT_FRAGMENT = "#g=%7B%22a%22%3A1%7D";
 const HAS_SHARED = !process.env.NO_SHARED;
+// The app's public, non-persisting path: `/shared`, or fridge's `/b/<id>`.
+const SHARED_PATH = process.env.SHARED_PATH ?? "/shared";
 
 function check(condition, message) {
   if (!condition) throw new Error(message);
@@ -77,25 +80,27 @@ async function sharedView(browser, app, fragment) {
     if (r.url().startsWith(app) && r.status() >= 400)
       failed.push(`${r.status()} ${r.url()}`);
   });
-  const response = await page.goto(`${app}/shared${fragment}`);
+  const response = await page.goto(`${app}${SHARED_PATH}${fragment}`);
   check(
     response.status() === 200 && response.request().redirectedFrom() === null,
-    "/shared opens signed out, no redirect",
+    `${SHARED_PATH} opens signed out, no redirect`,
   );
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(3_000);
-  const storedNow = await page.evaluate(() => window.localStorage.length);
+  const stored = () =>
+    page.evaluate(
+      () => window.localStorage.length + window.sessionStorage.length,
+    );
+  const storedNow = await stored();
   await page.reload();
-  const storedAfterReload = await page.evaluate(
-    () => window.localStorage.length,
-  );
+  const storedAfterReload = await stored();
   check(
     storedNow === 0 && storedAfterReload === 0,
-    "/shared wrote nothing to localStorage, before or after a reload",
+    `${SHARED_PATH} wrote nothing to local or session storage, before or after a reload`,
   );
   check(
     failed.length === 0,
-    `every request /shared made succeeded${failed.length ? `: ${failed.join(", ")}` : ""}`,
+    `every request ${SHARED_PATH} made succeeded${failed.length ? `: ${failed.join(", ")}` : ""}`,
   );
   await context.close();
 }
@@ -106,7 +111,7 @@ async function ungated(browser, app) {
     context.request.get(`${app}${path}`, { maxRedirects: 0 });
   check((await get("/")).status() === 302, "/ is gated");
   if (HAS_SHARED) {
-    const shell = await (await get("/shared")).text();
+    const shell = await (await get(SHARED_PATH)).text();
     const asset = shell.match(/src="(\/assets\/[^"]+)"/)?.[1];
     const assetResponse = asset ? await get(asset) : null;
     check(

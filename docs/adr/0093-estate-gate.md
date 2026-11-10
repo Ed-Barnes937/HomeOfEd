@@ -84,7 +84,7 @@ Details the spec left implicit, settled while building it:
   honest answer. With the gate off the fallback is unchanged.
 - **Public paths match whole segments.** `/shared` matches `/shared` and
   `/shared/...` but not `/sharedx`; a prefix written with a trailing slash,
-  like fridge's `/b/`, matches as written.
+  like `/b/`, matches as written.
 - **A broken gate fails closed and quietly.** If `redirectFor` throws, or
   returns anything but an absolute `http(s)` URL made only of printable ASCII,
   the request is logged and answered a generic `500` with `no-store`; the
@@ -124,7 +124,9 @@ reaches the server; the browser carries it to hub across the `302`, and hub
 reattaches it on the way back.
 
 **5. Public paths.** Each app may declare prefixes the gate skips. Fragment
-share links use `/shared`; fridge's server-backed board share keeps `/b/`.
+share links use `/shared`; fridge's server-backed board share keeps `/b/<id>`,
+declared as `/b`. There the board opens to play and keeps nothing, and keeping
+it is the gated `/keep/<id>` ([ADR 0010](0010-shared-fridge-boards.md), amended).
 
 **6. The shared view never persists.** `/shared#<payload>` opens the shared
 item and lets the visitor play with it and change it, but writes nothing to

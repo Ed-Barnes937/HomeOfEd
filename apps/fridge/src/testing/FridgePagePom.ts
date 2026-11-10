@@ -1,6 +1,6 @@
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 export class FridgePagePom extends BasePage {
   private magnets(): Locator {
@@ -138,6 +138,13 @@ export class FridgePagePom extends BasePage {
     await expect.poll(() => this.leftOf(to)).not.toBe(beforeLeft)
   }
 
+  /** Types key by key, as a child would, so the input's own limits apply. */
+  async typeName(value: string): Promise<void> {
+    const input = this.page.getByPlaceholder('name this fridge…')
+    await input.clear()
+    await input.pressSequentially(value)
+  }
+
   async setNameInput(value: string): Promise<void> {
     await this.page.getByPlaceholder('name this fridge…').fill(value)
   }
@@ -204,13 +211,13 @@ export class FridgePagePom extends BasePage {
     await this.chip(name).getByRole('button', { name: `delete ${name}` }).click()
   }
 
-  private async readPersistedCurrent(): Promise<{
+  private async readPersistedCurrent(key = 'fridge:v1'): Promise<{
     name: string
     finish: string
     wall: string
     magnets: unknown[]
   } | null> {
-    const raw = await this.page.evaluate(() => window.localStorage.getItem('fridge:v1'))
+    const raw = await this.page.evaluate((k) => window.localStorage.getItem(k), key)
     if (!raw) return null
     const parsed = JSON.parse(raw) as {
       current: { name: string; finish: string; wall: string; magnets: unknown[] }
@@ -230,11 +237,82 @@ export class FridgePagePom extends BasePage {
     await expect.poll(async () => (await this.readPersistedCurrent())?.wall).toBe(wall)
   }
 
-  async verifyPersistedMagnetCount(n: number): Promise<void> {
-    await expect.poll(async () => (await this.readPersistedCurrent())?.magnets.length).toBe(n)
+  /** `key` is the stored document's key: a player's is `fridge:v1@<accountId>`. */
+  async verifyPersistedMagnetCount(n: number, key?: string): Promise<void> {
+    await expect.poll(async () => (await this.readPersistedCurrent(key))?.magnets.length).toBe(n)
   }
 
-  // ---- share / import (F12) ----
+  // ---- players (ADR 0094) ----
+
+  async verifyPlayerChip(name: string): Promise<void> {
+    await expect(this.page.getByTestId('player-chip')).toHaveText(`playing as ${name}`)
+  }
+
+  async verifyNoPlayerChip(): Promise<void> {
+    await expect(this.page.getByTestId('fridge-page')).toBeVisible()
+    await expect(this.page.getByTestId('player-chip')).toHaveCount(0)
+  }
+
+  /** The wordmark and every action stay on one line, and nothing reaches the saved-fridges row. */
+  async verifyTopBarFitsOneRow(): Promise<void> {
+    const m = await this.page.evaluate(() => {
+      const bar = document.querySelector('[data-testid="top-bar"]')!
+      const word = document.querySelector('[data-testid="wordmark"]')!
+      const lineHeight = (el: Element) => parseFloat(getComputedStyle(el).fontSize) * 1.5
+      const controls = [...bar.querySelectorAll('a, button, input, span')]
+      return {
+        wordmarkOneLine: word.getBoundingClientRect().height < lineHeight(word),
+        actionsOneLine: [...bar.querySelectorAll('button')].every(
+          (b) => b.getBoundingClientRect().height < lineHeight(b) + 20,
+        ),
+        barBottom: Math.max(...controls.map((c) => c.getBoundingClientRect().bottom)),
+        rowTop: document.querySelector('[data-testid="saved-row"]')!.getBoundingClientRect().top,
+      }
+    })
+    expect(m.wordmarkOneLine).toBe(true)
+    expect(m.actionsOneLine).toBe(true)
+    expect(m.barBottom).toBeLessThanOrEqual(m.rowTop)
+  }
+
+  // ---- share / import (F12, ADR 0093) ----
+
+  /** Before mounting: the address the app first loads on. */
+  static async openAt(page: Page, path: string): Promise<void> {
+    await page.evaluate((target) => window.history.pushState({}, '', target), path)
+  }
+
+  /** A shared fridge offers Keep (a full navigation to `keepHref`) in place of Save, New and the saved fridges. */
+  async verifySharedChrome(keepHref: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Keep this fridge' })).toHaveAttribute(
+      'href',
+      keepHref,
+    )
+    await expect(this.page.getByRole('button', { name: 'Save' })).toHaveCount(0)
+    await expect(this.page.getByRole('button', { name: 'New' })).toHaveCount(0)
+    await expect(this.page.getByTestId('saved-chip')).toHaveCount(0)
+    await expect(this.page.getByText(/no saved fridges yet/i)).toHaveCount(0)
+    await expect(this.page.getByTestId('player-chip')).toHaveCount(0)
+  }
+
+  /** Presses Keep but stays on the page: the harness cannot follow a full navigation. */
+  async pressKeep(): Promise<void> {
+    await this.page.evaluate(() =>
+      window.addEventListener('click', (e) => e.preventDefault(), { once: true }),
+    )
+    await this.page.getByRole('link', { name: 'Keep this fridge' }).click()
+    await expect.poll(() => this.page.evaluate(() => window.location.pathname)).toMatch(/^\/b\//)
+  }
+
+  async verifyMobileSharedChrome(keepHref: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name: 'Keep this fridge' })).toHaveAttribute(
+      'href',
+      keepHref,
+    )
+    await expect(this.page.getByRole('button', { name: 'Save' })).toHaveCount(0)
+    await this.openMobileMenu()
+    await expect(this.page.getByRole('button', { name: 'New' })).toHaveCount(0)
+    await expect(this.page.getByText('Saved fridges', { exact: true })).toHaveCount(0)
+  }
 
   /** Client-side navigate to a route (no reload); popstate drives the router. */
   async gotoSharedBoard(id: string): Promise<void> {
