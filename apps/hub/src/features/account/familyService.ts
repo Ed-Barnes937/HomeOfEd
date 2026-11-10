@@ -1,5 +1,7 @@
-/** compose.yml's host ports: hub's own, and the family service it signs in against. */
-const DOCKER_STACK_PORTS = { hub: '8080', family: 8092 } as const
+import { HUB_LOCAL_PORTS } from '@hoe/accounts'
+
+/** compose.yml's host port for the family service; hub's own is in the estate registry. */
+const DOCKER_STACK_FAMILY_PORT = 8092
 
 /**
  * Where the family service lives, and how the cookie it mints may be stored.
@@ -10,8 +12,8 @@ const DOCKER_STACK_PORTS = { hub: '8080', family: 8092 } as const
  */
 export function familyUrl(hostname: string, port: string): string {
   if (!isLocal(hostname)) return 'https://family.homeofed.com'
-  return port === DOCKER_STACK_PORTS.hub
-    ? `http://localhost:${DOCKER_STACK_PORTS.family}`
+  return port === String(HUB_LOCAL_PORTS.composePort)
+    ? `http://localhost:${DOCKER_STACK_FAMILY_PORT}`
     : 'http://localhost:3012'
 }
 
