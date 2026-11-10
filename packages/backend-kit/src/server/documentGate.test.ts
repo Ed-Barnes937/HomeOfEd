@@ -9,7 +9,7 @@ import path from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { fixtureContext, fixtureRouter, freshDrizzleNotesStore } from '../testSupport/fixtureApp.ts'
+import { fixtureContext, fixtureRouter, InMemoryNotesStore } from '../testSupport/fixtureApp.ts'
 import type { Logger } from '../logger.ts'
 import { NoopLogger } from '../testSupport/noopLogger.ts'
 import { buildAppServer, type CreateAppServerOpts } from './createAppServer.ts'
@@ -38,7 +38,7 @@ afterEach(async () => {
 async function serve(extra: Partial<CreateAppServerOpts> = {}): Promise<string> {
   const app = await buildAppServer({
     router: fixtureRouter,
-    createContext: fixtureContext(await freshDrizzleNotesStore()),
+    createContext: fixtureContext(new InMemoryNotesStore()),
     staticDir: await makeStaticDir(),
     logger: new NoopLogger(),
     healthCheck: () => Promise.resolve({ ok: true }),
