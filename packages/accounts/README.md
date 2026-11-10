@@ -15,9 +15,12 @@ Four entry points keep node-only code out of browser bundles:
   `FamilyIdentityContract` + `createFamilyIdentityClient`,
   `FamilyClientError`, `readFamilySession` (decode-only claims read for
   display) and its write half, `writeFamilySession` / `clearFamilySession`.
+  The estate gate's browser half: `ESTATE_APPS`, `safeReturnTo`, `accountUrl`,
+  `sharedUrl`, `profileScopedKey` and `adoptLegacyDocument` (below).
 - **`@hoe/accounts/server`** (node): `mintFamilyToken` / `verifyFamilyToken`
-  (Ed25519 via `node:crypto`) and `familyAuthProvider` - the AuthProvider any
-  app drops into its `createContext({ auth })` seam.
+  (Ed25519 via `node:crypto`), `familyAuthProvider` - the AuthProvider any
+  app drops into its `createContext({ auth })` seam - and `familyDocumentGate`,
+  the value for `createAppServer`'s `documentGate`.
 - **`@hoe/accounts/testing`**: `FakeFamilyClient`, the committed TEST-ONLY
   keypair, and `mintTestToken` (node) - so this index is for Node-side callers.
 - **`@hoe/accounts/testing/fake`**: `FakeFamilyClient` alone. The index above
@@ -49,6 +52,58 @@ decoded, or has already expired, writes **nothing**: a cookie the reader would
 discard is worse than none, because the UI would report a session that is not
 there. `domain` and `secure` are the caller's, because neither can be set on a
 local hostname - hub derives them from `window.location.hostname`.
+
+## The estate gate
+
+Spec: [`.scratch/estate-gate/spec.md`](../../.scratch/estate-gate/spec.md);
+ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)
+(per-profile saves).
+
+- **`ESTATE_APPS`** - `{ appId, host, devPort, composePort }` for every gated
+  app (and `HUB_LOCAL_PORTS`, hub's own two localhost ports). It is the only
+  list of origins hub will return a visitor to, so a new gated app is added
+  here. Not the family service's `onboardedApps.ts`, which is
+  the SaveStore list and differs on purpose.
+- **`safeReturnTo(raw, { allowLocal })`** - the open-redirect guard. Returns the
+  normalised URL without its fragment, or `null`. The origin must exactly match
+  `https://<host>`, or with `allowLocal` (hub on localhost only)
+  `http://localhost:<devPort|composePort>`. Anything the URL parser would
+  quietly repair is refused, not repaired: whitespace or control characters,
+  backslashes, userinfo, odd slash counts, upper case, explicit ports. Each
+  hostile form has a named test in `returnTo.test.ts`; add one there before
+  relaxing anything.
+- **`accountUrl(accountBase, returnTo)`** - `<accountBase>?returnTo=<url>`. A
+  fragment on `returnTo` moves onto the account URL, which is where the browser
+  leaves it after the gate's `302`, so hub reads both entries the same way.
+- **`accountUrlFor(currentHref)`** - the one-argument form apps use for a
+  "switch player" link. The base comes from where the app runs, as hub derives
+  its cookie `Domain` from the hostname (ADR 0081 decision 3): production hub
+  for an `ESTATE_APPS` host, `localhost:<HUB_LOCAL_PORTS.devPort>` for an app on
+  its `devPort`, `localhost:<HUB_LOCAL_PORTS.composePort>` for its
+  `composePort`. `null` anywhere else (espy's Capacitor shell): show no link.
+  Its `returnTo` is always one `safeReturnTo` accepts; an href that would not
+  be (upper case, an explicit port, `blob:`) gives `null` too.
+- **`sharedUrl(returnTo, fragment, { allowLocal })`** -
+  `<origin>/shared<fragment>`, for hub's "Open what was shared", or `null`. It
+  vets `returnTo` through `safeReturnTo` itself, so a caller that forgets
+  cannot produce an off-estate link.
+- **`profileScopedKey(key, accountId)`** - `key` for no account, else
+  `key@<accountId>`. The SaveStore `slotKey` stays the unscoped key.
+- **`adoptLegacyDocument(storage, key, accountId)`** - copies the unscoped
+  value to the profile's key unless that key already exists; never writes or
+  removes the unscoped key. Returns whether it copied. `storage` is anything
+  with `getItem`/`setItem`, such as `localStorage`.
+- **`familyDocumentGate({ accountUrl, publicPaths, publicKeyPem, now? })`**
+  (server) - `redirectFor` returns `null` for a cookie holding a token
+  `verifyFamilyToken` accepts (either role), else the account URL with
+  `returnTo` built from the request's `Host` and URL (`http` for localhost,
+  `https` otherwise). A host or target that would build a URL on another host
+  gets the bare account URL. `publicPaths` is passed through for
+  `createAppServer` to skip. Bad config throws at construction, so it fails
+  the boot rather than every request: `accountUrl` must be an absolute http(s)
+  URL, and `publicKeyPem` must parse as an Ed25519 public key (PEM text holding
+  a private key is refused by name). The key is parsed once and handed to
+  `verifyFamilyToken`, which takes PEM text or a `KeyObject`.
 
 ## The save contract
 
@@ -105,7 +160,9 @@ router could ever implement them.
 
 `pnpm --filter @hoe/accounts run test` - vitest unit tests: token round-trip /
 tamper / expiry / malformed / wrong-shape, provider mapping, decode-only
-session read, wire-format + error mapping of the client, and the fake's
+session read, wire-format + error mapping of the client, the return-URL
+allowlist against named hostile inputs, legacy adoption, the gate's redirects,
+and the fake's
 contract behaviour (LWW versioning, per-account scoping, UNAUTHORIZED when
 signed out, `failWith` offline degradation).
 

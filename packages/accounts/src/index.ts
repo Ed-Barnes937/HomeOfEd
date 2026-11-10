@@ -1,6 +1,8 @@
 // Browser-safe surface; node-only code is behind `@hoe/accounts/server`.
 export type { FamilyRole, FamilyTokenClaims } from './claims.ts'
 export { FAMILY_SESSION_COOKIE } from './claims.ts'
+export type { EstateApp } from './estateApps.ts'
+export { ESTATE_APPS, HUB_LOCAL_PORTS } from './estateApps.ts'
 export { FamilyClientError } from './familyClientError.ts'
 export type { FamilyUser } from './familyAuthProvider.ts'
 export type { CookieJar, FamilySessionCookieOptions } from './familySessionCookie.ts'
@@ -41,7 +43,11 @@ export {
   mintSessionTokenOutput,
   renameChildInput,
 } from './identityContract.ts'
+export type { KeyValueStorage } from './profileScopedKey.ts'
+export { adoptLegacyDocument, profileScopedKey } from './profileScopedKey.ts'
 export type { ReadFamilySessionOpts } from './readFamilySession.ts'
+export type { SafeReturnToOpts } from './returnTo.ts'
+export { accountUrl, accountUrlFor, safeReturnTo, sharedUrl } from './returnTo.ts'
 export { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from './saveLimits.ts'
 export { readFamilySession } from './readFamilySession.ts'
 export type {
