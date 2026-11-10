@@ -1,7 +1,8 @@
 # 0079 - the family SaveStore: two credentials on one seam, and a second door
 
 - **Status:** Accepted
-- **Date:** 2026-11-09 (amended 2026-11-10: `identity.saveSummary`, see the end)
+- **Date:** 2026-11-09 (amended 2026-11-10: `identity.saveSummary`, and
+  `expectedAccountId`; see the end)
 - **Related:** [ADR 0078](0078-family-identity-auth-boundary.md) (the identity
   half, whose boundary this one mirrors, and whose **decision 5** - the
   content-type requirement on `/api/trpc` - was added from this ticket's review), [ADR 0070](0070-family-service.md)
@@ -148,3 +149,28 @@ because `saves.accountId` has no FK), and the CORS tier is the identity one, so
 an onboarded app origin can neither read the reply nor batch the procedure
 behind a save call. A request carrying both credentials is answered for the
 cookie session's parent, never the token's account.
+
+## Amendment (2026-11-10): `expectedAccountId` refuses another profile's token
+
+Estate-gate ticket 10. The token is a cookie every estate tab shares, so a tab
+opened for one child sends a sibling's token as soon as another tab picks that
+sibling. That tab would then overwrite the sibling's slot with the first child's
+boops. The account still comes only from the token, as decided above.
+
+What changes:
+
+- `save.get`, `save.put` and `save.delete` take an optional `expectedAccountId`.
+  When it is present and is not the token's account, the call is answered
+  `CONFLICT` with `SAVE_ACCOUNT_MISMATCH` and nothing is read or written
+  (`requireExpectedAccount` in `handlers/authz.ts`).
+- The field only ever refuses: it never names an account to act on.
+
+Why it is optional: so the client and the service can deploy in either order.
+- An old client sends no field and is served as before.
+- A new client against an old service still works, because a zod object strips
+  keys it does not know. That service simply drops the field, so the binding
+  does nothing until the service is redeployed.
+
+`saveAccountBinding.test.ts` proves both orders over a real socket, against a
+stand-in built on the old schema. The client half is
+[ADR 0080](0080-boop-is-the-first-savestore-client.md)'s 2026-11-10 amendment.

@@ -189,15 +189,44 @@ open `http://localhost:<composePort>/` and you land on hub's sign-in.
 ### 1b. Saving work per profile (apps that save work)
 
 Local saves belong to whoever is playing
-([ADR 0094](../adr/0094-per-profile-local-saves.md)). Store saved work under
-`profileScopedKey(key, accountId)` from `@hoe/accounts`, where `accountId` is
-`readFamilySession()?.sub ?? null`; with nobody signed in the key is unchanged.
-Device preferences (themes, settings, hints) stay unscoped. An app that syncs
-through the family SaveStore keeps the unscoped key as its `slotKey`, because
-the server key already carries the account. Only an app that already shipped
-saves under an unscoped key needs `adoptLegacyDocument(localStorage, key,
-accountId)` on open, which copies the device's old document into each profile
-once.
+([ADR 0094](../adr/0094-per-profile-local-saves.md)), and a page shows and
+saves the work of one profile: the one it was opened for. boop is the reference
+(`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`). Every call
+below is from `@hoe/accounts`; its README ("In a gated app's browser code")
+has the detail.
+
+1. **The page's player.** Read `readFamilySession()?.sub ?? null` once at the
+   app's entry. Call `reloadOnPlayerChange(player)` there too, so a tab whose
+   player was switched elsewhere reloads when it is looked at again.
+2. **Storage.** On the app's own routes, build
+   `profileStorage(window.localStorage, player, { keys, prefixes })` once per
+   page. List the app's save keys exactly, and dynamic ones such as
+   `silt:scene:<id>` by prefix. Device preferences (themes, settings, hints)
+   stay out. Pass it wherever the code used `window.localStorage` for a save,
+   as boop does through `persistence/SaveStorageContext.tsx`. Saves made before
+   profiles existed are copied into each profile on its first open. IndexedDB
+   or anything else not keyed by these names is scoped with `profileScopedKey`
+   directly.
+3. **`/shared`**, if the app has fragment share links. Add a route that renders
+   the same page with `memoryStorage()` and no save client. Read the share
+   payload with `arrivalFragment()`, never `location.hash` after mount (the
+   router decodes it). Share builds `<origin>/shared<fragment>`. "Keep this"
+   sends the item as it is now to `<origin>/`, where the gate asks who is
+   playing.
+4. **Sync**, if the app copies saves to the family SaveStore. Build
+   `createFamilySaveClient({ baseUrl, accountId: player })` only when `player`
+   is not null. The `slotKey` stays the unscoped key, because the server key
+   already carries the account. Stop syncing for good on a
+   `SaveAccountMismatchError`.
+5. **Links.** The back arrow is `hubUrlFor(location.href)`, and a switch-player
+   link is `switchPlayerUrlFor(location.href)` (no link when it is `null`).
+
+Tests to copy from boop:
+- `profiles.iwft.tsx`: one player's saves are not another's, and legacy saves
+  appear for both.
+- `sharedView.iwft.tsx`: `/shared` writes nothing; "Keep this" carries the
+  fragment or the edits.
+- `playerChange.iwft.tsx`: a switched player reloads the page.
 
 ---
 

@@ -85,7 +85,9 @@ address bar so a reload reopens it. Old root links keep working for a
 signed-in player.
 
 "Keep this boop" goes to `/`, where the hash semantics above apply, and keeps
-what the visitor has now, edits included. This refines ADR 0093 decision 6,
+what the visitor has now, edits included. On a signed-in device it therefore
+replaces that profile's working grid, as a root share link always did; the
+saved boops in "My boops" survive. This refines ADR 0093 decision 6,
 which said "the same fragment". If the boop still encodes exactly as it did
 when the view opened, the link carries the arrival fragment byte for byte, so
 an untouched share (even one this build cannot decode) arrives at the root

@@ -345,6 +345,33 @@ over the new player's work). Outside the estate there is no hub, so the chip is
 words alone. The back arrow uses the same registry, so in the docker stack both
 point at hub's compose port rather than its dev port.
 
+**A page syncs for the profile it was opened for, and no other.** The family
+cookie is shared by every estate tab. Before this amendment, a tab opened as Cy
+kept pushing after another tab picked Bo, and every push carried Bo's cookie,
+so Cy's boops overwrote Bo's slot. Three layers close that:
+
+- **The client is bound.** `App` reads the page's player once and builds the
+  save client with `createFamilySaveClient({ accountId })`, or `bindSaveClient`
+  in `.iwft`.
+  - A call made while `readFamilySession()` names someone else is refused
+    before it is sent.
+  - Every call carries `expectedAccountId`, which the service refuses for
+    another profile's token ([ADR 0079](0079-family-save-authorisation.md),
+    amended).
+  - Either refusal is a `SaveAccountMismatchError`.
+- **Sync stops for good on that error.** `createBoopSync` never makes another
+  call, and its `onStop` tears down the watcher. Every other failure is still
+  absorbed and retried as decision 6 says.
+- **The page reloads.** `reloadOnPlayerChange(player)` reloads the tab when it
+  comes back into view with another profile signed in, or none. It then opens
+  as the new player, with that player's storage and sync. It also covers
+  `localStorage`, which the binding cannot: `profileStorage` is bound to the
+  page's player, so a tab that kept running would show the old player's boops
+  to the new one.
+
+The binding is pinned in `boopSync.test.ts` (the cookie changes between
+reconcile and push) and in `playerChange.iwft.tsx`.
+
 **The shared view syncs and keeps nothing.** `/shared` renders the same
 `HomePage` with a `memoryStorage` and no save client, so nothing in this ADR
 runs there and no code path in it can reach `localStorage`. "Keep this boop"

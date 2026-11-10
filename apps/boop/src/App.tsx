@@ -28,11 +28,8 @@ interface AppProps {
  * The app owns the `AudioDriver`: one per page, for the life of the page. The
  * engine only borrows it (`SequencerEngine.dispose` leaves it alone), so a
  * dev double-mount can build a second engine over it without silencing the app.
- *
- * It owns the family save client the same way, bound to the profile the page
- * opened for, and reloads the page if another profile is playing when it
- * comes back into view. Where boops are kept is the route's call (`pages/views.tsx`).
  */
+// One player per page (ADR 0080 as amended): the save client is bound to it, and another player reloads the page.
 export function App({ driver, saveClient }: AppProps = {}) {
   const [queryClient] = useState(() => new QueryClient())
   const [audioDriver] = useState<AudioDriver>(() => driver ?? new ToneAudioDriver())

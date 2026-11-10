@@ -75,6 +75,22 @@ text above, and why:
   rerunnable check for any gated app.
 - ADR 0026 got a short amendment as well as 0080, because the share link's path
   changed.
+- **Review round (2026-11-10).** These came out of review, beyond the ticket
+  text:
+  - Sync is bound to the profile the page opened for, in three layers. The
+    service refuses a mismatched `expectedAccountId` (ADR 0079 amended). The
+    client is bound and stops for good on `SaveAccountMismatchError` (ADR 0080
+    amended). The page reloads when another player is signed in
+    (`reloadOnPlayerChange`).
+  - `profileStorage` takes prefixes and offers the full Storage surface.
+  - A full quota during adoption is swallowed and retried on the next open
+    (ADR 0094 amended).
+- **Open window while the gate is off in production.** A child whose token
+  expires plays signed out into the unscoped legacy key. Their profile, which
+  already has a document, never adopts that work. It stays on the device and
+  is not lost, but they cannot see it under their profile. This is recorded in
+  ADR 0094 and not changed. Each app's gate-on PR should follow its per-profile
+  PR closely.
 
 Docker stack (`family hub boop`, project `hoe10boop`), Chromium 149 and
 Playwright WebKit 26.5, all passing: a signed-out
@@ -97,40 +113,60 @@ helpers; copy only the app-shaped wiring, adjusting keys and payload prefix:
    `@hoe/accounts/server` (fridge adds `'/b/'`). Apply the four Dockerfile
    steps in `packages/accounts/README.md` ("Wiring the gate in an app"). Leave
    `fly.toml` alone.
-2. **Per-profile storage.** List the app's save keys (saves only, never device
-   preferences) as boop does in `persistence/profileKeys.ts`. Build the
+2. **The page's player.** In the app's entry (boop's `App.tsx`), read
+   `readFamilySession()?.sub ?? null` once and call
+   `reloadOnPlayerChange(player)`. If the app syncs, build
+   `createFamilySaveClient({ baseUrl, accountId: player })` only when `player`
+   is not null, and stop syncing for good on a `SaveAccountMismatchError`
+   (boop's `createBoopSync` `onStop`).
+3. **Per-profile storage.** List the app's save keys as boop does in
+   `persistence/profileKeys.ts`: `{ keys, prefixes }`, saves only, never device
+   preferences. silt's `silt:scene:` and `silt:thumb:` are prefixes. Build the
    storage in the route components, as `apps/boop/src/pages/views.tsx` does:
-   `/` gets `profileStorage(window.localStorage, readFamilySession()?.sub ??
-   null, PROFILE_KEYS)` and `/shared` gets `memoryStorage()` (and no save
-   client, if the app syncs). Hand it down the way boop's
-   `persistence/SaveStorageContext.tsx` does, and replace every
-   `window.localStorage` that touches a save with it. Building `profileStorage`
-   copies the legacy documents in, so never build it on `/shared`.
-3. **Fragment.** Read the payload through `arrivalFragment()` from
+   - `/` gets `profileStorage(window.localStorage, player, PROFILE_KEYS)`.
+   - `/shared` gets `memoryStorage()`, and no save client if the app syncs.
+
+   Both offer the whole Storage surface (`removeItem`, `key`, `length`,
+   `clear`), and enumeration shows this profile's keys only. Hand the storage
+   down the way boop's `persistence/SaveStorageContext.tsx` does, and replace
+   every `window.localStorage` that touches a save with it. Building
+   `profileStorage` copies the legacy documents in, so never build it on
+   `/shared`. IndexedDB is not covered: scope those keys with
+   `profileScopedKey`.
+4. **Fragment.** Read the payload through `arrivalFragment()` from
    `@hoe/accounts`, never `location.hash` after mount, because TanStack Router
    decodes the address bar. Read it once, at first render.
-4. **Links.** Share builds `${origin}/shared${payload}`. "Keep this" sends the
+5. **Links.** Share builds `${origin}/shared${payload}`. "Keep this" sends the
    item as it is now to `${origin}/`: the arrival fragment when nothing
    changed, else a fresh encoding (boop's `keepFragment` and `keepSharedUrl`
    in `shareLink.ts`, and `keepBoop` in `HomePage.tsx`). The back arrow is
    `hubUrlFor(location.href)` and any switch-player link is
    `switchPlayerUrlFor(location.href)` (null outside the estate: render no
    link). Add no port literals.
-5. **Unit tests** in the app: only its own pieces, such as the share and keep
+6. **Unit tests** in the app: only its own pieces, such as the share and keep
    URL builders. The helpers above are tested in `@hoe/accounts`.
-6. **`.iwft`:** `profiles.iwft.tsx` (one player's saves are not another's;
-   legacy saves appear for both and the legacy key is unchanged) and
-   `sharedView.iwft.tsx`, which checks that `/shared` writes nothing: snapshot
-   all of `localStorage` before mounting, edit, wait past the autosave, then
-   compare again after a reload. It also covers three more cases:
-   - Keep with no edits arrives byte for byte, using a percent-escaped fragment
-     put in the address bar with `history.pushState` before `mountApp`.
-   - Keep after an edit carries the edit.
-   - A root link still opens for a signed-in player.
+7. **`.iwft`.** Three suites to copy:
+   - **`profiles.iwft.tsx`**: one player's saves and favourites are not
+     another's; legacy saves appear for both, and the legacy key is unchanged.
+   - **`sharedView.iwft.tsx`**: `/shared` writes nothing. Snapshot all of
+     `localStorage` before mounting, edit and star, wait past the autosave,
+     then compare again after a reload, both signed out and signed in. It also
+     checks that:
+     - `/shared` keeps its fragment, so a reload reopens the share;
+     - Keep with no edits arrives byte for byte, using a percent-escaped
+       fragment put in the address bar with `history.pushState` before
+       `mountApp`;
+     - Keep after an edit carries the edit;
+     - a root link still opens for a signed-in player.
+   - **`playerChange.iwft.tsx`**: setting another profile's cookie and firing
+     `focus` reloads the page, and nothing is written to the other profile's
+     key.
 
    The POM helpers are `HomePagePom.openAt` and `keepBoop`. Seed a profile with
-   the cookie, as `testing/familySession.ts` does.
-7. **Stack:** `docker compose -p <name> up -d --build family hub <app>`, then
+   the cookie (`seedFamily`, `setFamilyCookie` in `testing/familySession.ts`).
+   For an app that syncs, copy the "a page opened for one profile" block in
+   `boopSync.test.ts`.
+8. **Stack:** `docker compose -p <name> up -d --build family hub <app>`, then
    `node scripts/docker-stack-gate-round-trip.mjs http://localhost:<composePort>`
    (`FRAGMENT='#w=...'` for another prefix), then tear down. Each run
    registers parents, and Better Auth's sign-up rate limit falls back to one
