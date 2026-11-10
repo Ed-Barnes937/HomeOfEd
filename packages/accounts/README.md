@@ -277,6 +277,11 @@ string on each side. The habit behind that, and the four findings before it, is
 recorded in
 [`packages/backend-kit`'s README](../backend-kit/README.md#a-stand-in-models-the-happy-path-somebody-has-to-make-it-model-the-rest).
 
+It also enforces Better Auth's built-in limit on `signIn` and `signUp`: three
+tries per route in ten seconds, then `TOO_MANY_REQUESTS` with the real 429's
+message, as checked against the docker stack
+([ADR 0081](../../docs/adr/0081-hub-account-ui.md), rate-limit amendment).
+
 Two things the fake still declines to model, both app configuration rather than
 contract: the **`appId` allowlist** (`onboardedApps.ts`, proven by the handler
 tests in `apps/family`), and anything behind a Better Auth option. It also

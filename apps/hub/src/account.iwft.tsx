@@ -36,6 +36,35 @@ test('a wrong password says so, on the form', async ({ mountApp }) => {
   await root.verifyInlineError('Invalid email or password')
 })
 
+test('too many sign-in tries say so plainly, and pause the button for a minute', async ({
+  page,
+  mountApp,
+}) => {
+  await page.clock.install()
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.signInWithWrongPasswordUntilRateLimited()
+
+  await root.verifyInlineError('Too many tries. Wait a minute and try again.')
+  await root.verifySignInPaused()
+  await root.waitOutTheRateLimitPause()
+  await root.signIn()
+  await root.verifySignedInAs(FIXTURE_PARENT.name)
+})
+
+test('too many registration tries say so plainly, and pause that button too', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+
+  await root.registerWithWrongInviteCodeUntilRateLimited()
+
+  await root.verifyInlineError('Too many tries. Wait a minute and try again.')
+  await root.verifyRegisterPaused()
+})
+
 test('a signed-in parent adds, lists and renames a child profile', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()

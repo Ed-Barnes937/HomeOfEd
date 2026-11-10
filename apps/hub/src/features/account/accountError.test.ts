@@ -1,7 +1,7 @@
 import { FamilyClientError } from '@hoe/accounts'
 import { describe, expect, it } from 'vitest'
 
-import { accountErrorMessage } from './accountError.ts'
+import { accountErrorMessage, isRateLimited } from './accountError.ts'
 
 const FALLBACK = 'Something went wrong. Please try again.'
 
@@ -66,6 +66,26 @@ describe('accountErrorMessage', () => {
     expect(refusal('[{"code":"custom"}]', 'SOME_NEW_REFUSAL')).toBe(FALLBACK)
     expect(refusal('{"issues":[]}', 'CONFLICT')).toBe(FALLBACK)
     expect(refusal('   ', 'CONFLICT')).toBe(FALLBACK)
+  })
+
+  // Better Auth's 429 carries no code, so the client takes TOO_MANY_REQUESTS from the status.
+  it("says a rate-limited try plainly, in house words rather than the service's", () => {
+    expect(refusal('Too many requests. Please try again later.', 'TOO_MANY_REQUESTS')).toBe(
+      'Too many tries. Wait a minute and try again.',
+    )
+  })
+
+  it('knows a rate-limited refusal from every other failure', () => {
+    expect(isRateLimited(new FamilyClientError('Too many requests.', 'TOO_MANY_REQUESTS'))).toBe(
+      true,
+    )
+    expect(
+      isRateLimited(
+        new FamilyClientError('Invalid email or password', 'INVALID_EMAIL_OR_PASSWORD'),
+      ),
+    ).toBe(false)
+    expect(isRateLimited(new TypeError('Failed to fetch'))).toBe(false)
+    expect(isRateLimited(undefined)).toBe(false)
   })
 
   it('falls back for anything that is not a family-service refusal', () => {

@@ -69,6 +69,9 @@ type StoredParent = {
 
 type StoredChild = ChildProfileView & { parentId: string }
 
+// Better Auth's built-in limit on /sign-in and /sign-up, per client and route.
+const AUTH_RATE_LIMIT = { windowMs: 10_000, max: 3 }
+
 export type FakeSessionInput = Omit<FamilyTokenClaims, 'iat' | 'exp'>
 
 /** A parent the harness starts with, so a test can sign in without registering. */
@@ -93,6 +96,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   private session: FamilyTokenClaims | null = null
   private parentId: string | null = null
   private failure: Error | null = null
+  private readonly authAttempts = new Map<string, { count: number; lastLetThrough: number }>()
   private readonly now: () => Date
   private readonly inviteCode: string
   private nextId = 1
@@ -206,7 +210,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   // --- the parent cookie session: the identity half's one credential ---------
 
   signUp(input: SignUpInput): Promise<void> {
-    return this.reachable().then(() => {
+    return this.authAttempt('sign-up').then(() => {
       if (input.inviteCode !== this.inviteCode) {
         // The real image answers 403 with a message and no code, which the
         // client turns into FORBIDDEN (verified over a real socket).
@@ -231,7 +235,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   }
 
   signIn(input: SignInInput): Promise<void> {
-    return this.reachable().then(() => {
+    return this.authAttempt('sign-in').then(() => {
       const parent = this.findByEmail(input.email)
       if (parent === null || parent.password !== input.password) {
         throw new FamilyClientError('Invalid email or password', 'INVALID_EMAIL_OR_PASSWORD')
@@ -375,6 +379,27 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   // Rejects rather than throwing synchronously, so callers can always .catch().
   private reachable(): Promise<void> {
     return this.failure ? Promise.reject(this.failure) : Promise.resolve()
+  }
+
+  // As Better Auth's memory store: a try counts right or wrong, a refused try does
+  // not move the window, and one exactly ten seconds after the last is let through.
+  private authAttempt(route: 'sign-in' | 'sign-up'): Promise<void> {
+    return this.reachable().then(() => {
+      const nowMs = this.now().getTime()
+      const seen = this.authAttempts.get(route)
+      if (seen === undefined || nowMs - seen.lastLetThrough >= AUTH_RATE_LIMIT.windowMs) {
+        this.authAttempts.set(route, { count: 1, lastLetThrough: nowMs })
+        return
+      }
+      if (seen.count >= AUTH_RATE_LIMIT.max) {
+        // The real 429 carries no code; the client takes this one from the status.
+        throw new FamilyClientError(
+          'Too many requests. Please try again later.',
+          'TOO_MANY_REQUESTS',
+        )
+      }
+      this.authAttempts.set(route, { count: seen.count + 1, lastLetThrough: nowMs })
+    })
   }
 
   private saveAccount(): Promise<string> {

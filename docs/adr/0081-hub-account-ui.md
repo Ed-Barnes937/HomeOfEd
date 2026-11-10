@@ -241,7 +241,8 @@ keys so both sides agree.
 **The register form can meet a rate limit.** Better Auth rate-limits its own
 endpoints in production, and a 429 was seen during probing. It arrives as a
 typed `TOO_MANY_REQUESTS` and its message reaches the form, so it degrades to a
-sentence rather than a crash; no retry or countdown was built.
+sentence rather than a crash; no retry or countdown was built. (**Amended
+2026-11-10, below:** it now has house words and a paused button.)
 
 ## Amendment (2026-11-10): a parent can delete a profile and correct its username
 
@@ -341,3 +342,31 @@ amended). Estate-gate ticket 08.
    and `me` (decision 6), for consistency: every family query is reset the same
    way. It is not what protects a shared device; lines are drawn only for the
    ids the current parent's `me` and `children` return.
+
+## Amendment (2026-11-10): a rate-limited sign-in says so plainly
+
+Estate-gate ticket 09, spec decision 13. Checked against the docker stack first,
+from hub's own page on `http://localhost:8080`: Better Auth's built-in limit on
+`/sign-in/*` and `/sign-up/*` lets three tries per client and route through in
+ten seconds, right or wrong, then answers `429` with
+`{"message":"Too many requests. Please try again later."}` labelled
+`text/plain;charset=UTF-8`, no `code`, and `x-retry-after: 10`. The client
+already took `TOO_MANY_REQUESTS` from the status. The stack's family cannot see a
+client IP, so there both routes fall back to one shared bucket per route.
+
+1. **The rate limit is the one refusal whose copy is chosen by code.** Decision
+   5 still holds for every other refusal; this one shows "Too many tries. Wait a
+   minute and try again." because the service's sentence is not the house voice
+   and, unlike the others, a parent's next move is to wait.
+2. **The submit button pauses for a fixed 60 seconds.** The ticket asked for the
+   reply's retry period when it carries one, but hub never sees it: the family
+   service's CORS sends no `Access-Control-Expose-Headers`, so a cross-origin
+   page reads `x-retry-after` as null (measured in the browser). The pause is
+   longer than Better Auth's ten-second window on purpose, matching the copy, and
+   there is no countdown. Each form owns its own pause, as each route owns its
+   own bucket. The pause lives in the mounted form, so switching forms or
+   reloading clears it; the server's own limit still applies.
+3. **`FakeFamilyClient` enforces the same limit**, three tries per route in ten
+   seconds with a refused try not moving the window, rather than offering a
+   switch to throw a 429. A fake that never refuses a fourth try is the sixth
+   stand-in that would honour the interface and diverge on the real thing.
