@@ -2,7 +2,7 @@
 // session from, the state the in-page fake service starts with, and a read of
 // what ended up on the account.
 import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
-import { mintTestToken } from '@hoe/accounts/testing'
+import { mintTestToken, type FakeSessionInput } from '@hoe/accounts/testing'
 import type { Page } from '@playwright/test'
 
 import { SAVE_KEY } from '../persistence/storage.ts'
@@ -26,18 +26,20 @@ export interface FamilySeedOpts extends FamilySeed {
  */
 export async function seedFamily(page: Page, opts: FamilySeedOpts): Promise<void> {
   const { cookie = true, ...seed } = opts
-  if (cookie && seed.session) {
-    const token = mintTestToken(seed.session)
-    await page.evaluate(
-      ({ name, value }) => {
-        document.cookie = `${name}=${value}; path=/`
-      },
-      { name: FAMILY_SESSION_COOKIE, value: token },
-    )
-  }
+  if (cookie && seed.session) await setFamilyCookie(page, seed.session)
   await page.evaluate(
     ({ key, value }) => window.localStorage.setItem(key, value),
     { key: FAMILY_SEED_KEY, value: JSON.stringify(seed) },
+  )
+}
+
+/** The family cookie as hub writes it when `session` is picked, in this tab or another. */
+export async function setFamilyCookie(page: Page, session: FakeSessionInput): Promise<void> {
+  await page.evaluate(
+    ({ name, value }) => {
+      document.cookie = `${name}=${value}; path=/`
+    },
+    { name: FAMILY_SESSION_COOKIE, value: mintTestToken(session) },
   )
 }
 

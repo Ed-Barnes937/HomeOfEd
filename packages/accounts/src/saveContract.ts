@@ -1,5 +1,5 @@
 // accountId is absent from every input on purpose: the service derives it
-// from the verified token in ctx.auth.
+// from the verified token in ctx.auth. `expectedAccountId` only ever refuses.
 import { z } from 'zod'
 
 export const saveGetInput = z.object({
@@ -7,7 +7,12 @@ export const saveGetInput = z.object({
   // Bounded because it is stored, counted and part of a btree primary key: an
   // unbounded key is storage the byte quota never sees.
   slotKey: z.string().min(1).max(128),
+  // The account the calling page was opened for; another token's account is refused (ADR 0080).
+  expectedAccountId: z.string().min(1).max(128).optional(),
 })
+
+/** The CONFLICT a save procedure answers when `expectedAccountId` is not the token's account. */
+export const SAVE_ACCOUNT_MISMATCH = 'this save belongs to another profile; nothing was read or written'
 
 export const savePutInput = saveGetInput.extend({
   // A localStorage value, so always a string. The server never parses it.

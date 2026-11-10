@@ -1,7 +1,13 @@
-import { createFamilySaveClient, type FamilySaveContract } from '@hoe/accounts'
+import {
+  bindSaveClient,
+  createFamilySaveClient,
+  readFamilySession,
+  reloadOnPlayerChange,
+  type FamilySaveContract,
+} from '@hoe/accounts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { AudioDriver } from './engine/audioDriver.ts'
 import { EngineProvider } from './engine/EngineContext.tsx'
@@ -14,7 +20,7 @@ import { SaveClientProvider } from './sync/SaveClientContext.tsx'
 interface AppProps {
   /** Overridden in `.iwft` with `FakeAudioDriver` so playback is assertable without real audio. */
   driver?: AudioDriver
-  /** Overridden in `.iwft` with `FakeFamilyClient` (ADR 0080). */
+  /** Overridden in `.iwft` with `FakeFamilyClient` (ADR 0080); bound to the page's profile like the real one. */
   saveClient?: FamilySaveContract
 }
 
@@ -23,21 +29,24 @@ interface AppProps {
  * engine only borrows it (`SequencerEngine.dispose` leaves it alone), so a
  * dev double-mount can build a second engine over it without silencing the app.
  *
- * It owns the family save client the same way. Building it opens no connection
- * and reads no cookie - whether anything is ever sent is `useBoopSync`'s call.
- * Where boops are kept is the route's call (`pages/views.tsx`).
+ * It owns the family save client the same way, bound to the profile the page
+ * opened for, and reloads the page if another profile is playing when it
+ * comes back into view. Where boops are kept is the route's call (`pages/views.tsx`).
  */
 export function App({ driver, saveClient }: AppProps = {}) {
   const [queryClient] = useState(() => new QueryClient())
   const [audioDriver] = useState<AudioDriver>(() => driver ?? new ToneAudioDriver())
-  const [familyClient] = useState<FamilySaveContract>(
-    () =>
-      saveClient ??
-      createFamilySaveClient({
-        baseUrl: familyUrl(window.location.hostname, window.location.port),
-        fetch: keepaliveFetch,
-      }),
-  )
+  const [player] = useState(() => readFamilySession()?.sub ?? null)
+  const [familyClient] = useState<FamilySaveContract | null>(() => {
+    if (player === null) return null
+    if (saveClient) return bindSaveClient(saveClient, player)
+    return createFamilySaveClient({
+      baseUrl: familyUrl(window.location.hostname, window.location.port),
+      accountId: player,
+      fetch: keepaliveFetch,
+    })
+  })
+  useEffect(() => reloadOnPlayerChange(player), [player])
   return (
     <QueryClientProvider client={queryClient}>
       <SaveClientProvider client={familyClient}>

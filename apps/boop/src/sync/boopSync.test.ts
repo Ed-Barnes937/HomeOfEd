@@ -1,4 +1,9 @@
-import { FamilyClientError, type FamilySaveContract, type SavePutInput } from '@hoe/accounts'
+import {
+  bindSaveClient,
+  FamilyClientError,
+  type FamilySaveContract,
+  type SavePutInput,
+} from '@hoe/accounts'
 import { FakeFamilyClient } from '@hoe/accounts/testing/fake'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -272,6 +277,89 @@ describe('pushIfChanged', () => {
     await expect(sync.pushIfChanged()).resolves.toBeUndefined()
   })
 })
+
+describe('a page opened for one profile', () => {
+  const CY = { sub: 'child-cy', role: 'child', parentId: 'parent-1', name: 'Cy' } as const
+  const BO = { sub: 'child-bo', role: 'child', parentId: 'parent-1', name: 'Bo' } as const
+
+  async function slotOf(who: typeof CY | typeof BO): Promise<string | null> {
+    client.signInAs(who)
+    return (await client.get(slot))?.blob ?? null
+  }
+
+  /** Cy's page: its client bound to Cy, reading the cookie as `signedIn` says it is now. */
+  function cyPage(signedIn: () => string, calls: string[] = []) {
+    const page = bindSaveClient(recording(client, calls), CY.sub, { currentAccount: signedIn })
+    let stopped = false
+    const sync = createBoopSync({ client: page, storage, onStop: () => (stopped = true) })
+    return { sync, calls, stopped: () => stopped }
+  }
+
+  async function openAsCyWithBoOnTheAccount() {
+    client.signInAs(BO)
+    await client.put({ ...slot, blob: document_(null, [boop('bo')]) })
+    client.signInAs(CY)
+    storage.setItem(SAVE_KEY, document_(null, [boop('cy')]))
+  }
+
+  it('never pushes into another profile’s slot after another tab switches player', async () => {
+    await openAsCyWithBoOnTheAccount()
+    let cookie: string = CY.sub
+    const page = cyPage(() => cookie)
+    await page.sync.reconcile()
+
+    // Tab 2 picks Bo at hub: every request this tab sends now carries Bo's cookie.
+    cookie = BO.sub
+    client.signInAs(BO)
+    storage.setItem(SAVE_KEY, document_(null, [boop('cy'), boop('cy again')]))
+    page.calls.length = 0
+    await page.sync.pushIfChanged()
+    storage.setItem(SAVE_KEY, document_(null, [boop('cy'), boop('and again')]))
+    await page.sync.pushIfChanged()
+
+    expect(page.calls).toEqual([])
+    expect(page.stopped()).toBe(true)
+    expect(await slotOf(BO)).toBe(document_(null, [boop('bo')]))
+  })
+
+  it('stops for good when the service refuses the profile, even if the page missed the switch', async () => {
+    await openAsCyWithBoOnTheAccount()
+    const page = cyPage(() => CY.sub)
+    await page.sync.reconcile()
+
+    client.signInAs(BO)
+    storage.setItem(SAVE_KEY, document_(null, [boop('cy'), boop('cy again')]))
+    await page.sync.pushIfChanged()
+    page.calls.length = 0
+    storage.setItem(SAVE_KEY, document_(null, [boop('cy'), boop('and again')]))
+    await page.sync.pushIfChanged()
+
+    expect(page.calls).toEqual([])
+    expect(page.stopped()).toBe(true)
+    expect(await slotOf(BO)).toBe(document_(null, [boop('bo')]))
+  })
+
+  it('pulls nothing when the page opens after the browser has switched', async () => {
+    await openAsCyWithBoOnTheAccount()
+    const page = cyPage(() => BO.sub)
+
+    await page.sync.reconcile()
+
+    expect(page.calls).toEqual([])
+    expect(page.stopped()).toBe(true)
+    expect(storage.store.get(SAVE_KEY)).toBe(document_(null, [boop('cy')]))
+  })
+})
+
+/** Records each call `inner` receives, by name. */
+function recording(inner: FamilySaveContract, calls: string[]): FamilySaveContract {
+  return {
+    get: (input) => (calls.push('get'), inner.get(input)),
+    put: (input) => (calls.push('put'), inner.put(input)),
+    list: (input) => (calls.push('list'), inner.list(input)),
+    delete: (input) => (calls.push('delete'), inner.delete(input)),
+  }
+}
 
 /** The same fake, with a hook that runs while `get` is still in flight. */
 function delayGet(inner: FamilySaveContract, duringFlight: () => void): FamilySaveContract {

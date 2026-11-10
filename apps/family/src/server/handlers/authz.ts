@@ -1,4 +1,6 @@
+import { SAVE_ACCOUNT_MISMATCH } from '@hoe/accounts'
 import {
+  ConflictError,
   ForbiddenError,
   NotFoundError,
   UnauthorizedError,
@@ -37,6 +39,13 @@ export function requireSaveAccount(ctx: FamilyContext): SaveAccount {
     throw new UnauthorizedError('a family session token is required')
   }
   return account
+}
+
+/** A page bound to one profile is refused another's slot, even under that profile's token. */
+export function requireExpectedAccount(account: SaveAccount, expectedAccountId?: string): void {
+  if (expectedAccountId !== undefined && expectedAccountId !== account.accountId) {
+    throw new ConflictError(SAVE_ACCOUNT_MISMATCH)
+  }
 }
 
 /** The SaveStore serves onboarded apps only, so it never becomes a dumping ground. */

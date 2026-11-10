@@ -32,22 +32,24 @@ export function useBoopSync(): BoopSyncState {
 
   useEffect(() => {
     if (!client || !session) return
-    const sync = createBoopSync({ client, storage })
-    void sync.reconcile()
     const push = () => void sync.pushIfChanged()
-    const timer = setInterval(push, SYNC_WATCH_MS)
-    // Registered after `useWorkingSong`'s own pagehide flush, so by the time
-    // this one runs the pending autosave is already on disk.
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') push()
     }
-    window.addEventListener('pagehide', push)
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => {
+    const unwatch = () => {
       clearInterval(timer)
       window.removeEventListener('pagehide', push)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
+    // The client is bound to this page's profile, so another profile signing in stops the watcher.
+    const sync = createBoopSync({ client, storage, onStop: unwatch })
+    void sync.reconcile()
+    const timer = setInterval(push, SYNC_WATCH_MS)
+    // Registered after `useWorkingSong`'s own pagehide flush, so by the time
+    // this one runs the pending autosave is already on disk.
+    window.addEventListener('pagehide', push)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return unwatch
   }, [client, session, storage])
 
   return { syncedAs: syncing ? session.name : null }
