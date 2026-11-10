@@ -20,6 +20,8 @@ const ricassoOptions = (p: Params) => {
   const own = familyOf(p).ricasso
   return hasWaves(p) ? own.filter((r) => r !== 'none') : own
 }
+const tipOptions = (p: Params): string[] =>
+  familyOf(p).tip.filter((t) => t !== 'rounded' || (p.taper as number) <= 0.4)
 const engravingAllowed = (p: Params) => !(hasRunes(p) && p.pattern === 'watered')
 
 const named = (...values: string[]): ChoiceOption[] =>
@@ -153,6 +155,7 @@ export const swordSchema: ItemSchema = {
         ...named('waisted'),
       ],
       allowed: (p) => familyOf(p).profile,
+      visible: (p) => familyOf(p).profile.length > 1,
     },
     {
       kind: 'number',
@@ -208,7 +211,8 @@ export const swordSchema: ItemSchema = {
         ...named('spear', 'clipped'),
         { value: 'kissaki', label: 'Angled' },
       ],
-      allowed: (p) => familyOf(p).tip.filter((t) => t !== 'rounded' || (p.taper as number) <= 0.4),
+      allowed: tipOptions,
+      visible: (p) => tipOptions(p).length > 1,
     },
     {
       kind: 'number',
@@ -273,6 +277,7 @@ export const swordSchema: ItemSchema = {
         ...named('disc', 'swept', 'cup'),
       ],
       allowed: (p) => familyOf(p).guard,
+      visible: (p) => familyOf(p).guard.length > 1,
     },
     {
       kind: 'number',
@@ -357,6 +362,7 @@ export const swordSchema: ItemSchema = {
         { value: 'diamond', label: 'Diamond wrap' },
       ],
       allowed: (p) => familyOf(p).wrap,
+      visible: (p) => familyOf(p).wrap.length > 1,
     },
     {
       kind: 'choice',
@@ -406,6 +412,7 @@ export const swordSchema: ItemSchema = {
         'ring',
       ),
       allowed: (p) => familyOf(p).pommel,
+      visible: (p) => familyOf(p).pommel.length > 1,
     },
     {
       kind: 'number',

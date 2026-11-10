@@ -8,6 +8,16 @@ export type Family =
 
 export type Band = [min: number, max: number]
 
+export type Tip =
+  'sharp' | 'rounded' | 'longPoint' | 'curvedPoint' | 'spear' | 'clipped' | 'kissaki'
+export type GuardStyle =
+  'straight' | 'curved' | 'winged' | 'sCurve' | 'dome' | 'knuckleBow' | 'disc' | 'swept' | 'cup'
+export type Wrap = 'leather' | 'cord' | 'wire' | 'wood' | 'ribbed' | 'diamond'
+export type PommelStyle =
+  'wheel' | 'ball' | 'pear' | 'nut' | 'cap' | 'egg' | 'fishtail' | 'lobed' | 'block' | 'ring'
+export type Steel = 'satin' | 'bright' | 'dark' | 'silver' | 'blue'
+export type Fittings = 'iron' | 'darkIron' | 'brass' | 'bronze' | 'silver' | 'gold' | 'blue'
+
 export interface FamilyDef {
   label: string
   edges: 'double' | 'single'
@@ -32,11 +42,11 @@ export interface FamilyDef {
   gripRadius: number
   profile: string[]
   middle: string[]
-  tip: string[]
+  tip: Tip[]
   ricasso: string[]
-  guard: string[]
-  wrap: string[]
-  pommel: string[]
+  guard: GuardStyle[]
+  wrap: Wrap[]
+  pommel: PommelStyle[]
   waves: boolean
   langets: boolean
 }
@@ -50,7 +60,7 @@ export const FAMILIES: Record<Family, FamilyDef> = {
     baseWidth: [26, 42],
     tipRatio: [0.55, 0.25],
     grip: [90, 110],
-    guardSpan: [70, 140],
+    guardSpan: [70, 120],
     discSpan: [50, 90],
     sagitta: [0, 0],
     thickness: [6, 8],
@@ -73,7 +83,7 @@ export const FAMILIES: Record<Family, FamilyDef> = {
     blade: [420, 620],
     baseWidth: [42, 65],
     tipRatio: [0.9, 0.55],
-    grip: [85, 100],
+    grip: [90, 100],
     guardSpan: [90, 160],
     domeSpan: [70, 90],
     sagitta: [0, 0],
@@ -305,12 +315,39 @@ export function gripLengthMm(p: Params): number {
   return clamp(scaled, Math.max(f.grip[0], 0.2 * blade), Math.min(f.grip[1], 0.3 * blade))
 }
 
-/** Pommel diameter: 0.8-1.2x the base width on one hand, 1.0-1.4x on two, never lost in the grip. */
+/** The grip's radius along u (pommel side to guard side) over `gripRadius`, per grip shape. */
+export const GRIP_SHAPES: Record<string, [u: number, value: number][]> = {
+  straight: [
+    [0, 1],
+    [1, 1],
+  ],
+  swelling: [
+    [0, 0.92],
+    [0.5, 1.1],
+    [1, 0.92],
+  ],
+  waisted: [
+    [0, 1.06],
+    [0.5, 0.9],
+    [1, 1.06],
+  ],
+}
+
+/** The grip's radius where it meets the pommel, mm. */
+export const gripEndRadiusMm = (p: Params): number =>
+  familyOf(p).gripRadius * (GRIP_SHAPES[p.gripShape as string] ?? GRIP_SHAPES.straight!)[0]![1]
+
+/**
+ * Pommel diameter: 0.8-1.2x the base width on one hand, 1.0-1.4x on two, never lost in the
+ * grip. A cap sits nearly flush with the grip's end instead.
+ */
 export function pommelDiameterMm(p: Params): number {
   const f = familyOf(p)
   const size = p.pommelSize as number
+  const gripEnd = gripEndRadiusMm(p) * 2
+  if (p.pommel === 'cap') return gripEnd * lerp(1.05, 1.15, size)
   const ratio = f.hands === 2 ? lerp(1.0, 1.4, size) : lerp(0.8, 1.2, size)
-  return Math.max(baseWidthMm(p) * ratio, f.gripRadius * 2 * lerp(1.25, 1.5, size))
+  return Math.max(baseWidthMm(p) * ratio, gripEnd * lerp(1.25, 1.5, size))
 }
 
 export const pommelLengthMm = (p: Params): number =>
@@ -320,6 +357,9 @@ export const guardDepthMm = (p: Params): number => GUARD_DEPTH[p.guard as string
 
 export const collarMm = (p: Params): number => (p.family === 'katana' ? COLLAR_MM : 0)
 
-/** Overall length, pommel end to tip, mm, without building a spec. */
+/**
+ * Overall length, mm, without building a spec: pommel + grip + guard + blade, all straight
+ * lengths along the hilt's axis (a curved blade by its chord).
+ */
 export const overallLengthMm = (p: Params): number =>
   pommelLengthMm(p) + gripLengthMm(p) + guardDepthMm(p) + bladeLengthMm(p)

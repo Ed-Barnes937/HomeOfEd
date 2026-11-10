@@ -133,17 +133,74 @@ describe('compileSword', () => {
       if (BAR_GUARDS.includes(s.guard.style)) {
         expect(span).toBeGreaterThanOrEqual(base + 60 - EPS)
         expect(span).toBeGreaterThanOrEqual(f.guardSpan[0] - EPS)
-        expect(span).toBeLessThanOrEqual(Math.max(f.guardSpan[1], base + 60) + EPS)
+        expect(span).toBeLessThanOrEqual(Math.max(f.guardSpan[1], base + 80) + EPS)
       } else {
         const band = s.guard.style === 'disc' ? f.discSpan! : f.domeSpan!
         expect(span).toBeGreaterThanOrEqual(band[0] - EPS)
         expect(span).toBeLessThanOrEqual(band[1] + EPS)
       }
-      const [lo, hi] = f.hands === 2 ? [1.0, 1.4] : [0.8, 1.2]
       const diameter = s.pommel.radius * 2
-      expect(diameter).toBeGreaterThanOrEqual(base * lo - EPS)
-      expect(diameter).toBeLessThanOrEqual(Math.max(base * hi, f.gripRadius * 3) + EPS)
+      const gripEnd = 2 * sample(s.grip.radius, 0)
+      if (s.pommel.style === 'cap') {
+        expect(diameter / gripEnd).toBeGreaterThanOrEqual(1.05 - EPS)
+        expect(diameter / gripEnd).toBeLessThanOrEqual(1.15 + EPS)
+      } else {
+        expect(diameter).toBeGreaterThanOrEqual(base * (f.hands === 2 ? 1.0 : 0.8) - EPS)
+        expect(diameter).toBeGreaterThanOrEqual(1.2 * gripEnd)
+        expect(diameter <= 1.4 * base + EPS || diameter <= 1.6 * gripEnd).toBe(true)
+      }
+      const bigger = compileSword(sword({ ...p, pommelSize: 1 })).pommel.radius
+      const smaller = compileSword(sword({ ...p, pommelSize: 0 })).pommel.radius
+      expect(bigger).toBeGreaterThan(smaller)
     }
+  })
+
+  it('sets real guard sizes by default, and the Guard size slider always moves the guard', () => {
+    expect(compileSword(sword({})).guard.span).toBeGreaterThanOrEqual(200)
+    expect(compileSword(sword({})).guard.span).toBeLessThanOrEqual(215)
+    expect(compileSword(sword({ family: 'dagger' })).guard.span).toBeGreaterThanOrEqual(100)
+    expect(compileSword(sword({ family: 'dagger' })).guard.span).toBeLessThanOrEqual(110)
+    for (const p of SWORDS) {
+      const span = (guardWidth: number) => compileSword(sword({ ...p, guardWidth })).guard.span
+      expect(span(1) - span(0), `${p.family} ${p.guard}`).toBeGreaterThanOrEqual(15)
+      expect(span(0.6)).toBeGreaterThan(span(0.4))
+    }
+  })
+
+  it('keeps runes and engraving on the flat off the fullers', () => {
+    const overlaps = (a: { from: number; to: number }, b: { from: number; to: number }) =>
+      a.from < b.to && b.from < a.to
+    let checked = 0
+    for (const p of SWORDS)
+      for (const runes of ['none', 'groove', 'base', 'centre']) {
+        const q = sword({ ...p, runes, engraving: 'vine' })
+        const s = compileSword(q)
+        const onFlat = [s.engraving, s.runes?.where === 'flat' ? s.runes : null]
+        for (const mark of onFlat)
+          for (const fl of s.blade.fullers) if (mark) expect(overlaps(mark, fl)).toBe(false)
+        if (s.runes?.where === 'fuller') {
+          const inside = s.blade.fullers.some(
+            (fl) => s.runes!.from >= fl.from && s.runes!.to <= fl.to,
+          )
+          expect(inside).toBe(true)
+        }
+        checked++
+      }
+    expect(checked).toBeGreaterThan(0)
+  })
+
+  it('measures a tip by the width where it starts', () => {
+    const tipMm = (raw: Record<string, unknown>) => {
+      const s = compileSword(sword({ family: 'dagger', profile: 'leaf', ...raw }))
+      const B = s.blade.to - s.blade.from
+      return {
+        run: (1 - s.blade.tipFrom) * B,
+        width: 2 * sample(s.blade.halfWidth, s.blade.tipFrom),
+      }
+    }
+    const sharp = tipMm({ tip: 'sharp' })
+    expect(sharp.run).toBeGreaterThanOrEqual(1.05 * sharp.width)
+    expect(tipMm({ tip: 'longPoint' }).run).toBeGreaterThan(1.5 * sharp.run)
   })
 
   it('keeps fullers off the ricasso and out of the last 15%, and shallow', () => {
@@ -220,12 +277,13 @@ describe('compileSword', () => {
   })
 
   it('puts runes in the groove, gems on their seats and the engraving at the base', () => {
-    const s = compileSword(
-      sword({ runes: 'groove', gems: 'both', gemColour: 'ruby', engraving: 'vine' }),
-    )
+    const s = compileSword(sword({ runes: 'groove', gems: 'both', gemColour: 'ruby' }))
     const fuller = s.blade.fullers[0]!
     expect(s.runes).toMatchObject({ where: 'fuller', colour: '#8fe3ff' })
     expect(s.runes!.from).toBeCloseTo(s.blade.from + 40, 6)
+    const engraved = compileSword(sword({ runes: 'groove', engraving: 'vine' }))
+    expect(engraved.blade.fullers[0]!.from).toBeGreaterThan(engraved.engraving!.to)
+    expect(engraved.runes!.from).toBeGreaterThanOrEqual(engraved.blade.fullers[0]!.from)
     expect(s.runes!.to).toBeLessThanOrEqual(fuller.to)
     const B = s.blade.to - s.blade.from
     expect(s.runes!.to - s.runes!.from).toBeGreaterThanOrEqual(0.25 * B - EPS)
@@ -234,13 +292,16 @@ describe('compileSword', () => {
     expect((2 * s.runes!.halfHeight) / fullerMm).toBeLessThanOrEqual(0.7 + EPS)
     expect(s.gems.map((g) => g.at).sort()).toEqual(['guard', 'pommel'])
     expect(s.glow).toMatchObject({ colour: '#ff2440' })
-    expect(s.engraving).toMatchObject({ tile: 'vine' })
-    expect(s.engraving!.from).toBeGreaterThanOrEqual(s.blade.from)
+    expect(engraved.engraving).toMatchObject({ tile: 'vine' })
+    expect(engraved.engraving!.from).toBeGreaterThanOrEqual(engraved.blade.from)
 
-    const base = compileSword(sword({ runes: 'base', engraving: 'dots' }))
+    const base = compileSword(sword({ middle: 'flat', runes: 'base', engraving: 'dots' }))
     expect(base.runes!.where).toBe('flat')
     expect([3, 4]).toContain(base.runes!.glyphs)
     expect(base.runes!.from).toBeGreaterThanOrEqual(base.engraving!.to)
+    const grooved = compileSword(sword({ runes: 'base' }))
+    expect(grooved.runes!.where).toBe('fuller')
+    expect([3, 4]).toContain(grooved.runes!.glyphs)
     expect(compileSword(sword({ gems: 'pommel' })).glow).toMatchObject({ colour: '#8fe3ff' })
     expect(compileSword(sword({})).glow).toBeNull()
   })

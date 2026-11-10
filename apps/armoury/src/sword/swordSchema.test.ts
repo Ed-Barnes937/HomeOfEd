@@ -202,6 +202,14 @@ describe('swordSchema', () => {
       expect(visible('kissakiSize', sword({ family: 'katana' }))).toBe(true)
       expect(visible('guardEnds', sword({ family: 'katana' }))).toBe(false)
       expect(isCross(sword({}))).toBe(true)
+      for (const key of ['profile', 'tip', 'guard', 'wrap', 'pommel']) {
+        expect(visible(key, sword({ family: 'katana' })), key).toBe(false)
+        expect(visible(key, sword({ family: 'dagger' })), key).toBe(true)
+      }
+      expect(sword({ family: 'katana', guard: 'straight', wrap: 'leather' })).toMatchObject({
+        guard: 'disc',
+        wrap: 'diamond',
+      })
     })
   })
 

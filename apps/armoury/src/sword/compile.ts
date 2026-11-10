@@ -1,4 +1,5 @@
 import type { Params } from '../engine/schema.ts'
+import { gemLight, srgbToLinear } from '../items/colour.ts'
 import { shopNumber } from '../items/shopNumber.ts'
 import type { GemCut } from '../wand/gems.ts'
 import type { StencilName } from '../wand/stencils.ts'
@@ -11,6 +12,13 @@ import {
   type Family,
   familyOf,
   type FamilyDef,
+  type Fittings,
+  GRIP_SHAPES,
+  type GuardStyle,
+  type PommelStyle,
+  type Steel,
+  type Tip,
+  type Wrap,
   gripLengthMm,
   guardDepthMm,
   inBand,
@@ -38,6 +46,12 @@ export interface Fuller {
 }
 
 export interface SwordSpec {
+  /**
+   * Pommel + grip + guard + blade along one straight axis. Every z here is the sword before
+   * its curve; after the bend and the rotation that puts pommel and tip on the axis, a curved
+   * sword's drawn pommel-to-tip distance is shorter (under 0.5% on a Katana, up to about 5% on
+   * the deepest Sabre).
+   */
   lengthMm: number
   family: Family
   blade: {
@@ -56,7 +70,7 @@ export interface SwordSpec {
     ridgeAt: number | null
     /** Flared profile: the back is sharpened from this u. */
     backBevelFrom: number | null
-    tip: string
+    tip: Tip
     /** Where the tip's closing run starts, u (the Katana's point line). */
     tipFrom: number
     /** Rise of a flat face across its width, mm. */
@@ -70,11 +84,15 @@ export interface SwordSpec {
     fullers: Fuller[]
     /** Flame waves: amplitude as a fraction of the local width, from and to in z. */
     wave: { amp: number; lengthMm: number; count: number; from: number; to: number } | null
-    /** In the blade plane, toward the spine. */
+    /**
+     * In the blade plane, toward the spine, with zero offset and slope at the shoulder. depthMm
+     * is the sagitta: the largest distance from the bent centre line to the straight line from
+     * the shoulder to the bent tip; peak is the u where it falls.
+     */
     curve: { depthMm: number; peak: number } | null
   }
   guard: {
-    style: string
+    style: GuardStyle
     from: number
     to: number
     /** End to end, or the diameter of a disc, dome or cup. */
@@ -95,13 +113,13 @@ export interface SwordSpec {
     radius: Curve
     /** Thickness over width of the grip's section. */
     oval: number
-    wrap: 'leather' | 'cord' | 'wire' | 'wood' | 'ribbed' | 'diamond'
+    wrap: Wrap
     /** Wrap or rib pitch, mm; 0 for a smooth grip. */
     pitchMm: number
     /** Riser positions under leather, u. */
     risers: number[]
   }
-  pommel: { style: string; from: number; to: number; radius: number; facets: number }
+  pommel: { style: PommelStyle; from: number; to: number; radius: number; facets: number }
   gems: { at: 'pommel' | 'guard'; cut: GemCut; radius: number }[]
   runes: {
     from: number
@@ -115,8 +133,8 @@ export interface SwordSpec {
   } | null
   engraving: { tile: StencilName; from: number; to: number; halfHeight: number } | null
   finish: {
-    steel: string
-    fittings: string
+    steel: Steel
+    fittings: Fittings
     pattern: 'plain' | 'watered' | 'temper'
     wear: number
     /** Linear RGB. */
@@ -146,6 +164,10 @@ const TIPS: Record<string, { edge: Side; back?: Side }> = {
   kissaki: { edge: { run: 0, shape: (t) => 1 - t * t }, back: { run: 0, shape: (t) => 1 - t } },
 }
 const TIP_SAMPLES = 10
+/** How far a blade's width, from slimmest to broadest in its band, moves the guard size. */
+const GUARD_BASE_NUDGE = 0.2
+/** The least a bar guard's span moves across the Guard size slider, mm. */
+const MIN_GUARD_RANGE = 20
 const BODY_STEP = 0.05
 const MAX_TIP_RUN = 0.3
 
@@ -176,22 +198,6 @@ const WRAPS: Record<string, { pitch: (gripMm: number) => number; colour: (p: Par
     ribbed: { pitch: (g) => g / 4, colour: () => '#e8e0cf' },
     diamond: { pitch: () => 32, colour: dyed },
   }
-const GRIP_SHAPES: Record<string, Curve> = {
-  straight: [
-    [0, 1],
-    [1, 1],
-  ],
-  swelling: [
-    [0, 0.92],
-    [0.5, 1.1],
-    [1, 0.92],
-  ],
-  waisted: [
-    [0, 1.06],
-    [0.5, 0.9],
-    [1, 1.06],
-  ],
-}
 const POMMEL_FACETS: Record<string, number> = { egg: 8, block: 4, lobed: 3, fishtail: 2 }
 /** A pommel's flat face or top, as a fraction of its diameter, where a gem sits. */
 const POMMEL_FACE = 0.7
@@ -202,34 +208,6 @@ const FULLERS: Record<string, { count: number; width: [number, number]; depth: n
   ridgeGroove: { count: 1, width: [0.24, 0.18], depth: 0.3 },
 }
 const STENCIL_TILES: string[] = ['vine', 'knotwork', 'scales', 'dots']
-
-/** The stone is its glow's colour at a quarter of the light, unless it says otherwise (as the wand's). */
-const GEM_COLOURS: Record<string, { glow: string; body?: string }> = {
-  amethyst: { glow: '#c38bff' },
-  emerald: { glow: '#4dff98' },
-  ruby: { glow: '#ff2440' },
-  sapphire: { glow: '#5a86ff' },
-  citrine: { glow: '#ff901f' },
-  clear: { glow: '#eaf2ff', body: '#4a5058' },
-  smoky: { glow: '#a8703f', body: '#1c1612' },
-}
-
-function srgbToLinear(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16)
-  const c = (v: number) => {
-    const s = v / 255
-    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-  }
-  return [c((n >> 16) & 255), c((n >> 8) & 255), c(n & 255)]
-}
-
-function linearToSrgb([r, g, b]: [number, number, number]): string {
-  const c = (v: number) => {
-    const s = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055
-    return Math.round(clamp(s, 0, 1) * 255)
-  }
-  return `#${((c(r) << 16) | (c(g) << 8) | c(b)).toString(16).padStart(6, '0')}`
-}
 
 /** Cosine bump: 1 at c, easing to 0 at w either side. */
 const bump = (u: number, c: number, w: number) => {
@@ -284,14 +262,17 @@ function outline(p: Params, f: FamilyDef, B: number, base: number) {
   const ratio = lerp(f.tipRatio[0], f.tipRatio[1], p.taper as number)
   const body = bodyShape(p, ratio)
   const tip = TIPS[p.tip as string] ?? TIPS.sharp!
-  const widthAtTip = (base / 2) * (body.edge(1) + body.back(1))
-  const runOf = (side: Side) =>
-    p.tip === 'kissaki'
-      ? lerp(25, 60, p.kissakiSize as number) / B
-      : Math.min((side.run * widthAtTip) / B, MAX_TIP_RUN)
-  const edgeFrom = 1 - runOf(tip.edge)
+  const widthAt = (u: number) => (base / 2) * (body.edge(u) + body.back(u))
+  // The run is measured in widths where it starts, which depends on the run: settle it in a few steps.
+  const startOf = (side: Side) => {
+    if (p.tip === 'kissaki') return 1 - lerp(25, 60, p.kissakiSize as number) / B
+    let from = 1
+    for (let i = 0; i < 4; i++) from = 1 - Math.min((side.run * widthAt(from)) / B, MAX_TIP_RUN)
+    return from
+  }
+  const edgeFrom = startOf(tip.edge)
   const backSide = tip.back ?? tip.edge
-  const backFrom = 1 - runOf(backSide)
+  const backFrom = startOf(backSide)
   const halfWidth = sideCurve(body.edge, base / 2, edgeFrom, tip.edge)
   const backWidth = f.edges === 'single' ? sideCurve(body.back, base / 2, backFrom, backSide) : null
   return { halfWidth, backWidth, tipFrom: Math.min(edgeFrom, backFrom) }
@@ -347,7 +328,7 @@ const seedOf = (p: Params) =>
 
 export function compileSword(p: Params): SwordSpec {
   const f = familyOf(p)
-  const family = (p.family as Family) ?? 'knight'
+  const family = p.family as Family
   const B = bladeLengthMm(p)
   const base = baseWidthMm(p)
   const G = gripLengthMm(p)
@@ -381,7 +362,15 @@ export function compileSword(p: Params): SwordSpec {
 
   const ricasso =
     p.ricasso === 'short' ? Math.max(30, 0.05 * B) : p.ricasso === 'long' ? 0.14 * B : 0
-  const featureStart = bladeFrom + Math.max(ricasso, collar) + 5
+  const engraving: SwordSpec['engraving'] = STENCIL_TILES.includes(p.engraving as string)
+    ? {
+        tile: p.engraving as StencilName,
+        from: bladeFrom + collar + 4,
+        to: bladeFrom + collar + 4 + clamp(0.1 * B, 40, 110),
+        halfHeight: 0.32 * base,
+      }
+    : null
+  const featureStart = Math.max(bladeFrom + Math.max(ricasso, collar), engraving?.to ?? 0) + 5
   const featureEnd = bladeFrom + Math.min(0.85 * B, tipFrom * B - 10)
   const fullers = hasGroove(p)
     ? fullersFor(p, f, [bladeFrom, B], [featureStart, featureEnd], ridgeAt)
@@ -407,14 +396,15 @@ export function compileSword(p: Params): SwordSpec {
         }
       : null
 
-  const style = p.guard as string
-  const gw = p.guardWidth as number
+  const style = p.guard as GuardStyle
+  const baseInBand = (base - f.baseWidth[0]) / (f.baseWidth[1] - f.baseWidth[0])
+  const gw = clamp((p.guardWidth as number) + GUARD_BASE_NUDGE * (baseInBand - 0.5), 0, 1)
   let span: number
   if (style === 'disc' || style === 'dome' || style === 'cup') {
-    const band = (style === 'disc' ? f.discSpan : f.domeSpan) ?? f.guardSpan
-    span = clamp(base * lerp(2.2, 2.8, gw), band[0], band[1])
+    span = inBand((style === 'disc' ? f.discSpan : f.domeSpan) ?? f.guardSpan, gw)
   } else {
-    span = Math.max(clamp(base * lerp(3.5, 5.5, gw), f.guardSpan[0], f.guardSpan[1]), base + 60)
+    const lo = Math.max(f.guardSpan[0], base + 60)
+    span = lerp(lo, Math.max(f.guardSpan[1], lo + MIN_GUARD_RANGE), gw)
   }
   const half = span / 2
   const sweep =
@@ -448,7 +438,7 @@ export function compileSword(p: Params): SwordSpec {
     langets,
   }
 
-  const wrapName = p.wrap as SwordSpec['grip']['wrap']
+  const wrapName = p.wrap as Wrap
   const wrap = WRAPS[wrapName] ?? WRAPS.leather!
   const r = f.gripRadius
   const shape = GRIP_SHAPES[p.gripShape as string] ?? GRIP_SHAPES.straight!
@@ -456,7 +446,7 @@ export function compileSword(p: Params): SwordSpec {
   const grip: SwordSpec['grip'] = {
     from: P,
     to: guardFrom,
-    radius: shape.map(([u, k]) => [u, k * r]),
+    radius: shape.map(([u, k]): [number, number] => [u, k * r]),
     oval: katana ? 0.78 : 0.82,
     wrap: wrapName,
     pitchMm: wrap.pitch(G),
@@ -468,7 +458,7 @@ export function compileSword(p: Params): SwordSpec {
   const gripHex = wrap.colour(p)
 
   const pommel = {
-    style: p.pommel as string,
+    style: p.pommel as PommelStyle,
     from: 0,
     to: P,
     radius: pommelD / 2,
@@ -484,33 +474,28 @@ export function compileSword(p: Params): SwordSpec {
     gems.push({ at: 'guard', cut, radius: (0.7 * block) / 2 })
   }
 
-  const engraving: SwordSpec['engraving'] = STENCIL_TILES.includes(p.engraving as string)
-    ? {
-        tile: p.engraving as StencilName,
-        from: bladeFrom + collar + 4,
-        to: bladeFrom + collar + 4 + clamp(0.1 * B, 40, 110),
-        halfHeight: 0.32 * base,
-      }
-    : null
-
   const runeHex = swordSwatchFor('runeColour', p.runeColour as string) ?? '#8fe3ff'
   let runes: SwordSpec['runes'] = null
   if (hasRunes(p)) {
     const seed = seedOf(p)
     const run = lerp(0.25, 0.4, hasGroove(p) ? (p.grooveLength as number) : 0.5) * B
-    if (p.runes === 'groove' && fullers.length > 0) {
-      const fuller = fullers.reduce((a, b) =>
-        Math.abs(b.offset - 0.5) < Math.abs(a.offset - 0.5) ? b : a,
-      )
-      const from = Math.max(bladeFrom + 40, fuller.from)
-      const to = Math.max(from + 20, Math.min(from + run, fuller.to - fuller.fade))
+    const fuller = fullers.reduce<Fuller | null>(
+      (a, b) => (a && Math.abs(a.offset - 0.5) <= Math.abs(b.offset - 0.5) ? a : b),
+      null,
+    )
+    const cluster = 3 + (seed % 2)
+    if (fuller && (p.runes === 'groove' || p.runes === 'base')) {
+      const from = p.runes === 'groove' ? Math.max(bladeFrom + 40, fuller.from) : fuller.from + 5
       const halfHeight = (0.65 * 2 * fuller.halfWidth * widthAt(from)) / 2
+      const want = p.runes === 'groove' ? run : cluster * 2 * halfHeight * 1.35
+      const to = Math.max(from + 20, Math.min(from + want, fuller.to - fuller.fade))
+      const glyphs = glyphsIn(to - from, halfHeight)
       runes = {
         from,
         to,
         halfHeight,
         where: 'fuller',
-        glyphs: glyphsIn(to - from, halfHeight),
+        glyphs: p.runes === 'base' ? Math.min(cluster, glyphs) : glyphs,
         seed,
         colour: runeHex,
       }
@@ -527,30 +512,22 @@ export function compileSword(p: Params): SwordSpec {
         colour: runeHex,
       }
     } else {
-      const glyphs = 3 + (seed % 2)
       const halfHeight = 0.2 * base
       const from = Math.max(bladeFrom + collar + 15, (engraving?.to ?? 0) + 8)
       runes = {
         from,
-        to: from + glyphs * 2 * halfHeight * 1.35,
+        to: from + cluster * 2 * halfHeight * 1.35,
         halfHeight,
         where: 'flat',
-        glyphs,
+        glyphs: cluster,
         seed,
         colour: runeHex,
       }
     }
   }
 
-  let glow: SwordSpec['glow'] = null
-  if (hasGems(p)) {
-    const named = GEM_COLOURS[p.gemColour as string]
-    const colour = named?.glow ?? runeHex
-    const body =
-      named?.body ??
-      linearToSrgb(srgbToLinear(colour).map((v) => v * 0.25) as [number, number, number])
-    glow = { colour, body }
-  }
+  const gem = hasGems(p) ? gemLight(p.gemColour as string, runeHex) : null
+  const glow: SwordSpec['glow'] = gem && { colour: gem.glow, body: gem.body }
 
   return {
     lengthMm,
@@ -565,7 +542,7 @@ export function compileSword(p: Params): SwordSpec {
       section,
       ridgeAt,
       backBevelFrom: p.profile === 'flared' ? 0.7 : null,
-      tip: p.tip as string,
+      tip: p.tip as Tip,
       tipFrom,
       crown: lerp(0.2, 0.5, bw),
       edgeBevel: lerp(2, 4, clamp((base - 20) / 45, 0, 1)),
@@ -583,8 +560,8 @@ export function compileSword(p: Params): SwordSpec {
     runes,
     engraving,
     finish: {
-      steel: p.steel as string,
-      fittings: p.fittings as string,
+      steel: p.steel as Steel,
+      fittings: p.fittings as Fittings,
       pattern: p.pattern as SwordSpec['finish']['pattern'],
       wear: p.wear as number,
       gripColour: srgbToLinear(gripHex),

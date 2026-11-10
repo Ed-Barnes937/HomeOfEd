@@ -36,16 +36,34 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   ends (Short/Long, Slim/Broad, Snug/Roomy). `compileSword` maps it into the Kind's band from
   research "4.3" (cm there, mm here), so a slider never takes a sword outside its Kind.
 - Coupling lives in the compiler, not the schema: width gains up to 10% with length (kept in
-  its band); Longsword and Greatsword grips scale with the blade and stay 0.2-0.3 of it; cross
-  spans are 3.5-5.5x the base width, clamped to the band and never under base width + 60 mm;
-  disc, dome and cup diameters 2.2-2.8x; pommel diameter 0.8-1.2x the base width on one hand,
-  1.0-1.4x on two.
-- One addition to rule 5: a pommel is never narrower than 1.25-1.5x the grip's diameter. On a
-  Rapier (base 20-26 mm) the rule alone gives a pommel no wider than its grip, which reads as
-  missing.
+  its band); Longsword and Greatsword grips scale with the blade and stay 0.2-0.3 of it;
+  pommel diameter 0.8-1.2x the base width on one hand, 1.0-1.4x on two.
+- **Guard size is placed inside the Kind's guard band, not as a multiple of the base width.**
+  Research rule 3 (3.5-5.5x the base width, clamped to the band) fell outside the band for
+  the Greatsword, the Rapier and the Short sword's dome, so the slider did nothing there, and
+  it put default guards at the fantasy end (a 241 mm Knight's cross). Now `guardWidth`, nudged
+  up to 0.1 either way by where the base width sits in its band, picks a point in the band.
+  A bar guard keeps rule 3's floor of base width + 60 mm, and its range starts there, so the
+  whole slider always moves it by at least 20 mm. Default spans: Dagger 107, Short sword 137
+  (dome 80), Knight's 210, Longsword 270, Greatsword 450, Sabre 150, Katana disc 80, Rapier 230
+  (cup 100).
+- The Dagger's guard band is 70-120 mm (research "4.3" says 70-140): research "2.2" wants a
+  dagger's guard under 3x its blade width, about 102 mm at the default width.
+- The Short sword's grip band starts at 90 mm (research: 85), a hand's width.
+- Two additions to rule 5: a pommel is never narrower than 1.25-1.5x the grip's end, because
+  on a Rapier (base 20-26 mm) the rule alone gives a pommel no wider than its grip; and a cap
+  is not sized by rule 5 at all but sits nearly flush, 1.05-1.15x the grip's end.
 - `families.ts` also gives `bladeLengthMm` and `overallLengthMm`, so a tag line can state a
-  length without compiling a spec. `lengthMm` is pommel + grip + guard + blade along the
-  axis, before any curve.
+  length without compiling a spec.
+- **`lengthMm` and every z in the spec describe the sword before its curve:** pommel + grip +
+  guard + blade along one straight axis. This differs from architecture "3.1", which makes
+  `lengthMm` the straight pommel-to-tip distance after the bend; the code does not know the
+  bend's shape, which the mesh owns. The mesh bends the blade in its plane with zero offset
+  and slope at the shoulder; `curve.depthMm` is the sagitta, the largest distance from the
+  bent centre line to the straight line from the shoulder to the bent tip, and `curve.peak`
+  is the u where it falls. After the rotation that puts pommel and tip on the axis, the drawn
+  pommel-to-tip distance is under 0.5% shorter than `lengthMm` on a Katana and up to about 5%
+  on the deepest Sabre; framing reads `lengthMm`.
 
 ### Allowed lists, signature first
 
@@ -56,7 +74,8 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
 - Every other coupling rule is `allowed(p)` (a round tip only while `taper` <= 0.4; runes
   need a home; gems need a seat; temper needs a Katana in Satin or Mirror; no engraving with
   both runes and Ripples; a plain base under waves and on every Rapier) or `visible(p)` (curve
-  on single-edged Kinds; wave count with waves; disc shape with a disc).
+  on single-edged Kinds; wave count with waves; disc shape with a disc; any per-Kind picker
+  only when the Kind offers it more than one option, so a Katana shows no one-pill pickers).
 - A hidden param never changes the spec. A unit test perturbs every hidden param of a wide
   sample of swords and checks the compiled spec is unchanged.
 
@@ -85,7 +104,7 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   `discShape` and `langets`; grip wraps `leather | cord | wire | wood | ribbed | diamond`;
   finish `pattern` and `wear`; an `engraving` band from the wand's stencil tiles; runes that
   carry their own colour and glyph count; and `glow` as the gems' light and stone, null
-  without gems. Fuller and wave positions are z in mm; their widths are fractions of the
+  without gems (so a hidden gem or rune colour never changes the spec). Fuller and wave positions are z in mm; their widths are fractions of the
   local blade width, so they follow the taper.
 - Unspecified sizes are estimates, kept as tables in `families.ts` and `compile.ts`, and are
   tuned by eye at gate G1: guard bar sections and depths, grip radius and oval, pommel length
@@ -110,7 +129,7 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
 - A sword's numbers come from one place per Kind; tuning a Kind is editing a row.
 - The schema engine stays item-agnostic. The cost is that a slider's real size depends on the
   Kind, so the tag line, not the slider, states the length.
-- Research "2.2" calls for a dagger's guard under 3x its blade width, while rule 3 gives
-  3.5-5.5x clamped to a 7-14 cm band; rule 3 and the band won. G1 may narrow the band.
-- The rune and gem colours repeat the wand's values (`GEM_COLOURS`, the core swatches) rather
-  than import them, because the wand's tables are private to `wand/compile.ts`.
+- Marks on the blade never cross a fuller: fullers start after the engraving, and runes
+  "near the guard" sit in the fuller when there is one (reported as `where: 'fuller'`).
+- The gem colours and the sRGB/linear helpers moved to `items/colour.ts`, shared by the wand
+  and the sword; the wand's output is unchanged. Rune colours repeat the wand's core swatches.
