@@ -11,6 +11,7 @@ test('a shared link opens the same wand, name and all, for someone else', async 
   await first.root.rename('Firefly')
   const number = await first.root.wandNumber()
   const link = await first.root.share()
+  expect(new URL(link).pathname).toBe('/shared')
   expect(link).toContain('#w=')
 
   await first.root.openAsNewVisitor(link)

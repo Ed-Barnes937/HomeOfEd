@@ -1,7 +1,7 @@
+import { hubUrlFor, switchPlayerUrlFor } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 
 import type { ShareState } from '../share/useShareWand.ts'
-import { hubUrl } from '../useMediaQuery.ts'
 import styles from './Header.module.scss'
 
 export function ShelfIcon() {
@@ -60,25 +60,78 @@ function PictureIcon() {
   )
 }
 
+function PlayerIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="6" r="3" />
+      <path d="M3 15.5 c0.8 -3 3.2 -4.5 6 -4.5 s5.2 1.5 6 4.5" />
+    </svg>
+  )
+}
+
+/** Who the wands are kept for, and the way to hub to switch player and come back (ADR 0094). */
+function Player({ name }: { name: string }) {
+  const href = switchPlayerUrlFor(window.location.href)
+  const content = (
+    <>
+      <PlayerIcon />
+      <span className={`${styles.label} ${styles.playerName}`}>{name}</span>
+    </>
+  )
+  // Outside the estate there is no hub to switch at, so it is the name alone.
+  return href === null ? (
+    <span
+      className={`${styles.button} ${styles.player} ${styles.static}`}
+      role="img"
+      aria-label={`Playing as ${name}`}
+      data-testid="player"
+    >
+      {content}
+    </span>
+  ) : (
+    <a
+      className={`${styles.button} ${styles.player}`}
+      href={href}
+      aria-label={`Playing as ${name}. Switch player`}
+      data-testid="player"
+    >
+      {content}
+    </a>
+  )
+}
+
 export function Header({
   shelfCount,
+  player,
   shareState,
   onShare,
   pictureBusy,
   onPicture,
 }: {
-  shelfCount: number
+  /** `null` hides the shelf: the shared view keeps nothing. */
+  shelfCount: number | null
+  /** The player's name, or `null` for no chip (signed out, or the shared view). */
+  player: string | null
   shareState: ShareState
   onShare: () => void
   pictureBusy: boolean
   onPicture: () => void
 }) {
   return (
-    <header className={styles.header}>
+    <header className={player === null ? styles.header : `${styles.header} ${styles.withPlayer}`}>
       <div className={styles.brand}>
         <a
           className={styles.back}
-          href={hubUrl(window.location.hostname)}
+          href={hubUrlFor(window.location.href)}
           aria-label="Back to home of ed"
         >
           <svg
@@ -99,13 +152,20 @@ export function Header({
         <span className={styles.motto}>wands made to measure</span>
       </div>
       <nav className={styles.nav}>
-        <Link to="/shelf" className={styles.button} aria-label={`Your shelf, ${shelfCount} wands`}>
-          <ShelfIcon />
-          <span className={styles.label}>Your shelf</span>
-          <span className={styles.count} aria-hidden="true">
-            {shelfCount}
-          </span>
-        </Link>
+        {player !== null && <Player name={player} />}
+        {shelfCount !== null && (
+          <Link
+            to="/shelf"
+            className={styles.button}
+            aria-label={`Your shelf, ${shelfCount} wands`}
+          >
+            <ShelfIcon />
+            <span className={styles.label}>Your shelf</span>
+            <span className={styles.count} aria-hidden="true">
+              {shelfCount}
+            </span>
+          </Link>
+        )}
         <button
           type="button"
           className={styles.button}
