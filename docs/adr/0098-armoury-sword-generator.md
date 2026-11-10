@@ -118,11 +118,17 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   changes. Satin steel with iron fittings is "Steel" (not "Grey": "Grey Warden" and "Grey
   Pilgrim" are borrowed), dark iron is "Dusk" (not "Iron": "Iron Giant"), and the Dagger's
   noun is "Wren" (not "Thorn": "Silverthorn"), matching the Little Wren preset.
+- Gold fittings are "Gold", not "Golden" ("Golden Swallow" is a film title), and blue
+  fittings are "blued" in words and never name a satin sword (the hilt is a dark navy).
 - `DO_NOT_USE` is research "8.4" and "3.3" plus the near misses above and "Golden Rune",
-  "Silver Flame", "Golden Crescent", "Silver Star" and "Bronze Star". A name it would make
-  falls back to the Kind's noun; a unit test covers every colour and noun pair.
-- Feel words add "Well balanced" for a slim two-hander, where "Quick in the hand" read oddly
-  on a five-foot sword; a Dagger is never "Mighty".
+  "Silver Flame", "Golden Crescent", "Silver Star", "Bronze Star" and "Gold Star". A name it
+  would make falls back to the Kind's noun; a unit test covers every colour and noun pair.
+- The tag line closes on a feel word chosen from what the sword is, so no word closes more
+  than about 30% of any Kind: Mighty (long and broad), Sturdy (broad), Long in the reach
+  (long), Quick in the hand or Well balanced (slim, one or two hands), Steady (a middling
+  two-hander), Nimble and Handy (a short or longer Dagger), Light as a feather (a slim
+  Rapier), Graceful and Swift (a deep curve or a slim curved blade). A Dagger, Sabre, Katana
+  or slim blade is never "Mighty". A Katana's temper line is named in its tag line.
 - `swordItem.follows` resets the per-Kind choices to the new Kind's signature only when the
   Kind actually changes.
 

@@ -68,7 +68,7 @@ describe('swordName', () => {
     expect(swordName({ ...knight, steel: 'dark' })).toBe('The Night Warden')
     expect(swordName({ ...knight, steel: 'silver' })).toBe('The Silver Warden')
     expect(swordName({ ...knight, steel: 'bright', fittings: 'gold' })).toBe('The Bright Warden')
-    expect(swordName({ ...knight, fittings: 'gold' })).toBe('The Golden Warden')
+    expect(swordName({ ...knight, fittings: 'gold' })).toBe('The Gold Warden')
     expect(swordName({ ...knight, fittings: 'darkIron' })).toBe('The Dusk Warden')
   })
 
@@ -138,29 +138,66 @@ describe('swordNumber', () => {
 
 describe('swordTagLine', () => {
   it('reads like a smith ticket: length, steel, hilt and how it feels', () => {
-    expect(swordTagLine(swordPresets.length ? sword(swordPresets[0]!.params) : {})).toMatch(
-      /^[A-Z][a-z-]+( and a half)? inches, satin steel, iron hilt\. Steady\.$/,
+    expect(swordTagLine(sword(swordPresets[0]!.params))).toMatch(
+      /^[A-Z][a-z-]+( and a half)? inches, satin steel, iron hilt\. Well balanced\.$/,
     )
     expect(
       swordTagLine(sword({ ...kindOf('knight'), steel: 'bright', fittings: 'brass' })),
-    ).toMatch(/, mirror steel, brass hilt\. Steady\.$/)
+    ).toMatch(/, mirror steel, brass hilt\. /)
     expect(
       swordTagLine(sword({ ...kindOf('knight'), pattern: 'watered', fittings: 'darkIron' })),
     ).toMatch(/, rippled steel, dark iron hilt\./)
   })
 
-  it('feels light on a Rapier, swift on a Sabre, mighty when long and broad, quick or balanced when slim', () => {
-    expect(swordTagLine(kindOf('rapier'))).toMatch(/ Light as a feather\.$/)
-    expect(swordTagLine(kindOf('sabre'))).toMatch(/ Swift\.$/)
+  it('calls blue fittings blued, and does not name a satin sword after them', () => {
+    const p = sword({ ...kindOf('sabre'), fittings: 'blue' })
+    expect(swordTagLine(p)).toMatch(/, satin steel, blued hilt\./)
+    expect(swordLore(p)).toMatch(/Blued fittings/)
+    expect(swordName(p)).toBe('The Steel Swallow')
+  })
+
+  it('mentions the temper line the name is about', () => {
+    const p = kindOf('katana')
+    expect(swordName(p)).toBe('The Tide Heron')
+    expect(swordTagLine(p)).toMatch(/, satin steel with a wavy temper line, iron hilt\./)
+  })
+
+  const feelOf = (overrides: Record<string, unknown>) =>
+    swordTagLine(sword(overrides)).split('. ').pop()
+
+  it('feels mighty only when long and broad, and sturdy when broad', () => {
     const big = { bladeLength: 0.8, bladeWidth: 0.8 }
-    expect(swordTagLine(sword({ ...kindOf('longsword'), ...big }))).toMatch(/ Mighty\.$/)
-    expect(swordTagLine(sword({ ...kindOf('dagger'), ...big }))).toMatch(/ Steady\.$/)
-    expect(swordTagLine(sword({ ...kindOf('knight'), bladeWidth: 0.2 }))).toMatch(
-      / Quick in the hand\.$/,
-    )
-    expect(swordTagLine(sword({ ...kindOf('greatsword'), bladeWidth: 0.2 }))).toMatch(
-      / Well balanced\.$/,
-    )
+    expect(feelOf({ ...kindOf('longsword'), ...big })).toBe('Mighty.')
+    expect(feelOf({ ...kindOf('longsword'), bladeLength: 0.3, bladeWidth: 0.8 })).toBe('Sturdy.')
+    expect(feelOf({ ...kindOf('dagger'), ...big })).toBe('Sturdy.')
+    expect(feelOf({ ...kindOf('katana'), ...big, curve: 0.5 })).toBe('Long in the reach.')
+  })
+
+  it('feels quick or balanced when slim, and long in the reach when long', () => {
+    expect(feelOf({ ...kindOf('knight'), bladeWidth: 0.2 })).toBe('Quick in the hand.')
+    expect(feelOf({ ...kindOf('greatsword'), bladeWidth: 0.2 })).toBe('Well balanced.')
+    expect(feelOf({ ...kindOf('knight'), bladeLength: 0.9 })).toBe('Long in the reach.')
+  })
+
+  it('gives each Kind words of its own', () => {
+    expect(feelOf({ ...kindOf('dagger'), bladeLength: 0.3 })).toBe('Nimble.')
+    expect(feelOf({ ...kindOf('dagger'), bladeLength: 0.7 })).toBe('Handy.')
+    expect(feelOf({ ...kindOf('rapier'), bladeWidth: 0.2 })).toBe('Light as a feather.')
+    expect(feelOf({ ...kindOf('sabre'), curve: 0.9 })).toBe('Graceful.')
+    expect(feelOf({ ...kindOf('sabre'), curve: 0.4, bladeWidth: 0.2 })).toBe('Swift.')
+  })
+
+  it('never closes most of a Kind on the same word', () => {
+    for (const family of FAMILY_KEYS) {
+      const counts = new Map<string, number>()
+      const rng = seededRandom(42)
+      for (let i = 0; i < 300; i++) {
+        const p = randomise(swordSchema, rng, { keep: { family }, locked: ['kind'] })
+        const word = swordTagLine(p).split('. ').pop()!
+        counts.set(word, (counts.get(word) ?? 0) + 1)
+      }
+      expect(Math.max(...counts.values()), family).toBeLessThanOrEqual(105)
+    }
   })
 })
 

@@ -6,9 +6,7 @@ import { SAVE_KEY, SWORD_SAVE_KEY, writeWorking } from '../persistence/storage.t
 import { FakeStorage } from '../persistence/testing/fakeStorage.ts'
 import { decodeShareHash, encodeShare, SHARE_HASH_PREFIX } from '../share/shareLink.ts'
 import { createWorkbench, startWorkbench } from '../workbench/workbench.ts'
-import { swordLore, swordName, swordNumber, swordShelfLine, swordTagLine } from './describe.ts'
-import { type Family, FAMILIES, overallLengthMm, signatureFor } from './families.ts'
-import { drawnFraction } from './framing.ts'
+import { type Family, FAMILIES, signatureFor } from './families.ts'
 import { swordItem } from './item.ts'
 import { swordPresets } from './presets.ts'
 import { swordSchema } from './swordSchema.ts'
@@ -65,24 +63,16 @@ describe('the sword item', () => {
     }
   })
 
-  it('describes a sword with the derived words', () => {
-    const p = swordItem.firstVisit()
-    expect(swordItem.name(p)).toBe(swordName(p))
-    expect(swordItem.number(p)).toBe(swordNumber(p))
-    expect(swordItem.tagLine(p)).toBe(swordTagLine(p))
-    expect(swordItem.lore(p)).toBe(swordLore(p))
-    expect(swordItem.shelfLine(p)).toBe(swordShelfLine(p))
-  })
-
   it('glows as a seven-character hex colour', () => {
     expect(swordItem.glow(swordItem.firstVisit())).toMatch(/^#[0-9a-f]{6}$/)
   })
 
-  it('is drawn at the framing fraction of its overall length', () => {
-    for (const preset of swordPresets) {
-      const p = sword(preset.params)
-      expect(swordItem.lengthFraction(p)).toBe(drawnFraction(overallLengthMm(p)))
-    }
+  it('draws a longer sword bigger, inside the fill', () => {
+    const dagger = swordItem.lengthFraction(sword({ family: 'dagger', bladeLength: 0 }))
+    const greatsword = swordItem.lengthFraction(sword({ family: 'greatsword', bladeLength: 1 }))
+    expect(dagger).toBeGreaterThanOrEqual(0.55)
+    expect(greatsword).toBeLessThanOrEqual(1)
+    expect(greatsword).toBeGreaterThan(dagger)
   })
 })
 

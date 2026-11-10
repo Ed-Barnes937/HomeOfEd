@@ -57,6 +57,8 @@ export const DO_NOT_USE = [
   'Golden Crescent',
   'Silver Star',
   'Bronze Star',
+  'Gold Star',
+  'Golden Swallow',
 ]
 
 const UNITS = [
@@ -81,7 +83,7 @@ const UNITS = [
   'eighteen',
   'nineteen',
 ]
-const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy']
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
 
 function numberInWords(n: number): string {
   if (n < 20) return UNITS[n] ?? String(n)
@@ -92,7 +94,7 @@ function numberInWords(n: number): string {
 
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-/** Whole and half inches in words, up to seventy: "Thirty-one and a half inches". */
+/** Whole and half inches in words, up to ninety-nine: "Thirty-one and a half inches". */
 export function lengthInWords(mm: number): string {
   const halves = Math.round((mm / 25.4) * 2)
   const whole = Math.floor(halves / 2)
@@ -109,11 +111,10 @@ export const SWORD_COLOURS = {
   bright: 'Bright',
   brassFittings: 'Brass',
   bronzeFittings: 'Bronze',
-  goldFittings: 'Golden',
+  goldFittings: 'Gold',
   silverFittings: 'Silver',
   ironFittings: 'Steel',
   darkIronFittings: 'Dusk',
-  blueFittings: 'Blue',
 } as const
 
 const PATTERN_COLOURS: Record<string, string> = {
@@ -133,7 +134,6 @@ const FITTINGS_COLOURS: Record<string, string> = {
   silver: SWORD_COLOURS.silverFittings,
   iron: SWORD_COLOURS.ironFittings,
   darkIron: SWORD_COLOURS.darkIronFittings,
-  blue: SWORD_COLOURS.blueFittings,
 }
 
 export const SWORD_NOUNS = {
@@ -196,25 +196,47 @@ const FITTINGS_WORDS: Record<string, string> = {
   bronze: 'bronze',
   silver: 'silver',
   gold: 'gold',
-  blue: 'blue',
+  blue: 'blued',
 }
 
 const steelWord = (p: Params) =>
   p.pattern === 'watered' ? 'rippled' : (STEEL_WORDS[p.steel as string] ?? 'satin')
 
+const slim = (p: Params, below = 0.3) => (p.bladeWidth as number) <= below
+const broad = (p: Params) => (p.bladeWidth as number) >= 0.72
+const long = (p: Params) => (p.bladeLength as number) >= 0.65
+
+/** How it feels, from what it is: its width, length, curve and, on a Rapier, its counterweight. */
 function feel(p: Params): string {
-  if (p.family === 'rapier') return 'Light as a feather'
-  if (p.family === 'sabre') return 'Swift'
-  const length = p.bladeLength as number
-  const width = p.bladeWidth as number
-  if (width <= 0.35) return familyOf(p).hands === 2 ? 'Well balanced' : 'Quick in the hand'
-  if (length >= 0.6 && width >= 0.6 && p.family !== 'dagger') return 'Mighty'
-  return 'Steady'
+  switch (p.family as Family) {
+    case 'dagger':
+      if (broad(p)) return 'Sturdy'
+      if (slim(p, 0.28)) return 'Quick in the hand'
+      return (p.bladeLength as number) <= 0.5 ? 'Nimble' : 'Handy'
+    case 'rapier':
+      if (slim(p, 0.28)) return 'Light as a feather'
+      if (long(p)) return 'Long in the reach'
+      return (p.pommelSize as number) >= 0.5 ? 'Well balanced' : 'Quick in the hand'
+    case 'sabre':
+    case 'katana':
+      if ((p.curve as number) >= 0.75) return 'Graceful'
+      if (slim(p)) return 'Swift'
+      if (long(p)) return 'Long in the reach'
+      return broad(p) ? 'Sturdy' : 'Well balanced'
+    default:
+      if (broad(p)) return long(p) ? 'Mighty' : 'Sturdy'
+      if (long(p)) return 'Long in the reach'
+      if (familyOf(p).hands === 2) return slim(p) ? 'Well balanced' : 'Steady'
+      return slim(p, 0.28) ? 'Quick in the hand' : 'Well balanced'
+  }
 }
+
+const TEMPER_STEEL = 'steel with a wavy temper line'
 
 export function swordTagLine(p: Params): string {
   const fittings = FITTINGS_WORDS[p.fittings as string] ?? 'iron'
-  return `${lengthInWords(overallLengthMm(p))}, ${steelWord(p)} steel, ${fittings} hilt. ${feel(p)}.`
+  const steel = p.pattern === 'temper' ? `${steelWord(p)} ${TEMPER_STEEL}` : `${steelWord(p)} steel`
+  return `${lengthInWords(overallLengthMm(p))}, ${steel}, ${fittings} hilt. ${feel(p)}.`
 }
 
 const STEEL_LORE: Record<string, string> = {
@@ -234,10 +256,10 @@ const FITTINGS_LORE: Record<string, string> = {
   iron: 'Iron fittings never complain.',
   darkIron: 'Dark iron fittings keep their secrets.',
   brass: 'Brass fittings are warm and friendly.',
-  bronze: 'Bronze fittings are old and steady and have seen a lot of sunrises.',
+  bronze: 'Bronze fittings are old and wise and have seen a lot of sunrises.',
   silver: 'Silver fittings catch the light and pass it on.',
   gold: 'Gold fittings stand up straight.',
-  blue: 'Blue fittings are as calm as deep water.',
+  blue: 'Blued fittings are as calm as deep water.',
 }
 
 const RUNE_LORE: Record<string, string> = {
