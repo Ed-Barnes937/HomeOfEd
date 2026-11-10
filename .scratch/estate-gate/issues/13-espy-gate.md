@@ -1,6 +1,6 @@
 # 13 - espy: per-profile doodles and the gate
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decisions 2, 3, 7, 8, 10
 Blocked by: 01, 02, 10 (merge after 17)
@@ -20,3 +20,48 @@ Blocked by: 01, 02, 10 (merge after 17)
   `compose.yml` or `deploy.yml`. Update `apps/espy/CLAUDE.md`.
 
 ## Comments
+
+**2026-11-10, built (one PR against `estate-gate/tracker`).** Differences from
+the text above, and why:
+
+- **No share link.** `save.ts` never touches `location.hash`; Save hands a PNG
+  to the share sheet or a download. So there is no `/shared`, `main.ts` passes
+  `familyDocumentGateFromEnv(process.env, { publicPaths: [] })`, and nothing
+  reads `arrivalFragment()`.
+- **`fly.toml` untouched**, per the orchestrator and ticket 19: the gate stays
+  off in production. The Dockerfile follows `packages/accounts/README.md`.
+- **The native shell does not rely on lacking a cookie.** `App.tsx` reads the
+  session as `null` whenever `Capacitor.isNativePlatform()`, and the page runs
+  no `reloadOnPlayerChange` there. `nativeShell.iwft.tsx` pins it with a family
+  cookie present: unscoped key, no player shown, no reload on a player change.
+  ADR 0094 amended.
+- **The back arrow is now `hubUrlFor`** (pattern step 5), and espy's own
+  `hubUrl.ts` is gone. In the compose stack it now points at `localhost:8080`
+  rather than `localhost:3000`. In the native shell it now points at
+  `https://homeofed.com`; before, the shell's `localhost` hostname sent it to
+  `http://localhost:3000`, a dead page on a phone. That is the one change
+  the native shell sees.
+- **The switch-player link** is the player's name in a pill at the header's
+  right, linking to `switchPlayerUrlFor(location.href)`. Outside the estate
+  (the `.iwft` port) it is the name alone, as boop's chip is.
+- **`src/server/main.test.ts`** copied from the starter: the real entrypoint
+  on a real port, gate off and on.
+- **`scripts/docker-stack-gate-round-trip.mjs`** gained `NO_SHARED=1`, which
+  skips the `/shared` step and checks that `/shared` is gated and an asset path
+  is not.
+
+**Measured (open question for Ed).** One slot, `espy:doodle:v2`, holding the
+whole undo history, which survives reloads. Chromium quota: 5,242,880
+characters per origin. A fresh drawing is 22-31 KB (390x844 to 1920x1080), a
+stroke about 120 characters, and every New page adds 21-37 KB (each page keeps
+its baked ink raster). Four copies (legacy plus three profiles) fit while the
+slot is under about 1.3 MB, roughly 40 New pages at laptop size. The slot has
+no bound except the quota: when a save meets it, `session.ts` falls back to a
+stripped copy (one raster, about 45 KB after six pages). Past about 1.3 MB a
+later profile's adoption fails and is retried; and a legacy slot near the
+quota, which is never rewritten, could leave too little room for a profile's
+stripped save. Built with the default adoption; options for Ed: keep it, only
+the first profile adopts (ticket 12's fallback), or have `session.ts` always
+persist only the current page's raster, which bounds a slot near 30 KB plus
+about 3 KB per page (undo past a New page after a reload then shows plain blots
+for older pages).
