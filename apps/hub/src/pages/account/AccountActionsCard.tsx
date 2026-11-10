@@ -7,6 +7,7 @@ import { accountErrorMessage } from '../../features/account/accountError.ts'
 import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { familySessionCookieOptions } from '../../features/account/familyService.ts'
+import { forgetProfile } from '../../features/account/silentRenewal.ts'
 
 import styles from './AccountPage.module.scss'
 
@@ -33,6 +34,7 @@ export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps)
    */
   function nowSignedOut(): void {
     clearFamilySession(familySessionCookieOptions(window.location.hostname))
+    forgetProfile()
     onSessionChange(null)
     queryClient.setQueryData(familyQueryKeys.children, [])
     queryClient.setQueryData(familyQueryKeys.me, { parent: null })

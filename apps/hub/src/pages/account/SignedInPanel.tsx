@@ -4,7 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
-import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
+import {
+  FAMILY_STALE_MS,
+  familyQueryKeys,
+  SERVICE_DOWN,
+} from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 
 import { AccountActionsCard } from './AccountActionsCard.tsx'
@@ -25,6 +29,7 @@ export function SignedInPanel({ parent }: SignedInPanelProps) {
   const children = useQuery({
     queryKey: familyQueryKeys.children,
     queryFn: () => client.listChildren(),
+    staleTime: FAMILY_STALE_MS,
   })
 
   return (

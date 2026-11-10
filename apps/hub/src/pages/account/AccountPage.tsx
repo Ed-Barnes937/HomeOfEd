@@ -1,9 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
-import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
+import {
+  FAMILY_STALE_MS,
+  familyQueryKeys,
+  SERVICE_DOWN,
+} from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { sharedLink } from '../../features/account/returnTo.ts'
+import { renewSilently, silentRenewalWorthTrying } from '../../features/account/silentRenewal.ts'
 import { useColourTheme } from '../useColourTheme.ts'
 
 import styles from './AccountPage.module.scss'
@@ -17,8 +23,37 @@ import { SignedOutCard } from './SignedOutCard.tsx'
 export function AccountPage() {
   const [theme, setTheme] = useColourTheme()
   const client = useFamilyClient()
-  const me = useQuery({ queryKey: familyQueryKeys.me, queryFn: () => client.me() })
+  const queryClient = useQueryClient()
   const shared = sharedLink()
+  const [renewing, setRenewing] = useState(silentRenewalWorthTrying)
+  const me = useQuery({
+    queryKey: familyQueryKeys.me,
+    queryFn: () => client.me(),
+    enabled: !renewing,
+    staleTime: FAMILY_STALE_MS,
+  })
+
+  useEffect(() => {
+    if (!renewing) return
+    void renewSilently(client, queryClient).then((returning) => {
+      if (!returning) setRenewing(false)
+    })
+  }, [renewing, client, queryClient])
+
+  const sharedItem = shared !== null && !me.data?.parent && (
+    <a className={styles.quiet} href={shared}>
+      Open what was shared
+    </a>
+  )
+
+  // Silent renewal shows no screen, only the way to a shared item, which needs no account.
+  if (renewing) {
+    return (
+      <main className={styles.account} data-theme={theme} data-account aria-busy>
+        <div className={styles.column}>{sharedItem}</div>
+      </main>
+    )
+  }
 
   return (
     <main className={styles.account} data-theme={theme} data-account>
@@ -40,7 +75,9 @@ export function AccountPage() {
         <h1 className={styles.title}>Account</h1>
 
         {me.isPending && <p className={styles.lede}>Loading your family…</p>}
-        {me.isError && <p className={styles.error}>{accountErrorMessage(me.error, SERVICE_DOWN)}</p>}
+        {me.isError && (
+          <p className={styles.error}>{accountErrorMessage(me.error, SERVICE_DOWN)}</p>
+        )}
         {me.data &&
           (me.data.parent === null ? (
             <>
@@ -53,11 +90,7 @@ export function AccountPage() {
             <SignedInPanel parent={me.data.parent} />
           ))}
         {/* /shared needs no account, so it stays reachable while family loads or is down. */}
-        {shared !== null && !me.data?.parent && (
-          <a className={styles.quiet} href={shared}>
-            Open what was shared
-          </a>
-        )}
+        {sharedItem}
       </div>
     </main>
   )

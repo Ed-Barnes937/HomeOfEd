@@ -7,6 +7,7 @@ import { SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { familySessionCookieOptions } from '../../features/account/familyService.ts'
 import { returnToApp } from '../../features/account/returnTo.ts'
+import { rememberProfile } from '../../features/account/silentRenewal.ts'
 
 import styles from './AccountPage.module.scss'
 
@@ -40,6 +41,7 @@ export function WhosPlayingCard({
     },
     onSuccess: (claims) => {
       onSessionChange(claims)
+      if (claims !== null) rememberProfile(claims.sub)
       returnToApp(claims)
     },
   })

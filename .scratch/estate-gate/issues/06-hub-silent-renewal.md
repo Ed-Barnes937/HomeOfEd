@@ -1,6 +1,6 @@
 # 06 - hub: an expired family token renews without a screen
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decision 11
 Blocked by: 05
@@ -31,3 +31,31 @@ meet a parent-password wall every month.
   the loop guard, and a live token showing the picker.
 
 ## Comments
+
+- 2026-11-10 (implementer): built on `estate-gate/tracker` with ticket 05 in it.
+  **Stopped on the session lifetime, as the ticket says.** Better Auth's session
+  is its default 7 days (`betterAuth.ts` sets no `session` option), shorter than
+  the family token's 30. Worse, the browser cookie does not slide: identity calls
+  go through tRPC, `resolveParentId` uses `auth.api.getSession` server-side, and
+  the refreshed `Set-Cookie` is dropped (checked in the docker stack: the row's
+  expiry slid, no `Set-Cookie` on `identity.me`). So renewal works only for 7 days
+  after a parent's sign-in. Recorded in ADR 0095 decision 12; nothing changed.
+- Deviations: renewal is tried only on arrival, not after a sign-in on the page
+  (ADR 0095 decision 11). A remembered profile that `children.list` no longer
+  returns is not forgotten, only fallen through. The loop-guard iwft seeds the
+  first renewal's `sessionStorage` record rather than driving a real app bounce,
+  which the CT harness cannot load. Ticket 05's review leftovers (`iat` read-back,
+  same `returnTo`, trailing slash, shared link hidden when signed in) are fixed
+  here with tests.
+- 2026-11-10 (review fixes): renewal now makes one call of each with no retries
+  inside a 2 s time box and keeps "Open what was shared" on screen meanwhile; the
+  page reuses renewal's `me` and `children` answers; the loop-guard record is
+  written before the mint and a failed write means no renewal. A real renewal's
+  record and "no mint" on the fall-throughs are now asserted. Removing the
+  `parent === null` check still leaves tests green, because `parent.id` then
+  throws before any mint and the attempt falls through anyway.
+- 2026-11-10 (re-review): each time-box check is pinned by a late-answer iwft
+  (shown red with that check removed); nothing is written to the query cache after
+  the box closes; the hand-off is a plain 5 s `staleTime`, and sign-in and
+  registration now invalidate every family query so a returning parent is not
+  shown the list sign-out emptied (pinned by an iwft, shown red first).
