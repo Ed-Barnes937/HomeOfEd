@@ -28,7 +28,10 @@ App tickets must not touch either file.
   boundary) and sprout-pipeline (no public smoke) are unchanged. A new estate
   app should copy an estate app's smoke, not hub's.
 - The `302` must be exactly `302`, and the `Location` must start with
-  `https://homeofed.com/account?returnTo=`; anything else fails the smoke.
+  `https://homeofed.com/account?returnTo=https%3A%2F%2F` (the upper-case
+  encoding ticket 01's `accountUrl` produces); anything else fails the smoke,
+  so a gate that builds an `http://` return URL behind Fly's TLS termination
+  fails the deploy.
 - Raised (now ticket 18): in the docker stack hub's `/account` talks to family at
   `localhost:3012` (`familyService.ts`), but compose publishes family on 8092,
   and the family image's CORS allows only `https://homeofed.com` under
