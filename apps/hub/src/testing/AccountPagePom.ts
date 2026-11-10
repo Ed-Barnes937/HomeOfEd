@@ -4,8 +4,19 @@ import { expect } from '@playwright/experimental-ct-react'
 import type { Page } from '@playwright/test'
 
 import { SERVICE_DOWN } from '../features/account/accountQueries.ts'
+import {
+  type KeyValueStorage,
+  recordSilentRenewal,
+  REMEMBERED_PROFILE_KEY,
+} from '../features/account/silentRenewal.ts'
 
-import { FAMILY_DOWN_KEY, FAMILY_INVITE_CODE, FIXTURE_PARENT } from './familyFixture.ts'
+import {
+  FAMILY_DOWN_KEY,
+  FAMILY_INVITE_CODE,
+  FAMILY_SEED_KEY,
+  type FamilySeed,
+  FIXTURE_PARENT,
+} from './familyFixture.ts'
 
 /**
  * The /account screens. Navigation is client-side (history + popstate, sprout's
@@ -29,8 +40,13 @@ export class AccountPagePom extends BasePage {
    * so the app first loads on it as a visitor's does (and the router's mount-time
    * rewrite of the URL happens too). The browser carries the fragment over.
    */
-  static async openFromGate(page: Page, returnTo: string, fragment = ''): Promise<void> {
-    const url = `/account?returnTo=${encodeURIComponent(returnTo)}${fragment}`
+  static async openFromGate(
+    page: Page,
+    returnTo: string,
+    fragment = '',
+    path = '/account',
+  ): Promise<void> {
+    const url = `${path}?returnTo=${encodeURIComponent(returnTo)}${fragment}`
     await page.evaluate((target) => window.history.pushState({}, '', target), url)
   }
 
@@ -41,10 +57,37 @@ export class AccountPagePom extends BasePage {
     }, FAMILY_DOWN_KEY)
   }
 
+  /** Before mounting: what a parent arranged on an earlier visit (FamilySeed). */
+  static async givenFamily(page: Page, seed: FamilySeed): Promise<void> {
+    await page.evaluate(
+      ({ key, value }) => {
+        ;(globalThis as unknown as Record<string, unknown>)[key] = value
+      },
+      { key: FAMILY_SEED_KEY, value: seed },
+    )
+  }
+
+  /** Before mounting: hub silently renewed for `returnTo` in this tab a moment ago. */
+  static async givenRenewedSilentlyMomentsAgo(page: Page, returnTo: string): Promise<void> {
+    const entries = new Map<string, string>()
+    const storage: KeyValueStorage = {
+      getItem: (key) => entries.get(key) ?? null,
+      setItem: (key, value) => void entries.set(key, value),
+      removeItem: (key) => void entries.delete(key),
+    }
+    recordSilentRenewal(returnTo, Date.now(), storage)
+    await page.evaluate(
+      (written) => {
+        for (const [key, value] of written) sessionStorage.setItem(key, value)
+      },
+      [...entries],
+    )
+  }
+
   /** Before mounting: this device already holds a family cookie for `name`. */
-  static async givenPlaying(page: Page, name: string): Promise<void> {
+  static async givenPlaying(page: Page, name: string, sub = 'parent-elsewhere'): Promise<void> {
     const now = Date.now()
-    const claims = { sub: 'parent-elsewhere', role: 'parent', name, iat: now, exp: now + 86_400_000 }
+    const claims = { sub, role: 'parent', name, iat: now, exp: now + 86_400_000 }
     const payload = Buffer.from(JSON.stringify(claims)).toString('base64url')
     await page.context().addCookies([
       { name: FAMILY_SESSION_COOKIE, value: `${payload}.unsigned`, url: page.url() },
@@ -90,7 +133,12 @@ export class AccountPagePom extends BasePage {
 
   /** Stand in for the estate apps' origins, so a return lands on a real page. */
   async serveEstateApps(): Promise<void> {
-    await this.page.route(/^https:\/\/[a-z]+\.homeofed\.com\//, (route) =>
+    await AccountPagePom.serveEstateApps(this.page)
+  }
+
+  /** Before mounting too, for a return that happens with no screen. */
+  static async serveEstateApps(page: Page): Promise<void> {
+    await page.route(/^https:\/\/[a-z]+\.homeofed\.com\//, (route) =>
       route.fulfill({ contentType: 'text/html', body: '<h1>an estate app</h1>' }),
     )
   }
@@ -113,6 +161,10 @@ export class AccountPagePom extends BasePage {
 
   async verifyOffersNoSharedItem(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(this.page.getByRole('link', { name: 'Open what was shared' })).toHaveCount(0)
+  }
+
+  async verifySharedItemNotOffered(): Promise<void> {
     await expect(this.page.getByRole('link', { name: 'Open what was shared' })).toHaveCount(0)
   }
 
@@ -280,6 +332,21 @@ export class AccountPagePom extends BasePage {
     const days = (cookie!.expires - Date.now() / 1000) / 86400
     expect(days).toBeGreaterThan(29)
     expect(days).toBeLessThanOrEqual(30)
+  }
+
+  /** Silent renewal re-mints for whoever was last picked on this device. */
+  async verifyRemembersWhoIsPlaying(): Promise<void> {
+    const claims = await this.familySessionClaims()
+    expect(claims).not.toBeNull()
+    await expect.poll(() => this.rememberedProfile()).toBe(claims!.sub)
+  }
+
+  async verifyRemembersNobody(): Promise<void> {
+    await expect.poll(() => this.rememberedProfile()).toBeNull()
+  }
+
+  private rememberedProfile(): Promise<string | null> {
+    return this.page.evaluate((key) => localStorage.getItem(key), REMEMBERED_PROFILE_KEY)
   }
 
   async verifyNoFamilySession(): Promise<void> {

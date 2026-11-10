@@ -1,6 +1,6 @@
 # 06 - hub: an expired family token renews without a screen
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decision 11
 Blocked by: 05
@@ -31,3 +31,19 @@ meet a parent-password wall every month.
   the loop guard, and a live token showing the picker.
 
 ## Comments
+
+- 2026-11-10 (implementer): built on `estate-gate/tracker` with ticket 05 in it.
+  **Stopped on the session lifetime, as the ticket says.** Better Auth's session
+  is its default 7 days (`betterAuth.ts` sets no `session` option), shorter than
+  the family token's 30. Worse, the browser cookie does not slide: identity calls
+  go through tRPC, `resolveParentId` uses `auth.api.getSession` server-side, and
+  the refreshed `Set-Cookie` is dropped (checked in the docker stack: the row's
+  expiry slid, no `Set-Cookie` on `identity.me`). So renewal works only for 7 days
+  after a parent's sign-in. Recorded in ADR 0095 decision 12; nothing changed.
+- Deviations: renewal is tried only on arrival, not after a sign-in on the page
+  (ADR 0095 decision 11). A remembered profile that `children.list` no longer
+  returns is not forgotten, only fallen through. The loop-guard iwft seeds the
+  first renewal's `sessionStorage` record rather than driving a real app bounce,
+  which the CT harness cannot load. Ticket 05's review leftovers (`iat` read-back,
+  same `returnTo`, trailing slash, shared link hidden when signed in) are fixed
+  here with tests.

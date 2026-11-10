@@ -112,6 +112,7 @@ test('deleting the profile playing on this device stops it playing here', async 
 
   await root.verifyNobodyIsPlaying()
   await root.verifyNoFamilySession()
+  await root.verifyRemembersNobody()
 })
 
 test('a taken username is a message on the form, not a crash', async ({ mountApp }) => {
@@ -181,6 +182,7 @@ test('picking who is playing sets the estate-wide family cookie', async ({ mount
   await root.verifyPlayingNow('Robin')
   await root.verifyFamilySessionNames('Robin', 'child')
   await root.verifyFamilyCookieAttributes()
+  await root.verifyRemembersWhoIsPlaying()
 })
 
 test('the parent can be the one playing too', async ({ mountApp }) => {
@@ -204,6 +206,7 @@ test('signing out clears the family cookie as well as the session', async ({ mou
 
   await root.verifySignedOut()
   await root.verifyNoFamilySession()
+  await root.verifyRemembersNobody()
 })
 
 test.describe('arriving from an estate app', () => {
@@ -219,8 +222,25 @@ test.describe('arriving from an estate app', () => {
     await root.verifyArrived()
 
     await root.signIn()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.verifySharedItemNotOffered()
     await root.addProfile('Robin', 'robin')
     await root.pickWhoIsPlaying('Robin')
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('arriving on /account/ with a trailing slash returns all the same', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123', '/account/')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+
+    await root.signIn()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
 
     await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
   })
@@ -305,6 +325,24 @@ test.describe('arriving from an estate app', () => {
     await root.verifyNoFamilySession()
   })
 
+  test('an older cookie for the same profile cannot pass for a dropped write', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenPlaying(page, FIXTURE_PARENT.name, FIXTURE_PARENT.id)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+    await root.verifyArrived()
+    await root.signIn()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+
+    await root.dropCookieWrites()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyStillOnAccount()
+  })
+
   test('a token the device already counts as expired means no return', async ({
     mountApp,
     page,
@@ -377,16 +415,108 @@ test.describe('arriving from an estate app', () => {
   })
 })
 
+test.describe('silent renewal: a parent signed in here, a family token gone', () => {
+  const BOOP = 'https://boop.homeofed.com/play?bank=2'
+  const remembersRobin = { signedIn: true, profiles: ['Robin'], remembered: 'Robin' }
+
+  test('the remembered profile is re-minted and returned to with no screen', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+    await root.verifyFamilySessionNames('Robin', 'child')
+  })
+
+  test('a remembered parent is re-minted too', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, { ...remembersRobin, remembered: FIXTURE_PARENT.name })
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP)
+    const { root } = await mountApp()
+
+    await root.verifyReturnedTo(BOOP)
+    await root.verifyFamilySessionNames(FIXTURE_PARENT.name, 'parent')
+  })
+
+  test('a remembered profile deleted since falls through to the picker', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, { ...remembersRobin, rememberedDeleted: true })
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.verifyNobodyIsPlaying()
+    await root.verifyStillOnAccount()
+    await root.verifyNoFamilySession()
+  })
+
+  test('signed out, it falls through to sign in', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, { ...remembersRobin, signedIn: false })
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifyOffersSignIn()
+    await root.verifyOffersSharedItem('https://boop.homeofed.com/shared#g=abc-123')
+    await root.verifyStillOnAccount()
+    await root.verifyNoFamilySession()
+  })
+
+  // The app's gate refused what hub just minted and sent the visitor straight back.
+  test('a second arrival inside the loop guard shows the page, and a pick still returns', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenRenewedSilentlyMomentsAgo(page, BOOP)
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.verifyNobodyIsPlaying()
+    await root.verifyStillOnAccount()
+
+    await root.pickWhoIsPlaying('Robin')
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('arriving with a live family token is a switch-player link: the picker shows', async ({
+    mountApp,
+    page,
+  }) => {
+    await AccountPagePom.givenFamily(page, remembersRobin)
+    await AccountPagePom.givenPlaying(page, 'Wren')
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.verifyPlayingNote('Wren')
+    await root.verifyStillOnAccount()
+  })
+})
+
 test('deleting the account takes a confirm step, and can be backed out of', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
   await root.signIn()
+  await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+  await root.verifyRemembersWhoIsPlaying()
 
   await root.startThenAbandonDeletingTheAccount()
   await root.verifySignedInAs(FIXTURE_PARENT.name)
 
   await root.deleteAccount()
   await root.verifySignedOut()
+  await root.verifyRemembersNobody()
 })

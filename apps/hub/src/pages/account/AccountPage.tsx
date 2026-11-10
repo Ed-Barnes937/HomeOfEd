@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
 import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { sharedLink } from '../../features/account/returnTo.ts'
+import { renewSilently, silentRenewalWorthTrying } from '../../features/account/silentRenewal.ts'
 import { useColourTheme } from '../useColourTheme.ts'
 
 import styles from './AccountPage.module.scss'
@@ -17,8 +19,20 @@ import { SignedOutCard } from './SignedOutCard.tsx'
 export function AccountPage() {
   const [theme, setTheme] = useColourTheme()
   const client = useFamilyClient()
+  const queryClient = useQueryClient()
   const me = useQuery({ queryKey: familyQueryKeys.me, queryFn: () => client.me() })
   const shared = sharedLink()
+  const [renewing, setRenewing] = useState(silentRenewalWorthTrying)
+
+  useEffect(() => {
+    if (!renewing) return
+    void renewSilently(client, queryClient).then((returning) => {
+      if (!returning) setRenewing(false)
+    })
+  }, [renewing, client, queryClient])
+
+  // Silent renewal shows no screen: the paper alone until it returns or falls through.
+  if (renewing) return <main className={styles.account} data-theme={theme} data-account aria-busy />
 
   return (
     <main className={styles.account} data-theme={theme} data-account>

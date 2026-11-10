@@ -7,7 +7,22 @@ export const FAMILY_INVITE_CODE = 'dev-insecure-invite'
 export const FAMILY_DOWN_KEY = '__hubFamilyDown'
 
 export const FIXTURE_PARENT = {
+  id: 'parent-ada',
   name: 'Ada Lovelace',
   email: 'ada@example.com',
   password: 'correct-horse-battery',
+}
+
+/** Set on the page before mounting; the harness arranges the household, then mounts. */
+export const FAMILY_SEED_KEY = '__hubFamilySeed'
+
+export interface FamilySeed {
+  /** Whether FIXTURE_PARENT's cookie session is live when the page loads. */
+  signedIn: boolean
+  /** Child profiles by display name; the username is the name in lower case. */
+  profiles: readonly string[]
+  /** Who this device last picked: FIXTURE_PARENT's name or one of `profiles`. */
+  remembered: string
+  /** The remembered profile has since been deleted, on another device. */
+  rememberedDeleted?: boolean
 }

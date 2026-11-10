@@ -16,14 +16,22 @@ import {
 import { freshTestDb } from '@hoe/db'
 import { applyPendingSeed, testUserAuth } from '@hoe/test-kit/browser'
 import { FakeFamilyClient } from '@hoe/accounts/testing/fake'
+import { useEffect, useState } from 'react'
 
 import { App } from '../App.tsx'
+import { rememberProfile } from '../features/account/silentRenewal.ts'
 import { migrations } from '../server/migrations.ts'
 import { appRouter } from '../server/router.ts'
 import { hubSchema } from '../server/schema.ts'
 import { DrizzleHealthStore } from '../server/store.ts'
 
-import { FAMILY_DOWN_KEY, FAMILY_INVITE_CODE, FIXTURE_PARENT } from './familyFixture.ts'
+import {
+  FAMILY_DOWN_KEY,
+  FAMILY_INVITE_CODE,
+  FAMILY_SEED_KEY,
+  type FamilySeed,
+  FIXTURE_PARENT,
+} from './familyFixture.ts'
 
 exposeDispatcher(
   (async () => {
@@ -52,10 +60,31 @@ const familyClient = new FakeFamilyClient({
   parents: [FIXTURE_PARENT],
   now: () => new ServiceDate(),
 })
-if ((globalThis as unknown as Record<string, unknown>)[FAMILY_DOWN_KEY] === true) {
+const pageGlobals = globalThis as unknown as Record<string, unknown>
+if (pageGlobals[FAMILY_DOWN_KEY] === true) {
   familyClient.failWith(new Error('the family service is unreachable'))
+}
+const seed = pageGlobals[FAMILY_SEED_KEY] as FamilySeed | undefined
+const seeded = seed === undefined ? null : seedHousehold(seed)
+
+// What a parent did on an earlier visit, through the fake's own API.
+async function seedHousehold(seed: FamilySeed): Promise<void> {
+  await familyClient.signIn({ email: FIXTURE_PARENT.email, password: FIXTURE_PARENT.password })
+  const ids = new Map([[FIXTURE_PARENT.name, FIXTURE_PARENT.id]])
+  for (const name of seed.profiles) {
+    const profile = await familyClient.addChild({ displayName: name, username: name.toLowerCase() })
+    ids.set(name, profile.id)
+  }
+  const remembered = ids.get(seed.remembered)!
+  rememberProfile(remembered)
+  if (seed.rememberedDeleted === true) await familyClient.deleteChild({ id: remembered })
+  if (!seed.signedIn) await familyClient.signOut()
 }
 
 export function IwftApp() {
-  return <App familyClient={familyClient} />
+  const [ready, setReady] = useState(seeded === null)
+  useEffect(() => {
+    void seeded?.then(() => setReady(true))
+  }, [])
+  return ready ? <App familyClient={familyClient} /> : null
 }
