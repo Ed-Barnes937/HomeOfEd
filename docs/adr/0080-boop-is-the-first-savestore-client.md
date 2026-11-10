@@ -316,9 +316,10 @@ must run as production.
 Estate-gate ticket 10, building [ADR 0094](0094-per-profile-local-saves.md) and
 ADR 0093 decision 6 into boop.
 
-**The save document is the profile's, not the device's.** `profileStorage`
-(`src/persistence/profileStorage.ts`) is a `SaveStorage` that maps `boop:save`
-and `boop:favourites` to `key@<accountId>` and passes every other key through.
+**The save document is the profile's, not the device's.** `@hoe/accounts`'
+`profileStorage`, given boop's `PROFILE_KEYS`, is a `SaveStorage` that maps
+`boop:save` and `boop:favourites` to `key@<accountId>` and passes every other
+key through.
 It is built once per page from `readFamilySession()` and handed to everything
 that persists through `SaveStorageContext`, sync included, so `persistence/`
 and `boopSync.ts` still name the unscoped `SAVE_KEY` and know nothing about
@@ -338,7 +339,7 @@ consequence "a declined device has no way back" no longer applies. Decisions
 1 to 6 are unchanged.
 
 **Decision 9 is amended: the chip links to switch player and come back.** Its
-`href` is `accountUrlFor` on the current URL without its fragment (boop has
+`href` is `switchPlayerUrlFor`, which is `accountUrlFor` on the current URL without its fragment (boop has
 already loaded what the fragment carried, and replaying it would reopen a share
 over the new player's work). Outside the estate there is no hub, so the chip is
 words alone. The back arrow uses the same registry, so in the docker stack both
@@ -346,5 +347,9 @@ point at hub's compose port rather than its dev port.
 
 **The shared view syncs and keeps nothing.** `/shared` renders the same
 `HomePage` with a `memoryStorage` and no save client, so nothing in this ADR
-runs there and no code path in it can reach `localStorage`.
+runs there and no code path in it can reach `localStorage`. "Keep this boop"
+hands the boop as it is now, edits included, to `/`, where this ADR applies
+once the gate has a profile. That refines ADR 0093 decision 6; see the 2026-11-10
+amendment to [ADR 0026](0026-boop-share-links.md) for the encoding and its
+size.
 

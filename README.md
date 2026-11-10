@@ -121,6 +121,18 @@ docker compose up -d --build family hub boop
 node scripts/docker-stack-sign-in.mjs     # HEADED=1 to watch it
 ```
 
+For a gated app, `node scripts/docker-stack-gate-round-trip.mjs
+http://localhost:<composePort>` checks the gate end to end in Chromium and
+WebKit: a signed-out deep link meets the 302, signs in, and comes back with
+its fragment byte for byte; `/shared` opens and writes nothing; assets, `/api`
+and `/health` stay open.
+
+Both scripts register a fresh parent on every run. In the stack, Better Auth
+cannot see a client IP, so its sign-up rate limit falls back to one bucket
+shared by every caller ("Rate limiting could not determine a client IP" in
+family's log). Several registrations within about a minute start failing at
+"Signed in as Ada"; leave a minute between runs rather than debugging the app.
+
 ## Checks
 
 ```bash

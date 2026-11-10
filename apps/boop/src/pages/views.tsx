@@ -1,7 +1,7 @@
-import { readFamilySession } from '@hoe/accounts'
+import { memoryStorage, profileStorage, readFamilySession } from '@hoe/accounts'
 import { useState } from 'react'
 
-import { memoryStorage, profileStorage } from '../persistence/profileStorage.ts'
+import { PROFILE_KEYS } from '../persistence/profileKeys.ts'
 import { SaveStorageProvider } from '../persistence/SaveStorageContext.tsx'
 import { SaveClientProvider } from '../sync/SaveClientContext.tsx'
 import { HomePage } from './HomePage.tsx'
@@ -9,7 +9,7 @@ import { HomePage } from './HomePage.tsx'
 /** `/`: the playing profile's boops, synced when there is a family session (ADR 0094). */
 export function PlayerView() {
   const [storage] = useState(() =>
-    profileStorage(window.localStorage, readFamilySession()?.sub ?? null),
+    profileStorage(window.localStorage, readFamilySession()?.sub ?? null, PROFILE_KEYS),
   )
   return (
     <SaveStorageProvider storage={storage}>

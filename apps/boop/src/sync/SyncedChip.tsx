@@ -1,4 +1,5 @@
-import { switchPlayerUrl } from '../hubUrl.ts'
+import { switchPlayerUrlFor } from '@hoe/accounts'
+
 import styles from './SyncedChip.module.scss'
 
 interface SyncedChipProps {
@@ -16,7 +17,7 @@ interface SyncedChipProps {
  * to switch at, so it is words alone.
  */
 export function SyncedChip({ name, className }: SyncedChipProps) {
-  const href = switchPlayerUrl(window.location.href)
+  const href = switchPlayerUrlFor(window.location.href)
   const label = `synced as ${name}`
   return href === null ? (
     <span className={className ?? styles.chip} data-testid="synced-chip">

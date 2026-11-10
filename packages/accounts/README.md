@@ -16,7 +16,10 @@ Four entry points keep node-only code out of browser bundles:
   `FamilyClientError`, `readFamilySession` (decode-only claims read for
   display) and its write half, `writeFamilySession` / `clearFamilySession`.
   The estate gate's browser half: `ESTATE_APPS`, `safeReturnTo`, `accountUrl`,
-  `sharedUrl`, `profileScopedKey` and `adoptLegacyDocument` (below).
+  `sharedUrl`, `profileScopedKey` and `adoptLegacyDocument` (below), and what an
+  app calls to sit behind it: `profileStorage`, `memoryStorage`,
+  `arrivalFragment`, `hubUrlFor` and `switchPlayerUrlFor` (see "In a gated
+  app's browser code").
 - **`@hoe/accounts/server`** (node): `mintFamilyToken` / `verifyFamilyToken`
   (Ed25519 via `node:crypto`), `familyAuthProvider` - the AuthProvider any
   app drops into its `createContext({ auth })` seam - `familyDocumentGate`,
@@ -123,6 +126,36 @@ ADR 0070 (amended). Which key the gate verifies with depends on where it runs:
   refuses to boot. `compose.yml` sets the test public key on every
   `ESTATE_APPS` service, matching the key its family signs with, and
   `estateApps.test.ts` checks that.
+
+### In a gated app's browser code
+
+Four calls cover what every gated app does in the browser. boop is the
+reference (`apps/boop/src/pages/views.tsx`, `pages/HomePage.tsx`,
+`features/topbar/`).
+
+- **`profileStorage(device, accountId, keys)`** - a `KeyValueStorage` over
+  `device` (`window.localStorage`) in which each of `keys` is stored under
+  `profileScopedKey(key, accountId)` and every other key passes through.
+  Opening it runs `adoptLegacyDocument` for each key, swallowing a quota error.
+  Build it once per page from `readFamilySession()?.sub ?? null`, and pass it
+  wherever the app used `window.localStorage` for a save, so the app's code
+  keeps naming its unscoped keys. `keys` lists saves only, never device
+  preferences. Never build it on `/shared`, because building it copies the
+  legacy documents in, and that is a write.
+- **`memoryStorage()`** - the same interface held in memory, for `/shared`,
+  which must write nothing (ADR 0093 decision 6).
+- **`arrivalFragment()`** - the fragment the page was opened with, byte for
+  byte, captured when this package first loads, which is before a TanStack
+  Router mounts and decodes the address bar (`#w=%7B%7D` becoming `#w={}`). It
+  is `''` once the address bar has no fragment or is on another path, so a
+  remount after the app clears its fragment does not replay it. Import the
+  package from the app's entry chunk; a lazily loaded chunk would capture after
+  the router.
+- **`hubUrlFor(href)`** - hub's origin on the same tier as the app (production,
+  dev port or compose port), for a back-to-hub link; production hub anywhere
+  else. **`switchPlayerUrlFor(href)`** - `accountUrlFor` on `href` without its
+  fragment, so a "switch player" link returns here once a player is picked;
+  `null` outside the estate.
 
 ### Wiring the gate in an app
 
@@ -246,7 +279,8 @@ router could ever implement them.
 `pnpm --filter @hoe/accounts run test` - vitest unit tests: token round-trip /
 tamper / expiry / malformed / wrong-shape, provider mapping, decode-only
 session read, wire-format + error mapping of the client, the return-URL
-allowlist against named hostile inputs, legacy adoption, the gate's redirects,
+allowlist against named hostile inputs, legacy adoption, profile-scoped and
+memory storage, the arrival fragment, hub and switch-player links, the gate's redirects,
 the verifying key on and off Fly (directly and through
 `familyDocumentGateFromEnv`), the `compose.yml` ports and keys against
 `ESTATE_APPS`, and the fake's

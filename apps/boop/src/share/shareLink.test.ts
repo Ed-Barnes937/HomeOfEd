@@ -7,6 +7,7 @@ import {
   decodeShare,
   decodeShareHash,
   encodeShare,
+  keepFragment,
   keepSharedUrl,
   SHARE_FORMAT_VERSION,
   SHARE_HASH_PREFIX,
@@ -236,6 +237,19 @@ describe('keepSharedUrl', () => {
 
   it('is the bare root when the shared view had no fragment', () => {
     expect(keepSharedUrl('https://boop.homeofed.com', '')).toBe('https://boop.homeofed.com/')
+  })
+})
+
+describe('keepFragment', () => {
+  const opened = encodeShare(boop)
+
+  it('is the fragment the view opened on, byte for byte, while nothing has changed', () => {
+    expect(keepFragment('#g=%7Bescaped%7D', opened, opened)).toBe('#g=%7Bescaped%7D')
+  })
+
+  it('carries the visitor’s edits once anything has changed', () => {
+    const edited = encodeShare({ ...boop, tempo: 90 })
+    expect(keepFragment('#g=%7Bescaped%7D', opened, edited)).toBe(`${SHARE_HASH_PREFIX}${edited}`)
   })
 })
 

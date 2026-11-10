@@ -81,6 +81,24 @@ field.
 The encoding is unchanged. Share now builds `<origin>/shared#g=...`, the view
 the estate gate leaves open ([ADR 0093](0093-estate-gate.md) decision 6): it
 opens the boop to play and edit, keeps nothing, and leaves the fragment in the
-address bar so a reload reopens it. "Keep this boop" goes to `/` with the same
-fragment, where the hash semantics above still apply. Old root links keep
-working for a signed-in player.
+address bar so a reload reopens it. Old root links keep working for a
+signed-in player.
+
+"Keep this boop" goes to `/`, where the hash semantics above apply, and keeps
+what the visitor has now, edits included. This refines ADR 0093 decision 6,
+which said "the same fragment". If the boop still encodes exactly as it did
+when the view opened, the link carries the arrival fragment byte for byte, so
+an untouched share (even one this build cannot decode) arrives at the root
+exactly as it was sent. Otherwise the current boop is encoded with this same
+codec into a fresh `#g=`.
+
+The kept link is no longer than a share link for the same boop. The largest
+boop the save format allows (35 clips, every row of the 23-instrument kit, every
+step and pitch on) encodes to about 68,000 characters. Typical boops are a few
+hundred to a few thousand. The fragment never reaches a server: the gate's
+`302` and hub's `returnTo` carry no fragment, and the browser carries it across
+the redirect. The ceiling that matters is the browser's own: Chromium's is 2 MB,
+far above the worst case. The worst case was sent through the
+docker stack's gate, sign-in and pick in Chromium and WebKit and arrived byte
+for byte. If a messaging app truncates a link, decode is total (above): the
+recipient gets a first visit, not an error.

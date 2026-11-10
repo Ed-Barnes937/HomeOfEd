@@ -1,4 +1,5 @@
-import { hubUrl } from '../../hubUrl.ts'
+import { hubUrlFor } from '@hoe/accounts'
+
 import { savedStateLabel, type LoadedBoop } from '../../savedState.ts'
 import { useShareBoop } from '../../share/useShareBoop.ts'
 import { SyncedChip } from '../../sync/SyncedChip.tsx'
@@ -29,7 +30,7 @@ export interface TopBarProps {
    * The shared view's way to keep the boop (ADR 0093 decision 6). When set,
    * it stands in for New boop and My boops, since nothing here is saved.
    */
-  keepUrl?: string | null
+  onKeep?: (() => void) | null
 }
 
 /**
@@ -50,14 +51,14 @@ export function TopBar({
   loaded,
   onNewBoop,
   syncedAs = null,
-  keepUrl = null,
+  onKeep = null,
 }: TopBarProps) {
   const { shareState, share } = useShareBoop(getShareUrl)
   const copied = shareState === 'copied'
 
   return (
     <header className={styles.bar}>
-      <a className={styles.back} href={hubUrl(window.location.href)} aria-label="Back to home of ed">
+      <a className={styles.back} href={hubUrlFor(window.location.href)} aria-label="Back to home of ed">
         <svg
           width="22"
           height="22"
@@ -79,10 +80,15 @@ export function TopBar({
       </span>
       {syncedAs !== null && <SyncedChip name={syncedAs} />}
       <div className={styles.spacer} />
-      {keepUrl !== null ? (
-        <a className={styles.ghost} href={keepUrl} data-testid="keep-shared-link">
+      {onKeep !== null ? (
+        <button
+          type="button"
+          className={styles.ghost}
+          onClick={onKeep}
+          data-testid="keep-boop-button"
+        >
           Keep this boop
-        </a>
+        </button>
       ) : (
         <>
           {onNewBoop && (

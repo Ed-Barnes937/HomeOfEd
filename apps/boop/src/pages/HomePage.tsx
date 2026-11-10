@@ -1,3 +1,4 @@
+import { arrivalFragment } from '@hoe/accounts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import '../styles/tokens.scss'
@@ -40,8 +41,14 @@ import { useFavourites } from '../persistence/useFavourites.ts'
 import { useWorkingSong } from '../persistence/useWorkingSong.ts'
 import { afterEdit, isUnsaved, type LoadedBoop } from '../savedState.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
-import { arrivalFragment } from '../share/arrival.ts'
-import { buildShareUrl, clearShareHash, decodeShareHash, keepSharedUrl } from '../share/shareLink.ts'
+import {
+  buildShareUrl,
+  clearShareHash,
+  decodeShareHash,
+  encodeShare,
+  keepFragment,
+  keepSharedUrl,
+} from '../share/shareLink.ts'
 import {
   activeClip,
   addClip,
@@ -165,11 +172,11 @@ export function HomePage({ shared = false }: HomePageProps) {
   // A shared boop is decoded on the first render, before the first restore,
   // and wins over the autosaved grid. Held in a ref so the value survives the
   // fragment being cleared below — decoding again would then find nothing.
+  const [arrival] = useState(arrivalFragment)
   const sharedBoop = useRef<StoredBoop | null | undefined>(undefined)
-  sharedBoop.current ??= decodeShareHash(arrivalFragment())
-  const [keepUrl] = useState(() =>
-    shared ? keepSharedUrl(window.location.origin, arrivalFragment()) : null,
-  )
+  sharedBoop.current ??= decodeShareHash(arrival)
+  // The shared view's boop as it opened, encoded, so "Keep this boop" can tell an edit from none.
+  const openedToken = useRef<string | null>(null)
 
   // The restore hands back the whole autosaved song, its active clip and tempo
   // already in the engine; adopting it here is what un-gates the render below.
@@ -185,8 +192,12 @@ export function HomePage({ shared = false }: HomePageProps) {
   const sync = useBoopSync()
 
   useEffect(() => {
-    if (restoredSong) setSong(restoredSong)
-  }, [restoredSong])
+    if (!restoredSong) return
+    setSong(restoredSong)
+    if (shared && engine) {
+      openedToken.current ??= encodeShare(storedBoopFromSong(engine.kit, restoredSong, WORKING_NAME))
+    }
+  }, [restoredSong, shared, engine])
 
   // Tap-time reads (share, save) go through the ref so their callbacks keep a
   // stable identity while always seeing the song as it stands.
@@ -550,6 +561,14 @@ export function HomePage({ shared = false }: HomePageProps) {
       storedBoopFromSong(engine.kit, songRef.current, WORKING_NAME),
     )
   }, [engine])
+
+  /** The shared view's "Keep this boop": to the root and the gate, with the boop as it is now. */
+  const keepBoop = useCallback(() => {
+    if (!engine || !songRef.current) return
+    const current = encodeShare(storedBoopFromSong(engine.kit, songRef.current, WORKING_NAME))
+    const fragment = keepFragment(arrival, openedToken.current, current)
+    window.location.assign(keepSharedUrl(window.location.origin, fragment))
+  }, [engine, arrival])
 
   /** Read at tap time (the Save button inside "My boops"), same reasoning as `getShareUrl`. */
   const getWorkingBoop = useCallback(
@@ -925,7 +944,7 @@ export function HomePage({ shared = false }: HomePageProps) {
               onOpenHints={() => setHintsOpen(true)}
               loaded={loaded}
               syncedAs={sync.syncedAs}
-              keepUrl={keepUrl}
+              onKeep={shared ? keepBoop : null}
             />
           ) : (
             <TopBar
@@ -935,7 +954,7 @@ export function HomePage({ shared = false }: HomePageProps) {
               loaded={loaded}
               onNewBoop={requestNewBoop}
               syncedAs={sync.syncedAs}
-              keepUrl={keepUrl}
+              onKeep={shared ? keepBoop : null}
             />
           )}
         </div>

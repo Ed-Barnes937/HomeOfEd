@@ -1,6 +1,6 @@
+import { hubUrlFor } from '@hoe/accounts'
 import { useState } from 'react'
 
-import { hubUrl } from '../../hubUrl.ts'
 import { isUnsaved, type LoadedBoop } from '../../savedState.ts'
 import { useShareBoop } from '../../share/useShareBoop.ts'
 import { SyncedChip } from '../../sync/SyncedChip.tsx'
@@ -43,9 +43,9 @@ export interface PhoneBarProps {
   syncedAs?: string | null
   /**
    * The shared view's way to keep the boop (ADR 0093 decision 6): the save icon
-   * becomes this link, and the menu drops New boop and My boops.
+   * presses this instead, and the menu drops New boop and My boops.
    */
-  keepUrl?: string | null
+  onKeep?: (() => void) | null
 }
 
 const BackArrowIcon = () => (
@@ -97,7 +97,7 @@ export function PhoneBar({
   onOpenHints,
   loaded,
   syncedAs = null,
-  keepUrl = null,
+  onKeep = null,
 }: PhoneBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmingClear, setConfirmingClear] = useState(false)
@@ -111,21 +111,22 @@ export function PhoneBar({
 
   return (
     <div className={styles.bar} data-testid="phone-bar">
-      <a className={styles.icon} href={hubUrl(window.location.href)} aria-label="Back to home of ed">
+      <a className={styles.icon} href={hubUrlFor(window.location.href)} aria-label="Back to home of ed">
         <BackArrowIcon />
       </a>
 
       <span className={styles.wordmark}>boop</span>
 
-      {keepUrl !== null ? (
-        <a
+      {onKeep !== null ? (
+        <button
+          type="button"
           className={styles.icon}
-          href={keepUrl}
           aria-label="Keep this boop"
-          data-testid="keep-shared-link"
+          data-testid="keep-boop-button"
+          onClick={onKeep}
         >
           <SaveIcon />
-        </a>
+        </button>
       ) : (
         <button
           type="button"
@@ -159,7 +160,7 @@ export function PhoneBar({
 
       {menuOpen && (
         <div className={styles.menu} data-testid="phone-menu">
-          {keepUrl === null && (
+          {onKeep === null && (
             <>
               <button
                 type="button"

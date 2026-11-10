@@ -1,7 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { parseSaveDocument, type StoredBoop } from './persistence/saveFormat.ts'
-import { encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
+import { decodeShareHash, encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
 import { readFamilyCalls, seedFamily } from './testing/familySession.ts'
 import { HomePagePom } from './testing/HomePagePom.ts'
 import { test } from './testing/iwftTest.tsx'
@@ -68,26 +68,47 @@ test('with a session, /shared syncs nothing and offers only "Keep this boop"', a
   await root.verifyIsShown()
   await root.verifyNoSyncedChip()
   await root.verifyNothingOffersToSave()
-  await root.verifyKeepLink(FRAGMENT)
+  await root.verifyKeepShown()
   await page.waitForTimeout(6_000)
 
   expect(await readFamilyCalls(page)).toEqual([])
 })
 
-test('"Keep this boop" carries a percent-escaped fragment byte for byte, past the router', async ({
+test('"Keep this boop" carries an untouched fragment byte for byte, past the router', async ({
   mountApp,
   page,
 }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
   await page.reload()
-  // The router decodes `%7B` in the address bar on mount; the link must not.
+  // The router decodes `%7B` in the address bar on mount; the kept address must not.
   const escaped = '#g=%7B%22not%22%3A%22a%20boop%22%7D'
 
   await HomePagePom.openAt(page, `/shared${escaped}`)
   const { root } = await mountApp()
   await root.verifyIsShown()
-  await root.verifyKeepLink(escaped)
+  const kept = await root.keepBoop()
+
+  expect(kept).toBe(`${new URL(kept).origin}/${escaped}`)
+})
+
+test('"Keep this boop" keeps the visitor’s changes', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+
+  await HomePagePom.openAt(page, `/shared${FRAGMENT}`)
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.openClipEditor()
+  await root.toggleCell('kick', 8)
+  const kept = await root.keepBoop()
+
+  expect(new URL(kept).pathname).toBe('/')
+  const boop = decodeShareHash(new URL(kept).hash)
+  expect(boop?.patterns[0]?.rows.find((row) => row.instrumentId === 'kick')?.steps).toBe(
+    '1000000010000000',
+  )
 })
 
 test('a root #g= link still opens the boop for a signed-in player and keeps it', async ({
@@ -123,9 +144,22 @@ test.describe('on a phone', () => {
     await HomePagePom.openAt(page, `/shared${FRAGMENT}`)
     const { root } = await mountApp()
     await root.verifyIsShown()
-    await root.verifyKeepLink(FRAGMENT)
+    await root.verifyKeepShown()
     await root.openPhoneMenu()
     await root.verifyNothingOffersToSave()
     await expect(page.getByTestId('phone-menu-my-boops')).toHaveCount(0)
+  })
+
+  test('the save icon keeps the boop it opened on', async ({ mountApp, page }) => {
+    const first = await mountApp()
+    await first.root.verifyIsShown()
+    await page.reload()
+
+    await HomePagePom.openAt(page, `/shared${FRAGMENT}`)
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    const kept = await root.keepBoop()
+
+    expect(kept).toBe(`${new URL(kept).origin}/${FRAGMENT}`)
   })
 })

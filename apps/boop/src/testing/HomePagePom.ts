@@ -32,7 +32,7 @@ export class HomePagePom extends BasePage {
   private readonly hintSheetOverlay = this.page.getByTestId('hint-sheet-overlay')
   private readonly hintSheetClose = this.page.getByTestId('hint-sheet-close')
   private readonly syncedChip = this.page.getByTestId('synced-chip')
-  private readonly keepLink = this.page.getByTestId('keep-shared-link')
+  private readonly keepButton = this.page.getByTestId('keep-boop-button')
 
   /**
    * The app has landed on its home surface. That is the *song bar* since
@@ -3287,10 +3287,19 @@ export class HomePagePom extends BasePage {
 
   // The shared view (ADR 0093 decision 6): no way to save, one way to keep.
 
-  /** "Keep this boop", pointing at boop's root with `fragment` byte for byte. */
-  async verifyKeepLink(fragment: string): Promise<void> {
-    const origin = new URL(this.page.url()).origin
-    await expect(this.keepLink).toHaveAttribute('href', `${origin}/${fragment}`)
+  async verifyKeepShown(): Promise<void> {
+    await expect(this.keepButton).toBeVisible()
+  }
+
+  /**
+   * Press "Keep this boop" and return the address it went to, as the browser
+   * holds it: the root, with the boop in the fragment.
+   */
+  async keepBoop(): Promise<string> {
+    await this.ensureClipEditorClosed()
+    await this.keepButton.click()
+    await this.page.waitForURL((url) => url.pathname === '/', { waitUntil: 'commit' })
+    return this.page.url()
   }
 
   /** Nothing on screen offers to save: no "My boops" and no "New boop". */

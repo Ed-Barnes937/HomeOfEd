@@ -76,9 +76,17 @@ export function buildShareUrl(origin: string, boop: StoredBoop): string {
   return `${origin}${SHARED_PATH}${SHARE_HASH_PREFIX}${encodeShare(boop)}`
 }
 
-/** "Keep this boop": the root with the shared view's own fragment, where the gate asks who is playing. */
+/** "Keep this boop": the root with `fragment`, where the gate asks who is playing. */
 export function keepSharedUrl(origin: string, fragment: string): string {
   return `${origin}/${fragment}`
+}
+
+/**
+ * What "Keep this boop" carries: the boop as it is now. Unchanged since the
+ * view opened (`current === opened`), that is the arrival fragment byte for byte.
+ */
+export function keepFragment(arrival: string, opened: string | null, current: string): string {
+  return current === opened ? arrival : `${SHARE_HASH_PREFIX}${current}`
 }
 
 /** Read a shared boop out of `location.hash`; `null` if there isn't a valid one. */

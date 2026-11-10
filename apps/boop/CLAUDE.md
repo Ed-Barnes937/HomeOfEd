@@ -57,10 +57,9 @@ src/
   persistence/      the save format + autosave (ADR 0025) — no React except the hook
     saveFormat.ts     pure: the versioned save document, encode/parse (total decode)
     storage.ts        the localStorage seam; never throws
-    profileStorage.ts whose boops these are (ADR 0094): `profileStorage` keeps
-                      boop:save and boop:favourites under the playing profile
-                      and copies the legacy ones in; `memoryStorage` is the
-                      shared view's, which keeps nothing
+    profileKeys.ts    the keys that belong to the player (boop:save,
+                      boop:favourites), handed to `@hoe/accounts`'
+                      `profileStorage` (ADR 0094)
     SaveStorageContext.tsx  the one storage every hook persists through -
                       never `window.localStorage` directly
     favourites.ts     favourite sounds under their own key (boop:favourites) —
@@ -93,10 +92,9 @@ src/
                     but for `sampleDecoder.ts`, the AudioContext seam.
   share/            URL-hash share links (ADR 0026) — pure, no server
     shareLink.ts      encode/decode a creation to `/shared#g=<base64url>`; total
-                      decode; `keepSharedUrl`, the shared view's way back to /
+                      decode; `keepFragment`/`keepSharedUrl`, the shared view's
+                      way back to / with the boop as it is now
     shareAction.ts    share sheet vs clipboard, behind an injected ShareTarget
-    arrival.ts        the fragment as it arrived, captured at module load
-                      before the router decodes the address bar (ADR 0095)
   features/grid/    the grid well. Two renderers, one behaviour:
                     Grid.tsx      laptop/tablet - the clip's rows x 16 flat
                     PhoneGrid.tsx <1024px — pinned rail + snap-scrolling step
@@ -186,10 +184,9 @@ src/
                     PhoneBar.tsx (the 52px strip + "⋯" menu); `useIsPhone.ts`
                     (at src/) picks the layout: ≥1024 is clip-lanes (the
                     tablet band 1024–1279 shrinks the lane grid via CSS,
-                    ticket 20), <1024 is the phone
-  hubUrl.ts         the back arrow's hub and the chip's switch-player link,
-                    on boop's own tier (production, dev, stack) via the
-                    estate registry
+                    ticket 20), <1024 is the phone. The back arrow is
+                    `hubUrlFor` and the chip `switchPlayerUrlFor`, both from
+                    `@hoe/accounts`
   pages/            views.tsx - the two routes: `/` (PlayerView, the
                     profile's storage) and `/shared` (SharedView, memory
                     storage, no save client), both rendering HomePage.
@@ -332,19 +329,21 @@ share-link snapshot.
   ([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)). Anything that
   persists takes its storage from `useSaveStorage()`, never
   `window.localStorage`: the route builds it (`pages/views.tsx`), as
-  `profileStorage` on `/` (boop:save and boop:favourites under
+  `@hoe/accounts`' `profileStorage` on `/` (boop:save and boop:favourites under
   `key@<accountId>`, legacy copied in on first open) and `memoryStorage` on
   `/shared`. Code keeps naming the unscoped keys; a new per-player key goes in
-  `PROFILE_KEYS`, a device preference does not.
+  `persistence/profileKeys.ts`, a device preference does not.
 - **The estate gate** ([ADR 0093](../../docs/adr/0093-estate-gate.md)).
   `main.ts` passes `familyDocumentGateFromEnv(process.env, { publicPaths:
   ['/shared'] })`; it is on only when `FAMILY_ACCOUNT_URL` is set (compose sets
   it, `fly.toml` does not yet). `pnpm dev` and `.iwft` never run it.
   `/shared` is the one ungated document, and it must never write: it has no
-  save client and a memory storage, and "Keep this boop" (in place of New boop
-  and My boops) links to `/` with the arrival fragment byte for byte, which
-  meets the gate. Read a fragment through `share/arrival.ts`, never
-  `location.hash` after mount: the router decodes the address bar.
+  save client and a memory storage. "Keep this boop" (in place of New boop and
+  My boops) goes to `/` with the boop as it is now, which meets the gate: the
+  arrival fragment byte for byte if nothing changed, else a fresh `#g=`
+  (`keepFragment`). Read a fragment through `@hoe/accounts`'
+  `arrivalFragment()`, never `location.hash` after mount: the router decodes
+  the address bar.
 - **Saved-state visibility** ([ADR 0031](../../docs/adr/0031-boop-saved-state-visibility.md)).
   Because nothing is ever lost, **never add a `beforeunload` guard** — it would
   warn about nothing, in wording a 6-year-old cannot read. The chrome answers
