@@ -1,7 +1,7 @@
 import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 import { SERVICE_DOWN } from '../features/account/accountQueries.ts'
 import {
@@ -15,6 +15,7 @@ import {
 import {
   FAMILY_DOWN_KEY,
   FAMILY_DELAYS_KEY,
+  FAMILY_SAVE_SUMMARY_FAILS_KEY,
   FAMILY_INVITE_CODE,
   FAMILY_SEED_KEY,
   type FamilySeed,
@@ -62,6 +63,13 @@ export class AccountPagePom extends BasePage {
     await page.evaluate((key) => {
       ;(globalThis as unknown as Record<string, unknown>)[key] = true
     }, FAMILY_DOWN_KEY)
+  }
+
+  /** Before mounting: only the save summary fails; the rest of the service answers. */
+  static async givenSaveSummaryFails(page: Page): Promise<void> {
+    await page.evaluate((key) => {
+      ;(globalThis as unknown as Record<string, unknown>)[key] = true
+    }, FAMILY_SAVE_SUMMARY_FAILS_KEY)
   }
 
   /** Before mounting: these family calls answer late, or never. */
@@ -299,6 +307,31 @@ export class AccountPagePom extends BasePage {
   async verifyProfileListed(displayName: string, username: string): Promise<void> {
     const row = this.page.getByRole('listitem').filter({ hasText: `@${username}` })
     await expect(row).toContainText(displayName)
+  }
+
+  async verifyLastSaved(name: string, lines: readonly string[]): Promise<void> {
+    await expect(this.lastSaves(name).getByRole('listitem')).toHaveText([...lines])
+  }
+
+  async verifyNoLastSaved(name: string): Promise<void> {
+    await expect(this.lastSaves(name)).toHaveCount(0)
+  }
+
+  /** Needs `page.clock` installed before mounting: runs the query's retry backoff out. */
+  async outlastSaveSummaryRetries(): Promise<void> {
+    await this.waitForFamilyAnswers('saveSummary')
+    await this.page.clock.runFor(60_000)
+    await this.waitForFamilyAnswers('saveSummary')
+    expect((await this.familyCallTally()).calls.saveSummary).toBeGreaterThan(1)
+  }
+
+  async verifyNoErrorShown(): Promise<void> {
+    await expect(this.page.getByText(SERVICE_DOWN)).toHaveCount(0)
+    await expect(this.page.getByText(/unreachable/)).toHaveCount(0)
+  }
+
+  private lastSaves(name: string): Locator {
+    return this.page.getByRole('list', { name: `${name}'s last saves` })
   }
 
   async verifyProfileNotListed(username: string): Promise<void> {

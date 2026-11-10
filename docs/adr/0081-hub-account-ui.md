@@ -313,3 +313,27 @@ things are added, both in
 The return lives in one function, `returnToApp(written)` in
 `features/account/returnTo.ts`; the cards call it and nothing else in them knows
 about returning.
+
+## Amendment (2026-11-10): when each profile last saved
+
+Estate-gate spec decision 12 makes `/account` the only place a parent learns
+whether syncing works, so the screens now show, per account and app, one line
+such as "boop: saved 2 days ago", from `identity.saveSummary` (ADR 0079,
+amended). Estate-gate ticket 08.
+
+1. **Each line sits under whoever saved.** A child's lines go in its row in the
+   child profiles card; the parent's own go under "Signed in as", because the
+   parent has no row in that card. One query (`familyQueryKeys.saveSummary`,
+   the shared stale time) serves every row.
+2. **Quiet by construction.** No line for an account with no saves, nothing
+   while loading, and nothing on a failed read, after the default retries: a
+   parent cannot act on an error here, and the screens around it must not look
+   broken because a status line could not load. No warning styling either;
+   staleness is the signal. The lines use `--muted`, not `--faint`, since this
+   is the one place the information appears.
+3. **The wording is coarse on purpose:** just now, then whole minutes, hours,
+   days up to 59, months, years (`features/account/lastSaved.ts`). A save
+   stamped ahead of the device's clock reads "just now".
+4. **Signing out writes `[]` into the summary's cache**, alongside `children`
+   and `me` (decision 6), so the next parent on a shared device never sees the
+   previous household's times.

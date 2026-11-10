@@ -3,6 +3,7 @@ export const familyQueryKeys = {
   all: ['family'] as const,
   me: ['family', 'me'] as const,
   children: ['family', 'children'] as const,
+  saveSummary: ['family', 'saveSummary'] as const,
 }
 
 /** Long enough for the page to reuse what silent renewal fetched; every change invalidates. */

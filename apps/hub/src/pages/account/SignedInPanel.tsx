@@ -14,6 +14,7 @@ import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { AccountActionsCard } from './AccountActionsCard.tsx'
 import styles from './AccountPage.module.scss'
 import { ChildProfilesCard } from './ChildProfilesCard.tsx'
+import { LastSaved } from './LastSaved.tsx'
 import { WhosPlayingCard } from './WhosPlayingCard.tsx'
 
 export interface SignedInPanelProps {
@@ -34,9 +35,12 @@ export function SignedInPanel({ parent }: SignedInPanelProps) {
 
   return (
     <>
-      <p className={styles.lede}>
-        Signed in as {parent.name} ({parent.email})
-      </p>
+      <div>
+        <p className={styles.lede}>
+          Signed in as {parent.name} ({parent.email})
+        </p>
+        <LastSaved accountId={parent.id} name={parent.name} />
+      </div>
       {children.isError && (
         <p className={styles.error}>{accountErrorMessage(children.error, SERVICE_DOWN)}</p>
       )}

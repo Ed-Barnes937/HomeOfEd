@@ -646,3 +646,56 @@ test('deleting the account takes a confirm step, and can be backed out of', asyn
   await root.verifySignedOut()
   await root.verifyRemembersNobody()
 })
+
+test.describe('when each profile last saved', () => {
+  const MINUTE = 60_000
+  const HOUR = 60 * MINUTE
+  const DAY = 24 * HOUR
+  const household = { signedIn: true, profiles: ['Robin', 'Wren'], remembered: FIXTURE_PARENT.name }
+
+  test('one quiet line per app with a save, under whoever saved it', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, {
+      ...household,
+      saves: [
+        { by: 'Robin', appId: 'boop', agoMs: 2 * DAY + HOUR },
+        { by: 'Robin', appId: 'silt', agoMs: 3 * HOUR + MINUTE },
+        { by: FIXTURE_PARENT.name, appId: 'boop', agoMs: 10 * MINUTE + 5_000 },
+      ],
+    })
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+
+    await root.verifyLastSaved('Robin', ['boop: saved 2 days ago', 'silt: saved 3 hours ago'])
+    await root.verifyLastSaved(FIXTURE_PARENT.name, ['boop: saved 10 minutes ago'])
+    await root.verifyNoLastSaved('Wren')
+  })
+
+  test('a household with no saves shows no lines', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, household)
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyProfileListed('Robin', 'robin')
+    await root.waitForFamilyAnswers('saveSummary')
+
+    await root.verifyNoLastSaved('Robin')
+    await root.verifyNoLastSaved('Wren')
+    await root.verifyNoLastSaved(FIXTURE_PARENT.name)
+  })
+
+  test('a failed read shows nothing, not an error', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, {
+      ...household,
+      saves: [{ by: 'Robin', appId: 'boop', agoMs: DAY }],
+    })
+    await AccountPagePom.givenSaveSummaryFails(page)
+    await page.clock.install()
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyProfileListed('Robin', 'robin')
+
+    await root.outlastSaveSummaryRetries()
+
+    await root.verifyNoLastSaved('Robin')
+    await root.verifyNoErrorShown()
+  })
+})
