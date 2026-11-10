@@ -51,3 +51,9 @@ garden settings), which stay unscoped. Gate wiring only.
     signed out) and `profiles.iwft.tsx`.
   - wotd's `main.test.ts` start-up deadline is 30s: a database-backed
     entrypoint boots slowly under load.
+- 2026-11-10 (implementer, review fixes): signed-in rename and delete are
+  pinned in `profiles.iwft.tsx`; the v1 key is pinned unscoped; each app's
+  `main.test.ts` checks `/shared` is redirected with the gate on. The player chip
+  becomes the 40px square at 880px and below (a 22-character name met the
+  wordmark at 764-864px) and carries the full name as a `title` while it is cut
+  off; an iwft pins 800px with a long name.

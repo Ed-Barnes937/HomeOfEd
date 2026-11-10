@@ -80,6 +80,17 @@ describe('the production entrypoint', { timeout: START_DEADLINE_MS + 5_000 }, ()
     )
   })
 
+  it('keeps /shared behind the gate, as the app has no share links', async () => {
+    const base = await startMain({
+      FAMILY_ACCOUNT_URL: ACCOUNT_URL,
+      FAMILY_TOKEN_PUBLIC_KEY: TEST_FAMILY_PUBLIC_KEY,
+    })
+
+    const res = await fetch(`${base}/shared`, { redirect: 'manual' })
+
+    expect(res.status).toBe(302)
+  })
+
   it('lets a document request with a family session through', async () => {
     const base = await startMain({
       FAMILY_ACCOUNT_URL: ACCOUNT_URL,

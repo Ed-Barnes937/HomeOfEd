@@ -259,6 +259,28 @@ export class KaresansuiPagePom extends BasePage {
     await expect(this.player).toHaveCount(0)
   }
 
+  /** The full name as a tooltip, present only while the chip cannot show all of it. */
+  async verifyPlayerTitle(title: string | null): Promise<void> {
+    if (title === null) await expect(this.player).not.toHaveAttribute('title')
+    else await expect(this.player).toHaveAttribute('title', title)
+  }
+
+  /** The chip touches none of the wordmark's pieces. */
+  async verifyPlayerClearOfWordmark(): Promise<void> {
+    const chip = await this.player.boundingBox()
+    if (!chip) throw new Error('player chip is not rendered')
+    for (const part of await this.page.locator('header > *').all()) {
+      const box = await part.boundingBox()
+      if (!box || box.width === 0) continue
+      const overlaps =
+        chip.x < box.x + box.width &&
+        box.x < chip.x + chip.width &&
+        chip.y < box.y + box.height &&
+        box.y < chip.y + chip.height
+      expect(overlaps, `player chip overlaps ${await part.textContent()}`).toBe(false)
+    }
+  }
+
   // ---------- download ----------
 
   async verifyDownloadDownloadsPng(): Promise<void> {

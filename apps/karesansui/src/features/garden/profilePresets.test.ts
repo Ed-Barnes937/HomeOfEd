@@ -34,6 +34,7 @@ describe('a profile opening karesansui', () => {
     expect(presets).toEqual([fromV1Migrated])
     expect(snapshot(shared, [V1, V2])).toEqual(before)
     expect(shared.getItem(profileScopedKey(V2, ADA))).toBe(JSON.stringify([fromV1Migrated]))
+    expect(shared.getItem(profileScopedKey(V1, ADA))).toBeNull()
   })
 
   it('opens a v2 device with its presets', () => {

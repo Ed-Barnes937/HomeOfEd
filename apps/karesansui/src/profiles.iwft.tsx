@@ -60,6 +60,39 @@ test('presets saved on a v2 device appear for a player, and the device copy is n
   expect(await readPresets(page, PRESETS_V2, null)).toBe(JSON.stringify([v2Preset]))
 })
 
+test('renaming a player’s preset changes only their copy', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await seedDevicePresets(page, PRESETS_V2, [v2Preset])
+  await setFamilyCookie(page, ADA)
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.renamePreset(0, 'Ada’s garden')
+  await root.verifyPresetName(0, 'Ada’s garden')
+
+  await expect.poll(() => presetNames(page, ADA.sub)).toEqual(['Ada’s garden'])
+  expect(await readPresets(page, PRESETS_V2, null)).toBe(JSON.stringify([v2Preset]))
+})
+
+test('deleting a player’s preset changes only their copy', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await seedDevicePresets(page, PRESETS_V2, [v2Preset])
+  await setFamilyCookie(page, ADA)
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.deletePreset(0)
+  await root.verifyPresetAbsent(0)
+
+  await expect.poll(() => presetNames(page, ADA.sub)).toEqual([])
+  expect(await readPresets(page, PRESETS_V2, ADA.sub)).toBe('[]')
+  expect(await readPresets(page, PRESETS_V2, null)).toBe(JSON.stringify([v2Preset]))
+})
+
 test('presets from a v1 device migrate into the player’s own key, leaving the device as it was', async ({
   mountApp,
   page,
@@ -118,6 +151,31 @@ test('the same player looking again leaves the page as it is', async ({ mountApp
 
   await root.verifyPlayer('Ada')
   expect(loads).toBe(0)
+})
+
+test('a long name stays clear of the wordmark and shows in full on hover', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.setViewportSize({ width: 800, height: 800 })
+  await page.reload()
+  await setFamilyCookie(page, { ...ADA, name: 'Abcdefghijklmnopqrstuv' })
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyPlayerClearOfWordmark()
+  await root.verifyPlayerTitle('Abcdefghijklmnopqrstuv')
+})
+
+test('a name that fits needs no tooltip', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.reload()
+  await setFamilyCookie(page, ADA)
+
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyPlayerTitle(null)
 })
 
 test('the player is named only when someone is signed in', async ({ mountApp, page }) => {

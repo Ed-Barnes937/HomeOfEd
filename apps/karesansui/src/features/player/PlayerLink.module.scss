@@ -47,9 +47,9 @@ a.player {
   white-space: nowrap;
 }
 
-// Narrow rooms keep the corner a 40px square, like the back button; the name is
-// hidden visually but still read out.
-@media (max-width: 760px) {
+// Below 880px a long name reaches the wordmark, so the corner becomes a 40px
+// square like the back button; the name is hidden visually but still read out.
+@media (max-width: 880px) {
   .player {
     width: 40px;
     padding: 0;
