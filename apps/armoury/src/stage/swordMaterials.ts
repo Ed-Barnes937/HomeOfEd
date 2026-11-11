@@ -399,8 +399,20 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
         return st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0 ? 0.0 : v;
       }
       float runeAt(vec2 mm, float along) { return maskAt(uRuneMap, uRuneRect, uRuneOn, mm, along, 0.0); }
-      // The runes' light spread a few millimetres round each glyph: a coarse mip of their mask.
-      float runeSpillAt(vec2 mm, float along) { return maskAt(uRuneMap, uRuneRect, uRuneOn, mm, along, 4.0); }
+      // The runes' light pooled a few millimetres round each glyph: a blurred read of their mask that fades past its ends.
+      float runeSpillAt(vec2 mm, float along) {
+        if (uRuneOn < 0.5) return 0.0;
+        vec2 size = vec2(uRuneRect.y - uRuneRect.x, uRuneRect.w - uRuneRect.z);
+        vec2 p = vec2(zOf(along) - uRuneRect.x, mm.x - uRuneRect.z);
+        vec2 inside = clamp(p, vec2(0.0), size);
+        vec2 st = inside / size;
+        vec2 d = vec2(2.5) / size;
+        float pool = 0.4 * texture2D(uRuneMap, st, 3.0).r
+          + 0.15 * (texture2D(uRuneMap, st + vec2(d.x, 0.0), 3.0).r + texture2D(uRuneMap, st - vec2(d.x, 0.0), 3.0).r
+          + texture2D(uRuneMap, st + vec2(0.0, d.y), 3.0).r + texture2D(uRuneMap, st - vec2(0.0, d.y), 3.0).r);
+        float outside = length(p - inside);
+        return pool * exp(-outside * outside / 9.0);
+      }
       float engraveAt(vec2 mm, float along) { return maskAt(uEngraveMap, uEngraveRect, uEngraveOn, mm, along, 0.0); }
       float cutAt(vec2 mm, float along) { return max(runeAt(mm, along), engraveAt(mm, along)); }
       // Ripples: broad flowing bands, mostly along the blade, in mm; finer than a pixel they fade to grey.
@@ -540,7 +552,10 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
 // The close look's glint: a short band of light on the edge bevel, strongest on the edge facing up into the window.
 const bladeCapLine = `{
         float band = 1.0 - smoothstep(0.01, 0.032, abs(vAlong - uGlintAt));
-        float facing = mix(1.0, 0.12 + 0.88 * smoothstep(0.35, 0.7, dot(normal, vec3(0.45, 0.75, 0.5))), uGlintPickEdge);
+        // Which way this edge lies on screen, from the blade's centre line: only the edge toward the window (up and right) catches it.
+        vec2 acrossOnScreen = vec2(dFdx(vBladeMm.x), dFdy(vBladeMm.x));
+        vec2 edgeWay = sign(vBladeMm.x) * acrossOnScreen / max(length(acrossOnScreen), 1e-6);
+        float facing = mix(1.0, 0.06 + 0.94 * smoothstep(-0.1, 0.35, dot(edgeWay, vec2(0.6, 0.8))), uGlintPickEdge);
         float glintHere = band * clamp(vEdge, 0.0, 1.0) * facing;
         outgoingLight += uGlintLight * glintHere;
         float capHere = uCap + (uGlowCap - uCap) * max(glintHere, smoothstep(0.25, 0.6, runeHere) * runeLit);
