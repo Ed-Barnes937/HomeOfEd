@@ -11,11 +11,6 @@ import { ANVIL_IMAGE, swordOnAnvil } from './anvilArt.ts'
 import { ForgeFloor, ForgeWall } from './ForgeWall.tsx'
 import { SwordShadow } from './SwordShadow.tsx'
 
-const hexToRgb = (hex: string) => {
-  const n = parseInt(hex.slice(1), 16)
-  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`
-}
-
 /** The smithy's scene: the sword lying across the anvil by the forge, with its ticket beside it. */
 export function Anvil({ view, item, arrivals, reducedMotion, stageRef, onRename }: SceneProps) {
   const Stage = useStages(view.item.kind)?.Box
@@ -26,10 +21,7 @@ export function Anvil({ view, item, arrivals, reducedMotion, stageRef, onRename 
   const onAnvil = useMemo(() => swordOnAnvil(compileSword(params)), [params])
 
   return (
-    <div
-      className={styles.scene}
-      style={{ '--glow-rgb': hexToRgb(view.item.glow(params)) } as CSSProperties}
-    >
+    <div className={styles.scene}>
       <ForgeWall />
       <ForgeFloor />
       <div className={styles.shaft} aria-hidden="true" />

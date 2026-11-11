@@ -36,7 +36,7 @@
   pointer-events: none;
 }
 
-// The sword's own light on the smithy: faint, and only coloured when it has runes or gems.
+// The forge's warmth pooled round the anvil; never the sword's own colour, so nothing haloes at rest.
 .spill {
   position: absolute;
   left: 50%;
@@ -50,9 +50,9 @@
   z-index: 2;
   background: radial-gradient(
     circle,
-    rgba(var(--glow-rgb), 0.09) 0%,
-    rgba(var(--glow-rgb), 0.03) 25%,
-    rgba(var(--glow-rgb), 0) 50%
+    rgba(255, 138, 42, 0.09) 0%,
+    rgba(255, 138, 42, 0.03) 25%,
+    rgba(255, 138, 42, 0) 50%
   );
 }
 
