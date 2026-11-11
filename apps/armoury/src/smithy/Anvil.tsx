@@ -37,7 +37,7 @@ export function Anvil({ view, item, arrivals, reducedMotion, stageRef, onRename 
 
       <div
         className={styles.display}
-        style={{ '--grip': onAnvil.gripX } as CSSProperties}
+        style={{ '--grip': onAnvil.gripX, '--reach': onAnvil.reach } as CSSProperties}
         data-arrival={arrivals % 2}
         data-empty={display.empty || undefined}
         data-testid="counter"

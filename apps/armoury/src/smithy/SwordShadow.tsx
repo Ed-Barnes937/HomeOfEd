@@ -56,8 +56,8 @@ export function SwordShadow({
         {blur(id, 16)}
       </defs>
       <g mask={`url(#${id}off)`}>
-        <path d={all} fill="#000" opacity="0.5" filter={f(14)} transform="translate(44 -4)" />
-        <path d={all} fill="#000" opacity="0.3" filter={f(16)} transform="translate(-18 26)" />
+        <path d={all} fill="#000" opacity="0.85" filter={f(6)} transform="translate(24 4)" />
+        <path d={all} fill="#000" opacity="0.45" filter={f(14)} transform="translate(-12 22)" />
       </g>
       <g clipPath={`url(#${id}top)`}>
         <path d={all} fill="#000" opacity="0.5" filter={f(6)} />

@@ -21,26 +21,27 @@ export const ART_HEIGHT = 510
 const FACE = { left: 212, right: 790, top: 38, bottom: 132 }
 const STUMP = { x: 500, y: 96, r: 172 }
 const HORN =
-  'M24 79 C24 75 28 73 34 72.5 C70 66 110 54 142 46 L142 124 C110 116 70 104 34 97.5 ' +
-  'C28 97 24 94 24 90 Z'
+  'M12 84 Q12 82.4 15 82 C58 72 104 55 142 46 L142 124 C104 115 58 98 15 88 Q12 87.6 12 86 Z'
 
 /** The anvil's working top (horn, step and face): what the sword lies on. */
 export const ANVIL_TOP =
-  'M24 79 C24 75 28 73 34 72.5 C70 66 110 54 142 46 L142 44 L212 44 L212 38 L784 38 ' +
+  'M12 84 Q12 82.4 15 82 C58 72 104 55 142 46 L142 44 L212 44 L212 38 L784 38 ' +
   'Q790 38 790 44 L790 126 Q790 132 784 132 L212 132 L212 126 L142 126 L142 124 ' +
-  'C110 116 70 104 34 97.5 C28 97 24 94 24 90 Z'
+  'C104 115 58 98 15 88 Q12 87.6 12 86 Z'
 
 const r1 = (n: number) => Math.round(n * 10) / 10
 
 /**
  * The sword's top-down outline where the stage draws it, split into the blade and the taller
- * hilt (which casts further), and where its grip is (0-1 across).
+ * hilt (which casts further), where its grip is (0-1 across) and how far it reaches down.
  */
 export function swordOnAnvil(spec: SwordSpec): {
   d: string
   blade: string
   hilt: string
   gripX: number
+  /** How far the sword reaches below the anvil's button, as a fraction of its width. */
+  reach: number
 } {
   const length = drawnFraction(spec.lengthMm) * STAGE_FILL * SLOT_SPREAD * ANVIL_W
   const k = length / spec.lengthMm
@@ -56,7 +57,14 @@ export function swordOnAnvil(spec: SwordSpec): {
     .filter((_, i) => i !== longest)
     .map(path)
     .join('')
-  return { d: blade + hilt, blade, hilt, gripX: (x0 + spec.gripAt * length) / ANVIL_W }
+  const lowest = Math.max(...polys.flat().map(([, y]) => ANVIL_H / 2 + y * k))
+  return {
+    d: blade + hilt,
+    blade,
+    hilt,
+    gripX: (x0 + spec.gripAt * length) / ANVIL_W,
+    reach: Math.max(0, lowest - ANVIL_H) / ANVIL_W,
+  }
 }
 
 function wobblyRing(rand: () => number, cx: number, cy: number, r: number): string {
@@ -147,8 +155,8 @@ function faceWear(rand: () => number): string {
   for (let i = 0; i < 10; i++) {
     const x = FACE.left + 20 + rand() * (FACE.right - FACE.left - 40)
     const y = FACE.top + 10 + rand() * (FACE.bottom - FACE.top - 20)
-    const rr = 1.5 + rand() * 3
-    out += `<ellipse cx="${r1(x)}" cy="${r1(y)}" rx="${r1(rr * 1.4)}" ry="${r1(rr)}" fill="#1b1c1f" opacity="0.35"/><path d="M${r1(x - rr)} ${r1(y + rr * 0.6)} q${r1(rr)} ${r1(rr * 0.8)} ${r1(rr * 2)} 0" stroke="#fff" stroke-opacity="0.2" stroke-width="0.8"/>`
+    const rr = 1 + rand() * 2
+    out += `<ellipse cx="${r1(x)}" cy="${r1(y)}" rx="${r1(rr * 1.4)}" ry="${r1(rr)}" fill="#1b1c1f" opacity="0.16"/><path d="M${r1(x - rr)} ${r1(y + rr * 0.6)} q${r1(rr)} ${r1(rr * 0.8)} ${r1(rr * 2)} 0" stroke="#fff" stroke-opacity="0.2" stroke-width="0.8"/>`
   }
   for (let i = 0; i < 9; i++) {
     const top = rand() < 0.5
@@ -187,7 +195,7 @@ export function anvilSvg(): string {
     `<linearGradient id="edgeLight" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffbf86"/><stop offset="0.45" stop-color="#bdb7b0"/><stop offset="1" stop-color="#cfe0f6"/></linearGradient>` +
     `<linearGradient id="step" x1="142" y1="0" x2="212" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5a4639"/><stop offset="0.5" stop-color="#3b3a3a"/><stop offset="1" stop-color="#2e2f31"/></linearGradient>` +
     `<linearGradient id="horn" x1="0" y1="46" x2="0" y2="124" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#b77a4c"/><stop offset="0.12" stop-color="#3e3532"/><stop offset="0.34" stop-color="#7c848e"/><stop offset="0.5" stop-color="#4c5056"/><stop offset="0.8" stop-color="#202124"/><stop offset="1" stop-color="#0f0f11"/></linearGradient>` +
-    `<linearGradient id="hornWarm" x1="24" y1="0" x2="142" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff9a52" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9a52" stop-opacity="0"/></linearGradient>` +
+    `<linearGradient id="hornWarm" x1="12" y1="0" x2="142" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff9a52" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9a52" stop-opacity="0"/></linearGradient>` +
     `</defs>` +
     stump(rand) +
     `<g clip-path="url(#stumpClip)"><rect x="${STUMP.x - STUMP.r}" y="${STUMP.y - STUMP.r}" width="${STUMP.r * 2}" height="${STUMP.r * 2}" filter="url(#woodGrain)" opacity="0.5"/></g>` +
@@ -196,8 +204,8 @@ export function anvilSvg(): string {
     `<path d="${ANVIL_TOP}" fill="#000" opacity="0.35" filter="url(#soft)" transform="translate(-10 16)"/>` +
     `<path d="${HORN}" fill="url(#horn)"/>` +
     `<path d="${HORN}" fill="url(#hornWarm)"/>` +
-    `<path d="M26 77 C30 73 34 72.5 34 72.5 C70 66 110 54 141 47" stroke="#ffc18c" stroke-width="1.3" fill="none" opacity="0.55"/>` +
-    `<path d="M40 80 C80 74 112 66 140 62" stroke="#c9d6e6" stroke-width="2.5" fill="none" opacity="0.18" filter="url(#blur2)"/>` +
+    `<path d="M15 82.4 C58 72.4 104 55.4 141 47" stroke="#ffc18c" stroke-width="1.3" fill="none" opacity="0.55"/>` +
+    `<path d="M20 83.6 C60 76 104 67 140 63" stroke="#d6e2f0" stroke-width="2.6" fill="none" opacity="0.38" filter="url(#blur1)"/>` +
     `<rect x="142" y="44" width="70" height="82" fill="url(#step)"/>` +
     `<path d="M142 44.8 H212" stroke="#d99a6a" stroke-width="1.2" opacity="0.5"/>` +
     `<path d="M142 125.2 H212" stroke="#000" stroke-width="2" opacity="0.6"/>` +

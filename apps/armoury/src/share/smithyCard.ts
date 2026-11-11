@@ -172,8 +172,8 @@ function drawAnvil(ctx: CanvasRenderingContext2D, c: CardContent) {
   outside.rect(0, 0, CARD_WIDTH, CARD_HEIGHT)
   outside.addPath(anvilTop, new DOMMatrix([unit, 0, 0, unit, left, top]))
   ctx.clip(outside, 'evenodd')
-  shadowOf(ctx, c, at, 'rgba(0,0,0,0.5)', 26, 44 * unit, -4 * unit)
-  shadowOf(ctx, c, at, 'rgba(0,0,0,0.3)', 30, -18 * unit, 26 * unit)
+  shadowOf(ctx, c, at, 'rgba(0,0,0,0.85)', 12, 24 * unit, 4 * unit)
+  shadowOf(ctx, c, at, 'rgba(0,0,0,0.4)', 26, -12 * unit, 22 * unit)
   ctx.restore()
 
   ctx.save()

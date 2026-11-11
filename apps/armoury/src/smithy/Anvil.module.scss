@@ -146,7 +146,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-top: 4.5%;
+  margin-top: calc(4.5cqw + var(--reach) * 100cqw);
   margin-left: var(--row-left);
 }
 
@@ -160,8 +160,8 @@
 .twine {
   position: absolute;
   left: var(--hole-x);
-  top: -13cqw;
-  height: calc(13cqw + 50%);
+  top: calc(-13cqw - var(--reach) * 100cqw);
+  height: calc(13cqw + var(--reach) * 100cqw + 50%);
   width: calc(var(--grip) * 100cqw - var(--row-left) - var(--hole-x));
   overflow: visible;
   fill: none;
