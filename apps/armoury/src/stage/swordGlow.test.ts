@@ -63,6 +63,18 @@ describe('the sword glow', () => {
     for (const { glow } of samples) expect(glow.runes).toBeGreaterThanOrEqual(SWORD_REST.runes)
   })
 
+  it('lets the gems catch the light as the glint leaves the guard, then glow with the wake', () => {
+    const samples = run()
+    const caught = samples.filter(({ glow }) => glow.gems > 0.99)
+    expect(caught[0]!.t).toBeGreaterThanOrEqual(GLINT.from)
+    expect(caught[0]!.t).toBeLessThan(GLINT.from + GLINT.seconds / 2)
+    for (const { glow } of samples) {
+      expect(glow.gems).toBeGreaterThanOrEqual(0)
+      expect(glow.gems).toBeLessThanOrEqual(1)
+    }
+    expect(SWORD_REST.gems).toBe(0)
+  })
+
   it('gives a sword without runes or gems the glint alone', () => {
     const samples = run(null)
     for (const { glow } of samples) expect(glow.runes).toBe(SWORD_REST.runes)
@@ -74,6 +86,7 @@ describe('the sword glow', () => {
     for (let i = 1; i < samples.length; i++) {
       const [a, b] = [samples[i - 1]!.glow, samples[i]!.glow]
       expect(Math.abs(b.glint - a.glint)).toBeLessThan(0.1)
+      expect(Math.abs(b.gems - a.gems)).toBeLessThan(0.2)
       expect(Math.abs(b.runes - a.runes)).toBeLessThan(0.1 * (RUNE_PEAK - SWORD_REST.runes))
       expect(Math.abs(b.cap - a.cap)).toBeLessThan(0.1 * (GLOW_CEILING - REST_CAP))
     }

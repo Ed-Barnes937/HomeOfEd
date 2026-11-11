@@ -147,8 +147,8 @@ try {
             })
             await take(s, 'g')
           }
-          // Back to the anvil: the flight down and the sword lying there again.
-          await page.keyboard.press('Escape')
+          // A tap away puts it back: the flight down and the sword lying there again.
+          await page.mouse.click(view.viewport.width * 0.06, view.viewport.height * 0.5)
           let back = 0
           for (const ms of [150, 450, 1500]) {
             await page.waitForTimeout(ms - back)

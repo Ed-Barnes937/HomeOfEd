@@ -323,6 +323,10 @@ export function bladeUniforms(textures: SwordTextures) {
     uFullerTint: { value: 0 },
     /** The glint's place along the blade (0 guard, 1 tip) and its light; off at rest. */
     uGlintAt: { value: -1 },
+    /** 1 on a two-edged blade, so only the edge facing the window glints; a single edge always does. */
+    uGlintPickEdge: { value: 1 },
+    /** How far the wake has warmed the runes toward their peak, 0 to 1: their cores pale as they heat. */
+    uRuneWarm: { value: 0 },
     uGlintLight: { value: new THREE.Color(0, 0, 0) },
     /** What a glinting or waking pixel may reach; the rest cap everywhere else. */
     uGlowCap: { value: REST_CAP },
@@ -374,6 +378,8 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       uniform float uRuneInFuller;
       uniform float uFullerTint;
       uniform float uGlintAt;
+      uniform float uGlintPickEdge;
+      uniform float uRuneWarm;
       uniform vec3 uGlintLight;
       uniform float uGlowCap;
       uniform sampler2D uEngraveMap;
@@ -385,21 +391,17 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       // Brushed along the blade: the scan's streaks run across the image, so its axes swap.
       vec2 brushUv(vec2 mm) { return vec2(mm.y / uTile.x, mm.x / uTile.y); }
       float zOf(float along) { return uBladeZ.x + along * uBladeZ.y; }
-      float maskAt(sampler2D map, vec4 rect, float on, vec2 mm, float along) {
+      // Sampled before the bounds test: a mipmapped read inside a per-pixel branch picks a wrong level at the rect's edge.
+      float maskAt(sampler2D map, vec4 rect, float on, vec2 mm, float along, float bias) {
         if (on < 0.5) return 0.0;
         vec2 st = vec2((zOf(along) - rect.x) / (rect.y - rect.x), (mm.x - rect.z) / (rect.w - rect.z));
-        if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) return 0.0;
-        return texture2D(map, st).r;
+        float v = texture2D(map, st, bias).r;
+        return st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0 ? 0.0 : v;
       }
-      float runeAt(vec2 mm, float along) { return maskAt(uRuneMap, uRuneRect, uRuneOn, mm, along); }
+      float runeAt(vec2 mm, float along) { return maskAt(uRuneMap, uRuneRect, uRuneOn, mm, along, 0.0); }
       // The runes' light spread a few millimetres round each glyph: a coarse mip of their mask.
-      float runeSpillAt(vec2 mm, float along) {
-        if (uRuneOn < 0.5) return 0.0;
-        vec2 st = vec2((zOf(along) - uRuneRect.x) / (uRuneRect.y - uRuneRect.x), (mm.x - uRuneRect.z) / (uRuneRect.w - uRuneRect.z));
-        if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) return 0.0;
-        return texture2D(uRuneMap, st, 4.0).r;
-      }
-      float engraveAt(vec2 mm, float along) { return maskAt(uEngraveMap, uEngraveRect, uEngraveOn, mm, along); }
+      float runeSpillAt(vec2 mm, float along) { return maskAt(uRuneMap, uRuneRect, uRuneOn, mm, along, 4.0); }
+      float engraveAt(vec2 mm, float along) { return maskAt(uEngraveMap, uEngraveRect, uEngraveOn, mm, along, 0.0); }
       float cutAt(vec2 mm, float along) { return max(runeAt(mm, along), engraveAt(mm, along)); }
       // Ripples: broad flowing bands, mostly along the blade, in mm; finer than a pixel they fade to grey.
       float watered(vec2 mm) {
@@ -525,7 +527,7 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       float runeLit = 1.0 - smoothstep(uRuneFront * 1.4 - 0.4, uRuneFront * 1.4, runeSpan);
       {
         // A paler, hotter core inside the channel, the rune's own colour at its edges.
-        vec3 hot = mix(uRuneColour, vec3(max(uRuneColour.r, max(uRuneColour.g, uRuneColour.b))), 0.45 * smoothstep(0.6, 1.0, runeHere));
+        vec3 hot = mix(uRuneColour, vec3(max(uRuneColour.r, max(uRuneColour.g, uRuneColour.b))), (0.45 + 0.35 * uRuneWarm * runeLit) * smoothstep(0.6, 1.0, runeHere));
         // Only the cut glyph wakes, not the faint fringe of its mask.
         totalEmissiveRadiance += hot * (uRuneRest + (uRuneGlow - uRuneRest) * runeLit * smoothstep(0.25, 0.6, runeHere)) * runeHere;
         if (uFullerTint > 0.0)
@@ -537,8 +539,8 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
 
 // The close look's glint: a short band of light on the edge bevel, strongest on the edge facing up into the window.
 const bladeCapLine = `{
-        float band = 1.0 - smoothstep(0.012, 0.036, abs(vAlong - uGlintAt));
-        float facing = 0.35 + 0.65 * smoothstep(-0.2, 0.6, dot(normal, vec3(0.28, 0.92, 0.28)));
+        float band = 1.0 - smoothstep(0.01, 0.032, abs(vAlong - uGlintAt));
+        float facing = mix(1.0, 0.12 + 0.88 * smoothstep(0.35, 0.7, dot(normal, vec3(0.45, 0.75, 0.5))), uGlintPickEdge);
         float glintHere = band * clamp(vEdge, 0.0, 1.0) * facing;
         outgoingLight += uGlintLight * glintHere;
         float capHere = uCap + (uGlowCap - uCap) * max(glintHere, smoothstep(0.25, 0.6, runeHere) * runeLit);

@@ -254,8 +254,8 @@ function gripAround(spec: SwordSpec): number {
 const GLINT_LIGHT = new THREE.Color('#f2f6ff').multiplyScalar(1.5 * BLOOM_THRESHOLD)
 /** The faint light waking runes throw on the fuller's floor round them, times their colour. */
 const FULLER_TINT = 0.2
-/** How much brighter gems glow at the height of the wake. */
-const GEM_WAKE = 1.6
+/** How much brighter gems glow as they catch the light, and at the height of the wake. */
+const GEM_WAKE = 2.2
 
 /** Where the wake starts along the blade (0 to 1): at the runes, at the guard for gems alone, or nowhere. */
 export function wakeFrom(spec: SwordSpec): number | null {
@@ -273,6 +273,7 @@ function brighter(a: SwordGlow, b: SwordGlow): SwordGlow {
     runes: runes.runes,
     wake: runes.wake,
     cap: Math.max(a.cap, b.cap),
+    gems: Math.max(a.gems, b.gems),
   }
 }
 
@@ -365,6 +366,7 @@ export function SwordMesh({
       blade.uRuneRect.value.set(from, to, x0, x1)
     }
     blade.uRuneInFuller.value = shown.runes?.where === 'fuller' ? 1 : 0
+    blade.uGlintPickEdge.value = b.edges === 'double' ? 1 : 0
     if (shown.runes) blade.uRuneColour.value.setRGB(...srgbToLinear(shown.runes.colour))
     blade.uEngraveOn.value = built.engraving && engravingTexture ? 1 : 0
     blade.uEngraveMap.value = engravingTexture
@@ -426,12 +428,13 @@ export function SwordMesh({
     blade.uGlintAt.value = g.glintAt ?? -1
     blade.uGlintLight.value.copy(GLINT_LIGHT).multiplyScalar(g.glint)
     blade.uRuneGlow.value = g.runes
+    blade.uRuneWarm.value = lift
     blade.uRuneFront.value = g.wake
     blade.uFullerTint.value = FULLER_TINT * lift
     blade.uGlowCap.value = g.cap
     if (gemMat) {
-      gemMat.emissiveIntensity = GEM_REST.emissive * (1 + (GEM_WAKE - 1) * lift)
-      gemCap.value = GEM_REST.cap + (WAKE_CAP - GEM_REST.cap) * lift
+      gemMat.emissiveIntensity = GEM_REST.emissive * (1 + (GEM_WAKE - 1) * g.gems)
+      gemCap.value = GEM_REST.cap + (WAKE_CAP - GEM_REST.cap) * g.gems
     }
   })
 

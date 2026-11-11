@@ -11,6 +11,8 @@ const RISE_SECONDS = 0.6
 const HOLD_SECONDS = 0.6
 const SETTLE_SECONDS = 1.5
 const WAKE_SECONDS = RISE_SECONDS + HOLD_SECONDS + SETTLE_SECONDS
+/** The gems' catch lasts this share of the glint, from the guard. */
+const GEM_CATCH = 0.5
 
 /** The runes' glow (times their colour) at the height of the wake, and the brightest a waking rune or gem may be. */
 export const RUNE_PEAK = 1.3 * BLOOM_THRESHOLD
@@ -31,6 +33,8 @@ export interface SwordGlow {
   wake: number
   /** The brightest a glinting or waking pixel may be; the rest of the sword keeps the rest cap. */
   cap: number
+  /** How far the gems are lifted from their rest glow, 0 to 1: a brief catch as the glint leaves the guard, then the wake. */
+  gems: number
 }
 
 export const SWORD_REST: SwordGlow = {
@@ -39,6 +43,7 @@ export const SWORD_REST: SwordGlow = {
   runes: RUNE_REST,
   wake: 1,
   cap: REST_CAP,
+  gems: 0,
 }
 
 const smoothstep = (t: number) => {
@@ -60,6 +65,7 @@ export function swordGlow(
   const u = (sinceFlourish - GLINT.from) / GLINT.seconds
   const glinting = u >= 0 && u <= 1
   const glint = glinting ? Math.sin(Math.PI * u) : 0
+  const caught = u >= 0 && u <= GEM_CATCH ? Math.sin((Math.PI * u) / GEM_CATCH) : 0
 
   let lift = 0
   let wake = 1
@@ -84,6 +90,7 @@ export function swordGlow(
       REST_CAP + (GLOW_CEILING - REST_CAP) * glint,
       REST_CAP + (WAKE_CAP - REST_CAP) * lift,
     ),
+    gems: Math.max(caught, lift),
   }
 }
 
