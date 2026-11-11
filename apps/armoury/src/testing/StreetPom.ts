@@ -46,6 +46,12 @@ export class StreetPom extends BasePage {
     await reloadInPlace(this.page)
   }
 
+  /** The same visitor typing `path` into the address bar. */
+  async openAt(path: string): Promise<void> {
+    await reloadAtRoot(this.page)
+    await this.page.evaluate((to) => window.history.replaceState(null, '', to), path)
+  }
+
   /** A different visitor opening a link at `path`. */
   async openAsNewVisitor(url: string, path?: string): Promise<void> {
     await openAsNewVisitor(this.page, url, path)

@@ -2,6 +2,7 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  Navigate,
   Outlet,
   redirect,
 } from '@tanstack/react-router'
@@ -13,7 +14,10 @@ import { wandShop } from './shop/wandShop.ts'
 import { smithy } from './smithy/smithy.ts'
 import { StreetPage } from './street/StreetPage.tsx'
 
-const rootRoute = createRootRouteWithContext<{ landing: Landing }>()({ component: Outlet })
+const rootRoute = createRootRouteWithContext<{ landing: Landing }>()({
+  component: Outlet,
+  notFoundComponent: () => <Navigate to="/street" replace />,
+})
 
 // No `hash` on the redirect, so it drops a share link's fragment along with the root.
 const indexRoute = createRoute({

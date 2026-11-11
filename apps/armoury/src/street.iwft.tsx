@@ -151,3 +151,11 @@ test('an empty shelf talks about the shop that was last', async ({ mountApp }) =
     'Keep a wand and its box goes here',
   )
 })
+
+test('an address the shop does not know leads to the street', async ({ mountApp }) => {
+  const first = await mountApp()
+  await first.root.openAt('/no-such-shop')
+  const { root } = await mountApp()
+  await root.verifyDoors()
+  await root.verifyAt('/street')
+})
