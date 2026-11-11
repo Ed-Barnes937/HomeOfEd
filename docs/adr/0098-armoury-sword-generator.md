@@ -1,6 +1,6 @@
 # 0098 - armoury sword generator: Kinds, sliders in bands, the section sweep, the outline
 
-- **Status:** Accepted (first half: params and compile; ticket 06 adds the geometry)
+- **Status:** Accepted
 - **Date:** 2026-11-10
 - **Related:** [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (item kinds),
   [ADR 0084](0084-armoury-branch-wands.md) (a Kind kept by Try another),
@@ -65,7 +65,7 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   bent centre line to the straight line from the shoulder to the bent tip, and `curve.peak`
   is the u where it falls. After the rotation that puts pommel and tip on the axis, the drawn
   pommel-to-tip distance is under 0.5% shorter than `lengthMm` on a Katana and up to about 5%
-  on the deepest Sabre; framing reads `lengthMm`.
+  on the deepest Sabre; framing reads the drawn extents (below).
 
 ### Allowed lists, signature first
 
@@ -131,6 +131,57 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   or slim blade is never "Mighty". A Katana's temper line is named in its tag line.
 - `swordItem.follows` resets the per-Kind choices to the new Kind's signature only when the
   Kind actually changes.
+
+### Geometry: one primitive, parts that overlap
+
+- **The section sweep is the one mesh primitive** (`sword/sweep.ts`): a closed section carried
+  along stations, each end closing to a point. Blade, bars, bows, grips, lathe pommels, plates
+  (a tsuba, a wheel, an escutcheon, a quatrefoil) and gem settings are all sweeps. A lathe or
+  plate is swept along its own profile from the axis back to the axis, so its faces are rings
+  and every rim is a filleted corner in the profile; no part has a flat fan cap with an
+  unbevelled edge. Every hard edge is a fillet of at least 0.3 mm (two or more stations), so
+  smooth normals are right everywhere and each fitting edge catches a highlight.
+- **The blade is a thickness field on feature-aligned columns** (`sword/blade.ts`): columns sit
+  on the edge flat, the bevel's start, the fuller rims and centre and the ridge, each crease with
+  support columns, and its normals are computed exactly from the field.
+- **Parts overlap instead of booleans.** The blade runs 1 mm into the guard, the grip 1 mm into
+  the guard and the pommel. The grip's ends narrow over 10 mm into the seat of what they meet
+  (a cross's centre block, a wheel's rim, a pommel's neck), wrap relief included, so a grip
+  never pokes out of its fittings and needs no ferrule. Langets hug the blade's faces and close
+  to a point on them; a guard's stone sits in a shield-shaped escutcheon over the block and the
+  blade's base, a pommel's stone on the face toward the camera (all poses face +y except the
+  disc's, on its blade-side face).
+- **Shapes are light data** (`sword/outline.ts`): tube samples, lathe profiles and plate outlines,
+  read by the mesh (`sword/hilt.ts`) and by the outline, so the two cannot disagree.
+- **Wraps are geometry plus texture:** leather over low cord risers, cord and wire as a helical
+  scalloped ridge at their pitch (with Turk's head bands for wire), four grooves on a ribbed
+  bone grip, and the katana's crossing ito as two opposed raised bands leaving diamonds, with
+  `aWrap` telling the stage where the under-layer shows.
+- **Runes and engraving are masks, not geometry** (`sword/runes.ts`): strokes under a millimetre
+  are finer than any column. `runeMask` samples the wand's invented glyphs (decision O4),
+  shuffled per run of eight from the rune seed and following the fuller they sit in;
+  `engravingMask` samples the wand's stencil tiles. The stage uses them as emissive mask, bump
+  and darkening over the blade's uv (x across in mm, straight z along).
+
+### Chord alignment and the outline
+
+- A curved sword is built with a straight hilt, then turned rigidly in the blade plane so the
+  pommel's end and the tip lie on the z axis. Positions and every normal turn together; the
+  blade's exact normals are never recomputed. Framing, the hit box and the picture read the
+  drawn extents (`tipPose`, `reach`), which are shorter than `lengthMm` on a curved sword.
+- The curved centre line lives in `sword/bend.ts`, light and shared by the blade and the
+  outline.
+- `swordOutline` is its own module so the main chunk can draw thumbnails, the shelf and the
+  anvil's shadow without the mesh code: closed polylines of `[z, y]` (y = -x, the edge at -y),
+  all wound the same way, at most 380 points, matching the mesh's silhouette within 1 mm at the
+  guard ends, the tip and the pommel.
+
+### Budgets
+
+- Vertices: blade <= 45k, fittings <= 35k, grip <= 45k, total <= 120k (hard cap 200k), asserted
+  over every Kind's allowed hilt options, gem seats and 30 random swords per Kind. Build time
+  is logged, not asserted (a wall clock is flaky under load); the whole sword is rebuilt on a
+  slider change, so the hilt avoids whole-mesh normal passes and unbounded caches.
 
 ## Consequences
 
