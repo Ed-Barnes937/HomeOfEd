@@ -51,7 +51,12 @@ $cobble-band: 120px;
     radial-gradient(circle at 88% 10%, rgba(255, 244, 220, 0.8) 0 1px, transparent 2px),
     radial-gradient(circle at 80% 30%, rgba(255, 244, 220, 0.4) 0 1px, transparent 2px),
     radial-gradient(circle at 35% 34%, rgba(255, 244, 220, 0.35) 0 1px, transparent 2px),
-    radial-gradient(circle at 92% 6%, #f4ead2 0 22px, transparent 23px);
+    radial-gradient(
+      circle at 92% 6%,
+      #f4ead2 0 20px,
+      rgba(244, 234, 210, 0.12) 22px,
+      transparent 60px
+    );
 }
 
 .header {
@@ -103,7 +108,7 @@ $cobble-band: 120px;
   align-items: end;
   gap: 2vw;
   width: 100%;
-  max-width: 1180px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 0 4vw calc(#{$cobble-band} - 92px);
 }

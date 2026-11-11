@@ -78,7 +78,11 @@ export function Header({
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <Link to="/street" className={styles.back} aria-label="Back to the street">
+        <Link
+          to="/street"
+          className={`${styles.button} ${styles.back}`}
+          aria-label="Back to the street"
+        >
           <svg
             width="16"
             height="16"
@@ -92,6 +96,7 @@ export function Header({
           >
             <path d="M10 3 L5 8 L10 13" />
           </svg>
+          <span className={styles.label}>Street</span>
         </Link>
         <span className={styles.name}>Armoury</span>
         <span className={styles.motto}>{copy.motto}</span>

@@ -29,9 +29,9 @@ export function SmithyFront() {
       </defs>
 
       <g className={styles.smoke}>
-        <circle cx="292" cy="10" r="16" fill="url(#smithy-smoke)" />
-        <circle cx="300" cy="-14" r="22" fill="url(#smithy-smoke)" />
-        <circle cx="288" cy="-40" r="26" fill="url(#smithy-smoke)" />
+        <circle cx="292" cy="6" r="14" fill="url(#smithy-smoke)" />
+        <circle cx="298" cy="-6" r="17" fill="url(#smithy-smoke)" />
+        <circle cx="288" cy="-18" r="20" fill="url(#smithy-smoke)" />
       </g>
       <rect x="272" y="20" width="40" height="80" fill="#3a231a" />
       <g stroke="#24150f" strokeWidth="2">
@@ -71,12 +71,6 @@ export function SmithyFront() {
       <text x="196" y="155" textAnchor="middle" className={styles.signText} fill="#e7b179">
         Smithy
       </text>
-
-      <path
-        d="M168 176 a12 12 0 1 1 24 0 v10 h-5 v-10 a7 7 0 1 0 -14 0 v10 h-5 Z"
-        fill="#9a9a9e"
-        transform="rotate(180 180 181)"
-      />
 
       <rect x="96" y="194" width="168" height="206" fill="#120a06" />
       <g className={styles.glow}>

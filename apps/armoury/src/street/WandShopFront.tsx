@@ -116,14 +116,18 @@ export function WandShopFront() {
       <path d="M234 400 V250 A38 38 0 0 1 310 250 V400 Z" fill="#120c08" />
       <path d="M240 400 V252 A32 32 0 0 1 304 252 V400 Z" fill="url(#wand-door)" />
       <g className={styles.flicker}>
+        <rect x="240" y="248" width="64" height="152" fill="url(#wand-window)" />
+      </g>
+      <path d="M240 248 H290 L294 252 V398 L290 400 H240 Z" fill="url(#wand-door)" />
+      <g className={styles.flicker}>
         <path d="M246 248 A26 26 0 0 1 298 248 Z" fill="#f2b056" opacity="0.9" />
       </g>
       <path d="M246 248 H298 M272 222 V248" stroke="#120c08" strokeWidth="3" />
       <g fill="none" stroke="#3c4f78" strokeWidth="2.5">
-        <rect x="250" y="262" width="44" height="54" rx="2" />
-        <rect x="250" y="328" width="44" height="58" rx="2" />
+        <rect x="248" y="262" width="36" height="54" rx="2" />
+        <rect x="248" y="328" width="36" height="58" rx="2" />
       </g>
-      <circle cx="294" cy="330" r="4" fill="#c99a52" />
+      <circle cx="286" cy="330" r="3.5" fill="#c99a52" />
       <rect x="226" y="392" width="92" height="8" fill="#4a3322" />
     </svg>
   )
