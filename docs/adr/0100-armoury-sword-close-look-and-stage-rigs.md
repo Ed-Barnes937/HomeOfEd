@@ -35,6 +35,11 @@ realistic. At rest, nothing on either item may bloom (ADR 0082, 0083; decision O
 - Stage changes are judged on a real GPU with `scripts/gpu-shots.mjs` (ANGLE Metal only), by a
   reviewer who did not build them, and the wand's frames are pixel-diffed against the ticket 02
   baseline after any change to a shared rig.
+- For the sword's close look, a dev-only probe (compiled out of production) publishes how far
+  into the flourish the stage is and, on the script's request, pins the stage's clock to an
+  exact moment and stops drawing until the shot is taken. The rig's pose, the glow and the
+  presenting turn all read that one clock, so each frame lands exactly on its label however
+  slow the screenshot is.
 
 ### The sword's close look
 
@@ -49,12 +54,14 @@ realistic. At rest, nothing on either item may bloom (ADR 0082, 0083; decision O
   `swordGlow(sinceFlourish, reducedMotion, wakeFrom)` returns `glintAt`, `glint`, `runes`,
   `wake`, `cap` and `gems`.
   - **Glint**: starts as the 8 closes (3.75 s) and runs once, guard to tip, over 0.6 s; its
-    strength is `sin(pi u)`, so it fades in and out. The blade shader adds a band about 6% of
-    the blade long (smoothstep edges) at `aAlong == glintAt`, on the edge bevel only (`aEdge`),
-    in the window's cool white at 1.5x the bloom threshold at its height. A two-edged blade
-    glints only on the edge that lies toward the window (up and right) on screen, found from
-    the screen gradient of the blade's across coordinate, so a flat held square to the viewer
-    still lights one edge; a single edge always glints. No tip star.
+    strength is `sin(pi u)`, so it fades in and out. The blade shader adds a band about 5% of
+    the blade long with soft (Gaussian) ends at `aAlong == glintAt`, on the edge bevel only
+    (`aEdge`), in the window's cool white at 1.5x the bloom threshold at its height. A
+    two-edged blade glints only on the edge that lies toward the window (up and right) on
+    screen, found from the screen gradient of the blade's across coordinate, so a flat held
+    square to the viewer still lights one edge. A single-edged blade glints on its cutting edge
+    only, never on its back, even where a flared Sabre's back is sharpened (`glintEdge`, pure
+    and tested). No tip star.
   - **Rune wake**: begins as the glint reaches the runes (`wakeFrom`, where they start along the
     blade). The runes rise from rest (0.9 times their colour) to 1.3x the threshold over 0.6 s
     with a smoothstep, hold 0.6 s, and settle back over 1.5 s with a smoothstep; never linear,
@@ -68,7 +75,8 @@ realistic. At rest, nothing on either item may bloom (ADR 0082, 0083; decision O
 - **Presenting the flat**: from 0.75 s before the glint until the wake has peaked, the close
   look rolls the sword about its length so a flat faces the viewer, whichever way the idle roll
   or the child left it, then lets go over 0.8 s and keeps the roll it added, so nothing turns
-  back (`presentWeight`, pure and tested). Without it the idle roll left the blade edge-on as
+  back (`presentWeight`, pure and tested). It shows the nearer flat, or the face a gem is set
+  in when the gems sit on one face only (`presentedFace`), so the gems' catch is seen. Without it the idle roll left the blade edge-on as
   the runes woke.
   - A tap mid-wake starts a new flourish without dropping the glow: the stage shows the brighter
     of the two flourishes' light.
