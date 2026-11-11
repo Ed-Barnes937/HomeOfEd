@@ -224,7 +224,7 @@ const POMMEL_FACETS: Record<string, number> = { egg: 8, block: 4, lobed: 3, fish
 /** A pommel's flat face or top, as a fraction of its diameter, where a gem sits. */
 const POMMEL_FACE = 0.7
 /** A guard's stone across, over its seat (a disc's ring or a cross's block): small, as a set stone is. */
-const GUARD_GEM = 0.4
+const GUARD_GEM = 0.5
 /** Runes on a flat or a ridge: half their height over the blade's base width (tuned at G3). */
 const RUNE_FLAT = 0.12
 const FULLERS: Record<string, { count: number; width: [number, number]; depth: number }> = {
@@ -513,7 +513,13 @@ export function compileSword(p: Params): SwordSpec {
   const cut = p.gemCut as GemCut
   const gems: SwordSpec['gems'] = []
   if (p.gems === 'pommel' || p.gems === 'both')
-    gems.push({ at: 'pommel', cut, radius: (0.45 * pommelD * POMMEL_FACE) / 2 })
+    // A flat face (wheel, cap) takes a bigger stone than a rounded top.
+    gems.push({
+      at: 'pommel',
+      cut,
+      radius:
+        ((p.pommel === 'wheel' || p.pommel === 'cap' ? 0.54 : 0.45) * pommelD * POMMEL_FACE) / 2,
+    })
   if (p.gems === 'guard' || p.gems === 'both') {
     const block = style === 'disc' ? 0.5 * ((span - base) / 2) : 0.8 * base
     gems.push({ at: 'guard', cut, radius: (GUARD_GEM * block) / 2 })

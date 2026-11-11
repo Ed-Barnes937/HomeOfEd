@@ -134,6 +134,8 @@ export interface FittingsRow {
   colour: LinearRgb
   metalness: number
   roughness: number
+  /** Blued fittings: a thin oxide film over bright steel. */
+  iridescence?: number
 }
 
 const shared = (key: string): FittingsRow => {
@@ -149,7 +151,7 @@ export const FITTINGS: Record<Fittings, FittingsRow> = {
   bronze: { colour: [0.55, 0.36, 0.18], metalness: 1, roughness: 0.4 },
   silver: shared('silver'),
   gold: shared('gold'),
-  blue: { colour: STEELS.blue.colour, metalness: 1, roughness: 0.2 },
+  blue: { colour: [0.12, 0.17, 0.34], metalness: 1, roughness: 0.3, iridescence: 0.5 },
 }
 
 /** Undyed leather, linear: the pale scan is recentred on this, then dyed. */
@@ -433,8 +435,9 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       // Patina where hands and fittings meet, and oxide speckles as it wears.
       float base = 1.0 - smoothstep(0.0, 45.0, vAlong * uBladeZ.y);
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.82, 0.78, 0.7), 0.55 * uWear * base);
-      float speck = smoothstep(0.82, 0.9, sNoise(mm * 1.7)) * smoothstep(0.5, 1.0, uWear);
-      diffuseColor.rgb *= 1.0 - 0.5 * speck;
+      float speck = smoothstep(0.86, 0.92, sNoise(vec2(mm.x * 1.7, mm.y * 0.25))) * smoothstep(0.5, 1.0, uWear)
+        * (0.4 + 0.6 * smoothstep(0.6, 1.0, clamp(vEdge, 0.0, 1.0)));
+      diffuseColor.rgb *= (1.0 - 0.3 * speck) * (1.0 - 0.12 * uWear);
       diffuseColor.rgb = mix(diffuseColor.rgb, uEdgeColour, edge);
       float cut = cutAt(mm, vAlong);
       diffuseColor.rgb *= 1.0 - 0.45 * cut;
@@ -451,10 +454,11 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       '#include <roughnessmap_fragment>',
       `#include <roughnessmap_fragment>
       float scan = texture2D(uSteelRough, brushUv(mm)).r / uRoughMean - 1.0;
-      float scratches = smoothstep(0.75, 0.95, sNoise(vec2(mm.x * 3.0, mm.y * 0.06))) * max(uWear, 0.4);
+      float scratches = (smoothstep(0.75, 0.95, sNoise(vec2(mm.x * 3.0, mm.y * 0.06)))
+        + 0.7 * smoothstep(0.8, 0.95, sNoise(vec2(mm.x * 7.0, mm.y * 0.09) + 4.1))) * max(uWear, 0.4);
       roughnessFactor = mix(roughnessFactor, mix(uPatternRough.y, uPatternRough.x, pattern), uPatternMix);
       // Polished steel ignores the brushed scan.
-      roughnessFactor += uScratch * scan * smoothstep(0.1, 0.3, roughnessFactor) + 0.06 * scratches + uFullerRough * fuller + 0.25 * cut;
+      roughnessFactor += uScratch * scan * smoothstep(0.1, 0.3, roughnessFactor) + 0.12 * scratches + uFullerRough * fuller + 0.25 * cut;
       roughnessFactor += 0.05 * dish;
       roughnessFactor += uGrind * (0.9 * streak + 0.5 * zone);
       // Every cutting bevel is honed smoother than the flat, so the edge reads as a crisp line.
@@ -550,7 +554,8 @@ function patchFittings(
       `#include <map_fragment>
       float crease = 1.0 - clamp(vShade, 0.0, 1.0);
       // Tarnish gathers in the creases: darker and a little warmer.
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.55, 0.5, 0.44), clamp(crease * (1.2 + uWear), 0.0, 1.0));`,
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.55, 0.5, 0.44), clamp(crease * (1.2 + uWear), 0.0, 1.0));
+      diffuseColor.rgb *= mix(1.0, 0.6, uWear * crease);`,
     )
     .replace(
       '#include <roughnessmap_fragment>',
@@ -566,11 +571,14 @@ export function fittingsMaterial(
   uniforms: FittingsUniforms,
   roughness = row.roughness,
 ) {
-  const material = new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(...row.colour),
     metalness: row.metalness,
     roughness,
-    envMapIntensity: 1.2,
+    envMapIntensity: row.iridescence ? 1.25 : 1.2,
+    iridescence: row.iridescence ?? 0,
+    iridescenceIOR: 1.3,
+    iridescenceThicknessRange: [200, 400],
   })
   material.onBeforeCompile = (shader) => patchFittings(shader, uniforms)
   return material
@@ -586,7 +594,7 @@ export const TEXTILES: Record<
 > = {
   leather: { roughness: 0.6, sheen: 0.1, heightMm: 0.25, tile: [0, 90] },
   cord: { roughness: 0.75, sheen: 0.2, heightMm: 0.3, tile: [22, 22] },
-  weave: { roughness: 0.6, sheen: 0.5, heightMm: 0.2, tile: [30, 30] },
+  weave: { roughness: 0.6, sheen: 0.5, heightMm: 0.45, tile: [18, 18] },
 }
 
 export function textileUniforms(textures: SwordTextures, textile: Textile) {
@@ -603,6 +611,11 @@ export function textileUniforms(textures: SwordTextures, textile: Textile) {
     uTile: { value: new THREE.Vector2(...TEXTILES[textile].tile) },
     uBase: { value: new THREE.Vector3(...LEATHER_BASE) },
     uAbsorb: { value: new THREE.Vector3() },
+    /** Extra dye for a braid, which takes it deeper than leather. */
+    uDyeDepth: { value: textile === 'weave' ? 1.6 : 1 },
+    uWear: { value: 0.3 },
+    /** The grip's length, mm, so wear can find where the hand sits. */
+    uGripLength: { value: 100 },
     uRayskin: { value: new THREE.Vector3(...RAYSKIN) },
   }
 }
@@ -626,6 +639,9 @@ function patchTextile(shader: THREE.WebGLProgramParametersWithUniforms, uniforms
       uniform vec2 uTile;
       uniform vec3 uBase;
       uniform vec3 uAbsorb;
+      uniform float uDyeDepth;
+      uniform float uWear;
+      uniform float uGripLength;
       uniform vec3 uRayskin;
       ${varyings(['aWrap', 'aShade'], 'vGripMm')}
       ${helpers}
@@ -658,7 +674,10 @@ function patchTextile(shader: THREE.WebGLProgramParametersWithUniforms, uniforms
       vec3 detail = mix(vec3(lum / lumMean), texel / uScanMean, 0.3);
       // Dye soaks deeper into the darker creases of the scan.
       float soak = clamp(1.0 + 0.6 * (1.0 - lum / lumMean), 0.6, 1.8);
-      vec3 dyed = uBase * clamp(detail, 0.2, 2.5) * exp(-uAbsorb * soak);
+      vec3 dyed = uBase * clamp(detail, 0.2, 2.5) * exp(-uAbsorb * soak * uDyeDepth);
+      // Where the hand sits, a well-loved grip darkens and polishes.
+      float held = uWear * smoothstep(0.15, 0.3, vGripMm.y / uGripLength) * (1.0 - smoothstep(0.7, 0.85, vGripMm.y / uGripLength));
+      dyed *= 1.0 - 0.25 * held;
       vec3 skin = uRayskin * mix(0.78, 1.04, nodules(vGripMm));
       diffuseColor.rgb = mix(skin, dyed, wrap) * clamp(vShade, 0.0, 1.0);`,
     )
@@ -666,7 +685,7 @@ function patchTextile(shader: THREE.WebGLProgramParametersWithUniforms, uniforms
       '#include <roughnessmap_fragment>',
       `#include <roughnessmap_fragment>
       float r = texture2D(uScanRough, scanUv(vGripMm)).r / uRoughMean - 1.0;
-      roughnessFactor = clamp(mix(0.5, roughnessFactor + 0.25 * r, wrap), 0.2, 1.0);`,
+      roughnessFactor = clamp(mix(0.5, roughnessFactor + 0.25 * r - 0.15 * held, wrap), 0.2, 1.0);`,
     )
     .replace(
       '#include <normal_fragment_maps>',
@@ -701,9 +720,9 @@ export function textileMaterial(textile: Textile, uniforms: TextileUniforms) {
 export function boneMaterial(cap: THREE.IUniform<number>) {
   const material = new THREE.MeshStandardMaterial({
     color: new THREE.Color(...BONE),
-    roughness: 0.55,
+    roughness: 0.62,
     metalness: 0,
-    envMapIntensity: 0.8,
+    envMapIntensity: 0.5,
   })
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uCap = cap
@@ -711,11 +730,24 @@ export function boneMaterial(cap: THREE.IUniform<number>) {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        `#include <common>\n      uniform float uCap;\n      ${varyings(['aShade'], 'vBoneMm')}`,
+        `#include <common>
+      uniform float uCap;
+      ${varyings(['aShade'], 'vBoneMm')}
+      ${helpers}`,
       )
       .replace(
         '#include <map_fragment>',
-        `#include <map_fragment>\n      diffuseColor.rgb *= clamp(vShade, 0.0, 1.0);`,
+        // Bone: a warm and cool mottle, fine pores, and darker grooves where hands have been.
+        `#include <map_fragment>
+      float mottle = sNoise(vBoneMm * 0.15) - 0.5;
+      float pore = smoothstep(0.85, 0.95, sNoise(vBoneMm * 2.5)) * (1.0 - smoothstep(0.3, 1.0, fwidth(vBoneMm.x * 2.5)));
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.9, 0.82, 0.68), 0.5 + mottle) * (1.0 + 0.12 * mottle);
+      diffuseColor.rgb *= (1.0 - 0.15 * pore) * mix(0.88, 1.0, clamp(vShade, 0.0, 1.0)) * clamp(vShade, 0.0, 1.0);`,
+      )
+      .replace(
+        '#include <roughnessmap_fragment>',
+        `#include <roughnessmap_fragment>
+      roughnessFactor = clamp(roughnessFactor + 0.15 * pore, 0.0, 1.0);`,
       )
       .replace('#include <opaque_fragment>', capLine)
   }

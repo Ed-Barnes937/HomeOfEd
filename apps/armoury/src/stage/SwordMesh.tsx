@@ -335,6 +335,8 @@ export function SwordMesh({ spec }: { spec: SwordSpec }) {
     }
     if (textileU) {
       textileU.uAbsorb.value.set(...dyeFor(shown.finish.gripColour))
+      textileU.uWear.value = shown.finish.wear
+      textileU.uGripLength.value = shown.grip.to - shown.grip.from
       if (textile === 'leather') textileU.uTile.value.x = gripAround(shown)
     }
   }, [shown, built, blade, fittings, textileU, textile, runeTexture, engravingTexture])

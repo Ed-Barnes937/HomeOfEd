@@ -1,4 +1,4 @@
-import { STENCILS, stencilHeight } from '../wand/stencils.ts'
+import { type StencilName, STENCILS, stencilHeight } from '../wand/stencils.ts'
 import type { SwordSpec } from './compile.ts'
 import { sample } from './curve.ts'
 
@@ -124,6 +124,21 @@ export function runeMask(spec: SwordSpec): BladeMask | null {
   })
 }
 
+const tileTops = new Map<string, number>()
+/** A tile's uncut surface height: steel the stencil leaves alone must stay uncut. */
+function tileTop(name: StencilName): number {
+  let top = tileTops.get(name)
+  if (top === undefined) {
+    top = 0
+    for (let j = 0; j < 64; j++)
+      for (let i = 0; i < 64; i++) top = Math.max(top, stencilHeight(name, i / 64, j / 64))
+    tileTops.set(name, top)
+  }
+  return top
+}
+/** The panel fades out over this much at its far end, mm. */
+const FAR_FADE = 8
+
 /** The engraving's cut as a mask over the blade's base, or null without engraving. */
 export function engravingMask(spec: SwordSpec): BladeMask | null {
   const e = spec.engraving
@@ -138,9 +153,11 @@ export function engravingMask(spec: SwordSpec): BladeMask | null {
   }
   return raster(e.from, e.to, centre, e.halfHeight, (z, across) => {
     const fade =
-      smoothstep(0, SOFT_EDGE, Math.min(z - e.from, e.to - z)) *
+      smoothstep(0, SOFT_EDGE, z - e.from) *
+      smoothstep(0, FAR_FADE, e.to - z) *
       smoothstep(0, SOFT_EDGE, e.halfHeight - Math.abs(across))
+    const top = tileTop(e.tile)
     const h = stencilHeight(e.tile, across / (length * tile.aspect) + 0.5, (z - e.from) / length)
-    return (1 - h) * fade
+    return (Math.max(0, top - h) / top) * fade
   })
 }
