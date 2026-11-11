@@ -1,7 +1,7 @@
 import { seededRandom } from '../engine/schema.ts'
 
-// Grain and mottle for the smithy's stone, soot and floor, as small seamless tiles made once
-// on a canvas: an SVG noise filter over the whole wall costs far more to paint.
+// Grain and mottle for the smithy's stone, soot and floor: small seamless tiles made once on a
+// canvas and baked into the art, since an SVG noise filter over the wall costs far more to paint.
 
 function noise(cells: number, seed: number): HTMLCanvasElement {
   const rand = seededRandom(seed)
@@ -39,16 +39,20 @@ function tile(size: number, cells: number, seed: number): HTMLCanvasElement {
   return canvas
 }
 
+/** The two tiles as PNG data URLs: fine grain at 1:1, mottle to be drawn at twice its size. */
 export interface Grain {
-  fine: HTMLCanvasElement
-  mottle: HTMLCanvasElement
+  fine: string
+  mottle: string
 }
 
 let made: Grain | null = null
 
-/** The two tiles, made on first use; null outside a browser. */
+/** The tiles, made on first use; null outside a browser. */
 export function grain(): Grain | null {
   if (typeof document === 'undefined') return null
-  made ??= { fine: tile(256, 256, 77), mottle: tile(640, 10, 91) }
+  made ??= {
+    fine: tile(128, 128, 77).toDataURL(),
+    mottle: tile(320, 10, 91).toDataURL(),
+  }
   return made
 }

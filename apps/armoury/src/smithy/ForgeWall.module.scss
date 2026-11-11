@@ -20,16 +20,15 @@
   transform-origin: 50% 100%;
 }
 
-.texture {
+.chalk {
   position: absolute;
-  inset: 0;
-  background-image: var(--grain), var(--mottle);
-  background-size:
-    256px 256px,
-    640px 640px;
-  mix-blend-mode: soft-light;
-  opacity: 0.75;
-  pointer-events: none;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1;
+  color: rgba(236, 233, 224, 0.72);
+  text-shadow: 0 0 1px rgba(236, 233, 224, 0.5);
+  letter-spacing: 0.02em;
 }
 
 .forgeLight,

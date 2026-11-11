@@ -38,7 +38,7 @@ export function SwordShadow({ d, className }: { d: string; className?: string })
           fill="#000"
           opacity="0.5"
           filter={`url(#${id}b14)`}
-          transform="translate(46 34)"
+          transform="translate(44 -4)"
         />
       </g>
       <g clipPath={`url(#${top})`}>
@@ -47,7 +47,7 @@ export function SwordShadow({ d, className }: { d: string; className?: string })
           fill="#0a1220"
           opacity="0.4"
           filter={`url(#${id}b4)`}
-          transform="translate(9 3)"
+          transform="translate(9 -1.5)"
         />
         <path
           d={d}

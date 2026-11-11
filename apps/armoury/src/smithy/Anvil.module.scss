@@ -31,7 +31,6 @@
     rgba(190, 215, 255, 0) 100%
   );
   mask-image: linear-gradient(180deg, #000 0%, #000 35%, transparent 80%);
-  filter: blur(10px);
   mix-blend-mode: screen;
   pointer-events: none;
 }
@@ -161,12 +160,11 @@
 .twine {
   position: absolute;
   left: var(--hole-x);
-  bottom: 50%;
   top: -13cqw;
+  height: calc(13cqw + 50%);
   width: calc(var(--grip) * 100cqw - var(--row-left) - var(--hole-x));
   overflow: visible;
   fill: none;
-  filter: drop-shadow(2px 4px 2px rgba(0, 0, 0, 0.6));
   pointer-events: none;
 
   path {

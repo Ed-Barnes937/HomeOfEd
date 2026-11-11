@@ -26,7 +26,12 @@ const preload = (svg: () => string) => {
   image.src = `data:image/svg+xml,${encodeURIComponent(svg())}`
   return image
 }
-const images = { wall: preload(wallSvg), floor: preload(floorSvg), anvil: preload(anvilSvg) }
+// No grain in the picture: it doubles the PNG's size and its encoding time.
+const images = {
+  wall: preload(() => wallSvg(null)),
+  floor: preload(() => floorSvg(null)),
+  anvil: preload(anvilSvg),
+}
 const ready = (image: HTMLImageElement | null): image is HTMLImageElement =>
   !!image && image.complete && image.naturalWidth > 0
 
@@ -167,14 +172,14 @@ function drawAnvil(ctx: CanvasRenderingContext2D, c: CardContent) {
   outside.rect(0, 0, CARD_WIDTH, CARD_HEIGHT)
   outside.addPath(anvilTop, new DOMMatrix([unit, 0, 0, unit, left, top]))
   ctx.clip(outside, 'evenodd')
-  shadowOf(ctx, c, at, 'rgba(0,0,0,0.55)', 26, 46 * unit, 34 * unit)
+  shadowOf(ctx, c, at, 'rgba(0,0,0,0.55)', 26, 44 * unit, -4 * unit)
   ctx.restore()
 
   ctx.save()
   ctx.setTransform(unit, 0, 0, unit, left, top)
   ctx.clip(anvilTop)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  shadowOf(ctx, c, at, 'rgba(10,18,32,0.42)', 9, 9 * unit, 3 * unit)
+  shadowOf(ctx, c, at, 'rgba(10,18,32,0.42)', 9, 9 * unit, -1.5 * unit)
   shadowOf(ctx, c, at, 'rgba(30,15,6,0.3)', 9, -4 * unit, 6 * unit)
   shadowOf(ctx, c, at, 'rgba(0,0,0,0.72)', 3, 2.5 * unit, 2 * unit)
   ctx.restore()

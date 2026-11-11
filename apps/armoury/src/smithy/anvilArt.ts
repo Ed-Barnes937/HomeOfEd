@@ -92,7 +92,8 @@ function stump(rand: () => number): string {
     marks += `<path d="M${r1(px)} ${r1(py)} l${r1(Math.cos(t) * 22)} ${r1(Math.sin(t) * 22)}" stroke="#1e1209" stroke-width="2" opacity="0.45" stroke-linecap="round"/>`
   }
   return (
-    `<circle cx="${x + 38}" cy="${y + 30}" r="${r + 10}" fill="#000" opacity="0.7" filter="url(#soft)"/>` +
+    `<circle cx="${x + 42}" cy="${y - 4}" r="${r + 8}" fill="#000" opacity="0.6" filter="url(#soft)"/>` +
+    `<circle cx="${x - 16}" cy="${y + 24}" r="${r + 4}" fill="#000" opacity="0.4" filter="url(#soft)"/>` +
     `<circle cx="${x}" cy="${y + 14}" r="${r}" fill="#1a100a"/>` +
     `<path d="M${x - r} ${y + 8} A${r} ${r} 0 0 0 ${x + r} ${y + 8}" stroke="#4a4642" stroke-width="5" fill="none" opacity="0.8"/>` +
     `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#grain)"/>` +
@@ -111,7 +112,7 @@ const BASE =
 
 function feet(): string {
   return (
-    `<path d="${BASE}" fill="#000" opacity="0.9" filter="url(#soft)" transform="translate(22 12)"/>` +
+    `<path d="${BASE}" fill="#000" opacity="0.9" filter="url(#soft)" transform="translate(22 -2)"/>` +
     `<g filter="url(#blur1)"><path d="${BASE}" fill="url(#foot)"/>` +
     `<path d="${BASE}" fill="url(#footShade)"/></g>` +
     `<path d="M264 12 Q262 6 272 4 L336 8" stroke="#d48e5e" stroke-width="1.6" fill="none" opacity="0.55"/>` +
@@ -177,7 +178,7 @@ export function anvilSvg(): string {
     stump(rand) +
     `<g clip-path="url(#stumpClip)"><rect x="${STUMP.x - STUMP.r}" y="${STUMP.y - STUMP.r}" width="${STUMP.r * 2}" height="${STUMP.r * 2}" filter="url(#woodGrain)" opacity="0.5"/></g>` +
     feet() +
-    `<path d="${ANVIL_TOP}" fill="#000" opacity="0.85" filter="url(#soft)" transform="translate(24 16)"/>` +
+    `<path d="${ANVIL_TOP}" fill="#000" opacity="0.85" filter="url(#soft)" transform="translate(26 -3)"/>` +
     `<path d="${ANVIL_TOP}" fill="#000" opacity="0.35" filter="url(#soft)" transform="translate(-10 16)"/>` +
     `<path d="${HORN}" fill="url(#horn)"/>` +
     `<path d="${HORN}" fill="url(#hornWarm)"/>` +

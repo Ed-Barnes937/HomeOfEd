@@ -1,4 +1,5 @@
 import { seededRandom } from '../engine/schema.ts'
+import type { Grain } from './grain.ts'
 
 // The smithy's back wall (front-on) and floor (from above), each one seeded SVG that the
 // browser rasterises once. The wall's floor line is its bottom edge; the forge sits left of
@@ -10,10 +11,22 @@ export const FLOOR_W = 2400
 export const FLOOR_H = 900
 /** The coal bed's middle, in wall units. */
 export const COALS = { x: 830, y: 818 }
+/** The chalk slate leaning on the wall: its top left, and its lean in degrees. */
+export const SLATE = { x: 1326, y: 896, tilt: -4 }
 /** The window's middle, in wall units. */
 export const WINDOW = { x: 1490, y: 725 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10
+
+/** The grain tiles laid over a w by h drawing in soft light; nothing without them. */
+function texture(grain: Grain | null, w: number, h: number): string {
+  if (!grain) return ''
+  return (
+    `<defs><pattern id="fine" width="128" height="128" patternUnits="userSpaceOnUse"><image href="${grain.fine}" width="128" height="128"/></pattern>` +
+    `<pattern id="mottle" width="640" height="640" patternUnits="userSpaceOnUse"><image href="${grain.mottle}" width="640" height="640"/></pattern></defs>` +
+    `<g style="mix-blend-mode:soft-light" opacity="0.75"><rect width="${w}" height="${h}" fill="url(#mottle)"/><rect width="${w}" height="${h}" fill="url(#fine)"/></g>`
+  )
+}
 const pick = <T>(rand: () => number, list: T[]) => list[Math.floor(rand() * list.length)]!
 
 const STONES = [
@@ -251,22 +264,25 @@ function windowArt(rand: () => number): string {
 }
 
 function slate(rand: () => number): string {
+  const { x, y, tilt } = SLATE
   let chalk = ''
-  for (let i = 0; i < 5; i++) {
-    const y = 710 + i * 13
-    const len = 30 + rand() * 40
-    let d = `M1648 ${y}`
-    for (let x = 0; x < len; x += 5) d += ` l5 ${r1((rand() - 0.5) * 4)}`
-    chalk += `<path d="${d}" stroke="#e8e6df" stroke-opacity="${r1(0.45 + rand() * 0.3)}" stroke-width="1.6" fill="none"/>`
+  for (let i = 0; i < 4; i++) {
+    const ly = y + 40 + i * 11
+    const len = 34 + rand() * 40
+    let d = `M${x + 16} ${ly}`
+    for (let k = 0; k < len; k += 5) d += ` l5 ${r1((rand() - 0.5) * 3)}`
+    chalk += `<path d="${d}" stroke="#e8e6df" stroke-opacity="${r1(0.4 + rand() * 0.25)}" stroke-width="1.5" fill="none"/>`
   }
   return (
-    `<path d="M1682 664 L1662 690 M1682 664 L1702 690" stroke="#2a2420" stroke-width="1.5"/>` +
-    `<circle cx="1682" cy="663" r="2.5" fill="#5b5550"/>` +
-    `<rect x="1630" y="688" width="104" height="84" rx="3" fill="#5a3d26"/>` +
-    `<rect x="1637" y="695" width="90" height="70" fill="#25282b"/>` +
-    `<rect x="1637" y="695" width="90" height="70" fill="#fff" opacity="0.04"/>` +
+    `<g transform="rotate(${tilt} ${x + 55} ${y + 92})">` +
+    `<rect x="${x + 8}" y="${y + 88}" width="100" height="8" fill="#000" opacity="0.5" filter="url(#softWall)"/>` +
+    `<rect x="${x}" y="${y}" width="110" height="92" rx="3" fill="#5a3d26"/>` +
+    `<path d="M${x + 2} ${y + 1.5} h106" stroke="#c48a58" stroke-width="1.5" opacity="0.5"/>` +
+    `<rect x="${x + 7}" y="${y + 7}" width="96" height="78" fill="#25282b"/>` +
+    `<rect x="${x + 7}" y="${y + 7}" width="96" height="78" fill="#fff" opacity="0.05"/>` +
     chalk +
-    `<path d="M1700 740 q8 -10 16 0 q-8 10 -16 0 Z" stroke="#e8e6df" stroke-opacity="0.55" stroke-width="1.4" fill="none"/>`
+    `<path d="M${x + 76} ${y + 74} l6 -8 l6 8 M${x + 79} ${y + 70} h6" stroke="#e8e6df" stroke-opacity="0.5" stroke-width="1.4" fill="none"/>` +
+    `</g>`
   )
 }
 
@@ -331,11 +347,12 @@ function barStock(): string {
 }
 
 /** The back wall: stone below a timber beam, the forge, its tools and the window. */
-export function wallSvg(): string {
+export function wallSvg(grain: Grain | null): string {
   const rand = seededRandom(31337)
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WALL_W}" height="${WALL_H}" viewBox="0 0 ${WALL_W} ${WALL_H}">` +
     `<defs>` +
+    `<filter id="softWall"><feGaussianBlur stdDeviation="4"/></filter>` +
     `<clipPath id="hoodClip"><path d="M596 728 L1064 728 L1064 714 L918 598 L918 0 L742 0 L742 598 L596 714 Z"/></clipPath>` +
     `<linearGradient id="hoodShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c0806" stop-opacity="0.85"/><stop offset="0.82" stop-color="#0c0806" stop-opacity="0.6"/><stop offset="0.95" stop-color="#ff8a3a" stop-opacity="0.12"/><stop offset="1" stop-color="#ffaa5a" stop-opacity="0.4"/></linearGradient>` +
     `<radialGradient id="mouth" cx="${COALS.x}" cy="850" r="250" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffbe72"/><stop offset="0.28" stop-color="#e0722e"/><stop offset="0.6" stop-color="#7a2e14"/><stop offset="1" stop-color="#26110a"/></radialGradient>` +
@@ -370,9 +387,10 @@ export function wallSvg(): string {
     hammers() +
     `${horseshoe(1292, 800, -6)}${horseshoe(1346, 808, 5)}<g transform="translate(0 45)">${lantern(1322)}</g>` +
     `<g transform="translate(0 40)">${windowArt(rand)}</g>` +
-    `<g transform="translate(0 35)">${slate(rand)}</g>` +
+    slate(rand) +
     barrel() +
     bladeRack() +
+    texture(grain, WALL_W, WALL_H) +
     `<rect y="${WALL_H - 26}" width="${WALL_W}" height="26" fill="url(#skirt)"/>` +
     `<defs><linearGradient id="skirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.6"/></linearGradient></defs>` +
     `</svg>`
@@ -380,7 +398,7 @@ export function wallSvg(): string {
 }
 
 /** The floor from above: worn stone flags with ash and scale, ashier toward the forge. */
-export function floorSvg(): string {
+export function floorSvg(grain: Grain | null): string {
   const rand = seededRandom(2718)
   let flags = ''
   const cols = 16
@@ -423,6 +441,7 @@ export function floorSvg(): string {
     flags +
     `<rect width="${FLOOR_W}" height="${FLOOR_H}" fill="url(#ashward)"/>` +
     specks +
+    texture(grain, FLOOR_W, FLOOR_H) +
     `</svg>`
   )
 }
