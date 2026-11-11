@@ -104,6 +104,26 @@ describe('sweep', () => {
     expect(Math.max(...us)).toBeGreaterThan(2 * Math.PI * 4 * 0.98)
   })
 
+  it('takes exact normals from the stations when they carry them', () => {
+    const n = 24
+    const radial = (z: number): Station => {
+      const normals = new Float32Array(n * 3)
+      for (let i = 0; i < n; i++) {
+        normals[i * 3] = Math.cos((2 * Math.PI * i) / n)
+        normals[i * 3 + 1] = Math.sin((2 * Math.PI * i) / n)
+      }
+      return { ...station(z, circle(3, n)), normals }
+    }
+    const part = sweep([radial(0), radial(10)], { capStart: 'fan', capEnd: 'fan', seam: false })
+    expectSound(part)
+    for (let k = 0; k < n; k++) {
+      const [x, y] = [part.positions[k * 3]!, part.positions[k * 3 + 1]!]
+      expect(part.normals[k * 3]!).toBeCloseTo(x / 3, 5)
+      expect(part.normals[k * 3 + 1]!).toBeCloseTo(y / 3, 5)
+      expect(part.normals[k * 3 + 2]!).toBeCloseTo(0, 6)
+    }
+  })
+
   it('merges parts and stays closed', () => {
     const shifted = cone(false)
     for (let k = 0; k < shifted.positions.length; k += 3) shifted.positions[k]! += 30

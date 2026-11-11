@@ -13,6 +13,8 @@ export interface Station {
   uvAlong: number
   /** Optional per-column values (N each), carried onto the part's attrs. */
   attrs?: Record<string, Float32Array>
+  /** Optional exact surface normals, N (u, v, along) triples, along being axisU x axisV; they replace the computed ones on this ring. */
+  normals?: Float32Array
 }
 
 export interface MeshPart {
@@ -128,11 +130,13 @@ export function sweep(stations: Station[], opts: SweepOptions): MeshPart {
     }
   }
 
-  const tris: number[] = []
+  const tris = new Uint32Array((last * 2 + 2) * N * 3)
+  let used = 0
   const tri = (a: number, b: number, c: number) => {
     if (a === b || b === c || a === c) return
-    if (flip) tris.push(a, c, b)
-    else tris.push(a, b, c)
+    tris[used++] = a
+    tris[used++] = flip ? c : b
+    tris[used++] = flip ? b : c
   }
   const next = (i: number) => (opts.seam ? i + 1 : (i + 1) % N)
   const at = (j: number, i: number) => (isApex(j) ? ringStart[j]! : ringStart[j]! + i)
@@ -166,10 +170,28 @@ export function sweep(stations: Station[], opts: SweepOptions): MeshPart {
     positions,
     normals: new Float32Array(count * 3),
     uvs,
-    indices: new Uint32Array(tris),
+    indices: tris.slice(0, used),
     attrs,
   }
   computeNormals(part)
+  stations.forEach((st, j) => {
+    if (!st.normals || isApex(j)) return
+    const [a0, a1, a2] = st.axisU
+    const [b0, b1, b2] = st.axisV
+    const [t0, t1, t2] = cross(st.axisU, st.axisV)
+    for (let i = 0; i < cols; i++) {
+      const c = (i % N) * 3
+      const [a, b, n] = [st.normals[c]!, st.normals[c + 1]!, st.normals[c + 2]!]
+      const x = a * a0 + b * b0 + n * t0
+      const y = a * a1 + b * b1 + n * t1
+      const z = a * a2 + b * b2 + n * t2
+      const len = Math.hypot(x, y, z)
+      const k = (ringStart[j]! + i) * 3
+      part.normals[k] = x / len
+      part.normals[k + 1] = y / len
+      part.normals[k + 2] = z / len
+    }
+  })
   return part
 }
 
@@ -204,29 +226,36 @@ export function computeNormals(part: MeshPart): void {
   const { positions: p, indices } = part
   const acc = new Float64Array(p.length)
   for (let t = 0; t < indices.length; t += 3) {
-    const vs = [indices[t]!, indices[t + 1]!, indices[t + 2]!]
-    const pt = vs.map((k) => [p[k * 3]!, p[k * 3 + 1]!, p[k * 3 + 2]!] as Vec3)
-    const face = cross(
-      [pt[1]![0] - pt[0]![0], pt[1]![1] - pt[0]![1], pt[1]![2] - pt[0]![2]],
-      [pt[2]![0] - pt[0]![0], pt[2]![1] - pt[0]![1], pt[2]![2] - pt[0]![2]],
-    )
-    const len = Math.hypot(...face)
+    const ia = indices[t]! * 3
+    const ib = indices[t + 1]! * 3
+    const ic = indices[t + 2]! * 3
+    const abx = p[ib]! - p[ia]!
+    const aby = p[ib + 1]! - p[ia + 1]!
+    const abz = p[ib + 2]! - p[ia + 2]!
+    const acx = p[ic]! - p[ia]!
+    const acy = p[ic + 1]! - p[ia + 1]!
+    const acz = p[ic + 2]! - p[ia + 2]!
+    const bcx = p[ic]! - p[ib]!
+    const bcy = p[ic + 1]! - p[ib + 1]!
+    const bcz = p[ic + 2]! - p[ib + 2]!
+    const fx = aby * acz - abz * acy
+    const fy = abz * acx - abx * acz
+    const fz = abx * acy - aby * acx
+    const len = Math.hypot(fx, fy, fz)
     if (len === 0) continue
-    for (let c = 0; c < 3; c++) {
-      const o = pt[c]!
-      const a = pt[(c + 1) % 3]!
-      const b = pt[(c + 2) % 3]!
-      const ea: Vec3 = [a[0] - o[0], a[1] - o[1], a[2] - o[2]]
-      const eb: Vec3 = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]
-      const angle = Math.atan2(
-        Math.hypot(...cross(ea, eb)),
-        ea[0] * eb[0] + ea[1] * eb[1] + ea[2] * eb[2],
-      )
-      const k = vs[c]! * 3
-      acc[k] = acc[k]! + (face[0] / len) * angle
-      acc[k + 1] = acc[k + 1]! + (face[1] / len) * angle
-      acc[k + 2] = acc[k + 2]! + (face[2] / len) * angle
-    }
+    // Twice the area is the same cross product at every corner, so each angle is atan2(len, dot).
+    const wa = Math.atan2(len, abx * acx + aby * acy + abz * acz) / len
+    const wb = Math.atan2(len, -(abx * bcx + aby * bcy + abz * bcz)) / len
+    const wc = Math.atan2(len, acx * bcx + acy * bcy + acz * bcz) / len
+    acc[ia] = acc[ia]! + fx * wa
+    acc[ia + 1] = acc[ia + 1]! + fy * wa
+    acc[ia + 2] = acc[ia + 2]! + fz * wa
+    acc[ib] = acc[ib]! + fx * wb
+    acc[ib + 1] = acc[ib + 1]! + fy * wb
+    acc[ib + 2] = acc[ib + 2]! + fz * wb
+    acc[ic] = acc[ic]! + fx * wc
+    acc[ic + 1] = acc[ic + 1]! + fy * wc
+    acc[ic + 2] = acc[ic + 2]! + fz * wc
   }
   for (let k = 0; k < acc.length; k += 3) {
     const len = Math.hypot(acc[k]!, acc[k + 1]!, acc[k + 2]!)
@@ -254,23 +283,26 @@ export function openEdges(part: MeshPart): number {
     if (!ids.has(key)) ids.set(key, ids.size)
     weld.push(ids.get(key)!)
   }
-  const edges = new Map<string, number>()
+  // Directed edge a>b as one number; welded ids stay far below 2^26.
+  const edges = new Map<number, number>()
+  const SHIFT = 2 ** 26
   let bad = 0
   const { indices } = part
   for (let t = 0; t < indices.length; t += 3) {
-    const tri = [weld[indices[t]!]!, weld[indices[t + 1]!]!, weld[indices[t + 2]!]!]
-    if (new Set(tri).size < 3) {
+    const a = weld[indices[t]!]!
+    const b = weld[indices[t + 1]!]!
+    const c = weld[indices[t + 2]!]!
+    if (a === b || b === c || a === c) {
       bad++
       continue
     }
-    for (let c = 0; c < 3; c++) {
-      const key = `${tri[c]}>${tri[(c + 1) % 3]}`
+    for (const key of [a * SHIFT + b, b * SHIFT + c, c * SHIFT + a])
       edges.set(key, (edges.get(key) ?? 0) + 1)
-    }
   }
   for (const [key, n] of edges) {
-    const [a, b] = key.split('>')
-    if (n !== 1 || edges.get(`${b}>${a}`) !== 1) bad++
+    const a = Math.floor(key / SHIFT)
+    const b = key - a * SHIFT
+    if (n !== 1 || edges.get(b * SHIFT + a) !== 1) bad++
   }
   return bad
 }
