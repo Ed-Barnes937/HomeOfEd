@@ -1,4 +1,5 @@
 import { useTexture } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 
@@ -16,6 +17,8 @@ import type { MeshPart } from '../sword/sweep.ts'
 import { gemMaterial, stoneGeometry } from './Gems.tsx'
 import { GEM_REST } from './gemGlow.ts'
 import { MM } from './scene.tsx'
+import { BLOOM_THRESHOLD } from './stage.ts'
+import { SWORD_REST, swordGlow, WAKE_CAP, wakeLift, type SwordGlow } from './swordGlow.ts'
 import {
   bladeMaterial,
   bladeUniforms,
@@ -247,7 +250,42 @@ function gripAround(spec: SwordSpec): number {
   return Math.PI * r * (1 + spec.grip.oval) * 1.02
 }
 
-export function SwordMesh({ spec }: { spec: SwordSpec }) {
+/** The glint's light at its height: the window's cool white, over the bloom (ADR 0100). */
+const GLINT_LIGHT = new THREE.Color('#f2f6ff').multiplyScalar(1.75 * BLOOM_THRESHOLD)
+/** The faint light waking runes throw on the fuller's floor round them, times their colour. */
+const FULLER_TINT = 0.12
+/** How much brighter gems glow at the height of the wake. */
+const GEM_WAKE = 1.6
+
+/** Where the wake starts along the blade (0 to 1): at the runes, at the guard for gems alone, or nowhere. */
+export function wakeFrom(spec: SwordSpec): number | null {
+  if (spec.runes) return (spec.runes.from - spec.blade.from) / (spec.blade.to - spec.blade.from)
+  return spec.glow ? 0 : null
+}
+
+/** The brighter of two overlapping flourishes' light, so a tap mid-wake never drops the glow. */
+function brighter(a: SwordGlow, b: SwordGlow): SwordGlow {
+  const glint = a.glint >= b.glint ? a : b
+  const runes = a.runes >= b.runes ? a : b
+  return {
+    glintAt: glint.glintAt,
+    glint: glint.glint,
+    runes: runes.runes,
+    wake: runes.wake,
+    cap: Math.max(a.cap, b.cap),
+  }
+}
+
+export function SwordMesh({
+  spec,
+  flourishAt,
+  reducedMotion = false,
+}: {
+  spec: SwordSpec
+  /** Clock time the close look's latest flourish began; absent on the anvil, which stays at rest. */
+  flourishAt?: number | null
+  reducedMotion?: boolean
+}) {
   const textures = useTexture(SWORD_TEXTURES) as SwordTextures
   useMemo(() => prepareSwordTextures(textures), [textures])
   const built = useSwordBuild(spec)
@@ -326,6 +364,7 @@ export function SwordMesh({ spec }: { spec: SwordSpec }) {
       const { from, to, x0, x1 } = built.rune.rect
       blade.uRuneRect.value.set(from, to, x0, x1)
     }
+    blade.uRuneInFuller.value = shown.runes?.where === 'fuller' ? 1 : 0
     if (shown.runes) blade.uRuneColour.value.setRGB(...srgbToLinear(shown.runes.colour))
     blade.uEngraveOn.value = built.engraving && engravingTexture ? 1 : 0
     blade.uEngraveMap.value = engravingTexture
@@ -368,6 +407,33 @@ export function SwordMesh({ spec }: { spec: SwordSpec }) {
     [glow, gemCap],
   )
   useEffect(() => () => gemMat?.dispose(), [gemMat])
+
+  const flourishes = useRef<{ latest: number | null; earlier: number | null }>({
+    latest: null,
+    earlier: null,
+  })
+  const from = useMemo(() => wakeFrom(shown), [shown])
+  useFrame(({ clock }) => {
+    if (flourishAt === undefined) return
+    if (flourishAt !== flourishes.current.latest)
+      flourishes.current = { latest: flourishAt, earlier: flourishes.current.latest }
+    const { latest, earlier } = flourishes.current
+    const now = clock.elapsedTime
+    const at = (start: number | null) =>
+      start === null ? SWORD_REST : swordGlow(now - start, reducedMotion, from)
+    const g = brighter(at(latest), at(earlier))
+    const lift = wakeLift(g)
+    blade.uGlintAt.value = g.glintAt ?? -1
+    blade.uGlintLight.value.copy(GLINT_LIGHT).multiplyScalar(g.glint)
+    blade.uRuneGlow.value = g.runes
+    blade.uRuneFront.value = g.wake
+    blade.uFullerTint.value = FULLER_TINT * lift
+    blade.uGlowCap.value = g.cap
+    if (gemMat) {
+      gemMat.emissiveIntensity = GEM_REST.emissive * (1 + (GEM_WAKE - 1) * lift)
+      gemCap.value = GEM_REST.cap + (WAKE_CAP - GEM_REST.cap) * lift
+    }
+  })
 
   return (
     <group rotation={[0, Math.PI / 2, 0]}>

@@ -11,6 +11,8 @@ import { BLOOM_THRESHOLD } from './stage.ts'
 
 /** The brightest any surface may be at rest, so nothing on the sword blooms (ADR 0082). */
 export const REST_CAP = 0.92 * BLOOM_THRESHOLD
+/** How brightly runes glow at rest, times their colour. */
+export const RUNE_REST = 0.9
 
 export interface SteelRow {
   colour: LinearRgb
@@ -313,7 +315,17 @@ export function bladeUniforms(textures: SwordTextures) {
     uRuneRect: { value: new THREE.Vector4(0, 1, 0, 1) },
     uRuneOn: { value: 0 },
     uRuneColour: { value: new THREE.Color() },
-    uRuneGlow: { value: 0.9 },
+    uRuneGlow: { value: RUNE_REST },
+    uRuneRest: { value: RUNE_REST },
+    /** How far the close look's wake has spread through the runes from the guard, 0 to 1. */
+    uRuneFront: { value: 1 },
+    uRuneInFuller: { value: 0 },
+    uFullerTint: { value: 0 },
+    /** The glint's place along the blade (0 guard, 1 tip) and its light; off at rest. */
+    uGlintAt: { value: -1 },
+    uGlintLight: { value: new THREE.Color(0, 0, 0) },
+    /** What a glinting or waking pixel may reach; the rest cap everywhere else. */
+    uGlowCap: { value: REST_CAP },
     uEngraveMap: { value: null as THREE.Texture | null },
     uEngraveRect: { value: new THREE.Vector4(0, 1, 0, 1) },
     uEngraveOn: { value: 0 },
@@ -357,6 +369,13 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       uniform float uRuneOn;
       uniform vec3 uRuneColour;
       uniform float uRuneGlow;
+      uniform float uRuneRest;
+      uniform float uRuneFront;
+      uniform float uRuneInFuller;
+      uniform float uFullerTint;
+      uniform float uGlintAt;
+      uniform vec3 uGlintLight;
+      uniform float uGlowCap;
       uniform sampler2D uEngraveMap;
       uniform vec4 uEngraveRect;
       uniform float uEngraveOn;
@@ -493,15 +512,34 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
     .replace(
       '#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>
+      float runeHere = runeAt(mm, vAlong);
+      // The wake lights the runes one after another from the guard outward.
+      float runeSpan = (zOf(vAlong) - uRuneRect.x) / max(uRuneRect.y - uRuneRect.x, 1e-3);
+      float runeLit = 1.0 - smoothstep(uRuneFront * 1.4 - 0.4, uRuneFront * 1.4, runeSpan);
       {
-        float rune = runeAt(mm, vAlong);
         // A paler, hotter core inside the channel, the rune's own colour at its edges.
-        vec3 hot = mix(uRuneColour, vec3(max(uRuneColour.r, max(uRuneColour.g, uRuneColour.b))), 0.45 * smoothstep(0.6, 1.0, rune));
-        totalEmissiveRadiance += hot * uRuneGlow * rune;
+        vec3 hot = mix(uRuneColour, vec3(max(uRuneColour.r, max(uRuneColour.g, uRuneColour.b))), 0.45 * smoothstep(0.6, 1.0, runeHere));
+        totalEmissiveRadiance += hot * (uRuneRest + (uRuneGlow - uRuneRest) * runeLit) * runeHere;
+        float beside = smoothstep(-0.08, 0.04, runeSpan) * (1.0 - smoothstep(0.96, 1.08, runeSpan));
+        totalEmissiveRadiance += uRuneColour * uFullerTint * uRuneInFuller * runeLit * beside * smoothstep(0.3, 0.9, fuller);
       }`,
     )
-    .replace('#include <opaque_fragment>', capLine)
+    .replace('#include <opaque_fragment>', bladeCapLine)
 }
+
+// The close look's glint: a short band of light on the edge bevel, strongest on the edge facing up into the window.
+const bladeCapLine = `{
+        float band = 1.0 - smoothstep(0.012, 0.036, abs(vAlong - uGlintAt));
+        float facing = 0.35 + 0.65 * smoothstep(-0.2, 0.6, dot(normal, vec3(0.28, 0.92, 0.28)));
+        float glintHere = band * clamp(vEdge, 0.0, 1.0) * facing;
+        outgoingLight += uGlintLight * glintHere;
+        float capHere = uCap + (uGlowCap - uCap) * max(glintHere, runeHere * runeLit);
+        float peak = max(max(outgoingLight.r, outgoingLight.g), max(outgoingLight.b, 1e-4));
+        float knee = 0.6 * capHere;
+        float rolled = peak <= knee ? peak : knee + (capHere - knee) * (1.0 - exp(-(peak - knee) / (capHere - knee)));
+        outgoingLight *= rolled / peak;
+      }
+      #include <opaque_fragment>`
 
 export function bladeMaterial(steel: SteelRow, uniforms: BladeUniforms) {
   const material = new THREE.MeshPhysicalMaterial({

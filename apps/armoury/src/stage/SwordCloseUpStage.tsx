@@ -13,6 +13,7 @@ import {
   SWORD_HALF_WIDTH,
 } from './smithyScene.tsx'
 import type { CloseUpProps } from './stage.ts'
+import { FLOURISH_SCALE } from './swordGlow.ts'
 import { SwordMesh, swordTipPoint } from './SwordMesh.tsx'
 
 // Dev-only, for the GPU gate shots: `?focus=tip` or `?focus=hilt` slides the sword along so a zoom lands there.
@@ -22,7 +23,7 @@ const focus =
     ? (FOCUS[new URLSearchParams(location.search).get('focus') ?? ''] ?? 0)
     : 0
 
-/** The close look, minimal: the sword lifts, turns, zooms and goes back (ticket 10 adds the flourish). */
+/** The close look: the sword lifts off the anvil, flourishes, glints up its edge, wakes its runes, and goes back. */
 export function SwordCloseUpStage({ params, reducedMotion, ...rig }: CloseUpProps) {
   const spec = useMemo(() => compileSword(params), [params])
   const item = useMemo((): HeldItem => {
@@ -34,7 +35,7 @@ export function SwordCloseUpStage({ params, reducedMotion, ...rig }: CloseUpProp
       tip: swordTipPoint(spec),
       hit: [spec.lengthMm * MM * 1.05, Math.max(through * 2, 30) * MM, girth],
       grip: spec.gripAt,
-      flourishScale: 1.5,
+      flourishScale: FLOURISH_SCALE,
       trailColour: null,
       boxHalfWidth: SWORD_HALF_WIDTH / boxScale(spec.lengthMm),
     }
@@ -50,9 +51,9 @@ export function SwordCloseUpStage({ params, reducedMotion, ...rig }: CloseUpProp
       environment={<SmithyEnvironment />}
       effects={<SmithyEffects />}
     >
-      {() => (
+      {(flourishAt) => (
         <group position={[focus * spec.lengthMm * MM, 0, 0]}>
-          <SwordMesh spec={spec} />
+          <SwordMesh spec={spec} flourishAt={flourishAt} reducedMotion={reducedMotion} />
         </group>
       )}
     </HeldRig>
