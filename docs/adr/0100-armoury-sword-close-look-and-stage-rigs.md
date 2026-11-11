@@ -47,25 +47,37 @@ realistic. At rest, nothing on either item may bloom (ADR 0082, 0083; decision O
   flash (`flashDelaySeconds: null`).
 - `stage/swordGlow.ts` is a pure clock, unit-tested with given times:
   `swordGlow(sinceFlourish, reducedMotion, wakeFrom)` returns `glintAt`, `glint`, `runes`,
-  `wake` and `cap`.
+  `wake`, `cap` and `gems`.
   - **Glint**: starts as the 8 closes (3.75 s) and runs once, guard to tip, over 0.6 s; its
-    strength is `sin(pi u)`, so it fades in and out. The blade shader adds a band 7% of the
-    blade long (smoothstep edges) at `aAlong == glintAt`, on the edge bevel only (`aEdge`),
-    strongest on the bevel facing up into the window, in the window's cool white at 1.75x the
-    bloom threshold at its height.
+    strength is `sin(pi u)`, so it fades in and out. The blade shader adds a band about 6% of
+    the blade long (smoothstep edges) at `aAlong == glintAt`, on the edge bevel only (`aEdge`),
+    in the window's cool white at 1.5x the bloom threshold at its height. A two-edged blade
+    glints only on the edge that lies toward the window (up and right) on screen, found from
+    the screen gradient of the blade's across coordinate, so a flat held square to the viewer
+    still lights one edge; a single edge always glints. No tip star.
   - **Rune wake**: begins as the glint reaches the runes (`wakeFrom`, where they start along the
     blade). The runes rise from rest (0.9 times their colour) to 1.3x the threshold over 0.6 s
     with a smoothstep, hold 0.6 s, and settle back over 1.5 s with a smoothstep; never linear,
     never flickering. They light from the guard outward (`wake`, a soft front through the rune
-    band). The fuller's floor round runes that sit in it picks up a faint light in their colour
-    (0.12 times it at the peak); a fuller with no runes in it never glows. Gems rise with the
-    wake (up to 1.6 times their rest glow). A sword with neither runes nor gems gets the glint
-    alone.
+    band), and their cores pale as they heat. The fuller's floor round runes that sit in it
+    picks up a faint light in their colour (0.2 times a blurred read of the glyph mask, fading
+    past the band's ends, so it pools round the glyphs); a fuller with no runes in it never
+    glows. A sword with neither runes nor gems gets the glint alone.
+  - **Gems** catch the light as the glint leaves the guard (a 0.3 s rise and fall to 2.2 times
+    their rest glow), then glow with the wake.
+- **Presenting the flat**: from 0.75 s before the glint until the wake has peaked, the close
+  look rolls the sword about its length so a flat faces the viewer, whichever way the idle roll
+  or the child left it, then lets go over 0.8 s and keeps the roll it added, so nothing turns
+  back (`presentWeight`, pure and tested). Without it the idle roll left the blade edge-on as
+  the runes woke.
   - A tap mid-wake starts a new flourish without dropping the glow: the stage shows the brighter
     of the two flourishes' light.
 - The hooks are uniforms written through the material each frame (`SwordMesh` takes the
   flourish time; the anvil passes none and never writes them). At rest every hook is an exact
-  no-op, proved by pixel-diffing box and reduced-motion close frames before and after (max 0).
+  no-op, proved by pixel-diffing box and reduced-motion close frames before and after: max 0
+  on swords without runes. Rune and engraving masks are now read before their bounds test (a
+  mipmapped read inside a per-pixel branch picked a wrong level at the band's edge), which
+  removes a faint seam along the rune band at rest; that seam is the only at-rest change.
 
 ### The bloom exception (decision O5)
 
@@ -78,15 +90,15 @@ and spell past it. The sword's close look adds one bounded exception:
   throughout. Gems' cap rises with the wake to 1.4x the threshold.
 - **How far**: the glint's cap reaches at most 2x the threshold; a waking rune's at most 1.4x,
   so only the hottest centres of the glyphs bloom.
-- **How long**: the glint for 0.6 s from 3.75 s after the flourish; the wake for at most 2.7 s
-  after the glint reaches the runes. Everything is back at the rest cap 7.05 s after a
+- **How long**: the glint for 0.6 s from 3.75 s after the flourish; the gems' catch for 0.3 s
+  from then; the wake for at most 2.7 s after the glint reaches the runes. Everything is back at the rest cap 7.05 s after a
   flourish. Only in the close look; the anvil, the picture and the shelf never lift the cap.
 
 ### Reduced motion
 
-The rig does not flourish, idle or fly (ADR 0077); `swordGlow` returns the rest values for
-every time, so there is no travelling glint and the runes and gems hold their resting glow. The
-sword simply appears lifted and goes back.
+The rig does not flourish, idle or fly (ADR 0077); `swordGlow` returns the rest values and
+`presentWeight` 0 for every time, so there is no travelling glint, no presenting roll, and the
+runes and gems hold their resting glow. The sword simply appears lifted and goes back.
 
 ### The anvil at rest
 
