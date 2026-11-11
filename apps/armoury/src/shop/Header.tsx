@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
 import type { ShareState } from '../share/useShareWand.ts'
-import { hubUrl } from '../useMediaQuery.ts'
 import styles from './Header.module.scss'
 import type { ShopCopy } from './shopView.ts'
 
@@ -79,11 +78,7 @@ export function Header({
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <a
-          className={styles.back}
-          href={hubUrl(window.location.hostname)}
-          aria-label="Back to home of ed"
-        >
+        <Link to="/street" className={styles.back} aria-label="Back to the street">
           <svg
             width="16"
             height="16"
@@ -97,7 +92,7 @@ export function Header({
           >
             <path d="M10 3 L5 8 L10 13" />
           </svg>
-        </a>
+        </Link>
         <span className={styles.name}>Armoury</span>
         <span className={styles.motto}>{copy.motto}</span>
       </div>

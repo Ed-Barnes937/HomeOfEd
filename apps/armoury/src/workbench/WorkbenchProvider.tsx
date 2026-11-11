@@ -13,6 +13,8 @@ import {
 
 import type { ItemDef, ItemKind, StoredItem } from '../items/item.ts'
 import { ITEMS } from '../items/registry.ts'
+import type { Landing } from '../landing.ts'
+import { readLastShop, writeLastShop } from '../persistence/lastShop.ts'
 import {
   keepItem,
   loadSaveDocument,
@@ -42,6 +44,31 @@ export interface Bench {
 }
 
 const WorkbenchContext = createContext<Record<ItemKind, Bench> | null>(null)
+
+/** Where this page load lands, and the shop the child was in last. */
+export interface Shops {
+  landing: Landing
+  lastShop: ItemKind | null
+  enterShop: (kind: ItemKind) => void
+}
+
+const ShopsContext = createContext<Shops | null>(null)
+
+interface Arrival {
+  shared: SharedItem | null
+  landing: Landing
+  /** The root's redirect drops the fragment itself; any other path clears it here. */
+  clearsFragment: boolean
+}
+
+function arrive(storage: SaveStorage): Arrival {
+  const shared = decodeShareHash(window.location.hash)
+  return {
+    shared,
+    landing: { arrivalKind: shared?.kind ?? null, lastShop: readLastShop(storage) },
+    clearsFragment: shared !== null && window.location.pathname !== '/',
+  }
+}
 
 function initialItem(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null): StoredItem {
   const arrived = arrival?.kind === def.kind ? arrival.item : null
@@ -106,16 +133,36 @@ export function WorkbenchProvider({
   storage?: SaveStorage
   children: ReactNode
 }) {
-  const [arrival] = useState(() => decodeShareHash(window.location.hash))
-  const wand = useBench(ITEMS.wand, storage, arrival)
-  const sword = useBench(ITEMS.sword, storage, arrival)
+  const [{ shared, landing, clearsFragment }] = useState(() => arrive(storage))
+  const wand = useBench(ITEMS.wand, storage, shared)
+  const sword = useBench(ITEMS.sword, storage, shared)
+  const [lastShop, setLastShop] = useState(landing.lastShop)
 
   useEffect(() => {
-    if (arrival) clearShareHash(window.location, window.history)
-  }, [arrival])
+    if (clearsFragment) clearShareHash(window.location, window.history)
+  }, [clearsFragment])
+
+  const enterShop = useCallback(
+    (kind: ItemKind) => {
+      writeLastShop(storage, kind)
+      setLastShop(kind)
+    },
+    [storage],
+  )
 
   const benches = useMemo(() => ({ wand, sword }), [wand, sword])
-  return <WorkbenchContext value={benches}>{children}</WorkbenchContext>
+  const shops = useMemo(() => ({ landing, lastShop, enterShop }), [landing, lastShop, enterShop])
+  return (
+    <ShopsContext value={shops}>
+      <WorkbenchContext value={benches}>{children}</WorkbenchContext>
+    </ShopsContext>
+  )
+}
+
+export function useShops(): Shops {
+  const shops = useContext(ShopsContext)
+  if (!shops) throw new Error('useShops needs a WorkbenchProvider')
+  return shops
 }
 
 export function useWorkbench(kind: ItemKind): Bench {

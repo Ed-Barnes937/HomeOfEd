@@ -2,8 +2,7 @@ import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { ItemKind } from '../items/item.ts'
-
-const SECTIONS: Record<ItemKind, string> = { wand: 'Wands', sword: 'Swords' }
+import { verifyAt } from './address.ts'
 
 export class ShelfPom extends BasePage {
   async verifyIsShown(): Promise<void> {
@@ -19,25 +18,21 @@ export class ShelfPom extends BasePage {
     for (const [i, name] of names.entries()) await expect(boxes.nth(i)).toContainText(name)
   }
 
+  private section(kind: ItemKind) {
+    return this.page.locator(`[data-shelf="${kind}"]`)
+  }
+
   private items(kind: ItemKind) {
-    return this.page
-      .getByRole('region', { name: SECTIONS[kind], exact: true })
-      .getByRole('listitem')
+    const items = this.section(kind).getByRole('listitem')
+    return items
       .getByRole('button', { expanded: false })
-      .or(
-        this.page
-          .getByRole('region', { name: SECTIONS[kind], exact: true })
-          .getByRole('listitem')
-          .getByRole('button', { expanded: true }),
-      )
+      .or(items.getByRole('button', { expanded: true }))
   }
 
   /** The names on one kind's section of the shelf, in order; none means no section at all. */
   async verifyItems(kind: ItemKind, names: string[]): Promise<void> {
     if (names.length === 0) {
-      await expect(
-        this.page.getByRole('region', { name: SECTIONS[kind], exact: true }),
-      ).toHaveCount(0)
+      await expect(this.section(kind)).toHaveCount(0)
       return
     }
     const items = this.items(kind)
@@ -82,7 +77,35 @@ export class ShelfPom extends BasePage {
     await this.page.getByRole('button', { name: 'Remove' }).click()
   }
 
+  async verifyAt(path: string): Promise<void> {
+    await verifyAt(this.page, path)
+  }
+
+  /** What the shelf says while nothing is kept: its intro and its empty space. */
+  async verifyEmpty(intro: string, space: string): Promise<void> {
+    await expect(this.page.getByText(intro, { exact: true })).toBeVisible()
+    await expect(this.page.getByRole('listitem').filter({ hasText: space })).toBeVisible()
+  }
+
+  /** The way back, which names the shop that was last. */
+  async backTo(place: 'the counter' | 'the anvil'): Promise<void> {
+    await this.page
+      .getByRole('link', { name: `Back to ${place}` })
+      .first()
+      .click()
+  }
+
+  /** Back to the wand counter, by way of the street when the smithy was the last shop. */
   async backToCounter(): Promise<void> {
-    await this.page.getByRole('link', { name: 'Back to the counter' }).first().click()
+    const counter = this.page.getByRole('link', { name: 'Back to the counter' })
+    const anvil = this.page.getByRole('link', { name: 'Back to the anvil' })
+    await expect(counter.or(anvil).first()).toBeVisible()
+    if ((await counter.count()) > 0) {
+      await counter.first().click()
+      return
+    }
+    await anvil.first().click()
+    await this.page.getByRole('link', { name: 'Back to the street' }).click()
+    await this.page.getByRole('link', { name: 'Go into the wand shop' }).click()
   }
 }

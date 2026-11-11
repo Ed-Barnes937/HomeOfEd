@@ -3,6 +3,7 @@ import { expect } from '@playwright/experimental-ct-react'
 import type { Locator, Page } from '@playwright/test'
 
 import { SAVE_KEY } from '../persistence/storage.ts'
+import { reloadAtRoot } from './address.ts'
 import { BenchPom } from './BenchPom.ts'
 
 export { ShelfPom } from './ShelfPom.ts'
@@ -113,23 +114,9 @@ export class ShopPom extends BenchPom {
     await expect(this.page.getByRole('link', { name: `Your shelf, ${count} wands` })).toBeVisible()
   }
 
-  /** A different visitor opening a link: nothing of their own saved, just the fragment. */
-  async openAsNewVisitor(url: string): Promise<void> {
-    const { hash } = new URL(url)
-    await this.page.evaluate((fragment) => {
-      window.location.hash = fragment
-    }, hash)
-    await this.page.reload()
-    await this.page.evaluate((key) => window.localStorage.removeItem(key), SAVE_KEY)
-  }
-
-  async reload(): Promise<void> {
-    await this.page.reload()
-  }
-
   /** Reloads with these params saved as the wand on the counter, as an older version saved them. */
   async openWithSavedWand(params: Record<string, unknown>): Promise<void> {
-    await this.page.reload()
+    await reloadAtRoot(this.page)
     await this.page.evaluate(([key, saved]) => window.localStorage.setItem(key, saved), [
       SAVE_KEY,
       JSON.stringify({ version: 1, working: { params }, shelf: [] }),

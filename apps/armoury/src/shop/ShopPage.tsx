@@ -7,7 +7,7 @@ import { navigatorPictureTarget, pictureFilename, savePicture } from '../share/s
 import { useShareWand } from '../share/useShareWand.ts'
 import { STAGE_FILL, type StageHandle } from '../stage/stage.ts'
 import { PHONE_QUERY, REDUCED_MOTION_QUERY, useMediaQuery } from '../useMediaQuery.ts'
-import { useWorkbench } from '../workbench/WorkbenchProvider.tsx'
+import { useShops, useWorkbench } from '../workbench/WorkbenchProvider.tsx'
 import { Panel } from './controls/Panel.tsx'
 import { Sheet } from './controls/Sheet.tsx'
 import { Header } from './Header.tsx'
@@ -30,6 +30,9 @@ export function ShopPage({ view }: { view: ShopView }) {
   const [kept, setKept] = useState(false)
   const [pictureBusy, setPictureBusy] = useState(false)
   const { item } = state
+  const { enterShop } = useShops()
+
+  useEffect(() => enterShop(def.kind), [enterShop, def.kind])
 
   useEffect(() => {
     if (!kept) return

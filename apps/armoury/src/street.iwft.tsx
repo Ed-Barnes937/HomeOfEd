@@ -1,0 +1,153 @@
+import { expect } from '@playwright/experimental-ct-react'
+
+import { streetTest as test } from './testing/iwftTest.tsx'
+import { ShelfPom } from './testing/ShelfPom.ts'
+
+test('a first visit lands on the street with two doors', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyDoors()
+  await root.verifyAt('/street')
+})
+
+test('each door opens its shop, and the way back leads to the street', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  const wands = await root.enterWandShop()
+  await wands.verifyAt('/wands')
+  const street = await wands.backToStreet()
+  const smithy = await street.enterSmithy()
+  await smithy.verifyAt('/swords')
+  await (await smithy.backToStreet()).verifyDoors()
+})
+
+test('a reload on the street stays on the street', async ({ mountApp }) => {
+  const first = await mountApp()
+  await (await (await first.root.enterSmithy()).backToStreet()).reload()
+  const { root } = await mountApp()
+  await root.verifyDoors()
+})
+
+test('a returning visitor opens in the wand shop they were last in', async ({ mountApp }) => {
+  const first = await mountApp()
+  const wands = await first.root.enterWandShop()
+  await wands.rename('Twiglet')
+  await wands.reload()
+  await mountApp()
+  await wands.verifyWandName('Twiglet')
+  await wands.verifyAt('/wands')
+})
+
+test('a returning visitor opens in the smithy they were last in', async ({ mountApp }) => {
+  const first = await mountApp()
+  const smithy = await first.root.enterSmithy()
+  await smithy.rename('Pip')
+  await smithy.reload()
+  await mountApp()
+  await smithy.verifySwordName('Pip')
+  await smithy.verifyAt('/swords')
+})
+
+test.describe('share links', () => {
+  test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
+
+  test('an old wand link opens the wand shop with that wand, and then forgets the link', async ({
+    mountApp,
+  }) => {
+    const first = await mountApp()
+    const wands = await first.root.enterWandShop()
+    await wands.choose('Walnut')
+    await wands.rename('Firefly')
+    const link = await wands.share()
+    expect(new URL(link).pathname).toBe('/')
+
+    await wands.openAsNewVisitor(link)
+    await mountApp()
+    await wands.verifyWandName('Firefly')
+    await wands.verifyStage({ wood: 'walnut' })
+    await wands.verifyAt('/wands')
+
+    await wands.choose('Oak')
+    await wands.reload()
+    await mountApp()
+    await wands.verifyStage({ wood: 'oak' })
+  })
+
+  test('a sword link opens the smithy with that sword, whatever shop was last', async ({
+    mountApp,
+  }) => {
+    const first = await mountApp()
+    const smithy = await first.root.enterSmithy()
+    await smithy.chooseKind('Dagger')
+    await smithy.rename('Pip')
+    const link = await smithy.share()
+    await (await smithy.backToStreet()).enterWandShop()
+
+    await smithy.openAsNewVisitor(link)
+    await mountApp()
+    await smithy.verifySwordName('Pip')
+    await smithy.verifyStage({ family: 'dagger' })
+    await smithy.verifyAt('/swords')
+  })
+
+  test('a wand link to the shelf still loads the wand, and then forgets the link', async ({
+    mountApp,
+  }) => {
+    const first = await mountApp()
+    const wands = await first.root.enterWandShop()
+    await wands.choose('Walnut')
+    await wands.rename('Firefly')
+    const link = await wands.share()
+
+    await first.root.openAsNewVisitor(link, '/shelf')
+    await mountApp()
+    const shelf = new ShelfPom(first.page)
+    await shelf.verifyIsShown()
+    await shelf.verifyAt('/shelf')
+    await shelf.backTo('the counter')
+    await wands.verifyWandName('Firefly')
+    await wands.verifyStage({ wood: 'walnut' })
+  })
+})
+
+test('an old save with no last shop sees the street once, and keeps its wand and shelf', async ({
+  mountApp,
+}) => {
+  const first = await mountApp()
+  await first.root.openWithOldSave({
+    working: { params: { wood: 'walnut' }, name: 'Shadow' },
+    shelf: [{ params: { wood: 'oak' }, name: 'Keeper' }],
+  })
+  const { root } = await mountApp()
+  await root.verifyDoors()
+  const wands = await root.enterWandShop()
+  await wands.verifyWandName('Shadow')
+  await wands.verifyStage({ wood: 'walnut' })
+  const shelf = await wands.openShelf()
+  await shelf.verifyWands(['Keeper'])
+})
+
+test('from the shelf, the way back returns to the shop that was last', async ({ mountApp }) => {
+  const first = await mountApp()
+  const smithy = await first.root.enterSmithy()
+  await (await smithy.openShelf()).backTo('the anvil')
+  await smithy.verifyIsShown()
+  const wands = await (await smithy.backToStreet()).enterWandShop()
+  await (await wands.openShelf()).backTo('the counter')
+  await wands.verifyIsShown()
+})
+
+test('an empty shelf talks about the shop that was last', async ({ mountApp }) => {
+  const first = await mountApp()
+  const smithy = await first.root.enterSmithy()
+  const shelf = await smithy.openShelf()
+  await shelf.verifyEmpty(
+    'Every sword you keep gets a box and a label.',
+    'Keep a sword and its box goes here',
+  )
+  await shelf.backTo('the anvil')
+  const wands = await (await smithy.backToStreet()).enterWandShop()
+  await wands.openShelf()
+  await shelf.verifyEmpty(
+    'Every wand you keep gets a box and a label.',
+    'Keep a wand and its box goes here',
+  )
+})

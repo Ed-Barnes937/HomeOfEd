@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useState, type CSSProperties } from 'react'
+import { useId, useState, type CSSProperties } from 'react'
 
 import type { ItemKind, StoredItem } from '../items/item.ts'
 import { buildShareUrl } from '../share/shareLink.ts'
@@ -8,7 +8,7 @@ import type { ShopView } from '../shop/shopView.ts'
 import { wandShop } from '../shop/wandShop.ts'
 import { smithy } from '../smithy/smithy.ts'
 import { SwordOutline } from '../smithy/SwordOutline.tsx'
-import { useWorkbench } from '../workbench/WorkbenchProvider.tsx'
+import { useShops, useWorkbench } from '../workbench/WorkbenchProvider.tsx'
 import styles from './ShelfPage.module.scss'
 
 const BOX_TONES = [
@@ -28,14 +28,26 @@ const hexToRgb = (hex: string) => {
 interface Shelf {
   view: ShopView
   heading: string
-  /** Where "Take it out" goes: the wand shop stays at the root for now. */
-  to: '/' | '/swords'
 }
 
 const SHELVES: readonly Shelf[] = [
-  { view: wandShop, heading: 'Wands', to: '/' },
-  { view: smithy, heading: 'Swords', to: '/swords' },
+  { view: wandShop, heading: 'Wands' },
+  { view: smithy, heading: 'Swords' },
 ]
+
+/** The way back and the empty shelf's words, by the shop the child was last in. */
+const BACK: Record<ItemKind, { label: string; intro: string; empty: string }> = {
+  wand: {
+    label: 'Back to the counter',
+    intro: 'Every wand you keep gets a box and a label.',
+    empty: 'Keep a wand and its box goes here',
+  },
+  sword: {
+    label: 'Back to the anvil',
+    intro: 'Every sword you keep gets a box and a label.',
+    empty: 'Keep a sword and its box goes here',
+  },
+}
 
 function boxStyle({ view }: Shelf, item: StoredItem): CSSProperties {
   const [top, bottom] = BOX_TONES[Number(view.item.number(item.params)) % BOX_TONES.length]!
@@ -94,7 +106,7 @@ function ShelfBox({ shelf, item, index }: { shelf: Shelf; item: StoredItem; inde
             className={styles.primary}
             onClick={() => {
               dispatch({ type: 'load', item })
-              void navigate({ to: shelf.to })
+              void navigate({ to: shelf.view.path })
             }}
           >
             Take it out
@@ -162,17 +174,19 @@ function ShelfRows({
   shelf,
   items,
   last,
+  empty,
 }: {
   shelf: Shelf | null
   items: readonly StoredItem[]
   last: boolean
+  empty: string
 }) {
   const rows: { item: StoredItem; index: number }[][] = []
   items.forEach((item, index) => {
     if (index % PER_SHELF === 0) rows.push([])
     rows[rows.length - 1]!.push({ item, index })
   })
-  const roomOnLastShelf = rows.length === 0 || rows[rows.length - 1]!.length < PER_SHELF
+  const roomOnLastShelf = rows.length > 0 && rows[rows.length - 1]!.length < PER_SHELF
   if (last && !roomOnLastShelf) rows.push([])
 
   return rows.map((row, r) => (
@@ -188,9 +202,7 @@ function ShelfRows({
             />
           ))}
         {last && r === rows.length - 1 && (
-          <li className={styles.empty}>
-            {items.length === 0 ? 'Keep a wand and its box goes here' : 'Room for the next one'}
-          </li>
+          <li className={styles.empty}>{items.length === 0 ? empty : 'Room for the next one'}</li>
         )}
       </ul>
     </div>
@@ -199,22 +211,28 @@ function ShelfRows({
 
 export function ShelfPage() {
   const benches = { wand: useWorkbench('wand'), sword: useWorkbench('sword') }
+  const lastShop = useShops().lastShop ?? 'wand'
+  const back = BACK[lastShop]
+  const backTo = SHELVES.find((s) => s.view.item.kind === lastShop)!.view.path
+  const headingId = useId()
   const kept = (kind: ItemKind) => benches[kind].shelf
   const sections = SHELVES.filter((s) => kept(s.view.item.kind).length > 0)
   const wands = kept('wand').length
   const swords = kept('sword').length
   const count =
-    swords === 0
-      ? counted(wands, 'wand', 'wands')
-      : [
-          ...(wands > 0 ? [counted(wands, 'wand', 'wands')] : []),
-          counted(swords, 'sword', 'swords'),
-        ].join(', ')
+    wands === 0 && swords === 0 && lastShop === 'sword'
+      ? counted(0, 'sword', 'swords')
+      : swords === 0
+        ? counted(wands, 'wand', 'wands')
+        : [
+            ...(wands > 0 ? [counted(wands, 'wand', 'wands')] : []),
+            counted(swords, 'sword', 'swords'),
+          ].join(', ')
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <Link to="/" className={styles.back} aria-label="Back to the counter">
+        <Link to={backTo} className={styles.back} aria-label={back.label}>
           <svg
             width="20"
             height="20"
@@ -233,33 +251,49 @@ export function ShelfPage() {
         <span className={styles.count}>{count}</span>
       </header>
       <p className={styles.intro}>
-        {swords === 0
-          ? 'Every wand you keep gets a box and a label.'
-          : 'Everything you keep gets a box and a label.'}
+        {wands === 0 && swords === 0
+          ? back.intro
+          : swords === 0
+            ? BACK.wand.intro
+            : 'Everything you keep gets a box and a label.'}
       </p>
 
       <div className={styles.sections}>
         {sections.length === 0 ? (
           <div className={styles.shelves}>
-            <ShelfRows shelf={null} items={[]} last />
+            <ShelfRows shelf={null} items={[]} last empty={back.empty} />
           </div>
         ) : (
-          sections.map((shelf, i) => (
-            <section key={shelf.heading} className={styles.shelves} aria-label={shelf.heading}>
-              {sections.length > 1 && <h2 className={styles.heading}>{shelf.heading}</h2>}
-              <ShelfRows
-                shelf={shelf}
-                items={kept(shelf.view.item.kind)}
-                last={i === sections.length - 1}
-              />
-            </section>
-          ))
+          sections.map((shelf, i) => {
+            const titled = sections.length > 1
+            const kind = shelf.view.item.kind
+            return (
+              <section
+                key={shelf.heading}
+                className={styles.shelves}
+                data-shelf={kind}
+                aria-labelledby={titled ? `${headingId}-${kind}` : undefined}
+              >
+                {titled && (
+                  <h2 id={`${headingId}-${kind}`} className={styles.heading}>
+                    {shelf.heading}
+                  </h2>
+                )}
+                <ShelfRows
+                  shelf={shelf}
+                  items={kept(kind)}
+                  last={i === sections.length - 1}
+                  empty={back.empty}
+                />
+              </section>
+            )
+          })
         )}
       </div>
 
       <footer className={styles.footer}>
-        <Link to="/" className={styles.counterButton}>
-          Back to the counter
+        <Link to={backTo} className={styles.counterButton}>
+          {back.label}
         </Link>
       </footer>
     </div>

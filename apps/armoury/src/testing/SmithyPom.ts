@@ -1,7 +1,6 @@
 import { expect } from '@playwright/experimental-ct-react'
 import type { Page } from '@playwright/test'
 
-import { SAVE_KEY, SWORD_SAVE_KEY } from '../persistence/storage.ts'
 import { BenchPom } from './BenchPom.ts'
 import { CloseUpPom } from './ShopPom.ts'
 
@@ -114,28 +113,5 @@ export class SmithyPom extends BenchPom {
 
   async verifyTabs(tabs: string[]): Promise<void> {
     await expect(this.page.getByRole('tab')).toHaveText(tabs)
-  }
-
-  /** A different visitor opening a link: nothing of their own saved, just the fragment. */
-  async openAsNewVisitor(url: string): Promise<void> {
-    const { hash } = new URL(url)
-    await this.page.evaluate((fragment) => {
-      window.location.hash = fragment
-    }, hash)
-    await this.reload()
-    await this.page.evaluate(
-      (keys) => {
-        for (const key of keys) window.localStorage.removeItem(key)
-      },
-      [SAVE_KEY, SWORD_SAVE_KEY],
-    )
-  }
-
-  /** The harness page lives at the root; the fixture puts the app back in the smithy. */
-  async reload(): Promise<void> {
-    await this.page.evaluate(() =>
-      window.history.replaceState(null, '', `/${window.location.hash}`),
-    )
-    await this.page.reload()
   }
 }

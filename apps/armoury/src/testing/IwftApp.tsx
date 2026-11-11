@@ -13,7 +13,7 @@ import { useState } from 'react'
 
 import { App } from '../App.tsx'
 import type { ItemKind } from '../items/item.ts'
-import { router } from '../router.tsx'
+import { writeLastShop } from '../persistence/lastShop.ts'
 import { appRouter } from '../server/router.ts'
 import { fakeStages } from './FakeStage.tsx'
 
@@ -29,15 +29,10 @@ exposeDispatcher(
   }),
 )
 
-const SHOP_PATHS: Record<ItemKind, string> = { wand: '/', sword: '/swords' }
-
-/** With `start`, the app opens in that kind's shop, keeping any share fragment. */
+/** With `start`, the app opens as a visitor who was last in that kind's shop. */
 export function IwftApp({ start }: { start?: ItemKind }) {
   useState(() => {
-    if (!start) return
-    router.history.replace(`${SHOP_PATHS[start]}${window.location.hash}`)
-    // Written now, not on the next microtask, so the provider's own fragment clearing comes after.
-    router.history.flush()
+    if (start) writeLastShop(window.localStorage, start)
   })
   return <App stages={fakeStages} />
 }

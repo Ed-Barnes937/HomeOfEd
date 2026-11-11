@@ -2,7 +2,9 @@ import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 import type { Locator, Page } from '@playwright/test'
 
+import { openAsNewVisitor, reloadAtRoot, verifyAt } from './address.ts'
 import { ShelfPom } from './ShelfPom.ts'
+import type { StreetPom } from './StreetPom.ts'
 
 /** The words a shop's page objects find its controls by. */
 export interface BenchCopy {
@@ -96,6 +98,28 @@ export abstract class BenchPom extends BasePage {
     await this.page.getByRole('button', { name: this.copy.share }).click()
     await expect(this.page.getByRole('button', { name: 'Link copied' })).toBeVisible()
     return this.page.evaluate(() => navigator.clipboard.readText())
+  }
+
+  async backToStreet(): Promise<StreetPom> {
+    await this.page.getByRole('link', { name: 'Back to the street' }).click()
+    // Imported late: StreetPom builds the shop page objects, which extend this class.
+    const street = new (await import('./StreetPom.ts')).StreetPom(this.page)
+    await street.verifyDoors()
+    return street
+  }
+
+  async verifyAt(path: string): Promise<void> {
+    await verifyAt(this.page, path)
+  }
+
+  /** Opens the app again at its address, the root, as a visitor coming back does. */
+  async reload(): Promise<void> {
+    await reloadAtRoot(this.page)
+  }
+
+  /** A different visitor opening a link: nothing of their own saved, just the fragment. */
+  async openAsNewVisitor(url: string): Promise<void> {
+    await openAsNewVisitor(this.page, url)
   }
 
   async savePicture(): Promise<string> {

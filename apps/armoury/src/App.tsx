@@ -6,13 +6,18 @@ import './styles/tokens.scss'
 import type { SaveStorage } from './persistence/storage.ts'
 import { router } from './router.tsx'
 import { StageContext, type StagesByKind } from './stage/stage.ts'
-import { WorkbenchProvider } from './workbench/WorkbenchProvider.tsx'
+import { useShops, WorkbenchProvider } from './workbench/WorkbenchProvider.tsx'
 
 const realStages: StagesByKind = {
   wand: {
     Box: lazy(() => import('./stage/WandStage.tsx')),
     CloseUp: lazy(() => import('./stage/WandStage.tsx').then((m) => ({ default: m.CloseUpStage }))),
   },
+}
+
+function Routes() {
+  const { landing } = useShops()
+  return <RouterProvider router={router} context={{ landing }} />
 }
 
 export function App({
@@ -27,7 +32,7 @@ export function App({
     <QueryClientProvider client={queryClient}>
       <StageContext value={stages}>
         <WorkbenchProvider storage={storage}>
-          <RouterProvider router={router} />
+          <Routes />
         </WorkbenchProvider>
       </StageContext>
     </QueryClientProvider>
