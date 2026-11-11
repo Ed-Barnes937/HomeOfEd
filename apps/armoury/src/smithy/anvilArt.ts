@@ -112,8 +112,8 @@ const BASE =
 function feet(): string {
   return (
     `<path d="${BASE}" fill="#000" opacity="0.9" filter="url(#soft)" transform="translate(22 12)"/>` +
-    `<path d="${BASE}" fill="url(#foot)"/>` +
-    `<path d="${BASE}" fill="url(#footShade)"/>` +
+    `<g filter="url(#blur1)"><path d="${BASE}" fill="url(#foot)"/>` +
+    `<path d="${BASE}" fill="url(#footShade)"/></g>` +
     `<path d="M264 12 Q262 6 272 4 L336 8" stroke="#d48e5e" stroke-width="1.6" fill="none" opacity="0.55"/>` +
     `<path d="M262 158 Q262 164 272 166 L336 162" stroke="#c4825a" stroke-width="1.4" fill="none" opacity="0.35"/>` +
     `<path d="M668 8 L734 4 Q744 6 742 14" stroke="#a9bfda" stroke-width="1.3" fill="none" opacity="0.35"/>`
@@ -152,17 +152,18 @@ export function anvilSvg(): string {
   const { left, right, top, bottom } = FACE
   const face = `x="${left}" y="${top}" width="${right - left}" height="${bottom - top}" rx="6"`
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${ART_X} ${ART_Y} ${ART_WIDTH} ${ART_HEIGHT}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${ART_WIDTH}" height="${ART_HEIGHT}" viewBox="${ART_X} ${ART_Y} ${ART_WIDTH} ${ART_HEIGHT}">` +
     `<defs>` +
     `<filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>` +
     `<filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>` +
+    `<filter id="blur1" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.2"/></filter>` +
     `<filter id="iron" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9 0.25" numOctaves="3" seed="11"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.9 0 0 0 -0.42"/></filter>` +
     `<filter id="woodGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="5"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.8 0 0 0 -0.3"/></filter>` +
     `<clipPath id="faceClip"><rect ${face}/></clipPath>` +
     `<clipPath id="stumpClip"><circle cx="${STUMP.x}" cy="${STUMP.y}" r="${STUMP.r}"/></clipPath>` +
     `<radialGradient id="grain" cx="0.45" cy="0.45" r="0.6"><stop offset="0" stop-color="#7c5a3c"/><stop offset="0.55" stop-color="#604430"/><stop offset="0.9" stop-color="#47321f"/><stop offset="1" stop-color="#2c1d12"/></radialGradient>` +
     `<linearGradient id="stumpLight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff9a52" stop-opacity="0.22"/><stop offset="0.45" stop-color="#000" stop-opacity="0.1"/><stop offset="1" stop-color="#9fc2e8" stop-opacity="0.12"/></linearGradient>` +
-    `<linearGradient id="foot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a4232"/><stop offset="0.2" stop-color="#34302e"/><stop offset="0.75" stop-color="#2a2c30"/><stop offset="1" stop-color="#3c4550"/></linearGradient>` +
+    `<linearGradient id="foot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a2a20"/><stop offset="0.2" stop-color="#1c1a19"/><stop offset="0.75" stop-color="#161719"/><stop offset="1" stop-color="#222830"/></linearGradient>` +
     `<linearGradient id="footShade" x1="0" y1="0" x2="0" y2="170" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.06"/><stop offset="0.2" stop-color="#000" stop-opacity="0.55"/><stop offset="0.3" stop-color="#000" stop-opacity="0.8"/><stop offset="0.7" stop-color="#000" stop-opacity="0.8"/><stop offset="0.8" stop-color="#000" stop-opacity="0.6"/><stop offset="1" stop-color="#000" stop-opacity="0.1"/></linearGradient>` +
     `<linearGradient id="faceTone" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5f524a"/><stop offset="0.3" stop-color="#4a4846"/><stop offset="0.7" stop-color="#464b51"/><stop offset="1" stop-color="#57626e"/></linearGradient>` +
     `<linearGradient id="faceDepth" x1="0" y1="${top}" x2="0" y2="${bottom}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity="0.2"/><stop offset="0.12" stop-color="#000" stop-opacity="0"/><stop offset="0.75" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.4"/></linearGradient>` +

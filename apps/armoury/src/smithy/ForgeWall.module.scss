@@ -20,6 +20,18 @@
   transform-origin: 50% 100%;
 }
 
+.texture {
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain), var(--mottle);
+  background-size:
+    256px 256px,
+    640px 640px;
+  mix-blend-mode: soft-light;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
 .forgeLight,
 .coalGlow {
   position: absolute;

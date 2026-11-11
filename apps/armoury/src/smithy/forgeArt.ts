@@ -28,10 +28,6 @@ const STONES = [
 ]
 const BRICKS = ['#7a4630', '#8a5236', '#6e3f2b', '#5c3424', '#80492f', '#6a3a28']
 
-const grainFilter = (id: string, freq: number, alpha: number) =>
-  `<filter id="${id}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="3" seed="7"/>` +
-  `<feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ${alpha} 0 0 0 ${-alpha * 0.45}"/></filter>`
-
 function stoneWall(rand: () => number, y0: number, y1: number): string {
   let out = ''
   let y = y0
@@ -76,20 +72,20 @@ function coalBed(rand: () => number): string {
     const x = COALS.x + u * 118
     const y = 843 - lift * height
     const heat = 1 - Math.pow(Math.abs(u), 1.4) - lift * 0.3 + (rand() - 0.5) * 0.4
-    const crust = rand() < 0.45
+    const crust = rand() < 0.7
     const fill =
-      heat > 0.75 && !crust
+      heat > 0.85
         ? pick(rand, ['#ffd27a', '#ffc35e'])
-        : heat > 0.5 && !crust
+        : heat > 0.62 && !crust
           ? '#ff8a2a'
-          : heat > 0.32 && !crust
+          : heat > 0.45 && !crust
             ? '#b8400f'
-            : heat > 0.35
-              ? '#3a170b'
-              : rand() < 0.3
-                ? '#6e655c'
+            : heat > 0.4
+              ? pick(rand, ['#3a170b', '#4a1d0c', '#2a120a'])
+              : rand() < 0.12
+                ? '#5e5650'
                 : pick(rand, ['#17110e', '#211813', '#120d0b'])
-    const edge = heat > 0.4 ? '#ff7a26' : '#0a0604'
+    const edge = heat > 0.4 ? '#ff9a3a' : '#0a0604'
     const rad = 3 + rand() * 4.5
     let d = ''
     for (let k = 0; k < 6; k++) {
@@ -99,7 +95,7 @@ function coalBed(rand: () => number): string {
     }
     lumps.push({
       y,
-      svg: `<path d="${d}Z" fill="${fill}" stroke="${edge}" stroke-opacity="${heat > 0.4 ? 0.7 : 0.5}" stroke-width="1"/>`,
+      svg: `<path d="${d}Z" fill="${fill}" stroke="${edge}" stroke-opacity="${heat > 0.4 ? 0.85 : 0.5}" stroke-width="${heat > 0.4 ? 1.4 : 1}"/>`,
     })
   }
   lumps.sort((a, b) => a.y - b.y)
@@ -180,13 +176,13 @@ function hammers(): string {
     const h = head === 'small' ? 13 : 17
     const end =
       head === 'cross'
-        ? `<path d="M${x + w / 2} 710 l14 ${h / 2 - 2} v4 l-14 ${h / 2 - 2} Z" fill="#3d3834"/>`
+        ? `<path d="M${x + w / 2} 710 l14 ${h / 2 - 2} v4 l-14 ${h / 2 - 2} Z" fill="#57504a"/>`
         : head === 'ball'
-          ? `<circle cx="${x + w / 2 + 6}" cy="${710 + h / 2}" r="${h / 2 + 1}" fill="#3d3834"/>`
+          ? `<circle cx="${x + w / 2 + 6}" cy="${710 + h / 2}" r="${h / 2 + 1}" fill="#57504a"/>`
           : ''
     return (
       `<rect x="${x - 4.5}" y="718" width="9" height="${head === 'small' ? 92 : 122}" rx="4" fill="url(#handle)"/>` +
-      `<rect x="${x - w / 2}" y="710" width="${w}" height="${h}" rx="3" fill="#3d3834"/>${end}` +
+      `<rect x="${x - w / 2}" y="710" width="${w}" height="${h}" rx="3" fill="#57504a"/>${end}` +
       `<path d="M${x - w / 2 + 2} 711.5 h${w * 0.6}" stroke="#f0a86c" stroke-width="2" opacity="0.8"/>`
     )
   }
@@ -292,16 +288,21 @@ function barrel(): string {
 }
 
 function cat(): string {
+  const stripes = [990, 1004, 1018, 1032]
+    .map((x) => `M${x} ${812 + (x - 990) * 0.05} C${x + 6} 822 ${x + 4} 834 ${x - 2} 842`)
+    .join(' ')
   return (
-    `<ellipse cx="1004" cy="846" rx="44" ry="7" fill="#000" opacity="0.4"/>` +
-    `<path d="M966 840 C964 818 990 806 1014 808 C1040 810 1050 826 1046 840 Z" fill="url(#cat)"/>` +
-    `<path d="M1046 838 C1050 846 1030 848 1004 846 C986 845 972 844 966 840" stroke="#4a2a18" stroke-width="7" fill="none" stroke-linecap="round"/>` +
-    `<circle cx="972" cy="830" r="12" fill="url(#cat)"/>` +
-    `<path d="M962 822 L962 808 L971 818 Z M975 818 L984 808 L984 823 Z" fill="#9a5a34"/>` +
-    `<path d="M964 821 L964 812 L969 818 Z" fill="#c98a6a" opacity="0.6"/>` +
-    `<path d="M966 831 q3 2 6 0 M975 831 q3 2 6 0" stroke="#1a0f08" stroke-width="1.3" fill="none"/>` +
-    `<path d="M992 812 C1008 814 1016 820 1020 828 M1004 810 C1020 812 1030 820 1032 830" stroke="#3a2214" stroke-width="2" fill="none" opacity="0.6"/>` +
-    `<path d="M966 822 C976 810 996 806 1014 808" stroke="#ffb57a" stroke-width="2" fill="none" opacity="0.7"/>`
+    `<ellipse cx="1004" cy="846" rx="50" ry="6" fill="#000" opacity="0.45"/>` +
+    `<path d="M968 842 C962 818 984 806 1010 806 C1040 806 1056 822 1052 842 Z" fill="url(#cat)"/>` +
+    `<path d="${stripes}" stroke="#4a2614" stroke-width="3" fill="none" opacity="0.55" stroke-linecap="round"/>` +
+    `<path d="M1052 840 C1056 848 1030 850 1004 848 C988 847 978 846 972 842" stroke="#7a4424" stroke-width="7" fill="none" stroke-linecap="round"/>` +
+    `<path d="M1040 846 C1030 848 1018 849 1006 848" stroke="#2e180c" stroke-width="2" fill="none" opacity="0.5"/>` +
+    `<path d="M962 824 L960 801 L975 815 Z M981 813 L994 800 L994 822 Z" fill="#b0683a"/>` +
+    `<path d="M963 820 L962 807 L971 816 Z M985 814 L992 806 L992 818 Z" fill="#d89a7a" opacity="0.7"/>` +
+    `<ellipse cx="978" cy="830" rx="18" ry="15" fill="url(#cat)"/>` +
+    `<path d="M967 830 q4 3 8 0 M982 830 q4 3 8 0" stroke="#1a0f08" stroke-width="1.5" fill="none" stroke-linecap="round"/>` +
+    `<path d="M976.5 835 l2 2 l2 -2 Z" fill="#c9786a"/>` +
+    `<path d="M962 822 C966 812 974 808 984 810 M996 808 C1012 804 1030 806 1042 814" stroke="#ffbe86" stroke-width="2" fill="none" opacity="0.75" stroke-linecap="round"/>`
   )
 }
 
@@ -333,10 +334,8 @@ function barStock(): string {
 export function wallSvg(): string {
   const rand = seededRandom(31337)
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WALL_W} ${WALL_H}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${WALL_W}" height="${WALL_H}" viewBox="0 0 ${WALL_W} ${WALL_H}">` +
     `<defs>` +
-    grainFilter('grain', 0.85, 0.5) +
-    grainFilter('mottle', 0.012, 1.4) +
     `<clipPath id="hoodClip"><path d="M596 728 L1064 728 L1064 714 L918 598 L918 0 L742 0 L742 598 L596 714 Z"/></clipPath>` +
     `<linearGradient id="hoodShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c0806" stop-opacity="0.85"/><stop offset="0.82" stop-color="#0c0806" stop-opacity="0.6"/><stop offset="0.95" stop-color="#ff8a3a" stop-opacity="0.12"/><stop offset="1" stop-color="#ffaa5a" stop-opacity="0.4"/></linearGradient>` +
     `<radialGradient id="mouth" cx="${COALS.x}" cy="850" r="250" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffbe72"/><stop offset="0.28" stop-color="#e0722e"/><stop offset="0.6" stop-color="#7a2e14"/><stop offset="1" stop-color="#26110a"/></radialGradient>` +
@@ -351,13 +350,12 @@ export function wallSvg(): string {
     `<radialGradient id="windowHalo"><stop offset="0" stop-color="#9fc2e8" stop-opacity="0.22"/><stop offset="1" stop-color="#9fc2e8" stop-opacity="0"/></radialGradient>` +
     `<linearGradient id="pane" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#e3eeff"/><stop offset="1" stop-color="#9fc2e8"/></linearGradient>` +
     `<linearGradient id="barrel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5236"/><stop offset="0.35" stop-color="#4a3222"/><stop offset="0.8" stop-color="#33261d"/><stop offset="1" stop-color="#4f5254"/></linearGradient>` +
-    `<linearGradient id="cat" x1="0" y1="0" x2="1" y2="0.4"><stop offset="0" stop-color="#b06a3e"/><stop offset="0.5" stop-color="#6b3f24"/><stop offset="1" stop-color="#3a2216"/></linearGradient>` +
+    `<linearGradient id="cat" x1="0" y1="0" x2="1" y2="0.5"><stop offset="0" stop-color="#d08a50"/><stop offset="0.45" stop-color="#9a5a30"/><stop offset="1" stop-color="#4a2a18"/></linearGradient>` +
     `<radialGradient id="soot" cx="830" cy="520" r="420" gradientUnits="userSpaceOnUse" gradientTransform="translate(830 520) scale(0.85 1) translate(-830 -520)"><stop offset="0" stop-color="#050302" stop-opacity="0.85"/><stop offset="0.6" stop-color="#050302" stop-opacity="0.45"/><stop offset="1" stop-color="#050302" stop-opacity="0"/></radialGradient>` +
     `</defs>` +
     `<rect width="${WALL_W}" height="${WALL_H}" fill="#140f0b"/>` +
     `<rect width="${WALL_W}" height="500" fill="#2a221c"/>` +
     stoneWall(rand, 540, WALL_H) +
-    `<rect width="${WALL_W}" height="${WALL_H}" filter="url(#mottle)" opacity="0.55"/>` +
     `<rect y="496" width="${WALL_W}" height="48" fill="#3a281b"/>` +
     `<path d="M0 498 H${WALL_W}" stroke="#a8784e" stroke-width="2" opacity="0.35"/>` +
     `<path d="M0 512 H${WALL_W} M0 526 H${WALL_W}" stroke="#20150d" stroke-width="1.2" opacity="0.6"/>` +
@@ -368,14 +366,13 @@ export function wallSvg(): string {
     barStock() +
     bellows() +
     forge(rand) +
-    `<g transform="translate(10 0)">${cat()}</g>` +
+    `<g transform="translate(14 0)">${cat()}</g>` +
     hammers() +
     `${horseshoe(1292, 800, -6)}${horseshoe(1346, 808, 5)}<g transform="translate(0 45)">${lantern(1322)}</g>` +
     `<g transform="translate(0 40)">${windowArt(rand)}</g>` +
     `<g transform="translate(0 35)">${slate(rand)}</g>` +
     barrel() +
     bladeRack() +
-    `<rect width="${WALL_W}" height="${WALL_H}" filter="url(#grain)" opacity="0.6"/>` +
     `<rect y="${WALL_H - 26}" width="${WALL_W}" height="26" fill="url(#skirt)"/>` +
     `<defs><linearGradient id="skirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.6"/></linearGradient></defs>` +
     `</svg>`
@@ -407,7 +404,9 @@ export function floorSvg(): string {
         jitter[r + 1]![c + 1]!,
         jitter[r + 1]![c]!,
       ]
-      flags += `<path d="M${r1(a[0] + 4)} ${r1(a[1] + 4)} L${r1(b[0] - 4)} ${r1(b[1] + 4)} L${r1(cc[0] - 4)} ${r1(cc[1] - 4)} L${r1(d[0] + 4)} ${r1(d[1] - 4)} Z" fill="${pick(rand, ['#2b2520', '#302823', '#26211d', '#342b25', '#2d2622', '#29241f'])}" stroke="#1a1512" stroke-width="5" stroke-linejoin="round"/>`
+      flags +=
+        `<path d="M${r1(a[0] + 4)} ${r1(a[1] + 4)} L${r1(b[0] - 4)} ${r1(b[1] + 4)} L${r1(cc[0] - 4)} ${r1(cc[1] - 4)} L${r1(d[0] + 4)} ${r1(d[1] - 4)} Z" fill="${pick(rand, ['#2b2520', '#2e2722', '#29231f', '#312924', '#2c2521', '#2a241f'])}" stroke="#1d1814" stroke-width="3" stroke-linejoin="round"/>` +
+        `<path d="M${r1(a[0] + 6)} ${r1(a[1] + 6)} L${r1(b[0] - 6)} ${r1(b[1] + 6)}" stroke="#fff" stroke-opacity="0.035" stroke-width="2"/>`
     }
   let specks = ''
   for (let i = 0; i < 900; i++) {
@@ -417,15 +416,13 @@ export function floorSvg(): string {
     specks += `<circle cx="${r1(x)}" cy="${r1(y)}" r="${r1(0.8 + rand() * 2.2)}" fill="${ash ? '#7a7168' : '#0e0a08'}" opacity="${r1(0.15 + rand() * 0.35)}"/>`
   }
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${FLOOR_W} ${FLOOR_H}">` +
-    `<defs>${grainFilter('grain', 0.8, 0.55)}${grainFilter('mottle', 0.008, 1.2)}` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${FLOOR_W}" height="${FLOOR_H}" viewBox="0 0 ${FLOOR_W} ${FLOOR_H}">` +
+    `<defs>` +
     `<linearGradient id="ashward" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6e655c" stop-opacity="0.22"/><stop offset="0.45" stop-color="#6e655c" stop-opacity="0"/></linearGradient></defs>` +
     `<rect width="${FLOOR_W}" height="${FLOOR_H}" fill="#151110"/>` +
     flags +
     `<rect width="${FLOOR_W}" height="${FLOOR_H}" fill="url(#ashward)"/>` +
-    `<rect width="${FLOOR_W}" height="${FLOOR_H}" filter="url(#mottle)" opacity="0.5"/>` +
     specks +
-    `<rect width="${FLOOR_W}" height="${FLOOR_H}" filter="url(#grain)" opacity="0.6"/>` +
     `</svg>`
   )
 }

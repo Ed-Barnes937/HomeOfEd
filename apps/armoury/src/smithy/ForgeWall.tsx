@@ -3,9 +3,15 @@ import type { CSSProperties } from 'react'
 import { seededRandom } from '../engine/schema.ts'
 import styles from './ForgeWall.module.scss'
 import { COALS, floorSvg, svgUrl, wallSvg } from './forgeArt.ts'
+import { grain } from './grain.ts'
 
 const WALL_IMAGE = svgUrl(wallSvg())
 const FLOOR_IMAGE = svgUrl(floorSvg())
+const tiles = grain()
+const GRAIN = tiles && {
+  '--grain': `url(${tiles.fine.toDataURL()})`,
+  '--mottle': `url(${tiles.mottle.toDataURL()})`,
+}
 
 const rand = seededRandom(5150)
 const EMBERS = Array.from({ length: 9 }, () => ({
@@ -21,7 +27,8 @@ const EMBERS = Array.from({ length: 9 }, () => ({
 export function ForgeWall() {
   return (
     <div className={styles.wall} aria-hidden="true">
-      <div className={styles.art} style={{ backgroundImage: WALL_IMAGE }}>
+      <div className={styles.art} style={{ backgroundImage: WALL_IMAGE, ...GRAIN }}>
+        <span className={styles.texture} />
         <span className={styles.forgeLight} style={{ left: COALS.x, top: COALS.y }} />
         <span className={styles.coalGlow} style={{ left: COALS.x, top: COALS.y }} />
         {EMBERS.map((e, i) => (
@@ -52,7 +59,9 @@ export function ForgeWall() {
 export function ForgeFloor() {
   return (
     <div className={styles.floor} aria-hidden="true">
-      <div className={styles.floorArt} style={{ backgroundImage: FLOOR_IMAGE }} />
+      <div className={styles.floorArt} style={{ backgroundImage: FLOOR_IMAGE, ...GRAIN }}>
+        <span className={styles.texture} />
+      </div>
       <div className={styles.floorShade} />
     </div>
   )
