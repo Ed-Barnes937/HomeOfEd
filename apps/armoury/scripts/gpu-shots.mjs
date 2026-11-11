@@ -141,10 +141,18 @@ try {
           for (const s of flourishAt) await take(s, 'f')
           for (const s of glintAt) {
             await at(AT_REST_SECONDS)
-            await page.mouse.click(view.viewport.width / 2, view.viewport.height * 0.4)
-            await page.waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
-              polling: 10,
-            })
+            // A tap must land on the sword: try a little either side of the middle.
+            for (const dx of [0, -0.06, 0.06, -0.12, 0.12]) {
+              await page.mouse.click(view.viewport.width * (0.5 + dx), view.viewport.height * 0.4)
+              const tapped = await page
+                .waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
+                  polling: 10,
+                  timeout: 1500,
+                })
+                .then(() => true)
+                .catch(() => false)
+              if (tapped) break
+            }
             await take(s, 'g')
           }
           // A tap away puts it back: the flight down and the sword lying there again.
