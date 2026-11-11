@@ -47,11 +47,26 @@
   color: var(--ink-muted);
 }
 
-.shelves {
+.sections {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 46px;
+}
+
+.shelves {
+  display: flex;
+  flex-direction: column;
+  gap: 46px;
+}
+
+.heading {
+  margin: 0 0 -30px;
+  font-family: var(--font-caps);
+  font-weight: 400;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
 }
 
 .shelf {
@@ -116,6 +131,18 @@
     width: 10px;
     background: rgba(0, 0, 0, 0.28);
   }
+}
+
+// The sword lies along the box, its blade showing past the label.
+.outline {
+  position: absolute;
+  right: 64px;
+  top: 50%;
+  width: calc(100% - 88px);
+  height: 24px;
+  transform: translateY(-50%);
+  color: #b9bcc2;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
 }
 
 .label {

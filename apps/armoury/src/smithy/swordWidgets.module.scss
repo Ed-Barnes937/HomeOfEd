@@ -1,0 +1,47 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kinds,
+.parts {
+  display: grid;
+  gap: 8px;
+}
+
+.kinds {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.parts {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 4px 7px;
+  overflow: hidden;
+  border-radius: var(--r-control);
+  border: 1px solid var(--panel-line);
+  background: #0d0907;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.1;
+  cursor: pointer;
+
+  &[aria-checked='true'] {
+    border: 1.5px solid var(--brass);
+    color: var(--ink);
+    font-weight: 700;
+  }
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  height: 34px;
+}

@@ -10,6 +10,7 @@ import type {
 } from '../stage/stage.ts'
 
 import { compileWand } from '../wand/compile.ts'
+import { FakeSwordCloseUpStage, FakeSwordStage } from './FakeSwordStage.tsx'
 
 const gemCount = (params: Params) => {
   const spec = compileWand(params)
@@ -90,4 +91,5 @@ export function FakeCloseUpStage({
 
 export const fakeStages: StagesByKind = {
   wand: { Box: FakeStage, CloseUp: FakeCloseUpStage },
+  sword: { Box: FakeSwordStage, CloseUp: FakeSwordCloseUpStage },
 }

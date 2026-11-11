@@ -9,7 +9,11 @@ import {
 } from '@hoe/backend-kit'
 import { testUserAuth } from '@hoe/test-kit/browser'
 
+import { useState } from 'react'
+
 import { App } from '../App.tsx'
+import type { ItemKind } from '../items/item.ts'
+import { router } from '../router.tsx'
 import { appRouter } from '../server/router.ts'
 import { fakeStages } from './FakeStage.tsx'
 
@@ -25,6 +29,15 @@ exposeDispatcher(
   }),
 )
 
-export function IwftApp() {
+const SHOP_PATHS: Record<ItemKind, string> = { wand: '/', sword: '/swords' }
+
+/** With `start`, the app opens in that kind's shop, keeping any share fragment. */
+export function IwftApp({ start }: { start?: ItemKind }) {
+  useState(() => {
+    if (!start) return
+    router.history.replace(`${SHOP_PATHS[start]}${window.location.hash}`)
+    // Written now, not on the next microtask, so the provider's own fragment clearing comes after.
+    router.history.flush()
+  })
   return <App stages={fakeStages} />
 }

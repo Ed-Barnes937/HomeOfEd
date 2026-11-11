@@ -180,6 +180,16 @@ export class CloseUpPom extends BasePage {
     await this.page.getByTestId('close-up-wand').click()
   }
 
+  /** How many times the stage was asked for the item's show-off move. */
+  async verifyFlourishes(count: number): Promise<void> {
+    await expect(this.stage).toHaveAttribute('data-flourishes', String(count))
+  }
+
+  /** FakeSwordCloseUpStage's stand-in for a tap that lands on the sword. */
+  async tapSword(): Promise<void> {
+    await this.page.getByTestId('close-up-sword').click()
+  }
+
   /** FakeStage's stand-in for a tap on the darkened shop around the wand. */
   async tapAway(): Promise<void> {
     await this.page.getByTestId('close-up-away').click()

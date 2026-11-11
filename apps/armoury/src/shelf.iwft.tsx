@@ -1,4 +1,5 @@
-import { test } from './testing/iwftTest.tsx'
+import { smithyTest, test } from './testing/iwftTest.tsx'
+import { ShopPom } from './testing/ShopPom.ts'
 
 test('kept wands go on the shelf, and come back out onto the counter', async ({ mountApp }) => {
   const { root } = await mountApp()
@@ -40,3 +41,43 @@ test('the shelf survives a reload', async ({ mountApp }) => {
   const shelf = await root.openShelf()
   await shelf.verifyWands(['Keeper'])
 })
+
+smithyTest(
+  'a kept sword goes on the shelf under Swords, beside a wand, and comes back to the anvil',
+  async ({ mountApp, page }) => {
+    const { root } = await mountApp()
+    await root.rename('Pip')
+    await root.keep()
+    await root.verifyKept('Pip is on your shelf.')
+    await root.verifyShelfCount(1)
+    await root.chooseKind('Dagger')
+
+    const shelf = await root.openShelf()
+    await shelf.verifyItems('sword', ['Pip'])
+    await shelf.backToCounter()
+    const wands = new ShopPom(page)
+    await wands.keep()
+    await wands.openShelf()
+    await shelf.verifyItems('wand', ['The Smoky Spiral'])
+    await shelf.verifyItems('sword', ['Pip'])
+
+    await shelf.takeOut('Pip')
+    await root.verifySwordName('Pip')
+    await root.verifyStage({ family: 'knight' })
+  },
+)
+
+smithyTest(
+  'a shelf sword shows its label, and can be renamed and removed',
+  async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.keep()
+    const shelf = await root.openShelf()
+    const name = (await shelf.itemNames('sword'))[0]!
+    await shelf.rename(name, 'Old Oak')
+    await shelf.verifyItems('sword', ['Old Oak'])
+    await shelf.verifyLabel('Old Oak', /^Knight's sword, [a-z -]+ inches, satin steel$/)
+    await shelf.remove('Old Oak')
+    await shelf.verifyItems('sword', [])
+  },
+)
