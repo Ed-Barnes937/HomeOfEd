@@ -23,18 +23,24 @@ export interface SteelRow {
   bareEdge: boolean
   /** Heat-bluing's thin film. */
   iridescence: number
-  /** The steel scan's tile along and across (mm), its relief (mm), its roughness swing, and hammer dimples' depth (mm). */
-  grain: { tile: [number, number]; depth: number; scratch: number; hammer: number }
+  /** The steel scan's tile along and across (mm), its relief (mm), its roughness swing, hammer dimples' depth (mm) and how strongly grind streaks and polish zones vary its roughness. */
+  grain: { tile: [number, number]; depth: number; scratch: number; hammer: number; grind: number }
 }
 
-const BRUSHED = { tile: [140, 60] as [number, number], depth: 0.006, scratch: 0.08, hammer: 0 }
+const BRUSHED = {
+  tile: [140, 60] as [number, number],
+  depth: 0.006,
+  scratch: 0.08,
+  hammer: 0,
+  grind: 0.1,
+}
 
 export const STEELS: Record<Steel, SteelRow> = {
   satin: {
     colour: [0.58, 0.59, 0.6],
     metalness: 1,
     roughness: 0.27,
-    anisotropy: 0.5,
+    anisotropy: 0.6,
     envIntensity: 1.3,
     bareEdge: false,
     iridescence: 0,
@@ -48,7 +54,7 @@ export const STEELS: Record<Steel, SteelRow> = {
     envIntensity: 1.4,
     bareEdge: false,
     iridescence: 0,
-    grain: { ...BRUSHED, depth: 0.0012, scratch: 0.008 },
+    grain: { ...BRUSHED, depth: 0.0012, scratch: 0.008, grind: 0.02 },
   },
   // Forge-black: hammer dimples under the scale, the hollows darker and warmer.
   dark: {
@@ -59,7 +65,7 @@ export const STEELS: Record<Steel, SteelRow> = {
     envIntensity: 1,
     bareEdge: true,
     iridescence: 0,
-    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12, hammer: 0.3 },
+    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12, hammer: 0.3, grind: 0.08 },
   },
   silver: {
     colour: [0.95, 0.92, 0.84],
@@ -69,7 +75,7 @@ export const STEELS: Record<Steel, SteelRow> = {
     envIntensity: 1.3,
     bareEdge: false,
     iridescence: 0,
-    grain: BRUSHED,
+    grain: { ...BRUSHED, grind: 0.06 },
   },
   blue: {
     colour: [0.04, 0.075, 0.2],
@@ -79,7 +85,7 @@ export const STEELS: Record<Steel, SteelRow> = {
     envIntensity: 1.4,
     bareEdge: true,
     iridescence: 0.15,
-    grain: BRUSHED,
+    grain: { ...BRUSHED, grind: 0.05 },
   },
 }
 
@@ -289,9 +295,10 @@ export function bladeUniforms(textures: SwordTextures) {
     uScratch: { value: 0.08 },
     uBrushDepth: { value: 0.006 },
     uHammer: { value: 0 },
+    uGrind: { value: 0.1 },
     uBladeZ: { value: new THREE.Vector2(0, 1) },
     uFullerRough: { value: 0.2 },
-    uFullerDark: { value: 0.18 },
+    uFullerDark: { value: 0.28 },
     uBareEdge: { value: 0 },
     uEdgeColour: { value: new THREE.Color(...BARE_EDGE) },
     uPatternKind: { value: 0 },
@@ -331,6 +338,7 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       uniform float uScratch;
       uniform float uBrushDepth;
       uniform float uHammer;
+      uniform float uGrind;
       uniform vec2 uBladeZ;
       uniform float uFullerRough;
       uniform float uFullerDark;
@@ -427,7 +435,15 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       diffuseColor.rgb *= 1.0 - 0.5 * speck;
       diffuseColor.rgb = mix(diffuseColor.rgb, uEdgeColour, edge);
       float cut = cutAt(mm, vAlong);
-      diffuseColor.rgb *= 1.0 - 0.45 * cut;`,
+      diffuseColor.rgb *= 1.0 - 0.45 * cut;
+      // Grind streaks along the blade, and slow polish zones down its length, both in mm:
+      // they vary how much the steel reflects as well as how sharply.
+      vec2 coarse = vec2(mm.x * 2.2, mm.y * 0.012);
+      vec2 fine = vec2(mm.x * 8.0, mm.y * 0.03);
+      float streak = (sNoise(coarse) - 0.5) * (1.0 - smoothstep(0.5, 1.5, fwidth(coarse.x)))
+        + 0.6 * (sNoise(fine) - 0.5) * (1.0 - smoothstep(0.5, 1.5, fwidth(fine.x)));
+      float zone = sNoise(vec2(1.3, mm.y * 0.006)) - 0.5;
+      diffuseColor.rgb *= 1.0 + uGrind * (1.3 * streak + 1.2 * zone);`,
     )
     .replace(
       '#include <roughnessmap_fragment>',
@@ -437,6 +453,9 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       roughnessFactor = mix(roughnessFactor, mix(uPatternRough.y, uPatternRough.x, pattern), uPatternMix);
       roughnessFactor += uScratch * scan + 0.06 * scratches + uFullerRough * fuller + 0.25 * cut;
       roughnessFactor += 0.12 * dish;
+      roughnessFactor += uGrind * (0.9 * streak + 0.5 * zone);
+      // Every cutting bevel is honed smoother than the flat, so the edge reads as a crisp line.
+      roughnessFactor = mix(roughnessFactor, 0.7 * roughnessFactor, clamp(vEdge, 0.0, 1.0));
       roughnessFactor = mix(roughnessFactor, 0.2, edge);
       roughnessFactor = clamp(roughnessFactor, 0.04, 1.0);`,
     )

@@ -312,6 +312,7 @@ export function SwordMesh({ spec }: { spec: SwordSpec }) {
     blade.uBrushDepth.value = steelRow.grain.depth
     blade.uScratch.value = steelRow.grain.scratch
     blade.uHammer.value = steelRow.grain.hammer
+    blade.uGrind.value = steelRow.grain.grind
     blade.uPatternKind.value = pattern.kind
     blade.uPatternMix.value = pattern.mix
     blade.uPatternLight.value.setRGB(...pattern.light)

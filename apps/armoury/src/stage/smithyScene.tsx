@@ -114,6 +114,12 @@ export function SmithyEnvironment() {
         [0.95, 0.85],
         [1, 0.05],
       ]),
+      // Brighter toward the tip than the hilt, so a flat held up shows a lighter and a darker zone.
+      fill: falloff([
+        [0, 0.3],
+        [0.45, 1],
+        [1, 0.55],
+      ]),
       edgeA: falloff([
         [0, 0.1],
         [0.3, 1],
@@ -179,6 +185,7 @@ export function SmithyEnvironment() {
         intensity={ENV.fill}
         position={[0, 2, 9.5]}
         scale={[14, 8, 1]}
+        map={maps.fill}
       />
       <Lightformer
         form="rect"
