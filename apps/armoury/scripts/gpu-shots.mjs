@@ -5,8 +5,8 @@
 // --clay draws a sword in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
 // about its length, or with an s (s45) swings it, tip away.
-// --flourish=0.5,2.2 shoots the sword's close look that many seconds into its arrival flourish (f<ms>), on the
-// stage's own clock (dev server only); --glints=3.9,4.1 then taps the sword again for each, once the last
+// --flourish=0.5,2.2 shoots the sword's close look that many seconds into its arrival flourish (f<ms>), the
+// stage held still at that exact moment on its own clock while the shot is taken (dev server only); --glints=3.9,4.1 then taps the sword again for each, once the last
 // flourish is at rest, and shoots it that far in (g<ms>), then puts it back (r<ms> after). Both skip the zoom; times land in <name>-<view>-frames.txt.
 /* global console, document, URLSearchParams */
 import { Buffer } from 'node:buffer'
@@ -128,15 +128,24 @@ try {
               polling: 10,
               timeout: 30000,
             })
+          // The stage holds still at exactly `s` while the shot is taken, so a slow screenshot cannot drift.
           const take = async (s, tag) => {
-            await at(s)
+            await page.evaluate((s) => {
+              globalThis.holdFlourishAt = s
+            }, s)
+            await page.waitForFunction((s) => globalThis.heldFlourishAt === s, s, {
+              polling: 10,
+              timeout: 30000,
+            })
             const before = await since()
             await page.screenshot({
               path: shot(`${tag}${String(Math.round(s * 1000)).padStart(5, '0')}`),
             })
+            const after = await since()
             log.push(
-              `${tag} ${s}s: shot between ${before?.toFixed(3)}s and ${(await since())?.toFixed(3)}s`,
+              `${tag} ${s}s: held at ${before?.toFixed(3)}s, still ${after?.toFixed(3)}s after the shot`,
             )
+            await page.evaluate(() => globalThis.resumeFlourish())
           }
           for (const s of flourishAt) await take(s, 'f')
           for (const s of glintAt) {

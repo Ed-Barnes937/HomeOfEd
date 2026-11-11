@@ -323,8 +323,8 @@ export function bladeUniforms(textures: SwordTextures) {
     uFullerTint: { value: 0 },
     /** The glint's place along the blade (0 guard, 1 tip) and its light; off at rest. */
     uGlintAt: { value: -1 },
-    /** 1 on a two-edged blade, so only the edge facing the window glints; a single edge always does. */
-    uGlintPickEdge: { value: 1 },
+    /** 1: the edge that lies toward the window glints (two-edged); 0: only the cutting edge does (single-edged). */
+    uGlintTowardWindow: { value: 1 },
     /** How far the wake has warmed the runes toward their peak, 0 to 1: their cores pale as they heat. */
     uRuneWarm: { value: 0 },
     uGlintLight: { value: new THREE.Color(0, 0, 0) },
@@ -378,7 +378,7 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       uniform float uRuneInFuller;
       uniform float uFullerTint;
       uniform float uGlintAt;
-      uniform float uGlintPickEdge;
+      uniform float uGlintTowardWindow;
       uniform float uRuneWarm;
       uniform vec3 uGlintLight;
       uniform float uGlowCap;
@@ -551,11 +551,13 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
 
 // The close look's glint: a short band of light on the edge bevel, strongest on the edge facing up into the window.
 const bladeCapLine = `{
-        float band = 1.0 - smoothstep(0.01, 0.032, abs(vAlong - uGlintAt));
+        float off = (vAlong - uGlintAt) / 0.014;
+        float band = exp(-off * off);
         // Which way this edge lies on screen, from the blade's centre line: only the edge toward the window (up and right) catches it.
         vec2 acrossOnScreen = vec2(dFdx(vBladeMm.x), dFdy(vBladeMm.x));
         vec2 edgeWay = sign(vBladeMm.x) * acrossOnScreen / max(length(acrossOnScreen), 1e-6);
-        float facing = mix(1.0, 0.06 + 0.94 * smoothstep(-0.1, 0.35, dot(edgeWay, vec2(0.6, 0.8))), uGlintPickEdge);
+        // The cutting edge lies at +x across the blade; a single-edged blade's back never glints, even where it is sharpened.
+        float facing = mix(smoothstep(-0.5, 0.5, vBladeMm.x), 0.06 + 0.94 * smoothstep(-0.1, 0.35, dot(edgeWay, vec2(0.6, 0.8))), uGlintTowardWindow);
         float glintHere = band * clamp(vEdge, 0.0, 1.0) * facing;
         outgoingLight += uGlintLight * glintHere;
         float capHere = uCap + (uGlowCap - uCap) * max(glintHere, smoothstep(0.25, 0.6, runeHere) * runeLit);

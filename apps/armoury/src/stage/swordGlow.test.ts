@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
+import { normalise } from '../engine/schema.ts'
+import { compileSword } from '../sword/compile.ts'
+import { swordGemPoses } from '../sword/geometry.ts'
+import { swordSchema } from '../sword/swordSchema.ts'
 import { BLOOM_THRESHOLD } from './stage.ts'
 import {
   GLINT,
   GLOW_CEILING,
+  glintEdge,
   GLOW_SECONDS,
+  presentedFace,
   presentWeight,
   RUNE_PEAK,
   SWORD_REST,
@@ -105,5 +111,28 @@ describe('the sword glow', () => {
         Math.abs(presentWeight(times[i]!, false) - presentWeight(times[i - 1]!, false)),
       ).toBeLessThan(0.05)
     for (const t of times) expect(presentWeight(t, true)).toBe(0)
+  })
+})
+
+const sword = (raw: Record<string, unknown>) => compileSword(normalise(swordSchema, raw))
+
+describe('which edge glints and which face is shown', () => {
+  it('lights only the cutting edge of a single-edged blade, even where its back is sharpened', () => {
+    expect(glintEdge(sword({ family: 'sabre', profile: 'flared' }))).toBe('cutting')
+    expect(glintEdge(sword({ family: 'sabre' }))).toBe('cutting')
+    expect(glintEdge(sword({ family: 'katana' }))).toBe('cutting')
+  })
+
+  it('lights the edge toward the window on a two-edged blade', () => {
+    for (const family of ['dagger', 'knight', 'greatsword', 'rapier'])
+      expect(glintEdge(sword({ family }))).toBe('toward window')
+  })
+
+  it('turns a gem set in one face toward the viewer, and lets a sword without one show either face', () => {
+    expect(presentedFace(sword({ family: 'knight', gems: 'none' }))).toBe(0)
+    const gemmed = sword({ family: 'knight', gems: 'pommel' })
+    const [pose] = swordGemPoses(gemmed)
+    expect(presentedFace(gemmed)).toBe(Math.sign(pose!.normal[1]))
+    expect(presentedFace(gemmed)).not.toBe(0)
   })
 })

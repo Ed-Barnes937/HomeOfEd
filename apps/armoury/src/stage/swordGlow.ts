@@ -1,3 +1,5 @@
+import type { SwordSpec } from '../sword/compile.ts'
+import { swordGemPoses } from '../sword/geometry.ts'
 import { BLOOM_THRESHOLD } from './stage.ts'
 import { REST_CAP, RUNE_REST } from './swordMaterials.ts'
 import { EIGHT } from './wave.ts'
@@ -110,4 +112,15 @@ export function presentWeight(sinceFlourish: number, reducedMotion: boolean): nu
   if (sinceFlourish < PRESENT.held)
     return smoothstep((sinceFlourish - PRESENT.from) / (PRESENT.held - PRESENT.from))
   return 1 - smoothstep((sinceFlourish - PRESENT.until) / PRESENT.release)
+}
+
+/** Which edge catches the glint: a single-edged blade's cutting edge only (never a sharpened back), or the edge of a two-edged blade that lies toward the window. */
+export function glintEdge(spec: SwordSpec): 'cutting' | 'toward window' {
+  return spec.blade.edges === 'single' ? 'cutting' : 'toward window'
+}
+
+/** The flat the close look turns to the viewer: the face its gems are set in (+1 or -1 along the blade's flat normal), or 0 when either will do. */
+export function presentedFace(spec: SwordSpec): 1 | -1 | 0 {
+  const facing = swordGemPoses(spec).reduce((sum, { normal }) => sum + normal[1], 0)
+  return Math.abs(facing) < 0.5 ? 0 : facing > 0 ? 1 : -1
 }

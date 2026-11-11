@@ -18,7 +18,14 @@ import { gemMaterial, stoneGeometry } from './Gems.tsx'
 import { GEM_REST } from './gemGlow.ts'
 import { MM } from './scene.tsx'
 import { BLOOM_THRESHOLD } from './stage.ts'
-import { SWORD_REST, swordGlow, WAKE_CAP, wakeLift, type SwordGlow } from './swordGlow.ts'
+import {
+  glintEdge,
+  SWORD_REST,
+  swordGlow,
+  WAKE_CAP,
+  wakeLift,
+  type SwordGlow,
+} from './swordGlow.ts'
 import {
   bladeMaterial,
   bladeUniforms,
@@ -366,7 +373,7 @@ export function SwordMesh({
       blade.uRuneRect.value.set(from, to, x0, x1)
     }
     blade.uRuneInFuller.value = shown.runes?.where === 'fuller' ? 1 : 0
-    blade.uGlintPickEdge.value = b.edges === 'double' ? 1 : 0
+    blade.uGlintTowardWindow.value = glintEdge(shown) === 'toward window' ? 1 : 0
     if (shown.runes) blade.uRuneColour.value.setRGB(...srgbToLinear(shown.runes.colour))
     blade.uEngraveOn.value = built.engraving && engravingTexture ? 1 : 0
     blade.uEngraveMap.value = engravingTexture

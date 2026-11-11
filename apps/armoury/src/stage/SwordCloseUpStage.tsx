@@ -1,5 +1,5 @@
-import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef, type ReactNode } from 'react'
+import { addAfterEffect, useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import * as THREE from 'three'
 
 import { compileSword } from '../sword/compile.ts'
@@ -15,7 +15,7 @@ import {
   SWORD_HALF_WIDTH,
 } from './smithyScene.tsx'
 import type { CloseUpProps } from './stage.ts'
-import { FLOURISH_SCALE, presentWeight } from './swordGlow.ts'
+import { FLOURISH_SCALE, presentedFace, presentWeight } from './swordGlow.ts'
 import { SwordMesh, swordTipPoint } from './SwordMesh.tsx'
 
 // Dev-only, for the GPU gate shots: `?focus=tip` or `?focus=hilt` slides the sword along so a zoom lands there.
@@ -25,13 +25,46 @@ const focus =
     ? (FOCUS[new URLSearchParams(location.search).get('focus') ?? ''] ?? 0)
     : 0
 
-// Dev-only, for the GPU gate shots: publishes how long ago the latest flourish began, on the stage's own clock.
+// Dev-only, for the GPU gate shots: publishes how far into the latest flourish the stage is, on its own clock,
+// and on request holds the whole stage still at an exact moment of the flourish until the shot is taken.
 const PROBE = import.meta.env.DEV
 
+interface Probe {
+  sinceFlourish?: number | null
+  /** Set by the shots script: the moment, in seconds into the flourish, to hold at. */
+  holdFlourishAt?: number | null
+  /** The moment the stage is held at, once that frame is drawn. */
+  heldFlourishAt?: number | null
+  resumeFlourish?: () => void
+}
+
 function FlourishProbe({ at }: { at: number | null }) {
+  const get = useThree((state) => state.get)
+  useEffect(() => {
+    const probe = window as Window & Probe
+    probe.resumeFlourish = () => {
+      const state = get()
+      state.clock.oldTime = performance.now()
+      probe.heldFlourishAt = null
+      state.internal.active = true
+      state.invalidate()
+    }
+  }, [get])
+  // Runs before every other reader of the clock, so the rig's pose, the glow and the presenting turn all see the held moment.
   useFrame(({ clock }) => {
-    Object.assign(window, { sinceFlourish: at === null ? null : clock.elapsedTime - at })
-  })
+    const probe = window as Window & Probe
+    const hold = probe.holdFlourishAt
+    if (at !== null && typeof hold === 'number' && clock.elapsedTime - at >= hold) {
+      clock.elapsedTime = at + hold
+      probe.holdFlourishAt = null
+      const stop = addAfterEffect(() => {
+        stop()
+        get().internal.active = false
+        probe.heldFlourishAt = hold
+      })
+    }
+    probe.sinceFlourish = at === null ? null : clock.elapsedTime - at
+  }, -1)
   return null
 }
 
@@ -47,10 +80,13 @@ const PRESENT_RATE = 5
 function Presented({
   flourishAt,
   reducedMotion,
+  face,
   children,
 }: {
   flourishAt: number | null
   reducedMotion: boolean
+  /** The flat to show (+1 or -1 along its normal), or 0 for whichever is nearer. */
+  face: 1 | -1 | 0
   children: ReactNode
 }) {
   const group = useRef<THREE.Group>(null)
@@ -73,14 +109,17 @@ function Presented({
     g.parent.getWorldQuaternion(v.held)
     g.getWorldPosition(v.at)
     v.length.copy(X).applyQuaternion(v.held)
-    v.flat.copy(Y).applyAxisAngle(X, g.rotation.x).applyQuaternion(v.held)
+    v.flat
+      .copy(Y)
+      .multiplyScalar(face === 0 ? 1 : face)
+      .applyAxisAngle(X, g.rotation.x)
+      .applyQuaternion(v.held)
     v.view.copy(camera.position).sub(v.at)
     v.view.addScaledVector(v.length, -v.view.dot(v.length))
     if (v.view.lengthSq() < 1e-6) return
     v.view.normalize()
     let turn = Math.atan2(v.cross.crossVectors(v.flat, v.view).dot(v.length), v.flat.dot(v.view))
-    // Either face will do: turn to the nearer.
-    if (Math.abs(turn) > Math.PI / 2) turn -= Math.sign(turn) * Math.PI
+    if (face === 0 && Math.abs(turn) > Math.PI / 2) turn -= Math.sign(turn) * Math.PI
     g.rotation.x += turn * weight * (1 - Math.exp(-PRESENT_RATE * Math.min(delta, 0.05)))
   })
   return <group ref={group}>{children}</group>
@@ -103,6 +142,7 @@ export function SwordCloseUpStage({ params, reducedMotion, ...rig }: CloseUpProp
       boxHalfWidth: SWORD_HALF_WIDTH / boxScale(spec.lengthMm),
     }
   }, [spec])
+  const face = useMemo(() => presentedFace(spec), [spec])
 
   return (
     <HeldRig
@@ -115,7 +155,7 @@ export function SwordCloseUpStage({ params, reducedMotion, ...rig }: CloseUpProp
       effects={<SmithyEffects />}
     >
       {(flourishAt) => (
-        <Presented flourishAt={flourishAt} reducedMotion={reducedMotion}>
+        <Presented flourishAt={flourishAt} reducedMotion={reducedMotion} face={face}>
           <group position={[focus * spec.lengthMm * MM, 0, 0]}>
             <SwordMesh spec={spec} flourishAt={flourishAt} reducedMotion={reducedMotion} />
             {PROBE && <FlourishProbe at={flourishAt} />}
