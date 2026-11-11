@@ -1186,6 +1186,18 @@ export function silhouetteOf(shape: Shape): Pt[][] {
   return [[...right, ...left]]
 }
 
+/** The indices of a polygon's furthest points each way in x and z. */
+function extremes(p: Pt[]): Set<number> {
+  const best = [0, 0, 0, 0]
+  p.forEach(([x, z], i) => {
+    if (x > p[best[0]!]![0]) best[0] = i
+    if (x < p[best[1]!]![0]) best[1] = i
+    if (z > p[best[2]!]![1]) best[2] = i
+    if (z < p[best[3]!]![1]) best[3] = i
+  })
+  return new Set(best)
+}
+
 /** Drops the points that change the outlines least (smallest corner triangles) until `budget` remain. */
 function simplify(polys: Pt[][], budget: number): Pt[][] {
   const out = polys.map((p) => [...p])
@@ -1201,7 +1213,9 @@ function simplify(polys: Pt[][], budget: number): Pt[][] {
     if (excess <= 0) break
     const all: { k: number; i: number; a: number }[] = []
     out.forEach((p, k) => {
-      if (p.length > 6) for (let i = 0; i < p.length; i += 2) all.push({ k, i, a: corner(p, i) })
+      if (p.length <= 6) return
+      const keep = extremes(p)
+      for (let i = 0; i < p.length; i += 2) if (!keep.has(i)) all.push({ k, i, a: corner(p, i) })
     })
     if (all.length === 0) break
     all.sort((a, b) => a.a - b.a)
@@ -1283,14 +1297,10 @@ export const OUTLINE_POINTS = 380
 /** How far the collar stands proud of the blade's sides at its guard end and its blade end, mm. */
 export const COLLAR_GROW: [number, number] = [1.6, 1.1]
 
-/**
- * The sword seen from above as closed polylines of `[z, y]` in mm, every one wound the same
- * way: pommel end at z = 0 and the tip on the axis (a curved sword after its chord rotation),
- * y = -x (the edge at -y), so it lies as the stage draws it.
- */
-export function swordOutline(spec: SwordSpec): [number, number][][] {
+/** Every part's silhouette in the straight frame as (x, z) polygons, before thinning. */
+export function silhouettes(spec: SwordSpec): Pt[][] {
   const layout = hiltLayout(spec)
-  const parts: Pt[][] = [
+  return [
     ...layout.pommel.flatMap(silhouetteOf),
     gripOutline(spec),
     ...layout.bands.flatMap(silhouetteOf),
@@ -1298,13 +1308,18 @@ export function swordOutline(spec: SwordSpec): [number, number][][] {
     ...[collarOutline(spec)].filter((p): p is Pt[] => p !== null),
     bladeOutline(spec),
   ]
+}
+
+/**
+ * The sword seen from above as closed polylines of `[z, y]` in mm, every one wound the same
+ * way: pommel end at z = 0 and the tip on the axis (a curved sword after its chord rotation),
+ * y = -x (the edge at -y), so it lies as the stage draws it.
+ */
+export function swordOutline(spec: SwordSpec): [number, number][][] {
   const [c, s] = chordRotation(spec)
-  return simplify(parts, OUTLINE_POINTS).map((poly) => {
-    const out = poly.map(([x, z]): [number, number] => {
-      const xr = x * c - z * s
-      const zr = x * s + z * c
-      return [zr, -xr]
-    })
+  const turned = silhouettes(spec).map((poly) => {
+    const out = poly.map(([x, z]): Pt => [x * s + z * c, -(x * c - z * s)])
     return area(out) < 0 ? out.reverse() : out
   })
+  return simplify(turned, OUTLINE_POINTS)
 }
