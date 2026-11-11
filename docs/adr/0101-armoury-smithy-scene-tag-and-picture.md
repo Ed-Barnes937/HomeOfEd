@@ -63,7 +63,7 @@ called it a "mark number", but the shared `Tag` takes no label prop, so both sho
 
 **The picture is the shared frame plus a per-shop painter.** `paintSmithyCard`
 draws the same wall, floor and anvil SVGs into the card (preloaded as images when
-the module loads), the window's light, the sword's shadow cast from the capture's
+the smithy is first shown, so a street or wand-shop visit never draws them), the window's light, the sword's shadow cast from the capture's
 own alpha (the shadow-offset trick, which works without `ctx.filter`), the
 capture, and a faint glow in the sword's colour, and returns the ticket's colours
 (`TagColours`, brown card). The frame draws the tag in them, then the header and
