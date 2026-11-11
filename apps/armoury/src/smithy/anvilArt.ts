@@ -187,11 +187,11 @@ export function anvilSvg(): string {
     `<linearGradient id="stumpLight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff9a52" stop-opacity="0.22"/><stop offset="0.45" stop-color="#000" stop-opacity="0.1"/><stop offset="1" stop-color="#9fc2e8" stop-opacity="0.12"/></linearGradient>` +
     `<linearGradient id="foot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a2a20"/><stop offset="0.2" stop-color="#1c1a19"/><stop offset="0.75" stop-color="#161719"/><stop offset="1" stop-color="#222830"/></linearGradient>` +
     `<linearGradient id="footShade" x1="0" y1="0" x2="0" y2="170" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.06"/><stop offset="0.2" stop-color="#000" stop-opacity="0.55"/><stop offset="0.3" stop-color="#000" stop-opacity="0.8"/><stop offset="0.7" stop-color="#000" stop-opacity="0.8"/><stop offset="0.8" stop-color="#000" stop-opacity="0.6"/><stop offset="1" stop-color="#000" stop-opacity="0.1"/></linearGradient>` +
-    `<linearGradient id="faceTone" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#655a52"/><stop offset="0.3" stop-color="#535352"/><stop offset="0.7" stop-color="#4f5459"/><stop offset="1" stop-color="#606b77"/></linearGradient>` +
-    `<linearGradient id="faceDepth" x1="0" y1="${top}" x2="0" y2="${bottom}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity="0.45"/><stop offset="0.1" stop-color="#000" stop-opacity="0.1"/><stop offset="0.35" stop-color="#fff" stop-opacity="0.07"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.1"/><stop offset="0.65" stop-color="#fff" stop-opacity="0.04"/><stop offset="0.9" stop-color="#000" stop-opacity="0.12"/><stop offset="1" stop-color="#000" stop-opacity="0.5"/></linearGradient>` +
+    `<linearGradient id="faceTone" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4a3e36"/><stop offset="0.25" stop-color="#36332f"/><stop offset="0.7" stop-color="#2f3236"/><stop offset="1" stop-color="#3a434d"/></linearGradient>` +
+    `<linearGradient id="faceDepth" x1="0" y1="${top}" x2="0" y2="${bottom}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity="0.6"/><stop offset="0.12" stop-color="#000" stop-opacity="0.15"/><stop offset="0.38" stop-color="#d8dde3" stop-opacity="0.16"/><stop offset="0.5" stop-color="#e3e7ec" stop-opacity="0.24"/><stop offset="0.62" stop-color="#d8dde3" stop-opacity="0.12"/><stop offset="0.88" stop-color="#000" stop-opacity="0.18"/><stop offset="1" stop-color="#000" stop-opacity="0.65"/></linearGradient>` +
     `<radialGradient id="polish" cx="${left + (right - left) * 0.62}" cy="${top + 28}" r="320" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 ${top + 28}) scale(1 0.07) translate(0 ${-(top + 28)})"><stop offset="0" stop-color="#e6eef8" stop-opacity="0.42"/><stop offset="0.45" stop-color="#dfe8f2" stop-opacity="0.14"/><stop offset="1" stop-color="#dfe6ee" stop-opacity="0"/></radialGradient>` +
     `<radialGradient id="worn" cx="${(left + right) / 2}" cy="${(top + bottom) / 2}" r="220" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 ${(top + bottom) / 2}) scale(1 0.3) translate(0 ${-(top + bottom) / 2})"><stop offset="0" stop-color="#fff" stop-opacity="0.09"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>` +
-    `<radialGradient id="warmEnd" cx="${left + 30}" cy="${bottom - 20}" r="250" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff9f5a" stop-opacity="0.34"/><stop offset="1" stop-color="#ff9f5a" stop-opacity="0"/></radialGradient>` +
+    `<radialGradient id="warmEnd" cx="${left}" cy="${(top + bottom) / 2}" r="300" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff9a52" stop-opacity="0.45"/><stop offset="0.5" stop-color="#ff9a52" stop-opacity="0.15"/><stop offset="1" stop-color="#ff9a52" stop-opacity="0"/></radialGradient>` +
     `<linearGradient id="edgeLight" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffbf86"/><stop offset="0.45" stop-color="#bdb7b0"/><stop offset="1" stop-color="#cfe0f6"/></linearGradient>` +
     `<linearGradient id="step" x1="142" y1="0" x2="212" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5a4639"/><stop offset="0.5" stop-color="#3b3a3a"/><stop offset="1" stop-color="#2e2f31"/></linearGradient>` +
     `<linearGradient id="horn" x1="0" y1="46" x2="0" y2="124" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#b77a4c"/><stop offset="0.12" stop-color="#3e3532"/><stop offset="0.34" stop-color="#7c848e"/><stop offset="0.5" stop-color="#4c5056"/><stop offset="0.8" stop-color="#202124"/><stop offset="1" stop-color="#0f0f11"/></linearGradient>` +
@@ -220,15 +220,19 @@ export function anvilSvg(): string {
     `<rect ${face} fill="url(#faceDepth)"/>` +
     faceWear(rand) +
     `</g>` +
-    `<path d="M${left + 5} ${top + 2.2} H${right - 5}" stroke="url(#edgeLight)" stroke-width="1.6" opacity="0.7"/>` +
+    `<path d="M${left + 5} ${top + 2.2} H${right - 5}" stroke="url(#edgeLight)" stroke-width="1.8" opacity="0.85"/>` +
     `<path d="M${left + 2} ${top + 5} V${bottom - 5}" stroke="#e8a46c" stroke-width="2.2" opacity="0.7"/>` +
     `<path d="M${right - 2} ${top + 6} V${bottom - 6}" stroke="#b9cbe2" stroke-width="1.4" opacity="0.45"/>` +
     `<path d="M${left + 5} ${bottom - 2} H${right - 5}" stroke="#000" stroke-width="1.6" opacity="0.5"/>` +
     `<path d="M${left + 6} ${bottom - 3.6} H${(left + right) / 2}" stroke="#e39a62" stroke-width="1" opacity="0.35"/>` +
-    `<rect x="728" y="74" width="24" height="24" rx="1.5" fill="#060606"/>` +
-    `<path d="M728 98 H752 V74" stroke="#aebccd" stroke-width="1.1" fill="none" opacity="0.4"/>` +
-    `<circle cx="694" cy="86" r="7" fill="#060606"/>` +
-    `<path d="M687.5 88.5 A7 7 0 0 0 700.5 88.5" stroke="#aebccd" stroke-width="1" fill="none" opacity="0.4"/>` +
+    `<linearGradient id="holeIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000"/><stop offset="0.55" stop-color="#0b0b0c"/><stop offset="1" stop-color="#3d434b"/></linearGradient>` +
+    `<path d="M725 71 H755 V101 H725 Z" fill="#000" opacity="0.35" filter="url(#blur2)"/>` +
+    `<rect x="728" y="74" width="24" height="24" rx="1.5" fill="url(#holeIn)"/>` +
+    `<path d="M728.5 98.5 H751.5" stroke="#cfdbea" stroke-width="1.2" opacity="0.55"/>` +
+    `<path d="M728.5 74.5 H751.5" stroke="#000" stroke-width="1.5" opacity="0.8"/>` +
+    `<circle cx="694" cy="86" r="9" fill="#000" opacity="0.35" filter="url(#blur2)"/>` +
+    `<circle cx="694" cy="86" r="7" fill="url(#holeIn)"/>` +
+    `<path d="M687.5 88.5 A7 7 0 0 0 700.5 88.5" stroke="#cfdbea" stroke-width="1.1" fill="none" opacity="0.55"/>` +
     `</svg>`
   )
 }

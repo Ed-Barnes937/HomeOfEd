@@ -24,7 +24,7 @@ function texture(grain: Grain | null, w: number, h: number): string {
   return (
     `<defs><pattern id="fine" width="128" height="128" patternUnits="userSpaceOnUse"><image href="${grain.fine}" width="128" height="128"/></pattern>` +
     `<pattern id="mottle" width="640" height="640" patternUnits="userSpaceOnUse"><image href="${grain.mottle}" width="640" height="640"/></pattern></defs>` +
-    `<g style="mix-blend-mode:soft-light" opacity="0.75"><rect width="${w}" height="${h}" fill="url(#mottle)"/><rect width="${w}" height="${h}" fill="url(#fine)"/></g>`
+    `<g style="mix-blend-mode:soft-light" opacity="1"><rect width="${w}" height="${h}" fill="url(#mottle)"/><rect width="${w}" height="${h}" fill="url(#fine)"/></g>`
   )
 }
 const pick = <T>(rand: () => number, list: T[]) => list[Math.floor(rand() * list.length)]!
@@ -368,7 +368,7 @@ export function wallSvg(grain: Grain | null): string {
     `<linearGradient id="pane" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#e3eeff"/><stop offset="1" stop-color="#9fc2e8"/></linearGradient>` +
     `<linearGradient id="barrel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5236"/><stop offset="0.35" stop-color="#4a3222"/><stop offset="0.8" stop-color="#33261d"/><stop offset="1" stop-color="#4f5254"/></linearGradient>` +
     `<linearGradient id="cat" x1="0" y1="0" x2="1" y2="0.5"><stop offset="0" stop-color="#d08a50"/><stop offset="0.45" stop-color="#9a5a30"/><stop offset="1" stop-color="#4a2a18"/></linearGradient>` +
-    `<radialGradient id="soot" cx="830" cy="520" r="420" gradientUnits="userSpaceOnUse" gradientTransform="translate(830 520) scale(0.85 1) translate(-830 -520)"><stop offset="0" stop-color="#050302" stop-opacity="0.85"/><stop offset="0.6" stop-color="#050302" stop-opacity="0.45"/><stop offset="1" stop-color="#050302" stop-opacity="0"/></radialGradient>` +
+    `<radialGradient id="soot" cx="830" cy="520" r="420" gradientUnits="userSpaceOnUse" gradientTransform="translate(830 520) scale(0.85 1) translate(-830 -520)"><stop offset="0" stop-color="#050302" stop-opacity="0.92"/><stop offset="0.6" stop-color="#050302" stop-opacity="0.55"/><stop offset="1" stop-color="#050302" stop-opacity="0"/></radialGradient>` +
     `</defs>` +
     `<rect width="${WALL_W}" height="${WALL_H}" fill="#140f0b"/>` +
     `<rect width="${WALL_W}" height="500" fill="#2a221c"/>` +
