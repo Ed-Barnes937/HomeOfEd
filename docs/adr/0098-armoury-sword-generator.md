@@ -6,7 +6,10 @@
   [ADR 0084](0084-armoury-branch-wands.md) (a Kind kept by Try another),
   [ADR 0083](0083-armoury-glowing-gems.md) and [ADR 0087](0087-armoury-crystal-colours-and-shapes.md)
   (one glow colour, the wand's gem colours), [ADR 0085](0085-armoury-carved-pattern-stencils.md)
-  (the stencil tiles the engraving reuses).
+  (the stencil tiles the engraving reuses), [ADR 0099](0099-armoury-smithy-stage.md)
+  (the stage that draws it, and what its gates cut), [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md)
+  (the smithy that shows it), [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md)
+  (the close look that waves it).
 
 ## Context
 
@@ -104,7 +107,8 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
   picker reaches no other); `ridgeAt` (the Katana's ridge line) and `backBevelFrom`;
   `tipFrom` (where the tip's closing run starts, the Katana's point line); guard `ends`,
   `discShape` and `langets`; grip wraps `leather | cord | wire | wood | ribbed | diamond`;
-  finish `pattern` and `wear`; an `engraving` band from the wand's stencil tiles; runes that
+  finish `pattern` and `wear`; an `engraving` band from the wand's stencil tiles (only `vine`
+survived the gates: ADR 0099); runes that
   carry their own colour and glyph count; and `glow` as the gems' light and stone, null
   without gems (so a hidden gem or rune colour never changes the spec). Fuller and wave positions are z in mm; their widths are fractions of the
   local blade width, so they follow the taper.
@@ -179,9 +183,23 @@ unchanged: a `NumberParam` has one static range, and a `ChoiceParam` narrows its
 ### Budgets
 
 - Vertices: blade <= 45k, fittings <= 35k, grip <= 45k, total <= 120k (hard cap 200k), asserted
-  over every Kind's allowed hilt options, gem seats and 30 random swords per Kind. Build time
-  is logged, not asserted (a wall clock is flaky under load); the whole sword is rebuilt on a
-  slider change, so the hilt avoids whole-mesh normal passes and unbounded caches.
+  over a chosen catalogue of swords (85 whole swords and 77 blades: each Kind's options cycled
+  with sizes at both ends, slider extremes, its heaviest and three random ones), each built once.
+  Hundreds of random swords took over a minute and timed out on CI. Build time is logged, not
+  asserted (a wall clock is flaky under load); the whole sword is rebuilt on a slider change,
+  so the hilt avoids whole-mesh normal passes and unbounded caches. The sword unit suite runs in
+  about five seconds and has to stay there.
+
+## Where the build departed from the first spec
+
+- **The Sabre's curve peaks at 0.5-0.57 of the blade (`curvePeak`) and its depth tops out at
+  70 mm (`sagitta` 30-70)**, where `spec.md` said 0.6-0.68 and 100. At those numbers the blade
+  read as a hook rather than a sabre (found reviewing the first blade, ticket 05). The Katana's
+  peak stays 0.5.
+- **A wheel pommel takes 0.92 of its diameter along the sword** (`POMMEL_LENGTH`), nearly its
+  whole diameter, so a wheel is a true circle seen on the flat and not a thin disc.
+- **The knotwork, scales and dots engravings were cut** at the fittings gate; `vine` stays
+  (ADR 0099 has the round-by-round record).
 
 ## Consequences
 

@@ -6,7 +6,9 @@
   matches), [ADR 0075](0075-armoury-share-links-and-picture.md) (the picture),
   [ADR 0076](0076-armoury-generator-tuning.md) (why scene shadows are CSS),
   [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (the shop shell),
-  [ADR 0098](0098-armoury-sword-generator.md) (the sword and its outline).
+  [ADR 0098](0098-armoury-sword-generator.md) (the sword and its outline),
+  [ADR 0099](0099-armoury-smithy-stage.md) (the stage whose light the drawing matches),
+  [ADR 0097](0097-armoury-street-and-last-shop.md) (the street the smithy opens from).
 
 ## Context
 
@@ -56,14 +58,16 @@ floor wherever the sword overhangs. It hides while the sword is lifted.
 `[data-shop='smithy']` (soot panel, brass, kraft-brown card, hemp twine, a steel
 rule), so the panel, sheet and tag turn smithy-coloured with no change to the
 shared components. The ticket is the shared `Tag` in brown card, tied by drawn
-twine from its hole to the sword's grip (`spec.gripAt`). It keeps "No." (O13).
+twine from its hole to the sword's grip (`spec.gripAt`). It keeps "No." (O13): the first spec
+called it a "mark number", but the shared `Tag` takes no label prop, so both shops say "No."
 
 **The picture is the shared frame plus a per-shop painter.** `paintSmithyCard`
 draws the same wall, floor and anvil SVGs into the card (preloaded as images when
 the module loads), the window's light, the sword's shadow cast from the capture's
 own alpha (the shadow-offset trick, which works without `ctx.filter`), the
-capture, and a faint glow in the sword's colour. The frame draws the tag, header
-and footer.
+capture, and a faint glow in the sword's colour, and returns the ticket's colours
+(`TagColours`, brown card). The frame draws the tag in them, then the header and
+footer; a painter that returns none gets the wand's paper.
 
 ## Considered and rejected
 
@@ -84,7 +88,7 @@ and footer.
   pommel-to-tip line, pommel left, outline `+y` toward the viewer, the forge key
   from the low left and the window from the high right. If it changes, the shadow
   and the anvil's light must change with it.
-- The picture's tag is drawn by the shared frame in the wand's paper colours, not
-  the smithy's brown card.
+- The picture's tag is drawn by the shared frame in the colours its shop's painter
+  returns, so the smithy's is brown card like the ticket on screen.
 - The scene is static apart from the coals and embers, so it costs nothing per
   frame; the art rasterises once per size.

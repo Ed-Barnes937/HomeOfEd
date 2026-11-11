@@ -4,7 +4,9 @@
 - **Date:** 2026-11-11
 - **Related:** [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (the
   `armoury:shop` key and root-path links this routes), [ADR 0075](0075-armoury-share-links-and-picture.md)
-  (links live forever), [ADR 0073](0073-armoury-wand-shop.md).
+  (links live forever), [ADR 0073](0073-armoury-wand-shop.md) (the wand shop, now at
+  `/wands`), [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md) (the smithy at
+  `/swords`).
 
 ## Context
 

@@ -1,9 +1,17 @@
 # 0074 - armoury save format: one versioned document, lenient wands
 
-- **Status:** Accepted
+- **Status:** Accepted - **amended 2026-11-11** (see the note below the header)
 - **Date:** 2026-11-08
 - **Related:** [ADR 0025](0025-boop-save-format.md) (the boop precedent),
   [ADR 0073](0073-armoury-wand-shop.md), [ADR 0075](0075-armoury-share-links-and-picture.md).
+
+> **Amended by [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (2026-11-11).**
+> There is now one save document per kind of item. The wand's is exactly this
+> one: key `armoury:save`, shape and `SAVE_FORMAT_VERSION` unchanged, and every old
+> save still reads. Swords have `armoury:save:sword`, the same shape decoded
+> through the sword's schema, and `armoury:shop` holds the shop last visited. Read
+> `StoredWand` and `decodeStoredWand` below as the generic `StoredItem` and
+> `decodeStored`, which take the kind's schema.
 
 ## Context
 

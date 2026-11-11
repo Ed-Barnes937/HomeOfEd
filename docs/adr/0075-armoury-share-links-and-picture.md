@@ -1,9 +1,20 @@
 # 0075 - armoury shares a wand as a fragment link or a picture
 
-- **Status:** Accepted
+- **Status:** Accepted - **amended 2026-11-11** (see the note below the header)
 - **Date:** 2026-11-08
 - **Related:** [ADR 0026](0026-boop-share-links.md) (the boop precedent),
   [ADR 0074](0074-armoury-save-format.md).
+
+> **Amended by [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) and
+> [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md) (2026-11-11).** The
+> payload now names the kind of item by its field: `{ version: 1, wand }` as
+> below, or `{ version: 1, sword }`; a link made before swords has the `wand`
+> field and opens as a wand. The prefix and `SHARE_FORMAT_VERSION` are
+> unchanged. Links are built at the root path, whichever page built them, and the
+> root sends the arrival to its own shop. The picture is a shared card frame
+> with a painter per shop: the smithy's paints its forge, anvil and the sword's
+> shadow where this ADR's card has the shop wall and box. Read `StoredWand` and
+> `decodeStoredWand` below as `StoredItem` and `decodeStored`.
 
 ## Context
 

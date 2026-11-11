@@ -5,7 +5,11 @@
 - **Related:** [ADR 0098](0098-armoury-sword-generator.md) (the generator this stage draws),
   [ADR 0076](0076-armoury-generator-tuning.md) (baked scan means, never read back),
   [ADR 0082](0082-armoury-material-zones.md) and [ADR 0083](0083-armoury-glowing-gems.md) (the bloom cap
-  at rest), [ADR 0077](0077-armoury-close-look.md) (the close look's rig).
+  at rest), [ADR 0077](0077-armoury-close-look.md) (the close look's rig),
+  [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md) (the rigs both close looks share, and
+  the glint's exception to the bloom cap), [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md)
+  (the drawn scene this stage's light must match), [ADR 0096](0096-armoury-item-kinds-saves-and-links.md)
+  (the stage seam by kind).
 
 ## Context
 
@@ -73,7 +77,7 @@ change, so the sword gets its own canvas settings.
   one program serves every sword.
 - The bloom cap at rest (`REST_CAP = 0.92 * BLOOM_THRESHOLD`) is a soft knee from 0.6 of the
   cap, not a clamp: a clamp flattened every highlight into one tone. Nothing at rest exceeds the
-  cap, so nothing blooms; ticket 10 raises the blade's uniform for the glint.
+  cap, so nothing blooms; the close look raises it for the glint and the rune wake (ADR 0100).
 - Fittings: `MeshPhysicalMaterial` per metal (`FITTINGS`: the wand's four shared metals plus
   iron, bronze and blue; blue is bright steel under a thin film, not the blade's near-black), the
   same steel scan at a smaller tile, tarnish in the creases from `aShade`, deeper with wear.
@@ -129,3 +133,5 @@ Recorded round by round in ticket 08's Comments; every review is in
   agreement: forge low left, window high right.
 - The dev-only `?clay` and `?focus=tip|hilt` switches exist for the GPU gates and are compiled
   out of production builds.
+- An option added to the sword later passes a real-GPU gate judged by someone other than its
+  builder, or is cut the same way as the engravings above.

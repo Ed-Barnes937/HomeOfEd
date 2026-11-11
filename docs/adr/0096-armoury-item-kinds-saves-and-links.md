@@ -4,7 +4,12 @@
 - **Date:** 2026-11-10
 - **Related:** [ADR 0074](0074-armoury-save-format.md) (the save format this
   keeps), [ADR 0075](0075-armoury-share-links-and-picture.md) (the link format
-  this keeps), [ADR 0073](0073-armoury-wand-shop.md).
+  this keeps), [ADR 0073](0073-armoury-wand-shop.md), [ADR 0077](0077-armoury-close-look.md)
+  (its `cast` is now `flourish`). Built on by [ADR 0097](0097-armoury-street-and-last-shop.md)
+  (the routes), [ADR 0098](0098-armoury-sword-generator.md) (the sword),
+  [ADR 0099](0099-armoury-smithy-stage.md) and [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md)
+  (its stage and close look), [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md)
+  (its scene and picture).
 
 ## Context
 
@@ -37,6 +42,14 @@ kind" and "a new Branch starts with bark" are now `def.keeps` and
 `def.follows`), the provider holds one bench per kind, and the save and share
 codecs take the schema. The shop number's hash moves to `items/shopNumber.ts`
 unchanged, so every wand keeps its number.
+
+**Shops.** A shop is a `ShopView` (`src/shop/shopView.ts`): its `ItemDef`, path, palette
+key, copy, scene component, group summaries, an optional widget per param, the picture's
+painter and its close look's flash timing. One shell (`ShopPage`, header, tag, controls,
+close look) renders any view; the wand shop is `shop/wandShop.ts`, the smithy
+`smithy/smithy.ts`. The stages are a pair per kind, `StagesByKind`, and a kind with none
+shows its shop without a 3D view. The seam's `cast` became `flourish()` (ADR 0077's
+amendment, [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md)).
 
 **Saves: one document per kind.** Each kind has its own key holding the
 document ADR 0074 describes, decoded with that kind's schema:
