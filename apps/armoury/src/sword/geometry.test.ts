@@ -200,7 +200,12 @@ describe('the hilt', () => {
       if (spec.blade.curve || poses.length === 0) continue
       for (const pose of poses) {
         const host = pose.at === 'pommel' ? pommelPart(spec) : guardPart(spec)
-        const from = pose.position.map((v, i) => v + pose.normal[i]! * 20) as [number, number, number]
+        // Nudged off the exact centre, where a ray would graze the vertex every face shares.
+        const from = pose.position.map((v, i) => v + pose.normal[i]! * 20 + 0.013 * (i + 1)) as [
+          number,
+          number,
+          number,
+        ]
         const back = pose.normal.map((v) => -v) as [number, number, number]
         const hit = firstHit(host, from, back)
         expect(hit, `${name} ${pose.at}`).not.toBeNull()

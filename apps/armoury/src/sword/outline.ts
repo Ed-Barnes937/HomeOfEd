@@ -491,14 +491,17 @@ function ringPommel(spec: SwordSpec, R: number, P: number, gr: number) {
   const rt = Math.max(3.2, 0.13 * 2 * R)
   const rc = R - rt
   const zc = R
-  const neckR = Math.max(0.95 * gr, rt * 1.9)
-  const neckFrom = zc + rc - rt * 0.4
+  // The ring's two ends meet inside a collar that the grip seats into.
+  const gap = Math.asin(Math.min(0.6, (rt * 0.9) / rc))
+  const endZ = zc + rc * Math.cos(gap)
+  const neckR = Math.max(0.95 * gr, rc * Math.sin(gap) + rt + 1.4)
+  const neckFrom = Math.min(endZ - rt - 0.8, P - 4)
   const neck: Lathe = {
     kind: 'lathe',
     profile: rounded(
       [
         [0, neckFrom, 0],
-        [neckR, neckFrom, 1],
+        [neckR, neckFrom, 1.2],
         [neckR, P, 0.6],
         [0, P, 0],
       ],
@@ -507,7 +510,6 @@ function ringPommel(spec: SwordSpec, R: number, P: number, gr: number) {
     oval: 1,
     facets: 0,
   }
-  const gap = Math.asin(Math.min(0.95, (neckR * 0.55) / rc))
   const n = 72
   const samples: TubeSample[] = []
   for (let i = 0; i <= n; i++) {
@@ -690,30 +692,54 @@ function guardLayout(spec: SwordSpec, gems: GemSite[]): GuardLayout {
   }
 
   const blockFrom = guard.from
-  let blockTo = guard.to
-  let hx = Math.max(Math.max(edgeW, backW) + 3, gr + 1.5)
+  const blockTo = guard.to
+  const hx = Math.max(Math.max(edgeW, backW) + 3, gr + 1.5)
   const hy = Math.max(barHv, T + 2.2, 0.75 * gry + 1.4)
-  if (gemOn) {
-    const outer = gemOn.radius * (gemOn.cut === 'marquise' ? 1.45 : 1) + bezelRim(gemOn.radius)
-    blockTo = Math.max(blockTo, blockFrom + 2 * outer + 3)
-    hx = Math.max(hx, outer + 2.5)
-  }
   const zc = (guard.from + guard.to) / 2
   const block = { hx, hy, from: blockFrom, to: blockTo }
+  const shapes: Shape[] = []
   if (gemOn) {
+    // An escutcheon: a shield-shaped plate over the block and the blade's base, holding the stone.
     const seat = gemOn.radius
+    const outer = seat * (gemOn.cut === 'marquise' ? 1.45 : 1) + bezelRim(seat)
+    const rx = Math.max(outer + 2.5, 0.6 * hx)
+    const rz = outer + 2.5
+    const cz = guard.from + rz - 1.5
+    const point = 0.55 * rz
+    const inside = (x: number, z: number) => {
+      const below = Math.max(0, z) / (rz + point)
+      const half = z > 0 ? rx * (1 - below ** 1.6) : rx
+      return Math.abs(x / Math.max(half, 1e-6)) ** 2.4 + Math.abs(z / (z > 0 ? rz + point : rz)) ** 2.4 <= 1
+    }
+    const th = hy + 0.7
+    shapes.push({
+      kind: 'plate',
+      centre: [0, 0, cz],
+      normal: 'y',
+      outline: polar(inside, 112, 3 * rz),
+      profile: plateProfile(
+        [
+          [0, -th, 0],
+          [0.72 * rz, -th, 0.8],
+          [rz, -th + 1.4, 0.8],
+          [rz, th - 1.4, 0.8],
+          [0.72 * rz, th, 0.8],
+          [0, th, 0],
+        ],
+        rz,
+      ),
+    })
     gems.push({
       at: 'guard',
-      position: [0, hy, (blockFrom + blockTo) / 2],
+      position: [0, th, cz],
       normal: [0, 1, 0],
       along: [0, 0, 1],
       seat,
-      sink: 0.56 * seat + 0.8,
+      sink: Math.min(0.56 * seat + 0.8, 2 * th - 0.8),
     })
   }
   const seat = seatFor(Math.min(hx, gr + 1.5) - 1.2, hy - 1.2)
   const blockSection = { hu: (blockTo - blockFrom) / 2, hv: hy, cu: (blockFrom + blockTo) / 2 - zc }
-  const shapes: Shape[] = []
 
   if (guard.style === 'knuckleBow' || guard.style === 'swept' || guard.style === 'cup') {
     shapes.push(...hiltBars(spec, { zc, hx, hy, barHu, barHv, blockSection }))
@@ -828,13 +854,13 @@ function crossBar(spec: SwordSpec, b: BarSizes): Shape[] {
   if (ends === 'fourLeaves') {
     for (const sign of [-1, 1]) {
       const s = sign > 0 ? samples[samples.length - 1]! : samples[0]!
-      const leaf = 1.05 * Math.max(endHu, endHv) + 1.5
+      const leaf = 1.5 * Math.max(endHu, endHv) + 2
       const inside = (x: number, z: number) =>
         [0, 1, 2, 3].some((k) => {
           const a = (k * Math.PI) / 2 + Math.PI / 4
           return Math.hypot(x - Math.cos(a) * leaf * 0.72, z - Math.sin(a) * leaf * 0.72) <= leaf * 0.62
         }) || Math.hypot(x, z) < leaf * 0.7
-      const t = Math.max(1.6, 0.75 * endHv)
+      const t = Math.max(1.6, endHv + 0.6)
       shapes.push({
         kind: 'plate',
         centre: [s.x + sign * (leaf * 0.55), 0, s.z],
