@@ -232,8 +232,7 @@ function plateStations(
   const points = distinct(profile, (p) => [p[0] * size, p[1]])
   let along = 0
   return points.map(([s, t], i): Station => {
-    if (i > 0)
-      along += Math.hypot((s - points[i - 1]![0]) * size, t - points[i - 1]![1])
+    if (i > 0) along += Math.hypot((s - points[i - 1]![0]) * size, t - points[i - 1]![1])
     const section = new Float32Array(outline.length * 2)
     const k = Math.max(s, 1e-4)
     outline.forEach(([a, b], j) => {
@@ -267,7 +266,11 @@ function plateSolid(plate: Plate): MeshPart {
 }
 
 const shapeSolid = (shape: Shape): MeshPart =>
-  shape.kind === 'tube' ? tubeSolid(shape) : shape.kind === 'lathe' ? latheSolid(shape) : plateSolid(shape)
+  shape.kind === 'tube'
+    ? tubeSolid(shape)
+    : shape.kind === 'lathe'
+      ? latheSolid(shape)
+      : plateSolid(shape)
 
 /** Darkens a part where it meets another (`aShade`): within `run` mm of each crease plane z, inside its footprint. */
 function withShade(
@@ -324,7 +327,8 @@ export function collarPart(spec: SwordSpec): MeshPart | null {
   const at = (z: number, inset: number, scale: number, uv: number): Station => {
     const line = centreLineAt(spec, z)
     const s = bladeSectionAt(spec, Math.max(z, spec.blade.from))
-    const grow = lerp(COLLAR_GROW[0], COLLAR_GROW[1], clamp((z - c.from) / (c.to - c.from), 0, 1)) - inset
+    const grow =
+      lerp(COLLAR_GROW[0], COLLAR_GROW[1], clamp((z - c.from) / (c.to - c.from), 0, 1)) - inset
     const mid = (s.edge.width - s.back.width) / 2
     const span = (s.edge.width + s.back.width) / 2 + grow
     const section = new Float32Array(cols * 2)
@@ -362,11 +366,12 @@ export function collarPart(spec: SwordSpec): MeshPart | null {
 /** Langets: two tongues lying on the blade's flats below the guard, feathered into its faces. */
 function langetSolids(spec: SwordSpec): MeshPart[] {
   const L = spec.guard.langets
-  const z0 = spec.blade.from - 1
+  // Starts inside the guard's block, so no step shows where the tongue leaves it.
+  const z0 = spec.blade.from - 4
   const z1 = spec.blade.from + L
   const base = spec.blade.halfWidth[0]![1]
-  const w0 = 0.22 * base
-  const thick = 1.4
+  const w0 = 0.3 * base
+  const thick = 1.2
   const n = 16
   const out: MeshPart[] = []
   for (const side of [1, -1]) {
@@ -377,7 +382,7 @@ function langetSolids(spec: SwordSpec): MeshPart[] {
     for (let k = 0; k <= 10; k++) ts.push(0.7 + 0.3 * Math.sin((Math.PI / 2) * (k / 10)))
     for (const t of ts) {
       const z = lerp(z0, z1, t)
-      const w = w0 * lerp(1, 0.82, Math.min(1, t / 0.7))
+      const w = w0 * lerp(1, 0.7, Math.min(1, t / 0.7))
       // The tongue thins flush with the blade, then closes round to a point on its face.
       const end = clamp((t - 0.7) / 0.3, 0, 1)
       const g = Math.cos(Math.asin(end))
@@ -397,7 +402,8 @@ function langetSolids(spec: SwordSpec): MeshPart[] {
       for (let i = 0; i < n; i++) put(-w + (2 * w * i) / (n - 1), -0.4)
       for (let i = n - 1; i >= 0; i--) {
         const x = -w + (2 * w * i) / (n - 1)
-        put(x, lift * Math.sqrt(Math.max(0, 1 - (x / w) ** 4)) + 0.02)
+        // Sloped sides, so the tongue reads as forged, not a slab.
+        put(x, lift * Math.max(0, 1 - (x / w) ** 2) ** 0.7 + 0.02)
       }
       stations.push({
         centre: [line.x, side * (mid + centre), line.z],
@@ -630,7 +636,8 @@ export function gripPart(spec: SwordSpec): MeshPart {
     const normals = new Float32Array(cols * 3)
     for (let i = 0; i < cols; i++) {
       const here = h[j * cols + i]!
-      const hTheta = (h[j * cols + ((i + 1) % cols)]! - h[j * cols + ((i + cols - 1) % cols)]!) / (2 * dTheta)
+      const hTheta =
+        (h[j * cols + ((i + 1) % cols)]! - h[j * cols + ((i + cols - 1) % cols)]!) / (2 * dTheta)
       const hZ = (h[b * cols + i]! - h[a * cols + i]!) / span
       const [c, sn] = [cosT[i]!, sinT[i]!]
       const tx = -(rx[j]! + here) * sn + hTheta * c
@@ -653,5 +660,12 @@ export function gripPart(spec: SwordSpec): MeshPart {
     }
     station.normals = normals
   })
-  return solid([{ ...stations[0]!, normals: undefined }, ...stations, { ...stations[rings - 1]!, normals: undefined }], true)
+  return solid(
+    [
+      { ...stations[0]!, normals: undefined },
+      ...stations,
+      { ...stations[rings - 1]!, normals: undefined },
+    ],
+    true,
+  )
 }

@@ -146,7 +146,10 @@ describe('compileSword', () => {
         expect(diameter / gripEnd).toBeGreaterThanOrEqual(1.05 - EPS)
         expect(diameter / gripEnd).toBeLessThanOrEqual(1.15 + EPS)
       } else {
-        expect(diameter).toBeGreaterThanOrEqual(base * (f.hands === 2 ? 1.0 : 0.8) - EPS)
+        // A ball is drawn smaller (tuned at G1), except where a bow meets it.
+        const ball =
+          s.pommel.style === 'ball' && !['swept', 'knuckleBow'].includes(s.guard.style) ? 0.82 : 1
+        expect(diameter).toBeGreaterThanOrEqual(base * (f.hands === 2 ? 1.0 : 0.8) * ball - EPS)
         expect(diameter).toBeGreaterThanOrEqual(1.2 * gripEnd)
         expect(diameter <= 1.4 * base + EPS || diameter <= 1.6 * gripEnd).toBe(true)
       }
@@ -261,8 +264,8 @@ describe('compileSword', () => {
     expect(sabre.fullers[0]!.offset).toBeGreaterThan(0.5)
     const katana = at({ family: 'katana', middle: 'ridgeGroove' })
     expect(katana.section).toBe('wedge')
-    expect(katana.ridgeAt).toBeGreaterThanOrEqual(0.55)
-    expect(katana.ridgeAt).toBeLessThanOrEqual(0.65)
+    expect(katana.ridgeAt).toBeGreaterThanOrEqual(0.62)
+    expect(katana.ridgeAt).toBeLessThanOrEqual(0.7)
     expect(katana.fullers[0]!.offset - katana.fullers[0]!.halfWidth).toBeGreaterThan(
       katana.ridgeAt!,
     )

@@ -344,11 +344,13 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       float runeAt(vec2 mm, float along) { return maskAt(uRuneMap, uRuneRect, uRuneOn, mm, along); }
       float engraveAt(vec2 mm, float along) { return maskAt(uEngraveMap, uEngraveRect, uEngraveOn, mm, along); }
       float cutAt(vec2 mm, float along) { return max(runeAt(mm, along), engraveAt(mm, along)); }
-      // Ripples: noise-warped stripes, mostly running along the blade, in mm.
+      // Ripples: fine noise-warped stripes, mostly running along the blade, in mm; finer than a pixel they fade to grey.
       float watered(vec2 mm) {
-        vec2 p = mm * vec2(0.09, 0.025);
-        float warp = 1.6 * sNoise(p) + 0.8 * sNoise(p * 2.7 + 7.3);
-        return smoothstep(-0.45, 0.45, sin(mm.x * 1.1 + warp * 6.0 + 0.6 * sin(mm.y * 0.05)));
+        vec2 p = mm * vec2(0.06, 0.02);
+        float warp = 1.2 * sNoise(p) + 0.5 * sNoise(p * 3.1 + 7.3);
+        float arg = mm.x * 2.4 + warp * 9.0 + 1.5 * sin(mm.y * 0.12 + mm.x * 0.3);
+        float aa = 1.0 - smoothstep(0.15, 0.45, fwidth(arg) / 6.2832);
+        return mix(0.5, smoothstep(-0.7, 0.7, sin(arg)), aa);
       }
       // The temper line: hardened steel along the edge, its boundary a slow soft wave.
       float hardened(vec2 mm) {

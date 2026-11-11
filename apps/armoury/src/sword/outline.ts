@@ -430,14 +430,20 @@ function platePommel(
         return Math.abs(x / w) ** 3.2 + Math.abs(z / b) ** 3.2 <= 1
       }
     } else if (style === 'lobed') {
-      const lobes: [number, number, number][] = [
-        [0, -0.25 * b, 0.42 * R],
-        [-0.6 * R, -0.05 * b, 0.34 * R],
-        [0.6 * R, -0.05 * b, 0.34 * R],
+      // A square-cornered bar against the grip, and three lobes rising beyond it, the middle tallest.
+      const top = -0.05 * b
+      const lobes: [number, number, number, number][] = [
+        [0, top, 0.36 * R, 0.95 * b],
+        [-0.64 * R, top, 0.3 * R, 0.62 * b],
+        [0.64 * R, top, 0.3 * R, 0.62 * b],
       ]
       inside = (x, z) => {
-        const bar = Math.abs(x / R) ** 4 + Math.abs((z - 0.55 * b) / (0.45 * b)) ** 4 <= 1
-        return bar || lobes.some(([cx, cz, r]) => Math.hypot(x - cx, (z - cz) * 1.1) <= r)
+        const bar =
+          z >= top &&
+          Math.abs(x / R) ** 6 + Math.abs((z - (top + b) / 2) / ((b - top) / 2)) ** 6 <= 1
+        return (
+          bar || lobes.some(([cx, cz, rx, rz]) => ((x - cx) / rx) ** 2 + ((z - cz) / rz) ** 2 <= 1)
+        )
       }
     } else {
       // Fishtail: a neck at the grip, two flared lobes at the end.
@@ -709,7 +715,11 @@ function guardLayout(spec: SwordSpec, gems: GemSite[]): GuardLayout {
     const inside = (x: number, z: number) => {
       const below = Math.max(0, z) / (rz + point)
       const half = z > 0 ? rx * (1 - below ** 1.6) : rx
-      return Math.abs(x / Math.max(half, 1e-6)) ** 2.4 + Math.abs(z / (z > 0 ? rz + point : rz)) ** 2.4 <= 1
+      return (
+        Math.abs(x / Math.max(half, 1e-6)) ** 2.4 +
+          Math.abs(z / (z > 0 ? rz + point : rz)) ** 2.4 <=
+        1
+      )
     }
     const th = hy + 0.7
     shapes.push({
@@ -777,7 +787,7 @@ function crossBar(spec: SwordSpec, b: BarSizes): Shape[] {
   const endLen = ends === 'knobs' ? 1.85 * knobR : ends === 'drops' ? 2.6 * knobR : 0
   const barEnd = ends === 'curls' ? H - 2.2 * Math.max(endHu, 5) : H - endLen
   const ts: number[] = []
-  for (let x = -barEnd; x <= barEnd + 1e-9; ) {
+  for (let x = -barEnd; x <= barEnd + 1e-9;) {
     ts.push(x)
     const a = Math.abs(x)
     x += a < hx + 12 ? 1.2 : a > barEnd - 6 ? 0.8 : 3
@@ -858,7 +868,9 @@ function crossBar(spec: SwordSpec, b: BarSizes): Shape[] {
       const inside = (x: number, z: number) =>
         [0, 1, 2, 3].some((k) => {
           const a = (k * Math.PI) / 2 + Math.PI / 4
-          return Math.hypot(x - Math.cos(a) * leaf * 0.72, z - Math.sin(a) * leaf * 0.72) <= leaf * 0.62
+          return (
+            Math.hypot(x - Math.cos(a) * leaf * 0.72, z - Math.sin(a) * leaf * 0.72) <= leaf * 0.62
+          )
         }) || Math.hypot(x, z) < leaf * 0.7
       const t = Math.max(1.6, endHv + 0.6)
       shapes.push({
@@ -883,17 +895,15 @@ function crossBar(spec: SwordSpec, b: BarSizes): Shape[] {
 }
 
 /** Hilts with bars: the Sabre's hand bow, the Rapier's swept and cup hilts. */
-function hiltBars(
-  spec: SwordSpec,
-  b: BarSizes & { hy: number },
-): Shape[] {
+function hiltBars(spec: SwordSpec, b: BarSizes & { hy: number }): Shape[] {
   const { guard, grip, pommel } = spec
   const { zc, hx, barHu, barHv, blockSection } = b
   const gr = Math.max(...grip.radius.map(([, r]) => r))
   const shapes: Shape[] = []
   const bowX = clamp(0.25 * guard.span, gr + 24, gr + 38)
   const bowHu = Math.max(2.4, 0.32 * barHu)
-  const bowHv = guard.style === 'knuckleBow' ? Math.max(5, 0.75 * barHv * 1.6) : Math.max(2.6, 0.5 * barHv)
+  const bowHv =
+    guard.style === 'knuckleBow' ? Math.max(5, 0.75 * barHv * 1.6) : Math.max(2.6, 0.5 * barHv)
   const sabre = guard.style === 'knuckleBow'
   const endZ = pommel.to * 0.55
   const endX = Math.min(pommel.radius * 0.5, gr * 0.6)
@@ -969,7 +979,12 @@ function hiltBars(
       ),
       1.5,
     )
-    const bow = alongPath(bowPath, () => ({ hu: bowHu, hv: bowHv, r: 0.92 * Math.min(bowHu, bowHv), cu: 0 }))
+    const bow = alongPath(bowPath, () => ({
+      hu: bowHu,
+      hv: bowHv,
+      r: 0.92 * Math.min(bowHu, bowHv),
+      cu: 0,
+    }))
     shapes.push({ kind: 'tube', samples: capTube(bow, 'round') })
     if (guard.style === 'swept') {
       const [edgeW] = bladeHalfWidths(spec)
@@ -1021,7 +1036,11 @@ function cupShell(spec: SwordSpec): Shape[] {
   const rim: [number, number, number][] = []
   for (let i = 1; i < 8; i++) {
     const a = Math.PI * (i / 8)
-    rim.push([R - wall / 2 + (bead - 0) * Math.sin(a) * 0.6 + (wall / 2) * Math.cos(a), guard.from - bead * Math.sin(a) * 0.4, 0])
+    rim.push([
+      R - wall / 2 + (bead - 0) * Math.sin(a) * 0.6 + (wall / 2) * Math.cos(a),
+      guard.from - bead * Math.sin(a) * 0.4,
+      0,
+    ])
   }
   const profile = rounded([...outer, ...rim, ...inner], 4)
   const gr = sample(grip.radius, 1)
@@ -1280,7 +1299,7 @@ function bladeOutline(spec: SwordSpec): Pt[] {
   const zs: number[] = []
   const wave = b.wave
   const step = Math.max(4, B / 50)
-  for (let z = b.from; z < b.to; ) {
+  for (let z = b.from; z < b.to;) {
     zs.push(z)
     const u = (z - b.from) / B
     let dz = step

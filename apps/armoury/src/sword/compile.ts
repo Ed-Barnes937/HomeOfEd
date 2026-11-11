@@ -165,19 +165,21 @@ const ogive = (a: number) => {
 const TIPS: Record<string, { edge: Side; back?: Side }> = {
   sharp: { edge: { run: 1.3, shape: ogive(1) } },
   longPoint: { edge: { run: 2.2, shape: ogive(0.45) } },
-  rounded: { edge: { run: 0.7, shape: (t) => 1 - t ** 4 } },
+  // Square to the axis at the end, so the two edges meet in one arc with no nib; eased in where it starts.
+  rounded: { edge: { run: 0.55, shape: (t) => Math.sqrt(Math.max(0, 1 - t ** 2.2)) } },
   curvedPoint: {
     edge: { run: 1.6, shape: ogive(1) },
     back: { run: 0.8, shape: ogive(0.6) },
   },
   spear: { edge: { run: 1.3, shape: ogive(0.6) } },
   clipped: {
-    edge: { run: 0.9, shape: ogive(1) },
-    back: { run: 2.2, shape: ogive(0.3) },
+    edge: { run: 2, shape: ogive(1) },
+    back: { run: 1, shape: ogive(0.3) },
   },
-  kissaki: { edge: { run: 0, shape: ogive(1) }, back: { run: 0, shape: ogive(1) } },
+  // The edge sweeps round in a convex belly; the back runs on almost straight, over a longer run.
+  kissaki: { edge: { run: 0, shape: ogive(1) }, back: { run: 0, shape: (t) => 1 - t } },
 }
-const TIP_SAMPLES = 24
+const TIP_SAMPLES = 32
 /** How far a blade's width, from slimmest to broadest in its band, moves the guard size. */
 const GUARD_BASE_NUDGE = 0.2
 /** The least a bar guard's span moves across the Guard size slider, mm. */
@@ -196,7 +198,7 @@ const GUARD_BAR: Record<string, number> = {
   straight: 11,
   curved: 11,
   sCurve: 10,
-  winged: 9,
+  winged: 11,
   dome: 3,
   knuckleBow: 9,
   disc: 6,
@@ -238,6 +240,10 @@ const smoothstep = (a: number, b: number, x: number) => {
   return t * t * (3 - 2 * t)
 }
 const LEAF_PEAK = 1.15
+/** Flame waves: each edge moves this share of the local width, never more than WAVE_MAX_MM (blade.ts). */
+const WAVE_AMP = 0.06
+/** The Katana's back closes over this many times the point's length. */
+const KISSAKI_BACK_RUN = 1.8
 
 /** The blade's outline before the tip, as fractions of the base half-width, per side. */
 function bodyShape(
@@ -293,7 +299,10 @@ function outline(p: Params, f: FamilyDef, B: number, base: number) {
   const widthAt = (u: number) => (base / 2) * (body.edge(u) + body.back(u))
   // The run is measured in widths where it starts, which depends on the run: settle it in a few steps.
   const startOf = (side: Side) => {
-    if (p.tip === 'kissaki') return 1 - lerp(25, 60, p.kissakiSize as number) / B
+    if (p.tip === 'kissaki')
+      return (
+        1 - (side === tip.back ? KISSAKI_BACK_RUN : 1) * (lerp(25, 60, p.kissakiSize as number) / B)
+      )
     let from = 1
     for (let i = 0; i < 4; i++)
       from = 1 - Math.min(Math.max(side.run * widthAt(from), MIN_TIP_RUN_MM) / B, MAX_TIP_RUN)
@@ -304,7 +313,9 @@ function outline(p: Params, f: FamilyDef, B: number, base: number) {
   const backFrom = startOf(backSide)
   const halfWidth = sideCurve(body.edge, base / 2, edgeFrom, tip.edge)
   const backWidth = f.edges === 'single' ? sideCurve(body.back, base / 2, backFrom, backSide) : null
-  return { halfWidth, backWidth, tipFrom: Math.min(edgeFrom, backFrom) }
+  // The Katana's point section, and its yokote, start where the edge turns.
+  const tipFrom = p.tip === 'kissaki' ? edgeFrom : Math.min(edgeFrom, backFrom)
+  return { halfWidth, backWidth, tipFrom }
 }
 
 function fullersFor(
@@ -377,7 +388,7 @@ export function compileSword(p: Params): SwordSpec {
 
   const katana = family === 'katana'
   const single = f.edges === 'single'
-  const ridgeAt = katana ? lerp(0.55, 0.65, bw) : null
+  const ridgeAt = katana ? lerp(0.62, 0.7, bw) : null
   const section = single ? 'wedge' : p.middle === 'ridge' ? 'diamond' : 'lenticular'
 
   const baseThickness = inBand(f.thickness, bw)
@@ -414,7 +425,7 @@ export function compileSword(p: Params): SwordSpec {
       1,
       Math.max(1, Math.floor((to - from) / 60)),
     )
-    wave = { amp: 0.07, lengthMm: (to - from) / count, count, from, to }
+    wave = { amp: WAVE_AMP, lengthMm: (to - from) / count, count, from, to }
   }
 
   const curve =
@@ -473,7 +484,8 @@ export function compileSword(p: Params): SwordSpec {
   const wrap = WRAPS[wrapName] ?? WRAPS.leather!
   const r = f.gripRadius
   const shape = GRIP_SHAPES[p.gripShape as string] ?? GRIP_SHAPES.straight!
-  const riserCount = clamp(Math.round(G / 45) - 1, 1, 5)
+  // A one-hand grip is plain; a longer one carries one riser, a two-hand grip at most two.
+  const riserAt = G < 130 ? [] : G < 230 ? [0.5] : [0.38, 0.62]
   const grip: SwordSpec['grip'] = {
     from: P,
     to: guardFrom,
@@ -481,10 +493,7 @@ export function compileSword(p: Params): SwordSpec {
     oval: katana ? 0.78 : 0.82,
     wrap: wrapName,
     pitchMm: wrap.pitch(G),
-    risers:
-      wrapName === 'leather'
-        ? Array.from({ length: riserCount }, (_, i) => (i + 1) / (riserCount + 1))
-        : [],
+    risers: wrapName === 'leather' ? riserAt : [],
   }
   const gripHex = wrap.colour(p)
 

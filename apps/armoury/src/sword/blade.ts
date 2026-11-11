@@ -43,6 +43,10 @@ const SOFT_FLOOR = 0.1
 const FALSE_EDGE_LEAD = 0.25
 /** The Katana's point section is thinned toward the tip by this share, which draws the yokote line. */
 const KISSAKI_THIN = 0.4
+/** And steps down this share across the yokote ring, so the crease reads across the whole face. */
+const YOKOTE_STEP = 0.1
+/** Flame waves never move an edge further than this, mm. */
+const WAVE_MAX_MM = 1.5
 /** Columns on one face, before the six on the two end faces. */
 const FACE_COLUMNS = 31
 const FINE = 0.5
@@ -213,7 +217,9 @@ function waveShift(spec: SwordSpec, z: number, width: number): number {
   if (!w || z <= w.from || z >= w.to) return 0
   const half = w.lengthMm / 2
   const env = smoothstep(w.from, w.from + half, z) * (1 - smoothstep(w.to - half, w.to, z))
-  return w.amp * width * env * Math.sin((2 * Math.PI * (z - w.from)) / w.lengthMm)
+  return (
+    Math.min(w.amp * width, WAVE_MAX_MM) * env * Math.sin((2 * Math.PI * (z - w.from)) / w.lengthMm)
+  )
 }
 
 /** The blade's cross-section at z: its two ends, crest, fullers and thickness field. */
@@ -229,8 +235,11 @@ export function bladeSectionAt(spec: SwordSpec, z: number): BladeSection {
   const single = b.edges === 'single'
   const katana = spec.family === 'katana'
   const flat = b.edgeFlat / 2
-  const kissaki =
-    katana && u > b.tipFrom ? 1 - (KISSAKI_THIN * (u - b.tipFrom)) / (1 - b.tipFrom) : 1
+  const yokote = b.from + b.tipFrom * (b.to - b.from)
+  const kissaki = !katana
+    ? 1
+    : (1 - YOKOTE_STEP * smoothstep(yokote - SUPPORT, yokote + SUPPORT, z)) *
+      (u > b.tipFrom ? 1 - (KISSAKI_THIN * (u - b.tipFrom)) / (1 - b.tipFrom) : 1)
   // A soft minimum: a hard one would crease the faces across where the point starts to thin them.
   const T = softMin((kissaki * sample(b.thickness, u)) / 2, flat + POINT_SLOPE * width)
 

@@ -293,6 +293,7 @@ export const GUARD_DEPTH: Record<string, number> = {
   cup: 40,
 }
 const COLLAR_MM = 25
+const BALL_SCALE = 0.82
 
 /** Blade length, shoulder to tip, mm. */
 export const bladeLengthMm = (p: Params): number =>
@@ -347,7 +348,10 @@ export function pommelDiameterMm(p: Params): number {
   const gripEnd = gripEndRadiusMm(p) * 2
   if (p.pommel === 'cap') return gripEnd * lerp(1.05, 1.15, size)
   const ratio = f.hands === 2 ? lerp(1.0, 1.4, size) : lerp(0.8, 1.2, size)
-  return Math.max(baseWidthMm(p) * ratio, gripEnd * lerp(1.25, 1.5, size))
+  // A ball reads bigger than a flat pommel of the same width; a hand bow or swept hilt still meets it at full size.
+  const bowed = p.guard === 'swept' || p.guard === 'knuckleBow'
+  const k = p.pommel === 'ball' && !bowed ? BALL_SCALE : 1
+  return Math.max(baseWidthMm(p) * ratio * k, gripEnd * lerp(1.25, 1.5, size) * k, gripEnd * 1.2)
 }
 
 export const pommelLengthMm = (p: Params): number =>
