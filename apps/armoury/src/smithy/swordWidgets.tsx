@@ -1,27 +1,13 @@
-import type { ReactNode } from 'react'
+import { useDeferredValue, type ReactNode } from 'react'
 
-import {
-  allowedOptions,
-  normalise,
-  type ChoiceParam,
-  type ParamDef,
-  type Params,
-} from '../engine/schema.ts'
+import { allowedOptions, type ChoiceParam, type ParamDef, type Params } from '../engine/schema.ts'
 import { SwatchPicker, type OnChange } from '../shop/controls/Widgets.tsx'
 import type { WidgetProps } from '../shop/shopView.ts'
-import { swordItem } from '../sword/item.ts'
 import { swordSwatchFor } from '../sword/swordSchema.ts'
 import type { Crop } from './outline.ts'
-import { SwordOutline } from './SwordOutline.tsx'
+import { OutlineSvg } from './SwordOutline.tsx'
 import styles from './swordWidgets.module.scss'
-
-/** The sword as it would be with this option chosen, as the workbench would make it. */
-const withOption = (params: Params, key: string, value: string): Params =>
-  normalise(swordItem.schema, {
-    ...params,
-    [key]: value,
-    ...swordItem.follows?.(params, key, value),
-  })
+import { thumbnail } from './thumbnails.ts'
 
 function OutlinePicker({
   def,
@@ -34,6 +20,7 @@ function OutlinePicker({
   onChange: OnChange
   crop: Crop
 }) {
+  const drawn = useDeferredValue(params)
   return (
     <div className={styles.field}>
       <div
@@ -50,10 +37,9 @@ function OutlinePicker({
             className={styles.option}
             onClick={() => onChange(def.key, o.value)}
           >
-            <SwordOutline
+            <OutlineSvg
               className={styles.thumb}
-              params={withOption(params, def.key, o.value)}
-              crop={crop}
+              drawing={thumbnail(crop, drawn, def.key, o.value)}
             />
             {o.label}
           </button>
