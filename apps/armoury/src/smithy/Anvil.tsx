@@ -54,7 +54,7 @@ export function Anvil({ view, item, arrivals, reducedMotion, stageRef, onRename 
             style={{ backgroundImage: ANVIL_IMAGE }}
             aria-hidden="true"
           />
-          <SwordShadow d={onAnvil.d} className={styles.shadow} />
+          <SwordShadow blade={onAnvil.blade} hilt={onAnvil.hilt} className={styles.shadow} />
           <span ref={display.stageSlot} className={styles.stageSlot}>
             {Stage && (
               <Suspense fallback={null}>

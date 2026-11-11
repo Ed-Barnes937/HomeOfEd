@@ -32,18 +32,31 @@ export const ANVIL_TOP =
 
 const r1 = (n: number) => Math.round(n * 10) / 10
 
-/** The sword's top-down outline where the stage draws it, and where its grip is (0-1 across). */
-export function swordOnAnvil(spec: SwordSpec): { d: string; gripX: number } {
+/**
+ * The sword's top-down outline where the stage draws it, split into the blade and the taller
+ * hilt (which casts further), and where its grip is (0-1 across).
+ */
+export function swordOnAnvil(spec: SwordSpec): {
+  d: string
+  blade: string
+  hilt: string
+  gripX: number
+} {
   const length = drawnFraction(spec.lengthMm) * STAGE_FILL * SLOT_SPREAD * ANVIL_W
   const k = length / spec.lengthMm
   const x0 = ANVIL_W / 2 - length / 2
-  const d = swordOutline(spec)
-    .map(
-      (poly) =>
-        'M' + poly.map(([z, y]) => `${r1(x0 + z * k)} ${r1(ANVIL_H / 2 + y * k)}`).join('L') + 'Z',
-    )
+  const polys = swordOutline(spec)
+  const span = (poly: [number, number][]) =>
+    Math.max(...poly.map((p) => p[0])) - Math.min(...poly.map((p) => p[0]))
+  const longest = polys.reduce((best, poly, i) => (span(poly) > span(polys[best]!) ? i : best), 0)
+  const path = (poly: [number, number][]) =>
+    'M' + poly.map(([z, y]) => `${r1(x0 + z * k)} ${r1(ANVIL_H / 2 + y * k)}`).join('L') + 'Z'
+  const blade = path(polys[longest]!)
+  const hilt = polys
+    .filter((_, i) => i !== longest)
+    .map(path)
     .join('')
-  return { d, gripX: (x0 + spec.gripAt * length) / ANVIL_W }
+  return { d: blade + hilt, blade, hilt, gripX: (x0 + spec.gripAt * length) / ANVIL_W }
 }
 
 function wobblyRing(rand: () => number, cx: number, cy: number, r: number): string {
@@ -123,15 +136,15 @@ function feet(): string {
 
 function faceWear(rand: () => number): string {
   let out = ''
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 170; i++) {
     const x = FACE.left + 8 + rand() * (FACE.right - FACE.left - 16)
     const y = FACE.top + 6 + rand() * (FACE.bottom - FACE.top - 12)
-    const len = 8 + rand() * 50
-    const t = (rand() - 0.5) * 0.3 + (rand() < 0.2 ? 0.9 : 0)
-    const light = rand() < 0.55
-    out += `<path d="M${r1(x)} ${r1(y)} l${r1(Math.cos(t) * len)} ${r1(Math.sin(t) * len)}" stroke="${light ? '#fff' : '#000'}" stroke-opacity="${r1(light ? 0.03 + rand() * 0.05 : 0.04 + rand() * 0.07)}" stroke-width="${r1(0.5 + rand() * 0.9)}"/>`
+    const len = 4 + rand() * 22
+    const t = (rand() - 0.5) * 0.5 + (rand() < 0.15 ? 0.8 : 0)
+    const light = rand() < 0.6
+    out += `<path d="M${r1(x)} ${r1(y)} l${r1(Math.cos(t) * len)} ${r1(Math.sin(t) * len)}" stroke="${light ? '#fff' : '#000'}" stroke-opacity="${r1(light ? 0.03 + rand() * 0.05 : 0.04 + rand() * 0.06)}" stroke-width="${r1(0.4 + rand() * 0.5)}"/>`
   }
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 10; i++) {
     const x = FACE.left + 20 + rand() * (FACE.right - FACE.left - 40)
     const y = FACE.top + 10 + rand() * (FACE.bottom - FACE.top - 20)
     const rr = 1.5 + rand() * 3
@@ -158,7 +171,7 @@ export function anvilSvg(): string {
     `<filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>` +
     `<filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>` +
     `<filter id="blur1" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.2"/></filter>` +
-    `<filter id="iron" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9 0.25" numOctaves="3" seed="11"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.9 0 0 0 -0.42"/></filter>` +
+    `<filter id="iron" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="11"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.9 0 0 0 -0.42"/></filter>` +
     `<filter id="woodGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="5"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.8 0 0 0 -0.3"/></filter>` +
     `<clipPath id="faceClip"><rect ${face}/></clipPath>` +
     `<clipPath id="stumpClip"><circle cx="${STUMP.x}" cy="${STUMP.y}" r="${STUMP.r}"/></clipPath>` +
@@ -166,10 +179,11 @@ export function anvilSvg(): string {
     `<linearGradient id="stumpLight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff9a52" stop-opacity="0.22"/><stop offset="0.45" stop-color="#000" stop-opacity="0.1"/><stop offset="1" stop-color="#9fc2e8" stop-opacity="0.12"/></linearGradient>` +
     `<linearGradient id="foot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a2a20"/><stop offset="0.2" stop-color="#1c1a19"/><stop offset="0.75" stop-color="#161719"/><stop offset="1" stop-color="#222830"/></linearGradient>` +
     `<linearGradient id="footShade" x1="0" y1="0" x2="0" y2="170" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.06"/><stop offset="0.2" stop-color="#000" stop-opacity="0.55"/><stop offset="0.3" stop-color="#000" stop-opacity="0.8"/><stop offset="0.7" stop-color="#000" stop-opacity="0.8"/><stop offset="0.8" stop-color="#000" stop-opacity="0.6"/><stop offset="1" stop-color="#000" stop-opacity="0.1"/></linearGradient>` +
-    `<linearGradient id="faceTone" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5f524a"/><stop offset="0.3" stop-color="#4a4846"/><stop offset="0.7" stop-color="#464b51"/><stop offset="1" stop-color="#57626e"/></linearGradient>` +
-    `<linearGradient id="faceDepth" x1="0" y1="${top}" x2="0" y2="${bottom}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity="0.2"/><stop offset="0.12" stop-color="#000" stop-opacity="0"/><stop offset="0.75" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.4"/></linearGradient>` +
-    `<radialGradient id="polish" cx="${(left + right) / 2 + 40}" cy="${top + 34}" r="300" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 ${top + 34}) scale(1 0.12) translate(0 ${-(top + 34)})"><stop offset="0" stop-color="#e6edf5" stop-opacity="0.5"/><stop offset="0.5" stop-color="#dfe6ee" stop-opacity="0.16"/><stop offset="1" stop-color="#dfe6ee" stop-opacity="0"/></radialGradient>` +
-    `<radialGradient id="warmEnd" cx="${left}" cy="${(top + bottom) / 2}" r="260" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff9f5a" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9f5a" stop-opacity="0"/></radialGradient>` +
+    `<linearGradient id="faceTone" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#655a52"/><stop offset="0.3" stop-color="#535352"/><stop offset="0.7" stop-color="#4f5459"/><stop offset="1" stop-color="#606b77"/></linearGradient>` +
+    `<linearGradient id="faceDepth" x1="0" y1="${top}" x2="0" y2="${bottom}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity="0.45"/><stop offset="0.1" stop-color="#000" stop-opacity="0.1"/><stop offset="0.35" stop-color="#fff" stop-opacity="0.07"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.1"/><stop offset="0.65" stop-color="#fff" stop-opacity="0.04"/><stop offset="0.9" stop-color="#000" stop-opacity="0.12"/><stop offset="1" stop-color="#000" stop-opacity="0.5"/></linearGradient>` +
+    `<radialGradient id="polish" cx="${left + (right - left) * 0.62}" cy="${top + 28}" r="320" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 ${top + 28}) scale(1 0.07) translate(0 ${-(top + 28)})"><stop offset="0" stop-color="#e6eef8" stop-opacity="0.42"/><stop offset="0.45" stop-color="#dfe8f2" stop-opacity="0.14"/><stop offset="1" stop-color="#dfe6ee" stop-opacity="0"/></radialGradient>` +
+    `<radialGradient id="worn" cx="${(left + right) / 2}" cy="${(top + bottom) / 2}" r="220" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 ${(top + bottom) / 2}) scale(1 0.3) translate(0 ${-(top + bottom) / 2})"><stop offset="0" stop-color="#fff" stop-opacity="0.09"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>` +
+    `<radialGradient id="warmEnd" cx="${left + 30}" cy="${bottom - 20}" r="250" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff9f5a" stop-opacity="0.34"/><stop offset="1" stop-color="#ff9f5a" stop-opacity="0"/></radialGradient>` +
     `<linearGradient id="edgeLight" x1="${left}" y1="0" x2="${right}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffbf86"/><stop offset="0.45" stop-color="#bdb7b0"/><stop offset="1" stop-color="#cfe0f6"/></linearGradient>` +
     `<linearGradient id="step" x1="142" y1="0" x2="212" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5a4639"/><stop offset="0.5" stop-color="#3b3a3a"/><stop offset="1" stop-color="#2e2f31"/></linearGradient>` +
     `<linearGradient id="horn" x1="0" y1="46" x2="0" y2="124" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#b77a4c"/><stop offset="0.12" stop-color="#3e3532"/><stop offset="0.34" stop-color="#7c848e"/><stop offset="0.5" stop-color="#4c5056"/><stop offset="0.8" stop-color="#202124"/><stop offset="1" stop-color="#0f0f11"/></linearGradient>` +
@@ -191,7 +205,8 @@ export function anvilSvg(): string {
     `<rect ${face} fill="#1a1b1d"/>` +
     `<rect x="${left + 2}" y="${top + 2}" width="${right - left - 4}" height="${bottom - top - 4}" rx="5" fill="url(#faceTone)"/>` +
     `<g clip-path="url(#faceClip)">` +
-    `<rect ${face} filter="url(#iron)" opacity="0.16"/>` +
+    `<rect ${face} filter="url(#iron)" opacity="0.08"/>` +
+    `<rect ${face} fill="url(#worn)"/>` +
     `<rect ${face} fill="url(#warmEnd)"/>` +
     `<rect ${face} fill="url(#polish)"/>` +
     `<rect ${face} fill="url(#faceDepth)"/>` +
@@ -201,6 +216,7 @@ export function anvilSvg(): string {
     `<path d="M${left + 2} ${top + 5} V${bottom - 5}" stroke="#e8a46c" stroke-width="2.2" opacity="0.7"/>` +
     `<path d="M${right - 2} ${top + 6} V${bottom - 6}" stroke="#b9cbe2" stroke-width="1.4" opacity="0.45"/>` +
     `<path d="M${left + 5} ${bottom - 2} H${right - 5}" stroke="#000" stroke-width="1.6" opacity="0.5"/>` +
+    `<path d="M${left + 6} ${bottom - 3.6} H${(left + right) / 2}" stroke="#e39a62" stroke-width="1" opacity="0.35"/>` +
     `<rect x="728" y="74" width="24" height="24" rx="1.5" fill="#060606"/>` +
     `<path d="M728 98 H752 V74" stroke="#aebccd" stroke-width="1.1" fill="none" opacity="0.4"/>` +
     `<circle cx="694" cy="86" r="7" fill="#060606"/>` +

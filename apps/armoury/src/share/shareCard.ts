@@ -1,4 +1,4 @@
-import type { ShopView } from '../shop/shopView.ts'
+import type { ShopCopy } from '../shop/shopView.ts'
 
 export const CARD_WIDTH = 1080
 export const CARD_HEIGHT = 1350
@@ -17,6 +17,30 @@ export interface CardContent {
   glowRgb: string
 }
 
+/** The tag's colours on the picture; a shop's painter may return its own. */
+export interface TagColours {
+  paper: [string, string]
+  hole: string
+  ring: string
+  number: string
+  name: string
+  text: string
+  rule: string
+}
+
+const PAPER_TAG: TagColours = {
+  paper: ['#ece0c6', '#dfcfae'],
+  hole: '#20160e',
+  ring: '#c9b48e',
+  number: '#6b5a44',
+  name: '#2a1f16',
+  text: '#4a3b2b',
+  rule: 'rgba(58,44,30,0.25)',
+}
+
+/** Paints the shop's scene under the frame, and may return the colours of its tag. */
+export type CardPainter = (ctx: CanvasRenderingContext2D, content: CardContent) => TagColours | void
+
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = []
   let line = ''
@@ -33,7 +57,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines
 }
 
-function drawTag(ctx: CanvasRenderingContext2D, c: CardContent) {
+function drawTag(ctx: CanvasRenderingContext2D, c: CardContent, colours: TagColours) {
   const x = 60
   const y = 860
   const width = 900
@@ -62,37 +86,37 @@ function drawTag(ctx: CanvasRenderingContext2D, c: CardContent) {
   ctx.lineTo(0, notch)
   ctx.closePath()
   const paper = ctx.createLinearGradient(0, 0, width * 0.2, height)
-  paper.addColorStop(0, '#ece0c6')
-  paper.addColorStop(1, '#dfcfae')
+  paper.addColorStop(0, colours.paper[0])
+  paper.addColorStop(1, colours.paper[1])
   ctx.fillStyle = paper
   ctx.fill()
   ctx.shadowColor = 'transparent'
 
   ctx.beginPath()
   ctx.arc(36, height / 2, 11, 0, Math.PI * 2)
-  ctx.fillStyle = '#20160e'
+  ctx.fillStyle = colours.hole
   ctx.fill()
   ctx.lineWidth = 5
-  ctx.strokeStyle = '#c9b48e'
+  ctx.strokeStyle = colours.ring
   ctx.stroke()
 
   ctx.textBaseline = 'alphabetic'
-  ctx.fillStyle = '#6b5a44'
+  ctx.fillStyle = colours.number
   ctx.font = "26px 'IM Fell English SC'"
   ctx.fillText(`No. ${c.number}`, pad, 56)
-  ctx.fillStyle = '#2a1f16'
+  ctx.fillStyle = colours.name
   ctx.font = "64px 'IM Fell English'"
   ctx.fillText(c.name, pad, 118, textWidth)
-  ctx.fillStyle = '#4a3b2b'
+  ctx.fillStyle = colours.text
   ctx.font = "italic 30px 'IM Fell English'"
   let lineY = 164
   for (const line of descLines) {
     ctx.fillText(line, pad, lineY)
     lineY += 40
   }
-  ctx.fillStyle = 'rgba(58,44,30,0.25)'
+  ctx.fillStyle = colours.rule
   ctx.fillRect(pad, lineY - 12, textWidth, 2)
-  ctx.fillStyle = '#4a3b2b'
+  ctx.fillStyle = colours.text
   ctx.font = "italic 28px 'IM Fell English'"
   lineY += 30
   for (const line of loreLines) {
@@ -124,7 +148,7 @@ const FONTS = [
 ]
 
 export async function renderShareCard(
-  view: Pick<ShopView, 'copy' | 'paintCard'>,
+  view: { copy: ShopCopy; paintCard: CardPainter },
   content: CardContent,
 ): Promise<Blob> {
   await Promise.all(FONTS.map((f) => document.fonts.load(f)))
@@ -133,8 +157,7 @@ export async function renderShareCard(
   canvas.height = CARD_HEIGHT
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('no 2d canvas')
-  view.paintCard(ctx, content)
-  drawTag(ctx, content)
+  drawTag(ctx, content, view.paintCard(ctx, content) ?? PAPER_TAG)
   drawHeader(ctx, view.copy.motto)
   return new Promise((resolve, reject) =>
     canvas.toBlob(

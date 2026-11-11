@@ -401,8 +401,8 @@ export function wallSvg(grain: Grain | null): string {
 export function floorSvg(grain: Grain | null): string {
   const rand = seededRandom(2718)
   let flags = ''
-  const cols = 16
-  const rows = 6
+  const cols = 12
+  const rows = 5
   const cw = FLOOR_W / cols
   const rh = FLOOR_H / rows
   const jitter: [number, number][][] = []
@@ -423,7 +423,7 @@ export function floorSvg(grain: Grain | null): string {
         jitter[r + 1]![c]!,
       ]
       flags +=
-        `<path d="M${r1(a[0] + 4)} ${r1(a[1] + 4)} L${r1(b[0] - 4)} ${r1(b[1] + 4)} L${r1(cc[0] - 4)} ${r1(cc[1] - 4)} L${r1(d[0] + 4)} ${r1(d[1] - 4)} Z" fill="${pick(rand, ['#2b2520', '#2e2722', '#29231f', '#312924', '#2c2521', '#2a241f'])}" stroke="#1d1814" stroke-width="3" stroke-linejoin="round"/>` +
+        `<path d="M${r1(a[0] + 4)} ${r1(a[1] + 4)} L${r1(b[0] - 4)} ${r1(b[1] + 4)} L${r1(cc[0] - 4)} ${r1(cc[1] - 4)} L${r1(d[0] + 4)} ${r1(d[1] - 4)} Z" fill="${pick(rand, ['#2b2520', '#2e2722', '#29231f', '#312924', '#2c2521', '#2a241f'])}" stroke="#211b17" stroke-width="2.4" stroke-linejoin="round"/>` +
         `<path d="M${r1(a[0] + 6)} ${r1(a[1] + 6)} L${r1(b[0] - 6)} ${r1(b[1] + 6)}" stroke="#fff" stroke-opacity="0.035" stroke-width="2"/>`
     }
   let specks = ''

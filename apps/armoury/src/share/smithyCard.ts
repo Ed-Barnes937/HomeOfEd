@@ -9,7 +9,7 @@ import {
   ART_Y,
 } from '../smithy/anvilArt.ts'
 import { COALS, floorSvg, WALL_H, wallSvg, WINDOW } from '../smithy/forgeArt.ts'
-import { CARD_HEIGHT, CARD_WIDTH, type CardContent } from './shareCard.ts'
+import { CARD_HEIGHT, CARD_WIDTH, type CardContent, type TagColours } from './shareCard.ts'
 
 const WALL_BOTTOM = 540
 /** The wall and floor art are drawn at this scale, centred on ART_CENTRE. */
@@ -172,16 +172,18 @@ function drawAnvil(ctx: CanvasRenderingContext2D, c: CardContent) {
   outside.rect(0, 0, CARD_WIDTH, CARD_HEIGHT)
   outside.addPath(anvilTop, new DOMMatrix([unit, 0, 0, unit, left, top]))
   ctx.clip(outside, 'evenodd')
-  shadowOf(ctx, c, at, 'rgba(0,0,0,0.55)', 26, 44 * unit, -4 * unit)
+  shadowOf(ctx, c, at, 'rgba(0,0,0,0.5)', 26, 44 * unit, -4 * unit)
+  shadowOf(ctx, c, at, 'rgba(0,0,0,0.3)', 30, -18 * unit, 26 * unit)
   ctx.restore()
 
   ctx.save()
   ctx.setTransform(unit, 0, 0, unit, left, top)
   ctx.clip(anvilTop)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  shadowOf(ctx, c, at, 'rgba(10,18,32,0.42)', 9, 9 * unit, -1.5 * unit)
-  shadowOf(ctx, c, at, 'rgba(30,15,6,0.3)', 9, -4 * unit, 6 * unit)
-  shadowOf(ctx, c, at, 'rgba(0,0,0,0.72)', 3, 2.5 * unit, 2 * unit)
+  shadowOf(ctx, c, at, 'rgba(0,0,0,0.5)', 12, 0, 0)
+  shadowOf(ctx, c, at, 'rgba(8,16,28,0.7)', 6, 14 * unit, -2 * unit)
+  shadowOf(ctx, c, at, 'rgba(30,15,6,0.42)', 7, -6 * unit, 8 * unit)
+  shadowOf(ctx, c, at, 'rgba(0,0,0,0.9)', 3, 1 * unit, 1 * unit)
   ctx.restore()
 
   ctx.drawImage(c.item, at.x, at.y, at.w, at.h)
@@ -197,10 +199,22 @@ function drawAnvil(ctx: CanvasRenderingContext2D, c: CardContent) {
   ctx.restore()
 }
 
+/** The smith's ticket: brown card, as the scene's tokens. */
+const TICKET: TagColours = {
+  paper: ['#c89f70', '#a67b4e'],
+  hole: '#120d0a',
+  ring: '#c9ad80',
+  number: '#573c24',
+  name: '#21150b',
+  text: '#382514',
+  rule: 'rgba(33,21,11,0.3)',
+}
+
 /** The sword's picture: the forge wall, the floor, and the sword on the anvil by the fire. */
-export function paintSmithyCard(ctx: CanvasRenderingContext2D, content: CardContent): void {
+export function paintSmithyCard(ctx: CanvasRenderingContext2D, content: CardContent): TagColours {
   drawWall(ctx)
   drawFloor(ctx)
   drawWindowLight(ctx)
   drawAnvil(ctx, content)
+  return TICKET
 }
