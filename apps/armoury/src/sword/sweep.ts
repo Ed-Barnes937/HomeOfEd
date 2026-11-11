@@ -387,7 +387,7 @@ function weldIds(p: Float32Array): [ids: Int32Array, count: number] {
   const raw = new Uint32Array(p.buffer, p.byteOffset, p.length)
   for (let k = 0; k < p.length; k++) {
     const b = raw[k]!
-    bits[k] = b === 0x80000000 ? 0 : Number.isNaN(p[k]) ? 0x7fc00000 : b
+    bits[k] = b === 0x80000000 ? 0 : (b & 0x7fffffff) > 0x7f800000 ? 0x7fc00000 : b
   }
   const size = tableSize(n)
   const mask = size - 1
@@ -437,7 +437,7 @@ export function inwardNormals(part: MeshPart): number {
   const { positions: p, normals: n, indices } = part
   let bad = 0
   for (let k = 0; k < n.length; k += 3) {
-    const len = Math.hypot(n[k]!, n[k + 1]!, n[k + 2]!)
+    const len = Math.sqrt(n[k]! * n[k]! + n[k + 1]! * n[k + 1]! + n[k + 2]! * n[k + 2]!)
     if (!Number.isFinite(len) || Math.abs(len - 1) > 1e-4) bad++
     if (!Number.isFinite(p[k]! + p[k + 1]! + p[k + 2]!)) bad++
   }
@@ -456,7 +456,7 @@ export function inwardNormals(part: MeshPart): number {
     const fx = uy * vz - uz * vy
     const fy = uz * vx - ux * vz
     const fz = ux * vy - uy * vx
-    if (Math.hypot(fx, fy, fz) < 1e-9) continue
+    if (fx * fx + fy * fy + fz * fz < 1e-18) continue
     bad += away(a, fx, fy, fz) + away(b, fx, fy, fz) + away(c, fx, fy, fz)
   }
   return bad
