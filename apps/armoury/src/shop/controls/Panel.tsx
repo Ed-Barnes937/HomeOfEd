@@ -6,6 +6,10 @@ import { GroupControls } from './GroupControls.tsx'
 import styles from './Panel.module.scss'
 import type { OnChange } from './Widgets.tsx'
 
+/** A group title inside a sentence: "The wood" reads "the wood"; a one-word name like "Extras" stays. */
+const inSentence = (title: string) =>
+  title.includes(' ') ? title[0]!.toLowerCase() + title.slice(1) : title
+
 export function LockButton({
   group,
   locked,
@@ -20,7 +24,7 @@ export function LockButton({
       type="button"
       className={styles.lock}
       aria-pressed={locked}
-      aria-label={`Keep ${group.title.replace('The ', 'the ')} when trying another`}
+      aria-label={`Keep ${inSentence(group.title)} when trying another`}
       title={locked ? 'Kept when you try another' : 'Keep this when you try another'}
       onClick={onToggle}
     >

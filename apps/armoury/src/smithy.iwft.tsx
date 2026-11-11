@@ -1,18 +1,9 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { ChoiceParam } from './engine/schema.ts'
-import { type Family, signatureFor } from './sword/families.ts'
 import { swordSchema } from './sword/swordSchema.ts'
 import { smithyTest as test } from './testing/iwftTest.tsx'
 import { ShopPom } from './testing/ShopPom.ts'
-
-const signature = (family: Family) => {
-  const s = signatureFor(family)
-  return { family, guard: s.guard, grip: s.wrap, pommel: s.pommel, tip: s.tip } as Record<
-    string,
-    string
-  >
-}
 
 test('a first visit finds a sword on the anvil, tagged and ready', async ({ mountApp }) => {
   const { root } = await mountApp()
@@ -20,7 +11,7 @@ test('a first visit finds a sword on the anvil, tagged and ready', async ({ moun
   await root.verifySwordName('The Steel Warden')
   expect(await root.swordNumber()).toMatch(/^No\. \d{4}$/)
   await root.verifyDescription('inches, satin steel, iron hilt.')
-  await root.verifyStage(signature('knight'))
+  await root.verifyStage({ family: 'knight', guard: 'straight', grip: 'leather', pommel: 'wheel' })
 })
 
 test('choosing parts changes the sword on the anvil and its tag', async ({ mountApp }) => {
@@ -64,15 +55,26 @@ test("choosing a Kind shows that Kind's own sword", async ({ mountApp }) => {
   await root.chooseIn('Guard', 'Curved')
   await root.chooseKind('Dagger')
   await root.verifyKind('Dagger')
-  await root.verifyStage(signature('dagger'))
+  await root.verifyStage({
+    family: 'dagger',
+    guard: 'straight',
+    grip: 'cord',
+    pommel: 'wheel',
+    tip: 'longPoint',
+  })
   await root.chooseKind('Sabre')
-  await root.verifyStage(signature('sabre'))
+  await root.verifyStage({ family: 'sabre', grip: 'leather', pommel: 'cap', tip: 'curvedPoint' })
 })
 
 test('Try another keeps the Kind and a kept part, and the last one can be put back', async ({
   mountApp,
+  page,
 }) => {
   const { root } = await mountApp()
+  // A fixed seed, so Try another always makes the same sword.
+  await page.evaluate(() => {
+    Math.random = () => 0.25
+  })
   await root.chooseKind('Longsword')
   await root.chooseIn('Guard', 'Curved')
   await root.lock('guard')
