@@ -76,7 +76,7 @@ describe('compileSword', () => {
   it('has no NaN and stays deterministic', () => {
     for (const p of SWORDS) {
       const spec = compileSword(p)
-      for (const n of numbersIn(spec)) expect(Number.isFinite(n)).toBe(true)
+      expect(numbersIn(spec).filter((n) => !Number.isFinite(n))).toEqual([])
       expect(compileSword({ ...p })).toEqual(spec)
     }
   })
