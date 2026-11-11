@@ -114,9 +114,12 @@ describe('compileSword', () => {
       expect(sample(half, 1)).toBeCloseTo(0, 9)
       if (s.blade.backWidth) expect(sample(s.blade.backWidth, 1)).toBeCloseTo(0, 9)
       for (const [, v] of half) expect(v).toBeGreaterThanOrEqual(0)
-      if (s.blade.edges === 'double')
+      if (s.blade.edges === 'double') {
+        const wide: number[] = []
         for (let u = 0; u <= 1; u += 0.01)
-          expect(sample(half, u)).toBeLessThanOrEqual(1.2 * sample(half, 0) + EPS)
+          if (!(sample(half, u) <= 1.2 * sample(half, 0) + EPS)) wide.push(u)
+        expect(wide).toEqual([])
+      }
       expect(s.blade.thickness.every(([, t]) => t > 0)).toBe(true)
       expect(sample(s.blade.thickness, s.blade.tipFrom)).toBeLessThanOrEqual(
         p.family === 'katana' ? 4.5 + EPS : 3 + EPS,
