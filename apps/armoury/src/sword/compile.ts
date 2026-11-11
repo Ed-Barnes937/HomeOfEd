@@ -225,6 +225,8 @@ const POMMEL_FACETS: Record<string, number> = { egg: 8, block: 4, lobed: 3, fish
 const POMMEL_FACE = 0.7
 /** A guard's stone across, over its seat (a disc's ring or a cross's block): small, as a set stone is. */
 const GUARD_GEM = 0.4
+/** Runes on a flat or a ridge: half their height over the blade's base width (tuned at G3). */
+const RUNE_FLAT = 0.12
 const FULLERS: Record<string, { count: number; width: [number, number]; depth: number }> = {
   groove1: { count: 1, width: [0.4, 0.25], depth: 0.3 },
   groove2: { count: 2, width: [0.22, 0.15], depth: 0.25 },
@@ -544,7 +546,7 @@ export function compileSword(p: Params): SwordSpec {
       }
     } else if (p.runes === 'centre') {
       const from = bladeFrom + ricasso + 40
-      const halfHeight = 0.18 * base
+      const halfHeight = RUNE_FLAT * base
       runes = {
         from,
         to: from + run,
@@ -555,7 +557,7 @@ export function compileSword(p: Params): SwordSpec {
         colour: runeHex,
       }
     } else {
-      const halfHeight = 0.2 * base
+      const halfHeight = RUNE_FLAT * base
       const from = Math.max(bladeFrom + collar + 15, (engraving?.to ?? 0) + 8)
       runes = {
         from,
