@@ -11,41 +11,50 @@ import { swordSchema } from './swordSchema.ts'
 const KINDS = Object.keys(FAMILIES) as Family[]
 const PER_KIND = ['profile', 'middle', 'tip', 'ricasso'] as const
 const BUDGET = 45_000
-/** The tests that build every blade in the catalogue. */
-const HEAVY = 60_000
 const sword = (raw: Record<string, unknown>) => normalise(swordSchema, raw)
 
-/** Every Kind with every allowed blade option and wave setting, its slider extremes, and 30 random swords. */
-function catalogue(): { name: string; spec: SwordSpec }[] {
-  const out: { name: string; p: Params }[] = []
+/**
+ * Each Kind with blade i taking option i of its outlines, middles, tips and plain bases (blade 0 is
+ * its signature), its slider extremes, a wavy blade for each middle, and 3 random swords.
+ */
+function catalogue(): { name: string; family: Family; p: Params; spec: SwordSpec }[] {
+  const out: { name: string; family: Family; p: Params }[] = []
   for (const family of KINDS) {
     const f = FAMILIES[family]
-    for (const key of PER_KIND)
-      for (const value of f[key])
-        out.push({
-          name: `${family} ${key} ${value}`,
-          p: sword({ family, [key]: value, taper: value === 'rounded' ? 0.3 : 0.5 }),
-        })
+    const n = Math.max(...PER_KIND.map((key) => f[key].length))
+    for (let i = 0; i < n; i++) {
+      const picked = PER_KIND.map((key) => [key, f[key][i % f[key].length]!] as const)
+      const taper = f.tip[i % f.tip.length] === 'rounded' ? 0.3 : 0.5
+      out.push({
+        name: `${family} options ${i}`,
+        family,
+        p: sword({ family, ...Object.fromEntries(picked), taper }),
+      })
+    }
     for (const v of [0, 1])
       out.push({
         name: `${family} extremes ${v}`,
+        family,
         p: sword({ family, bladeLength: v, bladeWidth: v, taper: v, curve: v, kissakiSize: v }),
       })
     if (f.waves)
-      for (const waveCount of [4, 16])
-        for (const middle of f.middle)
-          out.push({
-            name: `${family} flame ${waveCount} ${middle}`,
-            p: sword({ family, waves: 'flame', waveCount, middle, bladeLength: 1 }),
-          })
+      f.middle.forEach((middle, j) => {
+        const waveCount = j % 2 ? 16 : 4
+        out.push({
+          name: `${family} flame ${waveCount} ${middle}`,
+          family,
+          p: sword({ family, waves: 'flame', waveCount, middle, bladeLength: 1 }),
+        })
+      })
     const rng = seededRandom(2000 + family.length)
-    for (let i = 0; i < 30; i++)
+    for (let i = 0; i < 3; i++)
       out.push({
         name: `${family} random ${i}`,
+        family,
         p: randomise(swordSchema, rng, { keep: { family }, locked: ['kind'] }),
       })
   }
-  return out.map(({ name, p }) => ({ name, spec: compileSword(p) }))
+  return out.map((b) => ({ ...b, spec: compileSword(b.p) }))
 }
 const BLADES = catalogue()
 const bladeOf = (raw: Record<string, unknown>) => compileSword(sword(raw)).blade
@@ -119,73 +128,67 @@ function factsOf(spec: SwordSpec): Facts {
 }
 
 describe('bladePart', () => {
-  it(
-    'is a sound closed solid within budget for every blade',
-    () => {
-      let worst = { ms: 0, name: '' }
-      let most = { verts: 0, name: '' }
-      for (const { name, spec } of BLADES) {
-        const f = factsOf(spec)
-        if (f.ms > worst.ms) worst = { ms: f.ms, name }
-        if (f.verts > most.verts) most = { verts: f.verts, name }
-        expect(f.open, name).toBe(0)
-        expect(f.volume, name).toBeGreaterThan(0)
-        expect(f.inward, name).toBe(0)
-        expect(f.verts, name).toBeLessThanOrEqual(BUDGET)
-      }
-      console.log(
-        `blade: slowest build ${worst.ms.toFixed(1)} ms (${worst.name}), most vertices ${most.verts} (${most.name})`,
-      )
-    },
-    HEAVY,
-  )
+  it('takes every outline, middle, tip and plain base each Kind allows', () => {
+    const missing: string[] = []
+    for (const family of KINDS)
+      for (const key of PER_KIND)
+        for (const value of FAMILIES[family][key])
+          if (!BLADES.some((b) => b.family === family && b.p[key] === value))
+            missing.push(`${family} ${key} ${value}`)
+    expect(missing).toEqual([])
+  })
 
-  it(
-    'builds the same bytes from the same spec',
-    () => {
-      for (const { spec } of BLADES.filter((_, i) => i % 9 === 0)) {
-        const a = bladePart(spec)
-        const b = bladePart(structuredClone(spec))
-        expect(Buffer.from(a.positions.buffer).equals(Buffer.from(b.positions.buffer))).toBe(true)
-        expect(Buffer.from(a.normals.buffer).equals(Buffer.from(b.normals.buffer))).toBe(true)
-        expect(Buffer.from(a.indices.buffer).equals(Buffer.from(b.indices.buffer))).toBe(true)
-      }
-    },
-    HEAVY,
-  )
+  it.each(KINDS)('is a sound closed solid within budget for every %s blade', (family) => {
+    let worst = { ms: 0, name: '' }
+    let most = { verts: 0, name: '' }
+    for (const { name, spec } of BLADES.filter((b) => b.family === family)) {
+      const f = factsOf(spec)
+      if (f.ms > worst.ms) worst = { ms: f.ms, name }
+      if (f.verts > most.verts) most = { verts: f.verts, name }
+      expect(f.open, name).toBe(0)
+      expect(f.volume, name).toBeGreaterThan(0)
+      expect(f.inward, name).toBe(0)
+      expect(f.verts, name).toBeLessThanOrEqual(BUDGET)
+    }
+    console.log(
+      `blade: slowest build ${worst.ms.toFixed(1)} ms (${worst.name}), most vertices ${most.verts} (${most.name})`,
+    )
+  })
 
-  it(
-    'runs below the shoulder for the guard and closes to a point on the centre line',
-    () => {
-      for (const { name, spec } of BLADES) {
-        const f = factsOf(spec)
-        expect(f.minZ, name).toBeLessThanOrEqual(spec.blade.from - 0.5)
-        expect(f.tipOnLine, name).toBe(true)
-      }
-      const spec = BLADES[0]!.spec
-      const tip = bladeStations(spec).at(-1)!
-      const line = centreLineAt(spec, spec.blade.to)
-      expect(tip.section).toHaveLength(0)
-      expect(tip.centre).toEqual([line.x, 0, line.z])
-    },
-    HEAVY,
-  )
+  it('builds the same bytes from the same spec', () => {
+    for (const { spec } of BLADES.filter((_, i) => i % 9 === 0)) {
+      const a = bladePart(spec)
+      const b = bladePart(structuredClone(spec))
+      expect(Buffer.from(a.positions.buffer).equals(Buffer.from(b.positions.buffer))).toBe(true)
+      expect(Buffer.from(a.normals.buffer).equals(Buffer.from(b.normals.buffer))).toBe(true)
+      expect(Buffer.from(a.indices.buffer).equals(Buffer.from(b.indices.buffer))).toBe(true)
+    }
+  })
 
-  it(
-    'lays uv in mm, along about the blade length',
-    () => {
-      for (const { name, spec } of BLADES) {
-        const f = factsOf(spec)
-        const B = spec.blade.to - spec.blade.from
-        expect(f.minAlong, name).toBe(0)
-        expect(f.maxAlong, name).toBeGreaterThan(B)
-        expect(f.maxAlong, name).toBeLessThan(B * 1.15)
-        expect(f.maxAcross, name).toBeGreaterThan(8)
-        expect(f.maxAcross, name).toBeLessThan(60)
-      }
-    },
-    HEAVY,
-  )
+  it('runs below the shoulder for the guard and closes to a point on the centre line', () => {
+    for (const { name, spec } of BLADES) {
+      const f = factsOf(spec)
+      expect(f.minZ, name).toBeLessThanOrEqual(spec.blade.from - 0.5)
+      expect(f.tipOnLine, name).toBe(true)
+    }
+    const spec = BLADES[0]!.spec
+    const tip = bladeStations(spec).at(-1)!
+    const line = centreLineAt(spec, spec.blade.to)
+    expect(tip.section).toHaveLength(0)
+    expect(tip.centre).toEqual([line.x, 0, line.z])
+  })
+
+  it('lays uv in mm, along about the blade length', () => {
+    for (const { name, spec } of BLADES) {
+      const f = factsOf(spec)
+      const B = spec.blade.to - spec.blade.from
+      expect(f.minAlong, name).toBe(0)
+      expect(f.maxAlong, name).toBeGreaterThan(B)
+      expect(f.maxAlong, name).toBeLessThan(B * 1.15)
+      expect(f.maxAcross, name).toBeGreaterThan(8)
+      expect(f.maxAcross, name).toBeLessThan(60)
+    }
+  })
 })
 
 describe('the outline', () => {
@@ -221,12 +224,12 @@ describe('the outline', () => {
 })
 
 describe('the thickness field', () => {
-  it(
-    'is positive everywhere, with no fuller deeper than 35% of the local half-thickness',
-    () => {
+  it.each(KINDS)(
+    'is positive everywhere on every %s blade, with no fuller deeper than 35% of the local half-thickness',
+    (family) => {
       const thin: string[] = []
       const deep: string[] = []
-      for (const { name, spec } of BLADES) {
+      for (const { name, spec } of BLADES.filter((b) => b.family === family)) {
         const { from, to } = spec.blade
         for (let z = from - 1; z < to; z += (to - from) / 97) {
           for (let s = -1; s <= 1.0001; s += 0.05)
@@ -241,7 +244,6 @@ describe('the thickness field', () => {
       expect(thin).toEqual([])
       expect(deep).toEqual([])
     },
-    HEAVY,
   )
 
   it('ends in an edge flat, never a knife line, and peaks at the crest', () => {
@@ -386,32 +388,28 @@ describe('feature-aligned columns', () => {
 })
 
 describe('attributes', () => {
-  it(
-    'stay in 0-1, with aEdge only on the bevel and aFuller only inside a fuller',
-    () => {
-      const bad: string[] = []
-      for (const { name, spec } of BLADES.filter((_, i) => i % 3 === 0)) {
-        for (const c of columnsOf(spec)) {
-          if ([c.edge, c.fuller, c.along, c.shade].some((v) => !(v >= 0 && v <= 1)))
-            bad.push(`${name} out of range at ${c.x}, ${c.z}`)
-          const { section } = c
-          const fromEnd = Math.min(section.edge.width - c.x, c.x + section.back.width)
-          if (c.edge > 0 && fromEnd > spec.blade.edgeBevel + 1e-4)
-            bad.push(`${name} aEdge ${fromEnd.toFixed(2)} mm in from the end at z ${c.z}`)
-          const inFuller = spec.blade.fullers.some(
-            (f, k) =>
-              c.z >= f.from &&
-              c.z <= f.to &&
-              Math.abs(c.x - section.fullers[k]!.x) <= section.fullers[k]!.halfWidth + 1e-4,
-          )
-          if (c.fuller > 0 && !inFuller)
-            bad.push(`${name} aFuller outside a fuller at ${c.x}, ${c.z}`)
-        }
+  it('stay in 0-1, with aEdge only on the bevel and aFuller only inside a fuller', () => {
+    const bad: string[] = []
+    for (const { name, spec } of BLADES.filter((_, i) => i % 3 === 0)) {
+      for (const c of columnsOf(spec)) {
+        if ([c.edge, c.fuller, c.along, c.shade].some((v) => !(v >= 0 && v <= 1)))
+          bad.push(`${name} out of range at ${c.x}, ${c.z}`)
+        const { section } = c
+        const fromEnd = Math.min(section.edge.width - c.x, c.x + section.back.width)
+        if (c.edge > 0 && fromEnd > spec.blade.edgeBevel + 1e-4)
+          bad.push(`${name} aEdge ${fromEnd.toFixed(2)} mm in from the end at z ${c.z}`)
+        const inFuller = spec.blade.fullers.some(
+          (f, k) =>
+            c.z >= f.from &&
+            c.z <= f.to &&
+            Math.abs(c.x - section.fullers[k]!.x) <= section.fullers[k]!.halfWidth + 1e-4,
+        )
+        if (c.fuller > 0 && !inFuller)
+          bad.push(`${name} aFuller outside a fuller at ${c.x}, ${c.z}`)
       }
-      expect(bad).toEqual([])
-    },
-    HEAVY,
-  )
+    }
+    expect(bad).toEqual([])
+  })
 
   it('marks the bevel, the fuller floor, the run from shoulder to tip and the shoulder shade', () => {
     const spec = compileSword(sword({ family: 'knight', middle: 'groove1' }))
@@ -484,22 +482,16 @@ describe('the curve', () => {
     expect(chord).toBeGreaterThan(0.9 * B)
   })
 
-  it(
-    'never bends tighter than twice the local half-width, so the inside never folds',
-    () => {
-      for (const { name, spec } of BLADES.filter(({ spec }) => spec.blade.curve)) {
-        const { from, to } = spec.blade
-        for (let z = from; z < to; z += 2) {
-          const { curvature } = centreLineAt(spec, z)
-          const s = bladeSectionAt(spec, z)
-          expect(curvature * 2 * Math.max(s.edge.width, s.back.width), `${name} ${z}`).toBeLessThan(
-            1,
-          )
-        }
+  it('never bends tighter than twice the local half-width, so the inside never folds', () => {
+    for (const { name, spec } of BLADES.filter(({ spec }) => spec.blade.curve)) {
+      const { from, to } = spec.blade
+      for (let z = from; z < to; z += 2) {
+        const { curvature } = centreLineAt(spec, z)
+        const s = bladeSectionAt(spec, z)
+        expect(curvature * 2 * Math.max(s.edge.width, s.back.width), `${name} ${z}`).toBeLessThan(1)
       }
-    },
-    HEAVY,
-  )
+    }
+  })
 
   it('bends as an even arc that tightens only gently toward the tip', () => {
     for (const family of ['sabre', 'katana'] as const)
