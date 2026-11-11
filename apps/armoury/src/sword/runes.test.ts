@@ -69,7 +69,7 @@ describe('runeMask', () => {
 describe('engravingMask', () => {
   it('is null without engraving, deterministic, and cut inside its band', () => {
     expect(engravingMask(specOf({ family: 'knight', engraving: 'none' }))).toBeNull()
-    for (const tile of ['vine', 'knotwork', 'scales', 'dots']) {
+    for (const tile of ['vine']) {
       const spec = specOf({ family: 'knight', engraving: tile })
       const a = engravingMask(spec)!
       expect(a, tile).not.toBeNull()

@@ -520,12 +520,8 @@ export const swordSchema: ItemSchema = {
       label: 'Engraving',
       group: 'extras',
       default: 'none',
-      options: [
-        { value: 'none', label: 'None', weight: 12 },
-        ...named('vine', 'knotwork', 'scales', 'dots'),
-      ],
-      allowed: (p) =>
-        engravingAllowed(p) ? ['none', 'vine', 'knotwork', 'scales', 'dots'] : ['none'],
+      options: [{ value: 'none', label: 'None', weight: 12 }, ...named('vine')],
+      allowed: (p) => (engravingAllowed(p) ? ['none', 'vine'] : ['none']),
       visible: engravingAllowed,
     },
   ],

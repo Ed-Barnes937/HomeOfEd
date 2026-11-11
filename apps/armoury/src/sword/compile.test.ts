@@ -311,7 +311,7 @@ describe('compileSword', () => {
     expect(engraved.engraving).toMatchObject({ tile: 'vine' })
     expect(engraved.engraving!.from).toBeGreaterThanOrEqual(engraved.blade.from)
 
-    const base = compileSword(sword({ middle: 'flat', runes: 'base', engraving: 'dots' }))
+    const base = compileSword(sword({ middle: 'flat', runes: 'base', engraving: 'vine' }))
     expect(base.runes!.where).toBe('flat')
     expect([3, 4]).toContain(base.runes!.glyphs)
     expect(base.runes!.from).toBeGreaterThanOrEqual(base.engraving!.to)

@@ -233,7 +233,7 @@ const FULLERS: Record<string, { count: number; width: [number, number]; depth: n
   groove3: { count: 3, width: [0.15, 0.1], depth: 0.22 },
   ridgeGroove: { count: 1, width: [0.24, 0.18], depth: 0.3 },
 }
-const STENCIL_TILES: string[] = ['vine', 'knotwork', 'scales', 'dots']
+const STENCIL_TILES: string[] = ['vine']
 
 /** Cosine bump: 1 at c, easing to 0 at w either side. */
 const bump = (u: number, c: number, w: number) => {

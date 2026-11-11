@@ -96,7 +96,7 @@ export const swordPresets: { name: string; params: Params }[] = [
       steel: 'dark',
       fittings: 'bronze',
       wear: 0.5,
-      engraving: 'knotwork',
+      engraving: 'none',
       runes: 'base',
       runeColour: 'emberstone',
     }),
@@ -204,7 +204,7 @@ export const swordPresets: { name: string; params: Params }[] = [
       pommelSize: 0.5,
       steel: 'bright',
       fittings: 'silver',
-      engraving: 'dots',
+      engraving: 'none',
     }),
   },
   {
