@@ -216,16 +216,24 @@ export function sweep(stations: Station[], opts: SweepOptions): MeshPart {
 function keepFacingOut(part: MeshPart): void {
   const { positions: p, normals: n, indices } = part
   const away: number[] = []
+  const facing = (k: number, fx: number, fy: number, fz: number) =>
+    fx * n[k]! + fy * n[k + 1]! + fz * n[k + 2]! > 0
   for (let t = 0; t < indices.length; t += 3) {
     const ia = indices[t]! * 3
     const ib = indices[t + 1]! * 3
     const ic = indices[t + 2]! * 3
-    const [fx, fy, fz] = cross(
-      [p[ib]! - p[ia]!, p[ib + 1]! - p[ia + 1]!, p[ib + 2]! - p[ia + 2]!],
-      [p[ic]! - p[ia]!, p[ic + 1]! - p[ia + 1]!, p[ic + 2]! - p[ia + 2]!],
-    )
-    for (const k of [ia, ib, ic])
-      if (fx * n[k]! + fy * n[k + 1]! + fz * n[k + 2]! <= 0) away.push(k / 3)
+    const ux = p[ib]! - p[ia]!
+    const uy = p[ib + 1]! - p[ia + 1]!
+    const uz = p[ib + 2]! - p[ia + 2]!
+    const vx = p[ic]! - p[ia]!
+    const vy = p[ic + 1]! - p[ia + 1]!
+    const vz = p[ic + 2]! - p[ia + 2]!
+    const fx = uy * vz - uz * vy
+    const fy = uz * vx - ux * vz
+    const fz = ux * vy - uy * vx
+    if (!facing(ia, fx, fy, fz)) away.push(ia / 3)
+    if (!facing(ib, fx, fy, fz)) away.push(ib / 3)
+    if (!facing(ic, fx, fy, fz)) away.push(ic / 3)
   }
   if (away.length === 0) return
   const skip = new Uint8Array(p.length / 3).fill(1)

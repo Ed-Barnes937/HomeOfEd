@@ -28,6 +28,11 @@ const CROWN_LIMIT = 0.2
 const RICASSO_RUN = 10
 /** Single-edged: the crest as a fraction of the width from the edge, and the spine's thickness over the crest's. */
 const CREST_FROM_EDGE = { sabre: 0.85, falseEdge: 0.65 }
+/** The crest stays this share of the width beyond a fuller's far rim. */
+const CREST_CLEARANCE = 0.05
+/** A fuller eases in over this many of its half-widths, at least the minimum in mm. */
+const FULLER_RUN_IN = 1.5
+const FULLER_RUN_IN_MIN = 6
 const SPINE = { sabre: 0.92, katana: 0.8 }
 /** The Sabre's false edge: a cut at the back corner that widens to the edge bevel's width at this slope. */
 const FALSE_EDGE_SLOPE = 0.45
@@ -41,6 +46,25 @@ const KISSAKI_THIN = 0.4
 /** Columns on one face, before the six on the two end faces. */
 const FACE_COLUMNS = 31
 const FINE = 0.5
+/** Rings: about this many along a plain blade, kept within these steps (mm). */
+const RINGS_ALONG_PLAIN = 300
+const PLAIN_STEP = [2, 4] as const
+/** Ring steps grow by this much per mm away from a feature. */
+const FEATURE_GRADE = 0.3
+const RINGS_PER_WAVE = 30
+const WAVE_STEP = [1, 3] as const
+/** No ring moves an edge more than this (mm), or turns the centre line more than this (radians). */
+const MAX_WIDTH_STEP = 1
+const MAX_TURN_PER_RING = 0.02
+const WIDTH_PROBE = 0.05
+const FINEST = 0.05
+/** A spent fuller's rim columns stay this share of its half-width apart. */
+const RIM_FLOOR = 0.08
+/** Cavity shading: how dark at the shoulder and in a fuller's run-out, and how far past the shoulder. */
+const SHADE = { shoulder: 0.4, fullerEnd: 0.3 }
+const SHOULDER_SHADE_MM = 5
+/** Where columns are laid out when the blade has no fuller, u. */
+const REFERENCE_U = 0.3
 /** Anchors closer than this at the reference station are one column. */
 const MERGE_GAP = 0.05
 /** Steps for the thickness field's slopes, mm. */
@@ -168,6 +192,12 @@ function edgeProfile(
   return p
 }
 
+/** How much of a fuller's depth is cut at z: easing in over a short run-in, out over its fade. */
+function fullerStrength(f: SwordSpec['blade']['fullers'][number], z: number, hw = 0): number {
+  const runIn = clamp(FULLER_RUN_IN * hw, FULLER_RUN_IN_MIN, f.fade)
+  return smoothstep(f.from, f.from + runIn, z) * (1 - smoothstep(f.to - f.fade, f.to, z))
+}
+
 const bladeLength = (spec: SwordSpec) => spec.blade.to - spec.blade.from
 const uOf = (spec: SwordSpec, z: number) => clamp((z - spec.blade.from) / bladeLength(spec), 0, 1)
 
@@ -214,7 +244,13 @@ export function bladeSectionAt(spec: SwordSpec, z: number): BladeSection {
     backSharp = Math.max(flared, point)
   }
   // A false edge needs room on the back, so the Sabre's crest walks toward the middle as it grows.
-  const crestAt = b.ridgeAt ?? lerp(CREST_FROM_EDGE.sabre, CREST_FROM_EDGE.falseEdge, backSharp)
+  // It keeps clear of a fuller: the crest sits beyond the fuller's far rim, and walks only once the fuller has run out.
+  const clear = Math.max(
+    CREST_FROM_EDGE.sabre,
+    ...b.fullers.map((f) => f.offset + f.halfWidth + CREST_CLEARANCE),
+  )
+  const fullerLeft = Math.max(0, ...b.fullers.map((f) => fullerStrength(f, z)))
+  const crestAt = b.ridgeAt ?? lerp(clear, CREST_FROM_EDGE.falseEdge, backSharp * (1 - fullerLeft))
   const crest = !single ? 0 : edgeW - crestAt * width
   const edgeSharp =
     b.ricasso > 0 ? smoothstep(b.from + b.ricasso, b.from + b.ricasso + RICASSO_RUN, z) : 1
@@ -261,11 +297,11 @@ export function bladeSectionAt(spec: SwordSpec, z: number): BladeSection {
   const base = (x: number) => (x >= crest ? heightOn(edgeP, x - crest) : heightOn(backP, crest - x))
 
   const fullers = b.fullers.map((f) => {
-    const x = edge0 - f.offset * width0
+    // On a Sabre the fuller keeps its share of the edge-to-crest span, so a walking crest never crosses its columns.
+    const x =
+      single && !katana ? edgeW - (f.offset / clear) * (edgeW - crest) : edge0 - f.offset * width0
     const hw = f.halfWidth * width0
-    const runIn = clamp(1.5 * hw, 6, f.fade)
-    const strength =
-      smoothstep(f.from, f.from + runIn, z) * (1 - smoothstep(f.to - f.fade, f.to, z))
+    const strength = fullerStrength(f, z, hw)
     const full = Math.min(f.depth, MAX_FULLER_DEPTH) * base(x)
     return {
       x,
@@ -309,7 +345,7 @@ export function halfThicknessAt(spec: SwordSpec, s: number, z: number): number {
 function ringPositions(spec: SwordSpec): number[] {
   const b = spec.blade
   const B = bladeLength(spec)
-  const plain = clamp(B / 300, 2, 4)
+  const plain = clamp(B / RINGS_ALONG_PLAIN, PLAIN_STEP[0], PLAIN_STEP[1])
   const features = [b.from, b.to, b.from + b.tipFrom * B]
   if (b.ricasso > 0) features.push(b.from + b.ricasso, b.from + b.ricasso + RICASSO_RUN)
   for (const f of b.fullers) features.push(f.from, f.to, f.to - f.fade)
@@ -320,16 +356,17 @@ function ringPositions(spec: SwordSpec): number[] {
   }
   const spacing = (z: number) => {
     let d = plain
-    for (const f of features) d = Math.min(d, FINE + 0.3 * Math.abs(z - f))
+    for (const f of features) d = Math.min(d, FINE + FEATURE_GRADE * Math.abs(z - f))
     const w = b.wave
-    if (w && z > w.from - 2 && z < w.to + 2) d = Math.min(d, clamp(w.lengthMm / 30, 1, 3))
+    if (w && z > w.from - 2 && z < w.to + 2)
+      d = Math.min(d, clamp(w.lengthMm / RINGS_PER_WAVE, WAVE_STEP[0], WAVE_STEP[1]))
     const [e0, b0] = widthAt(z)
-    const [e1, b1] = widthAt(Math.min(b.to, z + 0.05))
-    const change = Math.max(Math.abs(e1 - e0), Math.abs(b1 - b0)) / 0.05
-    if (change > 0) d = Math.min(d, 1 / change)
+    const [e1, b1] = widthAt(Math.min(b.to, z + WIDTH_PROBE))
+    const change = Math.max(Math.abs(e1 - e0), Math.abs(b1 - b0)) / WIDTH_PROBE
+    if (change > 0) d = Math.min(d, MAX_WIDTH_STEP / change)
     const { curvature } = centreLineAt(spec, z)
-    if (curvature > 0) d = Math.min(d, 0.02 / curvature)
-    return clamp(d, 0.05, plain)
+    if (curvature > 0) d = Math.min(d, MAX_TURN_PER_RING / curvature)
+    return clamp(d, FINEST, plain)
   }
   const zs = [b.from - SHOULDER_OVERLAP]
   let z = zs[0]!
@@ -402,7 +439,7 @@ function anchorsFor(spec: SwordSpec): Anchor[] {
   b.fullers.forEach((_, k) => {
     const rim = (s: BladeSection) => {
       const f = s.fullers[k]!
-      return Math.max(f.rim, 0.08 * f.halfWidth)
+      return Math.max(f.rim, RIM_FLOOR * f.halfWidth)
     }
     const at = (s: BladeSection) => s.fullers[k]!.x
     const support = (s: BladeSection) => Math.min(SUPPORT, 0.3 * rim(s))
@@ -428,7 +465,7 @@ interface Template {
 function templateFor(spec: SwordSpec): Template {
   const b = spec.blade
   const f = b.fullers[0]
-  const z = f ? (f.from + f.to - f.fade) / 2 : b.from + 0.3 * bladeLength(spec)
+  const z = f ? (f.from + f.to - f.fade) / 2 : b.from + REFERENCE_U * bladeLength(spec)
   const ref = bladeSectionAt(spec, z)
   const raw = anchorsFor(spec).map((fn) => ({ fn, x: fn(ref) }))
   raw.sort((a, c) => a.x - c.x)
@@ -546,7 +583,7 @@ export function bladeStations(spec: SwordSpec): Station[] {
     for (let i = 0; i < xs.length; i++) facePoint(i, -1)
     endFace(s.edge.width, s.half(s.edge.width), false, 1, toEdge)
 
-    const shoulder = 1 - smoothstep(b.from - SHOULDER_OVERLAP, b.from + 5, z)
+    const shoulder = 1 - smoothstep(b.from - SHOULDER_OVERLAP, b.from + SHOULDER_SHADE_MM, z)
     const n = points.length
     const section = new Float32Array(n * 2)
     const attrs = {
@@ -571,7 +608,7 @@ export function bladeStations(spec: SwordSpec): Station[] {
         cavity = Math.max(cavity, depthHere * 4 * f.strength * (1 - f.strength))
       }
       attrs.aFuller[i] = floor
-      attrs.aShade[i] = 1 - 0.4 * shoulder - 0.3 * cavity
+      attrs.aShade[i] = 1 - SHADE.shoulder * shoulder - SHADE.fullerEnd * cavity
     })
     stations.push({ ...frame, section, attrs, normals })
   })
