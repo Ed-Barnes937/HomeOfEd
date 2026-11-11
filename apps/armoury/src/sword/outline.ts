@@ -205,7 +205,7 @@ export function hiltLayout(spec: SwordSpec): HiltLayout {
   const layout: HiltLayout = {
     guard: guard.shapes,
     pommel: pommel.shapes,
-    bands: bandsFor(spec, guard.seat, pommel.seat),
+    bands: bandsFor(spec, guard.seat, pommel.seat, pommelTop(pommel.shapes, spec.pommel.to)),
     guardSeat: guard.seat,
     pommelSeat: pommel.seat,
     gems,
@@ -1126,7 +1126,16 @@ function discGuard(
 }
 
 /** Fittings on the grip: Turk's heads on a wire grip, a katana's fuchi. */
-function bandsFor(spec: SwordSpec, guardSeat: Seat, pommelSeat: Seat): Shape[] {
+/** Where the grip comes out of the pommel along the axis: a plate's top edge, or the pommel's end. */
+function pommelTop(shapes: Shape[], to: number): number {
+  let top = to
+  for (const s of shapes)
+    if (s.kind === 'plate' && s.normal === 'y')
+      for (const [x, z] of s.outline) if (Math.abs(x) < 2) top = Math.max(top, s.centre[2] + z)
+  return top
+}
+
+function bandsFor(spec: SwordSpec, guardSeat: Seat, pommelSeat: Seat, fromTop: number): Shape[] {
   const { grip, guard } = spec
   const relief = wrapRelief(spec)
   const band = (z0: number, z1: number, round: boolean): Lathe => {
@@ -1139,7 +1148,7 @@ function bandsFor(spec: SwordSpec, guardSeat: Seat, pommelSeat: Seat): Shape[] {
       rx = Math.max(rx, cx + lift)
       ry = Math.max(ry, cy + lift)
     }
-    const r = rx + 0.7
+    const r = rx + (round ? 1.4 : 0.7)
     const f = round ? (z1 - z0) * 0.45 : 0.7
     return {
       kind: 'lathe',
@@ -1153,12 +1162,12 @@ function bandsFor(spec: SwordSpec, guardSeat: Seat, pommelSeat: Seat): Shape[] {
         ],
         5,
       ),
-      oval: (ry + 0.7) / r,
+      oval: (ry + r - rx) / r,
       facets: 0,
     }
   }
   if (grip.wrap === 'wire')
-    return [band(grip.from - 0.5, grip.from + 4, true), band(grip.to - 4, grip.to + 0.5, true)]
+    return [band(fromTop - 0.8, fromTop + 4, true), band(grip.to - 4, grip.to + 0.5, true)]
   if (grip.wrap === 'diamond' && guard.style === 'disc')
     return [band(grip.to - 12, guard.from + 0.4, false)]
   return []

@@ -121,8 +121,10 @@ function facetedSection(r: number, facets: number): Float32Array {
 // ---------------------------------------------------------------- solids
 
 /** Sweeps closed-ended stations into a solid wound outward, with the seam's normals joined. */
-function solid(stations: Station[]): MeshPart {
+function solid(stations: Station[], exact = false): MeshPart {
   const part = sweep(stations, { capStart: 'apex', capEnd: 'apex', seam: true })
+  // Exact-normal parts run along +z, which sweep already winds outward.
+  if (exact) return part
   if (volumeSign(part) < 0) {
     const ix = part.indices
     for (let t = 0; t < ix.length; t += 3) {
@@ -486,8 +488,8 @@ interface Wrapping {
   /** Ring spacing along the grip and columns round it. */
   step: number
   cols: number
-  /** Relief above the core (mm), whether it is the wrap or what lies under it, and cavity shade. */
-  at: (theta: number, z: number) => [lift: number, wrap: number, shade: number]
+  /** Writes [lift above the core (mm), 1 on the wrap or 0 on what shows under it, cavity shade]. */
+  at: (theta: number, z: number, out: Float64Array) => void
 }
 
 function wrappingFor(spec: SwordSpec): Wrapping {
@@ -495,32 +497,36 @@ function wrappingFor(spec: SwordSpec): Wrapping {
   const p = grip.pitchMm
   const span = grip.to - grip.from
   const top = wrapRelief(spec)
+  const set = (out: Float64Array, lift: number, wrap: number, shade: number) => {
+    out[0] = lift
+    out[1] = wrap
+    out[2] = shade
+  }
   switch (grip.wrap) {
     case 'cord':
-    case 'wire': {
+    case 'wire':
       return {
         step: p / (grip.wrap === 'wire' ? 5 : 8),
         cols: grip.wrap === 'wire' ? 40 : 56,
-        at: (theta, z) => {
+        at: (theta, z, out) => {
           const phase = (z - grip.from) / p + theta / TAU
           const f = phase - Math.floor(phase)
           const h = Math.sqrt(Math.max(0, 1 - (2 * f - 1) ** 2))
-          return [top * h, 1, lerp(0.55, 1, h)]
+          set(out, top * h, 1, lerp(0.55, 1, h))
         },
       }
-    }
     case 'leather': {
       const risers = grip.risers.map((u) => grip.from + u * span)
       return {
         step: 1.2,
         cols: 72,
-        at: (_, z) => {
+        at: (_, z, out) => {
           let h = 0
           for (const r of risers) {
             const d = Math.abs(z - r) / 4.5
             if (d < 1) h = Math.max(h, (1 + Math.cos(Math.PI * d)) / 2)
           }
-          return [top * h, 1, 1]
+          set(out, top * h, 1, 1)
         },
       }
     }
@@ -529,84 +535,123 @@ function wrappingFor(spec: SwordSpec): Wrapping {
       return {
         step: 0.8,
         cols: 72,
-        at: (_, z) => {
+        at: (_, z, out) => {
           let g = 0
           for (const c of grooves) {
             const d = Math.abs(z - c) / 3
             if (d < 1) g = Math.max(g, (1 + Math.cos(Math.PI * d)) / 2)
           }
-          return [-1.5 * g, 1, 1 - 0.35 * g]
+          set(out, -1.5 * g, 1, 1 - 0.35 * g)
         },
       }
     }
     case 'diamond': {
       const band = (phase: number) => {
         const d = Math.abs(phase - Math.floor(phase) - 0.5)
-        return smoothstep(0.34, 0.29, d)
+        return smoothstep(0.355, 0.28, d)
       }
       return {
-        step: 0.75,
-        cols: 96,
-        at: (theta, z) => {
+        step: 0.8,
+        cols: 88,
+        at: (theta, z, out) => {
           const a = theta - Math.PI / 2
           const along = (z - grip.from) / p
           const b1 = band(along + a / TAU)
           const b2 = band(along - a / TAU)
           const cover = Math.max(b1, b2)
           const over = b1 * b2
-          const lift = 1.1 * cover + 0.35 * over
           const edge = cover * (1 - cover) * 4
-          return [lift, cover, 1 - 0.3 * edge - 0.15 * over]
+          set(out, 1.1 * cover + 0.35 * over, cover, 1 - 0.3 * edge - 0.15 * over)
         },
       }
     }
     default:
-      return { step: 2, cols: 72, at: () => [0, 1, 1] }
+      return { step: 2, cols: 72, at: (_, __, out) => set(out, 0, 1, 1) }
   }
 }
 
-/** The grip: an oval core shaped along its length, its wrap as raised relief, tucked into its fittings. */
+/**
+ * The grip: an oval core shaped along its length, its wrap as raised relief, tucked into its
+ * fittings. Its normals come from the relief grid itself, so no triangle pass is needed.
+ */
 export function gripPart(spec: SwordSpec): MeshPart {
   const { grip } = spec
   const wrapping = wrappingFor(spec)
   const z0 = grip.from - GRIP_OVERLAP
   const z1 = grip.to + GRIP_OVERLAP
   const count = Math.max(8, Math.ceil((z1 - z0) / wrapping.step))
+  const rings = count + 1
   const cols = wrapping.cols
+  const dz = (z1 - z0) / count
+  const dTheta = TAU / cols
   const cosT = new Float64Array(cols)
   const sinT = new Float64Array(cols)
   for (let i = 0; i < cols; i++) {
-    const a = -Math.PI / 2 + (TAU * i) / cols
-    cosT[i] = Math.cos(a)
-    sinT[i] = Math.sin(a)
+    cosT[i] = Math.cos(-Math.PI / 2 + i * dTheta)
+    sinT[i] = Math.sin(-Math.PI / 2 + i * dTheta)
   }
+  const h = new Float64Array(rings * cols)
+  const rx = new Float64Array(rings)
+  const ry = new Float64Array(rings)
+  const out = new Float64Array(3)
   const stations: Station[] = []
-  const ring = (z: number, scale: number): Station => {
-    const [rx, ry] = gripCore(spec, z)
+  for (let j = 0; j < rings; j++) {
+    const z = z0 + j * dz
+    ;[rx[j], ry[j]] = gripCore(spec, z)
     const fade = reliefFade(spec, z)
-    const section = new Float32Array(cols * 2)
     const aWrap = new Float32Array(cols)
     const aShade = new Float32Array(cols)
     for (let i = 0; i < cols; i++) {
-      const theta = Math.atan2(sinT[i]!, cosT[i]!)
-      const [lift, wrap, shade] = wrapping.at(theta, z)
-      const h = lift * fade
-      section[i * 2] = (rx + h) * cosT[i]! * scale
-      section[i * 2 + 1] = (ry + h) * sinT[i]! * scale
-      aWrap[i] = wrap
-      aShade[i] = lerp(1, shade, fade)
+      wrapping.at(-Math.PI / 2 + i * dTheta, z, out)
+      h[j * cols + i] = out[0]! * fade
+      aWrap[i] = out[1]!
+      aShade[i] = lerp(1, out[2]!, fade)
     }
-    return {
+    const section = new Float32Array(cols * 2)
+    for (let i = 0; i < cols; i++) {
+      section[i * 2] = (rx[j]! + h[j * cols + i]!) * cosT[i]!
+      section[i * 2 + 1] = (ry[j]! + h[j * cols + i]!) * sinT[i]!
+    }
+    stations.push({
       centre: [0, 0, z],
       axisU: [1, 0, 0],
       axisV: [0, 1, 0],
       section,
       uvAlong: z - grip.from,
       attrs: { aWrap, aShade },
-    }
+    })
   }
-  stations.push(ring(z0, 1))
-  for (let j = 0; j <= count; j++) stations.push(ring(lerp(z0, z1, j / count), 1))
-  stations.push(ring(z1, 1))
-  return solid(stations)
+  stations.forEach((station, j) => {
+    const a = Math.max(0, j - 1)
+    const b = Math.min(rings - 1, j + 1)
+    const span = (b - a) * dz
+    const drx = (rx[b]! - rx[a]!) / span
+    const dry = (ry[b]! - ry[a]!) / span
+    const normals = new Float32Array(cols * 3)
+    for (let i = 0; i < cols; i++) {
+      const here = h[j * cols + i]!
+      const hTheta = (h[j * cols + ((i + 1) % cols)]! - h[j * cols + ((i + cols - 1) % cols)]!) / (2 * dTheta)
+      const hZ = (h[b * cols + i]! - h[a * cols + i]!) / span
+      const [c, sn] = [cosT[i]!, sinT[i]!]
+      const tx = -(rx[j]! + here) * sn + hTheta * c
+      const ty = (ry[j]! + here) * c + hTheta * sn
+      const zx = (drx + hZ) * c
+      const zy = (dry + hZ) * sn
+      let nx = ty
+      let ny = -tx
+      let nz = tx * zy - ty * zx
+      // The end rings also bound the hidden end faces: lean them halfway onto the axis.
+      if (j === 0 || j === rings - 1) {
+        const l = Math.hypot(nx, ny, nz)
+        nx /= l
+        ny /= l
+        nz = nz / l + (j === 0 ? -1 : 1)
+      }
+      normals[i * 3] = nx
+      normals[i * 3 + 1] = ny
+      normals[i * 3 + 2] = nz
+    }
+    station.normals = normals
+  })
+  return solid([{ ...stations[0]!, normals: undefined }, ...stations, { ...stations[rings - 1]!, normals: undefined }], true)
 }
