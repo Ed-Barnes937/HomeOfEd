@@ -147,23 +147,37 @@ export interface SwordSpec {
 }
 
 type Side = { run: number; shape: (t: number) => number }
+/**
+ * A closing run whose slope eases in from zero over the first `a` of it (zero curvature too),
+ * then holds: tangent to the body where the point starts, ogival at a = 1, near-straight-sided
+ * when a is small.
+ */
+const ogive = (a: number) => {
+  const eased = (t: number) => {
+    if (t >= a) return a / 2 + (t - a)
+    const x = t / a
+    return a * (x ** 3 - x ** 4 / 2)
+  }
+  const total = eased(1)
+  return (t: number) => 1 - eased(t) / total
+}
 /** Closing run of the width curve per tip: length in widths at the tip, and its shape. */
 const TIPS: Record<string, { edge: Side; back?: Side }> = {
-  sharp: { edge: { run: 1.1, shape: (t) => 1 - t ** 1.6 } },
-  longPoint: { edge: { run: 2.2, shape: (t) => 1 - t ** 1.25 } },
-  rounded: { edge: { run: 0.5, shape: (t) => Math.sqrt(1 - t * t) } },
+  sharp: { edge: { run: 1.3, shape: ogive(1) } },
+  longPoint: { edge: { run: 2.2, shape: ogive(0.45) } },
+  rounded: { edge: { run: 0.7, shape: (t) => 1 - t ** 4 } },
   curvedPoint: {
-    edge: { run: 0.8, shape: (t) => 1 - t ** 1.2 },
-    back: { run: 1.6, shape: (t) => 1 - t * t },
+    edge: { run: 1.6, shape: ogive(1) },
+    back: { run: 0.8, shape: ogive(0.6) },
   },
-  spear: { edge: { run: 1.3, shape: (t) => 1 - t ** 1.3 } },
+  spear: { edge: { run: 1.3, shape: ogive(0.6) } },
   clipped: {
-    edge: { run: 0.9, shape: (t) => 1 - t * t },
-    back: { run: 2.2, shape: (t) => 1 - t },
+    edge: { run: 0.9, shape: ogive(1) },
+    back: { run: 2.2, shape: ogive(0.3) },
   },
-  kissaki: { edge: { run: 0, shape: (t) => 1 - t * t }, back: { run: 0, shape: (t) => 1 - t } },
+  kissaki: { edge: { run: 0, shape: ogive(1) }, back: { run: 0, shape: ogive(1) } },
 }
-const TIP_SAMPLES = 10
+const TIP_SAMPLES = 24
 /** How far a blade's width, from slimmest to broadest in its band, moves the guard size. */
 const GUARD_BASE_NUDGE = 0.2
 /** The least a bar guard's span moves across the Guard size slider, mm. */
@@ -173,6 +187,8 @@ const PLATE_OVER_BASE = 1.4
 const MIN_PLATE_RANGE = 17
 const BODY_STEP = 0.05
 const MAX_TIP_RUN = 0.3
+/** A point is never shorter than this, so even a needle tip eases in. */
+const MIN_TIP_RUN_MM = 22
 
 // Estimates, tune at G1: the hilt's sections and pitches.
 /** Bar or plate thickness at a 50 mm blade, mm. */
@@ -252,11 +268,20 @@ function bodyShape(
 
 function sideCurve(body: (u: number) => number, halfBase: number, from: number, side: Side): Curve {
   const curve: Curve = []
-  for (let u = 0; u < from - 1e-9; u += BODY_STEP) curve.push([u, body(u) * halfBase])
-  const start = body(from) * halfBase
+  // Knots close together either side of where the point starts and at its end, so the
+  // interpolation follows the shapes; the body's own taper carries on under the closing shape.
+  const tAt = (i: number) => (1 - Math.cos((Math.PI * i) / TIP_SAMPLES)) / 2
+  const run = 1 - from
+  const nearStart = Array.from(
+    { length: TIP_SAMPLES / 2 },
+    (_, i) => from - tAt(TIP_SAMPLES / 2 - i) * run,
+  )
+  for (let u = 0; u < nearStart[0]! - 1e-9; u += BODY_STEP) curve.push([u, body(u) * halfBase])
+  for (const u of nearStart) if (u > 0) curve.push([u, body(u) * halfBase])
   for (let i = 0; i <= TIP_SAMPLES; i++) {
-    const t = Math.sin((Math.PI / 2) * (i / TIP_SAMPLES))
-    curve.push([lerp(from, 1, t), i === TIP_SAMPLES ? 0 : start * side.shape(t)])
+    const t = tAt(i)
+    const u = lerp(from, 1, t)
+    curve.push([u, i === TIP_SAMPLES ? 0 : body(u) * halfBase * side.shape(t)])
   }
   return curve
 }
@@ -270,7 +295,8 @@ function outline(p: Params, f: FamilyDef, B: number, base: number) {
   const startOf = (side: Side) => {
     if (p.tip === 'kissaki') return 1 - lerp(25, 60, p.kissakiSize as number) / B
     let from = 1
-    for (let i = 0; i < 4; i++) from = 1 - Math.min((side.run * widthAt(from)) / B, MAX_TIP_RUN)
+    for (let i = 0; i < 4; i++)
+      from = 1 - Math.min(Math.max(side.run * widthAt(from), MIN_TIP_RUN_MM) / B, MAX_TIP_RUN)
     return from
   }
   const edgeFrom = startOf(tip.edge)
