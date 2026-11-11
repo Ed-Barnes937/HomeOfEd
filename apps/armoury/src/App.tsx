@@ -13,6 +13,12 @@ const realStages: StagesByKind = {
     Box: lazy(() => import('./stage/WandStage.tsx')),
     CloseUp: lazy(() => import('./stage/WandStage.tsx').then((m) => ({ default: m.CloseUpStage }))),
   },
+  sword: {
+    Box: lazy(() => import('./stage/SwordStage.tsx')),
+    CloseUp: lazy(() =>
+      import('./stage/SwordStage.tsx').then((m) => ({ default: m.SwordCloseUpStage })),
+    ),
+  },
 }
 
 function Routes() {

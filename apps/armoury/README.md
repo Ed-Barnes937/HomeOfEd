@@ -24,5 +24,12 @@ Layout and rules: [`CLAUDE.md`](CLAUDE.md).
 ## Credits
 
 - Wood scans and the studio HDRI: [Poly Haven](https://polyhaven.com), CC0.
+- The sword's scans, all CC0: brushed steel
+  [Metal009](https://ambientcg.com/a/Metal009) (`steel-*`), cord
+  [Rope001](https://ambientcg.com/a/Rope001) (`cord-*`) and woven braid
+  [Fabric031](https://ambientcg.com/a/Fabric031) (`weave-*`) from
+  [ambientCG](https://ambientcg.com); leather
+  [fabric_leather_02](https://polyhaven.com/a/fabric_leather_02) (`leather-*`) from
+  Poly Haven.
 - Fonts: IM Fell English by Igino Marini, Alegreya Sans by Huerta Tipográfica,
   both under the SIL Open Font License.
