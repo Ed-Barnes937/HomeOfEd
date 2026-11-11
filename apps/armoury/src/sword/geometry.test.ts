@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
   allowedOptions,
@@ -122,7 +122,6 @@ function outOfRange(part: MeshPart): string | null {
 
 /** What the tests need from each catalogue sword, built once. */
 interface Facts {
-  ms: number
   parts: Record<
     (typeof PARTS)[number],
     { open: number; volume: number; inward: number; outOfRange: string | null; verts: number }
@@ -141,9 +140,7 @@ const facts = new Map<SwordSpec, Facts>()
 function factsOf(spec: SwordSpec): Facts {
   const known = facts.get(spec)
   if (known) return known
-  const t0 = performance.now()
   const mesh = buildSwordMesh(spec)
-  const ms = performance.now() - t0
   const parts = Object.fromEntries(
     PARTS.map((key) => {
       const part = mesh[key]
@@ -187,7 +184,6 @@ function factsOf(spec: SwordSpec): Facts {
   for (let k = 2; k < mesh.fittings.positions.length; k += 3)
     fittingsEnd = Math.min(fittingsEnd, mesh.fittings.positions[k]!)
   const out: Facts = {
-    ms,
     parts,
     apex: [p[apex * 3]!, p[apex * 3 + 2]!],
     outsideReach,
@@ -227,20 +223,6 @@ describe('buildSwordMesh', () => {
     expect(f.parts.fittings.verts, name).toBeLessThanOrEqual(35_000)
     expect(f.parts.grip.verts, name).toBeLessThanOrEqual(45_000)
     expect(total, name).toBeLessThanOrEqual(120_000)
-  })
-
-  afterAll(() => {
-    const built = [...facts.values()]
-    if (built.length === 0) return
-    const ms = built.map((f) => f.ms).sort((a, b) => a - b)
-    const most = (count: (f: Facts) => number) => Math.max(...built.map(count))
-    const vertices = {
-      ...Object.fromEntries(PARTS.map((key) => [key, most((f) => f.parts[key].verts)])),
-      total: most((f) => PARTS.reduce((n, key) => n + f.parts[key].verts, 0)),
-    }
-    console.log(
-      `whole sword build (${built.length} swords): median ${ms[ms.length >> 1]!.toFixed(1)} ms, worst ${ms.at(-1)!.toFixed(1)} ms, most vertices ${JSON.stringify(vertices)}`,
-    )
   })
 
   it('is the same bytes for the same params', () => {

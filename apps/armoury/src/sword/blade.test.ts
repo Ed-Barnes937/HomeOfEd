@@ -78,7 +78,6 @@ const columnsOf = (spec: SwordSpec) =>
 /** What the tests need from each catalogue blade, built once. */
 interface Facts {
   verts: number
-  ms: number
   open: number
   volume: number
   inward: number
@@ -92,9 +91,7 @@ const facts = new Map<SwordSpec, Facts>()
 function factsOf(spec: SwordSpec): Facts {
   const known = facts.get(spec)
   if (known) return known
-  const t0 = performance.now()
   const part = bladePart(spec)
-  const ms = performance.now() - t0
   const { positions: p, uvs } = part
   const line = centreLineAt(spec, spec.blade.to)
   let minZ = Infinity
@@ -112,7 +109,6 @@ function factsOf(spec: SwordSpec): Facts {
   }
   const out: Facts = {
     verts: p.length / 3,
-    ms,
     open: openEdges(part),
     volume: signedVolume(part),
     inward: inwardNormals(part),
@@ -138,20 +134,13 @@ describe('bladePart', () => {
   })
 
   it.each(KINDS)('is a sound closed solid within budget for every %s blade', (family) => {
-    let worst = { ms: 0, name: '' }
-    let most = { verts: 0, name: '' }
     for (const { name, spec } of BLADES.filter((b) => b.family === family)) {
       const f = factsOf(spec)
-      if (f.ms > worst.ms) worst = { ms: f.ms, name }
-      if (f.verts > most.verts) most = { verts: f.verts, name }
       expect(f.open, name).toBe(0)
       expect(f.volume, name).toBeGreaterThan(0)
       expect(f.inward, name).toBe(0)
       expect(f.verts, name).toBeLessThanOrEqual(BUDGET)
     }
-    console.log(
-      `blade: slowest build ${worst.ms.toFixed(1)} ms (${worst.name}), most vertices ${most.verts} (${most.name})`,
-    )
   })
 
   it('builds the same bytes from the same spec', () => {
