@@ -124,12 +124,12 @@ $cobble-band: 120px;
   border-radius: 6px;
   outline-offset: 6px;
 
-  &[data-shop='wands'] {
+  &[data-door='wands'] {
     --accent: var(--brass);
     --spill: 255, 205, 120;
   }
 
-  &[data-shop='smithy'] {
+  &[data-door='smithy'] {
     --accent: #e8935a;
     --spill: 255, 138, 42;
   }

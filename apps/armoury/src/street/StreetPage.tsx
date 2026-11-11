@@ -18,7 +18,7 @@ function Door({
   children: ReactNode
 }) {
   return (
-    <Link to={to} className={styles.front} data-shop={shop} aria-label={label}>
+    <Link to={to} className={styles.front} data-door={shop} aria-label={label}>
       <span className={styles.spill} aria-hidden="true" />
       {children}
       <span className={styles.plaque} aria-hidden="true">
