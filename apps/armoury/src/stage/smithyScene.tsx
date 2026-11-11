@@ -16,7 +16,16 @@ export const FORGE = { position: [-4, 1.6, 0.6], colour: '#ff8a33', intensity: 2
 export const WINDOW = { position: [2.5, 4, -3], colour: '#bcd4ff', intensity: 1.6 } as const
 export const SMITHY_RIM = 0.6
 /** Brightness of the studio map and each shape the steel reflects. */
-export const ENV = { cellar: 1.5, forge: 4, window: 3, strip: 1, top: 0.9, front: 1.1, edge: 1.3 }
+export const ENV = {
+  cellar: 1.5,
+  forge: 4,
+  window: 3,
+  strip: 1,
+  top: 0.9,
+  front: 1.1,
+  edge: 1.3,
+  fill: 0.35,
+}
 const RIM = { position: [0.5, 1, -3], colour: '#cfd8ff' } as const
 
 export function SmithyLights({
@@ -163,10 +172,17 @@ export function SmithyEnvironment() {
         scale={[8, 2.5, 1]}
         map={maps.top}
       />
-      {/* Behind the close look's camera, so the flat held up to it is never a dead grey. */}
+      {/* Behind the close look's camera: a wide dim neutral fill under a framed softbox, so a flat held up to it reads steel-grey. */}
       <Lightformer
         form="rect"
-        color="#fff4e8"
+        color="#e9ecf0"
+        intensity={ENV.fill}
+        position={[0, 2, 9.5]}
+        scale={[14, 8, 1]}
+      />
+      <Lightformer
+        form="rect"
+        color="#fbf7f2"
         intensity={ENV.front}
         position={[2, 4, 9]}
         scale={[5, 3, 1]}

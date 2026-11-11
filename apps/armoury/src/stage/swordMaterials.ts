@@ -48,21 +48,21 @@ export const STEELS: Record<Steel, SteelRow> = {
     envIntensity: 1.4,
     bareEdge: false,
     iridescence: 0,
-    grain: { ...BRUSHED, depth: 0.003, scratch: 0.015 },
+    grain: { ...BRUSHED, depth: 0.0012, scratch: 0.008 },
   },
   // Forge-black: hammer dimples under the scale, the hollows darker and warmer.
   dark: {
-    colour: [0.09, 0.09, 0.1],
-    metalness: 0.85,
+    colour: [0.07, 0.08, 0.1],
+    metalness: 1,
     roughness: 0.5,
     anisotropy: 0.2,
-    envIntensity: 1.3,
+    envIntensity: 1,
     bareEdge: true,
     iridescence: 0,
-    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12, hammer: 0.15 },
+    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12, hammer: 0.3 },
   },
   silver: {
-    colour: [0.95, 0.93, 0.86],
+    colour: [0.95, 0.92, 0.84],
     metalness: 1,
     roughness: 0.2,
     anisotropy: 0.1,
@@ -383,9 +383,10 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
         if (uPatternKind > 0.5) return watered(mm);
         return 0.0;
       }
-      // Hammer dimples, a few mm across: 1 at a dimple's floor, 0 on the rims between them.
+      // Hammer dishes of varied size meeting at ridges: 1 at a dish's floor, 0 on the ridges.
+      // Pattern-welded steel is ground and etched after forging, so it carries none.
       float hammer(vec2 mm) {
-        if (uHammer <= 0.0) return 0.0;
+        if (uHammer <= 0.0 || uPatternMix > 0.5) return 0.0;
         vec2 p = mm / 6.0;
         vec2 cell = floor(p);
         float best = 1.0;
@@ -393,9 +394,9 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
           for (int i = -1; i <= 1; i++) {
             vec2 c = cell + vec2(float(i), float(j));
             vec2 at = c + 0.15 + 0.7 * vec2(sHash(c + 3.1), sHash(c + 9.7));
-            best = min(best, length(p - at));
+            best = min(best, length(p - at) / (0.8 + 0.4 * sHash(c + 5.3)));
           }
-        return pow(1.0 - smoothstep(0.0, 0.75, best), 2.0);
+        return pow(1.0 - smoothstep(0.0, 1.15, best), 2.0);
       }
       float steelHeightAt(vec2 mm, float along) {
         float brush = (texture2D(uSteelHeight, brushUv(mm)).r - uHeightMean) * uBrushDepth;
@@ -412,7 +413,8 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       // The pattern's bands take the steel's own lightness, so dark steel makes a dark pattern.
       float steelLum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)) / 0.59;
       diffuseColor.rgb = mix(diffuseColor.rgb, mix(uPatternDark, uPatternLight, pattern) * steelLum, uPatternMix);
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.62, 0.58, 0.54), (uHammer > 0.0 ? 0.6 : 0.0) * hammer(mm));
+      float dish = hammer(mm);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.8, 0.77, 0.74), dish);
       float fuller = clamp(vFuller, 0.0, 1.0);
       float edge = clamp(vEdge, 0.0, 1.0) * uBareEdge;
       // A thin dark lip where the groove's wall turns, so it reads as cut.
@@ -434,6 +436,7 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       float scratches = smoothstep(0.75, 0.95, sNoise(vec2(mm.x * 3.0, mm.y * 0.06))) * max(uWear, 0.4);
       roughnessFactor = mix(roughnessFactor, mix(uPatternRough.y, uPatternRough.x, pattern), uPatternMix);
       roughnessFactor += uScratch * scan + 0.06 * scratches + uFullerRough * fuller + 0.25 * cut;
+      roughnessFactor += 0.12 * dish;
       roughnessFactor = mix(roughnessFactor, 0.2, edge);
       roughnessFactor = clamp(roughnessFactor, 0.04, 1.0);`,
     )
