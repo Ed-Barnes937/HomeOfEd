@@ -23,11 +23,11 @@ export interface SteelRow {
   bareEdge: boolean
   /** Heat-bluing's thin film. */
   iridescence: number
-  /** The steel scan's tile along and across (mm), its relief (mm) and its roughness swing. */
-  grain: { tile: [number, number]; depth: number; scratch: number }
+  /** The steel scan's tile along and across (mm), its relief (mm), its roughness swing, and hammer dimples' depth (mm). */
+  grain: { tile: [number, number]; depth: number; scratch: number; hammer: number }
 }
 
-const BRUSHED = { tile: [140, 60] as [number, number], depth: 0.0025, scratch: 0.05 }
+const BRUSHED = { tile: [140, 60] as [number, number], depth: 0.006, scratch: 0.08, hammer: 0 }
 
 export const STEELS: Record<Steel, SteelRow> = {
   satin: {
@@ -44,13 +44,13 @@ export const STEELS: Record<Steel, SteelRow> = {
     colour: [0.62, 0.63, 0.64],
     metalness: 1,
     roughness: 0.08,
-    anisotropy: 0.1,
+    anisotropy: 0.05,
     envIntensity: 1.4,
     bareEdge: false,
     iridescence: 0,
-    grain: { ...BRUSHED, scratch: 0.025 },
+    grain: { ...BRUSHED, depth: 0.003, scratch: 0.015 },
   },
-  // Forge-black: the scan at a larger tile and deeper reads as hammer marks under the scale.
+  // Forge-black: hammer dimples under the scale, the hollows darker and warmer.
   dark: {
     colour: [0.09, 0.09, 0.1],
     metalness: 0.85,
@@ -59,7 +59,7 @@ export const STEELS: Record<Steel, SteelRow> = {
     envIntensity: 1.3,
     bareEdge: true,
     iridescence: 0,
-    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12 },
+    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12, hammer: 0.15 },
   },
   silver: {
     colour: [0.95, 0.93, 0.86],
@@ -72,19 +72,19 @@ export const STEELS: Record<Steel, SteelRow> = {
     grain: BRUSHED,
   },
   blue: {
-    colour: [0.07, 0.16, 0.42],
+    colour: [0.04, 0.075, 0.2],
     metalness: 1,
-    roughness: 0.18,
+    roughness: 0.14,
     anisotropy: 0.4,
-    envIntensity: 1.3,
+    envIntensity: 1.4,
     bareEdge: true,
-    iridescence: 0.2,
+    iridescence: 0.15,
     grain: BRUSHED,
   },
 }
 
 /** The thin film's thickness range, nm: blue with straw and purple only at grazing angles. */
-export const BLUING_FILM: [number, number] = [320, 400]
+export const BLUING_FILM: [number, number] = [250, 300]
 
 /** The steel a bare edge is ground back to. */
 export const BARE_EDGE: LinearRgb = [0.6, 0.61, 0.62]
@@ -111,8 +111,8 @@ export const PATTERNS: Record<'plain' | 'watered' | 'temper', PatternRow> = {
   watered: {
     mix: 1,
     light: [0.62, 0.62, 0.63],
-    dark: [0.5, 0.5, 0.51],
-    roughness: [0.14, 0.4],
+    dark: [0.54, 0.54, 0.55],
+    roughness: [0.14, 0.36],
     kind: 1,
   },
   temper: {
@@ -286,8 +286,9 @@ export function bladeUniforms(textures: SwordTextures) {
     uHeightMean: { value: SCAN_MEANS.steelHeight },
     /** Brush tile along and across the blade, mm. */
     uTile: { value: new THREE.Vector2(140, 60) },
-    uScratch: { value: 0.05 },
-    uBrushDepth: { value: 0.0025 },
+    uScratch: { value: 0.08 },
+    uBrushDepth: { value: 0.006 },
+    uHammer: { value: 0 },
     uBladeZ: { value: new THREE.Vector2(0, 1) },
     uFullerRough: { value: 0.2 },
     uFullerDark: { value: 0.18 },
@@ -329,6 +330,7 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       uniform vec2 uTile;
       uniform float uScratch;
       uniform float uBrushDepth;
+      uniform float uHammer;
       uniform vec2 uBladeZ;
       uniform float uFullerRough;
       uniform float uFullerDark;
@@ -369,11 +371,11 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
         float warp = 1.2 * sNoise(p) + 0.5 * sNoise(p * 3.1 + 7.3);
         float arg = mm.x * 0.9 + warp * 16.0 + 1.5 * sin(mm.y * 0.12 + mm.x * 0.3);
         float aa = 1.0 - smoothstep(0.15, 0.45, fwidth(arg) / 6.2832);
-        return mix(0.5, smoothstep(-0.7, 0.7, sin(arg)), aa);
+        return mix(0.5, smoothstep(-0.8, 0.8, sin(arg) + 0.3 * sin(arg * 2.3 + 0.7)), aa);
       }
       // The temper line: hardened steel along the edge, its boundary a slow soft wave.
       float hardened(vec2 mm) {
-        float line = vWidth * (0.3 + 0.06 * sin(mm.y * 0.16) + 0.05 * sNoise(vec2(mm.y * 0.08, 1.7)));
+        float line = vWidth * (0.3 + 0.05 * sin(mm.y * 0.16) + 0.04 * sin(mm.y * 0.051 + 1.3) + 0.08 * (sNoise(vec2(mm.y * 0.08, 1.7)) - 0.5));
         return 1.0 - smoothstep(line - 2.2, line + 2.2, vFromEdge);
       }
       float patternAt(vec2 mm) {
@@ -381,11 +383,25 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
         if (uPatternKind > 0.5) return watered(mm);
         return 0.0;
       }
+      // Hammer dimples, a few mm across: 1 at a dimple's floor, 0 on the rims between them.
+      float hammer(vec2 mm) {
+        if (uHammer <= 0.0) return 0.0;
+        vec2 p = mm / 6.0;
+        vec2 cell = floor(p);
+        float best = 1.0;
+        for (int j = -1; j <= 1; j++)
+          for (int i = -1; i <= 1; i++) {
+            vec2 c = cell + vec2(float(i), float(j));
+            vec2 at = c + 0.15 + 0.7 * vec2(sHash(c + 3.1), sHash(c + 9.7));
+            best = min(best, length(p - at));
+          }
+        return pow(1.0 - smoothstep(0.0, 0.75, best), 2.0);
+      }
       float steelHeightAt(vec2 mm, float along) {
         float brush = (texture2D(uSteelHeight, brushUv(mm)).r - uHeightMean) * uBrushDepth;
         // Nie: sparse bright crystals in the hardened edge, as tiny pits that catch the light.
         float nie = uPatternKind > 1.5 ? step(0.985, sHash(floor(mm * 3.0))) * hardened(mm) * 0.004 : 0.0;
-        return brush - nie - uCutDepth * cutAt(mm, along);
+        return brush - nie - uHammer * hammer(mm) - uCutDepth * cutAt(mm, along);
       }`,
     )
     .replace(
@@ -393,7 +409,10 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       `#include <map_fragment>
       vec2 mm = vBladeMm;
       float pattern = patternAt(mm);
-      diffuseColor.rgb = mix(diffuseColor.rgb, mix(uPatternDark, uPatternLight, pattern), uPatternMix);
+      // The pattern's bands take the steel's own lightness, so dark steel makes a dark pattern.
+      float steelLum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)) / 0.59;
+      diffuseColor.rgb = mix(diffuseColor.rgb, mix(uPatternDark, uPatternLight, pattern) * steelLum, uPatternMix);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.62, 0.58, 0.54), (uHammer > 0.0 ? 0.6 : 0.0) * hammer(mm));
       float fuller = clamp(vFuller, 0.0, 1.0);
       float edge = clamp(vEdge, 0.0, 1.0) * uBareEdge;
       // A thin dark lip where the groove's wall turns, so it reads as cut.
@@ -412,7 +431,7 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       '#include <roughnessmap_fragment>',
       `#include <roughnessmap_fragment>
       float scan = texture2D(uSteelRough, brushUv(mm)).r / uRoughMean - 1.0;
-      float scratches = smoothstep(0.75, 0.95, sNoise(vec2(mm.x * 3.0, mm.y * 0.06))) * uWear;
+      float scratches = smoothstep(0.75, 0.95, sNoise(vec2(mm.x * 3.0, mm.y * 0.06))) * max(uWear, 0.4);
       roughnessFactor = mix(roughnessFactor, mix(uPatternRough.y, uPatternRough.x, pattern), uPatternMix);
       roughnessFactor += uScratch * scan + 0.06 * scratches + uFullerRough * fuller + 0.25 * cut;
       roughnessFactor = mix(roughnessFactor, 0.2, edge);

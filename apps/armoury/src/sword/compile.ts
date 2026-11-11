@@ -223,6 +223,8 @@ const WRAPS: Record<string, { pitch: (gripMm: number) => number; colour: (p: Par
 const POMMEL_FACETS: Record<string, number> = { egg: 8, block: 4, lobed: 3, fishtail: 2 }
 /** A pommel's flat face or top, as a fraction of its diameter, where a gem sits. */
 const POMMEL_FACE = 0.7
+/** A guard's stone across, over its seat (a disc's ring or a cross's block): small, as a set stone is. */
+const GUARD_GEM = 0.4
 const FULLERS: Record<string, { count: number; width: [number, number]; depth: number }> = {
   groove1: { count: 1, width: [0.4, 0.25], depth: 0.3 },
   groove2: { count: 2, width: [0.22, 0.15], depth: 0.25 },
@@ -512,7 +514,7 @@ export function compileSword(p: Params): SwordSpec {
     gems.push({ at: 'pommel', cut, radius: (0.45 * pommelD * POMMEL_FACE) / 2 })
   if (p.gems === 'guard' || p.gems === 'both') {
     const block = style === 'disc' ? 0.5 * ((span - base) / 2) : 0.8 * base
-    gems.push({ at: 'guard', cut, radius: (0.7 * block) / 2 })
+    gems.push({ at: 'guard', cut, radius: (GUARD_GEM * block) / 2 })
   }
 
   const runeHex = swordSwatchFor('runeColour', p.runeColour as string) ?? '#8fe3ff'

@@ -16,7 +16,7 @@ export const FORGE = { position: [-4, 1.6, 0.6], colour: '#ff8a33', intensity: 2
 export const WINDOW = { position: [2.5, 4, -3], colour: '#bcd4ff', intensity: 1.6 } as const
 export const SMITHY_RIM = 0.6
 /** Brightness of the studio map and each shape the steel reflects. */
-export const ENV = { cellar: 0.9, forge: 4, window: 3, strip: 1, top: 1.2, front: 1.1, edge: 1.3 }
+export const ENV = { cellar: 1.5, forge: 4, window: 3, strip: 1, top: 0.9, front: 1.1, edge: 1.3 }
 const RIM = { position: [0.5, 1, -3], colour: '#cfd8ff' } as const
 
 export function SmithyLights({
@@ -84,7 +84,7 @@ const EDGE_STRIPS: { position: [number, number, number]; warm: boolean }[] = [
   { position: [0, 8, 2.75], warm: true },
 ]
 /** Turns the cellar so its bright doorway is up and to the right, behind: the smithy's window. */
-const CELLAR_TURN: [number, number, number] = [0, -1.2, 0]
+const CELLAR_TURN: [number, number, number] = [0, 1.2, 0]
 
 /** What steel reflects: a CC0 cellar (decision O7), with the forge, the window and softboxes laid over it. */
 export function SmithyEnvironment() {
@@ -92,16 +92,17 @@ export function SmithyEnvironment() {
     () => ({
       top: falloff([
         [0, 0.05],
-        [0.45, 0.25],
-        [0.75, 1],
-        [1, 0.35],
+        [0.08, 0.95],
+        [0.6, 0.75],
+        [0.92, 0.95],
+        [1, 0.05],
       ]),
       // Two softboxes with dark between, so a flat held up shows bands that move as it turns.
+      // A framed softbox: hard-edged, so Mirror shows its edge and Satin blurs it.
       front: falloff([
         [0, 0.05],
-        [0.3, 0.5],
-        [0.5, 1],
-        [0.75, 0.35],
+        [0.05, 0.95],
+        [0.95, 0.85],
         [1, 0.05],
       ]),
       edgeA: falloff([
@@ -121,7 +122,7 @@ export function SmithyEnvironment() {
   )
   useEffect(() => () => Object.values(maps).forEach((m) => m.dispose()), [maps])
   return (
-    <Environment resolution={256} environmentIntensity={1}>
+    <Environment resolution={512} environmentIntensity={1}>
       <EnvironmentCube
         background
         files="/hdri/smithy.hdr"
@@ -157,9 +158,9 @@ export function SmithyEnvironment() {
         form="rect"
         color="#fff4e8"
         intensity={ENV.top}
-        position={[0, 8, -0.6]}
+        position={[1.5, 8, -0.6]}
         rotation={[Math.PI / 2, 0, 0]}
-        scale={[16, 5, 1]}
+        scale={[8, 2.5, 1]}
         map={maps.top}
       />
       {/* Behind the close look's camera, so the flat held up to it is never a dead grey. */}
@@ -167,9 +168,8 @@ export function SmithyEnvironment() {
         form="rect"
         color="#fff4e8"
         intensity={ENV.front}
-        position={[0, 1.5, 9]}
-        rotation={[0, Math.PI, 0]}
-        scale={[12, 6, 1]}
+        position={[2, 4, 9]}
+        scale={[5, 3, 1]}
         map={maps.front}
       />
       {/* Thin bright strips where the edge bevels look, so each edge reads as a line of light. */}

@@ -30,6 +30,8 @@ Layout and rules: [`CLAUDE.md`](CLAUDE.md).
   [Fabric031](https://ambientcg.com/a/Fabric031) (`weave-*`) from
   [ambientCG](https://ambientcg.com); leather
   [fabric_leather_02](https://polyhaven.com/a/fabric_leather_02) (`leather-*`) from
-  Poly Haven.
+  Poly Haven; the smithy's reflections,
+  [castle_zavelstein_cellar](https://polyhaven.com/a/castle_zavelstein_cellar)
+  (`hdri/smithy.hdr`), Poly Haven, CC0.
 - Fonts: IM Fell English by Igino Marini, Alegreya Sans by Huerta Tipográfica,
   both under the SIL Open Font License.
