@@ -65,25 +65,40 @@ export function SmithyLights({
   )
 }
 
-/** A softbox's falloff: `stops` are [x, brightness] across its width, 0 to 1, constant down its height. */
-function falloff(stops: [number, number][]): THREE.DataTexture {
-  const n = 256
-  const data = new Uint8Array(n * 4)
-  for (let i = 0; i < n; i++) {
-    const x = i / (n - 1)
-    let k = 0
-    while (k < stops.length - 2 && stops[k + 1]![0] < x) k++
-    const [x0, v0] = stops[k]!
-    const [x1, v1] = stops[k + 1]!
-    const t = Math.min(1, Math.max(0, (x - x0) / (x1 - x0)))
-    const v = Math.round(255 * (v0 + (v1 - v0) * t * t * (3 - 2 * t)))
-    data.set([v, v, v, 255], i * 4)
-  }
-  const texture = new THREE.DataTexture(data, n, 1)
+type Stops = [number, number][]
+
+const ease = (stops: Stops, x: number) => {
+  let k = 0
+  while (k < stops.length - 2 && stops[k + 1]![0] < x) k++
+  const [x0, v0] = stops[k]!
+  const [x1, v1] = stops[k + 1]!
+  const t = Math.min(1, Math.max(0, (x - x0) / (x1 - x0)))
+  return v0 + (v1 - v0) * t * t * (3 - 2 * t)
+}
+
+/** A softbox's falloff: `across` and `down` are [position, brightness] stops, 0 to 1, multiplied. */
+function falloff(
+  across: Stops,
+  down: Stops = [
+    [0, 1],
+    [1, 1],
+  ],
+): THREE.DataTexture {
+  const [w, h] = [256, down.length > 2 ? 64 : 1]
+  const data = new Uint8Array(w * h * 4)
+  for (let j = 0; j < h; j++)
+    for (let i = 0; i < w; i++) {
+      const v = Math.round(255 * ease(across, i / (w - 1)) * ease(down, h > 1 ? j / (h - 1) : 0))
+      data.set([v, v, v, 255], (j * w + i) * 4)
+    }
+  const texture = new THREE.DataTexture(data, w, h)
   texture.magFilter = texture.minFilter = THREE.LinearFilter
   texture.needsUpdate = true
   return texture
 }
+
+/** A warm edge line is near-white with the forge in it. */
+const EDGE_WARM = '#ffc890'
 
 /** Where the bevels of a flat facing the close look's camera (z) and the box's (y) reflect. */
 const EDGE_STRIPS: { position: [number, number, number]; warm: boolean }[] = [
@@ -114,12 +129,23 @@ export function SmithyEnvironment() {
         [0.95, 0.85],
         [1, 0.05],
       ]),
-      // Brighter toward the tip than the hilt, so a flat held up shows a lighter and a darker zone.
-      fill: falloff([
-        [0, 0.3],
-        [0.45, 1],
-        [1, 0.55],
-      ]),
+      // Brighter toward the tip than the hilt.
+      fill: falloff(
+        [
+          [0, 0.3],
+          [0.35, 0.4],
+          [0.55, 1],
+          [0.7, 0.6],
+          [1, 0.5],
+        ],
+        // Bright at the top, dim below, so a flat held up sweeps from a light zone to a dark one.
+        [
+          [0, 0.15],
+          [0.45, 0.4],
+          [0.75, 1],
+          [1, 0.9],
+        ],
+      ),
       edgeA: falloff([
         [0, 0.1],
         [0.3, 1],
@@ -191,7 +217,7 @@ export function SmithyEnvironment() {
         form="rect"
         color="#fbf7f2"
         intensity={ENV.front}
-        position={[2, 4, 9]}
+        position={[1.5, 2.6, 9]}
         scale={[5, 3, 1]}
         map={maps.front}
       />
@@ -200,7 +226,7 @@ export function SmithyEnvironment() {
         <Lightformer
           key={i}
           form="rect"
-          color={warm ? FORGE.colour : WINDOW.colour}
+          color={warm ? EDGE_WARM : WINDOW.colour}
           intensity={ENV.edge}
           position={position}
           scale={[16, 0.9, 1]}

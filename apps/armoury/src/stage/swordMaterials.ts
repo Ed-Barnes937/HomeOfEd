@@ -65,7 +65,7 @@ export const STEELS: Record<Steel, SteelRow> = {
     envIntensity: 1,
     bareEdge: true,
     iridescence: 0,
-    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12, hammer: 0.3, grind: 0.08 },
+    grain: { tile: [60, 25], depth: 0.015, scratch: 0.12, hammer: 0.5, grind: 0.08 },
   },
   silver: {
     colour: [0.95, 0.92, 0.84],
@@ -78,11 +78,11 @@ export const STEELS: Record<Steel, SteelRow> = {
     grain: { ...BRUSHED, grind: 0.06 },
   },
   blue: {
-    colour: [0.04, 0.075, 0.2],
+    colour: [0.03, 0.055, 0.15],
     metalness: 1,
     roughness: 0.14,
     anisotropy: 0.4,
-    envIntensity: 1.4,
+    envIntensity: 1.25,
     bareEdge: true,
     iridescence: 0.15,
     grain: { ...BRUSHED, grind: 0.05 },
@@ -404,7 +404,9 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
             vec2 at = c + 0.15 + 0.7 * vec2(sHash(c + 3.1), sHash(c + 9.7));
             best = min(best, length(p - at) / (0.8 + 0.4 * sHash(c + 5.3)));
           }
-        return pow(1.0 - smoothstep(0.0, 1.15, best), 2.0);
+        // The edge bevel and the fullers are ground after forging, so they keep no dishes.
+        float ground = (1.0 - clamp(vEdge, 0.0, 1.0)) * (1.0 - clamp(vFuller, 0.0, 1.0));
+        return pow(1.0 - smoothstep(0.0, 1.15, best), 2.0) * ground;
       }
       float steelHeightAt(vec2 mm, float along) {
         float brush = (texture2D(uSteelHeight, brushUv(mm)).r - uHeightMean) * uBrushDepth;
@@ -422,7 +424,7 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       float steelLum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)) / 0.59;
       diffuseColor.rgb = mix(diffuseColor.rgb, mix(uPatternDark, uPatternLight, pattern) * steelLum, uPatternMix);
       float dish = hammer(mm);
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.8, 0.77, 0.74), dish);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.9, 0.88, 0.86), dish);
       float fuller = clamp(vFuller, 0.0, 1.0);
       float edge = clamp(vEdge, 0.0, 1.0) * uBareEdge;
       // A thin dark lip where the groove's wall turns, so it reads as cut.
@@ -451,8 +453,9 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       float scan = texture2D(uSteelRough, brushUv(mm)).r / uRoughMean - 1.0;
       float scratches = smoothstep(0.75, 0.95, sNoise(vec2(mm.x * 3.0, mm.y * 0.06))) * max(uWear, 0.4);
       roughnessFactor = mix(roughnessFactor, mix(uPatternRough.y, uPatternRough.x, pattern), uPatternMix);
-      roughnessFactor += uScratch * scan + 0.06 * scratches + uFullerRough * fuller + 0.25 * cut;
-      roughnessFactor += 0.12 * dish;
+      // Polished steel ignores the brushed scan.
+      roughnessFactor += uScratch * scan * smoothstep(0.1, 0.3, roughnessFactor) + 0.06 * scratches + uFullerRough * fuller + 0.25 * cut;
+      roughnessFactor += 0.05 * dish;
       roughnessFactor += uGrind * (0.9 * streak + 0.5 * zone);
       // Every cutting bevel is honed smoother than the flat, so the edge reads as a crisp line.
       roughnessFactor = mix(roughnessFactor, 0.7 * roughnessFactor, clamp(vEdge, 0.0, 1.0));
