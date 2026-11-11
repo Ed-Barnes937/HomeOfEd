@@ -1,8 +1,8 @@
-import { Environment, Lightformer } from '@react-three/drei'
+import { Environment, EnvironmentCube, Lightformer } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
-import { useRef, type Ref } from 'react'
+import { useEffect, useMemo, useRef, type Ref } from 'react'
 import * as THREE from 'three'
 
 import { drawnFraction, LONGEST_SWORD_MM } from '../sword/framing.ts'
@@ -15,6 +15,8 @@ import { BLOOM_THRESHOLD, STAGE_FILL } from './stage.ts'
 export const FORGE = { position: [-4, 1.6, 0.6], colour: '#ff9a4a', intensity: 2.6 } as const
 export const WINDOW = { position: [2.5, 4, -3], colour: '#bcd4ff', intensity: 1.6 } as const
 export const SMITHY_RIM = 0.6
+/** Brightness of the studio map and each shape the steel reflects. */
+export const ENV = { studio: 0.35, forge: 4, window: 3, strip: 1.6, top: 1.4, front: 1.1, edge: 2.5 }
 const RIM = { position: [0.5, 1, -3], colour: '#cfd8ff' } as const
 
 export function SmithyLights({
@@ -54,31 +56,116 @@ export function SmithyLights({
   )
 }
 
-/** What steel reflects: the studio map with the forge, the window and a soft overhead laid over it. */
+/** A softbox's falloff: `stops` are [x, brightness] across its width, 0 to 1, constant down its height. */
+function falloff(stops: [number, number][]): THREE.DataTexture {
+  const n = 256
+  const data = new Uint8Array(n * 4)
+  for (let i = 0; i < n; i++) {
+    const x = i / (n - 1)
+    let k = 0
+    while (k < stops.length - 2 && stops[k + 1]![0] < x) k++
+    const [x0, v0] = stops[k]!
+    const [x1, v1] = stops[k + 1]!
+    const t = Math.min(1, Math.max(0, (x - x0) / (x1 - x0)))
+    const v = Math.round(255 * (v0 + (v1 - v0) * t * t * (3 - 2 * t)))
+    data.set([v, v, v, 255], i * 4)
+  }
+  const texture = new THREE.DataTexture(data, n, 1)
+  texture.magFilter = texture.minFilter = THREE.LinearFilter
+  texture.needsUpdate = true
+  return texture
+}
+
+/** Where the bevels of a flat facing the close look's camera (z) and the box's (y) reflect. */
+const EDGE_STRIPS: [number, number, number][] = [
+  [0, 4.4, 9],
+  [0, -4.4, 9],
+  [0, 8, -5.2],
+  [0, 8, 2.75],
+]
+
+/** What steel reflects: the studio map, dimmed, with the forge, the window and softboxes laid over it. */
 export function SmithyEnvironment() {
+  const maps = useMemo(
+    () => ({
+      top: falloff([
+        [0, 0.05],
+        [0.45, 0.25],
+        [0.75, 1],
+        [1, 0.35],
+      ]),
+      // Two softboxes with dark between, so a flat held up shows bands that move as it turns.
+      front: falloff([
+        [0, 0],
+        [0.18, 0.9],
+        [0.32, 0.12],
+        [0.55, 0.04],
+        [0.72, 0.65],
+        [0.86, 0.08],
+        [1, 0],
+      ]),
+    }),
+    [],
+  )
+  useEffect(() => () => Object.values(maps).forEach((m) => m.dispose()), [maps])
   return (
-    <Environment files="/hdri/studio.hdr" resolution={256} environmentIntensity={1}>
+    <Environment resolution={256} environmentIntensity={1}>
+      <EnvironmentCube background files="/hdri/studio.hdr" backgroundIntensity={ENV.studio} />
+      {/* The forge's glow, low on the left. */}
       <Lightformer
         form="rect"
         color={FORGE.colour}
-        intensity={4}
+        intensity={ENV.forge}
         position={[-6, 0.8, 1]}
         scale={[8, 1.2, 1]}
       />
+      {/* The window, high on the right and behind: the top edge's line. */}
       <Lightformer
         form="rect"
         color={WINDOW.colour}
-        intensity={3}
-        position={[4, 6, -4]}
-        scale={[3, 4, 1]}
+        intensity={ENV.window}
+        position={[3, 6, -6]}
+        scale={[5, 3, 1]}
       />
+      {/* A soft strip high in front: the bottom edge's line. */}
+      <Lightformer
+        form="rect"
+        color="#ffe6cc"
+        intensity={ENV.strip}
+        position={[-1, 5, 6]}
+        scale={[12, 0.8, 1]}
+      />
+      {/* Overhead, falling off along the blade, so the flat on the anvil shows a gradient. */}
       <Lightformer
         form="rect"
         color="#fff4e8"
-        intensity={0.8}
-        position={[1.5, 8, -1]}
-        scale={[10, 6, 1]}
+        intensity={ENV.top}
+        position={[0, 8, -0.6]}
+        rotation={[Math.PI / 2, 0, 0]}
+        scale={[16, 5, 1]}
+        map={maps.top}
       />
+      {/* Behind the close look's camera, so the flat held up to it is never a dead grey. */}
+      <Lightformer
+        form="rect"
+        color="#fff4e8"
+        intensity={ENV.front}
+        position={[0, 1.5, 9]}
+        rotation={[0, Math.PI, 0]}
+        scale={[12, 6, 1]}
+        map={maps.front}
+      />
+      {/* Thin bright strips where the edge bevels look, so each edge reads as a line of light. */}
+      {EDGE_STRIPS.map((position, i) => (
+        <Lightformer
+          key={i}
+          form="rect"
+          color="#fff8f0"
+          intensity={ENV.edge}
+          position={position}
+          scale={[16, 0.9, 1]}
+        />
+      ))}
     </Environment>
   )
 }
