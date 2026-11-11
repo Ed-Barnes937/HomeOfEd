@@ -6,6 +6,7 @@ import { engravingMask, runeMask } from './runes.ts'
 import { swordSchema } from './swordSchema.ts'
 
 const specOf = (raw: Record<string, unknown>) => compileSword(normalise(swordSchema, raw))
+const sameBytes = (a: Uint8Array, b: Uint8Array) => Buffer.from(a).equals(Buffer.from(b))
 
 const RUNED = [
   { family: 'knight', middle: 'groove1', runes: 'groove' },
@@ -26,9 +27,9 @@ describe('runeMask', () => {
   it('is the same bytes for the same seed, and differs for another', () => {
     const a = runeMask(specOf({ family: 'knight', middle: 'groove1', runes: 'groove' }))!
     const b = runeMask(specOf({ family: 'knight', middle: 'groove1', runes: 'groove' }))!
-    expect(a.data).toEqual(b.data)
+    expect(sameBytes(a.data, b.data)).toBe(true)
     const c = runeMask(specOf({ family: 'knight', middle: 'groove1', runes: 'groove', bladeLength: 0.8 }))!
-    expect(c.data).not.toEqual(a.data)
+    expect(sameBytes(c.data, a.data)).toBe(false)
   })
 
   it('cuts every glyph inside its band and leaves the gaps between them clear', () => {
@@ -72,7 +73,8 @@ describe('engravingMask', () => {
       const spec = specOf({ family: 'knight', engraving: tile })
       const a = engravingMask(spec)!
       expect(a, tile).not.toBeNull()
-      expect(engravingMask(specOf({ family: 'knight', engraving: tile }))!.data).toEqual(a.data)
+      const again = engravingMask(specOf({ family: 'knight', engraving: tile }))!
+      expect(sameBytes(again.data, a.data), tile).toBe(true)
       const cut = a.data.filter((v) => v > 128).length
       expect(cut / a.data.length, tile).toBeGreaterThan(0.03)
       for (let j = 0; j < a.height; j++) expect(a.data[j * a.width]).toBeLessThan(8)
