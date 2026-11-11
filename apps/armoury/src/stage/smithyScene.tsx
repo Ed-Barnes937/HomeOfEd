@@ -12,11 +12,11 @@ import { BLOOM_THRESHOLD, STAGE_FILL } from './stage.ts'
 // The smithy's light, in the box's frame (camera above, x to the tip, z towards the viewer):
 // the forge's warm key low on the left, the window's cool light high on the right and behind.
 
-export const FORGE = { position: [-4, 1.6, 0.6], colour: '#ff9a4a', intensity: 2.6 } as const
+export const FORGE = { position: [-4, 1.6, 0.6], colour: '#ff8a33', intensity: 2.6 } as const
 export const WINDOW = { position: [2.5, 4, -3], colour: '#bcd4ff', intensity: 1.6 } as const
 export const SMITHY_RIM = 0.6
 /** Brightness of the studio map and each shape the steel reflects. */
-export const ENV = { studio: 0.35, forge: 4, window: 3, strip: 1.6, top: 1.4, front: 1.1, edge: 2.5 }
+export const ENV = { cellar: 0.9, forge: 4, window: 3, strip: 1, top: 1.2, front: 1.1, edge: 1.3 }
 const RIM = { position: [0.5, 1, -3], colour: '#cfd8ff' } as const
 
 export function SmithyLights({
@@ -77,14 +77,16 @@ function falloff(stops: [number, number][]): THREE.DataTexture {
 }
 
 /** Where the bevels of a flat facing the close look's camera (z) and the box's (y) reflect. */
-const EDGE_STRIPS: [number, number, number][] = [
-  [0, 4.4, 9],
-  [0, -4.4, 9],
-  [0, 8, -5.2],
-  [0, 8, 2.75],
+const EDGE_STRIPS: { position: [number, number, number]; warm: boolean }[] = [
+  { position: [0, 4.4, 9], warm: false },
+  { position: [0, -4.4, 9], warm: true },
+  { position: [0, 8, -5.2], warm: false },
+  { position: [0, 8, 2.75], warm: true },
 ]
+/** Turns the cellar so its bright doorway is up and to the right, behind: the smithy's window. */
+const CELLAR_TURN: [number, number, number] = [0, -1.2, 0]
 
-/** What steel reflects: the studio map, dimmed, with the forge, the window and softboxes laid over it. */
+/** What steel reflects: a CC0 cellar (decision O7), with the forge, the window and softboxes laid over it. */
 export function SmithyEnvironment() {
   const maps = useMemo(
     () => ({
@@ -96,13 +98,23 @@ export function SmithyEnvironment() {
       ]),
       // Two softboxes with dark between, so a flat held up shows bands that move as it turns.
       front: falloff([
-        [0, 0],
-        [0.18, 0.9],
-        [0.32, 0.12],
-        [0.55, 0.04],
-        [0.72, 0.65],
-        [0.86, 0.08],
-        [1, 0],
+        [0, 0.05],
+        [0.3, 0.5],
+        [0.5, 1],
+        [0.75, 0.35],
+        [1, 0.05],
+      ]),
+      edgeA: falloff([
+        [0, 0.1],
+        [0.3, 1],
+        [0.6, 0.3],
+        [1, 0.6],
+      ]),
+      edgeB: falloff([
+        [0, 0.7],
+        [0.45, 0.15],
+        [0.8, 1],
+        [1, 0.2],
       ]),
     }),
     [],
@@ -110,7 +122,12 @@ export function SmithyEnvironment() {
   useEffect(() => () => Object.values(maps).forEach((m) => m.dispose()), [maps])
   return (
     <Environment resolution={256} environmentIntensity={1}>
-      <EnvironmentCube background files="/hdri/studio.hdr" backgroundIntensity={ENV.studio} />
+      <EnvironmentCube
+        background
+        files="/hdri/smithy.hdr"
+        backgroundIntensity={ENV.cellar}
+        backgroundRotation={CELLAR_TURN}
+      />
       {/* The forge's glow, low on the left. */}
       <Lightformer
         form="rect"
@@ -156,14 +173,15 @@ export function SmithyEnvironment() {
         map={maps.front}
       />
       {/* Thin bright strips where the edge bevels look, so each edge reads as a line of light. */}
-      {EDGE_STRIPS.map((position, i) => (
+      {EDGE_STRIPS.map(({ position, warm }, i) => (
         <Lightformer
           key={i}
           form="rect"
-          color="#fff8f0"
+          color={warm ? FORGE.colour : WINDOW.colour}
           intensity={ENV.edge}
           position={position}
           scale={[16, 0.9, 1]}
+          map={i % 2 ? maps.edgeB : maps.edgeA}
         />
       ))}
     </Environment>

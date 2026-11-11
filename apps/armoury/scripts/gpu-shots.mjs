@@ -3,7 +3,8 @@
 //   [--clay] [--views=desk,phone] [--box-only] [--close=1200,7000] [--focus=tip,hilt] [--focus-only] [--rolls=20,-40]
 // The set file is { "<name>": { "kind": "wand" | "sword", "params": { ... } } }.
 // --clay draws a sword in plain grey and --focus adds zooms on the tip or hilt (dev server only);
-// --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn.
+// --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
+// about its length, or with an s (s45) swings it, tip away.
 /* global console, document, URLSearchParams */
 import { Buffer } from 'node:buffer'
 import { mkdirSync, readFileSync } from 'node:fs'
@@ -31,7 +32,7 @@ const boxOnly = flags.has('--box-only')
 const viewTags = options.views ? new Set(options.views.split(',')) : null
 const focuses = options.focus ? options.focus.split(',') : []
 const focusOnly = flags.has('--focus-only')
-const rolls = options.rolls ? options.rolls.split(',').map(Number) : []
+const rolls = options.rolls ? options.rolls.split(',') : []
 // The close look rolls 0.007 radians per pixel dragged across the item.
 const PX_PER_DEGREE = Math.PI / 180 / 0.007
 const wanted = only ? new Set(only.split(',')) : null
@@ -114,17 +115,19 @@ try {
         for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120)
         await page.waitForTimeout(1500)
         await page.screenshot({ path: shot('zoom') })
-        for (const degrees of rolls) {
+        for (const turn of rolls) {
+          const swing = turn.startsWith('s')
+          const px = Number(swing ? turn.slice(1) : turn) * PX_PER_DEGREE
           const x = view.viewport.width / 2
           const y = view.viewport.height * 0.4
           await page.mouse.move(x, y)
           await page.mouse.down()
-          await page.mouse.move(x, y + degrees * PX_PER_DEGREE, { steps: 12 })
+          await page.mouse.move(swing ? x + px : x, swing ? y : y + px, { steps: 12 })
           // A pause before letting go, so it doesn't carry on spinning.
           await page.waitForTimeout(200)
           await page.mouse.up()
           await page.waitForTimeout(600)
-          await page.screenshot({ path: shot(`roll${degrees}`) })
+          await page.screenshot({ path: shot(swing ? `swing${turn.slice(1)}` : `roll${turn}`) })
         }
       }
       for (const focus of kind === 'sword' ? focuses : []) {

@@ -306,7 +306,11 @@ export function SwordMesh({ spec }: { spec: SwordSpec }) {
     const b = shown.blade
     const pattern = PATTERNS[shown.finish.pattern]
     blade.uBladeZ.value.set(b.from, b.to - b.from)
-    blade.uBareEdge.value = STEELS[shown.finish.steel].bareEdge ? 1 : 0
+    const steelRow = STEELS[shown.finish.steel]
+    blade.uBareEdge.value = steelRow.bareEdge ? 1 : 0
+    blade.uTile.value.set(...steelRow.grain.tile)
+    blade.uBrushDepth.value = steelRow.grain.depth
+    blade.uScratch.value = steelRow.grain.scratch
     blade.uPatternKind.value = pattern.kind
     blade.uPatternMix.value = pattern.mix
     blade.uPatternLight.value.setRGB(...pattern.light)

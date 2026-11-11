@@ -322,8 +322,7 @@ function pommelLayout(spec: SwordSpec, gems: GemSite[]): { shapes: Shape[]; seat
     case 'pear': {
       const { profile, top } = turned(
         [
-          [0, 0.34],
-          [0.06, 0.52],
+          [0, 0.44],
           [0.17, 0.87],
           [0.35, 1],
           [0.56, 0.86],
