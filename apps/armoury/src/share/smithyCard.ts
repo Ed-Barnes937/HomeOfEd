@@ -26,11 +26,18 @@ const preload = (svg: () => string) => {
   image.src = `data:image/svg+xml,${encodeURIComponent(svg())}`
   return image
 }
-// No grain in the picture: it doubles the PNG's size and its encoding time.
-const images = {
-  wall: preload(() => wallSvg(null)),
-  floor: preload(() => floorSvg(null)),
-  anvil: preload(anvilSvg),
+type CardArt = Record<'wall' | 'floor' | 'anvil', HTMLImageElement | null>
+let art: CardArt | null = null
+
+/** The picture's art, started loading when the smithy is first shown, so it is ready to paint. */
+export function smithyCardArt(): CardArt {
+  // No grain in the picture: it doubles the PNG's size and its encoding time.
+  art ??= {
+    wall: preload(() => wallSvg(null)),
+    floor: preload(() => floorSvg(null)),
+    anvil: preload(anvilSvg),
+  }
+  return art
 }
 const ready = (image: HTMLImageElement | null): image is HTMLImageElement =>
   !!image && image.complete && image.naturalWidth > 0
@@ -38,6 +45,7 @@ const ready = (image: HTMLImageElement | null): image is HTMLImageElement =>
 const artX = (x: number) => (x - ART_CENTRE) * ART_SCALE + CARD_WIDTH / 2
 
 function drawWall(ctx: CanvasRenderingContext2D) {
+  const images = smithyCardArt()
   ctx.fillStyle = '#140f0b'
   ctx.fillRect(0, 0, CARD_WIDTH, WALL_BOTTOM)
   const sourceHeight = WALL_BOTTOM / ART_SCALE
@@ -82,6 +90,7 @@ function drawWall(ctx: CanvasRenderingContext2D) {
 }
 
 function drawFloor(ctx: CanvasRenderingContext2D) {
+  const images = smithyCardArt()
   const height = CARD_HEIGHT - WALL_BOTTOM
   ctx.fillStyle = '#151110'
   ctx.fillRect(0, WALL_BOTTOM, CARD_WIDTH, height)
@@ -149,6 +158,7 @@ function shadowOf(
 }
 
 function drawAnvil(ctx: CanvasRenderingContext2D, c: CardContent) {
+  const images = smithyCardArt()
   const unit = BUTTON / ANVIL_W
   const left = CARD_WIDTH / 2 - BUTTON / 2
   const top = BUTTON_MIDDLE - (ANVIL_H / 2) * unit

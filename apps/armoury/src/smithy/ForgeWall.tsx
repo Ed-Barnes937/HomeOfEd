@@ -1,12 +1,18 @@
-import type { CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 
 import { seededRandom } from '../engine/schema.ts'
+import { smithyCardArt } from '../share/smithyCard.ts'
 import styles from './ForgeWall.module.scss'
 import { COALS, floorSvg, SLATE, svgUrl, wallSvg } from './forgeArt.ts'
 import { grain } from './grain.ts'
 
-const WALL_IMAGE = svgUrl(wallSvg(grain()))
-const FLOOR_IMAGE = svgUrl(floorSvg(grain()))
+let images: { wall: string; floor: string } | null = null
+
+/** The wall and floor art, built on the smithy's first visit rather than on every page's load. */
+export function forgeImages() {
+  images ??= { wall: svgUrl(wallSvg(grain())), floor: svgUrl(floorSvg(grain())) }
+  return images
+}
 
 const rand = seededRandom(5150)
 const EMBERS = Array.from({ length: 9 }, () => ({
@@ -20,9 +26,10 @@ const EMBERS = Array.from({ length: 9 }, () => ({
 
 /** The smithy's back wall with the forge's live coals and embers, front-on. */
 export function ForgeWall() {
+  useEffect(() => void smithyCardArt(), [])
   return (
     <div className={styles.wall} aria-hidden="true">
-      <div className={styles.art} style={{ backgroundImage: WALL_IMAGE }}>
+      <div className={styles.art} style={{ backgroundImage: forgeImages().wall }}>
         <span
           className={styles.chalk}
           style={{
@@ -64,7 +71,7 @@ export function ForgeWall() {
 export function ForgeFloor() {
   return (
     <div className={styles.floor} aria-hidden="true">
-      <div className={styles.floorArt} style={{ backgroundImage: FLOOR_IMAGE }} />
+      <div className={styles.floorArt} style={{ backgroundImage: forgeImages().floor }} />
       <div className={styles.floorShade} />
     </div>
   )

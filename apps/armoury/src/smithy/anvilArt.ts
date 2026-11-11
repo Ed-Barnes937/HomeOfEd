@@ -237,4 +237,8 @@ export function anvilSvg(): string {
   )
 }
 
-export const ANVIL_IMAGE = `url("data:image/svg+xml,${encodeURIComponent(anvilSvg())}")`
+let image: string | null = null
+
+/** The anvil as a CSS image, built on the smithy's first visit rather than on every page's load. */
+export const anvilImage = () =>
+  (image ??= `url("data:image/svg+xml,${encodeURIComponent(anvilSvg())}")`)

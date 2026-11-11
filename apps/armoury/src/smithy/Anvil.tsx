@@ -7,7 +7,7 @@ import { useDisplay } from '../shop/useDisplay.ts'
 import { useStages } from '../stage/stage.ts'
 import { compileSword } from '../sword/compile.ts'
 import styles from './Anvil.module.scss'
-import { ANVIL_IMAGE, swordOnAnvil } from './anvilArt.ts'
+import { anvilImage, swordOnAnvil } from './anvilArt.ts'
 import { ForgeFloor, ForgeWall } from './ForgeWall.tsx'
 import { SwordShadow } from './SwordShadow.tsx'
 
@@ -43,7 +43,7 @@ export function Anvil({ view, item, arrivals, reducedMotion, stageRef, onRename 
         >
           <span
             className={styles.anvilArt}
-            style={{ backgroundImage: ANVIL_IMAGE }}
+            style={{ backgroundImage: anvilImage() }}
             aria-hidden="true"
           />
           <SwordShadow blade={onAnvil.blade} hilt={onAnvil.hilt} className={styles.shadow} />
