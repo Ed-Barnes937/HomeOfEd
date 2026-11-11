@@ -1,6 +1,6 @@
 # 01 - The hub card shows more than the wand
 
-**Status:** needs-triage
+**Status:** done (built by `.scratch/armoury-swords/issues/13-hub-card.md`; see its comment below)
 **Type:** task
 **Blocked by:** armoury gaining a second kind of thing to make (swords, etc.)
 
