@@ -269,7 +269,7 @@ export function signatureFor(family: Family): Partial<Params> {
 // Axial lengths of the hilt parts. Estimates, tune at G1.
 /** Pommel length along the sword over its diameter. */
 export const POMMEL_LENGTH: Record<string, number> = {
-  wheel: 0.45,
+  wheel: 0.92,
   ball: 0.95,
   pear: 1.3,
   nut: 0.75,
