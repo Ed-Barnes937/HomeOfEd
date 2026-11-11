@@ -331,36 +331,90 @@ function accumulateNormals(part: MeshPart, skip: Uint8Array | null): void {
 
 /** Edges not shared by exactly two oppositely wound triangles, after welding vertices at identical positions. */
 export function openEdges(part: MeshPart): number {
-  const ids = new Map<string, number>()
-  const p = part.positions
-  const weld: number[] = []
-  for (let k = 0; k < p.length / 3; k++) {
-    const key = `${p[k * 3]},${p[k * 3 + 1]},${p[k * 3 + 2]}`
-    if (!ids.has(key)) ids.set(key, ids.size)
-    weld.push(ids.get(key)!)
-  }
-  // Directed edge a>b as one number; welded ids stay far below 2^26.
-  const edges = new Map<number, number>()
-  const SHIFT = 2 ** 26
-  let bad = 0
+  const [weld, count] = weldIds(part.positions)
   const { indices } = part
-  for (let t = 0; t < indices.length; t += 3) {
+  const sound = (t: number) => {
     const a = weld[indices[t]!]!
     const b = weld[indices[t + 1]!]!
     const c = weld[indices[t + 2]!]!
-    if (a === b || b === c || a === c) {
+    return a !== b && b !== c && a !== c
+  }
+  // Each welded vertex's outgoing edges, packed: `ends` from start[a] to start[a + 1].
+  const start = new Int32Array(count + 1)
+  let bad = 0
+  for (let t = 0; t < indices.length; t += 3) {
+    if (!sound(t)) {
       bad++
       continue
     }
-    for (const key of [a * SHIFT + b, b * SHIFT + c, c * SHIFT + a])
-      edges.set(key, (edges.get(key) ?? 0) + 1)
+    for (let i = 0; i < 3; i++) {
+      const a = weld[indices[t + i]!]! + 1
+      start[a] = start[a]! + 1
+    }
   }
-  for (const [key, n] of edges) {
-    const a = Math.floor(key / SHIFT)
-    const b = key - a * SHIFT
-    if (n !== 1 || edges.get(b * SHIFT + a) !== 1) bad++
+  for (let a = 0; a < count; a++) start[a + 1] = start[a + 1]! + start[a]!
+  const ends = new Int32Array(start[count]!)
+  const fill = start.slice(0, count)
+  for (let t = 0; t < indices.length; t += 3) {
+    if (!sound(t)) continue
+    for (let i = 0; i < 3; i++) {
+      const a = weld[indices[t + i]!]!
+      ends[fill[a]!++] = weld[indices[t + ((i + 1) % 3)]!]!
+    }
   }
+  const times = (a: number, b: number) => {
+    let n = 0
+    for (let i = start[a]!; i < start[a + 1]!; i++) if (ends[i] === b) n++
+    return n
+  }
+  for (let a = 0; a < count; a++)
+    for (let i = start[a]!; i < start[a + 1]!; i++) {
+      const b = ends[i]!
+      let seen = false
+      for (let j = start[a]!; j < i && !seen; j++) seen = ends[j] === b
+      if (!seen && (times(a, b) !== 1 || times(b, a) !== 1)) bad++
+    }
   return bad
+}
+
+/** A power of two at least twice n, for an open-addressed table. */
+const tableSize = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n * 2)))
+
+/** One id per distinct position, as String(x) would tell them apart: -0 is 0 and every NaN is one NaN. */
+function weldIds(p: Float32Array): [ids: Int32Array, count: number] {
+  const n = p.length / 3
+  const bits = new Uint32Array(p.length)
+  const raw = new Uint32Array(p.buffer, p.byteOffset, p.length)
+  for (let k = 0; k < p.length; k++) {
+    const b = raw[k]!
+    bits[k] = b === 0x80000000 ? 0 : Number.isNaN(p[k]) ? 0x7fc00000 : b
+  }
+  const size = tableSize(n)
+  const mask = size - 1
+  const table = new Int32Array(size).fill(-1)
+  const ids = new Int32Array(n)
+  let next = 0
+  for (let v = 0; v < n; v++) {
+    const x = bits[v * 3]!
+    const y = bits[v * 3 + 1]!
+    const z = bits[v * 3 + 2]!
+    const h = Math.imul(x, 0x9e3779b1) ^ Math.imul(y, 0x85ebca77) ^ Math.imul(z, 0xc2b2ae3d)
+    let s = (h ^ (h >>> 15)) & mask
+    for (;;) {
+      const w = table[s]!
+      if (w === -1) {
+        table[s] = v
+        ids[v] = next++
+        break
+      }
+      if (bits[w * 3] === x && bits[w * 3 + 1] === y && bits[w * 3 + 2] === z) {
+        ids[v] = ids[w]!
+        break
+      }
+      s = (s + 1) & mask
+    }
+  }
+  return [ids, next]
 }
 
 export function signedVolume(part: MeshPart): number {
@@ -387,15 +441,23 @@ export function inwardNormals(part: MeshPart): number {
     if (!Number.isFinite(len) || Math.abs(len - 1) > 1e-4) bad++
     if (!Number.isFinite(p[k]! + p[k + 1]! + p[k + 2]!)) bad++
   }
+  const away = (k: number, fx: number, fy: number, fz: number) =>
+    fx * n[k]! + fy * n[k + 1]! + fz * n[k + 2]! <= 0 ? 1 : 0
   for (let t = 0; t < indices.length; t += 3) {
-    const vs = [indices[t]! * 3, indices[t + 1]! * 3, indices[t + 2]! * 3] as const
-    const [a, b, c] = vs
-    const face = cross(
-      [p[b]! - p[a]!, p[b + 1]! - p[a + 1]!, p[b + 2]! - p[a + 2]!],
-      [p[c]! - p[a]!, p[c + 1]! - p[a + 1]!, p[c + 2]! - p[a + 2]!],
-    )
-    if (Math.hypot(...face) < 1e-9) continue
-    for (const k of vs) if (face[0] * n[k]! + face[1] * n[k + 1]! + face[2] * n[k + 2]! <= 0) bad++
+    const a = indices[t]! * 3
+    const b = indices[t + 1]! * 3
+    const c = indices[t + 2]! * 3
+    const ux = p[b]! - p[a]!
+    const uy = p[b + 1]! - p[a + 1]!
+    const uz = p[b + 2]! - p[a + 2]!
+    const vx = p[c]! - p[a]!
+    const vy = p[c + 1]! - p[a + 1]!
+    const vz = p[c + 2]! - p[a + 2]!
+    const fx = uy * vz - uz * vy
+    const fy = uz * vx - ux * vz
+    const fz = ux * vy - uy * vx
+    if (Math.hypot(fx, fy, fz) < 1e-9) continue
+    bad += away(a, fx, fy, fz) + away(b, fx, fy, fz) + away(c, fx, fy, fz)
   }
   return bad
 }
