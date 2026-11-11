@@ -1,6 +1,7 @@
 import type { Params } from '../engine/schema.ts'
 import { compileSword } from '../sword/compile.ts'
-import { outlineOf, pathOf, viewBoxFor, type Crop } from './outline.ts'
+import { swordOutline } from '../sword/outline.ts'
+import { pathOf, viewBoxFor, type Crop } from './outline.ts'
 
 /** The sword drawn flat from above as one SVG shape, cropped to the whole sword or a part. */
 export function SwordOutline({
@@ -16,7 +17,7 @@ export function SwordOutline({
   className?: string
 }) {
   const spec = compileSword(params)
-  const outline = outlineOf(spec)
+  const outline = swordOutline(spec)
   return (
     <svg
       className={className}
