@@ -117,6 +117,7 @@ export function sweep(stations: Station[], opts: SweepOptions): MeshPart {
       continue
     }
     ringStart.push(v)
+    const first = v
     let around = 0
     for (let i = 0; i < cols; i++) {
       const c = i % N
@@ -126,7 +127,14 @@ export function sweep(stations: Station[], opts: SweepOptions): MeshPart {
         const p = (i - 1) % N
         around += Math.hypot(u - s.section[p * 2]!, w - s.section[p * 2 + 1]!)
       }
-      setAttrs(put(s, u, w, opts.seam ? around : u, s.uvAlong), s, c)
+      put(s, u, w, opts.seam ? around : u, s.uvAlong)
+    }
+    for (const key of keys) {
+      const values = s.attrs?.[key]
+      if (values && values.length >= N) {
+        attrs[key]!.set(values.subarray(0, N), first)
+        if (opts.seam) attrs[key]![first + N] = values[0]!
+      } else for (let i = 0; i < cols; i++) setAttrs(first + i, s, i % N)
     }
   }
 
@@ -173,7 +181,15 @@ export function sweep(stations: Station[], opts: SweepOptions): MeshPart {
     indices: tris.slice(0, used),
     attrs,
   }
-  computeNormals(part)
+  // Exact ring normals need no estimate; only caps, apexes and rings without them do.
+  const exact = (j: number) => !isApex(j) && stations[j]!.normals !== undefined
+  if (stations.every((_, j) => exact(j) || isApex(j))) {
+    const skip = new Uint8Array(count)
+    stations.forEach((_, j) => {
+      if (exact(j)) skip.fill(1, ringStart[j], ringStart[j]! + cols)
+    })
+    accumulateNormals(part, skip)
+  } else computeNormals(part)
   stations.forEach((st, j) => {
     if (!st.normals || isApex(j)) return
     const [a0, a1, a2] = st.axisU
@@ -192,7 +208,29 @@ export function sweep(stations: Station[], opts: SweepOptions): MeshPart {
       part.normals[k + 2] = z / len
     }
   })
+  if (stations.some((st) => st.normals)) keepFacingOut(part)
   return part
+}
+
+/** Where geometry turns faster than its exact normals (the last rings before a point), fall back to the faces' own. */
+function keepFacingOut(part: MeshPart): void {
+  const { positions: p, normals: n, indices } = part
+  const away: number[] = []
+  for (let t = 0; t < indices.length; t += 3) {
+    const ia = indices[t]! * 3
+    const ib = indices[t + 1]! * 3
+    const ic = indices[t + 2]! * 3
+    const [fx, fy, fz] = cross(
+      [p[ib]! - p[ia]!, p[ib + 1]! - p[ia + 1]!, p[ib + 2]! - p[ia + 2]!],
+      [p[ic]! - p[ia]!, p[ic + 1]! - p[ia + 1]!, p[ic + 2]! - p[ia + 2]!],
+    )
+    for (const k of [ia, ib, ic])
+      if (fx * n[k]! + fy * n[k + 1]! + fz * n[k + 2]! <= 0) away.push(k / 3)
+  }
+  if (away.length === 0) return
+  const skip = new Uint8Array(p.length / 3).fill(1)
+  for (const v of away) skip[v] = 0
+  accumulateNormals(part, skip)
 }
 
 /** Concatenates parts; an attribute missing from a part is 0 there. */
@@ -221,8 +259,17 @@ export function merge(parts: MeshPart[]): MeshPart {
   return out
 }
 
-/** Angle-weighted vertex normals from the triangles; run after any bend. */
+/**
+ * Angle-weighted vertex normals from the triangles, for a part whose normals are not known
+ * exactly. A part built with exact `Station.normals` (the blade) is moved by rotating its
+ * normals with it, never by recomputing them.
+ */
 export function computeNormals(part: MeshPart): void {
+  accumulateNormals(part, null)
+}
+
+/** Angle-weighted normals for every vertex not marked in `skip`; marked vertices are left alone. */
+function accumulateNormals(part: MeshPart, skip: Uint8Array | null): void {
   const { positions: p, indices } = part
   const acc = new Float64Array(p.length)
   for (let t = 0; t < indices.length; t += 3) {
@@ -242,7 +289,7 @@ export function computeNormals(part: MeshPart): void {
     const fy = abz * acx - abx * acz
     const fz = abx * acy - aby * acx
     const len = Math.hypot(fx, fy, fz)
-    if (len === 0) continue
+    if (len === 0 || (skip && skip[ia / 3]! && skip[ib / 3]! && skip[ic / 3]!)) continue
     // Twice the area is the same cross product at every corner, so each angle is atan2(len, dot).
     const wa = Math.atan2(len, abx * acx + aby * acy + abz * acz) / len
     const wb = Math.atan2(len, -(abx * bcx + aby * bcy + abz * bcz)) / len
@@ -258,6 +305,7 @@ export function computeNormals(part: MeshPart): void {
     acc[ic + 2] = acc[ic + 2]! + fz * wc
   }
   for (let k = 0; k < acc.length; k += 3) {
+    if (skip?.[k / 3]) continue
     const len = Math.hypot(acc[k]!, acc[k + 1]!, acc[k + 2]!)
     if (len === 0) {
       part.normals[k] = 0

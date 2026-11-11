@@ -18,7 +18,9 @@ interface Bend {
   x: Float64Array
   z: Float64Array
 }
+/** The last few fits, so dragging a slider never grows this without bound. */
 const bends = new Map<string, Bend>()
+const KEPT_BENDS = 8
 
 /** Lays the bent centre line out by arc length (Simpson's rule per step), for a given angle law. */
 function layOut(k: number, p: number, B: number, samples: number): Bend {
@@ -77,6 +79,7 @@ function bendFor(B: number, depth: number, peak: number): Bend {
   }
   const bend = layOut(fitK(hi), hi, B, CURVE_SAMPLES)
   bends.set(key, bend)
+  if (bends.size > KEPT_BENDS) bends.delete(bends.keys().next().value!)
   return bend
 }
 

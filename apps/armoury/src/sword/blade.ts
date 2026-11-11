@@ -1,6 +1,9 @@
 import type { SwordSpec } from './compile.ts'
+import { centreLineAt } from './bend.ts'
 import { sample } from './curve.ts'
 import { type MeshPart, type Station, sweep } from './sweep.ts'
+
+export { centreLineAt }
 
 // The blade: a thickness field over the outline, sampled on columns that sit on
 // its feature lines, swept from below the shoulder to an apex at the tip.
@@ -16,16 +19,30 @@ const MAX_BEVEL_SLOPE = 0.84
 /** Near the point, half-thickness never exceeds the edge flat plus this much per mm of width. */
 const POINT_SLOPE = 0.3
 const MAX_FULLER_DEPTH = 0.35
-/** Unsharpened edge (ricasso) half-thickness, as a fraction of the crest's. */
-const BLUNT_EDGE = 0.35
+/** The bevel never takes more than this share of its side. */
+const BEVEL_ROOM = 0.4
+/** The bevel starts no higher than this share of the way from the edge flat to the crest. */
+const BEVEL_START_MAX = 0.7
+/** A crowned face rises at most this share of its drop, so the crest stays its highest point. */
+const CROWN_LIMIT = 0.2
 const RICASSO_RUN = 10
-/** Single-edged: the crest as a fraction of the width from the edge, and the spine's thickness. */
-const SABRE_CREST = 0.85
-const SPINE: Record<string, number> = { katana: 0.8 }
-const SABRE_SPINE = 0.92
+/** Single-edged: the crest as a fraction of the width from the edge, and the spine's thickness over the crest's. */
+const CREST_FROM_EDGE = { sabre: 0.85, falseEdge: 0.65 }
+const SPINE = { sabre: 0.92, katana: 0.8 }
+/** The Sabre's false edge: a cut at the back corner that widens to the edge bevel's width at this slope. */
+const FALSE_EDGE_SLOPE = 0.45
+/** It grows in over this much of the blade (u) before the point or the flare, from this share of its width. */
+const FALSE_EDGE_START = 0.4
+/** How softly the false edge meets the edge flat, mm. */
+const SOFT_FLOOR = 0.1
+const FALSE_EDGE_LEAD = 0.25
+/** The Katana's point section is thinned toward the tip by this share, which draws the yokote line. */
+const KISSAKI_THIN = 0.4
 /** Columns on one face, before the six on the two end faces. */
 const FACE_COLUMNS = 31
 const FINE = 0.5
+/** Anchors closer than this at the reference station are one column. */
+const MERGE_GAP = 0.05
 /** Steps for the thickness field's slopes, mm. */
 const SLOPE_STEP = 0.004
 const NORMAL_STEP = 0.02
@@ -74,61 +91,81 @@ export interface BladeSection {
   half(x: number): number
 }
 
+type FaceShape = 'arc' | 'crowned' | 'convex'
+
+/** One side of the section, from the crest (d = 0) to its end face (d = length). */
 interface Profile {
   T: number
   length: number
-  bevel: number
-  sharpEnd: number
-  bluntEnd: number
-  sharp: number
-  arc: boolean
+  /** The face runs from T over this many mm to `faceTo`. */
+  faceLength: number
+  faceTo: number
+  shape: FaceShape
   crown: number
-  /** Bevel start height, solved so the bevel is steeper than the face. */
-  hb: number
+  /** The zone at the end: a straight cut down to `end`, or (uncreased) the face carrying on. */
+  bevel: number
+  end: number
+  creased: boolean
 }
 
-/** A face falling from T at t = 0 to `to` at t = 1, crowned or an arc. */
-function face(p: Profile, to: number, t: number): number {
-  const drop = p.T - to
-  const rise = p.arc ? drop / 4 : Math.min(p.crown, 0.2 * drop)
-  return p.T - drop * t + rise * 4 * t * (1 - t)
-}
-
-function profile(
-  T: number,
-  length: number,
-  bevelWanted: number,
-  sharpEnd: number,
-  bluntEnd: number,
-  sharp: number,
-  arc: boolean,
-  crown: number,
-): Profile {
-  // A soft minimum, so the bevel narrows into the point without a kink in its line.
-  const room = 0.4 * Math.max(length, 0)
-  const bevel = (bevelWanted * room) / Math.pow(bevelWanted ** 4 + room ** 4, 0.25) || 0
-  const run = length - bevel
-  const p: Profile = { T, length, bevel, sharpEnd, bluntEnd, sharp, arc, crown, hb: sharpEnd }
-  for (let i = 0; i < 4; i++) {
-    const drop = T - p.hb
-    const rise = arc ? drop / 4 : Math.min(crown, 0.2 * drop)
-    const faceSlope = run > 0 ? (drop + 4 * rise) / run : 0
-    p.hb = sharpEnd + bevel * Math.min(BEVEL_STEEPER * faceSlope, MAX_BEVEL_SLOPE)
-    p.hb = Math.min(p.hb, sharpEnd + 0.7 * (T - sharpEnd))
-  }
-  return p
+function faceAt(p: Profile, d: number): number {
+  const t = p.faceLength > 0 ? d / p.faceLength : 1
+  const drop = p.T - p.faceTo
+  if (p.shape === 'arc') return p.T - drop * t * t
+  if (p.shape === 'convex') return p.T - drop * (0.5 * t + 0.5 * t * t * t)
+  return p.T - drop * t + Math.min(p.crown, CROWN_LIMIT * drop) * 4 * t * (1 - t)
 }
 
 /** Half-thickness at distance d from the crest toward this side's end. */
 function heightOn(p: Profile, d: number): number {
   const x = clamp(d, 0, p.length)
-  const blunt = p.length > 0 ? face(p, p.bluntEnd, x / p.length) : p.T
-  const run = p.length - p.bevel
-  const sharp =
-    x <= run
-      ? face(p, p.hb, run > 0 ? x / run : 1)
-      : lerp(p.hb, p.sharpEnd, p.bevel > 0 ? (x - run) / p.bevel : 1)
-  return lerp(blunt, sharp, p.sharp)
+  const start = p.length - p.bevel
+  if (!p.creased || x <= start) return faceAt(p, x)
+  return lerp(faceAt(p, start), p.end, p.bevel > 0 ? (x - start) / p.bevel : 1)
+}
+
+const softMin = (a: number, b: number) => (a * b) / Math.pow(a ** 4 + b ** 4, 0.25) || 0
+/** A bevel narrows smoothly into the point, never a kink in its line. */
+const narrowed = (wanted: number, length: number) =>
+  softMin(wanted, BEVEL_ROOM * Math.max(length, 0))
+
+/**
+ * A cutting side: a face down to the bevel start, solved so the bevel is clearly steeper, then
+ * the bevel to the edge flat. Unsharpened (a ricasso), the face just carries on to a square edge.
+ */
+function edgeProfile(
+  T: number,
+  length: number,
+  wanted: number,
+  flat: number,
+  sharp: number,
+  shape: FaceShape,
+  crown: number,
+): Profile {
+  const bevel = narrowed(wanted, length)
+  const run = length - bevel
+  const p: Profile = {
+    T,
+    length,
+    faceLength: run,
+    faceTo: flat,
+    shape,
+    crown,
+    bevel,
+    end: flat,
+    creased: true,
+  }
+  const slopeAtEnd = () => {
+    const drop = T - p.faceTo
+    const rise = shape === 'arc' ? drop / 4 : Math.min(crown, CROWN_LIMIT * drop)
+    return run > 0 ? (drop + 4 * rise) / run : 0
+  }
+  for (let i = 0; i < 4; i++) {
+    const rise = bevel * softMin(BEVEL_STEEPER * slopeAtEnd(), MAX_BEVEL_SLOPE)
+    p.faceTo = flat + softMin(rise, BEVEL_START_MAX * (T - flat))
+  }
+  p.end = lerp(p.faceTo - slopeAtEnd() * bevel, flat, sharp)
+  return p
 }
 
 const bladeLength = (spec: SwordSpec) => spec.blade.to - spec.blade.from
@@ -149,110 +186,6 @@ function waveShift(spec: SwordSpec, z: number, width: number): number {
   return w.amp * width * env * Math.sin((2 * Math.PI * (z - w.from)) / w.lengthMm)
 }
 
-const CURVE_SAMPLES = 1024
-const FIT_SAMPLES = 96
-interface Bend {
-  /** Tangent angle toward the spine at u is k * u^(p + 1). */
-  k: number
-  p: number
-  x: Float64Array
-  z: Float64Array
-}
-const bends = new Map<string, Bend>()
-
-/** Lays the bent centre line out by arc length (Simpson's rule per step), for a given angle law. */
-function layOut(k: number, p: number, B: number, samples: number): Bend {
-  const x = new Float64Array(samples + 1)
-  const z = new Float64Array(samples + 1)
-  const ds = B / samples
-  const angle = (u: number) => k * Math.pow(u, p + 1)
-  for (let i = 1; i <= samples; i++) {
-    const a = angle((i - 1) / samples)
-    const m = angle((i - 0.5) / samples)
-    const b = angle(i / samples)
-    x[i] = x[i - 1]! - (ds * (Math.sin(a) + 4 * Math.sin(m) + Math.sin(b))) / 6
-    z[i] = z[i - 1]! + (ds * (Math.cos(a) + 4 * Math.cos(m) + Math.cos(b))) / 6
-  }
-  return { k, p, x, z }
-}
-
-/** The deepest distance off the shoulder-to-tip chord, and the u where it falls (refined between samples). */
-function sagitta(bend: Bend): [depth: number, at: number] {
-  const n = bend.x.length - 1
-  const cx = bend.x[n]!
-  const cz = bend.z[n]!
-  const len = Math.hypot(cx, cz)
-  const off = (i: number) => Math.abs(bend.x[i]! * cz - bend.z[i]! * cx) / len
-  let best = 0
-  for (let i = 1; i <= n; i++) if (off(i) > off(best)) best = i
-  if (best === 0 || best === n) return [off(best), best / n]
-  const [a, b, c] = [off(best - 1), off(best), off(best + 1)]
-  const shift = (a - c) / (2 * (a - 2 * b + c))
-  return [b - ((a - c) * shift) / 4, (best + shift) / n]
-}
-
-/** The angle law whose sagitta is `depth` at `peak`: curvature grows as u^p, so a later peak bends harder near the tip. */
-function bendFor(B: number, depth: number, peak: number): Bend {
-  const key = `${B}|${depth}|${peak}`
-  const cached = bends.get(key)
-  if (cached) return cached
-  const fitK = (p: number) => {
-    let lo = 0
-    let hi = 2.5
-    for (let i = 0; i < 24; i++) {
-      const mid = (lo + hi) / 2
-      if (sagitta(layOut(mid, p, B, FIT_SAMPLES))[0] < depth) lo = mid
-      else hi = mid
-    }
-    return (lo + hi) / 2
-  }
-  const peakOf = (p: number) => sagitta(layOut(fitK(p), p, B, FIT_SAMPLES))[1]
-  let lo = 0
-  let hi = 12
-  if (peakOf(0) >= peak) hi = 0
-  for (let i = 0; i < 16 && hi > 0; i++) {
-    const mid = (lo + hi) / 2
-    if (peakOf(mid) < peak) lo = mid
-    else hi = mid
-  }
-  const bend = layOut(fitK(hi), hi, B, CURVE_SAMPLES)
-  bends.set(key, bend)
-  return bend
-}
-
-export interface CentreLine {
-  /** Bent position in the blade plane, mm. */
-  x: number
-  z: number
-  /** Tangent angle toward the spine, radians. */
-  angle: number
-  /** Per mm along the blade. */
-  curvature: number
-}
-
-/**
- * The blade's centre line at straight z: bent toward the spine with zero offset and slope at
- * the shoulder, keeping its length along the curve, so the sagitta off the shoulder-to-tip
- * chord is `curve.depthMm` at u = `curve.peak`.
- */
-export function centreLineAt(spec: SwordSpec, z: number): CentreLine {
-  const c = spec.blade.curve
-  const { from } = spec.blade
-  if (!c || c.depthMm <= 0 || z <= from) return { x: 0, z, angle: 0, curvature: 0 }
-  const B = bladeLength(spec)
-  const bend = bendFor(B, c.depthMm, c.peak)
-  const u = uOf(spec, z)
-  const f = u * CURVE_SAMPLES
-  const i = Math.min(CURVE_SAMPLES - 1, Math.floor(f))
-  const t = f - i
-  return {
-    x: lerp(bend.x[i]!, bend.x[i + 1]!, t),
-    z: from + lerp(bend.z[i]!, bend.z[i + 1]!, t),
-    angle: bend.k * Math.pow(u, bend.p + 1),
-    curvature: (bend.k * (bend.p + 1) * Math.pow(u, bend.p)) / B,
-  }
-}
-
 /** The blade's cross-section at z: its two ends, crest, fullers and thickness field. */
 export function bladeSectionAt(spec: SwordSpec, z: number): BladeSection {
   const b = spec.blade
@@ -264,43 +197,67 @@ export function bladeSectionAt(spec: SwordSpec, z: number): BladeSection {
   const backW = Math.max(0, back0 - shift)
   const width = edgeW + backW
   const single = b.edges === 'single'
+  const katana = spec.family === 'katana'
   const flat = b.edgeFlat / 2
-  const T = Math.min(sample(b.thickness, u) / 2, flat + POINT_SLOPE * width)
+  const kissaki =
+    katana && u > b.tipFrom ? 1 - (KISSAKI_THIN * (u - b.tipFrom)) / (1 - b.tipFrom) : 1
+  // A soft minimum: a hard one would crease the faces across where the point starts to thin them.
+  const T = softMin((kissaki * sample(b.thickness, u)) / 2, flat + POINT_SLOPE * width)
 
-  const crest = !single ? 0 : edgeW - (b.ridgeAt ?? SABRE_CREST) * width
-  const edgeSharp =
-    b.ricasso > 0 ? smoothstep(b.from + b.ricasso, b.from + b.ricasso + RICASSO_RUN, z) : 1
-  let backSharp = edgeSharp
-  let spine = BLUNT_EDGE * T
+  let backSharp = 0
   if (single) {
-    const katana = b.ridgeAt !== null
-    spine = (SPINE[spec.family] ?? SABRE_SPINE) * T
     const flared =
-      b.backBevelFrom === null ? 0 : smoothstep(b.backBevelFrom, b.backBevelFrom + 0.06, u)
-    const point = katana ? 0 : smoothstep(b.tipFrom, b.tipFrom + 0.4 * (1 - b.tipFrom), u)
+      b.backBevelFrom === null
+        ? 0
+        : smoothstep(b.backBevelFrom - FALSE_EDGE_LEAD, b.backBevelFrom, u)
+    const point = katana ? 0 : smoothstep(b.tipFrom - FALSE_EDGE_LEAD, b.tipFrom, u)
     backSharp = Math.max(flared, point)
   }
-  const arc = b.section === 'lenticular'
-  const edgeP = profile(
-    T,
-    edgeW - crest,
-    b.edgeBevel,
-    flat,
-    BLUNT_EDGE * T,
-    edgeSharp,
-    arc,
-    b.crown,
-  )
-  const backP = profile(
-    T,
-    crest + backW,
-    single ? 0.8 * b.edgeBevel : b.edgeBevel,
-    flat,
-    spine,
-    backSharp,
-    arc,
-    b.crown,
-  )
+  // A false edge needs room on the back, so the Sabre's crest walks toward the middle as it grows.
+  const crestAt = b.ridgeAt ?? lerp(CREST_FROM_EDGE.sabre, CREST_FROM_EDGE.falseEdge, backSharp)
+  const crest = !single ? 0 : edgeW - crestAt * width
+  const edgeSharp =
+    b.ricasso > 0 ? smoothstep(b.from + b.ricasso, b.from + b.ricasso + RICASSO_RUN, z) : 1
+  const shape: FaceShape = b.section === 'lenticular' ? 'arc' : 'crowned'
+  const edgeP = katana
+    ? {
+        T,
+        length: edgeW - crest,
+        faceLength: edgeW - crest,
+        faceTo: flat,
+        shape: 'convex' as const,
+        crown: b.crown,
+        bevel: narrowed(b.edgeBevel, edgeW - crest),
+        end: flat,
+        creased: false,
+      }
+    : edgeProfile(T, edgeW - crest, b.edgeBevel, flat, edgeSharp, shape, b.crown)
+  let backP: Profile
+  if (!single) {
+    backSharp = edgeSharp
+    backP = edgeProfile(T, crest + backW, b.edgeBevel, flat, edgeSharp, shape, b.crown)
+  } else {
+    const length = crest + backW
+    backP = {
+      T,
+      length,
+      faceLength: length,
+      faceTo: (katana ? SPINE.katana : SPINE.sabre) * T,
+      shape: 'crowned',
+      crown: b.crown,
+      bevel: katana ? 0 : narrowed(lerp(FALSE_EDGE_START, 1, backSharp) * b.edgeBevel, length),
+      end: 0,
+      creased: true,
+    }
+    // The cut keeps its column and deepens from the face's own slope, so its crease never moves across a column.
+    const start = length - backP.bevel
+    const faceSlope = (faceAt(backP, start - SLOPE_STEP) - faceAt(backP, start)) / SLOPE_STEP
+    const above =
+      faceAt(backP, start) - backP.bevel * (faceSlope + backSharp * FALSE_EDGE_SLOPE) - flat
+    // Never thicker than the face it cuts, even where the point has thinned everything to the flat.
+    backP.end =
+      flat + Math.min((above + Math.hypot(above, SOFT_FLOOR)) / 2, faceAt(backP, start) - flat)
+  }
   const base = (x: number) => (x >= crest ? heightOn(edgeP, x - crest) : heightOn(backP, crest - x))
 
   const fullers = b.fullers.map((f) => {
@@ -332,18 +289,8 @@ export function bladeSectionAt(spec: SwordSpec, z: number): BladeSection {
 
   return {
     z,
-    edge: {
-      width: edgeW,
-      bevel: edgeP.bevel,
-      end: lerp(edgeP.bluntEnd, flat, edgeSharp),
-      sharp: edgeSharp,
-    },
-    back: {
-      width: backW,
-      bevel: backP.bevel,
-      end: lerp(backP.bluntEnd, flat, backSharp),
-      sharp: backSharp,
-    },
+    edge: { width: edgeW, bevel: edgeP.bevel, end: edgeP.end, sharp: edgeSharp },
+    back: { width: backW, bevel: backP.bevel, end: backP.end, sharp: backSharp },
     crest,
     T,
     fullers,
@@ -394,7 +341,13 @@ function ringPositions(spec: SwordSpec): number[] {
     zs.push(z)
   }
   zs.push(b.to)
-  return zs
+  if (spec.family !== 'katana') return zs
+  // The yokote is a crease across the blade: a ring on it and one close either side.
+  const yokote = b.from + b.tipFrom * B
+  const near = [yokote - SUPPORT, yokote, yokote + SUPPORT]
+  return [...zs.filter((z) => near.every((n) => Math.abs(z - n) > SUPPORT / 2)), ...near].sort(
+    (a, c) => a - c,
+  )
 }
 
 type Anchor = (s: BladeSection) => number
@@ -403,13 +356,17 @@ type Anchor = (s: BladeSection) => number
 function anchorsFor(spec: SwordSpec): Anchor[] {
   const b = spec.blade
   const single = b.edges === 'single'
-  const sup = (side: BladeSide, length: number) =>
-    Math.min(SUPPORT, 0.3 * side.bevel, 0.15 * length)
+  const katana = spec.family === 'katana'
+  const edgeLength = (s: BladeSection) => s.edge.width - s.crest
+  const backLength = (s: BladeSection) => s.back.width + s.crest
+  /** Support spacing on a side, from its full bevel so it never collapses while a bevel grows. */
+  const sup = (length: number) =>
+    Math.min(SUPPORT, 0.3 * narrowed(b.edgeBevel, length), 0.15 * length)
   const anchors: Anchor[] = [
     (s) => s.edge.width,
-    (s) => s.edge.width - sup(s.edge, s.edge.width - s.crest),
+    (s) => s.edge.width - sup(edgeLength(s)),
     (s) => -s.back.width,
-    (s) => -s.back.width + sup(s.back, s.back.width + s.crest),
+    (s) => -s.back.width + sup(backLength(s)),
     (s) => s.crest,
   ]
   const crease = (at: Anchor, support: (s: BladeSection) => number) =>
@@ -418,14 +375,21 @@ function anchorsFor(spec: SwordSpec): Anchor[] {
       (s) => at(s) - support(s),
       (s) => at(s) + support(s),
     )
-  crease(
-    (s) => s.edge.width - s.edge.bevel,
-    (s) => sup(s.edge, s.edge.width - s.crest),
-  )
-  if (!single || spec.family !== 'katana')
+  if (katana) anchors.push((s) => s.edge.width - s.edge.bevel)
+  else
+    crease(
+      (s) => s.edge.width - s.edge.bevel,
+      (s) => sup(edgeLength(s)),
+    )
+  if (!single)
     crease(
       (s) => -s.back.width + s.back.bevel,
-      (s) => sup(s.back, s.back.width + s.crest),
+      (s) => sup(backLength(s)),
+    )
+  else if (!katana)
+    crease(
+      (s) => -s.back.width + s.back.bevel,
+      (s) => sup(backLength(s)),
     )
   if (single || b.section === 'diamond') {
     const support = (s: BladeSection) =>
@@ -468,7 +432,7 @@ function templateFor(spec: SwordSpec): Template {
   const ref = bladeSectionAt(spec, z)
   const raw = anchorsFor(spec).map((fn) => ({ fn, x: fn(ref) }))
   raw.sort((a, c) => a.x - c.x)
-  const unique = raw.filter((a, i) => i === 0 || a.x - raw[i - 1]!.x > 1e-6)
+  const unique = raw.filter((a, i) => i === 0 || a.x - raw[i - 1]!.x > MERGE_GAP)
   const gaps = unique.slice(1).map((a, i) => a.x - unique[i]!.x)
   const budget = Math.max(0, FACE_COLUMNS - unique.length)
   const room = gaps.reduce((s, g) => s + (g > 1 ? g : 0), 0)
