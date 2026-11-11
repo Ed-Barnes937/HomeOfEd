@@ -20,3 +20,13 @@ export const streetTest = createIwftTest({
   harness: <IwftApp />,
   createRoot: (page) => new StreetPom(page),
 })
+
+export const failedStageTest = createIwftTest({
+  harness: <IwftApp start="wand" stagesFail />,
+  createRoot: (page) => new ShopPom(page),
+})
+
+export const failedSmithyStageTest = createIwftTest({
+  harness: <IwftApp start="sword" stagesFail />,
+  createRoot: (page) => new SmithyPom(page),
+})

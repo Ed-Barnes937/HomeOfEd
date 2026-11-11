@@ -15,7 +15,7 @@ import { App } from '../App.tsx'
 import type { ItemKind } from '../items/item.ts'
 import { writeLastShop } from '../persistence/lastShop.ts'
 import { appRouter } from '../server/router.ts'
-import { fakeStages } from './FakeStage.tsx'
+import { failingStages, fakeStages } from './FakeStage.tsx'
 
 exposeDispatcher(
   createDispatcher({
@@ -29,10 +29,13 @@ exposeDispatcher(
   }),
 )
 
-/** With `start`, the app opens as a visitor who was last in that kind's shop. */
-export function IwftApp({ start }: { start?: ItemKind }) {
+/**
+ * With `start`, the app opens as a visitor who was last in that kind's shop; with
+ * `stagesFail`, every box stage fails to load.
+ */
+export function IwftApp({ start, stagesFail }: { start?: ItemKind; stagesFail?: boolean }) {
   useState(() => {
     if (start) writeLastShop(window.localStorage, start)
   })
-  return <App stages={fakeStages} />
+  return <App stages={stagesFail ? failingStages : fakeStages} />
 }

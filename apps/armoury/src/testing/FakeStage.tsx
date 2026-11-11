@@ -93,3 +93,13 @@ export const fakeStages: StagesByKind = {
   wand: { Box: FakeStage, CloseUp: FakeCloseUpStage },
   sword: { Box: FakeSwordStage, CloseUp: FakeSwordCloseUpStage },
 }
+
+/** A box stage whose download failed: a lazy chunk, texture or map throws where it renders. */
+function FailedStage(): never {
+  throw new Error('the stage failed to load')
+}
+
+export const failingStages: StagesByKind = {
+  wand: { Box: FailedStage, CloseUp: FakeCloseUpStage },
+  sword: { Box: FailedStage, CloseUp: FakeSwordCloseUpStage },
+}

@@ -1,7 +1,8 @@
-import { Suspense, useMemo, type CSSProperties } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 
 import { CloseUp } from '../shop/CloseUp.tsx'
 import type { SceneProps } from '../shop/shopView.ts'
+import { StageBoundary } from '../shop/StageBoundary.tsx'
 import { Tag } from '../shop/Tag.tsx'
 import { useDisplay } from '../shop/useDisplay.ts'
 import { useStages } from '../stage/stage.ts'
@@ -49,9 +50,9 @@ export function Anvil({ view, item, arrivals, reducedMotion, stageRef, onRename 
           <SwordShadow blade={onAnvil.blade} hilt={onAnvil.hilt} className={styles.shadow} />
           <span ref={display.stageSlot} className={styles.stageSlot}>
             {Stage && (
-              <Suspense fallback={null}>
+              <StageBoundary>
                 <Stage ref={stageRef} params={params} reducedMotion={reducedMotion} />
-              </Suspense>
+              </StageBoundary>
             )}
           </span>
         </button>

@@ -61,6 +61,10 @@ export abstract class BenchPom extends BasePage {
     for (const name of hidden) await expect(control(name)).toHaveCount(0)
   }
 
+  async verifyNoStage(): Promise<void> {
+    await expect(this.page.getByTestId('stage')).toHaveCount(0)
+  }
+
   async tryAnother(): Promise<void> {
     await this.page.getByRole('button', { name: 'Try another' }).click()
   }

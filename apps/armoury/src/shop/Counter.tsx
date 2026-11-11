@@ -1,10 +1,11 @@
-import { Suspense, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 
 import { STAGE_FILL, useStages } from '../stage/stage.ts'
 import { CloseUp } from './CloseUp.tsx'
 import styles from './Counter.module.scss'
 import { ShelfWall } from './ShelfWall.tsx'
 import type { SceneProps } from './shopView.ts'
+import { StageBoundary } from './StageBoundary.tsx'
 import { Tag } from './Tag.tsx'
 import { useDisplay } from './useDisplay.ts'
 
@@ -64,9 +65,9 @@ export function Counter({ view, item, arrivals, reducedMotion, stageRef, onRenam
           />
           <span ref={display.stageSlot} className={styles.stageSlot}>
             {Stage && (
-              <Suspense fallback={null}>
+              <StageBoundary>
                 <Stage ref={stageRef} params={params} reducedMotion={reducedMotion} />
-              </Suspense>
+              </StageBoundary>
             )}
           </span>
         </button>
