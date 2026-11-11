@@ -392,6 +392,13 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
         return texture2D(map, st).r;
       }
       float runeAt(vec2 mm, float along) { return maskAt(uRuneMap, uRuneRect, uRuneOn, mm, along); }
+      // The runes' light spread a few millimetres round each glyph: a coarse mip of their mask.
+      float runeSpillAt(vec2 mm, float along) {
+        if (uRuneOn < 0.5) return 0.0;
+        vec2 st = vec2((zOf(along) - uRuneRect.x) / (uRuneRect.y - uRuneRect.x), (mm.x - uRuneRect.z) / (uRuneRect.w - uRuneRect.z));
+        if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) return 0.0;
+        return texture2D(uRuneMap, st, 4.0).r;
+      }
       float engraveAt(vec2 mm, float along) { return maskAt(uEngraveMap, uEngraveRect, uEngraveOn, mm, along); }
       float cutAt(vec2 mm, float along) { return max(runeAt(mm, along), engraveAt(mm, along)); }
       // Ripples: broad flowing bands, mostly along the blade, in mm; finer than a pixel they fade to grey.
@@ -519,9 +526,10 @@ function patchBlade(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
       {
         // A paler, hotter core inside the channel, the rune's own colour at its edges.
         vec3 hot = mix(uRuneColour, vec3(max(uRuneColour.r, max(uRuneColour.g, uRuneColour.b))), 0.45 * smoothstep(0.6, 1.0, runeHere));
-        totalEmissiveRadiance += hot * (uRuneRest + (uRuneGlow - uRuneRest) * runeLit) * runeHere;
-        float beside = smoothstep(-0.08, 0.04, runeSpan) * (1.0 - smoothstep(0.96, 1.08, runeSpan));
-        totalEmissiveRadiance += uRuneColour * uFullerTint * uRuneInFuller * runeLit * beside * smoothstep(0.3, 0.9, fuller);
+        // Only the cut glyph wakes, not the faint fringe of its mask.
+        totalEmissiveRadiance += hot * (uRuneRest + (uRuneGlow - uRuneRest) * runeLit * smoothstep(0.25, 0.6, runeHere)) * runeHere;
+        if (uFullerTint > 0.0)
+          totalEmissiveRadiance += uRuneColour * uFullerTint * uRuneInFuller * runeLit * runeSpillAt(mm, vAlong) * smoothstep(0.3, 0.9, fuller);
       }`,
     )
     .replace('#include <opaque_fragment>', bladeCapLine)
@@ -533,7 +541,7 @@ const bladeCapLine = `{
         float facing = 0.35 + 0.65 * smoothstep(-0.2, 0.6, dot(normal, vec3(0.28, 0.92, 0.28)));
         float glintHere = band * clamp(vEdge, 0.0, 1.0) * facing;
         outgoingLight += uGlintLight * glintHere;
-        float capHere = uCap + (uGlowCap - uCap) * max(glintHere, runeHere * runeLit);
+        float capHere = uCap + (uGlowCap - uCap) * max(glintHere, smoothstep(0.25, 0.6, runeHere) * runeLit);
         float peak = max(max(outgoingLight.r, outgoingLight.g), max(outgoingLight.b, 1e-4));
         float knee = 0.6 * capHere;
         float rolled = peak <= knee ? peak : knee + (capHere - knee) * (1.0 - exp(-(peak - knee) / (capHere - knee)));

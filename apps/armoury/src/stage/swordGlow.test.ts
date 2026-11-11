@@ -5,6 +5,7 @@ import {
   GLINT,
   GLOW_CEILING,
   GLOW_SECONDS,
+  presentWeight,
   RUNE_PEAK,
   SWORD_REST,
   swordGlow,
@@ -80,5 +81,16 @@ describe('the sword glow', () => {
 
   it('holds still with reduced motion', () => {
     for (const { t } of run()) expect(swordGlow(t, true, 0)).toEqual(SWORD_REST)
+  })
+
+  it('turns the flat to the viewer for the glint and the wake, then lets go after the peak of the wake', () => {
+    for (const t of [-1, 0, 1, 2, GLOW_SECONDS, 30]) expect(presentWeight(t, false)).toBe(0)
+    for (const t of [GLINT.from, GLINT.from + GLINT.seconds, GLINT.from + 1.2])
+      expect(presentWeight(t, false)).toBe(1)
+    for (let i = 1; i < times.length; i++)
+      expect(
+        Math.abs(presentWeight(times[i]!, false) - presentWeight(times[i - 1]!, false)),
+      ).toBeLessThan(0.05)
+    for (const t of times) expect(presentWeight(t, true)).toBe(0)
   })
 })

@@ -251,9 +251,9 @@ function gripAround(spec: SwordSpec): number {
 }
 
 /** The glint's light at its height: the window's cool white, over the bloom (ADR 0100). */
-const GLINT_LIGHT = new THREE.Color('#f2f6ff').multiplyScalar(1.75 * BLOOM_THRESHOLD)
+const GLINT_LIGHT = new THREE.Color('#f2f6ff').multiplyScalar(1.5 * BLOOM_THRESHOLD)
 /** The faint light waking runes throw on the fuller's floor round them, times their colour. */
-const FULLER_TINT = 0.12
+const FULLER_TINT = 0.2
 /** How much brighter gems glow at the height of the wake. */
 const GEM_WAKE = 1.6
 

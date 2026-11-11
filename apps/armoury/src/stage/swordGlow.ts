@@ -89,3 +89,18 @@ export function swordGlow(
 
 /** How far the wake has lifted the runes and gems from rest toward their peak, 0 to 1. */
 export const wakeLift = (glow: SwordGlow) => (glow.runes - RUNE_REST) / (RUNE_PEAK - RUNE_REST)
+
+const PRESENT = {
+  from: GLINT.from - 0.75,
+  held: GLINT.from,
+  until: GLINT.from + GLINT.seconds + RISE_SECONDS + HOLD_SECONDS,
+  release: 0.8,
+}
+
+/** How firmly the close look turns the blade's flat to the viewer, 0 to 1, so the glint and the waking runes are seen. */
+export function presentWeight(sinceFlourish: number, reducedMotion: boolean): number {
+  if (reducedMotion || !(sinceFlourish > PRESENT.from)) return 0
+  if (sinceFlourish < PRESENT.held)
+    return smoothstep((sinceFlourish - PRESENT.from) / (PRESENT.held - PRESENT.from))
+  return 1 - smoothstep((sinceFlourish - PRESENT.until) / PRESENT.release)
+}

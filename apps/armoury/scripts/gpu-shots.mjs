@@ -5,9 +5,12 @@
 // --clay draws a sword in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
 // about its length, or with an s (s45) swings it, tip away.
+// --flourish=0.5,2.2 shoots the sword's close look that many seconds into its arrival flourish (f<ms>), on the
+// stage's own clock (dev server only); --glints=3.9,4.1 then taps the sword again for each, once the last
+// flourish is at rest, and shoots it that far in (g<ms>), then puts it back (r<ms> after). Both skip the zoom; times land in <name>-<view>-frames.txt.
 /* global console, document, URLSearchParams */
 import { Buffer } from 'node:buffer'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 
@@ -36,6 +39,12 @@ const rolls = options.rolls ? options.rolls.split(',') : []
 // The close look rolls 0.007 radians per pixel dragged across the item.
 const PX_PER_DEGREE = Math.PI / 180 / 0.007
 const wanted = only ? new Set(only.split(',')) : null
+const seconds = (list) => (list ? list.split(',').map(Number) : [])
+const flourishAt = seconds(options.flourish)
+const glintAt = seconds(options.glints)
+const flourishing = flourishAt.length + glintAt.length > 0
+// Every glint and rune wake is over this long after a flourish starts.
+const AT_REST_SECONDS = 7.5
 
 const set = JSON.parse(readFileSync(setFile, 'utf8'))
 mkdirSync(out, { recursive: true })
@@ -110,6 +119,46 @@ try {
           await page.waitForTimeout(ms - waited)
           waited = ms
           await page.screenshot({ path: shot(`close-${ms}`) })
+        }
+        if (flourishing) {
+          const log = []
+          const since = () => page.evaluate(() => globalThis.sinceFlourish ?? null)
+          const at = async (s) =>
+            page.waitForFunction((s) => (globalThis.sinceFlourish ?? -1) >= s, s, {
+              polling: 10,
+              timeout: 30000,
+            })
+          const take = async (s, tag) => {
+            await at(s)
+            const before = await since()
+            await page.screenshot({
+              path: shot(`${tag}${String(Math.round(s * 1000)).padStart(5, '0')}`),
+            })
+            log.push(
+              `${tag} ${s}s: shot between ${before?.toFixed(3)}s and ${(await since())?.toFixed(3)}s`,
+            )
+          }
+          for (const s of flourishAt) await take(s, 'f')
+          for (const s of glintAt) {
+            await at(AT_REST_SECONDS)
+            await page.mouse.click(view.viewport.width / 2, view.viewport.height * 0.4)
+            await page.waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
+              polling: 10,
+            })
+            await take(s, 'g')
+          }
+          // Back to the anvil: the flight down and the sword lying there again.
+          await page.keyboard.press('Escape')
+          let back = 0
+          for (const ms of [150, 450, 1500]) {
+            await page.waitForTimeout(ms - back)
+            back = ms
+            await page.screenshot({ path: shot(`r${String(ms).padStart(5, '0')}`) })
+          }
+          writeFileSync(join(out, `${name}-${view.tag}-frames.txt`), log.join('\n') + '\n')
+          await ctx.close()
+          console.log(`${name} ${view.tag}`)
+          continue
         }
         await page.mouse.move(view.viewport.width / 2, view.viewport.height * 0.4)
         for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120)
