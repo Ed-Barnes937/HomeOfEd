@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest'
 import {
   allowedOptions,
   type ChoiceParam,
+  isVisible,
   normalise,
+  type NumberParam,
   type Params,
   randomise,
   seededRandom,
@@ -16,26 +18,45 @@ import { swordSchema } from './swordSchema.ts'
 
 const KINDS = Object.keys(FAMILIES) as Family[]
 const sword = (raw: Record<string, unknown>) => normalise(swordSchema, raw)
+const CHOICES = swordSchema.params.filter(
+  (d): d is ChoiceParam => d.kind === 'choice' && d.key !== 'family',
+)
+const SLIDERS = swordSchema.params.filter((d): d is NumberParam => d.kind === 'number')
 
-/** Every Kind with each allowed option of every choice, and 30 random swords per Kind. */
-function catalogue(): { name: string; spec: SwordSpec }[] {
+/**
+ * Each Kind with sword i taking option i of every choice it allows (sword 0 is its signature),
+ * every slider at its least and then its most, and 5 random swords.
+ */
+function catalogue(): { name: string; p: Params; spec: SwordSpec }[] {
   const out: { name: string; p: Params }[] = []
-  const choices = swordSchema.params.filter((d): d is ChoiceParam => d.kind === 'choice')
   for (const family of KINDS) {
     const base = sword({ family })
-    for (const def of choices)
-      for (const { value } of allowedOptions(def, base))
-        out.push({ name: `${family} ${def.key} ${value}`, p: sword({ family, [def.key]: value }) })
+    const options = CHOICES.map((def) => [def.key, allowedOptions(def, base).map((o) => o.value)] as const)
+    const n = Math.max(...options.map(([, values]) => values.length))
+    for (let i = 0; i < n; i++) {
+      const picked = options.map(([key, values]) => [key, values[i % values.length]] as const)
+      out.push({ name: `${family} options ${i}`, p: sword({ ...Object.fromEntries(picked), family }) })
+    }
+    for (const end of ['min', 'max'] as const)
+      out.push({
+        name: `${family} sliders ${end}`,
+        p: sword({ family, waves: 'flame', ...Object.fromEntries(SLIDERS.map((d) => [d.key, d[end]])) }),
+      })
     const rng = seededRandom(600 + family.length)
-    for (let i = 0; i < 30; i++)
+    for (let i = 0; i < 5; i++)
       out.push({
         name: `${family} random ${i}`,
         p: randomise(swordSchema, rng, { keep: { family }, locked: ['kind'] }),
       })
   }
-  return out.map(({ name, p }) => ({ name, spec: compileSword(p) }))
+  return out.map(({ name, p }) => ({ name, p, spec: compileSword(p) }))
 }
 const SWORDS = catalogue()
+const outlines = new Map<SwordSpec, [number, number][][]>()
+const outlineOf = (spec: SwordSpec) => {
+  if (!outlines.has(spec)) outlines.set(spec, swordOutline(spec))
+  return outlines.get(spec)!
+}
 
 const signedArea = (poly: [number, number][]) => {
   let a = 0
@@ -47,10 +68,23 @@ const signedArea = (poly: [number, number][]) => {
 }
 
 describe('swordOutline', () => {
+  it('is drawn for every option a Kind shows on its signature sword', () => {
+    const missing: string[] = []
+    for (const def of CHOICES)
+      for (const family of KINDS)
+        for (const { value } of allowedOptions(def, sword({ family }))) {
+          const shown = sword({ family, [def.key]: value })
+          if (shown[def.key] !== value || !isVisible(def, shown)) continue
+          if (!SWORDS.some(({ p }) => p[def.key] === value && isVisible(def, p)))
+            missing.push(`${def.key} ${value}`)
+        }
+    expect([...new Set(missing)]).toEqual([])
+  })
+
   it('is closed polylines, all wound the same way, under the point budget', () => {
     expect(OUTLINE_POINTS).toBeLessThan(400)
     for (const { name, spec } of SWORDS) {
-      const outline = swordOutline(spec)
+      const outline = outlineOf(spec)
       const points = outline.reduce((n, l) => n + l.length, 0)
       expect(points, name).toBeLessThanOrEqual(OUTLINE_POINTS)
       for (const line of outline) {
@@ -63,7 +97,7 @@ describe('swordOutline', () => {
 
   it('runs from the pommel end at z = 0 to the tip on the axis', () => {
     for (const { name, spec } of SWORDS) {
-      const pts = swordOutline(spec).flat()
+      const pts = outlineOf(spec).flat()
       const tip = pts.reduce((a, b) => (b[0] > a[0] ? b : a))
       expect(Math.abs(tip[1]), name).toBeLessThan(0.01)
       // A chord-rotated hilt tilts, so a curved sword's pommel dips a little below z = 0.
