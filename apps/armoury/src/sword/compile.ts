@@ -172,12 +172,13 @@ const TIPS: Record<string, { edge: Side; back?: Side }> = {
     back: { run: 0.8, shape: ogive(0.6) },
   },
   spear: { edge: { run: 1.3, shape: ogive(0.6) } },
+  // The back is cut away in a concave sweep from a corner; the edge rises to meet it.
   clipped: {
-    edge: { run: 2, shape: ogive(1) },
-    back: { run: 1, shape: ogive(0.3) },
+    edge: { run: 2.2, shape: ogive(1) },
+    back: { run: 1.1, shape: (t) => (1 - t) ** 1.6 },
   },
   // The edge sweeps round in a convex belly; the back runs on almost straight, over a longer run.
-  kissaki: { edge: { run: 0, shape: ogive(1) }, back: { run: 0, shape: (t) => 1 - t } },
+  kissaki: { edge: { run: 0, shape: ogive(1) }, back: { run: 0, shape: ogive(0.2) } },
 }
 const TIP_SAMPLES = 32
 /** How far a blade's width, from slimmest to broadest in its band, moves the guard size. */

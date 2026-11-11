@@ -20,6 +20,8 @@ const smoothstep = (a: number, b: number, x: number) => {
 
 /** How far the grip runs into the guard and the pommel, mm. */
 export const GRIP_OVERLAP = 1
+/** Rings along a turned pommel (pear, egg): enough that the nose's tight turn stays round. */
+const TURNED_STEPS = 80
 /** The grip's ends narrow over this run to seat inside what they meet, mm. */
 const TUCK_RUN = 10
 
@@ -286,8 +288,8 @@ function pommelLayout(spec: SwordSpec, gems: GemSite[]): { shapes: Shape[]; seat
     }
     const corners: [number, number, number][] = [[0, 0, 0]]
     corners.push([rAt(0), 0, endFillet])
-    for (let i = 1; i < 40; i++) {
-      const t = i / 40
+    for (let i = 1; i < TURNED_STEPS; i++) {
+      const t = i / TURNED_STEPS
       corners.push([rAt(t), t * P, 0])
     }
     const top = rAt(1)
