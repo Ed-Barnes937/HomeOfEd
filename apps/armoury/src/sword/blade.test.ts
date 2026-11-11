@@ -15,7 +15,8 @@ const sword = (raw: Record<string, unknown>) => normalise(swordSchema, raw)
 
 /**
  * Each Kind with blade i taking option i of its outlines, middles, tips and plain bases (blade 0 is
- * its signature), its slider extremes, a wavy blade for each middle, and 3 random swords.
+ * its signature), its slider extremes, the most waves in each middle and the fewest in one, and 3
+ * random swords.
  */
 function catalogue(): { name: string; family: Family; p: Params; spec: SwordSpec }[] {
   const out: { name: string; family: Family; p: Params }[] = []
@@ -38,14 +39,12 @@ function catalogue(): { name: string; family: Family; p: Params; spec: SwordSpec
         p: sword({ family, bladeLength: v, bladeWidth: v, taper: v, curve: v, kissakiSize: v }),
       })
     if (f.waves)
-      f.middle.forEach((middle, j) => {
-        const waveCount = j % 2 ? 16 : 4
+      for (const [waveCount, middle] of [[4, f.middle[0]], ...f.middle.map((m) => [16, m])])
         out.push({
           name: `${family} flame ${waveCount} ${middle}`,
           family,
           p: sword({ family, waves: 'flame', waveCount, middle, bladeLength: 1 }),
         })
-      })
     const rng = seededRandom(2000 + family.length)
     for (let i = 0; i < 3; i++)
       out.push({
