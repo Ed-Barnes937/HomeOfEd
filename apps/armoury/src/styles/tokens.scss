@@ -122,3 +122,29 @@ button {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+// The smithy's palette (ADR 0101): soot and forge-warm iron, a brown card ticket on twine,
+// and a steel rule for lengths. ShopPage sets data-shop on the shop's root.
+[data-shop='smithy'] {
+  --shop-dark: #110d0b;
+  --shop-black: #0b0807;
+  --panel: #14100e;
+  --panel-line: #2b211b;
+  --panel-line-strong: #4d3a2c;
+  --lore: #c9b8a0;
+  --brass: #c9a253;
+  --brass-ink: #1a1208;
+
+  --paper: #c89f70;
+  --paper-shade: #a67b4e;
+  --paper-ink: #21150b;
+  --paper-ink-soft: #382514;
+  --paper-ink-faint: #573c24;
+  --string: #c9ad80;
+
+  --counter: #120d0a;
+
+  --ruler: #b8b5ae;
+  --ruler-shade: #94918a;
+  --ruler-ink: #1f1d1a;
+}

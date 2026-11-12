@@ -80,6 +80,18 @@ describe('the production entrypoint', { timeout: START_DEADLINE_MS + 5_000 }, ()
     )
   })
 
+  it('gates the street, both shops and the shelf as it gates the root', async () => {
+    const base = await startMain({
+      FAMILY_ACCOUNT_URL: ACCOUNT_URL,
+      FAMILY_TOKEN_PUBLIC_KEY: TEST_FAMILY_PUBLIC_KEY,
+    })
+
+    for (const path of ['/street', '/wands', '/swords', '/shelf']) {
+      const res = await getDocument(base, undefined, path)
+      expect(res.status, path).toBe(302)
+    }
+  })
+
   it('leaves /shared open to a visitor with no family session', async () => {
     const base = await startMain({
       FAMILY_ACCOUNT_URL: ACCOUNT_URL,

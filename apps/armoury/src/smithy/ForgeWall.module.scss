@@ -1,0 +1,176 @@
+// Art boxes are drawn at 1px per unit, centred and scaled by --art-scale from the scene.
+.wall {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--floor-top);
+  overflow: hidden;
+}
+
+.art {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 2400px;
+  height: 1000px;
+  background-color: #140f0b;
+  background-size: 100% 100%;
+  transform: translateX(-50%) scale(var(--art-scale));
+  transform-origin: 50% 100%;
+}
+
+.chalk {
+  position: absolute;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1;
+  color: rgba(236, 233, 224, 0.72);
+  text-shadow: 0 0 1px rgba(236, 233, 224, 0.5);
+  letter-spacing: 0.02em;
+}
+
+.forgeLight,
+.coalGlow {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.forgeLight {
+  width: 1500px;
+  height: 1100px;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 150, 70, 0.3) 0%,
+    rgba(255, 130, 60, 0.12) 35%,
+    rgba(255, 120, 50, 0) 100%
+  );
+}
+
+.coalGlow {
+  width: 460px;
+  height: 200px;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 196, 110, 0.55) 0%,
+    rgba(255, 138, 42, 0.25) 45%,
+    rgba(255, 138, 42, 0) 100%
+  );
+  animation: pulse 5.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  45% {
+    opacity: 0.8;
+  }
+
+  70% {
+    opacity: 0.95;
+  }
+}
+
+.ember {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffd27a;
+  box-shadow:
+    0 0 4px 1px rgba(255, 138, 42, 0.9),
+    0 0 10px 3px rgba(255, 110, 30, 0.35);
+  opacity: 0;
+  animation: rise linear infinite;
+}
+
+@keyframes rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  70% {
+    opacity: 0.6;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), var(--rise)) scale(0.5);
+  }
+}
+
+.shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(6, 4, 3, 0.9) 0%,
+      rgba(6, 4, 3, 0.45) 28%,
+      rgba(6, 4, 3, 0.08) 62%,
+      rgba(6, 4, 3, 0.3) 100%
+    ),
+    linear-gradient(90deg, rgba(6, 4, 3, 0.35) 0%, rgba(6, 4, 3, 0) 18%),
+    linear-gradient(270deg, rgba(6, 4, 3, 0.75) 0%, rgba(6, 4, 3, 0) 22%);
+  pointer-events: none;
+}
+
+.floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--floor-top);
+  bottom: 0;
+  overflow: hidden;
+}
+
+.floorArt {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2400px;
+  height: 900px;
+  background-size: 100% 100%;
+  transform: translateX(-50%) scale(var(--art-scale));
+  transform-origin: 50% 0;
+}
+
+.floorShade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 9%),
+    radial-gradient(
+      ellipse 70% 120% at calc(50% - 370px * var(--art-scale)) 0%,
+      rgba(255, 140, 60, 0.2) 0%,
+      rgba(255, 140, 60, 0.06) 45%,
+      rgba(255, 140, 60, 0) 75%
+    ),
+    radial-gradient(ellipse 45% 60% at 50% 40%, rgba(8, 6, 5, 0) 30%, rgba(8, 6, 5, 0.55) 100%),
+    linear-gradient(180deg, rgba(8, 6, 5, 0) 50%, rgba(8, 6, 5, 0.8) 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coalGlow {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  .ember {
+    display: none;
+  }
+}

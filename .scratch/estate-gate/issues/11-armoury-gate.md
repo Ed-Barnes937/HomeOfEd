@@ -68,3 +68,23 @@ an edit and a reload write nothing, Keep goes through the gate and the pick,
 and the edited wand lands in `armoury:save@<accountId>` as the only key; the
 chip links to `http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8091%2F`
 and the back arrow to `http://localhost:8080`.
+
+**2026-11-12, re-fitted onto the smithy (#209) by the main merge, branch
+`estate-gate/26-merge-main`.** The pattern is the same, over the two-shop
+armoury:
+
+- `App` reads the session and the arrival (the link's item and the landing)
+  once, before the router mounts, because the root's redirect drops the
+  fragment. PlayerView is the pathless parent of `/`, `/street`, `/wands`,
+  `/swords` and `/shelf`; SharedView opens the link's own shop.
+- Both `armoury:save` and `armoury:save:sword` are profile keys;
+  `armoury:shop` stays the device's. No sword legacy-adoption test (Ed: there
+  are no device sword saves yet).
+- Keep goes to the kind's shop (`/wands` or `/swords`), not the root. On
+  `/shared` the header's Street link is a page load, so the gate sees it.
+- The chip is in the shop header (beside main's Street link) and on the
+  street; the hub link moved to the street with #209 and uses `hubUrlFor`. The
+  shop header's steps were re-measured for main's wider brand: motto hides
+  below 1480px with a chip, the name below 1280px, every label below 1140px.
+  `white-space: nowrap` now applies only with a chip, so the signed-out header
+  is main's exactly.

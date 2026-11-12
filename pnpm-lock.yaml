@@ -41,6 +41,9 @@ importers:
       '@trpc/client':
         specifier: 11.18.0
         version: 11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)
+      postprocessing:
+        specifier: 6.39.6
+        version: 6.39.6(three@0.170.0)
       react:
         specifier: ^19.2.7
         version: 19.2.7

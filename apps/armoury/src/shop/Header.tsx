@@ -1,8 +1,9 @@
-import { hubUrlFor, switchPlayerUrlFor } from '@hoe/accounts'
+import { switchPlayerUrlFor } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 
 import type { ShareState } from '../share/useShareWand.ts'
 import styles from './Header.module.scss'
+import type { ShopCopy } from './shopView.ts'
 
 export function ShelfIcon() {
   return (
@@ -78,8 +79,9 @@ function PlayerIcon() {
   )
 }
 
-/** Who the wands are kept for, and the way to hub to switch player and come back (ADR 0094). */
-function Player({ name }: { name: string }) {
+/** Who the shelf belongs to, and the way to hub to switch player and come back (ADR 0094). */
+export function Player({ name, className }: { name: string; className?: string }) {
+  const classes = [styles.button, styles.player, className].filter(Boolean).join(' ')
   const href = switchPlayerUrlFor(window.location.href)
   const content = (
     <>
@@ -90,18 +92,20 @@ function Player({ name }: { name: string }) {
   // Outside the estate there is no hub to switch at, so it is the name alone.
   return href === null ? (
     <span
-      className={`${styles.button} ${styles.player} ${styles.static}`}
+      className={`${classes} ${styles.static}`}
       role="img"
       aria-label={`Playing as ${name}`}
+      title={name}
       data-testid="player"
     >
       {content}
     </span>
   ) : (
     <a
-      className={`${styles.button} ${styles.player}`}
+      className={classes}
       href={href}
       aria-label={`Playing as ${name}. Switch player`}
+      title={name}
       data-testid="player"
     >
       {content}
@@ -110,6 +114,7 @@ function Player({ name }: { name: string }) {
 }
 
 export function Header({
+  copy,
   shelfCount,
   player,
   shareState,
@@ -117,7 +122,8 @@ export function Header({
   pictureBusy,
   onPicture,
 }: {
-  /** `null` hides the shelf: the shared view keeps nothing. */
+  copy: ShopCopy
+  /** `null` is the shared view: it keeps nothing, so no shelf, and the street is a page load the gate sees. */
   shelfCount: number | null
   /** The player's name, or `null` for no chip (signed out, or the shared view). */
   player: string | null
@@ -126,39 +132,51 @@ export function Header({
   pictureBusy: boolean
   onPicture: () => void
 }) {
+  const back = (
+    <>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M10 3 L5 8 L10 13" />
+      </svg>
+      <span className={styles.label}>Street</span>
+    </>
+  )
   return (
     <header className={player === null ? styles.header : `${styles.header} ${styles.withPlayer}`}>
       <div className={styles.brand}>
-        <a
-          className={styles.back}
-          href={hubUrlFor(window.location.href)}
-          aria-label="Back to home of ed"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+        {shelfCount === null ? (
+          <a
+            href="/street"
+            className={`${styles.button} ${styles.back}`}
+            aria-label="Back to the street"
           >
-            <path d="M10 3 L5 8 L10 13" />
-          </svg>
-        </a>
+            {back}
+          </a>
+        ) : (
+          <Link
+            to="/street"
+            className={`${styles.button} ${styles.back}`}
+            aria-label="Back to the street"
+          >
+            {back}
+          </Link>
+        )}
         <span className={styles.name}>Armoury</span>
-        <span className={styles.motto}>wands made to measure</span>
+        <span className={styles.motto}>{copy.motto}</span>
       </div>
       <nav className={styles.nav}>
         {player !== null && <Player name={player} />}
         {shelfCount !== null && (
-          <Link
-            to="/shelf"
-            className={styles.button}
-            aria-label={`Your shelf, ${shelfCount} wands`}
-          >
+          <Link to="/shelf" className={styles.button} aria-label={copy.shelfLink(shelfCount)}>
             <ShelfIcon />
             <span className={styles.label}>Your shelf</span>
             <span className={styles.count} aria-hidden="true">
@@ -170,7 +188,7 @@ export function Header({
           type="button"
           className={styles.button}
           onClick={onShare}
-          aria-label={shareState === 'copied' ? 'Link copied' : 'Share a link to this wand'}
+          aria-label={shareState === 'copied' ? 'Link copied' : copy.share}
         >
           <ShareIcon />
           <span className={styles.label} aria-live="polite">
@@ -182,7 +200,7 @@ export function Header({
           className={styles.button}
           onClick={onPicture}
           disabled={pictureBusy}
-          aria-label="Save a picture of this wand"
+          aria-label={copy.picture}
         >
           <PictureIcon />
           <span className={styles.label}>Picture</span>

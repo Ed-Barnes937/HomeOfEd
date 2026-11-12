@@ -1,4 +1,3 @@
-import { arrivalFragment } from '@hoe/accounts'
 import {
   createContext,
   useCallback,
@@ -12,110 +11,143 @@ import {
   type ReactNode,
 } from 'react'
 
-import { normalise } from '../engine/schema.ts'
-import type { StoredWand } from '../persistence/saveFormat.ts'
+import type { ItemDef, ItemKind, StoredItem } from '../items/item.ts'
+import { ITEMS } from '../items/registry.ts'
+import { readLastShop, writeLastShop } from '../persistence/lastShop.ts'
 import {
-  keepWand,
+  keepItem,
   loadSaveDocument,
-  removeWand,
-  renameWand,
-  writeWorkingWand,
+  removeItem,
+  renameItem,
+  writeWorking,
   type SaveStorage,
 } from '../persistence/storage.ts'
-import { clearShareHash, decodeShareHash } from '../share/shareLink.ts'
-import { wandPresets } from '../wand/presets.ts'
-import { wandSchema } from '../wand/wandSchema.ts'
-import { startWorkbench, workbench, type Workbench, type WorkbenchAction } from './workbench.ts'
+import type { SharedItem } from '../share/shareLink.ts'
+import {
+  createWorkbench,
+  startWorkbench,
+  type Workbench,
+  type WorkbenchAction,
+} from './workbench.ts'
 
 const AUTOSAVE_MS = 400
 
-export interface WorkbenchContextValue {
+/** One kind's counter and shelf. */
+export interface Bench {
   state: Workbench
   dispatch: Dispatch<WorkbenchAction>
-  shelf: readonly StoredWand[]
-  keep: (wand: StoredWand) => void
+  shelf: readonly StoredItem[]
+  keep: (item: StoredItem) => void
   renameOnShelf: (index: number, name: string) => void
   removeFromShelf: (index: number) => void
 }
 
-const WorkbenchContext = createContext<WorkbenchContextValue | null>(null)
+const WorkbenchContext = createContext<Record<ItemKind, Bench> | null>(null)
 
-export function firstVisitWand(): StoredWand {
-  return { params: normalise(wandSchema, wandPresets[0]!.params) }
+/** The shop the child was in last, a device preference that `storage` passes through unscoped. */
+export interface Shops {
+  lastShop: ItemKind | null
+  enterShop: (kind: ItemKind) => void
 }
 
-function initialWand(storage: SaveStorage, arrival: string): StoredWand {
-  return decodeShareHash(arrival) ?? loadSaveDocument(storage).working ?? firstVisitWand()
+const ShopsContext = createContext<Shops | null>(null)
+
+function initialItem(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null): StoredItem {
+  const arrived = arrival?.kind === def.kind ? arrival.item : null
+  return arrived ?? loadSaveDocument(storage, def).working ?? { params: def.firstVisit() }
 }
 
-export function WorkbenchProvider({
-  storage,
-  shared = false,
-  children,
-}: {
-  /** The player's `profileStorage`, or the shared view's `memoryStorage`. */
-  storage: SaveStorage
-  /** `/shared` keeps its fragment: it saves nothing, so a reload reopens the share. */
-  shared?: boolean
-  children: ReactNode
-}) {
-  const [arrival] = useState(arrivalFragment)
-  const [state, dispatch] = useReducer(workbench, storage, (s) =>
-    startWorkbench(initialWand(s, arrival)),
+function useBench(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null): Bench {
+  const reducer = useMemo(() => createWorkbench(def), [def])
+  const [state, dispatch] = useReducer(reducer, null, () =>
+    startWorkbench(initialItem(def, storage, arrival)),
   )
-  const [shelf, setShelf] = useState(() => loadSaveDocument(storage).shelf)
+  const [shelf, setShelf] = useState(() => loadSaveDocument(storage, def).shelf)
 
+  const latest = useRef(state.item)
+  latest.current = state.item
   useEffect(() => {
-    if (!shared && decodeShareHash(arrival)) clearShareHash(window.location, window.history)
-  }, [arrival, shared])
-
-  const latest = useRef(state.wand)
-  latest.current = state.wand
-  useEffect(() => {
-    const timer = setTimeout(() => writeWorkingWand(storage, state.wand), AUTOSAVE_MS)
+    const timer = setTimeout(() => writeWorking(storage, def, state.item), AUTOSAVE_MS)
     return () => clearTimeout(timer)
-  }, [storage, state.wand])
+  }, [storage, def, state.item])
   useEffect(() => {
-    const flush = () => writeWorkingWand(storage, latest.current)
+    const flush = () => writeWorking(storage, def, latest.current)
     window.addEventListener('pagehide', flush)
     return () => {
       window.removeEventListener('pagehide', flush)
       flush()
     }
-  }, [storage])
+  }, [storage, def])
 
-  const refresh = useCallback(() => setShelf(loadSaveDocument(storage).shelf), [storage])
+  const refresh = useCallback(() => setShelf(loadSaveDocument(storage, def).shelf), [storage, def])
   const keep = useCallback(
-    (wand: StoredWand) => {
-      keepWand(storage, wand)
+    (item: StoredItem) => {
+      keepItem(storage, def, item)
       refresh()
     },
-    [storage, refresh],
+    [storage, def, refresh],
   )
   const renameOnShelf = useCallback(
     (index: number, name: string) => {
-      renameWand(storage, index, name)
+      renameItem(storage, def, index, name)
       refresh()
     },
-    [storage, refresh],
+    [storage, def, refresh],
   )
   const removeFromShelf = useCallback(
     (index: number) => {
-      removeWand(storage, index)
+      removeItem(storage, def, index)
       refresh()
     },
-    [storage, refresh],
+    [storage, def, refresh],
   )
 
-  const value = useMemo(
+  return useMemo(
     () => ({ state, dispatch, shelf, keep, renameOnShelf, removeFromShelf }),
     [state, shelf, keep, renameOnShelf, removeFromShelf],
   )
-  return <WorkbenchContext value={value}>{children}</WorkbenchContext>
 }
 
-export function useWorkbench(): WorkbenchContextValue {
-  const value = useContext(WorkbenchContext)
-  if (!value) throw new Error('useWorkbench needs a WorkbenchProvider')
-  return value
+export function WorkbenchProvider({
+  storage,
+  arrived,
+  children,
+}: {
+  /** The player's `profileStorage`, or the shared view's `memoryStorage`. */
+  storage: SaveStorage
+  /** The item the page's link brought, read once at the app's entry. */
+  arrived: SharedItem | null
+  children: ReactNode
+}) {
+  const wand = useBench(ITEMS.wand, storage, arrived)
+  const sword = useBench(ITEMS.sword, storage, arrived)
+  const [lastShop, setLastShop] = useState(() => readLastShop(storage))
+
+  const enterShop = useCallback(
+    (kind: ItemKind) => {
+      writeLastShop(storage, kind)
+      setLastShop(kind)
+    },
+    [storage],
+  )
+
+  const benches = useMemo(() => ({ wand, sword }), [wand, sword])
+  const shops = useMemo(() => ({ lastShop, enterShop }), [lastShop, enterShop])
+  return (
+    <ShopsContext value={shops}>
+      <WorkbenchContext value={benches}>{children}</WorkbenchContext>
+    </ShopsContext>
+  )
+}
+
+export function useShops(): Shops {
+  const shops = useContext(ShopsContext)
+  if (!shops) throw new Error('useShops needs a WorkbenchProvider')
+  return shops
+}
+
+export function useWorkbench(kind: ItemKind): Bench {
+  const bench = useContext(WorkbenchContext)?.[kind]
+  if (!bench) throw new Error(`useWorkbench needs a WorkbenchProvider with a ${kind} bench`)
+  return bench
 }

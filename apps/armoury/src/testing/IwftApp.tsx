@@ -9,9 +9,13 @@ import {
 } from '@hoe/backend-kit'
 import { testUserAuth } from '@hoe/test-kit/browser'
 
+import { useState } from 'react'
+
 import { App } from '../App.tsx'
+import type { ItemKind } from '../items/item.ts'
+import { writeLastShop } from '../persistence/lastShop.ts'
 import { appRouter } from '../server/router.ts'
-import { fakeStages } from './FakeStage.tsx'
+import { failingStages, fakeStages } from './FakeStage.tsx'
 
 exposeDispatcher(
   createDispatcher({
@@ -25,6 +29,13 @@ exposeDispatcher(
   }),
 )
 
-export function IwftApp() {
-  return <App stages={fakeStages} />
+/**
+ * With `start`, the app opens as a visitor who was last in that kind's shop; with
+ * `stagesFail`, every box stage fails to load.
+ */
+export function IwftApp({ start, stagesFail }: { start?: ItemKind; stagesFail?: boolean }) {
+  useState(() => {
+    if (start) writeLastShop(window.localStorage, start)
+  })
+  return <App stages={stagesFail ? failingStages : fakeStages} />
 }

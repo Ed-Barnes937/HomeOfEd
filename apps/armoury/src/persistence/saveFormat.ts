@@ -1,20 +1,14 @@
-import { normalise, type Params } from '../engine/schema.ts'
-import { wandSchema } from '../wand/wandSchema.ts'
+import { normalise, type ItemSchema } from '../engine/schema.ts'
+import type { StoredItem } from '../items/item.ts'
 
 /** Bumped only for a breaking shape change; an unknown version reads as empty. */
 export const SAVE_FORMAT_VERSION = 1
 
-/** A wand as stored and shared. `name` is absent until a child renames it. */
-export interface StoredWand {
-  params: Params
-  name?: string
-}
-
-/** `working` is the wand on the counter; `shelf` is "Your shelf", oldest first. */
+/** One kind's saves: `working` is the item on the counter; `shelf` is oldest first. */
 export interface SaveDocument {
   version: number
-  working: StoredWand | null
-  shelf: readonly StoredWand[]
+  working: StoredItem | null
+  shelf: readonly StoredItem[]
 }
 
 export const EMPTY_DOCUMENT: SaveDocument = {
@@ -28,7 +22,7 @@ export function serializeSaveDocument(doc: SaveDocument): string {
 }
 
 /** Total: never throws. A broken shelf entry is dropped on its own (ADR 0074). */
-export function parseSaveDocument(raw: string | null): SaveDocument {
+export function parseSaveDocument(schema: ItemSchema, raw: string | null): SaveDocument {
   if (raw === null || raw === '') return EMPTY_DOCUMENT
   let parsed: unknown
   try {
@@ -40,19 +34,19 @@ export function parseSaveDocument(raw: string | null): SaveDocument {
   if (!Array.isArray(parsed.shelf)) return EMPTY_DOCUMENT
 
   const shelf = parsed.shelf
-    .map(decodeStoredWand)
-    .filter((wand): wand is StoredWand => wand !== null)
-  return { version: SAVE_FORMAT_VERSION, working: decodeStoredWand(parsed.working), shelf }
+    .map((entry) => decodeStored(schema, entry))
+    .filter((item): item is StoredItem => item !== null)
+  return { version: SAVE_FORMAT_VERSION, working: decodeStored(schema, parsed.working), shelf }
 }
 
 /** Shared with the share-link codec, so a link and a save obey the same rules. */
-export function decodeStoredWand(value: unknown): StoredWand | null {
+export function decodeStored(schema: ItemSchema, value: unknown): StoredItem | null {
   if (!isRecord(value) || !isRecord(value.params)) return null
   if (value.name !== undefined && typeof value.name !== 'string') return null
-  const wand: StoredWand = { params: normalise(wandSchema, value.params) }
+  const item: StoredItem = { params: normalise(schema, value.params) }
   const name = typeof value.name === 'string' ? value.name.trim() : ''
-  if (name !== '') wand.name = name
-  return wand
+  if (name !== '') item.name = name
+  return item
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
