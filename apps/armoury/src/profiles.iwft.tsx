@@ -1,6 +1,8 @@
+import { profileScopedKey } from '@hoe/accounts'
 import { expect } from '@playwright/experimental-ct-react'
 
 import { ITEMS } from './items/registry.ts'
+import { LAST_SHOP_KEY } from './persistence/lastShop.ts'
 import { reloadAtRoot } from './testing/address.ts'
 import { setFamilyCookie } from './testing/familySession.ts'
 import { smithyTest, streetTest, test } from './testing/iwftTest.tsx'
@@ -114,6 +116,20 @@ smithyTest(
     expect(shelfNames(await readLocalSave(page, BO.sub, ITEMS.sword), ITEMS.sword)).toEqual([])
   },
 )
+
+test('the last shop stays the device’s, whoever is playing', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+  await setFamilyCookie(page, ADA)
+
+  const { root } = await mountApp()
+  await (await root.backToStreet()).enterSmithy()
+
+  const shop = (key: string) => page.evaluate((k) => window.localStorage.getItem(k), key)
+  await expect.poll(() => shop(LAST_SHOP_KEY)).toBe('sword')
+  expect(await shop(profileScopedKey(LAST_SHOP_KEY, ADA.sub))).toBeNull()
+})
 
 streetTest(
   'the street shows who is playing, and nobody when signed out',

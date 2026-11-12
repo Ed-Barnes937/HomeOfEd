@@ -103,6 +103,16 @@ describe('the production entrypoint', { timeout: START_DEADLINE_MS + 5_000 }, ()
     expect(NOT_REDIRECTED).toContain(res.status)
   })
 
+  it('leaves paths below /shared open, but not one that only starts with its letters', async () => {
+    const base = await startMain({
+      FAMILY_ACCOUNT_URL: ACCOUNT_URL,
+      FAMILY_TOKEN_PUBLIC_KEY: TEST_FAMILY_PUBLIC_KEY,
+    })
+
+    expect(NOT_REDIRECTED).toContain((await getDocument(base, undefined, '/shared/x')).status)
+    expect((await getDocument(base, undefined, '/sharedx')).status).toBe(302)
+  })
+
   it('lets a document request with a family session through', async () => {
     const base = await startMain({
       FAMILY_ACCOUNT_URL: ACCOUNT_URL,

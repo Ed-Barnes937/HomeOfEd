@@ -289,3 +289,21 @@ test('an unknown address under /shared stays shared, rather than reaching the st
   await page.waitForTimeout(1_000)
   expect(await readAllStorage(page)).toEqual(before)
 })
+
+test('the way back to the street from /shared is a page load, so the gate sees it', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+
+  await ShopPom.openAt(page, `/shared${FRAGMENT}`)
+  const { root } = await mountApp()
+  await root.verifyWandName('From a friend')
+  await page.evaluate(() => Object.assign(window, { sameDocument: true }))
+  await page.getByRole('link', { name: 'Back to the street' }).click()
+  await page.waitForURL((url) => url.pathname === '/street', { waitUntil: 'commit' })
+
+  await expect.poll(() => page.evaluate(() => 'sameDocument' in window)).toBe(false)
+})

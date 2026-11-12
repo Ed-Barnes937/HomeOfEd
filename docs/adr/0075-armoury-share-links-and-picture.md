@@ -63,7 +63,8 @@ item as it is now, edits and rename included, re-encoded with the same
 the player's own counter. There the gate asks who is playing, and the fragment
 becomes that player's item on the counter. A root `/#w=` link, as every link
 sent before this change, still lands in its kind's shop for a signed-in
-visitor, as do `/wands#w=`, `/swords#w=` and `/shelf#w=`
+visitor, as do `/wands#w=` and `/swords#w=`; `/shelf#w=` stays on the shelf
+and puts the item on its kind's counter
 ([ADR 0097](0097-armoury-street-and-last-shop.md)). The fragment is read once,
 in `App` before the router mounts, through `arrivalFragment()` from
 `@hoe/accounts`, because the router decodes the address bar on mount and the
