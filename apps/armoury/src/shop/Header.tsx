@@ -80,7 +80,8 @@ function PlayerIcon() {
 }
 
 /** Who the shelf belongs to, and the way to hub to switch player and come back (ADR 0094). */
-function Player({ name }: { name: string }) {
+export function Player({ name, className }: { name: string; className?: string }) {
+  const classes = [styles.button, styles.player, className].filter(Boolean).join(' ')
   const href = switchPlayerUrlFor(window.location.href)
   const content = (
     <>
@@ -91,18 +92,20 @@ function Player({ name }: { name: string }) {
   // Outside the estate there is no hub to switch at, so it is the name alone.
   return href === null ? (
     <span
-      className={`${styles.button} ${styles.player} ${styles.static}`}
+      className={`${classes} ${styles.static}`}
       role="img"
       aria-label={`Playing as ${name}`}
+      title={name}
       data-testid="player"
     >
       {content}
     </span>
   ) : (
     <a
-      className={`${styles.button} ${styles.player}`}
+      className={classes}
       href={href}
       aria-label={`Playing as ${name}. Switch player`}
+      title={name}
       data-testid="player"
     >
       {content}

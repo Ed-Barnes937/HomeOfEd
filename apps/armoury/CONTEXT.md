@@ -179,21 +179,22 @@ labelled box, oldest first.
 _Avoid_: Collection, saved wands, my wands.
 
 **Player**:
-The family profile a page opened for. The counter and the shelf are kept per
-player, under `armoury:save@<accountId>`, and the bare `armoury:save` signed
-out; the code always names the bare key and `@hoe/accounts`' `profileStorage`
-adds the suffix. A device's shelf from before profiles is copied into each
-player on first open, and never written again
+The family profile a page opened for. Each kind's counter and shelf are kept
+per player, under `armoury:save@<accountId>` and `armoury:save:sword@<accountId>`,
+and the bare keys signed out; the code always names the bare key and
+`@hoe/accounts`' `profileStorage` adds the suffix. The last shop
+(`armoury:shop`) belongs to the device. A device's documents from before
+profiles are copied into each player on first open, and never written again
 ([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)). Switching player
-happens at hub, through the chip in the header.
+happens at hub, through the chip in the shop header and on the street.
 _Avoid_: User, account (in UI copy), owner.
 
 **Shared view**:
-`/shared#w=...`, where a share link lands, open to anyone. The wand can be
-shaped like any other, but it is kept in memory only: no shelf, no autosave.
-"Keep this wand" goes to the root, behind the gate, carrying the wand as it is
-now ([ADR 0093](../../docs/adr/0093-estate-gate.md) decision 6).
-_Avoid_: Preview, guest mode, read-only view (it is editable).
+`/shared#w=...`, where a share link lands, open to anyone. It opens the link's
+own shop, and the wand or sword can be shaped like any other, but it is kept in
+memory only: no shelf, no autosave, no last shop. "Keep this wand" or "Keep
+this sword" goes to that kind's shop, behind the gate, carrying the item as it
+is now ([ADR 0093](../../docs/adr/0093-estate-gate.md) decision 6).
 
 **Try another**:
 Replace the item on the counter or anvil with a random one, keeping any locked

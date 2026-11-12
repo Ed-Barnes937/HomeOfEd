@@ -1,10 +1,11 @@
 import { expect } from '@playwright/experimental-ct-react'
 
 import { normalise } from './engine/schema.ts'
+import { ITEMS } from './items/registry.ts'
 import { encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
 import { reloadAtRoot } from './testing/address.ts'
 import { setFamilyCookie } from './testing/familySession.ts'
-import { test } from './testing/iwftTest.tsx'
+import { smithyTest, test } from './testing/iwftTest.tsx'
 import { readLocalSave, shelfNames } from './testing/localSaves.ts'
 import { ShopPom } from './testing/ShopPom.ts'
 import { wandSchema } from './wand/wandSchema.ts'
@@ -36,6 +37,31 @@ test('another tab switching player reloads this one when it is looked at again',
   expect(shelfNames(await readLocalSave(page, CY.sub))).toEqual(['Cy’s own'])
   expect(await readLocalSave(page, BO.sub)).toBeNull()
 })
+
+smithyTest(
+  'in the smithy, another tab switching player reloads this one and each keeps their own swords',
+  async ({ mountApp, page }) => {
+    const first = await mountApp()
+    await first.root.verifyIsShown()
+    await reloadAtRoot(page)
+    await setFamilyCookie(page, CY)
+
+    const { root } = await mountApp()
+    await root.verifyAt('/swords')
+    await root.rename('Cy’s sword')
+    await root.keep()
+
+    await setFamilyCookie(page, BO)
+    const reloaded = page.waitForEvent('load')
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await reloaded
+
+    expect(shelfNames(await readLocalSave(page, CY.sub, ITEMS.sword), ITEMS.sword)).toEqual([
+      'Cy’s sword',
+    ])
+    expect(await readLocalSave(page, BO.sub, ITEMS.sword)).toBeNull()
+  },
+)
 
 test('the same player looking again leaves the page as it is', async ({ mountApp, page }) => {
   const first = await mountApp()

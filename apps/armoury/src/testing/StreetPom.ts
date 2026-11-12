@@ -122,6 +122,14 @@ export class StreetPom extends BasePage {
     await verifyAt(this.page, path)
   }
 
+  async verifyPlayer(name: string): Promise<void> {
+    await expect(this.page.getByTestId('player')).toHaveText(name)
+  }
+
+  async verifyNoPlayer(): Promise<void> {
+    await expect(this.page.getByTestId('player')).toHaveCount(0)
+  }
+
   async enterWandShop(): Promise<ShopPom> {
     await this.page.getByRole('link', { name: 'Go into the wand shop' }).click()
     const shop = new ShopPom(this.page)

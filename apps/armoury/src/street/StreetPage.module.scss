@@ -43,6 +43,13 @@
   }
 }
 
+// The player chip, at the header's far end.
+.player {
+  align-self: center;
+  margin-left: auto;
+  pointer-events: auto;
+}
+
 .title {
   margin: 0;
   font-family: var(--font-display);

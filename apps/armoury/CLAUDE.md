@@ -72,7 +72,8 @@ src/
                       + the provider that autosaves it to the storage it is
                       given, owns the shelf and the last shop
   persistence/        save format (total decode), the storage seam, the last
-                      shop, and profileKeys (the keys that are a player's)
+                      shop, and profileKeys (each kind's save document is a
+                      player's; the last shop is the device's)
   share/              fragment links, keep-from-/shared, the share action, the
                       shared picture frame and each shop's painter (wandCard,
                       smithyCard)
@@ -157,6 +158,11 @@ public/fonts/         IM Fell English (+SC, italic) and Alegreya Sans, OFL
   visitor's edits). `/shared` links to nothing gated in-app: "Keep this" and
   the street are page loads, so the gate sees them. Hub links are `hubUrlFor`
   and `switchPlayerUrlFor` from `@hoe/accounts`, never a port literal.
+- **The player chip** (`Player`, `shop/Header.tsx`) shows in both shops' header
+  and on the street, only with a session. Signed out, nothing in the header
+  moves. With a chip the shop header gives way in measured steps (the motto,
+  then the chip's name, then every label); a header change re-measures them
+  with a 22-character name (the width tests in `profiles.iwft.tsx`).
 - **The root redirect reads only `Landing`**, worked out once in `App` from
   `arrivalFragment()` and the last shop before the router runs; nothing else
   writes the address during a redirect

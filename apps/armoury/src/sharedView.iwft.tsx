@@ -2,6 +2,7 @@ import { expect } from '@playwright/experimental-ct-react'
 
 import { normalise } from './engine/schema.ts'
 import type { StoredItem } from './items/item.ts'
+import { LAST_SHOP_KEY } from './persistence/lastShop.ts'
 import { decodeShareHash, encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
 import { reloadAtRoot } from './testing/address.ts'
 import { setFamilyCookie } from './testing/familySession.ts'
@@ -14,6 +15,8 @@ import {
   shelfDocument,
 } from './testing/localSaves.ts'
 import { ShopPom } from './testing/ShopPom.ts'
+import { SmithyPom } from './testing/SmithyPom.ts'
+import { swordSchema } from './sword/swordSchema.ts'
 import { wandSchema } from './wand/wandSchema.ts'
 
 /**
@@ -28,6 +31,12 @@ const SHARED: StoredItem = {
   name: 'From a friend',
 }
 const FRAGMENT = `${SHARE_HASH_PREFIX}${encodeShare('wand', SHARED)}`
+
+const SHARED_SWORD: StoredItem = {
+  params: normalise(swordSchema, { family: 'dagger' }),
+  name: 'Gift',
+}
+const SWORD_FRAGMENT = `${SHARE_HASH_PREFIX}${encodeShare('sword', SHARED_SWORD)}`
 
 test('a /shared link opens the wand to change, and writes nothing to either storage', async ({
   mountApp,
@@ -200,4 +209,65 @@ test('a root #w= link still opens the wand for a signed-in player, in their wand
 
   await reloadAtRoot(page)
   expect(readSaveDocument(await readLocalSave(page, ADA.sub)).working).toEqual(SHARED)
+})
+
+test('a /shared sword opens in the smithy to change, and writes nothing, not even the last shop', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+  await setFamilyCookie(page, ADA)
+  const before = await readAllStorage(page)
+  expect(before.local[LAST_SHOP_KEY]).toBe('wand')
+
+  await ShopPom.openAt(page, `/shared${SWORD_FRAGMENT}`)
+  await mountApp()
+  const smithy = new SmithyPom(page)
+  await smithy.verifySwordName('Gift')
+  await smithy.verifyStage({ family: 'dagger' })
+  await smithy.verifyNothingOffersToSave()
+  await smithy.verifyNoPlayer()
+  await smithy.rename('Mine now')
+  await page.waitForTimeout(1_000)
+  expect(await readAllStorage(page)).toEqual(before)
+  await reloadAtRoot(page)
+  expect(await readAllStorage(page)).toEqual(before)
+})
+
+test('"Keep this sword" with no edits carries the link to the smithy byte for byte', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+
+  await ShopPom.openAt(page, `/shared${SWORD_FRAGMENT}`)
+  await mountApp()
+  const smithy = new SmithyPom(page)
+  await smithy.verifySwordName('Gift')
+  const kept = await smithy.keepShared()
+
+  expect(kept).toBe(`${new URL(kept).origin}/swords${SWORD_FRAGMENT}`)
+})
+
+test('"Keep this sword" keeps the visitor’s changes', async ({ mountApp, page }) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+
+  await ShopPom.openAt(page, `/shared${SWORD_FRAGMENT}`)
+  await mountApp()
+  const smithy = new SmithyPom(page)
+  await smithy.verifySwordName('Gift')
+  await smithy.rename('Mine now')
+  const kept = await smithy.keepShared()
+
+  expect(new URL(kept).pathname).toBe('/swords')
+  const shared = decodeShareHash(new URL(kept).hash)
+  expect(shared?.kind).toBe('sword')
+  expect(shared?.item.name).toBe('Mine now')
+  expect(shared?.item.params.family).toBe('dagger')
 })

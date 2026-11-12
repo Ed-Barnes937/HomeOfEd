@@ -141,7 +141,7 @@ export abstract class BenchPom extends BasePage {
     await expect(this.page.getByTestId('player')).toHaveCount(0)
   }
 
-  /** Where the header's title ends and its nav begins, and where Picture and the header end. */
+  /** Where the header's title and motto end and its nav begins, and where Picture and the header end. */
   async headerLayout(): Promise<{
     titleRight: number
     navLeft: number
@@ -149,14 +149,22 @@ export abstract class BenchPom extends BasePage {
     right: number
   }> {
     const header = this.page.locator('header')
-    const title = (await header.getByText('Armoury', { exact: true }).boundingBox())!
+    const titleRight = await header
+      .getByText('Armoury', { exact: true })
+      .evaluate((title) =>
+        Math.max(
+          ...[...title.parentElement!.children]
+            .filter((part) => getComputedStyle(part).display !== 'none')
+            .map((part) => part.getBoundingClientRect().right),
+        ),
+      )
     const nav = (await header.getByRole('navigation').boundingBox())!
     const picture = (await this.page
       .getByRole('button', { name: this.copy.picture })
       .boundingBox())!
     const box = (await header.boundingBox())!
     return {
-      titleRight: title.x + title.width,
+      titleRight,
       navLeft: nav.x,
       pictureRight: picture.x + picture.width,
       right: box.x + box.width,
