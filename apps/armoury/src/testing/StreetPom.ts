@@ -7,8 +7,6 @@ import { openAsNewVisitor, reloadAtRoot, reloadInPlace, verifyAt } from './addre
 import { ShopPom } from './ShopPom.ts'
 import { SmithyPom } from './SmithyPom.ts'
 
-type Side = 'left' | 'right'
-
 interface OldWand {
   params: Record<string, unknown>
   name?: string
@@ -69,23 +67,27 @@ export class StreetPom extends BasePage {
     await expect(this.page.getByRole('link', { name })).not.toBeInViewport()
   }
 
-  async verifyMoreStreet(side: Side): Promise<void> {
-    await expect(this.moreStreet(side)).toBeVisible()
+  /** The shop is fully in view, not just a sliver of it. */
+  async verifyDoorWhollyInView(name: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name })).toBeInViewport({ ratio: 0.99 })
   }
 
-  async verifyNoMoreStreet(side: Side): Promise<void> {
-    await expect(this.moreStreet(side)).toHaveCount(0)
+  /** The signposts under the street, one per open shop, in street order. */
+  async verifySignposts(shopNames: string[]): Promise<void> {
+    await expect(this.page.getByRole('button', { name: /^Show .* on the street$/ })).toHaveText(
+      shopNames,
+    )
+    for (const name of shopNames) await expect(this.signpost(name)).toBeVisible()
   }
 
-  /** Taps the arrow on one side until the street runs out that way. */
-  async walkStreetToEnd(side: Side): Promise<void> {
-    const arrow = this.moreStreet(side)
-    for (let taps = 0; taps < 10 && (await arrow.count()) > 0; taps++) {
-      const before = await this.settledScroll()
-      await arrow.click()
-      await expect.poll(() => this.settledScroll()).not.toBe(before)
-    }
-    await expect(arrow).toHaveCount(0)
+  async verifyHint(text: string): Promise<void> {
+    await expect(this.page.getByText(text, { exact: true })).toBeVisible()
+  }
+
+  /** Taps a shop's signpost and waits for the street to come to rest. */
+  async showOnStreet(shopName: string): Promise<void> {
+    await this.signpost(shopName).click()
+    await this.settledScroll()
   }
 
   async verifyTitleInView(): Promise<void> {
@@ -111,8 +113,8 @@ export class StreetPom extends BasePage {
     return smithy
   }
 
-  private moreStreet(side: Side) {
-    return this.page.getByRole('button', { name: `More street to the ${side}` })
+  private signpost(shopName: string) {
+    return this.page.getByRole('button', { name: `Show ${shopName} on the street` })
   }
 
   /** How far along the street the view is, once a smooth scroll has come to rest. */

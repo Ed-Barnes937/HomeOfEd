@@ -86,13 +86,22 @@ export function outlinePoints(outline: string): [number, number][] {
   })
 }
 
+function span(shop: StreetShop): [number, number] {
+  const xs = outlinePoints(shop.outline).map(([x]) => x)
+  return [Math.min(...xs), Math.max(...xs)]
+}
+
+/** The open shops, in their order along the street. */
+export function signposts(shops: readonly StreetShop[] = SHOPS): StreetShop[] {
+  return shops.filter((shop) => shop.to).sort((a, b) => span(a)[0] - span(b)[0])
+}
+
 /**
- * Where a view `viewWidth` wide first looks along the street to show `shop`: the shop is
+ * Where a view `viewWidth` wide looks along the street to show `shop`: the shop is
  * lined up with the side of the view nearer its own end of the street.
  */
 export function openingLeft(shop: StreetShop, viewWidth: number): number {
-  const xs = outlinePoints(shop.outline).map(([x]) => x)
-  const [first, last] = [Math.min(...xs), Math.max(...xs)]
+  const [first, last] = span(shop)
   const left = first + last < STREET_PAINTING.width ? first : last - viewWidth
   return Math.min(Math.max(left, 0), STREET_PAINTING.width - viewWidth)
 }

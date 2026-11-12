@@ -147,40 +147,68 @@
   opacity: 0.22;
 }
 
-.more {
-  position: absolute;
-  top: 50%;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 64px;
-  padding: 0;
-  border: 0;
-  border-radius: 20px;
-  translate: 0 -50%;
-  background: rgba(6, 8, 18, 0.5);
+// A signpost on a phone shows its shop's edge for a moment.
+.door[data-flash] .edge {
+  opacity: 1;
+}
+
+// Signposts and their hint are for a phone, where the street slides.
+.signposts,
+.hint {
+  display: none;
+}
+
+.signpost {
+  min-height: 44px;
+  padding: 6px 15px;
+  border: 1px solid rgba(239, 228, 207, 0.22);
+  border-radius: 22px;
+  background: rgba(239, 228, 207, 0.06);
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.1;
   color: var(--ink);
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms ease;
+
+  &:active {
+    background: rgba(239, 228, 207, 0.14);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(239, 228, 207, 0.14);
+    }
+  }
 }
 
-.left {
-  left: 8px;
-}
-
-.right {
-  right: 8px;
+.hint {
+  margin: 12px 16px 0;
+  font-size: 14px;
+  text-align: center;
+  color: var(--ink-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .face,
-  .edge {
+  .edge,
+  .signpost {
     transition: none;
   }
 }
 
-// A tall screen keeps the painting's full height and lets the street slide sideways.
+// A tall screen shows part of the street, zoomed out enough that it plainly carries on, sliding sideways.
 @media (orientation: portrait) {
+  .street {
+    --phone-painting: 58dvh;
+    --phone-fade: 9%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 56px 0 6dvh;
+  }
+
   .header {
     padding: 10px 16px 36px;
   }
@@ -194,17 +222,38 @@
   }
 
   .view {
-    inset: 0;
+    position: relative;
+    inset: auto;
+    flex: none;
     width: auto;
-    height: auto;
+    height: var(--phone-painting);
     overflow: auto hidden;
     overscroll-behavior-x: none;
     scrollbar-width: none;
-    mask-image: none;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 var(--phone-fade),
+      #000 calc(100% - var(--phone-fade)),
+      transparent
+    );
   }
 
   .painting {
     width: auto;
     max-width: none;
+  }
+
+  .signposts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 0 16px;
+  }
+
+  .hint {
+    display: block;
   }
 }

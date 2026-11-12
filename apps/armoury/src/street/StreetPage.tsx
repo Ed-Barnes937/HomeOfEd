@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router'
 import {
   type CSSProperties,
   type FocusEvent,
-  type RefObject,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -12,12 +11,19 @@ import {
 import { SHOP_PATHS } from '../landing.ts'
 import { hubUrl, REDUCED_MOTION_QUERY, useMediaQuery } from '../useMediaQuery.ts'
 import { useShops } from '../workbench/WorkbenchProvider.tsx'
-import { DOOR_LABELS, openingLeft, SHOPS, STREET_PAINTING } from './shops.ts'
+import {
+  DOOR_LABELS,
+  openingLeft,
+  SHOPS,
+  signposts,
+  STREET_PAINTING,
+  type StreetShop,
+} from './shops.ts'
 import styles from './StreetPage.module.scss'
 
 const { src, width, height } = STREET_PAINTING
 
-type Side = 'left' | 'right'
+const FLASH_MS = 1200
 
 // The browser leaves a half-visible link where it is; a keyboard visitor sees the whole shop.
 function showWhole(event: FocusEvent<Element>) {
@@ -26,48 +32,36 @@ function showWhole(event: FocusEvent<Element>) {
   }
 }
 
-/** Which ways the street carries on past the edges of the view. */
-function useMoreStreet(street: RefObject<HTMLElement | null>): Record<Side, boolean> {
-  const [more, setMore] = useState({ left: false, right: false })
-  useEffect(() => {
-    const view = street.current
-    if (!view) return
-    const measure = () => {
-      const left = view.scrollLeft > 1
-      const right = view.scrollLeft + view.clientWidth < view.scrollWidth - 1
-      setMore((was) => (was.left === left && was.right === right ? was : { left, right }))
-    }
-    measure()
-    view.addEventListener('scroll', measure, { passive: true })
-    window.addEventListener('resize', measure)
-    return () => {
-      view.removeEventListener('scroll', measure)
-      window.removeEventListener('resize', measure)
-    }
-  }, [street])
-  return more
+/** How far along the street `view` scrolls to show `shop`, or null when the whole street fits. */
+function scrollFor(view: HTMLElement, shop: StreetShop): number | null {
+  if (view.scrollWidth <= view.clientWidth) return null
+  const scale = view.scrollWidth / width
+  return openingLeft(shop, view.clientWidth / scale) * scale
 }
 
 export function StreetPage() {
   const street = useRef<HTMLElement>(null)
   const { lastShop } = useShops()
-  const more = useMoreStreet(street)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
+  const [flashing, setFlashing] = useState<string | null>(null)
+  const flashEnds = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useLayoutEffect(() => {
     const view = street.current
     const shop = SHOPS.find((s) => s.to === SHOP_PATHS[lastShop ?? 'wand'])
-    if (!view || !shop || view.scrollWidth <= view.clientWidth) return
-    const scale = view.scrollWidth / width
-    view.scrollLeft = openingLeft(shop, view.clientWidth / scale) * scale
+    const left = view && shop ? scrollFor(view, shop) : null
+    if (view && left !== null) view.scrollLeft = left
   }, [lastShop])
 
-  const walk = (side: Side) => {
+  useEffect(() => () => clearTimeout(flashEnds.current), [])
+
+  const show = (shop: StreetShop) => {
     const view = street.current
-    view?.scrollBy({
-      left: (side === 'left' ? -0.8 : 0.8) * view.clientWidth,
-      behavior: reducedMotion ? 'auto' : 'smooth',
-    })
+    const left = view ? scrollFor(view, shop) : null
+    if (view && left !== null) view.scrollTo({ left, behavior: reducedMotion ? 'auto' : 'smooth' })
+    setFlashing(shop.id)
+    clearTimeout(flashEnds.current)
+    flashEnds.current = setTimeout(() => setFlashing(null), FLASH_MS)
   }
 
   return (
@@ -117,6 +111,7 @@ export function StreetPage() {
                 key={shop.id}
                 to={shop.to}
                 className={styles.door}
+                data-flash={flashing === shop.id || undefined}
                 aria-label={DOOR_LABELS[shop.to]}
                 onFocus={showWhole}
               >
@@ -132,32 +127,20 @@ export function StreetPage() {
           )}
         </svg>
       </nav>
-      {(['left', 'right'] as const).map(
-        (side) =>
-          more[side] && (
-            <button
-              key={side}
-              type="button"
-              className={`${styles.more} ${styles[side]}`}
-              aria-label={`More street to the ${side}`}
-              onClick={() => walk(side)}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d={side === 'left' ? 'M10 3 L5 8 L10 13' : 'M6 3 L11 8 L6 13'} />
-              </svg>
-            </button>
-          ),
-      )}
+      <div className={styles.signposts}>
+        {signposts().map((shop) => (
+          <button
+            key={shop.id}
+            type="button"
+            className={styles.signpost}
+            aria-label={`Show ${shop.name} on the street`}
+            onClick={() => show(shop)}
+          >
+            {shop.name}
+          </button>
+        ))}
+      </div>
+      <p className={styles.hint}>Slide along the street, then tap a shop.</p>
     </div>
   )
 }

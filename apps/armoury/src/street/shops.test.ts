@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { openingLeft, outlinePoints, SHOPS, STREET_PAINTING, type StreetShop } from './shops.ts'
+import {
+  openingLeft,
+  outlinePoints,
+  SHOPS,
+  signposts,
+  STREET_PAINTING,
+  type StreetShop,
+} from './shops.ts'
 
 describe('the shops on the street', () => {
   it('are eight, each with its own id', () => {
@@ -74,5 +81,22 @@ describe('openingLeft', () => {
       expect(left).toBeGreaterThanOrEqual(0)
       expect(left + view).toBeLessThanOrEqual(STREET_PAINTING.width)
     }
+  })
+})
+
+describe('signposts', () => {
+  const shop = (id: string) => SHOPS.find((s) => s.id === id) as StreetShop
+
+  it('are the open shops, in their order along the street', () => {
+    expect(signposts().map((s) => s.name)).toEqual(['Thistlewick Wands', 'The Ember Anvil'])
+  })
+
+  it('include a shop as soon as it opens, wherever it stands', () => {
+    const opened = [shop('smithy'), { ...shop('potions'), to: '/wands' as const }, shop('wands')]
+    expect(signposts(opened).map((s) => s.id)).toEqual(['wands', 'potions', 'smithy'])
+  })
+
+  it('leave out the shops not built yet', () => {
+    expect(signposts([shop('bows'), shop('wands')]).map((s) => s.id)).toEqual(['wands'])
   })
 })

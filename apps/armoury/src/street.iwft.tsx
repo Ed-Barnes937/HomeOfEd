@@ -27,33 +27,42 @@ test('a door can be reached and opened from the keyboard', async ({ mountApp }) 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('a first visit opens at the wand shop, and the arrows walk the street to the smithy', async ({
+  test('a first visit opens at the wand shop, with a signpost for each open shop', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()
     await root.verifyDoorsInView(['Go into the wand shop'])
     await root.verifyDoorOutOfView('Go into the smithy')
-    await root.verifyNoMoreStreet('left')
-    await root.walkStreetToEnd('right')
-    await root.verifyDoorsInView(['Go into the smithy'])
+    await root.verifySignposts(['Thistlewick Wands', 'The Ember Anvil'])
+    await root.verifyHint('Slide along the street, then tap a shop.')
+  })
+
+  test('a signpost brings its shop into view without going in, and the shop front goes in', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.showOnStreet('The Ember Anvil')
+    await root.verifyDoorWhollyInView('Go into the smithy')
     await root.verifyDoorOutOfView('Go into the wand shop')
-    await root.verifyMoreStreet('left')
+    await root.verifyAt('/street')
     await root.verifyTitleInView()
+    const smithy = await root.enterSmithy()
+    await smithy.verifyAt('/swords')
   })
 
   test('the street opens at the shop the visitor was last in', async ({ mountApp }) => {
     const { root } = await mountApp()
-    await root.walkStreetToEnd('right')
+    await root.showOnStreet('The Ember Anvil')
     const street = await (await root.enterSmithy()).backToStreet()
-    await street.verifyDoorsInView(['Go into the smithy'])
+    await street.verifyDoorWhollyInView('Go into the smithy')
     await street.verifyDoorOutOfView('Go into the wand shop')
   })
 
   test('keyboard focus brings a shop into view', async ({ mountApp }) => {
     const { root } = await mountApp()
-    await root.walkStreetToEnd('right')
+    await root.showOnStreet('The Ember Anvil')
     await root.focusDoor('Go into the wand shop')
-    await root.verifyDoorsInView(['Go into the wand shop'])
+    await root.verifyDoorWhollyInView('Go into the wand shop')
   })
 })
 
