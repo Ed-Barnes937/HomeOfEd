@@ -21,12 +21,27 @@ const JSON_B = '{"version":1,"species":"Ag==","ra":"AA==","rb":"AA=="}'
 
 let clock = 0
 let ids = 0
-function library(records: SceneRecords, namespace: string, legacy?: LegacyStorage) {
+function library(
+  records: SceneRecords,
+  namespace: string,
+  legacy?: LegacyStorage,
+  keepStorage?: () => Promise<void>,
+) {
   return new SceneLibrary(() => Promise.resolve(records), namespace, {
     legacy: legacy ?? null,
     now: () => ++clock,
     newId: () => `id-${++ids}`,
+    keepStorage,
   })
+}
+
+const OLD_SCENE = {
+  id: 'old',
+  name: 'old',
+  updatedAt: 1,
+  order: 1,
+  body: { kind: 'json' as const, json: 'x'.repeat(200) },
+  thumbnail: null,
 }
 
 function localStorageWith(
@@ -132,16 +147,60 @@ describe('SceneLibrary', () => {
 
   it('opens empty rather than failing when a profile’s copy does not fit, and tries again next time', async () => {
     const records = new MemorySceneRecords({ quotaBytes: 300 })
-    await records.create(DEVICE_NAMESPACE, {
-      id: 'old',
-      name: 'old',
-      updatedAt: 1,
-      order: 1,
-      body: { kind: 'json', json: 'x'.repeat(200) },
-      thumbnail: null,
-    })
+    await records.create(DEVICE_NAMESPACE, OLD_SCENE)
 
     expect(await library(records, 'ada').list()).toEqual([])
+
+    records.quotaBytes = Number.POSITIVE_INFINITY
+    expect((await library(records, 'ada').list()).map((scene) => scene.name)).toEqual(['old'])
+  })
+
+  it('a profile that saved while its copy did not fit still gets the device’s scenes later', async () => {
+    const records = new MemorySceneRecords()
+    await records.create(DEVICE_NAMESPACE, OLD_SCENE)
+    records.quotaBytes = records.usedBytes() + 100
+
+    await library(records, 'ada').save('scene 1', JSON_A, null)
+    records.quotaBytes = Number.POSITIVE_INFINITY
+
+    const names = (await library(records, 'ada').list()).map((scene) => scene.name)
+    expect(names.sort()).toEqual(['old', 'scene 1'])
+  })
+
+  it('a profile does not adopt on an open where the move did not finish, and does on the next', async () => {
+    const records = new MemorySceneRecords({ quotaBytes: 10 })
+    const device = localStorageWith({
+      [LEGACY_INDEX_KEY]: JSON.stringify([{ id: 'old', name: 'from before', updatedAt: 1 }]),
+      'silt:scene:old': JSON_A,
+    })
+
+    expect(await library(records, 'ada', device).list()).toEqual([])
+    records.quotaBytes = Number.POSITIVE_INFINITY
+
+    const names = (await library(records, 'ada', device).list()).map((scene) => scene.name)
+    expect(names).toEqual(['from before'])
+    expect(device.items.size).toBe(0)
+  })
+
+  it('asks to keep its storage once, after the first save that lands, and a refusal changes nothing', async () => {
+    let asked = 0
+    const keepStorage = () => {
+      asked++
+      return Promise.reject(new Error('not allowed'))
+    }
+    const records = new MemorySceneRecords({ quotaBytes: 10 })
+    const scenes = library(records, 'ada', undefined, keepStorage)
+
+    await expect(scenes.save('scene 1', JSON_A, null)).rejects.toThrow(QUOTA_MESSAGE)
+    expect(asked).toBe(0)
+
+    records.quotaBytes = Number.POSITIVE_INFINITY
+    const meta = await scenes.save('scene 1', JSON_A, null)
+    await scenes.update(meta.id, JSON_B, null)
+    await scenes.save('scene 2', JSON_B, null)
+
+    expect(asked).toBe(1)
+    expect(await scenes.list()).toHaveLength(2)
   })
 
   it('without IndexedDB, says scenes cannot be saved and never falls back to localStorage', async () => {

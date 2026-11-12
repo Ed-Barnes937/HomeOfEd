@@ -56,12 +56,8 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * The page's scene list: the rows the popover renders, and the
- * save/load/rename/delete operations with their failure messages. Failures are
- * surfaced, never swallowed, and never delete anything (spec §8) — a scene
- * that will not load keeps its row and gains an error. Storage is
- * asynchronous (ADR 0102), so operations run one at a time, in the order asked:
- * a second save never races the first into creating two scenes.
+ * The page's scene list and operations, run one at a time in order (ADR 0102).
+ * Failures are shown, never swallowed, and never delete anything (spec §8).
  */
 export function useScenes(options: UseScenesOptions): ScenesController {
   // Synced in an effect, not during render (ticket 15) — a render-phase write

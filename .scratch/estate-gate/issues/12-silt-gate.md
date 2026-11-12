@@ -88,9 +88,9 @@ fits once it is full. What happens today with `profileStorage` as it is:
 - The switch-player link is the player's name, underlined, beside SILT in the
   header. It renders only inside the estate, so CT never shows it; the stack
   check covers it, including 390px with no overflow.
-- `scripts/docker-stack-gate-round-trip.mjs` gained `--no-shared` (silt has no
-  `/shared`: it checks that `/shared` is gated and takes the bundle path from
-  the signed-in page instead). It now reads the gate's 302 from the response
+- `scripts/docker-stack-gate-round-trip.mjs` gained a no-`/shared` mode for
+  silt. After the merge with `main` that is main's `NO_SHARED=1`, and only the
+  WebKit change below is ours. It now reads the gate's 302 from the response
   event rather than `redirectedFrom()`, because Playwright WebKit loses the
   redirect chain when the 302 carries COOP, which every silt response does
   (ADR 0036). The browser behaved correctly; only the observation failed.
@@ -102,8 +102,8 @@ fits once it is full. What happens today with `profileStorage` as it is:
   reverses a documented rule, so it is not made here.
 
 Docker stack (`family hub silt`, project `hoe12`), Chromium 149 and Playwright
-WebKit 26.5, all passing: `docker-stack-gate-round-trip.mjs
-http://localhost:8089 --no-shared`. A further check registers through silt's
+WebKit 26.5, all passing: `NO_SHARED=1 node scripts/docker-stack-gate-round-trip.mjs
+http://localhost:8089` (the flag was `--no-shared` before the merge with main). A further check registers through silt's
 gate, picks Robin, and confirms the link is
 `http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8089%2F`. A
 scene Robin saves lands under `@<Robin's id>` keys. Following the link to hub,

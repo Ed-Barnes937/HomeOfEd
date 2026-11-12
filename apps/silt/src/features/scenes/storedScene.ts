@@ -1,9 +1,4 @@
-/**
- * How a scene sits in IndexedDB (ADR 0102): the envelope `sceneCodec` writes,
- * with its three base64 planes held as bytes, and the thumbnail as PNG bytes.
- * The format's meaning is unchanged; `unpackScene` gives `decodeScene` back the
- * envelope it expects.
- */
+/** A scene as IndexedDB holds it: the codec's envelope with its planes as bytes (ADR 0102). */
 import { fromBase64, toBase64 } from './sceneCodec.ts'
 
 const PLANE_NAMES = ['species', 'ra', 'rb'] as const

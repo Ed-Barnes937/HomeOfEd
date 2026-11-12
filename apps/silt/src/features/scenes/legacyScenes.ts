@@ -1,10 +1,4 @@
-/**
- * The one-time move of a device's scenes out of localStorage, where they used
- * to live (ADR 0029), into IndexedDB's device namespace (ADR 0102, ADR 0094's
- * one sanctioned move). The keys are removed only after the IndexedDB write
- * has committed, so it is safe to interrupt anywhere and run again: what was
- * already moved is skipped by id, and nothing is removed before it is safe.
- */
+/** The one-time move of the device's localStorage scenes into IndexedDB (ADR 0102, ADR 0094). */
 import { DEVICE_NAMESPACE, type SceneRecords, type StoredScene } from './sceneRecords.ts'
 import { packScene, packThumbnail } from './storedScene.ts'
 
@@ -27,7 +21,8 @@ export async function moveLegacyScenes(
 ): Promise<void> {
   const { scenes, keys } = readLegacyScenes(device, now)
   if (keys.length === 0) return
-  await records.addMissing(DEVICE_NAMESPACE, scenes)
+  // An id moved before is never added again, so a rerun only frees its keys.
+  await records.importOnce(DEVICE_NAMESPACE, scenes)
   for (const key of keys) device.removeItem(key)
 }
 

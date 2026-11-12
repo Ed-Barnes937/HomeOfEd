@@ -1,19 +1,14 @@
-/**
- * The seam between silt's scenes and where they are kept (ADR 0102). Every
- * record belongs to a namespace: the playing account's id, or
- * `DEVICE_NAMESPACE` for no account, by the same rule as `profileScopedKey`.
- * `indexedDbSceneRecords.ts` is the real one; `MemorySceneRecords` is the fake
- * the tests use, held to the same contract (`sceneRecords.test.ts`).
- */
+/** Where silt's scenes are kept, per namespace (ADR 0102); `MemorySceneRecords` is the tests' fake. */
 import type { SceneBody } from './storedScene.ts'
 
+/** No account: the device's scenes, by `profileScopedKey`'s rule. */
 export const DEVICE_NAMESPACE = ''
 
 export interface SceneRow {
   id: string
   name: string
   updatedAt: number
-  /** Where the row sits in the list: creation time, or the old index position for moved scenes. */
+  /** Where the row sits in the list: creation time, or the batch position for moved scenes. */
   order: number
 }
 
@@ -37,11 +32,15 @@ export interface SceneRecords {
   update(namespace: string, scene: StoredScene): Promise<boolean>
   rename(namespace: string, id: string, name: string, updatedAt: number): Promise<void>
   remove(namespace: string, id: string): Promise<void>
-  /** Adds each scene whose id is not in the namespace yet; resolves once that is committed. */
-  addMissing(namespace: string, scenes: readonly StoredScene[]): Promise<number>
   /**
-   * The first time `to` opens, copies every scene in `from` into it, all or
-   * nothing, unless `to` already holds scenes. Later calls do nothing.
+   * Adds each scene whose id this namespace has never imported and does not
+   * hold, after its current last row, and remembers every id given; durable
+   * once it resolves.
+   */
+  importOnce(namespace: string, scenes: readonly StoredScene[]): Promise<number>
+  /**
+   * Until `to` has adopted once, copies every scene of `from` that `to` lacks,
+   * all or nothing. Later calls do nothing.
    */
   adopt(from: string, to: string): Promise<void>
 }
@@ -62,6 +61,11 @@ export function byListOrder(a: SceneRow, b: SceneRow): number {
   return a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 }
 
+/** The first order after every row given, for a batch that goes on the end. */
+export function nextOrder(rows: readonly SceneRow[]): number {
+  return rows.reduce((last, row) => Math.max(last, row.order + 1), 0)
+}
+
 /** Bytes a scene costs, as the fake's quota counts them. */
 export function sceneBytes(scene: StoredScene): number {
   const body =
@@ -74,14 +78,23 @@ export function sceneBytes(scene: StoredScene): number {
   return body + (scene.thumbnail?.byteLength ?? 0) + scene.name.length
 }
 
-/** The in-memory fake. `quotaBytes` makes a write that would pass it fail, changing nothing. */
+/** The in-memory fake. A write that would pass `quotaBytes`, or cannot be cloned, changes nothing. */
 export class MemorySceneRecords implements SceneRecords {
+  quotaBytes: number
   readonly #scenes = new Map<string, Map<string, StoredScene>>()
-  readonly #opened = new Set<string>()
-  readonly #quotaBytes: number
+  readonly #imported = new Map<string, Set<string>>()
+  readonly #adopted = new Set<string>()
 
   constructor(options: { quotaBytes?: number } = {}) {
-    this.#quotaBytes = options.quotaBytes ?? Number.POSITIVE_INFINITY
+    this.quotaBytes = options.quotaBytes ?? Number.POSITIVE_INFINITY
+  }
+
+  usedBytes(): number {
+    let total = 0
+    for (const scenes of this.#scenes.values()) {
+      for (const scene of scenes.values()) total += sceneBytes(scene)
+    }
+    return total
   }
 
   list(namespace: string): Promise<ListedScene[]> {
@@ -91,13 +104,16 @@ export class MemorySceneRecords implements SceneRecords {
         name: scene.name,
         updatedAt: scene.updatedAt,
         order: scene.order,
-        thumbnail: scene.thumbnail,
+        thumbnail: scene.thumbnail === null ? null : structuredClone(scene.thumbnail),
       })),
     )
   }
 
   read(namespace: string, id: string): Promise<StoredScene | null> {
-    return settled(() => this.#in(namespace).get(id) ?? null)
+    return settled(() => {
+      const scene = this.#in(namespace).get(id)
+      return scene ? structuredClone(scene) : null
+    })
   }
 
   create(namespace: string, scene: StoredScene): Promise<void> {
@@ -125,21 +141,25 @@ export class MemorySceneRecords implements SceneRecords {
     })
   }
 
-  addMissing(namespace: string, scenes: readonly StoredScene[]): Promise<number> {
+  importOnce(namespace: string, scenes: readonly StoredScene[]): Promise<number> {
     return settled(() => {
-      const missing = scenes.filter((scene) => !this.#in(namespace).has(scene.id))
-      this.#commit(missing.map((scene) => [namespace, scene]))
-      return missing.length
+      const imported = this.#imported.get(namespace) ?? new Set<string>()
+      const held = this.#in(namespace)
+      const base = nextOrder([...held.values()])
+      const fresh = scenes.filter((scene) => !imported.has(scene.id) && !held.has(scene.id))
+      this.#commit(fresh.map((scene) => [namespace, { ...scene, order: base + scene.order }]))
+      this.#imported.set(namespace, new Set([...imported, ...scenes.map((scene) => scene.id)]))
+      return fresh.length
     })
   }
 
   adopt(from: string, to: string): Promise<void> {
     return settled(() => {
-      if (this.#opened.has(to)) return
-      if (this.#in(to).size === 0) {
-        this.#commit([...this.#in(from).values()].map((scene) => [to, scene]))
-      }
-      this.#opened.add(to)
+      if (this.#adopted.has(to)) return
+      const held = this.#in(to)
+      const missing = [...this.#in(from).values()].filter((scene) => !held.has(scene.id))
+      this.#commit(missing.map((scene) => [to, scene]))
+      this.#adopted.add(to)
     })
   }
 
@@ -152,17 +172,19 @@ export class MemorySceneRecords implements SceneRecords {
     return scenes
   }
 
+  // Validated whole before anything is written, as one IndexedDB transaction would be.
   #commit(writes: readonly (readonly [string, StoredScene])[]): void {
+    const copies = writes.map(([namespace, scene]) => [namespace, structuredClone(scene)] as const)
     let total = 0
     for (const [namespace, scenes] of this.#scenes) {
       for (const scene of scenes.values()) {
-        const replaced = writes.some(([ns, next]) => ns === namespace && next.id === scene.id)
+        const replaced = copies.some(([ns, next]) => ns === namespace && next.id === scene.id)
         if (!replaced) total += sceneBytes(scene)
       }
     }
-    for (const [, scene] of writes) total += sceneBytes(scene)
-    if (total > this.#quotaBytes) throw quotaExceeded()
-    for (const [namespace, scene] of writes) this.#in(namespace).set(scene.id, scene)
+    for (const [, scene] of copies) total += sceneBytes(scene)
+    if (total > this.quotaBytes) throw quotaExceeded()
+    for (const [namespace, scene] of copies) this.#in(namespace).set(scene.id, scene)
   }
 }
 

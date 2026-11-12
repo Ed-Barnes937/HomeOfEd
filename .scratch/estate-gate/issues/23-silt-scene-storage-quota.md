@@ -94,3 +94,25 @@ Per painted scene:
   ~16,000 PNG).
 - **On disk:** about 40,000 bytes in Chromium, 37,000 to 79,000 in Firefox,
   and about 200,000 in WebKit.
+
+**2026-11-12, review fixes (PR #206).**
+
+- **Adoption.**
+  - A profile no longer adopts on an open where the move from localStorage
+    failed.
+  - A failed adoption is retried on every open, even after the profile saved
+    scenes of its own (copied per id, so nothing collides).
+- **Writes.** Any throw inside an IndexedDB operation now aborts its
+  transaction, so a row can no longer commit without its body.
+- **Moved ids.** The move records every moved id in the same transaction, in a
+  new `imported` store. A rerun after a crash now only frees the old keys, so
+  a scene deleted in between stays deleted. Moved batches are ordered after
+  the namespace's last row.
+- **Eviction.** After the first save that lands, silt asks
+  `navigator.storage.persist()`, but only when the permission is already
+  decided, so no prompt can show.
+- **Tests from mutation testing.** A double-click on save makes one scene, and
+  a contract test proves adoption is all or nothing, against both the fake and
+  IndexedDB.
+- **ADR 0102** now covers eviction, roll-forward-only rollback and a tab still
+  on the old build during a deploy.

@@ -442,10 +442,16 @@ Spec §8; the calls the spec leaves open are in
     nothing ever falls back to localStorage), and the two another-tab notices.
   - **Opening the library first moves old scenes**: `legacyScenes.ts` copies
     `silt:scenes`, `silt:scene:<id>` and `silt:thumb:<id>` into the device
-    namespace, skipping ids already there, and removes the keys only after
-    that transaction commits (index last). Safe to interrupt anywhere. Then a
-    profile adopts the device namespace once (`namespaces` store), unless it
-    already holds scenes; the device namespace is never written by a profile.
+    namespace through `importOnce` (an id recorded in `imported` is never added
+    again, so a rerun only frees keys), ordered after the namespace's last row,
+    and removes the keys only after that transaction commits (index last).
+    Safe to interrupt anywhere. Only when the move succeeded does a profile
+    then adopt: it copies the device scenes it lacks, retried on every open
+    until it lands, and is then recorded in `namespaces`. The device namespace
+    is never written by a profile.
+  - After the first save that lands, `persistWithoutPrompt` asks
+    `navigator.storage.persist()` only when the permission is already decided,
+    so no prompt ever shows.
   - `useScenes` runs operations one at a time, in order (a second save cannot
     race the first into two scenes), shows the list only once read, and marks
     `data-busy` on the scenes button while anything is queued; the POM's scene

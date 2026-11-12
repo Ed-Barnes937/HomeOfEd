@@ -130,4 +130,18 @@ describe('moving the device’s scenes out of localStorage', () => {
 
     expect((await records.list(DEVICE_NAMESPACE)).map((row) => row.name)).toContain('pond, renamed')
   })
+
+  it('does not bring back a moved scene deleted before the rerun, and frees its old keys', async () => {
+    const device = deviceWithScenes()
+    const records = new MemorySceneRecords()
+    device.removalsBeforeCrash = 0
+    await expect(moveLegacyScenes(records, device, () => 99)).rejects.toThrow()
+    await records.remove(DEVICE_NAMESPACE, 'a')
+
+    device.removalsBeforeCrash = Number.POSITIVE_INFINITY
+    await moveLegacyScenes(records, device, () => 99)
+
+    expect((await records.list(DEVICE_NAMESPACE)).map((row) => row.id)).toEqual(['b', 'lost'])
+    expect([...device.items.keys()]).toEqual(LEFT_BEHIND)
+  })
 })

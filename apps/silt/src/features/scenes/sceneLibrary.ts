@@ -1,9 +1,4 @@
-/**
- * One page's scenes (spec §8, ADR 0102): the namespace the page opened for,
- * over `SceneRecords`. Knows the messages a person sees and nothing about the
- * scene format, which arrives as the codec's JSON. Opening it first moves any
- * scenes still in localStorage and, for a profile, adopts the device's scenes.
- */
+/** One page's scenes for the player it opened for, and the messages a person sees (ADR 0102). */
 import { moveLegacyScenes, type LegacyStorage } from './legacyScenes.ts'
 import {
   DEVICE_NAMESPACE,
@@ -64,6 +59,8 @@ export interface SceneLibraryOptions {
   legacy: LegacyStorage | null
   now?: () => number
   newId?: () => string
+  /** Asked once, after the first save that lands, to keep storage from eviction. */
+  keepStorage?: () => Promise<void>
 }
 
 export class SceneLibrary {
@@ -72,6 +69,7 @@ export class SceneLibrary {
   readonly #now: () => number
   readonly #newId: () => string
   readonly #listeners = new Set<(message: string) => void>()
+  #keepStorage: (() => Promise<void>) | undefined
 
   /** `open` is handed `notice`, for what storage has to say later (another tab, an upgrade). */
   constructor(
@@ -82,6 +80,7 @@ export class SceneLibrary {
     this.#namespace = namespace
     this.#now = options.now ?? (() => Date.now())
     this.#newId = options.newId ?? (() => crypto.randomUUID())
+    this.#keepStorage = options.keepStorage
     const notice = (message: string): void => {
       for (const listener of this.#listeners) listener(message)
     }
@@ -130,6 +129,7 @@ export class SceneLibrary {
         thumbnail,
       )
       await withoutPictureIfFull(scene, (next) => records.create(this.#namespace, next))
+      this.#saved()
       return { id: scene.id, name, updatedAt: now }
     })
   }
@@ -141,6 +141,7 @@ export class SceneLibrary {
       if (!row) return
       const scene = this.#scene({ ...row, updatedAt: this.#now() }, json, thumbnail)
       await withoutPictureIfFull(scene, (next) => records.update(this.#namespace, next))
+      this.#saved()
     })
   }
 
@@ -167,9 +168,13 @@ export class SceneLibrary {
   async #prepare(records: SceneRecords, legacy: LegacyStorage | null): Promise<void> {
     // Neither failure stops the page: both are tried again on the next open.
     if (legacy) {
-      await moveLegacyScenes(records, legacy, this.#now).catch((error: unknown) =>
-        console.warn('silt scenes: could not move scenes out of localStorage yet', error),
-      )
+      try {
+        await moveLegacyScenes(records, legacy, this.#now)
+      } catch (error) {
+        // Adopting now would copy a device namespace still missing the scenes being moved.
+        console.warn('silt scenes: could not move scenes out of localStorage yet', error)
+        return
+      }
     }
     if (this.#namespace !== DEVICE_NAMESPACE) {
       await records
@@ -178,6 +183,16 @@ export class SceneLibrary {
           console.warn('silt scenes: could not copy the device’s scenes yet', error),
         )
     }
+  }
+
+  #saved(): void {
+    const keep = this.#keepStorage
+    this.#keepStorage = undefined
+    if (!keep) return
+    // Never lets the request, or its refusal, touch the save that triggered it.
+    void Promise.resolve()
+      .then(keep)
+      .catch(() => undefined)
   }
 
   async #stored(records: SceneRecords, id: string): Promise<StoredScene> {

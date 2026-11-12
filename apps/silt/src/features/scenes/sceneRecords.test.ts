@@ -1,10 +1,12 @@
-import { IDBFactory } from 'fake-indexeddb'
-import { describe, expect, it } from 'vitest'
+import { IDBFactory, IDBObjectStore } from 'fake-indexeddb'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { openIndexedDbSceneRecords } from './indexedDbSceneRecords.ts'
 import {
   DEVICE_NAMESPACE,
   MemorySceneRecords,
+  quotaExceeded,
+  sceneBytes,
   type SceneRecords,
   type StoredScene,
 } from './sceneRecords.ts'
@@ -32,16 +34,56 @@ function scene(id: string, overrides: Partial<StoredScene> = {}): StoredScene {
 const names = async (records: SceneRecords, namespace: string) =>
   (await records.list(namespace)).map((row) => row.name)
 
+interface Opened {
+  records: SceneRecords
+  /** From now on, room for `count` more scenes; anything past that fails as a full quota would. */
+  limitNewScenes: (count: number) => void
+}
+
+// eslint-disable-next-line @typescript-eslint/unbound-method -- always called with `.apply(this)`
+const realPut = IDBObjectStore.prototype.put
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+function openMemory(): Promise<Opened> {
+  const records = new MemorySceneRecords()
+  // A longer name than any test scene's, so `count` scenes always fit and one more never does.
+  const perScene = sceneBytes(scene('xxxxx'))
+  return Promise.resolve({
+    records,
+    limitNewScenes: (count) => {
+      records.quotaBytes = records.usedBytes() + count * perScene
+    },
+  })
+}
+
+async function openIndexedDb(): Promise<Opened> {
+  const records = await openIndexedDbSceneRecords({ factory: new IDBFactory() })
+  return {
+    records,
+    limitNewScenes: (count) => {
+      // fake-indexeddb has no quota, so a full disk is stood in for at the row write.
+      let left = count
+      vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+        this: IDBObjectStore,
+        ...args: Parameters<IDBObjectStore['put']>
+      ) {
+        if (this.name === 'rows' && left-- <= 0) throw quotaExceeded()
+        return realPut.apply(this, args)
+      })
+    },
+  }
+}
+
 // The fake and the real store are held to the same contract.
 describe.each([
-  ['the in-memory fake', (): Promise<SceneRecords> => Promise.resolve(new MemorySceneRecords())],
-  [
-    'IndexedDB',
-    (): Promise<SceneRecords> => openIndexedDbSceneRecords({ factory: new IDBFactory() }),
-  ],
+  ['the in-memory fake', openMemory],
+  ['IndexedDB', openIndexedDb],
 ])('%s', (_, open) => {
   it('lists a namespace’s scenes in list order, with their thumbnails and not their bodies', async () => {
-    const records = await open()
+    const { records } = await open()
     await records.create('ada', scene('b', { order: 2 }))
     await records.create('ada', scene('a', { order: 1, thumbnail: null }))
 
@@ -54,7 +96,7 @@ describe.each([
   })
 
   it('keeps each namespace’s scenes apart', async () => {
-    const records = await open()
+    const { records } = await open()
     await records.create('ada', scene('x', { name: 'ada’s' }))
     await records.create(DEVICE_NAMESPACE, scene('x', { name: 'the device’s' }))
 
@@ -66,14 +108,24 @@ describe.each([
   })
 
   it('reads back the body and thumbnail it stored, bytes as bytes', async () => {
-    const records = await open()
+    const { records } = await open()
     await records.create('ada', scene('a'))
 
     expect(await records.read('ada', 'a')).toEqual(scene('a'))
   })
 
+  it('a write that cannot be stored part way through leaves nothing behind', async () => {
+    const { records } = await open()
+    const unstorable = (() => undefined) as unknown as Uint8Array
+
+    await expect(records.create('ada', scene('a', { thumbnail: unstorable }))).rejects.toThrow()
+
+    expect(await records.list('ada')).toEqual([])
+    expect(await records.read('ada', 'a')).toBeNull()
+  })
+
   it('updates only a scene that exists, and a missing thumbnail takes the old one away', async () => {
-    const records = await open()
+    const { records } = await open()
     await records.create('ada', scene('a'))
 
     expect(await records.update('ada', scene('a', { updatedAt: 2, thumbnail: null }))).toBe(true)
@@ -84,7 +136,7 @@ describe.each([
   })
 
   it('renames a row, and renaming a missing one creates nothing', async () => {
-    const records = await open()
+    const { records } = await open()
     await records.create('ada', scene('a'))
 
     await records.rename('ada', 'a', 'dunes', 5)
@@ -93,18 +145,31 @@ describe.each([
     expect(await records.list('ada')).toMatchObject([{ id: 'a', name: 'dunes', updatedAt: 5 }])
   })
 
-  it('adds only the scenes a namespace does not have yet', async () => {
-    const records = await open()
+  it('imports each id once: one already there is kept, one imported and deleted stays deleted', async () => {
+    const { records } = await open()
     await records.create(DEVICE_NAMESPACE, scene('a', { name: 'renamed since' }))
 
-    const added = await records.addMissing(DEVICE_NAMESPACE, [scene('a'), scene('b')])
+    expect(await records.importOnce(DEVICE_NAMESPACE, [scene('a'), scene('b'), scene('c')])).toBe(2)
+    await records.remove(DEVICE_NAMESPACE, 'b')
+    expect(await records.importOnce(DEVICE_NAMESPACE, [scene('a'), scene('b'), scene('c')])).toBe(0)
 
-    expect(added).toBe(1)
-    expect(await names(records, DEVICE_NAMESPACE)).toEqual(['renamed since', 'b'])
+    expect(await names(records, DEVICE_NAMESPACE)).toEqual(['renamed since', 'c'])
+  })
+
+  it('puts an imported batch after the scenes already listed, in its own order', async () => {
+    const { records } = await open()
+    await records.create(DEVICE_NAMESPACE, scene('earlier', { order: 7 }))
+
+    await records.importOnce(DEVICE_NAMESPACE, [
+      scene('second', { order: 1 }),
+      scene('first', { order: 0 }),
+    ])
+
+    expect(await names(records, DEVICE_NAMESPACE)).toEqual(['earlier', 'first', 'second'])
   })
 
   it('copies the device’s scenes into a profile on its first open, and never again', async () => {
-    const records = await open()
+    const { records } = await open()
     await records.create(DEVICE_NAMESPACE, scene('old'))
 
     await records.adopt(DEVICE_NAMESPACE, 'ada')
@@ -117,13 +182,27 @@ describe.each([
     expect(await records.read('bo', 'old')).toEqual(scene('old'))
   })
 
-  it('does not adopt into a profile that already saved its own scenes', async () => {
-    const records = await open()
-    await records.create(DEVICE_NAMESPACE, scene('old'))
-    await records.create('ada', scene('mine'))
+  it('adopts all or nothing, and a failed adoption is tried again in full', async () => {
+    const { records, limitNewScenes } = await open()
+    await records.create(DEVICE_NAMESPACE, scene('one'))
+    await records.create(DEVICE_NAMESPACE, scene('two'))
+
+    limitNewScenes(1)
+    await expect(records.adopt(DEVICE_NAMESPACE, 'ada')).rejects.toThrow()
+    expect(await names(records, 'ada')).toEqual([])
+
+    limitNewScenes(Number.POSITIVE_INFINITY)
+    await records.adopt(DEVICE_NAMESPACE, 'ada')
+    expect(await names(records, 'ada')).toEqual(['one', 'two'])
+  })
+
+  it('a profile that saved before its adoption succeeded still gets the device’s scenes', async () => {
+    const { records } = await open()
+    await records.create(DEVICE_NAMESPACE, scene('old', { order: 1 }))
+    await records.create('ada', scene('mine', { order: 2 }))
 
     await records.adopt(DEVICE_NAMESPACE, 'ada')
 
-    expect(await names(records, 'ada')).toEqual(['mine'])
+    expect(await names(records, 'ada')).toEqual(['old', 'mine'])
   })
 })

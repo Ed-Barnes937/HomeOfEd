@@ -1,12 +1,7 @@
-/**
- * `SceneRecords` over IndexedDB (ADR 0102). Four stores, every key
- * `[namespace, id]` except `namespaces`: rows (what the list shows), bodies
- * (the planes), thumbs (PNG bytes), and namespaces (which profiles have opened,
- * so adoption runs once). Each operation is one transaction, so a scene's row,
- * body and thumbnail land together or not at all.
- */
+/** `SceneRecords` over IndexedDB, one transaction per operation (ADR 0102 has the stores). */
 import {
   byListOrder,
+  nextOrder,
   SceneRecordsClosedError,
   type ListedScene,
   type SceneRecords,
@@ -21,8 +16,9 @@ export const SCENE_DB_VERSION = 1
 const ROWS = 'rows'
 const BODIES = 'bodies'
 const THUMBS = 'thumbs'
+const IMPORTED = 'imported'
 const NAMESPACES = 'namespaces'
-const ALL = [ROWS, BODIES, THUMBS, NAMESPACES]
+const ALL = [ROWS, BODIES, THUMBS, IMPORTED, NAMESPACES]
 const BY_NAMESPACE = 'byNamespace'
 
 interface RowRecord extends SceneRow {
@@ -64,7 +60,7 @@ export function openIndexedDbSceneRecords(options: OpenSceneRecordsOptions): Pro
     }
     request.onupgradeneeded = () => {
       const db = request.result
-      for (const name of [ROWS, BODIES, THUMBS]) {
+      for (const name of [ROWS, BODIES, THUMBS, IMPORTED]) {
         if (db.objectStoreNames.contains(name)) continue
         db.createObjectStore(name, { keyPath: ['ns', 'id'] }).createIndex(BY_NAMESPACE, 'ns')
       }
@@ -151,19 +147,25 @@ class IndexedDbSceneRecords implements SceneRecords {
     })
   }
 
-  addMissing(namespace: string, scenes: readonly StoredScene[]): Promise<number> {
+  importOnce(namespace: string, scenes: readonly StoredScene[]): Promise<number> {
     // Strict durability: the caller deletes the only other copy once this resolves.
     return this.#transact(
       'readwrite',
       async (stores) => {
-        const have = new Set(
-          ((await settle(stores[ROWS]!.index(BY_NAMESPACE).getAll(namespace))) as RowRecord[]).map(
-            (row) => row.id,
-          ),
-        )
-        const missing = scenes.filter((scene) => !have.has(scene.id))
-        for (const scene of missing) writeScene(stores, namespace, scene)
-        return missing.length
+        const [rows, imported] = await Promise.all([
+          rowsIn(stores, namespace),
+          settle(stores[IMPORTED]!.index(BY_NAMESPACE).getAll(namespace)) as Promise<
+            { id: string }[]
+          >,
+        ])
+        const skip = new Set([...rows, ...imported].map((record) => record.id))
+        const base = nextOrder(rows)
+        const fresh = scenes.filter((scene) => !skip.has(scene.id))
+        for (const scene of fresh) {
+          writeScene(stores, namespace, { ...scene, order: base + scene.order })
+        }
+        for (const scene of scenes) stores[IMPORTED]!.put({ ns: namespace, id: scene.id })
+        return fresh.length
       },
       'strict',
     )
@@ -172,12 +174,10 @@ class IndexedDbSceneRecords implements SceneRecords {
   adopt(from: string, to: string): Promise<void> {
     return this.#transact('readwrite', async (stores) => {
       if ((await settle(stores[NAMESPACES]!.get(to))) !== undefined) return
-      const own = await settle(stores[ROWS]!.index(BY_NAMESPACE).count(to))
-      if (own === 0) {
-        const rows = (await settle(stores[ROWS]!.index(BY_NAMESPACE).getAll(from))) as RowRecord[]
-        const scenes = await Promise.all(rows.map((row) => readScene(stores, from, row.id)))
-        for (const scene of scenes) if (scene) writeScene(stores, to, scene)
-      }
+      const held = new Set((await rowsIn(stores, to)).map((row) => row.id))
+      const rows = (await rowsIn(stores, from)).filter((row) => !held.has(row.id))
+      const scenes = await Promise.all(rows.map((row) => readScene(stores, from, row.id)))
+      for (const scene of scenes) if (scene) writeScene(stores, to, scene)
       stores[NAMESPACES]!.put({ ns: to })
     })
   }
@@ -204,19 +204,25 @@ class IndexedDbSceneRecords implements SceneRecords {
       transaction.oncomplete = () => resolve(result)
       transaction.onabort = () =>
         reject(transaction.error ?? new DOMException('the transaction was aborted', 'AbortError'))
-      work(stores).then(
-        (value) => {
-          result = value
-        },
-        (error: unknown) => {
-          reject(asError(error))
-          try {
-            transaction.abort()
-          } catch {
-            // Already finished: nothing to undo.
-          }
-        },
-      )
+      const fail = (error: unknown): void => {
+        reject(asError(error))
+        try {
+          transaction.abort()
+        } catch {
+          // Already finished: nothing to undo.
+        }
+      }
+      // A throw before `work` returns would otherwise leave its earlier writes to commit.
+      let pending: Promise<T>
+      try {
+        pending = work(stores)
+      } catch (error) {
+        fail(error)
+        return
+      }
+      pending.then((value) => {
+        result = value
+      }, fail)
     })
   }
 }
@@ -234,6 +240,10 @@ async function readScene(
   ])
   if (!row || !body) return null
   return { ...rowOf(row), body: body.body, thumbnail: thumb?.png ?? null }
+}
+
+function rowsIn(stores: Stores, namespace: string): Promise<RowRecord[]> {
+  return settle(stores[ROWS]!.index(BY_NAMESPACE).getAll(namespace)) as Promise<RowRecord[]>
 }
 
 function writeScene(stores: Stores, namespace: string, scene: StoredScene): void {
