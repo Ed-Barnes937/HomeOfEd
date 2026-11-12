@@ -133,6 +133,10 @@ The smithy is the worked example.
   a `ShopView` folder (like `smithy/`), stages on `boxRig` and `HeldRig` behind
   their own lazy entry, its picture painter in `share/`, and its kind in
   `scripts/gpu-shots.mjs`.
+- **Behind the estate gate:** add the kind's save key to `PROFILE_KEYS`
+  (`persistence/profileKeys.ts`) and its `ShopView` to `SharedView`'s `SHOPS`
+  (`views.tsx`), and put its route under `PlayerView`. Share links and Keep
+  follow `SHOP_PATHS` with nothing more.
 - **Build order:** the generator first, judged in plain grey (`--clay`) before
   any material; then materials and light; then the scene art; the close look
   last.
