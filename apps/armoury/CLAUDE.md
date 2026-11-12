@@ -122,6 +122,28 @@ public/fonts/         IM Fell English (+SC, italic) and Alegreya Sans, OFL
   against `pnpm dev` (the file's header lists the other flags). Real GPU only:
   headless ANGLE Metal, never SwiftShader and never `playwright install`.
 
+## Adding a shop
+
+Six more shop fronts are already painted and traced in `street/shops.ts` (bows,
+staffs, potions, brooms, robes, pets); a shop opens when its entry gets a `to`.
+The smithy is the worked example.
+
+- **What a shop adds:** its kind in `ItemKind` and `items/registry.ts`, a pure
+  generator folder ending in `item.ts`, a path in `landing.ts` and `router.tsx`,
+  a `ShopView` folder (like `smithy/`), stages on `boxRig` and `HeldRig` behind
+  their own lazy entry, its picture painter in `share/`, and its kind in
+  `scripts/gpu-shots.mjs`.
+- **Build order:** the generator first, judged in plain grey (`--clay`) before
+  any material; then materials and light; then the scene art; the close look
+  last.
+- **Settle the look on one item first:** take one hero item through materials
+  and light and have the owner pick from one contact sheet, before cutting
+  tickets for the options. Without that, the smithy's steel took five gate
+  rounds and its close look four.
+- **Gates:** form, materials, the close look and the whole shop each pass a
+  real-GPU gate, judged from shots beside the wand and the sword by someone
+  other than the builder. One gate per ticket.
+
 ## Rules
 
 ### Both shops
