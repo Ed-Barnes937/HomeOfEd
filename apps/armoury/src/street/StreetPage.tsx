@@ -1,12 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  type CSSProperties,
-  type FocusEvent,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react'
+import { type CSSProperties, type FocusEvent, useLayoutEffect, useRef, useState } from 'react'
 
 import { SHOP_PATHS } from '../landing.ts'
 import { hubUrl, REDUCED_MOTION_QUERY, TOUCH_QUERY, useMediaQuery } from '../useMediaQuery.ts'
@@ -24,7 +17,6 @@ import styles from './StreetPage.module.scss'
 
 const { src, dark, width, height } = STREET_PAINTING
 
-const FLASH_MS = 1200
 // In painting units: how far a shop's light reaches past its traced front, and how softly it ends.
 const LIGHT_GROW = 24
 const LIGHT_FEATHER = 16
@@ -49,11 +41,9 @@ export function StreetPage() {
   const navigate = useNavigate()
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const touch = useMediaQuery(TOUCH_QUERY)
-  const [flashing, setFlashing] = useState<string | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
   const [base, setBase] = useState<'loading' | 'dark' | 'lit'>('loading')
   const [litFailed, setLitFailed] = useState(false)
-  const flashEnds = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useLayoutEffect(() => {
     const view = street.current
@@ -62,19 +52,11 @@ export function StreetPage() {
     if (view && left !== null) view.scrollLeft = left
   }, [lastShop])
 
-  useEffect(() => () => clearTimeout(flashEnds.current), [])
-
   const show = (shop: StreetShop) => {
     const view = street.current
     const left = view ? scrollFor(view, shop) : null
     if (view && left !== null) view.scrollTo({ left, behavior: reducedMotion ? 'auto' : 'smooth' })
-    if (touch) {
-      setPicked(shop.id)
-      return
-    }
-    setFlashing(shop.id)
-    clearTimeout(flashEnds.current)
-    flashEnds.current = setTimeout(() => setFlashing(null), FLASH_MS)
+    if (touch) setPicked(shop.id)
   }
 
   const pick = (shop: StreetShop) => {
@@ -118,13 +100,6 @@ export function StreetPage() {
           onClick={touch ? () => setPicked(null) : undefined}
         >
           <defs>
-            <filter id="street-glow" x="-10%" y="-10%" width="120%" height="120%">
-              <feGaussianBlur stdDeviation={width / 320} />
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
             <filter id="street-feather" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation={LIGHT_FEATHER} />
             </filter>
@@ -185,7 +160,6 @@ export function StreetPage() {
                     <Link
                       to={shop.to}
                       className={styles.door}
-                      data-flash={flashing === shop.id || undefined}
                       aria-label={DOOR_LABELS[shop.to]}
                       onFocus={showWhole}
                     >
@@ -204,7 +178,6 @@ export function StreetPage() {
                       onError={() => setLitFailed(true)}
                     />
                   )}
-                  <path className={styles.edge} d={shop.outline} filter="url(#street-glow)" />
                 </g>
               ),
           )}

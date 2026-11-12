@@ -101,7 +101,7 @@
   }
 }
 
-// The front is the hit target; the light and the edge are drawn above it and never catch the pointer.
+// The front is the hit target; the light is drawn above it and never catches the pointer.
 .face {
   fill: transparent;
 }
@@ -118,38 +118,16 @@
   visibility: hidden;
 }
 
-.edge {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 2.5px;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 150ms ease;
-}
-
-.door:focus-visible,
-.door[aria-pressed='true'] {
-  & ~ .lights,
-  & ~ .edge {
-    opacity: 1;
-  }
+.door:focus-visible ~ .lights,
+.door[aria-pressed='true'] ~ .lights {
+  opacity: 1;
 }
 
 @media (hover: hover) {
-  .door:hover,
-  .door:active {
-    & ~ .lights,
-    & ~ .edge {
-      opacity: 1;
-    }
+  .door:hover ~ .lights,
+  .door:active ~ .lights {
+    opacity: 1;
   }
-}
-
-// A signpost on a phone shows its shop's edge for a moment.
-.door[data-flash] ~ .edge {
-  opacity: 1;
 }
 
 // Signposts and their hint are for a phone, where the street slides.
@@ -250,7 +228,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lights,
-  .edge,
   .signpost {
     transition: none;
   }

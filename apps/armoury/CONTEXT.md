@@ -31,8 +31,8 @@ _Avoid_: Page, mode.
 
 **Street**:
 The first page a visitor sees (`/street`): one painting of eight shops along a
-lane, the two built ones opening as links and the rest dimmed, shut for the
-night; and the way back to the hub. On a phone it slides sideways and opens on
+lane with its lights off, the two built ones lighting up when pointed at and
+opening as links, the rest shut for the night; and the way back to the hub. On a phone it slides sideways and opens on
 the last shop; on a touch screen a tap picks a shop and an Enter button goes in. A returning visitor skips it and opens in the
 shop they were last in; a visitor with an old save sees it once.
 _Avoid_: Home, landing page, menu.
