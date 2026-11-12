@@ -3,6 +3,7 @@ import { expect } from '@playwright/experimental-ct-react'
 
 import { LAST_SHOP_KEY } from '../persistence/lastShop.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
+import { outlinePoints, SHOPS, STREET_PAINTING } from '../street/shops.ts'
 import { openAsNewVisitor, reloadAtRoot, reloadInPlace, verifyAt } from './address.ts'
 import { ShopPom } from './ShopPom.ts'
 import { SmithyPom } from './SmithyPom.ts'
@@ -32,11 +33,27 @@ export class StreetPom extends BasePage {
     await expect(doors.nth(1)).toHaveAccessibleName('Go into the smithy')
   }
 
+  /** Only these shops have their lit painting laid over the dark one, hidden from assistive tech. */
+  async verifyLitShops(ids: string[]): Promise<void> {
+    const lights = this.page.locator('[data-lights]')
+    await expect(lights).toHaveCount(ids.length)
+    for (const [i, id] of ids.entries()) {
+      await expect(lights.nth(i)).toHaveAttribute('data-lights', id)
+      await expect(lights.nth(i)).toHaveAttribute('aria-hidden', 'true')
+    }
+  }
+
   /** Taps the painted front of a shop that is not built yet. */
   async tapShutShop(id: string): Promise<void> {
-    const box = await this.page.locator(`[data-shut="${id}"]`).boundingBox()
-    if (!box) throw new Error(`no shut shop ${id} on the street`)
-    await this.page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.7)
+    const shop = SHOPS.find((s) => s.id === id && !s.to)
+    const painting = await this.shops().locator('svg').first().boundingBox()
+    if (!shop || !painting) throw new Error(`no shut shop ${id} on the street`)
+    const points = outlinePoints(shop.outline)
+    const [xs, ys] = [points.map(([x]) => x), points.map(([, y]) => y)]
+    const scale = painting.width / STREET_PAINTING.width
+    const x = (Math.min(...xs) + Math.max(...xs)) / 2
+    const y = Math.min(...ys) + (Math.max(...ys) - Math.min(...ys)) * 0.7
+    await this.page.mouse.click(painting.x + x * scale, painting.y + y * scale)
   }
 
   async enterWandShopByKeyboard(): Promise<ShopPom> {

@@ -13,6 +13,7 @@ import { hubUrl, REDUCED_MOTION_QUERY, useMediaQuery } from '../useMediaQuery.ts
 import { useShops } from '../workbench/WorkbenchProvider.tsx'
 import {
   DOOR_LABELS,
+  lightShapes,
   openingLeft,
   SHOPS,
   signposts,
@@ -21,9 +22,12 @@ import {
 } from './shops.ts'
 import styles from './StreetPage.module.scss'
 
-const { src, width, height } = STREET_PAINTING
+const { src, dark, width, height } = STREET_PAINTING
 
 const FLASH_MS = 1200
+// In painting units: how far a shop's light reaches past its traced front, and how softly it ends.
+const LIGHT_GROW = 24
+const LIGHT_FEATHER = 16
 
 // The browser leaves a half-visible link where it is; a keyboard visitor sees the whole shop.
 function showWhole(event: FocusEvent<Element>) {
@@ -44,6 +48,8 @@ export function StreetPage() {
   const { lastShop } = useShops()
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const [flashing, setFlashing] = useState<string | null>(null)
+  const [base, setBase] = useState<'loading' | 'dark' | 'lit'>('loading')
+  const [litFailed, setLitFailed] = useState(false)
   const flashEnds = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useLayoutEffect(() => {
@@ -94,6 +100,7 @@ export function StreetPage() {
           className={styles.painting}
           style={{ aspectRatio: `${width} / ${height}` }}
           viewBox={`0 0 ${width} ${height}`}
+          data-base={base}
         >
           <defs>
             <filter id="street-glow" x="-10%" y="-10%" width="120%" height="120%">
@@ -103,27 +110,66 @@ export function StreetPage() {
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            <filter id="street-feather" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation={LIGHT_FEATHER} />
+            </filter>
           </defs>
-          <image href={src} width={width} height={height} aria-hidden="true" />
-          {SHOPS.map((shop) =>
-            shop.to ? (
-              <Link
-                key={shop.id}
-                to={shop.to}
-                className={styles.door}
-                data-flash={flashing === shop.id || undefined}
-                aria-label={DOOR_LABELS[shop.to]}
-                onFocus={showWhole}
-              >
-                <path className={styles.face} d={shop.outline} />
-                <path className={styles.edge} d={shop.outline} filter="url(#street-glow)" />
-              </Link>
-            ) : (
-              <g key={shop.id} className={styles.shut} data-shut={shop.id} aria-hidden="true">
-                <path className={styles.drain} d={shop.outline} />
-                <path className={styles.dusk} d={shop.outline} />
-              </g>
-            ),
+          <image
+            href={base === 'lit' ? src : dark}
+            width={width}
+            height={height}
+            aria-hidden="true"
+            onLoad={() => setBase((was) => (was === 'loading' ? 'dark' : was))}
+            onError={() => setBase('lit')}
+          />
+          {SHOPS.map(
+            (shop) =>
+              shop.to && (
+                <g key={shop.id}>
+                  <mask
+                    id={`street-lights-${shop.id}`}
+                    maskUnits="userSpaceOnUse"
+                    x={0}
+                    y={0}
+                    width={width}
+                    height={height}
+                  >
+                    <g
+                      filter="url(#street-feather)"
+                      fill="#fff"
+                      stroke="#fff"
+                      strokeWidth={LIGHT_GROW * 2}
+                      strokeLinejoin="round"
+                    >
+                      {lightShapes(shop).map((d) => (
+                        <path key={d} d={d} />
+                      ))}
+                    </g>
+                  </mask>
+                  <Link
+                    to={shop.to}
+                    className={styles.door}
+                    data-flash={flashing === shop.id || undefined}
+                    aria-label={DOOR_LABELS[shop.to]}
+                    onFocus={showWhole}
+                  >
+                    <path className={styles.face} d={shop.outline} />
+                  </Link>
+                  {!litFailed && (
+                    <image
+                      className={styles.lights}
+                      href={src}
+                      width={width}
+                      height={height}
+                      mask={`url(#street-lights-${shop.id})`}
+                      data-lights={shop.id}
+                      aria-hidden="true"
+                      onError={() => setLitFailed(true)}
+                    />
+                  )}
+                  <path className={styles.edge} d={shop.outline} filter="url(#street-glow)" />
+                </g>
+              ),
           )}
         </svg>
       </nav>

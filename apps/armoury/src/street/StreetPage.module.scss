@@ -100,12 +100,26 @@
   }
 }
 
-// Colour-dodge with a dark warm fill multiplies the painting's brightness by about 1.2.
+// The front is the hit target; the light and the edge are drawn above it and never catch the pointer.
 .face {
-  fill: #2e2414;
-  mix-blend-mode: color-dodge;
-  opacity: 0;
-  transition: opacity 150ms ease;
+  fill: transparent;
+}
+
+// An open shop's lit painting, through its soft mask. Full on a touch screen; low until pointed at.
+.lights {
+  pointer-events: none;
+  transition: opacity 250ms ease;
+}
+
+@media (hover: hover) {
+  .lights {
+    opacity: 0.35;
+  }
+}
+
+// Until the dark painting is in, the lights would float over the bare page.
+.painting[data-base='loading'] .lights {
+  visibility: hidden;
 }
 
 .edge {
@@ -122,33 +136,14 @@
 .door:hover,
 .door:focus-visible,
 .door:active {
-  .face {
+  & ~ .lights,
+  & ~ .edge {
     opacity: 1;
   }
-
-  .edge {
-    opacity: 1;
-  }
-}
-
-// A shop not built yet: its colour drained a little and dusk laid over it.
-.shut {
-  pointer-events: none;
-}
-
-.drain {
-  fill: #808080;
-  mix-blend-mode: saturation;
-  opacity: 0.5;
-}
-
-.dusk {
-  fill: #080a18;
-  opacity: 0.22;
 }
 
 // A signpost on a phone shows its shop's edge for a moment.
-.door[data-flash] .edge {
+.door[data-flash] ~ .edge {
   opacity: 1;
 }
 
@@ -190,7 +185,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .face,
+  .lights,
   .edge,
   .signpost {
     transition: none;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  lightShapes,
   openingLeft,
   outlinePoints,
   SHOPS,
@@ -27,6 +28,19 @@ describe('the shops on the street', () => {
     "trace %s's front as one closed shape in absolute coordinates",
     (_, outline) => {
       expect(outline.trim()).toMatch(/^M[\d\s,.\-LCQ]*Z$/)
+    },
+  )
+
+  it.each(SHOPS.flatMap((shop) => (shop.spill ?? []).map((spill) => [shop.id, spill])))(
+    "trace %s's light spill as a closed shape inside the painting",
+    (_, spill) => {
+      expect(spill.trim()).toMatch(/^M[\d\s,.\-LCQ]*Z$/)
+      for (const [x, y] of outlinePoints(spill)) {
+        expect(x).toBeGreaterThanOrEqual(0)
+        expect(x).toBeLessThanOrEqual(STREET_PAINTING.width)
+        expect(y).toBeGreaterThanOrEqual(0)
+        expect(y).toBeLessThanOrEqual(STREET_PAINTING.height)
+      }
     },
   )
 
@@ -98,5 +112,25 @@ describe('signposts', () => {
 
   it('leave out the shops not built yet', () => {
     expect(signposts([shop('bows'), shop('wands')]).map((s) => s.id)).toEqual(['wands'])
+  })
+})
+
+describe('lightShapes', () => {
+  const shop = (id: string) => SHOPS.find((s) => s.id === id) as StreetShop
+
+  it('light an open shop through its front and its spill', () => {
+    const smithy = shop('smithy')
+    expect(lightShapes(smithy)).toEqual([smithy.outline, ...(smithy.spill ?? [])])
+    expect(smithy.spill?.length).toBeGreaterThan(0)
+    expect(lightShapes(shop('wands'))[0]).toBe(shop('wands').outline)
+  })
+
+  it('leave a shop that is not built yet dark', () => {
+    for (const s of SHOPS.filter((s) => !s.to)) expect(lightShapes(s)).toEqual([])
+  })
+
+  it('light a shop as soon as it opens', () => {
+    const potions = shop('potions')
+    expect(lightShapes({ ...potions, to: '/wands' })).toEqual([potions.outline])
   })
 })

@@ -1,11 +1,13 @@
 import type { ShopPath } from '../landing.ts'
 
 /**
- * The street's painting, served from `public/`. `width` and `height` are the drawing's
- * coordinate space, which every outline uses; a sharper file of the same shape needs no retracing.
+ * The street's painting, served from `public/`, lit and with every light off. `width` and `height`
+ * are the drawing's coordinate space, which every outline uses; a sharper file of the same shape
+ * needs no retracing.
  */
 export const STREET_PAINTING = {
   src: '/street/street.webp',
+  dark: '/street/street-dark.webp',
   width: 2752,
   height: 1536,
 }
@@ -16,6 +18,8 @@ export interface StreetShop {
   name: string
   /** Its front traced as one closed SVG path: absolute M, L, Q and C only, ending in Z. */
   outline: string
+  /** Where its light reaches past its front once open, as closed paths like `outline`. */
+  spill?: readonly string[]
   /** Where its door leads; a shop with none is not built yet and stays shut. */
   to?: ShopPath
 }
@@ -38,6 +42,10 @@ export const SHOPS: readonly StreetShop[] = [
     name: 'The Ember Anvil',
     outline:
       'M 2140,1312 L 2140,853 L 2082,792 L 2190,660 L 2293,524 L 2322,510 L 2322,303 L 2303,300 L 2303,245 L 2493,208 L 2593,240 L 2593,303 L 2577,305 L 2577,466 L 2752,497 L 2752,1440 L 2600,1395 L 2570,1400 L 2572,1460 L 2560,1470 L 2400,1470 L 2392,1455 L 2420,1405 L 2418,1365 L 2405,1328 L 2372,1290 L 2365,1312 Z',
+    spill: [
+      'M 2340,250 L 2330,120 L 2380,20 L 2460,0 L 2700,0 L 2730,90 L 2650,200 L 2593,240 Z',
+      'M 1990,1536 L 2010,1330 L 2140,1300 L 2365,1312 L 2400,1470 L 2752,1440 L 2752,1536 Z',
+    ],
     to: '/swords',
   },
   {
@@ -89,6 +97,11 @@ export function outlinePoints(outline: string): [number, number][] {
 function span(shop: StreetShop): [number, number] {
   const xs = outlinePoints(shop.outline).map(([x]) => x)
   return [Math.min(...xs), Math.max(...xs)]
+}
+
+/** What a shop's light shines through: its front and spill once it is open, nothing before. */
+export function lightShapes(shop: StreetShop): string[] {
+  return shop.to ? [shop.outline, ...(shop.spill ?? [])] : []
 }
 
 /** The open shops, in their order along the street. */

@@ -14,6 +14,7 @@ test('only the wand shop and the smithy are open; the other shops stay shut', as
 }) => {
   const { root } = await mountApp()
   await root.verifyOnlyOpenShopsAreDoors()
+  await root.verifyLitShops(['wands', 'smithy'])
   await root.tapShutShop('potions')
   await root.verifyAt('/street')
 })
