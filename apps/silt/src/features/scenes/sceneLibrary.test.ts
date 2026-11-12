@@ -163,6 +163,26 @@ describe('SceneLibrary', () => {
     expect(names.sort()).toEqual(['old', 'scene 1'])
   })
 
+  it('a profile adopts nothing, not even scenes already on the device, on an open where the move failed', async () => {
+    const records = new MemorySceneRecords()
+    await records.create(DEVICE_NAMESPACE, OLD_SCENE)
+    const device = localStorageWith({
+      [LEGACY_INDEX_KEY]: JSON.stringify([{ id: 'moved', name: 'from before', updatedAt: 1 }]),
+      'silt:scene:moved': JSON_A,
+    })
+    // The move commits, then the page cannot free the old keys.
+    const removeItem = device.removeItem.bind(device)
+    device.removeItem = () => {
+      throw new Error('localStorage refused')
+    }
+
+    expect(await library(records, 'ada', device).list()).toEqual([])
+
+    device.removeItem = removeItem
+    const names = (await library(records, 'ada', device).list()).map((scene) => scene.name)
+    expect(names.sort()).toEqual(['from before', 'old'])
+  })
+
   it('a profile does not adopt on an open where the move did not finish, and does on the next', async () => {
     const records = new MemorySceneRecords({ quotaBytes: 10 })
     const device = localStorageWith({

@@ -212,8 +212,12 @@ describe.each([
     await records.create('ada', scene('same', { name: 'ada’s own' }))
 
     await records.adopt(DEVICE_NAMESPACE, 'ada')
-
     expect(await names(records, 'ada')).toEqual(['ada’s own'])
+
+    // The device's copy was offered too, so deleting her own does not let it in later.
+    await records.remove('ada', 'same')
+    await records.adopt(DEVICE_NAMESPACE, 'ada')
+    expect(await names(records, 'ada')).toEqual([])
   })
 
   it('adopts all or nothing, and a failed adoption is tried again in full', async () => {

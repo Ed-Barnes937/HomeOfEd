@@ -60,10 +60,10 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
   on the first open after that ships, the device's `localStorage` scenes go
   into IndexedDB's device namespace, and their keys are removed once that
   write has committed. Leaving them would keep the quota full, which is the
-  problem being fixed. It is safe to interrupt and rerun. From then on decision
-  2 holds as written, in IndexedDB: each profile copies the device's scenes on
-  its first open, and no profile writes the device's. No other app or key may
-  be moved.
+  problem being fixed. It is safe to interrupt and rerun. From then on
+  decision 2 holds in IndexedDB, per scene id (next bullet): each profile
+  copies, on every open, the device's scenes it has never taken in, and no
+  profile writes the device's. No other app or key may be moved.
 - **silt adopts per scene id** (amended 2026-11-12, ADR 0102 decision 6). A
   profile that saved before its copy succeeded still gets the device's scenes
   later, and scenes moved in after it adopted still reach it. This departs

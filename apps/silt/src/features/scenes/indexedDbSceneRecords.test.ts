@@ -1,8 +1,15 @@
-import { IDBFactory } from 'fake-indexeddb'
-import { describe, expect, it, vi } from 'vitest'
+import { IDBFactory, IDBObjectStore } from 'fake-indexeddb'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { openIndexedDbSceneRecords, SCENE_DB_NAME } from './indexedDbSceneRecords.ts'
-import { SceneRecordsClosedError, type StoredScene } from './sceneRecords.ts'
+import { DEVICE_NAMESPACE, SceneRecordsClosedError, type StoredScene } from './sceneRecords.ts'
+
+// eslint-disable-next-line @typescript-eslint/unbound-method -- always called with `.apply(this)`
+const realPut = IDBObjectStore.prototype.put
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 const SAVED: StoredScene = {
   id: 'a',
@@ -11,6 +18,21 @@ const SAVED: StoredScene = {
   order: 1,
   body: { kind: 'json', json: '{"version":1}' },
   thumbnail: new Uint8Array([1]),
+}
+
+/** The ids a namespace has recorded as taken in, read over a connection of its own. */
+async function takenIn(factory: IDBFactory, namespace: string): Promise<string[]> {
+  const db = await openRaw(factory, 1)
+  const ids = await new Promise<string[]>((resolve) => {
+    const read = db
+      .transaction('imported')
+      .objectStore('imported')
+      .index('byNamespace')
+      .getAll(namespace)
+    read.onsuccess = () => resolve((read.result as { id: string }[]).map((record) => record.id))
+  })
+  db.close()
+  return ids
 }
 
 function openRaw(factory: IDBFactory, version: number): Promise<IDBDatabase> {
@@ -38,6 +60,31 @@ describe('scene records in IndexedDB', () => {
     ).rejects.toThrow()
 
     expect(await records.read('ada', 'a')).toEqual(SAVED)
+  })
+
+  it('an adoption whose transaction aborts at commit records nothing, and the retry copies everything', async () => {
+    const factory = new IDBFactory()
+    const records = await openIndexedDbSceneRecords({ factory })
+    await records.create(DEVICE_NAMESPACE, { ...SAVED, id: 'one' })
+    await records.create(DEVICE_NAMESPACE, { ...SAVED, id: 'two' })
+    // Every write is queued; then the transaction is aborted, as a commit-time failure would.
+    let importedPuts = 0
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+      this: IDBObjectStore,
+      ...args: Parameters<IDBObjectStore['put']>
+    ) {
+      const request = realPut.apply(this, args)
+      if (this.name === 'imported' && ++importedPuts === 2) this.transaction.abort()
+      return request
+    })
+
+    await expect(records.adopt(DEVICE_NAMESPACE, 'ada')).rejects.toThrow()
+    expect(await records.list('ada')).toEqual([])
+    expect(await takenIn(factory, 'ada')).toEqual([])
+
+    vi.restoreAllMocks()
+    await records.adopt(DEVICE_NAMESPACE, 'ada')
+    expect((await records.list('ada')).map((row) => row.id)).toEqual(['one', 'two'])
   })
 
   it('steps aside for an upgrade in another tab, and says so', async () => {

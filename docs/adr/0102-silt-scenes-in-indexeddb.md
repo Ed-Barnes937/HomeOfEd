@@ -24,8 +24,9 @@ nothing to delete.
 ## Decision
 
 **1. Scenes move to IndexedDB.** Its quota is a share of the disk (hundreds of
-megabytes at least), so every profile copying the device's scenes is fine and
-ADR 0094's copy-on-first-open stands for silt. Field notes (a few kilobytes)
+megabytes at least), so every profile copying the device's scenes is fine.
+Each profile copies them per scene id on every open (decision 6), which
+refines ADR 0094's copy on first open. Field notes (a few kilobytes)
 and the first-visit hint stay in `localStorage`.
 
 **2. One database, `silt`, four stores.** `rows` (id, name, updatedAt, order),
@@ -73,6 +74,9 @@ one move ADR 0094 allows (see its amendment).
 device scene whose id the profile has never taken in and does not hold, and
 records every id it offered in the profile's `imported`.
 - A scene the profile deleted stays deleted, even if it deleted everything.
+- A scene saved signed out, after profiles have adopted, reaches every
+  profile on its next open. A profile's own saves never reach the device or
+  another profile.
 - A scene moved in later (a rollback, an old-build tab) reaches every profile
   on its next open.
 - A profile's own scene sharing an id with a device scene is never
