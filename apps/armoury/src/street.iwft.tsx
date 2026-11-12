@@ -27,14 +27,31 @@ test('a door can be reached and opened from the keyboard', async ({ mountApp }) 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('the street opens on the open shops and slides sideways under the title', async ({
+  test('a first visit opens at the wand shop, and the arrows walk the street to the smithy', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()
-    await root.verifyDoorsInView(['Go into the wand shop', 'Go into the smithy'])
-    await root.scrollStreetTo('end')
+    await root.verifyDoorsInView(['Go into the wand shop'])
+    await root.verifyDoorOutOfView('Go into the smithy')
+    await root.verifyNoMoreStreet('left')
+    await root.walkStreetToEnd('right')
+    await root.verifyDoorsInView(['Go into the smithy'])
     await root.verifyDoorOutOfView('Go into the wand shop')
+    await root.verifyMoreStreet('left')
     await root.verifyTitleInView()
+  })
+
+  test('the street opens at the shop the visitor was last in', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.walkStreetToEnd('right')
+    const street = await (await root.enterSmithy()).backToStreet()
+    await street.verifyDoorsInView(['Go into the smithy'])
+    await street.verifyDoorOutOfView('Go into the wand shop')
+  })
+
+  test('keyboard focus brings a shop into view', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.walkStreetToEnd('right')
     await root.focusDoor('Go into the wand shop')
     await root.verifyDoorsInView(['Go into the wand shop'])
   })

@@ -1,4 +1,14 @@
+// --ratio (the painting's width / height) is set on .street from shops.ts.
 .street {
+  --header: 76px;
+  --fade: 40px;
+  --painting-h: min(100dvh, 100vw / var(--ratio));
+  --painting-w: calc(var(--painting-h) * var(--ratio));
+  --spare-x: calc((100vw - var(--painting-w)) / 2);
+  --spare-y: calc(100dvh - var(--painting-h));
+  // The painting sits under the header when the spare height allows, else as low as it can.
+  --top: min(var(--spare-y), (var(--spare-y) + var(--header)) / 2);
+
   position: relative;
   height: 100dvh;
   overflow: hidden;
@@ -13,7 +23,7 @@
   align-items: baseline;
   gap: 12px;
   padding: 22px 32px 48px;
-  background: linear-gradient(180deg, rgba(6, 8, 18, 0.72) 0%, rgba(6, 8, 18, 0) 100%);
+  background: linear-gradient(180deg, rgba(6, 8, 18, 0.82) 0%, rgba(6, 8, 18, 0) 100%);
   pointer-events: none;
 }
 
@@ -51,8 +61,29 @@
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
+// The whole painting, never cropped; its edges fade into the page where there is room.
 .view {
-  height: 100%;
+  position: absolute;
+  top: var(--top);
+  left: max(0px, var(--spare-x));
+  width: var(--painting-w);
+  height: var(--painting-h);
+  mask-image:
+    linear-gradient(
+      to bottom,
+      transparent,
+      #000 min(var(--top), var(--fade)),
+      #000 calc(100% - min(var(--spare-y) - var(--top), var(--fade))),
+      transparent
+    ),
+    linear-gradient(
+      to right,
+      transparent,
+      #000 min(var(--spare-x), var(--fade)),
+      #000 calc(100% - min(var(--spare-x), var(--fade))),
+      transparent
+    );
+  mask-composite: intersect;
 }
 
 .painting {
@@ -69,9 +100,10 @@
   }
 }
 
+// Colour-dodge with a dark warm fill multiplies the painting's brightness by about 1.2.
 .face {
-  fill: #fff;
-  mix-blend-mode: soft-light;
+  fill: #2e2414;
+  mix-blend-mode: color-dodge;
   opacity: 0;
   transition: opacity 150ms ease;
 }
@@ -91,7 +123,7 @@
 .door:focus-visible,
 .door:active {
   .face {
-    opacity: 0.35;
+    opacity: 1;
   }
 
   .edge {
@@ -99,9 +131,45 @@
   }
 }
 
+// A shop not built yet: its colour drained a little and dusk laid over it.
 .shut {
-  fill: rgba(4, 6, 16, 0.55);
   pointer-events: none;
+}
+
+.drain {
+  fill: #808080;
+  mix-blend-mode: saturation;
+  opacity: 0.5;
+}
+
+.dusk {
+  fill: #080a18;
+  opacity: 0.22;
+}
+
+.more {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 64px;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  translate: 0 -50%;
+  background: rgba(6, 8, 18, 0.5);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.left {
+  left: 8px;
+}
+
+.right {
+  right: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -126,9 +194,13 @@
   }
 
   .view {
+    inset: 0;
+    width: auto;
+    height: auto;
     overflow: auto hidden;
     overscroll-behavior-x: none;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    mask-image: none;
   }
 
   .painting {

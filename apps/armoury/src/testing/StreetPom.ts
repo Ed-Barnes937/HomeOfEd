@@ -7,6 +7,8 @@ import { openAsNewVisitor, reloadAtRoot, reloadInPlace, verifyAt } from './addre
 import { ShopPom } from './ShopPom.ts'
 import { SmithyPom } from './SmithyPom.ts'
 
+type Side = 'left' | 'right'
+
 interface OldWand {
   params: Record<string, unknown>
   name?: string
@@ -67,11 +69,23 @@ export class StreetPom extends BasePage {
     await expect(this.page.getByRole('link', { name })).not.toBeInViewport()
   }
 
-  /** Swipes the street as far as it goes to one side. */
-  async scrollStreetTo(side: 'start' | 'end'): Promise<void> {
-    await this.shops().evaluate((el, end) => {
-      el.scrollLeft = end ? el.scrollWidth : 0
-    }, side === 'end')
+  async verifyMoreStreet(side: Side): Promise<void> {
+    await expect(this.moreStreet(side)).toBeVisible()
+  }
+
+  async verifyNoMoreStreet(side: Side): Promise<void> {
+    await expect(this.moreStreet(side)).toHaveCount(0)
+  }
+
+  /** Taps the arrow on one side until the street runs out that way. */
+  async walkStreetToEnd(side: Side): Promise<void> {
+    const arrow = this.moreStreet(side)
+    for (let taps = 0; taps < 10 && (await arrow.count()) > 0; taps++) {
+      const before = await this.settledScroll()
+      await arrow.click()
+      await expect.poll(() => this.settledScroll()).not.toBe(before)
+    }
+    await expect(arrow).toHaveCount(0)
   }
 
   async verifyTitleInView(): Promise<void> {
@@ -95,6 +109,29 @@ export class StreetPom extends BasePage {
     const smithy = new SmithyPom(this.page)
     await smithy.verifyIsShown()
     return smithy
+  }
+
+  private moreStreet(side: Side) {
+    return this.page.getByRole('button', { name: `More street to the ${side}` })
+  }
+
+  /** How far along the street the view is, once a smooth scroll has come to rest. */
+  private settledScroll(): Promise<number> {
+    return this.shops().evaluate(
+      (el) =>
+        new Promise<number>((resolve) => {
+          let last = el.scrollLeft
+          const check = () =>
+            setTimeout(() => {
+              if (el.scrollLeft === last) resolve(last)
+              else {
+                last = el.scrollLeft
+                check()
+              }
+            }, 120)
+          check()
+        }),
+    )
   }
 
   private shops() {

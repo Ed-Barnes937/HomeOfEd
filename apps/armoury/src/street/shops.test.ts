@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { openShopsCentreX, outlinePoints, SHOPS, STREET_PAINTING } from './shops.ts'
+import { openingLeft, outlinePoints, SHOPS, STREET_PAINTING, type StreetShop } from './shops.ts'
 
 describe('the shops on the street', () => {
   it('are eight, each with its own id', () => {
@@ -52,12 +52,27 @@ describe('outlinePoints', () => {
   })
 })
 
-describe('openShopsCentreX', () => {
-  it('is midway between the outer sides of the open shops', () => {
-    const xs = SHOPS.filter((shop) => shop.to).flatMap((shop) =>
-      outlinePoints(shop.outline).map(([x]) => x),
-    )
-    const centre = openShopsCentreX()
-    expect(centre - Math.min(...xs)).toBeCloseTo(Math.max(...xs) - centre)
+describe('openingLeft', () => {
+  const shop = (id: string) => SHOPS.find((s) => s.id === id) as StreetShop
+  const span = (id: string): [number, number] => {
+    const xs = outlinePoints(shop(id).outline).map(([x]) => x)
+    return [Math.min(...xs), Math.max(...xs)]
+  }
+  const view = STREET_PAINTING.width / 4
+
+  it('lines the wand shop up with the left of the view, at its end of the street', () => {
+    expect(openingLeft(shop('wands'), view)).toBe(span('wands')[0])
+  })
+
+  it('lines the smithy up with the right of the view, at its end of the street', () => {
+    expect(openingLeft(shop('smithy'), view)).toBe(span('smithy')[1] - view)
+  })
+
+  it('never looks past either end of the painting', () => {
+    for (const s of SHOPS) {
+      const left = openingLeft(s, view)
+      expect(left).toBeGreaterThanOrEqual(0)
+      expect(left + view).toBeLessThanOrEqual(STREET_PAINTING.width)
+    }
   })
 })
