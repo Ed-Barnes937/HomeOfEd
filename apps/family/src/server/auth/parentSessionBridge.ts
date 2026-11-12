@@ -5,7 +5,11 @@ import type { FastifyInstance } from '@hoe/backend-kit/server'
 
 import { toFetchHeaders } from '../fastifyBridge.ts'
 
-import { parentSessionProvider, resolveParentId, type SessionResolver } from './parentSession.ts'
+import {
+  parentSessionProvider,
+  resolveParentSession,
+  type SessionResolver,
+} from './parentSession.ts'
 
 const PARENT_HEADER = 'x-family-parent'
 
@@ -13,10 +17,12 @@ const anonymous: AuthProvider = { getUser: () => null }
 
 /** The strip is the anti-spoof boundary: no inbound value ever survives it. */
 export function registerParentSessionBridge(app: FastifyInstance, auth: SessionResolver): void {
-  app.addHook('onRequest', async (req) => {
+  app.addHook('onRequest', async (req, reply) => {
     delete req.headers[PARENT_HEADER]
     if (!req.url.startsWith('/api/trpc')) return
-    const parentId = await resolveParentId(auth, toFetchHeaders(req))
+    const { parentId, setCookies } = await resolveParentSession(auth, toFetchHeaders(req))
+    // Better Auth slides the session as it reads it; only this reply can tell the browser.
+    if (setCookies.length > 0) void reply.header('set-cookie', setCookies)
     if (parentId !== null) req.headers[PARENT_HEADER] = parentId
   })
 }

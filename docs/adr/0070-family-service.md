@@ -145,3 +145,72 @@ decision 1). Apps call one function, `familyDocumentGateFromEnv(env,
   gate and resolves no key without `FAMILY_ACCOUNT_URL`, so an app with the
   gate off boots exactly as before, key or no key. Turning the gate on in
   production therefore needs the constant committed first.
+
+## Amendment (2026-11-12): a parent stays signed in for 90 days after last use
+
+Estate-gate ticket 22, answering the open call in
+[ADR 0095](0095-hub-return-and-renewal.md) decision 12.
+
+**The parent's Better Auth session lasts 90 days and slides.**
+`PARENT_SESSION_LIFETIME` in `apps/family/src/server/auth/betterAuth.ts` is the
+one place both numbers live: `session.expiresIn` 90 days, `updateAge` 1 day. Any
+tRPC request to family that carries the parent's cookie counts as use: hub's
+account page, hub's silent renewal, and every save an app on that device makes,
+because the save client sends credentials too. When the session was last pushed
+out more than a day ago, such a request moves the row's expiry to 90 days from
+now and the reply carries a fresh cookie with `Max-Age=7776000`; within the day
+neither is rewritten, so a device costs at most one row write a day. The family
+token is unchanged at 30 days.
+
+Before this, the session was Better Auth's default 7 days and the browser cookie
+never extended: the session bridge ([ADR 0078](0078-family-identity-auth-boundary.md)
+decision 2) called `auth.api.getSession` server-side, which slid the row but
+dropped the cookie Better Auth set. The bridge now asks for those headers
+(`returnHeaders: true`) and copies every `Set-Cookie` onto the tRPC reply. So a
+request carrying the cookie of a session that no longer exists (signed out on
+that device, or past its 90 days) now gets that cookie cleared, as
+`/api/auth/get-session` always did.
+
+90 days because a shared family tablet staying signed in is the point, and
+silent renewal ([ADR 0095](0095-hub-return-and-renewal.md) decision 9) works
+only while the parent session is live. Checked against `docker compose up
+family` on 2026-11-12, before and after the change, with the session row aged
+by moving `expires_at` and `updated_at` back two days in the stack's Postgres:
+
+- Sign-up: `better-auth.session_token=...; Max-Age=7776000; Path=/; HttpOnly;
+  SameSite=Lax` (was `Max-Age=604800`, otherwise identical, and host-only with
+  no `Domain` in both). Production also gets `Secure` and the `__Secure-` name
+  prefix, from the https `BETTER_AUTH_URL`; this change does not touch that,
+  and the http stack cannot show it.
+- `identity.me` on a session aged past a day: the same cookie, `Max-Age=7776000`
+  (was: no `Set-Cookie`), and the row's expiry back to 90 days out.
+- `identity.me` again straight after, or on a fresh session: no `Set-Cookie`,
+  row unchanged.
+- Sign-out: unchanged, `Max-Age=0` for the session token and Better Auth's two
+  other cookies.
+- Through hub's real UI in Playwright Chromium 149 and WebKit 26.5, the
+  browser stored the cookie for 90 days and the refresh on `identity.me`
+  (hub on 8080 calling family on 8092 with credentials) moved its expiry.
+
+**Safari is not settled.** Real Safari caps cookies written by script at 7 days;
+whether it also caps this server-set, httpOnly cookie is not verified.
+Playwright's WebKit cannot answer it: it gave the cookie its full 90 days, but it
+also gave hub's script-written family cookie its full 30, which real Safari caps
+at 7, so it does not model Safari's tracking prevention at all. Sliding softens
+a cap if there is one: any use more than a day after the last refresh re-sets
+the cookie, so a device used at least weekly keeps its parent signed in.
+
+**The cost, accepted: a lost device stays signed in as the parent** for up to
+90 days after it was last used, and any use of it extends that, a child's save
+included. Signed in as the parent, hub's `/account` on that device can mint a
+token for any child, add, rename and delete profiles, and erase the household
+(`deleteAccount` asks for `confirm: true`, not the password). What a parent can
+do today: sign out **on that device**. From any other device there is no way.
+Hub has no "sign out everywhere", no list of sessions and no change-password
+screen. Better Auth ships `/api/auth/list-sessions`, `/revoke-sessions` and
+`/revoke-other-sessions`, reachable through family's relay from hub's origin,
+but nothing calls them. The only other ends are erasing the household, which
+deletes everything, or Ed deleting the parent's rows in the `family` database's
+`session` table by hand. Building a remote sign-out is tracked in estate-gate
+ticket 20. A family token already on a lost device is outside all of this: no
+sign-out elsewhere reaches it, and it stays valid offline for up to 30 days.

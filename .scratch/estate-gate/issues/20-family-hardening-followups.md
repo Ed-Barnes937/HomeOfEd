@@ -27,6 +27,15 @@ None is caused by this epic and none blocks it. Each is small.
 - **Hub cannot read the real retry period.** The 429 carries
   `x-retry-after: 10` but family exposes no headers across origins, so hub
   pauses the form for a fixed 60 seconds (ticket 09).
+- **A parent cannot sign out another device.** Since ticket 22 a parent
+  session lasts 90 days after last use, so a lost tablet stays signed in as
+  the parent (mint for any child, edit profiles, erase the household) until
+  then. Hub offers sign-out on this device only: no "sign out everywhere", no
+  session list, no change-password. Better Auth already ships
+  `/api/auth/list-sessions`, `/revoke-sessions` and `/revoke-other-sessions`
+  behind family's relay; hub would need a button and the identity client a
+  call. Today the only remote ends are erasing the household or deleting the
+  parent's `session` rows by hand (ADR 0070, 2026-11-12 amendment).
 - Related and already tracked: a deleted profile's token can still write
   saves (`.scratch/family-first-slice/issues/10-deleted-profile-tokens.md`).
 

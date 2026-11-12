@@ -17,6 +17,8 @@ a real Postgres round-trip through the Store.
 
 The identity router is authorised by the Better Auth cookie session and offers
 `me`, `children.list/add/rename/delete`, `mintSessionToken` and `deleteAccount`.
+A parent's session lasts 90 days after they last used it on that device: any
+tRPC call carrying the cookie pushes it out, at most once a day.
 Registration is closed behind `REGISTRATION_INVITE_CODE`
 ([ADR 0057](../../docs/adr/0057-family-service-legal-gate.md)), and
 `/api/auth/*` is forwarded through Fastify to Better Auth's own handler.

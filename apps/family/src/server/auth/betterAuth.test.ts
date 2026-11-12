@@ -81,6 +81,17 @@ describe('the registration invite gate (ADR 0057)', () => {
   })
 })
 
+describe('the parent session lifetime', () => {
+  it('signs a parent in for 90 days, not the default 7', async () => {
+    const response = await signUp({ ...credentials, inviteCode: INVITE_CODE })
+
+    const sessionCookie = response.headers
+      .getSetCookie()
+      .find((cookie) => cookie.startsWith('better-auth.session_token='))
+    expect(sessionCookie).toContain('Max-Age=7776000')
+  })
+})
+
 /**
  * CORS cannot protect these routes: a CORS-simple POST is sent before the
  * allowlist is consulted, so Better Auth's own origin check is the control. It
@@ -159,8 +170,13 @@ describe('the Better Auth options (ADR 0057)', () => {
       'emailAndPassword',
       'hooks',
       'secret',
+      'session',
       'trustedOrigins',
     ])
+  })
+
+  it('sets only the session lifetime: 90 days, slid at most once a day', () => {
+    expect(auth.options.session).toEqual({ expiresIn: 7776000, updateAge: 86400 })
   })
 
   it('leaves email/password as the only credential route', () => {
