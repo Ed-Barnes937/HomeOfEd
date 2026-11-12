@@ -19,7 +19,7 @@ features would slot into:
 
 ```
 HomePage → useSimLoop → SimHost + Renderer  (the app; the sim ticks in a
-         → useScenes  → SceneLibrary         worker over shared memory —
+         → useScenes  → SceneLibrary         worker over shared memory -
 router → GreetingHandler → ctx.auth          ADR 0036; scenes: IndexedDB)
 ```
 

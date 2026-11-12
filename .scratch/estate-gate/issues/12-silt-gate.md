@@ -109,3 +109,25 @@ gate, picks Robin, and confirms the link is
 scene Robin saves lands under `@<Robin's id>` keys. Following the link to hub,
 adding and picking Sky, comes back to silt as Sky with no scenes.
 
+
+**2026-11-12, resumed with ticket 23's option 1 (PR #206, for Ed to merge or
+decline).** PR #206 now targets `main` and has `origin/main` merged in, with
+the WebKit response-listener fix reapplied to main's round-trip script.
+
+- **Built.** Scenes are in IndexedDB, per player (ADR 0102). The device's
+  localStorage scenes are moved there once and then adopted per player, as
+  ADR 0094 is amended to allow. Measurements are in ticket 23.
+- **Replaced.** The `silt:scene` prefix trick in `PROFILE_KEYS` described
+  above is gone: `PROFILE_KEYS` now lists only `silt:fieldNotes`.
+- **Unchanged.** The gate wiring, Dockerfile, switch-player link and
+  `reloadOnPlayerChange` are as built before. `fly.toml` is still untouched.
+- **Docker stack** (`family hub silt`, project `hoe12`, torn down with
+  `-v`), Chromium 149 and WebKit 26.5:
+  - `NO_SHARED=1 node scripts/docker-stack-gate-round-trip.mjs
+    http://localhost:8089` passes in full. The 302 carries
+    `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`.
+  - A further check also passes in both browsers. Robin's saved scene is in
+    IndexedDB under his account, with nothing in localStorage. The link is
+    `http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8089%2F`.
+    At 390px the page does not scroll sideways. Picking Sky at hub returns to
+    silt with none of Robin's scenes.
