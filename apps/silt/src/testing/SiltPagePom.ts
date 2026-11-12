@@ -870,9 +870,15 @@ export class SiltPagePom extends BasePage {
 
   // ---- scenes popover (spec §9) ----------------------------------------
 
+  /** Opens the popover and waits until the list has been read (scenes live in IndexedDB). */
   async openScenes(): Promise<void> {
     await this.page.getByTestId('scenes-button').click()
-    await expect(this.page.getByTestId('scenes-popover')).toBeVisible()
+    await expect(this.page.getByTestId('scenes-popover')).toHaveAttribute('data-ready', 'true')
+  }
+
+  async verifyScenesUnavailable(text: string): Promise<void> {
+    await expect(this.page.getByTestId('scenes-unavailable')).toHaveText(text)
+    await expect(this.page.getByTestId('scene-save')).toBeDisabled()
   }
 
   async closeScenes(): Promise<void> {
@@ -882,14 +888,22 @@ export class SiltPagePom extends BasePage {
 
   async saveScene(): Promise<void> {
     await this.page.getByTestId('scene-save').click()
+    await this.waitForScenes()
   }
 
   async loadScene(name: string): Promise<void> {
     await this.page.getByTestId(`scene-load-${name}`).click()
+    await this.waitForScenes()
   }
 
   async duplicateScene(name: string): Promise<void> {
     await this.page.getByTestId(`scene-duplicate-${name}`).click()
+    await this.waitForScenes()
+  }
+
+  /** Scene storage is asynchronous (ADR 0102): waits until every queued operation has finished. */
+  async waitForScenes(): Promise<void> {
+    await expect(this.page.getByTestId('scenes-button')).toHaveAttribute('data-busy', 'false')
   }
 
   async verifySceneRow(name: string): Promise<void> {
@@ -927,6 +941,7 @@ export class SiltPagePom extends BasePage {
     const field = this.page.getByTestId(`scene-name-${from}`)
     await field.fill(to)
     await field.press('Enter')
+    await this.waitForScenes()
   }
 
   /** Types into a rename field and leaves it focused — for testing what the hotkeys do mid-edit. */
@@ -941,6 +956,7 @@ export class SiltPagePom extends BasePage {
     await button.click()
     await expect(button).toHaveText(/sure/)
     await button.click()
+    await this.waitForScenes()
   }
 
   async sceneStatus(): Promise<string> {

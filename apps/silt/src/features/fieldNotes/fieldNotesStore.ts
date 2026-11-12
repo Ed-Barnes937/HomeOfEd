@@ -11,7 +11,7 @@
  * swaps it - clearing the world never resets notes.
  *
  * The `FieldNotesStorage` seam is what lets all of this be tested without a
- * browser, exactly as `sceneStore.ts` does for scenes. Quota is a non-issue
+ * browser, as `SceneRecords` does for scenes. Quota is a non-issue
  * here - the blob only ever grows to a few dozen short strings - so unlike
  * scenes there is no quota vocabulary to speak.
  *
@@ -159,8 +159,7 @@ export class FieldNotesStore {
    * Loading a scene (ticket 28): the scene's snapshot becomes the working
    * progression wholesale - never a merge with what the browser had. An empty
    * snapshot - which is also what a scene saved before snapshots existed
-   * decodes to - clears the key outright, exactly as `reset` does, because an
-   * empty progression is "no key", never an empty blob.
+   * decodes to - leaves an empty record, exactly as `reset` does.
    */
   replace(progress: Progress): void {
     if (progress.edges.length === 0) {
@@ -174,15 +173,13 @@ export class FieldNotesStore {
   }
 
   /**
-   * "Forget discoveries" (spec §5): the key goes entirely, rather than being
-   * left as an empty blob claiming a player who has witnessed nothing. Note
-   * what does *not* do this - clearing or reloading the world never resets
-   * discovery, which is why this is the only path here that removes anything.
-   * Only an explicit scene load (`replace`) swaps the progression out.
+   * "Forget discoveries" (spec §5). It writes an empty record rather than
+   * removing the key: a profile with no key copies the device's old notes back
+   * in on its next open (ADR 0094). Clearing or reloading the world never
+   * resets discovery; only an explicit scene load (`replace`) also swaps it out.
    */
   reset(): void {
-    this.#storage.removeItem(PROGRESS_KEY)
-    this.#progress = EMPTY
+    this.#write(EMPTY)
   }
 
   #load(): Progress {

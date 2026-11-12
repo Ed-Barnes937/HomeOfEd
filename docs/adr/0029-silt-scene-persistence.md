@@ -1,6 +1,8 @@
 # 0029 — silt: scene persistence calls not fixed by the spec
 
-- **Status:** Accepted
+- **Status:** Accepted; where scenes are stored (localStorage, the write
+  order, the boot reconcile) is replaced by
+  [ADR 0102](0102-silt-scenes-in-indexeddb.md) if that is accepted
 - **Date:** 2026-08-06
 - **Related:** `.scratch/sand-sim/spec.md` §8 (the locked format — versioned
   envelope, planar base64, remap by name, the storage layout, bottom-centre

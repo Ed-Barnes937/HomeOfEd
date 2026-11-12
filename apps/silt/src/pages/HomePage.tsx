@@ -10,6 +10,7 @@ import { useMoments } from '../features/fieldNotes/useMoments.ts'
 import { EarnedElements } from '../features/palette/EarnedElements.tsx'
 import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
 import { WorldOverlay } from '../features/render/WorldOverlay.tsx'
+import type { SceneLibrary } from '../features/scenes/sceneLibrary.ts'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
 import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
@@ -50,11 +51,13 @@ function markHintSeen(): void {
 }
 
 interface HomePageProps {
-  /** The player's scenes and field notes; `null` where the browser refuses local storage. */
+  /** The player's field notes; `null` where the browser refuses local storage. */
   storage: StorageLike | null
+  /** The player's scenes. */
+  sceneLibrary: SceneLibrary
 }
 
-export function HomePage({ storage }: HomePageProps) {
+export function HomePage({ storage, sceneLibrary }: HomePageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [running, setRunning] = useState(false)
   const [selectedElement, setSelectedElement] = useState<number>(SAND)
@@ -132,7 +135,7 @@ export function HomePage({ storage }: HomePageProps) {
   )
 
   const scenes = useScenes({
-    storage,
+    library: sceneLibrary,
     // Progression belongs to the scene (ticket 28): a save snapshots the
     // working field notes into the envelope, and a load replaces them with the
     // scene's own - empty for a scene saved before snapshots existed. The
@@ -218,8 +221,8 @@ export function HomePage({ storage }: HomePageProps) {
    */
   const forgetDiscoveries = (): void => {
     fieldNotes.reset()
-    // The whole of what the page now knows: nothing. `reset` removes the key
-    // outright rather than leaving an empty blob behind it.
+    // The whole of what the page now knows: nothing. `reset` writes an empty
+    // record, so the device's old notes are not copied back in.
     controls.resyncWitnessed([])
   }
 
@@ -286,6 +289,7 @@ export function HomePage({ storage }: HomePageProps) {
               type="button"
               className={styles.headerButton}
               data-testid="scenes-button"
+              data-busy={scenes.busy}
               aria-expanded={scenesOpen}
               onClick={() => setScenesOpen((open) => !open)}
             >
@@ -294,6 +298,7 @@ export function HomePage({ storage }: HomePageProps) {
             {scenesOpen ? (
               <ScenesPopover
                 scenes={scenes.scenes}
+                unavailable={scenes.unavailable}
                 status={scenes.status}
                 onSave={scenes.save}
                 onLoad={scenes.load}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { useFamilySession } from '../features/family/FamilySessionContext.tsx'
 import { PROFILE_KEYS } from '../features/family/profileKeys.ts'
+import { openSceneLibrary } from '../features/scenes/openSceneLibrary.ts'
 import { HomePage } from './HomePage.tsx'
 
 /** Private browsing modes can make even *touching* localStorage throw. */
@@ -14,10 +15,11 @@ function openPlayerStorage(player: string | null): StorageLike | null {
   }
 }
 
-/** `/`: the playing profile's scenes and field notes (ADR 0094). */
+/** `/`: the playing profile's scenes and field notes (ADR 0094, ADR 0102). */
 export function PlayerView() {
   const player = useFamilySession()?.sub ?? null
   const [storage] = useState(() => openPlayerStorage(player))
+  const [sceneLibrary] = useState(() => openSceneLibrary(player))
   useEffect(() => reloadOnPlayerChange(player), [player])
-  return <HomePage storage={storage} />
+  return <HomePage storage={storage} sceneLibrary={sceneLibrary} />
 }

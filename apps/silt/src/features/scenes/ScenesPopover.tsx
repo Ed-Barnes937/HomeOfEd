@@ -1,5 +1,5 @@
 import { useArmedConfirm } from '../../hooks/useArmedConfirm.ts'
-import type { SceneMeta } from './sceneStore.ts'
+import type { SceneMeta } from './sceneLibrary.ts'
 import styles from './ScenesPopover.module.scss'
 
 /**
@@ -20,7 +20,10 @@ export interface SceneRow extends SceneMeta {
 }
 
 export interface ScenesPopoverProps {
-  scenes: readonly SceneRow[]
+  /** `null` while the list is being read: nothing is shown rather than an empty list. */
+  scenes: readonly SceneRow[] | null
+  /** Why this browser cannot keep scenes, or `null`. */
+  unavailable: string | null
   /** Result of the last save/load, shown above the list. */
   status: { tone: 'ok' | 'error'; text: string } | null
   onSave: () => void
@@ -56,7 +59,13 @@ export function ScenesPopover(props: ScenesPopoverProps) {
   }
 
   return (
-    <div className={styles.popover} data-testid="scenes-popover" role="dialog" aria-label="scenes">
+    <div
+      className={styles.popover}
+      data-testid="scenes-popover"
+      data-ready={props.scenes !== null || props.unavailable !== null}
+      role="dialog"
+      aria-label="scenes"
+    >
       <div className={styles.head}>
         <span className={styles.headTitle}>Scenes</span>
         <button
@@ -70,7 +79,13 @@ export function ScenesPopover(props: ScenesPopoverProps) {
         </button>
       </div>
 
-      <button type="button" className={styles.save} data-testid="scene-save" onClick={props.onSave}>
+      <button
+        type="button"
+        className={styles.save}
+        data-testid="scene-save"
+        disabled={props.unavailable !== null}
+        onClick={props.onSave}
+      >
         save current
       </button>
 
@@ -83,7 +98,11 @@ export function ScenesPopover(props: ScenesPopoverProps) {
         </p>
       ) : null}
 
-      {props.scenes.length === 0 ? (
+      {props.unavailable !== null ? (
+        <p className={styles.error} data-testid="scenes-unavailable">
+          {props.unavailable}
+        </p>
+      ) : props.scenes === null ? null : props.scenes.length === 0 ? (
         <p className={styles.empty} data-testid="scenes-empty">
           nothing saved yet
         </p>
