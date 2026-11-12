@@ -1,0 +1,240 @@
+.scene {
+  --floor-top: 50%;
+  --art-scale: 1;
+  --display-width: min(800px, 86%, 108vh);
+  --display-top: calc(var(--floor-top) + 6%);
+  --row-left: -4cqw;
+  --hole-x: 24px;
+  --reach-cap: 100cqw;
+
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--shop-dark);
+  isolation: isolate;
+}
+
+// The window's daylight falling across the room toward the anvil.
+.shaft {
+  position: absolute;
+  left: calc(50% + 290px * var(--art-scale));
+  top: calc(var(--floor-top) - 275px * var(--art-scale));
+  width: calc(220px * var(--art-scale));
+  height: 140vh;
+  transform: translateX(-50%) rotate(36deg);
+  transform-origin: 50% 0;
+  background: linear-gradient(
+    90deg,
+    rgba(190, 215, 255, 0) 0%,
+    rgba(190, 215, 255, 0.12) 30%,
+    rgba(205, 225, 255, 0.22) 50%,
+    rgba(190, 215, 255, 0.1) 72%,
+    rgba(190, 215, 255, 0) 100%
+  );
+  mask-image: linear-gradient(180deg, #000 0%, #000 30%, transparent 58%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+// The forge's warmth pooled round the anvil; never the sword's own colour, so nothing haloes at rest.
+.spill {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--display-top) + var(--display-width) * 0.085);
+  width: 90vmax;
+  height: 90vmax;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(
+    circle,
+    rgba(255, 138, 42, 0.09) 0%,
+    rgba(255, 138, 42, 0.03) 25%,
+    rgba(255, 138, 42, 0) 50%
+  );
+}
+
+.display {
+  position: absolute;
+  left: 50%;
+  top: var(--display-top);
+  width: var(--display-width);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  z-index: 1;
+
+  &[data-arrival='0'] {
+    animation: arriveA 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  &[data-arrival='1'] {
+    animation: arriveB 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes arriveA {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 24px);
+  }
+}
+
+@keyframes arriveB {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 24px);
+  }
+}
+
+// No z-index here: the twine passes over the anvil and under the sword's stage.
+.anvil {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1000 / 170;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+// anvilArt.ts draws past the button: x from -70 over 1140, y from -170 over 510.
+.anvilArt {
+  position: absolute;
+  left: -7%;
+  width: 114%;
+  top: -100%;
+  height: 300%;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+.shadow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.display[data-empty] .stageSlot,
+.display[data-empty] .shadow {
+  visibility: hidden;
+}
+
+.stageSlot {
+  position: absolute;
+  left: -15%;
+  right: -15%;
+  top: -80%;
+  bottom: -80%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.tagRow {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: calc(4.5cqw + min(var(--reach) * 100cqw, var(--reach-cap)));
+  margin-left: var(--row-left);
+}
+
+.ticket {
+  position: relative;
+  flex: 0 1 430px;
+  min-width: 0;
+}
+
+// From the ticket's hole up to the sword's grip, where the twine is tied.
+.twine {
+  position: absolute;
+  left: var(--hole-x);
+  top: calc(-13cqw - min(var(--reach) * 100cqw, var(--reach-cap)));
+  height: calc(13cqw + min(var(--reach) * 100cqw, var(--reach-cap)) + 50%);
+  width: calc(var(--grip) * 100cqw - var(--row-left) - var(--hole-x));
+  overflow: visible;
+  fill: none;
+  pointer-events: none;
+
+  path {
+    vector-effect: non-scaling-stroke;
+    stroke-linecap: round;
+  }
+}
+
+.twineShade {
+  stroke: rgba(40, 24, 12, 0.9);
+  stroke-width: 4;
+}
+
+.twineStrand {
+  stroke: var(--string);
+  stroke-width: 2.8;
+}
+
+.twineTwist {
+  stroke: rgba(70, 46, 24, 0.75);
+  stroke-width: 2.6;
+  stroke-dasharray: 1 3.5;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-muted);
+
+  svg {
+    flex: none;
+    color: #ffb36a;
+  }
+}
+
+@media (max-width: 899px) {
+  .scene {
+    --floor-top: 50%;
+    --art-scale: 0.5;
+    --display-width: calc(100% - 28px);
+    --display-top: calc(var(--floor-top) - 1%);
+    --row-left: 0px;
+    --hole-x: 18px;
+    --reach-cap: 4cqw;
+  }
+
+  .tagRow {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ticket {
+    flex: none;
+    width: 100%;
+  }
+
+  .hint {
+    margin: 10px 0 0 6px;
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .display[data-arrival] {
+    animation-duration: 1ms;
+  }
+}

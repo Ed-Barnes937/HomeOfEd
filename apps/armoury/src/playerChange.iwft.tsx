@@ -2,6 +2,7 @@ import { expect } from '@playwright/experimental-ct-react'
 
 import { normalise } from './engine/schema.ts'
 import { encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
+import { reloadAtRoot } from './testing/address.ts'
 import { setFamilyCookie } from './testing/familySession.ts'
 import { test } from './testing/iwftTest.tsx'
 import { readLocalSave, shelfNames } from './testing/localSaves.ts'
@@ -19,7 +20,7 @@ test('another tab switching player reloads this one when it is looked at again',
 }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
-  await page.reload()
+  await reloadAtRoot(page)
   await setFamilyCookie(page, CY)
 
   const { root } = await mountApp()
@@ -39,7 +40,7 @@ test('another tab switching player reloads this one when it is looked at again',
 test('the same player looking again leaves the page as it is', async ({ mountApp, page }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
-  await page.reload()
+  await reloadAtRoot(page)
   await setFamilyCookie(page, CY)
 
   const { root } = await mountApp()
@@ -60,9 +61,9 @@ test('/shared stays put when another player is picked, so a visitor keeps their 
 }) => {
   const first = await mountApp()
   await first.root.verifyIsShown()
-  await page.reload()
+  await reloadAtRoot(page)
   await setFamilyCookie(page, CY)
-  const shared = encodeShare({ params: normalise(wandSchema, { wood: 'walnut' }) })
+  const shared = encodeShare('wand', { params: normalise(wandSchema, { wood: 'walnut' }) })
   await ShopPom.openAt(page, `/shared${SHARE_HASH_PREFIX}${shared}`)
 
   const { root } = await mountApp()

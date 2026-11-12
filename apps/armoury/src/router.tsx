@@ -1,19 +1,62 @@
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import {
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+  Navigate,
+  Outlet,
+  redirect,
+} from '@tanstack/react-router'
 
-import { SHARED_PATH } from './share/shareLink.ts'
+import { landingPath, type Landing } from './landing.ts'
+import { SHARED_PATH, type SharedItem } from './share/shareLink.ts'
 import { ShelfPage } from './shelf/ShelfPage.tsx'
 import { ShopPage } from './shop/ShopPage.tsx'
+import { wandShop } from './shop/wandShop.ts'
+import { smithy } from './smithy/smithy.ts'
+import { StreetPage } from './street/StreetPage.tsx'
 import { PlayerView, SharedView } from './views.tsx'
 
-const rootRoute = createRootRoute({ component: Outlet })
+/** What the page was opened with, read once before the router mounts. */
+export interface Arrival {
+  /** The item a share link brought, if the visit began with one. */
+  shared: SharedItem | null
+  landing: Landing
+}
 
-// Pathless: the counter and the shelf share one workbench over the player's storage.
+const rootRoute = createRootRouteWithContext<Arrival>()({
+  component: Outlet,
+  notFoundComponent: () => <Navigate to="/street" replace />,
+})
+
+// Pathless: the street, both shops and the shelf share one workbench over the player's storage.
 const playerRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'player',
   component: PlayerView,
 })
-const shopRoute = createRoute({ getParentRoute: () => playerRoute, path: '/', component: ShopPage })
+// No `hash` on the redirect, so it drops a share link's fragment along with the root.
+const indexRoute = createRoute({
+  getParentRoute: () => playerRoute,
+  path: '/',
+  beforeLoad: ({ context }) => {
+    redirect({ to: landingPath(context.landing), replace: true, throw: true })
+  },
+})
+const streetRoute = createRoute({
+  getParentRoute: () => playerRoute,
+  path: '/street',
+  component: StreetPage,
+})
+const wandsRoute = createRoute({
+  getParentRoute: () => playerRoute,
+  path: '/wands',
+  component: () => <ShopPage view={wandShop} />,
+})
+const swordsRoute = createRoute({
+  getParentRoute: () => playerRoute,
+  path: '/swords',
+  component: () => <ShopPage view={smithy} />,
+})
 const shelfRoute = createRoute({
   getParentRoute: () => playerRoute,
   path: '/shelf',
@@ -27,11 +70,14 @@ const sharedRoute = createRoute({
 })
 
 const routeTree = rootRoute.addChildren([
-  playerRoute.addChildren([shopRoute, shelfRoute]),
+  playerRoute.addChildren([indexRoute, streetRoute, wandsRoute, swordsRoute, shelfRoute]),
   sharedRoute,
 ])
 
-export const router = createRouter({ routeTree })
+export const router = createRouter({
+  routeTree,
+  context: { shared: null, landing: { arrivalKind: null, lastShop: null } },
+})
 
 declare module '@tanstack/react-router' {
   interface Register {

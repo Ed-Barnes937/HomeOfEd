@@ -1,11 +1,19 @@
 # 0073 - armoury: a stateless wand shop with a three.js stage behind a seam
 
-- **Status:** Accepted
+- **Status:** Accepted - **amended 2026-11-11** (see the note below the header)
 - **Date:** 2026-11-08
 - **Related:** [ADR 0008](0008-apps-without-a-database.md) (stateless apps),
   [ADR 0074](0074-armoury-save-format.md), [ADR 0075](0075-armoury-share-links-and-picture.md),
   [ADR 0076](0076-armoury-generator-tuning.md). Idea, research and prototype:
   `~/Code/Playground/ideas/armoury`.
+
+> **Amended by [ADR 0097](0097-armoury-street-and-last-shop.md) and
+> [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md) (2026-11-11).** The wand
+> shop is now one of two shops on a street, beside the smithy, which makes swords.
+> Everything this ADR decides about the wand shop's look, the seam and the sheet
+> stands; it now lives at `/wands`, and the root sends a first visitor to the
+> street. The shell around it (header, tag, controls, shelf) is shared by both
+> shops through `ShopView` ([ADR 0096](0096-armoury-item-kinds-saves-and-links.md)).
 
 ## Context
 

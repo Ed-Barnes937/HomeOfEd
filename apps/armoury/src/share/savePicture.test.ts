@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import {
   savePicture,
-  wandFilename,
   navigatorPictureTarget,
+  pictureFilename,
   type PictureTarget,
 } from './savePicture.ts'
 
 const BLOB = new Blob(['fake png bytes'], { type: 'image/png' })
 const FILENAME = 'the-ember-spiral.png'
+const TITLE = 'Armoury'
 
 function fakeDownload() {
   const calls: { blob: Blob; filename: string }[] = []
@@ -28,7 +29,7 @@ describe('savePicture', () => {
       download,
     }
 
-    expect(await savePicture(BLOB, FILENAME, target)).toBe('shared')
+    expect(await savePicture(BLOB, FILENAME, target, TITLE)).toBe('shared')
     expect(shared).toHaveLength(1)
     expect(shared[0]!.files[0]!.name).toBe(FILENAME)
     expect(calls).toEqual([])
@@ -42,14 +43,14 @@ describe('savePicture', () => {
       download,
     }
 
-    expect(await savePicture(BLOB, FILENAME, target)).toBe('downloaded')
+    expect(await savePicture(BLOB, FILENAME, target, TITLE)).toBe('downloaded')
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
 
   it('downloads when there is no share capability at all (desktop)', async () => {
     const { calls, download } = fakeDownload()
 
-    expect(await savePicture(BLOB, FILENAME, { download })).toBe('downloaded')
+    expect(await savePicture(BLOB, FILENAME, { download }, TITLE)).toBe('downloaded')
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
 
@@ -61,7 +62,7 @@ describe('savePicture', () => {
       download,
     }
 
-    expect(await savePicture(BLOB, FILENAME, target)).toBe('dismissed')
+    expect(await savePicture(BLOB, FILENAME, target, TITLE)).toBe('dismissed')
     expect(calls).toEqual([])
   })
 
@@ -73,7 +74,7 @@ describe('savePicture', () => {
       download,
     }
 
-    expect(await savePicture(BLOB, FILENAME, target)).toBe('downloaded')
+    expect(await savePicture(BLOB, FILENAME, target, TITLE)).toBe('downloaded')
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
 })
@@ -113,7 +114,7 @@ describe('navigatorPictureTarget', () => {
     const target = navigatorPictureTarget(nav, {} as Document, false)
     target.download = download
 
-    expect(await savePicture(BLOB, FILENAME, target)).toBe('downloaded')
+    expect(await savePicture(BLOB, FILENAME, target, TITLE)).toBe('downloaded')
     expect(shared).toEqual([])
     expect(calls).toEqual([{ blob: BLOB, filename: FILENAME }])
   })
@@ -156,10 +157,10 @@ describe('navigatorPictureTarget', () => {
   })
 })
 
-describe('wandFilename', () => {
+describe('pictureFilename', () => {
   it('slugs the wand name into a png filename', () => {
-    expect(wandFilename('The Ember Spiral')).toBe('the-ember-spiral.png')
-    expect(wandFilename('Café / ✨')).toBe('cafe.png')
-    expect(wandFilename('✨✨')).toBe('wand.png')
+    expect(pictureFilename('The Ember Spiral', 'wand')).toBe('the-ember-spiral.png')
+    expect(pictureFilename('Café / ✨', 'wand')).toBe('cafe.png')
+    expect(pictureFilename('✨✨', 'wand')).toBe('wand.png')
   })
 })

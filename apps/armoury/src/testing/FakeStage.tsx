@@ -6,10 +6,11 @@ import type {
   CloseUpProps,
   StageHandle,
   StageProps,
-  Stages,
+  StagesByKind,
 } from '../stage/stage.ts'
 
 import { compileWand } from '../wand/compile.ts'
+import { FakeSwordCloseUpStage, FakeSwordStage } from './FakeSwordStage.tsx'
 
 const gemCount = (params: Params) => {
   const spec = compileWand(params)
@@ -55,7 +56,7 @@ export function FakeCloseUpStage({
   params,
   onLift,
   onArrive,
-  onTapWand,
+  onTapItem,
   onTapAway,
   ref,
 }: CloseUpProps) {
@@ -64,7 +65,7 @@ export function FakeCloseUpStage({
   useImperativeHandle(
     ref,
     (): CloseUpHandle => ({
-      cast: () => setCasts((c) => c + 1),
+      flourish: () => setCasts((c) => c + 1),
       putBack: () => Promise.resolve(),
     }),
     [],
@@ -82,10 +83,23 @@ export function FakeCloseUpStage({
       data-casts={casts}
       data-gems={gemCount(params)}
     >
-      <button type="button" data-testid="close-up-wand" tabIndex={-1} onClick={onTapWand} />
+      <button type="button" data-testid="close-up-wand" tabIndex={-1} onClick={onTapItem} />
       <button type="button" data-testid="close-up-away" tabIndex={-1} onClick={onTapAway} />
     </div>
   )
 }
 
-export const fakeStages: Stages = { Box: FakeStage, CloseUp: FakeCloseUpStage }
+export const fakeStages: StagesByKind = {
+  wand: { Box: FakeStage, CloseUp: FakeCloseUpStage },
+  sword: { Box: FakeSwordStage, CloseUp: FakeSwordCloseUpStage },
+}
+
+/** A box stage whose download failed: a lazy chunk, texture or map throws where it renders. */
+function FailedStage(): never {
+  throw new Error('the stage failed to load')
+}
+
+export const failingStages: StagesByKind = {
+  wand: { Box: FailedStage, CloseUp: FakeCloseUpStage },
+  sword: { Box: FailedStage, CloseUp: FakeSwordCloseUpStage },
+}
