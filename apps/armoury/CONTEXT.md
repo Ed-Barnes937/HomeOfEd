@@ -30,9 +30,10 @@ shared shell. Entering a shop makes it the **last shop**.
 _Avoid_: Page, mode.
 
 **Street**:
-The first page a visitor sees (`/street`): a front for each shop, and the way back
-to the hub. A returning visitor skips it and opens in the shop they were last in;
-a visitor with an old save sees it once.
+The first page a visitor sees (`/street`): one painting of eight shops around a
+square, the two built ones opening as links and the rest dimmed, shut for the
+night; and the way back to the hub. A returning visitor skips it and opens in the
+shop they were last in; a visitor with an old save sees it once.
 _Avoid_: Home, landing page, menu.
 
 **Sword**:

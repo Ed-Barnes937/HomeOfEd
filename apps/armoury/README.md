@@ -17,7 +17,7 @@ everything a child makes lives in their browser or in the link they send.
 | Path | Shows |
 | --- | --- |
 | `/` | Nothing: sends a page load to the shop a share link names, else the last shop, else the street |
-| `/street` | The street: a front for each shop |
+| `/street` | The street: one painting, with a link traced over each open shop |
 | `/wands` | The wand shop |
 | `/swords` | The smithy |
 | `/shelf` | Your shelf, a section for each kind |
