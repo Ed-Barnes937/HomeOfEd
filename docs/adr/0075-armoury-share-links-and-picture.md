@@ -49,7 +49,8 @@ decoder are unchanged (the payload field still names the kind,
 [ADR 0096](0096-armoury-item-kinds-saves-and-links.md)), and so is the picture.
 This replaces ADR 0096's "built at the root" for new links. `/shared` is the
 one path the estate gate leaves open ([ADR 0093](0093-estate-gate.md)
-decision 6), so anyone can open a shared wand or sword. It opens the link's own
+decision 6), so anyone can open a shared wand or sword. Every path under it
+is the same view, as the gate leaves those open too. It opens the link's own
 shop (the wand shop when the link holds nothing) and keeps nothing: the
 workbench there runs over `memoryStorage`, nothing writes the last shop, the
 header drops the shelf and the player chip, its way back to the street is a

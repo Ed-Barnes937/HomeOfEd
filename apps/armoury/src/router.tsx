@@ -68,10 +68,17 @@ const sharedRoute = createRoute({
   path: SHARED_PATH,
   component: SharedView,
 })
+// The gate leaves every path under /shared open, so none of them may fall through to the street.
+const sharedBelowRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: `${SHARED_PATH}/$`,
+  component: SharedView,
+})
 
 const routeTree = rootRoute.addChildren([
   playerRoute.addChildren([indexRoute, streetRoute, wandsRoute, swordsRoute, shelfRoute]),
   sharedRoute,
+  sharedBelowRoute,
 ])
 
 export const router = createRouter({

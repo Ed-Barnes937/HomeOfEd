@@ -271,3 +271,21 @@ test('"Keep this sword" keeps the visitor’s changes', async ({ mountApp, page 
   expect(shared?.item.name).toBe('Mine now')
   expect(shared?.item.params.family).toBe('dagger')
 })
+
+test('an unknown address under /shared stays shared, rather than reaching the street ungated', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+  const before = await readAllStorage(page)
+
+  await ShopPom.openAt(page, `/shared/nope${FRAGMENT}`)
+  const { root } = await mountApp()
+  await root.verifyWandName('From a friend')
+  await root.verifyNothingOffersToSave()
+  expect(new URL(page.url()).pathname).toBe('/shared/nope')
+  await page.waitForTimeout(1_000)
+  expect(await readAllStorage(page)).toEqual(before)
+})

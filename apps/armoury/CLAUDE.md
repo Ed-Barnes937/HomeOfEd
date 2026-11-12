@@ -36,8 +36,9 @@ src/
   router.tsx, views.tsx
                       / (redirect), /street, /wands, /swords, /shelf under
                       PlayerView (the player's profileStorage, reload on a
-                      player change); /shared is SharedView (memoryStorage,
-                      the link's own shop, nothing kept)
+                      player change); /shared and every path under it is
+                      SharedView (memoryStorage, the link's own shop, nothing
+                      kept), since the gate leaves them all open
   wand/               the wand generator, pure and three.js-free
     wandSchema.ts     the wand's params, ranges, kid-facing labels, coupling
     compile.ts        params -> WandSpec (profile + groove sets + stain)
