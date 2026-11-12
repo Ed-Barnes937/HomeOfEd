@@ -26,12 +26,25 @@ export function isDeployed(env: Environment): boolean {
   return Boolean(env.FLY_APP_NAME)
 }
 
-/** On Fly only: refuses a missing, placeholder or short secret, and any NODE_ENV but production. */
+/**
+ * On Fly only: refuses a missing, placeholder or short secret, any `localOnly`
+ * setting that is present at all, and any NODE_ENV but production.
+ */
 export function assertFitForDeployment(
   env: Environment,
   minLengths: Readonly<Record<string, number>>,
+  localOnly: readonly string[] = [],
 ): void {
   if (!isDeployed(env)) return
+
+  for (const name of localOnly) {
+    if (env[name] !== undefined) {
+      throw new Error(
+        `${name} is a local-only setting and must not be set on deployed infrastructure ` +
+          '(FLY_APP_NAME is set). Remove it from the Fly app.',
+      )
+    }
+  }
 
   for (const [name, minLength] of Object.entries(minLengths)) {
     const value = env[name]

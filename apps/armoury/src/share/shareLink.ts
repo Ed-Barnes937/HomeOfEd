@@ -1,5 +1,6 @@
 import { ITEM_KINDS, type ItemDef, type ItemKind, type StoredItem } from '../items/item.ts'
 import { ITEMS } from '../items/registry.ts'
+import { SHOP_PATHS } from '../landing.ts'
 import { decodeStored } from '../persistence/saveFormat.ts'
 
 /** The link's own version, separate from the save format's: links live forever (ADR 0075). */
@@ -40,9 +41,24 @@ export function decodeShare(token: string, items: Items = ITEMS): SharedItem | n
   return null
 }
 
-/** Always the root, whichever page built it: the root sends an arrival to its own shop. */
+/** The view a share link opens: ungated, and it writes nothing (ADR 0093 decision 6). */
+export const SHARED_PATH = '/shared'
+
+/** Always `/shared`, whichever page built it: the link itself names the kind. */
 export function buildShareUrl(origin: string, kind: ItemKind, item: StoredItem): string {
-  return `${origin}/${SHARE_HASH_PREFIX}${encodeShare(kind, item)}`
+  return `${origin}${SHARED_PATH}${SHARE_HASH_PREFIX}${encodeShare(kind, item)}`
+}
+
+/** "Keep this" on `/shared`: the kind's own shop with `fragment`, where the gate asks who is playing. */
+export function keepSharedUrl(origin: string, kind: ItemKind, fragment: string): string {
+  return `${origin}${SHOP_PATHS[kind]}${fragment}`
+}
+
+/** The item as it is now; unchanged since `/shared` opened, the arrival fragment byte for byte, or none
+ *  when the link held no item (the shop then opens the player's own counter). */
+export function keepFragment(arrival: string, opened: string, current: string): string {
+  if (current !== opened) return `${SHARE_HASH_PREFIX}${current}`
+  return decodeShareHash(arrival) === null ? '' : arrival
 }
 
 export function decodeShareHash(hash: string, items: Items = ITEMS): SharedItem | null {

@@ -17,11 +17,18 @@ import { DEFAULT_FAMILY_TOKEN_TTL_MS } from '../claims.ts'
 import { FamilyClientError } from '../familyClientError.ts'
 import {
   addChildInput,
+  compareSaveSummaryEntries,
   deleteChildInput,
   mintSessionTokenInput,
   renameChildInput,
 } from '../identityContract.ts'
-import { saveDeleteInput, saveGetInput, saveListInput, savePutInput } from '../saveContract.ts'
+import {
+  SAVE_ACCOUNT_MISMATCH,
+  saveDeleteInput,
+  saveGetInput,
+  saveListInput,
+  savePutInput,
+} from '../saveContract.ts'
 import { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from '../saveLimits.ts'
 import type {
   AddChildInput,
@@ -35,6 +42,8 @@ import type {
   MintSessionTokenInput,
   MintSessionTokenOutput,
   RenameChildInput,
+  SaveSummaryEntry,
+  SaveSummaryOutput,
   SignInInput,
   SignUpInput,
 } from '../identityContract.ts'
@@ -66,6 +75,9 @@ type StoredParent = {
 
 type StoredChild = ChildProfileView & { parentId: string }
 
+// Better Auth's built-in limit on /sign-in and /sign-up, per client and route.
+const AUTH_RATE_LIMIT = { windowMs: 10_000, max: 3 }
+
 export type FakeSessionInput = Omit<FamilyTokenClaims, 'iat' | 'exp'>
 
 /** A parent the harness starts with, so a test can sign in without registering. */
@@ -90,6 +102,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   private session: FamilyTokenClaims | null = null
   private parentId: string | null = null
   private failure: Error | null = null
+  private readonly authAttempts = new Map<string, { count: number; lastLetThrough: number }>()
   private readonly now: () => Date
   private readonly inviteCode: string
   private nextId = 1
@@ -126,6 +139,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   get(raw: SaveGetInput): Promise<SaveGetOutput> {
     return this.saveAccount().then((accountId) => {
       const input = parsed(saveGetInput, raw)
+      requireExpectedAccount(accountId, input.expectedAccountId)
       const slot = this.slots.get(slotId(input.appId, accountId, input.slotKey))
       return slot ? { blob: slot.blob, version: slot.version, updatedAt: slot.updatedAt } : null
     })
@@ -134,6 +148,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   put(raw: SavePutInput): Promise<SavePutOutput> {
     return this.saveAccount().then((accountId) => {
       const input = parsed(savePutInput, raw)
+      requireExpectedAccount(accountId, input.expectedAccountId)
       const key = slotId(input.appId, accountId, input.slotKey)
       const sizeBytes = byteLength(input.blob)
       const existing = this.slots.get(key)
@@ -183,6 +198,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   delete(raw: SaveDeleteInput): Promise<SaveDeleteOutput> {
     return this.saveAccount().then((accountId) => {
       const input = parsed(saveDeleteInput, raw)
+      requireExpectedAccount(accountId, input.expectedAccountId)
       this.slots.delete(slotId(input.appId, accountId, input.slotKey))
       return {}
     })
@@ -203,7 +219,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   // --- the parent cookie session: the identity half's one credential ---------
 
   signUp(input: SignUpInput): Promise<void> {
-    return this.reachable().then(() => {
+    return this.authAttempt('sign-up').then(() => {
       if (input.inviteCode !== this.inviteCode) {
         // The real image answers 403 with a message and no code, which the
         // client turns into FORBIDDEN (verified over a real socket).
@@ -228,7 +244,7 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   }
 
   signIn(input: SignInInput): Promise<void> {
-    return this.reachable().then(() => {
+    return this.authAttempt('sign-in').then(() => {
       const parent = this.findByEmail(input.email)
       if (parent === null || parent.password !== input.password) {
         throw new FamilyClientError('Invalid email or password', 'INVALID_EMAIL_OR_PASSWORD')
@@ -340,6 +356,29 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
     })
   }
 
+  /** Scoped like the store: the signed-in parent and their own profiles, never a blob. */
+  saveSummary(): Promise<SaveSummaryOutput> {
+    return this.requireParent().then((parent) => {
+      const household = new Set([
+        parent.id,
+        ...[...this.children.values()]
+          .filter((child) => child.parentId === parent.id)
+          .map((child) => child.id),
+      ])
+      const newest = new Map<string, SaveSummaryEntry>()
+      for (const [key, slot] of this.slots) {
+        const [appId = '', accountId = ''] = key.split('\x1f')
+        if (!household.has(accountId)) continue
+        const id = slotId(appId, accountId, '')
+        const seen = newest.get(id)
+        if (seen === undefined || slot.updatedAt > seen.updatedAt) {
+          newest.set(id, { accountId, appId, updatedAt: slot.updatedAt })
+        }
+      }
+      return [...newest.values()].sort(compareSaveSummaryEntries)
+    })
+  }
+
   activeParent(): string | null {
     return this.parentId
   }
@@ -349,6 +388,27 @@ export class FakeFamilyClient implements FamilySaveContract, FamilyIdentityContr
   // Rejects rather than throwing synchronously, so callers can always .catch().
   private reachable(): Promise<void> {
     return this.failure ? Promise.reject(this.failure) : Promise.resolve()
+  }
+
+  // As Better Auth's memory store: a try counts right or wrong, a refused try does
+  // not move the window, and one exactly ten seconds after the last is let through.
+  private authAttempt(route: 'sign-in' | 'sign-up'): Promise<void> {
+    return this.reachable().then(() => {
+      const nowMs = this.now().getTime()
+      const seen = this.authAttempts.get(route)
+      if (seen === undefined || nowMs - seen.lastLetThrough >= AUTH_RATE_LIMIT.windowMs) {
+        this.authAttempts.set(route, { count: 1, lastLetThrough: nowMs })
+        return
+      }
+      if (seen.count >= AUTH_RATE_LIMIT.max) {
+        // The real 429 carries no code; the client takes this one from the status.
+        throw new FamilyClientError(
+          'Too many requests. Please try again later.',
+          'TOO_MANY_REQUESTS',
+        )
+      }
+      this.authAttempts.set(route, { count: seen.count + 1, lastLetThrough: nowMs })
+    })
   }
 
   private saveAccount(): Promise<string> {
@@ -436,6 +496,13 @@ function encodeUnsignedToken(claims: FamilyTokenClaims): string {
  * ZodError's own message - a stringified issue array rather than prose. The fake
  * says the same thing, so a test can see what a parent would be shown.
  */
+/** The service's CONFLICT for a page bound to another profile (`requireExpectedAccount` in apps/family). */
+function requireExpectedAccount(accountId: string, expectedAccountId: string | undefined): void {
+  if (expectedAccountId !== undefined && expectedAccountId !== accountId) {
+    throw new FamilyClientError(SAVE_ACCOUNT_MISMATCH, 'CONFLICT')
+  }
+}
+
 function parsed<T>(schema: { parse: (value: unknown) => T }, input: unknown): T {
   try {
     return schema.parse(input)

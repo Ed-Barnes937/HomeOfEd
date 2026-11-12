@@ -17,8 +17,3 @@ export function useMediaQuery(query: string): boolean {
   }, [query])
   return matches
 }
-
-export function hubUrl(hostname: string): string {
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:3000'
-  return 'https://homeofed.com'
-}

@@ -1,16 +1,30 @@
 import { describe, expect, it } from 'vitest'
 
-import { familySessionCookieOptions, familyUrl } from './familyService.ts'
+import { familySessionCookieOptions, familyUrl, returnToOptions } from './familyService.ts'
 
 describe('familyUrl', () => {
-  it('talks to the local service from a local hostname', () => {
-    expect(familyUrl('localhost')).toBe('http://localhost:3012')
-    expect(familyUrl('127.0.0.1')).toBe('http://localhost:3012')
+  it('talks to the local dev service from a local hostname', () => {
+    expect(familyUrl('localhost', '3000')).toBe('http://localhost:3012')
+    expect(familyUrl('127.0.0.1', '3000')).toBe('http://localhost:3012')
   })
 
-  it('talks to production from anywhere else', () => {
-    expect(familyUrl('homeofed.com')).toBe('https://family.homeofed.com')
-    expect(familyUrl('hoe-hub.fly.dev')).toBe('https://family.homeofed.com')
+  it("talks to the docker stack's family from hub's compose port", () => {
+    expect(familyUrl('localhost', '8080')).toBe('http://localhost:8092')
+    expect(familyUrl('127.0.0.1', '8080')).toBe('http://localhost:8092')
+  })
+
+  it('talks to production from anywhere else, whatever the port', () => {
+    expect(familyUrl('homeofed.com', '')).toBe('https://family.homeofed.com')
+    expect(familyUrl('hoe-hub.fly.dev', '8080')).toBe('https://family.homeofed.com')
+  })
+})
+
+describe('returnToOptions', () => {
+  it('allows localhost app origins only while hub is on a local hostname', () => {
+    expect(returnToOptions('localhost')).toEqual({ allowLocal: true })
+    expect(returnToOptions('127.0.0.1')).toEqual({ allowLocal: true })
+    expect(returnToOptions('homeofed.com')).toEqual({ allowLocal: false })
+    expect(returnToOptions('hoe-hub.fly.dev')).toEqual({ allowLocal: false })
   })
 })
 

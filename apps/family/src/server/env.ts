@@ -21,6 +21,11 @@ export const familyEnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   /** This service's public origin; Better Auth derives its cookie rules from it. */
   BETTER_AUTH_URL: z.url(),
+  /**
+   * `on` admits the docker stack's localhost origins (cors.ts). compose.yml is
+   * the only place that sets it, and it is refused on Fly.
+   */
+  DOCKER_STACK_ORIGINS: z.literal('on').optional(),
 })
 
 export type FamilyEnv = z.output<typeof familyEnvSchema>
@@ -30,6 +35,8 @@ const MIN_DEPLOYED_LENGTH = {
   REGISTRATION_INVITE_CODE: 16,
   BETTER_AUTH_SECRET: 32,
 } as const
+
+const LOCAL_ONLY = ['DOCKER_STACK_ORIGINS'] as const
 
 /** PEMs differ by line wrapping and trailing newlines; the key material does not. */
 function isCommittedTestKey(pem: string): boolean {
@@ -56,7 +63,7 @@ export function loadFamilyEnv(source: Record<string, string | undefined> = proce
   }
 
   assertKeyFitForDeployment(parsed.data.FAMILY_TOKEN_PRIVATE_KEY, source)
-  assertFitForDeployment(source, MIN_DEPLOYED_LENGTH)
+  assertFitForDeployment(source, MIN_DEPLOYED_LENGTH, LOCAL_ONLY)
 
   return parsed.data
 }

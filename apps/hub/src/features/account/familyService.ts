@@ -1,12 +1,21 @@
+import { HUB_LOCAL_PORTS } from '@hoe/accounts'
+import type { SafeReturnToOpts } from '@hoe/accounts'
+
+/** compose.yml's host port for the family service; hub's own is in the estate registry. */
+const DOCKER_STACK_FAMILY_PORT = 8092
+
 /**
  * Where the family service lives, and how the cookie it mints may be stored.
- * Local hostnames talk to the local service (`pnpm dev --filter=family`, port
- * 3012); everything else talks to production. Same shape and the same reason as
- * boop's `familyUrl.ts`: hub is served from several hostnames and must never
- * point a browser at a dev box.
+ * Local hostnames talk to the local service: the docker stack's from hub's
+ * compose port, otherwise `pnpm dev --filter=family` on 3012. Everything else
+ * talks to production. Same shape and the same reason as boop's `familyUrl.ts`:
+ * hub is served from several hostnames and must never point a browser at a dev box.
  */
-export function familyUrl(hostname: string): string {
-  return isLocal(hostname) ? 'http://localhost:3012' : 'https://family.homeofed.com'
+export function familyUrl(hostname: string, port: string): string {
+  if (!isLocal(hostname)) return 'https://family.homeofed.com'
+  return port === String(HUB_LOCAL_PORTS.composePort)
+    ? `http://localhost:${DOCKER_STACK_FAMILY_PORT}`
+    : 'http://localhost:3012'
 }
 
 /**
@@ -20,6 +29,14 @@ export function familySessionCookieOptions(hostname: string): {
   secure?: boolean
 } {
   return isLocal(hostname) ? {} : { domain: '.homeofed.com', secure: true }
+}
+
+/**
+ * Localhost app origins are only a safe `returnTo` while hub itself is on
+ * localhost, decided from the hostname exactly as the cookie's `Domain` is.
+ */
+export function returnToOptions(hostname: string): SafeReturnToOpts {
+  return { allowLocal: isLocal(hostname) }
 }
 
 function isLocal(hostname: string): boolean {

@@ -61,6 +61,14 @@
   }
 }
 
+.static {
+  cursor: default;
+
+  &:hover {
+    border-color: var(--panel-line-strong);
+  }
+}
+
 .back {
   align-self: center;
   flex: none;
@@ -79,9 +87,55 @@
   font-size: 13px;
 }
 
+.withPlayer .button,
+.player {
+  white-space: nowrap;
+}
+
+.playerName {
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 1180px) {
   .motto {
     display: none;
+  }
+}
+
+// The player chip widens the nav, so the motto gives way first, then the name, then every label
+// (measured with a 22-character name in the smithy, whose motto is the longer).
+@media (max-width: 1479px) {
+  .withPlayer .motto {
+    display: none;
+  }
+}
+
+@media (max-width: 1279px) {
+  .withPlayer .player {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .withPlayer .playerName {
+    display: none;
+  }
+}
+
+@media (max-width: 1139px) {
+  .withPlayer {
+    .button {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .label,
+    .count {
+      display: none;
+    }
   }
 }
 

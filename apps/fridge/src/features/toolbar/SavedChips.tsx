@@ -34,7 +34,7 @@ export function SavedChips({
 
   if (saved.length === 0) {
     return (
-      <div className={rowClass}>
+      <div className={rowClass} data-testid="saved-row">
         <span className={styles.empty}>
           No saved fridges yet — arrange some magnets and hit Save.
         </span>
@@ -43,7 +43,7 @@ export function SavedChips({
   }
 
   return (
-    <div className={rowClass}>
+    <div className={rowClass} data-testid="saved-row">
       {saved.map((board) => (
         <button
           key={board.name}

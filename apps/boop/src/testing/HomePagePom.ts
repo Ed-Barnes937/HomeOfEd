@@ -1,5 +1,5 @@
 import { BasePage } from '@hoe/test-kit'
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
 
 import type { PlayedSample } from '../engine/testing/fakeAudioDriver.ts'
@@ -7,7 +7,6 @@ import { PITCHES_PER_LANE } from '../engine/sequencerEngine.ts'
 import { PHONE_STRIP_WIDTH } from '../features/grid/phoneWindow.ts'
 import { parseSaveDocument, SONG_POSITIONS, type StoredBoop } from '../persistence/saveFormat.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
-import { SYNCED_ACCOUNT_KEY } from '../sync/syncedAccount.ts'
 import { BOOP_AUDIO_DRIVER_KEY } from './gridProtocol.ts'
 
 /** How far `crankSteps` moves the fake clock per step — clear of the 0.1s lookahead, so each step's draw releases in the same iteration. */
@@ -32,8 +31,8 @@ export class HomePagePom extends BasePage {
   private readonly hintSheet = this.page.getByTestId('hint-sheet')
   private readonly hintSheetOverlay = this.page.getByTestId('hint-sheet-overlay')
   private readonly hintSheetClose = this.page.getByTestId('hint-sheet-close')
-  private readonly importOffer = this.page.getByTestId('import-offer')
   private readonly syncedChip = this.page.getByTestId('synced-chip')
+  private readonly keepButton = this.page.getByTestId('keep-boop-button')
 
   /**
    * The app has landed on its home surface. That is the *song bar* since
@@ -1253,13 +1252,20 @@ export class HomePagePom extends BasePage {
     await this.page.evaluate((key) => window.localStorage.removeItem(key), SAVE_KEY)
   }
 
-  /** Open a share link in this page: set its fragment, then reload onto it. */
+  /**
+   * Open a share link in this page: leave the app (its pagehide flush lands
+   * first), then put the link's path and fragment in the address bar before the
+   * next mount, as a visitor's browser would.
+   */
   async openShareLink(url: string): Promise<void> {
-    const { hash } = new URL(url)
-    await this.page.evaluate((fragment) => {
-      window.location.hash = fragment
-    }, hash)
+    const { pathname, hash } = new URL(url)
     await this.page.reload()
+    await HomePagePom.openAt(this.page, `${pathname}${hash}`)
+  }
+
+  /** Before mounting: the address the app first loads on, fragment untouched. */
+  static async openAt(page: Page, pathWithFragment: string): Promise<void> {
+    await page.evaluate((target) => window.history.pushState({}, '', target), pathWithFragment)
   }
 
   async openBoops(): Promise<void> {
@@ -3271,23 +3277,6 @@ export class HomePagePom extends BasePage {
   // The family account (ADR 0080). Everything below is absent from a boop with
   // no session at all, which is most of them.
 
-  async verifyImportOfferShown(name: string): Promise<void> {
-    await expect(this.importOffer).toBeVisible()
-    await expect(this.importOffer).toContainText(name)
-  }
-
-  async verifyNoImportOffer(): Promise<void> {
-    await expect(this.importOffer).toHaveCount(0)
-  }
-
-  async acceptImport(): Promise<void> {
-    await this.page.getByTestId('import-offer-accept').click()
-  }
-
-  async declineImport(): Promise<void> {
-    await this.page.getByTestId('import-offer-decline').click()
-  }
-
   async verifySyncedChip(name: string): Promise<void> {
     await expect(this.syncedChip).toHaveText(`synced as ${name}`)
   }
@@ -3296,13 +3285,27 @@ export class HomePagePom extends BasePage {
     await expect(this.syncedChip).toHaveCount(0)
   }
 
-  /** What this device answered when it was offered the import, per account. */
-  async readSyncAnswers(): Promise<unknown> {
-    const raw = await this.page.evaluate(
-      (key) => window.localStorage.getItem(key),
-      SYNCED_ACCOUNT_KEY,
-    )
-    return raw === null ? null : (JSON.parse(raw) as unknown)
+  // The shared view (ADR 0093 decision 6): no way to save, one way to keep.
+
+  async verifyKeepShown(): Promise<void> {
+    await expect(this.keepButton).toBeVisible()
+  }
+
+  /**
+   * Press "Keep this boop" and return the address it went to, as the browser
+   * holds it: the root, with the boop in the fragment.
+   */
+  async keepBoop(): Promise<string> {
+    await this.ensureClipEditorClosed()
+    await this.keepButton.click()
+    await this.page.waitForURL((url) => url.pathname === '/', { waitUntil: 'commit' })
+    return this.page.url()
+  }
+
+  /** Nothing on screen offers to save: no "My boops" and no "New boop". */
+  async verifyNothingOffersToSave(): Promise<void> {
+    await expect(this.boopsButton).toHaveCount(0)
+    await expect(this.page.getByTestId('new-boop-button')).toHaveCount(0)
   }
 }
 

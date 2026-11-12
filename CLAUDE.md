@@ -109,16 +109,18 @@ Every app:
 4. **Fly app** — `fly.toml` app name (human runs `fly apps create`).
 5. **Cloudflare** — proxied CNAME `<name> → <flyapp>.fly.dev`, Full (strict) TLS,
    Fly cert (human-run).
-6. **CI** — copy the `deploy-hub` job in `.github/workflows/deploy.yml`
-   (app name in the affected check, fly.toml path, smoke URL).
+6. **CI** - copy the `deploy-boop` job (not hub's: its smoke refuses a gated
+   app) in `.github/workflows/deploy.yml` (app name in the affected check,
+   fly.toml path, smoke URL).
 7. **Docker stack** — copy the app service in `compose.yml` (fresh host port).
+8. **Estate gate** - on from the starter; add to `ESTATE_APPS` + compose env ([how-to §1a](docs/how-to/adding-an-app.md#1a-the-estate-gate-every-app)).
 
 **Only if the app persists data** (skip for stateless apps —
 [ADR 0008](docs/adr/0008-apps-without-a-database.md)):
 
-8. **Postgres** — its own database in the shared `hoe-pg` cluster + connection
+9. **Postgres** - its own database in the shared `hoe-pg` cluster + connection
    secret (human runs `fly postgres attach` — see the runbook).
-9. **DB wiring** — add the `@hoe/db` layer (schema, migrations, Store, `migrate.ts`),
+10. **DB wiring** - add the `@hoe/db` layer (schema, migrations, Store, `migrate.ts`),
    the `release_command` in `fly.toml`, and the app's DB service in `compose.yml`.
    A stateless app instead has a shallow `/health` (no `Store` round-trip).
    Full step-by-step: [the how-to §2](docs/how-to/adding-an-app.md#2-add-a-database-database-backed-apps-only).

@@ -1,3 +1,4 @@
+import { switchPlayerUrlFor } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 
 import type { ShareState } from '../share/useShareWand.ts'
@@ -60,55 +61,129 @@ function PictureIcon() {
   )
 }
 
+function PlayerIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="6" r="3" />
+      <path d="M3 15.5 c0.8 -3 3.2 -4.5 6 -4.5 s5.2 1.5 6 4.5" />
+    </svg>
+  )
+}
+
+/** Who the shelf belongs to, and the way to hub to switch player and come back (ADR 0094). */
+export function Player({ name, className }: { name: string; className?: string }) {
+  const classes = [styles.button, styles.player, className].filter(Boolean).join(' ')
+  const href = switchPlayerUrlFor(window.location.href)
+  const content = (
+    <>
+      <PlayerIcon />
+      <span className={`${styles.label} ${styles.playerName}`}>{name}</span>
+    </>
+  )
+  // Outside the estate there is no hub to switch at, so it is the name alone.
+  return href === null ? (
+    <span
+      className={`${classes} ${styles.static}`}
+      role="img"
+      aria-label={`Playing as ${name}`}
+      title={name}
+      data-testid="player"
+    >
+      {content}
+    </span>
+  ) : (
+    <a
+      className={classes}
+      href={href}
+      aria-label={`Playing as ${name}. Switch player`}
+      title={name}
+      data-testid="player"
+    >
+      {content}
+    </a>
+  )
+}
+
 export function Header({
   copy,
   shelfCount,
+  player,
   shareState,
   onShare,
   pictureBusy,
   onPicture,
 }: {
   copy: ShopCopy
-  shelfCount: number
+  /** `null` is the shared view: it keeps nothing, so no shelf, and the street is a page load the gate sees. */
+  shelfCount: number | null
+  /** The player's name, or `null` for no chip (signed out, or the shared view). */
+  player: string | null
   shareState: ShareState
   onShare: () => void
   pictureBusy: boolean
   onPicture: () => void
 }) {
+  const back = (
+    <>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M10 3 L5 8 L10 13" />
+      </svg>
+      <span className={styles.label}>Street</span>
+    </>
+  )
   return (
-    <header className={styles.header}>
+    <header className={player === null ? styles.header : `${styles.header} ${styles.withPlayer}`}>
       <div className={styles.brand}>
-        <Link
-          to="/street"
-          className={`${styles.button} ${styles.back}`}
-          aria-label="Back to the street"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+        {shelfCount === null ? (
+          <a
+            href="/street"
+            className={`${styles.button} ${styles.back}`}
+            aria-label="Back to the street"
           >
-            <path d="M10 3 L5 8 L10 13" />
-          </svg>
-          <span className={styles.label}>Street</span>
-        </Link>
+            {back}
+          </a>
+        ) : (
+          <Link
+            to="/street"
+            className={`${styles.button} ${styles.back}`}
+            aria-label="Back to the street"
+          >
+            {back}
+          </Link>
+        )}
         <span className={styles.name}>Armoury</span>
         <span className={styles.motto}>{copy.motto}</span>
       </div>
       <nav className={styles.nav}>
-        <Link to="/shelf" className={styles.button} aria-label={copy.shelfLink(shelfCount)}>
-          <ShelfIcon />
-          <span className={styles.label}>Your shelf</span>
-          <span className={styles.count} aria-hidden="true">
-            {shelfCount}
-          </span>
-        </Link>
+        {player !== null && <Player name={player} />}
+        {shelfCount !== null && (
+          <Link to="/shelf" className={styles.button} aria-label={copy.shelfLink(shelfCount)}>
+            <ShelfIcon />
+            <span className={styles.label}>Your shelf</span>
+            <span className={styles.count} aria-hidden="true">
+              {shelfCount}
+            </span>
+          </Link>
+        )}
         <button
           type="button"
           className={styles.button}

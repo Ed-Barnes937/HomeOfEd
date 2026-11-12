@@ -32,7 +32,10 @@ It exports `assertFitForDeployment(env, minLengths)`, `isDeployed(env)` and
 `COMMITTED_DEV_SECRETS`. On Fly (`FLY_APP_NAME` set) it refuses any named
 secret that is missing, reads as a placeholder, is a committed value or is
 below its minimum length, and any `NODE_ENV` but `production`. Off Fly it does
-nothing, so local stacks keep their committed values.
+nothing, so local stacks keep their committed values. (Amended by estate-gate
+ticket 18: an optional third argument, `localOnly`, names settings refused on
+Fly at any value, such as family's `DOCKER_STACK_ORIGINS`; see
+[ADR 0078](0078-family-identity-auth-boundary.md) decision 6.)
 
 It is not in `@hoe/backend-kit`, the obvious home. sprout-pipeline
 deliberately has no backend-kit at runtime (ADR 0013; its Dockerfile installs

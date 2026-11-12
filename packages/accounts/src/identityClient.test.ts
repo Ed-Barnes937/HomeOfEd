@@ -133,6 +133,24 @@ describe('the identity router half', () => {
     expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ confirm: true })
   })
 
+  it('reads the save summary as a credentialled GET query that sends no token', async () => {
+    const summary = [{ accountId: CHILD.id, appId: 'boop', updatedAt: 1750000000000 }]
+    const { calls, fetchImpl } = fakeFetch(() => ok(summary))
+
+    expect(await client(fetchImpl).saveSummary()).toEqual(summary)
+
+    const call = calls[0]!
+    expect(new URL(call.url).pathname).toBe('/api/trpc/identity.saveSummary')
+    expect(call.init.method ?? 'GET').toBe('GET')
+    expect(call.init.credentials).toBe('include')
+    expect(call.init.headers).toBeUndefined()
+  })
+
+  it('rejects a save summary that is not the contract shape', async () => {
+    const { fetchImpl } = fakeFetch(() => ok([{ accountId: CHILD.id, appId: 'boop' }]))
+    await expect(client(fetchImpl).saveSummary()).rejects.toThrow()
+  })
+
   it('surfaces a taken username as a typed CONFLICT', async () => {
     const { fetchImpl } = fakeFetch(() =>
       trpcError(409, 'that username is already taken', 'CONFLICT'),
@@ -251,6 +269,25 @@ describe('the Better Auth half', () => {
 
     expect((err as FamilyClientError).code).toBe('FORBIDDEN')
     expect((err as FamilyClientError).message).toBe('A valid invite code is required to register.')
+  })
+
+  // The real image's rate-limit reply: JSON labelled text/plain, no code, and an
+  // x-retry-after the browser cannot read cross-origin (no expose-headers).
+  it("surfaces Better Auth's rate limit as TOO_MANY_REQUESTS", async () => {
+    const { fetchImpl } = fakeFetch(
+      () =>
+        new Response(JSON.stringify({ message: 'Too many requests. Please try again later.' }), {
+          status: 429,
+          headers: { 'content-type': 'text/plain;charset=UTF-8', 'x-retry-after': '10' },
+        }),
+    )
+
+    const err = await client(fetchImpl)
+      .signIn({ email: 'a@b.c', password: 'x' })
+      .catch((e: unknown) => e)
+
+    expect((err as FamilyClientError).code).toBe('TOO_MANY_REQUESTS')
+    expect((err as FamilyClientError).message).toBe('Too many requests. Please try again later.')
   })
 
   it('still fails typed when the body is not JSON at all', async () => {

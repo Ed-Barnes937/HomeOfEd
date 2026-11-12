@@ -1,4 +1,4 @@
-import { FAMILY_SESSION_COOKIE, type SavePutInput } from '@hoe/accounts'
+import { FAMILY_SESSION_COOKIE, SAVE_ACCOUNT_MISMATCH, type SavePutInput } from '@hoe/accounts'
 import { mintTestToken, TEST_FAMILY_PUBLIC_KEY } from '@hoe/accounts/testing'
 import { ConsoleLogger, InMemoryBlobStore, type AuthProvider } from '@hoe/backend-kit'
 import { freshTestDb, type DbClient } from '@hoe/db'
@@ -277,6 +277,44 @@ describe('the save quotas', () => {
     await expect(
       put(childAuth('child-1'), { appId: APP, slotKey: SLOT, blob: 'mine' }),
     ).resolves.toEqual({ version: 1 })
+  })
+})
+
+describe('the expected account', () => {
+  it('serves a call whose expected account is the token’s own', async () => {
+    const bo = childAuth('child-bo')
+    await put(bo, { appId: APP, slotKey: SLOT, blob: 'bo', expectedAccountId: 'child-bo' })
+
+    await expect(
+      new GetSaveHandler().run(
+        { appId: APP, slotKey: SLOT, expectedAccountId: 'child-bo' },
+        ctxFor(bo),
+      ),
+    ).resolves.toMatchObject({ blob: 'bo' })
+  })
+
+  it('refuses a put meant for another profile with CONFLICT, and writes nothing', async () => {
+    const bo = childAuth('child-bo')
+    await put(bo, { appId: APP, slotKey: SLOT, blob: 'bo' })
+
+    await expect(
+      put(bo, { appId: APP, slotKey: SLOT, blob: 'cy', expectedAccountId: 'child-cy' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: SAVE_ACCOUNT_MISMATCH })
+    await expect(get(bo)).resolves.toMatchObject({ blob: 'bo', version: 1 })
+  })
+
+  it('refuses a get or delete meant for another profile with CONFLICT', async () => {
+    const bo = childAuth('child-bo')
+    await put(bo, { appId: APP, slotKey: SLOT, blob: 'bo' })
+    const input = { appId: APP, slotKey: SLOT, expectedAccountId: 'child-cy' }
+
+    await expect(new GetSaveHandler().run(input, ctxFor(bo))).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
+    await expect(new DeleteSaveHandler().run(input, ctxFor(bo))).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
+    await expect(get(bo)).resolves.toMatchObject({ blob: 'bo' })
   })
 })
 

@@ -1,7 +1,9 @@
 // Browser-safe surface; node-only code is behind `@hoe/accounts/server`.
 export type { FamilyRole, FamilyTokenClaims } from './claims.ts'
 export { FAMILY_SESSION_COOKIE } from './claims.ts'
-export { FamilyClientError } from './familyClientError.ts'
+export type { EstateApp } from './estateApps.ts'
+export { ESTATE_APPS, HUB_LOCAL_PORTS } from './estateApps.ts'
+export { FamilyClientError, SaveAccountMismatchError } from './familyClientError.ts'
 export type { FamilyUser } from './familyAuthProvider.ts'
 export type { CookieJar, FamilySessionCookieOptions } from './familySessionCookie.ts'
 export {
@@ -25,12 +27,15 @@ export type {
   MintSessionTokenInput,
   MintSessionTokenOutput,
   RenameChildInput,
+  SaveSummaryEntry,
+  SaveSummaryOutput,
   SignInInput,
   SignUpInput,
 } from './identityContract.ts'
 export {
   addChildInput,
   childProfileView,
+  compareSaveSummaryEntries,
   deleteAccountInput,
   deleteAccountOutput,
   deleteChildInput,
@@ -40,8 +45,26 @@ export {
   mintSessionTokenInput,
   mintSessionTokenOutput,
   renameChildInput,
+  saveSummaryEntry,
+  saveSummaryOutput,
 } from './identityContract.ts'
+export { arrivalFragment } from './arrival.ts'
+export type { KeyValueStorage } from './profileScopedKey.ts'
+export { adoptLegacyDocument, profileScopedKey } from './profileScopedKey.ts'
+export type { ProfileKeys, StorageLike } from './profileStorage.ts'
+export { memoryStorage, profileStorage } from './profileStorage.ts'
 export type { ReadFamilySessionOpts } from './readFamilySession.ts'
+export type { PlayerChangeEnv } from './reloadOnPlayerChange.ts'
+export { reloadOnPlayerChange } from './reloadOnPlayerChange.ts'
+export type { SafeReturnToOpts } from './returnTo.ts'
+export {
+  accountUrl,
+  accountUrlFor,
+  hubUrlFor,
+  safeReturnTo,
+  sharedUrl,
+  switchPlayerUrlFor,
+} from './returnTo.ts'
 export { MAX_ACCOUNT_BYTES, MAX_ACCOUNT_SLOTS, MAX_SLOT_BYTES } from './saveLimits.ts'
 export { readFamilySession } from './readFamilySession.ts'
 export type {
@@ -57,6 +80,7 @@ export type {
   SaveSlotMeta,
 } from './saveContract.ts'
 export {
+  SAVE_ACCOUNT_MISMATCH,
   saveDeleteInput,
   saveDeleteOutput,
   saveGetInput,
@@ -67,5 +91,5 @@ export {
   savePutOutput,
   saveSlotMeta,
 } from './saveContract.ts'
-export type { CreateFamilySaveClientOpts } from './saveClient.ts'
-export { createFamilySaveClient } from './saveClient.ts'
+export type { BindSaveClientOpts, CreateFamilySaveClientOpts } from './saveClient.ts'
+export { bindSaveClient, createFamilySaveClient } from './saveClient.ts'

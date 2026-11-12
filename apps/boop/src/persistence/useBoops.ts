@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react'
 
 import type { StoredBoop } from './saveFormat.ts'
-import { deleteBoop, loadSaveDocument, renameBoop, saveBoop, type SaveStorage } from './storage.ts'
+import { useSaveStorage } from './SaveStorageContext.tsx'
+import { deleteBoop, loadSaveDocument, renameBoop, saveBoop } from './storage.ts'
 
 export interface UseBoopsResult {
   /** The "My boops" list, freshest after every `save`/`rename`/`remove`. */
@@ -24,7 +25,8 @@ export interface UseBoopsResult {
  * after every write rather than mutating local state by hand, so it can
  * never drift from what's on disk.
  */
-export function useBoops(storage: SaveStorage = window.localStorage): UseBoopsResult {
+export function useBoops(): UseBoopsResult {
+  const storage = useSaveStorage()
   const [boops, setBoops] = useState<readonly StoredBoop[]>(() => loadSaveDocument(storage).creations)
 
   const refresh = useCallback(() => {

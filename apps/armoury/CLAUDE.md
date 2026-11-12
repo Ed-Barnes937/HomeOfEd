@@ -14,9 +14,12 @@ Domain vocabulary: [`CONTEXT.md`](CONTEXT.md).
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)).
 Each kind's counter and shelf persist to its own `localStorage` document
 ([ADR 0074](../../docs/adr/0074-armoury-save-format.md),
-[ADR 0096](../../docs/adr/0096-armoury-item-kinds-saves-and-links.md)); sharing is
-a URL fragment plus a downloadable picture
-([ADR 0075](../../docs/adr/0075-armoury-share-links-and-picture.md)).
+[ADR 0096](../../docs/adr/0096-armoury-item-kinds-saves-and-links.md)), per player
+([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)); sharing is a URL
+fragment at `/shared` plus a downloadable picture
+([ADR 0075](../../docs/adr/0075-armoury-share-links-and-picture.md)). The
+server gates documents behind a family session when `FAMILY_ACCOUNT_URL` is
+set, `/shared` excepted ([ADR 0093](../../docs/adr/0093-estate-gate.md)).
 
 ## Layout
 
@@ -28,7 +31,14 @@ src/
                       by kind, shopNumber, sRGB/linear colour helpers, a fake
                       ItemDef for generic tests
   landing.ts          SHOP_PATHS and landingPath: where the root redirects
-  router.tsx          /  (redirect), /street, /wands, /swords, /shelf
+  App.tsx             reads the family session and the arrival (the link's
+                      item, the landing) once, before the router mounts
+  router.tsx, views.tsx
+                      / (redirect), /street, /wands, /swords, /shelf under
+                      PlayerView (the player's profileStorage, reload on a
+                      player change); /shared and every path under it is
+                      SharedView (memoryStorage, the link's own shop, nothing
+                      kept), since the gate leaves them all open
   wand/               the wand generator, pure and three.js-free
     wandSchema.ts     the wand's params, ranges, kid-facing labels, coupling
     compile.ts        params -> WandSpec (profile + groove sets + stain)
@@ -60,12 +70,14 @@ src/
     item.ts           the sword's ItemDef
   workbench/          the item on the counter, one bench per kind: a pure
                       reducer (set, try another, put back, locks, rename, load)
-                      + the provider that autosaves it, owns the shelf and the
-                      landing
-  persistence/        save format (total decode) + the localStorage seam + the
-                      last shop
-  share/              fragment links, the share action, the shared picture
-                      frame and each shop's painter (wandCard, smithyCard)
+                      + the provider that autosaves it to the storage it is
+                      given, owns the shelf and the last shop
+  persistence/        save format (total decode), the storage seam, the last
+                      shop, and profileKeys (each kind's save document is a
+                      player's; the last shop is the device's)
+  share/              fragment links, keep-from-/shared, the share action, the
+                      shared picture frame and each shop's painter (wandCard,
+                      smithyCard)
   stage/              the three.js stages behind the seam; two lazy entries
     stage.ts          the seam: StageContext (StagesByKind), StageHandle,
                       CloseUpHandle, BoxPose, framing constants
@@ -121,6 +133,10 @@ The smithy is the worked example.
   a `ShopView` folder (like `smithy/`), stages on `boxRig` and `HeldRig` behind
   their own lazy entry, its picture painter in `share/`, and its kind in
   `scripts/gpu-shots.mjs`.
+- **Behind the estate gate:** add the kind's save key to `PROFILE_KEYS`
+  (`persistence/profileKeys.ts`) and its `ShopView` to `SharedView`'s `SHOPS`
+  (`views.tsx`), and put its route under `PlayerView`. Share links and Keep
+  follow `SHOP_PATHS` with nothing more.
 - **Build order:** the generator first, judged in plain grey (`--clay`) before
   any material; then materials and light; then the scene art; the close look
   last.
@@ -158,12 +174,28 @@ The smithy is the worked example.
   unchanged since ADR 0074), `armoury:save:sword`, and `armoury:shop` for the
   last shop. An item is `StoredItem` `{ params, name? }`; params always pass
   through `normalise`, so old and future saves still open. A link names its kind
-  by its payload field (`wand` or `sword`), is built at the root path and
-  decoded by `decodeStored`. Never bump `SAVE_FORMAT_VERSION` for a new kind: a
-  stale tab reads an unknown version as empty and wipes the shelf.
-- **The root redirect reads only `Landing`**, worked out once by the provider
-  before the router runs; nothing else writes the address during a redirect
-  ([ADR 0097](../../docs/adr/0097-armoury-street-and-last-shop.md)).
+  by its payload field (`wand` or `sword`), is built at `/shared` and decoded by
+  `decodeStored`. Never bump `SAVE_FORMAT_VERSION` for a new kind: a stale tab
+  reads an unknown version as empty and wipes the shelf.
+- **Saves go through the storage the route hands the workbench**, never
+  `window.localStorage` directly: `profileStorage` under PlayerView,
+  `memoryStorage` on `/shared`, which must write nothing. Never build
+  `profileStorage` on `/shared` (building it adopts the legacy documents, a
+  write), and never call `reloadOnPlayerChange` there (a reload loses the
+  visitor's edits). `/shared` links to nothing gated in-app: "Keep this" and
+  the street are page loads, so the gate sees them. Hub links are `hubUrlFor`
+  and `switchPlayerUrlFor` from `@hoe/accounts`, never a port literal.
+- **The player chip** (`Player`, `shop/Header.tsx`) shows in both shops' header
+  and on the street, only with a session. Signed out, nothing in the header
+  moves. With a chip the shop header gives way in measured steps (the motto,
+  then the chip's name, then every label); a header change re-measures them
+  with a 22-character name (the width tests in `profiles.iwft.tsx`).
+- **The root redirect reads only `Landing`**, worked out once in `App` from
+  `arrivalFragment()` and the last shop before the router runs; nothing else
+  writes the address during a redirect
+  ([ADR 0097](../../docs/adr/0097-armoury-street-and-last-shop.md)). Read a
+  share fragment through `arrivalFragment()`, never `location.hash`: the router
+  decodes the address bar on mount and the redirect drops it.
 - **Names, numbers and tag lines are derived**, never stored, apart from a
   child's own rename. Change `describe.ts` freely; the shop number is a hash
   of the params, so it changes whenever the item does.

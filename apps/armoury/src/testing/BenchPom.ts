@@ -121,9 +121,66 @@ export abstract class BenchPom extends BasePage {
     await reloadAtRoot(this.page)
   }
 
-  /** A different visitor opening a link: nothing of their own saved, just the fragment. */
+  /** A different visitor opening a link at its own address: nothing of their own saved. */
   async openAsNewVisitor(url: string): Promise<void> {
-    await openAsNewVisitor(this.page, url)
+    await openAsNewVisitor(this.page, url, new URL(url).pathname)
+  }
+
+  /** Before mounting: the address the app first loads on, fragment untouched. */
+  static async openAt(page: Page, pathWithFragment: string): Promise<void> {
+    await page.evaluate((target) => window.history.pushState({}, '', target), pathWithFragment)
+  }
+
+  // Who is playing, and the shared view (ADR 0093 decision 6).
+
+  async verifyPlayer(name: string): Promise<void> {
+    await expect(this.page.getByTestId('player')).toHaveText(name)
+  }
+
+  async verifyNoPlayer(): Promise<void> {
+    await expect(this.page.getByTestId('player')).toHaveCount(0)
+  }
+
+  /** Where the header's title and motto end and its nav begins, and where Picture and the header end. */
+  async headerLayout(): Promise<{
+    titleRight: number
+    navLeft: number
+    pictureRight: number
+    right: number
+  }> {
+    const header = this.page.locator('header')
+    const titleRight = await header
+      .getByText('Armoury', { exact: true })
+      .evaluate((title) =>
+        Math.max(
+          ...[...title.parentElement!.children]
+            .filter((part) => getComputedStyle(part).display !== 'none')
+            .map((part) => part.getBoundingClientRect().right),
+        ),
+      )
+    const nav = (await header.getByRole('navigation').boundingBox())!
+    const picture = (await this.page
+      .getByRole('button', { name: this.copy.picture })
+      .boundingBox())!
+    const box = (await header.boundingBox())!
+    return {
+      titleRight,
+      navLeft: nav.x,
+      pictureRight: picture.x + picture.width,
+      right: box.x + box.width,
+    }
+  }
+
+  /** Nothing on screen offers to save: no shelf to put the item on. */
+  async verifyNothingOffersToSave(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: /^Your shelf/ })).toHaveCount(0)
+  }
+
+  /** "Keep this" on `/shared`: returns the address it went to, a shop with the item in the fragment. */
+  async keepShared(): Promise<string> {
+    await this.page.getByRole('button', { name: this.copy.keep }).click()
+    await this.page.waitForURL((url) => url.pathname !== '/shared', { waitUntil: 'commit' })
+    return this.page.url()
   }
 
   async savePicture(): Promise<string> {

@@ -7,8 +7,10 @@ import { accountErrorMessage } from '../../features/account/accountError.ts'
 import { familyQueryKeys, SERVICE_DOWN } from '../../features/account/accountQueries.ts'
 import { useFamilyClient } from '../../features/account/familyClient.tsx'
 import { familySessionCookieOptions } from '../../features/account/familyService.ts'
+import { forgetProfile } from '../../features/account/silentRenewal.ts'
 
 import styles from './AccountPage.module.scss'
+import { LastSaved } from './LastSaved.tsx'
 import { submitting } from './submitting.ts'
 
 /**
@@ -30,7 +32,8 @@ export function ChildProfilesCard({ profiles, session, onSessionChange }: ChildP
   const [mode, setMode] = useState<RowMode>(null)
 
   // A token for a deleted profile would keep this device saving to it.
-  function forgetIfPlaying(profile: ChildProfileView): void {
+  function forgetOnThisDevice(profile: ChildProfileView): void {
+    forgetProfile(profile.id)
     if (session?.sub !== profile.id) return
     clearFamilySession(familySessionCookieOptions(window.location.hostname))
     onSessionChange(null)
@@ -54,15 +57,16 @@ export function ChildProfilesCard({ profiles, session, onSessionChange }: ChildP
                 ) : rowMode === 'delete' ? (
                   <DeleteConfirm
                     profile={profile}
-                    onDeleted={() => forgetIfPlaying(profile)}
+                    onDeleted={() => forgetOnThisDevice(profile)}
                     onDone={() => setMode(null)}
                   />
                 ) : (
                   <>
-                    <span>
+                    <div>
                       <span className={styles.rowName}>{profile.displayName}</span>{' '}
                       <span className={styles.rowHandle}>@{profile.username}</span>
-                    </span>
+                      <LastSaved accountId={profile.id} name={profile.displayName} />
+                    </div>
                     <span className={styles.actions}>
                       <button
                         className={styles.secondary}

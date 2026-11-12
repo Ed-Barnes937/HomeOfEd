@@ -1,8 +1,11 @@
+import { hubUrlFor } from '@hoe/accounts'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type CSSProperties, type FocusEvent, useLayoutEffect, useRef, useState } from 'react'
 
+import { useFamilySession } from '../familySession.tsx'
 import { SHOP_PATHS } from '../landing.ts'
-import { hubUrl, REDUCED_MOTION_QUERY, TOUCH_QUERY, useMediaQuery } from '../useMediaQuery.ts'
+import { Player } from '../shop/Header.tsx'
+import { REDUCED_MOTION_QUERY, TOUCH_QUERY, useMediaQuery } from '../useMediaQuery.ts'
 import { useShops } from '../workbench/WorkbenchProvider.tsx'
 import {
   DOOR_LABELS,
@@ -38,6 +41,7 @@ function scrollFor(view: HTMLElement, shop: StreetShop): number | null {
 export function StreetPage() {
   const street = useRef<HTMLElement>(null)
   const { lastShop } = useShops()
+  const session = useFamilySession()
   const navigate = useNavigate()
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const touch = useMediaQuery(TOUCH_QUERY)
@@ -71,7 +75,7 @@ export function StreetPage() {
       <header className={styles.header}>
         <a
           className={styles.hub}
-          href={hubUrl(window.location.hostname)}
+          href={hubUrlFor(window.location.href)}
           aria-label="Back to home of ed"
         >
           <svg
@@ -90,6 +94,7 @@ export function StreetPage() {
         </a>
         <h1 className={styles.title}>Armoury</h1>
         <p className={styles.motto}>Pick a shop</p>
+        {session && <Player name={session.name} className={styles.player} />}
       </header>
       <nav ref={street} className={styles.view} aria-label="Shops">
         <svg

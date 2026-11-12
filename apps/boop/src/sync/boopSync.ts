@@ -4,7 +4,7 @@
  * neither call below ever rejects.
  */
 
-import type { FamilySaveContract } from '@hoe/accounts'
+import { SaveAccountMismatchError, type FamilySaveContract } from '@hoe/accounts'
 
 import {
   parseSaveDocument,
@@ -14,12 +14,18 @@ import {
 import { SAVE_KEY, type SaveStorage } from '../persistence/storage.ts'
 import { mergeSaveDocuments } from './mergeSaveDocuments.ts'
 
-/** The SaveStore's app id for boop; `slotKey` is the localStorage key verbatim (spec §4.6). */
+/**
+ * The SaveStore's app id for boop. `slotKey` is the unscoped `SAVE_KEY`: the
+ * account is already part of the server key, and `storage` is the profile's (ADR 0094).
+ */
 export const BOOP_APP_ID = 'boop'
 
 export interface BoopSyncOpts {
   client: FamilySaveContract
+  /** The signed-in profile's `profileStorage`. */
   storage: SaveStorage
+  /** Called once if sync stops for good: the browser or the service says another profile is playing. */
+  onStop?: () => void
 }
 
 export interface BoopSync {
@@ -32,7 +38,9 @@ export interface BoopSync {
   pushIfChanged(): Promise<void>
 }
 
-export function createBoopSync({ client, storage }: BoopSyncOpts): BoopSync {
+export function createBoopSync({ client, storage, onStop }: BoopSyncOpts): BoopSync {
+  /** Set by a `SaveAccountMismatchError`: this page's profile is no longer the one signed in. */
+  let stopped = false
   /** The bytes of the last `put` attempt, successful or not (ADR 0080 decision 6). */
   let lastAttempted: string | null = null
   /** The raw value this module last looked at, so a quiet tick costs one read. */
@@ -47,8 +55,17 @@ export function createBoopSync({ client, storage }: BoopSyncOpts): BoopSync {
     // short-circuits on a rejected promise and sync dies silently for the life
     // of the page. The catch insures the chain against a third queued function
     // whose body is not wrapped the way these two are.
-    queue = queue.then(work).catch(() => undefined)
+    queue = queue
+      .then(() => (stopped ? undefined : work()))
+      .catch(() => undefined)
     return queue
+  }
+
+  /** Every failure is a non-event, except being told this is another profile's account. */
+  function absorb(error: unknown): void {
+    if (!(error instanceof SaveAccountMismatchError) || stopped) return
+    stopped = true
+    onStop?.()
   }
 
   async function put(blob: string): Promise<void> {
@@ -80,8 +97,9 @@ export function createBoopSync({ client, storage }: BoopSyncOpts): BoopSync {
         return
       }
       await put(union)
-    } catch {
+    } catch (error) {
       // The account is an extra, never a dependency.
+      absorb(error)
     }
   }
 
@@ -98,8 +116,9 @@ export function createBoopSync({ client, storage }: BoopSyncOpts): BoopSync {
       const blob = canonical(document_)
       if (blob === lastAttempted) return
       await put(blob)
-    } catch {
+    } catch (error) {
       // Retried by the next change, per the push contract.
+      absorb(error)
     }
   }
 

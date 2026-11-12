@@ -1,6 +1,7 @@
 # 0080 - boop syncs by watching its own localStorage, and only ever copies
 
-- **Status:** Accepted
+- **Status:** Accepted; decisions 7 and 8 superseded and decision 9 amended on
+  2026-11-10 (see the amendment at the end)
 - **Date:** 2026-11-09
 - **Related:** [ADR 0070](0070-family-service.md) (the family service and the
   SaveStore it offers), [ADR 0079](0079-family-save-authorisation.md) (what the
@@ -309,3 +310,77 @@ the production image correctly refuses `http://localhost:3008` at the preflight
 run against the same image started in dev mode), and tRPC includes a stack trace
 in that error body outside production, which is another reason the Fly machine
 must run as production.
+
+## Amendment (2026-11-10): per-profile saves, no offer, and the shared view
+
+Estate-gate ticket 10, building [ADR 0094](0094-per-profile-local-saves.md) and
+ADR 0093 decision 6 into boop.
+
+**The save document is the profile's, not the device's.** `@hoe/accounts`'
+`profileStorage`, given boop's `PROFILE_KEYS`, is a `SaveStorage` that maps
+`boop:save` and `boop:favourites` to `key@<accountId>` and passes every other
+key through.
+It is built once per page from `readFamilySession()` and handed to everything
+that persists through `SaveStorageContext`, sync included, so `persistence/`
+and `boopSync.ts` still name the unscoped `SAVE_KEY` and know nothing about
+profiles. The SaveStore `slotKey` stays `boop:save`. The device's legacy
+documents are copied into each profile on its first open; the legacy keys are
+never written again. The consequence "one `boop:save` per device, so a shared
+tablet pools its children's work" is resolved for anything saved from now on;
+the legacy document is still copied into, and so synced from, every profile
+that opens on that device, which is spec decision 8's accepted cost.
+
+**Decisions 7 and 8 are superseded: there is no offer and no decline.** A
+signed-in profile always syncs, so `ImportOfferCard`, the `boop:syncedAccount`
+marker and the offer's state in `useBoopSync` are gone. A marker already on a
+device is no longer read, so an account that answered "Not now" syncs from its
+next start; the `.iwft` suite pins that with a seeded `declined` marker. The
+consequence "a declined device has no way back" no longer applies. Decisions
+1 to 6 are unchanged.
+
+**Decision 9 is amended: the chip links to switch player and come back.** Its
+`href` is `switchPlayerUrlFor`, which is `accountUrlFor` on the current URL without its fragment (boop has
+already loaded what the fragment carried, and replaying it would reopen a share
+over the new player's work). Outside the estate there is no hub, so the chip is
+words alone. The back arrow uses the same registry, so in the docker stack both
+point at hub's compose port rather than its dev port.
+
+**A page syncs for the profile it was opened for, and no other.** The family
+cookie is shared by every estate tab. Before this amendment, a tab opened as Cy
+kept pushing after another tab picked Bo, and every push carried Bo's cookie,
+so Cy's boops overwrote Bo's slot. Three layers close that:
+
+- **The client is bound.** `App` reads the page's session once and hands it
+  down, so storage, the client and the reload all follow the same player. It
+  builds the save client with `createFamilySaveClient({ accountId })`, or
+  `bindSaveClient` over the fake in `.iwft`.
+  - A call made while `readFamilySession()` names someone else is refused
+    before it is sent.
+  - Every call carries `expectedAccountId`, which the service refuses for
+    another profile's token ([ADR 0079](0079-family-save-authorisation.md),
+    amended).
+  - Either refusal is a `SaveAccountMismatchError`. Only a `CONFLICT` carrying
+    the `SAVE_ACCOUNT_MISMATCH` message counts, so an unrelated `CONFLICT`
+    cannot stop sync for good.
+- **Sync stops for good on that error.** `createBoopSync` never makes another
+  call, and its `onStop` tears down the watcher. Every other failure is still
+  absorbed and retried as decision 6 says.
+- **The page reloads.** `reloadOnPlayerChange(player)` reloads the tab when it
+  comes back into view with another profile signed in, or none. It then opens
+  as the new player, with that player's storage and sync. It also covers
+  `localStorage`, which the binding cannot: `profileStorage` is bound to the
+  page's player, so a tab that kept running would show the old player's boops
+  to the new one. It runs on the player view only: `/shared` belongs to no
+  profile, and a reload there would throw away a visitor's unsaved edits.
+
+The binding is pinned in `boopSync.test.ts` (the cookie changes between
+reconcile and push) and in `playerChange.iwft.tsx`.
+
+**The shared view syncs and keeps nothing.** `/shared` renders the same
+`HomePage` with a `memoryStorage` and no save client, so nothing in this ADR
+runs there and no code path in it can reach `localStorage`. "Keep this boop"
+hands the boop as it is now, edits included, to `/`, where this ADR applies
+once the gate has a profile. That refines ADR 0093 decision 6; see the 2026-11-10
+amendment to [ADR 0026](0026-boop-share-links.md) for the encoding and its
+size.
+

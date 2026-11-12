@@ -2,11 +2,17 @@ import type { SaveGetInput, SaveGetOutput } from '@hoe/accounts'
 import { Handler } from '@hoe/backend-kit'
 
 import type { FamilyStore } from '../../store.ts'
-import { requireOnboardedApp, requireSaveAccount, type FamilyContext } from '../authz.ts'
+import {
+  requireExpectedAccount,
+  requireOnboardedApp,
+  requireSaveAccount,
+  type FamilyContext,
+} from '../authz.ts'
 
 export class GetSaveHandler extends Handler<SaveGetInput, SaveGetOutput, FamilyStore> {
   async run(input: SaveGetInput, ctx: FamilyContext): Promise<SaveGetOutput> {
     const account = requireSaveAccount(ctx)
+    requireExpectedAccount(account, input.expectedAccountId)
     requireOnboardedApp(input.appId)
 
     const record = await ctx.store.getSave({

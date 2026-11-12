@@ -1,9 +1,15 @@
+import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
 import { mintFamilyToken, verifyFamilyToken } from '@hoe/accounts/server'
-import { TEST_FAMILY_PRIVATE_KEY, TEST_FAMILY_PUBLIC_KEY } from '@hoe/accounts/testing'
+import {
+  mintTestToken,
+  TEST_FAMILY_PRIVATE_KEY,
+  TEST_FAMILY_PUBLIC_KEY,
+} from '@hoe/accounts/testing'
 import { ConsoleLogger, InMemoryBlobStore, type AuthProvider } from '@hoe/backend-kit'
 import { freshTestDb, type DbClient } from '@hoe/db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { familySeam } from './auth/familySeam.ts'
 import { parentSessionProvider } from './auth/parentSession.ts'
 import type { FamilyTokenMinter } from './auth/tokenPort.ts'
 import type { FamilyContext } from './handlers/authz.ts'
@@ -14,6 +20,7 @@ import { ListChildrenHandler } from './handlers/identity/listChildrenHandler.ts'
 import { MeHandler } from './handlers/identity/meHandler.ts'
 import { MintSessionTokenHandler } from './handlers/identity/mintSessionTokenHandler.ts'
 import { RenameChildHandler } from './handlers/identity/renameChildHandler.ts'
+import { SaveSummaryHandler } from './handlers/identity/saveSummaryHandler.ts'
 import { migrations } from './migrations.ts'
 import { familySchema, type FamilySchema } from './schema.ts'
 import { DrizzleFamilyStore, type FamilyStore } from './store.ts'
@@ -317,6 +324,84 @@ describe('identity.mintSessionToken', () => {
       code: 'UNAUTHORIZED',
     })
     expect(minter).not.toHaveBeenCalled()
+  })
+})
+
+describe('identity.saveSummary', () => {
+  const now = (): Date => new Date('2026-01-01T00:00:00Z')
+  const seam = familySeam(TEST_FAMILY_PUBLIC_KEY, now)
+
+  /** Real credentials through the real seam, as a request to this service resolves them. */
+  function requestWith(headers: Record<string, string>): AuthProvider {
+    return seam(
+      new Request('https://family.homeofed.com/api/trpc/identity.saveSummary', { headers }),
+    )
+  }
+
+  const tokenCookie = (claims: Parameters<typeof mintTestToken>[0]): string =>
+    `${FAMILY_SESSION_COOKIE}=${mintTestToken(claims, { now })}`
+
+  const summarise = (auth: AuthProvider) => new SaveSummaryHandler().run(undefined, ctxFor(auth))
+
+  it('reports when the parent and each of their profiles last saved, per app', async () => {
+    const robin = await store.addChildProfile({
+      parentId: 'parent-1',
+      username: 'robin',
+      displayName: 'Robin',
+    })
+    await store.putSave({ appId: 'boop', accountId: robin.id, slotKey: 'boop:save', blob: 'b' })
+    await store.putSave({ appId: 'boop', accountId: 'parent-1', slotKey: 'boop:save', blob: 'b' })
+    await store.putSave({ appId: 'boop', accountId: 'parent-2', slotKey: 'boop:save', blob: 'b' })
+    const stamped = (accountId: string) =>
+      store.getSave({ appId: 'boop', accountId, slotKey: 'boop:save' })
+
+    await expect(summarise(requestWith({ 'x-family-parent': 'parent-1' }))).resolves.toEqual([
+      {
+        accountId: robin.id,
+        appId: 'boop',
+        updatedAt: (await stamped(robin.id))?.updatedAt.getTime(),
+      },
+      {
+        accountId: 'parent-1',
+        appId: 'boop',
+        updatedAt: (await stamped('parent-1'))?.updatedAt.getTime(),
+      },
+    ])
+  })
+
+  it('answers for the cookie session when a child token rides on the same request', async () => {
+    const robin = await store.addChildProfile({
+      parentId: 'parent-2',
+      username: 'robin',
+      displayName: 'Robin',
+    })
+    await store.putSave({ appId: 'boop', accountId: robin.id, slotKey: 'boop:save', blob: 'b' })
+    const auth = requestWith({
+      'x-family-parent': 'parent-1',
+      cookie: tokenCookie({ sub: robin.id, role: 'child', parentId: 'parent-2', name: 'Robin' }),
+    })
+
+    await expect(summarise(auth)).resolves.toEqual([])
+  })
+
+  it.each([
+    ['signed out', () => signedOut],
+    ['a family-token-shaped user', () => familyTokenParent],
+    [
+      'a real parent token alone',
+      () => requestWith({ cookie: tokenCookie({ sub: 'parent-1', role: 'parent', name: 'Ada' }) }),
+    ],
+    [
+      'a real child token alone',
+      () =>
+        requestWith({
+          cookie: tokenCookie({ sub: 'child-1', role: 'child', parentId: 'parent-1', name: 'R' }),
+        }),
+    ],
+  ])('refuses %s', async (_label, auth) => {
+    await store.putSave({ appId: 'boop', accountId: 'parent-1', slotKey: 'boop:save', blob: 'b' })
+
+    await expect(summarise(auth())).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
   })
 })
 

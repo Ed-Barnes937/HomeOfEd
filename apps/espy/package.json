@@ -25,6 +25,7 @@
     "@capacitor/status-bar": "^8.0.3",
     "@fontsource/caveat": "^5.2.8",
     "@fontsource/nunito": "^5.2.7",
+    "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/logger": "workspace:*",
     "@tanstack/react-query": "^5.101.2",

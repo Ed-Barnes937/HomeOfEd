@@ -21,7 +21,14 @@ import {
   sizeFor,
   type Wall,
 } from './model.ts'
-import { fromStoredBoard, loadState, saveState, type StoredBoard, toStoredBoard } from './serialize.ts'
+import {
+  type BoardStorage,
+  fromStoredBoard,
+  loadState,
+  saveState,
+  type StoredBoard,
+  toStoredBoard,
+} from './serialize.ts'
 
 /** What a tray tile asks to spawn: the type plus its glyph/label and wedge. */
 export interface SpawnOpts {
@@ -276,14 +283,17 @@ export interface UseFridgeBoard {
  * tap→spawnPlacement+relax). All collision/placement/rotation maths comes from
  * `@hoe/magnet-kit`; this hook only translates pointer events into actions.
  */
-export function useFridgeBoard(options?: {
-  initialMagnets?: Magnet[]
-  rng?: () => number
-}): UseFridgeBoard {
+export function useFridgeBoard(
+  storage: BoardStorage,
+  options?: {
+    initialMagnets?: Magnet[]
+    rng?: () => number
+  },
+): UseFridgeBoard {
   const rng = options?.rng ?? Math.random
 
   // Loaded once, lazily (mirrors boids' `useState(() => loadSettings(...))`):
-  // an explicit `initialMagnets` override skips localStorage entirely (for
+  // an explicit `initialMagnets` override skips the stored board (for
   // future direct-hook tests); otherwise read the persisted board, or the
   // seed on first-ever load / corrupt storage — serialize.ts never throws.
   const [initial] = useState<{
@@ -296,7 +306,7 @@ export function useFridgeBoard(options?: {
     if (options?.initialMagnets !== undefined) {
       return { magnets: options.initialMagnets, finish: 'mint', wall: 'warm', name: '', saved: [] }
     }
-    const { current, saved } = loadState(window.localStorage)
+    const { current, saved } = loadState(storage)
     const { magnets, finish, wall } = fromStoredBoard(current)
     return { magnets, finish, wall, name: current.name, saved }
   })
@@ -327,8 +337,8 @@ export function useFridgeBoard(options?: {
   // useReducer-backed, unlike boids' useState-based settings persistence.
   useEffect(() => {
     const current = toStoredBoard(state.name, state.magnets, state.finish, state.wall)
-    saveState(window.localStorage, current, saved)
-  }, [state.magnets, state.finish, state.wall, state.name, saved])
+    saveState(storage, current, saved)
+  }, [storage, state.magnets, state.finish, state.wall, state.name, saved])
 
   const add = useCallback(
     (opts: SpawnOpts) => dispatch(buildAddAction(stateRef.current.magnets, opts, rng)),

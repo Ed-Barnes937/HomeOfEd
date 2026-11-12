@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@hoe/backend-kit": "workspace:*",
+    "@hoe/deploy-guard": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

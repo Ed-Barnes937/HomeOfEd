@@ -4,6 +4,7 @@ import type { Kit, SequencerEngine } from '../engine/sequencerEngine.ts'
 import { activeClip, singleClipSong, songFromStored, storedBoopFromSong, type Song } from '../song/song.ts'
 import { createAutosave } from './autosave.ts'
 import { WORKING_NAME, type StoredBoop } from './saveFormat.ts'
+import { useSaveStorage } from './SaveStorageContext.tsx'
 import { loadSaveDocument } from './storage.ts'
 
 /**
@@ -39,15 +40,16 @@ export function useWorkingSong(
   openedWith: StoredBoop | null = null,
   seed: ((kit: Kit) => Song) | null = null,
 ): Song | null {
+  const storage = useSaveStorage()
   const autosave = useRef<ReturnType<typeof createAutosave> | null>(null)
-  autosave.current ??= createAutosave(window.localStorage)
+  autosave.current ??= createAutosave(storage)
   const [restored, setRestored] = useState<Song | null>(null)
   /** The mirror of the just-restored song is not an edit; don't write it back. */
   const sawFirstMirror = useRef(false)
 
   useEffect(() => {
     if (!engine) return
-    const working = openedWith ?? loadSaveDocument(window.localStorage).working
+    const working = openedWith ?? loadSaveDocument(storage).working
     let initial: Song
     if (working) {
       // `working.kitId` is not checked: V1 ships one kit, and a boop from
@@ -69,7 +71,7 @@ export function useWorkingSong(
     // The engine rounds and clamps the tempo; the song keeps the engine's
     // number so the two never disagree by a fraction.
     setRestored({ ...initial, bpm: engine.getTempo() })
-  }, [engine, openedWith, seed])
+  }, [engine, openedWith, seed, storage])
 
   useEffect(() => {
     if (!engine || !song) return

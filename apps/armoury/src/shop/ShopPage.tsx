@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { useFamilySession } from '../familySession.tsx'
 import { buildShareUrl } from '../share/shareLink.ts'
 import { prefersShareSheet } from '../share/shareAction.ts'
 import { renderShareCard } from '../share/shareCard.ts'
 import { navigatorPictureTarget, pictureFilename, savePicture } from '../share/savePicture.ts'
+import { useKeepShared } from '../share/useKeepShared.ts'
 import { useShareWand } from '../share/useShareWand.ts'
 import { STAGE_FILL, type StageHandle } from '../stage/stage.ts'
 import { PHONE_QUERY, REDUCED_MOTION_QUERY, useMediaQuery } from '../useMediaQuery.ts'
@@ -21,9 +23,11 @@ const hexToRgb = (hex: string) => {
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
 }
 
-export function ShopPage({ view }: { view: ShopView }) {
+/** `shared`: the `/shared` view, which keeps nothing, so "Keep this" takes the item to its shop. */
+export function ShopPage({ view, shared = false }: { view: ShopView; shared?: boolean }) {
   const { item: def, copy, Scene } = view
   const { state, dispatch, shelf, keep } = useWorkbench(def.kind)
+  const session = useFamilySession()
   const phone = useMediaQuery(PHONE_QUERY)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const stageRef = useRef<StageHandle | null>(null)
@@ -45,6 +49,7 @@ export function ShopPage({ view }: { view: ShopView }) {
     [def.kind, item],
   )
   const { shareState, share } = useShareWand(getShareUrl, copy)
+  const keepShared = useKeepShared(def.kind, item)
 
   const name = item.name ?? def.name(item.params)
 
@@ -112,6 +117,7 @@ export function ShopPage({ view }: { view: ShopView }) {
           type="button"
           className={styles.primary}
           onClick={() => {
+            if (shared) return keepShared()
             keep(item)
             setKept(true)
           }}
@@ -142,7 +148,8 @@ export function ShopPage({ view }: { view: ShopView }) {
       <main className={styles.main}>
         <Header
           copy={copy}
-          shelfCount={shelf.length}
+          shelfCount={shared ? null : shelf.length}
+          player={shared ? null : (session?.name ?? null)}
           shareState={shareState}
           onShare={share}
           pictureBusy={pictureBusy}

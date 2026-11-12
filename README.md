@@ -104,6 +104,35 @@ deploy and when you suspect a PGlite-versus-Postgres difference. The database
 credentials in `compose.yml` are local throwaways; real secrets go in a
 gitignored `.env`.
 
+The stack is gated like production: every estate app's service sets
+`FAMILY_ACCOUNT_URL` to hub's `/account` on port 8080, so a signed-out visit to
+an app whose gate is wired redirects there. Signing in needs family and hub up
+alongside the app: `docker compose up family hub <app>`.
+
+Sign-in works from a clean checkout. Hub on 8080 calls the stack's family on
+8092, which admits the stack's own origins because compose sets
+`DOCKER_STACK_ORIGINS=on` (refused on Fly; ADR 0078 decision 6). Register with
+the local-only invite code `dev-invite-code`. To check the whole round trip
+(register, add a child, pick who is playing, the `hoe_family_session` cookie on
+`localhost`, and boop saving through family) in a real browser:
+
+```bash
+docker compose up -d --build family hub boop
+node scripts/docker-stack-sign-in.mjs     # HEADED=1 to watch it
+```
+
+For a gated app, `node scripts/docker-stack-gate-round-trip.mjs
+http://localhost:<composePort>` checks the gate end to end in Chromium and
+WebKit: a signed-out deep link meets the 302, signs in, and comes back with
+its fragment byte for byte; `/shared` opens and writes nothing; assets, `/api`
+and `/health` stay open.
+
+Both scripts register a fresh parent on every run. In the stack, Better Auth
+cannot see a client IP, so its sign-up rate limit falls back to one bucket
+shared by every caller ("Rate limiting could not determine a client IP" in
+family's log). Several registrations within about a minute start failing at
+"Signed in as Ada"; leave a minute between runs rather than debugging the app.
+
 ## Checks
 
 ```bash

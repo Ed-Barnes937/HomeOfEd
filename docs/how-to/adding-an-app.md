@@ -60,8 +60,15 @@ Copy the stateless baseline. It compiles and its tests pass before you change a
 line, so you always start from green.
 
 ```bash
-cp -r templates/starter apps/<name>
+mkdir apps/<name>
+git archive HEAD:templates/starter | tar -x -C apps/<name>
+corepack pnpm install
 ```
+
+`git archive` copies only the starter's committed files. A plain `cp -r` also
+copies its `node_modules` symlinks (and `dist/`), which then point at the
+starter's dependencies rather than the new app's. `pnpm install` links the new
+workspace package.
 
 Then change each touchpoint:
 
@@ -70,10 +77,11 @@ Then change each touchpoint:
 | 1 | `apps/<name>/package.json` | `"name": "<name>"`; set the dev port in the `dev` script (`vite --port <devPort>`). |
 | 2 | `apps/<name>/index.html` | `<title>`. |
 | 3 | `apps/<name>/playwright-ct.config.ts` | `ctPort: <ctPort>`. |
-| 4 | `apps/<name>/fly.toml` | `app = '<flyapp>'`. Leave `primary_region = 'lhr'`. |
+| 4 | `apps/<name>/fly.toml` | `app = '<flyapp>'`. Leave `primary_region = 'lhr'`. Keep or remove the `FAMILY_ACCOUNT_URL` line as [§1a](#1a-the-estate-gate-every-app) says. |
 | 5 | `apps/<name>/Dockerfile` | Replace `starter` in the `turbo prune` and `--filter` lines; replace every `templates/starter` path with `apps/<name>`. |
-| 6 | `compose.yml` (repo root) | Copy the `starter` service pattern as a new `<name>` service (build context `.`, dockerfile `apps/<name>/Dockerfile`, fresh host port). A stateless app has **one** service, `command: node src/server/main.ts`, no `DATABASE_URL`, no `depends_on`. |
-| 7 | `.github/workflows/deploy.yml` | Copy the `deploy-hub` job → `deploy-<name>`: the `APP_URL`, the affected check (`select(.name == "<name>")`), the `flyctl deploy --config apps/<name>/fly.toml` path, and the smoke `APP_URL`. |
+| 6 | `compose.yml` (repo root) | Copy the `boop` service as a new `<name>` service (build context `.`, dockerfile `apps/<name>/Dockerfile`, fresh host port, and its two `FAMILY_*` lines - [§1a](#1a-the-estate-gate-every-app)). A stateless app has **one** service, `command: node src/server/main.ts`, no `DATABASE_URL`, no `depends_on`. |
+| 7 | `.github/workflows/deploy.yml` | Copy the `deploy-boop` job to `deploy-<name>`: the `APP_URL`, the affected check (`select(.name == "<name>")`), the `flyctl deploy --config apps/<name>/fly.toml` path, and the smoke `APP_URL`. Not `deploy-hub`: hub is never gated, so its smoke demands a `200` index and fails a gated app's first deploy after Fly has already rolled it out. Then add `deploy-<name>` to the `record-deploys` job: its `needs:` list, a `<NAME>:` line in the record step's `env`, and an `add <name> "$<NAME>"` line, so a green deploy reaches the homepage. |
+| 8 | `apps/<name>/src/server/main.ts`, `src/server/simulator.ts`, `src/testing/IwftApp.tsx` | The logger label `app: 'starter'` becomes `app: '<name>'`. |
 
 **Ports must be unique across all apps.** This registry is the single source of
 truth — read it, take the **next free** row, and add your app to it in the same
@@ -113,6 +121,116 @@ routes, or keep it as a smoke while you build.
 app it should pass immediately after the renames — that is your green baseline.
 
 Subdomain, Cloudflare, and Fly app creation are **human-gated** — see §4.
+
+### 1a. The estate gate (every app)
+
+Every app on `*.homeofed.com` sends a visitor with no family session to hub's
+`/account` and back ([ADR 0093](../adr/0093-estate-gate.md)). Only hub, family,
+sprout and sprout-pipeline are exempt. The starter arrives gated, so the copy
+already has the server half; keep it:
+
+- `src/server/main.ts` passes
+  `documentGate: familyDocumentGateFromEnv(process.env, { publicPaths: [] })`.
+  The gate is on exactly when `FAMILY_ACCOUNT_URL` is set. `pnpm dev` and
+  `.iwft` never run this server, so they are ungated.
+- `src/server/main.test.ts` boots that entrypoint on a real port and proves
+  both modes.
+- The template's `fly.toml` sets `FAMILY_ACCOUNT_URL =
+  'https://homeofed.com/account'` under `[env]`. A copied app keeps that line
+  only once the production key is committed (below).
+- `Dockerfile` ships `@hoe/accounts` and `@hoe/deploy-guard` and deletes
+  `packages/accounts/src/testing`, as
+  [`packages/accounts/README.md`](../../packages/accounts/README.md#wiring-the-gate-in-an-app)
+  describes.
+
+What you add:
+
+1. **`ESTATE_APPS`** in `packages/accounts/src/estateApps.ts`:
+   `{ appId: '<name>', host: '<name>.homeofed.com', devPort, composePort }`,
+   the ports from your registry row. Hub returns a visitor only to an origin
+   listed there, so an app missing from it signs its visitors in and leaves
+   them on hub.
+2. **`compose.yml`**: the service must be named exactly the `appId`, and gets
+   boop's two `environment` lines, copied verbatim:
+
+   ```yaml
+   environment:
+     FAMILY_ACCOUNT_URL: http://localhost:8080/account
+     FAMILY_TOKEN_PUBLIC_KEY: '<boop's value>'
+   ports:
+     - '<composePort>:8080'
+   ```
+
+   `packages/accounts/src/estateApps.test.ts` checks every `ESTATE_APPS` entry
+   against `compose.yml`: that service publishes exactly one port,
+   `'<composePort>:8080'`, and its `FAMILY_TOKEN_PUBLIC_KEY` is a single-quoted
+   one-line PEM matching the key compose's `family` signs with. Run
+   `corepack pnpm --filter @hoe/accounts run test`. That variable is for the
+   docker stack only: never set it on Fly, where its presence refuses the boot.
+3. **Share links**, only if the app has them: fragment share links live at
+   `/shared`, and `main.ts` declares `publicPaths: ['/shared']`. The shared
+   view writes nothing to `localStorage` or the SaveStore (ADR 0093 decision
+   6). A server-backed share route declares its own prefix, as fridge's `/b/`.
+
+**Before the first deploy.** A gated app refuses to boot on Fly until the
+production verifying key is committed as `PRODUCTION_FAMILY_PUBLIC_KEY` in
+`packages/accounts/src/familyVerifyingKey.ts` (see "The production key"
+in the accounts README); the deploy then fails its health checks and
+`go-live.sh` fails its verify step. On Fly that constant is the only key
+(see "The verifying key" in the accounts README), so rotating it is a code
+change and a redeploy, never a Fly variable. While it is still `null`, remove
+the `FAMILY_ACCOUNT_URL` line from the app's `fly.toml`; putting it back later
+is the one-line switch-on. `familyVerifyingKey.test.ts` in `@hoe/accounts`
+fails while any `apps/*/fly.toml` sets the line and the constant is `null`.
+
+To see the gate locally: `docker compose up --build family hub <name>`, then
+open `http://localhost:<composePort>/` and you land on hub's sign-in.
+
+### 1b. Saving work per profile (apps that save work)
+
+Local saves belong to whoever is playing
+([ADR 0094](../adr/0094-per-profile-local-saves.md)), and a page shows and
+saves the work of one profile: the one it was opened for. boop is the reference
+(`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`). Every call
+below is from `@hoe/accounts`; its README ("In a gated app's browser code")
+has the detail.
+
+1. **The page's player.** Read `readFamilySession()` once at the app's entry
+   and hand it down (boop's `sync/FamilySessionContext.tsx`), so storage, the
+   save client and the watcher can never disagree. Call
+   `reloadOnPlayerChange(player)` where the profile's storage is built, not on
+   `/shared`, so a tab whose player was switched elsewhere reloads when it is
+   looked at again. On `/shared` a reload would throw away a visitor's edits.
+2. **Storage.** On the app's own routes, build
+   `profileStorage(window.localStorage, player, { keys, prefixes })` once per
+   page. List the app's save keys exactly, and dynamic ones such as
+   `silt:scene:<id>` by prefix. Device preferences (themes, settings, hints)
+   stay out. Pass it wherever the code used `window.localStorage` for a save,
+   as boop does through `persistence/SaveStorageContext.tsx`. Saves made before
+   profiles existed are copied into each profile on its first open. IndexedDB
+   or anything else not keyed by these names is scoped with `profileScopedKey`
+   directly.
+3. **`/shared`**, if the app has fragment share links. Add a route that renders
+   the same page with `memoryStorage()` and no save client. Read the share
+   payload with `arrivalFragment()`, never `location.hash` after mount (the
+   router decodes it). Share builds `<origin>/shared<fragment>`. "Keep this"
+   sends the item as it is now to `<origin>/`, where the gate asks who is
+   playing.
+4. **Sync**, if the app copies saves to the family SaveStore. Build
+   `createFamilySaveClient({ baseUrl, accountId: player })` only when `player`
+   is not null. The `slotKey` stays the unscoped key, because the server key
+   already carries the account. Stop syncing for good on a
+   `SaveAccountMismatchError`.
+5. **Links.** The back arrow is `hubUrlFor(location.href)`, and a switch-player
+   link is `switchPlayerUrlFor(location.href)` (no link when it is `null`).
+
+Tests to copy from boop:
+- `profiles.iwft.tsx`: one player's saves are not another's, and legacy saves
+  appear for both.
+- `sharedView.iwft.tsx`: `/shared` writes nothing; "Keep this" carries the
+  fragment or the edits.
+- `playerChange.iwft.tsx`: a switched player reloads the page, but not
+  `/shared`, where the visitor's edit survives.
 
 ---
 
@@ -244,6 +362,17 @@ hub's equivalents.
 
   This is what makes `mountApp({ seed })` work in `.iwft` tests.
 
+- **`src/server/main.test.ts`** (the entrypoint test) starts `main.ts` with
+  only the env it names, so `loadDbEnv()` now throws at boot. Add a
+  `DATABASE_URL` nothing listens on to the env `startMain` passes:
+
+  ```ts
+  env: { PATH: process.env.PATH ?? '', PORT: String(port), DATABASE_URL: 'postgres://gate-test@127.0.0.1:9/none', ...env },
+  ```
+
+  The Postgres pool connects lazily, so the server boots and the gate tests
+  need no database; `/health` answers `503`, which the readiness poll accepts.
+
 ### 2i. Store test — `src/server/store.test.ts`
 
 Copy `apps/hub/src/server/store.test.ts`: `freshTestDb(<name>Schema, migrations)`
@@ -351,6 +480,7 @@ curl -fsS localhost:<port>/health            # → {"ok":true} (deep round-trip)
 | migrations don't apply / table empty | §2d not generated, or §2e `migrate.ts` |
 | prod image build fails on pglite / image huge | §2l — `COPY packages/db` missing or pglite not removed |
 | deployed `/health` returns 503 | §2h `main.ts` healthCheck, or DB not attached (§4) |
+| `main.test.ts`: `main.ts exited with 1` and `Invalid database environment` | §2h - `DATABASE_URL` not added to `startMain`'s env |
 
 ---
 

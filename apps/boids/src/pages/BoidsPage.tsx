@@ -1,3 +1,4 @@
+import { hubUrlFor } from '@hoe/accounts'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 import { ControlPanel } from '../features/controls/ControlPanel.tsx'
@@ -9,7 +10,6 @@ import { loadSettings, saveSettings, type CursorIcon, type ThemeId } from '../fe
 import { prefersReducedMotion, REDUCED_MOTION_QUERY } from '../features/sim/reducedMotion.ts'
 import { getTheme, THEMES } from '../features/sim/themes.ts'
 import { useSimulationLoop } from '../features/sim/useSimulationLoop.ts'
-import { hubUrl } from '../hubUrl.ts'
 import styles from './BoidsPage.module.scss'
 
 /** null = draw no glyph (icon off, or no active force so 'creatures' has no sign). */
@@ -98,7 +98,7 @@ export function BoidsPage() {
     <>
       <a
         className={styles.back}
-        href={hubUrl(window.location.hostname)}
+        href={hubUrlFor(window.location.href)}
         aria-label="Back to home of ed"
       >
         <svg

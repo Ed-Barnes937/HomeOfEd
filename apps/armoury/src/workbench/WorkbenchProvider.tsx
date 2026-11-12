@@ -13,7 +13,6 @@ import {
 
 import type { ItemDef, ItemKind, StoredItem } from '../items/item.ts'
 import { ITEMS } from '../items/registry.ts'
-import type { Landing } from '../landing.ts'
 import { readLastShop, writeLastShop } from '../persistence/lastShop.ts'
 import {
   keepItem,
@@ -23,7 +22,7 @@ import {
   writeWorking,
   type SaveStorage,
 } from '../persistence/storage.ts'
-import { clearShareHash, decodeShareHash, type SharedItem } from '../share/shareLink.ts'
+import type { SharedItem } from '../share/shareLink.ts'
 import {
   createWorkbench,
   startWorkbench,
@@ -45,30 +44,13 @@ export interface Bench {
 
 const WorkbenchContext = createContext<Record<ItemKind, Bench> | null>(null)
 
-/** Where this page load lands, and the shop the child was in last. */
+/** The shop the child was in last, a device preference that `storage` passes through unscoped. */
 export interface Shops {
-  landing: Landing
   lastShop: ItemKind | null
   enterShop: (kind: ItemKind) => void
 }
 
 const ShopsContext = createContext<Shops | null>(null)
-
-interface Arrival {
-  shared: SharedItem | null
-  landing: Landing
-  /** The root's redirect drops the fragment itself; any other path clears it here. */
-  clearsFragment: boolean
-}
-
-function arrive(storage: SaveStorage): Arrival {
-  const shared = decodeShareHash(window.location.hash)
-  return {
-    shared,
-    landing: { arrivalKind: shared?.kind ?? null, lastShop: readLastShop(storage) },
-    clearsFragment: shared !== null && window.location.pathname !== '/',
-  }
-}
 
 function initialItem(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null): StoredItem {
   const arrived = arrival?.kind === def.kind ? arrival.item : null
@@ -127,20 +109,19 @@ function useBench(def: ItemDef, storage: SaveStorage, arrival: SharedItem | null
 }
 
 export function WorkbenchProvider({
-  storage = window.localStorage,
+  storage,
+  arrived,
   children,
 }: {
-  storage?: SaveStorage
+  /** The player's `profileStorage`, or the shared view's `memoryStorage`. */
+  storage: SaveStorage
+  /** The item the page's link brought, read once at the app's entry. */
+  arrived: SharedItem | null
   children: ReactNode
 }) {
-  const [{ shared, landing, clearsFragment }] = useState(() => arrive(storage))
-  const wand = useBench(ITEMS.wand, storage, shared)
-  const sword = useBench(ITEMS.sword, storage, shared)
-  const [lastShop, setLastShop] = useState(landing.lastShop)
-
-  useEffect(() => {
-    if (clearsFragment) clearShareHash(window.location, window.history)
-  }, [clearsFragment])
+  const wand = useBench(ITEMS.wand, storage, arrived)
+  const sword = useBench(ITEMS.sword, storage, arrived)
+  const [lastShop, setLastShop] = useState(() => readLastShop(storage))
 
   const enterShop = useCallback(
     (kind: ItemKind) => {
@@ -151,7 +132,7 @@ export function WorkbenchProvider({
   )
 
   const benches = useMemo(() => ({ wand, sword }), [wand, sword])
-  const shops = useMemo(() => ({ landing, lastShop, enterShop }), [landing, lastShop, enterShop])
+  const shops = useMemo(() => ({ lastShop, enterShop }), [lastShop, enterShop])
   return (
     <ShopsContext value={shops}>
       <WorkbenchContext value={benches}>{children}</WorkbenchContext>

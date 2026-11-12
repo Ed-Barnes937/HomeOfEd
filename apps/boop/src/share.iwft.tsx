@@ -24,6 +24,7 @@ test('sharing copies a link, and opening that link loads the boop ready to play'
   await first.root.pressShare()
   await first.root.verifyShareCopied()
   const link = await first.root.readCopiedShareLink()
+  expect(new URL(link).pathname).toBe('/shared')
   expect(link).toContain('#g=')
 
   await first.root.openShareLink(link)

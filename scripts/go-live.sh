@@ -50,6 +50,29 @@ HOST="$APP.$DOMAIN"
 say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 # Mutating commands go through run(); in --dry-run they are printed, not run.
 run()  { printf '   $ %s\n' "$*"; $DRY_RUN || "$@"; }
+# Passes on the SPA index plus one hashed asset, or on a gated app's 302 to hub's
+# /account returning to $HOST (ADR 0093), as the deploy workflow's estate smoke does.
+index_smoke() {
+  local url="$1" body answer asset ok=true
+  shift
+  body="$(mktemp)"
+  answer="$(curl -sS "$@" -o "$body" -w '%{http_code} %{redirect_url}' "$url" || true)"
+  case "$answer" in
+    "200 "*)
+      asset="$(grep -oE 'assets/[^"]+\.js' "$body" | head -1 || true)"
+      if ! grep -q '<div id="root">' "$body"; then
+        echo "FAILED: $url answered 200 without the SPA index" >&2; ok=false
+      elif [[ -z "$asset" ]] || ! curl -fsS "$@" "${url%/}/$asset" >/dev/null; then
+        echo "FAILED: $url served no fetchable hashed asset ('$asset')" >&2; ok=false
+      else echo "   SPA index and $asset ok"; fi ;;
+    "302 https://homeofed.com/account?returnTo=https%3A%2F%2F$HOST%2F")
+      echo "   gated: redirects to ${answer#302 }" ;;
+    *)
+      echo "FAILED: $url answered '$answer', neither the SPA index nor the gate's redirect" >&2; ok=false ;;
+  esac
+  rm -f "$body"
+  $ok
+}
 
 # ── preflight ────────────────────────────────────────────────────────────────
 say "preflight"
@@ -207,9 +230,7 @@ else
     || { echo "FAILED: https://$HOST/health did not return OK" >&2; exit 1; }
   echo "   $HOST /health ok"
 
-  curl -fsS --resolve "$HOST:443:$HOST_IP" "https://$HOST/" | grep -q '<div id="root">' \
-    || { echo "FAILED: https://$HOST/ did not serve the SPA index" >&2; exit 1; }
-  echo "   SPA index ok"
+  index_smoke "https://$HOST/" --resolve "$HOST:443:$HOST_IP" || exit 1
 fi
 
 say "done — https://$HOST"

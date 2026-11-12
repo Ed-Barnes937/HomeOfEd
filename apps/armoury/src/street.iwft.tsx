@@ -186,9 +186,9 @@ test.describe('share links', () => {
     await wands.choose('Walnut')
     await wands.rename('Firefly')
     const link = await wands.share()
-    expect(new URL(link).pathname).toBe('/')
+    expect(new URL(link).pathname).toBe('/shared')
 
-    await wands.openAsNewVisitor(link)
+    await first.root.openAsNewVisitor(link, '/')
     await mountApp()
     await wands.verifyWandName('Firefly')
     await wands.verifyStage({ wood: 'walnut' })
@@ -200,7 +200,7 @@ test.describe('share links', () => {
     await wands.verifyStage({ wood: 'oak' })
   })
 
-  test('a sword link opens the smithy with that sword, whatever shop was last', async ({
+  test('a sword link at the root opens the smithy with that sword, whatever shop was last', async ({
     mountApp,
   }) => {
     const first = await mountApp()
@@ -210,7 +210,7 @@ test.describe('share links', () => {
     const link = await smithy.share()
     await (await smithy.backToStreet()).enterWandShop()
 
-    await smithy.openAsNewVisitor(link)
+    await first.root.openAsNewVisitor(link, '/')
     await mountApp()
     await smithy.verifySwordName('Pip')
     await smithy.verifyStage({ family: 'dagger' })

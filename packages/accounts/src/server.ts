@@ -6,4 +6,6 @@ export {
   verifyFamilyToken,
 } from './familyToken.ts'
 export { familyAuthProvider } from './familyAuthProvider.ts'
+export type { FamilyDocumentGateOpts } from './familyDocumentGate.ts'
+export { familyDocumentGate, familyDocumentGateFromEnv } from './familyDocumentGate.ts'
 export type { FamilyUser } from './familyAuthProvider.ts'

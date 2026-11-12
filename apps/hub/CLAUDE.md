@@ -1,8 +1,9 @@
 # apps/hub — scoped rules
 
 The launcher/landing app at the apex `homeofed.com`. Two routes: `/`, the
-wordmark and the app rail (nav, links), and `/account`, **the whole estate's
-account UI** (spec §6, [ADR 0081](../../docs/adr/0081-hub-account-ui.md)).
+wordmark, the app rail (nav, links) and a "who's playing" chip linking to
+`/account`; and `/account`, **the whole estate's account UI** (spec §6,
+[ADR 0081](../../docs/adr/0081-hub-account-ui.md)).
 The `trpc.health()` DB round-trip stays wired server-side (router → handler →
 Store) as the worked example, but neither page surfaces it. New apps are **not** copied from here — the copy base
 is `templates/starter` ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)).
@@ -31,7 +32,10 @@ src/
     pages/account/    the /account screens: AccountPage + the four cards
     features/account/ the family-service seam: familyClient (context + prod
                     client), familyService (origin + cookie attributes per
-                    hostname), accountError, accountQueries
+                    hostname), accountError, accountQueries, lastSaved (the
+                    "boop: saved 2 days ago" wording), returnTo (the one
+                    way back to the app that sent a visitor) and silentRenewal
+                    (re-minting with no screen), both ADR 0095
   testing/          IwftApp harness (in-browser backend) + iwft fixtures + page
                     objects; familyFixture.ts is the household the fake starts with
   home.iwft.tsx account.iwft.tsx  whole-frontend tests via the in-browser backend
@@ -84,7 +88,9 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3100 })
   - **There is no live dev sign-in.** Better Auth runs only in the family
     service's `main.ts`, so the simulator and the .iwft harness serve anonymous
     requests. `account.iwft.tsx` injects `FakeFamilyClient` through `IwftApp`,
-    and a real sign-in needs `docker compose up family`. Do not add a dev-only
+    and a real sign-in needs the docker stack: `docker compose up family hub`,
+    where `familyUrl` maps hub's compose port 8080 to family's 8092
+    (`scripts/docker-stack-sign-in.mjs` drives it). Do not add a dev-only
     backdoor that stamps a parent.
 - Card previews honour `prefers-reduced-motion`: a new card's drawer returns
   `drivePreview(frame, drive, settle)` (`pages/HomePage.tsx`) so that under

@@ -9,6 +9,8 @@ import {
   decodeShare,
   decodeShareHash,
   encodeShare,
+  keepFragment,
+  keepSharedUrl,
   SHARE_FORMAT_VERSION,
   SHARE_HASH_PREFIX,
 } from './shareLink.ts'
@@ -23,9 +25,9 @@ const bothKinds = { wand: wandItem, sword: fakeSword }
 const token = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString('base64url')
 
 describe('share links', () => {
-  it('round-trip a wand, name and all', () => {
+  it('round-trip a wand, name and all, through the open /shared view', () => {
     const url = buildShareUrl('https://armoury.homeofed.com', 'wand', wand)
-    expect(url).toMatch(/^https:\/\/armoury\.homeofed\.com\/#w=[A-Za-z0-9_-]+$/)
+    expect(url).toMatch(/^https:\/\/armoury\.homeofed\.com\/shared#w=[A-Za-z0-9_-]+$/)
     expect(decodeShareHash(new URL(url).hash)).toEqual({ kind: 'wand', item: wand })
   })
 
@@ -40,6 +42,36 @@ describe('share links', () => {
   it('ignore a link from a future share format', () => {
     const future = btoa(JSON.stringify({ version: 2, wand })).replace(/=+$/, '')
     expect(decodeShareHash(`${SHARE_HASH_PREFIX}${future}`)).toBeNull()
+  })
+})
+
+describe('keeping a shared item', () => {
+  it('goes to its own shop, where the gate asks who is playing', () => {
+    expect(keepSharedUrl('http://localhost:8091', 'wand', '#w=%7B%22a%22%3A1%7D')).toBe(
+      'http://localhost:8091/wands#w=%7B%22a%22%3A1%7D',
+    )
+    expect(keepSharedUrl('http://localhost:8091', 'sword', '#w=abc')).toBe(
+      'http://localhost:8091/swords#w=abc',
+    )
+  })
+
+  it('carries the arrival fragment byte for byte when nothing changed', () => {
+    const opened = encodeShare('wand', wand)
+    expect(keepFragment(`${SHARE_HASH_PREFIX}${opened}`, opened, opened)).toBe(
+      `${SHARE_HASH_PREFIX}${opened}`,
+    )
+  })
+
+  it('carries no fragment when nothing changed and there was no wand to open', () => {
+    const shown = encodeShare('wand', wand)
+    expect(keepFragment('#w=%7Bescaped%7D', shown, shown)).toBe('')
+    expect(keepFragment('', shown, shown)).toBe('')
+  })
+
+  it('carries the wand as it is now after an edit', () => {
+    const opened = encodeShare('wand', wand)
+    const edited = encodeShare('wand', { ...wand, name: 'Spark' })
+    expect(keepFragment('#w=%7Bescaped%7D', opened, edited)).toBe(`${SHARE_HASH_PREFIX}${edited}`)
   })
 })
 
@@ -65,7 +97,7 @@ describe('share links, now that the payload names the kind', () => {
   it('name the kind as the field that holds the item', () => {
     expect(encodeShare('sword', sword)).toBe(token({ version: 1, sword }))
     const url = buildShareUrl('https://armoury.homeofed.com', 'sword', sword)
-    expect(url).toMatch(/^https:\/\/armoury\.homeofed\.com\/#w=[A-Za-z0-9_-]+$/)
+    expect(url).toMatch(/^https:\/\/armoury\.homeofed\.com\/shared#w=[A-Za-z0-9_-]+$/)
     expect(decodeShareHash(new URL(url).hash, bothKinds)).toEqual({ kind: 'sword', item: sword })
     expect(decodeShare(encodeShare('wand', wand), bothKinds)).toEqual({ kind: 'wand', item: wand })
   })
@@ -119,9 +151,9 @@ describe('share links, now that the payload names the kind', () => {
     },
   )
 
-  it('always point at the root, whichever page built the link', () => {
+  it('always point at /shared, whichever page built the link', () => {
     expect(buildShareUrl('http://localhost:3011', 'wand', wand)).toBe(
-      `http://localhost:3011/#w=${encodeShare('wand', wand)}`,
+      `http://localhost:3011/shared#w=${encodeShare('wand', wand)}`,
     )
   })
 })

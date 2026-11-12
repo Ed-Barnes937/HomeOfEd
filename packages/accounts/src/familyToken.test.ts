@@ -1,4 +1,4 @@
-import { generateKeyPairSync, sign } from 'node:crypto'
+import { createPublicKey, generateKeyPairSync, sign } from 'node:crypto'
 
 import { describe, expect, it } from 'vitest'
 
@@ -23,6 +23,13 @@ function signTestClaims(claims: unknown): string {
 }
 
 describe('family session token', () => {
+  it('verifies with a parsed key object as well as PEM text', () => {
+    const key = createPublicKey(TEST_FAMILY_PUBLIC_KEY)
+    expect(verifyFamilyToken(mintParent(), key, now)?.sub).toBe('parent-1')
+    const [payload] = mintParent().split('.')
+    expect(verifyFamilyToken(`${payload ?? ''}.AAAA`, key, now)).toBeNull()
+  })
+
   it('round-trips parent claims', () => {
     const claims = verifyFamilyToken(mintParent(), TEST_FAMILY_PUBLIC_KEY, now)
     expect(claims).toEqual({
