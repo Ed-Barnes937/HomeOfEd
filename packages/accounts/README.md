@@ -239,26 +239,21 @@ imports `@hoe/deploy-guard`. A gated app therefore needs all of the following:
    image need not carry the committed test private key. Family is the
    exception: its own env guard imports that key, so its image keeps it.
 
-### Committing the production key
+### The production key
 
-`PRODUCTION_FAMILY_PUBLIC_KEY` is `null` until Ed supplies the value, and the
-gate must not be switched on in any `fly.toml` before then: the app would
-refuse to boot. To commit it, print the public half of family's signing key
+`PRODUCTION_FAMILY_PUBLIC_KEY` in `src/familyVerifyingKey.ts` is the public
+half of family's signing key (committed 2026-11-12). It is public: it can
+check a token, never make one. Without it a gated app refuses to boot on Fly.
+
+To rotate, print the public half of the new signing key
 
 ```sh
 openssl pkey -in <private-key.pem> -pubout
 ```
 
-and replace `null` in `src/familyVerifyingKey.ts` with the three output lines
-joined by `\n`, as one string:
-
-```ts
-export const PRODUCTION_FAMILY_PUBLIC_KEY: string | null =
-  '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA...\n-----END PUBLIC KEY-----\n'
-```
-
-The tests then check it is an Ed25519 public key the gate accepts and not the
-test key. Rotating it later is the same edit and a redeploy of every gated app.
+and replace the constant with the three output lines joined by `\n`, as one
+string. The tests check it is an Ed25519 public key the gate accepts and not
+the test key. Every gated app then needs a redeploy.
 
 ## The save contract
 
