@@ -6,11 +6,13 @@ export function Tag({
   number,
   name,
   description,
+  nameLabel,
   onRename,
 }: {
   number: string
   name: string
   description: string
+  nameLabel: string
   onRename: (name: string) => void
 }) {
   const [editing, setEditing] = useState(false)
@@ -23,7 +25,7 @@ export function Tag({
         {editing ? (
           <input
             className={styles.nameInput}
-            aria-label="Wand name"
+            aria-label={nameLabel}
             defaultValue={name}
             maxLength={40}
             autoFocus

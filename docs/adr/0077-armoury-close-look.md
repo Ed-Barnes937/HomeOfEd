@@ -1,9 +1,18 @@
 # 0077 - armoury lifts the wand out for a close look
 
-- **Status:** Accepted
+- **Status:** Accepted - **amended 2026-11-11** (see the note below the header)
 - **Date:** 2026-11-08
 - **Related:** [ADR 0073](0073-armoury-wand-shop.md) (amends "The box drives the
   wand"), the prototype's free-orbit stage in `~/Code/Playground/ideas/armoury`.
+
+> **Amended by [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md)
+> (2026-11-11).** The close look's `cast` is now `flourish()` on `CloseUpHandle`:
+> a wand's flourish is the wave and spell this ADR describes, a sword's is the
+> same figure of 8, slower, then a glint and its runes waking. The lift, hold,
+> turn and put-back are one shared rig (`stage/HeldRig.tsx`, with
+> `stage/boxRig.tsx` for the box stages) that the wand's `CloseUpStage` and the
+> sword's `SwordCloseUpStage` both fill; `StageContext` now holds a pair of
+> stages by kind. Where this ADR says `cast`, read `flourish`.
 
 ## Context
 

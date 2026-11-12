@@ -5,7 +5,7 @@ import { pillFor } from './pillFor.ts'
 import { useColourTheme } from './useColourTheme'
 
 type PreviewKind =
-  'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'wand' | 'idle'
+  'boids' | 'magnets' | 'word' | 'ink' | 'garden' | 'boop' | 'silt' | 'armoury' | 'idle'
 type AppLink = {
   name: string
   status: 'LIVE' | 'SOON'
@@ -47,7 +47,7 @@ const APPS: AppLink[] = [
   {
     name: 'Armoury',
     status: 'LIVE',
-    kind: 'wand',
+    kind: 'armoury',
     href: 'https://armoury.homeofed.com',
     pkg: 'armoury',
   },
@@ -345,7 +345,7 @@ function usePreviews(ref: React.RefObject<HTMLDivElement | null>, theme: string)
         else if (kind === 'garden') previews.push(drawGarden(cv, darkRef, drive))
         else if (kind === 'boop') previews.push(drawBoop(cv, darkRef, drive))
         else if (kind === 'silt') previews.push(drawSilt(cv, darkRef, drive))
-        else if (kind === 'wand') previews.push(drawWand(cv, darkRef, drive))
+        else if (kind === 'armoury') previews.push(drawArmoury(cv, darkRef, drive))
         else previews.push(drawIdle(cv, darkRef, drive))
       }
     }, 90)
@@ -821,21 +821,91 @@ function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Previe
   return drivePreview(step, drive, 190)
 }
 
-// armoury: a wand lying on the diagonal, its tip glowing and shedding sparks.
-// The glow drifts through the five core colours, one every few seconds.
-function drawWand(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
+// armoury: a wand and a sword crossed. The wand's tip glows through the five
+// core colours and sheds sparks; every few seconds a glint runs up the sword's edge.
+function drawArmoury(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const CORES = ['#ffc95c', '#8fe3ff', '#6dff9c', '#c49bff', '#ff7a45']
   const base = { x: w * 0.2, y: h * 0.74 }
   const tip = { x: w * 0.76, y: h * 0.3 }
   const angle = Math.atan2(tip.y - base.y, tip.x - base.x)
   const length = Math.hypot(tip.x - base.x, tip.y - base.y)
+  const pommel = { x: w * 0.78, y: h * 0.8 }
+  const point = { x: w * 0.22, y: h * 0.18 }
+  const swordAngle = Math.atan2(point.y - pommel.y, point.x - pommel.x)
+  const swordLength = Math.hypot(point.x - pommel.x, point.y - pommel.y)
+  const guard = 22
+  const taper = swordLength * 0.84
+  const edgeY = (x: number): number =>
+    x < taper
+      ? -5 + (1 * (x - guard)) / (taper - guard)
+      : (-4 * (swordLength - x)) / (swordLength - taper)
   let t = 0
   const step = (): void => {
     const dark = darkRef.current
     ctx.clearRect(0, 0, w, h)
     t += 0.016
     const core = CORES[Math.floor(t / 3) % CORES.length]!
+
+    ctx.save()
+    ctx.translate(pommel.x, pommel.y)
+    ctx.rotate(swordAngle)
+    const blade = (side: number): void => {
+      ctx.beginPath()
+      ctx.moveTo(guard, 0)
+      ctx.lineTo(guard, 5 * side)
+      ctx.lineTo(taper, 4 * side)
+      ctx.lineTo(swordLength, 0)
+      ctx.closePath()
+    }
+    ctx.fillStyle = dark ? '#a7afb8' : '#8b949e'
+    blade(1)
+    ctx.fill()
+    ctx.fillStyle = dark ? '#dde2e7' : '#b4bbc3'
+    blade(-1)
+    ctx.fill()
+    ctx.strokeStyle = dark ? '#7f8891' : '#646c75'
+    ctx.lineWidth = 0.9
+    ctx.beginPath()
+    ctx.moveTo(guard + 2, 0)
+    ctx.lineTo(taper * 0.92, 0)
+    ctx.stroke()
+
+    const glint = (t % 4.5) - 3
+    if (glint > 0 && glint < 0.6) {
+      const along = guard + (swordLength - guard) * (glint / 0.6)
+      const reach = swordLength * 0.05
+      const shine = ctx.createLinearGradient(along - reach, 0, along + reach, 0)
+      shine.addColorStop(0, 'rgba(255,255,255,0)')
+      shine.addColorStop(0.5, 'rgba(255,255,255,0.95)')
+      shine.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.strokeStyle = shine
+      ctx.lineWidth = 1.6
+      ctx.beginPath()
+      for (let i = 0; i <= 4; i++) {
+        const x = Math.min(swordLength, Math.max(guard, along - reach + (reach * i) / 2))
+        ctx.lineTo(x, edgeY(x))
+      }
+      ctx.stroke()
+      const spot = ctx.createRadialGradient(along, edgeY(along), 0, along, edgeY(along), 4)
+      spot.addColorStop(0, 'rgba(255,255,255,0.8)')
+      spot.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = spot
+      ctx.beginPath()
+      ctx.arc(along, edgeY(along), 4, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    ctx.fillStyle = dark ? '#6e5140' : '#4a3426'
+    ctx.fillRect(2, -2.6, guard - 4, 5.2)
+    ctx.fillStyle = dark ? '#d4ac5a' : '#b08a3e'
+    ctx.beginPath()
+    ctx.roundRect(guard - 3, -11, 3.2, 22, 1.6)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(0, 0, 4, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
 
     ctx.save()
     ctx.translate(base.x, base.y)

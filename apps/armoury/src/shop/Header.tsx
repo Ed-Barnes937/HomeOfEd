@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
 
 import type { ShareState } from '../share/useShareWand.ts'
-import { hubUrl } from '../useMediaQuery.ts'
 import styles from './Header.module.scss'
+import type { ShopCopy } from './shopView.ts'
 
 export function ShelfIcon() {
   return (
@@ -61,12 +61,14 @@ function PictureIcon() {
 }
 
 export function Header({
+  copy,
   shelfCount,
   shareState,
   onShare,
   pictureBusy,
   onPicture,
 }: {
+  copy: ShopCopy
   shelfCount: number
   shareState: ShareState
   onShare: () => void
@@ -76,10 +78,10 @@ export function Header({
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <a
-          className={styles.back}
-          href={hubUrl(window.location.hostname)}
-          aria-label="Back to home of ed"
+        <Link
+          to="/street"
+          className={`${styles.button} ${styles.back}`}
+          aria-label="Back to the street"
         >
           <svg
             width="16"
@@ -94,12 +96,13 @@ export function Header({
           >
             <path d="M10 3 L5 8 L10 13" />
           </svg>
-        </a>
+          <span className={styles.label}>Street</span>
+        </Link>
         <span className={styles.name}>Armoury</span>
-        <span className={styles.motto}>wands made to measure</span>
+        <span className={styles.motto}>{copy.motto}</span>
       </div>
       <nav className={styles.nav}>
-        <Link to="/shelf" className={styles.button} aria-label={`Your shelf, ${shelfCount} wands`}>
+        <Link to="/shelf" className={styles.button} aria-label={copy.shelfLink(shelfCount)}>
           <ShelfIcon />
           <span className={styles.label}>Your shelf</span>
           <span className={styles.count} aria-hidden="true">
@@ -110,7 +113,7 @@ export function Header({
           type="button"
           className={styles.button}
           onClick={onShare}
-          aria-label={shareState === 'copied' ? 'Link copied' : 'Share a link to this wand'}
+          aria-label={shareState === 'copied' ? 'Link copied' : copy.share}
         >
           <ShareIcon />
           <span className={styles.label} aria-live="polite">
@@ -122,7 +125,7 @@ export function Header({
           className={styles.button}
           onClick={onPicture}
           disabled={pictureBusy}
-          aria-label="Save a picture of this wand"
+          aria-label={copy.picture}
         >
           <PictureIcon />
           <span className={styles.label}>Picture</span>

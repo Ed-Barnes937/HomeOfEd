@@ -1,0 +1,327 @@
+// --ratio (the painting's width / height) is set on .street from shops.ts.
+.street {
+  --header: 76px;
+  --fade: 40px;
+  --painting-h: min(100dvh, 100vw / var(--ratio));
+  --painting-w: calc(var(--painting-h) * var(--ratio));
+  --spare-x: calc((100vw - var(--painting-w)) / 2);
+  --spare-y: calc(100dvh - var(--painting-h));
+  // The painting sits under the header when the spare height allows, else as low as it can.
+  --top: min(var(--spare-y), (var(--spare-y) + var(--header)) / 2);
+
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: #0d1020;
+}
+
+.header {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 22px 32px 48px;
+  background: linear-gradient(180deg, rgba(6, 8, 18, 0.82) 0%, rgba(6, 8, 18, 0) 100%);
+  pointer-events: none;
+}
+
+.hub {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
+  border-radius: var(--r-control);
+  color: var(--ink-muted);
+  pointer-events: auto;
+
+  &:hover {
+    color: var(--ink);
+  }
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 34px;
+  line-height: 1;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.motto {
+  margin: 0;
+  font-family: var(--font-caps);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+// The whole painting, never cropped; its edges fade into the page where there is room.
+.view {
+  position: absolute;
+  top: var(--top);
+  left: max(0px, var(--spare-x));
+  width: var(--painting-w);
+  height: var(--painting-h);
+  mask-image:
+    linear-gradient(
+      to bottom,
+      transparent,
+      #000 min(var(--top), var(--fade)),
+      #000 calc(100% - min(var(--spare-y) - var(--top), var(--fade))),
+      transparent
+    ),
+    linear-gradient(
+      to right,
+      transparent,
+      #000 min(var(--spare-x), var(--fade)),
+      #000 calc(100% - min(var(--spare-x), var(--fade))),
+      transparent
+    );
+  mask-composite: intersect;
+}
+
+.painting {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.door {
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+// The front is the hit target; the light is drawn above it and never catches the pointer.
+.face {
+  fill: transparent;
+}
+
+// An open shop's lit painting, through its soft mask: off until pointed at, or picked on a touch screen.
+.lights {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 250ms ease;
+}
+
+// Until the dark painting is in, the lights would float over the bare page.
+.painting[data-base='loading'] .lights {
+  visibility: hidden;
+}
+
+.door:focus-visible ~ .lights,
+.door[aria-pressed='true'] ~ .lights {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .door:hover ~ .lights,
+  .door:active ~ .lights {
+    opacity: 1;
+  }
+}
+
+// Signposts and their hint are for a phone, where the street slides.
+.signposts,
+.hint {
+  display: none;
+}
+
+.signpost {
+  min-height: 44px;
+  padding: 6px 15px;
+  border: 1px solid rgba(239, 228, 207, 0.22);
+  border-radius: 22px;
+  background: rgba(239, 228, 207, 0.06);
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.1;
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms ease;
+
+  &:active,
+  &[aria-current='true'] {
+    background: rgba(239, 228, 207, 0.14);
+  }
+
+  &[aria-current='true'] {
+    border-color: var(--brass);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(239, 228, 207, 0.14);
+    }
+  }
+}
+
+.hint {
+  margin: 12px 16px 0;
+  font-size: 14px;
+  text-align: center;
+  color: var(--ink-muted);
+}
+
+// Only where a pointer can click and the whole street shows.
+.pointerHint {
+  display: none;
+}
+
+@media (hover: hover) and (orientation: landscape) {
+  .pointerHint {
+    display: block;
+    position: absolute;
+    inset: auto 0 18px;
+    z-index: 1;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 19px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+    pointer-events: none;
+  }
+}
+
+// Laid over the bottom of the painting; in portrait it takes the caption's place instead.
+.enterSlot {
+  position: absolute;
+  bottom: calc(100dvh - var(--top) - var(--painting-h) + 20px);
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+}
+
+.enter {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 22px;
+  border-radius: 22px;
+  background: var(--brass);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--brass-ink);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: enter-appears 150ms ease;
+}
+
+@keyframes enter-appears {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lights,
+  .signpost {
+    transition: none;
+  }
+
+  .enter {
+    animation: none;
+  }
+}
+
+// A tall screen shows part of the street, zoomed out enough that it plainly carries on, sliding sideways.
+@media (orientation: portrait) {
+  .street {
+    --phone-painting: 58dvh;
+    --phone-fade: 9%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 56px 0 6dvh;
+  }
+
+  .header {
+    padding: 10px 16px 36px;
+  }
+
+  .title {
+    font-size: 27px;
+  }
+
+  .motto {
+    font-size: 15px;
+  }
+
+  .view {
+    position: relative;
+    inset: auto;
+    flex: none;
+    width: auto;
+    height: var(--phone-painting);
+    overflow: auto hidden;
+    overscroll-behavior-x: none;
+    scrollbar-width: none;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 var(--phone-fade),
+      #000 calc(100% - var(--phone-fade)),
+      transparent
+    );
+  }
+
+  .painting {
+    width: auto;
+    max-width: none;
+  }
+
+  .signposts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 0 16px;
+  }
+
+  .hint {
+    display: block;
+    margin: 0 16px;
+  }
+
+  .call {
+    display: grid;
+    margin-top: 12px;
+
+    > * {
+      grid-area: 1 / 1;
+    }
+  }
+
+  .call[data-picked] .hint {
+    visibility: hidden;
+  }
+
+  .enterSlot {
+    position: static;
+    justify-self: center;
+    transform: none;
+  }
+}
+
+// A touch screen keeps room for the Enter link under the signposts, so nothing moves when it shows.
+@media (orientation: portrait) and (hover: none) {
+  .call {
+    min-height: 44px;
+    align-items: center;
+  }
+}

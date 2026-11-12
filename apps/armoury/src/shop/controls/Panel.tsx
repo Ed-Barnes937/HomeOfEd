@@ -1,10 +1,14 @@
 import { useState } from 'react'
 
-import type { Params } from '../../engine/schema.ts'
-import { visibleGroups, type GroupMeta } from './groups.ts'
+import type { ItemSchema, Params } from '../../engine/schema.ts'
+import type { GroupMeta, ShopCopy, ShopView } from '../shopView.ts'
 import { GroupControls } from './GroupControls.tsx'
 import styles from './Panel.module.scss'
 import type { OnChange } from './Widgets.tsx'
+
+/** A group title inside a sentence: "The wood" reads "the wood"; a one-word name like "Extras" stays. */
+const inSentence = (title: string) =>
+  title.includes(' ') ? title[0]!.toLowerCase() + title.slice(1) : title
 
 export function LockButton({
   group,
@@ -20,7 +24,7 @@ export function LockButton({
       type="button"
       className={styles.lock}
       aria-pressed={locked}
-      aria-label={`Keep ${group.title.replace('The ', 'the ')} when trying another`}
+      aria-label={`Keep ${inSentence(group.title)} when trying another`}
       title={locked ? 'Kept when you try another' : 'Keep this when you try another'}
       onClick={onToggle}
     >
@@ -42,29 +46,45 @@ export function LockButton({
   )
 }
 
-export function Panel({
-  params,
-  locked,
-  onChange,
-  onToggleLock,
-  actions,
-}: {
+export interface ControlsProps {
+  schema: ItemSchema
+  groups: ShopView['groups']
+  widget: ShopView['widget']
+  copy: ShopCopy
   params: Params
   locked: readonly string[]
   onChange: OnChange
   onToggleLock: (group: string) => void
   actions: React.ReactNode
-}) {
-  const groups = visibleGroups(params)
+}
+
+export function Panel({
+  schema,
+  groups: groupsOf,
+  widget,
+  copy,
+  params,
+  locked,
+  onChange,
+  onToggleLock,
+  actions,
+}: ControlsProps) {
+  const groups = groupsOf(params)
   const [closed, setClosed] = useState<readonly string[]>([])
   const toggle = (key: string) =>
     setClosed((c) => (c.includes(key) ? c.filter((k) => k !== key) : [...c, key]))
 
   return (
-    <aside className={styles.panel} aria-label="Make your wand">
+    <aside className={styles.panel} aria-label={copy.panelTitle}>
       <div className={styles.sections}>
         <div className={styles.kind}>
-          <GroupControls group="kind" params={params} onChange={onChange} />
+          <GroupControls
+            group="kind"
+            schema={schema}
+            params={params}
+            onChange={onChange}
+            widget={widget}
+          />
         </div>
         {groups.map((group) => {
           const isOpen = !closed.includes(group.key)
@@ -102,7 +122,13 @@ export function Panel({
               </div>
               {isOpen && (
                 <div className={styles.body}>
-                  <GroupControls group={group.key} params={params} onChange={onChange} />
+                  <GroupControls
+                    group={group.key}
+                    schema={schema}
+                    params={params}
+                    onChange={onChange}
+                    widget={widget}
+                  />
                 </div>
               )}
             </section>
