@@ -8,7 +8,7 @@ import { crystalMesh, endPoses, gemPoses } from '../wand/geometry.ts'
 import { gemGlow, GEM_REST } from './gemGlow.ts'
 
 /** A cut stone with its girdle on y = 0: a pointed pavilion below, a flat-topped crown above; outline x across, z along. */
-function stoneGeometry(cut: GemCut) {
+export function stoneGeometry(cut: GemCut) {
   const outline = cutOutline(cut)
   const rows: [number, number][] = [
     [1, 0],
@@ -52,7 +52,7 @@ function crystalGeometry(spec: WandSpec) {
 }
 
 /** Coloured glass that lights from within; `uGemCap` limits how bright any of it gets. */
-function gemMaterial(colour: GemColour, cap: THREE.IUniform<number>, faceted: boolean) {
+export function gemMaterial(colour: GemColour, cap: THREE.IUniform<number>, faceted: boolean) {
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(colour.body),
     emissive: new THREE.Color(colour.glow),

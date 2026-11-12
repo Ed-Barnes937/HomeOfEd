@@ -43,7 +43,8 @@ FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=fridge --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger --filter=@hoe/magnet-kit
+  --filter=fridge --filter=@hoe/db --filter=@hoe/backend-kit --filter=@hoe/logger --filter=@hoe/magnet-kit \
+  --filter=@hoe/accounts --filter=@hoe/deploy-guard
 
 # ── stage 4: runtime — prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -56,15 +57,19 @@ COPY --from=pruner /app/out/full/packages/db ./packages/db
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
 COPY --from=pruner /app/out/full/packages/magnet-kit ./packages/magnet-kit
+# The estate gate (ADR 0093): @hoe/accounts/server, which imports deploy-guard.
+COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/fridge/src ./apps/fridge/src
 COPY --from=builder /app/apps/fridge/dist ./apps/fridge/dist
 # The app's own test sources aren't runtime code. Neither are two lockfile
 # stowaways: pglite (@hoe/db's dev/test driver — only the pglite path imports
 # it, and that never runs in prod) and typescript (@trpc/server declares it as
-# a types-only peer). The dev-only workspace stubs (test-kit/config) go too.
-RUN rm -rf apps/fridge/src/testing apps/fridge/src/fridge.iwft.tsx \
-  packages/test-kit packages/config \
+# a types-only peer). The dev-only workspace stubs (test-kit/config) go too,
+# and so does the committed test keypair in @hoe/accounts.
+RUN rm -rf apps/fridge/src/testing apps/fridge/src/*.iwft.tsx \
+  packages/test-kit packages/config packages/accounts/src/testing \
   node_modules/.pnpm/@electric-sql+pglite@* node_modules/.pnpm/typescript@*
 USER node
 EXPOSE 8080

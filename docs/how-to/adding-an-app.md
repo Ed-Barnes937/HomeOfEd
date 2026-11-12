@@ -174,8 +174,8 @@ What you add:
 
 **Before the first deploy.** A gated app refuses to boot on Fly until the
 production verifying key is committed as `PRODUCTION_FAMILY_PUBLIC_KEY` in
-`packages/accounts/src/familyVerifyingKey.ts` (see "Committing the production
-key" in the accounts README); the deploy then fails its health checks and
+`packages/accounts/src/familyVerifyingKey.ts` (see "The production key"
+in the accounts README); the deploy then fails its health checks and
 `go-live.sh` fails its verify step. On Fly that constant is the only key
 (see "The verifying key" in the accounts README), so rotating it is a code
 change and a redeploy, never a Fly variable. While it is still `null`, remove

@@ -1,7 +1,8 @@
 import { assertFitForDeployment, isDeployed, type Environment } from '@hoe/deploy-guard'
 
 /** The family service's public key, from `openssl pkey -in <private-key.pem> -pubout`. */
-export const PRODUCTION_FAMILY_PUBLIC_KEY: string | null = null
+export const PRODUCTION_FAMILY_PUBLIC_KEY: string | null =
+  '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA7iVgezov2B63KJdI3u3P/INvKJxcgVxoCbi2GxpLRNo=\n-----END PUBLIC KEY-----\n'
 
 /**
  * On Fly the committed production key is the only key, and `FAMILY_TOKEN_PUBLIC_KEY`

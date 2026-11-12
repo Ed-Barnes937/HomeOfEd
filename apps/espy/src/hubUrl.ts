@@ -1,5 +1,6 @@
 /**
- * Where the back arrow points. The hub (home of ed) is the apex `homeofed.com`
+ * Where the native shell's back arrow points, unchanged from before the estate
+ * gate; the web uses `hubUrlFor` from `@hoe/accounts`. The hub (home of ed) is the apex `homeofed.com`
  * in production; in local dev it runs on port 3000. Local hostnames go to the
  * local hub; everything else (prod, previews) goes to the apex so the arrow
  * always lands on a real hub.

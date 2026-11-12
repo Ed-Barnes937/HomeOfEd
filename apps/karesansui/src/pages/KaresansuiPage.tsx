@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { hubUrlFor, profileStorage, reloadOnPlayerChange } from '@hoe/accounts'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ActionButtons } from '../features/controls/ActionButtons.tsx'
 import { CogDots } from '../features/controls/CogDots.tsx'
@@ -10,12 +11,14 @@ import { clampOffset, clampSpeed, DEFAULT_CONFIG, type GardenConfig } from '../f
 import {
   deletePreset,
   loadPresets,
+  PRESET_PROFILE_KEYS,
   renamePreset,
   savePreset,
   type Preset,
 } from '../features/garden/settings.ts'
 import { useRakeLoop } from '../features/garden/useRakeLoop.ts'
-import { hubUrl } from '../hubUrl.ts'
+import { useFamilySession } from '../features/player/FamilySessionContext.tsx'
+import { PlayerLink } from '../features/player/PlayerLink.tsx'
 import styles from './KaresansuiPage.module.scss'
 
 /** Speed reads as a mood, not a number — matches the reference `speedLabel`. */
@@ -36,7 +39,11 @@ export function KaresansuiPage() {
   // this just mirrors it for the label).
   const [carveStarted, setCarveStarted] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const [presets, setPresets] = useState<Preset[]>(() => loadPresets(window.localStorage))
+  const session = useFamilySession()
+  const player = session?.sub ?? null
+  const [storage] = useState(() => profileStorage(window.localStorage, player, PRESET_PROFILE_KEYS))
+  useEffect(() => reloadOnPlayerChange(player), [player])
+  const [presets, setPresets] = useState<Preset[]>(() => loadPresets(storage))
 
   const handleCarveComplete = useCallback(() => {
     setRunning(false)
@@ -121,7 +128,7 @@ export function KaresansuiPage() {
   }
 
   function handleSave(): void {
-    setPresets((prev) => savePreset(config, prev, window.localStorage))
+    setPresets((prev) => savePreset(config, prev, storage))
   }
 
   function handleLoadPreset(preset: Preset): void {
@@ -137,11 +144,11 @@ export function KaresansuiPage() {
   }
 
   function handleRenamePreset(index: number, name: string): void {
-    setPresets((prev) => renamePreset(index, name, prev, window.localStorage))
+    setPresets((prev) => renamePreset(index, name, prev, storage))
   }
 
   function handleDeletePreset(index: number): void {
-    setPresets((prev) => deletePreset(index, prev, window.localStorage))
+    setPresets((prev) => deletePreset(index, prev, storage))
   }
 
   const patternLabel = `${config.ring}-tooth ring · ${config.wheels.join('·')} cog train`
@@ -151,7 +158,7 @@ export function KaresansuiPage() {
     <main className={styles.room} data-testid="karesansui-page">
       <a
         className={styles.back}
-        href={hubUrl(window.location.hostname)}
+        href={hubUrlFor(window.location.href)}
         aria-label="Back to home of ed"
       >
         <svg
@@ -169,6 +176,7 @@ export function KaresansuiPage() {
           <path d="m12 19-7-7 7-7" />
         </svg>
       </a>
+      {session && <PlayerLink name={session.name} />}
       <header className={styles.wordmark}>
         <span className={styles.mark}>枯山水</span>
         <span className={styles.sep} aria-hidden="true" />

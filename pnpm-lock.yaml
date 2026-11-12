@@ -14,6 +14,9 @@ importers:
 
   apps/armoury:
     dependencies:
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit
@@ -38,6 +41,9 @@ importers:
       '@trpc/client':
         specifier: 11.18.0
         version: 11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)
+      postprocessing:
+        specifier: 6.39.6
+        version: 6.39.6(three@0.170.0)
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -99,6 +105,9 @@ importers:
       '@fontsource/ibm-plex-sans':
         specifier: ^5.2.5
         version: 5.2.8
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit
@@ -257,6 +266,9 @@ importers:
       '@fontsource/nunito':
         specifier: ^5.2.7
         version: 5.2.7
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit
@@ -406,6 +418,9 @@ importers:
 
   apps/fridge:
     dependencies:
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit
@@ -561,6 +576,9 @@ importers:
 
   apps/karesansui:
     dependencies:
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit
@@ -835,6 +853,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.110.0
         version: 0.110.0(zod@4.4.3)
+      '@hoe/accounts':
+        specifier: workspace:*
+        version: link:../../packages/accounts
       '@hoe/backend-kit':
         specifier: workspace:*
         version: link:../../packages/backend-kit

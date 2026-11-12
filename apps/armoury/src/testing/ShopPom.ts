@@ -1,12 +1,26 @@
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
+import type { Locator, Page } from '@playwright/test'
 
 import { SAVE_KEY } from '../persistence/storage.ts'
+import { reloadAtRoot } from './address.ts'
+import { BenchPom } from './BenchPom.ts'
 
-export class ShopPom extends BasePage {
+export { ShelfPom } from './ShelfPom.ts'
+
+export class ShopPom extends BenchPom {
   private readonly counter = this.page.getByTestId('counter')
   private readonly stage = this.page.getByTestId('stage')
-  private readonly tagName = this.counter.getByRole('heading', { level: 1 })
+
+  constructor(page: Page) {
+    super(page, {
+      scene: 'counter',
+      nameField: 'Wand name',
+      keep: 'Keep this wand',
+      share: 'Share a link to this wand',
+      picture: 'Save a picture of this wand',
+    })
+  }
 
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByRole('button', { name: 'Give the wand a wave' })).toBeVisible()
@@ -65,40 +79,6 @@ export class ShopPom extends BasePage {
     return (await this.stage.getAttribute('data-core')) ?? ''
   }
 
-  async choose(option: string): Promise<void> {
-    await this.page.getByRole('radio', { name: option, exact: true }).click()
-  }
-
-  async chooseIn(control: string, option: string): Promise<void> {
-    await this.page
-      .getByRole('radiogroup', { name: control, exact: true })
-      .getByRole('radio', { name: option, exact: true })
-      .click()
-  }
-
-  async verifyOptions(control: string, options: string[]): Promise<void> {
-    await expect(
-      this.page.getByRole('radiogroup', { name: control, exact: true }).getByRole('radio'),
-    ).toHaveText(options)
-  }
-
-  async verifyGroupSummary(group: string, summary: string): Promise<void> {
-    const toggle = this.page
-      .getByRole('button', { expanded: true })
-      .filter({ has: this.page.getByRole('heading', { name: group, exact: true }) })
-    await expect(toggle).toContainText(summary)
-  }
-
-  async verifyControls({ shown = [], hidden = [] }: { shown?: string[]; hidden?: string[] }) {
-    const control = (name: string) =>
-      this.page
-        .getByRole('slider', { name, exact: true })
-        .or(this.page.getByRole('radiogroup', { name, exact: true }))
-        .or(this.page.getByRole('group', { name, exact: true }))
-    for (const name of shown) await expect(control(name)).toBeVisible()
-    for (const name of hidden) await expect(control(name)).toHaveCount(0)
-  }
-
   async nextBranch(): Promise<void> {
     await this.page.getByRole('button', { name: 'Next branch' }).click()
   }
@@ -121,79 +101,22 @@ export class ShopPom extends BasePage {
 
   async pickUpWand(): Promise<CloseUpPom> {
     await this.page.getByRole('button', { name: 'Give the wand a wave' }).click()
-    const closeUp = new CloseUpPom(this.page)
+    const closeUp = new CloseUpPom(this.page, 'Your wand, up close')
     await closeUp.verifyIsShown()
     return closeUp
-  }
-
-  async tryAnother(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Try another' }).click()
-  }
-
-  async putBack(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Put the last one back' }).click()
   }
 
   async verifyNothingToPutBack(): Promise<void> {
     await expect(this.page.getByRole('button', { name: 'Put the last one back' })).toHaveCount(0)
   }
 
-  async lock(part: string): Promise<void> {
-    await this.page.getByRole('button', { name: `Keep the ${part} when trying another` }).click()
-  }
-
-  async rename(name: string): Promise<void> {
-    await this.tagName.getByRole('button').click()
-    const input = this.counter.getByRole('textbox', { name: 'Wand name' })
-    await input.fill(name)
-    await input.press('Enter')
-  }
-
-  async keep(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Keep this wand' }).click()
-    await expect(this.page.getByRole('button', { name: 'On your shelf' })).toBeVisible()
-  }
-
   async verifyShelfCount(count: number): Promise<void> {
     await expect(this.page.getByRole('link', { name: `Your shelf, ${count} wands` })).toBeVisible()
   }
 
-  async openShelf(): Promise<ShelfPom> {
-    await this.page.getByRole('link', { name: /^Your shelf/ }).click()
-    const shelf = new ShelfPom(this.page)
-    await shelf.verifyIsShown()
-    return shelf
-  }
-
-  async share(): Promise<string> {
-    await this.page.getByRole('button', { name: 'Share a link to this wand' }).click()
-    await expect(this.page.getByRole('button', { name: 'Link copied' })).toBeVisible()
-    return this.page.evaluate(() => navigator.clipboard.readText())
-  }
-
-  async savePicture(): Promise<string> {
-    const download = this.page.waitForEvent('download')
-    await this.page.getByRole('button', { name: 'Save a picture of this wand' }).click()
-    return (await download).suggestedFilename()
-  }
-
-  /** A different visitor opening a link: nothing of their own saved, just the fragment. */
-  async openAsNewVisitor(url: string): Promise<void> {
-    const { hash } = new URL(url)
-    await this.page.evaluate((fragment) => {
-      window.location.hash = fragment
-    }, hash)
-    await this.page.reload()
-    await this.page.evaluate((key) => window.localStorage.removeItem(key), SAVE_KEY)
-  }
-
-  async reload(): Promise<void> {
-    await this.page.reload()
-  }
-
   /** Reloads with these params saved as the wand on the counter, as an older version saved them. */
   async openWithSavedWand(params: Record<string, unknown>): Promise<void> {
-    await this.page.reload()
+    await reloadAtRoot(this.page)
     await this.page.evaluate(([key, saved]) => window.localStorage.setItem(key, saved), [
       SAVE_KEY,
       JSON.stringify({ version: 1, working: { params }, shelf: [] }),
@@ -210,8 +133,13 @@ export class ShopPom extends BasePage {
 }
 
 export class CloseUpPom extends BasePage {
-  private readonly dialog = this.page.getByRole('dialog', { name: 'Your wand, up close' })
+  private readonly dialog: Locator
   private readonly stage = this.page.getByTestId('close-up-stage')
+
+  constructor(page: Page, dialogName: string) {
+    super(page)
+    this.dialog = page.getByRole('dialog', { name: dialogName })
+  }
 
   async verifyIsShown(): Promise<void> {
     await expect(this.dialog).toBeVisible()
@@ -239,6 +167,16 @@ export class CloseUpPom extends BasePage {
     await this.page.getByTestId('close-up-wand').click()
   }
 
+  /** How many times the stage was asked for the item's show-off move. */
+  async verifyFlourishes(count: number): Promise<void> {
+    await expect(this.stage).toHaveAttribute('data-flourishes', String(count))
+  }
+
+  /** FakeSwordCloseUpStage's stand-in for a tap that lands on the sword. */
+  async tapSword(): Promise<void> {
+    await this.page.getByTestId('close-up-sword').click()
+  }
+
   /** FakeStage's stand-in for a tap on the darkened shop around the wand. */
   async tapAway(): Promise<void> {
     await this.page.getByTestId('close-up-away').click()
@@ -254,46 +192,5 @@ export class CloseUpPom extends BasePage {
 
   async pressEscape(): Promise<void> {
     await this.page.keyboard.press('Escape')
-  }
-}
-
-export class ShelfPom extends BasePage {
-  async verifyIsShown(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Your shelf' })).toBeVisible()
-  }
-
-  async verifyWands(names: string[]): Promise<void> {
-    const boxes = this.page
-      .getByRole('listitem')
-      .getByRole('button', { expanded: false })
-      .or(this.page.getByRole('listitem').getByRole('button', { expanded: true }))
-    await expect(boxes).toHaveCount(names.length)
-    for (const [i, name] of names.entries()) await expect(boxes.nth(i)).toContainText(name)
-  }
-
-  async open(name: string): Promise<void> {
-    await this.page.getByRole('button', { name: new RegExp(name) }).click()
-  }
-
-  async takeOut(name: string): Promise<void> {
-    await this.open(name)
-    await this.page.getByRole('button', { name: 'Take it out' }).click()
-  }
-
-  async rename(name: string, to: string): Promise<void> {
-    await this.open(name)
-    await this.page.getByRole('button', { name: 'Rename' }).click()
-    await this.page.getByRole('textbox', { name: 'New name' }).fill(to)
-    await this.page.getByRole('button', { name: 'Save name' }).click()
-  }
-
-  async remove(name: string): Promise<void> {
-    await this.open(name)
-    await this.page.getByRole('button', { name: 'Remove' }).click()
-    await this.page.getByRole('button', { name: 'Remove' }).click()
-  }
-
-  async backToCounter(): Promise<void> {
-    await this.page.getByRole('link', { name: 'Back to the counter' }).first().click()
   }
 }

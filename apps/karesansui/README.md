@@ -7,7 +7,8 @@ grooves its own line into a circular sand bed, rendered on canvas with
 carved-groove shading. N cogs → N overlapping rosettes ("many pens, one garden"
 — [plan 0008](../../docs/plans/0008-karesansui-many-pens-model.md) /
 [ADR 0020](../../docs/adr/0020-karesansui-many-pens-model.md)). Pure client-side
-compute, no accounts, no server data. Lives at `karesansui.homeofed.com`.
+compute, no server data; saved presets belong to the player signed in at hub
+([ADR 0094](../../docs/adr/0094-per-profile-local-saves.md)). Lives at `karesansui.homeofed.com`.
 
 The UI is a dark, quiet "room": the warm sand bowl is spotlit as the hero, a
 smaller lit **mechanism** bowl sits beside it, and the controls dissolve into a

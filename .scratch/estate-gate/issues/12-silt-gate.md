@@ -1,9 +1,9 @@
 # 12 - silt: per-profile scenes and the gate
 
-**Status:** resolved
+**Status:** needs-info
 **Type:** task
 **Spec:** [../spec.md](../spec.md) decisions 2, 7, 8, 10; open call on quota
-Blocked by: 01, 02, 10 (merge after 17)
+Blocked by: 23 (built as PR #206, held out of the epic PR until Ed answers)
 
 silt has no share links, so no `/shared`.
 

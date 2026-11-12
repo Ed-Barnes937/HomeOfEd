@@ -1,7 +1,7 @@
+import { hubUrlFor } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 
 import { formatShortDate } from '../formatDate.ts'
-import { hubUrl } from '../hubUrl.ts'
 import { ArrowLeftIcon } from './icons.tsx'
 import styles from './SiteHeader.module.scss'
 import { ThemeToggle } from './ThemeToggle.tsx'
@@ -14,7 +14,7 @@ import { ThemeToggle } from './ThemeToggle.tsx'
  * mark was replaced: it read as a wotd home link, not a link to the hub.)
  */
 export function SiteHeader() {
-  const hub = hubUrl(window.location.hostname)
+  const hub = hubUrlFor(window.location.href)
   return (
     <header className={styles.header}>
       <a className={styles.backMobile} href={hub} aria-label="Back to home of ed">

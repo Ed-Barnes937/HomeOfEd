@@ -15,12 +15,13 @@ export async function savePicture(
   blob: Blob,
   filename: string,
   target: PictureTarget,
+  title: string,
 ): Promise<PictureOutcome> {
   if (target.share) {
     const file = new File([blob], filename, { type: blob.type || 'image/png' })
     if (target.canShareFiles?.(file)) {
       try {
-        await target.share({ files: [file], title: 'Armoury' })
+        await target.share({ files: [file], title })
         return 'shared'
       } catch (error) {
         if (isAbort(error)) return 'dismissed'
@@ -59,12 +60,12 @@ function downloadBlob(blob: Blob, filename: string, doc: Document): void {
   URL.revokeObjectURL(url)
 }
 
-export function wandFilename(name: string): string {
+export function pictureFilename(name: string, fallback: string): string {
   const slug = name
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return `${slug === '' ? 'wand' : slug}.png`
+  return `${slug === '' ? fallback : slug}.png`
 }

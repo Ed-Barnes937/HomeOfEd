@@ -52,6 +52,20 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
 - Legacy documents are duplicated once per profile on a device. For small
   documents this is nothing; silt's scenes and thumbnails may meet the
   `localStorage` quota, and ticket 12 measures before adopting.
+- **espy's drawing, measured (estate-gate ticket 13, 2026-11-10).** One slot,
+  `espy:doodle:v2`, holding the drawing's whole undo history. Chromium's quota
+  is 5,242,880 characters per origin. A fresh drawing is 22-31 KB (390x844 to
+  1920x1080), a stroke about 120 characters, and every New page adds 21-37 KB,
+  because each page's baked ink raster stays in the history across reloads.
+  Four copies (the legacy slot and three profiles) fit while the slot is under
+  about 1.3 MB, roughly 40 New pages at laptop size. Past that, a later
+  profile's adoption fails. For espy the retry almost never happens: the
+  profile's own slot is written on open (the bloom's bake) or on its first
+  stroke, and from then on that profile never adopts. The legacy drawing stays
+  on the device but never shows for that profile. Nothing is lost, and the
+  decision stands. Saves that meet the quota fall back to `session.ts`'s
+  stripped copy (one raster, about 45 KB after six pages). Whether to bound the
+  slot is an open question for Ed in ticket 13.
 - **A full quota during adoption is swallowed, and adoption is retried on the
   next open** (amended 2026-11-10, estate-gate ticket 10, replacing "the error
   propagates so the app decides"). `adoptLegacyDocument` itself still throws.
@@ -67,6 +81,12 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
 
   Propagating was rejected: the app's only sensible response would be to
   swallow it too.
+- **An older format the app only reads stays the device's** (amended
+  2026-11-10, estate-gate ticket 15). karesansui lists only its current key,
+  `karesansui:presets:v2`. On a device holding only `v1`, a profile's first
+  load reads the device's `v1` and writes the migrated presets to its own
+  `v2`. `v1` is never written by anyone, so nothing is copied that would sit
+  unused. Signed out, the migration runs in place as before.
 - "Once" is "while the profile has no document of its own" (for a prefix, no
   key under it). A profile whose documents are removed adopts the legacy ones
   again on its next open; that is accepted, so there is no marker key.
@@ -88,4 +108,8 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
   app's own origin tier (production, dev port, compose port), and is null
   outside the estate, where the app shows no link.
 - A session with no profile, which behind the gate means espy's native shell,
-  gets the unscoped key from `profileScopedKey` and behaves exactly as before.
+  gets the unscoped key from `profileScopedKey` and behaves exactly as before. espy
+  does not rely on the shell lacking a cookie: `App.tsx` treats the session as
+  `null` whenever `Capacitor.isNativePlatform()`, and the shell runs no
+  `reloadOnPlayerChange`, shows no player and keeps its old back-arrow target
+  (amended 2026-11-10, ticket 13).

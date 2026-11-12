@@ -13,6 +13,7 @@
     "test": "vitest run && playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
+    "@hoe/accounts": "workspace:*",
     "@hoe/backend-kit": "workspace:*",
     "@hoe/logger": "workspace:*",
     "@react-three/drei": "^10.0.8",
@@ -21,6 +22,7 @@
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",
     "@trpc/client": "11.18.0",
+    "postprocessing": "6.39.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "three": "^0.170.0"

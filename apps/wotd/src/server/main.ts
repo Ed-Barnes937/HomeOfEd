@@ -3,6 +3,7 @@
 // persistence (real Postgres) and generator (Anthropic) differ.
 import { fileURLToPath } from 'node:url'
 
+import { familyDocumentGateFromEnv } from '@hoe/accounts/server'
 import { createContext, InMemoryBlobStore } from '@hoe/backend-kit'
 import { createAppServer } from '@hoe/backend-kit/server'
 import { createDbClient } from '@hoe/db'
@@ -39,6 +40,9 @@ const server = createAppServer({
     await store.ping()
     return { ok: true }
   },
+  // On exactly when FAMILY_ACCOUNT_URL is set (ADR 0093). Add '/shared' here
+  // once the app has share links.
+  documentGate: familyDocumentGateFromEnv(process.env, { publicPaths: [] }),
 })
 
 const port = Number(process.env.PORT ?? 8080)

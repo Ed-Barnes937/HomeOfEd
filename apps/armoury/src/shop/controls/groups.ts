@@ -9,16 +9,7 @@ import {
   usesPaint,
   wandSchema,
 } from '../../wand/wandSchema.ts'
-
-export interface GroupMeta {
-  key: string
-  /** Counted over the groups shown, so there's never a gap. */
-  numeral: string
-  title: string
-  /** The short phone tab label. */
-  tab: string
-  summary: (p: Params) => string
-}
+import type { GroupMeta } from '../shopView.ts'
 
 interface GroupDef extends Omit<GroupMeta, 'numeral'> {
   shows?: (p: Params) => boolean

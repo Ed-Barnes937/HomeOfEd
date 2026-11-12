@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { navigatorShareTarget, shareWandUrl, type ShareTarget } from './shareAction.ts'
 
 const URL_TO_SHARE = 'https://armoury.homeofed.com/#w=abc'
+const WORDS = { title: 'Armoury', text: 'Look at the wand I made' }
 
 function fakeClipboard(behaviour: 'ok' | 'reject' = 'ok') {
   const written: string[] = []
@@ -30,7 +31,7 @@ describe('shareWandUrl', () => {
       clipboard,
     }
 
-    expect(await shareWandUrl(URL_TO_SHARE, target)).toBe('shared')
+    expect(await shareWandUrl(URL_TO_SHARE, target, WORDS)).toBe('shared')
     expect(shared).toEqual([URL_TO_SHARE])
     // The share sheet is the whole affordance on mobile - no silent copy too.
     expect(written).toEqual([])
@@ -39,7 +40,7 @@ describe('shareWandUrl', () => {
   it('copies to the clipboard when there is no share sheet', async () => {
     const { written, clipboard } = fakeClipboard()
 
-    expect(await shareWandUrl(URL_TO_SHARE, { clipboard })).toBe('copied')
+    expect(await shareWandUrl(URL_TO_SHARE, { clipboard }, WORDS)).toBe('copied')
     expect(written).toEqual([URL_TO_SHARE])
   })
 
@@ -50,7 +51,7 @@ describe('shareWandUrl', () => {
       clipboard,
     }
 
-    expect(await shareWandUrl(URL_TO_SHARE, target)).toBe('dismissed')
+    expect(await shareWandUrl(URL_TO_SHARE, target, WORDS)).toBe('dismissed')
     expect(written).toEqual([])
   })
 
@@ -61,17 +62,17 @@ describe('shareWandUrl', () => {
       clipboard,
     }
 
-    expect(await shareWandUrl(URL_TO_SHARE, target)).toBe('copied')
+    expect(await shareWandUrl(URL_TO_SHARE, target, WORDS)).toBe('copied')
     expect(written).toEqual([URL_TO_SHARE])
   })
 
   it('reports unavailable rather than throwing when nothing can share', async () => {
-    expect(await shareWandUrl(URL_TO_SHARE, {})).toBe('unavailable')
+    expect(await shareWandUrl(URL_TO_SHARE, {}, WORDS)).toBe('unavailable')
   })
 
   it('reports unavailable when the clipboard write is refused', async () => {
     const { clipboard } = fakeClipboard('reject')
-    expect(await shareWandUrl(URL_TO_SHARE, { clipboard })).toBe('unavailable')
+    expect(await shareWandUrl(URL_TO_SHARE, { clipboard }, WORDS)).toBe('unavailable')
   })
 })
 
@@ -88,7 +89,7 @@ describe('navigatorShareTarget', () => {
       clipboard,
     } as unknown as Navigator
 
-    expect(await shareWandUrl(URL_TO_SHARE, navigatorShareTarget(nav, true))).toBe('shared')
+    expect(await shareWandUrl(URL_TO_SHARE, navigatorShareTarget(nav, true), WORDS)).toBe('shared')
     expect(shared).toEqual([URL_TO_SHARE])
   })
 
@@ -113,7 +114,7 @@ describe('navigatorShareTarget', () => {
       },
     } as unknown as Navigator
 
-    expect(await shareWandUrl(URL_TO_SHARE, navigatorShareTarget(nav, false))).toBe('copied')
+    expect(await shareWandUrl(URL_TO_SHARE, navigatorShareTarget(nav, false), WORDS)).toBe('copied')
     expect(shared).toEqual([])
     expect(written).toEqual([URL_TO_SHARE])
   })

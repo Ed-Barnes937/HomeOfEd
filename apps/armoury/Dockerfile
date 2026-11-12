@@ -38,7 +38,8 @@ FROM base AS prod-deps
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile --prod \
-  --filter=armoury --filter=@hoe/backend-kit --filter=@hoe/logger
+  --filter=armoury --filter=@hoe/backend-kit --filter=@hoe/logger \
+  --filter=@hoe/accounts --filter=@hoe/deploy-guard
 
 # ── stage 4: runtime - prod deps + package source + the built SPA ───────────
 FROM node:22-slim AS runner
@@ -49,15 +50,20 @@ COPY --from=prod-deps /app ./
 # @hoe/config and @hoe/test-kit are dev-only and must NOT appear here.
 COPY --from=pruner /app/out/full/packages/backend-kit ./packages/backend-kit
 COPY --from=pruner /app/out/full/packages/logger ./packages/logger
+# The estate gate (ADR 0093): @hoe/accounts/server, which imports deploy-guard.
+COPY --from=pruner /app/out/full/packages/accounts ./packages/accounts
+COPY --from=pruner /app/out/full/packages/deploy-guard ./packages/deploy-guard
 # The app: server source (runs natively) + the built SPA bundle.
 COPY --from=pruner /app/out/full/apps/armoury/src ./apps/armoury/src
 COPY --from=builder /app/apps/armoury/dist ./apps/armoury/dist
 # The app's own test sources aren't runtime code. typescript is a lockfile
 # stowaway (@trpc/server declares it as a types-only peer). The dev-only
-# workspace stubs (test-kit/config package.json) go too.
-RUN rm -rf apps/armoury/src/testing apps/armoury/src/*.iwft.tsx \
-  packages/test-kit packages/config \
-  node_modules/.pnpm/typescript@*
+# workspace stubs (test-kit/config package.json) go too, and so does the
+# committed test keypair in @hoe/accounts, which nothing at runtime imports.
+RUN rm -rf packages/test-kit packages/config packages/accounts/src/testing \
+  node_modules/.pnpm/typescript@* \
+  && find apps/armoury/src \( -name testing -o -name '*.test.ts' -o -name '*.iwft.tsx' \) \
+  -prune -exec rm -rf {} +
 USER node
 EXPOSE 8080
 WORKDIR /app/apps/armoury

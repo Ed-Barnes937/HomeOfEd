@@ -17,3 +17,7 @@ give it an explicit timeout with real headroom. Measure locally and on CI
 before choosing; do not just raise the number.
 
 ## Comments
+
+2026-11-10: ticket 12 saw the same on `apps/silt/src/sim/life.test.ts`: three
+timeouts at load average 54, and one test still took 42s against its 30s
+limit at load 24. Same cause, same fix.

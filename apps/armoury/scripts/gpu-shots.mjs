@@ -1,0 +1,219 @@
+// Screenshots of the real stages on the real GPU (ANGLE Metal), for judging by eye.
+// node apps/armoury/scripts/gpu-shots.mjs <baseUrl> <outDir> <set.json> [only,names] [--picture] [--reduced-motion]
+//   [--clay] [--views=desk,phone] [--box-only] [--close=1200,7000] [--focus=tip,hilt] [--focus-only] [--rolls=20,-40]
+// The set file is { "<name>": { "kind": "wand" | "sword", "params": { ... } } }.
+// --clay draws a sword in plain grey and --focus adds zooms on the tip or hilt (dev server only);
+// --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
+// about its length, or with an s (s45) swings it, tip away.
+// --flourish=0.5,2.2 shoots the sword's close look that many seconds into its arrival flourish (f<ms>), the
+// stage held still at that exact moment on its own clock while the shot is taken (dev server only); --glints=3.9,4.1 then taps the sword again for each, once the last
+// flourish is at rest, and shoots it that far in (g<ms>), then puts it back (r<ms> after). Both skip the zoom; times land in <name>-<view>-frames.txt.
+/* global console, document, URLSearchParams */
+import { Buffer } from 'node:buffer'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import process from 'node:process'
+
+import { chromium } from '@playwright/test'
+
+const args = process.argv.slice(2)
+const flags = new Set(args.filter((a) => a.startsWith('--') && !a.includes('=')))
+const options = Object.fromEntries(
+  args.filter((a) => a.startsWith('--') && a.includes('=')).map((a) => a.slice(2).split('=')),
+)
+const [base, out, setFile, only] = args.filter((a) => !a.startsWith('--'))
+if (!base || !out || !setFile) {
+  console.error(
+    'usage: gpu-shots.mjs <baseUrl> <outDir> <set.json> [only,names] [--picture] [--reduced-motion]',
+  )
+  process.exit(2)
+}
+const picture = flags.has('--picture')
+const reducedMotion = flags.has('--reduced-motion')
+const clay = flags.has('--clay')
+const boxOnly = flags.has('--box-only')
+const viewTags = options.views ? new Set(options.views.split(',')) : null
+const focuses = options.focus ? options.focus.split(',') : []
+const focusOnly = flags.has('--focus-only')
+const rolls = options.rolls ? options.rolls.split(',') : []
+// The close look rolls 0.007 radians per pixel dragged across the item.
+const PX_PER_DEGREE = Math.PI / 180 / 0.007
+const wanted = only ? new Set(only.split(',')) : null
+const seconds = (list) => (list ? list.split(',').map(Number) : [])
+const flourishAt = seconds(options.flourish)
+const glintAt = seconds(options.glints)
+const flourishing = flourishAt.length + glintAt.length > 0
+// Every glint and rune wake is over this long after a flourish starts.
+const AT_REST_SECONDS = 7.5
+
+const set = JSON.parse(readFileSync(setFile, 'utf8'))
+mkdirSync(out, { recursive: true })
+
+// The share fragment's payload names the item by its kind: { version: 1, wand: { params } }.
+const token = (kind, params) =>
+  Buffer.from(JSON.stringify({ version: 1, [kind]: { params } })).toString('base64url')
+
+const views = [
+  { tag: 'desk', viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
+  { tag: 'phone', viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 },
+]
+// Milliseconds after the tap: rising, the wave or flourish, the spell or glint, the glow, at rest.
+const CLOSE_FRAMES = options.close
+  ? options.close.split(',').map(Number)
+  : [1200, 2400, 3600, 4800, 7000]
+// Textures and the HDRI load after the stage chunk; this is time for them to upload and draw.
+const SETTLE_MS = 3500
+
+const browser = await chromium.launch({
+  headless: true,
+  channel: 'chromium',
+  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
+})
+try {
+  for (const [name, { kind, params }] of Object.entries(set)) {
+    if (wanted && !wanted.has(name)) continue
+    for (const view of views) {
+      if (viewTags && !viewTags.has(view.tag)) continue
+      const ctx = await browser.newContext({
+        viewport: view.viewport,
+        deviceScaleFactor: view.deviceScaleFactor,
+        reducedMotion: reducedMotion ? 'reduce' : 'no-preference',
+        acceptDownloads: true,
+      })
+      const page = await ctx.newPage()
+      const shot = (what) => join(out, `${name}-${view.tag}-${what}.png`)
+      // A wand opens at the root as it always has; a sword goes straight to its shop.
+      const path = kind === 'sword' ? `/swords${clay ? '?clay' : ''}` : '/'
+      await page.goto(`${base}${path}#w=${token(kind, params)}`)
+
+      const renderer = await page.evaluate(() => {
+        const gl = document.createElement('canvas').getContext('webgl2')
+        const info = gl?.getExtension('WEBGL_debug_renderer_info')
+        return info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : 'none'
+      })
+      if (!/ANGLE Metal/.test(renderer)) throw new Error(`not the real GPU: ${renderer}`)
+
+      const item = page.locator('[data-testid="counter"] button[aria-haspopup="dialog"]')
+      await item.locator('canvas').waitFor()
+      if (!focusOnly) {
+        await page.waitForLoadState('networkidle')
+        await page.waitForTimeout(SETTLE_MS)
+        await page.screenshot({ path: shot('scene') })
+        await item.screenshot({ path: shot('box') })
+
+        if (picture) {
+          const download = page.waitForEvent('download')
+          await page.getByRole('button', { name: /^Save a picture/ }).click()
+          await (await download).saveAs(shot('picture'))
+        }
+
+        if (boxOnly) {
+          await ctx.close()
+          console.log(`${name} ${view.tag}`)
+          continue
+        }
+        await item.click()
+        await page.getByRole('dialog').waitFor()
+        let waited = 0
+        for (const ms of CLOSE_FRAMES) {
+          await page.waitForTimeout(ms - waited)
+          waited = ms
+          await page.screenshot({ path: shot(`close-${ms}`) })
+        }
+        if (flourishing) {
+          const log = []
+          const since = () => page.evaluate(() => globalThis.sinceFlourish ?? null)
+          const at = async (s) =>
+            page.waitForFunction((s) => (globalThis.sinceFlourish ?? -1) >= s, s, {
+              polling: 10,
+              timeout: 30000,
+            })
+          // The stage holds still at exactly `s` while the shot is taken, so a slow screenshot cannot drift.
+          const take = async (s, tag) => {
+            await page.evaluate((s) => {
+              globalThis.holdFlourishAt = s
+            }, s)
+            await page.waitForFunction((s) => globalThis.heldFlourishAt === s, s, {
+              polling: 10,
+              timeout: 30000,
+            })
+            const before = await since()
+            await page.screenshot({
+              path: shot(`${tag}${String(Math.round(s * 1000)).padStart(5, '0')}`),
+            })
+            const after = await since()
+            log.push(
+              `${tag} ${s}s: held at ${before?.toFixed(3)}s, still ${after?.toFixed(3)}s after the shot`,
+            )
+            await page.evaluate(() => globalThis.resumeFlourish())
+          }
+          for (const s of flourishAt) await take(s, 'f')
+          for (const s of glintAt) {
+            await at(AT_REST_SECONDS)
+            // A tap must land on the sword: try a little either side of the middle.
+            for (const dx of [0, -0.06, 0.06, -0.12, 0.12]) {
+              await page.mouse.click(view.viewport.width * (0.5 + dx), view.viewport.height * 0.4)
+              const tapped = await page
+                .waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
+                  polling: 10,
+                  timeout: 1500,
+                })
+                .then(() => true)
+                .catch(() => false)
+              if (tapped) break
+            }
+            await take(s, 'g')
+          }
+          // A tap away puts it back: the flight down and the sword lying there again.
+          await page.mouse.click(view.viewport.width * 0.06, view.viewport.height * 0.5)
+          let back = 0
+          for (const ms of [150, 450, 1500]) {
+            await page.waitForTimeout(ms - back)
+            back = ms
+            await page.screenshot({ path: shot(`r${String(ms).padStart(5, '0')}`) })
+          }
+          writeFileSync(join(out, `${name}-${view.tag}-frames.txt`), log.join('\n') + '\n')
+          await ctx.close()
+          console.log(`${name} ${view.tag}`)
+          continue
+        }
+        await page.mouse.move(view.viewport.width / 2, view.viewport.height * 0.4)
+        for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120)
+        await page.waitForTimeout(1500)
+        await page.screenshot({ path: shot('zoom') })
+        for (const turn of rolls) {
+          const swing = turn.startsWith('s')
+          const px = Number(swing ? turn.slice(1) : turn) * PX_PER_DEGREE
+          const x = view.viewport.width / 2
+          const y = view.viewport.height * 0.4
+          await page.mouse.move(x, y)
+          await page.mouse.down()
+          await page.mouse.move(swing ? x + px : x, swing ? y : y + px, { steps: 12 })
+          // A pause before letting go, so it doesn't carry on spinning.
+          await page.waitForTimeout(200)
+          await page.mouse.up()
+          await page.waitForTimeout(600)
+          await page.screenshot({ path: shot(swing ? `swing${turn.slice(1)}` : `roll${turn}`) })
+        }
+      }
+      for (const focus of kind === 'sword' ? focuses : []) {
+        const query = new URLSearchParams({ focus })
+        if (clay) query.set('clay', '')
+        await page.goto(`${base}/swords?${query}#w=${token(kind, params)}`)
+        await item.locator('canvas').waitFor()
+        await page.waitForTimeout(SETTLE_MS)
+        await item.click()
+        await page.getByRole('dialog').waitFor()
+        await page.waitForTimeout(CLOSE_FRAMES[0])
+        await page.mouse.move(view.viewport.width / 2, view.viewport.height * 0.4)
+        for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120)
+        await page.waitForTimeout(1500)
+        await page.screenshot({ path: shot(`zoom-${focus}`) })
+      }
+      await ctx.close()
+      console.log(`${name} ${view.tag}`)
+    }
+  }
+} finally {
+  await browser.close()
+}
