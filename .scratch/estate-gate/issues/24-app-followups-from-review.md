@@ -31,3 +31,14 @@ None blocks the epic. Each is small.
   Accepted; noted so nobody rediscovers it.
 
 ## Comments
+
+**2026-11-12, from the review of the smithy merge (#210).** Both are main's
+own, not the gate's:
+
+- **armoury smithy: the 3D canvas sits over the sword's name tag**, so a
+  pointer click on the tag hits the canvas (headless Chromium, 1280x720 and
+  1440x900).
+- **armoury: the signed-out shop header overlaps between 900 and 1250px.** At
+  900 "Your shelf" sits on "Armoury"; at 1181-1250 the motto touches "Your
+  shelf"; "Your shelf" wraps to two lines from 900 to 1280. Signed in, the
+  gate's chip rules already avoid it.
