@@ -100,6 +100,10 @@ retracing, and nothing else in the code assumes the painting's proportions.
   computed from the lit master by a script, which lined up but left grey sign
   lettering and flat glass. The dark painting must be remade and checked the
   same way whenever the lit painting changes, or the two stop lining up.
+- With the lights off at rest nothing marks the open shops, so where a pointer
+  can click and the whole street shows (hover-capable, landscape) a quiet white
+  line at the foot of the screen reads "Click a shop to go in." A touch screen
+  and a tall window have their own caption and never show it.
 - An open shop's shape is a real link (`Go into the wand shop`, `Go into the
   smithy`): focusable, a real `href`, routed by the router. At rest it is an
   invisible hit target, so the whole front and only it is clickable; the lit

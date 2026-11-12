@@ -224,6 +224,7 @@ export function StreetPage() {
           </button>
         ))}
       </div>
+      <p className={styles.pointerHint}>Click a shop to go in.</p>
       <div className={styles.call} data-picked={pickedShop ? true : undefined}>
         <p className={styles.hint}>Slide along the street, then tap a shop.</p>
         <div className={styles.enterSlot} aria-live="polite">

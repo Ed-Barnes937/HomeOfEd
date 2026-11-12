@@ -36,6 +36,7 @@ test.describe('on a phone', () => {
     await root.verifyDoorOutOfView('Go into the smithy')
     await root.verifySignposts(['Thistlewick Wands', 'The Ember Anvil'])
     await root.verifyHint('Slide along the street, then tap a shop.')
+    await root.verifyNoHint('Click a shop to go in.')
   })
 
   test('a signpost brings its shop into view without going in, and the shop front goes in', async ({
@@ -76,6 +77,7 @@ test('with a pointer, the lights are off at rest, come up under the pointer, and
   await root.verifyLights('smithy', '1')
   await root.verifyLights('wands', '0')
   await root.verifyNoEnterLink()
+  await root.verifyHint('Click a shop to go in.')
 })
 
 test.describe('on a touch phone', () => {
@@ -122,6 +124,7 @@ test.describe('on a touch screen held sideways', () => {
     mountApp,
   }) => {
     const { root } = await mountApp()
+    await root.verifyNoHint('Click a shop to go in.')
     await root.tapShop('Thistlewick Wands')
     await root.verifyPicked('Thistlewick Wands')
     await root.tapShop('The Ember Anvil')

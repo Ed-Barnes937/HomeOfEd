@@ -103,6 +103,10 @@ export class StreetPom extends BasePage {
     await expect(this.page.getByText(text, { exact: true })).toBeVisible()
   }
 
+  async verifyNoHint(text: string): Promise<void> {
+    await expect(this.page.getByText(text, { exact: true })).toBeHidden()
+  }
+
   /** Taps a shop's signpost and waits for the street to come to rest. */
   async showOnStreet(shopName: string): Promise<void> {
     await this.signpost(shopName).click()

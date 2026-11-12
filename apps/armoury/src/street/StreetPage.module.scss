@@ -194,6 +194,26 @@
   color: var(--ink-muted);
 }
 
+// Only where a pointer can click and the whole street shows.
+.pointerHint {
+  display: none;
+}
+
+@media (hover: hover) and (orientation: landscape) {
+  .pointerHint {
+    display: block;
+    position: absolute;
+    inset: auto 0 18px;
+    z-index: 1;
+    margin: 0;
+    font-size: 16px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+    pointer-events: none;
+  }
+}
+
 // Laid over the bottom of the painting; in portrait it takes the caption's place instead.
 .enterSlot {
   position: absolute;
