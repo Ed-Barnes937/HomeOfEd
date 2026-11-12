@@ -14,6 +14,10 @@ None is caused by this epic and none blocks it. Each is small.
   `X-Content-Type-Options: nosniff`.** Applies to `identity.me`,
   `children.list` and `saveSummary`. ADR 0078 already says no cache rule may
   cover `/api/trpc`; this makes the replies say so themselves.
+  - [x] `Cache-Control`: done by ticket 22. Every `/api/trpc` reply is now
+    `private, no-store`, set by the session bridge (ADR 0070, 2026-11-12
+    amendment).
+  - [ ] `X-Content-Type-Options: nosniff`: still open.
 - **No cap on child profiles per parent.** Bounds `saveSummary`'s output and
   the picker.
 - **Sign-in rate limit may be one bucket for everyone in production (not

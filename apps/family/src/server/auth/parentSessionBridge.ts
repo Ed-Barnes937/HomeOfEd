@@ -20,6 +20,8 @@ export function registerParentSessionBridge(app: FastifyInstance, auth: SessionR
   app.addHook('onRequest', async (req, reply) => {
     delete req.headers[PARENT_HEADER]
     if (!req.url.startsWith('/api/trpc')) return
+    // A reply may carry a parent's session cookie, and tRPC drops `Vary: Origin`.
+    void reply.header('cache-control', 'private, no-store')
     const { parentId, setCookies } = await resolveParentSession(auth, toFetchHeaders(req))
     // Better Auth slides the session as it reads it; only this reply can tell the browser.
     if (setCookies.length > 0) void reply.header('set-cookie', setCookies)

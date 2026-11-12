@@ -42,3 +42,11 @@ Not verified: whether Safari also caps the server-set httpOnly cookie.
   real Safari. Playwright WebKit does not model Safari's cookie caps (it kept
   hub's script-written cookie for its full 30 days), so it cannot answer the
   question. A parent cannot sign out another device; added to ticket 20.
+- 2026-11-12 (review fixes): every `/api/trpc` reply is now `Cache-Control:
+  private, no-store`, set in the session bridge (ticks the `Cache-Control` half
+  of ticket 20's item). New bound-port tests pin that, a save call sliding the
+  session, all three cleared cookies arriving as separate headers, and an
+  unreachable session store failing the request without touching a cookie.
+  Each was shown to kill its mutant. ADR 0070's lost-device note now also
+  covers renaming the parent, the current password needed to change it, use
+  from CORS-refused origins, and the token not rotating.

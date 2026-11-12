@@ -61,8 +61,9 @@ Consequences worth knowing:
   from the tRPC reply. Drop the relay and every parent is signed out 90 days
   after signing in, however often they use hub
   ([ADR 0070](../../docs/adr/0070-family-service.md), 2026-11-12 amendment,
-  which also records the lost-device cost). Pinned over a real socket by
-  `auth/parentSessionRefresh.test.ts`.
+  which also records the lost-device cost). For the same reason the bridge marks
+  every `/api/trpc` reply `Cache-Control: private, no-store`. Pinned over a real
+  socket by `auth/parentSessionRefresh.test.ts`.
 - Better Auth runs in `main.ts` **only**. The dev simulator and the .iwft
   harness serve `/api/trpc` alone, so every request there is anonymous and the
   identity procedures refuse. Hub's account flows are tested against

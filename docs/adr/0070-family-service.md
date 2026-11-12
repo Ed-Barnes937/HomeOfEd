@@ -169,7 +169,16 @@ dropped the cookie Better Auth set. The bridge now asks for those headers
 (`returnHeaders: true`) and copies every `Set-Cookie` onto the tRPC reply. So a
 request carrying the cookie of a session that no longer exists (signed out on
 that device, or past its 90 days) now gets that cookie cleared, as
-`/api/auth/get-session` always did.
+`/api/auth/get-session` always did. A failure to reach the session store fails
+the request and clears nothing. The token value does not rotate on refresh:
+Better Auth re-sends the same signed token with a new `Max-Age`.
+
+Because such a reply carries a parent's cookie, and tRPC overwrites `Vary:
+Origin` ([ADR 0078](0078-family-identity-auth-boundary.md) consequences), the
+bridge also marks **every** `/api/trpc` reply `Cache-Control: private,
+no-store`, whether or not a cookie is relayed. ADR 0078's rule that no cache
+rule may cover `/api/trpc` stays; this makes the replies say so themselves, and
+closes that half of estate-gate ticket 20's `Cache-Control` item.
 
 90 days because a shared family tablet staying signed in is the point, and
 silent renewal ([ADR 0095](0095-hub-return-and-renewal.md) decision 9) works
@@ -204,7 +213,15 @@ the cookie, so a device used at least weekly keeps its parent signed in.
 90 days after it was last used, and any use of it extends that, a child's save
 included. Signed in as the parent, hub's `/account` on that device can mint a
 token for any child, add, rename and delete profiles, and erase the household
-(`deleteAccount` asks for `confirm: true`, not the password). What a parent can
+(`deleteAccount` asks for `confirm: true`, not the password); through
+`/api/auth/update-user` it can also rename the parent. Changing the password
+needs the current one, so the session alone cannot take the account over.
+
+Any request to `/api/trpc` that carries the cookie counts as use, including one
+from an origin CORS refuses: the browser stores the reply's cookie before it
+applies the CORS check to what the page may read. So any page on any
+`*.homeofed.com` subdomain open on that device can keep the parent signed in,
+without being able to read anything. What a parent can
 do today: sign out **on that device**. From any other device there is no way.
 Hub has no "sign out everywhere", no list of sessions and no change-password
 screen. Better Auth ships `/api/auth/list-sessions`, `/revoke-sessions` and
