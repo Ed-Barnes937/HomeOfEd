@@ -108,7 +108,7 @@ export abstract class BenchPom extends BasePage {
     await this.page.getByRole('link', { name: 'Back to the street' }).click()
     // Imported late: StreetPom builds the shop page objects, which extend this class.
     const street = new (await import('./StreetPom.ts')).StreetPom(this.page)
-    await street.verifyDoors()
+    await street.verifyIsShown()
     return street
   }
 

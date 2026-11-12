@@ -15,7 +15,9 @@ interface OldWand {
 
 export class StreetPom extends BasePage {
   async verifyIsShown(): Promise<void> {
-    await this.verifyDoors()
+    await expect(this.page.getByRole('heading', { name: 'Armoury', level: 1 })).toBeVisible()
+    await expect(this.shops()).toBeVisible()
+    await expect(this.page.getByRole('link', { name: 'Back to home of ed' })).toBeVisible()
   }
 
   async verifyDoors(): Promise<void> {
@@ -128,6 +130,84 @@ export class StreetPom extends BasePage {
     const smithy = new SmithyPom(this.page)
     await smithy.verifyIsShown()
     return smithy
+  }
+
+  /** On a touch screen: taps a shop's front, which picks it rather than going in. */
+  async tapShop(shopName: string): Promise<void> {
+    await this.shopToggle(shopName).tap()
+  }
+
+  /** On a touch screen: the shop picked, its lights up and its Enter link shown, or nothing picked. */
+  async verifyPicked(shopName: string | null): Promise<void> {
+    const picked = this.shops().getByRole('button', { pressed: true })
+    if (shopName === null) {
+      await expect(picked).toHaveCount(0)
+      await expect(this.page.getByRole('link', { name: /^Enter / })).toHaveCount(0)
+      return
+    }
+    await expect(picked).toHaveAccessibleName(shopName)
+    await expect(this.enterLink(shopName)).toBeVisible()
+    const shop = SHOPS.find((s) => s.name === shopName)
+    await this.verifyLights(shop?.id ?? '', '1')
+  }
+
+  async verifyLights(id: string, opacity: string): Promise<void> {
+    await expect(this.page.locator(`[data-lights="${id}"]`)).toHaveCSS('opacity', opacity)
+  }
+
+  async verifySignpostCurrent(shopName: string): Promise<void> {
+    await expect(this.signpost(shopName)).toHaveAttribute('aria-current', 'true')
+  }
+
+  async pointAt(name: string): Promise<void> {
+    await this.page.getByRole('link', { name }).hover()
+  }
+
+  /** On a touch screen, the open shops are buttons to pick, never links. */
+  async verifyShopsArePicked(shopNames: string[]): Promise<void> {
+    await expect(this.shops().getByRole('link')).toHaveCount(0)
+    await expect(this.shops().getByRole('button')).toHaveCount(shopNames.length)
+    for (const name of shopNames) {
+      await expect(this.shopToggle(name)).toHaveAttribute('aria-pressed', 'false')
+    }
+  }
+
+  async verifyNoEnterLink(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: /^Enter / })).toHaveCount(0)
+  }
+
+  async pressEnterFor(shopName: string): Promise<void> {
+    await this.enterLink(shopName).tap()
+  }
+
+  async enterSmithyWithEnter(): Promise<SmithyPom> {
+    await this.pressEnterFor('The Ember Anvil')
+    const smithy = new SmithyPom(this.page)
+    await smithy.verifyIsShown()
+    return smithy
+  }
+
+  async pressEnterKey(): Promise<void> {
+    await this.page.keyboard.press('Enter')
+  }
+
+  /** Keyboard focus to a shop on a touch screen, then a press of Enter on it. */
+  async pickByKeyboard(shopName: string): Promise<void> {
+    const shop = this.shopToggle(shopName)
+    for (let presses = 0; presses < 4; presses++) {
+      if (await shop.evaluate((el) => el === document.activeElement)) break
+      await this.page.keyboard.press('Tab')
+    }
+    await expect(shop).toBeFocused()
+    await this.page.keyboard.press('Enter')
+  }
+
+  private shopToggle(shopName: string) {
+    return this.shops().getByRole('button', { name: shopName, exact: true })
+  }
+
+  private enterLink(shopName: string) {
+    return this.page.getByRole('link', { name: `Enter ${shopName}`, exact: true })
   }
 
   private signpost(shopName: string) {

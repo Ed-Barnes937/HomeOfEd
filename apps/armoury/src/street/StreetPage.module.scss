@@ -95,6 +95,7 @@
 .door {
   -webkit-tap-highlight-color: transparent;
 
+  &:focus,
   &:focus-visible {
     outline: none;
   }
@@ -105,16 +106,11 @@
   fill: transparent;
 }
 
-// An open shop's lit painting, through its soft mask. Full on a touch screen; low until pointed at.
+// An open shop's lit painting, through its soft mask: low until pointed at, or picked on a touch screen.
 .lights {
+  opacity: 0.35;
   pointer-events: none;
   transition: opacity 250ms ease;
-}
-
-@media (hover: hover) {
-  .lights {
-    opacity: 0.35;
-  }
 }
 
 // Until the dark painting is in, the lights would float over the bare page.
@@ -133,12 +129,21 @@
   transition: opacity 150ms ease;
 }
 
-.door:hover,
 .door:focus-visible,
-.door:active {
+.door[aria-pressed='true'] {
   & ~ .lights,
   & ~ .edge {
     opacity: 1;
+  }
+}
+
+@media (hover: hover) {
+  .door:hover,
+  .door:active {
+    & ~ .lights,
+    & ~ .edge {
+      opacity: 1;
+    }
   }
 }
 
@@ -166,8 +171,13 @@
   -webkit-tap-highlight-color: transparent;
   transition: background-color 150ms ease;
 
-  &:active {
+  &:active,
+  &[aria-current='true'] {
     background: rgba(239, 228, 207, 0.14);
+  }
+
+  &[aria-current='true'] {
+    border-color: var(--brass);
   }
 
   @media (hover: hover) {
@@ -184,11 +194,48 @@
   color: var(--ink-muted);
 }
 
+// Laid over the bottom of the painting; in portrait it takes the caption's place instead.
+.enterSlot {
+  position: absolute;
+  bottom: calc(100dvh - var(--top) - var(--painting-h) + 20px);
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+}
+
+.enter {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 22px;
+  border-radius: 22px;
+  background: var(--brass);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--brass-ink);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: enter-appears 150ms ease;
+}
+
+@keyframes enter-appears {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lights,
   .edge,
   .signpost {
     transition: none;
+  }
+
+  .enter {
+    animation: none;
   }
 }
 
@@ -250,5 +297,33 @@
 
   .hint {
     display: block;
+    margin: 0 16px;
+  }
+
+  .call {
+    display: grid;
+    margin-top: 12px;
+
+    > * {
+      grid-area: 1 / 1;
+    }
+  }
+
+  .call[data-picked] .hint {
+    visibility: hidden;
+  }
+
+  .enterSlot {
+    position: static;
+    justify-self: center;
+    transform: none;
+  }
+}
+
+// A touch screen keeps room for the Enter link under the signposts, so nothing moves when it shows.
+@media (orientation: portrait) and (hover: none) {
+  .call {
+    min-height: 44px;
+    align-items: center;
   }
 }

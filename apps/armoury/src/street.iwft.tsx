@@ -67,6 +67,74 @@ test.describe('on a phone', () => {
   })
 })
 
+test('with a pointer, the lights rest low, come up under the pointer, and nothing is picked', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyLights('smithy', '0.35')
+  await root.pointAt('Go into the smithy')
+  await root.verifyLights('smithy', '1')
+  await root.verifyLights('wands', '0.35')
+  await root.verifyNoEnterLink()
+})
+
+test.describe('on a touch phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('a tap picks a shop and lights it, and its Enter link goes in', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.verifyShopsArePicked(['Thistlewick Wands', 'The Ember Anvil'])
+    await root.verifyPicked(null)
+    await root.verifyLights('wands', '0.35')
+    await root.tapShop('Thistlewick Wands')
+    await root.verifyPicked('Thistlewick Wands')
+    await root.verifyAt('/street')
+    await root.pressEnterFor('Thistlewick Wands')
+    await root.verifyAt('/wands')
+  })
+
+  test('a signpost slides to its shop and picks it, and the pick is gone after leaving', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.showOnStreet('The Ember Anvil')
+    await root.verifyPicked('The Ember Anvil')
+    await root.verifySignpostCurrent('The Ember Anvil')
+    const smithy = await root.enterSmithyWithEnter()
+    await smithy.verifyAt('/swords')
+    const street = await smithy.backToStreet()
+    await street.verifyPicked(null)
+  })
+
+  test('a keyboard can pick a shop and go in', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.pickByKeyboard('Thistlewick Wands')
+    await root.verifyPicked('Thistlewick Wands')
+    await root.pressEnterKey()
+    await root.verifyAt('/wands')
+  })
+})
+
+test.describe('on a touch screen held sideways', () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true })
+
+  test('a tap on another shop moves the pick, the street clears it, and a second tap goes in', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.tapShop('Thistlewick Wands')
+    await root.verifyPicked('Thistlewick Wands')
+    await root.tapShop('The Ember Anvil')
+    await root.verifyPicked('The Ember Anvil')
+    await root.verifyLights('wands', '0.35')
+    await root.tapShutShop('potions')
+    await root.verifyPicked(null)
+    await root.tapShop('The Ember Anvil')
+    await root.tapShop('The Ember Anvil')
+    await root.verifyAt('/swords')
+  })
+})
+
 test('each door opens its shop, and the way back leads to the street', async ({ mountApp }) => {
   const { root } = await mountApp()
   const wands = await root.enterWandShop()

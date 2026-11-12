@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   type CSSProperties,
   type FocusEvent,
@@ -9,7 +9,7 @@ import {
 } from 'react'
 
 import { SHOP_PATHS } from '../landing.ts'
-import { hubUrl, REDUCED_MOTION_QUERY, useMediaQuery } from '../useMediaQuery.ts'
+import { hubUrl, REDUCED_MOTION_QUERY, TOUCH_QUERY, useMediaQuery } from '../useMediaQuery.ts'
 import { useShops } from '../workbench/WorkbenchProvider.tsx'
 import {
   DOOR_LABELS,
@@ -46,8 +46,11 @@ function scrollFor(view: HTMLElement, shop: StreetShop): number | null {
 export function StreetPage() {
   const street = useRef<HTMLElement>(null)
   const { lastShop } = useShops()
+  const navigate = useNavigate()
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
+  const touch = useMediaQuery(TOUCH_QUERY)
   const [flashing, setFlashing] = useState<string | null>(null)
+  const [picked, setPicked] = useState<string | null>(null)
   const [base, setBase] = useState<'loading' | 'dark' | 'lit'>('loading')
   const [litFailed, setLitFailed] = useState(false)
   const flashEnds = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -65,10 +68,21 @@ export function StreetPage() {
     const view = street.current
     const left = view ? scrollFor(view, shop) : null
     if (view && left !== null) view.scrollTo({ left, behavior: reducedMotion ? 'auto' : 'smooth' })
+    if (touch) {
+      setPicked(shop.id)
+      return
+    }
     setFlashing(shop.id)
     clearTimeout(flashEnds.current)
     flashEnds.current = setTimeout(() => setFlashing(null), FLASH_MS)
   }
+
+  const pick = (shop: StreetShop) => {
+    if (picked === shop.id && shop.to) void navigate({ to: shop.to })
+    else setPicked(shop.id)
+  }
+
+  const pickedShop = touch ? SHOPS.find((shop) => shop.id === picked && shop.to) : undefined
 
   return (
     <div className={styles.street} style={{ '--ratio': width / height } as CSSProperties}>
@@ -101,6 +115,7 @@ export function StreetPage() {
           style={{ aspectRatio: `${width} / ${height}` }}
           viewBox={`0 0 ${width} ${height}`}
           data-base={base}
+          onClick={touch ? () => setPicked(null) : undefined}
         >
           <defs>
             <filter id="street-glow" x="-10%" y="-10%" width="120%" height="120%">
@@ -146,15 +161,37 @@ export function StreetPage() {
                       ))}
                     </g>
                   </mask>
-                  <Link
-                    to={shop.to}
-                    className={styles.door}
-                    data-flash={flashing === shop.id || undefined}
-                    aria-label={DOOR_LABELS[shop.to]}
-                    onFocus={showWhole}
-                  >
-                    <path className={styles.face} d={shop.outline} />
-                  </Link>
+                  {touch ? (
+                    <g
+                      role="button"
+                      tabIndex={0}
+                      className={styles.door}
+                      aria-label={shop.name}
+                      aria-pressed={picked === shop.id}
+                      onFocus={showWhole}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        pick(shop)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        pick(shop)
+                      }}
+                    >
+                      <path className={styles.face} d={shop.outline} />
+                    </g>
+                  ) : (
+                    <Link
+                      to={shop.to}
+                      className={styles.door}
+                      data-flash={flashing === shop.id || undefined}
+                      aria-label={DOOR_LABELS[shop.to]}
+                      onFocus={showWhole}
+                    >
+                      <path className={styles.face} d={shop.outline} />
+                    </Link>
+                  )}
                   {!litFailed && (
                     <image
                       className={styles.lights}
@@ -180,13 +217,23 @@ export function StreetPage() {
             type="button"
             className={styles.signpost}
             aria-label={`Show ${shop.name} on the street`}
+            aria-current={pickedShop?.id === shop.id || undefined}
             onClick={() => show(shop)}
           >
             {shop.name}
           </button>
         ))}
       </div>
-      <p className={styles.hint}>Slide along the street, then tap a shop.</p>
+      <div className={styles.call} data-picked={pickedShop ? true : undefined}>
+        <p className={styles.hint}>Slide along the street, then tap a shop.</p>
+        <div className={styles.enterSlot} aria-live="polite">
+          {pickedShop?.to && (
+            <Link to={pickedShop.to} className={styles.enter}>
+              Enter {pickedShop.name}
+            </Link>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
