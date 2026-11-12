@@ -60,9 +60,10 @@ COPY --from=builder /app/apps/armoury/dist ./apps/armoury/dist
 # stowaway (@trpc/server declares it as a types-only peer). The dev-only
 # workspace stubs (test-kit/config package.json) go too, and so does the
 # committed test keypair in @hoe/accounts, which nothing at runtime imports.
-RUN rm -rf apps/armoury/src/testing apps/armoury/src/*.iwft.tsx \
-  packages/test-kit packages/config packages/accounts/src/testing \
-  node_modules/.pnpm/typescript@*
+RUN rm -rf packages/test-kit packages/config packages/accounts/src/testing \
+  node_modules/.pnpm/typescript@* \
+  && find apps/armoury/src \( -name testing -o -name '*.test.ts' -o -name '*.iwft.tsx' \) \
+  -prune -exec rm -rf {} +
 USER node
 EXPOSE 8080
 WORKDIR /app/apps/armoury
