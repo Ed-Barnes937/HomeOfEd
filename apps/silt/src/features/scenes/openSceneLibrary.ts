@@ -2,7 +2,6 @@ import { openIndexedDbSceneRecords } from './indexedDbSceneRecords.ts'
 import type { LegacyStorage } from './legacyScenes.ts'
 import { BLOCKED_MESSAGE, CLOSED_MESSAGE, SceneLibrary } from './sceneLibrary.ts'
 import { DEVICE_NAMESPACE, type SceneRecords } from './sceneRecords.ts'
-import { persistWithoutPrompt } from './storagePersistence.ts'
 
 /** Private browsing modes can make even *touching* a storage API throw. */
 function deviceLocalStorage(): LegacyStorage | null {
@@ -29,6 +28,5 @@ function openBrowserRecords(notice: (message: string) => void): Promise<SceneRec
 export function openSceneLibrary(player: string | null): SceneLibrary {
   return new SceneLibrary(openBrowserRecords, player ?? DEVICE_NAMESPACE, {
     legacy: deviceLocalStorage(),
-    keepStorage: () => persistWithoutPrompt(navigator),
   })
 }

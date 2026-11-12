@@ -156,6 +156,17 @@ describe.each([
     expect(await names(records, DEVICE_NAMESPACE)).toEqual(['renamed since', 'c'])
   })
 
+  it('remembers every id it was given, including one it already held and did not add', async () => {
+    const { records } = await open()
+    await records.create(DEVICE_NAMESPACE, scene('held'))
+    await records.importOnce(DEVICE_NAMESPACE, [scene('held')])
+
+    await records.remove(DEVICE_NAMESPACE, 'held')
+
+    expect(await records.importOnce(DEVICE_NAMESPACE, [scene('held')])).toBe(0)
+    expect(await names(records, DEVICE_NAMESPACE)).toEqual([])
+  })
+
   it('puts an imported batch after the scenes already listed, in its own order', async () => {
     const { records } = await open()
     await records.create(DEVICE_NAMESPACE, scene('earlier', { order: 7 }))
@@ -168,7 +179,7 @@ describe.each([
     expect(await names(records, DEVICE_NAMESPACE)).toEqual(['earlier', 'first', 'second'])
   })
 
-  it('copies the device’s scenes into a profile on its first open, and never again', async () => {
+  it('copies the device’s scenes into a profile, and one it deleted stays deleted', async () => {
     const { records } = await open()
     await records.create(DEVICE_NAMESPACE, scene('old'))
 
@@ -180,6 +191,29 @@ describe.each([
     expect(await names(records, DEVICE_NAMESPACE)).toEqual(['old'])
     await records.adopt(DEVICE_NAMESPACE, 'bo')
     expect(await records.read('bo', 'old')).toEqual(scene('old'))
+  })
+
+  it('a device scene that arrives after a profile adopted reaches it, and a deleted one stays deleted', async () => {
+    const { records } = await open()
+    await records.create(DEVICE_NAMESPACE, scene('first', { order: 1 }))
+    await records.adopt(DEVICE_NAMESPACE, 'ada')
+    await records.remove('ada', 'first')
+
+    await records.importOnce(DEVICE_NAMESPACE, [scene('later', { order: 0 })])
+    await records.adopt(DEVICE_NAMESPACE, 'ada')
+
+    expect(await names(records, 'ada')).toEqual(['later'])
+    expect(await names(records, DEVICE_NAMESPACE)).toEqual(['first', 'later'])
+  })
+
+  it('never overwrites a profile’s own scene that shares an id with a device scene', async () => {
+    const { records } = await open()
+    await records.create(DEVICE_NAMESPACE, scene('same', { name: 'the device’s' }))
+    await records.create('ada', scene('same', { name: 'ada’s own' }))
+
+    await records.adopt(DEVICE_NAMESPACE, 'ada')
+
+    expect(await names(records, 'ada')).toEqual(['ada’s own'])
   })
 
   it('adopts all or nothing, and a failed adoption is tried again in full', async () => {

@@ -28,10 +28,10 @@ megabytes at least), so every profile copying the device's scenes is fine and
 ADR 0094's copy-on-first-open stands for silt. Field notes (a few kilobytes)
 and the first-visit hint stay in `localStorage`.
 
-**2. One database, `silt`, five stores.** `rows` (id, name, updatedAt, order),
-`bodies`, `thumbs` and `imported` (ids a namespace has taken in by the move),
-each keyed `[namespace, id]` with a `byNamespace` index, and `namespaces`
-(which profiles have adopted). The namespace is the account
+**2. One database, `silt`, four stores.** `rows` (id, name, updatedAt, order),
+`bodies`, `thumbs` and `imported` (every id a namespace has taken in, by the
+move or from the device), each keyed `[namespace, id]` with a `byNamespace`
+index. The namespace is the account
 id, or `''` for no account, by `profileScopedKey`'s rule, so signed-out silt
 behaves as before. Each operation is one transaction: a scene's row, body and
 thumbnail land together or not at all. ADR 0029's blob-before-index order and
@@ -64,20 +64,26 @@ is removed before it is safe, nothing is copied twice, and a moved scene
 deleted before the rerun stays deleted. That last case is real: Chromium and
 Firefox were measured keeping removed localStorage keys on disk for a second or
 more after the IndexedDB commit. A moved batch is ordered after the
-namespace's last row, so it never ties with scenes from an earlier move. ADR 0029's repair rules carry
-over: an orphan blob arrives as "recovered scene", a dangling row is dropped,
+namespace's last row, so it never ties with scenes from an earlier move. ADR
+0029's repair rules carry over: an orphan blob arrives as "recovered scene", a dangling row is dropped,
 an orphan thumbnail is freed. Keys carrying `@` are never touched. This is the
 one move ADR 0094 allows (see its amendment).
 
-**6. Adoption.** A profile's first open copies the device's scenes it lacks
-into its own namespace in one transaction, and records the profile in
-`namespaces`. A profile that later deletes every scene does not adopt again.
-A failed copy (quota) is retried on every open until it succeeds, even if the
-profile saved scenes of its own meanwhile: their ids are new, so nothing
-collides. This is kinder than ADR 0094's general rule (a profile that saved
-first never adopts), and safe here because adoption is per scene id. No
-profile adopts on an open where the move from localStorage failed; it waits
-until the device namespace holds the moved scenes.
+**6. Adoption, per scene id.** Every open copies, in one transaction, each
+device scene whose id the profile has never taken in and does not hold, and
+records every id it offered in the profile's `imported`.
+- A scene the profile deleted stays deleted, even if it deleted everything.
+- A scene moved in later (a rollback, an old-build tab) reaches every profile
+  on its next open.
+- A profile's own scene sharing an id with a device scene is never
+  overwritten.
+- A failed copy (quota) writes and records nothing, so it is retried on every
+  open until it succeeds, even if the profile saved scenes of its own
+  meanwhile. Their ids are new, so nothing collides. This is kinder than ADR
+  0094's general rule (a profile that saved first never adopts), and safe here
+  because adoption is per id.
+- No profile adopts on an open where the move from localStorage failed; it
+  waits until the device namespace holds the moved scenes.
 
 **7. Failure modes.**
 - No IndexedDB (refused, disabled, or `indexedDB` throws): silt opens and
@@ -109,13 +115,13 @@ old player's namespace or, if the reload cuts it off, nowhere.
   26.5 and Firefox 151.
 - Scene operations are asynchronous, so the iwft POM waits on the scenes
   button's `data-busy` rather than reading the page straight after a click.
-- **Eviction.** Chromium keeps IndexedDB as best-effort storage that it may
-  evict under disk pressure, where `localStorage` sat outside its quota
-  manager. After the first save that lands, silt calls
-  `navigator.storage.persist()`, but only when the `persistent-storage`
-  permission is already decided (not `'prompt'`), so a child never sees a
-  prompt. Browsers without either API, or that refuse, are left as they are,
-  and the request never affects a save. Firefox and Safari behave as before.
+- **Eviction, accepted.** Chromium may evict IndexedDB under disk pressure,
+  where `localStorage` was exempt, so on a nearly full disk Chromium could
+  remove saved scenes. Nothing is done about it. Asking for persistent storage
+  without risking a permission prompt in front of a child was tried and found
+  inert: Chromium 149 and Firefox 151 report `persistent-storage` as
+  `'prompt'` by default, and WebKit throws on the query, so the request was
+  never made. Firefox and Safari keep IndexedDB as they kept localStorage.
 - **Rollback is roll-forward only.** A rollback to the localStorage build hides
   the scenes, which sit in IndexedDB. Redeploying this build brings them back,
   and anything saved during the rollback, being in localStorage again, is moved
@@ -123,5 +129,14 @@ old player's namespace or, if the reload cuts it off, nowhere.
 - **A tab still on the old build during a deploy** finds its scene gone from
   the localStorage index once another tab has moved it, so its save creates a
   new scene there. The next open moves that in as a second scene, usually with
-  the same name. Nothing is lost, except a save that lands in the
-  milliseconds between the move's commit and its key removal.
+  the same name, and every profile receives it.
+- **The move's window.** It runs from the move reading localStorage to its
+  removing the keys, which includes the whole strict-durability commit. An
+  old-build tab editing an existing scene inside it loses that edit: IndexedDB
+  keeps the content read before it. A brand new scene saved inside it
+  survives, but its index row goes with the old index, so it arrives on the
+  next open as "recovered scene", without its name.
+- **A crash between commit and removal**, followed by an old-build edit of a
+  moved scene and then a rerun, drops that edit, because the rerun skips ids
+  already moved. Both cases need an old-build tab or a rollback at that exact
+  moment.

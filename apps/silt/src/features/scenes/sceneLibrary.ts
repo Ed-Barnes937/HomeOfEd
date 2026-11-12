@@ -59,8 +59,6 @@ export interface SceneLibraryOptions {
   legacy: LegacyStorage | null
   now?: () => number
   newId?: () => string
-  /** Asked once, after the first save that lands, to keep storage from eviction. */
-  keepStorage?: () => Promise<void>
 }
 
 export class SceneLibrary {
@@ -69,7 +67,6 @@ export class SceneLibrary {
   readonly #now: () => number
   readonly #newId: () => string
   readonly #listeners = new Set<(message: string) => void>()
-  #keepStorage: (() => Promise<void>) | undefined
 
   /** `open` is handed `notice`, for what storage has to say later (another tab, an upgrade). */
   constructor(
@@ -80,7 +77,6 @@ export class SceneLibrary {
     this.#namespace = namespace
     this.#now = options.now ?? (() => Date.now())
     this.#newId = options.newId ?? (() => crypto.randomUUID())
-    this.#keepStorage = options.keepStorage
     const notice = (message: string): void => {
       for (const listener of this.#listeners) listener(message)
     }
@@ -129,7 +125,6 @@ export class SceneLibrary {
         thumbnail,
       )
       await withoutPictureIfFull(scene, (next) => records.create(this.#namespace, next))
-      this.#saved()
       return { id: scene.id, name, updatedAt: now }
     })
   }
@@ -141,7 +136,6 @@ export class SceneLibrary {
       if (!row) return
       const scene = this.#scene({ ...row, updatedAt: this.#now() }, json, thumbnail)
       await withoutPictureIfFull(scene, (next) => records.update(this.#namespace, next))
-      this.#saved()
     })
   }
 
@@ -183,16 +177,6 @@ export class SceneLibrary {
           console.warn('silt scenes: could not copy the device’s scenes yet', error),
         )
     }
-  }
-
-  #saved(): void {
-    const keep = this.#keepStorage
-    this.#keepStorage = undefined
-    if (!keep) return
-    // Never lets the request, or its refusal, touch the save that triggered it.
-    void Promise.resolve()
-      .then(keep)
-      .catch(() => undefined)
   }
 
   async #stored(records: SceneRecords, id: string): Promise<StoredScene> {

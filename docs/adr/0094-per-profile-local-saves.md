@@ -64,6 +64,11 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
   2 holds as written, in IndexedDB: each profile copies the device's scenes on
   its first open, and no profile writes the device's. No other app or key may
   be moved.
+- **silt adopts per scene id** (amended 2026-11-12, ADR 0102 decision 6). A
+  profile that saved before its copy succeeded still gets the device's scenes
+  later, and scenes moved in after it adopted still reach it. This departs
+  from decision 2's "saved first, never adopts", and is safe for silt only
+  because each scene has its own id.
 - **An emptied document is written as empty, never removed** (silt's field
   notes, 2026-11-12). A profile with no key adopts the legacy document again,
   so "forget discoveries" writes an empty record; removing the key brought the

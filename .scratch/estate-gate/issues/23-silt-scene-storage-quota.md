@@ -116,3 +116,16 @@ Per painted scene:
   IndexedDB.
 - **ADR 0102** now covers eviction, roll-forward-only rollback and a tab still
   on the old build during a deploy.
+
+**2026-11-12, review round 2 (PR #206).**
+
+- **Adoption is per scene id.** A profile records every device id it has taken
+  in, and the `namespaces` store is gone. Scenes moved in after a profile
+  adopted, from a rollback or an old-build tab, now reach that profile, and
+  deletes stay deleted.
+- **The persistence request is removed.** It never fired in any of the three
+  engines. ADR 0102 now states plainly that Chromium may evict IndexedDB and
+  nothing is done about it.
+- **ADR 0102 corrected** on the move's loss window and the
+  crash-then-old-build-edit case.
+- **ADR 0094** notes silt's per-id departure.

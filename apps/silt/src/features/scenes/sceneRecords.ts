@@ -39,8 +39,8 @@ export interface SceneRecords {
    */
   importOnce(namespace: string, scenes: readonly StoredScene[]): Promise<number>
   /**
-   * Until `to` has adopted once, copies every scene of `from` that `to` lacks,
-   * all or nothing. Later calls do nothing.
+   * Copies every scene of `from` whose id `to` has never taken in and does not
+   * hold, all or nothing, and remembers every id offered: deletes stay deleted.
    */
   adopt(from: string, to: string): Promise<void>
 }
@@ -83,7 +83,6 @@ export class MemorySceneRecords implements SceneRecords {
   quotaBytes: number
   readonly #scenes = new Map<string, Map<string, StoredScene>>()
   readonly #imported = new Map<string, Set<string>>()
-  readonly #adopted = new Set<string>()
 
   constructor(options: { quotaBytes?: number } = {}) {
     this.quotaBytes = options.quotaBytes ?? Number.POSITIVE_INFINITY
@@ -155,11 +154,12 @@ export class MemorySceneRecords implements SceneRecords {
 
   adopt(from: string, to: string): Promise<void> {
     return settled(() => {
-      if (this.#adopted.has(to)) return
+      const taken = this.#imported.get(to) ?? new Set<string>()
       const held = this.#in(to)
-      const missing = [...this.#in(from).values()].filter((scene) => !held.has(scene.id))
-      this.#commit(missing.map((scene) => [to, scene]))
-      this.#adopted.add(to)
+      const offered = [...this.#in(from).values()].filter((scene) => !taken.has(scene.id))
+      const fresh = offered.filter((scene) => !held.has(scene.id))
+      this.#commit(fresh.map((scene) => [to, scene]))
+      this.#imported.set(to, new Set([...taken, ...offered.map((scene) => scene.id)]))
     })
   }
 

@@ -17,8 +17,7 @@ const ROWS = 'rows'
 const BODIES = 'bodies'
 const THUMBS = 'thumbs'
 const IMPORTED = 'imported'
-const NAMESPACES = 'namespaces'
-const ALL = [ROWS, BODIES, THUMBS, IMPORTED, NAMESPACES]
+const ALL = [ROWS, BODIES, THUMBS, IMPORTED]
 const BY_NAMESPACE = 'byNamespace'
 
 interface RowRecord extends SceneRow {
@@ -60,12 +59,9 @@ export function openIndexedDbSceneRecords(options: OpenSceneRecordsOptions): Pro
     }
     request.onupgradeneeded = () => {
       const db = request.result
-      for (const name of [ROWS, BODIES, THUMBS, IMPORTED]) {
+      for (const name of ALL) {
         if (db.objectStoreNames.contains(name)) continue
         db.createObjectStore(name, { keyPath: ['ns', 'id'] }).createIndex(BY_NAMESPACE, 'ns')
-      }
-      if (!db.objectStoreNames.contains(NAMESPACES)) {
-        db.createObjectStore(NAMESPACES, { keyPath: 'ns' })
       }
     }
     request.onblocked = () => options.onBlocked?.()
@@ -154,11 +150,9 @@ class IndexedDbSceneRecords implements SceneRecords {
       async (stores) => {
         const [rows, imported] = await Promise.all([
           rowsIn(stores, namespace),
-          settle(stores[IMPORTED]!.index(BY_NAMESPACE).getAll(namespace)) as Promise<
-            { id: string }[]
-          >,
+          takenIn(stores, namespace),
         ])
-        const skip = new Set([...rows, ...imported].map((record) => record.id))
+        const skip = new Set([...rows.map((row) => row.id), ...imported])
         const base = nextOrder(rows)
         const fresh = scenes.filter((scene) => !skip.has(scene.id))
         for (const scene of fresh) {
@@ -173,12 +167,18 @@ class IndexedDbSceneRecords implements SceneRecords {
 
   adopt(from: string, to: string): Promise<void> {
     return this.#transact('readwrite', async (stores) => {
-      if ((await settle(stores[NAMESPACES]!.get(to))) !== undefined) return
-      const held = new Set((await rowsIn(stores, to)).map((row) => row.id))
-      const rows = (await rowsIn(stores, from)).filter((row) => !held.has(row.id))
-      const scenes = await Promise.all(rows.map((row) => readScene(stores, from, row.id)))
+      const [held, taken, rows] = await Promise.all([
+        rowsIn(stores, to),
+        takenIn(stores, to),
+        rowsIn(stores, from),
+      ])
+      const skipped = new Set(taken)
+      const heldIds = new Set(held.map((row) => row.id))
+      const offered = rows.filter((row) => !skipped.has(row.id))
+      const fresh = offered.filter((row) => !heldIds.has(row.id))
+      const scenes = await Promise.all(fresh.map((row) => readScene(stores, from, row.id)))
       for (const scene of scenes) if (scene) writeScene(stores, to, scene)
-      stores[NAMESPACES]!.put({ ns: to })
+      for (const row of offered) stores[IMPORTED]!.put({ ns: to, id: row.id })
     })
   }
 
@@ -244,6 +244,14 @@ async function readScene(
 
 function rowsIn(stores: Stores, namespace: string): Promise<RowRecord[]> {
   return settle(stores[ROWS]!.index(BY_NAMESPACE).getAll(namespace)) as Promise<RowRecord[]>
+}
+
+/** Ids a namespace has taken in, by a move or from the device. */
+async function takenIn(stores: Stores, namespace: string): Promise<string[]> {
+  const records = (await settle(stores[IMPORTED]!.index(BY_NAMESPACE).getAll(namespace))) as {
+    id: string
+  }[]
+  return records.map((record) => record.id)
 }
 
 function writeScene(stores: Stores, namespace: string, scene: StoredScene): void {
