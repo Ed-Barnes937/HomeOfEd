@@ -88,7 +88,7 @@ src/
   smithy/             the smithy's ShopView (smithy.ts), the forge and anvil
                       art, the sword's shadow and outline, its group summaries
                       and widgets
-  street/             the painting (public/street/), the shops traced on it
+  street/             the shops traced on lit and dark paintings (public/street/)
   shelf/              "Your shelf", a section per kind
   testing/            IwftApp (with fake stages), fixture, page objects
 scripts/gpu-shots.mjs real-GPU screenshots of the real stages
