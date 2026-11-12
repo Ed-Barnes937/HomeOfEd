@@ -84,11 +84,11 @@ retracing, and nothing else in the code assumes the painting's proportions.
   a 16 blur (painting units), so the light spills softly onto its doorstep with
   no hard edge, plus any `spill` paths its light reaches past its front (the
   smithy's sparks and smoke above the chimney and the forge glow on the
-  pavement). Where pointing is possible the lit layer rests at 0.35 ("lights
-  low", so the open shops stand out; 0.5 left too little to come up), and on
-  hover, keyboard focus and press it rises to full over 250 ms with no fade
-  under reduced motion; a touch screen rests at the same 0.35 and lights a
-  shop fully once it is picked (below). Only opacity animates and the masks are static; hover in headless
+  pavement). The lit layer is off at rest, so the whole street stands in the
+  dark painting (it first rested at 0.35, "lights low", which the owner read
+  as the lights still being on). On hover, keyboard focus and press it rises
+  to full over 250 ms with no fade under reduced motion; a touch screen lights
+  a shop fully once it is picked (below). Only opacity animates and the masks are static; hover in headless
   Chrome on the real GPU ran at 120 fps with no frame over 20 ms. The lit
   layers stay hidden until the dark painting has loaded, so the lit shops
   never float on the bare page; if the dark painting fails the lit one is the

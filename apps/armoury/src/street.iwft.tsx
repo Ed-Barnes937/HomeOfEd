@@ -67,14 +67,14 @@ test.describe('on a phone', () => {
   })
 })
 
-test('with a pointer, the lights rest low, come up under the pointer, and nothing is picked', async ({
+test('with a pointer, the lights are off at rest, come up under the pointer, and nothing is picked', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
-  await root.verifyLights('smithy', '0.35')
+  await root.verifyLights('smithy', '0')
   await root.pointAt('Go into the smithy')
   await root.verifyLights('smithy', '1')
-  await root.verifyLights('wands', '0.35')
+  await root.verifyLights('wands', '0')
   await root.verifyNoEnterLink()
 })
 
@@ -85,7 +85,7 @@ test.describe('on a touch phone', () => {
     const { root } = await mountApp()
     await root.verifyShopsArePicked(['Thistlewick Wands', 'The Ember Anvil'])
     await root.verifyPicked(null)
-    await root.verifyLights('wands', '0.35')
+    await root.verifyLights('wands', '0')
     await root.tapShop('Thistlewick Wands')
     await root.verifyPicked('Thistlewick Wands')
     await root.verifyAt('/street')
@@ -126,7 +126,7 @@ test.describe('on a touch screen held sideways', () => {
     await root.verifyPicked('Thistlewick Wands')
     await root.tapShop('The Ember Anvil')
     await root.verifyPicked('The Ember Anvil')
-    await root.verifyLights('wands', '0.35')
+    await root.verifyLights('wands', '0')
     await root.tapShutShop('potions')
     await root.verifyPicked(null)
     await root.tapShop('The Ember Anvil')

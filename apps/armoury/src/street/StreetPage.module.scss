@@ -106,9 +106,9 @@
   fill: transparent;
 }
 
-// An open shop's lit painting, through its soft mask: low until pointed at, or picked on a touch screen.
+// An open shop's lit painting, through its soft mask: off until pointed at, or picked on a touch screen.
 .lights {
-  opacity: 0.35;
+  opacity: 0;
   pointer-events: none;
   transition: opacity 250ms ease;
 }
