@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2560 1440" width="2560" height="1440">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a1030"/>
+      <stop offset="0.35" stop-color="#1d2452"/>
+      <stop offset="0.5" stop-color="#4a3a63"/>
+      <stop offset="0.58" stop-color="#c86a3c"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3230"/>
+      <stop offset="1" stop-color="#16120f"/>
+    </linearGradient>
+    <radialGradient id="forge" cx="0.5" cy="0.8" r="0.7">
+      <stop offset="0" stop-color="#ffd27a"/>
+      <stop offset="0.5" stop-color="#ff8a2a"/>
+      <stop offset="1" stop-color="#5a1e08"/>
+    </radialGradient>
+    <radialGradient id="lampGlow">
+      <stop offset="0" stop-color="#ffd890" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffd890" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="2560" height="1440" fill="url(#sky)"/>
+  <circle cx="180" cy="120" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="420" cy="70" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="760" cy="160" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="980" cy="60" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="1230" cy="140" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="1480" cy="80" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="1720" cy="190" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="1960" cy="70" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="2180" cy="150" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="2420" cy="230" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="620" cy="260" r="3" fill="#fff6dc" opacity="0.7"/><circle cx="1380" cy="260" r="3" fill="#fff6dc" opacity="0.7"/>
+  <rect y="790" width="2560" height="650" fill="url(#ground)"/>
+  <g>
+    <path d="M 110,820 L 110,560 L 94,560 L 250,430 L 406,560 L 390,560 L 390,820 Z" fill="#5d5140"/>
+    <path d="M 110,560 L 94,560 L 250,430 L 406,560 L 390,560 Z" fill="#3a2f2a"/>
+    <rect x="124" y="578" width="252" height="40" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="250" y="605" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="1" fill="#f3d27a">YEW &amp; FEATHER</text>
+    <rect x="128" y="642" width="70" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 163 642 V 716 M 128 679 H 198" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="302" y="642" width="70" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 337 642 V 716 M 302 679 H 372" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 223 820 V 737 A 27 27 0 0 1 277 737 V 820 Z" fill="#3f6b3a" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g>
+    <path d="M 470,820 L 470,470 L 454,470 L 560,330 L 666,470 L 650,470 L 650,820 Z" fill="#4e4a5a"/>
+    <path d="M 470,470 L 454,470 L 560,330 L 666,470 L 650,470 Z" fill="#2c2833"/>
+    <rect x="484" y="488" width="152" height="40" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="560" y="515" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="1" fill="#f3d27a">THE CROOKED STAFF</text>
+    <rect x="488" y="570" width="35" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 506 570 V 644 M 488 607 H 523" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="597" y="570" width="35" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 615 570 V 644 M 597 607 H 632" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 533 820 V 737 A 27 27 0 0 1 587 737 V 820 Z" fill="#5a3c26" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g>
+    <path d="M 730,820 L 730,580 L 714,580 Q 845,238 976,580 L 960,580 L 960,820 Z" fill="#3f5650"/>
+    <path d="M 730,580 L 714,580 Q 845,238 976,580 L 960,580 Z" fill="#283934"/>
+    <rect x="744" y="598" width="202" height="40" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="845" y="625" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="1" fill="#f3d27a">BUBBLE &amp; BREW</text>
+    <rect x="748" y="662" width="60" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 778 662 V 736 M 748 699 H 808" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="882" y="662" width="60" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 912 662 V 736 M 882 699 H 942" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 818 820 V 737 A 27 27 0 0 1 872 737 V 820 Z" fill="#4a2f55" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g>
+    <path d="M 990,1330 L 1008,900 L 986,900 L 1138,770 L 1290,900 L 1268,900 L 1250,1330 Z" fill="#3b3046"/>
+    <path d="M 1008,900 L 986,900 L 1138,770 L 1290,900 L 1268,900 Z" fill="#231c2b"/>
+    <rect x="1004" y="925" width="250" height="56" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="1129" y="963" text-anchor="middle" font-family="Georgia, serif" font-size="20" letter-spacing="1" fill="#f3d27a">THISTLEWICK WANDS</text>
+    <rect x="1015" y="1020" width="64" height="104" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 1047 1020 V 1124 M 1015 1072 H 1079" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="1175" y="1020" width="64" height="104" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 1207 1020 V 1124 M 1175 1072 H 1239" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 1091 1330 V 1214 A 38 38 0 0 1 1167 1214 V 1330 Z" fill="#2b4470" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g>
+    <path d="M 1300,1330 L 1300,980 L 1278,980 L 1455,900 L 1500,920 L 1500,820 L 1560,820 L 1560,947 L 1632,980 L 1610,980 L 1610,1330 Z" fill="#5a5552"/>
+    <path d="M 1300,980 L 1278,980 L 1455,900 L 1500,920 L 1500,820 L 1560,820 L 1560,947 L 1632,980 L 1610,980 Z" fill="#6e4a3a"/>
+    <rect x="1314" y="1005" width="282" height="56" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="1455" y="1043" text-anchor="middle" font-family="Georgia, serif" font-size="28" letter-spacing="1" fill="#f3d27a">THE EMBER ANVIL</text>
+    <rect x="1318" y="1085" width="89" height="104" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 1363 1085 V 1189 M 1318 1137 H 1407" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="1503" y="1085" width="89" height="104" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 1547 1085 V 1189 M 1503 1137 H 1592" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 1385 1330 V 1210 A 70 70 0 0 1 1525 1210 V 1330 Z" fill="url(#forge)" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g>
+    <path d="M 1660,820 L 1660,590 L 1644,590 Q 1795,254 1946,590 L 1930,590 L 1930,820 Z" fill="#6a5a3e"/>
+    <path d="M 1660,590 L 1644,590 Q 1795,254 1946,590 L 1930,590 Z" fill="#8a6f3a"/>
+    <rect x="1674" y="608" width="242" height="40" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="1795" y="635" text-anchor="middle" font-family="Georgia, serif" font-size="22" letter-spacing="1" fill="#f3d27a">SWIFT SWEEPS</text>
+    <rect x="1678" y="672" width="70" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 1713 672 V 746 M 1678 709 H 1748" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="1842" y="672" width="70" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 1877 672 V 746 M 1842 709 H 1912" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 1768 820 V 737 A 27 27 0 0 1 1822 737 V 820 Z" fill="#4a3624" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g>
+    <path d="M 2000,820 L 2000,570 L 1984,570 L 2120,370 L 2256,570 L 2240,570 L 2240,820 Z" fill="#3c4466"/>
+    <path d="M 2000,570 L 1984,570 L 2120,370 L 2256,570 L 2240,570 Z" fill="#1f2440"/>
+    <rect x="2014" y="588" width="212" height="40" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="2120" y="615" text-anchor="middle" font-family="Georgia, serif" font-size="17" letter-spacing="1" fill="#f3d27a">STITCH &amp; STARLIGHT</text>
+    <rect x="2018" y="652" width="65" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 2051 652 V 726 M 2018 689 H 2083" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="2157" y="652" width="65" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 2190 652 V 726 M 2157 689 H 2222" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 2093 820 V 737 A 27 27 0 0 1 2147 737 V 820 Z" fill="#6b5a2a" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g>
+    <path d="M 2310,820 L 2310,580 L 2294,580 L 2400,470 L 2506,580 L 2490,580 L 2490,820 Z" fill="#5c4a4a"/>
+    <path d="M 2310,580 L 2294,580 L 2400,470 L 2506,580 L 2490,580 Z" fill="#352828"/>
+    <rect x="2324" y="598" width="152" height="40" rx="4" fill="#2a1d12" stroke="#c99a52" stroke-width="2"/>
+    <text x="2400" y="625" text-anchor="middle" font-family="Georgia, serif" font-size="14" letter-spacing="1" fill="#f3d27a">WHISKERS &amp; WINGS</text>
+    <rect x="2328" y="662" width="35" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 2346 662 V 736 M 2328 699 H 2363" stroke="#2a1d12" stroke-width="3"/>
+    <rect x="2437" y="662" width="35" height="74" rx="3" fill="#ffcf6b" stroke="#2a1d12" stroke-width="4"/>
+    <path d="M 2455 662 V 736 M 2437 699 H 2472" stroke="#2a1d12" stroke-width="3"/>
+    <path d="M 2373 820 V 737 A 27 27 0 0 1 2427 737 V 820 Z" fill="#2f6b6b" stroke="#1a120a" stroke-width="4"/>
+  </g>
+  <g><rect x="1270" y="1040" width="10" height="300" fill="#15100c"/><rect x="1259" y="1006" width="32" height="38" rx="4" fill="#ffe2a0" stroke="#15100c" stroke-width="5"/><circle cx="1275" cy="1025" r="70" fill="url(#lampGlow)"/></g>
+  <g><rect x="685" y="630" width="10" height="200" fill="#15100c"/><rect x="674" y="596" width="32" height="38" rx="4" fill="#ffe2a0" stroke="#15100c" stroke-width="5"/><circle cx="690" cy="615" r="70" fill="url(#lampGlow)"/></g>
+  <g><rect x="2270" y="630" width="10" height="200" fill="#15100c"/><rect x="2259" y="596" width="32" height="38" rx="4" fill="#ffe2a0" stroke="#15100c" stroke-width="5"/><circle cx="2275" cy="615" r="70" fill="url(#lampGlow)"/></g>
+  <text x="2360" y="200" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="56" letter-spacing="8" fill="#ffffff" opacity="0.55">PLACEHOLDER</text>
+  <text x="1300" y="1410" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="34" letter-spacing="6" fill="#ffffff" opacity="0.5">PLACEHOLDER PAINTING</text>
+</svg>

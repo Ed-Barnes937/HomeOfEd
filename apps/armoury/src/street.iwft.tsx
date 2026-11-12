@@ -9,6 +9,37 @@ test('a first visit lands on the street with two doors', async ({ mountApp }) =>
   await root.verifyAt('/street')
 })
 
+test('only the wand shop and the smithy are open; the other shops stay shut', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyOnlyOpenShopsAreDoors()
+  await root.tapShutShop('potions')
+  await root.verifyAt('/street')
+})
+
+test('a door can be reached and opened from the keyboard', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  const wands = await root.enterWandShopByKeyboard()
+  await wands.verifyAt('/wands')
+})
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('the street opens on the open shops and slides sideways under the title', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.verifyDoorsInView(['Go into the wand shop', 'Go into the smithy'])
+    await root.scrollStreetTo('end')
+    await root.verifyDoorOutOfView('Go into the wand shop')
+    await root.verifyTitleInView()
+    await root.focusDoor('Go into the wand shop')
+    await root.verifyDoorsInView(['Go into the wand shop'])
+  })
+})
+
 test('each door opens its shop, and the way back leads to the street', async ({ mountApp }) => {
   const { root } = await mountApp()
   const wands = await root.enterWandShop()

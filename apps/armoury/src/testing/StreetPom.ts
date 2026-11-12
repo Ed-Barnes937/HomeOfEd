@@ -24,6 +24,61 @@ export class StreetPom extends BasePage {
     await expect(this.page.getByRole('link', { name: 'Back to home of ed' })).toBeVisible()
   }
 
+  /** The built shops are the only doors; the rest are not links at all. */
+  async verifyOnlyOpenShopsAreDoors(): Promise<void> {
+    const doors = this.shops().getByRole('link')
+    await expect(doors).toHaveCount(2)
+    await expect(doors.nth(0)).toHaveAccessibleName('Go into the wand shop')
+    await expect(doors.nth(1)).toHaveAccessibleName('Go into the smithy')
+  }
+
+  /** Taps the painted front of a shop that is not built yet. */
+  async tapShutShop(id: string): Promise<void> {
+    const box = await this.page.locator(`[data-shut="${id}"]`).boundingBox()
+    if (!box) throw new Error(`no shut shop ${id} on the street`)
+    await this.page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.7)
+  }
+
+  async enterWandShopByKeyboard(): Promise<ShopPom> {
+    await this.focusDoor('Go into the wand shop')
+    await this.page.keyboard.press('Enter')
+    const shop = new ShopPom(this.page)
+    await shop.verifyIsShown()
+    return shop
+  }
+
+  /** Tabs from the top of the page until the door has focus. */
+  async focusDoor(name: string): Promise<void> {
+    const door = this.page.getByRole('link', { name })
+    for (let presses = 0; presses < 4; presses++) {
+      if (await door.evaluate((el) => el === document.activeElement)) break
+      await this.page.keyboard.press('Tab')
+    }
+    await expect(door).toBeFocused()
+  }
+
+  async verifyDoorsInView(names: string[]): Promise<void> {
+    for (const name of names) {
+      await expect(this.page.getByRole('link', { name })).toBeInViewport()
+    }
+  }
+
+  async verifyDoorOutOfView(name: string): Promise<void> {
+    await expect(this.page.getByRole('link', { name })).not.toBeInViewport()
+  }
+
+  /** Swipes the street as far as it goes to one side. */
+  async scrollStreetTo(side: 'start' | 'end'): Promise<void> {
+    await this.shops().evaluate((el, end) => {
+      el.scrollLeft = end ? el.scrollWidth : 0
+    }, side === 'end')
+  }
+
+  async verifyTitleInView(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Armoury', level: 1 })).toBeInViewport()
+    await expect(this.page.getByRole('link', { name: 'Back to home of ed' })).toBeInViewport()
+  }
+
   async verifyAt(path: string): Promise<void> {
     await verifyAt(this.page, path)
   }
@@ -40,6 +95,10 @@ export class StreetPom extends BasePage {
     const smithy = new SmithyPom(this.page)
     await smithy.verifyIsShown()
     return smithy
+  }
+
+  private shops() {
+    return this.page.getByRole('navigation', { name: 'Shops' })
   }
 
   async reload(): Promise<void> {

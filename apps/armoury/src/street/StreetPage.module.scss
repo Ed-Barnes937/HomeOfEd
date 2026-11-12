@@ -1,71 +1,20 @@
-$phone: 899px;
-$cobble-band: 120px;
-
-@mixin cobbles {
-  background-color: #1c1612;
-  background-image:
-    linear-gradient(180deg, rgba(10, 7, 5, 0.1) 0%, rgba(10, 7, 5, 0.75) 100%),
-    radial-gradient(ellipse 44% 38% at 50% 50%, #4a3f35 0 55%, #342b24 85%, transparent 100%),
-    radial-gradient(ellipse 44% 38% at 50% 50%, #443a31 0 55%, #30281f 85%, transparent 100%);
-  background-size:
-    100% 100%,
-    36px 20px,
-    36px 20px;
-  background-position:
-    0 0,
-    0 0,
-    18px 10px;
-}
-
 .street {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 60% 30% at 50% 100%, rgba(255, 170, 90, 0.12), transparent 70%),
-    linear-gradient(180deg, #0d1222 0%, #1b1a2a 38%, #2a1f1c 72%, var(--shop-dark) 100%);
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: $cobble-band;
-    @include cobbles;
-  }
-}
-
-.sky {
-  position: absolute;
-  inset: 0 0 40% 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(circle at 12% 18%, rgba(255, 244, 220, 0.8) 0 1px, transparent 2px),
-    radial-gradient(circle at 27% 9%, rgba(255, 244, 220, 0.6) 0 1px, transparent 2px),
-    radial-gradient(circle at 44% 22%, rgba(255, 244, 220, 0.5) 0 1px, transparent 2px),
-    radial-gradient(circle at 58% 7%, rgba(255, 244, 220, 0.7) 0 1px, transparent 2px),
-    radial-gradient(circle at 71% 16%, rgba(255, 244, 220, 0.5) 0 1px, transparent 2px),
-    radial-gradient(circle at 88% 10%, rgba(255, 244, 220, 0.8) 0 1px, transparent 2px),
-    radial-gradient(circle at 80% 30%, rgba(255, 244, 220, 0.4) 0 1px, transparent 2px),
-    radial-gradient(circle at 35% 34%, rgba(255, 244, 220, 0.35) 0 1px, transparent 2px),
-    radial-gradient(
-      circle at 92% 6%,
-      #f4ead2 0 20px,
-      rgba(244, 234, 210, 0.12) 22px,
-      transparent 60px
-    );
+  background: #0d1020;
 }
 
 .header {
-  position: relative;
-  z-index: 2;
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 1;
   display: flex;
   align-items: baseline;
   gap: 12px;
-  padding: 22px 32px;
+  padding: 22px 32px 48px;
+  background: linear-gradient(180deg, rgba(6, 8, 18, 0.72) 0%, rgba(6, 8, 18, 0) 100%);
+  pointer-events: none;
 }
 
 .hub {
@@ -77,6 +26,7 @@ $cobble-band: 120px;
   margin-left: -10px;
   border-radius: var(--r-control);
   color: var(--ink-muted);
+  pointer-events: auto;
 
   &:hover {
     color: var(--ink);
@@ -89,6 +39,7 @@ $cobble-band: 120px;
   font-weight: 400;
   font-size: 34px;
   line-height: 1;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
 .motto {
@@ -97,240 +48,73 @@ $cobble-band: 120px;
   font-size: 18px;
   letter-spacing: 0.08em;
   color: var(--ink-muted);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
-.fronts {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1fr);
-  align-items: end;
-  gap: 2vw;
-  width: 100%;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 4vw calc(#{$cobble-band} - 92px);
+.view {
+  height: 100%;
 }
 
-.front {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 26px;
-  color: var(--ink);
-  text-decoration: none;
-  border-radius: 6px;
-  outline-offset: 6px;
-
-  &[data-door='wands'] {
-    --accent: var(--brass);
-    --spill: 255, 205, 120;
-  }
-
-  &[data-door='smithy'] {
-    --accent: #e8935a;
-    --spill: 255, 138, 42;
-  }
-}
-
-.art {
+.painting {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: calc(100dvh - 300px);
-  overflow: visible;
-  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.55));
-  transition:
-    transform 220ms ease,
-    filter 220ms ease;
+  height: 100%;
 }
 
-.spill {
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 24px;
-  height: 90px;
-  background: radial-gradient(
-    ellipse 50% 50% at 50% 30%,
-    rgba(var(--spill), 0.28),
-    transparent 75%
-  );
+.door {
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.face {
+  fill: #fff;
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.edge {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.door:hover,
+.door:focus-visible,
+.door:active {
+  .face {
+    opacity: 0.35;
+  }
+
+  .edge {
+    opacity: 1;
+  }
+}
+
+.shut {
+  fill: rgba(4, 6, 16, 0.55);
   pointer-events: none;
 }
 
-.plaque {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  height: 52px;
-  padding: 0 24px;
-  border: 1px solid var(--accent);
-  border-radius: 26px;
-  background: rgba(15, 11, 8, 0.86);
-  box-shadow:
-    0 0 0 4px rgba(var(--spill), 0.08),
-    0 8px 16px rgba(0, 0, 0, 0.5);
-  font-size: 18px;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background 220ms ease;
-}
-
-.front:hover,
-.front:focus-visible {
-  .art {
-    transform: translateY(-4px);
-    filter: drop-shadow(0 22px 26px rgba(0, 0, 0, 0.6)) brightness(1.08);
-  }
-
-  .plaque {
-    background: rgba(var(--spill), 0.18);
-  }
-}
-
-.signText {
-  font-family: var(--font-display);
-  font-size: 23px;
-  letter-spacing: 0.04em;
-}
-
-// A lamp post on the street between the two shops.
-.lamp {
-  position: relative;
-  align-self: end;
-  justify-self: center;
-  width: 8px;
-  height: min(52vh, 420px);
-  margin-bottom: 40px;
-  border-radius: 3px 3px 0 0;
-  background: linear-gradient(90deg, #15100c, #2e2620 50%, #15100c);
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: -30px;
-    left: 50%;
-    width: 26px;
-    height: 34px;
-    transform: translateX(-50%);
-    border: 3px solid #15100c;
-    border-radius: 4px 4px 2px 2px;
-    background: radial-gradient(circle at 50% 55%, #fff1c4 0 25%, #f2b056 70%);
-    box-shadow: 0 0 40px 14px rgba(255, 200, 120, 0.22);
-  }
-}
-
-.flicker {
-  animation: flicker 3.4s infinite;
-}
-
-.flame {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: flame 1.3s ease-in-out infinite alternate;
-}
-
-.glow {
-  animation: glow 4.2s ease-in-out infinite alternate;
-}
-
-.smoke circle {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: smoke 7s linear infinite;
-
-  &:nth-child(2) {
-    animation-delay: -2.3s;
-  }
-
-  &:nth-child(3) {
-    animation-delay: -4.6s;
-  }
-}
-
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  18% {
-    opacity: 0.9;
-  }
-  22% {
-    opacity: 0.97;
-  }
-  51% {
-    opacity: 0.88;
-  }
-  56% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 0.93;
-  }
-}
-
-@keyframes flame {
-  from {
-    transform: scale(1, 1);
-  }
-  to {
-    transform: scale(0.85, 1.12);
-  }
-}
-
-@keyframes glow {
-  from {
-    opacity: 0.88;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes smoke {
-  0% {
-    transform: translateY(24px) scale(0.6);
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-60px) scale(1.4);
-    opacity: 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .flicker,
-  .flame,
-  .glow,
-  .smoke circle {
-    animation: none;
-  }
-
-  .art,
-  .plaque {
+  .face,
+  .edge {
     transition: none;
   }
-
-  .front:hover .art,
-  .front:focus-visible .art {
-    transform: none;
-  }
 }
 
-@media (max-width: $phone) {
-  .street::after {
-    display: none;
-  }
-
+// A tall screen keeps the painting's full height and lets the street slide sideways.
+@media (orientation: portrait) {
   .header {
-    padding: 10px 16px 6px 16px;
+    padding: 10px 16px 36px;
   }
 
   .title {
@@ -341,46 +125,14 @@ $cobble-band: 120px;
     font-size: 15px;
   }
 
-  .fronts {
-    grid-template-columns: minmax(0, 1fr);
-    align-content: space-evenly;
-    gap: 14px;
-    padding: 0 16px 16px;
+  .view {
+    overflow: auto hidden;
+    overscroll-behavior-x: none;
+    scrollbar-width: thin;
   }
 
-  .lamp {
-    display: none;
-  }
-
-  .front {
-    gap: 10px;
-    padding-bottom: 4px;
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: -16px;
-      right: -16px;
-      bottom: 0;
-      height: 46px;
-      @include cobbles;
-    }
-  }
-
-  .art {
+  .painting {
     width: auto;
-    max-width: 100%;
-    height: calc((100dvh - 210px) / 2);
-    max-height: none;
-  }
-
-  .spill {
-    bottom: 0;
-    height: 50px;
-  }
-
-  .plaque {
-    height: 44px;
-    font-size: 17px;
+    max-width: none;
   }
 }
