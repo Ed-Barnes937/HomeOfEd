@@ -26,6 +26,11 @@ light half must be safe for the main chunk.
   `[1, neckRadiusMm]`. `shoulderZ` is `bodyHeightMm`. The body and a flat neck are one
   monotone cubic (`sword/curve.ts`), so the join has no overshoot and a level tangent.
   `neckMm` runs from there to the top of the lip.
+- **Neck ranges and the drawn height.** The neck ranges were retuned from 10-45 mm to
+  16-40 (round, shoulder), 16-42 (teardrop, gourd) and 18-45 (tall): a stopper's plug needs
+  a straight bore to sit in. The stopper allowance above the lip is 16 mm, so the tallest
+  bottle (`TALLEST_MM`) is 211 mm, and a round flask at neck 0 frames at about 0.57 of the
+  stage against the spec's "about 0.6".
 - **`profile.ts` (main chunk safe)** builds dense closed curves with exact normals (from the
   curve's derivative, never from triangles): a domed push-up and a ring to stand on, a
   rounded foot, the body, the neck, a rolled lip bead (a half round as proud as `lipMm`), a
@@ -36,8 +41,9 @@ light half must be safe for the main chunk.
   `uprightLevels` puts band k's top where the cavity holds k quarters of the volume to
   `fullZ`, so every pour adds the same volume (tests: within 1 percent against Simpson's
   rule). Fewer pours are the first levels of four.
-- **The cavity runs up the bore to the bottom of the stopper** (`PLUG_MM` 18 below the lip
-  top, the same for every stopper), and the liquid mesh with it, 0.3 mm inside the glass.
+- **The cavity runs up the bore to the bottom of the stopper** (18 mm below the lip top,
+  the same for every stopper, or 2 mm above the shoulder on a neck too short for that, so no
+  plug ever shows below the neck), and the liquid mesh with it, 0.3 mm inside the glass.
   The ticket said the liquid stops at the bottom of the bore; on a full tall bottle at
   60 degrees the liquid reaches the neck, so the mesh and the tipped table include it.
 - **Tipped levels (`tipped.ts`, not the main chunk).** `levelTable` stores, every 5 degrees
@@ -46,15 +52,25 @@ light half must be safe for the main chunk.
   the exact disc-segment area. By symmetry the tilt's direction does not matter. `levelsAt`
   interpolates linearly. Measured against independent quadrature, every band of every
   shape keeps its volume within 2 percent to 60 degrees, including between rows, and within
-  5 percent at 90. A table costs about 15 ms; build it once per potion.
+  5 percent at 90. A table costs several milliseconds; build it once per spec, never per
+  frame.
+- **The frame of a tipped level.** A level h is the plane dot(p, u) = h, where p is a point
+  in the bottle's own millimetre frame (origin at the foot's centre) and u is world up
+  expressed in that frame (the inverse of the bottle's rotation applied to world up).
+  Upright, u is +z and the test reduces to `aHeight`, the vertex's height along the
+  bottle's axis; tipped, a shader must use dot(p, u), not `aHeight`.
 - **Stoppers.** Each is a lathe that fills the bore to 18 mm down, 0.05 mm inside it:
   `cork` a tapered plug 60 percent in the bore, chamfered; `glass` a ground plug, a collar
-  on the lip, a stem and a teardrop knob that reaches `heightMm`; `wax` a shorter cork
-  under a dipped seal that hugs the cork, the lip and the neck inside and is a flat-topped,
-  round-edged cap outside, with four flattened drips down the neck that stop above the
-  shoulder. The stopper allowance is now 16 mm: the glass knob reaches it, the cork stops
-  4 mm short, the wax cap 9 mm short. `heightMm` stays stopper-free (`compile.ts` is
-  unchanged) so a bottle is framed the same whatever its stopper.
+  on the lip, a stem and a teardrop knob that reaches `heightMm`; `wax` a cork 4 mm above
+  the lip, dipped: the wax hugs the cork, the lip and the neck inside; outside it is a soft
+  superellipse dome from the bead over the cork, a thinner coat down the neck and a roll
+  where the dip ended. The mesh lifts the lathe unevenly (the dome tilts, the roll wanders
+  about a millimetre up and down round the neck), with normals carried through the lift
+  exactly, and six flattened drips of different lengths, fatter at the foot, hang from
+  inside the roll (shortened together on a short neck, and kept clear of a tag's string).
+  `heightMm` is the top of the 16 mm stopper allowance: the glass knob reaches it, the cork
+  and the wax stop below it. It is the same for every stopper, so a bottle is framed the
+  same whatever its stopper.
 - **Labels face the child, along -y** (`FRONT_ANGLE`). Paper is a closed sheet 0.3 to
   0.42 mm off the glass along its normal, its UVs in millimetres across the paper, centred:
   `round` a disc on the middle of the body's widest band, 40 percent of the body's height
@@ -66,12 +82,18 @@ light half must be safe for the main chunk.
   because a threaded hairpin folded the tube.
 - **Parts and budgets.** `buildPotionMesh` returns `glass` (64 segments), `liquid` (64),
   `stopper` (40) and `label` (or `null`), each closed, consistently wound and with outward
-  unit normals, plus a per-vertex `aHeight` in mm. Budgets are asserted on vertex counts:
-  glass 20k, liquid 10k, stopper and label 8k, total 40k. Across every shape, neck, stopper
-  and label the most is glass 13.1k, liquid 4.7k, stopper and label 6.9k, total 24.3k.
-- **Outline (`outline.ts`, main chunk safe).** The glass's outer silhouette, the stopper's
-  envelope and one polygon per band clipped to the cavity at the upright levels with its
-  colour, x across and y up from the foot, plus `widthMm` and `heightMm`.
+  unit normals, plus a per-vertex `aHeight`, the height in mm along the bottle's axis. Every
+  connected piece of a part (a drip, the cork under the wax, the tag's string) encloses a
+  positive volume, so an inside-out piece fails a test even when the part's total does not.
+  Budgets are asserted on vertex counts: glass 20k, liquid 10k, stopper and label 8k, total
+  40k. Across all 1,260 combinations (necks in 0.05 steps) the most is glass 13.1k (gourd,
+  neck 1), liquid 4.7k (gourd, neck 0.9), stopper and label 6.4k (round, neck 0.05, wax,
+  tag), total 23.8k (gourd, neck 1, wax, round label); the test catalogue names these.
+- **Outline (`outline.ts`, main chunk safe).** `potionOutline` returns a `PotionSilhouette`:
+  the glass's outer silhouette, the stopper's envelope and one polygon per band clipped to
+  the cavity at the upright levels with its colour, x across and y up from the foot, plus
+  `widthMm` and `heightMm`. The shelf's `PotionOutline` draws it, flipping y to SVG's
+  `heightMm - y` and keeping the stopper's colour itself.
 - **What the main chunk may import:** `profile.ts` and `outline.ts` import only
   `sword/curve.ts`, `bottles.ts`, `compile.ts` and `potionSchema.ts` (a test pins it).
   `geometry.ts` and `tipped.ts` are for the stage's lazy chunk only.
