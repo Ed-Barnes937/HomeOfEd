@@ -1,6 +1,6 @@
 # 01 - Look spike: one hero bottle, one contact sheet (DO NOT MERGE)
 
-**Status:** ready-for-human (the sheet is at `shots/01/contact-sheet.png`; waiting for Ed to pick)
+**Status:** done (Ed picked glass G1, liquid L2, light M1, share picture P2; E9 to E12 in `decisions.md`)
 **Type:** spike
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none

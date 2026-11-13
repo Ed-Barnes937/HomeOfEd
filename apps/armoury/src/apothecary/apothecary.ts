@@ -3,6 +3,7 @@ import { paintApothecaryCard } from '../share/apothecaryCard.ts'
 import type { ShopCopy, ShopView } from '../shop/shopView.ts'
 import { BrewingTable } from './BrewingTable.tsx'
 import { visibleGroups } from './potionGroups.ts'
+import { potionWidget } from './potionWidgets.tsx'
 
 export const apothecaryCopy: ShopCopy = {
   motto: 'potions poured to order',
@@ -31,6 +32,7 @@ export const apothecary: ShopView = {
   copy: apothecaryCopy,
   Scene: BrewingTable,
   groups: visibleGroups,
+  widget: potionWidget,
   paintCard: paintApothecaryCard,
   closeUp: { flashDelaySeconds: null, flourishOnArrival: false },
 }
