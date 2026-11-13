@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
+import { PlayerCircle } from '../features/player/PlayerCircle.tsx'
 import { formatShortDate } from '../formatDate.ts'
 import { DIFFICULTIES, type Difficulty } from '../server/wordGenerator.ts'
 import { ArrowLeftIcon } from './icons.tsx'
@@ -11,8 +12,8 @@ type WordHeaderProps = { level: Difficulty }
 /**
  * The word screen's top bar (frames 5b/5e). Back link to the picker —
  * "Levels" on mobile, "All levels" on desktop — then the level pill (number
- * badge + name) pushed right, and the theme toggle. Desktop adds the date
- * between the back link and the pill.
+ * badge + name) pushed right, the theme toggle, and the player circle when
+ * someone is signed in. Desktop adds the date between the back link and the pill.
  */
 export function WordHeader({ level }: WordHeaderProps) {
   return (
@@ -29,6 +30,7 @@ export function WordHeader({ level }: WordHeaderProps) {
           {level}
         </span>
         <ThemeToggle />
+        <PlayerCircle />
       </div>
     </header>
   )
