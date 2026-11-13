@@ -155,6 +155,10 @@ diameter, 18 to 22 mm):
   3.7 mm about the same centre, on every shape. Volumes still come from the cavity's own curve, so
   pours stay equal to within 1.2 millionths against Simpson's rule (tests: 1e-5), and the tipped
   bands within 0.35 percent to 60 degrees (tests: 0.4 percent).
+- **The cavity's inset drops any step more than 60 degrees off the curve's tangent at either
+  end** (it dropped only steps running backwards along the source), so the square shoulders'
+  inner wall no longer folds a lathe ring at necks 0.625 to 0.67. Only that shape moves: its
+  inner wall by at most 0.01 mm and its liquid by 0.05 mm; every outer silhouette is unchanged.
 - **Budgets after round 2**, across all 1,260 combinations: glass 13.6k (gourd, neck 1, cork, no
   label), liquid 5.2k (gourd, neck 0.9), stopper and label 7.5k (round, neck 0.9, wax, tag),
   total 25.0k (gourd, neck 1, wax, tag).
