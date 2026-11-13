@@ -10,7 +10,9 @@
   ADR 0093 (the estate gate that sends visitors here). Implements estate-gate
   ticket 05, decisions 4 and 6 of
   [the estate-gate spec](../../.scratch/estate-gate/spec.md); ticket 06 (silent
-  renewal) amends it.
+  renewal) amends it. [ADR 0103](0103-account-picker-and-settings.md) amends
+  decision 1 (`/account/settings` counts as the arrival's page) and adds the
+  go-home rule after a pick with nowhere to return to.
 
 ## Context
 

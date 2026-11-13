@@ -10,6 +10,8 @@
   service), [ADR 0057](0057-family-service-legal-gate.md) (the gate on merging
   anything user-facing), [ADR 0012](0012-sprout-app-owned-auth.md) (sprout's
   client-set child cookie, the precedent for setting this one client-side).
+  [ADR 0103](0103-account-picker-and-settings.md) splits the screens into a
+  picker and `/account/settings`.
   Implements first-slice ticket 06; the design is
   [the first-slice spec](../../.scratch/family-first-slice/spec.md) §6.
 

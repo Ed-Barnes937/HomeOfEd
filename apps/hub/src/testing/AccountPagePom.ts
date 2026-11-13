@@ -35,7 +35,7 @@ export class AccountPagePom extends BasePage {
 
   async verifyIsShown(): Promise<void> {
     await this.goto()
-    await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    await this.verifyArrived()
   }
 
   async goto(): Promise<void> {
@@ -146,7 +146,59 @@ export class AccountPagePom extends BasePage {
   }
 
   async verifyArrived(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    await expect(this.page.getByRole('heading', { level: 1 })).toHaveText(
+      /^(Account|Who is playing\?)$/,
+    )
+  }
+
+  /** The cog, for grown-ups: everything that is not picking a profile. */
+  async openSettings(): Promise<void> {
+    await this.page.getByRole('link', { name: 'Grown-up settings' }).click()
+    await expect(this.page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible()
+  }
+
+  async backToPicker(): Promise<void> {
+    await this.page.getByRole('link', { name: 'Who is playing', exact: true }).click()
+    await expect(this.page.getByRole('heading', { name: 'Who is playing?' })).toBeVisible()
+  }
+
+  /** One big circle per profile, in order, each showing its initial over its name. */
+  async verifyPickerShows(profiles: readonly { name: string; initial: string }[]): Promise<void> {
+    const circles = this.pickerChoices()
+    await expect(circles).toHaveText(profiles.map(({ name, initial }) => `${initial}${name}`))
+    for (const { name } of profiles) {
+      const box = await this.pickerChoice(name).boundingBox()
+      expect(box!.width).toBeGreaterThanOrEqual(96)
+      expect(box!.height).toBeGreaterThanOrEqual(96)
+    }
+  }
+
+  async verifyPickerOffers(name: string): Promise<void> {
+    await expect(this.pickerChoice(name)).toBeVisible()
+  }
+
+  /** None of the grown-up cards are on the picker. */
+  async verifyNoSettingsOnPicker(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Who is playing?' })).toBeVisible()
+    await expect(this.page.getByRole('heading', { name: 'Child profiles' })).toHaveCount(0)
+    await expect(this.page.getByRole('heading', { name: 'This account' })).toHaveCount(0)
+    await expect(this.page.getByRole('button', { name: 'Sign out' })).toHaveCount(0)
+    await expect(this.page.getByText('Signed in as')).toHaveCount(0)
+    await expect(this.page.getByRole('textbox')).toHaveCount(0)
+  }
+
+  async verifyLandedHomePlayingAs(name: string): Promise<void> {
+    await expect(this.page).toHaveURL(/^[^?#]*\/$/)
+    await expect(this.page.getByRole('heading', { name: 'home of ed' })).toBeVisible()
+    await expect(this.page.getByRole('link', { name: `Playing as ${name}`, exact: true })).toBeVisible()
+  }
+
+  private pickerChoices(): Locator {
+    return this.page.getByRole('list', { name: 'Profiles' }).getByRole('button')
+  }
+
+  private pickerChoice(name: string): Locator {
+    return this.pickerChoices().filter({ has: this.page.getByText(name, { exact: true }) })
   }
 
   /** The browser keeps refusing the family cookie: writes are silently dropped. */
@@ -212,10 +264,6 @@ export class AccountPagePom extends BasePage {
     await expect(this.page.getByText(SERVICE_DOWN)).toBeVisible()
   }
 
-  async verifyPlayingNote(name: string): Promise<void> {
-    await expect(this.page.getByText(`Playing now: ${name}`)).toBeVisible()
-  }
-
   /** Stand in for the estate apps' origins, so a return lands on a real page. */
   async serveEstateApps(): Promise<void> {
     await AccountPagePom.serveEstateApps(this.page)
@@ -234,7 +282,7 @@ export class AccountPagePom extends BasePage {
 
   async verifyStillOnAccount(): Promise<void> {
     await expect(this.page).toHaveURL(/\/account(\?|#|$)/)
-    await expect(this.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    await this.verifyArrived()
   }
 
   async verifyOffersSharedItem(href: string, opts: { timeout?: number } = {}): Promise<void> {
@@ -332,7 +380,13 @@ export class AccountPagePom extends BasePage {
     return this.page.evaluate(() => Date.now())
   }
 
+  /** Signed in, the picker is the page, so the parent's own circle shows it. */
   async verifySignedInAs(name: string): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Who is playing?' })).toBeVisible()
+    await this.verifyPickerOffers(name)
+  }
+
+  async verifySettingsSignedInAs(name: string): Promise<void> {
     await expect(this.page.getByText(`Signed in as ${name}`)).toBeVisible()
   }
 
@@ -457,21 +511,18 @@ export class AccountPagePom extends BasePage {
   }
 
   async pickWhoIsPlaying(name: string): Promise<void> {
-    await this.page.getByRole('button', { name, exact: true }).click()
+    await this.pickerChoice(name).click()
   }
 
   async verifyPlayingNow(name: string): Promise<void> {
-    await expect(this.page.getByText(`Playing now: ${name}`)).toBeVisible()
-    await expect(this.page.getByRole('button', { name, exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    await expect(this.pickerChoice(name)).toHaveAttribute('aria-pressed', 'true')
+    await expect(this.pickerChoices().and(this.page.locator('[aria-pressed="true"]'))).toHaveCount(1)
   }
 
   async verifyNobodyIsPlaying(): Promise<void> {
-    await expect(
-      this.page.getByText('Nobody yet. Pick a profile and this device will save to it.'),
-    ).toBeVisible()
+    await expect(this.page.getByRole('heading', { name: 'Who is playing?' })).toBeVisible()
+    await expect(this.pickerChoices().first()).toBeVisible()
+    await expect(this.pickerChoices().and(this.page.locator('[aria-pressed="true"]'))).toHaveCount(0)
   }
 
   /**

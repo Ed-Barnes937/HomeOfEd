@@ -17,7 +17,16 @@ const accountRoute = createRoute({
   component: AccountPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, accountRoute])
+// A child of /account, so the page (and any silent renewal) stays mounted between the two.
+const accountSettingsRoute = createRoute({
+  getParentRoute: () => accountRoute,
+  path: 'settings',
+})
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  accountRoute.addChildren([accountSettingsRoute]),
+])
 
 export const router = createRouter({ routeTree })
 

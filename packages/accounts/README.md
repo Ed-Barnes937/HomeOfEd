@@ -15,7 +15,9 @@ Four entry points keep node-only code out of browser bundles:
   `FamilyIdentityContract` + `createFamilyIdentityClient`,
   `FamilyClientError` and `SaveAccountMismatchError`, `readFamilySession`
   (decode-only claims read for display) and its write half,
-  `writeFamilySession` / `clearFamilySession`.
+  `writeFamilySession` / `clearFamilySession`, and `profileInitial(name)`, the
+  letter any app shows for a profile with no avatar (first grapheme of the
+  trimmed name, upper-cased; `''` for a blank name).
   The estate gate's browser half: `ESTATE_APPS`, `safeReturnTo`, `accountUrl`,
   `sharedUrl`, `profileScopedKey` and `adoptLegacyDocument` (below), and what an
   app calls to sit behind it: `profileStorage`, `memoryStorage`,
