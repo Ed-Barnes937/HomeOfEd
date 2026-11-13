@@ -10,10 +10,10 @@ import { BASE_MM, bottleProfile, type BottleProfile, uprightLevels } from './pro
 import { levelsAt, levelTable } from './tipped.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
-const FOUR: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal', 'bluebell']
+const THREE: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
 const RAD = Math.PI / 180
 
-const specOf = (shape: ShapeId, neck: number, pours = FOUR): PotionSpec =>
+const specOf = (shape: ShapeId, neck: number, pours = THREE): PotionSpec =>
   compilePotion(normalise(potionSchema, { ...withPours(pours), shape, neck }))
 
 const CATALOGUE = SHAPES.flatMap((shape) =>
@@ -63,8 +63,8 @@ describe('levelTable', () => {
     const { table } = CATALOGUE[0]!
     expect(table.stepDeg).toBe(5)
     expect(table.levels).toHaveLength(19)
-    for (const row of table.levels) expect(row).toHaveLength(4)
-    expect(levelTable(specOf('round', 0.5, FOUR.slice(0, 2))).levels[3]).toHaveLength(2)
+    for (const row of table.levels) expect(row).toHaveLength(3)
+    expect(levelTable(specOf('round', 0.5, THREE.slice(0, 2))).levels[3]).toHaveLength(2)
     expect(levelTable(specOf('round', 0.5, [])).levels[3]).toEqual([])
   })
 
@@ -80,7 +80,7 @@ describe('levelTable', () => {
   })
 
   it.each(CATALOGUE)('$name: every band keeps its volume as it tips', ({ profile, table }) => {
-    const quarter = profile.cavityVolume(profile.fullZ) / 4
+    const quarter = profile.cavityVolume(profile.fullZ) / 3
     for (const [deg, bound] of [
       [0, 0.02],
       [15, 0.02],

@@ -6,6 +6,7 @@ import { BOTTLES, drawnHeightMm } from './bottles.ts'
 import { compilePotion } from './compile.ts'
 import { TALLEST_MM } from './framing.ts'
 import { type IngredientId, INGREDIENTS, ingredient } from './ingredients.ts'
+import { mixPotion } from './mix.ts'
 import { potionSchema } from './potionSchema.ts'
 import { pourList, withPours } from './pours.ts'
 
@@ -28,7 +29,8 @@ describe('compilePotion', () => {
       glass: 'clear',
       stopper: 'cork',
       label: 'round',
-      fill: 0.75,
+      fill: 1,
+      mixed: false,
       waxColour: null,
     })
     expect(spec.layers).toEqual([
@@ -56,7 +58,7 @@ describe('compilePotion', () => {
         expect(l.colour).toBe(ingredient(l.ingredient).colour)
         expect(l.trait).toBe(ingredient(l.ingredient).trait)
       }
-      expect(spec.fill).toBe(pours.length / 4)
+      expect(spec.fill).toBe(pours.length / 3)
     }
   })
 
@@ -65,6 +67,34 @@ describe('compilePotion', () => {
       const brought = new Set(pours.map((id) => ingredient(id).colour))
       for (const l of compilePotion(potion(pours)).layers) expect(brought.has(l.colour)).toBe(true)
     }
+  })
+
+  describe('the mix', () => {
+    const recipe: [IngredientId, IngredientId, IngredientId] = ['frogfizz', 'frogfizz', 'bluebell']
+
+    it('is there whenever three are in, mixed or not, and null below three', () => {
+      expect(compilePotion(potion([...recipe])).mix).toEqual(mixPotion(recipe))
+      expect(compilePotion(potion([...recipe])).mixed).toBe(false)
+      expect(compilePotion(potion([...recipe], { mixed: 'yes' })).mixed).toBe(true)
+      expect(compilePotion(potion([...recipe], { mixed: 'yes' })).mix).toEqual(mixPotion(recipe))
+      expect(compilePotion(potion(['frogfizz', 'bluebell'])).mix).toBeNull()
+      expect(compilePotion(potion([])).mixed).toBe(false)
+    })
+
+    it('keeps the layers unmixed and a mixed potion full', () => {
+      const spec = compilePotion(potion([...recipe], { mixed: 'yes' }))
+      expect(spec.layers.map((l) => l.ingredient)).toEqual(recipe)
+      expect(spec.fill).toBe(1)
+    })
+
+    it('takes the wax from the mixed colour when mixed, the top layer when not', () => {
+      const darkened = (hex: string) =>
+        linearToSrgb(srgbToLinear(hex).map((v) => v * 0.65) as LinearRgb)
+      const mixed = compilePotion(potion([...recipe], { mixed: 'yes', stopper: 'wax' }))
+      expect(mixed.waxColour).toBe(darkened(mixPotion(recipe).colour))
+      const unmixed = compilePotion(potion([...recipe], { stopper: 'wax' }))
+      expect(unmixed.waxColour).toBe(darkened(ingredient('bluebell').colour))
+    })
   })
 
   describe('waxColour', () => {

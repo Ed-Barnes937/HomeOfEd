@@ -1,24 +1,40 @@
 import { describe, expect, it } from 'vitest'
 
 import { isForbiddenName } from './doNotUse.ts'
-import { type EffectKind, INGREDIENTS, ingredient, MURK, type Trait } from './ingredients.ts'
+import { type EffectKind, INGREDIENTS, ingredient, type Trait } from './ingredients.ts'
+import { mixPotion } from './mix.ts'
 
-const TRAITS: Trait[] = ['clear', 'cloud', 'fizz', 'glitter', 'glow', 'swirl']
+const TRAITS: Trait[] = ['clear', 'cloud', 'fizz', 'glitter', 'glow', 'swirl', 'murk']
 const EFFECTS: EffectKind[] = ['floating', 'sparkling', 'dreamy', 'glowing', 'whirling', 'whiffy']
 
 describe('INGREDIENTS', () => {
-  it('has the nine ids in the spec order', () => {
+  it('has the nine ids in wheel order, each at its own place', () => {
     expect(INGREDIENTS.map((i) => i.id)).toEqual([
-      'moonmilk',
-      'frogfizz',
-      'starpetal',
       'emberroot',
-      'bluebell',
-      'rosehip',
-      'thundercloud',
+      'starpetal',
+      'frogfizz',
       'snailshine',
-      'bogmurk',
+      'bluebell',
+      'thundercloud',
+      'moonmilk',
+      'rosehip',
+      'puffcap',
     ])
+    expect(INGREDIENTS.map((i) => i.wheel)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8])
+  })
+
+  it('gives no ingredient the murk trait, and has Puffcap in place of Bog murk', () => {
+    expect(INGREDIENTS.some((i) => i.trait === 'murk')).toBe(false)
+    expect(INGREDIENTS.some((i) => i.id === ('bogmurk' as string))).toBe(false)
+    expect(ingredient('puffcap')).toMatchObject({
+      label: 'Puffcap',
+      colour: '#c9343f',
+      effect: 'whiffy',
+    })
+  })
+
+  it('has an own effect that agrees with the mix of three of it', () => {
+    for (const i of INGREDIENTS) expect(mixPotion([i.id, i.id, i.id]).outcome).toBe(i.effect)
   })
 
   it('has hex colours, known traits and known effects', () => {
@@ -46,7 +62,6 @@ describe('INGREDIENTS', () => {
       trait: 'fizz',
       effect: 'floating',
     })
-    expect(ingredient(MURK).label).toBe('Bog murk')
   })
 
   it('has no label, word or lore line that is a forbidden name', () => {

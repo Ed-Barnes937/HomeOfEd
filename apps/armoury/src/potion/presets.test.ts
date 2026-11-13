@@ -6,6 +6,7 @@ import { BOTTLES } from './bottles.ts'
 import { potionName } from './describe.ts'
 import { isForbiddenName } from './doNotUse.ts'
 import { INGREDIENTS } from './ingredients.ts'
+import { potionMix } from './mix.ts'
 import { potionPresets } from './presets.ts'
 import { potionSchema } from './potionSchema.ts'
 import { pourList } from './pours.ts'
@@ -47,7 +48,7 @@ describe('potionPresets', () => {
       pour1: 'moonmilk',
       pour2: 'rosehip',
       pour3: 'starpetal',
-      pour4: 'none',
+      mixed: 'no',
     })
   })
 
@@ -58,6 +59,21 @@ describe('potionPresets', () => {
     for (const v of optionValues('label')) expect(used('label')).toContain(v)
     const poured = new Set(potionPresets.flatMap((p) => pourList(p.params)))
     for (const i of INGREDIENTS) expect(poured).toContain(i.id)
+  })
+
+  it('covers all seven outcomes, murky included', () => {
+    const outcomes = new Set(potionPresets.map((p) => potionMix(p.params)?.outcome))
+    expect(outcomes).toEqual(
+      new Set(['glowing', 'floating', 'sparkling', 'whirling', 'dreamy', 'whiffy', 'murky']),
+    )
+  })
+
+  it('is mixed except for the first-visit potion, which is full', () => {
+    expect(potionPresets.map((p) => p.params.mixed)).toEqual([
+      'no',
+      ...Array<string>(7).fill('yes'),
+    ])
+    expect(pourList(potionPresets[0]!.params)).toHaveLength(3)
   })
 
   it('includes at least one secret blend', () => {

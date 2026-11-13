@@ -5,6 +5,7 @@ import { SECRET_BLENDS } from './blends.ts'
 import { BOTTLES, type ShapeId } from './bottles.ts'
 import {
   countInWords,
+  isGold,
   nameFrom,
   potionGlowColour,
   potionLore,
@@ -16,39 +17,42 @@ import {
 import { isForbiddenName } from './doNotUse.ts'
 import { EFFECTS } from './effects.ts'
 import { ingredient, INGREDIENTS, type IngredientId } from './ingredients.ts'
+import { mixPotion } from './mix.ts'
 import { potionPresets } from './presets.ts'
 import { potionSchema } from './potionSchema.ts'
 import { withPours } from './pours.ts'
 
 const potion = (pours: IngredientId[], rest: Params = {}) =>
   normalise(potionSchema, { ...withPours(pours), ...rest })
+const mixed = (pours: IngredientId[], rest: Params = {}) => potion(pours, { mixed: 'yes', ...rest })
 const sentences = (text: string) => text.split(/[.!?]/).filter((s) => s.trim() !== '')
 const DRINKING =
   /\b(drink|drinks|drank|sip|sips|taste|tastes|tasty|swallow|gulp|gulps|yum|delicious|eat|eats)\b/i
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
+const ids = INGREDIENTS.map((i) => i.id)
 
-const catalogue = (): Params[] => {
-  const ids = INGREDIENTS.map((i) => i.id)
-  const out: Params[] = [potion([])]
-  for (const shape of SHAPES) {
-    for (const a of ids) {
-      out.push(potion([a], { shape }), potion([a, a, a, a], { shape }))
-      for (const b of ids) out.push(potion([a, b], { shape }))
-    }
-  }
-  for (const blend of SECRET_BLENDS) out.push(potion(blend.pours))
-  for (const preset of potionPresets) out.push(normalise(potionSchema, preset.params))
+const unmixedFills = (): IngredientId[][] => [
+  [],
+  ...ids.map((a) => [a]),
+  ...ids.flatMap((a) => ids.map((b) => [a, b])),
+  ...ids.flatMap((a) => ids.flatMap((b) => ids.map((c) => [a, b, c]))),
+]
+const multisets = (): IngredientId[][] => {
+  const out: IngredientId[][] = []
+  for (let a = 0; a < 9; a++)
+    for (let b = a; b < 9; b++) for (let c = b; c < 9; c++) out.push([ids[a]!, ids[b]!, ids[c]!])
   return out
 }
 
+const catalogue = (): Params[] => [
+  ...unmixedFills().map((pours) => potion(pours)),
+  ...SHAPES.flatMap((shape) => multisets().map((m) => mixed(m, { shape }))),
+  ...potionPresets.map((preset) => normalise(potionSchema, preset.params)),
+]
+
 describe('countInWords', () => {
-  it('spells one to four, singular for one', () => {
-    expect([1, 2, 3, 4].map(countInWords)).toEqual([
-      'One pour',
-      'Two pours',
-      'Three pours',
-      'Four pours',
-    ])
+  it('spells one to three, singular for one', () => {
+    expect([1, 2, 3].map(countInWords)).toEqual(['One pour', 'Two pours', 'Three pours'])
   })
 })
 
@@ -57,56 +61,102 @@ describe('potionName', () => {
     expect(potionName(potion([]))).toBe('An Empty Bottle')
   })
 
-  it('names a secret blend by its own name, ahead of every other rule', () => {
-    expect(potionName(potion(['bogmurk', 'bogmurk', 'bogmurk', 'bogmurk']))).toBe(
-      'Bottom of the Pond',
+  it('names the layers by word, in pour order, until it is mixed', () => {
+    expect(potionName(potion(['moonmilk']))).toBe('Moonmilk')
+    expect(potionName(potion(['moonmilk', 'rosehip']))).toBe('Moonmilk and Rosehip')
+    expect(potionName(potion(['moonmilk', 'rosehip', 'starpetal']))).toBe(
+      'Moonmilk, Rosehip and Starpetal',
     )
-    expect(potionName(potion(['thundercloud', 'moonmilk']))).toBe('The Moon Behind the Storm')
   })
 
-  it('calls two or more of one ingredient Pure, with its label in title case', () => {
-    expect(potionName(potion(['starpetal', 'starpetal']))).toBe('Pure Starpetal')
-    expect(potionName(potion(['bluebell', 'bluebell', 'bluebell']))).toBe('Pure Bluebell Dew')
-    expect(potionName(potion(['bogmurk', 'bogmurk']))).toBe('Pure Bog Murk')
+  it('folds repeats into the place of the first, ahead of any blend', () => {
+    expect(potionName(potion(['frogfizz', 'frogfizz', 'bluebell']))).toBe(
+      'Double Frogfizz and Bluebell',
+    )
+    expect(potionName(potion(['frogfizz', 'bluebell', 'frogfizz']))).toBe(
+      'Double Frogfizz and Bluebell',
+    )
+    expect(potionName(potion(['bluebell', 'frogfizz', 'frogfizz']))).toBe(
+      'Bluebell and Double Frogfizz',
+    )
+    expect(potionName(potion(['starpetal', 'starpetal', 'starpetal']))).toBe('Triple Starpetal')
+    expect(potionName(potion(['rosehip', 'rosehip']))).toBe('Double Rosehip')
   })
 
-  it('otherwise joins the effect word, the main ingredient and the shape noun', () => {
-    expect(potionName(potion(['frogfizz'], { shape: 'teardrop' }))).toBe('Floating Frogfizz Tonic')
-    expect(potionName(potion(['bogmurk'], { shape: 'round' }))).toBe('Whiffy Bogmurk Brew')
-    expect(potionName(potion(['moonmilk', 'rosehip'], { shape: 'tall' }))).toBe(
-      'Whirling Rosehip Drops',
+  it('names the effect, the main ingredient and the shape noun once mixed', () => {
+    expect(potionName(mixed(['moonmilk', 'rosehip', 'starpetal']))).toBe('Dreamy Rosehip Potion')
+    expect(potionName(mixed(['frogfizz', 'frogfizz', 'bluebell'], { shape: 'tall' }))).toBe(
+      'Floating Frogfizz Essence',
     )
-    expect(potionName(potion(['starpetal', 'moonmilk', 'starpetal'], { shape: 'shoulder' }))).toBe(
-      'Sparkling Starpetal Mixture',
+    expect(potionName(mixed(['emberroot', 'emberroot', 'puffcap'], { shape: 'gourd' }))).toBe(
+      'Whiffy Puffcap Swirl',
     )
-    expect(potionName(potion(['moonmilk'], { shape: 'gourd' }))).toBe('Dreamy Moonmilk Potion')
+    expect(
+      potionName(mixed(['thundercloud', 'snailshine', 'moonmilk'], { shape: 'shoulder' })),
+    ).toBe('Whirling Thundercloud Wonder')
+    expect(potionName(mixed(['snailshine', 'bluebell', 'bluebell'], { shape: 'round' }))).toBe(
+      'Sparkling Bluebell Brew',
+    )
   })
 
-  it('names every secret blend by its own name and lore, ahead of Pure', () => {
+  it('calls three of one Pure, with its label in title case', () => {
+    expect(potionName(mixed(['bluebell', 'bluebell', 'bluebell']))).toBe('Pure Bluebell Dew')
+    expect(potionName(mixed(['moonmilk', 'moonmilk', 'moonmilk']))).toBe('Pure Moonmilk')
+  })
+
+  it('names a mixed secret blend by its own name, ahead of Pure and the murky names', () => {
     for (const blend of SECRET_BLENDS) {
-      const p = potion(blend.pours)
+      const p = mixed(blend.recipe)
       expect(potionName(p), blend.id).toBe(blend.name)
       expect(potionLore(p), blend.id).toBe(blend.lore)
     }
-    expect(potionName(potion(['starpetal', 'starpetal', 'starpetal', 'starpetal']))).toBe(
-      'A Pocketful of Stars',
+    expect(potionName(mixed(['starpetal', 'starpetal', 'starpetal']))).toBe('A Pocketful of Stars')
+    expect(potionName(mixed(['frogfizz', 'thundercloud', 'puffcap']))).toBe('Bottom of the Pond')
+  })
+
+  it('does not name a blend before it is mixed', () => {
+    expect(potionName(potion(['thundercloud', 'thundercloud', 'moonmilk']))).toBe(
+      'Double Thundercloud and Moonmilk',
     )
   })
 
-  it('takes the main ingredient from the most poured, a tie going to the highest', () => {
-    expect(potionName(potion(['frogfizz', 'moonmilk', 'frogfizz'], { shape: 'round' }))).toContain(
-      'Frogfizz',
+  it('names a murky mix from the sum of the wheel places', () => {
+    expect(potionName(mixed(['frogfizz', 'bluebell', 'puffcap']))).toBe('A Marvellous Muddle')
+    const names = new Set<string>()
+    for (const m of multisets()) {
+      if (mixPotion(m as [IngredientId, IngredientId, IngredientId]).outcome !== 'murky') continue
+      const p = mixed(m)
+      if (SECRET_BLENDS.some((b) => b.name === potionName(p))) continue
+      const places = m.reduce((sum, id) => sum + ingredient(id).wheel, 0)
+      names.add(potionName(p))
+      expect(potionName(p)).toBe(
+        [
+          'A Marvellous Muddle',
+          'Bottled Bog',
+          "Frog's Bathwater",
+          'Swampy Surprise',
+          'Grumbling Gloop',
+          'Muddy Wellies',
+          'Tadpole Puddle',
+        ][places % 7],
+      )
+    }
+    expect(names.size).toBeGreaterThan(1)
+  })
+
+  it('names the potion the same whatever the order of a mix', () => {
+    expect(potionName(mixed(['rosehip', 'starpetal', 'moonmilk']))).toBe(
+      potionName(mixed(['moonmilk', 'rosehip', 'starpetal'])),
     )
-    expect(potionName(potion(['frogfizz', 'moonmilk'], { shape: 'round' }))).toContain('Moonmilk')
   })
 
   it('falls back to the round noun and then the label when a name is forbidden', () => {
-    const forbidden = (name: string) => name === 'Floating Frogfizz Tonic'
-    expect(nameFrom('Floating', 'Frogfizz', 'Frogfizz', 'Tonic', forbidden)).toBe(
+    const forbidden = (name: string) => name === 'Floating Frogfizz Essence'
+    expect(nameFrom('Floating', 'Frogfizz', 'Frogfizz', 'Essence', forbidden)).toBe(
       'Floating Frogfizz Brew',
     )
-    const worse = (name: string) => name.endsWith('Tonic') || name.endsWith('Brew')
-    expect(nameFrom('Floating', 'Frogfizz', 'Frogfizz', 'Tonic', worse)).toBe('Frogfizz Tonic')
+    const worse = (name: string) => name.endsWith('Essence') || name.endsWith('Brew')
+    expect(nameFrom('Floating', 'Frogfizz', 'Frogfizz', 'Essence', worse)).toBe('Frogfizz Essence')
   })
 
   it('never produces a forbidden name anywhere in the catalogue', () => {
@@ -114,7 +164,7 @@ describe('potionName', () => {
   })
 
   it('never makes a forbidden name from any effect word, ingredient word and noun', () => {
-    const nouns = SHAPES.map((s) => BOTTLES[s].nameNoun)
+    const nouns = ['Brew', 'Potion', 'Essence', 'Wonder', 'Swirl']
     for (const effect of Object.values(EFFECTS)) {
       for (const i of INGREDIENTS) {
         for (const noun of nouns) {
@@ -132,7 +182,12 @@ describe('the words', () => {
       ...Object.values(EFFECTS).flatMap((e) => [e.word, e.sentence]),
       ...INGREDIENTS.flatMap((i) => [i.label, i.word, i.lore]),
       ...SECRET_BLENDS.flatMap((b) => [b.name, b.lore]),
-      ...catalogue().flatMap((p) => [potionName(p), potionTagLine(p), potionLore(p)]),
+      ...catalogue().flatMap((p) => [
+        potionName(p),
+        potionTagLine(p),
+        potionLore(p),
+        potionShelfLine(p),
+      ]),
     ]
     for (const text of texts) expect(text, text).not.toMatch(DRINKING)
   })
@@ -148,91 +203,125 @@ describe('potionNumber', () => {
 })
 
 describe('potionTagLine', () => {
-  it('counts the pours and names the traits bottom first', () => {
+  it('counts the layers and names the traits bottom first', () => {
     expect(potionTagLine(potion(['moonmilk', 'rosehip', 'starpetal'], { shape: 'teardrop' }))).toBe(
-      'Three pours in a teardrop flask. Cloudy, then swirly, then sparkly.',
+      'Three layers in a teardrop flask. Cloudy, then swirly, then sparkly.',
     )
   })
 
-  it('merges repeats in a row', () => {
+  it('merges repeats in a row and keeps a trait that comes back', () => {
     expect(potionTagLine(potion(['frogfizz', 'starpetal', 'starpetal'], { shape: 'tall' }))).toBe(
-      'Three pours in a tall bottle. Fizzy, then sparkly.',
+      'Three layers in a tall bottle. Fizzy, then sparkly.',
     )
-    expect(potionTagLine(potion(['bogmurk', 'bogmurk', 'bogmurk', 'bogmurk']))).toContain(
-      'Four pours',
-    )
-    expect(potionTagLine(potion(['bogmurk', 'bogmurk', 'bogmurk', 'bogmurk']))).toMatch(/Cloudy\.$/)
-  })
-
-  it('keeps a trait that comes back after another', () => {
     expect(potionTagLine(potion(['moonmilk', 'emberroot', 'moonmilk']))).toMatch(
       /Cloudy, then glowing, then cloudy\.$/,
     )
   })
 
-  it('says pour for one, with every trait word', () => {
+  it('says layer for one, with every trait word', () => {
     expect(potionTagLine(potion(['bluebell'], { shape: 'round' }))).toBe(
-      'One pour in a round flask. Clear.',
+      'One layer in a round flask. Clear.',
     )
-    expect(potionTagLine(potion(['emberroot'], { shape: 'shoulder' }))).toBe(
-      'One pour in a square-shouldered bottle. Glowing.',
+    expect(potionTagLine(potion(['emberroot', 'frogfizz'], { shape: 'shoulder' }))).toBe(
+      'Two layers in a square-shouldered bottle. Glowing, then fizzy.',
     )
     expect(potionTagLine(potion(['frogfizz'], { shape: 'gourd' }))).toBe(
-      'One pour in a gourd bottle. Fizzy.',
+      'One layer in a gourd bottle. Fizzy.',
     )
   })
 
-  it('waits for a pour when empty', () => {
+  it('waits for three ingredients when empty', () => {
     expect(potionTagLine(potion([], { shape: 'tall' }))).toBe(
-      'An empty tall bottle, waiting for a pour.',
+      'An empty tall bottle, waiting for three ingredients.',
+    )
+  })
+
+  it('keeps the recipe on the card once mixed', () => {
+    expect(potionTagLine(mixed(['frogfizz', 'frogfizz', 'bluebell'], { shape: 'tall' }))).toBe(
+      'Mixed from Frogfizz, Frogfizz and Bluebell in a tall bottle.',
     )
   })
 })
 
 describe('potionLore', () => {
-  it('is the main ingredient line then the effect sentence', () => {
-    expect(potionLore(potion(['frogfizz', 'moonmilk', 'frogfizz']))).toBe(
+  it('is the top layer line and what it still needs, until three are in', () => {
+    expect(potionLore(potion(['frogfizz']))).toBe(
+      `${ingredient('frogfizz').lore} It needs two more before it can be mixed.`,
+    )
+    expect(potionLore(potion(['frogfizz', 'bluebell']))).toBe(
+      `${ingredient('bluebell').lore} It needs one more before it can be mixed.`,
+    )
+    expect(potionLore(potion(['frogfizz', 'moonmilk', 'bluebell']))).toBe(
+      `${ingredient('bluebell').lore} Tap the bottle to mix it and see what it does.`,
+    )
+  })
+
+  it('is the main ingredient line then the effect sentence once mixed', () => {
+    expect(potionLore(mixed(['frogfizz', 'bluebell', 'frogfizz']))).toBe(
       `${ingredient('frogfizz').lore} ${EFFECTS.floating.sentence}`,
     )
   })
 
-  it("is a secret blend's own two sentences", () => {
-    const blend = SECRET_BLENDS[0]!
-    expect(potionLore(potion(blend.pours))).toBe(blend.lore)
+  it('is proud of a murky mix', () => {
+    expect(potionLore(mixed(['frogfizz', 'bluebell', 'puffcap']))).toBe(
+      'Three things that would not get on, swirled into one. It does nothing at all, and it is very proud of that. Pull the cork and one lazy bubble goes blorp.',
+    )
   })
 
   it('says how every potion starts when empty', () => {
     expect(potionLore(potion([]))).toBe(
-      'Every potion starts as an empty bottle. Pour something in.',
+      'Every potion starts as an empty bottle. Pick three ingredients.',
     )
   })
 
-  it('is two sentences for every potion in the catalogue, and never forbidden', () => {
+  it('is never forbidden, and two sentences unless murky', () => {
     for (const p of catalogue()) {
       const lore = potionLore(p)
-      expect(sentences(lore)).toHaveLength(2)
       expect(isForbiddenName(lore)).toBe(false)
+      if (!lore.includes('proud of that')) expect(sentences(lore)).toHaveLength(2)
     }
   })
 })
 
 describe('potionShelfLine', () => {
-  it('gives the shape and the count', () => {
-    expect(potionShelfLine(potion(['moonmilk'], { shape: 'gourd' }))).toBe('Gourd bottle, one pour')
-    expect(
-      potionShelfLine(potion(['moonmilk', 'rosehip', 'starpetal', 'bogmurk'], { shape: 'gourd' })),
-    ).toBe('Gourd bottle, four pours')
+  it('gives the shape and the layer count', () => {
+    expect(potionShelfLine(potion(['moonmilk'], { shape: 'gourd' }))).toBe(
+      'Gourd bottle, one layer',
+    )
+    expect(potionShelfLine(potion(['moonmilk', 'rosehip'], { shape: 'gourd' }))).toBe(
+      'Gourd bottle, two layers',
+    )
+    expect(potionShelfLine(potion([], { shape: 'round' }))).toBe('Round flask, empty')
   })
 
-  it('says empty for an empty bottle', () => {
-    expect(potionShelfLine(potion([], { shape: 'round' }))).toBe('Round flask, empty')
+  it('gives the effect once mixed', () => {
+    expect(potionShelfLine(mixed(['emberroot', 'emberroot', 'puffcap'], { shape: 'gourd' }))).toBe(
+      'Gourd bottle, whiffy',
+    )
+    expect(potionShelfLine(mixed(['frogfizz', 'bluebell', 'puffcap'], { shape: 'tall' }))).toBe(
+      'Tall bottle, murky',
+    )
   })
 })
 
 describe('potionGlowColour', () => {
-  it("is the effect's first colour, or candlelight when empty", () => {
-    expect(potionGlowColour(potion(['moonmilk', 'emberroot']))).toBe(ingredient('emberroot').colour)
+  it('is candlelight when empty and the top layer unmixed', () => {
     expect(potionGlowColour(potion([]))).toBe('#e8b46a')
+    expect(potionGlowColour(potion(['moonmilk', 'emberroot']))).toBe(ingredient('emberroot').colour)
+  })
+
+  it('is the mixed colour once mixed', () => {
+    const recipe: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
+    expect(potionGlowColour(mixed(recipe))).toBe('#c85370')
+  })
+})
+
+describe('isGold', () => {
+  it('is true only for a mixed secret blend', () => {
+    expect(isGold(mixed(['starpetal', 'starpetal', 'starpetal']))).toBe(true)
+    expect(isGold(potion(['starpetal', 'starpetal', 'starpetal']))).toBe(false)
+    expect(isGold(mixed(['moonmilk', 'rosehip', 'starpetal']))).toBe(false)
+    expect(isGold(potion([]))).toBe(false)
   })
 })
 

@@ -37,25 +37,23 @@ describe('the potion item', () => {
     expect(movedPours).toBe(true)
   })
 
-  it('shifts the pours down when the middle one is taken out', () => {
+  it('pours into the lowest empty slot when an ingredient is set above a gap', () => {
     const start = startWorkbench({
-      params: normalise(potionSchema, {
-        pour1: 'moonmilk',
-        pour2: 'frogfizz',
-        pour3: 'starpetal',
-        pour4: 'emberroot',
-      }),
+      params: normalise(potionSchema, { pour1: 'moonmilk', pour2: 'none' }),
     })
-    const next = workbench(start, { type: 'set', key: 'pour2', value: 'none' })
-    expect(pourList(next.item.params)).toEqual(['moonmilk', 'starpetal', 'emberroot'])
+    const next = workbench(start, { type: 'set', key: 'pour3', value: 'bluebell' })
+    expect(pourList(next.item.params)).toEqual(['moonmilk', 'bluebell'])
   })
 
-  it('pours into the lowest empty slot when a pour is set above a gap', () => {
+  it('always tries another full and unmixed', () => {
     const start = startWorkbench({
-      params: normalise(potionSchema, { pour1: 'moonmilk', pour2: 'frogfizz', pour3: 'none' }),
+      params: normalise(potionSchema, { mixed: 'yes' }),
     })
-    const next = workbench(start, { type: 'set', key: 'pour4', value: 'bluebell' })
-    expect(pourList(next.item.params)).toEqual(['moonmilk', 'frogfizz', 'bluebell'])
+    for (let seed = 1; seed <= 20; seed++) {
+      const next = workbench(start, { type: 'tryAnother', seed })
+      expect(pourList(next.item.params)).toHaveLength(3)
+      expect(next.item.params.mixed).toBe('no')
+    }
   })
 
   it('describes a potion through the item', () => {

@@ -1,7 +1,10 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 
 import { secretBlend } from '../potion/blends.ts'
+import { isGold } from '../potion/describe.ts'
 import { potionEffect } from '../potion/effects.ts'
+import { potionMix } from '../potion/mix.ts'
+import { isMixed } from '../potion/potionSchema.ts'
 import { pourList } from '../potion/pours.ts'
 import type { CloseUpHandle, CloseUpProps, StageHandle, StageProps } from '../stage/stage.ts'
 
@@ -30,6 +33,9 @@ export function FakePotionStage({ params, ref }: StageProps) {
       data-stopper={params.stopper}
       data-label={params.label}
       data-pours={pourList(params).join(',')}
+      data-mixed={isMixed(params) ? 'yes' : 'no'}
+      data-outcome={potionMix(params)?.outcome ?? ''}
+      data-gold={isGold(params) ? 'yes' : 'no'}
       data-effect={potionEffect(params)?.kind ?? 'none'}
       data-blend={secretBlend(params)?.id ?? 'none'}
     />

@@ -25,9 +25,7 @@ describe('visibleGroups', () => {
     const pours = (p: Params) => visibleGroups(p)[0]!.summary(p)
     expect(pours(potion(withPours(['frogfizz'])))).toBe('One pour')
     expect(pours(potion(withPours([])))).toBe('Empty')
-    expect(pours(potion(withPours(['frogfizz', 'moonmilk', 'rosehip', 'bluebell'])))).toBe(
-      'Four pours',
-    )
+    expect(pours(potion(withPours(['frogfizz', 'moonmilk', 'rosehip'])))).toBe('Three pours')
   })
 
   it('sums up the bottle by its shape and the finish by its stopper', () => {

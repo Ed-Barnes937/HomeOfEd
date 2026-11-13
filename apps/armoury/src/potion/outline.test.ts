@@ -12,12 +12,12 @@ import { withPours } from './pours.ts'
 import { BASE_MM, bottleProfile, uprightLevels } from './profile.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
-const FOUR: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal', 'bluebell']
+const THREE: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
 
 const specOf = (
   shape: ShapeId,
   neck: number,
-  pours = FOUR,
+  pours = THREE,
   stopper: StopperId = 'cork',
 ): PotionSpec =>
   compilePotion(normalise(potionSchema, { ...withPours(pours), shape, neck, stopper }))
@@ -90,13 +90,13 @@ describe('potionOutline', () => {
 
   it('draws no bands in an empty bottle and fewer in a short one', () => {
     expect(potionOutline(specOf('round', 0.5, [])).bands).toEqual([])
-    expect(potionOutline(specOf('round', 0.5, FOUR.slice(0, 2))).bands).toHaveLength(2)
+    expect(potionOutline(specOf('round', 0.5, THREE.slice(0, 2))).bands).toHaveLength(2)
   })
 
   it.each(['cork', 'glass', 'wax'] as const)(
     'draws the %s stopper above the lip, under the drawn height',
     (stopper) => {
-      const spec = specOf('teardrop', 0.5, FOUR, stopper)
+      const spec = specOf('teardrop', 0.5, THREE, stopper)
       const { stopper: shape } = potionOutline(spec)
       const profile = bottleProfile(spec)
       const top = Math.max(...shape.map(([, y]) => y))
