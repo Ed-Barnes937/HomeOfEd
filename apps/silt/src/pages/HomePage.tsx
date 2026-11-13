@@ -245,7 +245,6 @@ export function HomePage({ storage, sceneLibrary }: HomePageProps) {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <span className={styles.title}>SILT</span>
-          <SwitchPlayerLink className={styles.player} />
           <span className={styles.sceneName} data-testid="scene-name">
             {scenes.currentName ?? 'untitled'}
           </span>
@@ -309,6 +308,7 @@ export function HomePage({ storage, sceneLibrary }: HomePageProps) {
               />
             ) : null}
           </div>
+          <SwitchPlayerLink />
         </div>
       </header>
 

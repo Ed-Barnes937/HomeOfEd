@@ -1,24 +1,43 @@
-import { switchPlayerUrlFor } from '@hoe/accounts'
+import { profileInitial, switchPlayerUrlFor } from '@hoe/accounts'
 
 import { useFamilySession } from './FamilySessionContext.tsx'
+import styles from './SwitchPlayerLink.module.scss'
 
-interface SwitchPlayerLinkProps {
-  className?: string
-}
-
-/** Who is playing, as a link to pick someone else at hub (spec decision 10). None outside the estate. */
-export function SwitchPlayerLink({ className }: SwitchPlayerLinkProps) {
+/**
+ * Who is playing, as their initial in a circle that ends the header, linking
+ * to hub to pick someone else (spec decision 10). Outside the estate it only
+ * names the player; signed out in the estate it is the bare words.
+ */
+export function SwitchPlayerLink() {
   const name = useFamilySession()?.name ?? null
   const href = switchPlayerUrlFor(window.location.href)
-  if (href === null) return null
-  return (
-    <a
-      className={className}
-      href={href}
+  if (name === null) {
+    return href === null ? null : (
+      <a className={styles.words} href={href} data-testid="switch-player">
+        switch player
+      </a>
+    )
+  }
+  const initial = profileInitial(name)
+  return href === null ? (
+    <span
+      className={styles.circle}
+      role="img"
+      aria-label={`Playing as ${name}`}
+      title={name}
       data-testid="switch-player"
-      aria-label={name === null ? 'switch player' : `switch player, playing as ${name}`}
     >
-      {name ?? 'switch player'}
+      {initial}
+    </span>
+  ) : (
+    <a
+      className={styles.circle}
+      href={href}
+      aria-label={`Playing as ${name}. Switch player`}
+      title={name}
+      data-testid="switch-player"
+    >
+      {initial}
     </a>
   )
 }

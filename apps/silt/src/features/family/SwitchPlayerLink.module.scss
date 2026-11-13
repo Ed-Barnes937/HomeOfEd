@@ -1,0 +1,64 @@
+// Who is playing, at the end of the header (../../pages/HomePage.module.scss):
+// chrome stays paper and ink, so the circle is ink with a paper initial.
+$ink: #1a1714;
+$paper: #e7e2d5;
+
+$font-label: 'Silkscreen', monospace;
+
+$mobile: '(pointer: coarse), (max-width: 700px)';
+
+.circle {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border: 2px solid $ink;
+  border-radius: 50%;
+  background: $ink;
+  color: $paper;
+  font-family: $font-label;
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+  user-select: none;
+
+  // Keeps the hit target at 44px around the smaller desktop disc.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $ink;
+    outline-offset: 2px;
+  }
+}
+
+.words {
+  flex: none;
+  font-size: 0.75rem;
+  color: $ink;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+@media #{$mobile} {
+  .circle {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .words {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

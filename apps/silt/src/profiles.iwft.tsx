@@ -160,3 +160,43 @@ test('forgotten discoveries stay forgotten, even with the device’s old notes s
   const adaAgain = await openAs(page, mountApp, ADA)
   expect(await adaAgain.fieldNotesCount()).toBe('0/54')
 })
+
+test('signed out, the header names no player', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyNoPlayer()
+})
+
+async function openAsAda(
+  page: import('@playwright/test').Page,
+  mountApp: () => Promise<{ root: SiltPagePom }>,
+): Promise<SiltPagePom> {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  const ada = await openAs(page, mountApp, ADA)
+  await ada.verifyPlayer('Ada')
+  return ada
+}
+
+test.describe('on a laptop', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('who is playing is their initial at the end of the header', async ({ mountApp, page }) => {
+    const ada = await openAsAda(page, mountApp)
+    await ada.verifyPlayerEndsHeader('Ada')
+  })
+})
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('who is playing is a full-size circle at the end of the header, on the glass', async ({
+    mountApp,
+    page,
+  }) => {
+    const ada = await openAsAda(page, mountApp)
+    await ada.verifyPlayerEndsHeader('Ada')
+    await ada.verifyTouchTargetSize('switch-player')
+    await ada.verifyNoHorizontalPageOverflow()
+  })
+})

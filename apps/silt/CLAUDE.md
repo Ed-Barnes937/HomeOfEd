@@ -488,9 +488,9 @@ the helpers.
   field-notes record rather than removing the key, so the device's old notes
   are not copied back in on the next open.
 - `reloadOnPlayerChange` runs in `PlayerView`. silt has no `/shared`.
-- The header's player name links to `switchPlayerUrlFor(location.href)`; it
-  renders nothing outside the estate, so CT (port 3109) never shows it. The
-  docker stack does.
+- The header ends with the player's initial in a circle, linking to
+  `switchPlayerUrlFor(location.href)`. Outside the estate (CT, port 3109) it
+  is a non-link `role="img"` that still names the player.
 
 ## Field notes progression (`src/features/fieldNotes/`)
 
