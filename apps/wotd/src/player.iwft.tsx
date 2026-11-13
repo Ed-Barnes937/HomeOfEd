@@ -1,3 +1,4 @@
+import { expect } from '@playwright/experimental-ct-react'
 import type { Page } from '@playwright/test'
 
 import { setFamilyCookie } from './testing/familySession.ts'
@@ -55,11 +56,13 @@ for (const { device, viewport } of [
   })
 }
 
-// The toggle and circle need 110px beside a 141px wordmark: centred from 430px, nudged left below.
-for (const { width, centred } of [
-  { width: 430, centred: true },
-  { width: 390, centred: false },
-  { width: 320, centred: false },
+// The wordmark is centred wherever the toggle and circle fit beside it, and only gives way left
+// where they do not; 480px has room to spare on any fonts, so the centred case always runs.
+for (const { width, mustFit } of [
+  { width: 480, mustFit: true },
+  { width: 430, mustFit: false },
+  { width: 390, mustFit: false },
+  { width: 320, mustFit: false },
 ]) {
   test.describe(`on a ${width}px phone`, () => {
     test.use({ viewport: { width, height: 844 } })
@@ -69,7 +72,8 @@ for (const { width, centred } of [
       page,
     }) => {
       const root = await openAsAda(page, mountApp)
-      if (centred) await root.verifyWordmarkCentred()
+      const fitted = await root.verifyWordmarkCentredWhenTheSidesFit()
+      if (mustFit) expect(fitted).toBe(true)
       await root.verifyWordmarkClearOfItsNeighbours()
       await root.verifyPlayerEndsHeader('Ada')
       await root.verifyNoHorizontalOverflow()

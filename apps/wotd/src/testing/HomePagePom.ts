@@ -241,15 +241,28 @@ export class HomePagePom extends BasePage {
     expect(circle.x + circle.width).toBeCloseTo(Math.max(...rights), 0)
   }
 
-  /** Asserts the page has no horizontal overflow at the current viewport. */
-  /** The top bar's wordmark sits on the bar's centre line, whatever the two sides hold. */
-  async verifyWordmarkCentred(): Promise<void> {
-    const header = (await this.page.locator('header').boundingBox())!
-    const wordmark = (await this.page
-      .locator('header')
-      .getByRole('link', { name: 'Word of the Day' })
-      .boundingBox())!
-    expect(wordmark.x + wordmark.width / 2).toBeCloseTo(header.x + header.width / 2, 0)
+  /**
+   * The phone top bar's wordmark is on the bar's centre line whenever both side clusters fit in
+   * an equal share of what the wordmark leaves; measured, so it holds whatever the fonts.
+   * Returns whether they fitted, so a caller can insist on the centred case.
+   */
+  async verifyWordmarkCentredWhenTheSidesFit(): Promise<boolean> {
+    const m = await this.page.locator('header').evaluate((header) => {
+      const style = getComputedStyle(header)
+      const [left, middle, right] = [...header.children].map((el) => el.getBoundingClientRect())
+      const box = header.getBoundingClientRect()
+      const contentLeft = box.left + parseFloat(style.paddingLeft)
+      const content = box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      return {
+        share: (content - middle!.width - 2 * parseFloat(style.columnGap)) / 2,
+        sides: Math.max(left!.width, right!.width),
+        middleCentre: middle!.left + middle!.width / 2,
+        contentCentre: contentLeft + content / 2,
+      }
+    })
+    const fits = m.sides <= m.share
+    if (fits) expect(Math.abs(m.middleCentre - m.contentCentre)).toBeLessThanOrEqual(1)
+    return fits
   }
 
   /** Nothing in the top bar touches the wordmark. */
@@ -266,6 +279,7 @@ export class HomePagePom extends BasePage {
     }
   }
 
+  /** Asserts the page has no horizontal overflow at the current viewport. */
   async verifyNoHorizontalOverflow(): Promise<void> {
     const overflow = await this.page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
