@@ -13,9 +13,14 @@ export interface PotionFacts {
   label?: string
   /** Ingredient ids bottom first, comma-separated; empty for an empty bottle. */
   pours?: string
+  /** 'yes' once the bottle has been mixed. */
+  mixed?: string
   effect?: string
   blend?: string
 }
+
+export const FULL_MESSAGE = 'The bottle is full. Tap it to mix it, or empty it to start again.'
+export const MIXED_MESSAGE = 'This potion is mixed. Empty the bottle to make a new one.'
 
 export class PotionCloseUpPom extends CloseUpPom {
   /** FakePotionCloseUpStage's stand-in for a tap that lands on the bottle. */
@@ -114,6 +119,10 @@ export class ApothecaryPom extends BenchPom {
   }
 
   private readonly bottleList = this.page.getByRole('list', { name: 'In the bottle' })
+  private readonly emptyButton = this.page.getByRole('button', {
+    name: 'Empty the bottle',
+    exact: true,
+  })
 
   async pour(label: string): Promise<void> {
     await this.jar(label).click()
@@ -128,53 +137,62 @@ export class ApothecaryPom extends BenchPom {
     await this.page.getByRole('button', { name: 'Keep what goes in when trying another' }).click()
   }
 
-  async takeOut(label: string): Promise<void> {
-    await this.bottleList.getByRole('button', { name: `Take out ${label}`, exact: true }).click()
-  }
-
   async emptyBottle(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Empty the bottle', exact: true }).click()
+    await this.emptyButton.click()
   }
 
   /** The pours bottom first; the list reads like the bottle, empty rows above the top pour. */
   async verifyPours(labels: string[]): Promise<void> {
     await expect(this.bottleList.getByRole('listitem')).toHaveText([
-      ...Array<RegExp>(4 - labels.length).fill(/^Empty$/),
-      ...[...labels].reverse().map((label) => new RegExp(`^${label}`)),
+      ...Array<RegExp>(3 - labels.length).fill(/^Empty$/),
+      ...[...labels].reverse().map((label) => new RegExp(`^${label}$`)),
     ])
   }
 
+  async verifyBottleHeading(text: string): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: text, exact: true })).toBeVisible()
+  }
+
   async verifyFull(): Promise<void> {
-    await expect(
-      this.page.getByText('The bottle is full. Take one out to pour another.'),
-    ).toBeVisible()
+    await this.verifyJarsShutBecause(FULL_MESSAGE)
+  }
+
+  async verifyMixed(): Promise<void> {
+    await this.verifyJarsShutBecause(MIXED_MESSAGE)
+  }
+
+  private async verifyJarsShutBecause(message: string): Promise<void> {
+    await expect(this.page.getByText(message, { exact: true })).toBeVisible()
     for (const jar of await this.page.getByRole('button', { name: /^Pour in / }).all())
       await expect(jar).toHaveAttribute('aria-disabled', 'true')
   }
 
-  async verifyNotFull(): Promise<void> {
-    await expect(this.page.getByText('The bottle is full.')).toHaveCount(0)
-    await expect(this.page.getByRole('button', { name: /^Pour in / }).first()).not.toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
+  async verifyNotShut(): Promise<void> {
+    await expect(this.page.getByText(FULL_MESSAGE, { exact: true })).toHaveCount(0)
+    await expect(this.page.getByText(MIXED_MESSAGE, { exact: true })).toHaveCount(0)
+    for (const jar of await this.page.getByRole('button', { name: /^Pour in / }).all())
+      await expect(jar).not.toHaveAttribute('aria-disabled', 'true')
   }
 
   async verifyNoEmptyButton(): Promise<void> {
-    await expect(this.page.getByRole('button', { name: 'Empty the bottle' })).toHaveCount(0)
+    await expect(this.emptyButton).toHaveCount(0)
+  }
+
+  async verifyNoTakeOutButton(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: /take out/i })).toHaveCount(0)
   }
 
   async verifyAnnouncement(text: string): Promise<void> {
     await expect(this.page.locator('[aria-live="polite"]', { hasText: text })).toHaveText(text)
   }
 
-  async pourWithKeyboard(label: string): Promise<void> {
+  async pourWithKeyboard(label: string, key: 'Enter' | 'Space' = 'Enter'): Promise<void> {
     const name = `Pour in ${label}`
     for (let presses = 0; presses < 60; presses++) {
       await this.page.keyboard.press('Tab')
       const focused = await this.page.evaluate(() => document.activeElement?.ariaLabel ?? '')
       if (focused === name) {
-        await this.page.keyboard.press('Enter')
+        await this.page.keyboard.press(key)
         return
       }
     }
@@ -190,8 +208,6 @@ export class ApothecaryPom extends BenchPom {
   async verifyAllJarsShown(): Promise<void> {
     await expect(this.page.getByRole('button', { name: /^Pour in / })).toHaveCount(9)
   }
-
-  private readonly emptyButton = this.page.getByRole('button', { name: 'Empty the bottle', exact: true })
 
   /** The sheet's scrolling box is the nearest scrollable ancestor of the pours list. */
   private sheet() {
@@ -212,9 +228,9 @@ export class ApothecaryPom extends BenchPom {
 
   /** The button that was tapped leaves the sheet shorter, so staying put means staying at the bottom. */
   async verifySheetStillAtBottom(): Promise<void> {
-    const gap = await (await this.sheet()).evaluate(
-      (box) => box.scrollHeight - box.clientHeight - box.scrollTop,
-    )
+    const gap = await (
+      await this.sheet()
+    ).evaluate((box) => box.scrollHeight - box.clientHeight - box.scrollTop)
     expect(gap).toBeLessThanOrEqual(1)
   }
 
@@ -222,9 +238,9 @@ export class ApothecaryPom extends BenchPom {
     expect(await (await this.sheet()).evaluate((box) => box.scrollTop)).toBeGreaterThan(0)
   }
 
-  /** A finger tap on the last pour's "Take out", with the sheet scrolled down to it. */
-  async tapLastTakeOut(): Promise<void> {
-    await this.bottleList.getByRole('button').last().tap()
+  /** A finger tap on a jar, with the sheet scrolled down; the jar may be shut. */
+  async tapJarWithFinger(label: string): Promise<void> {
+    await this.jar(label).tap()
   }
 
   async tapEmptyBottle(): Promise<void> {
@@ -260,11 +276,11 @@ export class ApothecaryPom extends BenchPom {
     return { jar: ninth.y + ninth.height, panel: panel.y + panel.height }
   }
 
-  /** Every jar and take-out button is at least 44 px tall and wide. */
+  /** Every jar, and "Empty the bottle" when it shows, is at least 44 px tall and wide. */
   async verifyHitTargetsAtLeast44(): Promise<void> {
     const targets = [
       ...(await this.page.getByRole('button', { name: /^Pour in / }).all()),
-      ...(await this.bottleList.getByRole('button').all()),
+      ...(await this.emptyButton.all()),
     ]
     for (const target of targets) {
       const box = (await target.boundingBox())!
@@ -273,35 +289,29 @@ export class ApothecaryPom extends BenchPom {
     }
   }
 
-  /** The pours sit in one column, top first, each with the words "Take out". */
+  /** The three rows sit in one column, top first, all one height whether filled or empty. */
   async verifyPoursInOneColumn(): Promise<void> {
     const rows = await this.bottleList.getByRole('listitem').all()
+    expect(rows).toHaveLength(3)
     const boxes = await Promise.all(rows.map((row) => row.boundingBox()))
     for (let i = 1; i < boxes.length; i++) {
       expect(boxes[i]!.x).toBe(boxes[0]!.x)
       expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y)
+      expect(boxes[i]!.height).toBe(boxes[0]!.height)
     }
-    for (const button of await this.bottleList.getByRole('button').all())
-      await expect(button).toHaveText('Take out')
   }
 
-  async takeOutWithKeyboard(label: string, key: 'Enter' | 'Space', nth = 0): Promise<void> {
-    const button = this.bottleList.getByRole('button', { name: `Take out ${label}`, exact: true })
-    await button.nth(nth).focus()
+  async emptyBottleWithKeyboard(key: 'Enter' | 'Space' = 'Enter'): Promise<void> {
+    await this.emptyButton.focus()
     await this.page.keyboard.press(key)
-  }
-
-  async emptyBottleWithKeyboard(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Empty the bottle', exact: true }).focus()
-    await this.page.keyboard.press('Enter')
   }
 
   async verifyFocused(name: string): Promise<void> {
     await expect(this.page.getByRole('button', { name, exact: true })).toBeFocused()
   }
 
-  async verifyJarsDescribedByFullMessage(): Promise<void> {
-    const message = this.page.getByText('The bottle is full. Take one out to pour another.')
+  async verifyJarsDescribedBy(text: string): Promise<void> {
+    const message = this.page.getByText(text, { exact: true })
     const id = await message.getAttribute('id')
     expect(id).toBeTruthy()
     for (const jar of await this.page.getByRole('button', { name: /^Pour in / }).all())

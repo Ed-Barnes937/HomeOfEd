@@ -6,14 +6,15 @@ import { SwatchPicker } from '../shop/controls/Widgets.tsx'
 import type { WidgetProps } from '../shop/shopView.ts'
 import { PourPicker } from './pourPicker.tsx'
 
-/** The potion's own controls: one picker owns the Pours group, the glass is tinted swatches. */
+/** The potion's own controls: one picker owns the Pours group and `mixed` has no control; the glass is tinted swatches. */
 export function potionWidget(
   def: ParamDef,
   { params, onChange }: WidgetProps,
 ): ReactNode | undefined {
   if (def.kind !== 'choice') return undefined
   if (def.key === 'pour1') return <PourPicker params={params} onChange={onChange} />
-  if (isPourKey(def.key) || def.key === 'mixed') return null
+  if (isPourKey(def.key)) return null
+  if (def.key === 'mixed') return null
   if (def.key === 'glass') {
     const tinted = {
       ...def,

@@ -1,6 +1,5 @@
 import { isVisible, type ChoiceParam, type Params } from '../engine/schema.ts'
-import { countInWords } from '../potion/describe.ts'
-import { potionSchema } from '../potion/potionSchema.ts'
+import { isMixed, potionSchema } from '../potion/potionSchema.ts'
 import { pourList } from '../potion/pours.ts'
 import type { GroupMeta } from '../shop/shopView.ts'
 
@@ -13,10 +12,9 @@ const labelOf = (key: string, p: Params) => {
 
 const NUMERALS = ['i.', 'ii.', 'iii.']
 
-const pours = (p: Params) => {
-  const count = pourList(p).length
-  return count === 0 ? 'Empty' : countInWords(count)
-}
+const COUNT_WORDS = ['Empty', 'One', 'Two', 'Three']
+
+const pours = (p: Params) => (isMixed(p) ? 'Mixed' : COUNT_WORDS[pourList(p).length]!)
 
 const GROUP_DEFS: readonly Omit<GroupMeta, 'numeral'>[] = [
   { key: 'pours', title: 'What goes in', tab: 'Pours', summary: pours },
