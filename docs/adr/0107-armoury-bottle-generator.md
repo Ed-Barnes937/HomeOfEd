@@ -59,7 +59,7 @@ light half must be safe for the main chunk.
   expressed in that frame (the inverse of the bottle's rotation applied to world up).
   Upright, u is +z and the test reduces to `aHeight`, the vertex's height along the
   bottle's axis; tipped, a shader must use dot(p, u), not `aHeight`.
-- **Stoppers.** Each is a lathe that fills the bore to 18 mm down, 0.05 mm inside it:
+- **Stoppers.** Each is a lathe that fills the bore to the cavity's top, 0.05 mm inside it:
   `cork` a tapered plug 60 percent in the bore, chamfered; `glass` a ground plug, a collar
   on the lip, a stem and a teardrop knob that reaches `heightMm`; `wax` a cork 4 mm above
   the lip, dipped: the wax hugs the cork, the lip and the neck inside; outside it is a soft
