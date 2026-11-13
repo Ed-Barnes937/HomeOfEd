@@ -7,6 +7,8 @@ export const MM = 0.01
 export const FOV = 26
 /** The box's camera sits this far towards the viewer, as a fraction of its height, to see a little of the wand's side. */
 export const BOX_CAMERA_LEAN = 0.12
+/** A front-framed box looks down on an upright item by this much, so the top of what is in it shows. */
+export const FRONT_CAMERA_PITCH = (8 * Math.PI) / 180
 
 export const RIM_INTENSITY = 0.9
 
