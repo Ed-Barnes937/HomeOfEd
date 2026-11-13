@@ -78,7 +78,11 @@ export function TopBar({
       <span className={styles.savedState} data-testid="saved-state">
         {savedStateLabel(loaded)}
       </span>
-      {syncedAs !== null && <SyncedChip name={syncedAs} />}
+      {syncedAs !== null && (
+        <span className={styles.savedState} data-testid="synced-state">
+          synced
+        </span>
+      )}
       <div className={styles.spacer} />
       {onKeep !== null ? (
         <button
@@ -148,6 +152,7 @@ export function TopBar({
       >
         ?
       </button>
+      {syncedAs !== null && <SyncedChip name={syncedAs} />}
     </header>
   )
 }
