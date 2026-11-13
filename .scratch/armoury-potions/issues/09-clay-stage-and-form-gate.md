@@ -136,3 +136,4 @@ round is cut (remove it from `bottles.ts` and the schema, fix presets, record it
   15). The scene art (13).
 
 ## Comments
+- 2026-11-13 orchestrator, from the review of ticket 03: Scope 1 says "`boxScale(spec)` from `drawnHeightFraction`". `drawnHeightFraction` now takes params only; for a compiled spec use `heightFraction(spec)` from `potion/framing.ts`.

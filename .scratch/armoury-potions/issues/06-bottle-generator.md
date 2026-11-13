@@ -129,3 +129,4 @@ The potion suite stays under a few seconds locally (spec rule 18).
 - Charms (cut, spec "Out of scope").
 
 ## Comments
+- 2026-11-13 orchestrator, from the review of ticket 03: the `shoulder` row in `bottles.ts` does not yet give a flat shoulder (its points drop 18 mm of radius over about 18 mm of height, a 45 degree slope); make it read as "Square shoulders". The last body radius disagrees with `neckRadiusMm` for `tall` (16 against 7) and `shoulder` (12 against 8); settle where the body ends and the neck begins, close both to the neck, and say the convention in the `body` doc comment. `BottleRow.neckMm` is a `[min, max]` range and `PotionSpec.neckMm` a single length; the names stay as they are.

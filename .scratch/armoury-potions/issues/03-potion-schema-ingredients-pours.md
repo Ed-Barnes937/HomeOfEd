@@ -1,6 +1,6 @@
 # 03 - Potion schema, ingredients, pours and compile
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions` as b6834ab9; reviews 03-r1, 03-r2)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none
@@ -131,3 +131,4 @@ pnpm --filter armoury run typecheck
 - Meshes, volumes and outlines (06). The UI (07, 08).
 
 ## Comments
+- 2026-11-13 orchestrator: built (ea5b56d5), review r1 asked for changes, fixed (0ceb5940), review r2 passed with mutation checks. Merged into the epic branch.
