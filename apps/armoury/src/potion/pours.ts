@@ -1,4 +1,4 @@
-// Pour helpers the item and the picker share: pours are four ordered slots,
+// Pour helpers the item and the picker share: ingredients are three ordered slots,
 // bottom first, with no gaps.
 
 import type { ParamValue, Params } from '../engine/schema.ts'
@@ -7,12 +7,12 @@ import { isPourKey, POUR_KEYS, type PourKey } from './potionSchema.ts'
 
 export type PourSlots = Record<PourKey, string>
 
-/** The pours bottom first, without the empty slots. */
+/** The ingredients bottom first, without the empty slots. */
 export function pourList(p: Params): IngredientId[] {
   return POUR_KEYS.map((k) => p[k]).filter(isIngredient)
 }
 
-/** The four slots for a list of pours, `none` above. */
+/** The three slots for a list of ingredients, `none` above. */
 export function withPours(list: readonly IngredientId[]): PourSlots {
   return Object.fromEntries(POUR_KEYS.map((k, i) => [k, list[i] ?? 'none'])) as PourSlots
 }
@@ -22,17 +22,11 @@ export function nextPourKey(p: Params): PourKey | null {
   return POUR_KEYS[pourList(p).length] ?? null
 }
 
-/** The pours a `set` of a pour slot brings with it, or undefined when a plain set is enough. */
+/** The slots a pour into an empty slot lands in, or undefined when a plain set is enough. */
 export function followPours(before: Params, key: string, value: ParamValue): PourSlots | undefined {
-  if (!isPourKey(key)) return undefined
-  const index = POUR_KEYS.indexOf(key)
+  if (!isPourKey(key) || !isIngredient(value)) return undefined
   const list = pourList(before)
-  let after: IngredientId[]
-  if (value === 'none') after = list.filter((_, i) => i !== index)
-  else if (isIngredient(value))
-    after = index < list.length ? list.map((id, i) => (i === index ? value : id)) : [...list, value]
-  else return undefined
-  const result = withPours(after)
-  const plain = { ...before, [key]: value }
-  return POUR_KEYS.every((k) => result[k] === plain[k]) ? undefined : result
+  if (POUR_KEYS.indexOf(key) < list.length) return undefined
+  const result = withPours([...list, value])
+  return result[key] === value ? undefined : result
 }

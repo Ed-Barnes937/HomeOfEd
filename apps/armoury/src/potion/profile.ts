@@ -190,14 +190,14 @@ const join = (pieces: ProfilePoint[][], keepTurn = KEEP_TURN) =>
 /** The curve offset into its solid by d, loops cut out and the result cut at zFrom..zTo. */
 function inset(curve: ProfilePoint[], d: number, zFrom: number, zTo: number): ProfilePoint[] {
   const moved: ProfilePoint[] = []
-  for (let i = 0; i < curve.length; i++) {
-    const p = curve[i]!
+  for (const p of curve) {
     const q = { r: p.r - d * p.nr, z: p.z - d * p.nz, nr: p.nr, nz: p.nz }
     const last = moved.at(-1)
-    if (last && i > 0) {
-      const prev = curve[i - 1]!
-      const along = (q.r - last.r) * (p.r - prev.r) + (q.z - last.z) * (p.z - prev.z)
-      if (along <= 0) continue
+    if (last) {
+      // A step more than 60 degrees off the tangent at either end is a loop, or folds a lathe ring.
+      const along = (t: ProfilePoint) => (q.r - last.r) * -t.nz + (q.z - last.z) * t.nr
+      const half = Math.hypot(q.r - last.r, q.z - last.z) / 2
+      if (along(last) <= half || along(q) <= half) continue
     }
     moved.push(q)
   }

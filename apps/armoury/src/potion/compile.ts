@@ -5,7 +5,8 @@ import type { Params } from '../engine/schema.ts'
 import { type LinearRgb, linearToSrgb, srgbToLinear } from '../items/colour.ts'
 import { BOTTLES, drawnHeightMm, neckLengthMm, type ShapeId } from './bottles.ts'
 import { ingredient, type IngredientId, type Trait } from './ingredients.ts'
-import { type GlassId, type LabelId, MAX_POURS, type StopperId } from './potionSchema.ts'
+import { type PotionMix, potionMix } from './mix.ts'
+import { type GlassId, isMixed, type LabelId, MAX_POURS, type StopperId } from './potionSchema.ts'
 import { pourList } from './pours.ts'
 
 export interface PotionLayer {
@@ -28,8 +29,11 @@ export interface PotionSpec {
   label: LabelId
   /** Bottom first. */
   layers: PotionLayer[]
-  /** Pours over the most the bottle takes. */
+  /** Layers over the most the bottle takes; a mixed potion is full. */
   fill: number
+  mixed: boolean
+  /** The mix whenever three are in, so the stage can play a first swirl. */
+  mix: PotionMix | null
   waxColour: string | null
 }
 
@@ -39,9 +43,9 @@ const EMPTY_WAX = '#7a2a24'
 const darken = (hex: string) =>
   linearToSrgb(srgbToLinear(hex).map((v) => v * WAX_DARKENING) as LinearRgb)
 
-function waxColourFor(stopper: StopperId, top: PotionLayer | undefined): string | null {
+function waxColourFor(stopper: StopperId, colour: string | undefined): string | null {
   if (stopper !== 'wax') return null
-  return top ? darken(top.colour) : EMPTY_WAX
+  return colour ? darken(colour) : EMPTY_WAX
 }
 
 export function compilePotion(p: Params): PotionSpec {
@@ -49,7 +53,8 @@ export function compilePotion(p: Params): PotionSpec {
     const { colour, trait } = ingredient(id)
     return { ingredient: id, colour, trait }
   })
-  const top = layers.at(-1)
+  const mix = potionMix(p)
+  const mixed = mix !== null && isMixed(p)
   const stopper = p.stopper as StopperId
   const shape = p.shape as ShapeId
   return {
@@ -62,6 +67,8 @@ export function compilePotion(p: Params): PotionSpec {
     label: p.label as LabelId,
     layers,
     fill: layers.length / MAX_POURS,
-    waxColour: waxColourFor(stopper, top),
+    mixed,
+    mix,
+    waxColour: waxColourFor(stopper, mixed ? mix.colour : layers.at(-1)?.colour),
   }
 }

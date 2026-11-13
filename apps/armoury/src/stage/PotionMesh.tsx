@@ -48,6 +48,32 @@ export function surfaceUp(
     .applyQuaternion(unturn.copy(bottle).invert())
 }
 
+/** The scratch the liquid's draw reuses every frame, and its level table on demand. */
+export interface LiquidWork {
+  u: THREE.Vector3
+  bottle: THREE.Quaternion
+  up: THREE.Quaternion
+  at: THREE.Vector3
+  scale: THREE.Vector3
+  table: () => LevelTable
+}
+
+/** Each band's top for `liquid` as posed now, leaving its up in `work.u`: its turn against `upFrom`'s (or the scene's), `surfaceNormal` read in that frame. */
+export function liquidTops(
+  liquid: THREE.Object3D,
+  s: Pick<PotionMeshProps, 'levels' | 'surfaceNormal' | 'upFrom'> & {
+    built: { upright: number[] }
+  },
+  work: LiquidWork,
+): number[] {
+  const from = s.upFrom?.current
+  liquid.matrixWorld.decompose(work.at, work.bottle, work.scale)
+  if (from) from.matrixWorld.decompose(work.at, work.up, work.scale)
+  else work.up.identity()
+  const u = surfaceUp(work.u, work.bottle, work.up, s.surfaceNormal)
+  return s.levels ?? liquidLevels(u, s.built.upright, work.table)
+}
+
 export interface PotionGeometries {
   glass: THREE.BufferGeometry
   liquid: THREE.BufferGeometry
@@ -257,14 +283,8 @@ export function PotionMesh({
   }, [])
 
   const drawLiquid = (liquid: THREE.Object3D) => {
-    const s = surface.current
-    const from = s.upFrom?.current
-    liquid.matrixWorld.decompose(work.at, work.bottle, work.scale)
-    if (from) from.matrixWorld.decompose(work.at, work.up, work.scale)
-    else work.up.identity()
-    const u = surfaceUp(work.u, work.bottle, work.up, s.surfaceNormal)
-    const tops = s.levels ?? liquidLevels(u, s.built.upright, work.table)
-    uniforms.uUp.value.copy(u)
+    const tops = liquidTops(liquid, surface.current, work)
+    uniforms.uUp.value.copy(work.u)
     uniforms.uCount.value = tops.length
     for (let i = 0; i < tops.length; i++) uniforms.uLevels.value[i] = tops[i]!
   }

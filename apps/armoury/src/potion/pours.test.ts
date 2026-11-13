@@ -18,62 +18,40 @@ describe('pourList', () => {
 
 describe('withPours', () => {
   it('fills none above', () => {
-    expect(withPours(['bogmurk'])).toEqual({
-      pour1: 'bogmurk',
-      pour2: 'none',
-      pour3: 'none',
-      pour4: 'none',
-    })
+    expect(withPours(['puffcap'])).toEqual({ pour1: 'puffcap', pour2: 'none', pour3: 'none' })
   })
 })
 
 describe('nextPourKey', () => {
-  it('is the lowest empty slot, null at four', () => {
+  it('is the lowest empty slot, null at three', () => {
     expect(nextPourKey(potion())).toBe('pour1')
     expect(nextPourKey(potion('moonmilk', 'rosehip'))).toBe('pour3')
-    expect(nextPourKey(potion('moonmilk', 'rosehip', 'starpetal', 'bogmurk'))).toBeNull()
+    expect(nextPourKey(potion('moonmilk', 'rosehip', 'starpetal'))).toBeNull()
   })
 })
 
 describe('followPours', () => {
-  const four = potion('moonmilk', 'frogfizz', 'starpetal', 'emberroot')
-
-  it('shifts the rest down when a pour below the top is taken out', () => {
-    expect(followPours(four, 'pour1', 'none')).toEqual(
-      withPours(['frogfizz', 'starpetal', 'emberroot']),
-    )
-    expect(followPours(four, 'pour2', 'none')).toEqual(
-      withPours(['moonmilk', 'starpetal', 'emberroot']),
-    )
-    expect(followPours(four, 'pour3', 'none')).toEqual(
-      withPours(['moonmilk', 'frogfizz', 'emberroot']),
-    )
+  it('lands an ingredient above a gap in the lowest empty slot', () => {
+    const one = potion('moonmilk')
+    expect(followPours(one, 'pour3', 'bluebell')).toEqual(withPours(['moonmilk', 'bluebell']))
+    expect(followPours(potion(), 'pour2', 'puffcap')).toEqual(withPours(['puffcap']))
   })
 
-  it('needs nothing when the top pour is taken out', () => {
-    expect(followPours(four, 'pour4', 'none')).toBeUndefined()
+  it('needs nothing for an ingredient into the next slot', () => {
+    expect(followPours(potion('moonmilk', 'frogfizz'), 'pour3', 'bluebell')).toBeUndefined()
+    expect(followPours(potion(), 'pour1', 'bluebell')).toBeUndefined()
   })
 
-  it('lands a pour above a gap in the lowest empty slot', () => {
-    const two = potion('moonmilk', 'frogfizz')
-    expect(followPours(two, 'pour4', 'bluebell')).toEqual(
-      withPours(['moonmilk', 'frogfizz', 'bluebell']),
-    )
-    expect(followPours(potion(), 'pour3', 'bogmurk')).toEqual(withPours(['bogmurk']))
-  })
-
-  it('needs nothing for a pour into the next slot or a swap in place', () => {
-    const two = potion('moonmilk', 'frogfizz')
-    expect(followPours(two, 'pour3', 'bluebell')).toBeUndefined()
-    expect(followPours(four, 'pour2', 'bluebell')).toBeUndefined()
-  })
-
-  it('needs nothing for an empty slot set to none', () => {
+  it('needs nothing for a swap in place or a none', () => {
+    const full = potion('moonmilk', 'frogfizz', 'starpetal')
+    expect(followPours(full, 'pour2', 'bluebell')).toBeUndefined()
+    expect(followPours(full, 'pour2', 'none')).toBeUndefined()
     expect(followPours(potion('moonmilk'), 'pour3', 'none')).toBeUndefined()
   })
 
   it('ignores keys that are not pours', () => {
-    expect(followPours(four, 'shape', 'round')).toBeUndefined()
+    expect(followPours(potion('moonmilk'), 'shape', 'round')).toBeUndefined()
+    expect(followPours(potion('moonmilk'), 'mixed', 'yes')).toBeUndefined()
   })
 
   describe('through the workbench reducer', () => {
@@ -82,23 +60,32 @@ describe('followPours', () => {
       schema: potionSchema,
       follows: followPours,
     })
-    const pour = (state: Workbench, key: string, value: string) =>
+    const set = (state: Workbench, key: string, value: string) =>
       workbench(state, { type: 'set', key, value })
     const start = (...pours: IngredientId[]) => startWorkbench({ params: potion(...pours) })
 
-    it('takes a pour out of the middle and shifts the rest down', () => {
-      const state = pour(startWorkbench({ params: four }), 'pour2', 'none')
-      expect(pourList(state.item.params)).toEqual(['moonmilk', 'starpetal', 'emberroot'])
-    })
-
-    it('takes the first pour out of a part-full bottle', () => {
-      const state = pour(start('moonmilk', 'frogfizz', 'starpetal'), 'pour1', 'none')
-      expect(pourList(state.item.params)).toEqual(['frogfizz', 'starpetal'])
-    })
-
-    it('lands a pour above a gap in the lowest empty slot', () => {
-      const state = pour(start('moonmilk', 'frogfizz'), 'pour4', 'bluebell')
+    it('lands an ingredient above a gap in the lowest empty slot', () => {
+      const state = set(start('moonmilk', 'frogfizz'), 'pour3', 'bluebell')
       expect(pourList(state.item.params)).toEqual(['moonmilk', 'frogfizz', 'bluebell'])
+      expect(pourList(set(start(), 'pour3', 'bluebell').item.params)).toEqual(['bluebell'])
+    })
+
+    it('mixes when mixed is set on a full bottle, and not on a part-full one', () => {
+      const full = set(start('moonmilk', 'frogfizz', 'bluebell'), 'mixed', 'yes')
+      expect(full.item.params.mixed).toBe('yes')
+      expect(set(start('moonmilk', 'frogfizz'), 'mixed', 'yes').item.params.mixed).toBe('no')
+    })
+
+    it('empties the bottle and unmixes it with a set none from the top down', () => {
+      let state = set(start('moonmilk', 'frogfizz', 'bluebell'), 'mixed', 'yes')
+      for (const key of ['pour3', 'pour2', 'pour1']) state = set(state, key, 'none')
+      expect(pourList(state.item.params)).toEqual([])
+      expect(state.item.params.mixed).toBe('no')
+    })
+
+    it('unmixes as soon as the top ingredient goes', () => {
+      const mixed = set(start('moonmilk', 'frogfizz', 'bluebell'), 'mixed', 'yes')
+      expect(set(mixed, 'pour3', 'none').item.params.mixed).toBe('no')
     })
   })
 })

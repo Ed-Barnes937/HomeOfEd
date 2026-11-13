@@ -14,7 +14,7 @@ import { boxCameraPosition } from './boxRig.tsx'
 import { CAMERA_DISTANCE, hitGeometry, uprightScale, type HeldItem } from './HeldRig.tsx'
 import { LEAN_MARGIN, LEAN_MAX, leanShiftMm } from './hold.ts'
 import { potionHeldItem } from './PotionCloseUpStage.tsx'
-import { fillGeometries, liquidLevels, RENDER_ORDER, surfaceUp } from './PotionMesh.tsx'
+import { fillGeometries, liquidLevels, liquidTops, RENDER_ORDER, surfaceUp } from './PotionMesh.tsx'
 import { boxCentreY, POTION_HALF_WIDTH } from './potionScene.tsx'
 import { FOV, MM } from './scene.tsx'
 
@@ -166,6 +166,69 @@ describe("the liquid's up, in the bottle's frame", () => {
     expect(u.length()).toBeCloseTo(1, 9)
     expect(b.equals(before)).toBe(true)
     expect(n.y).toBe(5)
+  })
+})
+
+describe('the liquid as it is drawn, on a posed scene graph', () => {
+  const DEGREE = Math.PI / 180
+  const Z = new THREE.Vector3(0, 0, 1)
+  const spec = potion({ shape: 'round', neck: 0.5 })
+  const table = levelTable(spec)
+  const built = { upright: uprightLevels(spec) }
+  const work = () => ({
+    u: new THREE.Vector3(),
+    bottle: new THREE.Quaternion(),
+    up: new THREE.Quaternion(),
+    at: new THREE.Vector3(),
+    scale: new THREE.Vector3(),
+    table: () => table,
+  })
+
+  /** The rig's up frame pitched by `pitch`, holding the bottle leaned by `lean`; the bottle mesh as PotionMesh nests it. */
+  function posed(pitch: number, lean: number) {
+    const scene = new THREE.Scene()
+    const up = new THREE.Group()
+    up.rotation.x = pitch
+    const held = new THREE.Group()
+    held.rotation.z = -lean
+    const inner = new THREE.Group()
+    inner.rotation.x = -Math.PI / 2
+    inner.scale.setScalar(MM)
+    const liquid = new THREE.Mesh()
+    inner.add(liquid)
+    held.add(inner)
+    up.add(held)
+    scene.add(up)
+    scene.updateMatrixWorld()
+    return { liquid, upFrom: { current: up } }
+  }
+
+  test('a bottle leaned 30 degrees in its frame draws the bands at the 30 degree levels', () => {
+    const { liquid, upFrom } = posed(0, 30 * DEGREE)
+    const w = work()
+    const tops = liquidTops(liquid, { built, upFrom }, w)
+    expect(w.u.angleTo(Z) / DEGREE).toBeCloseTo(30, 6)
+    tops.forEach((h, i) => expect(h).toBeCloseTo(levelsAt(table, 30 * DEGREE)[i]!, 6))
+  })
+
+  test('a 10 degree wobble given as the surface normal comes out 20 degrees off the axis', () => {
+    const { liquid, upFrom } = posed(0, 30 * DEGREE)
+    const surfaceNormal = new THREE.Vector3(0, 1, 0).applyAxisAngle(Z, -10 * DEGREE)
+    const w = work()
+    liquidTops(liquid, { built, upFrom, surfaceNormal }, w)
+    expect(w.u.angleTo(Z) / DEGREE).toBeCloseTo(20, 6)
+  })
+
+  test('a bottle turned with its up frame stays upright, whatever the frame does in the world', () => {
+    const { liquid, upFrom } = posed(0.3, 0)
+    const w = work()
+    expect(liquidTops(liquid, { built, upFrom }, w)).toEqual(built.upright)
+    expect(w.u.angleTo(Z) / DEGREE).toBeCloseTo(0, 6)
+  })
+
+  test('given levels win over the looked-up ones', () => {
+    const { liquid, upFrom } = posed(0, 30 * DEGREE)
+    expect(liquidTops(liquid, { built, upFrom, levels: [1, 2] }, work())).toEqual([1, 2])
   })
 })
 

@@ -1,4 +1,7 @@
 import { potionItem } from '../potion/item.ts'
+import { MIX_REVEAL_SECONDS, MIX_REVEAL_SECONDS_REDUCED } from '../potion/mixBeats.ts'
+import { isMixed } from '../potion/potionSchema.ts'
+import { pourList } from '../potion/pours.ts'
 import { paintApothecaryCard } from '../share/apothecaryCard.ts'
 import type { ShopCopy, ShopView } from '../shop/shopView.ts'
 import { BrewingTable } from './BrewingTable.tsx'
@@ -6,12 +9,12 @@ import { visibleGroups } from './potionGroups.ts'
 import { potionWidget } from './potionWidgets.tsx'
 
 export const apothecaryCopy: ShopCopy = {
-  motto: 'potions poured to order',
+  motto: 'potions mixed to order',
   sceneButton: 'Pick the bottle up',
-  sceneHint: 'Tap the bottle to pick it up',
+  sceneHint: 'Tap the bottle to mix it',
   closeLookTitle: 'Your potion, up close',
-  closeLookAction: 'Uncork it',
-  closeLookHint: 'Drag to tip it. Tap it to uncork it.',
+  closeLookAction: 'Mix it',
+  closeLookHint: 'Tap it to mix it. Drag to tip it.',
   keep: 'Keep this potion',
   kept: (name) => `${name} is on your shelf.`,
   nameField: 'Potion name',
@@ -34,5 +37,15 @@ export const apothecary: ShopView = {
   groups: visibleGroups,
   widget: potionWidget,
   paintCard: paintApothecaryCard,
-  closeUp: { flashDelaySeconds: null, flourishOnArrival: false },
+  closeUp: {
+    flashDelaySeconds: null,
+    flourishOnArrival: true,
+    reveal: {
+      seconds: MIX_REVEAL_SECONDS,
+      reducedMotionSeconds: MIX_REVEAL_SECONDS_REDUCED,
+      change: (p) =>
+        pourList(p).length === 3 && !isMixed(p) ? { key: 'mixed', value: 'yes' } : null,
+    },
+  },
+  offersPutBack: false,
 }

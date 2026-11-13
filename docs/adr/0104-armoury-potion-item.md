@@ -1,5 +1,7 @@
 # 0104 - armoury potion: pours as ordered slots, compaction, the ingredient table
 
+> Superseded in part by ADR 0113 (three ingredients that mix).
+
 - **Status:** Accepted
 - **Date:** 2026-11-13
 - **Related:** [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (item kinds,

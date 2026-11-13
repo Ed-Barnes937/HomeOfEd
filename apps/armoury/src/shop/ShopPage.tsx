@@ -82,7 +82,7 @@ export function ShopPage({ view, shared = false }: { view: ShopView; shared?: bo
 
   const actions = (
     <div className={styles.actions}>
-      {state.previous && (
+      {state.previous && (view.offersPutBack ?? true) && (
         <button
           type="button"
           className={styles.putBack}

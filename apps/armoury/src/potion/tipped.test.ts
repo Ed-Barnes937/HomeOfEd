@@ -10,10 +10,10 @@ import { BASE_MM, bottleProfile, type BottleProfile, uprightLevels } from './pro
 import { levelsAt, levelTable } from './tipped.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
-const FOUR: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal', 'bluebell']
+const THREE: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
 const RAD = Math.PI / 180
 
-const specOf = (shape: ShapeId, neck: number, pours = FOUR): PotionSpec =>
+const specOf = (shape: ShapeId, neck: number, pours = THREE): PotionSpec =>
   compilePotion(normalise(potionSchema, { ...withPours(pours), shape, neck }))
 
 const CATALOGUE = SHAPES.flatMap((shape) =>
@@ -35,7 +35,7 @@ const CATALOGUE = SHAPES.flatMap((shape) =>
 function bandVolume(profile: BottleProfile, t: number, lo: number, hi: number): number {
   const s = Math.sin(t)
   const c = Math.cos(t)
-  const dz = 0.2
+  const dz = 0.02
   const n = 32
   let v = 0
   for (let z = BASE_MM + dz / 2; z < profile.cavityTopZ; z += dz) {
@@ -63,8 +63,8 @@ describe('levelTable', () => {
     const { table } = CATALOGUE[0]!
     expect(table.stepDeg).toBe(5)
     expect(table.levels).toHaveLength(19)
-    for (const row of table.levels) expect(row).toHaveLength(4)
-    expect(levelTable(specOf('round', 0.5, FOUR.slice(0, 2))).levels[3]).toHaveLength(2)
+    for (const row of table.levels) expect(row).toHaveLength(3)
+    expect(levelTable(specOf('round', 0.5, THREE.slice(0, 2))).levels[3]).toHaveLength(2)
     expect(levelTable(specOf('round', 0.5, [])).levels[3]).toEqual([])
   })
 
@@ -80,15 +80,15 @@ describe('levelTable', () => {
   })
 
   it.each(CATALOGUE)('$name: every band keeps its volume as it tips', ({ profile, table }) => {
-    const quarter = profile.cavityVolume(profile.fullZ) / 4
+    const third = profile.cavityVolume(profile.fullZ) / 3
     for (const [deg, bound] of [
-      [0, 0.02],
-      [15, 0.02],
-      [30, 0.02],
-      [37, 0.02],
-      [45, 0.02],
-      [52, 0.02],
-      [60, 0.02],
+      [0, 0.004],
+      [15, 0.004],
+      [30, 0.004],
+      [37, 0.004],
+      [45, 0.004],
+      [52, 0.004],
+      [60, 0.004],
       [75, 0.05],
       [90, 0.05],
     ] as const) {
@@ -98,7 +98,7 @@ describe('levelTable', () => {
       let below = -1e3
       for (const top of levels) {
         const v = bandVolume(profile, t, below, top)
-        expect(Math.abs(v / quarter - 1), `${deg} degrees`).toBeLessThan(bound)
+        expect(Math.abs(v / third - 1), `${deg} degrees`).toBeLessThan(bound)
         below = top
       }
     }
