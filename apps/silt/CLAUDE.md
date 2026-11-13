@@ -490,7 +490,8 @@ the helpers.
 - `reloadOnPlayerChange` runs in `PlayerView`. silt has no `/shared`.
 - The header ends with the player's initial in a circle, linking to
   `switchPlayerUrlFor(location.href)`. Outside the estate (CT, port 3109) it
-  is a non-link `role="img"` that still names the player.
+  is a non-link `role="img"` that still names the player. In the estate with
+  no session it is an empty circle, "Choose who is playing".
 
 ## Field notes progression (`src/features/fieldNotes/`)
 

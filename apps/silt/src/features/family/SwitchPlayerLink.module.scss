@@ -40,13 +40,10 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   }
 }
 
-.words {
-  flex: none;
-  font-size: 0.75rem;
-  color: $ink;
-  white-space: nowrap;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+.glyph {
+  width: 55%;
+  height: 55%;
+  fill: currentColor;
 }
 
 @media #{$mobile} {
@@ -54,11 +51,5 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
     width: 44px;
     height: 44px;
     font-size: 16px;
-  }
-
-  .words {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
   }
 }
