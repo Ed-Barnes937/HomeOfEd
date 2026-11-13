@@ -13,8 +13,7 @@ export function potionWidget(
 ): ReactNode | undefined {
   if (def.kind !== 'choice') return undefined
   if (def.key === 'pour1') return <PourPicker params={params} onChange={onChange} />
-  if (isPourKey(def.key)) return null
-  if (def.key === 'mixed') return null
+  if (isPourKey(def.key) || def.key === 'mixed') return null
   if (def.key === 'glass') {
     const tinted = {
       ...def,

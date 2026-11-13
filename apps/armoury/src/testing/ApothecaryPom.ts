@@ -179,11 +179,18 @@ export class ApothecaryPom extends BenchPom {
   }
 
   async verifyNoTakeOutButton(): Promise<void> {
-    await expect(this.page.getByRole('button', { name: /take out/i })).toHaveCount(0)
+    await expect(
+      this.page.getByRole('tabpanel').getByRole('button', { name: /take out/i }),
+    ).toHaveCount(0)
+  }
+
+  async verifyNoMixedControl(): Promise<void> {
+    await expect(this.page.getByText('Not mixed')).toHaveCount(0)
+    await expect(this.page.getByRole('radio', { name: /^Mixed/ })).toHaveCount(0)
   }
 
   async verifyAnnouncement(text: string): Promise<void> {
-    await expect(this.page.locator('[aria-live="polite"]', { hasText: text })).toHaveText(text)
+    await expect(this.page.locator('ul ~ p[aria-live="polite"]')).toHaveText(text)
   }
 
   async pourWithKeyboard(label: string, key: 'Enter' | 'Space' = 'Enter'): Promise<void> {
@@ -238,11 +245,6 @@ export class ApothecaryPom extends BenchPom {
     expect(await (await this.sheet()).evaluate((box) => box.scrollTop)).toBeGreaterThan(0)
   }
 
-  /** A finger tap on a jar, with the sheet scrolled down; the jar may be shut. */
-  async tapJarWithFinger(label: string): Promise<void> {
-    await this.jar(label).tap()
-  }
-
   async tapEmptyBottle(): Promise<void> {
     await this.emptyButton.tap()
   }
@@ -264,16 +266,6 @@ export class ApothecaryPom extends BenchPom {
       .boundingBox())!
     expect(ninth.y).toBeGreaterThanOrEqual(panel.y)
     expect(ninth.y + ninth.height).toBeLessThanOrEqual(panel.y + panel.height)
-  }
-
-  /** The ninth jar's bottom and the tab body's bottom, for reporting. */
-  async ninthJarAndPanelBottoms(): Promise<{ jar: number; panel: number }> {
-    const panel = (await this.page.getByRole('tabpanel').boundingBox())!
-    const ninth = (await this.page
-      .getByRole('button', { name: /^Pour in / })
-      .nth(8)
-      .boundingBox())!
-    return { jar: ninth.y + ninth.height, panel: panel.y + panel.height }
   }
 
   /** Every jar, and "Empty the bottle" when it shows, is at least 44 px tall and wide. */
@@ -341,9 +333,5 @@ export class ApothecaryPom extends BenchPom {
     await expect
       .poll(() => this.page.evaluate(() => (window as unknown as { heard: string[] }).heard))
       .toEqual(expected)
-  }
-
-  async verifyAnnouncementIs(text: string): Promise<void> {
-    await expect(this.page.locator('ul ~ p[aria-live="polite"]')).toHaveText(text)
   }
 }

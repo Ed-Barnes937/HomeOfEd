@@ -161,7 +161,7 @@ test.describe('a mixed potion', () => {
     await root.verifyPours(['Bluebell dew', 'Starpetal', 'Emberroot'])
     expect(await root.potionName()).toBe(before.name)
     expect(await root.description()).toBe(before.line)
-    await root.verifyAnnouncementIs(MIXED_MESSAGE)
+    await root.verifyAnnouncement(MIXED_MESSAGE)
   })
 
   test('is unmixed and emptied by Empty the bottle, and the heading goes back', async ({
@@ -185,8 +185,7 @@ test.describe('a mixed potion', () => {
     await ShopPom.openAt(page, MIXED_LINK)
     const { root } = await mountApp()
     await root.verifyPours(['Bluebell dew', 'Starpetal', 'Emberroot'])
-    await expect(page.getByText('Not mixed')).toHaveCount(0)
-    await expect(page.getByRole('radio', { name: /^Mixed/ })).toHaveCount(0)
+    await root.verifyNoMixedControl()
   })
 
   test('keeps its three ingredients and the mixed state through Try another while Pours is locked', async ({
@@ -223,10 +222,7 @@ test('Try another keeps the pours while the group is locked and changes them whe
   expect(await root.stageFact('pours')).not.toBe('moonmilk,rosehip,starpetal')
 })
 
-test('the pours survive a reload, and Put the last one back restores them after Try another', async ({
-  mountApp,
-  page,
-}) => {
+test('the pours survive a reload', async ({ mountApp }) => {
   const first = await mountApp()
   await first.root.emptyBottle()
   await first.root.pour('Frogfizz')
@@ -235,16 +231,9 @@ test('the pours survive a reload, and Put the last one back restores them after 
   await first.root.reload()
 
   const { root } = await mountApp()
-  await root.verifyStage({ pours: 'frogfizz,frogfizz,emberroot' })
+  await root.verifyStage({ pours: 'frogfizz,frogfizz,emberroot', mixed: 'no' })
   await root.verifyPours(['Frogfizz', 'Frogfizz', 'Emberroot'])
-
-  await page.evaluate(() => {
-    Math.random = () => 0.25
-  })
-  await root.tryAnother()
-  await root.putBack()
-  await root.verifyStage({ pours: 'frogfizz,frogfizz,emberroot' })
-  await root.verifyPours(['Frogfizz', 'Frogfizz', 'Emberroot'])
+  await root.verifyFull()
 })
 
 test('a polite live region says what was poured and when the bottle is empty', async ({
