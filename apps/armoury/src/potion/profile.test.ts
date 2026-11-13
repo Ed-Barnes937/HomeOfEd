@@ -216,13 +216,19 @@ describe('the stoppers', () => {
     }
   })
 
-  it.each(WAXED)('$name: the wax domes over the cork, with no flat top', ({ profile }) => {
-    const wax = profile.stopper[1]!
-    const top = Math.max(...wax.map((p) => p.z))
-    const coat = widestAt(wax, profile.lipZ + 4)
-    const turned = wax.map((p) => ({ r: p.z, z: p.r }))
-    expect(top - widestAt(turned, 0.8 * coat)).toBeGreaterThan(0.6)
-  })
+  it.each(WAXED)(
+    '$name: the wax rises straight from the bead to a flat top just over the cork',
+    ({ profile }) => {
+      const cork = profile.stopper[0]!
+      const wax = profile.stopper[1]!
+      const top = Math.max(...wax.map((p) => p.z))
+      expect(top - Math.max(...cork.map((p) => p.z))).toBeLessThan(1.5)
+      const coat = widestAt(wax, profile.lipZ + 1)
+      expect(Math.abs(widestAt(wax, top - 2) - coat)).toBeLessThan(0.05)
+      const turned = wax.map((p) => ({ r: p.z, z: p.r }))
+      expect(top - widestAt(turned, 0.7 * coat)).toBeLessThan(0.05)
+    },
+  )
 
   it.each(WAXED)(
     '$name: the dipped edge is a roll thicker than the wax above it',

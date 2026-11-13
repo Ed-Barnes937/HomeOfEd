@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import * as THREE from 'three'
 import { describe, expect, test } from 'vitest'
 
@@ -5,6 +6,7 @@ import { boxCameraPosition } from './boxRig.tsx'
 import {
   CAMERA_DISTANCE,
   heldTurn,
+  Laid,
   liftStart,
   liftTurn,
   UPRIGHT_TO_LEVEL,
@@ -141,4 +143,88 @@ describe('an upright item, its children standing along y', () => {
       const rolled = heldTurn(new THREE.Quaternion(), upright(), tilt, 0.7, 0.4, 0).multiply(laid)
       expectSameTurn(rolled, new THREE.Quaternion().setFromAxisAngle(Y, 0.7 + 0.4))
     })
+
+  /** The turn the rig's own JSX puts between the held group and the children. */
+  const drawnTurn = (hold: 'level' | 'upright') => {
+    const element = Laid({ hold, children: null }) as ReactElement<{
+      rotation?: [number, number, number]
+    }>
+    const rotation = element.props.rotation ?? [0, 0, 0]
+    return new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation))
+  }
+
+  test('lays the upright children down with the turn the hold assumes, so held they stand', () => {
+    expectSameTurn(drawnTurn('upright'), laid)
+    for (const portrait of [false, true])
+      expectSameTurn(
+        heldTurn(
+          new THREE.Quaternion(),
+          upright(),
+          heldTilt('upright', portrait),
+          0,
+          0,
+          0,
+        ).multiply(drawnTurn('upright')),
+        new THREE.Quaternion(),
+      )
+  })
+
+  test('leaves a level item as its children drew it', () => {
+    expectSameTurn(drawnTurn('level'), new THREE.Quaternion())
+  })
+})
+
+describe('the first frame of the lift from the square stage slot', () => {
+  // The potion's table: a square slot, on a desk and on a phone.
+  const cases = [
+    {
+      name: 'desk',
+      canvas: { left: 0, top: 0, width: 1440, height: 900 },
+      slot: { left: 510, top: 96, width: 420, height: 420 },
+    },
+    {
+      name: 'phone',
+      canvas: { left: 0, top: 0, width: 390, height: 844 },
+      slot: { left: 95, top: 72, width: 200, height: 200 },
+    },
+  ]
+  for (const { name, canvas, slot } of cases)
+    for (const centre of [0, 0.42, -0.3])
+      test(`draws the item's centre on its pixel and at its size, ${name}, ${centre} above the look-at point`, () => {
+        const pxHere = canvas.height / (2 * CAMERA_DISTANCE * Math.tan((FOV * Math.PI) / 360))
+        const start = liftStart(slot, canvas, pxHere, upright(centre), {
+          position: new THREE.Vector3(),
+          scale: 0,
+        })
+        const box = new THREE.PerspectiveCamera(FOV, 1, 0.1, 100)
+        boxCameraPosition('front', STAGE_HALF_WIDTH, 1, box.position)
+        box.lookAt(0, 0, 0)
+        box.updateMatrixWorld()
+        const close = new THREE.PerspectiveCamera(FOV, canvas.width / canvas.height, 0.1, 50)
+        close.position.set(0, 0, CAMERA_DISTANCE)
+        close.updateMatrixWorld()
+
+        const at = new THREE.Vector3(0, centre * BOX_SCALE, 0)
+        const inBox = onPage(box, slot, at)
+        const lifted = onPage(close, canvas, start.position)
+        expect(lifted.x).toBeCloseTo(inBox.x, 6)
+        expect(lifted.y).toBeCloseTo(inBox.y, 6)
+
+        const across = 0.01
+        const boxSpan = onPage(box, slot, at.clone().setX(across * BOX_SCALE)).distanceTo(
+          onPage(box, slot, at.clone().setX(-across * BOX_SCALE)),
+        )
+        const liftSpan = onPage(
+          close,
+          canvas,
+          start.position.clone().setX(start.position.x + across * start.scale),
+        ).distanceTo(
+          onPage(
+            close,
+            canvas,
+            start.position.clone().setX(start.position.x - across * start.scale),
+          ),
+        )
+        expect(liftSpan).toBeCloseTo(boxSpan, 6)
+      })
 })

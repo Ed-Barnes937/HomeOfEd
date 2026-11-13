@@ -84,7 +84,9 @@ nothing unless a finger is holding a lean.
   2. The box stage draws it as `Roller axis="y"` > `group scale={boxScale}` >
      `group position={[0, boxCentreY, 0]}` > the mesh, with no other turn. `boxCentreY` is in
      the units inside the box's scale (the item's own scene units), the height that puts the foot
-     on the stage's base line.
+     on the stage's base line. `boxCentreY` is worked out for one aspect, so such a box stage
+     keeps a fixed aspect (the potion's slot is square); at any other aspect the foot would leave
+     the base line.
   3. Its `HeldItem` sets `boxHalfWidth` to the stage's half width divided by the box's scale (as
      the sword does) and `boxCentreY` to the same number the box stage used.
   4. The rig does the rest. It lays upright children along x in an inner group turned by

@@ -1,8 +1,13 @@
 // Screenshots of the real stages on the real GPU (ANGLE Metal), for judging by eye.
 // node apps/armoury/scripts/gpu-shots.mjs <baseUrl> <outDir> <set.json> [only,names] [--picture] [--reduced-motion]
 //   [--clay] [--views=desk,phone] [--box-only] [--close=1200,7000] [--focus=tip,hilt] [--focus-only] [--rolls=20,-40]
-// The set file is { "<name>": { "kind": "wand" | "sword", "params": { ... } } }.
-// --clay draws a sword in plain grey and --focus adds zooms on the tip or hilt (dev server only);
+//   [--leans=30,-45] [--tips=20,-30]
+// The set file is { "<name>": { "kind": "wand" | "sword" | "potion", "params": { ... } } }.
+// A potion opens at /potions; its close frames default to 100 and 400 ms (rising) and 1200 and 4800 (held), and
+// it skips the zoom: --leans and --tips shoot it while the drag still holds it (lean<deg>, tip<deg>; a lean is
+// positive to the right, a tip towards the viewer), since it rights itself on release, then a tap away puts it
+// back (r<ms> after).
+// --clay draws a sword or a potion in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
 // about its length, or with an s (s45) swings it, tip away.
 // --flourish=0.5,2.2 shoots the sword's close look that many seconds into its arrival flourish (f<ms>), the
@@ -36,8 +41,12 @@ const viewTags = options.views ? new Set(options.views.split(',')) : null
 const focuses = options.focus ? options.focus.split(',') : []
 const focusOnly = flags.has('--focus-only')
 const rolls = options.rolls ? options.rolls.split(',') : []
-// The close look rolls 0.007 radians per pixel dragged across the item.
+const leans = options.leans ? options.leans.split(',').map(Number) : []
+const tips = options.tips ? options.tips.split(',').map(Number) : []
+// The close look rolls, leans and tips 0.007 radians per pixel dragged.
 const PX_PER_DEGREE = Math.PI / 180 / 0.007
+// A drag only turns the item once it has travelled further than this.
+const TAP_SLOP_PX = 6
 const wanted = only ? new Set(only.split(',')) : null
 const seconds = (list) => (list ? list.split(',').map(Number) : [])
 const flourishAt = seconds(options.flourish)
@@ -61,6 +70,8 @@ const views = [
 const CLOSE_FRAMES = options.close
   ? options.close.split(',').map(Number)
   : [1200, 2400, 3600, 4800, 7000]
+const POTION_CLOSE_FRAMES = options.close ? CLOSE_FRAMES : [100, 400, 1200, 4800]
+const SHOP_PATHS = { wand: '/', sword: '/swords', potion: '/potions' }
 // Textures and the HDRI load after the stage chunk; this is time for them to upload and draw.
 const SETTLE_MS = 3500
 
@@ -82,8 +93,8 @@ try {
       })
       const page = await ctx.newPage()
       const shot = (what) => join(out, `${name}-${view.tag}-${what}.png`)
-      // A wand opens at the root as it always has; a sword goes straight to its shop.
-      const path = kind === 'sword' ? `/swords${clay ? '?clay' : ''}` : '/'
+      // A wand opens at the root as it always has; a sword or a potion goes straight to its shop.
+      const path = `${SHOP_PATHS[kind]}${clay && kind !== 'wand' ? '?clay' : ''}`
       await page.goto(`${base}${path}#w=${token(kind, params)}`)
 
       const renderer = await page.evaluate(() => {
@@ -115,10 +126,40 @@ try {
         await item.click()
         await page.getByRole('dialog').waitFor()
         let waited = 0
-        for (const ms of CLOSE_FRAMES) {
+        for (const ms of kind === 'potion' ? POTION_CLOSE_FRAMES : CLOSE_FRAMES) {
           await page.waitForTimeout(ms - waited)
           waited = ms
           await page.screenshot({ path: shot(`close-${ms}`) })
+        }
+        if (kind === 'potion') {
+          const x = view.viewport.width / 2
+          const y = view.viewport.height * 0.45
+          const drags = [
+            ...leans.map((deg) => ({ tag: `lean${deg}`, dx: deg * PX_PER_DEGREE, dy: 0 })),
+            ...tips.map((deg) => ({ tag: `tip${deg}`, dx: 0, dy: deg * PX_PER_DEGREE })),
+          ]
+          for (const { tag, dx, dy } of drags) {
+            await page.mouse.move(x, y)
+            await page.mouse.down()
+            // Used up by the tap slop, across the drag, so all of the drag itself turns the bottle.
+            await page.mouse.move(dx ? x : x + TAP_SLOP_PX, dx ? y + TAP_SLOP_PX : y)
+            const [sx, sy] = dx ? [x, y + TAP_SLOP_PX] : [x + TAP_SLOP_PX, y]
+            await page.mouse.move(sx + dx, sy + dy, { steps: 12 })
+            await page.waitForTimeout(400)
+            await page.screenshot({ path: shot(tag) })
+            await page.mouse.up()
+            await page.waitForTimeout(1500)
+          }
+          await page.mouse.click(view.viewport.width * 0.06, view.viewport.height * 0.5)
+          let back = 0
+          for (const ms of [150, 450, 1500]) {
+            await page.waitForTimeout(ms - back)
+            back = ms
+            await page.screenshot({ path: shot(`r${String(ms).padStart(5, '0')}`) })
+          }
+          await ctx.close()
+          console.log(`${name} ${view.tag}`)
+          continue
         }
         if (flourishing) {
           const log = []

@@ -54,11 +54,11 @@ const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 /
 /** What the rig needs to know about the item it lifts. Points are in the item's own space, along z, before it is turned to lie along x. */
 export interface HeldItem {
   lengthMm: number
-  /** Where the trail streams from. */
+  /** Where the trail streams from, along the item's length (z) before the rig lays it along x; unused with no trail. */
   tip: [number, number, number]
   /** The invisible box a tap must land in, in scene units, in the children's frame: along x for a level item, y for an upright one. */
   hit: [number, number, number]
-  /** Where a hand holds it, as a fraction of its length from the pommel. */
+  /** Where a hand holds it, as a fraction of its length from the pommel, or from the foot of an upright item; the wave, tip and lean turn about it. */
   grip: number
   /** Stretches the figure of 8 in time; 1 is the wand's. */
   flourishScale: number
@@ -198,6 +198,12 @@ function turnAbout(
 }
 
 type Lights = ComponentType<{ rim?: Ref<THREE.DirectionalLight> }>
+
+/** Lays an upright item's children, standing along y, along x, as the rig holds every item. */
+export function Laid({ hold, children }: { hold: Hold | undefined; children: ReactNode }) {
+  if (hold === 'upright') return <group rotation={[0, 0, UPRIGHT_TO_LEVEL]}>{children}</group>
+  return <>{children}</>
+}
 
 function Rig({
   item,
@@ -365,11 +371,7 @@ function Rig({
         <Lights rim={rim} />
       </group>
       <group ref={held}>
-        {item.hold === 'upright' ? (
-          <group rotation={[0, 0, UPRIGHT_TO_LEVEL]}>{contents}</group>
-        ) : (
-          contents
-        )}
+        <Laid hold={item.hold}>{contents}</Laid>
       </group>
       {item.trailColour !== null && (
         <WaveTrail colour={item.trailColour} tip={tip} emitting={streaking} />

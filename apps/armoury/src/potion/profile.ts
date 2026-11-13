@@ -37,8 +37,8 @@ const WAX_ROLL_MM = 1
 const WAX_DIP_MM = 5.2
 /** The wax's coat on the neck, thinner than over the top. */
 const WAX_NECK_MM = 0.75
-/** The superellipse power of the wax's dome over the lip: above 2 is fuller than round. */
-const WAX_DOME = 2.4
+/** The rounded edge of the wax's flat top. */
+const WAX_EDGE_MM = 1.75
 /** Clearance between a stopper and the glass it rests on. */
 export const FIT_MM = 0.05
 
@@ -368,8 +368,8 @@ function stopperPieces(
 }
 
 /**
- * A cork dipped in wax: inside it hugs the cork, the lip and the neck; outside it domes over
- * the lip and the cork, coats the neck and ends in a roll.
+ * A cork dipped in wax: inside it hugs the cork, the lip and the neck; outside it rises
+ * straight from the bead to a flat top over the cork, coats the neck and ends in a roll.
  */
 function waxCap(
   cork: (z: number) => number,
@@ -387,8 +387,8 @@ function waxCap(
   const innerEnd = -Math.acos(e / (lip + e))
   const corkTopR = cork(top) + e
   const capR = neckR + lip + e + t
-  const n = WAX_DOME
-  const domeH = (top + e + t - beadZ) / (1 - (corkTopR / capR) ** n) ** (1 / n)
+  const capTop = top + e + t
+  const edge = WAX_EDGE_MM
   // Outer radius by height, from the roll's widest to the bead's; the first and last points
   // only flatten the ends.
   const outside: [number, number][] = [
@@ -408,10 +408,9 @@ function waxCap(
       line([neckR + e, beadZ + (lip + e) * Math.sin(innerEnd)], [neckR + e, rollZ]),
       arc(roll, WAX_ROLL_MM, Math.PI, 2 * Math.PI),
       trace((u) => [rise(rollZ + (beadZ - rollZ) * u), rollZ + (beadZ - rollZ) * u], 8),
-      trace((u) => {
-        const a = (u * Math.PI) / 2
-        return [capR * Math.cos(a) ** (2 / n), beadZ + domeH * Math.sin(a) ** (2 / n)]
-      }, capR + domeH),
+      line([capR, beadZ], [capR, capTop - edge]),
+      arc([capR - edge, capTop - edge], edge, 0, Math.PI / 2),
+      line([capR - edge, capTop], [0, capTop]),
     ],
     WAX_TURN,
   ).map((pt, i, all) => (i === all.length - 1 ? { r: 0, z: pt.z, nr: 0, nz: 1 } : pt))

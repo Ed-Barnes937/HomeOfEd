@@ -98,6 +98,22 @@ light half must be safe for the main chunk.
   `sword/curve.ts`, `bottles.ts`, `compile.ts` and `potionSchema.ts` (a test pins it).
   `geometry.ts` and `tipped.ts` are for the stage's lazy chunk only.
 
+## Form gate
+
+The bottle is judged in plain grey (`?clay`) on the real stage rigs (ticket 09), beside the wand
+and sword baseline, before any material exists. Shots and each round's review are in the epic's
+`shots/09/r<N>/`.
+
+- **Two corrections to the text above.** The cork sits 60 percent in the bore on most necks and
+  54 percent on short ones; the wax is about 1.0 mm thick at the lip's corner, not 1.1.
+- **The wax seal has a flat top** (tuned before round 1). Outside, the wax now rises straight
+  from the bead to a flat top just over the cork, with a 1.75 mm rounded edge, in place of the
+  superellipse dome: the dome over its narrower collar read as a mushroom. The dome still tilts
+  and the dipped edge still wanders; the roll is unchanged.
+- **The round label is 32 percent of the body's height across** (was 40), so on the teardrop and
+  the gourd, where it sits low on the widest band, the lower pours show beside it.
+- Cuts: none so far.
+
 ## Consequences
 
 - Tuning a shape is a row edit; the tests derive their expectations from the rows and pin
