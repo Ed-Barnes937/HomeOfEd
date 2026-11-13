@@ -73,7 +73,8 @@ end first, on fake stages, without opening the shop to visitors.
   `potionSwatchFor`; every other control stays plain.
 - **A pour is a `set` on the lowest empty slot.** A jar calls
   `onChange(nextPourKey(params), id)`; with a full bottle the jars are
-  `aria-disabled` (still focusable) and a tap does nothing.
+  `aria-disabled` (still focusable) and a tap announces the full message and pours
+  nothing.
 - **Take-out compaction lives in the item's `follows`**, not in the widget or the
   reducer: the widget sets the slot to `none` and `followPours` drops the pours
   above it down.
@@ -94,6 +95,10 @@ end first, on fake stages, without opening the shop to visitors.
 - **Focus stays in the picker.** After "Take out" focus goes to the take-out
   button now in that row, else the nearest remaining one, else the first jar;
   after "Empty the bottle" it goes to the first jar. Only those controls move it.
+  Focus scrolls the sheet into view only when the click came from the keyboard
+  (`detail` 0); a tap or a mouse click focuses without scrolling, so the sheet
+  stays where the child was. The list rows are one height, empty or filled, so
+  the list does not grow as it fills.
   "In the bottle" is a plain list (the schema calls the bottom pour "First pour",
   so numbering the top "1" would contradict it), the dimmed jars point at the full
   message with `aria-describedby`, and each announcement is a fresh node so a

@@ -191,6 +191,54 @@ export class ApothecaryPom extends BenchPom {
     await expect(this.page.getByRole('button', { name: /^Pour in / })).toHaveCount(9)
   }
 
+  private readonly emptyButton = this.page.getByRole('button', { name: 'Empty the bottle', exact: true })
+
+  /** The sheet's scrolling box is the nearest scrollable ancestor of the pours list. */
+  private sheet() {
+    return this.bottleList.evaluateHandle((list) => {
+      let box: HTMLElement | null = list.parentElement
+      while (box && box.scrollHeight <= box.clientHeight) box = box.parentElement
+      return box!
+    })
+  }
+
+  async scrollSheetToBottom(): Promise<void> {
+    await (await this.sheet()).evaluate((box) => (box.scrollTop = box.scrollHeight))
+  }
+
+  async scrollSheetToTop(): Promise<void> {
+    await (await this.sheet()).evaluate((box) => (box.scrollTop = 0))
+  }
+
+  /** The button that was tapped leaves the sheet shorter, so staying put means staying at the bottom. */
+  async verifySheetStillAtBottom(): Promise<void> {
+    const gap = await (await this.sheet()).evaluate(
+      (box) => box.scrollHeight - box.clientHeight - box.scrollTop,
+    )
+    expect(gap).toBeLessThanOrEqual(1)
+  }
+
+  async verifySheetScrolled(): Promise<void> {
+    expect(await (await this.sheet()).evaluate((box) => box.scrollTop)).toBeGreaterThan(0)
+  }
+
+  /** A finger tap on the last pour's "Take out", with the sheet scrolled down to it. */
+  async tapLastTakeOut(): Promise<void> {
+    await this.bottleList.getByRole('button').last().tap()
+  }
+
+  async tapEmptyBottle(): Promise<void> {
+    await this.emptyButton.tap()
+  }
+
+  /** The newly focused control lies inside the tab body. */
+  async verifyFocusedInView(): Promise<void> {
+    const panel = (await this.page.getByRole('tabpanel').boundingBox())!
+    const box = (await this.page.locator(':focus').boundingBox())!
+    expect(box.y).toBeGreaterThanOrEqual(panel.y)
+    expect(box.y + box.height).toBeLessThanOrEqual(panel.y + panel.height)
+  }
+
   /** The ninth jar lies inside the tab body as it stands, with no scrolling. */
   async verifyAllJarsInView(): Promise<void> {
     const panel = (await this.page.getByRole('tabpanel').boundingBox())!

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type MouseEvent } from 'react'
 
 import type { Params } from '../engine/schema.ts'
 import { ingredient, INGREDIENTS, type Ingredient } from '../potion/ingredients.ts'
@@ -10,7 +10,10 @@ import styles from './pourPicker.module.scss'
 const COUNT_WORDS = ['One', 'Two', 'Three', 'Four']
 const FULL_MESSAGE = 'The bottle is full. Take one out to pour another.'
 
-type FocusTarget = { takeOutIndex: number } | 'firstJar'
+type FocusTarget = { where: { takeOutIndex: number } | 'firstJar'; keyboard: boolean }
+
+/** A click's detail is 0 when Enter or Space made it, and 1 or more for a mouse click or a tap. */
+const isKeyboardClick = (event: MouseEvent) => event.detail === 0
 
 /** The one place an ingredient's picture is drawn, for the jars and the pours alike. */
 function IngredientPicture({ item }: { item: Ingredient }) {
@@ -33,8 +36,12 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
   useEffect(() => {
     const target = focusAfterChange.current
     focusAfterChange.current = null
-    if (target === 'firstJar') firstJar.current?.focus()
-    else if (target) takeOutButtons.current.get(target.takeOutIndex)?.focus()
+    if (!target) return
+    const element =
+      target.where === 'firstJar'
+        ? firstJar.current
+        : takeOutButtons.current.get(target.where.takeOutIndex)
+    element?.focus({ preventScroll: !target.keyboard })
   })
 
   const pour = (item: Ingredient) => {
@@ -44,17 +51,19 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
     announce(`${item.label} poured in. ${count} of four.`)
   }
 
-  const takeOut = (index: number) => {
+  const takeOut = (index: number, keyboard: boolean) => {
     onChange(POUR_KEYS[index]!, 'none')
     const remaining = pours.length - 1
-    focusAfterChange.current =
-      remaining === 0 ? 'firstJar' : { takeOutIndex: Math.min(index, remaining - 1) }
+    focusAfterChange.current = {
+      where: remaining === 0 ? 'firstJar' : { takeOutIndex: Math.min(index, remaining - 1) },
+      keyboard,
+    }
     announce(`${ingredient(pours[index]!).label} taken out.`)
   }
 
-  const emptyBottle = () => {
+  const emptyBottle = (keyboard: boolean) => {
     for (let i = pours.length - 1; i >= 0; i--) onChange(POUR_KEYS[i]!, 'none')
-    focusAfterChange.current = 'firstJar'
+    focusAfterChange.current = { where: 'firstJar', keyboard }
     announce('The bottle is empty.')
   }
 
@@ -108,7 +117,7 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
                 }}
                 className={styles.takeOut}
                 aria-label={`Take out ${item.label}`}
-                onClick={() => takeOut(index)}
+                onClick={(event) => takeOut(index, isKeyboardClick(event))}
               >
                 Take out
               </button>
@@ -118,7 +127,7 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
       </ul>
 
       {pours.length > 0 && (
-        <button type="button" className={styles.emptyAll} onClick={emptyBottle}>
+        <button type="button" className={styles.emptyAll} onClick={(event) => emptyBottle(isKeyboardClick(event))}>
           Empty the bottle
         </button>
       )}

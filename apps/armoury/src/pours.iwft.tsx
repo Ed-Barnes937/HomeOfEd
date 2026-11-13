@@ -178,6 +178,18 @@ test('after a take-out or an empty, focus stays in the picker', async ({ mountAp
   await root.verifyFocused('Pour in Moonmilk')
 })
 
+test.describe('on a phone with a keyboard', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('emptying scrolls the newly focused first jar into view', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.scrollSheetToBottom()
+    await root.emptyBottleWithKeyboard()
+    await root.verifyFocused('Pour in Moonmilk')
+    await root.verifyFocusedInView()
+  })
+})
+
 test('Try another leaves focus where the child put it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.tryAnother()
@@ -203,6 +215,33 @@ test.describe('on a phone', () => {
     await root.verifyPoursInOneColumn()
 
     await root.emptyBottle()
+    await root.scrollSheetToTop()
     await root.verifyAllJarsInView()
+  })
+
+  test.describe('with a finger', () => {
+    test.use({ hasTouch: true })
+
+    test('a tap on Empty the bottle leaves the sheet where it was', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.scrollSheetToBottom()
+      await root.verifySheetScrolled()
+
+      await root.tapEmptyBottle()
+      await root.verifySheetStillAtBottom()
+    })
+
+    test('a tap on the last pour\'s Take out leaves the sheet where it was', async ({
+      mountApp,
+    }) => {
+      const { root } = await mountApp()
+      await root.emptyBottleWithKeyboard()
+      await root.pour('Frogfizz')
+      await root.scrollSheetToBottom()
+      await root.verifySheetScrolled()
+
+      await root.tapLastTakeOut()
+      await root.verifySheetStillAtBottom()
+    })
   })
 })
