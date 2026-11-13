@@ -1,3 +1,4 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 import type { Locator, Page } from '@playwright/test'
@@ -244,13 +245,45 @@ export class FridgePagePom extends BasePage {
 
   // ---- players (ADR 0094) ----
 
+  /** CT runs outside the estate, so the circle names the player without linking to hub. */
   async verifyPlayerChip(name: string): Promise<void> {
-    await expect(this.page.getByTestId('player-chip')).toHaveText(`playing as ${name}`)
+    await expect(
+      this.page.getByRole('img', { name: `Playing as ${name}`, exact: true }),
+    ).toHaveText(profileInitial(name))
+    await expect(this.page.getByText(/playing as/i)).toHaveCount(0)
   }
 
   async verifyNoPlayerChip(): Promise<void> {
     await expect(this.page.getByTestId('fridge-page')).toBeVisible()
-    await expect(this.page.getByTestId('player-chip')).toHaveCount(0)
+    await expect(this.page.getByRole('img', { name: /^Playing as / })).toHaveCount(0)
+  }
+
+  /** The player circle is the right-most control of whichever bar is showing, inside the bar. */
+  async verifyPlayerChipEndsBar(): Promise<void> {
+    const m = await this.page.evaluate(() => {
+      const bar = document.querySelector(
+        '[data-testid="top-bar"], [data-testid="mobile-bar"]',
+      )!
+      const chip = bar.querySelector('[data-testid="player-chip"]')!.getBoundingClientRect()
+      const others = [...bar.querySelectorAll('a, button, input')].filter(
+        (el) => el.getAttribute('data-testid') !== 'player-chip',
+      )
+      const box = bar.getBoundingClientRect()
+      return {
+        chipLeft: chip.left,
+        chipRight: chip.right,
+        othersRight: Math.max(...others.map((el) => el.getBoundingClientRect().right)),
+        chipTop: chip.top,
+        chipBottom: chip.bottom,
+        barTop: box.top,
+        barRight: box.right,
+        barBottom: box.bottom,
+      }
+    })
+    expect(m.chipLeft).toBeGreaterThanOrEqual(m.othersRight)
+    expect(m.chipRight).toBeLessThanOrEqual(m.barRight)
+    expect(m.chipTop).toBeGreaterThanOrEqual(m.barTop)
+    expect(m.chipBottom).toBeLessThanOrEqual(m.barBottom)
   }
 
   /** The wordmark and every action stay on one line, and nothing reaches the saved-fridges row. */

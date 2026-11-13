@@ -23,4 +23,5 @@ test('signed in at 1024px with a long name, the top bar keeps to one row above t
   await root.clickSave()
   await root.verifyChip('Mine')
   await root.verifyTopBarFitsOneRow()
+  await root.verifyPlayerChipEndsBar()
 })

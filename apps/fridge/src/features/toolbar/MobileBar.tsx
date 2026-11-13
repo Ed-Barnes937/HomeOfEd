@@ -21,7 +21,7 @@ interface MobileBarProps {
   saved: StoredBoard[]
   onLoad: (name: string) => void
   onDelete: (name: string) => void
-  /** Who is playing, rendered as a menu entry, when someone is. */
+  /** Who is playing, as the circle ending the strip, when someone is. */
   playerName?: string
   /** A shared fridge: Keep replaces Save, and the menu drops New and the saved fridges. */
   keepHref?: string
@@ -105,11 +105,11 @@ export function MobileBar({
             <circle cx="19" cy="12" r="2" />
           </svg>
         </button>
+        {playerName !== undefined && <PlayerChip name={playerName} />}
       </div>
 
       {menuOpen && (
         <div className={styles.menu} data-testid="mobile-menu">
-          {playerName !== undefined && <PlayerChip name={playerName} className={styles.item} />}
           <input
             className={styles.name}
             placeholder="name this fridge…"
