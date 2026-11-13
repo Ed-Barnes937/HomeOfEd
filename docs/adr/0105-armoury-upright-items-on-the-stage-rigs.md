@@ -77,9 +77,15 @@ its own effect.
 `shots/sets/baseline.json` (three wands: preset 0, a Branch, a gem preset; three swords:
 preset 0, a Sabre, a Katana) was shot on the real GPU with `--picture --reduced-motion`, desk
 and phone, before the change and after it, and every pair was compared pixel by pixel:
-box, scene, picture, close and zoom frames. The result is recorded in the epic's
-`shots/04/diff.md`; the after shots are the baseline every later potion gate shoots beside.
-Every existing wand and sword test passes untouched.
+box, scene, picture, close and zoom frames. A second run of the unchanged code was taken as a
+control. Every box, scene, picture and zoom pair is max 0, and every close frame from 2400 ms on.
+The wand's close frame at 1200 ms differs between two runs of the unchanged code as much as
+before and after, because two lights still move then under reduced motion, both outside the
+rigs: the wand shop's screen flash and the tip glow's flare after the arrival cast. Two sword
+close frames differ by at most 3 levels in the page behind the close look, and the control
+matches the after shots there exactly. The numbers are in the epic's `shots/04/diff.md`; the
+after shots are the baseline every later potion gate shoots beside. Every existing wand and sword
+test passes untouched.
 
 The sword's flourish probe moved to `stage/FlourishProbe.tsx` unchanged, so the potion's close
 look can reuse the shots script's `--flourish` hold.
