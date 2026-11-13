@@ -1,8 +1,12 @@
 import type { ItemKind } from './items/item.ts'
 
-export type ShopPath = '/wands' | '/swords'
+export type ShopPath = '/wands' | '/swords' | '/potions'
 
-export const SHOP_PATHS: Record<ItemKind, ShopPath> = { wand: '/wands', sword: '/swords' }
+export const SHOP_PATHS: Record<ItemKind, ShopPath> = {
+  wand: '/wands',
+  sword: '/swords',
+  potion: '/potions',
+}
 
 export interface Landing {
   /** The kind a share link brought, if the visit began with one. */

@@ -34,5 +34,5 @@ export const smithy: ShopView = {
   groups: visibleGroups,
   widget: swordWidget,
   paintCard: paintSmithyCard,
-  closeUp: { flashDelaySeconds: null },
+  closeUp: { flashDelaySeconds: null, flourishOnArrival: true },
 }

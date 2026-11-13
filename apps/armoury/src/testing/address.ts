@@ -1,7 +1,7 @@
 import { expect } from '@playwright/experimental-ct-react'
 import type { Page } from '@playwright/test'
 
-import { SAVE_KEY, SWORD_SAVE_KEY } from '../persistence/storage.ts'
+import { POTION_SAVE_KEY, SAVE_KEY, SWORD_SAVE_KEY } from '../persistence/storage.ts'
 
 /** The app is at this path with no fragment left in the address. */
 export async function verifyAt(page: Page, path: string): Promise<void> {
@@ -49,6 +49,6 @@ export async function openAsNewVisitor(page: Page, url: string, path = '/'): Pro
       for (const key of keys) window.localStorage.removeItem(key)
       window.history.replaceState(null, '', address)
     },
-    { keys: [SAVE_KEY, SWORD_SAVE_KEY], address: path + hash },
+    { keys: [SAVE_KEY, SWORD_SAVE_KEY, POTION_SAVE_KEY], address: path + hash },
   )
 }

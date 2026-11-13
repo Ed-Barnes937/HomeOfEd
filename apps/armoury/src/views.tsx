@@ -6,13 +6,14 @@ import { useFamilySession } from './familySession.tsx'
 import type { ItemKind } from './items/item.ts'
 import { PROFILE_KEYS } from './persistence/profileKeys.ts'
 import { clearShareHash, decodeShareHash } from './share/shareLink.ts'
+import { apothecary } from './apothecary/apothecary.ts'
 import { ShopPage } from './shop/ShopPage.tsx'
 import type { ShopView } from './shop/shopView.ts'
 import { wandShop } from './shop/wandShop.ts'
 import { smithy } from './smithy/smithy.ts'
 import { WorkbenchProvider } from './workbench/WorkbenchProvider.tsx'
 
-/** The street, both shops and the shelf: the playing profile's counters and shelf (ADR 0094). */
+/** The street, the shops and the shelf: the playing profile's counters and shelf (ADR 0094). */
 export function PlayerView() {
   const player = useFamilySession()?.sub ?? null
   const { shared } = useRouteContext({ from: rootRouteId })
@@ -30,7 +31,7 @@ export function PlayerView() {
   )
 }
 
-const SHOPS: Record<ItemKind, ShopView> = { wand: wandShop, sword: smithy }
+const SHOPS: Record<ItemKind, ShopView> = { wand: wandShop, sword: smithy, potion: apothecary }
 
 /** `/shared`: open to anyone, it keeps nothing, and its fragment stays so a reload reopens the share
  *  (ADR 0093 decision 6). */

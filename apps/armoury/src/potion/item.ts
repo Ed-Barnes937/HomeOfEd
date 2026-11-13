@@ -1,5 +1,6 @@
 import { normalise } from '../engine/schema.ts'
 import type { ItemDef } from '../items/item.ts'
+import { POTION_SAVE_KEY } from '../persistence/storage.ts'
 import {
   potionGlowColour,
   potionLore,
@@ -13,11 +14,10 @@ import { potionPresets } from './presets.ts'
 import { potionSchema } from './potionSchema.ts'
 import { followPours } from './pours.ts'
 
-// Ticket 07 registers the kind and types this ItemDef.
-export const potionItem: Omit<ItemDef, 'kind'> & { kind: 'potion' } = {
+export const potionItem: ItemDef = {
   kind: 'potion',
   schema: potionSchema,
-  storageKey: 'armoury:save:potion',
+  storageKey: POTION_SAVE_KEY,
   firstVisit: () => normalise(potionSchema, potionPresets[0]!.params),
   keeps: [],
   follows: followPours,

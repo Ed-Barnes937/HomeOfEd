@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode, RefObject } from 'react'
 
 import type { ParamDef, Params } from '../engine/schema.ts'
 import type { ItemDef, StoredItem } from '../items/item.ts'
+import type { ShopPath } from '../landing.ts'
 import type { CardContent } from '../share/shareCard.ts'
 import type { StageHandle } from '../stage/stage.ts'
 import type { OnChange } from './controls/Widgets.tsx'
@@ -56,15 +57,19 @@ export interface WidgetProps {
 
 export interface ShopView {
   item: ItemDef
-  path: '/wands' | '/swords'
+  path: ShopPath
   /** The root's `data-shop`; tokens.scss overrides palette tokens under it. */
-  shop: 'wands' | 'smithy'
+  shop: 'wands' | 'smithy' | 'apothecary'
   copy: ShopCopy
   Scene: ComponentType<SceneProps>
   groups: (p: Params) => GroupMeta[]
   /** A control of the shop's own for this param, or undefined for the plain one. */
   widget?: (def: ParamDef, props: WidgetProps) => ReactNode | undefined
   paintCard: (ctx: CanvasRenderingContext2D, content: CardContent) => void
-  /** Seconds from a flourish to the screen's flash; null for no flash. */
-  closeUp: { flashDelaySeconds: number | null }
+  closeUp: {
+    /** Seconds from a flourish to the screen's flash; null for no flash. */
+    flashDelaySeconds: number | null
+    /** Whether the item shows off as soon as it arrives, or waits for a tap. */
+    flourishOnArrival: boolean
+  }
 }

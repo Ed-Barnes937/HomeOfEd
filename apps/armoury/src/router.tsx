@@ -7,6 +7,7 @@ import {
   redirect,
 } from '@tanstack/react-router'
 
+import { apothecary } from './apothecary/apothecary.ts'
 import { landingPath, type Landing } from './landing.ts'
 import { SHARED_PATH, type SharedItem } from './share/shareLink.ts'
 import { ShelfPage } from './shelf/ShelfPage.tsx'
@@ -28,7 +29,7 @@ const rootRoute = createRootRouteWithContext<Arrival>()({
   notFoundComponent: () => <Navigate to="/street" replace />,
 })
 
-// Pathless: the street, both shops and the shelf share one workbench over the player's storage.
+// Pathless: the street, the shops and the shelf share one workbench over the player's storage.
 const playerRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'player',
@@ -57,6 +58,11 @@ const swordsRoute = createRoute({
   path: '/swords',
   component: () => <ShopPage view={smithy} />,
 })
+const potionsRoute = createRoute({
+  getParentRoute: () => playerRoute,
+  path: '/potions',
+  component: () => <ShopPage view={apothecary} />,
+})
 const shelfRoute = createRoute({
   getParentRoute: () => playerRoute,
   path: '/shelf',
@@ -76,7 +82,14 @@ const sharedBelowRoute = createRoute({
 })
 
 const routeTree = rootRoute.addChildren([
-  playerRoute.addChildren([indexRoute, streetRoute, wandsRoute, swordsRoute, shelfRoute]),
+  playerRoute.addChildren([
+    indexRoute,
+    streetRoute,
+    wandsRoute,
+    swordsRoute,
+    potionsRoute,
+    shelfRoute,
+  ]),
   sharedRoute,
   sharedBelowRoute,
 ])

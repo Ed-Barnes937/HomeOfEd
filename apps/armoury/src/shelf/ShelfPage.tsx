@@ -1,6 +1,8 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useId, useState, type CSSProperties } from 'react'
 
+import { apothecary } from '../apothecary/apothecary.ts'
+import { PotionOutline } from '../apothecary/PotionOutline.tsx'
 import type { ItemKind, StoredItem } from '../items/item.ts'
 import { buildShareUrl } from '../share/shareLink.ts'
 import { useShareWand } from '../share/useShareWand.ts'
@@ -28,11 +30,14 @@ const hexToRgb = (hex: string) => {
 interface Shelf {
   view: ShopView
   heading: string
+  /** One of it, and many, for the count in the header. */
+  noun: readonly [string, string]
 }
 
 const SHELVES: readonly Shelf[] = [
-  { view: wandShop, heading: 'Wands' },
-  { view: smithy, heading: 'Swords' },
+  { view: wandShop, heading: 'Wands', noun: ['wand', 'wands'] },
+  { view: smithy, heading: 'Swords', noun: ['sword', 'swords'] },
+  { view: apothecary, heading: 'Potions', noun: ['potion', 'potions'] },
 ]
 
 /** The way back and the empty shelf's words, by the shop the child was last in. */
@@ -46,6 +51,11 @@ const BACK: Record<ItemKind, { label: string; intro: string; empty: string }> = 
     label: 'Back to the anvil',
     intro: 'Every sword you keep gets a box and a label.',
     empty: 'Keep a sword and its box goes here',
+  },
+  potion: {
+    label: 'Back to the brewing table',
+    intro: 'Every potion you keep gets a box and a label.',
+    empty: 'Keep a potion and its box goes here',
   },
 }
 
@@ -86,6 +96,7 @@ function ShelfBox({ shelf, item, index }: { shelf: Shelf; item: StoredItem; inde
         {def.kind === 'sword' && (
           <SwordOutline className={styles.outline} params={item.params} align="xMaxYMid" />
         )}
+        {def.kind === 'potion' && <PotionOutline className={styles.bottle} params={item.params} />}
         <span className={styles.label}>
           <span className={styles.nameRow}>
             <span className={styles.name} data-name>
@@ -210,24 +221,28 @@ function ShelfRows({
 }
 
 export function ShelfPage() {
-  const benches = { wand: useWorkbench('wand'), sword: useWorkbench('sword') }
+  const benches = {
+    wand: useWorkbench('wand'),
+    sword: useWorkbench('sword'),
+    potion: useWorkbench('potion'),
+  }
   const lastShop = useShops().lastShop ?? 'wand'
   const back = BACK[lastShop]
   const backTo = SHELVES.find((s) => s.view.item.kind === lastShop)!.view.path
   const headingId = useId()
   const kept = (kind: ItemKind) => benches[kind].shelf
   const sections = SHELVES.filter((s) => kept(s.view.item.kind).length > 0)
-  const wands = kept('wand').length
-  const swords = kept('sword').length
   const count =
-    wands === 0 && swords === 0 && lastShop === 'sword'
-      ? counted(0, 'sword', 'swords')
-      : swords === 0
-        ? counted(wands, 'wand', 'wands')
-        : [
-            ...(wands > 0 ? [counted(wands, 'wand', 'wands')] : []),
-            counted(swords, 'sword', 'swords'),
-          ].join(', ')
+    sections.length === 0
+      ? counted(0, ...SHELVES.find((s) => s.view.item.kind === lastShop)!.noun)
+      : sections.map((s) => counted(kept(s.view.item.kind).length, ...s.noun)).join(', ')
+  // A shelf of wands alone keeps the words it had before there were other shops.
+  const intro =
+    sections.length === 0
+      ? back.intro
+      : sections.length === 1 && sections[0]!.view.item.kind === 'wand'
+        ? BACK.wand.intro
+        : 'Everything you keep gets a box and a label.'
 
   return (
     <div className={styles.page}>
@@ -250,13 +265,7 @@ export function ShelfPage() {
         <h1 className={styles.title}>Your shelf</h1>
         <span className={styles.count}>{count}</span>
       </header>
-      <p className={styles.intro}>
-        {wands === 0 && swords === 0
-          ? back.intro
-          : swords === 0
-            ? BACK.wand.intro
-            : 'Everything you keep gets a box and a label.'}
-      </p>
+      <p className={styles.intro}>{intro}</p>
 
       <div className={styles.sections}>
         {sections.length === 0 ? (
