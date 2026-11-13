@@ -8,13 +8,25 @@ import {
   randomise,
   seededRandom,
 } from '../engine/schema.ts'
-import { INGREDIENTS, MURK } from './ingredients.ts'
-import { MAX_POURS, POUR_KEYS, potionSchema, potionSwatchFor } from './potionSchema.ts'
+import { type IngredientId, INGREDIENTS, MURK } from './ingredients.ts'
+import { GLASS_TINTS, MAX_POURS, POUR_KEYS, potionSchema, potionSwatchFor } from './potionSchema.ts'
+import { withPours } from './pours.ts'
 
 const param = (key: string) => potionSchema.params.find((d) => d.key === key)!
 const choice = (key: string) => param(key) as ChoiceParam
 const weights = (key: string) =>
   Object.fromEntries(choice(key).options.map((o) => [o.value, o.weight ?? 1]))
+
+// What `randomise` draws a slot from: the allowed options, given the pours below it.
+const weightsGiven = (key: string, below: IngredientId[]) =>
+  Object.fromEntries(
+    allowedOptions(choice(key), withPours(below)).map((o) => [o.value, o.weight ?? 1]),
+  )
+const oddsOf = (key: string, below: IngredientId[], value: string) => {
+  const w = weightsGiven(key, below)
+  return (w[value] ?? 0) / Object.values(w).reduce((a, b) => a + b, 0)
+}
+const fullBelow = (slot: number, id: IngredientId) => Array<IngredientId>(slot).fill(id)
 
 describe('potionSchema', () => {
   it('is the potion with its three groups in order', () => {
@@ -102,19 +114,15 @@ describe('potionSchema', () => {
 
   describe('the murky rule, from the weights', () => {
     it('gives Bog murk the weight of every other ingredient in every slot', () => {
-      for (const key of POUR_KEYS) {
-        const w = weights(key)
+      POUR_KEYS.forEach((key, slot) => {
+        const w = weightsGiven(key, fullBelow(slot, MURK))
         for (const i of INGREDIENTS) expect(w[i.id]).toBe(w[MURK])
-      }
+      })
     })
 
     it('makes four Bog murks as likely as four of any other ingredient', () => {
-      const chance = (id: string) =>
-        POUR_KEYS.reduce((acc, key) => {
-          const w = weights(key)
-          const total = Object.values(w).reduce((a, b) => a + b, 0)
-          return acc * (w[id]! / total)
-        }, 1)
+      const chance = (id: IngredientId) =>
+        POUR_KEYS.reduce((acc, key, slot) => acc * oddsOf(key, fullBelow(slot, id), id), 1)
       for (const i of INGREDIENTS) expect(chance(i.id)).toBeCloseTo(chance(MURK), 12)
     })
 
@@ -127,6 +135,20 @@ describe('potionSchema', () => {
         if (p.pour3 === 'none') expect(p.pour4).toBe('none')
       }
     })
+  })
+
+  it('gives two, three and four pours the odds the ADR states', () => {
+    const id: IngredientId = 'frogfizz'
+    const none = (slot: number) => oddsOf(POUR_KEYS[slot]!, fullBelow(slot, id), 'none')
+    expect(none(0)).toBe(0)
+    expect(none(1)).toBe(0)
+    const two = none(2)
+    const three = (1 - none(2)) * none(3)
+    const four = (1 - none(2)) * (1 - none(3))
+    expect(two).toBeCloseTo(22 / 121, 12)
+    expect(three).toBeCloseTo(18 / 121, 12)
+    expect(four).toBeCloseTo(81 / 121, 12)
+    expect([two, three, four].map((x) => Math.round(x * 100))).toEqual([18, 15, 67])
   })
 
   it('keeps a locked pours group under Try another', () => {
@@ -143,8 +165,10 @@ describe('potionSwatchFor', () => {
   })
 
   it('gives each glass a tint', () => {
-    for (const v of ['clear', 'sea', 'amber', 'violet', 'smoky'])
-      expect(potionSwatchFor('glass', v)).toMatch(/^#[0-9a-f]{6}$/)
+    for (const [v, tint] of Object.entries(GLASS_TINTS)) {
+      expect(tint).toMatch(/^#[0-9a-f]{6}$/)
+      expect(potionSwatchFor('glass', v)).toBe(tint)
+    }
   })
 
   it('gives other params nothing', () => {

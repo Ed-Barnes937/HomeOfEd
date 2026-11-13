@@ -1,6 +1,6 @@
 // One data row per bottle shape: starting numbers, tuned by the form gate.
 
-import type { ParamValue } from '../engine/schema.ts'
+import type { Params } from '../engine/schema.ts'
 
 export type ShapeId = 'round' | 'teardrop' | 'tall' | 'shoulder' | 'gourd'
 
@@ -108,19 +108,14 @@ export const BOTTLES: Record<ShapeId, BottleRow> = {
 /** Room above the neck for the stopper, in the drawn height. */
 export const STOPPER_ALLOWANCE_MM = 18
 
-export interface BottleParams {
-  shape?: ParamValue
-  neck?: ParamValue
-}
+const rowOf = (p: Params): BottleRow => BOTTLES[p.shape as ShapeId]
 
-const rowOf = (p: BottleParams): BottleRow => BOTTLES[p.shape as ShapeId] ?? BOTTLES.teardrop
-
-export function neckLengthMm(p: BottleParams): number {
+export function neckLengthMm(p: Params): number {
   const [min, max] = rowOf(p).neckMm
   return min + (p.neck as number) * (max - min)
 }
 
 /** Foot to stopper top. */
-export function drawnHeightMm(p: BottleParams): number {
+export function drawnHeightMm(p: Params): number {
   return rowOf(p).bodyHeightMm + neckLengthMm(p) + STOPPER_ALLOWANCE_MM
 }

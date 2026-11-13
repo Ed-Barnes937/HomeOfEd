@@ -111,6 +111,8 @@ export const INGREDIENTS: readonly Ingredient[] = [
   },
 ]
 
+export const isIngredient = (v: unknown): v is IngredientId => INGREDIENTS.some((i) => i.id === v)
+
 export function ingredient(id: IngredientId): Ingredient {
   return INGREDIENTS.find((i) => i.id === id)!
 }

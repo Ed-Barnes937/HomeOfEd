@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { normalise } from '../engine/schema.ts'
+import { fakeSword } from '../items/testing/fakeItem.ts'
+import { createWorkbench, startWorkbench, type Workbench } from '../workbench/workbench.ts'
 import type { IngredientId } from './ingredients.ts'
 import { potionSchema } from './potionSchema.ts'
 import { followPours, nextPourKey, pourList, withPours } from './pours.ts'
@@ -74,12 +76,29 @@ describe('followPours', () => {
     expect(followPours(four, 'shape', 'round')).toBeUndefined()
   })
 
-  it('composes with normalise as the reducer does', () => {
-    const next = normalise(potionSchema, {
-      ...four,
-      pour2: 'none',
-      ...followPours(four, 'pour2', 'none'),
+  describe('through the workbench reducer', () => {
+    const workbench = createWorkbench({
+      ...fakeSword,
+      schema: potionSchema,
+      follows: followPours,
     })
-    expect(pourList(next)).toEqual(['moonmilk', 'starpetal', 'emberroot'])
+    const pour = (state: Workbench, key: string, value: string) =>
+      workbench(state, { type: 'set', key, value })
+    const start = (...pours: IngredientId[]) => startWorkbench({ params: potion(...pours) })
+
+    it('takes a pour out of the middle and shifts the rest down', () => {
+      const state = pour(startWorkbench({ params: four }), 'pour2', 'none')
+      expect(pourList(state.item.params)).toEqual(['moonmilk', 'starpetal', 'emberroot'])
+    })
+
+    it('takes the first pour out of a part-full bottle', () => {
+      const state = pour(start('moonmilk', 'frogfizz', 'starpetal'), 'pour1', 'none')
+      expect(pourList(state.item.params)).toEqual(['frogfizz', 'starpetal'])
+    })
+
+    it('lands a pour above a gap in the lowest empty slot', () => {
+      const state = pour(start('moonmilk', 'frogfizz'), 'pour4', 'bluebell')
+      expect(pourList(state.item.params)).toEqual(['moonmilk', 'frogfizz', 'bluebell'])
+    })
   })
 })

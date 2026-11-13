@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { defaults, normalise } from '../engine/schema.ts'
 import { type LinearRgb, linearToSrgb, srgbToLinear } from '../items/colour.ts'
-import { drawnHeightMm } from './bottles.ts'
+import { BOTTLES, drawnHeightMm } from './bottles.ts'
 import { compilePotion } from './compile.ts'
 import { TALLEST_MM } from './framing.ts'
 import { type IngredientId, INGREDIENTS, ingredient } from './ingredients.ts'
@@ -41,8 +41,8 @@ describe('compilePotion', () => {
   it('takes heights from the tables', () => {
     const p = potion(['moonmilk'], { shape: 'gourd', neck: 1 })
     const spec = compilePotion(p)
-    expect(spec.bodyHeightMm).toBe(130)
-    expect(spec.neckMm).toBe(45)
+    expect(spec.bodyHeightMm).toBe(BOTTLES.gourd.bodyHeightMm)
+    expect(spec.neckMm).toBe(BOTTLES.gourd.neckMm[1])
     expect(spec.heightMm).toBe(drawnHeightMm(p))
     expect(spec.heightMm).toBeLessThan(TALLEST_MM)
   })

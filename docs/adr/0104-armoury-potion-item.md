@@ -35,7 +35,7 @@ save, share, undo, locks and the shop number all work on flat params.
 - **Traits and effects are columns**, not separate tables. A trait is what a layer
   looks like at rest; an effect is what the potion does when uncorked. Each
   ingredient has one of each, and later tickets derive names and shows from them.
-- **The murky rule.** Murk exists only as the Bog murk ingredient, with the same
+- **The murky rule (O5).** Murk exists only as the Bog murk ingredient, with the same
   weight as every other ingredient in every slot. A murky layer is therefore as
   likely under Try another as a layer of anything else, and four Bog murks exactly
   as likely as four of any other ingredient. Layers never mix, so nothing converges
@@ -43,7 +43,8 @@ save, share, undo, locks and the shop number all work on flat params.
   schema's weights, not by sampling.
 - **Pour odds.** `none` weighs 0 in slots one and two and 2 in slots three and
   four, so Try another gives four pours about 67 percent of the time, three about
-  15 and two about 18, and never an empty or one-pour bottle.
+  15 and two about 18 (81, 18 and 22 in 121), and never an empty or one-pour
+  bottle. A locked pours group keeps what it holds, an empty bottle included.
 - **The bottle is data too** (`potion/bottles.ts`): one row per shape with its
   lathe profile and neck range. The numbers are starting values for the form gate.
 
@@ -55,8 +56,8 @@ little play, and mixing is the road to brown, which the murky rule rules out.
 
 ## Consequences
 
-- A save or link with a gap, or a potion with more than four pours, cannot be
-  expressed: a hand-edited link opens with its pours below the gap.
+- A save or link with a gap opens with only the pours below the gap; a potion of
+  more than four pours cannot be expressed.
 - Adding an ingredient later is a new row and a new option in each pour slot; the
   jar grid is three by three, so a tenth needs a layout decision first.
 - The picker must call the item's `follows` through the reducer's `set`, so it

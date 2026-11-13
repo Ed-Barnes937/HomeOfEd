@@ -36,6 +36,11 @@ const EMPTY_WAX = '#7a2a24'
 const darken = (hex: string) =>
   linearToSrgb(srgbToLinear(hex).map((v) => v * WAX_DARKENING) as LinearRgb)
 
+function waxColourFor(stopper: StopperId, top: PotionLayer | undefined): string | null {
+  if (stopper !== 'wax') return null
+  return top ? darken(top.colour) : EMPTY_WAX
+}
+
 export function compilePotion(p: Params): PotionSpec {
   const layers = pourList(p).map((id) => {
     const { colour, trait } = ingredient(id)
@@ -54,6 +59,6 @@ export function compilePotion(p: Params): PotionSpec {
     label: p.label as LabelId,
     layers,
     fill: layers.length / MAX_POURS,
-    waxColour: stopper !== 'wax' ? null : top ? darken(top.colour) : EMPTY_WAX,
+    waxColour: waxColourFor(stopper, top),
   }
 }

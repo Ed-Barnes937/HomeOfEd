@@ -1,6 +1,6 @@
 import type { ChoiceOption, ItemSchema, Params } from '../engine/schema.ts'
 import { BOTTLES, type ShapeId } from './bottles.ts'
-import { INGREDIENTS, type IngredientId } from './ingredients.ts'
+import { ingredient, INGREDIENTS, type IngredientId, isIngredient } from './ingredients.ts'
 
 export type GlassId = 'clear' | 'sea' | 'amber' | 'violet' | 'smoky'
 export type StopperId = 'cork' | 'glass' | 'wax'
@@ -9,8 +9,11 @@ export type LabelId = 'none' | 'round' | 'banner' | 'tag'
 export const POUR_KEYS = ['pour1', 'pour2', 'pour3', 'pour4'] as const
 export type PourKey = (typeof POUR_KEYS)[number]
 export const MAX_POURS = POUR_KEYS.length
+export const isPourKey = (key: string): key is PourKey =>
+  (POUR_KEYS as readonly string[]).includes(key)
 
-const GLASS_TINTS: Record<GlassId, string> = {
+/** The one table of glass tints: the picker's swatch and the drawn glass both read it. */
+export const GLASS_TINTS: Record<GlassId, string> = {
   clear: '#d8ecf2',
   sea: '#4aa88f',
   amber: '#c8841e',
@@ -20,8 +23,7 @@ const GLASS_TINTS: Record<GlassId, string> = {
 
 /** The picker's swatch: an ingredient's colour for a pour, a glass tint for the glass. */
 export function potionSwatchFor(key: string, value: string): string | undefined {
-  if ((POUR_KEYS as readonly string[]).includes(key))
-    return INGREDIENTS.find((i) => i.id === value)?.colour
+  if (isPourKey(key)) return isIngredient(value) ? ingredient(value).colour : undefined
   if (key === 'glass') return GLASS_TINTS[value as GlassId]
   return undefined
 }
