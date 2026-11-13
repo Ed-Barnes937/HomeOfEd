@@ -124,3 +124,9 @@ and sword baseline, before any material exists. Shots and each round's review ar
   seat and clearance tests cover it.
 - The form gate (ticket 09) judges the shapes in plain grey on a real GPU and adds its
   tuning and cuts here as a "Form gate" section.
+
+## The stage's level seam
+
+- **`levels` defaults to the levels at the surface's tilt**, `levelsAt(table, tilt(u))`, not the
+  upright levels the ticket named. Upright they are the same; tipped, the bands keep their volume
+  with nothing passed, so a slosh only moves `surfaceNormal`.
