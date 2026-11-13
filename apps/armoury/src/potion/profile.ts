@@ -55,7 +55,7 @@ export interface BottleProfile {
   lipZ: number
   /** The top of the cavity: the bottom of the stopper's plug. */
   cavityTopZ: number
-  /** Foot to stopper top, room for the tallest stopper. */
+  /** Foot to the top of the stopper allowance; only the glass stopper reaches it. */
   heightMm: number
   widthMm: number
   stopperSeat: StopperSeat

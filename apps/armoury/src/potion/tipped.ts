@@ -4,6 +4,11 @@
 import type { PotionSpec } from './compile.ts'
 import { BASE_MM, bandTops, bottleProfile, type BottleProfile } from './profile.ts'
 
+/**
+ * A level h is the plane dot(p, u) = h, with p in the bottle's millimetre frame from the foot's
+ * centre and u world up expressed in that frame; it equals `aHeight` only when upright. Build
+ * the table once per spec (it costs several milliseconds), never per frame.
+ */
 export interface LevelTable {
   stepDeg: number
   /** levels[i] holds each band's top, bottom first, at a tilt of i * stepDeg degrees. */

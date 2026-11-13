@@ -5,6 +5,7 @@ import type { MeshPart, Vec3 } from '../sword/sweep.ts'
 import type { PotionSpec } from './compile.ts'
 import { bottleProfile, type BottleProfile, FIT_MM, type ProfilePoint } from './profile.ts'
 
+/** Each part's `aHeight` is a vertex's height along the bottle's own axis, z in mm. */
 export interface PotionMesh {
   glass: MeshPart
   liquid: MeshPart
