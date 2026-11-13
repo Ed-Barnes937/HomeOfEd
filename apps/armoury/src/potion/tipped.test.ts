@@ -89,6 +89,7 @@ describe('levelTable', () => {
       [45, 0.02],
       [52, 0.02],
       [60, 0.02],
+      [75, 0.05],
       [90, 0.05],
     ] as const) {
       const t = deg * RAD

@@ -140,6 +140,7 @@ describe('buildPotionMesh', () => {
       const label = mesh.label!
       for (const [x, y, z] of sampled(label)) {
         const d = distanceToOuter(profile, Math.hypot(x, y), z)
+        expect(Math.hypot(x, y)).toBeGreaterThan(profile.outerR(z))
         expect(d).toBeGreaterThanOrEqual(0.2)
         expect(d).toBeLessThanOrEqual(0.5)
         expect(y).toBeLessThan(0)

@@ -207,7 +207,7 @@ describe('each shape reads as its name', () => {
     const zs = steps(p.shoulderZ * 0.8, p.shoulderZ, 0.05)
     const from = zs.find((z) => p.outerR(z) < body - 0.15 * (body - neck))!
     const to = zs.find((z) => p.outerR(z) < neck + 0.15 * (body - neck))!
-    expect(to - from).toBeLessThan(0.35 * (body - neck))
+    expect(to - from).toBeLessThan(0.2 * (body - neck))
     expect(p.outerR(p.shoulderZ * 0.85)).toBeCloseTo(body, 0)
   })
 
