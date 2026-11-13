@@ -76,6 +76,8 @@ export interface BottleProfile {
   stopper: ProfilePoint[][]
   /** The neck's outer radius. */
   neckR: number
+  /** The top of the plain neck, where the lip's bead begins. */
+  neckTopZ: number
   /** Where a wax seal's cap ends on the neck and its drips begin. */
   waxCapBottomZ: number | null
 }
@@ -222,7 +224,6 @@ export function bottleProfile(spec: Profiled): BottleProfile {
   ]
   const body = (z: number) => sample(curve, z)
 
-  // The foot: a domed push-up, a ring to stand on, and a round into the body.
   const r0 = body(0)
   const slope = (body(0.5) - r0) / 0.5
   const footZ = FOOT_ROUND_MM / Math.hypot(1, slope)
@@ -326,6 +327,7 @@ export function bottleProfile(spec: Profiled): BottleProfile {
     liquid,
     stopper: stopperPieces(spec, seat, neckR, lip),
     neckR,
+    neckTopZ,
     waxCapBottomZ: spec.stopper === 'wax' ? waxCapBottom(lipZ, lip) : null,
   }
 }

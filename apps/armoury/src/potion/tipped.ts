@@ -66,7 +66,7 @@ export function levelTable(spec: PotionSpec): LevelTable {
 /** The band tops at a tilt from upright, in radians, either way; interpolated between rows. */
 export function levelsAt(table: LevelTable, tiltRadians: number): number[] {
   const deg = Math.min(90, (Math.abs(tiltRadians) * 180) / Math.PI)
-  const i = Math.min(ROWS - 2, Math.floor(deg / table.stepDeg))
+  const i = Math.min(table.levels.length - 2, Math.floor(deg / table.stepDeg))
   const f = deg / table.stepDeg - i
   const a = table.levels[i]!
   const b = table.levels[i + 1]!

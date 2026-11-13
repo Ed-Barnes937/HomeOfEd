@@ -2,7 +2,6 @@
 // millimetres, the axis z, the foot at z = 0. Three-free; only stage/ builds meshes from it.
 
 import type { MeshPart, Vec3 } from '../sword/sweep.ts'
-import { BOTTLES } from './bottles.ts'
 import type { PotionSpec } from './compile.ts'
 import { bottleProfile, type BottleProfile, FIT_MM, type ProfilePoint } from './profile.ts'
 
@@ -326,12 +325,12 @@ function paperPlace(
 
 const gridCount = (mm: number) => Math.max(4, Math.ceil(mm / PAPER_GRID_MM))
 
-function roundLabel(b: Builder, spec: PotionSpec, profile: BottleProfile): void {
+function roundLabel(b: Builder, profile: BottleProfile): void {
   const surface = bodySurface(profile)
   const s0 = surface.sOf(labelCentre(profile))
   const r0 = surface.at(s0).r
   const across = Math.min(
-    ROUND_SHARE * spec.bodyHeightMm,
+    ROUND_SHARE * profile.shoulderZ,
     r0 * ROUND_MAX_TURN,
     2 * reach(surface, s0),
   )
@@ -363,10 +362,9 @@ function bannerLabel(b: Builder, profile: BottleProfile): void {
   )
 }
 
-function tagLabel(b: Builder, spec: PotionSpec, profile: BottleProfile): void {
+function tagLabel(b: Builder, profile: BottleProfile): void {
   const { neckR, shoulderZ } = profile
-  const lip = BOTTLES[spec.shape].lipMm
-  const loopZ = shoulderZ + Math.min(3, (profile.lipZ - 2 * lip - shoulderZ) / 2)
+  const loopZ = shoulderZ + Math.min(3, (profile.neckTopZ - shoulderZ) / 2)
   const holeZ = shoulderZ - 6
   const right: Vec3 = [1, 0, 0]
   const onFace = STRING_R + CARD_HALF_THICK + 0.05
@@ -418,7 +416,6 @@ function tagLabel(b: Builder, spec: PotionSpec, profile: BottleProfile): void {
     -CARD_HALF_THICK,
     CARD_HALF_THICK,
   )
-  // The string hugs the glass from a loop round the neck down to the card's hole and back.
   const surface = bodySurface(profile, loopZ)
   const hug = STRING_R + 0.8
   const lay = (s: number, angle: number): Vec3 => {
@@ -561,9 +558,9 @@ const cross = (a: Vec3, b: Vec3): Vec3 => [
 function labelPart(spec: PotionSpec, profile: BottleProfile): MeshPart | null {
   if (spec.label === 'none') return null
   const b = new Builder()
-  if (spec.label === 'round') roundLabel(b, spec, profile)
+  if (spec.label === 'round') roundLabel(b, profile)
   else if (spec.label === 'banner') bannerLabel(b, profile)
-  else tagLabel(b, spec, profile)
+  else tagLabel(b, profile)
   return b.part()
 }
 

@@ -165,11 +165,9 @@ describe('buildPotionMesh', () => {
       const values = part.uvs.filter((_, i) => i % 2 === axis)
       return Math.max(...values) - Math.min(...values)
     }
-    const round = CATALOGUE.find((e) => e.name === 'teardrop neck 0.5 cork round 4 pours')
     const banner = CATALOGUE.find((e) => e.spec.shape === 'teardrop' && e.spec.label === 'banner')!
     const tag = CATALOGUE.find((e) => e.spec.shape === 'teardrop' && e.spec.label === 'tag')!
-    const r =
-      round ?? CATALOGUE.find((e) => e.spec.shape === 'teardrop' && e.spec.label === 'round')!
+    const r = CATALOGUE.find((e) => e.spec.shape === 'teardrop' && e.spec.label === 'round')!
     expect(span(r.mesh.label!, 0)).toBeGreaterThan(30)
     expect(span(r.mesh.label!, 0)).toBeCloseTo(span(r.mesh.label!, 1), 0)
     expect(span(banner.mesh.label!, 1)).toBeCloseTo(22, 0)
