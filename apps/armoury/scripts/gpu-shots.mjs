@@ -1,12 +1,13 @@
 // Screenshots of the real stages on the real GPU (ANGLE Metal), for judging by eye.
 // node apps/armoury/scripts/gpu-shots.mjs <baseUrl> <outDir> <set.json> [only,names] [--picture] [--reduced-motion]
 //   [--clay] [--views=desk,phone] [--box-only] [--close=1200,7000] [--focus=tip,hilt] [--focus-only] [--rolls=20,-40]
-//   [--leans=30,-45] [--tips=20,-30]
+//   [--leans=30,-45] [--tips=20,-30] [--face]
 // The set file is { "<name>": { "kind": "wand" | "sword" | "potion", "params": { ... } } }.
 // A potion opens at /potions; its close frames default to 100 and 400 ms (rising) and 1200 and 4800 (held), and
 // it skips the zoom: --leans and --tips shoot it while the drag still holds it (lean<deg>, tip<deg>; a lean is
 // positive to the right, a tip towards the viewer), since it rights itself on release, then a tap away puts it
-// back (r<ms> after).
+// back (r<ms> after). --face touches the bottle as it starts to rise, before its idle turn begins, so its label
+// faces the camera in every close frame, lean and tip.
 // --clay draws a sword or a potion in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
 // about its length, or with an s (s45) swings it, tip away.
@@ -43,6 +44,7 @@ const focusOnly = flags.has('--focus-only')
 const rolls = options.rolls ? options.rolls.split(',') : []
 const leans = options.leans ? options.leans.split(',').map(Number) : []
 const tips = options.tips ? options.tips.split(',').map(Number) : []
+const face = flags.has('--face')
 // The close look rolls, leans and tips 0.007 radians per pixel dragged.
 const PX_PER_DEGREE = Math.PI / 180 / 0.007
 // A drag only turns the item once it has travelled further than this.
@@ -125,6 +127,17 @@ try {
         }
         await item.click()
         await page.getByRole('dialog').waitFor()
+        if (kind === 'potion' && face) {
+          // A drag just past the tap slop counts as a touch, which stops the idle turn; it leans the bottle 0.4 degrees.
+          await page.getByRole('dialog').locator('canvas').waitFor()
+          const x = view.viewport.width / 2
+          const y = view.viewport.height * 0.3
+          await page.mouse.move(x, y)
+          await page.mouse.down()
+          await page.mouse.move(x + TAP_SLOP_PX, y)
+          await page.mouse.move(x + TAP_SLOP_PX + 1, y)
+          await page.mouse.up()
+        }
         let waited = 0
         for (const ms of kind === 'potion' ? POTION_CLOSE_FRAMES : CLOSE_FRAMES) {
           await page.waitForTimeout(ms - waited)
