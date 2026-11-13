@@ -1,6 +1,6 @@
 # 08 - The pour picker (plain swatches)
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions`; reviews 08-r1, 08-r2, 08-r3)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 07
@@ -106,3 +106,4 @@ pnpm --filter armoury exec playwright test -c playwright-ct.config.ts src/pours.
 
 ## Comments
 - 2026-11-13 orchestrator, from the scene mock (ticket 02, decision O17): dark swatches (Thundercloud, Bog murk) are low in contrast against the dark tile; give every swatch a light ring so its edge reads. The name still carries the meaning.
+- 2026-11-13 orchestrator: built (c5f6932e), review r1 asked for three fixes found by using it (focus lost after a take-out, the third row of jars clipped on a phone, the phone list as a 2x2 block with a bare cross), fixed (58e0f07c), review r2 found the focus fix scrolled the sheet to the top on a tap, fixed (d5c31b86), review r3 passed in the real app. Merged into the epic branch. Shots in `shots/08/`.
