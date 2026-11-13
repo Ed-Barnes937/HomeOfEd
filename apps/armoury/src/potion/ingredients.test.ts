@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { isForbiddenName } from './doNotUse.ts'
 import { type EffectKind, INGREDIENTS, ingredient, MURK, type Trait } from './ingredients.ts'
 
 const TRAITS: Trait[] = ['clear', 'cloud', 'fizz', 'glitter', 'glow', 'swirl']
@@ -46,5 +47,11 @@ describe('INGREDIENTS', () => {
       effect: 'floating',
     })
     expect(ingredient(MURK).label).toBe('Bog murk')
+  })
+
+  it('has no label, word or lore line that is a forbidden name', () => {
+    for (const i of INGREDIENTS) {
+      for (const text of [i.label, i.word, i.lore]) expect(isForbiddenName(text), text).toBe(false)
+    }
   })
 })
