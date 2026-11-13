@@ -5,6 +5,9 @@
 :root {
   --bg: #08080c;
   --accent: #00e6ff;
+  // Ink on an accent fill, and a focus ring against the page (tokens.test.ts holds every theme to them).
+  --on-accent: var(--bg);
+  --focus-ring: var(--accent);
   --text: rgba(255, 255, 255, 0.93);
   --sub: rgba(255, 255, 255, 0.5);
   --val: rgba(255, 255, 255, 0.86);
@@ -63,6 +66,8 @@
 [data-theme='duckSeason'] {
   --bg: #cdeef7;
   --accent: #e2913a;
+  --on-accent: #1f3a44;
+  --focus-ring: #1f3a44;
   --text: #1f3a44;
   --sub: rgba(31, 58, 68, 0.55);
   --val: #1f3a44;
