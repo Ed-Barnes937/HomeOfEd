@@ -1,6 +1,7 @@
 import type { FamilyTokenClaims } from '@hoe/accounts'
 import { clearFamilySession } from '@hoe/accounts'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
@@ -18,6 +19,7 @@ export interface AccountActionsCardProps {
 export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps) {
   const client = useFamilyClient()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
 
   // Signing out drops both credentials: Better Auth's cookie session, and the
@@ -28,9 +30,10 @@ export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps)
 
   /**
    * The caches are written rather than invalidated or removed. Either of those
-   * refetches a query the signed-in panel is still observing for the tick before
+   * refetches a query the settings panel is still observing for the tick before
    * it unmounts, which answers 401; and leaving the old list in place would show
    * one household's names to the next parent who signs in on the device.
+   * Signing back in then shows the picker, with any `returnTo` kept (ADR 0103).
    */
   function nowSignedOut(): void {
     clearFamilySession(familySessionCookieOptions(window.location.hostname))
@@ -39,6 +42,7 @@ export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps)
     queryClient.setQueryData(familyQueryKeys.children, [])
     queryClient.setQueryData(familyQueryKeys.saveSummary, [])
     queryClient.setQueryData(familyQueryKeys.me, { parent: null })
+    void navigate({ to: '/account', search: true })
   }
 
   return (

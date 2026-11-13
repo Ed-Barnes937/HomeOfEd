@@ -2,7 +2,7 @@ import type { IdentityMeOutput } from '@hoe/accounts'
 import { profileInitial, readFamilySession, writeFamilySession } from '@hoe/accounts'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 
 import { accountErrorMessage } from '../../features/account/accountError.ts'
 import {
@@ -50,10 +50,11 @@ export function WhoIsPlaying({ parent }: { parent: Parent }) {
       return writeFamilySession(token, familySessionCookieOptions(window.location.hostname))
     },
     onSuccess: (claims) => {
-      setPlaying(claims?.sub ?? null)
-      if (claims !== null) rememberProfile(claims.sub)
-      if (returnToApp(claims)) return
-      if (readsBack(claims)) void navigate({ to: '/', replace: true })
+      // Whatever the browser kept, so a dropped write never shows as a pick.
+      setPlaying(readFamilySession()?.sub ?? null)
+      if (!readsBack(claims)) return
+      rememberProfile(claims.sub)
+      if (!returnToApp(claims)) void navigate({ to: '/', replace: true })
     },
   })
 
@@ -74,12 +75,12 @@ export function WhoIsPlaying({ parent }: { parent: Parent }) {
   return (
     <>
       <ul className={styles.profiles} aria-label="Profiles">
-        {choices.map((choice) => (
+        {choices.map((choice, position) => (
           <li key={choice.id}>
             <button
               className={styles.profile}
               type="button"
-              data-colour={profileColour(choice.id)}
+              style={{ '--avatar': profileColour(position) } as CSSProperties}
               aria-pressed={playing === choice.id}
               disabled={pick.isPending}
               onClick={() => pick.mutate(choice.childId)}

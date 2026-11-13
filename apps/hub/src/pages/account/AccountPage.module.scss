@@ -264,6 +264,26 @@
   gap: 10px;
 }
 
+// A 44px touch target around the same 34px circle as the theme toggle.
+.cogLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -5px;
+  border-radius: 50%;
+
+  &:hover .toggle {
+    transform: rotate(-18deg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -3px;
+  }
+}
+
 .cog {
   width: 18px;
   height: 18px;
@@ -279,8 +299,6 @@
   text-align: center;
 }
 
-// Mid-tone paper inks, each holding the cream initial at 3:1 or better in both themes.
-$avatar-colours: #c07a35, #4f7d6f, #b5573f, #4f6f8f, #8a5d7e, #7c7a3a;
 $avatar-size: clamp(104px, 30vw, 144px);
 
 .profiles {
@@ -317,16 +335,10 @@ $avatar-size: clamp(104px, 30vw, 144px);
     opacity: 0.6;
   }
 
-  @for $i from 1 through length($avatar-colours) {
-    &[data-colour='#{$i - 1}'] .avatar {
-      background: nth($avatar-colours, $i);
-    }
-  }
-
+  // In --fg, which no avatar ink is close to in either theme; outline survives forced colours.
   &[aria-pressed='true'] .avatar {
-    box-shadow:
-      0 0 0 4px var(--bg),
-      0 0 0 8px var(--live);
+    outline: 4px solid var(--fg);
+    outline-offset: 4px;
   }
 
   &[aria-pressed='true'] .profileName {
@@ -342,6 +354,7 @@ $avatar-size: clamp(104px, 30vw, 144px);
   width: $avatar-size;
   height: $avatar-size;
   border-radius: 50%;
+  background: var(--avatar);
   box-shadow: var(--card-shadow);
   color: #fff8ef;
   font-size: clamp(44px, 12.5vw, 60px);
@@ -369,7 +382,7 @@ $avatar-size: clamp(104px, 30vw, 144px);
   box-shadow: 0 0 0 3px var(--bg);
 
   circle {
-    fill: var(--live);
+    fill: var(--fg);
   }
 
   path {

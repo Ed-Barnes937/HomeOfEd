@@ -1,9 +1,14 @@
-/** How many avatar colours `AccountPage.module.scss` defines (`--avatar-0` onwards). */
-export const PROFILE_COLOURS = 6
+/** Mid-tone paper inks, each holding the cream initial at 3:1 or better in both themes. */
+export const PROFILE_COLOURS = [
+  '#c07a35',
+  '#4f7d6f',
+  '#b5573f',
+  '#4f6f8f',
+  '#8a5d7e',
+  '#7c7a3a',
+] as const
 
-/** A profile's avatar colour slot, derived from its id alone so it never moves. */
-export function profileColour(id: string): number {
-  let hash = 0
-  for (const char of id) hash = (Math.imul(hash, 31) + char.codePointAt(0)!) | 0
-  return Math.abs(hash) % PROFILE_COLOURS
+/** The avatar colour for the profile at `position` in the picker; repeats only past six. */
+export function profileColour(position: number): string {
+  return PROFILE_COLOURS[position % PROFILE_COLOURS.length]!
 }

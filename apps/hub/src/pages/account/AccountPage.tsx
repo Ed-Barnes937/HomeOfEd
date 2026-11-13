@@ -80,13 +80,15 @@ export function AccountPage() {
           <div className={styles.topActions}>
             {picking && (
               <Link
-                className={styles.toggle}
+                className={styles.cogLink}
                 to="/account/settings"
                 search={true}
                 aria-label="Grown-up settings"
                 title="Grown-up settings"
               >
-                <CogIcon />
+                <span className={styles.toggle}>
+                  <CogIcon />
+                </span>
               </Link>
             )}
             <button

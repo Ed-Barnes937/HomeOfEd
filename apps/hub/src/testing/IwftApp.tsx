@@ -22,6 +22,7 @@ import type {
   MintSessionTokenOutput,
   SaveSummaryOutput,
 } from '@hoe/accounts'
+import { FAMILY_SESSION_COOKIE } from '@hoe/accounts'
 import { FakeFamilyClient } from '@hoe/accounts/testing/fake'
 import { useEffect, useState } from 'react'
 
@@ -152,10 +153,26 @@ async function seedHousehold(seed: FamilySeed): Promise<void> {
     serviceClockOffsetMs = 0
   }
   familyClient.clearTokenSession()
+  if (seed.playing !== undefined) playAs(seed.playing, ids.get(seed.playing)!)
   const remembered = ids.get(seed.remembered)!
   rememberProfile(remembered)
   if (seed.rememberedDeleted === true) await familyClient.deleteChild({ id: remembered })
   if (!seed.signedIn) await familyClient.signOut()
+}
+
+// The cookie a pick would have left, decodable by readFamilySession (unsigned, like the fake's).
+function playAs(name: string, sub: string): void {
+  const now = Date.now()
+  const claims =
+    sub === FIXTURE_PARENT.id
+      ? { sub, role: 'parent', name, iat: now, exp: now + 86_400_000 }
+      : { sub, role: 'child', parentId: FIXTURE_PARENT.id, name, iat: now, exp: now + 86_400_000 }
+  const bytes = new TextEncoder().encode(JSON.stringify(claims))
+  const payload = btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+  document.cookie = `${FAMILY_SESSION_COOKIE}=${payload}.unsigned; path=/`
 }
 
 export function IwftApp() {
