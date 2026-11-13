@@ -80,16 +80,24 @@ end first, on fake stages, without opening the shop to visitors.
 - **Empty the bottle is batched sets**, one `none` per filled slot from the top
   down in a single handler; React batches them, so the stage sees one change.
 - **Accessibility.** Every jar is a button named "Pour in {Label}"; "In the
-  bottle" is an ordered list, top pour first, with empty slots above it like the
+  bottle" is a list, top pour first, with empty slots above it like the
   bottle itself, each pour with "Take out {Label}"; a polite live region says
   what changed. Every swatch has a light ring because the dark ones are low in
   contrast against the dark tile.
 - **The picture is one seam.** `IngredientPicture` is the only place a jar's
   picture is drawn; a plain colour swatch stands in for it.
-- **On a phone** the pours list becomes a 2 by 2 block of chips (the take-out
-  button shrinks to a cross, its name unchanged). Measured at 390 by 844 the tab
-  is still about twice the sheet's 238 px body, so it scrolls inside the sheet
-  like any other tab; the sheet's height is the shell's, not the picker's.
+- **On a phone** the pours list is the same single top-first column as on the
+  desk, each pour with the words "Take out" in a button at least 44 px tall. The
+  jars tighten (48 px tall, a 22 px swatch) so all nine stay in view in the sheet's
+  238 px body at 390 by 844, empty or full; only "In the bottle" and "Empty the
+  bottle" sit below the fold, so the tab scrolls inside the sheet like any other.
+- **Focus stays in the picker.** After "Take out" focus goes to the take-out
+  button now in that row, else the nearest remaining one, else the first jar;
+  after "Empty the bottle" it goes to the first jar. Only those controls move it.
+  "In the bottle" is a plain list (the schema calls the bottom pour "First pour",
+  so numbering the top "1" would contradict it), the dimmed jars point at the full
+  message with `aria-describedby`, and each announcement is a fresh node so a
+  repeat is heard.
 
 ## Considered and rejected
 

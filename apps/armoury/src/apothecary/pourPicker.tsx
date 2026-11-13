@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import type { Params } from '../engine/schema.ts'
 import { ingredient, INGREDIENTS, type Ingredient } from '../potion/ingredients.ts'
@@ -8,6 +8,9 @@ import type { OnChange } from '../shop/controls/Widgets.tsx'
 import styles from './pourPicker.module.scss'
 
 const COUNT_WORDS = ['One', 'Two', 'Three', 'Four']
+const FULL_MESSAGE = 'The bottle is full. Take one out to pour another.'
+
+type FocusTarget = { takeOutIndex: number } | 'firstJar'
 
 /** The one place an ingredient's picture is drawn, for the jars and the pours alike. */
 function IngredientPicture({ item }: { item: Ingredient }) {
@@ -16,40 +19,62 @@ function IngredientPicture({ item }: { item: Ingredient }) {
 
 export function PourPicker({ params, onChange }: { params: Params; onChange: OnChange }) {
   const headingId = useId()
-  const [announcement, setAnnouncement] = useState('')
+  const fullId = useId()
+  const [announcement, setAnnouncement] = useState({ text: '', count: 0 })
+  const focusAfterChange = useRef<FocusTarget | null>(null)
+  const firstJar = useRef<HTMLButtonElement>(null)
+  const takeOutButtons = useRef(new Map<number, HTMLButtonElement>())
   const pours = pourList(params)
   const nextKey = nextPourKey(params)
   const slots = Array.from({ length: MAX_POURS }, (_, i) => pours[MAX_POURS - 1 - i])
 
+  const announce = (text: string) => setAnnouncement((last) => ({ text, count: last.count + 1 }))
+
+  useEffect(() => {
+    const target = focusAfterChange.current
+    focusAfterChange.current = null
+    if (target === 'firstJar') firstJar.current?.focus()
+    else if (target) takeOutButtons.current.get(target.takeOutIndex)?.focus()
+  })
+
   const pour = (item: Ingredient) => {
-    if (nextKey === null) return
+    const count = COUNT_WORDS[pours.length]
+    if (nextKey === null || count === undefined) return announce(FULL_MESSAGE)
     onChange(nextKey, item.id)
-    setAnnouncement(`${item.label} poured in. ${COUNT_WORDS[pours.length]} of four.`)
+    announce(`${item.label} poured in. ${count} of four.`)
   }
 
   const takeOut = (index: number) => {
     onChange(POUR_KEYS[index]!, 'none')
-    setAnnouncement(`${ingredient(pours[index]!).label} taken out.`)
+    const remaining = pours.length - 1
+    focusAfterChange.current =
+      remaining === 0 ? 'firstJar' : { takeOutIndex: Math.min(index, remaining - 1) }
+    announce(`${ingredient(pours[index]!).label} taken out.`)
   }
 
   const emptyBottle = () => {
     for (let i = pours.length - 1; i >= 0; i--) onChange(POUR_KEYS[i]!, 'none')
-    setAnnouncement('The bottle is empty.')
+    focusAfterChange.current = 'firstJar'
+    announce('The bottle is empty.')
   }
 
   return (
     <div className={styles.picker}>
       {nextKey === null && (
-        <p className={styles.full}>The bottle is full. Take one out to pour another.</p>
+        <p className={styles.full} id={fullId}>
+          {FULL_MESSAGE}
+        </p>
       )}
       <div className={styles.jars}>
-        {INGREDIENTS.map((item) => (
+        {INGREDIENTS.map((item, i) => (
           <button
             key={item.id}
+            ref={i === 0 ? firstJar : undefined}
             type="button"
             className={styles.jar}
             aria-label={`Pour in ${item.label}`}
             aria-disabled={nextKey === null}
+            aria-describedby={nextKey === null ? fullId : undefined}
             onClick={() => pour(item)}
           >
             <IngredientPicture item={item} />
@@ -61,8 +86,9 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
       <h3 className={styles.heading} id={headingId}>
         In the bottle
       </h3>
-      <ol className={styles.pours} aria-labelledby={headingId}>
+      <ul className={styles.pours} aria-labelledby={headingId}>
         {slots.map((id, row) => {
+          const index = MAX_POURS - 1 - row
           if (id === undefined)
             return (
               <li key={`empty-${row}`} className={styles.emptyRow}>
@@ -76,16 +102,20 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
               <span className={styles.rowLabel}>{item.label}</span>
               <button
                 type="button"
+                ref={(button) => {
+                  if (button) takeOutButtons.current.set(index, button)
+                  else takeOutButtons.current.delete(index)
+                }}
                 className={styles.takeOut}
                 aria-label={`Take out ${item.label}`}
-                onClick={() => takeOut(MAX_POURS - 1 - row)}
+                onClick={() => takeOut(index)}
               >
                 Take out
               </button>
             </li>
           )
         })}
-      </ol>
+      </ul>
 
       {pours.length > 0 && (
         <button type="button" className={styles.emptyAll} onClick={emptyBottle}>
@@ -93,7 +123,7 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
         </button>
       )}
       <p className="visually-hidden" aria-live="polite">
-        {announcement}
+        <span key={announcement.count}>{announcement.text}</span>
       </p>
     </div>
   )

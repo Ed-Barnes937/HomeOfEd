@@ -191,21 +191,101 @@ export class ApothecaryPom extends BenchPom {
     await expect(this.page.getByRole('button', { name: /^Pour in / })).toHaveCount(9)
   }
 
-  /** Every jar, pour and the Empty button can be scrolled to inside the tab, which stays in the sheet's own height. */
-  async verifyPoursReachableInSheet(sheetTopAtLeast: number): Promise<void> {
-    const panel = this.page.getByRole('tabpanel')
-    const sheet = (await panel.boundingBox())!
-    expect(sheet.y).toBeGreaterThanOrEqual(sheetTopAtLeast)
-    const reachable = [
+  /** The ninth jar lies inside the tab body as it stands, with no scrolling. */
+  async verifyAllJarsInView(): Promise<void> {
+    const panel = (await this.page.getByRole('tabpanel').boundingBox())!
+    const ninth = (await this.page
+      .getByRole('button', { name: /^Pour in / })
+      .nth(8)
+      .boundingBox())!
+    expect(ninth.y).toBeGreaterThanOrEqual(panel.y)
+    expect(ninth.y + ninth.height).toBeLessThanOrEqual(panel.y + panel.height)
+  }
+
+  /** The ninth jar's bottom and the tab body's bottom, for reporting. */
+  async ninthJarAndPanelBottoms(): Promise<{ jar: number; panel: number }> {
+    const panel = (await this.page.getByRole('tabpanel').boundingBox())!
+    const ninth = (await this.page
+      .getByRole('button', { name: /^Pour in / })
+      .nth(8)
+      .boundingBox())!
+    return { jar: ninth.y + ninth.height, panel: panel.y + panel.height }
+  }
+
+  /** Every jar and take-out button is at least 44 px tall and wide. */
+  async verifyHitTargetsAtLeast44(): Promise<void> {
+    const targets = [
       ...(await this.page.getByRole('button', { name: /^Pour in / }).all()),
-      ...(await this.bottleList.getByRole('listitem').all()),
-      this.page.getByRole('button', { name: 'Empty the bottle' }),
+      ...(await this.bottleList.getByRole('button').all()),
     ]
-    for (const control of reachable) {
-      await control.scrollIntoViewIfNeeded()
-      const box = (await control.boundingBox())!
-      expect(box.y).toBeGreaterThanOrEqual(sheet.y - 1)
-      expect(box.y + box.height).toBeLessThanOrEqual(sheet.y + sheet.height + 1)
+    for (const target of targets) {
+      const box = (await target.boundingBox())!
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(box.width).toBeGreaterThanOrEqual(44)
     }
+  }
+
+  /** The pours sit in one column, top first, each with the words "Take out". */
+  async verifyPoursInOneColumn(): Promise<void> {
+    const rows = await this.bottleList.getByRole('listitem').all()
+    const boxes = await Promise.all(rows.map((row) => row.boundingBox()))
+    for (let i = 1; i < boxes.length; i++) {
+      expect(boxes[i]!.x).toBe(boxes[0]!.x)
+      expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y)
+    }
+    for (const button of await this.bottleList.getByRole('button').all())
+      await expect(button).toHaveText('Take out')
+  }
+
+  async takeOutWithKeyboard(label: string, key: 'Enter' | 'Space', nth = 0): Promise<void> {
+    const button = this.bottleList.getByRole('button', { name: `Take out ${label}`, exact: true })
+    await button.nth(nth).focus()
+    await this.page.keyboard.press(key)
+  }
+
+  async emptyBottleWithKeyboard(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Empty the bottle', exact: true }).focus()
+    await this.page.keyboard.press('Enter')
+  }
+
+  async verifyFocused(name: string): Promise<void> {
+    await expect(this.page.getByRole('button', { name, exact: true })).toBeFocused()
+  }
+
+  async verifyJarsDescribedByFullMessage(): Promise<void> {
+    const message = this.page.getByText('The bottle is full. Take one out to pour another.')
+    const id = await message.getAttribute('id')
+    expect(id).toBeTruthy()
+    for (const jar of await this.page.getByRole('button', { name: /^Pour in / }).all())
+      await expect(jar).toHaveAttribute('aria-describedby', id!)
+  }
+
+  async verifyJarsNotDescribed(): Promise<void> {
+    for (const jar of await this.page.getByRole('button', { name: /^Pour in / }).all())
+      await expect(jar).not.toHaveAttribute('aria-describedby', /.+/)
+  }
+
+  async watchAnnouncements(): Promise<void> {
+    await this.page.evaluate(() => {
+      const region = document.querySelector('ul ~ p[aria-live="polite"]')!
+      const heard: string[] = []
+      ;(window as unknown as { heard: string[] }).heard = heard
+      new MutationObserver(() => heard.push(region.textContent ?? '')).observe(region, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      })
+    })
+  }
+
+  /** The live region was written to once per change, repeats included. */
+  async verifyAnnouncementsHeard(expected: string[]): Promise<void> {
+    await expect
+      .poll(() => this.page.evaluate(() => (window as unknown as { heard: string[] }).heard))
+      .toEqual(expected)
+  }
+
+  async verifyAnnouncementIs(text: string): Promise<void> {
+    await expect(this.page.locator('ul ~ p[aria-live="polite"]')).toHaveText(text)
   }
 }

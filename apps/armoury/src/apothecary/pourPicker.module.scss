@@ -75,6 +75,10 @@
   border-radius: var(--r-control);
 }
 
+.row {
+  padding-block: 2px;
+}
+
 .emptyRow {
   border-style: dashed;
   border-color: var(--panel-line);
@@ -100,7 +104,7 @@
 }
 
 .takeOut {
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .emptyAll {
@@ -108,40 +112,25 @@
   min-height: 44px;
 }
 
-// The sheet is short, so the pours become a 2 by 2 block of chips and the jars shrink.
+// The sheet is short, so the jars tighten until all nine stay in view.
 @media (max-width: 899px) {
+  .picker {
+    gap: 6px;
+  }
+
   .jar {
-    min-height: 62px;
-    padding: 6px 4px;
-    gap: 4px;
+    min-height: 48px;
+    padding: 3px 4px;
+    gap: 2px;
   }
 
-  .pours {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .row,
-  .emptyRow {
-    gap: 8px;
-    padding: 0 6px 0 8px;
-  }
-
-  .rowLabel {
+  .full {
     font-size: 14px;
-    line-height: 1.1;
+    line-height: 1.15;
   }
 
-  .takeOut {
-    flex: none;
-    width: 36px;
-    padding: 0;
-    font-size: 0;
-
-    &::after {
-      content: '\00d7';
-      font-size: 22px;
-      line-height: 1;
-    }
+  .swatch {
+    width: 22px;
+    height: 22px;
   }
 }

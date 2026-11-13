@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import type { ParamDef } from '../engine/schema.ts'
-import { potionSwatchFor } from '../potion/potionSchema.ts'
+import { isPourKey, potionSwatchFor } from '../potion/potionSchema.ts'
 import { SwatchPicker } from '../shop/controls/Widgets.tsx'
 import type { WidgetProps } from '../shop/shopView.ts'
 import { PourPicker } from './pourPicker.tsx'
@@ -13,7 +13,7 @@ export function potionWidget(
 ): ReactNode | undefined {
   if (def.kind !== 'choice') return undefined
   if (def.key === 'pour1') return <PourPicker params={params} onChange={onChange} />
-  if (def.key === 'pour2' || def.key === 'pour3' || def.key === 'pour4') return null
+  if (isPourKey(def.key)) return null
   if (def.key === 'glass') {
     const tinted = {
       ...def,

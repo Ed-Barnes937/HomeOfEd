@@ -24,6 +24,37 @@ test('four pours fill the bottle, and a fifth tap changes nothing', async ({ mou
   await root.verifyPours(['Moonmilk', 'Rosehip syrup', 'Starpetal', 'Frogfizz'])
 })
 
+test('a tap on a jar of a full bottle announces the full message, never a count', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.pour('Frogfizz')
+
+  await root.tapJar('Emberroot')
+
+  await root.verifyAnnouncementIs('The bottle is full. Take one out to pour another.')
+})
+
+test('the jars say why they are dimmed only while the bottle is full', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyJarsNotDescribed()
+  await root.pour('Frogfizz')
+  await root.verifyJarsDescribedByFullMessage()
+  await root.takeOut('Frogfizz')
+  await root.verifyJarsNotDescribed()
+})
+
+test('taking out the same ingredient twice in a row is announced twice', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.pour('Rosehip syrup')
+  await root.watchAnnouncements()
+
+  await root.takeOutWithKeyboard('Rosehip syrup', 'Enter')
+  await root.takeOutWithKeyboard('Rosehip syrup', 'Enter')
+
+  await root.verifyAnnouncementsHeard(['Rosehip syrup taken out.', 'Rosehip syrup taken out.'])
+})
+
 test('taking out a middle pour shifts the ones above down, in order', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.pour('Frogfizz')
@@ -125,16 +156,53 @@ test('with the keyboard alone, Tab reaches a jar and Enter pours it', async ({ m
   await root.verifyJarStillFocusable('Emberroot')
 })
 
+test('after a take-out or an empty, focus stays in the picker', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.pour('Frogfizz')
+
+  await root.takeOutWithKeyboard('Rosehip syrup', 'Enter')
+  await root.verifyFocused('Take out Starpetal')
+
+  await root.takeOutWithKeyboard('Frogfizz', 'Space')
+  await root.verifyFocused('Take out Starpetal')
+
+  await root.takeOutWithKeyboard('Starpetal', 'Enter')
+  await root.verifyFocused('Take out Moonmilk')
+
+  await root.takeOutWithKeyboard('Moonmilk', 'Space')
+  await root.verifyFocused('Pour in Moonmilk')
+
+  await root.pour('Frogfizz')
+  await root.pour('Emberroot')
+  await root.emptyBottleWithKeyboard()
+  await root.verifyFocused('Pour in Moonmilk')
+})
+
+test('Try another leaves focus where the child put it', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.tryAnother()
+  await root.verifyFocused('Try another')
+})
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('the Pours tab holds all nine jars and the four pours in a sheet no taller than the others', async ({
+  test('all nine jars are in view without scrolling, empty or full, and the pours stand in one top-first column', async ({
     mountApp,
   }) => {
     const { root } = await mountApp()
     await root.verifyAllJarsShown()
+    await root.verifyAllJarsInView()
+    await root.verifyHitTargetsAtLeast44()
+    await root.verifyPoursInOneColumn()
+
     await root.pour('Frogfizz')
     await root.verifyPours(['Moonmilk', 'Rosehip syrup', 'Starpetal', 'Frogfizz'])
-    await root.verifyPoursReachableInSheet(500)
+    await root.verifyAllJarsInView()
+    await root.verifyHitTargetsAtLeast44()
+    await root.verifyPoursInOneColumn()
+
+    await root.emptyBottle()
+    await root.verifyAllJarsInView()
   })
 })
