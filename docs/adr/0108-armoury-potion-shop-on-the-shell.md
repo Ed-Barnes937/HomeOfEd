@@ -65,6 +65,32 @@ end first, on fake stages, without opening the shop to visitors.
   directly, until the bottle generator's outline replaces it; the token block is
   the scene mock's palette, whose text pairs were measured at AA.
 
+## The pour picker
+
+- **One widget owns the Pours group.** `potionWidget` returns `PourPicker` for
+  `pour1` and `null` for `pour2` to `pour4`, so the group draws once through the
+  existing per-param widget hook. The glass gets a `SwatchPicker` tinted from
+  `potionSwatchFor`; every other control stays plain.
+- **A pour is a `set` on the lowest empty slot.** A jar calls
+  `onChange(nextPourKey(params), id)`; with a full bottle the jars are
+  `aria-disabled` (still focusable) and a tap does nothing.
+- **Take-out compaction lives in the item's `follows`**, not in the widget or the
+  reducer: the widget sets the slot to `none` and `followPours` drops the pours
+  above it down.
+- **Empty the bottle is batched sets**, one `none` per filled slot from the top
+  down in a single handler; React batches them, so the stage sees one change.
+- **Accessibility.** Every jar is a button named "Pour in {Label}"; "In the
+  bottle" is an ordered list, top pour first, with empty slots above it like the
+  bottle itself, each pour with "Take out {Label}"; a polite live region says
+  what changed. Every swatch has a light ring because the dark ones are low in
+  contrast against the dark tile.
+- **The picture is one seam.** `IngredientPicture` is the only place a jar's
+  picture is drawn; a plain colour swatch stands in for it.
+- **On a phone** the pours list becomes a 2 by 2 block of chips (the take-out
+  button shrinks to a cross, its name unchanged). Measured at 390 by 844 the tab
+  is still about twice the sheet's 238 px body, so it scrolls inside the sheet
+  like any other tab; the sheet's height is the shell's, not the picker's.
+
 ## Considered and rejected
 
 - **Opening the door now.** A visitor would find a shop with no real bottle and

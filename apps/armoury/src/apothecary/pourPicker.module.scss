@@ -1,0 +1,147 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.full {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.jars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.jar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 72px;
+  padding: 8px 4px;
+  border: 1px solid var(--panel-line-strong);
+  border-radius: var(--r-control);
+  background: var(--shop-black);
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+
+  &[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
+.swatch {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgba(255, 245, 225, 0.7);
+}
+
+.heading {
+  margin: 6px 0 0;
+  font-family: var(--font-caps);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+}
+
+.pours {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row,
+.emptyRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--panel-line-strong);
+  border-radius: var(--r-control);
+}
+
+.emptyRow {
+  border-style: dashed;
+  border-color: var(--panel-line);
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+.rowLabel {
+  flex: 1;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.takeOut,
+.emptyAll {
+  padding: 0 12px;
+  border: 1px solid var(--panel-line-strong);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.takeOut {
+  min-height: 36px;
+}
+
+.emptyAll {
+  align-self: flex-start;
+  min-height: 44px;
+}
+
+// The sheet is short, so the pours become a 2 by 2 block of chips and the jars shrink.
+@media (max-width: 899px) {
+  .jar {
+    min-height: 62px;
+    padding: 6px 4px;
+    gap: 4px;
+  }
+
+  .pours {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .row,
+  .emptyRow {
+    gap: 8px;
+    padding: 0 6px 0 8px;
+  }
+
+  .rowLabel {
+    font-size: 14px;
+    line-height: 1.1;
+  }
+
+  .takeOut {
+    flex: none;
+    width: 36px;
+    padding: 0;
+    font-size: 0;
+
+    &::after {
+      content: '\00d7';
+      font-size: 22px;
+      line-height: 1;
+    }
+  }
+}
