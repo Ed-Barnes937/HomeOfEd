@@ -132,3 +132,4 @@ pnpm --filter armoury run typecheck
 
 ## Comments
 - 2026-11-13 orchestrator: built (ea5b56d5), review r1 asked for changes, fixed (0ceb5940), review r2 passed with mutation checks. Merged into the epic branch.
+- 2026-11-13 planner (re-plan, E13-E17): superseded in part. Ticket 20 moves the schema to three slots and a `mixed` flag, replaces Bog murk with Puffcap and adds the mixing rule (ADR 0113).

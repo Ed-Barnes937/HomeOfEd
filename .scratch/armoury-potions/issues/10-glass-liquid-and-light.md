@@ -1,10 +1,11 @@
-# 10 - Glass, liquid and light
+# 10 - Glass, layered liquid and light
 
-**Status:** ready-for-agent (waits for Ed's pick from ticket 01)
+**Status:** ready-for-agent (Ed's picks are in: G1, L2, M1, P2)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
-**Blocked by:** 01 (Ed's pick), 09
-**Parallel with:** 13
+**Blocked by:** 09; scope 5 (colours and presets) waits until 20 is merged (the orchestrator
+merges the epic branch into this ticket's branch first)
+**Parallel with:** 13, 20, 21, 22
 **Model:** opus
 **Gate:** materials
 **ADR:** 0109 (write it; 11 and 12 add sections)
@@ -12,24 +13,26 @@
 
 ## Goal
 
-Give the bottle the look Ed picked from the spike's contact sheet: fake glass, layered level
-liquid with clear band edges, the finish parts (stopper, label paper and ink, wax), the shop's
-moody light and environment, tone mapping for this canvas, a bounded resting glow, and the
-picture capture method he picked. Traits inside the liquid (fizz, glitter, swirl, cloud, glow)
+Give the bottle the look Ed picked from the spike's contact sheet: fake glass (G1, thin clear),
+layered level liquid with soft band edges (L2), the finish parts (stopper, label paper and ink,
+wax), the shop's moody light (M1, one candle and a cool rim) and environment, tone mapping for
+this canvas, a bounded resting glow, and the picture capture over the card's ground (P2). This
+is the liquid's *layered* state (up to three bands, one per ingredient, each a third of the
+volume); the *mixed* state and the swirl between them are ticket 23. Traits inside the liquid
 are ticket 11; here every band is drawn `clear` or `cloud` as its trait's base.
 
 ## What Ed's pick fills in
 
-Before starting, the orchestrator writes Ed's answer into `decisions.md` (one letter per row of
-`shots/01/contact-sheet.md`: glass G, liquid L, light M, capture P) and into this ticket's
-Comments. Build exactly that combination; any row Ed left open takes the spike's recommendation.
-If Ed asked for changes to the look, they are listed there too.
+E9-E12 in `decisions.md`: glass G1, liquid L2, light M1, share picture P2. Build exactly that
+combination from the spike's tiles of those names. His picks record no objection to the spike's
+ACES and no post pass at rest on this canvas (`for-ed.md` row X): keep them unless the
+orchestrator says otherwise, and record why.
 
 ## Read first
 
 - `spec.md`: "The look and the scene, in words", "Accessibility and reduced motion", "Testing",
   "Rules for the team".
-- `decisions.md` (absolute path): Ed's pick (as above).
+- `decisions.md` (absolute path): E9-E17 (the picks, and the new mechanic this look must serve).
 - `shots/01/contact-sheet.md` (absolute path), especially "What ticket 10 lifts".
 - The spike branch `spike/potion-look-do-not-merge`: read its files with
   `git show spike/potion-look-do-not-merge:<path>`; lift code, never merge or cherry-pick the
@@ -40,7 +43,8 @@ If Ed asked for changes to the look, they are listed there too.
 - Source: ticket 09's `src/stage/PotionStage.tsx`, `PotionMesh.tsx`, `potionScene.tsx`,
   `PotionCloseUpStage.tsx`; `src/stage/Gems.tsx`, `glow.ts`, `smithyScene.tsx`,
   `swordMaterials.ts` (a material table with pure tests), `boxRig.tsx` (`captureScene`);
-  `src/potion/compile.ts`, `ingredients.ts`; `src/share/shareCard.ts`; `scripts/gpu-shots.mjs`.
+  `src/potion/compile.ts` (`layers`, `fill`; after 20 also `mixed`, `mix`), `ingredients.ts`;
+  `src/share/shareCard.ts`; `scripts/gpu-shots.mjs`.
 
 Paths are relative to `apps/armoury/`.
 
@@ -50,7 +54,8 @@ Paths are relative to `apps/armoury/`.
 `src/stage/PotionStage.tsx`, `src/stage/potionScene.tsx`, `src/stage/PotionCloseUpStage.tsx`
 (lights and environment only), `scripts/gpu-shots.mjs` (`--freeze`), `README.md` (credits for
 any asset), new files under `public/hdri/` or `public/textures/` only if the pick uses them,
-`src/potion/ingredients.ts` (the colour column only) and `src/potion/presets.ts` (retuning),
+`src/potion/ingredients.ts` (the colour column only) and `src/potion/presets.ts` (bottle and
+finish retuning only; recipes stay), both only after 20 has merged,
 `docs/adr/0109-armoury-potion-look.md`.
 
 ## Scope
@@ -62,22 +67,28 @@ any asset), new files under `public/hdri/` or `public/textures/` only if the pic
    uniform, the picked band edge, the `clear` and `cloud` bases), each with its uniforms written
    through the material. A `uTime` uniform, frozen under reduced motion and by the dev-only
    `?freeze=<seconds>`. The liquid exposes `setSurface(normal, levels)` for tickets 12 and 14.
+   Leave room for ticket 23: the band colour lookup is one function of the band coordinate, so a
+   mix uniform can later blend it to one colour without restructuring the shader.
 2. **Label ink:** the label's name (the child's rename or the derived name) drawn on a canvas
    texture in the shop's display face (`IM Fell English`), redrawn when the name changes; gold
-   paper and ink for a secret blend. Tier B (spec): if the gate finds it unreadable or cheap
+   paper and ink for a mixed secret blend (`isGold`). The name changes at the mix (it reads
+   "Moonmilk, Rosehip and Starpetal" until then), so the texture redraws on change. Tier B (spec): if the gate finds it unreadable or cheap
    after its second fix round, the label becomes plain paper with a ruled ink line; record the
    cut.
 3. **Light and environment:** the picked light (M) in the box's front frame and in the close
    look, the environment by lightformers (plus the spike's HDRI only if the pick used it), tone
    mapping on this canvas only, bloom at the wand's settings with nothing at rest above
    `0.92 * BLOOM_THRESHOLD`. The bottle's glow lights the table a little (a weak point light in
-   the top pour's colour). A candle flicker of a few percent on the key, off under reduced
+   the potion's glow colour: the top layer's, or the mixed colour). A candle flicker of a few percent on the key, off under reduced
    motion.
-4. **The picture:** `capture()` uses the picked method (P): over the card's own ground, or the
-   bottle drawn opaque for the picture only. Ticket 13's card painter composes it.
-5. **Colours and presets:** retune ingredient colours so every neighbouring pair reads as two
-   layers under the picked light and glass tint (the "every combination must look good" rule),
-   and retune presets. Ids never change.
+4. **The picture (P2):** `capture()` draws the stage over the card's own ground, not on a
+   transparent background. Ticket 13's card painter composes it.
+5. **Colours and presets (after 20 merges):** retune ingredient colours so every neighbouring
+   pair of the nine (Puffcap included) reads as two layers under M1 and every glass tint, keeping
+   the wheel's rainbow order of hues (the mix's colour is interpolated round it, ADR 0113);
+   separate Rosehip, Puffcap and Emberroot clearly; lift Moonmilk (the spike's weakest layer).
+   Retune presets' bottles and finishes; recipes and ids never change. Re-run `vitest run
+   src/potion` (20's colour-bound tests must hold).
 6. **Script:** `--freeze=<seconds>` adds `?freeze=` so every gate frame is drawn at the same
    liquid time.
 7. **ADR 0109**: what Ed picked and why it holds; the fake glass and why no transmission; the
@@ -115,9 +126,12 @@ pnpm --filter armoury run build
 ## Materials gate
 
 Protocol: spec rule 15. Shots into `shots/10/r<N>/` (absolute path), `--freeze=1.2`.
-Set `shots/sets/materials.json`: every preset; every glass tint over the first-visit pours;
-every ingredient as a single pour and as four pours; every stopper; every label (with a long
-rename and a secret blend's gold); desk and phone; box, close and zoom; `--picture`.
+Set `shots/sets/materials.json`: the first-visit potion (layered); every glass tint over it;
+every ingredient as one layer and as three layers; all nine as neighbouring pairs (the wheel's
+neighbours at least); every stopper; every label (with a long rename and the gold of a mixed
+blend, shown here as the label only, since the mixed liquid is ticket 23's); desk and phone;
+box, close and zoom; `--picture`. Presets that are mixed draw layered until 23: shoot them
+with `mixed: no` for this gate.
 
 The reviewer judges beside `shots/04/baseline/` and `shots/01/contact-sheet.png` (the pick):
 the glass reads as glass (rim, reflections, no milky fog, no black edges); the liquid sits inside
@@ -128,9 +142,10 @@ object as the wand and the sword.
 
 ## Out of scope
 
-- Traits in the liquid (11), the pour (12), the slosh and the uncorking (14, 15), the scene art and
-  the card painter (13), ingredient pictures (16).
+- Traits in the liquid (11), the mixed state and the swirl (23), the pour (12), the slosh and the
+  uncorking (14, 15), the scene art and the card painter (13), ingredient pictures (16, 25).
 
 ## Comments
 - 2026-11-13 orchestrator, from the look spike (ticket 01): whichever tiles Ed picks, fix these named flaws: the liquid's top surface can read as the rim of a cup; Moonmilk reads pale lavender, the weakest layer; the candle flame reflects twice (front and back wall) and can read as two candles. The spike used ACES, not the smithy's AgX, and no post pass at rest (the composer dulls the glass over a transparent canvas); record that choice and its reason in ADR 0109 unless Ed objects. Frame cost was measured on the M3 only.
 - 2026-11-13 orchestrator, from the review of ticket 06: band the liquid by the plane `dot(p, u) = h` (p in the bottle's millimetre frame from the foot's centre, u the surface normal in that frame), never by `aHeight`, which equals it only when the bottle is upright. Ticket 09's clay shader already does this; keep it. The tag hangs in a U of string across the top of its card: keep the ink off that strip.
+- 2026-11-13 planner (re-plan, E13-E17): this ticket now builds the layered state only (at most three bands); the mixed state and the swirl moved to ticket 23. Ed's picks are G1, L2, M1, P2. Colours and presets wait for ticket 20 (Puffcap replaces Bog murk; the hues must keep the wheel's rainbow order).

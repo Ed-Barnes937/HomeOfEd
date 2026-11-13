@@ -1,10 +1,10 @@
-# 13 - The shop's scene, recipe card and picture
+# 13 - The shop's scene (A), recipe card and picture (P2)
 
-**Status:** ready-for-agent (waits for Ed's pick from ticket 02)
+**Status:** ready-for-agent (Ed's picks are in: scene A, picture P2)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
-**Blocked by:** 02 (Ed's pick), 09; the gate shots need 10
-**Parallel with:** 10, 11, 12, 14
+**Blocked by:** 09; the gate shots need 10
+**Parallel with:** 10, 20, 21, 22, 11, 14
 **Model:** opus
 **Gate:** whole shop (the scene round: the composite scene, the card and the picture)
 **ADR:** 0110 (write it)
@@ -12,15 +12,18 @@
 
 ## Goal
 
-Paint the potion shop: the composition Ed picked from ticket 02's contact sheet, built in CSS and
-SVG like the smithy, around the real bottle; the recipe card on string; the shop's palette at AA
-contrast; and the share picture's painter. Moody and candlelit, never hard to read.
+Paint the potion shop: scene A, the brewing table, as Ed picked it from ticket 02's contact sheet
+(plain A, without B's window), built in CSS and SVG like the smithy, around the real bottle; the
+recipe card on string; the shop's palette at AA contrast; and the share picture's painter (P2:
+the capture over the card's own ground). Moody and candlelit, never hard to read.
 
 ## What Ed's pick fills in
 
-From `decisions.md` and this ticket's Comments: the composition (A "The brewing table", B "The
-night window", C "The alcove", or a mix) and any changes Ed asked for; the base line fraction
-measured on the mock. Build that, not the others.
+E7 (scene A, plain), E12 (picture P2), E11 (light M1: the candle on the left matches the
+stage's key). From O17: the mock's `[data-shop='apothecary']` palette in `mock/mock.css` is the
+starting token set, and the bottle's foot sits at about 0.70 of the scene on desk and 0.62 on
+the phone (settle both here in `BASE_LINE`). Ed's open note on bottle size (for-ed section 7) is
+yours to judge with the art in: grow it 10-15 percent if the reviewer agrees, and say so.
 
 ## Read first
 
@@ -32,9 +35,9 @@ measured on the mock. Build that, not the others.
   `src/smithy/Anvil.tsx`, `ForgeWall.tsx`, `forgeArt.ts`, `anvilArt.ts`, `grain.ts`,
   `sceneArt.test.ts`, `src/share/smithyCard.ts`, the `[data-shop='smithy']` block in
   `src/styles/tokens.scss`, `src/shop/Tag.tsx` and `Tag.module.scss`.
-- Ticket 07's `src/apothecary/BrewingTable.tsx`, `apothecary.ts`, `src/share/apothecaryCard.ts`,
+- Ticket 07's `src/apothecary/BrewingTable.tsx`, `src/share/apothecaryCard.ts`,
   `src/shelf/ShelfPage.tsx`; ticket 10's stage lights (to match the scene's light directions)
-  and `capture()`; `src/potion/framing.ts` (`BASE_LINE`), `blends.ts` (the gold flag).
+  and `capture()`; `src/potion/framing.ts` (`BASE_LINE`), `describe.ts` (`isGold`, after 20).
 
 Paths are relative to `apps/armoury/`.
 
@@ -42,8 +45,8 @@ Paths are relative to `apps/armoury/`.
 
 `src/apothecary/BrewingTable.tsx` (+ `.module.scss`), new `src/apothecary/tableArt.ts` (+
 `tableArt.test.ts`), new `src/apothecary/RoomWall.tsx` (+ `.module.scss`) or the picked
-composition's equivalent, `src/apothecary/apothecary.ts` (`Scene`, `paintCard`),
-`src/share/apothecaryCard.ts`, `src/styles/tokens.scss` (the `[data-shop='apothecary']` block),
+composition's equivalent (wired in through `BrewingTable.tsx`; `apothecary.ts` is ticket 21's and
+already points at `BrewingTable` and `paintApothecaryCard`), `src/share/apothecaryCard.ts`, `src/styles/tokens.scss` (the `[data-shop='apothecary']` block),
 new `src/apothecary/palette.test.ts`, `src/shelf/ShelfPage.module.scss` and `ShelfPage.tsx` (the
 potion box's look only), `src/potion/framing.ts` (`BASE_LINE`, coordinated with ticket 10's
 builder through the orchestrator), `docs/adr/0110-armoury-potion-shop-scene-card-and-picture.md`.
@@ -56,19 +59,21 @@ builder through the orchestrator), `docs/adr/0110-armoury-potion-shop-scene-card
    from the key light, the candle and its light in the scene matching the stage's key, the bottle's
    glow tinting the table near it (CSS, from `glow`). Live elements: a candle flicker of a few
    percent and nothing else; off under reduced motion.
-2. **The recipe card:** the shared `Tag` styled as a recipe card on string beside (or hung from)
-   the bottle per the composition: number, name (renameable), tag line; gold edge and ink for a
-   secret blend.
+2. **The recipe card:** the shared `Tag` styled as a recipe card on string beside the bottle:
+   number, name (renameable), tag line; gold edge and ink for a mixed secret blend (`isGold`).
+   It must hold the longest names and tag lines the generator makes (an unmixed "Double
+   Thundercloud and Snailshine", a mixed "Mixed from Thundercloud, Snailshine and Moonmilk in a
+   square-shouldered bottle.") on a phone without clipping.
 3. **Palette** under `[data-shop='apothecary']`: dark, candle-warm, with text, card and controls
    at WCAG AA. **`palette.test.ts`** reads that block from `tokens.scss` and checks each text and
    ground pair the shop uses (panel text, lore, card ink on paper, hint on the scene, focus ring)
    is at least 4.5:1 (3:1 for large text and focus).
-4. **The picture:** `paintApothecaryCard` draws the scene's ground, table and candle, the bottle's
-   capture (from ticket 10's method) on the base line, its shadow, the card with name, number,
+4. **The picture (P2):** `paintApothecaryCard` draws the scene's ground, table and candle, the
+   bottle's capture (ticket 10's, over the card's ground) on the base line, its shadow, the card with name, number,
    tag line and lore. The wand's and the sword's pictures stay pixel-identical.
 5. **Shelf:** the potion's shelf box restyled to sit with the scene (wood and glass rather than
    card), the silhouette unchanged; wand and sword boxes unchanged.
-6. **ADR 0110**: the composition Ed picked, the scene's build (CSS, SVG, no 3D, no images), light
+6. **ADR 0110**: scene A as Ed picked it, the scene's build (CSS, SVG, no 3D, no images), light
    directions shared with the stage, the base line, the recipe card, the palette and contrast test,
    the picture.
 
@@ -99,16 +104,19 @@ pnpm --filter armoury exec playwright test -c playwright-ct.config.ts src/apothe
 
 Protocol: spec rule 15. You may build the art before ticket 10 lands; shoot the gate only on top
 of ticket 10's passing materials. Shots into `shots/13/r<N>/`, `--picture --freeze=1.2`: every
-preset, the first-visit potion, a secret blend, the tallest and the shortest bottle; desk and
+preset, the first-visit potion, a mixed secret blend (gold card), the longest names, the tallest
+and the shortest bottle (mixed potions draw layered until ticket 23; the scene round judges the
+scene, card and picture, not the liquid); desk and
 phone; scene, box and picture frames; the shelf with one of each kind; a `--reduced-motion` pass.
 
-The reviewer judges beside the wand shop and smithy scenes in `shots/04/baseline/` and the mock
-Ed picked: the composition matches the pick; the bottle stands on the table (shadow, foot,
+The reviewer judges beside the wand shop and smithy scenes in `shots/04/baseline/` and mock A: the composition matches the pick; the bottle stands on the table (shadow, foot,
 light); the light in the art agrees with the light on the glass; moody but every word readable;
 the card reads as paper on string; the picture is a card a child would want to send.
 
 ## Out of scope
 
-- The stage's look (10-12), the close look (14, 15), ingredient pictures (16), the street (17).
+- The stage's look (10-12, 23), the close look (14, 23, 15), ingredient pictures (16, 25), the
+  street (17).
 
 ## Comments
+- 2026-11-13 planner (re-plan, E7, E12, E13-E17): build scene A, plain; picture P2. The card's name is the layers' list until the mix, then the revealed name; gold comes with a mixed blend. `apothecary.ts` moved to ticket 21's ownership; you do not need it.

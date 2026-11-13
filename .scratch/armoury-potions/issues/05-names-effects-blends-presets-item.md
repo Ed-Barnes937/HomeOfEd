@@ -119,3 +119,4 @@ pnpm --filter armoury run typecheck
 
 ## Comments
 - 2026-11-13 orchestrator: built (28d44ca3), review r1 asked for changes (the forbidden-name rule, blend precedence tests), fixed (7ebe7af8), review r2 passed with mutation checks. Merged into the epic branch.
+- 2026-11-13 planner (re-plan, E13-E17): superseded in part. Ticket 20 re-does names, effects, blends and presets for three ingredients that mix (ADR 0113).

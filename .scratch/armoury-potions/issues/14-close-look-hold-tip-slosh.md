@@ -1,10 +1,10 @@
 # 14 - Close look I: held upright, tipped, sloshing
 
-**Status:** ready-for-agent (waits for Ed's pick via ticket 10)
+**Status:** ready-for-agent (waits for ticket 10)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
-**Blocked by:** 04, 10
-**Parallel with:** 11, 13
+**Blocked by:** 10 (04 is done)
+**Parallel with:** 11, 13, 16
 **Model:** opus
 **Gate:** close look (the hold and the slosh)
 **ADR:** 0111 (write it; ticket 15 completes it)
@@ -12,18 +12,18 @@
 
 ## Goal
 
-The free play before the tap (O3): the lifted bottle stands upright, leans and tips under the
+The free play between mixes (E14, E15): the lifted bottle stands upright, leans and tips under the
 child's finger, and its liquid stays level and sloshes, every band keeping its place and volume,
 then settles when the bottle rights itself. Pure, unit-tested dynamics; the look judged on a real
 GPU.
 
 ## What Ed's pick fills in
 
-The glass and liquid look from ticket 10. Nothing new is asked of Ed.
+The glass and liquid look from ticket 10 (G1, L2, M1). Nothing new is asked of Ed.
 
 ## Read first
 
-- `spec.md`: "The close look" (the hold, free play), "Accessibility and reduced motion" (the
+- `spec.md`: "The close look: lift, swirl, uncork" (the hold, free play, flourish on arrival), "Accessibility and reduced motion" (the
   liquid stays level under reduced motion but does not wobble), "Rules for the team".
 - `research/experience-options.md` (absolute path): "Rendering", the liquid-fill bullet (slosh as
   a damped spring on the plane's tilt fed by angular velocity).
@@ -37,7 +37,8 @@ Paths are relative to `apps/armoury/`.
 ## Files you own
 
 New `src/stage/slosh.ts` (+ `slosh.test.ts`), `src/stage/PotionCloseUpStage.tsx`,
-`scripts/gpu-shots.mjs` (`--uncork`, after ticket 10; it passes to 12 after you),
+`scripts/gpu-shots.mjs` (`--settle`, the potion's flourish; after ticket 10, and it passes to 12
+after you),
 `docs/adr/0111-armoury-potion-close-look.md`. You drive `PotionMesh`'s `levels` and
 `surfaceNormal` props and do not edit `PotionMesh.tsx` or `potionMaterials.ts`; if a uniform is
 missing, ask the orchestrator (ticket 11 or 12 holds those files).
@@ -54,15 +55,16 @@ missing, ask the orchestrator (ticket 11 or 12 holds those files).
 3. **`PotionCloseUpStage.tsx`**: reads its own world orientation each frame (no rig change), keeps
    the previous orientation to estimate angular velocity, steps the slosh, and passes `levels` and
    `surfaceNormal` to `PotionMesh`. Mount `FlourishProbe` so the shots script can hold frames.
-4. **Script:** `--uncork=0.5,1.2,2.4` for kinds that do not flourish on arrival: once the
-   bottle is held, tap it (trying a little either side of the middle, as `--glints` does), then
-   hold and shoot the stage at each moment after the tap through `FlourishProbe`, and finally
-   tap away and shoot the put-back. `--flourish` and `--glints` keep working for the sword.
-   Ticket 15 uses it; check it here on the minimal close look (the tap is already recorded).
-   Also `--settle=100,200,400,800,1600`: after each `--leans` or `--tips` release, shoot at those
-   milliseconds so the slosh's settle can be judged.
+4. **Script:** the potion now flourishes on arrival (ticket 21), so make `--flourish=` hold and
+   shoot a potion's close look as it does the sword's (through `FlourishProbe`), and make a tap
+   replay shootable (`--glints=` if it already holds frames after a tap, else a `--replay=`
+   flag that taps the held bottle and holds the stage at each moment). The old `--uncork` flag
+   is not needed. Tickets 23 and 15 use these; check them here on the minimal close look. Also
+   `--settle=100,200,400,800,1600`: after each `--leans` or `--tips` release, shoot at those
+   milliseconds so the slosh's settle can be judged. Leans and tips start after the arrival
+   show ends (wait `flourishSeconds`).
 5. **ADR 0111** (started here): the hold as ADR 0105 built it, the slosh model and its bounds,
-   tipped levels from the table, reduced motion. Ticket 15 adds the uncorking.
+   tipped levels from the table, reduced motion. Ticket 23 adds the mix, ticket 15 the uncorking.
 
 ## Acceptance
 
@@ -91,8 +93,8 @@ pnpm --filter armoury exec vitest run src/stage
 
 Protocol: spec rule 15. Shots into `shots/14/r<N>/` with `--freeze=1.2 --leans=35,-50 --tips=25
 --settle=100,200,400,800,1600`, so the reviewer sees the held pose and the settle after release:
-the first-visit potion, a four-band potion with strong contrasts, the tall bottle, the gourd, a
-one-pour bottle; desk and phone; a `--reduced-motion` pass.
+the first-visit potion, a three-layer potion with strong contrasts, the tall bottle, the gourd,
+a one-layer bottle; desk and phone; a `--reduced-motion` pass.
 
 The reviewer judges beside ticket 10's close frames: the liquid is level while the glass leans;
 bands stay level and in order; the slosh reads as liquid, not jelly or a spinning plate; no
@@ -101,8 +103,10 @@ still.
 
 ## Out of scope
 
-- The uncorking and effects (15). Pouring out of the bottle. Bubbles reacting to the slosh.
+- The mix and the swirl (23), the uncorking and effects (15). Pouring out of the bottle. Bubbles
+  reacting to the slosh.
 
 ## Comments
 - 2026-11-13 orchestrator, from the review of ticket 06: tipped levels are heights along world up from the foot's centre, in the bottle's millimetre frame (`tipped.ts`, ADR 0107), and feed the `levels` and `surfaceNormal` props together. Build the level table once per spec (it costs 6 to 10 ms), then look up by angle each frame; never rebuild it per frame.
 - 2026-11-13 orchestrator, from the second review of ticket 06: on a full round flask (and the square-shouldered bottle at the shortest neck) tipped 60 degrees, the surface rises past the plug's lowest point, so the liquid fills the neck up to the cork. That is right and the volume is kept; expect it, and check the liquid never draws through the stopper.
+- 2026-11-13 planner (re-plan, E13-E15): drag to lean and tip stay as free play between shows; the potion now flourishes on arrival, so the script's `--flourish` replaces the planned `--uncork`; the slosh must hold in both liquid states (the mixed one arrives with 23).

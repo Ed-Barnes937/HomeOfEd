@@ -3,7 +3,8 @@
 **Status:** ready-for-agent (the last build ticket)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
-**Blocked by:** 08, 09, 10, 11, 12, 13, 14, 15, 16
+**Blocked by:** 10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23 (not 24 and 25, which wait on Ed's art;
+the branch is never deployed before Ed merges it)
 **Parallel with:** none
 **Model:** sonnet
 **Gate:** code review only (the street is shot at ticket 18's whole-shop gate)
@@ -80,3 +81,4 @@ pnpm --filter armoury run build
 - Repainting the street, renaming the shop, the street's look (judged at ticket 18).
 
 ## Comments
+- 2026-11-13 planner (re-plan): blockers updated for tickets 20-23; nothing else in this ticket changes with the new mechanic.
