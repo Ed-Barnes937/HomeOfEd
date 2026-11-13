@@ -10,14 +10,21 @@ export interface BottleRow {
   noun: string
   /** The shape's noun in the potion's name. */
   nameNoun: string
+  /** Foot to the top of the body, where the neck begins. */
   bodyHeightMm: number
-  /** The `neck` slider maps into this range of neck lengths. */
+  /** The `neck` slider maps into this range of neck lengths, top of the body to top of the lip. */
   neckMm: [number, number]
+  /** The neck's outer radius. */
   neckRadiusMm: number
   /** How far the lip stands proud of the neck. */
   lipMm: number
-  /** Radius control points from the foot to the shoulder: [height fraction, radius mm]. */
+  /**
+   * Outer radius control points from the foot to the top of the body: [height fraction, radius
+   * mm]. The body ends where the neck begins, so the last point is [1, neckRadiusMm].
+   */
   body: [number, number][]
+  /** How far up the body four pours reach, as a fraction of its height. */
+  fullAt: number
 }
 
 export const BOTTLES: Record<ShapeId, BottleRow> = {
@@ -25,88 +32,123 @@ export const BOTTLES: Record<ShapeId, BottleRow> = {
     label: 'Round flask',
     noun: 'round flask',
     nameNoun: 'Brew',
-    bodyHeightMm: 95,
-    neckMm: [10, 45],
+    bodyHeightMm: 88,
+    neckMm: [16, 40],
     neckRadiusMm: 9,
     lipMm: 2,
     body: [
-      [0, 20],
-      [0.15, 36],
-      [0.4, 42],
-      [0.7, 34],
+      [0, 21.1],
+      [0.06, 29.3],
+      [0.14, 36.4],
+      [0.24, 42.1],
+      [0.36, 45.9],
+      [0.477, 47],
+      [0.6, 45.7],
+      [0.72, 41.9],
+      [0.82, 36],
+      [0.9, 28.7],
+      [0.95, 21.9],
       [1, 9],
     ],
+    fullAt: 0.86,
   },
   teardrop: {
     label: 'Teardrop flask',
     noun: 'teardrop flask',
     nameNoun: 'Tonic',
     bodyHeightMm: 120,
-    neckMm: [10, 45],
+    neckMm: [16, 42],
     neckRadiusMm: 8,
     lipMm: 2,
     body: [
-      [0, 16],
-      [0.12, 30],
-      [0.3, 36],
-      [0.6, 26],
-      [0.85, 14],
+      [0, 14.4],
+      [0.03, 20.8],
+      [0.07, 26.3],
+      [0.12, 30.8],
+      [0.19, 34.5],
+      [0.275, 36],
+      [0.36, 34.5],
+      [0.45, 30.5],
+      [0.58, 23],
+      [0.74, 15],
+      [0.88, 10.3],
       [1, 8],
     ],
+    fullAt: 0.8,
   },
   tall: {
     label: 'Tall bottle',
     noun: 'tall bottle',
     nameNoun: 'Drops',
     bodyHeightMm: 150,
-    neckMm: [10, 45],
-    neckRadiusMm: 7,
-    lipMm: 1.5,
+    neckMm: [18, 45],
+    neckRadiusMm: 7.5,
+    lipMm: 1.8,
     body: [
-      [0, 22],
-      [0.04, 24],
-      [0.9, 24],
-      [1, 16],
+      [0, 20],
+      [0.03, 21.5],
+      [0.72, 21.5],
+      [0.82, 19.5],
+      [0.9, 14.5],
+      [0.96, 9.5],
+      [1, 7.5],
     ],
+    fullAt: 0.8,
   },
   shoulder: {
     label: 'Square shoulders',
     noun: 'square-shouldered bottle',
     nameNoun: 'Mixture',
-    bodyHeightMm: 120,
-    neckMm: [10, 45],
+    bodyHeightMm: 115,
+    neckMm: [16, 40],
     neckRadiusMm: 8,
     lipMm: 2,
     body: [
-      [0, 28],
-      [0.04, 30],
-      [0.85, 30],
-      [0.92, 26],
-      [1, 12],
+      [0, 27],
+      [0.03, 29.5],
+      [0.88, 30],
+      [0.91, 29.5],
+      [0.93, 27.5],
+      [0.945, 21],
+      [0.965, 12.5],
+      [0.985, 9],
+      [1, 8],
     ],
+    fullAt: 0.84,
   },
   gourd: {
     label: 'Gourd bottle',
     noun: 'gourd bottle',
     nameNoun: 'Potion',
-    bodyHeightMm: 130,
-    neckMm: [10, 45],
+    bodyHeightMm: 135,
+    neckMm: [16, 42],
     neckRadiusMm: 7,
     lipMm: 2,
     body: [
-      [0, 18],
-      [0.1, 30],
-      [0.25, 36],
-      [0.5, 18],
+      [0, 18.3],
+      [0.05, 26.6],
+      [0.1, 31.5],
+      [0.16, 34.8],
+      [0.23, 36],
+      [0.25, 35.9],
+      [0.3, 34.7],
+      [0.37, 30.6],
+      [0.44, 22],
+      [0.5, 15.5],
+      [0.56, 17],
+      [0.64, 21.5],
       [0.72, 24],
-      [0.9, 16],
+      [0.8, 23],
+      [0.87, 19],
+      [0.94, 12.5],
       [1, 7],
     ],
+    fullAt: 0.82,
   },
 }
 
-/** Room above the neck for the stopper, in the drawn height. */
-export const STOPPER_ALLOWANCE_MM = 18
+/** Room above the lip for the tallest stopper, in the drawn height. */
+export const STOPPER_ALLOWANCE_MM = 16
 
 const rowOf = (p: Params): BottleRow => BOTTLES[p.shape as ShapeId]
 
@@ -115,7 +157,10 @@ export function neckLengthMm(p: Params): number {
   return min + (p.neck as number) * (max - min)
 }
 
-/** Foot to stopper top. */
+/**
+ * Foot to the top of the stopper allowance, which the glass stopper reaches and the cork and
+ * the wax stop below. The same for every stopper, so framing ignores the stopper.
+ */
 export function drawnHeightMm(p: Params): number {
   return rowOf(p).bodyHeightMm + neckLengthMm(p) + STOPPER_ALLOWANCE_MM
 }

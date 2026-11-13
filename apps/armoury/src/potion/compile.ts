@@ -18,7 +18,10 @@ export interface PotionSpec {
   shape: ShapeId
   bodyHeightMm: number
   neckMm: number
-  /** Foot to stopper top. */
+  /**
+   * Foot to the top of the stopper allowance, which the glass stopper reaches and the cork and
+   * the wax stop below. The same for every stopper, so framing ignores the stopper.
+   */
   heightMm: number
   glass: GlassId
   stopper: StopperId
