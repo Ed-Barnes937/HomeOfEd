@@ -122,3 +122,4 @@ stopper; the mixed state at rest looks as good as the layered one; reduced motio
 - What comes out of the neck and the bloom exception (15). The pour (12). Sound.
 
 ## Comments
+- 2026-11-13 orchestrator, from ticket 09: the stopper's beats drive `stopperLift` through a `{ current }` holder written in `useFrame` (no React render); the swirl's surface goes through `surfaceNormal` in the rig's up frame, as ticket 14's slosh does.

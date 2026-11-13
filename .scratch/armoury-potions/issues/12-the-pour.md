@@ -109,3 +109,4 @@ reduced motion is instant.
 
 ## Comments
 - 2026-11-13 planner (re-plan, E13-E17): three slots, no take-out, no Put the last one back in this shop; the cascade is three pours; mixed arrivals draw at once. Blocked by 23 for the shared stage files.
+- 2026-11-13 orchestrator, from ticket 09: `stopperLift` takes a number or a `{ current: number }` holder in mm along the axis (0 is seated); write the holder from a `useFrame`, never React state. `levels` (each band's top in mm, bottom first) is read every frame; leave it unset to get the volume-keeping levels at the current tilt.

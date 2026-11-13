@@ -125,3 +125,4 @@ still and still shows the effect.
 ## Comments
 - 2026-11-13 orchestrator, from the look spike (ticket 01): the potion canvas has no post pass at rest, so the uncorking's bloom has no composer to use. Decide the route here and record it in ADR 0111: a composer mounted only while the show runs, or capped additive sprites with no composer. Prefer whichever keeps the glass looking the same at the moment the show starts and ends (no pop).
 - 2026-11-13 planner (re-plan, E13-E16): the clock, the lift, the swirl and the stopper's beats moved to ticket 23; this ticket fills the effect after the pop. Murky (one lazy bubble) joins the six kinds; strength is 1-3; an empty bottle can no longer be uncorked (fewer than three only rattles).
+- 2026-11-13 orchestrator, from ticket 09: drive the stopper with a `{ current }` holder passed as `stopperLift`, read as the stopper is drawn, with no React render.
