@@ -1,7 +1,6 @@
 import { profileInitial, readFamilySession } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { profileColour } from '../features/account/profileColour.ts'
 import { appDates } from './appDates.ts'
 import styles from './HomePage.module.scss'
 import { pillFor } from './pillFor.ts'
@@ -83,11 +82,10 @@ export function HomePage() {
         <Link
           to="/account"
           className={styles.playerCircle}
-          data-colour={profileColour(playing.sub)}
-          aria-label={`Playing as ${playing.name}. Switch player`}
-          title={playing.name}
+          aria-label={`Playing as ${playing}. Switch player`}
+          title={playing}
         >
-          {profileInitial(playing.name)}
+          {profileInitial(playing)}
         </Link>
       ) : (
         <Link to="/account" className={styles.whosPlaying}>
@@ -163,24 +161,19 @@ export function HomePage() {
  * display: never an authorisation decision. Re-read when back restores the page
  * from the back-forward cache, since the player may have changed meanwhile.
  */
-type Player = { sub: string; name: string }
-
-function useWhoIsPlaying(): Player | null {
-  const [player, setPlayer] = useState(readPlayer)
+function useWhoIsPlaying(): string | null {
+  const [name, setName] = useState(readPlayerName)
   useEffect(() => {
-    const reread = () => setPlayer(readPlayer())
+    const reread = () => setName(readPlayerName())
     window.addEventListener('pageshow', reread)
     return () => window.removeEventListener('pageshow', reread)
   }, [])
-  return player
+  return name
 }
 
-function readPlayer(): Player | null {
-  const session = readFamilySession()
-  const name = session?.name.trim() ?? ''
-  return session === null || name.replace(/[\s\p{Cf}]/gu, '') === ''
-    ? null
-    : { sub: session.sub, name }
+function readPlayerName(): string | null {
+  const name = readFamilySession()?.name.trim() ?? ''
+  return name.replace(/[\s\p{Cf}]/gu, '') === '' ? null : name
 }
 
 /**

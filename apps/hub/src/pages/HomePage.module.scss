@@ -139,7 +139,7 @@
   white-space: nowrap;
 }
 
-// The picker's avatar in small: top right of the left column, so it never sits on the rail.
+// The player's initial in the hub's ochre, top right of the left column so it never sits on the rail.
 .playerCircle {
   position: absolute;
   top: 27px;
@@ -158,11 +158,7 @@
   line-height: 1;
   text-decoration: none;
 
-  @for $i from 1 through length(paper.$avatar-colours) {
-    &[data-colour='#{$i - 1}'] {
-      background: nth(paper.$avatar-colours, $i);
-    }
-  }
+  background: #c07a35;
 
   &:focus-visible {
     outline: 3px solid var(--fg);
