@@ -1,6 +1,7 @@
 import { Canvas, useFrame, type RootState } from '@react-three/fiber'
 import {
   Suspense,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -18,9 +19,13 @@ import styles from './HeldRig.module.scss'
 import {
   dragUpright,
   heldTilt,
+  leanFit,
+  leanShiftMm,
   rightUpright,
+  sweptWidthMm,
   uprightFlourishWeight,
   type Hold,
+  type Outline,
   type UprightPose,
 } from './hold.ts'
 import { BOX_CAMERA_LEAN, FOV, FRONT_CAMERA_PITCH, MM } from './scene.tsx'
@@ -51,13 +56,21 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2)
 
+/** The invisible shape a tap must land in, in scene units: a box, or for a round upright item a cylinder standing along y, the same width however it turns. */
+export type Hit = [number, number, number] | { radius: number; height: number }
+
+export function hitGeometry(hit: Hit): THREE.BufferGeometry {
+  if (Array.isArray(hit)) return new THREE.BoxGeometry(...hit)
+  return new THREE.CylinderGeometry(hit.radius, hit.radius, hit.height, 32)
+}
+
 /** What the rig needs to know about the item it lifts. Points are in the item's own space, along z, before it is turned to lie along x. */
 export interface HeldItem {
   lengthMm: number
   /** Where the trail streams from, along the item's length (z) before the rig lays it along x; unused with no trail. */
   tip: [number, number, number]
-  /** The invisible box a tap must land in, in scene units, in the children's frame: along x for a level item, y for an upright one. */
-  hit: [number, number, number]
+  /** What a tap must land in, in the children's frame: along x for a level item, y for an upright one. */
+  hit: Hit
   /** Where a hand holds it, as a fraction of its length from the pommel, or from the foot of an upright item; the wave, tip and lean turn about it. */
   grip: number
   /** Stretches the figure of 8 in time; 1 is the wand's. */
@@ -77,6 +90,8 @@ export interface HeldItem {
   boxCentreY?: number
   /** The widest across, so an upright item fits the screen by its width as well as its height. */
   widthMm?: number
+  /** An upright item's outline from the front: on a portrait screen it is sized to lean to the limit inside the width, and kept centred as it leans. */
+  outline?: Outline
 }
 
 interface Flight {
@@ -199,6 +214,23 @@ function turnAbout(
 
 type Lights = ComponentType<{ rim?: Ref<THREE.DirectionalLight> }>
 
+/** How large an upright item is held, at `px` pixels per scene unit: by its height and width, and on a portrait screen by its outline leaned either way to the limit. */
+export function uprightScale(
+  item: HeldItem,
+  size: { width: number; height: number },
+  px: number,
+  sweptMm = item.outline ? sweptWidthMm(item.outline, item.grip * item.lengthMm) : 0,
+): number {
+  const length = item.lengthMm * MM * px
+  const width = (item.widthMm ?? 0) * MM * px
+  const standing = Math.min(
+    width > 0 ? (0.76 * size.width) / width : Infinity,
+    (0.56 * size.height) / length,
+  )
+  if (size.height <= size.width || sweptMm <= 0) return standing
+  return Math.min(standing, leanFit(sweptMm, size.width) / (MM * px))
+}
+
 /** Lays an upright item's children, standing along y, along x, as the rig holds every item. */
 export function Laid({ hold, children }: { hold: Hold | undefined; children: ReactNode }) {
   if (hold === 'upright') return <group rotation={[0, 0, UPRIGHT_TO_LEVEL]}>{children}</group>
@@ -214,6 +246,7 @@ function Rig({
   reducedMotion,
   events,
   hit,
+  lights,
   children,
 }: {
   item: HeldItem
@@ -224,10 +257,10 @@ function Rig({
   reducedMotion: boolean
   events: RefObject<{ onLift: () => void; onArrive: () => void }>
   hit: RefObject<THREE.Mesh | null>
+  lights: RefObject<THREE.Group | null>
   children: ReactNode
 }) {
   const held = useRef<THREE.Group>(null)
-  const lights = useRef<THREE.Group>(null)
   const rim = useRef<THREE.DirectionalLight>(null)
   const tip = useRef(new THREE.Vector3())
   const tipAt = item.tip
@@ -243,6 +276,12 @@ function Rig({
     [],
   )
   const start = useMemo((): LiftStart => ({ position: new THREE.Vector3(), scale: 0 }), [])
+  const sweptMm = useMemo(
+    () => (item.outline ? sweptWidthMm(item.outline, item.grip * item.lengthMm) : 0),
+    [item],
+  )
+  const hitShape = useMemo(() => hitGeometry(item.hit), [item.hit])
+  useEffect(() => () => hitShape.dispose(), [hitShape])
   const v = useMemo(
     () => ({
       grip: new THREE.Vector3(),
@@ -295,9 +334,8 @@ function Rig({
     const tilt = heldTilt(item.hold ?? 'level', portrait)
     h.tilt = tilt
     const length = item.lengthMm * MM * px
-    const width = (item.widthMm ?? 0) * MM * px
     const heldScale = upright
-      ? Math.min(width > 0 ? (0.76 * size.width) / width : Infinity, (0.56 * size.height) / length)
+      ? uprightScale(item, size, px, sweptMm)
       : Math.min(
           (0.76 * size.width) / (length * Math.abs(Math.cos(tilt))),
           (0.56 * size.height) / (length * Math.abs(Math.sin(tilt))),
@@ -345,6 +383,10 @@ function Rig({
           .setFromAxisAngle(X, pose.tip * poseWeight)
           .premultiply(q.step.setFromAxisAngle(Z, -pose.lean * poseWeight))
         turnAbout(g, q.pose, v.grip, v.moved)
+        if (portrait && item.outline) {
+          const pivot = item.grip * item.lengthMm
+          g.position.x += leanShiftMm(item.outline, pivot, pose.lean * poseWeight) * MM * g.scale.x
+        }
       }
       g.updateMatrixWorld()
       // The item's group lies along x: its own (x, y, z) is turned to (z, y, -x).
@@ -359,9 +401,7 @@ function Rig({
   const contents = (
     <>
       {children}
-      <mesh ref={hit} visible={false}>
-        <boxGeometry args={item.hit} />
-      </mesh>
+      <mesh ref={hit} geometry={hitShape} visible={false} />
     </>
   )
 
@@ -387,8 +427,11 @@ export type HeldRigProps = Omit<CloseUpProps, 'params'> & {
   rimIntensity: number
   environment: ReactNode
   effects: ReactNode
-  /** Draws the item, given the clock time the latest flourish began, or null. */
-  children: (flourishAt: number | null) => ReactNode
+  /**
+   * Draws the item, given the clock time the latest flourish began, or null, and `up`: the rig's
+   * lights group, whose +y is up for the item, the box's as it rises and the screen's once held.
+   */
+  children: (flourishAt: number | null, up: RefObject<THREE.Object3D | null>) => ReactNode
 }
 
 /** The close look: lifts the item out of its box, lets a child turn and zoom it, and flies it back. */
@@ -410,6 +453,7 @@ export function HeldRig({
   const [flourishAt, setFlourishAt] = useState<number | null>(null)
   const three = useRef<RootState | null>(null)
   const hit = useRef<THREE.Mesh | null>(null)
+  const lights = useRef<THREE.Group | null>(null)
   const events = useRef({ onLift, onArrive })
   events.current = { onLift, onArrive }
   const [flight] = useState<{ current: Flight }>(() => ({
@@ -551,8 +595,9 @@ export function HeldRig({
             reducedMotion={reducedMotion}
             events={events}
             hit={hit}
+            lights={lights}
           >
-            {children(flourishAt)}
+            {children(flourishAt, lights)}
           </Rig>
         </Suspense>
         {effects}

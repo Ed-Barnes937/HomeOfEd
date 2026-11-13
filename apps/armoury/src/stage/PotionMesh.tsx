@@ -6,7 +6,7 @@ import { buildPotionMesh, type PotionMesh as PotionParts } from '../potion/geome
 import { uprightLevels } from '../potion/profile.ts'
 import { levelsAt, levelTable, type LevelTable } from '../potion/tipped.ts'
 import { MAX_POURS } from '../potion/potionSchema.ts'
-import type { MeshPart } from '../sword/sweep.ts'
+import { fillGeometry, latestOnly } from './meshBuffers.ts'
 import { MM } from './scene.tsx'
 
 /** The dev-only switch that draws the bottle in plain grey; until the real look exists, every bottle is clay. */
@@ -21,7 +21,7 @@ export const RENDER_ORDER = { glassBack: 1, liquid: 2, particles: 3, glassFront:
 /** Below this tilt from the bottle's axis, in radians, the bands sit at their upright levels. */
 const UPRIGHT_TILT = 1e-3
 
-/** Each band's top for the surface's up `u` (in the bottle's mm frame); the table is only built once tipped. */
+/** Each band's top for the surface's up `u` (in the bottle's mm frame); the table is only asked for once tipped. */
 export function liquidLevels(
   u: THREE.Vector3,
   upright: number[],
@@ -31,46 +31,28 @@ export function liquidLevels(
   return tilt < UPRIGHT_TILT ? upright : levelsAt(table(), tilt)
 }
 
+const UP = new THREE.Vector3(0, 1, 0)
+const unturn = new THREE.Quaternion()
+
+/** `u` in the bottle's frame: `normal` (default +y), a direction in the up frame turned by `frame`, seen from a bottle turned by `bottle`. */
+export function surfaceUp(
+  out: THREE.Vector3,
+  bottle: THREE.Quaternion,
+  frame: THREE.Quaternion,
+  normal: THREE.Vector3 = UP,
+): THREE.Vector3 {
+  return out
+    .copy(normal)
+    .normalize()
+    .applyQuaternion(frame)
+    .applyQuaternion(unturn.copy(bottle).invert())
+}
+
 export interface PotionGeometries {
   glass: THREE.BufferGeometry
   liquid: THREE.BufferGeometry
   stopper: THREE.BufferGeometry
   label: THREE.BufferGeometry | null
-}
-
-/** Copies a part into `geometry` when its buffers are the same size, else replaces it. */
-function fillGeometry(geometry: THREE.BufferGeometry | null, part: MeshPart): THREE.BufferGeometry {
-  const attrs: Record<string, { array: Float32Array; size: number }> = {
-    position: { array: part.positions, size: 3 },
-    normal: { array: part.normals, size: 3 },
-    uv: { array: part.uvs, size: 2 },
-    ...Object.fromEntries(Object.entries(part.attrs).map(([k, array]) => [k, { array, size: 1 }])),
-  }
-  const index = geometry?.getIndex()
-  const fits =
-    geometry !== null &&
-    index?.array.length === part.indices.length &&
-    Object.entries(attrs).every(
-      ([k, a]) => geometry.getAttribute(k)?.array.length === a.array.length,
-    ) &&
-    Object.keys(geometry.attributes).length === Object.keys(attrs).length
-  if (fits) {
-    for (const [k, a] of Object.entries(attrs)) {
-      const attribute = geometry.getAttribute(k) as THREE.BufferAttribute
-      ;(attribute.array as Float32Array).set(a.array)
-      attribute.needsUpdate = true
-    }
-    ;(index.array as Uint32Array).set(part.indices)
-    index.needsUpdate = true
-    geometry.computeBoundingSphere()
-    return geometry
-  }
-  geometry?.dispose()
-  const g = new THREE.BufferGeometry()
-  for (const [k, a] of Object.entries(attrs))
-    g.setAttribute(k, new THREE.BufferAttribute(a.array, a.size))
-  g.setIndex(new THREE.BufferAttribute(part.indices, 1))
-  return g
 }
 
 /** The four parts' geometries, refilling `previous`'s buffers wherever the sizes match. */
@@ -92,33 +74,25 @@ interface Built {
   spec: PotionSpec
   parts: PotionParts
   upright: number[]
+  /** Built with the mesh for a bottle that tips, so the first lean costs nothing. */
+  table: LevelTable | null
 }
 
-const buildAll = (spec: PotionSpec): Built => ({
+const buildAll = ({ spec, tips }: { spec: PotionSpec; tips: boolean }): Built => ({
   spec,
   parts: buildPotionMesh(spec),
   upright: uprightLevels(spec),
+  table: tips ? levelTable(spec) : null,
 })
 
 /** The mesh for `spec`: built at once the first time, then at most once a frame, from the latest spec. */
-function usePotionBuild(spec: PotionSpec): Built {
-  const [built, setBuilt] = useState(() => buildAll(spec))
-  const latest = useRef(spec)
-  latest.current = spec
-  const frame = useRef<number | null>(null)
+function usePotionBuild(spec: PotionSpec, tips: boolean): Built {
+  const [built, setBuilt] = useState(() => buildAll({ spec, tips }))
+  const [builder] = useState(() => latestOnly(buildAll, setBuilt))
   useEffect(() => {
-    if (built.spec === spec || frame.current !== null) return
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null
-      setBuilt(buildAll(latest.current))
-    })
-  }, [spec, built.spec])
-  useEffect(
-    () => () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current)
-    },
-    [],
-  )
+    if (built.spec !== spec || (tips && !built.table)) builder.request({ spec, tips })
+  }, [spec, tips, built, builder])
+  useEffect(() => () => builder.cancel(), [builder])
   return built
 }
 
@@ -225,13 +199,13 @@ function clayMaterials(uniforms: LiquidUniforms) {
 
 export interface PotionMeshProps {
   spec: PotionSpec
-  /** How far the stopper is drawn up out of the bore along the axis, mm; 0 seated. */
-  stopperLift?: number
+  /** How far the stopper is drawn up out of the bore along the axis, mm; 0 seated. A `{ current }` holder is read as the stopper is drawn, so it can move with no render. */
+  stopperLift?: number | { readonly current: number }
   /** Each band's top `h`, mm, bottom first; read every frame. By default, the levels for the surface's up. */
   levels?: number[]
-  /** `u`, the surface's up in the bottle's mm frame (foot centre, axis +z); read every frame. By default, the axis. */
+  /** The surface's up as a direction in the up frame (`upFrom`, or the scene); read every frame. By default, +y: level. */
   surfaceNormal?: THREE.Vector3
-  /** An object whose +y is up for the surface, in place of `surfaceNormal`: read as the liquid is drawn. */
+  /** The up frame: an object whose +y is up for the surface, read as the liquid is drawn. By default, the scene. A bottle given one may tip, so its level table is built with its mesh. */
   upFrom?: RefObject<THREE.Object3D | null>
 }
 
@@ -246,7 +220,7 @@ export function PotionMesh({
   surfaceNormal,
   upFrom,
 }: PotionMeshProps) {
-  const built = usePotionBuild(spec)
+  const built = usePotionBuild(spec, upFrom !== undefined)
   const geometries = useGeometries(built)
   const shown = built.spec
   const uniforms = useMemo(liquidUniforms, [])
@@ -259,40 +233,48 @@ export function PotionMesh({
   )
 
   const liquidMesh = useRef<THREE.Mesh>(null)
-  const table = useRef<{ spec: PotionSpec; table: LevelTable } | null>(null)
-  const surface = useRef({ built, levels, surfaceNormal, upFrom })
-  surface.current = { built, levels, surfaceNormal, upFrom }
-  const work = useMemo(
-    () => ({
+  const stopperMesh = useRef<THREE.Mesh>(null)
+  const surface = useRef({ built, levels, surfaceNormal, upFrom, stopperLift })
+  surface.current = { built, levels, surfaceNormal, upFrom, stopperLift }
+  const work = useMemo(() => {
+    const lazy = { spec: null as PotionSpec | null, table: null as LevelTable | null }
+    return {
       u: new THREE.Vector3(),
       bottle: new THREE.Quaternion(),
       up: new THREE.Quaternion(),
       at: new THREE.Vector3(),
       scale: new THREE.Vector3(),
-    }),
-    [],
-  )
+      table: (): LevelTable => {
+        const b = surface.current.built
+        if (b.table) return b.table
+        if (lazy.spec !== b.spec) {
+          lazy.spec = b.spec
+          lazy.table = levelTable(b.spec)
+        }
+        return lazy.table!
+      },
+    }
+  }, [])
 
-  const onBeforeRender = (liquid: THREE.Object3D) => {
+  const drawLiquid = (liquid: THREE.Object3D) => {
     const s = surface.current
-    const { u } = work
     const from = s.upFrom?.current
-    if (from) {
-      liquid.matrixWorld.decompose(work.at, work.bottle, work.scale)
-      from.matrixWorld.decompose(work.at, work.up, work.scale)
-      u.set(0, 1, 0).applyQuaternion(work.up).applyQuaternion(work.bottle.invert())
-    } else if (s.surfaceNormal) u.copy(s.surfaceNormal).normalize()
-    else u.set(0, 0, 1)
-    const tops =
-      s.levels ??
-      liquidLevels(u, s.built.upright, () => {
-        if (table.current?.spec !== s.built.spec)
-          table.current = { spec: s.built.spec, table: levelTable(s.built.spec) }
-        return table.current.table
-      })
+    liquid.matrixWorld.decompose(work.at, work.bottle, work.scale)
+    if (from) from.matrixWorld.decompose(work.at, work.up, work.scale)
+    else work.up.identity()
+    const u = surfaceUp(work.u, work.bottle, work.up, s.surfaceNormal)
+    const tops = s.levels ?? liquidLevels(u, s.built.upright, work.table)
     uniforms.uUp.value.copy(u)
     uniforms.uCount.value = tops.length
-    tops.forEach((h, i) => (uniforms.uLevels.value[i] = h))
+    for (let i = 0; i < tops.length; i++) uniforms.uLevels.value[i] = tops[i]!
+  }
+
+  const drawStopper = (stopper: THREE.Object3D) => {
+    const lift = surface.current.stopperLift
+    const z = typeof lift === 'number' ? lift : lift.current
+    if (stopper.position.z === z) return
+    stopper.position.z = z
+    stopper.updateMatrixWorld()
   }
 
   return (
@@ -315,12 +297,17 @@ export function PotionMesh({
           material={materials.liquid}
           renderOrder={RENDER_ORDER.liquid}
           visible={shown.layers.length > 0}
-          onBeforeRender={() => liquidMesh.current && onBeforeRender(liquidMesh.current)}
+          onBeforeRender={() => liquidMesh.current && drawLiquid(liquidMesh.current)}
           ref={liquidMesh}
         />
       </group>
-      <group name="stopper" position={[0, 0, stopperLift]}>
-        <mesh geometry={geometries.stopper} material={materials.stopper} />
+      <group name="stopper">
+        <mesh
+          geometry={geometries.stopper}
+          material={materials.stopper}
+          onBeforeRender={() => stopperMesh.current && drawStopper(stopperMesh.current)}
+          ref={stopperMesh}
+        />
       </group>
       <group name="label">
         {geometries.label && <mesh geometry={geometries.label} material={materials.label} />}

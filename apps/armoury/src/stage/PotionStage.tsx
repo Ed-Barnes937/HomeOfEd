@@ -4,7 +4,7 @@ import { useImperativeHandle, useMemo, useRef } from 'react'
 import { compilePotion } from '../potion/compile.ts'
 import { Bridge, captureScene, Framing, Roller } from './boxRig.tsx'
 import { PotionMesh } from './PotionMesh.tsx'
-import { boxCentreY, boxScale, ClayLights, POTION_HALF_WIDTH } from './potionScene.tsx'
+import { boxCentreY, ClayLights, POTION_HALF_WIDTH } from './potionScene.tsx'
 import { FOV } from './scene.tsx'
 import { type StageHandle, type StageProps } from './stage.ts'
 import styles from './WandStage.module.scss'
@@ -40,10 +40,8 @@ export default function PotionStage({ params, ref }: StageProps) {
         <Bridge handle={three} />
         <Framing halfWidth={POTION_HALF_WIDTH} view="front" />
         <Roller target={rollTarget} axis="y">
-          <group scale={boxScale(spec)}>
-            <group position={[0, boxCentreY(spec), 0]}>
-              <PotionMesh spec={spec} />
-            </group>
+          <group position={[0, boxCentreY(spec), 0]}>
+            <PotionMesh spec={spec} />
           </group>
         </Roller>
         <ClayLights />

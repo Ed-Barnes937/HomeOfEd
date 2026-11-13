@@ -11,8 +11,11 @@ import { potionSchema } from '../potion/potionSchema.ts'
 import { withPours } from '../potion/pours.ts'
 import { levelsAt, levelTable } from '../potion/tipped.ts'
 import { boxCameraPosition } from './boxRig.tsx'
-import { fillGeometries, liquidLevels, RENDER_ORDER } from './PotionMesh.tsx'
-import { boxCentreY, boxScale, POTION_HALF_WIDTH } from './potionScene.tsx'
+import { CAMERA_DISTANCE, hitGeometry, uprightScale, type HeldItem } from './HeldRig.tsx'
+import { LEAN_MARGIN, LEAN_MAX, leanShiftMm } from './hold.ts'
+import { potionHeldItem } from './PotionCloseUpStage.tsx'
+import { fillGeometries, liquidLevels, RENDER_ORDER, surfaceUp } from './PotionMesh.tsx'
+import { boxCentreY, POTION_HALF_WIDTH } from './potionScene.tsx'
 import { FOV, MM } from './scene.tsx'
 
 const potion = (values: Params) => compilePotion({ ...defaults(potionSchema), ...values })
@@ -105,8 +108,7 @@ describe('the potion on its box stage', () => {
     for (const neck of [0, 1])
       test(`stands the ${shape} bottle at neck ${neck} with its foot on the base line`, () => {
         const spec = potion({ shape, neck })
-        const scale = boxScale(spec)
-        const foot = (boxCentreY(spec) - (spec.heightMm * MM) / 2) * scale
+        const foot = boxCentreY(spec) - (spec.heightMm * MM) / 2
         expect(down(foot)).toBeCloseTo(BASE_LINE, 9)
       })
 
@@ -114,8 +116,131 @@ describe('the potion on its box stage', () => {
     const tallest = SHAPES.map((shape) => potion({ shape, neck: 1 })).find(
       (s) => s.heightMm === TALLEST_MM,
     )!
-    const top = (boxCentreY(tallest) + (tallest.heightMm * MM) / 2) * boxScale(tallest)
+    const top = boxCentreY(tallest) + (tallest.heightMm * MM) / 2
     expect(down(top)).toBeGreaterThan(0.05)
     expect(down(top)).toBeLessThan(0.15)
+  })
+})
+
+describe("the liquid's up, in the bottle's frame", () => {
+  const X = new THREE.Vector3(1, 0, 0)
+  const Y = new THREE.Vector3(0, 1, 0)
+  const Z = new THREE.Vector3(0, 0, 1)
+  const DEGREE = Math.PI / 180
+  /** The liquid's world turn: the mesh's own quarter turn (axis +z to +y), then leaned in the screen plane. */
+  const bottle = (lean: number) =>
+    new THREE.Quaternion()
+      .setFromAxisAngle(X, -Math.PI / 2)
+      .premultiply(new THREE.Quaternion().setFromAxisAngle(Z, -lean))
+  const degreesFrom = (a: THREE.Vector3, b: THREE.Vector3) => a.angleTo(b) / DEGREE
+
+  test('a bottle standing in an upright frame has the surface square to its axis', () => {
+    const u = surfaceUp(new THREE.Vector3(), bottle(0), new THREE.Quaternion())
+    expect(degreesFrom(u, Z)).toBeCloseTo(0, 9)
+  })
+
+  test('a bottle leaned 30 degrees sees the surface 30 degrees off its axis', () => {
+    const u = surfaceUp(new THREE.Vector3(), bottle(30 * DEGREE), new THREE.Quaternion())
+    expect(degreesFrom(u, Z)).toBeCloseTo(30, 9)
+  })
+
+  test("a 10 degree wobble in the frame's own coordinates comes out 10 degrees off the level", () => {
+    const level = surfaceUp(new THREE.Vector3(), bottle(30 * DEGREE), new THREE.Quaternion())
+    const wobble = Y.clone().applyAxisAngle(Z, -10 * DEGREE)
+    const u = surfaceUp(new THREE.Vector3(), bottle(30 * DEGREE), new THREE.Quaternion(), wobble)
+    expect(degreesFrom(u, level)).toBeCloseTo(10, 9)
+    expect(degreesFrom(u, Z)).toBeCloseTo(20, 9)
+  })
+
+  test("the frame's turn counts, so a bottle turned with its frame stays square to it", () => {
+    const pitch = new THREE.Quaternion().setFromAxisAngle(X, 0.3)
+    const u = surfaceUp(new THREE.Vector3(), bottle(0).premultiply(pitch), pitch)
+    expect(degreesFrom(u, Z)).toBeCloseTo(0, 9)
+  })
+
+  test('a normal of any length reads as a direction, and the inputs are left as they were', () => {
+    const b = bottle(0.4)
+    const before = b.clone()
+    const n = new THREE.Vector3(0, 5, 0)
+    const u = surfaceUp(new THREE.Vector3(), b, new THREE.Quaternion(), n)
+    expect(u.length()).toBeCloseTo(1, 9)
+    expect(b.equals(before)).toBe(true)
+    expect(n.y).toBe(5)
+  })
+})
+
+describe('the held bottle', () => {
+  test('a tap beside it misses it, however far it has turned about its axis', () => {
+    const ray = new THREE.Raycaster()
+    for (const shape of SHAPES)
+      for (const neck of [0, 1]) {
+        const spec = potion({ shape, neck })
+        const item = potionHeldItem(spec)
+        const mesh = new THREE.Mesh(hitGeometry(item.hit))
+        const r = (item.widthMm! / 2) * MM
+        for (let roll = 0; roll < Math.PI; roll += Math.PI / 12) {
+          mesh.rotation.set(0, roll, 0)
+          mesh.updateMatrixWorld()
+          for (const side of [1, -1]) {
+            const at = (x: number) => {
+              ray.set(new THREE.Vector3(x * side, 0, 10), new THREE.Vector3(0, 0, -1))
+              return ray.intersectObject(mesh).length > 0
+            }
+            expect(at(0.9 * r), `${shape} ${neck} on, roll ${roll.toFixed(2)}`).toBe(true)
+            expect(at(1.25 * r), `${shape} ${neck} beside, roll ${roll.toFixed(2)}`).toBe(false)
+          }
+        }
+      }
+  })
+
+  const PHONES = [
+    { width: 390, height: 844 },
+    { width: 360, height: 780 },
+    { width: 430, height: 932 },
+  ]
+  const pxOf = (height: number) => height / (2 * CAMERA_DISTANCE * Math.tan((FOV * Math.PI) / 360))
+
+  for (const screen of PHONES)
+    for (const shape of SHAPES)
+      test(`on a ${screen.width}x${screen.height} phone the ${shape} bottle leans to the limit inside the screen, centred`, () => {
+        for (const neck of [0, 1]) leansInside(screen, potionHeldItem(potion({ shape, neck })))
+      })
+
+  function leansInside(screen: { width: number; height: number }, item: HeldItem) {
+    const outline = item.outline!
+    const pivot = item.grip * item.lengthMm
+    const px = pxOf(screen.height)
+    const perMm = uprightScale(item, screen, px) * MM * px
+    let widest = 0
+    for (let lean = -LEAN_MAX; lean <= LEAN_MAX + 1e-9; lean += LEAN_MAX / 12) {
+      const shift = leanShiftMm(outline, pivot, lean)
+      const across = outline.map(
+        ([x, y]) => (x * Math.cos(lean) + (y - pivot) * Math.sin(lean) + shift) * perMm,
+      )
+      const left = screen.width / 2 + Math.min(...across)
+      const right = screen.width / 2 + Math.max(...across)
+      expect(left).toBeGreaterThanOrEqual(LEAN_MARGIN * screen.width - 0.5)
+      expect(right).toBeLessThanOrEqual((1 - LEAN_MARGIN) * screen.width + 0.5)
+      expect((left + right) / 2).toBeCloseTo(screen.width / 2, 6)
+      widest = Math.max(widest, right - left)
+    }
+    // Never bigger than it stood before; where the lean is what limits it, it uses the width.
+    const upright = { ...item, outline: undefined }
+    const fitted = uprightScale(item, screen, px)
+    expect(fitted).toBeLessThanOrEqual(uprightScale(upright, screen, px))
+    if (fitted < uprightScale(upright, screen, px))
+      expect(widest).toBeCloseTo((1 - 2 * LEAN_MARGIN) * screen.width, 0)
+  }
+
+  test('on a desk and on a phone turned sideways it is the size it was', () => {
+    const item = potionHeldItem(potion({ shape: 'round', neck: 1 }))
+    const upright = { ...item, outline: undefined }
+    for (const screen of [
+      { width: 1440, height: 900 },
+      { width: 844, height: 390 },
+    ]) {
+      const px = pxOf(screen.height)
+      expect(uprightScale(item, screen, px)).toBe(uprightScale(upright, screen, px))
+    }
   })
 })

@@ -85,6 +85,51 @@ export function rightUpright(pose: UprightPose, dt: number, reducedMotion: boole
   pose.tipVelocity = tip.v
 }
 
+/** An item's outline seen from the front, mm: x across and y up from its foot. */
+export type Outline = readonly (readonly [x: number, y: number])[]
+
+/** The room an upright item leaves each side of a portrait screen, leaned to the limit, as a fraction of its width. */
+export const LEAN_MARGIN = 0.04
+const SWEEP_STEP = 1 * DEGREE
+
+const span = { min: 0, max: 0 }
+
+/** Where `outline` reaches across the screen, mm from its axis, leaned by `lean` about the point on its axis `pivotMm` above the foot. */
+function leanedSpan(outline: Outline, pivotMm: number, lean: number): typeof span {
+  const c = Math.cos(lean)
+  const s = Math.sin(lean)
+  span.min = Infinity
+  span.max = -Infinity
+  for (const [x, y] of outline) {
+    const across = x * c + (y - pivotMm) * s
+    span.min = Math.min(span.min, across)
+    span.max = Math.max(span.max, across)
+  }
+  return span
+}
+
+/** The widest `outline` spans across the screen at any lean up to `LEAN_MAX` either way, mm. */
+export function sweptWidthMm(outline: Outline, pivotMm: number): number {
+  let widest = 0
+  for (let lean = -LEAN_MAX; lean < LEAN_MAX + SWEEP_STEP / 2; lean += SWEEP_STEP) {
+    const { min, max } = leanedSpan(outline, pivotMm, Math.min(lean, LEAN_MAX))
+    widest = Math.max(widest, max - min)
+  }
+  return widest
+}
+
+/** The most pixels per mm an upright item fits a portrait screen at, its outline leaned to the limit either way and centred. */
+export function leanFit(sweptMm: number, screenWidthPx: number): number {
+  return ((1 - 2 * LEAN_MARGIN) * screenWidthPx) / sweptMm
+}
+
+/** How far across to move the item, mm, so its outline leaned by `lean` is centred where its axis stood. */
+export function leanShiftMm(outline: Outline, pivotMm: number, lean: number): number {
+  if (lean === 0) return 0
+  const { min, max } = leanedSpan(outline, pivotMm, lean)
+  return -(min + max) / 2
+}
+
 const EASE_SECONDS = 0.3
 const smoothstep = (t: number) => {
   const u = Math.min(Math.max(t, 0), 1)
