@@ -168,8 +168,9 @@ test.describe('on a narrow laptop', () => {
   })
 })
 
-// Just inside each step where the smithy's header (the longer motto) gives way; one step later overlaps.
-for (const width of [1120, 1260, 1460]) {
+// Just inside each step where the smithy's header (the longer motto) gives way, and just above
+// the motto's step, where it shows again beside the circle.
+for (const width of [1120, 1330, 1350]) {
   smithyTest.describe(`at ${width}px`, () => {
     smithyTest.use({ viewport: { width, height: 800 } })
 

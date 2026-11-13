@@ -125,8 +125,9 @@
   }
 }
 
-// The player circle widens the nav, so the motto gives way first, then every label.
-@media (max-width: 1479px) {
+// The player circle widens the nav, so the motto gives way first, then every label
+// (measured in the smithy, whose motto is the longer: it meets the nav at 1338px).
+@media (max-width: 1349px) {
   .withPlayer .motto {
     display: none;
   }
