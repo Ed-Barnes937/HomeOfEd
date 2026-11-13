@@ -187,16 +187,19 @@ test.describe('on a laptop', () => {
   })
 })
 
-test.describe('on a phone', () => {
-  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+for (const width of [390, 320]) {
+  test.describe(`on a ${width}px phone`, () => {
+    test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true })
 
-  test('who is playing is a full-size circle at the end of the header, on the glass', async ({
-    mountApp,
-    page,
-  }) => {
-    const ada = await openAsAda(page, mountApp)
-    await ada.verifyPlayerEndsHeader('Ada')
-    await ada.verifyTouchTargetSize('switch-player')
-    await ada.verifyNoHorizontalPageOverflow()
+    test('who is playing is a full-size circle at the end of the header, on the glass', async ({
+      mountApp,
+      page,
+    }) => {
+      const ada = await openAsAda(page, mountApp)
+      await ada.verifyPlayerEndsHeader('Ada')
+      await ada.verifyTitleClearOfControls()
+      await ada.verifyTouchTargetSize('switch-player')
+      await ada.verifyNoHorizontalPageOverflow()
+    })
   })
-})
+}

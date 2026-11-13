@@ -45,6 +45,18 @@ export class SiltPagePom extends BasePage {
     expect(circle.x + circle.width).toBeLessThanOrEqual((await header.boundingBox())!.width)
   }
 
+  /** The SILT title is all on show, with the first header button after it. */
+  async verifyTitleClearOfControls(): Promise<void> {
+    const title = this.page.locator('header').getByText('SILT', { exact: true })
+    const { overflow, right } = await title.evaluate((el) => ({
+      overflow: el.scrollWidth - el.clientWidth,
+      right: el.getBoundingClientRect().right,
+    }))
+    const play = (await this.playToggle.boundingBox())!
+    expect(overflow).toBeLessThanOrEqual(0)
+    expect(right).toBeLessThanOrEqual(play.x)
+  }
+
   async selectElement(name: string): Promise<void> {
     await this.page.getByTestId(`element-${name}`).click()
   }

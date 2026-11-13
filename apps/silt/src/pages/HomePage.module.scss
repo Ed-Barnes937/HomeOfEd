@@ -145,6 +145,23 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   }
 }
 
+// The smallest phones (320px) need the header's padding and gaps tighter still to keep the player circle on the glass.
+@media (max-width: 359px) {
+  .header {
+    padding: 0 0.4rem;
+  }
+
+  .header,
+  .headerControls,
+  .headerRight {
+    gap: 0.2rem;
+  }
+
+  .headerButton {
+    padding: 0.35rem 0.25rem;
+  }
+}
+
 // ---- body: rail (176px) | stage ---------------------------------------
 
 .body {
