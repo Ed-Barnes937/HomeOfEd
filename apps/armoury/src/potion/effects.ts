@@ -18,16 +18,19 @@ export const EFFECTS: Record<EffectKind, { word: string; sentence: string }> = {
   whiffy: { word: 'Whiffy', sentence: 'Pull the cork and out comes a very small pong.' },
 }
 
+/** The commonest key, a tie going to the last one: pour lists run bottom first, so that is the pour nearest the cork. */
+export function commonestFromTop<K>(keys: readonly K[]): K {
+  const count = (key: K) => keys.filter((k) => k === key).length
+  let best = keys[keys.length - 1]!
+  for (let i = keys.length - 1; i >= 0; i--) if (count(keys[i]!) > count(best)) best = keys[i]!
+  return best
+}
+
 /** The commonest effect among the pours, a tie going to the pour nearest the cork. */
 export function potionEffect(p: Params): PotionEffect | null {
   const pours = pourList(p).map(ingredient)
   if (pours.length === 0) return null
-  const count = (kind: EffectKind) => pours.filter((i) => i.effect === kind).length
-  let kind = pours[pours.length - 1]!.effect
-  for (let i = pours.length - 1; i >= 0; i--) {
-    const candidate = pours[i]!.effect
-    if (count(candidate) > count(kind)) kind = candidate
-  }
+  const kind = commonestFromTop(pours.map((i) => i.effect))
   const carrying = pours.filter((i) => i.effect === kind).reverse()
   return {
     kind,

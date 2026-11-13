@@ -68,8 +68,7 @@ export const POTION_DO_NOT_USE = [
 
 const joined = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '')
 
-const BANNED = POTION_DO_NOT_USE.map(joined)
-const COINAGE_LENGTH = 9
+const BANNED = new Set(POTION_DO_NOT_USE.map(joined))
 
 const PATTERNS = [
   /^(potion|draught|elixir) of\b/,
@@ -77,16 +76,18 @@ const PATTERNS = [
   /(^|[^a-z])(super|hyper|max|mega|hi|x)[\s-]*potion/,
 ]
 
-/** True for a name that is, or opens with, one of the listed names or patterns. */
+/** True when a run of the name's words is a listed entry (Elixir only as the whole name), or a pattern matches. */
 export function isForbiddenName(name: string): boolean {
-  const squashed = joined(name)
-  if (BANNED.includes(squashed)) return true
-  // Long entries are distinctive coinages, so they count inside a longer name; short ones are common words.
-  if (BANNED.some((entry) => entry.length >= COINAGE_LENGTH && squashed.includes(entry)))
-    return true
-  const spaced = name
+  const words = name
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-  return PATTERNS.some((pattern) => pattern.test(spaced))
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+  for (let start = 0; start < words.length; start++) {
+    for (let end = start + 1; end <= words.length; end++) {
+      const run = words.slice(start, end).join('')
+      const wholeName = start === 0 && end === words.length
+      if (BANNED.has(run) && (run !== 'elixir' || wholeName)) return true
+    }
+  }
+  return PATTERNS.some((pattern) => pattern.test(words.join(' ')))
 }

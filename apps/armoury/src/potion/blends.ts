@@ -21,13 +21,13 @@ export const SECRET_BLENDS: readonly SecretBlend[] = [
     id: 'sunrise',
     pours: ['bluebell', 'frogfizz', 'starpetal', 'emberroot'],
     name: 'Sunrise in a Bottle',
-    lore: 'Cool blue dew, a hop of green, a little gold and then a warm red glow. The whole morning fits in here, birdsong and all.',
+    lore: 'Cool blue dew, a hop of green, a little gold and then a warm orange glow. The whole morning fits in here, birdsong and all.',
   },
   {
     id: 'sunset',
     pours: ['emberroot', 'starpetal', 'frogfizz', 'bluebell'],
     name: 'Sunset in a Bottle',
-    lore: 'A warm red glow, a little gold, a hop of green and then the blue of the coming night. Hold it up and the day is just going to bed.',
+    lore: 'A warm orange glow, a little gold, a hop of green and then the blue of the coming night. Hold it up and the day is just going to bed.',
   },
   {
     id: 'pond-life',
@@ -45,7 +45,7 @@ export const SECRET_BLENDS: readonly SecretBlend[] = [
     id: 'milky-way',
     pours: ['moonmilk', 'moonmilk', 'starpetal', 'starpetal'],
     name: 'The Milky Way',
-    lore: 'Two big swirls of moonmilk with a scatter of stars on top. Look closely and it goes on for ever.',
+    lore: 'Two big soft clouds of moonmilk with a scatter of stars on top. Look closely and it goes on for ever.',
   },
   {
     id: 'pink-ribbons',

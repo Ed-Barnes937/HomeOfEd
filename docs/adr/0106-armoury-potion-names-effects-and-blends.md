@@ -25,12 +25,12 @@ franchise or game vocabulary.
   no bespoke animation per effect, which keeps the close look's size bounded.
 - **A tie goes to the highest pour.** The pour nearest the cork is the one that
   comes out first, so it is also the one a child reads as "the last thing I
-  added". It makes the order matter, which is the point of layers, and it is
-  stable under taking a pour out. Whiffy follows only from Bog murk on top or in
-  the majority, so murk is as likely to be smelly as any other layer is to be
-  anything: no rule favours or forbids it.
+  added". It makes the order matter, which is the point of layers. Whiffy follows
+  only when Bog murk is the most common pour or is on top of a tie, so murk is as
+  likely to be smelly as any other layer is to be anything: no rule favours or
+  forbids it.
 - **Names, first match wins:** a secret blend's own name; "An Empty Bottle"; two or
-  more of one ingredient, "Pure {Label}" in capitals ("Pure Bluebell Dew");
+  more of one ingredient, "Pure {Label}" in title case ("Pure Bluebell Dew");
   otherwise "{Effect word} {Main ingredient word} {Noun}" with the noun from the
   bottle's shape (Brew, Tonic, Drops, Mixture, Potion). The main ingredient is the
   most poured, a tie going to the highest.
@@ -49,12 +49,13 @@ franchise or game vocabulary.
   four Bog murks is "Bottom of the Pond".
 - **DO_NOT_USE.** `potion/doNotUse.ts` lists franchise and game potion names,
   generic game terms and legend names used as products, and `isForbiddenName`
-  compares them with case, spaces and punctuation removed. Entries of nine or
-  more characters also count inside a longer name (a coinage like Polyjuice is
-  never an ordinary word); shorter ones count only as the whole name, so
-  "Together" and "Chi Potion" pass. Patterns catch a name beginning "Potion of",
-  "Draught of", "Elixir of" or "Philter", and Super, Hyper, Max, Mega, Hi or X
-  directly before "Potion". The guard is run on every blend name and lore
+  compares them with case, spaces and punctuation removed. A name is split into
+  words and matches when any run of consecutive words, squashed together, equals
+  an entry, so "Pepperup Tonic" and "Drink Me Potion" are caught while "Bored
+  Potion", "Climax Potion", "Together" and "Chi Potion" pass. Elixir alone is the
+  exception: it matches only as the whole name, so "Rose Elixir" passes. Patterns
+  catch a name beginning "Potion of", "Draught of", "Elixir of" or "Philter", and
+  Super, Hyper, Max, Mega, Hi or X directly before "Potion". The guard is run on every blend name and lore
   sentence, every preset, and every ingredient label, word and lore line.
 - **Names never mention drinking or tasting.** The shop is a place to make
   and look at potions, and the effect is the uncorking, so the words are about

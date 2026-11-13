@@ -27,12 +27,15 @@ describe('the potion item', () => {
     expect(potionItem.keeps).toEqual([])
     const start = { params: potionItem.firstVisit() }
     const locked = workbench(startWorkbench(start), { type: 'toggleLock', group: 'bottle' })
+    let movedPours = false
     for (let seed = 1; seed <= 20; seed++) {
       const next = workbench(locked, { type: 'tryAnother', seed })
+      movedPours ||= pourList(next.item.params).join() !== pourList(start.params).join()
       expect(next.item.params.shape).toBe(start.params.shape)
       expect(next.item.params.neck).toBe(start.params.neck)
       expect(next.item.params.glass).toBe(start.params.glass)
     }
+    expect(movedPours).toBe(true)
   })
 
   it('shifts the pours down when the middle one is taken out', () => {

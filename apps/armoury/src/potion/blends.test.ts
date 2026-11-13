@@ -9,8 +9,6 @@ import { pourList, withPours } from './pours.ts'
 
 const potion = (...pours: IngredientId[]) => normalise(potionSchema, { ...withPours(pours) })
 const sentences = (text: string) => text.split(/[.!?]/).filter((s) => s.trim() !== '')
-const DRINKING =
-  /\b(drink|drinks|drank|sip|sips|taste|tastes|tasty|swallow|gulp|gulps|yum|delicious|eat|eats)\b/i
 
 describe('SECRET_BLENDS', () => {
   it('has at most twelve blends', () => {
@@ -32,10 +30,9 @@ describe('SECRET_BLENDS', () => {
     }
   })
 
-  it('has two-sentence lore, with no drinking or tasting and no forbidden words', () => {
+  it('has two-sentence lore, with no forbidden words', () => {
     for (const blend of SECRET_BLENDS) {
       expect(sentences(blend.lore)).toHaveLength(2)
-      expect(blend.lore).not.toMatch(DRINKING)
       expect(isForbiddenName(blend.name)).toBe(false)
       for (const s of sentences(blend.lore)) expect(isForbiddenName(s)).toBe(false)
     }

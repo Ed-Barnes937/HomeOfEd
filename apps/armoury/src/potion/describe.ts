@@ -2,8 +2,8 @@ import type { Params } from '../engine/schema.ts'
 import { secretBlend } from './blends.ts'
 import { BOTTLES, type BottleRow, type ShapeId } from './bottles.ts'
 import { isForbiddenName } from './doNotUse.ts'
-import { EFFECTS, potionEffect } from './effects.ts'
-import { ingredient, type IngredientId, type Trait } from './ingredients.ts'
+import { commonestFromTop, EFFECTS, potionEffect } from './effects.ts'
+import { ingredient, type Trait } from './ingredients.ts'
 import { pourList } from './pours.ts'
 
 export { shopNumber as potionNumber } from '../items/shopNumber.ts'
@@ -20,21 +20,13 @@ const TRAIT_WORDS: Record<Trait, string> = {
 }
 
 export function countInWords(n: number): string {
-  return COUNT_WORDS[n - 1] ?? `${n} pours`
+  return COUNT_WORDS[n - 1]!
 }
 
 const bottleOf = (p: Params): BottleRow => BOTTLES[p.shape as ShapeId] ?? BOTTLES.teardrop
 
 const capitalised = (text: string) =>
   text.replace(/(^|\s)([a-z])/g, (_match, space: string, c: string) => space + c.toUpperCase())
-
-/** The most poured ingredient, a tie going to the highest pour. */
-function mainIngredient(pours: readonly IngredientId[]): IngredientId {
-  let main = pours[pours.length - 1]!
-  const count = (id: IngredientId) => pours.filter((x) => x === id).length
-  for (let i = pours.length - 1; i >= 0; i--) if (count(pours[i]!) > count(main)) main = pours[i]!
-  return main
-}
 
 /** "{Effect} {Word} {Noun}", then the round shape's noun, then "{Label} {Noun}", if a name is forbidden. */
 export function nameFrom(
@@ -57,7 +49,7 @@ export function potionName(p: Params): string {
   if (blend) return blend.name
   const pours = pourList(p)
   if (pours.length === 0) return 'An Empty Bottle'
-  const main = ingredient(mainIngredient(pours))
+  const main = ingredient(commonestFromTop(pours))
   if (pours.length > 1 && pours.every((id) => id === pours[0]))
     return `Pure ${capitalised(main.label)}`
   const { word } = EFFECTS[potionEffect(p)!.kind]
@@ -80,7 +72,7 @@ export function potionLore(p: Params): string {
   if (blend) return blend.lore
   const pours = pourList(p)
   if (pours.length === 0) return 'Every potion starts as an empty bottle. Pour something in.'
-  return `${ingredient(mainIngredient(pours)).lore} ${EFFECTS[potionEffect(p)!.kind].sentence}`
+  return `${ingredient(commonestFromTop(pours)).lore} ${EFFECTS[potionEffect(p)!.kind].sentence}`
 }
 
 export function potionShelfLine(p: Params): string {

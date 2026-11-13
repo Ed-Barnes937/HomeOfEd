@@ -41,9 +41,20 @@ describe('isForbiddenName', () => {
     }
   })
 
-  it('catches a listed coinage inside a longer name', () => {
-    expect(isForbiddenName('Polyjuice Tonic')).toBe(true)
-    expect(isForbiddenName('Sparkling Butterbeer Brew')).toBe(true)
+  it('catches a listed entry as a run of words inside a longer name, however short', () => {
+    for (const name of [
+      'Polyjuice Tonic',
+      'Sparkling Butterbeer Brew',
+      'Pepperup Tonic',
+      'Skele-Gro Drops',
+      'Drink Me Potion',
+      'Ambrosia Brew',
+      'Skooma Mixture',
+      'Tawny Owl Brew',
+      'Swallow Tonic',
+    ]) {
+      expect(isForbiddenName(name), name).toBe(true)
+    }
   })
 
   it('lets ordinary names through', () => {
@@ -58,6 +69,10 @@ describe('isForbiddenName', () => {
       'Chi Potion',
       'Somatic Drops',
       'Thundercloud Mixture',
+      'Bored Potion',
+      'Sacred Potion',
+      'Climax Potion',
+      'Chipotion',
       'Elixir Garden',
     ]) {
       expect(isForbiddenName(name), name).toBe(false)

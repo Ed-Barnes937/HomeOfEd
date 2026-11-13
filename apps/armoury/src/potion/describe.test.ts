@@ -23,6 +23,8 @@ import { withPours } from './pours.ts'
 const potion = (pours: IngredientId[], rest: Params = {}) =>
   normalise(potionSchema, { ...withPours(pours), ...rest })
 const sentences = (text: string) => text.split(/[.!?]/).filter((s) => s.trim() !== '')
+const DRINKING =
+  /\b(drink|drinks|drank|sip|sips|taste|tastes|tasty|swallow|gulp|gulps|yum|delicious|eat|eats)\b/i
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
 
 const catalogue = (): Params[] => {
@@ -62,7 +64,7 @@ describe('potionName', () => {
     expect(potionName(potion(['thundercloud', 'moonmilk']))).toBe('The Moon Behind the Storm')
   })
 
-  it('calls two or more of one ingredient Pure, with its label in capitals', () => {
+  it('calls two or more of one ingredient Pure, with its label in title case', () => {
     expect(potionName(potion(['starpetal', 'starpetal']))).toBe('Pure Starpetal')
     expect(potionName(potion(['bluebell', 'bluebell', 'bluebell']))).toBe('Pure Bluebell Dew')
     expect(potionName(potion(['bogmurk', 'bogmurk']))).toBe('Pure Bog Murk')
@@ -78,6 +80,17 @@ describe('potionName', () => {
       'Sparkling Starpetal Mixture',
     )
     expect(potionName(potion(['moonmilk'], { shape: 'gourd' }))).toBe('Dreamy Moonmilk Potion')
+  })
+
+  it('names every secret blend by its own name and lore, ahead of Pure', () => {
+    for (const blend of SECRET_BLENDS) {
+      const p = potion(blend.pours)
+      expect(potionName(p), blend.id).toBe(blend.name)
+      expect(potionLore(p), blend.id).toBe(blend.lore)
+    }
+    expect(potionName(potion(['starpetal', 'starpetal', 'starpetal', 'starpetal']))).toBe(
+      'A Pocketful of Stars',
+    )
   })
 
   it('takes the main ingredient from the most poured, a tie going to the highest', () => {
@@ -110,6 +123,18 @@ describe('potionName', () => {
         }
       }
     }
+  })
+})
+
+describe('the words', () => {
+  it('never mention drinking or tasting', () => {
+    const texts = [
+      ...Object.values(EFFECTS).flatMap((e) => [e.word, e.sentence]),
+      ...INGREDIENTS.flatMap((i) => [i.label, i.word, i.lore]),
+      ...SECRET_BLENDS.flatMap((b) => [b.name, b.lore]),
+      ...catalogue().flatMap((p) => [potionName(p), potionTagLine(p), potionLore(p)]),
+    ]
+    for (const text of texts) expect(text, text).not.toMatch(DRINKING)
   })
 })
 
