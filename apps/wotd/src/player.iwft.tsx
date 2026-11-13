@@ -54,3 +54,25 @@ for (const { device, viewport } of [
     })
   })
 }
+
+// The toggle and circle need 110px beside a 141px wordmark: centred from 430px, nudged left below.
+for (const { width, centred } of [
+  { width: 430, centred: true },
+  { width: 390, centred: false },
+  { width: 320, centred: false },
+]) {
+  test.describe(`on a ${width}px phone`, () => {
+    test.use({ viewport: { width, height: 844 } })
+
+    test('the picker’s top bar keeps its wordmark clear beside the player circle', async ({
+      mountApp,
+      page,
+    }) => {
+      const root = await openAsAda(page, mountApp)
+      if (centred) await root.verifyWordmarkCentred()
+      await root.verifyWordmarkClearOfItsNeighbours()
+      await root.verifyPlayerEndsHeader('Ada')
+      await root.verifyNoHorizontalOverflow()
+    })
+  })
+}

@@ -242,6 +242,30 @@ export class HomePagePom extends BasePage {
   }
 
   /** Asserts the page has no horizontal overflow at the current viewport. */
+  /** The top bar's wordmark sits on the bar's centre line, whatever the two sides hold. */
+  async verifyWordmarkCentred(): Promise<void> {
+    const header = (await this.page.locator('header').boundingBox())!
+    const wordmark = (await this.page
+      .locator('header')
+      .getByRole('link', { name: 'Word of the Day' })
+      .boundingBox())!
+    expect(wordmark.x + wordmark.width / 2).toBeCloseTo(header.x + header.width / 2, 0)
+  }
+
+  /** Nothing in the top bar touches the wordmark. */
+  async verifyWordmarkClearOfItsNeighbours(): Promise<void> {
+    const header = this.page.locator('header')
+    const wordmark = (await header.getByRole('link', { name: 'Word of the Day' }).boundingBox())!
+    for (const side of await header.locator(':scope > *').all()) {
+      const box = await side.boundingBox()
+      if (!box || box.width === 0) continue
+      const contains = box.x <= wordmark.x && box.x + box.width >= wordmark.x + wordmark.width
+      if (contains) continue
+      const apart = box.x + box.width <= wordmark.x || wordmark.x + wordmark.width <= box.x
+      expect(apart, `${await side.getAttribute('class')} touches the wordmark`).toBe(true)
+    }
+  }
+
   async verifyNoHorizontalOverflow(): Promise<void> {
     const overflow = await this.page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

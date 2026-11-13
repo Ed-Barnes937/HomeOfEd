@@ -1,14 +1,19 @@
 // Design top bar: mobile 18px 20px padding, desktop 20px 40px; 2px bottom
 // rule in both. The breakpoint (45rem = ~720px) matches the picker grid's
 // single-column collapse.
+// Mobile is three columns with equal sides, so the wordmark is centred whenever both sides fit
+// in them; on narrower phones the right side's toggle and circle push it left rather than overlap.
 .header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 18px 20px;
   border-bottom: 2px solid var(--rule);
 
   @media (min-width: 45rem) {
+    display: flex;
+    justify-content: space-between;
     padding: 20px 40px;
   }
 }
@@ -110,10 +115,16 @@
   }
 }
 
+// 12px keeps the toggle's and the circle's 44px halos apart while leaving the phone wordmark room.
 .right {
   display: inline-flex;
   align-items: center;
-  gap: 22px;
+  justify-self: end;
+  gap: 12px;
+
+  @media (min-width: 45rem) {
+    gap: 22px;
+  }
 }
 
 // Top-bar date is a desktop-only element; mobile shows it in the page body.
