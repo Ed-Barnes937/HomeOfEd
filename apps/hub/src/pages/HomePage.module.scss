@@ -139,8 +139,39 @@
   white-space: nowrap;
 }
 
-.player {
-  font-weight: 600;
+// The player's initial in the hub's ochre, top right of the left column so it never sits on the rail.
+.playerCircle {
+  position: absolute;
+  top: 27px;
+  right: 576px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  box-shadow: var(--card-shadow);
+  color: #fff8ef;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+
+  background: #c07a35;
+
+  &:focus-visible {
+    outline: 3px solid var(--fg);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
 }
 
 // Main area: wordmark + lede anchored toward the bottom-left.
@@ -383,6 +414,10 @@
 
   .whosPlaying {
     max-width: calc(100% - 120px);
+  }
+
+  .playerCircle {
+    right: 32px;
   }
 
   .status {

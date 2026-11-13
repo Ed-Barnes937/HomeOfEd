@@ -92,4 +92,4 @@ playwright-ct.config.ts  defineIwftConfig({ ctPort: 3104 })
   erasable TS syntax (ADR 0004) — `simulator.ts`/`main.ts`/`migrate.ts` run under
   native Node.
 - Ports: dev 3003, CT 3104, compose host 8083 — unique across apps.
-- **The estate gate** ([ADR 0093](../../docs/adr/0093-estate-gate.md)): `main.ts` gates documents when `FAMILY_ACCOUNT_URL` is set (no public paths; `main.test.ts` pins both modes); `wotd-theme` is a device preference and stays unscoped.
+- **The estate gate** ([ADR 0093](../../docs/adr/0093-estate-gate.md)): `main.ts` gates documents when `FAMILY_ACCOUNT_URL` is set (no public paths; `main.test.ts` pins both modes); `wotd-theme` is a device preference and stays unscoped. `App` reads the family session once (`features/player/`); both top bars end with `PlayerCircle`, the player's initial linking to `switchPlayerUrlFor` (a non-link `role="img"` outside the estate, nothing when signed out).

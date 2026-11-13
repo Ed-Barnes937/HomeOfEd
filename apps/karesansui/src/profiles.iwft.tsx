@@ -153,30 +153,25 @@ test('the same player looking again leaves the page as it is', async ({ mountApp
   expect(loads).toBe(0)
 })
 
-test('a long name stays clear of the wordmark and shows in full on hover', async ({ mountApp, page }) => {
-  const first = await mountApp()
-  await first.root.verifyIsShown()
-  await page.setViewportSize({ width: 800, height: 800 })
-  await page.reload()
-  await setFamilyCookie(page, { ...ADA, name: 'Abcdefghijklmnopqrstuv' })
+for (const width of [390, 800, 1280]) {
+  test(`at ${width}px the player circle mirrors the back button, clear of the wordmark, and names the player on hover`, async ({
+    mountApp,
+    page,
+  }) => {
+    const first = await mountApp()
+    await first.root.verifyIsShown()
+    await page.setViewportSize({ width, height: 800 })
+    await page.reload()
+    await setFamilyCookie(page, { ...ADA, name: 'Abcdefghijklmnopqrstuv' })
 
-  const { root } = await mountApp()
-  await root.verifyIsShown()
-  await root.verifyPlayerClearOfWordmark()
-  await root.verifyPlayerTitle('Abcdefghijklmnopqrstuv')
-})
-
-test('a name that fits needs no tooltip', async ({ mountApp, page }) => {
-  const first = await mountApp()
-  await first.root.verifyIsShown()
-  await page.setViewportSize({ width: 1280, height: 800 })
-  await page.reload()
-  await setFamilyCookie(page, ADA)
-
-  const { root } = await mountApp()
-  await root.verifyIsShown()
-  await root.verifyPlayerTitle(null)
-})
+    const { root } = await mountApp()
+    await root.verifyIsShown()
+    await root.verifyPlayer('Abcdefghijklmnopqrstuv')
+    await root.verifyPlayerMirrorsBack()
+    await root.verifyPlayerClearOfWordmark()
+    await root.verifyPlayerTitle('Abcdefghijklmnopqrstuv')
+  })
+}
 
 test('the player is named only when someone is signed in', async ({ mountApp, page }) => {
   const signedOut = await mountApp()

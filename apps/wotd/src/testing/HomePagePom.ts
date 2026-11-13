@@ -1,3 +1,4 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 import type { Locator } from '@playwright/test'
@@ -214,6 +215,68 @@ export class HomePagePom extends BasePage {
     await expect
       .poll(() => this.page.evaluate(() => document.documentElement.getAttribute('data-theme')))
       .toBe(theme)
+  }
+
+  /** CT runs outside the estate, so the player circle names the player without linking to hub. */
+  private playerCircle(name: string): Locator {
+    return this.page.getByRole('img', { name: `Playing as ${name}`, exact: true })
+  }
+
+  async verifyPlayer(name: string): Promise<void> {
+    await expect(this.playerCircle(name)).toHaveText(profileInitial(name))
+    await expect(this.page.getByText(/playing as/i)).toHaveCount(0)
+  }
+
+  async verifyNoPlayer(): Promise<void> {
+    await expect(this.page.getByRole('img', { name: /^Playing as / })).toHaveCount(0)
+  }
+
+  /** The player circle is the last thing at the right end of the top bar. */
+  async verifyPlayerEndsHeader(name: string): Promise<void> {
+    const header = this.page.locator('header')
+    const circle = (await this.playerCircle(name).boundingBox())!
+    const rights = await header
+      .locator('*')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right))
+    expect(circle.x + circle.width).toBeCloseTo(Math.max(...rights), 0)
+  }
+
+  /**
+   * The phone top bar's wordmark is on the bar's centre line whenever both side clusters fit in
+   * an equal share of what the wordmark leaves; measured, so it holds whatever the fonts.
+   * Returns whether they fitted, so a caller can insist on the centred case.
+   */
+  async verifyWordmarkCentredWhenTheSidesFit(): Promise<boolean> {
+    const m = await this.page.locator('header').evaluate((header) => {
+      const style = getComputedStyle(header)
+      const [left, middle, right] = [...header.children].map((el) => el.getBoundingClientRect())
+      const box = header.getBoundingClientRect()
+      const contentLeft = box.left + parseFloat(style.paddingLeft)
+      const content = box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      return {
+        share: (content - middle!.width - 2 * parseFloat(style.columnGap)) / 2,
+        sides: Math.max(left!.width, right!.width),
+        middleCentre: middle!.left + middle!.width / 2,
+        contentCentre: contentLeft + content / 2,
+      }
+    })
+    const fits = m.sides <= m.share
+    if (fits) expect(Math.abs(m.middleCentre - m.contentCentre)).toBeLessThanOrEqual(1)
+    return fits
+  }
+
+  /** Nothing in the top bar touches the wordmark. */
+  async verifyWordmarkClearOfItsNeighbours(): Promise<void> {
+    const header = this.page.locator('header')
+    const wordmark = (await header.getByRole('link', { name: 'Word of the Day' }).boundingBox())!
+    for (const side of await header.locator(':scope > *').all()) {
+      const box = await side.boundingBox()
+      if (!box || box.width === 0) continue
+      const contains = box.x <= wordmark.x && box.x + box.width >= wordmark.x + wordmark.width
+      if (contains) continue
+      const apart = box.x + box.width <= wordmark.x || wordmark.x + wordmark.width <= box.x
+      expect(apart, `${await side.getAttribute('class')} touches the wordmark`).toBe(true)
+    }
   }
 
   /** Asserts the page has no horizontal overflow at the current viewport. */

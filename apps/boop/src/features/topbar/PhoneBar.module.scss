@@ -103,6 +103,13 @@
   }
 }
 
+// The sync state the strip's circle has no room to say; words, not an action.
+.synced {
+  padding: 4px 12px 2px;
+  font: 700 13px var(--font-display);
+  color: var(--cyan-solid);
+}
+
 // Clear grid: dashed and coral, so it is never mistakable for a safe action.
 .danger {
   border: 1px dashed rgba(138, 74, 66, 0.4);

@@ -84,14 +84,6 @@ ADR 0093 (the gate) and [ADR 0094](../../docs/adr/0094-per-profile-local-saves.m
 - **`accountUrl(accountBase, returnTo)`** - `<accountBase>?returnTo=<url>`. A
   fragment on `returnTo` moves onto the account URL, which is where the browser
   leaves it after the gate's `302`, so hub reads both entries the same way.
-- **`accountUrlFor(currentHref)`** - the one-argument form apps use for a
-  "switch player" link. The base comes from where the app runs, as hub derives
-  its cookie `Domain` from the hostname (ADR 0081 decision 3): production hub
-  for an `ESTATE_APPS` host, `localhost:<HUB_LOCAL_PORTS.devPort>` for an app on
-  its `devPort`, `localhost:<HUB_LOCAL_PORTS.composePort>` for its
-  `composePort`. `null` anywhere else (espy's Capacitor shell): show no link.
-  Its `returnTo` is always one `safeReturnTo` accepts; an href that would not
-  be (upper case, an explicit port, `blob:`) gives `null` too.
 - **`sharedUrl(returnTo, fragment, { allowLocal })`** -
   `<origin>/shared<fragment>`, for hub's "Open what was shared", or `null`. It
   vets `returnTo` through `safeReturnTo` itself, so a caller that forgets
@@ -199,11 +191,20 @@ reference (`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`,
   `visibilitychange`, or `focus`) with a different profile signed in, or none,
   it reloads the page. A tab therefore never shows or saves one profile's work
   under another. It returns a function that stops watching.
-- **`hubUrlFor(href)`** - hub's origin on the same tier as the app (production,
-  dev port or compose port), for a back-to-hub link; production hub anywhere
-  else. **`switchPlayerUrlFor(href)`** - `accountUrlFor` on `href` without its
-  fragment, so a "switch player" link returns here once a player is picked;
-  `null` outside the estate.
+- **`switchPlayerUrlFor(href)`** - hub's account page on the same tier as the
+  app, as hub derives its cookie `Domain` from the hostname (ADR 0081 decision
+  3): production hub for an `ESTATE_APPS` host,
+  `localhost:<HUB_LOCAL_PORTS.devPort>` for an app on its `devPort`,
+  `localhost:<HUB_LOCAL_PORTS.composePort>` for its `composePort`. `null`
+  anywhere else (espy's Capacitor shell): show no link. It carries no
+  `returnTo`, so a switch of player lands on hub home (ADR 0103); only the
+  gate's redirect sends a visitor back to the app. **`hubUrlFor(href)`** - the
+  origin of that account page, for a back-to-hub link; production hub anywhere
+  else. **`playerCircleFor(name, href)`** - what an app's avatar circle shows:
+  `profileInitial(name)`, an accessible `label` ("Playing as Ada. Switch
+  player", or "Playing as Ada" outside the estate) and the
+  `switchPlayerUrlFor` `href`, `null` outside the estate. Each app draws its
+  own circle from it.
 
 ### Wiring the gate in an app
 

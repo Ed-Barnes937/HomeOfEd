@@ -88,7 +88,7 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 1280, height: 720 },
 ]) {
-  test(`a long name is cut with an ellipsis inside its pill at ${viewport.width}px`, async ({
+  test(`at ${viewport.width}px the player circle ends the header, titled with a long name in full`, async ({
     mountApp,
     page,
   }) => {
@@ -100,7 +100,8 @@ for (const viewport of [
 
     const { root } = await mountApp()
     await root.verifyIsShown()
-    await root.verifyPlayerNameTruncated(160)
+    await root.verifyPlayerShown('Wilhelmina Bartholomew-Fairweath')
+    await root.verifyPlayerEndsHeader('Wilhelmina Bartholomew-Fairweath')
   })
 }
 

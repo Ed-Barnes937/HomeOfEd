@@ -1,5 +1,7 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
+import type { Locator } from '@playwright/test'
 
 /** What one preview canvas is showing: how much is painted, and what. */
 type PreviewSignature = { painted: number; checksum: number }
@@ -24,21 +26,45 @@ export class HomePagePom extends BasePage {
     await this.page.getByRole('link', { name, exact: true }).click()
   }
 
-  // Ends left of the rail's divider, so it can neither cover a card nor take its clicks.
-  async verifyWhosPlayingChipClearOfTheRail(): Promise<void> {
-    const chip = await this.page.getByRole('link', { name: /^Playing as / }).boundingBox()
-    const rail = await this.page.getByRole('navigation', { name: 'apps' }).boundingBox()
-    expect(chip!.x + chip!.width).toBeLessThan(rail!.x)
+  /** The avatar circle: the initial is all it shows, so its name says who and what it does. */
+  async verifyPlayerCircle(name: string): Promise<void> {
+    const circle = this.playerCircle(name)
+    await expect(circle).toHaveText(profileInitial(name))
+    await expect(circle).toHaveAttribute('href', '/account')
+    await expect(this.page.getByText(/playing as/i)).toHaveCount(0)
+    await expect(
+      this.page.getByRole('navigation', { name: 'apps' }).getByRole('link', { name: /^Playing as / }),
+    ).toHaveCount(0)
   }
 
-  async verifyWhosPlayingChipShowsItsWholeLabel(name: string): Promise<void> {
-    const label = this.page.getByRole('link', { name, exact: true }).locator('span').first()
-    await expect(label).toHaveText(name)
-    const { scrollWidth, clientWidth } = await label.evaluate((el) => ({
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-    }))
-    expect(scrollWidth).toBe(clientWidth)
+  async openPlayerCircle(name: string): Promise<void> {
+    await this.playerCircle(name).click()
+  }
+
+  // Ends left of the rail's divider, so it can neither cover a card nor take its clicks.
+  async verifyPlayerCircleClearOfTheRail(): Promise<void> {
+    const circle = await this.anyPlayerCircle().boundingBox()
+    const rail = await this.page.getByRole('navigation', { name: 'apps' }).boundingBox()
+    expect(circle!.x + circle!.width).toBeLessThan(rail!.x)
+  }
+
+  /** A 44px target in the top band, right of the theme toggle and clear of the wordmark. */
+  async verifyPlayerCircleSitsTopRight(): Promise<void> {
+    const circle = (await this.anyPlayerCircle().boundingBox())!
+    const toggle = (await this.page.getByRole('button', { name: 'Toggle light/dark theme' }).boundingBox())!
+    const wordmark = (await this.page.getByRole('heading', { name: 'home of ed' }).boundingBox())!
+    expect(circle.width).toBeGreaterThanOrEqual(44)
+    expect(circle.height).toBeGreaterThanOrEqual(44)
+    expect(circle.x).toBeGreaterThan(toggle.x + toggle.width)
+    expect(circle.y + circle.height).toBeLessThan(wordmark.y)
+  }
+
+  private playerCircle(name: string): Locator {
+    return this.page.getByRole('link', { name: `Playing as ${name}. Switch player`, exact: true })
+  }
+
+  private anyPlayerCircle(): Locator {
+    return this.page.getByRole('link', { name: /^Playing as .*\. Switch player$/ })
   }
 
   /** What the browser fires when back restores this page from the back-forward cache. */

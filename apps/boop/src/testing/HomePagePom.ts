@@ -1,3 +1,4 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/experimental-ct-react'
@@ -31,7 +32,7 @@ export class HomePagePom extends BasePage {
   private readonly hintSheet = this.page.getByTestId('hint-sheet')
   private readonly hintSheetOverlay = this.page.getByTestId('hint-sheet-overlay')
   private readonly hintSheetClose = this.page.getByTestId('hint-sheet-close')
-  private readonly syncedChip = this.page.getByTestId('synced-chip')
+  private readonly syncedState = this.page.getByTestId('synced-state')
   private readonly keepButton = this.page.getByTestId('keep-boop-button')
 
   /**
@@ -3277,12 +3278,41 @@ export class HomePagePom extends BasePage {
   // The family account (ADR 0080). Everything below is absent from a boop with
   // no session at all, which is most of them.
 
+  /** CT runs outside the estate, so the player circle names the player without linking to hub. */
+  private playerCircle(name: string): Locator {
+    return this.page.getByRole('img', { name: `Playing as ${name}`, exact: true })
+  }
+
+  /** The player's circle, and "synced": beside the saved state on the laptop bar, in the "⋯" menu on a phone. */
   async verifySyncedChip(name: string): Promise<void> {
-    await expect(this.syncedChip).toHaveText(`synced as ${name}`)
+    await expect(this.playerCircle(name)).toHaveText(profileInitial(name))
+    await expect(this.page.getByText(/playing as|synced as/i)).toHaveCount(0)
+    if (await this.isPhoneLayout()) {
+      await this.openPhoneMenu()
+      await expect(this.page.getByTestId('phone-menu').getByTestId('synced-state')).toHaveText(
+        'synced',
+      )
+      await this.phoneMenuButton.click()
+    } else {
+      await expect(this.syncedState).toHaveText('synced')
+    }
   }
 
   async verifyNoSyncedChip(): Promise<void> {
-    await expect(this.syncedChip).toHaveCount(0)
+    await expect(this.page.getByRole('img', { name: /^Playing as / })).toHaveCount(0)
+    await expect(this.syncedState).toHaveCount(0)
+  }
+
+  /** The player circle is the last thing at the right end of the bar. */
+  async verifySyncedChipEndsBar(name: string): Promise<void> {
+    const bar = this.playerCircle(name).locator('..')
+    const circle = (await this.playerCircle(name).boundingBox())!
+    const rights = await bar
+      .locator(':scope > *')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right))
+    expect(circle.x + circle.width).toBeCloseTo(Math.max(...rights), 0)
+    expect(circle.width).toBeGreaterThanOrEqual(44)
+    expect(circle.height).toBeGreaterThanOrEqual(44)
   }
 
   // The shared view (ADR 0093 decision 6): no way to save, one way to keep.

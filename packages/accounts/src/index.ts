@@ -52,6 +52,8 @@ export { arrivalFragment } from './arrival.ts'
 export type { KeyValueStorage } from './profileScopedKey.ts'
 export { adoptLegacyDocument, profileScopedKey } from './profileScopedKey.ts'
 export { profileInitial } from './profileInitial.ts'
+export type { PlayerCircle } from './playerCircle.ts'
+export { playerCircleFor } from './playerCircle.ts'
 export type { ProfileKeys, StorageLike } from './profileStorage.ts'
 export { memoryStorage, profileStorage } from './profileStorage.ts'
 export type { ReadFamilySessionOpts } from './readFamilySession.ts'
@@ -60,7 +62,6 @@ export { reloadOnPlayerChange } from './reloadOnPlayerChange.ts'
 export type { SafeReturnToOpts } from './returnTo.ts'
 export {
   accountUrl,
-  accountUrlFor,
   hubUrlFor,
   safeReturnTo,
   sharedUrl,

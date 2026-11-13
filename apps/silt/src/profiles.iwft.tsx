@@ -1,5 +1,6 @@
 import { expect } from '@playwright/experimental-ct-react'
 
+import { entryIndex } from './features/fieldNotes/entries.ts'
 import { SAND } from './sim/index.ts'
 import { readSiltKeys, sceneNames, setFamilyCookie } from './testing/familySession.ts'
 import { seedWitnessed } from './testing/fieldNotesSeed.ts'
@@ -159,4 +160,67 @@ test('forgotten discoveries stay forgotten, even with the device’s old notes s
 
   const adaAgain = await openAs(page, mountApp, ADA)
   expect(await adaAgain.fieldNotesCount()).toBe('0/54')
+})
+
+test('signed out, the header names no player', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.verifyNoPlayer()
+})
+
+async function openAsAda(
+  page: import('@playwright/test').Page,
+  mountApp: () => Promise<{ root: SiltPagePom }>,
+): Promise<SiltPagePom> {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  const ada = await openAs(page, mountApp, ADA)
+  await ada.verifyPlayer('Ada')
+  return ada
+}
+
+test.describe('on a laptop', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('who is playing is their initial at the end of the header', async ({ mountApp, page }) => {
+    const ada = await openAsAda(page, mountApp)
+    await ada.verifyPlayerEndsHeader('Ada')
+  })
+})
+
+for (const width of [390, 320]) {
+  test.describe(`on a ${width}px phone`, () => {
+    test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true })
+
+    test('who is playing is a full-size circle at the end of the header, on the glass', async ({
+      mountApp,
+      page,
+    }) => {
+      const ada = await openAsAda(page, mountApp)
+      await ada.verifyPlayerEndsHeader('Ada')
+      await ada.verifyTitleClearOfControls()
+      await ada.verifyTouchTargetSize('switch-player')
+      await ada.verifyNoHorizontalPageOverflow()
+    })
+  })
+}
+
+test.describe('on a 360px phone', () => {
+  test.use({ viewport: { width: 360, height: 800 }, hasTouch: true, isMobile: true })
+
+  test('the widest header, a full chart and reset armed, still fits beside the circle', async ({
+    mountApp,
+    page,
+  }) => {
+    const first = await mountApp()
+    await first.root.verifyIsShown()
+    await seedWitnessed(page, entryIndex().witnessKeys)
+    const ada = await openAs(page, mountApp, ADA)
+    expect(await ada.fieldNotesCount()).toBe('54/54')
+    await ada.clickReset()
+
+    await ada.verifyPlayerEndsHeader('Ada')
+    await ada.verifyTitleClearOfControls()
+    await ada.verifyNoHorizontalPageOverflow()
+  })
 })

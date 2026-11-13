@@ -88,4 +88,19 @@ test('the player is named, as the way to switch player', async ({ mountApp, page
 
   const { root } = await mountApp()
   await root.verifyPlayerChip('Ada')
+  await root.verifyPlayerChipEndsBar()
+})
+
+test('on a phone the player circle ends the icon strip', async ({ mountApp, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await page.reload()
+  await setFamilyCookie(page, ADA)
+
+  const { root } = await mountApp()
+  await root.verifyMobileBarShown()
+  await root.verifyPlayerChip('Ada')
+  await root.verifyPlayerChipEndsBar()
+  await root.verifyNoHorizontalOverflow()
 })

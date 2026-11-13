@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   accountUrl,
-  accountUrlFor,
   hubUrlFor,
   safeReturnTo,
   sharedUrl,
@@ -132,63 +131,6 @@ describe('sharedUrl', () => {
   })
 })
 
-describe('accountUrlFor', () => {
-  it('sends a production app to production hub', () => {
-    expect(accountUrlFor('https://boop.homeofed.com/play#g=1')).toBe(
-      'https://homeofed.com/account?returnTo=https%3A%2F%2Fboop.homeofed.com%2Fplay#g=1',
-    )
-  })
-
-  it("sends an app's dev server to hub's dev server", () => {
-    expect(accountUrlFor('http://localhost:3008/')).toBe(
-      'http://localhost:3000/account?returnTo=http%3A%2F%2Flocalhost%3A3008%2F',
-    )
-  })
-
-  it("sends an app's compose port to hub's compose port", () => {
-    expect(accountUrlFor('http://localhost:8091/x')).toBe(
-      'http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8091%2Fx',
-    )
-  })
-
-  it('is null anywhere that is not an estate app', () => {
-    for (const href of [
-      'capacitor://localhost/',
-      'https://localhost/',
-      'http://localhost/',
-      'http://localhost:9999/',
-      'http://127.0.0.1:3008/',
-      'https://localhost:3008/',
-      'http://boop.homeofed.com/',
-      'https://homeofed.com/',
-      'https://evil.example/',
-      'not a url',
-    ])
-      expect(accountUrlFor(href)).toBeNull()
-  })
-
-  it('is null for any href whose returnTo safeReturnTo would refuse', () => {
-    for (const href of [
-      'https://BOOP.homeofed.com/',
-      'https://boop.homeofed.com:443/x',
-      'blob:https://boop.homeofed.com/x',
-      'blob:http://localhost:3008/x',
-    ])
-      expect(accountUrlFor(href)).toBeNull()
-  })
-
-  it('always produces a returnTo that safeReturnTo accepts', () => {
-    for (const [href, allowLocal] of [
-      ['https://boop.homeofed.com', false],
-      ['https://silt.homeofed.com/a/../b?x=1#s=2', false],
-      ['http://localhost:3009/#g=1', true],
-    ] as const) {
-      const returnTo = new URL(accountUrlFor(href) ?? '').searchParams.get('returnTo')
-      expect(safeReturnTo(returnTo, { allowLocal })).toBe(returnTo)
-    }
-  })
-})
-
 describe('accountUrl', () => {
   it('puts the return URL in the returnTo query parameter', () => {
     const href = accountUrl('https://homeofed.com/account', 'https://boop.homeofed.com/a?b=1&c=2')
@@ -233,13 +175,28 @@ describe('hubUrlFor', () => {
 })
 
 describe('switchPlayerUrlFor', () => {
-  it('returns to where the player is, without the fragment', () => {
-    expect(switchPlayerUrlFor('http://localhost:8088/?x=1#g=1')).toBe(
-      'http://localhost:8080/account?returnTo=http%3A%2F%2Flocalhost%3A8088%2F%3Fx%3D1',
-    )
+  it.each([
+    ['production', 'https://boop.homeofed.com/play?x=1#g=1', 'https://homeofed.com/account'],
+    ['a dev server', 'http://localhost:3008/', 'http://localhost:3000/account'],
+    ['the docker stack', 'http://localhost:8088/?x=1#g=1', 'http://localhost:8080/account'],
+  ])('is the account page on the same tier as an app on %s, with no returnTo', (_tier, href, url) => {
+    expect(switchPlayerUrlFor(href)).toBe(url)
   })
 
-  it('is null outside the estate', () => {
-    expect(switchPlayerUrlFor('https://hoe-boop.fly.dev/')).toBeNull()
+  it('is null anywhere that is not an estate app', () => {
+    for (const href of [
+      'capacitor://localhost/',
+      'https://localhost/',
+      'http://localhost/',
+      'http://localhost:9999/',
+      'http://127.0.0.1:3008/',
+      'https://localhost:3008/',
+      'http://boop.homeofed.com/',
+      'https://homeofed.com/',
+      'https://hoe-boop.fly.dev/',
+      'https://evil.example/',
+      'not a url',
+    ])
+      expect(switchPlayerUrlFor(href)).toBeNull()
   })
 })

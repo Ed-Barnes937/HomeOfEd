@@ -61,11 +61,39 @@
   }
 }
 
+// A brass token at the nav's far end, the size of the buttons beside it.
+.player {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #6a5038;
+  background: var(--brass);
+  color: var(--brass-ink);
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+
+  &:hover {
+    border-color: var(--ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+}
+
 .static {
   cursor: default;
 
   &:hover {
-    border-color: var(--panel-line-strong);
+    border-color: #6a5038;
   }
 }
 
@@ -87,15 +115,8 @@
   font-size: 13px;
 }
 
-.withPlayer .button,
-.player {
+.withPlayer .button {
   white-space: nowrap;
-}
-
-.playerName {
-  max-width: 8em;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 @media (max-width: 1180px) {
@@ -104,22 +125,10 @@
   }
 }
 
-// The player chip widens the nav, so the motto gives way first, then the name, then every label
-// (measured with a 22-character name in the smithy, whose motto is the longer).
-@media (max-width: 1479px) {
+// The player circle widens the nav, so the motto gives way first, then every label
+// (measured in the smithy, whose motto is the longer: it meets the nav at 1338px).
+@media (max-width: 1349px) {
   .withPlayer .motto {
-    display: none;
-  }
-}
-
-@media (max-width: 1279px) {
-  .withPlayer .player {
-    width: 44px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .withPlayer .playerName {
     display: none;
   }
 }

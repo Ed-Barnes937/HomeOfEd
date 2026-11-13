@@ -58,15 +58,6 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   text-transform: uppercase;
 }
 
-.player {
-  flex: none;
-  font-size: 0.75rem;
-  color: $ink;
-  white-space: nowrap;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
 // The scene name is the header's one elastic word, so it is the one that gives
 // when the header above it is squeezed under its content width. The rigid parts
 // (the title, and the buttons on their 44px floor) hold their size, and a long
@@ -152,11 +143,22 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
     min-height: 44px;
     padding: 0.35rem 0.6rem;
   }
+}
 
-  .player {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
+// Phones under 375px (down to 320px) need the header tighter still to keep the player circle on the glass.
+@media (max-width: 374px) {
+  .header {
+    padding: 0 0.4rem;
+  }
+
+  .header,
+  .headerControls,
+  .headerRight {
+    gap: 0.2rem;
+  }
+
+  .headerButton {
+    padding: 0.35rem 0.25rem;
   }
 }
 

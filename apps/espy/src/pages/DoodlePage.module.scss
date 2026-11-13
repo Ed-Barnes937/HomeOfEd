@@ -46,42 +46,38 @@
   }
 }
 
-// Who is drawing: the back button's chrome, as a pill at the header's far end.
+// Who is drawing: an ink-orange circle at the header's far end, the back button's twin in size.
 .player {
+  position: relative;
   flex: none;
   margin-top: 4px;
   display: inline-flex;
   align-items: center;
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 160px;
+  justify-content: center;
+  width: 40px;
   height: 40px;
-  padding: 0 16px;
-  border-radius: 999px;
-  background: var(--espy-chrome);
-  border: 1px solid var(--espy-chrome-border);
-  box-shadow: var(--espy-shadow-chrome);
-  color: var(--espy-muted);
+  border-radius: 50%;
+  background: var(--espy-accent);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--espy-accent) 70%, var(--espy-text));
+  color: var(--espy-text);
+  font-family: var(--espy-font-display);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 28px;
+  line-height: 1;
   text-decoration: none;
-  transition: color 0.18s ease;
 
-  &:is(a):hover {
-    color: var(--espy-accent);
+  // Reaches the 44px touch target around the 40px disc.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
   }
 
   &:focus-visible {
-    outline: 2px solid var(--espy-accent);
-    outline-offset: 2px;
+    outline: 2px solid var(--espy-text);
+    outline-offset: 3px;
   }
-}
-
-.playerName {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .titleBlock {

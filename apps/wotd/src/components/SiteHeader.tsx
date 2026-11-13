@@ -1,6 +1,7 @@
 import { hubUrlFor } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 
+import { PlayerCircle } from '../features/player/PlayerCircle.tsx'
 import { formatShortDate } from '../formatDate.ts'
 import { ArrowLeftIcon } from './icons.tsx'
 import styles from './SiteHeader.module.scss'
@@ -9,7 +10,8 @@ import { ThemeToggle } from './ThemeToggle.tsx'
 /**
  * The design's top bar, both sizes. Mobile: circular back-to-hub button,
  * centred wordmark label, theme toggle. Desktop: back-to-hub arrow + wordmark
- * on the left, date and toggle on the right. The hub link swaps position per
+ * on the left, date and toggle on the right. Both end with the player circle
+ * when someone is signed in. The hub link swaps position per
  * breakpoint — one is always in the accessibility tree. (The design's "W"
  * mark was replaced: it read as a wotd home link, not a link to the hub.)
  */
@@ -31,6 +33,7 @@ export function SiteHeader() {
       <div className={styles.right}>
         <span className={styles.date}>{formatShortDate(new Date())}</span>
         <ThemeToggle />
+        <PlayerCircle />
       </div>
     </header>
   )

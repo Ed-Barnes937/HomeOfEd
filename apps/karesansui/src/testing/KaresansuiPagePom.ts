@@ -1,3 +1,4 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 import type { Locator } from '@playwright/test'
@@ -21,7 +22,8 @@ export class KaresansuiPagePom extends BasePage {
   private readonly previewCycle = this.page.getByTestId('preview-cycle')
   private readonly rakeCycle = this.page.getByTestId('rake-cycle')
   private readonly presetsMenu = this.page.getByTestId('presets-menu')
-  private readonly player = this.page.getByTestId('player')
+  // CT runs outside the estate, so the circle names the player without linking to hub.
+  private readonly player = this.page.getByRole('img', { name: /^Playing as / })
 
   async verifyIsShown(): Promise<void> {
     await expect(this.root).toBeVisible()
@@ -252,17 +254,29 @@ export class KaresansuiPagePom extends BasePage {
   // ---------- player ----------
 
   async verifyPlayer(name: string): Promise<void> {
-    await expect(this.player).toHaveText(name)
+    await expect(
+      this.page.getByRole('img', { name: `Playing as ${name}`, exact: true }),
+    ).toHaveText(profileInitial(name))
+    await expect(this.page.getByText(/playing as/i)).toHaveCount(0)
   }
 
   async verifyNoPlayer(): Promise<void> {
     await expect(this.player).toHaveCount(0)
   }
 
-  /** The full name as a tooltip, present only while the chip cannot show all of it. */
-  async verifyPlayerTitle(title: string | null): Promise<void> {
-    if (title === null) await expect(this.player).not.toHaveAttribute('title')
-    else await expect(this.player).toHaveAttribute('title', title)
+  /** The full name as a tooltip, since the circle shows only its initial. */
+  async verifyPlayerTitle(title: string): Promise<void> {
+    await expect(this.player).toHaveAttribute('title', title)
+  }
+
+  /** The circle is the back button's twin: the same size, mirrored into the top-right corner. */
+  async verifyPlayerMirrorsBack(): Promise<void> {
+    const chip = (await this.player.boundingBox())!
+    const back = (await this.page.getByRole('link', { name: 'Back to home of ed' }).boundingBox())!
+    const width = this.page.viewportSize()!.width
+    expect(chip.y).toBeCloseTo(back.y, 0)
+    expect(chip.height).toBeCloseTo(back.height, 0)
+    expect(width - (chip.x + chip.width)).toBeCloseTo(back.x, 0)
   }
 
   /** The chip touches none of the wordmark's pieces. */

@@ -1,4 +1,4 @@
-import { switchPlayerUrlFor } from '@hoe/accounts'
+import { playerCircleFor } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 
 import type { ShareState } from '../share/useShareWand.ts'
@@ -61,54 +61,30 @@ function PictureIcon() {
   )
 }
 
-function PlayerIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="9" cy="6" r="3" />
-      <path d="M3 15.5 c0.8 -3 3.2 -4.5 6 -4.5 s5.2 1.5 6 4.5" />
-    </svg>
-  )
-}
-
-/** Who the shelf belongs to, and the way to hub to switch player and come back (ADR 0094). */
+/** Who the shelf belongs to, and the way to hub to switch player (ADR 0094). */
 export function Player({ name, className }: { name: string; className?: string }) {
-  const classes = [styles.button, styles.player, className].filter(Boolean).join(' ')
-  const href = switchPlayerUrlFor(window.location.href)
-  const content = (
-    <>
-      <PlayerIcon />
-      <span className={`${styles.label} ${styles.playerName}`}>{name}</span>
-    </>
-  )
-  // Outside the estate there is no hub to switch at, so it is the name alone.
+  const classes = [styles.player, className].filter(Boolean).join(' ')
+  const { initial, label, href } = playerCircleFor(name, window.location.href)
+  // Outside the estate there is no hub to switch at, so it is the circle alone.
   return href === null ? (
     <span
       className={`${classes} ${styles.static}`}
       role="img"
-      aria-label={`Playing as ${name}`}
+      aria-label={label}
       title={name}
       data-testid="player"
     >
-      {content}
+      {initial}
     </span>
   ) : (
     <a
       className={classes}
       href={href}
-      aria-label={`Playing as ${name}. Switch player`}
+      aria-label={label}
       title={name}
       data-testid="player"
     >
-      {content}
+      {initial}
     </a>
   )
 }
@@ -174,7 +150,6 @@ export function Header({
         <span className={styles.motto}>{copy.motto}</span>
       </div>
       <nav className={styles.nav}>
-        {player !== null && <Player name={player} />}
         {shelfCount !== null && (
           <Link to="/shelf" className={styles.button} aria-label={copy.shelfLink(shelfCount)}>
             <ShelfIcon />
@@ -205,6 +180,7 @@ export function Header({
           <PictureIcon />
           <span className={styles.label}>Picture</span>
         </button>
+        {player !== null && <Player name={player} />}
       </nav>
     </header>
   )

@@ -71,7 +71,6 @@ export function TopBar({
         <span className={styles.helper}>drag to bump · click to rotate · double-click to remove</span>
       </div>
       <div className={styles.right}>
-        {playerSlot}
         <input
           className={styles.name}
           placeholder="name this fridge…"
@@ -102,6 +101,7 @@ export function TopBar({
         >
           Empty the fridge
         </button>
+        {playerSlot}
       </div>
     </div>
   )

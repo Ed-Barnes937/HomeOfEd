@@ -2,6 +2,7 @@ import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 import type { Locator, Page } from '@playwright/test'
 
+import { verifyNoPlayer, verifyPlayer } from './player.ts'
 import { openAsNewVisitor, reloadAtRoot, verifyAt } from './address.ts'
 import { ShelfPom } from './ShelfPom.ts'
 import type { StreetPom } from './StreetPom.ts'
@@ -134,18 +135,19 @@ export abstract class BenchPom extends BasePage {
   // Who is playing, and the shared view (ADR 0093 decision 6).
 
   async verifyPlayer(name: string): Promise<void> {
-    await expect(this.page.getByTestId('player')).toHaveText(name)
+    await verifyPlayer(this.page, name)
   }
 
   async verifyNoPlayer(): Promise<void> {
-    await expect(this.page.getByTestId('player')).toHaveCount(0)
+    await verifyNoPlayer(this.page)
   }
 
-  /** Where the header's title and motto end and its nav begins, and where Picture and the header end. */
+  /** Where the header's title and motto end and its nav begins, and where the player circle and the header end. */
   async headerLayout(): Promise<{
     titleRight: number
     navLeft: number
-    pictureRight: number
+    navRight: number
+    playerRight: number
     right: number
   }> {
     const header = this.page.locator('header')
@@ -159,14 +161,13 @@ export abstract class BenchPom extends BasePage {
         ),
       )
     const nav = (await header.getByRole('navigation').boundingBox())!
-    const picture = (await this.page
-      .getByRole('button', { name: this.copy.picture })
-      .boundingBox())!
+    const player = (await header.getByRole('img', { name: /^Playing as / }).boundingBox())!
     const box = (await header.boundingBox())!
     return {
       titleRight,
       navLeft: nav.x,
-      pictureRight: picture.x + picture.width,
+      navRight: nav.x + nav.width,
+      playerRight: player.x + player.width,
       right: box.x + box.width,
     }
   }

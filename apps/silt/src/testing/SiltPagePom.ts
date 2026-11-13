@@ -1,3 +1,4 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 import type { Locator } from '@playwright/test'
@@ -17,6 +18,43 @@ export class SiltPagePom extends BasePage {
   async verifyIsShown(): Promise<void> {
     await expect(this.page.getByText('SILT')).toBeVisible()
     await expect(this.canvas).toBeVisible()
+  }
+
+  /** CT runs outside the estate, so the player circle names the player without linking to hub. */
+  private playerCircle(name: string): Locator {
+    return this.page.getByRole('img', { name: `Playing as ${name}`, exact: true })
+  }
+
+  async verifyPlayer(name: string): Promise<void> {
+    await expect(this.playerCircle(name)).toHaveText(profileInitial(name))
+    await expect(this.page.getByText(/playing as/i)).toHaveCount(0)
+  }
+
+  async verifyNoPlayer(): Promise<void> {
+    await expect(this.page.getByRole('img', { name: /^Playing as / })).toHaveCount(0)
+  }
+
+  /** The player circle is the last thing in the header, inside the screen. */
+  async verifyPlayerEndsHeader(name: string): Promise<void> {
+    const header = this.page.locator('header')
+    const circle = (await this.playerCircle(name).boundingBox())!
+    const rights = await header
+      .locator('*')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right))
+    expect(circle.x + circle.width).toBeCloseTo(Math.max(...rights), 0)
+    expect(circle.x + circle.width).toBeLessThanOrEqual((await header.boundingBox())!.width)
+  }
+
+  /** The SILT title is all on show, with the first header button after it. */
+  async verifyTitleClearOfControls(): Promise<void> {
+    const title = this.page.locator('header').getByText('SILT', { exact: true })
+    const { overflow, right } = await title.evaluate((el) => ({
+      overflow: el.scrollWidth - el.clientWidth,
+      right: el.getBoundingClientRect().right,
+    }))
+    const play = (await this.playToggle.boundingBox())!
+    expect(overflow).toBeLessThanOrEqual(0)
+    expect(right).toBeLessThanOrEqual(play.x)
   }
 
   async selectElement(name: string): Promise<void> {

@@ -163,3 +163,25 @@ test('a remote document boop cannot read is left exactly where it is', async ({
   expect(savedNames(await readLocalSave(page, ADA.sub))).toContain('on the tablet')
   expect(await readRemoteSave(page)).toBe(future)
 })
+
+for (const { device, viewport } of [
+  { device: 'laptop', viewport: { width: 1280, height: 800 } },
+  { device: 'tablet', viewport: { width: 1024, height: 768 } },
+  { device: 'phone', viewport: { width: 390, height: 844 } },
+]) {
+  test.describe(`on a ${device}`, () => {
+    test.use({ viewport })
+
+    test('the player circle ends the bar', async ({ mountApp, page }) => {
+      const first = await mountApp()
+      await first.root.verifyIsShown()
+      await page.reload()
+      await seedFamily(page, { session: ADA })
+
+      const { root } = await mountApp()
+      await root.verifyIsShown()
+      await root.verifySyncedChip('Ada')
+      await root.verifySyncedChipEndsBar('Ada')
+    })
+  })
+}

@@ -1,4 +1,4 @@
-import { readFamilySession } from '@hoe/accounts'
+import { profileInitial, readFamilySession } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { appDates } from './appDates.ts'
@@ -78,17 +78,20 @@ export function HomePage() {
         <span className={theme === 'dark' ? styles.sun : styles.moon} aria-hidden="true" />
       </button>
 
-      <Link to="/account" className={styles.whosPlaying}>
-        <span className={styles.chipLabel}>
-          {playing ? (
-            <>
-              Playing as <span className={styles.player}>{playing}</span>
-            </>
-          ) : (
-            'Sign in'
-          )}
-        </span>
-      </Link>
+      {playing ? (
+        <Link
+          to="/account"
+          className={styles.playerCircle}
+          aria-label={`Playing as ${playing}. Switch player`}
+          title={playing}
+        >
+          {profileInitial(playing)}
+        </Link>
+      ) : (
+        <Link to="/account" className={styles.whosPlaying}>
+          <span className={styles.chipLabel}>Sign in</span>
+        </Link>
+      )}
 
       <section className={styles.intro}>
         <h1 className={styles.wordmark} ref={wordmarkRef} aria-label="home of ed">

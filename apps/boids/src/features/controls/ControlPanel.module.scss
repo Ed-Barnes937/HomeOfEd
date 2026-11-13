@@ -172,3 +172,9 @@
   box-shadow: var(--shadow-fab);
   z-index: 10;
 }
+
+// Under the player circle (features/player): its 26px inset + 44px + a 12px gap.
+.belowPlayer {
+  top: 82px;
+  max-height: calc(100dvh - 108px);
+}

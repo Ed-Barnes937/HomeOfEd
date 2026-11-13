@@ -3,6 +3,8 @@ import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 import { ControlPanel } from '../features/controls/ControlPanel.tsx'
 import { CursorGlyph, type CursorGlyphVariant } from '../features/controls/CursorGlyph.tsx'
+import { useFamilySession } from '../features/player/FamilySessionContext.tsx'
+import { PlayerCircle } from '../features/player/PlayerCircle.tsx'
 import type { SimParams } from '../features/sim/engine/params.ts'
 import type { BoidShape } from '../features/sim/render/renderer.ts'
 import { CURSOR_RADIUS } from '../features/sim/engine/simulation.ts'
@@ -22,6 +24,7 @@ function glyphVariant(icon: CursorIcon, cursor: number): CursorGlyphVariant | nu
 export function BoidsPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
+  const signedIn = useFamilySession() !== null
   const [settings, setSettings] = useState(() => loadSettings(window.localStorage))
   // Session state, deliberately not in `settings`: a pause is about this sitting,
   // not a preference to restore, and the initial value comes from the
@@ -161,7 +164,9 @@ export function BoidsPage() {
         onCursorIconChange={handleCursorIconChange}
         params={settings.params}
         onParamsChange={handleParamsChange}
+        belowPlayer={signedIn}
       />
+      <PlayerCircle />
     </>
   )
 }
