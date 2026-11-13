@@ -1,5 +1,7 @@
+import type { StorageLike } from '@hoe/accounts'
 import { useMemo, useRef, useState } from 'react'
 
+import { SwitchPlayerLink } from '../features/family/SwitchPlayerLink.tsx'
 import { FieldNotesButton } from '../features/fieldNotes/FieldNotesButton.tsx'
 import { FieldNotesPanel } from '../features/fieldNotes/FieldNotesPanel.tsx'
 import { MomentCard } from '../features/fieldNotes/MomentCard.tsx'
@@ -8,6 +10,7 @@ import { useMoments } from '../features/fieldNotes/useMoments.ts'
 import { EarnedElements } from '../features/palette/EarnedElements.tsx'
 import { BRUSH_WIDTHS, buildRailPalette } from '../features/palette/paletteGroups.ts'
 import { WorldOverlay } from '../features/render/WorldOverlay.tsx'
+import type { SceneLibrary } from '../features/scenes/sceneLibrary.ts'
 import { ScenesPopover } from '../features/scenes/ScenesPopover.tsx'
 import { useScenes } from '../features/scenes/useScenes.ts'
 import { type CursorInfo, type SimMode, useSimLoop } from '../features/sim/useSimLoop.ts'
@@ -47,7 +50,14 @@ function markHintSeen(): void {
   }
 }
 
-export function HomePage() {
+interface HomePageProps {
+  /** The player's field notes; `null` where the browser refuses local storage. */
+  storage: StorageLike | null
+  /** The player's scenes. */
+  sceneLibrary: SceneLibrary
+}
+
+export function HomePage({ storage, sceneLibrary }: HomePageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [running, setRunning] = useState(false)
   const [selectedElement, setSelectedElement] = useState<number>(SAND)
@@ -70,7 +80,7 @@ export function HomePage() {
   // Field notes' progression: the rail reads it for the elements the player has
   // mastered and so earned back into it, and the header chip and panel read it
   // for everything else (spec §6).
-  const fieldNotes = useFieldNotes()
+  const fieldNotes = useFieldNotes({ storage })
 
   // The cards over the world, derived from field notes rather than from the
   // sim's report: the chip, the panel and the card are three readings of one
@@ -125,6 +135,7 @@ export function HomePage() {
   )
 
   const scenes = useScenes({
+    library: sceneLibrary,
     // Progression belongs to the scene (ticket 28): a save snapshots the
     // working field notes into the envelope, and a load replaces them with the
     // scene's own - empty for a scene saved before snapshots existed. The
@@ -210,8 +221,8 @@ export function HomePage() {
    */
   const forgetDiscoveries = (): void => {
     fieldNotes.reset()
-    // The whole of what the page now knows: nothing. `reset` removes the key
-    // outright rather than leaving an empty blob behind it.
+    // The whole of what the page now knows: nothing. `reset` writes an empty
+    // record, so the device's old notes are not copied back in.
     controls.resyncWitnessed([])
   }
 
@@ -234,6 +245,7 @@ export function HomePage() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <span className={styles.title}>SILT</span>
+          <SwitchPlayerLink className={styles.player} />
           <span className={styles.sceneName} data-testid="scene-name">
             {scenes.currentName ?? 'untitled'}
           </span>
@@ -277,6 +289,7 @@ export function HomePage() {
               type="button"
               className={styles.headerButton}
               data-testid="scenes-button"
+              data-busy={scenes.busy}
               aria-expanded={scenesOpen}
               onClick={() => setScenesOpen((open) => !open)}
             >
@@ -285,6 +298,7 @@ export function HomePage() {
             {scenesOpen ? (
               <ScenesPopover
                 scenes={scenes.scenes}
+                unavailable={scenes.unavailable}
                 status={scenes.status}
                 onSave={scenes.save}
                 onLoad={scenes.load}

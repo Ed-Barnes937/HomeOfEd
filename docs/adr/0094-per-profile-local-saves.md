@@ -52,6 +52,27 @@ child met unprompted. Ticket 10 removes it and amends ADR 0080.
 - Legacy documents are duplicated once per profile on a device. For small
   documents this is nothing; silt's scenes and thumbnails may meet the
   `localStorage` quota, and ticket 12 measures before adopting.
+- **silt's scenes: the one sanctioned move** (amended 2026-11-12, estate-gate
+  tickets 12 and 23, [ADR 0102](0102-silt-scenes-in-indexeddb.md)). Measured,
+  a device's `localStorage` holds about 16 scenes for everyone, and three
+  profiles could copy only four. So silt's scenes move to IndexedDB, where
+  copying them per profile is fine. Getting them there is a move, not a copy:
+  on the first open after that ships, the device's `localStorage` scenes go
+  into IndexedDB's device namespace, and their keys are removed once that
+  write has committed. Leaving them would keep the quota full, which is the
+  problem being fixed. It is safe to interrupt and rerun. From then on
+  decision 2 holds in IndexedDB, per scene id (next bullet): each profile
+  copies, on every open, the device's scenes it has never taken in, and no
+  profile writes the device's. No other app or key may be moved.
+- **silt adopts per scene id** (amended 2026-11-12, ADR 0102 decision 6). A
+  profile that saved before its copy succeeded still gets the device's scenes
+  later, and scenes moved in after it adopted still reach it. This departs
+  from decision 2's "saved first, never adopts", and is safe for silt only
+  because each scene has its own id.
+- **An emptied document is written as empty, never removed** (silt's field
+  notes, 2026-11-12). A profile with no key adopts the legacy document again,
+  so "forget discoveries" writes an empty record; removing the key brought the
+  device's old notes back on the next open.
 - **espy's drawing, measured (estate-gate ticket 13, 2026-11-10).** One slot,
   `espy:doodle:v2`, holding the drawing's whole undo history. Chromium's quota
   is 5,242,880 characters per origin. A fresh drawing is 22-31 KB (390x844 to

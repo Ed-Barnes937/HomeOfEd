@@ -34,6 +34,20 @@ test('a painted world survives a save, a page reload and a load — arriving pau
   expect(await root.headerSceneName()).toBe('scene 1')
 })
 
+// Storage is asynchronous (ADR 0102): the second save must wait for the first to make the scene.
+test('a double-click on save makes one scene, not two', async ({ mountApp, page }) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.paintCell(150, 100)
+  await root.openScenes()
+
+  await page.getByTestId('scene-save').dblclick()
+  await root.waitForScenes()
+
+  expect(await root.sceneRowCount()).toBe(1)
+  await root.verifySceneRow('scene 1')
+})
+
 test('saving again writes over the scene being edited instead of forking a second one', async ({
   mountApp,
 }) => {

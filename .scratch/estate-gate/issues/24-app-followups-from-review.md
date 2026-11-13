@@ -42,3 +42,14 @@ own, not the gate's:
   900 "Your shelf" sits on "Armoury"; at 1181-1250 the motto touches "Your
   shelf"; "Your shelf" wraps to two lines from 900 to 1280. Signed in, the
   gate's chip rules already avoid it.
+
+**2026-11-12, silt, from the review of PR #206.** Both were seen in real
+Firefox at an artificially tiny quota. Neither loses data.
+
+- **The first delete can be refused when the origin is full.** It shows
+  "storage full, delete a scene", and later deletes succeed.
+- **A save right after a failed adoption shows a raw error.** A small save
+  failed with "A mutation operation was attempted on a database that did not
+  allow mutations." instead of the quota message. The cause was not found. Map
+  that error to the quota message in `isQuotaError` / `toPersonError`
+  (`apps/silt/src/features/scenes/sceneLibrary.ts`).

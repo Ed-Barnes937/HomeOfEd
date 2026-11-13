@@ -46,8 +46,10 @@ async function roundTrip(browser, app, fragment) {
   const page = await context.newPage();
 
   const deep = `${app}/some/deep/path?x=1`;
-  const landed = await page.goto(`${deep}${fragment}`);
-  const gate = await landed.request().redirectedFrom()?.response();
+  // Not redirectedFrom(): WebKit drops the chain when the 302 carries COOP (silt's ADR 0036).
+  const gateResponse = page.waitForResponse((r) => r.url() === deep);
+  await page.goto(`${deep}${fragment}`);
+  const gate = await gateResponse;
   const expectedLocation = `${STACK.hub}/account?returnTo=${encodeURIComponent(deep)}`;
   check(gate?.status() === 302, `signed out, ${deep} answers 302`);
   check(

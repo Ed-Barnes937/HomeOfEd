@@ -86,7 +86,7 @@ export class SceneLoadError extends Error {
 // limit, so the string is built a chunk at a time.
 const BASE64_CHUNK = 0x8000
 
-function toBase64(bytes: Uint8Array): string {
+export function toBase64(bytes: Uint8Array): string {
   let binary = ''
   for (let i = 0; i < bytes.length; i += BASE64_CHUNK) {
     binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK))
@@ -94,7 +94,7 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-function fromBase64(text: string, field: string): Uint8Array {
+export function fromBase64(text: string, field: string): Uint8Array {
   let binary: string
   try {
     binary = atob(text)
@@ -119,7 +119,7 @@ function plane(source: CellSource, offset: number): Uint8Array {
  * Snapshot a world. `clock` is runtime bookkeeping and is deliberately not
  * persisted; `ra`/`rb` are, so a reload is pixel-identical. The field-note
  * progression rides in the same envelope (ticket 28) - one blob, so a save is
- * atomic and `sceneStore`'s orphan cleanup never grows a third key prefix.
+ * atomic and no third record per scene is needed.
  */
 export function encodeScene(
   source: CellSource,
@@ -320,5 +320,12 @@ export function decodeScene(
     spawners.push({ x: sx, y: sy, element: id })
   }
 
-  return { species, ra, rb, spawners, fieldNotes: fieldNotesOf(envelope.fieldNotes, warnings), warnings }
+  return {
+    species,
+    ra,
+    rb,
+    spawners,
+    fieldNotes: fieldNotesOf(envelope.fieldNotes, warnings),
+    warnings,
+  }
 }

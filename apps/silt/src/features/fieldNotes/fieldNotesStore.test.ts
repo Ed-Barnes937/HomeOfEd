@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
-import { SceneStore, type SceneStorage } from '../scenes/sceneStore.ts'
 import {
   FieldNotesStore,
   PROGRESS_KEY,
@@ -8,8 +7,8 @@ import {
   type FieldNotesStorage,
 } from './fieldNotesStore.ts'
 
-/** A localStorage stand-in that records every write, for both stores' interfaces. */
-class FakeStorage implements FieldNotesStorage, SceneStorage {
+/** A localStorage stand-in that records every write. */
+class FakeStorage implements FieldNotesStorage {
   readonly items = new Map<string, string>()
   readonly writes: string[] = []
 
@@ -151,14 +150,15 @@ describe('FieldNotesStore', () => {
     expect(new FieldNotesStore(storage).progress).toEqual({ edges: ['decay:fire'], reviewed: 1 })
   })
 
-  test('reset forgets everything, leaving no key behind', () => {
+  test('reset forgets everything, leaving an empty record rather than no key', () => {
     store.witness(['react:lava+water'])
     store.markReviewed()
 
     store.reset()
 
+    // A missing key would let a profile copy the device's old notes back in (ADR 0094).
     expect(store.progress).toEqual({ edges: [], reviewed: 0 })
-    expect(storage.getItem(PROGRESS_KEY)).toBeNull()
+    expect(stored()).toEqual({ version: PROGRESS_VERSION, edges: [], reviewed: 0 })
     expect(new FieldNotesStore(storage).progress).toEqual({ edges: [], reviewed: 0 })
   })
 
@@ -174,16 +174,15 @@ describe('FieldNotesStore', () => {
     expect(new FieldNotesStore(storage).progress).toEqual(replaced)
   })
 
-  test('replacing with an empty snapshot clears the key, exactly as reset does', () => {
+  test('replacing with an empty snapshot leaves an empty record, exactly as reset does', () => {
     // A scene saved before snapshots existed loads as an empty snapshot
-    // (ticket 28, decision 1), and an empty progression is "no key", never an
-    // empty blob - the same rule `reset` states.
+    // (ticket 28, decision 1), and an empty progression is an empty record.
     store.witness(['react:lava+water'])
 
     store.replace({ edges: [], reviewed: 0 })
 
     expect(store.progress).toEqual({ edges: [], reviewed: 0 })
-    expect(storage.getItem(PROGRESS_KEY)).toBeNull()
+    expect(stored()).toEqual({ version: PROGRESS_VERSION, edges: [], reviewed: 0 })
   })
 
   test("a snapshot's watermark is clamped into its own timeline", () => {
@@ -200,29 +199,5 @@ describe('FieldNotesStore', () => {
 
     store.witness(['decay:fire'])
     expect(store.progress).not.toBe(before)
-  })
-})
-
-describe('progression is nobody else’s business', () => {
-  test('scene operations never touch the field notes key', () => {
-    // Discovery is global, scenes are not (spec §5): saving, loading and
-    // deleting worlds must leave the one key alone, and a reset of the
-    // discoveries must leave the scenes alone.
-    store.witness(['react:lava+water'])
-    const scenes = new SceneStore(storage, { now: () => 1000, newId: () => 'id-1' })
-
-    const meta = scenes.save('dunes', '{"scene":1}', 'data:image/png;base64,AA')
-    scenes.update(meta.id, '{"scene":2}', null)
-    scenes.read(meta.id)
-    scenes.rename(meta.id, 'the dunes')
-    scenes.reconcile()
-    scenes.remove(meta.id)
-
-    expect(storage.writes.filter((key) => key === PROGRESS_KEY)).toEqual([PROGRESS_KEY])
-    expect(new FieldNotesStore(storage).progress.edges).toEqual(['react:lava+water'])
-
-    store.reset()
-    expect(scenes.list()).toEqual([])
-    expect(storage.getItem(PROGRESS_KEY)).toBeNull()
   })
 })

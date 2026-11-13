@@ -2,7 +2,7 @@
 
 A falling-sand cellular-automaton playground at `silt.homeofed.com`.
 **Stateless** ([ADR 0008](../../docs/adr/0008-apps-without-a-database.md)) —
-client-side simulation, scenes in `localStorage`, nothing server-owned.
+client-side simulation, scenes in IndexedDB (ADR 0102), nothing server-owned.
 Scaffolded from `templates/starter`
 ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)). Spec:
 `.scratch/sand-sim/spec.md` (v1) and `.scratch/silt-materials/spec.md`
@@ -19,8 +19,8 @@ features would slot into:
 
 ```
 HomePage → useSimLoop → SimHost + Renderer  (the app; the sim ticks in a
-         → useScenes  → SceneStore           worker over shared memory —
-router → GreetingHandler → ctx.auth          ADR 0036; scenes: localStorage)
+         → useScenes  → SceneLibrary         worker over shared memory -
+router → GreetingHandler → ctx.auth          ADR 0036; scenes: IndexedDB)
 ```
 
 ## Layout
@@ -32,17 +32,21 @@ src/
     handlers/       Handler classes — business logic, AppContext only, no Store
     router.ts       tRPC router; createTRPC<void>() (no Store); exports AppRouter
     simulator.ts    backendSimulator wiring: real router, no Store, no PGlite
-    main.ts         prod entrypoint: createAppServer + shallow /health
+    main.ts         prod entrypoint: createAppServer + shallow /health + the
+                    estate gate (ADR 0093, no public paths; main.test.ts)
     headers.ts      COOP/COEP on every response — cross-origin isolation for
                     the sim worker (ADR 0036); dev and CT serve the same pair
     greeting.test.ts  Vitest unit — handler exercised over the auth seam
-  pages/            HomePage — the rail, header, status bar, selection state
+  pages/            PlayerView - the player's storage and the player-change
+                    reload; HomePage - the rail, header, status bar, selection state
   hooks/            useArmedConfirm (two-click confirms), useSiltHotkeys (the
                     global keydown map, given the actions it dispatches),
                     useMobileLayout (the $mobile breakpoint in JS - for the
                     handful of *numbers* a media query cannot hand a component;
                     CSS is still the default answer)
-  features/         palette/ (the base paintable roster + brush widths, and
+  features/         family/  (the session read once in App, PROFILE_KEYS, the
+                              header's switch-player link - see "Per-profile saves")
+                    palette/ (the base paintable roster + brush widths, and
                               EarnedElements - the rail's one EARNED control,
                               where mastered unlockables live so the 1-9 hotkeys
                               and the rail's length never move; earnedAnchor -
@@ -63,8 +67,13 @@ src/
                               glue; simProtocol — messages + shared buffers.
                               ADR 0036)
                     spawners/(continuous emitters — entities, not cells)
-                    scenes/  (sceneCodec: pure format; sceneStore: localStorage +
-                              quota; useScenes: page state; the popover)
+                    scenes/  (sceneCodec: pure format; storedScene: the
+                              envelope with its planes as bytes; sceneRecords:
+                              the storage seam + in-memory fake;
+                              indexedDbSceneRecords: the real one; legacyScenes:
+                              the one-time move out of localStorage;
+                              sceneLibrary: one page's scenes and their
+                              messages; useScenes: page state; the popover)
                     fieldNotes/ (edgeKeys - the canonical edge-key codec, incl.
                               witnessedKey, the single place a sim witness
                               event becomes a key; a leaf module so the worker
@@ -111,7 +120,7 @@ src/
   testing/          IwftApp harness (in-browser backend) + iwft fixture + SiltPagePom
   *.iwft.tsx        whole-frontend tests: render (paint/canvas), blit (WebGL↔2D
                     pixel parity + the env-gated blit bench), chrome, scenes,
-                    spawners, mobile
+                    spawners, mobile, profiles + playerChange (per-profile saves)
 vite.config.ts      react + simulatorPlugin (dev simulator mode) + COOP/COEP
 playwright-ct.config.ts  defineIwftConfig({ ctPort: 3109, crossOriginIsolated: true })
 ```
@@ -414,14 +423,42 @@ Spec §8; the calls the spec leaves open are in
 - `sceneCodec.ts` is **pure and DOM-free** — keep it that way; it is why the
   remap, dimension-mismatch and corruption rules are vitest cases, not browser
   ones. `decodeScene` hands back planes already sized to the current grid.
-- `sceneStore.ts` talks to `localStorage` through the `SceneStorage` interface,
-  writes the blob **before** the index, and turns quota errors into
-  "storage full, delete a scene".
-- **Save writes over the current scene** (`store.update`), so one scene costs
+- **Scenes live in IndexedDB** ([ADR 0102](../../docs/adr/0102-silt-scenes-in-indexeddb.md)),
+  not localStorage, whose 5MB held about 16 scenes for everyone on a device.
+  - `SceneRecords` is the seam: `indexedDbSceneRecords.ts` in the browser,
+    `MemorySceneRecords` in tests, both held to one contract
+    (`sceneRecords.test.ts`, the IndexedDB half on `fake-indexeddb`).
+  - Every record is keyed `[namespace, id]`: the player's account id, or
+    `DEVICE_NAMESPACE` (`''`) signed out, by `profileScopedKey`'s rule. A
+    scene's row, body and thumbnail are written in one transaction, so there
+    is no write order to get right and nothing to reconcile at boot.
+  - Stored as `storedScene.ts` packs it: the codec's envelope with its three
+    planes as bytes (180,000 rather than 240,000 base64 characters) and the
+    thumbnail as PNG bytes. Text that is not a well-formed envelope is kept as
+    text, so a broken scene stays listed with its error.
+  - `sceneLibrary.ts` owns the messages: "storage full, delete a scene" (a
+    picture that alone will not fit is dropped first), "scenes cannot be saved
+    on this browser" (no IndexedDB: the popover says so and save is disabled;
+    nothing ever falls back to localStorage), and the two another-tab notices.
+  - **Opening the library first moves old scenes**: `legacyScenes.ts` copies
+    `silt:scenes`, `silt:scene:<id>` and `silt:thumb:<id>` into the device
+    namespace through `importOnce` (an id recorded in `imported` is never added
+    again, so a rerun only frees keys), ordered after the namespace's last row,
+    and removes the keys only after that transaction commits (index last).
+    Safe to interrupt anywhere. Only when the move succeeded does a profile
+    then adopt, per scene id: each device scene whose id the profile has never
+    taken in (its `imported`) and does not hold, so deletes stay deleted and
+    later moves still arrive. The device namespace is never written by a
+    profile.
+  - `useScenes` runs operations one at a time, in order (a second save cannot
+    race the first into two scenes), shows the list only once read, and marks
+    `data-busy` on the scenes button while anything is queued; the POM's scene
+    actions wait on it.
+- **Save writes over the current scene** (`library.update`), so one scene costs
   one blob and one thumbnail however many times it is saved; only an unsaved
   world creates a row. `copy` is how a variant is forked. `useScenes` owns
   which scene is current, and the header reads its name from there.
-- **Never destructive on failure**: a scene that will not load keeps its blob
+- **Never destructive on failure**: a scene that will not load keeps its body
   and its row, and gains an error. A load always enters paused.
 - `ra`/`rb` are persisted; `clock` is not (it is zeroed by `Sim.restore`).
 - **Two rules for *building* a scene**, both easy to get wrong and neither
@@ -434,6 +471,26 @@ Spec §8; the calls the spec leaves open are in
     means only the stalk tip and the buried seed can take it; give each tip a
     different travelling budget and the plants climb, bloom and wither apart.
     Everything else spreads by `lifetime.jitter`, drawn on its first tick.
+
+## Per-profile saves (`src/features/family/`)
+
+[ADR 0094](../../docs/adr/0094-per-profile-local-saves.md); boop is the
+reference, `packages/accounts/README.md` ("In a gated app's browser code") has
+the helpers.
+
+- `App` reads the family session once. `PlayerView` builds, once each, the
+  field notes' `profileStorage(window.localStorage, player, PROFILE_KEYS)` and
+  the scenes' `openSceneLibrary(player)`, and hands both to `HomePage`.
+- **Scenes and field notes are the player's; `silt:seen` (the first-visit
+  hint) is the device's.** Scenes are per player in IndexedDB (above);
+  `PROFILE_KEYS` lists only `silt:fieldNotes`.
+- "Forget discoveries" (and loading a scene with no snapshot) writes an empty
+  field-notes record rather than removing the key, so the device's old notes
+  are not copied back in on the next open.
+- `reloadOnPlayerChange` runs in `PlayerView`. silt has no `/shared`.
+- The header's player name links to `switchPlayerUrlFor(location.href)`; it
+  renders nothing outside the estate, so CT (port 3109) never shows it. The
+  docker stack does.
 
 ## Field notes progression (`src/features/fieldNotes/`)
 
@@ -448,7 +505,7 @@ else touches it.
 - **Progression belongs to the scene**
   ([ADR 0055](../../docs/adr/0055-silt-progression-belongs-to-the-scene.md),
   superseding spec §5's "global"). A save snapshots the working `Progress` into
-  the scene envelope (`sceneCodec`'s `SceneFieldNotes` - `sceneStore` still
+  the scene envelope (`sceneCodec`'s `SceneFieldNotes` - scene storage still
   treats the envelope as opaque); a load `replace`s the working progression
   with the scene's snapshot, wholesale. A scene saved before snapshots existed
   loads as an empty one - strict semantics, no migration. A load raises no
@@ -488,7 +545,7 @@ else touches it.
   pre-trim scene's mud cells depend on it still being a species.
 - **Clearing the world does not clear discoveries.** Only two things move the
   working progression besides a witness: the panel's armed "forget discoveries"
-  (`store.reset()`, which removes the key outright and touches no saved
+  (`store.reset()`, which writes an empty record and touches no saved
   snapshot until the next save writes over one) and an explicit scene load
   (`store.replace()`). **Whichever of the two moves it, the sim has to be
   told**, or the recorder goes on swallowing what it has already shown this

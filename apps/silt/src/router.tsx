@@ -1,13 +1,13 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
 
-import { HomePage } from './pages/HomePage.tsx'
+import { PlayerView } from './pages/PlayerView.tsx'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: HomePage,
+  component: PlayerView,
 })
 
 const routeTree = rootRoute.addChildren([indexRoute])

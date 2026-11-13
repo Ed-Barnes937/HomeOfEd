@@ -4,6 +4,7 @@
 // shallow liveness check.
 import { fileURLToPath } from 'node:url'
 
+import { familyDocumentGateFromEnv } from '@hoe/accounts/server'
 import { createContext, InMemoryBlobStore } from '@hoe/backend-kit'
 import { createAppServer } from '@hoe/backend-kit/server'
 import { createLogger, requestLogger } from '@hoe/logger'
@@ -30,6 +31,8 @@ const server = createAppServer({
   // COOP/COEP on every response — cross-origin isolation for the sim worker
   // (120fps ticket 02; see headers.ts).
   registerRoutes: addCrossOriginIsolation,
+  // On exactly when FAMILY_ACCOUNT_URL is set (ADR 0093). silt has no share links.
+  documentGate: familyDocumentGateFromEnv(process.env, { publicPaths: [] }),
 })
 
 const port = Number(process.env.PORT ?? 8080)

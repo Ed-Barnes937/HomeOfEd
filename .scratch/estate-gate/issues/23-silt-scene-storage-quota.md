@@ -49,3 +49,83 @@ Also for this ticket:
   silt response does). Keep that change whatever is chosen.
 
 ## Comments
+
+**2026-11-12, option 1 built in PR #206 (for Ed to merge or decline).**
+Status stays `needs-info` until Ed picks an option. What was built is
+recorded in ADR 0102 (new) and in an amendment to ADR 0094:
+
+- **Storage.** Scenes and thumbnails are in IndexedDB, in a database named
+  `silt` with stores `rows`, `bodies`, `thumbs` and `namespaces`.
+  - Every record is keyed `[namespace, id]`. The namespace is the account id,
+    or `''` signed out, so signed-out silt is as before.
+  - The three planes are stored as bytes and the thumbnail as PNG bytes. The
+    scene format's meaning is unchanged: `unpackScene` rebuilds the same
+    envelope.
+  - Field notes and `silt:seen` stay in localStorage.
+- **Seam.** `SceneRecords`, with an in-memory fake. One contract suite runs
+  against the fake and the IndexedDB code on `fake-indexeddb`. It is kept in
+  silt.
+- **The move.** On first open, the device's localStorage scenes are copied
+  into the device namespace. The old keys are removed only after that write
+  commits (index last). It is safe to interrupt and rerun, which is tested at
+  every removal. Each profile then adopts the device namespace once, and no
+  profile writes the device namespace.
+- **Forget discoveries** now writes an empty record instead of removing the
+  key.
+
+**Measured.** Probe: 16 scenes saved through `origin/main`'s silt UI, then
+this branch opened on the same origin and profile; real quota, Playwright
+builds.
+
+| | Chromium 149 | WebKit 26.5 | Firefox 151 |
+|---|---|---|---|
+| localStorage used by 16 scenes, before (chars) | 4,192,651 | 4,209,235 | 4,076,107 |
+| localStorage room left, before (chars) | 1,050,209 | 1,033,625 | 1,166,753 |
+| silt scene keys left after the move | 0 | 0 | 0 |
+| device scenes after the move | 16 | 16 | 16 |
+| three profiles: scenes adopted, then after one save | 16, 17 each | 16, 17 each | 16, 17 each |
+| `storage.estimate()` usage after move + 3 profiles | 2.7MB | 13.3MB | 7.3MB |
+
+Per painted scene:
+
+- **Before:** about 262,000 localStorage characters: a 240,600 blob plus a
+  ~21,000 thumbnail.
+- **After:** 196,500 bytes of record (180,000 plane bytes, ~500 envelope,
+  ~16,000 PNG).
+- **On disk:** about 40,000 bytes in Chromium, 37,000 to 79,000 in Firefox,
+  and about 200,000 in WebKit.
+
+**2026-11-12, review fixes (PR #206).**
+
+- **Adoption.**
+  - A profile no longer adopts on an open where the move from localStorage
+    failed.
+  - A failed adoption is retried on every open, even after the profile saved
+    scenes of its own (copied per id, so nothing collides).
+- **Writes.** Any throw inside an IndexedDB operation now aborts its
+  transaction, so a row can no longer commit without its body.
+- **Moved ids.** The move records every moved id in the same transaction, in a
+  new `imported` store. A rerun after a crash now only frees the old keys, so
+  a scene deleted in between stays deleted. Moved batches are ordered after
+  the namespace's last row.
+- **Eviction.** After the first save that lands, silt asks
+  `navigator.storage.persist()`, but only when the permission is already
+  decided, so no prompt can show.
+- **Tests from mutation testing.** A double-click on save makes one scene, and
+  a contract test proves adoption is all or nothing, against both the fake and
+  IndexedDB.
+- **ADR 0102** now covers eviction, roll-forward-only rollback and a tab still
+  on the old build during a deploy.
+
+**2026-11-12, review round 2 (PR #206).**
+
+- **Adoption is per scene id.** A profile records every device id it has taken
+  in, and the `namespaces` store is gone. Scenes moved in after a profile
+  adopted, from a rollback or an old-build tab, now reach that profile, and
+  deletes stay deleted.
+- **The persistence request is removed.** It never fired in any of the three
+  engines. ADR 0102 now states plainly that Chromium may evict IndexedDB and
+  nothing is done about it.
+- **ADR 0102 corrected** on the move's loss window and the
+  crash-then-old-build-edit case.
+- **ADR 0094** notes silt's per-id departure.
