@@ -145,8 +145,8 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
   }
 }
 
-// The smallest phones (320px) need the header's padding and gaps tighter still to keep the player circle on the glass.
-@media (max-width: 359px) {
+// Phones under 375px (down to 320px) need the header tighter still to keep the player circle on the glass.
+@media (max-width: 374px) {
   .header {
     padding: 0 0.4rem;
   }

@@ -1,5 +1,6 @@
 import { expect } from '@playwright/experimental-ct-react'
 
+import { entryIndex } from './features/fieldNotes/entries.ts'
 import { SAND } from './sim/index.ts'
 import { readSiltKeys, sceneNames, setFamilyCookie } from './testing/familySession.ts'
 import { seedWitnessed } from './testing/fieldNotesSeed.ts'
@@ -203,3 +204,23 @@ for (const width of [390, 320]) {
     })
   })
 }
+
+test.describe('on a 360px phone', () => {
+  test.use({ viewport: { width: 360, height: 800 }, hasTouch: true, isMobile: true })
+
+  test('the widest header, a full chart and reset armed, still fits beside the circle', async ({
+    mountApp,
+    page,
+  }) => {
+    const first = await mountApp()
+    await first.root.verifyIsShown()
+    await seedWitnessed(page, entryIndex().witnessKeys)
+    const ada = await openAs(page, mountApp, ADA)
+    expect(await ada.fieldNotesCount()).toBe('54/54')
+    await ada.clickReset()
+
+    await ada.verifyPlayerEndsHeader('Ada')
+    await ada.verifyTitleClearOfControls()
+    await ada.verifyNoHorizontalPageOverflow()
+  })
+})

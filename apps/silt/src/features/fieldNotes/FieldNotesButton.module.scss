@@ -59,7 +59,7 @@ $mobile: '(pointer: coarse), (max-width: 700px)';
 }
 
 // Tighter on the smallest phones, as the header's other buttons are (../../pages/HomePage.module.scss).
-@media (max-width: 359px) {
+@media (max-width: 374px) {
   .button {
     gap: 0.3rem;
     padding: 0.35rem 0.3rem;
