@@ -104,6 +104,34 @@ end first, on fake stages, without opening the shop to visitors.
   message with `aria-describedby`, and each announcement is a fresh node so a
   repeat is heard.
 
+## The tap that mixes
+
+The tap that lifts the bottle is the tap that mixes it (E14, E15): the potion sets
+`flourishOnArrival`, so the close look flourishes as soon as the bottle lands, and
+every later tap flourishes again. Mixing is not a second button.
+
+The reveal is a timer in the shell, not a callback from the stage. `ShopView.closeUp.reveal`
+carries the seconds (`MIX_REVEAL_SECONDS`, and a short one for reduced motion, both in
+`mixBeats.ts`) and a `change(params)` that returns the param to set or null. `CloseUp` starts
+the timer on each flourish and restarts it on the next; when it fires, `change` is asked
+against the current params and its answer is dispatched as an ordinary `set`. Asking at the
+moment it fires is what makes a replay on a mixed potion, or a bottle with fewer than three
+in it, set nothing. The stage interface stays the wand's and the sword's, and the stage's
+own swirl (ticket 23) is only a picture that runs for the same time.
+
+Closing the close look before the timer fires (Put it back, Escape, a tap away) makes the
+change at once, so a potion is never left half-mixed by a quick exit. Unmounting only clears
+the timer.
+
+`CloseUp` carries a visually hidden polite live region that announces "{name}. {lore}" when the
+derived name changes while it is open, using the name as shown (a rename wins). Only a reveal
+changes the name there, so only a reveal speaks; the wand and the sword never do.
+
+E17 removes "Put the last one back" from the potion shop, since Empty the bottle is its only
+way back. The button is the shell's shared undo for Try another, so `ShopView.offersPutBack`
+(default true) hides it for the potion alone. The workbench still records `previous`; the wand
+shop and the smithy keep the button.
+
 ## Considered and rejected
 
 - **Opening the door now.** A visitor would find a shop with no real bottle and

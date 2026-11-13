@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode, RefObject } from 'react'
 
-import type { ParamDef, Params } from '../engine/schema.ts'
+import type { ParamDef, ParamValue, Params } from '../engine/schema.ts'
 import type { ItemDef, StoredItem } from '../items/item.ts'
 import type { ShopPath } from '../landing.ts'
 import type { CardContent } from '../share/shareCard.ts'
@@ -71,5 +71,13 @@ export interface ShopView {
     flashDelaySeconds: number | null
     /** Whether the item shows off as soon as it arrives, or waits for a tap. */
     flourishOnArrival: boolean
+    /** A change the item makes to itself a while after each flourish, or when the close look closes first. */
+    reveal?: {
+      seconds: number
+      reducedMotionSeconds: number
+      change: (p: Params) => { key: string; value: ParamValue } | null
+    }
   }
+  /** Whether "Put the last one back" is offered; the workbench records `previous` either way. */
+  offersPutBack?: boolean
 }

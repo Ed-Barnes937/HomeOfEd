@@ -102,7 +102,7 @@ apothecaryTest(
     await shelf.verifyItems('wand', ['The Smoky Spiral'])
     await shelf.verifyItems('sword', ['Pip'])
     await shelf.verifyItems('potion', ['Fizz'])
-    await shelf.verifyLabel('Fizz', 'Teardrop flask, three pours')
+    await shelf.verifyLabel('Fizz', 'Teardrop flask, three layers')
 
     await shelf.takeOut('Fizz')
     await root.verifyAt('/potions')
@@ -125,7 +125,7 @@ apothecaryTest(
 
     await root.keep()
     shelf = await root.openShelf()
-    await shelf.rename('Sparkling Starpetal Tonic', 'Old Faithful')
+    await shelf.rename('Moonmilk, Rosehip and Starpetal', 'Old Faithful')
     await shelf.verifyItems('potion', ['Old Faithful'])
     await shelf.remove('Old Faithful')
     await shelf.verifyItems('potion', [])
