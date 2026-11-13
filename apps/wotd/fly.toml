@@ -19,6 +19,8 @@ primary_region = 'lhr'
 
 [env]
   PORT = '8080'
+  # The estate gate (ADR 0093): removing this line turns it off.
+  FAMILY_ACCOUNT_URL = 'https://homeofed.com/account'
 
 [http_service]
   internal_port = 8080
