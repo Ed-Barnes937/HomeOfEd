@@ -6,17 +6,11 @@ import { BOX_CAMERA_LEAN, FOV, FRONT_CAMERA_PITCH } from './scene.tsx'
 
 const CAPTURE_WIDTH = 2000
 
-/**
- * Puts the camera above the box, or in front of it looking a little down, so `halfWidth` scene
- * units either side of the middle span its width.
- */
-export function Framing({
-  halfWidth,
-  view = 'above',
-}: {
-  halfWidth: number
-  view?: 'above' | 'front'
-}) {
+/** Where the box stage's camera looks from: above, or the front pitched down by `FRONT_CAMERA_PITCH`. */
+export type BoxView = 'above' | 'front'
+
+/** Puts the camera at its `view` of the box so `halfWidth` scene units either side of the middle span its width. */
+export function Framing({ halfWidth, view = 'above' }: { halfWidth: number; view?: BoxView }) {
   const { camera, size } = useThree()
   useLayoutEffect(() => {
     const aspect = size.width / size.height

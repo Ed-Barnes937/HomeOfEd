@@ -13,7 +13,7 @@ import {
 } from 'react'
 import * as THREE from 'three'
 
-import { Bridge } from './boxRig.tsx'
+import { Bridge, type BoxView } from './boxRig.tsx'
 import styles from './HeldRig.module.scss'
 import {
   dragUpright,
@@ -68,11 +68,8 @@ export interface HeldItem {
   flourish?: 'wave' | 'own'
   /** How long an `'own'` flourish lasts; an upright item is held upright for it. */
   flourishSeconds?: number
-  /**
-   * How the box stage looks at the item: from above (the default), or from the front pitched down by
-   * `FRONT_CAMERA_PITCH`, with the item stood up a quarter turn about z and rolled about y if upright.
-   */
-  boxView?: 'above' | 'front'
+  /** How the box stage frames the item, so the lift starts where it was drawn (ADR 0105). */
+  boxView?: BoxView
   /** The widest across, so an upright item fits the screen by its width as well as its height. */
   widthMm?: number
 }
@@ -223,7 +220,7 @@ function Rig({
     const waving = !own && isHeld && !reducedMotion && sinceWave < WAVE_SECONDS * item.flourishScale
     const wave = waving ? wavePose(sinceWave / item.flourishScale) : null
     streaking.current = wave?.trail ?? false
-    const upheld = own && upright ? uprightFlourishWeight(sinceWave, flourishSeconds) : 0
+    const flourishUpright = own && upright ? uprightFlourishWeight(sinceWave, flourishSeconds) : 0
     if (own ? !(sinceWave < flourishSeconds) : !waving) h.waveAt = null
 
     const e = easeInOut(f.t)
@@ -257,17 +254,17 @@ function Rig({
         g.position.add(v.grip).sub(v.moved)
       }
       const pose = h.upright
-      const shown = e * (1 - upheld)
-      if (upright && shown > 0 && (pose.lean !== 0 || pose.tip !== 0)) {
+      const poseWeight = e * (1 - flourishUpright)
+      if (upright && poseWeight > 0 && (pose.lean !== 0 || pose.tip !== 0)) {
         // Tip and lean in screen space, about the hand on the grip.
-        const length = item.lengthMm * MM * g.scale.x
+        const sceneLength = item.lengthMm * MM * g.scale.x
         v.grip
           .set(1, 0, 0)
           .applyQuaternion(g.quaternion)
-          .multiplyScalar((item.grip - 0.5) * length)
+          .multiplyScalar((item.grip - 0.5) * sceneLength)
         q.pose
-          .setFromAxisAngle(X, pose.tip * shown)
-          .premultiply(q.step.setFromAxisAngle(Z, -pose.lean * shown))
+          .setFromAxisAngle(X, pose.tip * poseWeight)
+          .premultiply(q.step.setFromAxisAngle(Z, -pose.lean * poseWeight))
         g.quaternion.premultiply(q.pose)
         v.moved.copy(v.grip).applyQuaternion(q.pose)
         g.position.add(v.grip).sub(v.moved)

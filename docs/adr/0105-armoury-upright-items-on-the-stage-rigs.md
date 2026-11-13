@@ -97,5 +97,6 @@ look can reuse the shots script's `--flourish` hold.
   and `Roller axis="y"`.
 - The hold's numbers (limits, softness, spring) live in `hold.ts`; their feel is judged on a real
   GPU at the potion's form gate, as the tests prove bounds and timing, never the feel.
-- `boxView: 'front'` assumes the box stage stands the item as described above; a box stage that
-  poses it otherwise breaks the handoff.
+- `boxView: 'front'` assumes the box stage stands the item as described above, centred on the
+  point the camera looks at; a box stage that poses it otherwise, or stands it off centre on a
+  base line, breaks the handoff until the rig is told where the item stood.
