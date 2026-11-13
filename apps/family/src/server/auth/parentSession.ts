@@ -19,14 +19,26 @@ export function parentSessionProvider(parentId: string): AuthProvider {
 /** The slice of Better Auth this bridge needs, so the module imports none of it. */
 export interface SessionResolver {
   api: {
-    getSession(opts: { headers: Headers }): Promise<{ user: { id: string } } | null>
+    getSession(opts: { headers: Headers; returnHeaders: true }): Promise<{
+      headers: Headers
+      response: { user: { id: string } } | null
+    }>
   }
 }
 
-export async function resolveParentId(
+export interface ResolvedParentSession {
+  parentId: string | null
+  /** The cookies Better Auth set while resolving: a slid session, or a cleared dead one. */
+  setCookies: string[]
+}
+
+export async function resolveParentSession(
   auth: SessionResolver,
   headers: Headers,
-): Promise<string | null> {
-  const session = await auth.api.getSession({ headers })
-  return session?.user.id ?? null
+): Promise<ResolvedParentSession> {
+  const resolved = await auth.api.getSession({ headers, returnHeaders: true })
+  return {
+    parentId: resolved.response?.user.id ?? null,
+    setCookies: resolved.headers.getSetCookie(),
+  }
 }

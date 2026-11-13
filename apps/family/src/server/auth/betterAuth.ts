@@ -8,6 +8,14 @@ import { APIError, createAuthMiddleware } from 'better-auth/api'
 
 import { account, session, user, verification, type FamilySchema } from '../schema.ts'
 
+const DAY_S = 24 * 60 * 60
+
+/**
+ * How long a parent stays signed in on a device after last using it, and how
+ * often use pushes that out again, in seconds (ADR 0070, 2026-11-12 amendment).
+ */
+export const PARENT_SESSION_LIFETIME = { expiresIn: 90 * DAY_S, updateAge: DAY_S } as const
+
 export interface CreateFamilyAuthOpts {
   /** This service's public origin; Better Auth derives its cookie rules from it. */
   baseURL: string
@@ -44,6 +52,7 @@ export function createFamilyAuth(db: DbClient<FamilySchema>, opts: CreateFamilyA
       schema: { user, session, account, verification },
     }),
     emailAndPassword: { enabled: true },
+    session: { ...PARENT_SESSION_LIFETIME },
     // Stated rather than inherited: Better Auth turns its origin check OFF by
     // default under NODE_ENV=test, so the one control in front of these routes
     // would be invisible to every test that tried to pin it.

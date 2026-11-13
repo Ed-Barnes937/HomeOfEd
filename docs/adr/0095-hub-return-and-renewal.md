@@ -1,7 +1,8 @@
 # 0095 - hub returns a visitor to the app that sent them, from the URL they arrived on
 
 - **Status:** Proposed (decision 6 departs from the ticket and is an open call for
-  Ed; so is decision 12, the parent session's lifetime, added by ticket 06)
+  Ed; decision 12, the parent session's lifetime, added by ticket 06, is answered
+  by [ADR 0070](0070-family-service.md)'s 2026-11-12 amendment)
 - **Date:** 2026-11-10
 - **Related:** [ADR 0081](0081-hub-account-ui.md) (the `/account` screens this
   extends), [ADR 0078](0078-family-identity-auth-boundary.md) (the identity
@@ -204,6 +205,13 @@ the same time, so in practice a parent there signs in roughly weekly. Fixing it
 
 Not checked here: whether Safari also caps this server-set, httpOnly cookie in
 some deployments; Safari's documented cap is on script-written cookies.
+
+**Answered 2026-11-12 (estate-gate ticket 22):** the parent session now lasts 90
+days and slides, and its refreshed cookie reaches the browser on tRPC replies;
+see [ADR 0070](0070-family-service.md)'s amendment of that date, which also
+records the lost-device cost. Silent renewal therefore keeps working for as long
+as the device is used at least once every 90 days. The Safari question stays
+open there.
 
 ## Consequences
 

@@ -28,9 +28,10 @@ const SESSION_COOKIE = 'family_session=good'
 const fakeAuth: SessionResolver = {
   api: {
     getSession: ({ headers }) =>
-      Promise.resolve(
-        headers.get('cookie') === SESSION_COOKIE ? { user: { id: 'parent-1' } } : null,
-      ),
+      Promise.resolve({
+        headers: new Headers(),
+        response: headers.get('cookie') === SESSION_COOKIE ? { user: { id: 'parent-1' } } : null,
+      }),
   },
 }
 
