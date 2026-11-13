@@ -3,7 +3,15 @@
 
 import type { MeshPart, Vec3 } from '../sword/sweep.ts'
 import type { PotionSpec } from './compile.ts'
-import { bottleProfile, type BottleProfile, FIT_MM, type ProfilePoint } from './profile.ts'
+import {
+  bottleProfile,
+  type BottleProfile,
+  FIT_MM,
+  type ProfilePoint,
+  tagLoopZ,
+  type WaxDip,
+  waxRun,
+} from './profile.ts'
 
 /** Each part's `aHeight` is a vertex's height along the bottle's own axis, z in mm. */
 export interface PotionMesh {
@@ -18,39 +26,56 @@ export const FRONT_ANGLE = -Math.PI / 2
 
 const SEGMENTS = 64
 const STOPPER_SEGMENTS = 40
-const PAPER_BACK_MM = 0.3
-const PAPER_FRONT_MM = 0.42
+const PAPER_BACK_MM = 0.1
+const PAPER_FRONT_MM = 0.2
 const PAPER_GRID_MM = 2
-const ROUND_SHARE = 0.32
-const ROUND_MAX_TURN = (100 * Math.PI) / 180
-const BANNER_TURN = (140 * Math.PI) / 180
-const BANNER_HALF_HEIGHT = 11
+/**
+ * The round label's width seen from the front: at most this share of the body's width, and of
+ * the body's height across, so it never covers a round flask's middle pours.
+ */
+const ROUND_SHARE = 0.6
+const ROUND_HEIGHT_SHARE = 0.32
+const BANNER_TURN = (120 * Math.PI) / 180
+const BANNER_HALF_HEIGHT = 9
 const BANNER_NOTCH = 5
 const CARD_HALF_WIDTH = 13
 const CARD_HALF_HEIGHT = 9
 const CARD_HOLE_V = 6
+/** The card's top corners are clipped this far, like a luggage tag's. */
+const CARD_CLIP_MM = 4
+const CARD_ROLL = (10 * Math.PI) / 180
+/** The card's top hangs this many neck diameters below the string's loop. */
+const CARD_DROP = 0.75
 const CARD_HALF_THICK = 0.2
 const CARD_MAX_GAP_MM = 30
-const STRING_R = 0.5
+const STRING_R = 0.4
 const STRING_SIDES = 8
-const STRING_STEP = 2
-const DRIP_R = 1.15
-const DRIP_FLAT = 0.7
-/** How much fatter a drip is low down than high up. */
-const DRIP_BULB = 0.35
-/** A drip's widest radius over DRIP_R, for DRIP_BULB 0.35. */
-const DRIP_WIDEST = 1.06
-/** Drips stop this far above the shoulder, or further when a tag's string loops the neck. */
-const DRIP_CLEAR_MM = 1
-const DRIP_CLEAR_TAG_MM = 4.5
-const DRIPS: [angle: number, length: number][] = [
-  [0.25, 6],
-  [1.35, 2.6],
-  [2.35, 7.5],
-  [3.6, 3.4],
-  [4.55, 5.2],
-  [5.55, 2.2],
+const STRING_STEP = 1.5
+/** The radius of the U the string makes through the card's hole. */
+const STRING_U_MM = 2
+/** How far round from the front each strand leaves the loop. */
+const STRING_OPEN = 0.6
+/** Each run of wax: its angle round from the front, and its length below the hem in ring diameters. */
+const WAX_RUNS: [angle: number, length: number][] = [
+  [-0.55, 0.6],
+  [0.3, 1],
+  [1.75, 0.3],
+  [3.6, 0.42],
 ]
+/** A run's half width where it leaves the hem and down its stem, and its bead's radius, in ring diameters. */
+const RUN_ROOT = 0.1
+const RUN_WIDTH = 0.06
+const RUN_BEAD = 0.08
+/** How far a run stands off the glass over its half width, and how flat its back lies. */
+const RUN_FLAT = 0.45
+const RUN_BACK = 0.2
+/** How far up into the coat a run's top is buried. */
+const RUN_ROOT_MM = 2
+const RUN_SIDES = 12
+/** The wax's top tilts by up to about this much. */
+const WAX_TILT_MM = 0.35
+/** And its lumps rise and fall by about this much at the cork's edge. */
+const WAX_LUMP_MM = 0.12
 
 class Builder {
   private positions: number[] = []
@@ -144,48 +169,42 @@ function lathePart(curves: ProfilePoint[][], segments: number): Builder {
   return b
 }
 
-/** A flattened drop of wax, fatter at its foot, hanging down the neck from inside the roll. */
-function drip(b: Builder, angle: number, top: number, length: number, neckR: number): void {
-  const half = length / 2
-  const centre = top - half
-  const steps = 12
-  const curve: ProfilePoint[] = Array.from({ length: steps + 1 }, (_, k) => {
-    const phi = -Math.PI / 2 + (Math.PI * k) / steps
-    const [c, s] = [Math.cos(phi), Math.sin(phi)]
-    const dr = DRIP_R * (-s * (1 - DRIP_BULB * s) - DRIP_BULB * c * c)
-    const dz = half * c
-    const len = Math.hypot(dr, dz)
-    return {
-      r: DRIP_R * c * (1 - DRIP_BULB * s),
-      z: centre + half * s,
-      nr: dz / len,
-      nz: -dr / len,
-    }
-  })
-  curve[0]!.r = 0
-  curve[steps]!.r = 0
+/**
+ * A run lying on the neck at `angle`: its lathe flattened against the glass, its back resting on
+ * the neck at radius `back` and its front standing out RUN_FLAT of its half width.
+ */
+function runPlace(angle: number, back: number): Place {
   const out: Vec3 = [Math.cos(angle), Math.sin(angle), 0]
   const side: Vec3 = [-Math.sin(angle), Math.cos(angle), 0]
-  const seat = neckR + FIT_MM + DRIP_FLAT * DRIP_R * DRIP_WIDEST + 0.05
-  revolve(b, curve, 12, (r, z, nr, nz, psi) => {
+  return (r, z, nr, nz, psi) => {
     const c = Math.cos(psi)
     const s = Math.sin(psi)
-    const x = seat + r * DRIP_FLAT * c
+    const [q, dq] = c >= 0 ? [c + RUN_BACK, -s] : [RUN_BACK * (1 + c), -RUN_BACK * s]
+    const x = back + RUN_FLAT * r * q
     const y = r * s
-    const nx = (nr * c) / DRIP_FLAT
-    const ny = nr * s
+    // A tip is a crease where the flat back meets the round end: lean its normal off the back.
+    const n = unit(
+      r > 0
+        ? [c * nr, -RUN_FLAT * dq * nr, RUN_FLAT * nz * (q * c - dq * s)]
+        : [Math.min(0, c), 0, Math.sign(nz)],
+    )
     return [
       [x * out[0] + y * side[0], x * out[1] + y * side[1], z],
-      unit([nx * out[0] + ny * side[0], nx * out[1] + ny * side[1], nz]),
+      [n[0] * out[0] + n[1] * side[0], n[0] * out[1] + n[1] * side[1], n[2]],
     ]
-  })
+  }
 }
 
-/** How far the wax's dipped edge sits above its mean, by angle round the neck, and its slope. */
-const wander = (a: number) =>
-  0.7 * Math.sin(a + 0.6) + 0.35 * Math.sin(2 * a + 2.1) + 0.15 * Math.sin(3 * a + 0.4)
+/** The hem's wander round the neck, about its mean and within 1.05 either way, and its slope. */
+const WANDER: [amplitude: number, frequency: number, phase: number][] = [
+  [0.35, 1, 1.84],
+  [0.3, 2, 2.75],
+  [0.25, 3, 4.75],
+  [0.15, 5, 4.96],
+]
+const wander = (a: number) => WANDER.reduce((s, [m, k, p]) => s + m * Math.sin(k * a + p), 0)
 const wanderSlope = (a: number) =>
-  0.7 * Math.cos(a + 0.6) + 0.7 * Math.cos(2 * a + 2.1) + 0.45 * Math.cos(3 * a + 0.4)
+  WANDER.reduce((s, [m, k, p]) => s + m * k * Math.cos(k * a + p), 0)
 
 /** 0 below z0 rising smoothly to 1 above z1, and its slope. */
 function smoothstep(z: number, z0: number, z1: number): [value: number, slope: number] {
@@ -194,43 +213,59 @@ function smoothstep(z: number, z0: number, z1: number): [value: number, slope: n
 }
 
 /**
- * The wax's lathe lifted unevenly: the dome tilts and the dipped edge wanders round the neck.
- * A lift f along z turns a normal n into n - grad f * n.z / (1 + df/dz).
+ * The wax's lathe lifted unevenly: the top over the cork tilts and is lumpy, and the hem wanders
+ * round the neck. A lift f along z turns a normal n into n - grad f * n.z / (1 + df/dz).
  */
-function waxPlace(profile: BottleProfile, rollZ: number): Place {
+function waxPlace(profile: BottleProfile, { hemZ, wanderMm }: WaxDip): Place {
   const { lipZ, neckTopZ } = profile
-  const reach = profile.neckR + (lipZ - neckTopZ) / 2
+  const reach = profile.stopperSeat.r
+  const t = WAX_TILT_MM
+  const l = WAX_LUMP_MM
   return (r, z, nr, nz, angle) => {
     const [p, n] = lathe(r, z, nr, nz, angle)
     const u = p[0] / reach
     const v = p[1] / reach
-    const [dome, domeSlope] = smoothstep(z, lipZ + 1, lipZ + 5)
-    const [above, aboveSlope] = smoothstep(z, rollZ, neckTopZ - 0.2)
-    const h = 0.7 + 0.55 * u - 0.3 * v + 0.3 * u * v
-    const edge = r > 0 ? (wanderSlope(angle) * (1 - above)) / r : 0
-    const gx = ((0.55 + 0.3 * v) / reach) * dome - Math.sin(angle) * edge
-    const gy = ((-0.3 + 0.3 * u) / reach) * dome + Math.cos(angle) * edge
-    const gz = h * domeSlope - wander(angle) * aboveSlope
+    const [top, topSlope] = smoothstep(z, lipZ + 0.6, lipZ + 1.8)
+    const [above, aboveSlope] = smoothstep(z, hemZ, neckTopZ - 0.2)
+    // A tilt, and three lumps round the top: 0.8 sin 3a + 0.6 cos 3a, growing as r cubed.
+    const lumps = 0.8 * (3 * u * u * v - v ** 3) + 0.6 * (u ** 3 - 3 * u * v * v)
+    const h = t * (0.55 + 0.4 * u - 0.25 * v + 0.2 * u * v) + l * lumps
+    const hu = t * (0.4 + 0.2 * v) + l * (0.8 * 6 * u * v + 0.6 * 3 * (u * u - v * v))
+    const hv = t * (-0.25 + 0.2 * u) + l * (0.8 * 3 * (u * u - v * v) - 0.6 * 6 * u * v)
+    const w = wanderMm * wander(angle)
+    const edge = r > 0 ? (wanderMm * wanderSlope(angle) * (1 - above)) / r : 0
+    const gx = (hu / reach) * top - Math.sin(angle) * edge
+    const gy = (hv / reach) * top + Math.cos(angle) * edge
+    const gz = h * topSlope - w * aboveSlope
     const k = n[2] / (1 + gz)
     return [
-      [p[0], p[1], p[2] + h * dome + wander(angle) * (1 - above)],
+      [p[0], p[1], p[2] + h * top + w * (1 - above)],
       unit([n[0] - gx * k, n[1] - gy * k, n[2] - gz * k]),
     ]
   }
 }
 
-function stopperPart(spec: PotionSpec, profile: BottleProfile): MeshPart {
-  const rollZ = profile.waxRollZ
-  if (rollZ === null) return lathePart(profile.stopper, STOPPER_SEGMENTS).part()
-  const [cork, wax] = profile.stopper as [ProfilePoint[], ProfilePoint[]]
+function stopperPart(profile: BottleProfile): MeshPart {
+  const { wax } = profile
+  if (!wax) return lathePart(profile.stopper, STOPPER_SEGMENTS).part()
+  const [cork, coat] = profile.stopper as [ProfilePoint[], ProfilePoint[]]
   const b = lathePart([cork], STOPPER_SEGMENTS)
-  revolve(b, wax, STOPPER_SEGMENTS, waxPlace(profile, rollZ))
-  const longest = Math.max(...DRIPS.map(([, length]) => length))
-  for (const [angle, length] of DRIPS) {
-    const top = rollZ + wander(FRONT_ANGLE + angle)
-    const clear = spec.label === 'tag' ? DRIP_CLEAR_TAG_MM : DRIP_CLEAR_MM
-    const room = top - profile.shoulderZ - clear
-    drip(b, FRONT_ANGLE + angle, top, length * Math.min(1, room / longest), profile.neckR)
+  revolve(b, coat, STOPPER_SEGMENTS, waxPlace(profile, wax))
+  const ring = wax.ringMm
+  const hemAt = (angle: number) => wax.hemZ + wax.wanderMm * wander(angle)
+  // One scale for every run, so on a short neck they keep their different lengths.
+  const scale = Math.min(
+    1,
+    ...WAX_RUNS.map(([a, length]) => (hemAt(FRONT_ANGLE + a) - wax.floorZ) / (length * ring)),
+  )
+  for (const [a, length] of WAX_RUNS) {
+    const angle = FRONT_ANGLE + a
+    const hem = hemAt(angle)
+    const long = length * ring * scale
+    const bead = Math.min(RUN_BEAD * ring, long / 2.6)
+    const k = bead / RUN_BEAD
+    const run = waxRun(hem + RUN_ROOT_MM, hem - long, RUN_ROOT * k, RUN_WIDTH * k, bead)
+    revolve(b, run, RUN_SIDES, runPlace(angle, profile.neckR + FIT_MM + 0.05))
   }
   return b.part()
 }
@@ -384,8 +419,8 @@ function roundLabel(b: Builder, profile: BottleProfile): void {
   const s0 = surface.sOf(labelCentre(profile))
   const r0 = surface.at(s0).r
   const across = Math.min(
-    ROUND_SHARE * profile.shoulderZ,
-    r0 * ROUND_MAX_TURN,
+    2 * r0 * Math.asin(ROUND_SHARE),
+    ROUND_HEIGHT_SHARE * profile.shoulderZ,
     2 * reach(surface, s0),
   )
   const rho = across / 2
@@ -416,107 +451,189 @@ function bannerLabel(b: Builder, profile: BottleProfile): void {
   )
 }
 
-function tagLabel(b: Builder, profile: BottleProfile): void {
+export interface TagLayout {
+  /** Where the string loops round the neck. */
+  loopZ: number
+  /** A point on the card u, v mm from its middle, d off its mid-plane along its face's normal. */
+  card: (u: number, v: number, d: number) => Vec3
+  normal: Vec3
+  /** The string's closed centreline, smoothed. */
+  string: Vec3[]
+}
+
+/** The card's half width at height v: its top corners clipped. */
+const cardHalfWidth = (v: number) =>
+  CARD_HALF_WIDTH - Math.max(0, v - (CARD_HALF_HEIGHT - CARD_CLIP_MM))
+
+const plus = (...vs: Vec3[]): Vec3 => [
+  vs.reduce((s, v) => s + v[0], 0),
+  vs.reduce((s, v) => s + v[1], 0),
+  vs.reduce((s, v) => s + v[2], 0),
+]
+const times = (v: Vec3, k: number): Vec3 => [v[0] * k, v[1] * k, v[2] * k]
+
+/**
+ * A card on a string: the string loops round the neck, runs down over the glass and through
+ * the card's hole in a U; the card hangs from the hole, rolled a little, resting on the glass.
+ */
+export function tagLayout(profile: BottleProfile): TagLayout {
   const { neckR, shoulderZ } = profile
-  const loopZ = shoulderZ + Math.min(3, (profile.neckTopZ - shoulderZ) / 2)
-  const holeZ = shoulderZ - 6
+  const loopZ = tagLoopZ(shoulderZ, profile.neckTopZ)
+  const holeZ = loopZ - CARD_DROP * 2 * neckR - (CARD_HALF_HEIGHT - CARD_HOLE_V)
   const right: Vec3 = [1, 0, 0]
   const onFace = STRING_R + CARD_HALF_THICK + 0.05
-  // The card hangs in a U of string that runs down across its face through the hole.
-  const threads = (hole: Vec3, normal: Vec3): Vec3[] =>
-    [
-      [-4, 0],
-      [0, -1.5],
-      [4, 0],
-    ].map(([x, dz]) => [
-      hole[0] + x!,
-      hole[1] + normal[1] * onFace,
-      hole[2] + dz! + normal[2] * onFace,
-    ])
+  const cardAt = (hole: Vec3, up: Vec3, normal: Vec3) => {
+    const across = plus(times(right, Math.cos(CARD_ROLL)), times(up, Math.sin(CARD_ROLL)))
+    const along = plus(times(right, -Math.sin(CARD_ROLL)), times(up, Math.cos(CARD_ROLL)))
+    return (u: number, v: number, d: number) =>
+      plus(hole, times(across, u), times(along, v - CARD_HOLE_V), times(normal, d))
+  }
+  // The string on the card's face, hanging straight whatever the card's roll.
+  const onCard = (hole: Vec3, up: Vec3, normal: Vec3) => (x: number, w: number) =>
+    plus(hole, times(right, x), times(up, w), times(normal, onFace))
+  const throughHole = (at: (x: number, w: number) => Vec3) =>
+    Array.from({ length: 13 }, (_, k) => {
+      const phi = Math.PI + (k * Math.PI) / 12
+      return at(STRING_U_MM * Math.cos(phi), STRING_U_MM * (1 + Math.sin(phi)))
+    })
   const stringClears = (p: Vec3) => {
     let r = 0
     for (let dz = -1; dz <= 1; dz += 0.25) r = Math.max(r, profile.outerR(p[2] + dz))
     return Math.hypot(p[0], p[1]) >= r + STRING_R + 0.4
   }
-  let gap = 2.5
-  let card: { hole: Vec3; down: Vec3; normal: Vec3 } | null = null
-  while (!card) {
+  let gap = 0.5
+  let found: { hole: Vec3; up: Vec3; normal: Vec3 } | null = null
+  while (!found) {
     if (gap > CARD_MAX_GAP_MM) throw new Error('geometry: the tag finds nowhere to hang')
     const hole: Vec3 = [0, -(profile.outerR(holeZ) + gap), holeZ]
-    for (let deg = 0; deg <= 85 && !card; deg++) {
+    for (let deg = 0; deg <= 85 && !found; deg++) {
       const a = (deg * Math.PI) / 180
-      const down: Vec3 = [0, -Math.sin(a), -Math.cos(a)]
+      const up: Vec3 = [0, Math.sin(a), Math.cos(a)]
       const normal: Vec3 = [0, -Math.cos(a), Math.sin(a)]
       const clear =
-        cardClears(profile, hole, down, normal) && threads(hole, normal).every(stringClears)
-      if (clear) card = { hole, down, normal }
+        cardClears(profile, cardAt(hole, up, normal)) &&
+        throughHole(onCard(hole, up, normal)).every(stringClears)
+      if (clear) found = { hole, up, normal }
     }
-    gap += 0.5
+    gap += 0.25
   }
-  const { hole, down, normal } = card
-  const place: SheetPlace = (u, v, d) => [
-    [
-      hole[0] + u * right[0] + (CARD_HOLE_V - v) * down[0] + d * normal[0],
-      hole[1] + u * right[1] + (CARD_HOLE_V - v) * down[1] + d * normal[1],
-      hole[2] + u * right[2] + (CARD_HOLE_V - v) * down[2] + d * normal[2],
-    ],
-    normal,
+  const { hole, up, normal } = found
+  const card = cardAt(hole, up, normal)
+  const face = onCard(hole, up, normal)
+  const lift = CARD_HALF_HEIGHT - CARD_HOLE_V + 0.5
+
+  // The nearest the string's centre comes to the glass: every point of the profile `hug` away.
+  const hug = STRING_R + 0.8
+  const clearR = (z: number) => {
+    let r = 0
+    for (let k = -12; k <= 12; k++) {
+      const dz = (k * hug) / 12
+      r = Math.max(r, profile.outerR(z + dz) + Math.sqrt(hug * hug - dz * dz))
+    }
+    return r
+  }
+  const loopR = clearR(loopZ)
+  const loop: Vec3[] = []
+  for (
+    let a = FRONT_ANGLE + STRING_OPEN;
+    a < FRONT_ANGLE + 2 * Math.PI - STRING_OPEN;
+    a += STRING_STEP / loopR
+  )
+    loop.push([loopR * Math.cos(a), loopR * Math.sin(a), loopZ])
+  // Each strand runs from the loop to the card's top, eased round the neck so it leaves the loop
+  // sideways and meets the card hanging straight down, its radius pulled taut over the glass.
+  const strand = (from: number, x: number): Vec3[] => {
+    const end = face(x, lift)
+    const to = Math.atan2(end[1], end[0])
+    const turn = Math.atan2(Math.sin(to - from), Math.cos(to - from))
+    const zs: number[] = []
+    for (let z = loopZ; z > end[2]; z -= 0.4) zs.push(z)
+    const rs = taut([
+      ...zs.map((z): [number, number] => [clearR(z), z]),
+      [Math.hypot(end[0], end[1]), end[2]],
+    ])
+    return zs.slice(1).map((z, k) => {
+      const f = (loopZ - z) / (loopZ - end[2])
+      const a = from + turn * (1 - (1 - f) ** 3)
+      return [rs[k + 1]! * Math.cos(a), rs[k + 1]! * Math.sin(a), z]
+    })
+  }
+  const u = throughHole(face)
+  const down = strand(FRONT_ANGLE - STRING_OPEN, -STRING_U_MM)
+  const back = strand(FRONT_ANGLE + STRING_OPEN, STRING_U_MM).reverse()
+  const path = [
+    ...loop,
+    ...down,
+    ...segment(down.at(-1)!, face(-STRING_U_MM, lift)),
+    ...segment(face(-STRING_U_MM, lift), u[0]!),
+    ...u.slice(1),
+    ...segment(u.at(-1)!, face(STRING_U_MM, lift)),
+    ...segment(face(STRING_U_MM, lift), back[0]!),
+    ...back.slice(1),
   ]
+  return { loopZ, card, normal, string: relax(spaced(chaikin(chaikin(chaikin(path)))), 12) }
+}
+
+/** A closed path eased toward its neighbours' midpoints, rounding what is left of any bend. */
+function relax(path: Vec3[], rounds: number): Vec3[] {
+  let out = path
+  for (let k = 0; k < rounds; k++)
+    out = out.map((p, i) => {
+      const a = out[(i - 1 + out.length) % out.length]!
+      const b = out[(i + 1) % out.length]!
+      return [
+        0.5 * p[0] + 0.25 * (a[0] + b[0]),
+        0.5 * p[1] + 0.25 * (a[1] + b[1]),
+        0.5 * p[2] + 0.25 * (a[2] + b[2]),
+      ]
+    })
+  return out
+}
+
+/**
+ * A string's radius down a falling run of (radius, height) points, pulled taut: it keeps the
+ * outside of their hull, so it bridges a hollow, such as where a neck meets a shoulder.
+ */
+function taut(rz: [number, number][]): number[] {
+  const hull: number[] = []
+  for (let i = 0; i < rz.length; i++) {
+    while (hull.length >= 2) {
+      const [a, b] = [rz[hull.at(-2)!]!, rz[hull.at(-1)!]!]
+      const c = rz[i]!
+      if ((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]) <= 0) break
+      hull.pop()
+    }
+    hull.push(i)
+  }
+  return rz.map(([r, z], i) => {
+    const k = hull.findIndex((h) => h >= i)
+    if (hull[k] === i) return r
+    const [a, b] = [rz[hull[k - 1]!]!, rz[hull[k]!]!]
+    return a[0] + ((b[0] - a[0]) * (z - a[1])) / (b[1] - a[1])
+  })
+}
+
+function tagLabel(b: Builder, profile: BottleProfile): void {
+  const { card, normal, string } = tagLayout(profile)
   sheet(
     b,
-    place,
-    (a, c) => [a * CARD_HALF_WIDTH, c * CARD_HALF_HEIGHT],
+    (u, v, d) => [card(u, v, d), normal],
+    (a, c) => {
+      const v = c * CARD_HALF_HEIGHT
+      return [a * cardHalfWidth(v), v]
+    },
     gridCount(2 * CARD_HALF_WIDTH),
     gridCount(2 * CARD_HALF_HEIGHT),
     -CARD_HALF_THICK,
     CARD_HALF_THICK,
   )
-  const surface = bodySurface(profile, loopZ)
-  const hug = STRING_R + 0.8
-  const lay = (s: number, angle: number): Vec3 => {
-    const p = surface.at(s)
-    const r = p.r + hug * p.nr
-    return [r * Math.cos(angle), r * Math.sin(angle), p.z + hug * p.nz]
-  }
-  const sLoop = surface.sOf(loopZ)
-  const sFree = surface.sOf(holeZ) + 5
-  const open = 0.9
-  const off = 4 / profile.outerR(holeZ)
-  const loop: Vec3[] = []
-  for (
-    let a = FRONT_ANGLE + open;
-    a <= FRONT_ANGLE + 2 * Math.PI - open;
-    a += STRING_STEP / neckR
-  ) {
-    loop.push(lay(sLoop, a))
-  }
-  const steps = Math.max(2, Math.ceil((sLoop - sFree) / STRING_STEP))
-  const descent = (from: number, to: number) =>
-    Array.from({ length: steps }, (_, k) => {
-      const f = (k + 1) / steps
-      return lay(sLoop + (sFree - sLoop) * f, from + (to - from) * f)
-    })
-  const [left, bottom, rightEnd] = threads(hole, normal) as [Vec3, Vec3, Vec3]
-  const path = [
-    ...loop,
-    ...descent(FRONT_ANGLE + 2 * Math.PI - open, FRONT_ANGLE + 2 * Math.PI - off),
-    ...segment(lay(sFree, FRONT_ANGLE - off), left),
-    ...segment(left, bottom),
-    ...segment(bottom, rightEnd),
-    ...segment(rightEnd, lay(sFree, FRONT_ANGLE + off)),
-    ...descent(FRONT_ANGLE + open, FRONT_ANGLE + off)
-      .reverse()
-      .slice(1),
-  ]
-  tube(b, spaced(chaikin(chaikin(chaikin(path)))))
+  tube(b, string)
 }
 
-function cardClears(profile: BottleProfile, hole: Vec3, down: Vec3, normal: Vec3): boolean {
-  for (let u = -CARD_HALF_WIDTH; u <= CARD_HALF_WIDTH; u += 1)
-    for (let w = CARD_HOLE_V - CARD_HALF_HEIGHT; w <= CARD_HOLE_V + CARD_HALF_HEIGHT; w += 0.5) {
-      const x = hole[0] + u + w * down[0] - CARD_HALF_THICK * normal[0]
-      const y = hole[1] + w * down[1] - CARD_HALF_THICK * normal[1]
-      const z = hole[2] + w * down[2] - CARD_HALF_THICK * normal[2]
+function cardClears(profile: BottleProfile, card: TagLayout['card']): boolean {
+  for (let v = -CARD_HALF_HEIGHT; v <= CARD_HALF_HEIGHT; v += 0.5)
+    for (let u = -cardHalfWidth(v); u <= cardHalfWidth(v); u += 1) {
+      const [x, y, z] = card(u, v, -CARD_HALF_THICK)
       if (z < 0 || z > profile.lipZ) continue
       if (Math.hypot(x, y) < profile.outerR(z) + 0.2) return false
     }
@@ -532,12 +649,12 @@ function segment(a: Vec3, b: Vec3): Vec3[] {
   })
 }
 
-/** A closed path with points closer than half a step to the last one kept dropped. */
+/** A closed path with points closer than 0.3 mm to the last one kept dropped. */
 function spaced(path: Vec3[]): Vec3[] {
   const out = [path[0]!]
   for (const p of path.slice(1)) {
     const q = out.at(-1)!
-    if (Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) >= 0.4) out.push(p)
+    if (Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) >= 0.3) out.push(p)
   }
   return out
 }
@@ -624,7 +741,7 @@ export function buildPotionMesh(spec: PotionSpec): PotionMesh {
   return {
     glass: lathePart([profile.glass], SEGMENTS).part(),
     liquid: lathePart([profile.liquid], SEGMENTS).part(),
-    stopper: stopperPart(spec, profile),
+    stopper: stopperPart(profile),
     label: labelPart(spec, profile),
   }
 }

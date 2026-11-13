@@ -4,7 +4,7 @@ import { normalise } from '../engine/schema.ts'
 import { inwardNormals, type MeshPart, openEdges, signedVolume } from '../sword/sweep.ts'
 import { BOTTLES, type ShapeId } from './bottles.ts'
 import { compilePotion, type PotionSpec } from './compile.ts'
-import { buildPotionMesh, type PotionMesh } from './geometry.ts'
+import { buildPotionMesh, FRONT_ANGLE, type PotionMesh, tagLayout } from './geometry.ts'
 import type { IngredientId } from './ingredients.ts'
 import type { LabelId, StopperId } from './potionSchema.ts'
 import { potionSchema } from './potionSchema.ts'
@@ -41,12 +41,13 @@ function entry(
   }
 }
 
-// The heaviest of all 1,260 combinations, necks in 0.05 steps: the most glass and in total,
-// the most liquid, the most stopper and label.
+// The heaviest of all 1,260 combinations, necks in 0.05 steps: the most in total, the most
+// glass, the most liquid, the most stopper and label.
 const HEAVIEST: Entry[] = [
-  entry('gourd', 1, 'wax', 'round'),
+  entry('gourd', 1, 'wax', 'tag'),
+  entry('gourd', 1, 'cork', 'none'),
   entry('gourd', 0.9, 'cork', 'none'),
-  entry('round', 0.05, 'wax', 'tag'),
+  entry('round', 0.9, 'wax', 'tag'),
 ]
 
 // Every shape at every neck with every label, the stoppers cycled; the teardrop with each
@@ -61,6 +62,11 @@ const CATALOGUE: Entry[] = [
   ...STOPPERS.map((stopper) => entry('teardrop', 0.5, stopper, 'none')),
   entry('round', 0, 'wax', 'round', []),
   entry('gourd', 1, 'glass', 'banner', ['bogmurk']),
+  entry('teardrop', 0.4, 'wax', 'round'),
+  entry('round', 0.1, 'wax', 'banner'),
+  entry('tall', 0, 'wax', 'tag'),
+  entry('shoulder', 1, 'wax', 'tag'),
+  entry('gourd', 1, 'wax', 'banner'),
 ]
 
 const partsOf = (mesh: PotionMesh) =>
@@ -79,8 +85,8 @@ function sampled(part: MeshPart, count = 200): [number, number, number][] {
   return out
 }
 
-/** The signed volume of each piece of a part, pieces joined where triangles share a position. */
-function pieceVolumes(part: MeshPart): number[] {
+/** Each vertex's piece, pieces joined where triangles share a position. */
+function pieceOf(part: MeshPart): (vertex: number) => number {
   const { positions: p, indices } = part
   const ids = new Map<string, number>()
   const weld = Int32Array.from({ length: p.length / 3 }, (_, i) => {
@@ -98,6 +104,13 @@ function pieceVolumes(part: MeshPart): number[] {
     parent[root(weld[indices[t + 1]!]!)] = a
     parent[root(weld[indices[t + 2]!]!)] = a
   }
+  return (vertex) => root(weld[vertex]!)
+}
+
+/** The signed volume of each piece of a part. */
+function pieceVolumes(part: MeshPart): number[] {
+  const { positions: p, indices } = part
+  const piece = pieceOf(part)
   const volumes = new Map<number, number>()
   for (let t = 0; t < indices.length; t += 3) {
     const a = indices[t]! * 3
@@ -107,11 +120,41 @@ function pieceVolumes(part: MeshPart): number[] {
       p[a]! * (p[b + 1]! * p[c + 2]! - p[b + 2]! * p[c + 1]!) -
       p[a + 1]! * (p[b]! * p[c + 2]! - p[b + 2]! * p[c]!) +
       p[a + 2]! * (p[b]! * p[c + 1]! - p[b + 1]! * p[c]!)
-    const piece = root(weld[indices[t]!]!)
-    volumes.set(piece, (volumes.get(piece) ?? 0) + det / 6)
+    const id = piece(indices[t]!)
+    volumes.set(id, (volumes.get(id) ?? 0) + det / 6)
   }
   return [...volumes.values()]
 }
+
+type Vec = [number, number, number]
+
+/** The vertices of each piece of a part that triangles use. */
+function pieces(part: MeshPart): Vec[][] {
+  const piece = pieceOf(part)
+  const out = new Map<number, Vec[]>()
+  for (const i of new Set(part.indices)) {
+    const id = piece(i)
+    if (!out.has(id)) out.set(id, [])
+    out
+      .get(id)!
+      .push([part.positions[i * 3]!, part.positions[i * 3 + 1]!, part.positions[i * 3 + 2]!])
+  }
+  return [...out.values()]
+}
+
+/** A wax seal's cork, its coat and its runs. */
+function waxPieces(e: Entry): { coat: Vec[]; runs: Vec[][] } {
+  const all = pieces(e.mesh.stopper)
+  const low = (p: Vec[]) => Math.min(...p.map(([, , z]) => z))
+  const high = (p: Vec[]) => Math.max(...p.map(([, , z]) => z))
+  const cork = all.find((p) => Math.abs(low(p) - e.profile.cavityTopZ) < 1e-3)!
+  const coat = all.reduce((a, b) => (high(b) > high(a) ? b : a))
+  return { coat, runs: all.filter((p) => p !== cork && p !== coat) }
+}
+
+const angleOf = ([x, y]: Vec) => Math.atan2(y, x)
+/** The angle from a to b, -PI to PI. */
+const turnBetween = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b - a))
 
 function distanceToOuter(profile: BottleProfile, r: number, z: number): number {
   let best = Infinity
@@ -186,16 +229,40 @@ describe('buildPotionMesh', () => {
   )
 
   it.each(CATALOGUE.filter((e) => e.spec.label === 'round' || e.spec.label === 'banner'))(
-    '$name: the label sits 0.2-0.5 mm outside the glass, facing the front',
+    '$name: the label is paper 0.1 mm off the glass, facing the front',
     ({ mesh, profile }) => {
       const label = mesh.label!
       for (const [x, y, z] of sampled(label)) {
         const d = distanceToOuter(profile, Math.hypot(x, y), z)
         expect(Math.hypot(x, y)).toBeGreaterThan(profile.outerR(z))
-        expect(d).toBeGreaterThanOrEqual(0.2)
-        expect(d).toBeLessThanOrEqual(0.5)
+        expect(d).toBeGreaterThanOrEqual(0.08)
+        expect(d).toBeLessThanOrEqual(0.22)
         expect(y).toBeLessThan(0)
       }
+    },
+  )
+
+  it.each(CATALOGUE.filter((e) => e.spec.label === 'round'))(
+    '$name: the round label spans at most 0.6 of the body from the front, 0.6 on the tall bottle',
+    ({ spec, mesh, profile }) => {
+      const label = sampled(mesh.label!, Infinity)
+      const xs = label.map(([x]) => x)
+      const zs = label.map(([, , z]) => z)
+      const middle = (Math.min(...zs) + Math.max(...zs)) / 2
+      const share = (Math.max(...xs) - Math.min(...xs)) / (2 * profile.outerR(middle))
+      expect(share).toBeLessThan(0.63)
+      // The round flask's is held to a third of its height, so its middle pours still show.
+      expect(share).toBeGreaterThan(spec.shape === 'round' ? 0.25 : 0.5)
+      if (spec.shape === 'tall') expect(share).toBeGreaterThan(0.57)
+    },
+  )
+
+  it.each(CATALOGUE.filter((e) => e.spec.label === 'banner'))(
+    '$name: the banner wraps 120 degrees round the front, so both notched ends show',
+    ({ mesh }) => {
+      const turns = sampled(mesh.label!, Infinity).map((p) => turnBetween(FRONT_ANGLE, angleOf(p)))
+      expect((Math.max(...turns) * 180) / Math.PI).toBeCloseTo(60, 0)
+      expect((Math.min(...turns) * 180) / Math.PI).toBeCloseTo(-60, 0)
     },
   )
 
@@ -212,6 +279,52 @@ describe('buildPotionMesh', () => {
     },
   )
 
+  it.each(CATALOGUE.filter((e) => e.spec.label === 'tag'))(
+    '$name: the tag hangs below its loop on a smooth string, rolled, resting on the glass',
+    ({ mesh, profile }) => {
+      const { loopZ, card, string } = tagLayout(profile)
+      const neckD = 2 * profile.neckR
+      const outline: [number, number][] = [
+        [-13, -9],
+        [13, -9],
+        [13, 5],
+        [9, 9],
+        [-9, 9],
+        [-13, 5],
+      ]
+      const top = Math.max(...outline.map(([u, v]) => card(u, v, 0)[2]))
+      expect(loopZ - top).toBeGreaterThanOrEqual(0.5 * neckD)
+      expect(loopZ - top).toBeLessThanOrEqual(neckD)
+      const [a, b] = [card(-13, -9, 0), card(13, -9, 0)]
+      const roll =
+        (Math.acos((b[0] - a[0]) / Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])) * 180) /
+        Math.PI
+      expect(roll).toBeGreaterThanOrEqual(8)
+      expect(roll).toBeLessThanOrEqual(12)
+      let nearest = Infinity
+      for (let u = -13; u <= 13; u += 0.5)
+        for (let v = -9; v <= 9; v += 0.5) {
+          if (Math.abs(u) > 13 - Math.max(0, v - 5)) continue
+          const [x, y, z] = card(u, v, -0.2)
+          nearest = Math.min(nearest, Math.hypot(x, y) - profile.outerR(z))
+        }
+      expect(nearest).toBeLessThan(1)
+      for (let k = 0; k < string.length; k++) {
+        const [p, q, s] = [-1, 0, 1].map((d) => string[(k + d + string.length) % string.length]!)
+        const ab = [q![0] - p![0], q![1] - p![1], q![2] - p![2]]
+        const bc = [s![0] - q![0], s![1] - q![1], s![2] - q![2]]
+        const cos =
+          (ab[0]! * bc[0]! + ab[1]! * bc[1]! + ab[2]! * bc[2]!) /
+          (Math.hypot(...ab) * Math.hypot(...bc))
+        expect((Math.acos(Math.min(1, cos)) * 180) / Math.PI, `at ${k}`).toBeLessThan(20)
+      }
+      const uv = mesh.label!.uvs
+      for (let i = 0; i < uv.length; i += 2) {
+        if (uv[i + 1]! > 8.99) expect(Math.abs(uv[i]!)).toBeLessThanOrEqual(9.01)
+      }
+    },
+  )
+
   it('lays label UVs out in millimetres across the paper', () => {
     const span = (part: MeshPart, axis: 0 | 1) => {
       const values = part.uvs.filter((_, i) => i % 2 === axis)
@@ -222,42 +335,103 @@ describe('buildPotionMesh', () => {
     const r = CATALOGUE.find((e) => e.spec.shape === 'teardrop' && e.spec.label === 'round')!
     expect(span(r.mesh.label!, 0)).toBeGreaterThan(30)
     expect(span(r.mesh.label!, 0)).toBeCloseTo(span(r.mesh.label!, 1), 0)
-    expect(span(banner.mesh.label!, 1)).toBeCloseTo(22, 0)
+    expect(span(banner.mesh.label!, 1)).toBeCloseTo(18, 0)
     expect(span(banner.mesh.label!, 0)).toBeGreaterThan(60)
     const card = tag.mesh.label!
     expect(Math.max(...card.uvs.filter((_, i) => i % 2 === 0))).toBeCloseTo(13, 1)
     expect(Math.max(...card.uvs.filter((_, i) => i % 2 === 1))).toBeCloseTo(9, 1)
   })
 
-  it('makes a smaller round label on the tall bottle than on the teardrop', () => {
-    const width = (e: Entry) => {
-      const u = e.mesh.label!.uvs.filter((_, i) => i % 2 === 0)
-      return Math.max(...u) - Math.min(...u)
-    }
-    const of = (shape: ShapeId) =>
-      CATALOGUE.find((e) => e.spec.shape === shape && e.spec.label === 'round')!
-    expect(width(of('tall'))).toBeLessThan(width(of('teardrop')))
-  })
+  const WAXED = CATALOGUE.filter((e) => e.spec.stopper === 'wax')
 
-  it.each(CATALOGUE.filter((e) => e.spec.stopper === 'wax'))(
-    '$name: the wax is uneven: its dipped edge wanders round the neck and its dome tilts',
-    ({ mesh, profile }) => {
+  it.each(WAXED)(
+    '$name: the wax is uneven: its hem wanders round the neck and its top tilts',
+    (e) => {
+      const { coat } = waxPieces(e)
       const sectors = 12
       const lowest = new Array<number>(sectors).fill(Infinity)
-      const highest = new Array<number>(sectors).fill(-Infinity)
-      for (const [x, y, z] of sampled(mesh.stopper, Infinity)) {
-        const r = Math.hypot(x, y)
-        const k = Math.floor(((Math.atan2(y, x) + Math.PI) / (2 * Math.PI)) * sectors) % sectors
-        if (z < profile.neckTopZ && r > profile.neckR + 1.8) lowest[k] = Math.min(lowest[k]!, z)
-        if (r > 0.5 * profile.neckR && r < 0.85 * profile.neckR)
-          highest[k] = Math.max(highest[k]!, z)
+      for (const p of coat) {
+        const k = Math.floor(((angleOf(p) + Math.PI) / (2 * Math.PI)) * sectors) % sectors
+        lowest[k] = Math.min(lowest[k]!, p[2])
       }
       expect(Math.max(...lowest) - Math.min(...lowest)).toBeGreaterThan(1)
-      expect(Math.max(...highest) - Math.min(...highest)).toBeGreaterThan(0.4)
+      // The lift moves only heights, so each ring of the lathe keeps its radius: take the widest
+      // ring over the cork's top and see how far its heights spread round the neck.
+      const rings = new Map<string, number[]>()
+      for (const p of coat.filter((q) => q[2] > e.profile.lipZ + 2)) {
+        const r = Math.hypot(p[0], p[1])
+        if (r < 0.95 * e.profile.stopperSeat.r)
+          rings.set(r.toFixed(3), [...(rings.get(r.toFixed(3)) ?? []), p[2]])
+      }
+      const widest = [...rings.keys()].sort((a, b) => Number(b) - Number(a))[0]!
+      const heights = rings.get(widest)!
+      expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(0.15)
     },
   )
 
-  it('has no label part without a label, and a wax seal with drips below its cap', () => {
+  it.each(WAXED)(
+    '$name: three to five runs of clearly different lengths, unevenly spaced, each ending in a bead',
+    (e) => {
+      const { coat, runs } = waxPieces(e)
+      expect(runs.length).toBeGreaterThanOrEqual(3)
+      expect(runs.length).toBeLessThanOrEqual(5)
+      const ring = e.profile.wax!.ringMm
+      const measured = runs.map((run) => {
+        const mid = run.reduce((s, p) => [s[0] + p[0], s[1] + p[1], 0] as Vec, [0, 0, 0] as Vec)
+        const angle = angleOf(mid)
+        const hem = Math.min(
+          ...coat.filter((p) => Math.abs(turnBetween(angle, angleOf(p))) < 0.2).map(([, , z]) => z),
+        )
+        const foot = Math.min(...run.map(([, , z]) => z))
+        const top = Math.max(...run.map(([, , z]) => z))
+        // Its width by height, foot to top: it narrows from the hem and swells to a bead.
+        const side = (p: Vec) => Math.abs(-Math.sin(angle) * p[0] + Math.cos(angle) * p[1])
+        const widths = new Array<number>(12).fill(0)
+        for (const p of run) {
+          const k = Math.min(11, Math.floor(((p[2] - foot) / (top - foot)) * 12))
+          widths[k] = Math.max(widths[k]!, side(p))
+        }
+        const bead = Math.max(...widths.slice(0, 3))
+        const stem = Math.min(...widths.slice(2, 8))
+        expect(bead / stem, 'a bead at the foot').toBeGreaterThan(1.15)
+        return { angle, length: hem - foot }
+      })
+      const lengths = measured.map((m) => m.length).sort((a, b) => a - b)
+      for (let i = 1; i < lengths.length; i++)
+        expect(lengths[i]! / lengths[i - 1]!).toBeGreaterThan(1.25)
+      if (e.profile.wax!.hemZ - e.profile.wax!.floorZ > 1.2 * ring) {
+        expect(lengths[0]! / ring).toBeGreaterThan(0.25)
+        expect(lengths[0]! / ring).toBeLessThan(0.4)
+        expect(lengths.at(-1)! / ring).toBeGreaterThan(0.9)
+        expect(lengths.at(-1)! / ring).toBeLessThan(1.1)
+      }
+      const angles = measured.map((m) => m.angle).sort((a, b) => a - b)
+      const gaps = angles.map((a, i) => (i ? a - angles[i - 1]! : a + 2 * Math.PI - angles.at(-1)!))
+      expect(Math.max(...gaps) / Math.min(...gaps)).toBeGreaterThan(1.5)
+    },
+  )
+
+  it.each(WAXED)('$name: no wax reaches the shoulder or a tag string', (e) => {
+    const { floorZ } = e.profile.wax!
+    const outside = sampled(e.mesh.stopper, Infinity).filter(
+      ([x, y]) => Math.hypot(x, y) > e.profile.stopperSeat.r,
+    )
+    const lowest = Math.min(...outside.map(([, , z]) => z))
+    expect(lowest).toBeGreaterThanOrEqual(floorZ - 1e-6)
+    expect(lowest).toBeGreaterThan(e.profile.shoulderZ + 0.9)
+    if (e.spec.label === 'tag') {
+      const highestString = Math.max(
+        ...tagLayout(e.profile)
+          .string.filter(
+            ([x, y, z]) => z > e.profile.shoulderZ && Math.hypot(x, y) < 2 * e.profile.neckR,
+          )
+          .map(([, , z]) => z),
+      )
+      expect(lowest).toBeGreaterThan(highestString + 0.4 + 0.5)
+    }
+  })
+
+  it('has no label part without a label, and a wax seal with runs below its coat', () => {
     const plain = CATALOGUE.find((e) => e.spec.label === 'none' && e.spec.stopper === 'wax')!
     expect(plain.mesh.label).toBeNull()
     const cork = CATALOGUE.find((e) => e.spec.label === 'none' && e.spec.stopper === 'cork')!
