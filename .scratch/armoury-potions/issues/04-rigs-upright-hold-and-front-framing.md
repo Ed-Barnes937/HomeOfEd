@@ -1,6 +1,6 @@
 # 04 - Rigs: an upright hold, the item's own flourish, front framing
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions`; reviews 04-r1, 04-r2)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none
@@ -138,3 +138,4 @@ pnpm --filter armoury exec playwright test -c playwright-ct.config.ts src/shop.i
 - Changing `wave.ts`, the wand's or the sword's look, lights or framing.
 
 ## Comments
+- 2026-11-13 orchestrator: built (0f174335, 029a9b04, aa471524), independent review r1 asked for three fixes (the front handoff contract, the soft limit's tests, a step under reduced motion), fixed (634f9ffc, 56ad137a), review r2 passed: the level path is the same arithmetic expression by expression, and every non-zero pixel pair is off the item and also appears between runs of unchanged code. Merged into the epic branch. The baseline later gates shoot beside is `shots/04/baseline/`.

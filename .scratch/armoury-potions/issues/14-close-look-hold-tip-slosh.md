@@ -104,3 +104,4 @@ still.
 - The uncorking and effects (15). Pouring out of the bottle. Bubbles reacting to the slosh.
 
 ## Comments
+- 2026-11-13 orchestrator, from the review of ticket 06: tipped levels are heights along world up from the foot's centre, in the bottle's millimetre frame (`tipped.ts`, ADR 0107), and feed the `levels` and `surfaceNormal` props together. Build the level table once per spec (it costs 6 to 10 ms), then look up by angle each frame; never rebuild it per frame.
