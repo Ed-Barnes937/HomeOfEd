@@ -61,7 +61,7 @@ function PictureIcon() {
   )
 }
 
-/** Who the shelf belongs to, and the way to hub to switch player and come back (ADR 0094). */
+/** Who the shelf belongs to, and the way to hub to switch player (ADR 0094). */
 export function Player({ name, className }: { name: string; className?: string }) {
   const classes = [styles.player, className].filter(Boolean).join(' ')
   const { initial, label, href } = playerCircleFor(name, window.location.href)

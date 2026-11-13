@@ -6,12 +6,11 @@ import { PlayerLink } from './PlayerLink.tsx'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('PlayerLink', () => {
-  it('in the estate, links to hub to switch player and come back here', () => {
+  it('in the estate, links to the account page alone, so a switch lands on hub home', () => {
     vi.stubGlobal('window', { location: { href: 'https://karesansui.homeofed.com/' } })
     const html = renderToStaticMarkup(<PlayerLink name="Ada" />)
-    expect(html).toContain(
-      'href="https://homeofed.com/account?returnTo=https%3A%2F%2Fkaresansui.homeofed.com%2F"',
-    )
+    expect(html).toContain('href="https://homeofed.com/account"')
+    expect(html).not.toContain('returnTo')
     expect(html).toContain('aria-label="Playing as Ada. Switch player"')
   })
 })

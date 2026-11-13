@@ -88,3 +88,14 @@ profiles, which is what the prefetch was for.
   still visible there, in the chip.
 - A refresh on `/account/settings` loses the arrival's fragment, because the
   router does not carry it in the address bar. The `returnTo` itself survives.
+
+## Amendment 2026-11-13: a switch from an app lands on hub home
+
+An app's avatar circle (and silt's empty "Choose who is playing" circle) links
+to the bare account page: `switchPlayerUrlFor` now carries no `returnTo`, so a
+child who switches player from an app ends on hub home, not in the app the
+previous child had open. A gate arrival is unchanged: the gate's redirect still
+carries `returnTo`, so a signed-out visitor returns to the app after the pick
+(decision 3). This replaces the "come back" link of ADR 0080's amended decision
+9 and ADR 0094. `accountUrlFor`, which built that link, is gone from
+`@hoe/accounts`.

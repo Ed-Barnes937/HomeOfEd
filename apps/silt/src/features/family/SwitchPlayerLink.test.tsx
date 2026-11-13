@@ -12,30 +12,32 @@ const ADA = {
   iat: 0,
   exp: 1,
 } as const
-const HUB = 'https://homeofed.com/account?returnTo=https%3A%2F%2Fsilt.homeofed.com%2F'
+const ACCOUNT = 'https://homeofed.com/account'
 
 afterEach(() => vi.unstubAllGlobals())
 
 describe('SwitchPlayerLink in the estate', () => {
-  it('links the player circle to hub to switch player and come back here', () => {
+  it('links the player circle to the account page alone, so a switch lands on hub home', () => {
     vi.stubGlobal('window', { location: { href: 'https://silt.homeofed.com/' } })
     const html = renderToStaticMarkup(
       <FamilySessionProvider session={ADA}>
         <SwitchPlayerLink />
       </FamilySessionProvider>,
     )
-    expect(html).toContain(`href="${HUB}"`)
+    expect(html).toContain(`href="${ACCOUNT}"`)
+    expect(html).not.toContain('returnTo')
     expect(html).toContain('aria-label="Playing as Ada. Switch player"')
   })
 
-  it('with no session, is an empty circle to choose who is playing', () => {
+  it('with no session, is an empty circle linking to the account page to choose who is playing', () => {
     vi.stubGlobal('window', { location: { href: 'https://silt.homeofed.com/' } })
     const html = renderToStaticMarkup(
       <FamilySessionProvider session={null}>
         <SwitchPlayerLink />
       </FamilySessionProvider>,
     )
-    expect(html).toContain(`href="${HUB}"`)
+    expect(html).toContain(`href="${ACCOUNT}"`)
+    expect(html).not.toContain('returnTo')
     expect(html).toContain('aria-label="Choose who is playing"')
   })
 })

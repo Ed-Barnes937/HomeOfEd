@@ -62,7 +62,6 @@ export { reloadOnPlayerChange } from './reloadOnPlayerChange.ts'
 export type { SafeReturnToOpts } from './returnTo.ts'
 export {
   accountUrl,
-  accountUrlFor,
   hubUrlFor,
   safeReturnTo,
   sharedUrl,

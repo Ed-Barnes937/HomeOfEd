@@ -10,7 +10,7 @@ interface SyncedChipProps {
 /**
  * The one piece of chrome the family account adds to boop (ADR 0080): who the
  * boops are being kept for, as their initial in a circle that ends the bar,
- * and a way to hub to switch player and come back here. Outside the estate
+ * and a way to hub to switch player. Outside the estate
  * there is no hub to switch at, so it only names the player.
  */
 export function SyncedChip({ name }: SyncedChipProps) {

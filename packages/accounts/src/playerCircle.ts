@@ -5,7 +5,7 @@ export interface PlayerCircle {
   initial: string
   /** The accessible name: the initial alone does not say who is playing. */
   label: string
-  /** Hub's account page to switch player and come back, or null outside the estate. */
+  /** Hub's account page to switch player, landing on hub home; null outside the estate. */
   href: string | null
 }
 
