@@ -27,14 +27,30 @@ function segmentArea(r: number, c: number): number {
   return r * r * Math.acos(-c / r) + c * Math.sqrt(r * r - c * c)
 }
 
-function tiltedLevels(profile: BottleProfile, tops: number[], t: number): number[] {
+/** The cavity cut into thin slices along its axis: each slice's middle height and radius. */
+interface Slices {
+  zs: Float64Array
+  rs: Float64Array
+  dz: number
+}
+
+function slicesOf(profile: BottleProfile): Slices {
   const n = Math.ceil((profile.cavityTopZ - BASE_MM) / SLICE_MM)
   const dz = (profile.cavityTopZ - BASE_MM) / n
   const zs = Float64Array.from({ length: n }, (_, i) => BASE_MM + (i + 0.5) * dz)
-  const rs = zs.map((z) => profile.innerR(z))
+  return { zs, rs: zs.map((z) => profile.innerR(z)), dz }
+}
+
+function tiltedLevels(
+  profile: BottleProfile,
+  { zs, rs, dz }: Slices,
+  tops: number[],
+  t: number,
+): number[] {
+  const n = zs.length
   const s = Math.sin(t)
   const c = Math.cos(t)
-  // Up is (sin t, 0, cos t) in the bottle's frame, so a level h cuts each slice at x = (h - z cos t) / sin t.
+  // Up is (sin t, 0, cos t) in the bottle's frame; level h cuts a slice at x = (h - z c) / s.
   const below = (h: number) => {
     let v = 0
     for (let i = 0; i < n; i++) v += segmentArea(rs[i]!, (h - zs[i]! * c) / s)
@@ -62,8 +78,9 @@ function tiltedLevels(profile: BottleProfile, tops: number[], t: number): number
 export function levelTable(spec: PotionSpec): LevelTable {
   const profile = bottleProfile(spec)
   const tops = bandTops(profile, spec.layers.length)
+  const slices = slicesOf(profile)
   const levels = Array.from({ length: ROWS }, (_, i) =>
-    i === 0 ? tops : tiltedLevels(profile, tops, (i * STEP_DEG * Math.PI) / 180),
+    i === 0 ? tops : tiltedLevels(profile, slices, tops, (i * STEP_DEG * Math.PI) / 180),
   )
   return { stepDeg: STEP_DEG, levels }
 }

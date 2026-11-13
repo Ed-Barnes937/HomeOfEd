@@ -54,7 +54,7 @@ function simpsonVolume(profile: BottleProfile, from: number, to: number): number
 }
 
 describe('the bottle rows', () => {
-  it('end the body at the neck: the last point is at the top of the body, at the neck radius', () => {
+  it('end the body at the neck: the last point is at the top of the body, at its radius', () => {
     for (const s of SHAPES) {
       const row = BOTTLES[s]
       expect(row.body.at(-1)).toEqual([1, row.neckRadiusMm])

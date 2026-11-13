@@ -1,6 +1,5 @@
-// A potion's lathe profiles: the glass, the liquid and the stopper as closed curves in
-// (radius, height), with exact normals, the cavity's volume and the upright levels.
-// Millimetres, the axis is z, the foot at z = 0. Three-free and safe for the main chunk.
+// A potion's lathe profiles in (radius, height) mm, foot at z = 0: glass, liquid and stopper
+// with exact normals, the cavity's volume and upright levels. Safe for the main chunk.
 
 import { sample } from '../sword/curve.ts'
 import { BOTTLES } from './bottles.ts'
@@ -51,7 +50,7 @@ export interface ProfilePoint {
   nz: number
 }
 
-export interface StopperSeat {
+interface StopperSeat {
   /** The top of the lip, where every stopper meets the glass. */
   z: number
   /** The bore's radius. */
@@ -84,9 +83,8 @@ export interface BottleProfile {
   /** Closed generating curves, axis to axis, each traversed with its solid on the left. */
   glass: ProfilePoint[]
   liquid: ProfilePoint[]
-  /** The stopper's lathe pieces. */
+  /** Closed curves, one per piece: the cork, then the wax over it; or the glass stopper. */
   stopper: ProfilePoint[][]
-  /** The neck's outer radius. */
   neckR: number
   /** The top of the plain neck, where the lip's bead begins. */
   neckTopZ: number

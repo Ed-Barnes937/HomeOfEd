@@ -555,7 +555,7 @@ function chaikin(path: Vec3[]): Vec3[] {
   })
 }
 
-/** A closed tube along a closed path, framed by parallel transport, the closing twist spread along it. */
+/** A closed tube along a closed path, framed by parallel transport, its closing twist spread. */
 function tube(b: Builder, path: Vec3[]): void {
   const n = path.length
   const dot = (a: Vec3, c: Vec3) => a[0] * c[0] + a[1] * c[1] + a[2] * c[2]

@@ -6,8 +6,8 @@ import { BASE_MM, bandTops, bottleProfile, type ProfilePoint } from './profile.t
 
 type Pt = [x: number, y: number]
 
-export interface PotionOutline {
-  /** Closed polygons. */
+export interface PotionSilhouette {
+  /** Closed polygons: the right side rising, then the left side mirrored back down. */
   glass: Pt[]
   stopper: Pt[]
   /** Bottom first, one per pour, clipped to the cavity at the upright levels. */
@@ -24,7 +24,7 @@ const mirrored = (right: Pt[]): Pt[] => [
   ...[...right].reverse().map(([x, y]): Pt => [-x, y]),
 ]
 
-/** The widest radius of a set of lathe curves at each height they reach; a flat step is two points. */
+/** The widest radius of lathe curves at each height they reach; a flat step is two points. */
 function envelope(pieces: ProfilePoint[][]): Pt[] {
   const segments = pieces
     .flatMap((c) => c.slice(1).map((b, i) => (c[i]!.z < b.z ? [c[i]!, b] : [b, c[i]!])))
@@ -48,7 +48,7 @@ function envelope(pieces: ProfilePoint[][]): Pt[] {
   })
 }
 
-export function potionOutline(spec: PotionSpec): PotionOutline {
+export function potionOutline(spec: PotionSpec): PotionSilhouette {
   const profile = bottleProfile(spec)
   const tops = bandTops(profile, spec.layers.length)
   const band = (lo: number, hi: number): Pt[] => {
