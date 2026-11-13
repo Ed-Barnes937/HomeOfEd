@@ -105,3 +105,4 @@ still.
 
 ## Comments
 - 2026-11-13 orchestrator, from the review of ticket 06: tipped levels are heights along world up from the foot's centre, in the bottle's millimetre frame (`tipped.ts`, ADR 0107), and feed the `levels` and `surfaceNormal` props together. Build the level table once per spec (it costs 6 to 10 ms), then look up by angle each frame; never rebuild it per frame.
+- 2026-11-13 orchestrator, from the second review of ticket 06: on a full round flask (and the square-shouldered bottle at the shortest neck) tipped 60 degrees, the surface rises past the plug's lowest point, so the liquid fills the neck up to the cork. That is right and the volume is kept; expect it, and check the liquid never draws through the stopper.

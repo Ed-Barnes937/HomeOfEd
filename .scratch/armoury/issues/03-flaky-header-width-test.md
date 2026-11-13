@@ -20,3 +20,4 @@ branch that does not touch the header. The suite alone then passed three times
   ordering, not at the header.
 
 ## Comments
+- 2026-11-13: seen again in the second review of armoury-potions ticket 06, a branch that does not touch the header: one failure in a full CT run ("at 1350px", expected at least 490.6, got 460.75), then 10 of 10 alone. A full CT run on the epic branch at 1bc0e777 passed 108 of 108.

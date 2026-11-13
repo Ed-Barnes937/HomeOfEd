@@ -1,6 +1,6 @@
 # 06 - The bottle generator: lathe profiles, meshes, volumes, outline
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions`; reviews 06-r1, 06-r2)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 03
@@ -130,3 +130,4 @@ The potion suite stays under a few seconds locally (spec rule 18).
 
 ## Comments
 - 2026-11-13 orchestrator, from the review of ticket 03: the `shoulder` row in `bottles.ts` does not yet give a flat shoulder (its points drop 18 mm of radius over about 18 mm of height, a 45 degree slope); make it read as "Square shoulders". The last body radius disagrees with `neckRadiusMm` for `tall` (16 against 7) and `shoulder` (12 against 8); settle where the body ends and the neck begins, close both to the neck, and say the convention in the `body` doc comment. `BottleRow.neckMm` is a `[min, max]` range and `PotionSpec.neckMm` a single length; the names stay as they are.
+- 2026-11-13 orchestrator: built (six commits ending 277823dc), independent review r1 found the geometry correct and asked for two documentation fixes, fixed with the wax seal reshaped, the plug shortened on short necks and the shelf drawing from the real silhouette (eleven commits ending 8e086b9c), review r2 passed (pours equal within 0.14 percent and tipped bands within 0.28 percent by the reviewer's own arithmetic). Merged into the epic branch. Pictures in `shots/06/r2/`.
