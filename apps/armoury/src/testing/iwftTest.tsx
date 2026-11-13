@@ -1,6 +1,7 @@
 // armoury's .iwft fixture: registers the harness element and root POM with test-kit.
 import { createIwftTest } from '@hoe/test-kit'
 
+import { ApothecaryPom } from './ApothecaryPom.ts'
 import { IwftApp } from './IwftApp.tsx'
 import { ShopPom } from './ShopPom.ts'
 import { SmithyPom } from './SmithyPom.ts'
@@ -29,4 +30,14 @@ export const failedStageTest = createIwftTest({
 export const failedSmithyStageTest = createIwftTest({
   harness: <IwftApp start="sword" stagesFail />,
   createRoot: (page) => new SmithyPom(page),
+})
+
+export const apothecaryTest = createIwftTest({
+  harness: <IwftApp start="potion" />,
+  createRoot: (page) => new ApothecaryPom(page),
+})
+
+export const failedApothecaryStageTest = createIwftTest({
+  harness: <IwftApp start="potion" stagesFail />,
+  createRoot: (page) => new ApothecaryPom(page),
 })

@@ -121,6 +121,7 @@ export function WorkbenchProvider({
 }) {
   const wand = useBench(ITEMS.wand, storage, arrived)
   const sword = useBench(ITEMS.sword, storage, arrived)
+  const potion = useBench(ITEMS.potion, storage, arrived)
   const [lastShop, setLastShop] = useState(() => readLastShop(storage))
 
   const enterShop = useCallback(
@@ -131,7 +132,7 @@ export function WorkbenchProvider({
     [storage],
   )
 
-  const benches = useMemo(() => ({ wand, sword }), [wand, sword])
+  const benches = useMemo(() => ({ wand, sword, potion }), [wand, sword, potion])
   const shops = useMemo(() => ({ lastShop, enterShop }), [lastShop, enterShop])
   return (
     <ShopsContext value={shops}>

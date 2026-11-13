@@ -1,0 +1,110 @@
+// A plain dark room and a flat table edge.
+.scene {
+  --slot: min(46vh, 420px, 70vw);
+
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 45%,
+    var(--panel-line) 0%,
+    var(--shop-dark) 70%
+  );
+  isolation: isolate;
+}
+
+.display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  padding: 96px 24px 24px;
+}
+
+.bottle {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: var(--slot);
+  height: var(--slot);
+  // The stage's foot line sits on the table's top edge.
+  margin-bottom: calc(var(--slot) * (var(--base-line) - 1));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: pan-y;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--ring-brass);
+    border-radius: var(--r-control);
+  }
+}
+
+.stageSlot {
+  position: absolute;
+  inset: 0;
+}
+
+.display[data-empty] .stageSlot {
+  visibility: hidden;
+}
+
+.table {
+  flex: none;
+  width: calc(100% + 48px);
+  height: 40px;
+  border-top: 3px solid var(--panel-line-strong);
+  background: linear-gradient(180deg, var(--panel) 0%, var(--shop-black) 100%);
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: min(720px, 100%);
+  margin-top: -16px;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-muted);
+
+  svg {
+    flex: none;
+    color: var(--brass);
+  }
+}
+
+@media (max-width: 899px) {
+  .scene {
+    --slot: min(26dvh, 200px);
+  }
+
+  .display {
+    padding: 72px 14px 12px;
+  }
+
+  .table {
+    height: 24px;
+  }
+
+  .cardRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    margin-top: -8px;
+  }
+
+  .hint {
+    margin-left: 6px;
+    font-size: 16px;
+  }
+}

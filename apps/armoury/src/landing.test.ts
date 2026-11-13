@@ -12,6 +12,9 @@ describe('landingPath', () => {
     ['a wand link to a sword maker', 'wand', 'sword', '/wands'],
     ['a sword link to a wand maker', 'sword', 'wand', '/swords'],
     ['a link to the shop they were last in', 'sword', 'sword', '/swords'],
+    ['a returning potion maker', null, 'potion', '/potions'],
+    ['a potion link, first visit', 'potion', null, '/potions'],
+    ['a potion link to a sword maker', 'potion', 'sword', '/potions'],
   ] as const)('sends %s to the right door', (_, arrivalKind, lastShop, path) => {
     expect(landingPath({ arrivalKind, lastShop })).toBe(path)
   })

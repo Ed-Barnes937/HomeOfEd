@@ -27,6 +27,7 @@ export interface StreetShop {
 export const DOOR_LABELS: Record<ShopPath, string> = {
   '/wands': 'Go into the wand shop',
   '/swords': 'Go into the smithy',
+  '/potions': 'Go into the potion shop',
 }
 
 export const SHOPS: readonly StreetShop[] = [

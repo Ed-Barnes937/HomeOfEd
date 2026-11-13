@@ -105,3 +105,4 @@ pnpm --filter armoury exec playwright test -c playwright-ct.config.ts src/pours.
 - Drag and drop. A "stir" control (cut).
 
 ## Comments
+- 2026-11-13 orchestrator, from the scene mock (ticket 02, decision O17): dark swatches (Thundercloud, Bog murk) are low in contrast against the dark tile; give every swatch a light ring so its edge reads. The name still carries the meaning.

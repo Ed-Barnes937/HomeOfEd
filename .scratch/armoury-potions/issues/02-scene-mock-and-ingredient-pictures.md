@@ -1,7 +1,6 @@
 # 02 - Scene mock and the ingredient picture question
 
-**Status:** ready-for-agent (the orchestrator sets it to ready-for-human once the contact sheet
-is handed off, until Ed picks)
+**Status:** ready-for-human (the sheet is at `shots/02/contact-sheet.png`; waiting for Ed to pick)
 **Type:** prototype
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none

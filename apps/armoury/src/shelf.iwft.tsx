@@ -1,4 +1,4 @@
-import { smithyTest, test } from './testing/iwftTest.tsx'
+import { apothecaryTest, smithyTest, test } from './testing/iwftTest.tsx'
 import { ShopPom } from './testing/ShopPom.ts'
 
 test('kept wands go on the shelf, and come back out onto the counter', async ({ mountApp }) => {
@@ -79,5 +79,55 @@ smithyTest(
     await shelf.verifyLabel('Old Oak', /^Knight's sword, [a-z -]+ inches, satin steel$/)
     await shelf.remove('Old Oak')
     await shelf.verifyItems('sword', [])
+  },
+)
+
+apothecaryTest(
+  'a kept potion goes on the shelf under Potions, beside a wand and a sword, and comes back to the table',
+  async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.rename('Fizz')
+    await root.keep()
+    await root.verifyKept('Fizz is on your shelf.')
+    await root.verifyShelfCount(1)
+    await root.chooseIn('Shape', 'Gourd bottle')
+
+    const wands = await (await root.backToStreet()).enterWandShop()
+    await wands.keep()
+    const smithy = await (await wands.backToStreet()).enterSmithy()
+    await smithy.rename('Pip')
+    await smithy.keep()
+
+    const shelf = await smithy.openShelf()
+    await shelf.verifyItems('wand', ['The Smoky Spiral'])
+    await shelf.verifyItems('sword', ['Pip'])
+    await shelf.verifyItems('potion', ['Fizz'])
+    await shelf.verifyLabel('Fizz', 'Teardrop flask, three pours')
+
+    await shelf.takeOut('Fizz')
+    await root.verifyAt('/potions')
+    await root.verifyPotionName('Fizz')
+    await root.verifyStage({ shape: 'teardrop' })
+  },
+)
+
+apothecaryTest(
+  'a shelf potion can be renamed and removed, and the shelf leads back to the brewing table',
+  async ({ mountApp }) => {
+    const { root } = await mountApp()
+    let shelf = await root.openShelf()
+    await shelf.verifyEmpty(
+      'Every potion you keep gets a box and a label.',
+      'Keep a potion and its box goes here',
+    )
+    await shelf.backTo('the brewing table')
+    await root.verifyAt('/potions')
+
+    await root.keep()
+    shelf = await root.openShelf()
+    await shelf.rename('Sparkling Starpetal Tonic', 'Old Faithful')
+    await shelf.verifyItems('potion', ['Old Faithful'])
+    await shelf.remove('Old Faithful')
+    await shelf.verifyItems('potion', [])
   },
 )

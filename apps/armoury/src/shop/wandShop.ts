@@ -35,5 +35,5 @@ export const wandShop: ShopView = {
   groups: visibleGroups,
   widget: wandWidget,
   paintCard: paintWandCard,
-  closeUp: { flashDelaySeconds: WAVE_TO_SPELL_SECONDS },
+  closeUp: { flashDelaySeconds: WAVE_TO_SPELL_SECONDS, flourishOnArrival: true },
 }

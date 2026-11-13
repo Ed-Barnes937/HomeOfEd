@@ -118,3 +118,4 @@ effect does not hide the bottle for long; reduced motion is still and still show
 - Bespoke per-effect animation, the bottle acting the effect out, drinking, sound, a shop flash.
 
 ## Comments
+- 2026-11-13 orchestrator, from the look spike (ticket 01): the potion canvas has no post pass at rest, so the uncorking's bloom has no composer to use. Decide the route here and record it in ADR 0111: a composer mounted only while the show runs, or capped additive sprites with no composer. Prefer whichever keeps the glass looking the same at the moment the show starts and ends (no pop).

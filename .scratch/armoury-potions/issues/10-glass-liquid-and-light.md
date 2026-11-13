@@ -132,3 +132,4 @@ object as the wand and the sword.
   the card painter (13), ingredient pictures (16).
 
 ## Comments
+- 2026-11-13 orchestrator, from the look spike (ticket 01): whichever tiles Ed picks, fix these named flaws: the liquid's top surface can read as the rim of a cup; Moonmilk reads pale lavender, the weakest layer; the candle flame reflects twice (front and back wall) and can read as two candles. The spike used ACES, not the smithy's AgX, and no post pass at rest (the composer dulls the glass over a transparent canvas); record that choice and its reason in ADR 0109 unless Ed objects. Frame cost was measured on the M3 only.

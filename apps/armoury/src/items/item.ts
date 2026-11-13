@@ -1,7 +1,7 @@
 import type { ItemSchema, Params, ParamValue } from '../engine/schema.ts'
 
 /** Every kind, in the order a share link is read: the first one it names wins. */
-export const ITEM_KINDS = ['wand', 'sword'] as const
+export const ITEM_KINDS = ['wand', 'sword', 'potion'] as const
 export type ItemKind = (typeof ITEM_KINDS)[number]
 
 /** As stored and shared. `name` only once a child renames it. */
@@ -26,7 +26,7 @@ export interface ItemDef {
   lore(p: Params): string
   /** The short line on a shelf label. */
   shelfLine(p: Params): string
-  /** The colour of its light as #rrggbb: the wand's core, the sword's runes or forge ember. */
+  /** The colour of its light as #rrggbb: the wand's core, the sword's runes or forge ember, the potion's effect. */
   glow(p: Params): string
   /** Its drawn length over the stage's fill, for the shadow, the glow and the picture. */
   lengthFraction(p: Params): number

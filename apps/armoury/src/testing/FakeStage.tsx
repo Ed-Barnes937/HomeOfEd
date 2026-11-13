@@ -10,6 +10,7 @@ import type {
 } from '../stage/stage.ts'
 
 import { compileWand } from '../wand/compile.ts'
+import { FakePotionCloseUpStage, FakePotionStage } from './FakePotionStage.tsx'
 import { FakeSwordCloseUpStage, FakeSwordStage } from './FakeSwordStage.tsx'
 
 const gemCount = (params: Params) => {
@@ -92,6 +93,7 @@ export function FakeCloseUpStage({
 export const fakeStages: StagesByKind = {
   wand: { Box: FakeStage, CloseUp: FakeCloseUpStage },
   sword: { Box: FakeSwordStage, CloseUp: FakeSwordCloseUpStage },
+  potion: { Box: FakePotionStage, CloseUp: FakePotionCloseUpStage },
 }
 
 /** A box stage whose download failed: a lazy chunk, texture or map throws where it renders. */
@@ -102,4 +104,5 @@ function FailedStage(): never {
 export const failingStages: StagesByKind = {
   wand: { Box: FailedStage, CloseUp: FakeCloseUpStage },
   sword: { Box: FailedStage, CloseUp: FakeSwordCloseUpStage },
+  potion: { Box: FailedStage, CloseUp: FakePotionCloseUpStage },
 }

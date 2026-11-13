@@ -1,7 +1,6 @@
 # 01 - Look spike: one hero bottle, one contact sheet (DO NOT MERGE)
 
-**Status:** ready-for-agent (the orchestrator sets it to ready-for-human once the contact sheet
-is handed off, until Ed picks)
+**Status:** ready-for-human (the sheet is at `shots/01/contact-sheet.png`; waiting for Ed to pick)
 **Type:** spike
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none
@@ -132,3 +131,4 @@ to Ed.
 - Any change to the wand or sword stages.
 
 ## Comments
+- 2026-11-13 orchestrator: built on `spike/potion-look-do-not-merge` (2f5c08c2). Sheet at `shots/01/contact-sheet.png` with notes and the "What ticket 10 lifts" table in `contact-sheet.md`. Builder recommends G1, L2, M1, P2, ACES and no post pass at rest. Waiting for Ed.

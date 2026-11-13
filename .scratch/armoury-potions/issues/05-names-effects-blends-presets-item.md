@@ -1,6 +1,6 @@
 # 05 - Names, effects, secret blends, presets and the item
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions`; reviews 05-r1, 05-r2)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 03
@@ -118,3 +118,4 @@ pnpm --filter armoury run typecheck
   persistence of discovered blends.
 
 ## Comments
+- 2026-11-13 orchestrator: built (28d44ca3), review r1 asked for changes (the forbidden-name rule, blend precedence tests), fixed (7ebe7af8), review r2 passed with mutation checks. Merged into the epic branch.

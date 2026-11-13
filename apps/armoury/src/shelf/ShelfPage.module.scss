@@ -145,6 +145,16 @@
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
 }
 
+// The bottle stands between the label and the seal.
+.bottle {
+  position: absolute;
+  right: 50px;
+  top: 5px;
+  bottom: 5px;
+  width: 26px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+
 .label {
   position: absolute;
   left: 24px;
