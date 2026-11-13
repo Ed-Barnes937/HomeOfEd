@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test'
 import type { Params } from './engine/schema.ts'
 import { POTION_SAVE_KEY } from './persistence/storage.ts'
 import { potionItem } from './potion/item.ts'
-import { MIX_REVEAL_SECONDS } from './potion/mixBeats.ts'
+import { MIX_REVEAL_SECONDS, MIX_REVEAL_SECONDS_REDUCED } from './potion/mixBeats.ts'
 import { potionPresets } from './potion/presets.ts'
 import { withPours } from './potion/pours.ts'
 import { apothecaryTest as test, failedApothecaryStageTest } from './testing/iwftTest.tsx'
@@ -174,12 +174,17 @@ async function startWith(page: Page, params: Params, reload: () => Promise<void>
 const stage = (page: Page) => page.getByTestId('stage')
 const revealMs = MIX_REVEAL_SECONDS * 1000
 
+async function stopTheClock(page: Page): Promise<void> {
+  await page.clock.install()
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1)
+}
+
 test('the tap that lifts the bottle mixes it once the reveal has played, and a reload keeps it', async ({
   mountApp,
   page,
 }) => {
-  await page.clock.install()
   const { root } = await mountApp()
+  await stopTheClock(page)
   await root.verifyPotionName('Moonmilk, Rosehip and Starpetal')
 
   const closeUp = await root.openCloseLook()
@@ -191,6 +196,7 @@ test('the tap that lifts the bottle mixes it once the reveal has played, and a r
   await closeUp.putBack()
   await root.verifyPotionName('Dreamy Rosehip Potion')
 
+  await page.clock.resume()
   await root.reload()
   const { root: again } = await mountApp()
   await again.verifyPotionName('Dreamy Rosehip Potion')
@@ -198,8 +204,8 @@ test('the tap that lifts the bottle mixes it once the reveal has played, and a r
 })
 
 test('putting the bottle back before the reveal still mixes it', async ({ mountApp, page }) => {
-  await page.clock.install()
   const { root } = await mountApp()
+  await stopTheClock(page)
   const closeUp = await root.openCloseLook()
   await closeUp.putBack()
   await root.verifyPotionName('Dreamy Rosehip Potion')
@@ -207,8 +213,8 @@ test('putting the bottle back before the reveal still mixes it', async ({ mountA
 })
 
 test('a second tap before the reveal restarts the wait', async ({ mountApp, page }) => {
-  await page.clock.install()
   const { root } = await mountApp()
+  await stopTheClock(page)
   const closeUp = await root.openCloseLook()
   await page.clock.runFor(revealMs - 500)
   await closeUp.tapPotion()
@@ -222,8 +228,8 @@ test('the close look announces the reveal once, and says nothing before it', asy
   mountApp,
   page,
 }) => {
-  await page.clock.install()
   const { root } = await mountApp()
+  await stopTheClock(page)
   const closeUp = await root.openCloseLook()
   const announcement = page.getByRole('dialog').getByRole('status')
   await expect(announcement).toHaveText('')
@@ -235,14 +241,25 @@ test('the close look announces the reveal once, and says nothing before it', asy
   await expect(announcement).toHaveText(said ?? '')
 })
 
+test('under reduced motion the reveal comes at 0.3 seconds', async ({ mountApp, page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { root } = await mountApp()
+  await stopTheClock(page)
+  await root.openCloseLook()
+  await page.clock.runFor(MIX_REVEAL_SECONDS_REDUCED * 1000 - 50)
+  await expect(stage(page)).toHaveAttribute('data-mixed', 'no')
+  await page.clock.runFor(100)
+  await expect(stage(page)).toHaveAttribute('data-mixed', 'yes')
+})
+
 test('a mixed potion picked up again stays mixed and keeps its name', async ({
   mountApp,
   page,
 }) => {
-  await page.clock.install()
   const first = await mountApp()
   await startWith(page, { mixed: 'yes' }, () => first.root.reload())
   const { root } = await mountApp()
+  await stopTheClock(page)
   await root.verifyPotionName('Dreamy Rosehip Potion')
   const closeUp = await root.openCloseLook()
   await closeUp.tapPotion()
@@ -256,10 +273,10 @@ test('a bottle with fewer than three ingredients stays unmixed when tapped', asy
   mountApp,
   page,
 }) => {
-  await page.clock.install()
   const first = await mountApp()
   await startWith(page, withPours(['moonmilk', 'rosehip']), () => first.root.reload())
   const { root } = await mountApp()
+  await stopTheClock(page)
   const closeUp = await root.openCloseLook()
   await closeUp.tapPotion()
   await page.clock.runFor(revealMs + 100)
@@ -270,7 +287,8 @@ test('a bottle with fewer than three ingredients stays unmixed when tapped', asy
 
 test('a mixed secret blend shows its name and the gold flag', async ({ mountApp, page }) => {
   const first = await mountApp()
-  await startWith(page, potionPresets[1]!.params, () => first.root.reload())
+  const secretBlend = potionPresets.find((preset) => preset.name === 'Early Riser')!
+  await startWith(page, secretBlend.params, () => first.root.reload())
   const { root } = await mountApp()
   await root.verifyPotionName('Sunrise in a Bottle')
   await expect(stage(page)).toHaveAttribute('data-gold', 'yes')
