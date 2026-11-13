@@ -120,6 +120,15 @@ describe('bottleProfile', () => {
     },
   )
 
+  it.each(CATALOGUE)(
+    '$name: the stopper plug ends in the straight bore, above the shoulder',
+    ({ profile }) => {
+      expect(profile.cavityTopZ).toBeGreaterThanOrEqual(profile.shoulderZ + 1)
+      expect(profile.innerR(profile.cavityTopZ)).toBeCloseTo(profile.stopperSeat.r, 2)
+      expect(profile.stopperSeat.depthMm).toBeGreaterThanOrEqual(12)
+    },
+  )
+
   it.each(CATALOGUE)('$name: widthMm is the widest outer diameter', ({ profile }) => {
     const widest = Math.max(...steps(0, profile.lipZ, 0.1).map((z) => profile.outerR(z)))
     expect(profile.widthMm).toBeCloseTo(2 * widest, 1)

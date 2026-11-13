@@ -10,8 +10,10 @@ import { MAX_POURS } from './potionSchema.ts'
 export const WALL_MM = 2.5
 /** The glass under the liquid, foot to cavity floor. */
 export const BASE_MM = 5
-/** How far every stopper reaches down the bore. */
-export const PLUG_MM = 18
+/** How far every stopper reaches down the bore, less on a neck too short to hold it. */
+const PLUG_MM = 18
+/** The least straight bore left under a plug, so it never shows below the neck. */
+const PLUG_CLEAR_MM = 2
 /** The liquid's skin inside the glass. */
 export const LIQUID_GAP_MM = 0.3
 
@@ -269,7 +271,8 @@ export function bottleProfile(spec: Profiled): BottleProfile {
     floor,
   ])
 
-  const cavityTopZ = lipZ - PLUG_MM
+  const plugMm = Math.min(PLUG_MM, spec.neckMm - PLUG_CLEAR_MM)
+  const cavityTopZ = lipZ - plugMm
   const skin = WALL_MM + LIQUID_GAP_MM
   const liquidWall = inset(side, skin, BASE_MM + LIQUID_GAP_MM, cavityTopZ - LIQUID_GAP_MM)
   const liquidTop = liquidWall.at(-1)!
@@ -308,7 +311,7 @@ export function bottleProfile(spec: Profiled): BottleProfile {
     return (lo + hi) / 2
   }
 
-  const seat = { z: lipZ, r: boreR, depthMm: PLUG_MM }
+  const seat = { z: lipZ, r: boreR, depthMm: plugMm }
   const outerR = (z: number) => radiusAt(outerDense, z)
   return {
     shoulderZ: bodyH,
