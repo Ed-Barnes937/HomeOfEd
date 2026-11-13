@@ -23,22 +23,41 @@ const LIP_FILLET_MM = 0.8
 /** Dense sampling for volumes and radii; the meshed curves keep a point per turn or length. */
 const STEP_MM = 0.2
 const KEEP_TURN = (5 * Math.PI) / 180
-/** The wax is small and soft, so it keeps fewer points. */
+/** The wax is small and soft, so it keeps fewer points, and fewer still where it is hidden. */
 const WAX_TURN = (9 * Math.PI) / 180
+const HIDDEN_TURN = (20 * Math.PI) / 180
 const OUTLINE_TURN = (2 * Math.PI) / 180
 const KEEP_LENGTH_MM = 4
 
 const CORK_ABOVE_MM = 12
-const WAX_CORK_ABOVE_MM = 4
-const WAX_MM = 1.1
-/** The radius of the roll of wax where the dip ended. */
-const WAX_ROLL_MM = 1
-/** How far below the lip's bead the roll's foot sits. */
-const WAX_DIP_MM = 5.2
-/** The wax's coat on the neck, thinner than over the top. */
-const WAX_NECK_MM = 0.75
-/** The rounded edge of the wax's flat top. */
-const WAX_EDGE_MM = 1.75
+/** A waxed cork sits nearly flush, so the wax over it stays low. */
+const WAX_CORK_ABOVE_MM = 0.8
+/** The wax over the cork's top, before its dome. */
+const WAX_TOP_MM = 1
+/** The top domes this much over the whole lip ring. */
+const WAX_DOME_MM = 0.8
+/** How far the wax stands beyond the lip ring, as a share of the ring's diameter. */
+const WAX_LIP_SHARE = 0.05
+/** The wax over the top of the lip ring, thinner than at its side where it has sagged. */
+const WAX_RING_MM = 0.45
+/** The coat on the neck: thickest under the bead, thinning to its hem. */
+const WAX_NECK_MM = 0.65
+const WAX_HEM_MM = 0.3
+/** Where the wax leaves the bead's round to flare down into the coat, and the flare's length. */
+const WAX_FLARE = (-20 * Math.PI) / 180
+const WAX_BELL_MM = 7
+/** How wide the wax's step up over the cork is. */
+const WAX_STEP_MM = 1.5
+/** The coat runs this share of the ring's diameter down a long neck, and at most WAX_COAT_ROOM of the room. */
+const WAX_COAT_SHARE = 0.65
+const WAX_COAT_ROOM = 0.55
+/** How far the hem wanders up and down, as a share of the ring's diameter. */
+const WAX_WANDER_SHARE = 0.14
+/** Wax stops this far above the shoulder, or above a tag's loop. */
+const WAX_CLEAR_MM = 1
+const WAX_TAG_CLEAR_MM = 1.5
+/** The cavity's floor rounds into its wall with this radius, as blown glass does. */
+export const FLOOR_FILLET_MM = 4
 /** Clearance between a stopper and the glass it rests on. */
 export const FIT_MM = 0.05
 
@@ -88,11 +107,25 @@ export interface BottleProfile {
   neckR: number
   /** The top of the plain neck, where the lip's bead begins. */
   neckTopZ: number
-  /** The middle of the roll at a wax seal's dipped edge, where its drips begin. */
-  waxRollZ: number | null
+  /** A wax seal's dip down the neck, or null for another stopper. */
+  wax: WaxDip | null
 }
 
-type Profiled = Pick<PotionSpec, 'shape' | 'bodyHeightMm' | 'neckMm' | 'heightMm' | 'stopper'>
+export interface WaxDip {
+  /** The lip ring's outer diameter, the unit the seal is sized in. */
+  ringMm: number
+  /** The middle of the coat's hem, before it wanders. */
+  hemZ: number
+  /** How far the hem wanders up and down round the neck. */
+  wanderMm: number
+  /** Nothing of the wax reaches below this: the shoulder, or a tag's loop round the neck. */
+  floorZ: number
+}
+
+type Profiled = Pick<
+  PotionSpec,
+  'shape' | 'bodyHeightMm' | 'neckMm' | 'heightMm' | 'stopper' | 'label'
+>
 
 type Point2 = [r: number, z: number]
 
@@ -129,7 +162,11 @@ const arc = (c: Point2, radius: number, a0: number, a1: number) =>
   )
 
 /** Keeps a point wherever the curve has turned or run far enough since the last one kept. */
-function decimate(piece: ProfilePoint[], keepTurn = KEEP_TURN): ProfilePoint[] {
+function decimate(
+  piece: ProfilePoint[],
+  keepTurn = KEEP_TURN,
+  keepLength = KEEP_LENGTH_MM,
+): ProfilePoint[] {
   const out = [piece[0]!]
   let run = 0
   for (let i = 1; i < piece.length - 1; i++) {
@@ -137,7 +174,7 @@ function decimate(piece: ProfilePoint[], keepTurn = KEEP_TURN): ProfilePoint[] {
     const last = out.at(-1)!
     run += Math.hypot(p.r - piece[i - 1]!.r, p.z - piece[i - 1]!.z)
     const turn = Math.acos(Math.min(1, p.nr * last.nr + p.nz * last.nz))
-    if (turn >= keepTurn || run >= KEEP_LENGTH_MM) {
+    if (turn >= keepTurn || run >= keepLength) {
       out.push(p)
       run = 0
     }
@@ -262,10 +299,12 @@ export function bottleProfile(spec: Profiled): BottleProfile {
   const bore = line([boreR, lipZ - LIP_FILLET_MM], [boreR, neckTopZ])
 
   const outerDense = [...footRound, ...side.slice(1), ...bead.slice(1)]
-  const wall = inset(side, WALL_MM, BASE_MM, neckTopZ)
+  const wall = filleted(side, WALL_MM, BASE_MM, FLOOR_FILLET_MM, neckTopZ)
   const innerDense = [...wall, { r: boreR, z: lipZ - LIP_FILLET_MM, nr: 1, nz: 0 }]
   const floorR = wall[0]!.r
   const floor = line([floorR, BASE_MM], [0, BASE_MM])
+
+  const wax = spec.stopper === 'wax' ? waxDip(spec, lipZ, neckTopZ, 2 * (neckR + lip)) : null
 
   const glass = join([
     bottom,
@@ -283,7 +322,13 @@ export function bottleProfile(spec: Profiled): BottleProfile {
   const plugMm = Math.min(PLUG_MM, spec.neckMm - PLUG_CLEAR_MM)
   const cavityTopZ = lipZ - plugMm
   const skin = WALL_MM + LIQUID_GAP_MM
-  const liquidWall = inset(side, skin, BASE_MM + LIQUID_GAP_MM, cavityTopZ - LIQUID_GAP_MM)
+  const liquidWall = filleted(
+    side,
+    skin,
+    BASE_MM + LIQUID_GAP_MM,
+    FLOOR_FILLET_MM - LIQUID_GAP_MM,
+    cavityTopZ - LIQUID_GAP_MM,
+  )
   const liquidTop = liquidWall.at(-1)!
   const liquid = join([
     line([0, BASE_MM + LIQUID_GAP_MM], [liquidWall[0]!.r, BASE_MM + LIQUID_GAP_MM]),
@@ -337,20 +382,72 @@ export function bottleProfile(spec: Profiled): BottleProfile {
     outer: [footRound, side, bead, lipTop].flatMap((piece) => decimate(piece, OUTLINE_TURN)),
     glass,
     liquid,
-    stopper: stopperPieces(spec, seat, neckR, lip),
+    stopper: stopperPieces(spec, seat, neckR, lip, wax),
     neckR,
     neckTopZ,
-    waxRollZ: spec.stopper === 'wax' ? waxRoll(neckTopZ) : null,
+    wax,
   }
 }
 
-const waxRoll = (neckTopZ: number) => neckTopZ - WAX_DIP_MM + WAX_ROLL_MM
+/** Where a tag's string loops round the neck: just above the shoulder. */
+export const tagLoopZ = (shoulderZ: number, neckTopZ: number) =>
+  shoulderZ + Math.min(3, (neckTopZ - shoulderZ) / 2)
+
+/**
+ * How far a wax seal's coat runs down the neck: a share of the lip ring on a long neck, less on
+ * a short one, so its hem and its runs stay clear of the shoulder or a tag's loop.
+ */
+function waxDip(spec: Profiled, lipZ: number, neckTopZ: number, ring: number): WaxDip {
+  const lip = BOTTLES[spec.shape].lipMm
+  const floorZ =
+    spec.label === 'tag'
+      ? tagLoopZ(spec.bodyHeightMm, neckTopZ) + WAX_TAG_CLEAR_MM
+      : spec.bodyHeightMm + WAX_CLEAR_MM
+  const room = lipZ - floorZ
+  const depth = Math.min(
+    WAX_COAT_SHARE * ring,
+    Math.max(2 * lip + 7, WAX_COAT_ROOM * room),
+    room - 2.5,
+  )
+  return {
+    ringMm: ring,
+    hemZ: lipZ - depth,
+    // Kept small enough that the hem never folds over itself or reaches the floor.
+    wanderMm: Math.min(
+      WAX_WANDER_SHARE * ring,
+      0.25 * (depth - 2 * lip),
+      (room - depth - 0.5) / 1.1,
+    ),
+    floorZ,
+  }
+}
+
+/**
+ * The curve d into the solid from `side`, rising from a floor at floorZ: a round of `radius`
+ * from the floor into the wall, then the wall up to topZ.
+ */
+function filleted(
+  side: ProfilePoint[],
+  d: number,
+  floorZ: number,
+  radius: number,
+  topZ: number,
+): ProfilePoint[] {
+  const centre = inset(side, d + radius, floorZ + radius, topZ)[0]!
+  if (Math.abs(centre.z - floorZ - radius) > 1e-6) {
+    throw new Error('profile: no room for the round at the cavity floor')
+  }
+  const round = arc([centre.r, centre.z], radius, -Math.PI / 2, Math.atan2(centre.nz, centre.nr))
+  const wall = inset(side, d, round.at(-1)!.z, topZ)
+  return [...round, ...wall.slice(1)]
+}
 
 function stopperPieces(
   spec: Profiled,
   seat: StopperSeat,
   neckR: number,
   lip: number,
+  wax: WaxDip | null,
 ): ProfilePoint[][] {
   const { z: lipZ, r: boreR } = seat
   const z0 = lipZ - seat.depthMm
@@ -360,59 +457,140 @@ function stopperPieces(
   }
   const cork = taper(boreR - 1)
   if (spec.stopper === 'cork') return [plug(cork, z0, lipZ + CORK_ABOVE_MM, 0.6, 1.2)]
-  if (spec.stopper === 'wax') {
+  if (wax) {
     const top = lipZ + WAX_CORK_ABOVE_MM
-    return [plug(cork, z0, top, 0.6, 1.2), waxCap(cork, top, lipZ, neckR, lip)]
+    return [plug(cork, z0, top, 0.6, 0.8), waxCoat(cork, top, lipZ, neckR, lip, wax)]
   }
   return [glassStopper(taper(boreR - 0.7), z0, lipZ, neckR, lip, spec.heightMm)]
 }
 
+/** Pieces decimated each at its own turn and joined end to end. */
+const joinEach = (pieces: [ProfilePoint[], number, number?][]) =>
+  pieces.flatMap(([piece, turn, length]) => decimate(piece, turn, length))
+
+/** The last point of a curve that ends on the axis, set exactly onto it, facing `nz`. */
+const onAxis = (curve: ProfilePoint[], nz: number) =>
+  curve.map((pt, i) => (i === curve.length - 1 ? { r: 0, z: pt.z, nr: 0, nz } : pt))
+
+const smooth = (x: number) => {
+  const c = Math.max(0, Math.min(1, x))
+  return c * c * (3 - 2 * c)
+}
+
 /**
- * A cork dipped in wax: inside it hugs the cork, the lip and the neck; outside it rises
- * straight from the bead to a flat top over the cork, coats the neck and ends in a roll.
+ * A cork dipped in wax: inside it hugs the cork, the lip and the neck; outside it follows them a
+ * thin coat away, domed gently over the ring with the cork just showing, flares down from the
+ * bead like a bell, and thins down the neck to a fine rounded hem.
  */
-function waxCap(
+function waxCoat(
   cork: (z: number) => number,
   top: number,
   lipZ: number,
   neckR: number,
   lip: number,
+  { ringMm, hemZ }: WaxDip,
 ): ProfilePoint[] {
   const e = FIT_MM
-  const t = WAX_MM
-  const beadZ = lipZ - lip
-  const neckTopZ = lipZ - 2 * lip
-  const rollZ = waxRoll(neckTopZ)
-  const roll: Point2 = [neckR + e + WAX_ROLL_MM, rollZ]
-  const innerEnd = -Math.acos(e / (lip + e))
-  const corkTopR = cork(top) + e
-  const capR = neckR + lip + e + t
-  const capTop = top + e + t
-  // Outer radius by height, from the roll's widest to the bead's; the first and last points
-  // only flatten the ends.
-  const outside: [number, number][] = [
-    [rollZ - 1, roll[0] + WAX_ROLL_MM - 0.5],
-    [rollZ, roll[0] + WAX_ROLL_MM],
-    [neckTopZ - 1.8, neckR + e + WAX_NECK_MM],
-    [beadZ, capR],
-    [beadZ + 1, capR - 0.5],
+  const bead: Point2 = [neckR, lipZ - lip]
+  const overBead = ringMm / 2 + WAX_LIP_SHARE * ringMm - neckR
+  // The wax over the bead sags: thin over the ring, as thick as WAX_LIP_SHARE at its side.
+  const drop: Point2 = [neckR, bead[1] - (WAX_LIP_SHARE * ringMm - e - WAX_RING_MM)]
+  const coatR = neckR + e + WAX_NECK_MM
+  // Below the bead the wax flares out of the coat like a bell, leaving the bead's round at `flare`.
+  const flare = WAX_FLARE
+  const flareAt: Point2 = [
+    drop[0] + overBead * Math.cos(flare),
+    drop[1] + overBead * Math.sin(flare),
   ]
-  const rise = (z: number) => sample(outside, z)
-  return join(
-    [
-      line([0, top + e], [corkTopR, top + e]),
-      line([corkTopR, top + e], [cork(lipZ + e) + e, lipZ + e]),
-      line([cork(lipZ + e) + e, lipZ + e], [neckR, lipZ + e]),
-      arc([neckR, beadZ], lip + e, Math.PI / 2, innerEnd),
-      line([neckR + e, beadZ + (lip + e) * Math.sin(innerEnd)], [neckR + e, rollZ]),
-      arc(roll, WAX_ROLL_MM, Math.PI, 2 * Math.PI),
-      trace((u) => [rise(rollZ + (beadZ - rollZ) * u), rollZ + (beadZ - rollZ) * u], 8),
-      line([capR, beadZ], [capR, capTop - WAX_EDGE_MM]),
-      arc([capR - WAX_EDGE_MM, capTop - WAX_EDGE_MM], WAX_EDGE_MM, 0, Math.PI / 2),
-      line([capR - WAX_EDGE_MM, capTop], [0, capTop]),
-    ],
-    WAX_TURN,
-  ).map((pt, i, all) => (i === all.length - 1 ? { r: 0, z: pt.z, nr: 0, nz: 1 } : pt))
+  const bell = Math.min(WAX_BELL_MM, flareAt[1] - hemZ - 1.5)
+  const footZ = flareAt[1] - bell
+  // A cubic Hermite from the coat, rising straight up, to the bead's round, along its tangent.
+  const bellAt = (s: number): Point2 => {
+    const [a, b, c, d] = [
+      2 * s ** 3 - 3 * s ** 2 + 1,
+      s ** 3 - 2 * s ** 2 + s,
+      3 * s ** 2 - 2 * s ** 3,
+      s ** 3 - s ** 2,
+    ]
+    return [
+      a * coatR + c * flareAt[0] + d * bell * -Math.sin(flare),
+      a * footZ + b * bell + c * flareAt[1] + d * bell * Math.cos(flare),
+    ]
+  }
+  const lipLevel = drop[1] + overBead
+  const corkLevel = top + e + WAX_TOP_MM
+  const stepR = cork(lipZ) + e + WAX_TOP_MM
+  // Over the lip ring and the cork: up over the cork's edge, and domed across the whole ring.
+  const height = (r: number) =>
+    lipLevel +
+    (corkLevel - lipLevel) * smooth((stepR + WAX_STEP_MM - r) / (2 * WAX_STEP_MM)) +
+    WAX_DOME_MM * Math.max(0, 1 - (r / neckR) ** 2) ** 2
+  const coat = (z: number) =>
+    neckR + e + WAX_HEM_MM + (WAX_NECK_MM - WAX_HEM_MM) * smooth((z - hemZ) / (footZ - hemZ))
+  const innerEnd = -Math.acos(e / (lip + e))
+  const hem = WAX_HEM_MM / 2
+  const shut = HIDDEN_TURN
+  return onAxis(
+    joinEach([
+      [line([0, top + e], [cork(top) + e, top + e]), shut],
+      [line([cork(top) + e, top + e], [cork(lipZ + e) + e, lipZ + e]), shut],
+      [line([cork(lipZ + e) + e, lipZ + e], [neckR, lipZ + e]), shut],
+      [arc(bead, lip + e, Math.PI / 2, innerEnd), shut],
+      [line([neckR + e, bead[1] + (lip + e) * Math.sin(innerEnd)], [neckR + e, hemZ]), shut],
+      [arc([neckR + e + hem, hemZ], hem, Math.PI, 2 * Math.PI), (45 * Math.PI) / 180],
+      [
+        trace((t) => {
+          const z = hemZ + (footZ - hemZ) * t
+          return [coat(z), z]
+        }, footZ - hemZ),
+        WAX_TURN,
+        2,
+      ],
+      [trace(bellAt, bell * 1.2), WAX_TURN, 1.5],
+      [arc(drop, overBead, flare, Math.PI / 2), WAX_TURN],
+      [trace((t) => [neckR * (1 - t), height(neckR * (1 - t))], neckR * 1.5), WAX_TURN / 3, 1],
+    ]),
+    1,
+  )
+}
+
+/**
+ * A run of wax down the neck, as a lathe about its own axis: a rounded root buried in the coat,
+ * half width `root` where it leaves the hem, narrowing to `w`, then a bead of radius b at its foot.
+ */
+export function waxRun(
+  top: number,
+  bottom: number,
+  root: number,
+  w: number,
+  b: number,
+): ProfilePoint[] {
+  const beadZ = bottom + b
+  const cap = Math.min(1.5 * root, 0.3 * (top - beadZ))
+  const rootZ = top - cap
+  const neck = 0.3
+  const width = (x: number) =>
+    w +
+    (b - w) * (x < neck ? Math.cos(((Math.PI / 2) * x) / neck) ** 2 : 0) +
+    (root - w) * smooth((x - neck) / (1 - neck))
+  return onAxis(
+    join(
+      [
+        arc([0, beadZ], b, -Math.PI / 2, 0),
+        trace((t) => [width(t), beadZ + (rootZ - beadZ) * t], rootZ - beadZ),
+        trace(
+          (t) =>
+            [
+              root * Math.cos((t * Math.PI) / 2),
+              rootZ + cap * Math.sin((t * Math.PI) / 2),
+            ] as Point2,
+          cap * 1.6,
+        ),
+      ],
+      (12 * Math.PI) / 180,
+    ),
+    1,
+  )
 }
 
 /** A ground plug, a collar on the lip, a short stem and a teardrop knob to the top. */
