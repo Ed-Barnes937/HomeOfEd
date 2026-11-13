@@ -157,6 +157,11 @@ export function PhoneBar({
 
       {menuOpen && (
         <div className={styles.menu} data-testid="phone-menu">
+          {syncedAs !== null && (
+            <span className={styles.synced} data-testid="synced-state">
+              synced
+            </span>
+          )}
           {onKeep === null && (
             <>
               <button

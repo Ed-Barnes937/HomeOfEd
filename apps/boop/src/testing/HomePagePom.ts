@@ -3283,11 +3283,17 @@ export class HomePagePom extends BasePage {
     return this.page.getByRole('img', { name: `Playing as ${name}`, exact: true })
   }
 
-  /** The player's circle, and on the laptop bar the quiet "synced" words beside the saved state. */
+  /** The player's circle, and "synced": beside the saved state on the laptop bar, in the "⋯" menu on a phone. */
   async verifySyncedChip(name: string): Promise<void> {
     await expect(this.playerCircle(name)).toHaveText(profileInitial(name))
     await expect(this.page.getByText(/playing as|synced as/i)).toHaveCount(0)
-    if ((await this.page.getByTestId('phone-bar').count()) === 0) {
+    if (await this.isPhoneLayout()) {
+      await this.openPhoneMenu()
+      await expect(this.page.getByTestId('phone-menu').getByTestId('synced-state')).toHaveText(
+        'synced',
+      )
+      await this.phoneMenuButton.click()
+    } else {
       await expect(this.syncedState).toHaveText('synced')
     }
   }
