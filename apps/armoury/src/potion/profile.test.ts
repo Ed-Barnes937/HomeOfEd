@@ -200,6 +200,12 @@ describe('the stoppers', () => {
     }
   })
 
+  it('says so, rather than hanging, when a glass knob has no room above the lip', () => {
+    const spec = compilePotion(normalise(potionSchema, { shape: 'teardrop', stopper: 'glass' }))
+    const heightMm = spec.bodyHeightMm + spec.neckMm + 8
+    expect(() => bottleProfile({ ...spec, heightMm })).toThrow(/no room/)
+  })
+
   it.each(WAXED)('$name: the wax covers the cork above the lip', ({ profile }) => {
     const cork = profile.stopper[0]!
     const wax = profile.stopper[1]!

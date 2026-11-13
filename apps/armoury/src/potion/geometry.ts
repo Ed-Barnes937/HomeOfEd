@@ -30,6 +30,7 @@ const CARD_HALF_WIDTH = 13
 const CARD_HALF_HEIGHT = 9
 const CARD_HOLE_V = 6
 const CARD_HALF_THICK = 0.2
+const CARD_MAX_GAP_MM = 30
 const STRING_R = 0.5
 const STRING_SIDES = 8
 const STRING_STEP = 2
@@ -440,6 +441,7 @@ function tagLabel(b: Builder, profile: BottleProfile): void {
   let gap = 2.5
   let card: { hole: Vec3; down: Vec3; normal: Vec3 } | null = null
   while (!card) {
+    if (gap > CARD_MAX_GAP_MM) throw new Error('geometry: the tag finds nowhere to hang')
     const hole: Vec3 = [0, -(profile.outerR(holeZ) + gap), holeZ]
     for (let deg = 0; deg <= 85 && !card; deg++) {
       const a = (deg * Math.PI) / 180

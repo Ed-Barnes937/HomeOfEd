@@ -439,8 +439,8 @@ function glassStopper(
   // A drop standing on its point's opposite end: widest a third of the way up.
   const p = Math.log(0.5) / Math.log(0.35)
   const knob = (t: number) => knobR * Math.sin(Math.PI * t ** p) ** 0.8
-  let t0 = 0
-  while (knob(t0) < stemR) t0 += 0.001
+  if (knobR <= stemR) throw new Error('profile: no room above the lip for the glass knob')
+  const t0 = (Math.asin((stemR / knobR) ** 1.25) / Math.PI) ** (1 / p)
   const stem = knob(t0)
   return join([
     line([0, z0], [r(z0) - 0.5, z0]),
