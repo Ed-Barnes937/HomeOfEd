@@ -1,6 +1,6 @@
 # 02 - Scene mock and the ingredient picture question
 
-**Status:** ready-for-human (the sheet is at `shots/02/contact-sheet.png`; waiting for Ed to pick)
+**Status:** done (Ed picked scene A, the brewing table, and pictures P3; E7 and E8 in `decisions.md`)
 **Type:** prototype
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none
