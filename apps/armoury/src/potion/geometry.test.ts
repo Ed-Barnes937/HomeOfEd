@@ -70,6 +70,38 @@ function sampled(part: MeshPart, count = 200): [number, number, number][] {
   return out
 }
 
+/** The signed volume of each piece of a part, pieces joined where triangles share a position. */
+function pieceVolumes(part: MeshPart): number[] {
+  const { positions: p, indices } = part
+  const ids = new Map<string, number>()
+  const weld = Int32Array.from({ length: p.length / 3 }, (_, i) => {
+    const key = `${p[i * 3]},${p[i * 3 + 1]},${p[i * 3 + 2]}`
+    if (!ids.has(key)) ids.set(key, ids.size)
+    return ids.get(key)!
+  })
+  const parent = Int32Array.from({ length: ids.size }, (_, i) => i)
+  const root = (a: number): number => {
+    while (parent[a] !== a) a = parent[a] = parent[parent[a]!]!
+    return a
+  }
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = root(weld[indices[t]!]!)
+    parent[root(weld[indices[t + 1]!]!)] = a
+    parent[root(weld[indices[t + 2]!]!)] = a
+  }
+  const volumes = new Map<number, number>()
+  for (let t = 0; t < indices.length; t += 3) {
+    const [a, b, c] = [indices[t]!, indices[t + 1]!, indices[t + 2]!].map((i) => i * 3)
+    const det =
+      p[a]! * (p[b + 1]! * p[c + 2]! - p[b + 2]! * p[c + 1]!) -
+      p[a + 1]! * (p[b]! * p[c + 2]! - p[b + 2]! * p[c]!) +
+      p[a + 2]! * (p[b]! * p[c + 1]! - p[b + 1]! * p[c]!)
+    const piece = root(weld[indices[t]!]!)
+    volumes.set(piece, (volumes.get(piece) ?? 0) + det / 6)
+  }
+  return [...volumes.values()]
+}
+
 function distanceToOuter(profile: BottleProfile, r: number, z: number): number {
   let best = Infinity
   for (let zz = Math.max(0, z - 3); zz <= Math.min(profile.lipZ, z + 3); zz += 0.02) {
@@ -92,6 +124,14 @@ describe('buildPotionMesh', () => {
       }
     },
   )
+
+  it.each(CATALOGUE)('$name: every piece of every part encloses a positive volume', ({ mesh }) => {
+    for (const [key, part] of partsOf(mesh)) {
+      for (const volume of pieceVolumes(part)) {
+        expect(volume, `${key} piece`).toBeGreaterThan(0)
+      }
+    }
+  })
 
   it.each(CATALOGUE)('$name: within budget', ({ mesh }) => {
     const glass = vertexCount(mesh.glass)
