@@ -42,7 +42,7 @@ export function AccountActionsCard({ onSessionChange }: AccountActionsCardProps)
     queryClient.setQueryData(familyQueryKeys.children, [])
     queryClient.setQueryData(familyQueryKeys.saveSummary, [])
     queryClient.setQueryData(familyQueryKeys.me, { parent: null })
-    void navigate({ to: '/account', search: true })
+    void navigate({ to: '/account', search: true, replace: true })
   }
 
   return (

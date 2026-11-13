@@ -50,10 +50,13 @@
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  transition: transform 0.3s ease;
 
-  &:hover {
-    transform: rotate(-18deg);
+  @media (prefers-reduced-motion: no-preference) {
+    transition: transform 0.3s ease;
+
+    &:hover {
+      transform: rotate(-18deg);
+    }
   }
 }
 
@@ -274,8 +277,10 @@
   margin: -5px;
   border-radius: 50%;
 
-  &:hover .toggle {
-    transform: rotate(-18deg);
+  @media (prefers-reduced-motion: no-preference) {
+    &:hover .toggle {
+      transform: rotate(-18deg);
+    }
   }
 
   &:focus-visible {

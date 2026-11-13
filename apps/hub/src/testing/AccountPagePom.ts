@@ -194,6 +194,10 @@ export class AccountPagePom extends BasePage {
     await expect(this.page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible()
   }
 
+  async verifyNotOnSettings(): Promise<void> {
+    await expect(this.page).not.toHaveURL(/\/account\/settings/)
+  }
+
   /** The mint has answered and the picker has finished handling it. */
   async verifyPickSettled(): Promise<void> {
     await this.waitForFamilyAnswers('mintSessionToken')

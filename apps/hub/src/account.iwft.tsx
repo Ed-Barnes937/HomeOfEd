@@ -765,6 +765,21 @@ test.describe('silent renewal: a parent signed in here, a family token gone', ()
   })
 })
 
+test('going back after signing out in settings does not return to settings', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+  await root.openSettings()
+  await root.signOut()
+  await root.verifySignedOut()
+
+  await root.goBack()
+
+  await root.verifyNotOnSettings()
+})
+
 test('signing out and back in lists the household again', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
