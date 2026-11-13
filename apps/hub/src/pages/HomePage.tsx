@@ -1,6 +1,7 @@
-import { readFamilySession } from '@hoe/accounts'
+import { profileInitial, readFamilySession } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
+import { profileColour } from '../features/account/profileColour.ts'
 import { appDates } from './appDates.ts'
 import styles from './HomePage.module.scss'
 import { pillFor } from './pillFor.ts'
@@ -78,17 +79,21 @@ export function HomePage() {
         <span className={theme === 'dark' ? styles.sun : styles.moon} aria-hidden="true" />
       </button>
 
-      <Link to="/account" className={styles.whosPlaying}>
-        <span className={styles.chipLabel}>
-          {playing ? (
-            <>
-              Playing as <span className={styles.player}>{playing}</span>
-            </>
-          ) : (
-            'Sign in'
-          )}
-        </span>
-      </Link>
+      {playing ? (
+        <Link
+          to="/account"
+          className={styles.playerCircle}
+          data-colour={profileColour(playing.sub)}
+          aria-label={`Playing as ${playing.name}. Switch player`}
+          title={playing.name}
+        >
+          {profileInitial(playing.name)}
+        </Link>
+      ) : (
+        <Link to="/account" className={styles.whosPlaying}>
+          <span className={styles.chipLabel}>Sign in</span>
+        </Link>
+      )}
 
       <section className={styles.intro}>
         <h1 className={styles.wordmark} ref={wordmarkRef} aria-label="home of ed">
@@ -158,19 +163,24 @@ export function HomePage() {
  * display: never an authorisation decision. Re-read when back restores the page
  * from the back-forward cache, since the player may have changed meanwhile.
  */
-function useWhoIsPlaying(): string | null {
-  const [name, setName] = useState(readPlayerName)
+type Player = { sub: string; name: string }
+
+function useWhoIsPlaying(): Player | null {
+  const [player, setPlayer] = useState(readPlayer)
   useEffect(() => {
-    const reread = () => setName(readPlayerName())
+    const reread = () => setPlayer(readPlayer())
     window.addEventListener('pageshow', reread)
     return () => window.removeEventListener('pageshow', reread)
   }, [])
-  return name
+  return player
 }
 
-function readPlayerName(): string | null {
-  const name = readFamilySession()?.name.trim() ?? ''
-  return name.replace(/[\s\p{Cf}]/gu, '') === '' ? null : name
+function readPlayer(): Player | null {
+  const session = readFamilySession()
+  const name = session?.name.trim() ?? ''
+  return session === null || name.replace(/[\s\p{Cf}]/gu, '') === ''
+    ? null
+    : { sub: session.sub, name }
 }
 
 /**

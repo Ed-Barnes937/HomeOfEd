@@ -38,7 +38,7 @@ test('with nobody playing, the home page offers Sign in, which opens /account', 
   await root.verifyOnAccountPage()
 })
 
-test('with a profile playing, the home page names it and links to /account', async ({
+test('with a profile playing, the home page shows its avatar circle, linking to /account', async ({
   page,
   mountApp,
 }) => {
@@ -46,7 +46,10 @@ test('with a profile playing, the home page names it and links to /account', asy
   const { root } = await mountApp()
   await root.verifyIsShown()
 
-  await root.verifyWhosPlayingChip('Playing as Robin')
+  await root.verifyPlayerCircle('Robin')
+  await root.openPlayerCircle('Robin')
+
+  await root.verifyOnAccountPage()
 })
 
 test('a name with nothing visible in it is treated as nobody playing', async ({
@@ -60,31 +63,39 @@ test('a name with nothing visible in it is treated as nobody playing', async ({
   await root.verifyWhosPlayingChip('Sign in')
 })
 
-test('coming back to the page after the player changed shows the new name', async ({
+test('coming back to the page after the player changed shows the new player', async ({
   page,
   mountApp,
 }) => {
   await playAs(page, 'Robin')
   const { root } = await mountApp()
-  await root.verifyWhosPlayingChip('Playing as Robin')
+  await root.verifyPlayerCircle('Robin')
 
   await playAs(page, 'Wren')
   await root.returnFromBackForwardCache()
 
-  await root.verifyWhosPlayingChip('Playing as Wren')
+  await root.verifyPlayerCircle('Wren')
 })
 
-test('an ordinary name is shown in full on a portrait iPad mini', async ({ page, mountApp }) => {
-  await page.setViewportSize({ width: 744, height: 1133 })
-  await playAs(page, 'Robin')
-  const { root } = await mountApp()
-  await root.verifyIsShown()
+for (const [width, height] of [
+  [390, 844],
+  [744, 1133],
+  [1440, 900],
+] as const) {
+  test(`the avatar circle sits top right of the header at ${width}x${height}`, async ({
+    page,
+    mountApp,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await playAs(page, 'Robin')
+    const { root } = await mountApp()
+    await root.verifyIsShown()
 
-  await root.verifyWhosPlayingChipShowsItsWholeLabel('Playing as Robin')
-})
+    await root.verifyPlayerCircleSitsTopRight()
+  })
+}
 
-// The contract's longest display name, in wide characters, on the widths where
-// the left column is narrowest beside the rail.
+// The widths where the left column is narrowest beside the rail.
 for (const [width, height] of [
   [1024, 768],
   [820, 1180],
@@ -92,16 +103,16 @@ for (const [width, height] of [
   [768, 1024],
   [744, 1133],
 ] as const) {
-  test(`a long name stays clear of the app rail at ${width}x${height}`, async ({
+  test(`the avatar circle stays clear of the app rail at ${width}x${height}`, async ({
     page,
     mountApp,
   }) => {
     await page.setViewportSize({ width, height })
-    await playAs(page, 'W'.repeat(32))
+    await playAs(page, 'Robin')
     const { root } = await mountApp()
     await root.verifyIsShown()
 
-    await root.verifyWhosPlayingChipClearOfTheRail()
+    await root.verifyPlayerCircleClearOfTheRail()
   })
 }
 

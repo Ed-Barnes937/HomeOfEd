@@ -1,4 +1,4 @@
-/** How many avatar colours `AccountPage.module.scss` defines (`--avatar-0` onwards). */
+/** How many avatar colours `_paperTokens.scss` defines (`$avatar-colours`). */
 export const PROFILE_COLOURS = 6
 
 /** A profile's avatar colour slot, derived from its id alone so it never moves. */

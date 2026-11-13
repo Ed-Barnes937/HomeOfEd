@@ -190,7 +190,9 @@ export class AccountPagePom extends BasePage {
   async verifyLandedHomePlayingAs(name: string): Promise<void> {
     await expect(this.page).toHaveURL(/^[^?#]*\/$/)
     await expect(this.page.getByRole('heading', { name: 'home of ed' })).toBeVisible()
-    await expect(this.page.getByRole('link', { name: `Playing as ${name}`, exact: true })).toBeVisible()
+    await expect(
+      this.page.getByRole('link', { name: `Playing as ${name}. Switch player`, exact: true }),
+    ).toBeVisible()
   }
 
   private pickerChoices(): Locator {

@@ -279,8 +279,6 @@
   text-align: center;
 }
 
-// Mid-tone paper inks, each holding the cream initial at 3:1 or better in both themes.
-$avatar-colours: #c07a35, #4f7d6f, #b5573f, #4f6f8f, #8a5d7e, #7c7a3a;
 $avatar-size: clamp(104px, 30vw, 144px);
 
 .profiles {
@@ -317,9 +315,9 @@ $avatar-size: clamp(104px, 30vw, 144px);
     opacity: 0.6;
   }
 
-  @for $i from 1 through length($avatar-colours) {
+  @for $i from 1 through length(paper.$avatar-colours) {
     &[data-colour='#{$i - 1}'] .avatar {
-      background: nth($avatar-colours, $i);
+      background: nth(paper.$avatar-colours, $i);
     }
   }
 
