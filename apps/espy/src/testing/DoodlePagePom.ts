@@ -1,3 +1,4 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
 
@@ -13,7 +14,8 @@ export class DoodlePagePom extends BasePage {
   private readonly subtitle = this.page.getByTestId('hint-subtitle')
   private readonly helpButton = this.page.getByRole('button', { name: 'How to play' })
   private readonly tooltip = this.page.getByRole('tooltip')
-  private readonly player = this.page.getByTestId('player')
+  // CT runs outside the estate, so the circle names the player without linking to hub.
+  private readonly player = this.page.getByRole('img', { name: /^Playing as / })
 
   async verifyIsShown(): Promise<void> {
     await expect(this.canvas).toBeVisible()
@@ -141,24 +143,34 @@ export class DoodlePagePom extends BasePage {
     await expect(this.tooltip).toContainText(snippet)
   }
 
-  /** The player drawing, named in the header (a switch-player link inside the estate). */
+  /** The player drawing, as an avatar circle in the header (a switch-player link inside the estate). */
   async verifyPlayerShown(name: string): Promise<void> {
-    await expect(this.player).toHaveText(name)
+    await expect(
+      this.page.getByRole('img', { name: `Playing as ${name}`, exact: true }),
+    ).toHaveText(profileInitial(name))
+    await expect(this.page.getByText(/playing as/i)).toHaveCount(0)
   }
 
-  /** The pill fits `maxWidth`, and its name overflows on an element that draws an ellipsis. */
-  async verifyPlayerNameTruncated(maxWidth: number): Promise<void> {
-    const pill = await this.player.boundingBox()
-    expect(pill?.width).toBeLessThanOrEqual(maxWidth)
-    const name = await this.player.getByTestId('player-name').evaluate((el) => {
-      const style = getComputedStyle(el)
+  /** The circle ends the header at its top right, clear of the title, with the full name as its tooltip. */
+  async verifyPlayerEndsHeader(name: string): Promise<void> {
+    await expect(this.player).toHaveAttribute('title', name)
+    const m = await this.page.evaluate(() => {
+      const header = document.querySelector('header')!
+      const circle = header.querySelector('[data-testid="player"]')!.getBoundingClientRect()
+      const others = [...header.children]
+        .filter((el) => el.getAttribute('data-testid') !== 'player')
+        .map((el) => el.getBoundingClientRect())
       return {
-        overflows: el.scrollWidth > el.clientWidth,
-        ellipsis: style.textOverflow === 'ellipsis' && style.overflow === 'hidden',
-        blockish: style.display !== 'inline',
+        circleLeft: circle.left,
+        circleRight: circle.right,
+        circleTop: circle.top,
+        othersRight: Math.max(...others.map((r) => r.right)),
+        width: document.documentElement.clientWidth,
       }
     })
-    expect(name).toEqual({ overflows: true, ellipsis: true, blockish: true })
+    expect(m.circleLeft).toBeGreaterThanOrEqual(m.othersRight)
+    expect(m.circleRight).toBeLessThanOrEqual(m.width)
+    expect(m.circleTop).toBeLessThan(80)
   }
 
   async verifyNoPlayerShown(): Promise<void> {

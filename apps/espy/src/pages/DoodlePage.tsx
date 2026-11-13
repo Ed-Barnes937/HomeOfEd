@@ -1,4 +1,10 @@
-import { hubUrlFor, profileStorage, reloadOnPlayerChange, switchPlayerUrlFor } from '@hoe/accounts'
+import {
+  hubUrlFor,
+  profileInitial,
+  profileStorage,
+  reloadOnPlayerChange,
+  switchPlayerUrlFor,
+} from '@hoe/accounts'
 import { useEffect, useState } from 'react'
 
 import { Toolbar } from '../features/controls/Toolbar.tsx'
@@ -94,27 +100,30 @@ export function DoodlePage() {
   )
 }
 
-/** Who is drawing, linking to hub to switch player and come back (spec decision 10). Outside the
- *  estate there is no hub to switch at, so it is the name alone. */
+/** Who is drawing, as an avatar circle linking to hub to switch player and come back (spec
+ *  decision 10). Outside the estate there is no hub to switch at, so it only names the player. */
 function PlayerLink({ name }: { name: string }) {
   const href = switchPlayerUrlFor(window.location.href)
-  const label = (
-    <span className={styles.playerName} data-testid="player-name">
-      {name}
-    </span>
-  )
+  const initial = profileInitial(name)
   return href === null ? (
-    <span className={styles.player} data-testid="player">
-      {label}
+    <span
+      className={styles.player}
+      role="img"
+      aria-label={`Playing as ${name}`}
+      title={name}
+      data-testid="player"
+    >
+      {initial}
     </span>
   ) : (
     <a
       className={styles.player}
       href={href}
-      aria-label={`${name}, switch player`}
+      aria-label={`Playing as ${name}. Switch player`}
+      title={name}
       data-testid="player"
     >
-      {label}
+      {initial}
     </a>
   )
 }
