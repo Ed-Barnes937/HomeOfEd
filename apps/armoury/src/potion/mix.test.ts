@@ -172,6 +172,29 @@ describe('mixPotion main, strength and trait', () => {
         expect(mixPotion(order).main, order.join()).toBe(main)
   })
 
+  it('names the nearer ingredient for the three surprise recipes with a pair', () => {
+    expect(mixPotion(['bluebell', 'moonmilk', 'moonmilk']).main).toBe('moonmilk')
+    expect(mixPotion(['emberroot', 'rosehip', 'rosehip']).main).toBe('rosehip')
+    expect(mixPotion(['starpetal', 'snailshine', 'snailshine']).main).toBe('snailshine')
+  })
+
+  it('never names a main farther from the sum than another candidate', () => {
+    for (const recipe of multisets) {
+      const mix = mixPotion(recipe)
+      if (mix.main === null) continue
+      const carriers = recipe.filter((id) => ingredient(id).effect === mix.outcome)
+      const counts = (id: IngredientId) => carriers.filter((c) => c === id).length
+      const pool = carriers.length > 0 ? carriers : recipe
+      const most = Math.max(...pool.map(counts))
+      const apart = (id: IngredientId) => {
+        const gap = Math.abs(ingredient(id).wheel * WHEEL_STEP_DEGREES - mix.angle) % 360
+        return Math.min(gap, 360 - gap)
+      }
+      for (const id of pool.filter((c) => counts(c) === most))
+        expect(apart(mix.main), recipe.join()).toBeLessThanOrEqual(apart(id) + 1e-6)
+    }
+  })
+
   it('counts all three carriers as strength 3', () => {
     expect(mixPotion(['bluebell', 'bluebell', 'snailshine'])).toMatchObject({
       outcome: 'sparkling',

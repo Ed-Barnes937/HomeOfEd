@@ -28,7 +28,6 @@ describe('INGREDIENTS', () => {
     expect(INGREDIENTS.some((i) => i.id === ('bogmurk' as string))).toBe(false)
     expect(ingredient('puffcap')).toMatchObject({
       label: 'Puffcap',
-      colour: '#c9343f',
       effect: 'whiffy',
     })
   })

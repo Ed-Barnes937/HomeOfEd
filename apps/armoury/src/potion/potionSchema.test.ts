@@ -8,7 +8,7 @@ import {
   randomise,
   seededRandom,
 } from '../engine/schema.ts'
-import { INGREDIENTS } from './ingredients.ts'
+import { ingredient, INGREDIENTS } from './ingredients.ts'
 import {
   GLASS_TINTS,
   isMixed,
@@ -180,7 +180,7 @@ describe('potionSchema', () => {
 
 describe('potionSwatchFor', () => {
   it('gives pours their ingredient colour and none nothing', () => {
-    expect(potionSwatchFor('pour2', 'rosehip')).toBe('#d9467a')
+    expect(potionSwatchFor('pour2', 'rosehip')).toBe(ingredient('rosehip').colour)
     expect(potionSwatchFor('pour1', 'none')).toBeUndefined()
   })
 

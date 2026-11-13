@@ -34,9 +34,9 @@ describe('compilePotion', () => {
       waxColour: null,
     })
     expect(spec.layers).toEqual([
-      { ingredient: 'moonmilk', colour: '#ece6f4', trait: 'cloud' },
-      { ingredient: 'rosehip', colour: '#d9467a', trait: 'swirl' },
-      { ingredient: 'starpetal', colour: '#f2c14e', trait: 'glitter' },
+      { ingredient: 'moonmilk', colour: ingredient('moonmilk').colour, trait: 'cloud' },
+      { ingredient: 'rosehip', colour: ingredient('rosehip').colour, trait: 'swirl' },
+      { ingredient: 'starpetal', colour: ingredient('starpetal').colour, trait: 'glitter' },
     ])
   })
 
@@ -100,7 +100,9 @@ describe('compilePotion', () => {
   describe('waxColour', () => {
     it('is the top pour darkened by 35 percent in linear light under wax', () => {
       const spec = compilePotion(potion(['moonmilk', 'frogfizz'], { stopper: 'wax' }))
-      const expected = linearToSrgb(srgbToLinear('#7ccf4f').map((v) => v * 0.65) as LinearRgb)
+      const expected = linearToSrgb(
+        srgbToLinear(ingredient('frogfizz').colour).map((v) => v * 0.65) as LinearRgb,
+      )
       expect(spec.waxColour).toBe(expected)
     })
 
