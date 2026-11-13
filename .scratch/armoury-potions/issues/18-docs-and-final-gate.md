@@ -96,3 +96,4 @@ uncorking delightful and bounded, the street right with a third door.
 
 ## Comments
 - 2026-11-13 orchestrator, from the second review of ticket 05: in ADR 0106 the "Names never mention drinking" bullet still says the test covers blend lore only (it now lives in `describe.test.ts` and sweeps every word, name, tag line and lore), and line 58 is not wrapped. Fix both in the docs pass.
+- 2026-11-13 orchestrator, from the second review of ticket 07: in `src/items/registry.test.ts` the test named "loses to a wand or a sword in the same link" now only tests the sword (the wand has its own test); rename it "loses to a sword in the same link".
