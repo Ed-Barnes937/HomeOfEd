@@ -39,7 +39,7 @@ light half must be safe for the main chunk.
   5 degrees of turn or 4 mm of run; volumes and radii use the dense curve.
 - **Equal pours to `fullAt`.** `fullZ = fullAt * bodyHeightMm`, just under the shoulder.
   `uprightLevels` puts band k's top where the cavity holds k quarters of the volume to
-  `fullZ`, so every pour adds the same volume (tests: within 1 percent against Simpson's
+  `fullZ`, so every pour adds the same volume (tests: within 1e-5 against Simpson's
   rule). Fewer pours are the first levels of four.
 - **The cavity runs up the bore to the bottom of the stopper** (18 mm below the lip top,
   the same for every stopper, or 2 mm above the shoulder on a neck too short for that, so no
@@ -51,7 +51,7 @@ light half must be safe for the main chunk.
   bisection on the cavity's volume below a tilted plane, integrated in 0.25 mm slices with
   the exact disc-segment area. By symmetry the tilt's direction does not matter. `levelsAt`
   interpolates linearly. Measured against independent quadrature, every band of every
-  shape keeps its volume within 2 percent to 60 degrees, including between rows, and within
+  shape keeps its volume within 0.4 percent to 60 degrees, including between rows, and within
   5 percent at 90. A table costs several milliseconds; build it once per spec, never per
   frame.
 - **The frame of a tipped level.** A level h is the plane dot(p, u) = h, where p is a point
@@ -153,8 +153,8 @@ diameter, 18 to 22 mm):
   true surface by at most 0.02 mm, so it cannot fight.
 - **The cavity floor rounds into the wall with a 4 mm radius** (1.6 walls), the liquid's with
   3.7 mm about the same centre, on every shape. Volumes still come from the cavity's own curve, so
-  pours stay equal to within a millionth against Simpson's rule, and the tipped bands within 0.4
-  percent to 60 degrees.
+  pours stay equal to within 1.2 millionths against Simpson's rule (tests: 1e-5), and the tipped
+  bands within 0.35 percent to 60 degrees (tests: 0.4 percent).
 - **Budgets after round 2**, across all 1,260 combinations: glass 13.6k (gourd, neck 1, cork, no
   label), liquid 5.2k (gourd, neck 0.9), stopper and label 7.5k (round, neck 0.9, wax, tag),
   total 25.0k (gourd, neck 1, wax, tag).

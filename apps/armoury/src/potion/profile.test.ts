@@ -295,7 +295,7 @@ describe('the stoppers', () => {
 
 describe('uprightLevels', () => {
   it.each(CATALOGUE)(
-    '$name: each pour adds a quarter of the volume to fullZ, within 1 percent',
+    '$name: each pour adds a quarter of the volume to fullZ, within a hundred-thousandth',
     ({ spec, profile }) => {
       const levels = uprightLevels(spec)
       expect(levels).toHaveLength(4)
@@ -305,7 +305,7 @@ describe('uprightLevels', () => {
       for (const top of levels) {
         expect(top).toBeGreaterThan(below)
         const band = simpsonVolume(profile, below, top)
-        expect(Math.abs(band / (full / 4) - 1)).toBeLessThan(0.01)
+        expect(Math.abs(band / (full / 4) - 1)).toBeLessThan(1e-5)
         below = top
       }
     },
