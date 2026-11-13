@@ -1,4 +1,4 @@
-import { profileInitial, switchPlayerUrlFor } from '@hoe/accounts'
+import { playerCircleFor } from '@hoe/accounts'
 import { Link } from '@tanstack/react-router'
 
 import type { ShareState } from '../share/useShareWand.ts'
@@ -64,27 +64,27 @@ function PictureIcon() {
 /** Who the shelf belongs to, and the way to hub to switch player and come back (ADR 0094). */
 export function Player({ name, className }: { name: string; className?: string }) {
   const classes = [styles.player, className].filter(Boolean).join(' ')
-  const href = switchPlayerUrlFor(window.location.href)
+  const { initial, label, href } = playerCircleFor(name, window.location.href)
   // Outside the estate there is no hub to switch at, so it is the circle alone.
   return href === null ? (
     <span
       className={`${classes} ${styles.static}`}
       role="img"
-      aria-label={`Playing as ${name}`}
+      aria-label={label}
       title={name}
       data-testid="player"
     >
-      {profileInitial(name)}
+      {initial}
     </span>
   ) : (
     <a
       className={classes}
       href={href}
-      aria-label={`Playing as ${name}. Switch player`}
+      aria-label={label}
       title={name}
       data-testid="player"
     >
-      {profileInitial(name)}
+      {initial}
     </a>
   )
 }

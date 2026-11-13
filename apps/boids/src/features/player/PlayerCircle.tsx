@@ -1,4 +1,4 @@
-import { profileInitial, switchPlayerUrlFor } from '@hoe/accounts'
+import { playerCircleFor } from '@hoe/accounts'
 
 import { useFamilySession } from './FamilySessionContext.tsx'
 import styles from './PlayerCircle.module.scss'
@@ -11,13 +11,12 @@ import styles from './PlayerCircle.module.scss'
 export function PlayerCircle() {
   const name = useFamilySession()?.name ?? null
   if (name === null) return null
-  const href = switchPlayerUrlFor(window.location.href)
-  const initial = profileInitial(name)
+  const { initial, label, href } = playerCircleFor(name, window.location.href)
   return href === null ? (
     <span
       className={styles.circle}
       role="img"
-      aria-label={`Playing as ${name}`}
+      aria-label={label}
       title={name}
       data-testid="player"
     >
@@ -27,7 +26,7 @@ export function PlayerCircle() {
     <a
       className={styles.circle}
       href={href}
-      aria-label={`Playing as ${name}. Switch player`}
+      aria-label={label}
       title={name}
       data-testid="player"
     >

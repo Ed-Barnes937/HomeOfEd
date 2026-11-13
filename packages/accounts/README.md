@@ -203,7 +203,11 @@ reference (`apps/boop/src/App.tsx`, `pages/views.tsx`, `pages/HomePage.tsx`,
   dev port or compose port), for a back-to-hub link; production hub anywhere
   else. **`switchPlayerUrlFor(href)`** - `accountUrlFor` on `href` without its
   fragment, so a "switch player" link returns here once a player is picked;
-  `null` outside the estate.
+  `null` outside the estate. **`playerCircleFor(name, href)`** - what an app's
+  avatar circle shows: `profileInitial(name)`, an accessible `label` ("Playing
+  as Ada. Switch player", or "Playing as Ada" outside the estate) and the
+  `switchPlayerUrlFor` `href`, `null` outside the estate. Each app draws its
+  own circle from it.
 
 ### Wiring the gate in an app
 

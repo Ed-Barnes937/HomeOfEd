@@ -1,4 +1,4 @@
-import { profileInitial, switchPlayerUrlFor } from '@hoe/accounts'
+import { playerCircleFor } from '@hoe/accounts'
 
 import styles from './PlayerChip.module.scss'
 
@@ -9,15 +9,14 @@ interface PlayerChipProps {
 
 /** Who is playing, as an avatar circle linking to hub to switch player (spec decision 10); a plain circle outside the estate. */
 export function PlayerChip({ name }: PlayerChipProps) {
-  const href = switchPlayerUrlFor(window.location.href)
-  const shared = { className: styles.chip, 'data-testid': 'player-chip', title: name }
-  const initial = profileInitial(name)
+  const { initial, label, href } = playerCircleFor(name, window.location.href)
+  const shared = { className: styles.chip, 'data-testid': 'player-chip', title: name, 'aria-label': label }
   return href === null ? (
-    <span {...shared} role="img" aria-label={`Playing as ${name}`}>
+    <span {...shared} role="img">
       {initial}
     </span>
   ) : (
-    <a {...shared} href={href} aria-label={`Playing as ${name}. Switch player`}>
+    <a {...shared} href={href}>
       {initial}
     </a>
   )

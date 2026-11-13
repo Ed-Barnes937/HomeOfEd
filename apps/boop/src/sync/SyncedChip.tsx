@@ -1,4 +1,4 @@
-import { profileInitial, switchPlayerUrlFor } from '@hoe/accounts'
+import { playerCircleFor } from '@hoe/accounts'
 
 import styles from './SyncedChip.module.scss'
 
@@ -14,13 +14,12 @@ interface SyncedChipProps {
  * there is no hub to switch at, so it only names the player.
  */
 export function SyncedChip({ name }: SyncedChipProps) {
-  const href = switchPlayerUrlFor(window.location.href)
-  const initial = profileInitial(name)
+  const { initial, label, href } = playerCircleFor(name, window.location.href)
   return href === null ? (
     <span
       className={styles.chip}
       role="img"
-      aria-label={`Playing as ${name}`}
+      aria-label={label}
       title={name}
       data-testid="synced-chip"
     >
@@ -30,7 +29,7 @@ export function SyncedChip({ name }: SyncedChipProps) {
     <a
       className={styles.chip}
       href={href}
-      aria-label={`Playing as ${name}. Switch player`}
+      aria-label={label}
       title={name}
       data-testid="synced-chip"
     >
