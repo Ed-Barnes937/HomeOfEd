@@ -41,9 +41,18 @@ function entry(
   }
 }
 
+// The heaviest of all 1,260 combinations, necks in 0.05 steps: the most glass and in total,
+// the most liquid, the most stopper and label.
+const HEAVIEST: Entry[] = [
+  entry('gourd', 1, 'wax', 'round'),
+  entry('gourd', 0.9, 'cork', 'none'),
+  entry('round', 0.05, 'wax', 'tag'),
+]
+
 // Every shape at every neck with every label, the stoppers cycled; the teardrop with each
 // stopper and no label; an empty and a one-pour bottle.
 const CATALOGUE: Entry[] = [
+  ...HEAVIEST,
   ...SHAPES.flatMap((shape, s) =>
     [0, 0.5, 1].flatMap((neck, n) =>
       LABELS.map((label, l) => entry(shape, neck, STOPPERS[(s + n + l) % 3]!, label)),
