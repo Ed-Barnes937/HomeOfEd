@@ -35,7 +35,13 @@ export function SwitchPlayerLink() {
       {initial}
     </span>
   ) : (
-    <a className={styles.circle} href={href} aria-label={label} title={name} data-testid="switch-player">
+    <a
+      className={styles.circle}
+      href={href}
+      aria-label={label}
+      title={name}
+      data-testid="switch-player"
+    >
       {initial}
     </a>
   )

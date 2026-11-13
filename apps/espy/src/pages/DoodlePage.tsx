@@ -96,7 +96,7 @@ export function DoodlePage() {
 
 /** Who is drawing, as an avatar circle linking to hub to switch player and come back (spec
  *  decision 10). Outside the estate there is no hub to switch at, so it only names the player. */
-function PlayerLink({ name }: { name: string }) {
+export function PlayerLink({ name }: { name: string }) {
   const { initial, label, href } = playerCircleFor(name, window.location.href)
   return href === null ? (
     <span
