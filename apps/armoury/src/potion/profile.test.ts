@@ -158,6 +158,80 @@ describe('bottleProfile', () => {
   })
 })
 
+type Curve2 = { r: number; z: number }[]
+
+/** The widest radius of a closed profile at height z. */
+function widestAt(curve: Curve2, z: number): number {
+  let best = -Infinity
+  for (let i = 1; i < curve.length; i++) {
+    const a = curve[i - 1]!
+    const b = curve[i]!
+    if ((a.z - z) * (b.z - z) > 0 || a.z === b.z) continue
+    best = Math.max(best, a.r + ((b.r - a.r) * (z - a.z)) / (b.z - a.z))
+  }
+  return best
+}
+
+function crossings(curve: Curve2): number {
+  const side = (a: Curve2[0], b: Curve2[0], c: Curve2[0]) =>
+    Math.sign((b.r - a.r) * (c.z - a.z) - (b.z - a.z) * (c.r - a.r))
+  let count = 0
+  for (let i = 1; i < curve.length; i++)
+    for (let j = i + 2; j < curve.length; j++) {
+      const [a, b, c, d] = [curve[i - 1]!, curve[i]!, curve[j - 1]!, curve[j]!]
+      if (side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0) count++
+    }
+  return count
+}
+
+describe('the stoppers', () => {
+  const WAXED = SHAPES.flatMap((shape) =>
+    [0, 1].map((neck) => {
+      const spec = compilePotion(
+        normalise(potionSchema, { ...withPours(FOUR), shape, neck, stopper: 'wax' }),
+      )
+      return { name: `${shape} neck ${neck}`, profile: bottleProfile(spec) }
+    }),
+  )
+
+  it.each([...CATALOGUE, ...WAXED])('$name: no closed profile crosses itself', ({ profile }) => {
+    for (const curve of [profile.glass, profile.liquid, ...profile.stopper]) {
+      expect(crossings(curve)).toBe(0)
+    }
+  })
+
+  it.each(WAXED)('$name: the wax covers the cork above the lip', ({ profile }) => {
+    const cork = profile.stopper[0]!
+    const wax = profile.stopper[1]!
+    const waxTop = Math.max(...wax.map((p) => p.z))
+    expect(waxTop).toBeGreaterThan(Math.max(...cork.map((p) => p.z)) + 1)
+    for (const p of cork.filter((q) => q.z > profile.lipZ)) {
+      expect(widestAt(wax, p.z)).toBeGreaterThan(p.r + 0.8)
+    }
+  })
+
+  it.each(WAXED)('$name: the wax domes over the cork, with no flat top', ({ profile }) => {
+    const wax = profile.stopper[1]!
+    const top = Math.max(...wax.map((p) => p.z))
+    const coat = widestAt(wax, profile.lipZ + 4)
+    const turned = wax.map((p) => ({ r: p.z, z: p.r }))
+    expect(top - widestAt(turned, 0.8 * coat)).toBeGreaterThan(0.6)
+  })
+
+  it.each(WAXED)(
+    '$name: the dipped edge is a roll thicker than the wax above it',
+    ({ profile }) => {
+      const wax = profile.stopper[1]!
+      const below = wax.filter((p) => p.z < profile.neckTopZ)
+      const roll = Math.max(...below.map((p) => p.r))
+      const rollZ = below.find((p) => p.r === roll)!.z
+      const above = []
+      for (let z = rollZ + 0.5; z < profile.neckTopZ; z += 0.1) above.push(widestAt(wax, z))
+      expect(roll - Math.min(...above)).toBeGreaterThan(0.8)
+    },
+  )
+})
+
 describe('uprightLevels', () => {
   it.each(CATALOGUE)(
     '$name: each pour adds a quarter of the volume to fullZ, within 1 percent',

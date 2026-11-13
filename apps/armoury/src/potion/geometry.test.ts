@@ -91,7 +91,9 @@ function pieceVolumes(part: MeshPart): number[] {
   }
   const volumes = new Map<number, number>()
   for (let t = 0; t < indices.length; t += 3) {
-    const [a, b, c] = [indices[t]!, indices[t + 1]!, indices[t + 2]!].map((i) => i * 3)
+    const a = indices[t]! * 3
+    const b = indices[t + 1]! * 3
+    const c = indices[t + 2]! * 3
     const det =
       p[a]! * (p[b + 1]! * p[c + 2]! - p[b + 2]! * p[c + 1]!) -
       p[a + 1]! * (p[b]! * p[c + 2]! - p[b + 2]! * p[c]!) +
@@ -227,6 +229,24 @@ describe('buildPotionMesh', () => {
       CATALOGUE.find((e) => e.spec.shape === shape && e.spec.label === 'round')!
     expect(width(of('tall'))).toBeLessThan(width(of('teardrop')))
   })
+
+  it.each(CATALOGUE.filter((e) => e.spec.stopper === 'wax'))(
+    '$name: the wax is uneven: its dipped edge wanders round the neck and its dome tilts',
+    ({ mesh, profile }) => {
+      const sectors = 12
+      const lowest = new Array<number>(sectors).fill(Infinity)
+      const highest = new Array<number>(sectors).fill(-Infinity)
+      for (const [x, y, z] of sampled(mesh.stopper, Infinity)) {
+        const r = Math.hypot(x, y)
+        const k = Math.floor(((Math.atan2(y, x) + Math.PI) / (2 * Math.PI)) * sectors) % sectors
+        if (z < profile.neckTopZ && r > profile.neckR + 1.8) lowest[k] = Math.min(lowest[k]!, z)
+        if (r > 0.5 * profile.neckR && r < 0.85 * profile.neckR)
+          highest[k] = Math.max(highest[k]!, z)
+      }
+      expect(Math.max(...lowest) - Math.min(...lowest)).toBeGreaterThan(1)
+      expect(Math.max(...highest) - Math.min(...highest)).toBeGreaterThan(0.4)
+    },
+  )
 
   it('has no label part without a label, and a wax seal with drips below its cap', () => {
     const plain = CATALOGUE.find((e) => e.spec.label === 'none' && e.spec.stopper === 'wax')!

@@ -33,13 +33,22 @@ const CARD_HALF_THICK = 0.2
 const STRING_R = 0.5
 const STRING_SIDES = 8
 const STRING_STEP = 2
-const DRIP_R = 1
+const DRIP_R = 1.15
 const DRIP_FLAT = 0.7
+/** How much fatter a drip is low down than high up. */
+const DRIP_BULB = 0.35
+/** A drip's widest radius over DRIP_R, for DRIP_BULB 0.35. */
+const DRIP_WIDEST = 1.06
+/** Drips stop this far above the shoulder, or further when a tag's string loops the neck. */
+const DRIP_CLEAR_MM = 1
+const DRIP_CLEAR_TAG_MM = 4.5
 const DRIPS: [angle: number, length: number][] = [
-  [0.35, 4.5],
-  [1.9, 7],
-  [3.3, 3.5],
-  [4.6, 6],
+  [0.25, 6],
+  [1.35, 2.6],
+  [2.35, 7.5],
+  [3.6, 3.4],
+  [4.55, 5.2],
+  [5.55, 2.2],
 ]
 
 class Builder {
@@ -134,27 +143,29 @@ function lathePart(curves: ProfilePoint[][], segments: number): Builder {
   return b
 }
 
-/** A small flattened ellipsoid hanging down the neck from under the wax cap. */
+/** A flattened drop of wax, fatter at its foot, hanging down the neck from inside the roll. */
 function drip(b: Builder, angle: number, top: number, length: number, neckR: number): void {
   const half = length / 2
   const centre = top - half
-  const steps = 10
+  const steps = 12
   const curve: ProfilePoint[] = Array.from({ length: steps + 1 }, (_, k) => {
     const phi = -Math.PI / 2 + (Math.PI * k) / steps
-    const [nr, nz] = [Math.cos(phi) / DRIP_R, Math.sin(phi) / half]
-    const len = Math.hypot(nr, nz)
+    const [c, s] = [Math.cos(phi), Math.sin(phi)]
+    const dr = DRIP_R * (-s * (1 - DRIP_BULB * s) - DRIP_BULB * c * c)
+    const dz = half * c
+    const len = Math.hypot(dr, dz)
     return {
-      r: DRIP_R * Math.cos(phi),
-      z: centre + half * Math.sin(phi),
-      nr: nr / len,
-      nz: nz / len,
+      r: DRIP_R * c * (1 - DRIP_BULB * s),
+      z: centre + half * s,
+      nr: dz / len,
+      nz: -dr / len,
     }
   })
   curve[0]!.r = 0
   curve[steps]!.r = 0
   const out: Vec3 = [Math.cos(angle), Math.sin(angle), 0]
   const side: Vec3 = [-Math.sin(angle), Math.cos(angle), 0]
-  const seat = neckR + FIT_MM + DRIP_FLAT * DRIP_R + 0.05
+  const seat = neckR + FIT_MM + DRIP_FLAT * DRIP_R * DRIP_WIDEST + 0.05
   revolve(b, curve, 12, (r, z, nr, nz, psi) => {
     const c = Math.cos(psi)
     const s = Math.sin(psi)
@@ -169,15 +180,56 @@ function drip(b: Builder, angle: number, top: number, length: number, neckR: num
   })
 }
 
-function stopperPart(profile: BottleProfile): MeshPart {
-  const b = lathePart(profile.stopper, STOPPER_SEGMENTS)
-  const capBottom = profile.waxCapBottomZ
-  if (capBottom !== null) {
-    const top = capBottom + 1
-    const room = top - profile.shoulderZ - 1
-    for (const [angle, length] of DRIPS) {
-      drip(b, FRONT_ANGLE + angle, top, Math.min(length, room), profile.neckR)
-    }
+/** How far the wax's dipped edge sits above its mean, by angle round the neck, and its slope. */
+const wander = (a: number) =>
+  0.7 * Math.sin(a + 0.6) + 0.35 * Math.sin(2 * a + 2.1) + 0.15 * Math.sin(3 * a + 0.4)
+const wanderSlope = (a: number) =>
+  0.7 * Math.cos(a + 0.6) + 0.7 * Math.cos(2 * a + 2.1) + 0.45 * Math.cos(3 * a + 0.4)
+
+/** 0 below z0 rising smoothly to 1 above z1, and its slope. */
+function smoothstep(z: number, z0: number, z1: number): [value: number, slope: number] {
+  const x = Math.max(0, Math.min(1, (z - z0) / (z1 - z0)))
+  return [x * x * (3 - 2 * x), (6 * x * (1 - x)) / (z1 - z0)]
+}
+
+/**
+ * The wax's lathe lifted unevenly: the dome tilts and the dipped edge wanders round the neck.
+ * A lift f along z turns a normal n into n - grad f * n.z / (1 + df/dz).
+ */
+function waxPlace(profile: BottleProfile, rollZ: number): Place {
+  const { lipZ, neckTopZ } = profile
+  const reach = profile.neckR + (lipZ - neckTopZ) / 2
+  return (r, z, nr, nz, angle) => {
+    const [p, n] = lathe(r, z, nr, nz, angle)
+    const u = p[0] / reach
+    const v = p[1] / reach
+    const [dome, domeSlope] = smoothstep(z, lipZ + 1, lipZ + 5)
+    const [above, aboveSlope] = smoothstep(z, rollZ, neckTopZ - 0.2)
+    const h = 0.7 + 0.55 * u - 0.3 * v + 0.3 * u * v
+    const edge = r > 0 ? (wanderSlope(angle) * (1 - above)) / r : 0
+    const gx = ((0.55 + 0.3 * v) / reach) * dome - Math.sin(angle) * edge
+    const gy = ((-0.3 + 0.3 * u) / reach) * dome + Math.cos(angle) * edge
+    const gz = h * domeSlope - wander(angle) * aboveSlope
+    const k = n[2] / (1 + gz)
+    return [
+      [p[0], p[1], p[2] + h * dome + wander(angle) * (1 - above)],
+      unit([n[0] - gx * k, n[1] - gy * k, n[2] - gz * k]),
+    ]
+  }
+}
+
+function stopperPart(spec: PotionSpec, profile: BottleProfile): MeshPart {
+  const rollZ = profile.waxRollZ
+  if (rollZ === null) return lathePart(profile.stopper, STOPPER_SEGMENTS).part()
+  const [cork, wax] = profile.stopper as [ProfilePoint[], ProfilePoint[]]
+  const b = lathePart([cork], STOPPER_SEGMENTS)
+  revolve(b, wax, STOPPER_SEGMENTS, waxPlace(profile, rollZ))
+  const longest = Math.max(...DRIPS.map(([, length]) => length))
+  for (const [angle, length] of DRIPS) {
+    const top = rollZ + wander(FRONT_ANGLE + angle)
+    const clear = spec.label === 'tag' ? DRIP_CLEAR_TAG_MM : DRIP_CLEAR_MM
+    const room = top - profile.shoulderZ - clear
+    drip(b, FRONT_ANGLE + angle, top, length * Math.min(1, room / longest), profile.neckR)
   }
   return b.part()
 }
@@ -570,7 +622,7 @@ export function buildPotionMesh(spec: PotionSpec): PotionMesh {
   return {
     glass: lathePart([profile.glass], SEGMENTS).part(),
     liquid: lathePart([profile.liquid], SEGMENTS).part(),
-    stopper: stopperPart(profile),
+    stopper: stopperPart(spec, profile),
     label: labelPart(spec, profile),
   }
 }

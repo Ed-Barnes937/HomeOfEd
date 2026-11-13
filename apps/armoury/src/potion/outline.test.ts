@@ -100,7 +100,7 @@ describe('potionOutline', () => {
       const { stopper: shape } = potionOutline(spec)
       const profile = bottleProfile(spec)
       const top = Math.max(...shape.map(([, y]) => y))
-      expect(top).toBeGreaterThan(profile.lipZ + 6)
+      expect(top).toBeGreaterThan(profile.lipZ + 5)
       expect(top).toBeLessThanOrEqual(spec.heightMm + 1e-9)
       if (stopper === 'glass') expect(top).toBeCloseTo(spec.heightMm, 6)
       const { neckRadiusMm, lipMm } = BOTTLES.teardrop

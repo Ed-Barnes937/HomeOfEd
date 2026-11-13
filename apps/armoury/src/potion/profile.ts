@@ -24,12 +24,22 @@ const LIP_FILLET_MM = 0.8
 /** Dense sampling for volumes and radii; the meshed curves keep a point per turn or length. */
 const STEP_MM = 0.2
 const KEEP_TURN = (5 * Math.PI) / 180
+/** The wax is small and soft, so it keeps fewer points. */
+const WAX_TURN = (9 * Math.PI) / 180
 const OUTLINE_TURN = (2 * Math.PI) / 180
 const KEEP_LENGTH_MM = 4
 
 const CORK_ABOVE_MM = 12
-const WAX_CORK_ABOVE_MM = 6
+const WAX_CORK_ABOVE_MM = 4
 const WAX_MM = 1.1
+/** The radius of the roll of wax where the dip ended. */
+const WAX_ROLL_MM = 1
+/** How far below the lip's bead the roll's foot sits. */
+const WAX_DIP_MM = 5.2
+/** The wax's coat on the neck, thinner than over the top. */
+const WAX_NECK_MM = 0.75
+/** The superellipse power of the wax's dome over the lip: above 2 is fuller than round. */
+const WAX_DOME = 2.4
 /** Clearance between a stopper and the glass it rests on. */
 export const FIT_MM = 0.05
 
@@ -80,8 +90,8 @@ export interface BottleProfile {
   neckR: number
   /** The top of the plain neck, where the lip's bead begins. */
   neckTopZ: number
-  /** Where a wax seal's cap ends on the neck and its drips begin. */
-  waxCapBottomZ: number | null
+  /** The middle of the roll at a wax seal's dipped edge, where its drips begin. */
+  waxRollZ: number | null
 }
 
 type Profiled = Pick<PotionSpec, 'shape' | 'bodyHeightMm' | 'neckMm' | 'heightMm' | 'stopper'>
@@ -139,7 +149,8 @@ function decimate(piece: ProfilePoint[], keepTurn = KEEP_TURN): ProfilePoint[] {
 }
 
 /** Pieces joined end to end; a shared end stays doubled, so a corner keeps both normals. */
-const join = (pieces: ProfilePoint[][]) => pieces.flatMap((piece) => decimate(piece))
+const join = (pieces: ProfilePoint[][], keepTurn = KEEP_TURN) =>
+  pieces.flatMap((piece) => decimate(piece, keepTurn))
 
 /** The curve offset into its solid by d, loops cut out and the result cut at zFrom..zTo. */
 function inset(curve: ProfilePoint[], d: number, zFrom: number, zTo: number): ProfilePoint[] {
@@ -331,11 +342,11 @@ export function bottleProfile(spec: Profiled): BottleProfile {
     stopper: stopperPieces(spec, seat, neckR, lip),
     neckR,
     neckTopZ,
-    waxCapBottomZ: spec.stopper === 'wax' ? waxCapBottom(lipZ, lip) : null,
+    waxRollZ: spec.stopper === 'wax' ? waxRoll(neckTopZ) : null,
   }
 }
 
-const waxCapBottom = (lipZ: number, lip: number) => lipZ - 2 * lip - 2.5
+const waxRoll = (neckTopZ: number) => neckTopZ - WAX_DIP_MM + WAX_ROLL_MM
 
 function stopperPieces(
   spec: Profiled,
@@ -358,7 +369,10 @@ function stopperPieces(
   return [glassStopper(taper(boreR - 0.7), z0, lipZ, neckR, lip, spec.heightMm)]
 }
 
-/** A dipped wax seal: it hugs the cork, the lip and the neck inside and is a round-edged cap outside. */
+/**
+ * A cork dipped in wax: inside it hugs the cork, the lip and the neck; outside it domes over
+ * the lip and the cork, coats the neck and ends in a roll.
+ */
 function waxCap(
   cork: (z: number) => number,
   top: number,
@@ -368,30 +382,41 @@ function waxCap(
 ): ProfilePoint[] {
   const e = FIT_MM
   const t = WAX_MM
-  const beadC: Point2 = [neckR, lipZ - lip]
-  const capBottom = waxCapBottom(lipZ, lip)
+  const beadZ = lipZ - lip
+  const neckTopZ = lipZ - 2 * lip
+  const rollZ = waxRoll(neckTopZ)
+  const roll: Point2 = [neckR + e + WAX_ROLL_MM, rollZ]
   const innerEnd = -Math.acos(e / (lip + e))
-  const outerEnd = -Math.acos((e + t) / (lip + e + t))
   const corkTopR = cork(top) + e
   const capR = neckR + lip + e + t
-  const capTop = top + e + t
-  const round = 2
-  return join([
-    line([0, top + e], [corkTopR, top + e]),
-    line([corkTopR, top + e], [cork(lipZ + e) + e, lipZ + e]),
-    line([cork(lipZ + e) + e, lipZ + e], [neckR, lipZ + e]),
-    arc(beadC, lip + e, Math.PI / 2, innerEnd),
-    line([neckR + e, beadC[1] + (lip + e) * Math.sin(innerEnd)], [neckR + e, capBottom]),
-    arc([neckR + e + t / 2, capBottom], t / 2, Math.PI, 2 * Math.PI),
-    line(
-      [neckR + e + t, capBottom],
-      [neckR + e + t, beadC[1] + (lip + e + t) * Math.sin(outerEnd)],
-    ),
-    arc(beadC, lip + e + t, outerEnd, 0),
-    line([capR, beadC[1]], [capR, capTop - round]),
-    arc([capR - round, capTop - round], round, 0, Math.PI / 2),
-    line([capR - round, capTop], [0, capTop]),
-  ])
+  const n = WAX_DOME
+  const domeH = (top + e + t - beadZ) / (1 - (corkTopR / capR) ** n) ** (1 / n)
+  // Outer radius by height, from the roll's widest to the bead's; the first and last points
+  // only flatten the ends.
+  const outside: [number, number][] = [
+    [rollZ - 1, roll[0] + WAX_ROLL_MM - 0.5],
+    [rollZ, roll[0] + WAX_ROLL_MM],
+    [neckTopZ - 1.8, neckR + e + WAX_NECK_MM],
+    [beadZ, capR],
+    [beadZ + 1, capR - 0.5],
+  ]
+  const rise = (z: number) => sample(outside, z)
+  return join(
+    [
+      line([0, top + e], [corkTopR, top + e]),
+      line([corkTopR, top + e], [cork(lipZ + e) + e, lipZ + e]),
+      line([cork(lipZ + e) + e, lipZ + e], [neckR, lipZ + e]),
+      arc([neckR, beadZ], lip + e, Math.PI / 2, innerEnd),
+      line([neckR + e, beadZ + (lip + e) * Math.sin(innerEnd)], [neckR + e, rollZ]),
+      arc(roll, WAX_ROLL_MM, Math.PI, 2 * Math.PI),
+      trace((u) => [rise(rollZ + (beadZ - rollZ) * u), rollZ + (beadZ - rollZ) * u], 8),
+      trace((u) => {
+        const a = (u * Math.PI) / 2
+        return [capR * Math.cos(a) ** (2 / n), beadZ + domeH * Math.sin(a) ** (2 / n)]
+      }, capR + domeH),
+    ],
+    WAX_TURN,
+  ).map((pt, i, all) => (i === all.length - 1 ? { r: 0, z: pt.z, nr: 0, nz: 1 } : pt))
 }
 
 /** A ground plug, a collar on the lip, a short stem and a teardrop knob to the top. */
