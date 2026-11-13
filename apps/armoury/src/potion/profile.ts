@@ -23,13 +23,13 @@ const LIP_FILLET_MM = 0.8
 const STEP_MM = 0.2
 const KEEP_TURN = (5 * Math.PI) / 180
 const OUTLINE_TURN = (2 * Math.PI) / 180
-const KEEP_LENGTH_MM = 3
+const KEEP_LENGTH_MM = 4
 
 const CORK_ABOVE_MM = 12
 const WAX_CORK_ABOVE_MM = 6
 const WAX_MM = 1.1
 /** Clearance between a stopper and the glass it rests on. */
-const FIT_MM = 0.05
+export const FIT_MM = 0.05
 
 /** A point on a profile with its unit normal, pointing out of the solid the curve bounds. */
 export interface ProfilePoint {
@@ -74,6 +74,10 @@ export interface BottleProfile {
   liquid: ProfilePoint[]
   /** The stopper's lathe pieces. */
   stopper: ProfilePoint[][]
+  /** The neck's outer radius. */
+  neckR: number
+  /** Where a wax seal's cap ends on the neck and its drips begin. */
+  waxCapBottomZ: number | null
 }
 
 type Profiled = Pick<PotionSpec, 'shape' | 'bodyHeightMm' | 'neckMm' | 'heightMm' | 'stopper'>
@@ -131,7 +135,7 @@ function decimate(piece: ProfilePoint[], keepTurn = KEEP_TURN): ProfilePoint[] {
 }
 
 /** Pieces joined end to end; a shared end stays doubled, so a corner keeps both normals. */
-const join = (pieces: ProfilePoint[][]) => pieces.flatMap(decimate)
+const join = (pieces: ProfilePoint[][]) => pieces.flatMap((piece) => decimate(piece))
 
 /** The curve offset into its solid by d, loops cut out and the result cut at zFrom..zTo. */
 function inset(curve: ProfilePoint[], d: number, zFrom: number, zTo: number): ProfilePoint[] {
@@ -321,8 +325,12 @@ export function bottleProfile(spec: Profiled): BottleProfile {
     glass,
     liquid,
     stopper: stopperPieces(spec, seat, neckR, lip),
+    neckR,
+    waxCapBottomZ: spec.stopper === 'wax' ? waxCapBottom(lipZ, lip) : null,
   }
 }
+
+const waxCapBottom = (lipZ: number, lip: number) => lipZ - 2 * lip - 2.5
 
 function stopperPieces(
   spec: Profiled,
@@ -356,7 +364,7 @@ function waxCap(
   const e = FIT_MM
   const t = WAX_MM
   const beadC: Point2 = [neckR, lipZ - lip]
-  const capBottom = lipZ - 2 * lip - 2.5
+  const capBottom = waxCapBottom(lipZ, lip)
   const innerEnd = -Math.acos(e / (lip + e))
   const outerEnd = -Math.acos((e + t) / (lip + e + t))
   const corkTopR = cork(top) + e
@@ -403,6 +411,7 @@ function glassStopper(
   const knob = (t: number) => knobR * Math.sin(Math.PI * t ** p) ** 0.8
   let t0 = 0
   while (knob(t0) < stemR) t0 += 0.001
+  const stem = knob(t0)
   return join([
     line([0, z0], [r(z0) - 0.5, z0]),
     line([r(z0) - 0.5, z0], [r(z0 + 0.5), z0 + 0.5]),
@@ -411,8 +420,8 @@ function glassStopper(
     arc([collarR - round, base + round], round, -Math.PI / 2, 0),
     line([collarR, base + round], [collarR, collarTop - round]),
     arc([collarR - round, collarTop - round], round, 0, Math.PI / 2),
-    line([collarR - round, collarTop], [stemR, collarTop]),
-    line([stemR, collarTop], [stemR, knobZ]),
+    line([collarR - round, collarTop], [stem, collarTop]),
+    line([stem, collarTop], [stem, knobZ]),
     trace((t) => {
       const u = t0 + (1 - t0) * t
       return [knob(u), knobZ + (knobH * (u - t0)) / (1 - t0)]

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import { normalise } from '../engine/schema.ts'
@@ -106,6 +107,22 @@ describe('potionOutline', () => {
       if (stopper === 'wax')
         expect(halfWidthAt(shape, profile.lipZ - 1)).toBeGreaterThan(neckRadiusMm + lipMm)
       else expect(halfWidthAt(shape, profile.lipZ - 1)).toBeLessThanOrEqual(profile.stopperSeat.r)
+    },
+  )
+
+  it.each(['./profile.ts', './outline.ts'])(
+    '%s imports only light modules, so it can ship in the main chunk',
+    (file) => {
+      const source = readFileSync(new URL(file, import.meta.url), 'utf8')
+      const imports = [...source.matchAll(/from '([^']+)'/g)].map((m) => m[1])
+      const light = [
+        '../sword/curve.ts',
+        './bottles.ts',
+        './compile.ts',
+        './potionSchema.ts',
+        './profile.ts',
+      ]
+      expect(imports.filter((i) => !light.includes(i!))).toEqual([])
     },
   )
 })
