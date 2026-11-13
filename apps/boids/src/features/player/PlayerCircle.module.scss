@@ -1,0 +1,25 @@
+// The player's initial on the theme's accent, in the corner the back link
+// mirrors; the settings panel and its FAB start below it (BoidsPage).
+.circle {
+  position: fixed;
+  top: 26px;
+  right: 26px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font: 500 18px/1 var(--font-mono);
+  text-decoration: none;
+  user-select: none;
+  box-shadow: var(--shadow-fab);
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}

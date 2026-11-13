@@ -177,6 +177,8 @@ export interface ControlPanelProps {
   onCursorIconChange: (icon: CursorIcon) => void
   params: SimParams
   onParamsChange: (params: SimParams) => void
+  /** The player circle holds the top-right corner, so the panel and its FAB start below it. */
+  belowPlayer?: boolean
 }
 
 /** The frosted-glass settings panel: header, theme, shape, cursor, sliders, collapse↔FAB. */
@@ -192,6 +194,7 @@ export function ControlPanel({
   onCursorIconChange,
   params,
   onParamsChange,
+  belowPlayer = false,
 }: ControlPanelProps) {
   const [collapsed, setCollapsed] = useState(false)
 
@@ -213,7 +216,7 @@ export function ControlPanel({
     return (
       <button
         type="button"
-        className={styles.fab}
+        className={`${styles.fab}${belowPlayer ? ` ${styles.belowPlayer}` : ''}`}
         aria-label="Open settings"
         onClick={() => setCollapsed(false)}
       >
@@ -232,7 +235,9 @@ export function ControlPanel({
   }
 
   return (
-    <aside className={styles.panel} role="dialog" aria-label="Simulation settings">
+    <aside
+      className={`${styles.panel}${belowPlayer ? ` ${styles.belowPlayer}` : ''}`}
+      role="dialog" aria-label="Simulation settings">
       <div className={styles.head}>
         <div className={styles.title}>
           <span className={styles.wordmark}>boids</span>

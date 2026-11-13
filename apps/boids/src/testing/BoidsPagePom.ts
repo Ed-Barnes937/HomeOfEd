@@ -1,5 +1,7 @@
+import { profileInitial } from '@hoe/accounts'
 import { BasePage } from '@hoe/test-kit'
 import { expect } from '@playwright/experimental-ct-react'
+import type { Locator } from '@playwright/test'
 
 import { TEST_SEAM_KEY, type BoidsTestSeam } from '../features/sim/useSimulationLoop.ts'
 
@@ -27,6 +29,42 @@ export class BoidsPagePom extends BasePage {
     expect(box?.width).toBeGreaterThan(0)
     expect(box?.height).toBeGreaterThan(0)
     await expect(this.panel).toBeVisible()
+  }
+
+  /** CT runs outside the estate, so the player circle names the player without linking to hub. */
+  private playerCircle(name: string): Locator {
+    return this.page.getByRole('img', { name: `Playing as ${name}`, exact: true })
+  }
+
+  async verifyPlayer(name: string): Promise<void> {
+    await expect(this.playerCircle(name)).toHaveText(profileInitial(name))
+    await expect(this.page.getByText(/playing as/i)).toHaveCount(0)
+  }
+
+  async verifyNoPlayer(): Promise<void> {
+    await expect(this.page.getByRole('img', { name: /^Playing as / })).toHaveCount(0)
+  }
+
+  /** The player circle holds the top-right corner, a full touch target clear of the panel, FAB and back link. */
+  async verifyPlayerInCornerClearOfControls(name: string): Promise<void> {
+    const circle = (await this.playerCircle(name).boundingBox())!
+    const viewport = this.page.viewportSize()!
+    expect(circle.width).toBeGreaterThanOrEqual(44)
+    expect(circle.height).toBeGreaterThanOrEqual(44)
+    expect(circle.x + circle.width).toBeLessThanOrEqual(viewport.width)
+    expect(circle.y).toBeLessThan(viewport.height / 10)
+    const back = this.page.getByRole('link', { name: /back to home of ed/i })
+    for (const control of [this.panel, this.fab, back]) {
+      if (!(await control.isVisible())) continue
+      const box = (await control.boundingBox())!
+      const overlaps =
+        circle.x < box.x + box.width &&
+        box.x < circle.x + circle.width &&
+        circle.y < box.y + box.height &&
+        box.y < circle.y + circle.height
+      expect(overlaps).toBe(false)
+      expect(circle.x + circle.width).toBeGreaterThanOrEqual(box.x + box.width)
+    }
   }
 
   /** Asserts the flock is actually animating, not a static frame. */
