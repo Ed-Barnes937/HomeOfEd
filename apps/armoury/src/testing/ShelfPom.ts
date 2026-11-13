@@ -88,7 +88,7 @@ export class ShelfPom extends BasePage {
   }
 
   /** The way back, which names the shop that was last. */
-  async backTo(place: 'the counter' | 'the anvil'): Promise<void> {
+  async backTo(place: 'the counter' | 'the anvil' | 'the brewing table'): Promise<void> {
     await this.page
       .getByRole('link', { name: `Back to ${place}` })
       .first()

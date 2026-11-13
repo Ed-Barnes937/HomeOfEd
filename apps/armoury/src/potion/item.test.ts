@@ -8,8 +8,7 @@ import { potionPresets } from './presets.ts'
 import { potionSchema } from './potionSchema.ts'
 import { pourList } from './pours.ts'
 
-// Ticket 07 widens ItemKind; until then the reducer is handed a kind it never reads.
-const workbench = createWorkbench({ ...potionItem, kind: 'wand' })
+const workbench = createWorkbench(potionItem)
 
 describe('the potion item', () => {
   it('is the potion kind with its schema and its own save key', () => {

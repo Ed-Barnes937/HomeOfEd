@@ -3,8 +3,11 @@ import { expect } from '@playwright/experimental-ct-react'
 import { normalise } from './engine/schema.ts'
 import type { StoredItem } from './items/item.ts'
 import { LAST_SHOP_KEY } from './persistence/lastShop.ts'
+import { potionSchema } from './potion/potionSchema.ts'
+import { withPours } from './potion/pours.ts'
 import { decodeShareHash, encodeShare, SHARE_HASH_PREFIX } from './share/shareLink.ts'
 import { reloadAtRoot } from './testing/address.ts'
+import { ApothecaryPom } from './testing/ApothecaryPom.ts'
 import { setFamilyCookie } from './testing/familySession.ts'
 import { test } from './testing/iwftTest.tsx'
 import {
@@ -37,6 +40,12 @@ const SHARED_SWORD: StoredItem = {
   name: 'Gift',
 }
 const SWORD_FRAGMENT = `${SHARE_HASH_PREFIX}${encodeShare('sword', SHARED_SWORD)}`
+
+const SHARED_POTION: StoredItem = {
+  params: normalise(potionSchema, { shape: 'gourd', ...withPours(['frogfizz', 'bluebell']) }),
+  name: 'Bottled',
+}
+const POTION_FRAGMENT = `${SHARE_HASH_PREFIX}${encodeShare('potion', SHARED_POTION)}`
 
 test('a /shared link opens the wand to change, and writes nothing to either storage', async ({
   mountApp,
@@ -306,4 +315,47 @@ test('the way back to the street from /shared is a page load, so the gate sees i
   await page.waitForURL((url) => url.pathname === '/street', { waitUntil: 'commit' })
 
   await expect.poll(() => page.evaluate(() => 'sameDocument' in window)).toBe(false)
+})
+
+test('a /shared potion opens in the potion shop to change, and writes nothing', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+  const before = await readAllStorage(page)
+
+  await ShopPom.openAt(page, `/shared${POTION_FRAGMENT}`)
+  await mountApp()
+  const potions = new ApothecaryPom(page)
+  await potions.verifyPotionName('Bottled')
+  await potions.verifyStage({ shape: 'gourd', pours: 'frogfizz,bluebell' })
+  await potions.verifyNothingOffersToSave()
+  await potions.chooseIn('Glass', 'Violet')
+  await page.waitForTimeout(1_000)
+  expect(await readAllStorage(page)).toEqual(before)
+})
+
+test('"Keep this potion" takes the link to the potion shop, which opens with it', async ({
+  mountApp,
+  page,
+}) => {
+  const first = await mountApp()
+  await first.root.verifyIsShown()
+  await reloadAtRoot(page)
+
+  await ShopPom.openAt(page, `/shared${POTION_FRAGMENT}`)
+  await mountApp()
+  const kept = await new ApothecaryPom(page).keepShared()
+  expect(kept).toBe(`${new URL(kept).origin}/potions${POTION_FRAGMENT}`)
+
+  await page.evaluate(() => window.history.replaceState(null, '', '/'))
+  await reloadAtRoot(page)
+  await ShopPom.openAt(page, `/potions${POTION_FRAGMENT}`)
+  await mountApp()
+  const potions = new ApothecaryPom(page)
+  await potions.verifyPotionName('Bottled')
+  await potions.verifyStage({ shape: 'gourd' })
+  await potions.verifyAt('/potions')
 })

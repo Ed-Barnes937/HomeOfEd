@@ -40,6 +40,9 @@ export function CloseUp({
     stageRef.current?.flourish()
     setFlourishes((c) => c + 1)
   }
+  const arrive = () => {
+    if (view.closeUp.flourishOnArrival) flourish()
+  }
 
   const finish = () => {
     if (dialog.current?.open) dialog.current.close()
@@ -88,7 +91,7 @@ export function CloseUp({
               reducedMotion={reducedMotion}
               boxPose={boxPose}
               onLift={onLift}
-              onArrive={flourish}
+              onArrive={arrive}
               onTapItem={flourish}
               onTapAway={() => void putBack()}
             />
