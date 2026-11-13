@@ -6,7 +6,7 @@ import { SwatchPicker } from '../shop/controls/Widgets.tsx'
 import type { WidgetProps } from '../shop/shopView.ts'
 import { PourPicker } from './pourPicker.tsx'
 
-/** The potion's own controls: one picker owns the Pours group, the glass is tinted swatches. */
+/** The potion's own controls: one picker owns the Pours group and `mixed` has no control; the glass is tinted swatches. */
 export function potionWidget(
   def: ParamDef,
   { params, onChange }: WidgetProps,

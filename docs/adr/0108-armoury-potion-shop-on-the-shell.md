@@ -67,42 +67,46 @@ end first, on fake stages, without opening the shop to visitors.
 
 ## The pour picker
 
+Three ingredients that mix, and "Empty the bottle" as the only removal (decision E17).
+
 - **One widget owns the Pours group.** `potionWidget` returns `PourPicker` for
-  `pour1` and `null` for `pour2` to `pour4`, so the group draws once through the
-  existing per-param widget hook. The glass gets a `SwatchPicker` tinted from
-  `potionSwatchFor`; every other control stays plain.
+  `pour1` and `null` for `pour2`, `pour3` and `mixed`, so the group draws once
+  through the existing per-param widget hook and the mixed flag has no control of
+  its own. The glass gets a `SwatchPicker` tinted from `potionSwatchFor`.
 - **A pour is a `set` on the lowest empty slot.** A jar calls
-  `onChange(nextPourKey(params), id)`; with a full bottle the jars are
-  `aria-disabled` (still focusable) and a tap announces the full message and pours
-  nothing.
-- **Take-out compaction lives in the item's `follows`**, not in the widget or the
-  reducer: the widget sets the slot to `none` and `followPours` drops the pours
-  above it down.
-- **Empty the bottle is batched sets**, one `none` per filled slot from the top
-  down in a single handler; React batches them, so the stage sees one change.
-- **Accessibility.** Every jar is a button named "Pour in {Label}"; "In the
-  bottle" is a list, top pour first, with empty slots above it like the
-  bottle itself, each pour with "Take out {Label}"; a polite live region says
-  what changed. Every swatch has a light ring because the dark ones are low in
-  contrast against the dark tile.
+  `onChange(nextPourKey(params), id)`. The same ingredient may go in as often as
+  the child likes. The jars sit in the colour wheel's order, so the grid reads as
+  a rainbow.
+- **Two ways the jars are shut.** A full bottle that is not mixed shows "The
+  bottle is full. Tap it to mix it, or empty it to start again."; a mixed one
+  shows "This potion is mixed. Empty the bottle to make a new one." Either way
+  every jar is `aria-disabled` (still focusable) and points at the visible message
+  with `aria-describedby`; a tap pours nothing and announces the message again.
+- **There is no take-out.** Taking one ingredient out of three would leave a
+  half-made potion that the mix has to be re-judged for, and a mixed potion with a
+  hole in it has no meaning. "Empty the bottle" sets every filled slot to `none`
+  from the top down, which also unmixes, and is the one way back to a clean start.
+  The button shows while anything is in the bottle.
+- **The list has three equal rows**, top first, each the swatch and the name, an
+  empty slot reading "Empty", with no buttons. Its heading reads "Mixed in the
+  bottle" once mixed. "In the bottle" is a plain list (the schema calls the bottom
+  pour `pour1`, so numbering the top "1" would contradict it).
+- **Accessibility.** Every jar is a button named "Pour in {Label}"; a polite live
+  region says "{Label} poured in. One of three.", "Two of three.", "Three of
+  three. Tap the bottle to mix it.", and "The bottle is empty."; each announcement
+  is a fresh node so a repeat is heard. Every swatch has a light ring because the
+  dark ones are low in contrast against the dark tile.
 - **The picture is one seam.** `IngredientPicture` is the only place a jar's
-  picture is drawn; a plain colour swatch stands in for it.
-- **On a phone** the pours list is the same single top-first column as on the
-  desk, each pour with the words "Take out" in a button at least 44 px tall. The
-  jars tighten (48 px tall, a 22 px swatch) so all nine stay in view in the sheet's
-  238 px body at 390 by 844, empty or full; only "In the bottle" and "Empty the
-  bottle" sit below the fold, so the tab scrolls inside the sheet like any other.
-- **Focus stays in the picker.** After "Take out" focus goes to the take-out
-  button now in that row, else the nearest remaining one, else the first jar;
-  after "Empty the bottle" it goes to the first jar. Only those controls move it.
-  Focus scrolls the sheet into view only when the click came from the keyboard
-  (`detail` 0); a tap or a mouse click focuses without scrolling, so the sheet
-  stays where the child was. The list rows are one height, empty or filled, so
-  the list does not grow as it fills.
-  "In the bottle" is a plain list (the schema calls the bottom pour "First pour",
-  so numbering the top "1" would contradict it), the dimmed jars point at the full
-  message with `aria-describedby`, and each announcement is a fresh node so a
-  repeat is heard.
+  picture is drawn; a plain colour swatch stands in for it until ticket 16.
+- **On a phone** the jars tighten (48 px tall, a 22 px swatch) so all nine stay
+  in view in the sheet's body at 390 by 844, with the shut message above them;
+  "In the bottle" and "Empty the bottle" sit below the fold, so the tab scrolls
+  inside the sheet like any other. At 375 by 667 the third row of jars needs a
+  short scroll inside the sheet.
+- **Focus stays in the picker.** After "Empty the bottle" focus goes to the first
+  jar. Focus scrolls the sheet into view only when no pointer made the click
+  (`detail` 0, which is Enter, Space or a screen reader's click); a tap or a mouse
+  click focuses without scrolling, so the sheet stays where the child was.
 
 ## The tap that mixes
 
