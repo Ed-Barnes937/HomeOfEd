@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { normalise } from '../engine/schema.ts'
+import { PROFILE_KEYS } from '../persistence/profileKeys.ts'
 import { POTION_SAVE_KEY, SAVE_KEY, SWORD_SAVE_KEY } from '../persistence/storage.ts'
 import { potionItem } from '../potion/item.ts'
 import { potionSchema } from '../potion/potionSchema.ts'
@@ -27,6 +28,10 @@ describe('the item registry', () => {
     expect(new Set(keys).size).toBe(keys.length)
   })
 
+  it("keeps every kind's save under the player, never the device", () => {
+    for (const kind of ITEM_KINDS) expect(PROFILE_KEYS.keys).toContain(ITEMS[kind].storageKey)
+  })
+
   it('holds the potion as the third kind', () => {
     expect(ITEMS.potion).toBe(potionItem)
   })
@@ -50,6 +55,11 @@ describe('the item registry', () => {
     it('loses to a wand or a sword in the same link', () => {
       const both = token({ version: 1, potion, sword: { params: swordItem.firstVisit() } })
       expect(decodeShare(both)?.kind).toBe('sword')
+    })
+
+    it('loses to a wand in the same link', () => {
+      const both = token({ version: 1, potion, wand: { params: wandItem.firstVisit() } })
+      expect(decodeShare(both)?.kind).toBe('wand')
     })
 
     it('reads as no item at all to a build without potions', () => {

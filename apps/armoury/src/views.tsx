@@ -2,11 +2,11 @@ import { arrivalFragment, memoryStorage, profileStorage, reloadOnPlayerChange } 
 import { Outlet, rootRouteId, useRouteContext } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
+import { apothecary } from './apothecary/apothecary.ts'
 import { useFamilySession } from './familySession.tsx'
 import type { ItemKind } from './items/item.ts'
 import { PROFILE_KEYS } from './persistence/profileKeys.ts'
 import { clearShareHash, decodeShareHash } from './share/shareLink.ts'
-import { apothecary } from './apothecary/apothecary.ts'
 import { ShopPage } from './shop/ShopPage.tsx'
 import type { ShopView } from './shop/shopView.ts'
 import { wandShop } from './shop/wandShop.ts'

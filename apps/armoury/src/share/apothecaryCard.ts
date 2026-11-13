@@ -2,7 +2,7 @@ import { CARD_HEIGHT, CARD_WIDTH, type CardContent } from './shareCard.ts'
 
 const TABLE_TOP = 760
 
-/** The potion's picture, a stand-in until the scene is painted: a dark room, a table, the bottle on it. */
+/** The potion's picture: a dark room, a table, the bottle on it. */
 export function paintApothecaryCard(ctx: CanvasRenderingContext2D, content: CardContent): void {
   const room = ctx.createRadialGradient(540, 520, 40, 540, 520, 900)
   room.addColorStop(0, '#2a1d2b')

@@ -21,8 +21,8 @@ const LIP_MM = 3
 const FULL_AT = 0.82
 const CORK = '#a7814f'
 
-// A stand-in for ticket 06's `potionOutline(spec)`: the radius along the height, straight between
-// the bottle row's control points, with pours of equal volume up to FULL_AT of the body.
+// The radius along the height, straight between the bottle row's control points, with pours of equal
+// volume up to FULL_AT of the body.
 function drawPotion(spec: PotionSpec): Drawing {
   const row = BOTTLES[spec.shape]
   const body = row.body.map(([f, r]): Point => [f * spec.bodyHeightMm, r])
@@ -43,16 +43,18 @@ function drawPotion(spec: PotionSpec): Drawing {
   const innerAt = (z: number) => Math.max(radiusAt(z) - WALL_MM, 0.5)
 
   const fullZ = spec.bodyHeightMm * FULL_AT
-  const volumeTo = (top: number) => {
-    let v = 0
-    for (let z = WALL_MM; z < top; z += 0.5) v += innerAt(z + 0.25) ** 2 * 0.5
-    return v
+  const slices: { z: number; volume: number }[] = []
+  for (let z = WALL_MM; z < fullZ + 1; z += 0.5) {
+    slices.push({ z, volume: innerAt(z + 0.25) ** 2 * 0.5 })
   }
-  const perPour = volumeTo(fullZ) / MAX_POURS
+  const perPour =
+    slices.filter((slice) => slice.z < fullZ).reduce((sum, slice) => sum + slice.volume, 0) /
+    MAX_POURS
   const levels = [WALL_MM]
   let v = 0
-  for (let z = WALL_MM; levels.length <= spec.layers.length && z < fullZ + 1; z += 0.5) {
-    v += innerAt(z + 0.25) ** 2 * 0.5
+  for (const { z, volume } of slices) {
+    if (levels.length > spec.layers.length) break
+    v += volume
     if (v >= perPour * levels.length) levels.push(z + 0.5)
   }
 

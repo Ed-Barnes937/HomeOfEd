@@ -83,6 +83,56 @@ test('the potion and the wand each stay as they were left', async ({ mountApp, p
   await new ShopPom(page).verifyStage({ wood: 'oak' })
 })
 
+test('walking between all three shops keeps each bench its own item, locks and put-back', async ({
+  mountApp,
+  page,
+}) => {
+  const lockOf = (part: string) =>
+    page.getByRole('button', { name: `Keep the ${part} when trying another` })
+  const putBackButton = page.getByRole('button', { name: 'Put the last one back' })
+
+  const { root: potions } = await mountApp()
+  await potions.lock('bottle')
+  await potions.tryAnother()
+  const potion = await potions.potionNumber()
+
+  const wands = await (await potions.backToStreet()).enterWandShop()
+  await wands.lock('core')
+  await wands.tryAnother()
+  const wand = await wands.wandNumber()
+
+  const smithy = await (await wands.backToStreet()).enterSmithy()
+  await smithy.lock('guard')
+  await smithy.tryAnother()
+  const sword = await smithy.swordNumber()
+
+  const back = async (steps: number) => {
+    for (let i = 0; i < steps; i++) await page.goBack()
+  }
+  const forward = async (steps: number) => {
+    for (let i = 0; i < steps; i++) await page.goForward()
+  }
+
+  await back(2)
+  await wands.verifyIsShown()
+  expect(await wands.wandNumber()).toBe(wand)
+  await expect(lockOf('core')).toHaveAttribute('aria-pressed', 'true')
+  await expect(putBackButton).toBeVisible()
+
+  await back(2)
+  await potions.verifyIsShown()
+  expect(await potions.potionNumber()).toBe(potion)
+  await expect(lockOf('bottle')).toHaveAttribute('aria-pressed', 'true')
+  await expect(putBackButton).toBeVisible()
+
+  await forward(4)
+  await smithy.verifyIsShown()
+  expect(await smithy.swordNumber()).toBe(sword)
+  await expect(lockOf('guard')).toHaveAttribute('aria-pressed', 'true')
+  await smithy.putBack()
+  await expect(putBackButton).toHaveCount(0)
+})
+
 test('the street still has only its two open doors', async ({ mountApp }) => {
   const { root } = await mountApp()
   const street = await root.backToStreet()

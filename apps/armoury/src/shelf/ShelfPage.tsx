@@ -32,32 +32,42 @@ interface Shelf {
   heading: string
   /** One of it, and many, for the count in the header. */
   noun: readonly [string, string]
+  /** The way back and the empty shelf's words, for a child last in this shop. */
+  back: { label: string; intro: string; empty: string }
 }
 
 const SHELVES: readonly Shelf[] = [
-  { view: wandShop, heading: 'Wands', noun: ['wand', 'wands'] },
-  { view: smithy, heading: 'Swords', noun: ['sword', 'swords'] },
-  { view: apothecary, heading: 'Potions', noun: ['potion', 'potions'] },
+  {
+    view: wandShop,
+    heading: 'Wands',
+    noun: ['wand', 'wands'],
+    back: {
+      label: 'Back to the counter',
+      intro: 'Every wand you keep gets a box and a label.',
+      empty: 'Keep a wand and its box goes here',
+    },
+  },
+  {
+    view: smithy,
+    heading: 'Swords',
+    noun: ['sword', 'swords'],
+    back: {
+      label: 'Back to the anvil',
+      intro: 'Every sword you keep gets a box and a label.',
+      empty: 'Keep a sword and its box goes here',
+    },
+  },
+  {
+    view: apothecary,
+    heading: 'Potions',
+    noun: ['potion', 'potions'],
+    back: {
+      label: 'Back to the brewing table',
+      intro: 'Every potion you keep gets a box and a label.',
+      empty: 'Keep a potion and its box goes here',
+    },
+  },
 ]
-
-/** The way back and the empty shelf's words, by the shop the child was last in. */
-const BACK: Record<ItemKind, { label: string; intro: string; empty: string }> = {
-  wand: {
-    label: 'Back to the counter',
-    intro: 'Every wand you keep gets a box and a label.',
-    empty: 'Keep a wand and its box goes here',
-  },
-  sword: {
-    label: 'Back to the anvil',
-    intro: 'Every sword you keep gets a box and a label.',
-    empty: 'Keep a sword and its box goes here',
-  },
-  potion: {
-    label: 'Back to the brewing table',
-    intro: 'Every potion you keep gets a box and a label.',
-    empty: 'Keep a potion and its box goes here',
-  },
-}
 
 function boxStyle({ view }: Shelf, item: StoredItem): CSSProperties {
   const [top, bottom] = BOX_TONES[Number(view.item.number(item.params)) % BOX_TONES.length]!
@@ -227,27 +237,27 @@ export function ShelfPage() {
     potion: useWorkbench('potion'),
   }
   const lastShop = useShops().lastShop ?? 'wand'
-  const back = BACK[lastShop]
-  const backTo = SHELVES.find((s) => s.view.item.kind === lastShop)!.view.path
+  const lastShelf = SHELVES.find((s) => s.view.item.kind === lastShop)!
+  const { back } = lastShelf
   const headingId = useId()
   const kept = (kind: ItemKind) => benches[kind].shelf
   const sections = SHELVES.filter((s) => kept(s.view.item.kind).length > 0)
   const count =
     sections.length === 0
-      ? counted(0, ...SHELVES.find((s) => s.view.item.kind === lastShop)!.noun)
+      ? counted(0, ...lastShelf.noun)
       : sections.map((s) => counted(kept(s.view.item.kind).length, ...s.noun)).join(', ')
   // A shelf of wands alone keeps the words it had before there were other shops.
   const intro =
     sections.length === 0
       ? back.intro
       : sections.length === 1 && sections[0]!.view.item.kind === 'wand'
-        ? BACK.wand.intro
+        ? sections[0]!.back.intro
         : 'Everything you keep gets a box and a label.'
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <Link to={backTo} className={styles.back} aria-label={back.label}>
+        <Link to={lastShelf.view.path} className={styles.back} aria-label={back.label}>
           <svg
             width="20"
             height="20"
@@ -301,7 +311,7 @@ export function ShelfPage() {
       </div>
 
       <footer className={styles.footer}>
-        <Link to={backTo} className={styles.counterButton}>
+        <Link to={lastShelf.view.path} className={styles.counterButton}>
           {back.label}
         </Link>
       </footer>
