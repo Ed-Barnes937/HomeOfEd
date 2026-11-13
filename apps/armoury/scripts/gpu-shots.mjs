@@ -7,7 +7,8 @@
 // it skips the zoom: --leans and --tips shoot it while the drag still holds it (lean<deg>, tip<deg>; a lean is
 // positive to the right, a tip towards the viewer), since it rights itself on release, then a tap away puts it
 // back (r<ms> after). --face touches the bottle as it starts to rise, before its idle turn begins, so its label
-// faces the camera in every close frame, lean and tip.
+// faces the camera in every close frame, lean and tip. A potion's close frames are timed from the lift, the close
+// look's first frame; when each was taken, from the tap, lands in <name>-<view>-close.txt.
 // --clay draws a sword or a potion in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
 // about its length, or with an s (s45) swings it, tip away.
@@ -126,8 +127,12 @@ try {
           continue
         }
         await item.click()
-        await page.getByRole('dialog').waitFor()
-        if (kind === 'potion' && face) {
+        const tapped = Date.now()
+        const shotAt = []
+        // The touch runs alongside the close frames, so it cannot hold up the first of them.
+        const touched = (async () => {
+          await page.getByRole('dialog').waitFor()
+          if (kind !== 'potion' || !face) return
           // A drag just past the tap slop counts as a touch, which stops the idle turn; it leans the bottle 0.4 degrees.
           await page.getByRole('dialog').locator('canvas').waitFor()
           const x = view.viewport.width / 2
@@ -137,13 +142,30 @@ try {
           await page.mouse.move(x + TAP_SLOP_PX, y)
           await page.mouse.move(x + TAP_SLOP_PX + 1, y)
           await page.mouse.up()
-        }
+          shotAt.push(`touched: ${Date.now() - tapped} ms after the tap`)
+        })()
+        // A potion's frames count from the lift, the close look's first frame, when the counter shows its box empty.
+        if (kind === 'potion')
+          await page.waitForFunction(
+            () => document.querySelector('[data-testid="counter"][data-empty]'),
+            null,
+            { polling: 'raf' },
+          )
+        else await page.getByRole('dialog').waitFor()
+        const start = Date.now()
+        shotAt.push(`started: ${start - tapped} ms after the tap`)
         let waited = 0
         for (const ms of kind === 'potion' ? POTION_CLOSE_FRAMES : CLOSE_FRAMES) {
-          await page.waitForTimeout(ms - waited)
+          // A wand's and a sword's frames keep their old spacing, so they still compare with earlier shots.
+          await page.waitForTimeout(
+            kind === 'potion' ? Math.max(0, start + ms - Date.now()) : ms - waited,
+          )
           waited = ms
+          shotAt.push(`close-${ms}: ${Date.now() - tapped} ms after the tap`)
           await page.screenshot({ path: shot(`close-${ms}`) })
         }
+        await touched
+        writeFileSync(join(out, `${name}-${view.tag}-close.txt`), shotAt.join('\n') + '\n')
         if (kind === 'potion') {
           const x = view.viewport.width / 2
           const y = view.viewport.height * 0.45
