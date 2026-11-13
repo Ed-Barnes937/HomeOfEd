@@ -123,3 +123,4 @@ stopper; the mixed state at rest looks as good as the layered one; reduced motio
 
 ## Comments
 - 2026-11-13 orchestrator, from ticket 09: the stopper's beats drive `stopperLift` through a `{ current }` holder written in `useFrame` (no React render); the swirl's surface goes through `surfaceNormal` in the rig's up frame, as ticket 14's slosh does.
+- 2026-11-13 orchestrator, from the review of ticket 21 (`reviews/21-r1.md`): the stage receives `mixed: yes` at 1.9 s, mid-show, and must not restart or snap (have the swirl fully mixed by 1.6 s). An early close changes `mixed` during the put-back flight; that must look right too. Restart the stage's show on every flourish so it stays in step with the shell's timer. Decide what closing during the lift, before the bottle arrives, should do: today no timer exists yet, so the potion stays unmixed. `MURK_REACH` lives in `src/potion/wheel.ts` and must stay between 0.684 and 0.879 or the outcome counts change.
