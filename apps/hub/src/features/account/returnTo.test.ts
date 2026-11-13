@@ -75,6 +75,15 @@ describe('stillOnArrival', () => {
 
   it('ends once the visitor has moved to another page', () => {
     expect(stillOnArrival(arrived, { ...arrived, pathname: '/' })).toBe(false)
+    expect(stillOnArrival(arrived, { ...arrived, pathname: '/account/other' })).toBe(false)
+  })
+
+  it('holds across the picker and its settings, either way round', () => {
+    const settings = { ...arrived, pathname: '/account/settings' }
+    expect(stillOnArrival(arrived, settings)).toBe(true)
+    expect(stillOnArrival(settings, arrived)).toBe(true)
+    expect(stillOnArrival(settings, { ...settings, pathname: '/account/settings/' })).toBe(true)
+    expect(stillOnArrival(settings, { ...settings, search: '' })).toBe(false)
   })
 
   it('ends once the address bar carries no returnTo, or a different one', () => {

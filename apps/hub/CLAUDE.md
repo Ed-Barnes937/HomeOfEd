@@ -1,9 +1,11 @@
 # apps/hub — scoped rules
 
-The launcher/landing app at the apex `homeofed.com`. Two routes: `/`, the
+The launcher/landing app at the apex `homeofed.com`. Routes: `/`, the
 wordmark, the app rail (nav, links) and a "who's playing" chip linking to
 `/account`; and `/account`, **the whole estate's account UI** (spec §6,
-[ADR 0081](../../docs/adr/0081-hub-account-ui.md)).
+[ADR 0081](../../docs/adr/0081-hub-account-ui.md)): signed in, a "who is
+playing" picker, with everything else at its child route `/account/settings`
+([ADR 0103](../../docs/adr/0103-account-picker-and-settings.md)).
 The `trpc.health()` DB round-trip stays wired server-side (router → handler →
 Store) as the worked example, but neither page surfaces it. New apps are **not** copied from here — the copy base
 is `templates/starter` ([ADR 0007](../../docs/adr/0007-reference-starter-app.md)).
@@ -29,7 +31,8 @@ src/
     store.test.ts   Vitest — DrizzleHealthStore over PGlite + the generated migrations
   pages/ features/  UI — SCSS modules, TanStack Router routes, query options
     pages/_paperTokens.scss  the warm-paper palette, one definition for every screen
-    pages/account/    the /account screens: AccountPage + the four cards
+    pages/account/    the /account screens: AccountPage, the WhoIsPlaying picker,
+                    and SettingsPanel with its cards
     features/account/ the family-service seam: familyClient (context + prod
                     client), familyService (origin + cookie attributes per
                     hostname), accountError, accountQueries, lastSaved (the

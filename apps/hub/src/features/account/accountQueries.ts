@@ -12,7 +12,7 @@ export const familyQueryKeys = {
 /** Long enough for the page to reuse what silent renewal fetched; every change invalidates. */
 export const FAMILY_STALE_MS = 5_000
 
-/** The one save-summary query; every row reads it and the signed-in panel prefetches it. */
+/** The one save-summary query; every row reads it. */
 export function saveSummaryQuery(client: FamilyIdentityContract) {
   return queryOptions({
     queryKey: familyQueryKeys.saveSummary,

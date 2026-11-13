@@ -46,16 +46,21 @@ export function sharedLink(): string | null {
  * back from the browser, since an app without it would send them straight here.
  */
 export function returnToApp(written: FamilyTokenClaims | null): boolean {
-  if (written === null) return false
-  // `iat` too: an older cookie for the same profile must not pass for a dropped write.
-  const readBack = readFamilySession()
-  if (readBack?.sub !== written.sub || readBack.iat !== written.iat) return false
+  if (!readsBack(written)) return false
   const visit = currentArrival()
   if (visit === null) return false
   const destination = returnDestination(visit.search, visit.fragment, visit.opts)
   if (destination === null) return false
   window.location.replace(destination)
   return true
+}
+
+/** Whether the browser holds the cookie `written` describes, rather than dropping it. */
+export function readsBack(written: FamilyTokenClaims | null): written is FamilyTokenClaims {
+  if (written === null) return false
+  // `iat` too: an older cookie for the same profile must not pass for a dropped write.
+  const readBack = readFamilySession()
+  return readBack?.sub === written.sub && readBack.iat === written.iat
 }
 
 /** The vetted `returnTo` the visitor arrived with, while the address bar is still on that arrival. */
@@ -70,18 +75,19 @@ export interface AddressBar {
 }
 
 /**
- * The same page (ignoring the trailing slash the router strips) carrying the
- * same single `returnTo` the visitor arrived with.
+ * The same page (ignoring the trailing slash the router strips, and counting the
+ * picker's settings as the picker) carrying the same single `returnTo` the
+ * visitor arrived with.
  */
 export function stillOnArrival(arrived: AddressBar, current: AddressBar): boolean {
-  const samePage = withoutTrailingSlash(arrived.pathname) === withoutTrailingSlash(current.pathname)
-  if (!samePage) return false
+  if (accountPage(arrived.pathname) !== accountPage(current.pathname)) return false
   const returnTo = singleReturnTo(arrived.search)
   return returnTo !== null && singleReturnTo(current.search) === returnTo
 }
 
-function withoutTrailingSlash(pathname: string): string {
-  return pathname.replace(/\/+$/, '') || '/'
+function accountPage(pathname: string): string {
+  const page = pathname.replace(/\/+$/, '') || '/'
+  return page === '/account/settings' ? '/account' : page
 }
 
 function singleReturnTo(search: string): string | null {
