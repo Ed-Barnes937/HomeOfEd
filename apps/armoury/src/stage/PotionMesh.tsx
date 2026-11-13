@@ -100,16 +100,25 @@ const buildAll = (spec: PotionSpec): Built => ({
   upright: uprightLevels(spec),
 })
 
-/** The mesh for `spec`: built at once the first time, then once on the next frame after a burst of changes. */
+/** The mesh for `spec`: built at once the first time, then at most once a frame, from the latest spec. */
 function usePotionBuild(spec: PotionSpec): Built {
   const [built, setBuilt] = useState(() => buildAll(spec))
   const latest = useRef(spec)
   latest.current = spec
+  const frame = useRef<number | null>(null)
   useEffect(() => {
-    if (built.spec === spec) return
-    const frame = requestAnimationFrame(() => setBuilt(buildAll(latest.current)))
-    return () => cancelAnimationFrame(frame)
+    if (built.spec === spec || frame.current !== null) return
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null
+      setBuilt(buildAll(latest.current))
+    })
   }, [spec, built.spec])
+  useEffect(
+    () => () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current)
+    },
+    [],
+  )
   return built
 }
 

@@ -388,7 +388,6 @@ function waxCap(
   const corkTopR = cork(top) + e
   const capR = neckR + lip + e + t
   const capTop = top + e + t
-  const edge = WAX_EDGE_MM
   // Outer radius by height, from the roll's widest to the bead's; the first and last points
   // only flatten the ends.
   const outside: [number, number][] = [
@@ -408,9 +407,9 @@ function waxCap(
       line([neckR + e, beadZ + (lip + e) * Math.sin(innerEnd)], [neckR + e, rollZ]),
       arc(roll, WAX_ROLL_MM, Math.PI, 2 * Math.PI),
       trace((u) => [rise(rollZ + (beadZ - rollZ) * u), rollZ + (beadZ - rollZ) * u], 8),
-      line([capR, beadZ], [capR, capTop - edge]),
-      arc([capR - edge, capTop - edge], edge, 0, Math.PI / 2),
-      line([capR - edge, capTop], [0, capTop]),
+      line([capR, beadZ], [capR, capTop - WAX_EDGE_MM]),
+      arc([capR - WAX_EDGE_MM, capTop - WAX_EDGE_MM], WAX_EDGE_MM, 0, Math.PI / 2),
+      line([capR - WAX_EDGE_MM, capTop], [0, capTop]),
     ],
     WAX_TURN,
   ).map((pt, i, all) => (i === all.length - 1 ? { r: 0, z: pt.z, nr: 0, nz: 1 } : pt))
