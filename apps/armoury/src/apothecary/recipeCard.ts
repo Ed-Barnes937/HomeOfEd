@@ -1,12 +1,12 @@
 import type { Params } from '../engine/schema.ts'
 import type { ItemDef } from '../items/item.ts'
-import { secretBlend } from '../potion/blends.ts'
+import { isGold } from '../potion/describe.ts'
 
 export interface RecipeCard {
   number: string
   name: string
   description: string
-  /** A secret blend's card has a gold edge and ink. */
+  /** A mixed secret blend's card has a gold edge and ink. */
   gold: boolean
 }
 
@@ -16,6 +16,6 @@ export function recipeCard(def: ItemDef, item: { params: Params; name?: string }
     number: def.number(item.params),
     name: item.name ?? def.name(item.params),
     description: def.tagLine(item.params),
-    gold: secretBlend(item.params) !== null,
+    gold: isGold(item.params),
   }
 }
