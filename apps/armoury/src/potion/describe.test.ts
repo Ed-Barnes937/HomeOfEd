@@ -4,7 +4,6 @@ import { normalise, type Params } from '../engine/schema.ts'
 import { SECRET_BLENDS } from './blends.ts'
 import { BOTTLES, type ShapeId } from './bottles.ts'
 import {
-  countInWords,
   isGold,
   nameFrom,
   potionGlowColour,
@@ -49,12 +48,6 @@ const catalogue = (): Params[] => [
   ...SHAPES.flatMap((shape) => multisets().map((m) => mixed(m, { shape }))),
   ...potionPresets.map((preset) => normalise(potionSchema, preset.params)),
 ]
-
-describe('countInWords', () => {
-  it('spells one to three, singular for one', () => {
-    expect([1, 2, 3].map(countInWords)).toEqual(['One pour', 'Two pours', 'Three pours'])
-  })
-})
 
 describe('potionName', () => {
   it('names an empty bottle', () => {

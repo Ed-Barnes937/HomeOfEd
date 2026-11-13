@@ -11,7 +11,6 @@ import { pourList } from './pours.ts'
 export { shopNumber as potionNumber } from '../items/shopNumber.ts'
 
 const CANDLE = '#e8b46a'
-const COUNT_WORDS = ['One pour', 'Two pours', 'Three pours']
 const LAYER_WORDS = ['One layer', 'Two layers', 'Three layers']
 const MORE_WORDS = ['two more', 'one more']
 const TRAIT_WORDS: Record<Trait, string> = {
@@ -41,10 +40,6 @@ const MURKY_NAMES = [
 ]
 const MURKY_LORE =
   'Three things that would not get on, swirled into one. It does nothing at all, and it is very proud of that.'
-
-export function countInWords(n: number): string {
-  return COUNT_WORDS[n - 1]!
-}
 
 const bottleOf = (p: Params): BottleRow => BOTTLES[p.shape as ShapeId] ?? BOTTLES.teardrop
 
