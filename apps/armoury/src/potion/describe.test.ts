@@ -311,8 +311,8 @@ describe('potionGlowColour', () => {
   })
 
   it('is the mixed colour once mixed', () => {
-    const recipe: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
-    expect(potionGlowColour(mixed(recipe))).toBe('#c85370')
+    const recipe: [IngredientId, IngredientId, IngredientId] = ['moonmilk', 'rosehip', 'starpetal']
+    expect(potionGlowColour(mixed(recipe))).toBe(mixPotion(recipe).colour)
   })
 })
 

@@ -4,8 +4,10 @@ import type { Params } from '../engine/schema.ts'
 import { type EffectKind, ingredient, type IngredientId, type Trait } from './ingredients.ts'
 import { effectColour, murkyColour } from './mixColour.ts'
 import { pourList } from './pours.ts'
+import { MURK_REACH, WHEEL_STEP_DEGREES } from './wheel.ts'
 
-export const WHEEL_STEP_DEGREES = 40
+export { MURK_REACH, WHEEL_STEP_DEGREES }
+
 export const SECTOR_START_DEGREES = -3.25
 export const SECTOR_ORDER: readonly EffectKind[] = [
   'glowing',
@@ -15,8 +17,8 @@ export const SECTOR_ORDER: readonly EffectKind[] = [
   'dreamy',
   'whiffy',
 ]
-export const MURK_REACH = 0.78
 
+const TIE_TOLERANCE_DEGREES = 1e-9
 const SECTOR_DEGREES = 360 / SECTOR_ORDER.length
 
 export interface PotionMix {
@@ -41,17 +43,17 @@ const apart = (a: number, b: number) => {
   return Math.min(gap, 360 - gap)
 }
 
-/** The most repeated carrier of the outcome, a tie going to the nearest the sum; a surprise has none, so the nearest of the three. */
+/** The most repeated carrier of the outcome, a tie going to the nearest the sum, an exact tie to the lower wheel place; a surprise has none, so the nearest of the three. */
 function mainFor(outcome: EffectKind, ids: readonly IngredientId[], angle: number): IngredientId {
   const carriers = ids.filter((id) => ingredient(id).effect === outcome)
   const pool = carriers.length > 0 ? carriers : ids
   const repeats = (id: IngredientId) => carriers.filter((c) => c === id).length
   const most = Math.max(...pool.map(repeats))
+  const nearer = (a: IngredientId, b: IngredientId) =>
+    apart(wheelAngle(a), angle) < apart(wheelAngle(b), angle) - TIE_TOLERANCE_DEGREES
   return pool
     .filter((id) => repeats(id) === most)
-    .reduce((best, id) =>
-      apart(wheelAngle(id), angle) < apart(wheelAngle(best), angle) ? id : best,
-    )
+    .reduce((best, id) => (nearer(id, best) ? id : best))
 }
 
 export function mixPotion(ids: Recipe): PotionMix {

@@ -80,7 +80,7 @@ describe('levelTable', () => {
   })
 
   it.each(CATALOGUE)('$name: every band keeps its volume as it tips', ({ profile, table }) => {
-    const quarter = profile.cavityVolume(profile.fullZ) / 3
+    const third = profile.cavityVolume(profile.fullZ) / 3
     for (const [deg, bound] of [
       [0, 0.02],
       [15, 0.02],
@@ -98,7 +98,7 @@ describe('levelTable', () => {
       let below = -1e3
       for (const top of levels) {
         const v = bandVolume(profile, t, below, top)
-        expect(Math.abs(v / quarter - 1), `${deg} degrees`).toBeLessThan(bound)
+        expect(Math.abs(v / third - 1), `${deg} degrees`).toBeLessThan(bound)
         below = top
       }
     }

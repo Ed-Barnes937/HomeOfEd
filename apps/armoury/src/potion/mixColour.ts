@@ -2,6 +2,7 @@
 
 import { type LinearRgb, linearToSrgb, srgbToLinear } from '../items/colour.ts'
 import { INGREDIENTS } from './ingredients.ts'
+import { MURK_REACH, WHEEL_STEP_DEGREES } from './wheel.ts'
 
 interface Oklab {
   l: number
@@ -15,14 +16,12 @@ export interface Oklch {
   h: number
 }
 
-const WHEEL_STEP = 360 / INGREDIENTS.length
 const MURK_BASE = '#5b5533'
 const MURK_PULL = 0.15
 const MURK_MAX_CHROMA = 0.05
 const MURK_LIGHTNESS: [number, number] = [0.38, 0.48]
 const EFFECT_MIN_CHROMA = 0.12
 const EFFECT_LIGHTNESS: [number, number] = [0.58, 0.78]
-const REACH_FLOOR = 0.78
 const REACH_CEILING = 3
 
 const clamp = (n: number, [lo, hi]: [number, number]) => Math.min(hi, Math.max(lo, n))
@@ -69,13 +68,14 @@ const hueStep = (from: number, to: number) => ((((to - from) % 360) + 540) % 360
  * The jewel colour at `angle` on the wheel: the two ingredient colours either side of it blended in
  * OKLCH, chroma scaled by how far the sum reached, then lifted into a jewel range.
  */
-export function effectColour(angle: number, reach: number): string {
-  const lower = Math.floor(angle / WHEEL_STEP) % INGREDIENTS.length
+export function effectColour(degrees: number, reach: number): string {
+  const angle = ((degrees % 360) + 360) % 360
+  const lower = Math.floor(angle / WHEEL_STEP_DEGREES) % INGREDIENTS.length
   const upper = (lower + 1) % INGREDIENTS.length
-  const t = (angle - lower * WHEEL_STEP) / WHEEL_STEP
+  const t = (angle - lower * WHEEL_STEP_DEGREES) / WHEEL_STEP_DEGREES
   const from = hexToOklch(INGREDIENTS[lower]!.colour)
   const to = hexToOklch(INGREDIENTS[upper]!.colour)
-  const strength = Math.min(1, Math.max(0, (reach - REACH_FLOOR) / (REACH_CEILING - REACH_FLOOR)))
+  const strength = Math.min(1, Math.max(0, (reach - MURK_REACH) / (REACH_CEILING - MURK_REACH)))
   const chroma = (from.c + (to.c - from.c) * t) * (0.75 + 0.25 * strength)
   return oklchToHex(
     clamp(from.l + (to.l - from.l) * t, EFFECT_LIGHTNESS),

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { WHEEL_STEP_DEGREES } from './wheel.ts'
+import { ingredient } from './ingredients.ts'
 import { effectColour, hexToOklch, murkyColour, oklchToHex } from './mixColour.ts'
 
 describe('OKLCH conversion', () => {
@@ -43,7 +45,13 @@ describe('effectColour', () => {
   })
 
   it('is a bluebell at its own angle and full reach', () => {
-    expect(effectColour(160, 3)).toBe('#5b8def')
+    expect(effectColour(4 * WHEEL_STEP_DEGREES, 3)).toBe(ingredient('bluebell').colour)
+  })
+
+  it('treats 360 and negative angles as their equivalent in 0 to 360', () => {
+    expect(effectColour(360, 3)).toBe(effectColour(0, 3))
+    expect(effectColour(-40, 2)).toBe(effectColour(320, 2))
+    expect(effectColour(725, 1.5)).toBe(effectColour(5, 1.5))
   })
 })
 

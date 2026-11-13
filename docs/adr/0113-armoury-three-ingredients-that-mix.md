@@ -60,13 +60,21 @@ effect gets 24 and murky 21 (about one in seven each). Under Try another (729
 equally likely orders) murky is 126 (about 1 in 5.8) and each effect 100 or 101
 (about 1 in 7.2). Six of the 84 three-different recipes land on an effect none of
 the three has (Starpetal, Snailshine and Bluebell is Floating). The nearest any
-effect sum comes to a sector edge is asserted to be at least a degree, so no float
-rounding can flip an outcome. The test also asserts that each ingredient's `effect`
+effect sum comes to a sector edge is 1.124 degrees (Emberroot with two Frogfizz, and
+its two symmetric recipes: Snailshine with two Thunderclouds, Moonmilk with two
+Puffcaps); the test asserts more than 1.1. The murk line (0.78) sits between the
+strongest murky sum, 0.684 (gaps 2,3,4), and the weakest effect sum, 0.879, about 0.1
+either side; the test asserts more than 0.09. So no float rounding can flip an
+outcome. The test also asserts that each ingredient's `effect`
 column agrees with `mixPotion([id, id, id])`.
 
 `PotionMix` carries `outcome`, `colour`, `trait`, `main`, `strength`, `angle` and
 `reach`. `main` is, among the three ingredients whose own effect is the outcome, the
-most repeated, a tie going to the one nearest the angle; for a surprise it is the
+most repeated, a tie going to the one nearest the angle (three recipes tie exactly,
+because the third ingredient sits opposite the pair's midpoint: Emberroot, Starpetal and
+Thundercloud; Snailshine, Bluebell and Puffcap; Frogfizz, Moonmilk and Rosehip; distances
+within 1e-9 degrees count as equal and the lower wheel place wins, so float noise never
+decides the name); for a surprise it is the
 nearest of the three; null when murky. `strength` is how many of the three carry the
 outcome (1 when murky). `trait` is `main`'s, or `murk` when murky.
 

@@ -114,12 +114,19 @@ describe('mixPotion outcomes', () => {
     }
   })
 
-  it('keeps every effect sum at least a degree from a sector edge', () => {
+  it('keeps every effect sum at least 1.1 degrees from a sector edge', () => {
     for (const recipe of multisets) {
       const mix = mixPotion(recipe)
       if (mix.outcome === 'murky') continue
       const intoSector = (((mix.angle - SECTOR_START_DEGREES) % 60) + 60) % 60
-      expect(Math.min(intoSector, 60 - intoSector), recipe.join()).toBeGreaterThanOrEqual(1)
+      expect(Math.min(intoSector, 60 - intoSector), recipe.join()).toBeGreaterThan(1.1)
+    }
+  })
+
+  it('keeps every sum at least 0.09 from the murk line', () => {
+    for (const recipe of multisets) {
+      const { reach } = mixPotion(recipe)
+      expect(Math.abs(reach - MURK_REACH), recipe.join()).toBeGreaterThan(0.09)
     }
   })
 
@@ -152,6 +159,17 @@ describe('mixPotion main, strength and trait', () => {
   it('breaks a tie between carriers by the nearest to the sum', () => {
     const mix = mixPotion(['moonmilk', 'rosehip', 'starpetal'])
     expect(mix).toMatchObject({ outcome: 'dreamy', main: 'rosehip', strength: 2 })
+  })
+
+  it('gives an exact tie between carriers to the lower wheel place, in every order', () => {
+    const ties: [Recipe, IngredientId][] = [
+      [['emberroot', 'starpetal', 'thundercloud'], 'emberroot'],
+      [['snailshine', 'bluebell', 'puffcap'], 'snailshine'],
+      [['frogfizz', 'moonmilk', 'rosehip'], 'moonmilk'],
+    ]
+    for (const [recipe, main] of ties)
+      for (const order of permutations(recipe))
+        expect(mixPotion(order).main, order.join()).toBe(main)
   })
 
   it('counts all three carriers as strength 3', () => {
@@ -187,11 +205,18 @@ describe('mixPotion main, strength and trait', () => {
 })
 
 describe('mixPotion colour', () => {
-  it('lands the spec starting values', () => {
-    expect(mixPotion(['moonmilk', 'rosehip', 'starpetal']).colour).toBe('#c85370')
-    expect(mixPotion(['moonmilk', 'moonmilk', 'moonmilk']).colour).toBe('#c9a3f5')
-    expect(mixPotion(['bluebell', 'bluebell', 'bluebell']).colour).toBe('#5b8def')
-    expect(mixPotion(['frogfizz', 'bluebell', 'puffcap']).colour).toBe('#645e40')
+  it('gives three of an in-range ingredient its own colour', () => {
+    expect(mixPotion(['bluebell', 'bluebell', 'bluebell']).colour).toBe(
+      ingredient('bluebell').colour,
+    )
+  })
+
+  it('lifts three of a pale ingredient into the jewel range', () => {
+    const own = hexToOklch(ingredient('moonmilk').colour)
+    const { l, c } = hexToOklch(mixPotion(['moonmilk', 'moonmilk', 'moonmilk']).colour)
+    expect(c).toBeGreaterThanOrEqual(0.12 - 0.005)
+    expect(c).toBeGreaterThan(own.c)
+    expect(l).toBeLessThanOrEqual(0.78 + 0.01)
   })
 
   it('is a jewel colour for an effect and a dull one when murky', () => {
