@@ -17,10 +17,10 @@ const REST: UprightPose = { lean: 0, tip: 0, leanVelocity: 0, tipVelocity: 0 }
 /** Lets go of `pose` and runs the righting spring at 60 Hz for `seconds`, returning every frame. */
 const release = (pose: UprightPose, seconds: number, reducedMotion: boolean) => {
   const frames: UprightPose[] = []
-  let p = pose
+  const p = { ...pose }
   for (let i = 0; i < Math.round(seconds * 60); i++) {
-    p = rightUpright(p, 1 / 60, reducedMotion)
-    frames.push(p)
+    rightUpright(p, 1 / 60, reducedMotion)
+    frames.push({ ...p })
   }
   return frames
 }
@@ -59,22 +59,23 @@ describe('dragging an upright item', () => {
   test('never leans past 60 degrees or tips past 45, however far it is dragged', () => {
     for (const sign of [1, -1]) {
       const far = dragUpright(REST, sign * 1e6, sign * 1e6)
-      expect(Math.abs(far.lean)).toBeLessThanOrEqual(LEAN_MAX)
-      expect(Math.abs(far.tip)).toBeLessThanOrEqual(TIP_MAX)
-      expect(Math.abs(far.lean)).toBeGreaterThan(LEAN_MAX - DEGREE)
-      expect(Math.abs(far.tip)).toBeGreaterThan(TIP_MAX - DEGREE)
+      expect(Math.abs(far.lean)).toBeLessThanOrEqual(60 * DEGREE)
+      expect(Math.abs(far.tip)).toBeLessThanOrEqual(45 * DEGREE)
+      expect(Math.abs(far.lean)).toBeGreaterThan(59 * DEGREE)
+      expect(Math.abs(far.tip)).toBeGreaterThan(44 * DEGREE)
     }
-    expect(LEAN_MAX).toBeCloseTo(60 * DEGREE, 9)
-    expect(TIP_MAX).toBeCloseTo(45 * DEGREE, 9)
   })
 
   test('gives way softly over the last 10 degrees, not before', () => {
-    const step = (4 * DEGREE) / UPRIGHT_PER_PX
-    const free = dragUpright({ ...REST, lean: 40 * DEGREE }, step, 0).lean - 40 * DEGREE
-    expect(free).toBeCloseTo(4 * DEGREE, 9)
-    const soft = dragUpright({ ...REST, lean: 52 * DEGREE }, step, 0).lean - 52 * DEGREE
+    const px = (degrees: number) => (degrees * DEGREE) / UPRIGHT_PER_PX
+    const free = dragUpright({ ...REST, lean: 40 * DEGREE }, px(2), 0).lean - 40 * DEGREE
+    expect(free).toBeCloseTo(2 * DEGREE, 9)
+    const soft = dragUpright({ ...REST, lean: 52 * DEGREE }, px(4), 0).lean - 52 * DEGREE
     expect(soft).toBeGreaterThan(0)
-    expect(soft).toBeLessThan(4 * DEGREE)
+    expect(soft).toBeLessThan(0.7 * 4 * DEGREE)
+    const softTip = dragUpright({ ...REST, tip: -37 * DEGREE }, 0, -px(4)).tip + 37 * DEGREE
+    expect(softTip).toBeLessThan(0)
+    expect(softTip).toBeGreaterThan(-0.7 * 4 * DEGREE)
   })
 
   test('the soft limit is smooth: one long drag ends where many small ones do', () => {
@@ -129,15 +130,17 @@ describe('an upright item righting itself', () => {
   })
 
   test('steps the same however the frames fall', () => {
-    let coarse = leant
-    for (let i = 0; i < 10; i++) coarse = rightUpright(coarse, 0.05, false)
+    const coarse = { ...leant }
+    for (let i = 0; i < 10; i++) rightUpright(coarse, 0.05, false)
     const fine = release(leant, 0.5, false).at(-1)!
     expect(coarse.lean).toBeCloseTo(fine.lean, 9)
     expect(coarse.tipVelocity).toBeCloseTo(fine.tipVelocity, 9)
   })
 
   test('stays upright once upright', () => {
-    expect(rightUpright(REST, 1 / 60, false)).toEqual(REST)
+    const pose = { ...REST }
+    rightUpright(pose, 1 / 60, false)
+    expect(pose).toEqual(REST)
   })
 })
 
@@ -146,25 +149,32 @@ describe('how strongly a flourish holds the item upright', () => {
 
   test('not at all before, after or without a flourish', () => {
     for (const t of [-1, -0.01, SECONDS, SECONDS + 0.5, Infinity, NaN])
-      expect(uprightFlourishWeight(t, SECONDS)).toBe(0)
+      expect(uprightFlourishWeight(t, SECONDS, false)).toBe(0)
   })
 
   test('fully through the middle of it', () => {
     for (const t of [0.3, 1, SECONDS / 2, SECONDS - 0.3])
-      expect(uprightFlourishWeight(t, SECONDS)).toBeCloseTo(1, 9)
+      expect(uprightFlourishWeight(t, SECONDS, false)).toBeCloseTo(1, 9)
   })
 
   test('eases in and out without a jump', () => {
     const step = 1 / 240
-    let last = uprightFlourishWeight(-step, SECONDS)
+    let last = uprightFlourishWeight(-step, SECONDS, false)
     for (let t = 0; t <= SECONDS + step; t += step) {
-      const w = uprightFlourishWeight(t, SECONDS)
+      const w = uprightFlourishWeight(t, SECONDS, false)
       expect(w).toBeGreaterThanOrEqual(0)
       expect(w).toBeLessThanOrEqual(1)
       expect(Math.abs(w - last)).toBeLessThan(0.025)
       last = w
     }
-    expect(uprightFlourishWeight(0.15, SECONDS)).toBeGreaterThan(0)
-    expect(uprightFlourishWeight(0.15, SECONDS)).toBeLessThan(1)
+    expect(uprightFlourishWeight(0.15, SECONDS, false)).toBeGreaterThan(0)
+    expect(uprightFlourishWeight(0.15, SECONDS, false)).toBeLessThan(1)
+  })
+
+  test('under reduced motion, fully for the whole of it and not at all outside it, with no ease', () => {
+    for (const t of [0, 0.01, 0.15, SECONDS / 2, SECONDS - 0.15, SECONDS - 0.01])
+      expect(uprightFlourishWeight(t, SECONDS, true)).toBe(1)
+    for (const t of [-1, -0.01, SECONDS, SECONDS + 0.01, Infinity, NaN])
+      expect(uprightFlourishWeight(t, SECONDS, true)).toBe(0)
   })
 })

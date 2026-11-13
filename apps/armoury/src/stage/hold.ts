@@ -40,8 +40,7 @@ function soften(angle: number, delta: number, max: number): number {
   if (sign === 0 || from + delta * sign <= knee) return angle + delta
   // Past the knee the angle is `knee + SOFT * (1 - e^(-r / SOFT))` of a raw drag `r` beyond it.
   const raw = from <= knee ? from - knee : -SOFT * Math.log(Math.max(1 - (from - knee) / SOFT, 0))
-  const to = knee + SOFT * (1 - Math.exp(-(raw + delta * sign) / SOFT))
-  return Math.min(to, max) * sign
+  return (knee + SOFT * (1 - Math.exp(-(raw + delta * sign) / SOFT))) * sign
 }
 
 /** A drag across leans the item; a drag along (down the screen) tips its top towards the viewer. */
@@ -54,30 +53,36 @@ export function dragUpright(pose: UprightPose, dxPx: number, dyPx: number): Upri
   }
 }
 
-/** The exact step of a damped spring towards 0, so the wobble is the same at any frame rate. */
-function spring(x: number, v: number, dt: number, damping: number): [number, number] {
+const stepped = { x: 0, v: 0 }
+
+/** The exact step of a spring towards 0, damped by `DAMPING` or critically, so the wobble is the same at any frame rate. */
+function spring(x: number, v: number, dt: number, critical: boolean): typeof stepped {
   const w = STIFFNESS
+  const damping = critical ? 1 : DAMPING
   const decay = Math.exp(-damping * w * dt)
-  if (damping >= 1) {
+  if (critical) {
     const k = v + w * x
-    return [(x + k * dt) * decay, (v - w * k * dt) * decay]
+    stepped.x = (x + k * dt) * decay
+    stepped.v = (v - w * k * dt) * decay
+    return stepped
   }
   const a = damping * w
   const wd = w * Math.sqrt(1 - damping * damping)
   const c = Math.cos(wd * dt)
   const s = Math.sin(wd * dt)
-  return [
-    decay * (x * c + ((v + a * x) / wd) * s),
-    decay * (v * c - ((a * v + w * w * x) / wd) * s),
-  ]
+  stepped.x = decay * (x * c + ((v + a * x) / wd) * s)
+  stepped.v = decay * (v * c - ((a * v + w * w * x) / wd) * s)
+  return stepped
 }
 
-/** Lets go of the item for `dt` seconds: it swings back to upright, without a wobble under reduced motion. */
-export function rightUpright(pose: UprightPose, dt: number, reducedMotion: boolean): UprightPose {
-  const damping = reducedMotion ? 1 : DAMPING
-  const [lean, leanVelocity] = spring(pose.lean, pose.leanVelocity, dt, damping)
-  const [tip, tipVelocity] = spring(pose.tip, pose.tipVelocity, dt, damping)
-  return { lean, tip, leanVelocity, tipVelocity }
+/** Lets go of the item for `dt` seconds, stepping `pose` in place: it swings back to upright, without a wobble under reduced motion. */
+export function rightUpright(pose: UprightPose, dt: number, reducedMotion: boolean): void {
+  const lean = spring(pose.lean, pose.leanVelocity, dt, reducedMotion)
+  pose.lean = lean.x
+  pose.leanVelocity = lean.v
+  const tip = spring(pose.tip, pose.tipVelocity, dt, reducedMotion)
+  pose.tip = tip.x
+  pose.tipVelocity = tip.v
 }
 
 const EASE_SECONDS = 0.3
@@ -86,9 +91,14 @@ const smoothstep = (t: number) => {
   return u * u * (3 - 2 * u)
 }
 
-/** From 0 to 1, how strongly the item's own flourish holds it upright, `sinceFlourish` seconds in. */
-export function uprightFlourishWeight(sinceFlourish: number, flourishSeconds: number): number {
+/** From 0 to 1, how strongly the item's own flourish holds it upright, `sinceFlourish` seconds in; under reduced motion a step, with no ease. */
+export function uprightFlourishWeight(
+  sinceFlourish: number,
+  flourishSeconds: number,
+  reducedMotion: boolean,
+): number {
   if (!(sinceFlourish >= 0 && sinceFlourish < flourishSeconds)) return 0
+  if (reducedMotion) return 1
   return Math.min(
     smoothstep(sinceFlourish / EASE_SECONDS),
     smoothstep((flourishSeconds - sinceFlourish) / EASE_SECONDS),

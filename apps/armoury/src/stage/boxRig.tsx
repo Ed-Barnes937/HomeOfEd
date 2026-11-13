@@ -9,19 +9,24 @@ const CAPTURE_WIDTH = 2000
 /** Where the box stage's camera looks from: above, or the front pitched down by `FRONT_CAMERA_PITCH`. */
 export type BoxView = 'above' | 'front'
 
+/** Where the box stage's camera stands, looking at the origin, so `halfWidth` either side of the middle spans its width. */
+export function boxCameraPosition(
+  view: BoxView,
+  halfWidth: number,
+  aspect: number,
+  out: THREE.Vector3,
+): THREE.Vector3 {
+  const dist = halfWidth / (Math.tan((FOV * Math.PI) / 360) * aspect)
+  if (view === 'front')
+    return out.set(0, dist * Math.sin(FRONT_CAMERA_PITCH), dist * Math.cos(FRONT_CAMERA_PITCH))
+  return out.set(0, dist, dist * BOX_CAMERA_LEAN)
+}
+
 /** Puts the camera at its `view` of the box so `halfWidth` scene units either side of the middle span its width. */
 export function Framing({ halfWidth, view = 'above' }: { halfWidth: number; view?: BoxView }) {
   const { camera, size } = useThree()
   useLayoutEffect(() => {
-    const aspect = size.width / size.height
-    const dist = halfWidth / (Math.tan((FOV * Math.PI) / 360) * aspect)
-    if (view === 'front')
-      camera.position.set(
-        0,
-        dist * Math.sin(FRONT_CAMERA_PITCH),
-        dist * Math.cos(FRONT_CAMERA_PITCH),
-      )
-    else camera.position.set(0, dist, dist * BOX_CAMERA_LEAN)
+    boxCameraPosition(view, halfWidth, size.width / size.height, camera.position)
     camera.lookAt(0, 0, 0)
   }, [camera, size, halfWidth, view])
   return null
@@ -41,8 +46,7 @@ export function Roller({
   useFrame((_, delta) => {
     if (!group.current) return
     const r = group.current.rotation
-    if (axis === 'y') r.y += (target.current - r.y) * Math.min(1, delta * 8)
-    else r.x += (target.current - r.x) * Math.min(1, delta * 8)
+    r[axis] += (target.current - r[axis]) * Math.min(1, delta * 8)
   })
   return <group ref={group}>{children}</group>
 }
