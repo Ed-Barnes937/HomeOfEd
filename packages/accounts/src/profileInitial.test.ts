@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { profileInitial } from './index.ts'
 
@@ -27,5 +27,28 @@ describe('profileInitial', () => {
 
   it('keeps a letter and its combining mark together', () => {
     expect(profileInitial('émile')).toBe('É')
+  })
+
+  describe('in a browser without Intl.Segmenter', () => {
+    const segmenter = Object.getOwnPropertyDescriptor(Intl, 'Segmenter')!
+    beforeEach(() => {
+      Reflect.deleteProperty(Intl, 'Segmenter')
+    })
+    afterEach(() => {
+      Object.defineProperty(Intl, 'Segmenter', segmenter)
+    })
+
+    it('loads, and falls back to the first code point', async () => {
+      vi.resetModules()
+      const { profileInitial: loadedWithout } = await import('./profileInitial.ts')
+      expect(loadedWithout('  robin')).toBe('R')
+      expect(loadedWithout('🦊 Fox')).toBe('🦊')
+      expect(loadedWithout('   ')).toBe('')
+    })
+
+    it('falls back too once loaded with it', () => {
+      expect(profileInitial('  robin')).toBe('R')
+      expect(profileInitial('   ')).toBe('')
+    })
   })
 })

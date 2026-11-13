@@ -173,6 +173,37 @@ export class AccountPagePom extends BasePage {
     }
   }
 
+  /** No two circles share a colour, which holds for households of six or fewer. */
+  async verifyEachProfileHasItsOwnColour(): Promise<void> {
+    const colours = await this.pickerChoices()
+      .locator('[aria-hidden="true"]')
+      .evaluateAll((avatars) => avatars.map((avatar) => getComputedStyle(avatar).backgroundColor))
+    expect(colours.length).toBeGreaterThan(1)
+    expect(new Set(colours).size).toBe(colours.length)
+  }
+
+  /** Big enough to touch, even though it is meant for grown-ups. */
+  async verifySettingsCogIsTouchSized(): Promise<void> {
+    const box = await this.page.getByRole('link', { name: 'Grown-up settings' }).boundingBox()
+    expect(box!.width).toBeGreaterThanOrEqual(44)
+    expect(box!.height).toBeGreaterThanOrEqual(44)
+  }
+
+  async verifyOnSettings(): Promise<void> {
+    await expect(this.page).toHaveURL(/\/account\/settings(\?|#|$)/)
+    await expect(this.page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible()
+  }
+
+  async verifyNotOnSettings(): Promise<void> {
+    await expect(this.page).not.toHaveURL(/\/account\/settings/)
+  }
+
+  /** The mint has answered and the picker has finished handling it. */
+  async verifyPickSettled(): Promise<void> {
+    await this.waitForFamilyAnswers('mintSessionToken')
+    await expect(this.pickerChoices().first()).toBeEnabled()
+  }
+
   async verifyPickerOffers(name: string): Promise<void> {
     await expect(this.pickerChoice(name)).toBeVisible()
   }

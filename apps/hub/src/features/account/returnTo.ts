@@ -56,7 +56,7 @@ export function returnToApp(written: FamilyTokenClaims | null): boolean {
 }
 
 /** Whether the browser holds the cookie `written` describes, rather than dropping it. */
-export function readsBack(written: FamilyTokenClaims | null): boolean {
+export function readsBack(written: FamilyTokenClaims | null): written is FamilyTokenClaims {
   if (written === null) return false
   // `iat` too: an older cookie for the same profile must not pass for a dropped write.
   const readBack = readFamilySession()

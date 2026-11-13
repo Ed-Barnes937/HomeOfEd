@@ -43,6 +43,8 @@ export interface FamilySeed {
   remembered: string
   /** The remembered profile has since been deleted, on another device. */
   rememberedDeleted?: boolean
+  /** This device already holds a family cookie for FIXTURE_PARENT's name or one of `profiles`. */
+  playing?: string
   /** Saves made by FIXTURE_PARENT's name or one of `profiles`, `agoMs` before the page loads. */
   saves?: readonly FamilySeedSave[]
 }

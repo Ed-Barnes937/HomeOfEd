@@ -23,15 +23,28 @@ and room for a customisation screen later.
 the parent first and then each child in the service's order, with the name under
 it. The circle shows `profileInitial(name)` from `@hoe/accounts` (the first
 grapheme of the trimmed name, upper-cased), so every app that later draws a
-profile shows the same letter. Each circle's colour is one of six hub palette
-inks, chosen by hashing the profile id (`profileColour`), so it never moves when
-profiles are added or removed. The profile playing on this device gets a ring
-and a check mark, and keeps `aria-pressed`. Signed out, the page is as before:
-the sign-in card and, with a shared fragment, "Open what was shared".
+profile shows the same letter. `Intl.Segmenter` is built on first use, and
+without it (Firefox < 125, iOS < 14.5) the first code point stands in, so the
+package can never stop hub booting.
+
+Each circle's colour is taken by its position in the picker from six hub palette
+inks (`PROFILE_COLOURS`, the one list; the page passes the colour as a CSS
+custom property). Position, not a hash of the id, so a household of six or fewer
+never repeats a colour. The cost is that a child's colour can shift when a
+profile before it is deleted; the avatar ticket will replace it with a chosen
+look anyway.
+
+The profile playing on this device gets an `outline` ring and a check mark in
+`--fg`, which no avatar ink is close to in either theme and which survives
+forced-colours mode, and keeps `aria-pressed`. Signed out, the page is as
+before: the sign-in card and, with a shared fragment, "Open what was shared".
 
 **2. Everything else moves to `/account/settings`, behind a cog.** Signed in as,
 the parent's last saves, the child-profile card and the account actions. The cog
-is an icon link labelled "Grown-up settings"; there is no parental lock on it.
+is an icon link labelled "Grown-up settings", with a 44px touch target; there
+is no parental lock on it. Signing out or deleting the account there goes back
+to `/account` with the same search, so signing in again shows the picker and
+any `returnTo` still applies.
 `/account/settings` is a real route rather than a toggle, so the avatar ticket has
 a home. Hub's server already serves `index.html` for any unknown document path.
 
@@ -47,8 +60,10 @@ the location with the app. When it returns `false` and the written cookie does
 read back (`readsBack`), there is nowhere vetted to return to, so the router
 replaces the location with hub home `/`, where the chip shows who is playing.
 That covers no `returnTo`, a refused `returnTo`, and the parent's own profile
-alike. When the cookie does not read back, the visitor stays on the picker as
-before, so a dropped write is never mistaken for a session.
+alike. When the cookie does not read back, the visitor stays on the picker, the
+pick is not remembered for silent renewal, and the picker marks whoever the
+browser's cookie still names (usually nobody), so a dropped write is never
+mistaken for a session.
 
 **4. A `returnTo` survives settings and back.** The cog and the back link carry
 the current search, and `stillOnArrival` (ADR 0095 decision 1) now counts

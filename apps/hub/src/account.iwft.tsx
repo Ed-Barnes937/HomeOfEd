@@ -220,7 +220,7 @@ test('signed in, the picker shows a circle per profile and no settings cards', a
 }) => {
   await AccountPagePom.givenFamily(page, {
     signedIn: true,
-    profiles: ['robin', 'Wren'],
+    profiles: ['robin', 'Wren', 'Juniper', 'Ivy', 'Oak'],
     remembered: FIXTURE_PARENT.name,
   })
   const { root } = await mountApp()
@@ -230,9 +230,14 @@ test('signed in, the picker shows a circle per profile and no settings cards', a
     { name: FIXTURE_PARENT.name, initial: 'A' },
     { name: 'robin', initial: 'R' },
     { name: 'Wren', initial: 'W' },
+    { name: 'Juniper', initial: 'J' },
+    { name: 'Ivy', initial: 'I' },
+    { name: 'Oak', initial: 'O' },
   ])
   await root.verifyNobodyIsPlaying()
   await root.verifyNoSettingsOnPicker()
+  await root.verifyEachProfileHasItsOwnColour()
+  await root.verifySettingsCogIsTouchSized()
 })
 
 test('picking with no returnTo lands on hub home with the session set', async ({ mountApp }) => {
@@ -423,9 +428,12 @@ test.describe('arriving from an estate app', () => {
 
     await root.dropCookieWrites()
     await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+    await root.verifyPickSettled()
 
     await root.verifyStillOnAccount()
     await root.verifyNoFamilySession()
+    await root.verifyNobodyIsPlaying()
+    await root.verifyRemembersNobody()
   })
 
   test('an older cookie for the same profile cannot pass for a dropped write', async ({
@@ -503,18 +511,55 @@ test.describe('arriving from an estate app', () => {
     mountApp,
     page,
   }) => {
-    await AccountPagePom.givenPlaying(page, FIXTURE_PARENT.name, FIXTURE_PARENT.id)
+    await AccountPagePom.givenFamily(page, {
+      signedIn: true,
+      profiles: ['Robin'],
+      remembered: 'Robin',
+      playing: 'Robin',
+    })
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
+    const { root } = await mountApp()
+    await root.serveEstateApps()
+
+    await root.verifyPlayingNow('Robin')
+    await root.verifyStillOnAccount()
+    await root.verifyNoTokenMinted()
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+
+    await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+    await root.verifyFamilySessionNames(FIXTURE_PARENT.name, 'parent')
+  })
+
+  test('signing out in settings goes back to the picker, keeping the returnTo', async ({
+    mountApp,
+    page,
+  }) => {
     await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123')
     const { root } = await mountApp()
     await root.serveEstateApps()
     await root.verifyArrived()
-
     await root.signIn()
-    await root.verifyPlayingNow(FIXTURE_PARENT.name)
-    await root.verifyStillOnAccount()
-    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
+    await root.openSettings()
 
+    await root.signOut()
+
+    await root.verifySignedOut()
+    await root.verifyStillOnAccount()
+    await root.signIn()
+    await root.verifySignedInAs(FIXTURE_PARENT.name)
+    await root.pickWhoIsPlaying(FIXTURE_PARENT.name)
     await root.verifyReturnedTo(`${BOOP}#g=abc-123`)
+  })
+
+  test('opening settings directly never renews silently', async ({ mountApp, page }) => {
+    await AccountPagePom.givenFamily(page, { signedIn: true, profiles: ['Robin'], remembered: 'Robin' })
+    await AccountPagePom.serveEstateApps(page)
+    await AccountPagePom.openFromGate(page, BOOP, '#g=abc-123', '/account/settings')
+    const { root } = await mountApp()
+
+    await root.verifyOnSettings()
+    await root.verifyProfileListed('Robin', 'robin')
+    await root.verifyNoTokenMinted()
   })
 })
 
@@ -720,6 +765,21 @@ test.describe('silent renewal: a parent signed in here, a family token gone', ()
   })
 })
 
+test('going back after signing out in settings does not return to settings', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  await root.verifyIsShown()
+  await root.signIn()
+  await root.openSettings()
+  await root.signOut()
+  await root.verifySignedOut()
+
+  await root.goBack()
+
+  await root.verifyNotOnSettings()
+})
+
 test('signing out and back in lists the household again', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyIsShown()
@@ -729,9 +789,12 @@ test('signing out and back in lists the household again', async ({ mountApp }) =
   await root.verifyProfileListed('Robin', 'robin')
   await root.signOut()
   await root.verifySignedOut()
+  await root.verifyStillOnAccount()
 
   await root.signIn()
 
+  await root.verifyPickerOffers('Robin')
+  await root.openSettings()
   await root.verifyProfileListed('Robin', 'robin')
 })
 

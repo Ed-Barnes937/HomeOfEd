@@ -1,11 +1,6 @@
 // The warm-paper palette, from the homepage-v2 design reference. One definition
 // for every hub screen: the tokens stopped being the home page's own business
 // when /account became the second surface that has to match them.
-
-// Mid-tone paper inks, each holding the cream initial at 3:1 or better in both themes;
-// indexed by `profileColour`, so a profile wears the same colour on every screen.
-$avatar-colours: #c07a35, #4f7d6f, #b5573f, #4f6f8f, #8a5d7e, #7c7a3a;
-
 @mixin paperTokens {
   --bg: #e9e1d6;
   --fg: #2c322e;
