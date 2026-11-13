@@ -4,6 +4,7 @@ import { expect } from '@playwright/experimental-ct-react'
 import { LAST_SHOP_KEY } from '../persistence/lastShop.ts'
 import { SAVE_KEY } from '../persistence/storage.ts'
 import { outlinePoints, SHOPS, STREET_PAINTING } from '../street/shops.ts'
+import { verifyNoPlayer, verifyPlayer } from './player.ts'
 import { openAsNewVisitor, reloadAtRoot, reloadInPlace, verifyAt } from './address.ts'
 import { ShopPom } from './ShopPom.ts'
 import { SmithyPom } from './SmithyPom.ts'
@@ -123,11 +124,11 @@ export class StreetPom extends BasePage {
   }
 
   async verifyPlayer(name: string): Promise<void> {
-    await expect(this.page.getByTestId('player')).toHaveText(name)
+    await verifyPlayer(this.page, name)
   }
 
   async verifyNoPlayer(): Promise<void> {
-    await expect(this.page.getByTestId('player')).toHaveCount(0)
+    await verifyNoPlayer(this.page)
   }
 
   async enterWandShop(): Promise<ShopPom> {

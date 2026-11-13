@@ -149,7 +149,7 @@ streetTest(
 test.describe('on a narrow laptop', () => {
   test.use({ viewport: { width: 900, height: 600 } })
 
-  test('a long player name leaves the title clear and Picture in view', async ({
+  test('the title stays clear and the player circle ends the header', async ({
     mountApp,
     page,
   }) => {
@@ -163,7 +163,8 @@ test.describe('on a narrow laptop', () => {
     const header = await root.headerLayout()
 
     expect(header.navLeft).toBeGreaterThanOrEqual(header.titleRight)
-    expect(header.pictureRight).toBeLessThanOrEqual(header.right)
+    expect(header.playerRight).toBe(header.navRight)
+    expect(header.navRight).toBeLessThanOrEqual(header.right)
   })
 })
 
@@ -173,7 +174,7 @@ for (const width of [1120, 1260, 1460]) {
     smithyTest.use({ viewport: { width, height: 800 } })
 
     smithyTest(
-      'a long player name leaves the title clear and Picture in view',
+      'the title stays clear and the player circle ends the header',
       async ({ mountApp, page }) => {
         const first = await mountApp()
         await first.root.verifyIsShown()
@@ -185,7 +186,8 @@ for (const width of [1120, 1260, 1460]) {
         const header = await root.headerLayout()
 
         expect(header.navLeft).toBeGreaterThanOrEqual(header.titleRight)
-        expect(header.pictureRight).toBeLessThanOrEqual(header.right)
+        expect(header.playerRight).toBe(header.navRight)
+        expect(header.navRight).toBeLessThanOrEqual(header.right)
       },
     )
   })
