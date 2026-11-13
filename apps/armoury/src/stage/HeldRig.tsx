@@ -15,7 +15,15 @@ import * as THREE from 'three'
 
 import { Bridge } from './boxRig.tsx'
 import styles from './HeldRig.module.scss'
-import { BOX_CAMERA_LEAN, FOV, MM } from './scene.tsx'
+import {
+  dragUpright,
+  heldTilt,
+  rightUpright,
+  uprightFlourishWeight,
+  type Hold,
+  type UprightPose,
+} from './hold.ts'
+import { BOX_CAMERA_LEAN, FOV, FRONT_CAMERA_PITCH, MM } from './scene.tsx'
 import type { BoxPose, CloseUpHandle, CloseUpProps } from './stage.ts'
 import { fitWave, WAVE_SECONDS, wavePose, waveTurn } from './wave.ts'
 import { WaveTrail } from './WaveTrail.tsx'
@@ -54,6 +62,19 @@ export interface HeldItem {
   trailColour: string | null
   /** The box stage's half width in scene units, so the item starts the size it lay in its box. */
   boxHalfWidth: number
+  /** Held level like a wand (the default), or standing up, leaning and tipping under a finger. */
+  hold?: Hold
+  /** `'own'`: no figure of 8 or trail; the children draw the flourish from `flourishAt`. */
+  flourish?: 'wave' | 'own'
+  /** How long an `'own'` flourish lasts; an upright item is held upright for it. */
+  flourishSeconds?: number
+  /**
+   * How the box stage looks at the item: from above (the default), or from the front pitched down by
+   * `FRONT_CAMERA_PITCH`, with the item stood up a quarter turn about z and rolled about y if upright.
+   */
+  boxView?: 'above' | 'front'
+  /** The widest across, so an upright item fits the screen by its width as well as its height. */
+  widthMm?: number
 }
 
 interface Flight {
@@ -81,6 +102,8 @@ interface Handling {
   tilt: number
   /** Clock time the latest flourish began, or null when the item isn't moving through one. */
   waveAt: number | null
+  /** An upright item's lean and tip, which right themselves once let go. */
+  upright: UprightPose
 }
 
 type Lights = ComponentType<{ rim?: Ref<THREE.DirectionalLight> }>
@@ -118,6 +141,7 @@ function Rig({
       held: new THREE.Quaternion(),
       step: new THREE.Quaternion(),
       wave: new THREE.Quaternion(),
+      pose: new THREE.Quaternion(),
     }),
     [],
   )
@@ -158,6 +182,10 @@ function Rig({
       h.spin.multiplyScalar(Math.exp(-4 * dt))
       if (h.spin.lengthSq() < 1e-4) h.spin.set(0, 0)
     }
+    const upright = item.hold === 'upright'
+    const front = item.boxView === 'front'
+    const own = item.flourish === 'own'
+    if (upright && !h.grabbed) h.upright = rightUpright(h.upright, dt, reducedMotion)
 
     // Pixels per scene unit on the plane through the item.
     const px = size.height / (2 * CAMERA_DISTANCE * Math.tan((FOV * Math.PI) / 360))
@@ -166,25 +194,37 @@ function Rig({
     const boxPx = rect.width / 2 / item.boxHalfWidth
 
     const portrait = size.height > size.width
-    const tilt = portrait ? Math.PI * 0.4 : Math.PI * 0.05
+    const tilt = heldTilt(item.hold ?? 'level', portrait)
     h.tilt = tilt
     const length = item.lengthMm * MM * px
-    const heldScale = Math.min(
-      (0.76 * size.width) / (length * Math.abs(Math.cos(tilt))),
-      (0.56 * size.height) / (length * Math.abs(Math.sin(tilt))),
-    )
+    const width = (item.widthMm ?? 0) * MM * px
+    const heldScale = upright
+      ? Math.min(width > 0 ? (0.76 * size.width) / width : Infinity, (0.56 * size.height) / length)
+      : Math.min(
+          (0.76 * size.width) / (length * Math.abs(Math.cos(tilt))),
+          (0.56 * size.height) / (length * Math.abs(Math.sin(tilt))),
+        )
 
-    q.from.setFromAxisAngle(X, BOX_TO_CLOSE + roll)
+    // The box's camera is turned from the close look's about x; from the front, an upright item stands in its box.
+    if (front)
+      q.from
+        .setFromAxisAngle(X, roll)
+        .premultiply(q.step.setFromAxisAngle(Z, upright ? Math.PI / 2 : 0))
+        .premultiply(q.step.setFromAxisAngle(X, FRONT_CAMERA_PITCH))
+    else q.from.setFromAxisAngle(X, BOX_TO_CLOSE + roll)
+    const facing = front ? 0 : Math.PI / 2
     q.held
-      .setFromAxisAngle(X, Math.PI / 2 + roll + h.roll)
+      .setFromAxisAngle(X, facing + roll + h.roll)
       .premultiply(q.step.setFromAxisAngle(Y, h.swing))
       .premultiply(q.step.setFromAxisAngle(Z, tilt))
 
     const sinceWave = h.waveAt === null ? Infinity : clock.elapsedTime - h.waveAt
-    const waving = isHeld && !reducedMotion && sinceWave < WAVE_SECONDS * item.flourishScale
+    const flourishSeconds = item.flourishSeconds ?? 0
+    const waving = !own && isHeld && !reducedMotion && sinceWave < WAVE_SECONDS * item.flourishScale
     const wave = waving ? wavePose(sinceWave / item.flourishScale) : null
     streaking.current = wave?.trail ?? false
-    if (!waving) h.waveAt = null
+    const upheld = own && upright ? uprightFlourishWeight(sinceWave, flourishSeconds) : 0
+    if (own ? !(sinceWave < flourishSeconds) : !waving) h.waveAt = null
 
     const e = easeInOut(f.t)
     const g = held.current
@@ -216,11 +256,28 @@ function Rig({
         v.moved.copy(v.grip).applyQuaternion(q.wave)
         g.position.add(v.grip).sub(v.moved)
       }
+      const pose = h.upright
+      const shown = e * (1 - upheld)
+      if (upright && shown > 0 && (pose.lean !== 0 || pose.tip !== 0)) {
+        // Tip and lean in screen space, about the hand on the grip.
+        const length = item.lengthMm * MM * g.scale.x
+        v.grip
+          .set(1, 0, 0)
+          .applyQuaternion(g.quaternion)
+          .multiplyScalar((item.grip - 0.5) * length)
+        q.pose
+          .setFromAxisAngle(X, pose.tip * shown)
+          .premultiply(q.step.setFromAxisAngle(Z, -pose.lean * shown))
+        g.quaternion.premultiply(q.pose)
+        v.moved.copy(v.grip).applyQuaternion(q.pose)
+        g.position.add(v.grip).sub(v.moved)
+      }
       g.updateMatrixWorld()
       // The item's group lies along x: its own (x, y, z) is turned to (z, y, -x).
       tip.current.set(tipAt[2], tipAt[1], -tipAt[0]).applyMatrix4(g.matrixWorld)
     }
-    if (lights.current) lights.current.rotation.x = BOX_TO_CLOSE * (1 - e)
+    if (lights.current)
+      lights.current.rotation.x = (front ? FRONT_CAMERA_PITCH : BOX_TO_CLOSE) * (1 - e)
     // The rim outlines the item in the box; up close it glances off an item aimed into the scene and turns it silver.
     if (rim.current) rim.current.intensity = rimIntensity * (1 - e)
   })
@@ -288,6 +345,7 @@ export function HeldRig({
       touched: false,
       tilt: 0,
       waveAt: null,
+      upright: { lean: 0, tip: 0, leanVelocity: 0, tipVelocity: 0 },
     },
   }))
   const pointers = useRef(new Map<number, { x: number; y: number }>())
@@ -355,6 +413,11 @@ export function HeldRig({
     g.travelled += Math.hypot(dx, dy)
     if (g.travelled <= TAP_SLOP_PX || g.pinched) return
     h.touched = true
+    if (item.hold === 'upright') {
+      h.upright = dragUpright(h.upright, dx, dy)
+      g.lastMove = e.timeStamp
+      return
+    }
     const along = (dx * Math.cos(h.tilt) - dy * Math.sin(h.tilt)) * TURN_PER_PX
     const across = (dx * Math.sin(h.tilt) + dy * Math.cos(h.tilt)) * TURN_PER_PX
     h.roll += across

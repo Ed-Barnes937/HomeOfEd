@@ -2,34 +2,53 @@ import { useFrame, useThree, type RootState } from '@react-three/fiber'
 import { useLayoutEffect, useRef } from 'react'
 import type * as THREE from 'three'
 
-import { BOX_CAMERA_LEAN, FOV } from './scene.tsx'
+import { BOX_CAMERA_LEAN, FOV, FRONT_CAMERA_PITCH } from './scene.tsx'
 
 const CAPTURE_WIDTH = 2000
 
-/** Puts the camera above the box so `halfWidth` scene units either side of the middle span its width. */
-export function Framing({ halfWidth }: { halfWidth: number }) {
+/**
+ * Puts the camera above the box, or in front of it looking a little down, so `halfWidth` scene
+ * units either side of the middle span its width.
+ */
+export function Framing({
+  halfWidth,
+  view = 'above',
+}: {
+  halfWidth: number
+  view?: 'above' | 'front'
+}) {
   const { camera, size } = useThree()
   useLayoutEffect(() => {
     const aspect = size.width / size.height
     const dist = halfWidth / (Math.tan((FOV * Math.PI) / 360) * aspect)
-    camera.position.set(0, dist, dist * BOX_CAMERA_LEAN)
+    if (view === 'front')
+      camera.position.set(
+        0,
+        dist * Math.sin(FRONT_CAMERA_PITCH),
+        dist * Math.cos(FRONT_CAMERA_PITCH),
+      )
+    else camera.position.set(0, dist, dist * BOX_CAMERA_LEAN)
     camera.lookAt(0, 0, 0)
-  }, [camera, size, halfWidth])
+  }, [camera, size, halfWidth, view])
   return null
 }
 
+/** Eases its children round to `target` radians: about x for an item lying down, about y for one standing. */
 export function Roller({
   target,
+  axis = 'x',
   children,
 }: {
   target: { current: number }
+  axis?: 'x' | 'y'
   children: React.ReactNode
 }) {
   const group = useRef<THREE.Group>(null)
   useFrame((_, delta) => {
     if (!group.current) return
     const r = group.current.rotation
-    r.x += (target.current - r.x) * Math.min(1, delta * 8)
+    if (axis === 'y') r.y += (target.current - r.y) * Math.min(1, delta * 8)
+    else r.x += (target.current - r.x) * Math.min(1, delta * 8)
   })
   return <group ref={group}>{children}</group>
 }
