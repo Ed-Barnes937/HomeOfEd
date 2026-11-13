@@ -95,3 +95,4 @@ uncorking delightful and bounded, the street right with a third door.
 - New features, retuning beyond a gate's finding, the hub card (19).
 
 ## Comments
+- 2026-11-13 orchestrator, from the second review of ticket 05: in ADR 0106 the "Names never mention drinking" bullet still says the test covers blend lore only (it now lives in `describe.test.ts` and sweeps every word, name, tag line and lore), and line 58 is not wrapped. Fix both in the docs pass.

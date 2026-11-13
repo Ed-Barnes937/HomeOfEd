@@ -163,3 +163,5 @@ Check the build's chunks: the main chunk may hold `potion/compile.ts`, `profile.
 - The real stage (09 onward), the scene art and the real picture (13), the street door (17).
 
 ## Comments
+- 2026-11-13 orchestrator, from the review of ticket 05: `src/potion/item.test.ts` hands `createWorkbench` `{ ...potionItem, kind: 'wand' }` because `ItemKind` had no `potion` yet. This ticket owns that test file too: drop the override once `ItemKind` is widened (it would still compile, so nothing forces it).
+- 2026-11-13 orchestrator, from the scene mock (ticket 02, decision O17): start the `[data-shop='apothecary']` token block from the palette in `/Users/edward.barnes@glean.co/Code/Worktrees/HomeOfEd/armoury-potions/.scratch/armoury-potions/mock/mock.css`; its text and ground pairs were measured at AA (ratios in `shots/02/contact-sheet.md`).
