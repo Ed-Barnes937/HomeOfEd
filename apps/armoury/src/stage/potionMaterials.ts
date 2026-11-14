@@ -102,7 +102,10 @@ const scaleRgb = (a: Rgb, k: number): Rgb => a.map((v) => v * k) as unknown as R
 // ---- Glass -----------------------------------------------------------------------------------
 
 export interface GlassLook {
-  /** What the glass lets through face on and edge on: linear multipliers of what is behind it. */
+  /**
+   * What the glass lets through face on and edge on: factors on what is already drawn behind it.
+   * The framebuffer holds sRGB-encoded colour, so these are not linear multipliers of light.
+   */
   through: Rgb
   edge: Rgb
   edgePow: number
@@ -171,27 +174,19 @@ const FAR_LIGHT = 0.15
 const INNER_LIGHT = 0.06
 
 const GLASS_PARS = /* glsl */ `
-uniform vec3 uEye, uCentre;
-varying vec3 vBottle;
-varying vec3 vBottleNormal;
-bool potionWrongSide() {
-  float near = dot(vBottle - uCentre, uEye - vBottle);
-  return NEAR_PASS ? near < 0.0 : near >= 0.0;
-}
-float potionInner() {
-  float r = length(vBottle.xy);
-  return r < 1e-3 ? 0.0 : step(dot(vBottleNormal.xy, vBottle.xy), -0.02 * r);
-}
+varying float vInner;
+bool potionInner() { return vInner > 0.5; }
+// The outside faces the eye in front of the liquid; the cavity's lining faces it behind.
+bool potionWrongSide() { return (gl_FrontFacing != potionInner()) != NEAR_PASS; }
 `
 
 const GLASS_TINT_VERTEX = /* glsl */ `
-varying vec3 vBottle;
-varying vec3 vBottleNormal;
+attribute float aInner;
+varying float vInner;
 varying vec3 vN;
 varying vec3 vV;
 void main() {
-  vBottle = position;
-  vBottleNormal = normal;
+  vInner = aInner;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   vV = -mv.xyz;
   vN = normalMatrix * normal;
@@ -208,7 +203,7 @@ varying vec3 vV;
 ${GLASS_PARS}
 void main() {
   if (potionWrongSide()) discard;
-  float inner = potionInner();
+  float inner = potionInner() ? 1.0 : 0.0;
   float ndv = abs(dot(normalize(vN), normalize(vV)));
   vec3 through = mix(uThrough, uEdgeTint, pow(1.0 - ndv, uEdgePow));
   float reflected = 0.04 + 0.96 * pow(1.0 - ndv, 5.0);
@@ -217,24 +212,10 @@ void main() {
 }
 `
 
-export interface GlassShared {
-  [name: string]: THREE.IUniform
-  /** The eye in the bottle's own millimetre frame. */
-  uEye: THREE.IUniform<THREE.Vector3>
-  /** The middle of what the glass holds: what lies past it from the eye is the far wall. */
-  uCentre: THREE.IUniform<THREE.Vector3>
-}
-
-export const glassShared = (): GlassShared => ({
-  uEye: { value: new THREE.Vector3(0, -1e4, 0) },
-  uCentre: { value: new THREE.Vector3() },
-})
-
 /** What the glass lets through: multiplies whatever is already drawn behind it. */
-function glassTint(look: GlassLook, near: boolean, shared: GlassShared): THREE.ShaderMaterial {
+function glassTint(look: GlassLook, near: boolean): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
-      ...shared,
       uThrough: { value: new THREE.Vector3(...look.through) },
       uEdgeTint: { value: new THREE.Vector3(...look.edge) },
       uEdgePow: { value: look.edgePow },
@@ -256,11 +237,7 @@ function glassTint(look: GlassLook, near: boolean, shared: GlassShared): THREE.S
 }
 
 /** What the glass reflects and the light in its edges, drawn premultiplied over what is behind. */
-function glassLight(
-  look: GlassLook,
-  near: boolean,
-  shared: GlassShared,
-): THREE.MeshPhysicalMaterial {
+function glassLight(look: GlassLook, near: boolean): THREE.MeshPhysicalMaterial {
   const material = new THREE.MeshPhysicalMaterial({
     color: '#ffffff',
     roughness: look.roughness,
@@ -278,9 +255,9 @@ function glassLight(
     blendSrcAlpha: THREE.OneFactor,
     blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
   })
-  material.defines = { NEAR_PASS: near ? 'true' : 'false' }
+  material.defines = { ...material.defines, NEAR_PASS: near ? 'true' : 'false' }
   material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, shared, {
+    Object.assign(shader.uniforms, {
       uCap: { value: REST_CAP },
       uRim: { value: new THREE.Vector3(...look.rim) },
       uRimPow: { value: look.rimPow },
@@ -293,12 +270,9 @@ function glassLight(
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nvarying vec3 vBottle;\nvarying vec3 vBottleNormal;',
+        '#include <common>\nattribute float aInner;\nvarying float vInner;',
       )
-      .replace(
-        '#include <begin_vertex>',
-        '#include <begin_vertex>\nvBottle = position;\nvBottleNormal = normal;',
-      )
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvInner = aInner;')
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
@@ -317,7 +291,7 @@ ${SOFT_CAP_GLSL}`,
         `#include <emissivemap_fragment>
 float glassNdv = abs(dot(normal, normalize(vViewPosition)));
 float glassEdge = pow(1.0 - glassNdv, uEdgePow);
-float glassInner = potionInner();
+float glassInner = potionInner() ? 1.0 : 0.0;
 totalEmissiveRadiance += uRim * pow(1.0 - glassNdv, uRimPow) * (1.0 - 0.7 * glassInner);`,
       )
       .replace(
@@ -348,12 +322,13 @@ export interface GlassPasses {
   dispose(): void
 }
 
-export function createGlass(look: GlassLook, shared: GlassShared): GlassPasses {
+/** The glass in four passes; its geometry's `aInner` says which surfaces line a hollow. */
+export function createGlass(look: GlassLook): GlassPasses {
   const passes = {
-    farTint: glassTint(look, false, shared),
-    farLight: glassLight(look, false, shared),
-    nearTint: glassTint(look, true, shared),
-    nearLight: glassLight(look, true, shared),
+    farTint: glassTint(look, false),
+    farLight: glassLight(look, false),
+    nearTint: glassTint(look, true),
+    nearLight: glassLight(look, true),
   }
   return { ...passes, dispose: () => Object.values(passes).forEach((m) => m.dispose()) }
 }
@@ -363,19 +338,32 @@ export function createGlass(look: GlassLook, shared: GlassShared): GlassPasses {
 /** L2: each boundary blends over this share of its thinner neighbour, within these bounds in mm. */
 const BAND_EDGE = 0.08
 const BAND_EDGE_MM: [number, number] = [0.4, 4]
+/** No edge is thinner, so the shader's smoothstep never closes up. */
+const BAND_EDGE_LEAST_MM = 0.02
 
-/** The soft half width of each boundary between bands, for tops `levels` over a floor at `floor`. */
-export function bandEdges(levels: readonly number[], floor: number): number[] {
-  const bottoms = [floor, ...levels]
-  return levels.slice(0, -1).map((top, i) => {
-    const below = top - bottoms[i]!
-    const above = levels[i + 1]! - top
-    const e = BAND_EDGE * Math.min(below, above)
-    return Math.min(
+/**
+ * The soft half width of each boundary between the first `count` bands, for tops `levels` over a
+ * floor at `floor` (all along the surface's up), written into `out`; its entries past them are 0.
+ */
+export function bandEdges(
+  levels: readonly number[],
+  floor: number,
+  out: number[] = [],
+  count = levels.length,
+): number[] {
+  for (let i = 0; i < count - 1; i++) {
+    const top = levels[i]!
+    const below = Math.max(0, top - (i === 0 ? floor : levels[i - 1]!))
+    const above = Math.max(0, levels[i + 1]! - top)
+    const thinner = Math.min(below, above)
+    const e = Math.min(
       BAND_EDGE_MM[1],
-      Math.max(Math.min(BAND_EDGE_MM[0], 0.45 * Math.min(below, above)), e),
+      Math.max(Math.min(BAND_EDGE_MM[0], 0.45 * thinner), BAND_EDGE * thinner),
     )
-  })
+    out[i] = Math.max(BAND_EDGE_LEAST_MM, e)
+  }
+  for (let i = Math.max(0, count - 1); i < out.length; i++) out[i] = 0
+  return out
 }
 
 /** The liquid's look: L2's numbers from the spike, the cloud and the light through it. */
@@ -389,6 +377,8 @@ export const LIQUID = {
   /** The cool light from behind, through the liquid. */
   back: 0.55,
   milkSheen: 0.16,
+  /** The cool light from behind, glancing off the level surface. */
+  surfaceSheen: 0.9,
 }
 
 const isCloud = (trait: Trait) => trait === 'cloud' || trait === 'murk'
@@ -400,7 +390,7 @@ uniform float uEdges[${MAX_POURS - 1}];
 uniform int uCount;
 uniform vec3 uColour[${MAX_POURS}];
 uniform float uCloud[${MAX_POURS}];
-uniform float uTime, uFloor, uDepth, uSelf, uDiffuse, uThru, uCap, uMilkSheen;
+uniform float uTime, uFloor, uDepth, uSelf, uDiffuse, uThru, uCap, uMilkSheen, uSurfaceSheen;
 uniform vec3 uKeyDir, uKeyColour, uBackDir, uBackColour;
 varying vec3 vBottle;
 varying vec3 vUpView;
@@ -435,7 +425,7 @@ if (liqCut <= 0.0) discard;
 vec3 liqRay = normalize(vBottle - uEye);
 vec3 liqP = vBottle;
 float liqEyeH = dot(uEye, uUp);
-bool liqSurface = !gl_FrontFacing && liqEyeH > liqTop;
+bool liqSurface = LIQ_SURFACE && liqEyeH > liqTop;
 if (liqSurface) {
   float along = dot(liqRay, uUp);
   liqP = uEye + liqRay * ((liqTop - liqEyeH) / min(along, -1e-3));
@@ -452,7 +442,7 @@ float liqNdv = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
 float liqThick = liqSurface ? 1.0 : liqNdv;
 vec3 liqDeep = pow(max(liqAlbedo, 1e-4), vec3(mix(1.0, uDepth, liqThick * (1.0 - 0.75 * liqCloud))));
 float liqUp = clamp((liqH - uFloor) / max(liqTop - uFloor, 1e-3), 0.0, 1.0);
-float liqRim = liqSurface ? 0.7 : mix(mix(0.3, 1.0, sqrt(liqNdv)), 1.0, 0.5 * liqCloud);
+float liqRim = liqSurface ? 0.85 : mix(mix(0.3, 1.0, sqrt(liqNdv)), 1.0, 0.5 * liqCloud);
 reflectedLight.directDiffuse *= liqRim;
 reflectedLight.indirectDiffuse *= liqRim;
 vec3 liqGlow = liqDeep * liqRim * uSelf;
@@ -462,6 +452,11 @@ liqGlow += liqDeep * uKeyColour * liqAway * uThru * liqRim * (1.0 - 0.45 * liqCl
 vec3 liqBackView = normalize((viewMatrix * vec4(uBackDir, 0.0)).xyz);
 float liqBehind = pow(clamp(dot(normalize(vViewPosition), liqBackView), 0.0, 1.0), 2.0);
 liqGlow += uBackColour * liqDeep * liqBehind * liqRim * liqRim * (1.0 - 0.6 * liqCloud);
+if (liqSurface) {
+  vec3 liqMirror = reflect(-normalize(vViewPosition), normal);
+  float liqFresnel = 0.02 + 0.98 * pow(1.0 - liqNdv, 5.0);
+  liqGlow += uBackColour * uSurfaceSheen * liqFresnel * pow(clamp(dot(liqMirror, -liqBackView), 0.0, 1.0), 6.0);
+}
 liqGlow += liqCloud * pow(1.0 - liqNdv, 2.0) * uMilkSheen * liqAlbedo * mix(vec3(0.95, 0.9, 1.0), vec3(1.0, 0.95, 0.9), liqUp);
 `
 
@@ -481,6 +476,7 @@ export interface LiquidUniforms {
   uDiffuse: THREE.IUniform<number>
   uThru: THREE.IUniform<number>
   uMilkSheen: THREE.IUniform<number>
+  uSurfaceSheen: THREE.IUniform<number>
   uCap: THREE.IUniform<number>
   uKeyDir: THREE.IUniform<THREE.Vector3>
   uKeyColour: THREE.IUniform<THREE.Vector3>
@@ -505,6 +501,7 @@ function liquidUniforms(): LiquidUniforms {
     uDiffuse: { value: LIQUID.diffuse },
     uThru: { value: LIQUID.thru },
     uMilkSheen: { value: LIQUID.milkSheen },
+    uSurfaceSheen: { value: LIQUID.surfaceSheen },
     uCap: { value: REST_CAP },
     uKeyDir: { value: new THREE.Vector3(-0.9, 0.1, 0.4).normalize() },
     uKeyColour: { value: v3().set(1, 0.8, 0.55) },
@@ -513,18 +510,22 @@ function liquidUniforms(): LiquidUniforms {
   }
 }
 
-/** The liquid's skin: discards above the level, caps the cut with its back faces, colours by band. */
+/**
+ * The liquid's skin: discards above the level, caps the cut with its back faces, colours by band.
+ * three draws a back side by flipping the winding, so its faces are front facing: a define marks it.
+ */
 function liquidMaterial(uniforms: LiquidUniforms, surface: boolean): THREE.MeshPhysicalMaterial {
   const material = new THREE.MeshPhysicalMaterial({
     color: '#ffffff',
-    roughness: surface ? 0.07 : 0.5,
+    roughness: surface ? 0.3 : 0.5,
     metalness: 0,
-    specularIntensity: surface ? 0.4 : 0.12,
-    envMapIntensity: surface ? 0.3 : 0.5,
+    specularIntensity: surface ? 1 : 0.12,
+    envMapIntensity: surface ? 1.6 : 0.5,
     side: surface ? THREE.BackSide : THREE.FrontSide,
     transparent: true,
     depthWrite: false,
   })
+  material.defines = { ...material.defines, LIQ_SURFACE: surface ? 'true' : 'false' }
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms)
     shader.vertexShader = shader.vertexShader
@@ -545,12 +546,12 @@ function liquidMaterial(uniforms: LiquidUniforms, surface: boolean): THREE.MeshP
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
-diffuseColor.rgb = liqAlbedo * uDiffuse * (liqSurface ? 0.4 : 1.0);
+diffuseColor.rgb = liqAlbedo * uDiffuse * (liqSurface ? 0.9 : 1.0);
 diffuseColor.a = liqCut;`,
       )
       .replace(
         '#include <normal_fragment_maps>',
-        '#include <normal_fragment_maps>\nif (!gl_FrontFacing) normal = vUpView;',
+        '#include <normal_fragment_maps>\nif (liqSurface) normal = vUpView;',
       )
       .replace(
         '#include <aomap_fragment>',
@@ -578,8 +579,11 @@ export interface Liquid {
   /** The level surface, drawn first: the far wall's back faces, lit as the plane they show through. */
   surface: THREE.MeshPhysicalMaterial
   body: THREE.MeshPhysicalMaterial
-  /** The surface's up `u` in the bottle's millimetre frame and each band's top along it, bottom first. */
-  setSurface(up: THREE.Vector3, levels: readonly number[]): void
+  /**
+   * The surface's up `u` in the bottle's millimetre frame, each band's top along it (bottom
+   * first) and the liquid's lowest point along it; allocates nothing, so it can run every frame.
+   */
+  setSurface(up: THREE.Vector3, levels: readonly number[], floor: number): void
   setLayers(layers: readonly LayerLook[]): void
   dispose(): void
 }
@@ -600,13 +604,14 @@ export function createLiquid(): Liquid {
     uniforms,
     surface,
     body,
-    setSurface(up, levels) {
+    setSurface(up, levels, floor) {
       const count = Math.min(levels.length, MAX_POURS)
+      const tops = uniforms.uLevels.value
       uniforms.uUp.value.copy(up)
       uniforms.uCount.value = count
-      for (let i = 0; i < count; i++) uniforms.uLevels.value[i] = levels[i]!
-      const edges = bandEdges(levels.slice(0, count), uniforms.uFloor.value)
-      for (let i = 0; i < MAX_POURS - 1; i++) uniforms.uEdges.value[i] = edges[i] ?? 0
+      uniforms.uFloor.value = floor
+      for (let i = 0; i < count; i++) tops[i] = levels[i]!
+      bandEdges(tops, floor, uniforms.uEdges.value, count)
     },
     setLayers(layers) {
       layers.slice(0, MAX_POURS).forEach((layer, i) => {

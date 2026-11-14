@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
+import { BOTTLES, type ShapeId } from '../potion/bottles.ts'
 import { compilePotion } from '../potion/compile.ts'
 import { buildPotionMesh } from '../potion/geometry.ts'
 import { bottleProfile } from '../potion/profile.ts'
@@ -8,9 +9,12 @@ import { MAX_POURS, potionSchema } from '../potion/potionSchema.ts'
 import { normalise } from '../engine/schema.ts'
 import { withPours } from '../potion/pours.ts'
 import { tagLayout } from '../potion/geometry.ts'
+import type { IngredientId } from '../potion/ingredients.ts'
+import { floorAt, levelsAt, levelTable } from '../potion/tipped.ts'
 import { BLOOM_THRESHOLD } from './stage.ts'
 import {
   bandEdges,
+  createGlass,
   createLiquid,
   freezeFrom,
   GLASS_LOOKS,
@@ -95,8 +99,48 @@ describe('the bloom cap at rest', () => {
   })
 })
 
+/** What three's own physical shader is handed, so a material's `onBeforeCompile` can be run here. */
+function compiled(material: THREE.Material) {
+  const shader = {
+    uniforms: {},
+    vertexShader: THREE.ShaderLib.physical.vertexShader,
+    fragmentShader: THREE.ShaderLib.physical.fragmentShader,
+  } as unknown as THREE.WebGLProgramParametersWithUniforms
+  material.onBeforeCompile(shader, {} as THREE.WebGLRenderer)
+  return shader
+}
+
+describe('the glass passes', () => {
+  const glass = createGlass(GLASS_LOOKS.smoky)
+
+  it('each keep the half of the glass on their side of the liquid, by facing and the inner flag', () => {
+    expect(glass.nearTint.defines).toEqual({ NEAR_PASS: 'true' })
+    expect(glass.farTint.defines).toEqual({ NEAR_PASS: 'false' })
+    for (const tint of [glass.nearTint, glass.farTint] as THREE.ShaderMaterial[]) {
+      expect(tint.vertexShader).toContain('vInner = aInner;')
+      expect(tint.fragmentShader).toContain('if (potionWrongSide()) discard;')
+      expect(tint.fragmentShader).toContain('gl_FrontFacing != potionInner()')
+      expect(tint.fragmentShader).not.toContain('uEye')
+    }
+  })
+
+  it("keep three's own defines on the light passes, and patch every chunk they meant to", () => {
+    expect(glass.nearLight.defines).toEqual({ STANDARD: '', PHYSICAL: '', NEAR_PASS: 'true' })
+    expect(glass.farLight.defines).toEqual({ STANDARD: '', PHYSICAL: '', NEAR_PASS: 'false' })
+    const shader = compiled(glass.nearLight)
+    expect(shader.vertexShader).toContain('vInner = aInner;')
+    for (const line of [
+      'if (potionWrongSide()) discard;',
+      'float glassInner = potionInner() ? 1.0 : 0.0;',
+      'gl_FragColor = vec4(potionCap(glassCol, uCap), glassA);',
+    ])
+      expect(shader.fragmentShader).toContain(line)
+    expect(shader.fragmentShader).not.toContain('uEye')
+  })
+})
+
 describe('soft band edges', () => {
-  it('blend each boundary over a tenth of its thinner neighbour, within bounds', () => {
+  it('blend each boundary over 8 percent of its thinner neighbour, within bounds', () => {
     const edges = bandEdges([20, 50, 90], 5)
     expect(edges).toHaveLength(2)
     expect(edges[0]).toBeCloseTo(0.08 * 15)
@@ -104,28 +148,83 @@ describe('soft band edges', () => {
     expect(bandEdges([6, 6.2, 70], 5)[0]).toBeGreaterThan(0)
     expect(Math.max(...bandEdges([200, 400, 600], 0))).toBeLessThanOrEqual(4)
   })
+
+  it('never invert or close up, even over a floor above the first level', () => {
+    for (const edge of bandEdges([4, 4, 30], 5)) expect(edge).toBeGreaterThan(0)
+  })
+
+  const LAYERED = (Object.keys(BOTTLES) as ShapeId[]).flatMap((shape) =>
+    [0, 0.5, 1].flatMap((neck) =>
+      [2, 3].map((count) => {
+        const pours = (['bluebell', 'starpetal', 'rosehip'] as IngredientId[]).slice(0, count)
+        const spec = compilePotion(normalise(potionSchema, { ...withPours(pours), shape, neck }))
+        return { name: `${shape} neck ${neck} ${count} pours`, table: levelTable(spec) }
+      }),
+    ),
+  )
+
+  it.each(LAYERED)(
+    '$name: stay positive and in order over the floor along up, upright to on its side',
+    ({ table }) => {
+      for (let deg = 0; deg <= 90; deg++) {
+        const t = (deg * Math.PI) / 180
+        const levels = levelsAt(table, t)
+        const floor = floorAt(table, t)
+        const edges = bandEdges(levels, floor)
+        expect(edges, `${deg} degrees`).toHaveLength(levels.length - 1)
+        expect(floor, `${deg} degrees`).toBeLessThan(levels[0]!)
+        expect(floor, `${deg} degrees`).toBeLessThanOrEqual(levels[0]! - edges[0]!)
+        edges.forEach((e, i) => {
+          expect(e, `${deg} degrees, edge ${i}`).toBeGreaterThan(0)
+          if (i + 1 < edges.length)
+            expect(levels[i]! + e, `${deg} degrees, edge ${i}`).toBeLessThanOrEqual(
+              levels[i + 1]! - edges[i + 1]!,
+            )
+        })
+      }
+    },
+  )
+
+  it('write into the array they are given, past the levels counted as zero', () => {
+    const out = [9, 9, 9]
+    expect(bandEdges([20, 50, 90, 140], 5, out, 3)).toBe(out)
+    expect(out).toEqual([...bandEdges([20, 50, 90], 5), 0])
+  })
 })
 
 describe('the liquid', () => {
-  it('writes its surface into its uniforms', () => {
+  it('writes its surface into its uniforms, in place', () => {
     const liquid = createLiquid()
-    const before = liquid.uniforms.uLevels
-    liquid.setSurface(new THREE.Vector3(0, 0.6, 0.8), [12, 30, 44])
+    const levels = liquid.uniforms.uLevels.value
+    const edges = liquid.uniforms.uEdges.value
+    liquid.setSurface(new THREE.Vector3(0, 0.6, 0.8), [12, 30, 44], 3.5)
     expect(liquid.uniforms.uUp.value.toArray()).toEqual([0, 0.6, 0.8])
     expect(liquid.uniforms.uLevels.value).toEqual([12, 30, 44])
     expect(liquid.uniforms.uCount.value).toBe(3)
-    expect(liquid.uniforms.uEdges.value).toEqual(
-      bandEdges([12, 30, 44], liquid.uniforms.uFloor.value),
-    )
-    liquid.setSurface(new THREE.Vector3(0, 0, 1), [18])
+    expect(liquid.uniforms.uFloor.value).toBe(3.5)
+    expect(liquid.uniforms.uEdges.value).toEqual(bandEdges([12, 30, 44], 3.5))
+    liquid.setSurface(new THREE.Vector3(0, 0, 1), [18], 5.3)
     expect(liquid.uniforms.uCount.value).toBe(1)
-    expect(liquid.uniforms.uLevels).toBe(before)
+    expect(liquid.uniforms.uLevels.value).toBe(levels)
+    expect(liquid.uniforms.uEdges.value).toBe(edges)
+    liquid.dispose()
+  })
+
+  it('draws its level surface only in the surface pass, whose faces three draws front facing', () => {
+    const liquid = createLiquid()
+    expect(liquid.surface.side).toBe(THREE.BackSide)
+    expect(liquid.surface.defines).toEqual({ STANDARD: '', PHYSICAL: '', LIQ_SURFACE: 'true' })
+    expect(liquid.body.defines).toEqual({ STANDARD: '', PHYSICAL: '', LIQ_SURFACE: 'false' })
+    const fragment = compiled(liquid.surface).fragmentShader
+    expect(fragment).toContain('bool liqSurface = LIQ_SURFACE && liqEyeH > liqTop;')
+    expect(fragment).toContain('if (liqSurface) normal = vUpView;')
+    expect(fragment).not.toMatch(/gl_FrontFacing/)
     liquid.dispose()
   })
 
   it('keeps at most MAX_POURS levels', () => {
     const liquid = createLiquid()
-    liquid.setSurface(new THREE.Vector3(0, 0, 1), [1, 2, 3, 4, 5])
+    liquid.setSurface(new THREE.Vector3(0, 0, 1), [1, 2, 3, 4, 5], 0)
     expect(liquid.uniforms.uCount.value).toBe(MAX_POURS)
     expect(liquid.uniforms.uLevels.value).toHaveLength(MAX_POURS)
     liquid.dispose()

@@ -45,7 +45,7 @@ export function ClayLights({ rim }: { rim?: Ref<THREE.DirectionalLight> }) {
   )
 }
 
-/** ACES on the potion's canvases only: AgX, the smithy's, turns the liquids pastel (ADR 0109). */
+/** ACES: AgX, the smithy's, turns the liquids pastel (ADR 0109). */
 export const POTION_TONE_MAPPING = THREE.ACESFilmicToneMapping
 
 const CANDLE_LIGHT = '#ffa354'
@@ -121,7 +121,7 @@ export function ApothecaryEnvironment() {
   )
 }
 
-/** Sets this canvas's tone mapping; the wand's and the sword's canvases keep their own. */
+/** Sets this canvas's tone mapping to the potion's own, whatever R3F's default for a canvas becomes. */
 export function PotionToneMapping() {
   const gl = useThree((s) => s.gl)
   useLayoutEffect(() => {
@@ -163,10 +163,14 @@ export interface ApothecaryLightsProps {
 export function ApothecaryLights({ clock, glow, footY }: ApothecaryLightsProps) {
   const candle = useRef<THREE.PointLight>(null)
   const pool = useRef<THREE.PointLight>(null)
+  const poolColour = useRef<string | null>(null)
   useFrame(() => {
     if (candle.current)
       candle.current.intensity = LAMPS.candle.intensity * candleFlicker(clock.time)
-    if (pool.current) pool.current.color.set(glow.current)
+    if (pool.current && poolColour.current !== glow.current) {
+      pool.current.color.set(glow.current)
+      poolColour.current = glow.current
+    }
   })
   return (
     <group position={[0, footY, 0]}>

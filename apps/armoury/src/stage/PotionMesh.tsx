@@ -1,11 +1,11 @@
 import { useFrame } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 
 import type { PotionSpec } from '../potion/compile.ts'
 import { buildPotionMesh, type PotionMesh as PotionParts } from '../potion/geometry.ts'
 import { bottleProfile, uprightLevels, WALL_MM } from '../potion/profile.ts'
-import { levelsAt, levelTable, type LevelTable } from '../potion/tipped.ts'
+import { floorAt, levelsAt, levelTable, type LevelTable } from '../potion/tipped.ts'
 import { MAX_POURS } from '../potion/potionSchema.ts'
 import { fillGeometry, latestOnly } from './meshBuffers.ts'
 import {
@@ -15,7 +15,6 @@ import {
   createLiquid,
   drawLabel,
   GLASS_LOOKS,
-  glassShared,
   LABEL_LOOKS,
   labelArea,
   labelMaterial,
@@ -42,14 +41,23 @@ export const RENDER_ORDER = { glassBack: 1, liquid: 2, particles: 3, glassFront:
 /** Below this tilt from the bottle's axis, in radians, the bands sit at their upright levels. */
 const UPRIGHT_TILT = 1e-3
 
-/** Each band's top for the surface's up `u` (in the bottle's mm frame); the table is only asked for once tipped. */
+const tiltOf = (u: THREE.Vector3) => Math.acos(Math.min(1, Math.max(-1, u.z / u.length())))
+
+/** Each band's top for the surface's up `u` (in the bottle's mm frame), into `out` once tipped; the table is only asked for then. */
 export function liquidLevels(
   u: THREE.Vector3,
   upright: number[],
   table: () => LevelTable,
+  out?: number[],
 ): number[] {
-  const tilt = Math.acos(Math.min(1, Math.max(-1, u.z / u.length())))
-  return tilt < UPRIGHT_TILT ? upright : levelsAt(table(), tilt)
+  const tilt = tiltOf(u)
+  return tilt < UPRIGHT_TILT ? upright : levelsAt(table(), tilt, out)
+}
+
+/** The liquid's lowest point along `u`: the mesh's floor upright, the table's once tipped. */
+export function liquidFloor(u: THREE.Vector3, upright: number, table: () => LevelTable): number {
+  const tilt = tiltOf(u)
+  return tilt < UPRIGHT_TILT ? upright : floorAt(table(), tilt)
 }
 
 const UP = new THREE.Vector3(0, 1, 0)
@@ -76,14 +84,21 @@ export interface LiquidWork {
   up: THREE.Quaternion
   at: THREE.Vector3
   scale: THREE.Vector3
+  /** The band tops once tipped. */
+  levels: number[]
+  /** The liquid's lowest point along `u`. */
+  floor: number
   table: () => LevelTable
 }
 
-/** Each band's top for `liquid` as posed now, leaving its up in `work.u`: its turn against `upFrom`'s (or the scene's), `surfaceNormal` read in that frame. */
+/**
+ * Each band's top for `liquid` as posed now, leaving its up in `work.u` and its floor along that
+ * up in `work.floor`: its turn against `upFrom`'s (or the scene's), `surfaceNormal` read in that frame.
+ */
 export function liquidTops(
   liquid: THREE.Object3D,
   s: Pick<PotionMeshProps, 'levels' | 'surfaceNormal' | 'upFrom'> & {
-    built: { upright: number[] }
+    built: { upright: number[]; floor: number }
   },
   work: LiquidWork,
 ): number[] {
@@ -92,7 +107,8 @@ export function liquidTops(
   if (from) from.matrixWorld.decompose(work.at, work.up, work.scale)
   else work.up.identity()
   const u = surfaceUp(work.u, work.bottle, work.up, s.surfaceNormal)
-  return s.levels ?? liquidLevels(u, s.built.upright, work.table)
+  work.floor = liquidFloor(u, s.built.floor, work.table)
+  return s.levels ?? liquidLevels(u, s.built.upright, work.table, work.levels)
 }
 
 export interface PotionGeometries {
@@ -126,6 +142,8 @@ interface Built {
   spec: PotionSpec
   parts: PotionParts
   upright: number[]
+  /** The liquid mesh's floor, upright. */
+  floor: number
   /** Built with the mesh for a bottle that tips, so the first lean costs nothing. */
   table: LevelTable | null
   /** The bore's radius and the lip's height, which split a wax seal from its cork. */
@@ -135,10 +153,12 @@ interface Built {
 
 function buildAll({ spec, tips }: { spec: PotionSpec; tips: boolean }): Built {
   const profile = bottleProfile(spec)
+  const parts = buildPotionMesh(spec)
   return {
     spec,
-    parts: buildPotionMesh(spec),
+    parts,
     upright: uprightLevels(spec),
+    floor: heightRange(parts.liquid)[0],
     table: tips ? levelTable(spec) : null,
     boreR: profile.neckR - WALL_MM,
     lipZ: profile.lipZ,
@@ -338,14 +358,12 @@ function useLabelInk(spec: PotionSpec, part: PotionParts['label'], name: string,
 }
 
 function useGlassLook(spec: PotionSpec, built: Built) {
-  const shared = useMemo(glassShared, [])
-  const stopperShared = useMemo(glassShared, [])
   const look = GLASS_LOOKS[spec.glass]
-  const glass = useDisposed(useMemo(() => createGlass(look, shared), [look, shared]))
+  const glass = useDisposed(useMemo(() => createGlass(look), [look]))
   const stopperGlass = useDisposed(
     useMemo(
-      () => (spec.stopper === 'glass' ? createGlass(STOPPER_GLASS(look), stopperShared) : null),
-      [spec.stopper, look, stopperShared],
+      () => (spec.stopper === 'glass' ? createGlass(STOPPER_GLASS(look)) : null),
+      [spec.stopper, look],
     ),
   )
   const liquid = useDisposed(useMemo(createLiquid, []))
@@ -360,15 +378,13 @@ function useGlassLook(spec: PotionSpec, built: Built) {
     ),
   )
 
-  split.uBoreR.value = built.boreR
-  split.uLipZ.value = built.lipZ
-  const [floor, top] = useMemo(() => heightRange(built.parts.liquid), [built])
-  const stopperZ = useMemo(() => heightRange(built.parts.stopper), [built])
-  shared.uCentre.value.set(0, 0, (floor + top) / 2)
-  stopperShared.uCentre.value.set(0, 0, (stopperZ[0] + stopperZ[1]) / 2)
-  liquid.uniforms.uFloor.value = floor
-  useMemo(() => liquid.setLayers(built.spec.layers), [liquid, built])
-  useMemo(() => {
+  const top = useMemo(() => heightRange(built.parts.liquid)[1], [built])
+  useLayoutEffect(() => {
+    split.uBoreR.value = built.boreR
+    split.uLipZ.value = built.lipZ
+    liquid.setLayers(built.spec.layers)
+  }, [split, liquid, built])
+  useLayoutEffect(() => {
     const u = liquid.uniforms
     const middle = new THREE.Vector3(0, (top / 2) * MM, 0)
     u.uKeyDir.value.copy(CANDLE_AT).sub(middle).normalize()
@@ -380,7 +396,7 @@ function useGlassLook(spec: PotionSpec, built: Built) {
     u.uSelf.value = LIQUID.self
   }, [liquid, top])
 
-  return { shared, stopperShared, glass, stopperGlass, liquid, cork, sealedCork, wax }
+  return { glass, stopperGlass, liquid, cork, sealedCork, wax }
 }
 
 /**
@@ -404,6 +420,8 @@ function useSurface(props: PotionMeshProps, built: Built) {
       up: new THREE.Quaternion(),
       at: new THREE.Vector3(),
       scale: new THREE.Vector3(),
+      levels: [] as number[],
+      floor: 0,
       table: (): LevelTable => {
         const b = surface.current.built
         if (b.table) return b.table
@@ -445,17 +463,14 @@ function GlassBottle(props: PotionMeshProps) {
     look.liquid.uniforms.uTime.value = clock?.time ?? 0
   })
 
-  const { glass, stopperGlass, liquid, shared, stopperShared } = look
-  const glassEye: BeforeRender = function (this: THREE.Object3D, _r, _s, camera) {
-    eyeIn(this, camera, shared.uEye.value)
-  }
+  const { glass, stopperGlass, liquid } = look
   const liquidSurface: BeforeRender = function (this: THREE.Object3D, _r, _s, camera) {
-    liquid.setSurface(work.u, tops(this))
+    const levels = tops(this)
+    liquid.setSurface(work.u, levels, work.floor)
     eyeIn(this, camera, liquid.uniforms.uEye.value)
   }
-  const stopperPose: BeforeRender = function (this: THREE.Object3D, _r, _s, camera) {
+  const stopperPose: BeforeRender = function (this: THREE.Object3D) {
     drawStopper(this)
-    if (stopperGlass) eyeIn(this, camera, stopperShared.uEye.value)
   }
   const stopperMaterials: [THREE.Material, number][] = stopperGlass
     ? [
@@ -474,12 +489,7 @@ function GlassBottle(props: PotionMeshProps) {
   return (
     <group position={[0, (-shown.heightMm * MM) / 2, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={MM}>
       <group name="glass">
-        <mesh
-          geometry={geometries.glass}
-          material={glass.farTint}
-          renderOrder={ORDER.farTint}
-          onBeforeRender={glassEye}
-        />
+        <mesh geometry={geometries.glass} material={glass.farTint} renderOrder={ORDER.farTint} />
         <mesh geometry={geometries.glass} material={glass.farLight} renderOrder={ORDER.farLight} />
         <mesh geometry={geometries.glass} material={glass.nearTint} renderOrder={ORDER.nearTint} />
         <mesh
