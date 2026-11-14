@@ -41,7 +41,12 @@ export const PotionOutline = memo(function PotionOutline({
   const viewBox = [-widthMm / 2 - pad, -pad, widthMm + pad * 2, heightMm + pad * 2].join(' ')
   const liquid = spec.mix && spec.mixed ? mixedLiquid(silhouette.bands, spec.mix.colour) : null
   return (
-    <svg className={className} viewBox={viewBox} aria-hidden="true">
+    <svg
+      className={className}
+      viewBox={viewBox}
+      preserveAspectRatio="xMidYMax meet"
+      aria-hidden="true"
+    >
       {(liquid ?? silhouette.bands).map((band, i) => (
         <path key={i} d={pathOf(band.points)} fill={band.colour} />
       ))}
