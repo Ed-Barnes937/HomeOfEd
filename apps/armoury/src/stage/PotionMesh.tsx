@@ -4,9 +4,11 @@ import * as THREE from 'three'
 
 import type { PotionSpec } from '../potion/compile.ts'
 import { buildPotionMesh, type PotionMesh as PotionParts } from '../potion/geometry.ts'
-import { uprightLevels } from '../potion/profile.ts'
+import { bandTops, bottleProfile, LIQUID_GAP_MM } from '../potion/profile.ts'
 import { floorAt, levelsAt, levelTable, type LevelTable } from '../potion/tipped.ts'
 import { MAX_POURS } from '../potion/potionSchema.ts'
+import { type CavityRadii, cavityRadii, type MotePool, motePool } from '../potion/traits.ts'
+import { createMotes, LiquidMotes, MOTE_RADII } from './LiquidMotes.tsx'
 import { fillGeometry, latestOnly } from './meshBuffers.ts'
 import {
   corkMaterial,
@@ -144,16 +146,21 @@ interface Built {
   floor: number
   /** Built with the mesh for a bottle that tips, so the first lean costs nothing. */
   table: LevelTable | null
+  motes: MotePool
+  cavity: CavityRadii
 }
 
 function buildAll({ spec, tips }: { spec: PotionSpec; tips: boolean }): Built {
   const parts = buildPotionMesh(spec)
+  const profile = bottleProfile(spec)
   return {
     spec,
     parts,
-    upright: uprightLevels(spec),
+    upright: bandTops(profile, spec.layers.length),
     floor: heightRange(parts.liquid)[0],
     table: tips ? levelTable(spec) : null,
+    motes: motePool(profile),
+    cavity: cavityRadii(profile, MOTE_RADII, LIQUID_GAP_MM),
   }
 }
 
@@ -359,13 +366,16 @@ function useGlassLook(spec: PotionSpec, built: Built) {
     ),
   )
   const liquid = useDisposed(useMemo(createLiquid, []))
+  const motes = useDisposed(useMemo(() => createMotes(liquid.uniforms), [liquid]))
   const corkMap = useDisposed(useMemo(corkTexture, []))
   const cork = useDisposed(useMemo(() => corkMaterial(corkMap), [corkMap]))
 
   const top = useMemo(() => heightRange(built.parts.liquid)[1], [built])
   useLayoutEffect(() => {
     liquid.setLayers(built.spec.layers)
-  }, [liquid, built])
+    motes.setLayers(built.spec.layers)
+    motes.setCavity(built.cavity)
+  }, [liquid, motes, built])
   useLayoutEffect(() => {
     const u = liquid.uniforms
     const middle = new THREE.Vector3(0, (top / 2) * MM, 0)
@@ -378,7 +388,7 @@ function useGlassLook(spec: PotionSpec, built: Built) {
     u.uSelf.value = LIQUID.self
   }, [liquid, top])
 
-  return { glass, stopperGlass, liquid, cork }
+  return { glass, stopperGlass, liquid, motes, cork }
 }
 
 /**
@@ -483,6 +493,7 @@ function GlassBottle(props: PotionMeshProps) {
           onBeforeRender={liquidSurface}
         />
         <mesh geometry={geometries.liquid} material={liquid.body} renderOrder={ORDER.body} />
+        <LiquidMotes motes={look.motes} pool={built.motes} renderOrder={RENDER_ORDER.particles} />
       </group>
       <group name="stopper">
         {stopperMaterials.map(([material, order], i) => (
