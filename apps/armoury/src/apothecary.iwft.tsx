@@ -162,13 +162,10 @@ const savedPotion = (params: Params) => ({
 
 async function startWith(page: Page, params: Params, reload: () => Promise<void>): Promise<void> {
   await reload()
-  await page.evaluate(
-    ([key, saved]) => window.localStorage.setItem(key, saved),
-    [
-      POTION_SAVE_KEY,
-      JSON.stringify({ version: 1, working: { params: savedPotion(params) }, shelf: [] }),
-    ] as const,
-  )
+  await page.evaluate(([key, saved]) => window.localStorage.setItem(key, saved), [
+    POTION_SAVE_KEY,
+    JSON.stringify({ version: 1, working: { params: savedPotion(params) }, shelf: [] }),
+  ] as const)
 }
 
 const stage = (page: Page) => page.getByTestId('stage')

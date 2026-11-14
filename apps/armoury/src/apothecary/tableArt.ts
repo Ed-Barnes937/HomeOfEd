@@ -92,7 +92,7 @@ function texture(g: Grain | null): string {
   )
 }
 
-const STILES = [470, 1000, 1590, 2070]
+const STILES = [470, 1000, 1356, 1880]
 const STILE_W = 44
 const BAYS: [number, number][] = [
   [0, STILES[0]!],
@@ -101,8 +101,19 @@ const BAYS: [number, number][] = [
   [STILES[2]! + STILE_W, STILES[3]!],
   [STILES[3]! + STILE_W, BOARD_W],
 ]
-const SHELVES = [300, 560]
-const DRAWERS = { top: 600, rows: 4, rowH: 57 }
+/** The bay behind the bottle. */
+const DOOR_BAY = 2
+const SHELVES = [290, 560]
+/** The bottle's bay has its lower shelf higher, clear of the tallest stopper. */
+const DOOR_BAY_SHELF = 490
+const shelfY = (row: number, bay: number) =>
+  row === 1 && bay === DOOR_BAY ? DOOR_BAY_SHELF : SHELVES[row]!
+/** The lower shelf's front edge behind the bottle, the lowest line of the shelves above it. */
+export const LOWER_SHELF_UNDERSIDE = DOOR_BAY_SHELF + 26
+/** The top of the cupboard behind the bottle, a ledge under its raised shelf. */
+const LEDGE = 588
+/** Deeper drawers lower down, as an apothecary's cabinet has. */
+const DRAWERS = { top: 600, rows: [52, 54, 58, 64] }
 
 function backBoards(rand: () => number): string {
   let out = ''
@@ -130,14 +141,22 @@ function stile(x: number): string {
   )
 }
 
-function shelfBoard(y: number): string {
+function shelfBoard(y: number, x0 = 0, x1 = BOARD_W): string {
+  const w = x1 - x0
   return (
-    `<rect x="0" y="${y + 24}" width="${BOARD_W}" height="40" fill="url(#underShelf)"/>` +
-    `<rect x="0" y="${y}" width="${BOARD_W}" height="10" fill="#3b2720"/>` +
-    `<rect x="0" y="${y + 10}" width="${BOARD_W}" height="16" fill="url(#shelfFace)"/>` +
-    `<path d="M0 ${y + 10.5} H${BOARD_W}" stroke="#ffcf98" stroke-width="1.4" opacity="0.28"/>` +
-    `<rect x="0" y="${y + 10}" width="${BOARD_W}" height="16" fill="url(#candleSide)" style="mix-blend-mode:screen"/>`
+    `<rect x="${x0}" y="${y + 24}" width="${w}" height="40" fill="url(#underShelf)"/>` +
+    `<rect x="${x0}" y="${y}" width="${w}" height="10" fill="#3b2720"/>` +
+    `<rect x="${x0}" y="${y + 10}" width="${w}" height="16" fill="url(#shelfFace)"/>` +
+    `<path d="M${x0} ${y + 10.5} H${x1}" stroke="#ffcf98" stroke-width="1.4" opacity="0.28"/>` +
+    `<rect x="${x0}" y="${y + 10}" width="${w}" height="16" fill="url(#candleSide)" style="mix-blend-mode:screen"/>`
   )
+}
+
+/** The lower shelf, bay by bay, each running under the stiles either side. */
+function lowerShelves(): string {
+  return BAYS.map(([x0, x1], bay) =>
+    shelfBoard(shelfY(1, bay), Math.max(0, x0 - 22), Math.min(BOARD_W, x1 + 22)),
+  ).join('')
 }
 
 const LIQUIDS = [
@@ -151,9 +170,21 @@ const LIQUIDS = [
   '#7a3524',
 ]
 
+interface Drawn {
+  svg: string
+  /** What glows, drawn over the room's darkness. */
+  light: string
+}
+
 /** A jar or bottle standing on a shelf at (x, base): dark glass, a tint of liquid, light from the candle and a cool rim. */
-function jar(rand: () => number, x: number, base: number, scale: number, glow?: string): string {
-  const kind = Math.floor(rand() * 5)
+function jar(
+  rand: () => number,
+  x: number,
+  base: number,
+  scale: number,
+  { glow, kind: shape }: { glow?: string; kind?: number } = {},
+): Drawn {
+  const kind = shape ?? Math.floor(rand() * 5)
   const w = (kind === 4 ? 18 + rand() * 8 : 34 + rand() * 30) * scale
   const h =
     (kind === 1 || kind === 3
@@ -205,10 +236,19 @@ function jar(rand: () => number, x: number, base: number, scale: number, glow?: 
       ? `<rect x="${r1(x - w * 0.32)}" y="${r1(base - h * 0.52)}" width="${r1(w * 0.64)}" height="${r1(h * 0.2)}" rx="1.5" fill="#b8a684" opacity="${r1(0.32 + lit * 0.35)}"/>` +
         `<path d="M${r1(x - w * 0.22)} ${r1(base - h * 0.45)} h${r1(w * 0.44)} M${r1(x - w * 0.18)} ${r1(base - h * 0.39)} h${r1(w * 0.3)}" stroke="#2a1a14" stroke-width="1.3" opacity="${r1(0.25 + lit * 0.25)}"/>`
       : ''
-  return (
-    (glow
-      ? `<ellipse cx="${x}" cy="${r1(base - h * 0.35)}" rx="${r1(w * 1.6)}" ry="${r1(h * 0.9)}" fill="${glow}" opacity="0.16" filter="url(#glowBlur)"/>`
-      : '') +
+  const light = glow
+    ? `<ellipse cx="${x}" cy="${r1(base - h * 0.4)}" rx="${r1(w * 1.5)}" ry="${r1(h * 0.85)}" fill="${glow}" opacity="0.2" filter="url(#glowBlur)"/>` +
+      `<ellipse cx="${x}" cy="${base + 6}" rx="${r1(w * 1.2)}" ry="6" fill="${glow}" opacity="0.2" filter="url(#soft6)"/>` +
+      `<g clip-path="url(#${id})">` +
+      `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="${glow}" opacity="0.38"/>` +
+      `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="url(#jarShade)" opacity="0.6"/>` +
+      `<ellipse cx="${x}" cy="${r1(level + (base - level) * 0.55)}" rx="${r1(w * 0.3)}" ry="${r1((base - level) * 0.3)}" fill="#fff" opacity="0.18" filter="url(#soft6)"/>` +
+      `<rect x="${r1(x - w)}" y="${r1(level - 1)}" width="${r1(w * 2)}" height="2.4" fill="#fff" opacity="0.45"/>` +
+      `<path d="M${r1(hiX)} ${r1(t + h * 0.2)} V${r1(base - h * 0.12)}" stroke="#fff" stroke-width="${r1(2.4 * scale)}" stroke-linecap="round" opacity="0.3"/>` +
+      `</g>` +
+      `<path d="${body}" fill="none" stroke="${glow}" stroke-opacity="0.35" stroke-width="1.2"/>`
+    : ''
+  const svg =
     `<ellipse cx="${r1(x + 4)}" cy="${base - 1}" rx="${r1(w * 0.55)}" ry="3" fill="#000" opacity="0.45"/>` +
     `<clipPath id="${id}"><path d="${body}"/></clipPath>` +
     `<path d="${body}" fill="#140c10" opacity="0.93"/>` +
@@ -224,7 +264,7 @@ function jar(rand: () => number, x: number, base: number, scale: number, glow?: 
     `<path d="${body}" fill="none" stroke="#000" stroke-opacity="0.55" stroke-width="1.4"/>` +
     label +
     cap
-  )
+  return { svg, light }
 }
 
 function book(rand: () => number, x: number, base: number, lean = 0): { svg: string; w: number } {
@@ -298,101 +338,341 @@ function cobweb(x: number, y: number): string {
   return `<path d="${d}" stroke="#d8d0c4" stroke-width="0.8" fill="none" opacity="0.13"/>`
 }
 
-/** Everything on the two shelves, bay by bay, seeded so the room is the same on every visit. */
-function shelfContents(rand: () => number): string {
-  let out = ''
-  const glows = new Map<string, string>([
-    ['1:1', '#8fd66a'],
-    ['2:1', '#b48ae6'],
-    ['3:0', '#8fd66a'],
-  ])
-  SHELVES.forEach((shelfY, row) => {
-    BAYS.forEach(([x0, x1], bay) => {
-      let x = x0 + 22 + rand() * 20
-      let placed = 0
-      while (x < x1 - 30) {
-        const roll = rand()
-        if (roll < 0.17 && x < x1 - 140) {
-          let bx = x
-          const count = 3 + Math.floor(rand() * 4)
-          for (let i = 0; i < count; i++) {
-            const b = book(rand, bx, shelfY, i === count - 1 ? -9 : 0)
-            out += b.svg
-            bx += b.w + 1
-          }
-          x = bx + 20 + rand() * 20
-        } else if (roll < 0.23 && x < x1 - 170) {
-          out += scrolls(x, shelfY)
-          x += 160
-        } else {
-          const scale = 0.62 + rand() * 0.3
-          const key = `${bay}:${row}`
-          const glow = placed === 1 && glows.has(key) ? glows.get(key) : undefined
-          out += jar(rand, x + 24 * scale, shelfY, scale, glow)
-          x += (48 + rand() * 34) * scale
-          placed++
-        }
-      }
-    })
-  })
-  return out
-}
-
-/** The bay behind the bottle, closed by plain doors so the clear glass has a quiet ground. */
-const DOOR_BAY = 2
-
-function drawer(rand: () => number, x: number, y: number, w: number, h: number): string {
-  const lit = candleLight(x + w / 2, y + h / 2)
-  const cx = x + w / 2
+/** A squat stoneware crock with a lid: dark glaze, a little candlelight on its shoulder. */
+function crock(x: number, base: number, w: number, h: number): string {
+  const lit = candleLight(x, base - h / 2)
+  const facing = x < CANDLE.x ? 1 : -1
   return (
-    `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="2" fill="${pick(rand, ['#26171a', '#2a1a1b', '#231517', '#28181a'])}"/>` +
-    `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="2" fill="url(#drawerFace)"/>` +
-    `<path d="M${r1(x + 2)} ${r1(y + 1.2)} H${r1(x + w - 2)}" stroke="#ffd4a4" stroke-width="1" opacity="${r1(0.04 + lit * 0.26)}"/>` +
-    `<path d="M${r1(x + 2)} ${r1(y + h - 0.8)} H${r1(x + w - 2)}" stroke="#000" stroke-width="1.6" opacity="0.5"/>` +
-    `<rect x="${r1(cx - 15)}" y="${r1(y + 9)}" width="30" height="12" rx="1" fill="#2e2016"/>` +
-    `<rect x="${r1(cx - 13)}" y="${r1(y + 10.5)}" width="26" height="9" fill="#b5a07a" opacity="${r1(0.12 + lit * 0.4)}"/>` +
-    `<path d="M${r1(cx - 9 + rand() * 3)} ${r1(y + 15)} h${r1(10 + rand() * 7)}" stroke="#2a1a12" stroke-width="1.2" opacity="${r1(0.2 + lit * 0.4)}"/>` +
-    `<circle cx="${r1(cx)}" cy="${r1(y + h * 0.66)}" r="5" fill="none" stroke="#5e4428" stroke-width="2"/>` +
-    `<path d="M${r1(cx - 4)} ${r1(y + h * 0.66 - 2)} A5 5 0 0 1 ${r1(cx + 2)} ${r1(y + h * 0.66 - 5)}" stroke="#ffd58a" stroke-width="1" fill="none" opacity="${r1(0.1 + lit * 0.55)}"/>`
+    `<ellipse cx="${r1(x + 4)}" cy="${base - 1}" rx="${r1(w * 0.62)}" ry="3.5" fill="#000" opacity="0.5"/>` +
+    `<path d="M${r1(x - w * 0.46)} ${base} Q${r1(x - w * 0.62)} ${r1(base - h * 0.6)} ${r1(x - w * 0.38)} ${r1(base - h)} H${r1(x + w * 0.38)} Q${r1(x + w * 0.62)} ${r1(base - h * 0.6)} ${r1(x + w * 0.46)} ${base} Z" fill="#1d1411"/>` +
+    `<path d="M${r1(x - w * 0.55)} ${r1(base - h * 0.42)} Q${x} ${r1(base - h * 0.36)} ${r1(x + w * 0.55)} ${r1(base - h * 0.42)}" stroke="#2c1f18" stroke-width="2" fill="none"/>` +
+    `<ellipse cx="${x}" cy="${r1(base - h)}" rx="${r1(w * 0.4)}" ry="3.5" fill="#2a1d17"/>` +
+    `<ellipse cx="${x}" cy="${r1(base - h - 4)}" rx="${r1(w * 0.12)}" ry="3" fill="#2a1d17"/>` +
+    `<path d="M${r1(x - facing * w * 0.44)} ${r1(base - h * 0.85)} Q${r1(x - facing * w * 0.56)} ${r1(base - h * 0.5)} ${r1(x - facing * w * 0.42)} ${r1(base - h * 0.12)}" stroke="#ffd4a4" stroke-width="1.6" fill="none" opacity="${r1(0.06 + lit * 0.3)}"/>`
   )
 }
 
-function door(x: number, y: number, w: number, h: number, hingeLeft: boolean): string {
+const TOAD_WARTS: [number, number, number][] = [
+  [-42, -60, 3.2],
+  [-22, -68, 2.6],
+  [20, -70, 2.8],
+  [40, -58, 3.4],
+  [-52, -38, 3],
+  [52, -36, 2.8],
+  [-14, -54, 2.2],
+  [28, -48, 2.4],
+  [-62, -16, 2.6],
+  [64, -18, 3],
+  [-32, -30, 2],
+  [4, -76, 2.2],
+  [-70, -28, 2.2],
+  [70, -30, 2.4],
+  [-56, -54, 2],
+  [10, -60, 1.8],
+  [-28, -74, 1.8],
+  [34, -66, 2],
+  [56, -48, 2.2],
+  [-74, -12, 1.8],
+  [-46, -22, 1.6],
+  [48, -12, 2],
+]
+
+/** A fat toad asleep in a clay saucer: lit from the candle below on the left, a cool rim on the right. */
+function toad(x: number, base: number, scale: number): string {
+  const warts = TOAD_WARTS.map(
+    ([wx, wy, r]) =>
+      `<ellipse cx="${wx}" cy="${wy}" rx="${r}" ry="${r1(r * 0.8)}" fill="#22240f" opacity="0.55"/>` +
+      (wx < 20
+        ? `<circle cx="${r1(wx - r * 0.35)}" cy="${r1(wy - r * 0.4)}" r="${r1(r * 0.4)}" fill="#e6d79a" opacity="0.32"/>`
+        : ''),
+  ).join('')
+  const eye = (ex: number) =>
+    `<ellipse cx="${ex}" cy="-80" rx="16" ry="12.5" fill="url(#toadSkin)"/>` +
+    `<path d="M${ex - 15} -82 Q${ex} -95 ${ex + 15} -82 Q${ex} -86 ${ex - 15} -82 Z" fill="#1c1e0c" opacity="0.35"/>` +
+    `<path d="M${ex - 10} -80 Q${ex} -73 ${ex + 10} -80" stroke="#141408" stroke-width="2.2" fill="none" stroke-linecap="round"/>` +
+    `<path d="M${ex - 9} -78 Q${ex} -72.5 ${ex + 9} -78" stroke="#c9b26a" stroke-width="0.9" fill="none" opacity="0.35"/>`
+  const foot = (fx: number, dir: number) =>
+    [0, 1, 2]
+      .map(
+        (i) =>
+          `<ellipse cx="${fx + dir * (i * 7 - 7)}" cy="${-1 + Math.abs(i - 1)}" rx="5" ry="2.6" transform="rotate(${dir * (i * 14 - 14)} ${fx + dir * (i * 7 - 7)} ${-1 + Math.abs(i - 1)})" fill="${dir < 0 ? '#5e5c2e' : '#30321a'}"/>`,
+      )
+      .join('')
+  return (
+    `<g transform="translate(${x} ${base}) scale(${scale})">` +
+    `<ellipse cx="10" cy="1" rx="98" ry="7" fill="#000" opacity="0.55" filter="url(#soft6)"/>` +
+    `<path d="M-88 -8 Q-84 5 0 7 Q84 5 88 -8 Z" fill="url(#saucer)"/>` +
+    `<ellipse cy="-8" rx="88" ry="8.5" fill="#6a4428"/>` +
+    `<ellipse cy="-8" rx="80" ry="5.8" fill="#22150d"/>` +
+    `<path d="M-86 -10 Q-50 -16.5 -8 -17" stroke="#ffcf98" stroke-width="1.6" fill="none" opacity="0.55"/>` +
+    `<g transform="translate(0 -11)">` +
+    `<path d="M-76 0 C-86 -14 -82 -42 -60 -48 C-42 -52 -32 -34 -34 0 Z" fill="url(#toadSkin)"/>` +
+    `<path d="M76 0 C86 -14 82 -42 60 -48 C42 -52 32 -34 34 0 Z" fill="url(#toadSkin)"/>` +
+    `<path d="M-64 -46 C-50 -46 -42 -38 -40 -24 M64 -46 C50 -46 42 -38 40 -24" stroke="#16180a" stroke-width="2" fill="none" opacity="0.35" stroke-linecap="round"/>` +
+    `<path d="M-62 0 C-72 -30 -60 -70 -32 -80 C-15 -86 15 -86 32 -80 C60 -70 72 -30 62 0 Z" fill="url(#toadSkin)"/>` +
+    `<ellipse cx="-44" cy="-66" rx="13" ry="7" transform="rotate(28 -44 -66)" fill="#3a3c1c" opacity="0.6"/>` +
+    `<ellipse cx="44" cy="-66" rx="13" ry="7" transform="rotate(-28 44 -66)" fill="#1e200e" opacity="0.6"/>` +
+    `<ellipse cy="-17" rx="33" ry="17" fill="url(#toadBelly)" opacity="0.75"/>` +
+    warts +
+    eye(-24) +
+    eye(24) +
+    `<path d="M-42 -52 Q-21 -41 0 -42.5 Q21 -41 42 -52" stroke="#141408" stroke-width="2.4" fill="none" stroke-linecap="round"/>` +
+    `<path d="M-41 -51 Q0 -34 41 -51 Q0 -28 -41 -51 Z" fill="#14160a" opacity="0.35"/>` +
+    `<path d="M-40 -55 Q-21 -45 -2 -46" stroke="#e6d79a" stroke-width="1.1" fill="none" opacity="0.3"/>` +
+    `<path d="M-42 -52 q-2 3 -6 3 M42 -52 q2 3 6 3" stroke="#141408" stroke-width="1.6" fill="none" stroke-linecap="round"/>` +
+    `<path d="M-6.5 -57.5 q1.5 -1.2 3 0 M3.5 -57.5 q1.5 -1.2 3 0" stroke="#101006" stroke-width="1.3" fill="none" stroke-linecap="round"/>` +
+    `<path d="M-34 -36 C-48 -34 -58 -22 -52 -2 L-41 -2 C-45 -16 -40 -26 -28 -30 Z" fill="#6a6834"/>` +
+    `<path d="M-50 -28 C-55 -20 -55 -10 -52 -4" stroke="#ffbe86" stroke-width="1.4" fill="none" opacity="0.45" stroke-linecap="round"/>` +
+    `<path d="M34 -36 C48 -34 58 -22 52 -2 L41 -2 C45 -16 40 -26 28 -30 Z" fill="#383a1e"/>` +
+    foot(-44, -1) +
+    foot(44, 1) +
+    `<path d="M-77 -4 C-85 -18 -81 -36 -70 -42 M-67 -42 C-63 -62 -50 -74 -34 -80" stroke="#ffbe86" stroke-width="2.2" fill="none" opacity="0.5" stroke-linecap="round"/>` +
+    `<path d="M34 -80 C52 -74 64 -60 67 -42 M70 -42 C81 -36 85 -18 77 -4 M38 -88 Q24 -93 12 -86" stroke="#a9c0f0" stroke-width="1.4" fill="none" opacity="0.28" stroke-linecap="round"/>` +
+    `<circle cx="-11" cy="-60" r="5.5" fill="#d8f0e0" opacity="0.1" stroke="#e8fff0" stroke-width="0.8" stroke-opacity="0.45"/>` +
+    `<circle cx="-13" cy="-62" r="1.3" fill="#fff" opacity="0.5"/>` +
+    `</g></g>`
+  )
+}
+
+const GREEN_GLOW = '#8fd66a'
+const VIOLET_GLOW = '#b48ae6'
+
+/**
+ * Everything on the two shelves, seeded so the room is the same on every visit. The bay behind
+ * the bottle keeps its lower shelf to a few low, dark pots; the toad and the glowing jars stand in
+ * the bays either side, where the scene shows them at every size.
+ */
+function shelfContents(rand: () => number): Drawn {
+  let svg = ''
+  let light = ''
+  const put = (d: Drawn) => {
+    svg += d.svg
+    light += d.light
+  }
+  const fill = (base: number, from: number, to: number) => {
+    let x = from + 22 + rand() * 20
+    while (x < to - 30) {
+      const roll = rand()
+      if (roll < 0.17 && x < to - 140) {
+        let bx = x
+        const count = 3 + Math.floor(rand() * 4)
+        for (let i = 0; i < count; i++) {
+          const b = book(rand, bx, base, i === count - 1 ? -9 : 0)
+          svg += b.svg
+          bx += b.w + 1
+        }
+        x = bx + 20 + rand() * 20
+      } else if (roll < 0.23 && x < to - 170) {
+        svg += scrolls(x, base)
+        x += 160
+      } else {
+        const scale = 0.62 + rand() * 0.3
+        put(jar(rand, x + 24 * scale, base, scale))
+        x += (48 + rand() * 34) * scale
+      }
+    }
+  }
+  SHELVES.forEach((_, row) => {
+    BAYS.forEach(([x0, x1], bay) => {
+      const y = shelfY(row, bay)
+      if (row === 1 && bay === 1) {
+        fill(y, x0, 730)
+        put(jar(rand, 762, y, 0.95, { glow: GREEN_GLOW, kind: 1 }))
+        svg += toad(900, y, 1.08)
+      } else if (row === 1 && bay === DOOR_BAY) {
+        svg += crock(x0 + 44, y, 50, 36) + crock(x1 - 40, y, 36, 26)
+      } else if (row === 1 && bay === 3) {
+        put(jar(rand, x0 + 64, y, 1, { glow: VIOLET_GLOW, kind: 2 }))
+        put(jar(rand, x0 + 126, y, 0.8, { glow: GREEN_GLOW, kind: 3 }))
+        svg += scrolls(x0 + 168, y)
+        fill(y, x0 + 330, x1)
+      } else fill(y, x0, x1)
+    })
+  })
+  return { svg, light }
+}
+
+interface DrawerLook {
+  pull: 'ring' | 'knob'
+  plate: 'inked' | 'blank' | 'gone'
+  plateW: number
+  /** How far it stands open, in units. */
+  open?: number
+  poking?: 'sprig' | 'paper'
+  chalk?: 'cross' | 'ring'
+}
+
+/** The drawers a second look finds, by bay, row and column: left open, chalked, a label gone. */
+const DRAWER_STORIES: Record<string, Partial<DrawerLook>> = {
+  '1:1:4': { open: 9, poking: 'sprig' },
+  '1:3:2': { open: 6 },
+  '1:2:4': { chalk: 'cross' },
+  '1:0:3': { plate: 'gone' },
+  '3:0:0': { open: 8, poking: 'paper' },
+  '3:3:0': { chalk: 'ring' },
+  '0:1:2': { open: 7 },
+}
+/** Wide drawers, two columns across, by bay, row and first column. */
+const WIDE_DRAWERS = new Set(['1:3:0', '1:1:2', '3:1:1', '0:2:2', '4:0:1', '3:3:2'])
+
+function drawerLook(rand: () => number, key: string): DrawerLook {
+  const roll = rand()
+  return {
+    pull: rand() < 0.3 ? 'knob' : 'ring',
+    plate: roll < 0.12 ? 'blank' : roll < 0.17 ? 'gone' : 'inked',
+    plateW: 18 + rand() * 16,
+    ...DRAWER_STORIES[key],
+  }
+}
+
+function plate(rand: () => number, look: DrawerLook, cx: number, y: number, lit: number): string {
+  const w = look.plateW
+  if (look.plate === 'gone')
+    return (
+      `<rect x="${r1(cx - w / 2)}" y="${r1(y)}" width="${r1(w)}" height="12" rx="1" fill="#4a332c" opacity="${r1(0.35 + lit * 0.3)}"/>` +
+      `<circle cx="${r1(cx - w / 2 + 2.5)}" cy="${r1(y + 6)}" r="0.8" fill="#000" opacity="0.6"/>` +
+      `<circle cx="${r1(cx + w / 2 - 2.5)}" cy="${r1(y + 6)}" r="0.8" fill="#000" opacity="0.6"/>`
+    )
+  return (
+    `<rect x="${r1(cx - w / 2)}" y="${r1(y)}" width="${r1(w)}" height="12" rx="1" fill="#2e2016"/>` +
+    `<rect x="${r1(cx - w / 2 + 2)}" y="${r1(y + 1.5)}" width="${r1(w - 4)}" height="9" fill="#b5a07a" opacity="${r1(0.12 + lit * 0.4)}"/>` +
+    (look.plate === 'inked'
+      ? `<path d="M${r1(cx - w / 2 + 4 + rand() * 3)} ${r1(y + 6)} h${r1((w - 10) * (0.5 + rand() * 0.4))}" stroke="#2a1a12" stroke-width="1.2" opacity="${r1(0.2 + lit * 0.4)}"/>`
+      : '')
+  )
+}
+
+function pull(look: DrawerLook, cx: number, cy: number, lit: number): string {
+  if (look.pull === 'knob')
+    return (
+      `<circle cx="${r1(cx)}" cy="${r1(cy)}" r="4.2" fill="#5a4026"/>` +
+      `<circle cx="${r1(cx - 1.2)}" cy="${r1(cy - 1.3)}" r="1.5" fill="#ffd58a" opacity="${r1(0.15 + lit * 0.5)}"/>`
+    )
+  return (
+    `<circle cx="${r1(cx)}" cy="${r1(cy)}" r="5" fill="none" stroke="#5e4428" stroke-width="2"/>` +
+    `<path d="M${r1(cx - 4)} ${r1(cy - 2)} A5 5 0 0 1 ${r1(cx + 2)} ${r1(cy - 5)}" stroke="#ffd58a" stroke-width="1" fill="none" opacity="${r1(0.1 + lit * 0.55)}"/>`
+  )
+}
+
+function chalk(mark: 'cross' | 'ring', x: number, y: number, lit: number): string {
+  const d =
+    mark === 'cross'
+      ? `M${x - 6} ${y - 5} L${x + 6} ${y + 5} M${x + 5} ${y - 6} L${x - 5} ${y + 6}`
+      : `M${x + 7} ${y - 1} C${x + 7} ${y - 7} ${x - 7} ${y - 7} ${x - 7} ${y} C${x - 7} ${y + 6} ${x + 6} ${y + 7} ${x + 8} ${y - 3}`
+  return `<path d="${d}" stroke="#e6e0d2" stroke-width="1.8" stroke-dasharray="4 1.2 2 1" fill="none" stroke-linecap="round" opacity="${r1(0.22 + lit * 0.3)}"/>`
+}
+
+function poking(what: 'sprig' | 'paper', x: number, y: number): string {
+  if (what === 'paper')
+    return (
+      `<g transform="rotate(-24 ${x} ${y})">` +
+      `<rect x="${x - 4}" y="${y - 30}" width="11" height="34" rx="2" fill="#a8926c"/>` +
+      `<rect x="${x - 4}" y="${y - 30}" width="11" height="34" rx="2" fill="url(#scroll)" transform="rotate(90 ${x + 1.5} ${y - 13})"/>` +
+      `<ellipse cx="${x + 1.5}" cy="${y - 30}" rx="5.5" ry="2.4" fill="#c9b48a"/>` +
+      `<ellipse cx="${x + 1.5}" cy="${y - 30}" rx="2.4" ry="1" fill="#5a4a34"/>` +
+      `<path d="M${x - 4} ${y - 26} V${y - 2}" stroke="#ffe2b8" stroke-width="1.2" opacity="0.45"/>` +
+      `<path d="M${x - 2} ${y - 14} h9" stroke="#6a2a2a" stroke-width="2"/>` +
+      `</g>`
+    )
+  let leaves = ''
+  for (let i = 0; i < 6; i++) {
+    const t = 0.3 + i * 0.13
+    const lx = x + 4 + t * 20 + (i % 2 ? 4 : -4)
+    const ly = y - t * 34
+    leaves += `<ellipse cx="${r1(lx)}" cy="${r1(ly)}" rx="4.2" ry="2" transform="rotate(${i % 2 ? -35 : 35} ${r1(lx)} ${r1(ly)})" fill="#6f8048" opacity="0.85"/>`
+  }
+  return (
+    `<path d="M${x} ${y} Q${x + 6} ${y - 18} ${x + 24} ${y - 38}" stroke="#5e6a3a" stroke-width="1.8" fill="none"/>` +
+    leaves +
+    `<path d="M${x + 2} ${y - 6} Q${x + 8} ${y - 20} ${x + 22} ${y - 34}" stroke="#d8e2a8" stroke-width="0.8" fill="none" opacity="0.3"/>`
+  )
+}
+
+function drawer(
+  rand: () => number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  look: DrawerLook,
+): string {
   const lit = candleLight(x + w / 2, y + h / 2)
-  const knobX = hingeLeft ? x + w - 16 : x + 16
+  const cx = x + w / 2
+  const open = look.open ?? 0
+  const gap = open * 0.8
+  const fx = x - open * 0.12
+  const fw = w + open * 0.24
+  const fy = y + gap
+  return (
+    (open
+      ? `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(gap + 3)}" fill="#050203"/>` +
+        (look.poking ? poking(look.poking, cx + w * 0.18, y + gap) : '')
+      : '') +
+    `<rect x="${r1(fx)}" y="${r1(fy)}" width="${r1(fw)}" height="${r1(h)}" rx="2" fill="${pick(rand, ['#26171a', '#2a1a1b', '#231517', '#28181a'])}"/>` +
+    `<rect x="${r1(fx)}" y="${r1(fy)}" width="${r1(fw)}" height="${r1(h)}" rx="2" fill="url(#drawerFace)"/>` +
+    `<path d="M${r1(fx + 2)} ${r1(fy + 1.2)} H${r1(fx + fw - 2)}" stroke="#ffd4a4" stroke-width="${open ? 1.6 : 1}" opacity="${r1(open ? 0.1 + lit * 0.45 : 0.04 + lit * 0.26)}"/>` +
+    `<path d="M${r1(fx + 2)} ${r1(fy + h - 0.8)} H${r1(fx + fw - 2)}" stroke="#000" stroke-width="1.6" opacity="0.5"/>` +
+    (open
+      ? `<rect x="${r1(x)}" y="${r1(fy + h)}" width="${r1(w)}" height="${r1(open * 0.5)}" fill="#000" opacity="0.4"/>`
+      : '') +
+    plate(rand, look, cx, fy + Math.min(9, h * 0.18), lit) +
+    pull(look, cx, fy + h * 0.64, lit) +
+    (look.chalk ? chalk(look.chalk, r1(fx + fw * 0.8), r1(fy + h * 0.42), lit) : '')
+  )
+}
+
+/** The bay behind the bottle, closed by one plain door so the clear glass has a quiet ground. */
+function door(x: number, y: number, w: number, h: number): string {
+  const lit = candleLight(x + w / 2, y + h / 2)
+  const knobX = x + w - 18
   return (
     `<rect x="${r1(x)}" y="${y}" width="${r1(w)}" height="${h}" rx="2" fill="#221416"/>` +
-    `<rect x="${r1(x + 16)}" y="${y + 16}" width="${r1(w - 32)}" height="${h - 32}" rx="3" fill="#1b1012"/>` +
-    `<path d="M${r1(x + 16)} ${y + h - 16} V${y + 16} H${r1(x + w - 16)}" stroke="#000" stroke-width="2.4" fill="none" opacity="0.55"/>` +
-    `<path d="M${r1(x + w - 16)} ${y + 16} V${y + h - 16} H${r1(x + 16)}" stroke="#ffcf98" stroke-width="1.2" fill="none" opacity="${r1(0.04 + lit * 0.18)}"/>` +
+    `<rect x="${r1(x + 18)}" y="${y + 18}" width="${r1(w - 36)}" height="${h - 36}" rx="3" fill="#1b1012"/>` +
+    `<path d="M${r1(x + 18)} ${y + h - 18} V${y + 18} H${r1(x + w - 18)}" stroke="#000" stroke-width="2.4" fill="none" opacity="0.55"/>` +
+    `<path d="M${r1(x + w - 18)} ${y + 18} V${y + h - 18} H${r1(x + 18)}" stroke="#ffcf98" stroke-width="1.2" fill="none" opacity="${r1(0.04 + lit * 0.18)}"/>` +
     `<path d="M${r1(x + 2)} ${y + 1.5} H${r1(x + w - 2)}" stroke="#ffd4a4" stroke-width="1" opacity="${r1(0.04 + lit * 0.2)}"/>` +
+    `<path d="M${r1(x + 6)} ${y + 34} v18 M${r1(x + 6)} ${y + h - 52} v18" stroke="#4a3624" stroke-width="3" stroke-linecap="round"/>` +
     `<circle cx="${r1(knobX)}" cy="${y + h / 2}" r="4.5" fill="#6e5230"/>` +
     `<circle cx="${r1(knobX - 1.2)}" cy="${y + h / 2 - 1.4}" r="1.5" fill="#ffd58a" opacity="${r1(0.2 + lit * 0.5)}"/>`
   )
 }
 
+/** The drawer cabinet's top: a ledge running under the lower shelf. */
+function ledge(): string {
+  const [x0, x1] = BAYS[DOOR_BAY]!
+  const w = x1 - x0
+  return (
+    `<rect x="${x0}" y="${LEDGE}" width="${w}" height="8" fill="#33221c"/>` +
+    `<rect x="${x0}" y="${LEDGE + 8}" width="${w}" height="6" fill="url(#shelfFace)"/>` +
+    `<path d="M${x0} ${LEDGE + 0.6} H${x1}" stroke="#ffcf98" stroke-width="1" opacity="0.18"/>`
+  )
+}
+
 function lowerCabinet(rand: () => number): string {
   let out = `<rect x="0" y="${DRAWERS.top - 4}" width="${BOARD_W}" height="${TABLE.back - DRAWERS.top + 4}" fill="#140c0e"/>`
+  let opened = ''
   BAYS.forEach(([x0, x1], bay) => {
     if (bay === DOOR_BAY) {
-      const w = (x1 - x0 - 12) / 2
-      out += door(x0 + 4, DRAWERS.top + 4, w, TABLE.back - DRAWERS.top - 8, true)
-      out += door(x0 + 8 + w, DRAWERS.top + 4, w, TABLE.back - DRAWERS.top - 8, false)
+      out += door(x0 + 4, DRAWERS.top + 4, x1 - x0 - 8, TABLE.back - DRAWERS.top - 8)
       return
     }
     const cols = Math.max(1, Math.round((x1 - x0) / 96))
     const cw = (x1 - x0) / cols
-    for (let r = 0; r < DRAWERS.rows; r++)
-      for (let c = 0; c < cols; c++)
-        out += drawer(
-          rand,
-          x0 + c * cw + 3,
-          DRAWERS.top + r * DRAWERS.rowH + 3,
-          cw - 6,
-          DRAWERS.rowH - 6,
-        )
+    let y = DRAWERS.top
+    DRAWERS.rows.forEach((rowH, r) => {
+      for (let c = 0; c < cols; c++) {
+        const key = `${bay}:${r}:${c}`
+        const span = WIDE_DRAWERS.has(key) && c + 1 < cols ? 2 : 1
+        const look = drawerLook(rand, key)
+        const drawn = drawer(rand, x0 + c * cw + 3, y + 3, cw * span - 6, rowH - 6, look)
+        if (look.open) opened += drawn
+        else out += drawn
+        c += span - 1
+      }
+      y += rowH
+    })
   })
-  return out
+  return out + opened
 }
 
 function plankGrain(rand: () => number, y0: number, y1: number): string {
@@ -597,29 +877,35 @@ const DEFS =
   `<linearGradient id="wax" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff2d8"/><stop offset="0.45" stop-color="#ead8b2"/><stop offset="1" stop-color="#8a7456"/></linearGradient>` +
   `<radialGradient id="waxPool"><stop offset="0" stop-color="#fff4c8"/><stop offset="1" stop-color="#e8cf9a"/></radialGradient>` +
   `<linearGradient id="stone" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6a5e56"/><stop offset="0.45" stop-color="#3e3632"/><stop offset="1" stop-color="#1c1816"/></linearGradient>` +
+  `<linearGradient id="toadSkin" x1="0" y1="1" x2="1" y2="0.1"><stop offset="0" stop-color="#8a8446"/><stop offset="0.45" stop-color="#565a2c"/><stop offset="1" stop-color="#23261a"/></linearGradient>` +
+  `<radialGradient id="toadBelly" cx="0.38" cy="0.4" r="0.7"><stop offset="0" stop-color="#b9ae78"/><stop offset="1" stop-color="#6a6540" stop-opacity="0.6"/></radialGradient>` +
+  `<linearGradient id="saucer" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a06c40"/><stop offset="0.55" stop-color="#5a3820"/><stop offset="1" stop-color="#26160c"/></linearGradient>` +
   FLAME_DEFS
 
 /** The whole room: cabinet, shelves, drawers, table and candle; the flame only for the picture, since the scene's flickers. */
 export function roomSvg(g: Grain | null, { flame }: { flame: boolean }): string {
   const rand = seededRandom(8128)
+  const shelves = shelfContents(rand)
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${BOARD_W}" height="${BOARD_H}" viewBox="0 0 ${BOARD_W} ${BOARD_H}">` +
     `<defs>${DEFS}</defs>` +
     `<rect width="${BOARD_W}" height="${BOARD_H}" fill="#110b0e"/>` +
     backBoards(rand) +
     shelfBoard(SHELVES[0]!) +
-    shelfBoard(SHELVES[1]!) +
-    shelfContents(rand) +
+    lowerShelves() +
+    shelves.svg +
     lowerCabinet(rand) +
+    ledge() +
     STILES.map(stile).join('') +
     herbs(rand, 660, SHELVES[0]! + 26, '#5e6a3a', '#9a86c8') +
     herbs(rand, 728, SHELVES[0]! + 26, '#6a6a40', '#c8b46a') +
-    herbs(rand, 1452, SHELVES[0]! + 26, '#5a6a42', '#a68ad0') +
+    herbs(rand, 1560, SHELVES[0]! + 26, '#5a6a42', '#a68ad0') +
     cobweb(STILES[1]! + STILE_W, SHELVES[0]! + 26) +
     `<rect width="${BOARD_W}" height="${TABLE.back}" fill="url(#wallWarm)" style="mix-blend-mode:screen"/>` +
     `<rect width="${BOARD_W}" height="${TABLE.back}" fill="url(#wallMoon)" style="mix-blend-mode:screen"/>` +
     `<rect width="${BOARD_W}" height="${TABLE.back}" fill="url(#wallDark)"/>` +
     `<rect width="${BOARD_W}" height="${TABLE.back}" fill="url(#wallTop)"/>` +
+    shelves.light +
     table(rand) +
     mortar() +
     tableBits(rand) +
