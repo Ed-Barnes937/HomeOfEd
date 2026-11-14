@@ -312,6 +312,45 @@ test.describe('on a phone', () => {
   })
 })
 
+const LONGEST_TEXTS: [Params, string][] = [
+  [
+    { ...withPours(['emberroot', 'snailshine', 'thundercloud']), shape: 'shoulder' },
+    'Emberroot, Snailshine and Thundercloud',
+  ],
+  [
+    { ...withPours(['frogfizz', 'thundercloud', 'thundercloud']), shape: 'shoulder', mixed: 'yes' },
+    'Sparkling Thundercloud Wonder',
+  ],
+]
+
+for (const size of [
+  { width: 360, height: 640 },
+  { width: 375, height: 667 },
+  { width: 390, height: 844 },
+  { width: 900, height: 700 },
+  { width: 1024, height: 768 },
+  { width: 1180, height: 820 },
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  test.describe(`at ${size.width} by ${size.height}`, () => {
+    test.use({ viewport: size })
+
+    test('the longest card and the hint are whole and apart, mixed or not', async ({
+      mountApp,
+      page,
+    }) => {
+      let { root } = await mountApp()
+      for (const [params, name] of LONGEST_TEXTS) {
+        await startWith(page, params, () => root.reload())
+        ;({ root } = await mountApp())
+        await root.verifyPotionName(name)
+        await root.verifyCardAndHintFit()
+      }
+    })
+  })
+}
+
 failedApothecaryStageTest(
   'a potion stage that fails to load leaves the table, card and controls working',
   async ({ mountApp }) => {

@@ -1,12 +1,18 @@
 // Everything is placed from the bottle's foot: --bottle-x across the scene and --floor down it,
 // the box stage --slot tall, and the room's board at --u per unit (1px when the slot is 460px).
+// The foot stands far enough right that the candle's dish, 433 units to its left, is never cut.
 .scene {
   --slot: min(460px, 51cqh);
   --u: calc(var(--slot) / 460);
-  --bottle-x: 56cqw;
+  --bottle-x: max(56cqw, calc(var(--u) * 433 + 12px));
   --floor: 70cqh;
   --card-left: max(28px, calc(var(--bottle-x) - var(--u) * 560));
   --card-top: calc(var(--floor) + var(--u) * 44);
+  --card-w: clamp(380px, calc(100cqw - var(--card-left) - 190px), 430px);
+  --hint-left: max(
+    calc(var(--card-w) + 20px),
+    calc(var(--bottle-x) - var(--card-left) - var(--u) * 10)
+  );
   --hole-x: 24px;
   --twine: var(--string);
 
@@ -104,7 +110,7 @@
   position: absolute;
   left: var(--card-left);
   top: var(--card-top);
-  width: 430px;
+  width: var(--card-w);
 
   &[data-gold] {
     --paper: var(--gold-paper);
@@ -163,15 +169,16 @@
   stroke-dasharray: 1 3.5;
 }
 
+// Beside the card, wrapping short of the scene's right edge.
 .hint {
   position: absolute;
-  left: calc(var(--bottle-x) - var(--card-left) - var(--u) * 10);
+  left: var(--hint-left);
   top: calc(var(--floor) - var(--card-top) + var(--u) * 150);
+  width: calc(100cqw - var(--card-left) - var(--hint-left) - 16px);
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0;
-  white-space: nowrap;
   font-family: var(--font-display);
   font-style: italic;
   font-size: 19px;
@@ -183,23 +190,49 @@
   }
 }
 
+// A desk scene too narrow for the hint beside the card: it goes under the card, and the foot
+// rises to make room. The scene can't query itself, so its children take the values.
+@media (min-width: 900px) {
+  @container (max-width: 599px) {
+    .scene > * {
+      --card-w: min(430px, calc(100cqw - 2 * var(--card-left)));
+      --floor: min(70cqh, calc(100cqh - 270px));
+      --card-top: calc(var(--floor) + var(--u) * 44);
+    }
+
+    .hint {
+      position: static;
+      width: auto;
+      margin: 8px 0 0 8px;
+    }
+  }
+}
+
+// Under the bottle the card hangs from the foot, which rises on a short scene so the longest
+// card and the hint fit; the bottle shrinks to keep its stopper under the header's buttons.
 @media (max-width: 899px) {
   .scene {
-    --slot: min(224px, 50cqh);
+    --header-clear: 60px;
+    --slot: min(224px, 50cqh, calc((var(--floor) - var(--header-clear)) * 1.35));
     --bottle-x: 60cqw;
-    --floor: 62cqh;
+    --floor: min(62cqh, calc(100cqh - 176px));
     --card-left: 14px;
+    --card-w: calc(100cqw - 28px);
     --card-top: calc(var(--floor) + var(--u) * 24);
     --hole-x: 18px;
   }
 
-  .card {
-    width: calc(100cqw - 28px);
-  }
-
   .hint {
     position: static;
+    width: auto;
     margin: 6px 0 0 6px;
     font-size: 16px;
+  }
+
+  // On a short phone the card takes the scene's width so the longest texts wrap to fewer lines.
+  @container (max-height: 419px) or (max-width: 389px) {
+    .card {
+      --tag-width: 100%;
+    }
   }
 }
