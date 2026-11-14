@@ -18,6 +18,13 @@ export function Sheet({
   const groups = groupsOf(params)
   const [tab, setTab] = useState(() => groups[0]!.key)
   const group = groups.find((g) => g.key === tab) ?? groups[0]!
+  const lock = (
+    <LockButton
+      group={group}
+      locked={locked.includes(group.key)}
+      onToggle={() => onToggleLock(group.key)}
+    />
+  )
 
   return (
     <section className={styles.sheet} aria-label={copy.panelTitle}>
@@ -32,21 +39,24 @@ export function Sheet({
           inline
         />
       </div>
-      <div className={styles.tabs} role="tablist" aria-label={copy.sheetTitle}>
-        {groups.map((g) => (
-          <button
-            key={g.key}
-            type="button"
-            role="tab"
-            id={`tab-${g.key}`}
-            aria-selected={g.key === tab}
-            aria-controls="sheet-panel"
-            className={styles.tab}
-            onClick={() => setTab(g.key)}
-          >
-            {g.tab}
-          </button>
-        ))}
+      <div className={styles.tabRow}>
+        <div className={styles.tabs} role="tablist" aria-label={copy.sheetTitle}>
+          {groups.map((g) => (
+            <button
+              key={g.key}
+              type="button"
+              role="tab"
+              id={`tab-${g.key}`}
+              aria-selected={g.key === tab}
+              aria-controls="sheet-panel"
+              className={styles.tab}
+              onClick={() => setTab(g.key)}
+            >
+              {g.tab}
+            </button>
+          ))}
+        </div>
+        {group.lockInTabRow && <div className={styles.tabRowLock}>{lock}</div>}
       </div>
       <div
         className={styles.body}
@@ -54,14 +64,14 @@ export function Sheet({
         id="sheet-panel"
         aria-labelledby={`tab-${group.key}`}
       >
-        <div className={styles.bodyHeader}>
-          <span className={styles.summary}>{group.summary(params)}</span>
-          <LockButton
-            group={group}
-            locked={locked.includes(group.key)}
-            onToggle={() => onToggleLock(group.key)}
-          />
-        </div>
+        {group.lockInTabRow ? (
+          <span className="visually-hidden">{group.summary(params)}</span>
+        ) : (
+          <div className={styles.bodyHeader}>
+            <span className={styles.summary}>{group.summary(params)}</span>
+            {lock}
+          </div>
+        )}
         <GroupControls
           group={group.key}
           schema={schema}

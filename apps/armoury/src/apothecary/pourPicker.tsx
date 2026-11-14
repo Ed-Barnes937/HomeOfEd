@@ -5,6 +5,7 @@ import { ingredient, INGREDIENTS, type Ingredient } from '../potion/ingredients.
 import { isMixed, MAX_POURS, POUR_KEYS } from '../potion/potionSchema.ts'
 import { nextPourKey, pourList } from '../potion/pours.ts'
 import type { OnChange } from '../shop/controls/Widgets.tsx'
+import { REDUCED_MOTION_QUERY, useMediaQuery } from '../useMediaQuery.ts'
 import styles from './pourPicker.module.scss'
 
 const COUNT_WORDS = ['One', 'Two', 'Three']
@@ -43,6 +44,8 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
   const [announcement, setAnnouncement] = useState({ text: '', count: 0 })
   const focusFirstJar = useRef<{ scroll: boolean } | null>(null)
   const firstJar = useRef<HTMLButtonElement>(null)
+  const reasonRef = useRef<HTMLParagraphElement>(null)
+  const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const pours = pourList(params)
   const nextKey = nextPourKey(params)
   const mixed = isMixed(params)
@@ -58,7 +61,14 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
   })
 
   const pour = (item: Ingredient) => {
-    if (shutReason !== null) return announce(shutReason)
+    if (shutReason !== null) {
+      announce(shutReason)
+      reasonRef.current?.scrollIntoView({
+        block: 'nearest',
+        behavior: reducedMotion ? 'auto' : 'smooth',
+      })
+      return
+    }
     if (nextKey === null) return
     onChange(nextKey, item.id)
     const filled = pours.length + 1
@@ -75,11 +85,6 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
 
   return (
     <div className={styles.picker}>
-      {shutReason !== null && (
-        <p className={styles.reason} id={reasonId}>
-          {shutReason}
-        </p>
-      )}
       <div className={styles.jars}>
         {INGREDIENTS.map((item, i) => (
           <button
@@ -97,6 +102,11 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
           </button>
         ))}
       </div>
+      {shutReason !== null && (
+        <p className={styles.reason} id={reasonId} ref={reasonRef}>
+          {shutReason}
+        </p>
+      )}
 
       <h3 className={styles.heading} id={headingId}>
         {mixed ? 'Mixed in the bottle' : 'In the bottle'}

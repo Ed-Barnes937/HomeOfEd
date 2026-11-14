@@ -284,6 +284,73 @@ export class ApothecaryPom extends BenchPom {
     expect(ninth.y + ninth.height).toBeLessThanOrEqual(panel.y + panel.height)
   }
 
+  /** The jar's picture box is its first child, whether the picture loaded or the swatch stands in. */
+  async pictureSize(): Promise<{ width: number; height: number }> {
+    const box = (await this.page
+      .getByRole('button', { name: /^Pour in / })
+      .first()
+      .locator('> span')
+      .first()
+      .boundingBox())!
+    return { width: box.width, height: box.height }
+  }
+
+  private anyLock() {
+    return this.page.getByRole('button', { name: /^Keep .* when trying another$/ })
+  }
+
+  /** The lock sits in the tab row, level with the tabs and clear of the last one. */
+  async verifyLockInTabRow(): Promise<void> {
+    const lock = (await this.anyLock().boundingBox())!
+    const tabs = (await this.page.getByRole('tablist').boundingBox())!
+    const lastTab = (await this.page.getByRole('tab').last().boundingBox())!
+    expect(lock.y).toBeGreaterThanOrEqual(tabs.y)
+    expect(lock.y + lock.height).toBeLessThanOrEqual(tabs.y + tabs.height + 1)
+    expect(lock.x).toBeGreaterThanOrEqual(lastTab.x + lastTab.width)
+    expect(lock.x + lock.width).toBeLessThanOrEqual((this.page.viewportSize()?.width ?? 0) + 1)
+  }
+
+  async verifyLockInBody(): Promise<void> {
+    const lock = (await this.anyLock().boundingBox())!
+    const panel = (await this.page.getByRole('tabpanel').boundingBox())!
+    expect(lock.y).toBeGreaterThanOrEqual(panel.y)
+  }
+
+  /** The summary is read with the panel even where it is not drawn. */
+  async verifySummaryInPanel(text: string): Promise<void> {
+    await expect(this.page.getByRole('tabpanel').getByText(text, { exact: true })).toBeAttached()
+  }
+
+  /** The reason the jars are shut reads below the jars on a phone and above them on a desk. */
+  async verifyMessageBelowJars(message: string, below: boolean): Promise<void> {
+    const reason = (await this.page.getByText(message, { exact: true }).boundingBox())!
+    const jars = await this.page.getByRole('button', { name: /^Pour in / }).all()
+    const last = (await jars[8]!.boundingBox())!
+    const first = (await jars[0]!.boundingBox())!
+    if (below) expect(reason.y).toBeGreaterThanOrEqual(last.y + last.height)
+    else expect(reason.y + reason.height).toBeLessThanOrEqual(first.y)
+  }
+
+  /** The whole message lies inside the tab body (the window on a desk); polled, for the smooth scroll. */
+  async verifyMessageInView(message: string): Promise<void> {
+    await expect
+      .poll(async () => {
+        const tabpanel = this.page.getByRole('tabpanel')
+        const panel = (await tabpanel.count())
+          ? (await tabpanel.boundingBox())!
+          : { y: 0, height: this.page.viewportSize()!.height }
+        const reason = (await this.page
+          .locator('p:not([aria-live])', { hasText: message })
+          .boundingBox())!
+        return reason.y >= panel.y && reason.y + reason.height <= panel.y + panel.height
+      })
+      .toBe(true)
+  }
+
+  async pageScroll(): Promise<number> {
+    return this.page.evaluate(() => window.scrollY)
+  }
+
   /** Every jar, and "Empty the bottle" when it shows, is at least 44 px tall and wide. */
   async verifyHitTargetsAtLeast44(): Promise<void> {
     const targets = [

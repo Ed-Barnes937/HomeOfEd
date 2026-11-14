@@ -297,6 +297,22 @@ test.describe('on a phone with a keyboard', () => {
   })
 })
 
+test('on a desk the pictures stay 64 px and the message stays above the jars', async ({
+  mountApp,
+}) => {
+  const { root } = await mountApp()
+  expect((await root.pictureSize()).width).toBe(64)
+  await root.verifyMessageBelowJars(FULL_MESSAGE, false)
+})
+
+test('on a desk a tap on a shut jar does not move the page', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  const before = await root.pageScroll()
+  await root.tapJar('Snailshine')
+  await root.verifyMessageInView(FULL_MESSAGE)
+  expect(await root.pageScroll()).toBe(before)
+})
+
 test('Try another leaves focus where the child put it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.tryAnother()
@@ -328,6 +344,34 @@ for (const size of [
       await root.pour('Frogfizz')
       await root.verifyPoursInOneColumn()
       if (size.height >= 800) await root.verifyAllJarsInView()
+    })
+
+    test('the pictures are big enough to read, the lock rides the tab row and the message sits under the jars', async ({
+      mountApp,
+    }) => {
+      const { root } = await mountApp()
+
+      expect((await root.pictureSize()).width).toBeGreaterThanOrEqual(48)
+      await root.verifyLockInTabRow()
+      await root.verifySummaryInPanel('Three')
+      await root.verifyMessageBelowJars(FULL_MESSAGE, true)
+
+      await root.openTab('Bottle')
+      await root.verifyLockInBody()
+    })
+
+    test('a tap on a shut jar brings the full message into view', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.tapJar('Snailshine')
+      await root.verifyMessageInView(FULL_MESSAGE)
+      await root.verifyFocused('Pour in Snailshine')
+    })
+
+    test('a tap on a shut jar brings the mixed message into view', async ({ mountApp, page }) => {
+      await ShopPom.openAt(page, MIXED_LINK)
+      const { root } = await mountApp()
+      await root.tapJar('Snailshine')
+      await root.verifyMessageInView(MIXED_MESSAGE)
     })
 
     test('a mixed bottle lays out the same, with its longer message', async ({
