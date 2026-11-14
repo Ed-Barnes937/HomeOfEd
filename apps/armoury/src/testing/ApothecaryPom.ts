@@ -295,13 +295,13 @@ export class ApothecaryPom extends BenchPom {
     return { width: box.width, height: box.height }
   }
 
-  private lock() {
+  private anyLock() {
     return this.page.getByRole('button', { name: /^Keep .* when trying another$/ })
   }
 
   /** The lock sits in the tab row, level with the tabs and clear of the last one. */
   async verifyLockInTabRow(): Promise<void> {
-    const lock = (await this.lock().boundingBox())!
+    const lock = (await this.anyLock().boundingBox())!
     const tabs = (await this.page.getByRole('tablist').boundingBox())!
     const lastTab = (await this.page.getByRole('tab').last().boundingBox())!
     expect(lock.y).toBeGreaterThanOrEqual(tabs.y)
@@ -311,7 +311,7 @@ export class ApothecaryPom extends BenchPom {
   }
 
   async verifyLockInBody(): Promise<void> {
-    const lock = (await this.lock().boundingBox())!
+    const lock = (await this.anyLock().boundingBox())!
     const panel = (await this.page.getByRole('tabpanel').boundingBox())!
     expect(lock.y).toBeGreaterThanOrEqual(panel.y)
   }
