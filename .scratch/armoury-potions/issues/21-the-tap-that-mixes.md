@@ -1,6 +1,6 @@
 # 21 - The tap that mixes: the shell, the reveal and the copy
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions` as da8ed967; review 21-r1, test-only fix read by the orchestrator; its clock helper is paused a second ahead on ticket 13's branch)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 20

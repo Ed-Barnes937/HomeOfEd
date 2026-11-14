@@ -1,6 +1,6 @@
 # 09 - The clay stage and the form gate
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions` as 28dd02b2; form gate `shots/09/r2/review.md` PASS in round 2, wax seal deferred to ticket 10; code reviews 09-r1, 09-r2, 09-r3)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 04, 06, 07

@@ -1,6 +1,6 @@
 # 22 - The picker: three ingredients, and "Empty the bottle" only
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions` as da8ed967; review 22-r1, test-code fix read by the orchestrator)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 20

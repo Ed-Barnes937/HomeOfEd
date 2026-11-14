@@ -1,6 +1,6 @@
 # 20 - The generator for three ingredients that mix
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions` as da8ed967; reviews 20-r1, 20-r2, last test-only fix read by the orchestrator)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 09 (merged into `armoury-potions`)
