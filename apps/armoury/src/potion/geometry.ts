@@ -13,7 +13,10 @@ import {
   waxRun,
 } from './profile.ts'
 
-/** Each part's `aHeight` is a vertex's height along the bottle's own axis, z in mm. */
+/**
+ * Each part's `aHeight` is a vertex's height along the bottle's own axis, z in mm. The glass's
+ * and the stopper's `aInner` is 1 on a surface that lines a hollow (the bore, the cavity), else 0.
+ */
 export interface PotionMesh {
   glass: MeshPart
   liquid: MeshPart
@@ -736,12 +739,23 @@ function labelPart(spec: PotionSpec, profile: BottleProfile): MeshPart | null {
   return b.part()
 }
 
+/** `part` with `aInner` set on its vertices from `firstInner` on. */
+function withInner(part: MeshPart, firstInner = Infinity): MeshPart {
+  const inner = new Float32Array(part.positions.length / 3)
+  inner.fill(1, Math.min(firstInner, inner.length))
+  return { ...part, attrs: { ...part.attrs, aInner: inner } }
+}
+
 export function buildPotionMesh(spec: PotionSpec): PotionMesh {
   const profile = bottleProfile(spec)
   return {
-    glass: lathePart([profile.glass], SEGMENTS).part(),
+    // A lathe emits SEGMENTS + 1 vertices per curve point, in the curve's order.
+    glass: withInner(
+      lathePart([profile.glass], SEGMENTS).part(),
+      profile.glassOutside * (SEGMENTS + 1),
+    ),
     liquid: lathePart([profile.liquid], SEGMENTS).part(),
-    stopper: stopperPart(profile),
+    stopper: withInner(stopperPart(profile)),
     label: labelPart(spec, profile),
   }
 }

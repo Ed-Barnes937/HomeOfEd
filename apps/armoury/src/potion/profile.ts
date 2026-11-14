@@ -101,6 +101,8 @@ export interface BottleProfile {
   outer: ProfilePoint[]
   /** Closed generating curves, axis to axis, each traversed with its solid on the left. */
   glass: ProfilePoint[]
+  /** How many of `glass`'s points, from its start, are its outside; the rest line the bore and the cavity. */
+  glassOutside: number
   liquid: ProfilePoint[]
   /** Closed curves, one per piece: the cork, then the wax over it; or the glass stopper. */
   stopper: ProfilePoint[][]
@@ -306,18 +308,8 @@ export function bottleProfile(spec: Profiled): BottleProfile {
 
   const wax = spec.stopper === 'wax' ? waxDip(spec, lipZ, neckTopZ, 2 * (neckR + lip)) : null
 
-  const glass = join([
-    bottom,
-    ring,
-    footRound,
-    side,
-    bead,
-    lipTop,
-    lipFillet,
-    bore,
-    reversed(wall),
-    floor,
-  ])
+  const glassOutside = join([bottom, ring, footRound, side, bead, lipTop])
+  const glass = [...glassOutside, ...join([lipFillet, bore, reversed(wall), floor])]
 
   const plugMm = Math.min(PLUG_MM, spec.neckMm - PLUG_CLEAR_MM)
   const cavityTopZ = lipZ - plugMm
@@ -381,6 +373,7 @@ export function bottleProfile(spec: Profiled): BottleProfile {
     levelFor,
     outer: [footRound, side, bead, lipTop].flatMap((piece) => decimate(piece, OUTLINE_TURN)),
     glass,
+    glassOutside: glassOutside.length,
     liquid,
     stopper: stopperPieces(spec, seat, neckR, lip, wax),
     neckR,

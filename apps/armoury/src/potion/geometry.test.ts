@@ -431,6 +431,58 @@ describe('buildPotionMesh', () => {
     }
   })
 
+  it.each(CATALOGUE)(
+    "$name: the glass marks its cavity's and bore's surface inner, its outside outer",
+    ({ name, mesh, profile }) => {
+      const { positions: p, normals: n, indices } = mesh.glass
+      const inner = mesh.glass.attrs.aInner!
+      expect(inner).toHaveLength(p.length / 3)
+      const at = (i: number) => {
+        const r = Math.hypot(p[i * 3]!, p[i * 3 + 1]!)
+        const radial = r < 1e-6 ? 0 : (n[i * 3]! * p[i * 3]! + n[i * 3 + 1]! * p[i * 3 + 1]!) / r
+        return { r, z: p[i * 3 + 2]!, radial, nz: n[i * 3 + 2]!, inner: inner[i] }
+      }
+      const seen = { towards: 0, away: 0, floor: 0, foot: 0, lip: 0 }
+      for (let i = 0; i < inner.length; i++) {
+        const v = at(i)
+        expect(v.inner === 0 || v.inner === 1, `${name} vertex ${i}`).toBe(true)
+        if (v.radial < -0.2) {
+          expect(v.inner, `${name} faces the axis at z ${v.z}`).toBe(1)
+          seen.towards++
+        }
+        if (v.radial > 0.2) {
+          expect(v.inner, `${name} faces away at z ${v.z}`).toBe(0)
+          seen.away++
+        }
+        if (Math.abs(v.z - BASE_MM) < 1e-3 && v.nz > 0.99) {
+          expect(v.inner, `${name} cavity floor`).toBe(1)
+          seen.floor++
+        }
+        if (v.z < 1 && v.nz < -0.99) {
+          expect(v.inner, `${name} foot`).toBe(0)
+          seen.foot++
+        }
+        const lipRing = (profile.neckR + profile.stopperSeat.r) / 2
+        if (Math.abs(v.z - profile.lipZ) < 1e-3 && v.nz > 0.99 && v.r >= lipRing) {
+          expect(v.inner, `${name} lip top`).toBe(0)
+          seen.lip++
+        }
+      }
+      for (const [where, count] of Object.entries(seen)) expect(count, where).toBeGreaterThan(0)
+      for (let t = 0; t < indices.length; t += 3) {
+        const flag = inner[indices[t]!]
+        expect(inner[indices[t + 1]!], `${name} triangle ${t / 3}`).toBe(flag)
+        expect(inner[indices[t + 2]!], `${name} triangle ${t / 3}`).toBe(flag)
+      }
+    },
+  )
+
+  it.each(CATALOGUE)('$name: the stopper is solid, so nothing of it is inner', ({ mesh }) => {
+    const inner = mesh.stopper.attrs.aInner!
+    expect(inner).toHaveLength(mesh.stopper.positions.length / 3)
+    expect(inner.every((f) => f === 0)).toBe(true)
+  })
+
   it('has no label part without a label, and a wax seal with runs below its coat', () => {
     const plain = CATALOGUE.find((e) => e.spec.label === 'none' && e.spec.stopper === 'wax')!
     expect(plain.mesh.label).toBeNull()
