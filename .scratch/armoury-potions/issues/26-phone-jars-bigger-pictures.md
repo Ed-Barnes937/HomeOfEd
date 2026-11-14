@@ -1,6 +1,6 @@
 # 26 - Bigger ingredient pictures on a phone
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions` as 16ce8a0e; Ed approved the layout, E24; review 26-r1, its fix aa7dd966 read by the orchestrator)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 16, 22 (both merged)
