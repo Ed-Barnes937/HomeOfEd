@@ -352,8 +352,25 @@ for (const size of [
         await root.verifyCardAndHintFit()
       }
     })
+
+    test("the card hangs clear of the bottle's foot and its shadow", async ({ mountApp, page }) => {
+      let { root } = await mountApp()
+      await root.verifyFootingClearOfCard()
+      for (const params of [TALLEST, SECRET_BLEND]) {
+        await startWith(page, params, () => root.reload())
+        ;({ root } = await mountApp())
+        await root.verifyFootingClearOfCard()
+      }
+    })
   })
 }
+
+const TALLEST: Params = {
+  ...withPours(['thundercloud', 'snailshine', 'moonmilk']),
+  shape: 'tall',
+  neck: 1,
+}
+const SECRET_BLEND = potionPresets.find((preset) => preset.name === 'Early Riser')!.params
 
 failedApothecaryStageTest(
   'a potion stage that fails to load leaves the table, card and controls working',

@@ -121,6 +121,43 @@ export class ApothecaryPom extends BenchPom {
     }
   }
 
+  /**
+   * Under every column of the bottle's footing (the foot's contact shadow and the cast shadow, each
+   * to twice its blur), the card's paper starts at least `clearance` px lower.
+   */
+  async verifyFootingClearOfCard(clearance = 2): Promise<void> {
+    await this.page.evaluate(() => document.fonts.ready)
+    const paper = await this.tagName.locator('xpath=..').elementHandle()
+    const { checked, covered } = await this.table.evaluate(
+      (table, [paperEl, gap]) => {
+        const svg = table.querySelector<SVGSVGElement>('button[aria-haspopup="dialog"] > svg')!
+        const ctm = svg.getScreenCTM()!
+        const hits = new Set<number>()
+        let checked = 0
+        for (const shape of svg.querySelectorAll<SVGGeometryElement>('path, ellipse')) {
+          const filter = shape.getAttribute('filter')!.slice(4, -1)
+          const blur = svg.querySelector<SVGFEGaussianBlurElement>(`${filter} feGaussianBlur`)!
+          const reach = 2 * blur.stdDeviationY.baseVal
+          const box = shape.getBBox()
+          for (let x = box.x; x <= box.x + box.width; x += 0.5) {
+            for (let y = box.y + box.height; y >= box.y; y -= 0.1) {
+              if (!shape.isPointInFill(new DOMPoint(x, y))) continue
+              const low = new DOMPoint(x, y + reach).matrixTransform(ctm)
+              checked++
+              if (document.elementsFromPoint(low.x, low.y + gap).includes(paperEl as Element))
+                hits.add(Math.round(low.x))
+              break
+            }
+          }
+        }
+        return { checked, covered: [...hits] }
+      },
+      [paper, clearance] as const,
+    )
+    expect(checked).toBeGreaterThan(100)
+    expect(covered, 'columns where the card meets the footing').toEqual([])
+  }
+
   async verifyStage(expected: PotionFacts): Promise<void> {
     await expect(this.stage).toHaveAttribute('data-item', 'potion')
     for (const [key, value] of Object.entries(expected) as [string, string][]) {

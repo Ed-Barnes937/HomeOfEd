@@ -210,17 +210,19 @@
 
 // Under the bottle the card, the scene's width so the longest texts wrap to fewer lines, hangs
 // from the foot, which rises on a short scene so the longest card and the hint fit; the bottle
-// shrinks to keep its stopper under the header's buttons.
+// shrinks to keep its stopper under the header's buttons. The card's tilt lifts its top edge
+// under the bottle by --card-rise: the card hangs that much lower and the foot rises as much.
 @media (max-width: 899px) {
   .scene {
     --header-clear: 60px;
     --slot: min(224px, 50cqh, calc((var(--floor) - var(--header-clear)) * 1.35));
     --bottle-x: 60cqw;
-    --floor: min(62cqh, calc(100cqh - 176px));
+    --card-rise: calc((var(--bottle-x) - var(--card-left)) * tan(2.2deg));
+    --floor: min(62cqh, calc(100cqh - 176px - var(--card-rise)));
     --card-left: 14px;
     --card-w: calc(100cqw - 28px);
     --tag-width: 100%;
-    --card-top: calc(var(--floor) + var(--u) * 24);
+    --card-top: calc(var(--floor) + var(--u) * 24 + var(--card-rise));
     --hole-x: 18px;
   }
 

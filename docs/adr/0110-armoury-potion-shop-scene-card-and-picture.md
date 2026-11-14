@@ -61,7 +61,10 @@ every generated name and tag line on the card) and the hint still fit: on desk
 stands far enough right that the candle's dish is never cut. On a phone the box
 stage shrinks with the foot so the tallest stopper stays below the header's
 buttons, and the card takes the scene's width so the longest texts wrap to fewer
-lines; at 360x640 the stage is about 148 px.
+lines. The full-width card's 2.2 degree tilt lifts its top edge under the bottle
+by `--card-rise` (about 8 px), so on a phone the card hangs that much lower and
+the foot rises as much, keeping the foot and its shadow clear of the card's edge;
+at 360x640 the stage is about 138 px.
 
 **The hint beside the card.** On desk the hint starts at the card's right edge
 plus a gap and wraps short of the scene's right edge; the card narrows from 430
@@ -69,7 +72,7 @@ to 380 px to leave it room. A desk scene narrower than 600 px (a 900 to 999 px
 window) has no room beside the card, so the hint goes under it as on a phone
 (a container query on the scene; the scene's children take the values, as a
 container can't query itself). `apothecary.iwft.tsx` holds the card and the hint
-whole, apart and above the sheet at eight sizes from 360x640 to 1440x900. `BASE_LINE` (the foot's place inside the stage) is unchanged at 0.84: the
+whole, apart and above the sheet, and clear of the foot's shadow, at eight sizes from 360x640 to 1440x900. `BASE_LINE` (the foot's place inside the stage) is unchanged at 0.84: the
 scene's line is a scene setting, not a stage one, so the stage's framing is
 untouched.
 
