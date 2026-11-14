@@ -9,7 +9,7 @@ import { pourList } from '../potion/pours.ts'
 import type { CloseUpHandle, CloseUpProps, StageHandle, StageProps } from '../stage/stage.ts'
 
 /** Stands in for the potion's three.js stage in .iwft: shows what it was asked to draw. */
-export function FakePotionStage({ params, ref }: StageProps) {
+export function FakePotionStage({ params, name, ref }: StageProps) {
   useImperativeHandle(
     ref,
     (): StageHandle => ({
@@ -27,6 +27,7 @@ export function FakePotionStage({ params, ref }: StageProps) {
     <div
       data-testid="stage"
       data-item="potion"
+      data-name={name}
       data-shape={params.shape}
       data-neck={params.neck}
       data-glass={params.glass}

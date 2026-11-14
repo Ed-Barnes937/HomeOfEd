@@ -51,7 +51,7 @@ export function PotionCloseUpStage({
   reducedMotion,
   name,
   ...rig
-}: CloseUpProps & { name?: string }) {
+}: CloseUpProps) {
   const spec = useMemo(() => compilePotion(params), [params])
   const item = useMemo(() => potionHeldItem(spec), [spec])
   const label = useMemo(

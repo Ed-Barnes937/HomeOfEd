@@ -61,6 +61,12 @@ test('Try another keeps a kept bottle, never pours fewer than two, and offers no
   await expect(page.getByRole('button', { name: 'Put the last one back' })).toHaveCount(0)
 })
 
+test("a renamed potion's name reaches the stage for its label", async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.rename('Fizz')
+  await root.verifyStage({ name: 'Fizz' })
+})
+
 test('a renamed potion keeps its name and its shape after a reload', async ({ mountApp }) => {
   const first = await mountApp()
   await first.root.chooseIn('Shape', 'Round flask')

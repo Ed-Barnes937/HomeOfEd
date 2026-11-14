@@ -17,6 +17,8 @@ export interface PotionFacts {
   mixed?: string
   effect?: string
   blend?: string
+  /** The name the stage was handed for the bottle's label. */
+  name?: string
 }
 
 export const FULL_MESSAGE = 'The bottle is full. Tap it to mix it, or empty it to start again.'

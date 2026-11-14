@@ -41,7 +41,7 @@ export default function PotionStage({
   reducedMotion,
   name,
   ref,
-}: StageProps & { name?: string }) {
+}: StageProps) {
   const spec = useMemo(() => compilePotion(params), [params])
   const label = useMemo(
     () => ({ name: name ?? potionName(params), gold: isGold(params) }),
