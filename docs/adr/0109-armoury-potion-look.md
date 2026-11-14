@@ -34,44 +34,76 @@ and transmission would add a scene pass per frame. The glass is G1's two materia
 twice: a tint pass that multiplies what is already drawn (the glass lets the liquid through
 nearly unchanged face on, darker and cooler edge on) and a light pass drawn premultiplied over
 it (the reflections, a fine fresnel rim, and a little opacity at the edges). Ticket 09's glass
-is a closed solid, so both its outer and its inner surface face the camera somewhere; facing
-cannot say what is in front of the liquid. Each pass therefore keeps the half of the glass on
-its side of the liquid: a fragment is near when `dot(p - c, eye - p) > 0`, with `p` the
-fragment and `eye` the camera in the bottle's millimetre frame and `c` the middle of the
-liquid on the axis. That holds as the bottle turns, leans and tips. The cavity's own surface
-reflects a sixth as much as the outside, and the far half a seventh as much as the near half,
+is a closed solid, so both its outer and its inner surface face the camera somewhere, and
+facing alone cannot say what is in front of the liquid. Facing with the surface can: the
+outside faces the eye where it is in front of the liquid and faces away behind it, and the
+cavity's lining does the opposite. The mesh marks every vertex on a surface that lines a
+hollow (`aInner`: the lip's inner fillet, the bore, the cavity's wall and its floor; the profile
+says how many of its points are outside, `glassOutside`), and a fragment is near when
+`gl_FrontFacing != inner`. The far passes keep what is not near. It needs no eye or centre
+uniform, and it is exact in any pose (turned, leaned, tipped, or both at once) wherever the
+glass's cross-section along the view is convex. The glass stopper is solid: its `aInner` is all
+0, so it splits by facing alone and shares the bottle's four programs. **Known limit:** the
+gourd's waist is concave. Tipped towards the viewer, the lower bulb's top faces the eye
+but lies behind the upper bulb's liquid, so it is drawn over it: a faint glass outline across
+the upper band, no tinted patch. No two-pass split can order a concave body; it is accepted.
+The far half's light is backed off to 0.15 of the near half's (`FAR_LIGHT`, about a seventh),
+and the cavity's lining reflects 0.06 of the outside's (`INNER_LIGHT`, about a seventeenth),
 so the candle shows once in the glass rather than as two flames side by side (the spike's
 "two candles"). The glass takes no specular from the lamps either: the candle's point light
 and the environment's flame would land in different places and read as two candles too, so
-the environment's flame is the one reflection.
+the environment's flame is the one reflection. The light passes merge their `NEAR_PASS`
+define into `MeshPhysicalMaterial`'s own `STANDARD` and `PHYSICAL` defines rather than replace
+them; with the glass's specular and IOR at three's defaults that changes no pixel.
 
 **Glass tints.** Clear is G1. Sea, amber and violet lean what the glass lets through towards
 their `GLASS_TINTS` colour (about 40 percent), take that colour into the edge and the rim, and
 add a faint body colour at the edges, so the tint shows over the dark room as well as over the
-liquid; smoky lets through about half of everything. None is cut.
+liquid; smoky's factor is about half. None is cut. The tint pass multiplies the framebuffer,
+which holds sRGB-encoded colour, so its factors are not linear multipliers of light: smoky's
+half of the encoded value is about a quarter of the light, and the tints come out a little more
+saturated than their hex. The factors were tuned by eye on that basis and stay as they are.
 
 **The liquid.** Ticket 09's level-plane cut, banding by the plane `dot(p, u) = h` in the
 bottle's millimetre frame (never `aHeight`), kept. Front faces are the liquid's skin; back faces
-are its level surface, coloured where the eye's ray crosses the plane. The cut fades over one
-pixel (`fwidth`) instead of a hard discard, which smooths the far rim's stair-step. Each band
-blends into the next over 8 percent of the thinner of the two (between 0.4 and 4 mm): L2's soft
-edge. The colour of the bands is one function of the height along the surface's up
+are its level surface, coloured where the eye's ray crosses the plane. The two are separate
+materials (back side drawn first), and three draws a back side by flipping the winding, so its
+faces are front facing: `gl_FrontFacing` cannot tell the surface, and a `LIQ_SURFACE` define
+per material does (merged into three's own defines). The cut fades over one pixel (`fwidth`)
+instead of a hard discard, which smooths the far rim's stair-step. Each band blends into the
+next over 8 percent of the thinner of the two (between 0.4 and 4 mm): L2's soft edge. The
+thinnest band below the first boundary is measured from the liquid's floor along the
+surface's up, not the upright floor: the level table keeps that floor per row (`floors`,
+`floorAt`), the mesh's own floor is used upright, and the shader's darkening towards the floor
+reads the same tilted floor. Each thickness is clamped at 0 and each edge at 0.02 mm at least,
+so no `smoothstep` is ever inverted or closed up; a unit test walks every shape at three necks,
+two and three pours, 0 to 90 degrees in 1 degree steps, and holds every edge positive and every
+band's window in order. Without it, leaned 60 and tipped 45 at once (69 degrees), the round
+flask's bottom two bands swapped colour. The colour of the bands is one function of the height along the surface's up
 (`potionBand`), so ticket 23's mix can blend it to one colour without restructuring the shader.
 Every band is drawn as its trait's base: `cloud` and `murk` are a slow milky noise, the rest
 `clear`; the traits themselves are ticket 11's. The lighting terms are the spike's L2 (depth of
 colour where the eye looks through more liquid, darker at the silhouette, the candle's light out
 of the far side, the cool light through it from behind, a pearly sheen on milk), plus a gentle
 darkening towards the floor and a slow 5 percent variation in a clear liquid, so a clear band
-has volume instead of reading as paint. The surface is darker than the liquid under it and
-reflects little: a brighter, more reflective surface read as the rim of a cup.
-`createLiquid().setSurface(normal, levels)` writes the surface's up and the band tops into the
-uniforms (at most `MAX_POURS`) for tickets 12 and 14.
+has volume instead of reading as paint. The level surface (which round 1 never drew: its look
+then came from the far wall's inside) is the top band at full depth, lit at 0.9 of the body's
+diffuse with the body's own glow at 0.85, so its tone carries on from the liquid under it; a
+crisp dark ellipse (0.4) read as the open mouth of a cup. Over that, a soft sheen: the cool
+light from behind (`uBackColour`), weighted by Fresnel and a broad lobe about its mirror
+direction (power 6, `LIQUID.surfaceSheen` 0.9), so the surface catches a little cool light
+towards the back right, as the glass's rim does. The surface material is roughness 0.3,
+specular intensity 1 and environment 1.6, but from the box's camera it mirrors the dark room
+above, so the sheen is what shows. Cloudy bands keep their milky noise on the surface (the
+ray-plane point drives it). `createLiquid().setSurface(up, levels, floor)` writes the surface's
+up, the band tops (at most `MAX_POURS`), the floor along that up and the edges into the
+uniforms in place, allocating nothing, for tickets 12 and 14.
 
 **Render order and depth.** Opaque first (the cork, the wax, the label), then the glass's far
 half (tint 1, light 1.1), the liquid's surface (2) and body (2.1), particles (3, ticket 11), the
 glass's near half (tint 4, light 4.1). Glass and liquid are transparent and write no depth;
 the liquid's order only interleaves with the glass's because it is transparent. The glass
-stopper is the same glass, a little more opaque, split about its own middle.
+stopper is the same glass, a little more opaque, split by facing alone (above).
 
 **Stoppers and paper.** Cork is a speckled canvas texture with a bump. The wax is a glossy
 clear-coated material with a sheen in the stopper's wax colour; it and the cork under it are one
@@ -96,9 +128,13 @@ the left, a warm table bounce below, the dim room behind, cool panels high on th
 dark above. The spike's dim studio map under them was dropped: its softboxes showed as stray
 hexagons in the glass, and the shop no longer needs `studio.hdr`. No asset is added.
 
-**Tone mapping and bloom.** ACES on the potion's two canvases only (`PotionToneMapping`); the
-wand's canvas keeps none and the sword's keeps AgX. AgX turned the liquids pastel in the spike
-(the ember glow salmon, the gold mustard); ACES keeps them jewel-like. There is no post pass at
+**Tone mapping and bloom.** The potion's canvases render with ACES. `@react-three/fiber` already
+sets `ACESFilmicToneMapping` on every canvas that is not `flat`, so the wand's canvas renders
+ACES too, and the sword's renderer is ACES under a composer that applies AgX
+(`SWORD_TONE_MAPPING`; its capture renders AgX directly). `PotionToneMapping` sets ACES on the
+potion's two canvases anyway, so the potion's choice does not hang on the library's default.
+AgX turned the liquids pastel in the spike (the ember glow salmon, the gold mustard); ACES keeps
+them jewel-like. There is no post pass at
 rest: through the smithy's composer the glass goes dull, because over a transparent canvas the
 post pass drops the light the glass adds. Every potion shader ends in the sword's soft knee under
 `0.92 * BLOOM_THRESHOLD`; the paper, cork and wax give off far less than that. The uncorking's
@@ -143,11 +179,16 @@ forced to finish with a 1-pixel `readPixels`, median of 5 runs of 3 s, whole pag
 
 - A new glass tint, stopper or label is a row in `potionMaterials.ts`, judged by eye on the
   real GPU.
-- The level plane, the soft edges and the near and far split all live in the bottle's
-  millimetre frame, so the pour, the slosh and the swirl (tickets 12, 14, 23) drive the same
-  uniforms without new sorting rules.
+- The level plane, its floor and the soft edges live in the bottle's millimetre frame, and the
+  near and far split in the mesh, so the pour, the slosh and the swirl (tickets 12, 14, 23)
+  drive the same uniforms without new sorting rules. A sloshed, non-level surface changes the
+  floor along its up too, so `setSurface` must be handed that floor.
 - The glass shows no refraction: the liquid's edge is not displaced and the room behind the
   empty neck is unbent. At box size and in this room it reads as glass; up close it is the one
   tell.
-- The potion's look depends on the room's light: change the candle or the rim in `tableArt.ts`
-  and the lamps follow, since they read its `CANDLE` and `FOOT`.
+- The potion's look depends on the room's light. Only the candle's point light follows
+  `tableArt.ts` (it reads `CANDLE` and `FOOT`); the rim (`MOON_AT`) and the flame lightformer
+  in the environment are fixed in `potionScene.tsx`, so a moved candle in the art needs them
+  moved by hand.
+- The near and far split depends on `aInner`: a new glass part, or a new piece in the glass's
+  profile, must say which side of the hollow it is on.
