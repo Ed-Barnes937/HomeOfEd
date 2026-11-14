@@ -476,16 +476,16 @@ function shelfContents(rand: () => number): Drawn {
     BAYS.forEach(([x0, x1], bay) => {
       const y = shelfY(row, bay)
       if (row === 1 && bay === 1) {
-        fill(y, x0, 730)
-        put(jar(rand, 762, y, 0.95, { glow: GREEN_GLOW, kind: 1 }))
-        svg += toad(900, y, 1.08)
+        fill(y, x0, 750)
+        put(jar(rand, 790, y, 0.95, { glow: GREEN_GLOW, kind: 1 }))
+        svg += toad(912, y, 1)
       } else if (row === 1 && bay === DOOR_BAY) {
         svg += crock(x0 + 44, y, 50, 36) + crock(x1 - 40, y, 36, 26)
       } else if (row === 1 && bay === 3) {
         put(jar(rand, x0 + 64, y, 1, { glow: VIOLET_GLOW, kind: 2 }))
-        put(jar(rand, x0 + 126, y, 0.8, { glow: GREEN_GLOW, kind: 3 }))
-        svg += scrolls(x0 + 168, y)
-        fill(y, x0 + 330, x1)
+        put(jar(rand, x0 + 190, y, 0.8, { glow: GREEN_GLOW, kind: 3 }))
+        svg += scrolls(x0 + 230, y)
+        fill(y, x0 + 390, x1)
       } else fill(y, x0, x1)
     })
   })
