@@ -29,11 +29,16 @@ drops in with one command.
 
 ### The cutter
 
-`scripts/ingredient-pictures.mjs <sheet>` reads the format and size from the file
+`scripts/ingredient-pictures.ts <sheet>` reads the format and size from the file
 header, refuses a sheet that is not a PNG or JPEG, is under 1024 px, or is not square
-within 2 percent (exit 1, the reason on stderr), crops each cell inset 6 percent on
+within 2 percent, or is a JPEG with an EXIF orientation flag other than 1 (it would be cut
+turned: re-save it upright, or as a PNG), or is over 16384 px a side (exit 1, the reason
+on stderr). A sheet within 2 percent of square is cut from the centred square of its
+short side, and the 2 percent is measured against the short side. It crops each cell inset 6 percent on
 every side, resizes to 256 x 256 and encodes with `/opt/homebrew/bin/cwebp`
-(`CWEBP` overrides) at quality 85. A picture over 30 KB refuses the whole sheet. Cells
+(`CWEBP` overrides) at quality 85. If cwebp fails on a cell (a CMYK JPEG, a truncated
+file) the reason names the cell, says the sheet could not be read as a picture, and
+keeps cwebp's own message after it. It is a TypeScript file run directly by Node. A picture over 30 KB refuses the whole sheet. Cells
 are cut into a temporary folder and copied into `public/ingredients/<id>.webp` only
 once all nine pass, so a refusal writes nothing. The output folder is fixed and
 the file names come from the id list, so nothing is written outside it. The id list
@@ -43,7 +48,12 @@ is exported and a test compares it with `INGREDIENTS`.
 
 Each picture is drawn with `mask-image: radial-gradient(closest-side, #000 70%,
 transparent 100%)`, so an art background that is not quite the ground colour melts
-into the jar tile. A picture that fails to load falls back to the swatch. The "In the
+into the jar tile. The crop is 88 percent of the cell, so a subject 70 percent of the
+cell wide fills about 79.5 percent of the picture, and the mask is solid only inside 70
+percent of the picture's width. Compact, roughly round subjects survive it (a round
+edge keeps about 68 percent opacity); the tips of tall or wide ones, such as a long
+root or a drooping bell, fade. Ticket 24's prompt should ask for compact, roughly round
+silhouettes, or ticket 25 may loosen the mask. A picture that fails to load falls back to the swatch. The "In the
 bottle" rows keep the small swatch.
 
 ### Sizes and budget
