@@ -20,6 +20,11 @@ describe('PotionOutline', () => {
     expect(html).not.toContain(`fill="${colour}"`)
   })
 
+  it('stands the bottle on the bottom of its box whatever its shape', () => {
+    const { html } = drawn('no')
+    expect(html).toContain('preserveAspectRatio="xMidYMax meet"')
+  })
+
   it('draws a mixed potion as one liquid path in the mixed colour', () => {
     const { html, colour } = drawn('yes')
     expect(html.match(new RegExp(`fill="${colour}"`, 'g'))).toHaveLength(1)

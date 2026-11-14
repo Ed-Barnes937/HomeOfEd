@@ -22,12 +22,27 @@ standard and stay moody without making any word hard to read (E5).
 
 **Drawn, like the smithy.** `apothecary/tableArt.ts` makes one seeded SVG of the
 whole room, front-on: a dark cabinet of boards and stiles, two shelves of jars,
-bottles, books and scrolls (three jars glow green or violet, the street front's
-window colours), dried herbs hanging from the top shelf, a cobweb, a lower bank
-of small labelled drawers, plain panelled doors in the bay behind the bottle so
-the clear glass has a quiet ground, then the plank table with its grain, joints,
-old rings and wax drips, a mortar and pestle, a spoon, a cork and spilled petals,
-and the candle in its brass dish. The light is in the drawing: the candle's warm
+bottles, books and scrolls, dried herbs hanging from the top shelf, a cobweb, a
+lower bank of small labelled drawers, then the plank table with its grain,
+joints, old rings and wax drips, a mortar and pestle, a spoon, a cork and spilled
+petals, and the candle in its brass dish.
+
+The bay behind the bottle is narrow and quiet: one plain panelled door (two would
+put their meeting line behind the glass), and a lower shelf raised so the tallest
+stopper clears its edge by 40 units or more (`LOWER_SHELF_UNDERSIDE`, tested),
+holding only two low dark crocks. The bays either side keep their shelves lower,
+so the shelf line steps at the stiles. Only about x 755 to 1490 of the board is in
+every frame (desk, phone and picture), so what tells the story stands there, in
+the bays either side of the bottle's: a fat toad asleep in a clay saucer on the
+left (the shop sells Frogfizz and brews "Frog's Bathwater"), lit from the candle
+below it and darker than any liquid; and the glowing jars, green beside the toad
+and violet and green on the right, drawn in a pass over the room's darkness so
+they read as small coloured lights, as in mock A. The drawers vary like the
+smithy's bricks: label plates of different widths, some blank, one gone (its
+nail holes and an unfaded patch), two chalked, rings and knobs, some two columns
+wide, deeper rows lower down, and a few left standing open (a dark gap above,
+a lit lip) with a sprig or a rolled paper poking out. Their light is unchanged:
+detail for a second look, not more brightness. The light is in the drawing: the candle's warm
 pool on the wall and the table, a faint cool wash from the high right, and the
 room falling dark away from the candle and toward the top, where the header's
 words sit. Grain comes from the smithy's noise tiles (`smithy/grain.ts`). The art
@@ -40,7 +55,21 @@ stage's size), `--u` (`--slot / 460`), `--bottle-x` and `--floor` (the foot's
 place, in the scene's container units), and everything, the board, the bottle's
 button, the card and its string, is placed from those. The foot stands at 0.70 of
 the scene's height on desk and 0.62 on a phone (O17), at 56 and 60 percent of its
-width. `BASE_LINE` (the foot's place inside the stage) is unchanged at 0.84: the
+width, but rises on a short scene so the card that wraps most (found by setting
+every generated name and tag line on the card) and the hint still fit: on desk
+280 px and on a phone 176 px are kept below the foot. On desk the foot also
+stands far enough right that the candle's dish is never cut. On a phone the box
+stage shrinks with the foot so the tallest stopper stays below the header's
+buttons, and the card takes the scene's width so the longest texts wrap to fewer
+lines; at 360x640 the stage is about 148 px.
+
+**The hint beside the card.** On desk the hint starts at the card's right edge
+plus a gap and wraps short of the scene's right edge; the card narrows from 430
+to 380 px to leave it room. A desk scene narrower than 600 px (a 900 to 999 px
+window) has no room beside the card, so the hint goes under it as on a phone
+(a container query on the scene; the scene's children take the values, as a
+container can't query itself). `apothecary.iwft.tsx` holds the card and the hint
+whole, apart and above the sheet at eight sizes from 360x640 to 1440x900. `BASE_LINE` (the foot's place inside the stage) is unchanged at 0.84: the
 scene's line is a scene setting, not a stage one, so the stage's framing is
 untouched.
 
@@ -62,7 +91,9 @@ and under reduced motion neither does the candle.
 **The recipe card.** The shared `Tag`, tied by drawn string from its hole to the
 bottle's neck, where a small knot wraps the neck over the stage. The card says
 what `recipeCard` says: the number, the name (the generator's until the player
-renames it), the tag line, and `gold` for a secret blend. A gold card swaps the
+renames it; before the mix that is the list of its layers, "Moonmilk, Rosehip and
+Starpetal", and the revealed name after), the tag line, and `gold` when `isGold`
+holds: a secret blend that has been mixed. A gold card swaps the
 paper and ink tokens for gilt ones and draws a gilt edge round the clipped paper
 (four hairline drop shadows). On desk the card lies on the table's front left,
 below the candle; on a phone it lies below the bottle across the scene with the
@@ -91,13 +122,24 @@ the item's `params`, which the potion's painter needs for the shadow and the gil
 
 **Shelf.** The potion's box on the shelf is a dark wooden crate with a glass
 window the bottle stands in, lit faintly in its glow colour; the silhouette is
-unchanged, and the wand's and sword's boxes are untouched.
+unchanged, and the wand's and sword's boxes are untouched. The window sits
+between the label and a slightly smaller seal, so the label keeps right 80 px
+(four less than the plain box), and the bottle is drawn foot-down in a box that
+ends 2 px inside the window (`preserveAspectRatio` `xMidYMax`).
 
 ## Considered and rejected
 
 - **A window (B) or an alcove (C):** Ed picked plain A.
 - **Drawers behind the bottle:** their labels and rings showed through the clear
-  glass and fought it; the bay behind the bottle has plain doors instead.
+  glass and fought it; the bay behind the bottle has a plain door instead.
+- **The story prop and glowing jars in the far bays:** beyond about x 1500 the
+  board is out of the frame on most screens and in the picture; they stand in the
+  bays next to the bottle's instead.
+- **A brass scale or a carboy as the story prop:** the toad gives a child
+  something to point at and ties to the shop's own ingredients.
+- **Folding repeats in the mixed tag line:** the spec asks for "Mixed from
+  Frogfizz, Frogfizz and Bluebell", the recipe in pour order, so it stays unfolded
+  while the name before the mix folds.
 - **Drawing the capture opaque on the card:** P2's ground would cover the room in
   a square round the bottle. Lifting the ground keeps P2's reflections and the room.
 - **Moving `BASE_LINE` to 0.70 / 0.62:** it is the foot's place inside the stage
@@ -108,5 +150,7 @@ unchanged, and the wand's and sword's boxes are untouched.
 - The stage must keep M1's key at the front left and its rim at the back right;
   if it moves, the candle, the shadow and the caustic must move with it.
 - `capture()` must draw over `PICTURE_GROUND`, or return a clear background.
-- The card is gold when `secretBlend` finds a blend. Once the generator's mixed
-  state lands (ticket 20), that is `isGold`, the same expression.
+- The card is gold when `isGold` holds, a mixed secret blend; an unmixed bottle
+  with a blend's ingredients shows its layers on a cream card until the mix.
+- A new name or tag line that wraps to more lines than today's longest needs
+  the room kept below the foot to grow, and `LONGEST_TEXTS` in the iwft to name it.

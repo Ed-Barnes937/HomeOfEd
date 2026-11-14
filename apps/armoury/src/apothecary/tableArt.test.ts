@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { normalise } from '../engine/schema.ts'
 import { compilePotion } from '../potion/compile.ts'
+import { BASE_LINE, HEADROOM } from '../potion/framing.ts'
 import { potionSchema } from '../potion/potionSchema.ts'
-import { bottleOnTable, roomSvg } from './tableArt.ts'
+import { BOARD_SLOT, bottleOnTable, FOOT, LOWER_SHELF_UNDERSIDE, roomSvg } from './tableArt.ts'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -22,6 +23,11 @@ describe('the room', () => {
     expect(roomSvg(null, { flame: false })).toBe(a)
     expect(a).not.toMatch(/NaN|undefined/)
     expect(roomSvg(null, { flame: true })).not.toBe(a)
+  })
+
+  it("leaves 40 units of dark wall between the tallest bottle's stopper and the shelf above it", () => {
+    const tallestTop = FOOT.y - BOARD_SLOT * (BASE_LINE - HEADROOM)
+    expect(tallestTop - LOWER_SHELF_UNDERSIDE).toBeGreaterThanOrEqual(40)
   })
 
   it("is not built when the shop's modules load, and is built once on its first visit", async () => {

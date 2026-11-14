@@ -78,6 +78,47 @@ export class ApothecaryPom extends BenchPom {
     await expect(this.table.getByText(text, { exact: true })).toBeVisible()
   }
 
+  /** The card's paper and the hint lie wholly inside the scene, above the sheet, and the hint is clear of the paper. */
+  async verifyCardAndHintFit(): Promise<void> {
+    await this.page.evaluate(() => document.fonts.ready)
+    const scene = (await this.table.locator('xpath=..').boundingBox())!
+    const paper = (await this.tagName.locator('xpath=..').boundingBox())!
+    const hint = this.table.locator('p').filter({ hasText: /^Tap the bottle/ })
+    const words = await hint.evaluate((p) => {
+      const range = document.createRange()
+      range.selectNodeContents(p)
+      return [...range.getClientRects()].map(({ left, top, right, bottom }) => ({
+        left,
+        top,
+        right,
+        bottom,
+      }))
+    })
+    const inside = (b: { left: number; top: number; right: number; bottom: number }) =>
+      b.left >= scene.x &&
+      b.top >= scene.y &&
+      b.right <= scene.x + scene.width &&
+      b.bottom <= scene.y + scene.height
+    expect(
+      inside({
+        left: paper.x,
+        top: paper.y,
+        right: paper.x + paper.width,
+        bottom: paper.y + paper.height,
+      }),
+    ).toBe(true)
+    expect(words.length).toBeGreaterThan(0)
+    for (const word of words) {
+      expect(inside(word)).toBe(true)
+      const clear =
+        word.right <= paper.x ||
+        word.left >= paper.x + paper.width ||
+        word.bottom <= paper.y ||
+        word.top >= paper.y + paper.height
+      expect(clear).toBe(true)
+    }
+  }
+
   async verifyStage(expected: PotionFacts): Promise<void> {
     await expect(this.stage).toHaveAttribute('data-item', 'potion')
     for (const [key, value] of Object.entries(expected) as [string, string][]) {
