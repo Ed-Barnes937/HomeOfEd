@@ -79,6 +79,13 @@ const exifSegment = (orientation: number, byteOrder: 'MM' | 'II') => {
   return Buffer.concat([Buffer.from([0xff, 0xe1]), length, payload])
 }
 
+const xmpSegment = () => {
+  const payload = Buffer.from('http://ns.adobe.com/xap/1.0/\0<x:xmpmeta/>')
+  const length = Buffer.alloc(2)
+  length.writeUInt16BE(payload.length + 2)
+  return Buffer.concat([Buffer.from([0xff, 0xe1]), length, payload])
+}
+
 const jpegHeader = (
   width: number,
   height: number,
@@ -194,6 +201,22 @@ describe('reading a sheet', () => {
     expect(orientation()).toBe(1)
   })
 
+  it('takes the orientation from the EXIF segment only, whatever APP1 segments surround it', () => {
+    const orientation = (...segments: Buffer[]) =>
+      readSheetInfo(jpegHeader(2048, 2048, { exif: Buffer.concat(segments) }))?.orientation
+    expect(orientation(exifSegment(6, 'MM'), xmpSegment())).toBe(6)
+    expect(orientation(xmpSegment())).toBe(1)
+    expect(orientation(xmpSegment(), exifSegment(6, 'II'))).toBe(6)
+  })
+
+  it('treats an orientation of 0 or above 8 as 1, as viewers do', () => {
+    const orientation = (value: number) =>
+      readSheetInfo(jpegHeader(2048, 2048, { exif: exifSegment(value, 'MM') }))?.orientation
+    expect(orientation(0)).toBe(1)
+    expect(orientation(9)).toBe(1)
+    expect(orientation(8)).toBe(8)
+  })
+
   it('does not know other formats', () => {
     expect(readSheetInfo(Buffer.from('GIF89a......'))).toBeNull()
     expect(readSheetInfo(Buffer.alloc(0))).toBeNull()
@@ -218,11 +241,17 @@ describe('refusing a bad sheet', () => {
     expect(checkSheet(png(2048, 1900))).toMatch(/not square.*2048 x 1900/)
   })
 
-  it('pins the 2 percent tolerance at its boundary, measured against the short side', () => {
+  it('pins the 2 percent tolerance at its boundary', () => {
     expect(checkSheet(png(2048, 2008))).toBeNull()
     expect(checkSheet(png(2008, 2048))).toBeNull()
     expect(checkSheet(png(2048, 2007))).toMatch(/not square.*2048 x 2007/)
     expect(checkSheet(png(2048, 2000))).toMatch(/not square.*2048 x 2000/)
+  })
+
+  it('measures the 2 percent against the short side, not the long one', () => {
+    expect(checkSheet(png(2048, 2089))).toMatch(/not square/)
+    expect(checkSheet(png(2089, 2048))).toMatch(/not square/)
+    expect(checkSheet(png(2048, 2088))).toBeNull()
   })
 
   it('refuses a JPEG with an EXIF orientation other than 1, saying what to do', () => {
@@ -357,7 +386,8 @@ describe('cutting a sheet', () => {
 })
 
 describe('the command line', () => {
-  const run = (...args: string[]) => spawnSync('node', [SCRIPT, ...args], { encoding: 'utf8' })
+  const run = (...args: string[]) =>
+    spawnSync('node', ['--experimental-strip-types', SCRIPT, ...args], { encoding: 'utf8' })
 
   it('exits non-zero with the reason for a sheet that is too small', () => {
     const result = run(sheetFile(scratch(), 512))
@@ -371,6 +401,16 @@ describe('the command line', () => {
     const result = run(file)
     expect(result.status).toBe(1)
     expect(result.stderr).toMatch(/not square/)
+  })
+
+  it('says where cwebp was expected and how to get it when it is missing', () => {
+    const sheet = sheetFile(scratch(), 1024)
+    const result = spawnSync('node', ['--experimental-strip-types', SCRIPT, sheet], {
+      encoding: 'utf8',
+      env: { ...process.env, CWEBP: '/nope/cwebp' },
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/cwebp was not found at \/nope\/cwebp.*brew install webp.*CWEBP/)
   })
 
   it('exits non-zero for a file that is not a picture, and for no argument', () => {

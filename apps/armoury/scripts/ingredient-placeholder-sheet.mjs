@@ -1,5 +1,5 @@
 // Draws the placeholder ingredient sprite sheet to the layout in docs/adr/0112, for the cutter to cut.
-//   node scripts/ingredient-placeholder-sheet.mjs <out.png>
+//   pnpm --filter armoury run ingredients:placeholders <out.png>   (needs Node 22.6 or later)
 // Each ingredient is a lit orb in its own colour with a hint of its trait, on the jar tile's ground
 // colour. The PNG is a build input: write it outside the repo, never commit it.
 /* global console */

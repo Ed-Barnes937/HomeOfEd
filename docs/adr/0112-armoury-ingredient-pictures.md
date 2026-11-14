@@ -38,7 +38,11 @@ short side, and the 2 percent is measured against the short side. It crops each 
 every side, resizes to 256 x 256 and encodes with `/opt/homebrew/bin/cwebp`
 (`CWEBP` overrides) at quality 85. If cwebp fails on a cell (a CMYK JPEG, a truncated
 file) the reason names the cell, says the sheet could not be read as a picture, and
-keeps cwebp's own message after it. It is a TypeScript file run directly by Node. A picture over 30 KB refuses the whole sheet. Cells
+keeps cwebp's own message after it. A missing cwebp says where it was expected and to run `brew install webp` or set `CWEBP`.
+A JPEG's orientation is read from its EXIF segment only (the first one; 0 and above 8 count as 1).
+It is a TypeScript file run directly by Node 22.6 or later with type stripping, through
+`pnpm --filter armoury run ingredients:cut <sheet>` (the path is relative to `apps/armoury`);
+Node 22.18 and later strip types without the flag the script passes. A picture over 30 KB refuses the whole sheet. Cells
 are cut into a temporary folder and copied into `public/ingredients/<id>.webp` only
 once all nine pass, so a refusal writes nothing. The output folder is fixed and
 the file names come from the id list, so nothing is written outside it. The id list
@@ -70,7 +74,7 @@ the owner.
 
 ### Placeholders
 
-`scripts/ingredient-placeholder-sheet.mjs <out.png>` draws a 2048 px sheet to this
+`pnpm --filter armoury run ingredients:placeholders <out.png>` (`scripts/ingredient-placeholder-sheet.mjs`) draws a 2048 px sheet to this
 layout in the installed Chromium: a lit orb in each ingredient's colour with a hint of
 its trait (glow, glitter, bubbles, swirl, a droplet highlight, cloud puffs). The PNG
 is a build input kept outside the repo. Running it then the cutter reproduces the nine

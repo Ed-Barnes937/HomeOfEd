@@ -10,6 +10,8 @@
     "start": "node src/server/main.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "ingredients:cut": "node --experimental-strip-types scripts/ingredient-pictures.ts",
+    "ingredients:placeholders": "node --experimental-strip-types scripts/ingredient-placeholder-sheet.mjs",
     "test": "vitest run && playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {

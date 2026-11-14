@@ -1,5 +1,5 @@
 // Cuts the ingredient sprite sheet into the nine pictures the pour picker shows.
-//   node scripts/ingredient-pictures.ts <sheet.png|sheet.jpg>
+//   pnpm --filter armoury run ingredients:cut <sheet.png|sheet.jpg>   (needs Node 22.6 or later)
 // Writes public/ingredients/<id>.webp (256 x 256) with cwebp (CWEBP overrides its path), and
 // exits non-zero, writing nothing, if the sheet breaks the layout in docs/adr/0112.
 import { execFile } from 'node:child_process'
@@ -58,9 +58,9 @@ const isFrameMarker = (marker: number) =>
 const EXIF_HEADER = 'Exif\0\0'
 const ORIENTATION_TAG = 0x0112
 
-/** The EXIF orientation in an APP1 segment's payload, or 1 when it carries none. */
-const exifOrientation = (bytes: Buffer, start: number, end: number): number => {
-  if (bytes.toString('latin1', start, start + 6) !== EXIF_HEADER) return 1
+/** The EXIF orientation in an APP1 segment's payload (1 when it has none), or null when the segment is not EXIF. */
+const exifOrientation = (bytes: Buffer, start: number, end: number): number | null => {
+  if (bytes.toString('latin1', start, start + 6) !== EXIF_HEADER) return null
   const tiff = start + 6
   const little = bytes.toString('latin1', tiff, tiff + 2) === 'II'
   const u16 = (at: number) => (little ? bytes.readUInt16LE(at) : bytes.readUInt16BE(at))
@@ -70,7 +70,10 @@ const exifOrientation = (bytes: Buffer, start: number, end: number): number => {
   if (ifd + 2 > end) return 1
   for (let i = 0, count = u16(ifd); i < count && ifd + 2 + i * 12 + 12 <= end; i++) {
     const entry = ifd + 2 + i * 12
-    if (u16(entry) === ORIENTATION_TAG) return u16(entry + 8)
+    if (u16(entry) === ORIENTATION_TAG) {
+      const value = u16(entry + 8)
+      return value >= 1 && value <= 8 ? value : 1
+    }
   }
   return 1
 }
@@ -88,6 +91,7 @@ export function readSheetInfo(bytes: Buffer): SheetInfo | null {
   if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
     let at = 2
     let orientation = 1
+    let exifSeen = false
     while (at + 9 < bytes.length && bytes[at] === 0xff) {
       if (bytes[at + 1] === 0xff) {
         at++
@@ -103,8 +107,10 @@ export function readSheetInfo(bytes: Buffer): SheetInfo | null {
         }
       }
       const length = bytes.readUInt16BE(at + 2)
-      if (marker === 0xe1) {
-        orientation = exifOrientation(bytes, at + 4, Math.min(at + 2 + length, bytes.length))
+      if (marker === 0xe1 && !exifSeen) {
+        const found = exifOrientation(bytes, at + 4, Math.min(at + 2 + length, bytes.length))
+        exifSeen = found !== null
+        orientation = found ?? orientation
       }
       at += 2 + length
     }
@@ -166,7 +172,11 @@ const encodeWithCwebp: Encode = async ({ sheetPath, rect, outFile }) => {
     ])
   } catch (error) {
     const failure = error as NodeJS.ErrnoException & { stderr?: string }
-    if (failure.code === 'ENOENT') throw failure
+    if (failure.code === 'ENOENT') {
+      throw new Error(
+        `cwebp was not found at ${CWEBP}: install it with \`brew install webp\`, or set CWEBP to where it is`,
+      )
+    }
     throw new Error(failure.stderr?.trim() || failure.message)
   }
 }
@@ -193,8 +203,8 @@ export async function cutSheet({
       try {
         await encode({ sheetPath, rect, outFile })
       } catch (error) {
-        const failure = error as NodeJS.ErrnoException
-        if (failure.code === 'ENOENT') throw failure
+        const failure = error as Error
+        if (failure.message.startsWith('cwebp was not found')) throw failure
         throw new Error(
           `${rect.id}.webp could not be cut: the sheet could not be read as a picture. ${failure.message}`,
         )
@@ -214,7 +224,7 @@ export async function cutSheet({
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const sheetPath = process.argv[2]
   if (!sheetPath) {
-    console.error('usage: node scripts/ingredient-pictures.ts <sheet.png|sheet.jpg>')
+    console.error('usage: pnpm --filter armoury run ingredients:cut <sheet.png|sheet.jpg>')
     process.exit(2)
   }
   try {
