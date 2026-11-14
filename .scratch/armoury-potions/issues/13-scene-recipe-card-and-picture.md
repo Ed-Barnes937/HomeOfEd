@@ -1,6 +1,6 @@
 # 13 - The shop's scene (A), recipe card and picture (P2)
 
-**Status:** ready-for-agent (Ed's picks are in: scene A, picture P2)
+**Status:** done (merged into `armoury-potions` as cf913f80; review 13-r1; visual gate PASS in `shots/10/r3/review.md`)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 09; the gate shots need 10

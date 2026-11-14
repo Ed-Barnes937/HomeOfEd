@@ -1,6 +1,6 @@
 # 10 - Glass, layered liquid and light
 
-**Status:** ready-for-agent (Ed's picks are in: G1, L2, M1, P2)
+**Status:** done (merged into `armoury-potions` as cf913f80; code reviews 10-r1, 10-r2, 10-r3; visual gate `shots/10/r2/review.md` then PASS in `shots/10/r3/review.md`; the wax seal cut, O25)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 09; scope 5 (colours and presets) waits until 20 is merged (the orchestrator
