@@ -212,6 +212,22 @@ export class ApothecaryPom extends BenchPom {
     await expect(jar).toBeFocused()
   }
 
+  /** The jar shows its loaded picture, which says nothing to a screen reader. */
+  async verifyJarPicture(label: string): Promise<void> {
+    const picture = this.jar(label).locator('img')
+    await expect(picture).toHaveAttribute('alt', '')
+    await expect(picture).toHaveJSProperty('draggable', false)
+    await expect
+      .poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+      .toBe(256)
+  }
+
+  /** A picture that did not load leaves the jar with a coloured swatch and no image. */
+  async verifyJarSwatchOnly(label: string): Promise<void> {
+    await expect(this.jar(label).locator('img')).toHaveCount(0)
+    await expect(this.jar(label).locator('span[style*="background"]')).toHaveCount(1)
+  }
+
   async verifyAllJarsShown(): Promise<void> {
     await expect(this.page.getByRole('button', { name: /^Pour in / })).toHaveCount(9)
   }
