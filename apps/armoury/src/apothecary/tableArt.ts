@@ -176,13 +176,16 @@ interface Drawn {
   light: string
 }
 
-/** A jar or bottle standing on a shelf at (x, base): dark glass, a tint of liquid, light from the candle and a cool rim. */
+/**
+ * A jar or bottle standing on a shelf at (x, base): dark glass, a tint of liquid, light from the
+ * candle and a cool rim. `hush` quiets a glowing one: its glow and shine by that share, its liquid by half.
+ */
 function jar(
   rand: () => number,
   x: number,
   base: number,
   scale: number,
-  { glow, kind: shape }: { glow?: string; kind?: number } = {},
+  { glow, kind: shape, hush = 0 }: { glow?: string; kind?: number; hush?: number } = {},
 ): Drawn {
   const kind = shape ?? Math.floor(rand() * 5)
   const w = (kind === 4 ? 18 + rand() * 8 : 34 + rand() * 30) * scale
@@ -237,14 +240,14 @@ function jar(
         `<path d="M${r1(x - w * 0.22)} ${r1(base - h * 0.45)} h${r1(w * 0.44)} M${r1(x - w * 0.18)} ${r1(base - h * 0.39)} h${r1(w * 0.3)}" stroke="#2a1a14" stroke-width="1.3" opacity="${r1(0.25 + lit * 0.25)}"/>`
       : ''
   const light = glow
-    ? `<ellipse cx="${x}" cy="${r1(base - h * 0.4)}" rx="${r1(w * 1.5)}" ry="${r1(h * 0.85)}" fill="${glow}" opacity="0.2" filter="url(#glowBlur)"/>` +
-      `<ellipse cx="${x}" cy="${base + 6}" rx="${r1(w * 1.2)}" ry="6" fill="${glow}" opacity="0.2" filter="url(#soft6)"/>` +
+    ? `<ellipse cx="${x}" cy="${r1(base - h * 0.4)}" rx="${r1(w * 1.5)}" ry="${r1(h * 0.85)}" fill="${glow}" opacity="${(0.2 * (1 - hush)).toFixed(2)}" filter="url(#glowBlur)"/>` +
+      `<ellipse cx="${x}" cy="${base + 6}" rx="${r1(w * 1.2)}" ry="6" fill="${glow}" opacity="${(0.2 * (1 - hush)).toFixed(2)}" filter="url(#soft6)"/>` +
       `<g clip-path="url(#${id})">` +
-      `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="${glow}" opacity="0.38"/>` +
+      `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="${glow}" opacity="${(0.38 * (1 - hush / 2)).toFixed(2)}"/>` +
       `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="url(#jarShade)" opacity="0.6"/>` +
-      `<ellipse cx="${x}" cy="${r1(level + (base - level) * 0.55)}" rx="${r1(w * 0.3)}" ry="${r1((base - level) * 0.3)}" fill="#fff" opacity="0.18" filter="url(#soft6)"/>` +
-      `<rect x="${r1(x - w)}" y="${r1(level - 1)}" width="${r1(w * 2)}" height="2.4" fill="#fff" opacity="0.45"/>` +
-      `<path d="M${r1(hiX)} ${r1(t + h * 0.2)} V${r1(base - h * 0.12)}" stroke="#fff" stroke-width="${r1(2.4 * scale)}" stroke-linecap="round" opacity="0.3"/>` +
+      `<ellipse cx="${x}" cy="${r1(level + (base - level) * 0.55)}" rx="${r1(w * 0.3)}" ry="${r1((base - level) * 0.3)}" fill="#fff" opacity="${(0.18 * (1 - hush)).toFixed(2)}" filter="url(#soft6)"/>` +
+      `<rect x="${r1(x - w)}" y="${r1(level - 1)}" width="${r1(w * 2)}" height="2.4" fill="#fff" opacity="${(0.45 * (1 - hush)).toFixed(2)}"/>` +
+      `<path d="M${r1(hiX)} ${r1(t + h * 0.2)} V${r1(base - h * 0.12)}" stroke="#fff" stroke-width="${r1(2.4 * scale)}" stroke-linecap="round" opacity="${(0.3 * (1 - hush)).toFixed(2)}"/>` +
       `</g>` +
       `<path d="${body}" fill="none" stroke="${glow}" stroke-opacity="0.35" stroke-width="1.2"/>`
     : ''
@@ -253,7 +256,7 @@ function jar(
     `<clipPath id="${id}"><path d="${body}"/></clipPath>` +
     `<path d="${body}" fill="#140c10" opacity="0.93"/>` +
     `<g clip-path="url(#${id})">` +
-    `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="${tint}" opacity="${glow ? 0.9 : r1(0.45 + lit * 0.3)}"/>` +
+    `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="${tint}" opacity="${glow ? (0.9 * (1 - hush / 2)).toFixed(2) : r1(0.45 + lit * 0.3)}"/>` +
     `<rect x="${r1(x - w)}" y="${r1(level)}" width="${r1(w * 2)}" height="${r1(h)}" fill="url(#jarShade)"/>` +
     `<rect x="${r1(x - w)}" y="${r1(level - 1)}" width="${r1(w * 2)}" height="2" fill="#fff" opacity="${glow ? 0.4 : 0.12}"/>` +
     `<path d="M${r1(hiX)} ${r1(t + h * 0.2)} V${r1(base - h * 0.12)}" stroke="#ffe2bd" stroke-width="${r1(2.6 * scale)}" stroke-linecap="round" opacity="${r1(0.08 + lit * 0.55)}"/>` +
@@ -477,7 +480,7 @@ function shelfContents(rand: () => number): Drawn {
       const y = shelfY(row, bay)
       if (row === 1 && bay === 1) {
         fill(y, x0, 750)
-        put(jar(rand, 790, y, 0.95, { glow: GREEN_GLOW, kind: 1 }))
+        put(jar(rand, 790, y, 0.95, { glow: GREEN_GLOW, kind: 1, hush: 0.4 }))
         svg += toad(912, y, 1)
       } else if (row === 1 && bay === DOOR_BAY) {
         svg += crock(x0 + 44, y, 50, 36) + crock(x1 - 40, y, 36, 26)
@@ -728,7 +731,7 @@ function table(rand: () => number): string {
   for (let i = 0; i < 7; i++) {
     const x = CANDLE.x - 90 + rand() * 190
     const y = CANDLE.y - 6 + rand() * 40
-    drips += `<ellipse cx="${r1(x)}" cy="${r1(y)}" rx="${r1(3 + rand() * 6)}" ry="${r1(1.4 + rand() * 1.6)}" fill="#d9c7a2" opacity="0.7"/>`
+    drips += `<ellipse cx="${r1(x)}" cy="${r1(y)}" rx="${r1(3 + rand() * 6)}" ry="${r1(1.4 + rand() * 1.6)}" fill="#a3926f" opacity="0.7"/>`
   }
   return (
     planks +
@@ -761,15 +764,15 @@ function candle(flame: boolean): string {
     `<ellipse cx="${x + 30}" cy="${y + 4}" rx="96" ry="10" fill="#000" opacity="0.4" filter="url(#soft6)"/>` +
     `<ellipse cx="${x}" cy="${y + 2}" rx="64" ry="11" fill="#000" opacity="0.55"/>` +
     `<path d="M${x - 62} ${y - 8} Q${x - 60} ${y + 9} ${x} ${y + 10} Q${x + 60} ${y + 9} ${x + 62} ${y - 8} Z" fill="url(#dish)"/>` +
-    `<ellipse cx="${x}" cy="${y - 8}" rx="62" ry="10" fill="#b8843e"/>` +
+    `<ellipse cx="${x}" cy="${y - 8}" rx="62" ry="10" fill="#9c7034"/>` +
     `<ellipse cx="${x}" cy="${y - 8}" rx="54" ry="7.5" fill="#6a4622"/>` +
-    `<path d="M${x - 56} ${y - 10} Q${x - 20} ${y - 18} ${x + 12} ${y - 17}" stroke="#ffe0a0" stroke-width="2" fill="none" opacity="0.7"/>` +
+    `<path d="M${x - 56} ${y - 10} Q${x - 20} ${y - 18} ${x + 12} ${y - 17}" stroke="#ffe0a0" stroke-width="2" fill="none" opacity="0.4"/>` +
     `<path d="M${x + 58} ${y - 2} q14 -2 22 -20 q4 -10 -4 -8 q-6 2 -10 14" fill="#7a5226" stroke="#c99450" stroke-width="1.4"/>` +
-    `<ellipse cx="${x + 4}" cy="${y - 12}" rx="30" ry="6" fill="#e2d1ab" opacity="0.9"/>` +
+    `<ellipse cx="${x + 4}" cy="${y - 12}" rx="30" ry="6" fill="#a08f6e" opacity="0.9"/>` +
     `<path d="M${x - w / 2} ${y - 12} V${top + 8} Q${x - w / 2 + 2} ${top - 1} ${x - 8} ${top + 1} Q${x - 2} ${top + 6} ${x + 4} ${top + 2} Q${x + w / 2 - 2} ${top - 3} ${x + w / 2} ${top + 6} V${y - 12} Z" fill="url(#wax)"/>` +
-    `<path d="M${x - w / 2} ${top + 6} q-3 30 1 52 q3 8 4 -4 q-1 -24 2 -40 Z" fill="#f8ead0" opacity="0.92"/>` +
-    `<path d="M${x + 6} ${top + 3} q1 18 -1 30 q2 8 4 -2 q0 -14 1 -26 Z" fill="#efdcb6"/>` +
-    `<path d="M${x + w / 2} ${top + 10} q4 36 -1 70 q-3 8 -4 -2 q-1 -34 2 -66 Z" fill="#a89070" opacity="0.8"/>` +
+    `<path d="M${x - w / 2} ${top + 6} q-3 30 1 52 q3 8 4 -4 q-1 -24 2 -40 Z" fill="#927f62" opacity="0.92"/>` +
+    `<path d="M${x + 6} ${top + 3} q1 18 -1 30 q2 8 4 -2 q0 -14 1 -26 Z" fill="#968063"/>` +
+    `<path d="M${x + w / 2} ${top + 10} q4 36 -1 70 q-3 8 -4 -2 q-1 -34 2 -66 Z" fill="#685640" opacity="0.8"/>` +
     `<ellipse cx="${x - 1}" cy="${top + 4}" rx="${w / 2 - 6}" ry="4.5" fill="url(#waxPool)"/>` +
     `<path d="M${x} ${top + 4} q-1 -7 2 -14" stroke="#1a100a" stroke-width="2.4" fill="none" stroke-linecap="round"/>` +
     `</g>` +
@@ -824,7 +827,7 @@ function tableBits(rand: () => number): string {
     const x = 1330 + rand() * 170
     const y = 932 + rand() * 50
     const s = 4.5 + rand() * 3
-    petals += `<path transform="translate(${r1(x)} ${r1(y)}) rotate(${r1(rand() * 72)}) scale(1 0.42)" d="M0 ${-s} L${r1(s * 0.3)} ${r1(-s * 0.3)} L${s} 0 L${r1(s * 0.3)} ${r1(s * 0.3)} L0 ${s} L${r1(-s * 0.3)} ${r1(s * 0.3)} L${-s} 0 L${r1(-s * 0.3)} ${r1(-s * 0.3)} Z" fill="#e8b84a" opacity="${r1(0.55 + rand() * 0.3)}"/>`
+    petals += `<path transform="translate(${r1(x)} ${r1(y)}) rotate(${r1(rand() * 72)}) scale(1 0.42)" d="M0 ${-s} L${r1(s * 0.3)} ${r1(-s * 0.3)} L${s} 0 L${r1(s * 0.3)} ${r1(s * 0.3)} L0 ${s} L${r1(-s * 0.3)} ${r1(s * 0.3)} L${-s} 0 L${r1(-s * 0.3)} ${r1(-s * 0.3)} Z" fill="#e8b84a" opacity="${r1(0.35 + rand() * 0.2)}"/>`
   }
   const cork =
     `<g transform="translate(1012 962) rotate(-14)">` +
@@ -837,8 +840,8 @@ function tableBits(rand: () => number): string {
     `<ellipse cx="6" cy="6" rx="60" ry="5" fill="#000" opacity="0.45" filter="url(#soft6)"/>` +
     `<path d="M-50 0 L20 -3" stroke="#8a6a3a" stroke-width="5" stroke-linecap="round"/>` +
     `<ellipse cx="34" cy="-3" rx="18" ry="7" fill="#9a7840"/>` +
-    `<ellipse cx="32" cy="-4" rx="11" ry="3.6" fill="#e8c27a" opacity="0.55"/>` +
-    `<path d="M-50 -1.5 L18 -4.5" stroke="#ffd890" stroke-width="1.2" opacity="0.5"/></g>`
+    `<ellipse cx="32" cy="-4" rx="11" ry="3.6" fill="#e8c27a" opacity="0.3"/>` +
+    `<path d="M-50 -1.5 L18 -4.5" stroke="#ffd890" stroke-width="1.2" opacity="0.3"/></g>`
   const books =
     `<g transform="translate(1700 868)">` +
     `<ellipse cx="20" cy="4" rx="120" ry="10" fill="#000" opacity="0.5" filter="url(#soft6)"/>` +
@@ -873,9 +876,9 @@ const DEFS =
   `<linearGradient id="lip" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a3a28"/><stop offset="0.35" stop-color="#3a2419"/><stop offset="1" stop-color="#120a08"/></linearGradient>` +
   `<radialGradient id="lipLine" cx="${CANDLE.x}" cy="${TABLE.front}" r="900" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffc888" stop-opacity="0.75"/><stop offset="0.6" stop-color="#c8865a" stop-opacity="0.25"/><stop offset="1" stop-color="#8a5a3e" stop-opacity="0.1"/></radialGradient>` +
   `<linearGradient id="apron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e120d"/><stop offset="0.2" stop-color="#110a08"/><stop offset="1" stop-color="#070405"/></linearGradient>` +
-  `<linearGradient id="dish" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e6b468"/><stop offset="0.55" stop-color="#9a6a32"/><stop offset="1" stop-color="#3e2810"/></linearGradient>` +
-  `<linearGradient id="wax" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff2d8"/><stop offset="0.45" stop-color="#ead8b2"/><stop offset="1" stop-color="#8a7456"/></linearGradient>` +
-  `<radialGradient id="waxPool"><stop offset="0" stop-color="#fff4c8"/><stop offset="1" stop-color="#e8cf9a"/></radialGradient>` +
+  `<linearGradient id="dish" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a27b45"/><stop offset="0.55" stop-color="#9a6a32"/><stop offset="1" stop-color="#3e2810"/></linearGradient>` +
+  `<linearGradient id="wax" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a28d6a"/><stop offset="0.45" stop-color="#917c5e"/><stop offset="1" stop-color="#554433"/></linearGradient>` +
+  `<radialGradient id="waxPool"><stop offset="0" stop-color="#ab9a72"/><stop offset="1" stop-color="#8f7b56"/></radialGradient>` +
   `<linearGradient id="stone" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6a5e56"/><stop offset="0.45" stop-color="#3e3632"/><stop offset="1" stop-color="#1c1816"/></linearGradient>` +
   `<linearGradient id="toadSkin" x1="0" y1="1" x2="1" y2="0.1"><stop offset="0" stop-color="#8a8446"/><stop offset="0.45" stop-color="#565a2c"/><stop offset="1" stop-color="#23261a"/></linearGradient>` +
   `<radialGradient id="toadBelly" cx="0.38" cy="0.4" r="0.7"><stop offset="0" stop-color="#b9ae78"/><stop offset="1" stop-color="#6a6540" stop-opacity="0.6"/></radialGradient>` +
