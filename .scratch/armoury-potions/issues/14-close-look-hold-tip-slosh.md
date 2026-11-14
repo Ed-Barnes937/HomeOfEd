@@ -1,6 +1,6 @@
 # 14 - Close look I: held upright, tipped, sloshing
 
-**Status:** ready-for-agent (waits for ticket 10)
+**Status:** done (merged into `armoury-potions`; review and gate `reviews/14-r1.md` PASS in round 1)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 10 (04 is done)
