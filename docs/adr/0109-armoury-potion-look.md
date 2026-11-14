@@ -166,7 +166,7 @@ is drawn at the same moment (`scripts/gpu-shots.mjs --freeze=1.2`). Under reduce
 in the liquid or the light moves.
 
 **Traits (ticket 11).** What each trait draws is data in `potion/traits.ts`: a set of shader
-weights (`cloud`, `swirl`, `pearl`, `glow`, `fleck`) and at most one kind of mote, plus three
+weights (`cloud`, `swirl`, `pearl`, `glow`, `fleck`, `cling`) and at most one kind of mote, plus three
 ingredients' own variants (Thundercloud's flecks are silver, Snailshine's swirl is pearly,
 Puffcap's cloud carries spores). A variant holds only while its ingredient keeps that trait, so a
 cut to `clear` or `cloud` drops it. `createLiquid().setLayers` writes the weights into uniform
@@ -178,18 +178,34 @@ light before `potionCap`; every `fwidth` is taken before the discard and the tra
   lighter milky billows, so the band's mean stays on its jar. A cloudy band's edges blend over
   2.2 times as much (`CLOUD_EDGE`, `bandEdges`'s `soft`), still within 0.45 of the thinner band.
 - `swirl` (Rosehip, Snailshine): L2's domain-warped marbling, with the noise squashed 1.9 times
-  along the surface's up so its streaks lie level in any pose; light veins over a deeper body.
-  `pearl` makes the veins thinner and lays a thin-film shimmer on them and at grazing angles,
-  half as strong away from the candle.
-- `glow` (Emberroot): the liquid's own light and its lit diffuse fall to 0.55 and 0.6 at the
-  silhouette, and a light from inside, 0.55 of the deepened colour times a slowly rising noise
-  and the square of the thickness, fills the middle. At its brightest, 0.87 x (0.4 + 0.55) is
-  under the cap before the knee (a unit test).
+  along the surface's up so its streaks lie level in any pose; light veins over a deeper body,
+  laid on at 0.64. `pearl` keeps the veins' width and feathers their edge wider, lays them on at
+  0.34 (about half Rosehip's contrast), and lets a thin-film shimmer carry the difference: half
+  iridescent, on the veins, through the body and more at grazing angles, half as strong away from
+  the candle. Narrowing the veins for `pearl` (round 1) drew thin bright contour lines that read
+  as a pool's caustics; soft, low wisps under a pearly sheen are nearer L2.
+- `glow` (Emberroot): the liquid's own light and its lit diffuse fall to 0.4 and 0.45 at the
+  silhouette, and a light from inside, 0.55 of the deepened colour warmed towards yellow
+  (`glowWarm`, 1, 1.7 and 1.4 by channel) times a calm, slowly rising noise (0.8 to 1) and the
+  square of the thickness, fills the middle, so the middle glows yellower and brighter than the
+  edges: a light from inside, not a mottled orange cloud (round 1's noise ran 0.5 to 1 and read as
+  Puffcap's cloud in orange). At its brightest the red channel's self light and glow, 0.87 x (0.4
+  + 0.55) = 0.83, is under `REST_CAP` though past the soft cap's knee (0.6 x `REST_CAP` = 0.77);
+  the unit test checks only those two terms, and the soft cap holds the rest (the key, back and
+  milk light).
 - `glitter` (Starpetal gold `#ffe4a0`, Thundercloud silver `#e4eaff`): fine flecks in the skin
-  (a 1.5 mm cell, six in ten holding a fleck 0.15 to 0.5 mm, never under 0.6 px), each a facet
+  (a 1.5 mm cell, three in four holding a fleck 0.15 to 0.5 mm, never under 0.6 px), each a facet
   turning slowly: a faint glimmer, and a flash of three times the candle's colour only where the
   skin faces the candle. The larger flecks are motes (below).
-- `fizz` (Frogfizz): motes only. `clear` (Bluebell): nothing; the clean jewel colour.
+- `fizz` (Frogfizz): bubbles clinging to the glass, and the rising bubbles as motes (below). The
+  clinging ones are in the skin and never move, so they show in a still frame and at box size: a
+  3 mm cell lattice in the bottle's frame, 85 in 100 cells holding a seeded point; where that
+  point lies within 0.7 of its radius of the skin, a disc 0.5 to 1.1 mm in radius shows on the
+  skin around it: a pale rim (a little of the candle's colour) over slightly dimmed liquid, a
+  lighter middle and a glint on the candle's side. The eight nearest cells are searched, so no
+  bead is cut by a cell's edge. They make fizz "beads and rings on the glass", cool and white,
+  where glitter is warm sparks.
+- `clear` (Bluebell): nothing; the clean jewel colour.
 
 **Depth.** The body under its widest point darkens by up to 0.42 times the fifth power of how
 straight down it faces, so the darkening gathers at the foot and leaves a band's middle alone:
@@ -207,35 +223,58 @@ reduced motion and `--freeze` hold it with the liquid. The layout is `motePool`:
 built with the mesh. In the vertex shader each point joins the band its rest point lies in along
 the surface's up (`moteBand` is the same rule in TypeScript), so in any pose, leaned or tipped,
 each band holds its share of the pool (85 to 100 of a full bottle's points) and its motes stay
-level with it. A band whose trait has motes shows its program's `density` of them. The programs
-are a table keyed by kind (`MOTE_PROGRAMS`), open for ticket 23's sinking `speck`:
+level with it. A mote fades out as its rest point comes within 1.5 mm (or a quarter of the band,
+if less) of its band's floor or top (`moteEdgeFade`), so when the levels move under it (a lean,
+the slosh, a pour) it is already gone when it changes band: nothing pops or jumps to another band
+at full strength (a unit test sweeps the levels and checks every change of band happens unseen).
+A band whose trait has motes shows its program's `density` of them. The programs are a table
+keyed by kind (`MOTE_PROGRAMS`), open for ticket 23's sinking `speck`:
 
 - `fleck`: drifts 0.7 mm about its rest point; a diamond flake 0.5 to 1.15 mm that tumbles and
-  flashes towards the candle on the candle's side.
-- `bubble`: seven in ten rise in streams on a 10 mm lattice across the up, the rest on their own,
-  6 to 12 mm a second from the band's floor, growing a little, fading in at the floor and out at
-  the band's top or the surface: a ring with a glint at its upper left.
+  flashes towards the candle on the candle's side. About one in seven is instead a soft,
+  out-of-focus flake 1.6 to 2.8 mm at under half strength, so the band has depth of sparkle.
+- `bubble`: seven in ten rise in streams, the rest on their own, from the band's floor, growing a
+  little, fading in at the floor and out at the band's top or the surface: a ring 0.7 to 2.3 mm
+  with a bright rim and a glint at its upper left. Its rise is timed on a fixed length for the
+  bottle (`cavityRadii`'s `rise`, a band's height in a full bottle, upright), not on the band's
+  own span: the bubble is at `lo + span x fract(seed + t x v / rise)`, so a span that changes
+  smoothly moves it smoothly however long the page has been open (round 1 divided by the span,
+  and a minute in a 2 percent change of span threw every bubble half a rise). It climbs 6 to 12
+  mm a second in a band of that height, faster in a taller band. A stream's site is on a 10 mm
+  lattice in the bottle's own frame, carried across the surface's up by projection, so a turning
+  up slides the streams smoothly and no bubble jumps to another stream; the projection also has
+  no blind direction (round 1's cross product with the bottle's y was NaN tipped flat towards or
+  away from the eye). `bubbleAt` is the TypeScript twin, and its tests pin a bubble's path as
+  continuous a minute in, under a sloshing top, a climbing (pouring) top and a swinging up.
 - `spore`: drifts 1.8 mm slowly; a soft round puff 1 to 2.8 mm, pale pink on Puffcap's red.
 
-Each mote fades over its band's soft edges and towards the wall (the cavity's radius, sampled 48
-times up its height), and dims and takes the band's colour through the liquid between it and the
-eye (as far as the wall at its height or the surface, more through milk). It is drawn
-premultiplied with a small cover (0.15 to 0.3), so it adds its light and hides little of the
+Each mote fades over its band's soft edges, at the liquid's floor and towards the wall (the
+cavity's radius, sampled 48 times up its height), and dims and takes the band's colour through
+the liquid between it and the eye (as far as the wall at its height or the surface, more through
+milk). It is drawn premultiplied with a small cover (0.1 to 0.3), so it adds its light and hides
+little of the
 liquid: no mote reads as a dark hole. Its size is in millimetres, at least 1.4 device pixels and
 at most 40.
 
 **Still frames.** Everything moves on `uTime` alone, so under `prefers-reduced-motion` the clock's
-moment 0 is the still form: bubbles caught at every height of their rise, flecks turned at every
-angle (a few flashing), spores where they rest. Three of one ingredient draw one continuous
+moment 0 is the still form: bubbles caught at every height of their rise and beading the glass,
+flecks turned at every angle (a few flashing), spores where they rest. Three of one ingredient draw one continuous
 liquid: every noise is in the bottle's frame and the pool is one spread for the whole bottle, so
 no band repeats another's pattern.
 
 **Telling them apart.** Neighbouring ingredients on the wheel never share a texture: glow beside
 glitter (Emberroot, Starpetal), glitter beside bubbles, bubbles beside a pearly swirl, the swirl
 beside clear (Bluebell), clear beside silver flecks (Thundercloud), flecks beside milk (Moonmilk),
-milk beside a swirl (Rosehip), the swirl beside spores (Puffcap), spores beside glow. The two
-pairs a red-green colour-blind child is likeliest to confuse, Rosehip and Puffcap and Emberroot
-and Puffcap, are veins against soft spores and a lit middle against spores.
+milk beside a swirl (Rosehip), the swirl beside spores (Puffcap), spores beside glow. For a
+red-green colour-blind child (the chip colours simulated for protanopia and deuteranopia, Machado
+2009, CIELAB delta E), the closest pairs are Starpetal and Frogfizz (protan 8.8, deutan 19.8; the
+closest of all, near equal in lightness), Emberroot and Starpetal (deutan 12.1, protan 19.0),
+Emberroot and Frogfizz (15 to 16, not neighbours but often in one bottle), Bluebell and
+Thundercloud (19 to 22, with a large gap in lightness), Snailshine and Rosehip (deutan 19.8) and
+Puffcap and Emberroot (deutan 24.9). Texture tells each apart: warm gold sparks against cool white
+beads on the glass; a middle glowing yellower than its edges against sparks; that glow against
+beads; a clean jewel against silver stars; a pearly sheen over faint wisps against Rosehip's
+stronger veins (one marbling pattern, two contrasts); soft spores against a lit middle.
 
 **The mixed liquid (ticket 23).** `setLayers` with one layer (the mix's colour, `trait` and main
 ingredient) already fills a whole bottle with that trait, motes and all. For the swirl, the place
@@ -247,7 +286,10 @@ by `uMix`, as the colour) and the motes' per-band `uKind` and `uDensity`.
 **The traits' cost.** Measured as below, before and after interleaved: the first visit's close
 look 3.5 to 3.8 ms a frame on a desk and 2.1 to 2.3 ms on a phone viewport; the box stage 1.3 to
 1.4 ms and 1.1 to 1.2 ms. The swirl is the dearest trait (a whole bottle of Snailshine: 4.1 and
-2.5 ms); one draw of at most 300 motes measured within noise.
+2.5 ms); one draw of at most 300 motes measured within noise. Round 2 (the clinging bubbles,
+the fixed rise, the softer swirl and glow) left the first visit within noise and added about 0.2
+ms on a desk and 0.15 ms on a phone to a whole bottle of Frogfizz (3.7 and 2.2 ms), the cost of
+searching the eight nearest cells for a bead.
 
 **The picture (P2).** `capture()` clears to `PICTURE_GROUND` opaque, renders the bare scene at
 2000 px wide and restores the clear colour. Ticket 13's painter lifts that ground back to clear
