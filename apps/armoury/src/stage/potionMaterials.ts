@@ -392,16 +392,22 @@ export const LIQUID = {
 
 /** What the traits add on top of the liquid's own light; every term still ends under the cap. */
 export const TRAIT_GAIN = {
-  /** Emberroot's light from inside, times its deepened colour. */
+  /** Emberroot's light from inside, times its deepened colour, warmer towards yellow by `glowWarm`. */
   glow: 0.55,
+  glowWarm: [1, 1.7, 1.4] as const,
   /** Snailshine's pearly sheen. */
   pearl: 1,
   /** A fine fleck in the skin: its faint colour, and its flash when it faces the candle. */
   fleck: 0.6,
   fleckSpark: 3,
+  /** A bubble on the glass: its pale rim, and its glint towards the candle. */
+  cling: 0.5,
+  clingGlint: 1.2,
 }
 /** The fine flecks' cell in the skin, mm. */
 const FLECK_CELL_MM = 1.5
+/** The clinging bubbles' cell in the skin, mm; each holds at most one, its radius at most 0.38 of the cell. */
+const CLING_CELL_MM = 3
 /** The body under the bottle's widest point darkens by up to this, facing straight down. */
 const UNDER_DARK = 0.42
 
@@ -419,6 +425,7 @@ uniform float uPearl[${MAX_POURS}];
 uniform float uGlow[${MAX_POURS}];
 uniform float uFleck[${MAX_POURS}];
 uniform vec3 uFleckTint[${MAX_POURS}];
+uniform float uCling[${MAX_POURS}];
 uniform float uTime, uFloor, uDepth, uSelf, uDiffuse, uThru, uCap, uMilkSheen, uSurfaceSheen;
 uniform vec3 uKeyDir, uKeyColour, uBackDir, uBackColour;
 varying vec3 vBottle;
@@ -434,13 +441,13 @@ vec3 potionHash3(vec3 p) {
   p += dot(p, p.yxz + 33.33);
   return fract((p.xxy + p.yxx) * p.zyx);
 }
-struct PotionTraits { float cloud; float swirl; float pearl; float glow; float fleck; vec3 tint; };
+struct PotionTraits { float cloud; float swirl; float pearl; float glow; float fleck; vec3 tint; float cling; };
 PotionTraits potionTraitsOf(int i) {
-  return PotionTraits(uCloud[i], uSwirl[i], uPearl[i], uGlow[i], uFleck[i], uFleckTint[i]);
+  return PotionTraits(uCloud[i], uSwirl[i], uPearl[i], uGlow[i], uFleck[i], uFleckTint[i], uCling[i]);
 }
 PotionTraits potionTraitsMix(PotionTraits a, PotionTraits b, float s) {
   return PotionTraits(mix(a.cloud, b.cloud, s), mix(a.swirl, b.swirl, s), mix(a.pearl, b.pearl, s),
-    mix(a.glow, b.glow, s), mix(a.fleck, b.fleck, s), mix(a.tint, b.tint, s));
+    mix(a.glow, b.glow, s), mix(a.fleck, b.fleck, s), mix(a.tint, b.tint, s), mix(a.cling, b.cling, s));
 }
 // The bands' colour and traits at height h along the surface's up: one function of h, so a mix can blend it later.
 vec3 potionBand(float h, out PotionTraits t) {
@@ -471,10 +478,10 @@ vec3 potionTrait(vec3 c, PotionTraits t, vec3 p, out float vein) {
     vec3 warp = vec3(potionNoise(q + vec3(0.0, 0.0, uTime * 0.05)),
       potionNoise(q + vec3(5.2, 1.3, uTime * 0.04)), potionNoise(q + vec3(1.7, 9.2, -uTime * 0.03)));
     float n = potionNoise(q * 1.3 + warp * 1.6) + 0.35 * potionNoise(q * 3.1 + warp);
-    vein = (1.0 - smoothstep(0.02, 0.24 - 0.12 * t.pearl, abs(n + 0.15 * sin(h * 0.2)))) * t.swirl;
+    vein = (1.0 - smoothstep(0.02 - 0.02 * t.pearl, 0.24 + 0.14 * t.pearl, abs(n + 0.15 * sin(h * 0.2)))) * t.swirl;
     vec3 deep = c * mix(vec3(1.0), c, 0.5) * 0.9;
     vec3 light = mix(c, vec3(1.0), 0.32 - 0.08 * t.pearl);
-    vec3 marble = mix(mix(deep, c, 0.5 + 0.35 * potionNoise(q * 2.0)), light, vein * (0.72 - 0.07 * t.pearl));
+    vec3 marble = mix(mix(deep, c, 0.5 + 0.35 * potionNoise(q * 2.0)), light, vein * (0.64 - 0.3 * t.pearl));
     c = mix(c, marble, t.swirl);
   }
   return c;
@@ -532,17 +539,17 @@ if (liqSurface) {
 liqGlow += liqCloud * pow(1.0 - liqNdv, 2.0) * uMilkSheen * liqAlbedo * mix(vec3(0.95, 0.9, 1.0), vec3(1.0, 0.95, 0.9), liqUp);
 float liqCandle = smoothstep(-0.25, 0.75, dot(normal, liqKeyView));
 if (liqTraits.glow > 0.01) {
-  float heat = 0.5 + 0.5 * potionFbm(liqP * 0.05 - uUp * (uTime * 0.12));
+  float heat = 0.8 + 0.2 * potionFbm(liqP * 0.03 - uUp * (uTime * 0.12));
   float core = liqThick * liqThick;
-  liqGlow *= mix(1.0, 0.55 + 0.45 * core, liqTraits.glow);
-  reflectedLight.directDiffuse *= mix(1.0, 0.6 + 0.4 * core, liqTraits.glow);
-  liqGlow += liqDeep * liqTraits.glow * ${fixed(TRAIT_GAIN.glow)} * heat * core;
+  liqGlow *= mix(1.0, 0.4 + 0.6 * core, liqTraits.glow);
+  reflectedLight.directDiffuse *= mix(1.0, 0.45 + 0.55 * core, liqTraits.glow);
+  liqGlow += liqDeep * vec3(${TRAIT_GAIN.glowWarm.map(fixed).join(', ')}) * liqTraits.glow * ${fixed(TRAIT_GAIN.glow)} * heat * core;
 }
 if (liqTraits.pearl > 0.01) {
   float film = 1.4 * liqNdv + 0.7 * liqVein + 0.3 * potionNoise(liqP * 0.04);
   vec3 irid = 0.5 + 0.5 * cos(6.2832 * (film + vec3(0.0, 0.33, 0.67)));
-  float sheen = 0.04 + 0.3 * liqVein + 0.2 * pow(1.0 - liqNdv, 2.0);
-  liqGlow += liqTraits.pearl * ${fixed(TRAIT_GAIN.pearl)} * mix(vec3(0.85), irid, 0.8) * sheen * mix(0.5, 1.0, liqCandle);
+  float sheen = 0.07 + 0.22 * liqVein + 0.28 * pow(1.0 - liqNdv, 2.0);
+  liqGlow += liqTraits.pearl * ${fixed(TRAIT_GAIN.pearl)} * mix(vec3(0.9), irid, 0.5) * sheen * mix(0.5, 1.0, liqCandle);
 }
 if (liqTraits.fleck > 0.01) {
   vec3 at = liqP / ${fixed(FLECK_CELL_MM)};
@@ -550,13 +557,46 @@ if (liqTraits.fleck > 0.01) {
   vec3 hash = potionHash3(cell);
   float d = length(at - cell - 0.2 - 0.6 * potionHash3(cell + 7.7)) * ${fixed(FLECK_CELL_MM)};
   float r = max((0.1 + 0.22 * hash.y) * ${fixed(FLECK_CELL_MM)}, 0.6 * liqPx);
-  float flake = (1.0 - smoothstep(0.4 * r, r, d)) * step(0.4, hash.x) * (0.4 + 0.6 * hash.z);
+  float flake = (1.0 - smoothstep(0.4 * r, r, d)) * step(0.25, hash.x) * (0.4 + 0.6 * hash.z);
   vec3 facet = potionHash3(cell + 3.3) * 2.0 - 1.0 + 0.45 * vec3(sin(uTime * 0.9 + hash.y * 40.0),
     cos(uTime * 0.7 + hash.z * 30.0), sin(uTime * 0.8 + hash.x * 20.0));
   vec3 facetView = normalize(facet.x * vXView + facet.y * vYView + facet.z * vAxisView);
   float spark = pow(abs(dot(facetView, normalize(liqKeyView + liqView))), 30.0);
   liqGlow += liqTraits.fleck * flake * liqTraits.tint * uKeyColour * liqRim *
     (${fixed(TRAIT_GAIN.fleck)} + ${fixed(TRAIT_GAIN.fleckSpark)} * spark * liqCandle);
+}
+if (liqTraits.cling > 0.01 && !liqSurface) {
+  // Bubbles on the glass: a disc on the skin where a seeded point lies close to it, searched over the eight nearest cells.
+  vec3 skinN = normalize(vBottleNormal);
+  vec3 keyT = liqKeyView - normal * dot(liqKeyView, normal);
+  keyT = normalize(keyT + vec3(0.0, 1e-3, 0.0));
+  vec3 base = floor(liqP / ${fixed(CLING_CELL_MM)} - 0.5);
+  float ring = 0.0;
+  float inner = 0.0;
+  float glint = 0.0;
+  for (int i = 0; i < 8; i++) {
+    vec3 cell = base + mod(floor(vec3(float(i), float(i) / 2.0, float(i) / 4.0)), 2.0);
+    vec3 hash = potionHash3(cell + 17.1);
+    if (hash.x < 0.15) continue;
+    vec3 o = liqP - (cell + potionHash3(cell + 4.4)) * ${fixed(CLING_CELL_MM)};
+    float r = (0.16 + 0.22 * hash.y * hash.y) * ${fixed(CLING_CELL_MM)};
+    float off = dot(o, skinN);
+    if (abs(off) > 0.7 * r) continue;
+    vec3 along = o - skinN * off;
+    float s = length(along) / r;
+    if (s > 1.0) continue;
+    float px = liqPx / r;
+    ring = max(ring, smoothstep(0.6 - px, 0.82, s) * (1.0 - smoothstep(0.9, 1.0, s)));
+    inner = max(inner, 1.0 - smoothstep(0.85, 1.0, s));
+    vec3 alongView = along.x * vXView + along.y * vYView + along.z * vAxisView;
+    glint = max(glint, 1.0 - smoothstep(0.0, 0.3 + px, length(alongView / r - 0.42 * keyT)));
+  }
+  float cling = liqTraits.cling;
+  liqGlow *= 1.0 - 0.18 * cling * ring;
+  reflectedLight.directDiffuse *= 1.0 - 0.18 * cling * ring;
+  vec3 pale = mix(liqAlbedo, vec3(1.0), 0.7) * mix(vec3(1.0), uKeyColour, 0.25);
+  liqGlow += cling * liqRim * (pale * (${fixed(TRAIT_GAIN.cling)} * ring + 0.08 * inner) +
+    mix(vec3(1.0), uKeyColour, 0.3) * ${fixed(TRAIT_GAIN.clingGlint)} * glint * mix(0.35, 1.0, liqCandle));
 }
 `
 
@@ -574,6 +614,7 @@ export interface LiquidUniforms {
   uGlow: THREE.IUniform<number[]>
   uFleck: THREE.IUniform<number[]>
   uFleckTint: THREE.IUniform<THREE.Vector3[]>
+  uCling: THREE.IUniform<number[]>
   uTime: THREE.IUniform<number>
   uFloor: THREE.IUniform<number>
   uDepth: THREE.IUniform<number>
@@ -604,6 +645,7 @@ function liquidUniforms(): LiquidUniforms {
     uGlow: { value: new Array<number>(MAX_POURS).fill(0) },
     uFleck: { value: new Array<number>(MAX_POURS).fill(0) },
     uFleckTint: { value: Array.from({ length: MAX_POURS }, () => new THREE.Vector3(1, 1, 1)) },
+    uCling: { value: new Array<number>(MAX_POURS).fill(0) },
     uTime: { value: 0 },
     uFloor: { value: 0 },
     uDepth: { value: LIQUID.depth },
@@ -754,6 +796,7 @@ export function createLiquid(): Liquid {
         u.uPearl.value[i] = shading.pearl
         u.uGlow.value[i] = shading.glow
         u.uFleck.value[i] = shading.fleck
+        u.uCling.value[i] = shading.cling
         const c = fleck && shading.fleck > 0 ? tint.set(fleck) : white
         u.uFleckTint.value[i]!.set(c.r, c.g, c.b)
         soft[i] = shading.cloud > 0 ? CLOUD_EDGE : 1

@@ -263,6 +263,9 @@ describe('the liquid', () => {
     liquid.setLayers([{ colour: '#f0892a', trait: 'glow' }])
     expect(u.uGlow.value[0]).toBe(1)
     expect(u.uCloud.value[0]).toBe(0)
+    expect(u.uCling.value[0]).toBe(0)
+    liquid.setLayers([{ colour: '#7ccf4f', trait: 'fizz', ingredient: 'frogfizz' }])
+    expect(u.uCling.value[0]).toBe(1)
     liquid.dispose()
   })
 
@@ -284,8 +287,14 @@ describe('the liquid', () => {
   it('keeps the glow from inside under the cap on the brightest glowing ingredient', () => {
     const glowing = INGREDIENTS.filter((i) => traitLook(i.trait, i.id).shading.glow > 0)
     expect(glowing.length).toBeGreaterThan(0)
-    const peak = Math.max(...glowing.flatMap((i) => srgbToLinear(i.colour)))
-    expect(peak * (LIQUID.self + TRAIT_GAIN.glow)).toBeLessThan(REST_CAP)
+    const peak = Math.max(
+      ...glowing.flatMap((i) =>
+        srgbToLinear(i.colour).map(
+          (c, k) => c * (LIQUID.self + TRAIT_GAIN.glow * TRAIT_GAIN.glowWarm[k]!),
+        ),
+      ),
+    )
+    expect(peak).toBeLessThan(REST_CAP)
   })
 
   it('softens the edge where a cloudy band meets another, still in order', () => {

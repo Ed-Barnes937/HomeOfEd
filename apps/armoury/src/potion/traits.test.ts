@@ -4,7 +4,16 @@ import { normalise } from '../engine/schema.ts'
 import { type ShapeId } from './bottles.ts'
 import { compilePotion, type PotionSpec } from './compile.ts'
 import { INGREDIENTS, type Trait } from './ingredients.ts'
-import { MOTE_PROGRAMS, MAX_MOTES, motePool, motesShown, moteBand } from './traits.ts'
+import {
+  bubbleAt,
+  MOTE_PROGRAMS,
+  MAX_MOTES,
+  moteBand,
+  moteEdgeFade,
+  motePool,
+  moteShown,
+  motesShown,
+} from './traits.ts'
 import { bandTops, bottleProfile, BASE_MM } from './profile.ts'
 import { potionPresets } from './presets.ts'
 import { potionSchema } from './potionSchema.ts'
@@ -109,9 +118,28 @@ describe("the motes' layout", () => {
       }
   })
 
-  it('is the same every time for a bottle, so a repeated band is not a stamped pattern', () => {
+  it('is the same every time for a bottle', () => {
     const profile = bottleProfile(potion(['starpetal', 'starpetal', 'starpetal']))
     expect(motePool(profile).rest).toEqual(motePool(profile).rest)
+  })
+
+  it("does not repeat one band's pattern in the band above, so three of one are not stamped", () => {
+    const profile = bottleProfile(potion(['starpetal', 'starpetal', 'starpetal']))
+    const [top0, top1] = bandTops(profile, 2) as [number, number]
+    const { rest, count } = motePool(profile)
+    const points = Array.from({ length: count }, (_, i) => [
+      rest[3 * i]!,
+      rest[3 * i + 1]!,
+      rest[3 * i + 2]!,
+    ])
+    const below = points.filter(([, , z]) => z! > BASE_MM && z! <= top0)
+    const above = points.filter(([, , z]) => z! > top0 && z! <= top1)
+    const shift = top0 - BASE_MM
+    const repeated = below.filter(([x, y, z]) =>
+      above.some(([u, v, w]) => Math.hypot(u! - x!, v! - y!, w! - z! - shift) < 1),
+    )
+    expect(below.length).toBeGreaterThan(20)
+    expect(repeated.length).toBeLessThan(0.15 * below.length)
   })
 
   it('puts each mote in the band its height falls in, none above the surface', () => {
@@ -140,6 +168,138 @@ describe("the motes' layout", () => {
     }
   })
 
+  it("shows none of a mote at its band's edges, all of it well inside", () => {
+    expect(moteEdgeFade(10, 10, 30)).toBe(0)
+    expect(moteEdgeFade(30, 10, 30)).toBe(0)
+    expect(moteEdgeFade(20, 10, 30)).toBe(1)
+    expect(moteEdgeFade(9, 10, 30)).toBe(0)
+    expect(moteEdgeFade(31, 10, 30)).toBe(0)
+    expect(moteEdgeFade(10.2, 10, 10.4)).toBeGreaterThan(0)
+  })
+
+  it('lets a mote change band only while it is not shown, as the levels move under it', () => {
+    const profile = bottleProfile(potion(['frogfizz', 'starpetal', 'puffcap'], 'round'))
+    const pool = motePool(profile)
+    const tops = bandTops(profile, 3)
+    const up = [0, 0, 1] as const
+    const at = (i: number) => pool.rest.subarray(3 * i, 3 * i + 3)
+    let before: { band: number; shown: number }[] = []
+    let switched = 0
+    for (let step = 0; step <= 600; step++) {
+      const lift = 6 * Math.sin((step / 600) * Math.PI * 2)
+      const levels = tops.map((h) => h + lift)
+      const now = Array.from({ length: pool.count }, (_, i) => ({
+        band: moteBand(at(i), up, levels, BASE_MM),
+        shown: moteShown(at(i), up, levels, BASE_MM),
+      }))
+      now.forEach((mote, i) => {
+        const was = before[i]
+        if (!was || was.band === mote.band) return
+        switched++
+        expect(was.shown, `mote ${i} leaving band ${was.band} at step ${step}`).toBeLessThan(0.01)
+        expect(mote.shown, `mote ${i} joining band ${mote.band} at step ${step}`).toBeLessThan(0.01)
+      })
+      before = now
+    }
+    expect(switched).toBeGreaterThan(10)
+  })
+})
+
+describe("the bubbles' rise", () => {
+  const rest = [3.3, -7.1, 24] as const
+  const seeds = [
+    [0.1, 0.2, 0.9, 0.3],
+    [0.6, 0.85, 0.15, 0.5],
+    [0.3, 0.05, 0.6, 0.95],
+  ] as const
+  const RISE = 20
+  const distance = (a: readonly number[], b: readonly number[]) =>
+    Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!)
+
+  interface Frame {
+    t: number
+    up: readonly number[]
+    lo: number
+    hi: number
+  }
+
+  /** Each step moves a shown bubble no further than its own rise, the band's move and `reach` allow. */
+  function expectSmooth(frames: Frame[], seed: readonly number[], reach: number) {
+    let prev: { frame: Frame; at: ReturnType<typeof bubbleAt> } | null = null
+    for (const frame of frames) {
+      const at = bubbleAt(rest, seed, frame.up, 0, frame.lo, frame.hi, frame.t, RISE)
+      if (prev && (prev.at.fade > 0.01 || at.fade > 0.01)) {
+        const span = Math.max(frame.hi - frame.lo, prev.frame.hi - prev.frame.lo)
+        const allowed =
+          (12 * (frame.t - prev.frame.t) * span) / RISE +
+          Math.abs(frame.hi - prev.frame.hi) +
+          Math.abs(frame.lo - prev.frame.lo) +
+          reach
+        expect(distance(prev.at.p, at.p), `t ${frame.t.toFixed(3)}`).toBeLessThanOrEqual(allowed)
+      }
+      prev = { frame, at }
+    }
+  }
+
+  it('rises smoothly through a band whose top sloshes, a minute after the page opened', () => {
+    for (const seed of seeds) {
+      const frames = Array.from({ length: 240 }, (_, i) => {
+        const t = 61 + i / 120
+        return { t, up: [0, 0, 1], lo: 10, hi: 32 + 1.5 * Math.sin(t * 9) }
+      })
+      expectSmooth(frames, seed, 0.1)
+    }
+  })
+
+  it('rises smoothly through a top band whose level climbs, as a pour raises it', () => {
+    for (const seed of seeds) {
+      const frames = Array.from({ length: 240 }, (_, i) => ({
+        t: 75 + i / 120,
+        up: [0, 0, 1],
+        lo: 30,
+        hi: 32 + 12 * (i / 240),
+      }))
+      expectSmooth(frames, seed, 0.1)
+    }
+  })
+
+  it('keeps each bubble in its own stream as the surface swings, never jumping to another', () => {
+    for (const seed of seeds) {
+      const frames = Array.from({ length: 240 }, (_, i) => {
+        const swing = ((12 * Math.PI) / 180) * Math.sin((i / 240) * Math.PI * 4)
+        const turn = (i / 240) * Math.PI * 2
+        const up = [
+          Math.sin(swing) * Math.cos(turn),
+          Math.sin(swing) * Math.sin(turn),
+          Math.cos(swing),
+        ]
+        return { t: 61 + i / 120, up, lo: 10, hi: 32 }
+      })
+      expectSmooth(frames, seed, 0.6)
+    }
+  })
+
+  it('stays finite with the bottle tipped flat towards the eye', () => {
+    const { p, fade } = bubbleAt(rest, seeds[0], [0, 1, 0], 0, -20, 10, 3, RISE)
+    expect(p.every(Number.isFinite)).toBe(true)
+    expect(Number.isFinite(fade)).toBe(true)
+  })
+
+  it('climbs from the floor to the top of its band and is gone at both ends', () => {
+    const heights: number[] = []
+    for (let t = 0; t < 4; t += 0.01) {
+      const { p, rise, fade } = bubbleAt(rest, seeds[1], [0, 0, 1], 0, 10, 30, t, RISE)
+      heights.push(p[2])
+      expect(p[2]).toBeGreaterThanOrEqual(10)
+      expect(p[2]).toBeLessThanOrEqual(30)
+      if (rise < 0.003 || rise > 0.997) expect(fade).toBeLessThan(0.01)
+    }
+    expect(Math.min(...heights)).toBeLessThan(11)
+    expect(Math.max(...heights)).toBeGreaterThan(29)
+  })
+})
+
+describe("the motes' layout, posed", () => {
   it('keeps every band with motes well filled, upright, leaned 59, tipped 44 and both', () => {
     for (const shape of SHAPES) {
       const spec = potion(['frogfizz', 'starpetal', 'puffcap'], shape)

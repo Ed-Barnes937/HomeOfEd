@@ -3,7 +3,10 @@ import * as THREE from 'three'
 
 import { MAX_POURS } from '../potion/potionSchema.ts'
 import {
+  BUBBLE_CELL_MM,
+  BUBBLE_STREAMED,
   type CavityRadii,
+  MOTE_EDGE_MM,
   type MoteKind,
   type MotePool,
   MOTE_PROGRAMS,
@@ -17,17 +20,19 @@ export const MOTE_RADII = 48
 const code = (kind: MoteKind | null) => (kind ? MOTE_PROGRAMS[kind].code : 0)
 const FLECK = MOTE_PROGRAMS.fleck.code
 const BUBBLE = MOTE_PROGRAMS.bubble.code
+const glslFloat = (v: number) => v.toFixed(4)
 
 // Every mote rests at its pool point; the band it rests in picks its program, so the bands stay
-// level in any pose. Then it moves on the liquid's clock, fades at its band's soft edges and the
-// wall, and dims through the liquid between it and the eye.
+// level in any pose, and it is gone by the time the band's edge reaches its rest point. Then it
+// moves on the liquid's clock, fades at its band's soft edges and the wall, and dims through the
+// liquid between it and the eye. A bubble's path is `bubbleAt` in `potion/traits.ts`.
 const MOTES_VERTEX = /* glsl */ `
 attribute vec4 aSeed;
 uniform vec3 uUp, uEye, uKeyDir, uKeyColour;
 uniform float uLevels[${MAX_POURS}];
 uniform float uEdges[${MAX_POURS - 1}];
 uniform int uCount;
-uniform float uFloor, uTime, uHalfHeight, uPixelRatio;
+uniform float uFloor, uTime, uHalfHeight, uPixelRatio, uRise;
 uniform vec3 uColour[${MAX_POURS}];
 uniform float uKind[${MAX_POURS}];
 uniform float uDensity[${MAX_POURS}];
@@ -39,10 +44,15 @@ varying float vAlpha;
 varying float vKind;
 varying float vSpin;
 varying float vGlint;
+varying float vSoft;
 vec3 motesHash3(vec3 p) {
   p = fract(p * vec3(0.1031, 0.1030, 0.0973));
   p += dot(p, p.yxz + 33.33);
   return fract((p.xxy + p.yxx) * p.zyx);
+}
+float motesEdge(float h0, float lo, float hi) {
+  float e = max(0.01, min(${glslFloat(MOTE_EDGE_MM)}, 0.25 * (hi - lo)));
+  return smoothstep(lo, lo + e, h0) * (1.0 - smoothstep(hi - e, hi, h0));
 }
 float motesRadius(float z) {
   float f = clamp((z - uRadiusAt.x) / uRadiusAt.y, 0.0, ${MOTE_RADII - 1}.0 - 0.001);
@@ -55,6 +65,7 @@ void main() {
   vKind = 0.0;
   vSpin = 0.0;
   vGlint = 0.0;
+  vSoft = 0.0;
   gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
   gl_PointSize = 0.0;
   float h0 = dot(position, uUp);
@@ -67,27 +78,32 @@ void main() {
   float lo = band == 0 ? uFloor : uLevels[band - 1];
   float hi = uLevels[band];
   bool top = band == uCount - 1;
+  float fade = motesEdge(h0, lo, hi);
+  if (fade < 0.01) return;
   float t = uTime;
   vec3 p = position;
   float size;
-  float fade = 1.0;
   if (kind < ${FLECK}.5) {
     p += 0.7 * vec3(sin(t * 0.37 + aSeed.y * 40.0), sin(t * 0.29 + aSeed.z * 17.0), sin(t * 0.33 + aSeed.w * 23.0));
     size = 0.5 + 0.65 * aSeed.z * aSeed.z;
+    if (aSeed.y > 0.86) {
+      vSoft = 1.0;
+      size = 1.6 + 1.2 * aSeed.z;
+    }
   } else if (kind < ${BUBBLE}.5) {
-    // Most bubbles rise in a few streams from the band's floor; the rest on their own.
-    vec3 e1 = normalize(cross(vec3(0.0, 1.0, 0.0), uUp));
-    vec3 e2 = cross(uUp, e1);
-    vec2 across = vec2(dot(position, e1), dot(position, e2));
-    vec2 cell = floor(across / 10.0);
-    vec3 site = motesHash3(vec3(cell, float(band) + 0.5));
-    if (aSeed.w < 0.7) across = (cell + 0.2 + 0.6 * site.xy) * 10.0 + 0.4 * (aSeed.zy - 0.5);
+    vec3 anchor = position;
+    if (aSeed.w < ${glslFloat(BUBBLE_STREAMED)}) {
+      vec3 cell = floor(position / ${glslFloat(BUBBLE_CELL_MM)});
+      vec3 site = motesHash3(vec3(cell.xy, float(band) + 0.5));
+      anchor = vec3((cell.xy + 0.2 + 0.6 * site.xy) * ${glslFloat(BUBBLE_CELL_MM)} + 0.4 * (aSeed.zy - 0.5),
+        (cell.z + 0.5) * ${glslFloat(BUBBLE_CELL_MM)});
+    }
+    float rise = fract(aSeed.y + t * (6.0 + 6.0 * aSeed.z) / uRise);
+    anchor.x += 0.25 * sin(t * 7.0 + aSeed.w * 50.0) * rise;
     float span = max(hi - lo, 0.5);
-    float rise = fract(aSeed.y + t * (6.0 + 6.0 * aSeed.z) / span);
-    across.x += 0.25 * sin(t * 7.0 + aSeed.w * 50.0) * rise;
-    p = e1 * across.x + e2 * across.y + uUp * (lo + span * rise);
-    size = (0.6 + 0.9 * aSeed.z * aSeed.z) * mix(0.7, 1.15, rise);
-    fade = smoothstep(0.0, 0.08, rise) * (1.0 - smoothstep(0.86, 1.0, rise));
+    p = anchor + uUp * (lo + span * rise - dot(anchor, uUp));
+    size = (0.9 + 1.1 * aSeed.z * aSeed.z) * mix(0.75, 1.15, rise);
+    fade *= smoothstep(0.0, 0.08, rise) * (1.0 - smoothstep(0.86, 1.0, rise));
   } else {
     p += 1.8 * vec3(sin(t * 0.13 + aSeed.y * 40.0), sin(t * 0.11 + aSeed.z * 17.0), sin(t * 0.09 + aSeed.w * 23.0));
     size = 1.0 + 1.8 * aSeed.w;
@@ -96,7 +112,7 @@ void main() {
   if (kind > ${BUBBLE}.5 || kind < ${FLECK}.5) {
     float eLo = band == 0 ? 0.0 : uEdges[band - 1];
     float eHi = top ? 0.0 : uEdges[band];
-    if (band > 0) fade *= smoothstep(lo - eLo, lo + eLo, h);
+    fade *= band > 0 ? smoothstep(lo - eLo, lo + eLo, h) : smoothstep(lo + 0.5 * size, lo + 1.5 * size, h);
     fade *= top ? 1.0 - smoothstep(hi - 1.5 * size, hi - 0.5 * size, h)
                 : 1.0 - smoothstep(hi - eHi, hi + eHi, h);
   }
@@ -134,7 +150,7 @@ void main() {
     vec3 lit = mix(vec3(1.0), uKeyColour, 0.5);
     vColour = uTint[band] * (lit * (0.5 + 0.5 * candle) + uKeyColour * 3.0 * spark * candle) * seen;
     vSpin = aSeed.w * 6.2832 + t * 0.5 * (aSeed.y - 0.5);
-    vAlpha = fade * mix(0.4, 1.0, seen.g);
+    vAlpha = fade * mix(0.4, 1.0, seen.g) * (vSoft > 0.5 ? 0.45 : 1.0);
   } else if (kind < ${BUBBLE}.5) {
     float clear = max(max(seen.r, seen.g), seen.b);
     vColour = mix(c, vec3(1.0), 0.65) * mix(vec3(1.0), uKeyColour, 0.4) * (0.75 + 0.55 * candle) * mix(vec3(clear), seen, 0.5);
@@ -159,6 +175,7 @@ varying float vAlpha;
 varying float vKind;
 varying float vSpin;
 varying float vGlint;
+varying float vSoft;
 ${SOFT_CAP_GLSL}
 void main() {
   vec2 c = gl_PointCoord * 2.0 - 1.0;
@@ -168,18 +185,21 @@ void main() {
   float a;
   // Each mote adds its light and hides only a little of the liquid behind it, so none reads as a hole.
   float cover;
-  if (vKind < ${FLECK}.5) {
+  if (vSoft > 0.5) {
+    a = (1.0 - smoothstep(0.55, 1.0, r)) * 0.8 + 0.2 * exp(-r * r * 6.0);
+    cover = 0.1;
+  } else if (vKind < ${FLECK}.5) {
     float s = sin(vSpin);
     float k = cos(vSpin);
     vec2 q = mat2(k, -s, s, k) * c;
     a = 1.0 - smoothstep(0.55, 0.95, max(abs(q.x) * 0.87 + abs(q.y) * 0.5, abs(q.y)));
     cover = 0.3;
   } else if (vKind < ${BUBBLE}.5) {
-    float rim = smoothstep(0.5, 0.82, r) * (1.0 - smoothstep(0.86, 1.0, r));
-    float glint = 1.0 - smoothstep(0.0, 0.3, length(c - vec2(-0.36, -0.36)));
-    a = 0.12 + 0.88 * rim + glint;
-    col = col * (0.3 + rim) + vGlint * glint;
-    cover = 0.15;
+    float rim = smoothstep(0.55, 0.8, r) * (1.0 - smoothstep(0.88, 1.0, r));
+    float glint = 1.0 - smoothstep(0.0, 0.28, length(c - vec2(-0.34, -0.34)));
+    a = 0.1 + rim + glint;
+    col = col * (0.3 + 1.3 * rim) + vGlint * glint;
+    cover = 0.2;
   } else {
     a = exp(-r * r * 3.2) - 0.04;
     cover = 0.25;
@@ -202,6 +222,7 @@ export interface MoteUniforms {
   uRadiusAt: THREE.IUniform<THREE.Vector2>
   uHalfHeight: THREE.IUniform<number>
   uPixelRatio: THREE.IUniform<number>
+  uRise: THREE.IUniform<number>
 }
 
 export interface Motes {
@@ -237,6 +258,7 @@ export function createMotes(liquid: LiquidUniforms): Motes {
     uRadiusAt: { value: new THREE.Vector2(0, 1) },
     uHalfHeight: { value: 400 },
     uPixelRatio: { value: 1 },
+    uRise: { value: 20 },
   }
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -265,9 +287,10 @@ export function createMotes(liquid: LiquidUniforms): Motes {
         uniforms.uTint.value[i]!.set(colour.r, colour.g, colour.b)
       }
     },
-    setCavity({ radii, z0, dz }) {
+    setCavity({ radii, z0, dz, rise }) {
       for (let i = 0; i < MOTE_RADII; i++) uniforms.uRadius.value[i] = radii[i] ?? 0
       uniforms.uRadiusAt.value.set(z0, dz)
+      uniforms.uRise.value = rise
     },
     dispose() {
       material.dispose()

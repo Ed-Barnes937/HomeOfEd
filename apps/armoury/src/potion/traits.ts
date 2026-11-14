@@ -5,6 +5,7 @@
 import { type IngredientId, ingredient, type Trait } from './ingredients.ts'
 import type { BottleProfile } from './profile.ts'
 import { BASE_MM } from './profile.ts'
+import { MAX_POURS } from './potionSchema.ts'
 
 /** How much of each shader look a band takes; the shader blends them across the soft edges. */
 export interface TraitShading {
@@ -15,6 +16,8 @@ export interface TraitShading {
   glow: number
   /** Fine flecks in the liquid's skin, under the glitter's motes. */
   fleck: number
+  /** Bubbles clinging to the glass, under the fizz's rising motes. */
+  cling: number
 }
 
 /** Ticket 23 adds `speck`, the murk's sinking specks. */
@@ -27,12 +30,12 @@ export interface TraitLook {
   tint: string | null
 }
 
-const NONE: TraitShading = { cloud: 0, swirl: 0, pearl: 0, glow: 0, fleck: 0 }
+const NONE: TraitShading = { cloud: 0, swirl: 0, pearl: 0, glow: 0, fleck: 0, cling: 0 }
 
 export const TRAIT_LOOKS: Record<Trait, TraitLook> = {
   clear: { shading: NONE, motes: null, tint: null },
   cloud: { shading: { ...NONE, cloud: 1 }, motes: null, tint: null },
-  fizz: { shading: NONE, motes: 'bubble', tint: null },
+  fizz: { shading: { ...NONE, cling: 1 }, motes: 'bubble', tint: null },
   glitter: { shading: { ...NONE, fleck: 1 }, motes: 'fleck', tint: '#ffe4a0' },
   glow: { shading: { ...NONE, glow: 1 }, motes: null, tint: null },
   swirl: { shading: { ...NONE, swirl: 1 }, motes: null, tint: null },
@@ -132,6 +135,8 @@ export interface CavityRadii {
   radii: Float32Array
   z0: number
   dz: number
+  /** A band's height in a full bottle, upright: the fixed length every bubble's rise is timed on, mm. */
+  rise: number
 }
 
 /** The cavity's radius less the liquid's gap, sampled up its height for the motes' shader. */
@@ -141,7 +146,7 @@ export function cavityRadii(profile: BottleProfile, n: number, gap: number): Cav
   const radii = Float32Array.from({ length: n }, (_, i) =>
     Math.max(0, profile.innerR(z0 + i * dz) - gap),
   )
-  return { radii, z0, dz }
+  return { radii, z0, dz, rise: (profile.fullZ - z0) / MAX_POURS }
 }
 
 type Vec3 = readonly [number, number, number] | ArrayLike<number>
@@ -154,7 +159,29 @@ export function moteBand(p: Vec3, up: Vec3, levels: readonly number[], floor: nu
   return -1
 }
 
-/** How many motes each band shows at rest, for bands carrying `kinds` (the shader's own rule). */
+/** A mote fades out over this much, mm, as its rest point nears its band's floor or top. */
+export const MOTE_EDGE_MM = 1.5
+
+const smoothstep = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+  return t * t * (3 - 2 * t)
+}
+
+/** How much shows of a mote resting at height `h0` in a band from `lo` to `hi`: none at either edge. */
+export function moteEdgeFade(h0: number, lo: number, hi: number): number {
+  const e = Math.max(0.01, Math.min(MOTE_EDGE_MM, 0.25 * (hi - lo)))
+  return smoothstep(lo, lo + e, h0) * (1 - smoothstep(hi - e, hi, h0))
+}
+
+/** How much shows of the mote resting at `p`, by its band's edges; 0 above the surface. */
+export function moteShown(p: Vec3, up: Vec3, levels: readonly number[], floor: number): number {
+  const band = moteBand(p, up, levels, floor)
+  if (band < 0) return 0
+  const h = p[0] * up[0] + p[1] * up[1] + p[2] * up[2]
+  return moteEdgeFade(h, band === 0 ? floor : levels[band - 1]!, levels[band]!)
+}
+
+/** How many motes each band shows well (half or more) at rest, for bands carrying `kinds` (the shader's own rule). */
 export function motesShown(
   pool: MotePool,
   up: Vec3,
@@ -164,9 +191,71 @@ export function motesShown(
 ): number[] {
   const counts = levels.map(() => 0)
   for (let i = 0; i < pool.count; i++) {
-    const band = moteBand(pool.rest.subarray(3 * i, 3 * i + 3), up, levels, floor)
+    const rest = pool.rest.subarray(3 * i, 3 * i + 3)
+    const band = moteBand(rest, up, levels, floor)
     const kind = band < 0 ? null : kinds[band]
-    if (kind && pool.seed[4 * i]! < MOTE_PROGRAMS[kind].density) counts[band]!++
+    if (
+      kind &&
+      pool.seed[4 * i]! < MOTE_PROGRAMS[kind].density &&
+      moteShown(rest, up, levels, floor) >= 0.5
+    )
+      counts[band]!++
   }
   return counts
+}
+
+/** The bubbles' streams stand on this lattice in the bottle's own frame, mm. */
+export const BUBBLE_CELL_MM = 10
+/** Seven in ten bubbles rise in a stream, the rest on their own. */
+export const BUBBLE_STREAMED = 0.7
+
+const fract = (v: number) => v - Math.floor(v)
+
+/** The motes' shader's hash, three numbers in [0, 1) from a point. */
+export function motesHash3(x: number, y: number, z: number): [number, number, number] {
+  let [a, b, c] = [fract(x * 0.1031), fract(y * 0.103), fract(z * 0.0973)]
+  const d = a * b + b * a + c * c + 33.33 * (a + b + c)
+  ;[a, b, c] = [a + d, b + d, c + d]
+  return [fract((a + b) * c), fract((a + a) * b), fract((b + a) * a)]
+}
+
+/** How far up its band a bubble is, 0 to 1, at time `t`: on a fixed length, so a band's moving span never jumps it. */
+export function bubbleRise(seed: Vec3 | readonly number[], t: number, riseMm: number): number {
+  return fract(seed[1] + (t * (6 + 6 * seed[2])) / riseMm)
+}
+
+/**
+ * Where the bubble resting at `rest` is at time `t`, rising in band `band` from `lo` to `hi`
+ * along `up` (the TypeScript twin of the motes' shader), and how much its rise lets show.
+ */
+export function bubbleAt(
+  rest: Vec3,
+  seed: Vec3 | readonly number[],
+  up: Vec3,
+  band: number,
+  lo: number,
+  hi: number,
+  t: number,
+  riseMm: number,
+): { p: [number, number, number]; rise: number; fade: number } {
+  let anchor: [number, number, number] = [rest[0], rest[1], rest[2]]
+  if (seed[3]! < BUBBLE_STREAMED) {
+    const cell = anchor.map((v) => Math.floor(v / BUBBLE_CELL_MM))
+    const site = motesHash3(cell[0]!, cell[1]!, band + 0.5)
+    anchor = [
+      (cell[0]! + 0.2 + 0.6 * site[0]) * BUBBLE_CELL_MM + 0.4 * (seed[2] - 0.5),
+      (cell[1]! + 0.2 + 0.6 * site[1]) * BUBBLE_CELL_MM + 0.4 * (seed[1] - 0.5),
+      (cell[2]! + 0.5) * BUBBLE_CELL_MM,
+    ]
+  }
+  const rise = bubbleRise(seed, t, riseMm)
+  anchor[0] += 0.25 * Math.sin(t * 7 + seed[3]! * 50) * rise
+  const span = Math.max(hi - lo, 0.5)
+  const lift = lo + span * rise - (anchor[0] * up[0] + anchor[1] * up[1] + anchor[2] * up[2])
+  const p: [number, number, number] = [
+    anchor[0] + up[0] * lift,
+    anchor[1] + up[1] * lift,
+    anchor[2] + up[2] * lift,
+  ]
+  return { p, rise, fade: smoothstep(0, 0.08, rise) * (1 - smoothstep(0.86, 1, rise)) }
 }
